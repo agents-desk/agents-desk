@@ -1,4 +1,4 @@
-// Command agents-desk 是agents-desk的入口：serve 运行 HTTP 服务，health 供 Docker 的健康检查使用，openapi、routes、client 供 go tool tenon 生成文档和客户端。
+// Command agents-desk 是应用的入口：serve 运行 HTTP 服务，health 供 Docker 的健康检查使用，openapi、routes、client 供 go tool tenon 生成文档和客户端。
 package main
 
 import (

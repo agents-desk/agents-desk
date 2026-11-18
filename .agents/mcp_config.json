@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "gopls": {
+      "args": [
+        "mcp"
+      ],
+      "command": "gopls"
+    },
+    "mantine": {
+      "args": [
+        "-y",
+        "@mantine/mcp-server"
+      ],
+      "command": "npx"
+    },
+    "tenon": {
+      "command": "go",
+      "args": [
+        "tool",
+        "tenon",
+        "mcp"
+      ]
+    }
+  }
+}
