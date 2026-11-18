@@ -21,18 +21,18 @@ var addr = tenant.Addresses{PublicURL: "https://desk.example.com"}
 // acme 是新建 acme 的参数，主管理员 alice 还没有账号。
 var acme = tenant.CreateParams{Name: "Acme", Slug: "acme", OwnerEmail: "alice@acme.com", OwnerName: "Alice", OwnerPassword: "alice-pass-123"}
 
-// rolesOf 返回 ref 在租户 id 中的角色 ID。
+// rolesOf 返回 ref 在租户 id 中的角色名称。
 func rolesOf(t *testing.T, env *apptest.Env, ref identity.Ref, id string) []string {
 	t.Helper()
 	roles, err := env.Roles.RolesOf(context.Background(), ref, id)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ids := make([]string, len(roles))
+	names := make([]string, len(roles))
 	for i, r := range roles {
-		ids[i] = r.ID
+		names[i] = r.Name
 	}
-	return ids
+	return names
 }
 
 // count 返回 SQL 查询的计数。
@@ -62,7 +62,7 @@ func TestCreateMakesOwnerAccountAndRole(t *testing.T) {
 	if out.Subject.ID != ten.OwnerID {
 		t.Fatalf("主管理员是 %s，登录得到 %s", ten.OwnerID, out.Subject.ID)
 	}
-	if got := rolesOf(t, env, out.Subject.Ref(), ten.ID); !slices.Equal(got, []string{auth.OwnerRoleID}) {
+	if got := rolesOf(t, env, out.Subject.Ref(), ten.ID); !slices.Equal(got, []string{auth.Owner.Name}) {
 		t.Fatalf("主管理员的角色：%v", got)
 	}
 	if addr.URL(ten) != "https://desk.example.com/t/acme/" {

@@ -39,8 +39,9 @@ func RegisterRoutes(api *rest.API, requireRead, requireManage func(*huma.Operati
 		Filters:    []string{"name", "status"},
 		CreateForm: []string{"name", "slug", "owner_email", "owner_name", "owner_password"},
 		Actions: []rest.Action{
-			{Name: "disable", Operation: "tenant-disable", Confirm: true, Danger: true},
-			{Name: "enable", Operation: "tenant-enable", Confirm: true},
+			// 停用只在正常的工作区上显示，启用只在已停用的上显示
+			{Name: "disable", Operation: "tenant-disable", Confirm: true, Danger: true, When: map[string][]string{"status": {string(Active)}}},
+			{Name: "enable", Operation: "tenant-enable", Confirm: true, When: map[string][]string{"status": {string(Disabled)}}},
 		},
 	})
 }

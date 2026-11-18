@@ -45,8 +45,8 @@ export const resources = {
       { name: "name", type: "string", required: true },
     ],
     actions: [
-      { name: "disable", operation: ["tenant", "disable"], permissions: ["tenants:manage"], confirm: true, danger: true },
-      { name: "enable", operation: ["tenant", "enable"], permissions: ["tenants:manage"], confirm: true, danger: false },
+      { name: "disable", operation: ["tenant", "disable"], permissions: ["tenants:manage"], confirm: true, danger: true, when: { "status": ["active"] } },
+      { name: "enable", operation: ["tenant", "enable"], permissions: ["tenants:manage"], confirm: true, danger: false, when: { "status": ["disabled"] } },
     ],
     labels: {
       "zh-CN": {

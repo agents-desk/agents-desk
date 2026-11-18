@@ -271,8 +271,8 @@ AI 和成员一样是参与者：可以加入团队、负责工单、被 @、被
 bun install
 docker compose up -d --wait      # PostgreSQL 和 NATS
 printf 'crypt:\n  key: %s\n' "$(openssl rand -base64 32)" > config/local.yaml   # 应用密钥，只在本机
-go run ./cmd/agents-desk migrate up --config config/app.yaml,config/local.yaml
-go run ./cmd/agents-desk admin create --email ops@example.com --config config/app.yaml,config/local.yaml
+go run ./cmd/agents-desk migrate up
+go run ./cmd/agents-desk admin create --email ops@example.com
 bun run dev      # 工作区端在 http://localhost:8081，管理员端在 /admin/，接口文档在 /api/docs、/admin/api/docs
 bun run build    # 构建 bin/agents-desk
 ```

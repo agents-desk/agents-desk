@@ -14,7 +14,6 @@ export const PlatformadminErrors = {
   NotFound: "platform_admin.not_found",
   Disabled: "platform_admin.disabled",
   EmailTaken: "platform_admin.email_taken",
-  PasswordMismatch: "platform_admin.password_mismatch",
 } as const
 
 /** agents-desk/internal/tenant 的错误码。 */
@@ -42,6 +41,12 @@ export const AuthzErrors = {
   RoleExists: "authz.role_exists",
   /** ErrInvalid 表示输入不合法，例如权限不在目录中、把租户自定义的角色分配到其他租户。 */
   Invalid: "authz.invalid",
+} as const
+
+/** github.com/go-tenon/tenon/command 的错误码。 */
+export const CommandErrors = {
+  /** ErrSecretMismatch 表示 ReadSecret 要求输入两次时，两次输入的值不同。 */
+  SecretMismatch: "command.secret_mismatch",
 } as const
 
 /** github.com/go-tenon/tenon/crypt 的错误码。 */

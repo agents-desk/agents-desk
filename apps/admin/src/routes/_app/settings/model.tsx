@@ -2,12 +2,11 @@ import { Alert, Button, Group, Stack, Tabs, Text, TextInput } from "@mantine/cor
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import type { ErrorInfo } from "@go-tenon/client"
-import { applyServerErrors, FormError, Page, useSchemaForm } from "@go-tenon/ui"
+import { applyServerErrors, FormError, Page, SecretInput, useSchemaForm } from "@go-tenon/ui"
 import type { LlmEndpoint, LlmPurpose, LlmSettings } from "@agents-desk/client/admin"
 import { useEffect, useState } from "react"
 import { api } from "../../../auth"
 import { kit } from "../../../resources"
-import { SecretInput } from "../../../secret-input"
 
 export const Route = createFileRoute("/_app/settings/model")({
   staticData: { title: "模型接口", order: 1, permission: "platform-settings:manage" },
@@ -44,21 +43,18 @@ function ModelSettings() {
   )
 }
 
-// Values 是一种用途的表单值，与 LlmEndpoint 相同；写成映射类型，满足 useSchemaForm 对 Record<string, unknown> 的要求。
-type Values = { [K in keyof LlmEndpoint]: LlmEndpoint[K] }
-
 // EndpointForm 是一种用途的表单：saved 是已保存的值，读到后作为初始值；保存时只提交这种用途。
 function EndpointForm({ purpose, description, saved }: { purpose: LlmPurpose; description: string; saved?: LlmEndpoint }) {
   const queryClient = useQueryClient()
   const form = useSchemaForm({
     schema: kit.schemas.llm.endpointSave.body,
     rules: kit,
-    initialValues: { base_url: "", api_key: "", model: "" } as Values,
+    initialValues: { base_url: "", api_key: "", model: "" } as LlmEndpoint,
   })
   const [error, setError] = useState<ErrorInfo>()
   const [done, setDone] = useState(false)
 
-  const load = (e: Values) => {
+  const load = (e: LlmEndpoint) => {
     form.setInitialValues(e)
     form.reset()
   }

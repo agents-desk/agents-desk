@@ -43,7 +43,7 @@ type App struct {
 	llmSettings *settings.Group[llm.Settings] // 模型接口的平台设置
 }
 
-// open 安装日志器，连接 PostgreSQL 和 NATS，创建账号、权限和设置的存储。serve 和需要资源的命令执行时调用它，
+// open 安装日志器，连接 PostgreSQL 和 NATS，确保预置的角色存在，创建账号、权限和设置的存储。serve 和需要资源的命令执行时调用它，
 // 登记到 stack 的资源在进程退出时按相反顺序关闭。
 func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	slog.SetDefault(logging.New(logging.Config{}))
@@ -66,6 +66,9 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	keys := crypt.New(cfg.Crypt) // 派生登录验证码的密钥
 	hasher := hashing.New(cfg.Hashing)
 	roles := authz.NewStore(db, auth.Catalog)
+	if err := auth.EnsureRoles(ctx, roles); err != nil {
+		return nil, err
+	}
 	// 每个邮箱 15 分钟内最多输错 5 次密码，计数保存在数据库中，所有实例共享。两套账号各自计数。
 	every15 := ratelimit.Config{Rate: 5, Interval: 15 * time.Minute, Burst: 5}
 	adminLogins := login.New(db, login.Options{

@@ -21,7 +21,7 @@ agents-desk 是开源、AI 原生的团队沟通和服务平台，产品与设�
 
 ## 框架与文档
 
-- 框架是 `github.com/go-tenon/tenon` v0.0.4。
+- 框架是 `github.com/go-tenon/tenon` v0.0.6。
 - 框架的文档在 `.tenon/docs` 中，与上面的版本一致，`bun run dev` 每次启动时更新。先读目录 `.tenon/docs/README.md`，写某一部分的代码前读对应的页面，写法以这个版本的文档为准。
 - 查框架的文档用 MCP 工具 `tenon_search_docs`、`tenon_read_doc`；用 rg 搜索时指定目录，例如 `rg 迁移 .tenon/docs`：`.tenon` 被 .gitignore 忽略，在项目根目录搜索时不包含它。
 - 应用的入口是 `./cmd/agents-desk`，`go run ./cmd/agents-desk --help` 列出应用的命令。
@@ -64,8 +64,8 @@ agents-desk 是开源、AI 原生的团队沟通和服务平台，产品与设�
 ```bash
 docker compose up -d --wait                                          # PostgreSQL（127.0.0.1:15432）和 NATS（127.0.0.1:14222）
 printf 'crypt:\n  key: %s\n' "$(openssl rand -base64 32)" > config/local.yaml   # 应用密钥，只在本机
-go run ./cmd/agents-desk migrate up --config config/app.yaml,config/local.yaml
-go run ./cmd/agents-desk admin create --email ops@example.com --config config/app.yaml,config/local.yaml
+go run ./cmd/agents-desk migrate up
+go run ./cmd/agents-desk admin create --email ops@example.com
 bun run dev                                                          # 管理员端在 http://localhost:8081/admin/
 ```
 
@@ -95,7 +95,7 @@ internal/apptest/        测试共用的装配：临时库、账号体系、应�
 migrations/              SQL 迁移，包括 migrate publish 发布的框架迁移
 locales/                 翻译文件：错误提示、资源和字段、枚举和权限的显示文字
 docs/adr/                架构决策记录
-config/app.yaml          配置；本机的覆盖写在 config/local.yaml，不提交
+config/app.yaml          配置；本机的覆盖写在 config/local.yaml，不提交，命令和 bun run dev 自动叠加它
 apps/<前端>/             TanStack Start 前端，挂载路径写在 package.json 的 tenon 字段
 packages/client/         bun run generate 生成的客户端，不手改
 .tenon/                  tenon 复制的框架前端包和文档，不提交

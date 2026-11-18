@@ -1,7 +1,6 @@
 import { Button, Group, Modal, PasswordInput, Stack, Text, TextInput } from "@mantine/core"
-import { useQueryClient } from "@tanstack/react-query"
 import type { ErrorInfo } from "@go-tenon/client"
-import { applyServerErrors, FormError, useSchemaForm } from "@go-tenon/ui"
+import { applyServerErrors, FormError, useResourceMutations, useSchemaForm } from "@go-tenon/ui"
 import type { TenantDTO } from "@agents-desk/client/admin"
 import { useEffect, useState } from "react"
 import { api } from "./auth"
@@ -10,7 +9,7 @@ import { kit, tenants } from "./resources"
 // ChangeOwnerModal 更换工作区的主管理员：填写新主管理员的邮箱；这个邮箱还没有成员账号时，再填写姓名和初始密码。
 // 原主管理员的 owner 角色被撤销。tenant 为空时关闭。
 export function ChangeOwnerModal({ tenant, onClose }: { tenant?: TenantDTO; onClose: () => void }) {
-  const queryClient = useQueryClient()
+  const { invalidate } = useResourceMutations(tenants)
   const form = useSchemaForm({
     schema: kit.schemas.tenant.changeOwner.body,
     rules: kit,
@@ -35,7 +34,7 @@ export function ChangeOwnerModal({ tenant, onClose }: { tenant?: TenantDTO; onCl
           setSaving(true)
           try {
             await api.tenant.changeOwner(tenant.id, values)
-            await queryClient.invalidateQueries({ queryKey: [...tenants.queryKey] }) // 列表和详情
+            await invalidate() // 列表和详情重新读取
             onClose()
           } catch (err) {
             setError(applyServerErrors(form, err))

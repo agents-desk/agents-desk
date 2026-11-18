@@ -8,12 +8,11 @@ require (
 	github.com/cockroachdb/errors v1.14.0
 	github.com/danielgtaylor/huma/v2 v2.40.0
 	github.com/go-chi/chi/v5 v5.5.0
-	github.com/go-tenon/tenon v0.0.4
+	github.com/go-tenon/tenon v0.0.6
 	github.com/google/uuid v1.6.0
 	github.com/nats-io/nats.go v1.55.0
 	github.com/spf13/cobra v1.10.2
 	github.com/uptrace/bun v1.3.0
-	golang.org/x/term v0.48.0
 )
 
 require (
@@ -78,6 +77,7 @@ require (
 	golang.org/x/oauth2 v0.38.0 // indirect
 	golang.org/x/sync v0.25.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
+	golang.org/x/term v0.48.0 // indirect
 	golang.org/x/text v0.44.0 // indirect
 	golang.org/x/time v0.16.0 // indirect
 	golang.org/x/tools v0.52.0 // indirect

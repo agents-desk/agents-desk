@@ -30,9 +30,3 @@ var Catalog = authz.Catalog{
 	{Name: string(TenantsManage), Description: "管理工作区"},
 	{Name: string(PlatformSettingsManage), Description: "修改平台设置"},
 }
-
-// 预置的全局角色，由迁移 seed_roles 写入，ID 固定。
-const (
-	PlatformAdminRoleID = "01900000-0000-7000-8000-000000000001" // platform-admin：平台管理员，分配在平台的域 "" 中
-	OwnerRoleID         = "01900000-0000-7000-8000-000000000002" // owner：租户的主管理员，分配在租户的域中
-)

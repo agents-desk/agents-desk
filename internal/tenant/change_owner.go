@@ -60,10 +60,10 @@ func (a *ChangeOwner) Handle(ctx context.Context, subject identity.Subject, id s
 			return nil
 		}
 		roles := authz.NewStore(tx, auth.Catalog)
-		if err := roles.Unassign(ctx, t.Owner.Ref(), t.ID, auth.OwnerRoleID); err != nil {
+		if err := auth.Revoke(ctx, roles, t.Owner.Ref(), t.ID, auth.Owner); err != nil {
 			return err
 		}
-		if err := roles.Assign(ctx, owner.Ref(), t.ID, auth.OwnerRoleID); err != nil {
+		if err := auth.Grant(ctx, roles, owner.Ref(), t.ID, auth.Owner); err != nil {
 			return err
 		}
 		previous := t.OwnerID

@@ -131,8 +131,6 @@ func toDTO(ctx context.Context, logins *login.Realm, addr Addresses, t *Tenant) 
 	}
 	return TenantDTO{
 		ID: t.ID, Name: t.Name, Slug: t.Slug, URL: addr.URL(t), Status: t.Status(),
-		OwnerID: t.OwnerID, OwnerName: t.Owner.Name, OwnerEmail: email,
-		// 数据库按会话的时区返回、只保存到微秒：统一为 UTC 和微秒，创建和读取时得到同样的值
-		CreatedAt: t.CreatedAt.UTC().Truncate(time.Microsecond),
+		OwnerID: t.OwnerID, OwnerName: t.Owner.Name, OwnerEmail: email, CreatedAt: t.CreatedAt,
 	}, nil
 }

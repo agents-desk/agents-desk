@@ -2,7 +2,6 @@
 platform_admin.not_found: 平台管理员不存在
 platform_admin.disabled: 这个平台管理员账号已停用
 platform_admin.email_taken: 这个邮箱已经是平台管理员
-platform_admin.password_mismatch: 两次输入的密码不一致
 
 member.not_found: 成员不存在
 member.disabled: 这个邮箱的成员账号已停用

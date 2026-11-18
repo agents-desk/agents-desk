@@ -50,7 +50,7 @@ func (a *Create) Handle(ctx context.Context, subject identity.Subject, p CreateP
 	if err := checkSlug(p.Slug); err != nil {
 		return nil, err
 	}
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Microsecond) // PostgreSQL 只保存到微秒：创建后返回的值与之后读出的相同
 	t := &Tenant{ID: newID(), Slug: p.Slug, Name: p.Name, CreatedAt: now, UpdatedAt: now}
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		owner, err := member.Ensure(ctx, tx, a.logins, member.Account{Email: p.OwnerEmail, Name: p.OwnerName, Password: p.OwnerPassword})
@@ -64,7 +64,7 @@ func (a *Create) Handle(ctx context.Context, subject identity.Subject, p CreateP
 			}
 			return errors.Wrap(err, "insert tenant")
 		}
-		if err := authz.NewStore(tx, auth.Catalog).Assign(ctx, owner.Ref(), t.ID, auth.OwnerRoleID); err != nil {
+		if err := auth.Grant(ctx, authz.NewStore(tx, auth.Catalog), owner.Ref(), t.ID, auth.Owner); err != nil {
 			return err
 		}
 		return activity.Record(ctx, tx, subject, activity.Activity{

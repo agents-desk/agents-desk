@@ -1,21 +1,18 @@
 package platformadmin
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"io"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/spf13/cobra"
 	"github.com/uptrace/bun"
-	"golang.org/x/term"
 
 	"github.com/go-tenon/tenon/activity"
 	"github.com/go-tenon/tenon/authz"
+	"github.com/go-tenon/tenon/command"
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
@@ -24,10 +21,7 @@ import (
 	"agents-desk/internal/auth"
 )
 
-var (
-	ErrEmailTaken       = errorx.Define(errorx.Conflict, "platform_admin.email_taken")
-	ErrPasswordMismatch = errorx.Define(errorx.InvalidArgument, "platform_admin.password_mismatch")
-)
+var ErrEmailTaken = errorx.Define(errorx.Conflict, "platform_admin.email_taken")
 
 // Create 创建平台管理员：platform_admins 中的一行、登录用的邮箱和密码，以及平台的域上的 platform-admin 角色。
 // 第一个平台管理员只能这样创建，入口是命令 admin create。
@@ -58,7 +52,7 @@ func (a *Create) Handle(ctx context.Context, actor identity.Subject, name, email
 		if err := a.logins.SetPassword(ctx, tx, admin.Ref(), password); err != nil {
 			return err
 		}
-		if err := authz.NewStore(tx, auth.Catalog).Assign(ctx, admin.Ref(), "", auth.PlatformAdminRoleID); err != nil {
+		if err := auth.Grant(ctx, authz.NewStore(tx, auth.Catalog), admin.Ref(), "", auth.PlatformAdmin); err != nil {
 			return err
 		}
 		return activity.Record(ctx, tx, actor, activity.Activity{
@@ -72,14 +66,14 @@ func (a *Create) Handle(ctx context.Context, actor identity.Subject, name, email
 }
 
 // Command 处理 admin create --email 邮箱 [--name 名字]。密码不出现在命令行参数和 shell 历史中：
-// 在终端中运行时提示输入两次；标准输入不是终端时（脚本、docker compose run -T）读取第一行。
+// 在终端中运行时提示输入两次（不一致时是 command.ErrSecretMismatch）；标准输入不是终端时（脚本、docker compose run -T）读取第一行。
 func (a *Create) Command(cmd *cobra.Command, _ []string) error {
 	email, _ := cmd.Flags().GetString("email")
 	name, _ := cmd.Flags().GetString("name")
 	if name == "" {
 		name, _, _ = strings.Cut(email, "@")
 	}
-	password, err := readPassword(cmd.InOrStdin(), cmd.ErrOrStderr())
+	password, err := command.ReadSecret(cmd, "密码：", "再输入一次：")
 	if err != nil {
 		return err
 	}
@@ -90,36 +84,4 @@ func (a *Create) Command(cmd *cobra.Command, _ []string) error {
 	}
 	_, err = fmt.Fprintln(cmd.OutOrStdout(), "已创建平台管理员", admin.Name, admin.ID)
 	return err
-}
-
-// readPassword 读取新密码：in 是终端时关闭回显，提示输入两次并比较；否则读取 in 的第一行。提示写到 prompt。
-func readPassword(in io.Reader, prompt io.Writer) (string, error) {
-	f, ok := in.(*os.File)
-	if !ok || !term.IsTerminal(int(f.Fd())) {
-		line, err := bufio.NewReader(in).ReadString('\n')
-		if err != nil && !errors.Is(err, io.EOF) {
-			return "", errors.Wrap(err, "read password")
-		}
-		return strings.TrimRight(line, "\r\n"), nil
-	}
-	read := func(label string) (string, error) {
-		if _, err := fmt.Fprint(prompt, label); err != nil {
-			return "", err
-		}
-		b, err := term.ReadPassword(int(f.Fd()))
-		_, _ = fmt.Fprintln(prompt)
-		return string(b), errors.Wrap(err, "read password")
-	}
-	first, err := read("密码：")
-	if err != nil {
-		return "", err
-	}
-	second, err := read("再输入一次：")
-	if err != nil {
-		return "", err
-	}
-	if first != second {
-		return "", ErrPasswordMismatch.New()
-	}
-	return first, nil
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/hashing"
 	"github.com/go-tenon/tenon/httpx"
+	"github.com/go-tenon/tenon/i18n"
 	"github.com/go-tenon/tenon/login"
 	"github.com/go-tenon/tenon/natsx"
 	"github.com/go-tenon/tenon/queue"
@@ -73,7 +74,8 @@ func main() {
 	// openapi、routes、client 用默认配置和没有打开资源的 App 构造同一套路由，从中读取路由表和接口定义；
 	// 翻译文件交给 client 命令，枚举、资源和权限的显示文字来自其中。
 	root.AddCommand(httpcmd.Commands(docRouter, httpcmd.Translations(locales.FS))...)
-	command.Execute(root)
+	// 命令失败时，业务错误按应用的翻译文件显示提示和错误码。
+	command.Execute(root, command.Languages(i18n.MustNew("zh-CN", locales.FS)))
 }
 
 // migrateCommand 返回 migrate 命令：up、status、down、make，以及发布框架自带的迁移的 publish。
