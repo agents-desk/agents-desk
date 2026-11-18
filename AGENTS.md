@@ -1,3 +1,15 @@
+<!-- intent-skills:start -->
+## Skill Loading
+
+Use the repository’s installed Intent. If it is unavailable, report the missing dependency instead of downloading a replacement.
+Before editing files for a substantial task:
+- Run `bunx --no-install --package @tanstack/intent intent list` from the workspace root to see available local skills.
+- If a listed skill matches the task, run `bunx --no-install --package @tanstack/intent intent load <package>#<skill>` before changing files.
+- Use the loaded `SKILL.md` guidance while making the change.
+- Monorepos: when working across packages, run the skill check from the workspace root and prefer the local skill for the package being changed.
+- Multiple matches: prefer the most specific local skill for the package or concern you are changing; load additional skills only when the task spans multiple packages or concerns.
+<!-- intent-skills:end -->
+
 # agents-desk
 
 agents-desk 是开源、AI 原生的团队沟通和服务平台，产品与设计见 [README.md](README.md)。项目是 Go 写的后端加 TanStack Start 写的前端，整个应用编译成一个二进制文件。本文写给在这个项目中工作的人和 AI 编程助手：怎样运行、提交前检查什么、代码按什么约定写。
@@ -90,6 +102,17 @@ CI（`.github/workflows/ci.yml`）在每次推送和 PR 中运行同样的检查
 - 依赖数据库的测试用 `database/dbtest` 的 `Open` 为每个测试建一个临时库。
 - 能在进程内模拟的外部服务就在进程内模拟：S3 用 [gofakes3](https://github.com/johannesboyne/gofakes3)，HTTP API 用 `httptest`。
 - 与时间有关的逻辑用 `testing/synctest` 控制时间。SQL 中的时间由 Go 算出后作为参数传入，不用 `NOW()` 这类数据库的时钟函数，这样假时钟对查询同样有效。
+
+## 依赖的文档
+
+写到依赖的地方时，先查它们给 AI 的文档。版本以 `go.mod` 和 `apps/web/package.json` 为准；网上的文档是最新的版本，两者有出入时以项目中的版本为准。
+
+- Go 的依赖：MCP 服务 `gopls`（查找符号、读包的 API、检查编译错误），或者 `go doc <包>.<名称>`。
+- Mantine：MCP 服务 `mantine`（组件的属性和用法）、技能 `mantine-form`、`mantine-combobox`、`mantine-custom-components`，文档目录 <https://mantine.dev/llms.txt>。
+- TanStack：Router 随包发布的技能经 TanStack Intent 加载，见本文开头 `intent-skills` 一段，允许的包写在 `package.json` 的 `intent.skills` 中；文档目录 <https://tanstack.com/router/latest/llms.txt>、<https://tanstack.com/start/latest/llms.txt>、<https://tanstack.com/query/latest/llms.txt>。
+- React：<https://react.dev/llms.txt>；Vite：<https://vite.dev/llms.txt>；Bun：<https://bun.com/llms.txt>。
+
+依赖的写法与本文、`.tenon/docs` 冲突时，以本文和 `.tenon/docs` 为准：例如业务逻辑写在 Go 的接口中，前端只负责展示和交互。
 
 ## 代码约定
 

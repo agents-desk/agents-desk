@@ -5,3 +5,11 @@
 command = "go"
 args = ["tool", "tenon", "mcp"]
 # tenon:end
+
+[mcp_servers.gopls]
+command = "gopls"
+args = ["mcp"]
+
+[mcp_servers.mantine]
+command = "npx"
+args = ["-y", "@mantine/mcp-server"]

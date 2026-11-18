@@ -292,6 +292,8 @@ bun run build    # 构建 bin/agents-desk
 
 项目用到的 Go、Mantine、TanStack 等也为 AI 编程助手提供了文档、MCP 服务和技能，按它们的官方方法接入。它们的写法与 Tenon 的约定冲突时，以 `AGENTS.md` 和 `.tenon/docs` 为准。
 
+这个项目已经按下面的方法接上了 gopls、Mantine 的 MCP 服务和技能，以及 TanStack Router 的技能，配置都已提交；更新依赖的技能时重新执行对应的命令。
+
 下面以 Claude Code 和 Codex 的命令为例。Claude Code 的命令加上 `-s project` 时写进项目的 `.mcp.json`，提交后团队共用。Cursor（`.cursor/mcp.json`）、Antigravity（`.agents/mcp_config.json`）在 `mcpServers` 中加上同样的 `command` 和 `args`，VS Code（`.vscode/mcp.json`）写在 `servers` 中。`bun run agents` 只改写其中的 `tenon` 一项，你加上的服务保持原样。
 
 **Go：gopls**（[官方说明](https://go.dev/gopls/features/mcp)）。Go 的语言服务，在项目和依赖（与 `go.mod` 的版本一致）中查找符号、读包的 API、检查编译错误：

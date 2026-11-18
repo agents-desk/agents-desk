@@ -11,11 +11,17 @@
     "apps/web",
     "packages/client"
   ],
+  "intent": {
+    "skills": ["@tanstack/react-router", "@tanstack/router-core"]
+  },
   "scripts": {
     "dev": "go tool tenon dev",
     "build": "go tool tenon build",
     "generate": "go tool tenon generate",
     "agents": "go tool tenon agents",
     "typecheck": "bun run --filter './apps/*' --filter './clients/*' typecheck"
+  },
+  "devDependencies": {
+    "@tanstack/intent": "^0.5.6"
   }
 }
