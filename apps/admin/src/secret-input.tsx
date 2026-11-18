@@ -2,10 +2,11 @@ import { ActionIcon, TextInput, type TextInputProps } from "@mantine/core"
 import { IconEye, IconEyeOff } from "@tabler/icons-react"
 import { useState } from "react"
 
-// mask 遮住密钥的中间部分：保留开头 3 位和末尾 4 位，例如 sk-••••••••abcd；太短的密钥全部遮住。
+// mask 遮住密钥的中间部分：保留开头 3 位和末尾 4 位，中间的每个字符换成一个圆点，长度与原文相同，
+// 例如 sk-1234567890abcd 显示为 sk-••••••••••abcd；不超过 8 位的密钥全部换成圆点。
 export function mask(value: string): string {
   if (value.length <= 8) return "•".repeat(value.length)
-  return `${value.slice(0, 3)}${"•".repeat(8)}${value.slice(-4)}`
+  return value.slice(0, 3) + "•".repeat(value.length - 7) + value.slice(-4)
 }
 
 // SecretInputProps 是密钥输入框的属性：与 TextInput 相同，value 和 onChange 是密钥本身。
@@ -14,7 +15,7 @@ type SecretInputProps = Omit<TextInputProps, "value" | "onChange"> & {
   onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void
 }
 
-// SecretInput 是密钥的输入框：平时只显示首尾、中间用圆点遮住，不能编辑；点眼睛图标显示完整的密钥并可以修改。
+// SecretInput 是密钥的输入框：平时只显示首尾、中间的字符换成圆点（普通文本框，字距与正文相同），不能编辑；点眼睛图标显示完整的密钥并可以修改。
 // 还没有填写密钥时直接可以输入。value 和 onChange 与 form.getInputProps 的结果相同。
 export function SecretInput({ value = "", onChange, ...props }: SecretInputProps) {
   const [shown, setShown] = useState(false)
