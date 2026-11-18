@@ -1,0 +1,7 @@
+# tenon:begin
+# 这一段由 go tool tenon agents 生成，不要手改。
+
+[mcp_servers.tenon]
+command = "go"
+args = ["tool", "tenon", "mcp"]
+# tenon:end

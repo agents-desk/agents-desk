@@ -2,6 +2,7 @@
   "name": "agents-desk",
   "private": true,
   "type": "module",
+  "packageManager": "bun@1.4.4",
   "workspaces": [
     ".tenon/js/client",
     ".tenon/js/host",
@@ -14,6 +15,7 @@
     "dev": "go tool tenon dev",
     "build": "go tool tenon build",
     "generate": "go tool tenon generate",
+    "agents": "go tool tenon agents",
     "typecheck": "bun run --filter './apps/*' --filter './clients/*' typecheck"
   }
 }

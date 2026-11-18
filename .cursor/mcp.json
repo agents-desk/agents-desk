@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "tenon": {
+      "command": "go",
+      "args": [
+        "tool",
+        "tenon",
+        "mcp"
+      ]
+    }
+  }
+}
