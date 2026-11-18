@@ -16,7 +16,7 @@ import (
 // SetDisabled 停用或启用租户。停用后成员不能进入这个工作区，数据保留，可以随时启用。
 type SetDisabled struct {
 	db       *bun.DB
-	logins   *login.Realm // 成员的 login.Realm，读取所有者的邮箱
+	logins   *login.Realm // 成员的 login.Realm，读取主管理员的邮箱
 	addr     Addresses
 	disabled bool // true 是停用，false 是启用
 }

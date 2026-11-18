@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_app/tenants")({
   component: Tenants,
 })
 
-// 所有者的初始密码用密码框输入。
+// 主管理员的初始密码用密码框输入。
 const PasswordField: FieldInput = ({ field, label, value, onChange, error, disabled }) => (
   <PasswordInput
     label={label}
@@ -24,7 +24,7 @@ const PasswordField: FieldInput = ({ field, label, value, onChange, error, disab
   />
 )
 
-// 工作区的列表、新建和修改按 Go 中的声明渲染；名称链接到工作区的地址，状态显示为带颜色的标签，行上多一个“更换所有者”。
+// 工作区的列表、新建和修改按 Go 中的声明渲染；名称链接到工作区的地址，状态显示为带颜色的标签，行上多一个“更换主管理员”。
 function Tenants() {
   const can = useCan()
   const [changing, setChanging] = useState<TenantDTO>()
@@ -49,7 +49,7 @@ function Tenants() {
           ),
         }}
         rowActions={(row) =>
-          can("tenants:manage") ? [{ label: "更换所有者", onClick: () => setChanging(row as unknown as TenantDTO) }] : []
+          can("tenants:manage") ? [{ label: "更换主管理员", onClick: () => setChanging(row as unknown as TenantDTO) }] : []
         }
       />
       <ChangeOwnerModal tenant={changing} onClose={() => setChanging(undefined)} />

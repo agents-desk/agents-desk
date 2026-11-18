@@ -27,7 +27,7 @@ type UpdateInput struct {
 // Update 修改租户的名称。
 type Update struct {
 	db     *bun.DB
-	logins *login.Realm // 成员的 login.Realm，读取所有者的邮箱
+	logins *login.Realm // 成员的 login.Realm，读取主管理员的邮箱
 	addr   Addresses
 }
 

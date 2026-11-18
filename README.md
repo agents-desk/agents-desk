@@ -218,7 +218,7 @@ AI 和成员一样是参与者：可以加入团队、负责工单、被 @、被
 | 动作和判定 | 写入路径完整实现；判定只有角色权限一类规则 |
 | 工作项 | 只有工单一种类型 |
 | 连接器 | 网页插件，按连接器接口实现 |
-| 模型调用 | 只用于翻译和语言识别 |
+| 模型调用 | 只用于翻译：一次调用同时识别语言和书写方式并给出译文 |
 
 ### 3.9 配置项
 
@@ -277,7 +277,7 @@ bun run dev      # 工作区端在 http://localhost:8081，管理员端在 /admi
 bun run build    # 构建 bin/agents-desk
 ```
 
-平台管理员登录管理员端，创建工作区并指定所有者；架构上的决定见 [docs/adr](docs/adr/README.md)。
+平台管理员登录管理员端，创建工作区并指定主管理员；架构上的决定见 [docs/adr](docs/adr/README.md)。
 
 目录、常用命令、提交前的检查和代码约定见 [AGENTS.md](AGENTS.md)，框架的文档在 `.tenon/docs` 中（`bun run dev` 时生成），也可以在线阅读 [Tenon 文档](https://github.com/go-tenon/tenon/tree/main/docs)。
 

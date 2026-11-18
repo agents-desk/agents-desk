@@ -44,12 +44,10 @@ export interface LlmEndpoint {
   model: string
 }
 
-export type LlmPurpose = "translation" | "language_detection"
+export type LlmPurpose = "translation"
 
 export interface LlmSettings {
-  /** 识别语言和书写方式 */
-  language_detection: LlmEndpoint
-  /** 翻译 */
+  /** 翻译：识别原文的语言和书写方式，译成目标语言 */
   translation: LlmEndpoint
 }
 
@@ -171,7 +169,7 @@ export function createClient(options: ClientOptions) {
     /** operationId 以 tenant- 开头的接口。 */
     tenant: {
       /**
-       * 更换所有者
+       * 更换主管理员
        *
        * PUT /tenants/{id}/owner
        */

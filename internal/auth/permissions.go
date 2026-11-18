@@ -14,7 +14,7 @@ type Permission string
 
 const (
 	TenantsRead            Permission = "tenants:read"             // 平台：查看租户
-	TenantsManage          Permission = "tenants:manage"           // 平台：创建、修改、停用租户，更换所有者
+	TenantsManage          Permission = "tenants:manage"           // 平台：创建、修改、停用租户，更换主管理员
 	PlatformSettingsManage Permission = "platform-settings:manage" // 平台：修改平台设置
 )
 
@@ -34,5 +34,5 @@ var Catalog = authz.Catalog{
 // 预置的全局角色，由迁移 seed_roles 写入，ID 固定。
 const (
 	PlatformAdminRoleID = "01900000-0000-7000-8000-000000000001" // platform-admin：平台管理员，分配在平台的域 "" 中
-	OwnerRoleID         = "01900000-0000-7000-8000-000000000002" // owner：租户的所有者，分配在租户的域中
+	OwnerRoleID         = "01900000-0000-7000-8000-000000000002" // owner：租户的主管理员，分配在租户的域中
 )

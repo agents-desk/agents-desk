@@ -7,8 +7,8 @@ import { useEffect, useState } from "react"
 import { api } from "./auth"
 import { kit, tenants } from "./resources"
 
-// ChangeOwnerModal 更换工作区的所有者：填写新所有者的邮箱；这个邮箱还没有成员账号时，再填写姓名和初始密码。
-// 原所有者的 owner 角色被撤销。tenant 为空时关闭。
+// ChangeOwnerModal 更换工作区的主管理员：填写新主管理员的邮箱；这个邮箱还没有成员账号时，再填写姓名和初始密码。
+// 原主管理员的 owner 角色被撤销。tenant 为空时关闭。
 export function ChangeOwnerModal({ tenant, onClose }: { tenant?: TenantDTO; onClose: () => void }) {
   const queryClient = useQueryClient()
   const form = useSchemaForm({
@@ -28,7 +28,7 @@ export function ChangeOwnerModal({ tenant, onClose }: { tenant?: TenantDTO; onCl
   }, [tenant])
 
   return (
-    <Modal opened={!!tenant} onClose={onClose} title={`更换“${tenant?.name ?? ""}”的所有者`}>
+    <Modal opened={!!tenant} onClose={onClose} title={`更换“${tenant?.name ?? ""}”的主管理员`}>
       <form
         onSubmit={form.onSubmit(async (values) => {
           if (!tenant) return
@@ -46,10 +46,10 @@ export function ChangeOwnerModal({ tenant, onClose }: { tenant?: TenantDTO; onCl
       >
         <Stack>
           <Text size="sm" c="dimmed">
-            现在的所有者是 {tenant?.owner_name}（{tenant?.owner_email}）。更换后，他在这个工作区中的所有者角色被撤销。
+            现在的主管理员是 {tenant?.owner_name}（{tenant?.owner_email}）。更换后，他在这个工作区中的主管理员角色被撤销。
           </Text>
           <FormError error={error} />
-          <TextInput label="新所有者的邮箱" required {...form.getInputProps("email")} />
+          <TextInput label="新主管理员的邮箱" required {...form.getInputProps("email")} />
           <Text size="sm" c="dimmed">
             这个邮箱已经有成员账号时，不需要填写下面两项。
           </Text>

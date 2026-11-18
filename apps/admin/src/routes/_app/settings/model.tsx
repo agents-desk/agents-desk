@@ -15,8 +15,7 @@ export const Route = createFileRoute("/_app/settings/model")({
 
 // purposes 是各用途：接口中的取值、显示的名称和说明。新增用途时在这里加一行。
 const purposes: { key: LlmPurpose; title: string; description: string }[] = [
-  { key: "translation", title: "翻译", description: "把客户和坐席的消息译成对方的语言" },
-  { key: "language_detection", title: "语言识别", description: "识别每条消息的语言和书写方式" },
+  { key: "translation", title: "翻译", description: "识别每条消息的语言和书写方式，并译成对方的语言；坐席回复前的回译也用它" },
 ]
 
 const queryKey = ["llm", "settings"]

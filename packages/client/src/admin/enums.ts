@@ -7,9 +7,9 @@
 export const enums = {
   LlmPurpose: {
     prefix: "llm.purpose",
-    values: ["translation", "language_detection"],
+    values: ["translation"],
     labels: {
-      "zh-CN": { translation: "翻译", language_detection: "语言识别" },
+      "zh-CN": { translation: "翻译" },
     },
   },
   TenantStatus: {

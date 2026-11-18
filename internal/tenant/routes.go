@@ -27,7 +27,7 @@ func RegisterRoutes(api *rest.API, requireRead, requireManage func(*huma.Operati
 	rest.Register(api, route(requireManage, "tenant-update", http.MethodPut, "/tenants/{id}", "修改工作区"), NewUpdate(db, logins, addr).HTTP)
 	rest.Register(api, route(requireManage, "tenant-disable", http.MethodPost, "/tenants/{id}/disable", "停用工作区"), NewDisable(db, logins, addr).HTTP)
 	rest.Register(api, route(requireManage, "tenant-enable", http.MethodPost, "/tenants/{id}/enable", "启用工作区"), NewEnable(db, logins, addr).HTTP)
-	rest.Register(api, route(requireManage, "tenant-change-owner", http.MethodPut, "/tenants/{id}/owner", "更换所有者"), NewChangeOwner(db, logins, addr).HTTP)
+	rest.Register(api, route(requireManage, "tenant-change-owner", http.MethodPut, "/tenants/{id}/owner", "更换主管理员"), NewChangeOwner(db, logins, addr).HTTP)
 
 	api.Resource(rest.Resource{
 		Name:       "tenant",

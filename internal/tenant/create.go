@@ -18,7 +18,7 @@ import (
 	"agents-desk/internal/member"
 )
 
-// CreateParams 是新建租户的内容：名称、slug 和所有者。所有者的邮箱已有成员账号时，姓名和初始密码不使用。
+// CreateParams 是新建租户的内容：名称、slug 和主管理员。主管理员的邮箱已有成员账号时，姓名和初始密码不使用。
 type CreateParams struct {
 	Name          string `json:"name" minLength:"1" maxLength:"60"`
 	Slug          string `json:"slug" pattern:"^[a-z][a-z0-9-]{1,30}[a-z0-9]$" doc:"工作区的地址 /t/{slug}/：小写字母开头，小写字母、数字和连字符，3 到 32 个字符；创建后不能修改"`
@@ -32,7 +32,7 @@ type CreateInput struct {
 	Body CreateParams
 }
 
-// Create 新建租户并指定所有者：所有者的邮箱没有成员账号时同时创建账号。
+// Create 新建租户并指定主管理员：主管理员的邮箱没有成员账号时同时创建账号。
 type Create struct {
 	db     *bun.DB
 	logins *login.Realm // 成员的 login.Realm
@@ -44,8 +44,8 @@ func NewCreate(db *bun.DB, logins *login.Realm, addr Addresses) *Create {
 	return &Create{db: db, logins: logins, addr: addr}
 }
 
-// Handle 在一个事务中写入租户、找到或创建所有者的账号、分配 owner 角色，并记录操作日志，任何一步失败时整体回滚。
-// slug 是保留词时返回 ErrSlugReserved，已被使用时返回 ErrSlugTaken；所有者的错误见 member.Ensure。
+// Handle 在一个事务中写入租户、找到或创建主管理员的账号、分配 owner 角色，并记录操作日志，任何一步失败时整体回滚。
+// slug 是保留词时返回 ErrSlugReserved，已被使用时返回 ErrSlugTaken；主管理员的错误见 member.Ensure。
 func (a *Create) Handle(ctx context.Context, subject identity.Subject, p CreateParams) (*Tenant, error) {
 	if err := checkSlug(p.Slug); err != nil {
 		return nil, err

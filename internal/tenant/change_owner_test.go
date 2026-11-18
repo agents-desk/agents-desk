@@ -29,9 +29,9 @@ func TestChangeOwnerMovesOwnerRole(t *testing.T) {
 	}
 	bob := identity.Ref{Type: member.Type, ID: changed.OwnerID}
 	if changed.OwnerID == alice.ID || changed.Owner.Name != "Bob" {
-		t.Fatalf("所有者没有换成 Bob：%+v", changed.Owner)
+		t.Fatalf("主管理员没有换成 Bob：%+v", changed.Owner)
 	}
-	// 原所有者没有其他角色，撤销 owner 后就不再是这个租户的成员
+	// 原主管理员没有其他角色，撤销 owner 后就不再是这个租户的成员
 	if got := rolesOf(t, env, alice, ten.ID); len(got) != 0 {
 		t.Fatalf("Alice 仍有角色：%v", got)
 	}
@@ -39,7 +39,7 @@ func TestChangeOwnerMovesOwnerRole(t *testing.T) {
 		t.Fatalf("Bob 的角色：%v", got)
 	}
 
-	// 换成现在的所有者时什么也不做
+	// 换成现在的主管理员时什么也不做
 	if _, err := change.Handle(ctx, apptest.Admin, ten.ID, tenant.OwnerParams{Email: "bob@acme.com"}); err != nil {
 		t.Fatal(err)
 	}

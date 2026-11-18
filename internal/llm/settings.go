@@ -19,11 +19,11 @@ type Endpoint struct {
 	Model   string `json:"model" maxLength:"200" doc:"模型名"`
 }
 
-// Settings 是各用途的模型接口。第 1 阶段只用到翻译和语言识别，其他用途用到时再加字段。
+// Settings 是各用途的模型接口。第 1 阶段只用到翻译：一次调用同时识别原文的语言和书写方式并给出译文，
+// 语言识别不单独配置。其他用途（向量、重排序、语音识别等）用到时再加字段。
 // 字段不带 omitempty，见 settings 包的说明。
 type Settings struct {
-	Translation       Endpoint `json:"translation" doc:"翻译"`
-	LanguageDetection Endpoint `json:"language_detection" doc:"识别语言和书写方式"`
+	Translation Endpoint `json:"translation" doc:"翻译：识别原文的语言和书写方式，译成目标语言"`
 }
 
 // NewGroup 返回平台的模型接口设置，名称 llm 保存在 settings 表中，发布后保持固定。
@@ -40,12 +40,11 @@ type SettingsBody struct {
 type Purpose string
 
 const (
-	Translation       Purpose = "translation"        // 翻译
-	LanguageDetection Purpose = "language_detection" // 识别语言和书写方式
+	Translation Purpose = "translation" // 翻译，同时识别原文的语言和书写方式
 )
 
 // Purposes 是全部用途，显示文字是翻译文件中 llm.purpose.<用途> 的消息。
-var Purposes = enum.New("llm.purpose", Translation, LanguageDetection)
+var Purposes = enum.New("llm.purpose", Translation)
 
 // Schema 让 OpenAPI 中的 Purpose 只接受上面的取值，并带有显示文字。
 func (Purpose) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Purposes) }
@@ -55,8 +54,6 @@ func (s *Settings) endpoint(p Purpose) *Endpoint {
 	switch p {
 	case Translation:
 		return &s.Translation
-	case LanguageDetection:
-		return &s.LanguageDetection
 	}
 	panic("llm: unknown purpose " + string(p))
 }

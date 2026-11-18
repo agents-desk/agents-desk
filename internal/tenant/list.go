@@ -25,7 +25,7 @@ type ListOutput struct {
 // List 列出全部租户，供平台管理员使用，按创建时间从新到旧排列。
 type List struct {
 	db     *bun.DB
-	logins *login.Realm // 成员的 login.Realm，读取所有者的邮箱
+	logins *login.Realm // 成员的 login.Realm，读取主管理员的邮箱
 	addr   Addresses
 }
 

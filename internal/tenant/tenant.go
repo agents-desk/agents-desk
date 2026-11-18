@@ -48,7 +48,7 @@ var Statuses = enum.New("tenant.status", Active, Disabled)
 // Schema 让 OpenAPI 中的 Status 只接受上面的取值，并带有显示文字。
 func (Status) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Statuses) }
 
-// Tenant 是一个租户。所有者在 owner_id 中，同时在 authz 中拥有这个租户的 owner 角色，两者在同一个事务中修改。
+// Tenant 是一个租户。主管理员在 owner_id 中，同时在 authz 中拥有这个租户的 owner 角色，两者在同一个事务中修改。
 type Tenant struct {
 	bun.BaseModel `bun:"table:tenants"`
 
@@ -70,7 +70,7 @@ func (t *Tenant) Status() Status {
 	return Active
 }
 
-// TenantDTO 是接口中的租户，带有所有者的名字和邮箱。
+// TenantDTO 是接口中的租户，带有主管理员的名字和邮箱。
 type TenantDTO struct {
 	ID         string    `json:"id"`
 	Name       string    `json:"name"`
@@ -109,7 +109,7 @@ func checkSlug(slug string) error {
 	return nil
 }
 
-// find 按 ID 读取租户和它的所有者，不存在时返回 ErrNotFound。lock 为 true 时用 FOR UPDATE 锁住这一行。
+// find 按 ID 读取租户和它的主管理员，不存在时返回 ErrNotFound。lock 为 true 时用 FOR UPDATE 锁住这一行。
 func find(ctx context.Context, db bun.IDB, id string, lock bool) (*Tenant, error) {
 	t := new(Tenant)
 	q := db.NewSelect().Model(t).Where("tenant.id = ?", id)
@@ -123,7 +123,7 @@ func find(ctx context.Context, db bun.IDB, id string, lock bool) (*Tenant, error
 	return t, errors.Wrap(err, "load tenant")
 }
 
-// toDTO 把租户转换为接口中的形式，按 logins（成员的 login.Realm）读取所有者的邮箱。t.Owner 必须已加载。
+// toDTO 把租户转换为接口中的形式，按 logins（成员的 login.Realm）读取主管理员的邮箱。t.Owner 必须已加载。
 func toDTO(ctx context.Context, logins *login.Realm, addr Addresses, t *Tenant) (TenantDTO, error) {
 	email, err := member.Email(ctx, logins, t.Owner.Ref())
 	if err != nil {
