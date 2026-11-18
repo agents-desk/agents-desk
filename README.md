@@ -265,13 +265,19 @@ agents-desk 通过一个 OpenAI 兼容的接口调用模型，每种用途配置
 
 ### 5.1 开始
 
-需要 Go（版本见 [go.mod](go.mod)）和 [Bun](https://bun.sh)：
+需要 Go（版本见 [go.mod](go.mod)）、[Bun](https://bun.sh) 和 Docker：
 
 ```bash
 bun install
-bun run dev      # 打开 http://localhost:8080，接口文档在 /api/docs
+docker compose up -d --wait      # PostgreSQL 和 NATS
+printf 'crypt:\n  key: %s\n' "$(openssl rand -base64 32)" > config/local.yaml   # 应用密钥，只在本机
+go run ./cmd/agents-desk migrate up --config config/app.yaml,config/local.yaml
+go run ./cmd/agents-desk admin create --email ops@example.com --config config/app.yaml,config/local.yaml
+bun run dev      # 工作区端在 http://localhost:8080，管理员端在 /admin/，接口文档在 /api/docs、/admin/api/docs
 bun run build    # 构建 bin/agents-desk
 ```
+
+平台管理员登录管理员端，创建工作区并指定所有者；架构上的决定见 [docs/adr](docs/adr/README.md)。
 
 目录、常用命令、提交前的检查和代码约定见 [AGENTS.md](AGENTS.md)，框架的文档在 `.tenon/docs` 中（`bun run dev` 时生成），也可以在线阅读 [Tenon 文档](https://github.com/go-tenon/tenon/tree/main/docs)。
 

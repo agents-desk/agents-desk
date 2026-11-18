@@ -30,6 +30,7 @@ agents-desk 是开源、AI 原生的团队沟通和服务平台，产品与设�
 
 ## 前端与客户端
 
+- `apps/admin`：挂在 `/admin/`，只在浏览器中渲染。
 - `apps/web`：挂在 `/`，在服务端渲染。
 
 ## 技能
@@ -56,7 +57,17 @@ agents-desk 是开源、AI 原生的团队沟通和服务平台，产品与设�
 
 - Go，版本以 [go.mod](go.mod) 为准；
 - [Bun](https://bun.sh)，安装前端依赖、运行前端的开发服务器；
-- Docker，用到 PostgreSQL、NATS 这类服务时在本机启动它们。
+- Docker，在本机启动 PostgreSQL 和 NATS。
+
+第一次运行：
+
+```bash
+docker compose up -d --wait                                          # PostgreSQL（127.0.0.1:15432）和 NATS（127.0.0.1:14222）
+printf 'crypt:\n  key: %s\n' "$(openssl rand -base64 32)" > config/local.yaml   # 应用密钥，只在本机
+go run ./cmd/agents-desk migrate up --config config/app.yaml,config/local.yaml
+go run ./cmd/agents-desk admin create --email ops@example.com --config config/app.yaml,config/local.yaml
+bun run dev                                                          # 管理员端在 http://localhost:8080/admin/
+```
 
 ## 常用命令
 
@@ -66,6 +77,8 @@ bun run generate                  # 接口变了以后重新生成前端的客�
 bun run build                     # 构建可执行文件 bin/agents-desk，前端打包在其中
 bun run typecheck                 # 前端的类型检查
 bun run agents                    # 升级框架、加前端或客户端之后，更新本文中 tenon 生成的一段和 AI 编程助手的配置
+go run ./cmd/agents-desk migrate up   # 执行迁移；migrate make <名称> 新建迁移，migrate publish 发布框架的迁移
+go run ./cmd/agents-desk admin create --email <邮箱>   # 创建平台管理员，密码在终端中输入
 go run ./cmd/agents-desk routes     # 全部路由
 go run ./cmd/agents-desk openapi    # OpenAPI 文档
 go run ./cmd/agents-desk --help     # 应用的其他命令
@@ -76,8 +89,12 @@ go run ./cmd/agents-desk --help     # 应用的其他命令
 ## 目录
 
 ```
-cmd/agents-desk/main.go    入口：配置、装配依赖、登记命令和路由
+cmd/agents-desk/         入口：main.go 是配置和命令，app.go 装配依赖和运行部分，http.go 登记路由
 internal/<模块>/         业务代码，一个业务动作一个文件
+internal/apptest/        测试共用的装配：临时库、账号体系、应用密钥
+migrations/              SQL 迁移，包括 migrate publish 发布的框架迁移
+locales/                 翻译文件：错误提示、资源和字段、枚举和权限的显示文字
+docs/adr/                架构决策记录
 config/app.yaml          配置；本机的覆盖写在 config/local.yaml，不提交
 apps/<前端>/             TanStack Start 前端，挂载路径写在 package.json 的 tenon 字段
 packages/client/         bun run generate 生成的客户端，不手改
@@ -99,7 +116,7 @@ CI（`.github/workflows/ci.yml`）在每次推送和 PR 中运行同样的检查
 ## 编写测试
 
 - 顶层测试的第一行调用 `t.Parallel()`。修改全局状态的测试串行运行，例如用到 `t.Setenv`、`slog.SetDefault` 的测试。
-- 依赖数据库的测试用 `database/dbtest` 的 `Open` 为每个测试建一个临时库。
+- 依赖数据库的测试用 `internal/apptest` 的 `New`（其中是 `database/dbtest` 的 `Open`）为每个测试建一个临时库，需要环境变量 `POSTGRES_TEST_URL`。本机用 `docker compose -f compose.test.yml up -d --wait` 启动测试用的 PostgreSQL，然后 `export POSTGRES_TEST_URL='postgres://postgres:postgres@127.0.0.1:15433/postgres?sslmode=disable'`。
 - 能在进程内模拟的外部服务就在进程内模拟：S3 用 [gofakes3](https://github.com/johannesboyne/gofakes3)，HTTP API 用 `httptest`。
 - 与时间有关的逻辑用 `testing/synctest` 控制时间。SQL 中的时间由 Go 算出后作为参数传入，不用 `NOW()` 这类数据库的时钟函数，这样假时钟对查询同样有效。
 

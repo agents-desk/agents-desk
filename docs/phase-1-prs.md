@@ -138,3 +138,7 @@ agents-desk admin create --email ops@example.com
 | 官网传递客户身份的方式 | 官网后端用插件的签名密钥签发短期令牌（JWT） |
 | 译文的存储 | 存在事件的派生内容中，按语言区分 |
 | 插件的嵌入方式 | 一段脚本加 iframe |
+| 工作区在代码中的名字 | 统一叫 tenant（表 `tenants`、列 `tenant_id`、包 `internal/tenant`），与 Tenon 的租户一致；给用户看的文字叫工作区，见 [ADR 0002](adr/0002-账号、租户与权限的域.md) |
+| 工作区的标识和地址 | ID 是 UUID，作为租户、权限的域和 `tenant_id`；地址是 slug（`/t/{slug}/`），创建后不能修改。以后的自定义域名也只是地址 |
+| 更换所有者 | 撤销原所有者的 owner 角色；他在这个工作区中没有其他角色时，也就不再是成员 |
+| 管理员端的接口 | `/admin/api`，只接受平台管理员，会话 cookie 是 `__Host-admin` |
