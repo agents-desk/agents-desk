@@ -19,9 +19,9 @@ tenant.fields.slug: 地址
 tenant.fields.url: 进入地址
 tenant.fields.status: 状态
 tenant.fields.owner_id: 所有者 ID
-tenant.fields.owner_name: 所有者
+tenant.fields.owner_name: 所有者姓名
 tenant.fields.owner_email: 所有者邮箱
-tenant.fields.owner_password: 所有者的初始密码
+tenant.fields.owner_password: 所有者初始密码
 tenant.fields.created_at: 创建时间
 tenant.actions.disable: 停用
 tenant.actions.enable: 启用
@@ -31,3 +31,6 @@ tenant.status.disabled: 已停用
 "permission.tenants:read": 查看工作区
 "permission.tenants:manage": 管理工作区
 "permission.platform-settings:manage": 修改平台设置
+
+llm.purpose.translation: 翻译
+llm.purpose.language_detection: 语言识别

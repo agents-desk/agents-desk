@@ -38,11 +38,13 @@ export interface ErrorModel {
 export interface LlmEndpoint {
   /** 接口的密钥，明文保存 */
   api_key: string
-  /** OpenAI 兼容接口的地址，http:// 或 https:// 开头，例如 https://gateway.example.com/v1 */
+  /** 接口的地址，http:// 或 https:// 开头，例如 https://api.example.com/v1 */
   base_url: string
   /** 模型名 */
   model: string
 }
+
+export type LlmPurpose = "translation" | "language_detection"
 
 export interface LlmSettings {
   /** 识别语言和书写方式 */
@@ -152,19 +154,19 @@ export function createClient(options: ClientOptions) {
     /** operationId 以 llm- 开头的接口。 */
     llm: {
       /**
+       * 保存一种用途的模型接口
+       *
+       * PUT /settings/model/{purpose}
+       */
+      endpointSave: (purpose: LlmPurpose, body: LlmEndpoint): Promise<LlmEndpoint> =>
+        rt.request<LlmEndpoint>({ method: "PUT", path: `/settings/model/${encodeURIComponent(purpose)}`, body }),
+      /**
        * 读取模型接口设置
        *
        * GET /settings/model
        */
       settingsGet: (): Promise<LlmSettings> =>
         rt.request<LlmSettings>({ method: "GET", path: `/settings/model` }),
-      /**
-       * 保存模型接口设置
-       *
-       * PUT /settings/model
-       */
-      settingsSave: (body: LlmSettings): Promise<LlmSettings> =>
-        rt.request<LlmSettings>({ method: "PUT", path: `/settings/model`, body }),
     },
     /** operationId 以 tenant- 开头的接口。 */
     tenant: {

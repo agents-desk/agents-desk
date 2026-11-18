@@ -5,6 +5,13 @@
  * labels 按语言列出显示文字，取自翻译文件中 <前缀>.<取值> 的消息；缺少时先用默认语言，再用取值本身。
  */
 export const enums = {
+  LlmPurpose: {
+    prefix: "llm.purpose",
+    values: ["translation", "language_detection"],
+    labels: {
+      "zh-CN": { translation: "翻译", language_detection: "语言识别" },
+    },
+  },
   TenantStatus: {
     prefix: "tenant.status",
     values: ["active", "disabled"],

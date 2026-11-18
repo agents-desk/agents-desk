@@ -45,7 +45,7 @@ type Config struct {
 // SetDefaults 给出开发时的对外地址。
 func (c *Config) SetDefaults() {
 	if c.PublicURL == "" {
-		c.PublicURL = "http://localhost:8080"
+		c.PublicURL = "http://localhost:8081"
 	}
 }
 

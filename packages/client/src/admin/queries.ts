@@ -43,15 +43,15 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
     llm: {
       /** llm 分组全部查询的 key 前缀。 */
       key: () => key("llm"),
+      /** PUT /settings/model/{purpose} */
+      endpointSave: () => ({
+        mutationFn: (variables: Parameters<Client["llm"]["endpointSave"]>) => client.llm.endpointSave(...variables),
+        onSuccess: () => invalidate("llm"),
+      }),
       /** GET /settings/model */
       settingsGet: (...args: Parameters<Client["llm"]["settingsGet"]>) => ({
         queryKey: key("llm", "settingsGet", ...args),
         queryFn: () => client.llm.settingsGet(...args),
-      }),
-      /** PUT /settings/model */
-      settingsSave: () => ({
-        mutationFn: (variables: Parameters<Client["llm"]["settingsSave"]>[0]) => client.llm.settingsSave(variables),
-        onSuccess: () => invalidate("llm"),
       }),
     },
     tenant: {

@@ -13,9 +13,9 @@ export const schemas = {
     },
   },
   llm: {
-    settingsSave: {
+    endpointSave: {
       body: {
-        "$ref": "#/components/schemas/LlmSettings"
+        "$ref": "#/components/schemas/LlmEndpoint"
       },
     },
   },
@@ -88,22 +88,6 @@ export const components = {
       "base_url",
       "api_key",
       "model"
-    ],
-    "type": "object"
-  },
-  LlmSettings: {
-    "additionalProperties": false,
-    "properties": {
-      "language_detection": {
-        "$ref": "#/components/schemas/LlmEndpoint"
-      },
-      "translation": {
-        "$ref": "#/components/schemas/LlmEndpoint"
-      }
-    },
-    "required": [
-      "translation",
-      "language_detection"
     ],
     "type": "object"
   },

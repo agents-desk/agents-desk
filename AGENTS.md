@@ -66,13 +66,13 @@ docker compose up -d --wait                                          # PostgreSQ
 printf 'crypt:\n  key: %s\n' "$(openssl rand -base64 32)" > config/local.yaml   # 应用密钥，只在本机
 go run ./cmd/agents-desk migrate up --config config/app.yaml,config/local.yaml
 go run ./cmd/agents-desk admin create --email ops@example.com --config config/app.yaml,config/local.yaml
-bun run dev                                                          # 管理员端在 http://localhost:8080/admin/
+bun run dev                                                          # 管理员端在 http://localhost:8081/admin/
 ```
 
 ## 常用命令
 
 ```bash
-bun run dev                       # 运行应用和前端的开发服务器，改代码后自动重新编译；打开 http://localhost:8080
+bun run dev                       # 运行应用和前端的开发服务器，改代码后自动重新编译；打开 http://localhost:8081
 bun run generate                  # 接口变了以后重新生成前端的客户端（dev 会自动运行）
 bun run build                     # 构建可执行文件 bin/agents-desk，前端打包在其中
 bun run typecheck                 # 前端的类型检查

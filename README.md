@@ -91,7 +91,7 @@ AI 和成员一样是参与者：可以加入团队、负责工单、被 @、被
 
 ### 2.4 模型调用
 
-agents-desk 通过 OpenAI 兼容的接口调用模型，每种用途配置一个接口（地址、密钥）和模型名，不同用途可以使用不同的接口。供应商的选择、故障切换和价格由这些接口负责。
+每种用途（翻译、向量、重排序、语音识别等）配置一个模型接口：地址、密钥和模型名，不同用途可以使用不同的接口和供应商。接口的协议不预设为 OpenAI 兼容，例如重排序使用各家的 rerank 接口，由这种用途的调用代码按它的接口实现。供应商的选择、故障切换和价格由这些接口负责。
 
 - 每次调用带上业务标签：工作区、智能体、运行、用途。
 - 费用以接口返回的数字为准，按用途和智能体汇总；预算用完时，AI 转人工并通知负责人。
@@ -273,7 +273,7 @@ docker compose up -d --wait      # PostgreSQL 和 NATS
 printf 'crypt:\n  key: %s\n' "$(openssl rand -base64 32)" > config/local.yaml   # 应用密钥，只在本机
 go run ./cmd/agents-desk migrate up --config config/app.yaml,config/local.yaml
 go run ./cmd/agents-desk admin create --email ops@example.com --config config/app.yaml,config/local.yaml
-bun run dev      # 工作区端在 http://localhost:8080，管理员端在 /admin/，接口文档在 /api/docs、/admin/api/docs
+bun run dev      # 工作区端在 http://localhost:8081，管理员端在 /admin/，接口文档在 /api/docs、/admin/api/docs
 bun run build    # 构建 bin/agents-desk
 ```
 

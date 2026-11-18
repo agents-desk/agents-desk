@@ -1,6 +1,9 @@
 {
   "$schema": "https://raw.githubusercontent.com/go-tenon/tenon/main/cmd/tenon/schema.json",
+  "url": "http://localhost:8081",
   "apis": {
-    "/admin/api": { "name": "admin" }
+    "/admin/api": {
+      "name": "admin"
+    }
   }
 }

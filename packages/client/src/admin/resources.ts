@@ -51,7 +51,7 @@ export const resources = {
     labels: {
       "zh-CN": {
         title: "工作区",
-        fields: { name: "名称", slug: "地址", owner_name: "所有者", owner_email: "所有者邮箱", status: "状态", created_at: "创建时间", owner_password: "所有者的初始密码" },
+        fields: { name: "名称", slug: "地址", owner_name: "所有者姓名", owner_email: "所有者邮箱", status: "状态", created_at: "创建时间", owner_password: "所有者初始密码" },
         actions: { disable: "停用", enable: "启用" },
       },
     },
