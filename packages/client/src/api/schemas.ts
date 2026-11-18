@@ -5,47 +5,8 @@
  * 规则与服务端相同，交给 @go-tenon/client 的校验函数使用；$ref 指向 components 中的命名类型。
  */
 export const schemas = {
-  todo: {
-    create: {
-      body: {
-        "$ref": "#/components/schemas/TodoCreateInputBody"
-      },
-    },
-    update: {
-      body: {
-        "$ref": "#/components/schemas/TodoUpdateInputBody"
-      },
-    },
-  },
 } as const
 
 /** schemas 中 $ref 引用的命名类型，键是 OpenAPI 中的名称。 */
 export const components = {
-  TodoCreateInputBody: {
-    "additionalProperties": false,
-    "properties": {
-      "title": {
-        "maxLength": 200,
-        "minLength": 1,
-        "type": "string"
-      }
-    },
-    "required": [
-      "title"
-    ],
-    "type": "object"
-  },
-  TodoUpdateInputBody: {
-    "additionalProperties": false,
-    "properties": {
-      "done": {
-        "type": "boolean"
-      },
-      "title": {
-        "maxLength": 200,
-        "type": "string"
-      }
-    },
-    "type": "object"
-  },
 } as const

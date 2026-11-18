@@ -5,88 +5,10 @@ import { Runtime, type ClientOptions, type Download, type SessionLike, type Stre
 export * from "./errors"
 export { ApiError, isApiError, saveBlob, type ClientOptions, type Download, type SessionLike, type FieldError, type StreamOptions } from "./runtime"
 
-export interface ErrorDetail {
-  /** Validation rule, e.g. validation.min_length. Absent when the rule is not recognized. */
-  code?: string
-  /** Where the error occurred, e.g. 'body.items[3].tags' or 'path.thing-id' */
-  location?: string
-  /** Error message text */
-  message?: string
-  /** The value at the given location */
-  value?: unknown
-}
-
-export interface ErrorModel {
-  /** Stable business error code. Present only on business errors. */
-  code?: string
-  /** A human-readable explanation specific to this occurrence of the problem. */
-  detail?: string
-  /** Field errors. Present only on validation errors. */
-  errors?: ErrorDetail[] | null
-  /** A URI reference that identifies the specific occurrence of the problem. */
-  instance?: string
-  /** Public parameters of a business error, e.g. methods for auth.method_required. Present only when the error has any. */
-  params?: Record<string, unknown>
-  /** HTTP status code */
-  status?: number
-  /** A short, human-readable summary of the problem type. This value should not change between occurrences of the error. */
-  title?: string
-  /** A URI reference to human-readable documentation for the error. */
-  type?: string
-}
-
-export interface Todo {
-  done: boolean
-  id: number
-  title: string
-}
-
-export interface TodoCreateInputBody {
-  title: string
-}
-
-export interface TodoUpdateInputBody {
-  /** 是否完成，省略时保留原值 */
-  done?: boolean
-  /** 新的标题，为空时保留原值 */
-  title?: string
-}
-
 /** 创建客户端。 */
 export function createClient(options: ClientOptions) {
   const rt = new Runtime(options)
   return {
-    /** operationId 以 todo- 开头的接口。 */
-    todo: {
-      /**
-       * 新增待办
-       *
-       * POST /todos
-       */
-      create: (body: TodoCreateInputBody): Promise<Todo> =>
-        rt.request<Todo>({ method: "POST", path: `/todos`, public: true, body }),
-      /**
-       * 删除待办
-       *
-       * DELETE /todos/{id}
-       */
-      delete: (id: number): Promise<void> =>
-        rt.request<void>({ method: "DELETE", path: `/todos/${encodeURIComponent(id)}`, public: true }),
-      /**
-       * 待办列表
-       *
-       * GET /todos
-       */
-      list: (): Promise<Todo[] | null> =>
-        rt.request<Todo[] | null>({ method: "GET", path: `/todos`, public: true }),
-      /**
-       * 修改待办
-       *
-       * PATCH /todos/{id}
-       */
-      update: (id: number, body: TodoUpdateInputBody): Promise<Todo> =>
-        rt.request<Todo>({ method: "PATCH", path: `/todos/${encodeURIComponent(id)}`, public: true, body }),
-    },
   }
 }
 

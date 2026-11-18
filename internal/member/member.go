@@ -1,0 +1,106 @@
+// Package member 是工作区成员的账号。账号是全局的：一个人登录一次，可以属于多个租户（工作区），
+// 他在每个租户中的角色保存在 authz 中。邮箱和密码保存在 login 的表中，members 表只有业务字段。
+package member
+
+import (
+	"context"
+	"database/sql"
+	"slices"
+	"time"
+
+	"github.com/cockroachdb/errors"
+	"github.com/google/uuid"
+	"github.com/uptrace/bun"
+
+	"github.com/go-tenon/tenon/errorx"
+	"github.com/go-tenon/tenon/identity"
+	"github.com/go-tenon/tenon/login"
+)
+
+// Type 是工作区成员这套账号体系。
+const Type identity.SubjectType = "member"
+
+var (
+	ErrNotFound       = errorx.Define(errorx.NotFound, "member.not_found")
+	ErrDisabled       = errorx.Define(errorx.Conflict, "member.disabled")
+	ErrDetailsMissing = errorx.Define(errorx.InvalidArgument, "member.details_missing")
+)
+
+// Member 是一个成员账号。
+type Member struct {
+	bun.BaseModel `bun:"table:members"`
+
+	ID         string     `bun:"id,pk"`
+	Name       string     `bun:"name,notnull"`
+	DisabledAt *time.Time `bun:"disabled_at"` // 非空表示已停用，不能再登录任何工作区
+	CreatedAt  time.Time  `bun:"created_at,notnull"`
+	UpdatedAt  time.Time  `bun:"updated_at,notnull"`
+}
+
+// Ref 是这个成员在 login、apitoken、authz 中的引用。
+func (m *Member) Ref() identity.Ref { return identity.Ref{Type: Type, ID: m.ID} }
+
+// Find 按 ID 读取成员，不存在时返回 ErrNotFound。
+func Find(ctx context.Context, db bun.IDB, id string) (*Member, error) {
+	m := new(Member)
+	err := db.NewSelect().Model(m).Where("id = ?", id).Scan(ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound.New()
+	}
+	return m, errors.Wrap(err, "load member")
+}
+
+// Email 返回成员登录用的邮箱，没有邮箱时返回空字符串。
+func Email(ctx context.Context, logins *login.Realm, ref identity.Ref) (string, error) {
+	ids, err := logins.Identifiers(ctx, ref)
+	if err != nil {
+		return "", err
+	}
+	if i := slices.IndexFunc(ids, func(id login.Attached) bool { return id.Kind == login.KindEmail }); i >= 0 {
+		return ids[i].Value, nil
+	}
+	return "", nil
+}
+
+// Account 是按邮箱指定的成员账号：邮箱已有账号时使用它，Name 和 Password 不使用；没有时用它们创建新账号。
+type Account struct {
+	Email    string
+	Name     string
+	Password string // 新账号的初始密码，由管理员设置后告诉本人
+}
+
+// Ensure 返回邮箱为 acc.Email 的成员，没有时在 tx 中创建：写入 members、邮箱（标为已验证）和初始密码。
+// 已有的账号停用时返回 ErrDisabled；需要新建而缺少姓名或密码时返回 ErrDetailsMissing；密码不符合要求时返回 login.ErrWeakPassword。
+// logins 是成员的 login.Realm。
+func Ensure(ctx context.Context, tx bun.IDB, logins *login.Realm, acc Account) (*Member, error) {
+	ref, err := logins.Lookup(ctx, login.Email(acc.Email))
+	switch {
+	case err == nil:
+		m, err := Find(ctx, tx, ref.ID)
+		if err != nil {
+			return nil, err
+		}
+		if m.DisabledAt != nil {
+			return nil, ErrDisabled.New()
+		}
+		return m, nil
+	case !errors.Is(err, login.ErrNotFound):
+		return nil, err
+	}
+
+	if acc.Name == "" || acc.Password == "" {
+		return nil, ErrDetailsMissing.New()
+	}
+	now := time.Now().UTC()
+	m := &Member{ID: uuid.Must(uuid.NewV7()).String(), Name: acc.Name, CreatedAt: now, UpdatedAt: now}
+	if _, err := tx.NewInsert().Model(m).Exec(ctx); err != nil {
+		return nil, errors.Wrap(err, "insert member")
+	}
+	if err := logins.Attach(ctx, tx, m.Ref(), login.Email(acc.Email), true); err != nil {
+		return nil, err
+	}
+	if err := logins.SetPassword(ctx, tx, m.Ref(), acc.Password); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
