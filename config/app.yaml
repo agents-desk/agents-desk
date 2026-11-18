@@ -16,7 +16,7 @@ queue:
   stream: agents_desk_jobs
 
 # 应用密钥：32 字节随机数的 base64（openssl rand -base64 32），必填：生产环境用 APP_KEY，本机写在 config/local.yaml。
-# 它加密模型接口的密钥等数据，丢失后已加密的数据无法解开。
+# 它派生登录验证码的密钥，以后也用于加密和签名链接。
 crypt:
   key: ${APP_KEY:-}
 

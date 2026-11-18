@@ -15,7 +15,7 @@ export const schemas = {
   llm: {
     settingsSave: {
       body: {
-        "$ref": "#/components/schemas/LlmChanges"
+        "$ref": "#/components/schemas/LlmSettings"
       },
     },
   },
@@ -67,7 +67,7 @@ export const schemas = {
 
 /** schemas 中 $ref 引用的命名类型，键是 OpenAPI 中的名称。 */
 export const components = {
-  LlmChanges: {
+  LlmEndpoint: {
     "additionalProperties": false,
     "properties": {
       "api_key": {
@@ -79,29 +79,26 @@ export const components = {
         "pattern": "^(https?://\\S+)?$",
         "type": "string"
       },
-      "clear_api_key": {
-        "type": "boolean"
-      },
-      "models": {
-        "$ref": "#/components/schemas/LlmModels"
+      "model": {
+        "maxLength": 200,
+        "type": "string"
       }
     },
     "required": [
       "base_url",
-      "models"
+      "api_key",
+      "model"
     ],
     "type": "object"
   },
-  LlmModels: {
+  LlmSettings: {
     "additionalProperties": false,
     "properties": {
       "language_detection": {
-        "maxLength": 200,
-        "type": "string"
+        "$ref": "#/components/schemas/LlmEndpoint"
       },
       "translation": {
-        "maxLength": 200,
-        "type": "string"
+        "$ref": "#/components/schemas/LlmEndpoint"
       }
     },
     "required": [

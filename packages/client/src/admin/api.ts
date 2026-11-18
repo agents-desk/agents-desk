@@ -35,31 +35,20 @@ export interface ErrorModel {
   type?: string
 }
 
-export interface LlmChanges {
-  /** 新的密钥；为空时保持原来的密钥 */
-  api_key?: string
-  /** OpenAI 兼容接口的地址，http:// 或 https:// 开头；为空表示不使用模型 */
+export interface LlmEndpoint {
+  /** 接口的密钥，明文保存 */
+  api_key: string
+  /** OpenAI 兼容接口的地址，http:// 或 https:// 开头，例如 https://gateway.example.com/v1 */
   base_url: string
-  /** 删除已保存的密钥 */
-  clear_api_key?: boolean
-  models: LlmModels
+  /** 模型名 */
+  model: string
 }
 
-export interface LlmModels {
-  /** 识别语言和书写方式使用的模型名 */
-  language_detection: string
-  /** 翻译使用的模型名 */
-  translation: string
-}
-
-export interface LlmView {
-  /** 密钥的末尾几位，用来确认是哪一个密钥；密钥太短时为空 */
-  api_key_hint: string
-  /** 是否已经设置了密钥 */
-  api_key_set: boolean
-  /** OpenAI 兼容接口的地址，例如 https://gateway.example.com/v1 */
-  base_url: string
-  models: LlmModels
+export interface LlmSettings {
+  /** 识别语言和书写方式 */
+  language_detection: LlmEndpoint
+  /** 翻译 */
+  translation: LlmEndpoint
 }
 
 export interface OffsetTenantDTO {
@@ -167,15 +156,15 @@ export function createClient(options: ClientOptions) {
        *
        * GET /settings/model
        */
-      settingsGet: (): Promise<LlmView> =>
-        rt.request<LlmView>({ method: "GET", path: `/settings/model` }),
+      settingsGet: (): Promise<LlmSettings> =>
+        rt.request<LlmSettings>({ method: "GET", path: `/settings/model` }),
       /**
        * 保存模型接口设置
        *
        * PUT /settings/model
        */
-      settingsSave: (body: LlmChanges): Promise<LlmView> =>
-        rt.request<LlmView>({ method: "PUT", path: `/settings/model`, body }),
+      settingsSave: (body: LlmSettings): Promise<LlmSettings> =>
+        rt.request<LlmSettings>({ method: "PUT", path: `/settings/model`, body }),
     },
     /** operationId 以 tenant- 开头的接口。 */
     tenant: {

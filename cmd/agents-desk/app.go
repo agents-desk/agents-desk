@@ -34,7 +34,6 @@ type App struct {
 	cfg   Config
 	db    *bun.DB
 	nc    *nats.Conn
-	crypt *crypt.Crypt
 	roles *authz.Store // 平台和各租户的角色与权限
 
 	adminLogins  *login.Realm    // 平台管理员的邮箱和密码
@@ -64,7 +63,7 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		return nil
 	})
 
-	keys := crypt.New(cfg.Crypt)
+	keys := crypt.New(cfg.Crypt) // 派生登录验证码的密钥
 	hasher := hashing.New(cfg.Hashing)
 	roles := authz.NewStore(db, auth.Catalog)
 	// 每个邮箱 15 分钟内最多输错 5 次密码，计数保存在数据库中，所有实例共享。两套账号各自计数。
@@ -88,7 +87,7 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	})
 
 	return &App{
-		cfg: cfg, db: db, nc: nc, crypt: keys, roles: roles,
+		cfg: cfg, db: db, nc: nc, roles: roles,
 		adminLogins: adminLogins, adminTokens: apitoken.NewStore(db, cfg.AdminToken), memberLogins: memberLogins,
 		llmSettings: llm.NewGroup(db),
 	}, nil

@@ -78,7 +78,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		addr := tenant.Addresses{PublicURL: a.cfg.PublicURL}
 		platformadmin.RegisterRoutes(api, require(), a.db, a.adminLogins, a.adminTokens, a.cfg.AdminToken.Lifetime)
 		tenant.RegisterRoutes(api, require(auth.TenantsRead), require(auth.TenantsManage), a.db, a.memberLogins, addr)
-		llm.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.llmSettings, a.crypt)
+		llm.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.llmSettings)
 	})
 
 	// 工作区端：成员登录和工作区的接口在 PR 2 中加入。

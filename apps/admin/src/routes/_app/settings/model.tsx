@@ -1,9 +1,9 @@
-import { Alert, Button, Checkbox, Group, PasswordInput, Stack, TextInput, Title } from "@mantine/core"
+import { Alert, Button, Group, PasswordInput, SimpleGrid, Stack, Text, TextInput, Title } from "@mantine/core"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import type { ErrorInfo } from "@go-tenon/client"
 import { applyServerErrors, FormError, Page, useSchemaForm } from "@go-tenon/ui"
-import type { LlmView } from "@agents-desk/client/admin"
+import type { LlmSettings } from "@agents-desk/client/admin"
 import { useEffect, useState } from "react"
 import { api } from "../../../auth"
 import { kit } from "../../../resources"
@@ -13,65 +13,76 @@ export const Route = createFileRoute("/_app/settings/model")({
   component: ModelSettings,
 })
 
-// ModelSettings 是模型接口的平台设置：OpenAI 兼容接口的地址、密钥和各用途的模型名。
-// 密钥只写不读：页面只显示是否已设置和末尾几位，留空表示保持原来的密钥。
+// Values 是表单的值，与 LlmSettings 相同；写成映射类型，满足 useSchemaForm 对 Record<string, unknown> 的要求。
+type Values = { [K in keyof LlmSettings]: LlmSettings[K] }
+
+const empty = { base_url: "", api_key: "", model: "" }
+
+// purposes 是各用途：设置中的字段名、显示的名称和说明。新增用途时在这里加一行。
+const purposes = [
+  { key: "translation", title: "翻译", description: "把客户和坐席的消息译成对方的语言" },
+  { key: "language_detection", title: "语言识别", description: "识别每条消息的语言和书写方式" },
+] as const
+
+// ModelSettings 是各用途的模型接口：每种用途一个 OpenAI 兼容的接口（地址、密钥）和模型名，不同用途可以用不同的接口。
 function ModelSettings() {
   const queryClient = useQueryClient()
   const current = useQuery({ queryKey: ["llm", "settings"], queryFn: () => api.llm.settingsGet() })
   const form = useSchemaForm({
     schema: kit.schemas.llm.settingsSave.body,
     rules: kit,
-    initialValues: { base_url: "", api_key: "", clear_api_key: false, models: { translation: "", language_detection: "" } },
+    initialValues: { translation: empty, language_detection: empty } as Values,
   })
   const [error, setError] = useState<ErrorInfo>()
   const [saved, setSaved] = useState(false)
 
-  // 读到当前的设置后作为表单的初始值，密钥一栏保持为空
-  const load = (v: LlmView) => {
-    form.setInitialValues({ base_url: v.base_url, api_key: "", clear_api_key: false, models: v.models })
+  // 读到当前的设置后作为表单的初始值
+  const load = (s: Values) => {
+    form.setInitialValues(s)
     form.reset()
   }
   useEffect(() => {
     if (current.data) load(current.data)
   }, [current.data])
 
-  const keySet = current.data?.api_key_set ?? false
   return (
-    <Page title="模型接口" description="agents-desk 通过一个 OpenAI 兼容的接口调用模型，每种用途使用一个模型名。">
+    <Page title="模型接口" description="每种用途配置一个 OpenAI 兼容的接口和模型名，不同用途可以使用不同的接口。地址为空表示不使用这种用途。">
       <form
         onSubmit={form.onSubmit(async (values) => {
           setSaved(false)
+          setError(undefined)
           try {
-            const v = await api.llm.settingsSave(values)
-            queryClient.setQueryData(["llm", "settings"], v)
-            load(v)
+            const s = await api.llm.settingsSave(values)
+            queryClient.setQueryData(["llm", "settings"], s)
+            load(s)
             setSaved(true)
           } catch (err) {
             setError(applyServerErrors(form, err))
           }
         })}
       >
-        <Stack maw={560}>
+        <Stack>
           <FormError error={error} />
           {saved && (
             <Alert color="green" withCloseButton onClose={() => setSaved(false)}>
               已保存
             </Alert>
           )}
-          <TextInput label="接口地址" placeholder="https://gateway.example.com/v1" {...form.getInputProps("base_url")} />
-          <PasswordInput
-            label="密钥"
-            description={keySet ? `已设置（${current.data?.api_key_hint || "已隐藏"}），留空保持不变` : "还没有设置"}
-            placeholder={keySet ? "留空保持不变" : ""}
-            disabled={form.values.clear_api_key}
-            {...form.getInputProps("api_key")}
-          />
-          {keySet && <Checkbox label="删除已保存的密钥" {...form.getInputProps("clear_api_key", { type: "checkbox" })} />}
-          <Title order={5} mt="sm">
-            各用途的模型名
-          </Title>
-          <TextInput label="翻译" {...form.getInputProps("models.translation")} />
-          <TextInput label="语言识别" description="识别消息的语言和书写方式" {...form.getInputProps("models.language_detection")} />
+          {purposes.map((p) => (
+            <Stack key={p.key} gap="xs">
+              <div>
+                <Title order={5}>{p.title}</Title>
+                <Text size="sm" c="dimmed">
+                  {p.description}
+                </Text>
+              </div>
+              <SimpleGrid cols={{ base: 1, md: 3 }}>
+                <TextInput label="接口地址" placeholder="https://gateway.example.com/v1" {...form.getInputProps(`${p.key}.base_url`)} />
+                <PasswordInput label="密钥" {...form.getInputProps(`${p.key}.api_key`)} />
+                <TextInput label="模型名" {...form.getInputProps(`${p.key}.model`)} />
+              </SimpleGrid>
+            </Stack>
+          ))}
           <Group>
             <Button type="submit" disabled={!form.isDirty()}>
               保存
