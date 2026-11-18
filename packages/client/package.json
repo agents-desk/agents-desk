@@ -1,0 +1,16 @@
+{
+  "name": "@agents-desk/client",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./*/enums": "./src/*/enums.ts",
+    "./*/messages": "./src/*/messages.ts",
+    "./*/permissions": "./src/*/permissions.ts",
+    "./*/queries": "./src/*/queries.ts",
+    "./*/resources": "./src/*/resources.ts",
+    "./*/settings": "./src/*/settings.ts",
+    "./*/schemas": "./src/*/schemas.ts",
+    "./*/kit": "./src/*/kit.ts",
+    "./*": "./src/*/api.ts"
+  }
+}

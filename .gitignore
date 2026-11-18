@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.tenon/
+bin/
+.env
+.idea/

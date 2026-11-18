@@ -1,0 +1,56 @@
+module agents-desk
+
+go 1.27.4
+
+ignore node_modules
+
+require (
+	github.com/danielgtaylor/huma/v2 v2.40.0
+	github.com/go-chi/chi/v5 v5.5.0
+	github.com/go-tenon/tenon v0.0.1
+)
+
+require (
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/cloudflare/tableflip v1.2.4-0.20240920015315-64983fb2d863 // indirect
+	github.com/cockroachdb/errors v1.14.0 // indirect
+	github.com/cockroachdb/logtags v0.0.0-20241215232642-bb51bb14a506 // indirect
+	github.com/cockroachdb/redact v1.1.8 // indirect
+	github.com/coreos/go-systemd/v22 v22.7.0 // indirect
+	github.com/getsentry/sentry-go v0.50.0 // indirect
+	github.com/go-logr/logr v1.4.4 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
+	github.com/klauspost/compress v1.20.4 // indirect
+	github.com/kr/pretty v0.3.1 // indirect
+	github.com/kr/text v0.2.0 // indirect
+	github.com/lmittmann/tint v1.2.1 // indirect
+	github.com/nicksnyder/go-i18n/v2 v2.7.0 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
+	github.com/rogpeppe/go-internal v1.16.0 // indirect
+	github.com/rs/cors v1.11.1 // indirect
+	github.com/samber/lo v1.53.0 // indirect
+	github.com/samber/slog-chi v1.19.1 // indirect
+	github.com/samber/slog-common v0.22.0 // indirect
+	github.com/samber/slog-formatter v1.3.0 // indirect
+	github.com/samber/slog-multi v1.9.0 // indirect
+	github.com/spf13/cobra v1.10.2 // indirect
+	github.com/spf13/pflag v1.1.0 // indirect
+	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
+	go.opentelemetry.io/contrib/bridges/otelslog v0.21.0 // indirect
+	go.opentelemetry.io/otel v1.47.0 // indirect
+	go.opentelemetry.io/otel/log v1.47.0 // indirect
+	go.opentelemetry.io/otel/metric v1.47.0 // indirect
+	go.opentelemetry.io/otel/trace v1.47.0 // indirect
+	go.yaml.in/yaml/v4 v4.0.0 // indirect
+	golang.org/x/mod v0.43.0 // indirect
+	golang.org/x/sync v0.25.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
+	golang.org/x/term v0.48.0 // indirect
+	golang.org/x/text v0.44.0 // indirect
+	golang.org/x/tools v0.52.0 // indirect
+)
+
+tool github.com/go-tenon/tenon/cmd/tenon

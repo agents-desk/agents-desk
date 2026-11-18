@@ -1,0 +1,47 @@
+{
+  "name": "@agents-desk/web",
+  "private": true,
+  "type": "module",
+  "tenon": { "base": "/", "ssr": true },
+  "scripts": {
+    "dev": "vite dev",
+    "build": "bunx --bun vite build",
+    "typecheck": "tsr generate && tsc --noEmit"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/modifiers": "^9.0.0",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@go-tenon/client": "workspace:*",
+    "@go-tenon/host": "workspace:*",
+    "@go-tenon/start": "workspace:*",
+    "@go-tenon/ui": "workspace:*",
+    "@fontsource-variable/inter": "^5.2.8",
+    "@agents-desk/client": "workspace:*",
+    "@mantine/core": "^9.8.1",
+    "@mantine/dates": "^9.8.1",
+    "@mantine/form": "^9.8.1",
+    "@mantine/hooks": "^9.8.1",
+    "@mantine/modals": "^9.8.1",
+    "@mantine/notifications": "^9.8.1",
+    "@mantine/nprogress": "^9.8.1",
+    "@mantine/spotlight": "^9.8.1",
+    "@tabler/icons-react": "^3.50.0",
+    "@tanstack/react-query": "^5.107.1",
+    "@tanstack/react-router": "^1.170.46",
+    "@tanstack/react-start": "^1.169.5",
+    "dayjs": "^1.11.19",
+    "mantine-datatable": "^9.8.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@tanstack/router-cli": "^1.168.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8"
+  }
+}

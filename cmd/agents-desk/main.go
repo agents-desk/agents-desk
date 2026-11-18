@@ -1,0 +1,95 @@
+// Command agents-desk 是agents-desk的入口：serve 运行 HTTP 服务，health 供 Docker 的健康检查使用，openapi、routes、client 供 go tool tenon 生成文档和客户端。
+package main
+
+import (
+	"context"
+	"log/slog"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+
+	"github.com/go-tenon/tenon/cleanup"
+	"github.com/go-tenon/tenon/command"
+	"github.com/go-tenon/tenon/command/httpcmd"
+	"github.com/go-tenon/tenon/config"
+	"github.com/go-tenon/tenon/frontend"
+	"github.com/go-tenon/tenon/httpx"
+	"github.com/go-tenon/tenon/httpx/rest"
+	"github.com/go-tenon/tenon/logging"
+
+	"agents-desk/apps"
+	"agents-desk/internal/todo"
+)
+
+// Config 是应用的配置：config/app.yaml。
+type Config struct {
+	HTTP       httpx.Config      `yaml:"http"`
+	DevServers map[string]string `yaml:"dev_servers"` // 各前端开发服务器的地址，按前端的名称（apps 中的目录名）；只在 tenon dev 时有值，它把地址写入 .tenon/dev.yaml，页面请求转给对应的开发服务器
+}
+
+func main() {
+	root := command.Root("agents-desk", "agents-desk")
+	root.AddCommand(
+		command.Serve(open, parts),
+		command.Config[Config](),
+		httpcmd.Health(func(cfg Config) httpx.Config { return cfg.HTTP }),
+	)
+	// openapi、routes、client 用默认配置和 nil 依赖构造同一套路由，从中读取路由表和接口定义。
+	root.AddCommand(httpcmd.Commands(func() chi.Routes { return routes(config.Default[Config](), nil, nil) })...)
+	command.Execute(root)
+}
+
+// App 是进程中各部分共用的资源。
+type App struct {
+	cfg   Config
+	store *todo.Store
+}
+
+// open 安装日志器，创建待办事项的存储。serve 命令执行时调用它，登记到 stack 的资源在进程退出时关闭。
+func open(_ context.Context, cfg Config, _ *cleanup.Stack) (*App, error) {
+	slog.SetDefault(logging.New(logging.Config{}))
+	return &App{cfg: cfg, store: todo.NewStore()}, nil
+}
+
+// parts 是常驻进程的运行部分，现在只有 HTTP 服务：serve 运行全部部分，serve http 只运行它。
+func parts(a *App) []command.Part {
+	return []command.Part{{Name: "http", Short: "接口和页面", Start: a.serveHTTP}}
+}
+
+// serveHTTP 装配 HTTP 服务，返回运行它的函数。apps 中的前端由 frontend.Host 按挂载路径提供：只在浏览器中渲染的前端
+// 由 Go 直接返回页面；服务端渲染的前端由 Go 托管的 SSR 进程渲染，它们渲染时经内部 socket 调用同一组路由。
+func (a *App) serveHTTP(d *command.Daemon) (func(context.Context) error, error) {
+	var router chi.Router
+	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { router.ServeHTTP(w, r) })
+	pages, err := frontend.New(apps.Dist, frontend.Options{API: api, DevServers: a.cfg.DevServers})
+	if err != nil {
+		return nil, err
+	}
+	router = routes(a.cfg, a.store, pages.Handler())
+	ln, err := d.Listen("tcp", a.cfg.HTTP.Addr)
+	if err != nil {
+		return nil, err
+	}
+	return func(ctx context.Context) error {
+		return pages.Run(ctx, func(ctx context.Context) error {
+			return httpx.Serve(ctx, a.cfg.HTTP, ln, router)
+		})
+	}, nil
+}
+
+// routes 是应用的全部路由：存活检查 /livez，/api 下的接口，其余路径是页面（pages）。
+// 它只保存依赖，处理请求时才使用，所以 openapi 等命令可以传 nil。
+func routes(cfg Config, store *todo.Store, pages http.Handler) chi.Router {
+	router := chi.NewRouter()
+	router.Use(httpx.Defaults(cfg.HTTP)...)
+	router.Get("/livez", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
+	router.Route("/api", func(r chi.Router) {
+		r.Use(httpx.Timeout(cfg.HTTP.Timeout))
+		api := rest.New(r, rest.Options{Title: "agents-desk", Version: "0.1.0", BasePath: "/api"})
+		todo.RegisterRoutes(api, store)
+	})
+	if pages != nil {
+		router.Handle("/*", pages)
+	}
+	return router
+}

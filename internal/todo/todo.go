@@ -1,0 +1,131 @@
+// Package todo 是示例资源：待办事项。它保存在内存中，重启后清空；换成 PostgreSQL 见 Tenon 文档的 docs/database/quick-start.md。
+package todo
+
+import (
+	"context"
+	"net/http"
+	"slices"
+	"sync"
+
+	"github.com/danielgtaylor/huma/v2"
+
+	"github.com/go-tenon/tenon/errorx"
+	"github.com/go-tenon/tenon/httpx/rest"
+)
+
+// ErrNotFound 表示待办事项不存在。
+var ErrNotFound = errorx.Define(errorx.NotFound, "todo.not_found")
+
+// Todo 是一条待办事项。
+type Todo struct {
+	ID    int64  `json:"id"`
+	Title string `json:"title"`
+	Done  bool   `json:"done"`
+}
+
+// Store 在内存中保存待办事项，可以并发使用。
+type Store struct {
+	mu    sync.Mutex
+	items []Todo
+	next  int64
+}
+
+// NewStore 创建空的 Store。items 初始化为空切片，列表为空时返回 []。
+func NewStore() *Store { return &Store{items: []Todo{}} }
+
+// ListOutput 是待办列表的响应：全部待办事项。
+type ListOutput struct {
+	Body []Todo
+}
+
+// CreateInput 是新增待办的请求：标题必填。
+type CreateInput struct {
+	Body struct {
+		Title string `json:"title" minLength:"1" maxLength:"200"`
+	}
+}
+
+// TodoOutput 是返回一条待办事项的响应。
+type TodoOutput struct {
+	Body Todo
+}
+
+// UpdateInput 是修改待办的请求：路径中的 ID，以及要修改的字段。
+type UpdateInput struct {
+	ID   int64 `path:"id"`
+	Body struct {
+		Title string `json:"title,omitempty" maxLength:"200" doc:"新的标题，为空时保留原值"`
+		Done  *bool  `json:"done,omitempty" doc:"是否完成，省略时保留原值"`
+	}
+}
+
+// IDInput 是只带路径中 ID 的请求，删除待办时使用。
+type IDInput struct {
+	ID int64 `path:"id"`
+}
+
+// RegisterRoutes 注册待办事项的接口。它只保存 s，处理请求时才调用，所以生成文档时 s 可以是 nil。
+func RegisterRoutes(api *rest.API, s *Store) {
+	op := func(id, method, path, summary string) huma.Operation {
+		o := huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary}
+		rest.Public()(&o)
+		return o
+	}
+	create := op("todo-create", http.MethodPost, "/todos", "新增待办")
+	create.DefaultStatus = http.StatusCreated
+	rest.Register(api, op("todo-list", http.MethodGet, "/todos", "待办列表"), s.list)
+	rest.Register(api, create, s.create)
+	rest.Register(api, op("todo-update", http.MethodPatch, "/todos/{id}", "修改待办"), s.update)
+	rest.Register(api, op("todo-delete", http.MethodDelete, "/todos/{id}", "删除待办"), s.delete)
+}
+
+// list 返回全部待办事项。
+func (s *Store) list(context.Context, *struct{}) (*ListOutput, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return &ListOutput{Body: slices.Clone(s.items)}, nil
+}
+
+// create 新增一条待办事项，ID 按顺序递增。
+func (s *Store) create(_ context.Context, in *CreateInput) (*TodoOutput, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.next++
+	t := Todo{ID: s.next, Title: in.Body.Title}
+	s.items = append(s.items, t)
+	return &TodoOutput{Body: t}, nil
+}
+
+// update 修改标题或完成状态，省略的字段保留原值；不存在时返回 ErrNotFound。
+func (s *Store) update(_ context.Context, in *UpdateInput) (*TodoOutput, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	i := s.index(in.ID)
+	if i < 0 {
+		return nil, ErrNotFound.New()
+	}
+	if in.Body.Title != "" {
+		s.items[i].Title = in.Body.Title
+	}
+	if in.Body.Done != nil {
+		s.items[i].Done = *in.Body.Done
+	}
+	return &TodoOutput{Body: s.items[i]}, nil
+}
+
+// delete 删除一条待办事项；不存在时返回 ErrNotFound。
+func (s *Store) delete(_ context.Context, in *IDInput) (*struct{}, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	i := s.index(in.ID)
+	if i < 0 {
+		return nil, ErrNotFound.New()
+	}
+	s.items = slices.Delete(s.items, i, i+1)
+	return nil, nil
+}
+
+// index 返回 id 在 items 中的下标，不存在时返回 -1。调用方持有锁。
+func (s *Store) index(id int64) int {
+	return slices.IndexFunc(s.items, func(t Todo) bool { return t.ID == id })
+}
