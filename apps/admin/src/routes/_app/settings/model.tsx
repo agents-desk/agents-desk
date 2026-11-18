@@ -1,4 +1,4 @@
-import { Alert, Button, Group, PasswordInput, Stack, Tabs, Text, TextInput } from "@mantine/core"
+import { Alert, Button, Group, Stack, Tabs, Text, TextInput } from "@mantine/core"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import type { ErrorInfo } from "@go-tenon/client"
@@ -7,6 +7,7 @@ import type { LlmEndpoint, LlmPurpose, LlmSettings } from "@agents-desk/client/a
 import { useEffect, useState } from "react"
 import { api } from "../../../auth"
 import { kit } from "../../../resources"
+import { SecretInput } from "../../../secret-input"
 
 export const Route = createFileRoute("/_app/settings/model")({
   staticData: { title: "模型接口", order: 1, permission: "platform-settings:manage" },
@@ -15,7 +16,7 @@ export const Route = createFileRoute("/_app/settings/model")({
 
 // purposes 是各用途：接口中的取值、显示的名称和说明。新增用途时在这里加一行。
 const purposes: { key: LlmPurpose; title: string; description: string }[] = [
-  { key: "translation", title: "翻译", description: "识别每条消息的语言和书写方式，并译成对方的语言；坐席回复前的回译也用它" },
+  { key: "translation", title: "翻译", description: "在不同语言之间互译文本，同时识别原文的语言和书写方式" },
 ]
 
 const queryKey = ["llm", "settings"]
@@ -24,7 +25,7 @@ const queryKey = ["llm", "settings"]
 function ModelSettings() {
   const current = useQuery({ queryKey, queryFn: () => api.llm.settingsGet() })
   return (
-    <Page title="模型接口" description="每种用途配置一个模型接口和模型名，不同用途可以使用不同的接口和供应商。地址为空表示不使用这种用途。">
+    <Page title="模型接口" description="为每种用途配置模型接口和模型名，不同用途可以使用不同的接口和供应商。接口地址留空表示不启用这种用途。">
       <Tabs defaultValue={purposes[0].key} keepMounted>
         <Tabs.List>
           {purposes.map((p) => (
@@ -91,7 +92,7 @@ function EndpointForm({ purpose, description, saved }: { purpose: LlmPurpose; de
           </Alert>
         )}
         <TextInput label="接口地址" placeholder="https://api.example.com/v1" {...form.getInputProps("base_url")} />
-        <PasswordInput label="密钥" {...form.getInputProps("api_key")} />
+        <SecretInput label="密钥" {...form.getInputProps("api_key")} />
         <TextInput label="模型名" {...form.getInputProps("model")} />
         <Group justify="flex-end">
           <Button type="submit" disabled={!form.isDirty()} loading={form.submitting}>

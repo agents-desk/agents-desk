@@ -47,7 +47,7 @@ export interface LlmEndpoint {
 export type LlmPurpose = "translation"
 
 export interface LlmSettings {
-  /** 翻译：识别原文的语言和书写方式，译成目标语言 */
+  /** 翻译：在不同语言之间互译文本，同时识别原文的语言和书写方式 */
   translation: LlmEndpoint
 }
 

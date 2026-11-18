@@ -23,7 +23,7 @@ type Endpoint struct {
 // 语言识别不单独配置。其他用途（向量、重排序、语音识别等）用到时再加字段。
 // 字段不带 omitempty，见 settings 包的说明。
 type Settings struct {
-	Translation Endpoint `json:"translation" doc:"翻译：识别原文的语言和书写方式，译成目标语言"`
+	Translation Endpoint `json:"translation" doc:"翻译：在不同语言之间互译文本，同时识别原文的语言和书写方式"`
 }
 
 // NewGroup 返回平台的模型接口设置，名称 llm 保存在 settings 表中，发布后保持固定。
