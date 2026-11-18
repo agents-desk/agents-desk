@@ -8,6 +8,7 @@
     ".tenon/js/host",
     ".tenon/js/start",
     ".tenon/js/ui",
+    "apps/admin",
     "apps/web",
     "packages/client"
   ],
