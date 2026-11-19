@@ -58,7 +58,7 @@ func TestMemberAPIs(t *testing.T) {
 		cfg: config.Default[Config](), db: env.DB, roles: env.Roles,
 		adminLogins: env.AdminLogins, adminTokens: apitoken.NewStore(env.DB, tokens),
 		memberLogins: env.MemberLogins, memberTokens: apitoken.NewStore(env.DB, tokens),
-		llmSettings: llm.NewGroup(env.DB),
+		llmSettings: llm.NewGroup(env.DB), files: env.Files, localDisk: env.Disk,
 	}
 	h := a.routes(nil)
 

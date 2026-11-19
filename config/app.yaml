@@ -2,6 +2,9 @@
 # ${VAR:-默认值} 读取环境变量，生产环境用环境变量覆盖开发时的默认值；本机的覆盖写在 config/local.yaml，不提交。
 http:
   addr: ":8081"
+  # 全局的请求体上限，要比 filesystem.max_upload_size 大一些，上传文件才能通过；JSON 接口另有 Huma 的 1 MiB 上限，不受影响。
+  body_limit:
+    max_bytes: 21495808 # 20.5 MiB
 
 # 应用对外的地址：生成工作区的地址、插件的嵌入代码等链接时使用。
 public_url: ${PUBLIC_URL:-http://localhost:8081}
@@ -28,3 +31,13 @@ admin_token:
 member_token:
   lifetime: 720h
   idle_timeout: 168h
+
+# 上传的文件（头像等）。默认存在本地目录 storage/files，由应用在 /storage/ 下提供访问；多台服务器或需要 CDN 时
+# 改用 S3：配置 disks.s3，并把 default_disk 改为 s3，见 Tenon 文档的 libraries/filesystem.md。
+filesystem:
+  default_disk: ${FILES_DISK:-local}
+  max_upload_size: 20MiB
+  disks:
+    local:
+      root: ${FILES_ROOT:-storage/files}
+      public_url: /storage

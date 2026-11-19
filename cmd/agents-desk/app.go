@@ -14,13 +14,19 @@ import (
 	"github.com/go-tenon/tenon/command"
 	"github.com/go-tenon/tenon/crypt"
 	"github.com/go-tenon/tenon/database"
+	"github.com/go-tenon/tenon/filesystem"
+	"github.com/go-tenon/tenon/filesystem/local"
+	"github.com/go-tenon/tenon/filesystem/s3"
 	"github.com/go-tenon/tenon/hashing"
+	"github.com/go-tenon/tenon/lock"
+	"github.com/go-tenon/tenon/lock/pglock"
 	"github.com/go-tenon/tenon/logging"
 	"github.com/go-tenon/tenon/login"
 	"github.com/go-tenon/tenon/natsx"
 	"github.com/go-tenon/tenon/queue"
 	"github.com/go-tenon/tenon/ratelimit"
 	"github.com/go-tenon/tenon/ratelimit/pglimit"
+	"github.com/go-tenon/tenon/schedule"
 	"github.com/go-tenon/tenon/settings"
 
 	"agents-desk/internal/auth"
@@ -42,6 +48,10 @@ type App struct {
 	memberTokens *apitoken.Store // 工作区成员的登录 token
 
 	llmSettings *settings.Group[llm.Settings] // 模型接口的平台设置
+
+	files     *filesystem.Service // 上传的文件：头像等
+	localDisk *local.Disk         // 本地磁盘，在 /storage/ 下提供访问；没有配置本地磁盘时为空
+	locker    *lock.Locker        // 多个实例之间的锁：定时任务去重
 }
 
 // open 安装日志器，连接 PostgreSQL 和 NATS，确保预置的角色存在，创建账号、权限和设置的存储。serve 和需要资源的命令执行时调用它，
@@ -91,11 +101,34 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		Sends:    pglimit.New(db, "login:member:sends", every15),
 	})
 
+	// 上传的文件：打开配置了的磁盘（本地目录、S3），交给文件服务。
+	disks := map[string]filesystem.Disk{}
+	var localDisk *local.Disk
+	if cfg.Filesystem.Disks.Local.Root != "" {
+		if localDisk, err = local.Open(cfg.Filesystem.Disks.Local); err != nil {
+			return nil, err
+		}
+		stack.MustAdd("files:local", func(context.Context) error { return localDisk.Close() })
+		disks["local"] = localDisk
+	}
+	if cfg.Filesystem.Disks.S3.Bucket != "" {
+		s3Disk, err := s3.Open(ctx, cfg.Filesystem.Disks.S3)
+		if err != nil {
+			return nil, err
+		}
+		disks["s3"] = s3Disk
+	}
+	files, err := filesystem.New(db, cfg.Filesystem, disks)
+	if err != nil {
+		return nil, err
+	}
+
 	return &App{
 		cfg: cfg, db: db, nc: nc, roles: roles,
 		adminLogins: adminLogins, adminTokens: apitoken.NewStore(db, cfg.AdminToken),
 		memberLogins: memberLogins, memberTokens: apitoken.NewStore(db, cfg.MemberToken),
 		llmSettings: llm.NewGroup(db),
+		files:       files, localDisk: localDisk, locker: lock.New(pglock.New(db)),
 	}, nil
 }
 
@@ -104,6 +137,7 @@ func parts(a *App) []command.Part {
 	return []command.Part{
 		{Name: "http", Short: "接口和页面", Start: a.serveHTTP},
 		{Name: "worker", Short: "处理队列任务", Start: a.worker},
+		{Name: "scheduler", Short: "定时任务", Start: a.scheduler},
 	}
 }
 
@@ -111,4 +145,14 @@ func parts(a *App) []command.Part {
 func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
 	w := queue.NewWorker(a.db, a.nc, a.cfg.Queue, nil)
 	return w.Run, nil
+}
+
+// scheduler 装配定时任务。部署多个实例时，同一次触发只在一个实例上执行。
+func (a *App) scheduler(*command.Daemon) (func(context.Context) error, error) {
+	sched := schedule.New(a.locker, a.cfg.Schedule, nil)
+	sched.Add("files:cleanup", "*/5 * * * *", schedule.Cleanup(a.files.Cleanup, 500),
+		schedule.Describe("删除过期的临时文件和已删除的文件"))
+	sched.Add("locks:cleanup", "@hourly", schedule.Cleanup(pglock.New(a.db).Cleanup, 1000),
+		schedule.Describe("删除过期的锁"))
+	return sched.Run, nil
 }

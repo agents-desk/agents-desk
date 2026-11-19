@@ -32,11 +32,12 @@ var (
 type Admin struct {
 	bun.BaseModel `bun:"table:platform_admins"`
 
-	ID         string     `bun:"id,pk"`
-	Name       string     `bun:"name,notnull"`
-	DisabledAt *time.Time `bun:"disabled_at"` // 非空表示已停用，不能再登录
-	CreatedAt  time.Time  `bun:"created_at,notnull"`
-	UpdatedAt  time.Time  `bun:"updated_at,notnull"`
+	ID           string     `bun:"id,pk"`
+	Name         string     `bun:"name,notnull"`
+	AvatarFileID *uuid.UUID `bun:"avatar_file_id,type:uuid"` // 头像，files 中的文件；没有头像时为空
+	DisabledAt   *time.Time `bun:"disabled_at"`              // 非空表示已停用，不能再登录
+	CreatedAt    time.Time  `bun:"created_at,notnull"`
+	UpdatedAt    time.Time  `bun:"updated_at,notnull"`
 }
 
 // Ref 是这个管理员在 login、apitoken、authz 中的引用。

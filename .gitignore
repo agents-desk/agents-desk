@@ -7,3 +7,5 @@ bin/
 .env
 .idea/
 config/local.yaml
+# 本地磁盘中上传的文件
+storage/

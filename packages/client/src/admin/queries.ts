@@ -51,6 +51,28 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         queryKey: key("auth", "me", ...args),
         queryFn: () => client.auth.me(...args),
       }),
+      /** PUT /me/password */
+      passwordChange: () => ({
+        mutationFn: (variables: Parameters<Client["auth"]["passwordChange"]>[0]) => client.auth.passwordChange(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "auth"),
+      }),
+      /** PUT /me */
+      profileUpdate: () => ({
+        mutationFn: (variables: Parameters<Client["auth"]["profileUpdate"]>[0]) => client.auth.profileUpdate(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "auth"),
+      }),
+    },
+    file: {
+      /** file 分组全部查询的 key 前缀。 */
+      key: () => key("file"),
+      /** POST /files */
+      upload: () => ({
+        mutationFn: (variables: Parameters<Client["file"]["upload"]>[0]) => client.file.upload(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "file"),
+      }),
     },
     llm: {
       /** llm 分组全部查询的 key 前缀。 */

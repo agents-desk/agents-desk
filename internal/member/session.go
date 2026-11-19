@@ -8,8 +8,11 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/apitoken"
+	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/login"
+
+	"agents-desk/internal/account"
 )
 
 // LoginInput 是登录的请求：邮箱和密码。
@@ -28,9 +31,11 @@ type SessionOutput struct {
 
 // Profile 是当前登录的成员。他所属的工作区和在工作区中的权限分别由 tenant-mine、tenant-current 返回。
 type Profile struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Email        string `json:"email"`
+	AvatarFileID string `json:"avatar_file_id,omitempty" doc:"头像的文件 ID，修改个人资料时原样传回表示不换头像"`
+	AvatarURL    string `json:"avatar_url" doc:"头像的地址；没有头像时为空"`
 }
 
 // ProfileOutput 是当前成员的响应。
@@ -43,12 +48,13 @@ type Session struct {
 	db       *bun.DB
 	logins   *login.Realm
 	tokens   *apitoken.Store
+	files    *filesystem.Service
 	lifetime time.Duration // 浏览器保存会话 cookie 的时长，与登录 token 的最长有效期相同
 }
 
-// NewSession 返回成员的会话处理器，logins 是成员的 login.Realm，tokens 签发成员的登录 token。
-func NewSession(db *bun.DB, logins *login.Realm, tokens *apitoken.Store, lifetime time.Duration) *Session {
-	return &Session{db: db, logins: logins, tokens: tokens, lifetime: lifetime}
+// NewSession 返回成员的会话处理器，logins 是成员的 login.Realm，tokens 签发成员的登录 token，files 读取头像。
+func NewSession(db *bun.DB, logins *login.Realm, tokens *apitoken.Store, files *filesystem.Service, lifetime time.Duration) *Session {
+	return &Session{db: db, logins: logins, tokens: tokens, files: files, lifetime: lifetime}
 }
 
 // Login 校验邮箱和密码，签发登录 token 写进会话 cookie。密码错误返回 401，同一个邮箱错太多次返回 429，
@@ -74,16 +80,33 @@ func (s *Session) Logout(ctx context.Context, _ *struct{}) (*SessionOutput, erro
 	return &SessionOutput{SetCookie: SessionCookie.Clear()}, nil
 }
 
-// Me 返回当前登录的成员：名字和登录邮箱。
+// Me 返回当前登录的成员：名字、登录邮箱和头像。
 func (s *Session) Me(ctx context.Context, _ *struct{}) (*ProfileOutput, error) {
 	sub, _ := identity.FromContext(ctx)
-	m, err := Find(ctx, s.db, sub.ID)
+	p, err := loadProfile(ctx, s.db, s.logins, s.files, sub)
 	if err != nil {
 		return nil, err
 	}
-	email, err := Email(ctx, s.logins, m.Ref())
+	return &ProfileOutput{Body: *p}, nil
+}
+
+// loadProfile 读取 sub 的个人资料：名字、登录邮箱和头像的地址。
+func loadProfile(ctx context.Context, db bun.IDB, logins *login.Realm, files *filesystem.Service, sub identity.Subject) (*Profile, error) {
+	m, err := Find(ctx, db, sub.ID)
 	if err != nil {
 		return nil, err
 	}
-	return &ProfileOutput{Body: Profile{ID: m.ID, Name: m.Name, Email: email}}, nil
+	email, err := Email(ctx, logins, m.Ref())
+	if err != nil {
+		return nil, err
+	}
+	avatar, err := account.AvatarURL(ctx, files, m.AvatarFileID)
+	if err != nil {
+		return nil, err
+	}
+	p := &Profile{ID: m.ID, Name: m.Name, Email: email, AvatarURL: avatar}
+	if m.AvatarFileID != nil {
+		p.AvatarFileID = m.AvatarFileID.String()
+	}
+	return p, nil
 }
