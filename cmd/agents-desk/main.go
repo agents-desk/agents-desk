@@ -1,30 +1,63 @@
-// Command agents-desk 是应用的入口：serve 运行 HTTP 服务，health 供 Docker 的健康检查使用，openapi、routes、client 供 go tool tenon 生成文档和客户端。
+// Command agents-desk 是应用的入口：serve 运行 HTTP 服务和队列 worker，migrate 管理数据库迁移，admin 管理平台管理员，
+// health 供 Docker 的健康检查使用，openapi、routes、client 供 go tool tenon 生成文档和客户端。
 package main
 
 import (
-	"context"
-	"log/slog"
-	"net/http"
+	"net/url"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/cockroachdb/errors"
+	"github.com/spf13/cobra"
 
-	"github.com/go-tenon/tenon/cleanup"
+	"github.com/go-tenon/tenon/activity"
+	"github.com/go-tenon/tenon/apitoken"
+	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/command"
 	"github.com/go-tenon/tenon/command/httpcmd"
-	"github.com/go-tenon/tenon/config"
-	"github.com/go-tenon/tenon/frontend"
+	"github.com/go-tenon/tenon/command/migratecmd"
+	"github.com/go-tenon/tenon/crypt"
+	"github.com/go-tenon/tenon/database"
+	"github.com/go-tenon/tenon/hashing"
 	"github.com/go-tenon/tenon/httpx"
-	"github.com/go-tenon/tenon/httpx/rest"
-	"github.com/go-tenon/tenon/logging"
+	"github.com/go-tenon/tenon/i18n"
+	"github.com/go-tenon/tenon/login"
+	"github.com/go-tenon/tenon/natsx"
+	"github.com/go-tenon/tenon/queue"
+	"github.com/go-tenon/tenon/ratelimit/pglimit"
+	"github.com/go-tenon/tenon/settings"
 
-	"agents-desk/apps"
-	"agents-desk/internal/todo"
+	"agents-desk/internal/platformadmin"
+	"agents-desk/internal/tenant"
+	"agents-desk/locales"
+	"agents-desk/migrations"
 )
 
 // Config 是应用的配置：config/app.yaml。
 type Config struct {
 	HTTP       httpx.Config      `yaml:"http"`
+	PublicURL  string            `yaml:"public_url"` // 应用对外的地址，例如 https://desk.example.com，生成工作区的地址等链接时使用
+	Database   database.Config   `yaml:"database"`
+	NATS       natsx.Config      `yaml:"nats"`
+	Queue      queue.Config      `yaml:"queue"`
+	Crypt      crypt.Config      `yaml:"crypt"`
+	Hashing    hashing.Config    `yaml:"hashing"`
+	AdminToken apitoken.Config   `yaml:"admin_token"` // 平台管理员登录 token 的有效期
 	DevServers map[string]string `yaml:"dev_servers"` // 各前端开发服务器的地址，按前端的名称（apps 中的目录名）；只在 tenon dev 时有值，它把地址写入 .tenon/dev.yaml，页面请求转给对应的开发服务器
+}
+
+// SetDefaults 给出开发时的对外地址。
+func (c *Config) SetDefaults() {
+	if c.PublicURL == "" {
+		c.PublicURL = "http://localhost:8081"
+	}
+}
+
+// Validate 检查对外地址是 http 或 https 的绝对地址。
+func (c Config) Validate() error {
+	u, err := url.Parse(c.PublicURL)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return errors.Newf("public_url: %q 不是 http:// 或 https:// 开头的地址", c.PublicURL)
+	}
+	return nil
 }
 
 func main() {
@@ -33,63 +66,33 @@ func main() {
 		command.Serve(open, parts),
 		command.Config[Config](),
 		httpcmd.Health(func(cfg Config) httpx.Config { return cfg.HTTP }),
+		migrateCommand(),
 	)
-	// openapi、routes、client 用默认配置和 nil 依赖构造同一套路由，从中读取路由表和接口定义。
-	root.AddCommand(httpcmd.Commands(func() chi.Routes { return routes(config.Default[Config](), nil, nil) })...)
-	command.Execute(root)
+	// 需要数据库等资源的命令：声明时 App 是零值，执行其中一个命令时才调用 open 装配。
+	root.AddCommand(command.Bind(open, func(a *App) []*cobra.Command {
+		return []*cobra.Command{
+			platformadmin.Commands(a.db, a.adminLogins),
+			seedCommand(a.db, a.adminLogins, a.memberLogins, tenant.Addresses{PublicURL: a.cfg.PublicURL}),
+		}
+	})...)
+	// openapi、routes、client 用默认配置和没有打开资源的 App 构造同一套路由，从中读取路由表和接口定义；
+	// 翻译文件交给 client 命令，枚举、资源和权限的显示文字来自其中。
+	root.AddCommand(httpcmd.Commands(docRouter, httpcmd.Translations(locales.FS))...)
+	// 命令失败时，业务错误按应用的翻译文件显示提示和错误码。
+	command.Execute(root, command.Languages(i18n.MustNew("zh-CN", locales.FS)))
 }
 
-// App 是进程中各部分共用的资源。
-type App struct {
-	cfg   Config
-	store *todo.Store
-}
-
-// open 安装日志器，创建待办事项的存储。serve 命令执行时调用它，登记到 stack 的资源在进程退出时关闭。
-func open(_ context.Context, cfg Config, _ *cleanup.Stack) (*App, error) {
-	slog.SetDefault(logging.New(logging.Config{}))
-	return &App{cfg: cfg, store: todo.NewStore()}, nil
-}
-
-// parts 是常驻进程的运行部分，现在只有 HTTP 服务：serve 运行全部部分，serve http 只运行它。
-func parts(a *App) []command.Part {
-	return []command.Part{{Name: "http", Short: "接口和页面", Start: a.serveHTTP}}
-}
-
-// serveHTTP 装配 HTTP 服务，返回运行它的函数。apps 中的前端由 frontend.Host 按挂载路径提供：只在浏览器中渲染的前端
-// 由 Go 直接返回页面；服务端渲染的前端由 Go 托管的 SSR 进程渲染，它们渲染时经内部 socket 调用同一组路由。
-func (a *App) serveHTTP(d *command.Daemon) (func(context.Context) error, error) {
-	var router chi.Router
-	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { router.ServeHTTP(w, r) })
-	pages, err := frontend.New(apps.Dist, frontend.Options{API: api, DevServers: a.cfg.DevServers})
-	if err != nil {
-		return nil, err
-	}
-	router = routes(a.cfg, a.store, pages.Handler())
-	ln, err := d.Listen("tcp", a.cfg.HTTP.Addr)
-	if err != nil {
-		return nil, err
-	}
-	return func(ctx context.Context) error {
-		return pages.Run(ctx, func(ctx context.Context) error {
-			return httpx.Serve(ctx, a.cfg.HTTP, ln, router)
-		})
-	}, nil
-}
-
-// routes 是应用的全部路由：存活检查 /livez，/api 下的接口，其余路径是页面（pages）。
-// 它只保存依赖，处理请求时才使用，所以 openapi 等命令可以传 nil。
-func routes(cfg Config, store *todo.Store, pages http.Handler) chi.Router {
-	router := chi.NewRouter()
-	router.Use(httpx.Defaults(cfg.HTTP)...)
-	router.Get("/livez", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
-	router.Route("/api", func(r chi.Router) {
-		r.Use(httpx.Timeout(cfg.HTTP.Timeout))
-		api := rest.New(r, rest.Options{Title: "agents-desk", Version: "0.1.0", BasePath: "/api"})
-		todo.RegisterRoutes(api, store)
-	})
-	if pages != nil {
-		router.Handle("/*", pages)
-	}
-	return router
+// migrateCommand 返回 migrate 命令：up、status、down、make，以及发布框架自带的迁移的 publish。
+func migrateCommand() *cobra.Command {
+	cmd := migratecmd.New(migrations.FS, func(cfg Config) database.Config { return cfg.Database })
+	cmd.AddCommand(migratecmd.Publish(
+		login.Migrations(),
+		pglimit.Migrations(),
+		apitoken.Migrations(),
+		authz.Migrations(),
+		settings.Migrations(),
+		activity.Migrations(),
+		queue.Migrations(),
+	))
+	return cmd
 }

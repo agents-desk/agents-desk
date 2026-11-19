@@ -1,0 +1,34 @@
+# 中文的显示文字：业务错误的提示（以错误码为消息 ID）、资源和字段的名称、枚举和权限的名称。
+platform_admin.not_found: 平台管理员不存在
+platform_admin.disabled: 这个平台管理员账号已停用
+platform_admin.email_taken: 这个邮箱已经是平台管理员
+
+member.not_found: 成员不存在
+member.disabled: 这个邮箱的成员账号已停用
+member.details_missing: 这个邮箱还没有成员账号，请填写姓名和初始密码
+
+tenant.not_found: 工作区不存在
+tenant.slug_taken: "地址“{{.slug}}”已被使用"
+tenant.slug_reserved: "“{{.slug}}”是保留的地址，请换一个"
+
+tenant.title: 工作区
+tenant.fields.id: ID
+tenant.fields.name: 名称
+tenant.fields.slug: 地址
+tenant.fields.url: 进入地址
+tenant.fields.status: 状态
+tenant.fields.owner_id: 主管理员 ID
+tenant.fields.owner_name: 主管理员姓名
+tenant.fields.owner_email: 主管理员邮箱
+tenant.fields.owner_password: 主管理员初始密码
+tenant.fields.created_at: 创建时间
+tenant.actions.disable: 停用
+tenant.actions.enable: 启用
+tenant.status.active: 正常
+tenant.status.disabled: 已停用
+
+"permission.tenants:read": 查看工作区
+"permission.tenants:manage": 管理工作区
+"permission.platform-settings:manage": 修改平台设置
+
+llm.purpose.translation: 翻译

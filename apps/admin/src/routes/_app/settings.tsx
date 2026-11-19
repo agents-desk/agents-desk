@@ -1,0 +1,7 @@
+import { createFileRoute, Outlet } from "@tanstack/react-router"
+
+// 平台设置：菜单中的分组，页面在 settings/ 中。
+export const Route = createFileRoute("/_app/settings")({
+  staticData: { title: "平台设置", icon: "settings", order: 2 },
+  component: Outlet,
+})

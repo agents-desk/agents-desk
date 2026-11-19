@@ -1,0 +1,17 @@
+# 测试用的 PostgreSQL：docker compose -f compose.test.yml up -d --wait
+# 队列用逻辑复制转发任务，每个测试数据库一个复制槽；包内的测试并行运行，复制槽和连接数的上限都要调高。
+# 数据放在 tmpfs 中，down 之后不留任何东西。
+name: agents-desk-test
+
+services:
+  postgres:
+    image: postgres:18
+    command: [postgres, -c, wal_level=logical, -c, max_replication_slots=256, -c, max_wal_senders=64, -c, max_connections=500]
+    environment:
+      POSTGRES_PASSWORD: postgres
+    ports: ["127.0.0.1:15433:5432"]
+    tmpfs: [/var/lib/postgresql]
+    healthcheck:
+      test: pg_isready -U postgres -h 127.0.0.1
+      interval: 1s
+      retries: 60

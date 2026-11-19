@@ -21,29 +21,5 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
   return {
     /** 这个 API 全部查询的 key 前缀。 */
     key: () => key(),
-    todo: {
-      /** todo 分组全部查询的 key 前缀。 */
-      key: () => key("todo"),
-      /** POST /todos */
-      create: () => ({
-        mutationFn: (variables: Parameters<Client["todo"]["create"]>[0]) => client.todo.create(variables),
-        onSuccess: () => invalidate("todo"),
-      }),
-      /** DELETE /todos/{id} */
-      delete: () => ({
-        mutationFn: (variables: Parameters<Client["todo"]["delete"]>[0]) => client.todo.delete(variables),
-        onSuccess: () => invalidate("todo"),
-      }),
-      /** GET /todos */
-      list: (...args: Parameters<Client["todo"]["list"]>) => ({
-        queryKey: key("todo", "list", ...args),
-        queryFn: () => client.todo.list(...args),
-      }),
-      /** PATCH /todos/{id} */
-      update: () => ({
-        mutationFn: (variables: Parameters<Client["todo"]["update"]>) => client.todo.update(...variables),
-        onSuccess: () => invalidate("todo"),
-      }),
-    },
   }
 }

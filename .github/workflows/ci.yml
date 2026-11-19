@@ -10,8 +10,20 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    env:
+      POSTGRES_TEST_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable
     steps:
       - uses: actions/checkout@v4
+
+      # 数据库测试用 dbtest 为每个测试建一个临时库。队列经由逻辑复制转发任务，每个测试数据库一个复制槽；
+      # 服务容器不能传启动参数，所以用 docker run 启动，参数与 compose.test.yml 相同。
+      - name: Start PostgreSQL
+        run: |
+          docker run -d --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:18 \
+            -c wal_level=logical -c max_replication_slots=256 -c max_wal_senders=64 -c max_connections=500
+          for i in $(seq 1 60); do docker exec postgres pg_isready -U postgres -h 127.0.0.1 && exit 0; sleep 1; done
+          docker logs postgres
+          exit 1
 
       - uses: actions/setup-go@v5
         with:

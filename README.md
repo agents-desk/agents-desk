@@ -91,7 +91,7 @@ AI 和成员一样是参与者：可以加入团队、负责工单、被 @、被
 
 ### 2.4 模型调用
 
-agents-desk 通过一个 OpenAI 兼容的接口调用模型，每种用途配置一个模型名。供应商的选择、故障切换和价格由这个接口负责。
+每种用途（翻译、向量、重排序、语音识别等）配置一个模型接口：地址、密钥和模型名，不同用途可以使用不同的接口和供应商。接口的协议不预设为 OpenAI 兼容，例如重排序使用各家的 rerank 接口，由这种用途的调用代码按它的接口实现。供应商的选择、故障切换和价格由这些接口负责。
 
 - 每次调用带上业务标签：工作区、智能体、运行、用途。
 - 费用以接口返回的数字为准，按用途和智能体汇总；预算用完时，AI 转人工并通知负责人。
@@ -218,7 +218,7 @@ agents-desk 通过一个 OpenAI 兼容的接口调用模型，每种用途配置
 | 动作和判定 | 写入路径完整实现；判定只有角色权限一类规则 |
 | 工作项 | 只有工单一种类型 |
 | 连接器 | 网页插件，按连接器接口实现 |
-| 模型调用 | 只用于翻译和语言识别 |
+| 模型调用 | 只用于翻译：一次调用同时识别语言和书写方式并给出译文 |
 
 ### 3.9 配置项
 
@@ -231,7 +231,7 @@ agents-desk 通过一个 OpenAI 兼容的接口调用模型，每种用途配置
 | SLA | 首次响应：工作时间内 30 分钟 |
 | 自动关闭 | 待回复：提醒后 24 小时；已解决：48 小时 |
 | 翻译：成员工作语言、术语表 | 中文 |
-| 模型接口的地址和密钥、各用途的模型名 | 按需设置 |
+| 各用途的模型接口：地址、密钥和模型名 | 按需设置 |
 
 ### 3.10 指标
 
@@ -265,13 +265,19 @@ agents-desk 通过一个 OpenAI 兼容的接口调用模型，每种用途配置
 
 ### 5.1 开始
 
-需要 Go（版本见 [go.mod](go.mod)）和 [Bun](https://bun.sh)：
+需要 Go（版本见 [go.mod](go.mod)）、[Bun](https://bun.sh) 和 Docker：
 
 ```bash
 bun install
-bun run dev      # 打开 http://localhost:8080，接口文档在 /api/docs
+docker compose up -d --wait      # PostgreSQL 和 NATS
+printf 'crypt:\n  key: %s\n' "$(openssl rand -base64 32)" > config/local.yaml   # 应用密钥，只在本机
+go run ./cmd/agents-desk migrate up
+go run ./cmd/agents-desk seed    # 开发用的账号和示例工作区，密码都是 password
+bun run dev      # 工作区端在 http://localhost:8081，管理员端在 /admin/，接口文档在 /api/docs、/admin/api/docs
 bun run build    # 构建 bin/agents-desk
 ```
+
+用 `admin@example.com` / `password` 登录管理员端，可以看到示例工作区 `demo`，它的主管理员是 `owner@example.com` / `password`。生产环境不运行 `seed`，第一个平台管理员用 `admin create --email <邮箱>` 创建，密码在终端中输入。架构上的决定见 [docs/adr](docs/adr/README.md)。
 
 目录、常用命令、提交前的检查和代码约定见 [AGENTS.md](AGENTS.md)，框架的文档在 `.tenon/docs` 中（`bun run dev` 时生成），也可以在线阅读 [Tenon 文档](https://github.com/go-tenon/tenon/tree/main/docs)。
 

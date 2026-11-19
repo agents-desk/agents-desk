@@ -2,10 +2,79 @@
 
 // 业务错误码：与 ApiError.code 比较，或交给 isApiError(err, code)。
 
-/** agents-desk/internal/todo 的错误码。 */
-export const TodoErrors = {
-  /** ErrNotFound 表示待办事项不存在。 */
-  NotFound: "todo.not_found",
+/** agents-desk/internal/member 的错误码。 */
+export const MemberErrors = {
+  NotFound: "member.not_found",
+  Disabled: "member.disabled",
+  DetailsMissing: "member.details_missing",
+} as const
+
+/** agents-desk/internal/platformadmin 的错误码。 */
+export const PlatformadminErrors = {
+  NotFound: "platform_admin.not_found",
+  Disabled: "platform_admin.disabled",
+  EmailTaken: "platform_admin.email_taken",
+} as const
+
+/** agents-desk/internal/tenant 的错误码。 */
+export const TenantErrors = {
+  NotFound: "tenant.not_found",
+  SlugTaken: "tenant.slug_taken",
+  SlugReserved: "tenant.slug_reserved",
+} as const
+
+/** github.com/go-tenon/tenon/apitoken 的错误码。 */
+export const ApitokenErrors = {
+  /** ErrInvalid 表示 token 不存在、已撤销或已过期。rest.RequireToken 把它呈现为 401。 */
+  Invalid: "apitoken.invalid",
+  /** ErrNotFound 表示要撤销的 token 不存在或不属于该主体。 */
+  NotFound: "apitoken.not_found",
+} as const
+
+/** github.com/go-tenon/tenon/authz 的错误码。 */
+export const AuthzErrors = {
+  /** ErrNotMember 表示主体在本次请求的租户中没有任何角色。Resolve 返回它，请求得到 404，不暴露租户是否存在。 */
+  NotMember: "authz.not_member",
+  /** ErrRoleNotFound 表示角色不存在，或在该租户中不可见。 */
+  RoleNotFound: "authz.role_not_found",
+  /** ErrRoleExists 表示同一租户中已有同名角色。 */
+  RoleExists: "authz.role_exists",
+  /** ErrInvalid 表示输入不合法，例如权限不在目录中、把租户自定义的角色分配到其他租户。 */
+  Invalid: "authz.invalid",
+} as const
+
+/** github.com/go-tenon/tenon/command 的错误码。 */
+export const CommandErrors = {
+  /** ErrSecretMismatch 表示 ReadSecret 要求输入两次时，两次输入的值不同。 */
+  SecretMismatch: "command.secret_mismatch",
+} as const
+
+/** github.com/go-tenon/tenon/crypt 的错误码。 */
+export const CryptErrors = {
+  /** ErrInvalidSignature 表示链接没有签名、签名不对，或者签名之后被改过。 */
+  InvalidSignature: "url.invalid_signature",
+  /** ErrExpired 表示链接的签名正确，但已经过了有效期。 */
+  Expired: "url.expired",
+} as const
+
+/** github.com/go-tenon/tenon/database 的错误码。 */
+export const DatabaseErrors = {
+  /**
+   * ErrUnavailable 表示 Open 时数据库连不上。它属于 errorx.Unavailable 分类，
+   * 命令因此以 command.ExitUnavailable 退出，部署脚本可以据此重试。
+   */
+  Unavailable: "database.unavailable",
+  /**
+   * ErrBusy 表示连接池在 acquire.WithTimeout 设置的时限内没有空闲连接：数据库连接已经用满，请求过载。
+   * 它属于 errorx.Unavailable，HTTP 响应为 503，并带 Retry-After。
+   */
+  Busy: "database.busy",
+} as const
+
+/** github.com/go-tenon/tenon/doctor 的错误码。 */
+export const DoctorErrors = {
+  /** ErrFailed 是 DoctorReport.Err 和 Require 返回的错误的模板，分类为 Unavailable，命令以 ExitUnavailable 退出。 */
+  Failed: "doctor.failed",
 } as const
 
 /** github.com/go-tenon/tenon/httpx 的错误码。 */
@@ -40,6 +109,41 @@ export const IdentityErrors = {
   MethodRequired: "auth.method_required",
 } as const
 
+/** github.com/go-tenon/tenon/login 的错误码。 */
+export const LoginErrors = {
+  /** ErrInvalidCredentials 表示登录标识或密码不正确。两种情况不作区分，防止探测哪些标识已注册。 */
+  InvalidCredentials: "login.invalid_credentials",
+  /** ErrInvalidCode 表示验证码不正确、已过期、已用过或尝试次数已用完。 */
+  InvalidCode: "login.invalid_code",
+  /** ErrInvalidProof 表示完成凭证不正确、已过期或已用过。 */
+  InvalidProof: "login.invalid_proof",
+  /** ErrInvalidIdentifier 表示登录标识的格式不正确，例如手机号不是 E.164。 */
+  InvalidIdentifier: "login.invalid_identifier",
+  /** ErrWeakPassword 表示密码不符合 Policy.PasswordPolicy。 */
+  WeakPassword: "login.weak_password",
+  /** ErrTaken 表示登录标识已属于另一个主体。 */
+  Taken: "login.identifier_taken",
+  /** ErrLastMethod 表示移除这个登录标识或密码后，主体将没有可用的登录方式，见 Realm.Detach、Realm.RemovePassword。 */
+  LastMethod: "login.last_method",
+  /** ErrNotFound 表示登录标识不存在。 */
+  NotFound: "login.not_found",
+  /** ErrTwoFactorEnabled 表示已经启用了二次验证。 */
+  TwoFactorEnabled: "login.two_factor_enabled",
+  /**
+   * ErrMethodNotAllowed 表示登录策略（Policy.Methods）不允许这种登录方式，例如租户只允许用企业 IdP 登录。
+   * 公开参数 method 是这种方式。
+   */
+  MethodNotAllowed: "login.method_not_allowed",
+  /** ErrTwoFactorDisabled 表示没有启用二次验证。 */
+  TwoFactorDisabled: "login.two_factor_disabled",
+} as const
+
+/** github.com/go-tenon/tenon/page 的错误码。 */
+export const PageErrors = {
+  /** ErrInvalidCursor 表示客户端传入的游标无法解析。 */
+  InvalidCursor: "page.invalid_cursor",
+} as const
+
 /** github.com/go-tenon/tenon/ratelimit 的错误码。 */
 export const RatelimitErrors = {
   /**
@@ -47,4 +151,10 @@ export const RatelimitErrors = {
    * 即下一次调用可以成功的最短等待时间。
    */
   Exceeded: "rate_limit.exceeded",
+} as const
+
+/** github.com/go-tenon/tenon/settings 的错误码。 */
+export const SettingsErrors = {
+  /** ErrInvalid 表示租户 ID 为空或包含空白。 */
+  Invalid: "settings.invalid",
 } as const
