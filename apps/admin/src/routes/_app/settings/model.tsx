@@ -5,8 +5,7 @@ import type { ErrorInfo } from "@go-tenon/client"
 import { applyServerErrors, FormError, Page, SecretInput, useSchemaForm } from "@go-tenon/ui"
 import type { LlmEndpoint, LlmPurpose, LlmSettings } from "@agents-desk/client/admin"
 import { useEffect, useState } from "react"
-import { api } from "../../../auth"
-import { kit } from "../../../resources"
+import { api, kit } from "../../../api"
 
 export const Route = createFileRoute("/_app/settings/model")({
   staticData: { title: "模型接口", order: 1, permission: "platform-settings:manage" },

@@ -90,9 +90,5 @@ func (s *Session) Me(ctx context.Context, _ *struct{}) (*ProfileOutput, error) {
 	if i := slices.IndexFunc(ids, func(id login.Attached) bool { return id.Kind == login.KindEmail }); i >= 0 {
 		email = ids[i].Value
 	}
-	perms := sub.Permissions
-	if perms == nil {
-		perms = []string{}
-	}
-	return &ProfileOutput{Body: Profile{ID: a.ID, Name: a.Name, Email: email, Permissions: perms}}, nil
+	return &ProfileOutput{Body: Profile{ID: a.ID, Name: a.Name, Email: email, Permissions: sub.Permissions}}, nil
 }

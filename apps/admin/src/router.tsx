@@ -11,7 +11,7 @@ export function getRouter() {
     id: "admin",
     routeTree,
     session,
-    permissions: async () => (await me()).permissions ?? [],
+    permissions: async () => (await me()).permissions,
     router: { ssr: { nonce: cspNonce() }, defaultErrorComponent: RouteError, defaultNotFoundComponent: NotFoundPage },
   })
   // 在桌面端中，点击通知、打开深度链接时跳到对应的页面（路径与网页上的相同）。

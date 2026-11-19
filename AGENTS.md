@@ -21,7 +21,7 @@ agents-desk 是开源、AI 原生的团队沟通和服务平台，产品与设�
 
 ## 框架与文档
 
-- 框架是 `github.com/go-tenon/tenon` v0.0.6。
+- 框架是 `github.com/go-tenon/tenon` v0.0.7。
 - 框架的文档在 `.tenon/docs` 中，与上面的版本一致，`bun run dev` 每次启动时更新。先读目录 `.tenon/docs/README.md`，写某一部分的代码前读对应的页面，写法以这个版本的文档为准。
 - 查框架的文档用 MCP 工具 `tenon_search_docs`、`tenon_read_doc`；用 rg 搜索时指定目录，例如 `rg 迁移 .tenon/docs`：`.tenon` 被 .gitignore 忽略，在项目根目录搜索时不包含它。
 - 应用的入口是 `./cmd/agents-desk`，`go run ./cmd/agents-desk --help` 列出应用的命令。

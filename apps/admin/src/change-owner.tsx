@@ -3,8 +3,8 @@ import type { ErrorInfo } from "@go-tenon/client"
 import { applyServerErrors, FormError, useResourceMutations, useSchemaForm } from "@go-tenon/ui"
 import type { TenantDTO } from "@agents-desk/client/admin"
 import { useEffect, useState } from "react"
-import { api } from "./auth"
-import { kit, tenants } from "./resources"
+import { api, kit } from "./api"
+import { tenants } from "./resources"
 
 // ChangeOwnerModal 更换工作区的主管理员：填写新主管理员的邮箱；这个邮箱还没有成员账号时，再填写姓名和初始密码。
 // 原主管理员的 owner 角色被撤销。tenant 为空时关闭。
