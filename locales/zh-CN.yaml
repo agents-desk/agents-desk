@@ -18,6 +18,16 @@ member.fields.avatar_url: 头像
 member.fields.role: 角色
 member.fields.password: 初始密码
 member.actions.remove: 移出
+team.not_found: 团队不存在
+team.name_taken: "名称“{{.name}}”已被使用"
+team.lead_role_required: 坐席不能当组长，先把他的角色改为组长
+team.not_in_team: 他不在这个团队中
+team.title: 团队
+team.fields.id: ID
+team.fields.name: 名称
+team.fields.description: 说明
+team.fields.member_count: 人数
+team.fields.leads: 组长
 account.wrong_password: 当前密码不正确
 member.invalid_time_zone: "不认识的时区“{{.time_zone}}”"
 member.language.zh-CN: 简体中文
@@ -51,6 +61,8 @@ tenant.status.disabled: 已停用
 "permission.members:read": 查看成员
 "permission.members:manage": 管理成员
 "permission.tenant-settings:manage": 修改工作区设置
+"permission.teams:read": 查看团队
+"permission.teams:manage": 管理团队
 
 role.owner: 主管理员
 role.admin: 管理员

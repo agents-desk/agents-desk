@@ -79,7 +79,7 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) 
 	rows = rows[min(in.Offset(), total):min(in.Offset()+in.Limit(), total)]
 	items := make([]TenantMember, 0, len(rows))
 	for i := range rows {
-		item, err := toTenantMember(ctx, a.logins, a.files, &rows[i], roleByID[rows[i].ID])
+		item, err := toTenantMember(ctx, a.logins, a.files, sub, &rows[i], roleByID[rows[i].ID])
 		if err != nil {
 			return nil, err
 		}

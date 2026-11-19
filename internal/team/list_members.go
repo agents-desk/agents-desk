@@ -1,0 +1,103 @@
+package team
+
+import (
+	"context"
+
+	"github.com/cockroachdb/errors"
+	"github.com/uptrace/bun"
+
+	"github.com/go-tenon/tenon/authz"
+	"github.com/go-tenon/tenon/filesystem"
+	"github.com/go-tenon/tenon/identity"
+	"github.com/go-tenon/tenon/login"
+
+	"agents-desk/internal/account"
+	"agents-desk/internal/auth"
+	"agents-desk/internal/member"
+)
+
+// TeamMember 是团队中的一个成员：账号、他在工作区中的角色，以及是不是这个团队的组长。
+type TeamMember struct {
+	MemberID  string        `json:"member_id"`
+	Name      string        `json:"name"`
+	Email     string        `json:"email"`
+	AvatarURL string        `json:"avatar_url" doc:"头像的地址；没有头像时为空"`
+	Role      auth.RoleName `json:"role" doc:"他在工作区中的角色"`
+	Lead      bool          `json:"lead" doc:"是不是这个团队的组长"`
+}
+
+// TeamMemberOutput 是返回团队中一个成员的响应。
+type TeamMemberOutput struct {
+	Body TeamMember
+}
+
+// MembersOutput 是团队的全部成员。
+type MembersOutput struct {
+	Body []TeamMember
+}
+
+// ListMembers 列出团队的成员。
+type ListMembers struct {
+	db     *bun.DB
+	roles  *authz.Store
+	logins *login.Realm
+	files  *filesystem.Service
+}
+
+// NewListMembers 返回列出团队成员的动作。
+func NewListMembers(db *bun.DB, roles *authz.Store, logins *login.Realm, files *filesystem.Service) *ListMembers {
+	return &ListMembers{db: db, roles: roles, logins: logins, files: files}
+}
+
+// Handle 返回 sub 所在工作区中团队 id 的成员，组长在前，再按名字排列。团队不存在时返回 ErrNotFound。
+func (a *ListMembers) Handle(ctx context.Context, sub identity.Subject, id string) ([]TeamMember, error) {
+	if _, err := find(ctx, a.db, sub.Tenant, id, false); err != nil {
+		return nil, err
+	}
+	var rows []struct {
+		member.Member `bun:",extend"`
+		Lead          bool `bun:"lead"`
+	}
+	err := a.db.NewSelect().TableExpr("members AS m").ColumnExpr("m.*, tm.lead").
+		Join("JOIN team_members AS tm ON tm.member_id = m.id").Where("tm.team_id = ?", id).
+		OrderExpr("tm.lead DESC, m.name").Scan(ctx, &rows)
+	if err != nil {
+		return nil, errors.Wrap(err, "list team members")
+	}
+	out := make([]TeamMember, 0, len(rows))
+	for i := range rows {
+		item, err := toTeamMember(ctx, a.roles, a.logins, a.files, sub.Tenant, &rows[i].Member, rows[i].Lead)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, nil
+}
+
+// HTTP 处理 GET /t/{slug}/api/teams/{id}/members。
+func (a *ListMembers) HTTP(ctx context.Context, in *IDInput) (*MembersOutput, error) {
+	sub, _ := identity.FromContext(ctx)
+	items, err := a.Handle(ctx, sub, in.ID)
+	if err != nil {
+		return nil, err
+	}
+	return &MembersOutput{Body: items}, nil
+}
+
+// toTeamMember 把账号 m 转换为团队中的成员：读取邮箱、头像的地址和他在工作区 tenant 中的角色。
+func toTeamMember(ctx context.Context, roles *authz.Store, logins *login.Realm, files *filesystem.Service, tenant string, m *member.Member, lead bool) (TeamMember, error) {
+	email, err := member.Email(ctx, logins, m.Ref())
+	if err != nil {
+		return TeamMember{}, err
+	}
+	avatar, err := account.AvatarURL(ctx, files, m.AvatarFileID)
+	if err != nil {
+		return TeamMember{}, err
+	}
+	role, err := member.RoleOf(ctx, roles, m.Ref(), tenant)
+	if err != nil {
+		return TeamMember{}, err
+	}
+	return TeamMember{MemberID: m.ID, Name: m.Name, Email: email, AvatarURL: avatar, Role: role, Lead: lead}, nil
+}

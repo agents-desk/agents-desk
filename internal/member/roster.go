@@ -4,6 +4,8 @@ import (
 	"context"
 	"slices"
 
+	"github.com/uptrace/bun"
+
 	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/filesystem"
@@ -29,6 +31,13 @@ type TenantMember struct {
 	Email     string        `json:"email"`
 	AvatarURL string        `json:"avatar_url" doc:"头像的地址；没有头像时为空"`
 	Role      auth.RoleName `json:"role"`
+	Self      bool          `json:"self" doc:"是不是当前登录的成员自己：自己那一行不能修改角色、不能移出"`
+}
+
+// Hooks 是成员在工作区中的角色变化之后，其他模块在同一个事务中跟着做的事，由入口传入，例如团队撤掉组长身份。
+type Hooks struct {
+	RoleChanged func(ctx context.Context, tx bun.IDB, tenant, memberID string, role auth.RoleName) error // 角色换成 role 之后
+	Removed     func(ctx context.Context, tx bun.IDB, tenant, memberID string) error                     // 移出工作区之后
 }
 
 // TenantMemberOutput 是返回一个成员的响应。
@@ -50,8 +59,8 @@ func roleIn(roles []authz.Role) (role auth.RoleName, ok bool) {
 	return role, ok
 }
 
-// roleOf 返回 ref 在 tenant 中的角色。不是这个工作区的成员时返回 ErrNotFound。
-func roleOf(ctx context.Context, roles *authz.Store, ref identity.Ref, tenant string) (auth.RoleName, error) {
+// RoleOf 返回 ref 在 tenant 中的角色。不是这个工作区的成员时返回 ErrNotFound。roles 可以建在业务事务上。
+func RoleOf(ctx context.Context, roles *authz.Store, ref identity.Ref, tenant string) (auth.RoleName, error) {
 	assigned, err := roles.RolesOf(ctx, ref, tenant)
 	if err != nil {
 		return "", err
@@ -63,8 +72,8 @@ func roleOf(ctx context.Context, roles *authz.Store, ref identity.Ref, tenant st
 	return role, nil
 }
 
-// toTenantMember 把账号 m 和他的角色转换为接口中的成员：读取登录邮箱和头像的地址。
-func toTenantMember(ctx context.Context, logins *login.Realm, files *filesystem.Service, m *Member, role auth.RoleName) (TenantMember, error) {
+// toTenantMember 把账号 m 和他的角色转换为接口中的成员：读取登录邮箱和头像的地址；sub 是当前登录的成员。
+func toTenantMember(ctx context.Context, logins *login.Realm, files *filesystem.Service, sub identity.Subject, m *Member, role auth.RoleName) (TenantMember, error) {
 	email, err := Email(ctx, logins, m.Ref())
 	if err != nil {
 		return TenantMember{}, err
@@ -73,5 +82,5 @@ func toTenantMember(ctx context.Context, logins *login.Realm, files *filesystem.
 	if err != nil {
 		return TenantMember{}, err
 	}
-	return TenantMember{ID: m.ID, Name: m.Name, Email: email, AvatarURL: avatar, Role: role}, nil
+	return TenantMember{ID: m.ID, Name: m.Name, Email: email, AvatarURL: avatar, Role: role, Self: m.ID == sub.ID}, nil
 }

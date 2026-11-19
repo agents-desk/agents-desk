@@ -44,6 +44,50 @@ export const schemas = {
       },
     },
   },
+  team: {
+    create: {
+      body: {
+        "$ref": "#/components/schemas/TeamChanges"
+      },
+    },
+    list: {
+      query: {
+        "properties": {
+          "mine": {
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 60,
+            "type": "string"
+          },
+          "page": {
+            "default": 1,
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "per_page": {
+            "default": 20,
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+    },
+    memberPut: {
+      body: {
+        "$ref": "#/components/schemas/TeamMemberChange"
+      },
+    },
+    update: {
+      body: {
+        "$ref": "#/components/schemas/TeamChanges"
+      },
+    },
+  },
   tenant: {
     rename: {
       body: {
@@ -109,6 +153,36 @@ export const components = {
       "agent"
     ],
     "type": "string"
+  },
+  TeamChanges: {
+    "additionalProperties": false,
+    "properties": {
+      "description": {
+        "maxLength": 500,
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 60,
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "type": "object"
+  },
+  TeamMemberChange: {
+    "additionalProperties": false,
+    "properties": {
+      "lead": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "lead"
+    ],
+    "type": "object"
   },
   TenantGeneralSettings: {
     "additionalProperties": false,

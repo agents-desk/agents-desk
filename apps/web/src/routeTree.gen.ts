@@ -18,10 +18,13 @@ import { Route as TSlugSettingsRouteImport } from './routes/t/$slug/settings'
 import { Route as TSlugSettingsIndexRouteImport } from './routes/t/$slug/settings/index'
 import { Route as TSlugSettingsPersonalRouteImport } from './routes/t/$slug/settings/_personal'
 import { Route as TSlugSettingsWorkspaceRouteImport } from './routes/t/$slug/settings/_workspace'
+import { Route as TSlugSettingsPersonalMyTeamsRouteImport } from './routes/t/$slug/settings/_personal/my-teams'
 import { Route as TSlugSettingsPersonalPreferencesRouteImport } from './routes/t/$slug/settings/_personal/preferences'
 import { Route as TSlugSettingsPersonalProfileRouteImport } from './routes/t/$slug/settings/_personal/profile'
 import { Route as TSlugSettingsWorkspaceGeneralRouteImport } from './routes/t/$slug/settings/_workspace/general'
 import { Route as TSlugSettingsWorkspaceMembersRouteImport } from './routes/t/$slug/settings/_workspace/members'
+import { Route as TSlugSettingsWorkspaceTeamsRouteImport } from './routes/t/$slug/settings/_workspace/teams'
+import { Route as TSlugSettingsWorkspaceTeamIdRouteImport } from './routes/t/$slug/settings/_workspace/team.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -66,6 +69,12 @@ const TSlugSettingsWorkspaceRoute = TSlugSettingsWorkspaceRouteImport.update({
   id: '/_workspace',
   getParentRoute: () => TSlugSettingsRoute,
 } as any)
+const TSlugSettingsPersonalMyTeamsRoute =
+  TSlugSettingsPersonalMyTeamsRouteImport.update({
+    id: '/my-teams',
+    path: '/my-teams',
+    getParentRoute: () => TSlugSettingsPersonalRoute,
+  } as any)
 const TSlugSettingsPersonalPreferencesRoute =
   TSlugSettingsPersonalPreferencesRouteImport.update({
     id: '/preferences',
@@ -90,6 +99,18 @@ const TSlugSettingsWorkspaceMembersRoute =
     path: '/members',
     getParentRoute: () => TSlugSettingsWorkspaceRoute,
   } as any)
+const TSlugSettingsWorkspaceTeamsRoute =
+  TSlugSettingsWorkspaceTeamsRouteImport.update({
+    id: '/teams',
+    path: '/teams',
+    getParentRoute: () => TSlugSettingsWorkspaceRoute,
+  } as any)
+const TSlugSettingsWorkspaceTeamIdRoute =
+  TSlugSettingsWorkspaceTeamIdRouteImport.update({
+    id: '/team/$id',
+    path: '/team/$id',
+    getParentRoute: () => TSlugSettingsWorkspaceRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -99,10 +120,13 @@ export interface FileRoutesByFullPath {
   '/t/$slug/settings': typeof TSlugSettingsRouteWithChildren
   '/t/$slug/': typeof TSlugIndexRoute
   '/t/$slug/settings/': typeof TSlugSettingsIndexRoute
+  '/t/$slug/settings/my-teams': typeof TSlugSettingsPersonalMyTeamsRoute
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/general': typeof TSlugSettingsWorkspaceGeneralRoute
   '/t/$slug/settings/members': typeof TSlugSettingsWorkspaceMembersRoute
+  '/t/$slug/settings/teams': typeof TSlugSettingsWorkspaceTeamsRoute
+  '/t/$slug/settings/team/$id': typeof TSlugSettingsWorkspaceTeamIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -110,10 +134,13 @@ export interface FileRoutesByTo {
   '/t/$slug/conversations': typeof TSlugConversationsRoute
   '/t/$slug': typeof TSlugIndexRoute
   '/t/$slug/settings': typeof TSlugSettingsIndexRoute
+  '/t/$slug/settings/my-teams': typeof TSlugSettingsPersonalMyTeamsRoute
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/general': typeof TSlugSettingsWorkspaceGeneralRoute
   '/t/$slug/settings/members': typeof TSlugSettingsWorkspaceMembersRoute
+  '/t/$slug/settings/teams': typeof TSlugSettingsWorkspaceTeamsRoute
+  '/t/$slug/settings/team/$id': typeof TSlugSettingsWorkspaceTeamIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -126,10 +153,13 @@ export interface FileRoutesById {
   '/t/$slug/settings/_personal': typeof TSlugSettingsPersonalRouteWithChildren
   '/t/$slug/settings/_workspace': typeof TSlugSettingsWorkspaceRouteWithChildren
   '/t/$slug/settings/': typeof TSlugSettingsIndexRoute
+  '/t/$slug/settings/_personal/my-teams': typeof TSlugSettingsPersonalMyTeamsRoute
   '/t/$slug/settings/_personal/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/_personal/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/_workspace/general': typeof TSlugSettingsWorkspaceGeneralRoute
   '/t/$slug/settings/_workspace/members': typeof TSlugSettingsWorkspaceMembersRoute
+  '/t/$slug/settings/_workspace/teams': typeof TSlugSettingsWorkspaceTeamsRoute
+  '/t/$slug/settings/_workspace/team/$id': typeof TSlugSettingsWorkspaceTeamIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -141,10 +171,13 @@ export interface FileRouteTypes {
     | '/t/$slug/settings'
     | '/t/$slug/'
     | '/t/$slug/settings/'
+    | '/t/$slug/settings/my-teams'
     | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
     | '/t/$slug/settings/general'
     | '/t/$slug/settings/members'
+    | '/t/$slug/settings/teams'
+    | '/t/$slug/settings/team/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -152,10 +185,13 @@ export interface FileRouteTypes {
     | '/t/$slug/conversations'
     | '/t/$slug'
     | '/t/$slug/settings'
+    | '/t/$slug/settings/my-teams'
     | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
     | '/t/$slug/settings/general'
     | '/t/$slug/settings/members'
+    | '/t/$slug/settings/teams'
+    | '/t/$slug/settings/team/$id'
   id:
     | '__root__'
     | '/'
@@ -167,10 +203,13 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/_personal'
     | '/t/$slug/settings/_workspace'
     | '/t/$slug/settings/'
+    | '/t/$slug/settings/_personal/my-teams'
     | '/t/$slug/settings/_personal/preferences'
     | '/t/$slug/settings/_personal/profile'
     | '/t/$slug/settings/_workspace/general'
     | '/t/$slug/settings/_workspace/members'
+    | '/t/$slug/settings/_workspace/teams'
+    | '/t/$slug/settings/_workspace/team/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -244,6 +283,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugSettingsWorkspaceRouteImport
       parentRoute: typeof TSlugSettingsRoute
     }
+    '/t/$slug/settings/_personal/my-teams': {
+      id: '/t/$slug/settings/_personal/my-teams'
+      path: '/my-teams'
+      fullPath: '/t/$slug/settings/my-teams'
+      preLoaderRoute: typeof TSlugSettingsPersonalMyTeamsRouteImport
+      parentRoute: typeof TSlugSettingsPersonalRoute
+    }
     '/t/$slug/settings/_personal/preferences': {
       id: '/t/$slug/settings/_personal/preferences'
       path: '/preferences'
@@ -272,15 +318,31 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugSettingsWorkspaceMembersRouteImport
       parentRoute: typeof TSlugSettingsWorkspaceRoute
     }
+    '/t/$slug/settings/_workspace/teams': {
+      id: '/t/$slug/settings/_workspace/teams'
+      path: '/teams'
+      fullPath: '/t/$slug/settings/teams'
+      preLoaderRoute: typeof TSlugSettingsWorkspaceTeamsRouteImport
+      parentRoute: typeof TSlugSettingsWorkspaceRoute
+    }
+    '/t/$slug/settings/_workspace/team/$id': {
+      id: '/t/$slug/settings/_workspace/team/$id'
+      path: '/team/$id'
+      fullPath: '/t/$slug/settings/team/$id'
+      preLoaderRoute: typeof TSlugSettingsWorkspaceTeamIdRouteImport
+      parentRoute: typeof TSlugSettingsWorkspaceRoute
+    }
   }
 }
 
 interface TSlugSettingsPersonalRouteChildren {
+  TSlugSettingsPersonalMyTeamsRoute: typeof TSlugSettingsPersonalMyTeamsRoute
   TSlugSettingsPersonalPreferencesRoute: typeof TSlugSettingsPersonalPreferencesRoute
   TSlugSettingsPersonalProfileRoute: typeof TSlugSettingsPersonalProfileRoute
 }
 
 const TSlugSettingsPersonalRouteChildren: TSlugSettingsPersonalRouteChildren = {
+  TSlugSettingsPersonalMyTeamsRoute: TSlugSettingsPersonalMyTeamsRoute,
   TSlugSettingsPersonalPreferencesRoute: TSlugSettingsPersonalPreferencesRoute,
   TSlugSettingsPersonalProfileRoute: TSlugSettingsPersonalProfileRoute,
 }
@@ -293,12 +355,16 @@ const TSlugSettingsPersonalRouteWithChildren =
 interface TSlugSettingsWorkspaceRouteChildren {
   TSlugSettingsWorkspaceGeneralRoute: typeof TSlugSettingsWorkspaceGeneralRoute
   TSlugSettingsWorkspaceMembersRoute: typeof TSlugSettingsWorkspaceMembersRoute
+  TSlugSettingsWorkspaceTeamsRoute: typeof TSlugSettingsWorkspaceTeamsRoute
+  TSlugSettingsWorkspaceTeamIdRoute: typeof TSlugSettingsWorkspaceTeamIdRoute
 }
 
 const TSlugSettingsWorkspaceRouteChildren: TSlugSettingsWorkspaceRouteChildren =
   {
     TSlugSettingsWorkspaceGeneralRoute: TSlugSettingsWorkspaceGeneralRoute,
     TSlugSettingsWorkspaceMembersRoute: TSlugSettingsWorkspaceMembersRoute,
+    TSlugSettingsWorkspaceTeamsRoute: TSlugSettingsWorkspaceTeamsRoute,
+    TSlugSettingsWorkspaceTeamIdRoute: TSlugSettingsWorkspaceTeamIdRoute,
   }
 
 const TSlugSettingsWorkspaceRouteWithChildren =

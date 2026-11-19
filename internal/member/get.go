@@ -31,7 +31,7 @@ func NewGet(db *bun.DB, roles *authz.Store, logins *login.Realm, files *filesyst
 
 // Handle 返回 sub 所在工作区中 ID 为 id 的成员。他不是这个工作区的成员时返回 ErrNotFound。
 func (a *Get) Handle(ctx context.Context, sub identity.Subject, id string) (*TenantMember, error) {
-	role, err := roleOf(ctx, a.roles, identity.Ref{Type: Type, ID: id}, sub.Tenant)
+	role, err := RoleOf(ctx, a.roles, identity.Ref{Type: Type, ID: id}, sub.Tenant)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func (a *Get) Handle(ctx context.Context, sub identity.Subject, id string) (*Ten
 	if err != nil {
 		return nil, err
 	}
-	item, err := toTenantMember(ctx, a.logins, a.files, m, role)
+	item, err := toTenantMember(ctx, a.logins, a.files, sub, m, role)
 	if err != nil {
 		return nil, err
 	}
