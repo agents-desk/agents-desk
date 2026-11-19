@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { host } from "@go-tenon/host"
 import { BrowserSignIn, CenteredAuthLayout, LoginForm } from "@go-tenon/ui"
 import { login } from "../auth"
+import { TestAccountSignIn } from "../test-account"
 
 export const Route = createFileRoute("/login")({
   // ?redirect= 是登录前想去的页面
@@ -17,7 +18,17 @@ function Login() {
   const desktop = host()
   return (
     <CenteredAuthLayout brand="agents-desk" title="登录" description="用工作区管理员给你的邮箱和密码登录">
-      {desktop ? <BrowserSignIn signIn={desktop.auth.signIn} redirect={redirect} /> : <LoginForm login={login} redirect={redirect} />}
+      {desktop ? (
+        <BrowserSignIn signIn={desktop.auth.signIn} redirect={redirect} />
+      ) : (
+        <>
+          <LoginForm login={login} redirect={redirect} />
+          {/* 只在开发环境中：构建时整段连同测试账号一起去掉 */}
+          {import.meta.env.DEV && (
+            <TestAccountSignIn login={login} email="owner@example.com" password="password" redirect={redirect} />
+          )}
+        </>
+      )}
     </CenteredAuthLayout>
   )
 }
