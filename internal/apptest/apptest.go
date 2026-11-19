@@ -45,7 +45,7 @@ func New(t testing.TB) *Env {
 	return &Env{
 		DB: db, Roles: roles,
 		AdminLogins:  realm(platformadmin.Type, platformadmin.Resolve(db, roles)),
-		MemberLogins: realm(member.Type, nil),
+		MemberLogins: realm(member.Type, member.Resolve(db, roles)),
 	}
 }
 

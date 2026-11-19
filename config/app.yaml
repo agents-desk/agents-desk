@@ -24,3 +24,7 @@ crypt:
 admin_token:
   lifetime: 12h
   idle_timeout: 2h
+# 坐席每天都在工作区端工作，登录保持得更久：最长 30 天，7 天没有使用就失效。
+member_token:
+  lifetime: 720h
+  idle_timeout: 168h

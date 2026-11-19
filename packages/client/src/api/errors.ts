@@ -7,6 +7,8 @@ export const MemberErrors = {
   NotFound: "member.not_found",
   Disabled: "member.disabled",
   DetailsMissing: "member.details_missing",
+  /** ErrAccountDisabled 是登录或调用接口的成员账号已停用（或已删除）：响应 401，前端回到登录页。 */
+  AccountDisabled: "member.account_disabled",
 } as const
 
 /** agents-desk/internal/platformadmin 的错误码。 */
@@ -21,6 +23,8 @@ export const TenantErrors = {
   NotFound: "tenant.not_found",
   SlugTaken: "tenant.slug_taken",
   SlugReserved: "tenant.slug_reserved",
+  /** ErrDisabled 是成员进入的工作区已停用（403）：只有这个工作区的成员会看到它，其他人得到 404。 */
+  Disabled: "tenant.disabled",
 } as const
 
 /** github.com/go-tenon/tenon/apitoken 的错误码。 */

@@ -2,7 +2,7 @@
   "name": "@agents-desk/web",
   "private": true,
   "type": "module",
-  "tenon": { "base": "/", "ssr": true },
+  "tenon": { "base": "/", "ssr": false },
   "scripts": {
     "dev": "vite dev",
     "build": "bunx --bun vite build",

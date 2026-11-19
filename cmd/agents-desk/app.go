@@ -39,6 +39,7 @@ type App struct {
 	adminLogins  *login.Realm    // 平台管理员的邮箱和密码
 	adminTokens  *apitoken.Store // 平台管理员的登录 token
 	memberLogins *login.Realm    // 工作区成员的邮箱和密码
+	memberTokens *apitoken.Store // 工作区成员的登录 token
 
 	llmSettings *settings.Group[llm.Settings] // 模型接口的平台设置
 }
@@ -85,13 +86,15 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		Hasher:   hasher,
 		Crypt:    keys,
 		Policy:   login.Policy{PasswordKinds: []string{login.KindEmail}},
+		Resolve:  member.Resolve(db, roles), // 登录成功、签发 token 之前检查停用
 		Attempts: pglimit.New(db, "login:member:attempts", every15),
 		Sends:    pglimit.New(db, "login:member:sends", every15),
 	})
 
 	return &App{
 		cfg: cfg, db: db, nc: nc, roles: roles,
-		adminLogins: adminLogins, adminTokens: apitoken.NewStore(db, cfg.AdminToken), memberLogins: memberLogins,
+		adminLogins: adminLogins, adminTokens: apitoken.NewStore(db, cfg.AdminToken),
+		memberLogins: memberLogins, memberTokens: apitoken.NewStore(db, cfg.MemberToken),
 		llmSettings: llm.NewGroup(db),
 	}, nil
 }

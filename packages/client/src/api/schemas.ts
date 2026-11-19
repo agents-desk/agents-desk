@@ -5,8 +5,35 @@
  * 规则与服务端相同，交给 @go-tenon/client 的校验函数使用；$ref 指向 components 中的命名类型。
  */
 export const schemas = {
+  auth: {
+    login: {
+      body: {
+        "$ref": "#/components/schemas/MemberLoginInputBody"
+      },
+    },
+  },
 } as const
 
 /** schemas 中 $ref 引用的命名类型，键是 OpenAPI 中的名称。 */
 export const components = {
+  MemberLoginInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "email": {
+        "format": "email",
+        "maxLength": 254,
+        "type": "string"
+      },
+      "password": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "email",
+      "password"
+    ],
+    "type": "object"
+  },
 } as const

@@ -21,5 +21,33 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
   return {
     /** 这个 API 全部查询的 key 前缀。 */
     key: () => key(),
+    auth: {
+      /** auth 分组全部查询的 key 前缀。 */
+      key: () => key("auth"),
+      /** POST /auth/login */
+      login: () => ({
+        mutationFn: (variables: Parameters<Client["auth"]["login"]>[0]) => client.auth.login(variables),
+        onSuccess: () => invalidate("auth"),
+      }),
+      /** POST /auth/logout */
+      logout: () => ({
+        mutationFn: () => client.auth.logout(),
+        onSuccess: () => invalidate("auth"),
+      }),
+      /** GET /me */
+      me: (...args: Parameters<Client["auth"]["me"]>) => ({
+        queryKey: key("auth", "me", ...args),
+        queryFn: () => client.auth.me(...args),
+      }),
+    },
+    tenant: {
+      /** tenant 分组全部查询的 key 前缀。 */
+      key: () => key("tenant"),
+      /** GET /tenants */
+      mine: (...args: Parameters<Client["tenant"]["mine"]>) => ({
+        queryKey: key("tenant", "mine", ...args),
+        queryFn: () => client.tenant.mine(...args),
+      }),
+    },
   }
 }
