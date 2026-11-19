@@ -5,10 +5,95 @@ import { Runtime, type ClientOptions, type Download, type SessionLike, type Stre
 export * from "./errors"
 export { ApiError, isApiError, saveBlob, type ClientOptions, type Download, type SessionLike, type FieldError, type StreamOptions } from "./runtime"
 
+export interface ErrorDetail {
+  /** Validation rule, e.g. validation.min_length, or the business error code. Absent when the rule is not recognized. */
+  code?: string
+  /** Where the error occurred, e.g. 'body.items[3].tags' or 'path.thing-id' */
+  location?: string
+  /** Error message text */
+  message?: string
+  /** The value at the given location */
+  value?: unknown
+}
+
+export interface ErrorModel {
+  /** Stable business error code. Present only on business errors. */
+  code?: string
+  /** A human-readable explanation specific to this occurrence of the problem. */
+  detail?: string
+  /** Field errors. Present on validation errors, and on business errors that name a field (the entry then carries the business error code). */
+  errors?: ErrorDetail[]
+  /** A URI reference that identifies the specific occurrence of the problem. */
+  instance?: string
+  /** Public parameters of a business error, e.g. methods for auth.method_required. Present only when the error has any. */
+  params?: Record<string, unknown>
+  /** HTTP status code */
+  status?: number
+  /** A short, human-readable summary of the problem type. This value should not change between occurrences of the error. */
+  title?: string
+  /** A URI reference to human-readable documentation for the error. */
+  type?: string
+}
+
+export interface MemberLoginInputBody {
+  email: string
+  password: string
+}
+
+export interface MemberProfile {
+  email: string
+  id: string
+  name: string
+}
+
+export interface TenantMineItem {
+  name: string
+  slug: string
+  status: TenantStatus
+  /** 成员进入工作区的地址 */
+  url: string
+}
+
+export type TenantStatus = "active" | "disabled"
+
 /** 创建客户端。 */
 export function createClient(options: ClientOptions) {
   const rt = new Runtime(options)
   return {
+    /** operationId 以 auth- 开头的接口。 */
+    auth: {
+      /**
+       * 用邮箱和密码登录
+       *
+       * POST /auth/login
+       */
+      login: (body: MemberLoginInputBody): Promise<void> =>
+        rt.request<void>({ method: "POST", path: `/auth/login`, public: true, body }),
+      /**
+       * 退出登录
+       *
+       * POST /auth/logout
+       */
+      logout: (): Promise<void> =>
+        rt.request<void>({ method: "POST", path: `/auth/logout` }),
+      /**
+       * 当前登录的成员
+       *
+       * GET /me
+       */
+      me: (): Promise<MemberProfile> =>
+        rt.request<MemberProfile>({ method: "GET", path: `/me` }),
+    },
+    /** operationId 以 tenant- 开头的接口。 */
+    tenant: {
+      /**
+       * 我所属的工作区
+       *
+       * GET /tenants
+       */
+      mine: (): Promise<TenantMineItem[]> =>
+        rt.request<TenantMineItem[]>({ method: "GET", path: `/tenants` }),
+    },
   }
 }
 

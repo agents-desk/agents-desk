@@ -33,15 +33,16 @@ import (
 
 // Config 是应用的配置：config/app.yaml。
 type Config struct {
-	HTTP       httpx.Config      `yaml:"http"`
-	PublicURL  string            `yaml:"public_url"` // 应用对外的地址，例如 https://desk.example.com，生成工作区的地址等链接时使用
-	Database   database.Config   `yaml:"database"`
-	NATS       natsx.Config      `yaml:"nats"`
-	Queue      queue.Config      `yaml:"queue"`
-	Crypt      crypt.Config      `yaml:"crypt"`
-	Hashing    hashing.Config    `yaml:"hashing"`
-	AdminToken apitoken.Config   `yaml:"admin_token"` // 平台管理员登录 token 的有效期
-	DevServers map[string]string `yaml:"dev_servers"` // 各前端开发服务器的地址，按前端的名称（apps 中的目录名）；只在 tenon dev 时有值，它把地址写入 .tenon/dev.yaml，页面请求转给对应的开发服务器
+	HTTP        httpx.Config      `yaml:"http"`
+	PublicURL   string            `yaml:"public_url"` // 应用对外的地址，例如 https://desk.example.com，生成工作区的地址等链接时使用
+	Database    database.Config   `yaml:"database"`
+	NATS        natsx.Config      `yaml:"nats"`
+	Queue       queue.Config      `yaml:"queue"`
+	Crypt       crypt.Config      `yaml:"crypt"`
+	Hashing     hashing.Config    `yaml:"hashing"`
+	AdminToken  apitoken.Config   `yaml:"admin_token"`  // 平台管理员登录 token 的有效期
+	MemberToken apitoken.Config   `yaml:"member_token"` // 工作区成员登录 token 的有效期
+	DevServers  map[string]string `yaml:"dev_servers"`  // 各前端开发服务器的地址，按前端的名称（apps 中的目录名）；只在 tenon dev 时有值，它把地址写入 .tenon/dev.yaml，页面请求转给对应的开发服务器
 }
 
 // SetDefaults 给出开发时的对外地址。

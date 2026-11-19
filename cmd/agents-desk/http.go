@@ -20,6 +20,7 @@ import (
 	"agents-desk/apps"
 	"agents-desk/internal/auth"
 	"agents-desk/internal/llm"
+	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
 	"agents-desk/internal/tenant"
 	"agents-desk/locales"
@@ -46,7 +47,8 @@ func (a *App) serveHTTP(d *command.Daemon) (func(context.Context) error, error) 
 	}, nil
 }
 
-// routes 是应用的全部路由：存活和就绪检查，/admin/api 下管理员端的接口，/api 下工作区端的接口，其余路径是页面（pages）。
+// routes 是应用的全部路由：存活和就绪检查，/admin/api 下管理员端的接口，/api 下成员账号的接口，/t/{slug}/api 下
+// 工作区的接口，其余路径是页面（pages）。
 // 它只保存 App 的字段、处理请求时才使用，所以 docRouter 可以用没有打开资源的 App 调用它。
 func (a *App) routes(pages http.Handler) chi.Router {
 	router := chi.NewRouter()
@@ -58,6 +60,8 @@ func (a *App) routes(pages http.Handler) chi.Router {
 			{Name: "nats", Ping: func(ctx context.Context) error { return natsx.Ping(a.nc)(ctx) }},
 		},
 	}))
+
+	addr := tenant.Addresses{PublicURL: a.cfg.PublicURL}
 
 	// 管理员端：只接受平台管理员，会话 cookie 是 __Host-admin，权限按平台的域加载。
 	router.Route("/admin/api", func(r chi.Router) {
@@ -75,16 +79,36 @@ func (a *App) routes(pages http.Handler) chi.Router {
 			}
 			return rest.RequireToken(api, a.adminTokens.Validate, names...)
 		}
-		addr := tenant.Addresses{PublicURL: a.cfg.PublicURL}
 		platformadmin.RegisterRoutes(api, require(), a.db, a.adminLogins, a.adminTokens, a.cfg.AdminToken.Lifetime)
 		tenant.RegisterRoutes(api, require(auth.TenantsRead), require(auth.TenantsManage), a.db, a.memberLogins, addr)
 		llm.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.llmSettings)
 	})
 
-	// 工作区端：成员登录和工作区的接口在 PR 2 中加入。
+	// 工作区端的账号级接口：成员的登录、退出、当前账号和所属的工作区。只接受成员，会话 cookie 是 __Host-session，
+	// 租户是平台本身（""），成员在其中没有权限。
 	router.Route("/api", func(r chi.Router) {
 		r.Use(httpx.Timeout(a.cfg.HTTP.Timeout))
-		rest.New(r, rest.Options{Title: "agents-desk", Version: "0.1.0", BasePath: "/api"})
+		api := rest.New(r, rest.Options{
+			Title: "agents-desk", Version: "0.1.0", BasePath: "/api",
+			Accounts:      identity.Accounts{member.Type: member.Resolve(a.db, a.roles)},
+			SessionCookie: member.SessionCookie,
+		})
+		requireMember := rest.RequireToken(api, a.memberTokens.Validate)
+		member.RegisterRoutes(api, requireMember, a.db, a.memberLogins, a.memberTokens, a.cfg.MemberToken.Lifetime)
+		tenant.RegisterMemberRoutes(api, requireMember, a.db, a.roles, addr)
+	})
+
+	// 工作区的接口：tenant.Middleware 按路径中的 slug 查出工作区，业务代码只见到它的 ID（sub.Tenant）。
+	// 不是成员（包括 slug 不存在）时 404，工作区停用时 403；权限按这个工作区的域加载。
+	router.Route("/t/{slug}/api", func(r chi.Router) {
+		r.Use(httpx.Timeout(a.cfg.HTTP.Timeout), tenant.Middleware(a.db))
+		api := rest.New(r, rest.Options{
+			Title: "agents-desk 工作区", Version: "0.1.0", BasePath: "/t/{slug}/api",
+			Tenant:        tenant.FromRequest,
+			Accounts:      identity.Accounts{member.Type: tenant.Resolve(member.Resolve(a.db, a.roles))},
+			SessionCookie: member.SessionCookie,
+		})
+		tenant.RegisterTenantRoutes(api, rest.RequireToken(api, a.memberTokens.Validate), a.db)
 	})
 
 	if pages != nil {

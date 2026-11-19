@@ -12,7 +12,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/errorx"
+	"github.com/go-tenon/tenon/httpx"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/login"
 )
@@ -24,7 +26,12 @@ var (
 	ErrNotFound       = errorx.Define(errorx.NotFound, "member.not_found")
 	ErrDisabled       = errorx.Define(errorx.Conflict, "member.disabled")
 	ErrDetailsMissing = errorx.Define(errorx.InvalidArgument, "member.details_missing")
+	// ErrAccountDisabled 是登录或调用接口的成员账号已停用（或已删除）：响应 401，前端回到登录页。
+	ErrAccountDisabled = errorx.Define(errorx.Unauthenticated, "member.account_disabled")
 )
+
+// SessionCookie 是成员的会话 cookie，用默认的名称 __Host-session，与平台管理员的 __Host-admin 分开。
+var SessionCookie = httpx.SessionCookie{}
 
 // Member 是一个成员账号。
 type Member struct {
@@ -48,6 +55,21 @@ func Find(ctx context.Context, db bun.IDB, id string) (*Member, error) {
 		return nil, ErrNotFound.New()
 	}
 	return m, errors.Wrap(err, "load member")
+}
+
+// Resolve 返回成员的 Resolver：每个请求重新读库，账号停用立即生效（ErrAccountDisabled），再按本次请求的租户
+// 加载成员在其中的权限。租户是平台本身（""）时权限为空；成员在租户中没有角色时 roles 返回 404。
+func Resolve(db bun.IDB, roles *authz.Store) identity.Resolver {
+	return func(ctx context.Context, sub identity.Subject) (identity.Subject, error) {
+		m, err := Find(ctx, db, sub.ID)
+		if errors.Is(err, ErrNotFound) || err == nil && m.DisabledAt != nil {
+			return identity.Subject{}, ErrAccountDisabled.New()
+		}
+		if err != nil {
+			return identity.Subject{}, err
+		}
+		return roles.Resolve(ctx, sub)
+	}
 }
 
 // Email 返回成员登录用的邮箱，没有邮箱时返回空字符串。

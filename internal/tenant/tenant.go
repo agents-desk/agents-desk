@@ -29,6 +29,8 @@ var (
 	ErrNotFound     = errorx.Define(errorx.NotFound, "tenant.not_found")
 	ErrSlugTaken    = errorx.Define(errorx.Conflict, "tenant.slug_taken")
 	ErrSlugReserved = errorx.Define(errorx.InvalidArgument, "tenant.slug_reserved")
+	// ErrDisabled 是成员进入的工作区已停用（403）：只有这个工作区的成员会看到它，其他人得到 404。
+	ErrDisabled = errorx.Define(errorx.PermissionDenied, "tenant.disabled")
 )
 
 // reservedSlugs 是不能作为 slug 的词：它们是或者将来可能是应用自己的路径。

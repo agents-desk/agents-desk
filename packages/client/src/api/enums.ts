@@ -5,4 +5,11 @@
  * labels 按语言列出显示文字，取自翻译文件中 <前缀>.<取值> 的消息；缺少时先用默认语言，再用取值本身。
  */
 export const enums = {
+  TenantStatus: {
+    prefix: "tenant.status",
+    values: ["active", "disabled"],
+    labels: {
+      "zh-CN": { active: "正常", disabled: "已停用" },
+    },
+  },
 } as const

@@ -277,7 +277,7 @@ bun run dev      # 工作区端在 http://localhost:8081，管理员端在 /admi
 bun run build    # 构建 bin/agents-desk
 ```
 
-用 `admin@example.com` / `password` 登录管理员端，可以看到示例工作区 `demo`，它的主管理员是 `owner@example.com` / `password`。生产环境不运行 `seed`，第一个平台管理员用 `admin create --email <邮箱>` 创建，密码在终端中输入。架构上的决定见 [docs/adr](docs/adr/README.md)。
+用 `admin@example.com` / `password` 登录管理员端，可以看到示例工作区 `demo`；它的主管理员 `owner@example.com` / `password` 登录工作区端 <http://localhost:8081/>，进入 `/t/demo/`。生产环境不运行 `seed`，第一个平台管理员用 `admin create --email <邮箱>` 创建，密码在终端中输入。架构上的决定见 [docs/adr](docs/adr/README.md)。
 
 目录、常用命令、提交前的检查和代码约定见 [AGENTS.md](AGENTS.md)，框架的文档在 `.tenon/docs` 中（`bun run dev` 时生成），也可以在线阅读 [Tenon 文档](https://github.com/go-tenon/tenon/tree/main/docs)。
 
@@ -285,9 +285,8 @@ bun run build    # 构建 bin/agents-desk
 
 #### Tenon 自动接入的
 
-`tenon init` 和 `bun run agents`（`go tool tenon agents`）为 Claude Code、Codex、Cursor、Antigravity 准备好了这些，升级框架、加前端或客户端后运行 `bun run agents` 更新：
+`tenon init` 和 `bun run agents`（`go tool tenon agents`）为 Claude Code、Codex、Cursor、Antigravity 准备好了这些，升级框架后运行 `bun run agents` 更新（`AGENTS.md` 由项目自己维护）：
 
-- `AGENTS.md`：项目说明，其中 `tenon:begin` 到 `tenon:end` 之间由 Tenon 生成；
 - `.tenon/docs`：与 `go.mod` 中的框架版本一致的文档；
 - `tenon-*` 技能：新增业务动作、写接口、加表、写页面等常做的事的步骤；
 - MCP 服务 `tenon`（`go tool tenon mcp`）：检索框架的文档、查看项目信息、读 `bun run dev` 的输出。
