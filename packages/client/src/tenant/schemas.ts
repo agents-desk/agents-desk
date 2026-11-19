@@ -5,8 +5,123 @@
  * 规则与服务端相同，交给 @go-tenon/client 的校验函数使用；$ref 指向 components 中的命名类型。
  */
 export const schemas = {
+  member: {
+    add: {
+      body: {
+        "$ref": "#/components/schemas/MemberAddParams"
+      },
+    },
+    list: {
+      query: {
+        "properties": {
+          "name": {
+            "maxLength": 60,
+            "type": "string"
+          },
+          "page": {
+            "default": 1,
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "per_page": {
+            "default": 20,
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        },
+        "type": "object"
+      },
+    },
+    update: {
+      body: {
+        "$ref": "#/components/schemas/MemberRoleChange"
+      },
+    },
+  },
+  tenant: {
+    rename: {
+      body: {
+        "$ref": "#/components/schemas/TenantGeneralSettings"
+      },
+    },
+  },
 } as const
 
 /** schemas 中 $ref 引用的命名类型，键是 OpenAPI 中的名称。 */
 export const components = {
+  AssignableRole: {
+    "enum": [
+      "admin",
+      "lead",
+      "agent"
+    ],
+    "type": "string"
+  },
+  MemberAddParams: {
+    "additionalProperties": false,
+    "properties": {
+      "email": {
+        "format": "email",
+        "maxLength": 254,
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 60,
+        "type": "string"
+      },
+      "password": {
+        "maxLength": 128,
+        "type": "string"
+      },
+      "role": {
+        "$ref": "#/components/schemas/AssignableRole"
+      }
+    },
+    "required": [
+      "email",
+      "role"
+    ],
+    "type": "object"
+  },
+  MemberRoleChange: {
+    "additionalProperties": false,
+    "properties": {
+      "role": {
+        "$ref": "#/components/schemas/AssignableRole"
+      }
+    },
+    "required": [
+      "role"
+    ],
+    "type": "object"
+  },
+  Role: {
+    "enum": [
+      "owner",
+      "admin",
+      "lead",
+      "agent"
+    ],
+    "type": "string"
+  },
+  TenantGeneralSettings: {
+    "additionalProperties": false,
+    "properties": {
+      "name": {
+        "maxLength": 60,
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "type": "object"
+  },
 } as const

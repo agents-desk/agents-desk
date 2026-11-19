@@ -3,7 +3,11 @@ package auth
 import (
 	"context"
 
+	"github.com/danielgtaylor/huma/v2"
+
 	"github.com/go-tenon/tenon/authz"
+	"github.com/go-tenon/tenon/contract"
+	"github.com/go-tenon/tenon/enum"
 	"github.com/go-tenon/tenon/identity"
 )
 
@@ -14,13 +18,56 @@ var (
 		Name: "platform-admin", Description: "平台管理员",
 		Permissions: []string{string(TenantsRead), string(TenantsManage), string(PlatformSettingsManage)},
 	}
-	// Owner 是租户（工作区）的主管理员，分配在租户的域中。PR 2 定下工作区的权限后改为明确的列表。
-	Owner = authz.Role{Name: "owner", Description: "工作区的主管理员", Permissions: []string{"*"}}
+	// Owner 是租户（工作区）的主管理员，分配在租户的域中。每个工作区只有一个，只在管理员端更换。
+	Owner = authz.Role{
+		Name: string(RoleOwner), Description: "工作区的主管理员",
+		Permissions: []string{string(MembersRead), string(MembersManage), string(TenantSettingsManage)},
+	}
+	// Admin 是工作区的管理员：管理成员和工作区的设置，不能动主管理员。
+	Admin = authz.Role{
+		Name: string(RoleAdmin), Description: "工作区的管理员",
+		Permissions: []string{string(MembersRead), string(MembersManage), string(TenantSettingsManage)},
+	}
+	// Lead 是组长：带领团队处理会话和工单（团队在 PR 6 中加入）。
+	Lead = authz.Role{Name: string(RoleLead), Description: "组长", Permissions: []string{string(MembersRead)}}
+	// Agent 是坐席：处理会话和工单。
+	Agent = authz.Role{Name: string(RoleAgent), Description: "坐席", Permissions: []string{string(MembersRead)}}
 )
+
+// RoleName 是成员在工作区中的角色。每个成员在一个工作区中只有一个角色。
+type RoleName string
+
+const (
+	RoleOwner RoleName = "owner" // 主管理员
+	RoleAdmin RoleName = "admin" // 管理员
+	RoleLead  RoleName = "lead"  // 组长
+	RoleAgent RoleName = "agent" // 坐席
+)
+
+// RoleNames 是工作区的全部角色，按从高到低的顺序；显示文字是翻译文件中 role.<角色> 的消息。
+var RoleNames = enum.New("role", RoleOwner, RoleAdmin, RoleLead, RoleAgent)
+
+// Schema 让 OpenAPI 中的 RoleName 只接受上面的取值，并带有显示文字。
+func (RoleName) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, RoleNames) }
+
+// AssignableRole 是在工作区端可以分配的角色：主管理员只在管理员端更换，不在其中。
+type AssignableRole string
+
+// AssignableRoles 是可以分配的角色，显示文字是翻译文件中 assignable_role.<角色> 的消息。前缀与 RoleNames 不同：
+// 枚举在接口文档中按前缀命名，同一个前缀的两个枚举会被当成同一个类型，主管理员就成了可以分配的角色。
+var AssignableRoles = enum.New("assignable_role", AssignableRole(RoleAdmin), AssignableRole(RoleLead), AssignableRole(RoleAgent))
+
+// Schema 让 OpenAPI 中的 AssignableRole 只接受上面的取值，并带有显示文字。
+func (AssignableRole) Schema(r huma.Registry) *huma.Schema {
+	return contract.EnumSchema(r, AssignableRoles)
+}
+
+// TenantRoles 是工作区的预置角色，按 RoleName 查找。
+var TenantRoles = map[RoleName]authz.Role{RoleOwner: Owner, RoleAdmin: Admin, RoleLead: Lead, RoleAgent: Agent}
 
 // EnsureRoles 确保预置的角色存在且与声明一致，在入口的 open 中调用：重复调用、多个实例同时启动都是安全的。
 func EnsureRoles(ctx context.Context, roles *authz.Store) error {
-	for _, r := range []authz.Role{PlatformAdmin, Owner} {
+	for _, r := range []authz.Role{PlatformAdmin, Owner, Admin, Lead, Agent} {
 		if _, err := roles.EnsureRole(ctx, r); err != nil {
 			return err
 		}

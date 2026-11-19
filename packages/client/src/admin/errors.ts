@@ -20,6 +20,9 @@ export const MemberErrors = {
   AccountDisabled: "member.account_disabled",
   /** ErrInvalidTimeZone 是不认识的时区名（422），提示显示在“时区”下面。 */
   InvalidTimeZone: "member.invalid_time_zone",
+  AlreadyMember: "member.already_member",
+  OwnerProtected: "member.owner_protected",
+  Self: "member.self",
 } as const
 
 /** agents-desk/internal/platformadmin 的错误码。 */

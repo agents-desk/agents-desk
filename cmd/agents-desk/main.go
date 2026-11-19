@@ -83,7 +83,7 @@ func main() {
 	root.AddCommand(command.Bind(open, func(a *App) []*cobra.Command {
 		return []*cobra.Command{
 			platformadmin.Commands(a.db, a.adminLogins),
-			seedCommand(a.db, a.adminLogins, a.memberLogins, tenant.Addresses{PublicURL: a.cfg.PublicURL}),
+			seedCommand(a.db, a.adminLogins, a.memberLogins, a.files, tenant.Addresses{PublicURL: a.cfg.PublicURL}),
 		}
 	})...)
 	// openapi、routes、client 用默认配置和没有打开资源的 App 构造同一套路由，从中读取路由表和接口定义；

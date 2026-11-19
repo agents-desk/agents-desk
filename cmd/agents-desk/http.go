@@ -107,8 +107,17 @@ func (a *App) routes(pages http.Handler) chi.Router {
 			Tenant:        tenant.FromRequest,
 			Accounts:      identity.Accounts{member.Type: tenant.Resolve(member.Resolve(a.db, a.roles))},
 			SessionCookie: member.SessionCookie,
+			Permissions:   auth.Catalog,
 		})
-		tenant.RegisterTenantRoutes(api, rest.RequireToken(api, a.memberTokens.Validate), a.db)
+		require := func(perms ...auth.Permission) func(*huma.Operation) {
+			names := make([]string, len(perms))
+			for i, p := range perms {
+				names[i] = string(p)
+			}
+			return rest.RequireToken(api, a.memberTokens.Validate, names...)
+		}
+		tenant.RegisterTenantRoutes(api, require, a.db)
+		member.RegisterTenantRoutes(api, require, a.db, a.roles, a.memberLogins, a.files)
 	})
 
 	// 本地磁盘中上传的文件（头像等），地址是 filesystem.disks.local.public_url。

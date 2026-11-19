@@ -103,7 +103,7 @@ func TestMemberAPIs(t *testing.T) {
 
 	// 进入工作区
 	r = call(h, "GET", "/t/demo/api/tenant", "", session)
-	if r.status != http.StatusOK || !strings.Contains(r.body, `"id":"`+ids["demo"]+`"`) || !strings.Contains(r.body, `"permissions":["*"]`) {
+	if r.status != http.StatusOK || !strings.Contains(r.body, `"id":"`+ids["demo"]+`"`) || !strings.Contains(r.body, `"permissions":["members:manage","members:read","tenant-settings:manage"]`) {
 		t.Fatalf("进入 demo：%d %s", r.status, r.body)
 	}
 	other := call(h, "GET", "/t/other/api/tenant", "", session)
