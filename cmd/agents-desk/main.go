@@ -26,6 +26,7 @@ import (
 	"github.com/go-tenon/tenon/settings"
 
 	"agents-desk/internal/platformadmin"
+	"agents-desk/internal/tenant"
 	"agents-desk/locales"
 	"agents-desk/migrations"
 )
@@ -69,7 +70,10 @@ func main() {
 	)
 	// 需要数据库等资源的命令：声明时 App 是零值，执行其中一个命令时才调用 open 装配。
 	root.AddCommand(command.Bind(open, func(a *App) []*cobra.Command {
-		return []*cobra.Command{platformadmin.Commands(a.db, a.adminLogins)}
+		return []*cobra.Command{
+			platformadmin.Commands(a.db, a.adminLogins),
+			seedCommand(a.db, a.adminLogins, a.memberLogins, tenant.Addresses{PublicURL: a.cfg.PublicURL}),
+		}
 	})...)
 	// openapi、routes、client 用默认配置和没有打开资源的 App 构造同一套路由，从中读取路由表和接口定义；
 	// 翻译文件交给 client 命令，枚举、资源和权限的显示文字来自其中。

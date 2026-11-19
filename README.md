@@ -272,12 +272,12 @@ bun install
 docker compose up -d --wait      # PostgreSQL 和 NATS
 printf 'crypt:\n  key: %s\n' "$(openssl rand -base64 32)" > config/local.yaml   # 应用密钥，只在本机
 go run ./cmd/agents-desk migrate up
-go run ./cmd/agents-desk admin create --email ops@example.com
+go run ./cmd/agents-desk seed    # 开发用的账号和示例工作区，密码都是 password
 bun run dev      # 工作区端在 http://localhost:8081，管理员端在 /admin/，接口文档在 /api/docs、/admin/api/docs
 bun run build    # 构建 bin/agents-desk
 ```
 
-平台管理员登录管理员端，创建工作区并指定主管理员；架构上的决定见 [docs/adr](docs/adr/README.md)。
+用 `admin@example.com` / `password` 登录管理员端，可以看到示例工作区 `demo`，它的主管理员是 `owner@example.com` / `password`。生产环境不运行 `seed`，第一个平台管理员用 `admin create --email <邮箱>` 创建，密码在终端中输入。架构上的决定见 [docs/adr](docs/adr/README.md)。
 
 目录、常用命令、提交前的检查和代码约定见 [AGENTS.md](AGENTS.md)，框架的文档在 `.tenon/docs` 中（`bun run dev` 时生成），也可以在线阅读 [Tenon 文档](https://github.com/go-tenon/tenon/tree/main/docs)。
 
