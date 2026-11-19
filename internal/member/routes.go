@@ -42,5 +42,9 @@ func RegisterRoutes(api *rest.API, requireMember func(*huma.Operation), db *bun.
 	requireMember(&op)
 	rest.Register(api, op, account.NewChangePassword(db, logins, tokens).HTTP)
 
+	op = huma.Operation{OperationID: "auth-preferences-update", Method: http.MethodPut, Path: "/me/preferences", Summary: "修改偏好设置"}
+	requireMember(&op)
+	rest.Register(api, op, NewUpdatePreferences(db, logins, files).HTTP)
+
 	file.RegisterRoutes(api, requireMember, files, maxUpload)
 }

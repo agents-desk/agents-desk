@@ -16,6 +16,11 @@ export const schemas = {
         "$ref": "#/components/schemas/AccountPasswordChange"
       },
     },
+    preferencesUpdate: {
+      body: {
+        "$ref": "#/components/schemas/MemberPreferences"
+      },
+    },
     profileUpdate: {
       body: {
         "$ref": "#/components/schemas/AccountProfileChanges"
@@ -64,6 +69,14 @@ export const components = {
     ],
     "type": "object"
   },
+  MemberLanguage: {
+    "enum": [
+      "zh-CN",
+      "zh-TW",
+      "en"
+    ],
+    "type": "string"
+  },
   MemberLoginInputBody: {
     "additionalProperties": false,
     "properties": {
@@ -81,6 +94,22 @@ export const components = {
     "required": [
       "email",
       "password"
+    ],
+    "type": "object"
+  },
+  MemberPreferences: {
+    "additionalProperties": false,
+    "properties": {
+      "language": {
+        "$ref": "#/components/schemas/MemberLanguage"
+      },
+      "time_zone": {
+        "maxLength": 64,
+        "type": "string"
+      }
+    },
+    "required": [
+      "language"
     ],
     "type": "object"
   },

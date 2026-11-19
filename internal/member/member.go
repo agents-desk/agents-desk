@@ -40,6 +40,8 @@ type Member struct {
 	ID           string     `bun:"id,pk"`
 	Name         string     `bun:"name,notnull"`
 	AvatarFileID *uuid.UUID `bun:"avatar_file_id,type:uuid"` // 头像，files 中的文件；没有头像时为空
+	Language     Language   `bun:"language,notnull"`         // 语言，见 Preferences
+	TimeZone     string     `bun:"time_zone,notnull"`        // IANA 时区名，为空表示跟随浏览器
 	DisabledAt   *time.Time `bun:"disabled_at"`              // 非空表示已停用，不能再登录任何工作区
 	CreatedAt    time.Time  `bun:"created_at,notnull"`
 	UpdatedAt    time.Time  `bun:"updated_at,notnull"`
@@ -115,7 +117,7 @@ func Ensure(ctx context.Context, tx bun.IDB, logins *login.Realm, acc Account) (
 		return nil, ErrDetailsMissing.New()
 	}
 	now := time.Now().UTC()
-	m := &Member{ID: uuid.Must(uuid.NewV7()).String(), Name: acc.Name, CreatedAt: now, UpdatedAt: now}
+	m := &Member{ID: uuid.Must(uuid.NewV7()).String(), Name: acc.Name, Language: SimplifiedChinese, CreatedAt: now, UpdatedAt: now}
 	if _, err := tx.NewInsert().Model(m).Exec(ctx); err != nil {
 		return nil, errors.Wrap(err, "insert member")
 	}

@@ -36,6 +36,7 @@ type Profile struct {
 	Email        string `json:"email"`
 	AvatarFileID string `json:"avatar_file_id,omitempty" doc:"头像的文件 ID，修改个人资料时原样传回表示不换头像"`
 	AvatarURL    string `json:"avatar_url" doc:"头像的地址；没有头像时为空"`
+	Preferences
 }
 
 // ProfileOutput 是当前成员的响应。
@@ -104,7 +105,7 @@ func loadProfile(ctx context.Context, db bun.IDB, logins *login.Realm, files *fi
 	if err != nil {
 		return nil, err
 	}
-	p := &Profile{ID: m.ID, Name: m.Name, Email: email, AvatarURL: avatar}
+	p := &Profile{ID: m.ID, Name: m.Name, Email: email, AvatarURL: avatar, Preferences: Preferences{Language: m.Language, TimeZone: m.TimeZone}}
 	if m.AvatarFileID != nil {
 		p.AvatarFileID = m.AvatarFileID.String()
 	}

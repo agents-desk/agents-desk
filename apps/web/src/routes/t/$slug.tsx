@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { IconSettings, IconSwitchHorizontal } from "@tabler/icons-react"
-import { enterTenant, RailLayout, requireAuth, UserMenu, useTenant } from "@go-tenon/ui"
+import { enterTenant, RailLayout, requireAuth, TimeZoneProvider, UserMenu, useTenant } from "@go-tenon/ui"
 import { tenantApi } from "../../api"
 import { logout, me } from "../../auth"
 
@@ -26,20 +26,23 @@ function TenantLayout() {
     { label: "设置", icon: <IconSettings size={16} />, to: settings },
     ...(tenants.length > 1 ? [{ label: "切换工作区", icon: <IconSwitchHorizontal size={16} />, to: "/" }] : []),
   ]
+  // 页面中的时间按成员在偏好设置中选的时区显示，没有选时按浏览器的时区。
   return (
-    <RailLayout
-      title={tenant.name}
-      settings={settings}
-      user={
-        <UserMenu
-          name={user.data?.name}
-          email={user.data?.email}
-          avatar={user.data?.avatar_url || undefined}
-          position="right-end"
-          items={items}
-          logout={logout}
-        />
-      }
-    />
+    <TimeZoneProvider zone={user.data?.time_zone}>
+      <RailLayout
+        title={tenant.name}
+        settings={settings}
+        user={
+          <UserMenu
+            name={user.data?.name}
+            email={user.data?.email}
+            avatar={user.data?.avatar_url || undefined}
+            position="right-end"
+            items={items}
+            logout={logout}
+          />
+        }
+      />
+    </TimeZoneProvider>
   )
 }
