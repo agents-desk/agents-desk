@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { IconSwitchHorizontal } from "@tabler/icons-react"
+import { IconSettings, IconSwitchHorizontal } from "@tabler/icons-react"
 import { enterTenant, RailLayout, requireAuth, UserMenu, useTenant } from "@go-tenon/ui"
 import { tenantApi } from "../../api"
 import { logout, me } from "../../auth"
@@ -20,11 +20,16 @@ function TenantLayout() {
   const tenant = Route.useLoaderData()
   const user = useQuery({ queryKey: ["me"], queryFn: me })
   const { tenants } = useTenant()
-  // 属于多个工作区时，个人菜单中可以回到选择工作区的页面。
-  const items = tenants.length > 1 ? [{ label: "切换工作区", icon: <IconSwitchHorizontal size={16} />, to: "/" }] : []
+  // 工作区设置不进图标栏，从个人菜单进入；属于多个工作区时，个人菜单中还可以回到选择工作区的页面。
+  const settings = `/t/${tenant.slug}/settings`
+  const items = [
+    { label: "设置", icon: <IconSettings size={16} />, to: settings },
+    ...(tenants.length > 1 ? [{ label: "切换工作区", icon: <IconSwitchHorizontal size={16} />, to: "/" }] : []),
+  ]
   return (
     <RailLayout
       title={tenant.name}
+      settings={settings}
       user={<UserMenu name={user.data?.name} email={user.data?.email} position="right-end" items={items} logout={logout} />}
     />
   )

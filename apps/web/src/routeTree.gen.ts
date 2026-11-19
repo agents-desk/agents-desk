@@ -15,6 +15,8 @@ import { Route as TSlugRouteImport } from './routes/t/$slug'
 import { Route as TSlugIndexRouteImport } from './routes/t/$slug/index'
 import { Route as TSlugConversationsRouteImport } from './routes/t/$slug/conversations'
 import { Route as TSlugSettingsRouteImport } from './routes/t/$slug/settings'
+import { Route as TSlugSettingsIndexRouteImport } from './routes/t/$slug/settings/index'
+import { Route as TSlugSettingsGeneralRouteImport } from './routes/t/$slug/settings/general'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,21 +48,34 @@ const TSlugSettingsRoute = TSlugSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => TSlugRoute,
 } as any)
+const TSlugSettingsIndexRoute = TSlugSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => TSlugSettingsRoute,
+} as any)
+const TSlugSettingsGeneralRoute = TSlugSettingsGeneralRouteImport.update({
+  id: '/general',
+  path: '/general',
+  getParentRoute: () => TSlugSettingsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/t/$slug': typeof TSlugRouteWithChildren
   '/t/$slug/conversations': typeof TSlugConversationsRoute
-  '/t/$slug/settings': typeof TSlugSettingsRoute
+  '/t/$slug/settings': typeof TSlugSettingsRouteWithChildren
   '/t/$slug/': typeof TSlugIndexRoute
+  '/t/$slug/settings/general': typeof TSlugSettingsGeneralRoute
+  '/t/$slug/settings/': typeof TSlugSettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/t/$slug/conversations': typeof TSlugConversationsRoute
-  '/t/$slug/settings': typeof TSlugSettingsRoute
   '/t/$slug': typeof TSlugIndexRoute
+  '/t/$slug/settings/general': typeof TSlugSettingsGeneralRoute
+  '/t/$slug/settings': typeof TSlugSettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -68,8 +83,10 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/t/$slug': typeof TSlugRouteWithChildren
   '/t/$slug/conversations': typeof TSlugConversationsRoute
-  '/t/$slug/settings': typeof TSlugSettingsRoute
+  '/t/$slug/settings': typeof TSlugSettingsRouteWithChildren
   '/t/$slug/': typeof TSlugIndexRoute
+  '/t/$slug/settings/general': typeof TSlugSettingsGeneralRoute
+  '/t/$slug/settings/': typeof TSlugSettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -80,9 +97,16 @@ export interface FileRouteTypes {
     | '/t/$slug/conversations'
     | '/t/$slug/settings'
     | '/t/$slug/'
+    | '/t/$slug/settings/general'
+    | '/t/$slug/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
-    '/' | '/login' | '/t/$slug/conversations' | '/t/$slug/settings' | '/t/$slug'
+    | '/'
+    | '/login'
+    | '/t/$slug/conversations'
+    | '/t/$slug'
+    | '/t/$slug/settings/general'
+    | '/t/$slug/settings'
   id:
     | '__root__'
     | '/'
@@ -91,6 +115,8 @@ export interface FileRouteTypes {
     | '/t/$slug/conversations'
     | '/t/$slug/settings'
     | '/t/$slug/'
+    | '/t/$slug/settings/general'
+    | '/t/$slug/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -143,18 +169,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugSettingsRouteImport
       parentRoute: typeof TSlugRoute
     }
+    '/t/$slug/settings/': {
+      id: '/t/$slug/settings/'
+      path: '/'
+      fullPath: '/t/$slug/settings/'
+      preLoaderRoute: typeof TSlugSettingsIndexRouteImport
+      parentRoute: typeof TSlugSettingsRoute
+    }
+    '/t/$slug/settings/general': {
+      id: '/t/$slug/settings/general'
+      path: '/general'
+      fullPath: '/t/$slug/settings/general'
+      preLoaderRoute: typeof TSlugSettingsGeneralRouteImport
+      parentRoute: typeof TSlugSettingsRoute
+    }
   }
 }
 
+interface TSlugSettingsRouteChildren {
+  TSlugSettingsGeneralRoute: typeof TSlugSettingsGeneralRoute
+  TSlugSettingsIndexRoute: typeof TSlugSettingsIndexRoute
+}
+
+const TSlugSettingsRouteChildren: TSlugSettingsRouteChildren = {
+  TSlugSettingsGeneralRoute: TSlugSettingsGeneralRoute,
+  TSlugSettingsIndexRoute: TSlugSettingsIndexRoute,
+}
+
+const TSlugSettingsRouteWithChildren = TSlugSettingsRoute._addFileChildren(
+  TSlugSettingsRouteChildren,
+)
+
 interface TSlugRouteChildren {
   TSlugConversationsRoute: typeof TSlugConversationsRoute
-  TSlugSettingsRoute: typeof TSlugSettingsRoute
+  TSlugSettingsRoute: typeof TSlugSettingsRouteWithChildren
   TSlugIndexRoute: typeof TSlugIndexRoute
 }
 
 const TSlugRouteChildren: TSlugRouteChildren = {
   TSlugConversationsRoute: TSlugConversationsRoute,
-  TSlugSettingsRoute: TSlugSettingsRoute,
+  TSlugSettingsRoute: TSlugSettingsRouteWithChildren,
   TSlugIndexRoute: TSlugIndexRoute,
 }
 
