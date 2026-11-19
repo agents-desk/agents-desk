@@ -21,6 +21,7 @@ import { Route as TSlugSettingsWorkspaceRouteImport } from './routes/t/$slug/set
 import { Route as TSlugSettingsPersonalPreferencesRouteImport } from './routes/t/$slug/settings/_personal/preferences'
 import { Route as TSlugSettingsPersonalProfileRouteImport } from './routes/t/$slug/settings/_personal/profile'
 import { Route as TSlugSettingsWorkspaceGeneralRouteImport } from './routes/t/$slug/settings/_workspace/general'
+import { Route as TSlugSettingsWorkspaceMembersRouteImport } from './routes/t/$slug/settings/_workspace/members'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -83,6 +84,12 @@ const TSlugSettingsWorkspaceGeneralRoute =
     path: '/general',
     getParentRoute: () => TSlugSettingsWorkspaceRoute,
   } as any)
+const TSlugSettingsWorkspaceMembersRoute =
+  TSlugSettingsWorkspaceMembersRouteImport.update({
+    id: '/members',
+    path: '/members',
+    getParentRoute: () => TSlugSettingsWorkspaceRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -95,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/general': typeof TSlugSettingsWorkspaceGeneralRoute
+  '/t/$slug/settings/members': typeof TSlugSettingsWorkspaceMembersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -105,6 +113,7 @@ export interface FileRoutesByTo {
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/general': typeof TSlugSettingsWorkspaceGeneralRoute
+  '/t/$slug/settings/members': typeof TSlugSettingsWorkspaceMembersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -120,6 +129,7 @@ export interface FileRoutesById {
   '/t/$slug/settings/_personal/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/_personal/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/_workspace/general': typeof TSlugSettingsWorkspaceGeneralRoute
+  '/t/$slug/settings/_workspace/members': typeof TSlugSettingsWorkspaceMembersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -134,6 +144,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
     | '/t/$slug/settings/general'
+    | '/t/$slug/settings/members'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -144,6 +155,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
     | '/t/$slug/settings/general'
+    | '/t/$slug/settings/members'
   id:
     | '__root__'
     | '/'
@@ -158,6 +170,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/_personal/preferences'
     | '/t/$slug/settings/_personal/profile'
     | '/t/$slug/settings/_workspace/general'
+    | '/t/$slug/settings/_workspace/members'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -252,6 +265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugSettingsWorkspaceGeneralRouteImport
       parentRoute: typeof TSlugSettingsWorkspaceRoute
     }
+    '/t/$slug/settings/_workspace/members': {
+      id: '/t/$slug/settings/_workspace/members'
+      path: '/members'
+      fullPath: '/t/$slug/settings/members'
+      preLoaderRoute: typeof TSlugSettingsWorkspaceMembersRouteImport
+      parentRoute: typeof TSlugSettingsWorkspaceRoute
+    }
   }
 }
 
@@ -272,11 +292,13 @@ const TSlugSettingsPersonalRouteWithChildren =
 
 interface TSlugSettingsWorkspaceRouteChildren {
   TSlugSettingsWorkspaceGeneralRoute: typeof TSlugSettingsWorkspaceGeneralRoute
+  TSlugSettingsWorkspaceMembersRoute: typeof TSlugSettingsWorkspaceMembersRoute
 }
 
 const TSlugSettingsWorkspaceRouteChildren: TSlugSettingsWorkspaceRouteChildren =
   {
     TSlugSettingsWorkspaceGeneralRoute: TSlugSettingsWorkspaceGeneralRoute,
+    TSlugSettingsWorkspaceMembersRoute: TSlugSettingsWorkspaceMembersRoute,
   }
 
 const TSlugSettingsWorkspaceRouteWithChildren =

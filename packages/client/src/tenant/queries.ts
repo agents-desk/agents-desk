@@ -31,6 +31,38 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
   return {
     /** 这个 API 全部查询的 key 前缀。 */
     key: () => key(),
+    member: {
+      /** member 分组全部查询的 key 前缀。 */
+      key: () => key("member"),
+      /** POST /members */
+      add: () => ({
+        mutationFn: (variables: Parameters<Client["member"]["add"]>[0]) => client.member.add(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "member"),
+      }),
+      /** GET /members/{id} */
+      get: (...args: Parameters<Client["member"]["get"]>) => ({
+        queryKey: key("member", "get", ...args),
+        queryFn: () => client.member.get(...args),
+      }),
+      /** GET /members */
+      list: (...args: Parameters<Client["member"]["list"]>) => ({
+        queryKey: key("member", "list", ...args),
+        queryFn: () => client.member.list(...args),
+      }),
+      /** POST /members/{id}/remove */
+      remove: () => ({
+        mutationFn: (variables: Parameters<Client["member"]["remove"]>[0]) => client.member.remove(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "member"),
+      }),
+      /** PUT /members/{id} */
+      update: () => ({
+        mutationFn: (variables: Parameters<Client["member"]["update"]>) => client.member.update(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "member"),
+      }),
+    },
     tenant: {
       /** tenant 分组全部查询的 key 前缀。 */
       key: () => key("tenant"),
@@ -38,6 +70,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       current: (...args: Parameters<Client["tenant"]["current"]>) => ({
         queryKey: key("tenant", "current", ...args),
         queryFn: () => client.tenant.current(...args),
+      }),
+      /** PUT /tenant */
+      rename: () => ({
+        mutationFn: (variables: Parameters<Client["tenant"]["rename"]>[0]) => client.tenant.rename(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "tenant"),
       }),
     },
   }

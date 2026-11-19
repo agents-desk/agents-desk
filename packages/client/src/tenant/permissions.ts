@@ -2,6 +2,12 @@
 
 /** 权限目录：权限名和说明，来自 rest.Options.Permissions，以及接口要求的权限。 */
 export const permissions = {
+  "members:manage": "管理成员",
+  "members:read": "查看成员",
+  "platform-settings:manage": "修改平台设置",
+  "tenant-settings:manage": "修改工作区设置",
+  "tenants:manage": "管理工作区",
+  "tenants:read": "查看工作区",
 } as const
 
 /** 权限名。 */
@@ -9,4 +15,14 @@ export type Permission = keyof typeof permissions
 
 /** 每个接口要求的权限，调用者必须全部具备；没有列出的接口不要求权限。 */
 export const required = {
+  member: {
+    add: ["members:manage"],
+    get: ["members:read"],
+    list: ["members:read"],
+    remove: ["members:manage"],
+    update: ["members:manage"],
+  },
+  tenant: {
+    rename: ["tenant-settings:manage"],
+  },
 } as const satisfies Record<string, readonly Permission[] | Record<string, readonly Permission[]>>

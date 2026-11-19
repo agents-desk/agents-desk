@@ -5,4 +5,18 @@
  * labels 按语言列出显示文字，取自翻译文件中 <前缀>.<取值> 的消息；缺少时先用默认语言，再用取值本身。
  */
 export const enums = {
+  AssignableRole: {
+    prefix: "assignable_role",
+    values: ["admin", "lead", "agent"],
+    labels: {
+      "zh-CN": { admin: "管理员", lead: "组长", agent: "坐席" },
+    },
+  },
+  Role: {
+    prefix: "role",
+    values: ["owner", "admin", "lead", "agent"],
+    labels: {
+      "zh-CN": { owner: "主管理员", admin: "管理员", lead: "组长", agent: "坐席" },
+    },
+  },
 } as const

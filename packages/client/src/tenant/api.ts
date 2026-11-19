@@ -5,6 +5,8 @@ import { Runtime, type ClientOptions, type Download, type SessionLike, type Stre
 export * from "./errors"
 export { ApiError, isApiError, saveBlob, type ClientOptions, type Download, type SessionLike, type FieldError, type StreamOptions } from "./runtime"
 
+export type AssignableRole = "admin" | "lead" | "agent"
+
 export interface ErrorDetail {
   /** Validation rule, e.g. validation.min_length, or the business error code. Absent when the rule is not recognized. */
   code?: string
@@ -35,6 +37,38 @@ export interface ErrorModel {
   type?: string
 }
 
+export interface MemberAddParams {
+  email: string
+  /** 这个邮箱还没有账号时必填 */
+  name?: string
+  /** 新账号的初始密码，由你告诉本人；这个邮箱还没有账号时必填 */
+  password?: string
+  role: AssignableRole
+}
+
+export interface MemberRoleChange {
+  role: AssignableRole
+}
+
+export interface MemberTenantMember {
+  /** 头像的地址；没有头像时为空 */
+  avatar_url: string
+  email: string
+  id: string
+  name: string
+  role: Role
+}
+
+export interface OffsetMemberTenantMember {
+  items: MemberTenantMember[]
+  page: number
+  per_page: number
+  /** Total number of items across all pages. */
+  total: number
+}
+
+export type Role = "owner" | "admin" | "lead" | "agent"
+
 export interface TenantCurrentDTO {
   id: string
   name: string
@@ -43,10 +77,64 @@ export interface TenantCurrentDTO {
   slug: string
 }
 
+export interface TenantGeneralSettings {
+  name: string
+}
+
+/** member-list 的参数。 */
+export interface MemberListInput {
+  /** Page number, starting at 1. */
+  page?: number
+  /** Items per page. */
+  per_page?: number
+  /** 名字包含的文字 */
+  name?: string
+  /** 只列出这个角色的成员 */
+  role?: Role
+}
+
 /** 创建客户端。 */
 export function createClient(options: ClientOptions) {
   const rt = new Runtime(options)
   return {
+    /** operationId 以 member- 开头的接口。 */
+    member: {
+      /**
+       * 添加成员
+       *
+       * POST /members
+       */
+      add: (body: MemberAddParams): Promise<MemberTenantMember> =>
+        rt.request<MemberTenantMember>({ method: "POST", path: `/members`, body }),
+      /**
+       * 读取成员
+       *
+       * GET /members/{id}
+       */
+      get: (id: string): Promise<MemberTenantMember> =>
+        rt.request<MemberTenantMember>({ method: "GET", path: `/members/${encodeURIComponent(id)}` }),
+      /**
+       * 成员列表
+       *
+       * GET /members
+       */
+      list: (input: MemberListInput = {}): Promise<OffsetMemberTenantMember> =>
+        rt.request<OffsetMemberTenantMember>({ method: "GET", path: `/members`, query: { "name": input["name"], "page": input["page"], "per_page": input["per_page"], "role": input["role"] } }),
+      /**
+       * 移出成员
+       *
+       * POST /members/{id}/remove
+       */
+      remove: (id: string): Promise<void> =>
+        rt.request<void>({ method: "POST", path: `/members/${encodeURIComponent(id)}/remove` }),
+      /**
+       * 修改成员的角色
+       *
+       * PUT /members/{id}
+       */
+      update: (id: string, body: MemberRoleChange): Promise<MemberTenantMember> =>
+        rt.request<MemberTenantMember>({ method: "PUT", path: `/members/${encodeURIComponent(id)}`, body }),
+    },
     /** operationId 以 tenant- 开头的接口。 */
     tenant: {
       /**
@@ -56,6 +144,13 @@ export function createClient(options: ClientOptions) {
        */
       current: (): Promise<TenantCurrentDTO> =>
         rt.request<TenantCurrentDTO>({ method: "GET", path: `/tenant` }),
+      /**
+       * 修改工作区的常规设置
+       *
+       * PUT /tenant
+       */
+      rename: (body: TenantGeneralSettings): Promise<TenantCurrentDTO> =>
+        rt.request<TenantCurrentDTO>({ method: "PUT", path: `/tenant`, body }),
     },
   }
 }

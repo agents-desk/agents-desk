@@ -7,4 +7,48 @@
  * permissions 是每个接口要求的权限；labels 按语言列出显示文字，缺少时先用默认语言，再用字段名。
  */
 export const resources = {
+  member: {
+    name: "member",
+    key: "id",
+    operations: {
+      list: ["member", "list"],
+      get: ["member", "get"],
+      create: ["member", "add"],
+      update: ["member", "update"],
+    },
+    permissions: {
+      list: ["members:read"],
+      get: ["members:read"],
+      create: ["members:manage"],
+      update: ["members:manage"],
+    },
+    columns: [
+      { name: "name", type: "string", required: true },
+      { name: "email", type: "string", required: true },
+      { name: "role", type: "string", enum: "Role", required: true },
+    ],
+    filters: [
+      { name: "name", type: "string" },
+      { name: "role", type: "string", enum: "Role" },
+    ],
+    createForm: [
+      { name: "email", type: "string", format: "email", required: true },
+      { name: "name", type: "string" },
+      { name: "password", type: "string" },
+      { name: "role", type: "string", enum: "AssignableRole", required: true },
+    ],
+    updateForm: [
+      { name: "role", type: "string", enum: "AssignableRole", required: true },
+    ],
+    actions: [
+      { name: "remove", operation: ["member", "remove"], permissions: ["members:manage"], confirm: true, danger: true, when: { "role": ["admin", "lead", "agent"] } },
+    ],
+    labels: {
+      "zh-CN": {
+        title: "成员",
+        fields: { name: "名字", email: "邮箱", role: "角色", password: "初始密码" },
+        actions: { remove: "移出" },
+      },
+    },
+  },
 } as const
