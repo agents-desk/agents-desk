@@ -18,6 +18,8 @@ export const MemberErrors = {
   DetailsMissing: "member.details_missing",
   /** ErrAccountDisabled 是登录或调用接口的成员账号已停用（或已删除）：响应 401，前端回到登录页。 */
   AccountDisabled: "member.account_disabled",
+  /** ErrInvalidTimeZone 是不认识的时区名（422），提示显示在“时区”下面。 */
+  InvalidTimeZone: "member.invalid_time_zone",
 } as const
 
 /** agents-desk/internal/platformadmin 的错误码。 */

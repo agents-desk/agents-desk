@@ -18,6 +18,7 @@ import { Route as TSlugSettingsRouteImport } from './routes/t/$slug/settings'
 import { Route as TSlugSettingsIndexRouteImport } from './routes/t/$slug/settings/index'
 import { Route as TSlugSettingsPersonalRouteImport } from './routes/t/$slug/settings/_personal'
 import { Route as TSlugSettingsWorkspaceRouteImport } from './routes/t/$slug/settings/_workspace'
+import { Route as TSlugSettingsPersonalPreferencesRouteImport } from './routes/t/$slug/settings/_personal/preferences'
 import { Route as TSlugSettingsPersonalProfileRouteImport } from './routes/t/$slug/settings/_personal/profile'
 import { Route as TSlugSettingsWorkspaceGeneralRouteImport } from './routes/t/$slug/settings/_workspace/general'
 
@@ -64,6 +65,12 @@ const TSlugSettingsWorkspaceRoute = TSlugSettingsWorkspaceRouteImport.update({
   id: '/_workspace',
   getParentRoute: () => TSlugSettingsRoute,
 } as any)
+const TSlugSettingsPersonalPreferencesRoute =
+  TSlugSettingsPersonalPreferencesRouteImport.update({
+    id: '/preferences',
+    path: '/preferences',
+    getParentRoute: () => TSlugSettingsPersonalRoute,
+  } as any)
 const TSlugSettingsPersonalProfileRoute =
   TSlugSettingsPersonalProfileRouteImport.update({
     id: '/profile',
@@ -85,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/t/$slug/settings': typeof TSlugSettingsRouteWithChildren
   '/t/$slug/': typeof TSlugIndexRoute
   '/t/$slug/settings/': typeof TSlugSettingsIndexRoute
+  '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/general': typeof TSlugSettingsWorkspaceGeneralRoute
 }
@@ -94,6 +102,7 @@ export interface FileRoutesByTo {
   '/t/$slug/conversations': typeof TSlugConversationsRoute
   '/t/$slug': typeof TSlugIndexRoute
   '/t/$slug/settings': typeof TSlugSettingsIndexRoute
+  '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/general': typeof TSlugSettingsWorkspaceGeneralRoute
 }
@@ -108,6 +117,7 @@ export interface FileRoutesById {
   '/t/$slug/settings/_personal': typeof TSlugSettingsPersonalRouteWithChildren
   '/t/$slug/settings/_workspace': typeof TSlugSettingsWorkspaceRouteWithChildren
   '/t/$slug/settings/': typeof TSlugSettingsIndexRoute
+  '/t/$slug/settings/_personal/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/_personal/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/_workspace/general': typeof TSlugSettingsWorkspaceGeneralRoute
 }
@@ -121,6 +131,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings'
     | '/t/$slug/'
     | '/t/$slug/settings/'
+    | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
     | '/t/$slug/settings/general'
   fileRoutesByTo: FileRoutesByTo
@@ -130,6 +141,7 @@ export interface FileRouteTypes {
     | '/t/$slug/conversations'
     | '/t/$slug'
     | '/t/$slug/settings'
+    | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
     | '/t/$slug/settings/general'
   id:
@@ -143,6 +155,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/_personal'
     | '/t/$slug/settings/_workspace'
     | '/t/$slug/settings/'
+    | '/t/$slug/settings/_personal/preferences'
     | '/t/$slug/settings/_personal/profile'
     | '/t/$slug/settings/_workspace/general'
   fileRoutesById: FileRoutesById
@@ -218,6 +231,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugSettingsWorkspaceRouteImport
       parentRoute: typeof TSlugSettingsRoute
     }
+    '/t/$slug/settings/_personal/preferences': {
+      id: '/t/$slug/settings/_personal/preferences'
+      path: '/preferences'
+      fullPath: '/t/$slug/settings/preferences'
+      preLoaderRoute: typeof TSlugSettingsPersonalPreferencesRouteImport
+      parentRoute: typeof TSlugSettingsPersonalRoute
+    }
     '/t/$slug/settings/_personal/profile': {
       id: '/t/$slug/settings/_personal/profile'
       path: '/profile'
@@ -236,10 +256,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface TSlugSettingsPersonalRouteChildren {
+  TSlugSettingsPersonalPreferencesRoute: typeof TSlugSettingsPersonalPreferencesRoute
   TSlugSettingsPersonalProfileRoute: typeof TSlugSettingsPersonalProfileRoute
 }
 
 const TSlugSettingsPersonalRouteChildren: TSlugSettingsPersonalRouteChildren = {
+  TSlugSettingsPersonalPreferencesRoute: TSlugSettingsPersonalPreferencesRoute,
   TSlugSettingsPersonalProfileRoute: TSlugSettingsPersonalProfileRoute,
 }
 

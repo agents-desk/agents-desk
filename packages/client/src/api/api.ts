@@ -67,9 +67,17 @@ export interface FormFile {
   Size: number
 }
 
+export type MemberLanguage = "zh-CN" | "zh-TW" | "en"
+
 export interface MemberLoginInputBody {
   email: string
   password: string
+}
+
+export interface MemberPreferences {
+  language: MemberLanguage
+  /** IANA 时区名，例如 Asia/Shanghai；不传表示跟随浏览器 */
+  time_zone?: string
 }
 
 export interface MemberProfile {
@@ -79,7 +87,10 @@ export interface MemberProfile {
   avatar_url: string
   email: string
   id: string
+  language: MemberLanguage
   name: string
+  /** IANA 时区名，例如 Asia/Shanghai；不传表示跟随浏览器 */
+  time_zone?: string
 }
 
 export interface TenantMineItem {
@@ -131,6 +142,13 @@ export function createClient(options: ClientOptions) {
        */
       passwordChange: (body: AccountPasswordChange): Promise<void> =>
         rt.request<void>({ method: "PUT", path: `/me/password`, body }),
+      /**
+       * 修改偏好设置
+       *
+       * PUT /me/preferences
+       */
+      preferencesUpdate: (body: MemberPreferences): Promise<MemberProfile> =>
+        rt.request<MemberProfile>({ method: "PUT", path: `/me/preferences`, body }),
       /**
        * 修改个人资料
        *

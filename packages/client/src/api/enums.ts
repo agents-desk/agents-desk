@@ -5,6 +5,13 @@
  * labels 按语言列出显示文字，取自翻译文件中 <前缀>.<取值> 的消息；缺少时先用默认语言，再用取值本身。
  */
 export const enums = {
+  MemberLanguage: {
+    prefix: "member.language",
+    values: ["zh-CN", "zh-TW", "en"],
+    labels: {
+      "zh-CN": { "zh-CN": "简体中文", "zh-TW": "繁體中文", en: "English" },
+    },
+  },
   TenantStatus: {
     prefix: "tenant.status",
     values: ["active", "disabled"],

@@ -4,6 +4,8 @@ package main
 
 import (
 	"net/url"
+	// 程序内嵌时区数据：校验成员选的时区时，不依赖服务器（例如容器镜像）中有没有系统的时区文件。
+	_ "time/tzdata"
 
 	"github.com/cockroachdb/errors"
 	"github.com/spf13/cobra"

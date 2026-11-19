@@ -57,6 +57,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "auth"),
       }),
+      /** PUT /me/preferences */
+      preferencesUpdate: () => ({
+        mutationFn: (variables: Parameters<Client["auth"]["preferencesUpdate"]>[0]) => client.auth.preferencesUpdate(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "auth"),
+      }),
       /** PUT /me */
       profileUpdate: () => ({
         mutationFn: (variables: Parameters<Client["auth"]["profileUpdate"]>[0]) => client.auth.profileUpdate(variables),
