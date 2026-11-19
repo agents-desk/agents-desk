@@ -30,7 +30,16 @@ function TenantLayout() {
     <RailLayout
       title={tenant.name}
       settings={settings}
-      user={<UserMenu name={user.data?.name} email={user.data?.email} position="right-end" items={items} logout={logout} />}
+      user={
+        <UserMenu
+          name={user.data?.name}
+          email={user.data?.email}
+          avatar={user.data?.avatar_url || undefined}
+          position="right-end"
+          items={items}
+          logout={logout}
+        />
+      }
     />
   )
 }

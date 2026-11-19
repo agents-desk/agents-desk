@@ -2,6 +2,15 @@
 
 // 业务错误码：与 ApiError.code 比较，或交给 isApiError(err, code)。
 
+/** agents-desk/internal/account 的错误码。 */
+export const AccountErrors = {
+  /**
+   * ErrWrongPassword 是修改密码时当前密码不正确（422），提示显示在“当前密码”下面。
+   * 登录的 login.ErrInvalidCredentials 是 401，前端收到 401 会当作登录失效，所以这里换成这个错误。
+   */
+  WrongPassword: "account.wrong_password",
+} as const
+
 /** agents-desk/internal/member 的错误码。 */
 export const MemberErrors = {
   NotFound: "member.not_found",
@@ -79,6 +88,22 @@ export const DatabaseErrors = {
 export const DoctorErrors = {
   /** ErrFailed 是 DoctorReport.Err 和 Require 返回的错误的模板，分类为 Unavailable，命令以 ExitUnavailable 退出。 */
   Failed: "doctor.failed",
+} as const
+
+/** github.com/go-tenon/tenon/filesystem 的错误码。 */
+export const FilesystemErrors = {
+  /** 404：不存在、已删除、已过期或不属于当前主体 */
+  NotFound: "filesystem.not_found",
+  /** 422：输入不合法，如正文长度与 Size 不符 */
+  Invalid: "filesystem.invalid",
+  /** 422：超过 max_upload_size */
+  TooLarge: "filesystem.too_large",
+  /** 409：确认时对象尚未完整上传 */
+  NotUploaded: "filesystem.not_uploaded",
+  /** 422：磁盘不支持客户端直传 */
+  Unsupported: "filesystem.direct_upload_unsupported",
+  /** 422：类型或大小不符合 Confirm 的 Accept */
+  NotAccepted: "filesystem.not_accepted",
 } as const
 
 /** github.com/go-tenon/tenon/httpx 的错误码。 */

@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/go-tenon/tenon/apitoken"
+	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/httpx/rest"
 	"github.com/go-tenon/tenon/identity"
 
@@ -26,7 +27,7 @@ func newAdminAPI(env *apptest.Env, tokens *apitoken.Store) http.Handler {
 		Accounts:      identity.Accounts{platformadmin.Type: platformadmin.Resolve(env.DB, env.Roles)},
 		SessionCookie: platformadmin.SessionCookie,
 	})
-	platformadmin.RegisterRoutes(api, rest.RequireToken(api, tokens.Validate), env.DB, env.AdminLogins, tokens, time.Hour)
+	platformadmin.RegisterRoutes(api, rest.RequireToken(api, tokens.Validate), env.DB, env.AdminLogins, tokens, env.Files, 20*filesystem.MiB, time.Hour)
 	return api.Handler()
 }
 

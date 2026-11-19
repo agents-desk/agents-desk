@@ -79,7 +79,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 			}
 			return rest.RequireToken(api, a.adminTokens.Validate, names...)
 		}
-		platformadmin.RegisterRoutes(api, require(), a.db, a.adminLogins, a.adminTokens, a.cfg.AdminToken.Lifetime)
+		platformadmin.RegisterRoutes(api, require(), a.db, a.adminLogins, a.adminTokens, a.files, a.cfg.Filesystem.MaxUploadSize, a.cfg.AdminToken.Lifetime)
 		tenant.RegisterRoutes(api, require(auth.TenantsRead), require(auth.TenantsManage), a.db, a.memberLogins, addr)
 		llm.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.llmSettings)
 	})
@@ -94,7 +94,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 			SessionCookie: member.SessionCookie,
 		})
 		requireMember := rest.RequireToken(api, a.memberTokens.Validate)
-		member.RegisterRoutes(api, requireMember, a.db, a.memberLogins, a.memberTokens, a.cfg.MemberToken.Lifetime)
+		member.RegisterRoutes(api, requireMember, a.db, a.memberLogins, a.memberTokens, a.files, a.cfg.Filesystem.MaxUploadSize, a.cfg.MemberToken.Lifetime)
 		tenant.RegisterMemberRoutes(api, requireMember, a.db, a.roles, addr)
 	})
 
@@ -110,6 +110,11 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		})
 		tenant.RegisterTenantRoutes(api, rest.RequireToken(api, a.memberTokens.Validate), a.db)
 	})
+
+	// 本地磁盘中上传的文件（头像等），地址是 filesystem.disks.local.public_url。
+	if a.localDisk != nil {
+		router.Handle("/storage/*", a.localDisk)
+	}
 
 	if pages != nil {
 		router.Handle("/*", pages)

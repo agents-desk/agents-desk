@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppProfileRouteImport } from './routes/_app/profile'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppTenantsRouteImport } from './routes/_app/tenants'
 import { Route as AppSettingsModelRouteImport } from './routes/_app/settings/model'
@@ -28,6 +29,11 @@ const LoginRoute = LoginRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
@@ -49,12 +55,14 @@ const AppSettingsModelRoute = AppSettingsModelRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
+  '/profile': typeof AppProfileRoute
   '/settings': typeof AppSettingsRouteWithChildren
   '/tenants': typeof AppTenantsRoute
   '/settings/model': typeof AppSettingsModelRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/profile': typeof AppProfileRoute
   '/settings': typeof AppSettingsRouteWithChildren
   '/tenants': typeof AppTenantsRoute
   '/': typeof AppIndexRoute
@@ -64,6 +72,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/_app/profile': typeof AppProfileRoute
   '/_app/settings': typeof AppSettingsRouteWithChildren
   '/_app/tenants': typeof AppTenantsRoute
   '/_app/': typeof AppIndexRoute
@@ -71,13 +80,15 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/settings' | '/tenants' | '/settings/model'
+  fullPaths:
+    '/' | '/login' | '/profile' | '/settings' | '/tenants' | '/settings/model'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/settings' | '/tenants' | '/' | '/settings/model'
+  to: '/login' | '/profile' | '/settings' | '/tenants' | '/' | '/settings/model'
   id:
     | '__root__'
     | '/_app'
     | '/login'
+    | '/_app/profile'
     | '/_app/settings'
     | '/_app/tenants'
     | '/_app/'
@@ -110,6 +121,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/profile': {
+      id: '/_app/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/settings': {
@@ -149,12 +167,14 @@ const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppProfileRoute: typeof AppProfileRoute
   AppSettingsRoute: typeof AppSettingsRouteWithChildren
   AppTenantsRoute: typeof AppTenantsRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppProfileRoute: AppProfileRoute,
   AppSettingsRoute: AppSettingsRouteWithChildren,
   AppTenantsRoute: AppTenantsRoute,
   AppIndexRoute: AppIndexRoute,

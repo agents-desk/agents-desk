@@ -16,13 +16,16 @@ import (
 	"github.com/go-tenon/tenon/command/migratecmd"
 	"github.com/go-tenon/tenon/crypt"
 	"github.com/go-tenon/tenon/database"
+	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/hashing"
 	"github.com/go-tenon/tenon/httpx"
 	"github.com/go-tenon/tenon/i18n"
+	"github.com/go-tenon/tenon/lock/pglock"
 	"github.com/go-tenon/tenon/login"
 	"github.com/go-tenon/tenon/natsx"
 	"github.com/go-tenon/tenon/queue"
 	"github.com/go-tenon/tenon/ratelimit/pglimit"
+	"github.com/go-tenon/tenon/schedule"
 	"github.com/go-tenon/tenon/settings"
 
 	"agents-desk/internal/platformadmin"
@@ -42,6 +45,8 @@ type Config struct {
 	Hashing     hashing.Config    `yaml:"hashing"`
 	AdminToken  apitoken.Config   `yaml:"admin_token"`  // 平台管理员登录 token 的有效期
 	MemberToken apitoken.Config   `yaml:"member_token"` // 工作区成员登录 token 的有效期
+	Filesystem  filesystem.Config `yaml:"filesystem"`   // 上传的文件（头像等）：本地目录或 S3
+	Schedule    schedule.Config   `yaml:"schedule"`     // 定时任务
 	DevServers  map[string]string `yaml:"dev_servers"`  // 各前端开发服务器的地址，按前端的名称（apps 中的目录名）；只在 tenon dev 时有值，它把地址写入 .tenon/dev.yaml，页面请求转给对应的开发服务器
 }
 
@@ -52,11 +57,14 @@ func (c *Config) SetDefaults() {
 	}
 }
 
-// Validate 检查对外地址是 http 或 https 的绝对地址。
+// Validate 检查对外地址是 http 或 https 的绝对地址，以及全局的请求体上限能容纳最大的上传文件。
 func (c Config) Validate() error {
 	u, err := url.Parse(c.PublicURL)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		return errors.Newf("public_url: %q 不是 http:// 或 https:// 开头的地址", c.PublicURL)
+	}
+	if c.HTTP.BodyLimit.MaxBytes < int64(c.Filesystem.MaxUploadSize) {
+		return errors.Newf("http.body_limit.max_bytes (%d) 小于 filesystem.max_upload_size (%s)，上传会被拒绝", c.HTTP.BodyLimit.MaxBytes, c.Filesystem.MaxUploadSize)
 	}
 	return nil
 }
@@ -94,6 +102,8 @@ func migrateCommand() *cobra.Command {
 		settings.Migrations(),
 		activity.Migrations(),
 		queue.Migrations(),
+		filesystem.Migrations(),
+		pglock.Migrations(),
 	))
 	return cmd
 }

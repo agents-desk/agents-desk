@@ -11,11 +11,59 @@ export const schemas = {
         "$ref": "#/components/schemas/MemberLoginInputBody"
       },
     },
+    passwordChange: {
+      body: {
+        "$ref": "#/components/schemas/AccountPasswordChange"
+      },
+    },
+    profileUpdate: {
+      body: {
+        "$ref": "#/components/schemas/AccountProfileChanges"
+      },
+    },
   },
 } as const
 
 /** schemas 中 $ref 引用的命名类型，键是 OpenAPI 中的名称。 */
 export const components = {
+  AccountPasswordChange: {
+    "additionalProperties": false,
+    "properties": {
+      "current_password": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "new_password": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "current_password",
+      "new_password"
+    ],
+    "type": "object"
+  },
+  AccountProfileChanges: {
+    "additionalProperties": false,
+    "properties": {
+      "avatar_file_id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 60,
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "type": "object"
+  },
   MemberLoginInputBody: {
     "additionalProperties": false,
     "properties": {

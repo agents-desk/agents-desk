@@ -5,6 +5,17 @@ import { Runtime, type ClientOptions, type Download, type SessionLike, type Stre
 export * from "./errors"
 export { ApiError, isApiError, saveBlob, type ClientOptions, type Download, type SessionLike, type FieldError, type StreamOptions } from "./runtime"
 
+export interface AccountPasswordChange {
+  current_password: string
+  new_password: string
+}
+
+export interface AccountProfileChanges {
+  /** 头像的文件 ID：刚上传的图片或当前的头像；不传表示去掉头像 */
+  avatar_file_id?: string
+  name: string
+}
+
 export interface ErrorDetail {
   /** Validation rule, e.g. validation.min_length, or the business error code. Absent when the rule is not recognized. */
   code?: string
@@ -35,12 +46,37 @@ export interface ErrorModel {
   type?: string
 }
 
+export interface File {
+  content_type: string
+  created_at: string
+  disk: string
+  expires_at?: string
+  filename: string
+  id: string
+  key: string
+  size: number
+  status: string
+  updated_at: string
+  url: string
+}
+
+export interface FormFile {
+  ContentType: string
+  Filename: string
+  IsSet: boolean
+  Size: number
+}
+
 export interface MemberLoginInputBody {
   email: string
   password: string
 }
 
 export interface MemberProfile {
+  /** 头像的文件 ID，修改个人资料时原样传回表示不换头像 */
+  avatar_file_id?: string
+  /** 头像的地址；没有头像时为空 */
+  avatar_url: string
   email: string
   id: string
   name: string
@@ -55,6 +91,11 @@ export interface TenantMineItem {
 }
 
 export type TenantStatus = "active" | "disabled"
+
+/** file-upload 的表单。 */
+export type FileUploadForm = {
+  file: Blob
+}
 
 /** 创建客户端。 */
 export function createClient(options: ClientOptions) {
@@ -83,6 +124,30 @@ export function createClient(options: ClientOptions) {
        */
       me: (): Promise<MemberProfile> =>
         rt.request<MemberProfile>({ method: "GET", path: `/me` }),
+      /**
+       * 修改密码
+       *
+       * PUT /me/password
+       */
+      passwordChange: (body: AccountPasswordChange): Promise<void> =>
+        rt.request<void>({ method: "PUT", path: `/me/password`, body }),
+      /**
+       * 修改个人资料
+       *
+       * PUT /me
+       */
+      profileUpdate: (body: AccountProfileChanges): Promise<MemberProfile> =>
+        rt.request<MemberProfile>({ method: "PUT", path: `/me`, body }),
+    },
+    /** operationId 以 file- 开头的接口。 */
+    file: {
+      /**
+       * 上传文件
+       *
+       * POST /files
+       */
+      upload: (form: FileUploadForm): Promise<File> =>
+        rt.request<File>({ method: "POST", path: `/files`, form }),
     },
     /** operationId 以 tenant- 开头的接口。 */
     tenant: {
