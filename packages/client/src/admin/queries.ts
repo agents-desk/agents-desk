@@ -2,12 +2,21 @@
 
 import type { Client } from "./api"
 
+/** 让查询失效的对象，通常是 TanStack Query 的 QueryClient。 */
+type Invalidator = { invalidateQueries(filters: { queryKey: readonly unknown[] }): unknown }
+
+/** TanStack Query 交给 onSuccess 的第四个参数中用到的部分：执行这次修改的 QueryClient。 */
+type MutationContext = { client?: Invalidator }
+
 /** createQueries 的选项。 */
 export interface QueryOptions {
   /** 放在每个 query key 最前面的作用域，例如部署、账号、租户：切换账号或租户后，旧的缓存不再命中。 */
   scope?: () => readonly unknown[]
-  /** 修改成功后让查询失效，通常是 TanStack Query 的 QueryClient。 */
-  queryClient?: { invalidateQueries(filters: { queryKey: readonly unknown[] }): unknown }
+  /**
+   * 修改成功后让查询失效的 QueryClient。通常不用设置：失效用执行这次修改的 QueryClient（onSuccess 的 context.client），
+   * kit 可以在模块中创建，服务端渲染时每个请求的 QueryClient 各自失效。
+   */
+  queryClient?: Invalidator
 }
 
 /**
@@ -17,7 +26,8 @@ export interface QueryOptions {
  */
 export function createQueries(client: Client, options: QueryOptions = {}) {
   const key = (...parts: unknown[]): unknown[] => [...(options.scope?.() ?? []), "admin", ...parts]
-  const invalidate = (...parts: unknown[]) => options.queryClient?.invalidateQueries({ queryKey: key(...parts) })
+  const invalidate = (context: MutationContext | undefined, ...parts: unknown[]) =>
+    (options.queryClient ?? context?.client)?.invalidateQueries({ queryKey: key(...parts) })
   return {
     /** 这个 API 全部查询的 key 前缀。 */
     key: () => key(),
@@ -27,12 +37,14 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       /** POST /auth/login */
       login: () => ({
         mutationFn: (variables: Parameters<Client["auth"]["login"]>[0]) => client.auth.login(variables),
-        onSuccess: () => invalidate("auth"),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "auth"),
       }),
       /** POST /auth/logout */
       logout: () => ({
         mutationFn: () => client.auth.logout(),
-        onSuccess: () => invalidate("auth"),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "auth"),
       }),
       /** GET /me */
       me: (...args: Parameters<Client["auth"]["me"]>) => ({
@@ -46,7 +58,8 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       /** PUT /settings/model/{purpose} */
       endpointSave: () => ({
         mutationFn: (variables: Parameters<Client["llm"]["endpointSave"]>) => client.llm.endpointSave(...variables),
-        onSuccess: () => invalidate("llm"),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "llm"),
       }),
       /** GET /settings/model */
       settingsGet: (...args: Parameters<Client["llm"]["settingsGet"]>) => ({
@@ -60,22 +73,26 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       /** PUT /tenants/{id}/owner */
       changeOwner: () => ({
         mutationFn: (variables: Parameters<Client["tenant"]["changeOwner"]>) => client.tenant.changeOwner(...variables),
-        onSuccess: () => invalidate("tenant"),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "tenant"),
       }),
       /** POST /tenants */
       create: () => ({
         mutationFn: (variables: Parameters<Client["tenant"]["create"]>[0]) => client.tenant.create(variables),
-        onSuccess: () => invalidate("tenant"),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "tenant"),
       }),
       /** POST /tenants/{id}/disable */
       disable: () => ({
         mutationFn: (variables: Parameters<Client["tenant"]["disable"]>[0]) => client.tenant.disable(variables),
-        onSuccess: () => invalidate("tenant"),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "tenant"),
       }),
       /** POST /tenants/{id}/enable */
       enable: () => ({
         mutationFn: (variables: Parameters<Client["tenant"]["enable"]>[0]) => client.tenant.enable(variables),
-        onSuccess: () => invalidate("tenant"),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "tenant"),
       }),
       /** GET /tenants/{id} */
       get: (...args: Parameters<Client["tenant"]["get"]>) => ({
@@ -90,7 +107,8 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       /** PUT /tenants/{id} */
       update: () => ({
         mutationFn: (variables: Parameters<Client["tenant"]["update"]>) => client.tenant.update(...variables),
-        onSuccess: () => invalidate("tenant"),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "tenant"),
       }),
     },
   }

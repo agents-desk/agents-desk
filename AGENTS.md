@@ -14,44 +14,14 @@ Before editing files for a substantial task:
 
 agents-desk 是开源、AI 原生的团队沟通和服务平台，产品与设计见 [README.md](README.md)。项目是 Go 写的后端加 TanStack Start 写的前端，整个应用编译成一个二进制文件。本文写给在这个项目中工作的人和 AI 编程助手：怎样运行、提交前检查什么、代码按什么约定写。
 
-下面 `tenon:begin` 和 `tenon:end` 两行注释之间的一段由 `bun run agents`（`go tool tenon agents`）生成，其余部分归项目自己维护，按项目的实际情况修改。
-
-<!-- tenon:begin -->
-<!-- 这一段由 go tool tenon agents 生成：升级框架、加前端或客户端后运行 bun run agents 更新它，不要手改。 -->
-
 ## 框架与文档
 
-- 框架是 `github.com/go-tenon/tenon` v0.0.7。
-- 框架的文档在 `.tenon/docs` 中，与上面的版本一致，`bun run dev` 每次启动时更新。先读目录 `.tenon/docs/README.md`，写某一部分的代码前读对应的页面，写法以这个版本的文档为准。
+- 框架是 `github.com/go-tenon/tenon`，版本以 `go.mod` 为准。这个版本的文档在 `.tenon/docs` 中，`bun run dev` 和 `bun run agents` 会更新它。先读目录 `.tenon/docs/README.md`，写某一部分的代码前读对应的页面，写法以这个版本的文档为准。
 - 查框架的文档用 MCP 工具 `tenon_search_docs`、`tenon_read_doc`；用 rg 搜索时指定目录，例如 `rg 迁移 .tenon/docs`：`.tenon` 被 .gitignore 忽略，在项目根目录搜索时不包含它。
+- 项目的前端、客户端和安装的技能用 MCP 工具 `tenon_app_info` 查看，也可以直接看 `tenon.json` 和 `apps/`：`apps/admin` 是管理员端（`/admin/`），`apps/web` 是工作区端（`/`），都只在浏览器中渲染。
 - 应用的入口是 `./cmd/agents-desk`，`go run ./cmd/agents-desk --help` 列出应用的命令。
 - 依赖的版本以 `go.mod` 和各前端的 `package.json` 为准。Go 的依赖用 `go doc` 读与 `go.mod` 一致的版本，例如 `go doc github.com/danielgtaylor/huma/v2.Register`。
 - Mantine、TanStack 等依赖给 AI 的文档、MCP 服务和技能按它们的官方方案接入，见 `README.md` 的“AI 编程助手”一节；它们的写法与 Tenon 的约定冲突时，以本文和 `.tenon/docs` 为准。
-
-## 前端与客户端
-
-- `apps/admin`：挂在 `/admin/`，只在浏览器中渲染。
-- `apps/web`：挂在 `/`，只在浏览器中渲染。
-
-## 技能
-
-`go tool tenon agents` 在 `.claude/skills`、`.agents/skills` 中安装了这些技能，做对应的事情之前先读它们：
-
-- `tenon-action`：在 Tenon 应用中新增或修改一个业务用例（业务动作）。
-- `tenon-auth`：Tenon 应用中的认证与授权。
-- `tenon-background`：Tenon 应用的后台任务。
-- `tenon-database`：Tenon 应用中与 PostgreSQL 有关的工作。
-- `tenon-frontend`：在 Tenon 应用的前端（apps/<前端>，TanStack Start + Mantine + @go-tenon/ui）中新增或修改页面。
-- `tenon-http-api`：在 Tenon 应用中新增或修改 JSON 接口。
-- `tenon-mcp-tools`：把 Tenon 应用的业务动作作为 MCP 工具提供给 Claude、Cursor 等 AI 客户端（mcpx）。
-- `tenon-testing`：为 Tenon 应用写 Go 测试。
-
-## MCP 服务
-
-`go tool tenon agents` 为 tenon.json 中 `agents.targets` 列出的助手配置了这些 MCP 服务：
-
-- `tenon`：Tenon 的开发工具：`tenon_search_docs` 按小节检索框架的文档，`tenon_read_doc` 读一页的目录或一个小节，`tenon_app_info` 列出项目的框架版本、前端、客户端和技能，`tenon_dev_logs` 读 `bun run dev` 中的编译错误和应用日志。
-<!-- tenon:end -->
 
 ## 开发环境
 
@@ -76,7 +46,7 @@ bun run dev                       # 运行应用和前端的开发服务器，�
 bun run generate                  # 接口变了以后重新生成前端的客户端（dev 会自动运行）
 bun run build                     # 构建可执行文件 bin/agents-desk，前端打包在其中
 bun run typecheck                 # 前端的类型检查
-bun run agents                    # 升级框架、加前端或客户端之后，更新本文中 tenon 生成的一段和 AI 编程助手的配置
+bun run agents                    # 升级框架之后，更新框架文档、技能和 AI 编程助手的 MCP 配置
 go run ./cmd/agents-desk migrate up   # 执行迁移；migrate make <名称> 新建迁移，migrate publish 发布框架的迁移
 go run ./cmd/agents-desk seed       # 写入开发和演示用的账号和工作区，可以重复运行；只在开发和演示环境中运行
 go run ./cmd/agents-desk admin create --email <邮箱>   # 创建平台管理员，密码在终端中输入（生产环境用它）
@@ -112,7 +82,7 @@ bun run typecheck
 bun run generate && git diff --exit-code   # 改了接口要提交重新生成的客户端
 ```
 
-CI（`.github/workflows/ci.yml`）在每次推送和 PR 中运行同样的检查，并构建一次；生成的代码（客户端、路由树、本文中 tenon 的一段、技能）没有提交时失败。
+CI（`.github/workflows/ci.yml`）在每次推送和 PR 中运行同样的检查，并构建一次；生成的代码（客户端、路由树、技能）没有提交时失败。
 
 ## 编写测试
 

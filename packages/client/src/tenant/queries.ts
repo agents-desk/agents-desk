@@ -2,12 +2,21 @@
 
 import type { Client } from "./api"
 
+/** 让查询失效的对象，通常是 TanStack Query 的 QueryClient。 */
+type Invalidator = { invalidateQueries(filters: { queryKey: readonly unknown[] }): unknown }
+
+/** TanStack Query 交给 onSuccess 的第四个参数中用到的部分：执行这次修改的 QueryClient。 */
+type MutationContext = { client?: Invalidator }
+
 /** createQueries 的选项。 */
 export interface QueryOptions {
   /** 放在每个 query key 最前面的作用域，例如部署、账号、租户：切换账号或租户后，旧的缓存不再命中。 */
   scope?: () => readonly unknown[]
-  /** 修改成功后让查询失效，通常是 TanStack Query 的 QueryClient。 */
-  queryClient?: { invalidateQueries(filters: { queryKey: readonly unknown[] }): unknown }
+  /**
+   * 修改成功后让查询失效的 QueryClient。通常不用设置：失效用执行这次修改的 QueryClient（onSuccess 的 context.client），
+   * kit 可以在模块中创建，服务端渲染时每个请求的 QueryClient 各自失效。
+   */
+  queryClient?: Invalidator
 }
 
 /**
@@ -17,7 +26,8 @@ export interface QueryOptions {
  */
 export function createQueries(client: Client, options: QueryOptions = {}) {
   const key = (...parts: unknown[]): unknown[] => [...(options.scope?.() ?? []), "tenant", ...parts]
-  const invalidate = (...parts: unknown[]) => options.queryClient?.invalidateQueries({ queryKey: key(...parts) })
+  const invalidate = (context: MutationContext | undefined, ...parts: unknown[]) =>
+    (options.queryClient ?? context?.client)?.invalidateQueries({ queryKey: key(...parts) })
   return {
     /** 这个 API 全部查询的 key 前缀。 */
     key: () => key(),

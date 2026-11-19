@@ -285,9 +285,8 @@ bun run build    # 构建 bin/agents-desk
 
 #### Tenon 自动接入的
 
-`tenon init` 和 `bun run agents`（`go tool tenon agents`）为 Claude Code、Codex、Cursor、Antigravity 准备好了这些，升级框架、加前端或客户端后运行 `bun run agents` 更新：
+`tenon init` 和 `bun run agents`（`go tool tenon agents`）为 Claude Code、Codex、Cursor、Antigravity 准备好了这些，升级框架后运行 `bun run agents` 更新（`AGENTS.md` 由项目自己维护）：
 
-- `AGENTS.md`：项目说明，其中 `tenon:begin` 到 `tenon:end` 之间由 Tenon 生成；
 - `.tenon/docs`：与 `go.mod` 中的框架版本一致的文档；
 - `tenon-*` 技能：新增业务动作、写接口、加表、写页面等常做的事的步骤；
 - MCP 服务 `tenon`（`go tool tenon mcp`）：检索框架的文档、查看项目信息、读 `bun run dev` 的输出。
