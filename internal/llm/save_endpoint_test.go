@@ -17,7 +17,7 @@ func TestSaveEndpoint(t *testing.T) {
 	group := llm.NewGroup(env.DB)
 	save := llm.NewSaveEndpoint(env.DB, group)
 
-	// 没有保存过时每种用途都没有配置
+	// 没有保存过时每种调用类型都没有配置
 	s, err := group.Get(ctx)
 	if err != nil {
 		t.Fatal(err)

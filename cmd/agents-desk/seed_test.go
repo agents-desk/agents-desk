@@ -26,7 +26,7 @@ func TestSeed(t *testing.T) {
 			t.Fatal(err)
 		}
 		lines := strings.Split(strings.TrimSpace(out.String()), "\n")
-		if len(lines) != 6 || slices.ContainsFunc(lines, func(l string) bool { return strings.Contains(l, "跳过") != skipped }) {
+		if len(lines) != 5 || slices.ContainsFunc(lines, func(l string) bool { return strings.Contains(l, "跳过") != skipped }) {
 			t.Fatalf("第 %d 次：\n%s", i+1, out.String())
 		}
 	}
@@ -37,7 +37,7 @@ func TestSeed(t *testing.T) {
 		email  string
 	}{
 		{env.AdminLogins, "admin@example.com"}, {env.MemberLogins, "owner@example.com"},
-		{env.MemberLogins, "manager@example.com"}, {env.MemberLogins, "lead@example.com"}, {env.MemberLogins, "agent@example.com"},
+		{env.MemberLogins, "manager@example.com"}, {env.MemberLogins, "agent@example.com"},
 	} {
 		if _, err := c.logins.Password(ctx, login.Email(c.email), seedPassword); err != nil {
 			t.Errorf("%s：%v", c.email, err)
@@ -47,13 +47,13 @@ func TestSeed(t *testing.T) {
 	if err := env.DB.NewRaw("SELECT count(*) FROM tenants WHERE slug = 'demo'").Scan(ctx, &n); err != nil || n != 1 {
 		t.Fatalf("示例工作区：%d %v", n, err)
 	}
-	// 示例工作区中有四个成员，各有自己的角色
+	// 示例工作区中有三个成员，各有自己的角色
 	var demo string
 	if err := env.DB.NewRaw("SELECT id FROM tenants WHERE slug = 'demo'").Scan(ctx, &demo); err != nil {
 		t.Fatal(err)
 	}
 	members, err := env.Roles.Members(ctx, demo)
-	if err != nil || len(members) != 4 {
+	if err != nil || len(members) != 3 {
 		t.Fatalf("示例工作区的成员：%d %v", len(members), err)
 	}
 }

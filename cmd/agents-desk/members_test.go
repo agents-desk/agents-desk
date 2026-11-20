@@ -68,14 +68,14 @@ func TestMemberManagement(t *testing.T) {
 		t.Fatalf("主管理员的权限：%s", r.body)
 	}
 
-	// 添加新账号：管理员、组长、坐席
+	// 添加新账号：一位管理员、两位坐席
 	ids := map[string]string{}
-	for _, m := range []struct{ email, role string }{{"manager@alpha.com", "admin"}, {"lead@alpha.com", "lead"}, {"agent@alpha.com", "agent"}} {
-		r := call(h, "POST", "/t/alpha/api/members", `{"email":"`+m.email+`","name":"`+m.role+`","password":"password","role":"`+m.role+`"}`, owner)
+	for _, m := range []struct{ key, role string }{{"manager", "admin"}, {"other", "agent"}, {"agent", "agent"}} {
+		r := call(h, "POST", "/t/alpha/api/members", `{"email":"`+m.key+`@alpha.com","name":"`+m.key+`","password":"password","role":"`+m.role+`"}`, owner)
 		if r.status != http.StatusCreated || decode(r.body).Role != m.role {
-			t.Fatalf("添加 %s：%d %s", m.email, r.status, r.body)
+			t.Fatalf("添加 %s：%d %s", m.key, r.status, r.body)
 		}
-		ids[m.role] = decode(r.body).ID
+		ids[m.key] = decode(r.body).ID
 	}
 	// 别的工作区已有的账号：直接加入，不改名字和密码；他可以在两个工作区之间切换
 	r := call(h, "POST", "/t/alpha/api/members", `{"email":"owner@beta.com","name":"别的名字","role":"agent"}`, owner)
@@ -87,10 +87,10 @@ func TestMemberManagement(t *testing.T) {
 		t.Fatalf("他所属的工作区：%s", r.body)
 	}
 	// 列表按角色从高到低排列，可以按角色和名字筛选
-	if got := list(owner, ""); len(got) != 5 || got[0].Role != "owner" || got[1].Role != "admin" || got[2].Role != "lead" {
+	if got := list(owner, ""); len(got) != 5 || got[0].Role != "owner" || got[1].Role != "admin" || got[2].Role != "agent" {
 		t.Fatalf("成员列表：%+v", got)
 	}
-	if got := list(owner, "?role=agent"); len(got) != 2 {
+	if got := list(owner, "?role=agent"); len(got) != 3 {
 		t.Fatalf("按角色筛选：%+v", got)
 	}
 	if got := list(owner, "?name=beta"); len(got) != 1 || got[0].Email != "owner@beta.com" {
@@ -116,8 +116,8 @@ func TestMemberManagement(t *testing.T) {
 	}
 	for _, c := range []struct{ method, path, body string }{
 		{"POST", "/t/alpha/api/members", `{"email":"x@alpha.com","name":"x","password":"password","role":"agent"}`},
-		{"PUT", "/t/alpha/api/members/" + ids["lead"], `{"role":"agent"}`},
-		{"POST", "/t/alpha/api/members/" + ids["lead"] + "/remove", ""},
+		{"PUT", "/t/alpha/api/members/" + ids["other"], `{"role":"agent"}`},
+		{"POST", "/t/alpha/api/members/" + ids["other"] + "/remove", ""},
 		{"PUT", "/t/alpha/api/tenant", `{"name":"改名"}`},
 	} {
 		if r := call(h, c.method, c.path, c.body, agent); r.status != http.StatusForbidden {
@@ -131,31 +131,31 @@ func TestMemberManagement(t *testing.T) {
 	for _, m := range list(manager, "?role=owner") {
 		ownerID = m.ID
 	}
-	if r := call(h, "PUT", "/t/alpha/api/members/"+ids["lead"], `{"role":"admin"}`, manager); r.status != http.StatusOK || decode(r.body).Role != "admin" {
+	if r := call(h, "PUT", "/t/alpha/api/members/"+ids["other"], `{"role":"admin"}`, manager); r.status != http.StatusOK || decode(r.body).Role != "admin" {
 		t.Fatalf("改角色：%d %s", r.status, r.body)
 	}
 	for _, c := range []struct{ method, path, body, code string }{
 		{"PUT", "/t/alpha/api/members/" + ownerID, `{"role":"agent"}`, "member.owner_protected"},
 		{"POST", "/t/alpha/api/members/" + ownerID + "/remove", "", "member.owner_protected"},
-		{"PUT", "/t/alpha/api/members/" + ids["admin"], `{"role":"agent"}`, "member.self"},
-		{"POST", "/t/alpha/api/members/" + ids["admin"] + "/remove", "", "member.self"},
+		{"PUT", "/t/alpha/api/members/" + ids["manager"], `{"role":"agent"}`, "member.self"},
+		{"POST", "/t/alpha/api/members/" + ids["manager"] + "/remove", "", "member.self"},
 	} {
 		if r := call(h, c.method, c.path, c.body, manager); r.code != c.code {
 			t.Errorf("%s %s：%d %s", c.method, c.path, r.status, r.body)
 		}
 	}
 	// 移出：他再进这个工作区是 404，账号还在，别的工作区不受影响
-	lead := login("lead@alpha.com")
-	if r := call(h, "POST", "/t/alpha/api/members/"+ids["lead"]+"/remove", "", manager); r.status != http.StatusNoContent {
+	other := login("other@alpha.com")
+	if r := call(h, "POST", "/t/alpha/api/members/"+ids["other"]+"/remove", "", manager); r.status != http.StatusNoContent {
 		t.Fatalf("移出：%d %s", r.status, r.body)
 	}
-	if r := call(h, "GET", "/t/alpha/api/tenant", "", lead); r.status != http.StatusNotFound {
+	if r := call(h, "GET", "/t/alpha/api/tenant", "", other); r.status != http.StatusNotFound {
 		t.Errorf("移出后进入工作区：%d", r.status)
 	}
-	if r := call(h, "GET", "/api/me", "", lead); r.status != http.StatusOK {
+	if r := call(h, "GET", "/api/me", "", other); r.status != http.StatusOK {
 		t.Errorf("移出后的账号：%d", r.status)
 	}
-	if r := call(h, "GET", "/t/alpha/api/members/"+ids["lead"], "", manager); r.status != http.StatusNotFound {
+	if r := call(h, "GET", "/t/alpha/api/members/"+ids["other"], "", manager); r.status != http.StatusNotFound {
 		t.Errorf("移出后读取：%d %s", r.status, r.body)
 	}
 

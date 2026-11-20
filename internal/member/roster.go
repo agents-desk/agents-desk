@@ -34,10 +34,9 @@ type TenantMember struct {
 	Self      bool          `json:"self" doc:"是不是当前登录的成员自己：自己那一行不能修改角色、不能移出"`
 }
 
-// Hooks 是成员在工作区中的角色变化之后，其他模块在同一个事务中跟着做的事，由入口传入，例如团队撤掉组长身份。
+// Hooks 是成员被移出工作区之后，其他模块在同一个事务中跟着做的事，由入口传入，例如把他移出这个工作区的团队。
 type Hooks struct {
-	RoleChanged func(ctx context.Context, tx bun.IDB, tenant, memberID string, role auth.RoleName) error // 角色换成 role 之后
-	Removed     func(ctx context.Context, tx bun.IDB, tenant, memberID string) error                     // 移出工作区之后
+	Removed func(ctx context.Context, tx bun.IDB, tenant, memberID string) error // 移出工作区之后
 }
 
 // TenantMemberOutput 是返回一个成员的响应。

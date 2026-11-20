@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { type FieldInput, ResourcePage } from "@go-tenon/ui"
 import { members } from "../../../../../resources"
 
-// 成员：管理员和主管理员添加成员、修改角色、移出成员。坐席和组长没有 members:manage，看不到这一页。
+// 成员：管理员和主管理员添加成员、修改角色、移出成员。坐席没有 members:manage，看不到这一页。
 export const Route = createFileRoute("/t/$slug/settings/_workspace/members")({
   staticData: { title: "成员", icon: "users", order: 1, permission: "members:manage" },
   validateSearch: members.listSearch,

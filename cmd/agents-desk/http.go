@@ -118,9 +118,8 @@ func (a *App) routes(pages http.Handler) chi.Router {
 			return rest.RequireToken(api, a.memberTokens.Validate, names...)
 		}
 		tenant.RegisterTenantRoutes(api, require, a.db)
-		// 成员的角色变化、被移出工作区之后，团队在同一个事务中跟着调整：坐席不能当组长，移出工作区也就移出了团队。
-		member.RegisterTenantRoutes(api, require, a.db, a.roles, a.memberLogins, a.files,
-			member.Hooks{RoleChanged: team.OnRoleChanged, Removed: team.OnMemberRemoved})
+		// 成员被移出工作区之后，团队在同一个事务中跟着调整：移出工作区也就移出了团队。
+		member.RegisterTenantRoutes(api, require, a.db, a.roles, a.memberLogins, a.files, member.Hooks{Removed: team.OnMemberRemoved})
 		team.RegisterRoutes(api, require, a.db, a.roles, a.memberLogins, a.files)
 	})
 
