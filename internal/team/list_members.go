@@ -17,11 +17,12 @@ import (
 
 // TeamMember 是团队收件箱中的一个成员：账号和他在工作区中的角色。
 type TeamMember struct {
-	MemberID  string `json:"member_id"`
-	Name      string `json:"name"`
-	Email     string `json:"email"`
-	AvatarURL string `json:"avatar_url" doc:"头像的地址；没有头像时为空"`
-	RoleName  string `json:"role_name" doc:"他在工作区中的角色的名称"`
+	MemberID  string        `json:"member_id"`
+	Name      string        `json:"name"`
+	Email     string        `json:"email"`
+	AvatarURL string        `json:"avatar_url" doc:"头像的地址；没有头像时为空"`
+	RoleName  string        `json:"role_name" doc:"他在工作区中的角色的名称"`
+	Status    member.Status `json:"status" doc:"他在这个工作区中的在线状态"`
 }
 
 // TeamMemberOutput 是返回团队收件箱中一个成员的响应。
@@ -59,9 +60,17 @@ func (a *ListMembers) Handle(ctx context.Context, sub identity.Subject, id strin
 	if err != nil {
 		return nil, errors.Wrap(err, "list team members")
 	}
+	ids := make([]string, len(rows))
+	for i, m := range rows {
+		ids[i] = m.ID
+	}
+	statuses, err := member.StatusesOf(ctx, a.db, sub.Tenant, ids)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]TeamMember, 0, len(rows))
 	for i := range rows {
-		item, err := toTeamMember(ctx, a.roles, a.logins, a.files, sub.Tenant, &rows[i])
+		item, err := toTeamMember(ctx, a.roles, a.logins, a.files, sub.Tenant, &rows[i], statuses[rows[i].ID])
 		if err != nil {
 			return nil, err
 		}
@@ -80,8 +89,8 @@ func (a *ListMembers) HTTP(ctx context.Context, in *IDInput) (*MembersOutput, er
 	return &MembersOutput{Body: items}, nil
 }
 
-// toTeamMember 把账号 m 转换为团队收件箱中的成员：读取邮箱、头像的地址和他在工作区 tenant 中的角色。
-func toTeamMember(ctx context.Context, roles *authz.Store, logins *login.Realm, files *filesystem.Service, tenant string, m *member.Member) (TeamMember, error) {
+// toTeamMember 把账号 m 和他的在线状态转换为团队收件箱中的成员：读取邮箱、头像的地址和他在工作区 tenant 中的角色。
+func toTeamMember(ctx context.Context, roles *authz.Store, logins *login.Realm, files *filesystem.Service, tenant string, m *member.Member, status member.Status) (TeamMember, error) {
 	email, err := member.Email(ctx, logins, m.Ref())
 	if err != nil {
 		return TeamMember{}, err
@@ -94,5 +103,5 @@ func toTeamMember(ctx context.Context, roles *authz.Store, logins *login.Realm, 
 	if err != nil {
 		return TeamMember{}, err
 	}
-	return TeamMember{MemberID: m.ID, Name: m.Name, Email: email, AvatarURL: avatar, RoleName: member.RoleName(ctx, role)}, nil
+	return TeamMember{MemberID: m.ID, Name: m.Name, Email: email, AvatarURL: avatar, RoleName: member.RoleName(ctx, role), Status: status}, nil
 }

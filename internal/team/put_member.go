@@ -73,7 +73,11 @@ func (a *PutMember) Handle(ctx context.Context, sub identity.Subject, id, member
 	if err != nil {
 		return nil, err
 	}
-	item, err := toTeamMember(ctx, authz.NewStore(a.db, auth.Catalog), a.logins, a.files, sub.Tenant, m)
+	statuses, err := member.StatusesOf(ctx, a.db, sub.Tenant, []string{memberID})
+	if err != nil {
+		return nil, err
+	}
+	item, err := toTeamMember(ctx, authz.NewStore(a.db, auth.Catalog), a.logins, a.files, sub.Tenant, m, statuses[memberID])
 	if err != nil {
 		return nil, err
 	}

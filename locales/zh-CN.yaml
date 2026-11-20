@@ -18,6 +18,10 @@ member.fields.avatar_url: 头像
 member.fields.role_id: 角色
 member.fields.role_name: 角色
 member.fields.owner: 主管理员
+member.fields.status: 在线状态
+member.status.online: 在线
+member.status.away: 离开
+member.actions.away: 设为离开
 member.fields.password: 初始密码
 member.actions.remove: 移出
 team.not_found: 团队收件箱不存在

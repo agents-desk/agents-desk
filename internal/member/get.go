@@ -39,7 +39,11 @@ func (a *Get) Handle(ctx context.Context, sub identity.Subject, id string) (*Ten
 	if err != nil {
 		return nil, err
 	}
-	item, err := toTenantMember(ctx, a.logins, a.files, sub, m, role)
+	status, err := statusOf(ctx, a.db, sub.Tenant, id, false)
+	if err != nil {
+		return nil, err
+	}
+	item, err := toTenantMember(ctx, a.logins, a.files, sub, m, role, status.Status)
 	if err != nil {
 		return nil, err
 	}

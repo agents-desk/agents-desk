@@ -4,11 +4,11 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { IconTrash } from "@tabler/icons-react"
 import { confirm, notifyError, notifySuccess, Page } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
-import { tenantApi } from "../../../../../api"
+import { tenantApi } from "../../../../../../api"
+import { StatusBadge } from "../../../../../../status"
 
-// 一个团队收件箱的成员：从工作区的成员中选人加入，移出团队收件箱。
-export const Route = createFileRoute("/t/$slug/settings/_inbox/team/$id")({
-  staticData: { title: "团队收件箱成员", permission: "teams:manage" },
+// 一个团队收件箱的成员：从工作区的成员中选人加入，移出团队收件箱。权限、菜单项和浏览器标题都来自上级的 teams 布局。
+export const Route = createFileRoute("/t/$slug/settings/_inbox/teams/$id")({
   component: TeamMembers,
 })
 
@@ -72,6 +72,7 @@ function TeamMembers(): ReactNode {
             <Table.Tr>
               <Table.Th>成员</Table.Th>
               <Table.Th>角色</Table.Th>
+              <Table.Th>在线状态</Table.Th>
               <Table.Th />
             </Table.Tr>
           </Table.Thead>
@@ -96,6 +97,9 @@ function TeamMembers(): ReactNode {
                     {m.role_name}
                   </Badge>
                 </Table.Td>
+                <Table.Td>
+                  <StatusBadge status={m.status} />
+                </Table.Td>
                 <Table.Td align="right">
                   <ActionIcon
                     variant="subtle"
@@ -113,7 +117,7 @@ function TeamMembers(): ReactNode {
             ))}
             {members.data?.length === 0 && (
               <Table.Tr>
-                <Table.Td colSpan={3}>
+                <Table.Td colSpan={4}>
                   <Text c="dimmed" size="sm" ta="center">
                     团队收件箱中还没有成员
                   </Text>

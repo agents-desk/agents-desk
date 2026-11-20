@@ -34,6 +34,7 @@ type TenantMember struct {
 	RoleID    string `json:"role_id" format:"uuid" doc:"角色的 ID"`
 	RoleName  string `json:"role_name" doc:"角色的名称"`
 	Owner     bool   `json:"owner" doc:"是不是主管理员：主管理员那一行不能修改角色、不能移出"`
+	Status    Status `json:"status" doc:"在这个工作区中的在线状态"`
 	Self      bool   `json:"self" doc:"是不是当前登录的成员自己：自己那一行不能修改角色、不能移出"`
 }
 
@@ -68,8 +69,8 @@ func RoleOf(ctx context.Context, roles *authz.Store, ref identity.Ref, tenant st
 	return assigned[0], nil
 }
 
-// toTenantMember 把账号 m 和他的角色转换为接口中的成员：读取登录邮箱和头像的地址；sub 是当前登录的成员。
-func toTenantMember(ctx context.Context, logins *login.Realm, files *filesystem.Service, sub identity.Subject, m *Member, role authz.Role) (TenantMember, error) {
+// toTenantMember 把账号 m、他的角色和在线状态转换为接口中的成员：读取登录邮箱和头像的地址；sub 是当前登录的成员。
+func toTenantMember(ctx context.Context, logins *login.Realm, files *filesystem.Service, sub identity.Subject, m *Member, role authz.Role, status Status) (TenantMember, error) {
 	email, err := Email(ctx, logins, m.Ref())
 	if err != nil {
 		return TenantMember{}, err
@@ -79,5 +80,5 @@ func toTenantMember(ctx context.Context, logins *login.Realm, files *filesystem.
 		return TenantMember{}, err
 	}
 	return TenantMember{ID: m.ID, Name: m.Name, Email: email, AvatarURL: avatar,
-		RoleID: role.ID, RoleName: RoleName(ctx, role), Owner: auth.IsOwner(role), Self: m.ID == sub.ID}, nil
+		RoleID: role.ID, RoleName: RoleName(ctx, role), Owner: auth.IsOwner(role), Status: status, Self: m.ID == sub.ID}, nil
 }

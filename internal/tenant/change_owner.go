@@ -30,17 +30,18 @@ type ChangeOwnerInput struct {
 	Body OwnerParams
 }
 
-// ChangeOwner 更换租户的主管理员：撤销原主管理员的 owner 角色，分配给新的主管理员。每位成员只有一个角色，
-// 新主管理员原来是成员时，他原来的角色被撤销；原主管理员也就不再是这个租户的成员。
+// ChangeOwner 更换租户的主管理员：原主管理员离开这个租户（member.Leave），owner 角色分配给新的主管理员。
+// 每位成员只有一个角色，新主管理员原来是成员时，他原来的角色被撤销，在线状态和所在的团队收件箱保留。
 type ChangeOwner struct {
 	db     *bun.DB
 	logins *login.Realm // 成员的 login.Realm
 	addr   Addresses
+	hooks  member.Hooks // 原主管理员离开租户之后其他模块跟着做的事
 }
 
-// NewChangeOwner 返回更换主管理员的动作。
-func NewChangeOwner(db *bun.DB, logins *login.Realm, addr Addresses) *ChangeOwner {
-	return &ChangeOwner{db: db, logins: logins, addr: addr}
+// NewChangeOwner 返回更换主管理员的动作；hooks 交给 member.Leave，在同一个事务中跟着执行。
+func NewChangeOwner(db *bun.DB, logins *login.Realm, addr Addresses, hooks member.Hooks) *ChangeOwner {
+	return &ChangeOwner{db: db, logins: logins, addr: addr, hooks: hooks}
 }
 
 // Handle 在一个事务中锁住租户、找到或创建新主管理员的账号、调整 owner 角色和 owner_id，并记录操作日志。
@@ -59,10 +60,10 @@ func (a *ChangeOwner) Handle(ctx context.Context, subject identity.Subject, id s
 		if owner.ID == t.OwnerID {
 			return nil
 		}
-		roles := authz.NewStore(tx, auth.Catalog)
-		if err := auth.Revoke(ctx, roles, t.Owner.Ref(), t.ID, auth.Owner); err != nil {
+		if err := member.Leave(ctx, tx, a.hooks, t.ID, t.OwnerID); err != nil {
 			return err
 		}
+		roles := authz.NewStore(tx, auth.Catalog)
 		if _, err := roles.RemoveMember(ctx, owner.Ref(), t.ID); err != nil {
 			return err
 		}

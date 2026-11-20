@@ -9,6 +9,7 @@ import (
 
 	"agents-desk/internal/apptest"
 	"agents-desk/internal/member"
+	"agents-desk/internal/team"
 	"agents-desk/internal/tenant"
 )
 
@@ -21,7 +22,21 @@ func TestChangeOwnerMovesOwnerRole(t *testing.T) {
 		t.Fatal(err)
 	}
 	alice := identity.Ref{Type: member.Type, ID: ten.OwnerID}
-	change := tenant.NewChangeOwner(env.DB, env.MemberLogins, addr)
+	change := tenant.NewChangeOwner(env.DB, env.MemberLogins, addr, member.Hooks{Removed: team.OnMemberRemoved})
+
+	// Alice 在线，并且在一个团队收件箱中
+	inTenant := identity.Subject{Type: identity.System, ID: "test", Tenant: ten.ID}
+	tm, err := team.NewCreate(env.DB).Handle(ctx, inTenant, team.Changes{Name: "一线"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := team.NewPutMember(env.DB, env.MemberLogins, env.Files).Handle(ctx, inTenant, tm.ID, alice.ID); err != nil {
+		t.Fatal(err)
+	}
+	asAlice := identity.Subject{Type: member.Type, ID: alice.ID, Tenant: ten.ID}
+	if _, err := member.NewSetMyStatus(env.DB).Handle(ctx, asAlice, member.StatusSetting{Status: member.Online}); err != nil {
+		t.Fatal(err)
+	}
 
 	changed, err := change.Handle(ctx, apptest.Admin, ten.ID, tenant.OwnerParams{Email: "bob@acme.com", Name: "Bob", Password: "bob-pass-1234"})
 	if err != nil {
@@ -31,9 +46,15 @@ func TestChangeOwnerMovesOwnerRole(t *testing.T) {
 	if changed.OwnerID == alice.ID || changed.Owner.Name != "Bob" {
 		t.Fatalf("主管理员没有换成 Bob：%+v", changed.Owner)
 	}
-	// 原主管理员没有其他角色，撤销 owner 后就不再是这个租户的成员
+	// 原主管理员离开这个租户：没有角色，在线状态和团队收件箱中的记录都删除了
 	if got := rolesOf(t, env, alice, ten.ID); len(got) != 0 {
 		t.Fatalf("Alice 仍有角色：%v", got)
+	}
+	if n := count(t, env, "SELECT count(*) FROM member_statuses WHERE member_id = ?", alice.ID); n != 0 {
+		t.Errorf("Alice 的在线状态还在")
+	}
+	if n := count(t, env, "SELECT count(*) FROM team_members WHERE member_id = ?", alice.ID); n != 0 {
+		t.Errorf("Alice 还在团队收件箱中")
 	}
 	if got := rolesOf(t, env, bob, ten.ID); len(got) != 1 {
 		t.Fatalf("Bob 的角色：%v", got)
@@ -52,7 +73,6 @@ func TestChangeOwnerMovesOwnerRole(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	inTenant := identity.Subject{Type: identity.System, ID: "test", Tenant: ten.ID}
 	carol, err := member.NewAdd(env.DB, env.MemberLogins, env.Files).Handle(ctx, inTenant,
 		member.AddParams{Email: "carol@acme.com", Name: "Carol", Password: "carol-pass-1234", RoleID: agentRole.ID})
 	if err != nil {
@@ -69,7 +89,7 @@ func TestChangeOwnerMovesOwnerRole(t *testing.T) {
 func TestChangeOwnerOfMissingTenant(t *testing.T) {
 	t.Parallel()
 	env := apptest.New(t)
-	_, err := tenant.NewChangeOwner(env.DB, env.MemberLogins, addr).Handle(context.Background(), apptest.Admin,
+	_, err := tenant.NewChangeOwner(env.DB, env.MemberLogins, addr, member.Hooks{}).Handle(context.Background(), apptest.Admin,
 		"01900000-0000-7000-8000-0000000000ff", tenant.OwnerParams{Email: "bob@acme.com", Name: "Bob", Password: "bob-pass-1234"})
 	if !errors.Is(err, tenant.ErrNotFound) {
 		t.Fatalf("得到 %v", err)
