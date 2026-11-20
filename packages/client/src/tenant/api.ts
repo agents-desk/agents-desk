@@ -31,6 +31,36 @@ export interface ConversationActor {
 
 export type ConversationActorType = "contact" | "member" | "system"
 
+export interface ConversationAssignment {
+  /** 负责人（成员 ID）；空字符串表示没有负责人；不传时，转到别的团队收件箱则清空负责人，否则保持原样 */
+  assignee_id?: string
+  /** 团队收件箱的 ID；空字符串表示移出团队收件箱；不传表示保持原样 */
+  team_id?: string
+}
+
+export interface ConversationBulkAssignInputBody {
+  /** 负责人（成员 ID）；空字符串表示没有负责人；不传时，转到别的团队收件箱则清空负责人，否则保持原样 */
+  assignee_id?: string
+  /** 会话的 ID */
+  ids: string[]
+  /** 团队收件箱的 ID；空字符串表示移出团队收件箱；不传表示保持原样 */
+  team_id?: string
+}
+
+export interface ConversationBulkIDs {
+  /** 会话的 ID */
+  ids: string[]
+}
+
+export interface ConversationBulkResult {
+  /** 失败时的错误码，例如 conversation.not_found */
+  code?: string
+  id: string
+  /** 失败时给用户看的提示 */
+  message?: string
+  ok: boolean
+}
+
 export interface ConversationContent {
   /** 系统事件的数据 */
   data?: Record<string, unknown>
@@ -117,12 +147,21 @@ export interface ConversationNoteInputBody {
 
 export type ConversationPriority = "normal" | "high"
 
+export interface ConversationPriorityInputBody {
+  priority: ConversationPriority
+}
+
 export interface ConversationReadInputBody {
   /** 读到的时间线序号，序号不大于它的项都算已读 */
   seq: number
 }
 
 export type ConversationScope = "all" | "team" | "assigned"
+
+export interface ConversationSnoozeInputBody {
+  /** 回到打开的时间，必须晚于现在；“明天”“下周一”这类选项由客户端按成员的时区算出 */
+  until: string
+}
 
 export type ConversationSort = "waiting" | "recent"
 
@@ -276,7 +315,7 @@ export interface RoleParams {
   permissions?: RolePermission[]
 }
 
-export type RolePermission = "members:manage" | "teams:manage" | "tenant-settings:manage"
+export type RolePermission = "conversations:assign" | "members:manage" | "teams:manage" | "tenant-settings:manage"
 
 export type TeamAssignment = "manual" | "round_robin"
 
@@ -391,6 +430,34 @@ export function createClient(options: ClientOptions) {
     /** operationId 以 conversation- 开头的接口。 */
     conversation: {
       /**
+       * 指派
+       *
+       * PUT /conversations/{id}/assignment
+       */
+      assign: (id: string, body: ConversationAssignment): Promise<ConversationDTO> =>
+        rt.request<ConversationDTO>({ method: "PUT", path: `/conversations/${encodeURIComponent(id)}/assignment`, body }),
+      /**
+       * 批量指派
+       *
+       * POST /conversations/bulk/assign
+       */
+      bulkAssign: (body: ConversationBulkAssignInputBody): Promise<ConversationBulkResult[]> =>
+        rt.request<ConversationBulkResult[]>({ method: "POST", path: `/conversations/bulk/assign`, body }),
+      /**
+       * 批量关闭
+       *
+       * POST /conversations/bulk/close
+       */
+      bulkClose: (body: ConversationBulkIDs): Promise<ConversationBulkResult[]> =>
+        rt.request<ConversationBulkResult[]>({ method: "POST", path: `/conversations/bulk/close`, body }),
+      /**
+       * 关闭
+       *
+       * POST /conversations/{id}/close
+       */
+      close: (id: string): Promise<ConversationDTO> =>
+        rt.request<ConversationDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/close` }),
+      /**
        * 读取会话
        *
        * GET /conversations/{id}
@@ -426,6 +493,13 @@ export function createClient(options: ClientOptions) {
       note: (id: string, body: ConversationNoteInputBody): Promise<ConversationItemDTO> =>
         rt.request<ConversationItemDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/notes`, body }),
       /**
+       * 修改优先级
+       *
+       * PUT /conversations/{id}/priority
+       */
+      priority: (id: string, body: ConversationPriorityInputBody): Promise<ConversationDTO> =>
+        rt.request<ConversationDTO>({ method: "PUT", path: `/conversations/${encodeURIComponent(id)}/priority`, body }),
+      /**
        * 标记已读
        *
        * POST /conversations/{id}/read
@@ -433,12 +507,26 @@ export function createClient(options: ClientOptions) {
       read: (id: string, body: ConversationReadInputBody): Promise<void> =>
         rt.request<void>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/read`, body }),
       /**
+       * 重新打开
+       *
+       * POST /conversations/{id}/reopen
+       */
+      reopen: (id: string): Promise<ConversationDTO> =>
+        rt.request<ConversationDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/reopen` }),
+      /**
        * 回复会话
        *
        * POST /conversations/{id}/replies
        */
       reply: (id: string, body: ConversationTextBody): Promise<ConversationItemDTO> =>
         rt.request<ConversationItemDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/replies`, body }),
+      /**
+       * 稍后处理
+       *
+       * POST /conversations/{id}/snooze
+       */
+      snooze: (id: string, body: ConversationSnoozeInputBody): Promise<ConversationDTO> =>
+        rt.request<ConversationDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/snooze`, body }),
     },
     /** operationId 以 member- 开头的接口。 */
     member: {

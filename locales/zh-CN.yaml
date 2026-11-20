@@ -84,6 +84,7 @@ role.fields.member_count: 人数
 conversation_scope.all: 全部会话
 conversation_scope.team: 所在团队收件箱的和指派给自己的会话
 conversation_scope.assigned: 只有指派给自己的会话
+"role_permission.conversations:assign": 把会话改派给别人
 "role_permission.members:manage": 管理成员和角色
 "role_permission.teams:manage": 管理团队收件箱
 "role_permission.tenant-settings:manage": 管理工作区设置
@@ -95,6 +96,7 @@ llm.call_type.translation: 翻译
 
 "permission.conversations:read": 查看会话
 "permission.conversations:reply": 回复会话
+"permission.conversations:assign": 把会话改派给别人
 "permission.conversations:read-all": 可以看到全部会话
 "permission.conversations:read-team": 可以看到所在团队收件箱的会话
 
@@ -108,6 +110,8 @@ channel.kind.test: 测试渠道
 
 conversation.not_found: 会话不存在
 conversation.forbidden: 你没有权限执行这个操作
+conversation.closed: 会话已经关闭，先重新打开
+conversation.snooze_in_past: 稍后处理的时间要晚于现在
 conversation.kind.service: 服务型会话
 conversation.kind.chat: 聊天型会话
 conversation.status.open: 打开

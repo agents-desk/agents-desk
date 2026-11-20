@@ -34,6 +34,30 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
     conversation: {
       /** conversation 分组全部查询的 key 前缀。 */
       key: () => key("conversation"),
+      /** PUT /conversations/{id}/assignment */
+      assign: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["assign"]>) => client.conversation.assign(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
+      /** POST /conversations/bulk/assign */
+      bulkAssign: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["bulkAssign"]>[0]) => client.conversation.bulkAssign(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
+      /** POST /conversations/bulk/close */
+      bulkClose: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["bulkClose"]>[0]) => client.conversation.bulkClose(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
+      /** POST /conversations/{id}/close */
+      close: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["close"]>[0]) => client.conversation.close(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
       /** GET /conversations/{id} */
       get: (...args: Parameters<Client["conversation"]["get"]>) => ({
         queryKey: key("conversation", "get", ...args),
@@ -60,15 +84,33 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "conversation"),
       }),
+      /** PUT /conversations/{id}/priority */
+      priority: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["priority"]>) => client.conversation.priority(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
       /** POST /conversations/{id}/read */
       read: () => ({
         mutationFn: (variables: Parameters<Client["conversation"]["read"]>) => client.conversation.read(...variables),
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "conversation"),
       }),
+      /** POST /conversations/{id}/reopen */
+      reopen: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["reopen"]>[0]) => client.conversation.reopen(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
       /** POST /conversations/{id}/replies */
       reply: () => ({
         mutationFn: (variables: Parameters<Client["conversation"]["reply"]>) => client.conversation.reply(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
+      /** POST /conversations/{id}/snooze */
+      snooze: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["snooze"]>) => client.conversation.snooze(...variables),
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "conversation"),
       }),

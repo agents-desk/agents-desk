@@ -165,5 +165,10 @@ func (a *App) scheduler(*command.Daemon) (func(context.Context) error, error) {
 		schedule.Describe("删除过期的临时文件和已删除的文件"))
 	sched.Add("locks:cleanup", "@hourly", schedule.Cleanup(pglock.New(a.db).Cleanup, 1000),
 		schedule.Describe("删除过期的锁"))
+	expire := conversation.NewExpireSnoozes(a.db, a.downstream())
+	sched.Add("conversations:unsnooze", "* * * * *", func(ctx context.Context) error {
+		_, err := expire.Handle(ctx, time.Now())
+		return err
+	}, schedule.Describe("重新打开稍后处理到期的会话"))
 	return sched.Run, nil
 }

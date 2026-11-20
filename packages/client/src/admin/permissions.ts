@@ -2,6 +2,7 @@
 
 /** 权限目录：权限名和说明，来自 rest.Options.Permissions，以及接口要求的权限。 */
 export const permissions = {
+  "conversations:assign": "把会话改派给别人",
   "conversations:read": "查看会话",
   "conversations:read-all": "可以看到全部会话",
   "conversations:read-team": "可以看到所在团队收件箱的会话",
