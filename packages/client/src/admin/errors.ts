@@ -36,8 +36,6 @@ export const PlatformadminErrors = {
 export const TeamErrors = {
   NotFound: "team.not_found",
   NameTaken: "team.name_taken",
-  /** ErrLeadRole 是要把坐席设为团队的组长：只有组长、管理员和主管理员能当团队的组长。 */
-  LeadRole: "team.lead_role_required",
   /** ErrNotInTeam 是要移出的人不在这个团队中。 */
   NotInTeam: "team.not_in_team",
 } as const

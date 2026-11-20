@@ -6,7 +6,7 @@ import (
 	"github.com/go-tenon/tenon/settings"
 )
 
-// GetSettings 读取各用途的模型接口，供管理员端显示和修改。
+// GetSettings 读取各调用类型的模型接口，供管理员端显示和修改。
 type GetSettings struct {
 	group *settings.Group[Settings]
 }

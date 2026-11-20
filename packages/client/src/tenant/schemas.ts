@@ -77,11 +77,6 @@ export const schemas = {
         "type": "object"
       },
     },
-    memberPut: {
-      body: {
-        "$ref": "#/components/schemas/TeamMemberChange"
-      },
-    },
     update: {
       body: {
         "$ref": "#/components/schemas/TeamChanges"
@@ -102,7 +97,6 @@ export const components = {
   AssignableRole: {
     "enum": [
       "admin",
-      "lead",
       "agent"
     ],
     "type": "string"
@@ -149,7 +143,6 @@ export const components = {
     "enum": [
       "owner",
       "admin",
-      "lead",
       "agent"
     ],
     "type": "string"
@@ -169,18 +162,6 @@ export const components = {
     },
     "required": [
       "name"
-    ],
-    "type": "object"
-  },
-  TeamMemberChange: {
-    "additionalProperties": false,
-    "properties": {
-      "lead": {
-        "type": "boolean"
-      }
-    },
-    "required": [
-      "lead"
     ],
     "type": "object"
   },

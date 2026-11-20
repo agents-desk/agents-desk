@@ -1,11 +1,11 @@
-import { Avatar, Badge, Card, Group, SimpleGrid, Stack, Text } from "@mantine/core"
+import { Avatar, Card, Group, SimpleGrid, Stack, Text } from "@mantine/core"
 import { useQueries, useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { Page } from "@go-tenon/ui"
 import type { ReactNode } from "react"
 import { tenantApi } from "../../../../../api"
 
-// 我的团队：我所在的团队、每个团队的组长和成员，只读。团队由管理员在“工作区 → 团队”中管理。
+// 我的团队：我所在的团队和团队的成员，只读。团队由管理员在“工作区 → 团队”中管理。
 export const Route = createFileRoute("/t/$slug/settings/_personal/my-teams")({
   staticData: { title: "我的团队", icon: "team", order: 2 },
   component: MyTeams,
@@ -37,10 +37,7 @@ function MyTeams(): ReactNode {
                   <Avatar src={m.avatar_url || null} size={28} radius="xl">
                     {m.name.slice(0, 1)}
                   </Avatar>
-                  <Text size="sm" style={{ flex: 1 }}>
-                    {m.name}
-                  </Text>
-                  {m.lead && <Badge variant="light">组长</Badge>}
+                  <Text size="sm">{m.name}</Text>
                 </Group>
               ))}
             </Stack>

@@ -16,12 +16,12 @@ import (
 
 // notOwnerOrSelf 是不是主管理员、也不是自己的行：只有这些行上显示“修改”和“移出”。
 var notOwnerOrSelf = map[string][]string{
-	"role": {string(auth.RoleAdmin), string(auth.RoleLead), string(auth.RoleAgent)},
+	"role": {string(auth.RoleAdmin), string(auth.RoleAgent)},
 	"self": {"false"},
 }
 
 // RegisterTenantRoutes 在工作区的 API（/t/{slug}/api）中注册成员管理，并把成员声明为资源。
-// require 返回要求成员登录凭据和给定权限的访问策略；hooks 是角色变化、移出成员之后其他模块跟着做的事。
+// require 返回要求成员登录凭据和给定权限的访问策略；hooks 是移出成员之后其他模块跟着做的事。
 func RegisterTenantRoutes(api *rest.API, require func(...auth.Permission) func(*huma.Operation), db *bun.DB, roles *authz.Store, logins *login.Realm, files *filesystem.Service, hooks Hooks) {
 	route := func(access func(*huma.Operation), id, method, path, summary string) huma.Operation {
 		op := huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary}
@@ -37,7 +37,7 @@ func RegisterTenantRoutes(api *rest.API, require func(...auth.Permission) func(*
 	rest.Register(api, route(read, "member-list", http.MethodGet, "/members", "成员列表"), NewList(db, roles, logins, files).HTTP)
 	rest.Register(api, route(read, "member-get", http.MethodGet, "/members/{id}", "读取成员"), NewGet(db, roles, logins, files).HTTP)
 	rest.Register(api, add, NewAdd(db, logins, files).HTTP)
-	rest.Register(api, route(manage, "member-update", http.MethodPut, "/members/{id}", "修改成员的角色"), NewChangeRole(db, logins, files, hooks).HTTP)
+	rest.Register(api, route(manage, "member-update", http.MethodPut, "/members/{id}", "修改成员的角色"), NewChangeRole(db, logins, files).HTTP)
 	rest.Register(api, remove, NewRemove(db, hooks).HTTP)
 
 	api.Resource(rest.Resource{

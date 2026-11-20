@@ -141,7 +141,7 @@ func parts(a *App) []command.Part {
 	}
 }
 
-// worker 装配队列 worker：把业务事务中发布的任务转发到 JetStream 并处理。各模块的任务在这里登记，PR 1 还没有任务。
+// worker 装配队列 worker：把业务事务中发布的任务转发到 JetStream 并处理。各模块的任务在这里登记，现在还没有任务。
 func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
 	w := queue.NewWorker(a.db, a.nc, a.cfg.Queue, nil)
 	return w.Run, nil

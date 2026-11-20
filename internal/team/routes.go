@@ -36,7 +36,7 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	rest.Register(api, route(manage, "team-update", http.MethodPut, "/teams/{id}", "修改团队"), NewUpdate(db).HTTP)
 	rest.Register(api, del, NewDelete(db).HTTP)
 	rest.Register(api, route(read, "team-members", http.MethodGet, "/teams/{id}/members", "团队的成员"), NewListMembers(db, roles, logins, files).HTTP)
-	rest.Register(api, route(manage, "team-member-put", http.MethodPut, "/teams/{id}/members/{member_id}", "加入团队或修改组长身份"), NewPutMember(db, logins, files).HTTP)
+	rest.Register(api, route(manage, "team-member-put", http.MethodPut, "/teams/{id}/members/{member_id}", "加入团队"), NewPutMember(db, logins, files).HTTP)
 	rest.Register(api, removeMember, NewRemoveMember(db).HTTP)
 
 	api.Resource(rest.Resource{
@@ -46,7 +46,7 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 		Create:  "team-create",
 		Update:  "team-update",
 		Delete:  "team-delete",
-		Columns: []string{"name", "member_count", "leads", "description"},
+		Columns: []string{"name", "member_count", "description"},
 		Filters: []string{"name"},
 	})
 }

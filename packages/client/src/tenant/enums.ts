@@ -7,16 +7,16 @@
 export const enums = {
   AssignableRole: {
     prefix: "assignable_role",
-    values: ["admin", "lead", "agent"],
+    values: ["admin", "agent"],
     labels: {
-      "zh-CN": { admin: "管理员", lead: "组长", agent: "坐席" },
+      "zh-CN": { admin: "管理员", agent: "坐席" },
     },
   },
   Role: {
     prefix: "role",
-    values: ["owner", "admin", "lead", "agent"],
+    values: ["owner", "admin", "agent"],
     labels: {
-      "zh-CN": { owner: "主管理员", admin: "管理员", lead: "组长", agent: "坐席" },
+      "zh-CN": { owner: "主管理员", admin: "管理员", agent: "坐席" },
     },
   },
 } as const
