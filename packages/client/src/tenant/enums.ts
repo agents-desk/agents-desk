@@ -33,6 +33,13 @@ export const enums = {
       "zh-CN": { sending: "发送中", delivered: "已送达", read: "已读", failed: "失败" },
     },
   },
+  ConversationInbox: {
+    prefix: "conversation.inbox",
+    values: ["mine", "mentions", "unassigned", "all"],
+    labels: {
+      "zh-CN": { mine: "我的", mentions: "@我", unassigned: "未指派", all: "全部" },
+    },
+  },
   ConversationItemKind: {
     prefix: "conversation.item_kind",
     values: ["message", "note", "event"],
@@ -59,6 +66,13 @@ export const enums = {
     values: ["all", "team", "assigned"],
     labels: {
       "zh-CN": { all: "全部会话", team: "所在团队收件箱的和指派给自己的会话", assigned: "只有指派给自己的会话" },
+    },
+  },
+  ConversationSort: {
+    prefix: "conversation.sort",
+    values: ["waiting", "recent"],
+    labels: {
+      "zh-CN": { waiting: "等待时长", recent: "最近活动" },
     },
   },
   ConversationStatus: {

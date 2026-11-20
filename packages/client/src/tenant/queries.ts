@@ -39,6 +39,11 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         queryKey: key("conversation", "get", ...args),
         queryFn: () => client.conversation.get(...args),
       }),
+      /** GET /inbox */
+      inbox: (...args: Parameters<Client["conversation"]["inbox"]>) => ({
+        queryKey: key("conversation", "inbox", ...args),
+        queryFn: () => client.conversation.inbox(...args),
+      }),
       /** GET /conversations/{id}/items */
       items: (...args: Parameters<Client["conversation"]["items"]>) => ({
         queryKey: key("conversation", "items", ...args),
@@ -52,6 +57,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       /** POST /conversations/{id}/notes */
       note: () => ({
         mutationFn: (variables: Parameters<Client["conversation"]["note"]>) => client.conversation.note(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
+      /** POST /conversations/{id}/read */
+      read: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["read"]>) => client.conversation.read(...variables),
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "conversation"),
       }),

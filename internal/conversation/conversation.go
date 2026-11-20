@@ -160,6 +160,7 @@ type Conversation struct {
 	LastMessageAt time.Time      `bun:"last_message_at,notnull"` // 最近一条消息的时间
 	LastSeq       int64          `bun:"last_seq,notnull"`        // 时间线中最新一项的序号
 	Attributes    map[string]any `bun:"attributes,type:jsonb,notnull"`
+	MentionedAt   *time.Time     `bun:"mentioned_at,scanonly"` // 只在“@我”的列表中读出：最近一次被 @ 的时间
 }
 
 // Participant 是会话的一个参与者。
@@ -174,9 +175,10 @@ type Participant struct {
 
 // Content 是时间线中一项的内容：消息和备注的文字，或者系统事件的名称和数据。
 type Content struct {
-	Text  string         `json:"text,omitempty"`
-	Event string         `json:"event,omitempty" doc:"系统事件的名称，例如 conversation.reopened"`
-	Data  map[string]any `json:"data,omitempty" doc:"系统事件的数据"`
+	Text     string         `json:"text,omitempty"`
+	Mentions []string       `json:"mentions,omitempty" doc:"内部备注中 @ 到的成员 ID"`
+	Event    string         `json:"event,omitempty" doc:"系统事件的名称，例如 conversation.reopened"`
+	Data     map[string]any `json:"data,omitempty" doc:"系统事件的数据"`
 }
 
 // Item 是时间线中的一项，写入后保持原样。
@@ -222,7 +224,7 @@ type Appended struct {
 type Downstream []queue.Topic[Appended]
 
 // authorize 是会话动作统一的权限检查：成员按权限检查；系统主体（连接器、命令、种子数据）可以执行全部会话动作。
-// perm 为空表示只有系统主体可以执行，例如写入渠道收到的消息。以后会话的可见范围、AI 用途的配置也在这里检查。
+// perm 为空表示只有系统主体可以执行，例如写入渠道收到的消息。能看到哪些会话由 visible 决定；以后 AI 用途的配置也在这里检查。
 func authorize(sub identity.Subject, perm auth.Permission) error {
 	switch {
 	case sub.Type == identity.System:

@@ -7,6 +7,8 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/identity"
+
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
 )
@@ -35,6 +37,8 @@ type ConversationDTO struct {
 	LastMessageAt time.Time        `json:"last_message_at"`
 	LastSeq       int64            `json:"last_seq" doc:"时间线中最新一项的序号，用来增量读取时间线"`
 	Preview       string           `json:"preview" doc:"最后一条消息的文字"`
+	Unread        bool             `json:"unread" doc:"有我还没读到的消息或内部备注（不算我自己写的）"`
+	MentionedAt   *time.Time       `json:"mentioned_at,omitempty" doc:"最近一次 @ 我的时间，只在“@我”的列表中有"`
 	CreatedAt     time.Time        `json:"created_at"`
 }
 
@@ -91,8 +95,8 @@ func toItemDTOs(ctx context.Context, db bun.IDB, items []Item) ([]ItemDTO, error
 	return out, nil
 }
 
-// toDTOs 把会话转换为接口中的形式：一次读出它们的渠道、联系人和最后一条消息的文字。
-func toDTOs(ctx context.Context, db bun.IDB, convs []Conversation) ([]ConversationDTO, error) {
+// toDTOs 把会话转换为接口中的形式：一次读出它们的渠道、联系人、最后一条消息的文字，以及对 sub 来说是否未读。
+func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conversation) ([]ConversationDTO, error) {
 	out := make([]ConversationDTO, len(convs))
 	if len(convs) == 0 {
 		return out, nil
@@ -140,11 +144,16 @@ func toDTOs(ctx context.Context, db bun.IDB, convs []Conversation) ([]Conversati
 	for _, p := range previews {
 		preview[p.ConversationID] = p.Text
 	}
+	unread, err := unreadOf(ctx, db, sub, ids)
+	if err != nil {
+		return nil, err
+	}
 	for i, c := range convs {
 		d := ConversationDTO{
 			ID: c.ID, Kind: c.Kind, Status: c.Status, TeamID: c.TeamID, Priority: c.Priority, Language: c.Language,
 			WaitingSince: c.WaitingSince, SnoozedUntil: c.SnoozedUntil, FirstReplyAt: c.FirstReplyAt, ClosedAt: c.ClosedAt,
-			LastMessageAt: c.LastMessageAt, LastSeq: c.LastSeq, Preview: preview[c.ID], CreatedAt: c.CreatedAt,
+			LastMessageAt: c.LastMessageAt, LastSeq: c.LastSeq, Preview: preview[c.ID], Unread: unread[c.ID],
+			MentionedAt: c.MentionedAt, CreatedAt: c.CreatedAt,
 		}
 		if c.ChannelID != nil {
 			s := channels[*c.ChannelID]

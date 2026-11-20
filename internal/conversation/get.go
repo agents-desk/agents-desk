@@ -23,16 +23,16 @@ type Get struct {
 // NewGet 返回读取会话的动作。
 func NewGet(db *bun.DB) *Get { return &Get{db: db} }
 
-// Handle 返回 sub 所在工作区中的会话 id，不存在或属于别的工作区时返回 ErrNotFound。
+// Handle 返回 sub 所在工作区中的会话 id，不存在、属于别的工作区或 sub 看不到时返回 ErrNotFound。
 func (a *Get) Handle(ctx context.Context, sub identity.Subject, id string) (*ConversationDTO, error) {
 	if err := authorize(sub, auth.ConversationsRead); err != nil {
 		return nil, err
 	}
-	c, err := find(ctx, a.db, sub.Tenant, id, false)
+	c, err := findVisible(ctx, a.db, sub, id, false)
 	if err != nil {
 		return nil, err
 	}
-	dtos, err := toDTOs(ctx, a.db, []Conversation{*c})
+	dtos, err := toDTOs(ctx, a.db, sub, []Conversation{*c})
 	if err != nil {
 		return nil, err
 	}

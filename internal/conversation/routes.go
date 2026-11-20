@@ -24,10 +24,14 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	replyOp.DefaultStatus = http.StatusCreated
 	noteOp := route(reply, "conversation-note", http.MethodPost, "/conversations/{id}/notes", "写内部备注")
 	noteOp.DefaultStatus = http.StatusCreated
+	readOp := route(read, "conversation-read", http.MethodPost, "/conversations/{id}/read", "标记已读")
+	readOp.DefaultStatus = http.StatusNoContent
 
+	rest.Register(api, route(read, "conversation-inbox", http.MethodGet, "/inbox", "收件箱的列表和数量"), NewGetInbox(db).HTTP)
 	rest.Register(api, route(read, "conversation-list", http.MethodGet, "/conversations", "会话列表"), NewList(db).HTTP)
 	rest.Register(api, route(read, "conversation-get", http.MethodGet, "/conversations/{id}", "读取会话"), NewGet(db).HTTP)
 	rest.Register(api, route(read, "conversation-items", http.MethodGet, "/conversations/{id}/items", "读取时间线"), NewTimeline(db).HTTP)
 	rest.Register(api, replyOp, NewReply(db, down).HTTP)
 	rest.Register(api, noteOp, NewAddNote(db, down).HTTP)
+	rest.Register(api, readOp, NewMarkRead(db).HTTP)
 }

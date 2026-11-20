@@ -23,9 +23,11 @@ export type Permission = keyof typeof permissions
 export const required = {
   conversation: {
     get: ["conversations:read"],
+    inbox: ["conversations:read"],
     items: ["conversations:read"],
     list: ["conversations:read"],
     note: ["conversations:reply"],
+    read: ["conversations:read"],
     reply: ["conversations:reply"],
   },
   member: {
