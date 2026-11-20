@@ -6,7 +6,7 @@ http:
   body_limit:
     max_bytes: 21495808 # 20.5 MiB
 
-# 应用对外的地址：生成工作区的地址、插件的嵌入代码等链接时使用。
+# 应用对外的地址：生成工作区的地址、聊天插件的嵌入代码等链接时使用。
 public_url: ${PUBLIC_URL:-http://localhost:8081}
 
 database:

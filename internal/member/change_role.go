@@ -31,12 +31,11 @@ type ChangeRole struct {
 	db     *bun.DB
 	logins *login.Realm
 	files  *filesystem.Service
-	hooks  Hooks
 }
 
-// NewChangeRole 返回修改角色的动作；hooks.RoleChanged 在同一个事务中跟着执行。
-func NewChangeRole(db *bun.DB, logins *login.Realm, files *filesystem.Service, hooks Hooks) *ChangeRole {
-	return &ChangeRole{db: db, logins: logins, files: files, hooks: hooks}
+// NewChangeRole 返回修改角色的动作。
+func NewChangeRole(db *bun.DB, logins *login.Realm, files *filesystem.Service) *ChangeRole {
+	return &ChangeRole{db: db, logins: logins, files: files}
 }
 
 // Handle 在 sub 所在的工作区中把成员 id 的角色换成 role，并记录操作日志。不能修改自己（ErrSelf）和主管理员
@@ -64,11 +63,6 @@ func (a *ChangeRole) Handle(ctx context.Context, sub identity.Subject, id string
 		}
 		if err := auth.Grant(ctx, roles, ref, sub.Tenant, auth.TenantRoles[next]); err != nil {
 			return err
-		}
-		if a.hooks.RoleChanged != nil {
-			if err := a.hooks.RoleChanged(ctx, tx, sub.Tenant, id, next); err != nil {
-				return err
-			}
 		}
 		return activity.Record(ctx, tx, sub, activity.Activity{
 			Event: "member.role_changed", TargetType: string(Type), TargetID: id,

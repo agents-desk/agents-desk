@@ -77,7 +77,7 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
     llm: {
       /** llm 分组全部查询的 key 前缀。 */
       key: () => key("llm"),
-      /** PUT /settings/model/{purpose} */
+      /** PUT /settings/model/{call_type} */
       endpointSave: () => ({
         mutationFn: (variables: Parameters<Client["llm"]["endpointSave"]>) => client.llm.endpointSave(...variables),
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>

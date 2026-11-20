@@ -5,8 +5,8 @@
  * labels 按语言列出显示文字，取自翻译文件中 <前缀>.<取值> 的消息；缺少时先用默认语言，再用取值本身。
  */
 export const enums = {
-  LlmPurpose: {
-    prefix: "llm.purpose",
+  LlmCallType: {
+    prefix: "llm.call_type",
     values: ["translation"],
     labels: {
       "zh-CN": { translation: "翻译" },

@@ -20,14 +20,12 @@ member.fields.password: 初始密码
 member.actions.remove: 移出
 team.not_found: 团队不存在
 team.name_taken: "名称“{{.name}}”已被使用"
-team.lead_role_required: 坐席不能当组长，先把他的角色改为组长
 team.not_in_team: 他不在这个团队中
 team.title: 团队
 team.fields.id: ID
 team.fields.name: 名称
 team.fields.description: 说明
 team.fields.member_count: 人数
-team.fields.leads: 组长
 account.wrong_password: 当前密码不正确
 member.invalid_time_zone: "不认识的时区“{{.time_zone}}”"
 member.language.zh-CN: 简体中文
@@ -66,13 +64,11 @@ tenant.status.disabled: 已停用
 
 role.owner: 主管理员
 role.admin: 管理员
-role.lead: 组长
 role.agent: 坐席
 assignable_role.admin: 管理员
-assignable_role.lead: 组长
 assignable_role.agent: 坐席
 
-llm.purpose.translation: 翻译
+llm.call_type.translation: 翻译
 
 "permission.conversations:read": 查看会话
 "permission.conversations:reply": 回复会话

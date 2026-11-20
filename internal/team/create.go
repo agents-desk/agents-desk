@@ -46,7 +46,7 @@ func (a *Create) Handle(ctx context.Context, sub identity.Subject, c Changes) (*
 	if err != nil {
 		return nil, err
 	}
-	return &TeamDTO{ID: t.ID, Name: t.Name, Description: t.Description, Leads: []string{}}, nil
+	return &TeamDTO{ID: t.ID, Name: t.Name, Description: t.Description}, nil
 }
 
 // HTTP 处理 POST /t/{slug}/api/teams。

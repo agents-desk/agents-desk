@@ -5,7 +5,7 @@ import { Runtime, type ClientOptions, type Download, type SessionLike, type Stre
 export * from "./errors"
 export { ApiError, isApiError, saveBlob, type ClientOptions, type Download, type SessionLike, type FieldError, type StreamOptions } from "./runtime"
 
-export type AssignableRole = "admin" | "lead" | "agent"
+export type AssignableRole = "admin" | "agent"
 
 export type ChannelKind = "test"
 
@@ -178,7 +178,7 @@ export interface OffsetTeamDTO {
   total: number
 }
 
-export type Role = "owner" | "admin" | "lead" | "agent"
+export type Role = "owner" | "admin" | "agent"
 
 export interface TeamChanges {
   description?: string
@@ -188,8 +188,6 @@ export interface TeamChanges {
 export interface TeamDTO {
   description: string
   id: string
-  /** 组长的名字 */
-  leads: string[]
   /** 团队中的人数 */
   member_count: number
   name: string
@@ -199,17 +197,10 @@ export interface TeamMember {
   /** 头像的地址；没有头像时为空 */
   avatar_url: string
   email: string
-  /** 是不是这个团队的组长 */
-  lead: boolean
   member_id: string
   name: string
   /** 他在工作区中的角色 */
   role: Role
-}
-
-export interface TeamMemberChange {
-  /** 是不是这个团队的组长；只有组长、管理员和主管理员能当 */
-  lead: boolean
 }
 
 export interface TenantCurrentDTO {
@@ -376,12 +367,12 @@ export function createClient(options: ClientOptions) {
       list: (input: TeamListInput = {}): Promise<OffsetTeamDTO> =>
         rt.request<OffsetTeamDTO>({ method: "GET", path: `/teams`, query: { "mine": input["mine"], "name": input["name"], "page": input["page"], "per_page": input["per_page"] } }),
       /**
-       * 加入团队或修改组长身份
+       * 加入团队
        *
        * PUT /teams/{id}/members/{member_id}
        */
-      memberPut: (id: string, memberID: string, body: TeamMemberChange): Promise<TeamMember> =>
-        rt.request<TeamMember>({ method: "PUT", path: `/teams/${encodeURIComponent(id)}/members/${encodeURIComponent(memberID)}`, body }),
+      memberPut: (id: string, memberID: string): Promise<TeamMember> =>
+        rt.request<TeamMember>({ method: "PUT", path: `/teams/${encodeURIComponent(id)}/members/${encodeURIComponent(memberID)}` }),
       /**
        * 移出团队
        *

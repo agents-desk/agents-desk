@@ -41,8 +41,8 @@ func seedCommand(db *bun.DB, adminLogins, memberLogins *login.Realm, files *file
 // seed 通过业务动作写入开发和演示用的数据，已经存在的跳过，可以重复运行：
 //   - 平台管理员 admin@example.com；
 //   - 示例工作区 demo，主管理员 owner@example.com；
-//   - demo 中的管理员 manager@example.com、组长 lead@example.com、坐席 agent@example.com；
-//   - demo 中的团队“一线客服”，组长 lead@，成员 agent@；
+//   - demo 中的管理员 manager@example.com、坐席 agent@example.com；
+//   - demo 中的团队“一线客服”，成员 manager@、agent@；
 //   - demo 中的测试渠道，新会话进入“一线客服”，以及 10 个示例会话，客户用英语、印地语、Hinglish，部分会话 agent@ 已经回复。
 //
 // 每一项写入或跳过时向 out 输出一行。
@@ -74,7 +74,7 @@ func seed(ctx context.Context, out io.Writer, db *bun.DB, adminLogins, memberLog
 		fmt.Fprintln(out, "已创建示例工作区 demo，主管理员 owner@example.com，密码", seedPassword)
 	}
 
-	// 示例工作区的其他成员：管理员、组长和坐席，以系统的身份在 demo 中添加
+	// 示例工作区的其他成员：管理员和坐席，以系统的身份在 demo 中添加
 	var demo string
 	if err := db.NewRaw("SELECT id FROM tenants WHERE slug = 'demo'").Scan(ctx, &demo); err != nil {
 		return errors.Wrap(err, "find demo tenant")
@@ -86,7 +86,6 @@ func seed(ctx context.Context, out io.Writer, db *bun.DB, adminLogins, memberLog
 		role        auth.AssignableRole
 	}{
 		{"manager@example.com", "管理员", auth.AssignableRole(auth.RoleAdmin)},
-		{"lead@example.com", "组长", auth.AssignableRole(auth.RoleLead)},
 		{"agent@example.com", "坐席", auth.AssignableRole(auth.RoleAgent)},
 	} {
 		_, err := add.Handle(ctx, inDemo, member.AddParams{Email: m.email, Name: m.name, Password: seedPassword, Role: m.role})
@@ -100,7 +99,7 @@ func seed(ctx context.Context, out io.Writer, db *bun.DB, adminLogins, memberLog
 		}
 	}
 
-	// 示例工作区的团队“一线客服”：组长 lead@，成员 agent@
+	// 示例工作区的团队“一线客服”：成员 manager@、agent@
 	t, err := team.NewCreate(db).Handle(ctx, inDemo, team.Changes{Name: "一线客服", Description: "处理客户的第一次咨询"})
 	switch {
 	case errors.Is(err, team.ErrNameTaken):
@@ -115,22 +114,19 @@ func seed(ctx context.Context, out io.Writer, db *bun.DB, adminLogins, memberLog
 	return seedConversations(ctx, out, db, memberLogins, inDemo, channels, down)
 }
 
-// seedTeamMembers 把组长 lead@ 和坐席 agent@ 加入示例工作区的团队 teamID。
+// seedTeamMembers 把管理员 manager@ 和坐席 agent@ 加入示例工作区的团队 teamID。
 func seedTeamMembers(ctx context.Context, out io.Writer, db *bun.DB, memberLogins *login.Realm, files *filesystem.Service, inDemo identity.Subject, teamID string) error {
 	put := team.NewPutMember(db, memberLogins, files)
-	for _, m := range []struct {
-		email string
-		lead  bool
-	}{{"lead@example.com", true}, {"agent@example.com", false}} {
-		ref, err := memberLogins.Lookup(ctx, login.Email(m.email))
+	for _, email := range []string{"manager@example.com", "agent@example.com"} {
+		ref, err := memberLogins.Lookup(ctx, login.Email(email))
 		if err != nil {
 			return err
 		}
-		if _, err := put.Handle(ctx, inDemo, teamID, ref.ID, team.MemberChange{Lead: m.lead}); err != nil {
+		if _, err := put.Handle(ctx, inDemo, teamID, ref.ID); err != nil {
 			return err
 		}
 	}
-	fmt.Fprintln(out, "已在示例工作区中创建团队 一线客服：组长 lead@example.com，成员 agent@example.com")
+	fmt.Fprintln(out, "已在示例工作区中创建团队 一线客服：成员 manager@example.com、agent@example.com")
 	return nil
 }
 
