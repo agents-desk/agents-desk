@@ -72,6 +72,7 @@ func CreateDefaults(ctx context.Context, tx bun.IDB, tenant string) error {
 
 // Lock 在事务 tx 中锁住工作区 tenant 的角色 id，返回这个角色。角色不存在、或者不是这个工作区自己的角色时返回 ErrNotFound，
 // 带上 opts，例如指向请求中的字段。分配角色和删除角色都先锁住它：删除时数到的人数之后不会再有人分配到这个角色。
+// 框架的 authz 提供这种并发安全之后（开发计划 F5），改用框架的做法，不再直接查询 authz_roles。
 func Lock(ctx context.Context, tx bun.IDB, tenant, id string, opts ...errorx.Option) (authz.Role, error) {
 	var found string
 	err := tx.NewRaw("SELECT id FROM authz_roles WHERE id = ? AND tenant = ? FOR UPDATE", id, tenant).Scan(ctx, &found)

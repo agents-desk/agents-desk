@@ -18,7 +18,7 @@ var (
 	// Owner 是工作区的主管理员，分配在工作区的域中：每个工作区只有一个，只在管理员端更换。
 	// 他拥有工作区的全部权限，可以看到全部会话；以后加入的操作权限也自动属于他。
 	Owner = authz.Role{
-		Name: "owner", Description: "主管理员",
+		Name: "owner", Description: "工作区的主管理员",
 		Permissions: RolePermissions(ScopeAll, TenantPermissions.Values()),
 	}
 )

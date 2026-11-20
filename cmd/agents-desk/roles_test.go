@@ -77,6 +77,11 @@ func TestRoles(t *testing.T) {
 	if got := initial.Items[1]; got.ConversationScope != "all" || len(got.Permissions) != 3 {
 		t.Errorf("管理员：%+v", got)
 	}
+	// 角色中只保存可见范围和勾选的操作，基本权限在加载成员的权限时加上
+	var stored []string
+	if err := env.DB.NewRaw("SELECT permission FROM authz_role_permissions WHERE role_id = ?", initial.Items[0].ID).Scan(ctx, &stored); err != nil || len(stored) != 1 || stored[0] != "conversations:read-team" {
+		t.Errorf("坐席保存的权限：%v %v", stored, err)
+	}
 
 	// 新建：同一个工作区中不重名；只能勾选工作区的操作权限
 	r = call(h, "POST", "/t/alpha/api/roles", `{"name":"质检","description":"抽查会话","conversation_scope":"assigned","permissions":[]}`, owner)
@@ -94,7 +99,7 @@ func TestRoles(t *testing.T) {
 	// 角色为质检的成员：能看成员、能看会话，只能看指派给自己的；不能管理角色
 	call(h, "POST", "/t/alpha/api/members", `{"email":"qa@alpha.com","name":"质检员","password":"password","role_id":"`+qa+`"}`, owner)
 	inspector := login("qa@alpha.com")
-	if got := permissions(inspector); !strings.Contains(got, `"conversations:read"`) || strings.Contains(got, "view-") || strings.Contains(got, "members:manage") {
+	if got := permissions(inspector); !strings.Contains(got, `"conversations:read"`) || strings.Contains(got, "conversations:read-") || strings.Contains(got, "members:manage") {
 		t.Fatalf("质检员的权限：%s", got)
 	}
 	if r := call(h, "GET", "/t/alpha/api/members", "", inspector); r.status != http.StatusOK {
@@ -115,7 +120,7 @@ func TestRoles(t *testing.T) {
 	if r := call(h, "GET", "/t/alpha/api/roles", "", inspector); r.status != http.StatusOK {
 		t.Errorf("加上权限后看角色：%d %s", r.status, r.body)
 	}
-	if got := permissions(inspector); !strings.Contains(got, `"conversations:view-team"`) {
+	if got := permissions(inspector); !strings.Contains(got, `"conversations:read-team"`) {
 		t.Errorf("修改后的权限：%s", got)
 	}
 	if r := call(h, "PUT", "/t/alpha/api/roles/"+qa, `{"name":"坐席","description":"","conversation_scope":"team","permissions":[]}`, owner); r.code != "role.name_taken" {

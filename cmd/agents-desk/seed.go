@@ -182,11 +182,11 @@ func seedConversations(ctx context.Context, out io.Writer, db *bun.DB, memberLog
 	if err != nil {
 		return err
 	}
-	perms, _, err := authz.NewStore(db, auth.Catalog).Permissions(ctx, identity.Ref{Type: member.Type, ID: ref.ID}, inDemo.Tenant)
+	// 坐席的身份和权限与他在请求中的相同
+	agent, err := member.Resolve(db, authz.NewStore(db, auth.Catalog))(identity.WithTenant(ctx, inDemo.Tenant), identity.Subject{Type: member.Type, ID: ref.ID})
 	if err != nil {
 		return err
 	}
-	agent := identity.Subject{Type: member.Type, ID: ref.ID, Tenant: inDemo.Tenant, Permissions: perms}
 	receive, reply := conversation.NewReceive(db, channels, down), conversation.NewReply(db, down)
 	for _, chat := range seedChats {
 		var id string

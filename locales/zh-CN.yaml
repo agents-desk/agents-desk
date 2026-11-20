@@ -64,6 +64,7 @@ tenant.status.disabled: 已停用
 "permission.teams:read": 查看团队
 "permission.teams:manage": 管理团队
 
+role.owner: 主管理员
 role.not_found: 角色不存在
 role.name_taken: "名称“{{.name}}”已被使用"
 role.in_use: "还有 {{.count}} 位成员使用这个角色，先把他们改成别的角色"
@@ -85,8 +86,8 @@ llm.call_type.translation: 翻译
 
 "permission.conversations:read": 查看会话
 "permission.conversations:reply": 回复会话
-"permission.conversations:view-all": 可以看到全部会话
-"permission.conversations:view-team": 可以看到所在团队的会话
+"permission.conversations:read-all": 可以看到全部会话
+"permission.conversations:read-team": 可以看到所在团队的会话
 
 contact.not_found: 联系人不存在
 contact.kind.user: 用户

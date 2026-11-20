@@ -17,6 +17,8 @@ import (
 	"github.com/go-tenon/tenon/httpx"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/login"
+
+	"agents-desk/internal/auth"
 )
 
 // Type 是工作区成员这套账号体系。
@@ -61,7 +63,8 @@ func Find(ctx context.Context, db bun.IDB, id string) (*Member, error) {
 }
 
 // Resolve 返回成员的 Resolver：每个请求重新读库，账号停用立即生效（ErrAccountDisabled），再按本次请求的租户
-// 加载成员在其中的权限。租户是平台本身（""）时权限为空；成员在租户中没有角色时 roles 返回 404。
+// 加载成员在其中的权限：角色的权限加上每位成员都有的基本权限（auth.WithBase）。租户是平台本身（""）时权限为空；
+// 成员在租户中没有角色时 roles 返回 404。
 func Resolve(db bun.IDB, roles *authz.Store) identity.Resolver {
 	return func(ctx context.Context, sub identity.Subject) (identity.Subject, error) {
 		m, err := Find(ctx, db, sub.ID)
@@ -71,7 +74,12 @@ func Resolve(db bun.IDB, roles *authz.Store) identity.Resolver {
 		if err != nil {
 			return identity.Subject{}, err
 		}
-		return roles.Resolve(ctx, sub)
+		resolved, err := roles.Resolve(ctx, sub)
+		if err != nil || resolved.Tenant == "" {
+			return resolved, err
+		}
+		resolved.Permissions = auth.WithBase(resolved.Permissions)
+		return resolved, nil
 	}
 }
 

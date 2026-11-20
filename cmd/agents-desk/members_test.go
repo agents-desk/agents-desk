@@ -49,6 +49,7 @@ func TestMemberManagement(t *testing.T) {
 	type item struct {
 		ID, Name, Email string
 		RoleID          string `json:"role_id"`
+		RoleName        string `json:"role_name"`
 		Owner           bool
 	}
 	decode := func(body string) item {
@@ -99,7 +100,7 @@ func TestMemberManagement(t *testing.T) {
 		t.Fatalf("他所属的工作区：%s", r.body)
 	}
 	// 列表中主管理员在前、其余按名字排列，可以按角色和名字筛选
-	if got := list(owner, ""); len(got) != 5 || !got[0].Owner || got[1].Name != "agent" || got[4].Name != "other" {
+	if got := list(owner, ""); len(got) != 5 || !got[0].Owner || got[0].RoleName != "主管理员" || got[1].Name != "agent" || got[4].Name != "other" {
 		t.Fatalf("成员列表：%+v", got)
 	}
 	if got := list(owner, "?role_id="+roles["agent"]); len(got) != 3 {

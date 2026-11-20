@@ -25,7 +25,7 @@ const PasswordField: FieldInput = ({ field, label, value, onChange, error, disab
   />
 )
 
-// 角色从这个工作区的角色中选择；还没有角色时提示先新建。
+// 角色从这个工作区的角色中选择；还没有角色时提示先新建。框架的资源支持引用字段之后（开发计划 F6），改用引用字段。
 const RoleField: FieldInput = ({ field, label, value, onChange, error, disabled }) => {
   const roles = useQuery({ queryKey: ["roles", "all"], queryFn: () => tenantApi.role.list({ per_page: 100 }) })
   const items = roles.data?.items ?? []

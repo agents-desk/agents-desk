@@ -94,5 +94,5 @@ func toTeamMember(ctx context.Context, roles *authz.Store, logins *login.Realm, 
 	if err != nil {
 		return TeamMember{}, err
 	}
-	return TeamMember{MemberID: m.ID, Name: m.Name, Email: email, AvatarURL: avatar, RoleName: member.RoleName(role)}, nil
+	return TeamMember{MemberID: m.ID, Name: m.Name, Email: email, AvatarURL: avatar, RoleName: member.RoleName(ctx, role)}, nil
 }

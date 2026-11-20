@@ -8,6 +8,7 @@ import (
 	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/filesystem"
+	"github.com/go-tenon/tenon/i18n"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/login"
 
@@ -46,10 +47,10 @@ type TenantMemberOutput struct {
 	Body TenantMember
 }
 
-// RoleName 返回角色 r 给人看的名称：工作区自己的角色是它的名称，主管理员等全局角色是它的说明。
-func RoleName(r authz.Role) string {
-	if r.Tenant == "" {
-		return r.Description
+// RoleName 返回角色 r 给人看的名称：工作区自己的角色是它的名称，主管理员是翻译文件中 role.owner 的消息。
+func RoleName(ctx context.Context, r authz.Role) string {
+	if auth.IsOwner(r) {
+		return i18n.T(ctx, "role.owner", nil)
 	}
 	return r.Name
 }
@@ -78,5 +79,5 @@ func toTenantMember(ctx context.Context, logins *login.Realm, files *filesystem.
 		return TenantMember{}, err
 	}
 	return TenantMember{ID: m.ID, Name: m.Name, Email: email, AvatarURL: avatar,
-		RoleID: role.ID, RoleName: RoleName(role), Owner: auth.IsOwner(role), Self: m.ID == sub.ID}, nil
+		RoleID: role.ID, RoleName: RoleName(ctx, role), Owner: auth.IsOwner(role), Self: m.ID == sub.ID}, nil
 }
