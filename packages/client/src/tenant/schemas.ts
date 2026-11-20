@@ -6,6 +6,21 @@
  */
 export const schemas = {
   conversation: {
+    assign: {
+      body: {
+        "$ref": "#/components/schemas/ConversationAssignment"
+      },
+    },
+    bulkAssign: {
+      body: {
+        "$ref": "#/components/schemas/ConversationBulkAssignInputBody"
+      },
+    },
+    bulkClose: {
+      body: {
+        "$ref": "#/components/schemas/ConversationBulkIDs"
+      },
+    },
     items: {
       query: {
         "properties": {
@@ -74,6 +89,11 @@ export const schemas = {
         "$ref": "#/components/schemas/ConversationNoteInputBody"
       },
     },
+    priority: {
+      body: {
+        "$ref": "#/components/schemas/ConversationPriorityInputBody"
+      },
+    },
     read: {
       body: {
         "$ref": "#/components/schemas/ConversationReadInputBody"
@@ -82,6 +102,11 @@ export const schemas = {
     reply: {
       body: {
         "$ref": "#/components/schemas/ConversationTextBody"
+      },
+    },
+    snooze: {
+      body: {
+        "$ref": "#/components/schemas/ConversationSnoozeInputBody"
       },
     },
   },
@@ -216,6 +241,64 @@ export const schemas = {
 
 /** schemas 中 $ref 引用的命名类型，键是 OpenAPI 中的名称。 */
 export const components = {
+  ConversationAssignment: {
+    "additionalProperties": false,
+    "properties": {
+      "assignee_id": {
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
+        "type": "string"
+      },
+      "team_id": {
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  ConversationBulkAssignInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "assignee_id": {
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
+        "type": "string"
+      },
+      "ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 100,
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "team_id": {
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
+        "type": "string"
+      }
+    },
+    "required": [
+      "ids"
+    ],
+    "type": "object"
+  },
+  ConversationBulkIDs: {
+    "additionalProperties": false,
+    "properties": {
+      "ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 100,
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      }
+    },
+    "required": [
+      "ids"
+    ],
+    "type": "object"
+  },
   ConversationInbox: {
     "enum": [
       "mine",
@@ -254,6 +337,18 @@ export const components = {
     ],
     "type": "string"
   },
+  ConversationPriorityInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "priority": {
+        "$ref": "#/components/schemas/ConversationPriority"
+      }
+    },
+    "required": [
+      "priority"
+    ],
+    "type": "object"
+  },
   ConversationReadInputBody: {
     "additionalProperties": false,
     "properties": {
@@ -275,6 +370,19 @@ export const components = {
       "assigned"
     ],
     "type": "string"
+  },
+  ConversationSnoozeInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "until": {
+        "format": "date-time",
+        "type": "string"
+      }
+    },
+    "required": [
+      "until"
+    ],
+    "type": "object"
   },
   ConversationSort: {
     "enum": [
@@ -399,6 +507,7 @@ export const components = {
   },
   RolePermission: {
     "enum": [
+      "conversations:assign",
       "members:manage",
       "teams:manage",
       "tenant-settings:manage"

@@ -98,9 +98,9 @@ export const enums = {
   },
   RolePermission: {
     prefix: "role_permission",
-    values: ["members:manage", "teams:manage", "tenant-settings:manage"],
+    values: ["conversations:assign", "members:manage", "teams:manage", "tenant-settings:manage"],
     labels: {
-      "zh-CN": { "members:manage": "管理成员和角色", "teams:manage": "管理团队收件箱", "tenant-settings:manage": "管理工作区设置" },
+      "zh-CN": { "conversations:assign": "把会话改派给别人", "members:manage": "管理成员和角色", "teams:manage": "管理团队收件箱", "tenant-settings:manage": "管理工作区设置" },
     },
   },
   TeamAssignment: {

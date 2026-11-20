@@ -26,6 +26,8 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	noteOp.DefaultStatus = http.StatusCreated
 	readOp := route(read, "conversation-read", http.MethodPost, "/conversations/{id}/read", "标记已读")
 	readOp.DefaultStatus = http.StatusNoContent
+	// 会话的操作：权限在业务动作中检查（指派要看是不是领取、是不是自己负责的会话），路由只要求能处理会话
+	act := func(id, method, path, summary string) huma.Operation { return route(reply, id, method, path, summary) }
 
 	rest.Register(api, route(read, "conversation-inbox", http.MethodGet, "/inbox", "收件箱的列表和数量"), NewGetInbox(db).HTTP)
 	rest.Register(api, route(read, "conversation-list", http.MethodGet, "/conversations", "会话列表"), NewList(db).HTTP)
@@ -34,4 +36,11 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	rest.Register(api, replyOp, NewReply(db, down).HTTP)
 	rest.Register(api, noteOp, NewAddNote(db, down).HTTP)
 	rest.Register(api, readOp, NewMarkRead(db).HTTP)
+	rest.Register(api, act("conversation-assign", http.MethodPut, "/conversations/{id}/assignment", "指派"), NewAssign(db, down).HTTP)
+	rest.Register(api, act("conversation-close", http.MethodPost, "/conversations/{id}/close", "关闭"), NewClose(db, down).HTTP)
+	rest.Register(api, act("conversation-reopen", http.MethodPost, "/conversations/{id}/reopen", "重新打开"), NewReopen(db, down).HTTP)
+	rest.Register(api, act("conversation-snooze", http.MethodPost, "/conversations/{id}/snooze", "稍后处理"), NewSnooze(db, down).HTTP)
+	rest.Register(api, act("conversation-priority", http.MethodPut, "/conversations/{id}/priority", "修改优先级"), NewSetPriority(db, down).HTTP)
+	rest.Register(api, act("conversation-bulk-assign", http.MethodPost, "/conversations/bulk/assign", "批量指派"), NewBulkAssign(db, down).HTTP)
+	rest.Register(api, act("conversation-bulk-close", http.MethodPost, "/conversations/bulk/close", "批量关闭"), NewBulkClose(db, down).HTTP)
 }

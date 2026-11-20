@@ -27,6 +27,10 @@ export const ContactErrors = {
 
 /** agents-desk/internal/conversation 的错误码。 */
 export const ConversationErrors = {
+  /** ErrClosed 是会话已经关闭，不能执行这个操作，例如稍后处理一个已关闭的会话。 */
+  Closed: "conversation.closed",
+  /** ErrSnoozeInPast 是稍后处理的时间不晚于现在。 */
+  SnoozeInPast: "conversation.snooze_in_past",
   /** ErrNotFound 是会话不存在，或者属于别的工作区。 */
   NotFound: "conversation.not_found",
   /** ErrForbidden 是调用者没有权限执行这个会话动作。 */

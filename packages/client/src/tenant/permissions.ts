@@ -2,6 +2,7 @@
 
 /** 权限目录：权限名和说明，来自 rest.Options.Permissions，以及接口要求的权限。 */
 export const permissions = {
+  "conversations:assign": "把会话改派给别人",
   "conversations:read": "查看会话",
   "conversations:read-all": "可以看到全部会话",
   "conversations:read-team": "可以看到所在团队收件箱的会话",
@@ -22,13 +23,20 @@ export type Permission = keyof typeof permissions
 /** 每个接口要求的权限，调用者必须全部具备；没有列出的接口不要求权限。 */
 export const required = {
   conversation: {
+    assign: ["conversations:reply"],
+    bulkAssign: ["conversations:reply"],
+    bulkClose: ["conversations:reply"],
+    close: ["conversations:reply"],
     get: ["conversations:read"],
     inbox: ["conversations:read"],
     items: ["conversations:read"],
     list: ["conversations:read"],
     note: ["conversations:reply"],
+    priority: ["conversations:reply"],
     read: ["conversations:read"],
+    reopen: ["conversations:reply"],
     reply: ["conversations:reply"],
+    snooze: ["conversations:reply"],
   },
   member: {
     add: ["members:manage"],
