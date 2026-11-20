@@ -13,21 +13,23 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as TSlugRouteImport } from './routes/t/$slug'
 import { Route as TSlugIndexRouteImport } from './routes/t/$slug/index'
-import { Route as TSlugConversationsRouteImport } from './routes/t/$slug/conversations'
+import { Route as TSlugContactsRouteImport } from './routes/t/$slug/contacts'
+import { Route as TSlugInboxRouteImport } from './routes/t/$slug/inbox'
+import { Route as TSlugReportsRouteImport } from './routes/t/$slug/reports'
 import { Route as TSlugSettingsRouteImport } from './routes/t/$slug/settings'
 import { Route as TSlugSettingsIndexRouteImport } from './routes/t/$slug/settings/index'
+import { Route as TSlugSettingsInboxRouteImport } from './routes/t/$slug/settings/_inbox'
 import { Route as TSlugSettingsPersonalRouteImport } from './routes/t/$slug/settings/_personal'
 import { Route as TSlugSettingsWorkspaceRouteImport } from './routes/t/$slug/settings/_workspace'
-import { Route as TSlugSettingsPersonalMyTeamsRouteImport } from './routes/t/$slug/settings/_personal/my-teams'
+import { Route as TSlugSettingsInboxTeamsRouteImport } from './routes/t/$slug/settings/_inbox/teams'
 import { Route as TSlugSettingsPersonalPreferencesRouteImport } from './routes/t/$slug/settings/_personal/preferences'
 import { Route as TSlugSettingsPersonalProfileRouteImport } from './routes/t/$slug/settings/_personal/profile'
 import { Route as TSlugSettingsPersonalStatusRouteImport } from './routes/t/$slug/settings/_personal/status'
 import { Route as TSlugSettingsWorkspaceGeneralRouteImport } from './routes/t/$slug/settings/_workspace/general'
 import { Route as TSlugSettingsWorkspaceMembersRouteImport } from './routes/t/$slug/settings/_workspace/members'
 import { Route as TSlugSettingsWorkspaceRolesRouteImport } from './routes/t/$slug/settings/_workspace/roles'
-import { Route as TSlugSettingsWorkspaceTeamsRouteImport } from './routes/t/$slug/settings/_workspace/teams'
-import { Route as TSlugSettingsWorkspaceTeamsIndexRouteImport } from './routes/t/$slug/settings/_workspace/teams/index'
-import { Route as TSlugSettingsWorkspaceTeamsIdRouteImport } from './routes/t/$slug/settings/_workspace/teams/$id'
+import { Route as TSlugSettingsInboxTeamsIndexRouteImport } from './routes/t/$slug/settings/_inbox/teams/index'
+import { Route as TSlugSettingsInboxTeamsIdRouteImport } from './routes/t/$slug/settings/_inbox/teams/$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -49,9 +51,19 @@ const TSlugIndexRoute = TSlugIndexRouteImport.update({
   path: '/',
   getParentRoute: () => TSlugRoute,
 } as any)
-const TSlugConversationsRoute = TSlugConversationsRouteImport.update({
-  id: '/conversations',
-  path: '/conversations',
+const TSlugContactsRoute = TSlugContactsRouteImport.update({
+  id: '/contacts',
+  path: '/contacts',
+  getParentRoute: () => TSlugRoute,
+} as any)
+const TSlugInboxRoute = TSlugInboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
+  getParentRoute: () => TSlugRoute,
+} as any)
+const TSlugReportsRoute = TSlugReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => TSlugRoute,
 } as any)
 const TSlugSettingsRoute = TSlugSettingsRouteImport.update({
@@ -64,6 +76,10 @@ const TSlugSettingsIndexRoute = TSlugSettingsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => TSlugSettingsRoute,
 } as any)
+const TSlugSettingsInboxRoute = TSlugSettingsInboxRouteImport.update({
+  id: '/_inbox',
+  getParentRoute: () => TSlugSettingsRoute,
+} as any)
 const TSlugSettingsPersonalRoute = TSlugSettingsPersonalRouteImport.update({
   id: '/_personal',
   getParentRoute: () => TSlugSettingsRoute,
@@ -72,12 +88,11 @@ const TSlugSettingsWorkspaceRoute = TSlugSettingsWorkspaceRouteImport.update({
   id: '/_workspace',
   getParentRoute: () => TSlugSettingsRoute,
 } as any)
-const TSlugSettingsPersonalMyTeamsRoute =
-  TSlugSettingsPersonalMyTeamsRouteImport.update({
-    id: '/my-teams',
-    path: '/my-teams',
-    getParentRoute: () => TSlugSettingsPersonalRoute,
-  } as any)
+const TSlugSettingsInboxTeamsRoute = TSlugSettingsInboxTeamsRouteImport.update({
+  id: '/teams',
+  path: '/teams',
+  getParentRoute: () => TSlugSettingsInboxRoute,
+} as any)
 const TSlugSettingsPersonalPreferencesRoute =
   TSlugSettingsPersonalPreferencesRouteImport.update({
     id: '/preferences',
@@ -114,81 +129,79 @@ const TSlugSettingsWorkspaceRolesRoute =
     path: '/roles',
     getParentRoute: () => TSlugSettingsWorkspaceRoute,
   } as any)
-const TSlugSettingsWorkspaceTeamsRoute =
-  TSlugSettingsWorkspaceTeamsRouteImport.update({
-    id: '/teams',
-    path: '/teams',
-    getParentRoute: () => TSlugSettingsWorkspaceRoute,
-  } as any)
-const TSlugSettingsWorkspaceTeamsIndexRoute =
-  TSlugSettingsWorkspaceTeamsIndexRouteImport.update({
+const TSlugSettingsInboxTeamsIndexRoute =
+  TSlugSettingsInboxTeamsIndexRouteImport.update({
     id: '/',
     path: '/',
-    getParentRoute: () => TSlugSettingsWorkspaceTeamsRoute,
+    getParentRoute: () => TSlugSettingsInboxTeamsRoute,
   } as any)
-const TSlugSettingsWorkspaceTeamsIdRoute =
-  TSlugSettingsWorkspaceTeamsIdRouteImport.update({
+const TSlugSettingsInboxTeamsIdRoute =
+  TSlugSettingsInboxTeamsIdRouteImport.update({
     id: '/$id',
     path: '/$id',
-    getParentRoute: () => TSlugSettingsWorkspaceTeamsRoute,
+    getParentRoute: () => TSlugSettingsInboxTeamsRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/t/$slug': typeof TSlugRouteWithChildren
-  '/t/$slug/conversations': typeof TSlugConversationsRoute
+  '/t/$slug/contacts': typeof TSlugContactsRoute
+  '/t/$slug/inbox': typeof TSlugInboxRoute
+  '/t/$slug/reports': typeof TSlugReportsRoute
   '/t/$slug/settings': typeof TSlugSettingsRouteWithChildren
   '/t/$slug/': typeof TSlugIndexRoute
   '/t/$slug/settings/': typeof TSlugSettingsIndexRoute
-  '/t/$slug/settings/my-teams': typeof TSlugSettingsPersonalMyTeamsRoute
+  '/t/$slug/settings/teams': typeof TSlugSettingsInboxTeamsRouteWithChildren
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/status': typeof TSlugSettingsPersonalStatusRoute
   '/t/$slug/settings/general': typeof TSlugSettingsWorkspaceGeneralRoute
   '/t/$slug/settings/members': typeof TSlugSettingsWorkspaceMembersRoute
   '/t/$slug/settings/roles': typeof TSlugSettingsWorkspaceRolesRoute
-  '/t/$slug/settings/teams': typeof TSlugSettingsWorkspaceTeamsRouteWithChildren
-  '/t/$slug/settings/teams/$id': typeof TSlugSettingsWorkspaceTeamsIdRoute
-  '/t/$slug/settings/teams/': typeof TSlugSettingsWorkspaceTeamsIndexRoute
+  '/t/$slug/settings/teams/$id': typeof TSlugSettingsInboxTeamsIdRoute
+  '/t/$slug/settings/teams/': typeof TSlugSettingsInboxTeamsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/t/$slug/conversations': typeof TSlugConversationsRoute
+  '/t/$slug/contacts': typeof TSlugContactsRoute
+  '/t/$slug/inbox': typeof TSlugInboxRoute
+  '/t/$slug/reports': typeof TSlugReportsRoute
   '/t/$slug': typeof TSlugIndexRoute
   '/t/$slug/settings': typeof TSlugSettingsIndexRoute
-  '/t/$slug/settings/my-teams': typeof TSlugSettingsPersonalMyTeamsRoute
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/status': typeof TSlugSettingsPersonalStatusRoute
   '/t/$slug/settings/general': typeof TSlugSettingsWorkspaceGeneralRoute
   '/t/$slug/settings/members': typeof TSlugSettingsWorkspaceMembersRoute
   '/t/$slug/settings/roles': typeof TSlugSettingsWorkspaceRolesRoute
-  '/t/$slug/settings/teams/$id': typeof TSlugSettingsWorkspaceTeamsIdRoute
-  '/t/$slug/settings/teams': typeof TSlugSettingsWorkspaceTeamsIndexRoute
+  '/t/$slug/settings/teams/$id': typeof TSlugSettingsInboxTeamsIdRoute
+  '/t/$slug/settings/teams': typeof TSlugSettingsInboxTeamsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/t/$slug': typeof TSlugRouteWithChildren
-  '/t/$slug/conversations': typeof TSlugConversationsRoute
+  '/t/$slug/contacts': typeof TSlugContactsRoute
+  '/t/$slug/inbox': typeof TSlugInboxRoute
+  '/t/$slug/reports': typeof TSlugReportsRoute
   '/t/$slug/settings': typeof TSlugSettingsRouteWithChildren
   '/t/$slug/': typeof TSlugIndexRoute
+  '/t/$slug/settings/_inbox': typeof TSlugSettingsInboxRouteWithChildren
   '/t/$slug/settings/_personal': typeof TSlugSettingsPersonalRouteWithChildren
   '/t/$slug/settings/_workspace': typeof TSlugSettingsWorkspaceRouteWithChildren
   '/t/$slug/settings/': typeof TSlugSettingsIndexRoute
-  '/t/$slug/settings/_personal/my-teams': typeof TSlugSettingsPersonalMyTeamsRoute
+  '/t/$slug/settings/_inbox/teams': typeof TSlugSettingsInboxTeamsRouteWithChildren
   '/t/$slug/settings/_personal/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/_personal/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/_personal/status': typeof TSlugSettingsPersonalStatusRoute
   '/t/$slug/settings/_workspace/general': typeof TSlugSettingsWorkspaceGeneralRoute
   '/t/$slug/settings/_workspace/members': typeof TSlugSettingsWorkspaceMembersRoute
   '/t/$slug/settings/_workspace/roles': typeof TSlugSettingsWorkspaceRolesRoute
-  '/t/$slug/settings/_workspace/teams': typeof TSlugSettingsWorkspaceTeamsRouteWithChildren
-  '/t/$slug/settings/_workspace/teams/$id': typeof TSlugSettingsWorkspaceTeamsIdRoute
-  '/t/$slug/settings/_workspace/teams/': typeof TSlugSettingsWorkspaceTeamsIndexRoute
+  '/t/$slug/settings/_inbox/teams/$id': typeof TSlugSettingsInboxTeamsIdRoute
+  '/t/$slug/settings/_inbox/teams/': typeof TSlugSettingsInboxTeamsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -196,28 +209,30 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/t/$slug'
-    | '/t/$slug/conversations'
+    | '/t/$slug/contacts'
+    | '/t/$slug/inbox'
+    | '/t/$slug/reports'
     | '/t/$slug/settings'
     | '/t/$slug/'
     | '/t/$slug/settings/'
-    | '/t/$slug/settings/my-teams'
+    | '/t/$slug/settings/teams'
     | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
     | '/t/$slug/settings/status'
     | '/t/$slug/settings/general'
     | '/t/$slug/settings/members'
     | '/t/$slug/settings/roles'
-    | '/t/$slug/settings/teams'
     | '/t/$slug/settings/teams/$id'
     | '/t/$slug/settings/teams/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
-    | '/t/$slug/conversations'
+    | '/t/$slug/contacts'
+    | '/t/$slug/inbox'
+    | '/t/$slug/reports'
     | '/t/$slug'
     | '/t/$slug/settings'
-    | '/t/$slug/settings/my-teams'
     | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
     | '/t/$slug/settings/status'
@@ -231,22 +246,24 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/t/$slug'
-    | '/t/$slug/conversations'
+    | '/t/$slug/contacts'
+    | '/t/$slug/inbox'
+    | '/t/$slug/reports'
     | '/t/$slug/settings'
     | '/t/$slug/'
+    | '/t/$slug/settings/_inbox'
     | '/t/$slug/settings/_personal'
     | '/t/$slug/settings/_workspace'
     | '/t/$slug/settings/'
-    | '/t/$slug/settings/_personal/my-teams'
+    | '/t/$slug/settings/_inbox/teams'
     | '/t/$slug/settings/_personal/preferences'
     | '/t/$slug/settings/_personal/profile'
     | '/t/$slug/settings/_personal/status'
     | '/t/$slug/settings/_workspace/general'
     | '/t/$slug/settings/_workspace/members'
     | '/t/$slug/settings/_workspace/roles'
-    | '/t/$slug/settings/_workspace/teams'
-    | '/t/$slug/settings/_workspace/teams/$id'
-    | '/t/$slug/settings/_workspace/teams/'
+    | '/t/$slug/settings/_inbox/teams/$id'
+    | '/t/$slug/settings/_inbox/teams/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -285,11 +302,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugIndexRouteImport
       parentRoute: typeof TSlugRoute
     }
-    '/t/$slug/conversations': {
-      id: '/t/$slug/conversations'
-      path: '/conversations'
-      fullPath: '/t/$slug/conversations'
-      preLoaderRoute: typeof TSlugConversationsRouteImport
+    '/t/$slug/contacts': {
+      id: '/t/$slug/contacts'
+      path: '/contacts'
+      fullPath: '/t/$slug/contacts'
+      preLoaderRoute: typeof TSlugContactsRouteImport
+      parentRoute: typeof TSlugRoute
+    }
+    '/t/$slug/inbox': {
+      id: '/t/$slug/inbox'
+      path: '/inbox'
+      fullPath: '/t/$slug/inbox'
+      preLoaderRoute: typeof TSlugInboxRouteImport
+      parentRoute: typeof TSlugRoute
+    }
+    '/t/$slug/reports': {
+      id: '/t/$slug/reports'
+      path: '/reports'
+      fullPath: '/t/$slug/reports'
+      preLoaderRoute: typeof TSlugReportsRouteImport
       parentRoute: typeof TSlugRoute
     }
     '/t/$slug/settings': {
@@ -306,6 +337,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugSettingsIndexRouteImport
       parentRoute: typeof TSlugSettingsRoute
     }
+    '/t/$slug/settings/_inbox': {
+      id: '/t/$slug/settings/_inbox'
+      path: ''
+      fullPath: '/t/$slug/settings'
+      preLoaderRoute: typeof TSlugSettingsInboxRouteImport
+      parentRoute: typeof TSlugSettingsRoute
+    }
     '/t/$slug/settings/_personal': {
       id: '/t/$slug/settings/_personal'
       path: ''
@@ -320,12 +358,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugSettingsWorkspaceRouteImport
       parentRoute: typeof TSlugSettingsRoute
     }
-    '/t/$slug/settings/_personal/my-teams': {
-      id: '/t/$slug/settings/_personal/my-teams'
-      path: '/my-teams'
-      fullPath: '/t/$slug/settings/my-teams'
-      preLoaderRoute: typeof TSlugSettingsPersonalMyTeamsRouteImport
-      parentRoute: typeof TSlugSettingsPersonalRoute
+    '/t/$slug/settings/_inbox/teams': {
+      id: '/t/$slug/settings/_inbox/teams'
+      path: '/teams'
+      fullPath: '/t/$slug/settings/teams'
+      preLoaderRoute: typeof TSlugSettingsInboxTeamsRouteImport
+      parentRoute: typeof TSlugSettingsInboxRoute
     }
     '/t/$slug/settings/_personal/preferences': {
       id: '/t/$slug/settings/_personal/preferences'
@@ -369,39 +407,57 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugSettingsWorkspaceRolesRouteImport
       parentRoute: typeof TSlugSettingsWorkspaceRoute
     }
-    '/t/$slug/settings/_workspace/teams': {
-      id: '/t/$slug/settings/_workspace/teams'
-      path: '/teams'
-      fullPath: '/t/$slug/settings/teams'
-      preLoaderRoute: typeof TSlugSettingsWorkspaceTeamsRouteImport
-      parentRoute: typeof TSlugSettingsWorkspaceRoute
-    }
-    '/t/$slug/settings/_workspace/teams/': {
-      id: '/t/$slug/settings/_workspace/teams/'
+    '/t/$slug/settings/_inbox/teams/': {
+      id: '/t/$slug/settings/_inbox/teams/'
       path: '/'
       fullPath: '/t/$slug/settings/teams/'
-      preLoaderRoute: typeof TSlugSettingsWorkspaceTeamsIndexRouteImport
-      parentRoute: typeof TSlugSettingsWorkspaceTeamsRoute
+      preLoaderRoute: typeof TSlugSettingsInboxTeamsIndexRouteImport
+      parentRoute: typeof TSlugSettingsInboxTeamsRoute
     }
-    '/t/$slug/settings/_workspace/teams/$id': {
-      id: '/t/$slug/settings/_workspace/teams/$id'
+    '/t/$slug/settings/_inbox/teams/$id': {
+      id: '/t/$slug/settings/_inbox/teams/$id'
       path: '/$id'
       fullPath: '/t/$slug/settings/teams/$id'
-      preLoaderRoute: typeof TSlugSettingsWorkspaceTeamsIdRouteImport
-      parentRoute: typeof TSlugSettingsWorkspaceTeamsRoute
+      preLoaderRoute: typeof TSlugSettingsInboxTeamsIdRouteImport
+      parentRoute: typeof TSlugSettingsInboxTeamsRoute
     }
   }
 }
 
+interface TSlugSettingsInboxTeamsRouteChildren {
+  TSlugSettingsInboxTeamsIdRoute: typeof TSlugSettingsInboxTeamsIdRoute
+  TSlugSettingsInboxTeamsIndexRoute: typeof TSlugSettingsInboxTeamsIndexRoute
+}
+
+const TSlugSettingsInboxTeamsRouteChildren: TSlugSettingsInboxTeamsRouteChildren =
+  {
+    TSlugSettingsInboxTeamsIdRoute: TSlugSettingsInboxTeamsIdRoute,
+    TSlugSettingsInboxTeamsIndexRoute: TSlugSettingsInboxTeamsIndexRoute,
+  }
+
+const TSlugSettingsInboxTeamsRouteWithChildren =
+  TSlugSettingsInboxTeamsRoute._addFileChildren(
+    TSlugSettingsInboxTeamsRouteChildren,
+  )
+
+interface TSlugSettingsInboxRouteChildren {
+  TSlugSettingsInboxTeamsRoute: typeof TSlugSettingsInboxTeamsRouteWithChildren
+}
+
+const TSlugSettingsInboxRouteChildren: TSlugSettingsInboxRouteChildren = {
+  TSlugSettingsInboxTeamsRoute: TSlugSettingsInboxTeamsRouteWithChildren,
+}
+
+const TSlugSettingsInboxRouteWithChildren =
+  TSlugSettingsInboxRoute._addFileChildren(TSlugSettingsInboxRouteChildren)
+
 interface TSlugSettingsPersonalRouteChildren {
-  TSlugSettingsPersonalMyTeamsRoute: typeof TSlugSettingsPersonalMyTeamsRoute
   TSlugSettingsPersonalPreferencesRoute: typeof TSlugSettingsPersonalPreferencesRoute
   TSlugSettingsPersonalProfileRoute: typeof TSlugSettingsPersonalProfileRoute
   TSlugSettingsPersonalStatusRoute: typeof TSlugSettingsPersonalStatusRoute
 }
 
 const TSlugSettingsPersonalRouteChildren: TSlugSettingsPersonalRouteChildren = {
-  TSlugSettingsPersonalMyTeamsRoute: TSlugSettingsPersonalMyTeamsRoute,
   TSlugSettingsPersonalPreferencesRoute: TSlugSettingsPersonalPreferencesRoute,
   TSlugSettingsPersonalProfileRoute: TSlugSettingsPersonalProfileRoute,
   TSlugSettingsPersonalStatusRoute: TSlugSettingsPersonalStatusRoute,
@@ -412,28 +468,10 @@ const TSlugSettingsPersonalRouteWithChildren =
     TSlugSettingsPersonalRouteChildren,
   )
 
-interface TSlugSettingsWorkspaceTeamsRouteChildren {
-  TSlugSettingsWorkspaceTeamsIdRoute: typeof TSlugSettingsWorkspaceTeamsIdRoute
-  TSlugSettingsWorkspaceTeamsIndexRoute: typeof TSlugSettingsWorkspaceTeamsIndexRoute
-}
-
-const TSlugSettingsWorkspaceTeamsRouteChildren: TSlugSettingsWorkspaceTeamsRouteChildren =
-  {
-    TSlugSettingsWorkspaceTeamsIdRoute: TSlugSettingsWorkspaceTeamsIdRoute,
-    TSlugSettingsWorkspaceTeamsIndexRoute:
-      TSlugSettingsWorkspaceTeamsIndexRoute,
-  }
-
-const TSlugSettingsWorkspaceTeamsRouteWithChildren =
-  TSlugSettingsWorkspaceTeamsRoute._addFileChildren(
-    TSlugSettingsWorkspaceTeamsRouteChildren,
-  )
-
 interface TSlugSettingsWorkspaceRouteChildren {
   TSlugSettingsWorkspaceGeneralRoute: typeof TSlugSettingsWorkspaceGeneralRoute
   TSlugSettingsWorkspaceMembersRoute: typeof TSlugSettingsWorkspaceMembersRoute
   TSlugSettingsWorkspaceRolesRoute: typeof TSlugSettingsWorkspaceRolesRoute
-  TSlugSettingsWorkspaceTeamsRoute: typeof TSlugSettingsWorkspaceTeamsRouteWithChildren
 }
 
 const TSlugSettingsWorkspaceRouteChildren: TSlugSettingsWorkspaceRouteChildren =
@@ -441,8 +479,6 @@ const TSlugSettingsWorkspaceRouteChildren: TSlugSettingsWorkspaceRouteChildren =
     TSlugSettingsWorkspaceGeneralRoute: TSlugSettingsWorkspaceGeneralRoute,
     TSlugSettingsWorkspaceMembersRoute: TSlugSettingsWorkspaceMembersRoute,
     TSlugSettingsWorkspaceRolesRoute: TSlugSettingsWorkspaceRolesRoute,
-    TSlugSettingsWorkspaceTeamsRoute:
-      TSlugSettingsWorkspaceTeamsRouteWithChildren,
   }
 
 const TSlugSettingsWorkspaceRouteWithChildren =
@@ -451,12 +487,14 @@ const TSlugSettingsWorkspaceRouteWithChildren =
   )
 
 interface TSlugSettingsRouteChildren {
+  TSlugSettingsInboxRoute: typeof TSlugSettingsInboxRouteWithChildren
   TSlugSettingsPersonalRoute: typeof TSlugSettingsPersonalRouteWithChildren
   TSlugSettingsWorkspaceRoute: typeof TSlugSettingsWorkspaceRouteWithChildren
   TSlugSettingsIndexRoute: typeof TSlugSettingsIndexRoute
 }
 
 const TSlugSettingsRouteChildren: TSlugSettingsRouteChildren = {
+  TSlugSettingsInboxRoute: TSlugSettingsInboxRouteWithChildren,
   TSlugSettingsPersonalRoute: TSlugSettingsPersonalRouteWithChildren,
   TSlugSettingsWorkspaceRoute: TSlugSettingsWorkspaceRouteWithChildren,
   TSlugSettingsIndexRoute: TSlugSettingsIndexRoute,
@@ -467,13 +505,17 @@ const TSlugSettingsRouteWithChildren = TSlugSettingsRoute._addFileChildren(
 )
 
 interface TSlugRouteChildren {
-  TSlugConversationsRoute: typeof TSlugConversationsRoute
+  TSlugContactsRoute: typeof TSlugContactsRoute
+  TSlugInboxRoute: typeof TSlugInboxRoute
+  TSlugReportsRoute: typeof TSlugReportsRoute
   TSlugSettingsRoute: typeof TSlugSettingsRouteWithChildren
   TSlugIndexRoute: typeof TSlugIndexRoute
 }
 
 const TSlugRouteChildren: TSlugRouteChildren = {
-  TSlugConversationsRoute: TSlugConversationsRoute,
+  TSlugContactsRoute: TSlugContactsRoute,
+  TSlugInboxRoute: TSlugInboxRoute,
+  TSlugReportsRoute: TSlugReportsRoute,
   TSlugSettingsRoute: TSlugSettingsRouteWithChildren,
   TSlugIndexRoute: TSlugIndexRoute,
 }

@@ -5,7 +5,7 @@ import { teams } from "../../../../../../resources"
 
 // 团队收件箱：有 teams:manage 权限的成员新建、修改、删除团队收件箱；点名称进入团队收件箱，管理它的成员。
 // 还有没关闭的会话、或者是渠道的默认团队收件箱时不能删除。
-export const Route = createFileRoute("/t/$slug/settings/_workspace/teams/")({
+export const Route = createFileRoute("/t/$slug/settings/_inbox/teams/")({
   validateSearch: teams.listSearch,
   component: Teams,
 })

@@ -8,7 +8,7 @@ import { tenantApi } from "../../../../../../api"
 import { StatusBadge } from "../../../../../../status"
 
 // 一个团队收件箱的成员：从工作区的成员中选人加入，移出团队收件箱。权限、菜单项和浏览器标题都来自上级的 teams 布局。
-export const Route = createFileRoute("/t/$slug/settings/_workspace/teams/$id")({
+export const Route = createFileRoute("/t/$slug/settings/_inbox/teams/$id")({
   component: TeamMembers,
 })
 
