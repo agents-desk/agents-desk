@@ -25,6 +25,7 @@ import { Route as TSlugSettingsInboxTeamsRouteImport } from './routes/t/$slug/se
 import { Route as TSlugSettingsPersonalPreferencesRouteImport } from './routes/t/$slug/settings/_personal/preferences'
 import { Route as TSlugSettingsPersonalProfileRouteImport } from './routes/t/$slug/settings/_personal/profile'
 import { Route as TSlugSettingsPersonalStatusRouteImport } from './routes/t/$slug/settings/_personal/status'
+import { Route as TSlugSettingsWorkspaceBusinessHoursRouteImport } from './routes/t/$slug/settings/_workspace/business-hours'
 import { Route as TSlugSettingsWorkspaceGeneralRouteImport } from './routes/t/$slug/settings/_workspace/general'
 import { Route as TSlugSettingsWorkspaceMembersRouteImport } from './routes/t/$slug/settings/_workspace/members'
 import { Route as TSlugSettingsWorkspaceRolesRouteImport } from './routes/t/$slug/settings/_workspace/roles'
@@ -111,6 +112,12 @@ const TSlugSettingsPersonalStatusRoute =
     path: '/status',
     getParentRoute: () => TSlugSettingsPersonalRoute,
   } as any)
+const TSlugSettingsWorkspaceBusinessHoursRoute =
+  TSlugSettingsWorkspaceBusinessHoursRouteImport.update({
+    id: '/business-hours',
+    path: '/business-hours',
+    getParentRoute: () => TSlugSettingsWorkspaceRoute,
+  } as any)
 const TSlugSettingsWorkspaceGeneralRoute =
   TSlugSettingsWorkspaceGeneralRouteImport.update({
     id: '/general',
@@ -156,6 +163,7 @@ export interface FileRoutesByFullPath {
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/status': typeof TSlugSettingsPersonalStatusRoute
+  '/t/$slug/settings/business-hours': typeof TSlugSettingsWorkspaceBusinessHoursRoute
   '/t/$slug/settings/general': typeof TSlugSettingsWorkspaceGeneralRoute
   '/t/$slug/settings/members': typeof TSlugSettingsWorkspaceMembersRoute
   '/t/$slug/settings/roles': typeof TSlugSettingsWorkspaceRolesRoute
@@ -173,6 +181,7 @@ export interface FileRoutesByTo {
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/status': typeof TSlugSettingsPersonalStatusRoute
+  '/t/$slug/settings/business-hours': typeof TSlugSettingsWorkspaceBusinessHoursRoute
   '/t/$slug/settings/general': typeof TSlugSettingsWorkspaceGeneralRoute
   '/t/$slug/settings/members': typeof TSlugSettingsWorkspaceMembersRoute
   '/t/$slug/settings/roles': typeof TSlugSettingsWorkspaceRolesRoute
@@ -197,6 +206,7 @@ export interface FileRoutesById {
   '/t/$slug/settings/_personal/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/_personal/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/_personal/status': typeof TSlugSettingsPersonalStatusRoute
+  '/t/$slug/settings/_workspace/business-hours': typeof TSlugSettingsWorkspaceBusinessHoursRoute
   '/t/$slug/settings/_workspace/general': typeof TSlugSettingsWorkspaceGeneralRoute
   '/t/$slug/settings/_workspace/members': typeof TSlugSettingsWorkspaceMembersRoute
   '/t/$slug/settings/_workspace/roles': typeof TSlugSettingsWorkspaceRolesRoute
@@ -219,6 +229,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
     | '/t/$slug/settings/status'
+    | '/t/$slug/settings/business-hours'
     | '/t/$slug/settings/general'
     | '/t/$slug/settings/members'
     | '/t/$slug/settings/roles'
@@ -236,6 +247,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
     | '/t/$slug/settings/status'
+    | '/t/$slug/settings/business-hours'
     | '/t/$slug/settings/general'
     | '/t/$slug/settings/members'
     | '/t/$slug/settings/roles'
@@ -259,6 +271,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/_personal/preferences'
     | '/t/$slug/settings/_personal/profile'
     | '/t/$slug/settings/_personal/status'
+    | '/t/$slug/settings/_workspace/business-hours'
     | '/t/$slug/settings/_workspace/general'
     | '/t/$slug/settings/_workspace/members'
     | '/t/$slug/settings/_workspace/roles'
@@ -386,6 +399,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugSettingsPersonalStatusRouteImport
       parentRoute: typeof TSlugSettingsPersonalRoute
     }
+    '/t/$slug/settings/_workspace/business-hours': {
+      id: '/t/$slug/settings/_workspace/business-hours'
+      path: '/business-hours'
+      fullPath: '/t/$slug/settings/business-hours'
+      preLoaderRoute: typeof TSlugSettingsWorkspaceBusinessHoursRouteImport
+      parentRoute: typeof TSlugSettingsWorkspaceRoute
+    }
     '/t/$slug/settings/_workspace/general': {
       id: '/t/$slug/settings/_workspace/general'
       path: '/general'
@@ -469,6 +489,7 @@ const TSlugSettingsPersonalRouteWithChildren =
   )
 
 interface TSlugSettingsWorkspaceRouteChildren {
+  TSlugSettingsWorkspaceBusinessHoursRoute: typeof TSlugSettingsWorkspaceBusinessHoursRoute
   TSlugSettingsWorkspaceGeneralRoute: typeof TSlugSettingsWorkspaceGeneralRoute
   TSlugSettingsWorkspaceMembersRoute: typeof TSlugSettingsWorkspaceMembersRoute
   TSlugSettingsWorkspaceRolesRoute: typeof TSlugSettingsWorkspaceRolesRoute
@@ -476,6 +497,8 @@ interface TSlugSettingsWorkspaceRouteChildren {
 
 const TSlugSettingsWorkspaceRouteChildren: TSlugSettingsWorkspaceRouteChildren =
   {
+    TSlugSettingsWorkspaceBusinessHoursRoute:
+      TSlugSettingsWorkspaceBusinessHoursRoute,
     TSlugSettingsWorkspaceGeneralRoute: TSlugSettingsWorkspaceGeneralRoute,
     TSlugSettingsWorkspaceMembersRoute: TSlugSettingsWorkspaceMembersRoute,
     TSlugSettingsWorkspaceRolesRoute: TSlugSettingsWorkspaceRolesRoute,

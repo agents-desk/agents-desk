@@ -20,6 +20,7 @@ import (
 	"agents-desk/apps"
 	"agents-desk/internal/auth"
 	"agents-desk/internal/conversation"
+	"agents-desk/internal/hours"
 	"agents-desk/internal/llm"
 	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
@@ -124,6 +125,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		tenant.RegisterTenantRoutes(api, require, a.db)
 		member.RegisterTenantRoutes(api, require, a.db, a.roles, a.memberLogins, a.files, memberHooks)
 		role.RegisterRoutes(api, require, a.db, a.roles)
+		hours.RegisterRoutes(api, require, a.db)
 		team.RegisterRoutes(api, require, a.db, a.roles, a.memberLogins, a.files)
 		conversation.RegisterRoutes(api, require, a.db, a.downstream())
 	})

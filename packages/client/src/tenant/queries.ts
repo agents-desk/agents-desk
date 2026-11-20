@@ -115,6 +115,33 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
           invalidate(context, "conversation"),
       }),
     },
+    hours: {
+      /** hours 分组全部查询的 key 前缀。 */
+      key: () => key("hours"),
+      /** GET /settings/business-hours */
+      get: (...args: Parameters<Client["hours"]["get"]>) => ({
+        queryKey: key("hours", "get", ...args),
+        queryFn: () => client.hours.get(...args),
+      }),
+      /** PUT /settings/business-hours/reply-time */
+      replyTimeSave: () => ({
+        mutationFn: (variables: Parameters<Client["hours"]["replyTimeSave"]>[0]) => client.hours.replyTimeSave(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "hours"),
+      }),
+      /** PUT /settings/business-hours/schedule */
+      scheduleSave: () => ({
+        mutationFn: (variables: Parameters<Client["hours"]["scheduleSave"]>[0]) => client.hours.scheduleSave(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "hours"),
+      }),
+      /** PUT /settings/business-hours/special-dates */
+      specialDatesSave: () => ({
+        mutationFn: (variables: Parameters<Client["hours"]["specialDatesSave"]>[0]) => client.hours.specialDatesSave(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "hours"),
+      }),
+    },
     member: {
       /** member 分组全部查询的 key 前缀。 */
       key: () => key("member"),
@@ -199,6 +226,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
     team: {
       /** team 分组全部查询的 key 前缀。 */
       key: () => key("team"),
+      /** PUT /teams/{id}/business-hours */
+      businessHours: () => ({
+        mutationFn: (variables: Parameters<Client["team"]["businessHours"]>) => client.team.businessHours(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "team"),
+      }),
       /** POST /teams */
       create: () => ({
         mutationFn: (variables: Parameters<Client["team"]["create"]>[0]) => client.team.create(variables),

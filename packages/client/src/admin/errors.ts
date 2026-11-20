@@ -37,6 +37,18 @@ export const ConversationErrors = {
   Forbidden: "conversation.forbidden",
 } as const
 
+/** agents-desk/internal/hours 的错误码。 */
+export const HoursErrors = {
+  /** ErrInvalidTimeZone 是不认识的时区名。 */
+  InvalidTimeZone: "hours.invalid_time_zone",
+  /** ErrInvalidInterval 是时间段的开始不早于结束。 */
+  InvalidInterval: "hours.invalid_interval",
+  /** ErrOverlap 是同一天的两段时间重叠。 */
+  Overlap: "hours.overlap",
+  /** ErrDuplicateDate 是两个特殊日期是同一天。 */
+  DuplicateDate: "hours.duplicate_date",
+} as const
+
 /** agents-desk/internal/member 的错误码。 */
 export const MemberErrors = {
   NotFound: "member.not_found",

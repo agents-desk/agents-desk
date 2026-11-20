@@ -229,6 +229,60 @@ export interface ErrorModel {
   type?: string
 }
 
+export interface HoursInterval {
+  /** 结束，例如 18:00；到当天结束写 24:00 */
+  end: string
+  /** 开始，例如 09:00 */
+  start: string
+}
+
+export type HoursReplyTime = "minutes" | "hour" | "hours" | "day"
+
+export interface HoursReplyTimeInputBody {
+  reply_time: HoursReplyTime
+}
+
+export interface HoursSchedule {
+  /** IANA 时区名，例如 Asia/Shanghai；工作时间按这个时区的钟点计算 */
+  time_zone: string
+  week: HoursWeek
+}
+
+export interface HoursSettingsDTO {
+  /** 等待回复超过这么多秒，会话进入“需要注意” */
+  alert_after: number
+  reply_time: HoursReplyTime
+  special_dates: HoursSpecialDate[]
+  /** IANA 时区名，例如 Asia/Shanghai；工作时间按这个时区的钟点计算 */
+  time_zone: string
+  /** 等待回复超过这么多秒，会话进入“等待处理”：等于回复时间 */
+  warn_after: number
+  week: HoursWeek
+}
+
+export interface HoursSpecialDate {
+  /** 日期，例如 2026-10-01，按工作时间的时区 */
+  date: string
+  /** 这天的工作时间；为空表示全天不上班 */
+  intervals: HoursInterval[]
+  /** 名称，例如 国庆节 */
+  name: string
+}
+
+export interface HoursSpecialDatesInputBody {
+  special_dates: HoursSpecialDate[]
+}
+
+export interface HoursWeek {
+  friday: HoursInterval[]
+  monday: HoursInterval[]
+  saturday: HoursInterval[]
+  sunday: HoursInterval[]
+  thursday: HoursInterval[]
+  tuesday: HoursInterval[]
+  wednesday: HoursInterval[]
+}
+
 export interface MemberAddParams {
   email: string
   /** 这个邮箱还没有账号时必填 */
@@ -319,6 +373,11 @@ export type RolePermission = "conversations:assign" | "members:manage" | "teams:
 
 export type TeamAssignment = "manual" | "round_robin"
 
+export interface TeamBusinessHoursInputBody {
+  /** 单独设置的时区和每周的工作时间；不传表示使用工作区的工作时间 */
+  schedule?: HoursSchedule
+}
+
 export interface TeamChanges {
   /** 分配方式，不填时是手动 */
   assignment?: TeamAssignment
@@ -329,6 +388,8 @@ export interface TeamChanges {
 export interface TeamDTO {
   /** 分配方式 */
   assignment: TeamAssignment
+  /** 单独设置的时区和每周的工作时间；为空表示使用工作区的工作时间 */
+  business_hours?: HoursSchedule
   description: string
   id: string
   /** 团队收件箱中的人数 */
@@ -528,6 +589,37 @@ export function createClient(options: ClientOptions) {
       snooze: (id: string, body: ConversationSnoozeInputBody): Promise<ConversationDTO> =>
         rt.request<ConversationDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/snooze`, body }),
     },
+    /** operationId 以 hours- 开头的接口。 */
+    hours: {
+      /**
+       * 读取工作时间
+       *
+       * GET /settings/business-hours
+       */
+      get: (): Promise<HoursSettingsDTO> =>
+        rt.request<HoursSettingsDTO>({ method: "GET", path: `/settings/business-hours` }),
+      /**
+       * 保存回复时间
+       *
+       * PUT /settings/business-hours/reply-time
+       */
+      replyTimeSave: (body: HoursReplyTimeInputBody): Promise<HoursSettingsDTO> =>
+        rt.request<HoursSettingsDTO>({ method: "PUT", path: `/settings/business-hours/reply-time`, body }),
+      /**
+       * 保存时区和每周的工作时间
+       *
+       * PUT /settings/business-hours/schedule
+       */
+      scheduleSave: (body: HoursSchedule): Promise<HoursSettingsDTO> =>
+        rt.request<HoursSettingsDTO>({ method: "PUT", path: `/settings/business-hours/schedule`, body }),
+      /**
+       * 保存特殊日期
+       *
+       * PUT /settings/business-hours/special-dates
+       */
+      specialDatesSave: (body: HoursSpecialDatesInputBody): Promise<HoursSettingsDTO> =>
+        rt.request<HoursSettingsDTO>({ method: "PUT", path: `/settings/business-hours/special-dates`, body }),
+    },
     /** operationId 以 member- 开头的接口。 */
     member: {
       /**
@@ -627,6 +719,13 @@ export function createClient(options: ClientOptions) {
     },
     /** operationId 以 team- 开头的接口。 */
     team: {
+      /**
+       * 设置团队收件箱的工作时间
+       *
+       * PUT /teams/{id}/business-hours
+       */
+      businessHours: (id: string, body: TeamBusinessHoursInputBody): Promise<TeamDTO> =>
+        rt.request<TeamDTO>({ method: "PUT", path: `/teams/${encodeURIComponent(id)}/business-hours`, body }),
       /**
        * 新建团队收件箱
        *

@@ -92,6 +92,15 @@ conversation_scope.assigned: 只有指派给自己的会话
 team_assignment.manual: 手动：成员自己领取
 team_assignment.round_robin: 轮流：依次分给在线的成员
 
+hours.invalid_time_zone: "不认识的时区“{{.time_zone}}”"
+hours.invalid_interval: 开始时间要早于结束时间
+hours.overlap: 和同一天的另一段时间重叠
+hours.duplicate_date: "{{.date}} 已经设置过了"
+hours.reply_time.minutes: 几分钟内
+hours.reply_time.hour: 一小时内
+hours.reply_time.hours: 几小时内
+hours.reply_time.day: 一天内
+
 llm.call_type.translation: 翻译
 
 "permission.conversations:read": 查看会话
