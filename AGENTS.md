@@ -35,7 +35,7 @@ agents-desk 是团队的综合服务平台，以 AI 为核心，以聊天为基�
 docker compose up -d --wait                                          # PostgreSQL（127.0.0.1:15432）和 NATS（127.0.0.1:14222）
 printf 'crypt:\n  key: %s\n' "$(openssl rand -base64 32)" > config/local.yaml   # 应用密钥，只在本机
 go run ./cmd/agents-desk migrate up
-go run ./cmd/agents-desk seed                                        # 开发用的数据：平台管理员 admin@example.com、示例工作区 demo（主管理员 owner@、管理员 manager@、坐席 agent@example.com，团队“一线客服”，测试渠道和 10 个示例会话），密码都是 password
+go run ./cmd/agents-desk seed                                        # 开发用的数据：平台管理员 admin@example.com、示例工作区 demo（主管理员 owner@、管理员 manager@、坐席 agent@example.com，团队收件箱“一线客服”，测试渠道和 10 个示例会话），密码都是 password
 bun run dev                                                          # 管理员端在 http://localhost:8081/admin/
 ```
 
@@ -116,6 +116,7 @@ CI（`.github/workflows/ci.yml`）在每次推送和 PR 中运行同样的检查
 - 工作区在代码中统一叫 tenant，与 Tenon 的租户一致：表 `tenants`、列 `tenant_id`、包 `internal/tenant`、权限 `tenants:*`。给用户看的文字叫“工作区”。
 - 工作区的 ID 是 UUIDv7，作为租户、authz 的域和业务表的 `tenant_id`，创建后保持不变；地址用 slug（`/t/{slug}/`），只在租户中间件中由 slug 换成 ID。工作区的链接由 `tenant.Addresses` 生成。
 - 属于工作区的表都有 `tenant_id`，唯一约束和常用索引以它开头；每个查询都带上 `tenant_id = sub.Tenant`，每个业务动作都有“其他工作区访问不到”的测试。
+- 团队收件箱在代码中统一叫 team：表 `teams`、列 `team_id`、包 `internal/team`、权限 `teams:*`。给用户看的文字叫“团队收件箱”；代码中的 inbox 留给收件箱模块（我的、@我、未指派、全部、视图）。
 - 平台管理员和工作区成员是两套账号：各自一张表、一个 `identity.SubjectType`、一个 `login.Realm`，会话 cookie 分别是 `__Host-admin` 和 `__Host-session`。成员账号是全局的，在每个工作区中的身份由角色决定。
 
 ### 数据与事务

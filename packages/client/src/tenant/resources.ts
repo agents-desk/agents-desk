@@ -119,6 +119,7 @@ export const resources = {
     },
     columns: [
       { name: "name", type: "string", required: true },
+      { name: "assignment", type: "string", enum: "TeamAssignment", required: true },
       { name: "member_count", type: "integer", format: "int64", required: true },
       { name: "description", type: "string", required: true },
     ],
@@ -128,17 +129,19 @@ export const resources = {
     createForm: [
       { name: "name", type: "string", required: true },
       { name: "description", type: "string" },
+      { name: "assignment", type: "string", enum: "TeamAssignment" },
     ],
     updateForm: [
       { name: "name", type: "string", required: true },
       { name: "description", type: "string" },
+      { name: "assignment", type: "string", enum: "TeamAssignment" },
     ],
     actions: [
     ],
     labels: {
       "zh-CN": {
-        title: "团队",
-        fields: { name: "名称", member_count: "人数", description: "说明" },
+        title: "团队收件箱",
+        fields: { name: "名称", assignment: "分配方式", member_count: "人数", description: "说明" },
         actions: {  },
       },
     },

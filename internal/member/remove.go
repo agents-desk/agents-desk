@@ -19,7 +19,7 @@ type Remove struct {
 	hooks Hooks
 }
 
-// NewRemove 返回移出成员的动作；hooks.Removed 在同一个事务中跟着执行，例如把他移出这个工作区的团队。
+// NewRemove 返回移出成员的动作；hooks.Removed 在同一个事务中跟着执行，例如把他移出这个工作区的团队收件箱。
 func NewRemove(db *bun.DB, hooks Hooks) *Remove { return &Remove{db: db, hooks: hooks} }
 
 // Handle 在 sub 所在的工作区中移出成员 id，并记录操作日志。不能移出自己（ErrSelf）和主管理员（ErrOwnerProtected）；

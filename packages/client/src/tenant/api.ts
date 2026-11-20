@@ -216,15 +216,21 @@ export interface RoleParams {
 
 export type RolePermission = "members:manage" | "teams:manage" | "tenant-settings:manage"
 
+export type TeamAssignment = "manual" | "round_robin"
+
 export interface TeamChanges {
+  /** 分配方式，不填时是手动 */
+  assignment?: TeamAssignment
   description?: string
   name: string
 }
 
 export interface TeamDTO {
+  /** 分配方式 */
+  assignment: TeamAssignment
   description: string
   id: string
-  /** 团队中的人数 */
+  /** 团队收件箱中的人数 */
   member_count: number
   name: string
 }
@@ -298,7 +304,7 @@ export interface TeamListInput {
   per_page?: number
   /** 名称包含的文字 */
   name?: string
-  /** 只列出我所在的团队 */
+  /** 只列出我所在的团队收件箱 */
   mine?: boolean
 }
 
@@ -423,56 +429,56 @@ export function createClient(options: ClientOptions) {
     /** operationId 以 team- 开头的接口。 */
     team: {
       /**
-       * 新建团队
+       * 新建团队收件箱
        *
        * POST /teams
        */
       create: (body: TeamChanges): Promise<TeamDTO> =>
         rt.request<TeamDTO>({ method: "POST", path: `/teams`, body }),
       /**
-       * 删除团队
+       * 删除团队收件箱
        *
        * DELETE /teams/{id}
        */
       delete: (id: string): Promise<void> =>
         rt.request<void>({ method: "DELETE", path: `/teams/${encodeURIComponent(id)}` }),
       /**
-       * 读取团队
+       * 读取团队收件箱
        *
        * GET /teams/{id}
        */
       get: (id: string): Promise<TeamDTO> =>
         rt.request<TeamDTO>({ method: "GET", path: `/teams/${encodeURIComponent(id)}` }),
       /**
-       * 团队列表
+       * 团队收件箱列表
        *
        * GET /teams
        */
       list: (input: TeamListInput = {}): Promise<OffsetTeamDTO> =>
         rt.request<OffsetTeamDTO>({ method: "GET", path: `/teams`, query: { "mine": input["mine"], "name": input["name"], "page": input["page"], "per_page": input["per_page"] } }),
       /**
-       * 加入团队
+       * 加入团队收件箱
        *
        * PUT /teams/{id}/members/{member_id}
        */
       memberPut: (id: string, memberID: string): Promise<TeamMember> =>
         rt.request<TeamMember>({ method: "PUT", path: `/teams/${encodeURIComponent(id)}/members/${encodeURIComponent(memberID)}` }),
       /**
-       * 移出团队
+       * 移出团队收件箱
        *
        * DELETE /teams/{id}/members/{member_id}
        */
       memberRemove: (id: string, memberID: string): Promise<void> =>
         rt.request<void>({ method: "DELETE", path: `/teams/${encodeURIComponent(id)}/members/${encodeURIComponent(memberID)}` }),
       /**
-       * 团队的成员
+       * 团队收件箱的成员
        *
        * GET /teams/{id}/members
        */
       members: (id: string): Promise<TeamMember[]> =>
         rt.request<TeamMember[]>({ method: "GET", path: `/teams/${encodeURIComponent(id)}/members` }),
       /**
-       * 修改团队
+       * 修改团队收件箱
        *
        * PUT /teams/{id}
        */

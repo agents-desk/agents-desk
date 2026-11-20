@@ -15,7 +15,7 @@ import (
 	"agents-desk/internal/member"
 )
 
-// TeamMember 是团队中的一个成员：账号和他在工作区中的角色。
+// TeamMember 是团队收件箱中的一个成员：账号和他在工作区中的角色。
 type TeamMember struct {
 	MemberID  string `json:"member_id"`
 	Name      string `json:"name"`
@@ -24,17 +24,17 @@ type TeamMember struct {
 	RoleName  string `json:"role_name" doc:"他在工作区中的角色的名称"`
 }
 
-// TeamMemberOutput 是返回团队中一个成员的响应。
+// TeamMemberOutput 是返回团队收件箱中一个成员的响应。
 type TeamMemberOutput struct {
 	Body TeamMember
 }
 
-// MembersOutput 是团队的全部成员。
+// MembersOutput 是团队收件箱的全部成员。
 type MembersOutput struct {
 	Body []TeamMember
 }
 
-// ListMembers 列出团队的成员。
+// ListMembers 列出团队收件箱的成员。
 type ListMembers struct {
 	db     *bun.DB
 	roles  *authz.Store
@@ -42,12 +42,12 @@ type ListMembers struct {
 	files  *filesystem.Service
 }
 
-// NewListMembers 返回列出团队成员的动作。
+// NewListMembers 返回列出团队收件箱成员的动作。
 func NewListMembers(db *bun.DB, roles *authz.Store, logins *login.Realm, files *filesystem.Service) *ListMembers {
 	return &ListMembers{db: db, roles: roles, logins: logins, files: files}
 }
 
-// Handle 返回 sub 所在工作区中团队 id 的成员，按名字排列。团队不存在时返回 ErrNotFound。
+// Handle 返回 sub 所在工作区中团队收件箱 id 的成员，按名字排列。团队收件箱不存在时返回 ErrNotFound。
 func (a *ListMembers) Handle(ctx context.Context, sub identity.Subject, id string) ([]TeamMember, error) {
 	if _, err := find(ctx, a.db, sub.Tenant, id, false); err != nil {
 		return nil, err
@@ -80,7 +80,7 @@ func (a *ListMembers) HTTP(ctx context.Context, in *IDInput) (*MembersOutput, er
 	return &MembersOutput{Body: items}, nil
 }
 
-// toTeamMember 把账号 m 转换为团队中的成员：读取邮箱、头像的地址和他在工作区 tenant 中的角色。
+// toTeamMember 把账号 m 转换为团队收件箱中的成员：读取邮箱、头像的地址和他在工作区 tenant 中的角色。
 func toTeamMember(ctx context.Context, roles *authz.Store, logins *login.Realm, files *filesystem.Service, tenant string, m *member.Member) (TeamMember, error) {
 	email, err := member.Email(ctx, logins, m.Ref())
 	if err != nil {

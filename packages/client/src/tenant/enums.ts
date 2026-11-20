@@ -58,7 +58,7 @@ export const enums = {
     prefix: "conversation_scope",
     values: ["all", "team", "assigned"],
     labels: {
-      "zh-CN": { all: "全部会话", team: "所在团队的和指派给自己的会话", assigned: "只有指派给自己的会话" },
+      "zh-CN": { all: "全部会话", team: "所在团队收件箱的和指派给自己的会话", assigned: "只有指派给自己的会话" },
     },
   },
   ConversationStatus: {
@@ -79,7 +79,14 @@ export const enums = {
     prefix: "role_permission",
     values: ["members:manage", "teams:manage", "tenant-settings:manage"],
     labels: {
-      "zh-CN": { "members:manage": "管理成员和角色", "teams:manage": "管理团队", "tenant-settings:manage": "管理工作区设置" },
+      "zh-CN": { "members:manage": "管理成员和角色", "teams:manage": "管理团队收件箱", "tenant-settings:manage": "管理工作区设置" },
+    },
+  },
+  TeamAssignment: {
+    prefix: "team_assignment",
+    values: ["manual", "round_robin"],
+    labels: {
+      "zh-CN": { manual: "手动：成员自己领取", round_robin: "轮流：依次分给在线的成员" },
     },
   },
 } as const

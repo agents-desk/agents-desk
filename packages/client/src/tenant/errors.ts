@@ -68,8 +68,10 @@ export const RoleErrors = {
 export const TeamErrors = {
   NotFound: "team.not_found",
   NameTaken: "team.name_taken",
-  /** ErrNotInTeam 是要移出的人不在这个团队中。 */
+  /** ErrNotInTeam 是要移出的人不在这个团队收件箱中。 */
   NotInTeam: "team.not_in_team",
+  /** ErrInUse 是团队收件箱还在被使用：还有没关闭的会话，或者是某个渠道的默认团队收件箱，不能删除。 */
+  InUse: "team.in_use",
 } as const
 
 /** agents-desk/internal/tenant 的错误码。 */

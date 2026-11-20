@@ -23,12 +23,12 @@ const (
 	MembersRead           Permission = "members:read"            // 工作区：查看成员
 	MembersManage         Permission = "members:manage"          // 工作区：添加成员、修改成员的角色、移出成员，新建、修改、删除角色
 	TenantSettingsManage  Permission = "tenant-settings:manage"  // 工作区：修改工作区的常规设置（名称）
-	TeamsRead             Permission = "teams:read"              // 工作区：查看团队和团队的成员
-	TeamsManage           Permission = "teams:manage"            // 工作区：新建、修改、删除团队，增减团队的成员
+	TeamsRead             Permission = "teams:read"              // 工作区：查看团队收件箱和团队收件箱的成员
+	TeamsManage           Permission = "teams:manage"            // 工作区：新建、修改、删除团队收件箱，增减团队收件箱的成员
 	ConversationsRead     Permission = "conversations:read"      // 工作区：查看会话和时间线
 	ConversationsReply    Permission = "conversations:reply"     // 工作区：回复会话、写内部备注
 	ConversationsReadAll  Permission = "conversations:read-all"  // 工作区：会话的可见范围是全部会话
-	ConversationsReadTeam Permission = "conversations:read-team" // 工作区：会话的可见范围是所在团队的和指派给自己的
+	ConversationsReadTeam Permission = "conversations:read-team" // 工作区：会话的可见范围是所在团队收件箱的和指派给自己的
 )
 
 // Permissions 是全部权限，显示文字是翻译文件中 permission.<权限> 的消息。
@@ -47,15 +47,15 @@ var Catalog = authz.Catalog{
 	{Name: string(MembersRead), Description: "查看成员"},
 	{Name: string(MembersManage), Description: "管理成员和角色"},
 	{Name: string(TenantSettingsManage), Description: "管理工作区设置"},
-	{Name: string(TeamsRead), Description: "查看团队"},
-	{Name: string(TeamsManage), Description: "管理团队"},
+	{Name: string(TeamsRead), Description: "查看团队收件箱"},
+	{Name: string(TeamsManage), Description: "管理团队收件箱"},
 	{Name: string(ConversationsRead), Description: "查看会话"},
 	{Name: string(ConversationsReply), Description: "回复会话"},
 	{Name: string(ConversationsReadAll), Description: "可以看到全部会话"},
-	{Name: string(ConversationsReadTeam), Description: "可以看到所在团队的会话"},
+	{Name: string(ConversationsReadTeam), Description: "可以看到所在团队收件箱的会话"},
 }
 
-// BasePermissions 是工作区每位成员都有的基本权限：查看成员和团队、查看和回复会话，能看到哪些会话由可见范围决定。
+// BasePermissions 是工作区每位成员都有的基本权限：查看成员和团队收件箱、查看和回复会话，能看到哪些会话由可见范围决定。
 // 它们不保存在角色中，加载成员的权限时由 WithBase 加上，所以改了这里，所有成员下一个请求起都按新的基本权限检查。
 var BasePermissions = []Permission{MembersRead, TeamsRead, ConversationsRead, ConversationsReply}
 
@@ -87,7 +87,7 @@ type ConversationScope string
 
 const (
 	ScopeAll      ConversationScope = "all"      // 全部会话
-	ScopeTeam     ConversationScope = "team"     // 自己所在团队的和指派给自己的
+	ScopeTeam     ConversationScope = "team"     // 自己所在团队收件箱的和指派给自己的
 	ScopeAssigned ConversationScope = "assigned" // 只有指派给自己的
 )
 
@@ -102,7 +102,7 @@ func (ConversationScope) Schema(r huma.Registry) *huma.Schema {
 // scopePermissions 是可见范围在角色中对应的权限；只看指派给自己的会话不需要权限。
 var scopePermissions = map[ConversationScope]Permission{ScopeAll: ConversationsReadAll, ScopeTeam: ConversationsReadTeam}
 
-// ScopeOf 返回 sub 的会话可见范围：有 conversations:read-all 时是全部，有 conversations:read-team 时是所在团队的，
+// ScopeOf 返回 sub 的会话可见范围：有 conversations:read-all 时是全部，有 conversations:read-team 时是所在团队收件箱的，
 // 否则只有指派给自己的。
 func ScopeOf(sub identity.Subject) ConversationScope {
 	switch {

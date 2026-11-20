@@ -11,15 +11,15 @@ import (
 	"github.com/go-tenon/tenon/identity"
 )
 
-// RemoveMember 把一个成员移出团队，他仍是工作区的成员。
+// RemoveMember 把一个成员移出团队收件箱，他仍是工作区的成员。
 type RemoveMember struct {
 	db *bun.DB
 }
 
-// NewRemoveMember 返回移出团队的动作。
+// NewRemoveMember 返回移出团队收件箱的动作。
 func NewRemoveMember(db *bun.DB) *RemoveMember { return &RemoveMember{db: db} }
 
-// Handle 把 memberID 移出 sub 所在工作区的团队 id，并记录操作日志。团队不存在时返回 ErrNotFound，他不在团队中时返回 ErrNotInTeam。
+// Handle 把 memberID 移出 sub 所在工作区的团队收件箱 id，并记录操作日志。团队收件箱不存在时返回 ErrNotFound，他不在团队收件箱中时返回 ErrNotInTeam。
 func (a *RemoveMember) Handle(ctx context.Context, sub identity.Subject, id, memberID string) error {
 	return database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		if _, err := find(ctx, tx, sub.Tenant, id, true); err != nil {

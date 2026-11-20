@@ -4,7 +4,7 @@ import { type FieldInput, ResourcePage } from "@go-tenon/ui"
 import { roles } from "../../../../../resources"
 
 // 角色：有“管理成员和角色”权限的成员新建、修改、删除角色。角色包括会话的可见范围和可以做的操作；
-// 每个角色都能查看成员和团队、查看和回复看得到的会话。主管理员拥有全部权限，不在列表中。
+// 每个角色都能查看成员和团队收件箱、查看和回复看得到的会话。主管理员拥有全部权限，不在列表中。
 export const Route = createFileRoute("/t/$slug/settings/_workspace/roles")({
   staticData: { title: "角色", icon: "shield", order: 2, permission: "members:manage" },
   validateSearch: roles.listSearch,
@@ -26,7 +26,7 @@ const ScopeInput: FieldInput = ({ field, label, value, onChange, error, disabled
 const PermissionsInput: FieldInput = ({ field, label, value, onChange, error, disabled }) => (
   <Checkbox.Group
     label={label}
-    description="每个角色都能查看成员和团队、查看和回复看得到的会话"
+    description="每个角色都能查看成员和团队收件箱、查看和回复看得到的会话"
     error={error}
     value={(value as string[]) ?? []}
     onChange={onChange}

@@ -8,15 +8,15 @@ import (
 	"github.com/go-tenon/tenon/identity"
 )
 
-// Get 读取当前工作区中的一个团队。
+// Get 读取当前工作区中的一个团队收件箱。
 type Get struct {
 	db *bun.DB
 }
 
-// NewGet 返回读取团队的动作。
+// NewGet 返回读取团队收件箱的动作。
 func NewGet(db *bun.DB) *Get { return &Get{db: db} }
 
-// Handle 返回 sub 所在工作区中的团队 id，不存在或属于别的工作区时返回 ErrNotFound。
+// Handle 返回 sub 所在工作区中的团队收件箱 id，不存在或属于别的工作区时返回 ErrNotFound。
 func (a *Get) Handle(ctx context.Context, sub identity.Subject, id string) (*TeamDTO, error) {
 	t, err := find(ctx, a.db, sub.Tenant, id, false)
 	if err != nil {

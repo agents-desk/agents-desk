@@ -5,9 +5,9 @@ import { Page } from "@go-tenon/ui"
 import type { ReactNode } from "react"
 import { tenantApi } from "../../../../../api"
 
-// 我的团队：我所在的团队和团队的成员，只读。团队由管理员在“工作区 → 团队”中管理。
+// 我的团队收件箱：我所在的团队收件箱和其中的成员，只读。团队收件箱由管理员在“工作区 → 团队收件箱”中管理。
 export const Route = createFileRoute("/t/$slug/settings/_personal/my-teams")({
-  staticData: { title: "我的团队", icon: "team", order: 2 },
+  staticData: { title: "我的团队收件箱", icon: "team", order: 2 },
   component: MyTeams,
 })
 
@@ -18,8 +18,8 @@ function MyTeams(): ReactNode {
     queries: teams.map((t) => ({ queryKey: ["team", t.id, "members"], queryFn: () => tenantApi.team.members(t.id) })),
   })
   return (
-    <Page title="我的团队">
-      {mine.isSuccess && teams.length === 0 && <Text c="dimmed">你还不在任何团队中，需要时请联系工作区的管理员。</Text>}
+    <Page title="我的团队收件箱">
+      {mine.isSuccess && teams.length === 0 && <Text c="dimmed">你还不在任何团队收件箱中，需要时请联系工作区的管理员。</Text>}
       <SimpleGrid cols={{ base: 1, md: 2 }}>
         {teams.map((t, i) => (
           <Card key={t.id} withBorder>

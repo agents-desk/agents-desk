@@ -8,23 +8,41 @@ import (
 
 	"github.com/go-tenon/tenon/activity"
 	"github.com/go-tenon/tenon/database"
+	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
 )
 
-// Delete 删除当前工作区中的一个团队，团队的成员关系随之删除，成员本身不受影响。
+// Delete 删除当前工作区中的一个团队收件箱，成员关系随之删除，成员本身不受影响。还在被使用时不能删除：
+// 还有没关闭的会话，或者是某个渠道的默认团队收件箱。已关闭的会话保留，它们的团队收件箱变为空。
 type Delete struct {
 	db *bun.DB
 }
 
-// NewDelete 返回删除团队的动作。
+// NewDelete 返回删除团队收件箱的动作。
 func NewDelete(db *bun.DB) *Delete { return &Delete{db: db} }
 
-// Handle 删除 sub 所在工作区中的团队 id 并记录操作日志，团队不存在时返回 ErrNotFound。
+// Handle 删除 sub 所在工作区中的团队收件箱 id 并记录操作日志。不存在时返回 ErrNotFound；还在被使用时返回 ErrInUse，
+// 带有没关闭的会话数 conversations 和以它为默认的渠道数 channels。
 func (a *Delete) Handle(ctx context.Context, sub identity.Subject, id string) error {
 	return database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		t, err := find(ctx, tx, sub.Tenant, id, true)
 		if err != nil {
 			return err
+		}
+		// 团队收件箱被锁住，新会话不会在检查之后进入它：进入时要通过外键锁住这一行
+		var use struct {
+			Conversations int `bun:"conversations"`
+			Channels      int `bun:"channels"`
+		}
+		err = tx.NewRaw(`SELECT
+			(SELECT count(*) FROM conversations WHERE tenant_id = ? AND team_id = ? AND status <> 'closed') AS conversations,
+			(SELECT count(*) FROM channels WHERE tenant_id = ? AND team_id = ?) AS channels`,
+			sub.Tenant, id, sub.Tenant, id).Scan(ctx, &use)
+		if err != nil {
+			return errors.Wrap(err, "count team usage")
+		}
+		if use.Conversations > 0 || use.Channels > 0 {
+			return ErrInUse.New(errorx.Public("conversations", use.Conversations), errorx.Public("channels", use.Channels))
 		}
 		if _, err := tx.NewDelete().Model(t).WherePK().Exec(ctx); err != nil {
 			return errors.Wrap(err, "delete team")
