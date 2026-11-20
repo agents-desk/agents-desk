@@ -4,11 +4,10 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { IconTrash } from "@tabler/icons-react"
 import { confirm, notifyError, notifySuccess, Page } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
-import { tenantApi } from "../../../../../api"
+import { tenantApi } from "../../../../../../api"
 
-// 一个团队收件箱的成员：从工作区的成员中选人加入，移出团队收件箱。
-export const Route = createFileRoute("/t/$slug/settings/_workspace/team/$id")({
-  staticData: { title: "团队收件箱成员", permission: "teams:manage" },
+// 一个团队收件箱的成员：从工作区的成员中选人加入，移出团队收件箱。权限、菜单项和浏览器标题都来自上级的 teams 布局。
+export const Route = createFileRoute("/t/$slug/settings/_workspace/teams/$id")({
   component: TeamMembers,
 })
 
