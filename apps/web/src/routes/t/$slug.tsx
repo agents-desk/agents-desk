@@ -27,11 +27,13 @@ function TenantLayout() {
     ...(tenants.length > 1 ? [{ label: "切换工作区", icon: <IconSwitchHorizontal size={16} />, to: "/" }] : []),
   ]
   // 页面中的时间按成员在偏好设置中选的时区显示，没有选时按浏览器的时区。
+  // 二级导航 200px：收件箱列表、设置项都是短的中文，给收件箱、聊天这类铺满的模块留出更多宽度。
   return (
     <TimeZoneProvider zone={user.data?.time_zone}>
       <RailLayout
         title={tenant.name}
         settings={settings}
+        navWidth={200}
         user={
           <UserMenu
             name={user.data?.name}
