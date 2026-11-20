@@ -292,9 +292,19 @@ export const components = {
     ],
     "type": "string"
   },
+  TeamAssignment: {
+    "enum": [
+      "manual",
+      "round_robin"
+    ],
+    "type": "string"
+  },
   TeamChanges: {
     "additionalProperties": false,
     "properties": {
+      "assignment": {
+        "$ref": "#/components/schemas/TeamAssignment"
+      },
       "description": {
         "maxLength": 500,
         "type": "string"

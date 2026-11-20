@@ -6,9 +6,9 @@ import { confirm, notifyError, notifySuccess, Page } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { tenantApi } from "../../../../../api"
 
-// 一个团队的成员：从工作区的成员中选人加入，移出团队。
+// 一个团队收件箱的成员：从工作区的成员中选人加入，移出团队收件箱。
 export const Route = createFileRoute("/t/$slug/settings/_workspace/team/$id")({
-  staticData: { title: "团队成员", permission: "teams:manage" },
+  staticData: { title: "团队收件箱成员", permission: "teams:manage" },
   component: TeamMembers,
 })
 
@@ -18,7 +18,7 @@ function TeamMembers(): ReactNode {
   const queryClient = useQueryClient()
   const team = useQuery({ queryKey: ["team", id], queryFn: () => tenantApi.team.get(id) })
   const members = useQuery({ queryKey: ["team", id, "members"], queryFn: () => tenantApi.team.members(id) })
-  // 可以加入的人：工作区的成员中还不在这个团队里的
+  // 可以加入的人：工作区的成员中还不在这个团队收件箱里的
   const everyone = useQuery({ queryKey: ["members", "all"], queryFn: () => tenantApi.member.list({ per_page: 100 }) })
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["team", id] })
 
@@ -39,15 +39,15 @@ function TeamMembers(): ReactNode {
   const add = async () => {
     if (!adding) return
     await put.mutateAsync(adding)
-    notifySuccess("已加入团队")
+    notifySuccess("已加入团队收件箱")
     setAdding(null)
   }
 
   return (
     <Page
-      title={team.data ? `团队：${team.data.name}` : "团队成员"}
+      title={team.data ? `团队收件箱：${team.data.name}` : "团队收件箱成员"}
       description={team.data?.description || undefined}
-      // 标题左边的返回回到团队列表，而不是离开设置
+      // 标题左边的返回回到团队收件箱列表，而不是离开设置
       back={() => void navigate({ to: "/t/$slug/settings/teams", params: { slug } })}
     >
       <Stack gap="md">
@@ -100,9 +100,9 @@ function TeamMembers(): ReactNode {
                   <ActionIcon
                     variant="subtle"
                     color="red"
-                    aria-label={`把 ${m.name} 移出团队`}
+                    aria-label={`把 ${m.name} 移出团队收件箱`}
                     onClick={async () => {
-                      if (await confirm({ title: `把 ${m.name} 移出团队？`, message: "他仍是工作区的成员。", danger: true, confirmLabel: "移出" }))
+                      if (await confirm({ title: `把 ${m.name} 移出团队收件箱？`, message: "他仍是工作区的成员。", danger: true, confirmLabel: "移出" }))
                         remove.mutate(m.member_id)
                     }}
                   >
@@ -115,7 +115,7 @@ function TeamMembers(): ReactNode {
               <Table.Tr>
                 <Table.Td colSpan={3}>
                   <Text c="dimmed" size="sm" ta="center">
-                    团队中还没有成员
+                    团队收件箱中还没有成员
                   </Text>
                 </Table.Td>
               </Table.Tr>

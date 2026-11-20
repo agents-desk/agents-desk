@@ -10,27 +10,27 @@ import (
 	"github.com/go-tenon/tenon/page"
 )
 
-// ListInput 是团队列表的查询条件。
+// ListInput 是团队收件箱列表的查询条件。
 type ListInput struct {
 	page.OffsetParams
 	Name string `query:"name" maxLength:"60" doc:"名称包含的文字"`
-	Mine bool   `query:"mine" doc:"只列出我所在的团队"`
+	Mine bool   `query:"mine" doc:"只列出我所在的团队收件箱"`
 }
 
-// ListOutput 是一页团队。
+// ListOutput 是一页团队收件箱。
 type ListOutput struct {
 	Body page.Offset[TeamDTO]
 }
 
-// List 列出当前工作区的团队，按名称排列。
+// List 列出当前工作区的团队收件箱，按名称排列。
 type List struct {
 	db *bun.DB
 }
 
-// NewList 返回团队列表的动作。
+// NewList 返回团队收件箱列表的动作。
 func NewList(db *bun.DB) *List { return &List{db: db} }
 
-// Handle 返回 sub 所在工作区的团队，可以按名称筛选，in.Mine 时只列出 sub 所在的团队。
+// Handle 返回 sub 所在工作区的团队收件箱，可以按名称筛选，in.Mine 时只列出 sub 所在的团队收件箱。
 func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) (*page.Offset[TeamDTO], error) {
 	var rows []Team
 	q := a.db.NewSelect().Model(&rows).Where("tenant_id = ?", sub.Tenant).

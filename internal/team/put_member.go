@@ -18,26 +18,26 @@ import (
 	"agents-desk/internal/member"
 )
 
-// MemberInput 是指定团队中一个成员的请求。
+// MemberInput 是指定团队收件箱中一个成员的请求。
 type MemberInput struct {
 	ID       string `path:"id" format:"uuid"`
 	MemberID string `path:"member_id" format:"uuid"`
 }
 
-// PutMember 把工作区的成员加入团队，已经在团队中时保持原样。
+// PutMember 把工作区的成员加入团队收件箱，已经在团队收件箱中时保持原样。
 type PutMember struct {
 	db     *bun.DB
 	logins *login.Realm
 	files  *filesystem.Service
 }
 
-// NewPutMember 返回加入团队的动作。
+// NewPutMember 返回加入团队收件箱的动作。
 func NewPutMember(db *bun.DB, logins *login.Realm, files *filesystem.Service) *PutMember {
 	return &PutMember{db: db, logins: logins, files: files}
 }
 
-// Handle 把成员 memberID 加入 sub 所在工作区的团队 id，新加入时记录操作日志，返回团队中的这个成员。
-// 团队不存在时返回 ErrNotFound；他不是这个工作区的成员时返回 member.ErrNotFound。
+// Handle 把成员 memberID 加入 sub 所在工作区的团队收件箱 id，新加入时记录操作日志，返回团队收件箱中的这个成员。
+// 团队收件箱不存在时返回 ErrNotFound；他不是这个工作区的成员时返回 member.ErrNotFound。
 func (a *PutMember) Handle(ctx context.Context, sub identity.Subject, id, memberID string) (*TeamMember, error) {
 	var m *member.Member
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
@@ -48,7 +48,7 @@ func (a *PutMember) Handle(ctx context.Context, sub identity.Subject, id, member
 		if _, err := member.RoleOf(ctx, authz.NewStore(tx, auth.Catalog), ref, sub.Tenant); err != nil {
 			return err
 		}
-		// 插入不经过 Timestamps 的钩子，时间自己写；已经在团队中时不插入
+		// 插入不经过 Timestamps 的钩子，时间自己写；已经在团队收件箱中时不插入
 		now := time.Now().UTC().Truncate(time.Microsecond)
 		row := &Membership{TeamID: id, MemberID: memberID}
 		row.CreatedAt, row.UpdatedAt = now, now

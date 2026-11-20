@@ -4,7 +4,7 @@ import { kit } from "./api"
 // members 是当前工作区的成员：列表、添加、修改角色和移出都来自 Go 中的声明（internal/member/tenant_routes.go）。
 export const members = resourceModel(kit.resources.member, kit)
 
-// teams 是当前工作区的团队：列表、新建、修改和删除来自 Go 中的声明（internal/team/routes.go）。
+// teams 是当前工作区的团队收件箱：列表、新建、修改和删除来自 Go 中的声明（internal/team/routes.go）。
 export const teams = resourceModel(kit.resources.team, kit)
 
 // roles 是当前工作区的角色：列表、新建、修改和删除来自 Go 中的声明（internal/role/routes.go）。

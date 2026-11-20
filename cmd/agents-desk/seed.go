@@ -43,7 +43,7 @@ func seedCommand(db *bun.DB, adminLogins, memberLogins *login.Realm, files *file
 //   - 平台管理员 admin@example.com；
 //   - 示例工作区 demo，主管理员 owner@example.com，以及新建工作区时创建的角色“管理员”“坐席”；
 //   - demo 中角色为管理员的 manager@example.com、角色为坐席的 agent@example.com；
-//   - demo 中的团队“一线客服”，成员 manager@、agent@；
+//   - demo 中的团队收件箱“一线客服”，成员 manager@、agent@；
 //   - demo 中的测试渠道，新会话进入“一线客服”，以及 10 个示例会话，客户用英语、印地语、Hinglish，部分会话 agent@ 已经回复。
 //
 // 每一项写入或跳过时向 out 输出一行。
@@ -102,11 +102,11 @@ func seed(ctx context.Context, out io.Writer, db *bun.DB, adminLogins, memberLog
 		}
 	}
 
-	// 示例工作区的团队“一线客服”：成员 manager@、agent@
+	// 示例工作区的团队收件箱“一线客服”：成员 manager@、agent@
 	t, err := team.NewCreate(db).Handle(ctx, inDemo, team.Changes{Name: "一线客服", Description: "处理客户的第一次咨询"})
 	switch {
 	case errors.Is(err, team.ErrNameTaken):
-		fmt.Fprintln(out, "团队 一线客服 已存在，跳过")
+		fmt.Fprintln(out, "团队收件箱 一线客服 已存在，跳过")
 	case err != nil:
 		return err
 	default:
@@ -117,7 +117,7 @@ func seed(ctx context.Context, out io.Writer, db *bun.DB, adminLogins, memberLog
 	return seedConversations(ctx, out, db, memberLogins, inDemo, channels, down)
 }
 
-// seedTeamMembers 把管理员 manager@ 和坐席 agent@ 加入示例工作区的团队 teamID。
+// seedTeamMembers 把管理员 manager@ 和坐席 agent@ 加入示例工作区的团队收件箱 teamID。
 func seedTeamMembers(ctx context.Context, out io.Writer, db *bun.DB, memberLogins *login.Realm, files *filesystem.Service, inDemo identity.Subject, teamID string) error {
 	put := team.NewPutMember(db, memberLogins, files)
 	for _, email := range []string{"manager@example.com", "agent@example.com"} {
@@ -129,7 +129,7 @@ func seedTeamMembers(ctx context.Context, out io.Writer, db *bun.DB, memberLogin
 			return err
 		}
 	}
-	fmt.Fprintln(out, "已在示例工作区中创建团队 一线客服：成员 manager@example.com、agent@example.com")
+	fmt.Fprintln(out, "已在示例工作区中创建团队收件箱 一线客服：成员 manager@example.com、agent@example.com")
 	return nil
 }
 
@@ -159,7 +159,7 @@ var seedChats = []seedChat{
 	{"kavya", "Kavya Reddy", []seedTurn{{false, "The coupon code doesn't work"}}},
 }
 
-// seedConversations 在示例工作区中建一个测试渠道，新会话进入团队“一线客服”，并写入示例会话。
+// seedConversations 在示例工作区中建一个测试渠道，新会话进入团队收件箱“一线客服”，并写入示例会话。
 // 示例工作区中已经有渠道时跳过。坐席的回复以 agent@ 的身份发出。
 func seedConversations(ctx context.Context, out io.Writer, db *bun.DB, memberLogins *login.Realm, inDemo identity.Subject, channels channel.Registry, down conversation.Downstream) error {
 	n, err := db.NewSelect().Model((*channel.Channel)(nil)).Where("tenant_id = ?", inDemo.Tenant).Count(ctx)

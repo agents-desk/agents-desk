@@ -1,5 +1,6 @@
-// Package team 是工作区中的团队：一组成员。以后作为团队收件箱：会话进入团队收件箱，按团队的工作时间计算回复时间，
-// 渠道可以设置默认的团队收件箱。团队由有 teams:manage 权限的成员管理。
+// Package team 是工作区中的团队收件箱：一组成员共同处理服务型会话的队列，有自己的分配方式。会话进入团队收件箱，
+// 渠道可以设置默认的团队收件箱。团队收件箱由有 teams:manage 权限的成员管理。
+// 代码中统一叫 team（表 teams、列 team_id、权限 teams:*），给用户看的文字叫“团队收件箱”。
 package team
 
 import (
@@ -8,32 +9,52 @@ import (
 	"slices"
 
 	"github.com/cockroachdb/errors"
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/contract"
 	"github.com/go-tenon/tenon/database"
+	"github.com/go-tenon/tenon/enum"
 	"github.com/go-tenon/tenon/errorx"
 )
 
 var (
 	ErrNotFound  = errorx.Define(errorx.NotFound, "team.not_found")
 	ErrNameTaken = errorx.Define(errorx.Conflict, "team.name_taken")
-	// ErrNotInTeam 是要移出的人不在这个团队中。
+	// ErrNotInTeam 是要移出的人不在这个团队收件箱中。
 	ErrNotInTeam = errorx.Define(errorx.NotFound, "team.not_in_team")
+	// ErrInUse 是团队收件箱还在被使用：还有没关闭的会话，或者是某个渠道的默认团队收件箱，不能删除。
+	ErrInUse = errorx.Define(errorx.Conflict, "team.in_use")
 )
 
-// Team 是一个团队，属于一个工作区，名称在工作区中不重复。
+// Assignment 是团队收件箱的分配方式：新会话进入团队收件箱后怎样指派给成员。
+type Assignment string
+
+const (
+	Manual     Assignment = "manual"      // 手动：成员自己领取
+	RoundRobin Assignment = "round_robin" // 轮流：依次分给在线的成员
+)
+
+// Assignments 是全部分配方式，显示文字是翻译文件中 team_assignment.<方式> 的消息。
+var Assignments = enum.New("team_assignment", Manual, RoundRobin)
+
+// Schema 让 OpenAPI 中的 Assignment 只接受上面的取值，并带有显示文字。
+func (Assignment) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Assignments) }
+
+// Team 是一个团队收件箱，属于一个工作区，名称在工作区中不重复。
 type Team struct {
 	bun.BaseModel `bun:"table:teams"`
 
 	ID string `bun:"id,pk"`
 	database.Timestamps
-	TenantID    string `bun:"tenant_id,notnull"`
-	Name        string `bun:"name,notnull"`
-	Description string `bun:"description,notnull"`
+	TenantID    string     `bun:"tenant_id,notnull"`
+	Name        string     `bun:"name,notnull"`
+	Description string     `bun:"description,notnull"`
+	Assignment  Assignment `bun:"assignment,notnull"` // 分配方式
 }
 
-// Membership 是团队中的一个成员。
+// Membership 是团队收件箱中的一个成员。
 type Membership struct {
 	bun.BaseModel `bun:"table:team_members"`
 
@@ -42,20 +63,21 @@ type Membership struct {
 	database.Timestamps
 }
 
-// TeamDTO 是接口中的团队，带有人数。
+// TeamDTO 是接口中的团队收件箱，带有人数。
 type TeamDTO struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	MemberCount int    `json:"member_count" doc:"团队中的人数"`
+	ID          string     `json:"id"`
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	Assignment  Assignment `json:"assignment" doc:"分配方式"`
+	MemberCount int        `json:"member_count" doc:"团队收件箱中的人数"`
 }
 
-// TeamOutput 是返回一个团队的响应。
+// TeamOutput 是返回一个团队收件箱的响应。
 type TeamOutput struct {
 	Body TeamDTO
 }
 
-// IDInput 是指定一个团队的请求：路径中的团队 ID。
+// IDInput 是指定一个团队收件箱的请求：路径中的团队收件箱 ID。
 type IDInput struct {
 	ID string `path:"id" format:"uuid"`
 }
@@ -63,7 +85,7 @@ type IDInput struct {
 // newID 返回按时间递增的 UUIDv7。
 func newID() string { return uuid.Must(uuid.NewV7()).String() }
 
-// find 读取工作区 tenant 中的团队 id，不存在或不属于这个工作区时返回 ErrNotFound。lock 为 true 时锁住这一行。
+// find 读取工作区 tenant 中的团队收件箱 id，不存在或不属于这个工作区时返回 ErrNotFound。lock 为 true 时锁住这一行。
 func find(ctx context.Context, db bun.IDB, tenant, id string, lock bool) (*Team, error) {
 	t := new(Team)
 	q := db.NewSelect().Model(t).Where("id = ? AND tenant_id = ?", id, tenant)
@@ -77,7 +99,7 @@ func find(ctx context.Context, db bun.IDB, tenant, id string, lock bool) (*Team,
 	return t, errors.Wrap(err, "load team")
 }
 
-// toDTOs 把团队转换为接口中的团队：一次查出各团队的人数。
+// toDTOs 把团队收件箱转换为接口中的团队收件箱：一次查出各团队收件箱的人数。
 func toDTOs(ctx context.Context, db bun.IDB, teams []Team) ([]TeamDTO, error) {
 	out := make([]TeamDTO, len(teams))
 	if len(teams) == 0 {
@@ -86,7 +108,7 @@ func toDTOs(ctx context.Context, db bun.IDB, teams []Team) ([]TeamDTO, error) {
 	ids := make([]string, len(teams))
 	for i, t := range teams {
 		ids[i] = t.ID
-		out[i] = TeamDTO{ID: t.ID, Name: t.Name, Description: t.Description}
+		out[i] = TeamDTO{ID: t.ID, Name: t.Name, Description: t.Description, Assignment: t.Assignment}
 	}
 	var rows []struct {
 		TeamID string `bun:"team_id"`
@@ -103,7 +125,7 @@ func toDTOs(ctx context.Context, db bun.IDB, teams []Team) ([]TeamDTO, error) {
 	return out, nil
 }
 
-// OnMemberRemoved 是 member.Hooks 的 Removed：成员被移出工作区后，把他从这个工作区的团队中删除，别的工作区的团队不受影响。
+// OnMemberRemoved 是 member.Hooks 的 Removed：成员被移出工作区后，把他从这个工作区的团队收件箱中删除，别的工作区的团队收件箱不受影响。
 func OnMemberRemoved(ctx context.Context, tx bun.IDB, tenant, memberID string) error {
 	_, err := tx.NewDelete().Model((*Membership)(nil)).
 		Where("member_id = ? AND team_id IN (SELECT id FROM teams WHERE tenant_id = ?)", memberID, tenant).Exec(ctx)

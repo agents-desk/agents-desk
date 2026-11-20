@@ -20,14 +20,16 @@ member.fields.role_name: 角色
 member.fields.owner: 主管理员
 member.fields.password: 初始密码
 member.actions.remove: 移出
-team.not_found: 团队不存在
+team.not_found: 团队收件箱不存在
 team.name_taken: "名称“{{.name}}”已被使用"
-team.not_in_team: 他不在这个团队中
-team.title: 团队
+team.in_use: "还有 {{.conversations}} 个没关闭的会话、{{.channels}} 个渠道在使用这个团队收件箱，先把会话转走、改掉渠道的默认团队收件箱"
+team.not_in_team: 他不在这个团队收件箱中
+team.title: 团队收件箱
 team.fields.id: ID
 team.fields.name: 名称
 team.fields.description: 说明
 team.fields.member_count: 人数
+team.fields.assignment: 分配方式
 account.wrong_password: 当前密码不正确
 member.invalid_time_zone: "不认识的时区“{{.time_zone}}”"
 member.language.zh-CN: 简体中文
@@ -61,8 +63,8 @@ tenant.status.disabled: 已停用
 "permission.members:read": 查看成员
 "permission.members:manage": 管理成员和角色
 "permission.tenant-settings:manage": 管理工作区设置
-"permission.teams:read": 查看团队
-"permission.teams:manage": 管理团队
+"permission.teams:read": 查看团队收件箱
+"permission.teams:manage": 管理团队收件箱
 
 role.owner: 主管理员
 role.not_found: 角色不存在
@@ -76,18 +78,21 @@ role.fields.conversation_scope: 可见范围
 role.fields.permissions: 可以做的操作
 role.fields.member_count: 人数
 conversation_scope.all: 全部会话
-conversation_scope.team: 所在团队的和指派给自己的会话
+conversation_scope.team: 所在团队收件箱的和指派给自己的会话
 conversation_scope.assigned: 只有指派给自己的会话
 "role_permission.members:manage": 管理成员和角色
-"role_permission.teams:manage": 管理团队
+"role_permission.teams:manage": 管理团队收件箱
 "role_permission.tenant-settings:manage": 管理工作区设置
+
+team_assignment.manual: 手动：成员自己领取
+team_assignment.round_robin: 轮流：依次分给在线的成员
 
 llm.call_type.translation: 翻译
 
 "permission.conversations:read": 查看会话
 "permission.conversations:reply": 回复会话
 "permission.conversations:read-all": 可以看到全部会话
-"permission.conversations:read-team": 可以看到所在团队的会话
+"permission.conversations:read-team": 可以看到所在团队收件箱的会话
 
 contact.not_found: 联系人不存在
 contact.kind.user: 用户
