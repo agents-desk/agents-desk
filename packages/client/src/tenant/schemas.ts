@@ -93,6 +93,11 @@ export const schemas = {
         "type": "object"
       },
     },
+    myStatusUpdate: {
+      body: {
+        "$ref": "#/components/schemas/MemberStatusSetting"
+      },
+    },
     update: {
       body: {
         "$ref": "#/components/schemas/MemberRoleChange"
@@ -252,6 +257,29 @@ export const components = {
     },
     "required": [
       "role_id"
+    ],
+    "type": "object"
+  },
+  MemberStatus: {
+    "enum": [
+      "online",
+      "away"
+    ],
+    "type": "string"
+  },
+  MemberStatusSetting: {
+    "additionalProperties": false,
+    "properties": {
+      "reassign": {
+        "type": "boolean"
+      },
+      "status": {
+        "$ref": "#/components/schemas/MemberStatus"
+      }
+    },
+    "required": [
+      "status",
+      "reassign"
     ],
     "type": "object"
   },

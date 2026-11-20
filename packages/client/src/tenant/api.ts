@@ -145,6 +145,14 @@ export interface MemberRoleChange {
   role_id: string
 }
 
+export type MemberStatus = "online" | "away"
+
+export interface MemberStatusSetting {
+  /** 离开时把我的会话重新分配：对方再发来消息时，会话回到团队收件箱重新分配。切回在线后保留这个选择 */
+  reassign: boolean
+  status: MemberStatus
+}
+
 export interface MemberTenantMember {
   /** 头像的地址；没有头像时为空 */
   avatar_url: string
@@ -159,6 +167,8 @@ export interface MemberTenantMember {
   role_name: string
   /** 是不是当前登录的成员自己：自己那一行不能修改角色、不能移出 */
   self: boolean
+  /** 在这个工作区中的在线状态 */
+  status: MemberStatus
 }
 
 export interface OffsetConversationDTO {
@@ -243,6 +253,8 @@ export interface TeamMember {
   name: string
   /** 他在工作区中的角色的名称 */
   role_name: string
+  /** 他在这个工作区中的在线状态 */
+  status: MemberStatus
 }
 
 export interface TenantCurrentDTO {
@@ -374,12 +386,33 @@ export function createClient(options: ClientOptions) {
       list: (input: MemberListInput = {}): Promise<OffsetMemberTenantMember> =>
         rt.request<OffsetMemberTenantMember>({ method: "GET", path: `/members`, query: { "name": input["name"], "page": input["page"], "per_page": input["per_page"], "role_id": input["role_id"] } }),
       /**
+       * 我在这个工作区的在线状态
+       *
+       * GET /me/status
+       */
+      myStatus: (): Promise<MemberStatusSetting> =>
+        rt.request<MemberStatusSetting>({ method: "GET", path: `/me/status` }),
+      /**
+       * 修改我在这个工作区的在线状态
+       *
+       * PUT /me/status
+       */
+      myStatusUpdate: (body: MemberStatusSetting): Promise<MemberStatusSetting> =>
+        rt.request<MemberStatusSetting>({ method: "PUT", path: `/me/status`, body }),
+      /**
        * 移出成员
        *
        * POST /members/{id}/remove
        */
       remove: (id: string): Promise<void> =>
         rt.request<void>({ method: "POST", path: `/members/${encodeURIComponent(id)}/remove` }),
+      /**
+       * 把成员设为离开
+       *
+       * POST /members/{id}/away
+       */
+      setAway: (id: string): Promise<void> =>
+        rt.request<void>({ method: "POST", path: `/members/${encodeURIComponent(id)}/away` }),
       /**
        * 修改成员的角色
        *

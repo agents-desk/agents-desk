@@ -81,9 +81,26 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         queryKey: key("member", "list", ...args),
         queryFn: () => client.member.list(...args),
       }),
+      /** GET /me/status */
+      myStatus: (...args: Parameters<Client["member"]["myStatus"]>) => ({
+        queryKey: key("member", "myStatus", ...args),
+        queryFn: () => client.member.myStatus(...args),
+      }),
+      /** PUT /me/status */
+      myStatusUpdate: () => ({
+        mutationFn: (variables: Parameters<Client["member"]["myStatusUpdate"]>[0]) => client.member.myStatusUpdate(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "member"),
+      }),
       /** POST /members/{id}/remove */
       remove: () => ({
         mutationFn: (variables: Parameters<Client["member"]["remove"]>[0]) => client.member.remove(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "member"),
+      }),
+      /** POST /members/{id}/away */
+      setAway: () => ({
+        mutationFn: (variables: Parameters<Client["member"]["setAway"]>[0]) => client.member.setAway(variables),
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "member"),
       }),

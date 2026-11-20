@@ -8,11 +8,14 @@ import (
 
 	"github.com/go-tenon/tenon/httpx/rest"
 	"github.com/go-tenon/tenon/login"
+
+	"agents-desk/internal/member"
 )
 
 // RegisterRoutes 注册平台管理员管理租户的接口，并把租户声明为管理员端的资源。
-// requireRead 要求 tenants:read，requireManage 要求 tenants:manage；logins 是成员的 login.Realm。
-func RegisterRoutes(api *rest.API, requireRead, requireManage func(*huma.Operation), db *bun.DB, logins *login.Realm, addr Addresses) {
+// requireRead 要求 tenants:read，requireManage 要求 tenants:manage；logins 是成员的 login.Realm；
+// hooks 是更换主管理员时原主管理员离开租户之后其他模块跟着做的事。
+func RegisterRoutes(api *rest.API, requireRead, requireManage func(*huma.Operation), db *bun.DB, logins *login.Realm, addr Addresses, hooks member.Hooks) {
 	route := func(access func(*huma.Operation), id, method, path, summary string) huma.Operation {
 		op := huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary}
 		access(&op)
@@ -27,7 +30,7 @@ func RegisterRoutes(api *rest.API, requireRead, requireManage func(*huma.Operati
 	rest.Register(api, route(requireManage, "tenant-update", http.MethodPut, "/tenants/{id}", "修改工作区"), NewUpdate(db, logins, addr).HTTP)
 	rest.Register(api, route(requireManage, "tenant-disable", http.MethodPost, "/tenants/{id}/disable", "停用工作区"), NewDisable(db, logins, addr).HTTP)
 	rest.Register(api, route(requireManage, "tenant-enable", http.MethodPost, "/tenants/{id}/enable", "启用工作区"), NewEnable(db, logins, addr).HTTP)
-	rest.Register(api, route(requireManage, "tenant-change-owner", http.MethodPut, "/tenants/{id}/owner", "更换主管理员"), NewChangeOwner(db, logins, addr).HTTP)
+	rest.Register(api, route(requireManage, "tenant-change-owner", http.MethodPut, "/tenants/{id}/owner", "更换主管理员"), NewChangeOwner(db, logins, addr, hooks).HTTP)
 
 	api.Resource(rest.Resource{
 		Name:       "tenant",

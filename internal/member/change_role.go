@@ -82,7 +82,11 @@ func (a *ChangeRole) Handle(ctx context.Context, sub identity.Subject, id, roleI
 	if err != nil {
 		return nil, err
 	}
-	item, err := toTenantMember(ctx, a.logins, a.files, sub, m, next)
+	status, err := statusOf(ctx, a.db, sub.Tenant, id, false)
+	if err != nil {
+		return nil, err
+	}
+	item, err := toTenantMember(ctx, a.logins, a.files, sub, m, next, status.Status)
 	if err != nil {
 		return nil, err
 	}

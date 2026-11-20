@@ -7,7 +7,7 @@ import { tenantApi } from "../../../../../api"
 
 // 我的团队收件箱：我所在的团队收件箱和其中的成员，只读。团队收件箱由管理员在“工作区 → 团队收件箱”中管理。
 export const Route = createFileRoute("/t/$slug/settings/_personal/my-teams")({
-  staticData: { title: "我的团队收件箱", icon: "team", order: 2 },
+  staticData: { title: "我的团队收件箱", icon: "team", order: 3 },
   component: MyTeams,
 })
 

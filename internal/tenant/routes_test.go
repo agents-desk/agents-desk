@@ -14,6 +14,7 @@ import (
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/auth"
+	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
 	"agents-desk/internal/tenant"
 )
@@ -31,9 +32,9 @@ func newTestAPI() http.Handler {
 		}
 		return identity.Subject{}, identity.ErrUnauthenticated.New()
 	}
-	// 这些请求在调用 Handle 之前就会被拒绝，所以 db 和 logins 传 nil
+	// 这些请求在调用 Handle 之前就会被拒绝，所以 db 和 logins 传 nil，也没有 hooks
 	tenant.RegisterRoutes(api, rest.RequireToken(api, validate, string(auth.TenantsRead)),
-		rest.RequireToken(api, validate, string(auth.TenantsManage)), nil, nil, addr)
+		rest.RequireToken(api, validate, string(auth.TenantsManage)), nil, nil, addr, member.Hooks{})
 	return api.Handler()
 }
 

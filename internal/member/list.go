@@ -80,9 +80,17 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) 
 	})
 	total := int64(len(rows))
 	rows = rows[min(in.Offset(), total):min(in.Offset()+in.Limit(), total)]
+	pageIDs := make([]string, len(rows))
+	for i, m := range rows {
+		pageIDs[i] = m.ID
+	}
+	statuses, err := StatusesOf(ctx, a.db, sub.Tenant, pageIDs)
+	if err != nil {
+		return nil, err
+	}
 	items := make([]TenantMember, 0, len(rows))
 	for i := range rows {
-		item, err := toTenantMember(ctx, a.logins, a.files, sub, &rows[i], roleByID[rows[i].ID])
+		item, err := toTenantMember(ctx, a.logins, a.files, sub, &rows[i], roleByID[rows[i].ID], statuses[rows[i].ID])
 		if err != nil {
 			return nil, err
 		}

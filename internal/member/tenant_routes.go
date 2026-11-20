@@ -33,12 +33,17 @@ func RegisterTenantRoutes(api *rest.API, require func(...auth.Permission) func(*
 	add.DefaultStatus = http.StatusCreated
 	remove := route(manage, "member-remove", http.MethodPost, "/members/{id}/remove", "移出成员")
 	remove.DefaultStatus = http.StatusNoContent
+	away := route(manage, "member-set-away", http.MethodPost, "/members/{id}/away", "把成员设为离开")
+	away.DefaultStatus = http.StatusNoContent
 
 	rest.Register(api, route(read, "member-list", http.MethodGet, "/members", "成员列表"), NewList(db, roles, logins, files).HTTP)
 	rest.Register(api, route(read, "member-get", http.MethodGet, "/members/{id}", "读取成员"), NewGet(db, roles, logins, files).HTTP)
 	rest.Register(api, add, NewAdd(db, logins, files).HTTP)
 	rest.Register(api, route(manage, "member-update", http.MethodPut, "/members/{id}", "修改成员的角色"), NewChangeRole(db, logins, files).HTTP)
 	rest.Register(api, remove, NewRemove(db, hooks).HTTP)
+	rest.Register(api, away, NewSetAway(db).HTTP)
+	rest.Register(api, route(require(), "member-my-status", http.MethodGet, "/me/status", "我在这个工作区的在线状态"), NewGetMyStatus(db).HTTP)
+	rest.Register(api, route(require(), "member-my-status-update", http.MethodPut, "/me/status", "修改我在这个工作区的在线状态"), NewSetMyStatus(db).HTTP)
 
 	api.Resource(rest.Resource{
 		Name:       "member",
@@ -46,12 +51,14 @@ func RegisterTenantRoutes(api *rest.API, require func(...auth.Permission) func(*
 		Get:        "member-get",
 		Create:     "member-add",
 		Update:     "member-update",
-		Columns:    []string{"name", "email", "role_name"},
+		Columns:    []string{"name", "email", "role_name", "status"},
 		Filters:    []string{"name"},
 		CreateForm: []string{"email", "name", "password", "role_id"},
 		// 主管理员那一行和自己那一行没有“修改”“移出”：主管理员只在管理员端更换，任何人不能修改、移出自己
 		UpdateWhen: notOwnerOrSelf,
 		Actions: []rest.Action{
+			// 别人在线时可以把他设为离开，例如他下班时忘了切换
+			{Name: "away", Operation: "member-set-away", Confirm: true, When: map[string][]string{"self": {"false"}, "status": {string(Online)}}},
 			{Name: "remove", Operation: "member-remove", Confirm: true, Danger: true, When: notOwnerOrSelf},
 		},
 	})

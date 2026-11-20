@@ -86,7 +86,7 @@ func (a *Add) Handle(ctx context.Context, sub identity.Subject, p AddParams) (*T
 	if err != nil {
 		return nil, err
 	}
-	item, err := toTenantMember(ctx, a.logins, a.files, sub, added, assigned)
+	item, err := toTenantMember(ctx, a.logins, a.files, sub, added, assigned, Away)
 	if err != nil {
 		return nil, err
 	}

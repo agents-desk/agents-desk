@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { IconSettings, IconSwitchHorizontal } from "@tabler/icons-react"
-import { enterTenant, RailLayout, requireAuth, TimeZoneProvider, UserMenu, useTenant } from "@go-tenon/ui"
+import { enterTenant, Fill, RailLayout, requireAuth, TimeZoneProvider, UserMenu, useTenant } from "@go-tenon/ui"
 import { tenantApi } from "../../api"
 import { logout, me } from "../../auth"
+import { StatusControl } from "../../status"
 
 // 工作区的布局路由：地址中的 slug 就是当前工作区。进入时会话的身份切换到这个工作区，再读取工作区和成员的权限：
 // 不是成员（包括 slug 不存在）时是 404，工作区停用时是 403，由 RouteError 显示。它没有 title，下面的页面才是菜单项。
@@ -45,6 +46,12 @@ function TenantLayout() {
           />
         }
       />
+      {/* 个人菜单中切换我在这个工作区的在线状态 */}
+      <Fill name="user-menu">
+        <div className="tn-menu-section">
+          <StatusControl />
+        </div>
+      </Fill>
     </TimeZoneProvider>
   )
 }

@@ -21,6 +21,7 @@ import { Route as TSlugSettingsWorkspaceRouteImport } from './routes/t/$slug/set
 import { Route as TSlugSettingsPersonalMyTeamsRouteImport } from './routes/t/$slug/settings/_personal/my-teams'
 import { Route as TSlugSettingsPersonalPreferencesRouteImport } from './routes/t/$slug/settings/_personal/preferences'
 import { Route as TSlugSettingsPersonalProfileRouteImport } from './routes/t/$slug/settings/_personal/profile'
+import { Route as TSlugSettingsPersonalStatusRouteImport } from './routes/t/$slug/settings/_personal/status'
 import { Route as TSlugSettingsWorkspaceGeneralRouteImport } from './routes/t/$slug/settings/_workspace/general'
 import { Route as TSlugSettingsWorkspaceMembersRouteImport } from './routes/t/$slug/settings/_workspace/members'
 import { Route as TSlugSettingsWorkspaceRolesRouteImport } from './routes/t/$slug/settings/_workspace/roles'
@@ -88,6 +89,12 @@ const TSlugSettingsPersonalProfileRoute =
     path: '/profile',
     getParentRoute: () => TSlugSettingsPersonalRoute,
   } as any)
+const TSlugSettingsPersonalStatusRoute =
+  TSlugSettingsPersonalStatusRouteImport.update({
+    id: '/status',
+    path: '/status',
+    getParentRoute: () => TSlugSettingsPersonalRoute,
+  } as any)
 const TSlugSettingsWorkspaceGeneralRoute =
   TSlugSettingsWorkspaceGeneralRouteImport.update({
     id: '/general',
@@ -130,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/t/$slug/settings/my-teams': typeof TSlugSettingsPersonalMyTeamsRoute
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
+  '/t/$slug/settings/status': typeof TSlugSettingsPersonalStatusRoute
   '/t/$slug/settings/general': typeof TSlugSettingsWorkspaceGeneralRoute
   '/t/$slug/settings/members': typeof TSlugSettingsWorkspaceMembersRoute
   '/t/$slug/settings/roles': typeof TSlugSettingsWorkspaceRolesRoute
@@ -145,6 +153,7 @@ export interface FileRoutesByTo {
   '/t/$slug/settings/my-teams': typeof TSlugSettingsPersonalMyTeamsRoute
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
+  '/t/$slug/settings/status': typeof TSlugSettingsPersonalStatusRoute
   '/t/$slug/settings/general': typeof TSlugSettingsWorkspaceGeneralRoute
   '/t/$slug/settings/members': typeof TSlugSettingsWorkspaceMembersRoute
   '/t/$slug/settings/roles': typeof TSlugSettingsWorkspaceRolesRoute
@@ -165,6 +174,7 @@ export interface FileRoutesById {
   '/t/$slug/settings/_personal/my-teams': typeof TSlugSettingsPersonalMyTeamsRoute
   '/t/$slug/settings/_personal/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/_personal/profile': typeof TSlugSettingsPersonalProfileRoute
+  '/t/$slug/settings/_personal/status': typeof TSlugSettingsPersonalStatusRoute
   '/t/$slug/settings/_workspace/general': typeof TSlugSettingsWorkspaceGeneralRoute
   '/t/$slug/settings/_workspace/members': typeof TSlugSettingsWorkspaceMembersRoute
   '/t/$slug/settings/_workspace/roles': typeof TSlugSettingsWorkspaceRolesRoute
@@ -184,6 +194,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/my-teams'
     | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
+    | '/t/$slug/settings/status'
     | '/t/$slug/settings/general'
     | '/t/$slug/settings/members'
     | '/t/$slug/settings/roles'
@@ -199,6 +210,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/my-teams'
     | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
+    | '/t/$slug/settings/status'
     | '/t/$slug/settings/general'
     | '/t/$slug/settings/members'
     | '/t/$slug/settings/roles'
@@ -218,6 +230,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/_personal/my-teams'
     | '/t/$slug/settings/_personal/preferences'
     | '/t/$slug/settings/_personal/profile'
+    | '/t/$slug/settings/_personal/status'
     | '/t/$slug/settings/_workspace/general'
     | '/t/$slug/settings/_workspace/members'
     | '/t/$slug/settings/_workspace/roles'
@@ -317,6 +330,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugSettingsPersonalProfileRouteImport
       parentRoute: typeof TSlugSettingsPersonalRoute
     }
+    '/t/$slug/settings/_personal/status': {
+      id: '/t/$slug/settings/_personal/status'
+      path: '/status'
+      fullPath: '/t/$slug/settings/status'
+      preLoaderRoute: typeof TSlugSettingsPersonalStatusRouteImport
+      parentRoute: typeof TSlugSettingsPersonalRoute
+    }
     '/t/$slug/settings/_workspace/general': {
       id: '/t/$slug/settings/_workspace/general'
       path: '/general'
@@ -359,12 +379,14 @@ interface TSlugSettingsPersonalRouteChildren {
   TSlugSettingsPersonalMyTeamsRoute: typeof TSlugSettingsPersonalMyTeamsRoute
   TSlugSettingsPersonalPreferencesRoute: typeof TSlugSettingsPersonalPreferencesRoute
   TSlugSettingsPersonalProfileRoute: typeof TSlugSettingsPersonalProfileRoute
+  TSlugSettingsPersonalStatusRoute: typeof TSlugSettingsPersonalStatusRoute
 }
 
 const TSlugSettingsPersonalRouteChildren: TSlugSettingsPersonalRouteChildren = {
   TSlugSettingsPersonalMyTeamsRoute: TSlugSettingsPersonalMyTeamsRoute,
   TSlugSettingsPersonalPreferencesRoute: TSlugSettingsPersonalPreferencesRoute,
   TSlugSettingsPersonalProfileRoute: TSlugSettingsPersonalProfileRoute,
+  TSlugSettingsPersonalStatusRoute: TSlugSettingsPersonalStatusRoute,
 }
 
 const TSlugSettingsPersonalRouteWithChildren =
