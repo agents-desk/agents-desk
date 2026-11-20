@@ -15,14 +15,15 @@ import (
 	"github.com/go-tenon/tenon/login"
 
 	"agents-desk/internal/auth"
+	"agents-desk/internal/role"
 )
 
 // AddParams 是添加成员的请求。邮箱已有账号时（例如已在别的工作区）直接加入，名字和初始密码不使用。
 type AddParams struct {
-	Email    string              `json:"email" format:"email" maxLength:"254"`
-	Name     string              `json:"name,omitempty" maxLength:"60" doc:"这个邮箱还没有账号时必填"`
-	Password string              `json:"password,omitempty" maxLength:"128" doc:"新账号的初始密码，由你告诉本人；这个邮箱还没有账号时必填"`
-	Role     auth.AssignableRole `json:"role"`
+	Email    string `json:"email" format:"email" maxLength:"254"`
+	Name     string `json:"name,omitempty" maxLength:"60" doc:"这个邮箱还没有账号时必填"`
+	Password string `json:"password,omitempty" maxLength:"128" doc:"新账号的初始密码，由你告诉本人；这个邮箱还没有账号时必填"`
+	RoleID   string `json:"role_id" format:"uuid" doc:"角色：这个工作区自己的角色"`
 }
 
 // AddInput 是添加成员的 HTTP 请求。
@@ -42,10 +43,12 @@ func NewAdd(db *bun.DB, logins *login.Realm, files *filesystem.Service) *Add {
 	return &Add{db: db, logins: logins, files: files}
 }
 
-// Handle 在一个事务中找到或创建邮箱为 p.Email 的账号，在 sub 所在的工作区中分配角色 p.Role，并记录操作日志。
-// 他已经是这个工作区的成员时返回 ErrAlreadyMember；账号的错误见 Ensure，都指向对应的字段。
+// Handle 在一个事务中找到或创建邮箱为 p.Email 的账号，在 sub 所在的工作区中分配角色 p.RoleID，并记录操作日志。
+// 他已经是这个工作区的成员时返回 ErrAlreadyMember；角色不是这个工作区自己的角色时返回 role.ErrNotFound；
+// 账号的错误见 Ensure。错误都指向对应的字段。
 func (a *Add) Handle(ctx context.Context, sub identity.Subject, p AddParams) (*TenantMember, error) {
 	var added *Member
+	var assigned authz.Role
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		m, err := Ensure(ctx, tx, a.logins, Account{Email: p.Email, Name: p.Name, Password: p.Password})
 		switch {
@@ -65,22 +68,25 @@ func (a *Add) Handle(ctx context.Context, sub identity.Subject, p AddParams) (*T
 		if err != nil {
 			return err
 		}
-		if _, ok := roleIn(existing); ok {
+		if len(existing) > 0 {
 			return ErrAlreadyMember.New(errorx.Field("email"))
 		}
-		if err := auth.Grant(ctx, roles, m.Ref(), sub.Tenant, auth.TenantRoles[auth.RoleName(p.Role)]); err != nil {
+		if assigned, err = role.Lock(ctx, tx, sub.Tenant, p.RoleID, errorx.Field("role_id")); err != nil {
+			return err
+		}
+		if err := roles.Assign(ctx, m.Ref(), sub.Tenant, assigned.ID); err != nil {
 			return err
 		}
 		added = m
 		return activity.Record(ctx, tx, sub, activity.Activity{
 			Event: "member.added", TargetType: string(Type), TargetID: m.ID,
-			Properties: map[string]any{"role": p.Role},
+			Properties: map[string]any{"role_id": assigned.ID, "role": assigned.Name},
 		})
 	})
 	if err != nil {
 		return nil, err
 	}
-	item, err := toTenantMember(ctx, a.logins, a.files, sub, added, auth.RoleName(p.Role))
+	item, err := toTenantMember(ctx, a.logins, a.files, sub, added, assigned)
 	if err != nil {
 		return nil, err
 	}

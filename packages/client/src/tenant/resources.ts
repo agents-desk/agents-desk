@@ -26,30 +26,77 @@ export const resources = {
     columns: [
       { name: "name", type: "string", required: true },
       { name: "email", type: "string", required: true },
-      { name: "role", type: "string", enum: "Role", required: true },
+      { name: "role_name", type: "string", required: true },
     ],
     filters: [
       { name: "name", type: "string" },
-      { name: "role", type: "string", enum: "Role" },
     ],
     createForm: [
       { name: "email", type: "string", format: "email", required: true },
       { name: "name", type: "string" },
       { name: "password", type: "string" },
-      { name: "role", type: "string", enum: "AssignableRole", required: true },
+      { name: "role_id", type: "string", format: "uuid", required: true },
     ],
     updateForm: [
-      { name: "role", type: "string", enum: "AssignableRole", required: true },
+      { name: "role_id", type: "string", format: "uuid", required: true },
     ],
     actions: [
-      { name: "remove", operation: ["member", "remove"], permissions: ["members:manage"], confirm: true, danger: true, when: { "role": ["admin", "agent"], "self": ["false"] } },
+      { name: "remove", operation: ["member", "remove"], permissions: ["members:manage"], confirm: true, danger: true, when: { "owner": ["false"], "self": ["false"] } },
     ],
-    updateWhen: { "role": ["admin", "agent"], "self": ["false"] },
+    updateWhen: { "owner": ["false"], "self": ["false"] },
     labels: {
       "zh-CN": {
         title: "成员",
-        fields: { name: "名字", email: "邮箱", role: "角色", password: "初始密码" },
+        fields: { name: "名字", email: "邮箱", role_name: "角色", password: "初始密码", role_id: "角色" },
         actions: { remove: "移出" },
+      },
+    },
+  },
+  role: {
+    name: "role",
+    key: "id",
+    operations: {
+      list: ["role", "list"],
+      get: ["role", "get"],
+      create: ["role", "create"],
+      update: ["role", "update"],
+      delete: ["role", "delete"],
+    },
+    permissions: {
+      list: ["members:manage"],
+      get: ["members:manage"],
+      create: ["members:manage"],
+      update: ["members:manage"],
+      delete: ["members:manage"],
+    },
+    columns: [
+      { name: "name", type: "string", required: true },
+      { name: "conversation_scope", type: "string", enum: "ConversationScope", required: true },
+      { name: "member_count", type: "integer", format: "int64", required: true },
+      { name: "description", type: "string", required: true },
+    ],
+    filters: [
+      { name: "name", type: "string" },
+    ],
+    createForm: [
+      { name: "name", type: "string", required: true },
+      { name: "description", type: "string" },
+      { name: "conversation_scope", type: "string", enum: "ConversationScope", required: true },
+      { name: "permissions", type: "array", items: "string", enum: "RolePermission" },
+    ],
+    updateForm: [
+      { name: "name", type: "string", required: true },
+      { name: "description", type: "string" },
+      { name: "conversation_scope", type: "string", enum: "ConversationScope", required: true },
+      { name: "permissions", type: "array", items: "string", enum: "RolePermission" },
+    ],
+    actions: [
+    ],
+    labels: {
+      "zh-CN": {
+        title: "角色",
+        fields: { name: "名称", conversation_scope: "可见范围", member_count: "人数", description: "说明", permissions: "可以做的操作" },
+        actions: {  },
       },
     },
   },

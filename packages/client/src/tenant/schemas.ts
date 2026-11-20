@@ -85,8 +85,9 @@ export const schemas = {
             "minimum": 1,
             "type": "integer"
           },
-          "role": {
-            "$ref": "#/components/schemas/Role"
+          "role_id": {
+            "format": "uuid",
+            "type": "string"
           }
         },
         "type": "object"
@@ -95,6 +96,42 @@ export const schemas = {
     update: {
       body: {
         "$ref": "#/components/schemas/MemberRoleChange"
+      },
+    },
+  },
+  role: {
+    create: {
+      body: {
+        "$ref": "#/components/schemas/RoleParams"
+      },
+    },
+    list: {
+      query: {
+        "properties": {
+          "name": {
+            "maxLength": 30,
+            "type": "string"
+          },
+          "page": {
+            "default": 1,
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "per_page": {
+            "default": 20,
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+    },
+    update: {
+      body: {
+        "$ref": "#/components/schemas/RoleParams"
       },
     },
   },
@@ -148,10 +185,11 @@ export const schemas = {
 
 /** schemas 中 $ref 引用的命名类型，键是 OpenAPI 中的名称。 */
 export const components = {
-  AssignableRole: {
+  ConversationScope: {
     "enum": [
-      "admin",
-      "agent"
+      "all",
+      "team",
+      "assigned"
     ],
     "type": "string"
   },
@@ -193,33 +231,64 @@ export const components = {
         "maxLength": 128,
         "type": "string"
       },
-      "role": {
-        "$ref": "#/components/schemas/AssignableRole"
+      "role_id": {
+        "format": "uuid",
+        "type": "string"
       }
     },
     "required": [
       "email",
-      "role"
+      "role_id"
     ],
     "type": "object"
   },
   MemberRoleChange: {
     "additionalProperties": false,
     "properties": {
-      "role": {
-        "$ref": "#/components/schemas/AssignableRole"
+      "role_id": {
+        "format": "uuid",
+        "type": "string"
       }
     },
     "required": [
-      "role"
+      "role_id"
     ],
     "type": "object"
   },
-  Role: {
+  RoleParams: {
+    "additionalProperties": false,
+    "properties": {
+      "conversation_scope": {
+        "$ref": "#/components/schemas/ConversationScope"
+      },
+      "description": {
+        "maxLength": 200,
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 30,
+        "minLength": 1,
+        "type": "string"
+      },
+      "permissions": {
+        "items": {
+          "$ref": "#/components/schemas/RolePermission"
+        },
+        "maxItems": 20,
+        "type": "array"
+      }
+    },
+    "required": [
+      "name",
+      "conversation_scope"
+    ],
+    "type": "object"
+  },
+  RolePermission: {
     "enum": [
-      "owner",
-      "admin",
-      "agent"
+      "members:manage",
+      "teams:manage",
+      "tenant-settings:manage"
     ],
     "type": "string"
   },

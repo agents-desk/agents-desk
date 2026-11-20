@@ -15,7 +15,9 @@ member.fields.id: ID
 member.fields.name: 名字
 member.fields.email: 邮箱
 member.fields.avatar_url: 头像
-member.fields.role: 角色
+member.fields.role_id: 角色
+member.fields.role_name: 角色
+member.fields.owner: 主管理员
 member.fields.password: 初始密码
 member.actions.remove: 移出
 team.not_found: 团队不存在
@@ -57,21 +59,35 @@ tenant.status.disabled: 已停用
 "permission.tenants:manage": 管理工作区
 "permission.platform-settings:manage": 修改平台设置
 "permission.members:read": 查看成员
-"permission.members:manage": 管理成员
-"permission.tenant-settings:manage": 修改工作区设置
+"permission.members:manage": 管理成员和角色
+"permission.tenant-settings:manage": 管理工作区设置
 "permission.teams:read": 查看团队
 "permission.teams:manage": 管理团队
 
 role.owner: 主管理员
-role.admin: 管理员
-role.agent: 坐席
-assignable_role.admin: 管理员
-assignable_role.agent: 坐席
+role.not_found: 角色不存在
+role.name_taken: "名称“{{.name}}”已被使用"
+role.in_use: "还有 {{.count}} 位成员使用这个角色，先把他们改成别的角色"
+role.title: 角色
+role.fields.id: ID
+role.fields.name: 名称
+role.fields.description: 说明
+role.fields.conversation_scope: 可见范围
+role.fields.permissions: 可以做的操作
+role.fields.member_count: 人数
+conversation_scope.all: 全部会话
+conversation_scope.team: 所在团队的和指派给自己的会话
+conversation_scope.assigned: 只有指派给自己的会话
+"role_permission.members:manage": 管理成员和角色
+"role_permission.teams:manage": 管理团队
+"role_permission.tenant-settings:manage": 管理工作区设置
 
 llm.call_type.translation: 翻译
 
 "permission.conversations:read": 查看会话
 "permission.conversations:reply": 回复会话
+"permission.conversations:read-all": 可以看到全部会话
+"permission.conversations:read-team": 可以看到所在团队的会话
 
 contact.not_found: 联系人不存在
 contact.kind.user: 用户

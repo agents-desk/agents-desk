@@ -94,6 +94,38 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
           invalidate(context, "member"),
       }),
     },
+    role: {
+      /** role 分组全部查询的 key 前缀。 */
+      key: () => key("role"),
+      /** POST /roles */
+      create: () => ({
+        mutationFn: (variables: Parameters<Client["role"]["create"]>[0]) => client.role.create(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "role"),
+      }),
+      /** DELETE /roles/{id} */
+      delete: () => ({
+        mutationFn: (variables: Parameters<Client["role"]["delete"]>[0]) => client.role.delete(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "role"),
+      }),
+      /** GET /roles/{id} */
+      get: (...args: Parameters<Client["role"]["get"]>) => ({
+        queryKey: key("role", "get", ...args),
+        queryFn: () => client.role.get(...args),
+      }),
+      /** GET /roles */
+      list: (...args: Parameters<Client["role"]["list"]>) => ({
+        queryKey: key("role", "list", ...args),
+        queryFn: () => client.role.list(...args),
+      }),
+      /** PUT /roles/{id} */
+      update: () => ({
+        mutationFn: (variables: Parameters<Client["role"]["update"]>) => client.role.update(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "role"),
+      }),
+    },
     team: {
       /** team 分组全部查询的 key 前缀。 */
       key: () => key("team"),

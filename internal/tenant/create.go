@@ -16,6 +16,7 @@ import (
 
 	"agents-desk/internal/auth"
 	"agents-desk/internal/member"
+	"agents-desk/internal/role"
 )
 
 // CreateParams 是新建租户的内容：名称、slug 和主管理员。主管理员的邮箱已有成员账号时，姓名和初始密码不使用。
@@ -44,7 +45,8 @@ func NewCreate(db *bun.DB, logins *login.Realm, addr Addresses) *Create {
 	return &Create{db: db, logins: logins, addr: addr}
 }
 
-// Handle 在一个事务中写入租户、找到或创建主管理员的账号、分配 owner 角色，并记录操作日志，任何一步失败时整体回滚。
+// Handle 在一个事务中写入租户、找到或创建主管理员的账号、分配 owner 角色、创建初始角色（role.Defaults），并记录操作日志，
+// 任何一步失败时整体回滚。
 // slug 是保留词时返回 ErrSlugReserved，已被使用时返回 ErrSlugTaken；主管理员的错误见 member.Ensure。
 func (a *Create) Handle(ctx context.Context, subject identity.Subject, p CreateParams) (*Tenant, error) {
 	if err := checkSlug(p.Slug); err != nil {
@@ -65,6 +67,9 @@ func (a *Create) Handle(ctx context.Context, subject identity.Subject, p CreateP
 			return errors.Wrap(err, "insert tenant")
 		}
 		if err := auth.Grant(ctx, authz.NewStore(tx, auth.Catalog), owner.Ref(), t.ID, auth.Owner); err != nil {
+			return err
+		}
+		if err := role.CreateDefaults(ctx, tx, t.ID); err != nil {
 			return err
 		}
 		return activity.Record(ctx, tx, subject, activity.Activity{

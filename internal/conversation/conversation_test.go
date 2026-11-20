@@ -42,7 +42,7 @@ func setup(t *testing.T, env *apptest.Env, slug string) fixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	agent := identity.Subject{Type: member.Type, ID: "01900000-0000-7000-8000-0000000000a1", Tenant: tn.ID, Permissions: auth.Agent.Permissions}
+	agent := identity.Subject{Type: member.Type, ID: "01900000-0000-7000-8000-0000000000a1", Tenant: tn.ID, Permissions: auth.WithBase(auth.RolePermissions(auth.ScopeTeam, nil))}
 	return fixture{env: env, system: system, agent: agent, ch: ch, down: conversation.Downstream{conversation.DeliverTopic}}
 }
 

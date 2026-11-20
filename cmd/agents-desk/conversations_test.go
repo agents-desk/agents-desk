@@ -49,7 +49,7 @@ func TestConversations(t *testing.T) {
 		return r.cookie
 	}
 	owner := login("owner@alpha.com")
-	call(h, "POST", "/t/alpha/api/members", `{"email":"agent@alpha.com","name":"坐席","password":"password","role":"agent"}`, owner)
+	call(h, "POST", "/t/alpha/api/members", `{"email":"agent@alpha.com","name":"坐席","password":"password","role_id":"`+roleID(t, h, "alpha", "坐席", owner)+`"}`, owner)
 	agent := login("agent@alpha.com")
 
 	// 客户经测试渠道发来一条消息

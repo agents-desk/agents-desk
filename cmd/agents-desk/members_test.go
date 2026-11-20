@@ -46,7 +46,12 @@ func TestMemberManagement(t *testing.T) {
 		}
 		return r.cookie
 	}
-	type item struct{ ID, Name, Email, Role string }
+	type item struct {
+		ID, Name, Email string
+		RoleID          string `json:"role_id"`
+		RoleName        string `json:"role_name"`
+		Owner           bool
+	}
 	decode := func(body string) item {
 		var m item
 		_ = json.Unmarshal([]byte(body), &m)
@@ -68,29 +73,37 @@ func TestMemberManagement(t *testing.T) {
 		t.Fatalf("主管理员的权限：%s", r.body)
 	}
 
+	// 新建工作区时有两个初始角色
+	roles := map[string]string{"admin": roleID(t, h, "alpha", "管理员", owner), "agent": roleID(t, h, "alpha", "坐席", owner)}
+	betaOwner := login("owner@beta.com")
+	betaAgent := roleID(t, h, "beta", "坐席", betaOwner)
+	ownerRole, err := env.Roles.RoleByName(ctx, "owner", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// 添加新账号：一位管理员、两位坐席
 	ids := map[string]string{}
 	for _, m := range []struct{ key, role string }{{"manager", "admin"}, {"other", "agent"}, {"agent", "agent"}} {
-		r := call(h, "POST", "/t/alpha/api/members", `{"email":"`+m.key+`@alpha.com","name":"`+m.key+`","password":"password","role":"`+m.role+`"}`, owner)
-		if r.status != http.StatusCreated || decode(r.body).Role != m.role {
+		r := call(h, "POST", "/t/alpha/api/members", `{"email":"`+m.key+`@alpha.com","name":"`+m.key+`","password":"password","role_id":"`+roles[m.role]+`"}`, owner)
+		if r.status != http.StatusCreated || decode(r.body).RoleID != roles[m.role] {
 			t.Fatalf("添加 %s：%d %s", m.key, r.status, r.body)
 		}
 		ids[m.key] = decode(r.body).ID
 	}
 	// 别的工作区已有的账号：直接加入，不改名字和密码；他可以在两个工作区之间切换
-	r := call(h, "POST", "/t/alpha/api/members", `{"email":"owner@beta.com","name":"别的名字","role":"agent"}`, owner)
+	r := call(h, "POST", "/t/alpha/api/members", `{"email":"owner@beta.com","name":"别的名字","role_id":"`+roles["agent"]+`"}`, owner)
 	if r.status != http.StatusCreated || decode(r.body).Name != "beta 主管理员" {
 		t.Fatalf("添加已有账号：%d %s", r.status, r.body)
 	}
-	betaOwner := login("owner@beta.com")
 	if r := call(h, "GET", "/api/tenants", "", betaOwner); !strings.Contains(r.body, `"alpha"`) || !strings.Contains(r.body, `"beta"`) {
 		t.Fatalf("他所属的工作区：%s", r.body)
 	}
-	// 列表按角色从高到低排列，可以按角色和名字筛选
-	if got := list(owner, ""); len(got) != 5 || got[0].Role != "owner" || got[1].Role != "admin" || got[2].Role != "agent" {
+	// 列表中主管理员在前、其余按名字排列，可以按角色和名字筛选
+	if got := list(owner, ""); len(got) != 5 || !got[0].Owner || got[0].RoleName != "主管理员" || got[1].Name != "agent" || got[4].Name != "other" {
 		t.Fatalf("成员列表：%+v", got)
 	}
-	if got := list(owner, "?role=agent"); len(got) != 3 {
+	if got := list(owner, "?role_id="+roles["agent"]); len(got) != 3 {
 		t.Fatalf("按角色筛选：%+v", got)
 	}
 	if got := list(owner, "?name=beta"); len(got) != 1 || got[0].Email != "owner@beta.com" {
@@ -98,11 +111,15 @@ func TestMemberManagement(t *testing.T) {
 	}
 
 	// 添加时的错误都指向字段
+	newMember := func(fields, roleID string) string {
+		return `{"email":"new@alpha.com",` + fields + `"role_id":"` + roleID + `"}`
+	}
 	for body, want := range map[string]string{
-		`{"email":"agent@alpha.com","role":"agent"}`:                                 "body.email",    // 已经是成员
-		`{"email":"new@alpha.com","name":"新人","role":"agent"}`:                       "body.password", // 新账号缺少密码
-		`{"email":"new@alpha.com","password":"password","role":"agent"}`:             "body.name",     // 新账号缺少名字
-		`{"email":"new@alpha.com","name":"新人","password":"password","role":"owner"}`: "body.role",     // 不能设成主管理员
+		`{"email":"agent@alpha.com","role_id":"` + roles["agent"] + `"}`: "body.email",    // 已经是成员
+		newMember(`"name":"新人",`, roles["agent"]):                        "body.password", // 新账号缺少密码
+		newMember(`"password":"password",`, roles["agent"]):              "body.name",     // 新账号缺少名字
+		newMember(`"name":"新人","password":"password",`, ownerRole.ID):    "body.role_id",  // 不能设成主管理员
+		newMember(`"name":"新人","password":"password",`, betaAgent):       "body.role_id",  // 别的工作区的角色
 	} {
 		if r := call(h, "POST", "/t/alpha/api/members", body, owner); r.status < 400 || r.status >= 500 || fieldOf(r.body) != want {
 			t.Errorf("%s：%d %s", body, r.status, r.body)
@@ -115,8 +132,8 @@ func TestMemberManagement(t *testing.T) {
 		t.Fatalf("坐席看成员：%d", len(got))
 	}
 	for _, c := range []struct{ method, path, body string }{
-		{"POST", "/t/alpha/api/members", `{"email":"x@alpha.com","name":"x","password":"password","role":"agent"}`},
-		{"PUT", "/t/alpha/api/members/" + ids["other"], `{"role":"agent"}`},
+		{"POST", "/t/alpha/api/members", `{"email":"x@alpha.com","name":"x","password":"password","role_id":"` + roles["agent"] + `"}`},
+		{"PUT", "/t/alpha/api/members/" + ids["other"], `{"role_id":"` + roles["agent"] + `"}`},
 		{"POST", "/t/alpha/api/members/" + ids["other"] + "/remove", ""},
 		{"PUT", "/t/alpha/api/tenant", `{"name":"改名"}`},
 	} {
@@ -128,16 +145,24 @@ func TestMemberManagement(t *testing.T) {
 	// 管理员：可以改别人的角色、移出别人，不能动主管理员和自己
 	manager := login("manager@alpha.com")
 	var ownerID string
-	for _, m := range list(manager, "?role=owner") {
-		ownerID = m.ID
+	for _, m := range list(manager, "") {
+		if m.Owner {
+			ownerID = m.ID
+		}
 	}
-	if r := call(h, "PUT", "/t/alpha/api/members/"+ids["other"], `{"role":"admin"}`, manager); r.status != http.StatusOK || decode(r.body).Role != "admin" {
+	if r := call(h, "PUT", "/t/alpha/api/members/"+ids["other"], `{"role_id":"`+roles["admin"]+`"}`, manager); r.status != http.StatusOK || decode(r.body).RoleID != roles["admin"] {
 		t.Fatalf("改角色：%d %s", r.status, r.body)
 	}
+	// 只能改成这个工作区自己的角色
+	for _, id := range []string{ownerRole.ID, betaAgent} {
+		if r := call(h, "PUT", "/t/alpha/api/members/"+ids["agent"], `{"role_id":"`+id+`"}`, manager); r.code != "role.not_found" || fieldOf(r.body) != "body.role_id" {
+			t.Errorf("改成别处的角色 %s：%d %s", id, r.status, r.body)
+		}
+	}
 	for _, c := range []struct{ method, path, body, code string }{
-		{"PUT", "/t/alpha/api/members/" + ownerID, `{"role":"agent"}`, "member.owner_protected"},
+		{"PUT", "/t/alpha/api/members/" + ownerID, `{"role_id":"` + roles["agent"] + `"}`, "member.owner_protected"},
 		{"POST", "/t/alpha/api/members/" + ownerID + "/remove", "", "member.owner_protected"},
-		{"PUT", "/t/alpha/api/members/" + ids["manager"], `{"role":"agent"}`, "member.self"},
+		{"PUT", "/t/alpha/api/members/" + ids["manager"], `{"role_id":"` + roles["agent"] + `"}`, "member.self"},
 		{"POST", "/t/alpha/api/members/" + ids["manager"] + "/remove", "", "member.self"},
 	} {
 		if r := call(h, c.method, c.path, c.body, manager); r.code != c.code {
@@ -164,12 +189,12 @@ func TestMemberManagement(t *testing.T) {
 		t.Errorf("进入别的工作区：%d", r.status)
 	}
 	var betaOnly string
-	if r := call(h, "POST", "/t/beta/api/members", `{"email":"only@beta.com","name":"only","password":"password","role":"agent"}`, betaOwner); r.status == http.StatusCreated {
+	if r := call(h, "POST", "/t/beta/api/members", `{"email":"only@beta.com","name":"only","password":"password","role_id":"`+betaAgent+`"}`, betaOwner); r.status == http.StatusCreated {
 		betaOnly = decode(r.body).ID
 	}
 	for _, c := range []struct{ method, path, body string }{
 		{"GET", "/t/alpha/api/members/" + betaOnly, ""},
-		{"PUT", "/t/alpha/api/members/" + betaOnly, `{"role":"admin"}`},
+		{"PUT", "/t/alpha/api/members/" + betaOnly, `{"role_id":"` + roles["admin"] + `"}`},
 		{"POST", "/t/alpha/api/members/" + betaOnly + "/remove", ""},
 	} {
 		if r := call(h, c.method, c.path, c.body, owner); r.status != http.StatusNotFound {

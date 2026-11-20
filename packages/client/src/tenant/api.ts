@@ -5,8 +5,6 @@ import { Runtime, type ClientOptions, type Download, type SessionLike, type Stre
 export * from "./errors"
 export { ApiError, isApiError, saveBlob, type ClientOptions, type Download, type SessionLike, type FieldError, type StreamOptions } from "./runtime"
 
-export type AssignableRole = "admin" | "agent"
-
 export type ChannelKind = "test"
 
 export interface ChannelSummary {
@@ -92,6 +90,8 @@ export type ConversationKind = "service" | "chat"
 
 export type ConversationPriority = "normal" | "high"
 
+export type ConversationScope = "all" | "team" | "assigned"
+
 export type ConversationStatus = "open" | "snoozed" | "closed"
 
 export interface ConversationTextBody {
@@ -136,11 +136,13 @@ export interface MemberAddParams {
   name?: string
   /** 新账号的初始密码，由你告诉本人；这个邮箱还没有账号时必填 */
   password?: string
-  role: AssignableRole
+  /** 角色：这个工作区自己的角色 */
+  role_id: string
 }
 
 export interface MemberRoleChange {
-  role: AssignableRole
+  /** 新的角色：这个工作区自己的角色 */
+  role_id: string
 }
 
 export interface MemberTenantMember {
@@ -149,7 +151,12 @@ export interface MemberTenantMember {
   email: string
   id: string
   name: string
-  role: Role
+  /** 是不是主管理员：主管理员那一行不能修改角色、不能移出 */
+  owner: boolean
+  /** 角色的 ID */
+  role_id: string
+  /** 角色的名称 */
+  role_name: string
   /** 是不是当前登录的成员自己：自己那一行不能修改角色、不能移出 */
   self: boolean
 }
@@ -170,6 +177,14 @@ export interface OffsetMemberTenantMember {
   total: number
 }
 
+export interface OffsetRoleDTO {
+  items: RoleDTO[]
+  page: number
+  per_page: number
+  /** Total number of items across all pages. */
+  total: number
+}
+
 export interface OffsetTeamDTO {
   items: TeamDTO[]
   page: number
@@ -178,7 +193,28 @@ export interface OffsetTeamDTO {
   total: number
 }
 
-export type Role = "owner" | "admin" | "agent"
+export interface RoleDTO {
+  /** 能看到哪些会话 */
+  conversation_scope: ConversationScope
+  description: string
+  id: string
+  /** 使用这个角色的人数 */
+  member_count: number
+  name: string
+  /** 可以做的操作 */
+  permissions: RolePermission[]
+}
+
+export interface RoleParams {
+  /** 能看到哪些会话 */
+  conversation_scope: ConversationScope
+  description?: string
+  name: string
+  /** 可以做的操作，不勾选时为空 */
+  permissions?: RolePermission[]
+}
+
+export type RolePermission = "members:manage" | "teams:manage" | "tenant-settings:manage"
 
 export interface TeamChanges {
   description?: string
@@ -199,8 +235,8 @@ export interface TeamMember {
   email: string
   member_id: string
   name: string
-  /** 他在工作区中的角色 */
-  role: Role
+  /** 他在工作区中的角色的名称 */
+  role_name: string
 }
 
 export interface TenantCurrentDTO {
@@ -241,7 +277,17 @@ export interface MemberListInput {
   /** 名字包含的文字 */
   name?: string
   /** 只列出这个角色的成员 */
-  role?: Role
+  role_id?: string
+}
+
+/** role-list 的参数。 */
+export interface RoleListInput {
+  /** Page number, starting at 1. */
+  page?: number
+  /** Items per page. */
+  per_page?: number
+  /** 名称包含的文字 */
+  name?: string
 }
 
 /** team-list 的参数。 */
@@ -320,7 +366,7 @@ export function createClient(options: ClientOptions) {
        * GET /members
        */
       list: (input: MemberListInput = {}): Promise<OffsetMemberTenantMember> =>
-        rt.request<OffsetMemberTenantMember>({ method: "GET", path: `/members`, query: { "name": input["name"], "page": input["page"], "per_page": input["per_page"], "role": input["role"] } }),
+        rt.request<OffsetMemberTenantMember>({ method: "GET", path: `/members`, query: { "name": input["name"], "page": input["page"], "per_page": input["per_page"], "role_id": input["role_id"] } }),
       /**
        * 移出成员
        *
@@ -335,6 +381,44 @@ export function createClient(options: ClientOptions) {
        */
       update: (id: string, body: MemberRoleChange): Promise<MemberTenantMember> =>
         rt.request<MemberTenantMember>({ method: "PUT", path: `/members/${encodeURIComponent(id)}`, body }),
+    },
+    /** operationId 以 role- 开头的接口。 */
+    role: {
+      /**
+       * 新建角色
+       *
+       * POST /roles
+       */
+      create: (body: RoleParams): Promise<RoleDTO> =>
+        rt.request<RoleDTO>({ method: "POST", path: `/roles`, body }),
+      /**
+       * 删除角色
+       *
+       * DELETE /roles/{id}
+       */
+      delete: (id: string): Promise<void> =>
+        rt.request<void>({ method: "DELETE", path: `/roles/${encodeURIComponent(id)}` }),
+      /**
+       * 读取角色
+       *
+       * GET /roles/{id}
+       */
+      get: (id: string): Promise<RoleDTO> =>
+        rt.request<RoleDTO>({ method: "GET", path: `/roles/${encodeURIComponent(id)}` }),
+      /**
+       * 角色列表
+       *
+       * GET /roles
+       */
+      list: (input: RoleListInput = {}): Promise<OffsetRoleDTO> =>
+        rt.request<OffsetRoleDTO>({ method: "GET", path: `/roles`, query: { "name": input["name"], "page": input["page"], "per_page": input["per_page"] } }),
+      /**
+       * 修改角色
+       *
+       * PUT /roles/{id}
+       */
+      update: (id: string, body: RoleParams): Promise<RoleDTO> =>
+        rt.request<RoleDTO>({ method: "PUT", path: `/roles/${encodeURIComponent(id)}`, body }),
     },
     /** operationId 以 team- 开头的接口。 */
     team: {

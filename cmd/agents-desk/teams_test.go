@@ -52,13 +52,15 @@ func TestTeams(t *testing.T) {
 		return v.ID
 	}
 	owner, betaOwner := login("owner@alpha.com"), login("owner@beta.com")
+	roles := map[string]string{"admin": roleID(t, h, "alpha", "管理员", owner), "agent": roleID(t, h, "alpha", "坐席", owner)}
+	betaAgent := roleID(t, h, "beta", "坐席", betaOwner)
 	members := map[string]string{}
 	for _, m := range []struct{ email, role string }{{"manager@alpha.com", "admin"}, {"agent@alpha.com", "agent"}} {
-		r := call(h, "POST", "/t/alpha/api/members", `{"email":"`+m.email+`","name":"`+m.role+`","password":"password","role":"`+m.role+`"}`, owner)
+		r := call(h, "POST", "/t/alpha/api/members", `{"email":"`+m.email+`","name":"`+m.role+`","password":"password","role_id":"`+roles[m.role]+`"}`, owner)
 		members[m.role] = idOf(r.body)
 	}
 	// agent 也是 beta 的成员，并在 beta 的团队中
-	call(h, "POST", "/t/beta/api/members", `{"email":"agent@alpha.com","role":"agent"}`, betaOwner)
+	call(h, "POST", "/t/beta/api/members", `{"email":"agent@alpha.com","role_id":"`+betaAgent+`"}`, betaOwner)
 	betaTeam := idOf(call(h, "POST", "/t/beta/api/teams", `{"name":"一线"}`, betaOwner).body)
 	if r := call(h, "PUT", "/t/beta/api/teams/"+betaTeam+"/members/"+members["agent"], "", betaOwner); r.status != http.StatusOK {
 		t.Fatalf("beta 的团队加入 agent：%d %s", r.status, r.body)
@@ -115,7 +117,7 @@ func TestTeams(t *testing.T) {
 	}
 
 	// 工作区之间隔离：别的工作区的人不能加入，别的工作区的团队看不到
-	betaOnly := idOf(call(h, "POST", "/t/beta/api/members", `{"email":"only@beta.com","name":"only","password":"password","role":"agent"}`, betaOwner).body)
+	betaOnly := idOf(call(h, "POST", "/t/beta/api/members", `{"email":"only@beta.com","name":"only","password":"password","role_id":"`+betaAgent+`"}`, betaOwner).body)
 	if r := put(betaOnly, owner); r.status != http.StatusNotFound || r.code != "member.not_found" {
 		t.Errorf("加入别的工作区的人：%d %s", r.status, r.body)
 	}

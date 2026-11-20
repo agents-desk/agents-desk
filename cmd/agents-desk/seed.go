@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/command"
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/identity"
@@ -40,8 +41,8 @@ func seedCommand(db *bun.DB, adminLogins, memberLogins *login.Realm, files *file
 
 // seed 通过业务动作写入开发和演示用的数据，已经存在的跳过，可以重复运行：
 //   - 平台管理员 admin@example.com；
-//   - 示例工作区 demo，主管理员 owner@example.com；
-//   - demo 中的管理员 manager@example.com、坐席 agent@example.com；
+//   - 示例工作区 demo，主管理员 owner@example.com，以及新建工作区时创建的角色“管理员”“坐席”；
+//   - demo 中角色为管理员的 manager@example.com、角色为坐席的 agent@example.com；
 //   - demo 中的团队“一线客服”，成员 manager@、agent@；
 //   - demo 中的测试渠道，新会话进入“一线客服”，以及 10 个示例会话，客户用英语、印地语、Hinglish，部分会话 agent@ 已经回复。
 //
@@ -74,21 +75,23 @@ func seed(ctx context.Context, out io.Writer, db *bun.DB, adminLogins, memberLog
 		fmt.Fprintln(out, "已创建示例工作区 demo，主管理员 owner@example.com，密码", seedPassword)
 	}
 
-	// 示例工作区的其他成员：管理员和坐席，以系统的身份在 demo 中添加
+	// 示例工作区的其他成员：管理员和坐席，以系统的身份在 demo 中添加，角色是新建工作区时创建的同名角色
 	var demo string
 	if err := db.NewRaw("SELECT id FROM tenants WHERE slug = 'demo'").Scan(ctx, &demo); err != nil {
 		return errors.Wrap(err, "find demo tenant")
 	}
+	roles := authz.NewStore(db, auth.Catalog)
 	add := member.NewAdd(db, memberLogins, files)
 	inDemo := identity.Subject{Type: identity.System, ID: "seed", Tenant: demo}
-	for _, m := range []struct {
-		email, name string
-		role        auth.AssignableRole
-	}{
-		{"manager@example.com", "管理员", auth.AssignableRole(auth.RoleAdmin)},
-		{"agent@example.com", "坐席", auth.AssignableRole(auth.RoleAgent)},
+	for _, m := range []struct{ email, name string }{
+		{"manager@example.com", "管理员"},
+		{"agent@example.com", "坐席"},
 	} {
-		_, err := add.Handle(ctx, inDemo, member.AddParams{Email: m.email, Name: m.name, Password: seedPassword, Role: m.role})
+		r, err := roles.RoleByName(ctx, m.name, demo)
+		if err != nil {
+			return err
+		}
+		_, err = add.Handle(ctx, inDemo, member.AddParams{Email: m.email, Name: m.name, Password: seedPassword, RoleID: r.ID})
 		switch {
 		case errors.Is(err, member.ErrAlreadyMember):
 			fmt.Fprintln(out, "成员", m.email, "已在示例工作区中，跳过")
@@ -179,7 +182,11 @@ func seedConversations(ctx context.Context, out io.Writer, db *bun.DB, memberLog
 	if err != nil {
 		return err
 	}
-	agent := identity.Subject{Type: member.Type, ID: ref.ID, Tenant: inDemo.Tenant, Permissions: auth.Agent.Permissions}
+	// 坐席的身份和权限与他在请求中的相同
+	agent, err := member.Resolve(db, authz.NewStore(db, auth.Catalog))(identity.WithTenant(ctx, inDemo.Tenant), identity.Subject{Type: member.Type, ID: ref.ID})
+	if err != nil {
+		return err
+	}
 	receive, reply := conversation.NewReceive(db, channels, down), conversation.NewReply(db, down)
 	for _, chat := range seedChats {
 		var id string

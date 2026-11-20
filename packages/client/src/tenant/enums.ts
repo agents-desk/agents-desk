@@ -5,13 +5,6 @@
  * labels 按语言列出显示文字，取自翻译文件中 <前缀>.<取值> 的消息；缺少时先用默认语言，再用取值本身。
  */
 export const enums = {
-  AssignableRole: {
-    prefix: "assignable_role",
-    values: ["admin", "agent"],
-    labels: {
-      "zh-CN": { admin: "管理员", agent: "坐席" },
-    },
-  },
   ChannelKind: {
     prefix: "channel.kind",
     values: ["test"],
@@ -61,6 +54,13 @@ export const enums = {
       "zh-CN": { normal: "普通", high: "高" },
     },
   },
+  ConversationScope: {
+    prefix: "conversation_scope",
+    values: ["all", "team", "assigned"],
+    labels: {
+      "zh-CN": { all: "全部会话", team: "所在团队的和指派给自己的会话", assigned: "只有指派给自己的会话" },
+    },
+  },
   ConversationStatus: {
     prefix: "conversation.status",
     values: ["open", "snoozed", "closed"],
@@ -75,11 +75,11 @@ export const enums = {
       "zh-CN": { all: "所有人", members: "仅成员" },
     },
   },
-  Role: {
-    prefix: "role",
-    values: ["owner", "admin", "agent"],
+  RolePermission: {
+    prefix: "role_permission",
+    values: ["members:manage", "teams:manage", "tenant-settings:manage"],
     labels: {
-      "zh-CN": { owner: "主管理员", admin: "管理员", agent: "坐席" },
+      "zh-CN": { "members:manage": "管理成员和角色", "teams:manage": "管理团队", "tenant-settings:manage": "管理工作区设置" },
     },
   },
 } as const

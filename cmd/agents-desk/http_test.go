@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -45,6 +46,21 @@ func call(h http.Handler, method, path, body string, cookie *http.Cookie) respon
 		r.cookie = cookies[0]
 	}
 	return r
+}
+
+// roleID 返回工作区 slug 中名为 name 的角色的 ID，cookie 是有 members:manage 权限的成员。
+func roleID(t *testing.T, h http.Handler, slug, name string, cookie *http.Cookie) string {
+	t.Helper()
+	r := call(h, "GET", "/t/"+slug+"/api/roles?name="+url.QueryEscape(name), "", cookie)
+	var p struct{ Items []struct{ ID, Name string } }
+	_ = json.Unmarshal([]byte(r.body), &p)
+	for _, item := range p.Items {
+		if item.Name == name {
+			return item.ID
+		}
+	}
+	t.Fatalf("工作区 %s 中没有角色 %s：%d %s", slug, name, r.status, r.body)
+	return ""
 }
 
 // TestMemberAPIs 在完整的路由上检查成员登录、所属的工作区，以及按 slug 进入工作区：

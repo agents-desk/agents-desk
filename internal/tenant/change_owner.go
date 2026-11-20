@@ -30,8 +30,8 @@ type ChangeOwnerInput struct {
 	Body OwnerParams
 }
 
-// ChangeOwner 更换租户的主管理员：撤销原主管理员的 owner 角色，分配给新的主管理员。
-// 原主管理员在这个租户中没有其他角色时，他也就不再是这个租户的成员。
+// ChangeOwner 更换租户的主管理员：撤销原主管理员的 owner 角色，分配给新的主管理员。每位成员只有一个角色，
+// 新主管理员原来是成员时，他原来的角色被撤销；原主管理员也就不再是这个租户的成员。
 type ChangeOwner struct {
 	db     *bun.DB
 	logins *login.Realm // 成员的 login.Realm
@@ -61,6 +61,9 @@ func (a *ChangeOwner) Handle(ctx context.Context, subject identity.Subject, id s
 		}
 		roles := authz.NewStore(tx, auth.Catalog)
 		if err := auth.Revoke(ctx, roles, t.Owner.Ref(), t.ID, auth.Owner); err != nil {
+			return err
+		}
+		if _, err := roles.RemoveMember(ctx, owner.Ref(), t.ID); err != nil {
 			return err
 		}
 		if err := auth.Grant(ctx, roles, owner.Ref(), t.ID, auth.Owner); err != nil {

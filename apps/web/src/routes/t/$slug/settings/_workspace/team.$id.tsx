@@ -4,7 +4,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { IconTrash } from "@tabler/icons-react"
 import { confirm, notifyError, notifySuccess, Page } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
-import { kit, tenantApi } from "../../../../../api"
+import { tenantApi } from "../../../../../api"
 
 // 一个团队的成员：从工作区的成员中选人加入，移出团队。
 export const Route = createFileRoute("/t/$slug/settings/_workspace/team/$id")({
@@ -56,7 +56,7 @@ function TeamMembers(): ReactNode {
             label="加入成员"
             placeholder="选择工作区的成员"
             searchable
-            data={candidates.map((m) => ({ value: m.id, label: `${m.name}（${kit.label("Role", m.role)}）` }))}
+            data={candidates.map((m) => ({ value: m.id, label: `${m.name}（${m.role_name}）` }))}
             value={adding}
             onChange={setAdding}
             nothingFoundMessage="没有可以加入的成员"
@@ -93,7 +93,7 @@ function TeamMembers(): ReactNode {
                 </Table.Td>
                 <Table.Td>
                   <Badge variant="light" color="gray">
-                    {kit.label("Role", m.role)}
+                    {m.role_name}
                   </Badge>
                 </Table.Td>
                 <Table.Td align="right">
