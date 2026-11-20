@@ -89,6 +89,13 @@ export const enums = {
       "zh-CN": { all: "所有人", members: "仅成员" },
     },
   },
+  HoursReplyTime: {
+    prefix: "hours.reply_time",
+    values: ["minutes", "hour", "hours", "day"],
+    labels: {
+      "zh-CN": { minutes: "几分钟内", hour: "一小时内", hours: "几小时内", day: "一天内" },
+    },
+  },
   MemberStatus: {
     prefix: "member.status",
     values: ["online", "away"],

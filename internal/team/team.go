@@ -17,6 +17,8 @@ import (
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/enum"
 	"github.com/go-tenon/tenon/errorx"
+
+	"agents-desk/internal/hours"
 )
 
 var (
@@ -48,10 +50,11 @@ type Team struct {
 
 	ID string `bun:"id,pk"`
 	database.Timestamps
-	TenantID    string     `bun:"tenant_id,notnull"`
-	Name        string     `bun:"name,notnull"`
-	Description string     `bun:"description,notnull"`
-	Assignment  Assignment `bun:"assignment,notnull"` // 分配方式
+	TenantID      string          `bun:"tenant_id,notnull"`
+	Name          string          `bun:"name,notnull"`
+	Description   string          `bun:"description,notnull"`
+	Assignment    Assignment      `bun:"assignment,notnull"`        // 分配方式
+	BusinessHours *hours.Schedule `bun:"business_hours,type:jsonb"` // 单独设置的工作时间；为空表示使用工作区的
 }
 
 // Membership 是团队收件箱中的一个成员。
@@ -65,11 +68,12 @@ type Membership struct {
 
 // TeamDTO 是接口中的团队收件箱，带有人数。
 type TeamDTO struct {
-	ID          string     `json:"id"`
-	Name        string     `json:"name"`
-	Description string     `json:"description"`
-	Assignment  Assignment `json:"assignment" doc:"分配方式"`
-	MemberCount int        `json:"member_count" doc:"团队收件箱中的人数"`
+	ID            string          `json:"id"`
+	Name          string          `json:"name"`
+	Description   string          `json:"description"`
+	Assignment    Assignment      `json:"assignment" doc:"分配方式"`
+	MemberCount   int             `json:"member_count" doc:"团队收件箱中的人数"`
+	BusinessHours *hours.Schedule `json:"business_hours,omitempty" doc:"单独设置的时区和每周的工作时间；为空表示使用工作区的工作时间"`
 }
 
 // TeamOutput 是返回一个团队收件箱的响应。
@@ -108,7 +112,7 @@ func toDTOs(ctx context.Context, db bun.IDB, teams []Team) ([]TeamDTO, error) {
 	ids := make([]string, len(teams))
 	for i, t := range teams {
 		ids[i] = t.ID
-		out[i] = TeamDTO{ID: t.ID, Name: t.Name, Description: t.Description, Assignment: t.Assignment}
+		out[i] = TeamDTO{ID: t.ID, Name: t.Name, Description: t.Description, Assignment: t.Assignment, BusinessHours: t.BusinessHours}
 	}
 	var rows []struct {
 		TeamID string `bun:"team_id"`

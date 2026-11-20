@@ -110,6 +110,23 @@ export const schemas = {
       },
     },
   },
+  hours: {
+    replyTimeSave: {
+      body: {
+        "$ref": "#/components/schemas/HoursReplyTimeInputBody"
+      },
+    },
+    scheduleSave: {
+      body: {
+        "$ref": "#/components/schemas/HoursSchedule"
+      },
+    },
+    specialDatesSave: {
+      body: {
+        "$ref": "#/components/schemas/HoursSpecialDatesInputBody"
+      },
+    },
+  },
   member: {
     add: {
       body: {
@@ -192,6 +209,11 @@ export const schemas = {
     },
   },
   team: {
+    businessHours: {
+      body: {
+        "$ref": "#/components/schemas/TeamBusinessHoursInputBody"
+      },
+    },
     create: {
       body: {
         "$ref": "#/components/schemas/TeamChanges"
@@ -413,6 +435,169 @@ export const components = {
     ],
     "type": "object"
   },
+  HoursInterval: {
+    "additionalProperties": false,
+    "properties": {
+      "end": {
+        "pattern": "^(([01][0-9]|2[0-3]):[0-5][0-9]|24:00)$",
+        "type": "string"
+      },
+      "start": {
+        "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+        "type": "string"
+      }
+    },
+    "required": [
+      "start",
+      "end"
+    ],
+    "type": "object"
+  },
+  HoursReplyTime: {
+    "enum": [
+      "minutes",
+      "hour",
+      "hours",
+      "day"
+    ],
+    "type": "string"
+  },
+  HoursReplyTimeInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "reply_time": {
+        "$ref": "#/components/schemas/HoursReplyTime"
+      }
+    },
+    "required": [
+      "reply_time"
+    ],
+    "type": "object"
+  },
+  HoursSchedule: {
+    "additionalProperties": false,
+    "properties": {
+      "time_zone": {
+        "maxLength": 64,
+        "minLength": 1,
+        "type": "string"
+      },
+      "week": {
+        "$ref": "#/components/schemas/HoursWeek"
+      }
+    },
+    "required": [
+      "time_zone",
+      "week"
+    ],
+    "type": "object"
+  },
+  HoursSpecialDate: {
+    "additionalProperties": false,
+    "properties": {
+      "date": {
+        "format": "date",
+        "type": "string"
+      },
+      "intervals": {
+        "items": {
+          "$ref": "#/components/schemas/HoursInterval"
+        },
+        "maxItems": 3,
+        "type": "array"
+      },
+      "name": {
+        "maxLength": 60,
+        "type": "string"
+      }
+    },
+    "required": [
+      "date",
+      "name",
+      "intervals"
+    ],
+    "type": "object"
+  },
+  HoursSpecialDatesInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "special_dates": {
+        "items": {
+          "$ref": "#/components/schemas/HoursSpecialDate"
+        },
+        "maxItems": 100,
+        "type": "array"
+      }
+    },
+    "required": [
+      "special_dates"
+    ],
+    "type": "object"
+  },
+  HoursWeek: {
+    "additionalProperties": false,
+    "properties": {
+      "friday": {
+        "items": {
+          "$ref": "#/components/schemas/HoursInterval"
+        },
+        "maxItems": 3,
+        "type": "array"
+      },
+      "monday": {
+        "items": {
+          "$ref": "#/components/schemas/HoursInterval"
+        },
+        "maxItems": 3,
+        "type": "array"
+      },
+      "saturday": {
+        "items": {
+          "$ref": "#/components/schemas/HoursInterval"
+        },
+        "maxItems": 3,
+        "type": "array"
+      },
+      "sunday": {
+        "items": {
+          "$ref": "#/components/schemas/HoursInterval"
+        },
+        "maxItems": 3,
+        "type": "array"
+      },
+      "thursday": {
+        "items": {
+          "$ref": "#/components/schemas/HoursInterval"
+        },
+        "maxItems": 3,
+        "type": "array"
+      },
+      "tuesday": {
+        "items": {
+          "$ref": "#/components/schemas/HoursInterval"
+        },
+        "maxItems": 3,
+        "type": "array"
+      },
+      "wednesday": {
+        "items": {
+          "$ref": "#/components/schemas/HoursInterval"
+        },
+        "maxItems": 3,
+        "type": "array"
+      }
+    },
+    "required": [
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+      "sunday"
+    ],
+    "type": "object"
+  },
   MemberAddParams: {
     "additionalProperties": false,
     "properties": {
@@ -520,6 +705,15 @@ export const components = {
       "round_robin"
     ],
     "type": "string"
+  },
+  TeamBusinessHoursInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "schedule": {
+        "$ref": "#/components/schemas/HoursSchedule"
+      }
+    },
+    "type": "object"
   },
   TeamChanges: {
     "additionalProperties": false,

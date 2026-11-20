@@ -38,6 +38,11 @@ export const required = {
     reply: ["conversations:reply"],
     snooze: ["conversations:reply"],
   },
+  hours: {
+    replyTimeSave: ["tenant-settings:manage"],
+    scheduleSave: ["tenant-settings:manage"],
+    specialDatesSave: ["tenant-settings:manage"],
+  },
   member: {
     add: ["members:manage"],
     get: ["members:read"],
@@ -54,6 +59,7 @@ export const required = {
     update: ["members:manage"],
   },
   team: {
+    businessHours: ["teams:manage"],
     create: ["teams:manage"],
     delete: ["teams:manage"],
     get: ["teams:read"],
