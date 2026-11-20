@@ -41,13 +41,58 @@ export const resources = {
       { name: "role", type: "string", enum: "AssignableRole", required: true },
     ],
     actions: [
-      { name: "remove", operation: ["member", "remove"], permissions: ["members:manage"], confirm: true, danger: true, when: { "role": ["admin", "lead", "agent"] } },
+      { name: "remove", operation: ["member", "remove"], permissions: ["members:manage"], confirm: true, danger: true, when: { "role": ["admin", "lead", "agent"], "self": ["false"] } },
     ],
+    updateWhen: { "role": ["admin", "lead", "agent"], "self": ["false"] },
     labels: {
       "zh-CN": {
         title: "成员",
         fields: { name: "名字", email: "邮箱", role: "角色", password: "初始密码" },
         actions: { remove: "移出" },
+      },
+    },
+  },
+  team: {
+    name: "team",
+    key: "id",
+    operations: {
+      list: ["team", "list"],
+      get: ["team", "get"],
+      create: ["team", "create"],
+      update: ["team", "update"],
+      delete: ["team", "delete"],
+    },
+    permissions: {
+      list: ["teams:read"],
+      get: ["teams:read"],
+      create: ["teams:manage"],
+      update: ["teams:manage"],
+      delete: ["teams:manage"],
+    },
+    columns: [
+      { name: "name", type: "string", required: true },
+      { name: "member_count", type: "integer", format: "int64", required: true },
+      { name: "leads", type: "array", items: "string", required: true },
+      { name: "description", type: "string", required: true },
+    ],
+    filters: [
+      { name: "name", type: "string" },
+    ],
+    createForm: [
+      { name: "name", type: "string", required: true },
+      { name: "description", type: "string" },
+    ],
+    updateForm: [
+      { name: "name", type: "string", required: true },
+      { name: "description", type: "string" },
+    ],
+    actions: [
+    ],
+    labels: {
+      "zh-CN": {
+        title: "团队",
+        fields: { name: "名称", member_count: "人数", leads: "组长", description: "说明" },
+        actions: {  },
       },
     },
   },

@@ -63,6 +63,55 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
           invalidate(context, "member"),
       }),
     },
+    team: {
+      /** team 分组全部查询的 key 前缀。 */
+      key: () => key("team"),
+      /** POST /teams */
+      create: () => ({
+        mutationFn: (variables: Parameters<Client["team"]["create"]>[0]) => client.team.create(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "team"),
+      }),
+      /** DELETE /teams/{id} */
+      delete: () => ({
+        mutationFn: (variables: Parameters<Client["team"]["delete"]>[0]) => client.team.delete(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "team"),
+      }),
+      /** GET /teams/{id} */
+      get: (...args: Parameters<Client["team"]["get"]>) => ({
+        queryKey: key("team", "get", ...args),
+        queryFn: () => client.team.get(...args),
+      }),
+      /** GET /teams */
+      list: (...args: Parameters<Client["team"]["list"]>) => ({
+        queryKey: key("team", "list", ...args),
+        queryFn: () => client.team.list(...args),
+      }),
+      /** PUT /teams/{id}/members/{member_id} */
+      memberPut: () => ({
+        mutationFn: (variables: Parameters<Client["team"]["memberPut"]>) => client.team.memberPut(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "team"),
+      }),
+      /** DELETE /teams/{id}/members/{member_id} */
+      memberRemove: () => ({
+        mutationFn: (variables: Parameters<Client["team"]["memberRemove"]>) => client.team.memberRemove(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "team"),
+      }),
+      /** GET /teams/{id}/members */
+      members: (...args: Parameters<Client["team"]["members"]>) => ({
+        queryKey: key("team", "members", ...args),
+        queryFn: () => client.team.members(...args),
+      }),
+      /** PUT /teams/{id} */
+      update: () => ({
+        mutationFn: (variables: Parameters<Client["team"]["update"]>) => client.team.update(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "team"),
+      }),
+    },
     tenant: {
       /** tenant 分组全部查询的 key 前缀。 */
       key: () => key("tenant"),

@@ -20,10 +20,12 @@ const (
 	MembersRead          Permission = "members:read"           // 工作区：查看成员
 	MembersManage        Permission = "members:manage"         // 工作区：添加成员、修改角色、移出成员
 	TenantSettingsManage Permission = "tenant-settings:manage" // 工作区：修改工作区的常规设置（名称）
+	TeamsRead            Permission = "teams:read"             // 工作区：查看团队和团队的成员
+	TeamsManage          Permission = "teams:manage"           // 工作区：新建、修改、删除团队，增减团队的成员，指定组长
 )
 
 // Permissions 是全部权限，显示文字是翻译文件中 permission.<权限> 的消息。
-var Permissions = enum.New("permission", TenantsRead, TenantsManage, PlatformSettingsManage, MembersRead, MembersManage, TenantSettingsManage)
+var Permissions = enum.New("permission", TenantsRead, TenantsManage, PlatformSettingsManage, MembersRead, MembersManage, TenantSettingsManage, TeamsRead, TeamsManage)
 
 // Schema 让 OpenAPI 中的 Permission 只接受目录中的取值。
 func (Permission) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Permissions) }
@@ -36,4 +38,6 @@ var Catalog = authz.Catalog{
 	{Name: string(MembersRead), Description: "查看成员"},
 	{Name: string(MembersManage), Description: "管理成员"},
 	{Name: string(TenantSettingsManage), Description: "修改工作区设置"},
+	{Name: string(TeamsRead), Description: "查看团队"},
+	{Name: string(TeamsManage), Description: "管理团队"},
 }

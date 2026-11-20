@@ -22,6 +22,7 @@ import (
 	"agents-desk/internal/llm"
 	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
+	"agents-desk/internal/team"
 	"agents-desk/internal/tenant"
 	"agents-desk/locales"
 )
@@ -117,7 +118,10 @@ func (a *App) routes(pages http.Handler) chi.Router {
 			return rest.RequireToken(api, a.memberTokens.Validate, names...)
 		}
 		tenant.RegisterTenantRoutes(api, require, a.db)
-		member.RegisterTenantRoutes(api, require, a.db, a.roles, a.memberLogins, a.files)
+		// 成员的角色变化、被移出工作区之后，团队在同一个事务中跟着调整：坐席不能当组长，移出工作区也就移出了团队。
+		member.RegisterTenantRoutes(api, require, a.db, a.roles, a.memberLogins, a.files,
+			member.Hooks{RoleChanged: team.OnRoleChanged, Removed: team.OnMemberRemoved})
+		team.RegisterRoutes(api, require, a.db, a.roles, a.memberLogins, a.files)
 	})
 
 	// 本地磁盘中上传的文件（头像等），地址是 filesystem.disks.local.public_url。

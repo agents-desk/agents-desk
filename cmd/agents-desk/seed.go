@@ -17,6 +17,7 @@ import (
 	"agents-desk/internal/auth"
 	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
+	"agents-desk/internal/team"
 	"agents-desk/internal/tenant"
 )
 
@@ -38,7 +39,8 @@ func seedCommand(db *bun.DB, adminLogins, memberLogins *login.Realm, files *file
 // seed 通过业务动作写入开发和演示用的数据，已经存在的跳过，可以重复运行：
 //   - 平台管理员 admin@example.com；
 //   - 示例工作区 demo，主管理员 owner@example.com；
-//   - demo 中的管理员 manager@example.com、组长 lead@example.com、坐席 agent@example.com。
+//   - demo 中的管理员 manager@example.com、组长 lead@example.com、坐席 agent@example.com；
+//   - demo 中的团队“一线客服”，组长 lead@，成员 agent@。
 //
 // 每一项写入或跳过时向 out 输出一行。
 func seed(ctx context.Context, out io.Writer, db *bun.DB, adminLogins, memberLogins *login.Realm, files *filesystem.Service, addr tenant.Addresses) error {
@@ -94,5 +96,29 @@ func seed(ctx context.Context, out io.Writer, db *bun.DB, adminLogins, memberLog
 			fmt.Fprintln(out, "已在示例工作区中添加", m.name, m.email, "，密码", seedPassword)
 		}
 	}
+
+	// 示例工作区的团队“一线客服”：组长 lead@，成员 agent@
+	t, err := team.NewCreate(db).Handle(ctx, inDemo, team.Changes{Name: "一线客服", Description: "处理客户的第一次咨询"})
+	switch {
+	case errors.Is(err, team.ErrNameTaken):
+		fmt.Fprintln(out, "团队 一线客服 已存在，跳过")
+		return nil
+	case err != nil:
+		return err
+	}
+	put := team.NewPutMember(db, memberLogins, files)
+	for _, m := range []struct {
+		email string
+		lead  bool
+	}{{"lead@example.com", true}, {"agent@example.com", false}} {
+		ref, err := memberLogins.Lookup(ctx, login.Email(m.email))
+		if err != nil {
+			return err
+		}
+		if _, err := put.Handle(ctx, inDemo, t.ID, ref.ID, team.MemberChange{Lead: m.lead}); err != nil {
+			return err
+		}
+	}
+	fmt.Fprintln(out, "已在示例工作区中创建团队 一线客服：组长 lead@example.com，成员 agent@example.com")
 	return nil
 }

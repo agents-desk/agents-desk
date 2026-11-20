@@ -57,6 +57,8 @@ export interface MemberTenantMember {
   id: string
   name: string
   role: Role
+  /** 是不是当前登录的成员自己：自己那一行不能修改角色、不能移出 */
+  self: boolean
 }
 
 export interface OffsetMemberTenantMember {
@@ -67,7 +69,47 @@ export interface OffsetMemberTenantMember {
   total: number
 }
 
+export interface OffsetTeamDTO {
+  items: TeamDTO[]
+  page: number
+  per_page: number
+  /** Total number of items across all pages. */
+  total: number
+}
+
 export type Role = "owner" | "admin" | "lead" | "agent"
+
+export interface TeamChanges {
+  description?: string
+  name: string
+}
+
+export interface TeamDTO {
+  description: string
+  id: string
+  /** 组长的名字 */
+  leads: string[]
+  /** 团队中的人数 */
+  member_count: number
+  name: string
+}
+
+export interface TeamMember {
+  /** 头像的地址；没有头像时为空 */
+  avatar_url: string
+  email: string
+  /** 是不是这个团队的组长 */
+  lead: boolean
+  member_id: string
+  name: string
+  /** 他在工作区中的角色 */
+  role: Role
+}
+
+export interface TeamMemberChange {
+  /** 是不是这个团队的组长；只有组长、管理员和主管理员能当 */
+  lead: boolean
+}
 
 export interface TenantCurrentDTO {
   id: string
@@ -91,6 +133,18 @@ export interface MemberListInput {
   name?: string
   /** 只列出这个角色的成员 */
   role?: Role
+}
+
+/** team-list 的参数。 */
+export interface TeamListInput {
+  /** Page number, starting at 1. */
+  page?: number
+  /** Items per page. */
+  per_page?: number
+  /** 名称包含的文字 */
+  name?: string
+  /** 只列出我所在的团队 */
+  mine?: boolean
 }
 
 /** 创建客户端。 */
@@ -134,6 +188,65 @@ export function createClient(options: ClientOptions) {
        */
       update: (id: string, body: MemberRoleChange): Promise<MemberTenantMember> =>
         rt.request<MemberTenantMember>({ method: "PUT", path: `/members/${encodeURIComponent(id)}`, body }),
+    },
+    /** operationId 以 team- 开头的接口。 */
+    team: {
+      /**
+       * 新建团队
+       *
+       * POST /teams
+       */
+      create: (body: TeamChanges): Promise<TeamDTO> =>
+        rt.request<TeamDTO>({ method: "POST", path: `/teams`, body }),
+      /**
+       * 删除团队
+       *
+       * DELETE /teams/{id}
+       */
+      delete: (id: string): Promise<void> =>
+        rt.request<void>({ method: "DELETE", path: `/teams/${encodeURIComponent(id)}` }),
+      /**
+       * 读取团队
+       *
+       * GET /teams/{id}
+       */
+      get: (id: string): Promise<TeamDTO> =>
+        rt.request<TeamDTO>({ method: "GET", path: `/teams/${encodeURIComponent(id)}` }),
+      /**
+       * 团队列表
+       *
+       * GET /teams
+       */
+      list: (input: TeamListInput = {}): Promise<OffsetTeamDTO> =>
+        rt.request<OffsetTeamDTO>({ method: "GET", path: `/teams`, query: { "mine": input["mine"], "name": input["name"], "page": input["page"], "per_page": input["per_page"] } }),
+      /**
+       * 加入团队或修改组长身份
+       *
+       * PUT /teams/{id}/members/{member_id}
+       */
+      memberPut: (id: string, memberID: string, body: TeamMemberChange): Promise<TeamMember> =>
+        rt.request<TeamMember>({ method: "PUT", path: `/teams/${encodeURIComponent(id)}/members/${encodeURIComponent(memberID)}`, body }),
+      /**
+       * 移出团队
+       *
+       * DELETE /teams/{id}/members/{member_id}
+       */
+      memberRemove: (id: string, memberID: string): Promise<void> =>
+        rt.request<void>({ method: "DELETE", path: `/teams/${encodeURIComponent(id)}/members/${encodeURIComponent(memberID)}` }),
+      /**
+       * 团队的成员
+       *
+       * GET /teams/{id}/members
+       */
+      members: (id: string): Promise<TeamMember[]> =>
+        rt.request<TeamMember[]>({ method: "GET", path: `/teams/${encodeURIComponent(id)}/members` }),
+      /**
+       * 修改团队
+       *
+       * PUT /teams/{id}
+       */
+      update: (id: string, body: TeamChanges): Promise<TeamDTO> =>
+        rt.request<TeamDTO>({ method: "PUT", path: `/teams/${encodeURIComponent(id)}`, body }),
     },
     /** operationId 以 tenant- 开头的接口。 */
     tenant: {

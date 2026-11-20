@@ -5,6 +5,8 @@ export const permissions = {
   "members:manage": "管理成员",
   "members:read": "查看成员",
   "platform-settings:manage": "修改平台设置",
+  "teams:manage": "管理团队",
+  "teams:read": "查看团队",
   "tenant-settings:manage": "修改工作区设置",
   "tenants:manage": "管理工作区",
   "tenants:read": "查看工作区",
