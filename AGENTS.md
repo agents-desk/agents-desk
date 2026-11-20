@@ -12,7 +12,7 @@ Before editing files for a substantial task:
 
 # agents-desk
 
-agents-desk 是开源、AI 原生的团队沟通和服务平台，产品与设计见 [README.md](README.md)。项目是 Go 写的后端加 TanStack Start 写的前端，整个应用编译成一个二进制文件。本文写给在这个项目中工作的人和 AI 编程助手：怎样运行、提交前检查什么、代码按什么约定写。
+agents-desk 是团队的综合服务平台，以 AI 为核心，以聊天为基础。产品设计见 [docs/产品设计.md](docs/产品设计.md)，开发计划见 [docs/开发计划.md](docs/开发计划.md)。项目是 Go 写的后端加 TanStack Start 写的前端，整个应用编译成一个二进制文件。本文写给在这个项目中工作的人和 AI 编程助手：怎样运行、提交前检查什么、代码按什么约定写。
 
 ## 框架与文档
 
@@ -65,7 +65,7 @@ internal/<模块>/         业务代码，一个业务动作一个文件
 internal/apptest/        测试共用的装配：临时库、账号体系、应用密钥
 migrations/              SQL 迁移，包括 migrate publish 发布的框架迁移
 locales/                 翻译文件：错误提示、资源和字段、枚举和权限的显示文字
-docs/adr/                架构决策记录
+docs/                    产品设计和开发计划
 config/app.yaml          配置；本机的覆盖写在 config/local.yaml，不提交，命令和 bun run dev 自动叠加它
 apps/<前端>/             TanStack Start 前端，挂载路径写在 package.json 的 tenon 字段
 packages/client/         bun run generate 生成的客户端，不手改
@@ -109,6 +109,13 @@ CI（`.github/workflows/ci.yml`）在每次推送和 PR 中运行同样的检查
 - 一个用例写成一个业务动作，放在 `internal/<模块>/` 中，一个动作一个文件。HTTP 接口、命令行、队列任务、MCP 工具都是调用它的入口，入口只把外部的输入转换成动作的参数。
 - 业务规则、权限判断和校验写在 Go 中；前端和 App 只负责展示和交互。
 - 业务错误用 `errorx.Define` 定义稳定的错误码，客户端按错误码处理；启用本地化后，给用户看的提示写在每种语言的翻译文件中，以错误码为消息 ID。
+
+### 工作区和账号
+
+- 工作区在代码中统一叫 tenant，与 Tenon 的租户一致：表 `tenants`、列 `tenant_id`、包 `internal/tenant`、权限 `tenants:*`。给用户看的文字叫“工作区”。
+- 工作区的 ID 是 UUIDv7，作为租户、authz 的域和业务表的 `tenant_id`，创建后保持不变；地址用 slug（`/t/{slug}/`），只在租户中间件中由 slug 换成 ID。工作区的链接由 `tenant.Addresses` 生成。
+- 属于工作区的表都有 `tenant_id`，唯一约束和常用索引以它开头；每个查询都带上 `tenant_id = sub.Tenant`，每个业务动作都有“其他工作区访问不到”的测试。
+- 平台管理员和工作区成员是两套账号：各自一张表、一个 `identity.SubjectType`、一个 `login.Realm`，会话 cookie 分别是 `__Host-admin` 和 `__Host-session`。成员账号是全局的，在每个工作区中的身份由角色决定。
 
 ### 注释
 
