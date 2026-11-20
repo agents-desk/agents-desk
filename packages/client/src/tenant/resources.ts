@@ -42,9 +42,9 @@ export const resources = {
       { name: "role", type: "string", enum: "AssignableRole", required: true },
     ],
     actions: [
-      { name: "remove", operation: ["member", "remove"], permissions: ["members:manage"], confirm: true, danger: true, when: { "role": ["admin", "lead", "agent"], "self": ["false"] } },
+      { name: "remove", operation: ["member", "remove"], permissions: ["members:manage"], confirm: true, danger: true, when: { "role": ["admin", "agent"], "self": ["false"] } },
     ],
-    updateWhen: { "role": ["admin", "lead", "agent"], "self": ["false"] },
+    updateWhen: { "role": ["admin", "agent"], "self": ["false"] },
     labels: {
       "zh-CN": {
         title: "成员",
@@ -73,7 +73,6 @@ export const resources = {
     columns: [
       { name: "name", type: "string", required: true },
       { name: "member_count", type: "integer", format: "int64", required: true },
-      { name: "leads", type: "array", items: "string", required: true },
       { name: "description", type: "string", required: true },
     ],
     filters: [
@@ -92,7 +91,7 @@ export const resources = {
     labels: {
       "zh-CN": {
         title: "团队",
-        fields: { name: "名称", member_count: "人数", leads: "组长", description: "说明" },
+        fields: { name: "名称", member_count: "人数", description: "说明" },
         actions: {  },
       },
     },

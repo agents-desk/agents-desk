@@ -1,5 +1,5 @@
 -- +goose Up
--- 团队：工作区中的一组成员，以后工单按团队进入队列、按团队的工作时间计算 SLA。名称在一个工作区中不重复。
+-- 团队：工作区中的一组成员，以后会话按团队收件箱分配、按团队的工作时间计算回复时间。名称在一个工作区中不重复。
 CREATE TABLE teams (
     id          uuid PRIMARY KEY,
     created_at  timestamptz NOT NULL,

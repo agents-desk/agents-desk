@@ -67,6 +67,8 @@ export interface FormFile {
   Size: number
 }
 
+export type LlmCallType = "translation"
+
 export interface LlmEndpoint {
   /** 接口的密钥，明文保存 */
   api_key: string
@@ -75,8 +77,6 @@ export interface LlmEndpoint {
   /** 模型名 */
   model: string
 }
-
-export type LlmPurpose = "translation"
 
 export interface LlmSettings {
   /** 翻译：在不同语言之间互译文本，同时识别原文的语言和书写方式 */
@@ -217,12 +217,12 @@ export function createClient(options: ClientOptions) {
     /** operationId 以 llm- 开头的接口。 */
     llm: {
       /**
-       * 保存一种用途的模型接口
+       * 保存一种调用类型的模型接口
        *
-       * PUT /settings/model/{purpose}
+       * PUT /settings/model/{call_type}
        */
-      endpointSave: (purpose: LlmPurpose, body: LlmEndpoint): Promise<LlmEndpoint> =>
-        rt.request<LlmEndpoint>({ method: "PUT", path: `/settings/model/${encodeURIComponent(purpose)}`, body }),
+      endpointSave: (callType: LlmCallType, body: LlmEndpoint): Promise<LlmEndpoint> =>
+        rt.request<LlmEndpoint>({ method: "PUT", path: `/settings/model/${encodeURIComponent(callType)}`, body }),
       /**
        * 读取模型接口设置
        *

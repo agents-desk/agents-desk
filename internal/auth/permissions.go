@@ -21,7 +21,7 @@ const (
 	MembersManage        Permission = "members:manage"         // 工作区：添加成员、修改角色、移出成员
 	TenantSettingsManage Permission = "tenant-settings:manage" // 工作区：修改工作区的常规设置（名称）
 	TeamsRead            Permission = "teams:read"             // 工作区：查看团队和团队的成员
-	TeamsManage          Permission = "teams:manage"           // 工作区：新建、修改、删除团队，增减团队的成员，指定组长
+	TeamsManage          Permission = "teams:manage"           // 工作区：新建、修改、删除团队，增减团队的成员
 )
 
 // Permissions 是全部权限，显示文字是翻译文件中 permission.<权限> 的消息。
