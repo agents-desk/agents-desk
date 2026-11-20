@@ -36,6 +36,8 @@ export interface ConversationContent {
   data?: Record<string, unknown>
   /** 系统事件的名称，例如 conversation.reopened */
   event?: string
+  /** 内部备注中 @ 到的成员 ID */
+  mentions?: string[]
   text?: string
 }
 
@@ -56,6 +58,8 @@ export interface ConversationDTO {
   last_message_at: string
   /** 时间线中最新一项的序号，用来增量读取时间线 */
   last_seq: number
+  /** 最近一次 @ 我的时间，只在“@我”的列表中有 */
+  mentioned_at?: string
   /** 最后一条消息的文字 */
   preview: string
   priority: ConversationPriority
@@ -63,11 +67,28 @@ export interface ConversationDTO {
   status: ConversationStatus
   /** 团队收件箱的 ID；为空表示未指派到团队 */
   team_id?: string
+  /** 有我还没读到的消息或内部备注（不算我自己写的） */
+  unread: boolean
   /** 对方的消息开始等待回复的时间；已回复时为空 */
   waiting_since?: string
 }
 
 export type ConversationDelivery = "sending" | "delivered" | "read" | "failed"
+
+export type ConversationInbox = "mine" | "mentions" | "unassigned" | "all"
+
+export interface ConversationInboxDTO {
+  /** 全部 */
+  all: ConversationSummary
+  /** @我 */
+  mentions: ConversationSummary
+  /** 我的 */
+  mine: ConversationSummary
+  /** 团队收件箱：我所在的；可见范围是全部会话的成员是全部团队收件箱，按名称排列 */
+  teams: ConversationTeamSummary[]
+  /** 未指派 */
+  unassigned: ConversationSummary
+}
 
 export interface ConversationItemDTO {
   /** 发起者 */
@@ -88,17 +109,56 @@ export type ConversationItemKind = "message" | "note" | "event"
 
 export type ConversationKind = "service" | "chat"
 
+export interface ConversationNoteInputBody {
+  /** @ 到的成员 ID；他们的“@我”中出现这个会话，并且能看到它 */
+  mentions?: string[]
+  text: string
+}
+
 export type ConversationPriority = "normal" | "high"
+
+export interface ConversationReadInputBody {
+  /** 读到的时间线序号，序号不大于它的项都算已读 */
+  seq: number
+}
 
 export type ConversationScope = "all" | "team" | "assigned"
 
+export type ConversationSort = "waiting" | "recent"
+
 export type ConversationStatus = "open" | "snoozed" | "closed"
+
+export interface ConversationSummary {
+  /** 左侧显示的数量：打开的会话数；@我 是还有未读的 @ 的会话数 */
+  count: number
+  /** 打开的会话中等得最久的那个开始等待的时间；没有等待回复的会话时为空 */
+  oldest_waiting_since?: string
+  /** 打开的会话中等待回复的数量 */
+  waiting: number
+}
+
+export interface ConversationTeamSummary {
+  /** 左侧显示的数量：打开的会话数；@我 是还有未读的 @ 的会话数 */
+  count: number
+  id: string
+  name: string
+  /** 打开的会话中等得最久的那个开始等待的时间；没有等待回复的会话时为空 */
+  oldest_waiting_since?: string
+  /** 打开的会话中等待回复的数量 */
+  waiting: number
+}
 
 export interface ConversationTextBody {
   text: string
 }
 
 export type ConversationVisibility = "all" | "members"
+
+export interface CursorConversationDTO {
+  items: ConversationDTO[]
+  /** Pass as cursor to fetch the next page. Absent on the last page. */
+  next_cursor?: string
+}
 
 export interface ErrorDetail {
   /** Validation rule, e.g. validation.min_length, or the business error code. Absent when the rule is not recognized. */
@@ -169,14 +229,6 @@ export interface MemberTenantMember {
   self: boolean
   /** 在这个工作区中的在线状态 */
   status: MemberStatus
-}
-
-export interface OffsetConversationDTO {
-  items: ConversationDTO[]
-  page: number
-  per_page: number
-  /** Total number of items across all pages. */
-  total: number
 }
 
 export interface OffsetMemberTenantMember {
@@ -278,12 +330,24 @@ export interface ConversationItemsInput {
 
 /** conversation-list 的参数。 */
 export interface ConversationListInput {
-  /** Page number, starting at 1. */
-  page?: number
+  /** Opaque cursor from next_cursor of the previous page. Omit for the first page. */
+  cursor?: string
   /** Items per page. */
   per_page?: number
-  /** 只列出这个状态的会话；为空时列出全部 */
+  /** 收件箱中的哪个列表 */
+  inbox?: ConversationInbox
+  /** 只列出这个团队收件箱的会话；团队收件箱的列表是 inbox=all 加上它 */
+  team_id?: string
+  /** 只列出这个状态的会话；@我 的列表不按状态筛选 */
   status?: ConversationStatus
+  /** 只列出负责人是这位成员的会话 */
+  assignee_id?: string
+  /** 只列出来自这个渠道的会话 */
+  channel_id?: string
+  /** 只列出这个优先级的会话 */
+  priority?: ConversationPriority
+  /** 排序；@我 的列表总是最近被 @ 的在前 */
+  sort?: ConversationSort
 }
 
 /** member-list 的参数。 */
@@ -334,6 +398,13 @@ export function createClient(options: ClientOptions) {
       get: (id: string): Promise<ConversationDTO> =>
         rt.request<ConversationDTO>({ method: "GET", path: `/conversations/${encodeURIComponent(id)}` }),
       /**
+       * 收件箱的列表和数量
+       *
+       * GET /inbox
+       */
+      inbox: (): Promise<ConversationInboxDTO> =>
+        rt.request<ConversationInboxDTO>({ method: "GET", path: `/inbox` }),
+      /**
        * 读取时间线
        *
        * GET /conversations/{id}/items
@@ -345,15 +416,22 @@ export function createClient(options: ClientOptions) {
        *
        * GET /conversations
        */
-      list: (input: ConversationListInput = {}): Promise<OffsetConversationDTO> =>
-        rt.request<OffsetConversationDTO>({ method: "GET", path: `/conversations`, query: { "page": input["page"], "per_page": input["per_page"], "status": input["status"] } }),
+      list: (input: ConversationListInput = {}): Promise<CursorConversationDTO> =>
+        rt.request<CursorConversationDTO>({ method: "GET", path: `/conversations`, query: { "assignee_id": input["assignee_id"], "channel_id": input["channel_id"], "cursor": input["cursor"], "inbox": input["inbox"], "per_page": input["per_page"], "priority": input["priority"], "sort": input["sort"], "status": input["status"], "team_id": input["team_id"] } }),
       /**
        * 写内部备注
        *
        * POST /conversations/{id}/notes
        */
-      note: (id: string, body: ConversationTextBody): Promise<ConversationItemDTO> =>
+      note: (id: string, body: ConversationNoteInputBody): Promise<ConversationItemDTO> =>
         rt.request<ConversationItemDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/notes`, body }),
+      /**
+       * 标记已读
+       *
+       * POST /conversations/{id}/read
+       */
+      read: (id: string, body: ConversationReadInputBody): Promise<void> =>
+        rt.request<void>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/read`, body }),
       /**
        * 回复会话
        *

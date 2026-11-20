@@ -42,7 +42,7 @@ func setup(t *testing.T, env *apptest.Env, slug string) fixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	agent := identity.Subject{Type: member.Type, ID: "01900000-0000-7000-8000-0000000000a1", Tenant: tn.ID, Permissions: auth.WithBase(auth.RolePermissions(auth.ScopeTeam, nil))}
+	agent := identity.Subject{Type: member.Type, ID: "01900000-0000-7000-8000-0000000000a1", Tenant: tn.ID, Permissions: auth.WithBase(auth.RolePermissions(auth.ScopeAll, nil))}
 	return fixture{env: env, system: system, agent: agent, ch: ch, down: conversation.Downstream{conversation.DeliverTopic}}
 }
 
@@ -147,7 +147,7 @@ func TestNoteAndPermissions(t *testing.T) {
 	f := setup(t, env, "alpha")
 
 	id := f.receive(t, "anil", "refund kab aayega?", "").ConversationID
-	note, err := conversation.NewAddNote(env.DB, f.down).Handle(ctx, f.agent, id, "@张三 这单要找财务")
+	note, err := conversation.NewAddNote(env.DB, f.down).Handle(ctx, f.agent, id, "@张三 这单要找财务", nil)
 	if err != nil || note.Kind != conversation.Note || note.Visibility != conversation.MembersOnly || note.Delivery != nil {
 		t.Fatalf("内部备注：%+v %v", note, err)
 	}
@@ -205,7 +205,7 @@ func TestConcurrentSeq(t *testing.T) {
 	var wg sync.WaitGroup
 	for range 10 {
 		wg.Go(func() {
-			if _, err := conversation.NewAddNote(env.DB, f.down).Handle(ctx, f.agent, id, "note"); err != nil {
+			if _, err := conversation.NewAddNote(env.DB, f.down).Handle(ctx, f.agent, id, "note", nil); err != nil {
 				t.Error(err)
 			}
 		})

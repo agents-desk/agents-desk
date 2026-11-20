@@ -113,6 +113,12 @@ conversation.kind.chat: 聊天型会话
 conversation.status.open: 打开
 conversation.status.snoozed: 稍后处理
 conversation.status.closed: 已关闭
+conversation.inbox.mine: 我的
+conversation.inbox.mentions: "@我"
+conversation.inbox.unassigned: 未指派
+conversation.inbox.all: 全部
+conversation.sort.waiting: 等待时长
+conversation.sort.recent: 最近活动
 conversation.priority.normal: 普通
 conversation.priority.high: 高
 conversation.item_kind.message: 消息

@@ -49,12 +49,16 @@ func TestConversations(t *testing.T) {
 		return r.cookie
 	}
 	owner := login("owner@alpha.com")
-	call(h, "POST", "/t/alpha/api/members", `{"email":"agent@alpha.com","name":"坐席","password":"password","role_id":"`+roleID(t, h, "alpha", "坐席", owner)+`"}`, owner)
+	var agentMember, team struct{ ID string }
+	_ = json.Unmarshal([]byte(call(h, "POST", "/t/alpha/api/members", `{"email":"agent@alpha.com","name":"坐席","password":"password","role_id":"`+roleID(t, h, "alpha", "坐席", owner)+`"}`, owner).body), &agentMember)
 	agent := login("agent@alpha.com")
+	// 坐席能看到所在团队收件箱的会话：测试渠道的新会话进入他所在的团队收件箱
+	_ = json.Unmarshal([]byte(call(h, "POST", "/t/alpha/api/teams", `{"name":"一线"}`, owner).body), &team)
+	call(h, "PUT", "/t/alpha/api/teams/"+team.ID+"/members/"+agentMember.ID, "", owner)
 
 	// 客户经测试渠道发来一条消息
 	system := identity.Subject{Type: identity.System, ID: "test", Tenant: tn.ID}
-	ch, err := channel.NewCreate(env.DB).Handle(ctx, system, channel.CreateParams{Kind: channel.Test, Name: "测试"})
+	ch, err := channel.NewCreate(env.DB).Handle(ctx, system, channel.CreateParams{Kind: channel.Test, Name: "测试", TeamID: &team.ID})
 	if err != nil {
 		t.Fatal(err)
 	}

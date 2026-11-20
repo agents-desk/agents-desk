@@ -32,12 +32,12 @@ type Timeline struct {
 func NewTimeline(db *bun.DB) *Timeline { return &Timeline{db: db} }
 
 // Handle 返回 sub 所在工作区中会话 id 的时间线里序号大于 after 的项，最多 limit 项，按序号从小到大。
-// 成员能看到全部的项，包括内部备注。会话不存在时返回 ErrNotFound。
+// 成员能看到全部的项，包括内部备注。会话不存在或 sub 看不到时返回 ErrNotFound。
 func (a *Timeline) Handle(ctx context.Context, sub identity.Subject, id string, after int64, limit int) ([]ItemDTO, error) {
 	if err := authorize(sub, auth.ConversationsRead); err != nil {
 		return nil, err
 	}
-	if _, err := find(ctx, a.db, sub.Tenant, id, false); err != nil {
+	if _, err := findVisible(ctx, a.db, sub, id, false); err != nil {
 		return nil, err
 	}
 	var items []Item

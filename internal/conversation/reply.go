@@ -33,14 +33,14 @@ type Reply struct {
 func NewReply(db *bun.DB, down Downstream) *Reply { return &Reply{db: db, down: down} }
 
 // Handle 由 sub 回复 sub 所在工作区中的会话 id：追加一条发给对方的消息，记为发送中；会话不再等待回复，
-// 第一次回复时记下时间；sub 成为会话的参与者。会话不存在时返回 ErrNotFound，没有权限时返回 ErrForbidden。
+// 第一次回复时记下时间；sub 成为会话的参与者。会话不存在或 sub 看不到时返回 ErrNotFound，没有权限时返回 ErrForbidden。
 func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id, text string) (*ItemDTO, error) {
 	if err := authorize(sub, auth.ConversationsReply); err != nil {
 		return nil, err
 	}
 	var item Item
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
-		c, err := find(ctx, tx, sub.Tenant, id, true)
+		c, err := findVisible(ctx, tx, sub, id, true)
 		if err != nil {
 			return err
 		}

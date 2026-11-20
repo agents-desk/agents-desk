@@ -28,11 +28,20 @@ export const schemas = {
     list: {
       query: {
         "properties": {
-          "page": {
-            "default": 1,
-            "format": "int64",
-            "minimum": 1,
-            "type": "integer"
+          "assignee_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "channel_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "cursor": {
+            "type": "string"
+          },
+          "inbox": {
+            "$ref": "#/components/schemas/ConversationInbox",
+            "default": "all"
           },
           "per_page": {
             "default": 20,
@@ -41,8 +50,20 @@ export const schemas = {
             "minimum": 1,
             "type": "integer"
           },
+          "priority": {
+            "$ref": "#/components/schemas/ConversationPriority"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/ConversationSort",
+            "default": "waiting"
+          },
           "status": {
-            "$ref": "#/components/schemas/ConversationStatus"
+            "$ref": "#/components/schemas/ConversationStatus",
+            "default": "open"
+          },
+          "team_id": {
+            "format": "uuid",
+            "type": "string"
           }
         },
         "type": "object"
@@ -50,7 +71,12 @@ export const schemas = {
     },
     note: {
       body: {
-        "$ref": "#/components/schemas/ConversationTextBody"
+        "$ref": "#/components/schemas/ConversationNoteInputBody"
+      },
+    },
+    read: {
+      body: {
+        "$ref": "#/components/schemas/ConversationReadInputBody"
       },
     },
     reply: {
@@ -190,11 +216,70 @@ export const schemas = {
 
 /** schemas 中 $ref 引用的命名类型，键是 OpenAPI 中的名称。 */
 export const components = {
+  ConversationInbox: {
+    "enum": [
+      "mine",
+      "mentions",
+      "unassigned",
+      "all"
+    ],
+    "type": "string"
+  },
+  ConversationNoteInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "mentions": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 20,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "text": {
+        "maxLength": 10000,
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "text"
+    ],
+    "type": "object"
+  },
+  ConversationPriority: {
+    "enum": [
+      "normal",
+      "high"
+    ],
+    "type": "string"
+  },
+  ConversationReadInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "seq": {
+        "format": "int64",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "seq"
+    ],
+    "type": "object"
+  },
   ConversationScope: {
     "enum": [
       "all",
       "team",
       "assigned"
+    ],
+    "type": "string"
+  },
+  ConversationSort: {
+    "enum": [
+      "waiting",
+      "recent"
     ],
     "type": "string"
   },
