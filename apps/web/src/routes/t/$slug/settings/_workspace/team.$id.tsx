@@ -1,6 +1,6 @@
 import { ActionIcon, Avatar, Badge, Button, Checkbox, Group, Select, Stack, Switch, Table, Text, Tooltip } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { IconTrash } from "@tabler/icons-react"
 import { confirm, notifyError, notifySuccess, Page } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
@@ -13,7 +13,8 @@ export const Route = createFileRoute("/t/$slug/settings/_workspace/team/$id")({
 })
 
 function TeamMembers(): ReactNode {
-  const { id } = Route.useParams()
+  const { slug, id } = Route.useParams()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const team = useQuery({ queryKey: ["team", id], queryFn: () => tenantApi.team.get(id) })
   const members = useQuery({ queryKey: ["team", id, "members"], queryFn: () => tenantApi.team.members(id) })
@@ -46,7 +47,12 @@ function TeamMembers(): ReactNode {
   }
 
   return (
-    <Page title={team.data ? `团队：${team.data.name}` : "团队成员"} description={team.data?.description || undefined}>
+    <Page
+      title={team.data ? `团队：${team.data.name}` : "团队成员"}
+      description={team.data?.description || undefined}
+      // 标题左边的返回回到团队列表，而不是离开设置
+      back={() => void navigate({ to: "/t/$slug/settings/teams", params: { slug } })}
+    >
       <Stack gap="md">
         <Group align="flex-end" gap="sm">
           <Select
