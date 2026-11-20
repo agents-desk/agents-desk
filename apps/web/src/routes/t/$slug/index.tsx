@@ -1,13 +1,29 @@
 import { Text } from "@mantine/core"
-import { createFileRoute } from "@tanstack/react-router"
-import { Page } from "@go-tenon/ui"
+import { useQuery } from "@tanstack/react-query"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { firstPage, Page, useApp, useNavigation } from "@go-tenon/ui"
+import { useEffect } from "react"
 
-// 工作台：我的工单、待领取、@我，在 PR 5 中加入。
+// 工作区的首页 /t/{slug}/：进入图标栏中第一个可以进入的模块，通常是收件箱；没有会话权限的成员进入下一个模块。
+// 菜单按权限过滤，权限读取完成之前菜单中只有不要求权限的模块，所以等权限读取完成再决定去哪里。
 export const Route = createFileRoute("/t/$slug/")({
-  staticData: { title: "工作台", icon: "home", order: 0 },
-  component: () => (
-    <Page title="工作台">
-      <Text c="dimmed">这里将显示你的工单和待处理的事项。</Text>
-    </Page>
-  ),
+  component: Home,
 })
+
+function Home() {
+  const app = useApp()
+  const permissions = useQuery({ ...app.permissionsQuery(), enabled: app.signedIn() })
+  const { menu } = useNavigation()
+  const navigate = useNavigate()
+  const to = permissions.isSuccess ? firstPage(menu) : undefined
+  // 只在目标变化时跳转一次：跳转的过程中菜单会重新计算，按渲染跳转会反复触发
+  useEffect(() => {
+    if (to) void navigate({ to, replace: true })
+  }, [to, navigate])
+  if (!permissions.isSuccess || to) return null
+  return (
+    <Page title="工作区">
+      <Text c="dimmed">你的角色还没有可以进入的页面，请联系工作区的管理员。</Text>
+    </Page>
+  )
+}

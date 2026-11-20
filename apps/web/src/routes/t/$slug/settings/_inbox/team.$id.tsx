@@ -7,7 +7,7 @@ import { type ReactNode, useState } from "react"
 import { tenantApi } from "../../../../../api"
 
 // 一个团队收件箱的成员：从工作区的成员中选人加入，移出团队收件箱。
-export const Route = createFileRoute("/t/$slug/settings/_workspace/team/$id")({
+export const Route = createFileRoute("/t/$slug/settings/_inbox/team/$id")({
   staticData: { title: "团队收件箱成员", permission: "teams:manage" },
   component: TeamMembers,
 })
