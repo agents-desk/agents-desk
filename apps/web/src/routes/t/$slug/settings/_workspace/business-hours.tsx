@@ -172,7 +172,7 @@ function ReplyTimeForm({ saved }: { saved: HoursSettingsDTO }): ReactNode {
           </Stack>
         </Radio.Group>
         <Alert color="gray" variant="light">
-          工作时间内告诉客户“通常{kit.label("HoursReplyTime", form.getValues().reply_time)}回复”。收件箱中等待超过回复时间的会话标黄，超过它的 3 倍标深橙。
+          工作时间内告诉客户“通常{kit.label("HoursReplyTime", form.getValues().reply_time)}回复”。收件箱中等待超过回复时间的会话提示“等待处理”，等待更久的提示“需要注意”。
         </Alert>
         <SaveButton dirty={form.isDirty()} saving={saving} />
       </Stack>

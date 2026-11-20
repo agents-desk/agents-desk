@@ -11,8 +11,8 @@ import (
 // SettingsDTO 是接口中的工作时间设置，带有收件箱中等待时长变色的时限。
 type SettingsDTO struct {
 	Settings
-	WarnAfter  int `json:"warn_after" doc:"等待回复超过这么多秒标黄（等待处理）：等于回复时间"`
-	AlertAfter int `json:"alert_after" doc:"等待回复超过这么多秒标深橙（需要注意）"`
+	WarnAfter  int `json:"warn_after" doc:"等待回复超过这么多秒，会话进入“等待处理”：等于回复时间"`
+	AlertAfter int `json:"alert_after" doc:"等待回复超过这么多秒，会话进入“需要注意”"`
 }
 
 // SettingsOutput 是返回工作时间设置的响应。

@@ -249,13 +249,13 @@ export interface HoursSchedule {
 }
 
 export interface HoursSettingsDTO {
-  /** 等待回复超过这么多秒标深橙（需要注意） */
+  /** 等待回复超过这么多秒，会话进入“需要注意” */
   alert_after: number
   reply_time: HoursReplyTime
   special_dates: HoursSpecialDate[]
   /** IANA 时区名，例如 Asia/Shanghai；工作时间按这个时区的钟点计算 */
   time_zone: string
-  /** 等待回复超过这么多秒标黄（等待处理）：等于回复时间 */
+  /** 等待回复超过这么多秒，会话进入“等待处理”：等于回复时间 */
   warn_after: number
   week: HoursWeek
 }

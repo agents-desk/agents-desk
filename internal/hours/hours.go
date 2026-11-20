@@ -108,7 +108,7 @@ func (r ReplyTime) Duration() time.Duration {
 	return 24 * time.Hour
 }
 
-// alertFactor 是“需要注意”的时限相对于回复时间的倍数：等待超过回复时间标黄，超过它的 alertFactor 倍标深橙。
+// alertFactor 是“需要注意”的时限相对于回复时间的倍数：等待超过回复时间是“等待处理”，超过它的 alertFactor 倍是“需要注意”。
 const alertFactor = 3
 
 // Settings 是工作区的工作时间设置，保存在 settings 中，每个工作区一组；没有保存过时是 Defaults。
