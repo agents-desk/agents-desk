@@ -2,6 +2,8 @@
 
 /** 权限目录：权限名和说明，来自 rest.Options.Permissions，以及接口要求的权限。 */
 export const permissions = {
+  "conversations:read": "查看会话",
+  "conversations:reply": "回复会话",
   "members:manage": "管理成员",
   "members:read": "查看成员",
   "platform-settings:manage": "修改平台设置",
@@ -17,6 +19,13 @@ export type Permission = keyof typeof permissions
 
 /** 每个接口要求的权限，调用者必须全部具备；没有列出的接口不要求权限。 */
 export const required = {
+  conversation: {
+    get: ["conversations:read"],
+    items: ["conversations:read"],
+    list: ["conversations:read"],
+    note: ["conversations:reply"],
+    reply: ["conversations:reply"],
+  },
   member: {
     add: ["members:manage"],
     get: ["members:read"],

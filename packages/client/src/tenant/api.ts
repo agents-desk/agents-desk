@@ -7,6 +7,99 @@ export { ApiError, isApiError, saveBlob, type ClientOptions, type Download, type
 
 export type AssignableRole = "admin" | "agent"
 
+export type ChannelKind = "test"
+
+export interface ChannelSummary {
+  id: string
+  kind: ChannelKind
+  name: string
+}
+
+export type ContactKind = "user" | "lead"
+
+export interface ContactSummary {
+  email: string
+  id: string
+  kind: ContactKind
+  /** 最近一条消息识别出的语言；还没有识别时为空 */
+  language: string
+  name: string
+}
+
+export interface ConversationActor {
+  id: string
+  type: ConversationActorType
+}
+
+export type ConversationActorType = "contact" | "member" | "system"
+
+export interface ConversationContent {
+  /** 系统事件的数据 */
+  data?: Record<string, unknown>
+  /** 系统事件的名称，例如 conversation.reopened */
+  event?: string
+  text?: string
+}
+
+export interface ConversationDTO {
+  /** 负责人；为空表示没有负责人 */
+  assignee?: ConversationActor
+  /** 会话来自的渠道 */
+  channel?: ChannelSummary
+  closed_at?: string
+  /** 对方：联系人 */
+  contact?: ContactSummary
+  created_at: string
+  first_reply_at?: string
+  id: string
+  kind: ConversationKind
+  /** 对方最近一条消息识别出的语言 */
+  language: string
+  last_message_at: string
+  /** 时间线中最新一项的序号，用来增量读取时间线 */
+  last_seq: number
+  /** 最后一条消息的文字 */
+  preview: string
+  priority: ConversationPriority
+  snoozed_until?: string
+  status: ConversationStatus
+  /** 团队收件箱的 ID；为空表示未指派到团队 */
+  team_id?: string
+  /** 对方的消息开始等待回复的时间；已回复时为空 */
+  waiting_since?: string
+}
+
+export type ConversationDelivery = "sending" | "delivered" | "read" | "failed"
+
+export interface ConversationItemDTO {
+  /** 发起者 */
+  actor: ConversationActor
+  content: ConversationContent
+  created_at: string
+  /** 发给对方的消息的送达状态 */
+  delivery?: ConversationDelivery
+  /** 派生内容，例如按语言的译文，由后台补上 */
+  derived: Record<string, unknown>
+  id: string
+  kind: ConversationItemKind
+  seq: number
+  visibility: ConversationVisibility
+}
+
+export type ConversationItemKind = "message" | "note" | "event"
+
+export type ConversationKind = "service" | "chat"
+
+export type ConversationPriority = "normal" | "high"
+
+export type ConversationStatus = "open" | "snoozed" | "closed"
+
+export interface ConversationTextBody {
+  text: string
+}
+
+export type ConversationVisibility = "all" | "members"
+
 export interface ErrorDetail {
   /** Validation rule, e.g. validation.min_length, or the business error code. Absent when the rule is not recognized. */
   code?: string
@@ -59,6 +152,14 @@ export interface MemberTenantMember {
   role: Role
   /** 是不是当前登录的成员自己：自己那一行不能修改角色、不能移出 */
   self: boolean
+}
+
+export interface OffsetConversationDTO {
+  items: ConversationDTO[]
+  page: number
+  per_page: number
+  /** Total number of items across all pages. */
+  total: number
 }
 
 export interface OffsetMemberTenantMember {
@@ -114,6 +215,23 @@ export interface TenantGeneralSettings {
   name: string
 }
 
+/** conversation-items 的参数。 */
+export interface ConversationItemsInput {
+  /** 只读取序号大于它的项；收到推送后用它增量读取 */
+  after?: number
+  limit?: number
+}
+
+/** conversation-list 的参数。 */
+export interface ConversationListInput {
+  /** Page number, starting at 1. */
+  page?: number
+  /** Items per page. */
+  per_page?: number
+  /** 只列出这个状态的会话；为空时列出全部 */
+  status?: ConversationStatus
+}
+
 /** member-list 的参数。 */
 export interface MemberListInput {
   /** Page number, starting at 1. */
@@ -142,6 +260,44 @@ export interface TeamListInput {
 export function createClient(options: ClientOptions) {
   const rt = new Runtime(options)
   return {
+    /** operationId 以 conversation- 开头的接口。 */
+    conversation: {
+      /**
+       * 读取会话
+       *
+       * GET /conversations/{id}
+       */
+      get: (id: string): Promise<ConversationDTO> =>
+        rt.request<ConversationDTO>({ method: "GET", path: `/conversations/${encodeURIComponent(id)}` }),
+      /**
+       * 读取时间线
+       *
+       * GET /conversations/{id}/items
+       */
+      items: (id: string, input: ConversationItemsInput = {}): Promise<ConversationItemDTO[]> =>
+        rt.request<ConversationItemDTO[]>({ method: "GET", path: `/conversations/${encodeURIComponent(id)}/items`, query: { "after": input["after"], "limit": input["limit"] } }),
+      /**
+       * 会话列表
+       *
+       * GET /conversations
+       */
+      list: (input: ConversationListInput = {}): Promise<OffsetConversationDTO> =>
+        rt.request<OffsetConversationDTO>({ method: "GET", path: `/conversations`, query: { "page": input["page"], "per_page": input["per_page"], "status": input["status"] } }),
+      /**
+       * 写内部备注
+       *
+       * POST /conversations/{id}/notes
+       */
+      note: (id: string, body: ConversationTextBody): Promise<ConversationItemDTO> =>
+        rt.request<ConversationItemDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/notes`, body }),
+      /**
+       * 回复会话
+       *
+       * POST /conversations/{id}/replies
+       */
+      reply: (id: string, body: ConversationTextBody): Promise<ConversationItemDTO> =>
+        rt.request<ConversationItemDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/replies`, body }),
+    },
     /** operationId 以 member- 开头的接口。 */
     member: {
       /**

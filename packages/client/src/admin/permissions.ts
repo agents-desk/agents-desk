@@ -2,6 +2,8 @@
 
 /** 权限目录：权限名和说明，来自 rest.Options.Permissions，以及接口要求的权限。 */
 export const permissions = {
+  "conversations:read": "查看会话",
+  "conversations:reply": "回复会话",
   "members:manage": "管理成员",
   "members:read": "查看成员",
   "platform-settings:manage": "修改平台设置",

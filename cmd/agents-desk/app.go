@@ -30,6 +30,8 @@ import (
 	"github.com/go-tenon/tenon/settings"
 
 	"agents-desk/internal/auth"
+	"agents-desk/internal/channel"
+	"agents-desk/internal/conversation"
 	"agents-desk/internal/llm"
 	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
@@ -52,6 +54,13 @@ type App struct {
 	files     *filesystem.Service // 上传的文件：头像等
 	localDisk *local.Disk         // 本地磁盘，在 /storage/ 下提供访问；没有配置本地磁盘时为空
 	locker    *lock.Locker        // 多个实例之间的锁：定时任务去重
+
+	channels channel.Registry // 各种渠道的连接器
+}
+
+// downstream 返回时间线有新内容时通知的下游：把发给对方的消息交给连接器发出。以后加上实时推送、翻译。
+func (a *App) downstream() conversation.Downstream {
+	return conversation.Downstream{conversation.DeliverTopic}
 }
 
 // open 安装日志器，连接 PostgreSQL 和 NATS，确保预置的角色存在，创建账号、权限和设置的存储。serve 和需要资源的命令执行时调用它，
@@ -129,6 +138,7 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		memberLogins: memberLogins, memberTokens: apitoken.NewStore(db, cfg.MemberToken),
 		llmSettings: llm.NewGroup(db),
 		files:       files, localDisk: localDisk, locker: lock.New(pglock.New(db)),
+		channels: channel.DefaultRegistry(),
 	}, nil
 }
 
@@ -141,9 +151,10 @@ func parts(a *App) []command.Part {
 	}
 }
 
-// worker 装配队列 worker：把业务事务中发布的任务转发到 JetStream 并处理。各模块的任务在这里登记，现在还没有任务。
+// worker 装配队列 worker：把业务事务中发布的任务转发到 JetStream 并处理。各模块的任务在这里登记。
 func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
 	w := queue.NewWorker(a.db, a.nc, a.cfg.Queue, nil)
+	conversation.RegisterJobs(w, a.db, a.channels)
 	return w.Run, nil
 }
 

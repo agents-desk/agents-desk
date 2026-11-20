@@ -10,6 +10,8 @@ import (
 	"github.com/go-tenon/tenon/login"
 
 	"agents-desk/internal/apptest"
+	"agents-desk/internal/channel"
+	"agents-desk/internal/conversation"
 	"agents-desk/internal/tenant"
 )
 
@@ -22,11 +24,11 @@ func TestSeed(t *testing.T) {
 	// 第一次全部写入，第二次全部跳过
 	for i, skipped := range []bool{false, true} {
 		var out bytes.Buffer
-		if err := seed(ctx, &out, env.DB, env.AdminLogins, env.MemberLogins, env.Files, addr); err != nil {
+		if err := seed(ctx, &out, env.DB, env.AdminLogins, env.MemberLogins, env.Files, addr, channel.DefaultRegistry(), conversation.Downstream{conversation.DeliverTopic}); err != nil {
 			t.Fatal(err)
 		}
 		lines := strings.Split(strings.TrimSpace(out.String()), "\n")
-		if len(lines) != 5 || slices.ContainsFunc(lines, func(l string) bool { return strings.Contains(l, "跳过") != skipped }) {
+		if len(lines) != 6 || slices.ContainsFunc(lines, func(l string) bool { return strings.Contains(l, "跳过") != skipped }) {
 			t.Fatalf("第 %d 次：\n%s", i+1, out.String())
 		}
 	}
@@ -55,5 +57,10 @@ func TestSeed(t *testing.T) {
 	members, err := env.Roles.Members(ctx, demo)
 	if err != nil || len(members) != 3 {
 		t.Fatalf("示例工作区的成员：%d %v", len(members), err)
+	}
+	// 示例会话：每个客户一个会话，最后一条是客户发的会话在等待回复
+	var convs, waiting int
+	if err := env.DB.NewRaw("SELECT count(*), count(waiting_since) FROM conversations WHERE tenant_id = ?", demo).Scan(ctx, &convs, &waiting); err != nil || convs != 10 || waiting != 7 {
+		t.Fatalf("示例会话：%d 个，%d 个等待回复，%v", convs, waiting, err)
 	}
 }
