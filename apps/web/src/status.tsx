@@ -1,4 +1,4 @@
-import { Badge, Checkbox, SegmentedControl, Stack, Text } from "@mantine/core"
+import { Badge, Box, Checkbox, Group, SegmentedControl, Stack, Text } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useParams } from "@tanstack/react-router"
 import { notifyError } from "@go-tenon/ui"
@@ -17,6 +17,16 @@ export function StatusBadge({ status }: { status: MemberStatus }): ReactNode {
     <Badge variant="dot" color={statusColor[status]}>
       {kit.label("MemberStatus", status)}
     </Badge>
+  )
+}
+
+/** StatusLabel 是在线状态的文字，前面是一个小圆点：在线是 green，离开是 gray。 */
+function StatusLabel({ status }: { status: MemberStatus }): ReactNode {
+  return (
+    <Group gap={6} wrap="nowrap" justify="center">
+      <Box w={8} h={8} style={{ borderRadius: "50%", background: `var(--mantine-color-${statusColor[status]}-6)` }} />
+      {kit.label("MemberStatus", status)}
+    </Group>
   )
 }
 
@@ -45,10 +55,9 @@ export function StatusControl({ description }: { description?: boolean }): React
       <SegmentedControl
         fullWidth
         size="xs"
-        color={statusColor[value.status]}
         value={value.status}
         onChange={(s) => save.mutate({ ...value, status: s as MemberStatus })}
-        data={statuses.map((s) => ({ value: s, label: kit.label("MemberStatus", s) }))}
+        data={statuses.map((s) => ({ value: s, label: <StatusLabel status={s} /> }))}
       />
       {description && (
         <Text size="sm" c="dimmed">
