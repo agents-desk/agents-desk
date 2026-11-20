@@ -42,7 +42,7 @@ func seedCommand(db *bun.DB, adminLogins, memberLogins *login.Realm, files *file
 // seed 通过业务动作写入开发和演示用的数据，已经存在的跳过，可以重复运行：
 //   - 平台管理员 admin@example.com；
 //   - 示例工作区 demo，主管理员 owner@example.com，以及新建工作区时创建的角色“管理员”“坐席”；
-//   - demo 中角色为管理员的 manager@example.com、角色为坐席的 agent@example.com；
+//   - demo 中角色为管理员的 manager@example.com、角色为坐席的 agent@example.com，两人都在线（主管理员是默认的离开）；
 //   - demo 中的团队收件箱“一线客服”，成员 manager@、agent@；
 //   - demo 中的测试渠道，新会话进入“一线客服”，以及 10 个示例会话，客户用英语、印地语、Hinglish，部分会话 agent@ 已经回复。
 //
@@ -99,6 +99,18 @@ func seed(ctx context.Context, out io.Writer, db *bun.DB, adminLogins, memberLog
 			return err
 		default:
 			fmt.Fprintln(out, "已在示例工作区中添加", m.name, m.email, "，密码", seedPassword)
+		}
+	}
+
+	// manager@ 和 agent@ 在线，轮流分配时会分给他们；重复运行时保持在线
+	for _, email := range []string{"manager@example.com", "agent@example.com"} {
+		ref, err := memberLogins.Lookup(ctx, login.Email(email))
+		if err != nil {
+			return err
+		}
+		inMember := identity.Subject{Type: member.Type, ID: ref.ID, Tenant: demo}
+		if _, err := member.NewSetMyStatus(db).Handle(ctx, inMember, member.StatusSetting{Status: member.Online}); err != nil {
+			return err
 		}
 	}
 

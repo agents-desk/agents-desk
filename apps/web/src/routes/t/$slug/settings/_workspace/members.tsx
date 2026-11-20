@@ -4,6 +4,8 @@ import { createFileRoute } from "@tanstack/react-router"
 import { type FieldInput, ResourcePage } from "@go-tenon/ui"
 import { tenantApi } from "../../../../../api"
 import { members } from "../../../../../resources"
+import { StatusBadge } from "../../../../../status"
+import type { MemberStatus } from "@agents-desk/client/tenant"
 
 // 成员：管理员和主管理员添加成员、修改角色、移出成员。坐席没有 members:manage，看不到这一页。
 export const Route = createFileRoute("/t/$slug/settings/_workspace/members")({
@@ -43,7 +45,9 @@ const RoleField: FieldInput = ({ field, label, value, onChange, error, disabled 
   )
 }
 
-// 成员的列表、添加和修改角色按 Go 中的声明渲染；主管理员那一行没有“修改”和“移出”。
+// 成员的列表、添加和修改角色按 Go 中的声明渲染；主管理员那一行没有“修改”和“移出”，在线的人有“设为离开”。
 function Members() {
-  return <ResourcePage model={members} route={Route} form="modal" inputs={{ password: PasswordField, role_id: RoleField }} />
+  return <ResourcePage model={members} route={Route} form="modal" inputs={{ password: PasswordField, role_id: RoleField }}
+      render={{ status: (v) => <StatusBadge status={v as MemberStatus} /> }}
+    />
 }

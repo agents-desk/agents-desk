@@ -19,7 +19,7 @@ type Remove struct {
 	hooks Hooks
 }
 
-// NewRemove 返回移出成员的动作；hooks.Removed 在同一个事务中跟着执行，例如把他移出这个工作区的团队收件箱。
+// NewRemove 返回移出成员的动作；hooks 交给 Leave，在同一个事务中跟着执行。
 func NewRemove(db *bun.DB, hooks Hooks) *Remove { return &Remove{db: db, hooks: hooks} }
 
 // Handle 在 sub 所在的工作区中移出成员 id，并记录操作日志。不能移出自己（ErrSelf）和主管理员（ErrOwnerProtected）；
@@ -38,13 +38,8 @@ func (a *Remove) Handle(ctx context.Context, sub identity.Subject, id string) er
 		if auth.IsOwner(current) {
 			return ErrOwnerProtected.New()
 		}
-		if _, err := roles.RemoveMember(ctx, ref, sub.Tenant); err != nil {
+		if err := Leave(ctx, tx, a.hooks, sub.Tenant, id); err != nil {
 			return err
-		}
-		if a.hooks.Removed != nil {
-			if err := a.hooks.Removed(ctx, tx, sub.Tenant, id); err != nil {
-				return err
-			}
 		}
 		return activity.Record(ctx, tx, sub, activity.Activity{
 			Event: "member.removed", TargetType: string(Type), TargetID: id,

@@ -65,6 +65,8 @@ func (a *App) routes(pages http.Handler) chi.Router {
 	}))
 
 	addr := tenant.Addresses{PublicURL: a.cfg.PublicURL}
+	// 成员离开工作区之后（移出成员、更换主管理员），团队收件箱在同一个事务中把他移出
+	memberHooks := member.Hooks{Removed: team.OnMemberRemoved}
 
 	// 管理员端：只接受平台管理员，会话 cookie 是 __Host-admin，权限按平台的域加载。
 	router.Route("/admin/api", func(r chi.Router) {
@@ -83,7 +85,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 			return rest.RequireToken(api, a.adminTokens.Validate, names...)
 		}
 		platformadmin.RegisterRoutes(api, require(), a.db, a.adminLogins, a.adminTokens, a.files, a.cfg.Filesystem.MaxUploadSize, a.cfg.AdminToken.Lifetime)
-		tenant.RegisterRoutes(api, require(auth.TenantsRead), require(auth.TenantsManage), a.db, a.memberLogins, addr)
+		tenant.RegisterRoutes(api, require(auth.TenantsRead), require(auth.TenantsManage), a.db, a.memberLogins, addr, memberHooks)
 		llm.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.llmSettings)
 	})
 
@@ -120,8 +122,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 			return rest.RequireToken(api, a.memberTokens.Validate, names...)
 		}
 		tenant.RegisterTenantRoutes(api, require, a.db)
-		// 成员被移出工作区之后，团队在同一个事务中跟着调整：移出工作区也就移出了团队。
-		member.RegisterTenantRoutes(api, require, a.db, a.roles, a.memberLogins, a.files, member.Hooks{Removed: team.OnMemberRemoved})
+		member.RegisterTenantRoutes(api, require, a.db, a.roles, a.memberLogins, a.files, memberHooks)
 		role.RegisterRoutes(api, require, a.db, a.roles)
 		team.RegisterRoutes(api, require, a.db, a.roles, a.memberLogins, a.files)
 		conversation.RegisterRoutes(api, require, a.db, a.downstream())

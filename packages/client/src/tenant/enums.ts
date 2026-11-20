@@ -75,6 +75,13 @@ export const enums = {
       "zh-CN": { all: "所有人", members: "仅成员" },
     },
   },
+  MemberStatus: {
+    prefix: "member.status",
+    values: ["online", "away"],
+    labels: {
+      "zh-CN": { online: "在线", away: "离开" },
+    },
+  },
   RolePermission: {
     prefix: "role_permission",
     values: ["members:manage", "teams:manage", "tenant-settings:manage"],
