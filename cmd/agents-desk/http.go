@@ -23,6 +23,7 @@ import (
 	"agents-desk/internal/llm"
 	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
+	"agents-desk/internal/role"
 	"agents-desk/internal/team"
 	"agents-desk/internal/tenant"
 	"agents-desk/locales"
@@ -121,6 +122,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		tenant.RegisterTenantRoutes(api, require, a.db)
 		// 成员被移出工作区之后，团队在同一个事务中跟着调整：移出工作区也就移出了团队。
 		member.RegisterTenantRoutes(api, require, a.db, a.roles, a.memberLogins, a.files, member.Hooks{Removed: team.OnMemberRemoved})
+		role.RegisterRoutes(api, require, a.db, a.roles)
 		team.RegisterRoutes(api, require, a.db, a.roles, a.memberLogins, a.files)
 		conversation.RegisterRoutes(api, require, a.db, a.downstream())
 	})

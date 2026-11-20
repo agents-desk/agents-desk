@@ -54,6 +54,16 @@ export const PlatformadminErrors = {
   EmailTaken: "platform_admin.email_taken",
 } as const
 
+/** agents-desk/internal/role 的错误码。 */
+export const RoleErrors = {
+  /** ErrNotFound 是角色不存在，或者不是这个工作区自己的角色（例如主管理员、别的工作区的角色）。 */
+  NotFound: "role.not_found",
+  /** ErrNameTaken 是同一个工作区中已经有同名的角色。 */
+  NameTaken: "role.name_taken",
+  /** ErrInUse 是还有成员使用这个角色，不能删除。 */
+  InUse: "role.in_use",
+} as const
+
 /** agents-desk/internal/team 的错误码。 */
 export const TeamErrors = {
   NotFound: "team.not_found",

@@ -16,8 +16,8 @@ import (
 
 // notOwnerOrSelf 是不是主管理员、也不是自己的行：只有这些行上显示“修改”和“移出”。
 var notOwnerOrSelf = map[string][]string{
-	"role": {string(auth.RoleAdmin), string(auth.RoleAgent)},
-	"self": {"false"},
+	"owner": {"false"},
+	"self":  {"false"},
 }
 
 // RegisterTenantRoutes 在工作区的 API（/t/{slug}/api）中注册成员管理，并把成员声明为资源。
@@ -46,9 +46,9 @@ func RegisterTenantRoutes(api *rest.API, require func(...auth.Permission) func(*
 		Get:        "member-get",
 		Create:     "member-add",
 		Update:     "member-update",
-		Columns:    []string{"name", "email", "role"},
-		Filters:    []string{"name", "role"},
-		CreateForm: []string{"email", "name", "password", "role"},
+		Columns:    []string{"name", "email", "role_name"},
+		Filters:    []string{"name"},
+		CreateForm: []string{"email", "name", "password", "role_id"},
 		// 主管理员那一行和自己那一行没有“修改”“移出”：主管理员只在管理员端更换，任何人不能修改、移出自己
 		UpdateWhen: notOwnerOrSelf,
 		Actions: []rest.Action{

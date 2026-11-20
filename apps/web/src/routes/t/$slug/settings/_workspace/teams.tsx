@@ -5,7 +5,7 @@ import { teams } from "../../../../../resources"
 
 // 团队：主管理员和管理员新建、修改、删除团队；点名称进入团队，管理它的成员。
 export const Route = createFileRoute("/t/$slug/settings/_workspace/teams")({
-  staticData: { title: "团队", icon: "team", order: 2, permission: "teams:manage" },
+  staticData: { title: "团队", icon: "team", order: 3, permission: "teams:manage" },
   validateSearch: teams.listSearch,
   component: Teams,
 })

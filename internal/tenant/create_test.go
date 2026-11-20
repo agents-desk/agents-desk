@@ -65,6 +65,14 @@ func TestCreateMakesOwnerAccountAndRole(t *testing.T) {
 	if got := rolesOf(t, env, out.Subject.Ref(), ten.ID); !slices.Equal(got, []string{auth.Owner.Name}) {
 		t.Fatalf("主管理员的角色：%v", got)
 	}
+	// 新建工作区时创建初始角色“管理员”“坐席”
+	var initial []string
+	if err := env.DB.NewRaw("SELECT name FROM authz_roles WHERE tenant = ? ORDER BY name", ten.ID).Scan(ctx, &initial); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(initial, []string{"坐席", "管理员"}) {
+		t.Fatalf("初始角色：%v", initial)
+	}
 	if addr.URL(ten) != "https://desk.example.com/t/acme/" {
 		t.Fatalf("地址：%s", addr.URL(ten))
 	}

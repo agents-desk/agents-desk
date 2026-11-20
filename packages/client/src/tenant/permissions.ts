@@ -4,12 +4,14 @@
 export const permissions = {
   "conversations:read": "查看会话",
   "conversations:reply": "回复会话",
-  "members:manage": "管理成员",
+  "conversations:view-all": "可以看到全部会话",
+  "conversations:view-team": "可以看到所在团队的会话",
+  "members:manage": "管理成员和角色",
   "members:read": "查看成员",
   "platform-settings:manage": "修改平台设置",
   "teams:manage": "管理团队",
   "teams:read": "查看团队",
-  "tenant-settings:manage": "修改工作区设置",
+  "tenant-settings:manage": "管理工作区设置",
   "tenants:manage": "管理工作区",
   "tenants:read": "查看工作区",
 } as const
@@ -31,6 +33,13 @@ export const required = {
     get: ["members:read"],
     list: ["members:read"],
     remove: ["members:manage"],
+    update: ["members:manage"],
+  },
+  role: {
+    create: ["members:manage"],
+    delete: ["members:manage"],
+    get: ["members:manage"],
+    list: ["members:manage"],
     update: ["members:manage"],
   },
   team: {

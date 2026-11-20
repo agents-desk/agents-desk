@@ -35,7 +35,7 @@ func (a *Remove) Handle(ctx context.Context, sub identity.Subject, id string) er
 		if err != nil {
 			return err
 		}
-		if current == auth.RoleOwner {
+		if auth.IsOwner(current) {
 			return ErrOwnerProtected.New()
 		}
 		if _, err := roles.RemoveMember(ctx, ref, sub.Tenant); err != nil {
@@ -48,7 +48,7 @@ func (a *Remove) Handle(ctx context.Context, sub identity.Subject, id string) er
 		}
 		return activity.Record(ctx, tx, sub, activity.Activity{
 			Event: "member.removed", TargetType: string(Type), TargetID: id,
-			Properties: map[string]any{"role": current},
+			Properties: map[string]any{"role": current.Name},
 		})
 	})
 }

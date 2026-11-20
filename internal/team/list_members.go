@@ -12,17 +12,16 @@ import (
 	"github.com/go-tenon/tenon/login"
 
 	"agents-desk/internal/account"
-	"agents-desk/internal/auth"
 	"agents-desk/internal/member"
 )
 
 // TeamMember 是团队中的一个成员：账号和他在工作区中的角色。
 type TeamMember struct {
-	MemberID  string        `json:"member_id"`
-	Name      string        `json:"name"`
-	Email     string        `json:"email"`
-	AvatarURL string        `json:"avatar_url" doc:"头像的地址；没有头像时为空"`
-	Role      auth.RoleName `json:"role" doc:"他在工作区中的角色"`
+	MemberID  string `json:"member_id"`
+	Name      string `json:"name"`
+	Email     string `json:"email"`
+	AvatarURL string `json:"avatar_url" doc:"头像的地址；没有头像时为空"`
+	RoleName  string `json:"role_name" doc:"他在工作区中的角色的名称"`
 }
 
 // TeamMemberOutput 是返回团队中一个成员的响应。
@@ -95,5 +94,5 @@ func toTeamMember(ctx context.Context, roles *authz.Store, logins *login.Realm, 
 	if err != nil {
 		return TeamMember{}, err
 	}
-	return TeamMember{MemberID: m.ID, Name: m.Name, Email: email, AvatarURL: avatar, Role: role}, nil
+	return TeamMember{MemberID: m.ID, Name: m.Name, Email: email, AvatarURL: avatar, RoleName: member.RoleName(role)}, nil
 }
