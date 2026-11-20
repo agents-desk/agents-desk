@@ -11,6 +11,28 @@ export const AccountErrors = {
   WrongPassword: "account.wrong_password",
 } as const
 
+/** agents-desk/internal/channel 的错误码。 */
+export const ChannelErrors = {
+  /** ErrNotFound 是渠道不存在，或者属于别的工作区。 */
+  NotFound: "channel.not_found",
+  /** ErrDisabled 是渠道已停用，不再收发消息。 */
+  Disabled: "channel.disabled",
+} as const
+
+/** agents-desk/internal/contact 的错误码。 */
+export const ContactErrors = {
+  /** ErrNotFound 是联系人不存在，或者属于别的工作区。 */
+  NotFound: "contact.not_found",
+} as const
+
+/** agents-desk/internal/conversation 的错误码。 */
+export const ConversationErrors = {
+  /** ErrNotFound 是会话不存在，或者属于别的工作区。 */
+  NotFound: "conversation.not_found",
+  /** ErrForbidden 是调用者没有权限执行这个会话动作。 */
+  Forbidden: "conversation.forbidden",
+} as const
+
 /** agents-desk/internal/member 的错误码。 */
 export const MemberErrors = {
   NotFound: "member.not_found",

@@ -31,6 +31,37 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
   return {
     /** 这个 API 全部查询的 key 前缀。 */
     key: () => key(),
+    conversation: {
+      /** conversation 分组全部查询的 key 前缀。 */
+      key: () => key("conversation"),
+      /** GET /conversations/{id} */
+      get: (...args: Parameters<Client["conversation"]["get"]>) => ({
+        queryKey: key("conversation", "get", ...args),
+        queryFn: () => client.conversation.get(...args),
+      }),
+      /** GET /conversations/{id}/items */
+      items: (...args: Parameters<Client["conversation"]["items"]>) => ({
+        queryKey: key("conversation", "items", ...args),
+        queryFn: () => client.conversation.items(...args),
+      }),
+      /** GET /conversations */
+      list: (...args: Parameters<Client["conversation"]["list"]>) => ({
+        queryKey: key("conversation", "list", ...args),
+        queryFn: () => client.conversation.list(...args),
+      }),
+      /** POST /conversations/{id}/notes */
+      note: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["note"]>) => client.conversation.note(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
+      /** POST /conversations/{id}/replies */
+      reply: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["reply"]>) => client.conversation.reply(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
+    },
     member: {
       /** member 分组全部查询的 key 前缀。 */
       key: () => key("member"),

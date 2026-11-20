@@ -19,6 +19,7 @@ import (
 
 	"agents-desk/apps"
 	"agents-desk/internal/auth"
+	"agents-desk/internal/conversation"
 	"agents-desk/internal/llm"
 	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
@@ -122,6 +123,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		member.RegisterTenantRoutes(api, require, a.db, a.roles, a.memberLogins, a.files,
 			member.Hooks{RoleChanged: team.OnRoleChanged, Removed: team.OnMemberRemoved})
 		team.RegisterRoutes(api, require, a.db, a.roles, a.memberLogins, a.files)
+		conversation.RegisterRoutes(api, require, a.db, a.downstream())
 	})
 
 	// 本地磁盘中上传的文件（头像等），地址是 filesystem.disks.local.public_url。

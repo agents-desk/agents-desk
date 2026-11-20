@@ -21,17 +21,17 @@ var (
 	// Owner 是租户（工作区）的主管理员，分配在租户的域中。每个工作区只有一个，只在管理员端更换。
 	Owner = authz.Role{
 		Name: string(RoleOwner), Description: "工作区的主管理员",
-		Permissions: []string{string(MembersRead), string(MembersManage), string(TenantSettingsManage), string(TeamsRead), string(TeamsManage)},
+		Permissions: []string{string(MembersRead), string(MembersManage), string(TenantSettingsManage), string(TeamsRead), string(TeamsManage), string(ConversationsRead), string(ConversationsReply)},
 	}
 	// Admin 是工作区的管理员：管理成员和工作区的设置，不能动主管理员。
 	Admin = authz.Role{
 		Name: string(RoleAdmin), Description: "工作区的管理员",
-		Permissions: []string{string(MembersRead), string(MembersManage), string(TenantSettingsManage), string(TeamsRead), string(TeamsManage)},
+		Permissions: []string{string(MembersRead), string(MembersManage), string(TenantSettingsManage), string(TeamsRead), string(TeamsManage), string(ConversationsRead), string(ConversationsReply)},
 	}
 	// Lead 是组长：带领团队处理会话和工单。只有组长、管理员和主管理员能当团队的组长。
-	Lead = authz.Role{Name: string(RoleLead), Description: "组长", Permissions: []string{string(MembersRead), string(TeamsRead)}}
+	Lead = authz.Role{Name: string(RoleLead), Description: "组长", Permissions: []string{string(MembersRead), string(TeamsRead), string(ConversationsRead), string(ConversationsReply)}}
 	// Agent 是坐席：处理会话和工单。
-	Agent = authz.Role{Name: string(RoleAgent), Description: "坐席", Permissions: []string{string(MembersRead), string(TeamsRead)}}
+	Agent = authz.Role{Name: string(RoleAgent), Description: "坐席", Permissions: []string{string(MembersRead), string(TeamsRead), string(ConversationsRead), string(ConversationsReply)}}
 )
 
 // RoleName 是成员在工作区中的角色。每个成员在一个工作区中只有一个角色。

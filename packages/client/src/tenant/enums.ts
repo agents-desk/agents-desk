@@ -12,6 +12,69 @@ export const enums = {
       "zh-CN": { admin: "管理员", lead: "组长", agent: "坐席" },
     },
   },
+  ChannelKind: {
+    prefix: "channel.kind",
+    values: ["test"],
+    labels: {
+      "zh-CN": { test: "测试渠道" },
+    },
+  },
+  ContactKind: {
+    prefix: "contact.kind",
+    values: ["user", "lead"],
+    labels: {
+      "zh-CN": { user: "用户", lead: "线索" },
+    },
+  },
+  ConversationActorType: {
+    prefix: "conversation.actor_type",
+    values: ["contact", "member", "system"],
+    labels: {
+      "zh-CN": { contact: "联系人", member: "成员", system: "系统" },
+    },
+  },
+  ConversationDelivery: {
+    prefix: "conversation.delivery",
+    values: ["sending", "delivered", "read", "failed"],
+    labels: {
+      "zh-CN": { sending: "发送中", delivered: "已送达", read: "已读", failed: "失败" },
+    },
+  },
+  ConversationItemKind: {
+    prefix: "conversation.item_kind",
+    values: ["message", "note", "event"],
+    labels: {
+      "zh-CN": { message: "消息", note: "内部备注", event: "系统事件" },
+    },
+  },
+  ConversationKind: {
+    prefix: "conversation.kind",
+    values: ["service", "chat"],
+    labels: {
+      "zh-CN": { service: "服务型会话", chat: "聊天型会话" },
+    },
+  },
+  ConversationPriority: {
+    prefix: "conversation.priority",
+    values: ["normal", "high"],
+    labels: {
+      "zh-CN": { normal: "普通", high: "高" },
+    },
+  },
+  ConversationStatus: {
+    prefix: "conversation.status",
+    values: ["open", "snoozed", "closed"],
+    labels: {
+      "zh-CN": { open: "打开", snoozed: "稍后处理", closed: "已关闭" },
+    },
+  },
+  ConversationVisibility: {
+    prefix: "conversation.visibility",
+    values: ["all", "members"],
+    labels: {
+      "zh-CN": { all: "所有人", members: "仅成员" },
+    },
+  },
   Role: {
     prefix: "role",
     values: ["owner", "admin", "lead", "agent"],

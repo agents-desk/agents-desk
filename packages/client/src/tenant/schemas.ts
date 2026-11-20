@@ -5,6 +5,60 @@
  * 规则与服务端相同，交给 @go-tenon/client 的校验函数使用；$ref 指向 components 中的命名类型。
  */
 export const schemas = {
+  conversation: {
+    items: {
+      query: {
+        "properties": {
+          "after": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "limit": {
+            "default": 100,
+            "format": "int64",
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+    },
+    list: {
+      query: {
+        "properties": {
+          "page": {
+            "default": 1,
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "per_page": {
+            "default": 20,
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ConversationStatus"
+          }
+        },
+        "type": "object"
+      },
+    },
+    note: {
+      body: {
+        "$ref": "#/components/schemas/ConversationTextBody"
+      },
+    },
+    reply: {
+      body: {
+        "$ref": "#/components/schemas/ConversationTextBody"
+      },
+    },
+  },
   member: {
     add: {
       body: {
@@ -106,6 +160,28 @@ export const components = {
       "agent"
     ],
     "type": "string"
+  },
+  ConversationStatus: {
+    "enum": [
+      "open",
+      "snoozed",
+      "closed"
+    ],
+    "type": "string"
+  },
+  ConversationTextBody: {
+    "additionalProperties": false,
+    "properties": {
+      "text": {
+        "maxLength": 10000,
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "text"
+    ],
+    "type": "object"
   },
   MemberAddParams: {
     "additionalProperties": false,

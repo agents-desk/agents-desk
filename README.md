@@ -21,7 +21,7 @@ bun run dev      # 工作区端在 http://localhost:8081，管理员端在 /admi
 bun run build    # 构建 bin/agents-desk
 ```
 
-用 `admin@example.com` / `password` 登录管理员端，可以看到示例工作区 `demo`；它的主管理员 `owner@example.com` / `password` 登录工作区端 <http://localhost:8081/>，进入 `/t/demo/`。示例工作区中还有管理员 `manager@example.com`、组长 `lead@example.com`、坐席 `agent@example.com`，密码都是 `password`，用来看不同角色的界面；组长和坐席在团队“一线客服”中。生产环境不运行 `seed`，第一个平台管理员用 `admin create --email <邮箱>` 创建，密码在终端中输入。
+用 `admin@example.com` / `password` 登录管理员端，可以看到示例工作区 `demo`；它的主管理员 `owner@example.com` / `password` 登录工作区端 <http://localhost:8081/>，进入 `/t/demo/`。示例工作区中还有管理员 `manager@example.com`、组长 `lead@example.com`、坐席 `agent@example.com`，密码都是 `password`，用来看不同角色的界面；组长和坐席在团队“一线客服”中。示例工作区还有一个测试渠道和 10 个示例会话；`go run ./cmd/agents-desk dev message --from rahul "..."` 以客户的身份往测试渠道发一条消息，用来看新消息进来的样子。生产环境不运行 `seed`，第一个平台管理员用 `admin create --email <邮箱>` 创建，密码在终端中输入。
 
 上传的文件（头像等）默认保存在本机的 `storage/files` 目录中（不提交），由应用在 `/storage/` 下提供访问。部署多台服务器或使用 CDN 时改用 S3 兼容的对象存储：在 `config/app.yaml` 的 `filesystem.disks` 中配置 `s3`，并把 `default_disk` 设为 `s3`（或设置环境变量 `FILES_DISK=s3`），见 `.tenon/docs/libraries/filesystem.md`。
 

@@ -73,3 +73,36 @@ assignable_role.lead: 组长
 assignable_role.agent: 坐席
 
 llm.purpose.translation: 翻译
+
+"permission.conversations:read": 查看会话
+"permission.conversations:reply": 回复会话
+
+contact.not_found: 联系人不存在
+contact.kind.user: 用户
+contact.kind.lead: 线索
+
+channel.not_found: 渠道不存在
+channel.disabled: 这个渠道已停用
+channel.kind.test: 测试渠道
+
+conversation.not_found: 会话不存在
+conversation.forbidden: 你没有权限执行这个操作
+conversation.kind.service: 服务型会话
+conversation.kind.chat: 聊天型会话
+conversation.status.open: 打开
+conversation.status.snoozed: 稍后处理
+conversation.status.closed: 已关闭
+conversation.priority.normal: 普通
+conversation.priority.high: 高
+conversation.item_kind.message: 消息
+conversation.item_kind.note: 内部备注
+conversation.item_kind.event: 系统事件
+conversation.visibility.all: 所有人
+conversation.visibility.members: 仅成员
+conversation.actor_type.contact: 联系人
+conversation.actor_type.member: 成员
+conversation.actor_type.system: 系统
+conversation.delivery.sending: 发送中
+conversation.delivery.delivered: 已送达
+conversation.delivery.read: 已读
+conversation.delivery.failed: 失败

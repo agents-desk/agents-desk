@@ -35,7 +35,7 @@ agents-desk 是团队的综合服务平台，以 AI 为核心，以聊天为基�
 docker compose up -d --wait                                          # PostgreSQL（127.0.0.1:15432）和 NATS（127.0.0.1:14222）
 printf 'crypt:\n  key: %s\n' "$(openssl rand -base64 32)" > config/local.yaml   # 应用密钥，只在本机
 go run ./cmd/agents-desk migrate up
-go run ./cmd/agents-desk seed                                        # 开发用的数据：平台管理员 admin@example.com、示例工作区 demo（主管理员 owner@、管理员 manager@、组长 lead@、坐席 agent@example.com，团队“一线客服”），密码都是 password
+go run ./cmd/agents-desk seed                                        # 开发用的数据：平台管理员 admin@example.com、示例工作区 demo（主管理员 owner@、管理员 manager@、组长 lead@、坐席 agent@example.com，团队“一线客服”，测试渠道和 10 个示例会话），密码都是 password
 bun run dev                                                          # 管理员端在 http://localhost:8081/admin/
 ```
 
@@ -48,7 +48,8 @@ bun run build                     # 构建可执行文件 bin/agents-desk，前�
 bun run typecheck                 # 前端的类型检查
 bun run agents                    # 升级框架之后，更新框架文档、技能和 AI 编程助手的 MCP 配置
 go run ./cmd/agents-desk migrate up   # 执行迁移；migrate make <名称> 新建迁移，migrate publish 发布框架的迁移
-go run ./cmd/agents-desk seed       # 写入开发和演示用的账号和工作区，可以重复运行；只在开发和演示环境中运行
+go run ./cmd/agents-desk seed       # 写入开发和演示用的账号、工作区和示例会话，可以重复运行；只在开发和演示环境中运行
+go run ./cmd/agents-desk dev message --from rahul "mera order nahi aaya"   # 以客户的身份往 demo 的测试渠道发一条消息
 go run ./cmd/agents-desk admin create --email <邮箱>   # 创建平台管理员，密码在终端中输入（生产环境用它）
 go run ./cmd/agents-desk routes     # 全部路由
 go run ./cmd/agents-desk openapi    # OpenAPI 文档
