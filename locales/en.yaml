@@ -103,6 +103,13 @@ hours.reply_time.hours: "in a few hours"
 hours.reply_time.day: "within a day"
 
 llm.call_type.translation: "Translation"
+llm.not_configured: "Translation isn't set up yet. Ask a platform admin to set the translation model in the platform settings"
+llm.failed: "The model is unavailable right now. Please try again later"
+translation.forbidden: "You don't have permission to reply to conversations"
+translation.duplicate_term: "The term “{{.term}}” appears more than once"
+translation.tone.friendly: "Friendly"
+translation.tone.neutral: "Neutral"
+translation.tone.formal: "Formal"
 
 "permission.conversations:read": "View conversations"
 "permission.conversations:reply": "Reply to conversations"

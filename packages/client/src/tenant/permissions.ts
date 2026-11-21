@@ -74,6 +74,11 @@ export const required = {
   tenant: {
     rename: ["tenant-settings:manage"],
   },
+  translation: {
+    glossarySave: ["tenant-settings:manage"],
+    preview: ["conversations:reply"],
+    toneSave: ["tenant-settings:manage"],
+  },
   widget: {
     create: ["channels:manage"],
     get: ["channels:manage"],

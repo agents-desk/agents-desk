@@ -103,6 +103,13 @@ hours.reply_time.hours: 几小时内
 hours.reply_time.day: 一天内
 
 llm.call_type.translation: 翻译
+llm.not_configured: 翻译还没有配置，请平台管理员在平台设置中填写翻译的模型接口
+llm.failed: 模型接口暂时不可用，请稍后再试
+translation.forbidden: 你没有回复会话的权限
+translation.duplicate_term: "术语“{{.term}}”重复了"
+translation.tone.friendly: 亲切
+translation.tone.neutral: 中性
+translation.tone.formal: 正式
 
 "permission.conversations:read": 查看会话
 "permission.conversations:reply": 回复会话

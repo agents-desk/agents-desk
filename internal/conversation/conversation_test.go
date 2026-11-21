@@ -88,7 +88,7 @@ func TestReceiveReplyDeliver(t *testing.T) {
 		t.Fatalf("同一个客户的第二条和重复的消息：%+v %+v", second, again)
 	}
 
-	reply, err := conversation.NewReply(env.DB, f.down).Handle(ctx, f.agent, c.ID, "您好，我帮您查一下")
+	reply, err := conversation.NewReply(env.DB, f.down).Handle(ctx, f.agent, c.ID, conversation.ReplyBody{Text: "您好，我帮您查一下"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +160,7 @@ func TestNoteAndPermissions(t *testing.T) {
 
 	nobody := f.agent
 	nobody.Permissions = nil
-	if _, err := conversation.NewReply(env.DB, f.down).Handle(ctx, nobody, id, "hi"); !errors.Is(err, conversation.ErrForbidden) {
+	if _, err := conversation.NewReply(env.DB, f.down).Handle(ctx, nobody, id, conversation.ReplyBody{Text: "hi"}); !errors.Is(err, conversation.ErrForbidden) {
 		t.Errorf("没有权限的回复：%v", err)
 	}
 	if _, err := conversation.NewGet(env.DB).Handle(ctx, nobody, id); !errors.Is(err, conversation.ErrForbidden) {
@@ -184,7 +184,7 @@ func TestTenantIsolation(t *testing.T) {
 	if _, err := conversation.NewGet(env.DB).Handle(ctx, beta.agent, id); !errors.Is(err, conversation.ErrNotFound) {
 		t.Errorf("别的工作区读取：%v", err)
 	}
-	if _, err := conversation.NewReply(env.DB, beta.down).Handle(ctx, beta.agent, id, "hi"); !errors.Is(err, conversation.ErrNotFound) {
+	if _, err := conversation.NewReply(env.DB, beta.down).Handle(ctx, beta.agent, id, conversation.ReplyBody{Text: "hi"}); !errors.Is(err, conversation.ErrNotFound) {
 		t.Errorf("别的工作区回复：%v", err)
 	}
 	_, err := conversation.NewReceive(env.DB, channel.DefaultRegistry(), beta.down).Handle(ctx, beta.system, conversation.ReceiveParams{ChannelID: alpha.ch.ID, From: "x", Text: "x"})
@@ -272,7 +272,7 @@ func TestRetry(t *testing.T) {
 	f := setup(t, env, "alpha")
 
 	got := f.receive(t, "rahul", "hello", "")
-	reply, err := conversation.NewReply(env.DB, f.down).Handle(ctx, f.agent, got.ConversationID, "您好")
+	reply, err := conversation.NewReply(env.DB, f.down).Handle(ctx, f.agent, got.ConversationID, conversation.ReplyBody{Text: "您好"})
 	if err != nil {
 		t.Fatal(err)
 	}

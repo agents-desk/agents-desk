@@ -232,7 +232,7 @@ func seedConversations(ctx context.Context, out io.Writer, db *bun.DB, memberLog
 		var id string
 		for _, turn := range chat.turns {
 			if turn.agent {
-				if _, err := reply.Handle(ctx, agent, id, turn.text); err != nil {
+				if _, err := reply.Handle(ctx, agent, id, conversation.ReplyBody{Text: turn.text}); err != nil {
 					return err
 				}
 				continue

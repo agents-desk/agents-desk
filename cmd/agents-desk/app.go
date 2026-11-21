@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -39,6 +40,7 @@ import (
 	"agents-desk/internal/llm"
 	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
+	"agents-desk/internal/translation"
 	"agents-desk/internal/widget"
 )
 
@@ -59,7 +61,9 @@ type App struct {
 	contactTokens *apitoken.Store // 客户（联系人）在聊天插件中的令牌
 	crypt         *crypt.Crypt    // 应用密钥：加密保存聊天插件的身份验证密钥
 
-	llmSettings *settings.Group[llm.Settings] // 模型接口的平台设置
+	llmSettings         *settings.Group[llm.Settings]         // 模型接口的平台设置
+	translationSettings *settings.Group[translation.Settings] // 各工作区的翻译设置：语气、术语表
+	translator          *translation.Translator               // 调用模型识别语言和翻译
 
 	files     *filesystem.Service // 上传的文件：头像等
 	localDisk *local.Disk         // 本地磁盘，在 /storage/ 下提供访问；没有配置本地磁盘时为空
@@ -68,11 +72,11 @@ type App struct {
 	channels channel.Registry // 各种渠道的连接器
 }
 
-// downstream 返回会话有变化时通知的下游：把发给对方的消息交给连接器发出，提交后推送给能看到会话的成员，
-// 会话的状态变化推送给客户的聊天窗口。以后加上翻译。
+// downstream 返回会话有变化时通知的下游：把发给对方的消息交给连接器发出，翻译收到的消息，提交后推送给能看到会话的成员，
+// 会话的状态变化推送给客户的聊天窗口。
 // 没有广播时（只构造路由的命令）两种推送都不做。
 func (a *App) downstream() conversation.Downstream {
-	down := conversation.Downstream{Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic}, Hub: a.hub, Roles: a.roles}
+	down := conversation.Downstream{Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic, translation.Topic}, Hub: a.hub, Roles: a.roles}
 	if a.hub != nil {
 		down.ContactPush = widget.Push(a.hub)
 	}
@@ -154,14 +158,16 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	llmSettings, translationSettings := llm.NewGroup(db), translation.NewGroup(db)
 
 	return &App{
 		cfg: cfg, db: db, nc: nc, hub: hub, presence: presence, roles: roles,
 		adminLogins: adminLogins, adminTokens: apitoken.NewStore(db, cfg.AdminToken),
 		memberLogins: memberLogins, memberTokens: apitoken.NewStore(db, cfg.MemberToken),
 		contactTokens: apitoken.NewStore(db, cfg.ContactToken), crypt: keys,
-		llmSettings: llm.NewGroup(db),
-		files:       files, localDisk: localDisk, locker: lock.New(pglock.New(db)),
+		llmSettings: llmSettings, translationSettings: translationSettings,
+		translator: translation.NewTranslator(db, llm.NewClient(db, llmSettings, &http.Client{Timeout: 60 * time.Second}), translationSettings),
+		files:      files, localDisk: localDisk, locker: lock.New(pglock.New(db)),
 		channels: registry(hub),
 	}, nil
 }
@@ -186,6 +192,7 @@ func parts(a *App) []command.Part {
 func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
 	w := queue.NewWorker(a.db, a.nc, a.cfg.Queue, nil)
 	conversation.RegisterJobs(w, a.db, a.channels)
+	translation.RegisterJobs(w, a.db, a.translator, a.downstream())
 	return w.Run, nil
 }
 

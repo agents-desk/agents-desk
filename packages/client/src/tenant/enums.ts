@@ -133,4 +133,12 @@ export const enums = {
       "zh-CN": { manual: "手动：成员自己领取", round_robin: "轮流：依次分给在线的成员" },
     },
   },
+  TranslationTone: {
+    prefix: "translation.tone",
+    values: ["friendly", "neutral", "formal"],
+    labels: {
+      "en": { friendly: "Friendly", neutral: "Neutral", formal: "Formal" },
+      "zh-CN": { friendly: "亲切", neutral: "中性", formal: "正式" },
+    },
+  },
 } as const

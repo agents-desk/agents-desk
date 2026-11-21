@@ -57,6 +57,14 @@ export const HoursErrors = {
   DuplicateDate: "hours.duplicate_date",
 } as const
 
+/** agents-desk/internal/llm 的错误码。 */
+export const LlmErrors = {
+  /** ErrNotConfigured 是这种调用类型还没有配置模型接口：平台管理员在管理员端的平台设置中填写。 */
+  NotConfigured: "llm.not_configured",
+  /** ErrFailed 是模型接口调用失败，或者回答不是要求的格式。 */
+  Failed: "llm.failed",
+} as const
+
 /** agents-desk/internal/member 的错误码。 */
 export const MemberErrors = {
   NotFound: "member.not_found",
@@ -105,6 +113,14 @@ export const TenantErrors = {
   SlugReserved: "tenant.slug_reserved",
   /** ErrDisabled 是成员进入的工作区已停用（403）：只有这个工作区的成员会看到它，其他人得到 404。 */
   Disabled: "tenant.disabled",
+} as const
+
+/** agents-desk/internal/translation 的错误码。 */
+export const TranslationErrors = {
+  /** ErrForbidden 是调用者没有回复会话的权限。 */
+  Forbidden: "translation.forbidden",
+  /** ErrDuplicateTerm 是术语表中有重复的词（不区分大小写）。 */
+  DuplicateTerm: "translation.duplicate_term",
 } as const
 
 /** agents-desk/internal/widget 的错误码。 */

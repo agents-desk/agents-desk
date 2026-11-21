@@ -299,6 +299,33 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
           invalidate(context, "tenant"),
       }),
     },
+    translation: {
+      /** translation 分组全部查询的 key 前缀。 */
+      key: () => key("translation"),
+      /** PUT /settings/translation/glossary */
+      glossarySave: () => ({
+        mutationFn: (variables: Parameters<Client["translation"]["glossarySave"]>[0]) => client.translation.glossarySave(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "translation"),
+      }),
+      /** POST /conversations/{id}/translations */
+      preview: () => ({
+        mutationFn: (variables: Parameters<Client["translation"]["preview"]>) => client.translation.preview(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "translation"),
+      }),
+      /** GET /settings/translation */
+      settings: (...args: Parameters<Client["translation"]["settings"]>) => ({
+        queryKey: key("translation", "settings", ...args),
+        queryFn: () => client.translation.settings(...args),
+      }),
+      /** PUT /settings/translation/tone */
+      toneSave: () => ({
+        mutationFn: (variables: Parameters<Client["translation"]["toneSave"]>[0]) => client.translation.toneSave(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "translation"),
+      }),
+    },
     widget: {
       /** widget 分组全部查询的 key 前缀。 */
       key: () => key("widget"),
