@@ -9,6 +9,7 @@ export const enums = {
     prefix: "channel.kind",
     values: ["test"],
     labels: {
+      "en": { test: "Test channel" },
       "zh-CN": { test: "测试渠道" },
     },
   },
@@ -16,6 +17,7 @@ export const enums = {
     prefix: "contact.kind",
     values: ["user", "lead"],
     labels: {
+      "en": { user: "User", lead: "Lead" },
       "zh-CN": { user: "用户", lead: "线索" },
     },
   },
@@ -23,6 +25,7 @@ export const enums = {
     prefix: "conversation.actor_type",
     values: ["contact", "member", "system"],
     labels: {
+      "en": { contact: "Contact", member: "Member", system: "System" },
       "zh-CN": { contact: "联系人", member: "成员", system: "系统" },
     },
   },
@@ -30,6 +33,7 @@ export const enums = {
     prefix: "conversation.delivery",
     values: ["sending", "delivered", "read", "failed"],
     labels: {
+      "en": { sending: "Sending", delivered: "Delivered", read: "Read", failed: "Failed" },
       "zh-CN": { sending: "发送中", delivered: "已送达", read: "已读", failed: "失败" },
     },
   },
@@ -37,6 +41,7 @@ export const enums = {
     prefix: "conversation.inbox",
     values: ["mine", "mentions", "unassigned", "all"],
     labels: {
+      "en": { mine: "Mine", mentions: "Mentions", unassigned: "Unassigned", all: "All" },
       "zh-CN": { mine: "我的", mentions: "@我", unassigned: "未指派", all: "全部" },
     },
   },
@@ -44,6 +49,7 @@ export const enums = {
     prefix: "conversation.item_kind",
     values: ["message", "note", "event"],
     labels: {
+      "en": { message: "Message", note: "Internal note", event: "System event" },
       "zh-CN": { message: "消息", note: "内部备注", event: "系统事件" },
     },
   },
@@ -51,6 +57,7 @@ export const enums = {
     prefix: "conversation.kind",
     values: ["service", "chat"],
     labels: {
+      "en": { service: "Service conversation", chat: "Chat conversation" },
       "zh-CN": { service: "服务型会话", chat: "聊天型会话" },
     },
   },
@@ -58,6 +65,7 @@ export const enums = {
     prefix: "conversation.priority",
     values: ["normal", "high"],
     labels: {
+      "en": { normal: "Normal", high: "High" },
       "zh-CN": { normal: "普通", high: "高" },
     },
   },
@@ -65,6 +73,7 @@ export const enums = {
     prefix: "conversation_scope",
     values: ["all", "team", "assigned"],
     labels: {
+      "en": { all: "All conversations", team: "Conversations in their team inboxes and assigned to them", assigned: "Only conversations assigned to them" },
       "zh-CN": { all: "全部会话", team: "所在团队收件箱的和指派给自己的会话", assigned: "只有指派给自己的会话" },
     },
   },
@@ -72,6 +81,7 @@ export const enums = {
     prefix: "conversation.sort",
     values: ["waiting", "recent"],
     labels: {
+      "en": { waiting: "Waiting time", recent: "Recent activity" },
       "zh-CN": { waiting: "等待时长", recent: "最近活动" },
     },
   },
@@ -79,6 +89,7 @@ export const enums = {
     prefix: "conversation.status",
     values: ["open", "snoozed", "closed"],
     labels: {
+      "en": { open: "Open", snoozed: "Snoozed", closed: "Closed" },
       "zh-CN": { open: "打开", snoozed: "稍后处理", closed: "已关闭" },
     },
   },
@@ -86,6 +97,7 @@ export const enums = {
     prefix: "conversation.visibility",
     values: ["all", "members"],
     labels: {
+      "en": { all: "Everyone", members: "Members only" },
       "zh-CN": { all: "所有人", members: "仅成员" },
     },
   },
@@ -93,6 +105,7 @@ export const enums = {
     prefix: "hours.reply_time",
     values: ["minutes", "hour", "hours", "day"],
     labels: {
+      "en": { minutes: "in a few minutes", hour: "within an hour", hours: "in a few hours", day: "within a day" },
       "zh-CN": { minutes: "几分钟内", hour: "一小时内", hours: "几小时内", day: "一天内" },
     },
   },
@@ -100,6 +113,7 @@ export const enums = {
     prefix: "member.status",
     values: ["online", "away"],
     labels: {
+      "en": { online: "Online", away: "Away" },
       "zh-CN": { online: "在线", away: "离开" },
     },
   },
@@ -107,6 +121,7 @@ export const enums = {
     prefix: "role_permission",
     values: ["conversations:assign", "members:manage", "teams:manage", "tenant-settings:manage"],
     labels: {
+      "en": { "conversations:assign": "Reassign conversations to others", "members:manage": "Manage members and roles", "teams:manage": "Manage team inboxes", "tenant-settings:manage": "Manage workspace settings" },
       "zh-CN": { "conversations:assign": "把会话改派给别人", "members:manage": "管理成员和角色", "teams:manage": "管理团队收件箱", "tenant-settings:manage": "管理工作区设置" },
     },
   },
@@ -114,6 +129,7 @@ export const enums = {
     prefix: "team_assignment",
     values: ["manual", "round_robin"],
     labels: {
+      "en": { manual: "Manual: members claim conversations", round_robin: "Round robin: assigned in turn to online members" },
       "zh-CN": { manual: "手动：成员自己领取", round_robin: "轮流：依次分给在线的成员" },
     },
   },
