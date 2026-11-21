@@ -16,6 +16,7 @@ import (
 	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/broadcast/broadcasttest"
 	"github.com/go-tenon/tenon/config"
+	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/apptest"
 	"agents-desk/internal/conversation"
@@ -187,6 +188,57 @@ func TestWidgetAPI(t *testing.T) {
 	}
 	if r := callBearer(h, "GET", base+"/conversations/"+sent.ConversationID, "", stranger.Token); r.status != http.StatusNotFound {
 		t.Errorf("别人读取会话：%d", r.status)
+	}
+	// 评价：打开的会话不能评价，星数在 1 到 5 之间
+	if r := callBearer(h, "POST", base+"/conversations/"+sent.ConversationID+"/rating", `{"score":5}`, session.Token); r.status != http.StatusConflict || r.code != "conversation.not_closed" {
+		t.Errorf("评价打开的会话：%d %s", r.status, r.code)
+	}
+	if r := callBearer(h, "POST", base+"/conversations/"+sent.ConversationID+"/rating", `{"score":6}`, session.Token); r.status != http.StatusUnprocessableEntity {
+		t.Errorf("6 星：%d", r.status)
+	}
+	if r := call(h, "POST", "/t/alpha/api/conversations/"+sent.ConversationID+"/close", "", owner); r.status != http.StatusOK {
+		t.Fatalf("关闭：%d %s", r.status, r.body)
+	}
+	var rated conversation.ContactConversationDTO
+	decode(callBearer(h, "POST", base+"/conversations/"+sent.ConversationID+"/rating", `{"score":5,"comment":"谢谢"}`, session.Token), http.StatusOK, &rated)
+	if rated.Status != conversation.Closed || rated.Rating == nil || rated.Rating.Score != 5 {
+		t.Fatalf("评价后：%+v", rated)
+	}
+}
+
+// TestPageCSP 检查页面的内容安全策略：聊天窗口的页面按聊天插件允许嵌入的网站生成 frame-ancestors，
+// 不存在的聊天插件和其他页面都不能被嵌入。
+func TestPageCSP(t *testing.T) {
+	t.Parallel()
+	env := apptest.New(t)
+	ctx := context.Background()
+	a := &App{db: env.DB}
+	if _, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+		Name: "alpha", Slug: "alpha", OwnerEmail: "owner@alpha.com", OwnerName: "owner", OwnerPassword: "password",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	system := identity.Subject{Type: identity.System, ID: "test", Tenant: tenantOf(t, env, "alpha")}
+	open, err := widget.NewCreate(env.DB, env.Crypt).Handle(ctx, system, widget.Changes{Name: "官网"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	limited, err := widget.NewCreate(env.DB, env.Crypt).Handle(ctx, system, widget.Changes{Name: "App", AllowedOrigins: []string{"https://shop.example.com"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for target, want := range map[string]string{
+		"/widget/?channel=" + open.ID:    "frame-ancestors *",
+		"/widget/?channel=" + limited.ID: "frame-ancestors https://shop.example.com",
+		"/widget/?channel=x":             "frame-ancestors 'none'",
+		"/widget/demo":                   "frame-ancestors 'none'",
+		"/t/alpha/inbox":                 "frame-ancestors 'none'",
+		"/widgets?channel=" + open.ID:    "frame-ancestors 'none'",
+	} {
+		csp := a.pageCSP(httptest.NewRequest(http.MethodGet, target, nil), "n0nce")
+		if !strings.Contains(csp, want+";") || !strings.Contains(csp, "'nonce-n0nce'") {
+			t.Errorf("%s：%s", target, csp)
+		}
 	}
 }
 

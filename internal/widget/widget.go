@@ -12,6 +12,8 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"net/url"
+	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/google/uuid"
@@ -27,13 +29,16 @@ var (
 	ErrInvalidUserToken = errorx.Define(errorx.Unauthenticated, "widget.invalid_user_token")
 	// ErrTeamNotFound 是新会话进入的团队收件箱不存在，或者属于别的工作区。
 	ErrTeamNotFound = errorx.Define(errorx.InvalidArgument, "widget.team_not_found")
+	// ErrInvalidOrigin 是允许嵌入的网站写得不对：要写成 http:// 或 https:// 开头、只有域名（和端口）的地址。
+	ErrInvalidOrigin = errorx.Define(errorx.InvalidArgument, "widget.invalid_origin")
 )
 
 // Settings 是聊天插件保存在渠道设置（channels.settings）中的内容。
 type Settings struct {
-	Greeting       string `json:"greeting"`        // 聊天窗口顶部的问候语
-	Color          string `json:"color"`           // 聊天窗口的主题色，colors 中的一个
-	IdentitySecret string `json:"identity_secret"` // 身份验证密钥，用应用密钥加密保存；产品后端用明文签名用户身份
+	Greeting       string   `json:"greeting"`        // 聊天窗口顶部的问候语
+	Color          string   `json:"color"`           // 聊天窗口的主题色，colors 中的一个
+	AllowedOrigins []string `json:"allowed_origins"` // 允许嵌入聊天窗口的网站，形如 https://shop.example.com；为空表示所有网站
+	IdentitySecret string   `json:"identity_secret"` // 身份验证密钥，用应用密钥加密保存；产品后端用明文签名用户身份
 }
 
 // settingsOf 读出渠道 ch 中聊天插件的设置。
@@ -112,6 +117,25 @@ func checkTeam(ctx context.Context, db bun.IDB, tenant string, id *string) error
 		return ErrTeamNotFound.New(errorx.Field("team_id"))
 	}
 	return nil
+}
+
+// normalizeOrigins 把管理员填写的允许嵌入的网站整理成 scheme://host[:port] 的小写形式，去掉重复的，按填写的顺序返回。
+// 有一项不是 http 或 https 的地址、或者带了路径、查询参数时返回 ErrInvalidOrigin，带上这一项。
+func normalizeOrigins(in []string) ([]string, error) {
+	out := []string{}
+	seen := map[string]bool{}
+	for _, raw := range in {
+		u, err := url.Parse(strings.TrimRight(strings.TrimSpace(raw), "/"))
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.Path != "" || u.RawQuery != "" || u.Fragment != "" || u.User != nil {
+			return nil, ErrInvalidOrigin.New(errorx.Field("allowed_origins"), errorx.Public("origin", raw))
+		}
+		origin := strings.ToLower(u.Scheme + "://" + u.Host)
+		if !seen[origin] {
+			seen[origin] = true
+			out = append(out, origin)
+		}
+	}
+	return out, nil
 }
 
 // newID 返回按时间递增的 UUIDv7。

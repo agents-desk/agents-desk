@@ -25,6 +25,11 @@ export const schemas = {
         "type": "object"
       },
     },
+    rate: {
+      body: {
+        "$ref": "#/components/schemas/WidgetRateInputBody"
+      },
+    },
     read: {
       body: {
         "$ref": "#/components/schemas/WidgetReadInputBody"
@@ -67,6 +72,25 @@ export const components = {
     },
     "required": [
       "text"
+    ],
+    "type": "object"
+  },
+  WidgetRateInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "comment": {
+        "maxLength": 1000,
+        "type": "string"
+      },
+      "score": {
+        "format": "int64",
+        "maximum": 5,
+        "minimum": 1,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "score"
     ],
     "type": "object"
   },

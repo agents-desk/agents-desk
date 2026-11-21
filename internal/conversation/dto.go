@@ -39,6 +39,7 @@ type ConversationDTO struct {
 	Preview       string           `json:"preview" doc:"最后一条消息的文字"`
 	Unread        bool             `json:"unread" doc:"有我还没读到的消息或内部备注（不算我自己写的）"`
 	MentionedAt   *time.Time       `json:"mentioned_at,omitempty" doc:"最近一次 @ 我的时间，只在“@我”的列表中有"`
+	Rating        *Rating          `json:"rating,omitempty" doc:"客户最近一次的评价；没有评价过时为空"`
 	CreatedAt     time.Time        `json:"created_at"`
 }
 
@@ -153,7 +154,7 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 			ID: c.ID, Kind: c.Kind, Status: c.Status, TeamID: c.TeamID, Priority: c.Priority, Language: c.Language,
 			WaitingSince: c.WaitingSince, SnoozedUntil: c.SnoozedUntil, FirstReplyAt: c.FirstReplyAt, ClosedAt: c.ClosedAt,
 			LastMessageAt: c.LastMessageAt, LastSeq: c.LastSeq, Preview: preview[c.ID], Unread: unread[c.ID],
-			MentionedAt: c.MentionedAt, CreatedAt: c.CreatedAt,
+			MentionedAt: c.MentionedAt, Rating: c.rating(), CreatedAt: c.CreatedAt,
 		}
 		if c.ChannelID != nil {
 			s := channels[*c.ChannelID]

@@ -34,6 +34,7 @@ import (
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/platformadmin"
 	"agents-desk/internal/tenant"
+	"agents-desk/internal/widget"
 	"agents-desk/locales"
 	"agents-desk/migrations"
 )
@@ -87,7 +88,7 @@ func main() {
 		return []*cobra.Command{
 			platformadmin.Commands(a.db, a.adminLogins),
 			seedCommand(a.db, a.adminLogins, a.memberLogins, a.files, a.crypt, tenant.Addresses{PublicURL: a.cfg.PublicURL}, a.channels, a.downstream()),
-			conversation.Commands(a.db, a.channels, a.downstream()),
+			devCommands(a),
 		}
 	})...)
 	// openapi、routes、client 用默认配置和没有打开资源的 App 构造同一套路由，从中读取路由表和接口定义；
@@ -95,6 +96,13 @@ func main() {
 	root.AddCommand(httpcmd.Commands(docRouter, httpcmd.Translations(locales.FS))...)
 	// 命令失败时，业务错误按应用的翻译文件显示提示和错误码。
 	command.Execute(root, command.Languages(i18n.MustNew("zh-CN", locales.FS)))
+}
+
+// devCommands 返回开发用的命令组 dev：以客户的身份发消息（dev message），签名聊天插件的用户身份（dev user-token）。
+func devCommands(a *App) *cobra.Command {
+	dev := conversation.Commands(a.db, a.channels, a.downstream())
+	dev.AddCommand(widget.UserTokenCommand(a.db, a.crypt))
+	return dev
 }
 
 // migrateCommand 返回 migrate 命令：up、status、down、make，发布框架自带的迁移的 publish，

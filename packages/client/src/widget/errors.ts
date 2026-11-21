@@ -37,6 +37,10 @@ export const ConversationErrors = {
   NotFound: "conversation.not_found",
   /** ErrForbidden 是调用者没有权限执行这个会话动作。 */
   Forbidden: "conversation.forbidden",
+  /** ErrNotClosed 是会话还没有关闭，客户不能评价。 */
+  NotClosed: "conversation.not_closed",
+  /** ErrAlreadyRated 是客户已经评价过这次关闭的会话；会话重新打开、再关闭后可以再评价。 */
+  AlreadyRated: "conversation.already_rated",
 } as const
 
 /** agents-desk/internal/hours 的错误码。 */
@@ -107,6 +111,8 @@ export const WidgetErrors = {
   InvalidUserToken: "widget.invalid_user_token",
   /** ErrTeamNotFound 是新会话进入的团队收件箱不存在，或者属于别的工作区。 */
   TeamNotFound: "widget.team_not_found",
+  /** ErrInvalidOrigin 是允许嵌入的网站写得不对：要写成 http:// 或 https:// 开头、只有域名（和端口）的地址。 */
+  InvalidOrigin: "widget.invalid_origin",
 } as const
 
 /** github.com/go-tenon/tenon/apitoken 的错误码。 */

@@ -49,6 +49,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         queryKey: key("conversation", "list", ...args),
         queryFn: () => client.conversation.list(...args),
       }),
+      /** POST /conversations/{id}/rating */
+      rate: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["rate"]>) => client.conversation.rate(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
       /** POST /conversations/{id}/read */
       read: () => ({
         mutationFn: (variables: Parameters<Client["conversation"]["read"]>) => client.conversation.read(...variables),

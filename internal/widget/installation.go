@@ -16,6 +16,7 @@ import (
 // InstallationDTO 是把聊天插件装到产品网站上要用的内容。
 type InstallationDTO struct {
 	EmbedCode      string `json:"embed_code" doc:"放进网站每个页面的 </body> 之前的代码"`
+	AppURL         string `json:"app_url" doc:"App 用 WebView 全屏打开的地址"`
 	IdentitySecret string `json:"identity_secret" doc:"身份验证密钥：产品后端用它签名已登录用户的身份（HS256 的 JWT），只保存在产品后端"`
 }
 
@@ -56,7 +57,7 @@ func (a *GetInstallation) HTTP(ctx context.Context, in *IDInput) (*InstallationO
 }
 
 // installation 返回聊天插件 ch 的安装内容。嵌入代码在页面上声明渠道，再加载 publicURL 下的 /widget/loader.js，
-// 由它打开聊天窗口；已登录的用户在 user_token 中带上产品后端签名的身份。
+// 由它打开聊天窗口；已登录的用户在 user_token 中带上产品后端签名的身份。App 用 WebView 整页打开 /widget/?channel=<id>。
 func installation(ch *channel.Channel, c *crypt.Crypt, publicURL string) (*InstallationDTO, error) {
 	s, err := settingsOf(ch)
 	if err != nil {
@@ -72,5 +73,5 @@ func installation(ch *channel.Channel, c *crypt.Crypt, publicURL string) (*Insta
   // 已登录的用户：window.agentsDesk.user_token = "<产品后端用身份验证密钥签名的 JWT>";
 </script>
 <script async src="%s/widget/loader.js"></script>`, ch.ID, base)
-	return &InstallationDTO{EmbedCode: code, IdentitySecret: secret}, nil
+	return &InstallationDTO{EmbedCode: code, AppURL: base + "/widget/?channel=" + ch.ID, IdentitySecret: secret}, nil
 }

@@ -93,6 +93,8 @@ export interface ConversationDTO {
   /** 最后一条消息的文字 */
   preview: string
   priority: ConversationPriority
+  /** 客户最近一次的评价；没有评价过时为空 */
+  rating?: ConversationRating
   snoozed_until?: string
   status: ConversationStatus
   /** 团队收件箱的 ID；为空表示未指派到团队 */
@@ -149,6 +151,14 @@ export type ConversationPriority = "normal" | "high"
 
 export interface ConversationPriorityInputBody {
   priority: ConversationPriority
+}
+
+export interface ConversationRating {
+  /** 附的一句意见 */
+  comment: string
+  rated_at: string
+  /** 1 到 5 星 */
+  score: number
 }
 
 export interface ConversationReadInputBody {
@@ -430,6 +440,8 @@ export interface TenantGeneralSettings {
 }
 
 export interface WidgetChanges {
+  /** 允许嵌入聊天窗口的网站，形如 https://shop.example.com；不填时所有网站都可以嵌入 */
+  allowed_origins?: string[]
   /** 聊天窗口的主题色，不填时是 bright-blue */
   color?: "blue-gray" | "brown" | "tomato" | "deep-orange" | "bright-orange" | "yellow" | "bright-green" | "green" | "light-blue" | "sky-blue" | "pale-blue" | "bright-blue" | "deep-blue" | "pale-indigo" | "purple" | "pale-purple" | "violet" | "pale-violet" | "dark-pink" | "bright-pink" | "pink" | "magenta" | "bright-red" | "pale-red" | "deep-red" | "red"
   /** 聊天窗口顶部的问候语；不填时显示默认的问候语 */
@@ -440,6 +452,8 @@ export interface WidgetChanges {
 }
 
 export interface WidgetDTO {
+  /** 允许嵌入聊天窗口的网站；为空表示所有网站 */
+  allowed_origins: string[]
   /** 聊天窗口的主题色 */
   color: "blue-gray" | "brown" | "tomato" | "deep-orange" | "bright-orange" | "yellow" | "bright-green" | "green" | "light-blue" | "sky-blue" | "pale-blue" | "bright-blue" | "deep-blue" | "pale-indigo" | "purple" | "pale-purple" | "violet" | "pale-violet" | "dark-pink" | "bright-pink" | "pink" | "magenta" | "bright-red" | "pale-red" | "deep-red" | "red"
   created_at: string
@@ -456,6 +470,8 @@ export interface WidgetDTO {
 }
 
 export interface WidgetInstallationDTO {
+  /** App 用 WebView 全屏打开的地址 */
+  app_url: string
   /** 放进网站每个页面的 </body> 之前的代码 */
   embed_code: string
   /** 身份验证密钥：产品后端用它签名已登录用户的身份（HS256 的 JWT），只保存在产品后端 */
@@ -463,6 +479,8 @@ export interface WidgetInstallationDTO {
 }
 
 export interface WidgetUpdateBody {
+  /** 允许嵌入聊天窗口的网站，形如 https://shop.example.com；不填时所有网站都可以嵌入 */
+  allowed_origins?: string[]
   /** 聊天窗口的主题色，不填时是 bright-blue */
   color?: "blue-gray" | "brown" | "tomato" | "deep-orange" | "bright-orange" | "yellow" | "bright-green" | "green" | "light-blue" | "sky-blue" | "pale-blue" | "bright-blue" | "deep-blue" | "pale-indigo" | "purple" | "pale-purple" | "violet" | "pale-violet" | "dark-pink" | "bright-pink" | "pink" | "magenta" | "bright-red" | "pale-red" | "deep-red" | "red"
   /** 停用后聊天窗口不再显示，客户不能再发消息 */

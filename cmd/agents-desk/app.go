@@ -64,9 +64,15 @@ type App struct {
 	channels channel.Registry // 各种渠道的连接器
 }
 
-// downstream 返回会话有变化时通知的下游：把发给对方的消息交给连接器发出，提交后推送给能看到会话的成员。以后加上翻译。
+// downstream 返回会话有变化时通知的下游：把发给对方的消息交给连接器发出，提交后推送给能看到会话的成员，
+// 会话的状态变化推送给客户的聊天窗口。以后加上翻译。
+// 没有广播时（只构造路由的命令）两种推送都不做。
 func (a *App) downstream() conversation.Downstream {
-	return conversation.Downstream{Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic}, Hub: a.hub, Roles: a.roles}
+	down := conversation.Downstream{Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic}, Hub: a.hub, Roles: a.roles}
+	if a.hub != nil {
+		down.ContactPush = widget.Push(a.hub)
+	}
+	return down
 }
 
 // open 安装日志器，连接 PostgreSQL 和 NATS，确保预置的角色存在，创建账号、权限和设置的存储。serve 和需要资源的命令执行时调用它，
