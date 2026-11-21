@@ -92,23 +92,25 @@ func TestReceiveReplyDeliver(t *testing.T) {
 		t.Fatal(err)
 	}
 	c = f.get(t, c.ID)
-	if c.WaitingSince != nil || c.FirstReplyAt == nil || reply.Seq != 3 || reply.Actor.Type != conversation.MemberActor ||
+	// 回复即领取：时间线中先是领取的系统事件（序号 3），再是回复
+	if c.WaitingSince != nil || c.FirstReplyAt == nil || reply.Seq != 4 || reply.Actor.Type != conversation.MemberActor ||
+		c.Assignee == nil || c.Assignee.ID != f.agent.ID ||
 		reply.Delivery == nil || *reply.Delivery != conversation.Sending {
 		t.Fatalf("回复后：%+v，回复：%+v", c, reply)
 	}
 	// 每写入一项发布一个任务，重复的消息不发布
 	jobs := queuetest.Pending(t, env.DB, conversation.DeliverTopic)
-	if len(jobs) != 3 || jobs[2].ItemID != reply.ID {
+	if len(jobs) != 4 || jobs[3].ItemID != reply.ID {
 		t.Fatalf("发布的任务：%+v", jobs)
 	}
-	// 发出：客户的消息跳过，回复记为已送达；重复的任务不再发出
+	// 发出：客户的消息和系统事件跳过，回复记为已送达；重复的任务不再发出
 	deliver := conversation.NewDeliver(env.DB, channel.DefaultRegistry())
-	for _, job := range append(jobs, jobs[2]) {
+	for _, job := range append(jobs, jobs[3]) {
 		if err := deliver.Job(ctx, job); err != nil {
 			t.Fatal(err)
 		}
 	}
-	items, err := conversation.NewTimeline(env.DB).Handle(ctx, f.agent, c.ID, 2, 100)
+	items, err := conversation.NewTimeline(env.DB).Handle(ctx, f.agent, c.ID, 3, 100)
 	if err != nil || len(items) != 1 || items[0].Delivery == nil || *items[0].Delivery != conversation.Delivered {
 		t.Fatalf("发出后的时间线：%+v %v", items, err)
 	}

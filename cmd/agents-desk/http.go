@@ -66,8 +66,11 @@ func (a *App) routes(pages http.Handler) chi.Router {
 	}))
 
 	addr := tenant.Addresses{PublicURL: a.cfg.PublicURL}
-	// 成员离开工作区之后（移出成员、更换主管理员），团队收件箱在同一个事务中把他移出
-	memberHooks := member.Hooks{Removed: team.OnMemberRemoved}
+	// 成员离开工作区之后（移出成员、更换主管理员），在同一个事务中：他负责的未关闭会话放回团队收件箱重新分配，
+	// 团队收件箱把他移出
+	memberHooks := member.Hooks{Removed: []member.RemovedHook{
+		conversation.OnMemberLeft(a.downstream()), team.OnMemberRemoved,
+	}}
 
 	// 管理员端：只接受平台管理员，会话 cookie 是 __Host-admin，权限按平台的域加载。
 	router.Route("/admin/api", func(r chi.Router) {

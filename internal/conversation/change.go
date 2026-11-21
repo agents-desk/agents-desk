@@ -20,11 +20,11 @@ var (
 	ErrSnoozeInPast = errorx.Define(errorx.InvalidArgument, "conversation.snooze_in_past")
 )
 
-// changeFunc 在事务 tx 中修改已锁住的会话 c，返回要追加到时间线的系统事件；返回 nil 表示没有变化，什么也不写。
-type changeFunc func(ctx context.Context, tx bun.IDB, c *Conversation) (*Item, error)
+// changeFunc 在事务 tx 中修改已锁住的会话 c，返回要追加到时间线的系统事件；没有事件表示没有变化，什么也不写。
+type changeFunc func(ctx context.Context, tx bun.IDB, c *Conversation) ([]*Item, error)
 
 // change 是会话操作共用的写入路径：检查权限 perm，在一个事务中锁住 sub 能看到的会话 id，交给 fn 修改，
-// 有变化时追加 fn 返回的系统事件、保存会话并发布下游任务（commit），最后返回修改后的会话。
+// 有变化时依次追加 fn 返回的系统事件、保存会话并发布下游任务（commit），最后返回修改后的会话。
 // 会话不存在或 sub 看不到时返回 ErrNotFound，没有权限时返回 ErrForbidden。
 func change(ctx context.Context, db *bun.DB, down Downstream, sub identity.Subject, id string, perm auth.Permission, fn changeFunc) (*ConversationDTO, error) {
 	if err := authorize(sub, perm); err != nil {
@@ -36,11 +36,11 @@ func change(ctx context.Context, db *bun.DB, down Downstream, sub identity.Subje
 		if c, err = findVisible(ctx, tx, sub, id, true); err != nil {
 			return err
 		}
-		it, err := fn(ctx, tx, c)
-		if err != nil || it == nil {
+		items, err := fn(ctx, tx, c)
+		if err != nil || len(items) == 0 {
 			return err
 		}
-		return commit(ctx, tx, down, c, it)
+		return commit(ctx, tx, down, c, items...)
 	})
 	if err != nil {
 		return nil, err

@@ -27,6 +27,8 @@ export const ContactErrors = {
 
 /** agents-desk/internal/conversation 的错误码。 */
 export const ConversationErrors = {
+  /** ErrAlreadyAssigned 是要领取的会话已经被别人领取了：两个人同时领取时，先到者生效。 */
+  AlreadyAssigned: "conversation.already_assigned",
   /** ErrClosed 是会话已经关闭，不能执行这个操作，例如稍后处理一个已关闭的会话。 */
   Closed: "conversation.closed",
   /** ErrSnoozeInPast 是稍后处理的时间不晚于现在。 */

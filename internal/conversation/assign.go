@@ -44,7 +44,7 @@ func NewAssign(db *bun.DB, down Downstream) *Assign { return &Assign{db: db, dow
 // 团队收件箱不属于这个工作区时返回 team.ErrNotFound（字段 team_id），负责人不是这个工作区的成员时返回
 // member.ErrNotFound（字段 assignee_id）。
 func (a *Assign) Handle(ctx context.Context, sub identity.Subject, id string, p Assignment) (*ConversationDTO, error) {
-	return change(ctx, a.db, a.down, sub, id, auth.ConversationsReply, func(ctx context.Context, tx bun.IDB, c *Conversation) (*Item, error) {
+	return change(ctx, a.db, a.down, sub, id, auth.ConversationsReply, func(ctx context.Context, tx bun.IDB, c *Conversation) ([]*Item, error) {
 		// 新的团队收件箱
 		toTeam := c.TeamID
 		if p.TeamID != nil {
@@ -84,16 +84,29 @@ func (a *Assign) Handle(ctx context.Context, sub identity.Subject, id string, p 
 			return nil, nil
 		}
 
-		// 权限：领取和处理自己负责的会话不需要改派的权限
+		// 权限：领取和处理自己负责的会话不需要改派的权限。要领取的会话已经被别人领取时（两人同时领取，先到者生效），
+		// 没有改派权限的成员得到 ErrAlreadyAssigned
 		mine := fromType == MemberActor && fromID == sub.ID
 		claim := fromType == "" && toType == MemberActor && toID == sub.ID && !teamChanged
 		if sub.Type != identity.System && !mine && !claim && !sub.Can(string(auth.ConversationsAssign)) {
+			if toType == MemberActor && toID == sub.ID && fromType != "" {
+				return nil, ErrAlreadyAssigned.New()
+			}
 			return nil, ErrForbidden.New()
 		}
 
-		data := map[string]any{"from_team_id": c.TeamID, "team_id": toTeam, "from_assignee": actorData(fromType, fromID), "assignee": actorData(toType, toID)}
+		fromTeam := c.TeamID
 		c.TeamID, c.AssigneeType, c.AssigneeID = toTeam, toType, toID
-		return event(sub, "conversation.assigned", data), nil
+		ev := assignedEvent(sub, c, fromTeam, fromType, fromID, ReasonManual)
+		// 转到别的团队收件箱而没有负责人时，按新团队收件箱的分配方式分配；系统的分配记在后面
+		if teamChanged && toType == "" {
+			next, err := roundRobin(ctx, tx, c)
+			if err != nil || next == nil {
+				return []*Item{ev}, err
+			}
+			return []*Item{ev, next}, nil
+		}
+		return []*Item{ev}, nil
 	})
 }
 

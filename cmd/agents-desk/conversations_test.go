@@ -89,10 +89,10 @@ func TestConversations(t *testing.T) {
 	if r := call(h, "POST", "/t/alpha/api/conversations/"+id+"/replies", `{"text":""}`, agent); fieldOf(r.body) != "body.text" {
 		t.Errorf("空回复：%d %s", r.status, r.body)
 	}
-	// 增量读取：序号 1 之后是回复和备注
+	// 增量读取：序号 1 之后是回复即领取的系统事件、回复和备注
 	r = call(h, "GET", "/t/alpha/api/conversations/"+id+"/items?after=1", "", agent)
 	var items []struct{ Seq int64 }
-	if err := json.Unmarshal([]byte(r.body), &items); err != nil || len(items) != 2 || items[0].Seq != 2 {
+	if err := json.Unmarshal([]byte(r.body), &items); err != nil || len(items) != 3 || items[0].Seq != 2 {
 		t.Fatalf("增量读取时间线：%d %s", r.status, r.body)
 	}
 

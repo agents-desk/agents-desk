@@ -120,6 +120,7 @@ channel.kind.test: 测试渠道
 conversation.not_found: 会话不存在
 conversation.forbidden: 你没有权限执行这个操作
 conversation.closed: 会话已经关闭，先重新打开
+conversation.already_assigned: 这个会话已经被别人领取了
 conversation.snooze_in_past: 稍后处理的时间要晚于现在
 conversation.kind.service: 服务型会话
 conversation.kind.chat: 聊天型会话

@@ -22,8 +22,10 @@ func Leave(ctx context.Context, tx bun.IDB, hooks Hooks, tenant, memberID string
 	if _, err := tx.NewDelete().Model((*memberStatus)(nil)).Where("tenant_id = ? AND member_id = ?", tenant, memberID).Exec(ctx); err != nil {
 		return errors.Wrap(err, "delete member status")
 	}
-	if hooks.Removed != nil {
-		return hooks.Removed(ctx, tx, tenant, memberID)
+	for _, removed := range hooks.Removed {
+		if err := removed(ctx, tx, tenant, memberID); err != nil {
+			return err
+		}
 	}
 	return nil
 }
