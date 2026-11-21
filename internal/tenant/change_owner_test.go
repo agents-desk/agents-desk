@@ -22,7 +22,7 @@ func TestChangeOwnerMovesOwnerRole(t *testing.T) {
 		t.Fatal(err)
 	}
 	alice := identity.Ref{Type: member.Type, ID: ten.OwnerID}
-	change := tenant.NewChangeOwner(env.DB, env.MemberLogins, addr, member.Hooks{Removed: team.OnMemberRemoved})
+	change := tenant.NewChangeOwner(env.DB, env.MemberLogins, addr, member.Hooks{Removed: []member.RemovedHook{team.OnMemberRemoved}})
 
 	// Alice 在线，并且在一个团队收件箱中
 	inTenant := identity.Subject{Type: identity.System, ID: "test", Tenant: ten.ID}

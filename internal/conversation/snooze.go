@@ -36,7 +36,7 @@ func (a *Snooze) Handle(ctx context.Context, sub identity.Subject, id string, un
 	if !until.After(now()) {
 		return nil, ErrSnoozeInPast.New(errorx.Field("until"))
 	}
-	return change(ctx, a.db, a.down, sub, id, auth.ConversationsReply, func(_ context.Context, _ bun.IDB, c *Conversation) (*Item, error) {
+	return change(ctx, a.db, a.down, sub, id, auth.ConversationsReply, func(_ context.Context, _ bun.IDB, c *Conversation) ([]*Item, error) {
 		if c.Status == Closed {
 			return nil, ErrClosed.New()
 		}
@@ -44,7 +44,7 @@ func (a *Snooze) Handle(ctx context.Context, sub identity.Subject, id string, un
 			return nil, nil
 		}
 		c.Status, c.SnoozedUntil = Snoozed, &until
-		return event(sub, "conversation.snoozed", map[string]any{"until": until}), nil
+		return []*Item{event(sub, "conversation.snoozed", map[string]any{"until": until})}, nil
 	})
 }
 

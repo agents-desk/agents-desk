@@ -27,7 +27,7 @@ func (a *Reopen) Handle(ctx context.Context, sub identity.Subject, id string) (*
 
 // reopen 返回把会话重新打开的修改，sub 是发起者：稍后处理到期时是系统。
 func reopen(sub identity.Subject) changeFunc {
-	return func(_ context.Context, _ bun.IDB, c *Conversation) (*Item, error) {
+	return func(_ context.Context, _ bun.IDB, c *Conversation) ([]*Item, error) {
 		name := "conversation.reopened"
 		switch c.Status {
 		case Open:
@@ -37,7 +37,7 @@ func reopen(sub identity.Subject) changeFunc {
 		}
 		from := c.Status
 		c.Status, c.SnoozedUntil = Open, nil
-		return event(sub, name, map[string]any{"from": string(from)}), nil
+		return []*Item{event(sub, name, map[string]any{"from": string(from)})}, nil
 	}
 }
 

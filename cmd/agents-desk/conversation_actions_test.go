@@ -137,8 +137,8 @@ func TestConversationActions(t *testing.T) {
 	if ev, _ := lastEvent(c1); ev != "conversation.assigned" {
 		t.Errorf("领取的系统事件：%s", ev)
 	}
-	// 别人负责的会话，没有改派的权限时不能抢过来
-	if _, r := do("PUT", c1, "assignment", `{"assignee_id":"`+members["agent2"]+`"}`, agent2); r.code != "conversation.forbidden" {
+	// 别人负责的会话，没有改派的权限时不能抢过来：已经被别人领取了
+	if _, r := do("PUT", c1, "assignment", `{"assignee_id":"`+members["agent2"]+`"}`, agent2); r.code != "conversation.already_assigned" {
 		t.Errorf("抢别人的会话：%d %s", r.status, r.body)
 	}
 	// 自己负责的会话可以转给同事

@@ -31,13 +31,13 @@ func NewSetPriority(db *bun.DB, down Downstream) *SetPriority {
 
 // Handle 由 sub 把他所在工作区中的会话 id 的优先级改为 p，时间线中追加 conversation.priority_changed；没有变化时什么也不做。
 func (a *SetPriority) Handle(ctx context.Context, sub identity.Subject, id string, p Priority) (*ConversationDTO, error) {
-	return change(ctx, a.db, a.down, sub, id, auth.ConversationsReply, func(_ context.Context, _ bun.IDB, c *Conversation) (*Item, error) {
+	return change(ctx, a.db, a.down, sub, id, auth.ConversationsReply, func(_ context.Context, _ bun.IDB, c *Conversation) ([]*Item, error) {
 		if c.Priority == p {
 			return nil, nil
 		}
 		from := c.Priority
 		c.Priority = p
-		return event(sub, "conversation.priority_changed", map[string]any{"from": string(from), "to": string(p)}), nil
+		return []*Item{event(sub, "conversation.priority_changed", map[string]any{"from": string(from), "to": string(p)})}, nil
 	})
 }
 

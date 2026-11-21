@@ -47,7 +47,8 @@ func NewReceive(db *bun.DB, registry channel.Registry, down Downstream) *Receive
 //   - 可以有多个会话的渠道：归入对方选定的会话 p.ConversationID，没有选定时新建会话；
 //   - 只有一个聊天窗口的渠道：归入对方最近的会话，还没有会话时新建。
 //
-// 已关闭或稍后处理的会话重新打开。同一个 p.ExternalID 重复收到时，返回之前写入的那一项，Duplicate 为 true。
+// 已关闭或稍后处理的会话重新打开。然后自动指派：负责人离开并选了重新分配时，会话放回团队收件箱；会话没有负责人时，
+// 按团队收件箱的分配方式分配（新会话进入渠道的默认团队收件箱）。同一个 p.ExternalID 重复收到时，返回之前写入的那一项，Duplicate 为 true。
 // 只有系统主体可以调用；渠道不存在时返回 channel.ErrNotFound，已停用时返回 channel.ErrDisabled。
 func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceiveParams) (*Received, error) {
 	if err := authorize(sub, ""); err != nil {
@@ -93,6 +94,21 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 			msg.ExternalID = &p.ExternalID
 		}
 		items = append(items, msg)
+		// 自动指派：负责人离开并选了重新分配时放回团队收件箱；没有负责人时按团队收件箱的分配方式分配
+		auto, err := releaseIfAway(ctx, tx, c)
+		if err != nil {
+			return err
+		}
+		if len(auto) == 0 {
+			next, err := roundRobin(ctx, tx, c)
+			if err != nil {
+				return err
+			}
+			if next != nil {
+				auto = append(auto, next)
+			}
+		}
+		items = append(items, auto...)
 		at := now()
 		c.LastMessageAt = at
 		if c.WaitingSince == nil {

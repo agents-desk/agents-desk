@@ -38,9 +38,12 @@ type TenantMember struct {
 	Self      bool   `json:"self" doc:"是不是当前登录的成员自己：自己那一行不能修改角色、不能移出"`
 }
 
+// RemovedHook 是成员 memberID 离开工作区 tenant 之后，其他模块在同一个事务 tx 中跟着做的一件事。
+type RemovedHook func(ctx context.Context, tx bun.IDB, tenant, memberID string) error
+
 // Hooks 是成员被移出工作区之后，其他模块在同一个事务中跟着做的事，由入口传入，例如把他移出这个工作区的团队收件箱。
 type Hooks struct {
-	Removed func(ctx context.Context, tx bun.IDB, tenant, memberID string) error // 移出工作区之后
+	Removed []RemovedHook // 离开工作区之后，按顺序执行
 }
 
 // TenantMemberOutput 是返回一个成员的响应。

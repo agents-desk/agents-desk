@@ -22,13 +22,13 @@ func NewClose(db *bun.DB, down Downstream) *Close { return &Close{db: db, down: 
 // Handle 由 sub 关闭他所在工作区中的会话 id：记下关闭时间，清空稍后处理的时间，时间线中追加 conversation.closed。
 // 已经关闭时什么也不做。团队收件箱和负责人保留，报表据此统计是谁处理的。
 func (a *Close) Handle(ctx context.Context, sub identity.Subject, id string) (*ConversationDTO, error) {
-	return change(ctx, a.db, a.down, sub, id, auth.ConversationsReply, func(ctx context.Context, tx bun.IDB, c *Conversation) (*Item, error) {
+	return change(ctx, a.db, a.down, sub, id, auth.ConversationsReply, func(ctx context.Context, tx bun.IDB, c *Conversation) ([]*Item, error) {
 		if c.Status == Closed {
 			return nil, nil
 		}
 		from := c.Status
 		c.Status, c.ClosedAt, c.SnoozedUntil = Closed, timePtr(now()), nil
-		return event(sub, "conversation.closed", map[string]any{"from": string(from)}), nil
+		return []*Item{event(sub, "conversation.closed", map[string]any{"from": string(from)})}, nil
 	})
 }
 

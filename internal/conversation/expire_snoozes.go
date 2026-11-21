@@ -38,7 +38,7 @@ func (a *ExpireSnoozes) Handle(ctx context.Context, at time.Time) (int, error) {
 	for _, d := range due {
 		sys := identity.Subject{Type: identity.System, ID: "snooze", Tenant: d.TenantID}
 		reopenDue := reopen(sys)
-		_, err := change(ctx, a.db, a.down, sys, d.ID, "", func(ctx context.Context, tx bun.IDB, c *Conversation) (*Item, error) {
+		_, err := change(ctx, a.db, a.down, sys, d.ID, "", func(ctx context.Context, tx bun.IDB, c *Conversation) ([]*Item, error) {
 			if c.Status != Snoozed || c.SnoozedUntil == nil || c.SnoozedUntil.After(at) {
 				return nil, nil
 			}
