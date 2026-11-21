@@ -106,7 +106,7 @@ type ReadInput struct {
 }
 
 // RegisterVisitorRoutes 在聊天插件的 API（/w/{channel}/api，前面是 Middleware）中注册客户用的接口：公开设置、建立会话，
-// 以及客户以联系人的身份读取自己的会话和时间线、发消息、标记已读、评价已关闭的会话。requireContact 要求联系人的令牌（Authorization: Bearer）；
+// 以及客户以联系人的身份读取自己的会话和时间线、发消息、标记已读、评价已关闭的会话、告诉成员自己正在输入。requireContact 要求联系人的令牌（Authorization: Bearer）；
 // tokens 签发联系人的令牌，registry 和 down 交给写入收到的消息的动作。
 func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), db *bun.DB, c *crypt.Crypt, tokens *apitoken.Store, receive *conversation.Receive, down conversation.Downstream) {
 	route := func(access func(*huma.Operation), id, method, path, summary string) huma.Operation {
@@ -122,11 +122,14 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 	read := route(requireContact, "conversation-read", http.MethodPost, "/conversations/{id}/read", "标记已读")
 	read.DefaultStatus = http.StatusNoContent
 	rateOp := route(requireContact, "conversation-rate", http.MethodPost, "/conversations/{id}/rating", "评价会话")
+	typingOp := route(requireContact, "conversation-typing", http.MethodPost, "/conversations/{id}/typing", "正在输入")
+	typingOp.DefaultStatus = http.StatusNoContent
 
 	sendMessage := NewSendMessage(db, receive)
 	list, get, items := conversation.NewListForContact(db), conversation.NewGetForContact(db), conversation.NewTimelineForContact(db)
 	markRead := conversation.NewMarkReadByContact(db, down)
 	rate := conversation.NewRateByContact(db, down)
+	typing := conversation.NewTypingByContact(db, down)
 
 	rest.Register(api, route(public, "widget-config", http.MethodGet, "/config", "聊天插件的公开设置"), NewGetConfig().HTTP)
 	rest.Register(api, route(public, "widget-session", http.MethodPost, "/session", "建立会话"), NewStartSession(db, c, tokens).HTTP)
@@ -194,6 +197,13 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 			return nil, err
 		}
 		return &ConversationOutput{Body: *out}, nil
+	})
+	rest.Register(api, typingOp, func(ctx context.Context, in *ConversationInput) (*struct{}, error) {
+		sub, ch, err := visitor(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return nil, typing.Handle(ctx, sub, ch, in.ID)
 	})
 	rest.Register(api, read, func(ctx context.Context, in *ReadInput) (*struct{}, error) {
 		sub, ch, err := visitor(ctx)

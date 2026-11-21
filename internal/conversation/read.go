@@ -69,6 +69,27 @@ func (a *MarkRead) HTTP(ctx context.Context, in *ReadInput) (*struct{}, error) {
 	return nil, a.Handle(ctx, sub, in.ID, in.Body.Seq)
 }
 
+// readSeqOf 返回成员 sub 在会话 ids 中读到的位置，按会话 ID；还没读过的会话没有这一项（即 0）。sub 不是成员时返回空的。
+func readSeqOf(ctx context.Context, db bun.IDB, sub identity.Subject, ids []string) (map[string]int64, error) {
+	out := map[string]int64{}
+	if sub.Type != member.Type || len(ids) == 0 {
+		return out, nil
+	}
+	var rows []struct {
+		ConversationID string `bun:"conversation_id"`
+		LastReadSeq    int64  `bun:"last_read_seq"`
+	}
+	err := db.NewSelect().Table("conversation_reads").Column("conversation_id", "last_read_seq").
+		Where("member_id = ? AND conversation_id IN (?)", sub.ID, bun.In(ids)).Scan(ctx, &rows)
+	if err != nil {
+		return nil, errors.Wrap(err, "load read positions")
+	}
+	for _, r := range rows {
+		out[r.ConversationID] = r.LastReadSeq
+	}
+	return out, nil
+}
+
 // unreadOf 返回会话 ids 中对成员 sub 来说未读的：时间线中有他读到的位置之后的消息或内部备注，并且不是他自己写的。
 // sub 不是成员时都算已读。
 func unreadOf(ctx context.Context, db bun.IDB, sub identity.Subject, ids []string) (map[string]bool, error) {

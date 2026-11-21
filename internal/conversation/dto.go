@@ -38,6 +38,7 @@ type ConversationDTO struct {
 	LastSeq       int64            `json:"last_seq" doc:"时间线中最新一项的序号，用来增量读取时间线"`
 	Preview       string           `json:"preview" doc:"最后一条消息的文字"`
 	Unread        bool             `json:"unread" doc:"有我还没读到的消息或内部备注（不算我自己写的）"`
+	ReadSeq       int64            `json:"read_seq" doc:"我读到的位置：序号不大于它的项已读；会话页在它之后显示“新消息”分隔线"`
 	MentionedAt   *time.Time       `json:"mentioned_at,omitempty" doc:"最近一次 @ 我的时间，只在“@我”的列表中有"`
 	Rating        *Rating          `json:"rating,omitempty" doc:"客户最近一次的评价；没有评价过时为空"`
 	CreatedAt     time.Time        `json:"created_at"`
@@ -149,11 +150,15 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 	if err != nil {
 		return nil, err
 	}
+	readSeq, err := readSeqOf(ctx, db, sub, ids)
+	if err != nil {
+		return nil, err
+	}
 	for i, c := range convs {
 		d := ConversationDTO{
 			ID: c.ID, Kind: c.Kind, Status: c.Status, TeamID: c.TeamID, Priority: c.Priority, Language: c.Language,
 			WaitingSince: c.WaitingSince, SnoozedUntil: c.SnoozedUntil, FirstReplyAt: c.FirstReplyAt, ClosedAt: c.ClosedAt,
-			LastMessageAt: c.LastMessageAt, LastSeq: c.LastSeq, Preview: preview[c.ID], Unread: unread[c.ID],
+			LastMessageAt: c.LastMessageAt, LastSeq: c.LastSeq, Preview: preview[c.ID], Unread: unread[c.ID], ReadSeq: readSeq[c.ID],
 			MentionedAt: c.MentionedAt, Rating: c.rating(), CreatedAt: c.CreatedAt,
 		}
 		if c.ChannelID != nil {

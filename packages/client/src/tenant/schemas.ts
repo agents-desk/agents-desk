@@ -51,6 +51,10 @@ export const schemas = {
             "format": "uuid",
             "type": "string"
           },
+          "contact_id": {
+            "format": "uuid",
+            "type": "string"
+          },
           "cursor": {
             "type": "string"
           },

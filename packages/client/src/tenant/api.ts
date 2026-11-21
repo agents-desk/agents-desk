@@ -95,6 +95,8 @@ export interface ConversationDTO {
   priority: ConversationPriority
   /** 客户最近一次的评价；没有评价过时为空 */
   rating?: ConversationRating
+  /** 我读到的位置：序号不大于它的项已读；会话页在它之后显示“新消息”分隔线 */
+  read_seq: number
   snoozed_until?: string
   status: ConversationStatus
   /** 团队收件箱的 ID；为空表示未指派到团队 */
@@ -515,6 +517,8 @@ export interface ConversationListInput {
   assignee_id?: string
   /** 只列出来自这个渠道的会话 */
   channel_id?: string
+  /** 只列出这个联系人的会话，不按状态筛选，例如详情中的“最近的会话” */
+  contact_id?: string
   /** 只列出这个优先级的会话 */
   priority?: ConversationPriority
   /** 排序；@我 的列表总是最近被 @ 的在前 */
@@ -624,7 +628,7 @@ export function createClient(options: ClientOptions) {
        * GET /conversations
        */
       list: (input: ConversationListInput = {}): Promise<CursorConversationDTO> =>
-        rt.request<CursorConversationDTO>({ method: "GET", path: `/conversations`, query: { "assignee_id": input["assignee_id"], "channel_id": input["channel_id"], "cursor": input["cursor"], "inbox": input["inbox"], "per_page": input["per_page"], "priority": input["priority"], "sort": input["sort"], "status": input["status"], "team_id": input["team_id"] } }),
+        rt.request<CursorConversationDTO>({ method: "GET", path: `/conversations`, query: { "assignee_id": input["assignee_id"], "channel_id": input["channel_id"], "contact_id": input["contact_id"], "cursor": input["cursor"], "inbox": input["inbox"], "per_page": input["per_page"], "priority": input["priority"], "sort": input["sort"], "status": input["status"], "team_id": input["team_id"] } }),
       /**
        * 写内部备注
        *

@@ -54,6 +54,7 @@ type ListInput struct {
 	Status     Status   `query:"status" default:"open" doc:"只列出这个状态的会话；@我 的列表不按状态筛选"`
 	AssigneeID string   `query:"assignee_id" format:"uuid" doc:"只列出负责人是这位成员的会话"`
 	ChannelID  string   `query:"channel_id" format:"uuid" doc:"只列出来自这个渠道的会话"`
+	ContactID  string   `query:"contact_id" format:"uuid" doc:"只列出这个联系人的会话，不按状态筛选，例如详情中的“最近的会话”"`
 	Priority   Priority `query:"priority" doc:"只列出这个优先级的会话"`
 	Sort       Sort     `query:"sort" default:"waiting" doc:"排序；@我 的列表总是最近被 @ 的在前"`
 }
@@ -110,8 +111,11 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) 
 	case InboxUnassigned:
 		q = q.Where("conversation.team_id IS NULL AND conversation.assignee_type = ''")
 	}
-	if in.Inbox != InboxMentions {
+	if in.Inbox != InboxMentions && in.ContactID == "" {
 		q = q.Where("conversation.status = ?", status)
+	}
+	if in.ContactID != "" {
+		q = q.Where("conversation.contact_id = ?", in.ContactID)
 	}
 	if in.TeamID != "" {
 		q = q.Where("conversation.team_id = ?", in.TeamID)

@@ -89,18 +89,21 @@ func (a *App) pageCSP(r *http.Request, nonce string) string {
 }
 
 // newRealtime 创建工作区端的实时连接，挂在 /t/{slug}/realtime（前面是 tenant.Middleware）。它与工作区的接口使用
-// 同一套成员 token、会话 cookie、租户和权限；成员在其中只能订阅自己的个人频道（push.Register）。
+// 同一套成员 token、会话 cookie、租户和权限；成员在其中订阅自己的个人频道（push.Register），以及能看到的会话的频道
+// （conversation.RegisterRealtime：谁正在看、谁正在输入）。
 func (a *App) newRealtime() (*realtime.Realtime, error) {
 	rt, err := realtime.New(a.hub, realtime.Options{
 		Authenticate:  a.memberTokens.Validate,
 		Accounts:      identity.Accounts{member.Type: tenant.Resolve(member.Resolve(a.db, a.roles))},
 		SessionCookie: member.SessionCookie,
 		Tenant:        func(r *http.Request) string { return tenant.IDFrom(r.Context()) },
+		Presence:      a.presence,
 	})
 	if err != nil {
 		return nil, err
 	}
 	push.Register(rt)
+	conversation.RegisterRealtime(rt, a.db)
 	return rt, nil
 }
 

@@ -204,6 +204,13 @@ export function createClient(options: ClientOptions) {
        */
       start: (body: WidgetMessageBody): Promise<WidgetSent> =>
         rt.request<WidgetSent>({ method: "POST", path: `/conversations`, body }),
+      /**
+       * 正在输入
+       *
+       * POST /conversations/{id}/typing
+       */
+      typing: (id: string): Promise<void> =>
+        rt.request<void>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/typing` }),
     },
     /** operationId 以 widget- 开头的接口。 */
     widget: {
