@@ -61,15 +61,18 @@ func (a *Deliver) Job(ctx context.Context, p Appended) error {
 	if err != nil {
 		return err
 	}
-	var to string
+	var to, contactID string
 	if c.ContactID != nil {
+		contactID = *c.ContactID
 		err = a.db.NewSelect().Table("contact_identities").Column("external_id").
 			Where("channel_id = ? AND contact_id = ?", ch.ID, *c.ContactID).Limit(1).Scan(ctx, &to)
 		if err != nil {
 			return errors.Wrap(err, "load contact identity")
 		}
 	}
-	externalID, delivered, err := connector.Send(ctx, channel.Outgoing{Channel: ch, ItemID: it.ID, ExternalTo: to, Text: it.Content.Text})
+	externalID, delivered, err := connector.Send(ctx, channel.Outgoing{
+		Channel: ch, ConversationID: c.ID, ItemID: it.ID, Seq: it.Seq, ContactID: contactID, ExternalTo: to, Text: it.Content.Text,
+	})
 	if err != nil {
 		if _, final := queue.AttemptFromContext(ctx); final {
 			if markErr := a.mark(ctx, it.ID, Failed, "", err.Error()); markErr != nil {

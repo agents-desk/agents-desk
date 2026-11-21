@@ -101,6 +101,14 @@ export const TenantErrors = {
   Disabled: "tenant.disabled",
 } as const
 
+/** agents-desk/internal/widget 的错误码。 */
+export const WidgetErrors = {
+  /** ErrInvalidUserToken 是产品后端签名的用户身份无效：签名不对、已过期或者缺少用户编号。 */
+  InvalidUserToken: "widget.invalid_user_token",
+  /** ErrTeamNotFound 是新会话进入的团队收件箱不存在，或者属于别的工作区。 */
+  TeamNotFound: "widget.team_not_found",
+} as const
+
 /** github.com/go-tenon/tenon/apitoken 的错误码。 */
 export const ApitokenErrors = {
   /** ErrInvalid 表示 token 不存在、已撤销或已过期。rest.RequireToken 把它呈现为 401。 */

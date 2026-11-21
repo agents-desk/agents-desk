@@ -63,6 +63,7 @@ export const messages = {
     "nav.status": "Status",
     "nav.switch_tenant": "Switch workspace",
     "nav.team_inboxes": "Team inboxes",
+    "nav.widgets": "Website chat widgets",
     "preferences.follow_browser": "Follow the browser (currently {{.zone}})",
     "preferences.language": "Language",
     "preferences.language_hint": "The interface language. Customer messages are also translated into this language",
@@ -87,6 +88,7 @@ export const messages = {
     "reports.placeholder": "Reports come with the basic reports work (R1).",
     "roles.description": "The owner has every permission and is set by a platform admin. A role that members still use stays until you give those members another role.",
     "roles.permissions_hint": "Every role can view members and team inboxes, and view and reply to the conversations it can see",
+    "settings.group_channels": "Channels",
     "settings.group_inbox": "Inbox",
     "settings.group_personal": "Personal",
     "settings.group_workspace": "Workspace",
@@ -118,6 +120,24 @@ export const messages = {
     "team_members.title": "Team inbox members",
     "test_account.failed": "Test account sign-in failed. Run go run ./cmd/agents-desk seed first",
     "test_account.sign_in": "Sign in with a test account",
+    "widget_install.claims_example": "{\"sub\": \"the user ID in your product\", \"name\": \"Rahul Sharma\", \"email\": \"rahul@example.com\", \"exp\": 1767225600}",
+    "widget_install.copied": "Copied",
+    "widget_install.copy": "Copy",
+    "widget_install.embed": "Embed code",
+    "widget_install.embed_hint": "Put this code before \u003c/body\u003e on every page of your website, and the chat window appears in the bottom right corner.",
+    "widget_install.heading": "Website chat widget: {{.name}}",
+    "widget_install.identity": "Identity verification",
+    "widget_install.identity_hint": "When a customer is signed in to your product, your backend signs the user’s identity with this secret (an HS256 JWT with the claims below; exp is required), and the page sets user_token in the embed code so the customer joins as a user. Keep the secret on your backend only.",
+    "widget_install.rotate": "Rotate secret",
+    "widget_install.rotate_confirm": "Rotate the identity secret?",
+    "widget_install.rotate_message": "User identities signed with the old secret stop working right away, so update your backend with the new one. Open conversations are not affected.",
+    "widget_install.rotated": "Identity secret rotated",
+    "widget_install.secret": "Identity secret",
+    "widget_install.title": "Website chat widget",
+    "widgets.disabled": "Disabled",
+    "widgets.enabled": "Enabled",
+    "widgets.team_hint": "The team inbox new conversations go to",
+    "widgets.team_unassigned": "Unassigned",
   },
   "zh-CN": {
     "app.web": "agents-desk",
@@ -180,6 +200,7 @@ export const messages = {
     "nav.status": "在线状态",
     "nav.switch_tenant": "切换工作区",
     "nav.team_inboxes": "团队收件箱",
+    "nav.widgets": "网页聊天插件",
     "preferences.follow_browser": "跟随浏览器（当前是 {{.zone}}）",
     "preferences.language": "语言",
     "preferences.language_hint": "界面的语言，客户的消息也翻译成这种语言",
@@ -204,6 +225,7 @@ export const messages = {
     "reports.placeholder": "各张报表在基础报表的开发（R1）中加入。",
     "roles.description": "主管理员拥有全部权限，由平台管理员指定。还有成员使用的角色不能删除，先把他们改成别的角色。",
     "roles.permissions_hint": "每个角色都能查看成员和团队收件箱、查看和回复看得到的会话",
+    "settings.group_channels": "渠道",
     "settings.group_inbox": "收件箱",
     "settings.group_personal": "个人",
     "settings.group_workspace": "工作区",
@@ -235,6 +257,24 @@ export const messages = {
     "team_members.title": "团队收件箱成员",
     "test_account.failed": "测试账号登录失败，先运行 go run ./cmd/agents-desk seed",
     "test_account.sign_in": "用测试账号登录",
+    "widget_install.claims_example": "{\"sub\": \"产品中的用户编号\", \"name\": \"Rahul Sharma\", \"email\": \"rahul@example.com\", \"exp\": 1767225600}",
+    "widget_install.copied": "已复制",
+    "widget_install.copy": "复制",
+    "widget_install.embed": "嵌入代码",
+    "widget_install.embed_hint": "把下面的代码放进网站每个页面的 \u003c/body\u003e 之前，页面右下角就会出现聊天窗口。",
+    "widget_install.heading": "网页聊天插件：{{.name}}",
+    "widget_install.identity": "身份验证",
+    "widget_install.identity_hint": "客户登录了产品时，产品后端用这个密钥签名用户的身份（HS256 的 JWT，内容如下，exp 必填），页面在嵌入代码中设置 user_token，客户就作为用户进入会话。密钥只保存在产品后端。",
+    "widget_install.rotate": "更换密钥",
+    "widget_install.rotate_confirm": "更换身份验证密钥？",
+    "widget_install.rotate_message": "旧密钥签名的用户身份随即失效，产品后端要换上新密钥；已经打开的会话不受影响。",
+    "widget_install.rotated": "已更换身份验证密钥",
+    "widget_install.secret": "身份验证密钥",
+    "widget_install.title": "网页聊天插件",
+    "widgets.disabled": "已停用",
+    "widgets.enabled": "启用",
+    "widgets.team_hint": "新会话进入的团队收件箱",
+    "widgets.team_unassigned": "未指派",
   },
 } as const
 
@@ -300,6 +340,7 @@ export type MessageId =
   | "nav.status"
   | "nav.switch_tenant"
   | "nav.team_inboxes"
+  | "nav.widgets"
   | "preferences.follow_browser"
   | "preferences.language"
   | "preferences.language_hint"
@@ -324,6 +365,7 @@ export type MessageId =
   | "reports.placeholder"
   | "roles.description"
   | "roles.permissions_hint"
+  | "settings.group_channels"
   | "settings.group_inbox"
   | "settings.group_personal"
   | "settings.group_workspace"
@@ -355,6 +397,24 @@ export type MessageId =
   | "team_members.title"
   | "test_account.failed"
   | "test_account.sign_in"
+  | "widget_install.claims_example"
+  | "widget_install.copied"
+  | "widget_install.copy"
+  | "widget_install.embed"
+  | "widget_install.embed_hint"
+  | "widget_install.heading"
+  | "widget_install.identity"
+  | "widget_install.identity_hint"
+  | "widget_install.rotate"
+  | "widget_install.rotate_confirm"
+  | "widget_install.rotate_message"
+  | "widget_install.rotated"
+  | "widget_install.secret"
+  | "widget_install.title"
+  | "widgets.disabled"
+  | "widgets.enabled"
+  | "widgets.team_hint"
+  | "widgets.team_unassigned"
 
 // 登记消息 ID：@go-tenon/ui 的 useT 只接受其中的 ID。
 declare module "@go-tenon/ui" {

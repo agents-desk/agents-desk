@@ -19,7 +19,7 @@ queue:
   stream: agents_desk_jobs
 
 # 应用密钥：32 字节随机数的 base64（openssl rand -base64 32），必填：生产环境用环境变量 APP_KEY，本机写在 config/local.yaml。
-# 它派生登录验证码的密钥，以后也用于加密和签名链接。
+# 它派生登录验证码的密钥，加密保存聊天插件的身份验证密钥，以后也用于签名链接。
 crypt:
   key: ${APP_KEY}
 
@@ -31,6 +31,10 @@ admin_token:
 member_token:
   lifetime: 720h
   idle_timeout: 168h
+# 客户在聊天插件中的令牌：浏览器保存它，客户隔很久再来也能看到之前的会话；最长一年，90 天没有使用就失效，之后聊天窗口重新建立会话。
+contact_token:
+  lifetime: 8760h
+  idle_timeout: 2160h
 
 # 上传的文件（头像等）。默认存在本地目录 storage/files，由应用在 /storage/ 下提供访问；多台服务器或需要 CDN 时
 # 改用 S3：配置 disks.s3，并把 default_disk 改为 s3，见 Tenon 文档的 libraries/filesystem.md。

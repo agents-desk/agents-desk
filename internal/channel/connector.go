@@ -18,10 +18,13 @@ type Capabilities struct {
 
 // Outgoing 是要发到外部渠道的一条消息。
 type Outgoing struct {
-	Channel    *Channel
-	ItemID     string // 时间线中这条消息的 ID，连接器可以用它去重
-	ExternalTo string // 对方在渠道中的外部编号
-	Text       string // 发给对方的文字
+	Channel        *Channel
+	ConversationID string // 消息所在的会话
+	ItemID         string // 时间线中这条消息的 ID，连接器可以用它去重
+	Seq            int64  // 这条消息在时间线中的序号
+	ContactID      string // 对方：联系人的 ID
+	ExternalTo     string // 对方在渠道中的外部编号
+	Text           string // 发给对方的文字
 }
 
 // Connector 是一种渠道的连接器：把时间线中的消息发到外部渠道。收到的消息和回执由连接器调用会话的业务动作写入。
@@ -58,5 +61,5 @@ func (TestConnector) Send(_ context.Context, m Outgoing) (string, bool, error) {
 	return "test-" + m.ItemID, true, nil
 }
 
-// DefaultRegistry 返回内置的连接器：测试渠道。以后的渠道在入口中加到这里。
+// DefaultRegistry 返回不依赖其他资源的内置连接器：测试渠道。需要资源的连接器（网页聊天插件）由入口加入。
 func DefaultRegistry() Registry { return Registry{Test: TestConnector{}} }

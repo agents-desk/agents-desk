@@ -1,5 +1,5 @@
 // Package apptest 是测试共用的装配：执行了全部迁移、预置了角色的临时库，两套账号的 login.Realm（logintest.Realm：
-// 低成本的哈希、宽松的限流），临时目录中的文件服务，其余与入口的装配相同。
+// 低成本的哈希、宽松的限流），临时目录中的文件服务，随机的应用密钥，其余与入口的装配相同。
 package apptest
 
 import (
@@ -10,6 +10,7 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/authz"
+	"github.com/go-tenon/tenon/crypt"
 	"github.com/go-tenon/tenon/database/dbtest"
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/filesystem/local"
@@ -30,7 +31,8 @@ type Env struct {
 	AdminLogins  *login.Realm // 平台管理员的 login.Realm
 	MemberLogins *login.Realm // 工作区成员的 login.Realm
 	Files        *filesystem.Service
-	Disk         *local.Disk // Files 的本地磁盘，在测试的临时目录中，公开地址是 /storage
+	Disk         *local.Disk  // Files 的本地磁盘，在测试的临时目录中，公开地址是 /storage
+	Crypt        *crypt.Crypt // 随机的应用密钥
 }
 
 // New 为测试 t 创建一个执行了全部迁移、预置了角色的临时库，以及使用它的账号体系。需要环境变量 POSTGRES_TEST_URL。
@@ -58,7 +60,7 @@ func New(t testing.TB) *Env {
 		t.Fatal(err)
 	}
 	return &Env{
-		DB: db, Roles: roles, Files: files, Disk: disk,
+		DB: db, Roles: roles, Files: files, Disk: disk, Crypt: crypt.New(crypt.Config{Key: crypt.GenerateKey()}),
 		AdminLogins:  realm(platformadmin.Type, platformadmin.Resolve(db, roles)),
 		MemberLogins: realm(member.Type, member.Resolve(db, roles)),
 	}

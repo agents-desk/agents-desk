@@ -31,7 +31,8 @@ type Received struct {
 	Duplicate      bool // 这条消息之前已经收到过，这次没有写入
 }
 
-// Receive 写入渠道收到的一条消息：找到或创建联系人，把消息归入会话，追加到时间线。由连接器以系统的身份调用。
+// Receive 写入渠道收到的一条消息：找到或创建联系人，把消息归入会话，追加到时间线。由连接器以系统的身份调用；
+// 客户直接调用接口的渠道（网页聊天插件）以联系人的身份调用，只能以自己的身份发消息。
 type Receive struct {
 	db       *bun.DB
 	registry channel.Registry
@@ -49,12 +50,15 @@ func NewReceive(db *bun.DB, registry channel.Registry, down Downstream) *Receive
 //
 // 已关闭或稍后处理的会话重新打开。然后自动指派：负责人离开并选了重新分配时，会话放回团队收件箱；会话没有负责人时，
 // 按团队收件箱的分配方式分配（新会话进入渠道的默认团队收件箱）。同一个 p.ExternalID 重复收到时，返回之前写入的那一项，Duplicate 为 true。
-// 只有系统主体可以调用；渠道不存在时返回 channel.ErrNotFound，已停用时返回 channel.ErrDisabled。
+// 系统主体可以以任何人的身份写入；联系人主体只能写入自己的消息（p.From 是他在这个渠道中的身份），否则返回 ErrForbidden，
+// 他的 p.ExternalID 由入口加上联系人的前缀，不会与别人的重复。渠道不存在时返回 channel.ErrNotFound，已停用时返回 channel.ErrDisabled。
 func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceiveParams) (*Received, error) {
-	if err := authorize(sub, ""); err != nil {
-		return nil, err
+	if sub.Type != contact.Type {
+		if err := authorize(sub, ""); err != nil {
+			return nil, err
+		}
 	}
-	if prev, err := a.previous(ctx, sub.Tenant, p); prev != nil || err != nil {
+	if prev, err := a.previous(ctx, sub, p); prev != nil || err != nil {
 		return prev, err
 	}
 	var res Received
@@ -73,6 +77,9 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 		person, _, err := contact.ResolveIdentity(ctx, tx, sub.Tenant, ch.ID, p.From, contact.Profile{Name: p.FromName})
 		if err != nil {
 			return err
+		}
+		if sub.Type == contact.Type && person.ID != sub.ID {
+			return ErrForbidden.New()
 		}
 		c, opened, err := a.conversationFor(ctx, tx, ch, person, p, connector.Capabilities().MultipleConversations)
 		if err != nil {
@@ -126,7 +133,7 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 	})
 	if database.IsUniqueViolation(err, "timeline_items_external") {
 		// 同一条消息同时到达两次，另一次先写入了
-		return a.previous(ctx, sub.Tenant, p)
+		return a.previous(ctx, sub, p)
 	}
 	if err != nil {
 		return nil, err
@@ -134,19 +141,23 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 	return &res, nil
 }
 
-// previous 返回之前已经写入的同一条消息（按渠道和外部编号）；没有时返回 nil。
-func (a *Receive) previous(ctx context.Context, tenant string, p ReceiveParams) (*Received, error) {
+// previous 返回之前已经写入的同一条消息（按渠道和外部编号）；没有时返回 nil。sub 是联系人而那条消息不是他发的时
+// 返回 ErrForbidden。
+func (a *Receive) previous(ctx context.Context, sub identity.Subject, p ReceiveParams) (*Received, error) {
 	if p.ExternalID == "" {
 		return nil, nil
 	}
 	var it Item
 	err := a.db.NewSelect().Model(&it).
-		Where("tenant_id = ? AND channel_id = ? AND external_id = ?", tenant, p.ChannelID, p.ExternalID).Scan(ctx)
+		Where("tenant_id = ? AND channel_id = ? AND external_id = ?", sub.Tenant, p.ChannelID, p.ExternalID).Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, errors.Wrap(err, "load received message")
+	}
+	if sub.Type == contact.Type && (it.ActorType != ContactActor || it.ActorID != sub.ID) {
+		return nil, ErrForbidden.New()
 	}
 	dtos, err := toItemDTOs(ctx, a.db, []Item{it})
 	if err != nil {

@@ -293,5 +293,42 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
           invalidate(context, "tenant"),
       }),
     },
+    widget: {
+      /** widget 分组全部查询的 key 前缀。 */
+      key: () => key("widget"),
+      /** POST /widgets */
+      create: () => ({
+        mutationFn: (variables: Parameters<Client["widget"]["create"]>[0]) => client.widget.create(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "widget"),
+      }),
+      /** GET /widgets/{id} */
+      get: (...args: Parameters<Client["widget"]["get"]>) => ({
+        queryKey: key("widget", "get", ...args),
+        queryFn: () => client.widget.get(...args),
+      }),
+      /** GET /widgets/{id}/installation */
+      installation: (...args: Parameters<Client["widget"]["installation"]>) => ({
+        queryKey: key("widget", "installation", ...args),
+        queryFn: () => client.widget.installation(...args),
+      }),
+      /** GET /widgets */
+      list: (...args: Parameters<Client["widget"]["list"]>) => ({
+        queryKey: key("widget", "list", ...args),
+        queryFn: () => client.widget.list(...args),
+      }),
+      /** POST /widgets/{id}/identity-secret */
+      rotateSecret: () => ({
+        mutationFn: (variables: Parameters<Client["widget"]["rotateSecret"]>[0]) => client.widget.rotateSecret(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "widget"),
+      }),
+      /** PUT /widgets/{id} */
+      update: () => ({
+        mutationFn: (variables: Parameters<Client["widget"]["update"]>) => client.widget.update(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "widget"),
+      }),
+    },
   }
 }

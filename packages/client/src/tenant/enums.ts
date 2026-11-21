@@ -7,10 +7,10 @@
 export const enums = {
   ChannelKind: {
     prefix: "channel.kind",
-    values: ["test"],
+    values: ["test", "widget"],
     labels: {
-      "en": { test: "Test channel" },
-      "zh-CN": { test: "测试渠道" },
+      "en": { test: "Test channel", widget: "Website chat widget" },
+      "zh-CN": { test: "测试渠道", widget: "网页聊天插件" },
     },
   },
   ContactKind: {
@@ -119,10 +119,10 @@ export const enums = {
   },
   RolePermission: {
     prefix: "role_permission",
-    values: ["conversations:assign", "members:manage", "teams:manage", "tenant-settings:manage"],
+    values: ["conversations:assign", "members:manage", "teams:manage", "channels:manage", "tenant-settings:manage"],
     labels: {
-      "en": { "conversations:assign": "Reassign conversations to others", "members:manage": "Manage members and roles", "teams:manage": "Manage team inboxes", "tenant-settings:manage": "Manage workspace settings" },
-      "zh-CN": { "conversations:assign": "把会话改派给别人", "members:manage": "管理成员和角色", "teams:manage": "管理团队收件箱", "tenant-settings:manage": "管理工作区设置" },
+      "en": { "conversations:assign": "Reassign conversations to others", "members:manage": "Manage members and roles", "teams:manage": "Manage team inboxes", "channels:manage": "Manage channels", "tenant-settings:manage": "Manage workspace settings" },
+      "zh-CN": { "conversations:assign": "把会话改派给别人", "members:manage": "管理成员和角色", "teams:manage": "管理团队收件箱", "channels:manage": "管理渠道", "tenant-settings:manage": "管理工作区设置" },
     },
   },
   TeamAssignment: {

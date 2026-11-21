@@ -17,10 +17,12 @@ import (
 	"github.com/go-tenon/tenon/i18n"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/natsx"
+	"github.com/go-tenon/tenon/ratelimit"
 	"github.com/go-tenon/tenon/realtime"
 
 	"agents-desk/apps"
 	"agents-desk/internal/auth"
+	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/hours"
 	"agents-desk/internal/llm"
@@ -30,12 +32,14 @@ import (
 	"agents-desk/internal/role"
 	"agents-desk/internal/team"
 	"agents-desk/internal/tenant"
+	"agents-desk/internal/widget"
 	"agents-desk/locales"
 )
 
 // serveHTTP 装配 HTTP 服务，返回运行它的函数。apps 中的前端由 frontend.Host 按挂载路径提供：只在浏览器中渲染的前端
 // 由 Go 直接返回页面；服务端渲染的前端由 Go 托管的 SSR 进程渲染，它们渲染时经内部 socket 调用同一组路由。
-// /t/{slug}/realtime 是工作区端的实时连接（WebSocket），成员在其中订阅自己的个人频道。
+// /t/{slug}/realtime 是工作区端的实时连接（WebSocket），成员在其中订阅自己的个人频道；/w/{channel}/realtime 是聊天窗口的
+// 实时连接，客户在其中订阅自己的频道，收到成员的回复。
 func (a *App) serveHTTP(d *command.Daemon) (func(context.Context) error, error) {
 	var router chi.Router
 	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { router.ServeHTTP(w, r) })
@@ -47,8 +51,13 @@ func (a *App) serveHTTP(d *command.Daemon) (func(context.Context) error, error) 
 	if err != nil {
 		return nil, err
 	}
+	widgetRT, err := a.newWidgetRealtime()
+	if err != nil {
+		return nil, err
+	}
 	router = a.routes(pages.Handler())
 	router.With(tenant.Middleware(a.db)).Handle("/t/{slug}/realtime", rt.Handler())
+	router.With(widget.Middleware(a.db)).Handle("/w/{channel}/realtime", widgetRT.Handler())
 	ln, err := d.Listen("tcp", a.cfg.HTTP.Addr)
 	if err != nil {
 		return nil, err
@@ -58,7 +67,7 @@ func (a *App) serveHTTP(d *command.Daemon) (func(context.Context) error, error) 
 			return httpx.Serve(ctx, a.cfg.HTTP, ln, router)
 		})
 		// 先断开实时连接，广播随后在退出时关闭
-		return errors.Join(err, rt.Shutdown(context.WithoutCancel(ctx)))
+		return errors.Join(err, rt.Shutdown(context.WithoutCancel(ctx)), widgetRT.Shutdown(context.WithoutCancel(ctx)))
 	}, nil
 }
 
@@ -78,8 +87,23 @@ func (a *App) newRealtime() (*realtime.Realtime, error) {
 	return rt, nil
 }
 
+// newWidgetRealtime 创建聊天窗口的实时连接，挂在 /w/{channel}/realtime（前面是 widget.Middleware）。它只接受联系人的令牌：
+// 聊天窗口在第三方网站的页面中，令牌由 SDK 传入，不用 cookie；客户只能订阅自己在这个聊天插件中的频道（widget.RegisterRealtime）。
+func (a *App) newWidgetRealtime() (*realtime.Realtime, error) {
+	rt, err := realtime.New(a.hub, realtime.Options{
+		Authenticate: a.contactTokens.Validate,
+		Accounts:     identity.Accounts{contact.Type: widget.Resolve(a.db)},
+		Tenant:       func(r *http.Request) string { return widget.TenantFrom(r.Context()) },
+	})
+	if err != nil {
+		return nil, err
+	}
+	widget.RegisterRealtime(rt, a.db)
+	return rt, nil
+}
+
 // routes 是应用的全部路由：存活和就绪检查，/admin/api 下管理员端的接口，/api 下成员账号的接口，/t/{slug}/api 下
-// 工作区的接口，其余路径是页面（pages）。
+// 工作区的接口，/w/{channel}/api 下聊天窗口的接口，其余路径是页面（pages）。
 // 它只保存 App 的字段、处理请求时才使用，所以 docRouter 可以用没有打开资源的 App 调用它。
 func (a *App) routes(pages http.Handler) chi.Router {
 	router := chi.NewRouter()
@@ -158,6 +182,21 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		hours.RegisterRoutes(api, require, a.db)
 		team.RegisterRoutes(api, require, a.db, a.roles, a.memberLogins, a.files)
 		conversation.RegisterRoutes(api, require, a.db, a.downstream())
+		widget.RegisterRoutes(api, require, a.db, a.crypt, a.cfg.PublicURL)
+	})
+
+	// 聊天窗口的接口：widget.Middleware 按路径中的渠道 ID 查出聊天插件和它所在的工作区。只接受联系人的令牌，
+	// 客户的接口不需要登录，所以整组按客户端地址限流。
+	router.Route("/w/{channel}/api", func(r chi.Router) {
+		r.Use(httpx.Timeout(a.cfg.HTTP.Timeout), httpx.RateLimit(ratelimit.NewMemory(a.cfg.HTTP.RateLimit), httpx.KeyByIP), widget.Middleware(a.db))
+		api := rest.New(r, rest.Options{
+			Title: "agents-desk 聊天插件", Version: "0.1.0", BasePath: "/w/{channel}/api",
+			Tenant:   widget.TenantFromRequest,
+			Accounts: identity.Accounts{contact.Type: widget.Resolve(a.db)},
+		})
+		down := a.downstream()
+		widget.RegisterVisitorRoutes(api, rest.RequireToken(api, a.contactTokens.Validate), a.db, a.crypt, a.contactTokens,
+			conversation.NewReceive(a.db, a.channels, down), down)
 	})
 
 	// 本地磁盘中上传的文件（头像等），地址是 filesystem.disks.local.public_url。

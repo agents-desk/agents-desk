@@ -1,0 +1,134 @@
+package conversation
+
+import (
+	"context"
+	"database/sql"
+	"time"
+
+	"github.com/cockroachdb/errors"
+	"github.com/uptrace/bun"
+
+	"github.com/go-tenon/tenon/identity"
+
+	"agents-desk/internal/contact"
+)
+
+// ContactConversationDTO 是联系人在聊天插件等渠道中看到的自己的会话：没有团队收件箱、负责人和内部备注。
+type ContactConversationDTO struct {
+	ID            string    `json:"id"`
+	Status        Status    `json:"status"`
+	Preview       string    `json:"preview" doc:"最后一条消息的文字"`
+	Unread        int       `json:"unread" doc:"成员发来、联系人还没读到的消息数"`
+	LastMessageAt time.Time `json:"last_message_at"`
+	LastSeq       int64     `json:"last_seq" doc:"时间线中最新一项的序号；联系人看到的时间线跳过内部备注和系统事件，序号不连续"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+// ContactAuthor 是联系人看到的一项的发起者。
+type ContactAuthor struct {
+	Type ActorType `json:"type" doc:"contact 是联系人自己，member 是成员，system 是系统"`
+	Name string    `json:"name" doc:"成员的名字；联系人自己和系统为空"`
+}
+
+// ContactItemDTO 是联系人看到的时间线中的一项：对所有人可见的消息。
+type ContactItemDTO struct {
+	ID        string        `json:"id"`
+	Seq       int64         `json:"seq"`
+	Kind      ItemKind      `json:"kind"`
+	Author    ContactAuthor `json:"author"`
+	Text      string        `json:"text"`
+	CreatedAt time.Time     `json:"created_at"`
+}
+
+// findForContact 读取联系人 sub 在渠道 channelID 中的会话 id。sub 不是联系人时返回 ErrForbidden；会话不存在、
+// 属于别的工作区、别的联系人或别的渠道时都返回 ErrNotFound。lock 为 true 时锁住这一行。
+func findForContact(ctx context.Context, db bun.IDB, sub identity.Subject, channelID, id string, lock bool) (*Conversation, error) {
+	if sub.Type != contact.Type {
+		return nil, ErrForbidden.New()
+	}
+	c := new(Conversation)
+	q := db.NewSelect().Model(c).
+		Where("id = ? AND tenant_id = ? AND contact_id = ? AND channel_id = ?", id, sub.Tenant, sub.ID, channelID)
+	if lock {
+		q = q.For("UPDATE")
+	}
+	err := q.Scan(ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound.New()
+	}
+	return c, errors.Wrap(err, "load conversation")
+}
+
+// toContactDTOs 把会话转换为联系人看到的形式：一次读出最后一条消息的文字和联系人未读的消息数。
+func toContactDTOs(ctx context.Context, db bun.IDB, convs []Conversation) ([]ContactConversationDTO, error) {
+	out := make([]ContactConversationDTO, len(convs))
+	if len(convs) == 0 {
+		return out, nil
+	}
+	ids := make([]string, len(convs))
+	for i, c := range convs {
+		ids[i] = c.ID
+	}
+	var rows []struct {
+		ConversationID string `bun:"conversation_id"`
+		Preview        string `bun:"preview"`
+		Unread         int    `bun:"unread"`
+	}
+	err := db.NewRaw(`SELECT c.id AS conversation_id,
+			COALESCE((SELECT t.content->>'text' FROM timeline_items t
+				WHERE t.conversation_id = c.id AND t.kind = ? AND t.visibility = ? ORDER BY t.seq DESC LIMIT 1), '') AS preview,
+			(SELECT count(*) FROM timeline_items t JOIN message_deliveries d ON d.item_id = t.id
+				WHERE t.conversation_id = c.id AND t.actor_type <> ? AND d.status <> ?) AS unread
+		FROM conversations c WHERE c.id IN (?)`, Message, Everyone, ContactActor, Read, bun.In(ids)).Scan(ctx, &rows)
+	if err != nil {
+		return nil, errors.Wrap(err, "load contact previews")
+	}
+	extra := make(map[string]int, len(rows))
+	for i, r := range rows {
+		extra[r.ConversationID] = i
+	}
+	for i, c := range convs {
+		r := rows[extra[c.ID]]
+		out[i] = ContactConversationDTO{
+			ID: c.ID, Status: c.Status, Preview: r.Preview, Unread: r.Unread,
+			LastMessageAt: c.LastMessageAt, LastSeq: c.LastSeq, CreatedAt: c.CreatedAt,
+		}
+	}
+	return out, nil
+}
+
+// toContactItemDTOs 把时间线的各项转换为联系人看到的形式，一次读出成员的名字。
+func toContactItemDTOs(ctx context.Context, db bun.IDB, items []Item) ([]ContactItemDTO, error) {
+	out := make([]ContactItemDTO, len(items))
+	var memberIDs []string
+	for _, it := range items {
+		if it.ActorType == MemberActor {
+			memberIDs = append(memberIDs, it.ActorID)
+		}
+	}
+	names := map[string]string{}
+	if len(memberIDs) > 0 {
+		var rows []struct {
+			ID   string `bun:"id"`
+			Name string `bun:"name"`
+		}
+		if err := db.NewSelect().Table("members").Column("id", "name").Where("id IN (?)", bun.In(memberIDs)).Scan(ctx, &rows); err != nil {
+			return nil, errors.Wrap(err, "load member names")
+		}
+		for _, r := range rows {
+			names[r.ID] = r.Name
+		}
+	}
+	for i, it := range items {
+		out[i] = ContactItemDTO{
+			ID: it.ID, Seq: it.Seq, Kind: it.Kind, Author: ContactAuthor{Type: it.ActorType, Name: names[it.ActorID]},
+			Text: it.Content.Text, CreatedAt: it.CreatedAt,
+		}
+	}
+	return out, nil
+}
+
+// ForContact 返回联系人自己发的消息 d 在联系人看到的形式，例如聊天插件发消息后的响应。
+func (d ItemDTO) ForContact() ContactItemDTO {
+	return ContactItemDTO{ID: d.ID, Seq: d.Seq, Kind: d.Kind, Author: ContactAuthor{Type: d.Actor.Type}, Text: d.Content.Text, CreatedAt: d.CreatedAt}
+}

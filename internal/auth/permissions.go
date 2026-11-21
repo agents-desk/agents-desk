@@ -25,6 +25,7 @@ const (
 	TenantSettingsManage  Permission = "tenant-settings:manage"  // 工作区：修改工作区的常规设置（名称）
 	TeamsRead             Permission = "teams:read"              // 工作区：查看团队收件箱和团队收件箱的成员
 	TeamsManage           Permission = "teams:manage"            // 工作区：新建、修改、删除团队收件箱，增减团队收件箱的成员
+	ChannelsManage        Permission = "channels:manage"         // 工作区：新建、修改、停用渠道，查看渠道的嵌入代码和身份验证密钥
 	ConversationsRead     Permission = "conversations:read"      // 工作区：查看会话和时间线
 	ConversationsReply    Permission = "conversations:reply"     // 工作区：回复会话、写内部备注，处理看得到的会话（关闭、稍后处理、重新打开、优先级）
 	ConversationsAssign   Permission = "conversations:assign"    // 工作区：把会话改派给别人：指派别人负责的会话，或者把没有负责人的会话指派给别人、转到别的团队收件箱
@@ -34,7 +35,7 @@ const (
 
 // Permissions 是全部权限，显示文字是翻译文件中 permission.<权限> 的消息。
 var Permissions = enum.New("permission", TenantsRead, TenantsManage, PlatformSettingsManage,
-	MembersRead, MembersManage, TenantSettingsManage, TeamsRead, TeamsManage,
+	MembersRead, MembersManage, TenantSettingsManage, TeamsRead, TeamsManage, ChannelsManage,
 	ConversationsRead, ConversationsReply, ConversationsAssign, ConversationsReadAll, ConversationsReadTeam)
 
 // Schema 让 OpenAPI 中的 Permission 只接受目录中的取值。
@@ -50,6 +51,7 @@ var Catalog = authz.Catalog{
 	{Name: string(TenantSettingsManage), Description: "管理工作区设置"},
 	{Name: string(TeamsRead), Description: "查看团队收件箱"},
 	{Name: string(TeamsManage), Description: "管理团队收件箱"},
+	{Name: string(ChannelsManage), Description: "管理渠道"},
 	{Name: string(ConversationsRead), Description: "查看会话"},
 	{Name: string(ConversationsReply), Description: "回复会话"},
 	{Name: string(ConversationsAssign), Description: "把会话改派给别人"},
@@ -77,7 +79,7 @@ type TenantPermission string
 // TenantPermissions 是可以勾选的操作权限，显示文字是翻译文件中 role_permission.<权限> 的消息。前缀与 Permissions 不同：
 // 枚举在接口文档中按前缀命名，同一个前缀的两个枚举会被当成同一个类型，平台的权限就成了可以勾选的权限。
 var TenantPermissions = enum.New("role_permission",
-	TenantPermission(ConversationsAssign), TenantPermission(MembersManage), TenantPermission(TeamsManage), TenantPermission(TenantSettingsManage))
+	TenantPermission(ConversationsAssign), TenantPermission(MembersManage), TenantPermission(TeamsManage), TenantPermission(ChannelsManage), TenantPermission(TenantSettingsManage))
 
 // Schema 让 OpenAPI 中的 TenantPermission 只接受上面的取值，并带有显示文字。
 func (TenantPermission) Schema(r huma.Registry) *huma.Schema {

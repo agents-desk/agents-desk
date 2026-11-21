@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/command"
+	"github.com/go-tenon/tenon/crypt"
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/login"
@@ -22,19 +23,20 @@ import (
 	"agents-desk/internal/platformadmin"
 	"agents-desk/internal/team"
 	"agents-desk/internal/tenant"
+	"agents-desk/internal/widget"
 )
 
 // seedPassword 是 seed 写入的所有账号的密码，只用于开发和演示。
 const seedPassword = "password"
 
 // seedCommand 返回 seed 命令：写入开发和演示用的数据，见 seed。
-func seedCommand(db *bun.DB, adminLogins, memberLogins *login.Realm, files *filesystem.Service, addr tenant.Addresses, channels channel.Registry, down conversation.Downstream) *cobra.Command {
+func seedCommand(db *bun.DB, adminLogins, memberLogins *login.Realm, files *filesystem.Service, keys *crypt.Crypt, addr tenant.Addresses, channels channel.Registry, down conversation.Downstream) *cobra.Command {
 	return &cobra.Command{
 		Use:   "seed",
 		Short: "写入开发和演示用的账号和工作区（密码都是 password），只在开发和演示环境中运行",
 		Args:  command.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return seed(cmd.Context(), cmd.OutOrStdout(), db, adminLogins, memberLogins, files, addr, channels, down)
+			return seed(cmd.Context(), cmd.OutOrStdout(), db, adminLogins, memberLogins, files, keys, addr, channels, down)
 		},
 	}
 }
@@ -44,10 +46,11 @@ func seedCommand(db *bun.DB, adminLogins, memberLogins *login.Realm, files *file
 //   - 示例工作区 demo，主管理员 owner@example.com，以及新建工作区时创建的角色“管理员”“坐席”；
 //   - demo 中角色为管理员的 manager@example.com、角色为坐席的 agent@example.com，两人都在线（主管理员是默认的离开）；
 //   - demo 中的团队收件箱“一线客服”，轮流分配，成员 manager@、agent@；
-//   - demo 中的测试渠道，新会话进入“一线客服”，以及 10 个示例会话，客户用英语、印地语、Hinglish，部分会话 agent@ 已经回复。
+//   - demo 中的测试渠道，新会话进入“一线客服”，以及 10 个示例会话，客户用英语、印地语、Hinglish，部分会话 agent@ 已经回复；
+//   - demo 中的聊天插件“官网”，新会话进入“一线客服”。
 //
 // 每一项写入或跳过时向 out 输出一行。
-func seed(ctx context.Context, out io.Writer, db *bun.DB, adminLogins, memberLogins *login.Realm, files *filesystem.Service, addr tenant.Addresses, channels channel.Registry, down conversation.Downstream) error {
+func seed(ctx context.Context, out io.Writer, db *bun.DB, adminLogins, memberLogins *login.Realm, files *filesystem.Service, keys *crypt.Crypt, addr tenant.Addresses, channels channel.Registry, down conversation.Downstream) error {
 	system := identity.Subject{Type: identity.System, ID: "seed"}
 
 	// 平台管理员
@@ -126,7 +129,32 @@ func seed(ctx context.Context, out io.Writer, db *bun.DB, adminLogins, memberLog
 			return err
 		}
 	}
-	return seedConversations(ctx, out, db, memberLogins, inDemo, channels, down)
+	if err := seedConversations(ctx, out, db, memberLogins, inDemo, channels, down); err != nil {
+		return err
+	}
+	return seedWidget(ctx, out, db, keys, inDemo)
+}
+
+// seedWidget 在示例工作区中建聊天插件“官网”，新会话进入团队收件箱“一线客服”。示例工作区中已经有聊天插件时跳过。
+func seedWidget(ctx context.Context, out io.Writer, db *bun.DB, keys *crypt.Crypt, inDemo identity.Subject) error {
+	n, err := db.NewSelect().Model((*channel.Channel)(nil)).Where("tenant_id = ? AND kind = ?", inDemo.Tenant, channel.Widget).Count(ctx)
+	if err != nil {
+		return errors.Wrap(err, "count widgets")
+	}
+	if n > 0 {
+		fmt.Fprintln(out, "示例工作区已有聊天插件，跳过")
+		return nil
+	}
+	var teamID string
+	if err := db.NewRaw("SELECT id FROM teams WHERE tenant_id = ? AND name = '一线客服'", inDemo.Tenant).Scan(ctx, &teamID); err != nil {
+		return errors.Wrap(err, "find demo team")
+	}
+	w, err := widget.NewCreate(db, keys).Handle(ctx, inDemo, widget.Changes{Name: "官网", TeamID: &teamID, Greeting: "你好！有什么可以帮你？"})
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(out, "已在示例工作区中创建聊天插件 官网：", w.ID)
+	return nil
 }
 
 // seedTeamMembers 把管理员 manager@ 和坐席 agent@ 加入示例工作区的团队收件箱 teamID。
