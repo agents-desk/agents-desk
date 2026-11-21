@@ -34,6 +34,10 @@ var (
 	ErrNotFound = errorx.Define(errorx.NotFound, "conversation.not_found")
 	// ErrForbidden 是调用者没有权限执行这个会话动作。
 	ErrForbidden = errorx.Define(errorx.PermissionDenied, "conversation.forbidden")
+	// ErrNotClosed 是会话还没有关闭，客户不能评价。
+	ErrNotClosed = errorx.Define(errorx.Conflict, "conversation.not_closed")
+	// ErrAlreadyRated 是客户已经评价过这次关闭的会话；会话重新打开、再关闭后可以再评价。
+	ErrAlreadyRated = errorx.Define(errorx.Conflict, "conversation.already_rated")
 )
 
 // Kind 是会话的种类。
@@ -164,7 +168,30 @@ type Conversation struct {
 	LastMessageAt time.Time      `bun:"last_message_at,notnull"` // 最近一条消息的时间
 	LastSeq       int64          `bun:"last_seq,notnull"`        // 时间线中最新一项的序号
 	Attributes    map[string]any `bun:"attributes,type:jsonb,notnull"`
-	MentionedAt   *time.Time     `bun:"mentioned_at,scanonly"` // 只在“@我”的列表中读出：最近一次被 @ 的时间
+	Rating        *int           `bun:"rating"`                 // 客户最近一次评价的星数，1 到 5；没有评价过时为空
+	RatingComment string         `bun:"rating_comment,notnull"` // 评价时附的一句意见
+	RatedAt       *time.Time     `bun:"rated_at"`               // 最近一次评价的时间
+	MentionedAt   *time.Time     `bun:"mentioned_at,scanonly"`  // 只在“@我”的列表中读出：最近一次被 @ 的时间
+}
+
+// Rating 是客户对会话的评价。
+type Rating struct {
+	Score   int       `json:"score" doc:"1 到 5 星"`
+	Comment string    `json:"comment" doc:"附的一句意见"`
+	RatedAt time.Time `json:"rated_at"`
+}
+
+// rating 返回会话 c 最近一次的评价，没有评价过时返回 nil。
+func (c *Conversation) rating() *Rating {
+	if c.Rating == nil {
+		return nil
+	}
+	return &Rating{Score: *c.Rating, Comment: c.RatingComment, RatedAt: *c.RatedAt}
+}
+
+// ratedSinceClosed 报告客户在会话最近一次关闭之后有没有评价过：每关闭一次可以评价一次。
+func (c *Conversation) ratedSinceClosed() bool {
+	return c.RatedAt != nil && c.ClosedAt != nil && !c.RatedAt.Before(*c.ClosedAt)
 }
 
 // Participant 是会话的一个参与者。
@@ -228,6 +255,9 @@ type Downstream struct {
 	Topics []queue.Topic[Appended] // 交给 worker 的下游，每个一个 topic，各自重试，例如把消息发到外部渠道（DeliverTopic），以后还有翻译
 	Hub    *broadcast.Hub          // 提交后把变化推送到能看到会话的成员的个人频道；为 nil 时不推送
 	Roles  *authz.Store            // 推送时按成员的角色判断可见范围，Hub 不为 nil 时必须设置
+	// ContactPush 在提交后把会话的变化推送给对方（联系人）打开着的聊天窗口，参数是会话的渠道和联系人；为 nil 时不推送。
+	// 会话的状态变了，或者联系人自己发了消息（他的其他页面随之更新）时推送；成员的回复由连接器发出时推送。
+	ContactPush func(ctx context.Context, channelID, contactID string, ev push.Event) error
 }
 
 // authorize 是会话动作统一的权限检查：成员按权限检查；系统主体（连接器、命令、种子数据）可以执行全部会话动作。
@@ -267,6 +297,10 @@ func commit(ctx context.Context, tx database.Tx, down Downstream, c *Conversatio
 			return err
 		}
 	}
+	toContact, err := contactSees(ctx, tx, down, c, items)
+	if err != nil {
+		return err
+	}
 	at := now()
 	tasks := make([]Appended, 0, len(items))
 	for _, it := range items {
@@ -288,13 +322,38 @@ func commit(ctx context.Context, tx database.Tx, down Downstream, c *Conversatio
 			return err
 		}
 	}
+	ev := push.Event{Type: push.Conversation, ID: c.ID, Seq: c.LastSeq}
 	if down.Hub != nil {
-		hub, tenant, ev := down.Hub, c.TenantID, push.Event{Type: push.Conversation, ID: c.ID, Seq: c.LastSeq}
+		hub, tenant := down.Hub, c.TenantID
 		tx.AfterCommit(func(ctx context.Context) error {
 			return errors.Wrap(push.Send(ctx, hub, tenant, audience, ev), "push conversation changed")
 		})
 	}
+	if toContact {
+		notify, channelID, contactID := down.ContactPush, *c.ChannelID, *c.ContactID
+		tx.AfterCommit(func(ctx context.Context) error {
+			return errors.Wrap(notify(ctx, channelID, contactID, ev), "push conversation changed to contact")
+		})
+	}
 	return nil
+}
+
+// contactSees 报告这次修改要不要推送给会话 c 的对方（联系人）：会话来自渠道、有联系人、设置了 ContactPush，
+// 并且状态变了，或者 items 中有联系人自己发的消息。要在保存 c 之前调用，修改前的状态从数据库中读取。
+func contactSees(ctx context.Context, db bun.IDB, down Downstream, c *Conversation, items []*Item) (bool, error) {
+	if down.ContactPush == nil || c.ChannelID == nil || c.ContactID == nil {
+		return false, nil
+	}
+	for _, it := range items {
+		if it.Kind == Message && it.ActorType == ContactActor {
+			return true, nil
+		}
+	}
+	var before Status
+	if err := db.NewSelect().Table("conversations").Column("status").Where("id = ?", c.ID).Scan(ctx, &before); err != nil {
+		return false, errors.Wrap(err, "load status before change")
+	}
+	return before != c.Status, nil
 }
 
 // join 在事务 tx 中把参与者加入会话 conversationID，已经在其中时保持原样。

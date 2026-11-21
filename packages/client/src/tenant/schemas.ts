@@ -786,6 +786,13 @@ export const components = {
   WidgetChanges: {
     "additionalProperties": false,
     "properties": {
+      "allowed_origins": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 20,
+        "type": "array"
+      },
       "color": {
         "enum": [
           "blue-gray",
@@ -839,6 +846,13 @@ export const components = {
   WidgetUpdateBody: {
     "additionalProperties": false,
     "properties": {
+      "allowed_origins": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 20,
+        "type": "array"
+      },
       "color": {
         "enum": [
           "blue-gray",

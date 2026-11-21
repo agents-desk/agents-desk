@@ -1,9 +1,12 @@
 package widget
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -324,5 +327,154 @@ func TestManage(t *testing.T) {
 	cfg, err := NewGetConfig().Handle(alpha.in(t, alpha.widget.ID))
 	if err != nil || cfg.Greeting != "你好" || cfg.Color != "green" || cfg.Name != "官网" {
 		t.Fatalf("公开设置：%+v %v", cfg, err)
+	}
+}
+
+// TestRating 检查客户评价：打开的会话不能评价；坐席关闭会话时推送给客户，客户看到已关闭、还没有评价；评价后
+// 成员看到分数，时间线中有只有成员可见的系统事件，同一次关闭不能再评价；客户再发消息重新打开、坐席再关闭后可以再评价。
+// 稍后处理的会话对客户显示为打开。
+func TestRating(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	env := apptest.New(t)
+	f := setup(t, env, "alpha")
+	hub := broadcast.New(broadcasttest.NewBackend(), nil)
+	t.Cleanup(func() { _ = hub.Close() })
+	registry := channel.Registry{channel.Widget: NewConnector(hub)}
+	down := conversation.Downstream{Hub: hub, Roles: env.Roles, ContactPush: Push(hub)}
+	send := NewSendMessage(env.DB, conversation.NewReceive(env.DB, registry, down))
+	rate := conversation.NewRateByContact(env.DB, down)
+	get := conversation.NewGetForContact(env.DB)
+
+	_, visitor := f.session(t, SessionBody{})
+	in := f.in(t, f.widget.ID)
+	pubs := hub.Subscribe(Channel(f.widget.ID, visitor.ID))
+	defer pubs.Close()
+	broadcasttest.Ready(t, hub)
+	expectPush := func(step string) {
+		t.Helper()
+		var ev push.Event
+		if err := json.Unmarshal(broadcasttest.Receive(t, pubs).Data, &ev); err != nil || ev.Type != push.Conversation {
+			t.Fatalf("%s：推送 %+v %v", step, ev, err)
+		}
+	}
+
+	sent, err := send.Handle(in, visitor, "", MessageBody{Text: "hello"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectPush("客户自己发的消息")
+	if _, err := rate.Handle(ctx, visitor, f.widget.ID, sent.ConversationID, 5, ""); !errors.Is(err, conversation.ErrNotClosed) {
+		t.Fatalf("评价打开的会话：%v", err)
+	}
+
+	// 稍后处理对客户显示为打开，状态变了也推送
+	if _, err := conversation.NewSnooze(env.DB, down).Handle(ctx, f.agent, sent.ConversationID, time.Now().Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	expectPush("稍后处理")
+	if c, err := get.Handle(ctx, visitor, f.widget.ID, sent.ConversationID); err != nil || c.Status != conversation.Open {
+		t.Fatalf("稍后处理的会话：%+v %v", c, err)
+	}
+
+	// 关闭：推送给客户，客户看到已关闭、可以评价
+	if _, err := conversation.NewClose(env.DB, down).Handle(ctx, f.agent, sent.ConversationID); err != nil {
+		t.Fatal(err)
+	}
+	expectPush("关闭")
+	if c, err := get.Handle(ctx, visitor, f.widget.ID, sent.ConversationID); err != nil || c.Status != conversation.Closed || c.Rating != nil {
+		t.Fatalf("关闭后：%+v %v", c, err)
+	}
+	rated, err := rate.Handle(ctx, visitor, f.widget.ID, sent.ConversationID, 4, "挺快的")
+	if err != nil || rated.Rating == nil || rated.Rating.Score != 4 || rated.Rating.Comment != "挺快的" {
+		t.Fatalf("评价：%+v %v", rated, err)
+	}
+	if _, err := rate.Handle(ctx, visitor, f.widget.ID, sent.ConversationID, 5, ""); !errors.Is(err, conversation.ErrAlreadyRated) {
+		t.Fatalf("再评价一次：%v", err)
+	}
+	member, err := conversation.NewGet(env.DB).Handle(ctx, f.agent, sent.ConversationID)
+	if err != nil || member.Rating == nil || member.Rating.Score != 4 {
+		t.Fatalf("成员看到的评价：%+v %v", member, err)
+	}
+	items, err := conversation.NewTimeline(env.DB).Handle(ctx, f.agent, sent.ConversationID, 0, 100)
+	if err != nil || items[len(items)-1].Content.Event != "conversation.rated" || items[len(items)-1].Visibility != conversation.MembersOnly {
+		t.Fatalf("时间线：%+v %v", items, err)
+	}
+	if theirs, err := conversation.NewTimelineForContact(env.DB).Handle(ctx, visitor, f.widget.ID, sent.ConversationID, 0, 100); err != nil || len(theirs) != 1 {
+		t.Fatalf("客户看到的时间线：%+v %v", theirs, err)
+	}
+
+	// 客户再发消息重新打开，坐席再关闭后可以再评价
+	if _, err := send.Handle(in, visitor, sent.ConversationID, MessageBody{Text: "one more thing"}); err != nil {
+		t.Fatal(err)
+	}
+	expectPush("重新打开")
+	if c, err := get.Handle(ctx, visitor, f.widget.ID, sent.ConversationID); err != nil || c.Status != conversation.Open || c.Rating != nil {
+		t.Fatalf("重新打开后：%+v %v", c, err)
+	}
+	if _, err := conversation.NewClose(env.DB, down).Handle(ctx, f.agent, sent.ConversationID); err != nil {
+		t.Fatal(err)
+	}
+	expectPush("再关闭")
+	if again, err := rate.Handle(ctx, visitor, f.widget.ID, sent.ConversationID, 5, ""); err != nil || again.Rating.Score != 5 {
+		t.Fatalf("再关闭后评价：%+v %v", again, err)
+	}
+}
+
+// TestFrameAncestors 检查允许嵌入的网站：整理成小写的 scheme://host，去掉重复的，写得不对时报错；聊天窗口页面的
+// frame-ancestors 按它生成，没有设置时是 *，聊天插件不存在或停用时是 'none'。
+func TestFrameAncestors(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	env := apptest.New(t)
+	f := setup(t, env, "alpha")
+
+	if got, err := FrameAncestors(ctx, env.DB, f.widget.ID); err != nil || got != "*" {
+		t.Fatalf("没有设置时：%q %v", got, err)
+	}
+	for _, bad := range []string{"shop.example.com", "ftp://shop.example.com", "https://shop.example.com/path", "https://shop.example.com?a=1", "https://"} {
+		_, err := NewUpdate(env.DB).Handle(ctx, f.system, f.widget.ID, UpdateBody{Changes: Changes{Name: "官网", AllowedOrigins: []string{bad}}, Enabled: true})
+		if !errors.Is(err, ErrInvalidOrigin) {
+			t.Errorf("%q：%v", bad, err)
+		}
+	}
+	w, err := NewUpdate(env.DB).Handle(ctx, f.system, f.widget.ID, UpdateBody{
+		Changes: Changes{Name: "官网", AllowedOrigins: []string{"https://Shop.Example.com/", " https://shop.example.com", "http://localhost:3000"}}, Enabled: true,
+	})
+	if err != nil || len(w.AllowedOrigins) != 2 || w.AllowedOrigins[0] != "https://shop.example.com" || w.AllowedOrigins[1] != "http://localhost:3000" {
+		t.Fatalf("整理后：%+v %v", w, err)
+	}
+	if got, err := FrameAncestors(ctx, env.DB, f.widget.ID); err != nil || got != "https://shop.example.com http://localhost:3000" {
+		t.Fatalf("设置后：%q %v", got, err)
+	}
+	for name, id := range map[string]string{"不是 UUID": "x", "不存在": newID()} {
+		if got, err := FrameAncestors(ctx, env.DB, id); err != nil || got != "'none'" {
+			t.Errorf("%s：%q %v", name, got, err)
+		}
+	}
+	if _, err := NewUpdate(env.DB).Handle(ctx, f.system, f.widget.ID, UpdateBody{Changes: Changes{Name: "官网"}, Enabled: false}); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := FrameAncestors(ctx, env.DB, f.widget.ID); err != nil || got != "'none'" {
+		t.Fatalf("停用后：%q %v", got, err)
+	}
+}
+
+// TestUserTokenCommand 检查 dev user-token 签名的用户身份能建立用户的会话。
+func TestUserTokenCommand(t *testing.T) {
+	t.Parallel()
+	env := apptest.New(t)
+	f := setup(t, env, "alpha")
+	cmd := UserTokenCommand(env.DB, env.Crypt)
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(io.Discard)
+	cmd.SetArgs([]string{"--tenant", "alpha", "--sub", "u-7", "--name", "Priya"})
+	if err := cmd.ExecuteContext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	s, _ := f.session(t, SessionBody{UserToken: strings.TrimSpace(out.String())})
+	if s.Contact.Kind != contact.User || s.Contact.Name != "Priya" {
+		t.Fatalf("用户的会话：%+v", s)
 	}
 }

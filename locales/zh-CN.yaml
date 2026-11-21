@@ -120,6 +120,7 @@ channel.kind.test: 测试渠道
 channel.kind.widget: 网页聊天插件
 widget.invalid_user_token: 用户身份的签名无效或已过期
 widget.team_not_found: 团队收件箱不存在
+widget.invalid_origin: "“{{.origin}}”要写成 https:// 或 http:// 开头、只有域名的地址，例如 https://shop.example.com"
 widget.title: 网页聊天插件
 widget.fields.id: ID
 widget.fields.name: 名称
@@ -127,15 +128,19 @@ widget.fields.team_id: 团队收件箱
 widget.fields.team_name: 团队收件箱
 widget.fields.greeting: 问候语
 widget.fields.color: 主题色
+widget.fields.allowed_origins: 允许嵌入的网站
 widget.fields.enabled: 启用
 widget.fields.created_at: 创建时间
 widget.descriptions.name: 显示在聊天窗口的标题中
 widget.descriptions.team_id: 新会话进入的团队收件箱；不选时进入未指派
 widget.descriptions.greeting: 显示在聊天窗口的顶部；不填时显示默认的问候语
+widget.descriptions.allowed_origins: 聊天窗口只在这些网站中显示，例如 https://shop.example.com；不填时所有网站都可以嵌入。App 用 WebView 打开时不受它限制
 widget.descriptions.enabled: 停用后聊天窗口不再显示，客户不能再发消息
 
 conversation.not_found: 会话不存在
 conversation.forbidden: 你没有权限执行这个操作
+conversation.not_closed: 会话还没有关闭，关闭后才能评价
+conversation.already_rated: 这次已经评价过了
 conversation.closed: 会话已经关闭，先重新打开
 conversation.already_assigned: 这个会话已经被别人领取了
 conversation.snooze_in_past: 稍后处理的时间要晚于现在

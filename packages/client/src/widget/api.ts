@@ -33,6 +33,9 @@ export interface ConversationContactConversationDTO {
   last_seq: number
   /** 最后一条消息的文字 */
   preview: string
+  /** 客户对最近一次关闭的评价；会话已关闭而它为空时可以评价 */
+  rating?: ConversationRating
+  /** 打开或已关闭；稍后处理的会话对客户显示为打开 */
   status: ConversationStatus
   /** 成员发来、联系人还没读到的消息数 */
   unread: number
@@ -48,6 +51,14 @@ export interface ConversationContactItemDTO {
 }
 
 export type ConversationItemKind = "message" | "note" | "event"
+
+export interface ConversationRating {
+  /** 附的一句意见 */
+  comment: string
+  rated_at: string
+  /** 1 到 5 星 */
+  score: number
+}
 
 export type ConversationStatus = "open" | "snoozed" | "closed"
 
@@ -94,6 +105,13 @@ export interface WidgetMessageBody {
   /** 聊天窗口为这条消息生成的编号；网络出错重发时带同一个编号，消息只记录一次 */
   client_id?: string
   text: string
+}
+
+export interface WidgetRateInputBody {
+  /** 附的一句意见 */
+  comment?: string
+  /** 1 到 5 星 */
+  score: number
 }
 
 export interface WidgetReadInputBody {
@@ -156,6 +174,13 @@ export function createClient(options: ClientOptions) {
        */
       list: (): Promise<ConversationContactConversationDTO[]> =>
         rt.request<ConversationContactConversationDTO[]>({ method: "GET", path: `/conversations` }),
+      /**
+       * 评价会话
+       *
+       * POST /conversations/{id}/rating
+       */
+      rate: (id: string, body: WidgetRateInputBody): Promise<ConversationContactConversationDTO> =>
+        rt.request<ConversationContactConversationDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/rating`, body }),
       /**
        * 标记已读
        *

@@ -16,7 +16,8 @@ import (
 // ContactConversationDTO 是联系人在聊天插件等渠道中看到的自己的会话：没有团队收件箱、负责人和内部备注。
 type ContactConversationDTO struct {
 	ID            string    `json:"id"`
-	Status        Status    `json:"status"`
+	Status        Status    `json:"status" doc:"打开或已关闭；稍后处理的会话对客户显示为打开"`
+	Rating        *Rating   `json:"rating,omitempty" doc:"客户对最近一次关闭的评价；会话已关闭而它为空时可以评价"`
 	Preview       string    `json:"preview" doc:"最后一条消息的文字"`
 	Unread        int       `json:"unread" doc:"成员发来、联系人还没读到的消息数"`
 	LastMessageAt time.Time `json:"last_message_at"`
@@ -92,6 +93,13 @@ func toContactDTOs(ctx context.Context, db bun.IDB, convs []Conversation) ([]Con
 		out[i] = ContactConversationDTO{
 			ID: c.ID, Status: c.Status, Preview: r.Preview, Unread: r.Unread,
 			LastMessageAt: c.LastMessageAt, LastSeq: c.LastSeq, CreatedAt: c.CreatedAt,
+		}
+		// 稍后处理是团队内部的安排，客户看到的是打开
+		if c.Status == Snoozed {
+			out[i].Status = Open
+		}
+		if c.Status == Closed && c.ratedSinceClosed() {
+			out[i].Rating = c.rating()
 		}
 	}
 	return out, nil

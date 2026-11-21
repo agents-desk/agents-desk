@@ -34,6 +34,14 @@ func (s Settings) color() Color {
 	return Color(s.Color)
 }
 
+// origins 返回设置中允许嵌入的网站，没有设置时是空的列表。
+func (s Settings) origins() []string {
+	if s.AllowedOrigins == nil {
+		return []string{}
+	}
+	return s.AllowedOrigins
+}
+
 // Schema 让 OpenAPI 中的 Color 只接受 colors 中的取值。
 func (Color) Schema(huma.Registry) *huma.Schema {
 	s := &huma.Schema{Type: huma.TypeString}
@@ -45,14 +53,16 @@ func (Color) Schema(huma.Registry) *huma.Schema {
 
 // WidgetDTO 是接口中的聊天插件。
 type WidgetDTO struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	TeamID    *string   `json:"team_id,omitempty" doc:"新会话进入的团队收件箱；为空时进入未指派"`
-	TeamName  string    `json:"team_name" doc:"新会话进入的团队收件箱的名称；未指派时为空"`
-	Greeting  string    `json:"greeting" doc:"聊天窗口顶部的问候语"`
-	Color     Color     `json:"color" doc:"聊天窗口的主题色"`
-	Enabled   bool      `json:"enabled" doc:"停用后聊天窗口不再显示，客户不能再发消息"`
-	CreatedAt time.Time `json:"created_at"`
+	ID       string  `json:"id"`
+	Name     string  `json:"name"`
+	TeamID   *string `json:"team_id,omitempty" doc:"新会话进入的团队收件箱；为空时进入未指派"`
+	TeamName string  `json:"team_name" doc:"新会话进入的团队收件箱的名称；未指派时为空"`
+	Greeting string  `json:"greeting" doc:"聊天窗口顶部的问候语"`
+	Color    Color   `json:"color" doc:"聊天窗口的主题色"`
+	// AllowedOrigins 是允许嵌入聊天窗口的网站
+	AllowedOrigins []string  `json:"allowed_origins" doc:"允许嵌入聊天窗口的网站；为空表示所有网站"`
+	Enabled        bool      `json:"enabled" doc:"停用后聊天窗口不再显示，客户不能再发消息"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 // WidgetOutput 是返回一个聊天插件的响应。
@@ -125,7 +135,8 @@ func toDTOs(ctx context.Context, db bun.IDB, chs []channel.Channel) ([]WidgetDTO
 			return nil, err
 		}
 		out[i] = WidgetDTO{
-			ID: ch.ID, Name: ch.Name, TeamID: ch.TeamID, Greeting: s.Greeting, Color: s.color(), Enabled: ch.Enabled, CreatedAt: ch.CreatedAt,
+			ID: ch.ID, Name: ch.Name, TeamID: ch.TeamID, Greeting: s.Greeting, Color: s.color(), AllowedOrigins: s.origins(),
+			Enabled: ch.Enabled, CreatedAt: ch.CreatedAt,
 		}
 		if ch.TeamID != nil {
 			out[i].TeamName = teams[*ch.TeamID]

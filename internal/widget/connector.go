@@ -25,6 +25,14 @@ func (Connector) Capabilities() channel.Capabilities {
 	return channel.Capabilities{MessageTypes: []string{"text"}, ReadReceipts: true, MultipleConversations: true}
 }
 
+// Push 把会话的变化 ev 推送到联系人 contactID 在聊天插件 channelID 中的实时频道，作为 conversation.Downstream 的
+// ContactPush：会话的状态变了，或者客户在另一个页面发了消息。其他渠道的会话没有人订阅这个频道，推送随即丢弃。
+func Push(hub *broadcast.Hub) func(ctx context.Context, channelID, contactID string, ev push.Event) error {
+	return func(ctx context.Context, channelID, contactID string, ev push.Event) error {
+		return errors.Wrap(hub.PublishJSON(ctx, Channel(channelID, contactID), ev), "push to widget")
+	}
+}
+
 // Send 把会话有新消息推送到联系人的实时频道，用时间线中的消息 ID 作为外部编号，并报告已送达。
 // 推送失败时返回错误，任务稍后重试。
 func (c Connector) Send(ctx context.Context, m channel.Outgoing) (string, bool, error) {

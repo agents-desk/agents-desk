@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/danielgtaylor/huma/v2"
@@ -43,7 +45,7 @@ import (
 func (a *App) serveHTTP(d *command.Daemon) (func(context.Context) error, error) {
 	var router chi.Router
 	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { router.ServeHTTP(w, r) })
-	pages, err := frontend.New(apps.Dist, frontend.Options{API: api, DevServers: a.cfg.DevServers})
+	pages, err := frontend.New(apps.Dist, frontend.Options{API: api, DevServers: a.cfg.DevServers, CSP: a.pageCSP})
 	if err != nil {
 		return nil, err
 	}
@@ -69,6 +71,21 @@ func (a *App) serveHTTP(d *command.Daemon) (func(context.Context) error, error) 
 		// 先断开实时连接，广播随后在退出时关闭
 		return errors.Join(err, rt.Shutdown(context.WithoutCancel(ctx)), widgetRT.Shutdown(context.WithoutCancel(ctx)))
 	}, nil
+}
+
+// pageCSP 是页面的内容安全策略：框架默认的策略；聊天窗口的页面（/widget/?channel=<id>）按这个聊天插件允许嵌入的网站
+// 生成 frame-ancestors，其他页面都不能被嵌入。查询出错时用默认的策略，聊天窗口只能整页打开。
+func (a *App) pageCSP(r *http.Request, nonce string) string {
+	csp := frontend.DefaultCSP(nonce)
+	if r.URL.Path != "/widget" && !strings.HasPrefix(r.URL.Path, "/widget/") {
+		return csp
+	}
+	ancestors, err := widget.FrameAncestors(r.Context(), a.db, r.URL.Query().Get("channel"))
+	if err != nil {
+		slog.ErrorContext(r.Context(), "load widget frame ancestors", "error", err)
+		return csp
+	}
+	return strings.Replace(csp, "frame-ancestors 'none'", "frame-ancestors "+ancestors, 1)
 }
 
 // newRealtime 创建工作区端的实时连接，挂在 /t/{slug}/realtime（前面是 tenant.Middleware）。它与工作区的接口使用

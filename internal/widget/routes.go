@@ -45,8 +45,8 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 		Create:     "widget-create",
 		Update:     "widget-update",
 		Columns:    []string{"name", "team_name", "enabled"},
-		CreateForm: []string{"name", "team_id", "greeting", "color"},
-		UpdateForm: []string{"name", "team_id", "greeting", "color", "enabled"},
+		CreateForm: []string{"name", "team_id", "greeting", "color", "allowed_origins"},
+		UpdateForm: []string{"name", "team_id", "greeting", "color", "allowed_origins", "enabled"},
 	})
 }
 
@@ -88,6 +88,15 @@ type ItemsOutput struct {
 	Body []conversation.ContactItemDTO
 }
 
+// RateInput 是客户评价已关闭的会话。
+type RateInput struct {
+	ID   string `path:"id" format:"uuid"`
+	Body struct {
+		Score   int    `json:"score" minimum:"1" maximum:"5" doc:"1 到 5 星"`
+		Comment string `json:"comment,omitempty" maxLength:"1000" doc:"附的一句意见"`
+	}
+}
+
 // ReadInput 是客户读到了会话中序号 seq 及之前的消息。
 type ReadInput struct {
 	ID   string `path:"id" format:"uuid"`
@@ -97,7 +106,7 @@ type ReadInput struct {
 }
 
 // RegisterVisitorRoutes 在聊天插件的 API（/w/{channel}/api，前面是 Middleware）中注册客户用的接口：公开设置、建立会话，
-// 以及客户以联系人的身份读取自己的会话和时间线、发消息、标记已读。requireContact 要求联系人的令牌（Authorization: Bearer）；
+// 以及客户以联系人的身份读取自己的会话和时间线、发消息、标记已读、评价已关闭的会话。requireContact 要求联系人的令牌（Authorization: Bearer）；
 // tokens 签发联系人的令牌，registry 和 down 交给写入收到的消息的动作。
 func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), db *bun.DB, c *crypt.Crypt, tokens *apitoken.Store, receive *conversation.Receive, down conversation.Downstream) {
 	route := func(access func(*huma.Operation), id, method, path, summary string) huma.Operation {
@@ -112,10 +121,12 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 	send.DefaultStatus = http.StatusCreated
 	read := route(requireContact, "conversation-read", http.MethodPost, "/conversations/{id}/read", "标记已读")
 	read.DefaultStatus = http.StatusNoContent
+	rateOp := route(requireContact, "conversation-rate", http.MethodPost, "/conversations/{id}/rating", "评价会话")
 
 	sendMessage := NewSendMessage(db, receive)
 	list, get, items := conversation.NewListForContact(db), conversation.NewGetForContact(db), conversation.NewTimelineForContact(db)
 	markRead := conversation.NewMarkReadByContact(db, down)
+	rate := conversation.NewRateByContact(db, down)
 
 	rest.Register(api, route(public, "widget-config", http.MethodGet, "/config", "聊天插件的公开设置"), NewGetConfig().HTTP)
 	rest.Register(api, route(public, "widget-session", http.MethodPost, "/session", "建立会话"), NewStartSession(db, c, tokens).HTTP)
@@ -172,6 +183,17 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 			return nil, err
 		}
 		return &SentOutput{Body: *out}, nil
+	})
+	rest.Register(api, rateOp, func(ctx context.Context, in *RateInput) (*ConversationOutput, error) {
+		sub, ch, err := visitor(ctx)
+		if err != nil {
+			return nil, err
+		}
+		out, err := rate.Handle(ctx, sub, ch, in.ID, in.Body.Score, in.Body.Comment)
+		if err != nil {
+			return nil, err
+		}
+		return &ConversationOutput{Body: *out}, nil
 	})
 	rest.Register(api, read, func(ctx context.Context, in *ReadInput) (*struct{}, error) {
 		sub, ch, err := visitor(ctx)
