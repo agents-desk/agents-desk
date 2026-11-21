@@ -1,6 +1,6 @@
 import { Badge, Button, Group, Paper, Stack, Text } from "@mantine/core"
 import { createFileRoute, Link, redirect } from "@tanstack/react-router"
-import { CenteredAuthLayout, requireAuth } from "@go-tenon/ui"
+import { CenteredAuthLayout, requireAuth, useT } from "@go-tenon/ui"
 import { api } from "../api"
 import { logout } from "../auth"
 
@@ -18,33 +18,34 @@ export const Route = createFileRoute("/")({
 
 function ChooseTenant() {
   const mine = Route.useLoaderData()
+  const t = useT()
   return (
-    <CenteredAuthLayout brand="agents-desk" title="选择工作区">
+    <CenteredAuthLayout brand="agents-desk" title={t("choose_tenant.title")}>
       <Stack gap="sm">
-        {mine.length === 0 && <Text c="dimmed">你还不属于任何工作区，请联系工作区的管理员把你加入。</Text>}
-        {mine.map((t) =>
-          t.status === "active" ? (
-            <Link key={t.slug} to="/t/$slug" params={{ slug: t.slug }} style={{ color: "inherit", textDecoration: "none" }}>
+        {mine.length === 0 && <Text c="dimmed">{t("choose_tenant.none")}</Text>}
+        {mine.map((tn) =>
+          tn.status === "active" ? (
+            <Link key={tn.slug} to="/t/$slug" params={{ slug: tn.slug }} style={{ color: "inherit", textDecoration: "none" }}>
               <Paper withBorder p="md">
-                <Text fw={500}>{t.name}</Text>
+                <Text fw={500}>{tn.name}</Text>
                 <Text size="sm" c="dimmed">
-                  /t/{t.slug}/
+                  /t/{tn.slug}/
                 </Text>
               </Paper>
             </Link>
           ) : (
-            <Paper key={t.slug} withBorder p="md">
+            <Paper key={tn.slug} withBorder p="md">
               <Group justify="space-between">
                 <div>
                   <Text fw={500} c="dimmed">
-                    {t.name}
+                    {tn.name}
                   </Text>
                   <Text size="sm" c="dimmed">
-                    /t/{t.slug}/
+                    /t/{tn.slug}/
                   </Text>
                 </div>
                 <Badge variant="light" color="gray">
-                  已停用
+                  {t("choose_tenant.disabled")}
                 </Badge>
               </Group>
             </Paper>
@@ -52,7 +53,7 @@ function ChooseTenant() {
         )}
         <Group justify="flex-end">
           <Button variant="subtle" color="gray" onClick={() => void logout()}>
-            退出登录
+            {t("choose_tenant.sign_out")}
           </Button>
         </Group>
       </Stack>

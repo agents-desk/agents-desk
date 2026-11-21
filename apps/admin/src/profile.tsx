@@ -1,7 +1,7 @@
 import { Avatar, Button, FileButton, Group, PasswordInput, Stack, Tabs, Text, TextInput } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { applyServerErrors, FormError, notifyError, notifySuccess } from "@go-tenon/ui"
+import { applyServerErrors, FormError, notifyError, notifySuccess, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { api } from "./api"
 import { me } from "./auth"
@@ -11,12 +11,13 @@ import { me } from "./auth"
 /** 个人资料的两个标签页。 */
 export function ProfileTabs(): ReactNode {
   const profile = useQuery({ queryKey: ["me"], queryFn: me })
+  const t = useT()
   if (!profile.data) return null
   return (
     <Tabs defaultValue="basic" keepMounted={false}>
       <Tabs.List>
-        <Tabs.Tab value="basic">基本资料</Tabs.Tab>
-        <Tabs.Tab value="password">修改密码</Tabs.Tab>
+        <Tabs.Tab value="basic">{t("profile.tab_basic")}</Tabs.Tab>
+        <Tabs.Tab value="password">{t("profile.tab_password")}</Tabs.Tab>
       </Tabs.List>
       <Tabs.Panel value="basic" pt="md">
         <BasicForm profile={profile.data} />
@@ -31,6 +32,7 @@ export function ProfileTabs(): ReactNode {
 /** 头像和名字：选择图片后立即上传为临时文件，点“保存”后才换上。 */
 function BasicForm({ profile }: { profile: { name: string; avatar_file_id?: string; avatar_url: string } }): ReactNode {
   const queryClient = useQueryClient()
+  const t = useT()
   const form = useForm({ initialValues: { name: profile.name, avatar_file_id: profile.avatar_file_id ?? "" } })
   const [preview, setPreview] = useState(profile.avatar_url)
   const [uploading, setUploading] = useState(false)
@@ -46,7 +48,7 @@ function BasicForm({ profile }: { profile: { name: string; avatar_file_id?: stri
       form.clearFieldError("avatar_file_id")
       setPreview(uploaded.url)
     } catch (err) {
-      notifyError(err, "上传失败")
+      notifyError(err, t("profile.upload_failed"))
     } finally {
       setUploading(false)
     }
@@ -58,7 +60,7 @@ function BasicForm({ profile }: { profile: { name: string; avatar_file_id?: stri
       await api.auth.profileUpdate({ name: values.name, avatar_file_id: values.avatar_file_id || undefined })
       await queryClient.invalidateQueries({ queryKey: ["me"] })
       form.resetDirty()
-      notifySuccess("已保存")
+      notifySuccess(t("common.saved"))
     } catch (err) {
       setError(applyServerErrors(form, err))
     } finally {
@@ -72,7 +74,7 @@ function BasicForm({ profile }: { profile: { name: string; avatar_file_id?: stri
         <FormError error={error} />
         <Stack gap={6}>
           <Text size="sm" fw={500}>
-            头像
+            {t("profile.avatar")}
           </Text>
           <Group gap="md">
             <Avatar src={preview || null} size={72} radius="xl">
@@ -83,7 +85,7 @@ function BasicForm({ profile }: { profile: { name: string; avatar_file_id?: stri
                 <FileButton onChange={(f) => void choose(f)} accept="image/png,image/jpeg,image/webp">
                   {(props) => (
                     <Button {...props} variant="default" size="xs" loading={uploading}>
-                      上传图片
+                      {t("profile.upload")}
                     </Button>
                   )}
                 </FileButton>
@@ -97,20 +99,20 @@ function BasicForm({ profile }: { profile: { name: string; avatar_file_id?: stri
                       setPreview("")
                     }}
                   >
-                    移除
+                    {t("profile.remove")}
                   </Button>
                 )}
               </Group>
               <Text size="xs" c={form.errors.avatar_file_id ? "red" : "dimmed"}>
-                {form.errors.avatar_file_id ?? "PNG、JPEG 或 WebP，不超过 2 MB"}
+                {form.errors.avatar_file_id ?? t("profile.avatar_hint")}
               </Text>
             </Stack>
           </Group>
         </Stack>
-        <TextInput label="名字" required maxLength={60} {...form.getInputProps("name")} />
+        <TextInput label={t("profile.name")} required maxLength={60} {...form.getInputProps("name")} />
         <Group justify="flex-end">
           <Button type="submit" loading={saving}>
-            保存
+            {t("common.save")}
           </Button>
         </Group>
       </Stack>
@@ -120,9 +122,10 @@ function BasicForm({ profile }: { profile: { name: string; avatar_file_id?: stri
 
 /** 修改密码：改完后其他设备上的登录失效，这次登录保留。 */
 function PasswordForm(): ReactNode {
+  const t = useT()
   const form = useForm({
     initialValues: { current_password: "", new_password: "", confirm: "" },
-    validate: { confirm: (value, values) => (value === values.new_password ? null : "两次输入的新密码不一致") },
+    validate: { confirm: (value, values) => (value === values.new_password ? null : t("profile.password_mismatch")) },
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<ReturnType<typeof applyServerErrors>>()
@@ -132,7 +135,7 @@ function PasswordForm(): ReactNode {
     try {
       await api.auth.passwordChange({ current_password: values.current_password, new_password: values.new_password })
       form.reset()
-      notifySuccess("密码已修改，其他设备上的登录已退出")
+      notifySuccess(t("profile.password_changed"))
     } catch (err) {
       setError(applyServerErrors(form, err))
     } finally {
@@ -143,18 +146,18 @@ function PasswordForm(): ReactNode {
     <form noValidate onSubmit={submit}>
       <Stack gap="md">
         <FormError error={error} />
-        <PasswordInput label="当前密码" required autoComplete="current-password" {...form.getInputProps("current_password")} />
+        <PasswordInput label={t("profile.current_password")} required autoComplete="current-password" {...form.getInputProps("current_password")} />
         <PasswordInput
-          label="新密码"
-          description="8 到 128 个字符"
+          label={t("profile.new_password")}
+          description={t("profile.new_password_hint")}
           required
           autoComplete="new-password"
           {...form.getInputProps("new_password")}
         />
-        <PasswordInput label="再输入一次新密码" required autoComplete="new-password" {...form.getInputProps("confirm")} />
+        <PasswordInput label={t("profile.confirm_password")} required autoComplete="new-password" {...form.getInputProps("confirm")} />
         <Group justify="flex-end">
           <Button type="submit" loading={saving}>
-            修改密码
+            {t("profile.change_password")}
           </Button>
         </Group>
       </Stack>

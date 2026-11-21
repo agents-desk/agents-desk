@@ -77,5 +77,9 @@ jobs:
           git status --porcelain
           test -z "$(git status --porcelain)"
 
+      # 界面文字写在 locales/<前端>.<语言>.yaml 中，前端代码中没有写死的文字。
+      - name: Check text
+        run: go tool tenon check-text
+
       - name: Build
         run: bun run build

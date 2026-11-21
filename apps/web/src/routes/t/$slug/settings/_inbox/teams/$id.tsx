@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { IconTrash } from "@tabler/icons-react"
 import type { ErrorInfo } from "@go-tenon/client"
-import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page } from "@go-tenon/ui"
+import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, useT } from "@go-tenon/ui"
 import type { HoursSchedule, TeamDTO } from "@agents-desk/client/tenant"
 import { type ReactNode, useEffect, useState } from "react"
 import { tenantApi } from "../../../../../../api"
@@ -13,13 +13,14 @@ import { StatusBadge } from "../../../../../../status"
 
 // 一个团队收件箱：成员（从工作区的成员中选人加入，移出团队收件箱）和工作时间（使用工作区的，或者单独设置），两个标签各自保存。权限来自上级的 teams 布局，菜单中“团队收件箱”保持选中。
 export const Route = createFileRoute("/t/$slug/settings/_inbox/teams/$id")({
-  staticData: { title: "团队收件箱成员" },
+  staticData: { title: "team_members.title" },
   component: TeamMembers,
 })
 
 function TeamMembers(): ReactNode {
   const { slug, id } = Route.useParams()
   const navigate = useNavigate()
+  const t = useT()
   const queryClient = useQueryClient()
   const team = useQuery({ queryKey: ["team", id], queryFn: () => tenantApi.team.get(id) })
   const members = useQuery({ queryKey: ["team", id, "members"], queryFn: () => tenantApi.team.members(id) })
@@ -44,46 +45,46 @@ function TeamMembers(): ReactNode {
   const add = async () => {
     if (!adding) return
     await put.mutateAsync(adding)
-    notifySuccess("已加入团队收件箱")
+    notifySuccess(t("team_members.added"))
     setAdding(null)
   }
 
   return (
     <Page
-      title={team.data ? `团队收件箱：${team.data.name}` : "团队收件箱成员"}
+      title={team.data ? t("team_members.heading", { name: team.data.name }) : t("team_members.title")}
       description={team.data?.description || undefined}
       // 标题左边的返回回到团队收件箱列表，而不是离开设置
       back={() => void navigate({ to: "/t/$slug/settings/teams", params: { slug } })}
     >
       <Tabs defaultValue="members" keepMounted={false}>
         <Tabs.List>
-          <Tabs.Tab value="members">成员</Tabs.Tab>
-          <Tabs.Tab value="hours">工作时间</Tabs.Tab>
+          <Tabs.Tab value="members">{t("team_members.tab_members")}</Tabs.Tab>
+          <Tabs.Tab value="hours">{t("team_members.tab_hours")}</Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="members" pt="md">
           <Stack gap="md">
             <Group align="flex-end" gap="sm">
               <Select
-                label="加入成员"
-                placeholder="选择工作区的成员"
+                label={t("team_members.add")}
+                placeholder={t("team_members.add_placeholder")}
                 searchable
-                data={candidates.map((m) => ({ value: m.id, label: `${m.name}（${m.role_name}）` }))}
+                data={candidates.map((m) => ({ value: m.id, label: t("team_members.add_option", { name: m.name, role: m.role_name }) }))}
                 value={adding}
                 onChange={setAdding}
-                nothingFoundMessage="没有可以加入的成员"
+                nothingFoundMessage={t("team_members.no_candidates")}
                 style={{ flex: 1 }}
               />
               <Button onClick={() => void add()} disabled={!adding} loading={put.isPending && !!adding}>
-                加入
+                {t("team_members.add_submit")}
               </Button>
             </Group>
 
             <Table verticalSpacing="sm">
               <Table.Thead>
                 <Table.Tr>
-                  <Table.Th>成员</Table.Th>
-                  <Table.Th>角色</Table.Th>
-                  <Table.Th>在线状态</Table.Th>
+                  <Table.Th>{t("team_members.member")}</Table.Th>
+                  <Table.Th>{t("team_members.role")}</Table.Th>
+                  <Table.Th>{t("team_members.status")}</Table.Th>
                   <Table.Th />
                 </Table.Tr>
               </Table.Thead>
@@ -115,9 +116,9 @@ function TeamMembers(): ReactNode {
                       <ActionIcon
                         variant="subtle"
                         color="red"
-                        aria-label={`把 ${m.name} 移出团队收件箱`}
+                        aria-label={t("team_members.remove_label", { name: m.name })}
                         onClick={async () => {
-                          if (await confirm({ title: `把 ${m.name} 移出团队收件箱？`, message: "他仍是工作区的成员。", danger: true, confirmLabel: "移出" }))
+                          if (await confirm({ title: t("team_members.remove_confirm", { name: m.name }), message: t("team_members.remove_message"), danger: true, confirmLabel: t("team_members.remove") }))
                             remove.mutate(m.member_id)
                         }}
                       >
@@ -130,7 +131,7 @@ function TeamMembers(): ReactNode {
                   <Table.Tr>
                     <Table.Td colSpan={4}>
                       <Text c="dimmed" size="sm" ta="center">
-                        团队收件箱中还没有成员
+                        {t("team_members.empty")}
                       </Text>
                     </Table.Td>
                   </Table.Tr>
@@ -149,6 +150,7 @@ function TeamMembers(): ReactNode {
 
 /** TeamHours 是团队收件箱的工作时间：使用工作区的，或者单独设置时区和每周的工作时间。特殊日期和回复时间总是工作区的。 */
 function TeamHours({ team }: { team: TeamDTO }): ReactNode {
+  const t = useT()
   const queryClient = useQueryClient()
   const workspace = useQuery({ queryKey: ["business-hours"], queryFn: () => tenantApi.hours.get() })
   const initial = (own: HoursSchedule | undefined) => ({ custom: own ? "custom" : "workspace", schedule: own ?? emptySchedule })
@@ -174,7 +176,7 @@ function TeamHours({ team }: { team: TeamDTO }): ReactNode {
           const saved = await tenantApi.team.businessHours(team.id, values.custom === "custom" ? { schedule: values.schedule } : {})
           queryClient.setQueryData(["team", team.id], saved)
           form.resetDirty()
-          notifySuccess("已保存")
+          notifySuccess(t("common.saved"))
         } catch (err) {
           setError(applyServerErrors(form, err))
         } finally {
@@ -184,19 +186,19 @@ function TeamHours({ team }: { team: TeamDTO }): ReactNode {
     >
       <Stack gap="md">
         <FormError error={error} />
-        <Radio.Group label="工作时间" {...form.getInputProps("custom")}>
+        <Radio.Group label={t("team_hours.label")} {...form.getInputProps("custom")}>
           <Stack gap="xs" mt="xs">
-            <Radio value="workspace" label="使用工作区的工作时间" />
-            <Radio value="custom" label="单独设置时区和每周的工作时间" />
+            <Radio value="workspace" label={t("team_hours.workspace")} />
+            <Radio value="custom" label={t("team_hours.custom")} />
           </Stack>
         </Radio.Group>
         <Text size="sm" c="dimmed">
-          特殊日期和回复时间对整个工作区有效，在“设置 → 工作时间”中修改。
+          {t("team_hours.hint")}
         </Text>
         {custom && <ScheduleFields form={form} path="schedule" />}
         <Group justify="flex-end">
           <Button type="submit" disabled={!form.isDirty()} loading={saving}>
-            保存
+            {t("common.save")}
           </Button>
         </Group>
       </Stack>

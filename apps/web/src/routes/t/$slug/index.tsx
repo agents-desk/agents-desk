@@ -1,7 +1,7 @@
 import { Text } from "@mantine/core"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { firstPage, Page, useApp, useNavigation } from "@go-tenon/ui"
+import { firstPage, Page, useApp, useNavigation, useT } from "@go-tenon/ui"
 import { useEffect } from "react"
 
 // 工作区的首页 /t/{slug}/：进入图标栏中第一个可以进入的模块，通常是收件箱；没有会话权限的成员进入下一个模块。
@@ -12,6 +12,7 @@ export const Route = createFileRoute("/t/$slug/")({
 
 function Home() {
   const app = useApp()
+  const t = useT()
   const permissions = useQuery({ ...app.permissionsQuery(), enabled: app.signedIn() })
   const { menu } = useNavigation()
   const navigate = useNavigate()
@@ -22,8 +23,8 @@ function Home() {
   }, [to, navigate])
   if (!permissions.isSuccess || to) return null
   return (
-    <Page title="工作区">
-      <Text c="dimmed">你的角色还没有可以进入的页面，请联系工作区的管理员。</Text>
+    <Page title={t("home.title")}>
+      <Text c="dimmed">{t("home.no_pages")}</Text>
     </Page>
   )
 }

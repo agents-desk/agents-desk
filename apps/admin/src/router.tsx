@@ -1,16 +1,18 @@
 import { host } from "@go-tenon/host"
 import { cspNonce } from "@go-tenon/start"
 import { createApp, NotFoundPage, RouteError } from "@go-tenon/ui"
+import { i18n } from "./api"
 import { me, session } from "./auth"
 import { routeTree } from "./routeTree.gen"
 
-// getRouter 创建应用：路由、TanStack Query、会话和权限，见框架文档的“应用骨架”。
+// getRouter 创建应用：路由、TanStack Query、会话、权限和界面文字，见框架文档的“应用骨架”和“界面文字”。
 // 服务端渲染时每个请求调用一次，所以每次都创建新的应用。
 export function getRouter() {
   const app = createApp({
     id: "admin",
     routeTree,
     session,
+    i18n,
     permissions: async () => (await me()).permissions,
     router: { ssr: { nonce: cspNonce() }, defaultErrorComponent: RouteError, defaultNotFoundComponent: NotFoundPage },
   })

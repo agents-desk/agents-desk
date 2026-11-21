@@ -5,5 +5,5 @@ import { createFileRoute } from "@tanstack/react-router"
 //   _personal 个人 0、_workspace 工作区 1、_inbox 收件箱 2、_channels 渠道 3、_data 数据 4、_translation 翻译 5、_automation 自动化 6。
 // 分组在它的第一个设置页加入时建立：没有子页面的分组路由与 /settings 的地址冲突，路由树生成失败。
 export const Route = createFileRoute("/t/$slug/settings")({
-  staticData: { title: "设置", icon: "settings", order: 9 },
+  staticData: { title: "nav.settings", icon: "settings", order: 9 },
 })

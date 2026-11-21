@@ -1,6 +1,6 @@
 import { Button, Group, Modal, PasswordInput, Stack, Text, TextInput } from "@mantine/core"
 import type { ErrorInfo } from "@go-tenon/client"
-import { applyServerErrors, FormError, useResourceMutations, useSchemaForm } from "@go-tenon/ui"
+import { applyServerErrors, FormError, useResourceMutations, useSchemaForm, useT } from "@go-tenon/ui"
 import type { TenantDTO } from "@agents-desk/client/admin"
 import { useEffect, useState } from "react"
 import { api, kit } from "./api"
@@ -10,6 +10,7 @@ import { tenants } from "./resources"
 // 原主管理员的 owner 角色被撤销。tenant 为空时关闭。
 export function ChangeOwnerModal({ tenant, onClose }: { tenant?: TenantDTO; onClose: () => void }) {
   const { invalidate } = useResourceMutations(tenants)
+  const t = useT()
   const form = useSchemaForm({
     schema: kit.schemas.tenant.changeOwner.body,
     rules: kit,
@@ -27,7 +28,7 @@ export function ChangeOwnerModal({ tenant, onClose }: { tenant?: TenantDTO; onCl
   }, [tenant])
 
   return (
-    <Modal opened={!!tenant} onClose={onClose} title={`更换“${tenant?.name ?? ""}”的主管理员`}>
+    <Modal opened={!!tenant} onClose={onClose} title={t("change_owner.title", { name: tenant?.name ?? "" })}>
       <form
         onSubmit={form.onSubmit(async (values) => {
           if (!tenant) return
@@ -45,21 +46,21 @@ export function ChangeOwnerModal({ tenant, onClose }: { tenant?: TenantDTO; onCl
       >
         <Stack>
           <Text size="sm" c="dimmed">
-            现在的主管理员是 {tenant?.owner_name}（{tenant?.owner_email}）。更换后，他在这个工作区中的主管理员角色被撤销。
+            {t("change_owner.current", { name: tenant?.owner_name, email: tenant?.owner_email })}
           </Text>
           <FormError error={error} />
-          <TextInput label="新主管理员的邮箱" required {...form.getInputProps("email")} />
+          <TextInput label={t("change_owner.email")} required {...form.getInputProps("email")} />
           <Text size="sm" c="dimmed">
-            这个邮箱已经有成员账号时，不需要填写下面两项。
+            {t("change_owner.existing_hint")}
           </Text>
-          <TextInput label="姓名" {...form.getInputProps("name")} />
-          <PasswordInput label="初始密码" {...form.getInputProps("password")} />
+          <TextInput label={t("change_owner.name")} {...form.getInputProps("name")} />
+          <PasswordInput label={t("change_owner.password")} {...form.getInputProps("password")} />
           <Group justify="flex-end">
             <Button variant="default" onClick={onClose}>
-              取消
+              {t("common.cancel")}
             </Button>
             <Button type="submit" loading={saving}>
-              更换
+              {t("change_owner.submit")}
             </Button>
           </Group>
         </Stack>

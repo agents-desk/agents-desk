@@ -1,11 +1,10 @@
 import { Button, Group, Select, Stack } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { applyServerErrors, FormError, inTimeZone, notifySuccess } from "@go-tenon/ui"
+import { applyServerErrors, FormError, inTimeZone, notifySuccess, useT } from "@go-tenon/ui"
 import type { MemberLanguage } from "@agents-desk/client/api"
-import { enums } from "@agents-desk/client/api/enums"
 import { type ReactNode, useMemo, useState } from "react"
-import { api } from "./api"
+import { api, apiKit, i18n } from "./api"
 import { me } from "./auth"
 
 // 偏好设置：语言和时区，属于账号本身，在所有工作区中一样。按表单的约定：宽度不限，一个输入框一行，保存按钮在右侧。
@@ -64,18 +63,20 @@ export function PreferencesForm(): ReactNode {
 
 function Form({ language, timeZone }: { language: MemberLanguage; timeZone: string }): ReactNode {
   const queryClient = useQueryClient()
+  const t = useT()
   const form = useForm({ initialValues: { language, time_zone: timeZone } })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<ReturnType<typeof applyServerErrors>>()
 
-  const languages = enums.MemberLanguage.values.map((v) => ({ value: v, label: enums.MemberLanguage.labels["zh-CN"][v] }))
+  // 语言的名称是枚举的显示文字，按界面的当前语言
+  const languages = apiKit.enums.MemberLanguage.values.map((v) => ({ value: v, label: apiKit.label("MemberLanguage", v) }))
   // 第一项是跟随浏览器；其余是浏览器支持的全部时区，带现在的 UTC 偏移。
   const zones = useMemo(
     () => [
-      { value: "", label: `跟随浏览器（当前是 ${browserZone}）` },
+      { value: "", label: t("preferences.follow_browser", { zone: browserZone }) },
       ...allZones().map((z) => ({ value: z, label: `${z} (${offsetOf(z)})` })),
     ],
-    [],
+    [t],
   )
 
   const submit = form.onSubmit(async (values) => {
@@ -83,10 +84,11 @@ function Form({ language, timeZone }: { language: MemberLanguage; timeZone: stri
     setError(undefined)
     try {
       await api.auth.preferencesUpdate({ language: values.language, time_zone: values.time_zone || undefined })
-      // 重新读取 /me：工作区布局中的 TimeZoneProvider 随之换成新的时区，页面中的时间立刻按它显示
+      // 界面换成新的语言；重新读取 /me：工作区布局中的 TimeZoneProvider 随之换成新的时区，页面中的时间立刻按它显示
+      i18n.setLanguage(values.language)
       await queryClient.invalidateQueries({ queryKey: ["me"] })
       form.resetDirty()
-      notifySuccess("已保存")
+      notifySuccess(t("common.saved"))
     } catch (err) {
       setError(applyServerErrors(form, err))
     } finally {
@@ -99,24 +101,26 @@ function Form({ language, timeZone }: { language: MemberLanguage; timeZone: stri
       <Stack gap="md">
         <FormError error={error} />
         <Select
-          label="语言"
-          description="把客户的消息翻译成这种语言"
+          label={t("preferences.language")}
+          description={t("preferences.language_hint")}
           data={languages}
           allowDeselect={false}
           {...form.getInputProps("language")}
         />
         <Select
-          label="时区"
-          description={`页面中的时间按这个时区显示，现在是 ${inTimeZone(new Date(), form.values.time_zone || undefined).format("YYYY-MM-DD HH:mm")}`}
+          label={t("preferences.time_zone")}
+          description={t("preferences.time_zone_hint", {
+            now: inTimeZone(new Date(), form.values.time_zone || undefined).format("YYYY-MM-DD HH:mm"),
+          })}
           data={zones}
           searchable
           allowDeselect={false}
-          nothingFoundMessage="没有这个时区"
+          nothingFoundMessage={t("preferences.no_time_zone")}
           {...form.getInputProps("time_zone")}
         />
         <Group justify="flex-end">
           <Button type="submit" loading={saving}>
-            保存
+            {t("common.save")}
           </Button>
         </Group>
       </Stack>

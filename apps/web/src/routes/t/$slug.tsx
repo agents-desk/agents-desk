@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { IconSettings, IconSwitchHorizontal } from "@tabler/icons-react"
-import { enterTenant, Fill, RailLayout, requireAuth, TimeZoneProvider, UserMenu, useTenant } from "@go-tenon/ui"
+import { enterTenant, Fill, RailLayout, requireAuth, TimeZoneProvider, UserMenu, useTenant, useT } from "@go-tenon/ui"
 import { tenantApi } from "../../api"
 import { logout, me } from "../../auth"
 import { StatusControl } from "../../status"
@@ -21,11 +21,12 @@ function TenantLayout() {
   const tenant = Route.useLoaderData()
   const user = useQuery({ queryKey: ["me"], queryFn: me })
   const { tenants } = useTenant()
+  const t = useT()
   // 工作区设置不进图标栏，从个人菜单进入；属于多个工作区时，个人菜单中还可以回到选择工作区的页面。
   const settings = `/t/${tenant.slug}/settings`
   const items = [
-    { label: "设置", icon: <IconSettings size={16} />, to: settings },
-    ...(tenants.length > 1 ? [{ label: "切换工作区", icon: <IconSwitchHorizontal size={16} />, to: "/" }] : []),
+    { label: t("nav.settings"), icon: <IconSettings size={16} />, to: settings },
+    ...(tenants.length > 1 ? [{ label: t("nav.switch_tenant"), icon: <IconSwitchHorizontal size={16} />, to: "/" }] : []),
   ]
   // 页面中的时间按成员在偏好设置中选的时区显示，没有选时按浏览器的时区。
   // 二级导航 200px：收件箱列表、设置项都是短的中文，给收件箱、聊天这类铺满的模块留出更多宽度。

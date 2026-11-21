@@ -1,13 +1,13 @@
 import { Anchor, Badge, PasswordInput } from "@mantine/core"
 import { createFileRoute } from "@tanstack/react-router"
-import { type FieldInput, ResourcePage, useCan } from "@go-tenon/ui"
+import { type FieldInput, ResourcePage, useCan, useT } from "@go-tenon/ui"
 import type { TenantDTO } from "@agents-desk/client/admin"
 import { useState } from "react"
 import { ChangeOwnerModal } from "../../change-owner"
 import { tenants } from "../../resources"
 
 export const Route = createFileRoute("/_app/tenants")({
-  staticData: { title: "工作区", icon: "team", order: 1, permission: "tenants:read" },
+  staticData: { title: "nav.tenants", icon: "team", order: 1, permission: "tenants:read" },
   validateSearch: tenants.listSearch,
   component: Tenants,
 })
@@ -27,6 +27,7 @@ const PasswordField: FieldInput = ({ field, label, value, onChange, error, disab
 // 工作区的列表、新建和修改按 Go 中的声明渲染；名称链接到工作区的地址，状态显示为带颜色的标签，行上多一个“更换主管理员”。
 function Tenants() {
   const can = useCan()
+  const t = useT()
   const [changing, setChanging] = useState<TenantDTO>()
   return (
     <>
@@ -49,7 +50,7 @@ function Tenants() {
           ),
         }}
         rowActions={(row) =>
-          can("tenants:manage") ? [{ label: "更换主管理员", onClick: () => setChanging(row as unknown as TenantDTO) }] : []
+          can("tenants:manage") ? [{ label: t("tenants.change_owner"), onClick: () => setChanging(row as unknown as TenantDTO) }] : []
         }
       />
       <ChangeOwnerModal tenant={changing} onClose={() => setChanging(undefined)} />
