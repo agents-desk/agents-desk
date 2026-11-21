@@ -1,7 +1,8 @@
 // Package conversation 是会话：会话、参与者、只追加的时间线，以及写入时间线的业务动作。
 //
 // 所有写操作走同一条路径：业务动作经 authorize 检查权限，在一个事务中修改会话、追加时间线（commit），
-// 并为每个下游（Downstream）发布一个任务；事务提交后，任务由 worker 交给下游处理，例如把消息发到外部渠道。
+// 并为每个下游（Downstream）发布一个任务；事务提交后，任务由 worker 交给下游处理，例如把消息发到外部渠道，
+// 同时把变化推送给能看到会话的成员（push）。
 package conversation
 
 import (
@@ -14,6 +15,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/authz"
+	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/contract"
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/enum"
@@ -23,6 +26,7 @@ import (
 
 	"agents-desk/internal/auth"
 	"agents-desk/internal/member"
+	"agents-desk/internal/push"
 )
 
 var (
@@ -219,9 +223,12 @@ type Appended struct {
 	Seq            int64  `json:"seq"`
 }
 
-// Downstream 是时间线有新内容时要通知的下游，每个下游一个 topic，各自重试，由入口装配。
-// 例如把消息发到外部渠道（DeliverTopic），以后还有实时推送、翻译。
-type Downstream []queue.Topic[Appended]
+// Downstream 是会话有变化时要通知的下游，由入口装配。
+type Downstream struct {
+	Topics []queue.Topic[Appended] // 交给 worker 的下游，每个一个 topic，各自重试，例如把消息发到外部渠道（DeliverTopic），以后还有翻译
+	Hub    *broadcast.Hub          // 提交后把变化推送到能看到会话的成员的个人频道；为 nil 时不推送
+	Roles  *authz.Store            // 推送时按成员的角色判断可见范围，Hub 不为 nil 时必须设置
+}
 
 // authorize 是会话动作统一的权限检查：成员按权限检查；系统主体（连接器、命令、种子数据）可以执行全部会话动作。
 // perm 为空表示只有系统主体可以执行，例如写入渠道收到的消息。能看到哪些会话由 visible 决定；以后 AI 用途的配置也在这里检查。
@@ -250,9 +257,16 @@ func find(ctx context.Context, db bun.IDB, tenant, id string, lock bool) (*Conve
 	return c, errors.Wrap(err, "load conversation")
 }
 
-// commit 在事务 tx 中把 items 依次追加到会话 c 的时间线，保存 c 的修改，并为每一项向每个下游发布任务。
-// 调用前 c 已经被锁住（find 的 lock）；items 的序号、时间和工作区在这里填写。
-func commit(ctx context.Context, tx bun.IDB, down Downstream, c *Conversation, items ...*Item) error {
+// commit 在事务 tx 中把 items 依次追加到会话 c 的时间线，保存 c 的修改，并为每一项向每个下游发布任务；
+// 提交后把变化推送给修改前后能看到 c 的成员。调用前 c 已经被锁住（find 的 lock）；items 的序号、时间和工作区在这里填写。
+func commit(ctx context.Context, tx database.Tx, down Downstream, c *Conversation, items ...*Item) error {
+	var audience []string // 提交后推送给这些成员
+	if down.Hub != nil {
+		var err error
+		if audience, err = audienceOf(ctx, tx, down.Roles, c, items); err != nil {
+			return err
+		}
+	}
 	at := now()
 	tasks := make([]Appended, 0, len(items))
 	for _, it := range items {
@@ -269,10 +283,16 @@ func commit(ctx context.Context, tx bun.IDB, down Downstream, c *Conversation, i
 	if _, err := tx.NewUpdate().Model(c).WherePK().Exec(ctx); err != nil {
 		return errors.Wrap(err, "save conversation")
 	}
-	for _, topic := range down {
+	for _, topic := range down.Topics {
 		if err := topic.PublishAll(ctx, tx, tasks); err != nil {
 			return err
 		}
+	}
+	if down.Hub != nil {
+		hub, tenant, ev := down.Hub, c.TenantID, push.Event{Type: push.Conversation, ID: c.ID, Seq: c.LastSeq}
+		tx.AfterCommit(func(ctx context.Context) error {
+			return errors.Wrap(push.Send(ctx, hub, tenant, audience, ev), "push conversation changed")
+		})
 	}
 	return nil
 }

@@ -3,9 +3,8 @@ package member
 import (
 	"context"
 
-	"github.com/uptrace/bun"
-
 	"github.com/go-tenon/tenon/authz"
+	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/i18n"
@@ -38,8 +37,9 @@ type TenantMember struct {
 	Self      bool   `json:"self" doc:"是不是当前登录的成员自己：自己那一行不能修改角色、不能移出"`
 }
 
-// RemovedHook 是成员 memberID 离开工作区 tenant 之后，其他模块在同一个事务 tx 中跟着做的一件事。
-type RemovedHook func(ctx context.Context, tx bun.IDB, tenant, memberID string) error
+// RemovedHook 是成员 memberID 离开工作区 tenant 之后，其他模块在同一个事务 tx 中跟着做的一件事；
+// 提交后才做的事（例如推送）用 tx.AfterCommit 登记。
+type RemovedHook func(ctx context.Context, tx database.Tx, tenant, memberID string) error
 
 // Hooks 是成员被移出工作区之后，其他模块在同一个事务中跟着做的事，由入口传入，例如把他移出这个工作区的团队收件箱。
 type Hooks struct {

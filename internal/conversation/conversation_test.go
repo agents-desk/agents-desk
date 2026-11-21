@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/go-tenon/tenon/identity"
+	"github.com/go-tenon/tenon/queue"
 	"github.com/go-tenon/tenon/queue/queuetest"
 
 	"agents-desk/internal/apptest"
@@ -43,7 +44,7 @@ func setup(t *testing.T, env *apptest.Env, slug string) fixture {
 		t.Fatal(err)
 	}
 	agent := identity.Subject{Type: member.Type, ID: "01900000-0000-7000-8000-0000000000a1", Tenant: tn.ID, Permissions: auth.WithBase(auth.RolePermissions(auth.ScopeAll, nil))}
-	return fixture{env: env, system: system, agent: agent, ch: ch, down: conversation.Downstream{conversation.DeliverTopic}}
+	return fixture{env: env, system: system, agent: agent, ch: ch, down: conversation.Downstream{Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic}}}
 }
 
 // receive 以系统的身份写入客户 from 发来的消息。
