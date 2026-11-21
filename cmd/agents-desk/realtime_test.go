@@ -17,6 +17,7 @@ import (
 	"github.com/go-tenon/tenon/broadcast/broadcasttest"
 	"github.com/go-tenon/tenon/config"
 	"github.com/go-tenon/tenon/identity"
+	"github.com/go-tenon/tenon/realtime/realtimetest"
 
 	"agents-desk/internal/apptest"
 	"agents-desk/internal/channel"
@@ -41,7 +42,7 @@ func TestRealtime(t *testing.T) {
 		adminLogins: env.AdminLogins, adminTokens: apitoken.NewStore(env.DB, tokens),
 		memberLogins: env.MemberLogins, memberTokens: apitoken.NewStore(env.DB, tokens),
 		llmSettings: llm.NewGroup(env.DB), files: env.Files, localDisk: env.Disk,
-		channels: channel.DefaultRegistry(),
+		channels: channel.DefaultRegistry(), presence: realtimetest.NewPresence(),
 	}
 	rt, err := a.newRealtime()
 	if err != nil {

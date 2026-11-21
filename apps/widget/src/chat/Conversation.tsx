@@ -87,6 +87,15 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
     }
   }
 
+  // 客户在输入时告诉成员，每 3 秒最多一次；新会话还没有会话可以告诉
+  const lastTyping = useRef(0)
+  const typing = () => {
+    if (!id || Date.now() - lastTyping.current < 3000) return
+    lastTyping.current = Date.now()
+    // “正在输入”是尽力而为的提示：发不出去时客户照常聊天，不提示错误
+    void authed(() => widgetApi.conversation.typing(id)).catch(() => {})
+  }
+
   // 手机上从左边缘向右滑返回首页
   const touchStart = useRef<{ x: number; y: number } | null>(null)
   const swipe = touch
@@ -161,6 +170,7 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
         touch={touch}
         placeholder={t(closed ? "composer.reopen_placeholder" : "composer.placeholder")}
         onSend={(text) => void send({ clientId: newClientId(), text, failed: false })}
+        onTyping={typing}
       />
     </>
   )

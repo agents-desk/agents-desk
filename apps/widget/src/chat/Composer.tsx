@@ -9,10 +9,11 @@ interface ComposerProps {
   touch: boolean // 手机和 App：回车换行，用按钮发送；电脑：回车发送，Shift + 回车换行
   placeholder: string
   onSend: (text: string) => void
+  onTyping?: () => void // 客户在输入：会话页据此告诉成员“正在输入”
 }
 
 /** Composer 是底部的输入框和发送按钮。字号 16px，iOS 点进去时页面不会放大；底部留出横条的安全区域。 */
-export function Composer({ color, touch, placeholder, onSend }: ComposerProps): ReactNode {
+export function Composer({ color, touch, placeholder, onSend, onTyping }: ComposerProps): ReactNode {
   const t = useT()
   const [text, setText] = useState("")
   const send = () => {
@@ -26,7 +27,10 @@ export function Composer({ color, touch, placeholder, onSend }: ComposerProps): 
       <Group gap="xs" align="flex-end" wrap="nowrap" p="xs">
         <Textarea
           value={text}
-          onChange={(e) => setText(e.currentTarget.value)}
+          onChange={(e) => {
+            setText(e.currentTarget.value)
+            if (e.currentTarget.value.trim()) onTyping?.()
+          }}
           onKeyDown={(e) => {
             if (!touch && e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault()

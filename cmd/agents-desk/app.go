@@ -28,6 +28,8 @@ import (
 	"github.com/go-tenon/tenon/queue"
 	"github.com/go-tenon/tenon/ratelimit"
 	"github.com/go-tenon/tenon/ratelimit/pglimit"
+	"github.com/go-tenon/tenon/realtime"
+	"github.com/go-tenon/tenon/realtime/natspresence"
 	"github.com/go-tenon/tenon/schedule"
 	"github.com/go-tenon/tenon/settings"
 
@@ -42,11 +44,13 @@ import (
 
 // App 是进程中各部分共用的资源，每个进程只装配一次。
 type App struct {
-	cfg   Config
-	db    *bun.DB
-	nc    *nats.Conn
-	hub   *broadcast.Hub // 经 NATS 把消息送到每个实例：实时推送
-	roles *authz.Store   // 平台和各租户的角色与权限
+	cfg Config
+	db  *bun.DB
+	nc  *nats.Conn
+	hub *broadcast.Hub // 经 NATS 把消息送到每个实例：实时推送
+	// presence 保存会话频道的在线成员（谁正在看），所有实例共用 NATS 中的存储
+	presence realtime.PresenceStore
+	roles    *authz.Store // 平台和各租户的角色与权限
 
 	adminLogins   *login.Realm    // 平台管理员的邮箱和密码
 	adminTokens   *apitoken.Store // 平台管理员的登录 token
@@ -97,6 +101,10 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	// 广播：会话的变化经它推送给各实例上的实时连接。登记在 NATS 之后，退出时先于 NATS 关闭
 	hub := broadcast.New(natsbroadcast.New(nc, "agents-desk.broadcast"), nil)
 	stack.MustAdd("broadcast", func(context.Context) error { return hub.Close() })
+	presence, err := natspresence.New(ctx, nc, natspresence.Options{Bucket: "agents_desk_presence"})
+	if err != nil {
+		return nil, err
+	}
 
 	keys := crypt.New(cfg.Crypt) // 派生登录验证码的密钥，加密聊天插件的身份验证密钥
 	hasher := hashing.New(cfg.Hashing)
@@ -148,7 +156,7 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	}
 
 	return &App{
-		cfg: cfg, db: db, nc: nc, hub: hub, roles: roles,
+		cfg: cfg, db: db, nc: nc, hub: hub, presence: presence, roles: roles,
 		adminLogins: adminLogins, adminTokens: apitoken.NewStore(db, cfg.AdminToken),
 		memberLogins: memberLogins, memberTokens: apitoken.NewStore(db, cfg.MemberToken),
 		contactTokens: apitoken.NewStore(db, cfg.ContactToken), crypt: keys,

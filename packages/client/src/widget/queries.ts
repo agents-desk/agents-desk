@@ -73,6 +73,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "conversation"),
       }),
+      /** POST /conversations/{id}/typing */
+      typing: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["typing"]>[0]) => client.conversation.typing(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
     },
     widget: {
       /** widget 分组全部查询的 key 前缀。 */

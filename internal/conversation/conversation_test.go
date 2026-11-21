@@ -227,3 +227,39 @@ func TestConcurrentSeq(t *testing.T) {
 		t.Fatalf("最新序号：%d", c.LastSeq)
 	}
 }
+
+// TestContactHistoryAndReadSeq 检查详情中“最近的会话”和“新消息”分隔线用到的数据：按联系人列出会话时包括已关闭的，
+// 别的联系人的不在其中；会话带上我读到的位置，标记已读后随之前进。
+func TestContactHistoryAndReadSeq(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	env := apptest.New(t)
+	f := setup(t, env, "alpha")
+
+	first := f.receive(t, "rahul", "order missing", "")
+	if _, err := conversation.NewClose(env.DB, f.down).Handle(ctx, f.agent, first.ConversationID); err != nil {
+		t.Fatal(err)
+	}
+	// 关闭后再发消息会重新打开同一个会话（测试渠道只有一个聊天窗口），所以另起一个联系人做对照
+	other := f.receive(t, "priya", "withdrawal pending", "")
+	c := f.get(t, first.ConversationID)
+	if c.Contact == nil || c.ReadSeq != 0 {
+		t.Fatalf("会话：%+v", c)
+	}
+	list, err := conversation.NewList(env.DB).Handle(ctx, f.agent, &conversation.ListInput{ContactID: c.Contact.ID})
+	if err != nil || len(list.Items) != 1 || list.Items[0].ID != first.ConversationID || list.Items[0].Status != conversation.Closed {
+		t.Fatalf("联系人的会话：%+v %v", list, err)
+	}
+	// 已读记录在成员表上：用工作区主管理员这个真实的成员
+	reader := f.agent
+	if err := env.DB.NewRaw("SELECT owner_id FROM tenants WHERE id = ?", f.system.Tenant).Scan(ctx, &reader.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := conversation.NewMarkRead(env.DB, nil).Handle(ctx, reader, other.ConversationID, other.Item.Seq); err != nil {
+		t.Fatal(err)
+	}
+	got, err := conversation.NewGet(env.DB).Handle(ctx, reader, other.ConversationID)
+	if err != nil || got.ReadSeq != other.Item.Seq || got.Unread {
+		t.Fatalf("标记已读后：%+v %v", got, err)
+	}
+}
