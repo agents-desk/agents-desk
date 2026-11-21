@@ -1,22 +1,29 @@
 import { useQueryClient } from "@tanstack/react-query"
 import { Centrifuge } from "centrifuge"
-import { useEffect } from "react"
+import { createContext, useContext, useEffect, useState } from "react"
 import { kit } from "./api"
 
 // 实时推送：成员在每个工作区中有一个个人频道，会话有变化（新消息、指派、关闭等）或者自己在别的页面标记了已读时，
 // 服务端往里面推送一个事件 { type: "conversation" | "read", id: 会话 ID, seq?: 时间线最新一项的序号 }（服务端的 push.Event）。
-// 页面收到后让会话的查询失效，数据仍从接口读取。
+// 页面收到后让会话的查询失效，数据仍从接口读取。同一条连接还用来加入打开着的会话的频道（inbox/channel.ts）。
 
 /** channelOf 返回成员 memberId 在工作区 tenantId 中的个人频道，与服务端的 push.Channel 相同。 */
 const channelOf = (tenantId: string, memberId: string) => `t:${tenantId}:member:${memberId}`
 
+/** RealtimeContext 是工作区的实时连接，由工作区的布局提供；还没有连上身份时为 null。 */
+export const RealtimeContext = createContext<Centrifuge | null>(null)
+
+/** useCentrifuge 返回工作区的实时连接，没有时为 null。 */
+export const useCentrifuge = () => useContext(RealtimeContext)
+
 /**
- * useRealtime 在工作区 slug 中建立实时连接，订阅成员 memberId 的个人频道。收到事件后让会话分组的查询（收件箱的数量、
- * 会话列表、会话和时间线）失效，200 毫秒内的多条合并成一次；断线重连、重新订阅之后也让它们失效，补上断线期间的变化。
- * 离开工作区、退出登录时组件卸载，连接随之断开。memberId 还没读到时不连接。
+ * useRealtime 在工作区 slug 中建立实时连接，订阅成员 memberId 的个人频道，返回这条连接交给 RealtimeContext。
+ * 收到事件后让会话分组的查询（收件箱的数量、会话列表、会话和时间线）失效，200 毫秒内的多条合并成一次；断线重连、
+ * 重新订阅之后也让它们失效，补上断线期间的变化。离开工作区、退出登录时组件卸载，连接随之断开。memberId 还没读到时不连接。
  */
-export function useRealtime(slug: string, tenantId: string, memberId: string | undefined): void {
+export function useRealtime(slug: string, tenantId: string, memberId: string | undefined): Centrifuge | null {
   const queryClient = useQueryClient()
+  const [client, setClient] = useState<Centrifuge | null>(null)
   useEffect(() => {
     if (!memberId) return
     const scheme = location.protocol === "https:" ? "wss" : "ws"
@@ -36,9 +43,12 @@ export function useRealtime(slug: string, tenantId: string, memberId: string | u
     })
     sub.subscribe()
     centrifuge.connect()
+    setClient(centrifuge)
     return () => {
       clearTimeout(timer)
+      setClient(null)
       centrifuge.disconnect()
     }
   }, [slug, tenantId, memberId, queryClient])
+  return client
 }

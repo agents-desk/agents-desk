@@ -92,6 +92,8 @@ export interface ConversationDTO {
   mentioned_at?: string
   /** 最后一条消息的文字 */
   preview: string
+  /** 最后一条消息是谁发的；还没有消息时为空 */
+  preview_actor?: ConversationActor
   priority: ConversationPriority
   /** 客户最近一次的评价；没有评价过时为空 */
   rating?: ConversationRating
@@ -664,6 +666,13 @@ export function createClient(options: ClientOptions) {
        */
       reply: (id: string, body: ConversationTextBody): Promise<ConversationItemDTO> =>
         rt.request<ConversationItemDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/replies`, body }),
+      /**
+       * 重发发送失败的消息
+       *
+       * POST /conversations/{id}/items/{item_id}/retry
+       */
+      retry: (id: string, itemID: string): Promise<ConversationItemDTO> =>
+        rt.request<ConversationItemDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/items/${encodeURIComponent(itemID)}/retry` }),
       /**
        * 稍后处理
        *

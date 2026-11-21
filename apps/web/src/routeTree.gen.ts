@@ -17,6 +17,8 @@ import { Route as TSlugContactsRouteImport } from './routes/t/$slug/contacts'
 import { Route as TSlugInboxRouteImport } from './routes/t/$slug/inbox'
 import { Route as TSlugReportsRouteImport } from './routes/t/$slug/reports'
 import { Route as TSlugSettingsRouteImport } from './routes/t/$slug/settings'
+import { Route as TSlugInboxIndexRouteImport } from './routes/t/$slug/inbox/index'
+import { Route as TSlugInboxIdRouteImport } from './routes/t/$slug/inbox/$id'
 import { Route as TSlugSettingsIndexRouteImport } from './routes/t/$slug/settings/index'
 import { Route as TSlugSettingsChannelsRouteImport } from './routes/t/$slug/settings/_channels'
 import { Route as TSlugSettingsInboxRouteImport } from './routes/t/$slug/settings/_inbox'
@@ -75,6 +77,16 @@ const TSlugSettingsRoute = TSlugSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => TSlugRoute,
+} as any)
+const TSlugInboxIndexRoute = TSlugInboxIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => TSlugInboxRoute,
+} as any)
+const TSlugInboxIdRoute = TSlugInboxIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => TSlugInboxRoute,
 } as any)
 const TSlugSettingsIndexRoute = TSlugSettingsIndexRouteImport.update({
   id: '/',
@@ -180,10 +192,12 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/t/$slug': typeof TSlugRouteWithChildren
   '/t/$slug/contacts': typeof TSlugContactsRoute
-  '/t/$slug/inbox': typeof TSlugInboxRoute
+  '/t/$slug/inbox': typeof TSlugInboxRouteWithChildren
   '/t/$slug/reports': typeof TSlugReportsRoute
   '/t/$slug/settings': typeof TSlugSettingsRouteWithChildren
   '/t/$slug/': typeof TSlugIndexRoute
+  '/t/$slug/inbox/$id': typeof TSlugInboxIdRoute
+  '/t/$slug/inbox/': typeof TSlugInboxIndexRoute
   '/t/$slug/settings/': typeof TSlugSettingsIndexRoute
   '/t/$slug/settings/widgets': typeof TSlugSettingsChannelsWidgetsRouteWithChildren
   '/t/$slug/settings/teams': typeof TSlugSettingsInboxTeamsRouteWithChildren
@@ -203,10 +217,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/t/$slug/contacts': typeof TSlugContactsRoute
-  '/t/$slug/inbox': typeof TSlugInboxRoute
   '/t/$slug/reports': typeof TSlugReportsRoute
   '/t/$slug': typeof TSlugIndexRoute
+  '/t/$slug/inbox/$id': typeof TSlugInboxIdRoute
   '/t/$slug/settings': typeof TSlugSettingsIndexRoute
+  '/t/$slug/inbox': typeof TSlugInboxIndexRoute
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/status': typeof TSlugSettingsPersonalStatusRoute
@@ -225,14 +240,16 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/t/$slug': typeof TSlugRouteWithChildren
   '/t/$slug/contacts': typeof TSlugContactsRoute
-  '/t/$slug/inbox': typeof TSlugInboxRoute
+  '/t/$slug/inbox': typeof TSlugInboxRouteWithChildren
   '/t/$slug/reports': typeof TSlugReportsRoute
   '/t/$slug/settings': typeof TSlugSettingsRouteWithChildren
   '/t/$slug/': typeof TSlugIndexRoute
+  '/t/$slug/inbox/$id': typeof TSlugInboxIdRoute
   '/t/$slug/settings/_channels': typeof TSlugSettingsChannelsRouteWithChildren
   '/t/$slug/settings/_inbox': typeof TSlugSettingsInboxRouteWithChildren
   '/t/$slug/settings/_personal': typeof TSlugSettingsPersonalRouteWithChildren
   '/t/$slug/settings/_workspace': typeof TSlugSettingsWorkspaceRouteWithChildren
+  '/t/$slug/inbox/': typeof TSlugInboxIndexRoute
   '/t/$slug/settings/': typeof TSlugSettingsIndexRoute
   '/t/$slug/settings/_channels/widgets': typeof TSlugSettingsChannelsWidgetsRouteWithChildren
   '/t/$slug/settings/_inbox/teams': typeof TSlugSettingsInboxTeamsRouteWithChildren
@@ -259,6 +276,8 @@ export interface FileRouteTypes {
     | '/t/$slug/reports'
     | '/t/$slug/settings'
     | '/t/$slug/'
+    | '/t/$slug/inbox/$id'
+    | '/t/$slug/inbox/'
     | '/t/$slug/settings/'
     | '/t/$slug/settings/widgets'
     | '/t/$slug/settings/teams'
@@ -278,10 +297,11 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/t/$slug/contacts'
-    | '/t/$slug/inbox'
     | '/t/$slug/reports'
     | '/t/$slug'
+    | '/t/$slug/inbox/$id'
     | '/t/$slug/settings'
+    | '/t/$slug/inbox'
     | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
     | '/t/$slug/settings/status'
@@ -303,10 +323,12 @@ export interface FileRouteTypes {
     | '/t/$slug/reports'
     | '/t/$slug/settings'
     | '/t/$slug/'
+    | '/t/$slug/inbox/$id'
     | '/t/$slug/settings/_channels'
     | '/t/$slug/settings/_inbox'
     | '/t/$slug/settings/_personal'
     | '/t/$slug/settings/_workspace'
+    | '/t/$slug/inbox/'
     | '/t/$slug/settings/'
     | '/t/$slug/settings/_channels/widgets'
     | '/t/$slug/settings/_inbox/teams'
@@ -386,6 +408,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/t/$slug/settings'
       preLoaderRoute: typeof TSlugSettingsRouteImport
       parentRoute: typeof TSlugRoute
+    }
+    '/t/$slug/inbox/': {
+      id: '/t/$slug/inbox/'
+      path: '/'
+      fullPath: '/t/$slug/inbox/'
+      preLoaderRoute: typeof TSlugInboxIndexRouteImport
+      parentRoute: typeof TSlugInboxRoute
+    }
+    '/t/$slug/inbox/$id': {
+      id: '/t/$slug/inbox/$id'
+      path: '/$id'
+      fullPath: '/t/$slug/inbox/$id'
+      preLoaderRoute: typeof TSlugInboxIdRouteImport
+      parentRoute: typeof TSlugInboxRoute
     }
     '/t/$slug/settings/': {
       id: '/t/$slug/settings/'
@@ -516,6 +552,20 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface TSlugInboxRouteChildren {
+  TSlugInboxIdRoute: typeof TSlugInboxIdRoute
+  TSlugInboxIndexRoute: typeof TSlugInboxIndexRoute
+}
+
+const TSlugInboxRouteChildren: TSlugInboxRouteChildren = {
+  TSlugInboxIdRoute: TSlugInboxIdRoute,
+  TSlugInboxIndexRoute: TSlugInboxIndexRoute,
+}
+
+const TSlugInboxRouteWithChildren = TSlugInboxRoute._addFileChildren(
+  TSlugInboxRouteChildren,
+)
+
 interface TSlugSettingsChannelsWidgetsRouteChildren {
   TSlugSettingsChannelsWidgetsIdRoute: typeof TSlugSettingsChannelsWidgetsIdRoute
   TSlugSettingsChannelsWidgetsIndexRoute: typeof TSlugSettingsChannelsWidgetsIndexRoute
@@ -634,7 +684,7 @@ const TSlugSettingsRouteWithChildren = TSlugSettingsRoute._addFileChildren(
 
 interface TSlugRouteChildren {
   TSlugContactsRoute: typeof TSlugContactsRoute
-  TSlugInboxRoute: typeof TSlugInboxRoute
+  TSlugInboxRoute: typeof TSlugInboxRouteWithChildren
   TSlugReportsRoute: typeof TSlugReportsRoute
   TSlugSettingsRoute: typeof TSlugSettingsRouteWithChildren
   TSlugIndexRoute: typeof TSlugIndexRoute
@@ -642,7 +692,7 @@ interface TSlugRouteChildren {
 
 const TSlugRouteChildren: TSlugRouteChildren = {
   TSlugContactsRoute: TSlugContactsRoute,
-  TSlugInboxRoute: TSlugInboxRoute,
+  TSlugInboxRoute: TSlugInboxRouteWithChildren,
   TSlugReportsRoute: TSlugReportsRoute,
   TSlugSettingsRoute: TSlugSettingsRouteWithChildren,
   TSlugIndexRoute: TSlugIndexRoute,
