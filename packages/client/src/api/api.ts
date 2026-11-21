@@ -67,7 +67,7 @@ export interface FormFile {
   Size: number
 }
 
-export type MemberLanguage = "zh-CN" | "zh-TW" | "en"
+export type MemberLanguage = "zh-CN" | "en"
 
 export interface MemberLoginInputBody {
   email: string

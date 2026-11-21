@@ -72,7 +72,6 @@ export const components = {
   MemberLanguage: {
     "enum": [
       "zh-CN",
-      "zh-TW",
       "en"
     ],
     "type": "string"

@@ -37,7 +37,6 @@ team.fields.assignment: 分配方式
 account.wrong_password: 当前密码不正确
 member.invalid_time_zone: "不认识的时区“{{.time_zone}}”"
 member.language.zh-CN: 简体中文
-member.language.zh-TW: 繁體中文
 member.language.en: English
 
 tenant.not_found: 工作区不存在
