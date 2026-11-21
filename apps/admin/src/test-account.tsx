@@ -1,5 +1,5 @@
 import { Button, Stack, Text } from "@mantine/core"
-import { notifyError, useApp } from "@go-tenon/ui"
+import { notifyError, useApp, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 
 /** TestAccountSignIn 的选项。 */
@@ -17,6 +17,7 @@ export interface TestAccountSignInProps {
  */
 export function TestAccountSignIn({ login, email, password, redirect }: TestAccountSignInProps): ReactNode {
   const app = useApp()
+  const t = useT()
   const [pending, setPending] = useState(false)
   const signIn = async () => {
     setPending(true)
@@ -25,7 +26,7 @@ export function TestAccountSignIn({ login, email, password, redirect }: TestAcco
       await app.session.signIn()
       await app.redirectAfterSignIn(redirect)
     } catch (err) {
-      notifyError(err, "测试账号登录失败，先运行 go run ./cmd/agents-desk seed")
+      notifyError(err, t("test_account.failed"))
     } finally {
       setPending(false)
     }
@@ -33,7 +34,7 @@ export function TestAccountSignIn({ login, email, password, redirect }: TestAcco
   return (
     <Stack gap={4} mt="md">
       <Button variant="light" fullWidth loading={pending} onClick={() => void signIn()}>
-        用测试账号登录
+        {t("test_account.sign_in")}
       </Button>
       <Text size="xs" c="dimmed" ta="center">
         {email} ／ {password}

@@ -1,15 +1,16 @@
 import { host } from "@go-tenon/host"
 import { cspNonce } from "@go-tenon/start"
 import { createApp, NotFoundPage, RouteError } from "@go-tenon/ui"
-import { api, session, tenantApi } from "./api"
+import { api, i18n, session, tenantApi } from "./api"
 import { routeTree } from "./routeTree.gen"
 
-// getRouter 创建应用：路由、TanStack Query、会话、权限和工作区，见框架文档的“应用骨架”和“租户”。
+// getRouter 创建应用：路由、TanStack Query、会话、权限、工作区和界面文字，见框架文档的“应用骨架”“租户”和“界面文字”。
 export function getRouter() {
   const app = createApp({
     id: "web",
     routeTree,
     session,
+    i18n,
     // 权限按工作区区分：进入工作区之后读取成员在其中的权限，还没有进入时没有权限。
     permissions: async () => (session.identity()?.tenant ? (await tenantApi.tenant.current()).permissions : []),
     // 工作区的标识是 slug（地址 /t/{slug}/）。已停用的工作区不能进入，不出现在切换的列表中。

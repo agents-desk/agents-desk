@@ -1,7 +1,7 @@
 import { Badge, Box, Checkbox, Group, SegmentedControl, Stack, Text } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useParams } from "@tanstack/react-router"
-import { notifyError } from "@go-tenon/ui"
+import { notifyError, useLanguage, useT } from "@go-tenon/ui"
 import type { MemberStatus, MemberStatusSetting } from "@agents-desk/client/tenant"
 import type { ReactNode } from "react"
 import { kit, tenantApi } from "./api"
@@ -13,6 +13,7 @@ const statusColor: Record<MemberStatus, string> = { online: "green", away: "gray
 
 /** StatusBadge 显示一位成员的在线状态，成员页和团队收件箱的成员表格用它。 */
 export function StatusBadge({ status }: { status: MemberStatus }): ReactNode {
+  useLanguage() // 枚举的显示文字按当前语言，切换语言时重新渲染
   return (
     <Badge variant="dot" color={statusColor[status]}>
       {kit.label("MemberStatus", status)}
@@ -22,6 +23,7 @@ export function StatusBadge({ status }: { status: MemberStatus }): ReactNode {
 
 /** StatusLabel 是在线状态的文字，前面是一个小圆点：在线是 green，离开是 gray。 */
 function StatusLabel({ status }: { status: MemberStatus }): ReactNode {
+  useLanguage() // 枚举的显示文字按当前语言，切换语言时重新渲染
   return (
     <Group gap={6} wrap="nowrap" justify="center">
       <Box w={8} h={8} style={{ borderRadius: "50%", background: `var(--mantine-color-${statusColor[status]}-6)` }} />
@@ -37,6 +39,7 @@ function StatusLabel({ status }: { status: MemberStatus }): ReactNode {
 export function StatusControl({ description }: { description?: boolean }): ReactNode {
   const { slug } = useParams({ from: "/t/$slug" })
   const queryClient = useQueryClient()
+  const t = useT()
   const queryKey = ["me", "status", slug]
   const current = useQuery({ queryKey, queryFn: () => tenantApi.member.myStatus() })
   const save = useMutation({
@@ -61,14 +64,14 @@ export function StatusControl({ description }: { description?: boolean }): React
       />
       {description && (
         <Text size="sm" c="dimmed">
-          在线时可以被自动分配会话；离开时不会被自动分配，已经负责的会话仍由你处理。
+          {t("status.description")}
         </Text>
       )}
       {value.status === "away" && (
         <Checkbox
           size="xs"
-          label="把我的会话重新分配"
-          description={description ? "对方再发来消息时，会话回到团队收件箱重新分配" : undefined}
+          label={t("status.reassign")}
+          description={description ? t("status.reassign_hint") : undefined}
           checked={value.reassign}
           onChange={(e) => save.mutate({ ...value, reassign: e.currentTarget.checked })}
         />

@@ -21,7 +21,7 @@ import (
 // ErrInvalidTimeZone 是不认识的时区名（422），提示显示在“时区”下面。
 var ErrInvalidTimeZone = errorx.Define(errorx.InvalidArgument, "member.invalid_time_zone")
 
-// Language 是成员的语言：现在决定把客户的消息译成什么语言，以后有了多语言界面时也决定界面的语言。
+// Language 是成员的语言：界面的语言，也是把客户的消息译成的语言。
 type Language string
 
 const (

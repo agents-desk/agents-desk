@@ -1,0 +1,49 @@
+# 前端 admin 的界面文字（简体中文）。tenon generate 生成 apps/admin/src/messages.gen.ts，页面用 useT 取出。
+app.title: "agents-desk 管理员端"
+
+change_owner.current: "现在的主管理员是 {{.name}}（{{.email}}）。更换后，他在这个工作区中的主管理员角色被撤销。"
+change_owner.email: "新主管理员的邮箱"
+change_owner.existing_hint: "这个邮箱已经有成员账号时，不需要填写下面两项。"
+change_owner.name: "姓名"
+change_owner.password: "初始密码"
+change_owner.submit: "更换"
+change_owner.title: "更换“{{.name}}”的主管理员"
+
+common.cancel: "取消"
+common.save: "保存"
+common.saved: "已保存"
+
+login.description: "平台管理员使用"
+login.title: "管理员登录"
+
+model.api_key: "密钥"
+model.base_url: "接口地址"
+model.description: "为每种调用类型配置模型接口和模型名，不同调用类型可以使用不同的接口和供应商。接口地址留空表示不启用这种调用类型。"
+model.model: "模型名"
+model.translation_description: "在不同语言之间互译文本，同时识别原文的语言和书写方式"
+
+nav.model: "模型接口"
+nav.platform_settings: "平台设置"
+nav.profile: "个人资料"
+nav.tenants: "工作区"
+
+profile.avatar: "头像"
+profile.avatar_hint: "PNG、JPEG 或 WebP，不超过 2 MB"
+profile.change_password: "修改密码"
+profile.confirm_password: "再输入一次新密码"
+profile.current_password: "当前密码"
+profile.name: "名字"
+profile.new_password: "新密码"
+profile.new_password_hint: "8 到 128 个字符"
+profile.password_changed: "密码已修改，其他设备上的登录已退出"
+profile.password_mismatch: "两次输入的新密码不一致"
+profile.remove: "移除"
+profile.tab_basic: "基本资料"
+profile.tab_password: "修改密码"
+profile.upload: "上传图片"
+profile.upload_failed: "上传失败"
+
+tenants.change_owner: "更换主管理员"
+
+test_account.failed: "测试账号登录失败，先运行 go run ./cmd/agents-desk seed"
+test_account.sign_in: "用测试账号登录"

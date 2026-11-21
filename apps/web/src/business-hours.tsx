@@ -1,21 +1,23 @@
 import { ActionIcon, Autocomplete, Button, Group, Select, Stack, Switch, Text } from "@mantine/core"
 import type { UseFormReturnType } from "@mantine/form"
 import { IconPlus, IconX } from "@tabler/icons-react"
+import { useT } from "@go-tenon/ui"
 import type { HoursInterval, HoursSchedule, HoursWeek } from "@agents-desk/client/tenant"
 import type { ReactNode } from "react"
+import type { MessageId } from "./messages.gen"
 
 // 工作时间的编辑器：时区、每周七天的时间段。工作区的“工作时间”设置页和团队收件箱单独设置工作时间时共用。
 // 校验在服务端：错误按字段（例如 week.monday.1.end）显示在对应的输入框下面。
 
-/** days 是每周七天：接口中的字段名和显示的名称，从周一开始。 */
-export const days: { key: keyof HoursWeek; label: string }[] = [
-  { key: "monday", label: "周一" },
-  { key: "tuesday", label: "周二" },
-  { key: "wednesday", label: "周三" },
-  { key: "thursday", label: "周四" },
-  { key: "friday", label: "周五" },
-  { key: "saturday", label: "周六" },
-  { key: "sunday", label: "周日" },
+/** days 是每周七天：接口中的字段名和显示名称的消息 ID，从周一开始。 */
+export const days: { key: keyof HoursWeek; label: MessageId }[] = [
+  { key: "monday", label: "hours.day.monday" },
+  { key: "tuesday", label: "hours.day.tuesday" },
+  { key: "wednesday", label: "hours.day.wednesday" },
+  { key: "thursday", label: "hours.day.thursday" },
+  { key: "friday", label: "hours.day.friday" },
+  { key: "saturday", label: "hours.day.saturday" },
+  { key: "sunday", label: "hours.day.sunday" },
 ]
 
 /** defaultInterval 是新加一段时间时的默认值。 */
@@ -29,10 +31,11 @@ const zones = Intl.supportedValuesOf("timeZone")
 
 /** TimeZoneSelect 是时区的下拉框，可以搜索。 */
 export function TimeZoneSelect({ form, path }: { form: UseFormReturnType<any>; path: string }): ReactNode {
+  const t = useT()
   return (
     <Select
-      label="时区"
-      description="工作时间按这个时区的钟点计算"
+      label={t("hours.time_zone")}
+      description={t("hours.time_zone_hint")}
       searchable
       data={zones}
       {...form.getInputProps(path)}
@@ -46,16 +49,17 @@ export function TimeZoneSelect({ form, path }: { form: UseFormReturnType<any>; p
  * 例如 week.monday 或 special_dates.0.intervals。
  */
 export function Intervals({ form, path }: { form: UseFormReturnType<any>; path: string }): ReactNode {
+  const t = useT()
   const list = (form.getInputProps(path).value as HoursInterval[] | undefined) ?? []
   return (
     <Stack gap={6}>
       {list.map((_, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: 时间段只按位置编辑
         <Group key={i} gap="xs" wrap="nowrap" align="flex-start">
-          <Autocomplete w={110} data={times} placeholder="09:00" aria-label="开始" {...form.getInputProps(`${path}.${i}.start`)} />
+          <Autocomplete w={110} data={times} placeholder="09:00" aria-label={t("hours.start")} {...form.getInputProps(`${path}.${i}.start`)} />
           <Text mt={6}>–</Text>
-          <Autocomplete w={110} data={times} placeholder="18:00" aria-label="结束" {...form.getInputProps(`${path}.${i}.end`)} />
-          <ActionIcon mt={4} variant="subtle" color="gray" aria-label="删除这段时间" onClick={() => form.removeListItem(path, i)}>
+          <Autocomplete w={110} data={times} placeholder="18:00" aria-label={t("hours.end")} {...form.getInputProps(`${path}.${i}.end`)} />
+          <ActionIcon mt={4} variant="subtle" color="gray" aria-label={t("hours.remove_interval")} onClick={() => form.removeListItem(path, i)}>
             <IconX size={16} />
           </ActionIcon>
         </Group>
@@ -68,7 +72,7 @@ export function Intervals({ form, path }: { form: UseFormReturnType<any>; path: 
             leftSection={<IconPlus size={14} />}
             onClick={() => form.insertListItem(path, list.length === 0 ? defaultInterval : { start: "", end: "" })}
           >
-            添加时间段
+            {t("hours.add_interval")}
           </Button>
         </Group>
       )}
@@ -78,10 +82,11 @@ export function Intervals({ form, path }: { form: UseFormReturnType<any>; path: 
 
 /** WeekEditor 是每周七天的工作时间：每天一行，左边是“上班”开关，右边是这天的时间段。path 是 Week 在表单中的位置。 */
 export function WeekEditor({ form, path }: { form: UseFormReturnType<any>; path: string }): ReactNode {
+  const t = useT()
   return (
     <Stack gap="sm">
       <Text size="sm" fw={500}>
-        每周的工作时间
+        {t("hours.week")}
       </Text>
       {days.map((d) => {
         const dayPath = `${path}.${d.key}`
@@ -91,7 +96,7 @@ export function WeekEditor({ form, path }: { form: UseFormReturnType<any>; path:
             <Switch
               w={110}
               mt={6}
-              label={d.label}
+              label={t(d.label)}
               checked={working}
               onChange={(e) => form.setFieldValue(dayPath, e.currentTarget.checked ? [defaultInterval] : [])}
             />
@@ -99,7 +104,7 @@ export function WeekEditor({ form, path }: { form: UseFormReturnType<any>; path:
               <Intervals form={form} path={dayPath} />
             ) : (
               <Text size="sm" c="dimmed" mt={6}>
-                不上班
+                {t("hours.off")}
               </Text>
             )}
           </Group>
