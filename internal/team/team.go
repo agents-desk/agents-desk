@@ -130,7 +130,7 @@ func toDTOs(ctx context.Context, db bun.IDB, teams []Team) ([]TeamDTO, error) {
 }
 
 // OnMemberRemoved 是 member.Hooks 的 Removed：成员被移出工作区后，把他从这个工作区的团队收件箱中删除，别的工作区的团队收件箱不受影响。
-func OnMemberRemoved(ctx context.Context, tx bun.IDB, tenant, memberID string) error {
+func OnMemberRemoved(ctx context.Context, tx database.Tx, tenant, memberID string) error {
 	_, err := tx.NewDelete().Model((*Membership)(nil)).
 		Where("member_id = ? AND team_id IN (SELECT id FROM teams WHERE tenant_id = ?)", memberID, tenant).Exec(ctx)
 	return errors.Wrap(err, "remove member from teams")

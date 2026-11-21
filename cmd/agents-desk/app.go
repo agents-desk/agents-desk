@@ -10,6 +10,8 @@ import (
 
 	"github.com/go-tenon/tenon/apitoken"
 	"github.com/go-tenon/tenon/authz"
+	"github.com/go-tenon/tenon/broadcast"
+	"github.com/go-tenon/tenon/broadcast/natsbroadcast"
 	"github.com/go-tenon/tenon/cleanup"
 	"github.com/go-tenon/tenon/command"
 	"github.com/go-tenon/tenon/crypt"
@@ -42,7 +44,8 @@ type App struct {
 	cfg   Config
 	db    *bun.DB
 	nc    *nats.Conn
-	roles *authz.Store // 平台和各租户的角色与权限
+	hub   *broadcast.Hub // 经 NATS 把消息送到每个实例：实时推送
+	roles *authz.Store   // 平台和各租户的角色与权限
 
 	adminLogins  *login.Realm    // 平台管理员的邮箱和密码
 	adminTokens  *apitoken.Store // 平台管理员的登录 token
@@ -58,9 +61,9 @@ type App struct {
 	channels channel.Registry // 各种渠道的连接器
 }
 
-// downstream 返回时间线有新内容时通知的下游：把发给对方的消息交给连接器发出。以后加上实时推送、翻译。
+// downstream 返回会话有变化时通知的下游：把发给对方的消息交给连接器发出，提交后推送给能看到会话的成员。以后加上翻译。
 func (a *App) downstream() conversation.Downstream {
-	return conversation.Downstream{conversation.DeliverTopic}
+	return conversation.Downstream{Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic}, Hub: a.hub, Roles: a.roles}
 }
 
 // open 安装日志器，连接 PostgreSQL 和 NATS，确保预置的角色存在，创建账号、权限和设置的存储。serve 和需要资源的命令执行时调用它，
@@ -82,6 +85,9 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		nc.Close()
 		return nil
 	})
+	// 广播：会话的变化经它推送给各实例上的实时连接。登记在 NATS 之后，退出时先于 NATS 关闭
+	hub := broadcast.New(natsbroadcast.New(nc, "agents-desk.broadcast"), nil)
+	stack.MustAdd("broadcast", func(context.Context) error { return hub.Close() })
 
 	keys := crypt.New(cfg.Crypt) // 派生登录验证码的密钥
 	hasher := hashing.New(cfg.Hashing)
@@ -133,7 +139,7 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	}
 
 	return &App{
-		cfg: cfg, db: db, nc: nc, roles: roles,
+		cfg: cfg, db: db, nc: nc, hub: hub, roles: roles,
 		adminLogins: adminLogins, adminTokens: apitoken.NewStore(db, cfg.AdminToken),
 		memberLogins: memberLogins, memberTokens: apitoken.NewStore(db, cfg.MemberToken),
 		llmSettings: llm.NewGroup(db),

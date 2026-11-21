@@ -6,9 +6,10 @@ ignore node_modules
 
 require (
 	github.com/cockroachdb/errors v1.14.0
+	github.com/coder/websocket v1.8.15
 	github.com/danielgtaylor/huma/v2 v2.40.0
 	github.com/go-chi/chi/v5 v5.5.0
-	github.com/go-tenon/tenon v0.0.21
+	github.com/go-tenon/tenon v0.0.22
 	github.com/google/uuid v1.6.0
 	github.com/nats-io/nats.go v1.55.0
 	github.com/spf13/cobra v1.10.2
@@ -36,7 +37,11 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.44.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.52.0 // indirect
 	github.com/aws/smithy-go v1.28.9 // indirect
+	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bradfitz/gomemcache v0.0.0-20260422231931-4d751bb6e37c // indirect
+	github.com/centrifugal/centrifuge v0.40.1 // indirect
+	github.com/centrifugal/fdelta v0.0.3 // indirect
+	github.com/centrifugal/protocol v0.23.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudflare/tableflip v1.2.4-0.20240920015315-64983fb2d863 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20241215232642-bb51bb14a506 // indirect
@@ -60,14 +65,23 @@ require (
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lmittmann/tint v1.2.1 // indirect
+	github.com/maypok86/otter/v2 v2.4.0 // indirect
 	github.com/mfridman/interpolate v0.2.0 // indirect
 	github.com/modelcontextprotocol/go-sdk v1.8.0 // indirect
+	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nats-io/nkeys v0.4.16 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/nicksnyder/go-i18n/v2 v2.7.0 // indirect
+	github.com/pandatix/go-abnf v0.5.5 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pressly/goose/v3 v3.30.1 // indirect
+	github.com/prometheus/client_golang v1.25.0 // indirect
+	github.com/prometheus/client_model v0.6.3 // indirect
+	github.com/prometheus/common v0.74.0 // indirect
+	github.com/prometheus/procfs v0.23.0 // indirect
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
+	github.com/quagmt/udecimal v1.11.0 // indirect
+	github.com/redis/rueidis v1.0.79 // indirect
 	github.com/rogpeppe/go-internal v1.16.0 // indirect
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/samber/lo v1.53.0 // indirect
@@ -100,6 +114,7 @@ require (
 	golang.org/x/text v0.44.0 // indirect
 	golang.org/x/time v0.16.0 // indirect
 	golang.org/x/tools v0.52.0 // indirect
+	google.golang.org/protobuf v1.36.12 // indirect
 )
 
 tool github.com/go-tenon/tenon/cmd/tenon

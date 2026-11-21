@@ -6,10 +6,13 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/broadcast"
+	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/auth"
 	"agents-desk/internal/member"
+	"agents-desk/internal/push"
 )
 
 // ReadInput 是标记已读的请求：读到时间线中序号为 seq 的项。
@@ -22,11 +25,12 @@ type ReadInput struct {
 
 // MarkRead 记下成员在会话中读到的位置，会话列表据此显示未读，“@我”据此计数。
 type MarkRead struct {
-	db *bun.DB
+	db  *bun.DB
+	hub *broadcast.Hub
 }
 
-// NewMarkRead 返回标记已读的动作。
-func NewMarkRead(db *bun.DB) *MarkRead { return &MarkRead{db: db} }
+// NewMarkRead 返回标记已读的动作。hub 不为 nil 时，提交后推送到成员自己的个人频道，他的其他页面随之更新未读。
+func NewMarkRead(db *bun.DB, hub *broadcast.Hub) *MarkRead { return &MarkRead{db: db, hub: hub} }
 
 // Handle 记下成员 sub 在他所在工作区的会话 id 中读到了序号 seq。位置只往前推进，超过时间线最新一项时按最新一项记；
 // 已读不写时间线和操作日志。会话不存在或 sub 看不到时返回 ErrNotFound。
@@ -41,11 +45,22 @@ func (a *MarkRead) Handle(ctx context.Context, sub identity.Subject, id string, 
 	if err != nil {
 		return err
 	}
-	_, err = a.db.NewRaw(`INSERT INTO conversation_reads (member_id, conversation_id, last_read_seq, updated_at) VALUES (?, ?, ?, ?)
-		ON CONFLICT (member_id, conversation_id) DO UPDATE
-		SET last_read_seq = GREATEST(conversation_reads.last_read_seq, EXCLUDED.last_read_seq), updated_at = EXCLUDED.updated_at`,
-		sub.ID, c.ID, min(seq, c.LastSeq), now()).Exec(ctx)
-	return errors.Wrap(err, "save conversation read")
+	return database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
+		_, err := tx.NewRaw(`INSERT INTO conversation_reads (member_id, conversation_id, last_read_seq, updated_at) VALUES (?, ?, ?, ?)
+			ON CONFLICT (member_id, conversation_id) DO UPDATE
+			SET last_read_seq = GREATEST(conversation_reads.last_read_seq, EXCLUDED.last_read_seq), updated_at = EXCLUDED.updated_at`,
+			sub.ID, c.ID, min(seq, c.LastSeq), now()).Exec(ctx)
+		if err != nil {
+			return errors.Wrap(err, "save conversation read")
+		}
+		if a.hub != nil {
+			tx.AfterCommit(func(ctx context.Context) error {
+				err := push.Send(ctx, a.hub, sub.Tenant, []string{sub.ID}, push.Event{Type: push.Read, ID: c.ID})
+				return errors.Wrap(err, "push conversation read")
+			})
+		}
+		return nil
+	})
 }
 
 // HTTP 处理 POST /t/{slug}/api/conversations/{id}/read。

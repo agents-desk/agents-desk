@@ -20,6 +20,7 @@
     "build": "go tool tenon build",
     "generate": "go tool tenon generate",
     "agents": "go tool tenon agents",
+    "check": "go tool tenon check",
     "typecheck": "bun run --filter './apps/*' --filter './clients/*' typecheck"
   },
   "devDependencies": {

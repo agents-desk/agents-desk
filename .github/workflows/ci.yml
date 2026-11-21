@@ -41,14 +41,22 @@ jobs:
       - name: Agents
         run: |
           go tool tenon agents
-          git status --porcelain -- .claude/skills .agents/skills .github/skills
-          test -z "$(git status --porcelain -- .claude/skills .agents/skills .github/skills)"
+          git status --porcelain -- AGENTS.md .claude/skills .agents/skills .github/skills
+          test -z "$(git status --porcelain -- AGENTS.md .claude/skills .agents/skills .github/skills)"
 
       - name: Format
         run: test -z "$(gofmt -l $(go list -f '{{.Dir}}' ./...))"
 
       - name: Vet
         run: go vet ./...
+
+      # 静态检查项目约定：前端写死的文字和颜色、SQL 数据库时钟、服务端错误码翻译、前端依赖版本。
+      - name: Check
+        run: go tool tenon check
+
+      # 框架的迁移都已发布，并且与框架一致。
+      - name: Migrations
+        run: go run ./cmd/agents-desk migrate verify
 
       - name: Test
         run: go test ./...
@@ -76,10 +84,6 @@ jobs:
           bun run typecheck
           git status --porcelain
           test -z "$(git status --porcelain)"
-
-      # 界面文字写在 locales/<前端>.<语言>.yaml 中，前端代码中没有写死的文字。
-      - name: Check text
-        run: go tool tenon check-text
 
       - name: Build
         run: bun run build

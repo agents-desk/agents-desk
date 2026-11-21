@@ -3,6 +3,7 @@
 package main
 
 import (
+	"io/fs"
 	"net/url"
 	// 程序内嵌时区数据：校验成员选的时区时，不依赖服务器（例如容器镜像）中有没有系统的时区文件。
 	_ "time/tzdata"
@@ -95,10 +96,11 @@ func main() {
 	command.Execute(root, command.Languages(i18n.MustNew("zh-CN", locales.FS)))
 }
 
-// migrateCommand 返回 migrate 命令：up、status、down、make，以及发布框架自带的迁移的 publish。
+// migrateCommand 返回 migrate 命令：up、status、down、make，发布框架自带的迁移的 publish，
+// 以及检查框架的迁移是否都已发布、与框架一致的 verify。
 func migrateCommand() *cobra.Command {
 	cmd := migratecmd.New(migrations.FS, func(cfg Config) database.Config { return cfg.Database })
-	cmd.AddCommand(migratecmd.Publish(
+	sources := []fs.FS{
 		login.Migrations(),
 		pglimit.Migrations(),
 		apitoken.Migrations(),
@@ -108,6 +110,7 @@ func migrateCommand() *cobra.Command {
 		queue.Migrations(),
 		filesystem.Migrations(),
 		pglock.Migrations(),
-	))
+	}
+	cmd.AddCommand(migratecmd.Publish(sources...), migratecmd.Verify(sources...))
 	return cmd
 }

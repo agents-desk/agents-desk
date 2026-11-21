@@ -14,14 +14,11 @@ Before editing files for a substantial task:
 
 agents-desk 是团队的综合服务平台，以 AI 为核心，以聊天为基础。产品设计见 [docs/产品设计.md](docs/产品设计.md)，开发计划见 [docs/开发计划.md](docs/开发计划.md)。项目是 Go 写的后端加 TanStack Start 写的前端，整个应用编译成一个二进制文件。本文写给在这个项目中工作的人和 AI 编程助手：怎样运行、提交前检查什么、代码按什么约定写。
 
-## 框架与文档
+## 应用
 
-- 框架是 `github.com/go-tenon/tenon`，版本以 `go.mod` 为准。这个版本的文档在 `.tenon/docs` 中，`bun run dev` 和 `bun run agents` 会更新它。先读目录 `.tenon/docs/README.md`，写某一部分的代码前读对应的页面，写法以这个版本的文档为准。
-- 查框架的文档用 MCP 工具 `tenon_search_docs`、`tenon_read_doc`；用 rg 搜索时指定目录，例如 `rg 迁移 .tenon/docs`：`.tenon` 被 .gitignore 忽略，在项目根目录搜索时不包含它。
+- 框架是 `github.com/go-tenon/tenon`。框架的通用约定（文档、提交前检查、测试和代码约定）在本文末尾的托管区块中，`bun run agents` 按 `go.mod` 中的框架版本更新它；前面各节是 agents-desk 自己的约定。
 - 项目的前端、客户端和安装的技能用 MCP 工具 `tenon_app_info` 查看，也可以直接看 `tenon.json` 和 `apps/`：`apps/admin` 是管理员端（`/admin/`），`apps/web` 是工作区端（`/`），都只在浏览器中渲染。
 - 应用的入口是 `./cmd/agents-desk`，`go run ./cmd/agents-desk --help` 列出应用的命令。
-- 依赖的版本以 `go.mod` 和各前端的 `package.json` 为准。Go 的依赖用 `go doc` 读与 `go.mod` 一致的版本，例如 `go doc github.com/danielgtaylor/huma/v2.Register`。
-- Mantine、TanStack 等依赖给 AI 的文档、MCP 服务和技能按它们的官方方案接入，见 `README.md` 的“AI 编程助手”一节；它们的写法与 Tenon 的约定冲突时，以本文和 `.tenon/docs` 为准。
 
 ## 开发环境
 
@@ -46,8 +43,9 @@ bun run dev                       # 运行应用和前端的开发服务器，�
 bun run generate                  # 接口变了以后重新生成前端的客户端（dev 会自动运行）
 bun run build                     # 构建可执行文件 bin/agents-desk，前端打包在其中
 bun run typecheck                 # 前端的类型检查
-bun run agents                    # 升级框架之后，更新框架文档、技能和 AI 编程助手的 MCP 配置
-go run ./cmd/agents-desk migrate up   # 执行迁移；migrate make <名称> 新建迁移，migrate publish 发布框架的迁移
+bun run check                     # 静态检查约定：写死的文字和颜色、数据库时钟、错误码的译文、前端依赖的版本
+bun run agents                    # 升级框架之后，更新框架文档、AGENTS.md 的托管区块、技能和 MCP 配置
+go run ./cmd/agents-desk migrate up   # 执行迁移；migrate make <名称> 新建迁移，migrate publish 发布框架的迁移，migrate verify 检查框架的迁移
 go run ./cmd/agents-desk seed       # 写入开发和演示用的账号、工作区和示例会话，可以重复运行；只在开发和演示环境中运行
 go run ./cmd/agents-desk dev message --from rahul "mera order nahi aaya"   # 以客户的身份往 demo 的测试渠道发一条消息
 go run ./cmd/agents-desk admin create --email <邮箱>   # 创建平台管理员，密码在终端中输入（生产环境用它）
@@ -73,25 +71,9 @@ packages/client/         bun run generate 生成的客户端，不手改
 .tenon/                  tenon 复制的框架前端包和文档，不提交
 ```
 
-## 提交前
+## 测试数据库
 
-```bash
-test -z "$(gofmt -l .)"
-go vet ./...
-go test ./...
-bun run typecheck
-go tool tenon check-text                   # 前端代码中没有写死的界面文字
-bun run generate && git diff --exit-code   # 改了接口或翻译文件要提交重新生成的客户端和 messages.gen.ts
-```
-
-CI（`.github/workflows/ci.yml`）在每次推送和 PR 中运行同样的检查，并构建一次；生成的代码（客户端、路由树、技能）没有提交时失败。
-
-## 编写测试
-
-- 顶层测试的第一行调用 `t.Parallel()`。修改全局状态的测试串行运行，例如用到 `t.Setenv`、`slog.SetDefault` 的测试。
-- 依赖数据库的测试用 `internal/apptest` 的 `New`（其中是 `database/dbtest` 的 `Open`）为每个测试建一个临时库，需要环境变量 `POSTGRES_TEST_URL`。本机用 `docker compose -f compose.test.yml up -d --wait` 启动测试用的 PostgreSQL，然后 `export POSTGRES_TEST_URL='postgres://postgres:postgres@127.0.0.1:15433/postgres?sslmode=disable'`。
-- 能在进程内模拟的外部服务就在进程内模拟：S3 用 [gofakes3](https://github.com/johannesboyne/gofakes3)，HTTP API 用 `httptest`。
-- 与时间有关的逻辑用 `testing/synctest` 控制时间。SQL 中的时间由 Go 算出后作为参数传入，不用 `NOW()` 这类数据库的时钟函数，这样假时钟对查询同样有效。
+依赖数据库的测试用 `internal/apptest` 的 `New`（其中是 `database/dbtest` 的 `Open`）为每个测试建一个临时库，需要环境变量 `POSTGRES_TEST_URL`。本机用 `docker compose -f compose.test.yml up -d --wait` 启动测试用的 PostgreSQL，然后 `export POSTGRES_TEST_URL='postgres://postgres:postgres@127.0.0.1:15433/postgres?sslmode=disable'`。
 
 ## 依赖的文档
 
@@ -106,12 +88,6 @@ CI（`.github/workflows/ci.yml`）在每次推送和 PR 中运行同样的检查
 
 ## 代码约定
 
-### 业务动作
-
-- 一个用例写成一个业务动作，放在 `internal/<模块>/` 中，一个动作一个文件。HTTP 接口、命令行、队列任务、MCP 工具都是调用它的入口，入口只把外部的输入转换成动作的参数。
-- 业务规则、权限判断和校验写在 Go 中；前端和 App 只负责展示和交互。
-- 业务错误用 `errorx.Define` 定义稳定的错误码，客户端按错误码处理；启用本地化后，给用户看的提示写在每种语言的翻译文件中，以错误码为消息 ID。
-
 ### 工作区和账号
 
 - 工作区在代码中统一叫 tenant，与 Tenon 的租户一致：表 `tenants`、列 `tenant_id`、包 `internal/tenant`、权限 `tenants:*`。给用户看的文字叫“工作区”。
@@ -120,41 +96,82 @@ CI（`.github/workflows/ci.yml`）在每次推送和 PR 中运行同样的检查
 - 团队收件箱在代码中统一叫 team：表 `teams`、列 `team_id`、包 `internal/team`、权限 `teams:*`。给用户看的文字叫“团队收件箱”；代码中的 inbox 留给收件箱模块（我的、@我、未指派、全部、视图）。
 - 平台管理员和工作区成员是两套账号：各自一张表、一个 `identity.SubjectType`、一个 `login.Realm`，会话 cookie 分别是 `__Host-admin` 和 `__Host-session`。成员账号是全局的，在每个工作区中的身份由角色决定。
 
+### 实时推送
+
+- 会话的写入都经过 `commit`，它在提交后把变化推送给修改前后能看到会话的成员。其他要通知成员的写入用 `tx.AfterCommit` 调用 `push.Send`，推送到成员的个人频道（`internal/push`）。推送只带 ID，页面收到后经接口重新读取。
+
+### 界面文字
+
+- 界面文字写在 `locales/web.<语言>.yaml`、`locales/admin.<语言>.yaml` 中，页面用 `useT` 取出，菜单标题写消息 ID，见框架文档的 `frontend/i18n.md`。应用在每个前端中的名称是 `app.<前端>`。各前端的 `i18n` 在 `src/i18n.ts` 中。消息 ID 按模块起名（`inbox.empty`），不用 `tenant.`、`team.`、`member.`、`role.` 这些服务端已经在用的前缀。界面的语言跟随成员在偏好设置中选的语言，有简体中文（`zh-CN`）和英文（`en`）；成员选了其他语言时显示简体中文。
+- 加一条消息时，简体中文和英文的翻译文件都写上它，`locales` 的测试检查每种语言的消息 ID 相同。
+
+<!-- tenon:begin -->
+<!-- 这一段由 go tool tenon agents 按框架版本维护，不要手改。 -->
+
+## 框架与文档
+
+- 框架版本以 `go.mod` 中的 `github.com/go-tenon/tenon` 为准，对应文档在 `.tenon/docs`，由 `bun run dev` / `bun run agents` 更新。先读目录 `.tenon/docs/README.md`，写代码前读对应页面。
+- 查文档用 MCP 工具 `tenon_search_docs`、`tenon_read_doc`；用 rg 时指定目录（例如 `rg 迁移 .tenon/docs`）。项目结构用 `tenon_app_info` 查看。
+- Go 依赖的签名和说明用 `go doc` 读与 `go.mod` 一致的版本；Mantine、TanStack 等依赖的 AI 资源按 `README.md` 的“AI 编程助手”一节接入，与 Tenon 冲突时以本文和 `.tenon/docs` 为准。
+
+## 提交前
+
+```bash
+test -z "$(gofmt -l .)"
+go vet ./...
+go test ./...
+bun run typecheck
+bun run check
+bun run generate && git diff --exit-code
+```
+
+CI（`.github/workflows/ci.yml`）运行同样的检查并构建一次；生成的代码（客户端、路由树、界面文字、技能、本节约定）未提交时失败。
+
+## 编写测试
+
+- 顶层测试第一行调用 `t.Parallel()`；修改全局状态（`t.Setenv`、`slog.SetDefault` 等）的测试串行运行。
+- 依赖数据库的测试用 `database/dbtest` 的 `Open` 为每个测试建临时库；外部服务尽量在进程内模拟（S3 用 [gofakes3](https://github.com/johannesboyne/gofakes3)，HTTP API 用 `httptest`）。
+- 时间相关逻辑用 `testing/synctest` 控制时间。SQL 中的时间由 Go 算出后作为参数传入，不用 `NOW()` 等数据库时钟函数。
+
+## 代码约定
+
+### 业务动作
+
+- 一个用例写成一个业务动作，放在 `internal/<模块>/`，一个动作一个文件。HTTP、命令、队列、MCP 等入口只做输入转换并调用 `Handle`。
+- 业务规则、权限判断和校验写在 Go 中；前端和 App 只负责展示和交互。
+- 业务错误用 `errorx.Define` 定义稳定错误码；启用本地化后，译文写在翻译文件中，以错误码为消息 ID。
+
 ### 数据与事务
 
-- 几条写入要一起成功时放在一个 `database.RunInTx` 中；队列任务与业务数据在同一个事务中发布。
-- 回滚时撤销不了的操作（删除缓存、广播）用 `tx.AfterCommit` 登记，提交之后才执行。
-- 缓存中的数据不带权限：命中缓存之后仍要检查访问权限。
+- 多条写入需原子成功时放进 `database.RunInTx`；队列任务在同一个事务中发布。
+- 回滚撤销不了的副作用（删缓存、广播）用 `tx.AfterCommit` 登记，提交后再执行。
+- 缓存数据不带权限：命中缓存后仍须检查访问权限。
 
 ### 注释
 
-- 包、类型、函数（包括非导出的函数和实现接口的方法）都写注释，直接说明它是什么、做什么、返回什么。
-- 结构体字段的含义写在字段行尾的注释中。
-- 较长的函数可以按步骤加几行注释，说明每一段做什么。
-- 注释用简洁的直述句，直接说明它是什么，不用否定或对比来描述。
+- 包、类型、函数（含非导出和接口方法）都写注释，直述它是什么、做什么、返回什么；字段含义写在行尾；长函数按步骤加简短注释。
 
 ### 函数
 
-- 保持函数的完整阅读流，单个函数可以写到 100–200 行。只在代码被复用、或者一段职责明显独立时才抽出函数。
-- 标准库和依赖直接调用，不再包一层；直接使用社区组件的原生类型（`*bun.DB`、`*slog.Logger`、`*cobra.Command` 等）。
-- 所有依赖都通过参数显式传递，在入口中创建；包级变量只用于只读的值（错误码、正则表达式等）。
-- 存储接收 `bun.IDB`，可以用连接池或业务事务构造；自己开启事务的服务接收 `*bun.DB`。
+- 保持完整阅读流（单函数可到 100–200 行），只在复用或职责独立时抽函数。
+- 直接调用标准库和社区组件原生类型（`*bun.DB`、`*slog.Logger`、`*cobra.Command`），不再包一层。
+- 依赖全部显式传参，包级变量只放只读值。存储接收 `bun.IDB`，自开事务的服务接收 `*bun.DB`。
 
 ### 错误
 
-尽早暴露失败和错误：出错时返回错误，调用方处理不了就继续向上返回。不为不会发生的情况加防御检查，不吞掉错误，也不用默认值掩盖错误。
+尽早暴露失败和错误：出错即返回，不加不会发生的防御检查，不吞错误，不用默认值掩盖。
 
 ### 前端
 
-- 界面用 Mantine 和 `@go-tenon/ui` 的组件，调用接口用生成的客户端和 TanStack Query，路由用 TanStack Router 的文件路由。
-- 颜色从 Mantine 的主题中取：品牌色是 `brand`，组件不写 `color` 时用的就是它；其他彩色写主题中预设的名称，例如 `color="deep-orange"`、`var(--mantine-color-deep-orange-6)`；中性色用 `gray`、`dark` 色板、`c="dimmed"` 和 `--tn-*` 变量。不写十六进制或 `rgb()` 的值，写死的值不随品牌色和暗色模式变化。
-- 状态的颜色固定：成功用 `green`，进行中用 `bright-blue`，等待处理用 `yellow`，需要注意用 `deep-orange`，失败用 `red`，没有状态用 `gray`。
-- 界面文字写在 `locales/web.<语言>.yaml`、`locales/admin.<语言>.yaml` 中，页面用 `useT` 取出，菜单标题写消息 ID，见框架文档的 `frontend/i18n.md`。应用在每个前端中的名称是 `app.<前端>`。各前端的 `i18n` 在 `src/i18n.ts` 中。消息 ID 按模块起名（`inbox.empty`），不用 `tenant.`、`team.`、`member.`、`role.` 这些服务端已经在用的前缀。界面的语言跟随成员在偏好设置中选的语言，有简体中文（`zh-CN`）和英文（`en`）；成员选了其他语言时显示简体中文。
-- 加一条消息时，简体中文和英文的翻译文件都写上它，`locales` 的测试检查每种语言的消息 ID 相同。
-- 生成的代码（`packages/client`、`routeTree.gen.ts`、`messages.gen.ts`）不手改，下次生成时会被覆盖。
+- 用 Mantine 和 `@go-tenon/ui` 组件，用生成的客户端和 TanStack Query 调接口，路由用 TanStack Router 文件路由。
+- 颜色从 Mantine 主题取：默认品牌色 `brand`，彩色写预设名（`deep-orange`、`var(--mantine-color-deep-orange-6)`），中性色用 `gray`/`dark`/`c="dimmed"`/`--tn-*`，不写十六进制或 `rgb()`。
+- 状态色固定：成功 `green`，进行中 `bright-blue`，等待 `yellow`，注意 `deep-orange`，失败 `red`，无状态 `gray`。
+- 界面文字写在 `locales/<前端>.zh-CN.yaml`，页面用 `useT`，菜单标题写消息 ID，见 `.tenon/docs/frontend/i18n.md`。
+- 生成的代码（`packages/client`、`routeTree.gen.ts`、`messages.gen.ts`）不手改。
 
 ### 接口
 
-- 改了接口后运行 `bun run generate`，把生成的客户端和接口一起提交。
-- 每个接口都能用 `Authorization: Bearer` 调用：浏览器中的网页用会话 cookie 携带 token，App、桌面端和其他服务用 Bearer token，服务端校验的是同一个 token。
-- 前端需要的元数据（校验规则、权限、枚举）写进 Go 的接口定义，由 OpenAPI 文档带给生成的客户端，不在前端另写一份。
+- 改接口后运行 `bun run generate` 并与接口一起提交。
+- 每个接口都能用 `Authorization: Bearer` 调用；浏览器用会话 cookie 携带同一 token。
+- 前端所需元数据（校验、权限、枚举）写在 Go 接口定义中，经 OpenAPI 生成给客户端。
+<!-- tenon:end -->

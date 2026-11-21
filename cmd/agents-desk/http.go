@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/cockroachdb/errors"
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/go-chi/chi/v5"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/go-tenon/tenon/i18n"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/natsx"
+	"github.com/go-tenon/tenon/realtime"
 
 	"agents-desk/apps"
 	"agents-desk/internal/auth"
@@ -24,6 +26,7 @@ import (
 	"agents-desk/internal/llm"
 	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
+	"agents-desk/internal/push"
 	"agents-desk/internal/role"
 	"agents-desk/internal/team"
 	"agents-desk/internal/tenant"
@@ -32,6 +35,7 @@ import (
 
 // serveHTTP 装配 HTTP 服务，返回运行它的函数。apps 中的前端由 frontend.Host 按挂载路径提供：只在浏览器中渲染的前端
 // 由 Go 直接返回页面；服务端渲染的前端由 Go 托管的 SSR 进程渲染，它们渲染时经内部 socket 调用同一组路由。
+// /t/{slug}/realtime 是工作区端的实时连接（WebSocket），成员在其中订阅自己的个人频道。
 func (a *App) serveHTTP(d *command.Daemon) (func(context.Context) error, error) {
 	var router chi.Router
 	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { router.ServeHTTP(w, r) })
@@ -39,16 +43,39 @@ func (a *App) serveHTTP(d *command.Daemon) (func(context.Context) error, error) 
 	if err != nil {
 		return nil, err
 	}
+	rt, err := a.newRealtime()
+	if err != nil {
+		return nil, err
+	}
 	router = a.routes(pages.Handler())
+	router.With(tenant.Middleware(a.db)).Handle("/t/{slug}/realtime", rt.Handler())
 	ln, err := d.Listen("tcp", a.cfg.HTTP.Addr)
 	if err != nil {
 		return nil, err
 	}
 	return func(ctx context.Context) error {
-		return pages.Run(ctx, func(ctx context.Context) error {
+		err := pages.Run(ctx, func(ctx context.Context) error {
 			return httpx.Serve(ctx, a.cfg.HTTP, ln, router)
 		})
+		// 先断开实时连接，广播随后在退出时关闭
+		return errors.Join(err, rt.Shutdown(context.WithoutCancel(ctx)))
 	}, nil
+}
+
+// newRealtime 创建工作区端的实时连接，挂在 /t/{slug}/realtime（前面是 tenant.Middleware）。它与工作区的接口使用
+// 同一套成员 token、会话 cookie、租户和权限；成员在其中只能订阅自己的个人频道（push.Register）。
+func (a *App) newRealtime() (*realtime.Realtime, error) {
+	rt, err := realtime.New(a.hub, realtime.Options{
+		Authenticate:  a.memberTokens.Validate,
+		Accounts:      identity.Accounts{member.Type: tenant.Resolve(member.Resolve(a.db, a.roles))},
+		SessionCookie: member.SessionCookie,
+		Tenant:        func(r *http.Request) string { return tenant.IDFrom(r.Context()) },
+	})
+	if err != nil {
+		return nil, err
+	}
+	push.Register(rt)
+	return rt, nil
 }
 
 // routes 是应用的全部路由：存活和就绪检查，/admin/api 下管理员端的接口，/api 下成员账号的接口，/t/{slug}/api 下

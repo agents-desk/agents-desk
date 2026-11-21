@@ -7,6 +7,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
 
@@ -106,7 +107,7 @@ func release(ctx context.Context, tx bun.IDB, c *Conversation, reason AssignReas
 // 按团队收件箱的分配方式重新分配，时间线中追加系统事件（reason 是 member_left）。已关闭的会话保留原来的负责人，报表要用。
 // 成员离开时他的在线状态已经删除，轮流分配不会再分给他。down 是时间线有新内容时通知的下游。
 func OnMemberLeft(down Downstream) member.RemovedHook {
-	return func(ctx context.Context, tx bun.IDB, tenant, memberID string) error {
+	return func(ctx context.Context, tx database.Tx, tenant, memberID string) error {
 		var convs []Conversation
 		err := tx.NewSelect().Model(&convs).
 			Where("tenant_id = ? AND assignee_type = ? AND assignee_id = ? AND status <> ?", tenant, MemberActor, memberID, Closed).
