@@ -25,11 +25,11 @@ func TestSeed(t *testing.T) {
 	// 第一次全部写入，第二次全部跳过
 	for i, skipped := range []bool{false, true} {
 		var out bytes.Buffer
-		if err := seed(ctx, &out, env.DB, env.AdminLogins, env.MemberLogins, env.Files, addr, channel.DefaultRegistry(), conversation.Downstream{Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic}}); err != nil {
+		if err := seed(ctx, &out, env.DB, env.AdminLogins, env.MemberLogins, env.Files, env.Crypt, addr, channel.DefaultRegistry(), conversation.Downstream{Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic}}); err != nil {
 			t.Fatal(err)
 		}
 		lines := strings.Split(strings.TrimSpace(out.String()), "\n")
-		if len(lines) != 6 || slices.ContainsFunc(lines, func(l string) bool { return strings.Contains(l, "跳过") != skipped }) {
+		if len(lines) != 7 || slices.ContainsFunc(lines, func(l string) bool { return strings.Contains(l, "跳过") != skipped }) {
 			t.Fatalf("第 %d 次：\n%s", i+1, out.String())
 		}
 	}

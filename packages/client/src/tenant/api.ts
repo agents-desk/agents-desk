@@ -5,7 +5,7 @@ import { Runtime, type ClientOptions, type Download, type SessionLike, type Stre
 export * from "./errors"
 export { ApiError, isApiError, saveBlob, type ClientOptions, type Download, type SessionLike, type FieldError, type StreamOptions } from "./runtime"
 
-export type ChannelKind = "test"
+export type ChannelKind = "test" | "widget"
 
 export interface ChannelSummary {
   id: string
@@ -348,6 +348,14 @@ export interface OffsetTeamDTO {
   total: number
 }
 
+export interface OffsetWidgetDTO {
+  items: WidgetDTO[]
+  page: number
+  per_page: number
+  /** Total number of items across all pages. */
+  total: number
+}
+
 export interface RoleDTO {
   /** 能看到哪些会话 */
   conversation_scope: ConversationScope
@@ -369,7 +377,7 @@ export interface RoleParams {
   permissions?: RolePermission[]
 }
 
-export type RolePermission = "conversations:assign" | "members:manage" | "teams:manage" | "tenant-settings:manage"
+export type RolePermission = "conversations:assign" | "members:manage" | "teams:manage" | "channels:manage" | "tenant-settings:manage"
 
 export type TeamAssignment = "manual" | "round_robin"
 
@@ -419,6 +427,51 @@ export interface TenantCurrentDTO {
 
 export interface TenantGeneralSettings {
   name: string
+}
+
+export interface WidgetChanges {
+  /** 聊天窗口的主题色，不填时是 bright-blue */
+  color?: "blue-gray" | "brown" | "tomato" | "deep-orange" | "bright-orange" | "yellow" | "bright-green" | "green" | "light-blue" | "sky-blue" | "pale-blue" | "bright-blue" | "deep-blue" | "pale-indigo" | "purple" | "pale-purple" | "violet" | "pale-violet" | "dark-pink" | "bright-pink" | "pink" | "magenta" | "bright-red" | "pale-red" | "deep-red" | "red"
+  /** 聊天窗口顶部的问候语；不填时显示默认的问候语 */
+  greeting?: string
+  name: string
+  /** 新会话进入的团队收件箱；不填时进入未指派 */
+  team_id?: string
+}
+
+export interface WidgetDTO {
+  /** 聊天窗口的主题色 */
+  color: "blue-gray" | "brown" | "tomato" | "deep-orange" | "bright-orange" | "yellow" | "bright-green" | "green" | "light-blue" | "sky-blue" | "pale-blue" | "bright-blue" | "deep-blue" | "pale-indigo" | "purple" | "pale-purple" | "violet" | "pale-violet" | "dark-pink" | "bright-pink" | "pink" | "magenta" | "bright-red" | "pale-red" | "deep-red" | "red"
+  created_at: string
+  /** 停用后聊天窗口不再显示，客户不能再发消息 */
+  enabled: boolean
+  /** 聊天窗口顶部的问候语 */
+  greeting: string
+  id: string
+  name: string
+  /** 新会话进入的团队收件箱；为空时进入未指派 */
+  team_id?: string
+  /** 新会话进入的团队收件箱的名称；未指派时为空 */
+  team_name: string
+}
+
+export interface WidgetInstallationDTO {
+  /** 放进网站每个页面的 </body> 之前的代码 */
+  embed_code: string
+  /** 身份验证密钥：产品后端用它签名已登录用户的身份（HS256 的 JWT），只保存在产品后端 */
+  identity_secret: string
+}
+
+export interface WidgetUpdateBody {
+  /** 聊天窗口的主题色，不填时是 bright-blue */
+  color?: "blue-gray" | "brown" | "tomato" | "deep-orange" | "bright-orange" | "yellow" | "bright-green" | "green" | "light-blue" | "sky-blue" | "pale-blue" | "bright-blue" | "deep-blue" | "pale-indigo" | "purple" | "pale-purple" | "violet" | "pale-violet" | "dark-pink" | "bright-pink" | "pink" | "magenta" | "bright-red" | "pale-red" | "deep-red" | "red"
+  /** 停用后聊天窗口不再显示，客户不能再发消息 */
+  enabled: boolean
+  /** 聊天窗口顶部的问候语；不填时显示默认的问候语 */
+  greeting?: string
+  name: string
+  /** 新会话进入的团队收件箱；不填时进入未指派 */
+  team_id?: string
 }
 
 /** conversation-items 的参数。 */
@@ -482,6 +535,14 @@ export interface TeamListInput {
   name?: string
   /** 只列出我所在的团队收件箱 */
   mine?: boolean
+}
+
+/** widget-list 的参数。 */
+export interface WidgetListInput {
+  /** Page number, starting at 1. */
+  page?: number
+  /** Items per page. */
+  per_page?: number
 }
 
 /** 创建客户端。 */
@@ -799,6 +860,51 @@ export function createClient(options: ClientOptions) {
        */
       rename: (body: TenantGeneralSettings): Promise<TenantCurrentDTO> =>
         rt.request<TenantCurrentDTO>({ method: "PUT", path: `/tenant`, body }),
+    },
+    /** operationId 以 widget- 开头的接口。 */
+    widget: {
+      /**
+       * 新建聊天插件
+       *
+       * POST /widgets
+       */
+      create: (body: WidgetChanges): Promise<WidgetDTO> =>
+        rt.request<WidgetDTO>({ method: "POST", path: `/widgets`, body }),
+      /**
+       * 读取聊天插件
+       *
+       * GET /widgets/{id}
+       */
+      get: (id: string): Promise<WidgetDTO> =>
+        rt.request<WidgetDTO>({ method: "GET", path: `/widgets/${encodeURIComponent(id)}` }),
+      /**
+       * 聊天插件的嵌入代码和身份验证密钥
+       *
+       * GET /widgets/{id}/installation
+       */
+      installation: (id: string): Promise<WidgetInstallationDTO> =>
+        rt.request<WidgetInstallationDTO>({ method: "GET", path: `/widgets/${encodeURIComponent(id)}/installation` }),
+      /**
+       * 聊天插件列表
+       *
+       * GET /widgets
+       */
+      list: (input: WidgetListInput = {}): Promise<OffsetWidgetDTO> =>
+        rt.request<OffsetWidgetDTO>({ method: "GET", path: `/widgets`, query: { "page": input["page"], "per_page": input["per_page"] } }),
+      /**
+       * 更换身份验证密钥
+       *
+       * POST /widgets/{id}/identity-secret
+       */
+      rotateSecret: (id: string): Promise<WidgetInstallationDTO> =>
+        rt.request<WidgetInstallationDTO>({ method: "POST", path: `/widgets/${encodeURIComponent(id)}/identity-secret` }),
+      /**
+       * 修改聊天插件
+       *
+       * PUT /widgets/{id}
+       */
+      update: (id: string, body: WidgetUpdateBody): Promise<WidgetDTO> =>
+        rt.request<WidgetDTO>({ method: "PUT", path: `/widgets/${encodeURIComponent(id)}`, body }),
     },
   }
 }

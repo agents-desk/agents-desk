@@ -15,7 +15,11 @@ import (
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/enum"
 	"github.com/go-tenon/tenon/errorx"
+	"github.com/go-tenon/tenon/identity"
 )
+
+// Type 是联系人这套账号体系：客户在聊天插件等渠道中以联系人的身份调用接口，令牌绑定联系人所在的工作区。
+const Type identity.SubjectType = "contact"
 
 // ErrNotFound 是联系人不存在，或者属于别的工作区。
 var ErrNotFound = errorx.Define(errorx.NotFound, "contact.not_found")
@@ -101,6 +105,56 @@ func ResolveIdentity(ctx context.Context, tx bun.IDB, tenant, channelID, externa
 		return nil, false, errors.Wrap(err, "insert contact identity")
 	}
 	return c, true, nil
+}
+
+// ResolveUser 在事务 tx 中按产品后端传来的用户编号 userID 找到工作区 tenant 中的用户，还没有时新建一个，并确保他在渠道
+// channelID 中有外部编号为 externalID 的身份。p 是产品传来的最新资料，非空的项写入联系人。
+// 渠道身份已经存在时用它对应的联系人。
+func ResolveUser(ctx context.Context, tx bun.IDB, tenant, channelID, externalID, userID string, p Profile) (*Contact, error) {
+	var id Identity
+	err := tx.NewSelect().Model(&id).Where("channel_id = ? AND external_id = ?", channelID, externalID).Scan(ctx)
+	var c *Contact
+	switch {
+	case err == nil:
+		if c, err = Find(ctx, tx, tenant, id.ContactID); err != nil {
+			return nil, err
+		}
+	case !errors.Is(err, sql.ErrNoRows):
+		return nil, errors.Wrap(err, "load contact identity")
+	default:
+		c = new(Contact)
+		err = tx.NewSelect().Model(c).Where("tenant_id = ? AND external_user_id = ?", tenant, userID).Scan(ctx)
+		if errors.Is(err, sql.ErrNoRows) {
+			c = &Contact{ID: newID(), TenantID: tenant, Kind: User, ExternalUserID: userID, Attributes: map[string]any{}}
+			if _, err := tx.NewInsert().Model(c).On("CONFLICT DO NOTHING").Exec(ctx); err != nil {
+				return nil, errors.Wrap(err, "insert user")
+			}
+			// 同一个用户同时第一次进来时另一个请求先插入了，读出它
+			if err := tx.NewSelect().Model(c).Where("tenant_id = ? AND external_user_id = ?", tenant, userID).Scan(ctx); err != nil {
+				return nil, errors.Wrap(err, "load user")
+			}
+		} else if err != nil {
+			return nil, errors.Wrap(err, "load user")
+		}
+		id = Identity{TenantID: tenant, ChannelID: channelID, ExternalID: externalID, ContactID: c.ID, CreatedAt: now()}
+		if _, err := tx.NewInsert().Model(&id).On("CONFLICT DO NOTHING").Exec(ctx); err != nil {
+			return nil, errors.Wrap(err, "insert contact identity")
+		}
+	}
+	// 产品传来的资料是最新的
+	var changed []string
+	if p.Name != "" && p.Name != c.Name {
+		c.Name, changed = p.Name, append(changed, "name")
+	}
+	if p.Email != "" && p.Email != c.Email {
+		c.Email, changed = p.Email, append(changed, "email")
+	}
+	if len(changed) > 0 {
+		if _, err := tx.NewUpdate().Model(c).Column(append(changed, "updated_at")...).WherePK().Exec(ctx); err != nil {
+			return nil, errors.Wrap(err, "update user profile")
+		}
+	}
+	return c, nil
 }
 
 // Find 读取工作区 tenant 中的联系人 id，不存在或属于别的工作区时返回 ErrNotFound。

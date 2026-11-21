@@ -2,6 +2,7 @@
 
 /** 权限目录：权限名和说明，来自 rest.Options.Permissions，以及接口要求的权限。 */
 export const permissions = {
+  "channels:manage": "管理渠道",
   "conversations:assign": "把会话改派给别人",
   "conversations:read": "查看会话",
   "conversations:read-all": "可以看到全部会话",
@@ -71,5 +72,13 @@ export const required = {
   },
   tenant: {
     rename: ["tenant-settings:manage"],
+  },
+  widget: {
+    create: ["channels:manage"],
+    get: ["channels:manage"],
+    installation: ["channels:manage"],
+    list: ["channels:manage"],
+    rotateSecret: ["channels:manage"],
+    update: ["channels:manage"],
   },
 } as const satisfies Record<string, readonly Permission[] | Record<string, readonly Permission[]>>

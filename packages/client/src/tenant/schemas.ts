@@ -259,6 +259,38 @@ export const schemas = {
       },
     },
   },
+  widget: {
+    create: {
+      body: {
+        "$ref": "#/components/schemas/WidgetChanges"
+      },
+    },
+    list: {
+      query: {
+        "properties": {
+          "page": {
+            "default": 1,
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "per_page": {
+            "default": 20,
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+    },
+    update: {
+      body: {
+        "$ref": "#/components/schemas/WidgetUpdateBody"
+      },
+    },
+  },
 } as const
 
 /** schemas 中 $ref 引用的命名类型，键是 OpenAPI 中的名称。 */
@@ -695,6 +727,7 @@ export const components = {
       "conversations:assign",
       "members:manage",
       "teams:manage",
+      "channels:manage",
       "tenant-settings:manage"
     ],
     "type": "string"
@@ -746,6 +779,116 @@ export const components = {
       }
     },
     "required": [
+      "name"
+    ],
+    "type": "object"
+  },
+  WidgetChanges: {
+    "additionalProperties": false,
+    "properties": {
+      "color": {
+        "enum": [
+          "blue-gray",
+          "brown",
+          "tomato",
+          "deep-orange",
+          "bright-orange",
+          "yellow",
+          "bright-green",
+          "green",
+          "light-blue",
+          "sky-blue",
+          "pale-blue",
+          "bright-blue",
+          "deep-blue",
+          "pale-indigo",
+          "purple",
+          "pale-purple",
+          "violet",
+          "pale-violet",
+          "dark-pink",
+          "bright-pink",
+          "pink",
+          "magenta",
+          "bright-red",
+          "pale-red",
+          "deep-red",
+          "red"
+        ],
+        "type": "string"
+      },
+      "greeting": {
+        "maxLength": 500,
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 60,
+        "minLength": 1,
+        "type": "string"
+      },
+      "team_id": {
+        "format": "uuid",
+        "type": "string"
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "type": "object"
+  },
+  WidgetUpdateBody: {
+    "additionalProperties": false,
+    "properties": {
+      "color": {
+        "enum": [
+          "blue-gray",
+          "brown",
+          "tomato",
+          "deep-orange",
+          "bright-orange",
+          "yellow",
+          "bright-green",
+          "green",
+          "light-blue",
+          "sky-blue",
+          "pale-blue",
+          "bright-blue",
+          "deep-blue",
+          "pale-indigo",
+          "purple",
+          "pale-purple",
+          "violet",
+          "pale-violet",
+          "dark-pink",
+          "bright-pink",
+          "pink",
+          "magenta",
+          "bright-red",
+          "pale-red",
+          "deep-red",
+          "red"
+        ],
+        "type": "string"
+      },
+      "enabled": {
+        "type": "boolean"
+      },
+      "greeting": {
+        "maxLength": 500,
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 60,
+        "minLength": 1,
+        "type": "string"
+      },
+      "team_id": {
+        "format": "uuid",
+        "type": "string"
+      }
+    },
+    "required": [
+      "enabled",
       "name"
     ],
     "type": "object"

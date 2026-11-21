@@ -55,7 +55,7 @@ type IDInput struct {
 // Defaults 是新建工作区时创建的初始角色：管理员看到全部会话、可以做全部操作；坐席看到所在团队收件箱的会话。
 // 它们是普通的角色，工作区可以修改和删除。
 var Defaults = []Params{
-	{Name: "管理员", Description: "管理成员、团队收件箱和工作区的设置，可以看到全部会话", ConversationScope: auth.ScopeAll, Permissions: auth.TenantPermissions.Values()},
+	{Name: "管理员", Description: "管理成员、团队收件箱、渠道和工作区的设置，可以看到全部会话", ConversationScope: auth.ScopeAll, Permissions: auth.TenantPermissions.Values()},
 	{Name: "坐席", Description: "处理所在团队收件箱的和指派给自己的会话", ConversationScope: auth.ScopeTeam, Permissions: []auth.TenantPermission{}},
 }
 

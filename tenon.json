@@ -1,5 +1,6 @@
 {
   "apis": {
-    "/t/{slug}/api": { "name": "tenant" }
+    "/t/{slug}/api": { "name": "tenant" },
+    "/w/{channel}/api": { "name": "widget" }
   }
 }

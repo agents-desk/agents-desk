@@ -1,0 +1,84 @@
+import { Anchor, Badge, ColorSwatch, Group, Select, Text } from "@mantine/core"
+import { useQuery } from "@tanstack/react-query"
+import { createFileRoute, Link } from "@tanstack/react-router"
+import { type FieldInput, ResourcePage, useT } from "@go-tenon/ui"
+import { tenantApi } from "../../../../../../api"
+import { widgets } from "../../../../../../resources"
+
+// 网页聊天插件：有 channels:manage 权限的成员新建、修改、停用聊天插件；点名称进入聊天插件，拿到嵌入代码和身份验证密钥。
+export const Route = createFileRoute("/t/$slug/settings/_channels/widgets/")({
+  validateSearch: widgets.listSearch,
+  component: Widgets,
+})
+
+// TeamInput 是新会话进入的团队收件箱：从工作区的团队收件箱中选，可以清空（进入未指派）。
+const TeamInput: FieldInput = ({ label, value, onChange, error, disabled }) => {
+  const t = useT()
+  const teams = useQuery({ queryKey: ["teams", "all"], queryFn: () => tenantApi.team.list({ per_page: 100 }) })
+  return (
+    <Select
+      label={label}
+      description={t("widgets.team_hint")}
+      placeholder={t("widgets.team_unassigned")}
+      data={(teams.data?.items ?? []).map((team) => ({ value: team.id, label: team.name }))}
+      value={(value as string | undefined) ?? null}
+      onChange={(v) => onChange?.(v ?? undefined)}
+      error={error}
+      disabled={disabled}
+      clearable
+      searchable
+    />
+  )
+}
+
+// ColorInput 是聊天窗口的主题色：界面主题中预设的色板，每项前面是色块。
+const ColorInput: FieldInput = ({ field, label, value, onChange, error, disabled }) => {
+  const swatch = (c: string) => <ColorSwatch color={`var(--mantine-color-${c}-6)`} size={14} />
+  const current = (value as string | undefined) ?? "bright-blue"
+  return (
+    <Select
+      label={label}
+      data={(field.options ?? []).map((o) => o.value)}
+      value={current}
+      onChange={(v) => onChange?.(v ?? undefined)}
+      leftSection={swatch(current)}
+      renderOption={({ option }) => (
+        <Group gap="xs">
+          {swatch(option.value)}
+          <Text size="sm">{option.value}</Text>
+        </Group>
+      )}
+      error={error}
+      disabled={disabled}
+      allowDeselect={false}
+    />
+  )
+}
+
+function Widgets() {
+  const { slug } = Route.useParams()
+  const t = useT()
+  return (
+    <ResourcePage
+      model={widgets}
+      route={Route}
+      form="modal"
+      inputs={{ team_id: TeamInput, color: ColorInput }}
+      render={{
+        name: (v, row) => (
+          <Anchor
+            renderRoot={(props) => <Link {...props} to="/t/$slug/settings/widgets/$id" params={{ slug, id: String(row.id) }} />}
+          >
+            {String(v)}
+          </Anchor>
+        ),
+        team_name: (v) => (v ? String(v) : <Text c="dimmed" size="sm">{t("widgets.team_unassigned")}</Text>),
+        enabled: (v) => (
+          <Badge variant="dot" color={v ? "green" : "gray"}>
+            {t(v ? "widgets.enabled" : "widgets.disabled")}
+          </Badge>
+        ),
+      }}
+    />
+  )
+}

@@ -163,4 +163,56 @@ export const resources = {
       },
     },
   },
+  widget: {
+    name: "widget",
+    key: "id",
+    operations: {
+      list: ["widget", "list"],
+      get: ["widget", "get"],
+      create: ["widget", "create"],
+      update: ["widget", "update"],
+    },
+    permissions: {
+      list: ["channels:manage"],
+      get: ["channels:manage"],
+      create: ["channels:manage"],
+      update: ["channels:manage"],
+    },
+    columns: [
+      { name: "name", type: "string", required: true },
+      { name: "team_name", type: "string", required: true },
+      { name: "enabled", type: "boolean", required: true },
+    ],
+    filters: [
+    ],
+    createForm: [
+      { name: "name", type: "string", required: true },
+      { name: "team_id", type: "string", format: "uuid" },
+      { name: "greeting", type: "string" },
+      { name: "color", type: "string", values: ["blue-gray", "brown", "tomato", "deep-orange", "bright-orange", "yellow", "bright-green", "green", "light-blue", "sky-blue", "pale-blue", "bright-blue", "deep-blue", "pale-indigo", "purple", "pale-purple", "violet", "pale-violet", "dark-pink", "bright-pink", "pink", "magenta", "bright-red", "pale-red", "deep-red", "red"] },
+    ],
+    updateForm: [
+      { name: "name", type: "string", required: true },
+      { name: "team_id", type: "string", format: "uuid" },
+      { name: "greeting", type: "string" },
+      { name: "color", type: "string", values: ["blue-gray", "brown", "tomato", "deep-orange", "bright-orange", "yellow", "bright-green", "green", "light-blue", "sky-blue", "pale-blue", "bright-blue", "deep-blue", "pale-indigo", "purple", "pale-purple", "violet", "pale-violet", "dark-pink", "bright-pink", "pink", "magenta", "bright-red", "pale-red", "deep-red", "red"] },
+      { name: "enabled", type: "boolean", required: true },
+    ],
+    actions: [
+    ],
+    labels: {
+      "en": {
+        title: "Website chat widgets",
+        fields: { name: "Name", team_name: "Team inbox", enabled: "Enabled", team_id: "Team inbox", greeting: "Greeting", color: "Theme color" },
+        descriptions: { name: "Shown in the chat window’s title", enabled: "When disabled, the chat window is hidden and customers can no longer send messages", team_id: "The team inbox new conversations go to; leave empty to keep them unassigned", greeting: "Shown at the top of the chat window; leave empty for the default greeting" },
+        actions: {  },
+      },
+      "zh-CN": {
+        title: "网页聊天插件",
+        fields: { name: "名称", team_name: "团队收件箱", enabled: "启用", team_id: "团队收件箱", greeting: "问候语", color: "主题色" },
+        descriptions: { name: "显示在聊天窗口的标题中", enabled: "停用后聊天窗口不再显示，客户不能再发消息", team_id: "新会话进入的团队收件箱；不选时进入未指派", greeting: "显示在聊天窗口的顶部；不填时显示默认的问候语" },
+        actions: {  },
+      },
+    },
+  },
 } as const

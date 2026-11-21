@@ -37,6 +37,7 @@ import (
 	"agents-desk/internal/llm"
 	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
+	"agents-desk/internal/widget"
 )
 
 // App 是进程中各部分共用的资源，每个进程只装配一次。
@@ -47,10 +48,12 @@ type App struct {
 	hub   *broadcast.Hub // 经 NATS 把消息送到每个实例：实时推送
 	roles *authz.Store   // 平台和各租户的角色与权限
 
-	adminLogins  *login.Realm    // 平台管理员的邮箱和密码
-	adminTokens  *apitoken.Store // 平台管理员的登录 token
-	memberLogins *login.Realm    // 工作区成员的邮箱和密码
-	memberTokens *apitoken.Store // 工作区成员的登录 token
+	adminLogins   *login.Realm    // 平台管理员的邮箱和密码
+	adminTokens   *apitoken.Store // 平台管理员的登录 token
+	memberLogins  *login.Realm    // 工作区成员的邮箱和密码
+	memberTokens  *apitoken.Store // 工作区成员的登录 token
+	contactTokens *apitoken.Store // 客户（联系人）在聊天插件中的令牌
+	crypt         *crypt.Crypt    // 应用密钥：加密保存聊天插件的身份验证密钥
 
 	llmSettings *settings.Group[llm.Settings] // 模型接口的平台设置
 
@@ -89,7 +92,7 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	hub := broadcast.New(natsbroadcast.New(nc, "agents-desk.broadcast"), nil)
 	stack.MustAdd("broadcast", func(context.Context) error { return hub.Close() })
 
-	keys := crypt.New(cfg.Crypt) // 派生登录验证码的密钥
+	keys := crypt.New(cfg.Crypt) // 派生登录验证码的密钥，加密聊天插件的身份验证密钥
 	hasher := hashing.New(cfg.Hashing)
 	roles := authz.NewStore(db, auth.Catalog)
 	if err := auth.EnsureRoles(ctx, roles); err != nil {
@@ -142,10 +145,18 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		cfg: cfg, db: db, nc: nc, hub: hub, roles: roles,
 		adminLogins: adminLogins, adminTokens: apitoken.NewStore(db, cfg.AdminToken),
 		memberLogins: memberLogins, memberTokens: apitoken.NewStore(db, cfg.MemberToken),
+		contactTokens: apitoken.NewStore(db, cfg.ContactToken), crypt: keys,
 		llmSettings: llm.NewGroup(db),
 		files:       files, localDisk: localDisk, locker: lock.New(pglock.New(db)),
-		channels: channel.DefaultRegistry(),
+		channels: registry(hub),
 	}, nil
+}
+
+// registry 返回各种渠道的连接器：内置的测试渠道，以及把回复推送给聊天窗口的网页聊天插件。
+func registry(hub *broadcast.Hub) channel.Registry {
+	r := channel.DefaultRegistry()
+	r[channel.Widget] = widget.NewConnector(hub)
+	return r
 }
 
 // parts 是常驻进程的运行部分：serve 运行全部部分，serve http、serve worker 只运行其中一个。
