@@ -37,6 +37,7 @@ export const required = {
     read: ["conversations:read"],
     reopen: ["conversations:reply"],
     reply: ["conversations:reply"],
+    retry: ["conversations:reply"],
     snooze: ["conversations:reply"],
   },
   hours: {

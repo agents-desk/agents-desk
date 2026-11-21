@@ -26,6 +26,24 @@ export const messages = {
     "common.save": "Save",
     "common.saved": "Saved",
     "contacts.placeholder": "The contact list and profiles come with the contacts work (U1).",
+    "event.assigned": "{{.who}} assigned the conversation to {{.assignee}}",
+    "event.assigned_team_member": "{{.who}} moved the conversation to {{.team}} and assigned it to {{.assignee}}",
+    "event.closed": "{{.who}} closed the conversation",
+    "event.customer": "The customer",
+    "event.moved_team": "{{.who}} moved the conversation to {{.team}}",
+    "event.priority_high": "{{.who}} set the priority to high",
+    "event.priority_normal": "{{.who}} set the priority to normal",
+    "event.rated": "The customer rated {{.score}} stars",
+    "event.rated_comment": "The customer rated {{.score}} stars: {{.comment}}",
+    "event.removed_team": "{{.who}} removed the conversation from its team inbox",
+    "event.reopened": "{{.who}} reopened the conversation",
+    "event.snoozed": "{{.who}} snoozed the conversation until {{.until}}",
+    "event.someone": "A member",
+    "event.system": "System",
+    "event.unassigned": "{{.who}} removed the assignee",
+    "event.unsnoozed": "The conversation is open again",
+    "event.via_reply": " (claimed by replying)",
+    "event.via_round_robin": " (round robin)",
     "general.address": "Address",
     "general.address_hint": "Fixed once the workspace is created",
     "general.name": "Name",
@@ -46,7 +64,91 @@ export const messages = {
     "hours.time_zone": "Time zone",
     "hours.time_zone_hint": "Business hours follow the clock in this time zone",
     "hours.week": "Weekly hours",
-    "inbox.placeholder": "The conversation list and conversations come with the inbox work (D1, D2).",
+    "inbox.add_note": "Add note",
+    "inbox.assign": "Assign",
+    "inbox.assign_me": "Assign to me",
+    "inbox.assign_members": "Members",
+    "inbox.assign_teams": "Team inboxes",
+    "inbox.assigned_to": "Assigned to {{.who}}",
+    "inbox.assignee": "Assignee",
+    "inbox.away": "Away",
+    "inbox.back": "Back to conversations",
+    "inbox.backlog_oldest": "oldest",
+    "inbox.backlog_open": "{{.n}} open",
+    "inbox.backlog_waiting": "Waiting",
+    "inbox.box_all": "All",
+    "inbox.box_mentions": "Mentions",
+    "inbox.box_mine": "Mine",
+    "inbox.box_unassigned": "Unassigned",
+    "inbox.bulk_assigned": "Assigned {{.n}} conversations",
+    "inbox.bulk_closed": "Closed {{.n}} conversations",
+    "inbox.bulk_failed": "{{.n}} conversations failed: {{.reason}}",
+    "inbox.cancel": "Cancel",
+    "inbox.channel": "Channel",
+    "inbox.close": "Close",
+    "inbox.close_details": "Close details",
+    "inbox.contact_email": "Email",
+    "inbox.contact_kind": "Type",
+    "inbox.contact_language": "Language",
+    "inbox.contact_name": "Name",
+    "inbox.delivery_delivered": "Delivered",
+    "inbox.delivery_failed": "Not sent",
+    "inbox.delivery_read": "Read",
+    "inbox.delivery_sending": "Sending",
+    "inbox.details": "Details",
+    "inbox.details_contact": "Contact",
+    "inbox.details_conversation": "Conversation",
+    "inbox.details_history": "Recent conversations",
+    "inbox.empty": "No conversations in this list",
+    "inbox.enter_hint": "Enter to send, Shift + Enter for a new line",
+    "inbox.mode_note": "Internal note",
+    "inbox.mode_reply": "Reply",
+    "inbox.new_messages": "New messages",
+    "inbox.next_waiting": "Next waiting conversation",
+    "inbox.no_assignee": "No assignee",
+    "inbox.no_history": "No other conversations",
+    "inbox.no_team": "No team inbox",
+    "inbox.not_found": "This conversation doesn't exist, or you can't see it",
+    "inbox.note_by": "Internal note · {{.who}}",
+    "inbox.note_hint": "Only members can see this. Type @ to mention a teammate",
+    "inbox.note_placeholder": "Write an internal note, @ a teammate…",
+    "inbox.pick": "Pick a conversation on the left",
+    "inbox.priority": "Priority",
+    "inbox.priority_high": "High",
+    "inbox.priority_normal": "Normal",
+    "inbox.rating": "Rating",
+    "inbox.reopen": "Reopen",
+    "inbox.reply_placeholder": "Type a reply…",
+    "inbox.retry": "Resend",
+    "inbox.said": "{{.who}}: ",
+    "inbox.select": "Select",
+    "inbox.selected": "{{.n}} selected",
+    "inbox.send": "Send",
+    "inbox.send_close": "Send and close",
+    "inbox.send_options": "More send options",
+    "inbox.send_snooze": "Send and snooze",
+    "inbox.snooze": "Snooze",
+    "inbox.snooze_custom": "Pick a time",
+    "inbox.snooze_later": "Later today",
+    "inbox.snooze_monday": "Next Monday",
+    "inbox.snooze_month": "In a month",
+    "inbox.snooze_tomorrow": "Tomorrow",
+    "inbox.snooze_until": "Open again at",
+    "inbox.snooze_week": "In a week",
+    "inbox.sort": "Sort",
+    "inbox.sort_recent": "Recent activity",
+    "inbox.sort_waiting": "Waiting time",
+    "inbox.status": "Status",
+    "inbox.status_closed": "Closed",
+    "inbox.status_open": "Open",
+    "inbox.status_snoozed": "Snoozed",
+    "inbox.team": "Team inbox",
+    "inbox.teams": "Team inboxes",
+    "inbox.typing": "{{.who}} is typing…",
+    "inbox.unassign": "Remove assignee",
+    "inbox.viewing": "{{.who}} is also viewing",
+    "inbox.visitor": "Visitor",
+    "inbox.you": "You",
     "login.description": "Sign in with the email and password your workspace admin gave you",
     "login.title": "Sign in",
     "members.no_roles": "No roles yet. Create one in “Roles” first",
@@ -120,6 +222,12 @@ export const messages = {
     "team_members.title": "Team inbox members",
     "test_account.failed": "Test account sign-in failed. Run go run ./cmd/agents-desk seed first",
     "test_account.sign_in": "Sign in with a test account",
+    "time.days": "{{.n}} d",
+    "time.hours": "{{.n}} h",
+    "time.just_now": "Just now",
+    "time.minutes": "{{.n}} min",
+    "time.today": "Today",
+    "time.yesterday": "Yesterday",
     "widget_install.app": "Apps",
     "widget_install.app_hint": "Your app opens the address below full screen in a WebView. For a signed-in user, pass the identity before the page loads (window.agentsDesk.user_token); after signing in or out, run AgentsDesk('login', { user_token }) or AgentsDesk('logout'). If your app has its own navigation bar, add \u0026hide_close=1 to the address to hide the chat window's close button. On Android, enable JavaScript and DOM storage, and set windowSoftInputMode to adjustResize.",
     "widget_install.app_msg": "Message",
@@ -172,6 +280,24 @@ export const messages = {
     "common.save": "保存",
     "common.saved": "已保存",
     "contacts.placeholder": "联系人的列表和资料在联系人的开发（U1）中加入。",
+    "event.assigned": "{{.who}} 把会话指派给 {{.assignee}}",
+    "event.assigned_team_member": "{{.who}} 把会话转到 {{.team}}，指派给 {{.assignee}}",
+    "event.closed": "{{.who}} 关闭了会话",
+    "event.customer": "客户",
+    "event.moved_team": "{{.who}} 把会话转到 {{.team}}",
+    "event.priority_high": "{{.who}} 把优先级改为高",
+    "event.priority_normal": "{{.who}} 把优先级改为普通",
+    "event.rated": "客户评价了 {{.score}} 星",
+    "event.rated_comment": "客户评价了 {{.score}} 星：{{.comment}}",
+    "event.removed_team": "{{.who}} 把会话移出了团队收件箱",
+    "event.reopened": "{{.who}} 重新打开了会话",
+    "event.snoozed": "{{.who}} 把会话稍后处理到 {{.until}}",
+    "event.someone": "某位成员",
+    "event.system": "系统",
+    "event.unassigned": "{{.who}} 取消了负责人",
+    "event.unsnoozed": "会话回到打开",
+    "event.via_reply": "（回复即领取）",
+    "event.via_round_robin": "（轮流分配）",
     "general.address": "地址",
     "general.address_hint": "创建后不能修改",
     "general.name": "名称",
@@ -192,7 +318,91 @@ export const messages = {
     "hours.time_zone": "时区",
     "hours.time_zone_hint": "工作时间按这个时区的钟点计算",
     "hours.week": "每周的工作时间",
-    "inbox.placeholder": "会话列表和会话在收件箱的开发（D1、D2）中加入。",
+    "inbox.add_note": "添加备注",
+    "inbox.assign": "指派",
+    "inbox.assign_me": "指派给我",
+    "inbox.assign_members": "成员",
+    "inbox.assign_teams": "团队收件箱",
+    "inbox.assigned_to": "负责人 {{.who}}",
+    "inbox.assignee": "负责人",
+    "inbox.away": "离开",
+    "inbox.back": "返回会话列表",
+    "inbox.backlog_oldest": "最久",
+    "inbox.backlog_open": "打开 {{.n}}",
+    "inbox.backlog_waiting": "待回复",
+    "inbox.box_all": "全部",
+    "inbox.box_mentions": "@我",
+    "inbox.box_mine": "我的",
+    "inbox.box_unassigned": "未指派",
+    "inbox.bulk_assigned": "已指派 {{.n}} 个会话",
+    "inbox.bulk_closed": "已关闭 {{.n}} 个会话",
+    "inbox.bulk_failed": "{{.n}} 个会话没有成功：{{.reason}}",
+    "inbox.cancel": "取消",
+    "inbox.channel": "渠道",
+    "inbox.close": "关闭",
+    "inbox.close_details": "关闭详情",
+    "inbox.contact_email": "邮箱",
+    "inbox.contact_kind": "类型",
+    "inbox.contact_language": "语言",
+    "inbox.contact_name": "名字",
+    "inbox.delivery_delivered": "已送达",
+    "inbox.delivery_failed": "发送失败",
+    "inbox.delivery_read": "已读",
+    "inbox.delivery_sending": "发送中",
+    "inbox.details": "详情",
+    "inbox.details_contact": "联系人",
+    "inbox.details_conversation": "会话",
+    "inbox.details_history": "最近的会话",
+    "inbox.empty": "这个列表中没有会话",
+    "inbox.enter_hint": "回车发送，Shift + 回车换行",
+    "inbox.mode_note": "内部备注",
+    "inbox.mode_reply": "回复",
+    "inbox.new_messages": "新消息",
+    "inbox.next_waiting": "下一个待回复",
+    "inbox.no_assignee": "没有负责人",
+    "inbox.no_history": "没有其他会话",
+    "inbox.no_team": "没有团队收件箱",
+    "inbox.not_found": "会话不存在，或者你看不到它",
+    "inbox.note_by": "内部备注 · {{.who}}",
+    "inbox.note_hint": "只有成员可见，输入 @ 提到同事",
+    "inbox.note_placeholder": "写内部备注，@ 同事…",
+    "inbox.pick": "从左边选一个会话",
+    "inbox.priority": "优先级",
+    "inbox.priority_high": "高",
+    "inbox.priority_normal": "普通",
+    "inbox.rating": "评价",
+    "inbox.reopen": "重新打开",
+    "inbox.reply_placeholder": "输入回复…",
+    "inbox.retry": "重发",
+    "inbox.said": "{{.who}}：",
+    "inbox.select": "选择",
+    "inbox.selected": "已选 {{.n}} 个",
+    "inbox.send": "发送",
+    "inbox.send_close": "发送并关闭",
+    "inbox.send_options": "更多发送方式",
+    "inbox.send_snooze": "发送并稍后处理",
+    "inbox.snooze": "稍后处理",
+    "inbox.snooze_custom": "自定义时间",
+    "inbox.snooze_later": "今天晚些时候",
+    "inbox.snooze_monday": "下周一",
+    "inbox.snooze_month": "一个月后",
+    "inbox.snooze_tomorrow": "明天",
+    "inbox.snooze_until": "回到打开的时间",
+    "inbox.snooze_week": "一周后",
+    "inbox.sort": "排序",
+    "inbox.sort_recent": "最近活动",
+    "inbox.sort_waiting": "等待时长",
+    "inbox.status": "状态",
+    "inbox.status_closed": "已关闭",
+    "inbox.status_open": "打开",
+    "inbox.status_snoozed": "稍后处理",
+    "inbox.team": "团队收件箱",
+    "inbox.teams": "团队收件箱",
+    "inbox.typing": "{{.who}} 正在输入…",
+    "inbox.unassign": "取消负责人",
+    "inbox.viewing": "{{.who}} 也在看这个会话",
+    "inbox.visitor": "访客",
+    "inbox.you": "你",
     "login.description": "用工作区管理员给你的邮箱和密码登录",
     "login.title": "登录",
     "members.no_roles": "还没有角色，先在“角色”中新建",
@@ -266,6 +476,12 @@ export const messages = {
     "team_members.title": "团队收件箱成员",
     "test_account.failed": "测试账号登录失败，先运行 go run ./cmd/agents-desk seed",
     "test_account.sign_in": "用测试账号登录",
+    "time.days": "{{.n}} 天",
+    "time.hours": "{{.n}} 小时",
+    "time.just_now": "刚刚",
+    "time.minutes": "{{.n}} 分钟",
+    "time.today": "今天",
+    "time.yesterday": "昨天",
     "widget_install.app": "App 接入",
     "widget_install.app_hint": "App 用 WebView 全屏打开下面的地址。已登录的用户在页面加载前传入身份（window.agentsDesk.user_token）；登录、退出后执行 AgentsDesk('login', { user_token }) 或 AgentsDesk('logout')。App 自己有导航栏时，在地址后加上 \u0026hide_close=1 隐藏聊天窗口的关闭按钮。Android 要开启 JavaScript 和 DOM storage，并把 windowSoftInputMode 设为 adjustResize。",
     "widget_install.app_msg": "消息",
@@ -321,6 +537,24 @@ export type MessageId =
   | "common.save"
   | "common.saved"
   | "contacts.placeholder"
+  | "event.assigned"
+  | "event.assigned_team_member"
+  | "event.closed"
+  | "event.customer"
+  | "event.moved_team"
+  | "event.priority_high"
+  | "event.priority_normal"
+  | "event.rated"
+  | "event.rated_comment"
+  | "event.removed_team"
+  | "event.reopened"
+  | "event.snoozed"
+  | "event.someone"
+  | "event.system"
+  | "event.unassigned"
+  | "event.unsnoozed"
+  | "event.via_reply"
+  | "event.via_round_robin"
   | "general.address"
   | "general.address_hint"
   | "general.name"
@@ -341,7 +575,91 @@ export type MessageId =
   | "hours.time_zone"
   | "hours.time_zone_hint"
   | "hours.week"
-  | "inbox.placeholder"
+  | "inbox.add_note"
+  | "inbox.assign"
+  | "inbox.assign_me"
+  | "inbox.assign_members"
+  | "inbox.assign_teams"
+  | "inbox.assigned_to"
+  | "inbox.assignee"
+  | "inbox.away"
+  | "inbox.back"
+  | "inbox.backlog_oldest"
+  | "inbox.backlog_open"
+  | "inbox.backlog_waiting"
+  | "inbox.box_all"
+  | "inbox.box_mentions"
+  | "inbox.box_mine"
+  | "inbox.box_unassigned"
+  | "inbox.bulk_assigned"
+  | "inbox.bulk_closed"
+  | "inbox.bulk_failed"
+  | "inbox.cancel"
+  | "inbox.channel"
+  | "inbox.close"
+  | "inbox.close_details"
+  | "inbox.contact_email"
+  | "inbox.contact_kind"
+  | "inbox.contact_language"
+  | "inbox.contact_name"
+  | "inbox.delivery_delivered"
+  | "inbox.delivery_failed"
+  | "inbox.delivery_read"
+  | "inbox.delivery_sending"
+  | "inbox.details"
+  | "inbox.details_contact"
+  | "inbox.details_conversation"
+  | "inbox.details_history"
+  | "inbox.empty"
+  | "inbox.enter_hint"
+  | "inbox.mode_note"
+  | "inbox.mode_reply"
+  | "inbox.new_messages"
+  | "inbox.next_waiting"
+  | "inbox.no_assignee"
+  | "inbox.no_history"
+  | "inbox.no_team"
+  | "inbox.not_found"
+  | "inbox.note_by"
+  | "inbox.note_hint"
+  | "inbox.note_placeholder"
+  | "inbox.pick"
+  | "inbox.priority"
+  | "inbox.priority_high"
+  | "inbox.priority_normal"
+  | "inbox.rating"
+  | "inbox.reopen"
+  | "inbox.reply_placeholder"
+  | "inbox.retry"
+  | "inbox.said"
+  | "inbox.select"
+  | "inbox.selected"
+  | "inbox.send"
+  | "inbox.send_close"
+  | "inbox.send_options"
+  | "inbox.send_snooze"
+  | "inbox.snooze"
+  | "inbox.snooze_custom"
+  | "inbox.snooze_later"
+  | "inbox.snooze_monday"
+  | "inbox.snooze_month"
+  | "inbox.snooze_tomorrow"
+  | "inbox.snooze_until"
+  | "inbox.snooze_week"
+  | "inbox.sort"
+  | "inbox.sort_recent"
+  | "inbox.sort_waiting"
+  | "inbox.status"
+  | "inbox.status_closed"
+  | "inbox.status_open"
+  | "inbox.status_snoozed"
+  | "inbox.team"
+  | "inbox.teams"
+  | "inbox.typing"
+  | "inbox.unassign"
+  | "inbox.viewing"
+  | "inbox.visitor"
+  | "inbox.you"
   | "login.description"
   | "login.title"
   | "members.no_roles"
@@ -415,6 +733,12 @@ export type MessageId =
   | "team_members.title"
   | "test_account.failed"
   | "test_account.sign_in"
+  | "time.days"
+  | "time.hours"
+  | "time.just_now"
+  | "time.minutes"
+  | "time.today"
+  | "time.yesterday"
   | "widget_install.app"
   | "widget_install.app_hint"
   | "widget_install.app_msg"

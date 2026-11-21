@@ -1,0 +1,32 @@
+import { createFileRoute, getRouteApi, useNavigate } from "@tanstack/react-router"
+import { ConversationView } from "../../../../inbox/Conversation"
+import { flatten, useConversationList } from "../../../../inbox/data"
+
+// 打开的会话：/t/{slug}/inbox/{id}，收件箱的列表、状态和排序在地址参数中保留。
+export const Route = createFileRoute("/t/$slug/inbox/$id")({ component: OpenConversation })
+
+const inbox = getRouteApi("/t/$slug/inbox")
+const tenantRoute = getRouteApi("/t/$slug")
+
+function OpenConversation() {
+  const { slug, id } = Route.useParams()
+  const search = inbox.useSearch()
+  const tenant = tenantRoute.useLoaderData()
+  const navigate = useNavigate()
+  const list = useConversationList(search)
+  const open = (next: string) => void navigate({ to: "/t/$slug/inbox/$id", params: { slug, id: next }, search })
+  // 下一个待回复：当前列表中排在这个会话后面、正在等待回复的第一个；后面没有时从头找
+  const items = flatten(list.data?.pages)
+  const at = items.findIndex((c) => c.id === id)
+  const waiting = [...items.slice(at + 1), ...items.slice(0, Math.max(at, 0))].find((c) => c.waiting_since && c.id !== id)
+  return (
+    <ConversationView
+      key={id}
+      id={id}
+      tenantId={tenant.id}
+      open={open}
+      next={waiting ? () => open(waiting.id) : undefined}
+      back={() => void navigate({ to: "/t/$slug/inbox", params: { slug }, search })}
+    />
+  )
+}

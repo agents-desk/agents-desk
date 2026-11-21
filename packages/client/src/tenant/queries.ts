@@ -108,6 +108,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "conversation"),
       }),
+      /** POST /conversations/{id}/items/{item_id}/retry */
+      retry: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["retry"]>) => client.conversation.retry(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
       /** POST /conversations/{id}/snooze */
       snooze: () => ({
         mutationFn: (variables: Parameters<Client["conversation"]["snooze"]>) => client.conversation.snooze(...variables),

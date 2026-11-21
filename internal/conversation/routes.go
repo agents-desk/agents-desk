@@ -24,6 +24,7 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	replyOp.DefaultStatus = http.StatusCreated
 	noteOp := route(reply, "conversation-note", http.MethodPost, "/conversations/{id}/notes", "写内部备注")
 	noteOp.DefaultStatus = http.StatusCreated
+	retryOp := route(reply, "conversation-retry", http.MethodPost, "/conversations/{id}/items/{item_id}/retry", "重发发送失败的消息")
 	readOp := route(read, "conversation-read", http.MethodPost, "/conversations/{id}/read", "标记已读")
 	readOp.DefaultStatus = http.StatusNoContent
 	// 会话的操作：权限在业务动作中检查（指派要看是不是领取、是不是自己负责的会话），路由只要求能处理会话
@@ -35,6 +36,7 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	rest.Register(api, route(read, "conversation-items", http.MethodGet, "/conversations/{id}/items", "读取时间线"), NewTimeline(db).HTTP)
 	rest.Register(api, replyOp, NewReply(db, down).HTTP)
 	rest.Register(api, noteOp, NewAddNote(db, down).HTTP)
+	rest.Register(api, retryOp, NewRetry(db, down).HTTP)
 	rest.Register(api, readOp, NewMarkRead(db, down.Hub).HTTP)
 	rest.Register(api, act("conversation-assign", http.MethodPut, "/conversations/{id}/assignment", "指派"), NewAssign(db, down).HTTP)
 	rest.Register(api, act("conversation-close", http.MethodPost, "/conversations/{id}/close", "关闭"), NewClose(db, down).HTTP)

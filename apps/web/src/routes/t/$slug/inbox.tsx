@@ -1,24 +1,47 @@
-import { Center, Stack, Text, Title } from "@mantine/core"
-import { createFileRoute } from "@tanstack/react-router"
-import { useT } from "@go-tenon/ui"
+import { Box } from "@mantine/core"
+import { createFileRoute, Outlet, useNavigate, useParams } from "@tanstack/react-router"
+import { useNarrow } from "@go-tenon/ui"
+import "../../../inbox/inbox.css"
+import { ConversationList } from "../../../inbox/List"
+import { InboxNav } from "../../../inbox/Nav"
+import { type InboxSearch, validateInboxSearch } from "../../../inbox/search"
 
-// 收件箱：坐席接待会话的地方。铺满内容区（fullBleed），二级导航是带数量的收件箱列表（我的、@我、未指派、全部、
-// 各团队收件箱、视图），右侧是会话列表和会话，见产品设计的 13.2。现在是占位页，列表和会话在 D1、D2 中完成。
+// 收件箱：坐席接待会话的地方，铺满内容区（fullBleed），见产品设计的 13.2。二级导航是带数量的收件箱列表（nav 插槽），
+// 右侧是会话列表和会话（子路由 inbox/$id）；当前的列表、状态和排序在地址参数中，切换会话时保留。
+// 窄屏时会话列表和会话轮流占满：打开了会话就只显示会话。
 export const Route = createFileRoute("/t/$slug/inbox")({
   staticData: { title: "nav.inbox", icon: "inbox", order: 1, permission: "conversations:read", fullBleed: true },
+  validateSearch: validateInboxSearch,
   component: Inbox,
 })
 
 function Inbox() {
-  const t = useT()
+  const search = Route.useSearch()
+  const { slug } = Route.useParams()
+  const { id } = useParams({ strict: false }) as { id?: string }
+  const navigate = useNavigate()
+  const narrow = useNarrow()
+  // go 切换列表、状态或排序：打开着的会话保持打开
+  const go = (patch: Partial<InboxSearch>) => {
+    const next = { ...search, ...patch }
+    void (id
+      ? navigate({ to: "/t/$slug/inbox/$id", params: { slug, id }, search: next })
+      : navigate({ to: "/t/$slug/inbox", params: { slug }, search: next }))
+  }
+  const open = (next: string) => void navigate({ to: "/t/$slug/inbox/$id", params: { slug, id: next }, search })
   return (
-    <Center h="100%">
-      <Stack gap={4} align="center">
-        <Title order={4}>{t("nav.inbox")}</Title>
-        <Text c="dimmed" size="sm">
-          {t("inbox.placeholder")}
-        </Text>
-      </Stack>
-    </Center>
+    <Box style={{ display: "flex", height: "100%" }}>
+      <InboxNav search={search} go={go} />
+      {(!narrow || !id) && (
+        <Box w={narrow ? "100%" : 330} style={{ flex: "none", minWidth: 0 }}>
+          <ConversationList search={search} openId={id} go={go} open={open} />
+        </Box>
+      )}
+      {(!narrow || id) && (
+        <Box style={{ flex: 1, minWidth: 0, display: "flex" }}>
+          <Outlet />
+        </Box>
+      )}
+    </Box>
   )
 }

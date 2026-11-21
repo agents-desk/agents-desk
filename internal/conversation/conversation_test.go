@@ -243,7 +243,7 @@ func TestContactHistoryAndReadSeq(t *testing.T) {
 	// 关闭后再发消息会重新打开同一个会话（测试渠道只有一个聊天窗口），所以另起一个联系人做对照
 	other := f.receive(t, "priya", "withdrawal pending", "")
 	c := f.get(t, first.ConversationID)
-	if c.Contact == nil || c.ReadSeq != 0 {
+	if c.Contact == nil || c.ReadSeq != 0 || c.PreviewActor == nil || c.PreviewActor.Type != conversation.ContactActor || c.PreviewActor.ID != c.Contact.ID {
 		t.Fatalf("会话：%+v", c)
 	}
 	list, err := conversation.NewList(env.DB).Handle(ctx, f.agent, &conversation.ListInput{ContactID: c.Contact.ID})
@@ -261,5 +261,39 @@ func TestContactHistoryAndReadSeq(t *testing.T) {
 	got, err := conversation.NewGet(env.DB).Handle(ctx, reader, other.ConversationID)
 	if err != nil || got.ReadSeq != other.Item.Seq || got.Unread {
 		t.Fatalf("标记已读后：%+v %v", got, err)
+	}
+}
+
+// TestRetry 检查重发：发送失败的消息回到发送中，并发布发出消息的任务；没有失败的消息不能重发；别的会话中的消息找不到。
+func TestRetry(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	env := apptest.New(t)
+	f := setup(t, env, "alpha")
+
+	got := f.receive(t, "rahul", "hello", "")
+	reply, err := conversation.NewReply(env.DB, f.down).Handle(ctx, f.agent, got.ConversationID, "您好")
+	if err != nil {
+		t.Fatal(err)
+	}
+	retry := conversation.NewRetry(env.DB, f.down)
+	if _, err := retry.Handle(ctx, f.agent, got.ConversationID, reply.ID); !errors.Is(err, conversation.ErrNotFailed) {
+		t.Fatalf("发送中的消息重发：%v", err)
+	}
+	if _, err := env.DB.NewRaw("UPDATE message_deliveries SET status = 'failed', error = 'boom' WHERE item_id = ?", reply.ID).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	before := len(queuetest.Pending(t, env.DB, conversation.DeliverTopic))
+	item, err := retry.Handle(ctx, f.agent, got.ConversationID, reply.ID)
+	if err != nil || item.Delivery == nil || *item.Delivery != conversation.Sending {
+		t.Fatalf("重发：%+v %v", item, err)
+	}
+	jobs := queuetest.Pending(t, env.DB, conversation.DeliverTopic)
+	if len(jobs) != before+1 || jobs[len(jobs)-1].ItemID != reply.ID {
+		t.Fatalf("重发的任务：%+v", jobs)
+	}
+	other := f.receive(t, "priya", "hi", "")
+	if _, err := retry.Handle(ctx, f.agent, other.ConversationID, reply.ID); !errors.Is(err, conversation.ErrNotFound) {
+		t.Fatalf("别的会话中的消息：%v", err)
 	}
 }

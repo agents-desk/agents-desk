@@ -1,0 +1,66 @@
+/* 收件箱的样式：各栏的分隔线、会话列表的行、时间线、回复框。颜色都取 Mantine 的主题变量。 */
+.inbox-divider {
+  border-bottom: 1px solid var(--tn-border, var(--mantine-color-gray-3));
+  flex: none;
+}
+.inbox-list {
+  border-right: 1px solid var(--tn-border, var(--mantine-color-gray-3));
+}
+.inbox-aside {
+  border-left: 1px solid var(--tn-border, var(--mantine-color-gray-3));
+}
+
+/* 会话列表的一行：当前打开的左边有蓝条，刚有新消息的短暂黄底 */
+.inbox-row {
+  display: block;
+  position: relative;
+  border-bottom: 1px solid var(--mantine-color-gray-1);
+  transition: background-color 0.4s;
+}
+.inbox-row:hover {
+  background: var(--mantine-color-gray-0);
+}
+.inbox-row[data-active] {
+  background: var(--mantine-color-bright-blue-light);
+}
+.inbox-row[data-active]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--mantine-color-bright-blue-filled);
+}
+.inbox-row[data-flash] {
+  background: var(--mantine-color-yellow-light);
+}
+
+/* 时间线：可以滚动，浅灰的底 */
+.inbox-timeline {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--mantine-color-gray-0);
+}
+.inbox-event {
+  align-self: center;
+}
+
+/* 回复框：内部备注时是黄色底 */
+.inbox-composer {
+  border-top: 1px solid var(--tn-border, var(--mantine-color-gray-3));
+  flex: none;
+}
+.inbox-composer[data-note] {
+  background: var(--mantine-color-yellow-light);
+}
+.inbox-mention[data-active],
+.inbox-mention:hover,
+.inbox-history:hover {
+  background: var(--mantine-color-gray-1);
+  border-radius: var(--mantine-radius-sm);
+}
+.inbox-history {
+  display: block;
+}
