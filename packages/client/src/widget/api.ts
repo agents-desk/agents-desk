@@ -33,6 +33,8 @@ export interface ConversationContactConversationDTO {
   last_seq: number
   /** 最后一条消息的文字 */
   preview: string
+  /** 最后一条消息是谁发的 */
+  preview_author: ConversationContactAuthor
   /** 客户对最近一次关闭的评价；会话已关闭而它为空时可以评价 */
   rating?: ConversationRating
   /** 打开或已关闭；稍后处理的会话对客户显示为打开 */

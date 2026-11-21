@@ -1,0 +1,8 @@
+import { defineConfig } from "vite"
+import { tenon } from "@go-tenon/start/vite"
+
+// tenon 包含 TanStack Start 和 React 的插件，并写入构建版本（页面在部署了新版本时提示刷新）。挂载路径和是否在服务端
+// 渲染写在 package.json 的 tenon 字段中，见框架文档的“托管前端与服务端渲染”（frontend/hosting.md）。
+export default defineConfig({
+  plugins: [tenon()],
+})

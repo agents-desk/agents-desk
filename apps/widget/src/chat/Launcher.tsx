@@ -1,0 +1,24 @@
+import { ActionIcon, Indicator } from "@mantine/core"
+import { IconChevronDown, IconMessageCircle } from "@tabler/icons-react"
+import { useT } from "@go-tenon/ui"
+import type { ReactNode } from "react"
+
+/** Launcher 是嵌入网页时右下角的启动按钮：收起时是聊天图标，有未读时带角标；展开时是收起的箭头。 */
+export function Launcher({ color, open, unread, onClick }: { color: string; open: boolean; unread: number; onClick: () => void }): ReactNode {
+  const t = useT()
+  return (
+    <Indicator label={unread} size={20} color="red" offset={6} disabled={open || unread === 0} withBorder>
+      <ActionIcon
+        size={56}
+        radius="xl"
+        color={color}
+        variant="filled"
+        className="w-launcher"
+        onClick={onClick}
+        aria-label={t(open ? "panel.collapse" : "launcher.open")}
+      >
+        {open ? <IconChevronDown size={26} /> : <IconMessageCircle size={28} />}
+      </ActionIcon>
+    </Indicator>
+  )
+}

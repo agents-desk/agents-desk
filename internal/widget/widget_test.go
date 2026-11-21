@@ -233,7 +233,8 @@ func TestConversation(t *testing.T) {
 
 	// 客户看到的会话和时间线：自己的消息和坐席的回复，没有备注和指派的系统事件
 	list, err := conversation.NewListForContact(env.DB).Handle(ctx, visitor, f.widget.ID)
-	if err != nil || len(list) != 1 || list[0].ID != sent.ConversationID || list[0].Unread != 1 || list[0].Preview != "您好，我帮您查一下" {
+	if err != nil || len(list) != 1 || list[0].ID != sent.ConversationID || list[0].Unread != 1 || list[0].Preview != "您好，我帮您查一下" ||
+		list[0].PreviewAuthor.Type != conversation.MemberActor || list[0].PreviewAuthor.Name != "owner" {
 		t.Fatalf("客户的会话列表：%+v %v", list, err)
 	}
 	items, err := conversation.NewTimelineForContact(env.DB).Handle(ctx, visitor, f.widget.ID, sent.ConversationID, 0, 100)
