@@ -17,7 +17,7 @@ agents-desk 是团队的综合服务平台，以 AI 为核心，以聊天为基�
 ## 应用
 
 - 框架是 `github.com/go-tenon/tenon`。框架的通用约定（文档、提交前检查、测试和代码约定）在本文末尾的托管区块中，`bun run agents` 按 `go.mod` 中的框架版本更新它；前面各节是 agents-desk 自己的约定。
-- 项目的前端、客户端和安装的技能用 MCP 工具 `tenon_app_info` 查看，也可以直接看 `tenon.json` 和 `apps/`：`apps/admin` 是管理员端（`/admin/`），`apps/web` 是工作区端（`/`），都只在浏览器中渲染。
+- 项目的前端、客户端和安装的技能用 MCP 工具 `tenon_app_info` 查看，也可以直接看 `tenon.json` 和 `apps/`：`apps/admin` 是管理员端（`/admin/`），`apps/web` 是工作区端（`/`），`apps/widget` 是网页聊天插件的聊天窗口（`/widget/`，嵌入产品网站和 App，`public/loader.js` 是嵌入脚本，开发时 `/widget/demo` 是演示页），都只在浏览器中渲染。
 - 应用的入口是 `./cmd/agents-desk`，`go run ./cmd/agents-desk --help` 列出应用的命令。
 
 ## 开发环境

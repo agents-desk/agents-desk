@@ -10,6 +10,7 @@
     ".tenon/js/ui",
     "apps/admin",
     "apps/web",
+    "apps/widget",
     "packages/client"
   ],
   "intent": {

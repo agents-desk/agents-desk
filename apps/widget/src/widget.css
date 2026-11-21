@@ -1,0 +1,96 @@
+/* 聊天窗口的布局。嵌入网页时页面背景透明：iframe 中只有启动按钮和浮层可见。颜色都取 Mantine 的主题变量。 */
+html[data-embedded],
+html[data-embedded] body {
+  background: transparent;
+}
+html,
+body {
+  margin: 0;
+  overscroll-behavior: none;
+}
+
+/* 嵌入电脑网页：iframe 右下角是启动按钮，展开时上面是浮层，四周留出阴影的空间 */
+.w-dock {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 16px;
+}
+.w-dock-open .w-panel {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border-radius: 16px;
+  box-shadow: var(--mantine-shadow-xl);
+}
+.w-launcher {
+  box-shadow: var(--mantine-shadow-lg);
+}
+
+/* 浮层和全屏的聊天窗口 */
+.w-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--mantine-color-body);
+}
+.w-panel[data-full] {
+  position: fixed;
+  inset: 0;
+  height: 100dvh;
+}
+
+/* 可以滚动的中间部分：首页的会话列表、会话页的时间线 */
+.w-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--mantine-color-gray-0);
+}
+
+/* 刘海和底部横条的安全区域：页面的 viewport 带 viewport-fit=cover */
+.w-safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.w-safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.w-composer {
+  border-top: 1px solid var(--tn-border, var(--mantine-color-gray-3));
+  background: var(--mantine-color-body);
+}
+
+/* 会话列表的一行：点击区域至少 44px */
+.w-conversation {
+  min-height: 56px;
+  border-top: 1px solid var(--mantine-color-gray-2);
+}
+.w-conversation:first-of-type {
+  border-top: 0;
+}
+.w-conversation:hover {
+  background: var(--mantine-color-gray-0);
+}
+
+/* 消息气泡 */
+.w-bubble {
+  padding: 8px 12px;
+  border-radius: 16px;
+  font-size: var(--mantine-font-size-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.w-bubble[data-mine] {
+  border-bottom-right-radius: 4px;
+}
+.w-bubble:not([data-mine]) {
+  border-bottom-left-radius: 4px;
+}
+.w-bubble[data-state="sending"] {
+  opacity: 0.6;
+}

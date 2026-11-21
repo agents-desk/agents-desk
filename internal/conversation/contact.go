@@ -15,14 +15,15 @@ import (
 
 // ContactConversationDTO 是联系人在聊天插件等渠道中看到的自己的会话：没有团队收件箱、负责人和内部备注。
 type ContactConversationDTO struct {
-	ID            string    `json:"id"`
-	Status        Status    `json:"status" doc:"打开或已关闭；稍后处理的会话对客户显示为打开"`
-	Rating        *Rating   `json:"rating,omitempty" doc:"客户对最近一次关闭的评价；会话已关闭而它为空时可以评价"`
-	Preview       string    `json:"preview" doc:"最后一条消息的文字"`
-	Unread        int       `json:"unread" doc:"成员发来、联系人还没读到的消息数"`
-	LastMessageAt time.Time `json:"last_message_at"`
-	LastSeq       int64     `json:"last_seq" doc:"时间线中最新一项的序号；联系人看到的时间线跳过内部备注和系统事件，序号不连续"`
-	CreatedAt     time.Time `json:"created_at"`
+	ID            string        `json:"id"`
+	Status        Status        `json:"status" doc:"打开或已关闭；稍后处理的会话对客户显示为打开"`
+	Rating        *Rating       `json:"rating,omitempty" doc:"客户对最近一次关闭的评价；会话已关闭而它为空时可以评价"`
+	Preview       string        `json:"preview" doc:"最后一条消息的文字"`
+	PreviewAuthor ContactAuthor `json:"preview_author" doc:"最后一条消息是谁发的"`
+	Unread        int           `json:"unread" doc:"成员发来、联系人还没读到的消息数"`
+	LastMessageAt time.Time     `json:"last_message_at"`
+	LastSeq       int64         `json:"last_seq" doc:"时间线中最新一项的序号；联系人看到的时间线跳过内部备注和系统事件，序号不连续"`
+	CreatedAt     time.Time     `json:"created_at"`
 }
 
 // ContactAuthor 是联系人看到的一项的发起者。
@@ -71,16 +72,21 @@ func toContactDTOs(ctx context.Context, db bun.IDB, convs []Conversation) ([]Con
 		ids[i] = c.ID
 	}
 	var rows []struct {
-		ConversationID string `bun:"conversation_id"`
-		Preview        string `bun:"preview"`
-		Unread         int    `bun:"unread"`
+		ConversationID string    `bun:"conversation_id"`
+		Preview        string    `bun:"preview"`
+		ActorType      ActorType `bun:"actor_type"`
+		ActorName      string    `bun:"actor_name"`
+		Unread         int       `bun:"unread"`
 	}
-	err := db.NewRaw(`SELECT c.id AS conversation_id,
-			COALESCE((SELECT t.content->>'text' FROM timeline_items t
-				WHERE t.conversation_id = c.id AND t.kind = ? AND t.visibility = ? ORDER BY t.seq DESC LIMIT 1), '') AS preview,
+	err := db.NewRaw(`SELECT c.id AS conversation_id, COALESCE(last.text, '') AS preview,
+			COALESCE(last.actor_type, '') AS actor_type, COALESCE(m.name, '') AS actor_name,
 			(SELECT count(*) FROM timeline_items t JOIN message_deliveries d ON d.item_id = t.id
 				WHERE t.conversation_id = c.id AND t.actor_type <> ? AND d.status <> ?) AS unread
-		FROM conversations c WHERE c.id IN (?)`, Message, Everyone, ContactActor, Read, bun.In(ids)).Scan(ctx, &rows)
+		FROM conversations c
+		LEFT JOIN LATERAL (SELECT t.content->>'text' AS text, t.actor_type, t.actor_id FROM timeline_items t
+			WHERE t.conversation_id = c.id AND t.kind = ? AND t.visibility = ? ORDER BY t.seq DESC LIMIT 1) last ON true
+		LEFT JOIN members m ON last.actor_type = ? AND m.id::text = last.actor_id
+		WHERE c.id IN (?)`, ContactActor, Read, Message, Everyone, MemberActor, bun.In(ids)).Scan(ctx, &rows)
 	if err != nil {
 		return nil, errors.Wrap(err, "load contact previews")
 	}
@@ -91,7 +97,7 @@ func toContactDTOs(ctx context.Context, db bun.IDB, convs []Conversation) ([]Con
 	for i, c := range convs {
 		r := rows[extra[c.ID]]
 		out[i] = ContactConversationDTO{
-			ID: c.ID, Status: c.Status, Preview: r.Preview, Unread: r.Unread,
+			ID: c.ID, Status: c.Status, Preview: r.Preview, PreviewAuthor: ContactAuthor{Type: r.ActorType, Name: r.ActorName}, Unread: r.Unread,
 			LastMessageAt: c.LastMessageAt, LastSeq: c.LastSeq, CreatedAt: c.CreatedAt,
 		}
 		// 稍后处理是团队内部的安排，客户看到的是打开
