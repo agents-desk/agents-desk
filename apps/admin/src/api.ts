@@ -2,14 +2,11 @@
 // api 是 tenon generate 生成的 /admin/api 客户端（packages/client/src/admin），接口改了以后 tenon dev 会自动重新生成。
 // 管理员端只接受平台管理员，登录凭据是 HttpOnly 的会话 cookie __Host-admin，浏览器随同源请求自动带上，页面上的脚本不接触它。
 // kit 是同一个 API 生成的元数据：查询选项、校验规则、验证提示、枚举的显示文字和资源。
-import { createI18n, createSession } from "@go-tenon/client"
+import { createSession } from "@go-tenon/client"
 import { apiFetch } from "@go-tenon/start"
 import { createClient } from "@agents-desk/client/admin"
 import { createKit } from "@agents-desk/client/admin/kit"
-import { messages } from "./messages.gen"
-
-// i18n 是界面文字：locales/admin.<语言>.yaml 生成的 messages.gen.ts。语言按浏览器的偏好选择，翻译文件中没有的语言用简体中文。
-export const i18n = createI18n({ messages, defaultLanguage: "zh-CN" })
+import { i18n } from "./i18n"
 
 // session 记录当前的平台管理员：打开页面、登录后读取 /admin/api/me，没有登录时它返回 401。
 // 受保护的接口返回 401 时，会话随之变为未登录。

@@ -4,7 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { applyServerErrors, FormError, inTimeZone, notifySuccess, useT } from "@go-tenon/ui"
 import type { MemberLanguage } from "@agents-desk/client/api"
 import { type ReactNode, useMemo, useState } from "react"
-import { api, apiKit, i18n } from "./api"
+import { api, apiKit } from "./api"
+import { i18n } from "./i18n"
 import { me } from "./auth"
 
 // 偏好设置：语言和时区，属于账号本身，在所有工作区中一样。按表单的约定：宽度不限，一个输入框一行，保存按钮在右侧。

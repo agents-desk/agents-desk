@@ -16,7 +16,7 @@ function Layout() {
   const items = [{ label: t("nav.profile"), icon: <IconUser size={16} />, to: "/profile" }]
   return (
     <FrameLayout
-      title={t("app.title")}
+      title={t("app.admin")}
       tabs
       user={
         <UserMenu

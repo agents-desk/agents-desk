@@ -3,7 +3,7 @@
 /** 前端 admin 的界面文字，来自 locales/admin.<语言>.yaml。交给 @go-tenon/client 的 createI18n。 */
 export const messages = {
   "zh-CN": {
-    "app.title": "agents-desk 管理员端",
+    "app.admin": "agents-desk 管理员端",
     "change_owner.current": "现在的主管理员是 {{.name}}（{{.email}}）。更换后，他在这个工作区中的主管理员角色被撤销。",
     "change_owner.email": "新主管理员的邮箱",
     "change_owner.existing_hint": "这个邮箱已经有成员账号时，不需要填写下面两项。",
@@ -48,7 +48,7 @@ export const messages = {
 
 /** 界面文字的消息 ID。 */
 export type MessageId =
-  | "app.title"
+  | "app.admin"
   | "change_owner.current"
   | "change_owner.email"
   | "change_owner.existing_hint"

@@ -149,7 +149,7 @@ CI（`.github/workflows/ci.yml`）在每次推送和 PR 中运行同样的检查
 - 界面用 Mantine 和 `@go-tenon/ui` 的组件，调用接口用生成的客户端和 TanStack Query，路由用 TanStack Router 的文件路由。
 - 颜色从 Mantine 的主题中取：品牌色是 `brand`，组件不写 `color` 时用的就是它；其他彩色写主题中预设的名称，例如 `color="deep-orange"`、`var(--mantine-color-deep-orange-6)`；中性色用 `gray`、`dark` 色板、`c="dimmed"` 和 `--tn-*` 变量。不写十六进制或 `rgb()` 的值，写死的值不随品牌色和暗色模式变化。
 - 状态的颜色固定：成功用 `green`，进行中用 `bright-blue`，等待处理用 `yellow`，需要注意用 `deep-orange`，失败用 `red`，没有状态用 `gray`。
-- 界面文字写在 `locales/web.zh-CN.yaml`、`locales/admin.zh-CN.yaml` 中，页面用 `useT` 取出，菜单标题写消息 ID，见框架文档的 `frontend/i18n.md`。消息 ID 按模块起名（`inbox.empty`），不用 `tenant.`、`team.`、`member.`、`role.` 这些服务端已经在用的前缀。界面的语言跟随成员在偏好设置中选的语言，第一版只有简体中文。
+- 界面文字写在 `locales/web.zh-CN.yaml`、`locales/admin.zh-CN.yaml` 中，页面用 `useT` 取出，菜单标题写消息 ID，见框架文档的 `frontend/i18n.md`。应用在每个前端中的名称是 `app.<前端>`。各前端的 `i18n` 在 `src/i18n.ts` 中。消息 ID 按模块起名（`inbox.empty`），不用 `tenant.`、`team.`、`member.`、`role.` 这些服务端已经在用的前缀。界面的语言跟随成员在偏好设置中选的语言，第一版只有简体中文。
 - 生成的代码（`packages/client`、`routeTree.gen.ts`、`messages.gen.ts`）不手改，下次生成时会被覆盖。
 
 ### 接口

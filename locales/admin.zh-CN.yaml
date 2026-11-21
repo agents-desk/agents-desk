@@ -1,5 +1,5 @@
 # 前端 admin 的界面文字（简体中文）。tenon generate 生成 apps/admin/src/messages.gen.ts，页面用 useT 取出。
-app.title: "agents-desk 管理员端"
+app.admin: "agents-desk 管理员端"
 
 change_owner.current: "现在的主管理员是 {{.name}}（{{.email}}）。更换后，他在这个工作区中的主管理员角色被撤销。"
 change_owner.email: "新主管理员的邮箱"

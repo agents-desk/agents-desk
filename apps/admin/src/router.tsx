@@ -1,7 +1,7 @@
 import { host } from "@go-tenon/host"
 import { cspNonce } from "@go-tenon/start"
 import { createApp, NotFoundPage, RouteError } from "@go-tenon/ui"
-import { i18n } from "./api"
+import { i18n } from "./i18n"
 import { me, session } from "./auth"
 import { routeTree } from "./routeTree.gen"
 
