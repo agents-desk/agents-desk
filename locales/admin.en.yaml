@@ -1,0 +1,49 @@
+# 前端 admin 的界面文字（英文）。消息 ID 与 admin.zh-CN.yaml 相同，tenon generate 把两种语言一起生成到 apps/admin/src/messages.gen.ts。
+app.admin: "agents-desk admin"
+
+change_owner.current: "The current owner is {{.name}} ({{.email}}). After the change, they lose the owner role in this workspace."
+change_owner.email: "New owner’s email"
+change_owner.existing_hint: "If this email already has a member account, leave the next two fields empty."
+change_owner.name: "Name"
+change_owner.password: "Initial password"
+change_owner.submit: "Change"
+change_owner.title: "Change the owner of “{{.name}}”"
+
+common.cancel: "Cancel"
+common.save: "Save"
+common.saved: "Saved"
+
+login.description: "For platform admins"
+login.title: "Admin sign-in"
+
+model.api_key: "API key"
+model.base_url: "Base URL"
+model.description: "Configure the model API and model name for each call type. Call types can use different APIs and providers. Leave the base URL empty to turn a call type off."
+model.model: "Model"
+model.translation_description: "Translates text between languages and detects the source language and script"
+
+nav.model: "Model APIs"
+nav.platform_settings: "Platform settings"
+nav.profile: "Profile"
+nav.tenants: "Workspaces"
+
+profile.avatar: "Avatar"
+profile.avatar_hint: "PNG, JPEG or WebP, up to 2 MB"
+profile.change_password: "Change password"
+profile.confirm_password: "Confirm new password"
+profile.current_password: "Current password"
+profile.name: "Name"
+profile.new_password: "New password"
+profile.new_password_hint: "8 to 128 characters"
+profile.password_changed: "Password changed. You've been signed out on other devices"
+profile.password_mismatch: "The new passwords don't match"
+profile.remove: "Remove"
+profile.tab_basic: "Basic info"
+profile.tab_password: "Change password"
+profile.upload: "Upload image"
+profile.upload_failed: "Upload failed"
+
+tenants.change_owner: "Change owner"
+
+test_account.failed: "Test account sign-in failed. Run go run ./cmd/agents-desk seed first"
+test_account.sign_in: "Sign in with a test account"

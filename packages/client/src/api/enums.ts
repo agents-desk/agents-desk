@@ -9,6 +9,7 @@ export const enums = {
     prefix: "member.language",
     values: ["zh-CN", "zh-TW", "en"],
     labels: {
+      "en": { "zh-CN": "简体中文", "zh-TW": "繁體中文", en: "English" },
       "zh-CN": { "zh-CN": "简体中文", "zh-TW": "繁體中文", en: "English" },
     },
   },
@@ -16,6 +17,7 @@ export const enums = {
     prefix: "tenant.status",
     values: ["active", "disabled"],
     labels: {
+      "en": { active: "Active", disabled: "Disabled" },
       "zh-CN": { active: "正常", disabled: "已停用" },
     },
   },

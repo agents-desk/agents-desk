@@ -9,6 +9,7 @@ export const enums = {
     prefix: "llm.call_type",
     values: ["translation"],
     labels: {
+      "en": { translation: "Translation" },
       "zh-CN": { translation: "翻译" },
     },
   },
@@ -16,6 +17,7 @@ export const enums = {
     prefix: "tenant.status",
     values: ["active", "disabled"],
     labels: {
+      "en": { active: "Active", disabled: "Disabled" },
       "zh-CN": { active: "正常", disabled: "已停用" },
     },
   },

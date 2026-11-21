@@ -65,7 +65,7 @@ cmd/agents-desk/         入口：main.go 是配置和命令，app.go 装配依�
 internal/<模块>/         业务代码，一个业务动作一个文件
 internal/apptest/        测试共用的装配：临时库、账号体系、应用密钥
 migrations/              SQL 迁移，包括 migrate publish 发布的框架迁移
-locales/                 翻译文件：错误提示、资源和字段、枚举和权限的显示文字
+locales/                 翻译文件，简体中文和英文：服务端的 <语言>.yaml（错误提示、资源和字段、枚举和权限的显示文字），前端的 <前端>.<语言>.yaml
 docs/                    产品设计和开发计划
 config/app.yaml          配置；本机的覆盖写在 config/local.yaml，不提交，命令和 bun run dev 自动叠加它
 apps/<前端>/             TanStack Start 前端，挂载路径写在 package.json 的 tenon 字段
@@ -149,7 +149,8 @@ CI（`.github/workflows/ci.yml`）在每次推送和 PR 中运行同样的检查
 - 界面用 Mantine 和 `@go-tenon/ui` 的组件，调用接口用生成的客户端和 TanStack Query，路由用 TanStack Router 的文件路由。
 - 颜色从 Mantine 的主题中取：品牌色是 `brand`，组件不写 `color` 时用的就是它；其他彩色写主题中预设的名称，例如 `color="deep-orange"`、`var(--mantine-color-deep-orange-6)`；中性色用 `gray`、`dark` 色板、`c="dimmed"` 和 `--tn-*` 变量。不写十六进制或 `rgb()` 的值，写死的值不随品牌色和暗色模式变化。
 - 状态的颜色固定：成功用 `green`，进行中用 `bright-blue`，等待处理用 `yellow`，需要注意用 `deep-orange`，失败用 `red`，没有状态用 `gray`。
-- 界面文字写在 `locales/web.zh-CN.yaml`、`locales/admin.zh-CN.yaml` 中，页面用 `useT` 取出，菜单标题写消息 ID，见框架文档的 `frontend/i18n.md`。应用在每个前端中的名称是 `app.<前端>`。各前端的 `i18n` 在 `src/i18n.ts` 中。消息 ID 按模块起名（`inbox.empty`），不用 `tenant.`、`team.`、`member.`、`role.` 这些服务端已经在用的前缀。界面的语言跟随成员在偏好设置中选的语言，第一版只有简体中文。
+- 界面文字写在 `locales/web.<语言>.yaml`、`locales/admin.<语言>.yaml` 中，页面用 `useT` 取出，菜单标题写消息 ID，见框架文档的 `frontend/i18n.md`。应用在每个前端中的名称是 `app.<前端>`。各前端的 `i18n` 在 `src/i18n.ts` 中。消息 ID 按模块起名（`inbox.empty`），不用 `tenant.`、`team.`、`member.`、`role.` 这些服务端已经在用的前缀。界面的语言跟随成员在偏好设置中选的语言，有简体中文（`zh-CN`）和英文（`en`）；成员选了其他语言时显示简体中文。
+- 加一条消息时，简体中文和英文的翻译文件都写上它，`locales` 的测试检查每种语言的消息 ID 相同。
 - 生成的代码（`packages/client`、`routeTree.gen.ts`、`messages.gen.ts`）不手改，下次生成时会被覆盖。
 
 ### 接口

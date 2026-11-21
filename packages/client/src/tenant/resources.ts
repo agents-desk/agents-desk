@@ -47,6 +47,11 @@ export const resources = {
     ],
     updateWhen: { "owner": ["false"], "self": ["false"] },
     labels: {
+      "en": {
+        title: "Members",
+        fields: { name: "Name", email: "Email", role_name: "Role", status: "Status", password: "Initial password", role_id: "Role" },
+        actions: { away: "Set to away", remove: "Remove" },
+      },
       "zh-CN": {
         title: "成员",
         fields: { name: "名字", email: "邮箱", role_name: "角色", status: "在线状态", password: "初始密码", role_id: "角色" },
@@ -95,6 +100,11 @@ export const resources = {
     actions: [
     ],
     labels: {
+      "en": {
+        title: "Roles",
+        fields: { name: "Name", conversation_scope: "Visible conversations", member_count: "Members", description: "Description", permissions: "Permissions" },
+        actions: {  },
+      },
       "zh-CN": {
         title: "角色",
         fields: { name: "名称", conversation_scope: "可见范围", member_count: "人数", description: "说明", permissions: "可以做的操作" },
@@ -141,6 +151,11 @@ export const resources = {
     actions: [
     ],
     labels: {
+      "en": {
+        title: "Team inboxes",
+        fields: { name: "Name", assignment: "Assignment", member_count: "Members", description: "Description" },
+        actions: {  },
+      },
       "zh-CN": {
         title: "团队收件箱",
         fields: { name: "名称", assignment: "分配方式", member_count: "人数", description: "说明" },

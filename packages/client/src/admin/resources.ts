@@ -50,6 +50,11 @@ export const resources = {
       { name: "enable", operation: ["tenant", "enable"], permissions: ["tenants:manage"], confirm: true, danger: false, when: { "status": ["disabled"] } },
     ],
     labels: {
+      "en": {
+        title: "Workspaces",
+        fields: { name: "Name", slug: "Address", owner_name: "Owner name", owner_email: "Owner email", status: "Status", created_at: "Created", owner_password: "Owner’s initial password" },
+        actions: { disable: "Disable", enable: "Enable" },
+      },
       "zh-CN": {
         title: "工作区",
         fields: { name: "名称", slug: "地址", owner_name: "主管理员姓名", owner_email: "主管理员邮箱", status: "状态", created_at: "创建时间", owner_password: "主管理员初始密码" },
