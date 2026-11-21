@@ -3,19 +3,15 @@
 //   - api 是 /api：成员的登录、退出、当前账号和所属的工作区（packages/client/src/api）；
 //   - tenantApi 是 /t/{slug}/api：当前工作区的接口（packages/client/src/tenant），slug 取自会话的身份。
 // 登录凭据是 HttpOnly 的会话 cookie __Host-session，浏览器随同源请求自动带上，页面上的脚本不接触它。
-import { createI18n, createSession } from "@go-tenon/client"
+import { createSession } from "@go-tenon/client"
 import { apiFetch } from "@go-tenon/start"
 import { createClient } from "@agents-desk/client/api"
 import { createKit as createApiKit } from "@agents-desk/client/api/kit"
 import { createClient as createTenantClient } from "@agents-desk/client/tenant"
 import { createKit } from "@agents-desk/client/tenant/kit"
-import { messages } from "./messages.gen"
+import { i18n } from "./i18n"
 
-// i18n 是界面文字：locales/web.<语言>.yaml 生成的 messages.gen.ts。语言跟随成员在偏好设置中选的语言，读取当前成员时切换，
-// 退出后回到浏览器的语言；翻译文件中没有的语言用简体中文。
-export const i18n = createI18n({ messages, defaultLanguage: "zh-CN" })
-
-// session 记录当前的成员和他所在的工作区：打开页面、登录后读取 /api/me，没有登录时它返回 401。
+// session 记录当前的成员和成员所在的工作区：打开页面、登录后读取 /api/me，没有登录时它返回 401。读取当前成员时界面切换到成员的语言，退出后回到浏览器的语言。
 // 身份中的 tenant 是工作区的 slug，进入 /t/{slug}/ 时由 enterTenant 设置。受保护的接口返回 401 时，会话随之变为未登录。
 export const session = createSession({
   load: async () => {

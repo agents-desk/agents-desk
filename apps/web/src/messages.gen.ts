@@ -3,6 +3,7 @@
 /** 前端 web 的界面文字，来自 locales/web.<语言>.yaml。交给 @go-tenon/client 的 createI18n。 */
 export const messages = {
   "zh-CN": {
+    "app.web": "agents-desk",
     "business_hours.add_date": "添加日期",
     "business_hours.closed": "全天不上班",
     "business_hours.date": "日期",
@@ -122,6 +123,7 @@ export const messages = {
 
 /** 界面文字的消息 ID。 */
 export type MessageId =
+  | "app.web"
   | "business_hours.add_date"
   | "business_hours.closed"
   | "business_hours.date"

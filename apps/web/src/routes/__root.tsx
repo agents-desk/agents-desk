@@ -5,12 +5,13 @@ import { ColorSchemeScript, mantineHtmlProps } from "@mantine/core"
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts, useRouter } from "@tanstack/react-router"
 import { type RouterContext, UIProvider } from "@go-tenon/ui"
 import { IconAddressBook, IconInbox } from "@tabler/icons-react"
+import { i18n } from "../i18n"
 import { theme } from "../theme"
 
 // 根路由：整个 HTML 文档。页面在 <Outlet /> 中。
 export const Route = createRootRouteWithContext<RouterContext>()({
   head: () => ({
-    meta: [{ charSet: "utf-8" }, { name: "viewport", content: "width=device-width, initial-scale=1" }, { title: "agents-desk" }],
+    meta: [{ charSet: "utf-8" }, { name: "viewport", content: "width=device-width, initial-scale=1" }, { title: i18n.t("app.web") }],
   }),
   shellComponent: Document,
   component: Outlet,

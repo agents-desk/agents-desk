@@ -20,7 +20,7 @@ function ChooseTenant() {
   const mine = Route.useLoaderData()
   const t = useT()
   return (
-    <CenteredAuthLayout brand="agents-desk" title={t("choose_tenant.title")}>
+    <CenteredAuthLayout brand={t("app.web")} title={t("choose_tenant.title")}>
       <Stack gap="sm">
         {mine.length === 0 && <Text c="dimmed">{t("choose_tenant.none")}</Text>}
         {mine.map((tn) =>

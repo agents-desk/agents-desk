@@ -18,7 +18,7 @@ function Login() {
   // 在桌面端（Electron 等宿主）中，用户在系统浏览器中登录；在网页中用邮箱和密码登录。
   const desktop = host()
   return (
-    <CenteredAuthLayout brand="agents-desk" title={t("login.title")} description={t("login.description")}>
+    <CenteredAuthLayout brand={t("app.web")} title={t("login.title")} description={t("login.description")}>
       {desktop ? (
         <BrowserSignIn signIn={desktop.auth.signIn} redirect={redirect} />
       ) : (
