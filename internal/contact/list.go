@@ -2,6 +2,7 @@ package contact
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"time"
 
@@ -35,7 +36,7 @@ func (Sort) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r,
 type ListInput struct {
 	page.CursorParams
 	Kind      Kind   `query:"kind" doc:"按联系人类型筛选：user 或 lead；不传为全部"`
-	Q         string `query:"q" maxLength:"100" doc:"按名字、邮箱或外部用户编号搜索"`
+	Q         string `query:"q" maxLength:"100" doc:"按名字、邮箱、外部用户编号或工作区内编号（如 #128）搜索"`
 	Language  string `query:"language" maxLength:"35" doc:"按客户的语言（BCP 47）筛选，传主语言时同时匹配带子标签的写法"`
 	ChannelID string `query:"channel_id" format:"uuid" doc:"只列出在该渠道有身份的联系人"`
 	Sort      Sort   `query:"sort" default:"recent" doc:"排序方式"`
@@ -69,10 +70,15 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) 
 	}
 	if kw := strings.TrimSpace(in.Q); kw != "" {
 		like := "%" + kw + "%"
+		num, hasNum := parseNumberQuery(kw)
 		q = q.WhereGroup(" AND ", func(q *bun.SelectQuery) *bun.SelectQuery {
-			return q.Where("contact.name ILIKE ?", like).
+			q = q.Where("contact.name ILIKE ?", like).
 				WhereOr("contact.email ILIKE ?", like).
 				WhereOr("contact.external_user_id ILIKE ?", like)
+			if hasNum {
+				q = q.WhereOr("contact.number = ?", num)
+			}
+			return q
 		})
 	}
 	if l := strings.TrimSpace(in.Language); l != "" {
@@ -126,6 +132,30 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) 
 	}
 	p := page.NewCursor(items, in.CursorParams, key)
 	return &p, nil
+}
+
+// parseNumberQuery 从搜索关键词中解析联系人编号：支持 "128"、"#128"、"访客 #128"、"Visitor #128" 等常见写法。
+func parseNumberQuery(raw string) (int64, bool) {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return 0, false
+	}
+	lower := strings.ToLower(s)
+	switch {
+	case strings.HasPrefix(lower, "visitor"):
+		s = strings.TrimSpace(s[len("visitor"):])
+	case strings.HasPrefix(s, "访客"):
+		s = strings.TrimSpace(strings.TrimPrefix(s, "访客"))
+	}
+	s = strings.TrimSpace(strings.TrimPrefix(s, "#"))
+	if s == "" {
+		return 0, false
+	}
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil || n <= 0 {
+		return 0, false
+	}
+	return n, true
 }
 
 // HTTP 处理 GET /t/{slug}/api/contacts。

@@ -20,6 +20,8 @@ export interface ContactSummary {
   /** 所在地 */
   location?: string
   name: string
+  /** 联系人在工作区内的递增编号，从 1 开始 */
+  number: number
   /** 联系人上的标签 */
   tags: TagSummary[]
   /** IANA 时区名，用于显示对方的当地时间 */

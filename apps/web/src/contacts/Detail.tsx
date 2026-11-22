@@ -2,7 +2,6 @@ import type { ContactDetailDTO, ContactIdentityDTO, ContactUpdateBody } from "@a
 import {
   ActionIcon,
   Anchor,
-  Avatar,
   Badge,
   Box,
   Button,
@@ -30,6 +29,7 @@ import { LanguageSelect } from "../LanguageSelect"
 import { languageName } from "../languages"
 import { NARROW_QUERY } from "../layout"
 import { allZones, formatLocalTime, offsetOf } from "../timezone"
+import { ContactAvatar, contactDisplayName } from "./display"
 
 /** AUTO 是语言选择器中的“自动识别”。 */
 const AUTO = "auto"
@@ -113,22 +113,28 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
   }
 
   const c = detail.data
-  const displayName = c.name || t("inbox.visitor")
+  const displayName = contactDisplayName(c, t)
   const localTime = formatLocalTime(c.time_zone)
   const subtitle = [c.location, localTime ? t("contacts.local_time", { time: localTime }) : ""].filter(Boolean).join(" · ")
   const editable = can("contacts:update")
+  const showNumberBadge = c.number > 0 && Boolean(c.name.trim() || c.email.trim())
 
   return (
     <Stack gap={0} h="100%" w="100%">
       {/* 顶部人物头：与左侧 52px 基准顶栏严格齐平 */}
       <Group gap="sm" px="md" wrap="nowrap" className="ct-header">
         {narrow && closeButton}
-        <Avatar size={32} name={displayName} color="initials" />
+        <ContactAvatar contact={c} size={32} />
         <Box style={{ minWidth: 0, flex: 1 }}>
           <Group gap={6} wrap="nowrap">
             <Text fw={600} size="sm" truncate>
               {displayName}
             </Text>
+            {showNumberBadge && (
+              <Text size="xs" c="dimmed" style={{ flex: "none", fontVariantNumeric: "tabular-nums" }}>
+                #{c.number}
+              </Text>
+            )}
             <Badge size="xs" variant="light" color={c.kind === "user" ? "bright-blue" : "gray"} style={{ flex: "none" }}>
               {kit.label("ContactKind", c.kind)}
             </Badge>

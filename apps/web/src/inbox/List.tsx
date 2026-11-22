@@ -8,7 +8,6 @@ import type {
 } from "@agents-desk/client/tenant"
 import {
   ActionIcon,
-  Avatar,
   Badge,
   Box,
   Button,
@@ -49,6 +48,7 @@ import {
 import { notifyError, notifySuccess, useCan, useLanguage, useNavControl, useSavedView, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
+import { ContactAvatar, contactDisplayName } from "../contacts/display"
 import { flatten, flattenSearchHits, useConversationList, useConversationSearch, useMe, useMembers, useTeams, useThresholds } from "./data"
 import { useDraft } from "./drafts"
 import { type FillWatcher, useFillVisible } from "./fill"
@@ -781,7 +781,7 @@ function Row({
           <Checkbox checked={selected} readOnly size="xs" tabIndex={-1} style={{ flex: "none" }} />
         ) : (
           <Indicator disabled={!c.unread} color="brand" size={8} offset={2} withBorder style={{ flex: "none" }}>
-            <Avatar size={28} name={name} color="initials" />
+            <ContactAvatar contact={c.contact} size={28} />
           </Indicator>
         )}
         <Box style={{ flex: 1, minWidth: 0 }}>
@@ -853,9 +853,9 @@ function Row({
   )
 }
 
-/** contactName 返回会话对方的名字：联系人没有名字时是“访客”。 */
+/** contactName 返回会话对方的展示名：真实姓名优先，其次邮箱，匿名访客显示“访客 #编号”。 */
 export function contactName(c: ConversationDTO, t: ReturnType<typeof useT>): string {
-  return c.contact?.name || t("inbox.visitor")
+  return contactDisplayName(c.contact, t)
 }
 
 /** BulkBar 是选择模式顶部的批量操作条：支持全选当前列表、指派、关闭与退出（Esc），在 260px 窄栏下不溢出。 */
