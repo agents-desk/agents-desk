@@ -19,6 +19,7 @@ import (
 	"github.com/go-tenon/tenon/command/migratecmd"
 	"github.com/go-tenon/tenon/crypt"
 	"github.com/go-tenon/tenon/database"
+	"github.com/go-tenon/tenon/doctor/doctorcmd"
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/hashing"
 	"github.com/go-tenon/tenon/httpx"
@@ -27,8 +28,11 @@ import (
 	"github.com/go-tenon/tenon/login"
 	"github.com/go-tenon/tenon/natsx"
 	"github.com/go-tenon/tenon/queue"
+	"github.com/go-tenon/tenon/queue/queuecmd"
 	"github.com/go-tenon/tenon/ratelimit/pglimit"
 	"github.com/go-tenon/tenon/schedule"
+	"github.com/go-tenon/tenon/schedule/scheduleapi"
+	"github.com/go-tenon/tenon/schedule/schedulecmd"
 	"github.com/go-tenon/tenon/settings"
 
 	"agents-desk/internal/conversation"
@@ -86,6 +90,9 @@ func main() {
 	// 需要数据库等资源的命令：声明时 App 是零值，执行其中一个命令时才调用 open 装配。
 	root.AddCommand(command.Bind(open, func(a *App) []*cobra.Command {
 		return []*cobra.Command{
+			doctorcmd.New(a.doctor()...),
+			queuecmd.New(a.db, queuecmd.WithJetStream(a.nc, a.cfg.Queue)),
+			schedulecmd.New(a.tasks),
 			platformadmin.Commands(a.db, a.adminLogins),
 			seedCommand(a.db, a.adminLogins, a.memberLogins, a.files, a.crypt, tenant.Addresses{PublicURL: a.cfg.PublicURL}, a.channels, a.downstream()),
 			devCommands(a),
@@ -117,6 +124,7 @@ func migrateCommand() *cobra.Command {
 		settings.Migrations(),
 		activity.Migrations(),
 		queue.Migrations(),
+		scheduleapi.Migrations(),
 		filesystem.Migrations(),
 		pglock.Migrations(),
 	}

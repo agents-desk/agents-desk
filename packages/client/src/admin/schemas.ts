@@ -29,6 +29,84 @@ export const schemas = {
       },
     },
   },
+  queue: {
+    failedDeleteAll: {
+      query: {
+        "properties": {
+          "topic": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+    },
+    failedList: {
+      query: {
+        "properties": {
+          "page": {
+            "default": 1,
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "per_page": {
+            "default": 20,
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "topic": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+    },
+    failedRetryAll: {
+      query: {
+        "properties": {
+          "topic": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+    },
+  },
+  schedule: {
+    runs: {
+      query: {
+        "properties": {
+          "page": {
+            "default": 1,
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "per_page": {
+            "default": 20,
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "succeeded",
+              "failed",
+              "skipped"
+            ],
+            "type": "string"
+          },
+          "task": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+    },
+  },
   tenant: {
     changeOwner: {
       body: {

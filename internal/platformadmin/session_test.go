@@ -17,6 +17,7 @@ import (
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/apptest"
+	"agents-desk/internal/auth"
 	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
 )
@@ -61,7 +62,7 @@ func TestLoginSetsAdminCookieAndMeReturnsPermissions(t *testing.T) {
 	if err := json.Unmarshal(rr.Body.Bytes(), &me); err != nil || rr.Code != http.StatusOK {
 		t.Fatalf("me：status=%d body=%s", rr.Code, rr.Body.String())
 	}
-	if me.Email != "ops@example.com" || len(me.Permissions) != 3 {
+	if me.Email != "ops@example.com" || len(me.Permissions) != len(auth.PlatformAdmin.Permissions) {
 		t.Fatalf("me：%+v", me)
 	}
 }

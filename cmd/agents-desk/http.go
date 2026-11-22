@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-tenon/tenon/command"
 	"github.com/go-tenon/tenon/config"
+	"github.com/go-tenon/tenon/doctor"
 	"github.com/go-tenon/tenon/frontend"
 	"github.com/go-tenon/tenon/health"
 	"github.com/go-tenon/tenon/httpx"
@@ -19,8 +20,11 @@ import (
 	"github.com/go-tenon/tenon/i18n"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/natsx"
+	"github.com/go-tenon/tenon/queue"
+	"github.com/go-tenon/tenon/queue/queueapi"
 	"github.com/go-tenon/tenon/ratelimit"
 	"github.com/go-tenon/tenon/realtime"
+	"github.com/go-tenon/tenon/schedule/scheduleapi"
 
 	"agents-desk/apps"
 	"agents-desk/internal/attribute"
@@ -166,6 +170,23 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		platformadmin.RegisterRoutes(api, require(), a.db, a.adminLogins, a.adminTokens, a.files, a.cfg.Filesystem.MaxUploadSize, a.cfg.AdminToken.Lifetime)
 		tenant.RegisterRoutes(api, require(auth.TenantsRead), require(auth.TenantsManage), a.db, a.memberLogins, addr, memberHooks)
 		llm.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.llmSettings)
+		queueOpts := queueapi.Options{}
+		if a.nc != nil { // docRouter 离线构造路由时没有 NATS 连接
+			queueOpts.Admin = queue.NewAdmin(a.nc, a.cfg.Queue)
+		}
+		queueapi.Register(api, require(auth.QueueManage), a.db, queueOpts)
+		scheduleapi.Register(api, require(auth.SchedulesManage), a.db, a.tasks)
+		doctorOp := huma.Operation{
+			OperationID: "system-doctor",
+			Method:      http.MethodGet,
+			Path:        "/system/doctor",
+			Summary:     "运行环境自检",
+			Tags:        []string{"system"},
+		}
+		require(auth.SystemRead)(&doctorOp)
+		rest.Register(api, doctorOp, func(ctx context.Context, _ *struct{}) (*doctorOutput, error) {
+			return &doctorOutput{Body: doctor.Run(ctx, a.doctor()...)}, nil
+		})
 	})
 
 	// 工作区端的账号级接口：成员的登录、退出、当前账号和所属的工作区。只接受成员，会话 cookie 是 __Host-session，
@@ -236,6 +257,11 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		router.Handle("/*", pages)
 	}
 	return router
+}
+
+// doctorOutput 是运行环境自检接口的响应。
+type doctorOutput struct {
+	Body doctor.DoctorReport
 }
 
 // docRouter 用默认配置和没有打开任何资源的 App 构造路由，openapi、routes、client 命令用它。
