@@ -1,8 +1,9 @@
 import { Anchor, Badge, PasswordInput } from "@mantine/core"
 import { createFileRoute } from "@tanstack/react-router"
-import { type FieldInput, ResourcePage, useCan, useT } from "@go-tenon/ui"
+import { ExportButton, type FieldInput, ResourcePage, useCan, useT } from "@go-tenon/ui"
 import type { TenantDTO } from "@agents-desk/client/admin"
 import { useState } from "react"
+import { api } from "../../api"
 import { ChangeOwnerModal } from "../../change-owner"
 import { tenants } from "../../resources"
 
@@ -24,10 +25,12 @@ const PasswordField: FieldInput = ({ field, label, value, onChange, error, disab
   />
 )
 
-// 工作区的列表、新建和修改按 Go 中的声明渲染；名称链接到工作区的地址，状态显示为带颜色的标签，行上多一个“更换主管理员”。
+// 工作区的列表、新建和修改按 Go 中的声明渲染；名称链接到工作区的地址，状态显示为带颜色的标签，行上多一个“更换主管理员”，
+// 工具栏提供后台异步导出按钮（进度同时同步到顶栏任务中心，完成后推送站内通知）。
 function Tenants() {
   const can = useCan()
   const t = useT()
+  const search = Route.useSearch()
   const [changing, setChanging] = useState<TenantDTO>()
   return (
     <>
@@ -36,6 +39,20 @@ function Tenants() {
         route={Route}
         form="modal"
         inputs={{ owner_password: PasswordField }}
+        toolbar={
+          <ExportButton
+            title={t("tenants.export")}
+            source={{
+              start: () =>
+                api.tenant.exportStart({
+                  format: "xlsx",
+                  name: typeof search.name === "string" ? search.name : undefined,
+                  status: search.status === "active" || search.status === "disabled" ? search.status : undefined,
+                }),
+              progress: (id) => (o) => api.tenant.exportProgress(id, o),
+            }}
+          />
+        }
         render={{
           name: (v, row) => (
             <Anchor href={String(row.url)} target="_blank" rel="noreferrer">

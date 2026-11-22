@@ -27,6 +27,7 @@ import (
 	"github.com/go-tenon/tenon/schedule/scheduleapi"
 
 	"agents-desk/apps"
+	"agents-desk/internal/adminnotify"
 	"agents-desk/internal/attribute"
 	"agents-desk/internal/audit"
 	"agents-desk/internal/auth"
@@ -172,7 +173,9 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		}
 		platformadmin.RegisterRoutes(api, require(), a.db, a.adminLogins, a.adminTokens, a.files, a.cfg.Filesystem.MaxUploadSize, a.cfg.AdminToken.Lifetime)
 		platformadmin.RegisterManageRoutes(api, require(auth.PlatformAdminsManage), a.db, a.adminLogins)
+		adminnotify.RegisterRoutes(api, require(), a.db, a.hub)
 		tenant.RegisterRoutes(api, require(auth.TenantsRead), require(auth.TenantsManage), a.db, a.memberLogins, addr, memberHooks)
+		tenant.RegisterExportRoutes(api, require(auth.TenantsRead), a.db, a.memberLogins, addr, a.exporter, a.hub)
 		platformsettings.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.generalSettings, a.mailSettings)
 		llm.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.llmSettings)
 		flags.RegisterRoutes(api, require(auth.FeaturesManage), a.db, a.features)

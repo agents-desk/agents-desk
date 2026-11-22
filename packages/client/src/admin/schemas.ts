@@ -130,6 +130,29 @@ export const schemas = {
       },
     },
   },
+  notification: {
+    list: {
+      query: {
+        "properties": {
+          "before": {
+            "type": "string"
+          },
+          "limit": {
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+    },
+    read: {
+      body: {
+        "$ref": "#/components/schemas/AdminnotifyReadInputBody"
+      },
+    },
+  },
   queue: {
     failedDeleteAll: {
       query: {
@@ -219,6 +242,11 @@ export const schemas = {
         "$ref": "#/components/schemas/TenantCreateParams"
       },
     },
+    exportStart: {
+      body: {
+        "$ref": "#/components/schemas/TenantExportStartInputBody"
+      },
+    },
     list: {
       query: {
         "properties": {
@@ -291,6 +319,23 @@ export const components = {
     },
     "required": [
       "name"
+    ],
+    "type": "object"
+  },
+  AdminnotifyReadInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 100,
+        "minItems": 1,
+        "type": "array"
+      }
+    },
+    "required": [
+      "ids"
     ],
     "type": "object"
   },
@@ -509,6 +554,26 @@ export const components = {
       "slug",
       "owner_email"
     ],
+    "type": "object"
+  },
+  TenantExportStartInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "format": {
+        "enum": [
+          "xlsx",
+          "csv"
+        ],
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 60,
+        "type": "string"
+      },
+      "status": {
+        "$ref": "#/components/schemas/TenantStatus"
+      }
+    },
     "type": "object"
   },
   TenantOwnerParams: {

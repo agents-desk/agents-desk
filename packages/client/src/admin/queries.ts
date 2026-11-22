@@ -187,6 +187,27 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
           invalidate(context, "mail"),
       }),
     },
+    notification: {
+      /** notification 分组全部查询的 key 前缀。 */
+      key: () => key("notification"),
+      /** GET /notifications */
+      list: (...args: Parameters<Client["notification"]["list"]>) => ({
+        queryKey: key("notification", "list", ...args),
+        queryFn: () => client.notification.list(...args),
+      }),
+      /** POST /notifications/read */
+      read: () => ({
+        mutationFn: (variables: Parameters<Client["notification"]["read"]>[0]) => client.notification.read(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "notification"),
+      }),
+      /** POST /notifications/read-all */
+      readAll: () => ({
+        mutationFn: () => client.notification.readAll(),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "notification"),
+      }),
+    },
     queue: {
       /** queue 分组全部查询的 key 前缀。 */
       key: () => key("queue"),
@@ -295,6 +316,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       /** POST /tenants/{id}/enable */
       enable: () => ({
         mutationFn: (variables: Parameters<Client["tenant"]["enable"]>[0]) => client.tenant.enable(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "tenant"),
+      }),
+      /** POST /tenants/exports */
+      exportStart: () => ({
+        mutationFn: (variables: Parameters<Client["tenant"]["exportStart"]>[0]) => client.tenant.exportStart(variables),
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "tenant"),
       }),

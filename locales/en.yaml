@@ -291,3 +291,8 @@ flags.scope.tenant: "Workspace"
 flags.mode.on: "On"
 flags.mode.off: "Off"
 flags.mode.percent: "Percentage rollout"
+
+notification.tenants.exported.title: "Workspace export completed"
+notification.tenants.exported.body: "Exported {{.processed}} workspace(s). Click to view workspaces."
+notification.tenants.export_failed.title: "Workspace export failed"
+notification.tenants.export_failed.body: "An error occurred while exporting workspaces. Please try again."

@@ -97,6 +97,7 @@ profile.upload: "Upload image"
 profile.upload_failed: "Upload failed"
 
 tenants.change_owner: "Change owner"
+tenants.export: "Export workspaces"
 
 test_account.failed: "Test account sign-in failed. Run go run ./cmd/agents-desk seed first"
 test_account.sign_in: "Sign in with a test account"

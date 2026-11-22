@@ -97,6 +97,7 @@ profile.upload: "上传图片"
 profile.upload_failed: "上传失败"
 
 tenants.change_owner: "更换主管理员"
+tenants.export: "导出工作区"
 
 test_account.failed: "测试账号登录失败，先运行 go run ./cmd/agents-desk seed"
 test_account.sign_in: "用测试账号登录"

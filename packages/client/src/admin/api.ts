@@ -16,6 +16,27 @@ export interface AccountProfileChanges {
   name: string
 }
 
+export interface AdminnotifyBadge {
+  unread: number
+}
+
+export interface AdminnotifyItem {
+  body?: string
+  created_at: string
+  href?: string
+  id: string
+  read: boolean
+  title: string
+}
+
+export interface AdminnotifyListOutputBody {
+  items: AdminnotifyItem[]
+}
+
+export interface AdminnotifyReadInputBody {
+  ids: string[]
+}
+
 export interface AuditItem {
   actor?: string
   created_at: string
@@ -390,6 +411,34 @@ export interface TenantDTO {
   url: string
 }
 
+export interface TenantExportProgress {
+  completed_at?: string
+  created_at: string
+  error?: string
+  error_message?: string
+  expires_at?: string
+  failed: number
+  file_id?: string
+  filename?: string
+  format: string
+  id: string
+  kind: string
+  processed: number
+  status: string
+  total: number
+  updated_at: string
+  url?: string
+}
+
+export interface TenantExportStartInputBody {
+  /** 导出格式，默认 xlsx */
+  format?: "xlsx" | "csv"
+  /** 按名称或 slug 筛选 */
+  name?: string
+  /** 按状态筛选 */
+  status?: TenantStatus
+}
+
 export interface TenantOwnerParams {
   email: string
   /** 这个邮箱还没有成员账号时必填 */
@@ -437,6 +486,18 @@ export type FileUploadForm = {
   file: Blob
 }
 
+/** notification-inbox 推送的事件，按 event 区分。 */
+export type NotificationInboxEvent =
+  | { event: "badge"; data: AdminnotifyBadge; id?: string }
+
+/** notification-list 的参数。 */
+export interface NotificationListInput {
+  /** 上一页最后一条通知的 ID，用于加载更早的通知 */
+  before?: string
+  /** 返回条数，默认 50 */
+  limit?: number
+}
+
 /** queue-failed-delete-all 的参数。 */
 export interface QueueFailedDeleteAllInput {
   /** 只处理这个 topic 的失败任务，为空时处理全部 topic */
@@ -470,6 +531,10 @@ export interface ScheduleRunsInput {
   /** 结果，为空时全部 */
   status?: "succeeded" | "failed" | "skipped"
 }
+
+/** tenant-export-progress 推送的事件，按 event 区分。 */
+export type TenantExportProgressEvent =
+  | { event: "progress"; data: TenantExportProgress; id?: string }
 
 /** tenant-list 的参数。 */
 export interface TenantListInput {
@@ -665,6 +730,37 @@ export function createClient(options: ClientOptions) {
       settingsUpdate: (body: PlatformsettingsMail): Promise<PlatformsettingsMail> =>
         rt.request<PlatformsettingsMail>({ method: "PUT", path: `/settings/mail`, body }),
     },
+    /** operationId 以 notification- 开头的接口。 */
+    notification: {
+      /**
+       * 实时未读通知角标
+       *
+       * GET /notifications/inbox
+       */
+      inbox: (options?: StreamOptions): AsyncGenerator<NotificationInboxEvent> =>
+        rt.stream<NotificationInboxEvent>({ method: "GET", path: `/notifications/inbox` }, options, ["badge"]),
+      /**
+       * 通知列表
+       *
+       * GET /notifications
+       */
+      list: (input: NotificationListInput = {}): Promise<AdminnotifyListOutputBody> =>
+        rt.request<AdminnotifyListOutputBody>({ method: "GET", path: `/notifications`, query: { "before": input["before"], "limit": input["limit"] } }),
+      /**
+       * 标记通知已读
+       *
+       * POST /notifications/read
+       */
+      read: (body: AdminnotifyReadInputBody): Promise<void> =>
+        rt.request<void>({ method: "POST", path: `/notifications/read`, body }),
+      /**
+       * 全部标记已读
+       *
+       * POST /notifications/read-all
+       */
+      readAll: (): Promise<void> =>
+        rt.request<void>({ method: "POST", path: `/notifications/read-all` }),
+    },
     /** operationId 以 queue- 开头的接口。 */
     queue: {
       /**
@@ -795,6 +891,20 @@ export function createClient(options: ClientOptions) {
        */
       enable: (id: string): Promise<TenantDTO> =>
         rt.request<TenantDTO>({ method: "POST", path: `/tenants/${encodeURIComponent(id)}/enable` }),
+      /**
+       * 工作区导出进度
+       *
+       * GET /tenants/exports/{id}/progress
+       */
+      exportProgress: (id: string, options?: StreamOptions): AsyncGenerator<TenantExportProgressEvent> =>
+        rt.stream<TenantExportProgressEvent>({ method: "GET", path: `/tenants/exports/${encodeURIComponent(id)}/progress` }, options, ["progress"]),
+      /**
+       * 发起工作区后台导出
+       *
+       * POST /tenants/exports
+       */
+      exportStart: (body: TenantExportStartInputBody): Promise<TenantExportProgress> =>
+        rt.request<TenantExportProgress>({ method: "POST", path: `/tenants/exports`, body }),
       /**
        * 读取工作区
        *
