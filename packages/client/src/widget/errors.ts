@@ -83,6 +83,14 @@ export const ConversationErrors = {
   NotFailed: "conversation.not_failed",
 } as const
 
+/** agents-desk/internal/flags 的错误码。 */
+export const FlagsErrors = {
+  /** ErrNotFound 表示请求的开关不在代码声明的目录中。 */
+  NotFound: "flags.not_found",
+  /** ErrTenantRequired 表示作用域为 tenant 时缺少有效的 tenant_id。 */
+  TenantRequired: "flags.tenant_required",
+} as const
+
 /** agents-desk/internal/hours 的错误码。 */
 export const HoursErrors = {
   /** ErrInvalidTimeZone 是不认识的时区名。 */
@@ -123,6 +131,14 @@ export const PlatformadminErrors = {
   Disabled: "platform_admin.disabled",
   Self: "platform_admin.self",
   EmailTaken: "platform_admin.email_taken",
+} as const
+
+/** agents-desk/internal/platformsettings 的错误码。 */
+export const PlatformsettingsErrors = {
+  /** ErrInvalidEmail 表示填写的邮箱格式不正确。 */
+  InvalidEmail: "platform_settings.invalid_email",
+  /** ErrRequiredField 表示启用 Resend 时必填项未填写。 */
+  RequiredField: "platform_settings.required_field",
 } as const
 
 /** agents-desk/internal/role 的错误码。 */
@@ -232,6 +248,12 @@ export const DatabaseErrors = {
 export const DoctorErrors = {
   /** ErrFailed 是 DoctorReport.Err 和 Require 返回的错误的模板，分类为 Unavailable，命令以 ExitUnavailable 退出。 */
   Failed: "doctor.failed",
+} as const
+
+/** github.com/go-tenon/tenon/feature 的错误码。 */
+export const FeatureErrors = {
+  /** ErrInvalid 表示设置不合法，例如开关不在目录中、给租户或主体设置比例、比例不在 0 到 100 之间。 */
+  Invalid: "feature.invalid",
 } as const
 
 /** github.com/go-tenon/tenon/filesystem 的错误码。 */

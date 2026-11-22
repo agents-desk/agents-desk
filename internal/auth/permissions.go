@@ -20,6 +20,7 @@ const (
 	TenantsManage          Permission = "tenants:manage"           // 平台：创建、修改、停用租户，更换主管理员
 	PlatformAdminsManage   Permission = "platform-admins:manage"   // 平台：查看、创建、修改、停用、启用平台管理员
 	PlatformSettingsManage Permission = "platform-settings:manage" // 平台：修改平台设置
+	FeaturesManage         Permission = "features:manage"          // 平台：管理功能开关与灰度放量
 	QueueManage            Permission = "queue:manage"             // 平台：查看队列状态、重试/删除失败任务、暂停/恢复 topic
 	SchedulesManage        Permission = "schedules:manage"         // 平台：查看定时任务与执行记录、立即执行任务
 	SystemRead             Permission = "system:read"              // 平台：查看运行环境自检报告
@@ -42,7 +43,7 @@ const (
 
 // Permissions 是全部权限，显示文字是翻译文件中 permission.<权限> 的消息。
 var Permissions = enum.New("permission", TenantsRead, TenantsManage, PlatformAdminsManage, PlatformSettingsManage,
-	QueueManage, SchedulesManage, SystemRead, AuditRead,
+	FeaturesManage, QueueManage, SchedulesManage, SystemRead, AuditRead,
 	MembersRead, MembersManage, TenantSettingsManage, TeamsRead, TeamsManage, ChannelsManage,
 	ConversationsRead, ConversationsReply, ConversationsAssign, ConversationsReadAll, ConversationsReadTeam,
 	ContactsRead, ContactsUpdate)
@@ -56,6 +57,7 @@ var Catalog = authz.Catalog{
 	{Name: string(TenantsManage), Description: "管理工作区"},
 	{Name: string(PlatformAdminsManage), Description: "管理平台管理员"},
 	{Name: string(PlatformSettingsManage), Description: "修改平台设置"},
+	{Name: string(FeaturesManage), Description: "管理功能开关"},
 	{Name: string(QueueManage), Description: "管理队列"},
 	{Name: string(SchedulesManage), Description: "管理定时任务"},
 	{Name: string(SystemRead), Description: "查看系统自检"},

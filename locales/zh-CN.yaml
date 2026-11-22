@@ -77,6 +77,7 @@ tenant.status.disabled: 已停用
 "permission.tenants:manage": 管理工作区
 "permission.platform-admins:manage": 管理平台管理员
 "permission.platform-settings:manage": 修改平台设置
+"permission.features:manage": 管理功能开关
 "permission.queue:manage": 管理队列
 "permission.schedules:manage": 管理定时任务
 "permission.system:read": 查看系统自检
@@ -263,3 +264,30 @@ activity.tenant.disabled: "停用了工作区「{{.name}}」"
 activity.tenant.enabled: "启用了工作区「{{.name}}」"
 activity.tenant.owner_changed: "更换了工作区「{{.name}}」的主管理员"
 activity.platform_settings.changed: "更新了平台设置（{{.call_type}}）"
+activity.platform_settings.general_updated: "更新了平台常规设置（{{.changed}}）"
+activity.platform_settings.mail_updated: "更新了邮件服务设置（{{.changed}}）"
+activity.feature.changed: "更新了功能开关「{{.name}}」（{{.scope}}：{{.mode}}）"
+activity.feature.cleared: "清除了功能开关「{{.name}}」的设置（{{.scope}}）"
+
+platform_settings.invalid_email: 请输入有效的邮箱地址
+platform_settings.required_field: 启用 Resend 发信时此项不能为空
+platform_settings.language.zh-CN: 简体中文
+platform_settings.language.en: English
+
+general.title: 常规设置
+general.fields.site_name: 平台名称
+general.fields.support_email: 支持联系邮箱
+general.fields.default_language: 默认界面语言
+
+mail.title: 邮件服务（Resend）
+mail.fields.from_name: 发件人名称
+mail.fields.from_email: 发件人邮箱
+mail.fields.api_key: Resend API Key
+
+flags.not_found: 功能开关不存在
+flags.tenant_required: 请选择一个工作区
+flags.scope.everyone: 全员
+flags.scope.tenant: 工作区
+flags.mode.on: 开启
+flags.mode.off: 关闭
+flags.mode.percent: 按比例放量

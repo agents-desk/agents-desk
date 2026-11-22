@@ -11,6 +11,7 @@ export const permissions = {
   "conversations:read-all": "可以看到全部会话",
   "conversations:read-team": "可以看到所在团队收件箱的会话",
   "conversations:reply": "回复会话",
+  "features:manage": "管理功能开关",
   "members:manage": "管理成员和角色",
   "members:read": "查看成员",
   "platform-admins:manage": "管理平台管理员",
@@ -41,9 +42,22 @@ export const required = {
   audit: {
     list: ["audit:read"],
   },
+  feature: {
+    clear: ["features:manage"],
+    list: ["features:manage"],
+    set: ["features:manage"],
+  },
+  general: {
+    settingsGet: ["platform-settings:manage"],
+    settingsUpdate: ["platform-settings:manage"],
+  },
   llm: {
     endpointSave: ["platform-settings:manage"],
     settingsGet: ["platform-settings:manage"],
+  },
+  mail: {
+    settingsGet: ["platform-settings:manage"],
+    settingsUpdate: ["platform-settings:manage"],
   },
   queue: {
     failedDelete: ["queue:manage"],

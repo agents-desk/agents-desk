@@ -33,10 +33,12 @@ import (
 	"agents-desk/internal/automation"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
+	"agents-desk/internal/flags"
 	"agents-desk/internal/hours"
 	"agents-desk/internal/llm"
 	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
+	"agents-desk/internal/platformsettings"
 	"agents-desk/internal/push"
 	"agents-desk/internal/role"
 	"agents-desk/internal/tag"
@@ -171,7 +173,9 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		platformadmin.RegisterRoutes(api, require(), a.db, a.adminLogins, a.adminTokens, a.files, a.cfg.Filesystem.MaxUploadSize, a.cfg.AdminToken.Lifetime)
 		platformadmin.RegisterManageRoutes(api, require(auth.PlatformAdminsManage), a.db, a.adminLogins)
 		tenant.RegisterRoutes(api, require(auth.TenantsRead), require(auth.TenantsManage), a.db, a.memberLogins, addr, memberHooks)
+		platformsettings.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.generalSettings, a.mailSettings)
 		llm.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.llmSettings)
+		flags.RegisterRoutes(api, require(auth.FeaturesManage), a.db, a.features)
 		audit.RegisterRoutes(api, require(auth.AuditRead), a.db)
 		queueOpts := queueapi.Options{}
 		if a.nc != nil { // docRouter 离线构造路由时没有 NATS 连接

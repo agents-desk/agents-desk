@@ -20,6 +20,7 @@ import (
 	"github.com/go-tenon/tenon/crypt"
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/doctor/doctorcmd"
+	"github.com/go-tenon/tenon/feature"
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/hashing"
 	"github.com/go-tenon/tenon/httpx"
@@ -122,6 +123,7 @@ func migrateCommand() *cobra.Command {
 		apitoken.Migrations(),
 		authz.Migrations(),
 		settings.Migrations(),
+		feature.Migrations(),
 		activity.Migrations(),
 		queue.Migrations(),
 		scheduleapi.Migrations(),

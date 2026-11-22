@@ -10,7 +10,7 @@ export const Route = createFileRoute("/_app/ops/audit")({
   component: AuditLog,
 })
 
-type TargetFilter = "" | "tenant" | "platform_admin" | "settings"
+type TargetFilter = "" | "tenant" | "platform_admin" | "settings" | "feature"
 
 function AuditLog() {
   const t = useT()
@@ -27,6 +27,7 @@ function AuditLog() {
             { value: "tenant", label: t("audit.filter.tenant") },
             { value: "platform_admin", label: t("audit.filter.platform_admin") },
             { value: "settings", label: t("audit.filter.settings") },
+            { value: "feature", label: t("audit.filter.feature") },
           ]}
           w="fit-content"
         />

@@ -8,4 +8,44 @@
  * descriptions 是字段的说明，显示在输入框下面。
  */
 export const settings = {
+  general: {
+    name: "general",
+    operations: { get: ["general", "settingsGet"], update: ["general", "settingsUpdate"] },
+    permissions: { get: ["platform-settings:manage"], update: ["platform-settings:manage"] },
+    form: [
+      { name: "site_name", type: "string", required: true },
+      { name: "support_email", type: "string", required: true },
+      { name: "default_language", type: "string", enum: "PlatformSettingsLanguage", required: true },
+    ],
+    labels: {
+      "en": {
+        title: "General",
+        fields: { site_name: "Platform name", support_email: "Support email", default_language: "Default language" },
+      },
+      "zh-CN": {
+        title: "常规设置",
+        fields: { site_name: "平台名称", support_email: "支持联系邮箱", default_language: "默认界面语言" },
+      },
+    },
+  },
+  mail: {
+    name: "mail",
+    operations: { get: ["mail", "settingsGet"], update: ["mail", "settingsUpdate"] },
+    permissions: { get: ["platform-settings:manage"], update: ["platform-settings:manage"] },
+    form: [
+      { name: "from_name", type: "string", required: true },
+      { name: "from_email", type: "string", required: true },
+      { name: "api_key", type: "string", required: true },
+    ],
+    labels: {
+      "en": {
+        title: "Mail (Resend)",
+        fields: { from_name: "From name", from_email: "From email", api_key: "Resend API Key" },
+      },
+      "zh-CN": {
+        title: "邮件服务（Resend）",
+        fields: { from_name: "发件人名称", from_email: "发件人邮箱", api_key: "Resend API Key" },
+      },
+    },
+  },
 } as const

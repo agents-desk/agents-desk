@@ -20,6 +20,7 @@ import (
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/database/migrate"
 	"github.com/go-tenon/tenon/doctor"
+	"github.com/go-tenon/tenon/feature"
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/filesystem/local"
 	"github.com/go-tenon/tenon/filesystem/s3"
@@ -42,9 +43,11 @@ import (
 	"agents-desk/internal/automation"
 	"agents-desk/internal/channel"
 	"agents-desk/internal/conversation"
+	"agents-desk/internal/flags"
 	"agents-desk/internal/llm"
 	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
+	"agents-desk/internal/platformsettings"
 	"agents-desk/internal/translation"
 	"agents-desk/internal/widget"
 	"agents-desk/migrations"
@@ -67,9 +70,12 @@ type App struct {
 	contactTokens *apitoken.Store // 客户（联系人）在聊天插件中的令牌
 	crypt         *crypt.Crypt    // 应用密钥：加密保存聊天插件的身份验证密钥
 
-	llmSettings         *settings.Group[llm.Settings]         // 模型接口的平台设置
-	translationSettings *settings.Group[translation.Settings] // 各工作区的翻译设置：语气、术语表
-	translator          *translation.Translator               // 调用模型识别语言和翻译
+	generalSettings     *settings.Group[platformsettings.General] // 平台常规设置
+	mailSettings        *settings.Group[platformsettings.Mail]    // 平台邮件服务设置
+	llmSettings         *settings.Group[llm.Settings]             // 模型接口的平台设置
+	translationSettings *settings.Group[translation.Settings]     // 各工作区的翻译设置：语气、术语表
+	features            *feature.Store                            // 平台功能开关与灰度规则
+	translator          *translation.Translator                   // 调用模型识别语言和翻译
 
 	files       *filesystem.Service // 上传的文件：头像等
 	defaultDisk filesystem.Disk     // 默认文件存储磁盘，用于运行环境自检
@@ -165,14 +171,17 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	generalSettings, mailSettings := platformsettings.NewGeneralGroup(db), platformsettings.NewMailGroup(db)
 	llmSettings, translationSettings := llm.NewGroup(db), translation.NewGroup(db)
+	featureStore := flags.NewStore(db)
 
 	return &App{
 		cfg: cfg, db: db, nc: nc, hub: hub, presence: presence, roles: roles,
 		adminLogins: adminLogins, adminTokens: apitoken.NewStore(db, cfg.AdminToken),
 		memberLogins: memberLogins, memberTokens: apitoken.NewStore(db, cfg.MemberToken),
 		contactTokens: apitoken.NewStore(db, cfg.ContactToken), crypt: keys,
-		llmSettings: llmSettings, translationSettings: translationSettings,
+		generalSettings: generalSettings, mailSettings: mailSettings,
+		llmSettings: llmSettings, translationSettings: translationSettings, features: featureStore,
 		translator: translation.NewTranslator(db, llm.NewClient(db, llmSettings, &http.Client{Timeout: 60 * time.Second}), translationSettings),
 		files:      files, defaultDisk: disks[cfg.Filesystem.DefaultDisk], localDisk: localDisk, locker: lock.New(pglock.New(db)),
 		channels: registry(hub),

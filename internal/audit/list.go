@@ -24,7 +24,7 @@ import (
 // ListInput 是平台操作日志的查询参数。
 type ListInput struct {
 	Before     string `query:"before" doc:"上一页最后一条记录的 ID，用于加载更早的记录"`
-	TargetType string `query:"target_type" enum:",tenant,platform_admin,settings" doc:"按对象类型筛选；为空时返回全部"`
+	TargetType string `query:"target_type" enum:",tenant,platform_admin,settings,feature" doc:"按对象类型筛选；为空时返回全部"`
 	Limit      int    `query:"limit" minimum:"1" maximum:"100" doc:"返回条数，默认 50"`
 }
 
@@ -230,11 +230,17 @@ func targetHref(targetType, targetID string) string {
 		return "/tenants"
 	case string(platformadmin.Type):
 		return "/admins"
+	case "feature":
+		return "/settings/features"
 	case "settings":
-		if targetID == "llm" {
+		switch targetID {
+		case "llm":
 			return "/settings/model"
+		case "general", "mail":
+			return "/settings/general"
+		default:
+			return "/settings"
 		}
-		return "/settings"
 	default:
 		return ""
 	}

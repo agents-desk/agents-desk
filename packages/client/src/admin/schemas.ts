@@ -62,7 +62,8 @@ export const schemas = {
               "",
               "tenant",
               "platform_admin",
-              "settings"
+              "settings",
+              "feature"
             ],
             "type": "string"
           }
@@ -88,10 +89,44 @@ export const schemas = {
       },
     },
   },
+  feature: {
+    clear: {
+      query: {
+        "properties": {
+          "scope": {
+            "$ref": "#/components/schemas/FlagsScope"
+          },
+          "tenant_id": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+    },
+    set: {
+      body: {
+        "$ref": "#/components/schemas/FlagsSetInputBody"
+      },
+    },
+  },
+  general: {
+    settingsUpdate: {
+      body: {
+        "$ref": "#/components/schemas/PlatformsettingsGeneral"
+      },
+    },
+  },
   llm: {
     endpointSave: {
       body: {
         "$ref": "#/components/schemas/LlmEndpoint"
+      },
+    },
+  },
+  mail: {
+    settingsUpdate: {
+      body: {
+        "$ref": "#/components/schemas/PlatformsettingsMail"
       },
     },
   },
@@ -259,6 +294,46 @@ export const components = {
     ],
     "type": "object"
   },
+  FlagsMode: {
+    "enum": [
+      "on",
+      "off",
+      "percent"
+    ],
+    "type": "string"
+  },
+  FlagsScope: {
+    "enum": [
+      "everyone",
+      "tenant"
+    ],
+    "type": "string"
+  },
+  FlagsSetInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "mode": {
+        "$ref": "#/components/schemas/FlagsMode"
+      },
+      "percent": {
+        "format": "int64",
+        "maximum": 100,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "scope": {
+        "$ref": "#/components/schemas/FlagsScope"
+      },
+      "tenant_id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "scope",
+      "mode"
+    ],
+    "type": "object"
+  },
   LlmEndpoint: {
     "additionalProperties": false,
     "properties": {
@@ -287,6 +362,13 @@ export const components = {
     "enum": [
       "active",
       "disabled"
+    ],
+    "type": "string"
+  },
+  PlatformSettingsLanguage: {
+    "enum": [
+      "zh-CN",
+      "en"
     ],
     "type": "string"
   },
@@ -347,6 +429,52 @@ export const components = {
     },
     "required": [
       "name"
+    ],
+    "type": "object"
+  },
+  PlatformsettingsGeneral: {
+    "additionalProperties": false,
+    "properties": {
+      "default_language": {
+        "$ref": "#/components/schemas/PlatformSettingsLanguage"
+      },
+      "site_name": {
+        "maxLength": 60,
+        "minLength": 1,
+        "type": "string"
+      },
+      "support_email": {
+        "maxLength": 120,
+        "type": "string"
+      }
+    },
+    "required": [
+      "site_name",
+      "support_email",
+      "default_language"
+    ],
+    "type": "object"
+  },
+  PlatformsettingsMail: {
+    "additionalProperties": false,
+    "properties": {
+      "api_key": {
+        "maxLength": 256,
+        "type": "string"
+      },
+      "from_email": {
+        "maxLength": 120,
+        "type": "string"
+      },
+      "from_name": {
+        "maxLength": 80,
+        "type": "string"
+      }
+    },
+    "required": [
+      "from_name",
+      "from_email",
+      "api_key"
     ],
     "type": "object"
   },
