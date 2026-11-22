@@ -28,10 +28,9 @@
   min-height: 0;
 }
 
-.cmd-palette .mantine-Spotlight-search {
-  height: 48px;
+/* 保留 Mantine Input 的左右图标内边距计算，只调整输入框字号，避免搜索图标与输入文字重叠 */
+.cmd-palette .mantine-Spotlight-search.mantine-Input-input {
   font-size: var(--mantine-font-size-sm);
-  padding-inline: 14px;
 }
 
 /* 列表区域填满搜索框与底栏之间的剩余空间并内部滚动 */

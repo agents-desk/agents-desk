@@ -194,7 +194,10 @@ export function CommandPalette({ slug }: { slug: string }): ReactNode {
       maxHeight={440}
     >
       <Spotlight.Search
+        size="lg"
         leftSection={<IconSearch size={16} stroke={1.6} />}
+        leftSectionWidth={46}
+        rightSectionWidth={44}
         rightSection={
           remotePending ? (
             <Loader size={14} />
