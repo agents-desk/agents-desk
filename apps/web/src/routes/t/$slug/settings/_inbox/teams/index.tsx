@@ -1,10 +1,9 @@
-import { Anchor, Radio, Stack } from "@mantine/core"
+import { Anchor, Badge, Radio, Stack } from "@mantine/core"
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { type FieldInput, ResourcePage } from "@go-tenon/ui"
 import { teams } from "../../../../../../resources"
 
-// 团队收件箱：有 teams:manage 权限的成员新建、修改、删除团队收件箱；点名称进入团队收件箱，管理它的成员。
-// 还有没关闭的会话、或者是渠道的默认团队收件箱时不能删除。
+// 团队收件箱：有 teams:manage 权限的成员新建、修改、停用/启用和删除空的团队收件箱；点名称进入团队收件箱，管理它的成员和工作时间。
 export const Route = createFileRoute("/t/$slug/settings/_inbox/teams/")({
   validateSearch: teams.listSearch,
   component: Teams,
@@ -36,6 +35,11 @@ function Teams() {
           >
             {String(v)}
           </Anchor>
+        ),
+        status: (v) => (
+          <Badge variant="light" color={v === "active" ? "green" : "gray"}>
+            {String(teams.display("status", v))}
+          </Badge>
         ),
       }}
     />

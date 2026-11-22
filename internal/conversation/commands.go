@@ -51,7 +51,14 @@ func Commands(db *bun.DB, registry channel.Registry, down Downstream) *cobra.Com
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "已写入会话 %s 的第 %d 项\n", res.ConversationID, res.Item.Seq)
+			switch {
+			case res.Created:
+				fmt.Fprintf(cmd.OutOrStdout(), "已新建会话 %s（第 %d 项）\n", res.ConversationID, res.Item.Seq)
+			case res.Reopened:
+				fmt.Fprintf(cmd.OutOrStdout(), "已重新打开会话 %s（第 %d 项）\n", res.ConversationID, res.Item.Seq)
+			default:
+				fmt.Fprintf(cmd.OutOrStdout(), "已写入会话 %s 的第 %d 项\n", res.ConversationID, res.Item.Seq)
+			}
 			return nil
 		},
 	}

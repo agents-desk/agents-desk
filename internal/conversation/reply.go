@@ -57,19 +57,29 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 		if err != nil {
 			return err
 		}
+		at := now()
 		actor := actorOf(sub)
 		content := Content{Text: body.Text}
 		if body.Translation != nil {
 			content = Content{Text: body.Translation.Text, Original: body.Text, Language: body.Translation.Language}
 		}
 		item = Item{Kind: Message, ActorType: actor, ActorID: sub.ID, Visibility: Everyone, Content: content, ChannelID: c.ChannelID}
-		items := []*Item{&item}
+		items := make([]*Item, 0, 3)
+		// 回复已关闭或稍后处理的会话时自动恢复打开，保证轮次与状态机自洽
+		switch c.Status {
+		case Closed:
+			items = append(items, event(sub, "conversation.reopened", map[string]any{"from": string(Closed)}))
+			c.Status, c.SnoozedUntil, c.OpenedAt, c.FirstReplyAt = Open, nil, at, nil
+		case Snoozed:
+			items = append(items, event(sub, "conversation.unsnoozed", map[string]any{"from": string(Snoozed)}))
+			c.Status, c.SnoozedUntil = Open, nil
+		}
 		// 回复即领取：成员回复没有负责人的会话时，会话归他，团队收件箱不变
 		if actor == MemberActor && c.AssigneeType == "" {
 			c.AssigneeType, c.AssigneeID = MemberActor, sub.ID
-			items = append([]*Item{assignedEvent(sub, c, c.TeamID, "", "", ReasonReply)}, items...)
+			items = append(items, assignedEvent(sub, c, c.TeamID, "", "", ReasonReply))
 		}
-		at := now()
+		items = append(items, &item)
 		c.WaitingSince, c.LastMessageAt = nil, at
 		if c.FirstReplyAt == nil {
 			c.FirstReplyAt = &at

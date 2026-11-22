@@ -23,7 +23,7 @@ export function AssignMenu({ c, compact }: { c: ConversationDTO; compact?: boole
   const can = useCan()
   const me = useMe()
   const { list: members } = useMembers()
-  const teams = useTeams()
+  const teams = useTeams().filter((x) => x.status === "active")
   const invalidate = useInvalidate()
   const assign = useMutation({
     mutationFn: (body: { assignee_id?: string; team_id?: string }) => tenantApi.conversation.assign(c.id, body),

@@ -125,17 +125,17 @@ func TestReopen(t *testing.T) {
 	f := setup(t, env, "alpha")
 
 	first := f.receive(t, "priya", "withdrawal pending", "")
-	if _, err := env.DB.NewRaw("UPDATE conversations SET status = 'closed' WHERE id = ?", first.ConversationID).Exec(ctx); err != nil {
+	if _, err := conversation.NewClose(env.DB, f.down).Handle(ctx, f.agent, first.ConversationID); err != nil {
 		t.Fatal(err)
 	}
 	next := f.receive(t, "priya", "still pending", "")
-	if next.ConversationID != first.ConversationID || next.Item.Seq != 3 {
+	if next.ConversationID != first.ConversationID || next.Item.Seq != 4 {
 		t.Fatalf("重新打开：%+v", next)
 	}
 	if c := f.get(t, first.ConversationID); c.Status != conversation.Open {
 		t.Fatalf("状态：%s", c.Status)
 	}
-	items, err := conversation.NewTimeline(env.DB).Handle(ctx, f.agent, first.ConversationID, 1, 100)
+	items, err := conversation.NewTimeline(env.DB).Handle(ctx, f.agent, first.ConversationID, 2, 100)
 	if err != nil || len(items) != 2 || items[0].Kind != conversation.Event || items[0].Content.Event != "conversation.reopened" ||
 		items[0].Visibility != conversation.MembersOnly {
 		t.Fatalf("时间线：%+v %v", items, err)

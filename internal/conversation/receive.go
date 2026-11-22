@@ -3,6 +3,7 @@ package conversation
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
@@ -28,6 +29,8 @@ type ReceiveParams struct {
 type Received struct {
 	ConversationID string
 	Item           ItemDTO
+	Created        bool // 新建了会话
+	Reopened       bool // 重新打开了已关闭的会话
 	Duplicate      bool // 这条消息之前已经收到过，这次没有写入
 }
 
@@ -81,7 +84,8 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 		if sub.Type == contact.Type && person.ID != sub.ID {
 			return ErrForbidden.New()
 		}
-		c, opened, err := a.conversationFor(ctx, tx, ch, person, p, connector.Capabilities().MultipleConversations)
+		at := now()
+		c, created, opened, err := a.conversationFor(ctx, tx, ch, person, p, connector.Capabilities().MultipleConversations, at)
 		if err != nil {
 			return err
 		}
@@ -91,6 +95,9 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 				Kind: Event, ActorType: SystemActor, Visibility: MembersOnly,
 				Content: Content{Event: opened, Data: map[string]any{"from": string(c.Status)}},
 			})
+			if c.Status == Closed {
+				c.OpenedAt, c.FirstReplyAt = at, nil
+			}
 			c.Status, c.SnoozedUntil = Open, nil
 		}
 		msg := &Item{
@@ -116,7 +123,6 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 			}
 		}
 		items = append(items, auto...)
-		at := now()
 		if err := contact.TouchSeen(ctx, tx, sub.Tenant, person.ID, at); err != nil {
 			return err
 		}
@@ -131,7 +137,7 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 		if err != nil {
 			return err
 		}
-		res = Received{ConversationID: c.ID, Item: dtos[0]}
+		res = Received{ConversationID: c.ID, Item: dtos[0], Created: created, Reopened: opened == "conversation.reopened"}
 		return nil
 	})
 	if database.IsUniqueViolation(err, "timeline_items_external") {
@@ -169,46 +175,68 @@ func (a *Receive) previous(ctx context.Context, sub identity.Subject, p ReceiveP
 	return &Received{ConversationID: it.ConversationID, Item: dtos[0], Duplicate: true}, nil
 }
 
-// conversationFor 在事务 tx 中找到消息要归入的会话并锁住它，没有时新建。会话原来是已关闭或稍后处理时，
-// opened 是要追加的系统事件名称（conversation.reopened 或 conversation.unsnoozed）。
-func (a *Receive) conversationFor(ctx context.Context, tx bun.IDB, ch *channel.Channel, person *contact.Contact, p ReceiveParams, multiple bool) (c *Conversation, opened string, err error) {
+// conversationFor 在事务 tx 中找到消息要归入的会话并锁住它，没有时新建。
+// 只有一个聊天窗口的渠道（!multiple）：最近的会话已关闭时，若在工作区的重开窗口内则重新打开它，超过重开窗口则新建会话。
+// 会话原来是已关闭或稍后处理时，opened 是要追加的系统事件名称（conversation.reopened 或 conversation.unsnoozed）。
+func (a *Receive) conversationFor(ctx context.Context, tx bun.IDB, ch *channel.Channel, person *contact.Contact, p ReceiveParams, multiple bool, at time.Time) (c *Conversation, created bool, opened string, err error) {
 	switch {
 	case multiple && p.ConversationID != "":
 		c, err = find(ctx, tx, ch.TenantID, p.ConversationID, true)
 		if err != nil {
-			return nil, "", err
+			return nil, false, "", err
 		}
 		if c.ContactID == nil || *c.ContactID != person.ID || c.ChannelID == nil || *c.ChannelID != ch.ID {
-			return nil, "", ErrNotFound.New()
+			return nil, false, "", ErrNotFound.New()
 		}
 	case !multiple:
 		c = new(Conversation)
 		err = tx.NewSelect().Model(c).Where("tenant_id = ? AND contact_id = ? AND channel_id = ?", ch.TenantID, person.ID, ch.ID).
-			OrderExpr("last_message_at DESC").Limit(1).For("UPDATE").Scan(ctx)
+			OrderExpr("last_message_at DESC, id DESC").Limit(1).For("UPDATE").Scan(ctx)
 		if errors.Is(err, sql.ErrNoRows) {
 			c = nil
 		} else if err != nil {
-			return nil, "", errors.Wrap(err, "load latest conversation")
+			return nil, false, "", errors.Wrap(err, "load latest conversation")
+		}
+		if c != nil && c.Status == Closed {
+			var hours int
+			if err := tx.NewSelect().Table("tenants").Column("reopen_window_hours").Where("id = ?", ch.TenantID).Scan(ctx, &hours); err != nil {
+				return nil, false, "", errors.Wrap(err, "load tenant reopen window")
+			}
+			window := time.Duration(hours) * time.Hour
+			if window <= 0 || c.ClosedAt == nil || at.Sub(*c.ClosedAt) > window {
+				c = nil
+			}
 		}
 	}
 	if c == nil {
-		c, err = start(ctx, tx, ch, person)
-		return c, "", err
+		c, err = start(ctx, tx, ch, person, at)
+		return c, err == nil, "", err
 	}
 	switch c.Status {
 	case Closed:
-		return c, "conversation.reopened", nil
+		return c, false, "conversation.reopened", nil
 	case Snoozed:
-		return c, "conversation.unsnoozed", nil
+		return c, false, "conversation.unsnoozed", nil
 	}
-	return c, "", nil
+	return c, false, "", nil
 }
 
-// start 在事务 tx 中为联系人 person 在渠道 ch 上新建一个打开的服务型会话，进入渠道的默认团队收件箱，联系人是参与者。
-func start(ctx context.Context, tx bun.IDB, ch *channel.Channel, person *contact.Contact) (*Conversation, error) {
+// start 在事务 tx 中为联系人 person 在渠道 ch 上新建一个打开的服务型会话，进入渠道未停用的默认团队收件箱，联系人是参与者。
+func start(ctx context.Context, tx bun.IDB, ch *channel.Channel, person *contact.Contact, at time.Time) (*Conversation, error) {
+	teamID := ch.TeamID
+	if teamID != nil {
+		active, err := tx.NewSelect().Table("teams").
+			Where("id = ? AND tenant_id = ? AND disabled_at IS NULL", *teamID, ch.TenantID).Exists(ctx)
+		if err != nil {
+			return nil, errors.Wrap(err, "check default team")
+		}
+		if !active {
+			teamID = nil
+		}
+	}
 	c := &Conversation{
-		ID: newID(), TenantID: ch.TenantID, Kind: Service, ChannelID: &ch.ID, ContactID: &person.ID, TeamID: ch.TeamID,
-		Status: Open, Priority: Normal, Language: person.Language, LastMessageAt: now(), Attributes: map[string]any{},
+		ID: newID(), TenantID: ch.TenantID, Kind: Service, ChannelID: &ch.ID, ContactID: &person.ID, TeamID: teamID,
+		Status: Open, Priority: Normal, Language: person.Language, OpenedAt: at, LastMessageAt: at, Attributes: map[string]any{},
 	}
 	if _, err := tx.NewInsert().Model(c).Exec(ctx); err != nil {
 		return nil, errors.Wrap(err, "insert conversation")

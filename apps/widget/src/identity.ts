@@ -59,11 +59,20 @@ function readSession(): Session | null {
   }
 }
 
+/** hasStoredIdentity 报告浏览器中是否已保存访客编号或会话：有表示回头访客或已登录会话，收起态也应恢复以展示未读数。 */
+function hasStoredIdentity(): boolean {
+  return load("visitor") !== null || readSession() !== null
+}
+
 /**
- * createIdentity 返回客户身份的存储：start 按初始的用户身份建立或复用会话，login、logout 在产品网站登录、退出后切换，
- * renew 在令牌失效时重新建立。subscribe 在会话变化时通知（实时连接、查询随之更新）。
+ * createIdentity 返回客户身份的存储：
+ *   - 仅当满足“窗口已打开 || 有已登录 user_token || 本地已有访客/会话记录”时才建立或恢复后端会话，
+ *     避免匿名访客仅浏览宿主页面、尚未点开聊天窗口就提前创建空线索；
+ *   - start 在宿主握手完成后调用；ensure 在客户第一次展开聊天窗口时激活身份；
+ *   - login、logout 在产品网站登录、退出后切换；renew 在令牌失效时重新建立；
+ *   - subscribe 在会话变化时通知（实时连接、查询随之更新）。
  */
-function createIdentity() {
+export function createIdentity() {
   let api: Client | undefined
   let current: Session | null = null
   let userToken: string | undefined // 当前的用户身份；线索为空
@@ -108,11 +117,14 @@ function createIdentity() {
     if (saved && saved.user === wanted) {
       current = saved
       changed()
-      pending = Promise.resolve()
-    } else {
-      pending = establish()
+      pending = undefined
+      return Promise.resolve()
     }
-    return pending
+    const p = establish().finally(() => {
+      if (pending === p) pending = undefined
+    })
+    pending = p
+    return p
   }
 
   return {
@@ -120,34 +132,56 @@ function createIdentity() {
     connect(client: Client) {
       api = client
     },
-    /** start 按初始的用户身份和来源页面建立会话，聊天窗口拿到初始状态后调用一次。 */
-    async start(token: string | undefined, ref?: string) {
+    /** start 在宿主握手完成后保存初始身份和来源页面；只有窗口已打开、已登录或本地已有身份时才立即建会话。 */
+    async start(token: string | undefined, ref: string | undefined, active: boolean) {
       referrer = ref
-      await switchTo(token)
-      started()
+      userToken = token
+      try {
+        if (active || token || hasStoredIdentity()) {
+          await switchTo(token)
+        }
+      } finally {
+        started()
+      }
+    },
+    /** ensure 在客户展开聊天窗口时确保已建立会话；已有会话或正在建立时直接复用，避免重复建线索。 */
+    ensure() {
+      if (pending) return pending
+      const wanted = userToken ? subjectOf(userToken) : ""
+      if (current && current.user === wanted) return Promise.resolve()
+      return switchTo(userToken)
     },
     /** login 切换到产品网站新登录的用户。 */
     login: (token: string) => switchTo(token),
-    /** logout 回到访客的线索：丢掉用户的会话，带着访客编号重新建立。 */
-    logout() {
+    /** logout 退出登录：丢掉用户会话；窗口打开或本地留有访客编号时回到访客线索，否则保持静默直到下次打开窗口。 */
+    logout(active: boolean) {
       save("session", null)
-      return switchTo(undefined)
+      userToken = undefined
+      if (active || load("visitor") !== null) {
+        return switchTo(undefined)
+      }
+      current = null
+      pending = undefined
+      changed()
+      return Promise.resolve()
     },
     /** renew 令牌失效时重新建立会话；几个请求同时失效时只建立一次。 */
     renew() {
       if (!renewing) {
         save("session", null)
-        renewing = establish().finally(() => {
+        const p = establish().finally(() => {
           renewing = undefined
+          if (pending === p) pending = undefined
         })
-        pending = renewing
+        renewing = p
+        pending = p
       }
       return renewing
     },
-    /** ready 等到会话建立好。 */
+    /** ready 等到初始化和进行中的会话建立完成。 */
     async ready() {
       await startedOnce
-      await pending
+      if (pending) await pending
     },
     /** updateContact 在客户留下邮箱等资料后更新当前会话中的联系人，并通知订阅者。 */
     updateContact(contact: ContactSummary) {

@@ -105,8 +105,8 @@ func (a *GetInbox) Handle(ctx context.Context, sub identity.Subject) (*InboxDTO,
 		return nil, errors.Wrap(err, "count unread mentions")
 	}
 
-	// 团队收件箱：我所在的；可见范围是全部会话时是全部
-	teams := a.db.NewSelect().Table("teams").Column("id", "name").Where("tenant_id = ?", sub.Tenant).OrderExpr("name, id")
+	// 团队收件箱：只列未停用的；我所在的；可见范围是全部会话时是全部
+	teams := a.db.NewSelect().Table("teams").Column("id", "name").Where("tenant_id = ? AND disabled_at IS NULL", sub.Tenant).OrderExpr("name, id")
 	if auth.ScopeOf(sub) != auth.ScopeAll {
 		teams = teams.Where("id IN (SELECT team_id FROM team_members WHERE member_id = ?)", sub.ID)
 	}

@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/google/uuid"
@@ -22,6 +23,7 @@ import (
 	"github.com/go-tenon/tenon/errorx"
 
 	"agents-desk/internal/channel"
+	"agents-desk/internal/team"
 )
 
 var (
@@ -104,17 +106,23 @@ func findPublic(ctx context.Context, db bun.IDB, id string) (*channel.Channel, e
 	return ch, errors.Wrap(err, "load widget")
 }
 
-// checkTeam 检查团队收件箱 id 属于工作区 tenant，不属于时返回 ErrTeamNotFound；id 为空时不检查。
+// checkTeam 检查团队收件箱 id 属于工作区 tenant 且未停用：不存在时返回 ErrTeamNotFound，已停用时返回 team.ErrDisabled；id 为空时不检查。
 func checkTeam(ctx context.Context, db bun.IDB, tenant string, id *string) error {
 	if id == nil {
 		return nil
 	}
-	ok, err := db.NewSelect().Table("teams").Where("id = ? AND tenant_id = ?", *id, tenant).Exists(ctx)
+	var row struct {
+		DisabledAt *time.Time `bun:"disabled_at"`
+	}
+	err := db.NewSelect().Table("teams").Column("disabled_at").Where("id = ? AND tenant_id = ?", *id, tenant).Scan(ctx, &row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrTeamNotFound.New(errorx.Field("team_id"))
+	}
 	if err != nil {
 		return errors.Wrap(err, "check team")
 	}
-	if !ok {
-		return ErrTeamNotFound.New(errorx.Field("team_id"))
+	if row.DisabledAt != nil {
+		return team.ErrDisabled.New(errorx.Field("team_id"))
 	}
 	return nil
 }

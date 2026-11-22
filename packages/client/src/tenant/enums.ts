@@ -181,6 +181,14 @@ export const enums = {
       "zh-CN": { manual: "手动：成员自己领取", round_robin: "轮流：依次分给在线的成员" },
     },
   },
+  TeamStatus: {
+    prefix: "team.status",
+    values: ["active", "disabled"],
+    labels: {
+      "en": { active: "Active", disabled: "Disabled" },
+      "zh-CN": { active: "正常", disabled: "已停用" },
+    },
+  },
   TranslationTone: {
     prefix: "translation.tone",
     values: ["friendly", "neutral", "formal"],

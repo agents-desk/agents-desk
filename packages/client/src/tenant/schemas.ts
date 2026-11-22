@@ -387,6 +387,9 @@ export const schemas = {
             "maximum": 100,
             "minimum": 1,
             "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TeamStatus"
           }
         },
         "type": "object"
@@ -1205,6 +1208,13 @@ export const components = {
     ],
     "type": "object"
   },
+  TeamStatus: {
+    "enum": [
+      "active",
+      "disabled"
+    ],
+    "type": "string"
+  },
   TenantGeneralSettings: {
     "additionalProperties": false,
     "properties": {
@@ -1212,6 +1222,12 @@ export const components = {
         "maxLength": 60,
         "minLength": 1,
         "type": "string"
+      },
+      "reopen_window_hours": {
+        "format": "int64",
+        "maximum": 720,
+        "minimum": 0,
+        "type": "integer"
       }
     },
     "required": [

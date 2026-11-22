@@ -170,7 +170,7 @@ func TestTeamAssignmentAndInUse(t *testing.T) {
 		adminLogins: env.AdminLogins, adminTokens: apitoken.NewStore(env.DB, tokens),
 		memberLogins: env.MemberLogins, memberTokens: apitoken.NewStore(env.DB, tokens),
 		llmSettings: llm.NewGroup(env.DB), files: env.Files, localDisk: env.Disk,
-		channels: channel.DefaultRegistry(),
+		crypt: env.Crypt, channels: channel.DefaultRegistry(),
 	}
 	h := a.routes(nil)
 	tn, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
@@ -219,25 +219,81 @@ func TestTeamAssignmentAndInUse(t *testing.T) {
 	}
 
 	// 还在被使用时不能删除，提示中有会话数和渠道数
-	if r := call(h, "DELETE", "/t/alpha/api/teams/"+created.ID, "", owner); r.code != "team.in_use" || !strings.Contains(r.body, "1 个没关闭的会话、1 个渠道") {
+	if r := call(h, "DELETE", "/t/alpha/api/teams/"+created.ID, "", owner); r.code != "team.in_use" || !strings.Contains(r.body, "1 个会话、1 个渠道") {
 		t.Fatalf("删除使用中的团队收件箱：%d %s", r.status, r.body)
 	}
-	// 会话关闭、渠道不再以它为默认之后可以删除；关闭和修改渠道的动作还没有（D1、C1），这里直接改表
-	if _, err := env.DB.NewRaw("UPDATE conversations SET status = 'closed' WHERE id = ?", received.ConversationID).Exec(ctx); err != nil {
+	// 关闭会话、解绑渠道后，因为仍有历史会话和关闭记录引用，依然不能删除（改为停用，保留历史会话与报表名称）
+	if r := call(h, "POST", "/t/alpha/api/conversations/"+received.ConversationID+"/close", "", owner); r.status != http.StatusOK {
+		t.Fatalf("关闭会话：%d %s", r.status, r.body)
+	}
+	if r := call(h, "DELETE", "/t/alpha/api/teams/"+created.ID, "", owner); r.code != "team.in_use" || !strings.Contains(r.body, "1 个会话、1 个渠道") {
+		t.Fatalf("关闭后仍有历史会话和渠道：%d %s", r.status, r.body)
+	}
+	// 停用：允许有会话和渠道引用的团队收件箱直接停用，重复停用幂等
+	if r := call(h, "POST", "/t/alpha/api/teams/"+created.ID+"/disable", "", owner); r.status != http.StatusOK || !strings.Contains(r.body, `"status":"disabled"`) {
+		t.Fatalf("停用团队收件箱：%d %s", r.status, r.body)
+	}
+	if r := call(h, "POST", "/t/alpha/api/teams/"+created.ID+"/disable", "", owner); r.status != http.StatusOK {
+		t.Fatalf("重复停用：%d %s", r.status, r.body)
+	}
+	// 停用后：状态筛选可见，但收件箱侧栏隐藏
+	if r := call(h, "GET", "/t/alpha/api/teams?status=disabled", "", owner); !strings.Contains(r.body, created.ID) {
+		t.Fatalf("筛选已停用：%s", r.body)
+	}
+	if r := call(h, "GET", "/t/alpha/api/teams?status=active", "", owner); strings.Contains(r.body, created.ID) {
+		t.Fatalf("筛选启用中不应包含已停用：%s", r.body)
+	}
+	if r := call(h, "GET", "/t/alpha/api/inbox", "", owner); strings.Contains(r.body, created.ID) {
+		t.Fatalf("收件箱侧栏应隐藏已停用团队：%s", r.body)
+	}
+	// 停用后：渠道仍指向该团队时，新会话不再进入它（落入未指派）
+	received2, err := conversation.NewReceive(env.DB, a.channels, a.downstream()).Handle(ctx, system, conversation.ReceiveParams{
+		ChannelID: ch.ID, From: "priya", Text: "need help",
+	})
+	if err != nil {
 		t.Fatal(err)
 	}
-	if r := call(h, "DELETE", "/t/alpha/api/teams/"+created.ID, "", owner); r.code != "team.in_use" || !strings.Contains(r.body, "0 个没关闭的会话、1 个渠道") {
-		t.Fatalf("只剩渠道：%d %s", r.status, r.body)
+	var nextTeam *string
+	if err := env.DB.NewRaw("SELECT team_id FROM conversations WHERE id = ?", received2.ConversationID).Scan(ctx, &nextTeam); err != nil || nextTeam != nil {
+		t.Errorf("停用团队不应接收新会话：%v %v", nextTeam, err)
 	}
+	// 停用后：不能手动指派到已停用的团队收件箱
+	if r := call(h, "PUT", "/t/alpha/api/conversations/"+received2.ConversationID+"/assignment", `{"team_id":"`+created.ID+`"}`, owner); r.code != "team.disabled" || fieldOf(r.body) != "body.team_id" {
+		t.Errorf("指派到已停用团队：%d %s", r.status, r.body)
+	}
+	// 停用后：新建聊天插件不能选择已停用的团队收件箱
+	if r := call(h, "POST", "/t/alpha/api/widgets", `{"name":"官网","team_id":"`+created.ID+`"}`, owner); r.code != "team.disabled" || fieldOf(r.body) != "body.team_id" {
+		t.Errorf("新建聊天插件选择已停用团队：%d %s", r.status, r.body)
+	}
+	// 历史会话仍保留原团队收件箱 ID，供历史查看和报表使用
+	var histTeam *string
+	if err := env.DB.NewRaw("SELECT team_id FROM conversations WHERE id = ?", received.ConversationID).Scan(ctx, &histTeam); err != nil || histTeam == nil || *histTeam != created.ID {
+		t.Errorf("历史会话应保留团队：%v %v", histTeam, err)
+	}
+	// 解绑渠道后仍因历史会话不能删除；空的团队收件箱可以删除
 	if _, err := env.DB.NewRaw("UPDATE channels SET team_id = NULL WHERE id = ?", ch.ID).Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if r := call(h, "DELETE", "/t/alpha/api/teams/"+created.ID, "", owner); r.status != http.StatusNoContent {
-		t.Fatalf("删除：%d %s", r.status, r.body)
+	if r := call(h, "DELETE", "/t/alpha/api/teams/"+created.ID, "", owner); r.code != "team.in_use" || !strings.Contains(r.body, "1 个会话、0 个渠道") {
+		t.Fatalf("有历史会话不能删除：%d %s", r.status, r.body)
 	}
-	// 已关闭的会话保留，团队收件箱变为空
-	var teamID *string
-	if err := env.DB.NewRaw("SELECT team_id FROM conversations WHERE id = ?", received.ConversationID).Scan(ctx, &teamID); err != nil || teamID != nil {
-		t.Errorf("已关闭的会话：%v %v", teamID, err)
+	// 重新启用后恢复正常，空团队可直接删除
+	if r := call(h, "POST", "/t/alpha/api/teams/"+created.ID+"/enable", "", owner); r.status != http.StatusOK || !strings.Contains(r.body, `"status":"active"`) {
+		t.Fatalf("重新启用：%d %s", r.status, r.body)
+	}
+	emptyTeam := decode(call(h, "POST", "/t/alpha/api/teams", `{"name":"空组"}`, owner).body)
+	if r := call(h, "DELETE", "/t/alpha/api/teams/"+emptyTeam.ID, "", owner); r.status != http.StatusNoContent {
+		t.Fatalf("删除空团队：%d %s", r.status, r.body)
+	}
+
+	// 工作区常规设置：默认重开窗口 24 小时，可以修改和校验范围
+	if r := call(h, "GET", "/t/alpha/api/tenant", "", owner); r.status != http.StatusOK || !strings.Contains(r.body, `"reopen_window_hours":24`) {
+		t.Fatalf("默认重开窗口：%d %s", r.status, r.body)
+	}
+	if r := call(h, "PUT", "/t/alpha/api/tenant", `{"name":"alpha","reopen_window_hours":48}`, owner); r.status != http.StatusOK || !strings.Contains(r.body, `"reopen_window_hours":48`) {
+		t.Fatalf("修改重开窗口：%d %s", r.status, r.body)
+	}
+	if r := call(h, "PUT", "/t/alpha/api/tenant", `{"name":"alpha","reopen_window_hours":-1}`, owner); r.status != http.StatusUnprocessableEntity {
+		t.Errorf("负数重开窗口：%d %s", r.status, r.body)
 	}
 }

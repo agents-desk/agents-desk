@@ -1,10 +1,10 @@
 import { Box, Center, Loader, Text } from "@mantine/core"
 import { useQueryClient } from "@tanstack/react-query"
 import { useT } from "@go-tenon/ui"
-import { type ReactNode, useEffect, useState } from "react"
+import { type ReactNode, useEffect, useRef, useState } from "react"
 import { channel, embedded, hasCloseButton, type Init, listen, tell, waitInit } from "../host"
 import { identity } from "../identity"
-import { useRealtime } from "../realtime"
+import { useIdentity, useRealtime } from "../realtime"
 import { ConversationView } from "./Conversation"
 import { Header } from "./Header"
 import { FirstMessage, Home } from "./Home"
@@ -16,12 +16,12 @@ import { useViewportHeight } from "./viewport"
 let started: Promise<Init> | undefined
 
 /**
- * initOnce 拿到外面给出的初始状态，按其中的用户身份建立会话。嵌入时 ready 是和 loader.js 握手用的，已经在 waitInit 中发过；
- * 独立时建立会话后告诉 App 聊天窗口准备好了。
+ * initOnce 拿到外面给出的初始状态；独立模式、已登录用户或本地已有访客记录时立即建立/恢复会话，
+ * 嵌入收起态的全新匿名访客保持静默，等到第一次打开聊天窗口时再建立线索。
  */
 function initOnce(): Promise<Init> {
   started ??= waitInit().then(async (init) => {
-    await identity.start(init.userToken, init.referrer)
+    await identity.start(init.userToken, init.referrer, !embedded)
     if (!embedded) tell("ready")
     return init
   })
@@ -45,25 +45,32 @@ export function Widget(): ReactNode {
   const [failed, setFailed] = useState(false)
   const [mobile, setMobile] = useState(!embedded)
   const [open, setOpen] = useState(!embedded)
+  const openRef = useRef(open)
+  openRef.current = open
   const [view, setView] = useState<View>({ kind: "home" })
   const [visible, setVisible] = useState(() => typeof document === "undefined" || document.visibilityState === "visible")
   const height = useViewportHeight()
+  const { contact } = useIdentity()
   const config = useConfig()
   const conversations = useConversations()
   useRealtime()
 
-  // toggle 展开或收起，并告诉 loader.js 调整 iframe 的大小
+  // toggle 展开或收起，并告诉 loader.js 调整 iframe 的大小；展开时确保已激活身份（全新访客此时才建立线索）
   const toggle = (next: boolean) => {
+    openRef.current = next
     setOpen(next)
     tell(next ? "open" : "close")
+    if (next) void identity.ensure().catch(() => setFailed(true))
   }
 
-  // 初始状态：嵌入时等 loader.js，独立时读 App 设置的 window.agentsDesk；然后建立会话
+  // 初始状态：嵌入时等 loader.js，独立时读 App 设置的 window.agentsDesk；然后按条件建立或延迟建立会话
   useEffect(() => {
     void initOnce()
       .then((init) => {
         if (embedded) setMobile(init.mobile)
         setReady(true)
+        // 如果用户在握手期间就点开了窗口，补上激活身份
+        if (openRef.current) void identity.ensure().catch(() => setFailed(true))
       })
       .catch(() => setFailed(true))
   }, [])
@@ -80,7 +87,7 @@ export function Widget(): ReactNode {
             return
           }
           setView({ kind: "home" })
-          void (c.command === "login" ? identity.login(c.user_token) : identity.logout()).then(() =>
+          void (c.command === "login" ? identity.login(c.user_token) : identity.logout(openRef.current)).then(() =>
             queryClient.invalidateQueries({ queryKey: ["widget"] }),
           )
         },
@@ -128,7 +135,7 @@ export function Widget(): ReactNode {
       data-full={full || undefined}
       style={full && height ? { height } : undefined}
     >
-      {!ready || !config.data || !conversations.data ? (
+      {!ready || !config.data || !contact || !conversations.data ? (
         <Center style={{ flex: 1 }}>
           <Loader color={color} />
         </Center>

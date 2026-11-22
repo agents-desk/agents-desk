@@ -142,6 +142,11 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "conversation"),
       }),
+      /** GET /conversations/{id}/closures */
+      closures: (...args: Parameters<Client["conversation"]["closures"]>) => ({
+        queryKey: key("conversation", "closures", ...args),
+        queryFn: () => client.conversation.closures(...args),
+      }),
       /** PATCH /conversations/{id}/contact/attributes */
       contactAttributesPatch: () => ({
         mutationFn: (variables: Parameters<Client["conversation"]["contactAttributesPatch"]>) => client.conversation.contactAttributesPatch(...variables),
@@ -399,6 +404,18 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       /** DELETE /teams/{id} */
       delete: () => ({
         mutationFn: (variables: Parameters<Client["team"]["delete"]>[0]) => client.team.delete(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "team"),
+      }),
+      /** POST /teams/{id}/disable */
+      disable: () => ({
+        mutationFn: (variables: Parameters<Client["team"]["disable"]>[0]) => client.team.disable(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "team"),
+      }),
+      /** POST /teams/{id}/enable */
+      enable: () => ({
+        mutationFn: (variables: Parameters<Client["team"]["enable"]>[0]) => client.team.enable(variables),
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "team"),
       }),

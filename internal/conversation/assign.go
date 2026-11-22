@@ -2,6 +2,8 @@ package conversation
 
 import (
 	"context"
+	"database/sql"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
@@ -50,12 +52,18 @@ func (a *Assign) Handle(ctx context.Context, sub identity.Subject, id string, p 
 		if p.TeamID != nil {
 			toTeam = nil
 			if *p.TeamID != "" {
-				n, err := tx.NewSelect().Table("teams").Where("id = ? AND tenant_id = ?", *p.TeamID, sub.Tenant).Count(ctx)
+				var row struct {
+					DisabledAt *time.Time `bun:"disabled_at"`
+				}
+				err := tx.NewSelect().Table("teams").Column("disabled_at").Where("id = ? AND tenant_id = ?", *p.TeamID, sub.Tenant).Scan(ctx, &row)
+				if errors.Is(err, sql.ErrNoRows) {
+					return nil, team.ErrNotFound.New(errorx.Field("team_id"))
+				}
 				if err != nil {
 					return nil, errors.Wrap(err, "find team")
 				}
-				if n == 0 {
-					return nil, team.ErrNotFound.New(errorx.Field("team_id"))
+				if row.DisabledAt != nil {
+					return nil, team.ErrDisabled.New(errorx.Field("team_id"))
 				}
 				toTeam = p.TeamID
 			}

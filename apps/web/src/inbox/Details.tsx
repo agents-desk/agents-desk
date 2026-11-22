@@ -172,7 +172,13 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                     size="xs"
                     placeholder={t("inbox.no_team")}
                     value={c.team_id ?? null}
-                    data={teams.map((x) => ({ value: x.id, label: x.name }))}
+                    data={teams
+                      .filter((x) => x.status === "active" || x.id === c.team_id)
+                      .map((x) => ({
+                        value: x.id,
+                        label: x.status === "disabled" ? t("inbox.team_disabled_suffix", { name: x.name }) : x.name,
+                        disabled: x.status === "disabled",
+                      }))}
                     onChange={(v) => assign.mutate({ team_id: v ?? "" })}
                     clearable
                     disabled={!can("conversations:assign")}

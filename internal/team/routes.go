@@ -35,6 +35,8 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	rest.Register(api, create, NewCreate(db).HTTP)
 	rest.Register(api, route(manage, "team-update", http.MethodPut, "/teams/{id}", "修改团队收件箱"), NewUpdate(db).HTTP)
 	rest.Register(api, del, NewDelete(db).HTTP)
+	rest.Register(api, route(manage, "team-disable", http.MethodPost, "/teams/{id}/disable", "停用团队收件箱"), NewDisable(db).HTTP)
+	rest.Register(api, route(manage, "team-enable", http.MethodPost, "/teams/{id}/enable", "启用团队收件箱"), NewEnable(db).HTTP)
 	rest.Register(api, route(read, "team-members", http.MethodGet, "/teams/{id}/members", "团队收件箱的成员"), NewListMembers(db, roles, logins, files).HTTP)
 	rest.Register(api, route(manage, "team-member-put", http.MethodPut, "/teams/{id}/members/{member_id}", "加入团队收件箱"), NewPutMember(db, logins, files).HTTP)
 	rest.Register(api, removeMember, NewRemoveMember(db).HTTP)
@@ -47,7 +49,12 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 		Create:  "team-create",
 		Update:  "team-update",
 		Delete:  "team-delete",
-		Columns: []string{"name", "assignment", "member_count", "description"},
-		Filters: []string{"name"},
+		Columns: []string{"name", "assignment", "status", "member_count", "description"},
+		Filters: []string{"name", "status"},
+		Actions: []rest.Action{
+			// 停用只在正常启用的团队收件箱上显示，启用只在已停用的上显示
+			{Name: "disable", Operation: "team-disable", Confirm: true, Danger: true, When: map[string][]string{"status": {string(Active)}}},
+			{Name: "enable", Operation: "team-enable", Confirm: true, When: map[string][]string{"status": {string(Disabled)}}},
+		},
 	})
 }

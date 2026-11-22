@@ -9,16 +9,22 @@ export const Route = createFileRoute("/t/$slug/settings/_channels/widgets/")({
   component: Widgets,
 })
 
-// TeamInput 是新会话进入的团队收件箱：从工作区的团队收件箱中选，可以清空（进入未指派）。
+// TeamInput 是新会话进入的团队收件箱：从启用的团队收件箱中选，可以清空（进入未指派）；如果原渠道绑定的团队已停用，保留回显并标明已停用。
 const TeamInput: FieldInput = ({ label, value, onChange, error, disabled }) => {
   const t = useT()
+  const current = (value as string | undefined) ?? null
   return (
     <ResourceSelect
       model={teams}
       label={label}
       description={t("widgets.team_hint")}
       placeholder={t("widgets.team_unassigned")}
-      value={(value as string | undefined) ?? null}
+      filterRow={(row) => row.status === "active" || String(row.id) === String(current ?? "")}
+      getOption={(row) => ({
+        value: String(row.id),
+        label: row.status === "disabled" ? t("widgets.team_disabled_suffix", { name: String(row.name ?? "") }) : String(row.name ?? ""),
+      })}
+      value={current}
       onChange={(v) => onChange?.(v ?? undefined)}
       error={error}
       disabled={disabled}

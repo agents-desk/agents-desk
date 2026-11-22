@@ -7,6 +7,7 @@ import (
 	"context"
 	"database/sql"
 	"slices"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/danielgtaylor/huma/v2"
@@ -26,9 +27,25 @@ var (
 	ErrNameTaken = errorx.Define(errorx.Conflict, "team.name_taken")
 	// ErrNotInTeam 是要移出的人不在这个团队收件箱中。
 	ErrNotInTeam = errorx.Define(errorx.NotFound, "team.not_in_team")
-	// ErrInUse 是团队收件箱还在被使用：还有没关闭的会话，或者是某个渠道的默认团队收件箱，不能删除。
+	// ErrInUse 是团队收件箱已有会话、历史关闭记录或渠道引用，不能删除，可以改为停用。
 	ErrInUse = errorx.Define(errorx.Conflict, "team.in_use")
+	// ErrDisabled 是团队收件箱已停用，不能再接收新会话或被选为目标团队收件箱。
+	ErrDisabled = errorx.Define(errorx.Conflict, "team.disabled")
 )
+
+// Status 是团队收件箱的状态。
+type Status string
+
+const (
+	Active   Status = "active"   // 正常启用
+	Disabled Status = "disabled" // 已停用：停止接收新会话和自动分配，从收件箱侧栏隐藏，历史会话和报表保留名称
+)
+
+// Statuses 是团队收件箱的全部状态，显示文字是翻译文件中 team.status.<状态> 的消息。
+var Statuses = enum.New("team.status", Active, Disabled)
+
+// Schema 让 OpenAPI 中的 Status 只接受上面的取值，并带有显示文字。
+func (Status) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Statuses) }
 
 // Assignment 是团队收件箱的分配方式：新会话进入团队收件箱后怎样指派给成员。
 type Assignment string
@@ -55,6 +72,15 @@ type Team struct {
 	Description   string          `bun:"description,notnull"`
 	Assignment    Assignment      `bun:"assignment,notnull"`        // 分配方式
 	BusinessHours *hours.Schedule `bun:"business_hours,type:jsonb"` // 单独设置的工作时间；为空表示使用工作区的
+	DisabledAt    *time.Time      `bun:"disabled_at"`               // 停用时间；为空表示启用
+}
+
+// Status 返回团队收件箱当前的状态。
+func (t *Team) Status() Status {
+	if t.DisabledAt != nil {
+		return Disabled
+	}
+	return Active
 }
 
 // Membership 是团队收件箱中的一个成员。
@@ -66,12 +92,14 @@ type Membership struct {
 	database.Timestamps
 }
 
-// TeamDTO 是接口中的团队收件箱，带有人数。
+// TeamDTO 是接口中的团队收件箱，带有人数和状态。
 type TeamDTO struct {
 	ID            string          `json:"id"`
 	Name          string          `json:"name"`
 	Description   string          `json:"description"`
 	Assignment    Assignment      `json:"assignment" doc:"分配方式"`
+	Status        Status          `json:"status" doc:"状态：正常或已停用"`
+	DisabledAt    *time.Time      `json:"disabled_at,omitempty" doc:"停用时间，正常启用时为空"`
 	MemberCount   int             `json:"member_count" doc:"团队收件箱中的人数"`
 	BusinessHours *hours.Schedule `json:"business_hours,omitempty" doc:"单独设置的时区和每周的工作时间；为空表示使用工作区的工作时间"`
 }
@@ -112,7 +140,10 @@ func toDTOs(ctx context.Context, db bun.IDB, teams []Team) ([]TeamDTO, error) {
 	ids := make([]string, len(teams))
 	for i, t := range teams {
 		ids[i] = t.ID
-		out[i] = TeamDTO{ID: t.ID, Name: t.Name, Description: t.Description, Assignment: t.Assignment, BusinessHours: t.BusinessHours}
+		out[i] = TeamDTO{
+			ID: t.ID, Name: t.Name, Description: t.Description, Assignment: t.Assignment,
+			Status: t.Status(), DisabledAt: t.DisabledAt, BusinessHours: t.BusinessHours,
+		}
 	}
 	var rows []struct {
 		TeamID string `bun:"team_id"`
