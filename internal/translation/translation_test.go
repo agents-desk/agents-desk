@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -80,7 +81,9 @@ func (f *fakeModel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		out, _ := json.Marshal(payload)
 		answer = string(out)
 	case "reply_translation":
-		answer = `{"translation":"Main aapka order check kar raha hoon","back_translation":"我正在查您的订单"}`
+		answer = `{"translation":"Main aapka order check kar raha hoon"}`
+	case "back_translation":
+		answer = `{"translation":"我正在查您的订单"}`
 	}
 	resp := map[string]any{
 		"choices": []any{map[string]any{"message": map[string]any{"content": answer}}},
@@ -96,6 +99,21 @@ func (f *fakeModel) lastSystem() string {
 	defer f.mu.Unlock()
 	msgs := f.requests[len(f.requests)-1]["messages"].([]any)
 	return msgs[0].(map[string]any)["content"].(string)
+}
+
+// last 返回最后一次 schema 名为 name 的请求中 system 提示和 user 消息的文字。
+func (f *fakeModel) last(name string) (system, user string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i := len(f.requests) - 1; i >= 0; i-- {
+		r := f.requests[i]
+		if r["response_format"].(map[string]any)["json_schema"].(map[string]any)["name"] != name {
+			continue
+		}
+		msgs := r["messages"].([]any)
+		return msgs[0].(map[string]any)["content"].(string), msgs[1].(map[string]any)["content"].(string)
+	}
+	return "", ""
 }
 
 func (f *fakeModel) count() int {
@@ -327,14 +345,21 @@ func TestPreviewAndReply(t *testing.T) {
 	if err != nil || !got.Needed || got.From != "zh-CN" || got.Language != "hi-Latn" || got.Translation == "" || got.BackTranslation == "" {
 		t.Fatalf("预览：%+v %v", got, err)
 	}
-	system := f.model.lastSystem()
-	for _, want := range []string{"from zh-CN into hi-Latn", toneHint[Friendly], `"AgentsPay": keep it exactly as written`, `"提现": in hi-Latn always translate it as "withdrawal"`} {
+	system, _ := f.model.last("reply_translation")
+	for _, want := range []string{"from zh-CN into hi-Latn", toneHint[Friendly], `"AgentsPay": keep it exactly as written`, `"提现": in hi-Latn always translate it as "withdrawal"`,
+		"<history>\nCustomer: mera order abhi tak nahi aaya\n</history>"} {
 		if !strings.Contains(system, want) {
 			t.Errorf("提示中没有 %q：\n%s", want, system)
 		}
 	}
 	if strings.Contains(system, "优惠券") {
 		t.Errorf("没有出现在文字中的术语不进提示：\n%s", system)
+	}
+	// 盲回译：模型只看到译文，看不到成员的原文和会话
+	backSystem, backUser := f.model.last("back_translation")
+	if backUser != got.Translation || got.BackTranslation != "我正在查您的订单" || !strings.Contains(backSystem, "from hi-Latn into zh-CN") ||
+		strings.Contains(backSystem+backUser, "提现") || strings.Contains(backSystem, "<history>") {
+		t.Fatalf("回译的请求：%q %q", backSystem, backUser)
 	}
 	// 手动选择和成员相同的语言：不调用模型
 	before := f.model.count()
@@ -590,6 +615,10 @@ func TestCustomerLanguage(t *testing.T) {
 
 	say("hi-Latn", "mera order nahi aaya")
 	p := say("hi-Latn", "kab tak aayega")
+	// 识别和翻译带上之前的消息作参考
+	if system, user := f.model.last("incoming_translation"); user != "kab tak aayega" || !strings.Contains(system, "<history>\nCustomer: mera order nahi aaya\n</history>") {
+		t.Fatalf("识别时的会话上下文：%q %q", system, user)
+	}
 	ok := say("und", "ok")
 	if languageOf(p) != "hi-Latn" {
 		t.Fatalf("ok 之后：%s", languageOf(p))
@@ -696,5 +725,57 @@ func TestPrimaryLanguages(t *testing.T) {
 	case msg := <-zhSub.C():
 		t.Fatalf("纯补译英文不应当推送给中文成员：%s", string(msg.Data))
 	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+// TestHistory 检查翻译时带的会话上下文：只取这条消息之前的、最近的 historyMessages 条，按时间先后；客户和客服分别标明，
+// 内部备注不带；过长的消息截断，总长不超过 historyChars。
+func TestHistory(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	f := setup(t, true)
+	var last conversation.Appended
+	for i := range 8 {
+		last = f.receive(t, "rahul", fmt.Sprintf("message %d", i))
+	}
+	if _, err := conversation.NewReply(f.env.DB, f.down).Handle(ctx, f.agent, last.ConversationID, conversation.ReplyBody{Text: "我在查"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conversation.NewAddNote(f.env.DB, f.down).Handle(ctx, f.agent, last.ConversationID, "内部备注", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := f.translator.history(ctx, f.system.Tenant, last.ConversationID, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "<history>\nCustomer: message 3\nCustomer: message 4\nCustomer: message 5\nCustomer: message 6\nCustomer: message 7\nSupport: 我在查\n</history>"
+	if !strings.HasSuffix(got, want) {
+		t.Fatalf("最近的消息：%q", got)
+	}
+	// 某条消息之前的：不含它自己和之后的
+	if got, err := f.translator.history(ctx, f.system.Tenant, last.ConversationID, last.Seq); err != nil || strings.Contains(got, "message 7") || !strings.Contains(got, "message 6") {
+		t.Fatalf("之前的消息：%q %v", got, err)
+	}
+
+	// 过长的消息截断，总长有上限
+	long := f.receive(t, "rahul", strings.Repeat("a", 1000))
+	for range 5 {
+		f.receive(t, "rahul", strings.Repeat("b", 1000))
+	}
+	got, err = f.translator.history(ctx, f.system.Tenant, long.ConversationID, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSuffix(got[strings.Index(got, "<history>\n")+len("<history>\n"):], "\n</history>"), "\n")
+	total := 0
+	for _, l := range lines {
+		if n := len([]rune(l)); n > len("Customer: ")+historyEach+1 {
+			t.Fatalf("没有截断：%d", n)
+		}
+		total += len([]rune(l))
+	}
+	if total > historyChars || len(lines) == 0 || !strings.HasSuffix(lines[0], "…") {
+		t.Fatalf("总长 %d，%d 条：%q", total, len(lines), lines)
 	}
 }
