@@ -163,6 +163,10 @@
   background: var(--mantine-color-yellow-light);
 }
 
+.inbox-composer[data-note] .mantine-SegmentedControl-label[data-active] {
+  color: var(--mantine-color-yellow-light-color);
+}
+
 /* 发送拆分按钮中间的细分隔线：跟随按钮前景色与禁用态自然过渡 */
 .inbox-send-menu {
   border-top-left-radius: 0;
