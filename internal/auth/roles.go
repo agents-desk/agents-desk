@@ -14,8 +14,8 @@ var (
 	PlatformAdmin = authz.Role{
 		Name: "platform-admin", Description: "平台管理员",
 		Permissions: []string{
-			string(TenantsRead), string(TenantsManage), string(PlatformSettingsManage),
-			string(QueueManage), string(SchedulesManage), string(SystemRead),
+			string(TenantsRead), string(TenantsManage), string(PlatformAdminsManage), string(PlatformSettingsManage),
+			string(QueueManage), string(SchedulesManage), string(SystemRead), string(AuditRead),
 		},
 	}
 	// Owner 是工作区的主管理员，分配在工作区的域中：每个工作区只有一个，只在管理员端更换。

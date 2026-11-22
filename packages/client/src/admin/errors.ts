@@ -115,6 +115,7 @@ export const MemberErrors = {
 export const PlatformadminErrors = {
   NotFound: "platform_admin.not_found",
   Disabled: "platform_admin.disabled",
+  Self: "platform_admin.self",
   EmailTaken: "platform_admin.email_taken",
 } as const
 

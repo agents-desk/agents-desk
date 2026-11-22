@@ -3,7 +3,14 @@
 /** 前端 admin 的界面文字，来自 locales/admin.<语言>.yaml。交给 @go-tenon/client 的 createI18n。 */
 export const messages = {
   "en": {
+    "admins.password_hint": "8 to 128 characters",
+    "admins.self_badge": "You",
     "app.admin": "agents-desk admin",
+    "audit.description": "Platform-level administrative actions from newest to oldest (workspaces, platform admins, and platform settings).",
+    "audit.filter.all": "All",
+    "audit.filter.platform_admin": "Platform admins",
+    "audit.filter.settings": "Platform settings",
+    "audit.filter.tenant": "Workspaces",
     "change_owner.current": "The current owner is {{.name}} ({{.email}}). After the change, they lose the owner role in this workspace.",
     "change_owner.email": "New owner’s email",
     "change_owner.existing_hint": "If this email already has a member account, leave the next two fields empty.",
@@ -31,6 +38,8 @@ export const messages = {
     "model.description": "Configure the model API and model name for each call type. Call types can use different APIs and providers. Leave the base URL empty to turn a call type off.",
     "model.model": "Model",
     "model.translation_description": "Translates text between languages and detects the source language and script",
+    "nav.admins": "Platform admins",
+    "nav.audit": "Audit log",
     "nav.doctor": "Diagnostics",
     "nav.model": "Model APIs",
     "nav.ops": "Operations",
@@ -59,7 +68,14 @@ export const messages = {
     "test_account.sign_in": "Sign in with a test account",
   },
   "zh-CN": {
+    "admins.password_hint": "8 到 128 个字符",
+    "admins.self_badge": "当前账号",
     "app.admin": "agents-desk 管理员端",
+    "audit.description": "按时间从新到旧查看平台级管理动作（工作区、平台管理员与平台设置变更）。",
+    "audit.filter.all": "全部",
+    "audit.filter.platform_admin": "平台管理员",
+    "audit.filter.settings": "平台设置",
+    "audit.filter.tenant": "工作区",
     "change_owner.current": "现在的主管理员是 {{.name}}（{{.email}}）。更换后，对方在这个工作区中的主管理员角色被撤销。",
     "change_owner.email": "新主管理员的邮箱",
     "change_owner.existing_hint": "这个邮箱已经有成员账号时，不需要填写下面两项。",
@@ -87,6 +103,8 @@ export const messages = {
     "model.description": "为每种调用类型配置模型接口和模型名，不同调用类型可以使用不同的接口和供应商。接口地址留空表示不启用这种调用类型。",
     "model.model": "模型名",
     "model.translation_description": "在不同语言之间互译文本，同时识别原文的语言和书写方式",
+    "nav.admins": "平台管理员",
+    "nav.audit": "操作日志",
     "nav.doctor": "系统自检",
     "nav.model": "模型接口",
     "nav.ops": "系统运维",
@@ -118,7 +136,14 @@ export const messages = {
 
 /** 界面文字的消息 ID。 */
 export type MessageId =
+  | "admins.password_hint"
+  | "admins.self_badge"
   | "app.admin"
+  | "audit.description"
+  | "audit.filter.all"
+  | "audit.filter.platform_admin"
+  | "audit.filter.settings"
+  | "audit.filter.tenant"
   | "change_owner.current"
   | "change_owner.email"
   | "change_owner.existing_hint"
@@ -146,6 +171,8 @@ export type MessageId =
   | "model.description"
   | "model.model"
   | "model.translation_description"
+  | "nav.admins"
+  | "nav.audit"
   | "nav.doctor"
   | "nav.model"
   | "nav.ops"

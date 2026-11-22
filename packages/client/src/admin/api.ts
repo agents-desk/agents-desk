@@ -16,6 +16,22 @@ export interface AccountProfileChanges {
   name: string
 }
 
+export interface AuditItem {
+  actor?: string
+  created_at: string
+  event: string
+  href?: string
+  id: string
+  impersonator?: string
+  target_id?: string
+  target_type?: string
+  text: string
+}
+
+export interface AuditListOutputBody {
+  items: AuditItem[]
+}
+
 export interface DoctorReport {
   results: DoctorResult[]
 }
@@ -96,6 +112,14 @@ export interface LlmSettings {
   translation: LlmEndpoint
 }
 
+export interface OffsetPlatformadminAdminDTO {
+  items: PlatformadminAdminDTO[]
+  page: number
+  per_page: number
+  /** Total number of items across all pages. */
+  total: number
+}
+
 export interface OffsetScheduleRun {
   items: ScheduleRun[]
   page: number
@@ -112,6 +136,24 @@ export interface OffsetTenantDTO {
   total: number
 }
 
+export type PlatformAdminStatus = "active" | "disabled"
+
+export interface PlatformadminAdminDTO {
+  created_at: string
+  email: string
+  id: string
+  name: string
+  /** 是否是当前登录的平台管理员 */
+  self: boolean
+  status: PlatformAdminStatus
+}
+
+export interface PlatformadminCreateInputBody {
+  email: string
+  name: string
+  password: string
+}
+
 export interface PlatformadminLoginInputBody {
   email: string
   password: string
@@ -126,6 +168,10 @@ export interface PlatformadminProfile {
   id: string
   name: string
   permissions: string[]
+}
+
+export interface PlatformadminUpdateInputBody {
+  name: string
 }
 
 export interface QueueBulkResult {
@@ -310,6 +356,28 @@ export interface TenantUpdateParams {
   name: string
 }
 
+/** admin-list 的参数。 */
+export interface AdminListInput {
+  /** Page number, starting at 1. */
+  page?: number
+  /** Items per page. */
+  per_page?: number
+  /** 名字包含的文字 */
+  name?: string
+  /** 只列出这个状态的平台管理员 */
+  status?: PlatformAdminStatus
+}
+
+/** audit-list 的参数。 */
+export interface AuditListInput {
+  /** 上一页最后一条记录的 ID，用于加载更早的记录 */
+  before?: string
+  /** 按对象类型筛选；为空时返回全部 */
+  target_type?: "" | "tenant" | "platform_admin" | "settings"
+  /** 返回条数，默认 50 */
+  limit?: number
+}
+
 /** file-upload 的表单。 */
 export type FileUploadForm = {
   file: Blob
@@ -365,6 +433,61 @@ export interface TenantListInput {
 export function createClient(options: ClientOptions) {
   const rt = new Runtime(options)
   return {
+    /** operationId 以 admin- 开头的接口。 */
+    admin: {
+      /**
+       * 新建平台管理员
+       *
+       * POST /admins
+       */
+      create: (body: PlatformadminCreateInputBody): Promise<PlatformadminAdminDTO> =>
+        rt.request<PlatformadminAdminDTO>({ method: "POST", path: `/admins`, body }),
+      /**
+       * 停用平台管理员
+       *
+       * POST /admins/{id}/disable
+       */
+      disable: (id: string): Promise<PlatformadminAdminDTO> =>
+        rt.request<PlatformadminAdminDTO>({ method: "POST", path: `/admins/${encodeURIComponent(id)}/disable` }),
+      /**
+       * 启用平台管理员
+       *
+       * POST /admins/{id}/enable
+       */
+      enable: (id: string): Promise<PlatformadminAdminDTO> =>
+        rt.request<PlatformadminAdminDTO>({ method: "POST", path: `/admins/${encodeURIComponent(id)}/enable` }),
+      /**
+       * 读取平台管理员
+       *
+       * GET /admins/{id}
+       */
+      get: (id: string): Promise<PlatformadminAdminDTO> =>
+        rt.request<PlatformadminAdminDTO>({ method: "GET", path: `/admins/${encodeURIComponent(id)}` }),
+      /**
+       * 平台管理员列表
+       *
+       * GET /admins
+       */
+      list: (input: AdminListInput = {}): Promise<OffsetPlatformadminAdminDTO> =>
+        rt.request<OffsetPlatformadminAdminDTO>({ method: "GET", path: `/admins`, query: { "name": input["name"], "page": input["page"], "per_page": input["per_page"], "status": input["status"] } }),
+      /**
+       * 修改平台管理员
+       *
+       * PUT /admins/{id}
+       */
+      update: (id: string, body: PlatformadminUpdateInputBody): Promise<PlatformadminAdminDTO> =>
+        rt.request<PlatformadminAdminDTO>({ method: "PUT", path: `/admins/${encodeURIComponent(id)}`, body }),
+    },
+    /** operationId 以 audit- 开头的接口。 */
+    audit: {
+      /**
+       * 平台操作日志
+       *
+       * GET /audit
+       */
+      list: (input: AuditListInput = {}): Promise<AuditListOutputBody> =>
+        rt.request<AuditListOutputBody>({ method: "GET", path: `/audit`, query: { "before": input["before"], "limit": input["limit"], "target_type": input["target_type"] } }),
+    },
     /** operationId 以 auth- 开头的接口。 */
     auth: {
       /**

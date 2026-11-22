@@ -5,6 +5,72 @@
  * 规则与服务端相同，交给 @go-tenon/client 的校验函数使用；$ref 指向 components 中的命名类型。
  */
 export const schemas = {
+  admin: {
+    create: {
+      body: {
+        "$ref": "#/components/schemas/PlatformadminCreateInputBody"
+      },
+    },
+    list: {
+      query: {
+        "properties": {
+          "name": {
+            "maxLength": 60,
+            "type": "string"
+          },
+          "page": {
+            "default": 1,
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "per_page": {
+            "default": 20,
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PlatformAdminStatus"
+          }
+        },
+        "type": "object"
+      },
+    },
+    update: {
+      body: {
+        "$ref": "#/components/schemas/PlatformadminUpdateInputBody"
+      },
+    },
+  },
+  audit: {
+    list: {
+      query: {
+        "properties": {
+          "before": {
+            "type": "string"
+          },
+          "limit": {
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "target_type": {
+            "enum": [
+              "",
+              "tenant",
+              "platform_admin",
+              "settings"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+    },
+  },
   auth: {
     login: {
       body: {
@@ -217,6 +283,39 @@ export const components = {
     ],
     "type": "object"
   },
+  PlatformAdminStatus: {
+    "enum": [
+      "active",
+      "disabled"
+    ],
+    "type": "string"
+  },
+  PlatformadminCreateInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "email": {
+        "format": "email",
+        "maxLength": 120,
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 60,
+        "minLength": 1,
+        "type": "string"
+      },
+      "password": {
+        "maxLength": 128,
+        "minLength": 8,
+        "type": "string"
+      }
+    },
+    "required": [
+      "name",
+      "email",
+      "password"
+    ],
+    "type": "object"
+  },
   PlatformadminLoginInputBody: {
     "additionalProperties": false,
     "properties": {
@@ -234,6 +333,20 @@ export const components = {
     "required": [
       "email",
       "password"
+    ],
+    "type": "object"
+  },
+  PlatformadminUpdateInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "name": {
+        "maxLength": 60,
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "name"
     ],
     "type": "object"
   },

@@ -8,6 +8,56 @@
  * descriptions 是字段的说明，显示在输入框下面。
  */
 export const resources = {
+  admin: {
+    name: "admin",
+    key: "id",
+    operations: {
+      list: ["admin", "list"],
+      get: ["admin", "get"],
+      create: ["admin", "create"],
+      update: ["admin", "update"],
+    },
+    permissions: {
+      list: ["platform-admins:manage"],
+      get: ["platform-admins:manage"],
+      create: ["platform-admins:manage"],
+      update: ["platform-admins:manage"],
+    },
+    columns: [
+      { name: "name", type: "string", required: true },
+      { name: "email", type: "string", required: true },
+      { name: "status", type: "string", enum: "PlatformAdminStatus", required: true },
+      { name: "created_at", type: "string", format: "date-time", required: true },
+    ],
+    filters: [
+      { name: "name", type: "string" },
+      { name: "status", type: "string", enum: "PlatformAdminStatus" },
+    ],
+    createForm: [
+      { name: "name", type: "string", required: true },
+      { name: "email", type: "string", format: "email", required: true },
+      { name: "password", type: "string", required: true },
+    ],
+    updateForm: [
+      { name: "name", type: "string", required: true },
+    ],
+    actions: [
+      { name: "disable", operation: ["admin", "disable"], permissions: ["platform-admins:manage"], confirm: true, danger: true, when: { "self": ["false"], "status": ["active"] } },
+      { name: "enable", operation: ["admin", "enable"], permissions: ["platform-admins:manage"], confirm: true, danger: false, when: { "status": ["disabled"] } },
+    ],
+    labels: {
+      "en": {
+        title: "Platform admins",
+        fields: { name: "Name", email: "Email", status: "Status", created_at: "Created", password: "Initial password" },
+        actions: { disable: "Disable", enable: "Enable" },
+      },
+      "zh-CN": {
+        title: "平台管理员",
+        fields: { name: "名字", email: "邮箱", status: "状态", created_at: "创建时间", password: "初始密码" },
+        actions: { disable: "停用", enable: "启用" },
+      },
+    },
+  },
   tenant: {
     name: "tenant",
     key: "id",

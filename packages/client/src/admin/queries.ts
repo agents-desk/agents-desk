@@ -31,6 +31,53 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
   return {
     /** 这个 API 全部查询的 key 前缀。 */
     key: () => key(),
+    admin: {
+      /** admin 分组全部查询的 key 前缀。 */
+      key: () => key("admin"),
+      /** POST /admins */
+      create: () => ({
+        mutationFn: (variables: Parameters<Client["admin"]["create"]>[0]) => client.admin.create(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "admin"),
+      }),
+      /** POST /admins/{id}/disable */
+      disable: () => ({
+        mutationFn: (variables: Parameters<Client["admin"]["disable"]>[0]) => client.admin.disable(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "admin"),
+      }),
+      /** POST /admins/{id}/enable */
+      enable: () => ({
+        mutationFn: (variables: Parameters<Client["admin"]["enable"]>[0]) => client.admin.enable(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "admin"),
+      }),
+      /** GET /admins/{id} */
+      get: (...args: Parameters<Client["admin"]["get"]>) => ({
+        queryKey: key("admin", "get", ...args),
+        queryFn: () => client.admin.get(...args),
+      }),
+      /** GET /admins */
+      list: (...args: Parameters<Client["admin"]["list"]>) => ({
+        queryKey: key("admin", "list", ...args),
+        queryFn: () => client.admin.list(...args),
+      }),
+      /** PUT /admins/{id} */
+      update: () => ({
+        mutationFn: (variables: Parameters<Client["admin"]["update"]>) => client.admin.update(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "admin"),
+      }),
+    },
+    audit: {
+      /** audit 分组全部查询的 key 前缀。 */
+      key: () => key("audit"),
+      /** GET /audit */
+      list: (...args: Parameters<Client["audit"]["list"]>) => ({
+        queryKey: key("audit", "list", ...args),
+        queryFn: () => client.audit.list(...args),
+      }),
+    },
     auth: {
       /** auth 分组全部查询的 key 前缀。 */
       key: () => key("auth"),

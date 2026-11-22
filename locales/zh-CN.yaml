@@ -2,6 +2,19 @@
 platform_admin.not_found: 平台管理员不存在
 platform_admin.disabled: 这个平台管理员账号已停用
 platform_admin.email_taken: 这个邮箱已经是平台管理员
+platform_admin.self: 不能停用当前登录的管理员账号
+platform_admin.status.active: 正常
+platform_admin.status.disabled: 已停用
+admin.title: 平台管理员
+admin.fields.id: ID
+admin.fields.name: 名字
+admin.fields.email: 邮箱
+admin.fields.password: 初始密码
+admin.fields.status: 状态
+admin.fields.self: 当前账号
+admin.fields.created_at: 创建时间
+admin.actions.disable: 停用
+admin.actions.enable: 启用
 
 member.not_found: 成员不存在
 member.disabled: 这个邮箱的成员账号已停用
@@ -62,10 +75,12 @@ tenant.status.disabled: 已停用
 
 "permission.tenants:read": 查看工作区
 "permission.tenants:manage": 管理工作区
+"permission.platform-admins:manage": 管理平台管理员
 "permission.platform-settings:manage": 修改平台设置
 "permission.queue:manage": 管理队列
 "permission.schedules:manage": 管理定时任务
 "permission.system:read": 查看系统自检
+"permission.audit:read": 查看操作日志
 "permission.members:read": 查看成员
 "permission.members:manage": 管理成员和角色
 "permission.tenant-settings:manage": 管理工作区设置
@@ -228,3 +243,16 @@ automation.trigger.conversation.closed: 会话关闭时
 automation.builtin.reply_time: 告知回复时间
 automation.builtin.collect_lead_contact: 请线索留联系方式
 automation.builtin.request_rating: 关闭后请客户评价
+
+activity.platform_admin.created: "创建了平台管理员「{{.name}}」"
+activity.platform_admin.updated: "将平台管理员名称从「{{.from}}」修改为「{{.to}}」"
+activity.platform_admin.disabled: "停用了平台管理员「{{.name}}」"
+activity.platform_admin.enabled: "启用了平台管理员「{{.name}}」"
+activity.platform_admin.profile_updated: "更新了个人资料（{{.changed}}）"
+activity.platform_admin.password_changed: "修改了登录密码"
+activity.tenant.created: "创建了工作区「{{.name}}」（{{.slug}}）"
+activity.tenant.renamed: "将工作区名称从「{{.from}}」修改为「{{.to}}」"
+activity.tenant.disabled: "停用了工作区「{{.name}}」"
+activity.tenant.enabled: "启用了工作区「{{.name}}」"
+activity.tenant.owner_changed: "更换了工作区「{{.name}}」的主管理员"
+activity.platform_settings.changed: "更新了平台设置（{{.call_type}}）"
