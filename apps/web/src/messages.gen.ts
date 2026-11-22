@@ -237,6 +237,8 @@ export const messages = {
     "inbox.contact_notes_placeholder": "Write an internal note for members…",
     "inbox.contact_referrer": "Source page",
     "inbox.contact_view": "View contact profile",
+    "inbox.copied": "Copied",
+    "inbox.copy_message": "Copy message",
     "inbox.delivery_delivered": "Delivered",
     "inbox.delivery_failed": "Not sent",
     "inbox.delivery_read": "Read",
@@ -311,6 +313,7 @@ export const messages = {
     "inbox.status_closed": "Closed",
     "inbox.status_open": "Open",
     "inbox.status_snoozed": "Snoozed",
+    "inbox.switch_mode_hint": "Press {{.key}} to switch between reply and internal note",
     "inbox.tag_filter": "Filter by tag",
     "inbox.tags": "Tags",
     "inbox.team": "Team inbox",
@@ -690,6 +693,8 @@ export const messages = {
     "inbox.contact_notes_placeholder": "写下仅成员可见的备注…",
     "inbox.contact_referrer": "来源页面",
     "inbox.contact_view": "查看联系人资料",
+    "inbox.copied": "已复制",
+    "inbox.copy_message": "复制消息",
     "inbox.delivery_delivered": "已送达",
     "inbox.delivery_failed": "发送失败",
     "inbox.delivery_read": "已读",
@@ -764,6 +769,7 @@ export const messages = {
     "inbox.status_closed": "已关闭",
     "inbox.status_open": "打开",
     "inbox.status_snoozed": "稍后处理",
+    "inbox.switch_mode_hint": "按 {{.key}} 切换回复或内部备注",
     "inbox.tag_filter": "按标签筛选",
     "inbox.tags": "标签",
     "inbox.team": "团队收件箱",
@@ -1146,6 +1152,8 @@ export type MessageId =
   | "inbox.contact_notes_placeholder"
   | "inbox.contact_referrer"
   | "inbox.contact_view"
+  | "inbox.copied"
+  | "inbox.copy_message"
   | "inbox.delivery_delivered"
   | "inbox.delivery_failed"
   | "inbox.delivery_read"
@@ -1220,6 +1228,7 @@ export type MessageId =
   | "inbox.status_closed"
   | "inbox.status_open"
   | "inbox.status_snoozed"
+  | "inbox.switch_mode_hint"
   | "inbox.tag_filter"
   | "inbox.tags"
   | "inbox.team"

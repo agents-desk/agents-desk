@@ -1,7 +1,8 @@
 import type { ConversationDTO, ConversationTranslation, MemberTenantMember, TranslationPreviewDTO } from "@agents-desk/client/tenant"
 import { ActionIcon, Avatar, Box, Button, Group, Loader, Menu, Paper, SegmentedControl, Text, Textarea, Tooltip, UnstyledButton } from "@mantine/core"
+import { useOs } from "@mantine/hooks"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { IconChevronDown, IconLanguage } from "@tabler/icons-react"
+import { IconChevronDown, IconLanguage, IconLock } from "@tabler/icons-react"
 import { describeError } from "@go-tenon/client"
 import { errorMessage, notifyError, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
@@ -42,6 +43,8 @@ interface Preview {
  */
 export function Composer({ c, onTyping }: { c: ConversationDTO; onTyping: () => void }): ReactNode {
   const t = useT()
+  const os = useOs()
+  const modeKey = os === "macos" || os === "ios" ? "⌘I" : "Ctrl+I"
   const zone = useTimeZone()
   const queryClient = useQueryClient()
   const me = useMe()
@@ -119,27 +122,36 @@ export function Composer({ c, onTyping }: { c: ConversationDTO; onTyping: () => 
   }
 
   const note = mode === "note"
+  const toggleMode = () => {
+    setMode((m) => (m === "reply" ? "note" : "reply"))
+    setQuery(null)
+  }
   return (
     <Box className="inbox-composer" data-note={note || undefined} px="sm" pt={8} pb={10}>
       {/* 译文预览在最上面：它出现、变高、消失时，输入框和发送按钮的位置不动 */}
       {!note && <TranslationPreview c={c} preview={preview} onSendOriginal={() => preview.setTarget(NO_TRANSLATION)} />}
       <Group gap="xs" mb={6}>
-        <SegmentedControl
-          size="xs"
-          value={mode}
-          onChange={(v) => {
-            setMode(v as Mode)
-            setQuery(null)
-          }}
-          data={[
-            { value: "reply", label: t("inbox.mode_reply") },
-            { value: "note", label: t("inbox.mode_note") },
-          ]}
-        />
+        <Tooltip label={t("inbox.switch_mode_hint", { key: modeKey })} openDelay={350}>
+          <SegmentedControl
+            size="xs"
+            value={mode}
+            onChange={(v) => {
+              setMode(v as Mode)
+              setQuery(null)
+            }}
+            data={[
+              { value: "reply", label: t("inbox.mode_reply") },
+              { value: "note", label: t("inbox.mode_note") },
+            ]}
+          />
+        </Tooltip>
         {note && (
-          <Text size="xs" className="inbox-note-accent">
-            {t("inbox.note_hint")}
-          </Text>
+          <Group gap={4} wrap="nowrap">
+            <IconLock size={12} className="inbox-note-accent" style={{ flex: "none" }} />
+            <Text size="xs" className="inbox-note-accent">
+              {t("inbox.note_hint")}
+            </Text>
+          </Group>
         )}
       </Group>
       <Box pos="relative">
@@ -177,6 +189,11 @@ export function Composer({ c, onTyping }: { c: ConversationDTO; onTyping: () => 
           onChange={(e) => onChange(e.currentTarget.value, e.currentTarget.selectionStart)}
           onKeyDown={(e) => {
             if (e.nativeEvent.isComposing) return
+            if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "i") {
+              e.preventDefault()
+              toggleMode()
+              return
+            }
             if (candidates.length > 0 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
               e.preventDefault()
               setPick((p) => (p + (e.key === "ArrowDown" ? 1 : candidates.length - 1)) % candidates.length)

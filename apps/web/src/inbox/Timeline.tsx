@@ -1,7 +1,7 @@
 import type { ConversationDTO, ConversationItemDTO } from "@agents-desk/client/tenant"
-import { Anchor, Box, Button, Center, Divider, Group, Loader, Paper, Stack, Text, UnstyledButton } from "@mantine/core"
+import { ActionIcon, Anchor, Box, Button, Center, CopyButton, Divider, Group, Loader, Paper, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { IconArrowDown } from "@tabler/icons-react"
+import { IconArrowDown, IconCheck, IconCopy, IconLock } from "@tabler/icons-react"
 import { notifyError, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
 import { Fragment, type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
@@ -10,9 +10,21 @@ import type { TypingNow } from "./channel"
 import { useMe, useMembers, useTeams, useTimeline } from "./data"
 import { type FillWatcher, useFillVisible } from "./fill"
 import { describeEvent, whoDid } from "./events"
-import { clock, dayLabel, sameDay } from "./format"
+import { clock, dayLabel, fullDateTime, sameDay } from "./format"
 import { contactName } from "./List"
 import { promptText } from "./prompts"
+
+/** GROUP_WINDOW_MS 是同一发送者连续消息合并为同一组的间隔上限（3 分钟）。 */
+const GROUP_WINDOW_MS = 3 * 60 * 1000
+
+/** canGroup 判断相邻两条时间线项是否可合并为同人连续消息组。 */
+function canGroup(prev: ConversationItemDTO | undefined, cur: ConversationItemDTO, firstNew: ConversationItemDTO | undefined): boolean {
+  if (!prev || prev.kind !== "message" || cur.kind !== "message") return false
+  if (cur === firstNew) return false
+  if (prev.actor.type !== cur.actor.type || prev.actor.id !== cur.actor.id) return false
+  if (!sameDay(prev.created_at, cur.created_at)) return false
+  return Math.abs(new Date(cur.created_at).getTime() - new Date(prev.created_at).getTime()) <= GROUP_WINDOW_MS
+}
 
 /** deliveryColor 是送达状态的颜色：已读是进行中的颜色，失败是红色，其余是灰色。 */
 const deliveryColor = { sending: "dimmed", delivered: "dimmed", read: "bright-blue", failed: "red" } as const
@@ -131,38 +143,62 @@ export function Timeline({ c, readSeq, typing, original }: { c: ConversationDTO;
   return (
     <Box className="inbox-timeline-wrap">
       <Box ref={scroller} className="inbox-timeline" onScroll={onScroll}>
-        <Stack gap={10} p="md">
-          {list.map((it, i) => (
-            <Fragment key={it.id}>
-              {(i === 0 || !sameDay(list[i - 1].created_at, it.created_at)) && (
-                <Divider label={dayLabel(it.created_at, language, t, zone)} labelPosition="center" />
-              )}
-              {readSeq > 0 && it === firstNew && <Divider color="red.3" label={<Text size="xs" c="red">{t("inbox.new_messages")}</Text>} labelPosition="center" />}
-              {it.kind === "event" ? (
-                <Text size="xs" c="dimmed" ta="center" className="inbox-event">
-                  {describeEvent(it, byId, names, t, language)} · {clock(it.created_at, language, zone)}
-                </Text>
-              ) : it.kind === "note" ? (
-                <Note it={it} author={names.member(it.actor.id)} time={clock(it.created_at, language, zone)} />
-              ) : (
-                <Message
-                  it={it}
-                  c={c}
-                  mine={it.actor.type !== "contact"}
-                  author={it.actor.type === "contact" ? contactName(c, t) : it.actor.type === "member" ? names.member(it.actor.id) : whoDid(it, byId, t)}
-                  time={clock(it.created_at, language, zone)}
-                  lang={me.data?.language}
-                  original={original}
-                  translating={enabled}
-                  watch={watch}
-                />
-              )}
-            </Fragment>
-          ))}
+        <Stack gap={0} p="md">
+          {list.map((it, i) => {
+            const prev = list[i - 1]
+            const next = list[i + 1]
+            const showDay = i === 0 || !sameDay(prev.created_at, it.created_at)
+            const showNew = readSeq > 0 && it === firstNew
+            const groupedWithPrev = !showDay && !showNew && canGroup(prev, it, firstNew)
+            const groupedWithNext = Boolean(next) && canGroup(it, next, firstNew)
+            const gapTop = i === 0 ? 0 : groupedWithPrev ? 3 : 10
+            return (
+              <Fragment key={it.id}>
+                {showDay && <Divider my={i === 0 ? 4 : 10} label={dayLabel(it.created_at, language, t, zone)} labelPosition="center" />}
+                {showNew && <Divider my={10} color="red.3" label={<Text size="xs" c="red">{t("inbox.new_messages")}</Text>} labelPosition="center" />}
+                {it.kind === "event" ? (
+                  <Text size="xs" c="dimmed" ta="center" mt={gapTop} className="inbox-event">
+                    {describeEvent(it, byId, names, t, language)} · {clock(it.created_at, language, zone)}
+                  </Text>
+                ) : it.kind === "note" ? (
+                  <Note
+                    it={it}
+                    author={names.member(it.actor.id)}
+                    time={clock(it.created_at, language, zone)}
+                    fullTime={fullDateTime(it.created_at, language, zone)}
+                    mt={gapTop}
+                  />
+                ) : (
+                  <Message
+                    it={it}
+                    c={c}
+                    mine={it.actor.type !== "contact"}
+                    author={it.actor.type === "contact" ? contactName(c, t) : it.actor.type === "member" ? names.member(it.actor.id) : whoDid(it, byId, t)}
+                    time={clock(it.created_at, language, zone)}
+                    fullTime={fullDateTime(it.created_at, language, zone)}
+                    first={!groupedWithPrev}
+                    last={!groupedWithNext}
+                    mt={gapTop}
+                    lang={me.data?.language}
+                    original={original}
+                    translating={enabled}
+                    watch={watch}
+                  />
+                )}
+              </Fragment>
+            )
+          })}
           {typing.length > 0 && (
-            <Text size="xs" c="dimmed" fs="italic">
-              {t("inbox.typing", { who: typing.map((x) => (x.contact ? contactName(c, t) : (x.name ?? ""))).join(", ") })}
-            </Text>
+            <Box mt={10} className="inbox-typing">
+              <span className="inbox-typing-dots" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </span>
+              <Text size="xs" c="dimmed">
+                {t("inbox.typing", { who: typing.map((x) => (x.contact ? contactName(c, t) : (x.name ?? ""))).join(", ") })}
+              </Text>
+            </Box>
           )}
         </Stack>
       </Box>
@@ -189,6 +225,10 @@ interface MessageProps {
   mine: boolean // 成员和系统发的，在右侧
   author: string
   time: string
+  fullTime: string // 完整日期时间，悬停提示用
+  first: boolean // 连续同人消息组的第一条：显示作者和时间头部
+  last: boolean // 连续同人消息组的最后一条：己方消息在底部显示送达状态
+  mt: number // 顶部间距（组内紧凑、跨组舒展）
   lang: string | undefined // 成员的语言：对方的消息显示这种语言的译文
   original: boolean // 顶部选了“原文”：对方的消息都显示原文
   translating: boolean // 翻译可用：还缺我的语言的译文的消息显示“翻译中”，出现在页面上时请求补译
@@ -196,10 +236,10 @@ interface MessageProps {
 }
 
 /**
- * Message 是一条消息：对方的在左侧，成员和系统发的在右侧，旁边是送达状态，失败时可以重发。
- * 对方的消息有译文时显示译文，下面一行“译文 · 原文”切换（顶部全局切换时重置单条状态）；成员翻译后发出的消息显示原文，下面一行展开译文。
+ * Message 是一条消息：对方的在左侧，成员和系统发的在右侧，旁边是悬浮复制按钮，底部是译文切换与送达状态（失败时可以重发）。
+ * 连续同人消息合并为组：组首显示作者与时间，组内消息省略重复头部并用方向圆角自然衔接。
  */
-function Message({ it, c, mine, author, time, lang, original, translating, watch }: MessageProps): ReactNode {
+function Message({ it, c, mine, author, time, fullTime, first, last, mt, lang, original, translating, watch }: MessageProps): ReactNode {
   const t = useT()
   const ui = useLanguage()
   const zone = useTimeZone()
@@ -263,56 +303,117 @@ function Message({ it, c, mine, author, time, lang, original, translating, watch
     )
   }
 
+  // 己方消息在组尾展示送达状态；发送中或发送失败时无论是否组尾都立即展示
+  const showDelivery = Boolean(mine && it.delivery && (last || it.delivery === "failed" || it.delivery === "sending"))
+  const deliveryNode = showDelivery && it.delivery && (
+    <>
+      <Text span size="xs" c={deliveryColor[it.delivery]}>
+        {t(`inbox.delivery_${it.delivery}` as const)}
+      </Text>
+      {it.delivery === "failed" && (
+        <>
+          <Text span size="xs" c="dimmed">
+            ·
+          </Text>
+          <UnstyledButton fz="xs" c="red" td="underline" onClick={() => retry.mutate()} disabled={retry.isPending}>
+            {t("inbox.retry")}
+          </UnstyledButton>
+        </>
+      )}
+    </>
+  )
+
   return (
     <Box
-      style={{ alignSelf: mine ? "flex-end" : "flex-start", maxWidth: "72%" }}
+      mt={mt}
+      className="inbox-msg"
+      style={{ alignSelf: mine ? "flex-end" : "flex-start", maxWidth: "min(72%, 620px)" }}
       ref={!mine && translating && it.untranslated ? watch(it.id) : undefined}
     >
-      <Text size="xs" c="dimmed" mb={2} ta={mine ? "right" : "left"} px={4}>
-        {author} · {time}
-        {mine && it.delivery && (
-          <>
-            {" · "}
-            <Text span size="xs" c={deliveryColor[it.delivery]}>
-              {t(`inbox.delivery_${it.delivery}` as const)}
+      {first && (
+        <Group gap={4} mb={3} px={4} justify={mine ? "flex-end" : "flex-start"} wrap="nowrap">
+          <Text size="xs" c="dimmed">
+            {author}
+          </Text>
+          <Text size="xs" c="dimmed">
+            ·
+          </Text>
+          <Tooltip label={fullTime} openDelay={300}>
+            <Text size="xs" c="dimmed" style={{ fontVariantNumeric: "tabular-nums" }}>
+              {time}
             </Text>
-            {it.delivery === "failed" && (
-              <>
-                {" · "}
-                <UnstyledButton fz="xs" c="red" td="underline" onClick={() => retry.mutate()} disabled={retry.isPending}>
-                  {t("inbox.retry")}
-                </UnstyledButton>
-              </>
-            )}
-          </>
-        )}
-      </Text>
-      <Paper
-        px="sm"
-        py={8}
-        radius="md"
-        withBorder={!mine}
-        bg={mine ? "var(--mantine-primary-color-light)" : undefined}
-        className="inbox-bubble"
-        data-incoming={!mine || undefined}
-        data-original={(translated && showOriginal) || undefined}
-      >
-        <Linkified text={shown} />
-        {sentAs && sent && (
-          <Box mt={6} pt={6} className="inbox-sent-translation">
-            <Text size="xs" c="dimmed">
-              {t("inbox.sent_translation", { lang: languageName(sentAs, ui) })}
-            </Text>
-            <Linkified text={it.content.text ?? ""} />
-          </Box>
-        )}
-      </Paper>
-      {caption && (
-        <Group gap={4} mt={2} px={6} justify={mine ? "flex-end" : "flex-start"}>
+          </Tooltip>
+        </Group>
+      )}
+      <Group gap={6} wrap="nowrap" align="center" style={{ flexDirection: mine ? "row-reverse" : "row" }}>
+        <Paper
+          px="sm"
+          py={8}
+          withBorder={!mine}
+          bg={mine ? "var(--mantine-primary-color-light)" : undefined}
+          className="inbox-bubble"
+          data-mine={mine || undefined}
+          data-incoming={!mine || undefined}
+          data-first={first || undefined}
+          data-last={last || undefined}
+          data-original={(translated && showOriginal) || undefined}
+          style={{ minWidth: 0 }}
+        >
+          <Linkified text={shown} />
+          {sentAs && sent && (
+            <Box mt={6} pt={6} className="inbox-sent-translation">
+              <Text size="xs" c="dimmed">
+                {t("inbox.sent_translation", { lang: languageName(sentAs, ui) })}
+              </Text>
+              <Linkified text={it.content.text ?? ""} />
+            </Box>
+          )}
+        </Paper>
+        <Group gap={4} wrap="nowrap" className="inbox-msg-actions" style={{ flex: "none" }}>
+          {!first && (
+            <Tooltip label={fullTime} openDelay={300}>
+              <Text size="xs" c="dimmed" style={{ fontVariantNumeric: "tabular-nums" }}>
+                {time}
+              </Text>
+            </Tooltip>
+          )}
+          {shown && <CopyAction value={shown} />}
+        </Group>
+      </Group>
+      {(caption || deliveryNode) && (
+        <Group gap={4} mt={3} px={6} justify={mine ? "flex-end" : "flex-start"} wrap="wrap">
           {caption}
+          {caption && deliveryNode && (
+            <Text size="xs" c="dimmed">
+              ·
+            </Text>
+          )}
+          {deliveryNode}
         </Group>
       )}
     </Box>
+  )
+}
+
+/** CopyAction 是消息或备注旁的轻量一键复制按钮，复制后短暂显示绿色对勾。 */
+function CopyAction({ value }: { value: string }): ReactNode {
+  const t = useT()
+  return (
+    <CopyButton value={value} timeout={1500}>
+      {({ copied, copy }) => (
+        <Tooltip label={t(copied ? "inbox.copied" : "inbox.copy_message")} openDelay={250}>
+          <ActionIcon
+            variant="subtle"
+            color={copied ? "green" : "gray"}
+            size={22}
+            onClick={copy}
+            aria-label={t("inbox.copy_message")}
+          >
+            {copied ? <IconCheck size={13} /> : <IconCopy size={13} />}
+          </ActionIcon>
+        </Tooltip>
+      )}
+    </CopyButton>
   )
 }
 
@@ -334,16 +435,33 @@ function Toggle({ label, onClick }: { label: string; onClick: () => void }): Rea
   )
 }
 
-/** Note 是内部备注：占满一行、黄色底，@ 到的同事加粗。只有成员可见。 */
-function Note({ it, author, time }: { it: ConversationItemDTO; author: string; time: string }): ReactNode {
+/** Note 是内部备注：占满一行、黄色底加左侧强调条与锁图标，@ 到的同事加粗。只有成员可见。 */
+function Note({ it, author, time, fullTime, mt }: { it: ConversationItemDTO; author: string; time: string; fullTime: string; mt: number }): ReactNode {
   const t = useT()
+  const raw = it.content.text ?? ""
   return (
-    <Paper px="sm" py={8} radius="md" bg="var(--mantine-color-yellow-light)" className="inbox-note">
-      <Text size="xs" fw={600} className="inbox-note-accent" mb={2}>
-        {t("inbox.note_by", { who: author })} · {time}
-      </Text>
-      <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
-        {(it.content.text ?? "").split(/(@\S+)/).map((part, i) =>
+    <Paper mt={mt} px="sm" py={8} radius="md" bg="var(--mantine-color-yellow-light)" className="inbox-note">
+      <Group gap={6} mb={3} wrap="nowrap">
+        <IconLock size={12} className="inbox-note-accent" style={{ flex: "none" }} />
+        <Text size="xs" fw={600} className="inbox-note-accent">
+          {t("inbox.note_by", { who: author })}
+        </Text>
+        <Text size="xs" className="inbox-note-accent" opacity={0.75}>
+          ·
+        </Text>
+        <Tooltip label={fullTime} openDelay={300}>
+          <Text size="xs" className="inbox-note-accent" opacity={0.85} style={{ fontVariantNumeric: "tabular-nums" }}>
+            {time}
+          </Text>
+        </Tooltip>
+        {raw && (
+          <Box ml="auto" className="inbox-msg-actions">
+            <CopyAction value={raw} />
+          </Box>
+        )}
+      </Group>
+      <Text size="sm" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+        {raw.split(/(@\S+)/).map((part, i) =>
           part.startsWith("@") ? (
             // biome-ignore lint/suspicious/noArrayIndexKey: 拆分出的片段没有别的标识，顺序固定
             <Text key={i} span fw={700} className="inbox-note-accent">
