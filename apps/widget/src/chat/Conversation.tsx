@@ -1,16 +1,29 @@
 import type { ConversationContactItemDTO } from "@agents-desk/client/widget"
-import { Box, Divider, Stack, Text, UnstyledButton } from "@mantine/core"
+import { Box, Button, Divider, Stack, Text, UnstyledButton } from "@mantine/core"
+import { IconArrowDown } from "@tabler/icons-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useLanguage, useT } from "@go-tenon/ui"
 import { Fragment, type ReactNode, useEffect, useRef, useState } from "react"
 import { authed, widgetApi } from "../api"
 import { useIdentity } from "../realtime"
 import { Composer } from "./Composer"
+import { onBrandColor } from "./contrast"
 import { clock, dayLabel, sameDay } from "./format"
 import { Linkify } from "./linkify"
 import { CollectEmailCard, promptText } from "./Prompt"
 import { useConversation, useItems } from "./queries"
 import { RatingCard } from "./Rating"
+
+/** GROUP_WINDOW_MS 是同一发送者连续消息合并为同一组的间隔上限（3 分钟）。 */
+const GROUP_WINDOW_MS = 3 * 60 * 1000
+
+/** canGroup 判断相邻两条时间线消息是否属于同人连续发送的同一组。 */
+function canGroup(prev: ConversationContactItemDTO | undefined, cur: ConversationContactItemDTO): boolean {
+  if (!prev || prev.prompt?.kind === "collect_contact" || cur.prompt?.kind === "collect_contact") return false
+  if (prev.author.type !== cur.author.type || prev.author.name !== cur.author.name) return false
+  if (!sameDay(prev.created_at, cur.created_at)) return false
+  return Math.abs(new Date(cur.created_at).getTime() - new Date(prev.created_at).getTime()) <= GROUP_WINDOW_MS
+}
 
 /** Pending 是客户刚发、还没写进时间线的消息：发送中或者发送失败。 */
 interface Pending {
@@ -49,16 +62,80 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
   const conversation = useConversation(id ?? "")
   const items = useItems(id ?? "")
   const [pending, setPending] = useState<Pending[]>([])
-  const bottom = useRef<HTMLDivElement>(null)
+  const scroller = useRef<HTMLDivElement>(null)
+  const nearBottom = useRef(true)
+  const initialized = useRef(false)
+  const prevCount = useRef(0)
+  const [showScrollDown, setShowScrollDown] = useState(false)
+  const [unseenCount, setUnseenCount] = useState(0)
   const lastRead = useRef(0)
 
   const list: ConversationContactItemDTO[] = id ? (items.data ?? []) : []
   const closed = conversation.data?.status === "closed"
 
-  // 新的内容出现时滚到底部
+  // 首次加载直接落底；客户发消息或在底部附近时自动跟随，翻看历史时不强行拉回底部
   useEffect(() => {
-    bottom.current?.scrollIntoView({ block: "end" })
-  }, [list.length, pending.length, closed])
+    if (id && items.isPending) return
+    const el = scroller.current
+    if (!el) return
+    if (!initialized.current) {
+      initialized.current = true
+      prevCount.current = list.length
+      el.scrollTop = el.scrollHeight
+      nearBottom.current = true
+      return
+    }
+    if (list.length > prevCount.current) {
+      const added = list.slice(prevCount.current)
+      prevCount.current = list.length
+      const hasOwn = added.some((it) => it.author.type === "contact")
+      if (hasOwn || nearBottom.current) {
+        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
+        nearBottom.current = true
+        setShowScrollDown(false)
+        setUnseenCount(0)
+      } else {
+        setUnseenCount((n) => n + added.length)
+        setShowScrollDown(true)
+      }
+      return
+    }
+    prevCount.current = list.length
+  }, [id, items.isPending, list])
+
+  // 自己刚发出新消息或会话刚结束出现评价卡时（在底部附近）滚到底部
+  useEffect(() => {
+    const el = scroller.current
+    if (!el) return
+    if (pending.length > 0 || (closed && nearBottom.current)) {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
+      nearBottom.current = true
+      setShowScrollDown(false)
+      setUnseenCount(0)
+    }
+  }, [pending.length, closed])
+
+  const onScroll = () => {
+    const el = scroller.current
+    if (!el) return
+    const gap = el.scrollHeight - el.scrollTop - el.clientHeight
+    nearBottom.current = gap <= 80
+    if (gap <= 80) {
+      setShowScrollDown(false)
+      setUnseenCount(0)
+    } else if (gap > 120) {
+      setShowScrollDown(true)
+    }
+  }
+
+  const scrollToBottom = () => {
+    const el = scroller.current
+    if (!el) return
+    nearBottom.current = true
+    setShowScrollDown(false)
+    setUnseenCount(0)
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
+  }
 
   // 可见时把读到的最后一项记为已读，未读数随之清零
   const lastSeq = list.at(-1)?.seq ?? 0
@@ -116,61 +193,91 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
 
   return (
     <>
-      <Box className="w-scroll" {...swipe}>
-        <Stack gap={8} p="md" justify={!id ? "flex-end" : undefined} mih="100%">
-          {!id && pending.length === 0 && intro}
-          {list.map((it, i) => (
-            <Fragment key={it.id}>
-              {(i === 0 || !sameDay(list[i - 1].created_at, it.created_at)) && (
-                <Text size="xs" c="dimmed" ta="center" my={4}>
-                  {dayLabel(it.created_at, language, t)}
-                </Text>
-              )}
-              {it.prompt?.kind === "collect_contact" ? (
-                <CollectEmailCard conversationId={id} color={color} />
-              ) : (
-                <Bubble
-                  mine={it.author.type === "contact"}
-                  author={it.author.type === "member" ? it.author.name : it.author.type === "system" ? name : undefined}
-                  text={promptText(it.prompt, it.text, language, t)}
-                  meta={clock(it.created_at, language)}
-                  color={color}
-                />
-              )}
-            </Fragment>
-          ))}
-          {pending.map((p) => (
-            <Bubble
-              key={p.clientId}
-              mine
-              text={p.text}
-              color={color}
-              state={p.failed ? "failed" : "sending"}
-              meta={
-                p.failed ? (
-                  <>
-                    {t("chat.failed")}
-                    {" · "}
-                    <UnstyledButton fz="xs" c="red" td="underline" onClick={() => void send(p)}>
-                      {t("chat.retry")}
-                    </UnstyledButton>
-                  </>
-                ) : (
-                  t("chat.sending")
-                )
-              }
-            />
-          ))}
-          {closed && conversation.data && (
-            <>
-              <Divider label={t("chat.ended")} labelPosition="center" my="xs" />
-              {(conversation.data.rating_requested || conversation.data.rating) && (
-                <RatingCard conversation={conversation.data} color={color} />
-              )}
-            </>
-          )}
-          <div ref={bottom} />
-        </Stack>
+      <Box className="w-scroll-wrap">
+        <Box ref={scroller} className="w-scroll" onScroll={onScroll} {...swipe}>
+          <Stack gap={0} p="md" justify={!id ? "flex-end" : undefined} mih="100%">
+            {!id && pending.length === 0 && intro}
+            {list.map((it, i) => {
+              const prev = list[i - 1]
+              const next = list[i + 1]
+              const showDay = i === 0 || !sameDay(prev.created_at, it.created_at)
+              const groupedWithPrev = !showDay && canGroup(prev, it)
+              const groupedWithNext = Boolean(next) && canGroup(it, next)
+              const gapTop = i === 0 ? 0 : groupedWithPrev ? 4 : 10
+              return (
+                <Fragment key={it.id}>
+                  {showDay && (
+                    <Text size="xs" c="dimmed" ta="center" my={i === 0 ? 4 : 8}>
+                      {dayLabel(it.created_at, language, t)}
+                    </Text>
+                  )}
+                  {it.prompt?.kind === "collect_contact" ? (
+                    <Box mt={gapTop}>
+                      <CollectEmailCard conversationId={id} color={color} />
+                    </Box>
+                  ) : (
+                    <Bubble
+                      mine={it.author.type === "contact"}
+                      author={!groupedWithPrev ? (it.author.type === "member" ? it.author.name : it.author.type === "system" ? name : undefined) : undefined}
+                      text={promptText(it.prompt, it.text, language, t)}
+                      meta={!groupedWithNext ? clock(it.created_at, language) : undefined}
+                      color={color}
+                      first={!groupedWithPrev}
+                      last={!groupedWithNext}
+                      mt={gapTop}
+                    />
+                  )}
+                </Fragment>
+              )
+            })}
+            {pending.map((p, idx) => (
+              <Bubble
+                key={p.clientId}
+                mine
+                text={p.text}
+                color={color}
+                first={idx === 0}
+                last={idx === pending.length - 1}
+                mt={idx === 0 ? 10 : 4}
+                state={p.failed ? "failed" : "sending"}
+                meta={
+                  p.failed ? (
+                    <>
+                      {t("chat.failed")}
+                      {" · "}
+                      <UnstyledButton fz="xs" c="red" td="underline" onClick={() => void send(p)}>
+                        {t("chat.retry")}
+                      </UnstyledButton>
+                    </>
+                  ) : (
+                    t("chat.sending")
+                  )
+                }
+              />
+            ))}
+            {closed && conversation.data && (
+              <>
+                <Divider label={t("chat.ended")} labelPosition="center" my="sm" />
+                {(conversation.data.rating_requested || conversation.data.rating) && (
+                  <RatingCard conversation={conversation.data} color={color} />
+                )}
+              </>
+            )}
+          </Stack>
+        </Box>
+        {showScrollDown && (
+          <Button
+            size="compact-xs"
+            radius="xl"
+            color={unseenCount > 0 ? color : undefined}
+            variant={unseenCount > 0 ? "filled" : "default"}
+            leftSection={<IconArrowDown size={13} />}
+            className="w-scroll-bottom"
+            onClick={scrollToBottom}
+          >
+            {unseenCount > 0 ? t("chat.new_message_jump", { n: unseenCount }) : t("chat.scroll_to_bottom")}
+          </Button>
+        )}
       </Box>
       <Composer
         color={color}
@@ -183,24 +290,33 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
   )
 }
 
-/** Bubble 是时间线中的一条消息：客户的在右边、用主题色，别人的在左边、上面是名字。 */
+/** Bubble 是时间线中的一条消息：客户的在右边、用主题色，别人的在左边、纯白底配轻边框与名字。 */
 function Bubble({
   mine,
   author,
   text,
   meta,
   color,
+  first = true,
+  last = true,
+  mt = 0,
   state,
 }: {
   mine: boolean
   author?: string
   text: string
-  meta: ReactNode
+  meta?: ReactNode
   color: string
+  first?: boolean
+  last?: boolean
+  mt?: number
   state?: "sending" | "failed"
 }): ReactNode {
   return (
-    <Box style={{ alignSelf: mine ? "flex-end" : "flex-start", maxWidth: "82%", display: "flex", flexDirection: "column", alignItems: mine ? "flex-end" : "flex-start" }}>
+    <Box
+      mt={mt}
+      style={{ alignSelf: mine ? "flex-end" : "flex-start", maxWidth: "82%", display: "flex", flexDirection: "column", alignItems: mine ? "flex-end" : "flex-start" }}
+    >
       {author && (
         <Text size="xs" c="dimmed" mx={4} mb={2}>
           {author}
@@ -209,15 +325,19 @@ function Bubble({
       <Box
         className="w-bubble"
         data-mine={mine || undefined}
+        data-first={first || undefined}
+        data-last={last || undefined}
         data-state={state}
-        bg={mine ? (state === "failed" ? "red.1" : `var(--mantine-color-${color}-filled)`) : "var(--mantine-color-gray-1)"}
-        c={mine ? (state === "failed" ? "red.8" : "white") : undefined}
+        bg={mine ? (state === "failed" ? "red.1" : `var(--mantine-color-${color}-filled)`) : undefined}
+        c={mine ? (state === "failed" ? "red.8" : onBrandColor(color)) : undefined}
       >
         <Linkify text={text} />
       </Box>
-      <Text size="xs" c={state === "failed" ? "red" : "dimmed"} mx={4} mt={2} component="div">
-        {meta}
-      </Text>
+      {meta && (
+        <Text size="xs" c={state === "failed" ? "red" : "dimmed"} mx={4} mt={2} component="div" style={{ fontVariantNumeric: "tabular-nums" }}>
+          {meta}
+        </Text>
+      )}
     </Box>
   )
 }

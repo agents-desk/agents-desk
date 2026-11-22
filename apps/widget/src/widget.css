@@ -1,4 +1,4 @@
-/* 聊天窗口的布局。嵌入网页时页面背景透明：iframe 中只有启动按钮和浮层可见。颜色都取 Mantine 的主题变量。 */
+/* 聊天窗口的布局与微动效。嵌入网页时页面背景透明：iframe 中只有启动按钮和浮层可见。颜色都取 Mantine 的主题变量。 */
 html[data-embedded],
 html[data-embedded] body {
   background: transparent;
@@ -26,9 +26,20 @@ body {
   min-height: 0;
   border-radius: 16px;
   box-shadow: var(--mantine-shadow-xl);
+  transform-origin: bottom right;
+  animation: w-panel-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .w-launcher {
   box-shadow: var(--mantine-shadow-lg);
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+@media (hover: hover) {
+  .w-launcher:hover {
+    transform: translateY(-1px);
+  }
+}
+.w-launcher:active {
+  transform: scale(0.95);
 }
 
 /* 浮层和全屏的聊天窗口 */
@@ -44,6 +55,24 @@ body {
   height: 100dvh;
 }
 
+/* 首页与会话页切换容器：轻量淡入过渡 */
+.w-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  animation: w-fade-in 150ms ease;
+}
+
+/* 时间线滚动容器外层：用于定位悬浮回底按钮 */
+.w-scroll-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 /* 可以滚动的中间部分：首页的会话列表、会话页的时间线 */
 .w-scroll {
   flex: 1;
@@ -51,6 +80,15 @@ body {
   overflow-y: auto;
   overscroll-behavior: contain;
   background: var(--mantine-color-gray-0);
+}
+
+.w-scroll-bottom {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  z-index: 4;
+  box-shadow: var(--mantine-shadow-sm);
 }
 
 /* 刘海和底部横条的安全区域：页面的 viewport 带 viewport-fit=cover */
@@ -65,32 +103,115 @@ body {
   background: var(--mantine-color-body);
 }
 
-/* 会话列表的一行：点击区域至少 44px */
+/* 会话列表的一行：点击区域至少 44px，悬停与按压有清晰反馈 */
 .w-conversation {
   min-height: 56px;
   border-top: 1px solid var(--mantine-color-gray-2);
+  transition: background-color 140ms ease;
 }
 .w-conversation:first-of-type {
   border-top: 0;
 }
-.w-conversation:hover {
-  background: var(--mantine-color-gray-0);
+@media (hover: hover) {
+  .w-conversation:hover {
+    background: var(--mantine-color-gray-0);
+  }
+  .w-conversation:hover .w-conversation-arrow {
+    color: var(--mantine-color-gray-7);
+    transform: translateX(2px);
+  }
+}
+.w-conversation:active {
+  background: var(--mantine-color-gray-1);
+}
+.w-conversation-arrow {
+  color: var(--mantine-color-gray-5);
+  transition: transform 140ms ease, color 140ms ease;
 }
 
-/* 消息气泡 */
+/* 消息气泡：客服白底配轻边框与微阴影，与 gray-0 画布拉开清晰层次；连续消息圆角自然衔接 */
 .w-bubble {
   padding: 8px 12px;
   border-radius: 16px;
   font-size: var(--mantine-font-size-sm);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  animation: w-bubble-in 160ms ease;
 }
 .w-bubble[data-mine] {
   border-bottom-right-radius: 4px;
 }
+.w-bubble[data-mine]:not([data-first]):not([data-last]) {
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+.w-bubble[data-mine]:not([data-first])[data-last] {
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 16px;
+}
 .w-bubble:not([data-mine]) {
+  background: var(--mantine-color-body);
+  border: 1px solid var(--mantine-color-gray-2);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--mantine-color-black) 4%, transparent);
   border-bottom-left-radius: 4px;
+}
+.w-bubble:not([data-mine]):not([data-first]):not([data-last]) {
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+.w-bubble:not([data-mine]):not([data-first])[data-last] {
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 16px;
 }
 .w-bubble[data-state="sending"] {
   opacity: 0.6;
+}
+
+@keyframes w-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes w-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes w-bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .w-dock-open .w-panel,
+  .w-view,
+  .w-bubble {
+    animation: none;
+  }
+  .w-launcher,
+  .w-conversation,
+  .w-conversation-arrow {
+    transition: none;
+  }
+  .w-launcher:hover,
+  .w-launcher:active,
+  .w-conversation:hover .w-conversation-arrow {
+    transform: none;
+  }
 }

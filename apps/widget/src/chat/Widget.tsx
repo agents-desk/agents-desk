@@ -140,7 +140,7 @@ export function Widget(): ReactNode {
           <Loader color={color} />
         </Center>
       ) : view.kind === "home" ? (
-        <>
+        <Box key="home" className="w-view">
           <Header color={color} title={name} greeting={config.data.greeting || t("home.default_greeting")} close={close} onClose={onClose} />
           {conversations.data.length > 0 ? (
             <Home
@@ -151,31 +151,30 @@ export function Widget(): ReactNode {
               onNew={() => setView({ kind: "new" })}
             />
           ) : (
-            <>
-              <ConversationView
-                intro={<FirstMessage />}
-                color={color}
-                name={name}
-                touch={full}
-                visible={open && visible}
-                onStarted={(id) => setView({ kind: "conversation", id })}
-                onBack={() => setView({ kind: "home" })}
-              />
-            </>
+            <ConversationView
+              intro={<FirstMessage />}
+              color={color}
+              name={name}
+              touch={full}
+              visible={open && visible}
+              onStarted={(id) => setView({ kind: "conversation", id })}
+              onBack={() => setView({ kind: "home" })}
+            />
           )}
-        </>
+        </Box>
       ) : (
-        <ConversationPage
-          key={view.kind === "conversation" ? view.id : "new"}
-          id={view.kind === "conversation" ? view.id : undefined}
-          color={color}
-          name={name}
-          full={full}
-          visible={open && visible}
-          close={close}
-          onClose={onClose}
-          onView={setView}
-        />
+        <Box key={view.kind === "conversation" ? view.id : "new"} className="w-view">
+          <ConversationPage
+            id={view.kind === "conversation" ? view.id : undefined}
+            color={color}
+            name={name}
+            full={full}
+            visible={open && visible}
+            close={close}
+            onClose={onClose}
+            onView={setView}
+          />
+        </Box>
       )}
     </Box>
   )
