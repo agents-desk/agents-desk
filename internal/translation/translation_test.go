@@ -233,6 +233,9 @@ func TestIncomingFailures(t *testing.T) {
 	ctx := context.Background()
 
 	off := setup(t, false)
+	if got, err := NewSettingsActions(off.env.DB, NewGroup(off.env.DB), off.translator).Get(ctx, off.agent); err != nil || got.Enabled {
+		t.Fatalf("没有配置时的设置：%+v %v", got, err)
+	}
 	p := off.receive(t, "rahul", "hello")
 	if err := NewIncoming(off.env.DB, off.translator, off.down).Job(ctx, p); err != nil || off.model.count() != 0 {
 		t.Fatalf("没有配置：%v，调用了 %d 次", err, off.model.count())
@@ -259,9 +262,9 @@ func TestPreviewAndReply(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	f := setup(t, true)
-	settings := NewSettingsActions(f.env.DB, NewGroup(f.env.DB))
-	if _, err := settings.SaveTone(ctx, f.agent, Friendly); err != nil {
-		t.Fatal(err)
+	settings := NewSettingsActions(f.env.DB, NewGroup(f.env.DB), f.translator)
+	if got, err := settings.SaveTone(ctx, f.agent, Friendly); err != nil || got.Tone != Friendly || !got.Enabled {
+		t.Fatalf("保存语气：%+v %v", got, err)
 	}
 	if _, err := settings.SaveGlossary(ctx, f.agent, []Term{
 		{Term: " AgentsPay ", Keep: true},
@@ -282,6 +285,10 @@ func TestPreviewAndReply(t *testing.T) {
 	}
 	if err := NewIncoming(f.env.DB, f.translator, f.down).Job(ctx, p); err != nil {
 		t.Fatal(err)
+	}
+	// 会话列表的预览：对方的消息显示成员语言的译文
+	if c, err := conversation.NewGet(f.env.DB).Handle(ctx, f.agent, p.ConversationID); err != nil || c.Preview != "我的订单还没到" {
+		t.Fatalf("翻译后的预览：%+v %v", c, err)
 	}
 	got, err := preview.Handle(ctx, f.agent, p.ConversationID, PreviewBody{Text: "我在查您的 AgentsPay 提现"})
 	if err != nil || !got.Needed || got.From != "zh-CN" || got.Language != "hi-Latn" || got.Translation == "" || got.BackTranslation == "" {
@@ -308,6 +315,10 @@ func TestPreviewAndReply(t *testing.T) {
 	})
 	if err != nil || reply.Content.Text != got.Translation || reply.Content.Original != "我在查您的订单" || reply.Content.Language != "hi-Latn" {
 		t.Fatalf("带译文的回复：%+v %v", reply, err)
+	}
+	// 会话列表的预览：成员翻译后发出的回复显示成员写的原文
+	if c, err := conversation.NewGet(f.env.DB).Handle(ctx, f.agent, p.ConversationID); err != nil || c.Preview != "我在查您的订单" {
+		t.Fatalf("回复后的预览：%+v %v", c, err)
 	}
 	var contactID string
 	if err := f.env.DB.NewRaw("SELECT contact_id FROM conversations WHERE id = ?", p.ConversationID).Scan(ctx, &contactID); err != nil {

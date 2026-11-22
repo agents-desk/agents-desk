@@ -79,6 +79,16 @@ func NewClient(db bun.IDB, s *settings.Group[Settings], h *http.Client) *Client 
 	return &Client{db: db, settings: s, http: h}
 }
 
+// Configured 返回调用类型 t 的模型接口是否已经配置（地址和模型名都填了）。
+func (c *Client) Configured(ctx context.Context, t CallType) (bool, error) {
+	s, err := c.settings.Get(ctx)
+	if err != nil {
+		return false, err
+	}
+	ep := s.endpoint(t)
+	return ep.BaseURL != "" && ep.Model != "", nil
+}
+
 // completion 是 /chat/completions 的回答中用到的部分。
 type completion struct {
 	Choices []struct {

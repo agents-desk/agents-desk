@@ -21,7 +21,7 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 		return op
 	}
 	manage := require(auth.TenantSettingsManage)
-	actions := NewSettingsActions(db, s)
+	actions := NewSettingsActions(db, s, translator)
 	rest.Register(api, route(require(auth.ConversationsReply), "translation-preview", http.MethodPost, "/conversations/{id}/translations", "回复的译文和回译"),
 		NewPreview(db, translator).HTTP)
 	rest.Register(api, route(require(), "translation-settings", http.MethodGet, "/settings/translation", "读取翻译设置"), actions.GetHTTP)

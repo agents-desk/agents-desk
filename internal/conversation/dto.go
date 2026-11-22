@@ -36,7 +36,7 @@ type ConversationDTO struct {
 	ClosedAt      *time.Time       `json:"closed_at,omitempty"`
 	LastMessageAt time.Time        `json:"last_message_at"`
 	LastSeq       int64            `json:"last_seq" doc:"时间线中最新一项的序号，用来增量读取时间线"`
-	Preview       string           `json:"preview" doc:"最后一条消息的文字"`
+	Preview       string           `json:"preview" doc:"最后一条消息的文字：对方的消息是我的语言的译文（还没有时是原文），成员翻译后发出的回复是成员写的原文"`
 	PreviewActor  *Actor           `json:"preview_actor,omitempty" doc:"最后一条消息是谁发的；还没有消息时为空"`
 	Unread        bool             `json:"unread" doc:"有我还没读到的消息或内部备注（不算我自己写的）"`
 	ReadSeq       int64            `json:"read_seq" doc:"我读到的位置：序号不大于它的项已读；会话页在它之后显示“新消息”分隔线"`
@@ -98,7 +98,7 @@ func toItemDTOs(ctx context.Context, db bun.IDB, items []Item) ([]ItemDTO, error
 	return out, nil
 }
 
-// toDTOs 把会话转换为接口中的形式：一次读出它们的渠道、联系人、最后一条消息的文字，以及对 sub 来说是否未读。
+// toDTOs 把会话转换为接口中的形式：一次读出它们的渠道、联系人、最后一条消息的文字（对方的消息是 sub 的语言的译文），以及对 sub 来说是否未读。
 func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conversation) ([]ConversationDTO, error) {
 	out := make([]ConversationDTO, len(convs))
 	if len(convs) == 0 {
@@ -140,8 +140,13 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 		ActorType      ActorType `bun:"actor_type"`
 		ActorID        string    `bun:"actor_id"`
 	}
-	err := db.NewRaw(`SELECT DISTINCT ON (conversation_id) conversation_id, content->>'text' AS text, actor_type, actor_id
-		FROM timeline_items WHERE conversation_id IN (?) AND kind = ? ORDER BY conversation_id, seq DESC`, bun.In(ids), Message).Scan(ctx, &previews)
+	// 对方的消息取 sub 的语言的译文（还没有时取原文），成员发出的译文取成员写的原文
+	err := db.NewRaw(`SELECT DISTINCT ON (conversation_id) conversation_id,
+			CASE WHEN actor_type = ? THEN COALESCE(derived->'translations'->>(SELECT language FROM members WHERE id::text = ?), content->>'text')
+				ELSE COALESCE(content->>'original', content->>'text') END AS text,
+			actor_type, actor_id
+		FROM timeline_items WHERE conversation_id IN (?) AND kind = ? ORDER BY conversation_id, seq DESC`,
+		ContactActor, sub.ID, bun.In(ids), Message).Scan(ctx, &previews)
 	if err != nil {
 		return nil, errors.Wrap(err, "load previews")
 	}

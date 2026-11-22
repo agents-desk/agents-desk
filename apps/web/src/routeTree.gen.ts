@@ -23,12 +23,15 @@ import { Route as TSlugSettingsIndexRouteImport } from './routes/t/$slug/setting
 import { Route as TSlugSettingsChannelsRouteImport } from './routes/t/$slug/settings/_channels'
 import { Route as TSlugSettingsInboxRouteImport } from './routes/t/$slug/settings/_inbox'
 import { Route as TSlugSettingsPersonalRouteImport } from './routes/t/$slug/settings/_personal'
+import { Route as TSlugSettingsTranslationRouteImport } from './routes/t/$slug/settings/_translation'
 import { Route as TSlugSettingsWorkspaceRouteImport } from './routes/t/$slug/settings/_workspace'
 import { Route as TSlugSettingsChannelsWidgetsRouteImport } from './routes/t/$slug/settings/_channels/widgets'
 import { Route as TSlugSettingsInboxTeamsRouteImport } from './routes/t/$slug/settings/_inbox/teams'
 import { Route as TSlugSettingsPersonalPreferencesRouteImport } from './routes/t/$slug/settings/_personal/preferences'
 import { Route as TSlugSettingsPersonalProfileRouteImport } from './routes/t/$slug/settings/_personal/profile'
 import { Route as TSlugSettingsPersonalStatusRouteImport } from './routes/t/$slug/settings/_personal/status'
+import { Route as TSlugSettingsTranslationGlossaryRouteImport } from './routes/t/$slug/settings/_translation/glossary'
+import { Route as TSlugSettingsTranslationToneRouteImport } from './routes/t/$slug/settings/_translation/tone'
 import { Route as TSlugSettingsWorkspaceBusinessHoursRouteImport } from './routes/t/$slug/settings/_workspace/business-hours'
 import { Route as TSlugSettingsWorkspaceGeneralRouteImport } from './routes/t/$slug/settings/_workspace/general'
 import { Route as TSlugSettingsWorkspaceMembersRouteImport } from './routes/t/$slug/settings/_workspace/members'
@@ -105,6 +108,11 @@ const TSlugSettingsPersonalRoute = TSlugSettingsPersonalRouteImport.update({
   id: '/_personal',
   getParentRoute: () => TSlugSettingsRoute,
 } as any)
+const TSlugSettingsTranslationRoute =
+  TSlugSettingsTranslationRouteImport.update({
+    id: '/_translation',
+    getParentRoute: () => TSlugSettingsRoute,
+  } as any)
 const TSlugSettingsWorkspaceRoute = TSlugSettingsWorkspaceRouteImport.update({
   id: '/_workspace',
   getParentRoute: () => TSlugSettingsRoute,
@@ -137,6 +145,18 @@ const TSlugSettingsPersonalStatusRoute =
     id: '/status',
     path: '/status',
     getParentRoute: () => TSlugSettingsPersonalRoute,
+  } as any)
+const TSlugSettingsTranslationGlossaryRoute =
+  TSlugSettingsTranslationGlossaryRouteImport.update({
+    id: '/glossary',
+    path: '/glossary',
+    getParentRoute: () => TSlugSettingsTranslationRoute,
+  } as any)
+const TSlugSettingsTranslationToneRoute =
+  TSlugSettingsTranslationToneRouteImport.update({
+    id: '/tone',
+    path: '/tone',
+    getParentRoute: () => TSlugSettingsTranslationRoute,
   } as any)
 const TSlugSettingsWorkspaceBusinessHoursRoute =
   TSlugSettingsWorkspaceBusinessHoursRouteImport.update({
@@ -204,6 +224,8 @@ export interface FileRoutesByFullPath {
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/status': typeof TSlugSettingsPersonalStatusRoute
+  '/t/$slug/settings/glossary': typeof TSlugSettingsTranslationGlossaryRoute
+  '/t/$slug/settings/tone': typeof TSlugSettingsTranslationToneRoute
   '/t/$slug/settings/business-hours': typeof TSlugSettingsWorkspaceBusinessHoursRoute
   '/t/$slug/settings/general': typeof TSlugSettingsWorkspaceGeneralRoute
   '/t/$slug/settings/members': typeof TSlugSettingsWorkspaceMembersRoute
@@ -225,6 +247,8 @@ export interface FileRoutesByTo {
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/status': typeof TSlugSettingsPersonalStatusRoute
+  '/t/$slug/settings/glossary': typeof TSlugSettingsTranslationGlossaryRoute
+  '/t/$slug/settings/tone': typeof TSlugSettingsTranslationToneRoute
   '/t/$slug/settings/business-hours': typeof TSlugSettingsWorkspaceBusinessHoursRoute
   '/t/$slug/settings/general': typeof TSlugSettingsWorkspaceGeneralRoute
   '/t/$slug/settings/members': typeof TSlugSettingsWorkspaceMembersRoute
@@ -248,6 +272,7 @@ export interface FileRoutesById {
   '/t/$slug/settings/_channels': typeof TSlugSettingsChannelsRouteWithChildren
   '/t/$slug/settings/_inbox': typeof TSlugSettingsInboxRouteWithChildren
   '/t/$slug/settings/_personal': typeof TSlugSettingsPersonalRouteWithChildren
+  '/t/$slug/settings/_translation': typeof TSlugSettingsTranslationRouteWithChildren
   '/t/$slug/settings/_workspace': typeof TSlugSettingsWorkspaceRouteWithChildren
   '/t/$slug/inbox/': typeof TSlugInboxIndexRoute
   '/t/$slug/settings/': typeof TSlugSettingsIndexRoute
@@ -256,6 +281,8 @@ export interface FileRoutesById {
   '/t/$slug/settings/_personal/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/_personal/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/_personal/status': typeof TSlugSettingsPersonalStatusRoute
+  '/t/$slug/settings/_translation/glossary': typeof TSlugSettingsTranslationGlossaryRoute
+  '/t/$slug/settings/_translation/tone': typeof TSlugSettingsTranslationToneRoute
   '/t/$slug/settings/_workspace/business-hours': typeof TSlugSettingsWorkspaceBusinessHoursRoute
   '/t/$slug/settings/_workspace/general': typeof TSlugSettingsWorkspaceGeneralRoute
   '/t/$slug/settings/_workspace/members': typeof TSlugSettingsWorkspaceMembersRoute
@@ -284,6 +311,8 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
     | '/t/$slug/settings/status'
+    | '/t/$slug/settings/glossary'
+    | '/t/$slug/settings/tone'
     | '/t/$slug/settings/business-hours'
     | '/t/$slug/settings/general'
     | '/t/$slug/settings/members'
@@ -305,6 +334,8 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
     | '/t/$slug/settings/status'
+    | '/t/$slug/settings/glossary'
+    | '/t/$slug/settings/tone'
     | '/t/$slug/settings/business-hours'
     | '/t/$slug/settings/general'
     | '/t/$slug/settings/members'
@@ -327,6 +358,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/_channels'
     | '/t/$slug/settings/_inbox'
     | '/t/$slug/settings/_personal'
+    | '/t/$slug/settings/_translation'
     | '/t/$slug/settings/_workspace'
     | '/t/$slug/inbox/'
     | '/t/$slug/settings/'
@@ -335,6 +367,8 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/_personal/preferences'
     | '/t/$slug/settings/_personal/profile'
     | '/t/$slug/settings/_personal/status'
+    | '/t/$slug/settings/_translation/glossary'
+    | '/t/$slug/settings/_translation/tone'
     | '/t/$slug/settings/_workspace/business-hours'
     | '/t/$slug/settings/_workspace/general'
     | '/t/$slug/settings/_workspace/members'
@@ -451,6 +485,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugSettingsPersonalRouteImport
       parentRoute: typeof TSlugSettingsRoute
     }
+    '/t/$slug/settings/_translation': {
+      id: '/t/$slug/settings/_translation'
+      path: ''
+      fullPath: '/t/$slug/settings'
+      preLoaderRoute: typeof TSlugSettingsTranslationRouteImport
+      parentRoute: typeof TSlugSettingsRoute
+    }
     '/t/$slug/settings/_workspace': {
       id: '/t/$slug/settings/_workspace'
       path: ''
@@ -492,6 +533,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/t/$slug/settings/status'
       preLoaderRoute: typeof TSlugSettingsPersonalStatusRouteImport
       parentRoute: typeof TSlugSettingsPersonalRoute
+    }
+    '/t/$slug/settings/_translation/glossary': {
+      id: '/t/$slug/settings/_translation/glossary'
+      path: '/glossary'
+      fullPath: '/t/$slug/settings/glossary'
+      preLoaderRoute: typeof TSlugSettingsTranslationGlossaryRouteImport
+      parentRoute: typeof TSlugSettingsTranslationRoute
+    }
+    '/t/$slug/settings/_translation/tone': {
+      id: '/t/$slug/settings/_translation/tone'
+      path: '/tone'
+      fullPath: '/t/$slug/settings/tone'
+      preLoaderRoute: typeof TSlugSettingsTranslationToneRouteImport
+      parentRoute: typeof TSlugSettingsTranslationRoute
     }
     '/t/$slug/settings/_workspace/business-hours': {
       id: '/t/$slug/settings/_workspace/business-hours'
@@ -641,6 +696,23 @@ const TSlugSettingsPersonalRouteWithChildren =
     TSlugSettingsPersonalRouteChildren,
   )
 
+interface TSlugSettingsTranslationRouteChildren {
+  TSlugSettingsTranslationGlossaryRoute: typeof TSlugSettingsTranslationGlossaryRoute
+  TSlugSettingsTranslationToneRoute: typeof TSlugSettingsTranslationToneRoute
+}
+
+const TSlugSettingsTranslationRouteChildren: TSlugSettingsTranslationRouteChildren =
+  {
+    TSlugSettingsTranslationGlossaryRoute:
+      TSlugSettingsTranslationGlossaryRoute,
+    TSlugSettingsTranslationToneRoute: TSlugSettingsTranslationToneRoute,
+  }
+
+const TSlugSettingsTranslationRouteWithChildren =
+  TSlugSettingsTranslationRoute._addFileChildren(
+    TSlugSettingsTranslationRouteChildren,
+  )
+
 interface TSlugSettingsWorkspaceRouteChildren {
   TSlugSettingsWorkspaceBusinessHoursRoute: typeof TSlugSettingsWorkspaceBusinessHoursRoute
   TSlugSettingsWorkspaceGeneralRoute: typeof TSlugSettingsWorkspaceGeneralRoute
@@ -666,6 +738,7 @@ interface TSlugSettingsRouteChildren {
   TSlugSettingsChannelsRoute: typeof TSlugSettingsChannelsRouteWithChildren
   TSlugSettingsInboxRoute: typeof TSlugSettingsInboxRouteWithChildren
   TSlugSettingsPersonalRoute: typeof TSlugSettingsPersonalRouteWithChildren
+  TSlugSettingsTranslationRoute: typeof TSlugSettingsTranslationRouteWithChildren
   TSlugSettingsWorkspaceRoute: typeof TSlugSettingsWorkspaceRouteWithChildren
   TSlugSettingsIndexRoute: typeof TSlugSettingsIndexRoute
 }
@@ -674,6 +747,7 @@ const TSlugSettingsRouteChildren: TSlugSettingsRouteChildren = {
   TSlugSettingsChannelsRoute: TSlugSettingsChannelsRouteWithChildren,
   TSlugSettingsInboxRoute: TSlugSettingsInboxRouteWithChildren,
   TSlugSettingsPersonalRoute: TSlugSettingsPersonalRouteWithChildren,
+  TSlugSettingsTranslationRoute: TSlugSettingsTranslationRouteWithChildren,
   TSlugSettingsWorkspaceRoute: TSlugSettingsWorkspaceRouteWithChildren,
   TSlugSettingsIndexRoute: TSlugSettingsIndexRoute,
 }

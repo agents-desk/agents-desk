@@ -5,6 +5,7 @@ import { IconX } from "@tabler/icons-react"
 import { notifyError, useCan, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
 import type { ReactNode } from "react"
 import { kit, tenantApi } from "../api"
+import { languageName } from "../languages"
 import { useContactHistory, useMe, useMembers, useTeams } from "./data"
 import { activity } from "./format"
 
@@ -143,7 +144,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                 </Field>
                 <Field label={t("inbox.contact_language")}>
                   <Text size="sm" c={c.language ? undefined : "dimmed"}>
-                    {c.language || "—"}
+                    {c.language ? languageName(c.language, language) : "—"}
                   </Text>
                 </Field>
                 <Field label={t("inbox.channel")}>

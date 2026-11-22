@@ -24,6 +24,11 @@ func NewTranslator(db bun.IDB, client *llm.Client, s *settings.Group[Settings]) 
 	return &Translator{db: db, llm: client, settings: s}
 }
 
+// Enabled 返回翻译是否可用：平台设置中配置了“翻译”调用类型的模型接口。
+func (tr *Translator) Enabled(ctx context.Context) (bool, error) {
+	return tr.llm.Configured(ctx, llm.Translation)
+}
+
 // rules 是两种翻译都遵守的规则。
 const rules = `Rules:
 - Translate the meaning faithfully and naturally. Do not add, omit or explain anything, and never answer the message yourself.

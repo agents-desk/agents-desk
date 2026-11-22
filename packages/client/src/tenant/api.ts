@@ -95,7 +95,7 @@ export interface ConversationDTO {
   last_seq: number
   /** 最近一次 @ 我的时间，只在“@我”的列表中有 */
   mentioned_at?: string
-  /** 最后一条消息的文字 */
+  /** 最后一条消息的文字：对方的消息是我的语言的译文（还没有时是原文），成员翻译后发出的回复是成员写的原文 */
   preview: string
   /** 最后一条消息是谁发的；还没有消息时为空 */
   preview_actor?: ConversationActor
@@ -482,7 +482,9 @@ export interface TranslationPreviewDTO {
   translation: string
 }
 
-export interface TranslationSettings {
+export interface TranslationSettingsDTO {
+  /** 翻译是否可用：平台设置中配置了翻译的模型接口。不可用时收到的消息不翻译，回复按原文发出 */
+  enabled: boolean
   /** 术语表 */
   glossary: TranslationTerm[]
   /** 回复译文的语气 */
@@ -960,8 +962,8 @@ export function createClient(options: ClientOptions) {
        *
        * PUT /settings/translation/glossary
        */
-      glossarySave: (body: TranslationGlossaryInputBody): Promise<TranslationSettings> =>
-        rt.request<TranslationSettings>({ method: "PUT", path: `/settings/translation/glossary`, body }),
+      glossarySave: (body: TranslationGlossaryInputBody): Promise<TranslationSettingsDTO> =>
+        rt.request<TranslationSettingsDTO>({ method: "PUT", path: `/settings/translation/glossary`, body }),
       /**
        * 回复的译文和回译
        *
@@ -974,15 +976,15 @@ export function createClient(options: ClientOptions) {
        *
        * GET /settings/translation
        */
-      settings: (): Promise<TranslationSettings> =>
-        rt.request<TranslationSettings>({ method: "GET", path: `/settings/translation` }),
+      settings: (): Promise<TranslationSettingsDTO> =>
+        rt.request<TranslationSettingsDTO>({ method: "GET", path: `/settings/translation` }),
       /**
        * 保存翻译的语气
        *
        * PUT /settings/translation/tone
        */
-      toneSave: (body: TranslationToneInputBody): Promise<TranslationSettings> =>
-        rt.request<TranslationSettings>({ method: "PUT", path: `/settings/translation/tone`, body }),
+      toneSave: (body: TranslationToneInputBody): Promise<TranslationSettingsDTO> =>
+        rt.request<TranslationSettingsDTO>({ method: "PUT", path: `/settings/translation/tone`, body }),
     },
     /** operationId 以 widget- 开头的接口。 */
     widget: {
