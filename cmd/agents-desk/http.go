@@ -180,7 +180,15 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		llm.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.llmSettings)
 		flags.RegisterRoutes(api, require(auth.FeaturesManage), a.db, a.features)
 		audit.RegisterRoutes(api, require(auth.AuditRead), a.db)
-		queueOpts := queueapi.Options{}
+		queueOpts := queueapi.Options{
+			Topics: []queue.TopicMeta{
+				conversation.DeliverTopic.Meta("queue.topic.conversation.deliver.label", "queue.topic.conversation.deliver.description"),
+				translation.Topic.Meta("queue.topic.conversation.translate.label", "queue.topic.conversation.translate.description"),
+				translation.FillTopic.Meta("queue.topic.translation.fill.label", "queue.topic.translation.fill.description"),
+				automation.Topic.Meta("queue.topic.conversation.automate.label", "queue.topic.conversation.automate.description"),
+				tenant.ExportJob.Meta("queue.topic.tenants.export.label", "queue.topic.tenants.export.description"),
+			},
+		}
 		if a.nc != nil { // docRouter 离线构造路由时没有 NATS 连接
 			queueOpts.Admin = queue.NewAdmin(a.nc, a.cfg.Queue)
 		}

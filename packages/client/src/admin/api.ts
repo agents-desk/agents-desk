@@ -256,6 +256,8 @@ export interface QueueFailedJob {
   failed_at: string
   id: string
   topic: string
+  /** 任务类型的显示名称 */
+  topic_label?: string
 }
 
 export interface QueueFailedJobDetail {
@@ -270,6 +272,8 @@ export interface QueueFailedJobDetail {
   /** 任务的 payload，原样返回的 JSON */
   payload: unknown
   topic: string
+  /** 任务类型的显示名称 */
+  topic_label?: string
 }
 
 export interface QueueFailedList {
@@ -332,10 +336,14 @@ export interface QueueStatus {
 }
 
 export interface QueueTopic {
+  /** 任务类型的说明 */
+  description?: string
   /** 失败任务数 */
   failed: number
   /** 已经交给 Worker、还没有确认的任务数 */
   in_flight: number
+  /** 任务类型的显示名称 */
+  label?: string
   /** 最近一次把任务交给 Worker 的时间，没有交过时没有这个字段 */
   last_delivered?: string
   /** 暂停处理的截止时间，没有暂停时没有这个字段 */
@@ -361,12 +369,16 @@ export interface ScheduleRun {
   started_at: string
   status: "succeeded" | "failed" | "skipped"
   task: string
+  /** 任务的显示名称 */
+  task_label?: string
 }
 
 export interface ScheduleTask {
   description: string
   /** 表达式，例如 @daily、0 3 * * * */
   expr: string
+  /** 任务的显示名称 */
+  label?: string
   last_duration_ms?: number
   last_error?: string
   /** 最近一次是立即执行的 */

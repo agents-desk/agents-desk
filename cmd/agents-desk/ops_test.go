@@ -62,7 +62,9 @@ func TestAdminOpsAPIs(t *testing.T) {
 	}
 	var schedList struct {
 		Items []struct {
-			Name string `json:"name"`
+			Name        string `json:"name"`
+			Label       string `json:"label"`
+			Description string `json:"description"`
 		} `json:"items"`
 	}
 	if err := json.Unmarshal([]byte(schedResp.body), &schedList); err != nil {
@@ -71,6 +73,9 @@ func TestAdminOpsAPIs(t *testing.T) {
 	names := map[string]bool{}
 	for _, it := range schedList.Items {
 		names[it.Name] = true
+		if it.Label == "" || strings.HasPrefix(it.Label, "schedule.task.") || it.Description == "" || strings.HasPrefix(it.Description, "schedule.task.") {
+			t.Errorf("定时任务 %q 未正确翻译显示名称或说明：%+v", it.Name, it)
+		}
 	}
 	for _, want := range []string{"files:cleanup", "locks:cleanup", "apitoken:cleanup", "queue:prune-failed", "schedule:prune-runs", "conversations:unsnooze"} {
 		if !names[want] {

@@ -296,3 +296,37 @@ notification.tenants.exported.title: 工作区列表导出完成
 notification.tenants.exported.body: "已导出 {{.processed}} 个工作区，点击查看工作区列表。"
 notification.tenants.export_failed.title: 工作区列表导出失败
 notification.tenants.export_failed.body: 后台导出工作区时发生错误，请稍后重试。
+
+queue.topic.conversation.deliver.label: 会话消息投递
+queue.topic.conversation.deliver.description: 将客服回复和系统消息投递至外部渠道或网页聊天插件
+queue.topic.conversation.translate.label: 会话消息翻译
+queue.topic.conversation.translate.description: 自动识别客户语言并翻译新收到的会话消息
+queue.topic.translation.fill.label: 历史消息补译
+queue.topic.translation.fill.description: 为切换主要语言后的工作区补齐历史会话翻译
+queue.topic.conversation.automate.label: 自动化规则执行
+queue.topic.conversation.automate.description: 按工作区配置的自动化规则处理会话事件与自动分配
+queue.topic.tenants.export.label: 工作区列表导出
+queue.topic.tenants.export.description: 后台生成工作区列表表格文件并推送完成通知
+
+schedule.task.files_cleanup.label: 清理过期文件
+schedule.task.files_cleanup.description: 删除过期的临时文件和已删除的文件
+schedule.task.locks_cleanup.label: 清理过期锁
+schedule.task.locks_cleanup.description: 删除过期的分布式锁记录
+schedule.task.apitoken_cleanup.label: 清理过期令牌
+schedule.task.apitoken_cleanup.description: 删除过期的登录与访问令牌
+schedule.task.login_cleanup.label: 清理登录验证记录
+schedule.task.login_cleanup.description: 删除过期或已完成的登录验证记录
+schedule.task.ratelimit_cleanup.label: 清理限流计数
+schedule.task.ratelimit_cleanup.description: 删除过期的限流计数记录
+schedule.task.queue_prune_failed.label: 清理队列失败任务
+schedule.task.queue_prune_failed.description: 删除 30 天前的队列失败任务
+schedule.task.schedule_prune_runs.label: 清理定时任务执行记录
+schedule.task.schedule_prune_runs.description: 删除 7 天前的定时任务执行记录
+schedule.task.activity_cleanup.label: 清理平台操作日志
+schedule.task.activity_cleanup.description: 删除 180 天前的操作日志
+schedule.task.notifications_cleanup.label: 清理历史站内通知
+schedule.task.notifications_cleanup.description: 删除 90 天前的站内通知
+schedule.task.operations_cleanup.label: 清理历史后台操作
+schedule.task.operations_cleanup.description: 删除 30 天前的后台操作与导出记录
+schedule.task.conversations_unsnooze.label: 唤醒到期稍后处理会话
+schedule.task.conversations_unsnooze.description: 重新打开稍后处理到期的会话

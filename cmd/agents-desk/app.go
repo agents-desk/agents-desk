@@ -229,30 +229,42 @@ func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
 func (a *App) tasks() *schedule.Scheduler {
 	sched := schedule.New(a.locker, a.cfg.Schedule, nil, schedule.WithObserver(scheduleapi.Observer(a.db)))
 	sched.Add("files:cleanup", "*/5 * * * *", schedule.Cleanup(a.files.Cleanup, 500),
-		schedule.Describe("删除过期的临时文件和已删除的文件"))
+		schedule.Label("schedule.task.files_cleanup.label"),
+		schedule.Describe("schedule.task.files_cleanup.description"))
 	sched.Add("locks:cleanup", "@hourly", schedule.Cleanup(pglock.New(a.db).Cleanup, 1000),
-		schedule.Describe("删除过期的锁"))
+		schedule.Label("schedule.task.locks_cleanup.label"),
+		schedule.Describe("schedule.task.locks_cleanup.description"))
 	sched.Add("apitoken:cleanup", "@hourly", schedule.Cleanup(a.adminTokens.Cleanup, 1000),
-		schedule.Describe("删除过期的登录与访问令牌"))
+		schedule.Label("schedule.task.apitoken_cleanup.label"),
+		schedule.Describe("schedule.task.apitoken_cleanup.description"))
 	sched.Add("login:cleanup", "@hourly", schedule.Cleanup(a.adminLogins.Cleanup, 1000),
-		schedule.Describe("删除过期或已完成的登录验证记录"))
+		schedule.Label("schedule.task.login_cleanup.label"),
+		schedule.Describe("schedule.task.login_cleanup.description"))
 	sched.Add("ratelimit:cleanup", "@hourly", schedule.Cleanup(pglimit.New(a.db, "cleanup", ratelimit.Config{Rate: 1, Interval: time.Minute, Burst: 1}).Cleanup, 1000),
-		schedule.Describe("删除过期的限流计数"))
+		schedule.Label("schedule.task.ratelimit_cleanup.label"),
+		schedule.Describe("schedule.task.ratelimit_cleanup.description"))
 	sched.Add("queue:prune-failed", "@daily", schedule.Cleanup(queue.NewFailedJobs(a.db).Cleanup(30*24*time.Hour), 1000),
-		schedule.Describe("删除 30 天前的队列失败任务"))
+		schedule.Label("schedule.task.queue_prune_failed.label"),
+		schedule.Describe("schedule.task.queue_prune_failed.description"))
 	sched.Add("schedule:prune-runs", "@daily", schedule.Cleanup(scheduleapi.Cleanup(a.db, 7*24*time.Hour), 1000),
-		schedule.Describe("删除 7 天前的定时任务执行记录"))
+		schedule.Label("schedule.task.schedule_prune_runs.label"),
+		schedule.Describe("schedule.task.schedule_prune_runs.description"))
 	sched.Add("activity:cleanup", "@daily", schedule.Cleanup(activity.Cleanup(a.db, 180*24*time.Hour), 1000),
-		schedule.Describe("删除 180 天前的操作日志"))
+		schedule.Label("schedule.task.activity_cleanup.label"),
+		schedule.Describe("schedule.task.activity_cleanup.description"))
 	sched.Add("notifications:cleanup", "@daily", schedule.Cleanup(notification.Cleanup(a.db, 90*24*time.Hour), 1000),
-		schedule.Describe("删除 90 天前的站内通知"))
+		schedule.Label("schedule.task.notifications_cleanup.label"),
+		schedule.Describe("schedule.task.notifications_cleanup.description"))
 	sched.Add("operations:cleanup", "@daily", schedule.Cleanup(operation.New(a.db).Cleanup(30*24*time.Hour), 1000),
-		schedule.Describe("删除 30 天前的后台操作与导出记录"))
+		schedule.Label("schedule.task.operations_cleanup.label"),
+		schedule.Describe("schedule.task.operations_cleanup.description"))
 	expire := conversation.NewExpireSnoozes(a.db, a.downstream())
 	sched.Add("conversations:unsnooze", "* * * * *", func(ctx context.Context) error {
 		_, err := expire.Handle(ctx, time.Now())
 		return err
-	}, schedule.Describe("重新打开稍后处理到期的会话"))
+	},
+		schedule.Label("schedule.task.conversations_unsnooze.label"),
+		schedule.Describe("schedule.task.conversations_unsnooze.description"))
 	return sched
 }
 
