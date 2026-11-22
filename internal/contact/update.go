@@ -2,7 +2,6 @@ package contact
 
 import (
 	"context"
-	"database/sql"
 	"net/mail"
 	"strings"
 
@@ -75,13 +74,9 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 
 	var updated *Contact
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
-		c := new(Contact)
-		err := tx.NewSelect().Model(c).Where("id = ? AND tenant_id = ?", id, sub.Tenant).For("UPDATE").Scan(ctx)
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrNotFound.New()
-		}
+		c, err := findVisible(ctx, tx, sub, id, true)
 		if err != nil {
-			return errors.Wrap(err, "load contact")
+			return err
 		}
 		var cols []string
 		props := map[string]any{}
@@ -153,7 +148,7 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 	if err != nil {
 		return nil, err
 	}
-	return loadDetail(ctx, a.db, sub.Tenant, updated)
+	return loadDetail(ctx, a.db, sub, updated)
 }
 
 // detectContactLanguage 返回联系人 contactID 最近三条确定了语言的消息中出现最多的语言（与 conversation.CustomerLanguage 规则一致）。

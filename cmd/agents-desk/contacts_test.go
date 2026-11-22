@@ -17,11 +17,12 @@ import (
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/llm"
+	"agents-desk/internal/team"
 	"agents-desk/internal/tenant"
 )
 
-// TestContactsAPI 在完整的路由上检查联系人接口：未登录 401、非成员 404、工作区坐席可以读取概览/列表/详情和编辑资料、
-// 校验错误返回 422 和对应错误码，以及跨工作区隔离。
+// TestContactsAPI 在完整的路由上检查联系人接口：未登录 401、非成员 404、工作区坐席按可见范围读取概览/列表/详情和编辑资料、
+// 跨团队隔离返回 404、校验错误返回 422 和对应错误码，以及跨工作区隔离。
 func TestContactsAPI(t *testing.T) {
 	t.Parallel()
 	env := apptest.New(t)
@@ -55,20 +56,48 @@ func TestContactsAPI(t *testing.T) {
 	ownerAlpha := login("owner@alpha.com")
 	ownerBeta := login("owner@beta.com")
 	agentRole := roleID(t, h, "alpha", "坐席", ownerAlpha)
-	if r := call(h, "POST", "/t/alpha/api/members", `{"email":"agent@alpha.com","name":"agent","password":"password","role_id":"`+agentRole+`"}`, ownerAlpha); r.status != http.StatusCreated {
-		t.Fatalf("添加坐席：%d %s", r.status, r.body)
+	addRes := call(h, "POST", "/t/alpha/api/members", `{"email":"agent@alpha.com","name":"agent","password":"password","role_id":"`+agentRole+`"}`, ownerAlpha)
+	if addRes.status != http.StatusCreated {
+		t.Fatalf("添加坐席：%d %s", addRes.status, addRes.body)
+	}
+	var addedMember struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal([]byte(addRes.body), &addedMember); err != nil || addedMember.ID == "" {
+		t.Fatalf("解析坐席：%v %s", err, addRes.body)
 	}
 	agentAlpha := login("agent@alpha.com")
 
-	// 在 alpha 建测试渠道并收一条消息产生线索联系人
+	// 在 alpha 建两个团队收件箱，把 agentAlpha 加入 teamA，并分别绑定渠道
 	alphaID := tenantOf(t, env, "alpha")
 	sys := identity.Subject{Type: identity.System, ID: "test", Tenant: alphaID}
-	ch, err := channel.NewCreate(env.DB).Handle(ctx, sys, channel.CreateParams{Kind: channel.Test, Name: "测试渠道"})
+	teamA, err := team.NewCreate(env.DB).Handle(ctx, sys, team.Changes{Name: "品牌 A"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := conversation.NewReceive(env.DB, a.channels, a.downstream()).Handle(ctx, sys, conversation.ReceiveParams{
+	teamB, err := team.NewCreate(env.DB).Handle(ctx, sys, team.Changes{Name: "品牌 B"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := call(h, "PUT", "/t/alpha/api/teams/"+teamA.ID+"/members/"+addedMember.ID, "", ownerAlpha); r.status != http.StatusOK {
+		t.Fatalf("加入团队 A：%d %s", r.status, r.body)
+	}
+	ch, err := channel.NewCreate(env.DB).Handle(ctx, sys, channel.CreateParams{Kind: channel.Test, Name: "品牌 A 渠道", TeamID: &teamA.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	chB, err := channel.NewCreate(env.DB).Handle(ctx, sys, channel.CreateParams{Kind: channel.Test, Name: "品牌 B 渠道", TeamID: &teamB.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	recv := conversation.NewReceive(env.DB, a.channels, a.downstream())
+	if _, err := recv.Handle(ctx, sys, conversation.ReceiveParams{
 		ChannelID: ch.ID, From: "v-1", FromName: "Rahul", Text: "hello",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := recv.Handle(ctx, sys, conversation.ReceiveParams{
+		ChannelID: chB.ID, From: "v-b", FromName: "BrandB Customer", Text: "hello b",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -124,6 +153,25 @@ func TestContactsAPI(t *testing.T) {
 	}
 	if r := call(h, "PUT", "/t/alpha/api/contacts/"+cid, `{"language":"1234567890-bad"}`, agentAlpha); r.status != http.StatusUnprocessableEntity || r.code != "contact.invalid_language" {
 		t.Errorf("无效语言：%d %s", r.status, r.code)
+	}
+
+	// 跨团队隔离：ownerAlpha（ScopeAll）能看到全部 2 个联系人和 2 个渠道，agentAlpha 读不到也改不了品牌 B 联系人
+	ownerSumRes := call(h, "GET", "/t/alpha/api/contacts/summary", "", ownerAlpha)
+	var ownerSum contact.SummaryDTO
+	if err := json.Unmarshal([]byte(ownerSumRes.body), &ownerSum); err != nil || ownerSum.All != 2 || len(ownerSum.Channels) != 2 {
+		t.Fatalf("主管理员概览：%+v %v", ownerSum, err)
+	}
+	ownerListBRes := call(h, "GET", "/t/alpha/api/contacts?q=BrandB", "", ownerAlpha)
+	var ownerListB page.Cursor[contact.ContactDTO]
+	if err := json.Unmarshal([]byte(ownerListBRes.body), &ownerListB); err != nil || len(ownerListB.Items) != 1 {
+		t.Fatalf("主管理员搜品牌 B：%d %s", ownerListBRes.status, ownerListBRes.body)
+	}
+	otherCID := ownerListB.Items[0].ID
+	if r := call(h, "GET", "/t/alpha/api/contacts/"+otherCID, "", agentAlpha); r.status != http.StatusNotFound || r.code != "contact.not_found" {
+		t.Errorf("跨团队读取：%d %s", r.status, r.code)
+	}
+	if r := call(h, "PUT", "/t/alpha/api/contacts/"+otherCID, `{"notes":"hack"}`, agentAlpha); r.status != http.StatusNotFound || r.code != "contact.not_found" {
+		t.Errorf("跨团队修改：%d %s", r.status, r.code)
 	}
 
 	// 跨工作区读不到也改不了

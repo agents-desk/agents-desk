@@ -17,6 +17,8 @@ import (
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/member"
+	"agents-desk/internal/role"
+	"agents-desk/internal/team"
 	"agents-desk/internal/tenant"
 )
 
@@ -304,5 +306,233 @@ func TestMergeLead(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("重复合并报错：%v", err)
+	}
+}
+
+// TestVisibilityScope 检查联系人的可见范围隔离：同一工作区多个品牌（渠道 + 团队收件箱）下，
+// ScopeAll / ScopeTeam / ScopeAssigned / 系统主体在列表、概览、读取、修改和会话数统计上的隔离与协作规则。
+func TestVisibilityScope(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	env := apptest.New(t)
+	w := setupWorkspace(t, env, "brands")
+	owner := identity.Subject{
+		Type: member.Type, ID: w.agent.ID, Tenant: w.tenant,
+		Permissions: auth.WithBase(auth.RolePermissions(auth.ScopeAll, auth.TenantPermissions.Values())),
+	}
+
+	// 两个品牌团队收件箱：品牌 A 和品牌 B
+	createTeam := team.NewCreate(env.DB)
+	teamA, err := createTeam.Handle(ctx, owner, team.Changes{Name: "品牌 A 客服"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	teamB, err := createTeam.Handle(ctx, owner, team.Changes{Name: "品牌 B 客服"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 三个渠道：chA 绑 teamA、chB 绑 teamB、w.channel 未绑定团队
+	createCh := channel.NewCreate(env.DB)
+	chA, err := createCh.Handle(ctx, w.system, channel.CreateParams{Kind: channel.Test, Name: "品牌 A 官网", TeamID: &teamA.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	chB, err := createCh.Handle(ctx, w.system, channel.CreateParams{Kind: channel.Test, Name: "品牌 B 官网", TeamID: &teamB.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 创建角色和成员：agentA（teamA, ScopeTeam）、agentB/张三（teamB, ScopeTeam）、assignedOnly（teamB, ScopeAssigned）、homeless（无团队, ScopeTeam）
+	createRole := role.NewCreate(env.DB)
+	teamRole, err := createRole.Handle(ctx, owner, role.Params{Name: "品牌坐席", ConversationScope: auth.ScopeTeam})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assignedRole, err := createRole.Handle(ctx, owner, role.Params{Name: "仅指派坐席", ConversationScope: auth.ScopeAssigned})
+	if err != nil {
+		t.Fatal(err)
+	}
+	addMember := member.NewAdd(env.DB, env.MemberLogins, nil)
+	putMember := team.NewPutMember(env.DB, env.MemberLogins, nil)
+	newAgent := func(email, name, roleID string, scope auth.ConversationScope, teamID string) identity.Subject {
+		t.Helper()
+		m, err := addMember.Handle(ctx, owner, member.AddParams{Email: email, Name: name, Password: "password", RoleID: roleID})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if teamID != "" {
+			if _, err := putMember.Handle(ctx, owner, teamID, m.ID); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return identity.Subject{Type: member.Type, ID: m.ID, Tenant: w.tenant, Permissions: auth.WithBase(auth.RolePermissions(scope, nil))}
+	}
+	agentA := newAgent("a@brands.com", "品牌A坐席", teamRole.ID, auth.ScopeTeam, teamA.ID)
+	agentB := newAgent("b@brands.com", "张三", teamRole.ID, auth.ScopeTeam, teamB.ID)
+	assignedOnly := newAgent("assigned@brands.com", "仅指派", assignedRole.ID, auth.ScopeAssigned, teamB.ID)
+	homeless := newAgent("homeless@brands.com", "无团队", teamRole.ID, auth.ScopeTeam, "")
+
+	// 创建 5 个联系人：品牌 A（无会话/有会话）、品牌 B（无会话/有会话）、未绑定渠道（有会话）
+	var cAOnly, cAConv, cBOnly, cBConv, cUnassigned *contact.Contact
+	err = database.RunInTx(ctx, env.DB, nil, func(ctx context.Context, tx database.Tx) error {
+		var err error
+		if cAOnly, err = contact.ResolveUser(ctx, tx, w.tenant, chA.ID, "user:a-only", "a-only", contact.Profile{Name: "BrandA Silent"}); err != nil {
+			return err
+		}
+		if cAConv, err = contact.ResolveUser(ctx, tx, w.tenant, chA.ID, "user:a-conv", "a-conv", contact.Profile{Name: "BrandA Active"}); err != nil {
+			return err
+		}
+		if cBOnly, _, err = contact.ResolveIdentity(ctx, tx, w.tenant, chB.ID, "visitor:b-only", contact.Profile{Name: "BrandB Lead"}); err != nil {
+			return err
+		}
+		if cBConv, err = contact.ResolveUser(ctx, tx, w.tenant, chB.ID, "user:b-conv", "b-conv", contact.Profile{Name: "BrandB Active"}); err != nil {
+			return err
+		}
+		cUnassigned, _, err = contact.ResolveIdentity(ctx, tx, w.tenant, w.channel.ID, "visitor:u-1", contact.Profile{Name: "Unassigned Lead"})
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	receive := conversation.NewReceive(env.DB, channel.DefaultRegistry(), conversation.Downstream{})
+	recA, err := receive.Handle(ctx, w.system, conversation.ReceiveParams{ChannelID: chA.ID, From: "user:a-conv", Text: "hello from brand A"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := receive.Handle(ctx, w.system, conversation.ReceiveParams{ChannelID: chB.ID, From: "user:b-conv", Text: "hello from brand B"}); err != nil {
+		t.Fatal(err)
+	}
+	recUnassigned, err := receive.Handle(ctx, w.system, conversation.ReceiveParams{ChannelID: w.channel.ID, From: "visitor:u-1", Text: "hello unassigned"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	list := contact.NewList(env.DB)
+	summary := contact.NewGetSummary(env.DB)
+	get := contact.NewGet(env.DB)
+	upd := contact.NewUpdate(env.DB)
+	idsOf := func(sub identity.Subject, in *contact.ListInput) map[string]int {
+		t.Helper()
+		if in == nil {
+			in = &contact.ListInput{CursorParams: page.CursorParams{PerPage: 50}}
+		}
+		res, err := list.Handle(ctx, sub, in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		m := make(map[string]int, len(res.Items))
+		for _, it := range res.Items {
+			m[it.ID] = it.ConversationCount
+		}
+		return m
+	}
+
+	// 1. ScopeAll 与系统主体可以看到全部 5 个联系人和 3 个渠道
+	for _, sub := range []identity.Subject{owner, w.system} {
+		if got := idsOf(sub, nil); len(got) != 5 {
+			t.Fatalf("%s 应看到全部 5 个联系人，实际 %d", sub.Type, len(got))
+		}
+		if sum, err := summary.Handle(ctx, sub); err != nil || sum.All != 5 || sum.Users != 3 || sum.Leads != 2 || len(sum.Channels) != 3 {
+			t.Fatalf("%s 概览不对：%+v %v", sub.Type, sum, err)
+		}
+	}
+
+	// 2. 品牌 B 的张三（ScopeTeam）只能看到品牌 B 的 2 个联系人（含未发消息的线索）和品牌 B 渠道，看不到品牌 A 和未绑定渠道
+	bVisible := idsOf(agentB, nil)
+	if len(bVisible) != 2 || bVisible[cBOnly.ID] != 0 || bVisible[cBConv.ID] != 1 {
+		t.Fatalf("张三看到的联系人不对：%v", bVisible)
+	}
+	if sum, err := summary.Handle(ctx, agentB); err != nil || sum.All != 2 || sum.Users != 1 || sum.Leads != 1 || len(sum.Channels) != 1 || sum.Channels[0].ID != chB.ID {
+		t.Fatalf("张三概览不对：%+v %v", sum, err)
+	}
+	// 张三即使用品牌 A 的渠道 ID 或关键词搜索也搜不到品牌 A 联系人
+	if got := idsOf(agentB, &contact.ListInput{CursorParams: page.CursorParams{PerPage: 20}, ChannelID: chA.ID}); len(got) != 0 {
+		t.Fatalf("张三按品牌 A 渠道筛选不应看到联系人：%v", got)
+	}
+	if got := idsOf(agentB, &contact.ListInput{CursorParams: page.CursorParams{PerPage: 20}, Q: "BrandA"}); len(got) != 0 {
+		t.Fatalf("张三搜索 BrandA 不应看到联系人：%v", got)
+	}
+	// 张三读取或修改品牌 A 联系人都返回 ErrNotFound；读取和修改品牌 B 联系人正常
+	for _, forbiddenID := range []string{cAOnly.ID, cAConv.ID, cUnassigned.ID} {
+		if _, err := get.Handle(ctx, agentB, forbiddenID); !errors.Is(err, contact.ErrNotFound) {
+			t.Errorf("张三读取无权联系人 %s：期望 ErrNotFound，实际 %v", forbiddenID, err)
+		}
+		if _, err := upd.Handle(ctx, agentB, forbiddenID, contact.UpdateBody{Notes: strPtr("越权备注")}); !errors.Is(err, contact.ErrNotFound) {
+			t.Errorf("张三修改无权联系人 %s：期望 ErrNotFound，实际 %v", forbiddenID, err)
+		}
+	}
+	if _, err := get.Handle(ctx, agentB, cBOnly.ID); err != nil {
+		t.Fatalf("张三读取品牌 B 联系人：%v", err)
+	}
+	if _, err := upd.Handle(ctx, agentB, cBOnly.ID, contact.UpdateBody{Notes: strPtr("品牌 B 备注")}); err != nil {
+		t.Fatalf("张三修改品牌 B 联系人：%v", err)
+	}
+
+	// 3. 品牌 A 坐席只能看到品牌 A 的 2 个联系人和品牌 A 渠道
+	aVisible := idsOf(agentA, nil)
+	if len(aVisible) != 2 || aVisible[cAOnly.ID] != 0 || aVisible[cAConv.ID] != 1 {
+		t.Fatalf("品牌 A 坐席看到的联系人不对：%v", aVisible)
+	}
+	if sum, err := summary.Handle(ctx, agentA); err != nil || sum.All != 2 || len(sum.Channels) != 1 || sum.Channels[0].ID != chA.ID {
+		t.Fatalf("品牌 A 坐席概览不对：%+v %v", sum, err)
+	}
+
+	// 4. ScopeAssigned（即使在 teamB 中）和无团队的 ScopeTeam 初始都看不到任何联系人和渠道
+	for _, sub := range []identity.Subject{assignedOnly, homeless} {
+		if got := idsOf(sub, nil); len(got) != 0 {
+			t.Fatalf("%s 初始不应看到联系人：%v", sub.ID, got)
+		}
+		if sum, err := summary.Handle(ctx, sub); err != nil || sum.All != 0 || len(sum.Channels) != 0 {
+			t.Fatalf("%s 初始概览不对：%+v %v", sub.ID, sum, err)
+		}
+		if _, err := get.Handle(ctx, sub, cBConv.ID); !errors.Is(err, contact.ErrNotFound) {
+			t.Errorf("%s 读取品牌 B 联系人期望 ErrNotFound，实际 %v", sub.ID, err)
+		}
+	}
+
+	// 5. 指派给 ScopeAssigned：把品牌 A 活跃联系人的一个会话指派给 assignedOnly，再为该联系人建第二个仅 teamA 可见的会话
+	assign := conversation.NewAssign(env.DB, conversation.Downstream{})
+	if _, err := assign.Handle(ctx, owner, recA.ConversationID, conversation.Assignment{AssigneeID: &assignedOnly.ID}); err != nil {
+		t.Fatal(err)
+	}
+	secondConv := &conversation.Conversation{
+		ID: "01950000-0000-7000-8000-000000000002", TenantID: w.tenant, Kind: conversation.Service,
+		ChannelID: &chA.ID, ContactID: &cAConv.ID, TeamID: &teamA.ID,
+		Status: conversation.Open, Priority: conversation.Normal,
+		OpenedAt: time.Now().UTC(), LastMessageAt: time.Now().UTC(), Attributes: map[string]any{},
+	}
+	if _, err := env.DB.NewInsert().Model(secondConv).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if d, err := get.Handle(ctx, owner, cAConv.ID); err != nil || d.ConversationCount != 2 {
+		t.Fatalf("owner 看到的 cAConv 会话数应为 2：%+v %v", d, err)
+	}
+	if d, err := get.Handle(ctx, assignedOnly, cAConv.ID); err != nil || d.ConversationCount != 1 {
+		t.Fatalf("assignedOnly 看到的 cAConv 会话数应为 1：%+v %v", d, err)
+	}
+	if sum, err := summary.Handle(ctx, assignedOnly); err != nil || sum.All != 1 || len(sum.Channels) != 1 || sum.Channels[0].ID != chA.ID {
+		t.Fatalf("assignedOnly 概览不对：%+v %v", sum, err)
+	}
+
+	// 6. 内部备注 @ 协作：在未绑定渠道的会话中 @ 张三，张三可以看到 cUnassigned 和该渠道
+	if _, err := conversation.NewAddNote(env.DB, conversation.Downstream{}).Handle(ctx, owner, recUnassigned.ConversationID, "请张三协助", []string{agentB.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := get.Handle(ctx, agentB, cUnassigned.ID); err != nil {
+		t.Fatalf("被 @ 后张三应能看到 cUnassigned：%v", err)
+	}
+
+	// 7. 跨团队转派：给 cAOnly 建一条会话并转派给 teamB 后，张三可以看到 cAOnly
+	recAOnly, err := receive.Handle(ctx, w.system, conversation.ReceiveParams{ChannelID: chA.ID, From: "user:a-only", Text: "need brand B help"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := assign.Handle(ctx, owner, recAOnly.ConversationID, conversation.Assignment{TeamID: &teamB.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := get.Handle(ctx, agentB, cAOnly.ID); err != nil {
+		t.Fatalf("会话转派到 teamB 后张三应能看到 cAOnly：%v", err)
 	}
 }
