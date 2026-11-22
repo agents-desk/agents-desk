@@ -111,6 +111,27 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
           invalidate(context, "auth"),
       }),
     },
+    feature: {
+      /** feature 分组全部查询的 key 前缀。 */
+      key: () => key("feature"),
+      /** DELETE /features/{name} */
+      clear: () => ({
+        mutationFn: (variables: Parameters<Client["feature"]["clear"]>) => client.feature.clear(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "feature"),
+      }),
+      /** GET /features */
+      list: (...args: Parameters<Client["feature"]["list"]>) => ({
+        queryKey: key("feature", "list", ...args),
+        queryFn: () => client.feature.list(...args),
+      }),
+      /** PUT /features/{name} */
+      set: () => ({
+        mutationFn: (variables: Parameters<Client["feature"]["set"]>) => client.feature.set(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "feature"),
+      }),
+    },
     file: {
       /** file 分组全部查询的 key 前缀。 */
       key: () => key("file"),
@@ -119,6 +140,21 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         mutationFn: (variables: Parameters<Client["file"]["upload"]>[0]) => client.file.upload(variables),
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "file"),
+      }),
+    },
+    general: {
+      /** general 分组全部查询的 key 前缀。 */
+      key: () => key("general"),
+      /** GET /settings/general */
+      settingsGet: (...args: Parameters<Client["general"]["settingsGet"]>) => ({
+        queryKey: key("general", "settingsGet", ...args),
+        queryFn: () => client.general.settingsGet(...args),
+      }),
+      /** PUT /settings/general */
+      settingsUpdate: () => ({
+        mutationFn: (variables: Parameters<Client["general"]["settingsUpdate"]>[0]) => client.general.settingsUpdate(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "general"),
       }),
     },
     llm: {
@@ -134,6 +170,21 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       settingsGet: (...args: Parameters<Client["llm"]["settingsGet"]>) => ({
         queryKey: key("llm", "settingsGet", ...args),
         queryFn: () => client.llm.settingsGet(...args),
+      }),
+    },
+    mail: {
+      /** mail 分组全部查询的 key 前缀。 */
+      key: () => key("mail"),
+      /** GET /settings/mail */
+      settingsGet: (...args: Parameters<Client["mail"]["settingsGet"]>) => ({
+        queryKey: key("mail", "settingsGet", ...args),
+        queryFn: () => client.mail.settingsGet(...args),
+      }),
+      /** PUT /settings/mail */
+      settingsUpdate: () => ({
+        mutationFn: (variables: Parameters<Client["mail"]["settingsUpdate"]>[0]) => client.mail.settingsUpdate(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "mail"),
       }),
     },
     queue: {

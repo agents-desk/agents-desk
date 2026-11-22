@@ -21,6 +21,8 @@ import { Route as AppOpsAuditRouteImport } from './routes/_app/ops/audit'
 import { Route as AppOpsDoctorRouteImport } from './routes/_app/ops/doctor'
 import { Route as AppOpsQueueRouteImport } from './routes/_app/ops/queue'
 import { Route as AppOpsSchedulesRouteImport } from './routes/_app/ops/schedules'
+import { Route as AppSettingsFeaturesRouteImport } from './routes/_app/settings/features'
+import { Route as AppSettingsGeneralRouteImport } from './routes/_app/settings/general'
 import { Route as AppSettingsModelRouteImport } from './routes/_app/settings/model'
 
 const AppRoute = AppRouteImport.update({
@@ -82,6 +84,16 @@ const AppOpsSchedulesRoute = AppOpsSchedulesRouteImport.update({
   path: '/schedules',
   getParentRoute: () => AppOpsRoute,
 } as any)
+const AppSettingsFeaturesRoute = AppSettingsFeaturesRouteImport.update({
+  id: '/features',
+  path: '/features',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsGeneralRoute = AppSettingsGeneralRouteImport.update({
+  id: '/general',
+  path: '/general',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
 const AppSettingsModelRoute = AppSettingsModelRouteImport.update({
   id: '/model',
   path: '/model',
@@ -100,6 +112,8 @@ export interface FileRoutesByFullPath {
   '/ops/doctor': typeof AppOpsDoctorRoute
   '/ops/queue': typeof AppOpsQueueRoute
   '/ops/schedules': typeof AppOpsSchedulesRoute
+  '/settings/features': typeof AppSettingsFeaturesRoute
+  '/settings/general': typeof AppSettingsGeneralRoute
   '/settings/model': typeof AppSettingsModelRoute
 }
 export interface FileRoutesByTo {
@@ -114,6 +128,8 @@ export interface FileRoutesByTo {
   '/ops/doctor': typeof AppOpsDoctorRoute
   '/ops/queue': typeof AppOpsQueueRoute
   '/ops/schedules': typeof AppOpsSchedulesRoute
+  '/settings/features': typeof AppSettingsFeaturesRoute
+  '/settings/general': typeof AppSettingsGeneralRoute
   '/settings/model': typeof AppSettingsModelRoute
 }
 export interface FileRoutesById {
@@ -130,6 +146,8 @@ export interface FileRoutesById {
   '/_app/ops/doctor': typeof AppOpsDoctorRoute
   '/_app/ops/queue': typeof AppOpsQueueRoute
   '/_app/ops/schedules': typeof AppOpsSchedulesRoute
+  '/_app/settings/features': typeof AppSettingsFeaturesRoute
+  '/_app/settings/general': typeof AppSettingsGeneralRoute
   '/_app/settings/model': typeof AppSettingsModelRoute
 }
 export interface FileRouteTypes {
@@ -146,6 +164,8 @@ export interface FileRouteTypes {
     | '/ops/doctor'
     | '/ops/queue'
     | '/ops/schedules'
+    | '/settings/features'
+    | '/settings/general'
     | '/settings/model'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -160,6 +180,8 @@ export interface FileRouteTypes {
     | '/ops/doctor'
     | '/ops/queue'
     | '/ops/schedules'
+    | '/settings/features'
+    | '/settings/general'
     | '/settings/model'
   id:
     | '__root__'
@@ -175,6 +197,8 @@ export interface FileRouteTypes {
     | '/_app/ops/doctor'
     | '/_app/ops/queue'
     | '/_app/ops/schedules'
+    | '/_app/settings/features'
+    | '/_app/settings/general'
     | '/_app/settings/model'
   fileRoutesById: FileRoutesById
 }
@@ -269,6 +293,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOpsSchedulesRouteImport
       parentRoute: typeof AppOpsRoute
     }
+    '/_app/settings/features': {
+      id: '/_app/settings/features'
+      path: '/features'
+      fullPath: '/settings/features'
+      preLoaderRoute: typeof AppSettingsFeaturesRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/general': {
+      id: '/_app/settings/general'
+      path: '/general'
+      fullPath: '/settings/general'
+      preLoaderRoute: typeof AppSettingsGeneralRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
     '/_app/settings/model': {
       id: '/_app/settings/model'
       path: '/model'
@@ -297,10 +335,14 @@ const AppOpsRouteWithChildren =
   AppOpsRoute._addFileChildren(AppOpsRouteChildren)
 
 interface AppSettingsRouteChildren {
+  AppSettingsFeaturesRoute: typeof AppSettingsFeaturesRoute
+  AppSettingsGeneralRoute: typeof AppSettingsGeneralRoute
   AppSettingsModelRoute: typeof AppSettingsModelRoute
 }
 
 const AppSettingsRouteChildren: AppSettingsRouteChildren = {
+  AppSettingsFeaturesRoute: AppSettingsFeaturesRoute,
+  AppSettingsGeneralRoute: AppSettingsGeneralRoute,
   AppSettingsModelRoute: AppSettingsModelRoute,
 }
 

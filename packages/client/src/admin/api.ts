@@ -89,6 +89,40 @@ export interface File {
   url: string
 }
 
+export interface FlagsFlagDTO {
+  by_tenant: boolean
+  default_on: boolean
+  description: string
+  everyone?: FlagsRuleDTO
+  name: string
+  overrides: FlagsRuleDTO[]
+}
+
+export interface FlagsListOutputBody {
+  items: FlagsFlagDTO[]
+}
+
+export type FlagsMode = "on" | "off" | "percent"
+
+export interface FlagsRuleDTO {
+  mode: FlagsMode
+  percent?: number
+  scope: FlagsScope
+  tenant_id?: string
+  tenant_name?: string
+  tenant_slug?: string
+  updated_at: string
+}
+
+export type FlagsScope = "everyone" | "tenant"
+
+export interface FlagsSetInputBody {
+  mode: FlagsMode
+  percent?: number
+  scope: FlagsScope
+  tenant_id?: string
+}
+
 export interface FormFile {
   ContentType: string
   Filename: string
@@ -138,6 +172,10 @@ export interface OffsetTenantDTO {
 
 export type PlatformAdminStatus = "active" | "disabled"
 
+export type PlatformSettingsLanguage = "zh-CN" | "en"
+
+export type PlatformSettingsMailTls = "starttls" | "tls" | "none"
+
 export interface PlatformadminAdminDTO {
   created_at: string
   email: string
@@ -172,6 +210,22 @@ export interface PlatformadminProfile {
 
 export interface PlatformadminUpdateInputBody {
   name: string
+}
+
+export interface PlatformsettingsGeneral {
+  default_language: PlatformSettingsLanguage
+  site_name: string
+  support_email: string
+}
+
+export interface PlatformsettingsMail {
+  from_email: string
+  from_name: string
+  host: string
+  password: string
+  port: number
+  tls: PlatformSettingsMailTls
+  username: string
 }
 
 export interface QueueBulkResult {
@@ -373,9 +427,15 @@ export interface AuditListInput {
   /** 上一页最后一条记录的 ID，用于加载更早的记录 */
   before?: string
   /** 按对象类型筛选；为空时返回全部 */
-  target_type?: "" | "tenant" | "platform_admin" | "settings"
+  target_type?: "" | "tenant" | "platform_admin" | "settings" | "feature"
   /** 返回条数，默认 50 */
   limit?: number
+}
+
+/** feature-clear 的参数。 */
+export interface FeatureClearInput {
+  scope?: FlagsScope
+  tenant_id?: string
 }
 
 /** file-upload 的表单。 */
@@ -526,6 +586,30 @@ export function createClient(options: ClientOptions) {
       profileUpdate: (body: AccountProfileChanges): Promise<PlatformadminProfile> =>
         rt.request<PlatformadminProfile>({ method: "PUT", path: `/me`, body }),
     },
+    /** operationId 以 feature- 开头的接口。 */
+    feature: {
+      /**
+       * 清除功能开关设置
+       *
+       * DELETE /features/{name}
+       */
+      clear: (name: string, input: FeatureClearInput = {}): Promise<FlagsFlagDTO> =>
+        rt.request<FlagsFlagDTO>({ method: "DELETE", path: `/features/${encodeURIComponent(name)}`, query: { "scope": input["scope"], "tenant_id": input["tenant_id"] } }),
+      /**
+       * 功能开关列表
+       *
+       * GET /features
+       */
+      list: (): Promise<FlagsListOutputBody> =>
+        rt.request<FlagsListOutputBody>({ method: "GET", path: `/features` }),
+      /**
+       * 设置功能开关
+       *
+       * PUT /features/{name}
+       */
+      set: (name: string, body: FlagsSetInputBody): Promise<FlagsFlagDTO> =>
+        rt.request<FlagsFlagDTO>({ method: "PUT", path: `/features/${encodeURIComponent(name)}`, body }),
+    },
     /** operationId 以 file- 开头的接口。 */
     file: {
       /**
@@ -535,6 +619,23 @@ export function createClient(options: ClientOptions) {
        */
       upload: (form: FileUploadForm): Promise<File> =>
         rt.request<File>({ method: "POST", path: `/files`, form }),
+    },
+    /** operationId 以 general- 开头的接口。 */
+    general: {
+      /**
+       * 读取常规设置
+       *
+       * GET /settings/general
+       */
+      settingsGet: (): Promise<PlatformsettingsGeneral> =>
+        rt.request<PlatformsettingsGeneral>({ method: "GET", path: `/settings/general` }),
+      /**
+       * 保存常规设置
+       *
+       * PUT /settings/general
+       */
+      settingsUpdate: (body: PlatformsettingsGeneral): Promise<PlatformsettingsGeneral> =>
+        rt.request<PlatformsettingsGeneral>({ method: "PUT", path: `/settings/general`, body }),
     },
     /** operationId 以 llm- 开头的接口。 */
     llm: {
@@ -552,6 +653,23 @@ export function createClient(options: ClientOptions) {
        */
       settingsGet: (): Promise<LlmSettings> =>
         rt.request<LlmSettings>({ method: "GET", path: `/settings/model` }),
+    },
+    /** operationId 以 mail- 开头的接口。 */
+    mail: {
+      /**
+       * 读取邮件服务设置
+       *
+       * GET /settings/mail
+       */
+      settingsGet: (): Promise<PlatformsettingsMail> =>
+        rt.request<PlatformsettingsMail>({ method: "GET", path: `/settings/mail` }),
+      /**
+       * 保存邮件服务设置
+       *
+       * PUT /settings/mail
+       */
+      settingsUpdate: (body: PlatformsettingsMail): Promise<PlatformsettingsMail> =>
+        rt.request<PlatformsettingsMail>({ method: "PUT", path: `/settings/mail`, body }),
     },
     /** operationId 以 queue- 开头的接口。 */
     queue: {

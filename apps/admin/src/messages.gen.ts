@@ -6,8 +6,9 @@ export const messages = {
     "admins.password_hint": "8 to 128 characters",
     "admins.self_badge": "You",
     "app.admin": "agents-desk admin",
-    "audit.description": "Platform-level administrative actions from newest to oldest (workspaces, platform admins, and platform settings).",
+    "audit.description": "Platform-level administrative actions from newest to oldest (workspaces, platform admins, platform settings, and feature flags).",
     "audit.filter.all": "All",
+    "audit.filter.feature": "Feature flags",
     "audit.filter.platform_admin": "Platform admins",
     "audit.filter.settings": "Platform settings",
     "audit.filter.tenant": "Workspaces",
@@ -31,6 +32,26 @@ export const messages = {
     "doctor.status.skipped": "Skipped",
     "doctor.status.warning": "Warning",
     "doctor.warning_summary": "{{.count}} warning(s) reported. The system can run, but these settings deserve attention.",
+    "features.add_override": "Add override",
+    "features.by_tenant": "Rollout by workspace",
+    "features.clear_everyone": "Use default",
+    "features.default_off": "Default off",
+    "features.default_on": "Default on",
+    "features.description": "Manage gradual rollouts and kill switches. Global on/off overrides everything, followed by workspace overrides, percentage rollout, and defaults.",
+    "features.everyone_label": "Global rule",
+    "features.mode.default": "Default",
+    "features.mode.off": "Global off",
+    "features.mode.on": "Global on",
+    "features.mode.percent": "Rollout %",
+    "features.no_overrides": "No workspace overrides configured",
+    "features.override_off": "Off",
+    "features.override_on": "On",
+    "features.overrides_title": "Workspace overrides",
+    "features.percent_apply": "Apply",
+    "features.percent_label": "Rollout (%)",
+    "features.remove_override": "Remove override",
+    "features.saved": "Feature flag updated",
+    "features.select_tenant": "Select workspace",
     "login.description": "For platform admins",
     "login.title": "Admin sign-in",
     "model.api_key": "API key",
@@ -41,6 +62,8 @@ export const messages = {
     "nav.admins": "Platform admins",
     "nav.audit": "Audit log",
     "nav.doctor": "Diagnostics",
+    "nav.features": "Feature flags",
+    "nav.general_settings": "System settings",
     "nav.model": "Model APIs",
     "nav.ops": "Operations",
     "nav.platform_settings": "Platform settings",
@@ -63,6 +86,8 @@ export const messages = {
     "profile.tab_password": "Change password",
     "profile.upload": "Upload image",
     "profile.upload_failed": "Upload failed",
+    "settings.general_description": "Configure the platform display name, support contact email, and default interface language.",
+    "settings.mail_description": "Configure the SMTP server used for outgoing emails. Leave the host empty to disable email delivery.",
     "tenants.change_owner": "Change owner",
     "test_account.failed": "Test account sign-in failed. Run go run ./cmd/agents-desk seed first",
     "test_account.sign_in": "Sign in with a test account",
@@ -71,8 +96,9 @@ export const messages = {
     "admins.password_hint": "8 到 128 个字符",
     "admins.self_badge": "当前账号",
     "app.admin": "agents-desk 管理员端",
-    "audit.description": "按时间从新到旧查看平台级管理动作（工作区、平台管理员与平台设置变更）。",
+    "audit.description": "按时间从新到旧查看平台级管理动作（工作区、平台管理员、平台设置与功能开关变更）。",
     "audit.filter.all": "全部",
+    "audit.filter.feature": "功能开关",
     "audit.filter.platform_admin": "平台管理员",
     "audit.filter.settings": "平台设置",
     "audit.filter.tenant": "工作区",
@@ -96,6 +122,26 @@ export const messages = {
     "doctor.status.skipped": "跳过",
     "doctor.status.warning": "提示",
     "doctor.warning_summary": "有 {{.count}} 项提示，程序可正常运行但建议关注。",
+    "features.add_override": "添加覆盖",
+    "features.by_tenant": "按工作区放量",
+    "features.clear_everyone": "恢复默认",
+    "features.default_off": "默认关闭",
+    "features.default_on": "默认开启",
+    "features.description": "控制新功能的灰度放量与紧急熔断：全员开启/关闭优先级最高，其次是单个工作区覆盖，最后按比例放量或使用默认值。",
+    "features.everyone_label": "全员规则",
+    "features.mode.default": "跟随默认",
+    "features.mode.off": "全员关闭",
+    "features.mode.on": "全员开启",
+    "features.mode.percent": "按比例放量",
+    "features.no_overrides": "暂未为单个工作区设置覆盖",
+    "features.override_off": "关闭",
+    "features.override_on": "开启",
+    "features.overrides_title": "工作区单独覆盖",
+    "features.percent_apply": "应用比例",
+    "features.percent_label": "放量比例（%）",
+    "features.remove_override": "移除覆盖",
+    "features.saved": "开关规则已更新",
+    "features.select_tenant": "选择工作区",
     "login.description": "平台管理员使用",
     "login.title": "管理员登录",
     "model.api_key": "密钥",
@@ -106,6 +152,8 @@ export const messages = {
     "nav.admins": "平台管理员",
     "nav.audit": "操作日志",
     "nav.doctor": "系统自检",
+    "nav.features": "功能开关",
+    "nav.general_settings": "系统设置",
     "nav.model": "模型接口",
     "nav.ops": "系统运维",
     "nav.platform_settings": "平台设置",
@@ -128,6 +176,8 @@ export const messages = {
     "profile.tab_password": "修改密码",
     "profile.upload": "上传图片",
     "profile.upload_failed": "上传失败",
+    "settings.general_description": "配置平台显示名称、联系邮箱和默认界面语言，保存后立即生效。",
+    "settings.mail_description": "配置用于发送通知和验证邮件的 SMTP 服务器。服务器地址留空表示暂不启用发信。",
     "tenants.change_owner": "更换主管理员",
     "test_account.failed": "测试账号登录失败，先运行 go run ./cmd/agents-desk seed",
     "test_account.sign_in": "用测试账号登录",
@@ -141,6 +191,7 @@ export type MessageId =
   | "app.admin"
   | "audit.description"
   | "audit.filter.all"
+  | "audit.filter.feature"
   | "audit.filter.platform_admin"
   | "audit.filter.settings"
   | "audit.filter.tenant"
@@ -164,6 +215,26 @@ export type MessageId =
   | "doctor.status.skipped"
   | "doctor.status.warning"
   | "doctor.warning_summary"
+  | "features.add_override"
+  | "features.by_tenant"
+  | "features.clear_everyone"
+  | "features.default_off"
+  | "features.default_on"
+  | "features.description"
+  | "features.everyone_label"
+  | "features.mode.default"
+  | "features.mode.off"
+  | "features.mode.on"
+  | "features.mode.percent"
+  | "features.no_overrides"
+  | "features.override_off"
+  | "features.override_on"
+  | "features.overrides_title"
+  | "features.percent_apply"
+  | "features.percent_label"
+  | "features.remove_override"
+  | "features.saved"
+  | "features.select_tenant"
   | "login.description"
   | "login.title"
   | "model.api_key"
@@ -174,6 +245,8 @@ export type MessageId =
   | "nav.admins"
   | "nav.audit"
   | "nav.doctor"
+  | "nav.features"
+  | "nav.general_settings"
   | "nav.model"
   | "nav.ops"
   | "nav.platform_settings"
@@ -196,6 +269,8 @@ export type MessageId =
   | "profile.tab_password"
   | "profile.upload"
   | "profile.upload_failed"
+  | "settings.general_description"
+  | "settings.mail_description"
   | "tenants.change_owner"
   | "test_account.failed"
   | "test_account.sign_in"

@@ -5,6 +5,22 @@
  * labels 按语言列出显示文字，取自翻译文件中 <前缀>.<取值> 的消息；缺少时先用默认语言，再用取值本身。
  */
 export const enums = {
+  FlagsMode: {
+    prefix: "flags.mode",
+    values: ["on", "off", "percent"],
+    labels: {
+      "en": { on: "On", off: "Off", percent: "Percentage rollout" },
+      "zh-CN": { on: "开启", off: "关闭", percent: "按比例放量" },
+    },
+  },
+  FlagsScope: {
+    prefix: "flags.scope",
+    values: ["everyone", "tenant"],
+    labels: {
+      "en": { everyone: "Everyone", tenant: "Workspace" },
+      "zh-CN": { everyone: "全员", tenant: "工作区" },
+    },
+  },
   LlmCallType: {
     prefix: "llm.call_type",
     values: ["translation"],
@@ -19,6 +35,22 @@ export const enums = {
     labels: {
       "en": { active: "Active", disabled: "Disabled" },
       "zh-CN": { active: "正常", disabled: "已停用" },
+    },
+  },
+  PlatformSettingsLanguage: {
+    prefix: "platform_settings.language",
+    values: ["zh-CN", "en"],
+    labels: {
+      "en": { "zh-CN": "简体中文", en: "English" },
+      "zh-CN": { "zh-CN": "简体中文", en: "English" },
+    },
+  },
+  PlatformSettingsMailTls: {
+    prefix: "platform_settings.mail_tls",
+    values: ["starttls", "tls", "none"],
+    labels: {
+      "en": { starttls: "STARTTLS (recommended, port 587)", tls: "Implicit TLS (port 465)", none: "None (internal unauthenticated relay only)" },
+      "zh-CN": { starttls: "STARTTLS（推荐，常用端口 587）", tls: "隐式 TLS（常用端口 465）", none: "不加密（仅限无认证内网中继）" },
     },
   },
   TenantStatus: {
