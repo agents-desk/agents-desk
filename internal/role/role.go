@@ -4,7 +4,6 @@ package role
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
@@ -70,19 +69,14 @@ func CreateDefaults(ctx context.Context, tx bun.IDB, tenant string) error {
 	return nil
 }
 
-// Lock 在事务 tx 中锁住工作区 tenant 的角色 id，返回这个角色。角色不存在、或者不是这个工作区自己的角色时返回 ErrNotFound，
-// 带上 opts，例如指向请求中的字段。分配角色和删除角色都先锁住它：删除时数到的人数之后不会再有人分配到这个角色。
-// 框架的 authz 提供这种并发安全之后（开发计划 F5），改用框架的做法，不再直接查询 authz_roles。
-func Lock(ctx context.Context, tx bun.IDB, tenant, id string, opts ...errorx.Option) (authz.Role, error) {
-	var found string
-	err := tx.NewRaw("SELECT id FROM authz_roles WHERE id = ? AND tenant = ? FOR UPDATE", id, tenant).Scan(ctx, &found)
-	if errors.Is(err, sql.ErrNoRows) {
+// Find 返回工作区 tenant 自己的角色 id；角色不存在、或者不是这个工作区自己的角色（例如主管理员、别的工作区的角色）时
+// 返回 ErrNotFound，带上 opts，例如指向请求中的字段。分配和删除角色时的并发安全由框架的 authz 保证。
+func Find(ctx context.Context, roles *authz.Store, tenant, id string, opts ...errorx.Option) (authz.Role, error) {
+	r, err := roles.Role(ctx, id, tenant)
+	if errors.Is(err, authz.ErrRoleNotFound) || (err == nil && r.Tenant != tenant) {
 		return authz.Role{}, ErrNotFound.New(opts...)
 	}
-	if err != nil {
-		return authz.Role{}, errors.Wrap(err, "lock role")
-	}
-	return authz.NewStore(tx, auth.Catalog).Role(ctx, id, tenant)
+	return r, err
 }
 
 // toRole 把工作区 tenant 的角色内容 p 转换为 authz 中的角色：权限是基本权限、可见范围对应的权限和勾选的操作权限。

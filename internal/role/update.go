@@ -3,6 +3,7 @@ package role
 import (
 	"context"
 
+	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/activity"
@@ -32,12 +33,12 @@ func NewUpdate(db *bun.DB, roles *authz.Store) *Update { return &Update{db: db, 
 // 名称已被使用时返回 ErrNameTaken（字段 name）。
 func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, p Params) (*RoleDTO, error) {
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
-		if _, err := Lock(ctx, tx, sub.Tenant, id); err != nil {
-			return err
-		}
 		r := toRole(sub.Tenant, p)
 		r.ID = id
 		if _, err := authz.NewStore(tx, auth.Catalog).UpdateRole(ctx, r, sub.Tenant); err != nil {
+			if errors.Is(err, authz.ErrRoleNotFound) {
+				return ErrNotFound.New()
+			}
 			return nameTaken(err, p.Name)
 		}
 		return activity.Record(ctx, tx, sub, activity.Activity{

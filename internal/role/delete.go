@@ -3,6 +3,7 @@ package role
 import (
 	"context"
 
+	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/activity"
@@ -26,19 +27,24 @@ func NewDelete(db *bun.DB) *Delete { return &Delete{db: db} }
 // 还有成员使用它时返回 ErrInUse，带有人数 count。
 func (a *Delete) Handle(ctx context.Context, sub identity.Subject, id string) error {
 	return database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
-		r, err := Lock(ctx, tx, sub.Tenant, id)
-		if err != nil {
-			return err
-		}
 		roles := authz.NewStore(tx, auth.Catalog)
-		counts, err := memberCounts(ctx, roles, sub.Tenant)
+		r, err := Find(ctx, roles, sub.Tenant, id)
 		if err != nil {
 			return err
 		}
-		if n := counts[id]; n > 0 {
-			return ErrInUse.New(errorx.Public("count", n))
-		}
-		if err := roles.DeleteRole(ctx, id, sub.Tenant); err != nil {
+		if err := roles.DeleteRole(ctx, id, sub.Tenant, authz.RestrictInUse()); err != nil {
+			if errors.Is(err, authz.ErrRoleNotFound) {
+				return ErrNotFound.New()
+			}
+			if errors.Is(err, authz.ErrRoleInUse) {
+				var ex *errorx.Error
+				if errors.As(err, &ex) {
+					if n, ok := ex.Public()["count"]; ok {
+						return ErrInUse.New(errorx.Public("count", n))
+					}
+				}
+				return ErrInUse.New()
+			}
 			return err
 		}
 		return activity.Record(ctx, tx, sub, activity.Activity{

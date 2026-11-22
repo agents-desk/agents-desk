@@ -31,15 +31,16 @@ export const resources = {
     ],
     filters: [
       { name: "name", type: "string" },
+      { name: "role_id", type: "string", format: "uuid", ref: "role" },
     ],
     createForm: [
       { name: "email", type: "string", format: "email", required: true },
       { name: "name", type: "string" },
       { name: "password", type: "string" },
-      { name: "role_id", type: "string", format: "uuid", required: true },
+      { name: "role_id", type: "string", format: "uuid", ref: "role", required: true },
     ],
     updateForm: [
-      { name: "role_id", type: "string", format: "uuid", required: true },
+      { name: "role_id", type: "string", format: "uuid", ref: "role", required: true },
     ],
     actions: [
       { name: "away", operation: ["member", "setAway"], permissions: ["members:manage"], confirm: true, danger: false, when: { "self": ["false"], "status": ["online"] } },
@@ -49,12 +50,12 @@ export const resources = {
     labels: {
       "en": {
         title: "Members",
-        fields: { name: "Name", email: "Email", role_name: "Role", status: "Status", password: "Initial password", role_id: "Role" },
+        fields: { name: "Name", email: "Email", role_name: "Role", status: "Status", role_id: "Role", password: "Initial password" },
         actions: { away: "Set to away", remove: "Remove" },
       },
       "zh-CN": {
         title: "成员",
-        fields: { name: "名字", email: "邮箱", role_name: "角色", status: "在线状态", password: "初始密码", role_id: "角色" },
+        fields: { name: "名字", email: "邮箱", role_name: "角色", status: "在线状态", role_id: "角色", password: "初始密码" },
         actions: { away: "设为离开", remove: "移出" },
       },
     },
@@ -238,14 +239,14 @@ export const resources = {
     ],
     createForm: [
       { name: "name", type: "string", required: true },
-      { name: "team_id", type: "string", format: "uuid" },
+      { name: "team_id", type: "string", format: "uuid", ref: "team" },
       { name: "greeting", type: "string" },
       { name: "color", type: "string", values: ["blue-gray", "brown", "tomato", "deep-orange", "bright-orange", "yellow", "bright-green", "green", "light-blue", "sky-blue", "pale-blue", "bright-blue", "deep-blue", "pale-indigo", "purple", "pale-purple", "violet", "pale-violet", "dark-pink", "bright-pink", "pink", "magenta", "bright-red", "pale-red", "deep-red", "red"] },
       { name: "allowed_origins", type: "array", items: "string" },
     ],
     updateForm: [
       { name: "name", type: "string", required: true },
-      { name: "team_id", type: "string", format: "uuid" },
+      { name: "team_id", type: "string", format: "uuid", ref: "team" },
       { name: "greeting", type: "string" },
       { name: "color", type: "string", values: ["blue-gray", "brown", "tomato", "deep-orange", "bright-orange", "yellow", "bright-green", "green", "light-blue", "sky-blue", "pale-blue", "bright-blue", "deep-blue", "pale-indigo", "purple", "pale-purple", "violet", "pale-violet", "dark-pink", "bright-pink", "pink", "magenta", "bright-red", "pale-red", "deep-red", "red"] },
       { name: "allowed_origins", type: "array", items: "string" },

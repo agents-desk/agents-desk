@@ -318,7 +318,6 @@ export const messages = {
     "inbox.you": "You",
     "login.description": "Sign in with the email and password your workspace admin gave you",
     "login.title": "Sign in",
-    "members.no_roles": "No roles yet. Create one in “Roles” first",
     "members.password_hint": "Required when this email has no account yet. Share it with the person yourself",
     "nav.attributes": "Attributes",
     "nav.contacts": "Contacts",
@@ -760,7 +759,6 @@ export const messages = {
     "inbox.you": "你",
     "login.description": "用工作区管理员给你的邮箱和密码登录",
     "login.title": "登录",
-    "members.no_roles": "还没有角色，先在“角色”中新建",
     "members.password_hint": "这个邮箱还没有账号时必填，由你告诉本人",
     "nav.attributes": "属性",
     "nav.contacts": "联系人",
@@ -1205,7 +1203,6 @@ export type MessageId =
   | "inbox.you"
   | "login.description"
   | "login.title"
-  | "members.no_roles"
   | "members.password_hint"
   | "nav.attributes"
   | "nav.contacts"
