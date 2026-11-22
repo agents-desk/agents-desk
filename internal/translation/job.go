@@ -95,7 +95,7 @@ func (a *Incoming) Ensure(ctx context.Context, tenant, itemID string, targets []
 	var translated conversation.Translated
 	if source != "" {
 		// 已经识别过源语言：只补译缺的语言，不重新识别
-		translations, err := a.translator.Translate(ctx, tenant, it.ID, it.Content.Text, source, missing)
+		translations, err := a.translator.Translate(ctx, tenant, &it, source, missing)
 		if errors.Is(err, llm.ErrNotConfigured) {
 			slog.DebugContext(ctx, "translation is not configured, skip", "item", it.ID)
 			return nil
@@ -112,7 +112,7 @@ func (a *Incoming) Ensure(ctx context.Context, tenant, itemID string, targets []
 		if err != nil {
 			return errors.Wrap(err, "load conversation language")
 		}
-		detected, translations, err := a.translator.Incoming(ctx, tenant, it.ID, it.Content.Text, usual, missing)
+		detected, translations, err := a.translator.Incoming(ctx, tenant, &it, usual, missing)
 		if errors.Is(err, llm.ErrNotConfigured) {
 			slog.DebugContext(ctx, "translation is not configured, skip", "item", it.ID)
 			return nil
