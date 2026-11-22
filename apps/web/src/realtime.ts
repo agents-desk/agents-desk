@@ -16,6 +16,24 @@ export const RealtimeContext = createContext<Centrifuge | null>(null)
 /** useCentrifuge 返回工作区的实时连接，没有时为 null。 */
 export const useCentrifuge = () => useContext(RealtimeContext)
 
+/** PushEvent 是服务端推送到成员个人频道的事件（对应服务端的 push.Event）。 */
+interface PushEvent {
+  type?: string
+  id?: string
+  seq?: number
+  item_seq?: number
+}
+
+/** refreshFrom 记录每个会话在推送中发生变化的最早历史消息序号，useTimeline 刷新时据此覆盖历史补译的消息。 */
+const refreshFrom = new Map<string, number>()
+
+/** consumeRefreshFrom 取出并清除会话 id 需要回溯刷新的最早消息序号。 */
+export function consumeRefreshFrom(id: string): number | undefined {
+  const seq = refreshFrom.get(id)
+  if (seq !== undefined) refreshFrom.delete(id)
+  return seq
+}
+
 /**
  * useRealtime 在工作区 slug 中建立实时连接，订阅成员 memberId 的个人频道，返回这条连接交给 RealtimeContext。
  * 收到事件后让会话分组的查询（收件箱的数量、会话列表、会话和时间线）失效，200 毫秒内的多条合并成一次；断线重连、
@@ -36,7 +54,14 @@ export function useRealtime(slug: string, tenantId: string, memberId: string | u
     // 第一次订阅成功时页面刚刚读过数据，之后每次重新订阅成功都重新读取
     let first = true
     const sub = centrifuge.newSubscription(channelOf(tenantId, memberId))
-    sub.on("publication", refresh)
+    sub.on("publication", (ctx) => {
+      const ev = ctx.data as PushEvent | undefined
+      if (ev?.id && typeof ev.item_seq === "number" && ev.item_seq > 0) {
+        const prev = refreshFrom.get(ev.id)
+        refreshFrom.set(ev.id, prev === undefined ? ev.item_seq : Math.min(prev, ev.item_seq))
+      }
+      refresh()
+    })
     sub.on("subscribed", () => {
       if (!first) refresh()
       first = false

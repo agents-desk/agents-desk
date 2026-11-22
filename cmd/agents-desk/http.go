@@ -204,7 +204,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		team.RegisterRoutes(api, require, a.db, a.roles, a.memberLogins, a.files)
 		conversation.RegisterRoutes(api, require, a.db, a.downstream())
 		widget.RegisterRoutes(api, require, a.db, a.crypt, a.cfg.PublicURL)
-		translation.RegisterRoutes(api, require, a.db, a.translator, a.translationSettings)
+		translation.RegisterRoutes(api, require, a.db, a.translator, translation.NewIncoming(a.db, a.locker, a.translator, a.downstream()), a.translationSettings)
 	})
 
 	// 聊天窗口的接口：widget.Middleware 按路径中的渠道 ID 查出聊天插件和它所在的工作区。只接受联系人的令牌，

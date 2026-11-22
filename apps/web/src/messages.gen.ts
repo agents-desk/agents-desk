@@ -23,6 +23,7 @@ export const messages = {
     "choose_tenant.none": "You aren’t in any workspace yet. Ask a workspace admin to add you.",
     "choose_tenant.sign_out": "Sign out",
     "choose_tenant.title": "Choose a workspace",
+    "common.cancel": "Cancel",
     "common.save": "Save",
     "common.saved": "Saved",
     "contacts.placeholder": "The contact list and profiles come with the contacts work (U1).",
@@ -30,6 +31,8 @@ export const messages = {
     "event.assigned_team_member": "{{.who}} moved the conversation to {{.team}} and assigned it to {{.assignee}}",
     "event.closed": "{{.who}} closed the conversation",
     "event.customer": "The customer",
+    "event.language_auto": "{{.who}} set the customer's language back to automatic detection",
+    "event.language_set": "{{.who}} set the customer's language to {{.lang}}",
     "event.moved_team": "{{.who}} moved the conversation to {{.team}}",
     "event.priority_high": "{{.who}} set the priority to high",
     "event.priority_normal": "{{.who}} set the priority to normal",
@@ -47,6 +50,27 @@ export const messages = {
     "general.address": "Address",
     "general.address_hint": "Fixed once the workspace is created",
     "general.name": "Name",
+    "glossary.add": "Add term",
+    "glossary.add_translation": "Add language",
+    "glossary.delete": "Delete",
+    "glossary.delete_confirm": "Delete the term \"{{.term}}\"?",
+    "glossary.description": "Product and brand names are translated as written here, whenever they appear in a message. Order numbers, amounts and links are always kept as they are.",
+    "glossary.edit": "Edit term",
+    "glossary.empty": "No terms yet",
+    "glossary.fixed": "Fixed translation",
+    "glossary.fixed_hint": "Use these translations for the languages below; other languages are translated by the model.",
+    "glossary.handling": "Handling",
+    "glossary.keep": "Keep as is",
+    "glossary.keep_hint": "Never translated, in any language. Good for brand names.",
+    "glossary.language": "Language",
+    "glossary.language_required": "Choose a language",
+    "glossary.remove_translation": "Remove this translation",
+    "glossary.term": "Term",
+    "glossary.term_hint": "As it appears in messages, case-insensitive",
+    "glossary.term_required": "Enter a term",
+    "glossary.title": "Glossary",
+    "glossary.translation": "Translation",
+    "glossary.translations": "Translations",
     "home.no_pages": "Your role has no pages to open yet. Ask a workspace admin.",
     "home.title": "Workspace",
     "hours.add_interval": "Add time range",
@@ -73,6 +97,7 @@ export const messages = {
     "inbox.assignee": "Assignee",
     "inbox.away": "Away",
     "inbox.back": "Back to conversations",
+    "inbox.back_translation": "Back translation",
     "inbox.backlog_oldest": "oldest",
     "inbox.backlog_open": "{{.n}} open",
     "inbox.backlog_waiting": "Waiting",
@@ -85,6 +110,7 @@ export const messages = {
     "inbox.bulk_failed": "{{.n}} conversations failed: {{.reason}}",
     "inbox.cancel": "Cancel",
     "inbox.channel": "Channel",
+    "inbox.choose_language": "Choose the language to send in",
     "inbox.close": "Close",
     "inbox.close_details": "Close details",
     "inbox.contact_email": "Email",
@@ -100,7 +126,13 @@ export const messages = {
     "inbox.details_conversation": "Conversation",
     "inbox.details_history": "Recent conversations",
     "inbox.empty": "No conversations in this list",
+    "inbox.enter_again": "Translation updated. Check it, then press Enter again to send",
     "inbox.enter_hint": "Enter to send, Shift + Enter for a new line",
+    "inbox.hide_translation": "Hide translation",
+    "inbox.language_auto": "Detect automatically",
+    "inbox.language_auto_detected": "Detected: {{.lang}}",
+    "inbox.language_manual_hint": "Set manually. Incoming messages won't change it",
+    "inbox.language_not_found": "No such language. Type a language tag, for example hi-Latn",
     "inbox.mode_note": "Internal note",
     "inbox.mode_reply": "Reply",
     "inbox.new_messages": "New messages",
@@ -108,17 +140,22 @@ export const messages = {
     "inbox.no_assignee": "No assignee",
     "inbox.no_history": "No other conversations",
     "inbox.no_team": "No team inbox",
+    "inbox.no_translation": "Don't translate",
+    "inbox.no_translation_needed": "Same language as yours, sends your original text",
     "inbox.not_found": "This conversation doesn't exist, or you can't see it",
     "inbox.note_by": "Internal note · {{.who}}",
     "inbox.note_hint": "Only members can see this. Type @ to mention a teammate",
     "inbox.note_placeholder": "Write an internal note, @ a teammate…",
+    "inbox.original": "Original",
     "inbox.pick": "Pick a conversation on the left",
+    "inbox.preview_to": "To customer",
     "inbox.priority": "Priority",
     "inbox.priority_high": "High",
     "inbox.priority_normal": "Normal",
     "inbox.rating": "Rating",
     "inbox.reopen": "Reopen",
     "inbox.reply_placeholder": "Type a reply…",
+    "inbox.retranslating": "Text changed, translating again",
     "inbox.retry": "Resend",
     "inbox.said": "{{.who}}: ",
     "inbox.select": "Select",
@@ -126,7 +163,12 @@ export const messages = {
     "inbox.send": "Send",
     "inbox.send_close": "Send and close",
     "inbox.send_options": "More send options",
+    "inbox.send_original": "Don't translate, send original",
     "inbox.send_snooze": "Send and snooze",
+    "inbox.send_translation": "Send translation",
+    "inbox.sends_original": "Sends your original text",
+    "inbox.sent_as": "Sent in {{.lang}}",
+    "inbox.sent_translation": "Translation sent ({{.lang}})",
     "inbox.snooze": "Snooze",
     "inbox.snooze_custom": "Pick a time",
     "inbox.snooze_later": "Later today",
@@ -144,8 +186,14 @@ export const messages = {
     "inbox.status_snoozed": "Snoozed",
     "inbox.team": "Team inbox",
     "inbox.teams": "Team inboxes",
+    "inbox.text_shown": "Show messages translated or original",
+    "inbox.their_language": "{{.lang}} · their language",
+    "inbox.translated": "Translation",
+    "inbox.translating": "Translating",
+    "inbox.translation_failed": "Translation failed: {{.error}}",
     "inbox.typing": "{{.who}} is typing…",
     "inbox.unassign": "Remove assignee",
+    "inbox.view_translation": "View translation",
     "inbox.viewing": "{{.who}} is also viewing",
     "inbox.visitor": "Visitor",
     "inbox.you": "You",
@@ -193,6 +241,7 @@ export const messages = {
     "settings.group_channels": "Channels",
     "settings.group_inbox": "Inbox",
     "settings.group_personal": "Personal",
+    "settings.group_translation": "Translation",
     "settings.group_workspace": "Workspace",
     "status.description": "While online, you can be assigned conversations automatically. While away, automatic assignment skips you, and you keep the conversations you already own.",
     "status.reassign": "Reassign my conversations",
@@ -228,6 +277,14 @@ export const messages = {
     "time.minutes": "{{.n}} min",
     "time.today": "Today",
     "time.yesterday": "Yesterday",
+    "tone.description": "The tone used when replies are translated for customers. Incoming messages are translated as written.",
+    "tone.formal_example": "Example: Dear customer, we have verified your order and it has been dispatched.",
+    "tone.formal_hint": "Formal and respectful, for business customers.",
+    "tone.friendly_example": "Example: Hi there! I've checked your order and it's on its way 😊",
+    "tone.friendly_hint": "Warm and polite, like a helpful support agent.",
+    "tone.neutral_example": "Example: Hello, I have checked your order. It has been shipped.",
+    "tone.neutral_hint": "Polite and plain.",
+    "tone.title": "Tone",
     "widget_install.app": "Apps",
     "widget_install.app_hint": "Your app opens the address below full screen in a WebView. For a signed-in user, pass the identity before the page loads (window.agentsDesk.user_token); after signing in or out, run AgentsDesk('login', { user_token }) or AgentsDesk('logout'). If your app has its own navigation bar, add \u0026hide_close=1 to the address to hide the chat window's close button. On Android, enable JavaScript and DOM storage, and set windowSoftInputMode to adjustResize.",
     "widget_install.app_msg": "Message",
@@ -277,6 +334,7 @@ export const messages = {
     "choose_tenant.none": "你还不属于任何工作区，请联系工作区的管理员把你加入。",
     "choose_tenant.sign_out": "退出登录",
     "choose_tenant.title": "选择工作区",
+    "common.cancel": "取消",
     "common.save": "保存",
     "common.saved": "已保存",
     "contacts.placeholder": "联系人的列表和资料在联系人的开发（U1）中加入。",
@@ -284,6 +342,8 @@ export const messages = {
     "event.assigned_team_member": "{{.who}} 把会话转到 {{.team}}，指派给 {{.assignee}}",
     "event.closed": "{{.who}} 关闭了会话",
     "event.customer": "客户",
+    "event.language_auto": "{{.who}} 把对方的语言改回自动识别",
+    "event.language_set": "{{.who}} 把对方的语言改为 {{.lang}}",
     "event.moved_team": "{{.who}} 把会话转到 {{.team}}",
     "event.priority_high": "{{.who}} 把优先级改为高",
     "event.priority_normal": "{{.who}} 把优先级改为普通",
@@ -301,6 +361,27 @@ export const messages = {
     "general.address": "地址",
     "general.address_hint": "创建后不能修改",
     "general.name": "名称",
+    "glossary.add": "添加术语",
+    "glossary.add_translation": "添加语言",
+    "glossary.delete": "删除",
+    "glossary.delete_confirm": "删除术语“{{.term}}”？",
+    "glossary.description": "产品名、品牌名按这里的写法翻译。只在消息中出现这个词时生效；订单号、金额、链接总是原样保留，不用加。",
+    "glossary.edit": "编辑术语",
+    "glossary.empty": "还没有术语",
+    "glossary.fixed": "固定译法",
+    "glossary.fixed_hint": "按下面的语言给出译法，其他语言由模型翻译。",
+    "glossary.handling": "处理",
+    "glossary.keep": "保持原样",
+    "glossary.keep_hint": "任何语言中都不翻译，适合品牌名。",
+    "glossary.language": "语言",
+    "glossary.language_required": "请选择语言",
+    "glossary.remove_translation": "删除这条译法",
+    "glossary.term": "术语",
+    "glossary.term_hint": "成员或客户的消息中出现的写法，不区分大小写",
+    "glossary.term_required": "请填写术语",
+    "glossary.title": "术语表",
+    "glossary.translation": "译法",
+    "glossary.translations": "译法",
     "home.no_pages": "你的角色还没有可以进入的页面，请联系工作区的管理员。",
     "home.title": "工作区",
     "hours.add_interval": "添加时间段",
@@ -327,6 +408,7 @@ export const messages = {
     "inbox.assignee": "负责人",
     "inbox.away": "离开",
     "inbox.back": "返回会话列表",
+    "inbox.back_translation": "回译",
     "inbox.backlog_oldest": "最久",
     "inbox.backlog_open": "打开 {{.n}}",
     "inbox.backlog_waiting": "待回复",
@@ -339,6 +421,7 @@ export const messages = {
     "inbox.bulk_failed": "{{.n}} 个会话没有成功：{{.reason}}",
     "inbox.cancel": "取消",
     "inbox.channel": "渠道",
+    "inbox.choose_language": "选择译文的语言",
     "inbox.close": "关闭",
     "inbox.close_details": "关闭详情",
     "inbox.contact_email": "邮箱",
@@ -354,7 +437,13 @@ export const messages = {
     "inbox.details_conversation": "会话",
     "inbox.details_history": "最近的会话",
     "inbox.empty": "这个列表中没有会话",
+    "inbox.enter_again": "译文已更新，确认后再按一次回车发送",
     "inbox.enter_hint": "回车发送，Shift + 回车换行",
+    "inbox.hide_translation": "收起译文",
+    "inbox.language_auto": "自动识别",
+    "inbox.language_auto_detected": "自动识别：{{.lang}}",
+    "inbox.language_manual_hint": "手动设置，收到的消息不再改它",
+    "inbox.language_not_found": "没有这种语言，可以输入语言标签，例如 hi-Latn",
     "inbox.mode_note": "内部备注",
     "inbox.mode_reply": "回复",
     "inbox.new_messages": "新消息",
@@ -362,17 +451,22 @@ export const messages = {
     "inbox.no_assignee": "没有负责人",
     "inbox.no_history": "没有其他会话",
     "inbox.no_team": "没有团队收件箱",
+    "inbox.no_translation": "不翻译",
+    "inbox.no_translation_needed": "和你的语言相同，发送原文",
     "inbox.not_found": "会话不存在，或者你看不到它",
     "inbox.note_by": "内部备注 · {{.who}}",
     "inbox.note_hint": "只有成员可见，输入 @ 提到同事",
     "inbox.note_placeholder": "写内部备注，@ 同事…",
+    "inbox.original": "原文",
     "inbox.pick": "从左边选一个会话",
+    "inbox.preview_to": "发给对方",
     "inbox.priority": "优先级",
     "inbox.priority_high": "高",
     "inbox.priority_normal": "普通",
     "inbox.rating": "评价",
     "inbox.reopen": "重新打开",
     "inbox.reply_placeholder": "输入回复…",
+    "inbox.retranslating": "原文改了，正在重新翻译",
     "inbox.retry": "重发",
     "inbox.said": "{{.who}}：",
     "inbox.select": "选择",
@@ -380,7 +474,12 @@ export const messages = {
     "inbox.send": "发送",
     "inbox.send_close": "发送并关闭",
     "inbox.send_options": "更多发送方式",
+    "inbox.send_original": "不翻译，发送原文",
     "inbox.send_snooze": "发送并稍后处理",
+    "inbox.send_translation": "发送译文",
+    "inbox.sends_original": "发送原文",
+    "inbox.sent_as": "已译成 {{.lang}}",
+    "inbox.sent_translation": "发给对方的译文（{{.lang}}）",
     "inbox.snooze": "稍后处理",
     "inbox.snooze_custom": "自定义时间",
     "inbox.snooze_later": "今天晚些时候",
@@ -398,8 +497,14 @@ export const messages = {
     "inbox.status_snoozed": "稍后处理",
     "inbox.team": "团队收件箱",
     "inbox.teams": "团队收件箱",
+    "inbox.text_shown": "切换消息显示译文还是原文",
+    "inbox.their_language": "{{.lang}} · 对方的语言",
+    "inbox.translated": "译文",
+    "inbox.translating": "翻译中",
+    "inbox.translation_failed": "翻译失败：{{.error}}",
     "inbox.typing": "{{.who}} 正在输入…",
     "inbox.unassign": "取消负责人",
+    "inbox.view_translation": "查看译文",
     "inbox.viewing": "{{.who}} 也在看这个会话",
     "inbox.visitor": "访客",
     "inbox.you": "你",
@@ -447,6 +552,7 @@ export const messages = {
     "settings.group_channels": "渠道",
     "settings.group_inbox": "收件箱",
     "settings.group_personal": "个人",
+    "settings.group_translation": "翻译",
     "settings.group_workspace": "工作区",
     "status.description": "在线时可以被自动分配会话；离开时不会被自动分配，已经负责的会话仍由你处理。",
     "status.reassign": "把我的会话重新分配",
@@ -482,6 +588,14 @@ export const messages = {
     "time.minutes": "{{.n}} 分钟",
     "time.today": "今天",
     "time.yesterday": "昨天",
+    "tone.description": "系统把成员的回复翻译给客户时用的语气。收到的消息照原意翻译，不受语气影响。",
+    "tone.formal_example": "例：Dear customer, we have verified your order and it has been dispatched.",
+    "tone.formal_hint": "正式、尊敬，适合商务客户。",
+    "tone.friendly_example": "例：Hi there! I've checked your order and it's on its way 😊",
+    "tone.friendly_hint": "热情、有礼貌，像乐于帮忙的客服。",
+    "tone.neutral_example": "例：Hello, I have checked your order. It has been shipped.",
+    "tone.neutral_hint": "礼貌、平实。",
+    "tone.title": "语气",
     "widget_install.app": "App 接入",
     "widget_install.app_hint": "App 用 WebView 全屏打开下面的地址。已登录的用户在页面加载前传入身份（window.agentsDesk.user_token）；登录、退出后执行 AgentsDesk('login', { user_token }) 或 AgentsDesk('logout')。App 自己有导航栏时，在地址后加上 \u0026hide_close=1 隐藏聊天窗口的关闭按钮。Android 要开启 JavaScript 和 DOM storage，并把 windowSoftInputMode 设为 adjustResize。",
     "widget_install.app_msg": "消息",
@@ -534,6 +648,7 @@ export type MessageId =
   | "choose_tenant.none"
   | "choose_tenant.sign_out"
   | "choose_tenant.title"
+  | "common.cancel"
   | "common.save"
   | "common.saved"
   | "contacts.placeholder"
@@ -541,6 +656,8 @@ export type MessageId =
   | "event.assigned_team_member"
   | "event.closed"
   | "event.customer"
+  | "event.language_auto"
+  | "event.language_set"
   | "event.moved_team"
   | "event.priority_high"
   | "event.priority_normal"
@@ -558,6 +675,27 @@ export type MessageId =
   | "general.address"
   | "general.address_hint"
   | "general.name"
+  | "glossary.add"
+  | "glossary.add_translation"
+  | "glossary.delete"
+  | "glossary.delete_confirm"
+  | "glossary.description"
+  | "glossary.edit"
+  | "glossary.empty"
+  | "glossary.fixed"
+  | "glossary.fixed_hint"
+  | "glossary.handling"
+  | "glossary.keep"
+  | "glossary.keep_hint"
+  | "glossary.language"
+  | "glossary.language_required"
+  | "glossary.remove_translation"
+  | "glossary.term"
+  | "glossary.term_hint"
+  | "glossary.term_required"
+  | "glossary.title"
+  | "glossary.translation"
+  | "glossary.translations"
   | "home.no_pages"
   | "home.title"
   | "hours.add_interval"
@@ -584,6 +722,7 @@ export type MessageId =
   | "inbox.assignee"
   | "inbox.away"
   | "inbox.back"
+  | "inbox.back_translation"
   | "inbox.backlog_oldest"
   | "inbox.backlog_open"
   | "inbox.backlog_waiting"
@@ -596,6 +735,7 @@ export type MessageId =
   | "inbox.bulk_failed"
   | "inbox.cancel"
   | "inbox.channel"
+  | "inbox.choose_language"
   | "inbox.close"
   | "inbox.close_details"
   | "inbox.contact_email"
@@ -611,7 +751,13 @@ export type MessageId =
   | "inbox.details_conversation"
   | "inbox.details_history"
   | "inbox.empty"
+  | "inbox.enter_again"
   | "inbox.enter_hint"
+  | "inbox.hide_translation"
+  | "inbox.language_auto"
+  | "inbox.language_auto_detected"
+  | "inbox.language_manual_hint"
+  | "inbox.language_not_found"
   | "inbox.mode_note"
   | "inbox.mode_reply"
   | "inbox.new_messages"
@@ -619,17 +765,22 @@ export type MessageId =
   | "inbox.no_assignee"
   | "inbox.no_history"
   | "inbox.no_team"
+  | "inbox.no_translation"
+  | "inbox.no_translation_needed"
   | "inbox.not_found"
   | "inbox.note_by"
   | "inbox.note_hint"
   | "inbox.note_placeholder"
+  | "inbox.original"
   | "inbox.pick"
+  | "inbox.preview_to"
   | "inbox.priority"
   | "inbox.priority_high"
   | "inbox.priority_normal"
   | "inbox.rating"
   | "inbox.reopen"
   | "inbox.reply_placeholder"
+  | "inbox.retranslating"
   | "inbox.retry"
   | "inbox.said"
   | "inbox.select"
@@ -637,7 +788,12 @@ export type MessageId =
   | "inbox.send"
   | "inbox.send_close"
   | "inbox.send_options"
+  | "inbox.send_original"
   | "inbox.send_snooze"
+  | "inbox.send_translation"
+  | "inbox.sends_original"
+  | "inbox.sent_as"
+  | "inbox.sent_translation"
   | "inbox.snooze"
   | "inbox.snooze_custom"
   | "inbox.snooze_later"
@@ -655,8 +811,14 @@ export type MessageId =
   | "inbox.status_snoozed"
   | "inbox.team"
   | "inbox.teams"
+  | "inbox.text_shown"
+  | "inbox.their_language"
+  | "inbox.translated"
+  | "inbox.translating"
+  | "inbox.translation_failed"
   | "inbox.typing"
   | "inbox.unassign"
+  | "inbox.view_translation"
   | "inbox.viewing"
   | "inbox.visitor"
   | "inbox.you"
@@ -704,6 +866,7 @@ export type MessageId =
   | "settings.group_channels"
   | "settings.group_inbox"
   | "settings.group_personal"
+  | "settings.group_translation"
   | "settings.group_workspace"
   | "status.description"
   | "status.reassign"
@@ -739,6 +902,14 @@ export type MessageId =
   | "time.minutes"
   | "time.today"
   | "time.yesterday"
+  | "tone.description"
+  | "tone.formal_example"
+  | "tone.formal_hint"
+  | "tone.friendly_example"
+  | "tone.friendly_hint"
+  | "tone.neutral_example"
+  | "tone.neutral_hint"
+  | "tone.title"
   | "widget_install.app"
   | "widget_install.app_hint"
   | "widget_install.app_msg"

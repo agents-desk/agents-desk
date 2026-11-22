@@ -1,17 +1,18 @@
-import { ActionIcon, Avatar, Badge, Box, Button, Center, Group, Loader, Text, Tooltip } from "@mantine/core"
+import { ActionIcon, Avatar, Badge, Box, Button, Center, Group, Loader, SegmentedControl, Text, Tooltip } from "@mantine/core"
 import { useMediaQuery } from "@mantine/hooks"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { IconArrowRight, IconCheck, IconChevronLeft, IconLayoutSidebarRight, IconRefresh } from "@tabler/icons-react"
-import { notifyError, useCollapseNav, useNarrow, useT } from "@go-tenon/ui"
+import { notifyError, useCollapseNav, useLanguage, useNarrow, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
+import { languageName } from "../languages"
 import { useConversationChannel } from "./channel"
 import { Composer } from "./Composer"
 import { useConversation, useMe, useMembers, useTeams, useTimeline } from "./data"
 import { Details } from "./Details"
 import { contactName } from "./List"
 import { AssignMenu, SnoozeMenu } from "./menus"
-import { Timeline } from "./Timeline"
+import { hasTranslation, Timeline } from "./Timeline"
 
 /** ConversationProps 是会话页的设置。 */
 interface ConversationProps {
@@ -25,6 +26,7 @@ interface ConversationProps {
 /**
  * ConversationView 是会话：顶部是联系人、渠道、语言、团队收件箱、负责人，谁也在看，以及指派、稍后处理、关闭或重新打开、
  * 下一个待回复、详情；中间是时间线；底部是回复框。打开时和有新消息时（页面在前台）标记已读。
+ * 对方的消息有译文时，顶部的“译文 | 原文”把它们一次切换成原文。
  * 详情是第五栏：窗口宽度小于 1600px 时打开详情先收起二级导航，关掉后恢复。窄屏时左上角返回会话列表，详情占满。
  */
 export function ConversationView({ id, tenantId, open, next, back }: ConversationProps): ReactNode {
@@ -38,7 +40,9 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
   const conversation = useConversation(id)
   const timeline = useTimeline(id)
   const { viewers, typing, notifyTyping, clearTyping } = useConversationChannel(tenantId, id, me.data?.id)
+  const ui = useLanguage()
   const [details, setDetails] = useState(false)
+  const [original, setOriginal] = useState(false) // 对方的消息都显示原文
   useCollapseNav(details && !wide && !narrow)
 
   // 打开时读到的位置：“新消息”分隔线画在它之后，读过之后也保持在原处
@@ -76,7 +80,7 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
   }
   const assignee = c.assignee?.type === "member" ? (c.assignee.id === me.data?.id ? t("inbox.you") : byId.get(c.assignee.id)?.name) : undefined
   const team = c.team_id ? teams.find((x) => x.id === c.team_id)?.name : undefined
-  const meta = [c.channel?.name, c.language, team, assignee ? t("inbox.assigned_to", { who: assignee }) : t("inbox.no_assignee")]
+  const meta = [c.channel?.name, c.language ? languageName(c.language, ui) : undefined, team, assignee ? t("inbox.assigned_to", { who: assignee }) : t("inbox.no_assignee")]
     .filter(Boolean)
     .join(" · ")
 
@@ -119,6 +123,18 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
             </Tooltip>
           )}
           <Group gap={6} wrap="nowrap" ml={viewers.length > 0 && !narrow ? undefined : "auto"} w={narrow ? "100%" : undefined} justify={narrow ? "flex-end" : undefined}>
+            {hasTranslation(timeline.data, me.data?.language) && (
+              <SegmentedControl
+                size="xs"
+                value={original ? "original" : "translation"}
+                onChange={(v) => setOriginal(v === "original")}
+                data={[
+                  { value: "translation", label: t("inbox.translated") },
+                  { value: "original", label: t("inbox.original") },
+                ]}
+                aria-label={t("inbox.text_shown")}
+              />
+            )}
             <AssignMenu c={c} compact={narrow} />
             {c.status !== "closed" && <SnoozeMenu id={c.id} compact={narrow} />}
             {c.status === "closed" ? (
@@ -144,7 +160,7 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
             </Tooltip>
           </Group>
         </Group>
-        <Timeline c={c} readSeq={readAtOpen.current ?? 0} typing={typing} />
+        <Timeline c={c} readSeq={readAtOpen.current ?? 0} typing={typing} original={original} />
         <Composer key={c.id} c={c} onTyping={notifyTyping} />
       </Box>
       {details && !narrow && (

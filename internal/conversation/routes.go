@@ -43,6 +43,7 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	rest.Register(api, act("conversation-reopen", http.MethodPost, "/conversations/{id}/reopen", "重新打开"), NewReopen(db, down).HTTP)
 	rest.Register(api, act("conversation-snooze", http.MethodPost, "/conversations/{id}/snooze", "稍后处理"), NewSnooze(db, down).HTTP)
 	rest.Register(api, act("conversation-priority", http.MethodPut, "/conversations/{id}/priority", "修改优先级"), NewSetPriority(db, down).HTTP)
+	rest.Register(api, act("conversation-language", http.MethodPut, "/conversations/{id}/language", "设置对方的语言"), NewSetLanguage(db, down).HTTP)
 	rest.Register(api, act("conversation-bulk-assign", http.MethodPost, "/conversations/bulk/assign", "批量指派"), NewBulkAssign(db, down).HTTP)
 	rest.Register(api, act("conversation-bulk-close", http.MethodPost, "/conversations/bulk/close", "批量关闭"), NewBulkClose(db, down).HTTP)
 }

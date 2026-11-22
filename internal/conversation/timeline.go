@@ -32,7 +32,7 @@ type Timeline struct {
 func NewTimeline(db *bun.DB) *Timeline { return &Timeline{db: db} }
 
 // Handle 返回 sub 所在工作区中会话 id 的时间线里序号大于 after 的项，最多 limit 项，按序号从小到大。
-// 成员能看到全部的项，包括内部备注。会话不存在或 sub 看不到时返回 ErrNotFound。
+// 成员能看到全部的项，包括内部备注；对方发来、还缺 sub 的语言的译文的消息标为 Untranslated。会话不存在或 sub 看不到时返回 ErrNotFound。
 func (a *Timeline) Handle(ctx context.Context, sub identity.Subject, id string, after int64, limit int) ([]ItemDTO, error) {
 	if err := authorize(sub, auth.ConversationsRead); err != nil {
 		return nil, err
@@ -46,7 +46,16 @@ func (a *Timeline) Handle(ctx context.Context, sub identity.Subject, id string, 
 	if err != nil {
 		return nil, errors.Wrap(err, "list timeline items")
 	}
-	return toItemDTOs(ctx, a.db, items)
+	dtos, err := toItemDTOs(ctx, a.db, items)
+	if err != nil {
+		return nil, err
+	}
+	language, err := MemberLanguage(ctx, a.db, sub)
+	if err != nil {
+		return nil, err
+	}
+	markUntranslated(dtos, language)
+	return dtos, nil
 }
 
 // HTTP 处理 GET /t/{slug}/api/conversations/{id}/items。

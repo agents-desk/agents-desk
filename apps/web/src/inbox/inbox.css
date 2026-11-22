@@ -64,3 +64,21 @@
 .inbox-history {
   display: block;
 }
+
+/* 成员翻译后发出的消息中展开的译文：和原文之间一条虚线 */
+.inbox-sent-translation {
+  border-top: 1px dashed var(--mantine-color-bright-blue-3);
+}
+
+/* 回复框上方的译文预览；原文改了、正在重新翻译时旧的译文变淡 */
+.inbox-preview[data-stale] .inbox-preview-text {
+  opacity: 0.45;
+}
+
+/* 对方的消息切换到原文时是灰底，和译文区分 */
+.inbox-bubble[data-original] {
+  background: var(--mantine-color-gray-1);
+}
+[data-mantine-color-scheme="dark"] .inbox-bubble[data-original] {
+  background: var(--mantine-color-dark-5);
+}

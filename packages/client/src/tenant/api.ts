@@ -19,8 +19,10 @@ export interface ContactSummary {
   email: string
   id: string
   kind: ContactKind
-  /** 最近一条消息识别出的语言；还没有识别时为空 */
+  /** 客户的语言：按最近几条确定了语言的消息判断，或者成员手动设置的；还没有时为空 */
   language: string
+  /** 对方的语言是成员手动设置的：收到的消息不再改它 */
+  language_manual: boolean
   name: string
 }
 
@@ -88,17 +90,21 @@ export interface ConversationDTO {
   first_reply_at?: string
   id: string
   kind: ConversationKind
-  /** 对方最近一条消息识别出的语言 */
+  /** 客户的语言：按最近几条确定了语言的消息判断，或者成员手动设置的 */
   language: string
   last_message_at: string
   /** 时间线中最新一项的序号，用来增量读取时间线 */
   last_seq: number
   /** 最近一次 @ 我的时间，只在“@我”的列表中有 */
   mentioned_at?: string
-  /** 最后一条消息的文字 */
+  /** 最后一条消息的文字：对方的消息是我的语言的译文（还没有时是原文），成员翻译后发出的回复是成员写的原文 */
   preview: string
   /** 最后一条消息是谁发的；还没有消息时为空 */
   preview_actor?: ConversationActor
+  /** 最后一条消息的 ID，只在它还缺我的语言的译文时给出 */
+  preview_item_id?: string
+  /** 最后一条消息是对方发来、还缺我的语言的译文的：preview 是原文，页面看到这一行时请求补译 */
+  preview_untranslated?: boolean
   priority: ConversationPriority
   /** 客户最近一次的评价；没有评价过时为空 */
   rating?: ConversationRating
@@ -143,12 +149,19 @@ export interface ConversationItemDTO {
   id: string
   kind: ConversationItemKind
   seq: number
+  /** 对方发来、还没有我的语言的译文、也不是我的语言的消息：翻译可用时页面显示“翻译中”，并请求补译 */
+  untranslated?: boolean
   visibility: ConversationVisibility
 }
 
 export type ConversationItemKind = "message" | "note" | "event"
 
 export type ConversationKind = "service" | "chat"
+
+export interface ConversationLanguageInputBody {
+  /** 对方的语言（BCP 47），例如 hi-Latn；空字符串恢复为按收到的消息自动识别 */
+  language: string
+}
 
 export interface ConversationNoteInputBody {
   /** @ 到的成员 ID；他们的“@我”中出现这个会话，并且能看到它 */
@@ -458,12 +471,22 @@ export interface TenantGeneralSettings {
   name: string
 }
 
+export interface TranslationFillBody {
+  /** 时间线中的项：会话中标为 untranslated 的消息、会话列表中 preview_untranslated 的那一行的 preview_item_id */
+  item_ids: string[]
+}
+
+export interface TranslationFillDTO {
+  /** 放进后台补译的消息数；译好后像收到的消息一样推送 */
+  queued: number
+}
+
 export interface TranslationGlossaryInputBody {
   glossary: TranslationTerm[]
 }
 
 export interface TranslationPreviewBody {
-  /** 发给对方的语言（BCP 47）；不填时取对方最近一条消息的语言 */
+  /** 发给对方的语言（BCP 47）；不填时取客户的语言 */
   language?: string
   /** 成员写的回复 */
   text: string
@@ -482,7 +505,9 @@ export interface TranslationPreviewDTO {
   translation: string
 }
 
-export interface TranslationSettings {
+export interface TranslationSettingsDTO {
+  /** 翻译是否可用：平台设置中配置了翻译的模型接口。不可用时收到的消息不翻译，回复按原文发出 */
+  enabled: boolean
   /** 术语表 */
   glossary: TranslationTerm[]
   /** 回复译文的语气 */
@@ -685,6 +710,13 @@ export function createClient(options: ClientOptions) {
        */
       items: (id: string, input: ConversationItemsInput = {}): Promise<ConversationItemDTO[]> =>
         rt.request<ConversationItemDTO[]>({ method: "GET", path: `/conversations/${encodeURIComponent(id)}/items`, query: { "after": input["after"], "limit": input["limit"] } }),
+      /**
+       * 设置对方的语言
+       *
+       * PUT /conversations/{id}/language
+       */
+      language: (id: string, body: ConversationLanguageInputBody): Promise<ConversationDTO> =>
+        rt.request<ConversationDTO>({ method: "PUT", path: `/conversations/${encodeURIComponent(id)}/language`, body }),
       /**
        * 会话列表
        *
@@ -956,12 +988,19 @@ export function createClient(options: ClientOptions) {
     /** operationId 以 translation- 开头的接口。 */
     translation: {
       /**
+       * 补译看到的消息
+       *
+       * POST /translations/fill
+       */
+      fill: (body: TranslationFillBody): Promise<TranslationFillDTO> =>
+        rt.request<TranslationFillDTO>({ method: "POST", path: `/translations/fill`, body }),
+      /**
        * 保存术语表
        *
        * PUT /settings/translation/glossary
        */
-      glossarySave: (body: TranslationGlossaryInputBody): Promise<TranslationSettings> =>
-        rt.request<TranslationSettings>({ method: "PUT", path: `/settings/translation/glossary`, body }),
+      glossarySave: (body: TranslationGlossaryInputBody): Promise<TranslationSettingsDTO> =>
+        rt.request<TranslationSettingsDTO>({ method: "PUT", path: `/settings/translation/glossary`, body }),
       /**
        * 回复的译文和回译
        *
@@ -974,15 +1013,15 @@ export function createClient(options: ClientOptions) {
        *
        * GET /settings/translation
        */
-      settings: (): Promise<TranslationSettings> =>
-        rt.request<TranslationSettings>({ method: "GET", path: `/settings/translation` }),
+      settings: (): Promise<TranslationSettingsDTO> =>
+        rt.request<TranslationSettingsDTO>({ method: "GET", path: `/settings/translation` }),
       /**
        * 保存翻译的语气
        *
        * PUT /settings/translation/tone
        */
-      toneSave: (body: TranslationToneInputBody): Promise<TranslationSettings> =>
-        rt.request<TranslationSettings>({ method: "PUT", path: `/settings/translation/tone`, body }),
+      toneSave: (body: TranslationToneInputBody): Promise<TranslationSettingsDTO> =>
+        rt.request<TranslationSettingsDTO>({ method: "PUT", path: `/settings/translation/tone`, body }),
     },
     /** operationId 以 widget- 开头的接口。 */
     widget: {

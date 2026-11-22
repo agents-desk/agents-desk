@@ -161,7 +161,7 @@ type Conversation struct {
 	Status        Status         `bun:"status,notnull"`          // 服务型会话的状态
 	SnoozedUntil  *time.Time     `bun:"snoozed_until"`           // 稍后处理的到期时间
 	Priority      Priority       `bun:"priority,notnull"`        // 优先级
-	Language      string         `bun:"language,notnull"`        // 对方最近一条消息识别出的语言
+	Language      string         `bun:"language,notnull"`        // 客户的语言，见 CustomerLanguage
 	WaitingSince  *time.Time     `bun:"waiting_since"`           // 对方的消息开始等待回复的时间；已回复时为空
 	FirstReplyAt  *time.Time     `bun:"first_reply_at"`          // 第一次回复的时间
 	ClosedAt      *time.Time     `bun:"closed_at"`               // 最近一次关闭的时间
