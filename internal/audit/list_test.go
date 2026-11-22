@@ -47,7 +47,7 @@ func TestListPlatformAuditLog(t *testing.T) {
 	}
 	items := res.Items
 	if len(items) != 3 || res.Total != 3 {
-		t.Fatalf("期望 3 条日志，实际 %d (total=%d)：%+v", len(items), res.Total, items)
+		t.Fatalf("期望 3 条日志，实际 len=%d total=%d：%+v", len(items), res.Total, items)
 	}
 	if items[0].Event != "tenant.disabled" || items[0].Actor != "运维小明" || !strings.Contains(items[0].Text, "测试工作区") || items[0].Href != "/tenants" {
 		t.Fatalf("最新一条日志不符合预期：%+v", items[0])

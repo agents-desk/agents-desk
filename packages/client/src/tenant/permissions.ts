@@ -12,6 +12,7 @@ export const permissions = {
   "conversations:read-team": "可以看到所在团队收件箱的会话",
   "conversations:reply": "回复会话",
   "features:manage": "管理功能开关",
+  "macros:manage": "管理共享的快捷回复",
   "members:manage": "管理成员和角色",
   "members:read": "查看成员",
   "platform-admins:manage": "管理平台管理员",
@@ -48,6 +49,7 @@ export const required = {
     update: ["contacts:update"],
   },
   conversation: {
+    applyActions: ["conversations:reply"],
     assign: ["conversations:reply"],
     attributesPatch: ["conversations:reply"],
     bulkAssign: ["conversations:reply"],

@@ -219,6 +219,64 @@ export const resources = {
       },
     },
   },
+  macro: {
+    name: "macro",
+    key: "id",
+    operations: {
+      list: ["macro", "list"],
+      get: ["macro", "get"],
+      create: ["macro", "create"],
+      update: ["macro", "update"],
+      delete: ["macro", "delete"],
+    },
+    permissions: {
+      list: [],
+      get: [],
+      create: [],
+      update: [],
+      delete: [],
+    },
+    columns: [
+      { name: "title", type: "string", required: true },
+      { name: "scope", type: "string", enum: "MacroScope", required: true },
+      { name: "body", type: "string", required: true },
+      { name: "actions", type: "object", required: true },
+      { name: "updated_at", type: "string", format: "date-time", required: true },
+    ],
+    filters: [
+      { name: "q", type: "string" },
+      { name: "scope", type: "string", enum: "MacroScope" },
+    ],
+    createForm: [
+      { name: "scope", type: "string", enum: "MacroScope", required: true },
+      { name: "title", type: "string", required: true },
+      { name: "shortcut", type: "string" },
+      { name: "body", type: "string" },
+      { name: "actions", type: "object" },
+    ],
+    updateForm: [
+      { name: "title", type: "string", required: true },
+      { name: "shortcut", type: "string" },
+      { name: "body", type: "string" },
+      { name: "actions", type: "object" },
+    ],
+    actions: [
+    ],
+    updateWhen: { "editable": ["true"] },
+    deleteWhen: { "editable": ["true"] },
+    labels: {
+      "en": {
+        title: "Quick replies",
+        fields: { title: "Title", scope: "Scope", body: "Reply body", actions: "Actions", updated_at: "Updated", q: "Search", shortcut: "Shortcut" },
+        actions: {  },
+      },
+      "zh-CN": {
+        title: "快捷回复",
+        fields: { title: "标题", scope: "作用域", body: "回复正文", actions: "附带操作", updated_at: "更新时间", q: "搜索", shortcut: "快捷码" },
+        actions: {  },
+      },
+    },
+  },
   widget: {
     name: "widget",
     key: "id",

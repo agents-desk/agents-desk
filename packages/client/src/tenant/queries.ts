@@ -112,6 +112,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
     conversation: {
       /** conversation 分组全部查询的 key 前缀。 */
       key: () => key("conversation"),
+      /** POST /conversations/{id}/actions */
+      applyActions: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["applyActions"]>) => client.conversation.applyActions(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
       /** PUT /conversations/{id}/assignment */
       assign: () => ({
         mutationFn: (variables: Parameters<Client["conversation"]["assign"]>) => client.conversation.assign(...variables),
@@ -276,6 +282,38 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         mutationFn: (variables: Parameters<Client["hours"]["specialDatesSave"]>[0]) => client.hours.specialDatesSave(variables),
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "hours"),
+      }),
+    },
+    macro: {
+      /** macro 分组全部查询的 key 前缀。 */
+      key: () => key("macro"),
+      /** POST /macros */
+      create: () => ({
+        mutationFn: (variables: Parameters<Client["macro"]["create"]>[0]) => client.macro.create(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "macro"),
+      }),
+      /** DELETE /macros/{id} */
+      delete: () => ({
+        mutationFn: (variables: Parameters<Client["macro"]["delete"]>[0]) => client.macro.delete(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "macro"),
+      }),
+      /** GET /macros/{id} */
+      get: (...args: Parameters<Client["macro"]["get"]>) => ({
+        queryKey: key("macro", "get", ...args),
+        queryFn: () => client.macro.get(...args),
+      }),
+      /** GET /macros */
+      list: (...args: Parameters<Client["macro"]["list"]>) => ({
+        queryKey: key("macro", "list", ...args),
+        queryFn: () => client.macro.list(...args),
+      }),
+      /** PUT /macros/{id} */
+      update: () => ({
+        mutationFn: (variables: Parameters<Client["macro"]["update"]>) => client.macro.update(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "macro"),
       }),
     },
     member: {

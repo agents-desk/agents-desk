@@ -37,15 +37,24 @@ func (a *Snooze) Handle(ctx context.Context, sub identity.Subject, id string, un
 		return nil, ErrSnoozeInPast.New(errorx.Field("until"))
 	}
 	return change(ctx, a.db, a.down, sub, id, auth.ConversationsReply, func(_ context.Context, _ bun.IDB, c *Conversation) ([]*Item, error) {
-		if c.Status == Closed {
-			return nil, ErrClosed.New()
-		}
-		if c.Status == Snoozed && c.SnoozedUntil != nil && c.SnoozedUntil.Equal(until) {
-			return nil, nil
-		}
-		c.Status, c.SnoozedUntil = Snoozed, &until
-		return []*Item{event(sub, "conversation.snoozed", map[string]any{"until": until})}, nil
+		return applySnooze(sub, c, until)
 	})
+}
+
+// applySnooze 把会话 c 设为稍后处理到 until 并返回系统事件；时间不在将来返回 ErrSnoozeInPast，已关闭返回 ErrClosed。
+func applySnooze(sub identity.Subject, c *Conversation, until time.Time) ([]*Item, error) {
+	until = until.UTC().Truncate(time.Microsecond)
+	if !until.After(now()) {
+		return nil, ErrSnoozeInPast.New(errorx.Field("until"))
+	}
+	if c.Status == Closed {
+		return nil, ErrClosed.New()
+	}
+	if c.Status == Snoozed && c.SnoozedUntil != nil && c.SnoozedUntil.Equal(until) {
+		return nil, nil
+	}
+	c.Status, c.SnoozedUntil = Snoozed, &until
+	return []*Item{event(sub, "conversation.snoozed", map[string]any{"until": until})}, nil
 }
 
 // HTTP 处理 POST /t/{slug}/api/conversations/{id}/snooze。

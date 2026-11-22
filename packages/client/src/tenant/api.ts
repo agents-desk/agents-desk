@@ -200,6 +200,21 @@ export interface ContactUpdateBody {
   time_zone?: string
 }
 
+export interface ConversationActions {
+  /** 给会话添加的标签 ID 列表 */
+  add_tag_ids?: string[]
+  /** 修改负责人 */
+  assignee?: ConversationAssigneeChange
+  /** 修改优先级 */
+  priority?: ConversationPriority
+  /** 修改会话自定义属性，值为 null 时清空 */
+  set_attributes?: Record<string, unknown>
+  /** 关闭或稍后处理会话 */
+  status?: ConversationStatusAction
+  /** 修改团队收件箱 */
+  team?: ConversationTeamChange
+}
+
 export interface ConversationActor {
   id: string
   type: ConversationActorType
@@ -210,6 +225,15 @@ export type ConversationActorType = "contact" | "member" | "system"
 export interface ConversationAddTagInputBody {
   tag_id: string
 }
+
+export interface ConversationAssigneeChange {
+  /** mode 为 member 时的目标成员 ID */
+  id?: string
+  /** 变更方式：me 指派给当前成员，member 指定成员，clear 取消负责人 */
+  mode: ConversationAssigneeChangeMode
+}
+
+export type ConversationAssigneeChangeMode = "me" | "member" | "clear"
 
 export interface ConversationAssignment {
   /** 负责人（成员 ID）；空字符串表示没有负责人；不传时，转到别的团队收件箱则清空负责人，否则保持原样 */
@@ -409,6 +433,8 @@ export interface ConversationReadInputBody {
 }
 
 export interface ConversationReplyBody {
+  /** 随回复在同一个事务中原子执行的会话操作（如指派、改优先级、加标签、改属性、关闭或稍后处理） */
+  actions?: ConversationActions
   /** 成员写的文字 */
   text: string
   /** 发给对方的译文，由翻译的预览给出、成员确认；不带时按原文发出 */
@@ -451,6 +477,15 @@ export type ConversationSort = "waiting" | "recent"
 
 export type ConversationStatus = "open" | "snoozed" | "closed"
 
+export interface ConversationStatusAction {
+  /** 状态操作：close 关闭会话，snooze 稍后处理 */
+  kind: ConversationStatusActionKind
+  /** kind 为 snooze 时必填：回到打开的时间，必须晚于现在 */
+  until?: string
+}
+
+export type ConversationStatusActionKind = "close" | "snooze"
+
 export interface ConversationSummary {
   /** 左侧显示的数量：打开的会话数；@我 是还有未读的 @ 的会话数 */
   count: number
@@ -459,6 +494,15 @@ export interface ConversationSummary {
   /** 打开的会话中等待回复的数量 */
   waiting: number
 }
+
+export interface ConversationTeamChange {
+  /** mode 为 set 时的目标团队收件箱 ID */
+  id?: string
+  /** 变更方式：set 转到指定团队收件箱，clear 移出团队收件箱 */
+  mode: ConversationTeamChangeMode
+}
+
+export type ConversationTeamChangeMode = "set" | "clear"
 
 export interface ConversationTeamSummary {
   /** 左侧显示的数量：打开的会话数；@我 是还有未读的 @ 的会话数 */
@@ -576,6 +620,73 @@ export interface HoursWeek {
   wednesday: HoursInterval[]
 }
 
+export interface MacroActions {
+  /** 给会话添加的标签 ID 列表 */
+  add_tag_ids?: string[]
+  /** 修改负责人 */
+  assignee?: ConversationAssigneeChange
+  /** 修改优先级 */
+  priority?: ConversationPriority
+  /** 修改会话自定义属性，值为 null 时清空 */
+  set_attributes?: Record<string, unknown>
+  /** 关闭或稍后处理会话 */
+  status?: MacroStatusAction
+  /** 修改团队收件箱 */
+  team?: ConversationTeamChange
+}
+
+export interface MacroCreateParams {
+  /** 附带执行的会话操作配置 */
+  actions?: MacroActions
+  /** 回复模板正文，可含 {{...}} 变量占位符 */
+  body?: string
+  /** 作用域：shared 共享（需要 macros:manage 权限），personal 个人 */
+  scope: MacroScope
+  /** 可选快捷指令码（小写字母、数字、连字符和下划线） */
+  shortcut?: string
+  /** 标题 */
+  title: string
+}
+
+export interface MacroDTO {
+  /** 附带执行的会话操作配置 */
+  actions: MacroActions
+  /** 回复模板正文，可含 {{contact.name}} 等变量 */
+  body: string
+  created_at: string
+  /** 当前成员是否有权修改或删除这条快捷回复 */
+  editable: boolean
+  id: string
+  /** 作用域：shared 共享，personal 个人 */
+  scope: MacroScope
+  /** 可选快捷指令码，在回复框中输入 /shortcut 快速触发 */
+  shortcut: string
+  title: string
+  updated_at: string
+}
+
+export type MacroScope = "shared" | "personal"
+
+export type MacroSnooze = "later" | "tomorrow" | "monday" | "week" | "month"
+
+export interface MacroStatusAction {
+  /** 状态操作：close 关闭会话，snooze 稍后处理 */
+  kind: ConversationStatusActionKind
+  /** kind 为 snooze 时必填：相对稍后处理预设 */
+  snooze?: MacroSnooze
+}
+
+export interface MacroUpdateParams {
+  /** 附带执行的会话操作配置 */
+  actions?: MacroActions
+  /** 回复模板正文，可含 {{...}} 变量占位符 */
+  body?: string
+  /** 可选快捷指令码（小写字母、数字、连字符和下划线） */
+  shortcut?: string
+  /** 标题 */
+  title: string
+}
+
 export interface MemberAddParams {
   email: string
   /** 这个邮箱还没有账号时必填 */
@@ -619,6 +730,14 @@ export interface MemberTenantMember {
 
 export interface OffsetConversationSearchHitDTO {
   items: ConversationSearchHitDTO[]
+  page: number
+  per_page: number
+  /** Total number of items across all pages. */
+  total: number
+}
+
+export interface OffsetMacroDTO {
+  items: MacroDTO[]
   page: number
   per_page: number
   /** Total number of items across all pages. */
@@ -691,7 +810,7 @@ export interface RoleParams {
   permissions?: RolePermission[]
 }
 
-export type RolePermission = "conversations:assign" | "members:manage" | "teams:manage" | "channels:manage" | "tenant-settings:manage"
+export type RolePermission = "conversations:assign" | "macros:manage" | "members:manage" | "teams:manage" | "channels:manage" | "tenant-settings:manage"
 
 export interface TagChanges {
   /** 标签的颜色，不填时是灰蓝 */
@@ -973,6 +1092,18 @@ export interface ConversationSearchInput {
   tag_id?: string
 }
 
+/** macro-list 的参数。 */
+export interface MacroListInput {
+  /** Page number, starting at 1. */
+  page?: number
+  /** Items per page. */
+  per_page?: number
+  /** 按标题、快捷指令码或正文模糊搜索 */
+  q?: string
+  /** 按作用域筛选：shared 共享，personal 个人；为空返回全部可见快捷回复 */
+  scope?: MacroScope
+}
+
 /** member-list 的参数。 */
 export interface MemberListInput {
   /** Page number, starting at 1. */
@@ -1126,6 +1257,13 @@ export function createClient(options: ClientOptions) {
     },
     /** operationId 以 conversation- 开头的接口。 */
     conversation: {
+      /**
+       * 批量执行会话操作
+       *
+       * POST /conversations/{id}/actions
+       */
+      applyActions: (id: string, body: ConversationActions): Promise<ConversationDTO> =>
+        rt.request<ConversationDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/actions`, body }),
       /**
        * 指派
        *
@@ -1325,6 +1463,44 @@ export function createClient(options: ClientOptions) {
        */
       specialDatesSave: (body: HoursSpecialDatesInputBody): Promise<HoursSettingsDTO> =>
         rt.request<HoursSettingsDTO>({ method: "PUT", path: `/settings/business-hours/special-dates`, body }),
+    },
+    /** operationId 以 macro- 开头的接口。 */
+    macro: {
+      /**
+       * 新建快捷回复
+       *
+       * POST /macros
+       */
+      create: (body: MacroCreateParams): Promise<MacroDTO> =>
+        rt.request<MacroDTO>({ method: "POST", path: `/macros`, body }),
+      /**
+       * 删除快捷回复
+       *
+       * DELETE /macros/{id}
+       */
+      delete: (id: string): Promise<void> =>
+        rt.request<void>({ method: "DELETE", path: `/macros/${encodeURIComponent(id)}` }),
+      /**
+       * 读取快捷回复
+       *
+       * GET /macros/{id}
+       */
+      get: (id: string): Promise<MacroDTO> =>
+        rt.request<MacroDTO>({ method: "GET", path: `/macros/${encodeURIComponent(id)}` }),
+      /**
+       * 快捷回复列表
+       *
+       * GET /macros
+       */
+      list: (input: MacroListInput = {}): Promise<OffsetMacroDTO> =>
+        rt.request<OffsetMacroDTO>({ method: "GET", path: `/macros`, query: { "page": input["page"], "per_page": input["per_page"], "q": input["q"], "scope": input["scope"] } }),
+      /**
+       * 修改快捷回复
+       *
+       * PUT /macros/{id}
+       */
+      update: (id: string, body: MacroUpdateParams): Promise<MacroDTO> =>
+        rt.request<MacroDTO>({ method: "PUT", path: `/macros/${encodeURIComponent(id)}`, body }),
     },
     /** operationId 以 member- 开头的接口。 */
     member: {

@@ -36,6 +36,16 @@ export function useAttributes(target: AttributeTarget) {
   return q.data ?? []
 }
 
+/** useMacros 返回当前成员在工作区中可见的全部快捷回复（共享 + 个人），修改快捷回复后随资源前缀自动失效。 */
+export function useMacros() {
+  const q = useQuery({
+    queryKey: [...kit.queries.macro.key(), "all"],
+    queryFn: () => fetchAllPages((p) => tenantApi.macro.list(p)),
+    staleTime: 60_000,
+  })
+  return q.data ?? []
+}
+
 /** Thresholds 是等待时长变色的时限（秒）：超过 warn 是“等待处理”，超过 alert 是“需要注意”。 */
 export interface Thresholds {
   warn: number

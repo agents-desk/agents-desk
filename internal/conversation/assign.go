@@ -47,75 +47,80 @@ func NewAssign(db *bun.DB, down Downstream) *Assign { return &Assign{db: db, dow
 // member.ErrNotFound（字段 assignee_id）。
 func (a *Assign) Handle(ctx context.Context, sub identity.Subject, id string, p Assignment) (*ConversationDTO, error) {
 	return change(ctx, a.db, a.down, sub, id, auth.ConversationsReply, func(ctx context.Context, tx bun.IDB, c *Conversation) ([]*Item, error) {
-		// 新的团队收件箱
-		toTeam := c.TeamID
-		if p.TeamID != nil {
-			toTeam = nil
-			if *p.TeamID != "" {
-				var row struct {
-					DisabledAt *time.Time `bun:"disabled_at"`
-				}
-				err := tx.NewSelect().Table("teams").Column("disabled_at").Where("id = ? AND tenant_id = ?", *p.TeamID, sub.Tenant).Scan(ctx, &row)
-				if errors.Is(err, sql.ErrNoRows) {
-					return nil, team.ErrNotFound.New(errorx.Field("team_id"))
-				}
-				if err != nil {
-					return nil, errors.Wrap(err, "find team")
-				}
-				if row.DisabledAt != nil {
-					return nil, team.ErrDisabled.New(errorx.Field("team_id"))
-				}
-				toTeam = p.TeamID
-			}
-		}
-		teamChanged := !sameID(c.TeamID, toTeam)
-
-		// 新的负责人：只能是这个工作区的成员
-		fromType, fromID := c.AssigneeType, c.AssigneeID
-		toType, toID := fromType, fromID
-		switch {
-		case p.AssigneeID != nil && *p.AssigneeID == "":
-			toType, toID = "", ""
-		case p.AssigneeID != nil:
-			ref := identity.Ref{Type: member.Type, ID: *p.AssigneeID}
-			if _, err := member.RoleOf(ctx, authz.NewStore(tx, auth.Catalog), ref, sub.Tenant); err != nil {
-				if errors.Is(err, member.ErrNotFound) {
-					return nil, member.ErrNotFound.New(errorx.Field("assignee_id"))
-				}
-				return nil, err
-			}
-			toType, toID = MemberActor, *p.AssigneeID
-		case teamChanged:
-			toType, toID = "", ""
-		}
-		if !teamChanged && toType == fromType && toID == fromID {
-			return nil, nil
-		}
-
-		// 权限：领取和处理自己负责的会话不需要改派的权限。要领取的会话已经被别人领取时（两人同时领取，先到者生效），
-		// 没有改派权限的成员得到 ErrAlreadyAssigned
-		mine := fromType == MemberActor && fromID == sub.ID
-		claim := fromType == "" && toType == MemberActor && toID == sub.ID && !teamChanged
-		if sub.Type != identity.System && !mine && !claim && !sub.Can(string(auth.ConversationsAssign)) {
-			if toType == MemberActor && toID == sub.ID && fromType != "" {
-				return nil, ErrAlreadyAssigned.New()
-			}
-			return nil, ErrForbidden.New()
-		}
-
-		fromTeam := c.TeamID
-		c.TeamID, c.AssigneeType, c.AssigneeID = toTeam, toType, toID
-		ev := assignedEvent(sub, c, fromTeam, fromType, fromID, ReasonManual)
-		// 转到别的团队收件箱而没有负责人时，按新团队收件箱的分配方式分配；系统的分配记在后面
-		if teamChanged && toType == "" {
-			next, err := roundRobin(ctx, tx, c)
-			if err != nil || next == nil {
-				return []*Item{ev}, err
-			}
-			return []*Item{ev, next}, nil
-		}
-		return []*Item{ev}, nil
+		return applyAssign(ctx, tx, sub, c, p)
 	})
+}
+
+// applyAssign 在事务 tx 中按 p 修改已锁住的会话 c 的团队收件箱和负责人，返回要追加的系统事件。
+func applyAssign(ctx context.Context, tx bun.IDB, sub identity.Subject, c *Conversation, p Assignment) ([]*Item, error) {
+	// 新的团队收件箱
+	toTeam := c.TeamID
+	if p.TeamID != nil {
+		toTeam = nil
+		if *p.TeamID != "" {
+			var row struct {
+				DisabledAt *time.Time `bun:"disabled_at"`
+			}
+			err := tx.NewSelect().Table("teams").Column("disabled_at").Where("id = ? AND tenant_id = ?", *p.TeamID, sub.Tenant).Scan(ctx, &row)
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, team.ErrNotFound.New(errorx.Field("team_id"))
+			}
+			if err != nil {
+				return nil, errors.Wrap(err, "find team")
+			}
+			if row.DisabledAt != nil {
+				return nil, team.ErrDisabled.New(errorx.Field("team_id"))
+			}
+			toTeam = p.TeamID
+		}
+	}
+	teamChanged := !sameID(c.TeamID, toTeam)
+
+	// 新的负责人：只能是这个工作区的成员
+	fromType, fromID := c.AssigneeType, c.AssigneeID
+	toType, toID := fromType, fromID
+	switch {
+	case p.AssigneeID != nil && *p.AssigneeID == "":
+		toType, toID = "", ""
+	case p.AssigneeID != nil:
+		ref := identity.Ref{Type: member.Type, ID: *p.AssigneeID}
+		if _, err := member.RoleOf(ctx, authz.NewStore(tx, auth.Catalog), ref, sub.Tenant); err != nil {
+			if errors.Is(err, member.ErrNotFound) {
+				return nil, member.ErrNotFound.New(errorx.Field("assignee_id"))
+			}
+			return nil, err
+		}
+		toType, toID = MemberActor, *p.AssigneeID
+	case teamChanged:
+		toType, toID = "", ""
+	}
+	if !teamChanged && toType == fromType && toID == fromID {
+		return nil, nil
+	}
+
+	// 权限：领取和处理自己负责的会话不需要改派的权限。要领取的会话已经被别人领取时（两人同时领取，先到者生效），
+	// 没有改派权限的成员得到 ErrAlreadyAssigned
+	mine := fromType == MemberActor && fromID == sub.ID
+	claim := fromType == "" && toType == MemberActor && toID == sub.ID && !teamChanged
+	if sub.Type != identity.System && !mine && !claim && !sub.Can(string(auth.ConversationsAssign)) {
+		if toType == MemberActor && toID == sub.ID && fromType != "" {
+			return nil, ErrAlreadyAssigned.New()
+		}
+		return nil, ErrForbidden.New()
+	}
+
+	fromTeam := c.TeamID
+	c.TeamID, c.AssigneeType, c.AssigneeID = toTeam, toType, toID
+	ev := assignedEvent(sub, c, fromTeam, fromType, fromID, ReasonManual)
+	// 转到别的团队收件箱而没有负责人时，按新团队收件箱的分配方式分配；系统的分配记在后面
+	if teamChanged && toType == "" {
+		next, err := roundRobin(ctx, tx, c)
+		if err != nil || next == nil {
+			return []*Item{ev}, err
+		}
+		return []*Item{ev, next}, nil
+	}
+	return []*Item{ev}, nil
 }
 
 // sameID 报告两个可以为空的 ID 是否相同。

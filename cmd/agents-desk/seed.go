@@ -21,6 +21,7 @@ import (
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
+	"agents-desk/internal/macro"
 	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
 	"agents-desk/internal/tag"
@@ -133,6 +134,9 @@ func seed(ctx context.Context, out io.Writer, db *bun.DB, adminLogins, memberLog
 		}
 	}
 	if err := seedTagsAndAttributes(ctx, out, db, inDemo); err != nil {
+		return err
+	}
+	if err := seedMacros(ctx, out, db, memberLogins, inDemo); err != nil {
 		return err
 	}
 	if err := seedConversations(ctx, out, db, memberLogins, inDemo, channels, down); err != nil {
@@ -443,5 +447,101 @@ func seedConversations(ctx context.Context, out io.Writer, db *bun.DB, memberLog
 		}
 	}
 	fmt.Fprintln(out, "已在示例工作区中创建测试渠道和", len(seedChats), "个示例会话")
+	return nil
+}
+
+// seedMacros 在示例工作区中写入共享和个人示例快捷回复，已存在相同快捷码的跳过。
+func seedMacros(ctx context.Context, out io.Writer, db *bun.DB, memberLogins *login.Realm, inDemo identity.Subject) error {
+	create := macro.NewCreate(db)
+	high := conversation.High
+	tomorrow := macro.SnoozeTomorrow
+
+	// 查出常用标签，用于附带操作示例
+	var tagRows []struct {
+		ID   string `bun:"id"`
+		Name string `bun:"name"`
+	}
+	if err := db.NewSelect().Table("tags").Column("id", "name").Where("tenant_id = ?", inDemo.Tenant).Scan(ctx, &tagRows); err != nil {
+		return errors.Wrap(err, "load seed tags for macros")
+	}
+	tagsByName := map[string]string{}
+	for _, row := range tagRows {
+		tagsByName[row.Name] = row.ID
+	}
+
+	resolvedActions := macro.Actions{
+		Status: &macro.StatusAction{Kind: conversation.StatusActionClose},
+	}
+	orderActions := macro.Actions{
+		Priority:      &high,
+		SetAttributes: map[string]any{"issue_type": "退款"},
+	}
+	if tid := tagsByName["退款"]; tid != "" {
+		orderActions.AddTagIDs = []string{tid}
+	}
+
+	shared := []macro.CreateParams{
+		{
+			Scope:    macro.ScopeShared,
+			Shortcut: "greeting",
+			Title:    "欢迎语",
+			Body:     "您好 {{contact.name | 朋友}}，我是客服 {{member.name}}，请问有什么可以帮您？",
+		},
+		{
+			Scope:    macro.ScopeShared,
+			Shortcut: "order",
+			Title:    "核对订单与退款",
+			Body:     "您好 {{contact.name | 朋友}}，我来为您优先核实订单进度。请确认您的联系邮箱是否为 {{contact.email | 您下单时填写的邮箱}}，并告知订单号。",
+			Actions:  orderActions,
+		},
+		{
+			Scope:    macro.ScopeShared,
+			Shortcut: "resolved",
+			Title:    "问题已解决并关闭",
+			Body:     "很高兴为您解决问题，{{contact.name | 朋友}}！如后续还有需要，随时联系我们。",
+			Actions:  resolvedActions,
+		},
+	}
+
+	created := 0
+	for _, p := range shared {
+		_, err := create.Handle(ctx, inDemo, p)
+		switch {
+		case errors.Is(err, macro.ErrShortcutTaken):
+		case err != nil:
+			return err
+		default:
+			created++
+		}
+	}
+
+	agentRef, err := memberLogins.Lookup(ctx, login.Email("agent@example.com"))
+	if err != nil {
+		return err
+	}
+	agentSub := identity.Subject{Type: member.Type, ID: agentRef.ID, Tenant: inDemo.Tenant}
+	_, err = create.Handle(ctx, agentSub, macro.CreateParams{
+		Scope:    macro.ScopePersonal,
+		Shortcut: "tomorrow",
+		Title:    "明日跟进提醒",
+		Body:     "您好 {{contact.name | 朋友}}，这边已记录您的问题，将在明天为您同步最新进展。",
+		Actions: macro.Actions{
+			Assignee: &conversation.AssigneeChange{Mode: conversation.AssigneeMe},
+			Status:   &macro.StatusAction{Kind: conversation.StatusActionSnooze, Snooze: &tomorrow},
+		},
+	})
+	switch {
+	case errors.Is(err, macro.ErrShortcutTaken):
+	case err != nil:
+		return err
+	default:
+		created++
+	}
+
+	if created > 0 {
+		fmt.Fprintf(out, "已在示例工作区中创建 %d 条示例快捷回复\n", created)
+	} else {
+		fmt.Fprintln(out, "示例工作区已有示例快捷回复，跳过")
+	}
 	return nil
 }

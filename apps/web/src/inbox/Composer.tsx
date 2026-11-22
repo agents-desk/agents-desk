@@ -1,15 +1,64 @@
-import type { ConversationDTO, ConversationTranslation, MemberTenantMember, TranslationPreviewDTO } from "@agents-desk/client/tenant"
-import { ActionIcon, Avatar, Box, Button, Group, Loader, Menu, Paper, SegmentedControl, Text, Textarea, Tooltip, UnstyledButton } from "@mantine/core"
+import type {
+  AttributeDTO,
+  ConversationActions,
+  ConversationDTO,
+  ConversationTranslation,
+  MacroDTO,
+  MemberTenantMember,
+  TagDTO,
+  TeamDTO,
+  TranslationPreviewDTO,
+} from "@agents-desk/client/tenant"
+import {
+  ActionIcon,
+  Avatar,
+  Badge,
+  Box,
+  Button,
+  Code,
+  Group,
+  Loader,
+  Menu,
+  Paper,
+  SegmentedControl,
+  Stack,
+  Text,
+  Textarea,
+  Tooltip,
+  UnstyledButton,
+} from "@mantine/core"
 import { useOs } from "@mantine/hooks"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { IconChevronDown, IconLanguage, IconLock } from "@tabler/icons-react"
+import { IconChevronDown, IconLanguage, IconLock, IconMessageBolt, IconX } from "@tabler/icons-react"
 import { describeError } from "@go-tenon/client"
-import { errorMessage, notifyError, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
-import { type ReactNode, type RefObject, useCallback, useEffect, useRef, useState } from "react"
+import {
+  errorMessage,
+  notifyError,
+  TriggerMenu,
+  textTriggerRule,
+  useCan,
+  useLanguage,
+  useT,
+  useTextTrigger,
+  useTimeZone,
+} from "@go-tenon/ui"
+import { type ReactNode, type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { LanguageSelect } from "../LanguageSelect"
 import { languageName } from "../languages"
-import { useMe, useMembers } from "./data"
+import {
+  countMacroActions,
+  emptyPendingActions,
+  hasPendingActions,
+  type MacroWarning,
+  matchMacros,
+  mergePendingActions,
+  type PendingActions,
+  renderMacroBody,
+  resolveMacroActions,
+  toConversationActions,
+} from "../macros/template"
+import { useAttributes, useMacros, useMe, useMembers, useTags, useTeams } from "./data"
 import { clearDraft, type DraftMode, getDraft, saveDraft } from "./drafts"
 import { snoozeOptions } from "./menus"
 
@@ -33,9 +82,10 @@ interface Preview {
 }
 
 /**
- * Composer 是会话底部的回复框：回复和内部备注两种模式，内部备注时变成黄色底，输入 @ 选择同事。
+ * Composer 是会话底部的回复框：回复和内部备注两种模式，内部备注时变成黄色底，输入 @ 选择同事；
+ * 回复模式下输入 / 或点击工具栏按钮搜索并插入快捷回复（0ms 本地展开联系人与成员变量，附带操作以可移除胶囊条预览）。
  * 回车发送，Shift + 回车换行，用输入法选词时的回车只确认候选词。发送按钮的下拉中有“发送并关闭”“发送并稍后处理”。
- * 输入时调用 onTyping，会话的频道据此告诉别人“正在输入”。
+ * 回复与附带操作（及发送并关闭/稍后处理）统一走单事务原子接口提交。
  *
  * 翻译可用时，回复在停止输入片刻后翻译，输入框上方显示发给对方的译文和回译，发送的就是这段译文。目标语言默认是对方的语言，
  * 可以换成别的语言或者“不翻译”。预览之后改了原文、马上按回车时，先翻译并显示新的译文，再按一次回车才发送：发出的总是成员看过的译文。
@@ -43,21 +93,30 @@ interface Preview {
  */
 export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTyping: () => void; inputRef?: RefObject<HTMLTextAreaElement | null> }): ReactNode {
   const t = useT()
+  const can = useCan()
   const os = useOs()
   const modeKey = os === "macos" || os === "ios" ? "⌘I" : "Ctrl+I"
   const zone = useTimeZone()
   const queryClient = useQueryClient()
   const me = useMe()
-  const { list: members } = useMembers()
+  const { list: members, byId: memberById } = useMembers()
+  const teams = useTeams()
+  const tags = useTags()
+  const convAttrs = useAttributes("conversation")
+  const macros = useMacros()
+
   const [mode, setMode] = useState<Mode>(() => getDraft(c.id)?.mode ?? "reply")
   const [text, setText] = useState(() => getDraft(c.id)?.text ?? "")
   const [mentionIds, setMentionIds] = useState<string[]>(() => getDraft(c.id)?.mentionIds ?? [])
-  const [query, setQuery] = useState<string | null>(null) // 正在输入的 @ 后面的文字；没有在 @ 时为 null
-  const [pick, setPick] = useState(0)
+  const [pendingActions, setPendingActions] = useState<PendingActions>(emptyPendingActions)
+  const [macroWarnings, setMacroWarnings] = useState<MacroWarning[]>([])
+
   const localArea = useRef<HTMLTextAreaElement>(null)
   const area = inputRef ?? localArea
   const value = text.trim()
-  const preview = useReplyTranslation(c.id, mode === "reply" ? value : "")
+  const note = mode === "note"
+  const hasPending = !note && hasPendingActions(pendingActions)
+  const preview = useReplyTranslation(c.id, !note ? value : "")
 
   // 实时保存草稿，切换会话后再回来不丢失已输入内容与模式
   useEffect(() => {
@@ -70,25 +129,45 @@ export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTypi
         // 只算还留在文字中的 @
         const ids = members.filter((m) => mentionIds.includes(m.id) && value.includes(`@${m.name}`)).map((m) => m.id)
         await tenantApi.conversation.note(c.id, { text: value, mentions: ids.length > 0 ? ids : undefined })
-      } else {
-        await tenantApi.conversation.reply(c.id, { text: value, translation })
+        return
       }
-      if (after.kind === "close") await tenantApi.conversation.close(c.id)
-      if (after.kind === "snooze") await tenantApi.conversation.snooze(c.id, { until: after.until.toISOString() })
+      // 合并草稿附带操作与发送下拉菜单中的显式状态操作（下拉菜单优先级更高）
+      let actions: ConversationActions | undefined = toConversationActions(pendingActions)
+      if (after.kind === "close") {
+        actions = { ...(actions ?? {}), status: { kind: "close" } }
+      } else if (after.kind === "snooze") {
+        actions = { ...(actions ?? {}), status: { kind: "snooze", until: after.until.toISOString() } }
+      }
+      if (value) {
+        await tenantApi.conversation.reply(c.id, { text: value, translation, actions })
+      } else if (actions) {
+        await tenantApi.conversation.applyActions(c.id, actions)
+      }
     },
     onSuccess: () => {
       clearDraft(c.id)
       setText("")
       setMentionIds([])
+      setPendingActions(emptyPendingActions())
+      setMacroWarnings([])
       preview.reset()
       void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
     },
     onError: (err) => notifyError(err),
   })
-  // 发送：回复要翻译时，发出的是当前的译文；译文不是这段文字的（还没翻译、改过原文、失败了）时先翻译，显示出来等成员再按一次
+
+  // 发送：有文字且需要翻译时先确保译文与当前原文一致；无文字仅有附带操作时直接应用操作
   const submit = async (after: After) => {
-    if (!value || send.isPending || (mode === "reply" && preview.pending)) return
-    if (mode === "note" || !preview.active) return send.mutate({ after })
+    if (send.isPending || (!note && preview.pending)) return
+    if (note) {
+      if (!value) return
+      return send.mutate({ after })
+    }
+    if (!value) {
+      if (!hasPending && after.kind === "none") return
+      return send.mutate({ after })
+    }
+    if (!preview.active) return send.mutate({ after })
     const current = preview.current ?? (await preview.translateNow())
     if (!current) return
     if (!current.needed) return send.mutate({ after })
@@ -96,41 +175,150 @@ export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTypi
     preview.askConfirm()
   }
 
-  // @ 同事：光标前面是 @ 加上几个字时，列出名字里有这几个字的同事
-  const candidates =
-    mode === "note" && query !== null
-      ? members.filter((m) => m.id !== me.data?.id && m.name.toLowerCase().includes(query.toLowerCase())).slice(0, 6)
-      : []
-  const onChange = (next: string, caret: number) => {
-    setText(next)
-    if (next.trim()) onTyping()
-    const m = mode === "note" ? /@([^\s@]*)$/.exec(next.slice(0, caret)) : null
-    setQuery(m ? m[1] : null)
-    setPick(0)
-  }
-  const choose = (m: MemberTenantMember) => {
-    const el = area.current
-    const caret = el?.selectionStart ?? text.length
-    const before = text.slice(0, caret).replace(/@([^\s@]*)$/, `@${m.name} `)
-    const next = before + text.slice(caret)
-    setText(next)
-    setMentionIds((all) => (all.includes(m.id) ? all : [...all, m.id]))
-    setQuery(null)
-    requestAnimationFrame(() => {
-      el?.focus()
-      el?.setSelectionRange(before.length, before.length)
-    })
-  }
+  const canAssignOthers = can("conversations:assign")
 
-  const note = mode === "note"
+  // 统一使用框架的 useTextTrigger 管理内部备注的 @ 提及同事与回复模式的 / 快捷回复
+  const triggerRules = useMemo(
+    () => [
+      textTriggerRule({
+        id: "mention",
+        trigger: "@",
+        enabled: note,
+        items: (q) =>
+          members
+            .filter((m) => m.id !== me.data?.id && m.name.toLowerCase().includes(q.toLowerCase()))
+            .slice(0, 6),
+        getKey: (m) => m.id,
+        renderItem: (m: MemberTenantMember) => (
+          <Group gap="xs" wrap="nowrap">
+            <Avatar src={m.avatar_url || undefined} size={22} name={m.name} />
+            <Text size="sm" truncate>
+              {m.name}
+            </Text>
+            <Text size="xs" c="dimmed" ml="auto">
+              {m.role_name}
+            </Text>
+          </Group>
+        ),
+        onSelect: (m, { replace }) => {
+          setMentionIds((all) => (all.includes(m.id) ? all : [...all, m.id]))
+          replace(`@${m.name} `)
+        },
+      }),
+      textTriggerRule({
+        id: "macro",
+        trigger: "/",
+        enabled: !note,
+        items: (q) => matchMacros(macros, q),
+        getKey: (m) => m.id,
+        renderItem: (m: MacroDTO) => {
+          const actionCount = countMacroActions(m.actions)
+          return (
+            <Stack gap={2}>
+              <Group gap={6} wrap="nowrap">
+                <Text size="sm" fw={500} truncate>
+                  {m.title}
+                </Text>
+                {m.shortcut && (
+                  <Code fz={11} style={{ flex: "none" }}>
+                    /{m.shortcut}
+                  </Code>
+                )}
+                <Badge size="xs" variant="light" color={m.scope === "shared" ? "brand" : "gray"} ml="auto" style={{ flex: "none" }}>
+                  {t(m.scope === "shared" ? "inbox.macro_scope_shared" : "inbox.macro_scope_personal")}
+                </Badge>
+              </Group>
+              <Group gap={6} wrap="nowrap">
+                {m.body ? (
+                  <Text size="xs" c="dimmed" truncate style={{ flex: 1 }}>
+                    {m.body}
+                  </Text>
+                ) : (
+                  <Text size="xs" c="dimmed" style={{ flex: 1 }}>
+                    —
+                  </Text>
+                )}
+                {actionCount > 0 && (
+                  <Badge size="xs" variant="dot" color="bright-blue" style={{ flex: "none" }}>
+                    {t("macros.summary_actions_count", { n: actionCount })}
+                  </Badge>
+                )}
+              </Group>
+            </Stack>
+          )
+        },
+        onSelect: (m, { replace }) => {
+          const rendered = renderMacroBody(m.body, { contact: c.contact, memberName: me.data?.name })
+          const { pending, warnings } = resolveMacroActions(m.actions, {
+            c,
+            meId: me.data?.id,
+            canAssignOthers,
+            teams,
+            members,
+            tags,
+            convAttrs,
+            zone,
+          })
+          if (hasPendingActions(pending)) {
+            setPendingActions((prev) => mergePendingActions(prev, pending))
+          }
+          setMacroWarnings(warnings)
+          replace(rendered)
+        },
+      }),
+    ],
+    [note, members, me.data?.id, me.data?.name, macros, t, c, canAssignOthers, teams, tags, convAttrs, zone],
+  )
+
+  const handleTextChange = useCallback(
+    (next: string) => {
+      setText(next)
+      if (next.trim()) onTyping()
+    },
+    [onTyping],
+  )
+
+  const trigger = useTextTrigger({
+    ref: area,
+    value: text,
+    onChange: handleTextChange,
+    rules: triggerRules,
+  })
+
   const toggleMode = () => {
     setMode((m) => (m === "reply" ? "note" : "reply"))
-    setQuery(null)
+    trigger.close()
   }
+
+  const canSubmit = note ? !!value : !!value || hasPending
+  const mainLabel = note
+    ? t("inbox.add_note")
+    : !value && hasPending
+      ? t("inbox.apply_actions")
+      : preview.current?.needed
+        ? t("inbox.send_translation")
+        : t("inbox.send")
+
   return (
     <Box className="inbox-composer" data-note={note || undefined} px="sm" pt={8} pb={10}>
       {/* 译文预览在最上面：它出现、变高、消失时，输入框和发送按钮的位置不动 */}
       {!note && <TranslationPreview c={c} preview={preview} onSendOriginal={() => preview.setTarget(NO_TRANSLATION)} />}
+      {!note && (hasPending || macroWarnings.length > 0) && (
+        <PendingActionsBar
+          pending={pendingActions}
+          warnings={macroWarnings}
+          teams={teams}
+          memberById={memberById}
+          tags={tags}
+          convAttrs={convAttrs}
+          onChange={setPendingActions}
+          onClear={() => {
+            setPendingActions(emptyPendingActions())
+            setMacroWarnings([])
+          }}
+          onDismissWarnings={() => setMacroWarnings([])}
+        />
+      )}
       <Group gap="xs" mb={6}>
         <Tooltip label={t("inbox.switch_mode_hint", { key: modeKey })} openDelay={350}>
           <SegmentedControl
@@ -138,7 +326,7 @@ export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTypi
             value={mode}
             onChange={(v) => {
               setMode(v as Mode)
-              setQuery(null)
+              trigger.close()
             }}
             data={[
               { value: "reply", label: t("inbox.mode_reply") },
@@ -156,38 +344,17 @@ export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTypi
         )}
       </Group>
       <Box pos="relative">
-        {candidates.length > 0 && (
-          <Paper withBorder shadow="md" radius="md" p={4} pos="absolute" bottom="100%" left={0} mb={4} w={240} style={{ zIndex: 10 }}>
-            {candidates.map((m, i) => (
-              <UnstyledButton
-                key={m.id}
-                w="100%"
-                px="xs"
-                py={6}
-                className="inbox-mention"
-                data-active={i === pick || undefined}
-                onMouseDown={(e) => {
-                  e.preventDefault()
-                  choose(m)
-                }}
-              >
-                <Group gap="xs" wrap="nowrap">
-                  <Avatar src={m.avatar_url || undefined} size={22} name={m.name} />
-                  <Text size="sm" truncate>
-                    {m.name}
-                  </Text>
-                  <Text size="xs" c="dimmed" ml="auto">
-                    {m.role_name}
-                  </Text>
-                </Group>
-              </UnstyledButton>
-            ))}
-          </Paper>
-        )}
+        <TriggerMenu
+          trigger={trigger}
+          position="top"
+          width={trigger.activeRule?.id === "macro" ? 360 : 240}
+          header={trigger.activeRule?.id === "macro" ? t("inbox.macro_header") : undefined}
+          empty={trigger.activeRule?.id === "macro" ? t("inbox.macro_empty") : undefined}
+        />
         <Textarea
           ref={area}
           value={text}
-          onChange={(e) => onChange(e.currentTarget.value, e.currentTarget.selectionStart)}
+          onChange={(e) => trigger.handleChange(e.currentTarget.value, e.currentTarget.selectionStart)}
           onKeyDown={(e) => {
             if (e.nativeEvent.isComposing) return
             if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "i") {
@@ -195,17 +362,7 @@ export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTypi
               toggleMode()
               return
             }
-            if (candidates.length > 0 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
-              e.preventDefault()
-              setPick((p) => (p + (e.key === "ArrowDown" ? 1 : candidates.length - 1)) % candidates.length)
-              return
-            }
-            if (candidates.length > 0 && (e.key === "Enter" || e.key === "Tab")) {
-              e.preventDefault()
-              choose(candidates[pick])
-              return
-            }
-            if (e.key === "Escape") setQuery(null)
+            if (trigger.handleKeyDown(e)) return
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault()
               void submit({ kind: "none" })
@@ -220,6 +377,19 @@ export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTypi
         />
       </Box>
       <Group gap="xs" mt={8}>
+        {!note && (
+          <Tooltip label={t("inbox.macro_button")}>
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              size="sm"
+              onClick={() => trigger.open("macro")}
+              aria-label={t("inbox.macro_button")}
+            >
+              <IconMessageBolt size={15} />
+            </ActionIcon>
+          </Tooltip>
+        )}
         {!note && preview.enabled && !!value && !preview.shown && (
           <Tooltip label={t("inbox.choose_language")}>
             <ActionIcon variant="subtle" color="gray" size="sm" onClick={preview.pick} aria-label={t("inbox.choose_language")}>
@@ -234,12 +404,12 @@ export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTypi
           <Button
             size="xs"
             color={note ? "yellow" : undefined}
-            disabled={!value}
+            disabled={!canSubmit}
             loading={send.isPending || (!note && preview.pending)}
             onClick={() => void submit({ kind: "none" })}
             style={note ? undefined : { borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
           >
-            {t(note ? "inbox.add_note" : preview.current?.needed ? "inbox.send_translation" : "inbox.send")}
+            {mainLabel}
           </Button>
           {!note && (
             <Menu position="top-end" withinPortal>
@@ -263,6 +433,183 @@ export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTypi
         </Group>
       </Group>
     </Box>
+  )
+}
+
+/** PendingActionsBar 在回复框上方以可关闭的胶囊展示快捷回复载入的待执行操作，以及失效或无权项提醒。 */
+function PendingActionsBar({
+  pending,
+  warnings,
+  teams,
+  memberById,
+  tags,
+  convAttrs,
+  onChange,
+  onClear,
+  onDismissWarnings,
+}: {
+  pending: PendingActions
+  warnings: MacroWarning[]
+  teams: TeamDTO[]
+  memberById: Map<string, MemberTenantMember>
+  tags: TagDTO[]
+  convAttrs: AttributeDTO[]
+  onChange: (next: PendingActions) => void
+  onClear: () => void
+  onDismissWarnings: () => void
+}): ReactNode {
+  const t = useT()
+  const teamById = useMemo(() => new Map(teams.map((x) => [x.id, x])), [teams])
+  const tagById = useMemo(() => new Map(tags.map((x) => [x.id, x])), [tags])
+  const attrByKey = useMemo(() => new Map(convAttrs.map((x) => [x.key, x])), [convAttrs])
+
+  const chips: { key: string; label: string; color?: string; onRemove: () => void }[] = []
+
+  if (pending.team) {
+    const label =
+      pending.team.mode === "clear"
+        ? t("inbox.macro_action_clear_team")
+        : t("inbox.macro_action_assign_team", { name: (pending.team.id && teamById.get(pending.team.id)?.name) || "" })
+    chips.push({
+      key: "team",
+      label,
+      color: "bright-blue",
+      onRemove: () => onChange({ ...pending, team: undefined }),
+    })
+  }
+
+  if (pending.assignee) {
+    let label: string
+    if (pending.assignee.mode === "me") label = t("inbox.macro_action_assign_me")
+    else if (pending.assignee.mode === "clear") label = t("inbox.macro_action_clear_assignee")
+    else label = t("inbox.macro_action_assign_member", { name: (pending.assignee.id && memberById.get(pending.assignee.id)?.name) || "" })
+    chips.push({
+      key: "assignee",
+      label,
+      color: "bright-blue",
+      onRemove: () => onChange({ ...pending, assignee: undefined }),
+    })
+  }
+
+  if (pending.priority) {
+    chips.push({
+      key: "priority",
+      label: t(pending.priority === "high" ? "inbox.macro_action_priority_high" : "inbox.macro_action_priority_normal"),
+      color: pending.priority === "high" ? "deep-orange" : "gray",
+      onRemove: () => onChange({ ...pending, priority: undefined }),
+    })
+  }
+
+  for (const tagId of pending.addTagIDs) {
+    const tag = tagById.get(tagId)
+    if (!tag) continue
+    chips.push({
+      key: `tag:${tagId}`,
+      label: `+${tag.name}`,
+      color: tag.color,
+      onRemove: () => onChange({ ...pending, addTagIDs: pending.addTagIDs.filter((id) => id !== tagId) }),
+    })
+  }
+
+  for (const [k, v] of Object.entries(pending.setAttributes)) {
+    const def = attrByKey.get(k)
+    const display = v === null || v === undefined ? t("macros.action_clear_value") : Array.isArray(v) ? v.join(", ") : String(v)
+    chips.push({
+      key: `attr:${k}`,
+      label: `${def?.name ?? k}: ${display}`,
+      color: "violet",
+      onRemove: () => {
+        const nextAttrs = { ...pending.setAttributes }
+        delete nextAttrs[k]
+        onChange({ ...pending, setAttributes: nextAttrs })
+      },
+    })
+  }
+
+  if (pending.status) {
+    const label =
+      pending.status.kind === "close"
+        ? t("inbox.macro_action_close")
+        : t("inbox.macro_action_snooze", { when: t(`inbox.snooze_${pending.status.preset}` as const) })
+    chips.push({
+      key: "status",
+      label,
+      color: pending.status.kind === "close" ? "green" : "yellow",
+      onRemove: () => onChange({ ...pending, status: undefined }),
+    })
+  }
+
+  const warningText = (w: MacroWarning): string => {
+    switch (w.kind) {
+      case "no_assign_perm":
+        return t("inbox.macro_warn_no_assign_perm")
+      case "team_missing":
+        return t("inbox.macro_warn_team_missing")
+      case "team_disabled":
+        return t("inbox.macro_warn_team_disabled", { name: w.name })
+      case "member_missing":
+        return t("inbox.macro_warn_member_missing")
+      case "tag_missing":
+        return t("inbox.macro_warn_tag_missing")
+      case "attr_missing":
+        return t("inbox.macro_warn_attr_missing", { key: w.key })
+    }
+  }
+
+  return (
+    <Stack gap={6} mb={8}>
+      {chips.length > 0 && (
+        <Paper withBorder radius="md" px="xs" py={6} bg="var(--tn-canvas)">
+          <Group gap={6} wrap="wrap" align="center">
+            <Text size="xs" c="dimmed" fw={500}>
+              {t("inbox.macro_pending_label")}
+            </Text>
+            {chips.map((chip) => (
+              <Badge
+                key={chip.key}
+                size="sm"
+                variant="light"
+                color={chip.color}
+                pr={4}
+                rightSection={
+                  <ActionIcon
+                    size={14}
+                    variant="transparent"
+                    color={chip.color ?? "gray"}
+                    aria-label={t("inbox.macro_action_remove")}
+                    onClick={chip.onRemove}
+                  >
+                    <IconX size={10} />
+                  </ActionIcon>
+                }
+              >
+                {chip.label}
+              </Badge>
+            ))}
+            <UnstyledButton fz="xs" c="dimmed" ml="auto" onClick={onClear}>
+              {t("inbox.macro_action_clear_actions")}
+            </UnstyledButton>
+          </Group>
+        </Paper>
+      )}
+      {warnings.length > 0 && (
+        <Paper withBorder radius="md" px="xs" py={5} bg="var(--mantine-color-deep-orange-light)">
+          <Group gap="xs" wrap="nowrap" align="flex-start">
+            <Stack gap={2} style={{ flex: 1 }}>
+              {warnings.map((w, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: 单次选中生成的静态警告列表
+                <Text key={i} size="xs" c="deep-orange">
+                  {warningText(w)}
+                </Text>
+              ))}
+            </Stack>
+            <ActionIcon size="xs" variant="transparent" color="deep-orange" onClick={onDismissWarnings} aria-label={t("inbox.cancel")}>
+              <IconX size={12} />
+            </ActionIcon>
+          </Group>
+        </Paper>
+      )}
+    </Stack>
   )
 }
 

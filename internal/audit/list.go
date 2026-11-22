@@ -1,6 +1,6 @@
 // Package audit 提供管理员端查看平台操作日志的业务动作与接口。
 // 操作记录由各业务动作在事务中通过 tenon/activity.Record 写入 activity_log 表，本包只读取平台域（tenant = ""）的记录，
-// 补全操作人与目标名称，并按当前请求语言翻译为可供 ActivityTimeline 直接展示的时间线条目。
+// 补全操作人与目标名称，并按当前请求语言翻译为可供 ActivityLog 直接展示的分页表格数据。
 package audit
 
 import (
@@ -53,7 +53,7 @@ type List struct {
 // NewList 返回平台操作日志查询动作。
 func NewList(db *bun.DB) *List { return &List{db: db} }
 
-// Handle 按条件查询平台操作日志，解析操作人姓名和目标名称并翻译为当前语言的展示文字。
+// Handle 按条件分页查询平台操作日志，解析操作人姓名和目标名称并翻译为当前语言的展示文字。
 func (a *List) Handle(ctx context.Context, in ListInput) (page.Offset[Item], error) {
 	res, err := activity.List(ctx, a.db, activity.Query{
 		Tenant:     "",
