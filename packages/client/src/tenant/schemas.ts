@@ -381,6 +381,241 @@ export const schemas = {
       },
     },
   },
+  report: {
+    conversations: {
+      query: {
+        "properties": {
+          "channel_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "from": {
+            "format": "date",
+            "type": "string"
+          },
+          "granularity": {
+            "enum": [
+              "hour",
+              "day",
+              "week",
+              "month"
+            ],
+            "type": "string"
+          },
+          "team_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "to": {
+            "format": "date",
+            "type": "string"
+          },
+          "tz": {
+            "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+    },
+    members: {
+      query: {
+        "properties": {
+          "channel_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "from": {
+            "format": "date",
+            "type": "string"
+          },
+          "granularity": {
+            "enum": [
+              "hour",
+              "day",
+              "week",
+              "month"
+            ],
+            "type": "string"
+          },
+          "team_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "to": {
+            "format": "date",
+            "type": "string"
+          },
+          "tz": {
+            "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+    },
+    responseTime: {
+      query: {
+        "properties": {
+          "channel_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "from": {
+            "format": "date",
+            "type": "string"
+          },
+          "granularity": {
+            "enum": [
+              "hour",
+              "day",
+              "week",
+              "month"
+            ],
+            "type": "string"
+          },
+          "team_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "to": {
+            "format": "date",
+            "type": "string"
+          },
+          "tz": {
+            "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+    },
+    satisfaction: {
+      query: {
+        "properties": {
+          "channel_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "from": {
+            "format": "date",
+            "type": "string"
+          },
+          "granularity": {
+            "enum": [
+              "hour",
+              "day",
+              "week",
+              "month"
+            ],
+            "type": "string"
+          },
+          "team_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "to": {
+            "format": "date",
+            "type": "string"
+          },
+          "tz": {
+            "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+    },
+    satisfactionRatings: {
+      query: {
+        "properties": {
+          "channel_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "from": {
+            "format": "date",
+            "type": "string"
+          },
+          "granularity": {
+            "enum": [
+              "hour",
+              "day",
+              "week",
+              "month"
+            ],
+            "type": "string"
+          },
+          "max_score": {
+            "format": "int64",
+            "maximum": 5,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "min_score": {
+            "format": "int64",
+            "maximum": 5,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "page": {
+            "default": 1,
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "per_page": {
+            "default": 20,
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "team_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "to": {
+            "format": "date",
+            "type": "string"
+          },
+          "tz": {
+            "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+    },
+    translation: {
+      query: {
+        "properties": {
+          "from": {
+            "format": "date",
+            "type": "string"
+          },
+          "granularity": {
+            "enum": [
+              "hour",
+              "day",
+              "week",
+              "month"
+            ],
+            "type": "string"
+          },
+          "to": {
+            "format": "date",
+            "type": "string"
+          },
+          "tz": {
+            "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+    },
+  },
   role: {
     create: {
       body: {

@@ -375,6 +375,18 @@ export const PageErrors = {
   InvalidCursor: "page.invalid_cursor",
 } as const
 
+/** github.com/go-tenon/tenon/period 的错误码。 */
+export const PeriodErrors = {
+  /** ErrInvalidRange 是起始或结束日期格式非法，或者起始日期晚于结束日期。 */
+  InvalidRange: "period.invalid_range",
+  /** ErrRangeTooLarge 是时间窗口的跨度超过了允许的最大天数。 */
+  RangeTooLarge: "period.range_too_large",
+  /** ErrInvalidTimeZone 是不认识的 IANA 时区名。 */
+  InvalidTimeZone: "period.invalid_time_zone",
+  /** ErrInvalidGranularity 是不支持的分桶粒度，或者当前跨度不允许使用该粒度（例如超过 2 天请求按小时分桶）。 */
+  InvalidGranularity: "period.invalid_granularity",
+} as const
+
 /** github.com/go-tenon/tenon/queue/queueapi 的错误码。 */
 export const QueueapiErrors = {
   /** ErrFailedJobNotFound 表示失败任务不存在：已经被重试、删除或清理。 */
