@@ -34,6 +34,7 @@ import (
 	"agents-desk/internal/automation"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
+	"agents-desk/internal/file"
 	"agents-desk/internal/flags"
 	"agents-desk/internal/hours"
 	"agents-desk/internal/llm"
@@ -86,19 +87,26 @@ func (a *App) serveHTTP(d *command.Daemon) (func(context.Context) error, error) 
 	}, nil
 }
 
-// pageCSP 是页面的内容安全策略：框架默认的策略；聊天窗口的页面（/widget/?channel=<id>）按这个聊天插件允许嵌入的网站
-// 生成 frame-ancestors，其他页面都不能被嵌入。查询出错时用默认的策略，聊天窗口只能整页打开。
+// pageCSP 是页面的内容安全策略：从框架默认策略出发，放行本地预览（blob:）及配置的 imgproxy / 文件存储域名作为图片来源；
+// 聊天窗口的页面（/widget/?channel=<id>）按这个聊天插件允许嵌入的网站生成 frame-ancestors，其他页面都不能被嵌入。
 func (a *App) pageCSP(r *http.Request, nonce string) string {
-	csp := frontend.DefaultCSP(nonce)
+	p := frontend.DefaultPolicy(nonce)
+	p.AddImgSrc(
+		"blob:",
+		frontend.Origin(a.cfg.Imgproxy.URL),
+		frontend.Origin(a.cfg.Filesystem.Disks.S3.PublicURL),
+		frontend.Origin(a.cfg.Filesystem.Disks.Local.PublicURL),
+	)
 	if r.URL.Path != "/widget" && !strings.HasPrefix(r.URL.Path, "/widget/") {
-		return csp
+		return p.String()
 	}
 	ancestors, err := widget.FrameAncestors(r.Context(), a.db, r.URL.Query().Get("channel"))
 	if err != nil {
 		slog.ErrorContext(r.Context(), "load widget frame ancestors", "error", err)
-		return csp
+		return p.String()
 	}
-	return strings.Replace(csp, "frame-ancestors 'none'", "frame-ancestors "+ancestors, 1)
+	p.FrameAncestors = strings.Fields(ancestors)
+	return p.String()
 }
 
 // newRealtime 创建工作区端的实时连接，挂在 /t/{slug}/realtime（前面是 tenant.Middleware）。它与工作区的接口使用
@@ -252,6 +260,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		attribute.RegisterRoutes(api, require, a.db)
 		macro.RegisterRoutes(api, require, a.db)
 		conversation.RegisterRoutes(api, require, a.db, a.downstream())
+		file.RegisterRoutes(api, require(auth.ConversationsReply), a.files, a.cfg.Filesystem.MaxUploadSize)
 		widget.RegisterRoutes(api, require, a.db, a.crypt, a.cfg.PublicURL)
 		translation.RegisterRoutes(api, require, a.db, a.translator, translation.NewIncoming(a.db, a.locker, a.translator, a.downstream()), a.translationSettings)
 		automation.RegisterRoutes(api, require, a.db)
@@ -268,7 +277,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		})
 		down := a.downstream()
 		widget.RegisterVisitorRoutes(api, rest.RequireToken(api, a.contactTokens.Validate), a.db, a.crypt, a.contactTokens,
-			conversation.NewReceive(a.db, a.channels, down), down)
+			conversation.NewReceive(a.db, a.channels, down), down, a.cfg.Filesystem.MaxUploadSize)
 	})
 
 	// 本地磁盘中上传的文件（头像等），地址是 filesystem.disks.local.public_url。

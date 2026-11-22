@@ -19,11 +19,16 @@ var DeliverTopic = queue.Topic[Appended]("conversation.deliver")
 type Deliver struct {
 	db       *bun.DB
 	registry channel.Registry
+	media    Media
 }
 
-// NewDeliver 返回发出消息的动作；registry 按渠道的种类找到连接器。
-func NewDeliver(db *bun.DB, registry channel.Registry) *Deliver {
-	return &Deliver{db: db, registry: registry}
+// NewDeliver 返回发出消息的动作；registry 按渠道的种类找到连接器，media 用于解析消息附带的附件地址（测试中不涉及附件时可省略）。
+func NewDeliver(db *bun.DB, registry channel.Registry, media ...Media) *Deliver {
+	var m Media
+	if len(media) > 0 {
+		m = media[0]
+	}
+	return &Deliver{db: db, registry: registry, media: m}
 }
 
 // Job 处理 DeliverTopic 的任务：时间线的新一项是成员或 AI 发给对方的消息、送达状态还是发送中时，
@@ -70,8 +75,13 @@ func (a *Deliver) Job(ctx context.Context, p Appended) error {
 			return errors.Wrap(err, "load contact identity")
 		}
 	}
+	attachmentsByItem, err := loadAttachments(ctx, a.db, a.media, []string{it.ID})
+	if err != nil {
+		return err
+	}
 	externalID, delivered, err := connector.Send(ctx, channel.Outgoing{
-		Channel: ch, ConversationID: c.ID, ItemID: it.ID, Seq: it.Seq, ContactID: contactID, ExternalTo: to, Text: it.Content.Text,
+		Channel: ch, ConversationID: c.ID, ItemID: it.ID, Seq: it.Seq, ContactID: contactID, ExternalTo: to,
+		Text: it.Content.Text, Attachments: toChannelAttachments(attachmentsByItem[it.ID]),
 	})
 	if err != nil {
 		if _, final := queue.AttemptFromContext(ctx); final {

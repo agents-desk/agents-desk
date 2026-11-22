@@ -3,6 +3,7 @@ import { Badge, Box, Button, Group, Paper, Stack, Text, ThemeIcon, UnstyledButto
 import { IconChevronRight, IconHeadset, IconPlus } from "@tabler/icons-react"
 import { useLanguage, useT } from "@go-tenon/ui"
 import type { ReactNode } from "react"
+import { widgetPreviewSummary } from "./Attachments"
 import { ago } from "./format"
 import { promptText } from "./Prompt"
 
@@ -54,7 +55,7 @@ export function Home({ color, name, conversations, onOpen, onNew }: HomeProps): 
                       </Text>
                     </Group>
                     <Text size="sm" c={c.unread > 0 ? undefined : "dimmed"} fw={c.unread > 0 ? 500 : undefined} truncate>
-                      {promptText(c.preview_prompt, c.preview, language, t)}
+                      {widgetPreviewSummary(promptText(c.preview_prompt, c.preview, language, t), c.preview_attachment, t)}
                     </Text>
                   </Box>
                   <IconChevronRight size={16} className="w-conversation-arrow" style={{ flex: "none" }} />

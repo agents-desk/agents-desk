@@ -2,10 +2,11 @@ import type { ConversationDTO, ConversationItemDTO } from "@agents-desk/client/t
 import { ActionIcon, Anchor, Box, Button, CopyButton, Divider, Group, Loader, Paper, Skeleton, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { IconArrowDown, IconCheck, IconCopy, IconLock } from "@tabler/icons-react"
-import { notifyError, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
+import { ImageLightbox, notifyError, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
 import { Fragment, type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { languageName } from "../languages"
+import { type LightboxImage, MessageAttachments } from "./Attachments"
 import type { TypingNow } from "./channel"
 import { useMe, useMembers, useTeams, useTimeline } from "./data"
 import { type FillWatcher, useFillVisible } from "./fill"
@@ -84,6 +85,7 @@ export function Timeline({
   const [pulseSeq, setPulseSeq] = useState<number | undefined>(undefined)
   const [showScrollDown, setShowScrollDown] = useState(false)
   const [unseenCount, setUnseenCount] = useState(0)
+  const [lightbox, setLightbox] = useState<LightboxImage | null>(null)
   const list = items.data ?? []
   const names = {
     member: (id: string) => (id === me.data?.id ? t("inbox.you") : (byId.get(id)?.name ?? t("event.someone"))),
@@ -223,6 +225,7 @@ export function Timeline({
                     mt={gapTop}
                     highlight={highlight}
                     focused={pulseSeq === it.seq}
+                    onPreview={setLightbox}
                   />
                 ) : (
                   <Message
@@ -242,6 +245,7 @@ export function Timeline({
                     highlight={highlight}
                     focused={pulseSeq === it.seq}
                     preferOriginal={focusSeq === it.seq && focusField === "original"}
+                    onPreview={setLightbox}
                   />
                 )}
               </Fragment>
@@ -273,6 +277,7 @@ export function Timeline({
           {unseenCount > 0 ? t("inbox.new_message_jump", { n: unseenCount }) : t("inbox.scroll_to_bottom")}
         </Button>
       )}
+      <ImageLightbox src={lightbox?.src ?? null} filename={lightbox?.filename} onClose={() => setLightbox(null)} />
     </Box>
   )
 }
@@ -295,13 +300,14 @@ interface MessageProps {
   highlight?: string // 当前搜索词：高亮气泡内命中的文本
   focused?: boolean // 从搜索结果跳转命中的当前消息，施加短暂脉冲高亮
   preferOriginal?: boolean // 命中客户消息原文时默认切到原文展示
+  onPreview: (image: LightboxImage) => void // 点击图片缩略图打开原图灯箱
 }
 
 /**
  * Message 是一条消息：对方的在左侧，成员和系统发的在右侧，旁边是悬浮复制按钮，底部是译文切换与送达状态（失败时可以重发）。
  * 连续同人消息合并为组：组首显示作者与时间，组内消息省略重复头部并用方向圆角自然衔接。
  */
-function Message({ it, c, mine, author, time, fullTime, first, last, mt, lang, original, translating, watch, highlight, focused, preferOriginal }: MessageProps): ReactNode {
+function Message({ it, c, mine, author, time, fullTime, first, last, mt, lang, original, translating, watch, highlight, focused, preferOriginal, onPreview }: MessageProps): ReactNode {
   const t = useT()
   const ui = useLanguage()
   const zone = useTimeZone()
@@ -415,8 +421,8 @@ function Message({ it, c, mine, author, time, fullTime, first, last, mt, lang, o
       )}
       <Group gap={6} wrap="nowrap" align="center" style={{ flexDirection: mine ? "row-reverse" : "row" }}>
         <Paper
-          px="sm"
-          py={8}
+          px={shown || sent ? "sm" : 6}
+          py={shown || sent ? 8 : 6}
           withBorder={!mine}
           bg={mine ? "var(--mantine-primary-color-light)" : undefined}
           className={focused ? "inbox-bubble inbox-focus-pulse" : "inbox-bubble"}
@@ -427,7 +433,8 @@ function Message({ it, c, mine, author, time, fullTime, first, last, mt, lang, o
           data-original={(translated && showOriginal) || undefined}
           style={{ minWidth: 0 }}
         >
-          <Linkified text={shown} highlight={highlight} />
+          {shown && <Linkified text={shown} highlight={highlight} />}
+          <MessageAttachments attachments={it.attachments} hasText={Boolean(shown)} onPreview={onPreview} />
           {sentAs && sent && (
             <Box mt={6} pt={6} className="inbox-sent-translation">
               <Text size="xs" c="dimmed">
@@ -512,6 +519,7 @@ function Note({
   mt,
   highlight,
   focused,
+  onPreview,
 }: {
   it: ConversationItemDTO
   author: string
@@ -520,6 +528,7 @@ function Note({
   mt: number
   highlight?: string
   focused?: boolean
+  onPreview: (image: LightboxImage) => void
 }): ReactNode {
   const t = useT()
   const raw = it.content.text ?? ""
@@ -552,21 +561,24 @@ function Note({
           </Box>
         )}
       </Group>
-      <Text size="sm" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-        {raw.split(/(@\S+)/).map((part, i) =>
-          part.startsWith("@") ? (
-            // biome-ignore lint/suspicious/noArrayIndexKey: 拆分出的片段没有别的标识，顺序固定
-            <Text key={i} span fw={700} className="inbox-note-accent">
-              <HighlightQuery text={part} query={highlight} />
-            </Text>
-          ) : (
-            // biome-ignore lint/suspicious/noArrayIndexKey: 拆分出的片段没有别的标识，顺序固定
-            <Fragment key={i}>
-              <HighlightQuery text={part} query={highlight} />
-            </Fragment>
-          ),
-        )}
-      </Text>
+      {raw && (
+        <Text size="sm" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+          {raw.split(/(@\S+)/).map((part, i) =>
+            part.startsWith("@") ? (
+              // biome-ignore lint/suspicious/noArrayIndexKey: 拆分出的片段没有别的标识，顺序固定
+              <Text key={i} span fw={700} className="inbox-note-accent">
+                <HighlightQuery text={part} query={highlight} />
+              </Text>
+            ) : (
+              // biome-ignore lint/suspicious/noArrayIndexKey: 拆分出的片段没有别的标识，顺序固定
+              <Fragment key={i}>
+                <HighlightQuery text={part} query={highlight} />
+              </Fragment>
+            ),
+          )}
+        </Text>
+      )}
+      <MessageAttachments attachments={it.attachments} hasText={Boolean(raw)} onPreview={onPreview} />
     </Paper>
   )
 }

@@ -4,21 +4,29 @@
 export const messages = {
   "en": {
     "app.widget": "Support",
+    "chat.download_file": "Download file",
     "chat.ended": "This conversation has ended",
     "chat.failed": "Not sent",
     "chat.me": "You",
     "chat.new": "New conversation",
     "chat.new_message_jump": "New messages ({{.n}})",
+    "chat.preview_file": "[File]",
+    "chat.preview_image": "[Image]",
     "chat.retry": "Retry",
     "chat.scroll_to_bottom": "Jump to latest",
     "chat.sending": "Sending…",
     "chat.status_closed": "Ended",
     "chat.status_open": "In progress",
+    "chat.view_image": "View image",
     "collect_email.invalid": "Please enter a valid email address",
     "collect_email.placeholder": "Enter your email address",
     "collect_email.saved": "Email saved: {{.email}}",
     "collect_email.submit": "Submit",
     "collect_email.title": "Leave your email so we can get back to you",
+    "composer.attach": "Attach files",
+    "composer.attach_drop": "Drop to upload",
+    "composer.attach_remove": "Remove",
+    "composer.attach_retry": "Retry",
     "composer.hint": "Enter to send, Shift + Enter for a new line",
     "composer.placeholder": "Type a message…",
     "composer.reopen_placeholder": "Send a message to reopen this conversation…",
@@ -70,21 +78,29 @@ export const messages = {
   },
   "zh-CN": {
     "app.widget": "在线客服",
+    "chat.download_file": "下载文件",
     "chat.ended": "会话已结束",
     "chat.failed": "发送失败",
     "chat.me": "我",
     "chat.new": "新会话",
     "chat.new_message_jump": "{{.n}} 条新消息",
+    "chat.preview_file": "[文件]",
+    "chat.preview_image": "[图片]",
     "chat.retry": "重试",
     "chat.scroll_to_bottom": "回到底部",
     "chat.sending": "发送中…",
     "chat.status_closed": "已结束",
     "chat.status_open": "会话进行中",
+    "chat.view_image": "查看大图",
     "collect_email.invalid": "请输入有效的邮箱地址",
     "collect_email.placeholder": "输入你的邮箱地址",
     "collect_email.saved": "已留下邮箱：{{.email}}",
     "collect_email.submit": "提交",
     "collect_email.title": "请留下你的邮箱，方便我们后续联系你",
+    "composer.attach": "添加附件",
+    "composer.attach_drop": "松开以上传",
+    "composer.attach_remove": "移除",
+    "composer.attach_retry": "重试",
     "composer.hint": "回车发送，Shift + 回车换行",
     "composer.placeholder": "输入消息…",
     "composer.reopen_placeholder": "继续发消息会重新打开会话…",
@@ -139,21 +155,29 @@ export const messages = {
 /** 界面文字的消息 ID。 */
 export type MessageId =
   | "app.widget"
+  | "chat.download_file"
   | "chat.ended"
   | "chat.failed"
   | "chat.me"
   | "chat.new"
   | "chat.new_message_jump"
+  | "chat.preview_file"
+  | "chat.preview_image"
   | "chat.retry"
   | "chat.scroll_to_bottom"
   | "chat.sending"
   | "chat.status_closed"
   | "chat.status_open"
+  | "chat.view_image"
   | "collect_email.invalid"
   | "collect_email.placeholder"
   | "collect_email.saved"
   | "collect_email.submit"
   | "collect_email.title"
+  | "composer.attach"
+  | "composer.attach_drop"
+  | "composer.attach_remove"
+  | "composer.attach_retry"
   | "composer.hint"
   | "composer.placeholder"
   | "composer.reopen_placeholder"

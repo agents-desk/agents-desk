@@ -90,6 +90,16 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
           invalidate(context, "conversation"),
       }),
     },
+    file: {
+      /** file 分组全部查询的 key 前缀。 */
+      key: () => key("file"),
+      /** POST /files */
+      upload: () => ({
+        mutationFn: (variables: Parameters<Client["file"]["upload"]>[0]) => client.file.upload(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "file"),
+      }),
+    },
     widget: {
       /** widget 分组全部查询的 key 前缀。 */
       key: () => key("widget"),

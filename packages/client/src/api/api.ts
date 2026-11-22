@@ -54,6 +54,7 @@ export interface File {
   filename: string
   id: string
   key: string
+  meta: Meta
   size: number
   status: string
   updated_at: string
@@ -91,6 +92,11 @@ export interface MemberProfile {
   name: string
   /** IANA 时区名，例如 Asia/Shanghai；不传表示跟随浏览器 */
   time_zone?: string
+}
+
+export interface Meta {
+  height?: number
+  width?: number
 }
 
 export interface TenantMineItem {

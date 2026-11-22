@@ -201,7 +201,7 @@ export const schemas = {
     },
     note: {
       body: {
-        "$ref": "#/components/schemas/ConversationNoteInputBody"
+        "$ref": "#/components/schemas/ConversationNoteBody"
       },
     },
     priority: {
@@ -893,9 +893,17 @@ export const components = {
     ],
     "type": "object"
   },
-  ConversationNoteInputBody: {
+  ConversationNoteBody: {
     "additionalProperties": false,
     "properties": {
+      "attachments": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 10,
+        "type": "array",
+        "uniqueItems": true
+      },
       "mentions": {
         "items": {
           "type": "string"
@@ -906,13 +914,9 @@ export const components = {
       },
       "text": {
         "maxLength": 10000,
-        "minLength": 1,
         "type": "string"
       }
     },
-    "required": [
-      "text"
-    ],
     "type": "object"
   },
   ConversationPriority: {
@@ -954,18 +958,22 @@ export const components = {
       "actions": {
         "$ref": "#/components/schemas/ConversationActions"
       },
+      "attachments": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 10,
+        "type": "array",
+        "uniqueItems": true
+      },
       "text": {
         "maxLength": 10000,
-        "minLength": 1,
         "type": "string"
       },
       "translation": {
         "$ref": "#/components/schemas/ConversationTranslation"
       }
     },
-    "required": [
-      "text"
-    ],
     "type": "object"
   },
   ConversationScope: {

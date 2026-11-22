@@ -242,6 +242,24 @@ export interface ConversationAssignment {
   team_id?: string
 }
 
+export interface ConversationAttachmentDTO {
+  content_type: string
+  file_id: string
+  filename: string
+  /** 图片高度（像素）；非图片为空 */
+  height?: number
+  kind: ConversationAttachmentKind
+  size: number
+  /** 图片缩略图地址；未配置 imgproxy 时与 url 相同，非图片为空 */
+  thumb_url?: string
+  /** 原文件的公开地址 */
+  url: string
+  /** 图片宽度（像素）；非图片为空 */
+  width?: number
+}
+
+export type ConversationAttachmentKind = "image" | "file"
+
 export interface ConversationAttributesInputBody {
   /** 要更新的自定义属性，值为 null 时清空该属性 */
   attributes: Record<string, unknown>
@@ -336,6 +354,8 @@ export interface ConversationDTO {
   preview: string
   /** 最后一条消息是谁发的；还没有消息时为空 */
   preview_actor?: ConversationActor
+  /** 最后一条消息附带图片或文件时的摘要 */
+  preview_attachment?: ConversationPreviewAttachment
   /** 最后一条消息的 ID，只在它还缺我的语言的译文时给出 */
   preview_item_id?: string
   /** 最后一条消息是对方发来、还缺我的语言的译文的：preview 是原文，页面看到这一行时请求补译 */
@@ -377,6 +397,8 @@ export interface ConversationInboxDTO {
 export interface ConversationItemDTO {
   /** 发起者 */
   actor: ConversationActor
+  /** 附带的图片和文件 */
+  attachments?: ConversationAttachmentDTO[]
   content: ConversationContent
   created_at: string
   /** 发给对方的消息的送达状态 */
@@ -400,10 +422,18 @@ export interface ConversationLanguageInputBody {
   language: string
 }
 
-export interface ConversationNoteInputBody {
+export interface ConversationNoteBody {
+  /** 通过 /files 上传的附件文件 ID 列表 */
+  attachments?: string[]
   /** @ 到的成员 ID；他们的“@我”中出现这个会话，并且能看到它 */
   mentions?: string[]
-  text: string
+  /** 内部备注的文字 */
+  text?: string
+}
+
+export interface ConversationPreviewAttachment {
+  count: number
+  kind: ConversationAttachmentKind
 }
 
 export type ConversationPriority = "normal" | "high"
@@ -435,8 +465,10 @@ export interface ConversationReadInputBody {
 export interface ConversationReplyBody {
   /** 随回复在同一个事务中原子执行的会话操作（如指派、改优先级、加标签、改属性、关闭或稍后处理） */
   actions?: ConversationActions
+  /** 通过 /files 上传的附件文件 ID 列表 */
+  attachments?: string[]
   /** 成员写的文字 */
-  text: string
+  text?: string
   /** 发给对方的译文，由翻译的预览给出、成员确认；不带时按原文发出 */
   translation?: ConversationTranslation
 }
@@ -564,6 +596,28 @@ export interface ErrorModel {
   title?: string
   /** A URI reference to human-readable documentation for the error. */
   type?: string
+}
+
+export interface File {
+  content_type: string
+  created_at: string
+  disk: string
+  expires_at?: string
+  filename: string
+  id: string
+  key: string
+  meta: Meta
+  size: number
+  status: string
+  updated_at: string
+  url: string
+}
+
+export interface FormFile {
+  ContentType: string
+  Filename: string
+  IsSet: boolean
+  Size: number
 }
 
 export interface HoursInterval {
@@ -726,6 +780,11 @@ export interface MemberTenantMember {
   self: boolean
   /** 在这个工作区中的在线状态 */
   status: MemberStatus
+}
+
+export interface Meta {
+  height?: number
+  width?: number
 }
 
 export interface OffsetConversationSearchHitDTO {
@@ -1092,6 +1151,11 @@ export interface ConversationSearchInput {
   tag_id?: string
 }
 
+/** file-upload 的表单。 */
+export type FileUploadForm = {
+  file: Blob
+}
+
 /** macro-list 的参数。 */
 export interface MacroListInput {
   /** Page number, starting at 1. */
@@ -1367,7 +1431,7 @@ export function createClient(options: ClientOptions) {
        *
        * POST /conversations/{id}/notes
        */
-      note: (id: string, body: ConversationNoteInputBody): Promise<ConversationItemDTO> =>
+      note: (id: string, body: ConversationNoteBody): Promise<ConversationItemDTO> =>
         rt.request<ConversationItemDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/notes`, body }),
       /**
        * 修改优先级
@@ -1432,6 +1496,16 @@ export function createClient(options: ClientOptions) {
        */
       tagRemove: (id: string, tagID: string): Promise<ConversationDTO> =>
         rt.request<ConversationDTO>({ method: "DELETE", path: `/conversations/${encodeURIComponent(id)}/tags/${encodeURIComponent(tagID)}` }),
+    },
+    /** operationId 以 file- 开头的接口。 */
+    file: {
+      /**
+       * 上传文件
+       *
+       * POST /files
+       */
+      upload: (form: FileUploadForm): Promise<File> =>
+        rt.request<File>({ method: "POST", path: `/files`, form }),
     },
     /** operationId 以 hours- 开头的接口。 */
     hours: {

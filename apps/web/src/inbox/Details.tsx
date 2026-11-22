@@ -9,6 +9,7 @@ import { kit, tenantApi } from "../api"
 import { LanguageSelect } from "../LanguageSelect"
 import { languageName } from "../languages"
 import { formatLocalTime } from "../timezone"
+import { previewSummary } from "./Attachments"
 import { useAttributes, useContactHistory, useMe, useMembers, useTags, useTeams } from "./data"
 import { AttributeInput, TagsEditor } from "./fields"
 import { activity } from "./format"
@@ -404,7 +405,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                   {others.map((x) => (
                     <UnstyledButton key={x.id} onClick={() => onOpen(x.id)} className="inbox-history" px={6} py={4}>
                       <Text size="sm" truncate>
-                        {x.preview || "—"}
+                        {previewSummary(x.preview, x.preview_attachment, t) || "—"}
                       </Text>
                       <Text size="xs" c="dimmed">
                         {t(`inbox.status_${x.status}` as const)} · {activity(x.last_message_at, language, t, zone)}

@@ -2,6 +2,7 @@ package conversation
 
 import (
 	"context"
+	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
@@ -12,21 +13,17 @@ import (
 	"agents-desk/internal/auth"
 )
 
-// TextBody 是内部备注等只有文字的请求体。
-type TextBody struct {
-	Text string `json:"text" minLength:"1" maxLength:"10000"`
-}
-
 // Translation 是成员确认过的发给对方的译文。
 type Translation struct {
 	Language string `json:"language" minLength:"2" maxLength:"35" doc:"译文的语言（BCP 47），例如 hi-Latn"`
 	Text     string `json:"text" minLength:"1" maxLength:"20000" doc:"发给对方的译文"`
 }
 
-// ReplyBody 是回复的请求体：成员写的文字，以及可选的、他确认过的译文和随回复原子执行的会话操作。
-// 带译文时发给对方的是译文，时间线中同时保存原文。
+// ReplyBody 是回复的请求体：成员写的文字、可选的附件文件 ID 列表，以及可选的、他确认过的译文和随回复原子执行的会话操作。
+// 文字和附件不能同时为空；带译文时发给对方的是译文，时间线中同时保存原文。
 type ReplyBody struct {
-	Text        string       `json:"text" minLength:"1" maxLength:"10000" doc:"成员写的文字"`
+	Text        string       `json:"text,omitempty" maxLength:"10000" doc:"成员写的文字"`
+	Attachments []string     `json:"attachments,omitempty" maxItems:"10" uniqueItems:"true" doc:"通过 /files 上传的附件文件 ID 列表"`
 	Translation *Translation `json:"translation,omitempty" doc:"发给对方的译文，由翻译的预览给出、成员确认；不带时按原文发出"`
 	Actions     *Actions     `json:"actions,omitempty" doc:"随回复在同一个事务中原子执行的会话操作（如指派、改优先级、加标签、改属性、关闭或稍后处理）"`
 }
@@ -53,16 +50,23 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 	if err := authorize(sub, auth.ConversationsReply); err != nil {
 		return nil, err
 	}
+	if err := requireMessageContent(body.Text, body.Attachments); err != nil {
+		return nil, err
+	}
 	var item Item
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		c, err := findVisible(ctx, tx, sub, id, true)
 		if err != nil {
 			return err
 		}
+		confirmed, err := confirmAttachments(ctx, tx, a.down.Media.Files, sub, body.Attachments)
+		if err != nil {
+			return err
+		}
 		at := now()
 		actor := actorOf(sub)
 		content := Content{Text: body.Text}
-		if body.Translation != nil {
+		if body.Translation != nil && strings.TrimSpace(body.Text) != "" {
 			content = Content{Text: body.Translation.Text, Original: body.Text, Language: body.Translation.Language}
 		}
 		item = Item{Kind: Message, ActorType: actor, ActorID: sub.ID, Visibility: Everyone, Content: content, ChannelID: c.ChannelID}
@@ -101,6 +105,9 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 		if err := commit(ctx, tx, a.down, c, items...); err != nil {
 			return err
 		}
+		if err := insertItemFiles(ctx, tx, item.ID, confirmed); err != nil {
+			return err
+		}
 		if c.ChannelID == nil {
 			return nil
 		}
@@ -110,7 +117,7 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 	if err != nil {
 		return nil, err
 	}
-	dtos, err := toItemDTOs(ctx, a.db, []Item{item})
+	dtos, err := toItemDTOs(ctx, a.db, a.down.Media, []Item{item})
 	if err != nil {
 		return nil, err
 	}

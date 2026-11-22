@@ -26,11 +26,18 @@ type TimelineOutput struct {
 
 // Timeline 读取会话的时间线。
 type Timeline struct {
-	db *bun.DB
+	db    *bun.DB
+	media Media
 }
 
-// NewTimeline 返回读取时间线的动作。
-func NewTimeline(db *bun.DB) *Timeline { return &Timeline{db: db} }
+// NewTimeline 返回读取时间线的动作；media 用于填充消息附带的附件地址（测试中不涉及附件时可省略）。
+func NewTimeline(db *bun.DB, media ...Media) *Timeline {
+	var m Media
+	if len(media) > 0 {
+		m = media[0]
+	}
+	return &Timeline{db: db, media: m}
+}
 
 // Handle 返回 sub 所在工作区中会话 id 的时间线里序号大于 after 的项，最多 limit 项，按序号从小到大。
 // 成员能看到全部的项，包括内部备注；对方发来、还缺 sub 的语言的译文的消息标为 Untranslated。会话不存在或 sub 看不到时返回 ErrNotFound。
@@ -47,7 +54,7 @@ func (a *Timeline) Handle(ctx context.Context, sub identity.Subject, id string, 
 	if err != nil {
 		return nil, errors.Wrap(err, "list timeline items")
 	}
-	dtos, err := toItemDTOs(ctx, a.db, items)
+	dtos, err := toItemDTOs(ctx, a.db, a.media, items)
 	if err != nil {
 		return nil, err
 	}

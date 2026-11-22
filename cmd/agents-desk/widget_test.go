@@ -1,10 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"image"
+	"image/color"
+	"image/png"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"strconv"
 	"strings"
 	"testing"
@@ -16,6 +22,7 @@ import (
 	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/broadcast/broadcasttest"
 	"github.com/go-tenon/tenon/config"
+	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/apptest"
@@ -276,4 +283,154 @@ func dialWidgetRealtime(t *testing.T, url, token string) *realtimeClient {
 	c := &realtimeClient{t: t, conn: conn}
 	c.send(map[string]any{"connect": map[string]any{"token": token}})
 	return c
+}
+
+// uploadMultipart 向路径 path 发送 multipart/form-data 文件上传请求；cookie 或 bearer 二选一作为凭据。
+func uploadMultipart(t *testing.T, h http.Handler, path, filename, contentType string, data []byte, cookie *http.Cookie, bearer string) response {
+	t.Helper()
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	hdr := make(textproto.MIMEHeader)
+	hdr.Set("Content-Disposition", `form-data; name="file"; filename="`+filename+`"`)
+	hdr.Set("Content-Type", contentType)
+	part, err := mw.CreatePart(hdr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write(data); err != nil {
+		t.Fatal(err)
+	}
+	if err := mw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, path, &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	if cookie != nil {
+		req.AddCookie(cookie)
+		req.Header.Set("Sec-Fetch-Site", "same-origin")
+	}
+	if bearer != "" {
+		req.Header.Set("Authorization", "Bearer "+bearer)
+	}
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	var problem struct {
+		Code string `json:"code"`
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &problem)
+	return response{status: rec.Code, code: problem.Code, body: rec.Body.String()}
+}
+
+// TestAttachmentsHTTP 在完整的 HTTP 路由上检查聊天插件访客和工作区成员上传文件、发送纯图片与文档附件、
+// 读取时间线与列表摘要，以及跨访客越权引用附件被拒绝。
+func TestAttachmentsHTTP(t *testing.T) {
+	t.Parallel()
+	env := apptest.New(t)
+	ctx := context.Background()
+	tokens := apitoken.Config{Lifetime: time.Hour, IdleTimeout: time.Hour}
+	hub := broadcast.New(broadcasttest.NewBackend(), nil)
+	t.Cleanup(func() { _ = hub.Close() })
+	a := &App{
+		cfg: config.Default[Config](), db: env.DB, hub: hub, roles: env.Roles,
+		adminLogins: env.AdminLogins, adminTokens: apitoken.NewStore(env.DB, tokens),
+		memberLogins: env.MemberLogins, memberTokens: apitoken.NewStore(env.DB, tokens),
+		contactTokens: apitoken.NewStore(env.DB, tokens), crypt: env.Crypt,
+		llmSettings: llm.NewGroup(env.DB), files: env.Files, localDisk: env.Disk,
+		channels: registry(hub),
+	}
+	h := a.routes(nil)
+
+	if _, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+		Name: "alpha", Slug: "alpha", OwnerEmail: "owner@alpha.com", OwnerName: "owner", OwnerPassword: "password",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	loginRes := call(h, "POST", "/api/auth/login", `{"email":"owner@alpha.com","password":"password"}`, nil)
+	if loginRes.status != http.StatusNoContent {
+		t.Fatalf("登录失败：%d %s", loginRes.status, loginRes.body)
+	}
+	owner := loginRes.cookie
+
+	var w widget.WidgetDTO
+	wRes := call(h, "POST", "/t/alpha/api/widgets", `{"name":"官网"}`, owner)
+	if wRes.status != http.StatusCreated || json.Unmarshal([]byte(wRes.body), &w) != nil {
+		t.Fatalf("创建聊天插件：%d %s", wRes.status, wRes.body)
+	}
+	base := "/w/" + w.ID + "/api"
+	var visitor, stranger widget.SessionDTO
+	if r := callBearer(h, "POST", base+"/session", `{}`, ""); r.status != http.StatusOK || json.Unmarshal([]byte(r.body), &visitor) != nil {
+		t.Fatalf("访客建立会话：%d %s", r.status, r.body)
+	}
+	if r := callBearer(h, "POST", base+"/session", `{}`, ""); r.status != http.StatusOK || json.Unmarshal([]byte(r.body), &stranger) != nil {
+		t.Fatalf("另一访客建立会话：%d %s", r.status, r.body)
+	}
+
+	// 构造一张合法 PNG
+	var pngBuf bytes.Buffer
+	img := image.NewRGBA(image.Rect(0, 0, 16, 12))
+	img.Set(0, 0, color.RGBA{R: 255, G: 0, B: 0, A: 255})
+	if err := png.Encode(&pngBuf, img); err != nil {
+		t.Fatal(err)
+	}
+
+	// 未登录不能上传
+	if r := uploadMultipart(t, h, base+"/files", "shot.png", "image/png", pngBuf.Bytes(), nil, ""); r.status != http.StatusUnauthorized {
+		t.Fatalf("未登录上传应返回 401，得到 %d", r.status)
+	}
+
+	// 访客上传图片并发起纯图片会话
+	var vFile filesystem.File
+	upRes := uploadMultipart(t, h, base+"/files", "shot.png", "image/png", pngBuf.Bytes(), nil, visitor.Token)
+	if upRes.status != http.StatusCreated || json.Unmarshal([]byte(upRes.body), &vFile) != nil {
+		t.Fatalf("访客上传：%d %s", upRes.status, upRes.body)
+	}
+	var sent widget.Sent
+	sendRes := callBearer(h, "POST", base+"/conversations", `{"attachments":["`+vFile.ID.String()+`"],"client_id":"img-1"}`, visitor.Token)
+	if sendRes.status != http.StatusCreated || json.Unmarshal([]byte(sendRes.body), &sent) != nil {
+		t.Fatalf("访客发送纯图片：%d %s", sendRes.status, sendRes.body)
+	}
+	if len(sent.Item.Attachments) != 1 || sent.Item.Attachments[0].Width != 16 || sent.Item.Attachments[0].Height != 12 {
+		t.Fatalf("访客返回附件：%+v", sent.Item.Attachments)
+	}
+
+	// 访客不能引用陌生人上传的文件
+	var sFile filesystem.File
+	sUp := uploadMultipart(t, h, base+"/files", "other.png", "image/png", pngBuf.Bytes(), nil, stranger.Token)
+	if sUp.status != http.StatusCreated || json.Unmarshal([]byte(sUp.body), &sFile) != nil {
+		t.Fatalf("陌生人上传：%d %s", sUp.status, sUp.body)
+	}
+	if r := callBearer(h, "POST", base+"/conversations/"+sent.ConversationID+"/messages", `{"attachments":["`+sFile.ID.String()+`"]}`, visitor.Token); r.status != http.StatusNotFound {
+		t.Fatalf("跨访客引用文件应返回 404，得到 %d %s", r.status, r.body)
+	}
+
+	// 工作区成员上传 CSV 并回复文字+附件
+	var aFile filesystem.File
+	aUp := uploadMultipart(t, h, "/t/alpha/api/files", "report.csv", "text/csv", []byte("a,b\n1,2\n"), owner, "")
+	if aUp.status != http.StatusCreated || json.Unmarshal([]byte(aUp.body), &aFile) != nil {
+		t.Fatalf("成员上传：%d %s", aUp.status, aUp.body)
+	}
+	var reply conversation.ItemDTO
+	rRes := call(h, "POST", "/t/alpha/api/conversations/"+sent.ConversationID+"/replies", `{"text":"请查收","attachments":["`+aFile.ID.String()+`"]}`, owner)
+	if rRes.status != http.StatusCreated || json.Unmarshal([]byte(rRes.body), &reply) != nil {
+		t.Fatalf("成员带附件回复：%d %s", rRes.status, rRes.body)
+	}
+	if len(reply.Attachments) != 1 || reply.Attachments[0].Kind != conversation.AttachmentFile || reply.Attachments[0].Filename != "report.csv" {
+		t.Fatalf("成员回复附件：%+v", reply.Attachments)
+	}
+
+	// 访客读取时间线和会话列表均包含附件信息
+	var cItems []conversation.ContactItemDTO
+	if r := callBearer(h, "GET", base+"/conversations/"+sent.ConversationID+"/items", "", visitor.Token); r.status != http.StatusOK || json.Unmarshal([]byte(r.body), &cItems) != nil {
+		t.Fatalf("访客读取时间线：%d %s", r.status, r.body)
+	}
+	if len(cItems) != 2 || len(cItems[0].Attachments) != 1 || len(cItems[1].Attachments) != 1 {
+		t.Fatalf("访客时间线附件：%+v", cItems)
+	}
+	var cList []conversation.ContactConversationDTO
+	if r := callBearer(h, "GET", base+"/conversations", "", visitor.Token); r.status != http.StatusOK || json.Unmarshal([]byte(r.body), &cList) != nil {
+		t.Fatalf("访客读取会话列表：%d %s", r.status, r.body)
+	}
+	if len(cList) != 1 || cList[0].PreviewAttachment == nil || cList[0].PreviewAttachment.Kind != conversation.AttachmentFile {
+		t.Fatalf("访客会话列表摘要：%+v", cList)
+	}
 }
