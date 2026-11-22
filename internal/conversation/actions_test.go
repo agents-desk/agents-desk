@@ -161,13 +161,13 @@ func TestReplyAndApplyActionsAtomicity(t *testing.T) {
 	if assignedCount != 1 {
 		t.Fatalf("显式附带指派时应只产生 1 条指派事件，实际 %d", assignedCount)
 	}
-	// 检查关闭轮次记录中已记录本轮首次回复时间
-	var closure conversation.Closure
-	if err := env.DB.NewSelect().Model(&closure).Where("conversation_id = ?", r1.ConversationID).Scan(ctx); err != nil {
-		t.Fatalf("应写入关闭轮次记录：%v", err)
+	// 检查服务轮次记录中已记录本轮首次回复时间、首次回复人与关闭时间
+	var round conversation.Round
+	if err := env.DB.NewSelect().Model(&round).Where("conversation_id = ?", r1.ConversationID).Scan(ctx); err != nil {
+		t.Fatalf("应写入服务轮次记录：%v", err)
 	}
-	if closure.FirstReplyAt == nil {
-		t.Fatal("关闭轮次记录应包含随同发出的首次回复时间")
+	if round.FirstReplyAt == nil || round.FirstReplyByID == "" || round.ClosedAt == nil {
+		t.Fatalf("服务轮次记录应包含随同发出的首次回复与关闭信息：%+v", round)
 	}
 
 	// 会话 2：纯附带操作（不发消息）—— 空操作被拒；稍后处理 + 领取 + 加标签成功

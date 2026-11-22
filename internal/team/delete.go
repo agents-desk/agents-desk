@@ -38,7 +38,7 @@ func (a *Delete) Handle(ctx context.Context, sub identity.Subject, id string) er
 			(SELECT count(*) FROM (
 				SELECT id FROM conversations WHERE tenant_id = ? AND team_id = ?
 				UNION
-				SELECT conversation_id AS id FROM conversation_closures WHERE tenant_id = ? AND team_id = ?
+				SELECT conversation_id AS id FROM conversation_rounds WHERE tenant_id = ? AND team_id = ?
 			) u) AS conversations,
 			(SELECT count(*) FROM channels WHERE tenant_id = ? AND team_id = ?) AS channels`,
 			sub.Tenant, id, sub.Tenant, id, sub.Tenant, id).Scan(ctx, &use)

@@ -208,10 +208,10 @@ export const enums = {
   },
   RolePermission: {
     prefix: "role_permission",
-    values: ["conversations:assign", "macros:manage", "members:manage", "teams:manage", "channels:manage", "tenant-settings:manage"],
+    values: ["conversations:assign", "macros:manage", "reports:read", "members:manage", "teams:manage", "channels:manage", "tenant-settings:manage"],
     labels: {
-      "en": { "conversations:assign": "Reassign conversations to others", "macros:manage": "Manage shared quick replies", "members:manage": "Manage members and roles", "teams:manage": "Manage team inboxes", "channels:manage": "Manage channels", "tenant-settings:manage": "Manage workspace settings" },
-      "zh-CN": { "conversations:assign": "把会话改派给别人", "macros:manage": "管理共享的快捷回复", "members:manage": "管理成员和角色", "teams:manage": "管理团队收件箱", "channels:manage": "管理渠道", "tenant-settings:manage": "管理工作区设置" },
+      "en": { "conversations:assign": "Reassign conversations to others", "macros:manage": "Manage shared quick replies", "reports:read": "View reports", "members:manage": "Manage members and roles", "teams:manage": "Manage team inboxes", "channels:manage": "Manage channels", "tenant-settings:manage": "Manage workspace settings" },
+      "zh-CN": { "conversations:assign": "把会话改派给别人", "macros:manage": "管理共享的快捷回复", "reports:read": "查看报表", "members:manage": "管理成员和角色", "teams:manage": "管理团队收件箱", "channels:manage": "管理渠道", "tenant-settings:manage": "管理工作区设置" },
     },
   },
   TagColor: {

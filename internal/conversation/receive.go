@@ -98,12 +98,14 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 			return err
 		}
 		items := make([]*Item, 0, 2)
+		reopened := false
 		if opened != "" {
 			items = append(items, &Item{
 				Kind: Event, ActorType: SystemActor, Visibility: MembersOnly,
 				Content: Content{Event: opened, Data: map[string]any{"from": string(c.Status)}},
 			})
 			if c.Status == Closed {
+				reopened = true
 				c.OpenedAt, c.FirstReplyAt = at, nil
 			}
 			c.Status, c.SnoozedUntil = Open, nil
@@ -131,6 +133,11 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 			}
 		}
 		items = append(items, auto...)
+		if created || reopened {
+			if err := openRound(ctx, tx, c, at); err != nil {
+				return err
+			}
+		}
 		if err := contact.TouchSeen(ctx, tx, sub.Tenant, person.ID, at); err != nil {
 			return err
 		}

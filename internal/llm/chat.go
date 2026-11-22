@@ -39,33 +39,38 @@ type JSONRequest struct {
 	NoReasoning bool           // 关掉模型的思考（在 OpenRouter 上生效）：翻译、识别语言等不需要推理的调用设为 true
 }
 
-// Target 是一次调用为谁做的，写进调用记录：工作区，以及对象的类型和 ID（例如 timeline_item 和它的 ID）。
+// Target 是一次调用为谁做的，写进调用记录：工作区、业务场景名（例如 incoming、reply）、结构化元数据，
+// 以及对象的类型和 ID（例如 timeline_item 和它的 ID）。
 type Target struct {
-	Tenant string
-	Type   string
-	ID     string
+	Tenant    string
+	Type      string
+	ID        string
+	Operation string
+	Meta      map[string]any
 }
 
 // Call 是一次调用记录，对应 llm_calls 表。
 type Call struct {
 	bun.BaseModel `bun:"table:llm_calls"`
 
-	ID               string    `bun:"id,pk"`
-	CreatedAt        time.Time `bun:"created_at,notnull"`
-	TenantID         *string   `bun:"tenant_id"`
-	CallType         CallType  `bun:"call_type,notnull"`
-	Endpoint         string    `bun:"endpoint,notnull"` // 接口的地址，不含密钥
-	Model            string    `bun:"model,notnull"`
-	Request          any       `bun:"request,type:jsonb,notnull"`
-	Response         string    `bun:"response,notnull"`
-	PromptTokens     int       `bun:"prompt_tokens,notnull"`
-	CompletionTokens int       `bun:"completion_tokens,notnull"` // 包括思考用的 ReasoningTokens
-	ReasoningTokens  int       `bun:"reasoning_tokens,notnull"`  // 思考用的 token；思考关掉时为 0
-	Cost             *float64  `bun:"cost"`                      // 供应商返回的费用（美元），没有时为空
-	DurationMS       int       `bun:"duration_ms,notnull"`
-	Error            string    `bun:"error,notnull"`
-	TargetType       string    `bun:"target_type,notnull"`
-	TargetID         string    `bun:"target_id,notnull"`
+	ID               string         `bun:"id,pk"`
+	CreatedAt        time.Time      `bun:"created_at,notnull"`
+	TenantID         *string        `bun:"tenant_id"`
+	CallType         CallType       `bun:"call_type,notnull"`
+	Operation        string         `bun:"operation,notnull"` // 业务场景名，例如 incoming、fill、reply、back_translate
+	Meta             map[string]any `bun:"meta,type:jsonb,notnull"`
+	Endpoint         string         `bun:"endpoint,notnull"` // 接口的地址，不含密钥
+	Model            string         `bun:"model,notnull"`
+	Request          any            `bun:"request,type:jsonb,notnull"`
+	Response         string         `bun:"response,notnull"`
+	PromptTokens     int            `bun:"prompt_tokens,notnull"`
+	CompletionTokens int            `bun:"completion_tokens,notnull"` // 包括思考用的 ReasoningTokens
+	ReasoningTokens  int            `bun:"reasoning_tokens,notnull"`  // 思考用的 token；思考关掉时为 0
+	Cost             *float64       `bun:"cost"`                      // 供应商返回的费用（美元），没有时为空
+	DurationMS       int            `bun:"duration_ms,notnull"`
+	Error            string         `bun:"error,notnull"`
+	TargetType       string         `bun:"target_type,notnull"`
+	TargetID         string         `bun:"target_id,notnull"`
 }
 
 // Client 调用平台设置中配置的模型接口，并记录每次调用。可以并发使用。
@@ -139,9 +144,14 @@ func (c *Client) JSON(ctx context.Context, t CallType, target Target, req JSONRe
 			body["reasoning"] = map[string]any{"enabled": false}
 		}
 	}
+	meta := target.Meta
+	if meta == nil {
+		meta = map[string]any{}
+	}
 	call := &Call{
 		ID: uuid.Must(uuid.NewV7()).String(), CreatedAt: time.Now().UTC().Truncate(time.Microsecond),
-		CallType: t, Endpoint: ep.BaseURL, Model: ep.Model, Request: body, TargetType: target.Type, TargetID: target.ID,
+		CallType: t, Operation: target.Operation, Meta: meta,
+		Endpoint: ep.BaseURL, Model: ep.Model, Request: body, TargetType: target.Type, TargetID: target.ID,
 	}
 	if target.Tenant != "" {
 		call.TenantID = &target.Tenant

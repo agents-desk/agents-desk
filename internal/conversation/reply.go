@@ -76,6 +76,9 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 		case Closed:
 			items = append(items, event(sub, "conversation.reopened", map[string]any{"from": string(Closed)}))
 			c.Status, c.SnoozedUntil, c.OpenedAt, c.FirstReplyAt = Open, nil, at, nil
+			if err := openRound(ctx, tx, c, at); err != nil {
+				return err
+			}
 		case Snoozed:
 			items = append(items, event(sub, "conversation.unsnoozed", map[string]any{"from": string(Snoozed)}))
 			c.Status, c.SnoozedUntil = Open, nil
@@ -91,6 +94,9 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 		c.WaitingSince, c.LastMessageAt = nil, at
 		if c.FirstReplyAt == nil {
 			c.FirstReplyAt = &at
+			if err := recordFirstReply(ctx, tx, c, actor, sub.ID, at); err != nil {
+				return err
+			}
 		}
 		if err := join(ctx, tx, c.ID, actor, sub.ID); err != nil {
 			return err

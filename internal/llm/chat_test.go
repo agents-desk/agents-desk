@@ -72,12 +72,12 @@ func TestJSONNoReasoning(t *testing.T) {
 	var out struct {
 		OK bool `json:"ok"`
 	}
-	if err := client.JSON(ctx, Translation, Target{Type: "test", ID: "1"}, JSONRequest{
+	if err := client.JSON(ctx, Translation, Target{Type: "test", ID: "1", Operation: "incoming", Meta: map[string]any{"targets": []string{"zh-CN"}}}, JSONRequest{
 		Messages: []Message{{Role: "user", Content: "hi"}}, SchemaName: "t", Schema: schema, NoReasoning: false,
 	}, &out); err != nil {
 		t.Fatal(err)
 	}
-	if err := client.JSON(ctx, Translation, Target{Type: "test", ID: "2"}, JSONRequest{
+	if err := client.JSON(ctx, Translation, Target{Type: "test", ID: "2", Operation: "reply"}, JSONRequest{
 		Messages: []Message{{Role: "user", Content: "hi"}}, SchemaName: "t", Schema: schema, NoReasoning: true,
 	}, &out); err != nil {
 		t.Fatal(err)
@@ -91,6 +91,13 @@ func TestJSONNoReasoning(t *testing.T) {
 	reasoning, _ := bodies[1]["reasoning"].(map[string]any)
 	if reasoning["enabled"] != false {
 		t.Fatalf("NoReasoning=true 应当带 reasoning.enabled=false：%+v", bodies[1])
+	}
+	var calls []Call
+	if err := env.DB.NewSelect().Model(&calls).OrderExpr("target_id ASC").Scan(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if len(calls) != 2 || calls[0].Operation != "incoming" || calls[1].Operation != "reply" {
+		t.Fatalf("llm_calls operation 未正确记录：%+v", calls)
 	}
 }
 

@@ -35,7 +35,7 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	rest.Register(api, route(read, "conversation-search", http.MethodGet, "/conversations/search", "全文搜索会话"), NewSearch(db).HTTP)
 	rest.Register(api, route(read, "conversation-get", http.MethodGet, "/conversations/{id}", "读取会话"), NewGet(db).HTTP)
 	rest.Register(api, route(read, "conversation-items", http.MethodGet, "/conversations/{id}/items", "读取时间线"), NewTimeline(db, down.Media).HTTP)
-	rest.Register(api, route(read, "conversation-closures", http.MethodGet, "/conversations/{id}/closures", "读取关闭记录"), NewListClosures(db).HTTP)
+	rest.Register(api, route(read, "conversation-rounds", http.MethodGet, "/conversations/{id}/rounds", "读取服务轮次记录"), NewListRounds(db).HTTP)
 	rest.Register(api, replyOp, NewReply(db, down).HTTP)
 	rest.Register(api, noteOp, NewAddNote(db, down).HTTP)
 	rest.Register(api, retryOp, NewRetry(db, down).HTTP)

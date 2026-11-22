@@ -84,6 +84,15 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
           invalidate(context, "automation"),
       }),
     },
+    channel: {
+      /** channel 分组全部查询的 key 前缀。 */
+      key: () => key("channel"),
+      /** GET /channels */
+      list: (...args: Parameters<Client["channel"]["list"]>) => ({
+        queryKey: key("channel", "list", ...args),
+        queryFn: () => client.channel.list(...args),
+      }),
+    },
     contact: {
       /** contact 分组全部查询的 key 前缀。 */
       key: () => key("contact"),
@@ -147,11 +156,6 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         mutationFn: (variables: Parameters<Client["conversation"]["close"]>[0]) => client.conversation.close(variables),
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "conversation"),
-      }),
-      /** GET /conversations/{id}/closures */
-      closures: (...args: Parameters<Client["conversation"]["closures"]>) => ({
-        queryKey: key("conversation", "closures", ...args),
-        queryFn: () => client.conversation.closures(...args),
       }),
       /** PATCH /conversations/{id}/contact/attributes */
       contactAttributesPatch: () => ({
@@ -232,6 +236,11 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         mutationFn: (variables: Parameters<Client["conversation"]["retry"]>) => client.conversation.retry(...variables),
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "conversation"),
+      }),
+      /** GET /conversations/{id}/rounds */
+      rounds: (...args: Parameters<Client["conversation"]["rounds"]>) => ({
+        queryKey: key("conversation", "rounds", ...args),
+        queryFn: () => client.conversation.rounds(...args),
       }),
       /** GET /conversations/search */
       search: (...args: Parameters<Client["conversation"]["search"]>) => ({

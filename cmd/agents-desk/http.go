@@ -32,6 +32,7 @@ import (
 	"agents-desk/internal/audit"
 	"agents-desk/internal/auth"
 	"agents-desk/internal/automation"
+	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/file"
@@ -255,6 +256,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		role.RegisterRoutes(api, require, a.db, a.roles)
 		hours.RegisterRoutes(api, require, a.db)
 		team.RegisterRoutes(api, require, a.db, a.roles, a.memberLogins, a.files)
+		channel.RegisterRoutes(api, require, a.db)
 		contact.RegisterRoutes(api, require, a.db)
 		tag.RegisterRoutes(api, require, a.db)
 		attribute.RegisterRoutes(api, require, a.db)

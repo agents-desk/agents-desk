@@ -1452,6 +1452,7 @@ export const components = {
     "enum": [
       "conversations:assign",
       "macros:manage",
+      "reports:read",
       "members:manage",
       "teams:manage",
       "channels:manage",
