@@ -1,8 +1,8 @@
 import type { ConversationSummary } from "@agents-desk/client/tenant"
 import { NavLink, Text } from "@mantine/core"
 import { useQuery } from "@tanstack/react-query"
-import { IconAt, IconInbox, IconListDetails, IconUserQuestion, IconUsersGroup } from "@tabler/icons-react"
-import { Fill, useT } from "@go-tenon/ui"
+import { IconAt, IconInbox, IconListDetails, IconUserQuestion } from "@tabler/icons-react"
+import { Fill, RailSection, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit } from "../api"
 import { type Thresholds, useThresholds } from "./data"
@@ -24,7 +24,7 @@ function Count({ s, now, th }: { s?: ConversationSummary; now: number; th?: Thre
   if (!s) return null
   const color = s.oldest_waiting_since ? waitColor[waitLevel(s.oldest_waiting_since, now, th)] : undefined
   return (
-    <Text size="xs" c={color ?? "dimmed"} fw={color ? 600 : undefined}>
+    <Text size="xs" c={color ?? "dimmed"} fw={color ? 600 : undefined} style={{ fontVariantNumeric: "tabular-nums" }}>
       {s.count}
     </Text>
   )
@@ -32,7 +32,7 @@ function Count({ s, now, th }: { s?: ConversationSummary; now: number; th?: Thre
 
 /**
  * InboxNav 是放进二级导航（nav 插槽）的收件箱列表：我的、@我、未指派、全部，各团队收件箱，视图（V1 中加入），
- * 每一项带数量，随实时推送更新。点击切换列表，状态和排序保留。
+ * 每一项带数量，随实时推送更新。团队收件箱使用独立的 RailSection 分组与首字小方块，和上方系统视图清晰区分。
  */
 export function InboxNav({ search, go }: { search: InboxSearch; go: (s: Partial<InboxSearch>) => void }): ReactNode {
   const t = useT()
@@ -52,25 +52,31 @@ export function InboxNav({ search, go }: { search: InboxSearch; go: (s: Partial<
   )
   return (
     <Fill name="nav">
-      {item("mine", t("inbox.box_mine"), <IconInbox size={16} />, d?.mine)}
-      {item("mentions", t("inbox.box_mentions"), <IconAt size={16} />, d?.mentions)}
-      {item("unassigned", t("inbox.box_unassigned"), <IconUserQuestion size={16} />, d?.unassigned)}
-      {item("all", t("inbox.box_all"), <IconListDetails size={16} />, d?.all)}
+      {item("mine", t("inbox.box_mine"), <IconInbox size={16} stroke={1.6} />, d?.mine)}
+      {item("mentions", t("inbox.box_mentions"), <IconAt size={16} stroke={1.6} />, d?.mentions)}
+      {item("unassigned", t("inbox.box_unassigned"), <IconUserQuestion size={16} stroke={1.6} />, d?.unassigned)}
+      {item("all", t("inbox.box_all"), <IconListDetails size={16} stroke={1.6} />, d?.all)}
       {(d?.teams.length ?? 0) > 0 && (
-        <Text size="xs" c="dimmed" px="xs" pt="md" pb={4}>
-          {t("inbox.teams")}
-        </Text>
+        <RailSection title={t("inbox.teams")} collapsible>
+          {d?.teams.map((team) => {
+            const active = search.team === team.id
+            return (
+              <NavLink
+                key={team.id}
+                label={team.name}
+                leftSection={
+                  <span className="inbox-team-badge" data-active={active || undefined}>
+                    {team.name.slice(0, 1)}
+                  </span>
+                }
+                rightSection={<Count s={team} now={now} th={th} />}
+                active={active}
+                onClick={() => go({ box: "all", team: team.id })}
+              />
+            )
+          })}
+        </RailSection>
       )}
-      {d?.teams.map((team) => (
-        <NavLink
-          key={team.id}
-          label={team.name}
-          leftSection={<IconUsersGroup size={16} />}
-          rightSection={<Count s={team} now={now} th={th} />}
-          active={search.team === team.id}
-          onClick={() => go({ box: "all", team: team.id })}
-        />
-      ))}
     </Fill>
   )
 }

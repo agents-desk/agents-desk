@@ -1,44 +1,84 @@
-/* 联系人工作台样式：与收件箱共用细分隔线与浅色高亮，去掉传统后台表单和重边框表格感。 */
+/* 联系人工作台样式：与收件箱共用 52px 顶栏基线、细分隔线与品牌色高亮，明暗主题一致。 */
 .ct-divider {
-  border-bottom: 1px solid var(--tn-border, var(--mantine-color-gray-3));
+  border-bottom: 1px solid var(--tn-border);
+  flex: none;
+}
+
+.ct-header {
+  height: var(--tn-rail-header, 52px);
+  border-bottom: 1px solid var(--tn-border);
+  flex: none;
+}
+
+.ct-toolbar {
+  border-bottom: 1px solid var(--tn-border);
+  background: color-mix(in srgb, var(--tn-surface) 70%, var(--tn-canvas));
   flex: none;
 }
 
 .ct-footer {
-  border-top: 1px solid var(--tn-border, var(--mantine-color-gray-3));
+  border-top: 1px solid var(--tn-border);
   flex: none;
 }
 
 .ct-aside {
-  border-left: 1px solid var(--tn-border, var(--mantine-color-gray-3));
+  border-left: 1px solid var(--tn-border);
 }
 
 .ct-aside-narrow {
-  border-top: 1px solid var(--tn-border, var(--mantine-color-gray-3));
+  border-top: 1px solid var(--tn-border);
+}
+
+/* 可拖拽分栏分隔手柄（直达联系人页时不依赖 inbox.css） */
+.desk-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  z-index: 5;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.desk-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: transparent;
+  transition: background-color 140ms ease;
+}
+
+.desk-resize-handle:hover::after,
+.desk-resize-handle[data-dragging]::after {
+  background: var(--mantine-primary-color-filled);
 }
 
 .ct-list-head {
   position: sticky;
   top: 0;
   z-index: 1;
-  background: var(--mantine-color-body);
-  border-bottom: 1px solid var(--tn-border, var(--mantine-color-gray-3));
+  background: var(--tn-surface);
+  border-bottom: 1px solid var(--tn-border);
 }
 
 .ct-row {
   position: relative;
-  border-bottom: 1px solid var(--mantine-color-gray-1);
+  border-bottom: 1px solid color-mix(in srgb, var(--tn-border) 65%, transparent);
   transition: background-color 0.15s ease;
   cursor: pointer;
   scroll-margin-top: 36px;
 }
 
 .ct-row:hover {
-  background: var(--mantine-color-gray-0);
+  background: var(--tn-hover);
 }
 
 .ct-row[data-active] {
-  background: var(--mantine-color-bright-blue-light);
+  background: var(--tn-active-bg);
 }
 
 .ct-row[data-active]::before {
@@ -48,15 +88,7 @@
   top: 0;
   bottom: 0;
   width: 3px;
-  background: var(--mantine-color-bright-blue-filled);
-}
-
-[data-mantine-color-scheme="dark"] .ct-row {
-  border-bottom-color: var(--mantine-color-dark-6);
-}
-
-[data-mantine-color-scheme="dark"] .ct-row:hover {
-  background: var(--mantine-color-dark-6);
+  background: var(--mantine-primary-color-filled);
 }
 
 /* 仅在悬停当前行或字段时露出轻量的复制/编辑小按钮，保持画面安静 */
@@ -75,36 +107,24 @@
 /* 联系人内部备注便签块：与收件箱内部备注同源的淡黄底色 */
 .ct-note {
   background: var(--mantine-color-yellow-light);
-  border: 1px solid var(--mantine-color-yellow-3);
+  border: 1px solid color-mix(in srgb, var(--mantine-color-yellow-6) 30%, transparent);
   border-radius: var(--mantine-radius-md);
-}
-
-[data-mantine-color-scheme="dark"] .ct-note {
-  border-color: var(--mantine-color-yellow-8);
 }
 
 /* 历史会话流中的条目 */
 .ct-conv {
-  border: 1px solid var(--tn-border, var(--mantine-color-gray-2));
+  border: 1px solid var(--tn-border);
   border-radius: var(--mantine-radius-md);
-  background: var(--mantine-color-body);
+  background: var(--tn-surface);
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .ct-conv:hover {
-  border-color: var(--mantine-color-gray-4);
-}
-
-[data-mantine-color-scheme="dark"] .ct-conv:hover {
-  border-color: var(--mantine-color-dark-3);
+  border-color: var(--tn-border-strong);
 }
 
 .ct-section-divider {
-  border-top: 1px solid var(--tn-border, var(--mantine-color-gray-2));
-}
-
-[data-mantine-color-scheme="dark"] .ct-section-divider {
-  border-top-color: var(--mantine-color-dark-5);
+  border-top: 1px solid var(--tn-border);
 }
 
 /* 状态色圆点 */

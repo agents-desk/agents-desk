@@ -63,6 +63,11 @@ export const messages = {
     "choose_tenant.none": "You aren’t in any workspace yet. Ask a workspace admin to add you.",
     "choose_tenant.sign_out": "Sign out",
     "choose_tenant.title": "Choose a workspace",
+    "command.empty": "No matching pages or views",
+    "command.inbox_group": "Inbox \u0026 Teams",
+    "command.pages_group": "Pages \u0026 Settings",
+    "command.placeholder": "Jump to inbox, team, or settings…",
+    "command.search": "Quick jump",
     "common.cancel": "Cancel",
     "common.save": "Save",
     "common.saved": "Saved",
@@ -264,6 +269,7 @@ export const messages = {
     "inbox.note_placeholder": "Write an internal note, @ a teammate…",
     "inbox.original": "Original",
     "inbox.pick": "Pick a conversation on the left",
+    "inbox.pick_shortcut": "Press {{.key}} to jump to any view, contact, or setting",
     "inbox.preview_to": "To customer",
     "inbox.priority": "Priority",
     "inbox.priority_high": "High",
@@ -316,11 +322,13 @@ export const messages = {
     "inbox.viewing": "{{.who}} is also viewing",
     "inbox.visitor": "Visitor",
     "inbox.you": "You",
+    "layout.resize": "Drag to resize column, double-click to reset",
     "login.description": "Sign in with the email and password your workspace admin gave you",
     "login.title": "Sign in",
     "members.password_hint": "Required when this email has no account yet. Share it with the person yourself",
     "nav.attributes": "Attributes",
     "nav.contacts": "Contacts",
+    "nav.expand_nav": "Expand navigation",
     "nav.general": "General",
     "nav.inbox": "Inbox",
     "nav.members": "Members",
@@ -504,6 +512,11 @@ export const messages = {
     "choose_tenant.none": "你还不属于任何工作区，请联系工作区的管理员把你加入。",
     "choose_tenant.sign_out": "退出登录",
     "choose_tenant.title": "选择工作区",
+    "command.empty": "没有找到匹配的页面或视图",
+    "command.inbox_group": "收件箱与团队",
+    "command.pages_group": "页面与设置",
+    "command.placeholder": "搜索收件箱、团队或设置页…",
+    "command.search": "快速跳转",
     "common.cancel": "取消",
     "common.save": "保存",
     "common.saved": "已保存",
@@ -705,6 +718,7 @@ export const messages = {
     "inbox.note_placeholder": "写内部备注，@ 同事…",
     "inbox.original": "原文",
     "inbox.pick": "从左边选一个会话",
+    "inbox.pick_shortcut": "按 {{.key}} 快速切换视图、联系人或设置",
     "inbox.preview_to": "发给对方",
     "inbox.priority": "优先级",
     "inbox.priority_high": "高",
@@ -757,11 +771,13 @@ export const messages = {
     "inbox.viewing": "{{.who}} 也在看这个会话",
     "inbox.visitor": "访客",
     "inbox.you": "你",
+    "layout.resize": "拖动调整栏宽，双击恢复默认",
     "login.description": "用工作区管理员给你的邮箱和密码登录",
     "login.title": "登录",
     "members.password_hint": "这个邮箱还没有账号时必填，由你告诉本人",
     "nav.attributes": "属性",
     "nav.contacts": "联系人",
+    "nav.expand_nav": "展开侧边导航",
     "nav.general": "常规",
     "nav.inbox": "收件箱",
     "nav.members": "成员",
@@ -948,6 +964,11 @@ export type MessageId =
   | "choose_tenant.none"
   | "choose_tenant.sign_out"
   | "choose_tenant.title"
+  | "command.empty"
+  | "command.inbox_group"
+  | "command.pages_group"
+  | "command.placeholder"
+  | "command.search"
   | "common.cancel"
   | "common.save"
   | "common.saved"
@@ -1149,6 +1170,7 @@ export type MessageId =
   | "inbox.note_placeholder"
   | "inbox.original"
   | "inbox.pick"
+  | "inbox.pick_shortcut"
   | "inbox.preview_to"
   | "inbox.priority"
   | "inbox.priority_high"
@@ -1201,11 +1223,13 @@ export type MessageId =
   | "inbox.viewing"
   | "inbox.visitor"
   | "inbox.you"
+  | "layout.resize"
   | "login.description"
   | "login.title"
   | "members.password_hint"
   | "nav.attributes"
   | "nav.contacts"
+  | "nav.expand_nav"
   | "nav.general"
   | "nav.inbox"
   | "nav.members"

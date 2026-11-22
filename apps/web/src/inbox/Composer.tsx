@@ -130,7 +130,7 @@ export function Composer({ c, onTyping }: { c: ConversationDTO; onTyping: () => 
           ]}
         />
         {note && (
-          <Text size="xs" c="yellow.9">
+          <Text size="xs" className="inbox-note-accent">
             {t("inbox.note_hint")}
           </Text>
         )}
@@ -202,7 +202,7 @@ export function Composer({ c, onTyping }: { c: ConversationDTO; onTyping: () => 
             </ActionIcon>
           </Tooltip>
         )}
-        <Text size="xs" c={preview.confirming ? "bright-blue" : "dimmed"}>
+        <Text size="xs" c={preview.confirming ? "brand" : "dimmed"}>
           {t(preview.confirming ? "inbox.enter_again" : "inbox.enter_hint")}
         </Text>
         <Group gap={0} ml="auto" wrap="nowrap">
@@ -377,7 +377,7 @@ function TranslationPreview({ c, preview, onSendOriginal }: { c: ConversationDTO
       mb={8}
       className="inbox-preview"
       data-stale={(stale && !off) || undefined}
-      bg={preview.error && !off ? "var(--mantine-color-red-light)" : "var(--mantine-color-bright-blue-light)"}
+      bg={preview.error && !off ? "var(--mantine-color-red-light)" : "var(--mantine-primary-color-light)"}
     >
       <Group gap="xs" wrap="nowrap">
         <Text size="xs" c="dimmed" style={{ flex: "none" }}>
@@ -409,10 +409,10 @@ function TranslationPreview({ c, preview, onSendOriginal }: { c: ConversationDTO
           <Text size="xs" c="red" style={{ flex: 1 }}>
             {t("inbox.translation_failed", { error: preview.error })}
           </Text>
-          <UnstyledButton fz="xs" c="bright-blue" onClick={preview.retry}>
+          <UnstyledButton fz="xs" c="brand" onClick={preview.retry}>
             {t("inbox.retry")}
           </UnstyledButton>
-          <UnstyledButton fz="xs" c="bright-blue" onClick={onSendOriginal}>
+          <UnstyledButton fz="xs" c="brand" onClick={onSendOriginal}>
             {t("inbox.send_original")}
           </UnstyledButton>
         </Group>

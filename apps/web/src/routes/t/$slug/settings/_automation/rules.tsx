@@ -42,7 +42,7 @@ function Automations(): ReactNode {
   })
 
   return (
-    <Page title={t("automations.title")} description={t("automations.description")}>
+    <Page title={t("automations.title")} description={t("automations.description")} width="narrow">
       {list.isPending ? (
         <Loader size="sm" />
       ) : (

@@ -1,9 +1,9 @@
 import type { ConversationBulkResult, ConversationDTO, ConversationSummary } from "@agents-desk/client/tenant"
-import { Badge, Box, Button, Center, Checkbox, ColorSwatch, Group, Loader, Menu, SegmentedControl, Select, Stack, Text, UnstyledButton } from "@mantine/core"
+import { ActionIcon, Badge, Box, Button, Center, Checkbox, ColorSwatch, Group, Loader, Menu, SegmentedControl, Select, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { notifications } from "@mantine/notifications"
-import { IconChevronDown } from "@tabler/icons-react"
-import { notifyError, notifySuccess, useCan, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
+import { IconChevronDown, IconLayoutSidebarLeftExpand } from "@tabler/icons-react"
+import { notifyError, notifySuccess, useCan, useLanguage, useNavControl, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { flatten, useConversationList, useMe, useMembers, useTags, useTeams, useThresholds } from "./data"
@@ -26,6 +26,7 @@ interface ListProps {
  */
 export function ConversationList({ search, openId, go, open }: ListProps): ReactNode {
   const t = useT()
+  const nav = useNavControl()
   const now = useNow()
   const th = useThresholds()
   const me = useMe()
@@ -84,99 +85,115 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
     setSelected(new Set())
   }
 
+  const hasToolbar = search.box !== "mentions" || tags.length > 0
+
   return (
     <Stack gap={0} h="100%" className="inbox-list">
       {selecting ? (
         <BulkBar ids={[...selected]} onDone={stopSelecting} />
       ) : (
-        <Box px="sm" pt="sm" pb={8} className="inbox-divider">
-          <Group gap="xs" wrap="nowrap">
-            <Text fw={600} size="md" truncate style={{ flex: 1 }}>
-              {title}
-            </Text>
-            <Button size="compact-xs" variant="subtle" color="gray" onClick={() => setSelecting(true)}>
+        <>
+          {/* 52px 基准顶栏：与二级导航头、会话头、详情头严格齐平 */}
+          <Group gap="xs" px="sm" wrap="nowrap" className="inbox-header" data-fixed="">
+            {nav && !nav.open && (
+              <Tooltip label={t("nav.expand_nav")} openDelay={350}>
+                <ActionIcon variant="subtle" color="gray" onClick={nav.openNav} aria-label={t("nav.expand_nav")}>
+                  <IconLayoutSidebarLeftExpand size={18} stroke={1.6} />
+                </ActionIcon>
+              </Tooltip>
+            )}
+            <Box style={{ flex: 1, minWidth: 0 }}>
+              <Text fw={600} size="sm" truncate lh={1.25}>
+                {title}
+              </Text>
+              {summary && (
+                <Text size="xs" c="dimmed" truncate lh={1.25}>
+                  {t("inbox.backlog_waiting")}{" "}
+                  <Text span size="xs" fw={600} c={summary.waiting > 0 ? "deep-orange" : undefined}>
+                    {summary.waiting}
+                  </Text>
+                  {summary.oldest_waiting_since && (
+                    <>
+                      {" · "}
+                      {t("inbox.backlog_oldest")}{" "}
+                      <Text span size="xs" fw={600} c={waitColor[waitLevel(summary.oldest_waiting_since, now, th)]}>
+                        {duration(summary.oldest_waiting_since, now, t)}
+                      </Text>
+                    </>
+                  )}
+                  {" · "}
+                  {t("inbox.backlog_open", { n: summary.count })}
+                </Text>
+              )}
+            </Box>
+            <Button size="compact-xs" variant="subtle" color="gray" onClick={() => setSelecting(true)} style={{ flex: "none" }}>
               {t("inbox.select")}
             </Button>
           </Group>
-          {summary && (
-            <Text size="xs" c="dimmed">
-              {t("inbox.backlog_waiting")}{" "}
-              <Text span size="xs" fw={600} c={summary.waiting > 0 ? "deep-orange" : undefined}>
-                {summary.waiting}
-              </Text>
-              {summary.oldest_waiting_since && (
-                <>
-                  {" · "}
-                  {t("inbox.backlog_oldest")}{" "}
-                  <Text span size="xs" fw={600} c={waitColor[waitLevel(summary.oldest_waiting_since, now, th)]}>
-                    {duration(summary.oldest_waiting_since, now, t)}
-                  </Text>
-                </>
+          {/* 独立筛选工具条：状态、排序与标签筛选完整保留，视觉上与顶栏分层 */}
+          {hasToolbar && (
+            <Stack gap={6} px="sm" py={8} className="inbox-toolbar">
+              {/* @我 的列表不按状态筛选，总是最近被 @ 的在前 */}
+              {search.box !== "mentions" && (
+                <Group gap={6} wrap="nowrap">
+                  <SegmentedControl
+                    size="xs"
+                    style={{ flex: 1 }}
+                    value={search.status}
+                    onChange={(v) => go({ status: v as InboxSearch["status"] })}
+                    data={[
+                      { value: "open", label: t("inbox.status_open") },
+                      { value: "snoozed", label: t("inbox.status_snoozed") },
+                      { value: "closed", label: t("inbox.status_closed") },
+                    ]}
+                  />
+                  <Select
+                    size="xs"
+                    w={112}
+                    allowDeselect={false}
+                    value={search.sort}
+                    onChange={(v) => v && go({ sort: v as InboxSearch["sort"] })}
+                    data={[
+                      { value: "waiting", label: t("inbox.sort_waiting") },
+                      { value: "recent", label: t("inbox.sort_recent") },
+                    ]}
+                    aria-label={t("inbox.sort")}
+                    comboboxProps={{ withinPortal: true }}
+                  />
+                </Group>
               )}
-              {" · "}
-              {t("inbox.backlog_open", { n: summary.count })}
-            </Text>
+              {tags.length > 0 && (
+                <Select
+                  size="xs"
+                  placeholder={t("inbox.tag_filter")}
+                  aria-label={t("inbox.tag_filter")}
+                  value={search.tag ?? null}
+                  onChange={(v) => go({ tag: v || undefined })}
+                  data={tags.map((tag) => ({ value: tag.id, label: tag.name }))}
+                  leftSection={
+                    search.tag && tagById.get(search.tag) ? (
+                      <ColorSwatch color={`var(--mantine-color-${tagById.get(search.tag)?.color}-6)`} size={10} />
+                    ) : undefined
+                  }
+                  renderOption={({ option }) => {
+                    const tag = tagById.get(option.value)
+                    return (
+                      <Group gap="xs" wrap="nowrap">
+                        {tag && <ColorSwatch color={`var(--mantine-color-${tag.color}-6)`} size={10} />}
+                        <Text size="xs" truncate>
+                          {option.label}
+                        </Text>
+                      </Group>
+                    )
+                  }}
+                  clearable
+                  searchable
+                  comboboxProps={{ withinPortal: true }}
+                />
+              )}
+            </Stack>
           )}
-          {/* @我 的列表不按状态筛选，总是最近被 @ 的在前 */}
-          {search.box !== "mentions" && (
-            <Group gap={6} mt={8} wrap="nowrap">
-              <SegmentedControl
-                size="xs"
-                style={{ flex: 1 }}
-                value={search.status}
-                onChange={(v) => go({ status: v as InboxSearch["status"] })}
-                data={[
-                  { value: "open", label: t("inbox.status_open") },
-                  { value: "snoozed", label: t("inbox.status_snoozed") },
-                  { value: "closed", label: t("inbox.status_closed") },
-                ]}
-              />
-              <Select
-                size="xs"
-                w={118}
-                allowDeselect={false}
-                value={search.sort}
-                onChange={(v) => v && go({ sort: v as InboxSearch["sort"] })}
-                data={[
-                  { value: "waiting", label: t("inbox.sort_waiting") },
-                  { value: "recent", label: t("inbox.sort_recent") },
-                ]}
-                aria-label={t("inbox.sort")}
-                comboboxProps={{ withinPortal: true }}
-              />
-            </Group>
-          )}
-          {tags.length > 0 && (
-            <Select
-              size="xs"
-              mt={6}
-              placeholder={t("inbox.tag_filter")}
-              aria-label={t("inbox.tag_filter")}
-              value={search.tag ?? null}
-              onChange={(v) => go({ tag: v || undefined })}
-              data={tags.map((tag) => ({ value: tag.id, label: tag.name }))}
-              leftSection={
-                search.tag && tagById.get(search.tag) ? (
-                  <ColorSwatch color={`var(--mantine-color-${tagById.get(search.tag)?.color}-6)`} size={10} />
-                ) : undefined
-              }
-              renderOption={({ option }) => {
-                const tag = tagById.get(option.value)
-                return (
-                  <Group gap="xs" wrap="nowrap">
-                    {tag && <ColorSwatch color={`var(--mantine-color-${tag.color}-6)`} size={10} />}
-                    <Text size="xs" truncate>
-                      {option.label}
-                    </Text>
-                  </Group>
-                )
-              }}
-              clearable
-              searchable
-              comboboxProps={{ withinPortal: true }}
-            />
-          )}
-        </Box>
+        </>
       )}
       <Box style={{ flex: 1, overflowY: "auto" }}>
         {list.isPending ? (
@@ -265,7 +282,7 @@ function Row({
         {selecting && <Checkbox checked={selected} readOnly size="xs" mt={3} tabIndex={-1} />}
         <Box style={{ flex: 1, minWidth: 0 }}>
           <Group gap={6} wrap="nowrap">
-            <Box w={7} h={7} style={{ borderRadius: "50%", flex: "none" }} bg={c.unread ? "bright-blue" : "transparent"} />
+            <Box w={7} h={7} style={{ borderRadius: "50%", flex: "none" }} bg={c.unread ? "brand" : "transparent"} />
             <Text size="sm" fw={c.unread ? 700 : 500} truncate>
               {contactName(c, t)}
             </Text>
@@ -354,7 +371,7 @@ function BulkBar({ ids, onDone }: { ids: string[]; onDone: () => void }): ReactN
   // 没有“改派给别人”的权限时只能领取
   const others = can("conversations:assign")
   return (
-    <Group gap={6} px="sm" py={10} bg="var(--mantine-color-bright-blue-light)" wrap="nowrap" className="inbox-divider">
+    <Group gap={6} px="sm" bg="var(--tn-active-bg)" wrap="nowrap" className="inbox-header" data-fixed="">
       <Text size="sm" fw={600}>
         {t("inbox.selected", { n: ids.length })}
       </Text>

@@ -27,6 +27,7 @@ import { kit, tenantApi } from "../api"
 import { activity } from "../inbox/format"
 import { LanguageSelect } from "../LanguageSelect"
 import { languageName } from "../languages"
+import { NARROW_QUERY } from "../layout"
 import { allZones, formatLocalTime, offsetOf } from "../timezone"
 
 /** AUTO 是语言选择器中的“自动识别”。 */
@@ -43,7 +44,7 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
   const t = useT()
   const ui = useLanguage()
   const zone = useTimeZone()
-  const narrow = useNarrow()
+  const narrow = useNarrow(NARROW_QUERY)
   const can = useCan()
   const queryClient = useQueryClient()
 
@@ -77,7 +78,7 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
   if (detail.isPending) {
     return (
       <Stack gap={0} h="100%" w="100%">
-        <Group px="md" h={53} className="ct-divider">
+        <Group px="md" className="ct-header">
           {narrow && closeButton}
           <Text fw={600} size="sm">
             {t("nav.contacts")}
@@ -94,7 +95,7 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
   if (!detail.data) {
     return (
       <Stack gap={0} h="100%" w="100%">
-        <Group px="md" h={53} className="ct-divider">
+        <Group px="md" className="ct-header">
           {narrow && closeButton}
           <Text fw={600} size="sm">
             {t("nav.contacts")}
@@ -118,8 +119,8 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
 
   return (
     <Stack gap={0} h="100%" w="100%">
-      {/* 顶部人物头：与左侧列表顶栏 53px 齐平 */}
-      <Group gap="sm" px="md" h={53} wrap="nowrap" className="ct-divider">
+      {/* 顶部人物头：与左侧 52px 基准顶栏严格齐平 */}
+      <Group gap="sm" px="md" wrap="nowrap" className="ct-header">
         {narrow && closeButton}
         <Avatar size={32} name={displayName} color="initials" />
         <Box style={{ minWidth: 0, flex: 1 }}>

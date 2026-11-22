@@ -1,28 +1,97 @@
-/* 收件箱的样式：各栏的分隔线、会话列表的行、时间线、回复框。颜色都取 Mantine 的主题变量。 */
+/* 收件箱与工作台分栏样式：统一使用主题语义变量（--tn-* 与 brand），明暗主题一致。 */
 .inbox-divider {
-  border-bottom: 1px solid var(--tn-border, var(--mantine-color-gray-3));
+  border-bottom: 1px solid var(--tn-border);
   flex: none;
 }
-.inbox-list {
-  border-right: 1px solid var(--tn-border, var(--mantine-color-gray-3));
-}
-.inbox-aside {
-  border-left: 1px solid var(--tn-border, var(--mantine-color-gray-3));
+
+/* 与二级导航头部 --tn-rail-header（默认 52px）齐平的各栏顶栏 */
+.inbox-header {
+  min-height: var(--tn-rail-header, 52px);
+  border-bottom: 1px solid var(--tn-border);
+  flex: none;
 }
 
-/* 会话列表的一行：当前打开的左边有蓝条，刚有新消息的短暂黄底 */
+.inbox-header[data-fixed] {
+  height: var(--tn-rail-header, 52px);
+}
+
+.inbox-toolbar {
+  border-bottom: 1px solid var(--tn-border);
+  background: color-mix(in srgb, var(--tn-surface) 70%, var(--tn-canvas));
+  flex: none;
+}
+
+.inbox-list {
+  border-right: 1px solid var(--tn-border);
+}
+
+.inbox-aside {
+  border-left: 1px solid var(--tn-border);
+}
+
+/* 团队收件箱项的首字小方块，和上方系统视图线框图标形成一眼可辨的区分 */
+.inbox-team-badge {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--mantine-radius-xs);
+  background: var(--tn-hover);
+  color: var(--tn-muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.inbox-team-badge[data-active] {
+  background: color-mix(in srgb, var(--mantine-primary-color-filled) 18%, transparent);
+  color: var(--mantine-primary-color-light-color);
+}
+
+/* 可拖拽分栏分隔手柄：覆盖在分隔线上，悬停或拖动时浮现品牌色细线 */
+.desk-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  z-index: 5;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.desk-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: transparent;
+  transition: background-color 140ms ease;
+}
+
+.desk-resize-handle:hover::after,
+.desk-resize-handle[data-dragging]::after {
+  background: var(--mantine-primary-color-filled);
+}
+
+/* 会话列表的一行：当前打开的左边有品牌色细竖条，刚有新消息的短暂黄底 */
 .inbox-row {
   display: block;
   position: relative;
-  border-bottom: 1px solid var(--mantine-color-gray-1);
-  transition: background-color 0.4s;
+  border-bottom: 1px solid color-mix(in srgb, var(--tn-border) 65%, transparent);
+  transition: background-color 0.25s ease;
 }
+
 .inbox-row:hover {
-  background: var(--mantine-color-gray-0);
+  background: var(--tn-hover);
 }
+
 .inbox-row[data-active] {
-  background: var(--mantine-color-bright-blue-light);
+  background: var(--tn-active-bg);
 }
+
 .inbox-row[data-active]::before {
   content: "";
   position: absolute;
@@ -30,44 +99,50 @@
   top: 0;
   bottom: 0;
   width: 3px;
-  background: var(--mantine-color-bright-blue-filled);
+  background: var(--mantine-primary-color-filled);
 }
+
 .inbox-row[data-flash] {
   background: var(--mantine-color-yellow-light);
 }
 
-/* 时间线：可以滚动，浅灰的底 */
+/* 时间线：可以滚动，使用语义画布底色，亮暗模式自然分层 */
 .inbox-timeline {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  background: var(--mantine-color-gray-0);
+  background: var(--tn-canvas);
 }
+
 .inbox-event {
   align-self: center;
 }
 
-/* 回复框：内部备注时是黄色底 */
+/* 回复框：内部备注时是淡黄底 */
 .inbox-composer {
-  border-top: 1px solid var(--tn-border, var(--mantine-color-gray-3));
+  border-top: 1px solid var(--tn-border);
+  background: var(--tn-surface);
   flex: none;
 }
+
 .inbox-composer[data-note] {
   background: var(--mantine-color-yellow-light);
 }
+
 .inbox-mention[data-active],
 .inbox-mention:hover,
 .inbox-history:hover {
-  background: var(--mantine-color-gray-1);
+  background: var(--tn-hover);
   border-radius: var(--mantine-radius-sm);
 }
+
 .inbox-history {
   display: block;
 }
 
 /* 成员翻译后发出的消息中展开的译文：和原文之间一条虚线 */
 .inbox-sent-translation {
-  border-top: 1px dashed var(--mantine-color-bright-blue-3);
+  border-top: 1px dashed color-mix(in srgb, var(--mantine-primary-color-filled) 35%, transparent);
 }
 
 /* 回复框上方的译文预览；原文改了、正在重新翻译时旧的译文变淡 */
@@ -75,10 +150,16 @@
   opacity: 0.45;
 }
 
-/* 对方的消息切换到原文时是灰底，和译文区分 */
-.inbox-bubble[data-original] {
-  background: var(--mantine-color-gray-1);
+/* 对方的消息气泡使用纯面底色，切换到原文时略沉以示区分 */
+.inbox-bubble[data-incoming] {
+  background: var(--tn-surface);
 }
-[data-mantine-color-scheme="dark"] .inbox-bubble[data-original] {
-  background: var(--mantine-color-dark-5);
+
+.inbox-bubble[data-original] {
+  background: var(--tn-hover);
+}
+
+/* 内部备注的文字色随明暗主题保持清晰对比度 */
+.inbox-note-accent {
+  color: var(--mantine-color-yellow-light-color);
 }

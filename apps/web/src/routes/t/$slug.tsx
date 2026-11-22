@@ -4,6 +4,8 @@ import { IconSettings, IconSwitchHorizontal } from "@tabler/icons-react"
 import { enterTenant, Fill, RailLayout, requireAuth, TimeZoneProvider, UserMenu, useMenuBadge, useTenant, useT } from "@go-tenon/ui"
 import { kit, tenantApi } from "../../api"
 import { logout, me } from "../../auth"
+import { CommandPalette, CommandSearchButton } from "../../command-palette"
+import { NARROW_QUERY } from "../../layout"
 import { RealtimeContext, useRealtime } from "../../realtime"
 import { StatusControl } from "../../status"
 
@@ -21,6 +23,7 @@ export const Route = createFileRoute("/t/$slug")({
 function TenantLayout() {
   const tenant = Route.useLoaderData()
   const user = useQuery({ queryKey: ["me"], queryFn: me })
+  const myStatus = useQuery({ queryKey: ["me", "status", tenant.slug], queryFn: () => tenantApi.member.myStatus() })
   const { tenants } = useTenant()
   const t = useT()
   // 实时推送：会话有变化时刷新收件箱的数量和会话；图标栏中收件箱的角标是“我的”会话中等待回复的数量。
@@ -34,6 +37,7 @@ function TenantLayout() {
     { label: t("nav.settings"), icon: <IconSettings size={16} />, to: settings },
     ...(tenants.length > 1 ? [{ label: t("nav.switch_tenant"), icon: <IconSwitchHorizontal size={16} />, to: "/" }] : []),
   ]
+  const statusColor = myStatus.data ? (myStatus.data.status === "online" ? "green" : "gray") : undefined
   // 页面中的时间按成员在偏好设置中选的时区显示，没有选时按浏览器的时区。
   // 二级导航 200px：收件箱列表、设置项都是短的中文，给收件箱、聊天这类铺满的模块留出更多宽度。
   return (
@@ -43,17 +47,21 @@ function TenantLayout() {
           title={tenant.name}
           settings={settings}
           navWidth={200}
+          compactQuery={NARROW_QUERY}
+          railTop={<CommandSearchButton />}
           user={
             <UserMenu
               name={user.data?.name}
               email={user.data?.email}
               avatar={user.data?.avatar_url || undefined}
+              statusColor={statusColor}
               position="right-end"
               items={items}
               logout={logout}
             />
           }
         />
+        <CommandPalette slug={tenant.slug} />
         {/* 个人菜单中切换我在这个工作区的在线状态 */}
         <Fill name="user-menu">
           <div className="tn-menu-section">

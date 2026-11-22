@@ -50,7 +50,7 @@ function Tone(): ReactNode {
   })
 
   return (
-    <Page title={t("tone.title")} description={t("tone.description")}>
+    <Page title={t("tone.title")} description={t("tone.description")} width="narrow">
       <form noValidate onSubmit={submit}>
         <Stack gap="md">
           <FormError error={error} />
