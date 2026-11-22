@@ -34,6 +34,7 @@ const (
 	ChannelsRead          Permission = "channels:read"           // 工作区：查看工作区的渠道列表（名称与类型）
 	ChannelsManage        Permission = "channels:manage"         // 工作区：新建、修改、停用渠道，查看渠道的嵌入代码和身份验证密钥
 	MacrosManage          Permission = "macros:manage"           // 工作区：新建、修改、删除共享的快捷回复
+	ViewsManage           Permission = "views:manage"            // 工作区：新建、修改、删除和排序共享视图
 	ReportsRead           Permission = "reports:read"            // 工作区：查看工作区报表与统计数据
 	ConversationsRead     Permission = "conversations:read"      // 工作区：查看会话和时间线
 	ConversationsReply    Permission = "conversations:reply"     // 工作区：回复会话、写内部备注，处理看得到的会话（关闭、稍后处理、重新打开、优先级）
@@ -47,7 +48,7 @@ const (
 // Permissions 是全部权限，显示文字是翻译文件中 permission.<权限> 的消息。
 var Permissions = enum.New("permission", enum.Item(TenantsRead), enum.Item(TenantsManage), enum.Item(PlatformAdminsManage), enum.Item(PlatformSettingsManage),
 	enum.Item(FeaturesManage), enum.Item(QueueManage), enum.Item(SchedulesManage), enum.Item(SystemRead), enum.Item(AuditRead),
-	enum.Item(MembersRead), enum.Item(MembersManage), enum.Item(TenantSettingsManage), enum.Item(TeamsRead), enum.Item(TeamsManage), enum.Item(ChannelsRead), enum.Item(ChannelsManage), enum.Item(MacrosManage), enum.Item(ReportsRead),
+	enum.Item(MembersRead), enum.Item(MembersManage), enum.Item(TenantSettingsManage), enum.Item(TeamsRead), enum.Item(TeamsManage), enum.Item(ChannelsRead), enum.Item(ChannelsManage), enum.Item(MacrosManage), enum.Item(ViewsManage), enum.Item(ReportsRead),
 	enum.Item(ConversationsRead), enum.Item(ConversationsReply), enum.Item(ConversationsAssign), enum.Item(ConversationsReadAll), enum.Item(ConversationsReadTeam),
 	enum.Item(ContactsRead), enum.Item(ContactsUpdate))
 
@@ -73,6 +74,7 @@ var Catalog = authz.Catalog{
 	{Name: string(ChannelsRead), Description: "查看渠道"},
 	{Name: string(ChannelsManage), Description: "管理渠道"},
 	{Name: string(MacrosManage), Description: "管理共享的快捷回复"},
+	{Name: string(ViewsManage), Description: "管理共享视图"},
 	{Name: string(ReportsRead), Description: "查看报表"},
 	{Name: string(ConversationsRead), Description: "查看会话"},
 	{Name: string(ConversationsReply), Description: "回复会话"},
@@ -103,7 +105,7 @@ type TenantPermission string
 // TenantPermissions 是可以勾选的操作权限，显示文字是翻译文件中 role_permission.<权限> 的消息。前缀与 Permissions 不同：
 // 枚举在接口文档中按前缀命名，同一个前缀的两个枚举会被当成同一个类型，平台的权限就成了可以勾选的权限。
 var TenantPermissions = enum.New("role_permission",
-	enum.Item(TenantPermission(ConversationsAssign)), enum.Item(TenantPermission(MacrosManage)), enum.Item(TenantPermission(ReportsRead)), enum.Item(TenantPermission(MembersManage)), enum.Item(TenantPermission(TeamsManage)), enum.Item(TenantPermission(ChannelsManage)), enum.Item(TenantPermission(TenantSettingsManage)))
+	enum.Item(TenantPermission(ConversationsAssign)), enum.Item(TenantPermission(MacrosManage)), enum.Item(TenantPermission(ViewsManage)), enum.Item(TenantPermission(ReportsRead)), enum.Item(TenantPermission(MembersManage)), enum.Item(TenantPermission(TeamsManage)), enum.Item(TenantPermission(ChannelsManage)), enum.Item(TenantPermission(TenantSettingsManage)))
 
 // Schema 让 OpenAPI 中的 TenantPermission 只接受上面的取值，并带有显示文字。
 func (TenantPermission) Schema(r huma.Registry) *huma.Schema {

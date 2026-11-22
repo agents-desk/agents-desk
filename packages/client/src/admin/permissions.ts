@@ -27,6 +27,7 @@ export const permissions = {
   "tenant-settings:manage": "管理工作区设置",
   "tenants:manage": "管理工作区",
   "tenants:read": "查看工作区",
+  "views:manage": "管理共享视图",
 } as const
 
 /** 权限名。 */

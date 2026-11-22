@@ -78,12 +78,28 @@ export const enums = {
       "zh-CN": { me: "指派给我", member: "指派给指定成员", clear: "取消负责人" },
     },
   },
+  ConversationAssigneeFilterMode: {
+    prefix: "conversation.assignee_filter_mode",
+    values: ["me", "unassigned", "member"],
+    labels: {
+      "en": { me: "Assigned to me", unassigned: "Unassigned", member: "Specific member" },
+      "zh-CN": { me: "负责人是我", unassigned: "无负责人", member: "指定成员" },
+    },
+  },
   ConversationAttachmentKind: {
     prefix: "conversation.attachment_kind",
     values: ["image", "file"],
     labels: {
       "en": { image: "Image", file: "File" },
       "zh-CN": { image: "图片", file: "文件" },
+    },
+  },
+  ConversationAttributeOp: {
+    prefix: "conversation.attribute_op",
+    values: ["eq", "neq", "contains", "gt", "gte", "lt", "lte", "in", "is_set", "is_empty"],
+    labels: {
+      "en": { eq: "Equals", neq: "Does not equal", contains: "Contains", gt: "Greater than", gte: "Greater than or equal", lt: "Less than", lte: "Less than or equal", in: "Matches any option", is_set: "Is set", is_empty: "Is empty" },
+      "zh-CN": { eq: "等于", neq: "不等于", contains: "包含", gt: "大于", gte: "大于等于", lt: "小于", lte: "小于等于", in: "包含任一选项", is_set: "已填写", is_empty: "未填写" },
     },
   },
   ConversationDelivery: {
@@ -158,12 +174,28 @@ export const enums = {
       "zh-CN": { close: "关闭会话", snooze: "稍后处理" },
     },
   },
+  ConversationTagMatch: {
+    prefix: "conversation.tag_match",
+    values: ["any", "all"],
+    labels: {
+      "en": { any: "Matches any tag", all: "Matches all tags" },
+      "zh-CN": { any: "命中任一标签", all: "同时命中全部标签" },
+    },
+  },
   ConversationTeamChangeMode: {
     prefix: "conversation.team_change_mode",
     values: ["set", "clear"],
     labels: {
       "en": { set: "Assign to team inbox", clear: "Remove from team inbox" },
       "zh-CN": { set: "指派到团队收件箱", clear: "移出团队收件箱" },
+    },
+  },
+  ConversationTeamFilterMode: {
+    prefix: "conversation.team_filter_mode",
+    values: ["my_teams", "unassigned", "ids"],
+    labels: {
+      "en": { my_teams: "My team inboxes", unassigned: "No team inbox", ids: "Specific team inboxes" },
+      "zh-CN": { my_teams: "我所在的团队收件箱", unassigned: "未分配团队收件箱", ids: "指定团队收件箱" },
     },
   },
   ConversationVisibility: {
@@ -208,10 +240,18 @@ export const enums = {
   },
   RolePermission: {
     prefix: "role_permission",
-    values: ["conversations:assign", "macros:manage", "reports:read", "members:manage", "teams:manage", "channels:manage", "tenant-settings:manage"],
+    values: ["conversations:assign", "macros:manage", "views:manage", "reports:read", "members:manage", "teams:manage", "channels:manage", "tenant-settings:manage"],
     labels: {
-      "en": { "conversations:assign": "Reassign conversations to others", "macros:manage": "Manage shared quick replies", "reports:read": "View reports", "members:manage": "Manage members and roles", "teams:manage": "Manage team inboxes", "channels:manage": "Manage channels", "tenant-settings:manage": "Manage workspace settings" },
-      "zh-CN": { "conversations:assign": "把会话改派给别人", "macros:manage": "管理共享的快捷回复", "reports:read": "查看报表", "members:manage": "管理成员和角色", "teams:manage": "管理团队收件箱", "channels:manage": "管理渠道", "tenant-settings:manage": "管理工作区设置" },
+      "en": { "conversations:assign": "Reassign conversations to others", "macros:manage": "Manage shared quick replies", "views:manage": "Manage shared views", "reports:read": "View reports", "members:manage": "Manage members and roles", "teams:manage": "Manage team inboxes", "channels:manage": "Manage channels", "tenant-settings:manage": "Manage workspace settings" },
+      "zh-CN": { "conversations:assign": "把会话改派给别人", "macros:manage": "管理共享的快捷回复", "views:manage": "管理共享视图", "reports:read": "查看报表", "members:manage": "管理成员和角色", "teams:manage": "管理团队收件箱", "channels:manage": "管理渠道", "tenant-settings:manage": "管理工作区设置" },
+    },
+  },
+  SavedviewScope: {
+    prefix: "savedview.scope",
+    values: ["shared", "personal"],
+    labels: {
+      "en": { shared: "Shared", personal: "Personal" },
+      "zh-CN": { shared: "共享", personal: "个人" },
     },
   },
   TagColor: {

@@ -81,6 +81,8 @@ export const ConversationErrors = {
   RatingNotRequested: "conversation.rating_not_requested",
   /** ErrAlreadyRated 是客户已经评价过这次关闭的会话；会话重新打开、再关闭后可以再评价。 */
   AlreadyRated: "conversation.already_rated",
+  /** ErrInvalidFilter 是视图或列表传入的筛选条件不合法。 */
+  InvalidFilter: "conversation.invalid_filter",
   /** ErrInvalidLanguage 是设置的对方语言不是合法的 BCP 47 标签。 */
   InvalidLanguage: "conversation.invalid_language",
   /** ErrNotFailed 是要重发的消息没有发送失败：还在发送中，或者已经送达。 */
@@ -404,6 +406,22 @@ export const RatelimitErrors = {
    * 即下一次调用可以成功的最短等待时间。
    */
   Exceeded: "rate_limit.exceeded",
+} as const
+
+/** github.com/go-tenon/tenon/savedview 的错误码。 */
+export const SavedviewErrors = {
+  /** ErrNotFound 表示视图不存在、属于其他租户或业务对象，或属于其他主体的个人视图。 */
+  NotFound: "savedview.not_found",
+  /** ErrForbidden 表示调用者没有权限管理该视图。 */
+  Forbidden: "savedview.forbidden",
+  /** ErrNameTaken 表示同一租户、对象和作用域下已存在同名视图（忽略大小写）。 */
+  NameTaken: "savedview.name_taken",
+  /** ErrInvalidName 表示视图名称为空或超出允许的最大字符数。 */
+  InvalidName: "savedview.invalid_name",
+  /** ErrInvalidScope 表示视图作用域取值不合法。 */
+  InvalidScope: "savedview.invalid_scope",
+  /** ErrLimitExceeded 表示该作用域下的视图数量已达到上限。 */
+  LimitExceeded: "savedview.limit_exceeded",
 } as const
 
 /** github.com/go-tenon/tenon/schedule/scheduleapi 的错误码。 */

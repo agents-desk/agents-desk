@@ -48,6 +48,45 @@
   color: var(--mantine-primary-color-light-color);
 }
 
+/* 二级导航中的视图项：平时显示计数，悬停或键盘聚焦且可编辑时平滑切出操作菜单 */
+.inbox-view-row {
+  position: relative;
+}
+
+.inbox-view-actions {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease;
+}
+
+.inbox-view-row[data-editable]:hover .inbox-view-actions,
+.inbox-view-row[data-editable]:focus-within .inbox-view-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.inbox-view-row[data-editable]:hover .inbox-view-count,
+.inbox-view-row[data-editable]:focus-within .inbox-view-count {
+  opacity: 0;
+}
+
+/* 视图临时微调后的脏状态提示条与自定义属性条件卡片 */
+.inbox-view-dirty {
+  border-radius: var(--mantine-radius-sm);
+  background: var(--mantine-color-deep-orange-light);
+  border: 1px solid color-mix(in srgb, var(--mantine-color-deep-orange-6) 28%, transparent);
+}
+
+.inbox-attr-cond {
+  border-radius: var(--mantine-radius-sm);
+  background: var(--tn-canvas);
+  border: 1px solid var(--tn-border);
+}
+
 /* 会话顶部联系人名字链接：悬停时显出品牌色与下划线，提示可点进联系人档案 */
 .inbox-contact-link {
   color: inherit;

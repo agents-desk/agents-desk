@@ -17,6 +17,7 @@ import (
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/login"
+	"github.com/go-tenon/tenon/savedview"
 
 	"agents-desk/internal/attribute"
 	"agents-desk/internal/auth"
@@ -143,6 +144,9 @@ func seed(ctx context.Context, out io.Writer, db *bun.DB, adminLogins, memberLog
 		return err
 	}
 	if err := seedConversations(ctx, out, db, memberLogins, inDemo, channels, down); err != nil {
+		return err
+	}
+	if err := seedViews(ctx, out, db, memberLogins, inDemo, down); err != nil {
 		return err
 	}
 	if err := seedWidget(ctx, out, db, keys, inDemo); err != nil {
@@ -724,5 +728,81 @@ func seedReportHistory(ctx context.Context, out io.Writer, db *bun.DB, memberLog
 		}
 	}
 	fmt.Fprintf(out, "已在示例工作区中写入 %d 轮报表历史与 %d 条翻译调用记录\n", len(samples), len(calls))
+	return nil
+}
+
+// seedViews 在示例工作区中写入共享和个人示例视图，已存在同名视图的跳过。
+func seedViews(ctx context.Context, out io.Writer, db *bun.DB, memberLogins *login.Realm, inDemo identity.Subject, down conversation.Downstream) error {
+	create := conversation.NewCreateView(db, down)
+	waiting := true
+	shared := []conversation.ViewCreateParams{
+		{
+			Scope: savedview.ScopeShared,
+			Name:  "待回复会话",
+			Config: conversation.ViewConfig{
+				Filter: conversation.Filter{
+					Statuses: []conversation.Status{conversation.Open},
+					Waiting:  &waiting,
+				},
+				Sort: conversation.ByWaiting,
+			},
+		},
+		{
+			Scope: savedview.ScopeShared,
+			Name:  "退款咨询",
+			Config: conversation.ViewConfig{
+				Filter: conversation.Filter{
+					Statuses: []conversation.Status{conversation.Open},
+					Attributes: []conversation.AttributeFilter{
+						{Key: "issue_type", Op: conversation.AttrOpEq, Value: "退款"},
+					},
+				},
+				Sort: conversation.ByWaiting,
+			},
+		},
+	}
+
+	created := 0
+	for _, p := range shared {
+		_, err := create.Handle(ctx, inDemo, p)
+		switch {
+		case errors.Is(err, savedview.ErrNameTaken):
+		case err != nil:
+			return err
+		default:
+			created++
+		}
+	}
+
+	agentRef, err := memberLogins.Lookup(ctx, login.Email("agent@example.com"))
+	if err != nil {
+		return err
+	}
+	agentSub := identity.Subject{Type: member.Type, ID: agentRef.ID, Tenant: inDemo.Tenant, Permissions: []string{string(auth.ConversationsRead)}}
+	_, err = create.Handle(ctx, agentSub, conversation.ViewCreateParams{
+		Scope: savedview.ScopePersonal,
+		Name:  "我负责的待回复",
+		Config: conversation.ViewConfig{
+			Filter: conversation.Filter{
+				Statuses: []conversation.Status{conversation.Open},
+				Assignee: &conversation.AssigneeFilter{Mode: conversation.AssigneeFilterMe},
+				Waiting:  &waiting,
+			},
+			Sort: conversation.ByWaiting,
+		},
+	})
+	switch {
+	case errors.Is(err, savedview.ErrNameTaken):
+	case err != nil:
+		return err
+	default:
+		created++
+	}
+
+	if created > 0 {
+		fmt.Fprintf(out, "已在示例工作区中创建 %d 个示例视图\n", created)
+	} else {
+		fmt.Fprintln(out, "示例工作区已有示例视图，跳过")
+	}
 	return nil
 }

@@ -597,6 +597,44 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
           invalidate(context, "translation"),
       }),
     },
+    view: {
+      /** view 分组全部查询的 key 前缀。 */
+      key: () => key("view"),
+      /** POST /views */
+      create: () => ({
+        mutationFn: (variables: Parameters<Client["view"]["create"]>[0]) => client.view.create(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "view"),
+      }),
+      /** DELETE /views/{id} */
+      delete: () => ({
+        mutationFn: (variables: Parameters<Client["view"]["delete"]>[0]) => client.view.delete(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "view"),
+      }),
+      /** GET /views/{id} */
+      get: (...args: Parameters<Client["view"]["get"]>) => ({
+        queryKey: key("view", "get", ...args),
+        queryFn: () => client.view.get(...args),
+      }),
+      /** GET /views */
+      list: (...args: Parameters<Client["view"]["list"]>) => ({
+        queryKey: key("view", "list", ...args),
+        queryFn: () => client.view.list(...args),
+      }),
+      /** PUT /views/reorder */
+      reorder: () => ({
+        mutationFn: (variables: Parameters<Client["view"]["reorder"]>[0]) => client.view.reorder(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "view"),
+      }),
+      /** PUT /views/{id} */
+      update: () => ({
+        mutationFn: (variables: Parameters<Client["view"]["update"]>) => client.view.update(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "view"),
+      }),
+    },
     widget: {
       /** widget 分组全部查询的 key 前缀。 */
       key: () => key("widget"),

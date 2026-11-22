@@ -97,6 +97,7 @@ tenant.status.disabled: 已停用
 "permission.channels:read": 查看渠道
 "permission.channels:manage": 管理渠道
 "permission.macros:manage": 管理共享的快捷回复
+"permission.views:manage": 管理共享视图
 "permission.reports:read": 查看报表
 
 role.owner: 主管理员
@@ -115,6 +116,7 @@ conversation_scope.team: 所在团队收件箱的和指派给自己的会话
 conversation_scope.assigned: 只有指派给自己的会话
 "role_permission.conversations:assign": 把会话改派给别人
 "role_permission.macros:manage": 管理共享的快捷回复
+"role_permission.views:manage": 管理共享视图
 "role_permission.reports:read": 查看报表
 "role_permission.members:manage": 管理成员和角色
 "role_permission.teams:manage": 管理团队收件箱
@@ -352,6 +354,25 @@ schedule.task.conversations_unsnooze.label: 唤醒到期稍后处理会话
 schedule.task.conversations_unsnooze.description: 重新打开稍后处理到期的会话
 
 conversation.invalid_actions: 附带操作的参数无效
+conversation.invalid_filter: 筛选条件配置无效
+conversation.team_filter_mode.my_teams: 我所在的团队收件箱
+conversation.team_filter_mode.unassigned: 未分配团队收件箱
+conversation.team_filter_mode.ids: 指定团队收件箱
+conversation.assignee_filter_mode.me: 负责人是我
+conversation.assignee_filter_mode.unassigned: 无负责人
+conversation.assignee_filter_mode.member: 指定成员
+conversation.tag_match.any: 命中任一标签
+conversation.tag_match.all: 同时命中全部标签
+conversation.attribute_op.eq: 等于
+conversation.attribute_op.neq: 不等于
+conversation.attribute_op.contains: 包含
+conversation.attribute_op.gt: 大于
+conversation.attribute_op.gte: 大于等于
+conversation.attribute_op.lt: 小于
+conversation.attribute_op.lte: 小于等于
+conversation.attribute_op.in: 包含任一选项
+conversation.attribute_op.is_set: 已填写
+conversation.attribute_op.is_empty: 未填写
 conversation.team_change_mode.set: 指派到团队收件箱
 conversation.team_change_mode.clear: 移出团队收件箱
 conversation.assignee_change_mode.me: 指派给我

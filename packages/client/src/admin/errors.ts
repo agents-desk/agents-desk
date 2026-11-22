@@ -190,6 +190,22 @@ export const RatelimitErrors = {
   Exceeded: "rate_limit.exceeded",
 } as const
 
+/** github.com/go-tenon/tenon/savedview 的错误码。 */
+export const SavedviewErrors = {
+  /** ErrNotFound 表示视图不存在、属于其他租户或业务对象，或属于其他主体的个人视图。 */
+  NotFound: "savedview.not_found",
+  /** ErrForbidden 表示调用者没有权限管理该视图。 */
+  Forbidden: "savedview.forbidden",
+  /** ErrNameTaken 表示同一租户、对象和作用域下已存在同名视图（忽略大小写）。 */
+  NameTaken: "savedview.name_taken",
+  /** ErrInvalidName 表示视图名称为空或超出允许的最大字符数。 */
+  InvalidName: "savedview.invalid_name",
+  /** ErrInvalidScope 表示视图作用域取值不合法。 */
+  InvalidScope: "savedview.invalid_scope",
+  /** ErrLimitExceeded 表示该作用域下的视图数量已达到上限。 */
+  LimitExceeded: "savedview.limit_exceeded",
+} as const
+
 /** github.com/go-tenon/tenon/schedule/scheduleapi 的错误码。 */
 export const ScheduleapiErrors = {
   /** ErrNotFound 表示没有这个定时任务。 */
