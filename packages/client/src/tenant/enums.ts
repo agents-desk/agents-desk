@@ -78,6 +78,14 @@ export const enums = {
       "zh-CN": { me: "指派给我", member: "指派给指定成员", clear: "取消负责人" },
     },
   },
+  ConversationAttachmentKind: {
+    prefix: "conversation.attachment_kind",
+    values: ["image", "file"],
+    labels: {
+      "en": { image: "Image", file: "File" },
+      "zh-CN": { image: "图片", file: "文件" },
+    },
+  },
   ConversationDelivery: {
     prefix: "conversation.delivery",
     values: ["sending", "delivered", "read", "failed"],

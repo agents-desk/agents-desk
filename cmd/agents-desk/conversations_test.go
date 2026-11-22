@@ -86,7 +86,7 @@ func TestConversations(t *testing.T) {
 	if r := call(h, "POST", "/t/alpha/api/conversations/"+id+"/notes", `{"text":"内部备注"}`, agent); r.status != http.StatusCreated || !strings.Contains(r.body, `"visibility":"members"`) {
 		t.Fatalf("内部备注：%d %s", r.status, r.body)
 	}
-	if r := call(h, "POST", "/t/alpha/api/conversations/"+id+"/replies", `{"text":""}`, agent); fieldOf(r.body) != "body.text" {
+	if r := call(h, "POST", "/t/alpha/api/conversations/"+id+"/replies", `{"text":""}`, agent); r.status != http.StatusUnprocessableEntity || !strings.Contains(r.body, `"code":"conversation.empty_message"`) {
 		t.Errorf("空回复：%d %s", r.status, r.body)
 	}
 	// 增量读取：序号 1 之后是回复即领取的系统事件、回复和备注

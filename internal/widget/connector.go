@@ -20,9 +20,9 @@ type Connector struct {
 // NewConnector 返回聊天插件的连接器，hub 把推送送到各实例上的实时连接。
 func NewConnector(hub *broadcast.Hub) Connector { return Connector{hub: hub} }
 
-// Capabilities 返回聊天插件的能力：文字消息，有已读回执，客户可以有多个会话、自己选择继续哪一个。
+// Capabilities 返回聊天插件的能力：文字、图片和文件消息，有已读回执，客户可以有多个会话、自己选择继续哪一个。
 func (Connector) Capabilities() channel.Capabilities {
-	return channel.Capabilities{MessageTypes: []string{"text"}, ReadReceipts: true, MultipleConversations: true}
+	return channel.Capabilities{MessageTypes: []string{"text", "image", "file"}, ReadReceipts: true, MultipleConversations: true}
 }
 
 // Push 把会话的变化 ev 推送到联系人 contactID 在聊天插件 channelID 中的实时频道，作为 conversation.Downstream 的

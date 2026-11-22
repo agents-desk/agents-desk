@@ -63,6 +63,8 @@ export const ContactErrors = {
 export const ConversationErrors = {
   /** ErrInvalidActions 是附带操作的参数不完整或互相冲突（例如空的批量操作、set 模式缺少 ID、snooze 缺少 until）。 */
   InvalidActions: "conversation.invalid_actions",
+  /** ErrEmptyMessage 是消息或内部备注既没有文字也没有附件。 */
+  EmptyMessage: "conversation.empty_message",
   /** ErrAlreadyAssigned 是要领取的会话已经被别人领取了：两个人同时领取时，先到者生效。 */
   AlreadyAssigned: "conversation.already_assigned",
   /** ErrClosed 是会话已经关闭，不能执行这个操作，例如稍后处理一个已关闭的会话。 */

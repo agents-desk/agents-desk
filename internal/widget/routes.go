@@ -9,11 +9,13 @@ import (
 
 	"github.com/go-tenon/tenon/apitoken"
 	"github.com/go-tenon/tenon/crypt"
+	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/httpx/rest"
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/auth"
 	"agents-desk/internal/conversation"
+	"agents-desk/internal/file"
 )
 
 // RegisterRoutes 在工作区的 API（/t/{slug}/api）中注册聊天插件的管理：列表、新建、修改、嵌入代码和身份验证密钥，
@@ -106,10 +108,10 @@ type ReadInput struct {
 	}
 }
 
-// RegisterVisitorRoutes 在聊天插件的 API（/w/{channel}/api，前面是 Middleware）中注册客户用的接口：公开设置、建立会话，
+// RegisterVisitorRoutes 在聊天插件的 API（/w/{channel}/api，前面是 Middleware）中注册客户用的接口：公开设置、建立会话、上传附件，
 // 以及客户以联系人的身份读取自己的会话和时间线、发消息、标记已读、评价已关闭的会话、告诉成员自己正在输入。requireContact 要求联系人的令牌（Authorization: Bearer）；
-// tokens 签发联系人的令牌，registry 和 down 交给写入收到的消息的动作。
-func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), db *bun.DB, c *crypt.Crypt, tokens *apitoken.Store, receive *conversation.Receive, down conversation.Downstream) {
+// tokens 签发联系人的令牌，receive 写入收到的消息，down 和 maxUpload 用于推送、附件确认与上传大小上限。
+func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), db *bun.DB, c *crypt.Crypt, tokens *apitoken.Store, receive *conversation.Receive, down conversation.Downstream, maxUpload filesystem.ByteSize) {
 	route := func(access func(*huma.Operation), id, method, path, summary string) huma.Operation {
 		op := huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary}
 		access(&op)
@@ -129,10 +131,12 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 
 	sendMessage := NewSendMessage(db, receive)
 	leaveEmail := NewLeaveEmail(db, down)
-	list, get, items := conversation.NewListForContact(db), conversation.NewGetForContact(db), conversation.NewTimelineForContact(db)
+	list, get, items := conversation.NewListForContact(db), conversation.NewGetForContact(db), conversation.NewTimelineForContact(db, down.Media)
 	markRead := conversation.NewMarkReadByContact(db, down)
 	rate := conversation.NewRateByContact(db, down)
 	typing := conversation.NewTypingByContact(db, down)
+
+	file.RegisterRoutes(api, requireContact, down.Media.Files, maxUpload)
 
 	rest.Register(api, route(public, "widget-config", http.MethodGet, "/config", "聊天插件的公开设置"), NewGetConfig().HTTP)
 	rest.Register(api, route(public, "widget-session", http.MethodPost, "/session", "建立会话"), NewStartSession(db, c, tokens, down).HTTP)

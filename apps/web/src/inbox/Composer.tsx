@@ -3,6 +3,7 @@ import type {
   ConversationActions,
   ConversationDTO,
   ConversationTranslation,
+  File as UploadedFile,
   MacroDTO,
   MemberTenantMember,
   TagDTO,
@@ -16,6 +17,7 @@ import {
   Box,
   Button,
   Code,
+  FileButton,
   Group,
   Loader,
   Menu,
@@ -28,8 +30,9 @@ import {
   UnstyledButton,
 } from "@mantine/core"
 import { useOs } from "@mantine/hooks"
+import { notifications } from "@mantine/notifications"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { IconChevronDown, IconLanguage, IconLock, IconMessageBolt, IconX } from "@tabler/icons-react"
+import { IconChevronDown, IconLanguage, IconLock, IconMessageBolt, IconPaperclip, IconX } from "@tabler/icons-react"
 import { describeError } from "@go-tenon/client"
 import {
   errorMessage,
@@ -41,6 +44,7 @@ import {
   useT,
   useTextTrigger,
   useTimeZone,
+  useUploadQueue,
 } from "@go-tenon/ui"
 import { type ReactNode, type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
@@ -58,6 +62,7 @@ import {
   resolveMacroActions,
   toConversationActions,
 } from "../macros/template"
+import { ATTACHMENT_ACCEPT, AttachmentStrip, attachmentMaxSize, MAX_ATTACHMENTS } from "./Attachments"
 import { useAttributes, useMacros, useMe, useMembers, useTags, useTeams } from "./data"
 import { clearDraft, type DraftMode, getDraft, saveDraft } from "./drafts"
 import { snoozeOptions } from "./menus"
@@ -110,6 +115,9 @@ export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTypi
   const [mentionIds, setMentionIds] = useState<string[]>(() => getDraft(c.id)?.mentionIds ?? [])
   const [pendingActions, setPendingActions] = useState<PendingActions>(emptyPendingActions)
   const [macroWarnings, setMacroWarnings] = useState<MacroWarning[]>([])
+  const [dragging, setDragging] = useState(false)
+  const dragDepth = useRef(0)
+  const resetFile = useRef<() => void>(null)
 
   const localArea = useRef<HTMLTextAreaElement>(null)
   const area = inputRef ?? localArea
@@ -117,6 +125,15 @@ export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTypi
   const note = mode === "note"
   const hasPending = !note && hasPendingActions(pendingActions)
   const preview = useReplyTranslation(c.id, !note ? value : "")
+  const queue = useUploadQueue<UploadedFile>({
+    upload: (file) => tenantApi.file.upload({ file }),
+    accept: ATTACHMENT_ACCEPT,
+    maxFiles: MAX_ATTACHMENTS,
+    maxSize: attachmentMaxSize,
+    onError: (message) => notifications.show({ color: "red", message }),
+  })
+  const attachmentIds = queue.ready.map((f) => f.id)
+  const hasContent = Boolean(value) || attachmentIds.length > 0
 
   // 实时保存草稿，切换会话后再回来不丢失已输入内容与模式
   useEffect(() => {
@@ -125,10 +142,15 @@ export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTypi
 
   const send = useMutation({
     mutationFn: async ({ after, translation }: { after: After; translation?: ConversationTranslation }) => {
+      const attachments = attachmentIds.length > 0 ? attachmentIds : undefined
       if (mode === "note") {
         // 只算还留在文字中的 @
         const ids = members.filter((m) => mentionIds.includes(m.id) && value.includes(`@${m.name}`)).map((m) => m.id)
-        await tenantApi.conversation.note(c.id, { text: value, mentions: ids.length > 0 ? ids : undefined })
+        await tenantApi.conversation.note(c.id, {
+          text: value || undefined,
+          mentions: ids.length > 0 ? ids : undefined,
+          attachments,
+        })
         return
       }
       // 合并草稿附带操作与发送下拉菜单中的显式状态操作（下拉菜单优先级更高）
@@ -138,8 +160,8 @@ export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTypi
       } else if (after.kind === "snooze") {
         actions = { ...(actions ?? {}), status: { kind: "snooze", until: after.until.toISOString() } }
       }
-      if (value) {
-        await tenantApi.conversation.reply(c.id, { text: value, translation, actions })
+      if (value || attachments) {
+        await tenantApi.conversation.reply(c.id, { text: value || undefined, translation, attachments, actions })
       } else if (actions) {
         await tenantApi.conversation.applyActions(c.id, actions)
       }
@@ -150,21 +172,22 @@ export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTypi
       setMentionIds([])
       setPendingActions(emptyPendingActions())
       setMacroWarnings([])
+      queue.clear()
       preview.reset()
       void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
     },
     onError: (err) => notifyError(err),
   })
 
-  // 发送：有文字且需要翻译时先确保译文与当前原文一致；无文字仅有附带操作时直接应用操作
+  // 发送：有文字且需要翻译时先确保译文与当前原文一致；无文字仅有附件或附带操作时直接发送/应用
   const submit = async (after: After) => {
-    if (send.isPending || (!note && preview.pending)) return
+    if (queue.uploading || queue.hasError || send.isPending || (!note && preview.pending)) return
     if (note) {
-      if (!value) return
+      if (!hasContent) return
       return send.mutate({ after })
     }
     if (!value) {
-      if (!hasPending && after.kind === "none") return
+      if (!hasContent && !hasPending && after.kind === "none") return
       return send.mutate({ after })
     }
     if (!preview.active) return send.mutate({ after })
@@ -290,17 +313,45 @@ export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTypi
     trigger.close()
   }
 
-  const canSubmit = note ? !!value : !!value || hasPending
+  const canSubmit =
+    !queue.uploading && !queue.hasError && !send.isPending && !(!note && preview.pending) && (note ? hasContent : hasContent || hasPending)
   const mainLabel = note
     ? t("inbox.add_note")
-    : !value && hasPending
+    : !hasContent && hasPending
       ? t("inbox.apply_actions")
       : preview.current?.needed
         ? t("inbox.send_translation")
         : t("inbox.send")
 
   return (
-    <Box className="inbox-composer" data-note={note || undefined} px="sm" pt={8} pb={10}>
+    <Box
+      className="inbox-composer"
+      data-note={note || undefined}
+      data-dragging={dragging || undefined}
+      px="sm"
+      pt={8}
+      pb={10}
+      onDragEnter={(e) => {
+        if (!e.dataTransfer.types.includes("Files")) return
+        e.preventDefault()
+        dragDepth.current++
+        setDragging(true)
+      }}
+      onDragOver={(e) => {
+        if (!e.dataTransfer.types.includes("Files")) return
+        e.preventDefault()
+      }}
+      onDragLeave={() => {
+        if (dragDepth.current === 0) return
+        dragDepth.current--
+        if (dragDepth.current === 0) setDragging(false)
+      }}
+      onDrop={(e) => {
+        dragDepth.current = 0
+        setDragging(false)
+        queue.handleDrop(e)
+      }}
+    >
       {/* 译文预览在最上面：它出现、变高、消失时，输入框和发送按钮的位置不动 */}
       {!note && <TranslationPreview c={c} preview={preview} onSendOriginal={() => preview.setTarget(NO_TRANSLATION)} />}
       {!note && (hasPending || macroWarnings.length > 0) && (
@@ -342,7 +393,13 @@ export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTypi
             </Text>
           </Group>
         )}
+        {dragging && (
+          <Text size="xs" c="brand" fw={500} ml="auto">
+            {t("inbox.attach_drop")}
+          </Text>
+        )}
       </Group>
+      <AttachmentStrip items={queue.items} onRemove={queue.remove} onRetry={queue.retry} />
       <Box pos="relative">
         <TriggerMenu
           trigger={trigger}
@@ -355,6 +412,9 @@ export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTypi
           ref={area}
           value={text}
           onChange={(e) => trigger.handleChange(e.currentTarget.value, e.currentTarget.selectionStart)}
+          onPaste={(e) => {
+            queue.handlePaste(e)
+          }}
           onKeyDown={(e) => {
             if (e.nativeEvent.isComposing) return
             if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "i") {
@@ -390,6 +450,23 @@ export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTypi
             </ActionIcon>
           </Tooltip>
         )}
+        <FileButton
+          resetRef={resetFile}
+          multiple
+          accept={ATTACHMENT_ACCEPT}
+          onChange={(files) => {
+            if (files.length > 0) queue.add(files)
+            resetFile.current?.()
+          }}
+        >
+          {(props) => (
+            <Tooltip label={t("inbox.attach")}>
+              <ActionIcon {...props} variant="subtle" color="gray" size="sm" aria-label={t("inbox.attach")}>
+                <IconPaperclip size={15} />
+              </ActionIcon>
+            </Tooltip>
+          )}
+        </FileButton>
         {!note && preview.enabled && !!value && !preview.shown && (
           <Tooltip label={t("inbox.choose_language")}>
             <ActionIcon variant="subtle" color="gray" size="sm" onClick={preview.pick} aria-label={t("inbox.choose_language")}>
@@ -414,7 +491,7 @@ export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTypi
           {!note && (
             <Menu position="top-end" withinPortal>
               <Menu.Target>
-                <Button size="xs" px={6} disabled={!value || send.isPending || preview.pending} className="inbox-send-menu" aria-label={t("inbox.send_options")}>
+                <Button size="xs" px={6} disabled={!canSubmit} className="inbox-send-menu" aria-label={t("inbox.send_options")}>
                   <IconChevronDown size={14} />
                 </Button>
               </Menu.Target>

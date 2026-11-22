@@ -25,6 +25,7 @@ import (
 	"github.com/go-tenon/tenon/filesystem/local"
 	"github.com/go-tenon/tenon/filesystem/s3"
 	"github.com/go-tenon/tenon/hashing"
+	"github.com/go-tenon/tenon/imgproxy"
 	"github.com/go-tenon/tenon/lock"
 	"github.com/go-tenon/tenon/lock/pglock"
 	"github.com/go-tenon/tenon/logging"
@@ -81,7 +82,8 @@ type App struct {
 	features            *feature.Store                            // 平台功能开关与灰度规则
 	translator          *translation.Translator                   // 调用模型识别语言和翻译
 
-	files       *filesystem.Service // 上传的文件：头像与导出文件等
+	files       *filesystem.Service // 上传的文件：头像、会话附件与导出文件等
+	images      *imgproxy.Proxy     // 图片缩略图地址生成；未配置 url 时返回原图地址
 	ops         *operation.Service  // 后台长任务状态与进度
 	exporter    *exports.Service    // 后台表格导出服务
 	defaultDisk filesystem.Disk     // 默认文件存储磁盘，用于运行环境自检
@@ -95,7 +97,12 @@ type App struct {
 // 会话的状态变化推送给客户的聊天窗口。
 // 没有广播时（只构造路由的命令）两种推送都不做。
 func (a *App) downstream() conversation.Downstream {
-	down := conversation.Downstream{Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic, translation.Topic, automation.Topic}, Hub: a.hub, Roles: a.roles}
+	down := conversation.Downstream{
+		Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic, translation.Topic, automation.Topic},
+		Hub:    a.hub,
+		Roles:  a.roles,
+		Media:  conversation.Media{Files: a.files, Images: a.images},
+	}
 	if a.hub != nil {
 		down.ContactPush = widget.Push(a.hub)
 	}
@@ -177,6 +184,10 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	images, err := imgproxy.New(cfg.Imgproxy)
+	if err != nil {
+		return nil, err
+	}
 	generalSettings, mailSettings := platformsettings.NewGeneralGroup(db), platformsettings.NewMailGroup(db)
 	llmSettings, translationSettings := llm.NewGroup(db), translation.NewGroup(db)
 	featureStore := flags.NewStore(db)
@@ -192,7 +203,7 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		llmSettings: llmSettings, translationSettings: translationSettings, features: featureStore,
 		ops: ops, exporter: exporter,
 		translator: translation.NewTranslator(db, llm.NewClient(db, llmSettings, &http.Client{Timeout: 60 * time.Second}), translationSettings),
-		files:      files, defaultDisk: disks[cfg.Filesystem.DefaultDisk], localDisk: localDisk, locker: lock.New(pglock.New(db)),
+		files:      files, images: images, defaultDisk: disks[cfg.Filesystem.DefaultDisk], localDisk: localDisk, locker: lock.New(pglock.New(db)),
 		channels: registry(hub),
 	}, nil
 }
@@ -217,7 +228,7 @@ func parts(a *App) []command.Part {
 func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
 	w := queue.NewWorker(a.db, a.nc, a.cfg.Queue, nil)
 	down := a.downstream()
-	conversation.RegisterJobs(w, a.db, a.channels)
+	conversation.RegisterJobs(w, a.db, a.channels, down.Media)
 	translation.RegisterJobs(w, a.db, a.locker, a.translator, down)
 	automation.RegisterJobs(w, a.db, a.locker, down)
 	tenant.RegisterJobs(w, a.db, a.memberLogins, tenant.Addresses{PublicURL: a.cfg.PublicURL}, a.hub, a.exporter)

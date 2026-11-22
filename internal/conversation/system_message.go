@@ -51,7 +51,7 @@ func (a *SendSystemMessage) Handle(ctx context.Context, sub identity.Subject, id
 	if err != nil {
 		return nil, err
 	}
-	dtos, err := toItemDTOs(ctx, a.db, []Item{item})
+	dtos, err := toItemDTOs(ctx, a.db, a.down.Media, []Item{item})
 	if err != nil {
 		return nil, err
 	}

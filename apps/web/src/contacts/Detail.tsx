@@ -24,6 +24,7 @@ import { IconArrowUpRight, IconCheck, IconChevronLeft, IconCopy, IconExternalLin
 import { notifyError, notifySuccess, useCan, useLanguage, useNarrow, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { kit, tenantApi } from "../api"
+import { previewSummary } from "../inbox/Attachments"
 import { activity } from "../inbox/format"
 import { LanguageSelect } from "../LanguageSelect"
 import { languageName } from "../languages"
@@ -204,8 +205,13 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
                         </Text>
                       </Group>
                       <Group justify="space-between" align="flex-end" gap="xs" wrap="nowrap">
-                        <Text size="xs" c={conv.preview ? undefined : "dimmed"} lineClamp={2} style={{ flex: 1, minWidth: 0 }}>
-                          {conv.preview || "—"}
+                        <Text
+                          size="xs"
+                          c={conv.preview || conv.preview_attachment ? undefined : "dimmed"}
+                          lineClamp={2}
+                          style={{ flex: 1, minWidth: 0 }}
+                        >
+                          {previewSummary(conv.preview, conv.preview_attachment, t) || "—"}
                         </Text>
                         <Text
                           size="xs"

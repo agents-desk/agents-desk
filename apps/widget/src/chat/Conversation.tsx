@@ -1,11 +1,12 @@
-import type { ConversationContactItemDTO } from "@agents-desk/client/widget"
+import type { ConversationAttachmentDTO, ConversationContactItemDTO } from "@agents-desk/client/widget"
 import { Box, Button, Divider, Stack, Text, UnstyledButton } from "@mantine/core"
 import { IconArrowDown } from "@tabler/icons-react"
 import { useQueryClient } from "@tanstack/react-query"
-import { useLanguage, useT } from "@go-tenon/ui"
+import { ImageLightbox, useLanguage, useT } from "@go-tenon/ui"
 import { Fragment, type ReactNode, useEffect, useRef, useState } from "react"
 import { authed, widgetApi } from "../api"
 import { useIdentity } from "../realtime"
+import { type LightboxImage, WidgetMessageAttachments } from "./Attachments"
 import { Composer } from "./Composer"
 import { onBrandColor } from "./contrast"
 import { clock, dayLabel, sameDay } from "./format"
@@ -29,6 +30,7 @@ function canGroup(prev: ConversationContactItemDTO | undefined, cur: Conversatio
 interface Pending {
   clientId: string // 重试时带同一个编号，消息只记录一次
   text: string
+  attachments: ConversationAttachmentDTO[]
   failed: boolean
 }
 
@@ -68,6 +70,7 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
   const prevCount = useRef(0)
   const [showScrollDown, setShowScrollDown] = useState(false)
   const [unseenCount, setUnseenCount] = useState(0)
+  const [lightbox, setLightbox] = useState<LightboxImage | null>(null)
   const lastRead = useRef(0)
 
   const list: ConversationContactItemDTO[] = id ? (items.data ?? []) : []
@@ -155,7 +158,11 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
   const send = async (p: Pending) => {
     setPending((all) => [...all.filter((x) => x.clientId !== p.clientId), { ...p, failed: false }])
     try {
-      const body = { text: p.text, client_id: p.clientId }
+      const body = {
+        text: p.text || undefined,
+        attachments: p.attachments.length > 0 ? p.attachments.map((a) => a.file_id) : undefined,
+        client_id: p.clientId,
+      }
       const sent = await authed(() => (id ? widgetApi.conversation.send(id, body) : widgetApi.conversation.start(body)))
       await queryClient.invalidateQueries({ queryKey: ["widget", contact?.id] })
       setPending((all) => all.filter((x) => x.clientId !== p.clientId))
@@ -220,11 +227,13 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
                       mine={it.author.type === "contact"}
                       author={!groupedWithPrev ? (it.author.type === "member" ? it.author.name : it.author.type === "system" ? name : undefined) : undefined}
                       text={promptText(it.prompt, it.text, language, t)}
+                      attachments={it.attachments}
                       meta={!groupedWithNext ? clock(it.created_at, language) : undefined}
                       color={color}
                       first={!groupedWithPrev}
                       last={!groupedWithNext}
                       mt={gapTop}
+                      onPreview={setLightbox}
                     />
                   )}
                 </Fragment>
@@ -235,11 +244,13 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
                 key={p.clientId}
                 mine
                 text={p.text}
+                attachments={p.attachments}
                 color={color}
                 first={idx === 0}
                 last={idx === pending.length - 1}
                 mt={idx === 0 ? 10 : 4}
                 state={p.failed ? "failed" : "sending"}
+                onPreview={setLightbox}
                 meta={
                   p.failed ? (
                     <>
@@ -283,9 +294,10 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
         color={color}
         touch={touch}
         placeholder={t(closed ? "composer.reopen_placeholder" : "composer.placeholder")}
-        onSend={(text) => void send({ clientId: newClientId(), text, failed: false })}
+        onSend={(text, attachments) => void send({ clientId: newClientId(), text, attachments, failed: false })}
         onTyping={typing}
       />
+      <ImageLightbox src={lightbox?.src ?? null} filename={lightbox?.filename} onClose={() => setLightbox(null)} />
     </>
   )
 }
@@ -295,23 +307,28 @@ function Bubble({
   mine,
   author,
   text,
+  attachments,
   meta,
   color,
   first = true,
   last = true,
   mt = 0,
   state,
+  onPreview,
 }: {
   mine: boolean
   author?: string
   text: string
+  attachments?: ConversationAttachmentDTO[]
   meta?: ReactNode
   color: string
   first?: boolean
   last?: boolean
   mt?: number
   state?: "sending" | "failed"
+  onPreview: (image: LightboxImage) => void
 }): ReactNode {
+  const mediaOnly = !text && Boolean(attachments?.length) && attachments!.every((a) => a.kind === "image")
   return (
     <Box
       mt={mt}
@@ -328,10 +345,12 @@ function Bubble({
         data-first={first || undefined}
         data-last={last || undefined}
         data-state={state}
+        data-media-only={mediaOnly || undefined}
         bg={mine ? (state === "failed" ? "red.1" : `var(--mantine-color-${color}-filled)`) : undefined}
         c={mine ? (state === "failed" ? "red.8" : onBrandColor(color)) : undefined}
       >
-        <Linkify text={text} />
+        {text && <Linkify text={text} />}
+        <WidgetMessageAttachments attachments={attachments} hasText={Boolean(text)} mine={mine} onPreview={onPreview} />
       </Box>
       {meta && (
         <Text size="xs" c={state === "failed" ? "red" : "dimmed"} mx={4} mt={2} component="div" style={{ fontVariantNumeric: "tabular-nums" }}>

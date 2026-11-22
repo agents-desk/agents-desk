@@ -22,6 +22,14 @@ export const enums = {
       "zh-CN": { contact: "联系人", member: "成员", system: "系统" },
     },
   },
+  ConversationAttachmentKind: {
+    prefix: "conversation.attachment_kind",
+    values: ["image", "file"],
+    labels: {
+      "en": { image: "Image", file: "File" },
+      "zh-CN": { image: "图片", file: "文件" },
+    },
+  },
   ConversationItemKind: {
     prefix: "conversation.item_kind",
     values: ["message", "note", "event"],

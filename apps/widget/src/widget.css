@@ -166,7 +166,6 @@ body {
 .w-bubble[data-state="sending"] {
   opacity: 0.6;
 }
-
 @keyframes w-panel-in {
   from {
     opacity: 0;
@@ -214,4 +213,121 @@ body {
   .w-conversation:hover .w-conversation-arrow {
     transform: none;
   }
+}
+
+.w-bubble[data-media-only] {
+  padding: 5px;
+}
+
+/* 拖入文件到输入框时的提示边框 */
+.w-composer[data-dragging] {
+  outline: 2px dashed var(--mantine-primary-color-filled);
+  outline-offset: -4px;
+  background: var(--mantine-color-gray-0);
+}
+
+/* 待发送附件预览条 */
+.w-attach-thumb {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--mantine-radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--mantine-color-gray-3);
+  background: var(--mantine-color-gray-0);
+  flex: none;
+}
+.w-attach-thumb[data-error] {
+  border-color: var(--mantine-color-red-filled);
+}
+.w-attach-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.w-attach-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--mantine-color-black) 48%, transparent);
+  color: var(--mantine-color-white);
+}
+.w-attach-overlay-error {
+  background: color-mix(in srgb, var(--mantine-color-red-filled) 78%, transparent);
+}
+.w-attach-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 2;
+}
+.w-attach-file {
+  max-width: 200px;
+  border-radius: var(--mantine-radius-sm);
+  border: 1px solid var(--mantine-color-gray-3);
+  background: var(--mantine-color-gray-0);
+}
+.w-attach-file[data-error] {
+  border-color: var(--mantine-color-red-filled);
+  background: var(--mantine-color-red-light);
+}
+.w-attach-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+/* 气泡中的图片网格与文件下载卡片 */
+.w-msg-images {
+  display: grid;
+  gap: 4px;
+  max-width: 240px;
+}
+.w-msg-images[data-cols="2"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.w-msg-images[data-cols="3"] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.w-msg-img {
+  display: block;
+  overflow: hidden;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--mantine-color-black) 8%, transparent);
+  aspect-ratio: 1 / 1;
+  cursor: zoom-in;
+}
+.w-msg-img[data-single] {
+  aspect-ratio: auto;
+  max-width: 220px;
+  max-height: 220px;
+}
+.w-msg-img img {
+  width: 100%;
+  height: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  display: block;
+}
+.w-msg-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  min-width: 160px;
+  max-width: 230px;
+  border-radius: 10px;
+  background: var(--mantine-color-white);
+  border: 1px solid var(--mantine-color-gray-2);
+  color: inherit;
+  text-decoration: none;
+}
+.w-msg-file[data-mine] {
+  background: color-mix(in srgb, var(--mantine-color-white) 16%, transparent);
+  border-color: color-mix(in srgb, var(--mantine-color-white) 24%, transparent);
+}
+.w-msg-file-size {
+  opacity: 0.72;
 }

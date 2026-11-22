@@ -7,6 +7,7 @@ import { IconArrowsSort, IconCheck, IconFlame, IconLayoutSidebarLeftExpand, Icon
 import { notifyError, notifySuccess, useCan, useLanguage, useNavControl, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
+import { previewSummary } from "./Attachments"
 import { flatten, flattenSearchHits, useConversationList, useConversationSearch, useMe, useMembers, useTags, useTeams, useThresholds } from "./data"
 import { useDraft } from "./drafts"
 import { type FillWatcher, useFillVisible } from "./fill"
@@ -564,7 +565,7 @@ function Row({
                       {t("inbox.said", { who })}
                     </Text>
                   )}
-                  {c.preview || "\u00A0"}
+                  {previewSummary(c.preview, c.preview_attachment, t) || "\u00A0"}
                 </>
               )}
             </Text>

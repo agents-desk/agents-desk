@@ -75,6 +75,9 @@ export const required = {
     tagAdd: ["conversations:reply"],
     tagRemove: ["conversations:reply"],
   },
+  file: {
+    upload: ["conversations:reply"],
+  },
   hours: {
     replyTimeSave: ["tenant-settings:manage"],
     scheduleSave: ["tenant-settings:manage"],

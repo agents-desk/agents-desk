@@ -85,19 +85,23 @@ export const components = {
   WidgetMessageBody: {
     "additionalProperties": false,
     "properties": {
+      "attachments": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 10,
+        "type": "array",
+        "uniqueItems": true
+      },
       "client_id": {
         "pattern": "^[A-Za-z0-9_-]{1,64}$",
         "type": "string"
       },
       "text": {
         "maxLength": 10000,
-        "minLength": 1,
         "type": "string"
       }
     },
-    "required": [
-      "text"
-    ],
     "type": "object"
   },
   WidgetRateInputBody: {

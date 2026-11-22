@@ -11,10 +11,11 @@ import (
 	"agents-desk/internal/conversation"
 )
 
-// MessageBody 是客户在聊天窗口中发消息的请求体。
+// MessageBody 是客户在聊天窗口中发消息的请求体：文字和附件不能同时为空。
 type MessageBody struct {
-	Text     string `json:"text" minLength:"1" maxLength:"10000"`
-	ClientID string `json:"client_id,omitempty" pattern:"^[A-Za-z0-9_-]{1,64}$" doc:"聊天窗口为这条消息生成的编号；网络出错重发时带同一个编号，消息只记录一次"`
+	Text        string   `json:"text,omitempty" maxLength:"10000"`
+	Attachments []string `json:"attachments,omitempty" maxItems:"10" uniqueItems:"true" doc:"通过 /files 上传的附件文件 ID 列表"`
+	ClientID    string   `json:"client_id,omitempty" pattern:"^[A-Za-z0-9_-]{1,64}$" doc:"聊天窗口为这条消息生成的编号；网络出错重发时带同一个编号，消息只记录一次"`
 }
 
 // Sent 是客户发出的消息：所在的会话和时间线中的这一项。
@@ -53,7 +54,9 @@ func (a *SendMessage) Handle(ctx context.Context, sub identity.Subject, conversa
 	if err != nil {
 		return nil, errors.Wrap(err, "load contact identity")
 	}
-	p := conversation.ReceiveParams{ChannelID: ch.ID, From: from, Text: b.Text, ConversationID: conversationID}
+	p := conversation.ReceiveParams{
+		ChannelID: ch.ID, From: from, Text: b.Text, AttachmentFileIDs: b.Attachments, ConversationID: conversationID,
+	}
 	if b.ClientID != "" {
 		p.ExternalID = sub.ID + ":" + b.ClientID // 编号由客户生成，加上联系人的前缀，不会与别人的重复
 	}

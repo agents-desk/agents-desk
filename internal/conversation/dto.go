@@ -22,23 +22,24 @@ type Actor struct {
 
 // ConversationDTO 是接口中的会话。
 type ConversationDTO struct {
-	ID            string           `json:"id"`
-	Kind          Kind             `json:"kind"`
-	Status        Status           `json:"status"`
-	Channel       *channel.Summary `json:"channel,omitempty" doc:"会话来自的渠道"`
-	Contact       *contact.Summary `json:"contact,omitempty" doc:"对方：联系人"`
-	TeamID        *string          `json:"team_id,omitempty" doc:"团队收件箱的 ID；为空表示未指派到团队"`
-	Assignee      *Actor           `json:"assignee,omitempty" doc:"负责人；为空表示没有负责人"`
-	Priority      Priority         `json:"priority"`
-	Language      string           `json:"language" doc:"客户的语言：按最近几条确定了语言的消息判断，或者成员手动设置的"`
-	WaitingSince  *time.Time       `json:"waiting_since,omitempty" doc:"对方的消息开始等待回复的时间；已回复时为空"`
-	SnoozedUntil  *time.Time       `json:"snoozed_until,omitempty"`
-	FirstReplyAt  *time.Time       `json:"first_reply_at,omitempty"`
-	ClosedAt      *time.Time       `json:"closed_at,omitempty"`
-	LastMessageAt time.Time        `json:"last_message_at"`
-	LastSeq       int64            `json:"last_seq" doc:"时间线中最新一项的序号，用来增量读取时间线"`
-	Preview       string           `json:"preview" doc:"最后一条消息的文字：对方的消息是我的语言的译文（还没有时是原文），成员翻译后发出的回复是成员写的原文"`
-	PreviewActor  *Actor           `json:"preview_actor,omitempty" doc:"最后一条消息是谁发的；还没有消息时为空"`
+	ID                string             `json:"id"`
+	Kind              Kind               `json:"kind"`
+	Status            Status             `json:"status"`
+	Channel           *channel.Summary   `json:"channel,omitempty" doc:"会话来自的渠道"`
+	Contact           *contact.Summary   `json:"contact,omitempty" doc:"对方：联系人"`
+	TeamID            *string            `json:"team_id,omitempty" doc:"团队收件箱的 ID；为空表示未指派到团队"`
+	Assignee          *Actor             `json:"assignee,omitempty" doc:"负责人；为空表示没有负责人"`
+	Priority          Priority           `json:"priority"`
+	Language          string             `json:"language" doc:"客户的语言：按最近几条确定了语言的消息判断，或者成员手动设置的"`
+	WaitingSince      *time.Time         `json:"waiting_since,omitempty" doc:"对方的消息开始等待回复的时间；已回复时为空"`
+	SnoozedUntil      *time.Time         `json:"snoozed_until,omitempty"`
+	FirstReplyAt      *time.Time         `json:"first_reply_at,omitempty"`
+	ClosedAt          *time.Time         `json:"closed_at,omitempty"`
+	LastMessageAt     time.Time          `json:"last_message_at"`
+	LastSeq           int64              `json:"last_seq" doc:"时间线中最新一项的序号，用来增量读取时间线"`
+	Preview           string             `json:"preview" doc:"最后一条消息的文字：对方的消息是我的语言的译文（还没有时是原文），成员翻译后发出的回复是成员写的原文"`
+	PreviewActor      *Actor             `json:"preview_actor,omitempty" doc:"最后一条消息是谁发的；还没有消息时为空"`
+	PreviewAttachment *PreviewAttachment `json:"preview_attachment,omitempty" doc:"最后一条消息附带图片或文件时的摘要"`
 	// PreviewItemID 和 PreviewUntranslated 让会话列表也按“看到时补译”：这一行出现在页面上时请求补译 PreviewItemID
 	PreviewItemID       string         `json:"preview_item_id,omitempty" doc:"最后一条消息的 ID，只在它还缺我的语言的译文时给出"`
 	PreviewUntranslated bool           `json:"preview_untranslated,omitempty" doc:"最后一条消息是对方发来、还缺我的语言的译文的：preview 是原文，页面看到这一行时请求补译"`
@@ -58,15 +59,16 @@ type ConversationOutput struct {
 
 // ItemDTO 是接口中时间线的一项。
 type ItemDTO struct {
-	ID         string          `json:"id"`
-	Seq        int64           `json:"seq"`
-	Kind       ItemKind        `json:"kind"`
-	Actor      Actor           `json:"actor" doc:"发起者"`
-	Visibility Visibility      `json:"visibility"`
-	Content    Content         `json:"content"`
-	Derived    map[string]any  `json:"derived" doc:"派生内容，例如按语言的译文，由后台补上"`
-	Delivery   *DeliveryStatus `json:"delivery,omitempty" doc:"发给对方的消息的送达状态"`
-	CreatedAt  time.Time       `json:"created_at"`
+	ID          string          `json:"id"`
+	Seq         int64           `json:"seq"`
+	Kind        ItemKind        `json:"kind"`
+	Actor       Actor           `json:"actor" doc:"发起者"`
+	Visibility  Visibility      `json:"visibility"`
+	Content     Content         `json:"content"`
+	Attachments []AttachmentDTO `json:"attachments,omitempty" doc:"附带的图片和文件"`
+	Derived     map[string]any  `json:"derived" doc:"派生内容，例如按语言的译文，由后台补上"`
+	Delivery    *DeliveryStatus `json:"delivery,omitempty" doc:"发给对方的消息的送达状态"`
+	CreatedAt   time.Time       `json:"created_at"`
 	// Untranslated 只在读取时间线时给出，按读取的成员的语言
 	Untranslated bool `json:"untranslated,omitempty" doc:"对方发来、还没有我的语言的译文、也不是我的语言的消息：翻译可用时页面显示“翻译中”，并请求补译"`
 }
@@ -76,8 +78,8 @@ type ItemOutput struct {
 	Body ItemDTO
 }
 
-// toItemDTOs 把时间线的各项转换为接口中的形式，一次读出它们的送达状态。
-func toItemDTOs(ctx context.Context, db bun.IDB, items []Item) ([]ItemDTO, error) {
+// toItemDTOs 把时间线的各项转换为接口中的形式，一次读出它们的送达状态和附件。
+func toItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Item) ([]ItemDTO, error) {
 	out := make([]ItemDTO, len(items))
 	if len(items) == 0 {
 		return out, nil
@@ -94,10 +96,14 @@ func toItemDTOs(ctx context.Context, db bun.IDB, items []Item) ([]ItemDTO, error
 	for _, d := range deliveries {
 		status[d.ItemID] = d.Status
 	}
+	attachments, err := loadAttachments(ctx, db, media, ids)
+	if err != nil {
+		return nil, err
+	}
 	for i, it := range items {
 		out[i] = ItemDTO{
 			ID: it.ID, Seq: it.Seq, Kind: it.Kind, Actor: Actor{Type: it.ActorType, ID: it.ActorID},
-			Visibility: it.Visibility, Content: it.Content, Derived: it.Derived, CreatedAt: it.CreatedAt,
+			Visibility: it.Visibility, Content: it.Content, Attachments: attachments[it.ID], Derived: it.Derived, CreatedAt: it.CreatedAt,
 		}
 		if s, ok := status[it.ID]; ok {
 			out[i].Delivery = &s
@@ -166,8 +172,14 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 		return nil, errors.Wrap(err, "load previews")
 	}
 	previews := make(map[string]*Item, len(lasts))
+	lastIDs := make([]string, 0, len(lasts))
 	for i := range lasts {
 		previews[lasts[i].ConversationID] = &lasts[i]
+		lastIDs = append(lastIDs, lasts[i].ID)
+	}
+	previewAttachments, err := loadPreviewAttachments(ctx, db, lastIDs)
+	if err != nil {
+		return nil, err
 	}
 	unread, err := unreadOf(ctx, db, sub, ids)
 	if err != nil {
@@ -194,6 +206,7 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 		}
 		if p := previews[c.ID]; p != nil {
 			d.Preview, d.PreviewActor = previewText(p, language), &Actor{Type: p.ActorType, ID: p.ActorID}
+			d.PreviewAttachment = previewAttachments[p.ID]
 			if untranslated(p, language) {
 				d.PreviewItemID, d.PreviewUntranslated = p.ID, true
 			}

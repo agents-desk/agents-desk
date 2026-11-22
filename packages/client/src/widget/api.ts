@@ -28,6 +28,24 @@ export interface ContactSummary {
 
 export type ConversationActorType = "contact" | "member" | "system"
 
+export interface ConversationAttachmentDTO {
+  content_type: string
+  file_id: string
+  filename: string
+  /** 图片高度（像素）；非图片为空 */
+  height?: number
+  kind: ConversationAttachmentKind
+  size: number
+  /** 图片缩略图地址；未配置 imgproxy 时与 url 相同，非图片为空 */
+  thumb_url?: string
+  /** 原文件的公开地址 */
+  url: string
+  /** 图片宽度（像素）；非图片为空 */
+  width?: number
+}
+
+export type ConversationAttachmentKind = "image" | "file"
+
 export interface ConversationContactAuthor {
   /** 成员的名字；联系人自己和系统为空 */
   name: string
@@ -43,6 +61,8 @@ export interface ConversationContactConversationDTO {
   last_seq: number
   /** 最后一条消息的文字 */
   preview: string
+  /** 最后一条消息附带图片或文件时的摘要 */
+  preview_attachment?: ConversationPreviewAttachment
   /** 最后一条消息是谁发的 */
   preview_author: ConversationContactAuthor
   /** 最后一条消息的结构化提示；不为空时前端按客户的语言渲染 */
@@ -58,6 +78,8 @@ export interface ConversationContactConversationDTO {
 }
 
 export interface ConversationContactItemDTO {
+  /** 附带的图片和文件 */
+  attachments?: ConversationAttachmentDTO[]
   author: ConversationContactAuthor
   created_at: string
   id: string
@@ -69,6 +91,11 @@ export interface ConversationContactItemDTO {
 }
 
 export type ConversationItemKind = "message" | "note" | "event"
+
+export interface ConversationPreviewAttachment {
+  count: number
+  kind: ConversationAttachmentKind
+}
 
 export interface ConversationPrompt {
   /** 提示的种类：reply_time_open、reply_time_closed、collect_contact */
@@ -117,6 +144,33 @@ export interface ErrorModel {
   type?: string
 }
 
+export interface File {
+  content_type: string
+  created_at: string
+  disk: string
+  expires_at?: string
+  filename: string
+  id: string
+  key: string
+  meta: Meta
+  size: number
+  status: string
+  updated_at: string
+  url: string
+}
+
+export interface FormFile {
+  ContentType: string
+  Filename: string
+  IsSet: boolean
+  Size: number
+}
+
+export interface Meta {
+  height?: number
+  width?: number
+}
+
 export type TagColor = "blue-gray" | "red" | "deep-orange" | "yellow" | "green" | "sky-blue" | "bright-blue" | "violet" | "purple" | "magenta" | "brown"
 
 export interface TagSummary {
@@ -142,9 +196,11 @@ export interface WidgetContactEmailBody {
 }
 
 export interface WidgetMessageBody {
+  /** 通过 /files 上传的附件文件 ID 列表 */
+  attachments?: string[]
   /** 聊天窗口为这条消息生成的编号；网络出错重发时带同一个编号，消息只记录一次 */
   client_id?: string
-  text: string
+  text?: string
 }
 
 export interface WidgetRateInputBody {
@@ -189,6 +245,11 @@ export interface ConversationItemsInput {
   /** 只读取序号大于它的项；收到推送后用它增量读取 */
   after?: number
   limit?: number
+}
+
+/** file-upload 的表单。 */
+export type FileUploadForm = {
+  file: Blob
 }
 
 /** 创建客户端。 */
@@ -263,6 +324,16 @@ export function createClient(options: ClientOptions) {
        */
       typing: (id: string): Promise<void> =>
         rt.request<void>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/typing` }),
+    },
+    /** operationId 以 file- 开头的接口。 */
+    file: {
+      /**
+       * 上传文件
+       *
+       * POST /files
+       */
+      upload: (form: FileUploadForm): Promise<File> =>
+        rt.request<File>({ method: "POST", path: `/files`, form }),
     },
     /** operationId 以 widget- 开头的接口。 */
     widget: {

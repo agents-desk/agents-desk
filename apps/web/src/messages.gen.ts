@@ -216,6 +216,11 @@ export const messages = {
     "inbox.assign_teams": "Team inboxes",
     "inbox.assigned_to": "Assigned to {{.who}}",
     "inbox.assignee": "Assignee",
+    "inbox.attach": "Attach files",
+    "inbox.attach_drop": "Drop files to upload",
+    "inbox.attach_remove": "Remove attachment",
+    "inbox.attach_retry": "Retry upload",
+    "inbox.attach_uploading": "Uploading…",
     "inbox.attr_empty": "Not set",
     "inbox.attr_no": "No",
     "inbox.attr_number_placeholder": "Enter number",
@@ -260,6 +265,7 @@ export const messages = {
     "inbox.details_contact": "Contact",
     "inbox.details_conversation": "Conversation",
     "inbox.details_history": "Recent conversations",
+    "inbox.download_file": "Download file",
     "inbox.draft_prefix": "Draft: ",
     "inbox.empty": "No conversations in this list",
     "inbox.empty_filtered": "No conversations match the current filter",
@@ -311,6 +317,8 @@ export const messages = {
     "inbox.original": "Original",
     "inbox.pick": "Pick a conversation on the left",
     "inbox.pick_shortcut": "Press {{.key}} to jump to any view, contact, or setting",
+    "inbox.preview_file": "[File]",
+    "inbox.preview_image": "[Image]",
     "inbox.preview_to": "To customer",
     "inbox.priority": "Priority",
     "inbox.priority_high": "High",
@@ -377,6 +385,7 @@ export const messages = {
     "inbox.translation_failed": "Translation failed: {{.error}}",
     "inbox.typing": "{{.who}} is typing…",
     "inbox.unassign": "Remove assignee",
+    "inbox.view_image": "View image",
     "inbox.view_translation": "View translation",
     "inbox.viewing": "{{.who}} is also viewing",
     "inbox.visitor": "Visitor",
@@ -781,6 +790,11 @@ export const messages = {
     "inbox.assign_teams": "团队收件箱",
     "inbox.assigned_to": "负责人 {{.who}}",
     "inbox.assignee": "负责人",
+    "inbox.attach": "添加附件",
+    "inbox.attach_drop": "松开以上传附件",
+    "inbox.attach_remove": "移除附件",
+    "inbox.attach_retry": "重试上传",
+    "inbox.attach_uploading": "上传中…",
     "inbox.attr_empty": "未填写",
     "inbox.attr_no": "否",
     "inbox.attr_number_placeholder": "输入数字",
@@ -825,6 +839,7 @@ export const messages = {
     "inbox.details_contact": "联系人",
     "inbox.details_conversation": "会话",
     "inbox.details_history": "最近的会话",
+    "inbox.download_file": "下载文件",
     "inbox.draft_prefix": "草稿：",
     "inbox.empty": "这个列表中没有会话",
     "inbox.empty_filtered": "没有符合当前筛选条件的会话",
@@ -876,6 +891,8 @@ export const messages = {
     "inbox.original": "原文",
     "inbox.pick": "从左边选一个会话",
     "inbox.pick_shortcut": "按 {{.key}} 快速切换视图、联系人或设置",
+    "inbox.preview_file": "[文件]",
+    "inbox.preview_image": "[图片]",
     "inbox.preview_to": "发给对方",
     "inbox.priority": "优先级",
     "inbox.priority_high": "高",
@@ -942,6 +959,7 @@ export const messages = {
     "inbox.translation_failed": "翻译失败：{{.error}}",
     "inbox.typing": "{{.who}} 正在输入…",
     "inbox.unassign": "取消负责人",
+    "inbox.view_image": "查看大图",
     "inbox.view_translation": "查看译文",
     "inbox.viewing": "{{.who}} 也在看这个会话",
     "inbox.visitor": "访客",
@@ -1349,6 +1367,11 @@ export type MessageId =
   | "inbox.assign_teams"
   | "inbox.assigned_to"
   | "inbox.assignee"
+  | "inbox.attach"
+  | "inbox.attach_drop"
+  | "inbox.attach_remove"
+  | "inbox.attach_retry"
+  | "inbox.attach_uploading"
   | "inbox.attr_empty"
   | "inbox.attr_no"
   | "inbox.attr_number_placeholder"
@@ -1393,6 +1416,7 @@ export type MessageId =
   | "inbox.details_contact"
   | "inbox.details_conversation"
   | "inbox.details_history"
+  | "inbox.download_file"
   | "inbox.draft_prefix"
   | "inbox.empty"
   | "inbox.empty_filtered"
@@ -1444,6 +1468,8 @@ export type MessageId =
   | "inbox.original"
   | "inbox.pick"
   | "inbox.pick_shortcut"
+  | "inbox.preview_file"
+  | "inbox.preview_image"
   | "inbox.preview_to"
   | "inbox.priority"
   | "inbox.priority_high"
@@ -1510,6 +1536,7 @@ export type MessageId =
   | "inbox.translation_failed"
   | "inbox.typing"
   | "inbox.unassign"
+  | "inbox.view_image"
   | "inbox.view_translation"
   | "inbox.viewing"
   | "inbox.visitor"

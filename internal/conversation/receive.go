@@ -17,12 +17,13 @@ import (
 
 // ReceiveParams 是渠道收到的一条消息。
 type ReceiveParams struct {
-	ChannelID      string
-	From           string // 对方在渠道中的外部编号
-	FromName       string // 对方在渠道中显示的名字，新建联系人时使用
-	ExternalID     string // 消息在渠道中的编号，用来去重；渠道没有编号时为空
-	Text           string
-	ConversationID string // 对方选定继续的会话；只在可以有多个会话的渠道中使用，为空时新建会话
+	ChannelID         string
+	From              string // 对方在渠道中的外部编号
+	FromName          string // 对方在渠道中显示的名字，新建联系人时使用
+	ExternalID        string // 消息在渠道中的编号，用来去重；渠道没有编号时为空
+	Text              string
+	AttachmentFileIDs []string // 附带的文件 ID（由发送者上传的临时文件，在写入事务中确认）
+	ConversationID    string   // 对方选定继续的会话；只在可以有多个会话的渠道中使用，为空时新建会话
 }
 
 // Received 是写入收到的消息的结果。
@@ -61,6 +62,9 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 			return nil, err
 		}
 	}
+	if err := requireMessageContent(p.Text, p.AttachmentFileIDs); err != nil {
+		return nil, err
+	}
 	if prev, err := a.previous(ctx, sub, p); prev != nil || err != nil {
 		return prev, err
 	}
@@ -83,6 +87,10 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 		}
 		if sub.Type == contact.Type && person.ID != sub.ID {
 			return ErrForbidden.New()
+		}
+		confirmed, err := confirmAttachments(ctx, tx, a.down.Media.Files, sub, p.AttachmentFileIDs)
+		if err != nil {
+			return err
 		}
 		at := now()
 		c, created, opened, err := a.conversationFor(ctx, tx, ch, person, p, connector.Capabilities().MultipleConversations, at)
@@ -133,7 +141,10 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 		if err := commit(ctx, tx, a.down, c, items...); err != nil {
 			return err
 		}
-		dtos, err := toItemDTOs(ctx, tx, []Item{*msg})
+		if err := insertItemFiles(ctx, tx, msg.ID, confirmed); err != nil {
+			return err
+		}
+		dtos, err := toItemDTOs(ctx, tx, a.down.Media, []Item{*msg})
 		if err != nil {
 			return err
 		}
@@ -168,7 +179,7 @@ func (a *Receive) previous(ctx context.Context, sub identity.Subject, p ReceiveP
 	if sub.Type == contact.Type && (it.ActorType != ContactActor || it.ActorID != sub.ID) {
 		return nil, ErrForbidden.New()
 	}
-	dtos, err := toItemDTOs(ctx, a.db, []Item{it})
+	dtos, err := toItemDTOs(ctx, a.db, a.down.Media, []Item{it})
 	if err != nil {
 		return nil, err
 	}

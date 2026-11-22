@@ -100,6 +100,7 @@ export interface File {
   filename: string
   id: string
   key: string
+  meta: Meta
   size: number
   status: string
   updated_at: string
@@ -161,6 +162,11 @@ export interface LlmEndpoint {
 export interface LlmSettings {
   /** 翻译：在不同语言之间互译文本，同时识别原文的语言和书写方式 */
   translation: LlmEndpoint
+}
+
+export interface Meta {
+  height?: number
+  width?: number
 }
 
 export interface OffsetAuditItem {

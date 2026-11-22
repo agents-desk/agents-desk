@@ -36,7 +36,7 @@ contact_token:
   lifetime: 8760h
   idle_timeout: 2160h
 
-# 上传的文件（头像等）。默认存在本地目录 storage/files，由应用在 /storage/ 下提供访问；多台服务器或需要 CDN 时
+# 上传的文件（头像、会话附件等）。默认存在本地目录 storage/files，由应用在 /storage/ 下提供访问；多台服务器或需要 CDN 时
 # 改用 S3：配置 disks.s3，并把 default_disk 改为 s3，见 Tenon 文档的 libraries/filesystem.md。
 filesystem:
   default_disk: ${FILES_DISK:-local}
@@ -45,3 +45,9 @@ filesystem:
     local:
       root: ${FILES_ROOT:-storage/files}
       public_url: /storage
+
+# 图片缩略图服务（imgproxy）：未配置 url 时（开发环境）缩略图原样返回原图地址；生产环境建议配合 key 和 salt 签名访问。
+imgproxy:
+  url: ${IMGPROXY_URL:-}
+  key: ${IMGPROXY_KEY:-}
+  salt: ${IMGPROXY_SALT:-}

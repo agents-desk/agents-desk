@@ -16,15 +16,29 @@ type Capabilities struct {
 	MultipleConversations bool
 }
 
+// Attachment 是发到外部渠道的一条消息附带的图片或文件。
+type Attachment struct {
+	FileID      string // 文件 ID
+	Kind        string // "image" 或 "file"
+	Filename    string // 原始文件名
+	ContentType string // MIME 类型
+	Size        int64  // 文件大小（字节）
+	Width       int    // 图片宽度（像素），非图片为 0
+	Height      int    // 图片高度（像素），非图片为 0
+	URL         string // 文件的公开地址
+	ThumbURL    string // 图片缩略图地址，非图片为空
+}
+
 // Outgoing 是要发到外部渠道的一条消息。
 type Outgoing struct {
 	Channel        *Channel
-	ConversationID string // 消息所在的会话
-	ItemID         string // 时间线中这条消息的 ID，连接器可以用它去重
-	Seq            int64  // 这条消息在时间线中的序号
-	ContactID      string // 对方：联系人的 ID
-	ExternalTo     string // 对方在渠道中的外部编号
-	Text           string // 发给对方的文字
+	ConversationID string       // 消息所在的会话
+	ItemID         string       // 时间线中这条消息的 ID，连接器可以用它去重
+	Seq            int64        // 这条消息在时间线中的序号
+	ContactID      string       // 对方：联系人的 ID
+	ExternalTo     string       // 对方在渠道中的外部编号
+	Text           string       // 发给对方的文字
+	Attachments    []Attachment // 附带的图片和文件
 }
 
 // Connector 是一种渠道的连接器：把时间线中的消息发到外部渠道。收到的消息和回执由连接器调用会话的业务动作写入。
@@ -51,9 +65,9 @@ func (r Registry) Connector(kind Kind) (Connector, error) {
 // TestConnector 是测试渠道的连接器：消息不发往任何地方，直接记为已送达。开发、演示和测试用。
 type TestConnector struct{}
 
-// Capabilities 返回测试渠道的能力：只有文字，没有已读回执。
+// Capabilities 返回测试渠道的能力：文字、图片和文件，没有已读回执。
 func (TestConnector) Capabilities() Capabilities {
-	return Capabilities{MessageTypes: []string{"text"}}
+	return Capabilities{MessageTypes: []string{"text", "image", "file"}}
 }
 
 // Send 不发送，用时间线中的消息 ID 作为外部编号，并报告已送达。
