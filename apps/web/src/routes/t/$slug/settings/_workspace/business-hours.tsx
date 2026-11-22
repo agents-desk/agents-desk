@@ -24,7 +24,7 @@ function BusinessHours(): ReactNode {
   const current = useQuery({ queryKey, queryFn: () => tenantApi.hours.get() })
   const t = useT()
   return (
-    <Page title={t("business_hours.title")} description={t("business_hours.description")}>
+    <Page title={t("business_hours.title")} description={t("business_hours.description")} width="narrow">
       <Tabs defaultValue="schedule" keepMounted>
         <Tabs.List>
           <Tabs.Tab value="schedule">{t("business_hours.tab_schedule")}</Tabs.Tab>

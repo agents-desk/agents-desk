@@ -138,7 +138,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
 
   return (
     <Stack gap={0} h="100%" className="inbox-details">
-      <Group px="md" py={10} className="inbox-divider">
+      <Group px="md" className="inbox-header" data-fixed="">
         <Text fw={600} size="sm">
           {t("inbox.details")}
         </Text>

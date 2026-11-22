@@ -1,4 +1,5 @@
-import { Center, Stack, Text } from "@mantine/core"
+import { Center, Stack, Text, ThemeIcon } from "@mantine/core"
+import { useOs } from "@mantine/hooks"
 import { createFileRoute } from "@tanstack/react-router"
 import { IconMessages } from "@tabler/icons-react"
 import { useT } from "@go-tenon/ui"
@@ -8,12 +9,19 @@ export const Route = createFileRoute("/t/$slug/inbox/")({ component: NoConversat
 
 function NoConversation() {
   const t = useT()
+  const os = useOs()
+  const key = os === "macos" || os === "ios" ? "⌘K" : "Ctrl+K"
   return (
-    <Center style={{ flex: 1 }}>
-      <Stack gap={6} align="center">
-        <IconMessages size={36} color="var(--mantine-color-gray-5)" />
-        <Text c="dimmed" size="sm">
+    <Center style={{ flex: 1, background: "var(--tn-canvas)" }}>
+      <Stack gap="xs" align="center" px="md">
+        <ThemeIcon size={48} radius="xl" variant="light" color="gray">
+          <IconMessages size={24} stroke={1.5} />
+        </ThemeIcon>
+        <Text fw={500} size="sm">
           {t("inbox.pick")}
+        </Text>
+        <Text c="dimmed" size="xs" ta="center">
+          {t("inbox.pick_shortcut", { key })}
         </Text>
       </Stack>
     </Center>

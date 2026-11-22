@@ -35,7 +35,7 @@ function General(): ReactNode {
     }
   })
   return (
-    <Page title={t("nav.general")}>
+    <Page title={t("nav.general")} width="narrow">
       <form noValidate onSubmit={submit}>
         <Stack gap="md">
           <FormError error={error} />

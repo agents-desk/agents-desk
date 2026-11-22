@@ -1,14 +1,15 @@
 import type { ContactSort } from "@agents-desk/client/tenant"
-import { ActionIcon, Avatar, Badge, Box, Button, Center, Group, Loader, Select, Text, TextInput } from "@mantine/core"
+import { ActionIcon, Avatar, Badge, Box, Button, Center, Group, Loader, Select, Text, TextInput, Tooltip } from "@mantine/core"
 import { useDebouncedValue } from "@mantine/hooks"
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
-import { IconMessageCircle, IconSearch, IconX } from "@tabler/icons-react"
-import { useLanguage, useNarrow, useT, useTimeZone } from "@go-tenon/ui"
+import { IconLayoutSidebarLeftExpand, IconMessageCircle, IconSearch, IconX } from "@tabler/icons-react"
+import { useLanguage, useNarrow, useNavControl, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { activity } from "../inbox/format"
 import { languageName } from "../languages"
+import { NARROW_QUERY } from "../layout"
 import { formatLocalTime } from "../timezone"
 import type { ContactsSearch } from "./search"
 
@@ -31,7 +32,8 @@ export function ContactDirectory({
   const t = useT()
   const ui = useLanguage()
   const zone = useTimeZone()
-  const narrow = useNarrow()
+  const narrow = useNarrow(NARROW_QUERY)
+  const nav = useNavControl()
   const { slug } = useParams({ from: "/t/$slug" })
   const navigate = useNavigate()
 
@@ -141,82 +143,88 @@ export function ContactDirectory({
 
   return (
     <Box style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {/* 顶部标题与搜索筛选合在同一个区块内（和收件箱列表顶栏同构），底下一条细分隔线 */}
-      <Box px="lg" pt="sm" pb={10} className="ct-divider">
-        <Group gap="xs" wrap="nowrap">
-          <Text fw={600} size="md" truncate>
-            {title}
-          </Text>
-          {badgeCount !== undefined && (
-            <Badge size="xs" variant="light" color="gray" radius="sm" style={{ flex: "none" }}>
-              {badgeCount}
-            </Badge>
-          )}
-          {hasFilters && (
-            <Button
-              size="compact-xs"
-              variant="subtle"
-              color="gray"
-              ml="auto"
-              onClick={() => {
-                setKeyword("")
-                go({ q: undefined, language: undefined, channel: undefined })
-              }}
-            >
-              {t("contacts.clear_filters")}
-            </Button>
-          )}
-        </Group>
+      {/* 52px 基准顶栏：与二级导航头和右侧档案顶栏严格齐平 */}
+      <Group gap="xs" px="md" wrap="nowrap" className="ct-header">
+        {nav && !nav.open && (
+          <Tooltip label={t("nav.expand_nav")} openDelay={350}>
+            <ActionIcon variant="subtle" color="gray" onClick={nav.openNav} aria-label={t("nav.expand_nav")}>
+              <IconLayoutSidebarLeftExpand size={18} stroke={1.6} />
+            </ActionIcon>
+          </Tooltip>
+        )}
+        <Text fw={600} size="sm" truncate>
+          {title}
+        </Text>
+        {badgeCount !== undefined && (
+          <Badge size="xs" variant="light" color="gray" radius="sm" style={{ flex: "none" }}>
+            {badgeCount}
+          </Badge>
+        )}
+        {hasFilters && (
+          <Button
+            size="compact-xs"
+            variant="subtle"
+            color="gray"
+            ml="auto"
+            onClick={() => {
+              setKeyword("")
+              go({ q: undefined, language: undefined, channel: undefined })
+            }}
+          >
+            {t("contacts.clear_filters")}
+          </Button>
+        )}
+      </Group>
 
-        <Group gap="xs" mt={10} wrap="wrap">
-          <TextInput
-            size="xs"
-            style={{ flex: 1, minWidth: 220 }}
-            value={keyword}
-            onChange={(e) => setKeyword(e.currentTarget.value)}
-            placeholder={t("contacts.search_placeholder")}
-            leftSection={<IconSearch size={14} />}
-            rightSection={
-              keyword ? (
-                <ActionIcon variant="subtle" color="gray" size="xs" onClick={() => setKeyword("")} aria-label={t("common.cancel")}>
-                  <IconX size={12} />
-                </ActionIcon>
-              ) : null
-            }
-          />
+      {/* 独立搜索与筛选工具条 */}
+      <Group gap="xs" px="md" py={8} wrap="wrap" className="ct-toolbar">
+        <TextInput
+          size="xs"
+          style={{ flex: 1, minWidth: 200 }}
+          value={keyword}
+          onChange={(e) => setKeyword(e.currentTarget.value)}
+          placeholder={t("contacts.search_placeholder")}
+          leftSection={<IconSearch size={14} />}
+          rightSection={
+            keyword ? (
+              <ActionIcon variant="subtle" color="gray" size="xs" onClick={() => setKeyword("")} aria-label={t("common.cancel")}>
+                <IconX size={12} />
+              </ActionIcon>
+            ) : null
+          }
+        />
+        <Select
+          size="xs"
+          w={compact ? 108 : 124}
+          clearable
+          placeholder={t("contacts.filter_language")}
+          data={languageChoices}
+          value={search.language ?? null}
+          onChange={(v) => go({ language: v || undefined })}
+          aria-label={t("contacts.language")}
+        />
+        {channels.length > 0 && (
           <Select
             size="xs"
-            w={compact ? 108 : 124}
+            w={compact ? 116 : 140}
             clearable
-            placeholder={t("contacts.filter_language")}
-            data={languageChoices}
-            value={search.language ?? null}
-            onChange={(v) => go({ language: v || undefined })}
-            aria-label={t("contacts.language")}
+            placeholder={t("contacts.filter_channel")}
+            data={channels}
+            value={search.channel ?? null}
+            onChange={(v) => go({ channel: v || undefined })}
+            aria-label={t("contacts.filter_channel")}
           />
-          {channels.length > 0 && (
-            <Select
-              size="xs"
-              w={compact ? 116 : 140}
-              clearable
-              placeholder={t("contacts.filter_channel")}
-              data={channels}
-              value={search.channel ?? null}
-              onChange={(v) => go({ channel: v || undefined })}
-              aria-label={t("contacts.filter_channel")}
-            />
-          )}
-          <Select
-            size="xs"
-            w={108}
-            allowDeselect={false}
-            data={sorts}
-            value={search.sort}
-            onChange={(v) => v && go({ sort: v as ContactSort })}
-            aria-label={t("contacts.sort")}
-          />
-        </Group>
-      </Box>
+        )}
+        <Select
+          size="xs"
+          w={108}
+          allowDeselect={false}
+          data={sorts}
+          value={search.sort}
+          onChange={(v) => v && go({ sort: v as ContactSort })}
+          aria-label={t("contacts.sort")}
+        />
+      </Group>
 
       <Box style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
         {!narrow && items.length > 0 && (

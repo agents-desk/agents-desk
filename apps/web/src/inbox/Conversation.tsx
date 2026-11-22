@@ -1,4 +1,4 @@
-import { ActionIcon, Avatar, Badge, Box, Button, Center, Group, Loader, SegmentedControl, Text, Tooltip } from "@mantine/core"
+import { ActionIcon, Avatar, Badge, Box, Button, Center, Drawer, Group, Loader, SegmentedControl, Text, Tooltip } from "@mantine/core"
 import { useMediaQuery } from "@mantine/hooks"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Link, useParams } from "@tanstack/react-router"
@@ -7,6 +7,7 @@ import { notifyError, useCollapseNav, useLanguage, useNarrow, useT } from "@go-t
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { languageName } from "../languages"
+import { NARROW_QUERY, ResizeHandle, useResizableWidth } from "../layout"
 import { formatLocalTime } from "../timezone"
 import { useConversationChannel } from "./channel"
 import { Composer } from "./Composer"
@@ -33,8 +34,10 @@ interface ConversationProps {
  */
 export function ConversationView({ id, tenantId, open, next, back }: ConversationProps): ReactNode {
   const t = useT()
-  const narrow = useNarrow()
-  const wide = useMediaQuery("(min-width: 1600px)")
+  const narrow = useNarrow(NARROW_QUERY)
+  // 1600px 以上四栏+详情并排；1360–1599px 打开详情自动收起二级导航；900–1359px 详情改为右侧浮层抽屉避免挤压聊天区。
+  const wide = useMediaQuery("(min-width: 1600px)") ?? false
+  const canInlineDetails = useMediaQuery("(min-width: 1360px)") ?? false
   const { slug } = useParams({ from: "/t/$slug" })
   const queryClient = useQueryClient()
   const me = useMe()
@@ -46,7 +49,8 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
   const ui = useLanguage()
   const [details, setDetails] = useState(false)
   const [original, setOriginal] = useState(false) // 对方的消息都显示原文
-  useCollapseNav(details && !wide && !narrow)
+  const detailSize = useResizableWidth("agents-desk:inbox-details-w", 300, 260, 420, "left")
+  useCollapseNav(details && canInlineDetails && !wide && !narrow)
 
   // 打开时读到的位置：“新消息”分隔线画在它之后，读过之后也保持在原处
   const readAtOpen = useRef<number | null>(null)
@@ -90,11 +94,13 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
     .join(" · ")
 
   if (narrow && details) return <Details c={c} onClose={() => setDetails(false)} onOpen={open} />
+  const inlineDetails = details && !narrow && canInlineDetails
+  const drawerDetails = details && !narrow && !canInlineDetails
   return (
     <Group gap={0} h="100%" wrap="nowrap" align="stretch" style={{ flex: 1, minWidth: 0 }}>
       <Box style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-        {/* 窄屏时操作按钮换到第二行，联系人的名字留在第一行 */}
-        <Group gap="sm" px="md" py={10} wrap={narrow ? "wrap" : "nowrap"} className="inbox-divider">
+        {/* 宽屏锁定 52px 基准顶栏与相邻各栏齐平；窄屏操作按钮换到第二行 */}
+        <Group gap="sm" px="md" py={narrow ? 8 : 0} wrap={narrow ? "wrap" : "nowrap"} className="inbox-header" data-fixed={!narrow || undefined}>
           {narrow && (
             <ActionIcon variant="subtle" color="gray" onClick={back} aria-label={t("inbox.back")}>
               <IconChevronLeft size={18} />
@@ -181,10 +187,23 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
         <Timeline c={c} readSeq={readAtOpen.current ?? 0} typing={typing} original={original} />
         <Composer key={c.id} c={c} onTyping={notifyTyping} />
       </Box>
-      {details && !narrow && (
-        <Box w={300} style={{ flex: "none" }} className="inbox-aside">
+      {inlineDetails && (
+        <Box w={detailSize.width} pos="relative" style={{ flex: "none" }} className="inbox-aside">
+          <ResizeHandle
+            side="left"
+            dragging={detailSize.dragging}
+            onPointerDown={detailSize.onPointerDown}
+            onDoubleClick={detailSize.onDoubleClick}
+          />
           <Details c={c} onClose={() => setDetails(false)} onOpen={open} />
         </Box>
+      )}
+      {!narrow && !canInlineDetails && (
+        <Drawer opened={drawerDetails} onClose={() => setDetails(false)} position="right" size={340} padding={0} withCloseButton={false}>
+          <Box h="100dvh">
+            <Details c={c} onClose={() => setDetails(false)} onOpen={open} />
+          </Box>
+        </Drawer>
       )}
     </Group>
   )

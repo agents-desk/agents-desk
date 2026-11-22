@@ -215,8 +215,9 @@ function Message({ it, c, mine, author, time, lang, original, translating, watch
         py={8}
         radius="md"
         withBorder={!mine}
-        bg={mine ? "var(--mantine-color-bright-blue-light)" : undefined}
+        bg={mine ? "var(--mantine-primary-color-light)" : undefined}
         className="inbox-bubble"
+        data-incoming={!mine || undefined}
         data-original={(translated && showOriginal) || undefined}
       >
         <Linkified text={shown} />
@@ -250,7 +251,7 @@ function Current({ label }: { label: string }): ReactNode {
 /** Toggle 是消息下面一行中的切换链接。 */
 function Toggle({ label, onClick }: { label: string; onClick: () => void }): ReactNode {
   return (
-    <UnstyledButton fz="xs" c="bright-blue" onClick={onClick}>
+    <UnstyledButton fz="xs" c="brand" onClick={onClick}>
       {label}
     </UnstyledButton>
   )
@@ -261,14 +262,14 @@ function Note({ it, author, time }: { it: ConversationItemDTO; author: string; t
   const t = useT()
   return (
     <Paper px="sm" py={8} radius="md" bg="var(--mantine-color-yellow-light)" className="inbox-note">
-      <Text size="xs" fw={600} c="yellow.9" mb={2}>
+      <Text size="xs" fw={600} className="inbox-note-accent" mb={2}>
         {t("inbox.note_by", { who: author })} · {time}
       </Text>
       <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
         {(it.content.text ?? "").split(/(@\S+)/).map((part, i) =>
           part.startsWith("@") ? (
             // biome-ignore lint/suspicious/noArrayIndexKey: 拆分出的片段没有别的标识，顺序固定
-            <Text key={i} span fw={700} c="yellow.9">
+            <Text key={i} span fw={700} className="inbox-note-accent">
               {part}
             </Text>
           ) : (
