@@ -11,8 +11,10 @@ export interface ContactSummary {
   email: string
   id: string
   kind: ContactKind
-  /** 最近一条消息识别出的语言；还没有识别时为空 */
+  /** 对方的语言：最近一条消息识别出的，或者成员手动设置的；还没有时为空 */
   language: string
+  /** 对方的语言是成员手动设置的：收到的消息不再改它 */
+  language_manual: boolean
   name: string
 }
 

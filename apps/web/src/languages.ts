@@ -40,8 +40,15 @@ export function languageName(tag: string, ui: string): string {
   }
 }
 
-/** validLanguage 返回 tag 是否是浏览器认识的 BCP 47 标签，并给出规范的写法（hi-latn → hi-Latn）；不认识时返回空字符串。 */
+/** TAG 是语言标签的样子：两三个字母的主语言，后面是用 - 或 _ 连接的子标签，例如 hi-Latn、pt_BR。 */
+const TAG = /^[A-Za-z]{2,3}([-_][A-Za-z0-9]{1,8})*$/
+
+/**
+ * validLanguage 返回 tag 是否是浏览器认识的 BCP 47 标签，并给出规范的写法（hi-latn → hi-Latn）；不认识时返回空字符串。
+ * 只接受两三个字母开头的标签，搜索框中的语言名（例如 English）不会被当成标签。
+ */
 export function validLanguage(tag: string): string {
+  if (!TAG.test(tag.trim())) return ""
   try {
     return Intl.getCanonicalLocales(tag.trim().replaceAll("_", "-"))[0] ?? ""
   } catch {

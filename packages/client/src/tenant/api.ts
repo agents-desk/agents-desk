@@ -19,8 +19,10 @@ export interface ContactSummary {
   email: string
   id: string
   kind: ContactKind
-  /** 最近一条消息识别出的语言；还没有识别时为空 */
+  /** 对方的语言：最近一条消息识别出的，或者成员手动设置的；还没有时为空 */
   language: string
+  /** 对方的语言是成员手动设置的：收到的消息不再改它 */
+  language_manual: boolean
   name: string
 }
 
@@ -143,12 +145,19 @@ export interface ConversationItemDTO {
   id: string
   kind: ConversationItemKind
   seq: number
+  /** 对方发来、还没有我的语言的译文、也不是我的语言的消息：翻译可用时页面显示“翻译中”，并请求补译 */
+  untranslated?: boolean
   visibility: ConversationVisibility
 }
 
 export type ConversationItemKind = "message" | "note" | "event"
 
 export type ConversationKind = "service" | "chat"
+
+export interface ConversationLanguageInputBody {
+  /** 对方的语言（BCP 47），例如 hi-Latn；空字符串恢复为按收到的消息自动识别 */
+  language: string
+}
 
 export interface ConversationNoteInputBody {
   /** @ 到的成员 ID；他们的“@我”中出现这个会话，并且能看到它 */
@@ -458,6 +467,16 @@ export interface TenantGeneralSettings {
   name: string
 }
 
+export interface TranslationFillBody {
+  /** 时间线中的项，页面上可见、标为 untranslated 的消息 */
+  item_ids: string[]
+}
+
+export interface TranslationFillDTO {
+  /** 放进后台补译的消息数；译好后像收到的消息一样推送 */
+  queued: number
+}
+
 export interface TranslationGlossaryInputBody {
   glossary: TranslationTerm[]
 }
@@ -687,6 +706,13 @@ export function createClient(options: ClientOptions) {
        */
       items: (id: string, input: ConversationItemsInput = {}): Promise<ConversationItemDTO[]> =>
         rt.request<ConversationItemDTO[]>({ method: "GET", path: `/conversations/${encodeURIComponent(id)}/items`, query: { "after": input["after"], "limit": input["limit"] } }),
+      /**
+       * 设置对方的语言
+       *
+       * PUT /conversations/{id}/language
+       */
+      language: (id: string, body: ConversationLanguageInputBody): Promise<ConversationDTO> =>
+        rt.request<ConversationDTO>({ method: "PUT", path: `/conversations/${encodeURIComponent(id)}/language`, body }),
       /**
        * 会话列表
        *
@@ -957,6 +983,13 @@ export function createClient(options: ClientOptions) {
     },
     /** operationId 以 translation- 开头的接口。 */
     translation: {
+      /**
+       * 补译看到的消息
+       *
+       * POST /conversations/{id}/translations/fill
+       */
+      fill: (id: string, body: TranslationFillBody): Promise<TranslationFillDTO> =>
+        rt.request<TranslationFillDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/translations/fill`, body }),
       /**
        * 保存术语表
        *

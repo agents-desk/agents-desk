@@ -73,6 +73,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         queryKey: key("conversation", "items", ...args),
         queryFn: () => client.conversation.items(...args),
       }),
+      /** PUT /conversations/{id}/language */
+      language: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["language"]>) => client.conversation.language(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
       /** GET /conversations */
       list: (...args: Parameters<Client["conversation"]["list"]>) => ({
         queryKey: key("conversation", "list", ...args),
@@ -302,6 +308,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
     translation: {
       /** translation 分组全部查询的 key 前缀。 */
       key: () => key("translation"),
+      /** POST /conversations/{id}/translations/fill */
+      fill: () => ({
+        mutationFn: (variables: Parameters<Client["translation"]["fill"]>) => client.translation.fill(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "translation"),
+      }),
       /** PUT /settings/translation/glossary */
       glossarySave: () => ({
         mutationFn: (variables: Parameters<Client["translation"]["glossarySave"]>[0]) => client.translation.glossarySave(variables),

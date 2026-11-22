@@ -10,6 +10,7 @@ CREATE TABLE contacts (
     email       text NOT NULL DEFAULT '',
     external_user_id text NOT NULL DEFAULT '',
     language    text NOT NULL DEFAULT '',
+    language_manual boolean NOT NULL DEFAULT false, -- 成员手动设置了 language，收到的消息不再改它
     attributes  jsonb NOT NULL DEFAULT '{}'
 );
 CREATE INDEX contacts_tenant ON contacts (tenant_id, created_at);

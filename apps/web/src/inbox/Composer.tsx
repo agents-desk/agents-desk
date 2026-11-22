@@ -1,12 +1,13 @@
 import type { ConversationDTO, ConversationTranslation, MemberTenantMember, TranslationPreviewDTO } from "@agents-desk/client/tenant"
-import { ActionIcon, Avatar, Box, Button, Group, Loader, Menu, Paper, SegmentedControl, Select, Text, Textarea, Tooltip, UnstyledButton } from "@mantine/core"
+import { ActionIcon, Avatar, Box, Button, Group, Loader, Menu, Paper, SegmentedControl, Text, Textarea, Tooltip, UnstyledButton } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { IconChevronDown, IconLanguage } from "@tabler/icons-react"
 import { describeError } from "@go-tenon/client"
 import { errorMessage, notifyError, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { languageName, languageOptions, validLanguage } from "../languages"
+import { LanguageSelect } from "../LanguageSelect"
+import { languageName } from "../languages"
 import { useMe, useMembers } from "./data"
 import { snoozeOptions } from "./menus"
 
@@ -353,17 +354,10 @@ function useReplyTranslation(id: string, value: string): ReplyTranslation {
 function TranslationPreview({ c, preview, onSendOriginal }: { c: ConversationDTO; preview: ReplyTranslation; onSendOriginal: () => void }): ReactNode {
   const t = useT()
   const ui = useLanguage()
-  const [search, setSearch] = useState("")
   if (!preview.shown) return null
 
-  // 目标语言的选项：不翻译、对方的语言、常用语言；搜索的文字是一个语言标签时也加进去
+  // 目标语言的选项：不翻译、对方的语言（注明）、常用语言
   const theirs = c.language ?? ""
-  const options = languageOptions(ui, [preview.target !== NO_TRANSLATION ? preview.target : "", theirs]).map((o) =>
-    o.value === theirs ? { ...o, label: t("inbox.their_language", { lang: o.label }) } : o,
-  )
-  const typed = validLanguage(search)
-  if (typed && !options.some((o) => o.value === typed)) options.unshift({ value: typed, label: `${languageName(typed, ui)} (${typed})` })
-  const data = [{ value: NO_TRANSLATION, label: t("inbox.no_translation") }, ...options]
   const value = preview.target || preview.last?.result.language || theirs || null
 
   const off = preview.target === NO_TRANSLATION
@@ -389,18 +383,15 @@ function TranslationPreview({ c, preview, onSendOriginal }: { c: ConversationDTO
         <Text size="xs" c="dimmed" style={{ flex: "none" }}>
           {t("inbox.preview_to")}
         </Text>
-        <Select
+        <LanguageSelect
           size="xs"
           w={220}
-          data={data}
+          before={[{ value: NO_TRANSLATION, label: t("inbox.no_translation") }]}
+          first={[theirs]}
+          labels={theirs ? { [theirs]: t("inbox.their_language", { lang: languageName(theirs, ui) }) } : {}}
           value={value}
           onChange={(v) => v && preview.setTarget(v === theirs ? "" : v)}
-          searchable
-          searchValue={search}
-          onSearchChange={setSearch}
           placeholder={t("inbox.choose_language")}
-          nothingFoundMessage={t("inbox.language_not_found")}
-          comboboxProps={{ withinPortal: true }}
           aria-label={t("inbox.choose_language")}
           allowDeselect={false}
         />

@@ -40,6 +40,11 @@ export const schemas = {
         "type": "object"
       },
     },
+    language: {
+      body: {
+        "$ref": "#/components/schemas/ConversationLanguageInputBody"
+      },
+    },
     list: {
       query: {
         "properties": {
@@ -264,6 +269,11 @@ export const schemas = {
     },
   },
   translation: {
+    fill: {
+      body: {
+        "$ref": "#/components/schemas/TranslationFillBody"
+      },
+    },
     glossarySave: {
       body: {
         "$ref": "#/components/schemas/TranslationGlossaryInputBody"
@@ -382,6 +392,19 @@ export const components = {
       "all"
     ],
     "type": "string"
+  },
+  ConversationLanguageInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "language": {
+        "maxLength": 35,
+        "type": "string"
+      }
+    },
+    "required": [
+      "language"
+    ],
+    "type": "object"
   },
   ConversationNoteInputBody: {
     "additionalProperties": false,
@@ -824,6 +847,23 @@ export const components = {
     },
     "required": [
       "name"
+    ],
+    "type": "object"
+  },
+  TranslationFillBody: {
+    "additionalProperties": false,
+    "properties": {
+      "item_ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 100,
+        "minItems": 1,
+        "type": "array"
+      }
+    },
+    "required": [
+      "item_ids"
     ],
     "type": "object"
   },

@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-tenon/tenon/settings"
 
+	"agents-desk/internal/lang"
 	"agents-desk/internal/llm"
 )
 
@@ -53,10 +54,10 @@ func glossaryHint(glossary []Term, text string, targets []string) string {
 			lines = append(lines, fmt.Sprintf("- %q: keep it exactly as written, do not translate it", t.Term))
 			continue
 		}
-		for _, lang := range targets {
+		for _, target := range targets {
 			for k, v := range t.Translations {
-				if v != "" && sameLanguage(k, lang) {
-					lines = append(lines, fmt.Sprintf("- %q: in %s always translate it as %q", t.Term, lang, v))
+				if v != "" && lang.Same(k, target) {
+					lines = append(lines, fmt.Sprintf("- %q: in %s always translate it as %q", t.Term, target, v))
 				}
 			}
 		}
@@ -81,8 +82,8 @@ func (tr *Translator) Incoming(ctx context.Context, tenant, itemID, text string,
 		return "", nil, err
 	}
 	props := map[string]any{}
-	for _, lang := range targets {
-		props[lang] = map[string]any{"type": "string", "description": "the message translated into " + lang}
+	for _, target := range targets {
+		props[target] = map[string]any{"type": "string", "description": "the message translated into " + target}
 	}
 	schema := map[string]any{
 		"type": "object",
@@ -115,9 +116,9 @@ func (tr *Translator) Incoming(ctx context.Context, tenant, itemID, text string,
 	// 书写方式按原文实际用的文字修正：模型有时会漏掉 -Latn
 	out.Language = withScript(out.Language, text)
 	translations := map[string]string{}
-	for _, lang := range targets {
-		if t := out.Translations[lang]; t != "" && !sameLanguage(out.Language, lang) {
-			translations[lang] = t
+	for _, target := range targets {
+		if t := out.Translations[target]; t != "" && !lang.Same(out.Language, target) {
+			translations[target] = t
 		}
 	}
 	return out.Language, translations, nil

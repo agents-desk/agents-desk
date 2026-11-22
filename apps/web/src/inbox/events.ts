@@ -1,5 +1,6 @@
 import type { ConversationItemDTO, MemberTenantMember } from "@agents-desk/client/tenant"
 import type { useT } from "@go-tenon/ui"
+import { languageName } from "../languages"
 
 // 系统事件在时间线中显示成一句话，例如“张三 把会话指派给 李四”。事件的名称和数据由服务端的会话动作写入。
 
@@ -26,8 +27,8 @@ export function whoDid(it: ConversationItemDTO, members: Map<string, MemberTenan
   return t("event.system")
 }
 
-/** describeEvent 返回系统事件 it 的一句话。不认识的事件显示事件名，以后加的事件不会显示成空白。 */
-export function describeEvent(it: ConversationItemDTO, members: Map<string, MemberTenantMember>, names: Names, t: T): string {
+/** describeEvent 返回系统事件 it 的一句话，语言名按界面语言 ui。不认识的事件显示事件名，以后加的事件不会显示成空白。 */
+export function describeEvent(it: ConversationItemDTO, members: Map<string, MemberTenantMember>, names: Names, t: T, ui: string): string {
   const who = whoDid(it, members, t)
   const d = (it.content.data ?? {}) as Record<string, unknown>
   switch (it.content.event) {
@@ -52,6 +53,10 @@ export function describeEvent(it: ConversationItemDTO, members: Map<string, Memb
       return t("event.unsnoozed", { who })
     case "conversation.priority_changed":
       return t(d.to === "high" ? "event.priority_high" : "event.priority_normal", { who })
+    case "conversation.language_set":
+      return t("event.language_set", { who, lang: languageName(String(d.to), ui) })
+    case "conversation.language_auto":
+      return t("event.language_auto", { who })
     case "conversation.rated":
       return d.comment
         ? t("event.rated_comment", { score: Number(d.score), comment: String(d.comment) })

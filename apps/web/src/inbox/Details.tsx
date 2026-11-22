@@ -5,6 +5,7 @@ import { IconX } from "@tabler/icons-react"
 import { notifyError, useCan, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
 import type { ReactNode } from "react"
 import { kit, tenantApi } from "../api"
+import { LanguageSelect } from "../LanguageSelect"
 import { languageName } from "../languages"
 import { useContactHistory, useMe, useMembers, useTeams } from "./data"
 import { activity } from "./format"
@@ -21,9 +22,12 @@ function Field({ label, children }: { label: string; children: ReactNode }): Rea
   )
 }
 
+/** AUTO 是对方语言中的“自动识别”：按收到的消息识别。 */
+const AUTO = "auto"
+
 /**
  * Details 是会话的详情栏（第五栏）：会话（负责人、团队收件箱、优先级可以直接修改）、联系人、同一个联系人的其他会话。
- * 各部分可以折叠。标签和属性在 P1 中加入，联系人的所在地和来源页面在 U1 中加入。
+ * 联系人的语言可以手动设置，识别错了时改成正确的；选“自动识别”恢复按收到的消息更新。各部分可以折叠。标签和属性在 P1 中加入，联系人的所在地和来源页面在 U1 中加入。
  */
 export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: () => void; onOpen: (id: string) => void }): ReactNode {
   const t = useT()
@@ -46,6 +50,14 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
     onSuccess: invalidate,
     onError: (err) => notifyError(err),
   })
+  const setLanguage = useMutation({
+    mutationFn: (lang: string) => tenantApi.conversation.language(c.id, { language: lang }),
+    onSuccess: invalidate,
+    onError: (err) => notifyError(err),
+  })
+  // 对方的语言：手动设置的显示那种语言，否则显示“自动识别”（带上识别出的语言）
+  const manual = c.contact?.language_manual ?? false
+  const detected = c.language ? languageName(c.language, language) : ""
   // 没有“改派给别人”的权限时，负责人只能选自己
   const assignees = can("conversations:assign") ? members : members.filter((m) => m.id === me.data?.id)
   const others = (history.data?.items ?? []).filter((x) => x.id !== c.id)
@@ -143,9 +155,21 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                   </Text>
                 </Field>
                 <Field label={t("inbox.contact_language")}>
-                  <Text size="sm" c={c.language ? undefined : "dimmed"}>
-                    {c.language ? languageName(c.language, language) : "—"}
-                  </Text>
+                  <LanguageSelect
+                    size="xs"
+                    before={[{ value: AUTO, label: !manual && detected ? t("inbox.language_auto_detected", { lang: detected }) : t("inbox.language_auto") }]}
+                    first={c.language ? [c.language] : []}
+                    value={manual ? c.language : AUTO}
+                    onChange={(v) => v && setLanguage.mutate(v === AUTO ? "" : v)}
+                    allowDeselect={false}
+                    disabled={!can("conversations:reply") || setLanguage.isPending}
+                    aria-label={t("inbox.contact_language")}
+                  />
+                  {manual && (
+                    <Text size="xs" c="dimmed" mt={2}>
+                      {t("inbox.language_manual_hint")}
+                    </Text>
+                  )}
                 </Field>
                 <Field label={t("inbox.channel")}>
                   <Text size="sm">{c.channel?.name ?? "—"}</Text>

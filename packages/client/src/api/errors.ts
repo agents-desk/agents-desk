@@ -41,6 +41,8 @@ export const ConversationErrors = {
   NotClosed: "conversation.not_closed",
   /** ErrAlreadyRated 是客户已经评价过这次关闭的会话；会话重新打开、再关闭后可以再评价。 */
   AlreadyRated: "conversation.already_rated",
+  /** ErrInvalidLanguage 是设置的对方语言不是合法的 BCP 47 标签。 */
+  InvalidLanguage: "conversation.invalid_language",
   /** ErrNotFailed 是要重发的消息没有发送失败：还在发送中，或者已经送达。 */
   NotFailed: "conversation.not_failed",
 } as const

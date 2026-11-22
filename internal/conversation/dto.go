@@ -61,6 +61,8 @@ type ItemDTO struct {
 	Derived    map[string]any  `json:"derived" doc:"派生内容，例如按语言的译文，由后台补上"`
 	Delivery   *DeliveryStatus `json:"delivery,omitempty" doc:"发给对方的消息的送达状态"`
 	CreatedAt  time.Time       `json:"created_at"`
+	// Untranslated 只在读取时间线时给出，按读取的成员的语言
+	Untranslated bool `json:"untranslated,omitempty" doc:"对方发来、还没有我的语言的译文、也不是我的语言的消息：翻译可用时页面显示“翻译中”，并请求补译"`
 }
 
 // ItemOutput 是返回时间线一项的响应。

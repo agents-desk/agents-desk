@@ -31,6 +31,8 @@ export const messages = {
     "event.assigned_team_member": "{{.who}} moved the conversation to {{.team}} and assigned it to {{.assignee}}",
     "event.closed": "{{.who}} closed the conversation",
     "event.customer": "The customer",
+    "event.language_auto": "{{.who}} set the customer's language back to automatic detection",
+    "event.language_set": "{{.who}} set the customer's language to {{.lang}}",
     "event.moved_team": "{{.who}} moved the conversation to {{.team}}",
     "event.priority_high": "{{.who}} set the priority to high",
     "event.priority_normal": "{{.who}} set the priority to normal",
@@ -127,6 +129,9 @@ export const messages = {
     "inbox.enter_again": "Translation updated. Check it, then press Enter again to send",
     "inbox.enter_hint": "Enter to send, Shift + Enter for a new line",
     "inbox.hide_translation": "Hide translation",
+    "inbox.language_auto": "Detect automatically",
+    "inbox.language_auto_detected": "Detected: {{.lang}}",
+    "inbox.language_manual_hint": "Set manually. Incoming messages won't change it",
     "inbox.language_not_found": "No such language. Type a language tag, for example hi-Latn",
     "inbox.mode_note": "Internal note",
     "inbox.mode_reply": "Reply",
@@ -337,6 +342,8 @@ export const messages = {
     "event.assigned_team_member": "{{.who}} 把会话转到 {{.team}}，指派给 {{.assignee}}",
     "event.closed": "{{.who}} 关闭了会话",
     "event.customer": "客户",
+    "event.language_auto": "{{.who}} 把对方的语言改回自动识别",
+    "event.language_set": "{{.who}} 把对方的语言改为 {{.lang}}",
     "event.moved_team": "{{.who}} 把会话转到 {{.team}}",
     "event.priority_high": "{{.who}} 把优先级改为高",
     "event.priority_normal": "{{.who}} 把优先级改为普通",
@@ -433,6 +440,9 @@ export const messages = {
     "inbox.enter_again": "译文已更新，确认后再按一次回车发送",
     "inbox.enter_hint": "回车发送，Shift + 回车换行",
     "inbox.hide_translation": "收起译文",
+    "inbox.language_auto": "自动识别",
+    "inbox.language_auto_detected": "自动识别：{{.lang}}",
+    "inbox.language_manual_hint": "手动设置，收到的消息不再改它",
     "inbox.language_not_found": "没有这种语言，可以输入语言标签，例如 hi-Latn",
     "inbox.mode_note": "内部备注",
     "inbox.mode_reply": "回复",
@@ -646,6 +656,8 @@ export type MessageId =
   | "event.assigned_team_member"
   | "event.closed"
   | "event.customer"
+  | "event.language_auto"
+  | "event.language_set"
   | "event.moved_team"
   | "event.priority_high"
   | "event.priority_normal"
@@ -742,6 +754,9 @@ export type MessageId =
   | "inbox.enter_again"
   | "inbox.enter_hint"
   | "inbox.hide_translation"
+  | "inbox.language_auto"
+  | "inbox.language_auto_detected"
+  | "inbox.language_manual_hint"
   | "inbox.language_not_found"
   | "inbox.mode_note"
   | "inbox.mode_reply"

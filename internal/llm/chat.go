@@ -58,8 +58,9 @@ type Call struct {
 	Request          any       `bun:"request,type:jsonb,notnull"`
 	Response         string    `bun:"response,notnull"`
 	PromptTokens     int       `bun:"prompt_tokens,notnull"`
-	CompletionTokens int       `bun:"completion_tokens,notnull"`
-	Cost             *float64  `bun:"cost"` // 供应商返回的费用（美元），没有时为空
+	CompletionTokens int       `bun:"completion_tokens,notnull"` // 包括思考用的 ReasoningTokens
+	ReasoningTokens  int       `bun:"reasoning_tokens,notnull"`  // 思考用的 token；思考关掉时为 0
+	Cost             *float64  `bun:"cost"`                      // 供应商返回的费用（美元），没有时为空
 	DurationMS       int       `bun:"duration_ms,notnull"`
 	Error            string    `bun:"error,notnull"`
 	TargetType       string    `bun:"target_type,notnull"`
@@ -97,9 +98,12 @@ type completion struct {
 		} `json:"message"`
 	} `json:"choices"`
 	Usage struct {
-		PromptTokens     int      `json:"prompt_tokens"`
-		CompletionTokens int      `json:"completion_tokens"`
-		Cost             *float64 `json:"cost"` // OpenRouter 在请求带 usage.include 时返回
+		PromptTokens            int `json:"prompt_tokens"`
+		CompletionTokens        int `json:"completion_tokens"`
+		CompletionTokensDetails struct {
+			ReasoningTokens int `json:"reasoning_tokens"`
+		} `json:"completion_tokens_details"`
+		Cost *float64 `json:"cost"` // OpenRouter 在请求带 usage.include 时返回
 	} `json:"usage"`
 	Error *struct {
 		Message string `json:"message"`
@@ -107,7 +111,8 @@ type completion struct {
 }
 
 // JSON 用调用类型 t 的模型接口发出 req，把按 req.Schema 给出的回答解码到 out。接口是 OpenAI 兼容的 /chat/completions，
-// 用 response_format 要求严格按 schema 回答；接口在 OpenRouter 上时请求带上 usage.include，回答中有费用。
+// 用 response_format 要求严格按 schema 回答；接口在 OpenRouter 上时请求带上 usage.include，回答中有费用，
+// 并且带上 reasoning.enabled=false 关掉思考：翻译、识别语言这类调用不需要推理，开着思考慢几倍、贵几倍，结果一样。
 // 不论成败都在 llm_calls 中记一行。没有配置时返回 ErrNotConfigured，调用失败或回答不是要求的格式时返回 ErrFailed。
 func (c *Client) JSON(ctx context.Context, t CallType, target Target, req JSONRequest, out any) error {
 	s, err := c.settings.Get(ctx)
@@ -129,6 +134,7 @@ func (c *Client) JSON(ctx context.Context, t CallType, target Target, req JSONRe
 	}
 	if u, err := url.Parse(ep.BaseURL); err == nil && strings.HasSuffix(u.Hostname(), "openrouter.ai") {
 		body["usage"] = map[string]any{"include": true}
+		body["reasoning"] = map[string]any{"enabled": false}
 	}
 	call := &Call{
 		ID: uuid.Must(uuid.NewV7()).String(), CreatedAt: time.Now().UTC().Truncate(time.Microsecond),
@@ -180,6 +186,7 @@ func (c *Client) do(ctx context.Context, ep Endpoint, body map[string]any, call 
 		return errors.Wrapf(err, "decode response (status %d)", res.StatusCode)
 	}
 	call.PromptTokens, call.CompletionTokens, call.Cost = resp.Usage.PromptTokens, resp.Usage.CompletionTokens, resp.Usage.Cost
+	call.ReasoningTokens = resp.Usage.CompletionTokensDetails.ReasoningTokens
 	if res.StatusCode != http.StatusOK || resp.Error != nil {
 		msg := ""
 		if resp.Error != nil {

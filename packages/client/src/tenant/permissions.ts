@@ -31,6 +31,7 @@ export const required = {
     get: ["conversations:read"],
     inbox: ["conversations:read"],
     items: ["conversations:read"],
+    language: ["conversations:reply"],
     list: ["conversations:read"],
     note: ["conversations:reply"],
     priority: ["conversations:reply"],
@@ -75,6 +76,7 @@ export const required = {
     rename: ["tenant-settings:manage"],
   },
   translation: {
+    fill: ["conversations:read"],
     glossarySave: ["tenant-settings:manage"],
     preview: ["conversations:reply"],
     toneSave: ["tenant-settings:manage"],

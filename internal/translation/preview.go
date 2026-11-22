@@ -10,6 +10,7 @@ import (
 
 	"agents-desk/internal/auth"
 	"agents-desk/internal/conversation"
+	"agents-desk/internal/lang"
 	"agents-desk/internal/member"
 )
 
@@ -72,7 +73,7 @@ func (a *Preview) Handle(ctx context.Context, sub identity.Subject, id string, b
 	if to == "" {
 		to = c.Language
 	}
-	if to == "" || sameLanguage(from, to) {
+	if to == "" || lang.Same(from, to) {
 		return &PreviewDTO{From: from, Language: to, Translation: b.Text}, nil
 	}
 	translation, back, err := a.translator.Reply(ctx, sub.Tenant, id, b.Text, from, to)

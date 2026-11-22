@@ -2,7 +2,7 @@ import type { ConversationDTO, ConversationItemDTO } from "@agents-desk/client/t
 import { Anchor, Box, Center, Divider, Group, Loader, Paper, Stack, Text, UnstyledButton } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { notifyError, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
-import { Fragment, type ReactNode, useEffect, useRef, useState } from "react"
+import { Fragment, type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { languageName } from "../languages"
 import type { TypingNow } from "./channel"
@@ -14,8 +14,64 @@ import { contactName } from "./List"
 /** deliveryColor 是送达状态的颜色：已读是进行中的颜色，失败是红色，其余是灰色。 */
 const deliveryColor = { sending: "dimmed", delivered: "dimmed", read: "bright-blue", failed: "red" } as const
 
-/** TRANSLATING_FOR 是收到的消息还没有译文时显示“翻译中”的时长：更早的消息（例如配置翻译之前收到的）不再等译文。 */
-const TRANSLATING_FOR = 10 * 60_000
+/** FILL_BATCH 是一次请求补译的消息数上限，和接口一致；FILL_DELAY 是攒一批可见消息再请求的等待时间（毫秒）。 */
+const FILL_BATCH = 100
+const FILL_DELAY = 300
+
+/**
+ * useFillVisible 请求补译会话 conversationId 中出现在页面上的消息：返回的 ref 回调挂在还缺译文（untranslated）的消息上，
+ * 消息滚进可见区域时攒一批调用补译接口，后端判断哪些真的要补，译好后推送过来。每条消息在这个会话中只请求一次，失败时下次可见再请求。
+ * enabled 为假（翻译不可用）时什么也不做。
+ */
+function useFillVisible(conversationId: string, enabled: boolean): (el: HTMLElement | null) => (() => void) | undefined {
+  const requested = useRef(new Set<string>()) // 已经请求过的消息
+  const pending = useRef(new Set<string>()) // 等着一起请求的消息
+  const elements = useRef(new Set<HTMLElement>()) // 挂着 ref 的消息
+  const observer = useRef<IntersectionObserver | null>(null)
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  useEffect(() => {
+    requested.current.clear()
+    pending.current.clear()
+    if (!enabled) return
+    const flush = () => {
+      const ids = [...pending.current].slice(0, FILL_BATCH)
+      for (const id of ids) pending.current.delete(id)
+      if (pending.current.size > 0) timer.current = setTimeout(flush, FILL_DELAY)
+      if (ids.length === 0) return
+      tenantApi.translation.fill(conversationId, { item_ids: ids }).catch(() => {
+        for (const id of ids) requested.current.delete(id)
+      })
+    }
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        const id = (e.target as HTMLElement).dataset.itemId
+        if (!e.isIntersecting || !id || requested.current.has(id)) continue
+        requested.current.add(id)
+        pending.current.add(id)
+      }
+      clearTimeout(timer.current)
+      timer.current = setTimeout(flush, FILL_DELAY)
+    })
+    observer.current = io
+    for (const el of elements.current) io.observe(el)
+    return () => {
+      io.disconnect()
+      observer.current = null
+      clearTimeout(timer.current)
+    }
+  }, [conversationId, enabled])
+
+  return useCallback((el: HTMLElement | null) => {
+    if (!el) return undefined
+    elements.current.add(el)
+    observer.current?.observe(el)
+    return () => {
+      elements.current.delete(el)
+      observer.current?.unobserve(el)
+    }
+  }, [])
+}
 
 /** translationOf 返回对方的消息在成员的语言 lang 中的译文；没有（还没翻译好，或者和成员是同一种语言）时为空。 */
 export function translationOf(it: ConversationItemDTO, lang: string | undefined): string | undefined {
@@ -44,6 +100,8 @@ export function Timeline({ c, readSeq, typing, original }: { c: ConversationDTO;
   const teams = useTeams()
   const items = useTimeline(c.id)
   const translation = useQuery(kit.queries.translation.settings())
+  const enabled = translation.data?.enabled ?? false
+  const watch = useFillVisible(c.id, enabled)
   const bottom = useRef<HTMLDivElement>(null)
   const list = items.data ?? []
   const names = {
@@ -74,7 +132,7 @@ export function Timeline({ c, readSeq, typing, original }: { c: ConversationDTO;
             {readSeq > 0 && it === firstNew && <Divider color="red.3" label={<Text size="xs" c="red">{t("inbox.new_messages")}</Text>} labelPosition="center" />}
             {it.kind === "event" ? (
               <Text size="xs" c="dimmed" ta="center" className="inbox-event">
-                {describeEvent(it, byId, names, t)} · {clock(it.created_at, language, zone)}
+                {describeEvent(it, byId, names, t, language)} · {clock(it.created_at, language, zone)}
               </Text>
             ) : it.kind === "note" ? (
               <Note it={it} author={names.member(it.actor.id)} time={clock(it.created_at, language, zone)} />
@@ -87,7 +145,8 @@ export function Timeline({ c, readSeq, typing, original }: { c: ConversationDTO;
                 time={clock(it.created_at, language, zone)}
                 lang={me.data?.language}
                 original={original}
-                translating={translation.data?.enabled ?? false}
+                translating={enabled}
+                watch={watch}
               />
             )}
           </Fragment>
@@ -112,14 +171,15 @@ interface MessageProps {
   time: string
   lang: string | undefined // 成员的语言：对方的消息显示这种语言的译文
   original: boolean // 顶部选了“原文”：对方的消息都显示原文
-  translating: boolean // 翻译可用：刚收到、还没有译文的消息显示“翻译中”
+  translating: boolean // 翻译可用：还缺我的语言的译文的消息显示“翻译中”，出现在页面上时请求补译
+  watch: (el: HTMLElement | null) => (() => void) | undefined // 挂在还缺译文的消息上，见 useFillVisible
 }
 
 /**
  * Message 是一条消息：对方的在左侧，成员和系统发的在右侧，旁边是送达状态，失败时可以重发。
  * 对方的消息有译文时显示译文，下面一行“译文 · 原文”切换（单独切换和顶部的选择相反）；成员翻译后发出的消息显示原文，下面一行展开译文。
  */
-function Message({ it, c, mine, author, time, lang, original, translating }: MessageProps): ReactNode {
+function Message({ it, c, mine, author, time, lang, original, translating, watch }: MessageProps): ReactNode {
   const t = useT()
   const ui = useLanguage()
   const [flip, setFlip] = useState(false) // 这一条和顶部的“显示原文”相反
@@ -156,7 +216,7 @@ function Message({ it, c, mine, author, time, lang, original, translating }: Mes
         )}
       </>
     )
-  } else if (!mine && translating && text && !from && Date.now() - new Date(it.created_at).getTime() < TRANSLATING_FOR) {
+  } else if (!mine && translating && it.untranslated) {
     caption = (
       <>
         <Loader size={10} />
@@ -177,7 +237,11 @@ function Message({ it, c, mine, author, time, lang, original, translating }: Mes
   }
 
   return (
-    <Box style={{ alignSelf: mine ? "flex-end" : "flex-start", maxWidth: "72%" }}>
+    <Box
+      style={{ alignSelf: mine ? "flex-end" : "flex-start", maxWidth: "72%" }}
+      ref={!mine && translating && it.untranslated ? watch : undefined}
+      data-item-id={it.id}
+    >
       <Text size="xs" c="dimmed" mb={2} ta={mine ? "right" : "left"} px={4}>
         {author} · {time}
         {mine && it.delivery && (

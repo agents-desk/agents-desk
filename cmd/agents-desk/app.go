@@ -192,7 +192,7 @@ func parts(a *App) []command.Part {
 func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
 	w := queue.NewWorker(a.db, a.nc, a.cfg.Queue, nil)
 	conversation.RegisterJobs(w, a.db, a.channels)
-	translation.RegisterJobs(w, a.db, a.translator, a.downstream())
+	translation.RegisterJobs(w, a.db, a.locker, a.translator, a.downstream())
 	return w.Run, nil
 }
 

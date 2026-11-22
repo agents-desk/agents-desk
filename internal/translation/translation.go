@@ -5,7 +5,6 @@ package translation
 
 import (
 	"context"
-	"strings"
 	"unicode"
 
 	"github.com/cockroachdb/errors"
@@ -58,22 +57,6 @@ func memberLanguages(ctx context.Context, db bun.IDB, tenant string) ([]string, 
 		JOIN authz_assignments a ON a.subject_type = 'member' AND a.subject_id = m.id::text AND a.tenant = ?
 		WHERE m.disabled_at IS NULL ORDER BY m.language`, tenant).Scan(ctx, &langs)
 	return langs, errors.Wrap(err, "load member languages")
-}
-
-// sameLanguage 报告两个 BCP 47 标签是不是同一种语言、同一种书写方式：主语言相同，书写方式也相同。没有写书写方式时按这门语言
-// 在这个地区通常的书写方式推断（CLDR），例如 zh-CN 和 zh-Hans 相同，zh-TW 是繁体，hi 是天城文、和 hi-Latn（用拉丁字母写的
-// 印地语）不同。地区本身不算：en 和 en-US 相同。解析不了的标签按小写比较整个标签。
-func sameLanguage(a, b string) bool {
-	ta, errA := language.Parse(strings.ReplaceAll(a, "_", "-"))
-	tb, errB := language.Parse(strings.ReplaceAll(b, "_", "-"))
-	if errA != nil || errB != nil {
-		return strings.EqualFold(a, b)
-	}
-	baseA, _ := ta.Base()
-	baseB, _ := tb.Base()
-	scriptA, _ := ta.Script()
-	scriptB, _ := tb.Script()
-	return baseA == baseB && scriptA == scriptB
 }
 
 // withScript 按原文 text 实际用的文字修正模型识别出的语言标签 tag：原文主要是拉丁字母、而这门语言通常不用拉丁字母写时

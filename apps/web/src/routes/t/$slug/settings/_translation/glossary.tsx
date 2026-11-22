@@ -1,5 +1,5 @@
 import type { TranslationSettingsDTO, TranslationTerm } from "@agents-desk/client/tenant"
-import { ActionIcon, Badge, Button, Group, Modal, SegmentedControl, Select, Stack, Table, Text, TextInput } from "@mantine/core"
+import { ActionIcon, Badge, Button, Group, Modal, SegmentedControl, Stack, Table, Text, TextInput } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
@@ -7,7 +7,8 @@ import { IconPencil, IconPlus, IconTrash } from "@tabler/icons-react"
 import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, useLanguage, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../../../../../api"
-import { languageName, languageOptions, validLanguage } from "../../../../../languages"
+import { LanguageSelect } from "../../../../../LanguageSelect"
+import { languageName } from "../../../../../languages"
 
 // 术语表：产品名、品牌名按固定的写法翻译。每条是保持原样（任何语言中都不翻译），或者按语言给出固定译法。
 // 只在消息中出现这个词时生效；订单号、金额、链接总是原样保留，不用加。添加、编辑、删除后保存整张表。
@@ -137,7 +138,6 @@ interface Pair {
 /** TermForm 是添加和编辑术语的表单：术语、处理方式，固定译法时按语言填写译法。保存失败时错误显示在表单中。 */
 function TermForm({ initial, onSave, onCancel }: { initial: TranslationTerm; onSave: (term: TranslationTerm) => Promise<void>; onCancel: () => void }): ReactNode {
   const t = useT()
-  const ui = useLanguage()
   const pairs = Object.entries(initial.translations ?? {}).map(([lang, text]) => ({ lang, text }))
   const form = useForm<{ term: string; keep: boolean; pairs: Pair[] }>({
     initialValues: { term: initial.term, keep: initial.keep, pairs: pairs.length > 0 ? pairs : [{ lang: "", text: "" }] },
@@ -148,7 +148,6 @@ function TermForm({ initial, onSave, onCancel }: { initial: TranslationTerm; onS
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<ReturnType<typeof applyServerErrors>>()
-  const [search, setSearch] = useState<Record<number, string>>({})
 
   const submit = form.onSubmit(async (values) => {
     setSaving(true)
@@ -192,23 +191,10 @@ function TermForm({ initial, onSave, onCancel }: { initial: TranslationTerm; onS
               {t("glossary.translations")}
             </Text>
             {form.values.pairs.map((p, i) => {
-              // 选项：常用语言；已经填了的、正在搜索的语言标签也加进去
-              const typed = validLanguage(search[i] ?? "")
-              const options = languageOptions(ui, [p.lang, typed]).map((o) => (o.value === typed && typed !== p.lang ? { ...o, label: `${o.label} (${typed})` } : o))
               return (
                 // biome-ignore lint/suspicious/noArrayIndexKey: 表单中的行没有别的标识
                 <Group key={i} gap="xs" wrap="nowrap" align="flex-start">
-                  <Select
-                    w={220}
-                    data={options}
-                    searchable
-                    searchValue={search[i]}
-                    onSearchChange={(s) => setSearch((all) => ({ ...all, [i]: s }))}
-                    placeholder={t("glossary.language")}
-                    nothingFoundMessage={t("inbox.language_not_found")}
-                    aria-label={t("glossary.language")}
-                    {...form.getInputProps(`pairs.${i}.lang`)}
-                  />
+                  <LanguageSelect w={220} placeholder={t("glossary.language")} aria-label={t("glossary.language")} {...form.getInputProps(`pairs.${i}.lang`)} />
                   <TextInput style={{ flex: 1 }} maxLength={200} placeholder={t("glossary.translation")} aria-label={t("glossary.translation")} {...form.getInputProps(`pairs.${i}.text`)} />
                   <ActionIcon variant="subtle" color="gray" mt={6} onClick={() => form.removeListItem("pairs", i)} aria-label={t("glossary.remove_translation")}>
                     <IconTrash size={16} />
