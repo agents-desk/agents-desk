@@ -51,20 +51,16 @@ func NewGroup(db bun.IDB) *settings.Group[Settings] {
 	return settings.New(db, "translation", Settings{Tone: Neutral, Glossary: []Term{}})
 }
 
-// primaryLanguages 返回工作区 tenant 收到消息时预先翻译的主要语言：没有停用的成员中占比不少于 25% 或并列最多的语言
-// （按使用人数从多到少最多取 3 种，再按字母排列）。这样双语团队（例如 3 中 2 英）不会因人数微变退化成频繁二次调用，
-// 而少数派语言在成员看到消息时按需补译（见 FillMissing）。还没有成员时返回空。
+// primaryLanguages 返回工作区 tenant 的主要语言：没有停用的成员中用的人最多的语言，人数一样多时都算，按字母排列。
+// 收到的消息预先翻译成这些语言；其他语言在成员看到消息时补译（见 FillMissing），一个改了语言的测试账号只在它自己看到时多翻译一次。
+// 还没有成员时返回空。
 func primaryLanguages(ctx context.Context, db bun.IDB, tenant string) ([]string, error) {
 	var langs []string
 	err := db.NewRaw(`WITH counts AS (
 			SELECT m.language, COUNT(DISTINCT m.id) AS n FROM members m
 			JOIN authz_assignments a ON a.subject_type = 'member' AND a.subject_id = m.id::text AND a.tenant = ?
-			WHERE m.disabled_at IS NULL GROUP BY m.language),
-		picked AS (
-			SELECT language FROM counts
-			WHERE n * 4 >= (SELECT SUM(n) FROM counts) OR n = (SELECT MAX(n) FROM counts)
-			ORDER BY n DESC, language LIMIT 3)
-		SELECT language FROM picked ORDER BY language`, tenant).Scan(ctx, &langs)
+			WHERE m.disabled_at IS NULL GROUP BY m.language)
+		SELECT language FROM counts WHERE n = (SELECT MAX(n) FROM counts) ORDER BY language`, tenant).Scan(ctx, &langs)
 	return langs, errors.Wrap(err, "load primary languages")
 }
 
