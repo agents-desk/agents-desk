@@ -13,6 +13,14 @@ export const enums = {
       "zh-CN": { translation: "翻译" },
     },
   },
+  PlatformAdminStatus: {
+    prefix: "platform_admin.status",
+    values: ["active", "disabled"],
+    labels: {
+      "en": { active: "Active", disabled: "Disabled" },
+      "zh-CN": { active: "正常", disabled: "已停用" },
+    },
+  },
   TenantStatus: {
     prefix: "tenant.status",
     values: ["active", "disabled"],

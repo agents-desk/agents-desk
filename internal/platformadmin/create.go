@@ -57,12 +57,36 @@ func (a *Create) Handle(ctx context.Context, actor identity.Subject, name, email
 		}
 		return activity.Record(ctx, tx, actor, activity.Activity{
 			Event: "platform_admin.created", TargetType: string(Type), TargetID: admin.ID,
+			Properties: map[string]any{"name": admin.Name},
 		})
 	})
 	if err != nil {
 		return nil, err
 	}
 	return admin, nil
+}
+
+// CreateInput 是创建平台管理员的请求体。
+type CreateInput struct {
+	Body struct {
+		Name     string `json:"name" minLength:"1" maxLength:"60"`
+		Email    string `json:"email" format:"email" maxLength:"120"`
+		Password string `json:"password" minLength:"8" maxLength:"128"`
+	}
+}
+
+// HTTP 处理 POST /admins：创建平台管理员并返回新账号信息。
+func (a *Create) HTTP(ctx context.Context, in *CreateInput) (*AdminOutput, error) {
+	sub, _ := identity.FromContext(ctx)
+	admin, err := a.Handle(ctx, sub, strings.TrimSpace(in.Body.Name), strings.TrimSpace(in.Body.Email), in.Body.Password)
+	if err != nil {
+		return nil, err
+	}
+	dto, err := toDTO(ctx, a.logins, admin, sub.ID)
+	if err != nil {
+		return nil, err
+	}
+	return &AdminOutput{Body: dto}, nil
 }
 
 // Command 处理 admin create --email 邮箱 [--name 名字]。密码不出现在命令行参数和 shell 历史中：

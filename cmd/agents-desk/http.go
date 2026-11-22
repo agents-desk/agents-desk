@@ -28,6 +28,7 @@ import (
 
 	"agents-desk/apps"
 	"agents-desk/internal/attribute"
+	"agents-desk/internal/audit"
 	"agents-desk/internal/auth"
 	"agents-desk/internal/automation"
 	"agents-desk/internal/contact"
@@ -168,8 +169,10 @@ func (a *App) routes(pages http.Handler) chi.Router {
 			return rest.RequireToken(api, a.adminTokens.Validate, names...)
 		}
 		platformadmin.RegisterRoutes(api, require(), a.db, a.adminLogins, a.adminTokens, a.files, a.cfg.Filesystem.MaxUploadSize, a.cfg.AdminToken.Lifetime)
+		platformadmin.RegisterManageRoutes(api, require(auth.PlatformAdminsManage), a.db, a.adminLogins)
 		tenant.RegisterRoutes(api, require(auth.TenantsRead), require(auth.TenantsManage), a.db, a.memberLogins, addr, memberHooks)
 		llm.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.llmSettings)
+		audit.RegisterRoutes(api, require(auth.AuditRead), a.db)
 		queueOpts := queueapi.Options{}
 		if a.nc != nil { // docRouter 离线构造路由时没有 NATS 连接
 			queueOpts.Admin = queue.NewAdmin(a.nc, a.cfg.Queue)

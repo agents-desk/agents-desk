@@ -22,6 +22,8 @@ model.description: "Configure the model API and model name for each call type. C
 model.model: "Model"
 model.translation_description: "Translates text between languages and detects the source language and script"
 
+nav.admins: "Platform admins"
+nav.audit: "Audit log"
 nav.doctor: "Diagnostics"
 nav.model: "Model APIs"
 nav.ops: "Operations"
@@ -30,6 +32,15 @@ nav.profile: "Profile"
 nav.queue: "Queue"
 nav.schedules: "Schedules"
 nav.tenants: "Workspaces"
+
+admins.password_hint: "8 to 128 characters"
+admins.self_badge: "You"
+
+audit.description: "Platform-level administrative actions from newest to oldest (workspaces, platform admins, and platform settings)."
+audit.filter.all: "All"
+audit.filter.platform_admin: "Platform admins"
+audit.filter.settings: "Platform settings"
+audit.filter.tenant: "Workspaces"
 
 doctor.all_passed: "All checks passed"
 doctor.description: "Inspect database, migration status, queue replication slot, NATS JetStream, and file storage configuration."

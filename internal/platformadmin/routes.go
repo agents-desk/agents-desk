@@ -45,3 +45,37 @@ func RegisterRoutes(api *rest.API, requireAdmin func(*huma.Operation), db *bun.D
 
 	file.RegisterRoutes(api, requireAdmin, files, maxUpload)
 }
+
+// RegisterManageRoutes 注册平台管理员账号的增查改与停用/启用接口，并声明为管理员端的资源。
+// requireManage 要求 platform-admins:manage 权限。
+func RegisterManageRoutes(api *rest.API, requireManage func(*huma.Operation), db *bun.DB, logins *login.Realm) {
+	route := func(id, method, path, summary string) huma.Operation {
+		op := huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary}
+		requireManage(&op)
+		return op
+	}
+	create := route("admin-create", http.MethodPost, "/admins", "新建平台管理员")
+	create.DefaultStatus = http.StatusCreated
+
+	rest.Register(api, route("admin-list", http.MethodGet, "/admins", "平台管理员列表"), NewList(db, logins).HTTP)
+	rest.Register(api, route("admin-get", http.MethodGet, "/admins/{id}", "读取平台管理员"), NewGet(db, logins).HTTP)
+	rest.Register(api, create, NewCreate(db, logins).HTTP)
+	rest.Register(api, route("admin-update", http.MethodPut, "/admins/{id}", "修改平台管理员"), NewUpdate(db, logins).HTTP)
+	rest.Register(api, route("admin-disable", http.MethodPost, "/admins/{id}/disable", "停用平台管理员"), NewDisable(db, logins).HTTP)
+	rest.Register(api, route("admin-enable", http.MethodPost, "/admins/{id}/enable", "启用平台管理员"), NewEnable(db, logins).HTTP)
+
+	api.Resource(rest.Resource{
+		Name:       "admin",
+		List:       "admin-list",
+		Get:        "admin-get",
+		Create:     "admin-create",
+		Update:     "admin-update",
+		Columns:    []string{"name", "email", "status", "created_at"},
+		Filters:    []string{"name", "status"},
+		CreateForm: []string{"name", "email", "password"},
+		Actions: []rest.Action{
+			{Name: "disable", Operation: "admin-disable", Confirm: true, Danger: true, When: map[string][]string{"status": {string(Active)}, "self": {"false"}}},
+			{Name: "enable", Operation: "admin-enable", Confirm: true, When: map[string][]string{"status": {string(Disabled)}}},
+		},
+	})
+}
