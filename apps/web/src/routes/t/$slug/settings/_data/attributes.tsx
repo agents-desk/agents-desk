@@ -1,6 +1,6 @@
 import type { AttributeDTO, AttributeTarget, AttributeType } from "@agents-desk/client/tenant"
 import { closestCenter, DndContext, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core"
-import { restrictToVerticalAxis } from "@dnd-kit/modifiers"
+import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers"
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { ActionIcon, Badge, Button, Code, Group, Modal, SegmentedControl, Select, Stack, Table, TagsInput, Text, TextInput } from "@mantine/core"
@@ -27,9 +27,11 @@ function Attributes(): ReactNode {
   const [target, setTarget] = useState<AttributeTarget>("conversation")
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<AttributeDTO>()
+  // 本地拖动顺序与 DndContext 的结束状态在同一帧批量提交，避免放下瞬间出现一帧回弹
+  const [draftOrder, setDraftOrder] = useState<{ target: AttributeTarget; items: AttributeDTO[] } | null>(null)
   const listQuery = kit.queries.attribute.list({ target })
   const list = useQuery(listQuery)
-  const items = list.data ?? []
+  const items = draftOrder?.target === target ? draftOrder.items : (list.data ?? [])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -48,6 +50,7 @@ function Attributes(): ReactNode {
     if (!ok) return
     try {
       await tenantApi.attribute.delete(attr.id)
+      setDraftOrder(null)
       await invalidate()
       notifySuccess(t("attributes.deleted"))
     } catch (err) {
@@ -55,7 +58,7 @@ function Attributes(): ReactNode {
     }
   }
 
-  // onDragEnd 拖动结束后先乐观更新列表顺序，再批量持久化；失败时回滚并提示错误
+  // onDragEnd 拖动结束后同步更新本地顺序，再批量持久化；失败时回滚并提示错误
   const onDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
     if (!over || active.id === over.id) return
@@ -65,13 +68,16 @@ function Attributes(): ReactNode {
 
     const previous = items
     const next = arrayMove(items, oldIndex, newIndex).map((item, position) => ({ ...item, position }))
+    setDraftOrder({ target, items: next })
     queryClient.setQueryData(listQuery.queryKey, next)
     try {
       const saved = await tenantApi.attribute.reorder({ target, ids: next.map((x) => x.id) })
       queryClient.setQueryData(listQuery.queryKey, saved)
+      setDraftOrder(null)
       await invalidate()
     } catch (err) {
       queryClient.setQueryData(listQuery.queryKey, previous)
+      setDraftOrder(null)
       notifyError(err)
     }
   }
@@ -101,7 +107,12 @@ function Attributes(): ReactNode {
             {t("attributes.empty")}
           </Text>
         ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} onDragEnd={(e) => void onDragEnd(e)}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+            onDragEnd={(e) => void onDragEnd(e)}
+          >
             <SortableContext items={items.map((x) => x.id)} strategy={verticalListSortingStrategy}>
               <Table verticalSpacing="sm">
                 <Table.Thead>
@@ -158,10 +169,14 @@ function Attributes(): ReactNode {
 /** SortableRow 是可拖动排序的属性表格行，通过左侧手柄拖拽调整顺序。 */
 function SortableRow({ attr, onEdit, onRemove }: { attr: AttributeDTO; onEdit: () => void; onRemove: () => void }): ReactNode {
   const t = useT()
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: attr.id })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isSorting } = useSortable({
+    id: attr.id,
+    animateLayoutChanges: () => false,
+  })
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: CSS.Translate.toString(transform),
+    // 只在拖动过程中播放让位动画，松手落位时不再做二次位移动画
+    transition: isSorting ? transition : undefined,
     position: isDragging ? ("relative" as const) : undefined,
     zIndex: isDragging ? 1 : undefined,
     backgroundColor: isDragging ? "var(--mantine-color-body)" : undefined,
