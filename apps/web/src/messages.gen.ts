@@ -66,10 +66,14 @@ export const messages = {
     "command.contacts_group": "Contacts",
     "command.conversations_group": "Conversations",
     "command.empty": "No matching conversations, contacts, or pages",
+    "command.hint_close": "Close",
+    "command.hint_navigate": "Navigate",
+    "command.hint_open": "Open",
     "command.inbox_group": "Inbox \u0026 Teams",
     "command.pages_group": "Pages \u0026 Settings",
     "command.placeholder": "Search messages, contacts, inbox, or pages…",
     "command.search": "Search \u0026 quick jump",
+    "command.searching": "Searching…",
     "command.view_all_results": "View all {{.n}} conversations in Inbox",
     "common.cancel": "Cancel",
     "common.save": "Save",
@@ -545,10 +549,14 @@ export const messages = {
     "command.contacts_group": "联系人",
     "command.conversations_group": "会话",
     "command.empty": "没有找到匹配的会话、联系人或页面",
+    "command.hint_close": "关闭",
+    "command.hint_navigate": "选择",
+    "command.hint_open": "打开",
     "command.inbox_group": "收件箱与团队",
     "command.pages_group": "页面与设置",
     "command.placeholder": "搜索会话消息、联系人、收件箱或页面…",
     "command.search": "搜索与快速跳转",
+    "command.searching": "正在搜索…",
     "command.view_all_results": "在收件箱中查看全部 {{.n}} 个会话",
     "common.cancel": "取消",
     "common.save": "保存",
@@ -1027,10 +1035,14 @@ export type MessageId =
   | "command.contacts_group"
   | "command.conversations_group"
   | "command.empty"
+  | "command.hint_close"
+  | "command.hint_navigate"
+  | "command.hint_open"
   | "command.inbox_group"
   | "command.pages_group"
   | "command.placeholder"
   | "command.search"
+  | "command.searching"
   | "command.view_all_results"
   | "common.cancel"
   | "common.save"

@@ -337,16 +337,7 @@
   }
 }
 
-/* 全文检索命中词高亮：使用主题语义浅黄底与对比文字色，亮暗模式一致 */
-.inbox-mark {
-  background: var(--mantine-color-yellow-light);
-  color: var(--mantine-color-yellow-light-color);
-  border-radius: 3px;
-  padding: 0 2px;
-  font-weight: 600;
-}
-
-/* 从搜索结果跳转到时间线某条消息时的短暂聚焦高亮 */
+/* 从搜索结果跳转到时间线某条消息时的短暂聚焦高亮（命中词 .inbox-mark 定义在全局 command-palette.css 中） */
 .inbox-focus-pulse {
   outline: 2px solid var(--mantine-primary-color-filled);
   outline-offset: 2px;

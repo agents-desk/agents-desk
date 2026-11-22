@@ -1,0 +1,125 @@
+/*
+ * 全局命令面板（CommandPalette）与全文检索命中高亮样式。
+ * 引入在根路由中，保证在收件箱、联系人、报表、设置等任意页面打开命令面板时样式与高亮一致。
+ */
+
+/* 全文检索命中词高亮：使用主题语义浅黄底与对比文字色，亮暗模式一致 */
+.inbox-mark {
+  background: var(--mantine-color-yellow-light);
+  color: var(--mantine-color-yellow-light-color);
+  border-radius: 3px;
+  padding: 0 2px;
+  font-weight: 600;
+}
+
+/* 命令面板整体容器：固定舒适高度，避免空态、初始列表与输入筛选之间高度剧烈跳动 */
+.cmd-palette .mantine-Spotlight-content {
+  height: min(440px, calc(100dvh - 8rem));
+  max-height: min(440px, calc(100dvh - 8rem));
+  border: 1px solid var(--tn-border);
+  background: var(--tn-surface);
+  overflow: hidden;
+}
+
+.cmd-palette .mantine-Spotlight-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.cmd-palette .mantine-Spotlight-search {
+  height: 48px;
+  font-size: var(--mantine-font-size-sm);
+  padding-inline: 14px;
+}
+
+/* 列表区域填满搜索框与底栏之间的剩余空间并内部滚动 */
+.cmd-palette .mantine-Spotlight-actionsList {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  margin-inline-end: 0;
+  padding: 6px 8px 10px;
+  border-top: 1px solid var(--tn-border);
+}
+
+.cmd-palette .mantine-ScrollArea-viewport > div {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 分组标题更克制紧凑 */
+.cmd-palette .mantine-Spotlight-actionsGroup {
+  margin-top: 10px;
+}
+
+.cmd-palette .mantine-Spotlight-actionsGroup:first-child {
+  margin-top: 2px;
+}
+
+.cmd-palette .mantine-Spotlight-actionsGroup::before {
+  padding: 2px 10px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--tn-subtle);
+}
+
+/* 单行结果：使用柔和的选中高亮底色，保证徽标、次要文字与高亮词在亮暗模式下清晰可读 */
+.cmd-palette .mantine-Spotlight-action {
+  padding: 7px 10px;
+  border-radius: var(--mantine-radius-md);
+  transition: background-color 100ms ease;
+}
+
+.cmd-palette .mantine-Spotlight-action:hover:not([data-selected]) {
+  background-color: var(--tn-hover);
+}
+
+.cmd-palette .mantine-Spotlight-action[data-selected] {
+  background-color: var(--tn-active-bg);
+  color: var(--tn-text);
+  --action-description-color: var(--tn-muted);
+  --action-description-opacity: 1;
+}
+
+/* 左侧图标槽：28x28 柔和圆角方块，让会话、联系人、收件箱和页面垂直对齐 */
+.cmd-palette-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--mantine-radius-sm);
+  background: var(--tn-hover);
+  color: var(--tn-muted);
+}
+
+.cmd-palette .mantine-Spotlight-action[data-selected] .cmd-palette-icon {
+  background: var(--mantine-primary-color-light);
+  color: var(--mantine-primary-color-light-color);
+}
+
+/* 加载态与空态在固定高度列表区中垂直居中 */
+.cmd-palette-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 16px;
+  color: var(--tn-muted);
+  text-align: center;
+}
+
+/* 底部快捷键提示栏 */
+.cmd-palette .mantine-Spotlight-footer {
+  flex: none;
+  padding: 7px 14px;
+  border-top: 1px solid var(--tn-border);
+  background: color-mix(in srgb, var(--tn-canvas) 65%, var(--tn-surface));
+}

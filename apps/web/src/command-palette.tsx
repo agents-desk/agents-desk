@@ -1,4 +1,4 @@
-import { Badge, Box, Group, Loader, Text, Tooltip, UnstyledButton } from "@mantine/core"
+import { Badge, Box, CloseButton, Group, Kbd, Loader, Text, Tooltip, UnstyledButton } from "@mantine/core"
 import { useDebouncedValue, useOs } from "@mantine/hooks"
 import { Spotlight, spotlight } from "@mantine/spotlight"
 import {
@@ -22,15 +22,22 @@ import { activity } from "./inbox/format"
 import { HighlightedSnippet, HighlightQuery } from "./inbox/Highlight"
 import type { MatchField } from "./inbox/search"
 
-/** pages 将菜单树拍平为叶子页面列表，保留上级分组名称和最近图标。 */
+/** flattenPages 将菜单树拍平为叶子页面列表，保留上级分组名称和最近图标。 */
 function flattenPages(
   items: readonly MenuItem[],
   trail: string[] = [],
   icon?: string,
 ): { item: MenuItem; trail: string[]; icon?: string }[] {
   return items.flatMap((item) =>
-    item.children?.length ? flattenPages(item.children, [...trail, item.title], item.icon ?? icon) : [{ item, trail, icon: item.icon ?? icon }],
+    item.children?.length
+      ? flattenPages(item.children, [...trail, item.title], item.icon ?? icon)
+      : [{ item, trail, icon: item.icon ?? icon }],
   )
+}
+
+/** firstLeaf 返回菜单分支下的第一个可访问页面。 */
+function firstLeaf(item: MenuItem): MenuItem {
+  return item.children?.length ? firstLeaf(item.children[0]) : item
 }
 
 /** statusColor 是会话状态的语义徽标颜色。 */
@@ -60,7 +67,8 @@ interface NavAction {
 
 /**
  * CommandPalette 是工作台的全局命令面板（Cmd/Ctrl + K）：
- * 支持按关键词实时全文搜索会话（含高亮摘要）和联系人，同时支持快速跳转收件箱视图、团队收件箱与有权限访问的页面。
+ * 固定舒适高度避免输入筛选时尺寸跳动；未输入时展示精简的收件箱与一级模块快捷入口，
+ * 输入关键词后实时全文搜索会话消息（含高亮摘要）、联系人、收件箱与全部页面设置。
  */
 export function CommandPalette({ slug }: { slug: string }): ReactNode {
   const t = useT()
@@ -70,7 +78,8 @@ export function CommandPalette({ slug }: { slug: string }): ReactNode {
   const { menu } = useNavigation()
   const navigate = useNavigate()
   const [query, setQuery] = useState("")
-  const [debounced] = useDebouncedValue(query.trim(), 250)
+  const trimmed = query.trim()
+  const [debounced] = useDebouncedValue(trimmed, 250)
   const canReadInbox = can("conversations:read")
   const canReadContacts = can("contacts:read")
   const inbox = useQuery({ ...kit.queries.conversation.inbox(), enabled: canReadInbox })
@@ -86,7 +95,7 @@ export function CommandPalette({ slug }: { slug: string }): ReactNode {
     enabled: canReadContacts && debounced.length > 0,
   })
 
-  const { inboxActions, pageActions } = useMemo(() => {
+  const { inboxActions, quickPageActions, allPageActions } = useMemo(() => {
     const inboxList: NavAction[] = []
     if (canReadInbox) {
       const boxSearch = { status: "open" as const, sort: "waiting" as const }
@@ -95,75 +104,108 @@ export function CommandPalette({ slug }: { slug: string }): ReactNode {
           id: "inbox:mine",
           label: t("inbox.box_mine"),
           description: t("nav.inbox"),
-          icon: <IconInbox size={16} stroke={1.6} />,
+          icon: <IconInbox size={15} stroke={1.6} />,
           onClick: () => void navigate({ to: "/t/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "mine" } }),
         },
         {
           id: "inbox:mentions",
           label: t("inbox.box_mentions"),
           description: t("nav.inbox"),
-          icon: <IconAt size={16} stroke={1.6} />,
+          icon: <IconAt size={15} stroke={1.6} />,
           onClick: () => void navigate({ to: "/t/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "mentions" } }),
         },
         {
           id: "inbox:unassigned",
           label: t("inbox.box_unassigned"),
           description: t("nav.inbox"),
-          icon: <IconUserQuestion size={16} stroke={1.6} />,
+          icon: <IconUserQuestion size={15} stroke={1.6} />,
           onClick: () => void navigate({ to: "/t/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "unassigned" } }),
         },
         {
           id: "inbox:all",
           label: t("inbox.box_all"),
           description: t("nav.inbox"),
-          icon: <IconListDetails size={16} stroke={1.6} />,
+          icon: <IconListDetails size={15} stroke={1.6} />,
           onClick: () => void navigate({ to: "/t/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "all" } }),
         },
         ...(inbox.data?.teams ?? []).map((team) => ({
           id: `inbox:team:${team.id}`,
           label: team.name,
           description: t("inbox.teams"),
-          icon: <IconUsersGroup size={16} stroke={1.6} />,
+          icon: <IconUsersGroup size={15} stroke={1.6} />,
           onClick: () =>
             void navigate({ to: "/t/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "all", team: team.id } }),
         })),
       )
     }
-    const pagesList: NavAction[] = flattenPages(menu).map(({ item, trail, icon }) => ({
+
+    // 初始空查询只放一级模块（排除已在上方展开的收件箱），保持默认面板精简克制
+    const inboxPath = `/t/${slug}/inbox`
+    const quickPages: NavAction[] = menu
+      .filter((item) => !(canReadInbox && item.path === inboxPath))
+      .map((item) => {
+        const target = firstLeaf(item)
+        return {
+          id: `quick:${item.id}`,
+          label: item.title,
+          icon: <Icon name={item.icon ?? "apps"} size={15} stroke={1.6} />,
+          onClick: () => void navigate({ to: target.path }),
+        }
+      })
+
+    // 输入关键词后搜索全部叶子页面（含所有设置子页）
+    const allPages: NavAction[] = flattenPages(menu).map(({ item, trail, icon }) => ({
       id: `page:${item.id}`,
       label: item.title,
       description: trail.length > 0 ? trail.join(" / ") : undefined,
-      icon: <Icon name={icon ?? "apps"} size={16} stroke={1.6} />,
+      icon: <Icon name={icon ?? "apps"} size={15} stroke={1.6} />,
       onClick: () => void navigate({ to: item.path }),
     }))
-    return { inboxActions: inboxList, pageActions: pagesList }
+
+    return { inboxActions: inboxList, quickPageActions: quickPages, allPageActions: allPages }
   }, [canReadInbox, inbox.data?.teams, menu, navigate, slug, t])
 
-  const kw = query.trim().toLowerCase()
+  const kw = trimmed.toLowerCase()
   const matchesLocal = (a: NavAction) =>
     !kw || a.label.toLowerCase().includes(kw) || (a.description?.toLowerCase().includes(kw) ?? false)
-  const filteredInbox = inboxActions.filter(matchesLocal)
-  const filteredPages = pageActions.filter(matchesLocal)
+  const filteredInbox = kw ? inboxActions.filter(matchesLocal) : inboxActions
+  const filteredPages = kw ? allPageActions.filter(matchesLocal) : quickPageActions
   const convHits = debounced ? (convSearch.data?.items ?? []) : []
   const convTotal = debounced ? (convSearch.data?.total ?? 0) : 0
   const contactHits = debounced ? (contactSearch.data?.items ?? []) : []
-  const loadingRemote = Boolean(debounced && (convSearch.isFetching || contactSearch.isFetching))
+  const remotePending =
+    trimmed.length > 0 &&
+    (canReadInbox || canReadContacts) &&
+    (debounced !== trimmed || convSearch.isFetching || contactSearch.isFetching)
   const hasAny = convHits.length > 0 || contactHits.length > 0 || filteredInbox.length > 0 || filteredPages.length > 0
 
   return (
     <Spotlight.Root
+      className="cmd-palette"
       query={query}
       onQueryChange={setQuery}
       onSpotlightClose={() => setQuery("")}
       shortcut="mod + K"
+      size={580}
+      yOffset="12vh"
+      radius="lg"
+      shadow="xl"
       scrollable
-      maxHeight={460}
+      maxHeight={440}
     >
       <Spotlight.Search
         leftSection={<IconSearch size={16} stroke={1.6} />}
-        rightSection={loadingRemote ? <Loader size={14} /> : undefined}
+        rightSection={
+          remotePending ? (
+            <Loader size={14} />
+          ) : query.length > 0 ? (
+            <CloseButton size="sm" variant="subtle" aria-label={t("inbox.search_clear")} onClick={() => setQuery("")} />
+          ) : undefined
+        }
+        rightSectionPointerEvents={query.length > 0 && !remotePending ? "auto" : "none"}
         placeholder={t("command.placeholder")}
       />
+
       <Spotlight.ActionsList>
         {convHits.length > 0 && (
           <Spotlight.ActionsGroup label={t("command.conversations_group")}>
@@ -190,8 +232,8 @@ export function CommandPalette({ slug }: { slug: string }): ReactNode {
                   }
                 >
                   <Group gap="sm" wrap="nowrap" w="100%" align="flex-start">
-                    <Box mt={2} c="dimmed" style={{ flex: "none" }}>
-                      {m.kind === "note" ? <IconLock size={16} stroke={1.6} /> : <IconMessage size={16} stroke={1.6} />}
+                    <Box className="cmd-palette-icon" mt={2}>
+                      {m.kind === "note" ? <IconLock size={15} stroke={1.6} /> : <IconMessage size={15} stroke={1.6} />}
                     </Box>
                     <Box style={{ flex: 1, minWidth: 0 }}>
                       <Group gap={6} wrap="nowrap">
@@ -233,7 +275,7 @@ export function CommandPalette({ slug }: { slug: string }): ReactNode {
                   })
                 }
               >
-                <Group gap="xs" c="brand">
+                <Group gap="xs" c="brand" px={4}>
                   <IconArrowRight size={15} stroke={1.8} />
                   <Text size="xs" fw={600}>
                     {t("command.view_all_results", { n: convTotal })}
@@ -260,8 +302,8 @@ export function CommandPalette({ slug }: { slug: string }): ReactNode {
                   }
                 >
                   <Group gap="sm" wrap="nowrap" w="100%">
-                    <Box c="dimmed" style={{ flex: "none" }}>
-                      <IconUser size={16} stroke={1.6} />
+                    <Box className="cmd-palette-icon">
+                      <IconUser size={15} stroke={1.6} />
                     </Box>
                     <Box style={{ flex: 1, minWidth: 0 }}>
                       <Group gap={6} wrap="nowrap">
@@ -290,19 +332,15 @@ export function CommandPalette({ slug }: { slug: string }): ReactNode {
             {filteredInbox.map((a) => (
               <Spotlight.Action key={a.id} onClick={a.onClick}>
                 <Group gap="sm" wrap="nowrap" w="100%">
-                  <Box c="dimmed" style={{ flex: "none" }}>
-                    {a.icon}
-                  </Box>
-                  <Box style={{ flex: 1, minWidth: 0 }}>
-                    <Text size="sm" truncate>
-                      <HighlightQuery text={a.label} query={query} />
+                  <Box className="cmd-palette-icon">{a.icon}</Box>
+                  <Text size="sm" fw={500} truncate style={{ flex: 1, minWidth: 0 }}>
+                    <HighlightQuery text={a.label} query={query} />
+                  </Text>
+                  {a.description && (
+                    <Text size="xs" c="dimmed" style={{ flex: "none" }}>
+                      {a.description}
                     </Text>
-                    {a.description && (
-                      <Text size="xs" c="dimmed" truncate>
-                        {a.description}
-                      </Text>
-                    )}
-                  </Box>
+                  )}
                 </Group>
               </Spotlight.Action>
             ))}
@@ -314,27 +352,64 @@ export function CommandPalette({ slug }: { slug: string }): ReactNode {
             {filteredPages.map((a) => (
               <Spotlight.Action key={a.id} onClick={a.onClick}>
                 <Group gap="sm" wrap="nowrap" w="100%">
-                  <Box c="dimmed" style={{ flex: "none" }}>
-                    {a.icon}
-                  </Box>
-                  <Box style={{ flex: 1, minWidth: 0 }}>
-                    <Text size="sm" truncate>
-                      <HighlightQuery text={a.label} query={query} />
+                  <Box className="cmd-palette-icon">{a.icon}</Box>
+                  <Text size="sm" fw={500} truncate style={{ flex: 1, minWidth: 0 }}>
+                    <HighlightQuery text={a.label} query={query} />
+                  </Text>
+                  {a.description && (
+                    <Text size="xs" c="dimmed" truncate maw={220} style={{ flex: "none" }}>
+                      {a.description}
                     </Text>
-                    {a.description && (
-                      <Text size="xs" c="dimmed" truncate>
-                        {a.description}
-                      </Text>
-                    )}
-                  </Box>
+                  )}
                 </Group>
               </Spotlight.Action>
             ))}
           </Spotlight.ActionsGroup>
         )}
 
-        {!hasAny && !loadingRemote && <Spotlight.Empty>{t("command.empty")}</Spotlight.Empty>}
+        {!hasAny && remotePending && (
+          <Box className="cmd-palette-state">
+            <Loader size="sm" />
+            <Text size="xs" c="dimmed">
+              {t("command.searching")}
+            </Text>
+          </Box>
+        )}
+
+        {!hasAny && !remotePending && (
+          <Box className="cmd-palette-state">
+            <IconSearch size={22} stroke={1.4} />
+            <Text size="sm" c="dimmed">
+              {t("command.empty")}
+            </Text>
+          </Box>
+        )}
       </Spotlight.ActionsList>
+
+      <Spotlight.Footer>
+        <Group justify="space-between" align="center" gap="md">
+          <Group gap="md">
+            <Group gap={6}>
+              <Kbd size="xs">↑↓</Kbd>
+              <Text size="xs" c="dimmed">
+                {t("command.hint_navigate")}
+              </Text>
+            </Group>
+            <Group gap={6}>
+              <Kbd size="xs">↵</Kbd>
+              <Text size="xs" c="dimmed">
+                {t("command.hint_open")}
+              </Text>
+            </Group>
+            <Group gap={6}>
+              <Kbd size="xs">Esc</Kbd>
+              <Text size="xs" c="dimmed">
+                {t("command.hint_close")}
+              </Text>
+            </Group>
+          </Group>
+        </Group>
+      </Spotlight.Footer>
     </Spotlight.Root>
   )
 }
