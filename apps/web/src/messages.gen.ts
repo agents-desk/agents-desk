@@ -26,7 +26,44 @@ export const messages = {
     "common.cancel": "Cancel",
     "common.save": "Save",
     "common.saved": "Saved",
-    "contacts.placeholder": "The contact list and profiles come with the contacts work (U1).",
+    "contacts.back": "Back to contacts",
+    "contacts.channel_identities": "Channel identities",
+    "contacts.col_contact": "Contact",
+    "contacts.col_conversations": "Conversations",
+    "contacts.col_email": "Email",
+    "contacts.col_kind": "Type",
+    "contacts.col_language": "Language",
+    "contacts.col_last_seen": "Last active",
+    "contacts.conversations": "Conversation history",
+    "contacts.created_at": "Created",
+    "contacts.email": "Email",
+    "contacts.email_placeholder": "e.g. rahul@example.com",
+    "contacts.empty": "No matching contacts",
+    "contacts.external_user_id": "User ID",
+    "contacts.filter_channel": "All channels",
+    "contacts.filter_language": "All languages",
+    "contacts.identities_empty": "No channel identities yet",
+    "contacts.language": "Language",
+    "contacts.last_seen_at": "Last active",
+    "contacts.local_time": "Local time {{.time}}",
+    "contacts.location": "Location",
+    "contacts.location_placeholder": "e.g. Shanghai, Mumbai",
+    "contacts.name": "Name",
+    "contacts.name_placeholder": "Enter contact name",
+    "contacts.nav_all": "All",
+    "contacts.nav_leads": "Leads",
+    "contacts.nav_users": "Users",
+    "contacts.no_conversations": "No conversations yet",
+    "contacts.not_found": "Contact not found",
+    "contacts.notes": "Notes",
+    "contacts.notes_placeholder": "Add internal notes about this contact (members only)…",
+    "contacts.profile": "Profile",
+    "contacts.referrer": "Source page",
+    "contacts.search_placeholder": "Search by name, email or user ID…",
+    "contacts.sort": "Sort",
+    "contacts.time_zone": "Time zone",
+    "contacts.time_zone_placeholder": "Choose or search a time zone",
+    "contacts.total": "{{.n}} contacts",
     "event.assigned": "{{.who}} assigned the conversation to {{.assignee}}",
     "event.assigned_team_member": "{{.who}} moved the conversation to {{.team}} and assigned it to {{.assignee}}",
     "event.closed": "{{.who}} closed the conversation",
@@ -116,7 +153,12 @@ export const messages = {
     "inbox.contact_email": "Email",
     "inbox.contact_kind": "Type",
     "inbox.contact_language": "Language",
+    "inbox.contact_location": "Location",
     "inbox.contact_name": "Name",
+    "inbox.contact_notes": "Notes",
+    "inbox.contact_notes_placeholder": "Write an internal note for members…",
+    "inbox.contact_referrer": "Source page",
+    "inbox.contact_view": "View contact profile",
     "inbox.delivery_delivered": "Delivered",
     "inbox.delivery_failed": "Not sent",
     "inbox.delivery_read": "Read",
@@ -337,7 +379,44 @@ export const messages = {
     "common.cancel": "取消",
     "common.save": "保存",
     "common.saved": "已保存",
-    "contacts.placeholder": "联系人的列表和资料在联系人的开发（U1）中加入。",
+    "contacts.back": "返回联系人列表",
+    "contacts.channel_identities": "渠道身份",
+    "contacts.col_contact": "联系人",
+    "contacts.col_conversations": "会话",
+    "contacts.col_email": "邮箱",
+    "contacts.col_kind": "类型",
+    "contacts.col_language": "语言",
+    "contacts.col_last_seen": "最近活跃",
+    "contacts.conversations": "历史会话",
+    "contacts.created_at": "创建时间",
+    "contacts.email": "邮箱",
+    "contacts.email_placeholder": "例如 rahul@example.com",
+    "contacts.empty": "没有符合条件的联系人",
+    "contacts.external_user_id": "用户编号",
+    "contacts.filter_channel": "全部渠道",
+    "contacts.filter_language": "全部语言",
+    "contacts.identities_empty": "还没有渠道身份",
+    "contacts.language": "语言",
+    "contacts.last_seen_at": "最近活跃",
+    "contacts.local_time": "当地时间 {{.time}}",
+    "contacts.location": "所在地",
+    "contacts.location_placeholder": "例如 上海、Mumbai",
+    "contacts.name": "名字",
+    "contacts.name_placeholder": "填写联系人名字",
+    "contacts.nav_all": "全部",
+    "contacts.nav_leads": "线索",
+    "contacts.nav_users": "用户",
+    "contacts.no_conversations": "还没有会话",
+    "contacts.not_found": "联系人不存在",
+    "contacts.notes": "备注",
+    "contacts.notes_placeholder": "记录关于这位联系人的内部备注，仅成员可见…",
+    "contacts.profile": "基本资料",
+    "contacts.referrer": "来源页面",
+    "contacts.search_placeholder": "搜索名字、邮箱或用户编号…",
+    "contacts.sort": "排序",
+    "contacts.time_zone": "时区",
+    "contacts.time_zone_placeholder": "选择或搜索时区",
+    "contacts.total": "共 {{.n}} 位联系人",
     "event.assigned": "{{.who}} 把会话指派给 {{.assignee}}",
     "event.assigned_team_member": "{{.who}} 把会话转到 {{.team}}，指派给 {{.assignee}}",
     "event.closed": "{{.who}} 关闭了会话",
@@ -427,7 +506,12 @@ export const messages = {
     "inbox.contact_email": "邮箱",
     "inbox.contact_kind": "类型",
     "inbox.contact_language": "语言",
+    "inbox.contact_location": "所在地",
     "inbox.contact_name": "名字",
+    "inbox.contact_notes": "备注",
+    "inbox.contact_notes_placeholder": "写下仅成员可见的备注…",
+    "inbox.contact_referrer": "来源页面",
+    "inbox.contact_view": "查看联系人资料",
     "inbox.delivery_delivered": "已送达",
     "inbox.delivery_failed": "发送失败",
     "inbox.delivery_read": "已读",
@@ -651,7 +735,44 @@ export type MessageId =
   | "common.cancel"
   | "common.save"
   | "common.saved"
-  | "contacts.placeholder"
+  | "contacts.back"
+  | "contacts.channel_identities"
+  | "contacts.col_contact"
+  | "contacts.col_conversations"
+  | "contacts.col_email"
+  | "contacts.col_kind"
+  | "contacts.col_language"
+  | "contacts.col_last_seen"
+  | "contacts.conversations"
+  | "contacts.created_at"
+  | "contacts.email"
+  | "contacts.email_placeholder"
+  | "contacts.empty"
+  | "contacts.external_user_id"
+  | "contacts.filter_channel"
+  | "contacts.filter_language"
+  | "contacts.identities_empty"
+  | "contacts.language"
+  | "contacts.last_seen_at"
+  | "contacts.local_time"
+  | "contacts.location"
+  | "contacts.location_placeholder"
+  | "contacts.name"
+  | "contacts.name_placeholder"
+  | "contacts.nav_all"
+  | "contacts.nav_leads"
+  | "contacts.nav_users"
+  | "contacts.no_conversations"
+  | "contacts.not_found"
+  | "contacts.notes"
+  | "contacts.notes_placeholder"
+  | "contacts.profile"
+  | "contacts.referrer"
+  | "contacts.search_placeholder"
+  | "contacts.sort"
+  | "contacts.time_zone"
+  | "contacts.time_zone_placeholder"
+  | "contacts.total"
   | "event.assigned"
   | "event.assigned_team_member"
   | "event.closed"
@@ -741,7 +862,12 @@ export type MessageId =
   | "inbox.contact_email"
   | "inbox.contact_kind"
   | "inbox.contact_language"
+  | "inbox.contact_location"
   | "inbox.contact_name"
+  | "inbox.contact_notes"
+  | "inbox.contact_notes_placeholder"
+  | "inbox.contact_referrer"
+  | "inbox.contact_view"
   | "inbox.delivery_delivered"
   | "inbox.delivery_failed"
   | "inbox.delivery_read"

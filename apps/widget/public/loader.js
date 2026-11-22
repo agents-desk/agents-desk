@@ -76,7 +76,7 @@
     var type = e.data.type.slice(PREFIX.length);
     if (type === "ready") {
       state.ready = true;
-      frame.contentWindow.postMessage({ type: PREFIX + "init", user_token: config.user_token || "", mobile: mobileQuery.matches }, origin);
+      frame.contentWindow.postMessage({ type: PREFIX + "init", user_token: config.user_token || "", mobile: mobileQuery.matches, referrer: location.href }, origin);
       var queued = state.queue;
       state.queue = [];
       queued.forEach(post);

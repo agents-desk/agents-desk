@@ -3,6 +3,8 @@
 /** 权限目录：权限名和说明，来自 rest.Options.Permissions，以及接口要求的权限。 */
 export const permissions = {
   "channels:manage": "管理渠道",
+  "contacts:read": "查看联系人",
+  "contacts:update": "修改联系人",
   "conversations:assign": "把会话改派给别人",
   "conversations:read": "查看会话",
   "conversations:read-all": "可以看到全部会话",
@@ -23,6 +25,12 @@ export type Permission = keyof typeof permissions
 
 /** 每个接口要求的权限，调用者必须全部具备；没有列出的接口不要求权限。 */
 export const required = {
+  contact: {
+    get: ["contacts:read"],
+    list: ["contacts:read"],
+    summary: ["contacts:read"],
+    update: ["contacts:update"],
+  },
   conversation: {
     assign: ["conversations:reply"],
     bulkAssign: ["conversations:reply"],

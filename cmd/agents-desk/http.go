@@ -202,6 +202,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		role.RegisterRoutes(api, require, a.db, a.roles)
 		hours.RegisterRoutes(api, require, a.db)
 		team.RegisterRoutes(api, require, a.db, a.roles, a.memberLogins, a.files)
+		contact.RegisterRoutes(api, require, a.db)
 		conversation.RegisterRoutes(api, require, a.db, a.downstream())
 		widget.RegisterRoutes(api, require, a.db, a.crypt, a.cfg.PublicURL)
 		translation.RegisterRoutes(api, require, a.db, a.translator, translation.NewIncoming(a.db, a.locker, a.translator, a.downstream()), a.translationSettings)

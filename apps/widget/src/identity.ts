@@ -67,6 +67,7 @@ function createIdentity() {
   let api: Client | undefined
   let current: Session | null = null
   let userToken: string | undefined // 当前的用户身份；线索为空
+  let referrer: string | undefined // 嵌入聊天窗口的产品页面地址
   let pending: Promise<void> | undefined
   let renewing: Promise<void> | undefined // 正在重新建立的会话
   let started!: () => void
@@ -76,11 +77,25 @@ function createIdentity() {
     for (const l of [...listeners]) l()
   }
 
-  // establish 建立会话：带上访客编号和用户身份，保存返回的令牌和访客编号
+  // establish 建立会话：带上访客编号、用户身份、浏览器时区和来源页面；
+  // 线索登录后合并到用户时服务端消费掉旧访客编号（不返回 visitor_id），本地随之清除，防止退出登录后串号
   const establish = async () => {
     if (!api) throw new Error("identity: api not connected")
-    const res = await api.widget.session({ visitor_id: load("visitor") ?? undefined, user_token: userToken })
+    const timeZone = (() => {
+      try {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined
+      } catch {
+        return undefined
+      }
+    })()
+    const res = await api.widget.session({
+      visitor_id: load("visitor") ?? undefined,
+      user_token: userToken,
+      time_zone: timeZone,
+      referrer,
+    })
     if (res.visitor_id) save("visitor", res.visitor_id)
+    else if (userToken) save("visitor", null)
     current = { token: res.token, contact: res.contact, user: userToken ? subjectOf(userToken) : "" }
     save("session", JSON.stringify(current))
     changed()
@@ -105,8 +120,9 @@ function createIdentity() {
     connect(client: Client) {
       api = client
     },
-    /** start 按初始的用户身份建立会话，聊天窗口拿到初始状态后调用一次。 */
-    async start(token: string | undefined) {
+    /** start 按初始的用户身份和来源页面建立会话，聊天窗口拿到初始状态后调用一次。 */
+    async start(token: string | undefined, ref?: string) {
+      referrer = ref
       await switchTo(token)
       started()
     },

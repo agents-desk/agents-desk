@@ -21,6 +21,14 @@ export const enums = {
       "zh-CN": { user: "用户", lead: "线索" },
     },
   },
+  ContactSort: {
+    prefix: "contact.sort",
+    values: ["recent", "created"],
+    labels: {
+      "en": { recent: "Recent activity", created: "Created" },
+      "zh-CN": { recent: "最近活跃", created: "创建时间" },
+    },
+  },
   ConversationActorType: {
     prefix: "conversation.actor_type",
     values: ["contact", "member", "system"],

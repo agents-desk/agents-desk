@@ -49,7 +49,10 @@ export function useRealtime(slug: string, tenantId: string, memberId: string | u
     let timer: ReturnType<typeof setTimeout> | undefined
     const refresh = () => {
       clearTimeout(timer)
-      timer = setTimeout(() => void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() }), 200)
+      timer = setTimeout(() => {
+        void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
+        void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
+      }, 200)
     }
     // 第一次订阅成功时页面刚刚读过数据，之后每次重新订阅成功都重新读取
     let first = true

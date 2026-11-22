@@ -7,10 +7,12 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/authz"
+	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/auth"
 	"agents-desk/internal/member"
+	"agents-desk/internal/push"
 )
 
 // audienceOf 返回修改前后能看到会话 c 的成员，规则与 visible 相同：可见范围是全部会话的成员；可见范围是团队收件箱、
@@ -81,4 +83,45 @@ func audienceOf(ctx context.Context, db bun.IDB, roles *authz.Store, c *Conversa
 		}
 	}
 	return out, nil
+}
+
+// NotifyUpdated 在事务 tx 中为会话 ids 登记提交后的实时推送：通知能看到这些会话的成员刷新列表和详情，
+// 例如线索登录后合并到用户，会话上的联系人从线索变成了用户。down.Hub 为空或 ids 为空时什么也不做。
+func NotifyUpdated(ctx context.Context, tx database.Tx, down Downstream, tenantID string, ids []string) error {
+	if down.Hub == nil || len(ids) == 0 {
+		return nil
+	}
+	var convs []Conversation
+	if err := tx.NewSelect().Model(&convs).Where("tenant_id = ? AND id IN (?)", tenantID, bun.In(ids)).Scan(ctx); err != nil {
+		return errors.Wrap(err, "load conversations for notify")
+	}
+	type item struct {
+		audience []string
+		ev       push.Event
+	}
+	pending := make([]item, 0, len(convs))
+	for i := range convs {
+		audience, err := audienceOf(ctx, tx, down.Roles, &convs[i], nil)
+		if err != nil {
+			return err
+		}
+		if len(audience) == 0 {
+			continue
+		}
+		pending = append(pending, item{audience: audience, ev: push.Event{Type: push.Conversation, ID: convs[i].ID, Seq: convs[i].LastSeq}})
+	}
+	if len(pending) == 0 {
+		return nil
+	}
+	hub := down.Hub
+	tx.AfterCommit(func(ctx context.Context) error {
+		var errs []error
+		for _, p := range pending {
+			if err := push.Send(ctx, hub, tenantID, p.audience, p.ev); err != nil {
+				errs = append(errs, err)
+			}
+		}
+		return errors.Join(errs...)
+	})
+	return nil
 }

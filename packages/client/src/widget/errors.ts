@@ -23,6 +23,12 @@ export const ChannelErrors = {
 export const ContactErrors = {
   /** ErrNotFound 是联系人不存在，或者属于别的工作区。 */
   NotFound: "contact.not_found",
+  /** ErrInvalidEmail 是联系人邮箱格式不正确。 */
+  InvalidEmail: "contact.invalid_email",
+  /** ErrInvalidLanguage 是联系人语言不是合法的 BCP 47 标签。 */
+  InvalidLanguage: "contact.invalid_language",
+  /** ErrInvalidTimeZone 是联系人时区不是认识的 IANA 时区名。 */
+  InvalidTimeZone: "contact.invalid_time_zone",
 } as const
 
 /** agents-desk/internal/conversation 的错误码。 */

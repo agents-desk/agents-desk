@@ -31,6 +31,31 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
   return {
     /** 这个 API 全部查询的 key 前缀。 */
     key: () => key(),
+    contact: {
+      /** contact 分组全部查询的 key 前缀。 */
+      key: () => key("contact"),
+      /** GET /contacts/{id} */
+      get: (...args: Parameters<Client["contact"]["get"]>) => ({
+        queryKey: key("contact", "get", ...args),
+        queryFn: () => client.contact.get(...args),
+      }),
+      /** GET /contacts */
+      list: (...args: Parameters<Client["contact"]["list"]>) => ({
+        queryKey: key("contact", "list", ...args),
+        queryFn: () => client.contact.list(...args),
+      }),
+      /** GET /contacts/summary */
+      summary: (...args: Parameters<Client["contact"]["summary"]>) => ({
+        queryKey: key("contact", "summary", ...args),
+        queryFn: () => client.contact.summary(...args),
+      }),
+      /** PUT /contacts/{id} */
+      update: () => ({
+        mutationFn: (variables: Parameters<Client["contact"]["update"]>) => client.contact.update(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "contact"),
+      }),
+    },
     conversation: {
       /** conversation 分组全部查询的 key 前缀。 */
       key: () => key("conversation"),

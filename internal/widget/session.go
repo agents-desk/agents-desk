@@ -15,6 +15,7 @@ import (
 
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
+	"agents-desk/internal/conversation"
 )
 
 // 渠道身份的外部编号：访客是 visitor: 加访客编号，用户是 user: 加产品的用户编号。
@@ -27,6 +28,8 @@ const (
 type SessionBody struct {
 	VisitorID string `json:"visitor_id,omitempty" maxLength:"64" doc:"上次返回的访客编号，浏览器保存它；第一次打开或编号无效时不填，返回新的编号"`
 	UserToken string `json:"user_token,omitempty" maxLength:"4096" doc:"已登录的用户：产品后端用身份验证密钥签名的 JWT（HS256），sub 是用户编号，必须有 exp，可以带 name、email"`
+	TimeZone  string `json:"time_zone,omitempty" maxLength:"64" doc:"浏览器上报的 IANA 时区名，例如 Asia/Shanghai"`
+	Referrer  string `json:"referrer,omitempty" maxLength:"2048" doc:"嵌入聊天窗口的产品页面地址"`
 }
 
 // SessionInput 是建立会话的 HTTP 请求。
@@ -38,7 +41,7 @@ type SessionInput struct {
 // SessionDTO 是建立的会话：联系人的令牌和身份。
 type SessionDTO struct {
 	Token     string          `json:"token" doc:"联系人的令牌：之后的请求和实时连接用 Authorization: Bearer 带上它"`
-	VisitorID string          `json:"visitor_id,omitempty" doc:"访客编号，浏览器保存它，下次建立会话时带上；用户的会话原样返回请求中的编号"`
+	VisitorID string          `json:"visitor_id,omitempty" doc:"访客编号，浏览器保存它，下次建立会话时带上；用户会话为空（原有访客已合并消费）"`
 	Contact   contact.Summary `json:"contact" doc:"客户自己：线索或用户"`
 }
 
@@ -59,16 +62,18 @@ type StartSession struct {
 	db     *bun.DB
 	crypt  *crypt.Crypt
 	tokens *apitoken.Store
+	down   conversation.Downstream
 }
 
-// NewStartSession 返回建立会话的动作；crypt 解开身份验证密钥，tokens 签发联系人的令牌。
-func NewStartSession(db *bun.DB, c *crypt.Crypt, tokens *apitoken.Store) *StartSession {
-	return &StartSession{db: db, crypt: c, tokens: tokens}
+// NewStartSession 返回建立会话的动作；crypt 解开身份验证密钥，tokens 签发联系人的令牌，down 在线索合并到用户时通知成员刷新会话。
+func NewStartSession(db *bun.DB, c *crypt.Crypt, tokens *apitoken.Store, down conversation.Downstream) *StartSession {
+	return &StartSession{db: db, crypt: c, tokens: tokens, down: down}
 }
 
 // Handle 为本次请求的聊天插件（Middleware 查出的）建立会话：
 //   - 带了 b.UserToken：校验签名、有效期和用户编号，客户是这个用户（没有时新建），用户的名字和邮箱按其中的更新；
-//     无效时返回 ErrInvalidUserToken。线索和用户的合并在联系人的计划项中加入，这里不处理之前的访客编号；
+//     如果同时带了之前访客的 b.VisitorID，且对应本聊天插件的一位线索，就在同一个事务中把该线索合并到用户（会话、时间线和资料迁到用户名下，
+//     并消费掉旧的访客身份，防止退出登录后仍以旧访客编号冒用已登录用户）；无效的 UserToken 返回 ErrInvalidUserToken；
 //   - 没有带：b.VisitorID 是这个聊天插件中已有的访客时，客户是这位线索；否则新建一位线索和新的访客编号。
 //
 // 然后为联系人签发令牌，令牌只能在聊天插件所在的工作区中使用。聊天插件不存在或已停用时返回 channel.ErrNotFound。
@@ -83,27 +88,51 @@ func (a *StartSession) Handle(ctx context.Context, b SessionBody, device apitoke
 			return nil, err
 		}
 	}
-	res := SessionDTO{VisitorID: b.VisitorID}
+	res := SessionDTO{}
 	var person *contact.Contact
 	err = database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		if claims != nil {
 			person, err = contact.ResolveUser(ctx, tx, ch.TenantID, ch.ID, userPrefix+claims.Subject, claims.Subject,
-				contact.Profile{Name: claims.Name, Email: claims.Email})
-			return err
+				contact.Profile{Name: claims.Name, Email: claims.Email, TimeZone: b.TimeZone, Referrer: b.Referrer})
+			if err != nil {
+				return err
+			}
+			if b.VisitorID != "" {
+				var id contact.Identity
+				err := tx.NewSelect().Model(&id).Where("channel_id = ? AND external_id = ?", ch.ID, visitorPrefix+b.VisitorID).Scan(ctx)
+				if err == nil && id.ContactID != person.ID {
+					var convIDs []string
+					person, convIDs, err = contact.MergeLead(ctx, tx, ch.TenantID, id.ContactID, person.ID, ch.ID, visitorPrefix+b.VisitorID)
+					if err != nil {
+						return err
+					}
+					if err := conversation.NotifyUpdated(ctx, tx, a.down, ch.TenantID, convIDs); err != nil {
+						return err
+					}
+				} else if err != nil && !errors.Is(err, sql.ErrNoRows) {
+					return errors.Wrap(err, "load visitor for merge")
+				}
+			}
+			return nil
 		}
+		profile := contact.Profile{TimeZone: b.TimeZone, Referrer: b.Referrer}
 		if b.VisitorID != "" {
 			var id contact.Identity
 			err := tx.NewSelect().Model(&id).Where("channel_id = ? AND external_id = ?", ch.ID, visitorPrefix+b.VisitorID).Scan(ctx)
 			if err == nil {
-				person, err = contact.Find(ctx, tx, ch.TenantID, id.ContactID)
-				return err
+				person, _, err = contact.ResolveIdentity(ctx, tx, ch.TenantID, ch.ID, visitorPrefix+b.VisitorID, profile)
+				if err != nil {
+					return err
+				}
+				res.VisitorID = b.VisitorID
+				return nil
 			}
 			if !errors.Is(err, sql.ErrNoRows) {
 				return errors.Wrap(err, "load visitor")
 			}
 		}
 		res.VisitorID = newVisitorID()
-		person, _, err = contact.ResolveIdentity(ctx, tx, ch.TenantID, ch.ID, visitorPrefix+res.VisitorID, contact.Profile{})
+		person, _, err = contact.ResolveIdentity(ctx, tx, ch.TenantID, ch.ID, visitorPrefix+res.VisitorID, profile)
 		return err
 	})
 	if err != nil {

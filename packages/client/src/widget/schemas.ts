@@ -111,6 +111,14 @@ export const components = {
   WidgetSessionBody: {
     "additionalProperties": false,
     "properties": {
+      "referrer": {
+        "maxLength": 2048,
+        "type": "string"
+      },
+      "time_zone": {
+        "maxLength": 64,
+        "type": "string"
+      },
       "user_token": {
         "maxLength": 4096,
         "type": "string"

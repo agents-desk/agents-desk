@@ -132,7 +132,7 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 	typing := conversation.NewTypingByContact(db, down)
 
 	rest.Register(api, route(public, "widget-config", http.MethodGet, "/config", "聊天插件的公开设置"), NewGetConfig().HTTP)
-	rest.Register(api, route(public, "widget-session", http.MethodPost, "/session", "建立会话"), NewStartSession(db, c, tokens).HTTP)
+	rest.Register(api, route(public, "widget-session", http.MethodPost, "/session", "建立会话"), NewStartSession(db, c, tokens, down).HTTP)
 
 	// 以下是联系人的接口：只做输入转换，渠道是本次请求的聊天插件，归属由业务动作检查
 	rest.Register(api, route(requireContact, "conversation-list", http.MethodGet, "/conversations", "我的会话"),

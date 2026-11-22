@@ -18,6 +18,7 @@ import (
 
 	"agents-desk/internal/auth"
 	"agents-desk/internal/channel"
+	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
@@ -173,9 +174,15 @@ func seedTeamMembers(ctx context.Context, out io.Writer, db *bun.DB, memberLogin
 	return nil
 }
 
-// seedChat 是一个示例会话：客户在测试渠道中的编号和名字，以及按顺序的消息，agent 为 true 的由坐席回复。
+// seedChat 是一个示例会话：客户在测试渠道中的编号、资料以及按顺序的消息，agent 为 true 的由坐席回复。
 type seedChat struct {
 	from, name string
+	userID     string // 非空时设为已登录用户（user），否则为线索（lead）
+	email      string
+	location   string
+	timeZone   string
+	referrer   string
+	notes      string
 	turns      []seedTurn
 }
 
@@ -187,16 +194,55 @@ type seedTurn struct {
 
 // seedChats 是示例会话：客户用英语、印地语、Hinglish 提问，最后一条是客户发的会话在等待回复。
 var seedChats = []seedChat{
-	{"rahul", "Rahul Sharma", []seedTurn{{false, "mera order abhi tak nahi aaya, 3 din ho gaye"}, {true, "您好，我帮您查一下订单，请稍等"}, {false, "theek hai, kab tak aayega?"}}},
-	{"priya", "Priya Nair", []seedTurn{{false, "My withdrawal has been pending for two days"}}},
-	{"visitor-7f3a", "", []seedTurn{{false, "आप कौन से भुगतान तरीके स्वीकार करते हैं?"}, {true, "我们支持 UPI、银行卡和钱包"}}},
-	{"anil", "Anil Kumar", []seedTurn{{false, "refund kab tak aayega?"}}},
-	{"sneha", "Sneha Iyer", []seedTurn{{false, "I can't log in, it says the code is wrong"}, {true, "请您退出后重新获取一次验证码"}, {false, "Still not working"}}},
-	{"vikram", "Vikram Singh", []seedTurn{{false, "payment account kaise change kare"}, {true, "在“我的 → 收款账户”中修改"}}},
-	{"visitor-2c91", "", []seedTurn{{false, "क्या इस कीमत में टैक्स शामिल है?"}}},
-	{"meera", "Meera Joshi", []seedTurn{{false, "I want to cancel my order"}}},
-	{"arjun", "Arjun Das", []seedTurn{{false, "seller ship hi nahi kar raha"}, {true, "我们已经联系卖家，今天之内回复您"}}},
-	{"kavya", "Kavya Reddy", []seedTurn{{false, "The coupon code doesn't work"}}},
+	{
+		from: "rahul", name: "Rahul Sharma", userID: "u-1001", email: "rahul.sharma@example.com",
+		location: "Mumbai, India", timeZone: "Asia/Kolkata", referrer: "https://shop.example.com/orders",
+		notes: "老客户，经常在周末下单",
+		turns: []seedTurn{{false, "mera order abhi tak nahi aaya, 3 din ho gaye"}, {true, "您好，我帮您查一下订单，请稍等"}, {false, "theek hai, kab tak aayega?"}},
+	},
+	{
+		from: "priya", name: "Priya Nair", userID: "u-1002", email: "priya.nair@example.com",
+		location: "Bengaluru, India", timeZone: "Asia/Kolkata", referrer: "https://shop.example.com/wallet",
+		turns: []seedTurn{{false, "My withdrawal has been pending for two days"}},
+	},
+	{
+		from: "visitor-7f3a", location: "New Delhi, India", timeZone: "Asia/Kolkata", referrer: "https://shop.example.com/pricing",
+		turns: []seedTurn{{false, "आप कौन से भुगतान तरीके स्वीकार करते हैं?"}, {true, "我们支持 UPI、银行卡和钱包"}},
+	},
+	{
+		from: "anil", name: "Anil Kumar", userID: "u-1003", email: "anil.kumar@example.com",
+		location: "Hyderabad, India", timeZone: "Asia/Kolkata",
+		turns: []seedTurn{{false, "refund kab tak aayega?"}},
+	},
+	{
+		from: "sneha", name: "Sneha Iyer", userID: "u-1004", email: "sneha.iyer@example.com",
+		location: "Chennai, India", timeZone: "Asia/Kolkata", referrer: "https://shop.example.com/login",
+		turns: []seedTurn{{false, "I can't log in, it says the code is wrong"}, {true, "请您退出后重新获取一次验证码"}, {false, "Still not working"}},
+	},
+	{
+		from: "vikram", name: "Vikram Singh", userID: "u-1005", email: "vikram.singh@example.com",
+		location: "Pune, India", timeZone: "Asia/Kolkata",
+		turns: []seedTurn{{false, "payment account kaise change kare"}, {true, "在“我的 → 收款账户”中修改"}},
+	},
+	{
+		from: "visitor-2c91", referrer: "https://shop.example.com/checkout",
+		turns: []seedTurn{{false, "क्या इस कीमत में टैक्स शामिल है?"}},
+	},
+	{
+		from: "meera", name: "Meera Joshi", userID: "u-1006", email: "meera.joshi@example.com",
+		location: "Singapore", timeZone: "Asia/Singapore",
+		turns: []seedTurn{{false, "I want to cancel my order"}},
+	},
+	{
+		from: "arjun", name: "Arjun Das", email: "arjun.das@example.com",
+		location: "Kolkata, India", timeZone: "Asia/Kolkata",
+		turns: []seedTurn{{false, "seller ship hi nahi kar raha"}, {true, "我们已经联系卖家，今天之内回复您"}},
+	},
+	{
+		from: "kavya", name: "Kavya Reddy", userID: "u-1007", email: "kavya.reddy@example.com",
+		location: "Bengaluru, India", timeZone: "Asia/Kolkata", referrer: "https://shop.example.com/promo",
+		turns: []seedTurn{{false, "The coupon code doesn't work"}},
+	},
 }
 
 // seedConversations 在示例工作区中建一个测试渠道，新会话进入团队收件箱“一线客服”，并写入示例会话。
@@ -242,6 +288,22 @@ func seedConversations(ctx context.Context, out io.Writer, db *bun.DB, memberLog
 				return err
 			}
 			id = res.ConversationID
+		}
+		// 补充示例联系人的类型和资料，方便联系人列表、筛选和资料页演示
+		if chat.userID != "" || chat.email != "" || chat.location != "" || chat.timeZone != "" || chat.referrer != "" || chat.notes != "" {
+			q := db.NewUpdate().Model((*contact.Contact)(nil)).
+				Set("email = ?", chat.email).
+				Set("location = ?", chat.location).
+				Set("time_zone = ?", chat.timeZone).
+				Set("referrer = ?", chat.referrer).
+				Set("notes = ?", chat.notes).
+				Where("id = (SELECT contact_id FROM contact_identities WHERE channel_id = ? AND external_id = ?)", ch.ID, chat.from)
+			if chat.userID != "" {
+				q = q.Set("kind = ?", contact.User).Set("external_user_id = ?", chat.userID)
+			}
+			if _, err := q.Exec(ctx); err != nil {
+				return errors.Wrap(err, "enrich seed contact")
+			}
 		}
 	}
 	fmt.Fprintln(out, "已在示例工作区中创建测试渠道和", len(seedChats), "个示例会话")

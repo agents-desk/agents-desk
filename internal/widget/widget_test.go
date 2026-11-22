@@ -70,8 +70,14 @@ func (f fixture) in(t *testing.T, id string) context.Context {
 // session 在聊天插件中建立会话，返回会话和令牌校验、Resolve 之后的联系人主体。
 func (f fixture) session(t *testing.T, b SessionBody) (*SessionDTO, identity.Subject) {
 	t.Helper()
+	return f.sessionWithDown(t, b, conversation.Downstream{})
+}
+
+// sessionWithDown 在聊天插件中建立会话，传入 down 以便测试合并后推送。
+func (f fixture) sessionWithDown(t *testing.T, b SessionBody, down conversation.Downstream) (*SessionDTO, identity.Subject) {
+	t.Helper()
 	ctx := f.in(t, f.widget.ID)
-	s, err := NewStartSession(f.env.DB, f.env.Crypt, f.tokens).Handle(ctx, b, apitoken.Device{})
+	s, err := NewStartSession(f.env.DB, f.env.Crypt, f.tokens, down).Handle(ctx, b, apitoken.Device{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,16 +120,24 @@ func TestSession(t *testing.T) {
 		t.Fatalf("同一个访客编号：%+v，无效的编号：%+v", again, other)
 	}
 
-	// 用户：按签名的身份新建，再来时是同一个用户，名字按最新的身份更新
+	// 用户：按签名的身份新建，带上之前的访客编号时把线索合并到用户并消费掉访客编号；再来时是同一个用户，名字按最新的身份更新
 	inst, err := NewGetInstallation(env.DB, env.Crypt, "https://desk.example.com").Handle(ctx, f.system, f.widget.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	exp := jwt.NewNumericDate(time.Now().Add(time.Hour))
 	token := sign(t, inst.IdentitySecret, userClaims{RegisteredClaims: jwt.RegisteredClaims{Subject: "u-42", ExpiresAt: exp}, Name: "Rahul", Email: "rahul@example.com"}, jwt.SigningMethodHS256)
-	u1, user := f.session(t, SessionBody{VisitorID: first.VisitorID, UserToken: token})
-	if u1.Contact.Kind != contact.User || u1.Contact.Name != "Rahul" || u1.Contact.Email != "rahul@example.com" || u1.VisitorID != first.VisitorID || user.ID == lead.ID {
+	u1, user := f.session(t, SessionBody{VisitorID: first.VisitorID, UserToken: token, TimeZone: "Asia/Kolkata", Referrer: "https://shop.example.com/cart"})
+	if u1.Contact.Kind != contact.User || u1.Contact.Name != "Rahul" || u1.Contact.Email != "rahul@example.com" || u1.VisitorID != "" || user.ID == lead.ID || u1.Contact.TimeZone != "Asia/Kolkata" {
 		t.Fatalf("用户：%+v", u1)
+	}
+	// 合并后旧线索令牌立即失效；用旧访客编号登出后拿到的是新的访客编号，不会冒用已登录用户
+	if _, err := f.tokens.Validate(ctx, first.Token); !errors.Is(err, apitoken.ErrInvalid) {
+		t.Errorf("合并后旧线索令牌应当失效：%v", err)
+	}
+	afterLogout, freshLead := f.session(t, SessionBody{VisitorID: first.VisitorID})
+	if afterLogout.Contact.Kind != contact.Lead || afterLogout.VisitorID == first.VisitorID || freshLead.ID == user.ID {
+		t.Fatalf("登出后回到访客：%+v", afterLogout)
 	}
 	renamed := sign(t, inst.IdentitySecret, userClaims{RegisteredClaims: jwt.RegisteredClaims{Subject: "u-42", ExpiresAt: exp}, Name: "Rahul Sharma"}, jwt.SigningMethodHS256)
 	if u2, _ := f.session(t, SessionBody{UserToken: renamed}); u2.Contact.ID != user.ID || u2.Contact.Name != "Rahul Sharma" || u2.Contact.Email != "rahul@example.com" {
@@ -131,7 +145,7 @@ func TestSession(t *testing.T) {
 	}
 
 	// 无效的用户身份
-	start := NewStartSession(env.DB, env.Crypt, f.tokens)
+	start := NewStartSession(env.DB, env.Crypt, f.tokens, conversation.Downstream{})
 	past := jwt.NewNumericDate(time.Now().Add(-time.Minute))
 	for name, bad := range map[string]string{
 		"签名的密钥不对":  sign(t, "wrong-secret", userClaims{RegisteredClaims: jwt.RegisteredClaims{Subject: "u-42", ExpiresAt: exp}}, jwt.SigningMethodHS256),
@@ -158,7 +172,7 @@ func TestSession(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Resolve(env.DB)(f.in(t, second.ID), lead); !errors.Is(err, identity.ErrUnauthenticated) {
+	if _, err := Resolve(env.DB)(f.in(t, second.ID), freshLead); !errors.Is(err, identity.ErrUnauthenticated) {
 		t.Errorf("别的聊天插件：%v", err)
 	}
 	// 停用的聊天插件查不到，不能建立会话
@@ -477,5 +491,84 @@ func TestUserTokenCommand(t *testing.T) {
 	s, _ := f.session(t, SessionBody{UserToken: strings.TrimSpace(out.String())})
 	if s.Contact.Kind != contact.User || s.Contact.Name != "Priya" {
 		t.Fatalf("用户的会话：%+v", s)
+	}
+}
+
+// TestLeadMergeOnLogin 检查线索在聊天插件中发起会话并积累备注/来源页面后登录：会话、时间线和资料全部合并到用户，
+// 成员收到会话刷新推送，用户登录后立即看到之前的会话，重复带旧访客编号登录幂等。
+func TestLeadMergeOnLogin(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	env := apptest.New(t)
+	f := setup(t, env, "alpha")
+	hub := broadcast.New(broadcasttest.NewBackend(), nil)
+	t.Cleanup(func() { _ = hub.Close() })
+	registry := channel.Registry{channel.Widget: NewConnector(hub)}
+	down := conversation.Downstream{Hub: hub, Roles: env.Roles, ContactPush: Push(hub)}
+	send := NewSendMessage(env.DB, conversation.NewReceive(env.DB, registry, down))
+
+	// 访客打开聊天窗口，带上来源页面和时区，发起会话
+	leadSession, lead := f.sessionWithDown(t, SessionBody{TimeZone: "Asia/Shanghai", Referrer: "https://shop.example.com/pricing"}, down)
+	in := f.in(t, f.widget.ID)
+	sent, err := send.Handle(in, lead, "", MessageBody{Text: "hello before login", ClientID: "pre-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 成员在线索上写了备注和所在地
+	note := "潜在大客户"
+	loc := "上海"
+	if _, err := contact.NewUpdate(env.DB).Handle(ctx, f.agent, lead.ID, contact.UpdateBody{Notes: &note, Location: &loc}); err != nil {
+		t.Fatal(err)
+	}
+
+	// 订阅坐席的实时推送：线索登录后，受影响的会话应当推送刷新
+	memberPubs := hub.Subscribe(push.Channel(f.system.Tenant, f.agent.ID))
+	defer memberPubs.Close()
+	broadcasttest.Ready(t, hub)
+
+	inst, err := NewGetInstallation(env.DB, env.Crypt, "").Handle(ctx, f.system, f.widget.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exp := jwt.NewNumericDate(time.Now().Add(time.Hour))
+	token := sign(t, inst.IdentitySecret, userClaims{
+		RegisteredClaims: jwt.RegisteredClaims{Subject: "u-99", ExpiresAt: exp},
+		Name:             "Li Ming", Email: "liming@example.com",
+	}, jwt.SigningMethodHS256)
+
+	userSession, user := f.sessionWithDown(t, SessionBody{VisitorID: leadSession.VisitorID, UserToken: token}, down)
+	if userSession.Contact.Kind != contact.User || userSession.VisitorID != "" {
+		t.Fatalf("登录后：%+v", userSession)
+	}
+	// 成员收到会话刷新推送
+	var ev push.Event
+	if err := json.Unmarshal(broadcasttest.Receive(t, memberPubs).Data, &ev); err != nil || ev.Type != push.Conversation || ev.ID != sent.ConversationID {
+		t.Fatalf("合并后推送：%+v %v", ev, err)
+	}
+	// 用户登录后能直接看到合并过来的会话，并且可以继续发消息
+	convs, err := conversation.NewListForContact(env.DB).Handle(ctx, user, f.widget.ID)
+	if err != nil || len(convs) != 1 || convs[0].ID != sent.ConversationID {
+		t.Fatalf("用户看到的会话列表：%+v %v", convs, err)
+	}
+	if _, err := send.Handle(in, user, sent.ConversationID, MessageBody{Text: "after login"}); err != nil {
+		t.Fatalf("用户继续发消息：%v", err)
+	}
+	// 线索原记录已删，资料已回填到用户
+	if _, err := contact.NewGet(env.DB).Handle(ctx, f.agent, lead.ID); !errors.Is(err, contact.ErrNotFound) {
+		t.Errorf("原线索应当已删除：%v", err)
+	}
+	detail, err := contact.NewGet(env.DB).Handle(ctx, f.agent, user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if detail.Name != "Li Ming" || detail.Email != "liming@example.com" || detail.Notes != "潜在大客户" ||
+		detail.Location != "上海" || detail.TimeZone != "Asia/Shanghai" || detail.Referrer != "https://shop.example.com/pricing" ||
+		detail.ConversationCount != 1 || len(detail.Identities) != 1 || detail.Identities[0].ExternalID != "user:u-99" {
+		t.Fatalf("合并后的用户资料：%+v", detail)
+	}
+	// 再次带着旧 VisitorID 和 UserToken 登录是幂等的
+	again, _ := f.sessionWithDown(t, SessionBody{VisitorID: leadSession.VisitorID, UserToken: token}, down)
+	if again.Contact.ID != user.ID {
+		t.Fatalf("重复登录：%v != %v", again.Contact.ID, user.ID)
 	}
 }

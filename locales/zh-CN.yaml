@@ -116,10 +116,17 @@ translation.tone.formal: 正式
 "permission.conversations:assign": 把会话改派给别人
 "permission.conversations:read-all": 可以看到全部会话
 "permission.conversations:read-team": 可以看到所在团队收件箱的会话
+"permission.contacts:read": 查看联系人
+"permission.contacts:update": 修改联系人
 
 contact.not_found: 联系人不存在
+contact.invalid_email: 邮箱格式不正确
+contact.invalid_language: 不是有效的语言，请从列表中选择，或者输入语言标签，例如 hi-Latn
+contact.invalid_time_zone: "不认识的时区“{{.time_zone}}”"
 contact.kind.user: 用户
 contact.kind.lead: 线索
+contact.sort.recent: 最近活跃
+contact.sort.created: 创建时间
 
 channel.not_found: 渠道不存在
 channel.disabled: 这个渠道已停用
