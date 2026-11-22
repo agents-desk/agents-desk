@@ -1,13 +1,13 @@
 import { ActionIcon, Avatar, Badge, Box, Button, Center, Drawer, Group, Loader, SegmentedControl, Text, Tooltip } from "@mantine/core"
-import { useMediaQuery } from "@mantine/hooks"
+import { useElementSize, useMediaQuery } from "@mantine/hooks"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Link, useParams } from "@tanstack/react-router"
 import { IconArrowRight, IconCheck, IconChevronLeft, IconLayoutSidebarRight, IconRefresh } from "@tabler/icons-react"
 import { notifyError, useCollapseNav, useLanguage, useNarrow, useT } from "@go-tenon/ui"
-import { type ReactNode, useEffect, useRef, useState } from "react"
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { languageName } from "../languages"
-import { NARROW_QUERY, ResizeHandle, useResizableWidth } from "../layout"
+import { isTypingTarget, NARROW_QUERY, ResizeHandle, useResizableWidth } from "../layout"
 import { formatLocalTime } from "../timezone"
 import { useConversationChannel } from "./channel"
 import { Composer } from "./Composer"
@@ -71,6 +71,8 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
   const [details, setDetails] = useState(() => (narrow ? false : readSavedDetails()))
   const [original, setOriginal] = useState(false) // 对方的消息都显示原文
   const detailSize = useResizableWidth("agents-desk:inbox-details-w", 300, 260, 420, "left")
+  const { ref: mainRef, width: mainWidth } = useElementSize()
+  const composerRef = useRef<HTMLTextAreaElement>(null)
   useCollapseNav(details && canInlineDetails && !wide && !narrow)
 
   // 从宽屏切到窄屏时自动收起详情，避免详情页占满整屏遮挡聊天记录
@@ -78,17 +80,17 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
     if (narrow) setDetails(false)
   }, [narrow])
 
-  const closeDetails = () => {
+  const closeDetails = useCallback(() => {
     setDetails(false)
     if (!narrow) saveDetails(false)
-  }
-  const toggleDetails = () => {
+  }, [narrow])
+  const toggleDetails = useCallback(() => {
     setDetails((prev) => {
       const next = !prev
       if (!narrow) saveDetails(next)
       return next
     })
-  }
+  }, [narrow])
 
   // 打开时读到的位置：“新消息”分隔线画在它之后，读过之后也保持在原处
   const readAtOpen = useRef<number | null>(null)
@@ -116,6 +118,27 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
   const close = useMutation({ mutationFn: () => tenantApi.conversation.close(id), onSuccess: invalidate, onError: (err) => notifyError(err) })
   const reopen = useMutation({ mutationFn: () => tenantApi.conversation.reopen(id), onSuccess: invalidate, onError: (err) => notifyError(err) })
 
+  // 会话级单键快捷键（非输入态生效）：R 聚焦回复框、I 切换详情栏、E 关闭会话
+  const status = c?.status
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || isTypingTarget(e.target)) return
+      const key = e.key.toLowerCase()
+      if (key === "i") {
+        e.preventDefault()
+        toggleDetails()
+      } else if (key === "r") {
+        e.preventDefault()
+        composerRef.current?.focus()
+      } else if (key === "e" && status && status !== "closed" && !close.isPending) {
+        e.preventDefault()
+        close.mutate()
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [close, status, toggleDetails])
+
   if (!c) {
     return (
       <Center style={{ flex: 1 }}>
@@ -135,9 +158,11 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
   if (narrow && details) return <Details c={c} onClose={closeDetails} onOpen={open} />
   const inlineDetails = details && !narrow && canInlineDetails
   const drawerDetails = details && !narrow && !canInlineDetails
+  // 当聊天列实际宽度小于 640px（例如中屏四栏并排）或移动端窄屏时，操作按钮降级为图标 + Tooltip，避免挤压联系人名字
+  const compactActions = narrow || (mainWidth > 0 && mainWidth < 640)
   return (
     <Group gap={0} h="100%" wrap="nowrap" align="stretch" style={{ flex: 1, minWidth: 0 }}>
-      <Box style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+      <Box ref={mainRef} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
         {/* 宽屏锁定 52px 基准顶栏与相邻各栏齐平；窄屏操作按钮换到第二行 */}
         <Group gap="sm" px="md" py={narrow ? 8 : 0} wrap={narrow ? "wrap" : "nowrap"} className="inbox-header" data-fixed={!narrow || undefined}>
           {narrow && (
@@ -145,14 +170,14 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
               <IconChevronLeft size={18} />
             </ActionIcon>
           )}
-          <Box style={{ minWidth: 0, flex: narrow ? 1 : undefined }}>
+          <Box style={{ minWidth: 0, flex: 1 }}>
             <Group gap={6} wrap="nowrap">
               {c.contact ? (
                 <Link
                   to="/t/$slug/contacts/$id"
                   params={{ slug, id: c.contact.id }}
                   search={{ sort: "recent" }}
-                  style={{ color: "inherit", textDecoration: "none", minWidth: 0 }}
+                  className="inbox-contact-link"
                 >
                   <Text fw={600} truncate>
                     {contactName(c, t)}
@@ -176,16 +201,16 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
               {meta}
             </Text>
           </Box>
-          {viewers.length > 0 && !narrow && (
+          {viewers.length > 0 && !compactActions && (
             <Tooltip label={t("inbox.viewing", { who: viewers.map((v) => v.name).join(", ") })}>
-              <Avatar.Group ml="auto" spacing="xs">
+              <Avatar.Group spacing="xs" style={{ flex: "none" }}>
                 {viewers.slice(0, 3).map((v) => (
                   <Avatar key={v.id} size={26} name={v.name} color="initials" src={byId.get(v.id)?.avatar_url || undefined} />
                 ))}
               </Avatar.Group>
             </Tooltip>
           )}
-          <Group gap={6} wrap="nowrap" ml={viewers.length > 0 && !narrow ? undefined : "auto"} w={narrow ? "100%" : undefined} justify={narrow ? "flex-end" : undefined}>
+          <Group gap={6} wrap="nowrap" w={narrow ? "100%" : undefined} justify={narrow ? "flex-end" : undefined} style={{ flex: "none" }}>
             {hasTranslation(timeline.data, me.data?.language) && (
               <SegmentedControl
                 size="xs"
@@ -198,15 +223,29 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
                 aria-label={t("inbox.text_shown")}
               />
             )}
-            <AssignMenu c={c} compact={narrow} />
-            {c.status !== "closed" && <SnoozeMenu id={c.id} compact={narrow} />}
+            <AssignMenu c={c} compact={compactActions} />
+            {c.status !== "closed" && <SnoozeMenu id={c.id} compact={compactActions} />}
             {c.status === "closed" ? (
-              <Button size="xs" variant="default" leftSection={<IconRefresh size={14} />} loading={reopen.isPending} onClick={() => reopen.mutate()}>
-                {t("inbox.reopen")}
-              </Button>
+              compactActions ? (
+                <Tooltip label={t("inbox.reopen")}>
+                  <ActionIcon variant="default" size={30} loading={reopen.isPending} onClick={() => reopen.mutate()} aria-label={t("inbox.reopen")}>
+                    <IconRefresh size={15} />
+                  </ActionIcon>
+                </Tooltip>
+              ) : (
+                <Button size="xs" variant="default" leftSection={<IconRefresh size={14} />} loading={reopen.isPending} onClick={() => reopen.mutate()}>
+                  {t("inbox.reopen")}
+                </Button>
+              )
+            ) : compactActions ? (
+              <Tooltip label={t("inbox.close")}>
+                <ActionIcon variant="default" size={30} loading={close.isPending} onClick={() => close.mutate()} aria-label={t("inbox.close")}>
+                  <IconCheck size={15} />
+                </ActionIcon>
+              </Tooltip>
             ) : (
               <Button size="xs" variant="default" leftSection={<IconCheck size={14} />} loading={close.isPending} onClick={() => close.mutate()}>
-                {narrow ? null : t("inbox.close")}
+                {t("inbox.close")}
               </Button>
             )}
             {next && (
@@ -224,15 +263,19 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
           </Group>
         </Group>
         <Timeline c={c} readSeq={readAtOpen.current ?? 0} typing={typing} original={original} />
-        <Composer key={c.id} c={c} onTyping={notifyTyping} />
+        <Composer key={c.id} c={c} onTyping={notifyTyping} inputRef={composerRef} />
       </Box>
       {inlineDetails && (
         <Box w={detailSize.width} pos="relative" style={{ flex: "none" }} className="inbox-aside">
           <ResizeHandle
             side="left"
             dragging={detailSize.dragging}
+            width={detailSize.width}
+            min={detailSize.min}
+            max={detailSize.max}
             onPointerDown={detailSize.onPointerDown}
             onDoubleClick={detailSize.onDoubleClick}
+            onKeyDown={detailSize.onKeyDown}
           />
           <Details c={c} onClose={closeDetails} onOpen={open} />
         </Box>
