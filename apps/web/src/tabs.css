@@ -1,0 +1,96 @@
+/*
+ * 分段切换（SegmentedControl）与标签页（Tabs）的统一样式：
+ * 全部基于 --tn-* 与 Mantine 主题语义变量，在亮色、暗色及淡黄备注底色上均保持清晰层次。
+ */
+
+/* ———————————————— SegmentedControl ———————————————— */
+
+.mantine-SegmentedControl-root {
+  --sc-padding-xs: 4px 8px;
+  --sc-padding-sm: 5px 12px;
+  padding: 3px;
+  background-color: color-mix(in srgb, var(--tn-text) 5%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tn-border) 85%, transparent);
+}
+
+[data-mantine-color-scheme="dark"] .mantine-SegmentedControl-root {
+  background-color: color-mix(in srgb, var(--tn-text) 7%, transparent);
+}
+
+.mantine-SegmentedControl-indicator {
+  border-radius: calc(var(--sc-radius, var(--mantine-radius-md)) - 2px);
+  background-color: var(--sc-color, var(--tn-surface));
+  border: 1px solid color-mix(in srgb, var(--tn-border-strong) 45%, transparent);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--mantine-color-black) 6%, transparent),
+    0 1px 1px color-mix(in srgb, var(--mantine-color-black) 4%, transparent);
+}
+
+[data-mantine-color-scheme="dark"] .mantine-SegmentedControl-indicator {
+  background-color: var(--sc-color, var(--mantine-color-dark-5));
+  border-color: color-mix(in srgb, var(--mantine-color-dark-3) 40%, transparent);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--mantine-color-black) 28%, transparent);
+}
+
+.mantine-SegmentedControl-label {
+  border-radius: calc(var(--sc-radius, var(--mantine-radius-md)) - 2px);
+  color: var(--tn-muted);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.mantine-SegmentedControl-label[data-active] {
+  color: var(--sc-label-color, var(--tn-text));
+  font-weight: 600;
+}
+
+.mantine-SegmentedControl-label[data-active]::before {
+  border-radius: calc(var(--sc-radius, var(--mantine-radius-md)) - 2px);
+  background-color: var(--sc-color, var(--tn-surface));
+}
+
+[data-mantine-color-scheme="dark"] .mantine-SegmentedControl-label[data-active]::before {
+  background-color: var(--sc-color, var(--mantine-color-dark-5));
+}
+
+@media (hover: hover) {
+  .mantine-SegmentedControl-label:not([data-disabled], [data-active], [data-read-only]):hover {
+    color: var(--tn-text);
+  }
+}
+
+/* ———————————————— Tabs（default 变体） ———————————————— */
+
+.mantine-Tabs-root[data-variant="default"] {
+  --tab-border-color: var(--tn-border);
+  --tabs-list-gap: 4px;
+}
+
+.mantine-Tabs-root[data-variant="default"] .mantine-Tabs-list::before {
+  border-width: 0 0 1px 0;
+}
+
+.mantine-Tabs-root[data-variant="default"] .mantine-Tabs-tab {
+  padding: 9px 12px;
+  color: var(--tn-muted);
+  font-weight: 500;
+  border-radius: var(--mantine-radius-sm) var(--mantine-radius-sm) 0 0;
+  transition: color 150ms ease, border-color 150ms ease;
+}
+
+@media (hover: hover) {
+  .mantine-Tabs-root[data-variant="default"] .mantine-Tabs-tab:not([data-disabled]):hover {
+    background-color: transparent;
+    color: var(--tn-text);
+  }
+
+  .mantine-Tabs-root[data-variant="default"] .mantine-Tabs-tab:not([data-disabled], [data-active]):hover {
+    border-color: var(--tn-border-strong);
+  }
+}
+
+.mantine-Tabs-root[data-variant="default"] .mantine-Tabs-tab[data-active] {
+  color: var(--mantine-primary-color-light-color);
+  font-weight: 600;
+  border-color: var(--mantine-primary-color-filled);
+}

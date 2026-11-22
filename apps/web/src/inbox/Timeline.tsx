@@ -1,6 +1,7 @@
 import type { ConversationDTO, ConversationItemDTO } from "@agents-desk/client/tenant"
-import { Anchor, Box, Center, Divider, Group, Loader, Paper, Stack, Text, UnstyledButton } from "@mantine/core"
+import { Anchor, Box, Button, Center, Divider, Group, Loader, Paper, Stack, Text, UnstyledButton } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { IconArrowDown } from "@tabler/icons-react"
 import { notifyError, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
 import { Fragment, type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
@@ -45,16 +46,79 @@ export function Timeline({ c, readSeq, typing, original }: { c: ConversationDTO;
   const translation = useQuery(kit.queries.translation.settings())
   const enabled = translation.data?.enabled ?? false
   const watch = useFillVisible(enabled, me.data?.language)
-  const bottom = useRef<HTMLDivElement>(null)
+  const scroller = useRef<HTMLDivElement>(null)
+  const nearBottom = useRef(true) // 视口距离底部 <= 80px 时认为在底部，允许自动跟随新消息
+  const initialized = useRef(false)
+  const prevCount = useRef(0)
+  const [showScrollDown, setShowScrollDown] = useState(false)
+  const [unseenCount, setUnseenCount] = useState(0)
   const list = items.data ?? []
   const names = {
     member: (id: string) => (id === me.data?.id ? t("inbox.you") : (byId.get(id)?.name ?? t("event.someone"))),
     team: (id: string) => teams.find((x) => x.id === id)?.name ?? "",
   }
 
+  // 首次加载完成直接落到底部；后续新增消息仅在底部附近或自己刚发送时自动跟随，翻看历史时不打断阅读
   useEffect(() => {
-    bottom.current?.scrollIntoView({ block: "end" })
-  }, [list.length, typing.length])
+    if (items.isPending) return
+    const el = scroller.current
+    if (!el) return
+    if (!initialized.current) {
+      initialized.current = true
+      prevCount.current = list.length
+      el.scrollTop = el.scrollHeight
+      nearBottom.current = true
+      return
+    }
+    if (list.length > prevCount.current) {
+      const added = list.slice(prevCount.current)
+      prevCount.current = list.length
+      const hasOwn = added.some((it) => it.actor.type === "member" && it.actor.id === me.data?.id)
+      if (hasOwn || nearBottom.current) {
+        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
+        nearBottom.current = true
+        setShowScrollDown(false)
+        setUnseenCount(0)
+      } else {
+        const incoming = added.filter((it) => it.kind !== "event").length
+        if (incoming > 0) {
+          setUnseenCount((n) => n + incoming)
+          setShowScrollDown(true)
+        }
+      }
+      return
+    }
+    prevCount.current = list.length
+  }, [items.isPending, list, me.data?.id])
+
+  // 正在输入提示出现时，仅在用户停留在底部附近时跟随滚动
+  useEffect(() => {
+    if (!initialized.current || typing.length === 0 || !nearBottom.current) return
+    const el = scroller.current
+    el?.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
+  }, [typing.length])
+
+  const onScroll = () => {
+    const el = scroller.current
+    if (!el) return
+    const gap = el.scrollHeight - el.scrollTop - el.clientHeight
+    nearBottom.current = gap <= 80
+    if (gap <= 80) {
+      setShowScrollDown(false)
+      setUnseenCount(0)
+    } else if (gap > 120) {
+      setShowScrollDown(true)
+    }
+  }
+
+  const scrollToBottom = () => {
+    const el = scroller.current
+    if (!el) return
+    nearBottom.current = true
+    setShowScrollDown(false)
+    setUnseenCount(0)
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
+  }
 
   if (items.isPending) {
     return (
@@ -65,42 +129,55 @@ export function Timeline({ c, readSeq, typing, original }: { c: ConversationDTO;
   }
   const firstNew = list.find((it) => it.seq > readSeq && !(it.actor.type === "member" && it.actor.id === me.data?.id))
   return (
-    <Box className="inbox-timeline">
-      <Stack gap={10} p="md">
-        {list.map((it, i) => (
-          <Fragment key={it.id}>
-            {(i === 0 || !sameDay(list[i - 1].created_at, it.created_at)) && (
-              <Divider label={dayLabel(it.created_at, language, t, zone)} labelPosition="center" />
-            )}
-            {readSeq > 0 && it === firstNew && <Divider color="red.3" label={<Text size="xs" c="red">{t("inbox.new_messages")}</Text>} labelPosition="center" />}
-            {it.kind === "event" ? (
-              <Text size="xs" c="dimmed" ta="center" className="inbox-event">
-                {describeEvent(it, byId, names, t, language)} · {clock(it.created_at, language, zone)}
-              </Text>
-            ) : it.kind === "note" ? (
-              <Note it={it} author={names.member(it.actor.id)} time={clock(it.created_at, language, zone)} />
-            ) : (
-              <Message
-                it={it}
-                c={c}
-                mine={it.actor.type !== "contact"}
-                author={it.actor.type === "contact" ? contactName(c, t) : it.actor.type === "member" ? names.member(it.actor.id) : whoDid(it, byId, t)}
-                time={clock(it.created_at, language, zone)}
-                lang={me.data?.language}
-                original={original}
-                translating={enabled}
-                watch={watch}
-              />
-            )}
-          </Fragment>
-        ))}
-        {typing.length > 0 && (
-          <Text size="xs" c="dimmed" fs="italic">
-            {t("inbox.typing", { who: typing.map((x) => (x.contact ? contactName(c, t) : (x.name ?? ""))).join(", ") })}
-          </Text>
-        )}
-        <div ref={bottom} />
-      </Stack>
+    <Box className="inbox-timeline-wrap">
+      <Box ref={scroller} className="inbox-timeline" onScroll={onScroll}>
+        <Stack gap={10} p="md">
+          {list.map((it, i) => (
+            <Fragment key={it.id}>
+              {(i === 0 || !sameDay(list[i - 1].created_at, it.created_at)) && (
+                <Divider label={dayLabel(it.created_at, language, t, zone)} labelPosition="center" />
+              )}
+              {readSeq > 0 && it === firstNew && <Divider color="red.3" label={<Text size="xs" c="red">{t("inbox.new_messages")}</Text>} labelPosition="center" />}
+              {it.kind === "event" ? (
+                <Text size="xs" c="dimmed" ta="center" className="inbox-event">
+                  {describeEvent(it, byId, names, t, language)} · {clock(it.created_at, language, zone)}
+                </Text>
+              ) : it.kind === "note" ? (
+                <Note it={it} author={names.member(it.actor.id)} time={clock(it.created_at, language, zone)} />
+              ) : (
+                <Message
+                  it={it}
+                  c={c}
+                  mine={it.actor.type !== "contact"}
+                  author={it.actor.type === "contact" ? contactName(c, t) : it.actor.type === "member" ? names.member(it.actor.id) : whoDid(it, byId, t)}
+                  time={clock(it.created_at, language, zone)}
+                  lang={me.data?.language}
+                  original={original}
+                  translating={enabled}
+                  watch={watch}
+                />
+              )}
+            </Fragment>
+          ))}
+          {typing.length > 0 && (
+            <Text size="xs" c="dimmed" fs="italic">
+              {t("inbox.typing", { who: typing.map((x) => (x.contact ? contactName(c, t) : (x.name ?? ""))).join(", ") })}
+            </Text>
+          )}
+        </Stack>
+      </Box>
+      {showScrollDown && (
+        <Button
+          size="compact-xs"
+          radius="xl"
+          variant={unseenCount > 0 ? "filled" : "default"}
+          leftSection={<IconArrowDown size={13} />}
+          className="inbox-scroll-bottom"
+          onClick={scrollToBottom}
+        >
+          {unseenCount > 0 ? t("inbox.new_message_jump", { n: unseenCount }) : t("inbox.scroll_to_bottom")}
+        </Button>
+      )}
     </Box>
   )
 }

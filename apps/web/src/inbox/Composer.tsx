@@ -9,10 +9,11 @@ import { kit, tenantApi } from "../api"
 import { LanguageSelect } from "../LanguageSelect"
 import { languageName } from "../languages"
 import { useMe, useMembers } from "./data"
+import { clearDraft, type DraftMode, getDraft, saveDraft } from "./drafts"
 import { snoozeOptions } from "./menus"
 
 /** Mode 是回复框的模式：回复发给对方；内部备注只有成员可见，可以 @ 同事。 */
-type Mode = "reply" | "note"
+type Mode = DraftMode
 
 /** After 是发送之后对会话做的事：什么也不做、关闭、稍后处理到某个时间。 */
 type After = { kind: "none" } | { kind: "close" } | { kind: "snooze"; until: Date }
@@ -45,20 +46,25 @@ export function Composer({ c, onTyping }: { c: ConversationDTO; onTyping: () => 
   const queryClient = useQueryClient()
   const me = useMe()
   const { list: members } = useMembers()
-  const [mode, setMode] = useState<Mode>("reply")
-  const [text, setText] = useState("")
-  const [mentions, setMentions] = useState<MemberTenantMember[]>([])
+  const [mode, setMode] = useState<Mode>(() => getDraft(c.id)?.mode ?? "reply")
+  const [text, setText] = useState(() => getDraft(c.id)?.text ?? "")
+  const [mentionIds, setMentionIds] = useState<string[]>(() => getDraft(c.id)?.mentionIds ?? [])
   const [query, setQuery] = useState<string | null>(null) // 正在输入的 @ 后面的文字；没有在 @ 时为 null
   const [pick, setPick] = useState(0)
   const area = useRef<HTMLTextAreaElement>(null)
   const value = text.trim()
   const preview = useReplyTranslation(c.id, mode === "reply" ? value : "")
 
+  // 实时保存草稿，切换会话后再回来不丢失已输入内容与模式
+  useEffect(() => {
+    saveDraft(c.id, { text, mode, mentionIds })
+  }, [c.id, text, mode, mentionIds])
+
   const send = useMutation({
     mutationFn: async ({ after, translation }: { after: After; translation?: ConversationTranslation }) => {
       if (mode === "note") {
         // 只算还留在文字中的 @
-        const ids = mentions.filter((m) => value.includes(`@${m.name}`)).map((m) => m.id)
+        const ids = members.filter((m) => mentionIds.includes(m.id) && value.includes(`@${m.name}`)).map((m) => m.id)
         await tenantApi.conversation.note(c.id, { text: value, mentions: ids.length > 0 ? ids : undefined })
       } else {
         await tenantApi.conversation.reply(c.id, { text: value, translation })
@@ -67,8 +73,9 @@ export function Composer({ c, onTyping }: { c: ConversationDTO; onTyping: () => 
       if (after.kind === "snooze") await tenantApi.conversation.snooze(c.id, { until: after.until.toISOString() })
     },
     onSuccess: () => {
+      clearDraft(c.id)
       setText("")
-      setMentions([])
+      setMentionIds([])
       preview.reset()
       void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
     },
@@ -103,7 +110,7 @@ export function Composer({ c, onTyping }: { c: ConversationDTO; onTyping: () => 
     const before = text.slice(0, caret).replace(/@([^\s@]*)$/, `@${m.name} `)
     const next = before + text.slice(caret)
     setText(next)
-    setMentions((all) => (all.some((x) => x.id === m.id) ? all : [...all, m]))
+    setMentionIds((all) => (all.includes(m.id) ? all : [...all, m.id]))
     setQuery(null)
     requestAnimationFrame(() => {
       el?.focus()
@@ -186,7 +193,7 @@ export function Composer({ c, onTyping }: { c: ConversationDTO; onTyping: () => 
               void submit({ kind: "none" })
             }
           }}
-          placeholder={t(note ? "inbox.note_placeholder" : "inbox.reply_placeholder")}
+          placeholder={t(note ? "inbox.note_placeholder" : c.status === "closed" ? "inbox.reopen_reply_placeholder" : "inbox.reply_placeholder")}
           autosize
           minRows={2}
           maxRows={8}
@@ -219,7 +226,7 @@ export function Composer({ c, onTyping }: { c: ConversationDTO; onTyping: () => 
           {!note && (
             <Menu position="top-end" withinPortal>
               <Menu.Target>
-                <Button size="xs" px={6} disabled={!value || send.isPending || preview.pending} style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: "1px solid var(--mantine-color-white)" }} aria-label={t("inbox.send_options")}>
+                <Button size="xs" px={6} disabled={!value || send.isPending || preview.pending} className="inbox-send-menu" aria-label={t("inbox.send_options")}>
                   <IconChevronDown size={14} />
                 </Button>
               </Menu.Target>
