@@ -1,29 +1,37 @@
-import type { ConversationBulkResult, ConversationDTO, ConversationSummary } from "@agents-desk/client/tenant"
-import { ActionIcon, Badge, Box, Button, Center, Checkbox, ColorSwatch, Group, Loader, Menu, SegmentedControl, Select, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
+import type { ConversationBulkResult, ConversationDTO, ConversationSearchHitDTO, ConversationSummary } from "@agents-desk/client/tenant"
+import { ActionIcon, Badge, Box, Button, Center, Checkbox, CloseButton, ColorSwatch, Group, Loader, Menu, SegmentedControl, Select, Stack, Text, TextInput, Tooltip, UnstyledButton } from "@mantine/core"
+import { useDebouncedValue } from "@mantine/hooks"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { notifications } from "@mantine/notifications"
-import { IconChevronDown, IconLayoutSidebarLeftExpand } from "@tabler/icons-react"
+import { IconChevronDown, IconLayoutSidebarLeftExpand, IconLock, IconSearch } from "@tabler/icons-react"
 import { notifyError, notifySuccess, useCan, useLanguage, useNavControl, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { flatten, useConversationList, useMe, useMembers, useTags, useTeams, useThresholds } from "./data"
+import { flatten, flattenSearchHits, useConversationList, useConversationSearch, useMe, useMembers, useTags, useTeams, useThresholds } from "./data"
 import { useDraft } from "./drafts"
 import { type FillWatcher, useFillVisible } from "./fill"
 import { activity, duration, waitColor, waitLevel } from "./format"
+import { HighlightedSnippet } from "./Highlight"
 import { useNow } from "./Nav"
-import type { InboxSearch } from "./search"
+import type { InboxSearch, MatchField, SearchScope } from "./search"
+
+/** OpenFocus 是点击搜索结果打开会话时附带的消息定位信息。 */
+export interface OpenFocus {
+  seq?: number
+  matchField?: MatchField
+}
 
 /** ListProps 是会话列表的设置。 */
 interface ListProps {
   search: InboxSearch
   openId?: string // 当前打开的会话
   go: (s: Partial<InboxSearch>) => void
-  open: (id: string) => void
+  open: (id: string, focus?: OpenFocus) => void
 }
 
 /**
- * ConversationList 是会话列表：顶部是列表名和积压情况（待回复数、等得最久的时长、打开的会话数），切换状态和排序，
- * 可以进入选择模式批量指派、关闭；下面是会话，滚到底时加载更多。刚有新消息的一行短暂高亮。
+ * ConversationList 是会话列表：顶部是列表名和积压情况（待回复数、等得最久的时长、打开的会话数），支持按关键词全文搜索、
+ * 切换状态、排序与标签筛选，以及进入选择模式批量指派、关闭；下面是会话，滚到底时加载更多。刚有新消息的一行短暂高亮。
  */
 export function ConversationList({ search, openId, go, open }: ListProps): ReactNode {
   const t = useT()
@@ -33,35 +41,68 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
   const me = useMe()
   const tags = useTags()
   const list = useConversationList(search)
+  const searchQuery = useConversationSearch(search)
   const tagById = new Map(tags.map((x) => [x.id, x]))
   const inbox = useQuery(kit.queries.conversation.inbox())
   const translation = useQuery(kit.queries.translation.settings())
   const watch = useFillVisible(translation.data?.enabled ?? false, me.data?.language)
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [draftQ, setDraftQ] = useState(search.q ?? "")
+  const [debouncedQ] = useDebouncedValue(draftQ, 250)
+  const searching = Boolean(search.q?.trim())
   const items = flatten(list.data?.pages)
+  const hits = flattenSearchHits(searchQuery.data?.pages)
+  const searchTotal = searchQuery.data?.pages[0]?.total ?? 0
+
+  // URL 中的 q 被外部改变（例如从命令面板跳转或清空）时同步输入框内容
+  const prevUrlQ = useRef(search.q ?? "")
+  useEffect(() => {
+    const next = search.q ?? ""
+    if (next !== prevUrlQ.current) {
+      prevUrlQ.current = next
+      setDraftQ(next)
+    }
+  }, [search.q])
+
+  // 输入防抖后同步到 URL 参数，清空时一并清除定位与范围
+  const goRef = useRef(go)
+  goRef.current = go
+  useEffect(() => {
+    const trimmed = debouncedQ.trim()
+    const current = (search.q ?? "").trim()
+    if (trimmed === current) return
+    prevUrlQ.current = trimmed
+    if (trimmed) {
+      goRef.current({ q: trimmed, seq: undefined, matchField: undefined })
+    } else {
+      goRef.current({ q: undefined, scope: undefined, seq: undefined, matchField: undefined })
+    }
+  }, [debouncedQ, search.q])
 
   // 列表名和积压情况：来自收件箱的数量
   const team = search.team ? inbox.data?.teams.find((x) => x.id === search.team) : undefined
   const summary: ConversationSummary | undefined = team ?? (inbox.data ? inbox.data[search.box] : undefined)
   const title = team?.name ?? t(`inbox.box_${search.box}` as const)
 
-  // 滚到底时加载下一页
+  // 滚到底时加载下一页（普通列表或搜索结果共用）
+  const activeQuery = searching ? searchQuery : list
   const end = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const el = end.current
     if (!el) return
     const io = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && list.hasNextPage && !list.isFetchingNextPage) void list.fetchNextPage()
+      if (entries[0].isIntersecting && activeQuery.hasNextPage && !activeQuery.isFetchingNextPage) void activeQuery.fetchNextPage()
     })
     io.observe(el)
     return () => io.disconnect()
-  }, [list])
+  }, [activeQuery])
 
   // 刚有新消息的会话：最后一条消息的时间变了，高亮 2 秒
   const seen = useRef(new Map<string, string>())
   const [flash, setFlash] = useState<Set<string>>(new Set())
   useEffect(() => {
+    if (searching) return
     const changed: string[] = []
     for (const c of items) {
       const before = seen.current.get(c.id)
@@ -72,7 +113,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
     setFlash(new Set(changed))
     const timer = setTimeout(() => setFlash(new Set()), 2000)
     return () => clearTimeout(timer)
-  }, [items])
+  }, [items, searching])
 
   const toggle = (id: string) =>
     setSelected((s) => {
@@ -85,8 +126,11 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
     setSelecting(false)
     setSelected(new Set())
   }
-
-  const hasToolbar = search.box !== "mentions" || tags.length > 0
+  const clearSearch = () => {
+    setDraftQ("")
+    prevUrlQ.current = ""
+    go({ q: undefined, scope: undefined, seq: undefined, matchField: undefined })
+  }
 
   return (
     <Stack gap={0} h="100%" className="inbox-list">
@@ -107,35 +151,73 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
               <Text fw={600} size="sm" truncate lh={1.25}>
                 {title}
               </Text>
-              {summary && (
+              {searching ? (
                 <Text size="xs" c="dimmed" truncate lh={1.25}>
-                  {t("inbox.backlog_waiting")}{" "}
-                  <Text span size="xs" fw={600} c={summary.waiting > 0 ? "deep-orange" : undefined}>
-                    {summary.waiting}
-                  </Text>
-                  {summary.oldest_waiting_since && (
-                    <>
-                      {" · "}
-                      {t("inbox.backlog_oldest")}{" "}
-                      <Text span size="xs" fw={600} c={waitColor[waitLevel(summary.oldest_waiting_since, now, th)]}>
-                        {duration(summary.oldest_waiting_since, now, t)}
-                      </Text>
-                    </>
-                  )}
-                  {" · "}
-                  {t("inbox.backlog_open", { n: summary.count })}
+                  {searchQuery.isPending ? "…" : t("inbox.search_results_count", { n: searchTotal })}
                 </Text>
+              ) : (
+                summary && (
+                  <Text size="xs" c="dimmed" truncate lh={1.25}>
+                    {t("inbox.backlog_waiting")}{" "}
+                    <Text span size="xs" fw={600} c={summary.waiting > 0 ? "deep-orange" : undefined}>
+                      {summary.waiting}
+                    </Text>
+                    {summary.oldest_waiting_since && (
+                      <>
+                        {" · "}
+                        {t("inbox.backlog_oldest")}{" "}
+                        <Text span size="xs" fw={600} c={waitColor[waitLevel(summary.oldest_waiting_since, now, th)]}>
+                          {duration(summary.oldest_waiting_since, now, t)}
+                        </Text>
+                      </>
+                    )}
+                    {" · "}
+                    {t("inbox.backlog_open", { n: summary.count })}
+                  </Text>
+                )
               )}
             </Box>
-            <Button size="compact-xs" variant="subtle" color="gray" onClick={() => setSelecting(true)} style={{ flex: "none" }}>
-              {t("inbox.select")}
-            </Button>
+            {!searching && (
+              <Button size="compact-xs" variant="subtle" color="gray" onClick={() => setSelecting(true)} style={{ flex: "none" }}>
+                {t("inbox.select")}
+              </Button>
+            )}
           </Group>
-          {/* 独立筛选工具条：状态、排序与标签筛选完整保留，视觉上与顶栏分层 */}
-          {hasToolbar && (
-            <Stack gap={6} px="sm" py={8} className="inbox-toolbar">
-              {/* @我 的列表不按状态筛选，总是最近被 @ 的在前 */}
-              {search.box !== "mentions" && (
+          {/* 独立筛选工具条：搜索框、状态/范围、排序与标签筛选，视觉上与顶栏分层 */}
+          <Stack gap={6} px="sm" py={8} className="inbox-toolbar">
+            <TextInput
+              size="xs"
+              value={draftQ}
+              onChange={(e) => setDraftQ(e.currentTarget.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape" && draftQ) {
+                  e.stopPropagation()
+                  clearSearch()
+                }
+              }}
+              placeholder={t("inbox.search_placeholder")}
+              aria-label={t("inbox.search_placeholder")}
+              leftSection={<IconSearch size={14} stroke={1.6} />}
+              rightSection={
+                draftQ ? (
+                  <CloseButton size="xs" aria-label={t("inbox.search_clear")} onClick={clearSearch} />
+                ) : undefined
+              }
+            />
+            {searching ? (
+              <SegmentedControl
+                size="xs"
+                fullWidth
+                value={search.scope ?? "all"}
+                onChange={(v) => go({ scope: v as SearchScope })}
+                data={[
+                  { value: "all", label: t("inbox.search_scope_all") },
+                  { value: "current", label: t("inbox.search_scope_current") },
+                ]}
+              />
+            ) : (
+              /* @我 的列表不按状态筛选，总是最近被 @ 的在前 */
+              search.box !== "mentions" && (
                 <Group gap={6} wrap="nowrap">
                   <SegmentedControl
                     size="xs"
@@ -162,42 +244,66 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                     comboboxProps={{ withinPortal: true }}
                   />
                 </Group>
-              )}
-              {tags.length > 0 && (
-                <Select
-                  size="xs"
-                  placeholder={t("inbox.tag_filter")}
-                  aria-label={t("inbox.tag_filter")}
-                  value={search.tag ?? null}
-                  onChange={(v) => go({ tag: v || undefined })}
-                  data={tags.map((tag) => ({ value: tag.id, label: tag.name }))}
-                  leftSection={
-                    search.tag && tagById.get(search.tag) ? (
-                      <ColorSwatch color={`var(--mantine-color-${tagById.get(search.tag)?.color}-6)`} size={10} />
-                    ) : undefined
-                  }
-                  renderOption={({ option }) => {
-                    const tag = tagById.get(option.value)
-                    return (
-                      <Group gap="xs" wrap="nowrap">
-                        {tag && <ColorSwatch color={`var(--mantine-color-${tag.color}-6)`} size={10} />}
-                        <Text size="xs" truncate>
-                          {option.label}
-                        </Text>
-                      </Group>
-                    )
-                  }}
-                  clearable
-                  searchable
-                  comboboxProps={{ withinPortal: true }}
-                />
-              )}
-            </Stack>
-          )}
+              )
+            )}
+            {tags.length > 0 && (
+              <Select
+                size="xs"
+                placeholder={t("inbox.tag_filter")}
+                aria-label={t("inbox.tag_filter")}
+                value={search.tag ?? null}
+                onChange={(v) => go({ tag: v || undefined })}
+                data={tags.map((tag) => ({ value: tag.id, label: tag.name }))}
+                leftSection={
+                  search.tag && tagById.get(search.tag) ? (
+                    <ColorSwatch color={`var(--mantine-color-${tagById.get(search.tag)?.color}-6)`} size={10} />
+                  ) : undefined
+                }
+                renderOption={({ option }) => {
+                  const tag = tagById.get(option.value)
+                  return (
+                    <Group gap="xs" wrap="nowrap">
+                      {tag && <ColorSwatch color={`var(--mantine-color-${tag.color}-6)`} size={10} />}
+                      <Text size="xs" truncate>
+                        {option.label}
+                      </Text>
+                    </Group>
+                  )
+                }}
+                clearable
+                searchable
+                comboboxProps={{ withinPortal: true }}
+              />
+            )}
+          </Stack>
         </>
       )}
       <Box style={{ flex: 1, overflowY: "auto" }}>
-        {list.isPending ? (
+        {searching ? (
+          searchQuery.isPending ? (
+            <Center p="xl">
+              <Loader size="sm" />
+            </Center>
+          ) : hits.length === 0 ? (
+            <Text c="dimmed" size="sm" ta="center" p="xl">
+              {t("inbox.search_empty", { q: search.q?.trim() ?? "" })}
+            </Text>
+          ) : (
+            hits.map((hit) => (
+              <SearchRow
+                key={`${hit.conversation.id}:${hit.match.item_id}`}
+                hit={hit}
+                active={hit.conversation.id === openId}
+                onClick={() =>
+                  open(hit.conversation.id, {
+                    seq: hit.match.seq,
+                    matchField: hit.match.field as MatchField,
+                  })
+                }
+              />
+            ))
+          )
+        ) : list.isPending ? (
           <Center p="xl">
             <Loader size="sm" />
           </Center>
@@ -221,13 +327,72 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
           ))
         )}
         <div ref={end} />
-        {list.isFetchingNextPage && (
+        {activeQuery.isFetchingNextPage && (
           <Center p="sm">
             <Loader size="xs" />
           </Center>
         )}
       </Box>
     </Stack>
+  )
+}
+
+/** statusColor 是会话状态的语义徽标颜色。 */
+const statusColor = { open: "bright-blue", snoozed: "yellow", closed: "gray" } as const
+
+/** SearchRow 是全文搜索结果中的一行会话：联系人、渠道、状态、命中时间、高亮摘要以及同会话命中条数。 */
+function SearchRow({ hit, active, onClick }: { hit: ConversationSearchHitDTO; active: boolean; onClick: () => void }): ReactNode {
+  const t = useT()
+  const language = useLanguage()
+  const zone = useTimeZone()
+  const c = hit.conversation
+  const m = hit.match
+  return (
+    <UnstyledButton onClick={onClick} className="inbox-row" data-active={active || undefined} w="100%" px="sm" py={9}>
+      <Box style={{ minWidth: 0 }}>
+        <Group gap={6} wrap="nowrap">
+          <Text size="sm" fw={600} truncate>
+            {contactName(c, t)}
+          </Text>
+          {c.channel && (
+            <Badge size="xs" variant="outline" color="gray" style={{ flex: "none" }}>
+              {c.channel.name}
+            </Badge>
+          )}
+          <Badge size="xs" variant="light" color={statusColor[c.status]} style={{ flex: "none" }}>
+            {t(`inbox.status_${c.status}` as const)}
+          </Badge>
+          <Text size="xs" c="dimmed" ml="auto" style={{ flex: "none", fontVariantNumeric: "tabular-nums" }}>
+            {activity(m.created_at, language, t, zone)}
+          </Text>
+        </Group>
+        <Text size="xs" c="dimmed" lineClamp={2} mt={4} lh={1.45}>
+          {m.kind === "note" && (
+            <Badge
+              size="xs"
+              variant="light"
+              color="yellow"
+              leftSection={<IconLock size={10} />}
+              mr={5}
+              style={{ verticalAlign: "middle" }}
+            >
+              {t("inbox.search_note_tag")}
+            </Badge>
+          )}
+          {m.kind === "message" && m.field === "original" && m.actor.type === "contact" && (
+            <Badge size="xs" variant="light" color="gray" mr={5} style={{ verticalAlign: "middle" }}>
+              {t("inbox.search_original_tag")}
+            </Badge>
+          )}
+          <HighlightedSnippet parts={m.snippet} />
+        </Text>
+        {hit.match_count > 1 && (
+          <Text size="xs" c="brand" mt={3}>
+            {t("inbox.search_match_count", { n: hit.match_count })}
+          </Text>
+        )}
+      </Box>
+    </UnstyledButton>
   )
 }
 

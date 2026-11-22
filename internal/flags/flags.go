@@ -69,7 +69,7 @@ const (
 )
 
 // ScopeKinds 是后台支持的开关作用域类型。
-var ScopeKinds = enum.New("flags.scope", ScopeEveryone, ScopeTenant)
+var ScopeKinds = enum.New("flags.scope", enum.Item(ScopeEveryone), enum.Item(ScopeTenant))
 
 // Schema 让 OpenAPI 中的 ScopeKind 带枚举约束和译文。
 func (ScopeKind) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, ScopeKinds) }
@@ -84,7 +84,7 @@ const (
 )
 
 // Modes 是全部开关设置模式。
-var Modes = enum.New("flags.mode", ModeOn, ModeOff, ModePercent)
+var Modes = enum.New("flags.mode", enum.Item(ModeOn), enum.Item(ModeOff), enum.Item(ModePercent))
 
 // Schema 让 OpenAPI 中的 Mode 带枚举约束和译文。
 func (Mode) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Modes) }

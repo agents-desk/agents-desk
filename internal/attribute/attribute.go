@@ -46,7 +46,7 @@ const (
 )
 
 // Targets 是全部可用的属性对象，显示文字是翻译文件中 attribute.target.<对象> 的消息。
-var Targets = enum.New("attribute.target", TargetConversation, TargetContact)
+var Targets = enum.New("attribute.target", enum.Item(TargetConversation), enum.Item(TargetContact))
 
 // Schema 让 OpenAPI 中的 Target 只接受上面的取值，并带有显示文字。
 func (Target) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Targets) }
@@ -64,7 +64,7 @@ const (
 )
 
 // Types 是全部可用的属性类型，显示文字是翻译文件中 attribute.type.<类型> 的消息。
-var Types = enum.New("attribute.type", TypeText, TypeNumber, TypeBoolean, TypeDate, TypeSelect, TypeMultiSelect)
+var Types = enum.New("attribute.type", enum.Item(TypeText), enum.Item(TypeNumber), enum.Item(TypeBoolean), enum.Item(TypeDate), enum.Item(TypeSelect), enum.Item(TypeMultiSelect))
 
 // Schema 让 OpenAPI 中的 Type 只接受上面的取值，并带有显示文字。
 func (Type) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Types) }

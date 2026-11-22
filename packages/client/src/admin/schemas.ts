@@ -48,10 +48,14 @@ export const schemas = {
     list: {
       query: {
         "properties": {
-          "before": {
-            "type": "string"
+          "page": {
+            "default": 1,
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
           },
-          "limit": {
+          "per_page": {
+            "default": 20,
             "format": "int64",
             "maximum": 100,
             "minimum": 1,

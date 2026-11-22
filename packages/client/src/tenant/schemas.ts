@@ -121,6 +121,11 @@ export const schemas = {
             "minimum": 0,
             "type": "integer"
           },
+          "around": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
           "limit": {
             "default": 100,
             "format": "int64",
@@ -207,6 +212,56 @@ export const schemas = {
     reply: {
       body: {
         "$ref": "#/components/schemas/ConversationReplyBody"
+      },
+    },
+    search: {
+      query: {
+        "properties": {
+          "assignee_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "channel_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "inbox": {
+            "$ref": "#/components/schemas/ConversationInbox"
+          },
+          "page": {
+            "default": 1,
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "per_page": {
+            "default": 20,
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/ConversationPriority"
+          },
+          "q": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ConversationStatus"
+          },
+          "tag_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "team_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
       },
     },
     snooze: {

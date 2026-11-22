@@ -2,7 +2,7 @@ import { Box } from "@mantine/core"
 import { createFileRoute, Outlet, useNavigate, useParams } from "@tanstack/react-router"
 import { useNarrow } from "@go-tenon/ui"
 import "../../../inbox/inbox.css"
-import { ConversationList } from "../../../inbox/List"
+import { ConversationList, type OpenFocus } from "../../../inbox/List"
 import { InboxNav } from "../../../inbox/Nav"
 import { type InboxSearch, validateInboxSearch } from "../../../inbox/search"
 import { NARROW_QUERY, ResizeHandle, useResizableWidth } from "../../../layout"
@@ -30,7 +30,12 @@ function Inbox() {
       ? navigate({ to: "/t/$slug/inbox/$id", params: { slug, id }, search: next })
       : navigate({ to: "/t/$slug/inbox", params: { slug }, search: next }))
   }
-  const open = (next: string) => void navigate({ to: "/t/$slug/inbox/$id", params: { slug, id: next }, search })
+  const open = (next: string, focus?: OpenFocus) =>
+    void navigate({
+      to: "/t/$slug/inbox/$id",
+      params: { slug, id: next },
+      search: { ...search, seq: focus?.seq, matchField: focus?.matchField },
+    })
   return (
     <Box style={{ display: "flex", height: "100%" }}>
       <InboxNav search={search} go={go} />

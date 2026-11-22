@@ -33,7 +33,7 @@ const (
 )
 
 // Kinds 是全部渠道种类，显示文字是翻译文件中 channel.kind.<种类> 的消息。
-var Kinds = enum.New("channel.kind", Test, Widget)
+var Kinds = enum.New("channel.kind", enum.Item(Test), enum.Item(Widget))
 
 // Schema 让 OpenAPI 中的 Kind 只接受上面的取值，并带有显示文字。
 func (Kind) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Kinds) }

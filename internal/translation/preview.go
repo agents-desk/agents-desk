@@ -107,7 +107,7 @@ func (a *Preview) detect(ctx context.Context, sub identity.Subject, id, memberLa
 	if len(ids) == 0 {
 		return "", nil
 	}
-	targets, err := primaryLanguages(ctx, a.db, sub.Tenant)
+	targets, err := member.PrimaryLanguages(ctx, a.db, sub.Tenant)
 	if err != nil {
 		return "", err
 	}

@@ -14,6 +14,7 @@ import (
 
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/llm"
+	"agents-desk/internal/member"
 )
 
 // Topic 是翻译收到的消息的下游，在入口加入会话的 Downstream：时间线每有一项新内容，worker 收到一个任务。
@@ -46,7 +47,7 @@ func NewIncoming(db *bun.DB, locker *lock.Locker, translator *Translator, down c
 // Job 处理 Topic 的任务：新的一项是对方发来、对所有人可见、有文字的消息时，识别语言（自动回复、分配规则等不等成员看就要用到），
 // 并翻译成工作区的主要语言。
 func (a *Incoming) Job(ctx context.Context, p conversation.Appended) error {
-	targets, err := primaryLanguages(ctx, a.db, p.TenantID)
+	targets, err := member.PrimaryLanguages(ctx, a.db, p.TenantID)
 	if err != nil {
 		return err
 	}

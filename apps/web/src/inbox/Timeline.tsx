@@ -11,8 +11,10 @@ import { useMe, useMembers, useTeams, useTimeline } from "./data"
 import { type FillWatcher, useFillVisible } from "./fill"
 import { describeEvent, whoDid } from "./events"
 import { clock, dayLabel, fullDateTime, sameDay } from "./format"
+import { HighlightQuery } from "./Highlight"
 import { contactName } from "./List"
 import { promptText } from "./prompts"
+import type { MatchField } from "./search"
 
 /** GROUP_WINDOW_MS 是同一发送者连续消息合并为同一组的间隔上限（3 分钟）。 */
 const GROUP_WINDOW_MS = 3 * 60 * 1000
@@ -47,14 +49,30 @@ export function hasTranslation(items: ConversationItemDTO[] | undefined, lang: s
  * 对方的消息显示成员语言的译文，original 为真时（顶部选了“原文”）显示原文，每条也可以单独切换；
  * 成员翻译后发出的消息显示成员写的原文，可以展开发给对方的译文。
  */
-export function Timeline({ c, readSeq, typing, original }: { c: ConversationDTO; readSeq: number; typing: TypingNow[]; original: boolean }): ReactNode {
+export function Timeline({
+  c,
+  readSeq,
+  typing,
+  original,
+  highlight,
+  focusSeq,
+  focusField,
+}: {
+  c: ConversationDTO
+  readSeq: number
+  typing: TypingNow[]
+  original: boolean
+  highlight?: string
+  focusSeq?: number
+  focusField?: MatchField
+}): ReactNode {
   const t = useT()
   const language = useLanguage()
   const zone = useTimeZone()
   const me = useMe()
   const { byId } = useMembers()
   const teams = useTeams()
-  const items = useTimeline(c.id)
+  const items = useTimeline(c.id, focusSeq)
   const translation = useQuery(kit.queries.translation.settings())
   const enabled = translation.data?.enabled ?? false
   const watch = useFillVisible(enabled, me.data?.language)
@@ -62,6 +80,8 @@ export function Timeline({ c, readSeq, typing, original }: { c: ConversationDTO;
   const nearBottom = useRef(true) // 视口距离底部 <= 80px 时认为在底部，允许自动跟随新消息
   const initialized = useRef(false)
   const prevCount = useRef(0)
+  const focusedRef = useRef<number | undefined>(undefined)
+  const [pulseSeq, setPulseSeq] = useState<number | undefined>(undefined)
   const [showScrollDown, setShowScrollDown] = useState(false)
   const [unseenCount, setUnseenCount] = useState(0)
   const list = items.data ?? []
@@ -70,12 +90,29 @@ export function Timeline({ c, readSeq, typing, original }: { c: ConversationDTO;
     team: (id: string) => teams.find((x) => x.id === id)?.name ?? "",
   }
 
-  // 首次加载完成直接落到底部；后续新增消息仅在底部附近或自己刚发送时自动跟随，翻看历史时不打断阅读
+  // 从搜索结果跳转时，自动滚动定位到对应序号的消息气泡并施加短暂脉冲高亮
+  useEffect(() => {
+    if (!focusSeq || items.isPending || focusedRef.current === focusSeq) return
+    const el = scroller.current
+    if (!el) return
+    const target = el.querySelector<HTMLElement>(`[data-seq="${focusSeq}"]`)
+    if (!target) return
+    focusedRef.current = focusSeq
+    initialized.current = true
+    prevCount.current = list.length
+    target.scrollIntoView({ block: "center", behavior: "smooth" })
+    setPulseSeq(focusSeq)
+    const timer = setTimeout(() => setPulseSeq((cur) => (cur === focusSeq ? undefined : cur)), 2500)
+    return () => clearTimeout(timer)
+  }, [focusSeq, items.isPending, list])
+
+  // 首次加载完成直接落到底部（若本次带有 focusSeq 则让位给定位滚动）；后续新增消息仅在底部附近或自己刚发送时自动跟随
   useEffect(() => {
     if (items.isPending) return
     const el = scroller.current
     if (!el) return
     if (!initialized.current) {
+      if (focusSeq && list.some((it) => it.seq === focusSeq)) return
       initialized.current = true
       prevCount.current = list.length
       el.scrollTop = el.scrollHeight
@@ -101,7 +138,7 @@ export function Timeline({ c, readSeq, typing, original }: { c: ConversationDTO;
       return
     }
     prevCount.current = list.length
-  }, [items.isPending, list, me.data?.id])
+  }, [focusSeq, items.isPending, list, me.data?.id])
 
   // 正在输入提示出现时，仅在用户停留在底部附近时跟随滚动
   useEffect(() => {
@@ -167,6 +204,8 @@ export function Timeline({ c, readSeq, typing, original }: { c: ConversationDTO;
                     time={clock(it.created_at, language, zone)}
                     fullTime={fullDateTime(it.created_at, language, zone)}
                     mt={gapTop}
+                    highlight={highlight}
+                    focused={pulseSeq === it.seq}
                   />
                 ) : (
                   <Message
@@ -183,6 +222,9 @@ export function Timeline({ c, readSeq, typing, original }: { c: ConversationDTO;
                     original={original}
                     translating={enabled}
                     watch={watch}
+                    highlight={highlight}
+                    focused={pulseSeq === it.seq}
+                    preferOriginal={focusSeq === it.seq && focusField === "original"}
                   />
                 )}
               </Fragment>
@@ -233,21 +275,29 @@ interface MessageProps {
   original: boolean // 顶部选了“原文”：对方的消息都显示原文
   translating: boolean // 翻译可用：还缺我的语言的译文的消息显示“翻译中”，出现在页面上时请求补译
   watch: FillWatcher // 挂在还缺译文的消息上，见 useFillVisible
+  highlight?: string // 当前搜索词：高亮气泡内命中的文本
+  focused?: boolean // 从搜索结果跳转命中的当前消息，施加短暂脉冲高亮
+  preferOriginal?: boolean // 命中客户消息原文时默认切到原文展示
 }
 
 /**
  * Message 是一条消息：对方的在左侧，成员和系统发的在右侧，旁边是悬浮复制按钮，底部是译文切换与送达状态（失败时可以重发）。
  * 连续同人消息合并为组：组首显示作者与时间，组内消息省略重复头部并用方向圆角自然衔接。
  */
-function Message({ it, c, mine, author, time, fullTime, first, last, mt, lang, original, translating, watch }: MessageProps): ReactNode {
+function Message({ it, c, mine, author, time, fullTime, first, last, mt, lang, original, translating, watch, highlight, focused, preferOriginal }: MessageProps): ReactNode {
   const t = useT()
   const ui = useLanguage()
   const zone = useTimeZone()
   const [prevOriginal, setPrevOriginal] = useState(original)
-  const [flip, setFlip] = useState(false) // 这一条和顶部的“显示原文”相反；顶部切换时重置
+  const [flip, setFlip] = useState(() => Boolean(preferOriginal && !original)) // 这一条和顶部的“显示原文”相反；顶部切换时重置
   if (prevOriginal !== original) {
     setPrevOriginal(original)
     setFlip(false)
+  }
+  const [prevPrefer, setPrevPrefer] = useState(preferOriginal)
+  if (prevPrefer !== preferOriginal) {
+    setPrevPrefer(preferOriginal)
+    if (preferOriginal && !original) setFlip(true)
   }
   const [sent, setSent] = useState(false) // 展开发给对方的译文
   const queryClient = useQueryClient()
@@ -326,6 +376,7 @@ function Message({ it, c, mine, author, time, fullTime, first, last, mt, lang, o
   return (
     <Box
       mt={mt}
+      data-seq={it.seq}
       className="inbox-msg"
       style={{ alignSelf: mine ? "flex-end" : "flex-start", maxWidth: "min(72%, 620px)" }}
       ref={!mine && translating && it.untranslated ? watch(it.id) : undefined}
@@ -351,7 +402,7 @@ function Message({ it, c, mine, author, time, fullTime, first, last, mt, lang, o
           py={8}
           withBorder={!mine}
           bg={mine ? "var(--mantine-primary-color-light)" : undefined}
-          className="inbox-bubble"
+          className={focused ? "inbox-bubble inbox-focus-pulse" : "inbox-bubble"}
           data-mine={mine || undefined}
           data-incoming={!mine || undefined}
           data-first={first || undefined}
@@ -359,13 +410,13 @@ function Message({ it, c, mine, author, time, fullTime, first, last, mt, lang, o
           data-original={(translated && showOriginal) || undefined}
           style={{ minWidth: 0 }}
         >
-          <Linkified text={shown} />
+          <Linkified text={shown} highlight={highlight} />
           {sentAs && sent && (
             <Box mt={6} pt={6} className="inbox-sent-translation">
               <Text size="xs" c="dimmed">
                 {t("inbox.sent_translation", { lang: languageName(sentAs, ui) })}
               </Text>
-              <Linkified text={it.content.text ?? ""} />
+              <Linkified text={it.content.text ?? ""} highlight={highlight} />
             </Box>
           )}
         </Paper>
@@ -436,11 +487,35 @@ function Toggle({ label, onClick }: { label: string; onClick: () => void }): Rea
 }
 
 /** Note 是内部备注：占满一行、黄色底加左侧强调条与锁图标，@ 到的同事加粗。只有成员可见。 */
-function Note({ it, author, time, fullTime, mt }: { it: ConversationItemDTO; author: string; time: string; fullTime: string; mt: number }): ReactNode {
+function Note({
+  it,
+  author,
+  time,
+  fullTime,
+  mt,
+  highlight,
+  focused,
+}: {
+  it: ConversationItemDTO
+  author: string
+  time: string
+  fullTime: string
+  mt: number
+  highlight?: string
+  focused?: boolean
+}): ReactNode {
   const t = useT()
   const raw = it.content.text ?? ""
   return (
-    <Paper mt={mt} px="sm" py={8} radius="md" bg="var(--mantine-color-yellow-light)" className="inbox-note">
+    <Paper
+      mt={mt}
+      px="sm"
+      py={8}
+      radius="md"
+      bg="var(--mantine-color-yellow-light)"
+      data-seq={it.seq}
+      className={focused ? "inbox-note inbox-focus-pulse" : "inbox-note"}
+    >
       <Group gap={6} mb={3} wrap="nowrap">
         <IconLock size={12} className="inbox-note-accent" style={{ flex: "none" }} />
         <Text size="xs" fw={600} className="inbox-note-accent">
@@ -465,10 +540,13 @@ function Note({ it, author, time, fullTime, mt }: { it: ConversationItemDTO; aut
           part.startsWith("@") ? (
             // biome-ignore lint/suspicious/noArrayIndexKey: 拆分出的片段没有别的标识，顺序固定
             <Text key={i} span fw={700} className="inbox-note-accent">
-              {part}
+              <HighlightQuery text={part} query={highlight} />
             </Text>
           ) : (
-            part
+            // biome-ignore lint/suspicious/noArrayIndexKey: 拆分出的片段没有别的标识，顺序固定
+            <Fragment key={i}>
+              <HighlightQuery text={part} query={highlight} />
+            </Fragment>
           ),
         )}
       </Text>
@@ -479,21 +557,33 @@ function Note({ it, author, time, fullTime, mt }: { it: ConversationItemDTO; aut
 /** LINK 匹配消息中的网址：http:// 或 https:// 开头，到空白为止，去掉结尾的标点。 */
 const LINK = /https?:\/\/[^\s<>\x22]+[^\s<>\x22\x27.,;:!?)\]}。，；：！？）】」』]/g
 
-/** Linkified 显示消息文字，其中的网址是在新标签页中打开的链接。 */
-function Linkified({ text }: { text: string }): ReactNode {
+/** Linkified 显示消息文字，其中的网址是在新标签页中打开的链接，同时保留搜索词高亮。 */
+function Linkified({ text, highlight }: { text: string; highlight?: string }): ReactNode {
   const parts: ReactNode[] = []
   let last = 0
   for (const m of text.matchAll(LINK)) {
     const at = m.index ?? 0
-    if (at > last) parts.push(text.slice(last, at))
+    if (at > last) {
+      parts.push(
+        <Fragment key={`t:${last}`}>
+          <HighlightQuery text={text.slice(last, at)} query={highlight} />
+        </Fragment>,
+      )
+    }
     parts.push(
-      <Anchor key={at} href={m[0]} target="_blank" rel="noopener noreferrer" size="sm">
-        {m[0]}
+      <Anchor key={`a:${at}`} href={m[0]} target="_blank" rel="noopener noreferrer" size="sm">
+        <HighlightQuery text={m[0]} query={highlight} />
       </Anchor>,
     )
     last = at + m[0].length
   }
-  if (last < text.length) parts.push(text.slice(last))
+  if (last < text.length) {
+    parts.push(
+      <Fragment key={`t:${last}`}>
+        <HighlightQuery text={text.slice(last)} query={highlight} />
+      </Fragment>,
+    )
+  }
   return (
     <Text size="sm" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
       {parts}

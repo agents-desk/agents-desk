@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/login"
 	"github.com/go-tenon/tenon/queue"
 
@@ -63,5 +64,13 @@ func TestSeed(t *testing.T) {
 	var convs, waiting int
 	if err := env.DB.NewRaw("SELECT count(*), count(waiting_since) FROM conversations WHERE tenant_id = ?", demo).Scan(ctx, &convs, &waiting); err != nil || convs != 10 || waiting != 7 {
 		t.Fatalf("示例会话：%d 个，%d 个等待回复，%v", convs, waiting, err)
+	}
+	// 示例会话的全文搜索索引已就绪：中英文均可直接搜到
+	sysDemo := identity.Subject{Type: identity.System, ID: "test", Tenant: demo}
+	if res, err := conversation.NewSearch(env.DB).Handle(ctx, sysDemo, &conversation.SearchInput{Q: "银行卡"}); err != nil || res.Total != 1 {
+		t.Fatalf("示例会话搜索“银行卡”：total=%d err=%v", res.Total, err)
+	}
+	if res, err := conversation.NewSearch(env.DB).Handle(ctx, sysDemo, &conversation.SearchInput{Q: "withdrawal"}); err != nil || res.Total != 1 {
+		t.Fatalf("示例会话搜索 withdrawal：total=%d err=%v", res.Total, err)
 	}
 }

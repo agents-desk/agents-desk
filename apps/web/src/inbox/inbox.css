@@ -332,4 +332,35 @@
     animation: none;
     opacity: 0.65;
   }
+  .inbox-focus-pulse {
+    animation: none;
+  }
+}
+
+/* 全文检索命中词高亮：使用主题语义浅黄底与对比文字色，亮暗模式一致 */
+.inbox-mark {
+  background: var(--mantine-color-yellow-light);
+  color: var(--mantine-color-yellow-light-color);
+  border-radius: 3px;
+  padding: 0 2px;
+  font-weight: 600;
+}
+
+/* 从搜索结果跳转到时间线某条消息时的短暂聚焦高亮 */
+.inbox-focus-pulse {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 2px;
+  animation: inbox-focus-fade 2.4s ease-out forwards;
+}
+
+@keyframes inbox-focus-fade {
+  0%,
+  35% {
+    outline-color: var(--mantine-primary-color-filled);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--mantine-primary-color-filled) 22%, transparent);
+  }
+  100% {
+    outline-color: transparent;
+    box-shadow: 0 0 0 0 transparent;
+  }
 }

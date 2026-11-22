@@ -63,11 +63,14 @@ export const messages = {
     "choose_tenant.none": "You aren’t in any workspace yet. Ask a workspace admin to add you.",
     "choose_tenant.sign_out": "Sign out",
     "choose_tenant.title": "Choose a workspace",
-    "command.empty": "No matching pages or views",
+    "command.contacts_group": "Contacts",
+    "command.conversations_group": "Conversations",
+    "command.empty": "No matching conversations, contacts, or pages",
     "command.inbox_group": "Inbox \u0026 Teams",
     "command.pages_group": "Pages \u0026 Settings",
-    "command.placeholder": "Jump to inbox, team, or settings…",
-    "command.search": "Quick jump",
+    "command.placeholder": "Search messages, contacts, inbox, or pages…",
+    "command.search": "Search \u0026 quick jump",
+    "command.view_all_results": "View all {{.n}} conversations in Inbox",
     "common.cancel": "Cancel",
     "common.save": "Save",
     "common.saved": "Saved",
@@ -289,6 +292,15 @@ export const messages = {
     "inbox.retry": "Resend",
     "inbox.said": "{{.who}}: ",
     "inbox.scroll_to_bottom": "Jump to latest",
+    "inbox.search_clear": "Clear search",
+    "inbox.search_empty": "No conversations matching “{{.q}}”",
+    "inbox.search_match_count": "{{.n}} matches",
+    "inbox.search_note_tag": "Note",
+    "inbox.search_original_tag": "Original",
+    "inbox.search_placeholder": "Search messages and notes…",
+    "inbox.search_results_count": "{{.n}} conversations found",
+    "inbox.search_scope_all": "All visible",
+    "inbox.search_scope_current": "Current list",
     "inbox.select": "Select",
     "inbox.selected": "{{.n}} selected",
     "inbox.send": "Send",
@@ -530,11 +542,14 @@ export const messages = {
     "choose_tenant.none": "你还不属于任何工作区，请联系工作区的管理员把你加入。",
     "choose_tenant.sign_out": "退出登录",
     "choose_tenant.title": "选择工作区",
-    "command.empty": "没有找到匹配的页面或视图",
+    "command.contacts_group": "联系人",
+    "command.conversations_group": "会话",
+    "command.empty": "没有找到匹配的会话、联系人或页面",
     "command.inbox_group": "收件箱与团队",
     "command.pages_group": "页面与设置",
-    "command.placeholder": "搜索收件箱、团队或设置页…",
-    "command.search": "快速跳转",
+    "command.placeholder": "搜索会话消息、联系人、收件箱或页面…",
+    "command.search": "搜索与快速跳转",
+    "command.view_all_results": "在收件箱中查看全部 {{.n}} 个会话",
     "common.cancel": "取消",
     "common.save": "保存",
     "common.saved": "已保存",
@@ -756,6 +771,15 @@ export const messages = {
     "inbox.retry": "重发",
     "inbox.said": "{{.who}}：",
     "inbox.scroll_to_bottom": "回到底部",
+    "inbox.search_clear": "清除搜索",
+    "inbox.search_empty": "没有找到包含“{{.q}}”的会话",
+    "inbox.search_match_count": "{{.n}} 条命中",
+    "inbox.search_note_tag": "备注",
+    "inbox.search_original_tag": "原文",
+    "inbox.search_placeholder": "搜索消息和备注…",
+    "inbox.search_results_count": "找到 {{.n}} 个会话",
+    "inbox.search_scope_all": "全部会话",
+    "inbox.search_scope_current": "当前列表",
     "inbox.select": "选择",
     "inbox.selected": "已选 {{.n}} 个",
     "inbox.send": "发送",
@@ -1000,11 +1024,14 @@ export type MessageId =
   | "choose_tenant.none"
   | "choose_tenant.sign_out"
   | "choose_tenant.title"
+  | "command.contacts_group"
+  | "command.conversations_group"
   | "command.empty"
   | "command.inbox_group"
   | "command.pages_group"
   | "command.placeholder"
   | "command.search"
+  | "command.view_all_results"
   | "common.cancel"
   | "common.save"
   | "common.saved"
@@ -1226,6 +1253,15 @@ export type MessageId =
   | "inbox.retry"
   | "inbox.said"
   | "inbox.scroll_to_bottom"
+  | "inbox.search_clear"
+  | "inbox.search_empty"
+  | "inbox.search_match_count"
+  | "inbox.search_note_tag"
+  | "inbox.search_original_tag"
+  | "inbox.search_placeholder"
+  | "inbox.search_results_count"
+  | "inbox.search_scope_all"
+  | "inbox.search_scope_current"
   | "inbox.select"
   | "inbox.selected"
   | "inbox.send"
