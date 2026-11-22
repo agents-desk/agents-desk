@@ -1,5 +1,5 @@
 import type { ConversationDTO, ConversationItemDTO } from "@agents-desk/client/tenant"
-import { ActionIcon, Anchor, Box, Button, Center, CopyButton, Divider, Group, Loader, Paper, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
+import { ActionIcon, Anchor, Box, Button, CopyButton, Divider, Group, Loader, Paper, Skeleton, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { IconArrowDown, IconCheck, IconCopy, IconLock } from "@tabler/icons-react"
 import { notifyError, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
@@ -134,9 +134,26 @@ export function Timeline({ c, readSeq, typing, original }: { c: ConversationDTO;
 
   if (items.isPending) {
     return (
-      <Center style={{ flex: 1 }}>
-        <Loader size="sm" />
-      </Center>
+      <Box className="inbox-timeline" p="md">
+        <Stack gap="md">
+          <Box style={{ alignSelf: "flex-start", width: "54%", maxWidth: 360 }}>
+            <Skeleton h={10} w={88} mb={6} radius="sm" />
+            <Skeleton h={52} radius="md" />
+          </Box>
+          <Box style={{ alignSelf: "flex-end", width: "46%", maxWidth: 320 }}>
+            <Skeleton h={10} w={72} ml="auto" mb={6} radius="sm" />
+            <Skeleton h={42} radius="md" />
+          </Box>
+          <Box style={{ alignSelf: "flex-start", width: "60%", maxWidth: 400 }}>
+            <Skeleton h={10} w={96} mb={6} radius="sm" />
+            <Skeleton h={64} radius="md" />
+          </Box>
+          <Box style={{ alignSelf: "flex-end", width: "38%", maxWidth: 260 }}>
+            <Skeleton h={10} w={64} ml="auto" mb={6} radius="sm" />
+            <Skeleton h={38} radius="md" />
+          </Box>
+        </Stack>
+      </Box>
     )
   }
   const firstNew = list.find((it) => it.seq > readSeq && !(it.actor.type === "member" && it.actor.id === me.data?.id))

@@ -1,5 +1,5 @@
 import type { ConversationDTO } from "@agents-desk/client/tenant"
-import { Button, Group, Menu, Modal, Stack } from "@mantine/core"
+import { ActionIcon, Button, Group, Menu, Modal, Stack, Tooltip } from "@mantine/core"
 import { DateTimePicker } from "@mantine/dates"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { IconChevronDown, IconClock, IconUserPlus } from "@tabler/icons-react"
@@ -35,9 +35,17 @@ export function AssignMenu({ c, compact }: { c: ConversationDTO; compact?: boole
   return (
     <Menu position="bottom-end" withinPortal>
       <Menu.Target>
-        <Button size="xs" variant="default" leftSection={<IconUserPlus size={14} />} rightSection={<IconChevronDown size={12} />} loading={assign.isPending}>
-          {compact ? null : t("inbox.assign")}
-        </Button>
+        {compact ? (
+          <Tooltip label={t("inbox.assign")}>
+            <ActionIcon variant="default" size={30} loading={assign.isPending} aria-label={t("inbox.assign")}>
+              <IconUserPlus size={15} />
+            </ActionIcon>
+          </Tooltip>
+        ) : (
+          <Button size="xs" variant="default" leftSection={<IconUserPlus size={14} />} rightSection={<IconChevronDown size={12} />} loading={assign.isPending}>
+            {t("inbox.assign")}
+          </Button>
+        )}
       </Menu.Target>
       <Menu.Dropdown mah={420} style={{ overflowY: "auto" }}>
         {me.data && !mine && <Menu.Item onClick={() => assign.mutate({ assignee_id: me.data.id })}>{t("inbox.assign_me")}</Menu.Item>}
@@ -110,9 +118,17 @@ export function SnoozeMenu({ id, compact }: { id: string; compact?: boolean }): 
     <>
       <Menu position="bottom-end" withinPortal>
         <Menu.Target>
-          <Button size="xs" variant="default" leftSection={<IconClock size={14} />} rightSection={<IconChevronDown size={12} />} loading={snooze.isPending}>
-            {compact ? null : t("inbox.snooze")}
-          </Button>
+          {compact ? (
+            <Tooltip label={t("inbox.snooze")}>
+              <ActionIcon variant="default" size={30} loading={snooze.isPending} aria-label={t("inbox.snooze")}>
+                <IconClock size={15} />
+              </ActionIcon>
+            </Tooltip>
+          ) : (
+            <Button size="xs" variant="default" leftSection={<IconClock size={14} />} rightSection={<IconChevronDown size={12} />} loading={snooze.isPending}>
+              {t("inbox.snooze")}
+            </Button>
+          )}
         </Menu.Target>
         <Menu.Dropdown>
           {snoozeOptions(zone).map((o) => (
