@@ -235,6 +235,7 @@ export const messages = {
     "inbox.cancel": "Cancel",
     "inbox.channel": "Channel",
     "inbox.choose_language": "Choose the language to send in",
+    "inbox.clear_filters": "Clear filters",
     "inbox.close": "Close",
     "inbox.close_details": "Close details",
     "inbox.contact_email": "Email",
@@ -258,6 +259,7 @@ export const messages = {
     "inbox.details_history": "Recent conversations",
     "inbox.draft_prefix": "Draft: ",
     "inbox.empty": "No conversations in this list",
+    "inbox.empty_filtered": "No conversations match the current filter",
     "inbox.enter_again": "Translation updated. Check it, then press Enter again to send",
     "inbox.enter_hint": "Enter to send, Shift + Enter for a new line",
     "inbox.hide_translation": "Hide translation",
@@ -306,6 +308,7 @@ export const messages = {
     "inbox.search_scope_all": "All visible",
     "inbox.search_scope_current": "Current list",
     "inbox.select": "Select",
+    "inbox.select_all": "Select all loaded",
     "inbox.selected": "{{.n}} selected",
     "inbox.send": "Send",
     "inbox.send_close": "Send and close",
@@ -316,6 +319,10 @@ export const messages = {
     "inbox.sends_original": "Sends your original text",
     "inbox.sent_as": "Sent in {{.lang}}",
     "inbox.sent_translation": "Translation sent ({{.lang}})",
+    "inbox.shortcut_close": "Close",
+    "inbox.shortcut_details": "Details",
+    "inbox.shortcut_nav": "Switch",
+    "inbox.shortcut_reply": "Reply",
     "inbox.snooze": "Snooze",
     "inbox.snooze_custom": "Pick a time",
     "inbox.snooze_later": "Later today",
@@ -718,6 +725,7 @@ export const messages = {
     "inbox.cancel": "取消",
     "inbox.channel": "渠道",
     "inbox.choose_language": "选择译文的语言",
+    "inbox.clear_filters": "清除筛选",
     "inbox.close": "关闭",
     "inbox.close_details": "关闭详情",
     "inbox.contact_email": "邮箱",
@@ -741,6 +749,7 @@ export const messages = {
     "inbox.details_history": "最近的会话",
     "inbox.draft_prefix": "草稿：",
     "inbox.empty": "这个列表中没有会话",
+    "inbox.empty_filtered": "没有符合当前筛选条件的会话",
     "inbox.enter_again": "译文已更新，确认后再按一次回车发送",
     "inbox.enter_hint": "回车发送，Shift + 回车换行",
     "inbox.hide_translation": "收起译文",
@@ -789,6 +798,7 @@ export const messages = {
     "inbox.search_scope_all": "全部会话",
     "inbox.search_scope_current": "当前列表",
     "inbox.select": "选择",
+    "inbox.select_all": "全选当前列表",
     "inbox.selected": "已选 {{.n}} 个",
     "inbox.send": "发送",
     "inbox.send_close": "发送并关闭",
@@ -799,6 +809,10 @@ export const messages = {
     "inbox.sends_original": "发送原文",
     "inbox.sent_as": "已译成 {{.lang}}",
     "inbox.sent_translation": "发给对方的译文（{{.lang}}）",
+    "inbox.shortcut_close": "关闭会话",
+    "inbox.shortcut_details": "切换详情",
+    "inbox.shortcut_nav": "切换会话",
+    "inbox.shortcut_reply": "聚焦回复",
     "inbox.snooze": "稍后处理",
     "inbox.snooze_custom": "自定义时间",
     "inbox.snooze_later": "今天晚些时候",
@@ -1204,6 +1218,7 @@ export type MessageId =
   | "inbox.cancel"
   | "inbox.channel"
   | "inbox.choose_language"
+  | "inbox.clear_filters"
   | "inbox.close"
   | "inbox.close_details"
   | "inbox.contact_email"
@@ -1227,6 +1242,7 @@ export type MessageId =
   | "inbox.details_history"
   | "inbox.draft_prefix"
   | "inbox.empty"
+  | "inbox.empty_filtered"
   | "inbox.enter_again"
   | "inbox.enter_hint"
   | "inbox.hide_translation"
@@ -1275,6 +1291,7 @@ export type MessageId =
   | "inbox.search_scope_all"
   | "inbox.search_scope_current"
   | "inbox.select"
+  | "inbox.select_all"
   | "inbox.selected"
   | "inbox.send"
   | "inbox.send_close"
@@ -1285,6 +1302,10 @@ export type MessageId =
   | "inbox.sends_original"
   | "inbox.sent_as"
   | "inbox.sent_translation"
+  | "inbox.shortcut_close"
+  | "inbox.shortcut_details"
+  | "inbox.shortcut_nav"
+  | "inbox.shortcut_reply"
   | "inbox.snooze"
   | "inbox.snooze_custom"
   | "inbox.snooze_later"

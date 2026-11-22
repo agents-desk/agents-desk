@@ -1,11 +1,11 @@
 import type { ConversationBulkResult, ConversationDTO, ConversationSearchHitDTO, ConversationSummary } from "@agents-desk/client/tenant"
-import { ActionIcon, Badge, Box, Button, Center, Checkbox, CloseButton, ColorSwatch, Group, Loader, Menu, SegmentedControl, Select, Stack, Text, TextInput, Tooltip, UnstyledButton } from "@mantine/core"
+import { ActionIcon, Avatar, Badge, Box, Button, Center, Checkbox, CloseButton, ColorSwatch, Group, Indicator, Loader, Menu, SegmentedControl, Select, Skeleton, Stack, Text, TextInput, Tooltip, UnstyledButton } from "@mantine/core"
 import { useDebouncedValue } from "@mantine/hooks"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { notifications } from "@mantine/notifications"
-import { IconChevronDown, IconLayoutSidebarLeftExpand, IconLock, IconSearch } from "@tabler/icons-react"
+import { IconArrowsSort, IconCheck, IconFlame, IconLayoutSidebarLeftExpand, IconLock, IconSearch, IconUserPlus, IconX } from "@tabler/icons-react"
 import { notifyError, notifySuccess, useCan, useLanguage, useNavControl, useT, useTimeZone } from "@go-tenon/ui"
-import { type ReactNode, useEffect, useRef, useState } from "react"
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { flatten, flattenSearchHits, useConversationList, useConversationSearch, useMe, useMembers, useTags, useTeams, useThresholds } from "./data"
 import { useDraft } from "./drafts"
@@ -122,20 +122,46 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
       else next.add(id)
       return next
     })
-  const stopSelecting = () => {
+  const stopSelecting = useCallback(() => {
     setSelecting(false)
     setSelected(new Set())
+  }, [])
+
+  // 选择模式下按 Escape 快捷退出批量操作
+  useEffect(() => {
+    if (!selecting) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") stopSelecting()
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [selecting, stopSelecting])
+
+  const selectedCount = items.filter((c) => selected.has(c.id)).length
+  const allSelected = items.length > 0 && selectedCount === items.length
+  const indeterminate = selectedCount > 0 && selectedCount < items.length
+  const toggleAll = () => {
+    if (allSelected) setSelected(new Set())
+    else setSelected(new Set(items.map((c) => c.id)))
   }
   const clearSearch = () => {
     setDraftQ("")
     prevUrlQ.current = ""
     go({ q: undefined, scope: undefined, seq: undefined, matchField: undefined })
   }
+  const sortLabel = search.sort === "waiting" ? t("inbox.sort_waiting") : t("inbox.sort_recent")
 
   return (
     <Stack gap={0} h="100%" className="inbox-list">
       {selecting ? (
-        <BulkBar ids={[...selected]} onDone={stopSelecting} />
+        <BulkBar
+          ids={[...selected]}
+          allSelected={allSelected}
+          indeterminate={indeterminate}
+          hasItems={items.length > 0}
+          onToggleAll={toggleAll}
+          onDone={stopSelecting}
+        />
       ) : (
         <>
           {/* 52px 基准顶栏：与二级导航头、会话头、详情头严格齐平 */}
@@ -152,12 +178,12 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                 {title}
               </Text>
               {searching ? (
-                <Text size="xs" c="dimmed" truncate lh={1.25}>
+                <Text size="xs" c="dimmed" truncate lh={1.25} style={{ fontVariantNumeric: "tabular-nums" }}>
                   {searchQuery.isPending ? "…" : t("inbox.search_results_count", { n: searchTotal })}
                 </Text>
               ) : (
                 summary && (
-                  <Text size="xs" c="dimmed" truncate lh={1.25}>
+                  <Text size="xs" c="dimmed" truncate lh={1.25} style={{ fontVariantNumeric: "tabular-nums" }}>
                     {t("inbox.backlog_waiting")}{" "}
                     <Text span size="xs" fw={600} c={summary.waiting > 0 ? "deep-orange" : undefined}>
                       {summary.waiting}
@@ -183,7 +209,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
               </Button>
             )}
           </Group>
-          {/* 独立筛选工具条：搜索框、状态/范围、排序与标签筛选，视觉上与顶栏分层 */}
+          {/* 独立筛选工具条：搜索框、状态/范围、排序图标菜单与标签筛选，260px 最小栏宽下也不挤压 */}
           <Stack gap={6} px="sm" py={8} className="inbox-toolbar">
             <TextInput
               size="xs"
@@ -221,7 +247,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                 <Group gap={6} wrap="nowrap">
                   <SegmentedControl
                     size="xs"
-                    style={{ flex: 1 }}
+                    style={{ flex: 1, minWidth: 0 }}
                     value={search.status}
                     onChange={(v) => go({ status: v as InboxSearch["status"] })}
                     data={[
@@ -230,19 +256,27 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                       { value: "closed", label: t("inbox.status_closed") },
                     ]}
                   />
-                  <Select
-                    size="xs"
-                    w={112}
-                    allowDeselect={false}
-                    value={search.sort}
-                    onChange={(v) => v && go({ sort: v as InboxSearch["sort"] })}
-                    data={[
-                      { value: "waiting", label: t("inbox.sort_waiting") },
-                      { value: "recent", label: t("inbox.sort_recent") },
-                    ]}
-                    aria-label={t("inbox.sort")}
-                    comboboxProps={{ withinPortal: true }}
-                  />
+                  <Menu position="bottom-end" withinPortal>
+                    <Menu.Target>
+                      <Tooltip label={`${t("inbox.sort")} · ${sortLabel}`} openDelay={300}>
+                        <ActionIcon variant="default" size={30} aria-label={t("inbox.sort")} style={{ flex: "none" }}>
+                          <IconArrowsSort size={15} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                      <Menu.Label>{t("inbox.sort")}</Menu.Label>
+                      {(["waiting", "recent"] as const).map((mode) => (
+                        <Menu.Item
+                          key={mode}
+                          rightSection={search.sort === mode ? <IconCheck size={14} color="var(--mantine-primary-color-filled)" /> : undefined}
+                          onClick={() => go({ sort: mode })}
+                        >
+                          {t(mode === "waiting" ? "inbox.sort_waiting" : "inbox.sort_recent")}
+                        </Menu.Item>
+                      ))}
+                    </Menu.Dropdown>
+                  </Menu>
                 </Group>
               )
             )}
@@ -281,9 +315,17 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
       <Box style={{ flex: 1, overflowY: "auto" }}>
         {searching ? (
           searchQuery.isPending ? (
-            <Center p="xl">
-              <Loader size="sm" />
-            </Center>
+            <Stack gap={0}>
+              {[0, 1, 2, 3, 4].map((i) => (
+                <Box key={i} px="sm" py={10} className="inbox-row" data-search="">
+                  <Group justify="space-between" mb={6}>
+                    <Skeleton h={12} w="44%" radius="sm" />
+                    <Skeleton h={10} w={36} radius="sm" />
+                  </Group>
+                  <Skeleton h={11} w="88%" radius="sm" />
+                </Box>
+              ))}
+            </Stack>
           ) : hits.length === 0 ? (
             <Text c="dimmed" size="sm" ta="center" p="xl">
               {t("inbox.search_empty", { q: search.q?.trim() ?? "" })}
@@ -304,13 +346,33 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
             ))
           )
         ) : list.isPending ? (
-          <Center p="xl">
-            <Loader size="sm" />
-          </Center>
+          <Stack gap={0}>
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <Box key={i} px="sm" className="inbox-row">
+                <Group gap={10} wrap="nowrap" align="center" w="100%">
+                  <Skeleton circle h={28} w={28} style={{ flex: "none" }} />
+                  <Box style={{ flex: 1, minWidth: 0 }}>
+                    <Group justify="space-between" mb={6}>
+                      <Skeleton h={12} w="46%" radius="sm" />
+                      <Skeleton h={10} w={36} radius="sm" />
+                    </Group>
+                    <Skeleton h={11} w="84%" radius="sm" />
+                  </Box>
+                </Group>
+              </Box>
+            ))}
+          </Stack>
         ) : items.length === 0 ? (
-          <Text c="dimmed" size="sm" ta="center" p="xl">
-            {t("inbox.empty")}
-          </Text>
+          <Stack gap="xs" align="center" p="xl">
+            <Text c="dimmed" size="sm" ta="center">
+              {t(search.tag ? "inbox.empty_filtered" : "inbox.empty")}
+            </Text>
+            {search.tag && (
+              <Button size="xs" variant="light" onClick={() => go({ tag: undefined })}>
+                {t("inbox.clear_filters")}
+              </Button>
+            )}
+          </Stack>
         ) : (
           items.map((c) => (
             <Row
@@ -348,7 +410,7 @@ function SearchRow({ hit, active, onClick }: { hit: ConversationSearchHitDTO; ac
   const c = hit.conversation
   const m = hit.match
   return (
-    <UnstyledButton onClick={onClick} className="inbox-row" data-active={active || undefined} w="100%" px="sm" py={9}>
+    <UnstyledButton onClick={onClick} className="inbox-row" data-search="" data-active={active || undefined} w="100%" px="sm" py={9}>
       <Box style={{ minWidth: 0 }}>
         <Group gap={6} wrap="nowrap">
           <Text size="sm" fw={600} truncate>
@@ -397,8 +459,10 @@ function SearchRow({ hit, active, onClick }: { hit: ConversationSearchHitDTO; ac
 }
 
 /**
- * Row 是会话列表的一行：未读点、联系人、渠道、优先级、等待时长（已回复的显示最近活动的时间）；第二行是最后一条消息，
- * 对方的消息是我的语言的译文。还缺译文时第二行先显示原文，这一行出现在页面上时请求补译（watch）。
+ * Row 是会话列表的一行（固定 60px 等高两行结构）：
+ * 第一行是头像/未读角标、联系人、渠道、优先级、等待时长（已回复的显示最近活动时间）；
+ * 第二行左侧是草稿或最后一条消息预览，右侧紧凑展示首个标签与 +N 计数（悬停提示全部标签）。
+ * 还缺译文时第二行先显示原文，这一行出现在页面上时请求补译（watch）。
  */
 function Row({
   c,
@@ -435,6 +499,8 @@ function Row({
         ? t("inbox.you")
         : (byId.get(c.preview_actor.id)?.name ?? "")
       : ""
+  const name = contactName(c, t)
+  const firstTag = c.tags[0]
   return (
     <UnstyledButton
       onClick={onClick}
@@ -445,15 +511,19 @@ function Row({
       data-read={!c.unread || undefined}
       w="100%"
       px="sm"
-      py={9}
     >
-      <Group gap={8} wrap="nowrap" align="flex-start">
-        {selecting && <Checkbox checked={selected} readOnly size="xs" mt={3} tabIndex={-1} />}
+      <Group gap={10} wrap="nowrap" align="center" w="100%" style={{ minWidth: 0 }}>
+        {selecting ? (
+          <Checkbox checked={selected} readOnly size="xs" tabIndex={-1} style={{ flex: "none" }} />
+        ) : (
+          <Indicator disabled={!c.unread} color="brand" size={8} offset={2} withBorder style={{ flex: "none" }}>
+            <Avatar size={28} name={name} color="initials" />
+          </Indicator>
+        )}
         <Box style={{ flex: 1, minWidth: 0 }}>
-          <Group gap={6} wrap="nowrap">
-            <Box w={7} h={7} style={{ borderRadius: "50%", flex: "none" }} bg={c.unread ? "brand" : "transparent"} />
-            <Text size="sm" fw={c.unread ? 700 : 500} truncate>
-              {contactName(c, t)}
+          <Group gap={5} wrap="nowrap" h={20}>
+            <Text size="sm" fw={c.unread ? 700 : 500} truncate lh={1.3}>
+              {name}
             </Text>
             {c.channel && (
               <Badge size="xs" variant="outline" color="gray" style={{ flex: "none" }}>
@@ -461,9 +531,9 @@ function Row({
               </Badge>
             )}
             {c.priority === "high" && (
-              <Text size="xs" c="red" fw={600} style={{ flex: "none" }}>
+              <Badge size="xs" variant="light" color="red" leftSection={<IconFlame size={10} />} style={{ flex: "none" }}>
                 {t("inbox.priority_high")}
-              </Text>
+              </Badge>
             )}
             <Text
               size="xs"
@@ -478,39 +548,41 @@ function Row({
               {c.waiting_since ? duration(c.waiting_since, now, t) : activity(c.last_message_at, language, t, zone)}
             </Text>
           </Group>
-          <Text size="sm" c={draftText || c.unread ? undefined : "dimmed"} truncate mt={2} pl={13}>
-            {draftText ? (
-              <>
-                <Text span size="sm" fw={600} c="deep-orange">
-                  {t("inbox.draft_prefix")}
-                </Text>
-                {draftText}
-              </>
-            ) : (
-              <>
-                {who && (
-                  <Text span size="sm" c="dimmed">
-                    {t("inbox.said", { who })}
+          <Group gap={6} wrap="nowrap" align="center" mt={3} h={20}>
+            <Text size="sm" c={draftText || c.unread ? undefined : "dimmed"} truncate lh={1.3} style={{ flex: 1, minWidth: 0 }}>
+              {draftText ? (
+                <>
+                  <Text span size="sm" fw={600} c="deep-orange">
+                    {t("inbox.draft_prefix")}
                   </Text>
-                )}
-                {c.preview}
-              </>
-            )}
-          </Text>
-          {c.tags.length > 0 && (
-            <Group gap={4} mt={4} pl={13} wrap="nowrap">
-              {c.tags.slice(0, 2).map((tag) => (
-                <Badge key={tag.id} size="xs" variant="light" color={tag.color} style={{ flex: "0 1 auto" }}>
-                  {tag.name}
-                </Badge>
-              ))}
-              {c.tags.length > 2 && (
-                <Badge size="xs" variant="light" color="gray" style={{ flex: "none" }}>
-                  +{c.tags.length - 2}
-                </Badge>
+                  {draftText}
+                </>
+              ) : (
+                <>
+                  {who && (
+                    <Text span size="sm" c="dimmed">
+                      {t("inbox.said", { who })}
+                    </Text>
+                  )}
+                  {c.preview || "\u00A0"}
+                </>
               )}
-            </Group>
-          )}
+            </Text>
+            {firstTag && (
+              <Tooltip label={c.tags.map((x) => x.name).join(" · ")} openDelay={250}>
+                <Group gap={3} wrap="nowrap" style={{ flex: "none" }}>
+                  <Badge size="xs" variant="light" color={firstTag.color} maw={76}>
+                    {firstTag.name}
+                  </Badge>
+                  {c.tags.length > 1 && (
+                    <Badge size="xs" variant="light" color="gray" px={5} style={{ fontVariantNumeric: "tabular-nums" }}>
+                      +{c.tags.length - 1}
+                    </Badge>
+                  )}
+                </Group>
+              </Tooltip>
+            )}
+          </Group>
         </Box>
       </Group>
     </UnstyledButton>
@@ -522,8 +594,22 @@ export function contactName(c: ConversationDTO, t: ReturnType<typeof useT>): str
   return c.contact?.name || t("inbox.visitor")
 }
 
-/** BulkBar 是选择模式顶部的批量操作条：已选数量、指派、关闭、取消。完成后提示结果并退出选择模式。 */
-function BulkBar({ ids, onDone }: { ids: string[]; onDone: () => void }): ReactNode {
+/** BulkBar 是选择模式顶部的批量操作条：支持全选当前列表、指派、关闭与退出（Esc），在 260px 窄栏下不溢出。 */
+function BulkBar({
+  ids,
+  allSelected,
+  indeterminate,
+  hasItems,
+  onToggleAll,
+  onDone,
+}: {
+  ids: string[]
+  allSelected: boolean
+  indeterminate: boolean
+  hasItems: boolean
+  onToggleAll: () => void
+  onDone: () => void
+}): ReactNode {
   const t = useT()
   const can = useCan()
   const queryClient = useQueryClient()
@@ -553,43 +639,62 @@ function BulkBar({ ids, onDone }: { ids: string[]; onDone: () => void }): ReactN
   const others = can("conversations:assign")
   return (
     <Group gap={6} px="sm" bg="var(--tn-active-bg)" wrap="nowrap" className="inbox-header" data-fixed="">
-      <Text size="sm" fw={600}>
+      <Tooltip label={t("inbox.select_all")} openDelay={300}>
+        <Checkbox
+          size="xs"
+          checked={allSelected}
+          indeterminate={indeterminate}
+          disabled={!hasItems}
+          onChange={onToggleAll}
+          aria-label={t("inbox.select_all")}
+          style={{ flex: "none" }}
+        />
+      </Tooltip>
+      <Text size="sm" fw={600} truncate style={{ flex: 1, minWidth: 0, fontVariantNumeric: "tabular-nums" }}>
         {t("inbox.selected", { n: ids.length })}
       </Text>
-      <Menu position="bottom-end" withinPortal>
-        <Menu.Target>
-          <Button size="xs" variant="default" ml="auto" disabled={ids.length === 0} rightSection={<IconChevronDown size={14} />} loading={assign.isPending}>
-            {t("inbox.assign")}
-          </Button>
-        </Menu.Target>
-        <Menu.Dropdown mah={360} style={{ overflowY: "auto" }}>
-          {me.data && <Menu.Item onClick={() => assign.mutate({ assignee_id: me.data.id })}>{t("inbox.assign_me")}</Menu.Item>}
-          {others && (
-            <>
-              <Menu.Label>{t("inbox.assign_members")}</Menu.Label>
-              {members
-                .filter((m) => m.id !== me.data?.id)
-                .map((m) => (
-                  <Menu.Item key={m.id} onClick={() => assign.mutate({ assignee_id: m.id })}>
-                    {m.name}
+      <Group gap={4} wrap="nowrap" style={{ flex: "none" }}>
+        <Menu position="bottom-end" withinPortal>
+          <Menu.Target>
+            <Tooltip label={t("inbox.assign")} openDelay={250}>
+              <ActionIcon variant="default" size={28} disabled={ids.length === 0} loading={assign.isPending} aria-label={t("inbox.assign")}>
+                <IconUserPlus size={14} />
+              </ActionIcon>
+            </Tooltip>
+          </Menu.Target>
+          <Menu.Dropdown mah={360} style={{ overflowY: "auto" }}>
+            {me.data && <Menu.Item onClick={() => assign.mutate({ assignee_id: me.data.id })}>{t("inbox.assign_me")}</Menu.Item>}
+            {others && (
+              <>
+                <Menu.Label>{t("inbox.assign_members")}</Menu.Label>
+                {members
+                  .filter((m) => m.id !== me.data?.id)
+                  .map((m) => (
+                    <Menu.Item key={m.id} onClick={() => assign.mutate({ assignee_id: m.id })}>
+                      {m.name}
+                    </Menu.Item>
+                  ))}
+                <Menu.Label>{t("inbox.assign_teams")}</Menu.Label>
+                {teams.map((team) => (
+                  <Menu.Item key={team.id} onClick={() => assign.mutate({ team_id: team.id })}>
+                    {team.name}
                   </Menu.Item>
                 ))}
-              <Menu.Label>{t("inbox.assign_teams")}</Menu.Label>
-              {teams.map((team) => (
-                <Menu.Item key={team.id} onClick={() => assign.mutate({ team_id: team.id })}>
-                  {team.name}
-                </Menu.Item>
-              ))}
-            </>
-          )}
-        </Menu.Dropdown>
-      </Menu>
-      <Button size="xs" variant="default" disabled={ids.length === 0} loading={close.isPending} onClick={() => close.mutate()}>
-        {t("inbox.close")}
-      </Button>
-      <Button size="xs" variant="subtle" color="gray" onClick={onDone}>
-        {t("inbox.cancel")}
-      </Button>
+              </>
+            )}
+          </Menu.Dropdown>
+        </Menu>
+        <Tooltip label={t("inbox.close")} openDelay={250}>
+          <ActionIcon variant="default" size={28} disabled={ids.length === 0} loading={close.isPending} onClick={() => close.mutate()} aria-label={t("inbox.close")}>
+            <IconCheck size={14} />
+          </ActionIcon>
+        </Tooltip>
+        <Tooltip label={t("inbox.cancel")} openDelay={250}>
+          <ActionIcon variant="subtle" color="gray" size={28} onClick={onDone} aria-label={t("inbox.cancel")}>
+            <IconX size={15} />
+          </ActionIcon>
+        </Tooltip>
+      </Group>
     </Group>
   )
 }

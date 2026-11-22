@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { IconChevronDown, IconLanguage, IconLock } from "@tabler/icons-react"
 import { describeError } from "@go-tenon/client"
 import { errorMessage, notifyError, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
+import { type ReactNode, type RefObject, useCallback, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { LanguageSelect } from "../LanguageSelect"
 import { languageName } from "../languages"
@@ -41,7 +41,7 @@ interface Preview {
  * 可以换成别的语言或者“不翻译”。预览之后改了原文、马上按回车时，先翻译并显示新的译文，再按一次回车才发送：发出的总是成员看过的译文。
  * 不需要翻译时（对方和成员同一种语言、还没识别出对方的语言）不显示预览，直接发送原文。内部备注不翻译。
  */
-export function Composer({ c, onTyping }: { c: ConversationDTO; onTyping: () => void }): ReactNode {
+export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTyping: () => void; inputRef?: RefObject<HTMLTextAreaElement | null> }): ReactNode {
   const t = useT()
   const os = useOs()
   const modeKey = os === "macos" || os === "ios" ? "⌘I" : "Ctrl+I"
@@ -54,7 +54,8 @@ export function Composer({ c, onTyping }: { c: ConversationDTO; onTyping: () => 
   const [mentionIds, setMentionIds] = useState<string[]>(() => getDraft(c.id)?.mentionIds ?? [])
   const [query, setQuery] = useState<string | null>(null) // 正在输入的 @ 后面的文字；没有在 @ 时为 null
   const [pick, setPick] = useState(0)
-  const area = useRef<HTMLTextAreaElement>(null)
+  const localArea = useRef<HTMLTextAreaElement>(null)
+  const area = inputRef ?? localArea
   const value = text.trim()
   const preview = useReplyTranslation(c.id, mode === "reply" ? value : "")
 
@@ -403,13 +404,13 @@ function TranslationPreview({ c, preview, onSendOriginal }: { c: ConversationDTO
       data-stale={(stale && !off) || undefined}
       bg={preview.error && !off ? "var(--mantine-color-red-light)" : "var(--mantine-primary-color-light)"}
     >
-      <Group gap="xs" wrap="nowrap">
+      <Group gap="xs" wrap="wrap">
         <Text size="xs" c="dimmed" style={{ flex: "none" }}>
           {t("inbox.preview_to")}
         </Text>
         <LanguageSelect
           size="xs"
-          w={220}
+          style={{ flex: "1 1 160px", maxWidth: 220, minWidth: 140 }}
           before={[{ value: NO_TRANSLATION, label: t("inbox.no_translation") }]}
           first={[theirs]}
           labels={theirs ? { [theirs]: t("inbox.their_language", { lang: languageName(theirs, ui) }) } : {}}
