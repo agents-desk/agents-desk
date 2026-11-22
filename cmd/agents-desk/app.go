@@ -9,6 +9,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/activity"
 	"github.com/go-tenon/tenon/apitoken"
 	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/broadcast"
@@ -17,6 +18,8 @@ import (
 	"github.com/go-tenon/tenon/command"
 	"github.com/go-tenon/tenon/crypt"
 	"github.com/go-tenon/tenon/database"
+	"github.com/go-tenon/tenon/database/migrate"
+	"github.com/go-tenon/tenon/doctor"
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/filesystem/local"
 	"github.com/go-tenon/tenon/filesystem/s3"
@@ -32,6 +35,7 @@ import (
 	"github.com/go-tenon/tenon/realtime"
 	"github.com/go-tenon/tenon/realtime/natspresence"
 	"github.com/go-tenon/tenon/schedule"
+	"github.com/go-tenon/tenon/schedule/scheduleapi"
 	"github.com/go-tenon/tenon/settings"
 
 	"agents-desk/internal/auth"
@@ -43,6 +47,7 @@ import (
 	"agents-desk/internal/platformadmin"
 	"agents-desk/internal/translation"
 	"agents-desk/internal/widget"
+	"agents-desk/migrations"
 )
 
 // App 是进程中各部分共用的资源，每个进程只装配一次。
@@ -66,9 +71,10 @@ type App struct {
 	translationSettings *settings.Group[translation.Settings] // 各工作区的翻译设置：语气、术语表
 	translator          *translation.Translator               // 调用模型识别语言和翻译
 
-	files     *filesystem.Service // 上传的文件：头像等
-	localDisk *local.Disk         // 本地磁盘，在 /storage/ 下提供访问；没有配置本地磁盘时为空
-	locker    *lock.Locker        // 多个实例之间的锁：定时任务去重
+	files       *filesystem.Service // 上传的文件：头像等
+	defaultDisk filesystem.Disk     // 默认文件存储磁盘，用于运行环境自检
+	localDisk   *local.Disk         // 本地磁盘，在 /storage/ 下提供访问；没有配置本地磁盘时为空
+	locker      *lock.Locker        // 多个实例之间的锁：定时任务去重
 
 	channels channel.Registry // 各种渠道的连接器
 }
@@ -168,7 +174,7 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		contactTokens: apitoken.NewStore(db, cfg.ContactToken), crypt: keys,
 		llmSettings: llmSettings, translationSettings: translationSettings,
 		translator: translation.NewTranslator(db, llm.NewClient(db, llmSettings, &http.Client{Timeout: 60 * time.Second}), translationSettings),
-		files:      files, localDisk: localDisk, locker: lock.New(pglock.New(db)),
+		files:      files, defaultDisk: disks[cfg.Filesystem.DefaultDisk], localDisk: localDisk, locker: lock.New(pglock.New(db)),
 		channels: registry(hub),
 	}, nil
 }
@@ -196,20 +202,52 @@ func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
 	conversation.RegisterJobs(w, a.db, a.channels)
 	translation.RegisterJobs(w, a.db, a.locker, a.translator, down)
 	automation.RegisterJobs(w, a.db, a.locker, down)
+	scheduleapi.HandleRunNow(w, a.tasks)
 	return w.Run, nil
 }
 
-// scheduler 装配定时任务。部署多个实例时，同一次触发只在一个实例上执行。
-func (a *App) scheduler(*command.Daemon) (func(context.Context) error, error) {
-	sched := schedule.New(a.locker, a.cfg.Schedule, nil)
+// tasks 创建调度器并注册全部定时任务：调度器进程、schedules 命令和管理员端定时任务面板共用这一份定义。
+func (a *App) tasks() *schedule.Scheduler {
+	sched := schedule.New(a.locker, a.cfg.Schedule, nil, schedule.WithObserver(scheduleapi.Observer(a.db)))
 	sched.Add("files:cleanup", "*/5 * * * *", schedule.Cleanup(a.files.Cleanup, 500),
 		schedule.Describe("删除过期的临时文件和已删除的文件"))
 	sched.Add("locks:cleanup", "@hourly", schedule.Cleanup(pglock.New(a.db).Cleanup, 1000),
 		schedule.Describe("删除过期的锁"))
+	sched.Add("apitoken:cleanup", "@hourly", schedule.Cleanup(a.adminTokens.Cleanup, 1000),
+		schedule.Describe("删除过期的登录与访问令牌"))
+	sched.Add("login:cleanup", "@hourly", schedule.Cleanup(a.adminLogins.Cleanup, 1000),
+		schedule.Describe("删除过期或已完成的登录验证记录"))
+	sched.Add("ratelimit:cleanup", "@hourly", schedule.Cleanup(pglimit.New(a.db, "cleanup", ratelimit.Config{Rate: 1, Interval: time.Minute, Burst: 1}).Cleanup, 1000),
+		schedule.Describe("删除过期的限流计数"))
+	sched.Add("queue:prune-failed", "@daily", schedule.Cleanup(queue.NewFailedJobs(a.db).Cleanup(30*24*time.Hour), 1000),
+		schedule.Describe("删除 30 天前的队列失败任务"))
+	sched.Add("schedule:prune-runs", "@daily", schedule.Cleanup(scheduleapi.Cleanup(a.db, 7*24*time.Hour), 1000),
+		schedule.Describe("删除 7 天前的定时任务执行记录"))
+	sched.Add("activity:cleanup", "@daily", schedule.Cleanup(activity.Cleanup(a.db, 180*24*time.Hour), 1000),
+		schedule.Describe("删除 180 天前的操作日志"))
 	expire := conversation.NewExpireSnoozes(a.db, a.downstream())
 	sched.Add("conversations:unsnooze", "* * * * *", func(ctx context.Context) error {
 		_, err := expire.Handle(ctx, time.Now())
 		return err
 	}, schedule.Describe("重新打开稍后处理到期的会话"))
-	return sched.Run, nil
+	return sched
+}
+
+// scheduler 装配定时任务。部署多个实例时，同一次触发只在一个实例上执行。
+func (a *App) scheduler(*command.Daemon) (func(context.Context) error, error) {
+	return a.tasks().Run, nil
+}
+
+// doctor 返回运行环境自检分组：数据库、迁移、队列（复制槽与 NATS/JetStream）以及默认文件存储。
+// doctor 命令和管理后台的 /admin/api/system/doctor 接口共用这一份检查定义。
+func (a *App) doctor() []doctor.Group {
+	groups := []doctor.Group{
+		database.Doctor(a.db),
+		migrate.Doctor(a.db, migrations.FS),
+		queue.Doctor(a.db, a.nc, a.cfg.Queue),
+	}
+	if a.defaultDisk != nil {
+		groups = append(groups, filesystem.Doctor(a.defaultDisk))
+	}
+	return groups
 }

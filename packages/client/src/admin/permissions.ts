@@ -11,6 +11,9 @@ export const permissions = {
   "members:manage": "管理成员和角色",
   "members:read": "查看成员",
   "platform-settings:manage": "修改平台设置",
+  "queue:manage": "管理队列",
+  "schedules:manage": "管理定时任务",
+  "system:read": "查看系统自检",
   "teams:manage": "管理团队收件箱",
   "teams:read": "查看团队收件箱",
   "tenant-settings:manage": "管理工作区设置",
@@ -26,6 +29,25 @@ export const required = {
   llm: {
     endpointSave: ["platform-settings:manage"],
     settingsGet: ["platform-settings:manage"],
+  },
+  queue: {
+    failedDelete: ["queue:manage"],
+    failedDeleteAll: ["queue:manage"],
+    failedGet: ["queue:manage"],
+    failedList: ["queue:manage"],
+    failedRetry: ["queue:manage"],
+    failedRetryAll: ["queue:manage"],
+    status: ["queue:manage"],
+    topicPause: ["queue:manage"],
+    topicResume: ["queue:manage"],
+  },
+  schedule: {
+    list: ["schedules:manage"],
+    run: ["schedules:manage"],
+    runs: ["schedules:manage"],
+  },
+  system: {
+    doctor: ["system:read"],
   },
   tenant: {
     changeOwner: ["tenants:manage"],

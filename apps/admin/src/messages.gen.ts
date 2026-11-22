@@ -14,6 +14,16 @@ export const messages = {
     "common.cancel": "Cancel",
     "common.save": "Save",
     "common.saved": "Saved",
+    "doctor.all_passed": "All checks passed",
+    "doctor.description": "Inspect database, migration status, queue replication slot, NATS JetStream, and file storage configuration.",
+    "doctor.failed_summary": "{{.count}} check(s) failed. Follow the instructions below to resolve them.",
+    "doctor.fix": "How to fix",
+    "doctor.refresh": "Re-run checks",
+    "doctor.status.failed": "Failed",
+    "doctor.status.passed": "Passed",
+    "doctor.status.skipped": "Skipped",
+    "doctor.status.warning": "Warning",
+    "doctor.warning_summary": "{{.count}} warning(s) reported. The system can run, but these settings deserve attention.",
     "login.description": "For platform admins",
     "login.title": "Admin sign-in",
     "model.api_key": "API key",
@@ -21,9 +31,13 @@ export const messages = {
     "model.description": "Configure the model API and model name for each call type. Call types can use different APIs and providers. Leave the base URL empty to turn a call type off.",
     "model.model": "Model",
     "model.translation_description": "Translates text between languages and detects the source language and script",
+    "nav.doctor": "Diagnostics",
     "nav.model": "Model APIs",
+    "nav.ops": "Operations",
     "nav.platform_settings": "Platform settings",
     "nav.profile": "Profile",
+    "nav.queue": "Queue",
+    "nav.schedules": "Schedules",
     "nav.tenants": "Workspaces",
     "profile.avatar": "Avatar",
     "profile.avatar_hint": "PNG, JPEG or WebP, up to 2 MB",
@@ -56,6 +70,16 @@ export const messages = {
     "common.cancel": "取消",
     "common.save": "保存",
     "common.saved": "已保存",
+    "doctor.all_passed": "全部检查通过",
+    "doctor.description": "检查数据库、迁移状态、队列复制槽、NATS JetStream 与文件存储的运行环境配置。",
+    "doctor.failed_summary": "有 {{.count}} 项检查未通过，请按提示排查。",
+    "doctor.fix": "修改方法",
+    "doctor.refresh": "重新检查",
+    "doctor.status.failed": "失败",
+    "doctor.status.passed": "通过",
+    "doctor.status.skipped": "跳过",
+    "doctor.status.warning": "提示",
+    "doctor.warning_summary": "有 {{.count}} 项提示，程序可正常运行但建议关注。",
     "login.description": "平台管理员使用",
     "login.title": "管理员登录",
     "model.api_key": "密钥",
@@ -63,9 +87,13 @@ export const messages = {
     "model.description": "为每种调用类型配置模型接口和模型名，不同调用类型可以使用不同的接口和供应商。接口地址留空表示不启用这种调用类型。",
     "model.model": "模型名",
     "model.translation_description": "在不同语言之间互译文本，同时识别原文的语言和书写方式",
+    "nav.doctor": "系统自检",
     "nav.model": "模型接口",
+    "nav.ops": "系统运维",
     "nav.platform_settings": "平台设置",
     "nav.profile": "个人资料",
+    "nav.queue": "队列",
+    "nav.schedules": "定时任务",
     "nav.tenants": "工作区",
     "profile.avatar": "头像",
     "profile.avatar_hint": "PNG、JPEG 或 WebP，不超过 2 MB",
@@ -101,6 +129,16 @@ export type MessageId =
   | "common.cancel"
   | "common.save"
   | "common.saved"
+  | "doctor.all_passed"
+  | "doctor.description"
+  | "doctor.failed_summary"
+  | "doctor.fix"
+  | "doctor.refresh"
+  | "doctor.status.failed"
+  | "doctor.status.passed"
+  | "doctor.status.skipped"
+  | "doctor.status.warning"
+  | "doctor.warning_summary"
   | "login.description"
   | "login.title"
   | "model.api_key"
@@ -108,9 +146,13 @@ export type MessageId =
   | "model.description"
   | "model.model"
   | "model.translation_description"
+  | "nav.doctor"
   | "nav.model"
+  | "nav.ops"
   | "nav.platform_settings"
   | "nav.profile"
+  | "nav.queue"
+  | "nav.schedules"
   | "nav.tenants"
   | "profile.avatar"
   | "profile.avatar_hint"

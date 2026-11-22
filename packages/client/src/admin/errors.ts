@@ -310,6 +310,16 @@ export const PageErrors = {
   InvalidCursor: "page.invalid_cursor",
 } as const
 
+/** github.com/go-tenon/tenon/queue/queueapi 的错误码。 */
+export const QueueapiErrors = {
+  /** ErrFailedJobNotFound 表示失败任务不存在：已经被重试、删除或清理。 */
+  FailedJobNotFound: "queue.failed_job_not_found",
+  /** ErrTopicNotFound 表示 JetStream 中没有这个 topic 的 consumer：没有 Worker 为它注册过处理函数。 */
+  TopicNotFound: "queue.topic_not_found",
+  /** ErrNoAdmin 表示应用没有设置 Options.Admin，不能暂停和恢复 topic。 */
+  NoAdmin: "queue.no_admin",
+} as const
+
 /** github.com/go-tenon/tenon/ratelimit 的错误码。 */
 export const RatelimitErrors = {
   /**
@@ -317,6 +327,12 @@ export const RatelimitErrors = {
    * 即下一次调用可以成功的最短等待时间。
    */
   Exceeded: "rate_limit.exceeded",
+} as const
+
+/** github.com/go-tenon/tenon/schedule/scheduleapi 的错误码。 */
+export const ScheduleapiErrors = {
+  /** ErrNotFound 表示没有这个定时任务。 */
+  NotFound: "schedule.not_found",
 } as const
 
 /** github.com/go-tenon/tenon/settings 的错误码。 */

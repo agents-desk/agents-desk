@@ -89,6 +89,90 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         queryFn: () => client.llm.settingsGet(...args),
       }),
     },
+    queue: {
+      /** queue 分组全部查询的 key 前缀。 */
+      key: () => key("queue"),
+      /** DELETE /queue/failed/{id} */
+      failedDelete: () => ({
+        mutationFn: (variables: Parameters<Client["queue"]["failedDelete"]>[0]) => client.queue.failedDelete(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "queue"),
+      }),
+      /** DELETE /queue/failed */
+      failedDeleteAll: () => ({
+        mutationFn: (variables: Parameters<Client["queue"]["failedDeleteAll"]>[0]) => client.queue.failedDeleteAll(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "queue"),
+      }),
+      /** GET /queue/failed/{id} */
+      failedGet: (...args: Parameters<Client["queue"]["failedGet"]>) => ({
+        queryKey: key("queue", "failedGet", ...args),
+        queryFn: () => client.queue.failedGet(...args),
+      }),
+      /** GET /queue/failed */
+      failedList: (...args: Parameters<Client["queue"]["failedList"]>) => ({
+        queryKey: key("queue", "failedList", ...args),
+        queryFn: () => client.queue.failedList(...args),
+      }),
+      /** POST /queue/failed/{id}/retry */
+      failedRetry: () => ({
+        mutationFn: (variables: Parameters<Client["queue"]["failedRetry"]>[0]) => client.queue.failedRetry(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "queue"),
+      }),
+      /** POST /queue/failed/retry */
+      failedRetryAll: () => ({
+        mutationFn: (variables: Parameters<Client["queue"]["failedRetryAll"]>[0]) => client.queue.failedRetryAll(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "queue"),
+      }),
+      /** GET /queue/status */
+      status: (...args: Parameters<Client["queue"]["status"]>) => ({
+        queryKey: key("queue", "status", ...args),
+        queryFn: () => client.queue.status(...args),
+      }),
+      /** POST /queue/topics/{topic}/pause */
+      topicPause: () => ({
+        mutationFn: (variables: Parameters<Client["queue"]["topicPause"]>[0]) => client.queue.topicPause(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "queue"),
+      }),
+      /** POST /queue/topics/{topic}/resume */
+      topicResume: () => ({
+        mutationFn: (variables: Parameters<Client["queue"]["topicResume"]>[0]) => client.queue.topicResume(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "queue"),
+      }),
+    },
+    schedule: {
+      /** schedule 分组全部查询的 key 前缀。 */
+      key: () => key("schedule"),
+      /** GET /schedules */
+      list: (...args: Parameters<Client["schedule"]["list"]>) => ({
+        queryKey: key("schedule", "list", ...args),
+        queryFn: () => client.schedule.list(...args),
+      }),
+      /** POST /schedules/{name}/run */
+      run: () => ({
+        mutationFn: (variables: Parameters<Client["schedule"]["run"]>[0]) => client.schedule.run(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "schedule"),
+      }),
+      /** GET /schedules/runs */
+      runs: (...args: Parameters<Client["schedule"]["runs"]>) => ({
+        queryKey: key("schedule", "runs", ...args),
+        queryFn: () => client.schedule.runs(...args),
+      }),
+    },
+    system: {
+      /** system 分组全部查询的 key 前缀。 */
+      key: () => key("system"),
+      /** GET /system/doctor */
+      doctor: (...args: Parameters<Client["system"]["doctor"]>) => ({
+        queryKey: key("system", "doctor", ...args),
+        queryFn: () => client.system.doctor(...args),
+      }),
+    },
     tenant: {
       /** tenant 分组全部查询的 key 前缀。 */
       key: () => key("tenant"),
