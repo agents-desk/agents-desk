@@ -1,20 +1,74 @@
-import type { ConversationBulkResult, ConversationDTO, ConversationSearchHitDTO, ConversationSummary } from "@agents-desk/client/tenant"
-import { ActionIcon, Avatar, Badge, Box, Button, Center, Checkbox, CloseButton, ColorSwatch, Group, Indicator, Loader, Menu, SegmentedControl, Select, Skeleton, Stack, Text, TextInput, Tooltip, UnstyledButton } from "@mantine/core"
+import type {
+  ConversationBulkResult,
+  ConversationDTO,
+  ConversationSearchHitDTO,
+  ConversationSummary,
+  ConversationViewConfig,
+  ConversationViewSummary,
+} from "@agents-desk/client/tenant"
+import {
+  ActionIcon,
+  Avatar,
+  Badge,
+  Box,
+  Button,
+  Center,
+  Checkbox,
+  CloseButton,
+  Group,
+  Indicator,
+  Loader,
+  Menu,
+  Popover,
+  ScrollArea,
+  SegmentedControl,
+  Skeleton,
+  Stack,
+  Text,
+  TextInput,
+  Tooltip,
+  UnstyledButton,
+} from "@mantine/core"
 import { useDebouncedValue } from "@mantine/hooks"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { notifications } from "@mantine/notifications"
-import { IconArrowsSort, IconCheck, IconFlame, IconLayoutSidebarLeftExpand, IconLock, IconSearch, IconUserPlus, IconX } from "@tabler/icons-react"
-import { notifyError, notifySuccess, useCan, useLanguage, useNavControl, useT, useTimeZone } from "@go-tenon/ui"
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  IconArrowsSort,
+  IconBookmarkPlus,
+  IconCheck,
+  IconFilter,
+  IconFlame,
+  IconLayoutSidebarLeftExpand,
+  IconLock,
+  IconPencil,
+  IconSearch,
+  IconUserPlus,
+  IconUsers,
+  IconX,
+} from "@tabler/icons-react"
+import { notifyError, notifySuccess, useCan, useLanguage, useNavControl, useSavedView, useT, useTimeZone } from "@go-tenon/ui"
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { previewSummary } from "./Attachments"
-import { flatten, flattenSearchHits, useConversationList, useConversationSearch, useMe, useMembers, useTags, useTeams, useThresholds } from "./data"
+import { flatten, flattenSearchHits, useConversationList, useConversationSearch, useMe, useMembers, useTeams, useThresholds } from "./data"
 import { useDraft } from "./drafts"
 import { type FillWatcher, useFillVisible } from "./fill"
+import { FilterFields, FilterSummaryChips } from "./FilterFields"
 import { activity, duration, waitColor, waitLevel } from "./format"
 import { HighlightedSnippet } from "./Highlight"
 import { useNow } from "./Nav"
-import type { InboxSearch, MatchField, SearchScope } from "./search"
+import {
+  type ConversationFilter,
+  countFilterCriteria,
+  filterFromSearch,
+  type InboxSearch,
+  type MatchField,
+  normalizeFilter,
+  normalizeViewConfig,
+  parseFilter,
+  type SearchScope,
+  serializeFilter,
+} from "./search"
+import { ViewModal } from "./ViewModal"
 
 /** OpenFocus 是点击搜索结果打开会话时附带的消息定位信息。 */
 export interface OpenFocus {
@@ -31,8 +85,10 @@ interface ListProps {
 }
 
 /**
- * ConversationList 是会话列表：顶部是列表名和积压情况（待回复数、等得最久的时长、打开的会话数），支持按关键词全文搜索、
- * 切换状态、排序与标签筛选，以及进入选择模式批量指派、关闭；下面是会话，滚到底时加载更多。刚有新消息的一行短暂高亮。
+ * ConversationList 是会话列表：顶部是列表或视图名称和积压情况（待回复数、等得最久的时长、会话数），支持按关键词全文搜索、
+ * 切换状态、排序与统一筛选面板（状态、回复状态、优先级、团队、负责人、渠道、标签、语言、自定义属性）。
+ * 打开已保存视图时支持直接微调条件实时预览，通过 useSavedView 提示“重置 / 另存为 / 保存更改”；
+ * 在普通收件箱添加筛选后可一键“保存为视图”。
  */
 export function ConversationList({ search, openId, go, open }: ListProps): ReactNode {
   const t = useT()
@@ -40,17 +96,22 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
   const now = useNow()
   const th = useThresholds()
   const me = useMe()
-  const tags = useTags()
+  const queryClient = useQueryClient()
   const list = useConversationList(search)
   const searchQuery = useConversationSearch(search)
-  const tagById = new Map(tags.map((x) => [x.id, x]))
   const inbox = useQuery(kit.queries.conversation.inbox())
   const translation = useQuery(kit.queries.translation.settings())
   const watch = useFillVisible(translation.data?.enabled ?? false, me.data?.language)
+
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [draftQ, setDraftQ] = useState(search.q ?? "")
   const [debouncedQ] = useDebouncedValue(draftQ, 250)
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalEditing, setModalEditing] = useState<ConversationViewSummary | undefined>()
+  const [modalInitialConfig, setModalInitialConfig] = useState<ConversationViewConfig | undefined>()
+
   const searching = Boolean(search.q?.trim())
   const items = flatten(list.data?.pages)
   const hits = flattenSearchHits(searchQuery.data?.pages)
@@ -81,10 +142,75 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
     }
   }, [debouncedQ, search.q])
 
-  // 列表名和积压情况：来自收件箱的数量
-  const team = search.team ? inbox.data?.teams.find((x) => x.id === search.team) : undefined
-  const summary: ConversationSummary | undefined = team ?? (inbox.data ? inbox.data[search.box] : undefined)
-  const title = team?.name ?? t(`inbox.box_${search.box}` as const)
+  // 列表/视图名与积压情况：来自收件箱的数量
+  const activeView = search.view ? inbox.data?.views.find((v) => v.id === search.view) : undefined
+  const viewMissing = Boolean(search.view && inbox.data && !activeView)
+  const team = !search.view && search.team ? inbox.data?.teams.find((x) => x.id === search.team) : undefined
+  const summary: ConversationSummary | undefined = activeView ?? team ?? (inbox.data && !search.view ? inbox.data[search.box] : undefined)
+  const title = activeView?.name ?? team?.name ?? t(`inbox.box_${search.box}` as const)
+
+  // 当前生效的同构筛选条件：视图模式下优先使用临时微调的 search.filter，否则回落到视图已保存配置；
+  // 普通模式下优先使用 search.filter（含旧 tag 参数兜底）。
+  const parsedUrlFilter = useMemo(() => parseFilter(search.filter), [search.filter])
+  const activeFilter: ConversationFilter = useMemo(() => {
+    if (activeView) {
+      if (parsedUrlFilter) return parsedUrlFilter
+      const { sort: _s, ...rest } = normalizeViewConfig(activeView.config)
+      return rest
+    }
+    if (parsedUrlFilter) return parsedUrlFilter
+    if (search.tag) return { tag_ids: [search.tag], tag_match: "any" }
+    return {}
+  }, [activeView, parsedUrlFilter, search.tag])
+
+  const currentViewConfig: ConversationViewConfig = useMemo(
+    () => normalizeViewConfig({ ...activeFilter, sort: search.sort }),
+    [activeFilter, search.sort],
+  )
+  const savedViewState = useSavedView(activeView?.config, currentViewConfig, { normalize: normalizeViewConfig })
+  const filterCount = countFilterCriteria(activeFilter)
+  const showSaveFromPlain = !search.view && (Boolean(parsedUrlFilter) || Boolean(search.tag))
+
+  const updateFilter = (next: ConversationFilter) => {
+    const norm = normalizeFilter(next)
+    if (activeView) {
+      const nextCfg = normalizeViewConfig({ ...norm, sort: search.sort })
+      if (savedViewState.same(activeView.config, nextCfg)) {
+        go({ filter: undefined, tag: undefined })
+      } else {
+        go({ filter: JSON.stringify(norm), tag: undefined })
+      }
+      return
+    }
+    go({ filter: serializeFilter(norm), tag: undefined })
+  }
+
+  const saveViewChanges = useMutation({
+    mutationFn: () => {
+      if (!activeView) throw new Error("no active view")
+      return tenantApi.view.update(activeView.id, { name: activeView.name, config: currentViewConfig })
+    },
+    onSuccess: () => {
+      notifySuccess(t("views.saved"))
+      void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
+      void queryClient.invalidateQueries({ queryKey: kit.queries.view.key() })
+      go({ filter: undefined, tag: undefined })
+    },
+    onError: (err) => notifyError(err),
+  })
+
+  const openEditView = () => {
+    if (!activeView) return
+    setModalEditing(activeView)
+    setModalInitialConfig(undefined)
+    setModalOpen(true)
+  }
+
+  const openSaveAsView = (cfg: ConversationViewConfig) => {
+    setModalEditing(undefined)
+    setModalInitialConfig(cfg)
+    setModalOpen(true)
+  }
 
   // 滚到底时加载下一页（普通列表或搜索结果共用）
   const activeQuery = searching ? searchQuery : list
@@ -175,15 +301,24 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
               </Tooltip>
             )}
             <Box style={{ flex: 1, minWidth: 0 }}>
-              <Text fw={600} size="sm" truncate lh={1.25}>
-                {title}
-              </Text>
+              <Group gap={5} wrap="nowrap">
+                {activeView &&
+                  (activeView.scope === "shared" ? (
+                    <IconUsers size={14} stroke={1.7} style={{ flex: "none", color: "var(--tn-muted)" }} />
+                  ) : (
+                    <IconFilter size={14} stroke={1.7} style={{ flex: "none", color: "var(--tn-muted)" }} />
+                  ))}
+                <Text fw={600} size="sm" truncate lh={1.25}>
+                  {title}
+                </Text>
+              </Group>
               {searching ? (
                 <Text size="xs" c="dimmed" truncate lh={1.25} style={{ fontVariantNumeric: "tabular-nums" }}>
                   {searchQuery.isPending ? "…" : t("inbox.search_results_count", { n: searchTotal })}
                 </Text>
               ) : (
-                summary && (
+                summary &&
+                !savedViewState.dirty && (
                   <Text size="xs" c="dimmed" truncate lh={1.25} style={{ fontVariantNumeric: "tabular-nums" }}>
                     {t("inbox.backlog_waiting")}{" "}
                     <Text span size="xs" fw={600} c={summary.waiting > 0 ? "deep-orange" : undefined}>
@@ -204,117 +339,228 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                 )
               )}
             </Box>
-            {!searching && (
+            {!searching && activeView?.editable && (
+              <Tooltip label={t("views.edit")} openDelay={300}>
+                <ActionIcon variant="subtle" color="gray" size="sm" aria-label={t("views.edit")} onClick={openEditView}>
+                  <IconPencil size={15} />
+                </ActionIcon>
+              </Tooltip>
+            )}
+            {!searching && !viewMissing && (
               <Button size="compact-xs" variant="subtle" color="gray" onClick={() => setSelecting(true)} style={{ flex: "none" }}>
                 {t("inbox.select")}
               </Button>
             )}
           </Group>
-          {/* 独立筛选工具条：搜索框、状态/范围、排序图标菜单与标签筛选，260px 最小栏宽下也不挤压 */}
-          <Stack gap={6} px="sm" py={8} className="inbox-toolbar">
-            <TextInput
-              size="xs"
-              value={draftQ}
-              onChange={(e) => setDraftQ(e.currentTarget.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape" && draftQ) {
-                  e.stopPropagation()
-                  clearSearch()
-                }
-              }}
-              placeholder={t("inbox.search_placeholder")}
-              aria-label={t("inbox.search_placeholder")}
-              leftSection={<IconSearch size={14} stroke={1.6} />}
-              rightSection={
-                draftQ ? (
-                  <CloseButton size="xs" aria-label={t("inbox.search_clear")} onClick={clearSearch} />
-                ) : undefined
-              }
-            />
-            {searching ? (
-              <SegmentedControl
+
+          {/* 独立筛选工具条：搜索框、状态/筛选/排序、摘要胶囊、脏状态保存条，260px 最小栏宽下也不挤压 */}
+          {!viewMissing && (
+            <Stack gap={6} px="sm" py={8} className="inbox-toolbar">
+              <TextInput
                 size="xs"
-                fullWidth
-                value={search.scope ?? "all"}
-                onChange={(v) => go({ scope: v as SearchScope })}
-                data={[
-                  { value: "all", label: t("inbox.search_scope_all") },
-                  { value: "current", label: t("inbox.search_scope_current") },
-                ]}
-              />
-            ) : (
-              /* @我 的列表不按状态筛选，总是最近被 @ 的在前 */
-              search.box !== "mentions" && (
-                <Group gap={6} wrap="nowrap">
-                  <SegmentedControl
-                    size="xs"
-                    style={{ flex: 1, minWidth: 0 }}
-                    value={search.status}
-                    onChange={(v) => go({ status: v as InboxSearch["status"] })}
-                    data={[
-                      { value: "open", label: t("inbox.status_open") },
-                      { value: "snoozed", label: t("inbox.status_snoozed") },
-                      { value: "closed", label: t("inbox.status_closed") },
-                    ]}
-                  />
-                  <Menu position="bottom-end" withinPortal>
-                    <Menu.Target>
-                      <Tooltip label={`${t("inbox.sort")} · ${sortLabel}`} openDelay={300}>
-                        <ActionIcon variant="default" size={30} aria-label={t("inbox.sort")} style={{ flex: "none" }}>
-                          <IconArrowsSort size={15} />
-                        </ActionIcon>
-                      </Tooltip>
-                    </Menu.Target>
-                    <Menu.Dropdown>
-                      <Menu.Label>{t("inbox.sort")}</Menu.Label>
-                      {(["waiting", "recent"] as const).map((mode) => (
-                        <Menu.Item
-                          key={mode}
-                          rightSection={search.sort === mode ? <IconCheck size={14} color="var(--mantine-primary-color-filled)" /> : undefined}
-                          onClick={() => go({ sort: mode })}
-                        >
-                          {t(mode === "waiting" ? "inbox.sort_waiting" : "inbox.sort_recent")}
-                        </Menu.Item>
-                      ))}
-                    </Menu.Dropdown>
-                  </Menu>
-                </Group>
-              )
-            )}
-            {tags.length > 0 && (
-              <Select
-                size="xs"
-                placeholder={t("inbox.tag_filter")}
-                aria-label={t("inbox.tag_filter")}
-                value={search.tag ?? null}
-                onChange={(v) => go({ tag: v || undefined })}
-                data={tags.map((tag) => ({ value: tag.id, label: tag.name }))}
-                leftSection={
-                  search.tag && tagById.get(search.tag) ? (
-                    <ColorSwatch color={`var(--mantine-color-${tagById.get(search.tag)?.color}-6)`} size={10} />
+                value={draftQ}
+                onChange={(e) => setDraftQ(e.currentTarget.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape" && draftQ) {
+                    e.stopPropagation()
+                    clearSearch()
+                  }
+                }}
+                placeholder={t("inbox.search_placeholder")}
+                aria-label={t("inbox.search_placeholder")}
+                leftSection={<IconSearch size={14} stroke={1.6} />}
+                rightSection={
+                  draftQ ? (
+                    <CloseButton size="xs" aria-label={t("inbox.search_clear")} onClick={clearSearch} />
                   ) : undefined
                 }
-                renderOption={({ option }) => {
-                  const tag = tagById.get(option.value)
-                  return (
-                    <Group gap="xs" wrap="nowrap">
-                      {tag && <ColorSwatch color={`var(--mantine-color-${tag.color}-6)`} size={10} />}
-                      <Text size="xs" truncate>
-                        {option.label}
-                      </Text>
-                    </Group>
-                  )
-                }}
-                clearable
-                searchable
-                comboboxProps={{ withinPortal: true }}
               />
-            )}
-          </Stack>
+
+              {searching ? (
+                <SegmentedControl
+                  size="xs"
+                  fullWidth
+                  value={search.scope ?? "all"}
+                  onChange={(v) => go({ scope: v as SearchScope })}
+                  data={[
+                    { value: "all", label: t("inbox.search_scope_all") },
+                    { value: "current", label: t("inbox.search_scope_current") },
+                  ]}
+                />
+              ) : (
+                <Group gap={6} wrap="nowrap">
+                  {!search.view && !parsedUrlFilter && search.box !== "mentions" ? (
+                    <SegmentedControl
+                      size="xs"
+                      style={{ flex: 1, minWidth: 0 }}
+                      value={search.status}
+                      onChange={(v) => go({ status: v as InboxSearch["status"] })}
+                      data={[
+                        { value: "open", label: t("inbox.status_open") },
+                        { value: "snoozed", label: t("inbox.status_snoozed") },
+                        { value: "closed", label: t("inbox.status_closed") },
+                      ]}
+                    />
+                  ) : (
+                    <Popover opened={filterOpen} onChange={setFilterOpen} position="bottom-start" width={312} shadow="md" withinPortal>
+                      <Popover.Target>
+                        <Button
+                          size="xs"
+                          variant={filterCount > 0 ? "light" : "default"}
+                          leftSection={<IconFilter size={14} />}
+                          rightSection={
+                            filterCount > 0 ? (
+                              <Badge size="xs" circle variant="filled">
+                                {filterCount}
+                              </Badge>
+                            ) : undefined
+                          }
+                          style={{ flex: 1 }}
+                          onClick={() => setFilterOpen((o) => !o)}
+                        >
+                          {t("views.filter_button")}
+                        </Button>
+                      </Popover.Target>
+                      <Popover.Dropdown p="sm">
+                        <ScrollArea.Autosize mah={420} offsetScrollbars="y">
+                          <FilterFields value={activeFilter} onChange={updateFilter} compact />
+                        </ScrollArea.Autosize>
+                        {filterCount > 0 && (
+                          <Group justify="flex-end" mt="xs" pt="xs" style={{ borderTop: "1px solid var(--tn-border)" }}>
+                            <Button size="compact-xs" variant="subtle" color="gray" onClick={() => updateFilter({})}>
+                              {t("views.clear_filters")}
+                            </Button>
+                          </Group>
+                        )}
+                      </Popover.Dropdown>
+                    </Popover>
+                  )}
+
+                  {!search.view && !parsedUrlFilter && search.box !== "mentions" && (
+                    <Popover opened={filterOpen} onChange={setFilterOpen} position="bottom-end" width={312} shadow="md" withinPortal>
+                      <Popover.Target>
+                        <Tooltip label={t("views.filter_button")} openDelay={300}>
+                          <Indicator disabled={filterCount === 0} size={7} offset={3}>
+                            <ActionIcon
+                              variant={filterCount > 0 ? "light" : "default"}
+                              size={30}
+                              aria-label={t("views.filter_button")}
+                              style={{ flex: "none" }}
+                              onClick={() => setFilterOpen((o) => !o)}
+                            >
+                              <IconFilter size={15} />
+                            </ActionIcon>
+                          </Indicator>
+                        </Tooltip>
+                      </Popover.Target>
+                      <Popover.Dropdown p="sm">
+                        <ScrollArea.Autosize mah={420} offsetScrollbars="y">
+                          <FilterFields
+                            value={parsedUrlFilter ? activeFilter : filterFromSearch(search)}
+                            onChange={(next) => updateFilter(next)}
+                            compact
+                          />
+                        </ScrollArea.Autosize>
+                      </Popover.Dropdown>
+                    </Popover>
+                  )}
+
+                  {(search.view || search.box !== "mentions") && (
+                    <Menu position="bottom-end" withinPortal>
+                      <Menu.Target>
+                        <Tooltip label={`${t("inbox.sort")} · ${sortLabel}`} openDelay={300}>
+                          <ActionIcon variant="default" size={30} aria-label={t("inbox.sort")} style={{ flex: "none" }}>
+                            <IconArrowsSort size={15} />
+                          </ActionIcon>
+                        </Tooltip>
+                      </Menu.Target>
+                      <Menu.Dropdown>
+                        <Menu.Label>{t("inbox.sort")}</Menu.Label>
+                        {(["waiting", "recent"] as const).map((mode) => (
+                          <Menu.Item
+                            key={mode}
+                            rightSection={search.sort === mode ? <IconCheck size={14} color="var(--mantine-primary-color-filled)" /> : undefined}
+                            onClick={() => go({ sort: mode })}
+                          >
+                            {t(mode === "waiting" ? "inbox.sort_waiting" : "inbox.sort_recent")}
+                          </Menu.Item>
+                        ))}
+                      </Menu.Dropdown>
+                    </Menu>
+                  )}
+                </Group>
+              )}
+
+              {!searching && <FilterSummaryChips filter={activeFilter} onChange={updateFilter} />}
+
+              {!searching && activeView && savedViewState.dirty && (
+                <Group gap={6} justify="space-between" px={8} py={5} className="inbox-view-dirty" wrap="wrap">
+                  <Text size="xs" fw={500} c="deep-orange">
+                    {t("views.dirty_hint")}
+                  </Text>
+                  <Group gap={4} wrap="nowrap">
+                    <Button
+                      size="compact-xs"
+                      variant="subtle"
+                      color="gray"
+                      onClick={() =>
+                        go({
+                          filter: undefined,
+                          tag: undefined,
+                          sort: activeView.config.sort ?? "waiting",
+                        })
+                      }
+                    >
+                      {t("views.reset")}
+                    </Button>
+                    <Button size="compact-xs" variant="light" onClick={() => openSaveAsView(currentViewConfig)}>
+                      {t(activeView.editable ? "views.save_as" : "views.save_as_mine")}
+                    </Button>
+                    {activeView.editable && (
+                      <Button size="compact-xs" loading={saveViewChanges.isPending} onClick={() => saveViewChanges.mutate()}>
+                        {t("views.save_changes")}
+                      </Button>
+                    )}
+                  </Group>
+                </Group>
+              )}
+
+              {!searching && showSaveFromPlain && (
+                <Group justify="space-between" gap={6} wrap="nowrap">
+                  <Button
+                    size="compact-xs"
+                    variant="subtle"
+                    color="gray"
+                    onClick={() => go({ filter: undefined, tag: undefined })}
+                  >
+                    {t("views.clear_filters")}
+                  </Button>
+                  <Button
+                    size="compact-xs"
+                    variant="light"
+                    leftSection={<IconBookmarkPlus size={13} />}
+                    onClick={() => openSaveAsView(filterFromSearch(search))}
+                  >
+                    {t("views.save_as")}
+                  </Button>
+                </Group>
+              )}
+            </Stack>
+          )}
         </>
       )}
+
       <Box style={{ flex: 1, overflowY: "auto" }}>
-        {searching ? (
+        {viewMissing ? (
+          <Stack gap="sm" align="center" p="xl">
+            <Text c="dimmed" size="sm" ta="center">
+              {t("views.not_found")}
+            </Text>
+            <Button size="xs" variant="light" onClick={() => go({ view: undefined, filter: undefined, box: "mine", team: undefined })}>
+              {t("views.back_to_mine")}
+            </Button>
+          </Stack>
+        ) : searching ? (
           searchQuery.isPending ? (
             <Stack gap={0}>
               {[0, 1, 2, 3, 4].map((i) => (
@@ -366,10 +612,10 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
         ) : items.length === 0 ? (
           <Stack gap="xs" align="center" p="xl">
             <Text c="dimmed" size="sm" ta="center">
-              {t(search.tag ? "inbox.empty_filtered" : "inbox.empty")}
+              {t(filterCount > 0 ? "inbox.empty_filtered" : "inbox.empty")}
             </Text>
-            {search.tag && (
-              <Button size="xs" variant="light" onClick={() => go({ tag: undefined })}>
+            {filterCount > 0 && !search.view && (
+              <Button size="xs" variant="light" onClick={() => go({ filter: undefined, tag: undefined })}>
                 {t("inbox.clear_filters")}
               </Button>
             )}
@@ -396,6 +642,23 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
           </Center>
         )}
       </Box>
+
+      <ViewModal
+        opened={modalOpen}
+        onClose={() => setModalOpen(false)}
+        editing={modalEditing}
+        initialConfig={modalInitialConfig}
+        onSaved={(saved) =>
+          go({
+            box: "all",
+            team: undefined,
+            view: saved.id,
+            filter: undefined,
+            tag: undefined,
+            sort: saved.config.sort ?? "waiting",
+          })
+        }
+      />
     </Stack>
   )
 }
@@ -565,7 +828,7 @@ function Row({
                       {t("inbox.said", { who })}
                     </Text>
                   )}
-                  {previewSummary(c.preview, c.preview_attachment, t) || "\u00A0"}
+                  {c.preview || "\u00A0"}
                 </>
               )}
             </Text>

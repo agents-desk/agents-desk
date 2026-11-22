@@ -51,6 +51,7 @@ export function useRealtime(slug: string, tenantId: string, memberId: string | u
       clearTimeout(timer)
       timer = setTimeout(() => {
         void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
+        void queryClient.invalidateQueries({ queryKey: kit.queries.view.key() })
         void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
       }, 200)
     }

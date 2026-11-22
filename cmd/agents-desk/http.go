@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-tenon/tenon/command"
 	"github.com/go-tenon/tenon/config"
+	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/doctor"
 	"github.com/go-tenon/tenon/frontend"
 	"github.com/go-tenon/tenon/health"
@@ -24,6 +25,7 @@ import (
 	"github.com/go-tenon/tenon/queue/queueapi"
 	"github.com/go-tenon/tenon/ratelimit"
 	"github.com/go-tenon/tenon/realtime"
+	"github.com/go-tenon/tenon/savedview"
 	"github.com/go-tenon/tenon/schedule/scheduleapi"
 
 	"agents-desk/apps"
@@ -161,9 +163,12 @@ func (a *App) routes(pages http.Handler) chi.Router {
 
 	addr := tenant.Addresses{PublicURL: a.cfg.PublicURL}
 	// 成员离开工作区之后（移出成员、更换主管理员），在同一个事务中：他负责的未关闭会话放回团队收件箱重新分配，
-	// 团队收件箱把他移出
+	// 团队收件箱把他移出，个人快捷回复和个人视图一并清理
+	removeViews := func(ctx context.Context, tx database.Tx, tenantID, memberID string) error {
+		return savedview.DeleteByOwner(ctx, tx, tenantID, identity.Ref{Type: member.Type, ID: memberID})
+	}
 	memberHooks := member.Hooks{Removed: []member.RemovedHook{
-		conversation.OnMemberLeft(a.downstream()), team.OnMemberRemoved, macro.OnMemberRemoved,
+		conversation.OnMemberLeft(a.downstream()), team.OnMemberRemoved, macro.OnMemberRemoved, removeViews,
 	}}
 
 	// 管理员端：只接受平台管理员，会话 cookie 是 __Host-admin，权限按平台的域加载。

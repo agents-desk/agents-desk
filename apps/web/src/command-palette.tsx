@@ -4,6 +4,7 @@ import { Spotlight, spotlight } from "@mantine/spotlight"
 import {
   IconArrowRight,
   IconAt,
+  IconFilter,
   IconInbox,
   IconListDetails,
   IconLock,
@@ -11,6 +12,7 @@ import {
   IconSearch,
   IconUser,
   IconUserQuestion,
+  IconUsers,
   IconUsersGroup,
 } from "@tabler/icons-react"
 import { useQuery } from "@tanstack/react-query"
@@ -136,6 +138,18 @@ export function CommandPalette({ slug }: { slug: string }): ReactNode {
           onClick: () =>
             void navigate({ to: "/t/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "all", team: team.id } }),
         })),
+        ...(inbox.data?.views ?? []).map((v) => ({
+          id: `inbox:view:${v.id}`,
+          label: v.name,
+          description: t("views.section"),
+          icon: v.scope === "shared" ? <IconUsers size={15} stroke={1.6} /> : <IconFilter size={15} stroke={1.6} />,
+          onClick: () =>
+            void navigate({
+              to: "/t/$slug/inbox",
+              params: { slug },
+              search: { ...boxSearch, box: "all", view: v.id, sort: v.config.sort ?? "waiting" },
+            }),
+        })),
       )
     }
 
@@ -163,7 +177,7 @@ export function CommandPalette({ slug }: { slug: string }): ReactNode {
     }))
 
     return { inboxActions: inboxList, quickPageActions: quickPages, allPageActions: allPages }
-  }, [canReadInbox, inbox.data?.teams, menu, navigate, slug, t])
+  }, [canReadInbox, inbox.data?.teams, inbox.data?.views, menu, navigate, slug, t])
 
   const kw = trimmed.toLowerCase()
   const matchesLocal = (a: NavAction) =>

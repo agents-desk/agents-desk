@@ -14,6 +14,7 @@ import (
 	"github.com/go-tenon/tenon/search"
 	"github.com/go-tenon/tenon/search/gse"
 
+	"agents-desk/internal/attribute"
 	"agents-desk/internal/auth"
 	"agents-desk/internal/lang"
 	"agents-desk/internal/member"
@@ -138,6 +139,8 @@ type SearchInput struct {
 	page.OffsetParams
 	Q          string   `query:"q" minLength:"1" maxLength:"200" doc:"搜索关键词"`
 	Inbox      Inbox    `query:"inbox" doc:"可选：限定在某个收件箱列表内（mine/mentions/unassigned/all）；留空搜索全部可见会话"`
+	ViewID     string   `query:"view_id" format:"uuid" doc:"可选：限定在某个已保存视图内搜索"`
+	Filter     string   `query:"filter" maxLength:"4096" doc:"可选：JSON 编码的统一筛选条件（Filter）"`
 	TeamID     string   `query:"team_id" format:"uuid" doc:"可选：只搜索这个团队收件箱的会话"`
 	Status     Status   `query:"status" doc:"可选：只搜索这个状态的会话；留空包含全部状态（打开、稍后处理、已关闭）"`
 	AssigneeID string   `query:"assignee_id" format:"uuid" doc:"可选：只搜索负责人是这位成员的会话"`
@@ -189,35 +192,68 @@ func (a *Search) Handle(ctx context.Context, sub identity.Subject, in *SearchInp
 		return &empty, nil
 	}
 
-	// 同库子查询：直接复用 visible 与收件箱筛选规则，确保权限和状态过滤实时准确
+	// 同库子查询：直接复用 visible 与统一筛选规则，确保权限、视图和状态过滤实时准确
+	var activeFilter *Filter
+	if in.ViewID != "" {
+		v, err := NewViews(a.db).Get(ctx, sub, in.ViewID)
+		if err != nil {
+			return nil, err
+		}
+		f := v.Config.Filter
+		activeFilter = &f
+	}
+	if in.Filter != "" {
+		f, err := parseFilterParam(ctx, a.db, sub.Tenant, in.Filter)
+		if err != nil {
+			return nil, err
+		}
+		activeFilter = &f
+	}
+
 	allowed := a.db.NewSelect().Model((*Conversation)(nil)).ColumnExpr("conversation.id::text").
 		Where("conversation.tenant_id = ? AND conversation.kind = ?", sub.Tenant, Service)
 	allowed = visible(allowed, sub)
-	switch in.Inbox {
-	case InboxMine:
-		allowed = allowed.Where("conversation.assignee_type = ? AND conversation.assignee_id = ?", MemberActor, sub.ID)
-	case InboxMentions:
-		allowed = allowed.Where("EXISTS (SELECT 1 FROM conversation_mentions AS m WHERE m.tenant_id = ? AND m.member_id = ? AND m.conversation_id = conversation.id)", sub.Tenant, sub.ID)
-	case InboxUnassigned:
-		allowed = allowed.Where("conversation.team_id IS NULL AND conversation.assignee_type = ''")
-	}
-	if in.Status != "" {
-		allowed = allowed.Where("conversation.status = ?", in.Status)
-	}
-	if in.TeamID != "" {
-		allowed = allowed.Where("conversation.team_id = ?", in.TeamID)
-	}
-	if in.AssigneeID != "" {
-		allowed = allowed.Where("conversation.assignee_type = ? AND conversation.assignee_id = ?", MemberActor, in.AssigneeID)
-	}
-	if in.ChannelID != "" {
-		allowed = allowed.Where("conversation.channel_id = ?", in.ChannelID)
-	}
-	if in.Priority != "" {
-		allowed = allowed.Where("conversation.priority = ?", in.Priority)
-	}
-	if in.TagID != "" {
-		allowed = allowed.Where("EXISTS (SELECT 1 FROM conversation_tags AS ct WHERE ct.tenant_id = ? AND ct.tag_id = ? AND ct.conversation_id = conversation.id)", sub.Tenant, in.TagID)
+	if activeFilter != nil {
+		var attrDefs map[string]attribute.Definition
+		if len(activeFilter.Attributes) > 0 {
+			var err error
+			attrDefs, err = loadConversationAttrDefs(ctx, a.db, sub.Tenant)
+			if err != nil {
+				return nil, err
+			}
+		}
+		pred, args := buildFilterPredicate(sub, *activeFilter, attrDefs)
+		allowed = allowed.Where(pred, args...)
+		if in.TagID != "" {
+			allowed = allowed.Where("EXISTS (SELECT 1 FROM conversation_tags AS ct WHERE ct.tenant_id = ? AND ct.tag_id = ? AND ct.conversation_id = conversation.id)", sub.Tenant, in.TagID)
+		}
+	} else {
+		switch in.Inbox {
+		case InboxMine:
+			allowed = allowed.Where("conversation.assignee_type = ? AND conversation.assignee_id = ?", MemberActor, sub.ID)
+		case InboxMentions:
+			allowed = allowed.Where("EXISTS (SELECT 1 FROM conversation_mentions AS m WHERE m.tenant_id = ? AND m.member_id = ? AND m.conversation_id = conversation.id)", sub.Tenant, sub.ID)
+		case InboxUnassigned:
+			allowed = allowed.Where("conversation.team_id IS NULL AND conversation.assignee_type = ''")
+		}
+		if in.Status != "" {
+			allowed = allowed.Where("conversation.status = ?", in.Status)
+		}
+		if in.TeamID != "" {
+			allowed = allowed.Where("conversation.team_id = ?", in.TeamID)
+		}
+		if in.AssigneeID != "" {
+			allowed = allowed.Where("conversation.assignee_type = ? AND conversation.assignee_id = ?", MemberActor, in.AssigneeID)
+		}
+		if in.ChannelID != "" {
+			allowed = allowed.Where("conversation.channel_id = ?", in.ChannelID)
+		}
+		if in.Priority != "" {
+			allowed = allowed.Where("conversation.priority = ?", in.Priority)
+		}
+		if in.TagID != "" {
+			allowed = allowed.Where("EXISTS (SELECT 1 FROM conversation_tags AS ct WHERE ct.tenant_id = ? AND ct.tag_id = ? AND ct.conversation_id = conversation.id)", sub.Tenant, in.TagID)
+		}
 	}
 
 	res, err := SearchIndex.Search(ctx, a.db, search.Query{

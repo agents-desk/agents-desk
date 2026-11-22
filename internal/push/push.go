@@ -18,6 +18,7 @@ import (
 const (
 	Conversation = "conversation" // 会话有变化：时间线有新内容，或者负责人、团队收件箱、状态、优先级改了
 	Read         = "read"         // 成员在别的页面标记了已读
+	Views        = "views"        // 收件箱视图列表有变化：共享视图增删改或排序，或个人视图在其他标签页变更
 )
 
 // Event 是推送给成员的一个事件。

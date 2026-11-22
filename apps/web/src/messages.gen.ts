@@ -547,6 +547,81 @@ export const messages = {
     "tone.neutral_example": "Example: Hello, I have checked your order. It has been shipped.",
     "tone.neutral_hint": "Polite and plain.",
     "tone.title": "Tone",
+    "views.add_attr": "Add attribute condition",
+    "views.any": "Any",
+    "views.assignee": "Assignee",
+    "views.assignee_me": "Me",
+    "views.assignee_member": "Specific member",
+    "views.assignee_select": "Select member",
+    "views.assignee_unassigned": "Unassigned",
+    "views.attr_empty": "No custom conversation attributes defined yet",
+    "views.attr_false": "No",
+    "views.attr_key": "Attribute",
+    "views.attr_op": "Operator",
+    "views.attr_op_contains": "Contains",
+    "views.attr_op_eq": "Equals",
+    "views.attr_op_gt": "Greater than",
+    "views.attr_op_gte": "Greater than or equal",
+    "views.attr_op_in": "Matches any",
+    "views.attr_op_is_empty": "Is empty",
+    "views.attr_op_is_set": "Is set",
+    "views.attr_op_lt": "Less than",
+    "views.attr_op_lte": "Less than or equal",
+    "views.attr_op_neq": "Does not equal",
+    "views.attr_true": "Yes",
+    "views.attr_value": "Value",
+    "views.attributes": "Custom attributes",
+    "views.back_to_mine": "Back to Mine",
+    "views.channels": "Channels",
+    "views.channels_placeholder": "All channels",
+    "views.clear_filters": "Clear filters",
+    "views.create": "New view",
+    "views.created": "View created",
+    "views.delete": "Delete",
+    "views.delete_confirm": "Delete view “{{.name}}”?",
+    "views.delete_message_personal": "This only removes it from your view list and does not affect any conversations.",
+    "views.delete_message_shared": "This removes the shared view for all workspace members and does not affect any conversations.",
+    "views.deleted": "View deleted",
+    "views.dirty_hint": "Filters modified",
+    "views.edit": "Edit view",
+    "views.empty": "No views yet — click + above to create one",
+    "views.filter_button": "Filter",
+    "views.language": "Customer language",
+    "views.language_placeholder": "All languages",
+    "views.more_actions": "More actions",
+    "views.name": "View name",
+    "views.name_placeholder": "e.g. High priority waiting, Refunds",
+    "views.name_required": "Please enter a view name",
+    "views.not_found": "This view does not exist or was deleted",
+    "views.priority": "Priority",
+    "views.priority_high": "High",
+    "views.priority_normal": "Normal",
+    "views.reset": "Reset",
+    "views.save_as": "Save as view",
+    "views.save_as_mine": "Save as my view",
+    "views.save_changes": "Save changes",
+    "views.saved": "View saved",
+    "views.scope": "Visibility",
+    "views.scope_hint_personal_only": "You don't have permission to manage shared views. New views will be personal.",
+    "views.scope_locked": "Visibility cannot be changed after creation",
+    "views.scope_personal": "Only me",
+    "views.scope_shared": "Workspace shared",
+    "views.section": "Views",
+    "views.sort": "Default sort",
+    "views.statuses": "Status",
+    "views.statuses_all": "All statuses",
+    "views.tag_match_all": "Match all",
+    "views.tag_match_any": "Match any",
+    "views.tags": "Tags",
+    "views.tags_placeholder": "Select tags",
+    "views.team": "Team inbox",
+    "views.team_ids": "Specific team inboxes",
+    "views.team_my_teams": "My team inboxes",
+    "views.team_select": "Select team inboxes",
+    "views.team_unassigned": "No team inbox",
+    "views.waiting": "Reply status",
+    "views.waiting_false": "Replied",
+    "views.waiting_true": "Waiting for reply",
     "widget_install.app": "Apps",
     "widget_install.app_hint": "Your app opens the address below full screen in a WebView. For a signed-in user, pass the identity before the page loads (window.agentsDesk.user_token); after signing in or out, run AgentsDesk('login', { user_token }) or AgentsDesk('logout'). If your app has its own navigation bar, add \u0026hide_close=1 to the address to hide the chat window's close button. On Android, enable JavaScript and DOM storage, and set windowSoftInputMode to adjustResize.",
     "widget_install.app_msg": "Message",
@@ -1121,6 +1196,81 @@ export const messages = {
     "tone.neutral_example": "例：Hello, I have checked your order. It has been shipped.",
     "tone.neutral_hint": "礼貌、平实。",
     "tone.title": "语气",
+    "views.add_attr": "添加属性条件",
+    "views.any": "不限",
+    "views.assignee": "负责人",
+    "views.assignee_me": "我",
+    "views.assignee_member": "指定成员",
+    "views.assignee_select": "选择成员",
+    "views.assignee_unassigned": "无负责人",
+    "views.attr_empty": "工作区还没有定义会话自定义属性",
+    "views.attr_false": "否",
+    "views.attr_key": "属性",
+    "views.attr_op": "条件",
+    "views.attr_op_contains": "包含",
+    "views.attr_op_eq": "等于",
+    "views.attr_op_gt": "大于",
+    "views.attr_op_gte": "大于等于",
+    "views.attr_op_in": "包含任一",
+    "views.attr_op_is_empty": "未填写",
+    "views.attr_op_is_set": "已填写",
+    "views.attr_op_lt": "小于",
+    "views.attr_op_lte": "小于等于",
+    "views.attr_op_neq": "不等于",
+    "views.attr_true": "是",
+    "views.attr_value": "值",
+    "views.attributes": "自定义属性",
+    "views.back_to_mine": "返回我的会话",
+    "views.channels": "渠道",
+    "views.channels_placeholder": "全部渠道",
+    "views.clear_filters": "清除筛选",
+    "views.create": "新建视图",
+    "views.created": "已创建视图",
+    "views.delete": "删除",
+    "views.delete_confirm": "删除视图“{{.name}}”？",
+    "views.delete_message_personal": "删除后仅从你的视图列表移除，不影响任何会话。",
+    "views.delete_message_shared": "删除后工作区所有成员都将不再看到这个共享视图，不影响任何会话。",
+    "views.deleted": "已删除视图",
+    "views.dirty_hint": "筛选条件已修改",
+    "views.edit": "编辑视图",
+    "views.empty": "还没有视图，点右上角 + 创建",
+    "views.filter_button": "筛选",
+    "views.language": "客户语言",
+    "views.language_placeholder": "全部语言",
+    "views.more_actions": "更多操作",
+    "views.name": "视图名称",
+    "views.name_placeholder": "例如 高优待回复、退款咨询",
+    "views.name_required": "请填写视图名称",
+    "views.not_found": "该视图不存在或已被删除",
+    "views.priority": "优先级",
+    "views.priority_high": "高",
+    "views.priority_normal": "普通",
+    "views.reset": "重置",
+    "views.save_as": "另存为视图",
+    "views.save_as_mine": "另存为我的视图",
+    "views.save_changes": "保存更改",
+    "views.saved": "已保存视图",
+    "views.scope": "可见范围",
+    "views.scope_hint_personal_only": "你没有管理共享视图的权限，新建视图仅自己可见。",
+    "views.scope_locked": "可见范围创建后不可修改",
+    "views.scope_personal": "仅自己可见",
+    "views.scope_shared": "工作区共享",
+    "views.section": "视图",
+    "views.sort": "默认排序",
+    "views.statuses": "会话状态",
+    "views.statuses_all": "全部状态",
+    "views.tag_match_all": "同时含全部",
+    "views.tag_match_any": "含任一",
+    "views.tags": "标签",
+    "views.tags_placeholder": "选择标签",
+    "views.team": "团队收件箱",
+    "views.team_ids": "指定团队收件箱",
+    "views.team_my_teams": "我所在的团队",
+    "views.team_select": "选择团队收件箱",
+    "views.team_unassigned": "未分配团队",
+    "views.waiting": "回复状态",
+    "views.waiting_false": "已回复",
+    "views.waiting_true": "等待回复",
     "widget_install.app": "App 接入",
     "widget_install.app_hint": "App 用 WebView 全屏打开下面的地址。已登录的用户在页面加载前传入身份（window.agentsDesk.user_token）；登录、退出后执行 AgentsDesk('login', { user_token }) 或 AgentsDesk('logout')。App 自己有导航栏时，在地址后加上 \u0026hide_close=1 隐藏聊天窗口的关闭按钮。Android 要开启 JavaScript 和 DOM storage，并把 windowSoftInputMode 设为 adjustResize。",
     "widget_install.app_msg": "消息",
@@ -1698,6 +1848,81 @@ export type MessageId =
   | "tone.neutral_example"
   | "tone.neutral_hint"
   | "tone.title"
+  | "views.add_attr"
+  | "views.any"
+  | "views.assignee"
+  | "views.assignee_me"
+  | "views.assignee_member"
+  | "views.assignee_select"
+  | "views.assignee_unassigned"
+  | "views.attr_empty"
+  | "views.attr_false"
+  | "views.attr_key"
+  | "views.attr_op"
+  | "views.attr_op_contains"
+  | "views.attr_op_eq"
+  | "views.attr_op_gt"
+  | "views.attr_op_gte"
+  | "views.attr_op_in"
+  | "views.attr_op_is_empty"
+  | "views.attr_op_is_set"
+  | "views.attr_op_lt"
+  | "views.attr_op_lte"
+  | "views.attr_op_neq"
+  | "views.attr_true"
+  | "views.attr_value"
+  | "views.attributes"
+  | "views.back_to_mine"
+  | "views.channels"
+  | "views.channels_placeholder"
+  | "views.clear_filters"
+  | "views.create"
+  | "views.created"
+  | "views.delete"
+  | "views.delete_confirm"
+  | "views.delete_message_personal"
+  | "views.delete_message_shared"
+  | "views.deleted"
+  | "views.dirty_hint"
+  | "views.edit"
+  | "views.empty"
+  | "views.filter_button"
+  | "views.language"
+  | "views.language_placeholder"
+  | "views.more_actions"
+  | "views.name"
+  | "views.name_placeholder"
+  | "views.name_required"
+  | "views.not_found"
+  | "views.priority"
+  | "views.priority_high"
+  | "views.priority_normal"
+  | "views.reset"
+  | "views.save_as"
+  | "views.save_as_mine"
+  | "views.save_changes"
+  | "views.saved"
+  | "views.scope"
+  | "views.scope_hint_personal_only"
+  | "views.scope_locked"
+  | "views.scope_personal"
+  | "views.scope_shared"
+  | "views.section"
+  | "views.sort"
+  | "views.statuses"
+  | "views.statuses_all"
+  | "views.tag_match_all"
+  | "views.tag_match_any"
+  | "views.tags"
+  | "views.tags_placeholder"
+  | "views.team"
+  | "views.team_ids"
+  | "views.team_my_teams"
+  | "views.team_select"
+  | "views.team_unassigned"
+  | "views.waiting"
+  | "views.waiting_false"
+  | "views.waiting_true"
   | "widget_install.app"
   | "widget_install.app_hint"
   | "widget_install.app_msg"

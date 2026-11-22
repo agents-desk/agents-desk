@@ -27,10 +27,22 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	retryOp := route(reply, "conversation-retry", http.MethodPost, "/conversations/{id}/items/{item_id}/retry", "重发发送失败的消息")
 	readOp := route(read, "conversation-read", http.MethodPost, "/conversations/{id}/read", "标记已读")
 	readOp.DefaultStatus = http.StatusNoContent
+	viewCreateOp := route(read, "view-create", http.MethodPost, "/views", "新建收件箱视图")
+	viewCreateOp.DefaultStatus = http.StatusCreated
+	viewDeleteOp := route(read, "view-delete", http.MethodDelete, "/views/{id}", "删除收件箱视图")
+	viewDeleteOp.DefaultStatus = http.StatusNoContent
+	viewReorderOp := route(read, "view-reorder", http.MethodPut, "/views/reorder", "调整收件箱视图顺序")
+	viewReorderOp.DefaultStatus = http.StatusNoContent
 	// 会话的操作：权限在业务动作中检查（指派要看是不是领取、是不是自己负责的会话），路由只要求能处理会话
 	act := func(id, method, path, summary string) huma.Operation { return route(reply, id, method, path, summary) }
 
 	rest.Register(api, route(read, "conversation-inbox", http.MethodGet, "/inbox", "收件箱的列表和数量"), NewGetInbox(db).HTTP)
+	rest.Register(api, route(read, "view-list", http.MethodGet, "/views", "收件箱视图列表"), NewListViews(db).HTTP)
+	rest.Register(api, route(read, "view-get", http.MethodGet, "/views/{id}", "读取收件箱视图"), NewGetView(db).HTTP)
+	rest.Register(api, viewCreateOp, NewCreateView(db, down).HTTP)
+	rest.Register(api, route(read, "view-update", http.MethodPut, "/views/{id}", "修改收件箱视图"), NewUpdateView(db, down).HTTP)
+	rest.Register(api, viewDeleteOp, NewDeleteView(db, down).HTTP)
+	rest.Register(api, viewReorderOp, NewReorderViews(db, down).HTTP)
 	rest.Register(api, route(read, "conversation-list", http.MethodGet, "/conversations", "会话列表"), NewList(db).HTTP)
 	rest.Register(api, route(read, "conversation-search", http.MethodGet, "/conversations/search", "全文搜索会话"), NewSearch(db).HTTP)
 	rest.Register(api, route(read, "conversation-get", http.MethodGet, "/conversations/{id}", "读取会话"), NewGet(db).HTTP)

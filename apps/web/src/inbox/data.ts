@@ -36,6 +36,12 @@ export function useAttributes(target: AttributeTarget) {
   return q.data ?? []
 }
 
+/** useChannels 返回工作区的全部渠道选项：收件箱和视图筛选中选择。 */
+export function useChannels() {
+  const q = useQuery({ ...kit.queries.channel.list(), staleTime: 60_000 })
+  return q.data ?? []
+}
+
 /** useMacros 返回当前成员在工作区中可见的全部快捷回复（共享 + 个人），修改快捷回复后随资源前缀自动失效。 */
 export function useMacros() {
   const q = useQuery({
@@ -59,18 +65,30 @@ export function useThresholds(): Thresholds | undefined {
 }
 
 /** listKey 是会话列表的查询键。 */
-const listKey = (s: InboxSearch) => [...kit.queries.conversation.key(), "inbox-list", s.box, s.team ?? "", s.tag ?? "", s.status, s.sort]
+const listKey = (s: InboxSearch) => [
+  ...kit.queries.conversation.key(),
+  "inbox-list",
+  s.box,
+  s.team ?? "",
+  s.view ?? "",
+  s.filter ?? "",
+  s.tag ?? "",
+  s.status,
+  s.sort,
+]
 
-/** useConversationList 读取当前列表的会话，游标分页，滚到底时加载下一页。 */
+/** useConversationList 读取当前列表或视图的会话，游标分页，滚到底时加载下一页。 */
 export function useConversationList(s: InboxSearch) {
   return useInfiniteQuery({
     queryKey: listKey(s),
     queryFn: ({ pageParam }) =>
       tenantApi.conversation.list({
-        inbox: s.box,
-        team_id: s.team,
-        tag_id: s.tag,
-        status: s.status,
+        inbox: s.view || s.filter ? undefined : s.box,
+        view_id: s.view,
+        filter: s.filter,
+        team_id: s.view || s.filter ? undefined : s.team,
+        tag_id: s.filter ? undefined : s.tag,
+        status: s.view || s.filter ? undefined : s.status,
         sort: s.sort,
         cursor: pageParam || undefined,
         per_page: 50,
@@ -81,7 +99,7 @@ export function useConversationList(s: InboxSearch) {
   })
 }
 
-/** useConversationSearch 按关键词全文搜索会话，支持全部可见会话与当前列表两种范围，滚到底时加载下一页。 */
+/** useConversationSearch 按关键词全文搜索会话，支持全部可见会话与当前列表/视图两种范围，滚到底时加载下一页。 */
 export function useConversationSearch(s: InboxSearch) {
   const q = s.q?.trim() ?? ""
   const scope = s.scope ?? "all"
@@ -93,14 +111,18 @@ export function useConversationSearch(s: InboxSearch) {
       scope,
       scope === "current" ? s.box : "",
       scope === "current" ? (s.team ?? "") : "",
+      scope === "current" ? (s.view ?? "") : "",
+      scope === "current" ? (s.filter ?? "") : "",
       s.tag ?? "",
     ],
     queryFn: ({ pageParam }) =>
       tenantApi.conversation.search({
         q,
-        inbox: scope === "current" ? s.box : undefined,
-        team_id: scope === "current" ? s.team : undefined,
-        tag_id: s.tag,
+        inbox: scope === "current" && !s.view && !s.filter ? s.box : undefined,
+        view_id: scope === "current" ? s.view : undefined,
+        filter: scope === "current" ? s.filter : undefined,
+        team_id: scope === "current" && !s.view && !s.filter ? s.team : undefined,
+        tag_id: s.filter ? undefined : s.tag,
         page: pageParam,
         per_page: 20,
       }),

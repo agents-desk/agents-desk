@@ -27,6 +27,7 @@ export const permissions = {
   "tenant-settings:manage": "管理工作区设置",
   "tenants:manage": "管理工作区",
   "tenants:read": "查看工作区",
+  "views:manage": "管理共享视图",
 } as const
 
 /** 权限名。 */
@@ -137,6 +138,14 @@ export const required = {
     glossarySave: ["tenant-settings:manage"],
     preview: ["conversations:reply"],
     toneSave: ["tenant-settings:manage"],
+  },
+  view: {
+    create: ["conversations:read"],
+    delete: ["conversations:read"],
+    get: ["conversations:read"],
+    list: ["conversations:read"],
+    reorder: ["conversations:read"],
+    update: ["conversations:read"],
   },
   widget: {
     create: ["channels:manage"],

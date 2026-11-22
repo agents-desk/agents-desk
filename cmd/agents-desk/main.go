@@ -34,6 +34,7 @@ import (
 	"github.com/go-tenon/tenon/queue"
 	"github.com/go-tenon/tenon/queue/queuecmd"
 	"github.com/go-tenon/tenon/ratelimit/pglimit"
+	"github.com/go-tenon/tenon/savedview"
 	"github.com/go-tenon/tenon/schedule"
 	"github.com/go-tenon/tenon/schedule/scheduleapi"
 	"github.com/go-tenon/tenon/schedule/schedulecmd"
@@ -131,6 +132,7 @@ func migrateCommand() *cobra.Command {
 		apitoken.Migrations(),
 		authz.Migrations(),
 		settings.Migrations(),
+		savedview.Migrations(),
 		feature.Migrations(),
 		activity.Migrations(),
 		notification.Migrations(),

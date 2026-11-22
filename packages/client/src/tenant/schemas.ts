@@ -165,6 +165,10 @@ export const schemas = {
           "cursor": {
             "type": "string"
           },
+          "filter": {
+            "maxLength": 4096,
+            "type": "string"
+          },
           "inbox": {
             "$ref": "#/components/schemas/ConversationInbox",
             "default": "all"
@@ -180,8 +184,7 @@ export const schemas = {
             "$ref": "#/components/schemas/ConversationPriority"
           },
           "sort": {
-            "$ref": "#/components/schemas/ConversationSort",
-            "default": "waiting"
+            "$ref": "#/components/schemas/ConversationSort"
           },
           "status": {
             "$ref": "#/components/schemas/ConversationStatus",
@@ -192,6 +195,10 @@ export const schemas = {
             "type": "string"
           },
           "team_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "view_id": {
             "format": "uuid",
             "type": "string"
           }
@@ -230,6 +237,10 @@ export const schemas = {
             "format": "uuid",
             "type": "string"
           },
+          "filter": {
+            "maxLength": 4096,
+            "type": "string"
+          },
           "inbox": {
             "$ref": "#/components/schemas/ConversationInbox"
           },
@@ -262,6 +273,10 @@ export const schemas = {
             "type": "string"
           },
           "team_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "view_id": {
             "format": "uuid",
             "type": "string"
           }
@@ -764,6 +779,33 @@ export const schemas = {
       },
     },
   },
+  view: {
+    create: {
+      body: {
+        "$ref": "#/components/schemas/ConversationViewCreateParams"
+      },
+    },
+    list: {
+      query: {
+        "properties": {
+          "scope": {
+            "$ref": "#/components/schemas/SavedviewScope"
+          }
+        },
+        "type": "object"
+      },
+    },
+    reorder: {
+      body: {
+        "$ref": "#/components/schemas/ConversationReorderViewsParams"
+      },
+    },
+    update: {
+      body: {
+        "$ref": "#/components/schemas/ConversationViewUpdateParams"
+      },
+    },
+  },
   widget: {
     create: {
       body: {
@@ -1035,6 +1077,30 @@ export const components = {
     ],
     "type": "string"
   },
+  ConversationAssigneeFilter: {
+    "additionalProperties": false,
+    "properties": {
+      "member_id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "mode": {
+        "$ref": "#/components/schemas/ConversationAssigneeFilterMode"
+      }
+    },
+    "required": [
+      "mode"
+    ],
+    "type": "object"
+  },
+  ConversationAssigneeFilterMode: {
+    "enum": [
+      "me",
+      "unassigned",
+      "member"
+    ],
+    "type": "string"
+  },
   ConversationAssignment: {
     "additionalProperties": false,
     "properties": {
@@ -1048,6 +1114,40 @@ export const components = {
       }
     },
     "type": "object"
+  },
+  ConversationAttributeFilter: {
+    "additionalProperties": false,
+    "properties": {
+      "key": {
+        "maxLength": 64,
+        "minLength": 1,
+        "type": "string"
+      },
+      "op": {
+        "$ref": "#/components/schemas/ConversationAttributeOp"
+      },
+      "value": {}
+    },
+    "required": [
+      "key",
+      "op"
+    ],
+    "type": "object"
+  },
+  ConversationAttributeOp: {
+    "enum": [
+      "eq",
+      "neq",
+      "contains",
+      "gt",
+      "gte",
+      "lt",
+      "lte",
+      "in",
+      "is_set",
+      "is_empty"
+    ],
+    "type": "string"
   },
   ConversationAttributesInputBody: {
     "additionalProperties": false,
@@ -1187,6 +1287,27 @@ export const components = {
     ],
     "type": "object"
   },
+  ConversationReorderViewsParams: {
+    "additionalProperties": false,
+    "properties": {
+      "ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 100,
+        "minItems": 1,
+        "type": "array"
+      },
+      "scope": {
+        "$ref": "#/components/schemas/SavedviewScope"
+      }
+    },
+    "required": [
+      "scope",
+      "ids"
+    ],
+    "type": "object"
+  },
   ConversationReplyBody: {
     "additionalProperties": false,
     "properties": {
@@ -1270,6 +1391,13 @@ export const components = {
     ],
     "type": "string"
   },
+  ConversationTagMatch: {
+    "enum": [
+      "any",
+      "all"
+    ],
+    "type": "string"
+  },
   ConversationTeamChange: {
     "additionalProperties": false,
     "properties": {
@@ -1293,6 +1421,33 @@ export const components = {
     ],
     "type": "string"
   },
+  ConversationTeamFilter: {
+    "additionalProperties": false,
+    "properties": {
+      "ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 50,
+        "type": "array"
+      },
+      "mode": {
+        "$ref": "#/components/schemas/ConversationTeamFilterMode"
+      }
+    },
+    "required": [
+      "mode"
+    ],
+    "type": "object"
+  },
+  ConversationTeamFilterMode: {
+    "enum": [
+      "my_teams",
+      "unassigned",
+      "ids"
+    ],
+    "type": "string"
+  },
   ConversationTranslation: {
     "additionalProperties": false,
     "properties": {
@@ -1310,6 +1465,102 @@ export const components = {
     "required": [
       "language",
       "text"
+    ],
+    "type": "object"
+  },
+  ConversationViewConfig: {
+    "additionalProperties": false,
+    "properties": {
+      "assignee": {
+        "$ref": "#/components/schemas/ConversationAssigneeFilter"
+      },
+      "attributes": {
+        "items": {
+          "$ref": "#/components/schemas/ConversationAttributeFilter"
+        },
+        "maxItems": 20,
+        "type": "array"
+      },
+      "channel_ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 50,
+        "type": "array"
+      },
+      "language": {
+        "maxLength": 35,
+        "type": "string"
+      },
+      "priority": {
+        "$ref": "#/components/schemas/ConversationPriority"
+      },
+      "sort": {
+        "$ref": "#/components/schemas/ConversationSort"
+      },
+      "statuses": {
+        "items": {
+          "$ref": "#/components/schemas/ConversationStatus"
+        },
+        "maxItems": 3,
+        "type": "array"
+      },
+      "tag_ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 50,
+        "type": "array"
+      },
+      "tag_match": {
+        "$ref": "#/components/schemas/ConversationTagMatch"
+      },
+      "team": {
+        "$ref": "#/components/schemas/ConversationTeamFilter"
+      },
+      "waiting": {
+        "type": "boolean"
+      }
+    },
+    "type": "object"
+  },
+  ConversationViewCreateParams: {
+    "additionalProperties": false,
+    "properties": {
+      "config": {
+        "$ref": "#/components/schemas/ConversationViewConfig"
+      },
+      "name": {
+        "maxLength": 50,
+        "minLength": 1,
+        "type": "string"
+      },
+      "scope": {
+        "$ref": "#/components/schemas/SavedviewScope"
+      }
+    },
+    "required": [
+      "scope",
+      "name",
+      "config"
+    ],
+    "type": "object"
+  },
+  ConversationViewUpdateParams: {
+    "additionalProperties": false,
+    "properties": {
+      "config": {
+        "$ref": "#/components/schemas/ConversationViewConfig"
+      },
+      "name": {
+        "maxLength": 50,
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "name",
+      "config"
     ],
     "type": "object"
   },
@@ -1687,11 +1938,19 @@ export const components = {
     "enum": [
       "conversations:assign",
       "macros:manage",
+      "views:manage",
       "reports:read",
       "members:manage",
       "teams:manage",
       "channels:manage",
       "tenant-settings:manage"
+    ],
+    "type": "string"
+  },
+  SavedviewScope: {
+    "enum": [
+      "shared",
+      "personal"
     ],
     "type": "string"
   },

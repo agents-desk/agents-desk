@@ -245,6 +245,15 @@ export interface ConversationAssigneeChange {
 
 export type ConversationAssigneeChangeMode = "me" | "member" | "clear"
 
+export interface ConversationAssigneeFilter {
+  /** mode 为 member 时必填：成员 ID */
+  member_id?: string
+  /** 负责人筛选模式：me（我）、unassigned（无负责人）、member（指定成员） */
+  mode: ConversationAssigneeFilterMode
+}
+
+export type ConversationAssigneeFilterMode = "me" | "unassigned" | "member"
+
 export interface ConversationAssignment {
   /** 负责人（成员 ID）；空字符串表示没有负责人；不传时，转到别的团队收件箱则清空负责人，否则保持原样 */
   assignee_id?: string
@@ -269,6 +278,17 @@ export interface ConversationAttachmentDTO {
 }
 
 export type ConversationAttachmentKind = "image" | "file"
+
+export interface ConversationAttributeFilter {
+  /** 会话自定义属性标识 */
+  key: string
+  /** 比较操作符 */
+  op: ConversationAttributeOp
+  /** 比较值；is_set 与 is_empty 时忽略，in 时为字符串数组 */
+  value?: unknown
+}
+
+export type ConversationAttributeOp = "eq" | "neq" | "contains" | "gt" | "gte" | "lt" | "lte" | "in" | "is_set" | "is_empty"
 
 export interface ConversationAttributesInputBody {
   /** 要更新的自定义属性，值为 null 时清空该属性 */
@@ -378,6 +398,8 @@ export interface ConversationInboxDTO {
   teams: ConversationTeamSummary[]
   /** 未指派 */
   unassigned: ConversationSummary
+  /** 已保存视图：共享在前、个人在后，各带实时会话数量与积压情况 */
+  views: ConversationViewSummary[]
 }
 
 export interface ConversationItemDTO {
@@ -446,6 +468,13 @@ export interface ConversationRating {
 export interface ConversationReadInputBody {
   /** 读到的时间线序号，序号不大于它的项都算已读 */
   seq: number
+}
+
+export interface ConversationReorderViewsParams {
+  /** 按新顺序排列的视图 ID 列表 */
+  ids: string[]
+  /** 要重排的作用域：shared 或 personal */
+  scope: SavedviewScope
 }
 
 export interface ConversationReplyBody {
@@ -531,13 +560,15 @@ export interface ConversationStatusAction {
 export type ConversationStatusActionKind = "close" | "snooze"
 
 export interface ConversationSummary {
-  /** 左侧显示的数量：打开的会话数；@我 是还有未读的 @ 的会话数 */
+  /** 左侧显示的数量：打开的会话数；@我 是还有未读的 @ 的会话数；视图是满足视图全部条件的会话数 */
   count: number
   /** 打开的会话中等得最久的那个开始等待的时间；没有等待回复的会话时为空 */
   oldest_waiting_since?: string
   /** 打开的会话中等待回复的数量 */
   waiting: number
 }
+
+export type ConversationTagMatch = "any" | "all"
 
 export interface ConversationTeamChange {
   /** mode 为 set 时的目标团队收件箱 ID */
@@ -548,8 +579,17 @@ export interface ConversationTeamChange {
 
 export type ConversationTeamChangeMode = "set" | "clear"
 
+export interface ConversationTeamFilter {
+  /** mode 为 ids 时必填：团队收件箱 ID 列表 */
+  ids?: string[]
+  /** 团队筛选模式：my_teams（我所在的团队）、unassigned（未分配团队）、ids（指定团队） */
+  mode: ConversationTeamFilterMode
+}
+
+export type ConversationTeamFilterMode = "my_teams" | "unassigned" | "ids"
+
 export interface ConversationTeamSummary {
-  /** 左侧显示的数量：打开的会话数；@我 是还有未读的 @ 的会话数 */
+  /** 左侧显示的数量：打开的会话数；@我 是还有未读的 @ 的会话数；视图是满足视图全部条件的会话数 */
   count: number
   id: string
   name: string
@@ -564,6 +604,77 @@ export interface ConversationTranslation {
   language: string
   /** 发给对方的译文 */
   text: string
+}
+
+export interface ConversationViewConfig {
+  /** 负责人筛选 */
+  assignee?: ConversationAssigneeFilter
+  /** 会话自定义属性筛选条件（全部满足） */
+  attributes?: ConversationAttributeFilter[]
+  /** 渠道 ID（匹配其中任一） */
+  channel_ids?: string[]
+  /** 客户语言（BCP 47，传主语言时同时匹配子标签） */
+  language?: string
+  /** 优先级筛选 */
+  priority?: ConversationPriority
+  /** 默认排序：waiting（按等待时长）或 recent（按最近活动） */
+  sort?: ConversationSort
+  /** 会话状态（多选）；为空表示不限状态 */
+  statuses?: ConversationStatus[]
+  /** 标签 ID 列表 */
+  tag_ids?: string[]
+  /** 多标签匹配方式：any（任一，默认）或 all（全部） */
+  tag_match?: ConversationTagMatch
+  /** 团队收件箱筛选 */
+  team?: ConversationTeamFilter
+  /** 是否等待回复：true 等待回复，false 已回复，为空不限 */
+  waiting?: boolean
+}
+
+export interface ConversationViewCreateParams {
+  /** 视图的筛选条件与默认排序 */
+  config: ConversationViewConfig
+  /** 视图名称 */
+  name: string
+  /** 作用域：shared 共享（需要 views:manage 权限），personal 个人 */
+  scope: SavedviewScope
+}
+
+export interface ConversationViewDTO {
+  /** 视图保存的筛选条件与默认排序 */
+  config: ConversationViewConfig
+  created_at: string
+  /** 当前成员是否有权修改或删除这个视图 */
+  editable: boolean
+  id: string
+  name: string
+  /** 同作用域内的展示顺序 */
+  position: number
+  /** 作用域：shared 共享，personal 个人 */
+  scope: SavedviewScope
+  updated_at: string
+}
+
+export interface ConversationViewSummary {
+  config: ConversationViewConfig
+  /** 左侧显示的数量：打开的会话数；@我 是还有未读的 @ 的会话数；视图是满足视图全部条件的会话数 */
+  count: number
+  editable: boolean
+  id: string
+  name: string
+  /** 打开的会话中等得最久的那个开始等待的时间；没有等待回复的会话时为空 */
+  oldest_waiting_since?: string
+  position: number
+  scope: SavedviewScope
+  /** 打开的会话中等待回复的数量 */
+  waiting: number
+}
+
+export interface ConversationViewUpdateParams {
+  /** 视图的筛选条件与默认排序 */
+  config: ConversationViewConfig
+  /** 视图名称 */
+  name: string
 }
 
 export type ConversationVisibility = "all" | "members"
@@ -1234,7 +1345,9 @@ export interface RoleParams {
   permissions?: RolePermission[]
 }
 
-export type RolePermission = "conversations:assign" | "macros:manage" | "reports:read" | "members:manage" | "teams:manage" | "channels:manage" | "tenant-settings:manage"
+export type RolePermission = "conversations:assign" | "macros:manage" | "views:manage" | "reports:read" | "members:manage" | "teams:manage" | "channels:manage" | "tenant-settings:manage"
+
+export type SavedviewScope = "shared" | "personal"
 
 export interface TagChanges {
   /** 标签的颜色，不填时是灰蓝 */
@@ -1474,9 +1587,13 @@ export interface ConversationListInput {
   per_page?: number
   /** 收件箱中的哪个列表 */
   inbox?: ConversationInbox
+  /** 可选：按已保存视图的筛选条件与默认排序列出 */
+  view_id?: string
+  /** 可选：JSON 编码的统一筛选条件（Filter），用于高级筛选或在视图内临时微调预览 */
+  filter?: string
   /** 只列出这个团队收件箱的会话；团队收件箱的列表是 inbox=all 加上它 */
   team_id?: string
-  /** 只列出这个状态的会话；@我 的列表不按状态筛选 */
+  /** 只列出这个状态的会话；@我 的列表和视图不按它筛选 */
   status?: ConversationStatus
   /** 只列出负责人是这位成员的会话 */
   assignee_id?: string
@@ -1488,7 +1605,7 @@ export interface ConversationListInput {
   priority?: ConversationPriority
   /** 只列出带有这个标签的会话 */
   tag_id?: string
-  /** 排序；@我 的列表总是最近被 @ 的在前 */
+  /** 排序：默认按视图排序或 waiting；@我 的列表总是最近被 @ 的在前 */
   sort?: ConversationSort
 }
 
@@ -1502,6 +1619,10 @@ export interface ConversationSearchInput {
   q?: string
   /** 可选：限定在某个收件箱列表内（mine/mentions/unassigned/all）；留空搜索全部可见会话 */
   inbox?: ConversationInbox
+  /** 可选：限定在某个已保存视图内搜索 */
+  view_id?: string
+  /** 可选：JSON 编码的统一筛选条件（Filter） */
+  filter?: string
   /** 可选：只搜索这个团队收件箱的会话 */
   team_id?: string
   /** 可选：只搜索这个状态的会话；留空包含全部状态（打开、稍后处理、已关闭） */
@@ -1677,6 +1798,12 @@ export interface TeamListInput {
   status?: TeamStatus
   /** 只列出我所在的团队收件箱 */
   mine?: boolean
+}
+
+/** view-list 的参数。 */
+export interface ViewListInput {
+  /** 可选：按作用域筛选（shared 或 personal） */
+  scope?: SavedviewScope
 }
 
 /** widget-list 的参数。 */
@@ -1893,7 +2020,7 @@ export function createClient(options: ClientOptions) {
        * GET /conversations
        */
       list: (input: ConversationListInput = {}): Promise<CursorConversationDTO> =>
-        rt.request<CursorConversationDTO>({ method: "GET", path: `/conversations`, query: { "assignee_id": input["assignee_id"], "channel_id": input["channel_id"], "contact_id": input["contact_id"], "cursor": input["cursor"], "inbox": input["inbox"], "per_page": input["per_page"], "priority": input["priority"], "sort": input["sort"], "status": input["status"], "tag_id": input["tag_id"], "team_id": input["team_id"] } }),
+        rt.request<CursorConversationDTO>({ method: "GET", path: `/conversations`, query: { "assignee_id": input["assignee_id"], "channel_id": input["channel_id"], "contact_id": input["contact_id"], "cursor": input["cursor"], "filter": input["filter"], "inbox": input["inbox"], "per_page": input["per_page"], "priority": input["priority"], "sort": input["sort"], "status": input["status"], "tag_id": input["tag_id"], "team_id": input["team_id"], "view_id": input["view_id"] } }),
       /**
        * 写内部备注
        *
@@ -1949,7 +2076,7 @@ export function createClient(options: ClientOptions) {
        * GET /conversations/search
        */
       search: (input: ConversationSearchInput = {}): Promise<OffsetConversationSearchHitDTO> =>
-        rt.request<OffsetConversationSearchHitDTO>({ method: "GET", path: `/conversations/search`, query: { "assignee_id": input["assignee_id"], "channel_id": input["channel_id"], "inbox": input["inbox"], "page": input["page"], "per_page": input["per_page"], "priority": input["priority"], "q": input["q"], "status": input["status"], "tag_id": input["tag_id"], "team_id": input["team_id"] } }),
+        rt.request<OffsetConversationSearchHitDTO>({ method: "GET", path: `/conversations/search`, query: { "assignee_id": input["assignee_id"], "channel_id": input["channel_id"], "filter": input["filter"], "inbox": input["inbox"], "page": input["page"], "per_page": input["per_page"], "priority": input["priority"], "q": input["q"], "status": input["status"], "tag_id": input["tag_id"], "team_id": input["team_id"], "view_id": input["view_id"] } }),
       /**
        * 稍后处理
        *
@@ -2365,6 +2492,51 @@ export function createClient(options: ClientOptions) {
        */
       toneSave: (body: TranslationToneInputBody): Promise<TranslationSettingsDTO> =>
         rt.request<TranslationSettingsDTO>({ method: "PUT", path: `/settings/translation/tone`, body }),
+    },
+    /** operationId 以 view- 开头的接口。 */
+    view: {
+      /**
+       * 新建收件箱视图
+       *
+       * POST /views
+       */
+      create: (body: ConversationViewCreateParams): Promise<ConversationViewDTO> =>
+        rt.request<ConversationViewDTO>({ method: "POST", path: `/views`, body }),
+      /**
+       * 删除收件箱视图
+       *
+       * DELETE /views/{id}
+       */
+      delete: (id: string): Promise<void> =>
+        rt.request<void>({ method: "DELETE", path: `/views/${encodeURIComponent(id)}` }),
+      /**
+       * 读取收件箱视图
+       *
+       * GET /views/{id}
+       */
+      get: (id: string): Promise<ConversationViewDTO> =>
+        rt.request<ConversationViewDTO>({ method: "GET", path: `/views/${encodeURIComponent(id)}` }),
+      /**
+       * 收件箱视图列表
+       *
+       * GET /views
+       */
+      list: (input: ViewListInput = {}): Promise<ConversationViewDTO[]> =>
+        rt.request<ConversationViewDTO[]>({ method: "GET", path: `/views`, query: { "scope": input["scope"] } }),
+      /**
+       * 调整收件箱视图顺序
+       *
+       * PUT /views/reorder
+       */
+      reorder: (body: ConversationReorderViewsParams): Promise<void> =>
+        rt.request<void>({ method: "PUT", path: `/views/reorder`, body }),
+      /**
+       * 修改收件箱视图
+       *
+       * PUT /views/{id}
+       */
+      update: (id: string, body: ConversationViewUpdateParams): Promise<ConversationViewDTO> =>
+        rt.request<ConversationViewDTO>({ method: "PUT", path: `/views/${encodeURIComponent(id)}`, body }),
     },
     /** operationId 以 widget- 开头的接口。 */
     widget: {

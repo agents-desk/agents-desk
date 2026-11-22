@@ -74,7 +74,7 @@ func TestRoles(t *testing.T) {
 	if got := initial.Items[0]; got.ConversationScope != "team" || len(got.Permissions) != 0 {
 		t.Errorf("坐席：%+v", got)
 	}
-	if got := initial.Items[1]; got.ConversationScope != "all" || len(got.Permissions) != 7 {
+	if got := initial.Items[1]; got.ConversationScope != "all" || len(got.Permissions) != 8 {
 		t.Errorf("管理员：%+v", got)
 	}
 	// 角色中只保存可见范围和勾选的操作，基本权限在加载成员的权限时加上
