@@ -68,6 +68,7 @@ function BasicForm({ profile }: { profile: { name: string; avatar_file_id?: stri
     }
   })
 
+  const dirty = form.isDirty() || preview !== profile.avatar_url
   return (
     <form noValidate onSubmit={submit}>
       <Stack gap="md">
@@ -111,7 +112,7 @@ function BasicForm({ profile }: { profile: { name: string; avatar_file_id?: stri
         </Stack>
         <TextInput label={t("profile.name")} required maxLength={60} {...form.getInputProps("name")} />
         <Group justify="flex-end">
-          <Button type="submit" loading={saving}>
+          <Button type="submit" disabled={!dirty} loading={saving}>
             {t("common.save")}
           </Button>
         </Group>

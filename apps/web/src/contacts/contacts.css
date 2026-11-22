@@ -29,34 +29,6 @@
   border-top: 1px solid var(--tn-border);
 }
 
-/* 可拖拽分栏分隔手柄（直达联系人页时不依赖 inbox.css） */
-.desk-resize-handle {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 6px;
-  z-index: 5;
-  cursor: col-resize;
-  touch-action: none;
-}
-
-.desk-resize-handle::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 2px;
-  transform: translateX(-50%);
-  background: transparent;
-  transition: background-color 140ms ease;
-}
-
-.desk-resize-handle:hover::after,
-.desk-resize-handle[data-dragging]::after {
-  background: var(--mantine-primary-color-filled);
-}
-
 .ct-list-head {
   position: sticky;
   top: 0;
@@ -77,6 +49,11 @@
   background: var(--tn-hover);
 }
 
+.ct-row:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -2px;
+}
+
 .ct-row[data-active] {
   background: var(--tn-active-bg);
 }
@@ -91,7 +68,7 @@
   background: var(--mantine-primary-color-filled);
 }
 
-/* 仅在悬停当前行或字段时露出轻量的复制/编辑小按钮，保持画面安静 */
+/* 仅在悬停当前行或字段时露出轻量的复制/编辑小按钮，触屏设备常显以保证可达性 */
 .ct-hover-action {
   opacity: 0;
   transition: opacity 0.15s ease;
@@ -99,28 +76,49 @@
 
 .ct-row:hover .ct-hover-action,
 .ct-field:hover .ct-hover-action,
+.ct-field:focus-within .ct-hover-action,
 .ct-identity:hover .ct-hover-action,
+.ct-identity:focus-within .ct-hover-action,
 .ct-hover-action:focus-visible {
   opacity: 1;
 }
 
-/* 联系人内部备注便签块：与收件箱内部备注同源的淡黄底色 */
-.ct-note {
-  background: var(--mantine-color-yellow-light);
-  border: 1px solid color-mix(in srgb, var(--mantine-color-yellow-6) 30%, transparent);
-  border-radius: var(--mantine-radius-md);
+@media (hover: none), (pointer: coarse) {
+  .ct-hover-action {
+    opacity: 0.78;
+  }
 }
 
-/* 历史会话流中的条目 */
+/* 超长外部编号截断，避免撑破侧栏把复制按钮挤出视野 */
+.ct-code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* 历史会话流中的整卡可点击条目 */
 .ct-conv {
+  display: block;
+  color: inherit;
+  text-decoration: none;
   border: 1px solid var(--tn-border);
   border-radius: var(--mantine-radius-md);
   background: var(--tn-surface);
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
-.ct-conv:hover {
-  border-color: var(--tn-border-strong);
+@media (hover: hover) {
+  .ct-conv:hover {
+    border-color: var(--tn-border-strong);
+    background: var(--tn-hover);
+  }
+}
+
+.ct-conv:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 2px;
 }
 
 .ct-section-divider {

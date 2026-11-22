@@ -1,4 +1,4 @@
-import { ActionIcon, Button, Code, CopyButton, Group, PasswordInput, Stack, Table, Tabs, Text, TextInput, Title, Tooltip } from "@mantine/core"
+import { ActionIcon, Box, Button, Code, CopyButton, Group, PasswordInput, Stack, Table, Tabs, Text, TextInput, Title, Tooltip } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { IconCheck, IconCopy } from "@tabler/icons-react"
@@ -172,10 +172,20 @@ function AppSetup({ appURL }: { appURL: string }): ReactNode {
           <Tabs.Tab value="android">Android (Kotlin)</Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="ios" pt="xs">
-          <Code block>{iosExample(appURL)}</Code>
+          <Box pos="relative">
+            <Box pos="absolute" top={8} right={8} style={{ zIndex: 1 }}>
+              <Copy value={iosExample(appURL)} />
+            </Box>
+            <Code block>{iosExample(appURL)}</Code>
+          </Box>
         </Tabs.Panel>
         <Tabs.Panel value="android" pt="xs">
-          <Code block>{androidExample(appURL)}</Code>
+          <Box pos="relative">
+            <Box pos="absolute" top={8} right={8} style={{ zIndex: 1 }}>
+              <Copy value={androidExample(appURL)} />
+            </Box>
+            <Code block>{androidExample(appURL)}</Code>
+          </Box>
         </Tabs.Panel>
       </Tabs>
       <Table withTableBorder>

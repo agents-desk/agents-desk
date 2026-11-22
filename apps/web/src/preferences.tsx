@@ -79,7 +79,7 @@ function Form({ language, timeZone }: { language: MemberLanguage; timeZone: stri
           {...form.getInputProps("time_zone")}
         />
         <Group justify="flex-end">
-          <Button type="submit" loading={saving}>
+          <Button type="submit" disabled={!form.isDirty()} loading={saving}>
             {t("common.save")}
           </Button>
         </Group>

@@ -48,39 +48,6 @@
   color: var(--mantine-primary-color-light-color);
 }
 
-/* 可拖拽分栏分隔手柄：覆盖在分隔线上，悬停或拖动时浮现品牌色细线 */
-.desk-resize-handle {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 6px;
-  z-index: 5;
-  cursor: col-resize;
-  touch-action: none;
-}
-
-.desk-resize-handle::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 2px;
-  transform: translateX(-50%);
-  background: transparent;
-  transition: background-color 140ms ease;
-}
-
-.desk-resize-handle:hover::after,
-.desk-resize-handle:focus-visible::after,
-.desk-resize-handle[data-dragging]::after {
-  background: var(--mantine-primary-color-filled);
-}
-
-.desk-resize-handle:focus-visible {
-  outline: none;
-}
-
 /* 会话顶部联系人名字链接：悬停时显出品牌色与下划线，提示可点进联系人档案 */
 .inbox-contact-link {
   color: inherit;

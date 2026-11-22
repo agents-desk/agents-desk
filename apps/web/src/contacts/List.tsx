@@ -1,5 +1,5 @@
 import type { ContactSort } from "@agents-desk/client/tenant"
-import { ActionIcon, Avatar, Badge, Box, Button, Center, Group, Loader, Select, Text, TextInput, Tooltip } from "@mantine/core"
+import { ActionIcon, Avatar, Badge, Box, Button, Center, Group, Loader, Select, Skeleton, Stack, Text, TextInput, Tooltip } from "@mantine/core"
 import { useDebouncedValue } from "@mantine/hooks"
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
@@ -247,14 +247,41 @@ export function ContactDirectory({
         )}
 
         {list.isPending ? (
-          <Center py="xl">
-            <Loader size="sm" />
-          </Center>
+          <Stack gap={0}>
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <Group key={i} gap="md" px="lg" py={11} wrap="nowrap" className="ct-row">
+                <Group gap="sm" wrap="nowrap" style={{ flex: 2.2, minWidth: 200 }}>
+                  <Skeleton circle h={34} w={34} style={{ flex: "none" }} />
+                  <Box style={{ flex: 1, minWidth: 0 }}>
+                    <Skeleton h={12} w="42%" mb={6} radius="sm" />
+                    <Skeleton h={10} w="64%" radius="sm" />
+                  </Box>
+                </Group>
+                {!compact && <Skeleton h={11} w="20%" radius="sm" />}
+                <Skeleton h={11} w={36} radius="sm" style={{ flex: "none" }} />
+                <Skeleton h={11} w={56} radius="sm" style={{ flex: "none" }} />
+              </Group>
+            ))}
+          </Stack>
         ) : items.length === 0 ? (
           <Center py={64}>
-            <Text size="sm" c="dimmed">
-              {t("contacts.empty")}
-            </Text>
+            <Stack gap="xs" align="center">
+              <Text size="sm" c="dimmed">
+                {t(hasFilters ? "contacts.empty_filtered" : "contacts.empty")}
+              </Text>
+              {hasFilters && (
+                <Button
+                  size="xs"
+                  variant="light"
+                  onClick={() => {
+                    setKeyword("")
+                    go({ q: undefined, language: undefined, channel: undefined })
+                  }}
+                >
+                  {t("contacts.clear_filters")}
+                </Button>
+              )}
+            </Stack>
           </Center>
         ) : (
           <>
@@ -272,6 +299,8 @@ export function ContactDirectory({
                     if (node) rowRefs.current.set(c.id, node)
                     else rowRefs.current.delete(c.id)
                   }}
+                  role="button"
+                  tabIndex={0}
                   gap="md"
                   px="lg"
                   py={11}
@@ -280,6 +309,12 @@ export function ContactDirectory({
                   className="ct-row"
                   data-active={active || undefined}
                   onClick={() => openContact(c.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault()
+                      openContact(c.id)
+                    }
+                  }}
                 >
                   <Group gap="sm" wrap="nowrap" style={{ flex: narrow ? "1 1 100%" : 2.2, minWidth: 200 }}>
                     <Avatar size={34} name={displayName} color="initials" />
@@ -322,12 +357,19 @@ export function ContactDirectory({
 
                   <Group gap={4} justify="flex-end" wrap="nowrap" w={narrow ? "auto" : 72} style={{ flex: "none" }}>
                     <IconMessageCircle size={13} style={{ color: "var(--mantine-color-dimmed)" }} />
-                    <Text size="xs" c={c.conversation_count > 0 ? undefined : "dimmed"}>
+                    <Text size="xs" c={c.conversation_count > 0 ? undefined : "dimmed"} style={{ fontVariantNumeric: "tabular-nums" }}>
                       {c.conversation_count}
                     </Text>
                   </Group>
 
-                  <Text size="xs" c="dimmed" w={narrow ? "auto" : 96} ta="right" ml={narrow ? "auto" : undefined} style={{ flex: "none" }}>
+                  <Text
+                    size="xs"
+                    c="dimmed"
+                    w={narrow ? "auto" : 96}
+                    ta="right"
+                    ml={narrow ? "auto" : undefined}
+                    style={{ flex: "none", fontVariantNumeric: "tabular-nums" }}
+                  >
                     {activity(c.last_seen_at ?? c.created_at, ui, t, zone)}
                   </Text>
                 </Group>

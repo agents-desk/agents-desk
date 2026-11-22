@@ -1,5 +1,6 @@
 import { Badge, Button, Group, Paper, Stack, Text } from "@mantine/core"
 import { createFileRoute, Link, redirect } from "@tanstack/react-router"
+import { IconChevronRight } from "@tabler/icons-react"
 import { CenteredAuthLayout, requireAuth, useT } from "@go-tenon/ui"
 import { api } from "../api"
 import { logout } from "../auth"
@@ -25,12 +26,17 @@ function ChooseTenant() {
         {mine.length === 0 && <Text c="dimmed">{t("choose_tenant.none")}</Text>}
         {mine.map((tn) =>
           tn.status === "active" ? (
-            <Link key={tn.slug} to="/t/$slug" params={{ slug: tn.slug }} style={{ color: "inherit", textDecoration: "none" }}>
-              <Paper withBorder p="md">
-                <Text fw={500}>{tn.name}</Text>
-                <Text size="sm" c="dimmed">
-                  /t/{tn.slug}/
-                </Text>
+            <Link key={tn.slug} to="/t/$slug" params={{ slug: tn.slug }} className="desk-tenant-card">
+              <Paper withBorder p="md" className="desk-tenant-paper">
+                <Group justify="space-between" wrap="nowrap">
+                  <div>
+                    <Text fw={500}>{tn.name}</Text>
+                    <Text size="sm" c="dimmed">
+                      /t/{tn.slug}/
+                    </Text>
+                  </div>
+                  <IconChevronRight size={16} className="desk-tenant-arrow" style={{ flex: "none" }} />
+                </Group>
               </Paper>
             </Link>
           ) : (
