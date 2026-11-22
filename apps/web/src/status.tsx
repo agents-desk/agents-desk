@@ -1,4 +1,4 @@
-import { Badge, Box, Checkbox, Group, SegmentedControl, Stack, Text } from "@mantine/core"
+import { Badge, Box, Checkbox, Group, SegmentedControl, Skeleton, Stack, Text } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useParams } from "@tanstack/react-router"
 import { notifyError, useLanguage, useT } from "@go-tenon/ui"
@@ -52,7 +52,7 @@ export function StatusControl({ description }: { description?: boolean }): React
     onError: (err) => notifyError(err),
   })
   const value = save.isPending ? save.variables : current.data
-  if (!value) return null
+  if (!value) return <Skeleton h={30} radius="md" />
   return (
     <Stack gap="xs">
       <SegmentedControl

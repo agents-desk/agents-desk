@@ -174,50 +174,51 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
             ) : (
               <Stack gap={8}>
                 {conversations.data?.items.map((conv) => (
-                  <Box key={conv.id} p="xs" className="ct-conv">
-                    <Group justify="space-between" wrap="nowrap" mb={4}>
-                      <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
-                        <span className="ct-dot" data-status={conv.status} />
-                        <Text size="xs" fw={500}>
-                          {t(`inbox.status_${conv.status}` as const)}
+                  <Link
+                    key={conv.id}
+                    to="/t/$slug/inbox/$id"
+                    params={{ slug, id: conv.id }}
+                    search={{ box: "all", status: conv.status, sort: "waiting" }}
+                    className="ct-conv"
+                  >
+                    <Box p="xs">
+                      <Group justify="space-between" wrap="nowrap" mb={4}>
+                        <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
+                          <span className="ct-dot" data-status={conv.status} />
+                          <Text size="xs" fw={500}>
+                            {t(`inbox.status_${conv.status}` as const)}
+                          </Text>
+                          {conv.channel && (
+                            <Text size="xs" c="dimmed" truncate>
+                              · {conv.channel.name}
+                            </Text>
+                          )}
+                          {conv.rating && (
+                            <Text size="xs" c="yellow">
+                              {"★".repeat(conv.rating.score)}
+                            </Text>
+                          )}
+                        </Group>
+                        <Text size="xs" c="dimmed" style={{ flex: "none", fontVariantNumeric: "tabular-nums" }}>
+                          {activity(conv.last_message_at, ui, t, zone)}
                         </Text>
-                        {conv.channel && (
-                          <Text size="xs" c="dimmed" truncate>
-                            · {conv.channel.name}
-                          </Text>
-                        )}
-                        {conv.rating && (
-                          <Text size="xs" c="yellow">
-                            {"★".repeat(conv.rating.score)}
-                          </Text>
-                        )}
                       </Group>
-                      <Text size="xs" c="dimmed" style={{ flex: "none" }}>
-                        {activity(conv.last_message_at, ui, t, zone)}
-                      </Text>
-                    </Group>
-                    <Group justify="space-between" align="flex-end" gap="xs" wrap="nowrap">
-                      <Text size="xs" c={conv.preview ? undefined : "dimmed"} lineClamp={2} style={{ flex: 1, minWidth: 0 }}>
-                        {conv.preview || "—"}
-                      </Text>
-                      <Anchor
-                        size="xs"
-                        fw={500}
-                        style={{ flex: "none", display: "inline-flex", alignItems: "center", gap: 2 }}
-                        renderRoot={(props) => (
-                          <Link
-                            {...props}
-                            to="/t/$slug/inbox/$id"
-                            params={{ slug, id: conv.id }}
-                            search={{ box: "all", status: conv.status, sort: "waiting" }}
-                          />
-                        )}
-                      >
-                        <span>{t("contacts.open_in_inbox")}</span>
-                        <IconArrowUpRight size={12} />
-                      </Anchor>
-                    </Group>
-                  </Box>
+                      <Group justify="space-between" align="flex-end" gap="xs" wrap="nowrap">
+                        <Text size="xs" c={conv.preview ? undefined : "dimmed"} lineClamp={2} style={{ flex: 1, minWidth: 0 }}>
+                          {conv.preview || "—"}
+                        </Text>
+                        <Text
+                          size="xs"
+                          fw={500}
+                          c="brand"
+                          style={{ flex: "none", display: "inline-flex", alignItems: "center", gap: 2 }}
+                        >
+                          <span>{t("contacts.open_in_inbox")}</span>
+                          <IconArrowUpRight size={12} />
+                        </Text>
+                      </Group>
+                    </Box>
+                  </Link>
                 ))}
               </Stack>
             )}
@@ -251,7 +252,7 @@ function NotesCard({
   const dirty = value !== c.notes
 
   return (
-    <Box p="sm" className="ct-note">
+    <Box p="sm" className="desk-note">
       <Group justify="space-between" mb={4}>
         <Text size="xs" fw={600}>
           {t("contacts.notes")}
@@ -446,8 +447,8 @@ function PropertiesSection({
 
       {c.external_user_id && (
         <PropRow label={t("contacts.external_user_id")}>
-          <Group gap={4} wrap="nowrap" justify="space-between">
-            <Code>{c.external_user_id}</Code>
+          <Group gap={4} wrap="nowrap" justify="space-between" style={{ minWidth: 0 }}>
+            <Code className="ct-code">{c.external_user_id}</Code>
             <CopyButton value={c.external_user_id} timeout={1500}>
               {({ copied, copy }) => (
                 <Tooltip label={t(copied ? "contacts.copied" : "contacts.copy")} withArrow>
@@ -456,6 +457,7 @@ function PropertiesSection({
                     variant="subtle"
                     color={copied ? "green" : "gray"}
                     size={22}
+                    style={{ flex: "none" }}
                     onClick={copy}
                     aria-label={t("contacts.copy")}
                   >
@@ -621,8 +623,8 @@ function IdentitiesSection({ identities }: { identities: ContactIdentityDTO[] })
                   {activity(ident.created_at, ui, t, zone)}
                 </Text>
               </Group>
-              <Group gap={4} wrap="nowrap" mt={3}>
-                <Code>{ident.external_id}</Code>
+              <Group gap={4} wrap="nowrap" mt={3} style={{ minWidth: 0 }}>
+                <Code className="ct-code">{ident.external_id}</Code>
                 <CopyButton value={ident.external_id} timeout={1500}>
                   {({ copied, copy }) => (
                     <Tooltip label={t(copied ? "contacts.copied" : "contacts.copy")} withArrow>
@@ -631,6 +633,7 @@ function IdentitiesSection({ identities }: { identities: ContactIdentityDTO[] })
                         variant="subtle"
                         color={copied ? "green" : "gray"}
                         size={20}
+                        style={{ flex: "none" }}
                         onClick={copy}
                         aria-label={t("contacts.copy")}
                       >

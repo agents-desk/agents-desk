@@ -24,6 +24,9 @@ function OpenConversation() {
       key={id}
       id={id}
       tenantId={tenant.id}
+      highlight={search.q}
+      focusSeq={search.seq}
+      focusField={search.matchField}
       open={open}
       next={waiting ? () => open(waiting.id) : undefined}
       back={() => void navigate({ to: "/t/$slug/inbox", params: { slug }, search })}

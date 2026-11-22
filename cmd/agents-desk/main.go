@@ -36,6 +36,8 @@ import (
 	"github.com/go-tenon/tenon/schedule"
 	"github.com/go-tenon/tenon/schedule/scheduleapi"
 	"github.com/go-tenon/tenon/schedule/schedulecmd"
+	"github.com/go-tenon/tenon/search"
+	"github.com/go-tenon/tenon/search/searchcmd"
 	"github.com/go-tenon/tenon/settings"
 	"github.com/go-tenon/tenon/sheet/exports"
 
@@ -97,6 +99,7 @@ func main() {
 			doctorcmd.New(a.doctor()...),
 			queuecmd.New(a.db, queuecmd.WithJetStream(a.nc, a.cfg.Queue)),
 			schedulecmd.New(a.tasks),
+			searchcmd.New(a.db, conversation.SearchIndex),
 			platformadmin.Commands(a.db, a.adminLogins),
 			seedCommand(a.db, a.adminLogins, a.memberLogins, a.files, a.crypt, tenant.Addresses{PublicURL: a.cfg.PublicURL}, a.channels, a.downstream()),
 			devCommands(a),
@@ -133,6 +136,7 @@ func migrateCommand() *cobra.Command {
 		exports.Migrations(),
 		queue.Migrations(),
 		scheduleapi.Migrations(),
+		search.Migrations(),
 		filesystem.Migrations(),
 		pglock.Migrations(),
 	}

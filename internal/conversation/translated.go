@@ -72,6 +72,11 @@ func SaveTranslation(ctx context.Context, db *bun.DB, down Downstream, tenant, i
 		if _, err := tx.NewUpdate().Model(&it).Column("derived").WherePK().Exec(ctx); err != nil {
 			return errors.Wrap(err, "save translation")
 		}
+		if len(added) > 0 && it.Searchable() {
+			if err := SearchIndex.Sync(ctx, tx, it.ID); err != nil {
+				return err
+			}
+		}
 
 		// 客户的语言：手动设置的不改，否则按最近几条消息
 		langChanged, err := updateCustomerLanguage(ctx, tx, c, false)

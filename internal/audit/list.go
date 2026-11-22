@@ -40,7 +40,7 @@ type Item struct {
 	Href         string    `json:"href,omitempty"`
 }
 
-// ListOutput 是平台操作日志的响应。
+// ListOutput 是平台操作日志的响应（固定分页）。
 type ListOutput struct {
 	Body page.Offset[Item]
 }

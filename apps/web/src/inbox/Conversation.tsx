@@ -15,6 +15,7 @@ import { useConversation, useMe, useMembers, useTeams, useTimeline } from "./dat
 import { Details } from "./Details"
 import { contactName } from "./List"
 import { AssignMenu, SnoozeMenu } from "./menus"
+import type { MatchField } from "./search"
 import { hasTranslation, Timeline } from "./Timeline"
 
 /** DETAILS_STORAGE_KEY 保存宽屏下右侧详情栏的展开偏好，切换会话时保持一致。 */
@@ -42,6 +43,9 @@ function saveDetails(open: boolean): void {
 interface ConversationProps {
   id: string
   tenantId: string
+  highlight?: string // 当前全文搜索关键词：时间线中高亮命中的词
+  focusSeq?: number // 从搜索结果跳转时定位到的目标消息序号
+  focusField?: MatchField // 命中来源字段：original 时目标消息自动展示原文
   open: (id: string) => void // 打开另一个会话（详情中的历史会话、下一个待回复）
   next?: () => void // 打开下一个待回复的会话；没有时为空
   back: () => void // 窄屏时返回会话列表
@@ -53,7 +57,7 @@ interface ConversationProps {
  * 对方的消息有译文时，顶部的“译文 | 原文”把它们一次切换成原文。
  * 详情是第五栏：窗口宽度小于 1600px 时打开详情先收起二级导航，关掉后恢复。窄屏时左上角返回会话列表，详情占满。
  */
-export function ConversationView({ id, tenantId, open, next, back }: ConversationProps): ReactNode {
+export function ConversationView({ id, tenantId, highlight, focusSeq, focusField, open, next, back }: ConversationProps): ReactNode {
   const t = useT()
   const narrow = useNarrow(NARROW_QUERY)
   // 1600px 以上四栏+详情并排；1360–1599px 打开详情自动收起二级导航；900–1359px 详情改为右侧浮层抽屉避免挤压聊天区。
@@ -65,7 +69,7 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
   const { byId } = useMembers()
   const teams = useTeams()
   const conversation = useConversation(id)
-  const timeline = useTimeline(id)
+  const timeline = useTimeline(id, focusSeq)
   const { viewers, typing, notifyTyping, clearTyping } = useConversationChannel(tenantId, id, me.data?.id)
   const ui = useLanguage()
   const [details, setDetails] = useState(() => (narrow ? false : readSavedDetails()))
@@ -262,7 +266,15 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
             </Tooltip>
           </Group>
         </Group>
-        <Timeline c={c} readSeq={readAtOpen.current ?? 0} typing={typing} original={original} />
+        <Timeline
+          c={c}
+          readSeq={readAtOpen.current ?? 0}
+          typing={typing}
+          original={original}
+          highlight={highlight}
+          focusSeq={focusSeq}
+          focusField={focusField}
+        />
         <Composer key={c.id} c={c} onTyping={notifyTyping} inputRef={composerRef} />
       </Box>
       {inlineDetails && (

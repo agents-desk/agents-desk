@@ -48,39 +48,6 @@
   color: var(--mantine-primary-color-light-color);
 }
 
-/* 可拖拽分栏分隔手柄：覆盖在分隔线上，悬停或拖动时浮现品牌色细线 */
-.desk-resize-handle {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 6px;
-  z-index: 5;
-  cursor: col-resize;
-  touch-action: none;
-}
-
-.desk-resize-handle::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 2px;
-  transform: translateX(-50%);
-  background: transparent;
-  transition: background-color 140ms ease;
-}
-
-.desk-resize-handle:hover::after,
-.desk-resize-handle:focus-visible::after,
-.desk-resize-handle[data-dragging]::after {
-  background: var(--mantine-primary-color-filled);
-}
-
-.desk-resize-handle:focus-visible {
-  outline: none;
-}
-
 /* 会话顶部联系人名字链接：悬停时显出品牌色与下划线，提示可点进联系人档案 */
 .inbox-contact-link {
   color: inherit;
@@ -105,6 +72,12 @@
   position: relative;
   border-bottom: 1px solid color-mix(in srgb, var(--tn-border) 65%, transparent);
   transition: background-color 0.25s ease;
+}
+
+/* 搜索结果行需要容纳最多两行高亮摘要和命中计数，按内容自适应高度 */
+.inbox-row[data-search] {
+  display: block;
+  height: auto;
 }
 
 .inbox-row:focus-visible {
@@ -357,5 +330,27 @@
   .inbox-typing-dots span {
     animation: none;
     opacity: 0.65;
+  }
+  .inbox-focus-pulse {
+    animation: none;
+  }
+}
+
+/* 从搜索结果跳转到时间线某条消息时的短暂聚焦高亮（命中词 .inbox-mark 定义在全局 command-palette.css 中） */
+.inbox-focus-pulse {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 2px;
+  animation: inbox-focus-fade 2.4s ease-out forwards;
+}
+
+@keyframes inbox-focus-fade {
+  0%,
+  35% {
+    outline-color: var(--mantine-primary-color-filled);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--mantine-primary-color-filled) 22%, transparent);
+  }
+  100% {
+    outline-color: transparent;
+    box-shadow: 0 0 0 0 transparent;
   }
 }

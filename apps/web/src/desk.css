@@ -1,0 +1,78 @@
+/*
+ * 工作台跨模块公共样式（收件箱、联系人、工作区选择页共用）：
+ * 全部基于 --tn-* 与 Mantine 主题语义变量，明暗主题一致。
+ */
+
+/* 可拖拽与键盘微调的分栏分隔手柄：悬停、聚焦或拖动时浮现品牌色细线 */
+.desk-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  z-index: 5;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.desk-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: transparent;
+  transition: background-color 140ms ease;
+}
+
+.desk-resize-handle:hover::after,
+.desk-resize-handle:focus-visible::after,
+.desk-resize-handle[data-dragging]::after {
+  background: var(--mantine-primary-color-filled);
+}
+
+.desk-resize-handle:focus-visible {
+  outline: none;
+}
+
+/* 内部备注便签块：联系人档案与收件箱详情共用的淡黄便签样式 */
+.desk-note {
+  background: var(--mantine-color-yellow-light);
+  border: 1px solid color-mix(in srgb, var(--mantine-color-yellow-6) 30%, transparent);
+  border-radius: var(--mantine-radius-md);
+}
+
+/* 选择工作区卡片：提供清晰的悬停高亮与右箭头微移反馈 */
+.desk-tenant-card {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--mantine-radius-md);
+}
+
+.desk-tenant-card .desk-tenant-paper {
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.desk-tenant-card .desk-tenant-arrow {
+  color: var(--tn-muted);
+  transition: transform 150ms ease, color 150ms ease;
+}
+
+@media (hover: hover) {
+  .desk-tenant-card:hover .desk-tenant-paper {
+    background: var(--tn-hover);
+    border-color: var(--tn-border-strong);
+  }
+
+  .desk-tenant-card:hover .desk-tenant-arrow {
+    color: var(--mantine-primary-color-light-color);
+    transform: translateX(2px);
+  }
+}
+
+.desk-tenant-card:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 2px;
+}

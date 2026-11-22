@@ -63,11 +63,18 @@ export const messages = {
     "choose_tenant.none": "You aren’t in any workspace yet. Ask a workspace admin to add you.",
     "choose_tenant.sign_out": "Sign out",
     "choose_tenant.title": "Choose a workspace",
-    "command.empty": "No matching pages or views",
+    "command.contacts_group": "Contacts",
+    "command.conversations_group": "Conversations",
+    "command.empty": "No matching conversations, contacts, or pages",
+    "command.hint_close": "Close",
+    "command.hint_navigate": "Navigate",
+    "command.hint_open": "Open",
     "command.inbox_group": "Inbox \u0026 Teams",
     "command.pages_group": "Pages \u0026 Settings",
-    "command.placeholder": "Jump to inbox, team, or settings…",
-    "command.search": "Quick jump",
+    "command.placeholder": "Search messages, contacts, inbox, or pages…",
+    "command.search": "Search \u0026 quick jump",
+    "command.searching": "Searching…",
+    "command.view_all_results": "View all {{.n}} conversations in Inbox",
     "common.cancel": "Cancel",
     "common.save": "Save",
     "common.saved": "Saved",
@@ -95,6 +102,7 @@ export const messages = {
     "contacts.email": "Email",
     "contacts.email_placeholder": "e.g. rahul@example.com",
     "contacts.empty": "No matching contacts",
+    "contacts.empty_filtered": "No contacts match the current filters",
     "contacts.external_user_id": "User ID",
     "contacts.filter_channel": "All channels",
     "contacts.filter_language": "All languages",
@@ -183,6 +191,7 @@ export const messages = {
     "home.no_pages": "Your role has no pages to open yet. Ask a workspace admin.",
     "home.title": "Workspace",
     "hours.add_interval": "Add time range",
+    "hours.apply_weekdays": "Copy Monday to weekdays",
     "hours.day.friday": "Friday",
     "hours.day.monday": "Monday",
     "hours.day.saturday": "Saturday",
@@ -315,6 +324,15 @@ export const messages = {
     "inbox.retry": "Resend",
     "inbox.said": "{{.who}}: ",
     "inbox.scroll_to_bottom": "Jump to latest",
+    "inbox.search_clear": "Clear search",
+    "inbox.search_empty": "No conversations matching “{{.q}}”",
+    "inbox.search_match_count": "{{.n}} matches",
+    "inbox.search_note_tag": "Note",
+    "inbox.search_original_tag": "Original",
+    "inbox.search_placeholder": "Search messages and notes…",
+    "inbox.search_results_count": "{{.n}} conversations found",
+    "inbox.search_scope_all": "All visible",
+    "inbox.search_scope_current": "Current list",
     "inbox.select": "Select",
     "inbox.select_all": "Select all loaded",
     "inbox.selected": "{{.n}} selected",
@@ -610,11 +628,18 @@ export const messages = {
     "choose_tenant.none": "你还不属于任何工作区，请联系工作区的管理员把你加入。",
     "choose_tenant.sign_out": "退出登录",
     "choose_tenant.title": "选择工作区",
-    "command.empty": "没有找到匹配的页面或视图",
+    "command.contacts_group": "联系人",
+    "command.conversations_group": "会话",
+    "command.empty": "没有找到匹配的会话、联系人或页面",
+    "command.hint_close": "关闭",
+    "command.hint_navigate": "选择",
+    "command.hint_open": "打开",
     "command.inbox_group": "收件箱与团队",
     "command.pages_group": "页面与设置",
-    "command.placeholder": "搜索收件箱、团队或设置页…",
-    "command.search": "快速跳转",
+    "command.placeholder": "搜索会话消息、联系人、收件箱或页面…",
+    "command.search": "搜索与快速跳转",
+    "command.searching": "正在搜索…",
+    "command.view_all_results": "在收件箱中查看全部 {{.n}} 个会话",
     "common.cancel": "取消",
     "common.save": "保存",
     "common.saved": "已保存",
@@ -642,6 +667,7 @@ export const messages = {
     "contacts.email": "邮箱",
     "contacts.email_placeholder": "例如 rahul@example.com",
     "contacts.empty": "没有符合条件的联系人",
+    "contacts.empty_filtered": "没有符合当前筛选条件的联系人",
     "contacts.external_user_id": "用户编号",
     "contacts.filter_channel": "全部渠道",
     "contacts.filter_language": "全部语言",
@@ -730,6 +756,7 @@ export const messages = {
     "home.no_pages": "你的角色还没有可以进入的页面，请联系工作区的管理员。",
     "home.title": "工作区",
     "hours.add_interval": "添加时间段",
+    "hours.apply_weekdays": "同步周一到工作日",
     "hours.day.friday": "周五",
     "hours.day.monday": "周一",
     "hours.day.saturday": "周六",
@@ -862,6 +889,15 @@ export const messages = {
     "inbox.retry": "重发",
     "inbox.said": "{{.who}}：",
     "inbox.scroll_to_bottom": "回到底部",
+    "inbox.search_clear": "清除搜索",
+    "inbox.search_empty": "没有找到包含“{{.q}}”的会话",
+    "inbox.search_match_count": "{{.n}} 条命中",
+    "inbox.search_note_tag": "备注",
+    "inbox.search_original_tag": "原文",
+    "inbox.search_placeholder": "搜索消息和备注…",
+    "inbox.search_results_count": "找到 {{.n}} 个会话",
+    "inbox.search_scope_all": "全部会话",
+    "inbox.search_scope_current": "当前列表",
     "inbox.select": "选择",
     "inbox.select_all": "全选当前列表",
     "inbox.selected": "已选 {{.n}} 个",
@@ -1160,11 +1196,18 @@ export type MessageId =
   | "choose_tenant.none"
   | "choose_tenant.sign_out"
   | "choose_tenant.title"
+  | "command.contacts_group"
+  | "command.conversations_group"
   | "command.empty"
+  | "command.hint_close"
+  | "command.hint_navigate"
+  | "command.hint_open"
   | "command.inbox_group"
   | "command.pages_group"
   | "command.placeholder"
   | "command.search"
+  | "command.searching"
+  | "command.view_all_results"
   | "common.cancel"
   | "common.save"
   | "common.saved"
@@ -1192,6 +1235,7 @@ export type MessageId =
   | "contacts.email"
   | "contacts.email_placeholder"
   | "contacts.empty"
+  | "contacts.empty_filtered"
   | "contacts.external_user_id"
   | "contacts.filter_channel"
   | "contacts.filter_language"
@@ -1280,6 +1324,7 @@ export type MessageId =
   | "home.no_pages"
   | "home.title"
   | "hours.add_interval"
+  | "hours.apply_weekdays"
   | "hours.day.friday"
   | "hours.day.monday"
   | "hours.day.saturday"
@@ -1412,6 +1457,15 @@ export type MessageId =
   | "inbox.retry"
   | "inbox.said"
   | "inbox.scroll_to_bottom"
+  | "inbox.search_clear"
+  | "inbox.search_empty"
+  | "inbox.search_match_count"
+  | "inbox.search_note_tag"
+  | "inbox.search_original_tag"
+  | "inbox.search_placeholder"
+  | "inbox.search_results_count"
+  | "inbox.search_scope_all"
+  | "inbox.search_scope_current"
   | "inbox.select"
   | "inbox.select_all"
   | "inbox.selected"

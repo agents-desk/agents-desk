@@ -70,6 +70,7 @@ export const required = {
     reopen: ["conversations:reply"],
     reply: ["conversations:reply"],
     retry: ["conversations:reply"],
+    search: ["conversations:read"],
     snooze: ["conversations:reply"],
     tagAdd: ["conversations:reply"],
     tagRemove: ["conversations:reply"],

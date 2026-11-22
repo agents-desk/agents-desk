@@ -5,10 +5,8 @@
 package translation
 
 import (
-	"context"
 	"unicode"
 
-	"github.com/cockroachdb/errors"
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/uptrace/bun"
 	"golang.org/x/text/language"
@@ -49,19 +47,6 @@ type Settings struct {
 // NewGroup 返回翻译设置，每个工作区一行（Tenant），名称 translation 保存在 settings 表中，发布后保持固定。默认语气中性、没有术语。
 func NewGroup(db bun.IDB) *settings.Group[Settings] {
 	return settings.New(db, "translation", Settings{Tone: Neutral, Glossary: []Term{}})
-}
-
-// primaryLanguages 返回工作区 tenant 的主要语言：没有停用的成员中用的人最多的语言，人数一样多时都算，按字母排列。
-// 收到的消息预先翻译成这些语言；其他语言在成员看到消息时补译（见 FillMissing），一个改了语言的测试账号只在它自己看到时多翻译一次。
-// 还没有成员时返回空。
-func primaryLanguages(ctx context.Context, db bun.IDB, tenant string) ([]string, error) {
-	var langs []string
-	err := db.NewRaw(`WITH counts AS (
-			SELECT m.language, COUNT(DISTINCT m.id) AS n FROM members m
-			JOIN authz_assignments a ON a.subject_type = 'member' AND a.subject_id = m.id::text AND a.tenant = ?
-			WHERE m.disabled_at IS NULL GROUP BY m.language)
-		SELECT language FROM counts WHERE n = (SELECT MAX(n) FROM counts) ORDER BY language`, tenant).Scan(ctx, &langs)
-	return langs, errors.Wrap(err, "load primary languages")
 }
 
 // withScript 按原文 text 实际用的文字修正模型识别出的语言标签 tag：原文主要是拉丁字母、而这门语言通常不用拉丁字母写时

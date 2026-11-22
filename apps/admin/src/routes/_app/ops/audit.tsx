@@ -4,7 +4,7 @@ import { ActivityLog, Page, useT } from "@go-tenon/ui"
 import { useState } from "react"
 import { api } from "../../../api"
 
-// 平台操作日志：展示平台域（工作区、平台管理员、平台设置、功能开关）的操作记录，支持按对象类型筛选和分页。
+// 平台操作日志：展示平台域（工作区、平台管理员、平台设置、功能开关）的操作记录表格，支持按对象类型筛选和固定分页。
 export const Route = createFileRoute("/_app/ops/audit")({
   staticData: { title: "nav.audit", icon: "file-text", order: 4, permission: "audit:read" },
   component: AuditLog,
@@ -21,7 +21,7 @@ function AuditLog() {
       <ActivityLog
         source={{
           key: ["audit", targetType],
-          list: (params) => api.audit.list({ ...params, target_type: targetType || undefined }),
+          list: (p) => api.audit.list({ ...p, target_type: targetType || undefined }),
         }}
         toolbar={
           <SegmentedControl

@@ -187,6 +187,8 @@ func (a *App) routes(pages http.Handler) chi.Router {
 				translation.Topic.Meta("queue.topic.conversation.translate.label", "queue.topic.conversation.translate.description"),
 				translation.FillTopic.Meta("queue.topic.translation.fill.label", "queue.topic.translation.fill.description"),
 				automation.Topic.Meta("queue.topic.conversation.automate.label", "queue.topic.conversation.automate.description"),
+				queue.Topic[string]("search.sync.conversation_items").Meta("queue.topic.search.sync.conversation_items.label", "queue.topic.search.sync.conversation_items.description"),
+				queue.Topic[string]("search.reindex.conversation_items").Meta("queue.topic.search.reindex.conversation_items.label", "queue.topic.search.reindex.conversation_items.description"),
 				tenant.ExportJob.Meta("queue.topic.tenants.export.label", "queue.topic.tenants.export.description"),
 			},
 		}

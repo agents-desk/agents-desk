@@ -54,7 +54,7 @@ function General(): ReactNode {
             {...form.getInputProps("reopen_window_hours")}
           />
           <Group justify="flex-end">
-            <Button type="submit" loading={saving}>
+            <Button type="submit" disabled={!form.isDirty()} loading={saving}>
               {t("common.save")}
             </Button>
           </Group>

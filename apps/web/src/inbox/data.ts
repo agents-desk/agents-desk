@@ -1,4 +1,4 @@
-import type { AttributeTarget, ConversationDTO, ConversationItemDTO, MemberTenantMember } from "@agents-desk/client/tenant"
+import type { AttributeTarget, ConversationDTO, ConversationItemDTO, ConversationSearchHitDTO, MemberTenantMember } from "@agents-desk/client/tenant"
 import { fetchAllPages } from "@go-tenon/client"
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query"
 import { kit, tenantApi } from "../api"
@@ -77,8 +77,41 @@ export function useConversationList(s: InboxSearch) {
       }),
     initialPageParam: "",
     getNextPageParam: (last) => last.next_cursor,
+    enabled: !s.q?.trim(),
   })
 }
+
+/** useConversationSearch 按关键词全文搜索会话，支持全部可见会话与当前列表两种范围，滚到底时加载下一页。 */
+export function useConversationSearch(s: InboxSearch) {
+  const q = s.q?.trim() ?? ""
+  const scope = s.scope ?? "all"
+  return useInfiniteQuery({
+    queryKey: [
+      ...kit.queries.conversation.key(),
+      "search",
+      q,
+      scope,
+      scope === "current" ? s.box : "",
+      scope === "current" ? (s.team ?? "") : "",
+      s.tag ?? "",
+    ],
+    queryFn: ({ pageParam }) =>
+      tenantApi.conversation.search({
+        q,
+        inbox: scope === "current" ? s.box : undefined,
+        team_id: scope === "current" ? s.team : undefined,
+        tag_id: s.tag,
+        page: pageParam,
+        per_page: 20,
+      }),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.page * last.per_page < last.total ? last.page + 1 : undefined),
+    enabled: q.length > 0,
+  })
+}
+
+/** flattenSearchHits 把分页的搜索结果展开成一个数组。 */
+export const flattenSearchHits = (pages: { items: ConversationSearchHitDTO[] }[] | undefined) => (pages ?? []).flatMap((p) => p.items)
 
 /** useConversation 读取会话 id。 */
 export const useConversation = (id: string) => useQuery(kit.queries.conversation.get(id))
@@ -86,20 +119,27 @@ export const useConversation = (id: string) => useQuery(kit.queries.conversation
 /**
  * useTimeline 读取会话 id 的时间线。第一次读取全部（最多 500 项）；之后推送让它失效时，从已有最后一项往前 50 个序号开始读：
  * 这一段中已有的项换成最新的（送达状态会变成已送达、已读、失败），新的项接在后面。若推送指出有更早的历史消息更新了派生内容
- * （例如看到历史消息时触发了补译），把刷新窗口往前扩展到那一条，保证译文能够刷新出来。
+ * （例如看到历史消息时触发了补译），或者需要定位到搜索命中的较早消息 focusSeq，自动拉取对应序号附近窗口并按 seq 合并。
  */
-export function useTimeline(id: string) {
+export function useTimeline(id: string, focusSeq?: number) {
   const queryClient = useQueryClient()
   const key = [...kit.queries.conversation.key(), "timeline", id]
   return useQuery<ConversationItemDTO[]>({
-    queryKey: key,
+    queryKey: [...key, focusSeq ?? 0],
     queryFn: async () => {
       const before = queryClient.getQueryData<ConversationItemDTO[]>(key) ?? []
       const last = before.at(-1)?.seq ?? 0
       const tailAfter = Math.max(0, last - 50)
       const from = consumeRefreshFrom(id)
+      const needFocus = focusSeq !== undefined && focusSeq > 0 && !before.some((it) => it.seq === focusSeq)
       let updates: ConversationItemDTO[]
-      if (from !== undefined && before.length > 0 && from <= tailAfter) {
+      if (needFocus) {
+        const [around, recent] = await Promise.all([
+          tenantApi.conversation.items(id, { around: focusSeq, limit: 200 }),
+          tenantApi.conversation.items(id, { after: tailAfter, limit: 500 }),
+        ])
+        updates = [...around, ...recent]
+      } else if (from !== undefined && before.length > 0 && from <= tailAfter) {
         const start = Math.max(0, from - 1)
         if (last - start <= 500) {
           updates = await tenantApi.conversation.items(id, { after: start, limit: 500 })
@@ -114,9 +154,12 @@ export function useTimeline(id: string) {
       } else {
         updates = await tenantApi.conversation.items(id, { after: tailAfter, limit: 500 })
       }
-      const latest = new Map(updates.map((it) => [it.id, it]))
-      const appended = [...latest.values()].filter((it) => it.seq > last).sort((a, b) => a.seq - b.seq)
-      return [...before.map((it) => latest.get(it.id) ?? it), ...appended]
+      const merged = new Map<string, ConversationItemDTO>()
+      for (const it of before) merged.set(it.id, it)
+      for (const it of updates) merged.set(it.id, it)
+      const result = [...merged.values()].sort((a, b) => a.seq - b.seq)
+      queryClient.setQueryData(key, result)
+      return result
     },
   })
 }

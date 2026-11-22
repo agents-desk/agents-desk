@@ -1,6 +1,8 @@
 import "@fontsource-variable/inter/index.css"
 import "@go-tenon/ui/styles.css"
+import "../desk.css"
 import "../tabs.css"
+import "../command-palette.css"
 import type { ReactNode } from "react"
 import { ColorSchemeScript, mantineHtmlProps } from "@mantine/core"
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts, useRouter } from "@tanstack/react-router"

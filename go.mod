@@ -49,6 +49,7 @@ require (
 	github.com/cockroachdb/redact v1.1.8 // indirect
 	github.com/coreos/go-systemd/v22 v22.7.0 // indirect
 	github.com/getsentry/sentry-go v0.50.0 // indirect
+	github.com/go-ego/gse v1.3.1 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
@@ -101,6 +102,7 @@ require (
 	github.com/tiendc/go-deepcopy v1.7.2 // indirect
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
 	github.com/uptrace/bun/dialect/pgdialect v1.3.0 // indirect
+	github.com/vcaesar/cedar v0.50.1 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/xuri/efp v0.0.3-0.20260924042702-217b81952dec // indirect

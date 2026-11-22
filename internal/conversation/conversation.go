@@ -344,6 +344,7 @@ func commit(ctx context.Context, tx database.Tx, down Downstream, c *Conversatio
 	}
 	at := now()
 	tasks := make([]Appended, 0, len(items))
+	syncIDs := make([]string, 0, len(items))
 	for _, it := range items {
 		c.LastSeq++
 		it.ID, it.Seq, it.CreatedAt, it.TenantID, it.ConversationID = newID(), c.LastSeq, at, c.TenantID, c.ID
@@ -354,12 +355,20 @@ func commit(ctx context.Context, tx database.Tx, down Downstream, c *Conversatio
 			return errors.Wrap(err, "insert timeline item")
 		}
 		tasks = append(tasks, Appended{TenantID: c.TenantID, ConversationID: c.ID, ItemID: it.ID, Seq: it.Seq})
+		if it.Searchable() {
+			syncIDs = append(syncIDs, it.ID)
+		}
 	}
 	if _, err := tx.NewUpdate().Model(c).WherePK().Exec(ctx); err != nil {
 		return errors.Wrap(err, "save conversation")
 	}
 	for _, topic := range down.Topics {
 		if err := topic.PublishAll(ctx, tx, tasks); err != nil {
+			return err
+		}
+	}
+	if len(syncIDs) > 0 {
+		if err := SearchIndex.Sync(ctx, tx, syncIDs...); err != nil {
 			return err
 		}
 	}

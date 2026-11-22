@@ -434,6 +434,18 @@ func seedConversations(ctx context.Context, out io.Writer, db *bun.DB, memberLog
 			}
 		}
 	}
+	var itemIDs []string
+	if err := db.NewSelect().Model((*conversation.Item)(nil)).ColumnExpr("id::text").
+		Where("tenant_id = ? AND kind IN (?) AND actor_type <> ?",
+			inDemo.Tenant, bun.List([]conversation.ItemKind{conversation.Message, conversation.Note}), conversation.SystemActor).
+		OrderExpr("id").Scan(ctx, &itemIDs); err != nil {
+		return errors.Wrap(err, "list seed searchable items")
+	}
+	if len(itemIDs) > 0 {
+		if err := conversation.SearchIndex.Refresh(ctx, db, conversation.LoadSearchDocs, itemIDs...); err != nil {
+			return err
+		}
+	}
 	fmt.Fprintln(out, "已在示例工作区中创建测试渠道和", len(seedChats), "个示例会话")
 	return nil
 }
