@@ -1,14 +1,15 @@
-import { ActionIcon, Avatar, Badge, Button, Group, Radio, Select, Stack, Table, Tabs, Text } from "@mantine/core"
+import { ActionIcon, Avatar, Badge, Button, Group, Radio, Stack, Table, Tabs, Text } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { IconTrash } from "@tabler/icons-react"
 import type { ErrorInfo } from "@go-tenon/client"
-import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, useT } from "@go-tenon/ui"
+import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, ResourceSelect, useT } from "@go-tenon/ui"
 import type { HoursSchedule, TeamDTO } from "@agents-desk/client/tenant"
 import { type ReactNode, useEffect, useState } from "react"
 import { tenantApi } from "../../../../../../api"
 import { emptySchedule, ScheduleFields } from "../../../../../../business-hours"
+import { members as memberResource } from "../../../../../../resources"
 import { StatusBadge } from "../../../../../../status"
 
 // 一个团队收件箱：成员（从工作区的成员中选人加入，移出团队收件箱）和工作时间（使用工作区的，或者单独设置），两个标签各自保存。权限来自上级的 teams 布局，菜单中“团队收件箱”保持选中。
@@ -24,8 +25,6 @@ function TeamMembers(): ReactNode {
   const queryClient = useQueryClient()
   const team = useQuery({ queryKey: ["team", id], queryFn: () => tenantApi.team.get(id) })
   const members = useQuery({ queryKey: ["team", id, "members"], queryFn: () => tenantApi.team.members(id) })
-  // 可以加入的人：工作区的成员中还不在这个团队收件箱里的
-  const everyone = useQuery({ queryKey: ["members", "all"], queryFn: () => tenantApi.member.list({ per_page: 100 }) })
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["team", id] })
 
   const put = useMutation({
@@ -41,7 +40,6 @@ function TeamMembers(): ReactNode {
 
   const [adding, setAdding] = useState<string | null>(null)
   const inTeam = new Set((members.data ?? []).map((m) => m.member_id))
-  const candidates = (everyone.data?.items ?? []).filter((m) => !inTeam.has(m.id))
   const add = async () => {
     if (!adding) return
     await put.mutateAsync(adding)
@@ -64,11 +62,15 @@ function TeamMembers(): ReactNode {
         <Tabs.Panel value="members" pt="md">
           <Stack gap="md">
             <Group align="flex-end" gap="sm">
-              <Select
+              <ResourceSelect
+                model={memberResource}
                 label={t("team_members.add")}
                 placeholder={t("team_members.add_placeholder")}
-                searchable
-                data={candidates.map((m) => ({ value: m.id, label: t("team_members.add_option", { name: m.name, role: m.role_name }) }))}
+                filterRow={(row) => !inTeam.has(String(row.id))}
+                getOption={(row) => ({
+                  value: String(row.id),
+                  label: t("team_members.add_option", { name: String(row.name ?? ""), role: String(row.role_name ?? "") }),
+                })}
                 value={adding}
                 onChange={setAdding}
                 nothingFoundMessage={t("team_members.no_candidates")}

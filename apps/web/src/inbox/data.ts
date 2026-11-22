@@ -1,4 +1,5 @@
 import type { AttributeTarget, ConversationDTO, ConversationItemDTO, MemberTenantMember } from "@agents-desk/client/tenant"
+import { fetchAllPages } from "@go-tenon/client"
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query"
 import { kit, tenantApi } from "../api"
 import { me } from "../auth"
@@ -10,26 +11,23 @@ import type { InboxSearch } from "./search"
 /** useMe 返回当前登录的成员。 */
 export const useMe = () => useQuery({ queryKey: ["me"], queryFn: me })
 
-/**
- * useMembers 返回工作区的成员，按 ID 查名字和头像（时间线、负责人、@ 同事、指派）。一次读取最多 100 位，
- * 第一版的工作区不超过这个人数。
- */
+/** useMembers 返回工作区的全部成员，按 ID 查名字和头像（时间线、负责人、@ 同事、指派）。 */
 export function useMembers(): { list: MemberTenantMember[]; byId: Map<string, MemberTenantMember> } {
-  const q = useQuery({ queryKey: ["members", "all"], queryFn: () => tenantApi.member.list({ per_page: 100 }), staleTime: 60_000 })
-  const list = q.data?.items ?? []
+  const q = useQuery({ queryKey: [...kit.queries.member.key(), "all"], queryFn: () => fetchAllPages((p) => tenantApi.member.list(p)), staleTime: 60_000 })
+  const list = q.data ?? []
   return { list, byId: new Map(list.map((m) => [m.id, m])) }
 }
 
-/** useTeams 返回工作区的团队收件箱：指派和详情中选择。 */
+/** useTeams 返回工作区的全部团队收件箱：指派和详情中选择。 */
 export function useTeams() {
-  const q = useQuery({ queryKey: ["teams", "all"], queryFn: () => tenantApi.team.list({ per_page: 100 }), staleTime: 60_000 })
-  return q.data?.items ?? []
+  const q = useQuery({ queryKey: [...kit.queries.team.key(), "all"], queryFn: () => fetchAllPages((p) => tenantApi.team.list(p)), staleTime: 60_000 })
+  return q.data ?? []
 }
 
-/** useTags 返回工作区的标签：收件箱筛选和详情中选择。 */
+/** useTags 返回工作区的全部标签：收件箱筛选和详情中选择。 */
 export function useTags() {
-  const q = useQuery({ queryKey: [...kit.queries.tag.key(), "all"], queryFn: () => tenantApi.tag.list({ per_page: 100 }), staleTime: 60_000 })
-  return q.data?.items ?? []
+  const q = useQuery({ queryKey: [...kit.queries.tag.key(), "all"], queryFn: () => fetchAllPages((p) => tenantApi.tag.list(p)), staleTime: 60_000 })
+  return q.data ?? []
 }
 
 /** useAttributes 返回工作区指定对象的自定义属性定义，按展示顺序排列。 */

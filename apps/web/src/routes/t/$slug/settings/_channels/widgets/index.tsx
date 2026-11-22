@@ -1,9 +1,7 @@
 import { Anchor, Badge, ColorSwatch, Group, Select, Text } from "@mantine/core"
-import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, Link } from "@tanstack/react-router"
-import { type FieldInput, ResourcePage, useT } from "@go-tenon/ui"
-import { tenantApi } from "../../../../../../api"
-import { widgets } from "../../../../../../resources"
+import { type FieldInput, ResourcePage, ResourceSelect, useT } from "@go-tenon/ui"
+import { teams, widgets } from "../../../../../../resources"
 
 // 网页聊天插件：有 channels:manage 权限的成员新建、修改、停用聊天插件；点名称进入聊天插件，拿到嵌入代码和身份验证密钥。
 export const Route = createFileRoute("/t/$slug/settings/_channels/widgets/")({
@@ -14,19 +12,17 @@ export const Route = createFileRoute("/t/$slug/settings/_channels/widgets/")({
 // TeamInput 是新会话进入的团队收件箱：从工作区的团队收件箱中选，可以清空（进入未指派）。
 const TeamInput: FieldInput = ({ label, value, onChange, error, disabled }) => {
   const t = useT()
-  const teams = useQuery({ queryKey: ["teams", "all"], queryFn: () => tenantApi.team.list({ per_page: 100 }) })
   return (
-    <Select
+    <ResourceSelect
+      model={teams}
       label={label}
       description={t("widgets.team_hint")}
       placeholder={t("widgets.team_unassigned")}
-      data={(teams.data?.items ?? []).map((team) => ({ value: team.id, label: team.name }))}
       value={(value as string | undefined) ?? null}
       onChange={(v) => onChange?.(v ?? undefined)}
       error={error}
       disabled={disabled}
       clearable
-      searchable
     />
   )
 }
