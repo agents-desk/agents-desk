@@ -161,7 +161,7 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 	}
 	var lasts []Item
 	err = db.NewRaw(`SELECT DISTINCT ON (conversation_id) * FROM timeline_items
-		WHERE conversation_id IN (?) AND kind = ? ORDER BY conversation_id, seq DESC`, bun.In(ids), Message).Scan(ctx, &lasts)
+		WHERE conversation_id IN (?) AND kind = ? ORDER BY conversation_id, (actor_type = ?), seq DESC`, bun.In(ids), Message, SystemActor).Scan(ctx, &lasts)
 	if err != nil {
 		return nil, errors.Wrap(err, "load previews")
 	}

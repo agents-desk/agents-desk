@@ -33,6 +33,17 @@ export const messages = {
     "attributes.title": "Attributes",
     "attributes.type": "Type",
     "attributes.type_locked": "Fixed once created",
+    "automations.business_hours_link": "Open business hours settings",
+    "automations.collect_lead_contact_desc": "When a visitor starts a conversation without an email address, ask them to leave one so the team can follow up.",
+    "automations.collect_lead_contact_title": "Ask leads for contact details",
+    "automations.description": "Actions that run automatically when conversation events happen. Changes take effect immediately.",
+    "automations.disabled": "Disabled",
+    "automations.enabled": "Enabled",
+    "automations.reply_time_desc": "Tell customers the typical reply time during business hours, or when you're next open outside business hours.",
+    "automations.reply_time_title": "Share reply time",
+    "automations.request_rating_desc": "Ask customers for a 1–5 star rating and comment when a conversation is closed. Reopened conversations can be rated again on the next close.",
+    "automations.request_rating_title": "Ask for a rating on close",
+    "automations.title": "Built-in automations",
     "business_hours.add_date": "Add date",
     "business_hours.closed": "Closed all day",
     "business_hours.date": "Date",
@@ -65,6 +76,7 @@ export const messages = {
     "event.attr_yes": "Yes",
     "event.closed": "{{.who}} closed the conversation",
     "event.contact_attrs_changed": "{{.who}} updated contact attributes: {{.changes}}",
+    "event.contact_email_provided": "The customer left their email {{.email}}",
     "event.contact_tag_added": "{{.who}} added tag {{.tag}} to the contact",
     "event.contact_tag_removed": "{{.who}} removed tag {{.tag}} from the contact",
     "event.conv_attrs_changed": "{{.who}} updated conversation attributes: {{.changes}}",
@@ -78,6 +90,7 @@ export const messages = {
     "event.priority_normal": "{{.who}} set the priority to normal",
     "event.rated": "The customer rated {{.score}} stars",
     "event.rated_comment": "The customer rated {{.score}} stars: {{.comment}}",
+    "event.rating_requested": "System asked the customer for a rating",
     "event.removed_team": "{{.who}} removed the conversation from its team inbox",
     "event.reopened": "{{.who}} reopened the conversation",
     "event.snoozed": "{{.who}} snoozed the conversation until {{.until}}",
@@ -289,9 +302,17 @@ export const messages = {
     "profile.tab_password": "Change password",
     "profile.upload": "Upload image",
     "profile.upload_failed": "Upload failed",
+    "prompt.collect_contact": "Leave your email so we can get back to you.",
+    "prompt.reply_time_closed": "We're currently outside business hours. We'll be back at {{.time}} and reply as soon as we can.",
+    "prompt.reply_time_closed_unknown": "We're currently outside business hours and will reply as soon as we're back.",
+    "prompt.reply_time_day": "We've got your message and typically reply within a day.",
+    "prompt.reply_time_hour": "We've got your message and typically reply within an hour.",
+    "prompt.reply_time_hours": "We've got your message and typically reply in a few hours.",
+    "prompt.reply_time_minutes": "We've got your message and typically reply in a few minutes.",
     "reports.placeholder": "Reports come with the basic reports work (R1).",
     "roles.description": "The owner has every permission and is set by a platform admin. A role that members still use stays until you give those members another role.",
     "roles.permissions_hint": "Every role can view members and team inboxes, and view and reply to the conversations it can see",
+    "settings.group_automation": "Automation",
     "settings.group_channels": "Channels",
     "settings.group_data": "Data",
     "settings.group_inbox": "Inbox",
@@ -400,6 +421,17 @@ export const messages = {
     "attributes.title": "属性",
     "attributes.type": "类型",
     "attributes.type_locked": "创建后不能修改",
+    "automations.business_hours_link": "前往工作时间设置",
+    "automations.collect_lead_contact_desc": "以访客身份咨询且还没有留下邮箱时，在会话中请他留下邮箱，方便后续联系。",
+    "automations.collect_lead_contact_title": "请线索留联系方式",
+    "automations.description": "会话发生特定事件时自动执行的操作。开关修改后立即生效。",
+    "automations.disabled": "已停用",
+    "automations.enabled": "已启用",
+    "automations.reply_time_desc": "工作时间内告知客户通常多久回复；非工作时间告知下次上班的时间，按工作时间设置计算。",
+    "automations.reply_time_title": "告知回复时间",
+    "automations.request_rating_desc": "会话关闭后请客户给出 1 到 5 星评价和意见；会话重新打开、再次关闭后会再次邀请。",
+    "automations.request_rating_title": "关闭后请客户评价",
+    "automations.title": "内置自动化",
     "business_hours.add_date": "添加日期",
     "business_hours.closed": "全天不上班",
     "business_hours.date": "日期",
@@ -432,6 +464,7 @@ export const messages = {
     "event.attr_yes": "是",
     "event.closed": "{{.who}} 关闭了会话",
     "event.contact_attrs_changed": "{{.who}} 修改了联系人属性：{{.changes}}",
+    "event.contact_email_provided": "客户留下了邮箱 {{.email}}",
     "event.contact_tag_added": "{{.who}} 给联系人添加了标签 {{.tag}}",
     "event.contact_tag_removed": "{{.who}} 移除了联系人标签 {{.tag}}",
     "event.conv_attrs_changed": "{{.who}} 修改了会话属性：{{.changes}}",
@@ -445,6 +478,7 @@ export const messages = {
     "event.priority_normal": "{{.who}} 把优先级改为普通",
     "event.rated": "客户评价了 {{.score}} 星",
     "event.rated_comment": "客户评价了 {{.score}} 星：{{.comment}}",
+    "event.rating_requested": "系统向客户发出了评价邀请",
     "event.removed_team": "{{.who}} 把会话移出了团队收件箱",
     "event.reopened": "{{.who}} 重新打开了会话",
     "event.snoozed": "{{.who}} 把会话稍后处理到 {{.until}}",
@@ -656,9 +690,17 @@ export const messages = {
     "profile.tab_password": "修改密码",
     "profile.upload": "上传图片",
     "profile.upload_failed": "上传失败",
+    "prompt.collect_contact": "请留下你的邮箱，方便我们后续联系你。",
+    "prompt.reply_time_closed": "当前为非工作时间，我们将在 {{.time}} 恢复工作后尽快回复。",
+    "prompt.reply_time_closed_unknown": "当前为非工作时间，我们将在恢复工作后尽快回复。",
+    "prompt.reply_time_day": "我们已收到你的消息，通常会在一天内回复。",
+    "prompt.reply_time_hour": "我们已收到你的消息，通常会在一小时内回复。",
+    "prompt.reply_time_hours": "我们已收到你的消息，通常会在几小时内回复。",
+    "prompt.reply_time_minutes": "我们已收到你的消息，通常会在几分钟内回复。",
     "reports.placeholder": "各张报表在基础报表的开发（R1）中加入。",
     "roles.description": "主管理员拥有全部权限，由平台管理员指定。还有成员使用的角色不能删除，先把他们改成别的角色。",
     "roles.permissions_hint": "每个角色都能查看成员和团队收件箱、查看和回复看得到的会话",
+    "settings.group_automation": "自动化",
     "settings.group_channels": "渠道",
     "settings.group_data": "数据",
     "settings.group_inbox": "收件箱",
@@ -770,6 +812,17 @@ export type MessageId =
   | "attributes.title"
   | "attributes.type"
   | "attributes.type_locked"
+  | "automations.business_hours_link"
+  | "automations.collect_lead_contact_desc"
+  | "automations.collect_lead_contact_title"
+  | "automations.description"
+  | "automations.disabled"
+  | "automations.enabled"
+  | "automations.reply_time_desc"
+  | "automations.reply_time_title"
+  | "automations.request_rating_desc"
+  | "automations.request_rating_title"
+  | "automations.title"
   | "business_hours.add_date"
   | "business_hours.closed"
   | "business_hours.date"
@@ -802,6 +855,7 @@ export type MessageId =
   | "event.attr_yes"
   | "event.closed"
   | "event.contact_attrs_changed"
+  | "event.contact_email_provided"
   | "event.contact_tag_added"
   | "event.contact_tag_removed"
   | "event.conv_attrs_changed"
@@ -815,6 +869,7 @@ export type MessageId =
   | "event.priority_normal"
   | "event.rated"
   | "event.rated_comment"
+  | "event.rating_requested"
   | "event.removed_team"
   | "event.reopened"
   | "event.snoozed"
@@ -1026,9 +1081,17 @@ export type MessageId =
   | "profile.tab_password"
   | "profile.upload"
   | "profile.upload_failed"
+  | "prompt.collect_contact"
+  | "prompt.reply_time_closed"
+  | "prompt.reply_time_closed_unknown"
+  | "prompt.reply_time_day"
+  | "prompt.reply_time_hour"
+  | "prompt.reply_time_hours"
+  | "prompt.reply_time_minutes"
   | "reports.placeholder"
   | "roles.description"
   | "roles.permissions_hint"
+  | "settings.group_automation"
   | "settings.group_channels"
   | "settings.group_data"
   | "settings.group_inbox"

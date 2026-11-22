@@ -32,6 +32,13 @@ export const schemas = {
       },
     },
   },
+  automation: {
+    update: {
+      body: {
+        "$ref": "#/components/schemas/AutomationUpdateBody"
+      },
+    },
+  },
   conversation: {
     assign: {
       body: {
@@ -523,6 +530,18 @@ export const components = {
     },
     "required": [
       "name"
+    ],
+    "type": "object"
+  },
+  AutomationUpdateBody: {
+    "additionalProperties": false,
+    "properties": {
+      "enabled": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "enabled"
     ],
     "type": "object"
   },

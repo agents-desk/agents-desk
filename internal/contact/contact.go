@@ -24,8 +24,14 @@ import (
 // Type 是联系人这套账号体系：客户在聊天插件等渠道中以联系人的身份调用接口，令牌绑定联系人所在的工作区。
 const Type identity.SubjectType = "contact"
 
-// ErrNotFound 是联系人不存在，或者属于别的工作区。
-var ErrNotFound = errorx.Define(errorx.NotFound, "contact.not_found")
+var (
+	// ErrNotFound 是联系人不存在，或者属于别的工作区。
+	ErrNotFound = errorx.Define(errorx.NotFound, "contact.not_found")
+	// ErrForbidden 是调用者不能修改这位联系人。
+	ErrForbidden = errorx.Define(errorx.PermissionDenied, "contact.forbidden")
+	// ErrNotLead 是已登录用户的邮箱由产品后端签名提供，不能通过访客表单修改。
+	ErrNotLead = errorx.Define(errorx.PermissionDenied, "contact.not_lead")
+)
 
 // Kind 是联系人的类型。
 type Kind string

@@ -4,7 +4,7 @@ import type { ReactNode } from "react"
 import { ColorSchemeScript, mantineHtmlProps } from "@mantine/core"
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts, useRouter } from "@tanstack/react-router"
 import { type RouterContext, UIProvider } from "@go-tenon/ui"
-import { IconAddressBook, IconInbox } from "@tabler/icons-react"
+import { IconAddressBook, IconBolt, IconInbox } from "@tabler/icons-react"
 import { i18n } from "../i18n"
 import { theme } from "../theme"
 
@@ -17,8 +17,8 @@ export const Route = createRootRouteWithContext<RouterContext>()({
   component: Outlet,
 })
 
-// 框架自带的图标之外，图标栏中模块用到的图标。
-const icons = { inbox: IconInbox, contacts: IconAddressBook }
+// 框架自带的图标之外，图标栏和设置菜单中用到的图标。
+const icons = { inbox: IconInbox, contacts: IconAddressBook, bolt: IconBolt }
 
 function Document({ children }: { children: ReactNode }) {
   // nonce 由 Go 为每个请求生成，内联脚本带上它才能通过内容安全策略。

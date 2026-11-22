@@ -4,6 +4,7 @@ import { IconHeadset, IconPlus } from "@tabler/icons-react"
 import { useLanguage, useT } from "@go-tenon/ui"
 import type { ReactNode } from "react"
 import { ago } from "./format"
+import { promptText } from "./Prompt"
 
 /** HomeProps 是首页的内容。 */
 interface HomeProps {
@@ -53,7 +54,7 @@ export function Home({ color, name, conversations, onOpen, onNew }: HomeProps): 
                       </Text>
                     </Group>
                     <Text size="sm" c={c.unread > 0 ? undefined : "dimmed"} fw={c.unread > 0 ? 500 : undefined} truncate>
-                      {c.preview}
+                      {promptText(c.preview_prompt, c.preview, language, t)}
                     </Text>
                   </Box>
                 </Group>

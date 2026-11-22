@@ -133,6 +133,13 @@ function createIdentity() {
       await startedOnce
       await pending
     },
+    /** updateContact 在客户留下邮箱等资料后更新当前会话中的联系人，并通知订阅者。 */
+    updateContact(contact: ContactSummary) {
+      if (!current) return
+      current = { ...current, contact }
+      save("session", JSON.stringify(current))
+      changed()
+    },
     token: () => current?.token,
     contact: () => current?.contact,
     subscribe(listener: () => void) {

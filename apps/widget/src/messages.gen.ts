@@ -12,6 +12,11 @@ export const messages = {
     "chat.sending": "Sending…",
     "chat.status_closed": "Ended",
     "chat.status_open": "In progress",
+    "collect_email.invalid": "Please enter a valid email address",
+    "collect_email.placeholder": "Enter your email address",
+    "collect_email.saved": "Email saved: {{.email}}",
+    "collect_email.submit": "Submit",
+    "collect_email.title": "Leave your email so we can get back to you",
     "composer.hint": "Enter to send, Shift + Enter for a new line",
     "composer.placeholder": "Type a message…",
     "composer.reopen_placeholder": "Send a message to reopen this conversation…",
@@ -39,6 +44,13 @@ export const messages = {
     "panel.close": "Close",
     "panel.collapse": "Collapse",
     "panel.unavailable": "Support chat is unavailable right now. Please try again later.",
+    "prompt.collect_contact": "Leave your email so we can get back to you.",
+    "prompt.reply_time_closed": "We're currently outside business hours. We'll be back at {{.time}} and reply as soon as we can.",
+    "prompt.reply_time_closed_unknown": "We're currently outside business hours and will reply as soon as we're back.",
+    "prompt.reply_time_day": "We've got your message and typically reply within a day.",
+    "prompt.reply_time_hour": "We've got your message and typically reply within an hour.",
+    "prompt.reply_time_hours": "We've got your message and typically reply in a few hours.",
+    "prompt.reply_time_minutes": "We've got your message and typically reply in a few minutes.",
     "rating.comment_placeholder": "Anything else you'd like to tell us? (optional)",
     "rating.question": "How was our service?",
     "rating.score_1": "Very unsatisfied",
@@ -64,6 +76,11 @@ export const messages = {
     "chat.sending": "发送中…",
     "chat.status_closed": "已结束",
     "chat.status_open": "会话进行中",
+    "collect_email.invalid": "请输入有效的邮箱地址",
+    "collect_email.placeholder": "输入你的邮箱地址",
+    "collect_email.saved": "已留下邮箱：{{.email}}",
+    "collect_email.submit": "提交",
+    "collect_email.title": "请留下你的邮箱，方便我们后续联系你",
     "composer.hint": "回车发送，Shift + 回车换行",
     "composer.placeholder": "输入消息…",
     "composer.reopen_placeholder": "继续发消息会重新打开会话…",
@@ -91,6 +108,13 @@ export const messages = {
     "panel.close": "关闭",
     "panel.collapse": "收起",
     "panel.unavailable": "在线客服暂时不可用，请稍后再试。",
+    "prompt.collect_contact": "请留下你的邮箱，方便我们后续联系你。",
+    "prompt.reply_time_closed": "当前为非工作时间，我们将在 {{.time}} 恢复工作后尽快回复。",
+    "prompt.reply_time_closed_unknown": "当前为非工作时间，我们将在恢复工作后尽快回复。",
+    "prompt.reply_time_day": "我们已收到你的消息，通常会在一天内回复。",
+    "prompt.reply_time_hour": "我们已收到你的消息，通常会在一小时内回复。",
+    "prompt.reply_time_hours": "我们已收到你的消息，通常会在几小时内回复。",
+    "prompt.reply_time_minutes": "我们已收到你的消息，通常会在几分钟内回复。",
     "rating.comment_placeholder": "还想说点什么？（选填）",
     "rating.question": "这次服务怎么样？",
     "rating.score_1": "很不满意",
@@ -119,6 +143,11 @@ export type MessageId =
   | "chat.sending"
   | "chat.status_closed"
   | "chat.status_open"
+  | "collect_email.invalid"
+  | "collect_email.placeholder"
+  | "collect_email.saved"
+  | "collect_email.submit"
+  | "collect_email.title"
   | "composer.hint"
   | "composer.placeholder"
   | "composer.reopen_placeholder"
@@ -146,6 +175,13 @@ export type MessageId =
   | "panel.close"
   | "panel.collapse"
   | "panel.unavailable"
+  | "prompt.collect_contact"
+  | "prompt.reply_time_closed"
+  | "prompt.reply_time_closed_unknown"
+  | "prompt.reply_time_day"
+  | "prompt.reply_time_hour"
+  | "prompt.reply_time_hours"
+  | "prompt.reply_time_minutes"
   | "rating.comment_placeholder"
   | "rating.question"
   | "rating.score_1"

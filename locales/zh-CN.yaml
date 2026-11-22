@@ -118,6 +118,8 @@ translation.tone.formal: 正式
 "permission.conversations:read-team": 可以看到所在团队收件箱的会话
 
 contact.not_found: 联系人不存在
+contact.forbidden: 你没有权限修改这位联系人
+contact.not_lead: 已登录用户的邮箱由产品自动同步，不能在这里修改
 contact.kind.user: 用户
 contact.kind.lead: 线索
 
@@ -147,6 +149,7 @@ widget.descriptions.enabled: 停用后聊天窗口不再显示，客户不能再
 conversation.not_found: 会话不存在
 conversation.forbidden: 你没有权限执行这个操作
 conversation.not_closed: 会话还没有关闭，关闭后才能评价
+conversation.rating_not_requested: 这个会话没有开启关闭后评价
 conversation.already_rated: 这次已经评价过了
 conversation.not_failed: 这条消息没有发送失败，不用重发
 conversation.closed: 会话已经关闭，先重新打开
@@ -214,3 +217,11 @@ attribute.type.boolean: 开关
 attribute.type.date: 日期
 attribute.type.select: 单选
 attribute.type.multi_select: 多选
+
+automation.not_found: 自动化规则不存在
+automation.forbidden: 你没有管理自动化的权限
+automation.trigger.conversation.first_message: 客户发来第一条消息时
+automation.trigger.conversation.closed: 会话关闭时
+automation.builtin.reply_time: 告知回复时间
+automation.builtin.collect_lead_contact: 请线索留联系方式
+automation.builtin.request_rating: 关闭后请客户评价

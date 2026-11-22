@@ -36,6 +36,8 @@ var (
 	ErrForbidden = errorx.Define(errorx.PermissionDenied, "conversation.forbidden")
 	// ErrNotClosed 是会话还没有关闭，客户不能评价。
 	ErrNotClosed = errorx.Define(errorx.Conflict, "conversation.not_closed")
+	// ErrRatingNotRequested 是这次关闭没有向客户发出评价邀请，不能评价。
+	ErrRatingNotRequested = errorx.Define(errorx.Conflict, "conversation.rating_not_requested")
 	// ErrAlreadyRated 是客户已经评价过这次关闭的会话；会话重新打开、再关闭后可以再评价。
 	ErrAlreadyRated = errorx.Define(errorx.Conflict, "conversation.already_rated")
 )
@@ -151,27 +153,28 @@ type Conversation struct {
 
 	ID string `bun:"id,pk"`
 	database.Timestamps
-	TenantID      string         `bun:"tenant_id,notnull"`
-	Kind          Kind           `bun:"kind,notnull"`
-	ChannelID     *string        `bun:"channel_id"`
-	ContactID     *string        `bun:"contact_id"`
-	TeamID        *string        `bun:"team_id"`                 // 团队收件箱；为空表示未指派到团队
-	AssigneeType  ActorType      `bun:"assignee_type,notnull"`   // 负责人的类型；为空表示没有负责人
-	AssigneeID    string         `bun:"assignee_id,notnull"`     // 负责人的编号
-	Status        Status         `bun:"status,notnull"`          // 服务型会话的状态
-	SnoozedUntil  *time.Time     `bun:"snoozed_until"`           // 稍后处理的到期时间
-	Priority      Priority       `bun:"priority,notnull"`        // 优先级
-	Language      string         `bun:"language,notnull"`        // 客户的语言，见 CustomerLanguage
-	WaitingSince  *time.Time     `bun:"waiting_since"`           // 对方的消息开始等待回复的时间；已回复时为空
-	FirstReplyAt  *time.Time     `bun:"first_reply_at"`          // 第一次回复的时间
-	ClosedAt      *time.Time     `bun:"closed_at"`               // 最近一次关闭的时间
-	LastMessageAt time.Time      `bun:"last_message_at,notnull"` // 最近一条消息的时间
-	LastSeq       int64          `bun:"last_seq,notnull"`        // 时间线中最新一项的序号
-	Attributes    map[string]any `bun:"attributes,type:jsonb,notnull"`
-	Rating        *int           `bun:"rating"`                 // 客户最近一次评价的星数，1 到 5；没有评价过时为空
-	RatingComment string         `bun:"rating_comment,notnull"` // 评价时附的一句意见
-	RatedAt       *time.Time     `bun:"rated_at"`               // 最近一次评价的时间
-	MentionedAt   *time.Time     `bun:"mentioned_at,scanonly"`  // 只在“@我”的列表中读出：最近一次被 @ 的时间
+	TenantID          string         `bun:"tenant_id,notnull"`
+	Kind              Kind           `bun:"kind,notnull"`
+	ChannelID         *string        `bun:"channel_id"`
+	ContactID         *string        `bun:"contact_id"`
+	TeamID            *string        `bun:"team_id"`                 // 团队收件箱；为空表示未指派到团队
+	AssigneeType      ActorType      `bun:"assignee_type,notnull"`   // 负责人的类型；为空表示没有负责人
+	AssigneeID        string         `bun:"assignee_id,notnull"`     // 负责人的编号
+	Status            Status         `bun:"status,notnull"`          // 服务型会话的状态
+	SnoozedUntil      *time.Time     `bun:"snoozed_until"`           // 稍后处理的到期时间
+	Priority          Priority       `bun:"priority,notnull"`        // 优先级
+	Language          string         `bun:"language,notnull"`        // 客户的语言，见 CustomerLanguage
+	WaitingSince      *time.Time     `bun:"waiting_since"`           // 对方的消息开始等待回复的时间；已回复时为空
+	FirstReplyAt      *time.Time     `bun:"first_reply_at"`          // 第一次回复的时间
+	ClosedAt          *time.Time     `bun:"closed_at"`               // 最近一次关闭的时间
+	LastMessageAt     time.Time      `bun:"last_message_at,notnull"` // 最近一条消息的时间
+	LastSeq           int64          `bun:"last_seq,notnull"`        // 时间线中最新一项的序号
+	Attributes        map[string]any `bun:"attributes,type:jsonb,notnull"`
+	Rating            *int           `bun:"rating"`                 // 客户最近一次评价的星数，1 到 5；没有评价过时为空
+	RatingComment     string         `bun:"rating_comment,notnull"` // 评价时附的一句意见
+	RatedAt           *time.Time     `bun:"rated_at"`               // 最近一次评价的时间
+	RatingRequestedAt *time.Time     `bun:"rating_requested_at"`    // 最近一次关闭后向客户发出评价邀请的时间
+	MentionedAt       *time.Time     `bun:"mentioned_at,scanonly"`  // 只在“@我”的列表中读出：最近一次被 @ 的时间
 }
 
 // Rating 是客户对会话的评价。
@@ -194,6 +197,11 @@ func (c *Conversation) ratedSinceClosed() bool {
 	return c.RatedAt != nil && c.ClosedAt != nil && !c.RatedAt.Before(*c.ClosedAt)
 }
 
+// ratingRequestedSinceClosed 报告会话最近一次关闭之后有没有向客户发出过评价邀请。
+func (c *Conversation) ratingRequestedSinceClosed() bool {
+	return c.RatingRequestedAt != nil && c.ClosedAt != nil && !c.RatingRequestedAt.Before(*c.ClosedAt)
+}
+
 // Participant 是会话的一个参与者。
 type Participant struct {
 	bun.BaseModel `bun:"table:conversation_participants"`
@@ -204,6 +212,13 @@ type Participant struct {
 	CreatedAt      time.Time `bun:"created_at,notnull"`
 }
 
+// Prompt 是系统发出的结构化提示或交互卡片（例如告知回复时间、请线索留联系方式）：
+// 前端优先按它用客户或成员的语言渲染，不支持卡片的外部渠道使用 Content.Text。
+type Prompt struct {
+	Kind   string         `json:"kind" doc:"提示的种类：reply_time_open、reply_time_closed、collect_contact"`
+	Params map[string]any `json:"params,omitempty" doc:"渲染提示用的参数"`
+}
+
 // Content 是时间线中一项的内容：消息和备注的文字，或者系统事件的名称和数据。
 type Content struct {
 	Text     string         `json:"text,omitempty" doc:"文字；翻译后发出的回复是发给对方的译文"`
@@ -212,6 +227,7 @@ type Content struct {
 	Mentions []string       `json:"mentions,omitempty" doc:"内部备注中 @ 到的成员 ID"`
 	Event    string         `json:"event,omitempty" doc:"系统事件的名称，例如 conversation.reopened"`
 	Data     map[string]any `json:"data,omitempty" doc:"系统事件的数据"`
+	Prompt   *Prompt        `json:"prompt,omitempty" doc:"系统发出的结构化提示或交互卡片"`
 }
 
 // Item 是时间线中的一项，写入后保持原样。
@@ -341,7 +357,7 @@ func commit(ctx context.Context, tx database.Tx, down Downstream, c *Conversatio
 }
 
 // contactSees 报告这次修改要不要推送给会话 c 的对方（联系人）：会话来自渠道、有联系人、设置了 ContactPush，
-// 并且状态变了，或者 items 中有联系人自己发的消息。要在保存 c 之前调用，修改前的状态从数据库中读取。
+// 并且状态变了、发出了评价邀请，或者 items 中有联系人自己发的消息。要在保存 c 之前调用，修改前的状态从数据库中读取。
 func contactSees(ctx context.Context, db bun.IDB, down Downstream, c *Conversation, items []*Item) (bool, error) {
 	if down.ContactPush == nil || c.ChannelID == nil || c.ContactID == nil {
 		return false, nil
@@ -351,11 +367,22 @@ func contactSees(ctx context.Context, db bun.IDB, down Downstream, c *Conversati
 			return true, nil
 		}
 	}
-	var before Status
-	if err := db.NewSelect().Table("conversations").Column("status").Where("id = ?", c.ID).Scan(ctx, &before); err != nil {
+	var before struct {
+		Status            Status     `bun:"status"`
+		RatingRequestedAt *time.Time `bun:"rating_requested_at"`
+	}
+	if err := db.NewSelect().Table("conversations").Column("status", "rating_requested_at").Where("id = ?", c.ID).Scan(ctx, &before); err != nil {
 		return false, errors.Wrap(err, "load status before change")
 	}
-	return before != c.Status, nil
+	return before.Status != c.Status || !sameTime(before.RatingRequestedAt, c.RatingRequestedAt), nil
+}
+
+// sameTime 报告两个可选时间是否相等。
+func sameTime(a, b *time.Time) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return a.Equal(*b)
 }
 
 // join 在事务 tx 中把参与者加入会话 conversationID，已经在其中时保持原样。

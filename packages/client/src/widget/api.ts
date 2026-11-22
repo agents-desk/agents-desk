@@ -41,8 +41,12 @@ export interface ConversationContactConversationDTO {
   preview: string
   /** 最后一条消息是谁发的 */
   preview_author: ConversationContactAuthor
-  /** 客户对最近一次关闭的评价；会话已关闭而它为空时可以评价 */
+  /** 最后一条消息的结构化提示；不为空时前端按客户的语言渲染 */
+  preview_prompt?: ConversationPrompt
+  /** 客户对最近一次关闭的评价；会话已关闭且 rating_requested 为真、它为空时可以评价 */
   rating?: ConversationRating
+  /** 这次关闭是否向客户发出了评价邀请；为真且 rating 为空时可以评价 */
+  rating_requested: boolean
   /** 打开或已关闭；稍后处理的会话对客户显示为打开 */
   status: ConversationStatus
   /** 成员发来、联系人还没读到的消息数 */
@@ -54,11 +58,20 @@ export interface ConversationContactItemDTO {
   created_at: string
   id: string
   kind: ConversationItemKind
+  /** 系统发出的结构化提示或交互卡片 */
+  prompt?: ConversationPrompt
   seq: number
   text: string
 }
 
 export type ConversationItemKind = "message" | "note" | "event"
+
+export interface ConversationPrompt {
+  /** 提示的种类：reply_time_open、reply_time_closed、collect_contact */
+  kind: string
+  /** 渲染提示用的参数 */
+  params?: Record<string, unknown>
+}
 
 export interface ConversationRating {
   /** 附的一句意见 */
@@ -117,6 +130,13 @@ export interface WidgetConfigDTO {
   name: string
 }
 
+export interface WidgetContactEmailBody {
+  /** 当前所在的会话；填写时在会话时间线中记下事件并通知成员刷新 */
+  conversation_id?: string
+  /** 线索留下的邮箱 */
+  email: string
+}
+
 export interface WidgetMessageBody {
   /** 聊天窗口为这条消息生成的编号；网络出错重发时带同一个编号，消息只记录一次 */
   client_id?: string
@@ -167,6 +187,16 @@ export interface ConversationItemsInput {
 export function createClient(options: ClientOptions) {
   const rt = new Runtime(options)
   return {
+    /** operationId 以 contact- 开头的接口。 */
+    contact: {
+      /**
+       * 线索留下邮箱
+       *
+       * POST /contact/email
+       */
+      email: (body: WidgetContactEmailBody): Promise<ContactSummary> =>
+        rt.request<ContactSummary>({ method: "POST", path: `/contact/email`, body }),
+    },
     /** operationId 以 conversation- 开头的接口。 */
     conversation: {
       /**

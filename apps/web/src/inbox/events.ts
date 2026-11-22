@@ -95,6 +95,10 @@ export function describeEvent(it: ConversationItemDTO, members: Map<string, Memb
       return d.comment
         ? t("event.rated_comment", { score: Number(d.score), comment: String(d.comment) })
         : t("event.rated", { score: Number(d.score) })
+    case "conversation.rating_requested":
+      return t("event.rating_requested")
+    case "contact.email_provided":
+      return t("event.contact_email_provided", { email: String(d.email ?? "") })
     default:
       return it.content.event ?? ""
   }

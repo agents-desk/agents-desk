@@ -83,7 +83,8 @@ const (
 // 所以基本都是客户的语言。before 为 0 时取最近的。没有时返回空字符串。
 func (tr *Translator) history(ctx context.Context, tenant, conversationID string, before int64) (string, error) {
 	q := tr.db.NewSelect().Model((*conversation.Item)(nil)).Column("actor_type", "content").
-		Where("tenant_id = ? AND conversation_id = ? AND kind = ? AND visibility = ?", tenant, conversationID, conversation.Message, conversation.Everyone).
+		Where("tenant_id = ? AND conversation_id = ? AND kind = ? AND visibility = ? AND actor_type <> ?",
+			tenant, conversationID, conversation.Message, conversation.Everyone, conversation.SystemActor).
 		Where("content->>'text' <> ''").OrderExpr("seq DESC").Limit(historyMessages)
 	if before > 0 {
 		q = q.Where("seq < ?", before)

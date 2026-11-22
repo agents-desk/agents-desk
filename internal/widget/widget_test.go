@@ -378,13 +378,24 @@ func TestRating(t *testing.T) {
 		t.Fatalf("稍后处理的会话：%+v %v", c, err)
 	}
 
-	// 关闭：推送给客户，客户看到已关闭、可以评价
+	// 关闭：推送给客户；还没有发出评价邀请时不能评价，系统发出评价邀请后推送给客户，客户看到可以评价
 	if _, err := conversation.NewClose(env.DB, down).Handle(ctx, f.agent, sent.ConversationID); err != nil {
 		t.Fatal(err)
 	}
 	expectPush("关闭")
-	if c, err := get.Handle(ctx, visitor, f.widget.ID, sent.ConversationID); err != nil || c.Status != conversation.Closed || c.Rating != nil {
-		t.Fatalf("关闭后：%+v %v", c, err)
+	if c, err := get.Handle(ctx, visitor, f.widget.ID, sent.ConversationID); err != nil || c.Status != conversation.Closed || c.RatingRequested || c.Rating != nil {
+		t.Fatalf("关闭后、未邀请前：%+v %v", c, err)
+	}
+	if _, err := rate.Handle(ctx, visitor, f.widget.ID, sent.ConversationID, 5, ""); !errors.Is(err, conversation.ErrRatingNotRequested) {
+		t.Fatalf("未邀请时评价：%v", err)
+	}
+	reqRating := conversation.NewRequestRating(env.DB, down)
+	if ok, err := reqRating.Handle(ctx, f.system, sent.ConversationID); err != nil || !ok {
+		t.Fatalf("发出评价邀请：%v %v", ok, err)
+	}
+	expectPush("邀请评价")
+	if c, err := get.Handle(ctx, visitor, f.widget.ID, sent.ConversationID); err != nil || c.Status != conversation.Closed || !c.RatingRequested || c.Rating != nil {
+		t.Fatalf("邀请评价后：%+v %v", c, err)
 	}
 	rated, err := rate.Handle(ctx, visitor, f.widget.ID, sent.ConversationID, 4, "挺快的")
 	if err != nil || rated.Rating == nil || rated.Rating.Score != 4 || rated.Rating.Comment != "挺快的" {
@@ -405,18 +416,22 @@ func TestRating(t *testing.T) {
 		t.Fatalf("客户看到的时间线：%+v %v", theirs, err)
 	}
 
-	// 客户再发消息重新打开，坐席再关闭后可以再评价
+	// 客户再发消息重新打开，坐席再关闭并邀请评价后可以再评价
 	if _, err := send.Handle(in, visitor, sent.ConversationID, MessageBody{Text: "one more thing"}); err != nil {
 		t.Fatal(err)
 	}
 	expectPush("重新打开")
-	if c, err := get.Handle(ctx, visitor, f.widget.ID, sent.ConversationID); err != nil || c.Status != conversation.Open || c.Rating != nil {
+	if c, err := get.Handle(ctx, visitor, f.widget.ID, sent.ConversationID); err != nil || c.Status != conversation.Open || c.RatingRequested || c.Rating != nil {
 		t.Fatalf("重新打开后：%+v %v", c, err)
 	}
 	if _, err := conversation.NewClose(env.DB, down).Handle(ctx, f.agent, sent.ConversationID); err != nil {
 		t.Fatal(err)
 	}
 	expectPush("再关闭")
+	if ok, err := reqRating.Handle(ctx, f.system, sent.ConversationID); err != nil || !ok {
+		t.Fatalf("再次邀请评价：%v %v", ok, err)
+	}
+	expectPush("再次邀请评价")
 	if again, err := rate.Handle(ctx, visitor, f.widget.ID, sent.ConversationID, 5, ""); err != nil || again.Rating.Score != 5 {
 		t.Fatalf("再关闭后评价：%+v %v", again, err)
 	}

@@ -11,6 +11,7 @@ import { type FillWatcher, useFillVisible } from "./fill"
 import { describeEvent, whoDid } from "./events"
 import { clock, dayLabel, sameDay } from "./format"
 import { contactName } from "./List"
+import { promptText } from "./prompts"
 
 /** deliveryColor 是送达状态的颜色：已读是进行中的颜色，失败是红色，其余是灰色。 */
 const deliveryColor = { sending: "dimmed", delivered: "dimmed", read: "bright-blue", failed: "red" } as const
@@ -124,6 +125,7 @@ interface MessageProps {
 function Message({ it, c, mine, author, time, lang, original, translating, watch }: MessageProps): ReactNode {
   const t = useT()
   const ui = useLanguage()
+  const zone = useTimeZone()
   const [prevOriginal, setPrevOriginal] = useState(original)
   const [flip, setFlip] = useState(false) // 这一条和顶部的“显示原文”相反；顶部切换时重置
   if (prevOriginal !== original) {
@@ -138,8 +140,9 @@ function Message({ it, c, mine, author, time, lang, original, translating, watch
     onError: (err) => notifyError(err),
   })
 
-  // 对方的消息：有成员语言的译文时显示译文；成员翻译后发出的消息：显示原文，content.text 是发给对方的译文
-  const text = it.content.text ?? ""
+  // 对方的消息：有成员语言的译文时显示译文；成员翻译后发出的消息：显示原文，content.text 是发给对方的译文；
+  // 系统发出的结构化提示：按成员的界面语言和时区渲染
+  const text = it.content.prompt ? promptText(it.content.prompt, it.content.text ?? "", ui, t, zone) : (it.content.text ?? "")
   const translated = mine ? undefined : translationOf(it, lang)
   const showOriginal = original !== flip
   const sentAs = mine && it.content.original ? it.content.language : undefined

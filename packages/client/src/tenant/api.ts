@@ -51,6 +51,30 @@ export interface AttributeUpdateParams {
   position?: number
 }
 
+export type AutomationBuiltin = "reply_time" | "collect_lead_contact" | "request_rating"
+
+export interface AutomationRuleDTO {
+  /** 内置规则的固定标识；自定义规则为空 */
+  builtin_key?: AutomationBuiltin
+  /** 是否启用 */
+  enabled: boolean
+  id: string
+  /** 规则名称；内置规则为空，前端按 builtin_key 显示 */
+  name: string
+  /** 同一触发时机下的执行顺序，小的先执行 */
+  position: number
+  /** 触发时机 */
+  trigger: AutomationTrigger
+  updated_at: string
+}
+
+export type AutomationTrigger = "conversation.first_message" | "conversation.closed"
+
+export interface AutomationUpdateBody {
+  /** 是否启用这条自动化规则 */
+  enabled: boolean
+}
+
 export type ChannelKind = "test" | "widget"
 
 export interface ChannelSummary {
@@ -133,6 +157,8 @@ export interface ConversationContent {
   mentions?: string[]
   /** 成员写的原文；只有翻译后发出的回复有 */
   original?: string
+  /** 系统发出的结构化提示或交互卡片 */
+  prompt?: ConversationPrompt
   /** 文字；翻译后发出的回复是发给对方的译文 */
   text?: string
 }
@@ -236,6 +262,13 @@ export type ConversationPriority = "normal" | "high"
 
 export interface ConversationPriorityInputBody {
   priority: ConversationPriority
+}
+
+export interface ConversationPrompt {
+  /** 提示的种类：reply_time_open、reply_time_closed、collect_contact */
+  kind: string
+  /** 渲染提示用的参数 */
+  params?: Record<string, unknown>
 }
 
 export interface ConversationRating {
@@ -818,6 +851,23 @@ export function createClient(options: ClientOptions) {
        */
       update: (id: string, body: AttributeUpdateParams): Promise<AttributeDTO> =>
         rt.request<AttributeDTO>({ method: "PUT", path: `/attributes/${encodeURIComponent(id)}`, body }),
+    },
+    /** operationId 以 automation- 开头的接口。 */
+    automation: {
+      /**
+       * 自动化规则列表
+       *
+       * GET /automations
+       */
+      list: (): Promise<AutomationRuleDTO[]> =>
+        rt.request<AutomationRuleDTO[]>({ method: "GET", path: `/automations` }),
+      /**
+       * 启用或停用自动化规则
+       *
+       * PUT /automations/{id}
+       */
+      update: (id: string, body: AutomationUpdateBody): Promise<AutomationRuleDTO> =>
+        rt.request<AutomationRuleDTO>({ method: "PUT", path: `/automations/${encodeURIComponent(id)}`, body }),
     },
     /** operationId 以 conversation- 开头的接口。 */
     conversation: {
