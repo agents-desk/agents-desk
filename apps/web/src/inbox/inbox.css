@@ -97,9 +97,11 @@
   }
 }
 
-/* 会话列表的一行：当前打开的左边有品牌色细竖条，刚有新消息的短暂黄底 */
+/* 会话列表的一行：严格固定 60px 等高，当前打开的左边有品牌色细竖条，刚有新消息的短暂黄底 */
 .inbox-row {
-  display: block;
+  display: flex;
+  align-items: center;
+  height: 60px;
   position: relative;
   border-bottom: 1px solid color-mix(in srgb, var(--tn-border) 65%, transparent);
   transition: background-color 0.25s ease;

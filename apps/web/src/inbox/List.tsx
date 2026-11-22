@@ -234,8 +234,8 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
         {list.isPending ? (
           <Stack gap={0}>
             {[0, 1, 2, 3, 4, 5].map((i) => (
-              <Box key={i} px="sm" py={10} className="inbox-row">
-                <Group gap={10} wrap="nowrap" align="flex-start">
+              <Box key={i} px="sm" className="inbox-row">
+                <Group gap={10} wrap="nowrap" align="center" w="100%">
                   <Skeleton circle h={28} w={28} style={{ flex: "none" }} />
                   <Box style={{ flex: 1, minWidth: 0 }}>
                     <Group justify="space-between" mb={6}>
@@ -286,8 +286,10 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
 }
 
 /**
- * Row 是会话列表的一行：未读点、联系人、渠道、优先级、等待时长（已回复的显示最近活动的时间）；第二行是最后一条消息，
- * 对方的消息是我的语言的译文。还缺译文时第二行先显示原文，这一行出现在页面上时请求补译（watch）。
+ * Row 是会话列表的一行（固定 60px 等高两行结构）：
+ * 第一行是头像/未读角标、联系人、渠道、优先级、等待时长（已回复的显示最近活动时间）；
+ * 第二行左侧是草稿或最后一条消息预览，右侧紧凑展示首个标签与 +N 计数（悬停提示全部标签）。
+ * 还缺译文时第二行先显示原文，这一行出现在页面上时请求补译（watch）。
  */
 function Row({
   c,
@@ -325,6 +327,7 @@ function Row({
         : (byId.get(c.preview_actor.id)?.name ?? "")
       : ""
   const name = contactName(c, t)
+  const firstTag = c.tags[0]
   return (
     <UnstyledButton
       onClick={onClick}
@@ -335,19 +338,18 @@ function Row({
       data-read={!c.unread || undefined}
       w="100%"
       px="sm"
-      py={9}
     >
-      <Group gap={10} wrap="nowrap" align="flex-start">
+      <Group gap={10} wrap="nowrap" align="center" w="100%" style={{ minWidth: 0 }}>
         {selecting ? (
-          <Checkbox checked={selected} readOnly size="xs" mt={5} tabIndex={-1} />
+          <Checkbox checked={selected} readOnly size="xs" tabIndex={-1} style={{ flex: "none" }} />
         ) : (
           <Indicator disabled={!c.unread} color="brand" size={8} offset={2} withBorder style={{ flex: "none" }}>
             <Avatar size={28} name={name} color="initials" />
           </Indicator>
         )}
         <Box style={{ flex: 1, minWidth: 0 }}>
-          <Group gap={5} wrap="nowrap">
-            <Text size="sm" fw={c.unread ? 700 : 500} truncate>
+          <Group gap={5} wrap="nowrap" h={20}>
+            <Text size="sm" fw={c.unread ? 700 : 500} truncate lh={1.3}>
               {name}
             </Text>
             {c.channel && (
@@ -373,39 +375,41 @@ function Row({
               {c.waiting_since ? duration(c.waiting_since, now, t) : activity(c.last_message_at, language, t, zone)}
             </Text>
           </Group>
-          <Text size="sm" c={draftText || c.unread ? undefined : "dimmed"} truncate mt={2}>
-            {draftText ? (
-              <>
-                <Text span size="sm" fw={600} c="deep-orange">
-                  {t("inbox.draft_prefix")}
-                </Text>
-                {draftText}
-              </>
-            ) : (
-              <>
-                {who && (
-                  <Text span size="sm" c="dimmed">
-                    {t("inbox.said", { who })}
+          <Group gap={6} wrap="nowrap" align="center" mt={3} h={20}>
+            <Text size="sm" c={draftText || c.unread ? undefined : "dimmed"} truncate lh={1.3} style={{ flex: 1, minWidth: 0 }}>
+              {draftText ? (
+                <>
+                  <Text span size="sm" fw={600} c="deep-orange">
+                    {t("inbox.draft_prefix")}
                   </Text>
-                )}
-                {c.preview}
-              </>
-            )}
-          </Text>
-          {c.tags.length > 0 && (
-            <Group gap={4} mt={4} wrap="nowrap">
-              {c.tags.slice(0, 2).map((tag) => (
-                <Badge key={tag.id} size="xs" variant="light" color={tag.color} style={{ flex: "0 1 auto" }}>
-                  {tag.name}
-                </Badge>
-              ))}
-              {c.tags.length > 2 && (
-                <Badge size="xs" variant="light" color="gray" style={{ flex: "none" }}>
-                  +{c.tags.length - 2}
-                </Badge>
+                  {draftText}
+                </>
+              ) : (
+                <>
+                  {who && (
+                    <Text span size="sm" c="dimmed">
+                      {t("inbox.said", { who })}
+                    </Text>
+                  )}
+                  {c.preview || "\u00A0"}
+                </>
               )}
-            </Group>
-          )}
+            </Text>
+            {firstTag && (
+              <Tooltip label={c.tags.map((x) => x.name).join(" · ")} openDelay={250}>
+                <Group gap={3} wrap="nowrap" style={{ flex: "none" }}>
+                  <Badge size="xs" variant="light" color={firstTag.color} maw={76}>
+                    {firstTag.name}
+                  </Badge>
+                  {c.tags.length > 1 && (
+                    <Badge size="xs" variant="light" color="gray" px={5} style={{ fontVariantNumeric: "tabular-nums" }}>
+                      +{c.tags.length - 1}
+                    </Badge>
+                  )}
+                </Group>
+              </Tooltip>
+            )}
+          </Group>
         </Box>
       </Group>
     </UnstyledButton>
