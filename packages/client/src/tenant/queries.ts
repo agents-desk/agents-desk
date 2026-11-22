@@ -384,6 +384,40 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
           invalidate(context, "member"),
       }),
     },
+    report: {
+      /** report 分组全部查询的 key 前缀。 */
+      key: () => key("report"),
+      /** GET /reports/conversations */
+      conversations: (...args: Parameters<Client["report"]["conversations"]>) => ({
+        queryKey: key("report", "conversations", ...args),
+        queryFn: () => client.report.conversations(...args),
+      }),
+      /** GET /reports/members */
+      members: (...args: Parameters<Client["report"]["members"]>) => ({
+        queryKey: key("report", "members", ...args),
+        queryFn: () => client.report.members(...args),
+      }),
+      /** GET /reports/response-time */
+      responseTime: (...args: Parameters<Client["report"]["responseTime"]>) => ({
+        queryKey: key("report", "responseTime", ...args),
+        queryFn: () => client.report.responseTime(...args),
+      }),
+      /** GET /reports/satisfaction */
+      satisfaction: (...args: Parameters<Client["report"]["satisfaction"]>) => ({
+        queryKey: key("report", "satisfaction", ...args),
+        queryFn: () => client.report.satisfaction(...args),
+      }),
+      /** GET /reports/satisfaction/ratings */
+      satisfactionRatings: (...args: Parameters<Client["report"]["satisfactionRatings"]>) => ({
+        queryKey: key("report", "satisfactionRatings", ...args),
+        queryFn: () => client.report.satisfactionRatings(...args),
+      }),
+      /** GET /reports/translation */
+      translation: (...args: Parameters<Client["report"]["translation"]>) => ({
+        queryKey: key("report", "translation", ...args),
+        queryFn: () => client.report.translation(...args),
+      }),
+    },
     role: {
       /** role 分组全部查询的 key 前缀。 */
       key: () => key("role"),

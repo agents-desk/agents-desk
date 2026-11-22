@@ -30,7 +30,7 @@ func TestSeed(t *testing.T) {
 			t.Fatal(err)
 		}
 		lines := strings.Split(strings.TrimSpace(out.String()), "\n")
-		if len(lines) != 10 || slices.ContainsFunc(lines, func(l string) bool { return strings.Contains(l, "跳过") != skipped }) {
+		if len(lines) != 11 || slices.ContainsFunc(lines, func(l string) bool { return strings.Contains(l, "跳过") != skipped }) {
 			t.Fatalf("第 %d 次：\n%s", i+1, out.String())
 		}
 	}

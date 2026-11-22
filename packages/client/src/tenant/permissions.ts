@@ -96,6 +96,14 @@ export const required = {
     setAway: ["members:manage"],
     update: ["members:manage"],
   },
+  report: {
+    conversations: ["reports:read"],
+    members: ["reports:read"],
+    responseTime: ["reports:read"],
+    satisfaction: ["reports:read"],
+    satisfactionRatings: ["reports:read"],
+    translation: ["reports:read"],
+  },
   role: {
     create: ["members:manage"],
     delete: ["members:manage"],

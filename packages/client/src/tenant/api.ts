@@ -823,6 +823,14 @@ export interface OffsetMemberTenantMember {
   total: number
 }
 
+export interface OffsetReportRatingItem {
+  items: ReportRatingItem[]
+  page: number
+  per_page: number
+  /** Total number of items across all pages. */
+  total: number
+}
+
 export interface OffsetRoleDTO {
   items: RoleDTO[]
   page: number
@@ -858,6 +866,351 @@ export interface OffsetWidgetDTO {
 export interface Part {
   mark?: boolean
   text: string
+}
+
+export interface ReportChannelResponseTime {
+  enabled: boolean
+  first_reply_avg?: number
+  first_reply_median?: number
+  first_reply_samples: number
+  id: string
+  kind: ChannelKind
+  name: string
+  resolution_avg?: number
+  resolution_median?: number
+  resolution_samples: number
+}
+
+export interface ReportChannelSatisfaction {
+  avg_score?: number
+  csat?: number
+  enabled: boolean
+  id: string
+  kind: ChannelKind
+  name: string
+  positive_count: number
+  rated_count: number
+}
+
+export interface ReportChannelVolume {
+  closed: number
+  created: number
+  enabled: boolean
+  id: string
+  kind: ChannelKind
+  name: string
+}
+
+export interface ReportConversationsPoint {
+  closed: number
+  created: number
+  date: string
+  reopened: number
+}
+
+export interface ReportConversationsReport {
+  by_channel: ReportChannelVolume[]
+  by_language: ReportLanguageCount[]
+  by_tag: ReportTagVolume[]
+  by_team: ReportTeamVolume[]
+  period: ReportPeriodMeta
+  series: ReportConversationsPoint[]
+  summary: ReportConversationsSummary
+}
+
+export interface ReportConversationsSummary {
+  /** 统计期内关闭的服务轮次数 */
+  closed: number
+  /** 统计期内新建的服务型会话数 */
+  created: number
+  /** 当前处于打开状态的会话数（实时快照） */
+  open_now: number
+  /** 上一对比期关闭的服务轮次数 */
+  prev_closed: number
+  /** 上一对比期新建的服务型会话数 */
+  prev_created: number
+  /** 上一对比期重新打开的轮次数 */
+  prev_reopened: number
+  /** 上一对比期开启的服务轮次数 */
+  prev_rounds_opened: number
+  /** 统计期内重新打开的轮次数（round > 1） */
+  reopened: number
+  /** 统计期内开启的服务轮次数（新建 + 重开） */
+  rounds_opened: number
+  /** 当前处于稍后处理状态的会话数（实时快照） */
+  snoozed_now: number
+  /** 当前未关闭且无负责人的会话数（实时快照） */
+  unassigned_now: number
+  /** 当前未关闭且正在等待客服回复的会话数（实时快照） */
+  waiting_now: number
+}
+
+export interface ReportDurationBucket {
+  count: number
+  /** 区间标识：lt_5m、5m_15m、15m_1h、1h_4h、4h_24h、gt_24h */
+  key: string
+}
+
+export interface ReportDurationStats {
+  avg_seconds?: number
+  median_seconds?: number
+  p90_seconds?: number
+  prev_median_seconds?: number
+  prev_samples: number
+  samples: number
+}
+
+export interface ReportLanguageCount {
+  count: number
+  /** BCP 47 语言标签，未知或未确定时为 und 或空 */
+  language: string
+}
+
+export interface ReportMemberMetrics {
+  avatar_url: string
+  /** 平均评分（1–5） */
+  avg_score?: number
+  /** 统计期内负责并关闭的服务轮次数 */
+  closed_count: number
+  /** 满意度百分比（0–100） */
+  csat?: number
+  /** 首次回复时长均值（秒） */
+  first_reply_avg?: number
+  /** 首次回复时长中位数（秒，按实际首次回复人归因） */
+  first_reply_median?: number
+  /** 统计期内由该成员完成首次回复的轮次数 */
+  first_reply_samples: number
+  member_id: string
+  name: string
+  /** 当前在线状态：online、away；已移出工作区时为空 */
+  online_status: string
+  /** 当前负责且未关闭的会话数（实时快照） */
+  open_assigned: number
+  /** 好评数（4–5 星） */
+  positive_count: number
+  /** 收到的客户评价数 */
+  rated_count: number
+  /** 成员是否已移出工作区（仍保留统计期内的历史数据） */
+  removed: boolean
+  /** 统计期内发出的客户可见回复数 */
+  replies_sent: number
+  /** 解决时长均值（秒） */
+  resolution_avg?: number
+  /** 解决时长中位数（秒） */
+  resolution_median?: number
+  /** 统计期内关闭轮次数 */
+  resolution_samples: number
+}
+
+export interface ReportMembersReport {
+  items: ReportMemberMetrics[]
+  period: ReportPeriodMeta
+  summary: ReportMembersSummary
+}
+
+export interface ReportMembersSummary {
+  /** 统计期内有首响、关闭或发送回复的成员人数 */
+  active_members: number
+  /** 成员关闭的服务轮次总数 */
+  closed_count: number
+  /** 成员负责会话的满意度百分比（4–5 星占比） */
+  csat?: number
+  /** 成员首次回复时长中位数（秒） */
+  first_reply_median?: number
+  /** 成员发出的客户可见回复总数 */
+  replies_sent: number
+}
+
+export interface ReportPeriodMeta {
+  from: string
+  granularity: string
+  prev_from: string
+  prev_to: string
+  time_zone: string
+  to: string
+}
+
+export interface ReportRatingItem {
+  assignee_id?: string
+  assignee_name: string
+  channel_id?: string
+  channel_name: string
+  comment: string
+  contact_id?: string
+  contact_name: string
+  conversation_id: string
+  /** 服务轮次 ID */
+  id: string
+  rated_at: string
+  round: number
+  score: number
+  team_id?: string
+  team_name: string
+}
+
+export interface ReportResponseTimePoint {
+  date: string
+  first_reply_median?: number
+  first_reply_samples: number
+  resolution_median?: number
+  resolution_samples: number
+}
+
+export interface ReportResponseTimeReport {
+  by_channel: ReportChannelResponseTime[]
+  by_team: ReportTeamResponseTime[]
+  first_reply: ReportDurationStats
+  first_reply_buckets: ReportDurationBucket[]
+  period: ReportPeriodMeta
+  resolution: ReportDurationStats
+  resolution_buckets: ReportDurationBucket[]
+  series: ReportResponseTimePoint[]
+}
+
+export interface ReportSatisfactionPoint {
+  avg_score?: number
+  csat?: number
+  date: string
+  positive_count: number
+  rated_count: number
+}
+
+export interface ReportSatisfactionReport {
+  by_channel: ReportChannelSatisfaction[]
+  by_team: ReportTeamSatisfaction[]
+  distribution: ReportScoreCount[]
+  period: ReportPeriodMeta
+  series: ReportSatisfactionPoint[]
+  summary: ReportSatisfactionSummary
+}
+
+export interface ReportSatisfactionSummary {
+  /** 平均评分（1–5） */
+  avg_score?: number
+  /** 统计期内关闭的服务轮次数 */
+  closed_count: number
+  /** 满意度百分比（4–5 星占比，0–100） */
+  csat?: number
+  /** 好评数（4 星与 5 星） */
+  positive_count: number
+  /** 上一对比期平均评分 */
+  prev_avg_score?: number
+  /** 上一对比期满意度百分比 */
+  prev_csat?: number
+  /** 上一对比期收到的评价数 */
+  prev_rated_count: number
+  /** 统计期内收到的客户评价数 */
+  rated_count: number
+  /** 参评率百分比（评价数 / 关闭轮次数 × 100） */
+  response_rate?: number
+}
+
+export interface ReportScoreCount {
+  count: number
+  /** 星级：1 到 5 */
+  score: number
+}
+
+export interface ReportTagVolume {
+  color: string
+  count: number
+  id: string
+  name: string
+}
+
+export interface ReportTeamResponseTime {
+  disabled: boolean
+  first_reply_avg?: number
+  first_reply_median?: number
+  first_reply_samples: number
+  id?: string
+  name: string
+  resolution_avg?: number
+  resolution_median?: number
+  resolution_samples: number
+}
+
+export interface ReportTeamSatisfaction {
+  avg_score?: number
+  csat?: number
+  disabled: boolean
+  id?: string
+  name: string
+  positive_count: number
+  rated_count: number
+}
+
+export interface ReportTeamVolume {
+  closed: number
+  created: number
+  disabled: boolean
+  id?: string
+  name: string
+}
+
+export interface ReportTranslationModelBreakdown {
+  avg_duration_ms?: number
+  calls: number
+  cost_usd: number
+  failed_calls: number
+  model: string
+  total_tokens: number
+}
+
+export interface ReportTranslationOperationBreakdown {
+  avg_duration_ms?: number
+  calls: number
+  completion_tokens: number
+  cost_usd: number
+  failed_calls: number
+  operation: string
+  prompt_tokens: number
+  reasoning_tokens: number
+  success_rate?: number
+}
+
+export interface ReportTranslationPoint {
+  calls: number
+  cost_usd: number
+  date: string
+  failed_calls: number
+  total_tokens: number
+}
+
+export interface ReportTranslationReport {
+  by_model: ReportTranslationModelBreakdown[]
+  by_operation: ReportTranslationOperationBreakdown[]
+  detected_languages: ReportLanguageCount[]
+  period: ReportPeriodMeta
+  reply_languages: ReportLanguageCount[]
+  series: ReportTranslationPoint[]
+  summary: ReportTranslationSummary
+}
+
+export interface ReportTranslationSummary {
+  /** 平均耗时（毫秒） */
+  avg_duration_ms?: number
+  /** 统计期内翻译模型调用总次数 */
+  calls: number
+  /** 输出 token 总数（含思考 token） */
+  completion_tokens: number
+  /** 带费用返回的调用次数 */
+  costed_calls: number
+  failed_calls: number
+  prev_avg_duration_ms?: number
+  /** 上一对比期调用总次数 */
+  prev_calls: number
+  prev_total_cost_usd: number
+  prev_total_tokens: number
+  prompt_tokens: number
+  /** 思考 token 总数 */
+  reasoning_tokens: number
+  success_calls: number
+  /** 调用成功率百分比（0–100） */
+  success_rate?: number
+  /** 供应商返回的费用总计（美元） */
+  total_cost_usd: number
+  total_tokens: number
 }
 
 export interface RoleDTO {
@@ -1190,6 +1543,106 @@ export interface MemberListInput {
   name?: string
   /** 只列出这个角色的成员 */
   role_id?: string
+}
+
+/** report-conversations 的参数。 */
+export interface ReportConversationsInput {
+  /** Start date (inclusive), YYYY-MM-DD. */
+  from?: string
+  /** End date (inclusive), YYYY-MM-DD. */
+  to?: string
+  /** IANA time zone, e.g. Asia/Shanghai. */
+  tz?: string
+  /** Time bucket granularity. */
+  granularity?: "hour" | "day" | "week" | "month"
+  /** 按团队收件箱筛选（含已停用团队） */
+  team_id?: string
+  /** 按渠道筛选（含已停用渠道） */
+  channel_id?: string
+}
+
+/** report-members 的参数。 */
+export interface ReportMembersInput {
+  /** Start date (inclusive), YYYY-MM-DD. */
+  from?: string
+  /** End date (inclusive), YYYY-MM-DD. */
+  to?: string
+  /** IANA time zone, e.g. Asia/Shanghai. */
+  tz?: string
+  /** Time bucket granularity. */
+  granularity?: "hour" | "day" | "week" | "month"
+  /** 按团队收件箱筛选（含已停用团队） */
+  team_id?: string
+  /** 按渠道筛选（含已停用渠道） */
+  channel_id?: string
+}
+
+/** report-response-time 的参数。 */
+export interface ReportResponseTimeInput {
+  /** Start date (inclusive), YYYY-MM-DD. */
+  from?: string
+  /** End date (inclusive), YYYY-MM-DD. */
+  to?: string
+  /** IANA time zone, e.g. Asia/Shanghai. */
+  tz?: string
+  /** Time bucket granularity. */
+  granularity?: "hour" | "day" | "week" | "month"
+  /** 按团队收件箱筛选（含已停用团队） */
+  team_id?: string
+  /** 按渠道筛选（含已停用渠道） */
+  channel_id?: string
+}
+
+/** report-satisfaction 的参数。 */
+export interface ReportSatisfactionInput {
+  /** Start date (inclusive), YYYY-MM-DD. */
+  from?: string
+  /** End date (inclusive), YYYY-MM-DD. */
+  to?: string
+  /** IANA time zone, e.g. Asia/Shanghai. */
+  tz?: string
+  /** Time bucket granularity. */
+  granularity?: "hour" | "day" | "week" | "month"
+  /** 按团队收件箱筛选（含已停用团队） */
+  team_id?: string
+  /** 按渠道筛选（含已停用渠道） */
+  channel_id?: string
+}
+
+/** report-satisfaction-ratings 的参数。 */
+export interface ReportSatisfactionRatingsInput {
+  /** Start date (inclusive), YYYY-MM-DD. */
+  from?: string
+  /** End date (inclusive), YYYY-MM-DD. */
+  to?: string
+  /** IANA time zone, e.g. Asia/Shanghai. */
+  tz?: string
+  /** Time bucket granularity. */
+  granularity?: "hour" | "day" | "week" | "month"
+  /** 按团队收件箱筛选（含已停用团队） */
+  team_id?: string
+  /** 按渠道筛选（含已停用渠道） */
+  channel_id?: string
+  /** Page number, starting at 1. */
+  page?: number
+  /** Items per page. */
+  per_page?: number
+  /** 最低星级（含） */
+  min_score?: number
+  /** 最高星级（含） */
+  max_score?: number
+}
+
+/** report-translation 的参数。 */
+export interface ReportTranslationInput {
+  /** Start date (inclusive), YYYY-MM-DD. */
+  from?: string
+  /** End date (inclusive), YYYY-MM-DD. */
+  to?: string
+  /** IANA time zone, e.g. Asia/Shanghai. */
+  tz?: string
+  /** Time bucket granularity. */
+  granularity?: "hour" | "day" | "week" | "month"
 }
 
 /** role-list 的参数。 */
@@ -1656,6 +2109,51 @@ export function createClient(options: ClientOptions) {
        */
       update: (id: string, body: MemberRoleChange): Promise<MemberTenantMember> =>
         rt.request<MemberTenantMember>({ method: "PUT", path: `/members/${encodeURIComponent(id)}`, body }),
+    },
+    /** operationId 以 report- 开头的接口。 */
+    report: {
+      /**
+       * 会话报表
+       *
+       * GET /reports/conversations
+       */
+      conversations: (input: ReportConversationsInput = {}): Promise<ReportConversationsReport> =>
+        rt.request<ReportConversationsReport>({ method: "GET", path: `/reports/conversations`, query: { "channel_id": input["channel_id"], "from": input["from"], "granularity": input["granularity"], "team_id": input["team_id"], "to": input["to"], "tz": input["tz"] } }),
+      /**
+       * 成员绩效报表
+       *
+       * GET /reports/members
+       */
+      members: (input: ReportMembersInput = {}): Promise<ReportMembersReport> =>
+        rt.request<ReportMembersReport>({ method: "GET", path: `/reports/members`, query: { "channel_id": input["channel_id"], "from": input["from"], "granularity": input["granularity"], "team_id": input["team_id"], "to": input["to"], "tz": input["tz"] } }),
+      /**
+       * 响应时间报表
+       *
+       * GET /reports/response-time
+       */
+      responseTime: (input: ReportResponseTimeInput = {}): Promise<ReportResponseTimeReport> =>
+        rt.request<ReportResponseTimeReport>({ method: "GET", path: `/reports/response-time`, query: { "channel_id": input["channel_id"], "from": input["from"], "granularity": input["granularity"], "team_id": input["team_id"], "to": input["to"], "tz": input["tz"] } }),
+      /**
+       * 满意度报表
+       *
+       * GET /reports/satisfaction
+       */
+      satisfaction: (input: ReportSatisfactionInput = {}): Promise<ReportSatisfactionReport> =>
+        rt.request<ReportSatisfactionReport>({ method: "GET", path: `/reports/satisfaction`, query: { "channel_id": input["channel_id"], "from": input["from"], "granularity": input["granularity"], "team_id": input["team_id"], "to": input["to"], "tz": input["tz"] } }),
+      /**
+       * 满意度评价明细
+       *
+       * GET /reports/satisfaction/ratings
+       */
+      satisfactionRatings: (input: ReportSatisfactionRatingsInput = {}): Promise<OffsetReportRatingItem> =>
+        rt.request<OffsetReportRatingItem>({ method: "GET", path: `/reports/satisfaction/ratings`, query: { "channel_id": input["channel_id"], "from": input["from"], "granularity": input["granularity"], "max_score": input["max_score"], "min_score": input["min_score"], "page": input["page"], "per_page": input["per_page"], "team_id": input["team_id"], "to": input["to"], "tz": input["tz"] } }),
+      /**
+       * 翻译报表
+       *
+       * GET /reports/translation
+       */
+      translation: (input: ReportTranslationInput = {}): Promise<ReportTranslationReport> =>
+        rt.request<ReportTranslationReport>({ method: "GET", path: `/reports/translation`, query: { "from": input["from"], "granularity": input["granularity"], "to": input["to"], "tz": input["tz"] } }),
     },
     /** operationId 以 role- 开头的接口。 */
     role: {

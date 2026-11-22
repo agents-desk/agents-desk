@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/cockroachdb/errors"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/uptrace/bun"
 
@@ -21,6 +23,7 @@ import (
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
+	"agents-desk/internal/llm"
 	"agents-desk/internal/macro"
 	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
@@ -142,7 +145,10 @@ func seed(ctx context.Context, out io.Writer, db *bun.DB, adminLogins, memberLog
 	if err := seedConversations(ctx, out, db, memberLogins, inDemo, channels, down); err != nil {
 		return err
 	}
-	return seedWidget(ctx, out, db, keys, inDemo)
+	if err := seedWidget(ctx, out, db, keys, inDemo); err != nil {
+		return err
+	}
+	return seedReportHistory(ctx, out, db, memberLogins, inDemo)
 }
 
 // seedTagsAndAttributes 在示例工作区中写入默认标签和自定义属性定义，已存在的跳过。
@@ -543,5 +549,180 @@ func seedMacros(ctx context.Context, out io.Writer, db *bun.DB, memberLogins *lo
 	} else {
 		fmt.Fprintln(out, "示例工作区已有示例快捷回复，跳过")
 	}
+	return nil
+}
+
+// seedReportHistory 为示例工作区补全跨最近 6 天的历史服务轮次、多星级客户评价、消息语言识别结果与翻译模型调用记录，
+// 让基础报表开箱即可展示趋势、分布与费用明细；已写入过翻译调用记录时跳过，保持幂等。
+func seedReportHistory(ctx context.Context, out io.Writer, db *bun.DB, memberLogins *login.Realm, inDemo identity.Subject) error {
+	n, err := db.NewSelect().Model((*llm.Call)(nil)).Where("tenant_id = ?", inDemo.Tenant).Count(ctx)
+	if err != nil {
+		return errors.Wrap(err, "count seed llm calls")
+	}
+	if n > 0 {
+		fmt.Fprintln(out, "示例工作区已有报表历史与翻译记录，跳过")
+		return nil
+	}
+
+	var teamID string
+	if err := db.NewRaw("SELECT id::text FROM teams WHERE tenant_id = ? AND name = '一线客服'", inDemo.Tenant).Scan(ctx, &teamID); err != nil {
+		return errors.Wrap(err, "find demo team for report seed")
+	}
+	agentRef, err := memberLogins.Lookup(ctx, login.Email("agent@example.com"))
+	if err != nil {
+		return err
+	}
+	managerRef, err := memberLogins.Lookup(ctx, login.Email("manager@example.com"))
+	if err != nil {
+		return err
+	}
+
+	var convIDs []string
+	if err := db.NewSelect().Table("conversations").ColumnExpr("id::text").
+		Where("tenant_id = ?", inDemo.Tenant).OrderExpr("created_at ASC, id ASC").Scan(ctx, &convIDs); err != nil {
+		return errors.Wrap(err, "list demo conversations for report seed")
+	}
+	if len(convIDs) < 6 {
+		fmt.Fprintln(out, "示例工作区会话不足，跳过报表历史")
+		return nil
+	}
+
+	base := time.Now().UTC().Truncate(time.Minute)
+	// 把部分示例会话的创建时间分散到最近 6 天并补充识别语言，便于趋势与语言分布展示。
+	dayOffsets := []int{6, 5, 4, 4, 3, 2, 2, 1, 1, 0}
+	langs := []string{"hi-Latn", "en", "hi", "hi-Latn", "en", "hi-Latn", "hi", "en", "hi-Latn", "en"}
+	for i, cid := range convIDs {
+		if i >= len(dayOffsets) {
+			break
+		}
+		ts := base.Add(-time.Duration(dayOffsets[i])*24*time.Hour - time.Duration(i*37)*time.Minute)
+		if _, err := db.NewUpdate().Table("conversations").
+			Set("created_at = ?", ts).
+			Set("language = ?", langs[i]).
+			Where("id = ?", cid).Exec(ctx); err != nil {
+			return errors.Wrap(err, "spread seed conversation created_at")
+		}
+		if _, err := db.NewUpdate().Table("timeline_items").
+			Set("created_at = ?", ts).
+			Set("derived = jsonb_set(derived, '{language}', to_jsonb(?::text), true)", langs[i]).
+			Where("conversation_id = ? AND kind = ? AND actor_type = ?", cid, conversation.Message, conversation.ContactActor).Exec(ctx); err != nil {
+			return errors.Wrap(err, "seed contact item language")
+		}
+		if _, err := db.NewUpdate().Table("timeline_items").
+			Set("created_at = ?", ts.Add(3*time.Minute)).
+			Where("conversation_id = ? AND kind = ? AND actor_type = ?", cid, conversation.Message, conversation.MemberActor).Exec(ctx); err != nil {
+			return errors.Wrap(err, "spread seed member reply created_at")
+		}
+	}
+
+	// 写入跨多天的已完成服务轮次与客户评价（含 2–5 星及文字意见），轮次号从 10 开始避免与当前活跃轮次冲突。
+	type seedRound struct {
+		convIdx  int
+		roundNo  int
+		daysAgo  int
+		frtSec   int
+		resSec   int
+		firstBy  string
+		assignee string
+		rating   int
+		comment  string
+	}
+	samples := []seedRound{
+		{0, 10, 5, 110, 960, agentRef.ID, agentRef.ID, 5, "响应非常快，马上帮我查到物流进度！"},
+		{1, 10, 4, 240, 1800, managerRef.ID, managerRef.ID, 5, "解释很清楚，提现已到账"},
+		{2, 10, 3, 420, 2700, agentRef.ID, agentRef.ID, 4, "回答准确，流程顺畅"},
+		{3, 10, 3, 95, 1200, agentRef.ID, managerRef.ID, 5, "转接处理很高效"},
+		{4, 10, 2, 1320, 5400, managerRef.ID, managerRef.ID, 2, "等待验证码排查时间偏长"},
+		{5, 10, 1, 180, 1500, agentRef.ID, agentRef.ID, 5, "操作指引一看就懂"},
+		{5, 11, 0, 75, 620, agentRef.ID, agentRef.ID, 4, "二次追问也很快解决了"},
+	}
+	for _, s := range samples {
+		opened := base.Add(-time.Duration(s.daysAgo)*24*time.Hour - 2*time.Hour)
+		firstReply := opened.Add(time.Duration(s.frtSec) * time.Second)
+		closed := opened.Add(time.Duration(s.resSec) * time.Second)
+		rated := closed.Add(4 * time.Minute)
+		score := s.rating
+		r := &conversation.Round{
+			ID:               uuid.Must(uuid.NewV7()).String(),
+			TenantID:         inDemo.Tenant,
+			ConversationID:   convIDs[s.convIdx],
+			Round:            s.roundNo,
+			TeamID:           &teamID,
+			AssigneeType:     conversation.MemberActor,
+			AssigneeID:       s.assignee,
+			ClosedByType:     conversation.MemberActor,
+			ClosedByID:       s.assignee,
+			OpenedAt:         opened,
+			FirstReplyAt:     &firstReply,
+			FirstReplyByType: conversation.MemberActor,
+			FirstReplyByID:   s.firstBy,
+			ClosedAt:         &closed,
+			Rating:           &score,
+			RatingComment:    s.comment,
+			RatedAt:          &rated,
+		}
+		if _, err := db.NewInsert().Model(r).Exec(ctx); err != nil {
+			return errors.Wrap(err, "insert seed report round")
+		}
+	}
+
+	// 写入跨多天的翻译模型调用记录（含 incoming / reply / back_translate / fill 及 1 条失败样本）。
+	type seedCall struct {
+		daysAgo    int
+		operation  string
+		model      string
+		prompt     int
+		completion int
+		durationMS int
+		cost       float64
+		errText    string
+	}
+	calls := []seedCall{
+		{5, "incoming", "google/gemini-2.5-flash", 260, 48, 520, 0.000180, ""},
+		{5, "reply", "google/gemini-2.5-flash", 310, 56, 610, 0.000210, ""},
+		{5, "back_translate", "google/gemini-2.5-flash", 140, 44, 390, 0.000110, ""},
+		{4, "incoming", "google/gemini-2.5-flash", 280, 52, 540, 0.000195, ""},
+		{3, "incoming", "google/gemini-2.5-flash", 340, 62, 680, 0.000235, ""},
+		{3, "fill", "google/gemini-2.5-flash", 220, 46, 470, 0.000160, ""},
+		{2, "incoming", "google/gemini-2.5-flash", 290, 50, 510, 0.000190, ""},
+		{2, "reply", "google/gemini-2.5-flash", 350, 0, 1240, 0, "model returned status 429: rate limited"},
+		{1, "incoming", "google/gemini-2.5-flash", 275, 54, 495, 0.000188, ""},
+		{1, "reply", "google/gemini-2.5-flash", 320, 60, 590, 0.000220, ""},
+		{1, "back_translate", "google/gemini-2.5-flash", 155, 42, 410, 0.000115, ""},
+		{0, "incoming", "google/gemini-2.5-flash", 300, 58, 530, 0.000205, ""},
+	}
+	tenantID := inDemo.Tenant
+	for i, c := range calls {
+		ts := base.Add(-time.Duration(c.daysAgo)*24*time.Hour - time.Duration(i*19)*time.Minute)
+		var costPtr *float64
+		if c.cost > 0 {
+			v := c.cost
+			costPtr = &v
+		}
+		rec := &llm.Call{
+			ID:               uuid.Must(uuid.NewV7()).String(),
+			CreatedAt:        ts,
+			TenantID:         &tenantID,
+			CallType:         llm.Translation,
+			Operation:        c.operation,
+			Meta:             map[string]any{"seed": true},
+			Endpoint:         "https://openrouter.ai/api/v1",
+			Model:            c.model,
+			Request:          map[string]any{"model": c.model},
+			Response:         "{}",
+			PromptTokens:     c.prompt,
+			CompletionTokens: c.completion,
+			ReasoningTokens:  0,
+			Cost:             costPtr,
+			DurationMS:       c.durationMS,
+			Error:            c.errText,
+			TargetType:       "conversation",
+			TargetID:         convIDs[i%len(convIDs)],
+		}
+		if _, err := db.NewInsert().Model(rec).Exec(ctx); err != nil {
+			return errors.Wrap(err, "insert seed llm call")
+		}
+	}
+	fmt.Fprintf(out, "已在示例工作区中写入 %d 轮报表历史与 %d 条翻译调用记录\n", len(samples), len(calls))
 	return nil
 }
