@@ -36,6 +36,10 @@ const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDat
 export const clock = (iso: string, language: string, timeZone?: string) =>
   new Intl.DateTimeFormat(language, { hour: "2-digit", minute: "2-digit", timeZone }).format(new Date(iso))
 
+/** fullDateTime 返回包含年月日与时分秒的完整日期时间，用于悬停提示。 */
+export const fullDateTime = (iso: string, language: string, timeZone?: string) =>
+  new Intl.DateTimeFormat(language, { dateStyle: "medium", timeStyle: "medium", timeZone }).format(new Date(iso))
+
 /** dayLabel 返回日期分组的标题：今天、昨天，或者月日。 */
 export function dayLabel(iso: string, language: string, t: T, timeZone?: string): string {
   const d = new Date(iso)

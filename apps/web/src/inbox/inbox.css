@@ -167,6 +167,15 @@
   color: var(--mantine-color-yellow-light-color);
 }
 
+/* 内部备注模式下的输入框暖黄描边与焦点强调，防止误把备注当作对外回复 */
+.inbox-composer[data-note] .mantine-Textarea-input {
+  border-color: color-mix(in srgb, var(--mantine-color-yellow-6) 45%, var(--tn-border));
+}
+
+.inbox-composer[data-note] .mantine-Textarea-input:focus {
+  border-color: var(--mantine-color-yellow-6);
+}
+
 /* 发送拆分按钮中间的细分隔线：跟随按钮前景色与禁用态自然过渡 */
 .inbox-send-menu {
   border-top-left-radius: 0;
@@ -195,16 +204,132 @@
   opacity: 0.45;
 }
 
-/* 对方的消息气泡使用纯面底色，切换到原文时略沉以示区分 */
+/* 对方的消息气泡使用纯面底色，切换到原文时略沉以示区分；方向性圆角随连续消息分组自然融合 */
+.inbox-bubble {
+  border-radius: 12px;
+}
+
+.inbox-bubble[data-mine][data-first][data-last] {
+  border-radius: 12px 12px 4px 12px;
+}
+
+.inbox-bubble[data-mine][data-first]:not([data-last]) {
+  border-radius: 12px 12px 4px 12px;
+}
+
+.inbox-bubble[data-mine]:not([data-first]):not([data-last]) {
+  border-radius: 12px 4px 4px 12px;
+}
+
+.inbox-bubble[data-mine]:not([data-first])[data-last] {
+  border-radius: 12px 4px 12px 12px;
+}
+
+.inbox-bubble[data-incoming][data-first][data-last] {
+  border-radius: 12px 12px 12px 4px;
+}
+
+.inbox-bubble[data-incoming][data-first]:not([data-last]) {
+  border-radius: 12px 12px 12px 4px;
+}
+
+.inbox-bubble[data-incoming]:not([data-first]):not([data-last]) {
+  border-radius: 4px 12px 12px 4px;
+}
+
+.inbox-bubble[data-incoming]:not([data-first])[data-last] {
+  border-radius: 4px 12px 12px 12px;
+}
+
 .inbox-bubble[data-incoming] {
   background: var(--tn-surface);
+  border-color: var(--tn-border);
 }
 
 .inbox-bubble[data-original] {
   background: var(--tn-hover);
 }
 
+/* 消息与备注的悬浮快捷操作（复制、组内时间）：平时隐藏保持安静，悬停/聚焦或触屏时显现 */
+.inbox-msg-actions {
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.inbox-msg:hover .inbox-msg-actions,
+.inbox-msg:focus-within .inbox-msg-actions,
+.inbox-note:hover .inbox-msg-actions,
+.inbox-note:focus-within .inbox-msg-actions {
+  opacity: 1;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .inbox-msg-actions {
+    opacity: 0.75;
+  }
+}
+
+/* 内部备注：淡黄底加细边框与左侧 3px 黄色强调条，亮暗模式及色弱场景下均易于区分 */
+.inbox-note {
+  border: 1px solid color-mix(in srgb, var(--mantine-color-yellow-6) 30%, transparent);
+  border-left: 3px solid var(--mantine-color-yellow-6);
+}
+
 /* 内部备注的文字色随明暗主题保持清晰对比度 */
 .inbox-note-accent {
   color: var(--mantine-color-yellow-light-color);
+}
+
+/* 正在输入胶囊与三点呼吸动画 */
+.inbox-typing {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--tn-surface);
+  border: 1px solid var(--tn-border);
+}
+
+.inbox-typing-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.inbox-typing-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--tn-muted);
+  animation: inbox-typing-bounce 1.2s infinite ease-in-out both;
+}
+
+.inbox-typing-dots span:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.inbox-typing-dots span:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+@keyframes inbox-typing-bounce {
+  0%,
+  80%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inbox-typing-dots span {
+    animation: none;
+    opacity: 0.65;
+  }
 }
