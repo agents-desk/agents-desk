@@ -88,22 +88,41 @@ func (a *Incoming) Ensure(ctx context.Context, tenant, itemID string, targets []
 		return nil
 	}
 	missing := conversation.MissingTranslations(it.Derived, targets)
-	if source, _ := it.Derived["language"].(string); source != "" && len(missing) == 0 {
+	source, _ := it.Derived["language"].(string)
+	if source != "" && len(missing) == 0 {
 		return nil
 	}
-	var usual string
-	if err := a.db.NewSelect().Table("conversations").Column("language").Where("id = ?", it.ConversationID).Scan(ctx, &usual); err != nil {
-		return errors.Wrap(err, "load conversation language")
+	var translated conversation.Translated
+	if source != "" {
+		// 已经识别过源语言：只补译缺的语言，不重新识别
+		translations, err := a.translator.Translate(ctx, tenant, it.ID, it.Content.Text, source, missing)
+		if errors.Is(err, llm.ErrNotConfigured) {
+			slog.DebugContext(ctx, "translation is not configured, skip", "item", it.ID)
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		translated.Translations = translations
+	} else {
+		var usual string
+		err := a.db.NewRaw(`SELECT COALESCE(NULLIF(ct.language, ''), c.language) FROM conversations c
+			LEFT JOIN contacts ct ON ct.id = c.contact_id AND ct.tenant_id = c.tenant_id
+			WHERE c.id = ? AND c.tenant_id = ?`, it.ConversationID, tenant).Scan(ctx, &usual)
+		if err != nil {
+			return errors.Wrap(err, "load conversation language")
+		}
+		detected, translations, err := a.translator.Incoming(ctx, tenant, it.ID, it.Content.Text, usual, missing)
+		if errors.Is(err, llm.ErrNotConfigured) {
+			slog.DebugContext(ctx, "translation is not configured, skip", "item", it.ID)
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		translated = conversation.Translated{Language: detected, Translations: translations}
 	}
-	detected, translations, err := a.translator.Incoming(ctx, tenant, it.ID, it.Content.Text, usual, missing)
-	if errors.Is(err, llm.ErrNotConfigured) {
-		slog.DebugContext(ctx, "translation is not configured, skip", "item", it.ID)
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	return conversation.SaveTranslation(ctx, a.db, a.down, tenant, it.ID, conversation.Translated{Language: detected, Translations: translations})
+	return conversation.SaveTranslation(ctx, a.db, a.down, tenant, it.ID, translated)
 }
 
 // RegisterJobs 在 worker 上登记翻译收到的消息和补译的任务。

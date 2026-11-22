@@ -114,9 +114,10 @@ func (tr *Translator) Incoming(ctx context.Context, tenant, itemID, text, usual 
 	), "\n\n")
 	var out incoming
 	err = tr.llm.JSON(ctx, llm.Translation, llm.Target{Tenant: tenant, Type: "timeline_item", ID: itemID}, llm.JSONRequest{
-		Messages:   []llm.Message{{Role: "system", Content: system}, {Role: "user", Content: text}},
-		SchemaName: "incoming_translation",
-		Schema:     schema,
+		Messages:    []llm.Message{{Role: "system", Content: system}, {Role: "user", Content: text}},
+		SchemaName:  "incoming_translation",
+		Schema:      schema,
+		NoReasoning: true,
 	}, &out)
 	if err != nil {
 		return "", nil, err
@@ -133,6 +134,58 @@ func (tr *Translator) Incoming(ctx context.Context, tenant, itemID, text, usual 
 		}
 	}
 	return out.Language, translations, nil
+}
+
+// fillResult 是补译已知语言的消息时模型的回答。
+type fillResult struct {
+	Translations map[string]string `json:"translations"`
+}
+
+// Translate 把工作区 tenant 中已知语言为 source 的消息 itemID 的文字 text 翻译成 targets 中的每一种语言，不重新识别语言。
+// 用于已识别过语言的消息的按需补译，避免二次识别耗费 token 或误判为 und 导致译文缺失。模型没有配置时返回 llm.ErrNotConfigured。
+func (tr *Translator) Translate(ctx context.Context, tenant, itemID, text, source string, targets []string) (map[string]string, error) {
+	if len(targets) == 0 {
+		return map[string]string{}, nil
+	}
+	s, err := tr.settings.Tenant(tenant).Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+	props := map[string]any{}
+	for _, target := range targets {
+		props[target] = map[string]any{"type": "string", "description": "the message translated into " + target}
+	}
+	schema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"translations": map[string]any{"type": "object", "properties": props, "required": targets, "additionalProperties": false},
+		},
+		"required":             []string{"translations"},
+		"additionalProperties": false,
+	}
+	system := strings.Join(nonEmpty(
+		fmt.Sprintf("You translate a customer support message written in %s into each of these languages: %s.", source, strings.Join(targets, ", ")),
+		rules,
+		glossaryHint(s.Glossary, text, targets),
+		"Reply with JSON only.",
+	), "\n\n")
+	var out fillResult
+	err = tr.llm.JSON(ctx, llm.Translation, llm.Target{Tenant: tenant, Type: "timeline_item", ID: itemID}, llm.JSONRequest{
+		Messages:    []llm.Message{{Role: "system", Content: system}, {Role: "user", Content: text}},
+		SchemaName:  "fill_translation",
+		Schema:      schema,
+		NoReasoning: true,
+	}, &out)
+	if err != nil {
+		return nil, err
+	}
+	translations := map[string]string{}
+	for _, target := range targets {
+		if t := out.Translations[target]; t != "" && !lang.Same(source, target) {
+			translations[target] = t
+		}
+	}
+	return translations, nil
 }
 
 // reply 是翻译成员的回复时模型的回答。
@@ -172,9 +225,10 @@ func (tr *Translator) Reply(ctx context.Context, tenant, conversationID, text, f
 	}
 	var out reply
 	err = tr.llm.JSON(ctx, llm.Translation, llm.Target{Tenant: tenant, Type: "conversation", ID: conversationID}, llm.JSONRequest{
-		Messages:   []llm.Message{{Role: "system", Content: system}, {Role: "user", Content: text}},
-		SchemaName: "reply_translation",
-		Schema:     schema,
+		Messages:    []llm.Message{{Role: "system", Content: system}, {Role: "user", Content: text}},
+		SchemaName:  "reply_translation",
+		Schema:      schema,
+		NoReasoning: true,
 	}, &out)
 	if err != nil {
 		return "", "", err

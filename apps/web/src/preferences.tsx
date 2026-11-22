@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { applyServerErrors, FormError, inTimeZone, notifySuccess, useT } from "@go-tenon/ui"
 import type { MemberLanguage } from "@agents-desk/client/api"
 import { type ReactNode, useMemo, useState } from "react"
-import { api, apiKit } from "./api"
+import { api, apiKit, kit } from "./api"
 import { i18n } from "./i18n"
 import { me } from "./auth"
 
@@ -85,9 +85,12 @@ function Form({ language, timeZone }: { language: MemberLanguage; timeZone: stri
     setError(undefined)
     try {
       await api.auth.preferencesUpdate({ language: values.language, time_zone: values.time_zone || undefined })
-      // 界面换成新的语言；重新读取 /me：工作区布局中的 TimeZoneProvider 随之换成新的时区，页面中的时间立刻按它显示
+      // 界面换成新的语言；重新读取 /me 和会话缓存：时区、译文预览和 untranslated 标记随之按新语言刷新
       i18n.setLanguage(values.language)
-      await queryClient.invalidateQueries({ queryKey: ["me"] })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["me"] }),
+        queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() }),
+      ])
       form.resetDirty()
       notifySuccess(t("common.saved"))
     } catch (err) {

@@ -2,6 +2,7 @@ import type { ConversationDTO, ConversationItemDTO, MemberTenantMember } from "@
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query"
 import { kit, tenantApi } from "../api"
 import { me } from "../auth"
+import { consumeRefreshFrom } from "../realtime"
 import type { InboxSearch } from "./search"
 
 // 收件箱的查询。键都在 kit.queries.conversation.key() 之下：实时推送让这一组失效，列表、会话和时间线随之重新读取。
@@ -63,7 +64,8 @@ export const useConversation = (id: string) => useQuery(kit.queries.conversation
 
 /**
  * useTimeline 读取会话 id 的时间线。第一次读取全部（最多 500 项）；之后推送让它失效时，从已有最后一项往前 50 个序号开始读：
- * 这一段中已有的项换成最新的（送达状态会变成已送达、已读、失败），新的项接在后面。
+ * 这一段中已有的项换成最新的（送达状态会变成已送达、已读、失败），新的项接在后面。若推送指出有更早的历史消息更新了派生内容
+ * （例如看到历史消息时触发了补译），把刷新窗口往前扩展到那一条，保证译文能够刷新出来。
  */
 export function useTimeline(id: string) {
   const queryClient = useQueryClient()
@@ -73,9 +75,27 @@ export function useTimeline(id: string) {
     queryFn: async () => {
       const before = queryClient.getQueryData<ConversationItemDTO[]>(key) ?? []
       const last = before.at(-1)?.seq ?? 0
-      const recent = await tenantApi.conversation.items(id, { after: Math.max(0, last - 50), limit: 500 })
-      const latest = new Map(recent.map((it) => [it.id, it]))
-      return [...before.map((it) => latest.get(it.id) ?? it), ...recent.filter((it) => it.seq > last)]
+      const tailAfter = Math.max(0, last - 50)
+      const from = consumeRefreshFrom(id)
+      let updates: ConversationItemDTO[]
+      if (from !== undefined && before.length > 0 && from <= tailAfter) {
+        const start = Math.max(0, from - 1)
+        if (last - start <= 500) {
+          updates = await tenantApi.conversation.items(id, { after: start, limit: 500 })
+        } else {
+          // 会话超过 500 条时分段拉：一段覆盖历史补译窗口，一段覆盖尾部新消息和送达状态
+          const [older, recent] = await Promise.all([
+            tenantApi.conversation.items(id, { after: start, limit: 100 }),
+            tenantApi.conversation.items(id, { after: tailAfter, limit: 500 }),
+          ])
+          updates = [...older, ...recent]
+        }
+      } else {
+        updates = await tenantApi.conversation.items(id, { after: tailAfter, limit: 500 })
+      }
+      const latest = new Map(updates.map((it) => [it.id, it]))
+      const appended = [...latest.values()].filter((it) => it.seq > last).sort((a, b) => a.seq - b.seq)
+      return [...before.map((it) => latest.get(it.id) ?? it), ...appended]
     },
   })
 }

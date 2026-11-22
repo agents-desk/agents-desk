@@ -76,7 +76,7 @@ export function Composer({ c, onTyping }: { c: ConversationDTO; onTyping: () => 
   })
   // 发送：回复要翻译时，发出的是当前的译文；译文不是这段文字的（还没翻译、改过原文、失败了）时先翻译，显示出来等成员再按一次
   const submit = async (after: After) => {
-    if (!value || send.isPending) return
+    if (!value || send.isPending || (mode === "reply" && preview.pending)) return
     if (mode === "note" || !preview.active) return send.mutate({ after })
     const current = preview.current ?? (await preview.translateNow())
     if (!current) return

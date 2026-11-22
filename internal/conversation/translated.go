@@ -32,8 +32,10 @@ type Translated struct {
 
 // SaveTranslation 把工作区 tenant 中消息 itemID 的识别和翻译结果 t 写进它的派生内容：derived.language 是这条消息的语言，
 // 已经识别过的保持不变；derived.translations 中已有的译文保留，同一种语言的换成新的。
-// 然后按 CustomerLanguage 更新会话和联系人的语言（成员手动设置了联系人的语言时不改）。提交后推送给能看到会话的成员，
-// 页面重新读取。消息不存在时什么也不做。
+// 然后按 CustomerLanguage 更新会话和联系人的语言（成员手动设置了联系人的语言时不改）。
+// 提交后推送给受影响的成员：消息首次识别出语言或客户的语言变化时推送给能看到会话的全部成员；
+// 只是补译某些语言时只推送给使用这些语言的成员，避免影响其他语言的成员。事件带上消息的序号（ItemSeq），
+// 方便页面把历史消息的补译刷新出来。消息不存在时什么也不做。
 func SaveTranslation(ctx context.Context, db *bun.DB, down Downstream, tenant, itemID string, t Translated) error {
 	return database.RunInTx(ctx, db, nil, func(ctx context.Context, tx database.Tx) error {
 		var it Item
@@ -50,14 +52,20 @@ func SaveTranslation(ctx context.Context, db *bun.DB, down Downstream, tenant, i
 		}
 
 		// 消息的语言和译文
+		detectedNow := false
 		if source, _ := it.Derived["language"].(string); source == "" && t.Language != "" {
 			it.Derived["language"] = t.Language
+			detectedNow = true
 		}
 		translations, _ := it.Derived["translations"].(map[string]any)
 		if translations == nil {
 			translations = map[string]any{}
 		}
+		added := make([]string, 0, len(t.Translations))
 		for target, text := range t.Translations {
+			if prev, _ := translations[target].(string); prev != text {
+				added = append(added, target)
+			}
 			translations[target] = text
 		}
 		it.Derived["translations"] = translations
@@ -66,23 +74,57 @@ func SaveTranslation(ctx context.Context, db *bun.DB, down Downstream, tenant, i
 		}
 
 		// 客户的语言：手动设置的不改，否则按最近几条消息
-		if err := updateCustomerLanguage(ctx, tx, c); err != nil {
+		langChanged, err := updateCustomerLanguage(ctx, tx, c, false)
+		if err != nil {
 			return err
 		}
 
-		if down.Hub == nil {
+		if down.Hub == nil || (!detectedNow && !langChanged && len(added) == 0) {
 			return nil
 		}
 		audience, err := audienceOf(ctx, tx, down.Roles, c, nil)
 		if err != nil {
 			return err
 		}
-		hub, ev := down.Hub, push.Event{Type: push.Conversation, ID: c.ID, Seq: c.LastSeq}
+		if !detectedNow && !langChanged {
+			audience, err = membersWithLanguages(ctx, tx, audience, added)
+			if err != nil {
+				return err
+			}
+		}
+		if len(audience) == 0 {
+			return nil
+		}
+		hub, ev := down.Hub, push.Event{Type: push.Conversation, ID: c.ID, Seq: c.LastSeq, ItemSeq: it.Seq}
 		tx.AfterCommit(func(ctx context.Context) error {
 			return errors.Wrap(push.Send(ctx, hub, tenant, audience, ev), "push translation")
 		})
 		return nil
 	})
+}
+
+// membersWithLanguages 从 memberIDs 中筛出语言与 targets 中任意一种相同的成员，用于补译时只推送给看得到这些译文的成员。
+func membersWithLanguages(ctx context.Context, db bun.IDB, memberIDs, targets []string) ([]string, error) {
+	if len(memberIDs) == 0 || len(targets) == 0 {
+		return nil, nil
+	}
+	var rows []struct {
+		ID       string `bun:"id"`
+		Language string `bun:"language"`
+	}
+	if err := db.NewSelect().Table("members").Column("id", "language").Where("id IN (?)", bun.In(memberIDs)).Scan(ctx, &rows); err != nil {
+		return nil, errors.Wrap(err, "load member languages for push")
+	}
+	var out []string
+	for _, r := range rows {
+		for _, target := range targets {
+			if lang.Same(r.Language, target) {
+				out = append(out, r.ID)
+				break
+			}
+		}
+	}
+	return out, nil
 }
 
 // CustomerLanguage 返回会话 c 的客户的语言：客户（有联系人时是这个联系人的全部会话，否则是这个会话）最近 customerLanguageWindow 条
@@ -91,7 +133,7 @@ func SaveTranslation(ctx context.Context, db *bun.DB, down Downstream, tenant, i
 func CustomerLanguage(ctx context.Context, db bun.IDB, c *Conversation) (string, error) {
 	q := db.NewSelect().TableExpr("timeline_items AS t").ColumnExpr("t.derived->>'language'").
 		Where("t.tenant_id = ? AND t.kind = ? AND t.actor_type = ?", c.TenantID, Message, ContactActor).
-		Where("t.derived->>'language' NOT IN ('', ?)", Undetermined).
+		Where("COALESCE(t.derived->>'language', '') NOT IN ('', ?)", Undetermined).
 		OrderExpr("t.created_at DESC, t.seq DESC").Limit(customerLanguageWindow)
 	if c.ContactID != nil {
 		q = q.Where("t.conversation_id IN (SELECT id FROM conversations WHERE tenant_id = ? AND contact_id = ?)", c.TenantID, *c.ContactID)
@@ -112,33 +154,50 @@ func CustomerLanguage(ctx context.Context, db bun.IDB, c *Conversation) (string,
 	return best, nil
 }
 
-// updateCustomerLanguage 在事务 tx 中按 CustomerLanguage 更新已锁住的会话 c 和它的联系人的语言；联系人的语言是成员手动设置的时不改。
-func updateCustomerLanguage(ctx context.Context, tx bun.IDB, c *Conversation) error {
+// updateCustomerLanguage 在事务 tx 中按 CustomerLanguage 更新已锁住的会话 c 和它的联系人的语言，返回客户的语言是否发生了变化。
+// 有联系人时锁住联系人行（锁顺序恒为 conversation -> contact，与 SetLanguage 一致，避免多会话并发覆写手动设置）：
+// 联系人标记为手动设置时不改联系人语言，但顺手把当前会话同步到联系人的语言。
+// clearIfUnknown 为 true 时（恢复自动识别），若没有任何确定了语言的消息，也把会话和联系人的语言清空，避免残留旧的手动值。
+func updateCustomerLanguage(ctx context.Context, tx bun.IDB, c *Conversation, clearIfUnknown bool) (bool, error) {
+	var ct *contact.Contact
 	if c.ContactID != nil {
-		var ct contact.Contact
-		if err := tx.NewSelect().Model(&ct).Where("id = ? AND tenant_id = ?", *c.ContactID, c.TenantID).Scan(ctx); err != nil {
-			return errors.Wrap(err, "load contact")
+		ct = new(contact.Contact)
+		if err := tx.NewSelect().Model(ct).Where("id = ? AND tenant_id = ?", *c.ContactID, c.TenantID).For("UPDATE").Scan(ctx); err != nil {
+			return false, errors.Wrap(err, "load contact")
 		}
 		if ct.LanguageManual {
-			return nil
+			if c.Language != ct.Language {
+				c.Language = ct.Language
+				if _, err := tx.NewUpdate().Model(c).Column("language", "updated_at").WherePK().Exec(ctx); err != nil {
+					return false, errors.Wrap(err, "sync conversation language")
+				}
+			}
+			return false, nil
 		}
 	}
 	language, err := CustomerLanguage(ctx, tx, c)
-	if err != nil || language == "" || language == c.Language {
-		return err
+	if err != nil {
+		return false, err
 	}
-	c.Language = language
-	if _, err := tx.NewUpdate().Model(c).Column("language", "updated_at").WherePK().Exec(ctx); err != nil {
-		return errors.Wrap(err, "update conversation language")
+	if language == "" && !clearIfUnknown {
+		return false, nil
 	}
-	if c.ContactID != nil {
-		_, err := tx.NewUpdate().Table("contacts").Set("language = ?", language).Set("updated_at = ?", now()).
-			Where("id = ? AND tenant_id = ?", *c.ContactID, c.TenantID).Exec(ctx)
-		if err != nil {
-			return errors.Wrap(err, "update contact language")
+	changed := false
+	if c.Language != language {
+		c.Language = language
+		if _, err := tx.NewUpdate().Model(c).Column("language", "updated_at").WherePK().Exec(ctx); err != nil {
+			return false, errors.Wrap(err, "update conversation language")
 		}
+		changed = true
 	}
-	return nil
+	if ct != nil && ct.Language != language {
+		ct.Language = language
+		if _, err := tx.NewUpdate().Model(ct).Column("language", "updated_at").WherePK().Exec(ctx); err != nil {
+			return false, errors.Wrap(err, "update contact language")
+		}
+		changed = true
+	}
+	return changed, nil
 }
 
 // MissingTranslations 返回 targets 中派生内容 derived 还缺译文的语言：还没有识别过语言时是全部 targets；判断不出语言的消息不翻译；

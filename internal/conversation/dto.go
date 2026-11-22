@@ -182,6 +182,8 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 		if c.ContactID != nil {
 			s := contacts[*c.ContactID]
 			d.Contact = &s
+			// 有联系人时，客户的语言以联系人为准，同一联系人的多个会话始终一致
+			d.Language = s.Language
 		}
 		if c.AssigneeType != "" {
 			d.Assignee = &Actor{Type: c.AssigneeType, ID: c.AssigneeID}

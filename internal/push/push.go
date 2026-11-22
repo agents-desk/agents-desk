@@ -22,9 +22,10 @@ const (
 
 // Event 是推送给成员的一个事件。
 type Event struct {
-	Type string `json:"type"`          // Conversation 或 Read
-	ID   string `json:"id"`            // 会话的 ID
-	Seq  int64  `json:"seq,omitempty"` // 会话时间线最新一项的序号
+	Type    string `json:"type"`               // Conversation 或 Read
+	ID      string `json:"id"`                 // 会话的 ID
+	Seq     int64  `json:"seq,omitempty"`      // 会话时间线最新一项的序号
+	ItemSeq int64  `json:"item_seq,omitempty"` // 派生内容更新的那一项的序号（例如历史消息补译），页面据此把刷新窗口覆盖到它
 }
 
 // Channel 返回成员 memberID 在工作区 tenant 中的个人频道。工作区的 ID 写在频道名中：成员账号是全局的，

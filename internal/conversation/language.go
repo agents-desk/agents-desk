@@ -59,7 +59,7 @@ func (a *SetLanguage) Handle(ctx context.Context, sub identity.Subject, id, lang
 			}
 		}
 
-		// 恢复自动识别：按客户最近的消息重新判断
+		// 恢复自动识别：按客户最近的消息重新判断（没有任何确定了语言的消息时清空残留的手动语言）
 		if language == "" {
 			if ct == nil || !ct.LanguageManual {
 				return nil, nil
@@ -68,16 +68,19 @@ func (a *SetLanguage) Handle(ctx context.Context, sub identity.Subject, id, lang
 			if _, err := tx.NewUpdate().Model(ct).Column("language_manual", "updated_at").WherePK().Exec(ctx); err != nil {
 				return nil, errors.Wrap(err, "update contact language")
 			}
-			if err := updateCustomerLanguage(ctx, tx, c); err != nil {
+			if _, err := updateCustomerLanguage(ctx, tx, c, true); err != nil {
 				return nil, err
 			}
 			return []*Item{event(sub, "conversation.language_auto", map[string]any{})}, nil
 		}
 
-		if c.Language == language && (ct == nil || (ct.LanguageManual && ct.Language == language)) {
+		from := c.Language
+		if ct != nil {
+			from = ct.Language
+		}
+		if from == language && c.Language == language && (ct == nil || ct.LanguageManual) {
 			return nil, nil
 		}
-		from := c.Language
 		c.Language = language
 		if ct != nil {
 			ct.Language, ct.LanguageManual = language, true

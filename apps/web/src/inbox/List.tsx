@@ -7,7 +7,7 @@ import { notifyError, notifySuccess, useCan, useLanguage, useT, useTimeZone } fr
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { flatten, useConversationList, useMe, useMembers, useTeams, useThresholds } from "./data"
-import { type FillRef, useFillVisible } from "./fill"
+import { type FillWatcher, useFillVisible } from "./fill"
 import { activity, duration, waitColor, waitLevel } from "./format"
 import { useNow } from "./Nav"
 import type { InboxSearch } from "./search"
@@ -28,10 +28,11 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
   const t = useT()
   const now = useNow()
   const th = useThresholds()
+  const me = useMe()
   const list = useConversationList(search)
   const inbox = useQuery(kit.queries.conversation.inbox())
   const translation = useQuery(kit.queries.translation.settings())
-  const watch = useFillVisible(translation.data?.enabled ?? false)
+  const watch = useFillVisible(translation.data?.enabled ?? false, me.data?.language)
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const items = flatten(list.data?.pages)
@@ -201,7 +202,7 @@ function Row({
   selecting: boolean
   selected: boolean
   onClick: () => void
-  watch: FillRef
+  watch: FillWatcher
 }): ReactNode {
   const t = useT()
   const language = useLanguage()
@@ -219,8 +220,7 @@ function Row({
   return (
     <UnstyledButton
       onClick={onClick}
-      ref={c.preview_untranslated ? watch : undefined}
-      data-item-id={c.preview_item_id}
+      ref={c.preview_untranslated && c.preview_item_id ? watch(c.preview_item_id) : undefined}
       className="inbox-row"
       data-active={active || undefined}
       data-flash={flash || undefined}

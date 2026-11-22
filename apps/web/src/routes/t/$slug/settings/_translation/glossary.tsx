@@ -143,7 +143,12 @@ function TermForm({ initial, onSave, onCancel }: { initial: TranslationTerm; onS
     initialValues: { term: initial.term, keep: initial.keep, pairs: pairs.length > 0 ? pairs : [{ lang: "", text: "" }] },
     validate: {
       term: (v) => (v.trim() ? null : t("glossary.term_required")),
-      pairs: { lang: (v, values) => (values.keep || v || !values.pairs.some((p) => p.lang === v && p.text.trim()) ? null : t("glossary.language_required")) },
+      pairs: {
+        lang: (v, values, path) => {
+          const i = Number(path.split(".")[1])
+          return values.keep || v || !values.pairs[i]?.text.trim() ? null : t("glossary.language_required")
+        },
+      },
     },
   })
   const [saving, setSaving] = useState(false)

@@ -7,7 +7,7 @@ import { kit, tenantApi } from "../api"
 import { languageName } from "../languages"
 import type { TypingNow } from "./channel"
 import { useMe, useMembers, useTeams, useTimeline } from "./data"
-import { type FillRef, useFillVisible } from "./fill"
+import { type FillWatcher, useFillVisible } from "./fill"
 import { describeEvent, whoDid } from "./events"
 import { clock, dayLabel, sameDay } from "./format"
 import { contactName } from "./List"
@@ -43,7 +43,7 @@ export function Timeline({ c, readSeq, typing, original }: { c: ConversationDTO;
   const items = useTimeline(c.id)
   const translation = useQuery(kit.queries.translation.settings())
   const enabled = translation.data?.enabled ?? false
-  const watch = useFillVisible(enabled)
+  const watch = useFillVisible(enabled, me.data?.language)
   const bottom = useRef<HTMLDivElement>(null)
   const list = items.data ?? []
   const names = {
@@ -114,17 +114,22 @@ interface MessageProps {
   lang: string | undefined // 成员的语言：对方的消息显示这种语言的译文
   original: boolean // 顶部选了“原文”：对方的消息都显示原文
   translating: boolean // 翻译可用：还缺我的语言的译文的消息显示“翻译中”，出现在页面上时请求补译
-  watch: FillRef // 挂在还缺译文的消息上，见 useFillVisible
+  watch: FillWatcher // 挂在还缺译文的消息上，见 useFillVisible
 }
 
 /**
  * Message 是一条消息：对方的在左侧，成员和系统发的在右侧，旁边是送达状态，失败时可以重发。
- * 对方的消息有译文时显示译文，下面一行“译文 · 原文”切换（单独切换和顶部的选择相反）；成员翻译后发出的消息显示原文，下面一行展开译文。
+ * 对方的消息有译文时显示译文，下面一行“译文 · 原文”切换（顶部全局切换时重置单条状态）；成员翻译后发出的消息显示原文，下面一行展开译文。
  */
 function Message({ it, c, mine, author, time, lang, original, translating, watch }: MessageProps): ReactNode {
   const t = useT()
   const ui = useLanguage()
-  const [flip, setFlip] = useState(false) // 这一条和顶部的“显示原文”相反
+  const [prevOriginal, setPrevOriginal] = useState(original)
+  const [flip, setFlip] = useState(false) // 这一条和顶部的“显示原文”相反；顶部切换时重置
+  if (prevOriginal !== original) {
+    setPrevOriginal(original)
+    setFlip(false)
+  }
   const [sent, setSent] = useState(false) // 展开发给对方的译文
   const queryClient = useQueryClient()
   const retry = useMutation({
@@ -181,8 +186,7 @@ function Message({ it, c, mine, author, time, lang, original, translating, watch
   return (
     <Box
       style={{ alignSelf: mine ? "flex-end" : "flex-start", maxWidth: "72%" }}
-      ref={!mine && translating && it.untranslated ? watch : undefined}
-      data-item-id={it.id}
+      ref={!mine && translating && it.untranslated ? watch(it.id) : undefined}
     >
       <Text size="xs" c="dimmed" mb={2} ta={mine ? "right" : "left"} px={4}>
         {author} · {time}

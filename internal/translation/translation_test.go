@@ -11,7 +11,10 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/go-tenon/tenon/broadcast"
+	"github.com/go-tenon/tenon/broadcast/broadcasttest"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/lock"
 	"github.com/go-tenon/tenon/lock/pglock"
@@ -24,6 +27,7 @@ import (
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/llm"
 	"agents-desk/internal/member"
+	"agents-desk/internal/push"
 	"agents-desk/internal/tenant"
 )
 
@@ -55,7 +59,7 @@ func (f *fakeModel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	format := body["response_format"].(map[string]any)["json_schema"].(map[string]any)
 	var answer string
 	switch format["name"] {
-	case "incoming_translation":
+	case "incoming_translation", "fill_translation":
 		// 按请求中的目标语言作答：中文和英文是固定的译文，其他语言是带语言标签的文字
 		known := map[string]string{"en": "My order has not arrived", "zh-CN": "我的订单还没到"}
 		props := map[string]any{}
@@ -69,7 +73,11 @@ func (f *fakeModel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				translations[target] = "[" + target + "] my order has not arrived"
 			}
 		}
-		out, _ := json.Marshal(map[string]any{"language": lang, "translations": translations})
+		payload := map[string]any{"translations": translations}
+		if format["name"] == "incoming_translation" {
+			payload["language"] = lang
+		}
+		out, _ := json.Marshal(payload)
 		answer = string(out)
 	case "reply_translation":
 		answer = `{"translation":"Main aapka order check kar raha hoon","back_translation":"我正在查您的订单"}`
@@ -299,16 +307,17 @@ func TestPreviewAndReply(t *testing.T) {
 	p := f.receive(t, "rahul", "mera order abhi tak nahi aaya")
 	incoming := NewIncoming(f.env.DB, f.locker, f.translator, f.down)
 	preview := NewPreview(f.env.DB, f.translator, incoming)
-	// 后台还没识别出对方的语言：预览先识别（不翻译），再翻译回复
+	// 后台还没识别出对方的语言：预览先识别并顺带翻译主要语言，再翻译回复；后台任务随后执行时不再重复调用模型
 	got, err := preview.Handle(ctx, f.agent, p.ConversationID, PreviewBody{Text: "我在查"})
 	if err != nil || !got.Needed || got.Language != "hi-Latn" {
 		t.Fatalf("对方的语言未知时的预览：%+v %v", got, err)
 	}
-	if it := f.item(t, p.ItemID); it.Derived["language"] != "hi-Latn" || it.Derived["translations"] == nil {
-		t.Fatalf("预览前识别的消息：%+v", it.Derived)
+	if it := f.item(t, p.ItemID); it.Derived["language"] != "hi-Latn" || it.Derived["translations"].(map[string]any)["zh-CN"] != "我的订单还没到" {
+		t.Fatalf("预览前识别并顺带翻译的消息：%+v", it.Derived)
 	}
-	if err := incoming.Job(ctx, p); err != nil {
-		t.Fatal(err)
+	afterPreview := f.model.count()
+	if err := incoming.Job(ctx, p); err != nil || f.model.count() != afterPreview {
+		t.Fatalf("预览已顺带翻译后后台任务不应当再调用模型：%v，调用了 %d 次", err, f.model.count()-afterPreview)
 	}
 	// 会话列表的预览：对方的消息显示成员语言的译文
 	if c, err := conversation.NewGet(f.env.DB).Handle(ctx, f.agent, p.ConversationID); err != nil || c.Preview != "我的订单还没到" {
@@ -424,7 +433,7 @@ func TestFill(t *testing.T) {
 		t.Fatalf("已经有译文时：%d %v", n, err)
 	}
 
-	// 成员改成日语：旧消息只补日语，同一条消息的任务重复执行也只调用一次模型
+	// 成员改成日语：旧消息已知源语言，只补译日语不重新识别（即便模型会把短语识别成 und 也不影响），同一条消息重复执行只调用一次模型
 	if _, err := f.env.DB.NewRaw("UPDATE members SET language = 'ja' WHERE id = ?", f.agent.ID).Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -434,13 +443,14 @@ func TestFill(t *testing.T) {
 	if n, err := fill.Handle(ctx, f.agent, []string{p.ItemID}); err != nil || n != 1 {
 		t.Fatalf("补日语：%d %v", n, err)
 	}
+	f.model.language = "und"
 	before := f.model.count()
 	for range 2 {
 		if err := job.Fill(ctx, FillJob{TenantID: f.system.Tenant, ItemID: p.ItemID, Language: "ja"}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if f.model.count() != before+1 || !strings.Contains(f.model.lastSystem(), "these languages: ja.") {
+	if f.model.count() != before+1 || !strings.Contains(f.model.lastSystem(), "written in hi-Latn into each of these languages: ja.") {
 		t.Fatalf("补日语调用了 %d 次：%s", f.model.count()-before, f.model.lastSystem())
 	}
 	if tr, _ := f.item(t, p.ItemID).Derived["translations"].(map[string]any); tr["ja"] == nil || tr["zh-CN"] == nil {
@@ -506,6 +516,52 @@ func TestManualLanguage(t *testing.T) {
 	if !slices.Contains(events, "conversation.language_set") || !slices.Contains(events, "conversation.language_auto") {
 		t.Fatalf("系统事件：%v", events)
 	}
+
+	// 客户只有 und 消息时，手动设置后恢复自动识别应当清空残留的手动语言
+	f.model.language = "und"
+	onlyUnd := f.receive(t, "amit", "ok")
+	if err := job.Job(ctx, onlyUnd); err != nil {
+		t.Fatal(err)
+	}
+	if c, err := set.Handle(ctx, f.agent, onlyUnd.ConversationID, "ja"); err != nil || c.Language != "ja" || !c.Contact.LanguageManual {
+		t.Fatalf("只有 und 时手动设置：%+v %v", c, err)
+	}
+	if c, err := set.Handle(ctx, f.agent, onlyUnd.ConversationID, ""); err != nil || c.Contact.LanguageManual || c.Language != "" || c.Contact.Language != "" {
+		t.Fatalf("只有 und 时恢复自动识别应当清空语言：%+v %v", c, err)
+	}
+
+	// 同一个联系人的多个会话：在一个会话手动设置语言，另一个会话立即同步看到新语言
+	multiCh, err := channel.NewCreate(f.env.DB).Handle(ctx, f.system, channel.CreateParams{Kind: channel.Widget, Name: "插件"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reg := channel.Registry{channel.Widget: multiConnector{}}
+	recv := conversation.NewReceive(f.env.DB, reg, f.down)
+	r1, err := recv.Handle(ctx, f.system, conversation.ReceiveParams{ChannelID: multiCh.ID, From: "same-user", Text: "hello"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r2, err := recv.Handle(ctx, f.system, conversation.ReceiveParams{ChannelID: multiCh.ID, From: "same-user", Text: "second"})
+	if err != nil || r2.ConversationID == r1.ConversationID {
+		t.Fatalf("应建两个会话：%+v %+v %v", r1, r2, err)
+	}
+	if _, err := set.Handle(ctx, f.agent, r1.ConversationID, "fr"); err != nil {
+		t.Fatal(err)
+	}
+	if c2, err := conversation.NewGet(f.env.DB).Handle(ctx, f.agent, r2.ConversationID); err != nil || c2.Language != "fr" || c2.Contact.Language != "fr" {
+		t.Fatalf("同联系人的另一个会话应当同步语言：%+v %v", c2, err)
+	}
+}
+
+// multiConnector 是允许同一联系人发起多个会话的测试连接器。
+type multiConnector struct{}
+
+func (multiConnector) Capabilities() channel.Capabilities {
+	return channel.Capabilities{MultipleConversations: true}
+}
+
+func (multiConnector) Send(_ context.Context, m channel.Outgoing) (string, bool, error) {
+	return "multi-" + m.ItemID, true, nil
 }
 
 // TestCustomerLanguage 检查客户的语言：判断不出语言的消息（ok）记为 und、不翻译、不改客户的语言；一段英文不改，连续两段英文才改。
@@ -554,12 +610,18 @@ func TestCustomerLanguage(t *testing.T) {
 	}
 }
 
-// TestPrimaryLanguages 检查收到时只翻译成工作区的主要语言（用的人最多的语言）：再加一位中文成员后，英文不再预先翻译，
-// 英文成员看到时补译；会话列表对他标出还缺译文。
+// TestPrimaryLanguages 检查收到时的主要语言规则（占比不少于 25% 或并列最多，最多 3 种）：
+// 2 中 1 英时两种都预译（避免双语团队悬崖退化）；4 中 1 英（英文占 20%）时只预译中文，英文成员看到时补译，
+// 且纯补译只推送给英文成员（带 item_seq）不打扰中文成员。
 func TestPrimaryLanguages(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	f := setup(t, true)
+	hub := broadcast.New(broadcasttest.NewBackend(), nil)
+	t.Cleanup(func() { _ = hub.Close() })
+	f.down.Hub = hub
+	f.down.Roles = f.env.Roles
+
 	roles, err := f.env.Roles.Roles(ctx, f.system.Tenant)
 	if err != nil {
 		t.Fatal(err)
@@ -570,16 +632,34 @@ func TestPrimaryLanguages(t *testing.T) {
 			roleID = r.ID
 		}
 	}
-	if _, err := member.NewAdd(f.env.DB, f.env.MemberLogins, f.env.Files).Handle(ctx, f.agent, member.AddParams{
-		Email: "zh2@alpha.com", Name: "zh2", Password: "password", RoleID: roleID,
-	}); err != nil {
+	addZH := func(name string) {
+		t.Helper()
+		if _, err := member.NewAdd(f.env.DB, f.env.MemberLogins, f.env.Files).Handle(ctx, f.agent, member.AddParams{
+			Email: name + "@alpha.com", Name: name, Password: "password", RoleID: roleID,
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := f.env.DB.NewRaw("UPDATE members SET language = 'zh-CN' WHERE name = ?", name).Exec(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// 2 中 1 英（67% vs 33%）：两种语言占比均 >= 25%，收到时一起预译
+	addZH("zh2")
+	both := f.receive(t, "sita", "mera order abhi tak nahi aaya")
+	job := NewIncoming(f.env.DB, f.locker, f.translator, f.down)
+	if err := job.Job(ctx, both); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.env.DB.NewRaw("UPDATE members SET language = 'zh-CN' WHERE name = 'zh2'").Exec(ctx); err != nil {
-		t.Fatal(err)
+	if tr, _ := f.item(t, both.ItemID).Derived["translations"].(map[string]any); tr["zh-CN"] == nil || tr["en"] == nil {
+		t.Fatalf("2 中 1 英应当同时预译中英：%+v", tr)
 	}
+
+	// 4 中 1 英（80% vs 20%）：英文成为少数派，收到时只预译中文
+	addZH("zh3")
+	addZH("zh4")
 	p := f.receive(t, "rahul", "mera order abhi tak nahi aaya")
-	if err := NewIncoming(f.env.DB, f.locker, f.translator, f.down).Job(ctx, p); err != nil {
+	if err := job.Job(ctx, p); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(f.model.lastSystem(), "these languages: zh-CN.") {
@@ -605,5 +685,28 @@ func TestPrimaryLanguages(t *testing.T) {
 	}
 	if n, err := NewFillMissing(f.env.DB, f.translator).Handle(ctx, en, []string{c.PreviewItemID, p.ItemID}); err != nil || n != 1 {
 		t.Fatalf("英文成员补译：%d %v", n, err)
+	}
+
+	// 纯补译英文：只推送给英文成员且带 item_seq，中文成员不收到推送
+	enSub := hub.Subscribe(push.Channel(f.system.Tenant, enID))
+	defer enSub.Close()
+	zhSub := hub.Subscribe(push.Channel(f.system.Tenant, f.agent.ID))
+	defer zhSub.Close()
+	if err := job.Fill(ctx, FillJob{TenantID: f.system.Tenant, ItemID: p.ItemID, Language: "en"}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case msg := <-enSub.C():
+		var ev push.Event
+		if err := json.Unmarshal(msg.Data, &ev); err != nil || ev.ID != p.ConversationID || ev.ItemSeq != p.Seq {
+			t.Fatalf("英文成员收到的补译推送：%+v %v", ev, err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("英文成员没有收到补译推送")
+	}
+	select {
+	case msg := <-zhSub.C():
+		t.Fatalf("纯补译英文不应当推送给中文成员：%s", string(msg.Data))
+	case <-time.After(100 * time.Millisecond):
 	}
 }

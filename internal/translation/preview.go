@@ -2,6 +2,7 @@ package translation
 
 import (
 	"context"
+	"slices"
 
 	"github.com/cockroachdb/errors"
 
@@ -78,7 +79,7 @@ func (a *Preview) Handle(ctx context.Context, sub identity.Subject, id string, b
 		to = c.Language
 	}
 	if to == "" {
-		if to, err = a.detect(ctx, sub, c.ID); err != nil {
+		if to, err = a.detect(ctx, sub, c.ID, from); err != nil {
 			return nil, err
 		}
 	}
@@ -92,8 +93,9 @@ func (a *Preview) Handle(ctx context.Context, sub identity.Subject, id string, b
 	return &PreviewDTO{Needed: true, From: from, Language: to, Translation: translation, BackTranslation: back}, nil
 }
 
-// detect 识别 sub 能看到的会话 id 中对方最近几条还没识别过语言的消息（不翻译），返回识别之后对方的语言。
-func (a *Preview) detect(ctx context.Context, sub identity.Subject, id string) (string, error) {
+// detect 识别 sub 能看到的会话 id 中对方最近还没识别过语言的消息，顺带翻译成工作区主要语言和当前成员的语言
+// （避免先只识别、后台任务再调一次模型补译），一旦确定出客户的语言就立刻返回，其余消息交由后台任务处理。
+func (a *Preview) detect(ctx context.Context, sub identity.Subject, id, memberLang string) (string, error) {
 	var ids []string
 	err := a.db.NewSelect().Table("timeline_items").Column("id").
 		Where("tenant_id = ? AND conversation_id = ? AND kind = ? AND actor_type = ? AND visibility = ?", sub.Tenant, id, conversation.Message, conversation.ContactActor, conversation.Everyone).
@@ -102,16 +104,30 @@ func (a *Preview) detect(ctx context.Context, sub identity.Subject, id string) (
 	if err != nil {
 		return "", errors.Wrap(err, "load undetected messages")
 	}
-	for _, itemID := range ids {
-		if err := a.incoming.Ensure(ctx, sub.Tenant, itemID, nil); err != nil {
-			return "", err
-		}
+	if len(ids) == 0 {
+		return "", nil
 	}
-	c, err := conversation.NewGet(a.db).Handle(ctx, sub, id)
+	targets, err := primaryLanguages(ctx, a.db, sub.Tenant)
 	if err != nil {
 		return "", err
 	}
-	return c.Language, nil
+	if memberLang != "" && !slices.Contains(targets, memberLang) {
+		targets = append(targets, memberLang)
+		slices.Sort(targets)
+	}
+	for _, itemID := range ids {
+		if err := a.incoming.Ensure(ctx, sub.Tenant, itemID, targets); err != nil {
+			return "", err
+		}
+		c, err := conversation.NewGet(a.db).Handle(ctx, sub, id)
+		if err != nil {
+			return "", err
+		}
+		if c.Language != "" {
+			return c.Language, nil
+		}
+	}
+	return "", nil
 }
 
 // HTTP 处理 POST /t/{slug}/api/conversations/{id}/translations。

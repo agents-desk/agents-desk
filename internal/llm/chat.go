@@ -33,9 +33,10 @@ type Message struct {
 
 // JSONRequest 是要求按 JSON schema 回答的一次调用。
 type JSONRequest struct {
-	Messages   []Message
-	SchemaName string         // schema 的名字，例如 translation
-	Schema     map[string]any // 回答的 JSON schema
+	Messages    []Message
+	SchemaName  string         // schema 的名字，例如 translation
+	Schema      map[string]any // 回答的 JSON schema
+	NoReasoning bool           // 关掉模型的思考（在 OpenRouter 上生效）：翻译、识别语言等不需要推理的调用设为 true
 }
 
 // Target 是一次调用为谁做的，写进调用记录：工作区，以及对象的类型和 ID（例如 timeline_item 和它的 ID）。
@@ -111,8 +112,8 @@ type completion struct {
 }
 
 // JSON 用调用类型 t 的模型接口发出 req，把按 req.Schema 给出的回答解码到 out。接口是 OpenAI 兼容的 /chat/completions，
-// 用 response_format 要求严格按 schema 回答；接口在 OpenRouter 上时请求带上 usage.include，回答中有费用，
-// 并且带上 reasoning.enabled=false 关掉思考：翻译、识别语言这类调用不需要推理，开着思考慢几倍、贵几倍，结果一样。
+// 用 response_format 要求严格按 schema 回答；接口在 OpenRouter 上时请求带上 usage.include（回答中有费用），
+// req.NoReasoning 为 true 时同时带上 reasoning.enabled=false 关掉思考。
 // 不论成败都在 llm_calls 中记一行。没有配置时返回 ErrNotConfigured，调用失败或回答不是要求的格式时返回 ErrFailed。
 func (c *Client) JSON(ctx context.Context, t CallType, target Target, req JSONRequest, out any) error {
 	s, err := c.settings.Get(ctx)
@@ -132,9 +133,11 @@ func (c *Client) JSON(ctx context.Context, t CallType, target Target, req JSONRe
 			"json_schema": map[string]any{"name": req.SchemaName, "strict": true, "schema": req.Schema},
 		},
 	}
-	if u, err := url.Parse(ep.BaseURL); err == nil && strings.HasSuffix(u.Hostname(), "openrouter.ai") {
+	if isOpenRouter(ep.BaseURL) {
 		body["usage"] = map[string]any{"include": true}
-		body["reasoning"] = map[string]any{"enabled": false}
+		if req.NoReasoning {
+			body["reasoning"] = map[string]any{"enabled": false}
+		}
 	}
 	call := &Call{
 		ID: uuid.Must(uuid.NewV7()).String(), CreatedAt: time.Now().UTC().Truncate(time.Microsecond),
@@ -203,6 +206,16 @@ func (c *Client) do(ctx context.Context, ep Endpoint, body map[string]any, call 
 		return errors.Wrap(err, "decode answer")
 	}
 	return nil
+}
+
+// isOpenRouter 报告模型接口地址 rawURL 的主机名是不是 OpenRouter（openrouter.ai 或其子域名）。
+func isOpenRouter(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	host := strings.ToLower(u.Hostname())
+	return host == "openrouter.ai" || strings.HasSuffix(host, ".openrouter.ai")
 }
 
 // stripFence 去掉有的模型给 JSON 回答包上的 ```json 代码块标记。
