@@ -114,6 +114,11 @@ packages/client/         bun run generate 生成的客户端，不手改
 - 查文档用 MCP 工具 `tenon_search_docs`、`tenon_read_doc`；用 rg 时指定目录（例如 `rg 迁移 .tenon/docs`）。项目结构用 `tenon_app_info` 查看。
 - Go 依赖的签名和说明用 `go doc` 读与 `go.mod` 一致的版本；Mantine、TanStack 等依赖的 AI 资源按 `README.md` 的“AI 编程助手”一节接入，与 Tenon 冲突时以本文和 `.tenon/docs` 为准。
 
+## 开发与部署约定
+
+- Docker 仅用于开发和测试期：在主工作区启动 PostgreSQL、NATS、Redis 等依赖服务并常驻；业务服务与测试在独立的 `git worktree` 中运行（`bun run dev`、`go test ./...`），复用主工作区的依赖容器，通过各 worktree 的 `config/local.yaml` 错开 `http.addr` 端口（需要时指定独立数据库名）。
+- 生产部署采用原生单二进制加 systemd 零停机升级：用 `go tool tenon add deploy` 生成 `deploy.yaml` 和 `.env.example`，用 `go tool tenon deploy` 初始化主机、发布与回滚，见 `.tenon/docs/installation/deployment.md`。
+
 ## 提交前
 
 ```bash
@@ -139,7 +144,7 @@ CI（`.github/workflows/ci.yml`）运行同样的检查并构建一次；生成�
 
 - 一个用例写成一个业务动作，放在 `internal/<模块>/`，一个动作一个文件。HTTP、命令、队列、MCP 等入口只做输入转换并调用 `Handle`。
 - 业务规则、权限判断和校验写在 Go 中；前端和 App 只负责展示和交互。
-- 业务错误用 `errorx.Define` 定义稳定错误码；启用本地化后，译文写在翻译文件中，以错误码为消息 ID。
+- 业务错误用 `errorx.Define(kind, code, "默认提示")` 定义稳定错误码与源语言提示；无需为源语言另建翻译文件。
 
 ### 数据与事务
 
@@ -167,7 +172,7 @@ CI（`.github/workflows/ci.yml`）运行同样的检查并构建一次；生成�
 - 用 Mantine 和 `@go-tenon/ui` 组件，用生成的客户端和 TanStack Query 调接口，路由用 TanStack Router 文件路由。
 - 颜色从 Mantine 主题取：默认品牌色 `brand`，彩色写预设名（`deep-orange`、`var(--mantine-color-deep-orange-6)`），中性色用 `gray`/`dark`/`c="dimmed"`/`--tn-*`，不写十六进制或 `rgb()`。
 - 状态色固定：成功 `green`，进行中 `bright-blue`，等待 `yellow`，注意 `deep-orange`，失败 `red`，无状态 `gray`。
-- 界面文字写在 `locales/<前端>.zh-CN.yaml`，页面用 `useT`，菜单标题写消息 ID，见 `.tenon/docs/frontend/i18n.md`。
+- 界面文字与菜单标题直接写在页面代码中，无需抽到 `locales/`；需要多语言时运行 `go tool tenon add language <语言>`，见 `.tenon/docs/frontend/i18n.md`。
 - 生成的代码（`packages/client`、`routeTree.gen.ts`、`messages.gen.ts`）不手改。
 
 ### 接口

@@ -95,6 +95,7 @@ tenant.status.disabled: 已停用
 "permission.teams:read": 查看团队收件箱
 "permission.teams:manage": 管理团队收件箱
 "permission.channels:manage": 管理渠道
+"permission.macros:manage": 管理共享的快捷回复
 
 role.owner: 主管理员
 role.not_found: 角色不存在
@@ -111,6 +112,7 @@ conversation_scope.all: 全部会话
 conversation_scope.team: 所在团队收件箱的和指派给自己的会话
 conversation_scope.assigned: 只有指派给自己的会话
 "role_permission.conversations:assign": 把会话改派给别人
+"role_permission.macros:manage": 管理共享的快捷回复
 "role_permission.members:manage": 管理成员和角色
 "role_permission.teams:manage": 管理团队收件箱
 "role_permission.channels:manage": 管理渠道
@@ -338,3 +340,37 @@ schedule.task.operations_cleanup.label: 清理历史后台操作
 schedule.task.operations_cleanup.description: 删除 30 天前的后台操作与导出记录
 schedule.task.conversations_unsnooze.label: 唤醒到期稍后处理会话
 schedule.task.conversations_unsnooze.description: 重新打开稍后处理到期的会话
+
+conversation.invalid_actions: 附带操作的参数无效
+conversation.team_change_mode.set: 指派到团队收件箱
+conversation.team_change_mode.clear: 移出团队收件箱
+conversation.assignee_change_mode.me: 指派给我
+conversation.assignee_change_mode.member: 指派给指定成员
+conversation.assignee_change_mode.clear: 取消负责人
+conversation.status_action_kind.close: 关闭会话
+conversation.status_action_kind.snooze: 稍后处理
+
+macro.not_found: 快捷回复不存在
+macro.forbidden: 你没有管理这条快捷回复的权限
+macro.empty: 回复正文和附带操作至少填写一项
+macro.invalid_shortcut: 快捷指令码只能包含小写字母、数字、连字符和下划线，且以字母或数字开头
+macro.shortcut_taken: "快捷指令码“/{{.shortcut}}”已被使用"
+macro.invalid_actions: 附带操作配置无效
+macro.scope.shared: 共享
+macro.scope.personal: 个人
+macro.snooze.later: 今天晚些时候
+macro.snooze.tomorrow: 明天
+macro.snooze.monday: 下周一
+macro.snooze.week: 一周后
+macro.snooze.month: 一个月后
+macro.title: 快捷回复
+macro.fields.id: ID
+macro.fields.scope: 作用域
+macro.fields.shortcut: 快捷码
+macro.fields.title: 标题
+macro.fields.body: 回复正文
+macro.fields.actions: 附带操作
+macro.fields.editable: 可管理
+macro.fields.q: 搜索
+macro.fields.created_at: 创建时间
+macro.fields.updated_at: 更新时间

@@ -37,6 +37,7 @@ import (
 	"agents-desk/internal/flags"
 	"agents-desk/internal/hours"
 	"agents-desk/internal/llm"
+	"agents-desk/internal/macro"
 	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
 	"agents-desk/internal/platformsettings"
@@ -152,7 +153,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 	// 成员离开工作区之后（移出成员、更换主管理员），在同一个事务中：他负责的未关闭会话放回团队收件箱重新分配，
 	// 团队收件箱把他移出
 	memberHooks := member.Hooks{Removed: []member.RemovedHook{
-		conversation.OnMemberLeft(a.downstream()), team.OnMemberRemoved,
+		conversation.OnMemberLeft(a.downstream()), team.OnMemberRemoved, macro.OnMemberRemoved,
 	}}
 
 	// 管理员端：只接受平台管理员，会话 cookie 是 __Host-admin，权限按平台的域加载。
@@ -247,6 +248,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		contact.RegisterRoutes(api, require, a.db)
 		tag.RegisterRoutes(api, require, a.db)
 		attribute.RegisterRoutes(api, require, a.db)
+		macro.RegisterRoutes(api, require, a.db)
 		conversation.RegisterRoutes(api, require, a.db, a.downstream())
 		widget.RegisterRoutes(api, require, a.db, a.crypt, a.cfg.PublicURL)
 		translation.RegisterRoutes(api, require, a.db, a.translator, translation.NewIncoming(a.db, a.locker, a.translator, a.downstream()), a.translationSettings)

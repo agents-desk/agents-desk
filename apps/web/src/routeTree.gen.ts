@@ -33,6 +33,7 @@ import { Route as TSlugSettingsAutomationRulesRouteImport } from './routes/t/$sl
 import { Route as TSlugSettingsChannelsWidgetsRouteImport } from './routes/t/$slug/settings/_channels/widgets'
 import { Route as TSlugSettingsDataAttributesRouteImport } from './routes/t/$slug/settings/_data/attributes'
 import { Route as TSlugSettingsDataTagsRouteImport } from './routes/t/$slug/settings/_data/tags'
+import { Route as TSlugSettingsInboxMacrosRouteImport } from './routes/t/$slug/settings/_inbox/macros'
 import { Route as TSlugSettingsInboxTeamsRouteImport } from './routes/t/$slug/settings/_inbox/teams'
 import { Route as TSlugSettingsPersonalPreferencesRouteImport } from './routes/t/$slug/settings/_personal/preferences'
 import { Route as TSlugSettingsPersonalProfileRouteImport } from './routes/t/$slug/settings/_personal/profile'
@@ -165,6 +166,12 @@ const TSlugSettingsDataTagsRoute = TSlugSettingsDataTagsRouteImport.update({
   path: '/tags',
   getParentRoute: () => TSlugSettingsDataRoute,
 } as any)
+const TSlugSettingsInboxMacrosRoute =
+  TSlugSettingsInboxMacrosRouteImport.update({
+    id: '/macros',
+    path: '/macros',
+    getParentRoute: () => TSlugSettingsInboxRoute,
+  } as any)
 const TSlugSettingsInboxTeamsRoute = TSlugSettingsInboxTeamsRouteImport.update({
   id: '/teams',
   path: '/teams',
@@ -267,6 +274,7 @@ export interface FileRoutesByFullPath {
   '/t/$slug/settings/widgets': typeof TSlugSettingsChannelsWidgetsRouteWithChildren
   '/t/$slug/settings/attributes': typeof TSlugSettingsDataAttributesRoute
   '/t/$slug/settings/tags': typeof TSlugSettingsDataTagsRoute
+  '/t/$slug/settings/macros': typeof TSlugSettingsInboxMacrosRoute
   '/t/$slug/settings/teams': typeof TSlugSettingsInboxTeamsRouteWithChildren
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
@@ -295,6 +303,7 @@ export interface FileRoutesByTo {
   '/t/$slug/settings/rules': typeof TSlugSettingsAutomationRulesRoute
   '/t/$slug/settings/attributes': typeof TSlugSettingsDataAttributesRoute
   '/t/$slug/settings/tags': typeof TSlugSettingsDataTagsRoute
+  '/t/$slug/settings/macros': typeof TSlugSettingsInboxMacrosRoute
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/status': typeof TSlugSettingsPersonalStatusRoute
@@ -335,6 +344,7 @@ export interface FileRoutesById {
   '/t/$slug/settings/_channels/widgets': typeof TSlugSettingsChannelsWidgetsRouteWithChildren
   '/t/$slug/settings/_data/attributes': typeof TSlugSettingsDataAttributesRoute
   '/t/$slug/settings/_data/tags': typeof TSlugSettingsDataTagsRoute
+  '/t/$slug/settings/_inbox/macros': typeof TSlugSettingsInboxMacrosRoute
   '/t/$slug/settings/_inbox/teams': typeof TSlugSettingsInboxTeamsRouteWithChildren
   '/t/$slug/settings/_personal/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/_personal/profile': typeof TSlugSettingsPersonalProfileRoute
@@ -370,6 +380,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/widgets'
     | '/t/$slug/settings/attributes'
     | '/t/$slug/settings/tags'
+    | '/t/$slug/settings/macros'
     | '/t/$slug/settings/teams'
     | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
@@ -398,6 +409,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/rules'
     | '/t/$slug/settings/attributes'
     | '/t/$slug/settings/tags'
+    | '/t/$slug/settings/macros'
     | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
     | '/t/$slug/settings/status'
@@ -437,6 +449,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/_channels/widgets'
     | '/t/$slug/settings/_data/attributes'
     | '/t/$slug/settings/_data/tags'
+    | '/t/$slug/settings/_inbox/macros'
     | '/t/$slug/settings/_inbox/teams'
     | '/t/$slug/settings/_personal/preferences'
     | '/t/$slug/settings/_personal/profile'
@@ -628,6 +641,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/t/$slug/settings/tags'
       preLoaderRoute: typeof TSlugSettingsDataTagsRouteImport
       parentRoute: typeof TSlugSettingsDataRoute
+    }
+    '/t/$slug/settings/_inbox/macros': {
+      id: '/t/$slug/settings/_inbox/macros'
+      path: '/macros'
+      fullPath: '/t/$slug/settings/macros'
+      preLoaderRoute: typeof TSlugSettingsInboxMacrosRouteImport
+      parentRoute: typeof TSlugSettingsInboxRoute
     }
     '/t/$slug/settings/_inbox/teams': {
       id: '/t/$slug/settings/_inbox/teams'
@@ -833,10 +853,12 @@ const TSlugSettingsInboxTeamsRouteWithChildren =
   )
 
 interface TSlugSettingsInboxRouteChildren {
+  TSlugSettingsInboxMacrosRoute: typeof TSlugSettingsInboxMacrosRoute
   TSlugSettingsInboxTeamsRoute: typeof TSlugSettingsInboxTeamsRouteWithChildren
 }
 
 const TSlugSettingsInboxRouteChildren: TSlugSettingsInboxRouteChildren = {
+  TSlugSettingsInboxMacrosRoute: TSlugSettingsInboxMacrosRoute,
   TSlugSettingsInboxTeamsRoute: TSlugSettingsInboxTeamsRouteWithChildren,
 }
 

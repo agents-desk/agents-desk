@@ -31,7 +31,7 @@ const (
 
 // Languages 是可以选的语言，与界面的翻译文件（locales/web.<语言>.yaml）的语言相同；显示文字是翻译文件中
 // member.language.<语言> 的消息。
-var Languages = enum.New("member.language", SimplifiedChinese, English)
+var Languages = enum.New("member.language", enum.Item(SimplifiedChinese), enum.Item(English))
 
 // Schema 让 OpenAPI 中的 Language 只接受上面的取值，并带有显示文字。
 func (Language) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Languages) }

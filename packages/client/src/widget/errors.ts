@@ -61,6 +61,8 @@ export const ContactErrors = {
 
 /** agents-desk/internal/conversation 的错误码。 */
 export const ConversationErrors = {
+  /** ErrInvalidActions 是附带操作的参数不完整或互相冲突（例如空的批量操作、set 模式缺少 ID、snooze 缺少 until）。 */
+  InvalidActions: "conversation.invalid_actions",
   /** ErrAlreadyAssigned 是要领取的会话已经被别人领取了：两个人同时领取时，先到者生效。 */
   AlreadyAssigned: "conversation.already_assigned",
   /** ErrClosed 是会话已经关闭，不能执行这个操作，例如稍后处理一个已关闭的会话。 */
@@ -109,6 +111,22 @@ export const LlmErrors = {
   NotConfigured: "llm.not_configured",
   /** ErrFailed 是模型接口调用失败，或者回答不是要求的格式。 */
   Failed: "llm.failed",
+} as const
+
+/** agents-desk/internal/macro 的错误码。 */
+export const MacroErrors = {
+  /** ErrNotFound 是快捷回复不存在、属于别的工作区，或者属于其他成员的个人快捷回复。 */
+  NotFound: "macro.not_found",
+  /** ErrForbidden 是调用者没有权限管理该快捷回复（例如没有 macros:manage 权限去改共享快捷回复）。 */
+  Forbidden: "macro.forbidden",
+  /** ErrEmpty 是回复正文与附带操作同时为空。 */
+  Empty: "macro.empty",
+  /** ErrInvalidShortcut 是快捷指令码格式不合法（只能包含小写字母、数字、连字符和下划线，且以字母或数字开头）。 */
+  InvalidShortcut: "macro.invalid_shortcut",
+  /** ErrShortcutTaken 是同一作用域下已存在相同的快捷指令码。 */
+  ShortcutTaken: "macro.shortcut_taken",
+  /** ErrInvalidActions 是附带操作的参数不完整或互相冲突。 */
+  InvalidActions: "macro.invalid_actions",
 } as const
 
 /** agents-desk/internal/member 的错误码。 */

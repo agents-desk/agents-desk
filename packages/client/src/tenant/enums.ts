@@ -2,7 +2,8 @@
 
 /**
  * 带显示文字的枚举，键是 OpenAPI 中的命名类型（api.ts 中同名的类型是取值的联合类型）。
- * labels 按语言列出显示文字，取自翻译文件中 <前缀>.<取值> 的消息；缺少时先用默认语言，再用取值本身。
+ * labels 按语言列出显示文字，源语言来自定义处的默认文字（翻译文件覆盖），其他语言来自翻译文件中 <前缀>.<取值>；
+ * 缺少时先用默认语言，再用取值本身。
  */
 export const enums = {
   AttributeTarget: {
@@ -69,6 +70,14 @@ export const enums = {
       "zh-CN": { contact: "联系人", member: "成员", system: "系统" },
     },
   },
+  ConversationAssigneeChangeMode: {
+    prefix: "conversation.assignee_change_mode",
+    values: ["me", "member", "clear"],
+    labels: {
+      "en": { me: "Assign to me", member: "Assign to member", clear: "Unassign" },
+      "zh-CN": { me: "指派给我", member: "指派给指定成员", clear: "取消负责人" },
+    },
+  },
   ConversationDelivery: {
     prefix: "conversation.delivery",
     values: ["sending", "delivered", "read", "failed"],
@@ -133,6 +142,22 @@ export const enums = {
       "zh-CN": { open: "打开", snoozed: "稍后处理", closed: "已关闭" },
     },
   },
+  ConversationStatusActionKind: {
+    prefix: "conversation.status_action_kind",
+    values: ["close", "snooze"],
+    labels: {
+      "en": { close: "Close conversation", snooze: "Snooze" },
+      "zh-CN": { close: "关闭会话", snooze: "稍后处理" },
+    },
+  },
+  ConversationTeamChangeMode: {
+    prefix: "conversation.team_change_mode",
+    values: ["set", "clear"],
+    labels: {
+      "en": { set: "Assign to team inbox", clear: "Remove from team inbox" },
+      "zh-CN": { set: "指派到团队收件箱", clear: "移出团队收件箱" },
+    },
+  },
   ConversationVisibility: {
     prefix: "conversation.visibility",
     values: ["all", "members"],
@@ -149,6 +174,22 @@ export const enums = {
       "zh-CN": { minutes: "几分钟内", hour: "一小时内", hours: "几小时内", day: "一天内" },
     },
   },
+  MacroScope: {
+    prefix: "macro.scope",
+    values: ["shared", "personal"],
+    labels: {
+      "en": { shared: "Shared", personal: "Personal" },
+      "zh-CN": { shared: "共享", personal: "个人" },
+    },
+  },
+  MacroSnooze: {
+    prefix: "macro.snooze",
+    values: ["later", "tomorrow", "monday", "week", "month"],
+    labels: {
+      "en": { later: "Later today", tomorrow: "Tomorrow", monday: "Next Monday", week: "In a week", month: "In a month" },
+      "zh-CN": { later: "今天晚些时候", tomorrow: "明天", monday: "下周一", week: "一周后", month: "一个月后" },
+    },
+  },
   MemberStatus: {
     prefix: "member.status",
     values: ["online", "away"],
@@ -159,10 +200,10 @@ export const enums = {
   },
   RolePermission: {
     prefix: "role_permission",
-    values: ["conversations:assign", "members:manage", "teams:manage", "channels:manage", "tenant-settings:manage"],
+    values: ["conversations:assign", "macros:manage", "members:manage", "teams:manage", "channels:manage", "tenant-settings:manage"],
     labels: {
-      "en": { "conversations:assign": "Reassign conversations to others", "members:manage": "Manage members and roles", "teams:manage": "Manage team inboxes", "channels:manage": "Manage channels", "tenant-settings:manage": "Manage workspace settings" },
-      "zh-CN": { "conversations:assign": "把会话改派给别人", "members:manage": "管理成员和角色", "teams:manage": "管理团队收件箱", "channels:manage": "管理渠道", "tenant-settings:manage": "管理工作区设置" },
+      "en": { "conversations:assign": "Reassign conversations to others", "macros:manage": "Manage shared quick replies", "members:manage": "Manage members and roles", "teams:manage": "Manage team inboxes", "channels:manage": "Manage channels", "tenant-settings:manage": "Manage workspace settings" },
+      "zh-CN": { "conversations:assign": "把会话改派给别人", "macros:manage": "管理共享的快捷回复", "members:manage": "管理成员和角色", "teams:manage": "管理团队收件箱", "channels:manage": "管理渠道", "tenant-settings:manage": "管理工作区设置" },
     },
   },
   TagColor: {

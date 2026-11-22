@@ -34,13 +34,18 @@ func NewPatchAttributes(db *bun.DB, down Downstream) *PatchAttributes {
 // Handle 由 sub 按属性定义更新会话 id 的自定义属性，并追加系统事件 conversation.attributes_changed；没有变化时什么也不做。
 func (a *PatchAttributes) Handle(ctx context.Context, sub identity.Subject, id string, patch map[string]any) (*ConversationDTO, error) {
 	return change(ctx, a.db, a.down, sub, id, auth.ConversationsReply, func(ctx context.Context, tx bun.IDB, c *Conversation) ([]*Item, error) {
-		next, changes, err := attribute.ApplyPatch(ctx, tx, c.TenantID, attribute.TargetConversation, c.Attributes, patch)
-		if err != nil || len(changes) == 0 {
-			return nil, err
-		}
-		c.Attributes = next
-		return []*Item{event(sub, "conversation.attributes_changed", map[string]any{"changes": changes})}, nil
+		return applyAttributes(ctx, tx, sub, c, patch)
 	})
+}
+
+// applyAttributes 在事务 tx 中按工作区定义合并会话 c 的自定义属性，返回系统事件；未变化时返回 nil。
+func applyAttributes(ctx context.Context, tx bun.IDB, sub identity.Subject, c *Conversation, patch map[string]any) ([]*Item, error) {
+	next, changes, err := attribute.ApplyPatch(ctx, tx, c.TenantID, attribute.TargetConversation, c.Attributes, patch)
+	if err != nil || len(changes) == 0 {
+		return nil, err
+	}
+	c.Attributes = next
+	return []*Item{event(sub, "conversation.attributes_changed", map[string]any{"changes": changes})}, nil
 }
 
 // HTTP 处理 PATCH /t/{slug}/api/conversations/{id}/attributes。

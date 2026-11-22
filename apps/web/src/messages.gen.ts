@@ -200,6 +200,7 @@ export const messages = {
     "inbox.add_note": "Add note",
     "inbox.add_tag": "Add tag",
     "inbox.all_tags": "All tags",
+    "inbox.apply_actions": "Apply actions",
     "inbox.assign": "Assign",
     "inbox.assign_me": "Assign to me",
     "inbox.assign_members": "Members",
@@ -260,6 +261,29 @@ export const messages = {
     "inbox.language_auto_detected": "Detected: {{.lang}}",
     "inbox.language_manual_hint": "Set manually. Incoming messages won't change it",
     "inbox.language_not_found": "No such language. Type a language tag, for example hi-Latn",
+    "inbox.macro_action_assign_me": "Assign to me",
+    "inbox.macro_action_assign_member": "Assign to {{.name}}",
+    "inbox.macro_action_assign_team": "Move to {{.name}}",
+    "inbox.macro_action_clear_actions": "Clear actions",
+    "inbox.macro_action_clear_assignee": "Unassign",
+    "inbox.macro_action_clear_team": "Remove from team inbox",
+    "inbox.macro_action_close": "Close conversation",
+    "inbox.macro_action_priority_high": "High priority",
+    "inbox.macro_action_priority_normal": "Normal priority",
+    "inbox.macro_action_remove": "Remove this action",
+    "inbox.macro_action_snooze": "Snooze ({{.when}})",
+    "inbox.macro_button": "Quick replies (/)",
+    "inbox.macro_empty": "No matching quick replies",
+    "inbox.macro_header": "Quick replies",
+    "inbox.macro_pending_label": "Actions",
+    "inbox.macro_scope_personal": "Personal",
+    "inbox.macro_scope_shared": "Shared",
+    "inbox.macro_warn_attr_missing": "Attribute “{{.key}}” was deleted and skipped",
+    "inbox.macro_warn_member_missing": "Target member is no longer in this workspace; assignment skipped",
+    "inbox.macro_warn_no_assign_perm": "You don't have permission to reassign conversations; assignment skipped",
+    "inbox.macro_warn_tag_missing": "Some tags were deleted and skipped",
+    "inbox.macro_warn_team_disabled": "Team inbox “{{.name}}” is disabled; assignment skipped",
+    "inbox.macro_warn_team_missing": "Target team inbox was deleted; assignment skipped",
     "inbox.mode_note": "Internal note",
     "inbox.mode_reply": "Reply",
     "inbox.new_message_jump": "New messages ({{.n}})",
@@ -286,7 +310,7 @@ export const messages = {
     "inbox.remove_tag": "Remove tag {{.tag}}",
     "inbox.reopen": "Reopen",
     "inbox.reopen_reply_placeholder": "Sending a reply will reopen this conversation…",
-    "inbox.reply_placeholder": "Type a reply…",
+    "inbox.reply_placeholder": "Type a reply, or press / for quick replies…",
     "inbox.retranslating": "Text changed, translating again",
     "inbox.retry": "Resend",
     "inbox.said": "{{.who}}: ",
@@ -342,12 +366,61 @@ export const messages = {
     "layout.resize": "Drag to resize column, double-click to reset",
     "login.description": "Sign in with the email and password your workspace admin gave you",
     "login.title": "Sign in",
+    "macros.action_add_attr": "Add attribute",
+    "macros.action_assignee": "Assignee",
+    "macros.action_assignee_clear": "Unassign",
+    "macros.action_assignee_keep": "Keep unchanged",
+    "macros.action_assignee_me": "Current member (assign to me)",
+    "macros.action_assignee_member": "Specific member",
+    "macros.action_assignee_select": "Select member",
+    "macros.action_attributes": "Set conversation attributes",
+    "macros.action_attributes_empty": "No custom conversation attributes defined yet",
+    "macros.action_clear_value": "Clear attribute",
+    "macros.action_priority": "Priority",
+    "macros.action_priority_keep": "Keep unchanged",
+    "macros.action_section": "Attached actions (optional)",
+    "macros.action_section_hint": "These actions are loaded into the composer when selected and can be removed before sending.",
+    "macros.action_snooze_preset": "Snooze until",
+    "macros.action_status": "Conversation status",
+    "macros.action_status_close": "Close conversation",
+    "macros.action_status_keep": "Keep unchanged",
+    "macros.action_status_snooze": "Snooze",
+    "macros.action_tags": "Add tags",
+    "macros.action_tags_placeholder": "Select tags to add",
+    "macros.action_team": "Team inbox",
+    "macros.action_team_clear": "Remove from team inbox",
+    "macros.action_team_keep": "Keep unchanged",
+    "macros.action_team_select": "Select team inbox",
+    "macros.action_team_set": "Move to team inbox",
+    "macros.body_hint": "Type {{ to insert contact or member fields. Fallback values are supported, e.g. {{contact.name | there}}.",
+    "macros.body_placeholder": "Write a reusable reply…",
+    "macros.description": "Create reusable replies with contact fields and attached actions (assign, priority, tags, attributes, snooze, close). Type / in the inbox composer to insert.",
+    "macros.insert_var": "Insert variable",
+    "macros.scope_hint_personal_only": "You don't have permission to manage shared quick replies. New replies will be personal.",
+    "macros.scope_locked": "Scope cannot be changed after creation",
+    "macros.shortcut_hint": "Optional lowercase letters, digits, hyphens, and underscores. Type /shortcut to match quickly.",
+    "macros.shortcut_placeholder": "e.g. greeting",
+    "macros.summary_actions_count": "{{.n}} actions",
+    "macros.summary_assign": "Assign",
+    "macros.summary_attr_count": "{{.n}} attrs",
+    "macros.summary_close": "Close",
+    "macros.summary_priority_high": "High priority",
+    "macros.summary_priority_normal": "Normal priority",
+    "macros.summary_snooze": "Snooze",
+    "macros.summary_tag_count": "+{{.n}} tags",
+    "macros.title_placeholder": "e.g. Greeting, Order check",
+    "macros.var_contact_email": "Contact email",
+    "macros.var_contact_location": "Contact location",
+    "macros.var_contact_name": "Contact name",
+    "macros.var_empty": "No matching variables",
+    "macros.var_member_name": "Current member name",
     "members.password_hint": "Required when this email has no account yet. Share it with the person yourself",
     "nav.attributes": "Attributes",
     "nav.contacts": "Contacts",
     "nav.expand_nav": "Expand navigation",
     "nav.general": "General",
     "nav.inbox": "Inbox",
+    "nav.macros": "Quick replies",
     "nav.members": "Members",
     "nav.preferences": "Preferences",
     "nav.profile": "Profile",
@@ -674,6 +747,7 @@ export const messages = {
     "inbox.add_note": "添加备注",
     "inbox.add_tag": "添加标签",
     "inbox.all_tags": "全部标签",
+    "inbox.apply_actions": "应用操作",
     "inbox.assign": "指派",
     "inbox.assign_me": "指派给我",
     "inbox.assign_members": "成员",
@@ -734,6 +808,29 @@ export const messages = {
     "inbox.language_auto_detected": "自动识别：{{.lang}}",
     "inbox.language_manual_hint": "手动设置，收到的消息不再改它",
     "inbox.language_not_found": "没有这种语言，可以输入语言标签，例如 hi-Latn",
+    "inbox.macro_action_assign_me": "指派给我",
+    "inbox.macro_action_assign_member": "指派给 {{.name}}",
+    "inbox.macro_action_assign_team": "转到 {{.name}}",
+    "inbox.macro_action_clear_actions": "清空操作",
+    "inbox.macro_action_clear_assignee": "取消负责人",
+    "inbox.macro_action_clear_team": "移出团队收件箱",
+    "inbox.macro_action_close": "关闭会话",
+    "inbox.macro_action_priority_high": "高优先级",
+    "inbox.macro_action_priority_normal": "普通优先级",
+    "inbox.macro_action_remove": "移除这项附带操作",
+    "inbox.macro_action_snooze": "稍后处理（{{.when}}）",
+    "inbox.macro_button": "快捷回复（/）",
+    "inbox.macro_empty": "没有匹配的快捷回复",
+    "inbox.macro_header": "快捷回复",
+    "inbox.macro_pending_label": "附带操作",
+    "inbox.macro_scope_personal": "个人",
+    "inbox.macro_scope_shared": "共享",
+    "inbox.macro_warn_attr_missing": "属性“{{.key}}”已删除，已跳过",
+    "inbox.macro_warn_member_missing": "目标成员已不在工作区中，已跳过指派",
+    "inbox.macro_warn_no_assign_perm": "你没有改派会话的权限，已跳过指派操作",
+    "inbox.macro_warn_tag_missing": "部分标签已删除，已跳过",
+    "inbox.macro_warn_team_disabled": "团队收件箱“{{.name}}”已停用，已跳过指派",
+    "inbox.macro_warn_team_missing": "目标团队收件箱已删除，已跳过指派",
     "inbox.mode_note": "内部备注",
     "inbox.mode_reply": "回复",
     "inbox.new_message_jump": "{{.n}} 条新消息",
@@ -760,7 +857,7 @@ export const messages = {
     "inbox.remove_tag": "移除标签 {{.tag}}",
     "inbox.reopen": "重新打开",
     "inbox.reopen_reply_placeholder": "发送回复将重新打开此会话…",
-    "inbox.reply_placeholder": "输入回复…",
+    "inbox.reply_placeholder": "输入回复，或输入 / 使用快捷回复…",
     "inbox.retranslating": "原文改了，正在重新翻译",
     "inbox.retry": "重发",
     "inbox.said": "{{.who}}：",
@@ -816,12 +913,61 @@ export const messages = {
     "layout.resize": "拖动调整栏宽，双击恢复默认",
     "login.description": "用工作区管理员给你的邮箱和密码登录",
     "login.title": "登录",
+    "macros.action_add_attr": "添加属性",
+    "macros.action_assignee": "负责人",
+    "macros.action_assignee_clear": "取消负责人",
+    "macros.action_assignee_keep": "保持不变",
+    "macros.action_assignee_me": "当前回复成员（指派给我）",
+    "macros.action_assignee_member": "指定成员",
+    "macros.action_assignee_select": "选择成员",
+    "macros.action_attributes": "设置会话属性",
+    "macros.action_attributes_empty": "工作区还没有定义会话自定义属性",
+    "macros.action_clear_value": "清空该属性",
+    "macros.action_priority": "优先级",
+    "macros.action_priority_keep": "保持不变",
+    "macros.action_section": "附带操作（可选）",
+    "macros.action_section_hint": "在回复框选用这条快捷回复时，会一并载入以下操作，发送前可随时取消。",
+    "macros.action_snooze_preset": "稍后处理时间",
+    "macros.action_status": "会话状态",
+    "macros.action_status_close": "关闭会话",
+    "macros.action_status_keep": "保持不变",
+    "macros.action_status_snooze": "稍后处理",
+    "macros.action_tags": "添加标签",
+    "macros.action_tags_placeholder": "选择要添加的标签",
+    "macros.action_team": "团队收件箱",
+    "macros.action_team_clear": "移出团队收件箱",
+    "macros.action_team_keep": "保持不变",
+    "macros.action_team_select": "选择团队收件箱",
+    "macros.action_team_set": "转到指定团队收件箱",
+    "macros.body_hint": "输入 {{ 可插入联系人或成员字段，支持兜底值，例如 {{contact.name | 朋友}}。",
+    "macros.body_placeholder": "输入预先写好的回复文字…",
+    "macros.description": "预先写好常用回复，可插入联系人字段并附带指派、优先级、标签、属性或关闭等操作；在收件箱回复框输入 / 快速调用。",
+    "macros.insert_var": "插入变量",
+    "macros.scope_hint_personal_only": "你没有管理共享快捷回复的权限，新建的快捷回复仅自己可用。",
+    "macros.scope_locked": "作用域创建后不可修改",
+    "macros.shortcut_hint": "可选；小写字母、数字、连字符和下划线，输入 /快捷码 可快速匹配。",
+    "macros.shortcut_placeholder": "例如 greeting",
+    "macros.summary_actions_count": "{{.n}} 项操作",
+    "macros.summary_assign": "指派",
+    "macros.summary_attr_count": "改 {{.n}} 个属性",
+    "macros.summary_close": "关闭会话",
+    "macros.summary_priority_high": "高优先级",
+    "macros.summary_priority_normal": "普通优先级",
+    "macros.summary_snooze": "稍后处理",
+    "macros.summary_tag_count": "+{{.n}} 标签",
+    "macros.title_placeholder": "例如 欢迎语、核对订单",
+    "macros.var_contact_email": "联系人邮箱",
+    "macros.var_contact_location": "联系人所在地",
+    "macros.var_contact_name": "联系人名字",
+    "macros.var_empty": "没有匹配的变量",
+    "macros.var_member_name": "当前成员名字",
     "members.password_hint": "这个邮箱还没有账号时必填，由你告诉本人",
     "nav.attributes": "属性",
     "nav.contacts": "联系人",
     "nav.expand_nav": "展开侧边导航",
     "nav.general": "常规",
     "nav.inbox": "收件箱",
+    "nav.macros": "快捷回复",
     "nav.members": "成员",
     "nav.preferences": "偏好设置",
     "nav.profile": "个人资料",
@@ -1151,6 +1297,7 @@ export type MessageId =
   | "inbox.add_note"
   | "inbox.add_tag"
   | "inbox.all_tags"
+  | "inbox.apply_actions"
   | "inbox.assign"
   | "inbox.assign_me"
   | "inbox.assign_members"
@@ -1211,6 +1358,29 @@ export type MessageId =
   | "inbox.language_auto_detected"
   | "inbox.language_manual_hint"
   | "inbox.language_not_found"
+  | "inbox.macro_action_assign_me"
+  | "inbox.macro_action_assign_member"
+  | "inbox.macro_action_assign_team"
+  | "inbox.macro_action_clear_actions"
+  | "inbox.macro_action_clear_assignee"
+  | "inbox.macro_action_clear_team"
+  | "inbox.macro_action_close"
+  | "inbox.macro_action_priority_high"
+  | "inbox.macro_action_priority_normal"
+  | "inbox.macro_action_remove"
+  | "inbox.macro_action_snooze"
+  | "inbox.macro_button"
+  | "inbox.macro_empty"
+  | "inbox.macro_header"
+  | "inbox.macro_pending_label"
+  | "inbox.macro_scope_personal"
+  | "inbox.macro_scope_shared"
+  | "inbox.macro_warn_attr_missing"
+  | "inbox.macro_warn_member_missing"
+  | "inbox.macro_warn_no_assign_perm"
+  | "inbox.macro_warn_tag_missing"
+  | "inbox.macro_warn_team_disabled"
+  | "inbox.macro_warn_team_missing"
   | "inbox.mode_note"
   | "inbox.mode_reply"
   | "inbox.new_message_jump"
@@ -1293,12 +1463,61 @@ export type MessageId =
   | "layout.resize"
   | "login.description"
   | "login.title"
+  | "macros.action_add_attr"
+  | "macros.action_assignee"
+  | "macros.action_assignee_clear"
+  | "macros.action_assignee_keep"
+  | "macros.action_assignee_me"
+  | "macros.action_assignee_member"
+  | "macros.action_assignee_select"
+  | "macros.action_attributes"
+  | "macros.action_attributes_empty"
+  | "macros.action_clear_value"
+  | "macros.action_priority"
+  | "macros.action_priority_keep"
+  | "macros.action_section"
+  | "macros.action_section_hint"
+  | "macros.action_snooze_preset"
+  | "macros.action_status"
+  | "macros.action_status_close"
+  | "macros.action_status_keep"
+  | "macros.action_status_snooze"
+  | "macros.action_tags"
+  | "macros.action_tags_placeholder"
+  | "macros.action_team"
+  | "macros.action_team_clear"
+  | "macros.action_team_keep"
+  | "macros.action_team_select"
+  | "macros.action_team_set"
+  | "macros.body_hint"
+  | "macros.body_placeholder"
+  | "macros.description"
+  | "macros.insert_var"
+  | "macros.scope_hint_personal_only"
+  | "macros.scope_locked"
+  | "macros.shortcut_hint"
+  | "macros.shortcut_placeholder"
+  | "macros.summary_actions_count"
+  | "macros.summary_assign"
+  | "macros.summary_attr_count"
+  | "macros.summary_close"
+  | "macros.summary_priority_high"
+  | "macros.summary_priority_normal"
+  | "macros.summary_snooze"
+  | "macros.summary_tag_count"
+  | "macros.title_placeholder"
+  | "macros.var_contact_email"
+  | "macros.var_contact_location"
+  | "macros.var_contact_name"
+  | "macros.var_empty"
+  | "macros.var_member_name"
   | "members.password_hint"
   | "nav.attributes"
   | "nav.contacts"
   | "nav.expand_nav"
   | "nav.general"
   | "nav.inbox"
+  | "nav.macros"
   | "nav.members"
   | "nav.preferences"
   | "nav.profile"

@@ -28,7 +28,7 @@ const (
 )
 
 // Tones 是全部语气，显示文字是翻译文件中 translation.tone.<语气> 的消息。
-var Tones = enum.New("translation.tone", Friendly, Neutral, Formal)
+var Tones = enum.New("translation.tone", enum.Item(Friendly), enum.Item(Neutral), enum.Item(Formal))
 
 // Schema 让 OpenAPI 中的 Tone 只接受上面的取值，并带有显示文字。
 func (Tone) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Tones) }

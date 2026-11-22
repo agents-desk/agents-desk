@@ -23,10 +23,12 @@ type Translation struct {
 	Text     string `json:"text" minLength:"1" maxLength:"20000" doc:"发给对方的译文"`
 }
 
-// ReplyBody 是回复的请求体：成员写的文字，以及可选的、他确认过的译文。带译文时发给对方的是译文，时间线中同时保存原文。
+// ReplyBody 是回复的请求体：成员写的文字，以及可选的、他确认过的译文和随回复原子执行的会话操作。
+// 带译文时发给对方的是译文，时间线中同时保存原文。
 type ReplyBody struct {
 	Text        string       `json:"text" minLength:"1" maxLength:"10000" doc:"成员写的文字"`
 	Translation *Translation `json:"translation,omitempty" doc:"发给对方的译文，由翻译的预览给出、成员确认；不带时按原文发出"`
+	Actions     *Actions     `json:"actions,omitempty" doc:"随回复在同一个事务中原子执行的会话操作（如指派、改优先级、加标签、改属性、关闭或稍后处理）"`
 }
 
 // ReplyInput 是回复会话的 HTTP 请求。
@@ -74,8 +76,10 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 			items = append(items, event(sub, "conversation.unsnoozed", map[string]any{"from": string(Snoozed)}))
 			c.Status, c.SnoozedUntil = Open, nil
 		}
-		// 回复即领取：成员回复没有负责人的会话时，会话归他，团队收件箱不变
-		if actor == MemberActor && c.AssigneeType == "" {
+		// 回复即领取：成员回复没有负责人的会话时，会话归他，团队收件箱不变；
+		// 若随回复显式携带指派操作，则跳过自动领取，直接按附带指派执行，避免产生两条指派事件。
+		explicitAssign := body.Actions != nil && body.Actions.HasAssignment()
+		if actor == MemberActor && c.AssigneeType == "" && !explicitAssign {
 			c.AssigneeType, c.AssigneeID = MemberActor, sub.ID
 			items = append(items, assignedEvent(sub, c, c.TeamID, "", "", ReasonReply))
 		}
@@ -86,6 +90,13 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 		}
 		if err := join(ctx, tx, c.ID, actor, sub.ID); err != nil {
 			return err
+		}
+		if body.Actions != nil && body.Actions.HasChanges() {
+			ev, err := applyActions(ctx, tx, sub, c, *body.Actions)
+			if err != nil {
+				return err
+			}
+			items = append(items, ev...)
 		}
 		if err := commit(ctx, tx, a.down, c, items...); err != nil {
 			return err

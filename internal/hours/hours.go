@@ -90,7 +90,7 @@ const (
 )
 
 // ReplyTimes 是全部回复时间，显示文字是翻译文件中 hours.reply_time.<回复时间> 的消息。
-var ReplyTimes = enum.New("hours.reply_time", FewMinutes, WithinHour, FewHours, WithinDay)
+var ReplyTimes = enum.New("hours.reply_time", enum.Item(FewMinutes), enum.Item(WithinHour), enum.Item(FewHours), enum.Item(WithinDay))
 
 // Schema 让 OpenAPI 中的 ReplyTime 只接受上面的取值，并带有显示文字。
 func (ReplyTime) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, ReplyTimes) }

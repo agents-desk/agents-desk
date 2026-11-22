@@ -42,7 +42,7 @@ const (
 )
 
 // Statuses 是平台管理员的全部状态，显示文字是翻译文件中 platform_admin.status.<状态> 的消息。
-var Statuses = enum.New("platform_admin.status", Active, Disabled)
+var Statuses = enum.New("platform_admin.status", enum.Item(Active), enum.Item(Disabled))
 
 // Schema 让 OpenAPI 中的 Status 只接受上面的取值，并带有显示文字。
 func (Status) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Statuses) }

@@ -32,6 +32,7 @@ const (
 	TeamsRead             Permission = "teams:read"              // 工作区：查看团队收件箱和团队收件箱的成员
 	TeamsManage           Permission = "teams:manage"            // 工作区：新建、修改、删除团队收件箱，增减团队收件箱的成员
 	ChannelsManage        Permission = "channels:manage"         // 工作区：新建、修改、停用渠道，查看渠道的嵌入代码和身份验证密钥
+	MacrosManage          Permission = "macros:manage"           // 工作区：新建、修改、删除共享的快捷回复
 	ConversationsRead     Permission = "conversations:read"      // 工作区：查看会话和时间线
 	ConversationsReply    Permission = "conversations:reply"     // 工作区：回复会话、写内部备注，处理看得到的会话（关闭、稍后处理、重新打开、优先级）
 	ConversationsAssign   Permission = "conversations:assign"    // 工作区：把会话改派给别人：指派别人负责的会话，或者把没有负责人的会话指派给别人、转到别的团队收件箱
@@ -42,11 +43,11 @@ const (
 )
 
 // Permissions 是全部权限，显示文字是翻译文件中 permission.<权限> 的消息。
-var Permissions = enum.New("permission", TenantsRead, TenantsManage, PlatformAdminsManage, PlatformSettingsManage,
-	FeaturesManage, QueueManage, SchedulesManage, SystemRead, AuditRead,
-	MembersRead, MembersManage, TenantSettingsManage, TeamsRead, TeamsManage, ChannelsManage,
-	ConversationsRead, ConversationsReply, ConversationsAssign, ConversationsReadAll, ConversationsReadTeam,
-	ContactsRead, ContactsUpdate)
+var Permissions = enum.New("permission", enum.Item(TenantsRead), enum.Item(TenantsManage), enum.Item(PlatformAdminsManage), enum.Item(PlatformSettingsManage),
+	enum.Item(FeaturesManage), enum.Item(QueueManage), enum.Item(SchedulesManage), enum.Item(SystemRead), enum.Item(AuditRead),
+	enum.Item(MembersRead), enum.Item(MembersManage), enum.Item(TenantSettingsManage), enum.Item(TeamsRead), enum.Item(TeamsManage), enum.Item(ChannelsManage), enum.Item(MacrosManage),
+	enum.Item(ConversationsRead), enum.Item(ConversationsReply), enum.Item(ConversationsAssign), enum.Item(ConversationsReadAll), enum.Item(ConversationsReadTeam),
+	enum.Item(ContactsRead), enum.Item(ContactsUpdate))
 
 // Schema 让 OpenAPI 中的 Permission 只接受目录中的取值。
 func (Permission) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Permissions) }
@@ -68,6 +69,7 @@ var Catalog = authz.Catalog{
 	{Name: string(TeamsRead), Description: "查看团队收件箱"},
 	{Name: string(TeamsManage), Description: "管理团队收件箱"},
 	{Name: string(ChannelsManage), Description: "管理渠道"},
+	{Name: string(MacrosManage), Description: "管理共享的快捷回复"},
 	{Name: string(ConversationsRead), Description: "查看会话"},
 	{Name: string(ConversationsReply), Description: "回复会话"},
 	{Name: string(ConversationsAssign), Description: "把会话改派给别人"},
@@ -97,7 +99,7 @@ type TenantPermission string
 // TenantPermissions 是可以勾选的操作权限，显示文字是翻译文件中 role_permission.<权限> 的消息。前缀与 Permissions 不同：
 // 枚举在接口文档中按前缀命名，同一个前缀的两个枚举会被当成同一个类型，平台的权限就成了可以勾选的权限。
 var TenantPermissions = enum.New("role_permission",
-	TenantPermission(ConversationsAssign), TenantPermission(MembersManage), TenantPermission(TeamsManage), TenantPermission(ChannelsManage), TenantPermission(TenantSettingsManage))
+	enum.Item(TenantPermission(ConversationsAssign)), enum.Item(TenantPermission(MacrosManage)), enum.Item(TenantPermission(MembersManage)), enum.Item(TenantPermission(TeamsManage)), enum.Item(TenantPermission(ChannelsManage)), enum.Item(TenantPermission(TenantSettingsManage)))
 
 // Schema 让 OpenAPI 中的 TenantPermission 只接受上面的取值，并带有显示文字。
 func (TenantPermission) Schema(r huma.Registry) *huma.Schema {
@@ -114,7 +116,7 @@ const (
 )
 
 // ConversationScopes 是全部可见范围，显示文字是翻译文件中 conversation_scope.<范围> 的消息。
-var ConversationScopes = enum.New("conversation_scope", ScopeAll, ScopeTeam, ScopeAssigned)
+var ConversationScopes = enum.New("conversation_scope", enum.Item(ScopeAll), enum.Item(ScopeTeam), enum.Item(ScopeAssigned))
 
 // Schema 让 OpenAPI 中的 ConversationScope 只接受上面的取值，并带有显示文字。
 func (ConversationScope) Schema(r huma.Registry) *huma.Schema {

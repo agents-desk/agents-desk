@@ -49,10 +49,6 @@ export interface AuditItem {
   text: string
 }
 
-export interface AuditListOutputBody {
-  items: AuditItem[]
-}
-
 export interface DoctorReport {
   results: DoctorResult[]
 }
@@ -165,6 +161,14 @@ export interface LlmEndpoint {
 export interface LlmSettings {
   /** 翻译：在不同语言之间互译文本，同时识别原文的语言和书写方式 */
   translation: LlmEndpoint
+}
+
+export interface OffsetAuditItem {
+  items: AuditItem[]
+  page: number
+  per_page: number
+  /** Total number of items across all pages. */
+  total: number
 }
 
 export interface OffsetPlatformadminAdminDTO {
@@ -479,12 +483,12 @@ export interface AdminListInput {
 
 /** audit-list 的参数。 */
 export interface AuditListInput {
-  /** 上一页最后一条记录的 ID，用于加载更早的记录 */
-  before?: string
+  /** Page number, starting at 1. */
+  page?: number
+  /** Items per page. */
+  per_page?: number
   /** 按对象类型筛选；为空时返回全部 */
   target_type?: "" | "tenant" | "platform_admin" | "settings" | "feature"
-  /** 返回条数，默认 50 */
-  limit?: number
 }
 
 /** feature-clear 的参数。 */
@@ -616,8 +620,8 @@ export function createClient(options: ClientOptions) {
        *
        * GET /audit
        */
-      list: (input: AuditListInput = {}): Promise<AuditListOutputBody> =>
-        rt.request<AuditListOutputBody>({ method: "GET", path: `/audit`, query: { "before": input["before"], "limit": input["limit"], "target_type": input["target_type"] } }),
+      list: (input: AuditListInput = {}): Promise<OffsetAuditItem> =>
+        rt.request<OffsetAuditItem>({ method: "GET", path: `/audit`, query: { "page": input["page"], "per_page": input["per_page"], "target_type": input["target_type"] } }),
     },
     /** operationId 以 auth- 开头的接口。 */
     auth: {

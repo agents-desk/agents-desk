@@ -39,24 +39,29 @@ func NewAddTag(db *bun.DB, down Downstream) *AddTag { return &AddTag{db: db, dow
 // Handle 由 sub 给会话 id 添加标签 tagID，并追加系统事件 conversation.tag_added；已经打过该标签时什么也不做。
 func (a *AddTag) Handle(ctx context.Context, sub identity.Subject, id, tagID string) (*ConversationDTO, error) {
 	return change(ctx, a.db, a.down, sub, id, auth.ConversationsReply, func(ctx context.Context, tx bun.IDB, c *Conversation) ([]*Item, error) {
-		t, err := tag.Find(ctx, tx, c.TenantID, tagID, false)
-		if err != nil {
-			return nil, err
-		}
-		res, err := tx.NewRaw(`INSERT INTO conversation_tags (tenant_id, conversation_id, tag_id, created_at)
-			VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING`, c.TenantID, c.ID, t.ID, now()).Exec(ctx)
-		if err != nil {
-			return nil, errors.Wrap(err, "add conversation tag")
-		}
-		n, err := res.RowsAffected()
-		if err != nil {
-			return nil, errors.Wrap(err, "count added conversation tag")
-		}
-		if n == 0 {
-			return nil, nil
-		}
-		return []*Item{event(sub, "conversation.tag_added", map[string]any{"tag_id": t.ID, "name": t.Name})}, nil
+		return applyAddTag(ctx, tx, sub, c, tagID)
 	})
+}
+
+// applyAddTag 在事务 tx 中给会话 c 添加标签 tagID，返回要追加的系统事件；已存在该标签时返回 nil。
+func applyAddTag(ctx context.Context, tx bun.IDB, sub identity.Subject, c *Conversation, tagID string) ([]*Item, error) {
+	t, err := tag.Find(ctx, tx, c.TenantID, tagID, false)
+	if err != nil {
+		return nil, err
+	}
+	res, err := tx.NewRaw(`INSERT INTO conversation_tags (tenant_id, conversation_id, tag_id, created_at)
+		VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING`, c.TenantID, c.ID, t.ID, now()).Exec(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "add conversation tag")
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return nil, errors.Wrap(err, "count added conversation tag")
+	}
+	if n == 0 {
+		return nil, nil
+	}
+	return []*Item{event(sub, "conversation.tag_added", map[string]any{"tag_id": t.ID, "name": t.Name})}, nil
 }
 
 // HTTP 处理 POST /t/{slug}/api/conversations/{id}/tags。

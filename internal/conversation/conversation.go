@@ -51,7 +51,7 @@ const (
 )
 
 // Kinds 是会话的全部种类，显示文字是翻译文件中 conversation.kind.<种类> 的消息。
-var Kinds = enum.New("conversation.kind", Service, Chat)
+var Kinds = enum.New("conversation.kind", enum.Item(Service), enum.Item(Chat))
 
 // Schema 让 OpenAPI 中的 Kind 只接受上面的取值，并带有显示文字。
 func (Kind) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Kinds) }
@@ -66,7 +66,7 @@ const (
 )
 
 // Statuses 是会话的全部状态，显示文字是翻译文件中 conversation.status.<状态> 的消息。
-var Statuses = enum.New("conversation.status", Open, Snoozed, Closed)
+var Statuses = enum.New("conversation.status", enum.Item(Open), enum.Item(Snoozed), enum.Item(Closed))
 
 // Schema 让 OpenAPI 中的 Status 只接受上面的取值，并带有显示文字。
 func (Status) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Statuses) }
@@ -80,7 +80,7 @@ const (
 )
 
 // Priorities 是会话的全部优先级，显示文字是翻译文件中 conversation.priority.<优先级> 的消息。
-var Priorities = enum.New("conversation.priority", Normal, High)
+var Priorities = enum.New("conversation.priority", enum.Item(Normal), enum.Item(High))
 
 // Schema 让 OpenAPI 中的 Priority 只接受上面的取值，并带有显示文字。
 func (Priority) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Priorities) }
@@ -95,7 +95,7 @@ const (
 )
 
 // ItemKinds 是时间线中各项的全部类型，显示文字是翻译文件中 conversation.item_kind.<类型> 的消息。
-var ItemKinds = enum.New("conversation.item_kind", Message, Note, Event)
+var ItemKinds = enum.New("conversation.item_kind", enum.Item(Message), enum.Item(Note), enum.Item(Event))
 
 // Schema 让 OpenAPI 中的 ItemKind 只接受上面的取值，并带有显示文字。
 func (ItemKind) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, ItemKinds) }
@@ -109,7 +109,7 @@ const (
 )
 
 // Visibilities 是全部可见范围，显示文字是翻译文件中 conversation.visibility.<范围> 的消息。
-var Visibilities = enum.New("conversation.visibility", Everyone, MembersOnly)
+var Visibilities = enum.New("conversation.visibility", enum.Item(Everyone), enum.Item(MembersOnly))
 
 // Schema 让 OpenAPI 中的 Visibility 只接受上面的取值，并带有显示文字。
 func (Visibility) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Visibilities) }
@@ -124,7 +124,7 @@ const (
 )
 
 // ActorTypes 是参与者的全部类型，显示文字是翻译文件中 conversation.actor_type.<类型> 的消息。
-var ActorTypes = enum.New("conversation.actor_type", ContactActor, MemberActor, SystemActor)
+var ActorTypes = enum.New("conversation.actor_type", enum.Item(ContactActor), enum.Item(MemberActor), enum.Item(SystemActor))
 
 // Schema 让 OpenAPI 中的 ActorType 只接受上面的取值，并带有显示文字。
 func (ActorType) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, ActorTypes) }
@@ -140,7 +140,7 @@ const (
 )
 
 // DeliveryStatuses 是全部送达状态，显示文字是翻译文件中 conversation.delivery.<状态> 的消息。
-var DeliveryStatuses = enum.New("conversation.delivery", Sending, Delivered, Read, Failed)
+var DeliveryStatuses = enum.New("conversation.delivery", enum.Item(Sending), enum.Item(Delivered), enum.Item(Read), enum.Item(Failed))
 
 // Schema 让 OpenAPI 中的 DeliveryStatus 只接受上面的取值，并带有显示文字。
 func (DeliveryStatus) Schema(r huma.Registry) *huma.Schema {

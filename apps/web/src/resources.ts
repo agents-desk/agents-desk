@@ -15,3 +15,6 @@ export const widgets = resourceModel(kit.resources.widget, kit)
 
 // tags 是当前工作区的标签：列表、新建、修改和删除来自 Go 中的声明（internal/tag/routes.go）。
 export const tags = resourceModel(kit.resources.tag, kit)
+
+// macros 是当前工作区的快捷回复：列表、新建、修改和删除来自 Go 中的声明（internal/macro/routes.go）。
+export const macros = resourceModel(kit.resources.macro, kit)

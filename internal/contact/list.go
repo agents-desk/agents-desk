@@ -26,7 +26,7 @@ const (
 )
 
 // Sorts 是联系人列表的全部排序，显示文字是翻译文件中 contact.sort.<排序> 的消息。
-var Sorts = enum.New("contact.sort", ByRecent, ByCreated)
+var Sorts = enum.New("contact.sort", enum.Item(ByRecent), enum.Item(ByCreated))
 
 // Schema 让 OpenAPI 中的 Sort 只接受上面的取值，并带有显示文字。
 func (Sort) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Sorts) }

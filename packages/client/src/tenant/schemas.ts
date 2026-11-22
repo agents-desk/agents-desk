@@ -83,6 +83,11 @@ export const schemas = {
     },
   },
   conversation: {
+    applyActions: {
+      body: {
+        "$ref": "#/components/schemas/ConversationActions"
+      },
+    },
     assign: {
       body: {
         "$ref": "#/components/schemas/ConversationAssignment"
@@ -234,6 +239,45 @@ export const schemas = {
     specialDatesSave: {
       body: {
         "$ref": "#/components/schemas/HoursSpecialDatesInputBody"
+      },
+    },
+  },
+  macro: {
+    create: {
+      body: {
+        "$ref": "#/components/schemas/MacroCreateParams"
+      },
+    },
+    list: {
+      query: {
+        "properties": {
+          "page": {
+            "default": 1,
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "per_page": {
+            "default": 20,
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "q": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/MacroScope"
+          }
+        },
+        "type": "object"
+      },
+    },
+    update: {
+      body: {
+        "$ref": "#/components/schemas/MacroUpdateParams"
       },
     },
   },
@@ -635,6 +679,35 @@ export const components = {
     },
     "type": "object"
   },
+  ConversationActions: {
+    "additionalProperties": false,
+    "properties": {
+      "add_tag_ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 20,
+        "type": "array"
+      },
+      "assignee": {
+        "$ref": "#/components/schemas/ConversationAssigneeChange"
+      },
+      "priority": {
+        "$ref": "#/components/schemas/ConversationPriority"
+      },
+      "set_attributes": {
+        "additionalProperties": {},
+        "type": "object"
+      },
+      "status": {
+        "$ref": "#/components/schemas/ConversationStatusAction"
+      },
+      "team": {
+        "$ref": "#/components/schemas/ConversationTeamChange"
+      }
+    },
+    "type": "object"
+  },
   ConversationAddTagInputBody: {
     "additionalProperties": false,
     "properties": {
@@ -647,6 +720,30 @@ export const components = {
       "tag_id"
     ],
     "type": "object"
+  },
+  ConversationAssigneeChange: {
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "mode": {
+        "$ref": "#/components/schemas/ConversationAssigneeChangeMode"
+      }
+    },
+    "required": [
+      "mode"
+    ],
+    "type": "object"
+  },
+  ConversationAssigneeChangeMode: {
+    "enum": [
+      "me",
+      "member",
+      "clear"
+    ],
+    "type": "string"
   },
   ConversationAssignment: {
     "additionalProperties": false,
@@ -799,6 +896,9 @@ export const components = {
   ConversationReplyBody: {
     "additionalProperties": false,
     "properties": {
+      "actions": {
+        "$ref": "#/components/schemas/ConversationActions"
+      },
       "text": {
         "maxLength": 10000,
         "minLength": 1,
@@ -846,6 +946,52 @@ export const components = {
       "open",
       "snoozed",
       "closed"
+    ],
+    "type": "string"
+  },
+  ConversationStatusAction: {
+    "additionalProperties": false,
+    "properties": {
+      "kind": {
+        "$ref": "#/components/schemas/ConversationStatusActionKind"
+      },
+      "until": {
+        "format": "date-time",
+        "type": "string"
+      }
+    },
+    "required": [
+      "kind"
+    ],
+    "type": "object"
+  },
+  ConversationStatusActionKind: {
+    "enum": [
+      "close",
+      "snooze"
+    ],
+    "type": "string"
+  },
+  ConversationTeamChange: {
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "mode": {
+        "$ref": "#/components/schemas/ConversationTeamChangeMode"
+      }
+    },
+    "required": [
+      "mode"
+    ],
+    "type": "object"
+  },
+  ConversationTeamChangeMode: {
+    "enum": [
+      "set",
+      "clear"
     ],
     "type": "string"
   },
@@ -1032,6 +1178,121 @@ export const components = {
     ],
     "type": "object"
   },
+  MacroActions: {
+    "additionalProperties": false,
+    "properties": {
+      "add_tag_ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 20,
+        "type": "array"
+      },
+      "assignee": {
+        "$ref": "#/components/schemas/ConversationAssigneeChange"
+      },
+      "priority": {
+        "$ref": "#/components/schemas/ConversationPriority"
+      },
+      "set_attributes": {
+        "additionalProperties": {},
+        "type": "object"
+      },
+      "status": {
+        "$ref": "#/components/schemas/MacroStatusAction"
+      },
+      "team": {
+        "$ref": "#/components/schemas/ConversationTeamChange"
+      }
+    },
+    "type": "object"
+  },
+  MacroCreateParams: {
+    "additionalProperties": false,
+    "properties": {
+      "actions": {
+        "$ref": "#/components/schemas/MacroActions"
+      },
+      "body": {
+        "maxLength": 10000,
+        "type": "string"
+      },
+      "scope": {
+        "$ref": "#/components/schemas/MacroScope"
+      },
+      "shortcut": {
+        "maxLength": 32,
+        "type": "string"
+      },
+      "title": {
+        "maxLength": 100,
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "scope",
+      "title"
+    ],
+    "type": "object"
+  },
+  MacroScope: {
+    "enum": [
+      "shared",
+      "personal"
+    ],
+    "type": "string"
+  },
+  MacroSnooze: {
+    "enum": [
+      "later",
+      "tomorrow",
+      "monday",
+      "week",
+      "month"
+    ],
+    "type": "string"
+  },
+  MacroStatusAction: {
+    "additionalProperties": false,
+    "properties": {
+      "kind": {
+        "$ref": "#/components/schemas/ConversationStatusActionKind"
+      },
+      "snooze": {
+        "$ref": "#/components/schemas/MacroSnooze"
+      }
+    },
+    "required": [
+      "kind"
+    ],
+    "type": "object"
+  },
+  MacroUpdateParams: {
+    "additionalProperties": false,
+    "properties": {
+      "actions": {
+        "$ref": "#/components/schemas/MacroActions"
+      },
+      "body": {
+        "maxLength": 10000,
+        "type": "string"
+      },
+      "shortcut": {
+        "maxLength": 32,
+        "type": "string"
+      },
+      "title": {
+        "maxLength": 100,
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "title"
+    ],
+    "type": "object"
+  },
   MemberAddParams: {
     "additionalProperties": false,
     "properties": {
@@ -1127,6 +1388,7 @@ export const components = {
   RolePermission: {
     "enum": [
       "conversations:assign",
+      "macros:manage",
       "members:manage",
       "teams:manage",
       "channels:manage",

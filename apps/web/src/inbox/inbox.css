@@ -211,8 +211,6 @@
   border-left: 1px solid color-mix(in srgb, currentColor 22%, transparent);
 }
 
-.inbox-mention[data-active],
-.inbox-mention:hover,
 .inbox-history:hover {
   background: var(--tn-hover);
   border-radius: var(--mantine-radius-sm);

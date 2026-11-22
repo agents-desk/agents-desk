@@ -9,7 +9,7 @@ require (
 	github.com/coder/websocket v1.8.15
 	github.com/danielgtaylor/huma/v2 v2.40.0
 	github.com/go-chi/chi/v5 v5.5.0
-	github.com/go-tenon/tenon v0.2.0
+	github.com/go-tenon/tenon v0.2.3
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/nats-io/nats.go v1.55.0
