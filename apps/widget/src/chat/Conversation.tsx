@@ -8,6 +8,7 @@ import { useIdentity } from "../realtime"
 import { Composer } from "./Composer"
 import { clock, dayLabel, sameDay } from "./format"
 import { Linkify } from "./linkify"
+import { CollectEmailCard, promptText } from "./Prompt"
 import { useConversation, useItems } from "./queries"
 import { RatingCard } from "./Rating"
 
@@ -125,13 +126,17 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
                   {dayLabel(it.created_at, language, t)}
                 </Text>
               )}
-              <Bubble
-                mine={it.author.type === "contact"}
-                author={it.author.type === "member" ? it.author.name : it.author.type === "system" ? name : undefined}
-                text={it.text}
-                meta={clock(it.created_at, language)}
-                color={color}
-              />
+              {it.prompt?.kind === "collect_contact" ? (
+                <CollectEmailCard conversationId={id} color={color} />
+              ) : (
+                <Bubble
+                  mine={it.author.type === "contact"}
+                  author={it.author.type === "member" ? it.author.name : it.author.type === "system" ? name : undefined}
+                  text={promptText(it.prompt, it.text, language, t)}
+                  meta={clock(it.created_at, language)}
+                  color={color}
+                />
+              )}
             </Fragment>
           ))}
           {pending.map((p) => (
@@ -159,7 +164,9 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
           {closed && conversation.data && (
             <>
               <Divider label={t("chat.ended")} labelPosition="center" my="xs" />
-              <RatingCard conversation={conversation.data} color={color} />
+              {(conversation.data.rating_requested || conversation.data.rating) && (
+                <RatingCard conversation={conversation.data} color={color} />
+              )}
             </>
           )}
           <div ref={bottom} />

@@ -15,6 +15,7 @@ import (
 	"github.com/go-tenon/tenon/login"
 
 	"agents-desk/internal/auth"
+	"agents-desk/internal/automation"
 	"agents-desk/internal/member"
 	"agents-desk/internal/role"
 )
@@ -70,6 +71,9 @@ func (a *Create) Handle(ctx context.Context, subject identity.Subject, p CreateP
 			return err
 		}
 		if err := role.CreateDefaults(ctx, tx, t.ID); err != nil {
+			return err
+		}
+		if err := automation.EnsureBuiltins(ctx, tx, t.ID); err != nil {
 			return err
 		}
 		return activity.Record(ctx, tx, subject, activity.Activity{

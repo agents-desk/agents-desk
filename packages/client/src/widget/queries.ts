@@ -31,6 +31,16 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
   return {
     /** 这个 API 全部查询的 key 前缀。 */
     key: () => key(),
+    contact: {
+      /** contact 分组全部查询的 key 前缀。 */
+      key: () => key("contact"),
+      /** POST /contact/email */
+      email: () => ({
+        mutationFn: (variables: Parameters<Client["contact"]["email"]>[0]) => client.contact.email(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "contact"),
+      }),
+    },
     conversation: {
       /** conversation 分组全部查询的 key 前缀。 */
       key: () => key("conversation"),

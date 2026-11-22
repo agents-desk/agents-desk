@@ -69,6 +69,21 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
           invalidate(context, "attribute"),
       }),
     },
+    automation: {
+      /** automation 分组全部查询的 key 前缀。 */
+      key: () => key("automation"),
+      /** GET /automations */
+      list: (...args: Parameters<Client["automation"]["list"]>) => ({
+        queryKey: key("automation", "list", ...args),
+        queryFn: () => client.automation.list(...args),
+      }),
+      /** PUT /automations/{id} */
+      update: () => ({
+        mutationFn: (variables: Parameters<Client["automation"]["update"]>) => client.automation.update(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "automation"),
+      }),
+    },
     conversation: {
       /** conversation 分组全部查询的 key 前缀。 */
       key: () => key("conversation"),

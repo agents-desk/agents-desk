@@ -5,6 +5,13 @@
  * 规则与服务端相同，交给 @go-tenon/client 的校验函数使用；$ref 指向 components 中的命名类型。
  */
 export const schemas = {
+  contact: {
+    email: {
+      body: {
+        "$ref": "#/components/schemas/WidgetContactEmailBody"
+      },
+    },
+  },
   conversation: {
     items: {
       query: {
@@ -57,6 +64,24 @@ export const schemas = {
 
 /** schemas 中 $ref 引用的命名类型，键是 OpenAPI 中的名称。 */
 export const components = {
+  WidgetContactEmailBody: {
+    "additionalProperties": false,
+    "properties": {
+      "conversation_id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "email": {
+        "format": "email",
+        "maxLength": 254,
+        "type": "string"
+      }
+    },
+    "required": [
+      "email"
+    ],
+    "type": "object"
+  },
   WidgetMessageBody: {
     "additionalProperties": false,
     "properties": {

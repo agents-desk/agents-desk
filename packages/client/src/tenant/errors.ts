@@ -27,6 +27,14 @@ export const AttributeErrors = {
   InvalidValue: "attribute.invalid_value",
 } as const
 
+/** agents-desk/internal/automation 的错误码。 */
+export const AutomationErrors = {
+  /** ErrNotFound 是自动化规则不存在，或者属于别的工作区。 */
+  NotFound: "automation.not_found",
+  /** ErrForbidden 是调用者没有管理自动化的权限。 */
+  Forbidden: "automation.forbidden",
+} as const
+
 /** agents-desk/internal/channel 的错误码。 */
 export const ChannelErrors = {
   /** ErrNotFound 是渠道不存在，或者属于别的工作区。 */
@@ -39,6 +47,10 @@ export const ChannelErrors = {
 export const ContactErrors = {
   /** ErrNotFound 是联系人不存在，或者属于别的工作区。 */
   NotFound: "contact.not_found",
+  /** ErrForbidden 是调用者不能修改这位联系人。 */
+  Forbidden: "contact.forbidden",
+  /** ErrNotLead 是已登录用户的邮箱由产品后端签名提供，不能通过访客表单修改。 */
+  NotLead: "contact.not_lead",
 } as const
 
 /** agents-desk/internal/conversation 的错误码。 */
@@ -55,6 +67,8 @@ export const ConversationErrors = {
   Forbidden: "conversation.forbidden",
   /** ErrNotClosed 是会话还没有关闭，客户不能评价。 */
   NotClosed: "conversation.not_closed",
+  /** ErrRatingNotRequested 是这次关闭没有向客户发出评价邀请，不能评价。 */
+  RatingNotRequested: "conversation.rating_not_requested",
   /** ErrAlreadyRated 是客户已经评价过这次关闭的会话；会话重新打开、再关闭后可以再评价。 */
   AlreadyRated: "conversation.already_rated",
   /** ErrInvalidLanguage 是设置的对方语言不是合法的 BCP 47 标签。 */

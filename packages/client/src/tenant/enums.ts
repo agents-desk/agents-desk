@@ -21,6 +21,22 @@ export const enums = {
       "zh-CN": { text: "文本", number: "数字", boolean: "开关", date: "日期", select: "单选", multi_select: "多选" },
     },
   },
+  AutomationBuiltin: {
+    prefix: "automation.builtin",
+    values: ["reply_time", "collect_lead_contact", "request_rating"],
+    labels: {
+      "en": { reply_time: "Share reply time", collect_lead_contact: "Ask leads for contact details", request_rating: "Ask for a rating on close" },
+      "zh-CN": { reply_time: "告知回复时间", collect_lead_contact: "请线索留联系方式", request_rating: "关闭后请客户评价" },
+    },
+  },
+  AutomationTrigger: {
+    prefix: "automation.trigger",
+    values: ["conversation.first_message", "conversation.closed"],
+    labels: {
+      "en": { "conversation.first_message": "When a customer sends their first message", "conversation.closed": "When a conversation is closed" },
+      "zh-CN": { "conversation.first_message": "客户发来第一条消息时", "conversation.closed": "会话关闭时" },
+    },
+  },
   ChannelKind: {
     prefix: "channel.kind",
     values: ["test", "widget"],

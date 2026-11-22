@@ -25,6 +25,7 @@ import (
 	"agents-desk/apps"
 	"agents-desk/internal/attribute"
 	"agents-desk/internal/auth"
+	"agents-desk/internal/automation"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/hours"
@@ -209,6 +210,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		conversation.RegisterRoutes(api, require, a.db, a.downstream())
 		widget.RegisterRoutes(api, require, a.db, a.crypt, a.cfg.PublicURL)
 		translation.RegisterRoutes(api, require, a.db, a.translator, translation.NewIncoming(a.db, a.locker, a.translator, a.downstream()), a.translationSettings)
+		automation.RegisterRoutes(api, require, a.db)
 	})
 
 	// 聊天窗口的接口：widget.Middleware 按路径中的渠道 ID 查出聊天插件和它所在的工作区。只接受联系人的令牌，

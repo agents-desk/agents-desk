@@ -29,6 +29,10 @@ export const required = {
     reorder: ["tenant-settings:manage"],
     update: ["tenant-settings:manage"],
   },
+  automation: {
+    list: ["tenant-settings:manage"],
+    update: ["tenant-settings:manage"],
+  },
   conversation: {
     assign: ["conversations:reply"],
     attributesPatch: ["conversations:reply"],

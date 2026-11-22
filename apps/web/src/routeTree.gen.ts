@@ -20,12 +20,14 @@ import { Route as TSlugSettingsRouteImport } from './routes/t/$slug/settings'
 import { Route as TSlugInboxIndexRouteImport } from './routes/t/$slug/inbox/index'
 import { Route as TSlugInboxIdRouteImport } from './routes/t/$slug/inbox/$id'
 import { Route as TSlugSettingsIndexRouteImport } from './routes/t/$slug/settings/index'
+import { Route as TSlugSettingsAutomationRouteImport } from './routes/t/$slug/settings/_automation'
 import { Route as TSlugSettingsChannelsRouteImport } from './routes/t/$slug/settings/_channels'
 import { Route as TSlugSettingsDataRouteImport } from './routes/t/$slug/settings/_data'
 import { Route as TSlugSettingsInboxRouteImport } from './routes/t/$slug/settings/_inbox'
 import { Route as TSlugSettingsPersonalRouteImport } from './routes/t/$slug/settings/_personal'
 import { Route as TSlugSettingsTranslationRouteImport } from './routes/t/$slug/settings/_translation'
 import { Route as TSlugSettingsWorkspaceRouteImport } from './routes/t/$slug/settings/_workspace'
+import { Route as TSlugSettingsAutomationRulesRouteImport } from './routes/t/$slug/settings/_automation/rules'
 import { Route as TSlugSettingsChannelsWidgetsRouteImport } from './routes/t/$slug/settings/_channels/widgets'
 import { Route as TSlugSettingsDataAttributesRouteImport } from './routes/t/$slug/settings/_data/attributes'
 import { Route as TSlugSettingsDataTagsRouteImport } from './routes/t/$slug/settings/_data/tags'
@@ -99,6 +101,10 @@ const TSlugSettingsIndexRoute = TSlugSettingsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => TSlugSettingsRoute,
 } as any)
+const TSlugSettingsAutomationRoute = TSlugSettingsAutomationRouteImport.update({
+  id: '/_automation',
+  getParentRoute: () => TSlugSettingsRoute,
+} as any)
 const TSlugSettingsChannelsRoute = TSlugSettingsChannelsRouteImport.update({
   id: '/_channels',
   getParentRoute: () => TSlugSettingsRoute,
@@ -124,6 +130,12 @@ const TSlugSettingsWorkspaceRoute = TSlugSettingsWorkspaceRouteImport.update({
   id: '/_workspace',
   getParentRoute: () => TSlugSettingsRoute,
 } as any)
+const TSlugSettingsAutomationRulesRoute =
+  TSlugSettingsAutomationRulesRouteImport.update({
+    id: '/rules',
+    path: '/rules',
+    getParentRoute: () => TSlugSettingsAutomationRoute,
+  } as any)
 const TSlugSettingsChannelsWidgetsRoute =
   TSlugSettingsChannelsWidgetsRouteImport.update({
     id: '/widgets',
@@ -237,6 +249,7 @@ export interface FileRoutesByFullPath {
   '/t/$slug/inbox/$id': typeof TSlugInboxIdRoute
   '/t/$slug/inbox/': typeof TSlugInboxIndexRoute
   '/t/$slug/settings/': typeof TSlugSettingsIndexRoute
+  '/t/$slug/settings/rules': typeof TSlugSettingsAutomationRulesRoute
   '/t/$slug/settings/widgets': typeof TSlugSettingsChannelsWidgetsRouteWithChildren
   '/t/$slug/settings/attributes': typeof TSlugSettingsDataAttributesRoute
   '/t/$slug/settings/tags': typeof TSlugSettingsDataTagsRoute
@@ -264,6 +277,7 @@ export interface FileRoutesByTo {
   '/t/$slug/inbox/$id': typeof TSlugInboxIdRoute
   '/t/$slug/settings': typeof TSlugSettingsIndexRoute
   '/t/$slug/inbox': typeof TSlugInboxIndexRoute
+  '/t/$slug/settings/rules': typeof TSlugSettingsAutomationRulesRoute
   '/t/$slug/settings/attributes': typeof TSlugSettingsDataAttributesRoute
   '/t/$slug/settings/tags': typeof TSlugSettingsDataTagsRoute
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
@@ -291,6 +305,7 @@ export interface FileRoutesById {
   '/t/$slug/settings': typeof TSlugSettingsRouteWithChildren
   '/t/$slug/': typeof TSlugIndexRoute
   '/t/$slug/inbox/$id': typeof TSlugInboxIdRoute
+  '/t/$slug/settings/_automation': typeof TSlugSettingsAutomationRouteWithChildren
   '/t/$slug/settings/_channels': typeof TSlugSettingsChannelsRouteWithChildren
   '/t/$slug/settings/_data': typeof TSlugSettingsDataRouteWithChildren
   '/t/$slug/settings/_inbox': typeof TSlugSettingsInboxRouteWithChildren
@@ -299,6 +314,7 @@ export interface FileRoutesById {
   '/t/$slug/settings/_workspace': typeof TSlugSettingsWorkspaceRouteWithChildren
   '/t/$slug/inbox/': typeof TSlugInboxIndexRoute
   '/t/$slug/settings/': typeof TSlugSettingsIndexRoute
+  '/t/$slug/settings/_automation/rules': typeof TSlugSettingsAutomationRulesRoute
   '/t/$slug/settings/_channels/widgets': typeof TSlugSettingsChannelsWidgetsRouteWithChildren
   '/t/$slug/settings/_data/attributes': typeof TSlugSettingsDataAttributesRoute
   '/t/$slug/settings/_data/tags': typeof TSlugSettingsDataTagsRoute
@@ -331,6 +347,7 @@ export interface FileRouteTypes {
     | '/t/$slug/inbox/$id'
     | '/t/$slug/inbox/'
     | '/t/$slug/settings/'
+    | '/t/$slug/settings/rules'
     | '/t/$slug/settings/widgets'
     | '/t/$slug/settings/attributes'
     | '/t/$slug/settings/tags'
@@ -358,6 +375,7 @@ export interface FileRouteTypes {
     | '/t/$slug/inbox/$id'
     | '/t/$slug/settings'
     | '/t/$slug/inbox'
+    | '/t/$slug/settings/rules'
     | '/t/$slug/settings/attributes'
     | '/t/$slug/settings/tags'
     | '/t/$slug/settings/preferences'
@@ -384,6 +402,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings'
     | '/t/$slug/'
     | '/t/$slug/inbox/$id'
+    | '/t/$slug/settings/_automation'
     | '/t/$slug/settings/_channels'
     | '/t/$slug/settings/_data'
     | '/t/$slug/settings/_inbox'
@@ -392,6 +411,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/_workspace'
     | '/t/$slug/inbox/'
     | '/t/$slug/settings/'
+    | '/t/$slug/settings/_automation/rules'
     | '/t/$slug/settings/_channels/widgets'
     | '/t/$slug/settings/_data/attributes'
     | '/t/$slug/settings/_data/tags'
@@ -496,6 +516,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugSettingsIndexRouteImport
       parentRoute: typeof TSlugSettingsRoute
     }
+    '/t/$slug/settings/_automation': {
+      id: '/t/$slug/settings/_automation'
+      path: ''
+      fullPath: '/t/$slug/settings'
+      preLoaderRoute: typeof TSlugSettingsAutomationRouteImport
+      parentRoute: typeof TSlugSettingsRoute
+    }
     '/t/$slug/settings/_channels': {
       id: '/t/$slug/settings/_channels'
       path: ''
@@ -537,6 +564,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/t/$slug/settings'
       preLoaderRoute: typeof TSlugSettingsWorkspaceRouteImport
       parentRoute: typeof TSlugSettingsRoute
+    }
+    '/t/$slug/settings/_automation/rules': {
+      id: '/t/$slug/settings/_automation/rules'
+      path: '/rules'
+      fullPath: '/t/$slug/settings/rules'
+      preLoaderRoute: typeof TSlugSettingsAutomationRulesRouteImport
+      parentRoute: typeof TSlugSettingsAutomationRoute
     }
     '/t/$slug/settings/_channels/widgets': {
       id: '/t/$slug/settings/_channels/widgets'
@@ -674,6 +708,20 @@ const TSlugInboxRouteWithChildren = TSlugInboxRoute._addFileChildren(
   TSlugInboxRouteChildren,
 )
 
+interface TSlugSettingsAutomationRouteChildren {
+  TSlugSettingsAutomationRulesRoute: typeof TSlugSettingsAutomationRulesRoute
+}
+
+const TSlugSettingsAutomationRouteChildren: TSlugSettingsAutomationRouteChildren =
+  {
+    TSlugSettingsAutomationRulesRoute: TSlugSettingsAutomationRulesRoute,
+  }
+
+const TSlugSettingsAutomationRouteWithChildren =
+  TSlugSettingsAutomationRoute._addFileChildren(
+    TSlugSettingsAutomationRouteChildren,
+  )
+
 interface TSlugSettingsChannelsWidgetsRouteChildren {
   TSlugSettingsChannelsWidgetsIdRoute: typeof TSlugSettingsChannelsWidgetsIdRoute
   TSlugSettingsChannelsWidgetsIndexRoute: typeof TSlugSettingsChannelsWidgetsIndexRoute
@@ -801,6 +849,7 @@ const TSlugSettingsWorkspaceRouteWithChildren =
   )
 
 interface TSlugSettingsRouteChildren {
+  TSlugSettingsAutomationRoute: typeof TSlugSettingsAutomationRouteWithChildren
   TSlugSettingsChannelsRoute: typeof TSlugSettingsChannelsRouteWithChildren
   TSlugSettingsDataRoute: typeof TSlugSettingsDataRouteWithChildren
   TSlugSettingsInboxRoute: typeof TSlugSettingsInboxRouteWithChildren
@@ -811,6 +860,7 @@ interface TSlugSettingsRouteChildren {
 }
 
 const TSlugSettingsRouteChildren: TSlugSettingsRouteChildren = {
+  TSlugSettingsAutomationRoute: TSlugSettingsAutomationRouteWithChildren,
   TSlugSettingsChannelsRoute: TSlugSettingsChannelsRouteWithChildren,
   TSlugSettingsDataRoute: TSlugSettingsDataRouteWithChildren,
   TSlugSettingsInboxRoute: TSlugSettingsInboxRouteWithChildren,

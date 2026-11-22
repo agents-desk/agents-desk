@@ -35,6 +35,7 @@ import (
 	"github.com/go-tenon/tenon/settings"
 
 	"agents-desk/internal/auth"
+	"agents-desk/internal/automation"
 	"agents-desk/internal/channel"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/llm"
@@ -76,7 +77,7 @@ type App struct {
 // 会话的状态变化推送给客户的聊天窗口。
 // 没有广播时（只构造路由的命令）两种推送都不做。
 func (a *App) downstream() conversation.Downstream {
-	down := conversation.Downstream{Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic, translation.Topic}, Hub: a.hub, Roles: a.roles}
+	down := conversation.Downstream{Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic, translation.Topic, automation.Topic}, Hub: a.hub, Roles: a.roles}
 	if a.hub != nil {
 		down.ContactPush = widget.Push(a.hub)
 	}
@@ -191,8 +192,10 @@ func parts(a *App) []command.Part {
 // worker 装配队列 worker：把业务事务中发布的任务转发到 JetStream 并处理。各模块的任务在这里登记。
 func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
 	w := queue.NewWorker(a.db, a.nc, a.cfg.Queue, nil)
+	down := a.downstream()
 	conversation.RegisterJobs(w, a.db, a.channels)
-	translation.RegisterJobs(w, a.db, a.locker, a.translator, a.downstream())
+	translation.RegisterJobs(w, a.db, a.locker, a.translator, down)
+	automation.RegisterJobs(w, a.db, a.locker, down)
 	return w.Run, nil
 }
 
