@@ -1,0 +1,33 @@
+{
+  "name": "@go-tenon/start",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server.ts",
+    "./serve": "./src/serve.ts",
+    "./print": "./src/print.tsx",
+    "./vite": {
+      "types": "./src/vite.d.ts",
+      "default": "./src/vite.js"
+    }
+  },
+  "bin": {
+    "tenon-start": "./src/cli.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@types/node": "^24.10.15"
+  },
+  "peerDependencies": {
+    "@tanstack/react-router": "^1.170.0",
+    "@tanstack/react-start": "^1.169.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "vite": "^8.3.0"
+  }
+}

@@ -23,9 +23,9 @@ bun run build    # 构建 bin/agents-desk
 
 用 `admin@example.com` / `password` 登录管理员端，可以看到示例工作区 `demo`；它的主管理员 `owner@example.com` / `password` 登录工作区端 <http://localhost:8081/>，进入 `/t/demo/`。示例工作区中还有管理员 `manager@example.com`、坐席 `agent@example.com`，密码都是 `password`，用来看不同角色的界面；他们两人在团队收件箱“一线客服”中，新会话在两人之间轮流分配。示例工作区还有一个测试渠道和 10 个示例会话；`go run ./cmd/agents-desk dev message --from rahul "..."` 以客户的身份往测试渠道发一条消息，用来看新消息进来的样子。生产环境不运行 `seed`，第一个平台管理员用 `admin create --email <邮箱>` 创建，密码在终端中输入。
 
-上传的文件（头像等）默认保存在本机的 `storage/files` 目录中（不提交），由应用在 `/storage/` 下提供访问。部署多台服务器或使用 CDN 时改用 S3 兼容的对象存储：在 `config/app.yaml` 的 `filesystem.disks` 中配置 `s3`，并把 `default_disk` 设为 `s3`（或设置环境变量 `FILES_DISK=s3`），见 `.tenon/docs/libraries/filesystem.md`。
+上传的文件（头像等）默认保存在本机的 `storage/files` 目录中（不提交），由应用在 `/storage/` 下提供访问。部署多台服务器或使用 CDN 时改用 S3 兼容的对象存储：在 `config/app.yaml` 的 `filesystem.disks` 中配置 `s3`，并把 `default_disk` 设为 `s3`（或设置环境变量 `FILES_DISK=s3`），见 `tenon/docs/libraries/filesystem.md`。
 
-目录、常用命令、提交前的检查和代码约定见 [AGENTS.md](AGENTS.md)，框架的文档在 `.tenon/docs` 中（`bun run dev` 时生成），也可以在线阅读 [Tenon 文档](https://github.com/go-tenon/tenon/tree/main/docs)。
+目录、常用命令、提交前的检查和代码约定见 [AGENTS.md](AGENTS.md)，框架的文档在 `tenon/docs`、前端包源码在 `tenon/js`，也可以在线阅读 [Tenon 文档](https://github.com/go-tenon/tenon/tree/main/docs)。
 
 ### AI 编程助手
 
@@ -33,15 +33,15 @@ bun run build    # 构建 bin/agents-desk
 
 `tenon init` 和 `bun run agents`（`go tool tenon agents`）为 Claude Code、Codex、Cursor、Antigravity 准备好了这些，升级框架后运行 `bun run agents` 更新（`AGENTS.md` 由项目自己维护）：
 
-- `.tenon/docs`：与 `go.mod` 中的框架版本一致的文档；
+- `tenon/docs`：与 `go.mod` 中的框架版本一致的文档；
 - `tenon-*` 技能：新增业务动作、写接口、加表、写页面等常做的事的步骤；
 - MCP 服务 `tenon`（`go tool tenon mcp`）：检索框架的文档、查看项目信息、读 `bun run dev` 的输出。
 
-选择接入哪些助手见 `.tenon/docs/installation/ai-assistants.md#choosing-assistants`。
+选择接入哪些助手见 `tenon/docs/installation/ai-assistants.md#choosing-assistants`。
 
 #### 依赖的官方方案
 
-项目用到的 Go、Mantine、TanStack 等也为 AI 编程助手提供了文档、MCP 服务和技能，按它们的官方方法接入。它们的写法与 Tenon 的约定冲突时，以 `AGENTS.md` 和 `.tenon/docs` 为准。
+项目用到的 Go、Mantine、TanStack 等也为 AI 编程助手提供了文档、MCP 服务和技能，按它们的官方方法接入。它们的写法与 Tenon 的约定冲突时，以 `AGENTS.md` 和 `tenon/docs` 为准。
 
 这个项目已经按下面的方法接上了 gopls、Mantine 的 MCP 服务和技能，以及 TanStack Router 的技能，配置都已提交；更新依赖的技能时重新执行对应的命令。
 
