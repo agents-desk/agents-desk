@@ -19,7 +19,7 @@ export interface ContactSummary {
   email: string
   id: string
   kind: ContactKind
-  /** 对方的语言：最近一条消息识别出的，或者成员手动设置的；还没有时为空 */
+  /** 客户的语言：按最近几条确定了语言的消息判断，或者成员手动设置的；还没有时为空 */
   language: string
   /** 对方的语言是成员手动设置的：收到的消息不再改它 */
   language_manual: boolean
@@ -90,7 +90,7 @@ export interface ConversationDTO {
   first_reply_at?: string
   id: string
   kind: ConversationKind
-  /** 对方最近一条消息识别出的语言 */
+  /** 客户的语言：按最近几条确定了语言的消息判断，或者成员手动设置的 */
   language: string
   last_message_at: string
   /** 时间线中最新一项的序号，用来增量读取时间线 */
@@ -101,6 +101,10 @@ export interface ConversationDTO {
   preview: string
   /** 最后一条消息是谁发的；还没有消息时为空 */
   preview_actor?: ConversationActor
+  /** 最后一条消息的 ID，只在它还缺我的语言的译文时给出 */
+  preview_item_id?: string
+  /** 最后一条消息是对方发来、还缺我的语言的译文的：preview 是原文，页面看到这一行时请求补译 */
+  preview_untranslated?: boolean
   priority: ConversationPriority
   /** 客户最近一次的评价；没有评价过时为空 */
   rating?: ConversationRating
@@ -468,7 +472,7 @@ export interface TenantGeneralSettings {
 }
 
 export interface TranslationFillBody {
-  /** 时间线中的项，页面上可见、标为 untranslated 的消息 */
+  /** 时间线中的项：会话中标为 untranslated 的消息、会话列表中 preview_untranslated 的那一行的 preview_item_id */
   item_ids: string[]
 }
 
@@ -482,7 +486,7 @@ export interface TranslationGlossaryInputBody {
 }
 
 export interface TranslationPreviewBody {
-  /** 发给对方的语言（BCP 47）；不填时取对方最近一条消息的语言 */
+  /** 发给对方的语言（BCP 47）；不填时取客户的语言 */
   language?: string
   /** 成员写的回复 */
   text: string
@@ -986,10 +990,10 @@ export function createClient(options: ClientOptions) {
       /**
        * 补译看到的消息
        *
-       * POST /conversations/{id}/translations/fill
+       * POST /translations/fill
        */
-      fill: (id: string, body: TranslationFillBody): Promise<TranslationFillDTO> =>
-        rt.request<TranslationFillDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/translations/fill`, body }),
+      fill: (body: TranslationFillBody): Promise<TranslationFillDTO> =>
+        rt.request<TranslationFillDTO>({ method: "POST", path: `/translations/fill`, body }),
       /**
        * 保存术语表
        *

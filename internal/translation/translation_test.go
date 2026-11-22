@@ -58,7 +58,10 @@ func (f *fakeModel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "incoming_translation":
 		// 按请求中的目标语言作答：中文和英文是固定的译文，其他语言是带语言标签的文字
 		known := map[string]string{"en": "My order has not arrived", "zh-CN": "我的订单还没到"}
-		props := format["schema"].(map[string]any)["properties"].(map[string]any)["translations"].(map[string]any)["properties"].(map[string]any)
+		props := map[string]any{}
+		if tr, ok := format["schema"].(map[string]any)["properties"].(map[string]any)["translations"].(map[string]any); ok {
+			props = tr["properties"].(map[string]any)
+		}
 		translations := map[string]string{}
 		for target := range props {
 			translations[target] = known[target]
@@ -294,19 +297,24 @@ func TestPreviewAndReply(t *testing.T) {
 	}
 
 	p := f.receive(t, "rahul", "mera order abhi tak nahi aaya")
-	preview := NewPreview(f.env.DB, f.translator)
-	// 还没有识别出对方的语言：按原文发出
-	if got, err := preview.Handle(ctx, f.agent, p.ConversationID, PreviewBody{Text: "我在查"}); err != nil || got.Needed {
-		t.Fatalf("对方的语言未知：%+v %v", got, err)
+	incoming := NewIncoming(f.env.DB, f.locker, f.translator, f.down)
+	preview := NewPreview(f.env.DB, f.translator, incoming)
+	// 后台还没识别出对方的语言：预览先识别（不翻译），再翻译回复
+	got, err := preview.Handle(ctx, f.agent, p.ConversationID, PreviewBody{Text: "我在查"})
+	if err != nil || !got.Needed || got.Language != "hi-Latn" {
+		t.Fatalf("对方的语言未知时的预览：%+v %v", got, err)
 	}
-	if err := NewIncoming(f.env.DB, f.locker, f.translator, f.down).Job(ctx, p); err != nil {
+	if it := f.item(t, p.ItemID); it.Derived["language"] != "hi-Latn" || it.Derived["translations"] == nil {
+		t.Fatalf("预览前识别的消息：%+v", it.Derived)
+	}
+	if err := incoming.Job(ctx, p); err != nil {
 		t.Fatal(err)
 	}
 	// 会话列表的预览：对方的消息显示成员语言的译文
 	if c, err := conversation.NewGet(f.env.DB).Handle(ctx, f.agent, p.ConversationID); err != nil || c.Preview != "我的订单还没到" {
 		t.Fatalf("翻译后的预览：%+v %v", c, err)
 	}
-	got, err := preview.Handle(ctx, f.agent, p.ConversationID, PreviewBody{Text: "我在查您的 AgentsPay 提现"})
+	got, err = preview.Handle(ctx, f.agent, p.ConversationID, PreviewBody{Text: "我在查您的 AgentsPay 提现"})
 	if err != nil || !got.Needed || got.From != "zh-CN" || got.Language != "hi-Latn" || got.Translation == "" || got.BackTranslation == "" {
 		t.Fatalf("预览：%+v %v", got, err)
 	}
@@ -398,7 +406,7 @@ func TestFill(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	n, err := fill.Handle(ctx, f.agent, p.ConversationID, []string{p.ItemID, reply.ID, "not-a-uuid"})
+	n, err := fill.Handle(ctx, f.agent, []string{p.ItemID, reply.ID, "not-a-uuid"})
 	if err != nil || n != 1 {
 		t.Fatalf("补译：%d %v", n, err)
 	}
@@ -406,13 +414,13 @@ func TestFill(t *testing.T) {
 		t.Fatal(err)
 	}
 	tr, _ := f.item(t, p.ItemID).Derived["translations"].(map[string]any)
-	if tr["zh-CN"] != "我的订单还没到" || tr["en"] != "My order has not arrived" {
-		t.Fatalf("补译的译文：%+v", tr)
+	if tr["zh-CN"] != "我的订单还没到" || tr["en"] != nil || f.item(t, p.ItemID).Derived["language"] != "hi-Latn" {
+		t.Fatalf("补译只补看的人的语言，并识别语言：%+v", f.item(t, p.ItemID).Derived)
 	}
 	if untranslated(p.ConversationID, p.ItemID) {
 		t.Fatal("补译之后不应当再标为 untranslated")
 	}
-	if n, err := fill.Handle(ctx, f.agent, p.ConversationID, []string{p.ItemID}); err != nil || n != 0 {
+	if n, err := fill.Handle(ctx, f.agent, []string{p.ItemID}); err != nil || n != 0 {
 		t.Fatalf("已经有译文时：%d %v", n, err)
 	}
 
@@ -423,7 +431,7 @@ func TestFill(t *testing.T) {
 	if !untranslated(p.ConversationID, p.ItemID) {
 		t.Fatal("改成日语后旧消息应当标为 untranslated")
 	}
-	if n, err := fill.Handle(ctx, f.agent, p.ConversationID, []string{p.ItemID}); err != nil || n != 1 {
+	if n, err := fill.Handle(ctx, f.agent, []string{p.ItemID}); err != nil || n != 1 {
 		t.Fatalf("补日语：%d %v", n, err)
 	}
 	before := f.model.count()
@@ -442,13 +450,13 @@ func TestFill(t *testing.T) {
 	// 翻译不可用时什么也不做
 	off := setup(t, false)
 	q := off.receive(t, "rahul", "hello")
-	if n, err := NewFillMissing(off.env.DB, off.translator).Handle(ctx, off.agent, q.ConversationID, []string{q.ItemID}); err != nil || n != 0 {
+	if n, err := NewFillMissing(off.env.DB, off.translator).Handle(ctx, off.agent, []string{q.ItemID}); err != nil || n != 0 {
 		t.Fatalf("没有配置时补译：%d %v", n, err)
 	}
 }
 
-// TestManualLanguage 检查手动设置对方的语言：按规范写法保存在会话和联系人上并记为手动，时间线中有系统事件；之后收到的消息照常翻译，
-// 但不再改会话和联系人的语言，derived.language 记手动设置的语言；恢复自动识别后按收到的消息更新。
+// TestManualLanguage 检查手动设置对方的语言：按规范写法保存在会话和联系人上并记为手动，时间线中有系统事件，消息上的识别结果不改；
+// 之后收到的消息照常识别和翻译，但不再改会话和联系人的语言；恢复自动识别后马上按最近的消息重新判断。
 func TestManualLanguage(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -456,7 +464,7 @@ func TestManualLanguage(t *testing.T) {
 	job := NewIncoming(f.env.DB, f.locker, f.translator, f.down)
 	set := conversation.NewSetLanguage(f.env.DB, f.down)
 
-	f.model.language = "hi" // 模型把拉丁字母写的印地语错认成天城文
+	f.model.language = "en" // 模型把拉丁字母写的印地语错认成英文
 	p := f.receive(t, "rahul", "mera order abhi tak nahi aaya")
 	if err := job.Job(ctx, p); err != nil {
 		t.Fatal(err)
@@ -468,8 +476,8 @@ func TestManualLanguage(t *testing.T) {
 	if err != nil || c.Language != "hi-Latn" || c.Contact.Language != "hi-Latn" || !c.Contact.LanguageManual {
 		t.Fatalf("手动设置：%+v %v", c, err)
 	}
-	if f.item(t, p.ItemID).Derived["language"] != "hi-Latn" {
-		t.Fatalf("已有消息的语言：%+v", f.item(t, p.ItemID).Derived)
+	if f.item(t, p.ItemID).Derived["language"] != "en" {
+		t.Fatalf("消息上的识别结果不改：%+v", f.item(t, p.ItemID).Derived)
 	}
 
 	// 之后收到的消息：照常翻译，语言以手动设置的为准
@@ -479,23 +487,16 @@ func TestManualLanguage(t *testing.T) {
 		t.Fatal(err)
 	}
 	it := f.item(t, q.ItemID)
-	if it.Derived["language"] != "hi-Latn" || it.Derived["translations"] == nil {
-		t.Fatalf("手动设置后收到的消息：%+v", it.Derived)
+	if it.Derived["language"] != "en" || it.Derived["translations"] == nil {
+		t.Fatalf("手动设置后收到的消息照常识别和翻译：%+v", it.Derived)
 	}
 	if c, err := conversation.NewGet(f.env.DB).Handle(ctx, f.agent, p.ConversationID); err != nil || c.Language != "hi-Latn" || c.Contact.Language != "hi-Latn" {
 		t.Fatalf("手动设置后的语言：%+v %v", c, err)
 	}
 
-	// 恢复自动识别：下一条消息按识别结果更新
-	if c, err := set.Handle(ctx, f.agent, p.ConversationID, ""); err != nil || c.Contact.LanguageManual {
+	// 恢复自动识别：马上按最近的消息重新判断（两条都识别成 en）
+	if c, err := set.Handle(ctx, f.agent, p.ConversationID, ""); err != nil || c.Contact.LanguageManual || c.Language != "en" || c.Contact.Language != "en" {
 		t.Fatalf("恢复自动识别：%+v %v", c, err)
-	}
-	r := f.receive(t, "rahul", "my order")
-	if err := job.Job(ctx, r); err != nil {
-		t.Fatal(err)
-	}
-	if c, err := conversation.NewGet(f.env.DB).Handle(ctx, f.agent, p.ConversationID); err != nil || c.Language != "en" || c.Contact.Language != "en" {
-		t.Fatalf("自动识别后的语言：%+v %v", c, err)
 	}
 
 	var events []string
@@ -504,5 +505,105 @@ func TestManualLanguage(t *testing.T) {
 	}
 	if !slices.Contains(events, "conversation.language_set") || !slices.Contains(events, "conversation.language_auto") {
 		t.Fatalf("系统事件：%v", events)
+	}
+}
+
+// TestCustomerLanguage 检查客户的语言：判断不出语言的消息（ok）记为 und、不翻译、不改客户的语言；一段英文不改，连续两段英文才改。
+func TestCustomerLanguage(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	f := setup(t, true)
+	job := NewIncoming(f.env.DB, f.locker, f.translator, f.down)
+	say := func(language, text string) conversation.Appended {
+		t.Helper()
+		f.model.language = language
+		p := f.receive(t, "rahul", text)
+		if err := job.Job(ctx, p); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	languageOf := func(p conversation.Appended) string {
+		t.Helper()
+		c, err := conversation.NewGet(f.env.DB).Handle(ctx, f.agent, p.ConversationID)
+		if err != nil || c.Language != c.Contact.Language {
+			t.Fatalf("会话和联系人的语言：%+v %v", c, err)
+		}
+		return c.Language
+	}
+
+	say("hi-Latn", "mera order nahi aaya")
+	p := say("hi-Latn", "kab tak aayega")
+	ok := say("und", "ok")
+	if languageOf(p) != "hi-Latn" {
+		t.Fatalf("ok 之后：%s", languageOf(p))
+	}
+	if it := f.item(t, ok.ItemID); it.Derived["language"] != "und" || len(it.Derived["translations"].(map[string]any)) != 0 {
+		t.Fatalf("ok 的派生内容：%+v", it.Derived)
+	}
+	if !strings.Contains(f.model.lastSystem(), "This customer has been writing in hi-Latn") {
+		t.Errorf("识别时的参考语言：%s", f.model.lastSystem())
+	}
+	say("en", "Payment failed: insufficient balance")
+	if languageOf(p) != "hi-Latn" {
+		t.Fatalf("一段英文之后：%s", languageOf(p))
+	}
+	say("en", "Can you reply in English please")
+	if languageOf(p) != "en" {
+		t.Fatalf("连续两段英文之后：%s", languageOf(p))
+	}
+}
+
+// TestPrimaryLanguages 检查收到时只翻译成工作区的主要语言（用的人最多的语言）：再加一位中文成员后，英文不再预先翻译，
+// 英文成员看到时补译；会话列表对他标出还缺译文。
+func TestPrimaryLanguages(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	f := setup(t, true)
+	roles, err := f.env.Roles.Roles(ctx, f.system.Tenant)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var roleID string
+	for _, r := range roles {
+		if r.Tenant == f.system.Tenant {
+			roleID = r.ID
+		}
+	}
+	if _, err := member.NewAdd(f.env.DB, f.env.MemberLogins, f.env.Files).Handle(ctx, f.agent, member.AddParams{
+		Email: "zh2@alpha.com", Name: "zh2", Password: "password", RoleID: roleID,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.env.DB.NewRaw("UPDATE members SET language = 'zh-CN' WHERE name = 'zh2'").Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	p := f.receive(t, "rahul", "mera order abhi tak nahi aaya")
+	if err := NewIncoming(f.env.DB, f.locker, f.translator, f.down).Job(ctx, p); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(f.model.lastSystem(), "these languages: zh-CN.") {
+		t.Fatalf("收到时的目标语言：%s", f.model.lastSystem())
+	}
+	tr, _ := f.item(t, p.ItemID).Derived["translations"].(map[string]any)
+	if tr["zh-CN"] == nil || tr["en"] != nil {
+		t.Fatalf("收到时的译文：%+v", tr)
+	}
+
+	// 英文成员：会话列表中这一行标出还缺译文，显示原文
+	var enID string
+	if err := f.env.DB.NewRaw("SELECT id FROM members WHERE name = 'en'").Scan(ctx, &enID); err != nil {
+		t.Fatal(err)
+	}
+	en := identity.Subject{Type: member.Type, ID: enID, Tenant: f.system.Tenant, Permissions: f.agent.Permissions}
+	c, err := conversation.NewGet(f.env.DB).Handle(ctx, en, p.ConversationID)
+	if err != nil || !c.PreviewUntranslated || c.PreviewItemID != p.ItemID || c.Preview != "mera order abhi tak nahi aaya" {
+		t.Fatalf("英文成员看到的预览：%+v %v", c, err)
+	}
+	if c, err := conversation.NewGet(f.env.DB).Handle(ctx, f.agent, p.ConversationID); err != nil || c.PreviewUntranslated || c.Preview != "我的订单还没到" {
+		t.Fatalf("中文成员看到的预览：%+v %v", c, err)
+	}
+	if n, err := NewFillMissing(f.env.DB, f.translator).Handle(ctx, en, []string{c.PreviewItemID, p.ItemID}); err != nil || n != 1 {
+		t.Fatalf("英文成员补译：%d %v", n, err)
 	}
 }

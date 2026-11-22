@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-tenon/tenon/settings"
 
+	"agents-desk/internal/conversation"
 	"agents-desk/internal/lang"
 	"agents-desk/internal/llm"
 )
@@ -74,32 +75,39 @@ type incoming struct {
 	Translations map[string]string `json:"translations"`
 }
 
-// Incoming 识别工作区 tenant 中消息 itemID 的文字 text 的语言和书写方式，并翻译成 targets 中的每一种语言。
+// Incoming 识别工作区 tenant 中消息 itemID 的文字 text 的语言和书写方式，并翻译成 targets 中的每一种语言；targets 为空时只识别。
+// usual 是这位客户目前的语言（还不知道时为空），提示中作为参考。判断不出语言时返回 conversation.Undetermined，不翻译。
 // 返回识别出的语言（BCP 47），以及和原文不同语言的那些译文。模型没有配置时返回 llm.ErrNotConfigured。
-func (tr *Translator) Incoming(ctx context.Context, tenant, itemID, text string, targets []string) (string, map[string]string, error) {
+func (tr *Translator) Incoming(ctx context.Context, tenant, itemID, text, usual string, targets []string) (string, map[string]string, error) {
 	s, err := tr.settings.Tenant(tenant).Get(ctx)
 	if err != nil {
 		return "", nil, err
 	}
-	props := map[string]any{}
-	for _, target := range targets {
-		props[target] = map[string]any{"type": "string", "description": "the message translated into " + target}
+	properties := map[string]any{
+		"language": map[string]any{"type": "string", "description": `BCP 47 tag of the message's language, with a script subtag when it is written in an unusual script; "und" when it cannot be told`},
 	}
-	schema := map[string]any{
-		"type": "object",
-		"properties": map[string]any{
-			"language": map[string]any{"type": "string", "description": "BCP 47 tag of the message's language, with a script subtag when it is written in an unusual script"},
-			"translations": map[string]any{
-				"type": "object", "properties": props, "required": targets, "additionalProperties": false,
-			},
-		},
-		"required":             []string{"language", "translations"},
-		"additionalProperties": false,
-	}
-	system := strings.Join(nonEmpty(
-		"You translate messages that customers send to a customer support team.",
+	required := []string{"language"}
+	steps := []string{
 		`1. Identify the language of the message and how it is written. Answer with a BCP 47 tag, and add a script subtag when the language is written in a script other than its usual one: for example "hi-Latn" for Hindi written in Latin letters (Hinglish), "hi" for Hindi in Devanagari, "en" for English, "zh-Hans" for Simplified Chinese, "ar" for Arabic.`,
-		"2. Translate the message into each of these languages: "+strings.Join(targets, ", ")+". When the message is already in one of them, copy it unchanged for that language.",
+		`When the message is too short or does not belong to any one language, answer "und": for example "ok", "thx", "yes", emoji, numbers, order numbers, codes or links.`,
+	}
+	if usual != "" {
+		steps = append(steps, "This customer has been writing in "+usual+". Use it only to help with the script; answer with the language of this message.")
+	}
+	if len(targets) > 0 {
+		props := map[string]any{}
+		for _, target := range targets {
+			props[target] = map[string]any{"type": "string", "description": "the message translated into " + target + `, or "" when it needs no translation`}
+		}
+		properties["translations"] = map[string]any{"type": "object", "properties": props, "required": targets, "additionalProperties": false}
+		required = append(required, "translations")
+		steps = append(steps, "2. Translate the message into each of these languages: "+strings.Join(targets, ", ")+
+			`. Answer "" for a language when the message is already in it, or when the language is "und".`)
+	}
+	schema := map[string]any{"type": "object", "properties": properties, "required": required, "additionalProperties": false}
+	system := strings.Join(nonEmpty(
+		"You identify the language of messages that customers send to a customer support team, and translate them for the team.",
+		strings.Join(steps, "\n"),
 		rules,
 		glossaryHint(s.Glossary, text, targets),
 		"Reply with JSON only.",
@@ -112,6 +120,9 @@ func (tr *Translator) Incoming(ctx context.Context, tenant, itemID, text string,
 	}, &out)
 	if err != nil {
 		return "", nil, err
+	}
+	if out.Language == "" || strings.EqualFold(out.Language, conversation.Undetermined) {
+		return conversation.Undetermined, map[string]string{}, nil
 	}
 	// 书写方式按原文实际用的文字修正：模型有时会漏掉 -Latn
 	out.Language = withScript(out.Language, text)

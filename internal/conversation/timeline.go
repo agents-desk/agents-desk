@@ -2,7 +2,6 @@ package conversation
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
@@ -51,10 +50,9 @@ func (a *Timeline) Handle(ctx context.Context, sub identity.Subject, id string, 
 	if err != nil {
 		return nil, err
 	}
-	var language string
-	err = a.db.NewSelect().Table("members").Column("language").Where("id = ?", sub.ID).Scan(ctx, &language)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return nil, errors.Wrap(err, "load member language")
+	language, err := MemberLanguage(ctx, a.db, sub)
+	if err != nil {
+		return nil, err
 	}
 	markUntranslated(dtos, language)
 	return dtos, nil

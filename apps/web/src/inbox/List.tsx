@@ -7,6 +7,7 @@ import { notifyError, notifySuccess, useCan, useLanguage, useT, useTimeZone } fr
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { flatten, useConversationList, useMe, useMembers, useTeams, useThresholds } from "./data"
+import { type FillRef, useFillVisible } from "./fill"
 import { activity, duration, waitColor, waitLevel } from "./format"
 import { useNow } from "./Nav"
 import type { InboxSearch } from "./search"
@@ -29,6 +30,8 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
   const th = useThresholds()
   const list = useConversationList(search)
   const inbox = useQuery(kit.queries.conversation.inbox())
+  const translation = useQuery(kit.queries.translation.settings())
+  const watch = useFillVisible(translation.data?.enabled ?? false)
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const items = flatten(list.data?.pages)
@@ -162,6 +165,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
               selecting={selecting}
               selected={selected.has(c.id)}
               onClick={() => (selecting ? toggle(c.id) : open(c.id))}
+              watch={watch}
             />
           ))
         )}
@@ -176,7 +180,10 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
   )
 }
 
-/** Row 是会话列表的一行：未读点、联系人、渠道、优先级、等待时长（已回复的显示最近活动的时间）；第二行是最后一条消息。 */
+/**
+ * Row 是会话列表的一行：未读点、联系人、渠道、优先级、等待时长（已回复的显示最近活动的时间）；第二行是最后一条消息，
+ * 对方的消息是我的语言的译文。还缺译文时第二行先显示原文，这一行出现在页面上时请求补译（watch）。
+ */
 function Row({
   c,
   now,
@@ -185,6 +192,7 @@ function Row({
   selecting,
   selected,
   onClick,
+  watch,
 }: {
   c: ConversationDTO
   now: number
@@ -193,6 +201,7 @@ function Row({
   selecting: boolean
   selected: boolean
   onClick: () => void
+  watch: FillRef
 }): ReactNode {
   const t = useT()
   const language = useLanguage()
@@ -210,6 +219,8 @@ function Row({
   return (
     <UnstyledButton
       onClick={onClick}
+      ref={c.preview_untranslated ? watch : undefined}
+      data-item-id={c.preview_item_id}
       className="inbox-row"
       data-active={active || undefined}
       data-flash={flash || undefined}

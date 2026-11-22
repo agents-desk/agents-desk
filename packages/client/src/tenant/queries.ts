@@ -308,9 +308,9 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
     translation: {
       /** translation 分组全部查询的 key 前缀。 */
       key: () => key("translation"),
-      /** POST /conversations/{id}/translations/fill */
+      /** POST /translations/fill */
       fill: () => ({
-        mutationFn: (variables: Parameters<Client["translation"]["fill"]>) => client.translation.fill(...variables),
+        mutationFn: (variables: Parameters<Client["translation"]["fill"]>[0]) => client.translation.fill(variables),
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "translation"),
       }),

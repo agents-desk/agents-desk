@@ -38,8 +38,8 @@ func NewSetLanguage(db *bun.DB, down Downstream) *SetLanguage {
 
 // Handle 由 sub 把他所在工作区中会话 id 的对方语言设为 language（BCP 47，按规范写法保存），时间线中追加 conversation.language_set。
 // 会话有联系人时同时设置联系人的语言，并记为手动设置：之后收到的消息照常识别和翻译，但不再改会话和联系人的语言，
-// 这个联系人以后的会话也用它；会话中对方的消息的 derived.language 改为它，页面据此补上原来被当成同一种语言而没有翻译的消息。
-// language 为空时恢复自动识别（追加 conversation.language_auto），下一条消息到来时按识别结果更新。
+// 这个联系人以后的会话也用它。消息上的识别结果（derived.language）是对那条文字的判断，不改。
+// language 为空时恢复自动识别（追加 conversation.language_auto），马上按客户最近的消息重新判断（CustomerLanguage）。
 // 不是合法的标签时返回 ErrInvalidLanguage；没有变化时什么也不做。
 func (a *SetLanguage) Handle(ctx context.Context, sub identity.Subject, id, language string) (*ConversationDTO, error) {
 	if language != "" {
@@ -59,7 +59,7 @@ func (a *SetLanguage) Handle(ctx context.Context, sub identity.Subject, id, lang
 			}
 		}
 
-		// 恢复自动识别：语言先保持不变，下一条消息到来时更新
+		// 恢复自动识别：按客户最近的消息重新判断
 		if language == "" {
 			if ct == nil || !ct.LanguageManual {
 				return nil, nil
@@ -67,6 +67,9 @@ func (a *SetLanguage) Handle(ctx context.Context, sub identity.Subject, id, lang
 			ct.LanguageManual = false
 			if _, err := tx.NewUpdate().Model(ct).Column("language_manual", "updated_at").WherePK().Exec(ctx); err != nil {
 				return nil, errors.Wrap(err, "update contact language")
+			}
+			if err := updateCustomerLanguage(ctx, tx, c); err != nil {
+				return nil, err
 			}
 			return []*Item{event(sub, "conversation.language_auto", map[string]any{})}, nil
 		}
@@ -81,14 +84,6 @@ func (a *SetLanguage) Handle(ctx context.Context, sub identity.Subject, id, lang
 			if _, err := tx.NewUpdate().Model(ct).Column("language", "language_manual", "updated_at").WherePK().Exec(ctx); err != nil {
 				return nil, errors.Wrap(err, "update contact language")
 			}
-		}
-		// 已经识别过的对方消息按新的语言重新判断要不要翻译
-		_, err := tx.NewUpdate().Model((*Item)(nil)).
-			Set("derived = jsonb_set(derived, '{language}', to_jsonb(?::text))", language).
-			Where("conversation_id = ? AND kind = ? AND actor_type = ? AND derived->>'language' IS NOT NULL", c.ID, Message, ContactActor).
-			Exec(ctx)
-		if err != nil {
-			return nil, errors.Wrap(err, "update message languages")
 		}
 		return []*Item{event(sub, "conversation.language_set", map[string]any{"from": from, "to": language})}, nil
 	})

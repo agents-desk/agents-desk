@@ -49,7 +49,7 @@ type Contact struct {
 	Name           string         `bun:"name,notnull"`
 	Email          string         `bun:"email,notnull"`
 	ExternalUserID string         `bun:"external_user_id,notnull"` // 产品后端传来的用户编号；线索为空
-	Language       string         `bun:"language,notnull"`         // 对方的语言：最近一条消息识别出的，或者成员手动设置的
+	Language       string         `bun:"language,notnull"`         // 客户的语言：按最近几条消息判断（conversation.CustomerLanguage），或者成员手动设置的
 	LanguageManual bool           `bun:"language_manual,notnull"`  // 成员手动设置了 Language：收到的消息不再改它
 	Attributes     map[string]any `bun:"attributes,type:jsonb,notnull"`
 }
@@ -60,7 +60,7 @@ type Summary struct {
 	Kind           Kind   `json:"kind"`
 	Name           string `json:"name"`
 	Email          string `json:"email"`
-	Language       string `json:"language" doc:"对方的语言：最近一条消息识别出的，或者成员手动设置的；还没有时为空"`
+	Language       string `json:"language" doc:"客户的语言：按最近几条确定了语言的消息判断，或者成员手动设置的；还没有时为空"`
 	LanguageManual bool   `json:"language_manual" doc:"对方的语言是成员手动设置的：收到的消息不再改它"`
 }
 

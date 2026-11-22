@@ -3,6 +3,8 @@ package translation
 import (
 	"context"
 
+	"github.com/cockroachdb/errors"
+
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/errorx"
@@ -20,7 +22,7 @@ var ErrForbidden = errorx.Define(errorx.PermissionDenied, "translation.forbidden
 // PreviewBody 是翻译预览的请求体。
 type PreviewBody struct {
 	Text     string `json:"text" minLength:"1" maxLength:"10000" doc:"成员写的回复"`
-	Language string `json:"language,omitempty" maxLength:"35" doc:"发给对方的语言（BCP 47）；不填时取对方最近一条消息的语言"`
+	Language string `json:"language,omitempty" maxLength:"35" doc:"发给对方的语言（BCP 47）；不填时取客户的语言"`
 }
 
 // PreviewInput 是翻译预览的 HTTP 请求。
@@ -47,15 +49,17 @@ type PreviewOutput struct {
 type Preview struct {
 	db         *bun.DB
 	translator *Translator
+	incoming   *Incoming
 }
 
-// NewPreview 返回翻译预览的动作。
-func NewPreview(db *bun.DB, translator *Translator) *Preview {
-	return &Preview{db: db, translator: translator}
+// NewPreview 返回翻译预览的动作；incoming 用来在还不知道对方的语言时先识别对方的消息。
+func NewPreview(db *bun.DB, translator *Translator, incoming *Incoming) *Preview {
+	return &Preview{db: db, translator: translator, incoming: incoming}
 }
 
 // Handle 为成员 sub 在他所在工作区的会话 id 中写的回复 b.Text 给出发给对方的译文和回译。目标语言是 b.Language，
-// 不填时取会话中对方的语言；目标语言未知，或者与成员的语言相同时不调用模型，按原文发出（Needed 为 false）。
+// 不填时取会话中对方的语言；还不知道时（消息刚到、后台还没识别完）先识别对方最近的几条消息。目标语言仍然未知，
+// 或者与成员的语言相同时不调用模型，按原文发出（Needed 为 false）。
 // 会话不存在或看不到时返回 conversation.ErrNotFound，没有回复的权限时返回 ErrForbidden，翻译没有配置时返回 llm.ErrNotConfigured。
 func (a *Preview) Handle(ctx context.Context, sub identity.Subject, id string, b PreviewBody) (*PreviewDTO, error) {
 	if sub.Type != member.Type || !sub.Can(string(auth.ConversationsReply)) {
@@ -73,6 +77,11 @@ func (a *Preview) Handle(ctx context.Context, sub identity.Subject, id string, b
 	if to == "" {
 		to = c.Language
 	}
+	if to == "" {
+		if to, err = a.detect(ctx, sub, c.ID); err != nil {
+			return nil, err
+		}
+	}
 	if to == "" || lang.Same(from, to) {
 		return &PreviewDTO{From: from, Language: to, Translation: b.Text}, nil
 	}
@@ -81,6 +90,28 @@ func (a *Preview) Handle(ctx context.Context, sub identity.Subject, id string, b
 		return nil, err
 	}
 	return &PreviewDTO{Needed: true, From: from, Language: to, Translation: translation, BackTranslation: back}, nil
+}
+
+// detect 识别 sub 能看到的会话 id 中对方最近几条还没识别过语言的消息（不翻译），返回识别之后对方的语言。
+func (a *Preview) detect(ctx context.Context, sub identity.Subject, id string) (string, error) {
+	var ids []string
+	err := a.db.NewSelect().Table("timeline_items").Column("id").
+		Where("tenant_id = ? AND conversation_id = ? AND kind = ? AND actor_type = ? AND visibility = ?", sub.Tenant, id, conversation.Message, conversation.ContactActor, conversation.Everyone).
+		Where("content->>'text' <> '' AND COALESCE(derived->>'language', '') = ''").
+		OrderExpr("seq DESC").Limit(3).Scan(ctx, &ids)
+	if err != nil {
+		return "", errors.Wrap(err, "load undetected messages")
+	}
+	for _, itemID := range ids {
+		if err := a.incoming.Ensure(ctx, sub.Tenant, itemID, nil); err != nil {
+			return "", err
+		}
+	}
+	c, err := conversation.NewGet(a.db).Handle(ctx, sub, id)
+	if err != nil {
+		return "", err
+	}
+	return c.Language, nil
 }
 
 // HTTP 处理 POST /t/{slug}/api/conversations/{id}/translations。
