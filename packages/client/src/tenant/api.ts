@@ -417,6 +417,31 @@ export interface ConversationReplyBody {
 
 export type ConversationScope = "all" | "team" | "assigned"
 
+export interface ConversationSearchHitDTO {
+  conversation: ConversationDTO
+  /** 该会话内最相关的一条命中消息或内部备注 */
+  match: ConversationSearchMatch
+  /** 该会话内命中的消息和内部备注总条数 */
+  match_count: number
+  score: number
+}
+
+export interface ConversationSearchMatch {
+  /** 发起者 */
+  actor: ConversationActor
+  created_at: string
+  /** 展示的摘要来源：translated（译文）、original（原文）或 note（内部备注） */
+  field: string
+  /** 命中的时间线项 ID */
+  item_id: string
+  /** 命中的是消息还是内部备注 */
+  kind: ConversationItemKind
+  /** 命中的时间线序号，用于跳转定位 */
+  seq: number
+  /** 包含高亮标记的命中摘要 */
+  snippet: Part[]
+}
+
 export interface ConversationSnoozeInputBody {
   /** 回到打开的时间，必须晚于现在；“明天”“下周一”这类选项由客户端按成员的时区算出 */
   until: string
@@ -592,6 +617,14 @@ export interface MemberTenantMember {
   status: MemberStatus
 }
 
+export interface OffsetConversationSearchHitDTO {
+  items: ConversationSearchHitDTO[]
+  page: number
+  per_page: number
+  /** Total number of items across all pages. */
+  total: number
+}
+
 export interface OffsetMemberTenantMember {
   items: MemberTenantMember[]
   page: number
@@ -630,6 +663,11 @@ export interface OffsetWidgetDTO {
   per_page: number
   /** Total number of items across all pages. */
   total: number
+}
+
+export interface Part {
+  mark?: boolean
+  text: string
 }
 
 export interface RoleDTO {
@@ -880,6 +918,8 @@ export interface ContactListInput {
 export interface ConversationItemsInput {
   /** 只读取序号大于它的项；收到推送后用它增量读取 */
   after?: number
+  /** 以这个序号为中心读取前后一段，用于从搜索结果定位较早的消息 */
+  around?: number
   limit?: number
 }
 
@@ -907,6 +947,30 @@ export interface ConversationListInput {
   tag_id?: string
   /** 排序；@我 的列表总是最近被 @ 的在前 */
   sort?: ConversationSort
+}
+
+/** conversation-search 的参数。 */
+export interface ConversationSearchInput {
+  /** Page number, starting at 1. */
+  page?: number
+  /** Items per page. */
+  per_page?: number
+  /** 搜索关键词 */
+  q?: string
+  /** 可选：限定在某个收件箱列表内（mine/mentions/unassigned/all）；留空搜索全部可见会话 */
+  inbox?: ConversationInbox
+  /** 可选：只搜索这个团队收件箱的会话 */
+  team_id?: string
+  /** 可选：只搜索这个状态的会话；留空包含全部状态（打开、稍后处理、已关闭） */
+  status?: ConversationStatus
+  /** 可选：只搜索负责人是这位成员的会话 */
+  assignee_id?: string
+  /** 可选：只搜索来自这个渠道的会话 */
+  channel_id?: string
+  /** 可选：只搜索这个优先级的会话 */
+  priority?: ConversationPriority
+  /** 可选：只搜索带有这个标签的会话 */
+  tag_id?: string
 }
 
 /** member-list 的参数。 */
@@ -1145,7 +1209,7 @@ export function createClient(options: ClientOptions) {
        * GET /conversations/{id}/items
        */
       items: (id: string, input: ConversationItemsInput = {}): Promise<ConversationItemDTO[]> =>
-        rt.request<ConversationItemDTO[]>({ method: "GET", path: `/conversations/${encodeURIComponent(id)}/items`, query: { "after": input["after"], "limit": input["limit"] } }),
+        rt.request<ConversationItemDTO[]>({ method: "GET", path: `/conversations/${encodeURIComponent(id)}/items`, query: { "after": input["after"], "around": input["around"], "limit": input["limit"] } }),
       /**
        * 设置对方的语言
        *
@@ -1202,6 +1266,13 @@ export function createClient(options: ClientOptions) {
        */
       retry: (id: string, itemID: string): Promise<ConversationItemDTO> =>
         rt.request<ConversationItemDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/items/${encodeURIComponent(itemID)}/retry` }),
+      /**
+       * 全文搜索会话
+       *
+       * GET /conversations/search
+       */
+      search: (input: ConversationSearchInput = {}): Promise<OffsetConversationSearchHitDTO> =>
+        rt.request<OffsetConversationSearchHitDTO>({ method: "GET", path: `/conversations/search`, query: { "assignee_id": input["assignee_id"], "channel_id": input["channel_id"], "inbox": input["inbox"], "page": input["page"], "per_page": input["per_page"], "priority": input["priority"], "q": input["q"], "status": input["status"], "tag_id": input["tag_id"], "team_id": input["team_id"] } }),
       /**
        * 稍后处理
        *

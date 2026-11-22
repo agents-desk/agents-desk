@@ -227,6 +227,11 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "conversation"),
       }),
+      /** GET /conversations/search */
+      search: (...args: Parameters<Client["conversation"]["search"]>) => ({
+        queryKey: key("conversation", "search", ...args),
+        queryFn: () => client.conversation.search(...args),
+      }),
       /** POST /conversations/{id}/snooze */
       snooze: () => ({
         mutationFn: (variables: Parameters<Client["conversation"]["snooze"]>) => client.conversation.snooze(...variables),

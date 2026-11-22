@@ -38,7 +38,7 @@ const (
 )
 
 // Languages 是平台支持的默认界面语言。
-var Languages = enum.New("platform_settings.language", LangZhCN, LangEN)
+var Languages = enum.New("platform_settings.language", enum.Item(LangZhCN), enum.Item(LangEN))
 
 // Schema 让 OpenAPI 中的 Language 只接受目录中的取值并带显示文字。
 func (Language) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Languages) }

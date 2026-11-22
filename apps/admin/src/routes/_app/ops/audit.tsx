@@ -1,10 +1,10 @@
-import { SegmentedControl, Stack } from "@mantine/core"
+import { SegmentedControl } from "@mantine/core"
 import { createFileRoute } from "@tanstack/react-router"
-import { ActivityTimeline, Page, useT } from "@go-tenon/ui"
+import { ActivityLog, Page, useT } from "@go-tenon/ui"
 import { useState } from "react"
 import { api } from "../../../api"
 
-// 平台操作日志：展示平台域（工作区、平台管理员、平台设置）的操作记录时间线，支持按对象类型筛选和分页加载。
+// 平台操作日志：展示平台域（工作区、平台管理员、平台设置）的操作记录表格，支持按对象类型筛选和固定分页。
 export const Route = createFileRoute("/_app/ops/audit")({
   staticData: { title: "nav.audit", icon: "file-text", order: 4, permission: "audit:read" },
   component: AuditLog,
@@ -18,29 +18,25 @@ function AuditLog() {
 
   return (
     <Page title={t("nav.audit")} description={t("audit.description")}>
-      <Stack gap="md">
-        <SegmentedControl
-          value={targetType}
-          onChange={(v) => setTargetType(v as TargetFilter)}
-          data={[
-            { value: "", label: t("audit.filter.all") },
-            { value: "tenant", label: t("audit.filter.tenant") },
-            { value: "platform_admin", label: t("audit.filter.platform_admin") },
-            { value: "settings", label: t("audit.filter.settings") },
-            { value: "feature", label: t("audit.filter.feature") },
-          ]}
-          w="fit-content"
-        />
-        <ActivityTimeline
-          source={{
-            key: ["audit", targetType],
-            list: (before) =>
-              api.audit
-                .list({ before, target_type: targetType || undefined })
-                .then((r) => r.items),
-          }}
-        />
-      </Stack>
+      <ActivityLog
+        source={{
+          key: ["audit", targetType],
+          list: (p) => api.audit.list({ ...p, target_type: targetType || undefined }),
+        }}
+        toolbar={
+          <SegmentedControl
+            value={targetType}
+            onChange={(v) => setTargetType(v as TargetFilter)}
+            data={[
+              { value: "", label: t("audit.filter.all") },
+              { value: "tenant", label: t("audit.filter.tenant") },
+              { value: "platform_admin", label: t("audit.filter.platform_admin") },
+              { value: "settings", label: t("audit.filter.settings") },
+              { value: "feature", label: t("audit.filter.feature") },
+            ]}
+          />
+        }
+      />
     </Page>
   )
 }

@@ -27,7 +27,7 @@ const (
 )
 
 // Inboxes 是收件箱的全部列表，显示文字是翻译文件中 conversation.inbox.<列表> 的消息。
-var Inboxes = enum.New("conversation.inbox", InboxMine, InboxMentions, InboxUnassigned, InboxAll)
+var Inboxes = enum.New("conversation.inbox", enum.Item(InboxMine), enum.Item(InboxMentions), enum.Item(InboxUnassigned), enum.Item(InboxAll))
 
 // Schema 让 OpenAPI 中的 Inbox 只接受上面的取值，并带有显示文字。
 func (Inbox) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Inboxes) }
@@ -41,7 +41,7 @@ const (
 )
 
 // Sorts 是会话列表的全部排序，显示文字是翻译文件中 conversation.sort.<排序> 的消息。
-var Sorts = enum.New("conversation.sort", ByWaiting, ByRecent)
+var Sorts = enum.New("conversation.sort", enum.Item(ByWaiting), enum.Item(ByRecent))
 
 // Schema 让 OpenAPI 中的 Sort 只接受上面的取值，并带有显示文字。
 func (Sort) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Sorts) }

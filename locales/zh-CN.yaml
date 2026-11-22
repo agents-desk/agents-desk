@@ -313,6 +313,10 @@ queue.topic.translation.fill.label: 历史消息补译
 queue.topic.translation.fill.description: 为切换主要语言后的工作区补齐历史会话翻译
 queue.topic.conversation.automate.label: 自动化规则执行
 queue.topic.conversation.automate.description: 按工作区配置的自动化规则处理会话事件与自动分配
+queue.topic.search.sync.conversation_items.label: 会话搜索索引同步
+queue.topic.search.sync.conversation_items.description: 将新增或译文更新后的会话消息和内部备注同步到全文索引
+queue.topic.search.reindex.conversation_items.label: 会话搜索索引重建
+queue.topic.search.reindex.conversation_items.description: 在后台分批重建全部会话消息与内部备注的全文索引
 queue.topic.tenants.export.label: 工作区列表导出
 queue.topic.tenants.export.description: 后台生成工作区列表表格文件并推送完成通知
 

@@ -1,23 +1,47 @@
-import { Tooltip, UnstyledButton } from "@mantine/core"
-import { useOs } from "@mantine/hooks"
-import { Spotlight, type SpotlightActionData, type SpotlightActionGroupData, spotlight } from "@mantine/spotlight"
-import { IconAt, IconInbox, IconListDetails, IconSearch, IconUserQuestion, IconUsersGroup } from "@tabler/icons-react"
+import { Badge, Box, CloseButton, Group, Kbd, Loader, Text, Tooltip, UnstyledButton } from "@mantine/core"
+import { useDebouncedValue, useOs } from "@mantine/hooks"
+import { Spotlight, spotlight } from "@mantine/spotlight"
+import {
+  IconArrowRight,
+  IconAt,
+  IconInbox,
+  IconListDetails,
+  IconLock,
+  IconMessage,
+  IconSearch,
+  IconUser,
+  IconUserQuestion,
+  IconUsersGroup,
+} from "@tabler/icons-react"
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
-import { Icon, type MenuItem, useCan, useNavigation, useT } from "@go-tenon/ui"
-import { type ReactNode, useMemo } from "react"
-import { kit } from "./api"
+import { Icon, type MenuItem, useCan, useLanguage, useNavigation, useT, useTimeZone } from "@go-tenon/ui"
+import { type ReactNode, useMemo, useState } from "react"
+import { kit, tenantApi } from "./api"
+import { activity } from "./inbox/format"
+import { HighlightedSnippet, HighlightQuery } from "./inbox/Highlight"
+import type { MatchField } from "./inbox/search"
 
-/** pages 将菜单树拍平为叶子页面列表，保留上级分组名称和最近图标。 */
+/** flattenPages 将菜单树拍平为叶子页面列表，保留上级分组名称和最近图标。 */
 function flattenPages(
   items: readonly MenuItem[],
   trail: string[] = [],
   icon?: string,
 ): { item: MenuItem; trail: string[]; icon?: string }[] {
   return items.flatMap((item) =>
-    item.children?.length ? flattenPages(item.children, [...trail, item.title], item.icon ?? icon) : [{ item, trail, icon: item.icon ?? icon }],
+    item.children?.length
+      ? flattenPages(item.children, [...trail, item.title], item.icon ?? icon)
+      : [{ item, trail, icon: item.icon ?? icon }],
   )
 }
+
+/** firstLeaf 返回菜单分支下的第一个可访问页面。 */
+function firstLeaf(item: MenuItem): MenuItem {
+  return item.children?.length ? firstLeaf(item.children[0]) : item
+}
+
+/** statusColor 是会话状态的语义徽标颜色。 */
+const statusColor = { open: "bright-blue", snoozed: "yellow", closed: "gray" } as const
 
 /** CommandSearchButton 是放在图标栏顶部的全局搜索入口，点击或按 Cmd/Ctrl + K 打开命令面板。 */
 export function CommandSearchButton(): ReactNode {
@@ -33,90 +57,362 @@ export function CommandSearchButton(): ReactNode {
   )
 }
 
+interface NavAction {
+  id: string
+  label: string
+  description?: string
+  icon: ReactNode
+  onClick: () => void
+}
+
 /**
  * CommandPalette 是工作台的全局命令面板（Cmd/Ctrl + K）：
- * 支持快速跳转收件箱各视图、团队收件箱，以及当前成员有权限访问的所有页面和设置项。
+ * 固定舒适高度避免输入筛选时尺寸跳动；未输入时展示精简的收件箱与一级模块快捷入口，
+ * 输入关键词后实时全文搜索会话消息（含高亮摘要）、联系人、收件箱与全部页面设置。
  */
 export function CommandPalette({ slug }: { slug: string }): ReactNode {
   const t = useT()
   const can = useCan()
+  const language = useLanguage()
+  const zone = useTimeZone()
   const { menu } = useNavigation()
   const navigate = useNavigate()
+  const [query, setQuery] = useState("")
+  const trimmed = query.trim()
+  const [debounced] = useDebouncedValue(trimmed, 250)
   const canReadInbox = can("conversations:read")
+  const canReadContacts = can("contacts:read")
   const inbox = useQuery({ ...kit.queries.conversation.inbox(), enabled: canReadInbox })
 
-  const actions = useMemo<SpotlightActionGroupData[]>(() => {
-    const groups: SpotlightActionGroupData[] = []
+  const convSearch = useQuery({
+    queryKey: [...kit.queries.conversation.key(), "palette-search", debounced],
+    queryFn: () => tenantApi.conversation.search({ q: debounced, per_page: 6 }),
+    enabled: canReadInbox && debounced.length > 0,
+  })
+  const contactSearch = useQuery({
+    queryKey: [...kit.queries.contact.key(), "palette-search", debounced],
+    queryFn: () => tenantApi.contact.list({ q: debounced, per_page: 5 }),
+    enabled: canReadContacts && debounced.length > 0,
+  })
 
+  const { inboxActions, quickPageActions, allPageActions } = useMemo(() => {
+    const inboxList: NavAction[] = []
     if (canReadInbox) {
       const boxSearch = { status: "open" as const, sort: "waiting" as const }
-      const inboxActions: SpotlightActionData[] = [
+      inboxList.push(
         {
           id: "inbox:mine",
           label: t("inbox.box_mine"),
           description: t("nav.inbox"),
-          leftSection: <IconInbox size={16} stroke={1.6} />,
+          icon: <IconInbox size={15} stroke={1.6} />,
           onClick: () => void navigate({ to: "/t/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "mine" } }),
         },
         {
           id: "inbox:mentions",
           label: t("inbox.box_mentions"),
           description: t("nav.inbox"),
-          leftSection: <IconAt size={16} stroke={1.6} />,
+          icon: <IconAt size={15} stroke={1.6} />,
           onClick: () => void navigate({ to: "/t/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "mentions" } }),
         },
         {
           id: "inbox:unassigned",
           label: t("inbox.box_unassigned"),
           description: t("nav.inbox"),
-          leftSection: <IconUserQuestion size={16} stroke={1.6} />,
+          icon: <IconUserQuestion size={15} stroke={1.6} />,
           onClick: () => void navigate({ to: "/t/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "unassigned" } }),
         },
         {
           id: "inbox:all",
           label: t("inbox.box_all"),
           description: t("nav.inbox"),
-          leftSection: <IconListDetails size={16} stroke={1.6} />,
+          icon: <IconListDetails size={15} stroke={1.6} />,
           onClick: () => void navigate({ to: "/t/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "all" } }),
         },
         ...(inbox.data?.teams ?? []).map((team) => ({
           id: `inbox:team:${team.id}`,
           label: team.name,
           description: t("inbox.teams"),
-          leftSection: <IconUsersGroup size={16} stroke={1.6} />,
+          icon: <IconUsersGroup size={15} stroke={1.6} />,
           onClick: () =>
             void navigate({ to: "/t/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "all", team: team.id } }),
         })),
-      ]
-      groups.push({ group: t("command.inbox_group"), actions: inboxActions })
+      )
     }
 
-    const pageActions: SpotlightActionData[] = flattenPages(menu).map(({ item, trail, icon }) => ({
+    // 初始空查询只放一级模块（排除已在上方展开的收件箱），保持默认面板精简克制
+    const inboxPath = `/t/${slug}/inbox`
+    const quickPages: NavAction[] = menu
+      .filter((item) => !(canReadInbox && item.path === inboxPath))
+      .map((item) => {
+        const target = firstLeaf(item)
+        return {
+          id: `quick:${item.id}`,
+          label: item.title,
+          icon: <Icon name={item.icon ?? "apps"} size={15} stroke={1.6} />,
+          onClick: () => void navigate({ to: target.path }),
+        }
+      })
+
+    // 输入关键词后搜索全部叶子页面（含所有设置子页）
+    const allPages: NavAction[] = flattenPages(menu).map(({ item, trail, icon }) => ({
       id: `page:${item.id}`,
       label: item.title,
       description: trail.length > 0 ? trail.join(" / ") : undefined,
-      leftSection: <Icon name={icon ?? "apps"} size={16} stroke={1.6} />,
+      icon: <Icon name={icon ?? "apps"} size={15} stroke={1.6} />,
       onClick: () => void navigate({ to: item.path }),
     }))
-    if (pageActions.length > 0) {
-      groups.push({ group: t("command.pages_group"), actions: pageActions })
-    }
-    return groups
+
+    return { inboxActions: inboxList, quickPageActions: quickPages, allPageActions: allPages }
   }, [canReadInbox, inbox.data?.teams, menu, navigate, slug, t])
 
+  const kw = trimmed.toLowerCase()
+  const matchesLocal = (a: NavAction) =>
+    !kw || a.label.toLowerCase().includes(kw) || (a.description?.toLowerCase().includes(kw) ?? false)
+  const filteredInbox = kw ? inboxActions.filter(matchesLocal) : inboxActions
+  const filteredPages = kw ? allPageActions.filter(matchesLocal) : quickPageActions
+  const convHits = debounced ? (convSearch.data?.items ?? []) : []
+  const convTotal = debounced ? (convSearch.data?.total ?? 0) : 0
+  const contactHits = debounced ? (contactSearch.data?.items ?? []) : []
+  const remotePending =
+    trimmed.length > 0 &&
+    (canReadInbox || canReadContacts) &&
+    (debounced !== trimmed || convSearch.isFetching || contactSearch.isFetching)
+  const hasAny = convHits.length > 0 || contactHits.length > 0 || filteredInbox.length > 0 || filteredPages.length > 0
+
   return (
-    <Spotlight
-      actions={actions}
+    <Spotlight.Root
+      className="cmd-palette"
+      query={query}
+      onQueryChange={setQuery}
+      onSpotlightClose={() => setQuery("")}
       shortcut="mod + K"
-      nothingFound={t("command.empty")}
-      highlightQuery
-      limit={20}
+      size={580}
+      yOffset="12vh"
+      radius="lg"
+      shadow="xl"
       scrollable
-      maxHeight={420}
-      searchProps={{
-        leftSection: <IconSearch size={16} stroke={1.6} />,
-        placeholder: t("command.placeholder"),
-      }}
-    />
+      maxHeight={440}
+    >
+      <Spotlight.Search
+        size="lg"
+        leftSection={<IconSearch size={16} stroke={1.6} />}
+        leftSectionWidth={46}
+        rightSectionWidth={44}
+        rightSection={
+          remotePending ? (
+            <Loader size={14} />
+          ) : query.length > 0 ? (
+            <CloseButton size="sm" variant="subtle" aria-label={t("inbox.search_clear")} onClick={() => setQuery("")} />
+          ) : undefined
+        }
+        rightSectionPointerEvents={query.length > 0 && !remotePending ? "auto" : "none"}
+        placeholder={t("command.placeholder")}
+      />
+
+      <Spotlight.ActionsList>
+        {convHits.length > 0 && (
+          <Spotlight.ActionsGroup label={t("command.conversations_group")}>
+            {convHits.map((hit) => {
+              const c = hit.conversation
+              const m = hit.match
+              return (
+                <Spotlight.Action
+                  key={`conv:${c.id}:${m.item_id}`}
+                  onClick={() =>
+                    void navigate({
+                      to: "/t/$slug/inbox/$id",
+                      params: { slug, id: c.id },
+                      search: {
+                        box: "all",
+                        status: c.status,
+                        sort: "waiting",
+                        q: debounced,
+                        scope: "all",
+                        seq: m.seq,
+                        matchField: m.field as MatchField,
+                      },
+                    })
+                  }
+                >
+                  <Group gap="sm" wrap="nowrap" w="100%" align="flex-start">
+                    <Box className="cmd-palette-icon" mt={2}>
+                      {m.kind === "note" ? <IconLock size={15} stroke={1.6} /> : <IconMessage size={15} stroke={1.6} />}
+                    </Box>
+                    <Box style={{ flex: 1, minWidth: 0 }}>
+                      <Group gap={6} wrap="nowrap">
+                        <Text size="sm" fw={600} truncate>
+                          {c.contact?.name || t("inbox.visitor")}
+                        </Text>
+                        {c.channel && (
+                          <Badge size="xs" variant="outline" color="gray" style={{ flex: "none" }}>
+                            {c.channel.name}
+                          </Badge>
+                        )}
+                        <Badge size="xs" variant="light" color={statusColor[c.status]} style={{ flex: "none" }}>
+                          {t(`inbox.status_${c.status}` as const)}
+                        </Badge>
+                        {hit.match_count > 1 && (
+                          <Text size="xs" c="brand" style={{ flex: "none" }}>
+                            {t("inbox.search_match_count", { n: hit.match_count })}
+                          </Text>
+                        )}
+                        <Text size="xs" c="dimmed" ml="auto" style={{ flex: "none", fontVariantNumeric: "tabular-nums" }}>
+                          {activity(m.created_at, language, t, zone)}
+                        </Text>
+                      </Group>
+                      <Text size="xs" c="dimmed" lineClamp={2} mt={2}>
+                        <HighlightedSnippet parts={m.snippet} />
+                      </Text>
+                    </Box>
+                  </Group>
+                </Spotlight.Action>
+              )
+            })}
+            {convTotal > convHits.length && (
+              <Spotlight.Action
+                onClick={() =>
+                  void navigate({
+                    to: "/t/$slug/inbox",
+                    params: { slug },
+                    search: { box: "all", status: "open", sort: "waiting", q: debounced, scope: "all" },
+                  })
+                }
+              >
+                <Group gap="xs" c="brand" px={4}>
+                  <IconArrowRight size={15} stroke={1.8} />
+                  <Text size="xs" fw={600}>
+                    {t("command.view_all_results", { n: convTotal })}
+                  </Text>
+                </Group>
+              </Spotlight.Action>
+            )}
+          </Spotlight.ActionsGroup>
+        )}
+
+        {contactHits.length > 0 && (
+          <Spotlight.ActionsGroup label={t("command.contacts_group")}>
+            {contactHits.map((ct) => {
+              const subtitle = [ct.email, ct.external_user_id].filter(Boolean).join(" · ")
+              return (
+                <Spotlight.Action
+                  key={`contact:${ct.id}`}
+                  onClick={() =>
+                    void navigate({
+                      to: "/t/$slug/contacts/$id",
+                      params: { slug, id: ct.id },
+                      search: { sort: "recent" },
+                    })
+                  }
+                >
+                  <Group gap="sm" wrap="nowrap" w="100%">
+                    <Box className="cmd-palette-icon">
+                      <IconUser size={15} stroke={1.6} />
+                    </Box>
+                    <Box style={{ flex: 1, minWidth: 0 }}>
+                      <Group gap={6} wrap="nowrap">
+                        <Text size="sm" fw={500} truncate>
+                          <HighlightQuery text={ct.name || t("inbox.visitor")} query={debounced} />
+                        </Text>
+                        <Badge size="xs" variant="light" color="gray" style={{ flex: "none" }}>
+                          {kit.label("ContactKind", ct.kind)}
+                        </Badge>
+                      </Group>
+                      {subtitle && (
+                        <Text size="xs" c="dimmed" truncate>
+                          <HighlightQuery text={subtitle} query={debounced} />
+                        </Text>
+                      )}
+                    </Box>
+                  </Group>
+                </Spotlight.Action>
+              )
+            })}
+          </Spotlight.ActionsGroup>
+        )}
+
+        {filteredInbox.length > 0 && (
+          <Spotlight.ActionsGroup label={t("command.inbox_group")}>
+            {filteredInbox.map((a) => (
+              <Spotlight.Action key={a.id} onClick={a.onClick}>
+                <Group gap="sm" wrap="nowrap" w="100%">
+                  <Box className="cmd-palette-icon">{a.icon}</Box>
+                  <Text size="sm" fw={500} truncate style={{ flex: 1, minWidth: 0 }}>
+                    <HighlightQuery text={a.label} query={query} />
+                  </Text>
+                  {a.description && (
+                    <Text size="xs" c="dimmed" style={{ flex: "none" }}>
+                      {a.description}
+                    </Text>
+                  )}
+                </Group>
+              </Spotlight.Action>
+            ))}
+          </Spotlight.ActionsGroup>
+        )}
+
+        {filteredPages.length > 0 && (
+          <Spotlight.ActionsGroup label={t("command.pages_group")}>
+            {filteredPages.map((a) => (
+              <Spotlight.Action key={a.id} onClick={a.onClick}>
+                <Group gap="sm" wrap="nowrap" w="100%">
+                  <Box className="cmd-palette-icon">{a.icon}</Box>
+                  <Text size="sm" fw={500} truncate style={{ flex: 1, minWidth: 0 }}>
+                    <HighlightQuery text={a.label} query={query} />
+                  </Text>
+                  {a.description && (
+                    <Text size="xs" c="dimmed" truncate maw={220} style={{ flex: "none" }}>
+                      {a.description}
+                    </Text>
+                  )}
+                </Group>
+              </Spotlight.Action>
+            ))}
+          </Spotlight.ActionsGroup>
+        )}
+
+        {!hasAny && remotePending && (
+          <Box className="cmd-palette-state">
+            <Loader size="sm" />
+            <Text size="xs" c="dimmed">
+              {t("command.searching")}
+            </Text>
+          </Box>
+        )}
+
+        {!hasAny && !remotePending && (
+          <Box className="cmd-palette-state">
+            <IconSearch size={22} stroke={1.4} />
+            <Text size="sm" c="dimmed">
+              {t("command.empty")}
+            </Text>
+          </Box>
+        )}
+      </Spotlight.ActionsList>
+
+      <Spotlight.Footer>
+        <Group justify="space-between" align="center" gap="md">
+          <Group gap="md">
+            <Group gap={6}>
+              <Kbd size="xs">↑↓</Kbd>
+              <Text size="xs" c="dimmed">
+                {t("command.hint_navigate")}
+              </Text>
+            </Group>
+            <Group gap={6}>
+              <Kbd size="xs">↵</Kbd>
+              <Text size="xs" c="dimmed">
+                {t("command.hint_open")}
+              </Text>
+            </Group>
+            <Group gap={6}>
+              <Kbd size="xs">Esc</Kbd>
+              <Text size="xs" c="dimmed">
+                {t("command.hint_close")}
+              </Text>
+            </Group>
+          </Group>
+        </Group>
+      </Spotlight.Footer>
+    </Spotlight.Root>
   )
 }

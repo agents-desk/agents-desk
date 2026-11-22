@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-tenon/tenon/i18n"
 	"github.com/go-tenon/tenon/identity"
+	"github.com/go-tenon/tenon/page"
 
 	"agents-desk/internal/apptest"
 	"agents-desk/internal/audit"
@@ -40,12 +41,13 @@ func TestListPlatformAuditLog(t *testing.T) {
 	list := audit.NewList(env.DB)
 
 	// 全部日志按从新到旧排列，包含中文译文和操作人姓名
-	items, err := list.Handle(ctx, audit.ListInput{})
+	res, err := list.Handle(ctx, audit.ListInput{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(items) != 3 {
-		t.Fatalf("期望 3 条日志，实际 %d：%+v", len(items), items)
+	items := res.Items
+	if len(items) != 3 || res.Total != 3 {
+		t.Fatalf("期望 3 条日志，实际 %d (total=%d)：%+v", len(items), res.Total, items)
 	}
 	if items[0].Event != "tenant.disabled" || items[0].Actor != "运维小明" || !strings.Contains(items[0].Text, "测试工作区") || items[0].Href != "/tenants" {
 		t.Fatalf("最新一条日志不符合预期：%+v", items[0])
@@ -59,24 +61,24 @@ func TestListPlatformAuditLog(t *testing.T) {
 
 	// 按对象类型筛选
 	onlyTenants, err := list.Handle(ctx, audit.ListInput{TargetType: "tenant"})
-	if err != nil || len(onlyTenants) != 2 {
-		t.Fatalf("按 tenant 筛选：len=%d err=%v", len(onlyTenants), err)
+	if err != nil || len(onlyTenants.Items) != 2 || onlyTenants.Total != 2 {
+		t.Fatalf("按 tenant 筛选：len=%d total=%d err=%v", len(onlyTenants.Items), onlyTenants.Total, err)
 	}
 
-	// 游标翻页（before）
-	page1, err := list.Handle(ctx, audit.ListInput{Limit: 2})
-	if err != nil || len(page1) != 2 {
-		t.Fatalf("第一页：len=%d err=%v", len(page1), err)
+	// 固定分页
+	page1, err := list.Handle(ctx, audit.ListInput{OffsetParams: page.OffsetParams{Page: 1, PerPage: 2}})
+	if err != nil || len(page1.Items) != 2 || page1.Total != 3 {
+		t.Fatalf("第一页：len=%d total=%d err=%v", len(page1.Items), page1.Total, err)
 	}
-	page2, err := list.Handle(ctx, audit.ListInput{Limit: 2, Before: page1[1].ID})
-	if err != nil || len(page2) != 1 || page2[0].ID != items[2].ID {
+	page2, err := list.Handle(ctx, audit.ListInput{OffsetParams: page.OffsetParams{Page: 2, PerPage: 2}})
+	if err != nil || len(page2.Items) != 1 || page2.Items[0].ID != items[2].ID {
 		t.Fatalf("第二页：%+v err=%v", page2, err)
 	}
 
 	// 英文语境下返回英文译文
 	enCtx := i18n.WithLocale(context.Background(), bundle, "en")
-	enItems, err := list.Handle(enCtx, audit.ListInput{Limit: 1})
-	if err != nil || len(enItems) != 1 || !strings.Contains(enItems[0].Text, "Disabled workspace") {
-		t.Fatalf("英文日志译文：%+v err=%v", enItems, err)
+	enRes, err := list.Handle(enCtx, audit.ListInput{OffsetParams: page.OffsetParams{Page: 1, PerPage: 1}})
+	if err != nil || len(enRes.Items) != 1 || !strings.Contains(enRes.Items[0].Text, "Disabled workspace") {
+		t.Fatalf("英文日志译文：%+v err=%v", enRes, err)
 	}
 }

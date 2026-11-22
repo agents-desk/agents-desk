@@ -22,7 +22,7 @@ const (
 )
 
 // Statuses 是全部在线状态，显示文字是翻译文件中 member.status.<状态> 的消息。
-var Statuses = enum.New("member.status", Online, Away)
+var Statuses = enum.New("member.status", enum.Item(Online), enum.Item(Away))
 
 // Schema 让 OpenAPI 中的 Status 只接受上面的取值，并带有显示文字。
 func (Status) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Statuses) }

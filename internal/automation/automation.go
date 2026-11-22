@@ -34,7 +34,7 @@ const (
 )
 
 // Triggers 是全部触发时机，显示文字是翻译文件中 automation.trigger.<触发> 的消息。
-var Triggers = enum.New("automation.trigger", TriggerFirstMessage, TriggerClosed)
+var Triggers = enum.New("automation.trigger", enum.Item(TriggerFirstMessage), enum.Item(TriggerClosed))
 
 // Schema 让 OpenAPI 中的 Trigger 只接受上面的取值，并带有显示文字。
 func (Trigger) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Triggers) }
@@ -49,7 +49,7 @@ const (
 )
 
 // BuiltinKeys 是全部内置规则标识，显示文字是翻译文件中 automation.builtin.<标识> 的消息。
-var BuiltinKeys = enum.New("automation.builtin", BuiltinReplyTime, BuiltinCollectLeadContact, BuiltinRequestRating)
+var BuiltinKeys = enum.New("automation.builtin", enum.Item(BuiltinReplyTime), enum.Item(BuiltinCollectLeadContact), enum.Item(BuiltinRequestRating))
 
 // Schema 让 OpenAPI 中的 BuiltinKey 只接受上面的取值，并带有显示文字。
 func (BuiltinKey) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, BuiltinKeys) }

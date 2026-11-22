@@ -67,7 +67,7 @@ func TestGeneralAndMailSettings(t *testing.T) {
 
 	// 检查操作日志已记录
 	logs, err := activity.List(ctx, env.DB, activity.Query{Tenant: "", TargetType: "settings"})
-	if err != nil || len(logs) != 2 {
-		t.Fatalf("期望 2 条设置日志，实际 %d err=%v", len(logs), err)
+	if err != nil || len(logs.Items) != 2 {
+		t.Fatalf("期望 2 条设置日志，实际 %d err=%v", len(logs.Items), err)
 	}
 }

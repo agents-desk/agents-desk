@@ -42,7 +42,7 @@ const (
 )
 
 // Colors 是全部可用的标签颜色，显示文字是翻译文件中 tag.color.<颜色> 的消息。
-var Colors = enum.New("tag.color", BlueGray, Red, DeepOrange, Yellow, Green, SkyBlue, BrightBlue, Violet, Purple, Magenta, Brown)
+var Colors = enum.New("tag.color", enum.Item(BlueGray), enum.Item(Red), enum.Item(DeepOrange), enum.Item(Yellow), enum.Item(Green), enum.Item(SkyBlue), enum.Item(BrightBlue), enum.Item(Violet), enum.Item(Purple), enum.Item(Magenta), enum.Item(Brown))
 
 // Schema 让 OpenAPI 中的 Color 只接受上面的取值，并带有显示文字。
 func (Color) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Colors) }

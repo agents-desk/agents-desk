@@ -42,7 +42,7 @@ const (
 )
 
 // Statuses 是团队收件箱的全部状态，显示文字是翻译文件中 team.status.<状态> 的消息。
-var Statuses = enum.New("team.status", Active, Disabled)
+var Statuses = enum.New("team.status", enum.Item(Active), enum.Item(Disabled))
 
 // Schema 让 OpenAPI 中的 Status 只接受上面的取值，并带有显示文字。
 func (Status) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Statuses) }
@@ -56,7 +56,7 @@ const (
 )
 
 // Assignments 是全部分配方式，显示文字是翻译文件中 team_assignment.<方式> 的消息。
-var Assignments = enum.New("team_assignment", Manual, RoundRobin)
+var Assignments = enum.New("team_assignment", enum.Item(Manual), enum.Item(RoundRobin))
 
 // Schema 让 OpenAPI 中的 Assignment 只接受上面的取值，并带有显示文字。
 func (Assignment) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Assignments) }

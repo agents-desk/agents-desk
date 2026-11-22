@@ -10,12 +10,12 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/activity"
 	"github.com/go-tenon/tenon/i18n"
 	"github.com/go-tenon/tenon/identity"
+	"github.com/go-tenon/tenon/page"
 
 	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
@@ -23,12 +23,11 @@ import (
 
 // ListInput 是平台操作日志的查询参数。
 type ListInput struct {
-	Before     string `query:"before" doc:"上一页最后一条记录的 ID，用于加载更早的记录"`
+	page.OffsetParams
 	TargetType string `query:"target_type" enum:",tenant,platform_admin,settings,feature" doc:"按对象类型筛选；为空时返回全部"`
-	Limit      int    `query:"limit" minimum:"1" maximum:"100" doc:"返回条数，默认 50"`
 }
 
-// Item 是时间线中的一条操作记录，字段与 @go-tenon/ui 的 ActivityTimeline 约定一致。
+// Item 是操作日志表格中的一条记录，字段与 @go-tenon/ui 的 ActivityLog 约定一致。
 type Item struct {
 	ID           string    `json:"id"`
 	Event        string    `json:"event"`
@@ -41,11 +40,9 @@ type Item struct {
 	Href         string    `json:"href,omitempty"`
 }
 
-// ListOutput 是平台操作日志的响应。
+// ListOutput 是平台操作日志的响应（固定分页）。
 type ListOutput struct {
-	Body struct {
-		Items []Item `json:"items" nullable:"false"`
-	}
+	Body page.Offset[Item]
 }
 
 // List 读取平台域的操作日志。
@@ -57,34 +54,25 @@ type List struct {
 func NewList(db *bun.DB) *List { return &List{db: db} }
 
 // Handle 按条件查询平台操作日志，解析操作人姓名和目标名称并翻译为当前语言的展示文字。
-func (a *List) Handle(ctx context.Context, in ListInput) ([]Item, error) {
-	var before uuid.UUID
-	if in.Before != "" {
-		id, err := uuid.Parse(in.Before)
-		if err != nil {
-			return nil, errors.Wrap(err, "parse before cursor")
-		}
-		before = id
-	}
-	rows, err := activity.List(ctx, a.db, activity.Query{
+func (a *List) Handle(ctx context.Context, in ListInput) (page.Offset[Item], error) {
+	res, err := activity.List(ctx, a.db, activity.Query{
 		Tenant:     "",
 		TargetType: in.TargetType,
-		Before:     before,
-		Limit:      in.Limit,
+		Page:       in.OffsetParams,
 	})
 	if err != nil {
-		return nil, err
+		return page.Offset[Item]{}, err
 	}
-	actors, err := a.loadActorNames(ctx, rows)
+	actors, err := a.loadActorNames(ctx, res.Items)
 	if err != nil {
-		return nil, err
+		return page.Offset[Item]{}, err
 	}
-	targets, err := a.loadTargetNames(ctx, rows)
+	targets, err := a.loadTargetNames(ctx, res.Items)
 	if err != nil {
-		return nil, err
+		return page.Offset[Item]{}, err
 	}
-	items := make([]Item, 0, len(rows))
-	for _, r := range rows {
+	items := make([]Item, 0, len(res.Items))
+	for _, r := range res.Items {
 		props := maps.Clone(r.Properties)
 		if props == nil {
 			props = map[string]any{}
@@ -118,18 +106,16 @@ func (a *List) Handle(ctx context.Context, in ListInput) ([]Item, error) {
 			Href:         targetHref(r.TargetType, r.TargetID),
 		})
 	}
-	return items, nil
+	return page.NewOffset(items, in.OffsetParams, res.Total), nil
 }
 
 // HTTP 处理 GET /audit。
 func (a *List) HTTP(ctx context.Context, in *ListInput) (*ListOutput, error) {
-	items, err := a.Handle(ctx, *in)
+	res, err := a.Handle(ctx, *in)
 	if err != nil {
 		return nil, err
 	}
-	out := &ListOutput{}
-	out.Body.Items = items
-	return out, nil
+	return &ListOutput{Body: res}, nil
 }
 
 // targetKey 唯一标识一条日志指向的业务对象。

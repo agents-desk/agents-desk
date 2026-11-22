@@ -11,11 +11,12 @@ import (
 	"agents-desk/internal/auth"
 )
 
-// TimelineInput 是读取时间线的请求：从序号 after 之后读，最多 limit 项。
+// TimelineInput 是读取时间线的请求：从序号 after 之后读，或者以 around 为中心读取前后一段，最多 limit 项。
 type TimelineInput struct {
-	ID    string `path:"id" format:"uuid"`
-	After int64  `query:"after" minimum:"0" doc:"只读取序号大于它的项；收到推送后用它增量读取"`
-	Limit int    `query:"limit" minimum:"1" maximum:"500" default:"100"`
+	ID     string `path:"id" format:"uuid"`
+	After  int64  `query:"after" minimum:"0" doc:"只读取序号大于它的项；收到推送后用它增量读取"`
+	Around int64  `query:"around" minimum:"0" doc:"以这个序号为中心读取前后一段，用于从搜索结果定位较早的消息"`
+	Limit  int    `query:"limit" minimum:"1" maximum:"500" default:"100"`
 }
 
 // TimelineOutput 是时间线中的一段，按序号从小到大。
@@ -61,7 +62,16 @@ func (a *Timeline) Handle(ctx context.Context, sub identity.Subject, id string, 
 // HTTP 处理 GET /t/{slug}/api/conversations/{id}/items。
 func (a *Timeline) HTTP(ctx context.Context, in *TimelineInput) (*TimelineOutput, error) {
 	sub, _ := identity.FromContext(ctx)
-	items, err := a.Handle(ctx, sub, in.ID, in.After, in.Limit)
+	after := in.After
+	if in.Around > 0 {
+		half := int64(in.Limit) / 2
+		if in.Around > half {
+			after = in.Around - half - 1
+		} else {
+			after = 0
+		}
+	}
+	items, err := a.Handle(ctx, sub, in.ID, after, in.Limit)
 	if err != nil {
 		return nil, err
 	}

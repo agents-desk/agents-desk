@@ -44,7 +44,7 @@ const (
 )
 
 // CallTypes 是全部调用类型，显示文字是翻译文件中 llm.call_type.<调用类型> 的消息。
-var CallTypes = enum.New("llm.call_type", Translation)
+var CallTypes = enum.New("llm.call_type", enum.Item(Translation))
 
 // Schema 让 OpenAPI 中的 CallType 只接受上面的取值，并带有显示文字。
 func (CallType) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, CallTypes) }

@@ -77,7 +77,7 @@ func TestFeatureFlagsManagement(t *testing.T) {
 
 	// 检查操作日志已记录
 	logs, err := activity.List(ctx, env.DB, activity.Query{Tenant: "", TargetType: "feature"})
-	if err != nil || len(logs) != 3 {
-		t.Fatalf("期望 3 条功能开关操作日志，实际 %d err=%v", len(logs), err)
+	if err != nil || len(logs.Items) != 3 {
+		t.Fatalf("期望 3 条功能开关操作日志，实际 %d err=%v", len(logs.Items), err)
 	}
 }

@@ -50,7 +50,7 @@ const (
 )
 
 // Kinds 是联系人的全部类型，显示文字是翻译文件中 contact.kind.<类型> 的消息。
-var Kinds = enum.New("contact.kind", User, Lead)
+var Kinds = enum.New("contact.kind", enum.Item(User), enum.Item(Lead))
 
 // Schema 让 OpenAPI 中的 Kind 只接受上面的取值，并带有显示文字。
 func (Kind) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Kinds) }
