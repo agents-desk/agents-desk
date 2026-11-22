@@ -2,6 +2,19 @@
 platform_admin.not_found: 平台管理员不存在
 platform_admin.disabled: 这个平台管理员账号已停用
 platform_admin.email_taken: 这个邮箱已经是平台管理员
+platform_admin.self: 不能停用当前登录的管理员账号
+platform_admin.status.active: 正常
+platform_admin.status.disabled: 已停用
+admin.title: 平台管理员
+admin.fields.id: ID
+admin.fields.name: 名字
+admin.fields.email: 邮箱
+admin.fields.password: 初始密码
+admin.fields.status: 状态
+admin.fields.self: 当前账号
+admin.fields.created_at: 创建时间
+admin.actions.disable: 停用
+admin.actions.enable: 启用
 
 member.not_found: 成员不存在
 member.disabled: 这个邮箱的成员账号已停用
@@ -62,7 +75,12 @@ tenant.status.disabled: 已停用
 
 "permission.tenants:read": 查看工作区
 "permission.tenants:manage": 管理工作区
+"permission.platform-admins:manage": 管理平台管理员
 "permission.platform-settings:manage": 修改平台设置
+"permission.queue:manage": 管理队列
+"permission.schedules:manage": 管理定时任务
+"permission.system:read": 查看系统自检
+"permission.audit:read": 查看操作日志
 "permission.members:read": 查看成员
 "permission.members:manage": 管理成员和角色
 "permission.tenant-settings:manage": 管理工作区设置
@@ -123,6 +141,8 @@ contact.not_found: 联系人不存在
 contact.invalid_email: 邮箱格式不正确
 contact.invalid_language: 不是有效的语言，请从列表中选择，或者输入语言标签，例如 hi-Latn
 contact.invalid_time_zone: "不认识的时区“{{.time_zone}}”"
+contact.forbidden: 你没有权限修改这位联系人
+contact.not_lead: 已登录用户的邮箱由产品自动同步，不能在这里修改
 contact.kind.user: 用户
 contact.kind.lead: 线索
 contact.sort.recent: 最近活跃
@@ -154,6 +174,7 @@ widget.descriptions.enabled: 停用后聊天窗口不再显示，客户不能再
 conversation.not_found: 会话不存在
 conversation.forbidden: 你没有权限执行这个操作
 conversation.not_closed: 会话还没有关闭，关闭后才能评价
+conversation.rating_not_requested: 这个会话没有开启关闭后评价
 conversation.already_rated: 这次已经评价过了
 conversation.not_failed: 这条消息没有发送失败，不用重发
 conversation.closed: 会话已经关闭，先重新打开
@@ -185,3 +206,60 @@ conversation.delivery.sending: 发送中
 conversation.delivery.delivered: 已送达
 conversation.delivery.read: 已读
 conversation.delivery.failed: 失败
+
+tag.not_found: 标签不存在
+tag.name_taken: "标签“{{.name}}”已存在"
+tag.title: 标签
+tag.fields.id: ID
+tag.fields.name: 名称
+tag.fields.color: 颜色
+tag.fields.description: 说明
+tag.fields.conversation_count: 会话数
+tag.fields.contact_count: 联系人数
+tag.color.blue-gray: 灰蓝
+tag.color.red: 红色
+tag.color.deep-orange: 深橙
+tag.color.yellow: 黄色
+tag.color.green: 绿色
+tag.color.sky-blue: 天蓝
+tag.color.bright-blue: 亮蓝
+tag.color.violet: 紫罗兰
+tag.color.purple: 紫色
+tag.color.magenta: 洋红
+tag.color.brown: 棕色
+
+attribute.not_found: 属性不存在
+attribute.key_taken: "标识“{{.key}}”已被使用"
+attribute.options_required: 单选或多选属性至少需要一个选项
+attribute.duplicate_option: "选项“{{.option}}”重复了"
+attribute.unknown_key: "未定义的属性“{{.key}}”"
+attribute.invalid_value: "属性“{{.name}}”的值不符合格式要求"
+attribute.target.conversation: 会话
+attribute.target.contact: 联系人
+attribute.type.text: 文本
+attribute.type.number: 数字
+attribute.type.boolean: 开关
+attribute.type.date: 日期
+attribute.type.select: 单选
+attribute.type.multi_select: 多选
+
+automation.not_found: 自动化规则不存在
+automation.forbidden: 你没有管理自动化的权限
+automation.trigger.conversation.first_message: 客户发来第一条消息时
+automation.trigger.conversation.closed: 会话关闭时
+automation.builtin.reply_time: 告知回复时间
+automation.builtin.collect_lead_contact: 请线索留联系方式
+automation.builtin.request_rating: 关闭后请客户评价
+
+activity.platform_admin.created: "创建了平台管理员「{{.name}}」"
+activity.platform_admin.updated: "将平台管理员名称从「{{.from}}」修改为「{{.to}}」"
+activity.platform_admin.disabled: "停用了平台管理员「{{.name}}」"
+activity.platform_admin.enabled: "启用了平台管理员「{{.name}}」"
+activity.platform_admin.profile_updated: "更新了个人资料（{{.changed}}）"
+activity.platform_admin.password_changed: "修改了登录密码"
+activity.tenant.created: "创建了工作区「{{.name}}」（{{.slug}}）"
+activity.tenant.renamed: "将工作区名称从「{{.from}}」修改为「{{.to}}」"
+activity.tenant.disabled: "停用了工作区「{{.name}}」"
+activity.tenant.enabled: "启用了工作区「{{.name}}」"
+activity.tenant.owner_changed: "更换了工作区「{{.name}}」的主管理员"
+activity.platform_settings.changed: "更新了平台设置（{{.call_type}}）"

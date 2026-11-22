@@ -8,6 +8,8 @@ export { ApiError, isApiError, saveBlob, type ClientOptions, type Download, type
 export type ContactKind = "user" | "lead"
 
 export interface ContactSummary {
+  /** 联系人的自定义属性 */
+  attributes: Record<string, unknown>
   email: string
   id: string
   kind: ContactKind
@@ -18,6 +20,8 @@ export interface ContactSummary {
   /** 所在地 */
   location?: string
   name: string
+  /** 联系人上的标签 */
+  tags: TagSummary[]
   /** IANA 时区名，用于显示对方的当地时间 */
   time_zone?: string
 }
@@ -41,8 +45,12 @@ export interface ConversationContactConversationDTO {
   preview: string
   /** 最后一条消息是谁发的 */
   preview_author: ConversationContactAuthor
-  /** 客户对最近一次关闭的评价；会话已关闭而它为空时可以评价 */
+  /** 最后一条消息的结构化提示；不为空时前端按客户的语言渲染 */
+  preview_prompt?: ConversationPrompt
+  /** 客户对最近一次关闭的评价；会话已关闭且 rating_requested 为真、它为空时可以评价 */
   rating?: ConversationRating
+  /** 这次关闭是否向客户发出了评价邀请；为真且 rating 为空时可以评价 */
+  rating_requested: boolean
   /** 打开或已关闭；稍后处理的会话对客户显示为打开 */
   status: ConversationStatus
   /** 成员发来、联系人还没读到的消息数 */
@@ -54,11 +62,20 @@ export interface ConversationContactItemDTO {
   created_at: string
   id: string
   kind: ConversationItemKind
+  /** 系统发出的结构化提示或交互卡片 */
+  prompt?: ConversationPrompt
   seq: number
   text: string
 }
 
 export type ConversationItemKind = "message" | "note" | "event"
+
+export interface ConversationPrompt {
+  /** 提示的种类：reply_time_open、reply_time_closed、collect_contact */
+  kind: string
+  /** 渲染提示用的参数 */
+  params?: Record<string, unknown>
+}
 
 export interface ConversationRating {
   /** 附的一句意见 */
@@ -100,6 +117,14 @@ export interface ErrorModel {
   type?: string
 }
 
+export type TagColor = "blue-gray" | "red" | "deep-orange" | "yellow" | "green" | "sky-blue" | "bright-blue" | "violet" | "purple" | "magenta" | "brown"
+
+export interface TagSummary {
+  color: TagColor
+  id: string
+  name: string
+}
+
 export interface WidgetConfigDTO {
   /** 聊天窗口的主题色 */
   color: "blue-gray" | "brown" | "tomato" | "deep-orange" | "bright-orange" | "yellow" | "bright-green" | "green" | "light-blue" | "sky-blue" | "pale-blue" | "bright-blue" | "deep-blue" | "pale-indigo" | "purple" | "pale-purple" | "violet" | "pale-violet" | "dark-pink" | "bright-pink" | "pink" | "magenta" | "bright-red" | "pale-red" | "deep-red" | "red"
@@ -107,6 +132,13 @@ export interface WidgetConfigDTO {
   greeting: string
   /** 聊天插件的名称，显示在聊天窗口的标题中 */
   name: string
+}
+
+export interface WidgetContactEmailBody {
+  /** 当前所在的会话；填写时在会话时间线中记下事件并通知成员刷新 */
+  conversation_id?: string
+  /** 线索留下的邮箱 */
+  email: string
 }
 
 export interface WidgetMessageBody {
@@ -163,6 +195,16 @@ export interface ConversationItemsInput {
 export function createClient(options: ClientOptions) {
   const rt = new Runtime(options)
   return {
+    /** operationId 以 contact- 开头的接口。 */
+    contact: {
+      /**
+       * 线索留下邮箱
+       *
+       * POST /contact/email
+       */
+      email: (body: WidgetContactEmailBody): Promise<ContactSummary> =>
+        rt.request<ContactSummary>({ method: "POST", path: `/contact/email`, body }),
+    },
     /** operationId 以 conversation- 开头的接口。 */
     conversation: {
       /**

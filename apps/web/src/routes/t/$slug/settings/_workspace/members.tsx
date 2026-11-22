@@ -1,9 +1,7 @@
-import { PasswordInput, Select } from "@mantine/core"
-import { useQuery } from "@tanstack/react-query"
+import { PasswordInput } from "@mantine/core"
 import { createFileRoute } from "@tanstack/react-router"
-import { type FieldInput, ResourcePage, useT } from "@go-tenon/ui"
-import { tenantApi } from "../../../../../api"
-import { members } from "../../../../../resources"
+import { type FieldInput, ResourcePage, ResourceSelect, useT } from "@go-tenon/ui"
+import { members, roles } from "../../../../../resources"
 import { StatusBadge } from "../../../../../status"
 import type { MemberStatus } from "@agents-desk/client/tenant"
 
@@ -30,21 +28,19 @@ const PasswordField: FieldInput = ({ field, label, value, onChange, error, disab
   )
 }
 
-// 角色从这个工作区的角色中选择；还没有角色时提示先新建。框架的资源支持引用字段之后（开发计划 F6），改用引用字段。
+// 角色从这个工作区的角色中选择；还没有角色时提示先新建。
 const RoleField: FieldInput = ({ field, label, value, onChange, error, disabled }) => {
-  const roles = useQuery({ queryKey: ["roles", "all"], queryFn: () => tenantApi.role.list({ per_page: 100 }) })
-  const items = roles.data?.items ?? []
   const t = useT()
   return (
-    <Select
+    <ResourceSelect
+      model={roles}
       label={label}
       required={field.required}
       error={error}
       disabled={disabled}
-      data={items.map((r) => ({ value: r.id, label: r.name }))}
       value={(value as string | undefined) ?? null}
       onChange={(v) => onChange?.(v ?? undefined)}
-      description={roles.isSuccess && items.length === 0 ? t("members.no_roles") : undefined}
+      nothingFoundMessage={t("members.no_roles")}
     />
   )
 }

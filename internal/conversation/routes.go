@@ -44,6 +44,12 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	rest.Register(api, act("conversation-snooze", http.MethodPost, "/conversations/{id}/snooze", "稍后处理"), NewSnooze(db, down).HTTP)
 	rest.Register(api, act("conversation-priority", http.MethodPut, "/conversations/{id}/priority", "修改优先级"), NewSetPriority(db, down).HTTP)
 	rest.Register(api, act("conversation-language", http.MethodPut, "/conversations/{id}/language", "设置对方的语言"), NewSetLanguage(db, down).HTTP)
+	rest.Register(api, act("conversation-tag-add", http.MethodPost, "/conversations/{id}/tags", "给会话添加标签"), NewAddTag(db, down).HTTP)
+	rest.Register(api, act("conversation-tag-remove", http.MethodDelete, "/conversations/{id}/tags/{tag_id}", "移除会话标签"), NewRemoveTag(db, down).HTTP)
+	rest.Register(api, act("conversation-attributes-patch", http.MethodPatch, "/conversations/{id}/attributes", "修改会话属性"), NewPatchAttributes(db, down).HTTP)
+	rest.Register(api, act("conversation-contact-tag-add", http.MethodPost, "/conversations/{id}/contact/tags", "给联系人添加标签"), NewAddContactTag(db, down).HTTP)
+	rest.Register(api, act("conversation-contact-tag-remove", http.MethodDelete, "/conversations/{id}/contact/tags/{tag_id}", "移除联系人标签"), NewRemoveContactTag(db, down).HTTP)
+	rest.Register(api, act("conversation-contact-attributes-patch", http.MethodPatch, "/conversations/{id}/contact/attributes", "修改联系人属性"), NewPatchContactAttributes(db, down).HTTP)
 	rest.Register(api, act("conversation-bulk-assign", http.MethodPost, "/conversations/bulk/assign", "批量指派"), NewBulkAssign(db, down).HTTP)
 	rest.Register(api, act("conversation-bulk-close", http.MethodPost, "/conversations/bulk/close", "批量关闭"), NewBulkClose(db, down).HTTP)
 }

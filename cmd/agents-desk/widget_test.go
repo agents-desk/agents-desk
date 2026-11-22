@@ -19,6 +19,7 @@ import (
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/apptest"
+	"agents-desk/internal/automation"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/llm"
 	"agents-desk/internal/tenant"
@@ -196,12 +197,21 @@ func TestWidgetAPI(t *testing.T) {
 	if r := callBearer(h, "POST", base+"/conversations/"+sent.ConversationID+"/rating", `{"score":6}`, session.Token); r.status != http.StatusUnprocessableEntity {
 		t.Errorf("6 星：%d", r.status)
 	}
-	if r := call(h, "POST", "/t/alpha/api/conversations/"+sent.ConversationID+"/close", "", owner); r.status != http.StatusOK {
-		t.Fatalf("关闭：%d %s", r.status, r.body)
+	var closed conversation.ConversationDTO
+	decode(call(h, "POST", "/t/alpha/api/conversations/"+sent.ConversationID+"/close", "", owner), http.StatusOK, &closed)
+	// 自动化处理关闭事件后发出评价邀请，客户才能评价
+	var closeItemID string
+	if err := env.DB.NewRaw("SELECT id FROM timeline_items WHERE conversation_id = ? AND seq = ?", sent.ConversationID, closed.LastSeq).Scan(ctx, &closeItemID); err != nil {
+		t.Fatal(err)
+	}
+	if err := automation.NewRunner(env.DB, nil, a.downstream()).Job(ctx, conversation.Appended{
+		TenantID: tenantOf(t, env, "alpha"), ConversationID: sent.ConversationID, ItemID: closeItemID, Seq: closed.LastSeq,
+	}); err != nil {
+		t.Fatal(err)
 	}
 	var rated conversation.ContactConversationDTO
 	decode(callBearer(h, "POST", base+"/conversations/"+sent.ConversationID+"/rating", `{"score":5,"comment":"谢谢"}`, session.Token), http.StatusOK, &rated)
-	if rated.Status != conversation.Closed || rated.Rating == nil || rated.Rating.Score != 5 {
+	if rated.Status != conversation.Closed || !rated.RatingRequested || rated.Rating == nil || rated.Rating.Score != 5 {
 		t.Fatalf("评价后：%+v", rated)
 	}
 }

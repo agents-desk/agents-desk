@@ -124,8 +124,10 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 	rateOp := route(requireContact, "conversation-rate", http.MethodPost, "/conversations/{id}/rating", "评价会话")
 	typingOp := route(requireContact, "conversation-typing", http.MethodPost, "/conversations/{id}/typing", "正在输入")
 	typingOp.DefaultStatus = http.StatusNoContent
+	contactEmailOp := route(requireContact, "contact-email", http.MethodPost, "/contact/email", "线索留下邮箱")
 
 	sendMessage := NewSendMessage(db, receive)
+	leaveEmail := NewLeaveEmail(db, down)
 	list, get, items := conversation.NewListForContact(db), conversation.NewGetForContact(db), conversation.NewTimelineForContact(db)
 	markRead := conversation.NewMarkReadByContact(db, down)
 	rate := conversation.NewRateByContact(db, down)
@@ -211,6 +213,17 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 			return nil, err
 		}
 		return nil, markRead.Handle(ctx, sub, ch, in.ID, in.Body.Seq)
+	})
+	rest.Register(api, contactEmailOp, func(ctx context.Context, in *ContactEmailInput) (*ContactOutput, error) {
+		sub, ch, err := visitor(ctx)
+		if err != nil {
+			return nil, err
+		}
+		out, err := leaveEmail.Handle(ctx, sub, ch, in.Body)
+		if err != nil {
+			return nil, err
+		}
+		return &ContactOutput{Body: *out}, nil
 	})
 }
 

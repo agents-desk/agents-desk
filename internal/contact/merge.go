@@ -151,7 +151,25 @@ func MergeLead(ctx context.Context, tx bun.IDB, tenant, leadID, userID, consumeC
 		return nil, nil, errors.Wrap(err, "migrate timeline actors")
 	}
 
-	// 4. 渠道身份：删除已消费的访客编号，其余渠道身份迁到用户名下
+	// 4. 合并联系人标签（保留线索已打的标签，冲突时去重）
+	if _, err := tx.NewRaw(
+		`INSERT INTO contact_tags (tenant_id, contact_id, tag_id, created_at)
+		 SELECT tenant_id, ?, tag_id, created_at
+		 FROM contact_tags
+		 WHERE tenant_id = ? AND contact_id = ?
+		 ON CONFLICT DO NOTHING`,
+		user.ID, tenant, lead.ID,
+	).Exec(ctx); err != nil {
+		return nil, nil, errors.Wrap(err, "migrate contact tags")
+	}
+	if _, err := tx.NewRaw(
+		`DELETE FROM contact_tags WHERE tenant_id = ? AND contact_id = ?`,
+		tenant, lead.ID,
+	).Exec(ctx); err != nil {
+		return nil, nil, errors.Wrap(err, "delete lead contact tags")
+	}
+
+	// 5. 渠道身份：删除已消费的访客编号，其余渠道身份迁到用户名下
 	if consumeChannelID != "" && consumeExternalID != "" {
 		if _, err := tx.NewDelete().Model((*Identity)(nil)).
 			Where("tenant_id = ? AND channel_id = ? AND external_id = ? AND contact_id = ?",
@@ -165,7 +183,7 @@ func MergeLead(ctx context.Context, tx bun.IDB, tenant, leadID, userID, consumeC
 		return nil, nil, errors.Wrap(err, "migrate contact identities")
 	}
 
-	// 5. 吊销原线索的联系人令牌，并删除原线索记录（Config 只在 Login 签发时使用，这里仅吊销）
+	// 6. 吊销原线索的联系人令牌，并删除原线索记录（Config 只在 Login 签发时使用，这里仅吊销）
 	if _, err := apitoken.NewStore(tx, apitoken.Config{Lifetime: time.Minute, IdleTimeout: time.Minute}).
 		RevokeSubject(ctx, identity.Ref{Type: Type, ID: lead.ID}); err != nil {
 		return nil, nil, errors.Wrap(err, "revoke lead tokens")

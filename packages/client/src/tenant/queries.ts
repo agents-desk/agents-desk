@@ -31,6 +31,59 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
   return {
     /** 这个 API 全部查询的 key 前缀。 */
     key: () => key(),
+    attribute: {
+      /** attribute 分组全部查询的 key 前缀。 */
+      key: () => key("attribute"),
+      /** POST /attributes */
+      create: () => ({
+        mutationFn: (variables: Parameters<Client["attribute"]["create"]>[0]) => client.attribute.create(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "attribute"),
+      }),
+      /** DELETE /attributes/{id} */
+      delete: () => ({
+        mutationFn: (variables: Parameters<Client["attribute"]["delete"]>[0]) => client.attribute.delete(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "attribute"),
+      }),
+      /** GET /attributes/{id} */
+      get: (...args: Parameters<Client["attribute"]["get"]>) => ({
+        queryKey: key("attribute", "get", ...args),
+        queryFn: () => client.attribute.get(...args),
+      }),
+      /** GET /attributes */
+      list: (...args: Parameters<Client["attribute"]["list"]>) => ({
+        queryKey: key("attribute", "list", ...args),
+        queryFn: () => client.attribute.list(...args),
+      }),
+      /** PUT /attributes/order */
+      reorder: () => ({
+        mutationFn: (variables: Parameters<Client["attribute"]["reorder"]>[0]) => client.attribute.reorder(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "attribute"),
+      }),
+      /** PUT /attributes/{id} */
+      update: () => ({
+        mutationFn: (variables: Parameters<Client["attribute"]["update"]>) => client.attribute.update(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "attribute"),
+      }),
+    },
+    automation: {
+      /** automation 分组全部查询的 key 前缀。 */
+      key: () => key("automation"),
+      /** GET /automations */
+      list: (...args: Parameters<Client["automation"]["list"]>) => ({
+        queryKey: key("automation", "list", ...args),
+        queryFn: () => client.automation.list(...args),
+      }),
+      /** PUT /automations/{id} */
+      update: () => ({
+        mutationFn: (variables: Parameters<Client["automation"]["update"]>) => client.automation.update(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "automation"),
+      }),
+    },
     contact: {
       /** contact 分组全部查询的 key 前缀。 */
       key: () => key("contact"),
@@ -65,6 +118,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "conversation"),
       }),
+      /** PATCH /conversations/{id}/attributes */
+      attributesPatch: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["attributesPatch"]>) => client.conversation.attributesPatch(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
       /** POST /conversations/bulk/assign */
       bulkAssign: () => ({
         mutationFn: (variables: Parameters<Client["conversation"]["bulkAssign"]>[0]) => client.conversation.bulkAssign(variables),
@@ -80,6 +139,24 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       /** POST /conversations/{id}/close */
       close: () => ({
         mutationFn: (variables: Parameters<Client["conversation"]["close"]>[0]) => client.conversation.close(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
+      /** PATCH /conversations/{id}/contact/attributes */
+      contactAttributesPatch: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["contactAttributesPatch"]>) => client.conversation.contactAttributesPatch(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
+      /** POST /conversations/{id}/contact/tags */
+      contactTagAdd: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["contactTagAdd"]>) => client.conversation.contactTagAdd(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
+      /** DELETE /conversations/{id}/contact/tags/{tag_id} */
+      contactTagRemove: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["contactTagRemove"]>) => client.conversation.contactTagRemove(...variables),
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "conversation"),
       }),
@@ -148,6 +225,18 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       /** POST /conversations/{id}/snooze */
       snooze: () => ({
         mutationFn: (variables: Parameters<Client["conversation"]["snooze"]>) => client.conversation.snooze(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
+      /** POST /conversations/{id}/tags */
+      tagAdd: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["tagAdd"]>) => client.conversation.tagAdd(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
+      /** DELETE /conversations/{id}/tags/{tag_id} */
+      tagRemove: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["tagRemove"]>) => client.conversation.tagRemove(...variables),
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "conversation"),
       }),
@@ -258,6 +347,38 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         mutationFn: (variables: Parameters<Client["role"]["update"]>) => client.role.update(...variables),
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "role"),
+      }),
+    },
+    tag: {
+      /** tag 分组全部查询的 key 前缀。 */
+      key: () => key("tag"),
+      /** POST /tags */
+      create: () => ({
+        mutationFn: (variables: Parameters<Client["tag"]["create"]>[0]) => client.tag.create(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "tag"),
+      }),
+      /** DELETE /tags/{id} */
+      delete: () => ({
+        mutationFn: (variables: Parameters<Client["tag"]["delete"]>[0]) => client.tag.delete(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "tag"),
+      }),
+      /** GET /tags/{id} */
+      get: (...args: Parameters<Client["tag"]["get"]>) => ({
+        queryKey: key("tag", "get", ...args),
+        queryFn: () => client.tag.get(...args),
+      }),
+      /** GET /tags */
+      list: (...args: Parameters<Client["tag"]["list"]>) => ({
+        queryKey: key("tag", "list", ...args),
+        queryFn: () => client.tag.list(...args),
+      }),
+      /** PUT /tags/{id} */
+      update: () => ({
+        mutationFn: (variables: Parameters<Client["tag"]["update"]>) => client.tag.update(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "tag"),
       }),
     },
     team: {

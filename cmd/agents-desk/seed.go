@@ -16,12 +16,14 @@ import (
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/login"
 
+	"agents-desk/internal/attribute"
 	"agents-desk/internal/auth"
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
+	"agents-desk/internal/tag"
 	"agents-desk/internal/team"
 	"agents-desk/internal/tenant"
 	"agents-desk/internal/widget"
@@ -130,10 +132,77 @@ func seed(ctx context.Context, out io.Writer, db *bun.DB, adminLogins, memberLog
 			return err
 		}
 	}
+	if err := seedTagsAndAttributes(ctx, out, db, inDemo); err != nil {
+		return err
+	}
 	if err := seedConversations(ctx, out, db, memberLogins, inDemo, channels, down); err != nil {
 		return err
 	}
 	return seedWidget(ctx, out, db, keys, inDemo)
+}
+
+// seedTagsAndAttributes 在示例工作区中写入默认标签和自定义属性定义，已存在的跳过。
+func seedTagsAndAttributes(ctx context.Context, out io.Writer, db *bun.DB, inDemo identity.Subject) error {
+	createTag := tag.NewCreate(db)
+	createdTags := 0
+	for _, item := range []tag.Changes{
+		{Name: "VIP", Color: tag.Yellow, Description: "高价值客户"},
+		{Name: "退款", Color: tag.DeepOrange, Description: "退款与取消订单相关"},
+		{Name: "Bug", Color: tag.Red, Description: "产品故障或登录异常"},
+		{Name: "待跟进", Color: tag.SkyBlue, Description: "需要后续跟进"},
+	} {
+		_, err := createTag.Handle(ctx, inDemo, item)
+		switch {
+		case errors.Is(err, tag.ErrNameTaken):
+		case err != nil:
+			return err
+		default:
+			createdTags++
+		}
+	}
+	if createdTags > 0 {
+		fmt.Fprintln(out, "已在示例工作区中创建", createdTags, "个示例标签")
+	} else {
+		fmt.Fprintln(out, "示例工作区已有示例标签，跳过")
+	}
+
+	createAttr := attribute.NewCreate(db)
+	createdAttrs := 0
+	for _, item := range []attribute.CreateParams{
+		{
+			Target: attribute.TargetConversation, Key: "issue_type", Name: "问题类型",
+			Description: "用于分类咨询和后续统计", Type: attribute.TypeSelect,
+			Options: []string{"物流", "退款", "账号", "支付", "优惠券"},
+		},
+		{
+			Target: attribute.TargetConversation, Key: "order_no", Name: "订单号",
+			Description: "关联的业务订单编号", Type: attribute.TypeText,
+		},
+		{
+			Target: attribute.TargetContact, Key: "plan", Name: "套餐",
+			Description: "客户当前的会员等级", Type: attribute.TypeSelect,
+			Options: []string{"免费版", "专业版", "企业版"},
+		},
+		{
+			Target: attribute.TargetContact, Key: "is_vip", Name: "VIP 客户",
+			Description: "优先接待标记", Type: attribute.TypeBoolean,
+		},
+	} {
+		_, err := createAttr.Handle(ctx, inDemo, item)
+		switch {
+		case errors.Is(err, attribute.ErrKeyTaken):
+		case err != nil:
+			return err
+		default:
+			createdAttrs++
+		}
+	}
+	if createdAttrs > 0 {
+		fmt.Fprintln(out, "已在示例工作区中创建", createdAttrs, "个示例属性")
+	} else {
+		fmt.Fprintln(out, "示例工作区已有示例属性，跳过")
+	}
+	return nil
 }
 
 // seedWidget 在示例工作区中建聊天插件“官网”，新会话进入团队收件箱“一线客服”。示例工作区中已经有聊天插件时跳过。
@@ -274,7 +343,19 @@ func seedConversations(ctx context.Context, out io.Writer, db *bun.DB, memberLog
 		return err
 	}
 	receive, reply := conversation.NewReceive(db, channels, down), conversation.NewReply(db, down)
-	for _, chat := range seedChats {
+	addConvTag := conversation.NewAddTag(db, down)
+	patchConvAttr := conversation.NewPatchAttributes(db, down)
+	addContactTag := conversation.NewAddContactTag(db, down)
+	patchContactAttr := conversation.NewPatchContactAttributes(db, down)
+	tagsByName := map[string]string{}
+	var demoTags []tag.Tag
+	if err := db.NewSelect().Model(&demoTags).Where("tenant_id = ?", inDemo.Tenant).Scan(ctx); err != nil {
+		return errors.Wrap(err, "load demo tags")
+	}
+	for _, t := range demoTags {
+		tagsByName[t.Name] = t.ID
+	}
+	for i, chat := range seedChats {
 		var id string
 		for _, turn := range chat.turns {
 			if turn.agent {
@@ -303,6 +384,44 @@ func seedConversations(ctx context.Context, out io.Writer, db *bun.DB, memberLog
 			}
 			if _, err := q.Exec(ctx); err != nil {
 				return errors.Wrap(err, "enrich seed contact")
+			}
+		}
+		// 给部分示例会话和联系人打上标签和自定义属性，方便直接体验筛选和详情编辑
+		switch i {
+		case 0:
+			if tid := tagsByName["待跟进"]; tid != "" {
+				if _, err := addConvTag.Handle(ctx, inDemo, id, tid); err != nil {
+					return err
+				}
+			}
+			if tid := tagsByName["VIP"]; tid != "" {
+				if _, err := addContactTag.Handle(ctx, inDemo, id, tid); err != nil {
+					return err
+				}
+			}
+			if _, err := patchConvAttr.Handle(ctx, inDemo, id, map[string]any{"issue_type": "物流", "order_no": "ORD-20261120-001"}); err != nil {
+				return err
+			}
+			if _, err := patchContactAttr.Handle(ctx, inDemo, id, map[string]any{"plan": "专业版", "is_vip": true}); err != nil {
+				return err
+			}
+		case 3:
+			if tid := tagsByName["退款"]; tid != "" {
+				if _, err := addConvTag.Handle(ctx, inDemo, id, tid); err != nil {
+					return err
+				}
+			}
+			if _, err := patchConvAttr.Handle(ctx, inDemo, id, map[string]any{"issue_type": "退款"}); err != nil {
+				return err
+			}
+		case 4:
+			if tid := tagsByName["Bug"]; tid != "" {
+				if _, err := addConvTag.Handle(ctx, inDemo, id, tid); err != nil {
+					return err
+				}
+			}
+			if _, err := patchConvAttr.Handle(ctx, inDemo, id, map[string]any{"issue_type": "账号"}); err != nil {
+				return err
 			}
 		}
 	}

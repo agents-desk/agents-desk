@@ -16,6 +16,35 @@ export interface AccountProfileChanges {
   name: string
 }
 
+export interface AuditItem {
+  actor?: string
+  created_at: string
+  event: string
+  href?: string
+  id: string
+  impersonator?: string
+  target_id?: string
+  target_type?: string
+  text: string
+}
+
+export interface AuditListOutputBody {
+  items: AuditItem[]
+}
+
+export interface DoctorReport {
+  results: DoctorResult[]
+}
+
+export interface DoctorResult {
+  check: string
+  doc?: string
+  fix?: string
+  group: string
+  status: "passed" | "warning" | "failed" | "skipped"
+  summary?: string
+}
+
 export interface ErrorDetail {
   /** Validation rule, e.g. validation.min_length, or the business error code. Absent when the rule is not recognized. */
   code?: string
@@ -83,12 +112,46 @@ export interface LlmSettings {
   translation: LlmEndpoint
 }
 
+export interface OffsetPlatformadminAdminDTO {
+  items: PlatformadminAdminDTO[]
+  page: number
+  per_page: number
+  /** Total number of items across all pages. */
+  total: number
+}
+
+export interface OffsetScheduleRun {
+  items: ScheduleRun[]
+  page: number
+  per_page: number
+  /** Total number of items across all pages. */
+  total: number
+}
+
 export interface OffsetTenantDTO {
   items: TenantDTO[]
   page: number
   per_page: number
   /** Total number of items across all pages. */
   total: number
+}
+
+export type PlatformAdminStatus = "active" | "disabled"
+
+export interface PlatformadminAdminDTO {
+  created_at: string
+  email: string
+  id: string
+  name: string
+  /** 是否是当前登录的平台管理员 */
+  self: boolean
+  status: PlatformAdminStatus
+}
+
+export interface PlatformadminCreateInputBody {
+  email: string
+  name: string
+  password: string
 }
 
 export interface PlatformadminLoginInputBody {
@@ -105,6 +168,154 @@ export interface PlatformadminProfile {
   id: string
   name: string
   permissions: string[]
+}
+
+export interface PlatformadminUpdateInputBody {
+  name: string
+}
+
+export interface QueueBulkResult {
+  /** 处理的条数 */
+  count: number
+}
+
+export interface QueueFailedJob {
+  /** 失败前执行的次数 */
+  attempts: number
+  /** 最后一次错误的第一行，超过 160 字节时截断并以 … 结尾 */
+  error: string
+  failed_at: string
+  id: string
+  topic: string
+}
+
+export interface QueueFailedJobDetail {
+  /** 失败前执行的次数 */
+  attempts: number
+  /** 最后一次的完整错误，包括堆栈 */
+  error: string
+  failed_at: string
+  id: string
+  /** 发布时记录的元数据，例如 request_id */
+  metadata: Record<string, string>
+  /** 任务的 payload，原样返回的 JSON */
+  payload: unknown
+  topic: string
+}
+
+export interface QueueFailedList {
+  items: QueueFailedJob[]
+  page: number
+  per_page: number
+  /** Total number of items across all pages. */
+  total: number
+}
+
+export interface QueueJetStream {
+  /** stream 占用的存储（字节） */
+  bytes: number
+  /** 等待到时间投递的定时消息：延迟任务和重试 */
+  deferred: number
+  /** 读不到 JetStream 时的错误（例如 NATS 不可用、读取超过 3 秒），这时其余字段为零值，topics 中只有失败任务数 */
+  error?: string
+  /** stream 是否存在；Worker 第一次启动时创建它 */
+  exists: boolean
+  /** 集群中负责这个 stream 的服务器，单个服务器时没有这个字段 */
+  leader?: string
+  /** stream 中的消息数：等待处理、处理中的任务和定时消息 */
+  messages: number
+  /** 副本数 */
+  replicas: number
+  /** stream 的名字 */
+  stream: string
+}
+
+export interface QueuePaused {
+  /** 暂停处理的截止时间：请求时刻之后一小时 */
+  paused_until: string
+  topic: string
+}
+
+export interface QueueSlot {
+  /** 是否有 Worker 正在转发 */
+  active: boolean
+  /** 正在转发的复制连接在 PostgreSQL 中的进程号，没有时为 0 */
+  active_pid: number
+  /** 复制槽是否存在；为 false 时 Worker 拒绝启动，要运行 queue slot recreate */
+  exists: boolean
+  /** Worker 还没确认的 WAL 字节数（积压），包含整个数据库的写入 */
+  lag: number
+  /** 复制槽的名字 */
+  name: string
+  /** pg_replication_slots.wal_status：reserved、extended 正常，unreserved 即将失效，lost 已失效；复制槽不存在时为空 */
+  wal_status: string
+}
+
+export interface QueueStatus {
+  /** 全部 topic 的失败任务数 */
+  failed: number
+  /** JetStream 一侧的状态；应用没有设置 Options.Admin 时没有这个字段，暂停和恢复返回 queue.no_admin */
+  jetstream?: QueueJetStream
+  /** 转发任务的复制槽：数据库一侧的状态 */
+  slot: QueueSlot
+  /** JetStream 中的 topic 和有失败任务的 topic，按名字排序 */
+  topics: QueueTopic[]
+}
+
+export interface QueueTopic {
+  /** 失败任务数 */
+  failed: number
+  /** 已经交给 Worker、还没有确认的任务数 */
+  in_flight: number
+  /** 最近一次把任务交给 Worker 的时间，没有交过时没有这个字段 */
+  last_delivered?: string
+  /** 暂停处理的截止时间，没有暂停时没有这个字段 */
+  paused_until?: string
+  /** 等待处理的任务数 */
+  pending: number
+  /** 租约到期或停止时放回、再次投递还没有确认的任务数 */
+  redelivered: number
+  /** ok 正常；no_handler 没有 Worker 注册处理函数；paused 暂停中；stalled 有任务在等待却没有 Worker 在处理；absent 没有 JetStream 中的状态，只有失败任务数。ok、stalled 可以暂停，paused 可以恢复 */
+  state: "ok" | "no_handler" | "paused" | "stalled" | "absent"
+  topic: string
+  /** Worker 等待任务的拉取请求数 */
+  waiting: number
+}
+
+export interface ScheduleRun {
+  duration_ms: number
+  /** 失败的原因；跳过时是跳过的原因，例如 overlap */
+  error: string
+  id: string
+  /** 立即执行的，不是按表达式触发 */
+  manual: boolean
+  started_at: string
+  status: "succeeded" | "failed" | "skipped"
+  task: string
+}
+
+export interface ScheduleTask {
+  description: string
+  /** 表达式，例如 @daily、0 3 * * * */
+  expr: string
+  last_duration_ms?: number
+  last_error?: string
+  /** 最近一次是立即执行的 */
+  last_manual?: boolean
+  last_run_at?: string
+  /** 最近一次执行的结果 */
+  last_status?: "succeeded" | "failed" | "skipped"
+  /** 上一次应当执行的触发没有执行记录，例如调度器停止或部署期间 */
+  missed: boolean
+  name: string
+  /** 下一次执行的时间 */
+  next_run: string
+  /** 此刻是否在任何一个实例上执行 */
+  running: boolean
+}
+
+export interface ScheduleTaskList {
+  items: ScheduleTask[]
 }
 
 export interface TenantCreateParams {
@@ -145,9 +356,65 @@ export interface TenantUpdateParams {
   name: string
 }
 
+/** admin-list 的参数。 */
+export interface AdminListInput {
+  /** Page number, starting at 1. */
+  page?: number
+  /** Items per page. */
+  per_page?: number
+  /** 名字包含的文字 */
+  name?: string
+  /** 只列出这个状态的平台管理员 */
+  status?: PlatformAdminStatus
+}
+
+/** audit-list 的参数。 */
+export interface AuditListInput {
+  /** 上一页最后一条记录的 ID，用于加载更早的记录 */
+  before?: string
+  /** 按对象类型筛选；为空时返回全部 */
+  target_type?: "" | "tenant" | "platform_admin" | "settings"
+  /** 返回条数，默认 50 */
+  limit?: number
+}
+
 /** file-upload 的表单。 */
 export type FileUploadForm = {
   file: Blob
+}
+
+/** queue-failed-delete-all 的参数。 */
+export interface QueueFailedDeleteAllInput {
+  /** 只处理这个 topic 的失败任务，为空时处理全部 topic */
+  topic?: string
+}
+
+/** queue-failed-list 的参数。 */
+export interface QueueFailedListInput {
+  /** 只列出这个 topic 的失败任务，为空时列出全部 */
+  topic?: string
+  /** Page number, starting at 1. */
+  page?: number
+  /** Items per page. */
+  per_page?: number
+}
+
+/** queue-failed-retry-all 的参数。 */
+export interface QueueFailedRetryAllInput {
+  /** 只处理这个 topic 的失败任务，为空时处理全部 topic */
+  topic?: string
+}
+
+/** schedule-runs 的参数。 */
+export interface ScheduleRunsInput {
+  /** Page number, starting at 1. */
+  page?: number
+  /** Items per page. */
+  per_page?: number
+  /** 任务名，为空时全部任务 */
+  task?: string
+  /** 结果，为空时全部 */
+  status?: "succeeded" | "failed" | "skipped"
 }
 
 /** tenant-list 的参数。 */
@@ -166,6 +433,61 @@ export interface TenantListInput {
 export function createClient(options: ClientOptions) {
   const rt = new Runtime(options)
   return {
+    /** operationId 以 admin- 开头的接口。 */
+    admin: {
+      /**
+       * 新建平台管理员
+       *
+       * POST /admins
+       */
+      create: (body: PlatformadminCreateInputBody): Promise<PlatformadminAdminDTO> =>
+        rt.request<PlatformadminAdminDTO>({ method: "POST", path: `/admins`, body }),
+      /**
+       * 停用平台管理员
+       *
+       * POST /admins/{id}/disable
+       */
+      disable: (id: string): Promise<PlatformadminAdminDTO> =>
+        rt.request<PlatformadminAdminDTO>({ method: "POST", path: `/admins/${encodeURIComponent(id)}/disable` }),
+      /**
+       * 启用平台管理员
+       *
+       * POST /admins/{id}/enable
+       */
+      enable: (id: string): Promise<PlatformadminAdminDTO> =>
+        rt.request<PlatformadminAdminDTO>({ method: "POST", path: `/admins/${encodeURIComponent(id)}/enable` }),
+      /**
+       * 读取平台管理员
+       *
+       * GET /admins/{id}
+       */
+      get: (id: string): Promise<PlatformadminAdminDTO> =>
+        rt.request<PlatformadminAdminDTO>({ method: "GET", path: `/admins/${encodeURIComponent(id)}` }),
+      /**
+       * 平台管理员列表
+       *
+       * GET /admins
+       */
+      list: (input: AdminListInput = {}): Promise<OffsetPlatformadminAdminDTO> =>
+        rt.request<OffsetPlatformadminAdminDTO>({ method: "GET", path: `/admins`, query: { "name": input["name"], "page": input["page"], "per_page": input["per_page"], "status": input["status"] } }),
+      /**
+       * 修改平台管理员
+       *
+       * PUT /admins/{id}
+       */
+      update: (id: string, body: PlatformadminUpdateInputBody): Promise<PlatformadminAdminDTO> =>
+        rt.request<PlatformadminAdminDTO>({ method: "PUT", path: `/admins/${encodeURIComponent(id)}`, body }),
+    },
+    /** operationId 以 audit- 开头的接口。 */
+    audit: {
+      /**
+       * 平台操作日志
+       *
+       * GET /audit
+       */
+      list: (input: AuditListInput = {}): Promise<AuditListOutputBody> =>
+        rt.request<AuditListOutputBody>({ method: "GET", path: `/audit`, query: { "before": input["before"], "limit": input["limit"], "target_type": input["target_type"] } }),
+    },
     /** operationId 以 auth- 开头的接口。 */
     auth: {
       /**
@@ -230,6 +552,106 @@ export function createClient(options: ClientOptions) {
        */
       settingsGet: (): Promise<LlmSettings> =>
         rt.request<LlmSettings>({ method: "GET", path: `/settings/model` }),
+    },
+    /** operationId 以 queue- 开头的接口。 */
+    queue: {
+      /**
+       * 删除失败任务
+       *
+       * DELETE /queue/failed/{id}
+       */
+      failedDelete: (id: string): Promise<void> =>
+        rt.request<void>({ method: "DELETE", path: `/queue/failed/${encodeURIComponent(id)}` }),
+      /**
+       * 全部删除失败任务
+       *
+       * DELETE /queue/failed
+       */
+      failedDeleteAll: (input: QueueFailedDeleteAllInput = {}): Promise<QueueBulkResult> =>
+        rt.request<QueueBulkResult>({ method: "DELETE", path: `/queue/failed`, query: { "topic": input["topic"] } }),
+      /**
+       * 失败任务详情
+       *
+       * GET /queue/failed/{id}
+       */
+      failedGet: (id: string): Promise<QueueFailedJobDetail> =>
+        rt.request<QueueFailedJobDetail>({ method: "GET", path: `/queue/failed/${encodeURIComponent(id)}` }),
+      /**
+       * 失败任务列表
+       *
+       * GET /queue/failed
+       */
+      failedList: (input: QueueFailedListInput = {}): Promise<QueueFailedList> =>
+        rt.request<QueueFailedList>({ method: "GET", path: `/queue/failed`, query: { "page": input["page"], "per_page": input["per_page"], "topic": input["topic"] } }),
+      /**
+       * 重试失败任务
+       *
+       * POST /queue/failed/{id}/retry
+       */
+      failedRetry: (id: string): Promise<void> =>
+        rt.request<void>({ method: "POST", path: `/queue/failed/${encodeURIComponent(id)}/retry` }),
+      /**
+       * 全部重试失败任务
+       *
+       * POST /queue/failed/retry
+       */
+      failedRetryAll: (input: QueueFailedRetryAllInput = {}): Promise<QueueBulkResult> =>
+        rt.request<QueueBulkResult>({ method: "POST", path: `/queue/failed/retry`, query: { "topic": input["topic"] } }),
+      /**
+       * 队列概览
+       *
+       * GET /queue/status
+       */
+      status: (): Promise<QueueStatus> =>
+        rt.request<QueueStatus>({ method: "GET", path: `/queue/status` }),
+      /**
+       * 暂停 topic 一小时
+       *
+       * POST /queue/topics/{topic}/pause
+       */
+      topicPause: (topic: string): Promise<QueuePaused> =>
+        rt.request<QueuePaused>({ method: "POST", path: `/queue/topics/${encodeURIComponent(topic)}/pause` }),
+      /**
+       * 恢复 topic
+       *
+       * POST /queue/topics/{topic}/resume
+       */
+      topicResume: (topic: string): Promise<void> =>
+        rt.request<void>({ method: "POST", path: `/queue/topics/${encodeURIComponent(topic)}/resume` }),
+    },
+    /** operationId 以 schedule- 开头的接口。 */
+    schedule: {
+      /**
+       * 定时任务
+       *
+       * GET /schedules
+       */
+      list: (): Promise<ScheduleTaskList> =>
+        rt.request<ScheduleTaskList>({ method: "GET", path: `/schedules` }),
+      /**
+       * 立即执行
+       *
+       * POST /schedules/{name}/run
+       */
+      run: (name: string): Promise<void> =>
+        rt.request<void>({ method: "POST", path: `/schedules/${encodeURIComponent(name)}/run` }),
+      /**
+       * 执行记录
+       *
+       * GET /schedules/runs
+       */
+      runs: (input: ScheduleRunsInput = {}): Promise<OffsetScheduleRun> =>
+        rt.request<OffsetScheduleRun>({ method: "GET", path: `/schedules/runs`, query: { "page": input["page"], "per_page": input["per_page"], "status": input["status"], "task": input["task"] } }),
+    },
+    /** operationId 以 system- 开头的接口。 */
+    system: {
+      /**
+       * 运行环境自检
+       *
+       * GET /system/doctor
+       */
+      doctor: (): Promise<DoctorReport> =>
+        rt.request<DoctorReport>({ method: "GET", path: `/system/doctor` }),
     },
     /** operationId 以 tenant- 开头的接口。 */
     tenant: {

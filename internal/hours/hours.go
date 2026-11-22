@@ -240,6 +240,9 @@ func (h Hours) on(day time.Time) []Interval {
 	return nil
 }
 
+// TimeZone 返回工作时间 h 使用的 IANA 时区名。
+func (h Hours) TimeZone() string { return h.loc.String() }
+
 // OpenAt 报告时刻 t 是否在工作时间内：按 t 在工作时间时区中的钟点，落在这天的某段时间内（包括开始，不包括结束）。
 func (h Hours) OpenAt(t time.Time) bool {
 	local := t.In(h.loc)

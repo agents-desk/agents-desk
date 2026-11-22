@@ -2,6 +2,7 @@
 
 /** 权限目录：权限名和说明，来自 rest.Options.Permissions，以及接口要求的权限。 */
 export const permissions = {
+  "audit:read": "查看操作日志",
   "channels:manage": "管理渠道",
   "contacts:read": "查看联系人",
   "contacts:update": "修改联系人",
@@ -12,7 +13,11 @@ export const permissions = {
   "conversations:reply": "回复会话",
   "members:manage": "管理成员和角色",
   "members:read": "查看成员",
+  "platform-admins:manage": "管理平台管理员",
   "platform-settings:manage": "修改平台设置",
+  "queue:manage": "管理队列",
+  "schedules:manage": "管理定时任务",
+  "system:read": "查看系统自检",
   "teams:manage": "管理团队收件箱",
   "teams:read": "查看团队收件箱",
   "tenant-settings:manage": "管理工作区设置",
@@ -25,6 +30,16 @@ export type Permission = keyof typeof permissions
 
 /** 每个接口要求的权限，调用者必须全部具备；没有列出的接口不要求权限。 */
 export const required = {
+  attribute: {
+    create: ["tenant-settings:manage"],
+    delete: ["tenant-settings:manage"],
+    reorder: ["tenant-settings:manage"],
+    update: ["tenant-settings:manage"],
+  },
+  automation: {
+    list: ["tenant-settings:manage"],
+    update: ["tenant-settings:manage"],
+  },
   contact: {
     get: ["contacts:read"],
     list: ["contacts:read"],
@@ -33,9 +48,13 @@ export const required = {
   },
   conversation: {
     assign: ["conversations:reply"],
+    attributesPatch: ["conversations:reply"],
     bulkAssign: ["conversations:reply"],
     bulkClose: ["conversations:reply"],
     close: ["conversations:reply"],
+    contactAttributesPatch: ["conversations:reply"],
+    contactTagAdd: ["conversations:reply"],
+    contactTagRemove: ["conversations:reply"],
     get: ["conversations:read"],
     inbox: ["conversations:read"],
     items: ["conversations:read"],
@@ -48,6 +67,8 @@ export const required = {
     reply: ["conversations:reply"],
     retry: ["conversations:reply"],
     snooze: ["conversations:reply"],
+    tagAdd: ["conversations:reply"],
+    tagRemove: ["conversations:reply"],
   },
   hours: {
     replyTimeSave: ["tenant-settings:manage"],
@@ -68,6 +89,11 @@ export const required = {
     get: ["members:manage"],
     list: ["members:manage"],
     update: ["members:manage"],
+  },
+  tag: {
+    create: ["tenant-settings:manage"],
+    delete: ["tenant-settings:manage"],
+    update: ["tenant-settings:manage"],
   },
   team: {
     businessHours: ["teams:manage"],

@@ -11,6 +11,30 @@ export const AccountErrors = {
   WrongPassword: "account.wrong_password",
 } as const
 
+/** agents-desk/internal/attribute 的错误码。 */
+export const AttributeErrors = {
+  /** ErrNotFound 是属性定义不存在，或者属于别的工作区。 */
+  NotFound: "attribute.not_found",
+  /** ErrKeyTaken 是同一个对象下已经存在相同的属性标识。 */
+  KeyTaken: "attribute.key_taken",
+  /** ErrOptionsRequired 是单选或多选属性没有填写任何选项。 */
+  OptionsRequired: "attribute.options_required",
+  /** ErrDuplicateOption 是属性的选项列表中有重复项。 */
+  DuplicateOption: "attribute.duplicate_option",
+  /** ErrUnknownKey 是写入的属性标识没有在当前工作区的对应对象中定义。 */
+  UnknownKey: "attribute.unknown_key",
+  /** ErrInvalidValue 是写入的属性值不符合该属性的类型或选项约束。 */
+  InvalidValue: "attribute.invalid_value",
+} as const
+
+/** agents-desk/internal/automation 的错误码。 */
+export const AutomationErrors = {
+  /** ErrNotFound 是自动化规则不存在，或者属于别的工作区。 */
+  NotFound: "automation.not_found",
+  /** ErrForbidden 是调用者没有管理自动化的权限。 */
+  Forbidden: "automation.forbidden",
+} as const
+
 /** agents-desk/internal/channel 的错误码。 */
 export const ChannelErrors = {
   /** ErrNotFound 是渠道不存在，或者属于别的工作区。 */
@@ -29,6 +53,10 @@ export const ContactErrors = {
   InvalidLanguage: "contact.invalid_language",
   /** ErrInvalidTimeZone 是联系人时区不是认识的 IANA 时区名。 */
   InvalidTimeZone: "contact.invalid_time_zone",
+  /** ErrForbidden 是调用者不能修改这位联系人。 */
+  Forbidden: "contact.forbidden",
+  /** ErrNotLead 是已登录用户的邮箱由产品后端签名提供，不能通过访客表单修改。 */
+  NotLead: "contact.not_lead",
 } as const
 
 /** agents-desk/internal/conversation 的错误码。 */
@@ -45,6 +73,8 @@ export const ConversationErrors = {
   Forbidden: "conversation.forbidden",
   /** ErrNotClosed 是会话还没有关闭，客户不能评价。 */
   NotClosed: "conversation.not_closed",
+  /** ErrRatingNotRequested 是这次关闭没有向客户发出评价邀请，不能评价。 */
+  RatingNotRequested: "conversation.rating_not_requested",
   /** ErrAlreadyRated 是客户已经评价过这次关闭的会话；会话重新打开、再关闭后可以再评价。 */
   AlreadyRated: "conversation.already_rated",
   /** ErrInvalidLanguage 是设置的对方语言不是合法的 BCP 47 标签。 */
@@ -91,6 +121,7 @@ export const MemberErrors = {
 export const PlatformadminErrors = {
   NotFound: "platform_admin.not_found",
   Disabled: "platform_admin.disabled",
+  Self: "platform_admin.self",
   EmailTaken: "platform_admin.email_taken",
 } as const
 
@@ -102,6 +133,14 @@ export const RoleErrors = {
   NameTaken: "role.name_taken",
   /** ErrInUse 是还有成员使用这个角色，不能删除。 */
   InUse: "role.in_use",
+} as const
+
+/** agents-desk/internal/tag 的错误码。 */
+export const TagErrors = {
+  /** ErrNotFound 是标签不存在，或者属于别的工作区。 */
+  NotFound: "tag.not_found",
+  /** ErrNameTaken 是工作区中已经有一个同名的标签（不区分大小写）。 */
+  NameTaken: "tag.name_taken",
 } as const
 
 /** agents-desk/internal/team 的错误码。 */
@@ -278,6 +317,16 @@ export const PageErrors = {
   InvalidCursor: "page.invalid_cursor",
 } as const
 
+/** github.com/go-tenon/tenon/queue/queueapi 的错误码。 */
+export const QueueapiErrors = {
+  /** ErrFailedJobNotFound 表示失败任务不存在：已经被重试、删除或清理。 */
+  FailedJobNotFound: "queue.failed_job_not_found",
+  /** ErrTopicNotFound 表示 JetStream 中没有这个 topic 的 consumer：没有 Worker 为它注册过处理函数。 */
+  TopicNotFound: "queue.topic_not_found",
+  /** ErrNoAdmin 表示应用没有设置 Options.Admin，不能暂停和恢复 topic。 */
+  NoAdmin: "queue.no_admin",
+} as const
+
 /** github.com/go-tenon/tenon/ratelimit 的错误码。 */
 export const RatelimitErrors = {
   /**
@@ -285,6 +334,12 @@ export const RatelimitErrors = {
    * 即下一次调用可以成功的最短等待时间。
    */
   Exceeded: "rate_limit.exceeded",
+} as const
+
+/** github.com/go-tenon/tenon/schedule/scheduleapi 的错误码。 */
+export const ScheduleapiErrors = {
+  /** ErrNotFound 表示没有这个定时任务。 */
+  NotFound: "schedule.not_found",
 } as const
 
 /** github.com/go-tenon/tenon/settings 的错误码。 */

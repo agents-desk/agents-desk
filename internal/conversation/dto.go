@@ -11,6 +11,7 @@ import (
 
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
+	"agents-desk/internal/tag"
 )
 
 // Actor 是接口中的参与者或发起者：类型和编号。
@@ -39,13 +40,15 @@ type ConversationDTO struct {
 	Preview       string           `json:"preview" doc:"最后一条消息的文字：对方的消息是我的语言的译文（还没有时是原文），成员翻译后发出的回复是成员写的原文"`
 	PreviewActor  *Actor           `json:"preview_actor,omitempty" doc:"最后一条消息是谁发的；还没有消息时为空"`
 	// PreviewItemID 和 PreviewUntranslated 让会话列表也按“看到时补译”：这一行出现在页面上时请求补译 PreviewItemID
-	PreviewItemID       string     `json:"preview_item_id,omitempty" doc:"最后一条消息的 ID，只在它还缺我的语言的译文时给出"`
-	PreviewUntranslated bool       `json:"preview_untranslated,omitempty" doc:"最后一条消息是对方发来、还缺我的语言的译文的：preview 是原文，页面看到这一行时请求补译"`
-	Unread              bool       `json:"unread" doc:"有我还没读到的消息或内部备注（不算我自己写的）"`
-	ReadSeq             int64      `json:"read_seq" doc:"我读到的位置：序号不大于它的项已读；会话页在它之后显示“新消息”分隔线"`
-	MentionedAt         *time.Time `json:"mentioned_at,omitempty" doc:"最近一次 @ 我的时间，只在“@我”的列表中有"`
-	Rating              *Rating    `json:"rating,omitempty" doc:"客户最近一次的评价；没有评价过时为空"`
-	CreatedAt           time.Time  `json:"created_at"`
+	PreviewItemID       string         `json:"preview_item_id,omitempty" doc:"最后一条消息的 ID，只在它还缺我的语言的译文时给出"`
+	PreviewUntranslated bool           `json:"preview_untranslated,omitempty" doc:"最后一条消息是对方发来、还缺我的语言的译文的：preview 是原文，页面看到这一行时请求补译"`
+	Unread              bool           `json:"unread" doc:"有我还没读到的消息或内部备注（不算我自己写的）"`
+	ReadSeq             int64          `json:"read_seq" doc:"我读到的位置：序号不大于它的项已读；会话页在它之后显示“新消息”分隔线"`
+	MentionedAt         *time.Time     `json:"mentioned_at,omitempty" doc:"最近一次 @ 我的时间，只在“@我”的列表中有"`
+	Rating              *Rating        `json:"rating,omitempty" doc:"客户最近一次的评价；没有评价过时为空"`
+	Tags                []tag.Summary  `json:"tags" doc:"会话上的标签"`
+	Attributes          map[string]any `json:"attributes" doc:"会话的自定义属性"`
+	CreatedAt           time.Time      `json:"created_at"`
 }
 
 // ConversationOutput 是返回一个会话的响应。
@@ -135,9 +138,21 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 		if err := db.NewSelect().Model(&rows).Where("id IN (?)", bun.In(contactIDs)).Scan(ctx); err != nil {
 			return nil, errors.Wrap(err, "load contacts")
 		}
-		for i := range rows {
-			contacts[rows[i].ID] = rows[i].Summary()
+		contactTags, err := tag.ForContacts(ctx, db, contactIDs)
+		if err != nil {
+			return nil, err
 		}
+		for i := range rows {
+			s := rows[i].Summary()
+			if ts := contactTags[rows[i].ID]; len(ts) > 0 {
+				s.Tags = ts
+			}
+			contacts[rows[i].ID] = s
+		}
+	}
+	convTags, err := tag.ForConversations(ctx, db, ids)
+	if err != nil {
+		return nil, err
 	}
 	// 每个会话的最后一条消息：对方的消息显示 sub 的语言的译文（还没有时显示原文，并标出还缺译文），成员翻译后发出的显示成员写的原文
 	language, err := MemberLanguage(ctx, db, sub)
@@ -146,7 +161,7 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 	}
 	var lasts []Item
 	err = db.NewRaw(`SELECT DISTINCT ON (conversation_id) * FROM timeline_items
-		WHERE conversation_id IN (?) AND kind = ? ORDER BY conversation_id, seq DESC`, bun.In(ids), Message).Scan(ctx, &lasts)
+		WHERE conversation_id IN (?) AND kind = ? ORDER BY conversation_id, (actor_type = ?), seq DESC`, bun.In(ids), Message, SystemActor).Scan(ctx, &lasts)
 	if err != nil {
 		return nil, errors.Wrap(err, "load previews")
 	}
@@ -163,11 +178,19 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 		return nil, err
 	}
 	for i, c := range convs {
+		tags := convTags[c.ID]
+		if tags == nil {
+			tags = []tag.Summary{}
+		}
+		attrs := c.Attributes
+		if attrs == nil {
+			attrs = map[string]any{}
+		}
 		d := ConversationDTO{
 			ID: c.ID, Kind: c.Kind, Status: c.Status, TeamID: c.TeamID, Priority: c.Priority, Language: c.Language,
 			WaitingSince: c.WaitingSince, SnoozedUntil: c.SnoozedUntil, FirstReplyAt: c.FirstReplyAt, ClosedAt: c.ClosedAt,
 			LastMessageAt: c.LastMessageAt, LastSeq: c.LastSeq, Unread: unread[c.ID], ReadSeq: readSeq[c.ID],
-			MentionedAt: c.MentionedAt, Rating: c.rating(), CreatedAt: c.CreatedAt,
+			MentionedAt: c.MentionedAt, Rating: c.rating(), Tags: tags, Attributes: attrs, CreatedAt: c.CreatedAt,
 		}
 		if p := previews[c.ID]; p != nil {
 			d.Preview, d.PreviewActor = previewText(p, language), &Actor{Type: p.ActorType, ID: p.ActorID}

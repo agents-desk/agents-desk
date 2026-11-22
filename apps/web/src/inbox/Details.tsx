@@ -9,7 +9,8 @@ import { kit, tenantApi } from "../api"
 import { LanguageSelect } from "../LanguageSelect"
 import { languageName } from "../languages"
 import { formatLocalTime } from "../timezone"
-import { useContactHistory, useMe, useMembers, useTeams } from "./data"
+import { useAttributes, useContactHistory, useMe, useMembers, useTags, useTeams } from "./data"
+import { AttributeInput, TagsEditor } from "./fields"
 import { activity } from "./format"
 
 /** Field 是详情中的一行：左边是名称，右边是值。 */
@@ -28,9 +29,9 @@ function Field({ label, children, align = "center" }: { label: string; children:
 const AUTO = "auto"
 
 /**
- * Details 是会话的详情栏（第五栏）：会话（负责人、团队收件箱、优先级可以直接修改）、联系人（支持跳转到资料页、
- * 展示所在地和当地时间、来源页面、快捷编辑备注）、同一个联系人的其他会话。
- * 联系人的语言可以手动设置，识别错了时改成正确的；选“自动识别”恢复按收到的消息更新。各部分可以折叠。标签和属性在 P1 中加入。
+ * Details 是会话的详情栏（第五栏）：会话（负责人、团队收件箱、优先级、标签和自定义属性可以直接修改）、
+ * 联系人（支持跳转到资料页、展示所在地和当地时间、来源页面、快捷编辑备注、标签和自定义属性）、同一个联系人的其他会话。
+ * 联系人的语言可以手动设置，识别错了时改成正确的；选“自动识别”恢复按收到的消息更新。各部分可以折叠。
  */
 export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: () => void; onOpen: (id: string) => void }): ReactNode {
   const t = useT()
@@ -42,6 +43,9 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
   const me = useMe()
   const { list: members } = useMembers()
   const teams = useTeams()
+  const allTags = useTags()
+  const convAttrs = useAttributes("conversation")
+  const contactAttrs = useAttributes("contact")
   const history = useContactHistory(c.contact?.id)
   const contactDetail = useQuery({
     ...kit.queries.contact.get(c.contact?.id ?? ""),
@@ -52,7 +56,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
   useEffect(() => {
     setNotes(serverNotes)
   }, [c.contact?.id, serverNotes])
-
+  const canEdit = can("conversations:reply")
   const invalidate = () => queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
   const assign = useMutation({
     mutationFn: (body: { assignee_id?: string; team_id?: string }) => tenantApi.conversation.assign(c.id, body),
@@ -80,7 +84,45 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
     },
     onError: (err) => notifyError(err),
   })
-
+  const addConvTag = useMutation({
+    mutationFn: (tag_id: string) => tenantApi.conversation.tagAdd(c.id, { tag_id }),
+    onSuccess: invalidate,
+    onError: (err) => notifyError(err),
+  })
+  const removeConvTag = useMutation({
+    mutationFn: (tagId: string) => tenantApi.conversation.tagRemove(c.id, tagId),
+    onSuccess: invalidate,
+    onError: (err) => notifyError(err),
+  })
+  const patchConvAttr = useMutation({
+    mutationFn: (attributes: Record<string, unknown>) => tenantApi.conversation.attributesPatch(c.id, { attributes }),
+    onSuccess: invalidate,
+    onError: (err) => notifyError(err),
+  })
+  const addContactTag = useMutation({
+    mutationFn: (tag_id: string) => tenantApi.conversation.contactTagAdd(c.id, { tag_id }),
+    onSuccess: () => {
+      void invalidate()
+      void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
+    },
+    onError: (err) => notifyError(err),
+  })
+  const removeContactTag = useMutation({
+    mutationFn: (tagId: string) => tenantApi.conversation.contactTagRemove(c.id, tagId),
+    onSuccess: () => {
+      void invalidate()
+      void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
+    },
+    onError: (err) => notifyError(err),
+  })
+  const patchContactAttr = useMutation({
+    mutationFn: (attributes: Record<string, unknown>) => tenantApi.conversation.contactAttributesPatch(c.id, { attributes }),
+    onSuccess: () => {
+      void invalidate()
+      void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
+    },
+    onError: (err) => notifyError(err),
+  })
   // 对方的语言：手动设置的显示那种语言，否则显示“自动识别”（带上识别出的语言）
   const manual = c.contact?.language_manual ?? false
   const detected = c.language ? languageName(c.language, language) : ""
@@ -151,6 +193,27 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                 <Field label={t("inbox.status")}>
                   <Text size="sm">{t(`inbox.status_${c.status}` as const)}</Text>
                 </Field>
+                <Field label={t("inbox.tags")}>
+                  <TagsEditor
+                    tags={c.tags}
+                    allTags={allTags}
+                    editable={canEdit}
+                    disabled={addConvTag.isPending || removeConvTag.isPending}
+                    onAdd={(tagId) => addConvTag.mutate(tagId)}
+                    onRemove={(tagId) => removeConvTag.mutate(tagId)}
+                  />
+                </Field>
+                {convAttrs.map((def) => (
+                  <Field key={def.id} label={def.name}>
+                    <AttributeInput
+                      key={`${c.id}:${def.key}`}
+                      def={def}
+                      value={c.attributes[def.key]}
+                      disabled={!canEdit || patchConvAttr.isPending}
+                      onSave={(val) => patchConvAttr.mutate({ [def.key]: val })}
+                    />
+                  </Field>
+                ))}
                 {c.rating && (
                   <Field label={t("inbox.rating")}>
                     <Text size="sm">
@@ -235,32 +298,55 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                   <Text size="sm">{c.channel?.name ?? "—"}</Text>
                 </Field>
                 {c.contact && (
-                  <Stack gap={4} mt={4}>
-                    <Text size="xs" c="dimmed">
-                      {t("inbox.contact_notes")}
-                    </Text>
-                    <Textarea
-                      size="xs"
-                      autosize
-                      minRows={2}
-                      maxRows={5}
-                      maxLength={4000}
-                      placeholder={t("inbox.contact_notes_placeholder")}
-                      value={notes}
-                      onChange={(e) => setNotes(e.currentTarget.value)}
-                      disabled={!can("contacts:update") || contactDetail.isPending}
-                    />
-                    {can("contacts:update") && notesDirty && (
-                      <Group justify="flex-end" gap="xs">
-                        <Button size="xs" variant="default" onClick={() => setNotes(serverNotes)}>
-                          {t("common.cancel")}
-                        </Button>
-                        <Button size="xs" loading={saveNotes.isPending} onClick={() => saveNotes.mutate(notes)}>
-                          {t("common.save")}
-                        </Button>
-                      </Group>
-                    )}
-                  </Stack>
+                  <>
+                    <Field label={t("inbox.tags")}>
+                      <TagsEditor
+                        tags={c.contact.tags}
+                        allTags={allTags}
+                        editable={canEdit}
+                        disabled={addContactTag.isPending || removeContactTag.isPending}
+                        onAdd={(tagId) => addContactTag.mutate(tagId)}
+                        onRemove={(tagId) => removeContactTag.mutate(tagId)}
+                      />
+                    </Field>
+                    {contactAttrs.map((def) => (
+                      <Field key={def.id} label={def.name}>
+                        <AttributeInput
+                          key={`${c.contact?.id}:${def.key}`}
+                          def={def}
+                          value={c.contact?.attributes[def.key]}
+                          disabled={!canEdit || patchContactAttr.isPending}
+                          onSave={(val) => patchContactAttr.mutate({ [def.key]: val })}
+                        />
+                      </Field>
+                    ))}
+                    <Stack gap={4} mt={4}>
+                      <Text size="xs" c="dimmed">
+                        {t("inbox.contact_notes")}
+                      </Text>
+                      <Textarea
+                        size="xs"
+                        autosize
+                        minRows={2}
+                        maxRows={5}
+                        maxLength={4000}
+                        placeholder={t("inbox.contact_notes_placeholder")}
+                        value={notes}
+                        onChange={(e) => setNotes(e.currentTarget.value)}
+                        disabled={!can("contacts:update") || contactDetail.isPending}
+                      />
+                      {can("contacts:update") && notesDirty && (
+                        <Group justify="flex-end" gap="xs">
+                          <Button size="xs" variant="default" onClick={() => setNotes(serverNotes)}>
+                            {t("common.cancel")}
+                          </Button>
+                          <Button size="xs" loading={saveNotes.isPending} onClick={() => saveNotes.mutate(notes)}>
+                            {t("common.save")}
+                          </Button>
+                        </Group>
+                      )}
+                    </Stack>
+                  </>
                 )}
               </Stack>
             </Accordion.Panel>

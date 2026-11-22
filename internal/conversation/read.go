@@ -102,8 +102,8 @@ func unreadOf(ctx context.Context, db bun.IDB, sub identity.Subject, ids []strin
 		LEFT JOIN conversation_reads r ON r.conversation_id = c.id AND r.member_id = ?
 		WHERE c.id IN (?) AND EXISTS (
 			SELECT 1 FROM timeline_items t WHERE t.conversation_id = c.id AND t.seq > coalesce(r.last_read_seq, 0)
-			AND t.kind IN (?, ?) AND NOT (t.actor_type = ? AND t.actor_id = ?))`,
-		sub.ID, bun.In(ids), Message, Note, MemberActor, sub.ID).Scan(ctx, &unread)
+			AND t.kind IN (?, ?) AND t.actor_type <> ? AND NOT (t.actor_type = ? AND t.actor_id = ?))`,
+		sub.ID, bun.In(ids), Message, Note, SystemActor, MemberActor, sub.ID).Scan(ctx, &unread)
 	if err != nil {
 		return nil, errors.Wrap(err, "load unread conversations")
 	}

@@ -34,6 +34,8 @@ func (a *RateByContact) Handle(ctx context.Context, sub identity.Subject, channe
 		switch {
 		case c.Status != Closed:
 			return ErrNotClosed.New()
+		case !c.ratingRequestedSinceClosed():
+			return ErrRatingNotRequested.New()
 		case c.ratedSinceClosed():
 			return ErrAlreadyRated.New()
 		}

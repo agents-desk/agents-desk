@@ -5,6 +5,40 @@
  * 规则与服务端相同，交给 @go-tenon/client 的校验函数使用；$ref 指向 components 中的命名类型。
  */
 export const schemas = {
+  attribute: {
+    create: {
+      body: {
+        "$ref": "#/components/schemas/AttributeCreateParams"
+      },
+    },
+    list: {
+      query: {
+        "properties": {
+          "target": {
+            "$ref": "#/components/schemas/AttributeTarget"
+          }
+        },
+        "type": "object"
+      },
+    },
+    reorder: {
+      body: {
+        "$ref": "#/components/schemas/AttributeReorderParams"
+      },
+    },
+    update: {
+      body: {
+        "$ref": "#/components/schemas/AttributeUpdateParams"
+      },
+    },
+  },
+  automation: {
+    update: {
+      body: {
+        "$ref": "#/components/schemas/AutomationUpdateBody"
+      },
+    },
+  },
   contact: {
     list: {
       query: {
@@ -54,6 +88,11 @@ export const schemas = {
         "$ref": "#/components/schemas/ConversationAssignment"
       },
     },
+    attributesPatch: {
+      body: {
+        "$ref": "#/components/schemas/ConversationAttributesInputBody"
+      },
+    },
     bulkAssign: {
       body: {
         "$ref": "#/components/schemas/ConversationBulkAssignInputBody"
@@ -62,6 +101,16 @@ export const schemas = {
     bulkClose: {
       body: {
         "$ref": "#/components/schemas/ConversationBulkIDs"
+      },
+    },
+    contactAttributesPatch: {
+      body: {
+        "$ref": "#/components/schemas/ConversationAttributesInputBody"
+      },
+    },
+    contactTagAdd: {
+      body: {
+        "$ref": "#/components/schemas/ConversationAddTagInputBody"
       },
     },
     items: {
@@ -128,6 +177,10 @@ export const schemas = {
             "$ref": "#/components/schemas/ConversationStatus",
             "default": "open"
           },
+          "tag_id": {
+            "format": "uuid",
+            "type": "string"
+          },
           "team_id": {
             "format": "uuid",
             "type": "string"
@@ -159,6 +212,11 @@ export const schemas = {
     snooze: {
       body: {
         "$ref": "#/components/schemas/ConversationSnoozeInputBody"
+      },
+    },
+    tagAdd: {
+      body: {
+        "$ref": "#/components/schemas/ConversationAddTagInputBody"
       },
     },
   },
@@ -257,6 +315,42 @@ export const schemas = {
     update: {
       body: {
         "$ref": "#/components/schemas/RoleParams"
+      },
+    },
+  },
+  tag: {
+    create: {
+      body: {
+        "$ref": "#/components/schemas/TagChanges"
+      },
+    },
+    list: {
+      query: {
+        "properties": {
+          "name": {
+            "maxLength": 60,
+            "type": "string"
+          },
+          "page": {
+            "default": 1,
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "per_page": {
+            "default": 20,
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+    },
+    update: {
+      body: {
+        "$ref": "#/components/schemas/TagChanges"
       },
     },
   },
@@ -369,6 +463,131 @@ export const schemas = {
 
 /** schemas 中 $ref 引用的命名类型，键是 OpenAPI 中的名称。 */
 export const components = {
+  AttributeCreateParams: {
+    "additionalProperties": false,
+    "properties": {
+      "description": {
+        "maxLength": 200,
+        "type": "string"
+      },
+      "key": {
+        "maxLength": 64,
+        "minLength": 1,
+        "pattern": "^[a-z][a-z0-9_]{0,63}$",
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 60,
+        "minLength": 1,
+        "type": "string"
+      },
+      "options": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 100,
+        "type": "array"
+      },
+      "position": {
+        "format": "int64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "target": {
+        "$ref": "#/components/schemas/AttributeTarget"
+      },
+      "type": {
+        "$ref": "#/components/schemas/AttributeType"
+      }
+    },
+    "required": [
+      "target",
+      "key",
+      "name",
+      "type"
+    ],
+    "type": "object"
+  },
+  AttributeReorderParams: {
+    "additionalProperties": false,
+    "properties": {
+      "ids": {
+        "items": {
+          "type": "string"
+        },
+        "minItems": 1,
+        "type": "array"
+      },
+      "target": {
+        "$ref": "#/components/schemas/AttributeTarget"
+      }
+    },
+    "required": [
+      "target",
+      "ids"
+    ],
+    "type": "object"
+  },
+  AttributeTarget: {
+    "enum": [
+      "conversation",
+      "contact"
+    ],
+    "type": "string"
+  },
+  AttributeType: {
+    "enum": [
+      "text",
+      "number",
+      "boolean",
+      "date",
+      "select",
+      "multi_select"
+    ],
+    "type": "string"
+  },
+  AttributeUpdateParams: {
+    "additionalProperties": false,
+    "properties": {
+      "description": {
+        "maxLength": 200,
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 60,
+        "minLength": 1,
+        "type": "string"
+      },
+      "options": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 100,
+        "type": "array"
+      },
+      "position": {
+        "format": "int64",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "type": "object"
+  },
+  AutomationUpdateBody: {
+    "additionalProperties": false,
+    "properties": {
+      "enabled": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "enabled"
+    ],
+    "type": "object"
+  },
   ContactKind: {
     "enum": [
       "user",
@@ -413,6 +632,19 @@ export const components = {
     },
     "type": "object"
   },
+  ConversationAddTagInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "tag_id": {
+        "format": "uuid",
+        "type": "string"
+      }
+    },
+    "required": [
+      "tag_id"
+    ],
+    "type": "object"
+  },
   ConversationAssignment: {
     "additionalProperties": false,
     "properties": {
@@ -425,6 +657,19 @@ export const components = {
         "type": "string"
       }
     },
+    "type": "object"
+  },
+  ConversationAttributesInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "attributes": {
+        "additionalProperties": {},
+        "type": "object"
+      }
+    },
+    "required": [
+      "attributes"
+    ],
     "type": "object"
   },
   ConversationBulkAssignInputBody: {
@@ -883,6 +1128,43 @@ export const components = {
       "teams:manage",
       "channels:manage",
       "tenant-settings:manage"
+    ],
+    "type": "string"
+  },
+  TagChanges: {
+    "additionalProperties": false,
+    "properties": {
+      "color": {
+        "$ref": "#/components/schemas/TagColor"
+      },
+      "description": {
+        "maxLength": 200,
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 40,
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "type": "object"
+  },
+  TagColor: {
+    "enum": [
+      "blue-gray",
+      "red",
+      "deep-orange",
+      "yellow",
+      "green",
+      "sky-blue",
+      "bright-blue",
+      "violet",
+      "purple",
+      "magenta",
+      "brown"
     ],
     "type": "string"
   },
