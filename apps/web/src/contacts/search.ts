@@ -1,13 +1,12 @@
 import type { ContactKind, ContactSort } from "@agents-desk/client/tenant"
 
-/** ContactsSearch 是联系人列表页的地址参数，按类型、关键词、语言、渠道筛选，带排序和页码。 */
+/** ContactsSearch 是联系人列表页的地址参数，按类型、关键词、语言、渠道筛选，带排序；分页走游标滚动加载。 */
 export interface ContactsSearch {
   kind?: ContactKind
   q?: string
   language?: string
   channel?: string
   sort: ContactSort
-  page: number
 }
 
 /** validateContactsSearch 解析并规范化联系人列表页的地址参数，无效的取值回退到默认值。 */
@@ -17,7 +16,5 @@ export function validateContactsSearch(raw: Record<string, unknown>): ContactsSe
   const language = typeof raw.language === "string" && raw.language.trim() ? raw.language : undefined
   const channel = typeof raw.channel === "string" && raw.channel.trim() ? raw.channel : undefined
   const sort: ContactSort = raw.sort === "created" ? "created" : "recent"
-  const parsedPage = Number(raw.page)
-  const page = Number.isInteger(parsedPage) && parsedPage >= 1 ? parsedPage : 1
-  return { kind, q, language, channel, sort, page }
+  return { kind, q, language, channel, sort }
 }

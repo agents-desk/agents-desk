@@ -335,6 +335,12 @@ export interface ConversationTranslation {
 
 export type ConversationVisibility = "all" | "members"
 
+export interface CursorContactDTO {
+  items: ContactDTO[]
+  /** Pass as cursor to fetch the next page. Absent on the last page. */
+  next_cursor?: string
+}
+
 export interface CursorConversationDTO {
   items: ConversationDTO[]
   /** Pass as cursor to fetch the next page. Absent on the last page. */
@@ -464,14 +470,6 @@ export interface MemberTenantMember {
   self: boolean
   /** 在这个工作区中的在线状态 */
   status: MemberStatus
-}
-
-export interface OffsetContactDTO {
-  items: ContactDTO[]
-  page: number
-  per_page: number
-  /** Total number of items across all pages. */
-  total: number
 }
 
 export interface OffsetMemberTenantMember {
@@ -692,15 +690,15 @@ export interface WidgetUpdateBody {
 
 /** contact-list 的参数。 */
 export interface ContactListInput {
-  /** Page number, starting at 1. */
-  page?: number
+  /** Opaque cursor from next_cursor of the previous page. Omit for the first page. */
+  cursor?: string
   /** Items per page. */
   per_page?: number
   /** 按联系人类型筛选：user 或 lead；不传为全部 */
   kind?: ContactKind
   /** 按名字、邮箱或外部用户编号搜索 */
   q?: string
-  /** 按客户的语言（BCP 47）筛选 */
+  /** 按客户的语言（BCP 47）筛选，传主语言时同时匹配带子标签的写法 */
   language?: string
   /** 只列出在该渠道有身份的联系人 */
   channel_id?: string
@@ -799,8 +797,8 @@ export function createClient(options: ClientOptions) {
        *
        * GET /contacts
        */
-      list: (input: ContactListInput = {}): Promise<OffsetContactDTO> =>
-        rt.request<OffsetContactDTO>({ method: "GET", path: `/contacts`, query: { "channel_id": input["channel_id"], "kind": input["kind"], "language": input["language"], "page": input["page"], "per_page": input["per_page"], "q": input["q"], "sort": input["sort"] } }),
+      list: (input: ContactListInput = {}): Promise<CursorContactDTO> =>
+        rt.request<CursorContactDTO>({ method: "GET", path: `/contacts`, query: { "channel_id": input["channel_id"], "cursor": input["cursor"], "kind": input["kind"], "language": input["language"], "per_page": input["per_page"], "q": input["q"], "sort": input["sort"] } }),
       /**
        * 联系人的数量和渠道列表
        *

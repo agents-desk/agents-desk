@@ -13,18 +13,15 @@ export const schemas = {
             "format": "uuid",
             "type": "string"
           },
+          "cursor": {
+            "type": "string"
+          },
           "kind": {
             "$ref": "#/components/schemas/ContactKind"
           },
           "language": {
             "maxLength": 35,
             "type": "string"
-          },
-          "page": {
-            "default": 1,
-            "format": "int64",
-            "minimum": 1,
-            "type": "integer"
           },
           "per_page": {
             "default": 20,

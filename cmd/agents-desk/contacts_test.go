@@ -95,7 +95,7 @@ func TestContactsAPI(t *testing.T) {
 	if listRes.status != http.StatusOK {
 		t.Fatalf("列表：%d %s", listRes.status, listRes.body)
 	}
-	var list page.Offset[contact.ContactDTO]
+	var list page.Cursor[contact.ContactDTO]
 	if err := json.Unmarshal([]byte(listRes.body), &list); err != nil || len(list.Items) != 1 {
 		t.Fatalf("列表内容：%+v %v", list, err)
 	}

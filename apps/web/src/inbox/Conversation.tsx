@@ -103,7 +103,12 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
           <Box style={{ minWidth: 0, flex: narrow ? 1 : undefined }}>
             <Group gap={6} wrap="nowrap">
               {c.contact ? (
-                <Link to="/t/$slug/contacts/$id" params={{ slug, id: c.contact.id }} style={{ color: "inherit", textDecoration: "none", minWidth: 0 }}>
+                <Link
+                  to="/t/$slug/contacts/$id"
+                  params={{ slug, id: c.contact.id }}
+                  search={{ sort: "recent" }}
+                  style={{ color: "inherit", textDecoration: "none", minWidth: 0 }}
+                >
                   <Text fw={600} truncate>
                     {contactName(c, t)}
                   </Text>

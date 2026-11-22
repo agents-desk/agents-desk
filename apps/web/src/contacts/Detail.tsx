@@ -1,0 +1,648 @@
+import type { ContactDetailDTO, ContactIdentityDTO, ContactUpdateBody } from "@agents-desk/client/tenant"
+import {
+  ActionIcon,
+  Anchor,
+  Avatar,
+  Badge,
+  Box,
+  Button,
+  Center,
+  Code,
+  CopyButton,
+  Group,
+  Loader,
+  Select,
+  Stack,
+  Text,
+  Textarea,
+  TextInput,
+  Tooltip,
+} from "@mantine/core"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
+import { IconArrowUpRight, IconCheck, IconChevronLeft, IconCopy, IconExternalLink, IconPencil, IconX } from "@tabler/icons-react"
+import { notifyError, notifySuccess, useCan, useLanguage, useNarrow, useT, useTimeZone } from "@go-tenon/ui"
+import { type ReactNode, useEffect, useMemo, useState } from "react"
+import { kit, tenantApi } from "../api"
+import { activity } from "../inbox/format"
+import { LanguageSelect } from "../LanguageSelect"
+import { languageName } from "../languages"
+import { allZones, formatLocalTime, offsetOf } from "../timezone"
+
+/** AUTO 是语言选择器中的“自动识别”。 */
+const AUTO = "auto"
+
+/** PROFILE_LANGUAGES 是联系人档案中手动设置语言时的默认候选：中文、英语、印地语。 */
+const PROFILE_LANGUAGES = ["zh-CN", "en", "hi"] as const
+
+/**
+ * ContactDetailPanel 是联系人列表右侧的分栏档案（440px，窄屏占满）：
+ * 顶部是头像、名字、类型和关闭/返回按钮；下方单列依次是内部备注便签、可就地编辑的资料属性、历史会话流和渠道身份。
+ */
+export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: string; onClose: () => void }): ReactNode {
+  const t = useT()
+  const ui = useLanguage()
+  const zone = useTimeZone()
+  const narrow = useNarrow()
+  const can = useCan()
+  const queryClient = useQueryClient()
+
+  const detail = useQuery(kit.queries.contact.get(id))
+  const conversations = useQuery({
+    queryKey: [...kit.queries.conversation.key(), "contact-detail", id],
+    queryFn: () => tenantApi.conversation.list({ contact_id: id, per_page: 30, sort: "recent" }),
+  })
+
+  const update = useMutation({
+    mutationFn: (body: ContactUpdateBody) => tenantApi.contact.update(id, body),
+    onSuccess: (saved) => {
+      queryClient.setQueryData(kit.queries.contact.get(id).queryKey, saved)
+      void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
+      void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
+      notifySuccess(t("common.saved"))
+    },
+    onError: (err) => notifyError(err),
+  })
+
+  const closeButton = narrow ? (
+    <ActionIcon variant="subtle" color="gray" onClick={onClose} aria-label={t("contacts.close_detail")}>
+      <IconChevronLeft size={18} />
+    </ActionIcon>
+  ) : (
+    <ActionIcon variant="subtle" color="gray" ml="auto" onClick={onClose} aria-label={t("contacts.close_detail")}>
+      <IconX size={16} />
+    </ActionIcon>
+  )
+
+  if (detail.isPending) {
+    return (
+      <Stack gap={0} h="100%" w="100%">
+        <Group px="md" h={53} className="ct-divider">
+          {narrow && closeButton}
+          <Text fw={600} size="sm">
+            {t("nav.contacts")}
+          </Text>
+          {!narrow && closeButton}
+        </Group>
+        <Center style={{ flex: 1 }}>
+          <Loader size="sm" />
+        </Center>
+      </Stack>
+    )
+  }
+
+  if (!detail.data) {
+    return (
+      <Stack gap={0} h="100%" w="100%">
+        <Group px="md" h={53} className="ct-divider">
+          {narrow && closeButton}
+          <Text fw={600} size="sm">
+            {t("nav.contacts")}
+          </Text>
+          {!narrow && closeButton}
+        </Group>
+        <Center style={{ flex: 1 }}>
+          <Text size="sm" c="dimmed">
+            {t("contacts.not_found")}
+          </Text>
+        </Center>
+      </Stack>
+    )
+  }
+
+  const c = detail.data
+  const displayName = c.name || t("inbox.visitor")
+  const localTime = formatLocalTime(c.time_zone)
+  const subtitle = [c.location, localTime ? t("contacts.local_time", { time: localTime }) : ""].filter(Boolean).join(" · ")
+  const editable = can("contacts:update")
+
+  return (
+    <Stack gap={0} h="100%" w="100%">
+      {/* 顶部人物头：与左侧列表顶栏 53px 齐平 */}
+      <Group gap="sm" px="md" h={53} wrap="nowrap" className="ct-divider">
+        {narrow && closeButton}
+        <Avatar size={32} name={displayName} color="initials" />
+        <Box style={{ minWidth: 0, flex: 1 }}>
+          <Group gap={6} wrap="nowrap">
+            <Text fw={600} size="sm" truncate>
+              {displayName}
+            </Text>
+            <Badge size="xs" variant="light" color={c.kind === "user" ? "bright-blue" : "gray"} style={{ flex: "none" }}>
+              {kit.label("ContactKind", c.kind)}
+            </Badge>
+          </Group>
+          {subtitle && (
+            <Text size="xs" c="dimmed" truncate>
+              {subtitle}
+            </Text>
+          )}
+        </Box>
+        {!narrow && closeButton}
+      </Group>
+
+      {/* 独立滚动的档案正文 */}
+      <Box style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+        <Stack gap={0}>
+          {/* 1. 置顶内部备注便签 */}
+          <Box p="md">
+            <NotesCard contact={c} editable={editable} saving={update.isPending} onSave={(notes) => update.mutate({ notes })} />
+          </Box>
+
+          {/* 2. 可就地编辑的资料属性 */}
+          <PropertiesSection contact={c} editable={editable} saving={update.isPending} onUpdate={(patch) => update.mutateAsync(patch)} />
+
+          {/* 3. 历史会话流 */}
+          <Stack gap="xs" p="md" className="ct-section-divider">
+            <Group gap="xs">
+              <Text size="xs" fw={600} c="dimmed">
+                {t("contacts.conversations")}
+              </Text>
+              <Badge size="xs" variant="light" color="gray" radius="sm">
+                {c.conversation_count}
+              </Badge>
+            </Group>
+
+            {conversations.isPending ? (
+              <Center py="md">
+                <Loader size="xs" />
+              </Center>
+            ) : (conversations.data?.items.length ?? 0) === 0 ? (
+              <Text size="xs" c="dimmed">
+                {t("contacts.no_conversations")}
+              </Text>
+            ) : (
+              <Stack gap={8}>
+                {conversations.data?.items.map((conv) => (
+                  <Box key={conv.id} p="xs" className="ct-conv">
+                    <Group justify="space-between" wrap="nowrap" mb={4}>
+                      <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
+                        <span className="ct-dot" data-status={conv.status} />
+                        <Text size="xs" fw={500}>
+                          {t(`inbox.status_${conv.status}` as const)}
+                        </Text>
+                        {conv.channel && (
+                          <Text size="xs" c="dimmed" truncate>
+                            · {conv.channel.name}
+                          </Text>
+                        )}
+                        {conv.rating && (
+                          <Text size="xs" c="yellow">
+                            {"★".repeat(conv.rating.score)}
+                          </Text>
+                        )}
+                      </Group>
+                      <Text size="xs" c="dimmed" style={{ flex: "none" }}>
+                        {activity(conv.last_message_at, ui, t, zone)}
+                      </Text>
+                    </Group>
+                    <Group justify="space-between" align="flex-end" gap="xs" wrap="nowrap">
+                      <Text size="xs" c={conv.preview ? undefined : "dimmed"} lineClamp={2} style={{ flex: 1, minWidth: 0 }}>
+                        {conv.preview || "—"}
+                      </Text>
+                      <Anchor
+                        size="xs"
+                        fw={500}
+                        style={{ flex: "none", display: "inline-flex", alignItems: "center", gap: 2 }}
+                        renderRoot={(props) => (
+                          <Link
+                            {...props}
+                            to="/t/$slug/inbox/$id"
+                            params={{ slug, id: conv.id }}
+                            search={{ box: "all", status: conv.status, sort: "waiting" }}
+                          />
+                        )}
+                      >
+                        <span>{t("contacts.open_in_inbox")}</span>
+                        <IconArrowUpRight size={12} />
+                      </Anchor>
+                    </Group>
+                  </Box>
+                ))}
+              </Stack>
+            )}
+          </Stack>
+
+          {/* 4. 渠道身份 */}
+          <IdentitiesSection identities={c.identities} />
+        </Stack>
+      </Box>
+    </Stack>
+  )
+}
+
+/** NotesCard 是内部备注便签块：无重边框输入框，直接点击书写，修改后就地保存。 */
+function NotesCard({
+  contact: c,
+  editable,
+  saving,
+  onSave,
+}: {
+  contact: ContactDetailDTO
+  editable: boolean
+  saving: boolean
+  onSave: (notes: string) => void
+}): ReactNode {
+  const t = useT()
+  const [value, setValue] = useState(c.notes)
+  useEffect(() => {
+    setValue(c.notes)
+  }, [c.id, c.notes])
+  const dirty = value !== c.notes
+
+  return (
+    <Box p="sm" className="ct-note">
+      <Group justify="space-between" mb={4}>
+        <Text size="xs" fw={600}>
+          {t("contacts.notes")}
+        </Text>
+        <Text size="xs" c="dimmed">
+          {t("contacts.notes_hint")}
+        </Text>
+      </Group>
+      <Textarea
+        variant="unstyled"
+        size="xs"
+        autosize
+        minRows={2}
+        maxRows={6}
+        maxLength={4000}
+        placeholder={t("contacts.notes_placeholder")}
+        value={value}
+        onChange={(e) => setValue(e.currentTarget.value)}
+        onKeyDown={(e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && dirty && editable && !saving) {
+            e.preventDefault()
+            onSave(value)
+          }
+        }}
+        disabled={!editable}
+      />
+      {editable && dirty && (
+        <Group justify="flex-end" gap="xs" mt="xs">
+          <Button size="xs" variant="subtle" color="gray" onClick={() => setValue(c.notes)}>
+            {t("common.cancel")}
+          </Button>
+          <Button size="xs" loading={saving} onClick={() => onSave(value)}>
+            {t("common.save")}
+          </Button>
+        </Group>
+      )}
+    </Box>
+  )
+}
+
+/** PropRow 是属性检查区中的一行：左边是弱化的字段名，右边是值。 */
+function PropRow({ label, children }: { label: string; children: ReactNode }): ReactNode {
+  return (
+    <Group gap="xs" wrap="nowrap" align="center" className="ct-field" py={3}>
+      <Text size="xs" c="dimmed" w={72} style={{ flex: "none" }}>
+        {label}
+      </Text>
+      <Box style={{ flex: 1, minWidth: 0 }}>{children}</Box>
+    </Group>
+  )
+}
+
+/** InlineTextField 是默认纯文本阅读态、点编辑或双击就地修改的单行字段。 */
+function InlineTextField({
+  value,
+  placeholder,
+  maxLength,
+  editable,
+  copyable,
+  onSave,
+}: {
+  value: string
+  placeholder: string
+  maxLength: number
+  editable: boolean
+  copyable?: boolean
+  onSave: (next: string) => Promise<unknown>
+}): ReactNode {
+  const t = useT()
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
+
+  useEffect(() => {
+    setDraft(value)
+  }, [value])
+
+  const commit = async () => {
+    const trimmed = draft.trim()
+    setEditing(false)
+    if (trimmed === value) return
+    try {
+      await onSave(trimmed)
+    } catch {
+      setDraft(value)
+    }
+  }
+
+  if (editing) {
+    return (
+      <TextInput
+        size="xs"
+        autoFocus
+        maxLength={maxLength}
+        placeholder={placeholder}
+        value={draft}
+        onChange={(e) => setDraft(e.currentTarget.value)}
+        onBlur={() => void commit()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault()
+            void commit()
+          } else if (e.key === "Escape") {
+            setDraft(value)
+            setEditing(false)
+          }
+        }}
+      />
+    )
+  }
+
+  return (
+    <Group gap={4} wrap="nowrap" justify="space-between">
+      <Text
+        size="sm"
+        c={value ? undefined : "dimmed"}
+        truncate
+        onDoubleClick={editable ? () => setEditing(true) : undefined}
+        style={{ flex: 1, minWidth: 0 }}
+      >
+        {value || "—"}
+      </Text>
+      <Group gap={2} wrap="nowrap" className="ct-hover-action" style={{ flex: "none" }}>
+        {copyable && value && (
+          <CopyButton value={value} timeout={1500}>
+            {({ copied, copy }) => (
+              <Tooltip label={t(copied ? "contacts.copied" : "contacts.copy")} withArrow>
+                <ActionIcon variant="subtle" color={copied ? "green" : "gray"} size={22} onClick={copy} aria-label={t("contacts.copy")}>
+                  {copied ? <IconCheck size={13} /> : <IconCopy size={13} />}
+                </ActionIcon>
+              </Tooltip>
+            )}
+          </CopyButton>
+        )}
+        {editable && (
+          <Tooltip label={t("contacts.edit")} withArrow>
+            <ActionIcon variant="subtle" color="gray" size={22} onClick={() => setEditing(true)} aria-label={t("contacts.edit")}>
+              <IconPencil size={13} />
+            </ActionIcon>
+          </Tooltip>
+        )}
+      </Group>
+    </Group>
+  )
+}
+
+/** PropertiesSection 是可就地编辑的资料属性区。 */
+function PropertiesSection({
+  contact: c,
+  editable,
+  saving,
+  onUpdate,
+}: {
+  contact: ContactDetailDTO
+  editable: boolean
+  saving: boolean
+  onUpdate: (patch: ContactUpdateBody) => Promise<unknown>
+}): ReactNode {
+  const t = useT()
+  const ui = useLanguage()
+  const zone = useTimeZone()
+  const [editingZone, setEditingZone] = useState(false)
+  const zones = useMemo(() => allZones().map((z) => ({ value: z, label: `${z} (${offsetOf(z)})` })), [])
+  const detected = c.language ? languageName(c.language, ui) : ""
+  const localTime = formatLocalTime(c.time_zone)
+
+  return (
+    <Stack gap={6} px="md" pb="md">
+      <Text size="xs" fw={600} c="dimmed" mb={2}>
+        {t("contacts.profile")}
+      </Text>
+
+      <PropRow label={t("contacts.name")}>
+        <InlineTextField
+          value={c.name}
+          placeholder={t("contacts.name_placeholder")}
+          maxLength={120}
+          editable={editable}
+          onSave={(name) => onUpdate({ name })}
+        />
+      </PropRow>
+
+      <PropRow label={t("contacts.email")}>
+        <InlineTextField
+          value={c.email}
+          placeholder={t("contacts.email_placeholder")}
+          maxLength={254}
+          editable={editable}
+          copyable
+          onSave={(email) => onUpdate({ email })}
+        />
+      </PropRow>
+
+      {c.external_user_id && (
+        <PropRow label={t("contacts.external_user_id")}>
+          <Group gap={4} wrap="nowrap" justify="space-between">
+            <Code>{c.external_user_id}</Code>
+            <CopyButton value={c.external_user_id} timeout={1500}>
+              {({ copied, copy }) => (
+                <Tooltip label={t(copied ? "contacts.copied" : "contacts.copy")} withArrow>
+                  <ActionIcon
+                    className="ct-hover-action"
+                    variant="subtle"
+                    color={copied ? "green" : "gray"}
+                    size={22}
+                    onClick={copy}
+                    aria-label={t("contacts.copy")}
+                  >
+                    {copied ? <IconCheck size={13} /> : <IconCopy size={13} />}
+                  </ActionIcon>
+                </Tooltip>
+              )}
+            </CopyButton>
+          </Group>
+        </PropRow>
+      )}
+
+      <PropRow label={t("contacts.language")}>
+        <LanguageSelect
+          size="xs"
+          languages={PROFILE_LANGUAGES}
+          before={[
+            {
+              value: AUTO,
+              label: !c.language_manual && detected ? t("inbox.language_auto_detected", { lang: detected }) : t("inbox.language_auto"),
+            },
+          ]}
+          first={c.language ? [c.language] : []}
+          value={c.language_manual ? c.language : AUTO}
+          onChange={(v) => v && void onUpdate({ language: v === AUTO ? "" : v })}
+          allowDeselect={false}
+          disabled={!editable || saving}
+          aria-label={t("contacts.language")}
+        />
+        {c.language_manual && (
+          <Text size="xs" c="dimmed" mt={2}>
+            {t("inbox.language_manual_hint")}
+          </Text>
+        )}
+      </PropRow>
+
+      <PropRow label={t("contacts.location")}>
+        <InlineTextField
+          value={c.location}
+          placeholder={t("contacts.location_placeholder")}
+          maxLength={120}
+          editable={editable}
+          onSave={(location) => onUpdate({ location })}
+        />
+      </PropRow>
+
+      <PropRow label={t("contacts.time_zone")}>
+        {editingZone ? (
+          <Select
+            size="xs"
+            autoFocus
+            defaultDropdownOpened
+            placeholder={t("contacts.time_zone_placeholder")}
+            data={zones}
+            searchable
+            clearable
+            nothingFoundMessage={t("preferences.no_time_zone")}
+            value={c.time_zone || null}
+            onChange={(v) => {
+              setEditingZone(false)
+              const next = v ?? ""
+              if (next !== c.time_zone) void onUpdate({ time_zone: next })
+            }}
+            onDropdownClose={() => setEditingZone(false)}
+          />
+        ) : (
+          <Group gap={4} wrap="nowrap" justify="space-between">
+            <Text
+              size="sm"
+              c={c.time_zone ? undefined : "dimmed"}
+              truncate
+              onDoubleClick={editable ? () => setEditingZone(true) : undefined}
+              style={{ flex: 1, minWidth: 0 }}
+            >
+              {c.time_zone ? (localTime ? `${c.time_zone} · ${localTime}` : c.time_zone) : "—"}
+            </Text>
+            {editable && (
+              <Tooltip label={t("contacts.edit")} withArrow>
+                <ActionIcon
+                  className="ct-hover-action"
+                  variant="subtle"
+                  color="gray"
+                  size={22}
+                  onClick={() => setEditingZone(true)}
+                  aria-label={t("contacts.edit")}
+                >
+                  <IconPencil size={13} />
+                </ActionIcon>
+              </Tooltip>
+            )}
+          </Group>
+        )}
+      </PropRow>
+
+      {c.referrer && (
+        <PropRow label={t("contacts.referrer")}>
+          <Anchor
+            href={c.referrer}
+            target="_blank"
+            rel="noopener noreferrer"
+            size="xs"
+            style={{ display: "inline-flex", alignItems: "center", gap: 4, maxWidth: "100%" }}
+          >
+            <Text span size="xs" truncate>
+              {c.referrer}
+            </Text>
+            <IconExternalLink size={12} style={{ flex: "none" }} />
+          </Anchor>
+        </PropRow>
+      )}
+
+      <PropRow label={t("contacts.created_at")}>
+        <Text size="xs" c="dimmed">
+          {activity(c.created_at, ui, t, zone)}
+        </Text>
+      </PropRow>
+
+      {c.last_seen_at && (
+        <PropRow label={t("contacts.last_seen_at")}>
+          <Text size="xs" c="dimmed">
+            {activity(c.last_seen_at, ui, t, zone)}
+          </Text>
+        </PropRow>
+      )}
+    </Stack>
+  )
+}
+
+/** IdentitiesSection 是渠道身份列表区。 */
+function IdentitiesSection({ identities }: { identities: ContactIdentityDTO[] }): ReactNode {
+  const t = useT()
+  const ui = useLanguage()
+  const zone = useTimeZone()
+  return (
+    <Stack gap="xs" p="md" className="ct-section-divider">
+      <Group gap="xs">
+        <Text size="xs" fw={600} c="dimmed">
+          {t("contacts.channel_identities")}
+        </Text>
+        <Badge size="xs" variant="light" color="gray" radius="sm">
+          {identities.length}
+        </Badge>
+      </Group>
+
+      {identities.length === 0 ? (
+        <Text size="xs" c="dimmed">
+          {t("contacts.identities_empty")}
+        </Text>
+      ) : (
+        <Stack gap="xs">
+          {identities.map((ident) => (
+            <Box key={`${ident.channel.id}:${ident.external_id}`} className="ct-identity">
+              <Group justify="space-between" wrap="nowrap" gap={6}>
+                <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
+                  <Text size="xs" fw={500} truncate>
+                    {ident.channel.name}
+                  </Text>
+                  <Badge size="xs" variant="light" color="gray" style={{ flex: "none" }}>
+                    {kit.label("ChannelKind", ident.channel.kind)}
+                  </Badge>
+                </Group>
+                <Text size="xs" c="dimmed" style={{ flex: "none" }}>
+                  {activity(ident.created_at, ui, t, zone)}
+                </Text>
+              </Group>
+              <Group gap={4} wrap="nowrap" mt={3}>
+                <Code>{ident.external_id}</Code>
+                <CopyButton value={ident.external_id} timeout={1500}>
+                  {({ copied, copy }) => (
+                    <Tooltip label={t(copied ? "contacts.copied" : "contacts.copy")} withArrow>
+                      <ActionIcon
+                        className="ct-hover-action"
+                        variant="subtle"
+                        color={copied ? "green" : "gray"}
+                        size={20}
+                        onClick={copy}
+                        aria-label={t("contacts.copy")}
+                      >
+                        {copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
+                      </ActionIcon>
+                    </Tooltip>
+                  )}
+                </CopyButton>
+              </Group>
+            </Box>
+          ))}
+        </Stack>
+      )}
+    </Stack>
+  )
+}

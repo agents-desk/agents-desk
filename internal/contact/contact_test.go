@@ -97,35 +97,46 @@ func TestListAndSummary(t *testing.T) {
 	}
 
 	list := contact.NewList(env.DB)
+	// 游标分页：每页 1 条，翻两页正好不重不漏
+	p1, err := list.Handle(ctx, alpha.agent, &contact.ListInput{CursorParams: page.CursorParams{PerPage: 1}})
+	if err != nil || len(p1.Items) != 1 || p1.NextCursor == "" {
+		t.Fatalf("游标第 1 页：%+v %v", p1, err)
+	}
+	p2, err := list.Handle(ctx, alpha.agent, &contact.ListInput{CursorParams: page.CursorParams{PerPage: 1, Cursor: p1.NextCursor}})
+	if err != nil || len(p2.Items) != 1 || p2.Items[0].ID == p1.Items[0].ID || p2.NextCursor != "" {
+		t.Fatalf("游标第 2 页：%+v %v", p2, err)
+	}
 	// 按类型筛选
-	users, err := list.Handle(ctx, alpha.agent, &contact.ListInput{OffsetParams: page.OffsetParams{Page: 1, PerPage: 20}, Kind: contact.User})
-	if err != nil || users.Total != 1 || users.Items[0].ID != userA.ID || users.Items[0].ConversationCount != 1 {
+	users, err := list.Handle(ctx, alpha.agent, &contact.ListInput{CursorParams: page.CursorParams{PerPage: 20}, Kind: contact.User})
+	if err != nil || len(users.Items) != 1 || users.Items[0].ID != userA.ID || users.Items[0].ConversationCount != 1 {
 		t.Fatalf("按用户筛选：%+v %v", users, err)
 	}
-	leads, err := list.Handle(ctx, alpha.agent, &contact.ListInput{OffsetParams: page.OffsetParams{Page: 1, PerPage: 20}, Kind: contact.Lead})
-	if err != nil || leads.Total != 1 || leads.Items[0].ID != leadA.ID {
+	leads, err := list.Handle(ctx, alpha.agent, &contact.ListInput{CursorParams: page.CursorParams{PerPage: 20}, Kind: contact.Lead})
+	if err != nil || len(leads.Items) != 1 || leads.Items[0].ID != leadA.ID {
 		t.Fatalf("按线索筛选：%+v %v", leads, err)
 	}
 	// 关键词搜名字、邮箱、外部编号
 	for _, kw := range []string{"rahul", "rahul@example.com", "u1"} {
-		res, err := list.Handle(ctx, alpha.agent, &contact.ListInput{OffsetParams: page.OffsetParams{Page: 1, PerPage: 20}, Q: kw})
-		if err != nil || res.Total != 1 || res.Items[0].ID != userA.ID {
+		res, err := list.Handle(ctx, alpha.agent, &contact.ListInput{CursorParams: page.CursorParams{PerPage: 20}, Q: kw})
+		if err != nil || len(res.Items) != 1 || res.Items[0].ID != userA.ID {
 			t.Errorf("关键词 %q：%+v %v", kw, res, err)
 		}
 	}
-	// 按语言筛选
-	byLang, err := list.Handle(ctx, alpha.agent, &contact.ListInput{OffsetParams: page.OffsetParams{Page: 1, PerPage: 20}, Language: "hi-latn"})
-	if err != nil || byLang.Total != 1 || byLang.Items[0].ID != userA.ID {
-		t.Fatalf("按语言筛选：%+v %v", byLang, err)
+	// 按语言筛选：支持精确标签和主语言前缀（例如 hi 命中 hi-Latn）
+	for _, wantLang := range []string{"hi-latn", "hi"} {
+		byLang, err := list.Handle(ctx, alpha.agent, &contact.ListInput{CursorParams: page.CursorParams{PerPage: 20}, Language: wantLang})
+		if err != nil || len(byLang.Items) != 1 || byLang.Items[0].ID != userA.ID {
+			t.Fatalf("按语言 %q 筛选：%+v %v", wantLang, byLang, err)
+		}
 	}
 	// 按渠道筛选
-	byCh, err := list.Handle(ctx, alpha.agent, &contact.ListInput{OffsetParams: page.OffsetParams{Page: 1, PerPage: 20}, ChannelID: ch2.ID})
-	if err != nil || byCh.Total != 1 || byCh.Items[0].ID != leadA.ID {
+	byCh, err := list.Handle(ctx, alpha.agent, &contact.ListInput{CursorParams: page.CursorParams{PerPage: 20}, ChannelID: ch2.ID})
+	if err != nil || len(byCh.Items) != 1 || byCh.Items[0].ID != leadA.ID {
 		t.Fatalf("按渠道筛选：%+v %v", byCh, err)
 	}
 	// 跨工作区隔离：beta 看不到 alpha 的联系人
-	betaRes, err := list.Handle(ctx, beta.agent, &contact.ListInput{OffsetParams: page.OffsetParams{Page: 1, PerPage: 20}, Q: "Rahul"})
-	if err != nil || betaRes.Total != 0 {
+	betaRes, err := list.Handle(ctx, beta.agent, &contact.ListInput{CursorParams: page.CursorParams{PerPage: 20}, Q: "Rahul"})
+	if err != nil || len(betaRes.Items) != 0 {
 		t.Fatalf("beta 搜索 alpha 的联系人：%+v %v", betaRes, err)
 	}
 }

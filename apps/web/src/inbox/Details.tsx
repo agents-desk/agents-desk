@@ -177,7 +177,12 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
               <Stack gap={8}>
                 <Field label={t("inbox.contact_name")}>
                   {c.contact ? (
-                    <Link to="/t/$slug/contacts/$id" params={{ slug, id: c.contact.id }} style={{ textDecoration: "none" }}>
+                    <Link
+                      to="/t/$slug/contacts/$id"
+                      params={{ slug, id: c.contact.id }}
+                      search={{ sort: "recent" }}
+                      style={{ textDecoration: "none" }}
+                    >
                       <Text size="sm" fw={500} c="brand">
                         {c.contact.name || t("inbox.visitor")}
                       </Text>
