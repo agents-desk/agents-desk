@@ -71,10 +71,13 @@ func (a *Add) Handle(ctx context.Context, sub identity.Subject, p AddParams) (*T
 		if len(existing) > 0 {
 			return ErrAlreadyMember.New(errorx.Field("email"))
 		}
-		if assigned, err = role.Lock(ctx, tx, sub.Tenant, p.RoleID, errorx.Field("role_id")); err != nil {
+		if assigned, err = role.Find(ctx, roles, sub.Tenant, p.RoleID, errorx.Field("role_id")); err != nil {
 			return err
 		}
 		if err := roles.Assign(ctx, m.Ref(), sub.Tenant, assigned.ID); err != nil {
+			if errors.Is(err, authz.ErrRoleNotFound) {
+				return role.ErrNotFound.New(errorx.Field("role_id"))
+			}
 			return err
 		}
 		added = m

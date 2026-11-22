@@ -212,6 +212,8 @@ export const AuthzErrors = {
   RoleNotFound: "authz.role_not_found",
   /** ErrRoleExists 表示同一租户中已有同名角色。 */
   RoleExists: "authz.role_exists",
+  /** ErrRoleInUse 表示角色还有分配，使用 RestrictInUse 删除时拒绝。公开参数 count 是使用它的分配数。 */
+  RoleInUse: "authz.role_in_use",
   /** ErrInvalid 表示输入不合法，例如权限不在目录中、把租户自定义的角色分配到其他租户。 */
   Invalid: "authz.invalid",
 } as const

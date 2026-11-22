@@ -155,7 +155,6 @@ hours.week: "每周的工作时间"
 login.description: "用工作区管理员给你的邮箱和密码登录"
 login.title: "登录"
 
-members.no_roles: "还没有角色，先在“角色”中新建"
 members.password_hint: "这个邮箱还没有账号时必填，由你告诉本人"
 
 nav.attributes: "属性"

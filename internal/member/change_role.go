@@ -3,6 +3,7 @@ package member
 import (
 	"context"
 
+	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/activity"
@@ -58,7 +59,7 @@ func (a *ChangeRole) Handle(ctx context.Context, sub identity.Subject, id, roleI
 		if auth.IsOwner(current) {
 			return ErrOwnerProtected.New()
 		}
-		if next, err = role.Lock(ctx, tx, sub.Tenant, roleID, errorx.Field("role_id")); err != nil {
+		if next, err = role.Find(ctx, roles, sub.Tenant, roleID, errorx.Field("role_id")); err != nil {
 			return err
 		}
 		if current.ID == next.ID {
@@ -68,6 +69,9 @@ func (a *ChangeRole) Handle(ctx context.Context, sub identity.Subject, id, roleI
 			return err
 		}
 		if err := roles.Assign(ctx, ref, sub.Tenant, next.ID); err != nil {
+			if errors.Is(err, authz.ErrRoleNotFound) {
+				return role.ErrNotFound.New(errorx.Field("role_id"))
+			}
 			return err
 		}
 		return activity.Record(ctx, tx, sub, activity.Activity{

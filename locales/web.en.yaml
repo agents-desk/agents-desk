@@ -155,7 +155,6 @@ hours.week: "Weekly hours"
 login.description: "Sign in with the email and password your workspace admin gave you"
 login.title: "Sign in"
 
-members.no_roles: "No roles yet. Create one in “Roles” first"
 members.password_hint: "Required when this email has no account yet. Share it with the person yourself"
 
 nav.attributes: "Attributes"
