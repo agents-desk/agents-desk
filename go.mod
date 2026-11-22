@@ -84,6 +84,7 @@ require (
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
 	github.com/quagmt/udecimal v1.11.0 // indirect
 	github.com/redis/rueidis v1.0.79 // indirect
+	github.com/resend/resend-go/v3 v3.17.0 // indirect
 	github.com/rogpeppe/go-internal v1.16.0 // indirect
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/samber/lo v1.53.0 // indirect

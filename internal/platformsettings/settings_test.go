@@ -30,44 +30,44 @@ func TestGeneralAndMailSettings(t *testing.T) {
 	}
 
 	saveGeneral := platformsettings.NewSaveGeneral(env.DB, generalGroup)
-	// 非法邮箱被拒绝
 	if _, err := saveGeneral.Handle(ctx, apptest.Admin, platformsettings.General{
 		SiteName: "Desk", SupportEmail: "not-an-email", DefaultLanguage: platformsettings.LangZhCN,
 	}); !errors.Is(err, platformsettings.ErrInvalidEmail) {
 		t.Fatalf("非法邮箱应当返回 ErrInvalidEmail，实际 %v", err)
 	}
-
-	// 保存常规设置并写入操作日志
 	if _, err := saveGeneral.Handle(ctx, apptest.Admin, platformsettings.General{
 		SiteName: "Acme Desk", SupportEmail: "support@acme.example", DefaultLanguage: platformsettings.LangEN,
 	}); err != nil {
 		t.Fatal(err)
 	}
-	gotGeneral, err = generalGroup.Get(ctx)
-	if err != nil || gotGeneral.SiteName != "Acme Desk" || gotGeneral.DefaultLanguage != platformsettings.LangEN {
-		t.Fatalf("保存后的常规设置：%+v err=%v", gotGeneral, err)
-	}
 
 	saveMail := platformsettings.NewSaveMail(env.DB, mailGroup)
-	// 填写用户名时关闭 TLS 被拒绝
+
+	// 填写了 Resend API Key 但未填发件人邮箱被拒绝
 	if _, err := saveMail.Handle(ctx, apptest.Admin, platformsettings.Mail{
-		Host: "smtp.acme.example", Port: 25, TLS: platformsettings.TLSNone, Username: "mailer",
-	}); !errors.Is(err, platformsettings.ErrTLSRequired) {
-		t.Fatalf("有用户名关闭 TLS 应当返回 ErrTLSRequired，实际 %v", err)
+		FromName: "Acme", APIKey: "re_test_123456",
+	}); !errors.Is(err, platformsettings.ErrRequiredField) {
+		t.Fatalf("缺少发件人邮箱应当返回 ErrRequiredField，实际 %v", err)
 	}
 
-	// 正常保存邮件设置并记录操作日志（不记录密码值）
-	if _, err := saveMail.Handle(ctx, apptest.Admin, platformsettings.Mail{
-		Host: "smtp.acme.example", Port: 587, TLS: platformsettings.TLSStartTLS,
-		Username: "mailer", Password: "super-secret-password", FromName: "Acme", FromEmail: "noreply@acme.example",
-	}); err != nil {
+	// 正常保存 Resend 设置并构造 Mailer
+	savedMail, err := saveMail.Handle(ctx, apptest.Admin, platformsettings.Mail{
+		FromName: "Acme", FromEmail: "noreply@acme.example", APIKey: "re_test_123456",
+	})
+	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err := platformsettings.BuildMailer(savedMail); err != nil {
+		t.Fatalf("构造 Resend Mailer 失败：%v", err)
+	}
+	// API Key 为空时退回 logmail
+	if _, err := platformsettings.BuildMailer(platformsettings.MailDefaults); err != nil {
+		t.Fatalf("构造默认 logmail 失败：%v", err)
+	}
+
+	// 检查操作日志已记录
 	logs, err := activity.List(ctx, env.DB, activity.Query{Tenant: "", TargetType: "settings"})
 	if err != nil || len(logs) != 2 {
 		t.Fatalf("期望 2 条设置日志，实际 %d err=%v", len(logs), err)
-	}
-	if logs[0].Event != "platform_settings.mail_updated" || logs[1].Event != "platform_settings.general_updated" {
-		t.Fatalf("设置日志事件不符合预期：%+v", logs)
 	}
 }

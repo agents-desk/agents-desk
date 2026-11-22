@@ -1,10 +1,10 @@
-// Package platformsettings 管理平台级的常规设置与邮件服务（SMTP）设置，保存在 Tenon 的 settings 表中，
-// 并经 api.Settings 声明给管理员端的 SettingsPage 自动渲染表单与校验。
+// Package platformsettings 管理平台级的常规设置与邮件服务（Resend）设置，
+// 保存在 Tenon 的 settings 表中，并经 api.Settings 声明给管理员端的 SettingsPage 自动渲染表单与校验。
 package platformsettings
 
 import (
 	"context"
-	"net/mail"
+	netmail "net/mail"
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -16,14 +16,17 @@ import (
 	"github.com/go-tenon/tenon/enum"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
+	"github.com/go-tenon/tenon/mail"
+	"github.com/go-tenon/tenon/mail/logmail"
+	"github.com/go-tenon/tenon/mail/resend"
 	"github.com/go-tenon/tenon/settings"
 )
 
 var (
 	// ErrInvalidEmail 表示填写的邮箱格式不正确。
 	ErrInvalidEmail = errorx.Define(errorx.InvalidArgument, "platform_settings.invalid_email")
-	// ErrTLSRequired 表示配置了 SMTP 用户名时不能关闭 TLS 加密。
-	ErrTLSRequired = errorx.Define(errorx.InvalidArgument, "platform_settings.tls_required")
+	// ErrRequiredField 表示启用 Resend 时必填项未填写。
+	ErrRequiredField = errorx.Define(errorx.InvalidArgument, "platform_settings.required_field")
 )
 
 // Language 是平台默认界面语言。
@@ -40,21 +43,6 @@ var Languages = enum.New("platform_settings.language", LangZhCN, LangEN)
 // Schema 让 OpenAPI 中的 Language 只接受目录中的取值并带显示文字。
 func (Language) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Languages) }
 
-// MailTLS 是 SMTP 连接的加密方式，与 tenon/mail/smtp 一致。
-type MailTLS string
-
-const (
-	TLSStartTLS MailTLS = "starttls" // STARTTLS（常用端口 587）
-	TLSDirect   MailTLS = "tls"      // 隐式 TLS（常用端口 465）
-	TLSNone     MailTLS = "none"     // 不加密（仅限内网无认证中继）
-)
-
-// MailTLSMethods 是全部 SMTP 加密方式。
-var MailTLSMethods = enum.New("platform_settings.mail_tls", TLSStartTLS, TLSDirect, TLSNone)
-
-// Schema 让 OpenAPI 中的 MailTLS 只接受目录中的取值并带显示文字。
-func (MailTLS) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, MailTLSMethods) }
-
 // General 是平台常规设置。字段不带 omitempty，见 tenon/settings 文档。
 type General struct {
 	SiteName        string   `json:"site_name" minLength:"1" maxLength:"60"`
@@ -69,26 +57,30 @@ var GeneralDefaults = General{
 	DefaultLanguage: LangZhCN,
 }
 
-// Mail 是平台邮件服务（SMTP）设置。字段不带 omitempty，见 tenon/settings 文档。
+// Mail 是平台邮件服务（Resend）设置。APIKey 为空表示暂不启用外发（仅写入日志）。
+// 字段不带 omitempty，见 tenon/settings 文档。
 type Mail struct {
-	Host      string  `json:"host" maxLength:"120"`
-	Port      int     `json:"port" minimum:"1" maximum:"65535"`
-	TLS       MailTLS `json:"tls"`
-	Username  string  `json:"username" maxLength:"120"`
-	Password  string  `json:"password" maxLength:"256"`
-	FromName  string  `json:"from_name" maxLength:"80"`
-	FromEmail string  `json:"from_email" maxLength:"120"`
+	FromName  string `json:"from_name" maxLength:"80"`
+	FromEmail string `json:"from_email" maxLength:"120"`
+	APIKey    string `json:"api_key" maxLength:"256"`
 }
 
-// MailDefaults 是平台邮件服务的默认值（Host 为空表示尚未启用）。
+// MailDefaults 是平台邮件服务的默认值。
 var MailDefaults = Mail{
-	Host:      "",
-	Port:      587,
-	TLS:       TLSStartTLS,
-	Username:  "",
-	Password:  "",
 	FromName:  "agents-desk",
 	FromEmail: "",
+	APIKey:    "",
+}
+
+// BuildMailer 按当前 Resend 设置构造 mail.Mailer；未填写 APIKey 时返回 logmail。
+func BuildMailer(m Mail) (mail.Mailer, error) {
+	if strings.TrimSpace(m.APIKey) == "" {
+		return logmail.New(nil), nil
+	}
+	return resend.New(resend.Config{
+		From:   mail.Address{Name: m.FromName, Email: m.FromEmail},
+		APIKey: m.APIKey,
+	})
 }
 
 // NewGeneralGroup 返回平台常规设置的存储组。
@@ -206,41 +198,30 @@ func NewSaveMail(db *bun.DB, group *settings.Group[Mail]) *SaveMail {
 	return &SaveMail{db: db, group: group}
 }
 
-// Handle 校验并保存平台邮件设置，有修改时在同一事务中写入操作日志（密码只记字段名，不记值）。
+// Handle 校验并保存 Resend 邮件设置，有修改时在同一事务中写入操作日志（API Key 只记字段名，不记值）。
 func (a *SaveMail) Handle(ctx context.Context, subject identity.Subject, next Mail) (Mail, error) {
-	next.Host = strings.TrimSpace(next.Host)
-	next.Username = strings.TrimSpace(next.Username)
 	next.FromName = strings.TrimSpace(next.FromName)
 	next.FromEmail = strings.TrimSpace(next.FromEmail)
+	next.APIKey = strings.TrimSpace(next.APIKey)
+
 	if next.FromEmail != "" && !validEmail(next.FromEmail) {
 		return Mail{}, ErrInvalidEmail.New(errorx.Field("from_email"))
 	}
-	if next.Username != "" && next.TLS == TLSNone {
-		return Mail{}, ErrTLSRequired.New(errorx.Field("tls"))
+	if next.APIKey != "" && next.FromEmail == "" {
+		return Mail{}, ErrRequiredField.New(errorx.Field("from_email"))
 	}
+
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		var changed []string
 		err := a.group.WithDB(tx).Update(ctx, func(cur *Mail) error {
-			if cur.Host != next.Host {
-				changed = append(changed, "host")
-			}
-			if cur.Port != next.Port {
-				changed = append(changed, "port")
-			}
-			if cur.TLS != next.TLS {
-				changed = append(changed, "tls")
-			}
-			if cur.Username != next.Username {
-				changed = append(changed, "username")
-			}
-			if cur.Password != next.Password {
-				changed = append(changed, "password")
-			}
 			if cur.FromName != next.FromName {
 				changed = append(changed, "from_name")
 			}
 			if cur.FromEmail != next.FromEmail {
 				changed = append(changed, "from_email")
+			}
+			if cur.APIKey != next.APIKey {
+				changed = append(changed, "api_key")
 			}
 			*cur = next
 			return nil
@@ -268,6 +249,6 @@ func (a *SaveMail) HTTP(ctx context.Context, in *MailBody) (*MailBody, error) {
 
 // validEmail 检查字符串是不是不含显示名的纯邮箱地址。
 func validEmail(s string) bool {
-	addr, err := mail.ParseAddress(s)
+	addr, err := netmail.ParseAddress(s)
 	return err == nil && addr.Name == "" && addr.Address == s
 }

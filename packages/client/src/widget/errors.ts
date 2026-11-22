@@ -131,8 +131,8 @@ export const PlatformadminErrors = {
 export const PlatformsettingsErrors = {
   /** ErrInvalidEmail 表示填写的邮箱格式不正确。 */
   InvalidEmail: "platform_settings.invalid_email",
-  /** ErrTLSRequired 表示配置了 SMTP 用户名时不能关闭 TLS 加密。 */
-  TLSRequired: "platform_settings.tls_required",
+  /** ErrRequiredField 表示启用 Resend 时必填项未填写。 */
+  RequiredField: "platform_settings.required_field",
 } as const
 
 /** agents-desk/internal/role 的错误码。 */

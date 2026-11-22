@@ -174,8 +174,6 @@ export type PlatformAdminStatus = "active" | "disabled"
 
 export type PlatformSettingsLanguage = "zh-CN" | "en"
 
-export type PlatformSettingsMailTls = "starttls" | "tls" | "none"
-
 export interface PlatformadminAdminDTO {
   created_at: string
   email: string
@@ -219,13 +217,9 @@ export interface PlatformsettingsGeneral {
 }
 
 export interface PlatformsettingsMail {
+  api_key: string
   from_email: string
   from_name: string
-  host: string
-  password: string
-  port: number
-  tls: PlatformSettingsMailTls
-  username: string
 }
 
 export interface QueueBulkResult {

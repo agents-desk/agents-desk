@@ -45,14 +45,6 @@ export const enums = {
       "zh-CN": { "zh-CN": "简体中文", en: "English" },
     },
   },
-  PlatformSettingsMailTls: {
-    prefix: "platform_settings.mail_tls",
-    values: ["starttls", "tls", "none"],
-    labels: {
-      "en": { starttls: "STARTTLS (recommended, port 587)", tls: "Implicit TLS (port 465)", none: "None (internal unauthenticated relay only)" },
-      "zh-CN": { starttls: "STARTTLS（推荐，常用端口 587）", tls: "隐式 TLS（常用端口 465）", none: "不加密（仅限无认证内网中继）" },
-    },
-  },
   TenantStatus: {
     prefix: "tenant.status",
     values: ["active", "disabled"],

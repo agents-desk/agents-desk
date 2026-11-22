@@ -33,22 +33,18 @@ export const settings = {
     operations: { get: ["mail", "settingsGet"], update: ["mail", "settingsUpdate"] },
     permissions: { get: ["platform-settings:manage"], update: ["platform-settings:manage"] },
     form: [
-      { name: "host", type: "string", required: true },
-      { name: "port", type: "integer", format: "int64", required: true },
-      { name: "tls", type: "string", enum: "PlatformSettingsMailTls", required: true },
-      { name: "username", type: "string", required: true },
-      { name: "password", type: "string", required: true },
       { name: "from_name", type: "string", required: true },
       { name: "from_email", type: "string", required: true },
+      { name: "api_key", type: "string", required: true },
     ],
     labels: {
       "en": {
-        title: "Mail server",
-        fields: { host: "SMTP host", port: "Port", tls: "Encryption", username: "Username", password: "Password", from_name: "From name", from_email: "From email" },
+        title: "Mail (Resend)",
+        fields: { from_name: "From name", from_email: "From email", api_key: "Resend API Key" },
       },
       "zh-CN": {
-        title: "邮件服务",
-        fields: { host: "SMTP 服务器地址", port: "端口", tls: "加密方式", username: "用户名", password: "密码", from_name: "发件人名称", from_email: "发件人邮箱" },
+        title: "邮件服务（Resend）",
+        fields: { from_name: "发件人名称", from_email: "发件人邮箱", api_key: "Resend API Key" },
       },
     },
   },

@@ -372,14 +372,6 @@ export const components = {
     ],
     "type": "string"
   },
-  PlatformSettingsMailTls: {
-    "enum": [
-      "starttls",
-      "tls",
-      "none"
-    ],
-    "type": "string"
-  },
   PlatformadminCreateInputBody: {
     "additionalProperties": false,
     "properties": {
@@ -466,6 +458,10 @@ export const components = {
   PlatformsettingsMail: {
     "additionalProperties": false,
     "properties": {
+      "api_key": {
+        "maxLength": 256,
+        "type": "string"
+      },
       "from_email": {
         "maxLength": 120,
         "type": "string"
@@ -473,37 +469,12 @@ export const components = {
       "from_name": {
         "maxLength": 80,
         "type": "string"
-      },
-      "host": {
-        "maxLength": 120,
-        "type": "string"
-      },
-      "password": {
-        "maxLength": 256,
-        "type": "string"
-      },
-      "port": {
-        "format": "int64",
-        "maximum": 65535,
-        "minimum": 1,
-        "type": "integer"
-      },
-      "tls": {
-        "$ref": "#/components/schemas/PlatformSettingsMailTls"
-      },
-      "username": {
-        "maxLength": 120,
-        "type": "string"
       }
     },
     "required": [
-      "host",
-      "port",
-      "tls",
-      "username",
-      "password",
       "from_name",
-      "from_email"
+      "from_email",
+      "api_key"
     ],
     "type": "object"
   },

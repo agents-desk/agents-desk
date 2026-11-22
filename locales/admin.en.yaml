@@ -67,7 +67,7 @@ features.saved: "Feature flag updated"
 features.select_tenant: "Select workspace"
 
 settings.general_description: "Configure the platform display name, support contact email, and default interface language."
-settings.mail_description: "Configure the SMTP server used for outgoing emails. Leave the host empty to disable email delivery."
+settings.mail_description: "Configure Resend for outgoing email. The sender domain must be verified in Resend; leave the API key empty to log emails without sending."
 
 doctor.all_passed: "All checks passed"
 doctor.description: "Inspect database, migration status, queue replication slot, NATS JetStream, and file storage configuration."
