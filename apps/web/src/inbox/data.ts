@@ -1,4 +1,4 @@
-import type { ConversationDTO, ConversationItemDTO, MemberTenantMember } from "@agents-desk/client/tenant"
+import type { AttributeTarget, ConversationDTO, ConversationItemDTO, MemberTenantMember } from "@agents-desk/client/tenant"
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query"
 import { kit, tenantApi } from "../api"
 import { me } from "../auth"
@@ -26,6 +26,18 @@ export function useTeams() {
   return q.data?.items ?? []
 }
 
+/** useTags 返回工作区的标签：收件箱筛选和详情中选择。 */
+export function useTags() {
+  const q = useQuery({ queryKey: [...kit.queries.tag.key(), "all"], queryFn: () => tenantApi.tag.list({ per_page: 100 }), staleTime: 60_000 })
+  return q.data?.items ?? []
+}
+
+/** useAttributes 返回工作区指定对象的自定义属性定义，按展示顺序排列。 */
+export function useAttributes(target: AttributeTarget) {
+  const q = useQuery({ ...kit.queries.attribute.list({ target }), staleTime: 60_000 })
+  return q.data ?? []
+}
+
 /** Thresholds 是等待时长变色的时限（秒）：超过 warn 是“等待处理”，超过 alert 是“需要注意”。 */
 export interface Thresholds {
   warn: number
@@ -39,7 +51,7 @@ export function useThresholds(): Thresholds | undefined {
 }
 
 /** listKey 是会话列表的查询键。 */
-const listKey = (s: InboxSearch) => [...kit.queries.conversation.key(), "inbox-list", s.box, s.team ?? "", s.status, s.sort]
+const listKey = (s: InboxSearch) => [...kit.queries.conversation.key(), "inbox-list", s.box, s.team ?? "", s.tag ?? "", s.status, s.sort]
 
 /** useConversationList 读取当前列表的会话，游标分页，滚到底时加载下一页。 */
 export function useConversationList(s: InboxSearch) {
@@ -49,6 +61,7 @@ export function useConversationList(s: InboxSearch) {
       tenantApi.conversation.list({
         inbox: s.box,
         team_id: s.team,
+        tag_id: s.tag,
         status: s.status,
         sort: s.sort,
         cursor: pageParam || undefined,

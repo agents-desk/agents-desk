@@ -16,6 +16,9 @@ import (
 	"github.com/go-tenon/tenon/enum"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
+
+	"agents-desk/internal/attribute"
+	"agents-desk/internal/tag"
 )
 
 // Type 是联系人这套账号体系：客户在聊天插件等渠道中以联系人的身份调用接口，令牌绑定联系人所在的工作区。
@@ -56,17 +59,27 @@ type Contact struct {
 
 // Summary 是接口中联系人的概要，显示在会话中。
 type Summary struct {
-	ID             string `json:"id"`
-	Kind           Kind   `json:"kind"`
-	Name           string `json:"name"`
-	Email          string `json:"email"`
-	Language       string `json:"language" doc:"客户的语言：按最近几条确定了语言的消息判断，或者成员手动设置的；还没有时为空"`
-	LanguageManual bool   `json:"language_manual" doc:"对方的语言是成员手动设置的：收到的消息不再改它"`
+	ID             string         `json:"id"`
+	Kind           Kind           `json:"kind"`
+	Name           string         `json:"name"`
+	Email          string         `json:"email"`
+	Language       string         `json:"language" doc:"客户的语言：按最近几条确定了语言的消息判断，或者成员手动设置的；还没有时为空"`
+	LanguageManual bool           `json:"language_manual" doc:"对方的语言是成员手动设置的：收到的消息不再改它"`
+	Tags           []tag.Summary  `json:"tags" doc:"联系人上的标签"`
+	Attributes     map[string]any `json:"attributes" doc:"联系人的自定义属性"`
 }
 
 // Summary 返回联系人 c 的概要。
 func (c *Contact) Summary() Summary {
-	return Summary{ID: c.ID, Kind: c.Kind, Name: c.Name, Email: c.Email, Language: c.Language, LanguageManual: c.LanguageManual}
+	attrs := c.Attributes
+	if attrs == nil {
+		attrs = map[string]any{}
+	}
+	return Summary{
+		ID: c.ID, Kind: c.Kind, Name: c.Name, Email: c.Email,
+		Language: c.Language, LanguageManual: c.LanguageManual,
+		Tags: []tag.Summary{}, Attributes: attrs,
+	}
 }
 
 // Identity 是联系人在一个渠道中的身份：同一个渠道中，一个外部编号对应一个联系人。
@@ -167,6 +180,66 @@ func Find(ctx context.Context, db bun.IDB, tenant, id string) (*Contact, error) 
 		return nil, ErrNotFound.New()
 	}
 	return c, errors.Wrap(err, "load contact")
+}
+
+// AddTag 在事务 tx 中给工作区 tenant 的联系人 contactID 添加标签 tagID。
+// 标签或联系人不存在时返回对应的 ErrNotFound；已经打过该标签时 added 为 false。
+func AddTag(ctx context.Context, tx bun.IDB, tenant, contactID, tagID string) (*tag.Tag, bool, error) {
+	if _, err := Find(ctx, tx, tenant, contactID); err != nil {
+		return nil, false, err
+	}
+	t, err := tag.Find(ctx, tx, tenant, tagID, false)
+	if err != nil {
+		return nil, false, err
+	}
+	res, err := tx.NewRaw(`INSERT INTO contact_tags (tenant_id, contact_id, tag_id, created_at)
+		VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING`, tenant, contactID, tagID, now()).Exec(ctx)
+	if err != nil {
+		return nil, false, errors.Wrap(err, "add contact tag")
+	}
+	n, err := res.RowsAffected()
+	return t, n > 0, errors.Wrap(err, "count added contact tag")
+}
+
+// RemoveTag 在事务 tx 中从工作区 tenant 的联系人 contactID 上移除标签 tagID。
+// 标签或联系人不存在时返回对应的 ErrNotFound；联系人原本没有该标签时 removed 为 false。
+func RemoveTag(ctx context.Context, tx bun.IDB, tenant, contactID, tagID string) (*tag.Tag, bool, error) {
+	if _, err := Find(ctx, tx, tenant, contactID); err != nil {
+		return nil, false, err
+	}
+	t, err := tag.Find(ctx, tx, tenant, tagID, false)
+	if err != nil {
+		return nil, false, err
+	}
+	res, err := tx.NewRaw(`DELETE FROM contact_tags WHERE tenant_id = ? AND contact_id = ? AND tag_id = ?`,
+		tenant, contactID, tagID).Exec(ctx)
+	if err != nil {
+		return nil, false, errors.Wrap(err, "remove contact tag")
+	}
+	n, err := res.RowsAffected()
+	return t, n > 0, errors.Wrap(err, "count removed contact tag")
+}
+
+// PatchAttributes 在事务 tx 中锁住工作区 tenant 的联系人 contactID，按属性定义校验并合并 patch 到联系人属性。
+// 返回实际发生变化的属性列表；没有变化时不更新数据库。
+func PatchAttributes(ctx context.Context, tx bun.IDB, tenant, contactID string, patch map[string]any) ([]attribute.Change, error) {
+	c := new(Contact)
+	err := tx.NewSelect().Model(c).Where("id = ? AND tenant_id = ?", contactID, tenant).For("UPDATE").Scan(ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound.New()
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, "load contact")
+	}
+	next, changes, err := attribute.ApplyPatch(ctx, tx, tenant, attribute.TargetContact, c.Attributes, patch)
+	if err != nil || len(changes) == 0 {
+		return changes, err
+	}
+	c.Attributes = next
+	if _, err := tx.NewUpdate().Model(c).Column("attributes", "updated_at").WherePK().Exec(ctx); err != nil {
+		return nil, errors.Wrap(err, "update contact attributes")
+	}
+	return changes, nil
 }
 
 // newID 返回按时间递增的 UUIDv7。

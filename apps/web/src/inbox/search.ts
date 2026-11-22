@@ -6,6 +6,7 @@ import type { ConversationInbox, ConversationSort, ConversationStatus } from "@a
 export interface InboxSearch {
   box: ConversationInbox // mine、mentions、unassigned、all；团队收件箱是 all 加上 team
   team?: string
+  tag?: string
   status: ConversationStatus
   sort: ConversationSort
 }
@@ -21,9 +22,11 @@ const pick = <T extends string>(value: unknown, allowed: T[], fallback: T): T =>
 /** validateInboxSearch 是收件箱路由的 validateSearch：不认识的值换成默认值（我的、打开、按等待时长）。 */
 export function validateInboxSearch(s: Record<string, unknown>): InboxSearch {
   const team = typeof s.team === "string" && s.team ? s.team : undefined
+  const tag = typeof s.tag === "string" && s.tag ? s.tag : undefined
   return {
     box: team ? "all" : pick(s.box, boxes, "mine"),
     team,
+    tag,
     status: pick(s.status, statuses, "open"),
     sort: pick(s.sort, sorts, "waiting"),
   }

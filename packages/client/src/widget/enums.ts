@@ -37,4 +37,12 @@ export const enums = {
       "zh-CN": { open: "打开", snoozed: "稍后处理", closed: "已关闭" },
     },
   },
+  TagColor: {
+    prefix: "tag.color",
+    values: ["blue-gray", "red", "deep-orange", "yellow", "green", "sky-blue", "bright-blue", "violet", "purple", "magenta", "brown"],
+    labels: {
+      "en": { "blue-gray": "Blue gray", red: "Red", "deep-orange": "Deep orange", yellow: "Yellow", green: "Green", "sky-blue": "Sky blue", "bright-blue": "Bright blue", violet: "Violet", purple: "Purple", magenta: "Magenta", brown: "Brown" },
+      "zh-CN": { "blue-gray": "灰蓝", red: "红色", "deep-orange": "深橙", yellow: "黄色", green: "绿色", "sky-blue": "天蓝", "bright-blue": "亮蓝", violet: "紫罗兰", purple: "紫色", magenta: "洋红", brown: "棕色" },
+    },
+  },
 } as const

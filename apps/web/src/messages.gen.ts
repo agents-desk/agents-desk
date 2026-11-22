@@ -4,6 +4,36 @@
 export const messages = {
   "en": {
     "app.web": "agents-desk",
+    "attributes.add": "New attribute",
+    "attributes.delete": "Delete",
+    "attributes.delete_confirm": "Delete attribute “{{.name}}”?",
+    "attributes.delete_message": "Values already saved on conversations and contacts stay intact, and the timeline is unaffected.",
+    "attributes.deleted": "Attribute deleted",
+    "attributes.description": "Define custom fields for conversations and contacts to record business info, filter, and report on later.",
+    "attributes.description_label": "Description",
+    "attributes.description_placeholder": "e.g. Related order number",
+    "attributes.details": "Options / Description",
+    "attributes.edit": "Edit attribute",
+    "attributes.empty": "No custom attributes yet",
+    "attributes.key": "Key",
+    "attributes.key_hint": "Starts with a lowercase letter, using lowercase letters, digits, and underscores. Fixed once created",
+    "attributes.key_invalid": "Start with a lowercase letter and use only lowercase letters, digits, and underscores",
+    "attributes.key_locked": "Fixed once created",
+    "attributes.key_placeholder": "e.g. order_no",
+    "attributes.move_down": "Move down",
+    "attributes.move_up": "Move up",
+    "attributes.name": "Name",
+    "attributes.name_placeholder": "e.g. Order number",
+    "attributes.name_required": "Enter a name",
+    "attributes.options": "Options",
+    "attributes.options_hint": "Type an option and press Enter to add",
+    "attributes.options_placeholder": "Type an option and press Enter",
+    "attributes.options_required": "Add at least one option",
+    "attributes.target_contact": "Contact attributes",
+    "attributes.target_conversation": "Conversation attributes",
+    "attributes.title": "Attributes",
+    "attributes.type": "Type",
+    "attributes.type_locked": "Fixed once created",
     "business_hours.add_date": "Add date",
     "business_hours.closed": "Closed all day",
     "business_hours.date": "Date",
@@ -29,7 +59,18 @@ export const messages = {
     "contacts.placeholder": "The contact list and profiles come with the contacts work (U1).",
     "event.assigned": "{{.who}} assigned the conversation to {{.assignee}}",
     "event.assigned_team_member": "{{.who}} moved the conversation to {{.team}} and assigned it to {{.assignee}}",
+    "event.attr_changed": "{{.name}}: {{.from}} → {{.to}}",
+    "event.attr_cleared": "cleared {{.name}}",
+    "event.attr_no": "No",
+    "event.attr_set": "{{.name}} set to {{.to}}",
+    "event.attr_yes": "Yes",
     "event.closed": "{{.who}} closed the conversation",
+    "event.contact_attrs_changed": "{{.who}} updated contact attributes: {{.changes}}",
+    "event.contact_tag_added": "{{.who}} added tag {{.tag}} to the contact",
+    "event.contact_tag_removed": "{{.who}} removed tag {{.tag}} from the contact",
+    "event.conv_attrs_changed": "{{.who}} updated conversation attributes: {{.changes}}",
+    "event.conv_tag_added": "{{.who}} added tag {{.tag}}",
+    "event.conv_tag_removed": "{{.who}} removed tag {{.tag}}",
     "event.customer": "The customer",
     "event.language_auto": "{{.who}} set the customer's language back to automatic detection",
     "event.language_set": "{{.who}} set the customer's language to {{.lang}}",
@@ -89,12 +130,20 @@ export const messages = {
     "hours.time_zone_hint": "Business hours follow the clock in this time zone",
     "hours.week": "Weekly hours",
     "inbox.add_note": "Add note",
+    "inbox.add_tag": "Add tag",
+    "inbox.all_tags": "All tags",
     "inbox.assign": "Assign",
     "inbox.assign_me": "Assign to me",
     "inbox.assign_members": "Members",
     "inbox.assign_teams": "Team inboxes",
     "inbox.assigned_to": "Assigned to {{.who}}",
     "inbox.assignee": "Assignee",
+    "inbox.attr_empty": "Not set",
+    "inbox.attr_no": "No",
+    "inbox.attr_number_placeholder": "Enter number",
+    "inbox.attr_select": "Select",
+    "inbox.attr_text_placeholder": "Enter value",
+    "inbox.attr_yes": "Yes",
     "inbox.away": "Away",
     "inbox.back": "Back to conversations",
     "inbox.back_translation": "Back translation",
@@ -139,6 +188,7 @@ export const messages = {
     "inbox.next_waiting": "Next waiting conversation",
     "inbox.no_assignee": "No assignee",
     "inbox.no_history": "No other conversations",
+    "inbox.no_tags": "No tags to add",
     "inbox.no_team": "No team inbox",
     "inbox.no_translation": "Don't translate",
     "inbox.no_translation_needed": "Same language as yours, sends your original text",
@@ -153,6 +203,7 @@ export const messages = {
     "inbox.priority_high": "High",
     "inbox.priority_normal": "Normal",
     "inbox.rating": "Rating",
+    "inbox.remove_tag": "Remove tag {{.tag}}",
     "inbox.reopen": "Reopen",
     "inbox.reply_placeholder": "Type a reply…",
     "inbox.retranslating": "Text changed, translating again",
@@ -184,6 +235,8 @@ export const messages = {
     "inbox.status_closed": "Closed",
     "inbox.status_open": "Open",
     "inbox.status_snoozed": "Snoozed",
+    "inbox.tag_filter": "Filter by tag",
+    "inbox.tags": "Tags",
     "inbox.team": "Team inbox",
     "inbox.teams": "Team inboxes",
     "inbox.text_shown": "Show messages translated or original",
@@ -201,6 +254,7 @@ export const messages = {
     "login.title": "Sign in",
     "members.no_roles": "No roles yet. Create one in “Roles” first",
     "members.password_hint": "Required when this email has no account yet. Share it with the person yourself",
+    "nav.attributes": "Attributes",
     "nav.contacts": "Contacts",
     "nav.general": "General",
     "nav.inbox": "Inbox",
@@ -212,6 +266,7 @@ export const messages = {
     "nav.settings": "Settings",
     "nav.status": "Status",
     "nav.switch_tenant": "Switch workspace",
+    "nav.tags": "Tags",
     "nav.team_inboxes": "Team inboxes",
     "nav.widgets": "Website chat widgets",
     "preferences.follow_browser": "Follow the browser (currently {{.zone}})",
@@ -239,6 +294,7 @@ export const messages = {
     "roles.description": "The owner has every permission and is set by a platform admin. A role that members still use stays until you give those members another role.",
     "roles.permissions_hint": "Every role can view members and team inboxes, and view and reply to the conversations it can see",
     "settings.group_channels": "Channels",
+    "settings.group_data": "Data",
     "settings.group_inbox": "Inbox",
     "settings.group_personal": "Personal",
     "settings.group_translation": "Translation",
@@ -247,6 +303,7 @@ export const messages = {
     "status.reassign": "Reassign my conversations",
     "status.reassign_hint": "When the customer writes again, the conversation goes back to its team inbox to be reassigned",
     "status_page.description": "Set separately for each workspace. Changes take effect immediately.",
+    "tags.description": "Tags can be applied to conversations and contacts for categorization, filtering, and reporting. Deleting a tag removes it from tagged conversations and contacts.",
     "team_hours.custom": "Set its own time zone and weekly hours",
     "team_hours.hint": "Special dates and reply time apply to the whole workspace. Change them in “Settings → Business hours”.",
     "team_hours.label": "Business hours",
@@ -315,6 +372,36 @@ export const messages = {
   },
   "zh-CN": {
     "app.web": "agents-desk",
+    "attributes.add": "新建属性",
+    "attributes.delete": "删除",
+    "attributes.delete_confirm": "删除属性“{{.name}}”？",
+    "attributes.delete_message": "历史会话和联系人上已保存的值会保留，时间线记录不受影响。",
+    "attributes.deleted": "已删除属性",
+    "attributes.description": "为会话和联系人定义自定义字段，便于坐席记录业务信息、筛选和后续统计。",
+    "attributes.description_label": "说明",
+    "attributes.description_placeholder": "例如 关联的业务订单编号",
+    "attributes.details": "选项 / 说明",
+    "attributes.edit": "编辑属性",
+    "attributes.empty": "还没有自定义属性",
+    "attributes.key": "标识",
+    "attributes.key_hint": "小写字母开头，可包含小写字母、数字和下划线，创建后不能修改",
+    "attributes.key_invalid": "请输入以小写字母开头、只含小写字母、数字和下划线的标识",
+    "attributes.key_locked": "创建后不能修改",
+    "attributes.key_placeholder": "例如 order_no",
+    "attributes.move_down": "下移",
+    "attributes.move_up": "上移",
+    "attributes.name": "名称",
+    "attributes.name_placeholder": "例如 订单号",
+    "attributes.name_required": "请填写属性名称",
+    "attributes.options": "可选项",
+    "attributes.options_hint": "输入选项后按回车添加",
+    "attributes.options_placeholder": "输入选项并按回车",
+    "attributes.options_required": "请至少添加一个选项",
+    "attributes.target_contact": "联系人属性",
+    "attributes.target_conversation": "会话属性",
+    "attributes.title": "属性",
+    "attributes.type": "类型",
+    "attributes.type_locked": "创建后不能修改",
     "business_hours.add_date": "添加日期",
     "business_hours.closed": "全天不上班",
     "business_hours.date": "日期",
@@ -340,7 +427,18 @@ export const messages = {
     "contacts.placeholder": "联系人的列表和资料在联系人的开发（U1）中加入。",
     "event.assigned": "{{.who}} 把会话指派给 {{.assignee}}",
     "event.assigned_team_member": "{{.who}} 把会话转到 {{.team}}，指派给 {{.assignee}}",
+    "event.attr_changed": "{{.name}}：{{.from}} → {{.to}}",
+    "event.attr_cleared": "清空了 {{.name}}",
+    "event.attr_no": "否",
+    "event.attr_set": "{{.name}} 设为 {{.to}}",
+    "event.attr_yes": "是",
     "event.closed": "{{.who}} 关闭了会话",
+    "event.contact_attrs_changed": "{{.who}} 修改了联系人属性：{{.changes}}",
+    "event.contact_tag_added": "{{.who}} 给联系人添加了标签 {{.tag}}",
+    "event.contact_tag_removed": "{{.who}} 移除了联系人标签 {{.tag}}",
+    "event.conv_attrs_changed": "{{.who}} 修改了会话属性：{{.changes}}",
+    "event.conv_tag_added": "{{.who}} 给会话添加了标签 {{.tag}}",
+    "event.conv_tag_removed": "{{.who}} 移除了会话标签 {{.tag}}",
     "event.customer": "客户",
     "event.language_auto": "{{.who}} 把对方的语言改回自动识别",
     "event.language_set": "{{.who}} 把对方的语言改为 {{.lang}}",
@@ -400,12 +498,20 @@ export const messages = {
     "hours.time_zone_hint": "工作时间按这个时区的钟点计算",
     "hours.week": "每周的工作时间",
     "inbox.add_note": "添加备注",
+    "inbox.add_tag": "添加标签",
+    "inbox.all_tags": "全部标签",
     "inbox.assign": "指派",
     "inbox.assign_me": "指派给我",
     "inbox.assign_members": "成员",
     "inbox.assign_teams": "团队收件箱",
     "inbox.assigned_to": "负责人 {{.who}}",
     "inbox.assignee": "负责人",
+    "inbox.attr_empty": "未填写",
+    "inbox.attr_no": "否",
+    "inbox.attr_number_placeholder": "输入数字",
+    "inbox.attr_select": "请选择",
+    "inbox.attr_text_placeholder": "输入内容",
+    "inbox.attr_yes": "是",
     "inbox.away": "离开",
     "inbox.back": "返回会话列表",
     "inbox.back_translation": "回译",
@@ -450,6 +556,7 @@ export const messages = {
     "inbox.next_waiting": "下一个待回复",
     "inbox.no_assignee": "没有负责人",
     "inbox.no_history": "没有其他会话",
+    "inbox.no_tags": "没有可添加的标签",
     "inbox.no_team": "没有团队收件箱",
     "inbox.no_translation": "不翻译",
     "inbox.no_translation_needed": "和你的语言相同，发送原文",
@@ -464,6 +571,7 @@ export const messages = {
     "inbox.priority_high": "高",
     "inbox.priority_normal": "普通",
     "inbox.rating": "评价",
+    "inbox.remove_tag": "移除标签 {{.tag}}",
     "inbox.reopen": "重新打开",
     "inbox.reply_placeholder": "输入回复…",
     "inbox.retranslating": "原文改了，正在重新翻译",
@@ -495,6 +603,8 @@ export const messages = {
     "inbox.status_closed": "已关闭",
     "inbox.status_open": "打开",
     "inbox.status_snoozed": "稍后处理",
+    "inbox.tag_filter": "按标签筛选",
+    "inbox.tags": "标签",
     "inbox.team": "团队收件箱",
     "inbox.teams": "团队收件箱",
     "inbox.text_shown": "切换消息显示译文还是原文",
@@ -512,6 +622,7 @@ export const messages = {
     "login.title": "登录",
     "members.no_roles": "还没有角色，先在“角色”中新建",
     "members.password_hint": "这个邮箱还没有账号时必填，由你告诉本人",
+    "nav.attributes": "属性",
     "nav.contacts": "联系人",
     "nav.general": "常规",
     "nav.inbox": "收件箱",
@@ -523,6 +634,7 @@ export const messages = {
     "nav.settings": "设置",
     "nav.status": "在线状态",
     "nav.switch_tenant": "切换工作区",
+    "nav.tags": "标签",
     "nav.team_inboxes": "团队收件箱",
     "nav.widgets": "网页聊天插件",
     "preferences.follow_browser": "跟随浏览器（当前是 {{.zone}}）",
@@ -550,6 +662,7 @@ export const messages = {
     "roles.description": "主管理员拥有全部权限，由平台管理员指定。还有成员使用的角色不能删除，先把他们改成别的角色。",
     "roles.permissions_hint": "每个角色都能查看成员和团队收件箱、查看和回复看得到的会话",
     "settings.group_channels": "渠道",
+    "settings.group_data": "数据",
     "settings.group_inbox": "收件箱",
     "settings.group_personal": "个人",
     "settings.group_translation": "翻译",
@@ -558,6 +671,7 @@ export const messages = {
     "status.reassign": "把我的会话重新分配",
     "status.reassign_hint": "对方再发来消息时，会话回到团队收件箱重新分配",
     "status_page.description": "每个工作区分开设置。修改后立即生效。",
+    "tags.description": "标签可以打在会话和联系人上，用于分类、筛选和统计。删除标签会同时从已打标的会话和联系人上移除。",
     "team_hours.custom": "单独设置时区和每周的工作时间",
     "team_hours.hint": "特殊日期和回复时间对整个工作区有效，在“设置 → 工作时间”中修改。",
     "team_hours.label": "工作时间",
@@ -629,6 +743,36 @@ export const messages = {
 /** 界面文字的消息 ID。 */
 export type MessageId =
   | "app.web"
+  | "attributes.add"
+  | "attributes.delete"
+  | "attributes.delete_confirm"
+  | "attributes.delete_message"
+  | "attributes.deleted"
+  | "attributes.description"
+  | "attributes.description_label"
+  | "attributes.description_placeholder"
+  | "attributes.details"
+  | "attributes.edit"
+  | "attributes.empty"
+  | "attributes.key"
+  | "attributes.key_hint"
+  | "attributes.key_invalid"
+  | "attributes.key_locked"
+  | "attributes.key_placeholder"
+  | "attributes.move_down"
+  | "attributes.move_up"
+  | "attributes.name"
+  | "attributes.name_placeholder"
+  | "attributes.name_required"
+  | "attributes.options"
+  | "attributes.options_hint"
+  | "attributes.options_placeholder"
+  | "attributes.options_required"
+  | "attributes.target_contact"
+  | "attributes.target_conversation"
+  | "attributes.title"
+  | "attributes.type"
+  | "attributes.type_locked"
   | "business_hours.add_date"
   | "business_hours.closed"
   | "business_hours.date"
@@ -654,7 +798,18 @@ export type MessageId =
   | "contacts.placeholder"
   | "event.assigned"
   | "event.assigned_team_member"
+  | "event.attr_changed"
+  | "event.attr_cleared"
+  | "event.attr_no"
+  | "event.attr_set"
+  | "event.attr_yes"
   | "event.closed"
+  | "event.contact_attrs_changed"
+  | "event.contact_tag_added"
+  | "event.contact_tag_removed"
+  | "event.conv_attrs_changed"
+  | "event.conv_tag_added"
+  | "event.conv_tag_removed"
   | "event.customer"
   | "event.language_auto"
   | "event.language_set"
@@ -714,12 +869,20 @@ export type MessageId =
   | "hours.time_zone_hint"
   | "hours.week"
   | "inbox.add_note"
+  | "inbox.add_tag"
+  | "inbox.all_tags"
   | "inbox.assign"
   | "inbox.assign_me"
   | "inbox.assign_members"
   | "inbox.assign_teams"
   | "inbox.assigned_to"
   | "inbox.assignee"
+  | "inbox.attr_empty"
+  | "inbox.attr_no"
+  | "inbox.attr_number_placeholder"
+  | "inbox.attr_select"
+  | "inbox.attr_text_placeholder"
+  | "inbox.attr_yes"
   | "inbox.away"
   | "inbox.back"
   | "inbox.back_translation"
@@ -764,6 +927,7 @@ export type MessageId =
   | "inbox.next_waiting"
   | "inbox.no_assignee"
   | "inbox.no_history"
+  | "inbox.no_tags"
   | "inbox.no_team"
   | "inbox.no_translation"
   | "inbox.no_translation_needed"
@@ -778,6 +942,7 @@ export type MessageId =
   | "inbox.priority_high"
   | "inbox.priority_normal"
   | "inbox.rating"
+  | "inbox.remove_tag"
   | "inbox.reopen"
   | "inbox.reply_placeholder"
   | "inbox.retranslating"
@@ -809,6 +974,8 @@ export type MessageId =
   | "inbox.status_closed"
   | "inbox.status_open"
   | "inbox.status_snoozed"
+  | "inbox.tag_filter"
+  | "inbox.tags"
   | "inbox.team"
   | "inbox.teams"
   | "inbox.text_shown"
@@ -826,6 +993,7 @@ export type MessageId =
   | "login.title"
   | "members.no_roles"
   | "members.password_hint"
+  | "nav.attributes"
   | "nav.contacts"
   | "nav.general"
   | "nav.inbox"
@@ -837,6 +1005,7 @@ export type MessageId =
   | "nav.settings"
   | "nav.status"
   | "nav.switch_tenant"
+  | "nav.tags"
   | "nav.team_inboxes"
   | "nav.widgets"
   | "preferences.follow_browser"
@@ -864,6 +1033,7 @@ export type MessageId =
   | "roles.description"
   | "roles.permissions_hint"
   | "settings.group_channels"
+  | "settings.group_data"
   | "settings.group_inbox"
   | "settings.group_personal"
   | "settings.group_translation"
@@ -872,6 +1042,7 @@ export type MessageId =
   | "status.reassign"
   | "status.reassign_hint"
   | "status_page.description"
+  | "tags.description"
   | "team_hours.custom"
   | "team_hours.hint"
   | "team_hours.label"

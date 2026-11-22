@@ -27,6 +27,28 @@ export function whoDid(it: ConversationItemDTO, members: Map<string, MemberTenan
   return t("event.system")
 }
 
+/** formatAttrValue 把时间线属性变更中的值格式化成可读文字。 */
+function formatAttrValue(v: unknown, t: T): string {
+  if (typeof v === "boolean") return t(v ? "event.attr_yes" : "event.attr_no")
+  if (Array.isArray(v)) return v.map((x) => String(x)).join(", ")
+  return String(v)
+}
+
+/** formatAttrChanges 把一次属性修改中的各项变更拼成可读摘要。 */
+function formatAttrChanges(raw: unknown, t: T): string {
+  if (!Array.isArray(raw)) return ""
+  return raw
+    .map((item) => {
+      const ch = item as { key?: string; name?: string; from?: unknown; to?: unknown }
+      const name = ch.name || ch.key || ""
+      if (ch.to === null || ch.to === undefined) return t("event.attr_cleared", { name })
+      if (ch.from === null || ch.from === undefined) return t("event.attr_set", { name, to: formatAttrValue(ch.to, t) })
+      return t("event.attr_changed", { name, from: formatAttrValue(ch.from, t), to: formatAttrValue(ch.to, t) })
+    })
+    .filter(Boolean)
+    .join(", ")
+}
+
 /** describeEvent 返回系统事件 it 的一句话，语言名按界面语言 ui。不认识的事件显示事件名，以后加的事件不会显示成空白。 */
 export function describeEvent(it: ConversationItemDTO, members: Map<string, MemberTenantMember>, names: Names, t: T, ui: string): string {
   const who = whoDid(it, members, t)
@@ -57,6 +79,18 @@ export function describeEvent(it: ConversationItemDTO, members: Map<string, Memb
       return t("event.language_set", { who, lang: languageName(String(d.to), ui) })
     case "conversation.language_auto":
       return t("event.language_auto", { who })
+    case "conversation.tag_added":
+      return t("event.conv_tag_added", { who, tag: String(d.name ?? "") })
+    case "conversation.tag_removed":
+      return t("event.conv_tag_removed", { who, tag: String(d.name ?? "") })
+    case "conversation.attributes_changed":
+      return t("event.conv_attrs_changed", { who, changes: formatAttrChanges(d.changes, t) })
+    case "contact.tag_added":
+      return t("event.contact_tag_added", { who, tag: String(d.name ?? "") })
+    case "contact.tag_removed":
+      return t("event.contact_tag_removed", { who, tag: String(d.name ?? "") })
+    case "contact.attributes_changed":
+      return t("event.contact_attrs_changed", { who, changes: formatAttrChanges(d.changes, t) })
     case "conversation.rated":
       return d.comment
         ? t("event.rated_comment", { score: Number(d.score), comment: String(d.comment) })

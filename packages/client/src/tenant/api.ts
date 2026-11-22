@@ -5,6 +5,45 @@ import { Runtime, type ClientOptions, type Download, type SessionLike, type Stre
 export * from "./errors"
 export { ApiError, isApiError, saveBlob, type ClientOptions, type Download, type SessionLike, type FieldError, type StreamOptions } from "./runtime"
 
+export interface AttributeCreateParams {
+  description?: string
+  /** 属性标识，小写字母开头，可包含小写字母、数字和下划线；创建后不可修改 */
+  key: string
+  name: string
+  /** 单选或多选属性的可选项 */
+  options?: string[]
+  /** 展示顺序，不填时排在最后 */
+  position?: number
+  /** 属性所属对象（conversation 或 contact） */
+  target: AttributeTarget
+  /** 属性的数据类型；创建后不可修改 */
+  type: AttributeType
+}
+
+export interface AttributeDTO {
+  description: string
+  id: string
+  key: string
+  name: string
+  options: string[]
+  position: number
+  target: AttributeTarget
+  type: AttributeType
+}
+
+export type AttributeTarget = "conversation" | "contact"
+
+export type AttributeType = "text" | "number" | "boolean" | "date" | "select" | "multi_select"
+
+export interface AttributeUpdateParams {
+  description?: string
+  name: string
+  /** 单选或多选属性的可选项 */
+  options?: string[]
+  /** 展示顺序；不填时保持不变 */
+  position?: number
+}
+
 export type ChannelKind = "test" | "widget"
 
 export interface ChannelSummary {
@@ -16,6 +55,8 @@ export interface ChannelSummary {
 export type ContactKind = "user" | "lead"
 
 export interface ContactSummary {
+  /** 联系人的自定义属性 */
+  attributes: Record<string, unknown>
   email: string
   id: string
   kind: ContactKind
@@ -24,6 +65,8 @@ export interface ContactSummary {
   /** 对方的语言是成员手动设置的：收到的消息不再改它 */
   language_manual: boolean
   name: string
+  /** 联系人上的标签 */
+  tags: TagSummary[]
 }
 
 export interface ConversationActor {
@@ -33,11 +76,20 @@ export interface ConversationActor {
 
 export type ConversationActorType = "contact" | "member" | "system"
 
+export interface ConversationAddTagInputBody {
+  tag_id: string
+}
+
 export interface ConversationAssignment {
   /** 负责人（成员 ID）；空字符串表示没有负责人；不传时，转到别的团队收件箱则清空负责人，否则保持原样 */
   assignee_id?: string
   /** 团队收件箱的 ID；空字符串表示移出团队收件箱；不传表示保持原样 */
   team_id?: string
+}
+
+export interface ConversationAttributesInputBody {
+  /** 要更新的自定义属性，值为 null 时清空该属性 */
+  attributes: Record<string, unknown>
 }
 
 export interface ConversationBulkAssignInputBody {
@@ -81,6 +133,8 @@ export interface ConversationContent {
 export interface ConversationDTO {
   /** 负责人；为空表示没有负责人 */
   assignee?: ConversationActor
+  /** 会话的自定义属性 */
+  attributes: Record<string, unknown>
   /** 会话来自的渠道 */
   channel?: ChannelSummary
   closed_at?: string
@@ -112,6 +166,8 @@ export interface ConversationDTO {
   read_seq: number
   snoozed_until?: string
   status: ConversationStatus
+  /** 会话上的标签 */
+  tags: TagSummary[]
   /** 团队收件箱的 ID；为空表示未指派到团队 */
   team_id?: string
   /** 有我还没读到的消息或内部备注（不算我自己写的） */
@@ -382,6 +438,14 @@ export interface OffsetRoleDTO {
   total: number
 }
 
+export interface OffsetTagDTO {
+  items: TagDTO[]
+  page: number
+  per_page: number
+  /** Total number of items across all pages. */
+  total: number
+}
+
 export interface OffsetTeamDTO {
   items: TeamDTO[]
   page: number
@@ -420,6 +484,32 @@ export interface RoleParams {
 }
 
 export type RolePermission = "conversations:assign" | "members:manage" | "teams:manage" | "channels:manage" | "tenant-settings:manage"
+
+export interface TagChanges {
+  /** 标签的颜色，不填时是灰蓝 */
+  color?: TagColor
+  description?: string
+  name: string
+}
+
+export type TagColor = "blue-gray" | "red" | "deep-orange" | "yellow" | "green" | "sky-blue" | "bright-blue" | "violet" | "purple" | "magenta" | "brown"
+
+export interface TagDTO {
+  color: TagColor
+  /** 打了这个标签的联系人数 */
+  contact_count: number
+  /** 打了这个标签的会话数 */
+  conversation_count: number
+  description: string
+  id: string
+  name: string
+}
+
+export interface TagSummary {
+  color: TagColor
+  id: string
+  name: string
+}
 
 export type TeamAssignment = "manual" | "round_robin"
 
@@ -582,6 +672,12 @@ export interface WidgetUpdateBody {
   team_id?: string
 }
 
+/** attribute-list 的参数。 */
+export interface AttributeListInput {
+  /** 按对象筛选（conversation 或 contact）；不填返回全部 */
+  target?: AttributeTarget
+}
+
 /** conversation-items 的参数。 */
 export interface ConversationItemsInput {
   /** 只读取序号大于它的项；收到推送后用它增量读取 */
@@ -609,6 +705,8 @@ export interface ConversationListInput {
   contact_id?: string
   /** 只列出这个优先级的会话 */
   priority?: ConversationPriority
+  /** 只列出带有这个标签的会话 */
+  tag_id?: string
   /** 排序；@我 的列表总是最近被 @ 的在前 */
   sort?: ConversationSort
 }
@@ -627,6 +725,16 @@ export interface MemberListInput {
 
 /** role-list 的参数。 */
 export interface RoleListInput {
+  /** Page number, starting at 1. */
+  page?: number
+  /** Items per page. */
+  per_page?: number
+  /** 名称包含的文字 */
+  name?: string
+}
+
+/** tag-list 的参数。 */
+export interface TagListInput {
   /** Page number, starting at 1. */
   page?: number
   /** Items per page. */
@@ -659,6 +767,44 @@ export interface WidgetListInput {
 export function createClient(options: ClientOptions) {
   const rt = new Runtime(options)
   return {
+    /** operationId 以 attribute- 开头的接口。 */
+    attribute: {
+      /**
+       * 新建属性
+       *
+       * POST /attributes
+       */
+      create: (body: AttributeCreateParams): Promise<AttributeDTO> =>
+        rt.request<AttributeDTO>({ method: "POST", path: `/attributes`, body }),
+      /**
+       * 删除属性
+       *
+       * DELETE /attributes/{id}
+       */
+      delete: (id: string): Promise<void> =>
+        rt.request<void>({ method: "DELETE", path: `/attributes/${encodeURIComponent(id)}` }),
+      /**
+       * 读取属性
+       *
+       * GET /attributes/{id}
+       */
+      get: (id: string): Promise<AttributeDTO> =>
+        rt.request<AttributeDTO>({ method: "GET", path: `/attributes/${encodeURIComponent(id)}` }),
+      /**
+       * 属性列表
+       *
+       * GET /attributes
+       */
+      list: (input: AttributeListInput = {}): Promise<AttributeDTO[]> =>
+        rt.request<AttributeDTO[]>({ method: "GET", path: `/attributes`, query: { "target": input["target"] } }),
+      /**
+       * 修改属性
+       *
+       * PUT /attributes/{id}
+       */
+      update: (id: string, body: AttributeUpdateParams): Promise<AttributeDTO> =>
+        rt.request<AttributeDTO>({ method: "PUT", path: `/attributes/${encodeURIComponent(id)}`, body }),
+    },
     /** operationId 以 conversation- 开头的接口。 */
     conversation: {
       /**
@@ -668,6 +814,13 @@ export function createClient(options: ClientOptions) {
        */
       assign: (id: string, body: ConversationAssignment): Promise<ConversationDTO> =>
         rt.request<ConversationDTO>({ method: "PUT", path: `/conversations/${encodeURIComponent(id)}/assignment`, body }),
+      /**
+       * 修改会话属性
+       *
+       * PATCH /conversations/{id}/attributes
+       */
+      attributesPatch: (id: string, body: ConversationAttributesInputBody): Promise<ConversationDTO> =>
+        rt.request<ConversationDTO>({ method: "PATCH", path: `/conversations/${encodeURIComponent(id)}/attributes`, body }),
       /**
        * 批量指派
        *
@@ -689,6 +842,27 @@ export function createClient(options: ClientOptions) {
        */
       close: (id: string): Promise<ConversationDTO> =>
         rt.request<ConversationDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/close` }),
+      /**
+       * 修改联系人属性
+       *
+       * PATCH /conversations/{id}/contact/attributes
+       */
+      contactAttributesPatch: (id: string, body: ConversationAttributesInputBody): Promise<ConversationDTO> =>
+        rt.request<ConversationDTO>({ method: "PATCH", path: `/conversations/${encodeURIComponent(id)}/contact/attributes`, body }),
+      /**
+       * 给联系人添加标签
+       *
+       * POST /conversations/{id}/contact/tags
+       */
+      contactTagAdd: (id: string, body: ConversationAddTagInputBody): Promise<ConversationDTO> =>
+        rt.request<ConversationDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/contact/tags`, body }),
+      /**
+       * 移除联系人标签
+       *
+       * DELETE /conversations/{id}/contact/tags/{tag_id}
+       */
+      contactTagRemove: (id: string, tagID: string): Promise<ConversationDTO> =>
+        rt.request<ConversationDTO>({ method: "DELETE", path: `/conversations/${encodeURIComponent(id)}/contact/tags/${encodeURIComponent(tagID)}` }),
       /**
        * 读取会话
        *
@@ -723,7 +897,7 @@ export function createClient(options: ClientOptions) {
        * GET /conversations
        */
       list: (input: ConversationListInput = {}): Promise<CursorConversationDTO> =>
-        rt.request<CursorConversationDTO>({ method: "GET", path: `/conversations`, query: { "assignee_id": input["assignee_id"], "channel_id": input["channel_id"], "contact_id": input["contact_id"], "cursor": input["cursor"], "inbox": input["inbox"], "per_page": input["per_page"], "priority": input["priority"], "sort": input["sort"], "status": input["status"], "team_id": input["team_id"] } }),
+        rt.request<CursorConversationDTO>({ method: "GET", path: `/conversations`, query: { "assignee_id": input["assignee_id"], "channel_id": input["channel_id"], "contact_id": input["contact_id"], "cursor": input["cursor"], "inbox": input["inbox"], "per_page": input["per_page"], "priority": input["priority"], "sort": input["sort"], "status": input["status"], "tag_id": input["tag_id"], "team_id": input["team_id"] } }),
       /**
        * 写内部备注
        *
@@ -773,6 +947,20 @@ export function createClient(options: ClientOptions) {
        */
       snooze: (id: string, body: ConversationSnoozeInputBody): Promise<ConversationDTO> =>
         rt.request<ConversationDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/snooze`, body }),
+      /**
+       * 给会话添加标签
+       *
+       * POST /conversations/{id}/tags
+       */
+      tagAdd: (id: string, body: ConversationAddTagInputBody): Promise<ConversationDTO> =>
+        rt.request<ConversationDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/tags`, body }),
+      /**
+       * 移除会话标签
+       *
+       * DELETE /conversations/{id}/tags/{tag_id}
+       */
+      tagRemove: (id: string, tagID: string): Promise<ConversationDTO> =>
+        rt.request<ConversationDTO>({ method: "DELETE", path: `/conversations/${encodeURIComponent(id)}/tags/${encodeURIComponent(tagID)}` }),
     },
     /** operationId 以 hours- 开头的接口。 */
     hours: {
@@ -901,6 +1089,44 @@ export function createClient(options: ClientOptions) {
        */
       update: (id: string, body: RoleParams): Promise<RoleDTO> =>
         rt.request<RoleDTO>({ method: "PUT", path: `/roles/${encodeURIComponent(id)}`, body }),
+    },
+    /** operationId 以 tag- 开头的接口。 */
+    tag: {
+      /**
+       * 新建标签
+       *
+       * POST /tags
+       */
+      create: (body: TagChanges): Promise<TagDTO> =>
+        rt.request<TagDTO>({ method: "POST", path: `/tags`, body }),
+      /**
+       * 删除标签
+       *
+       * DELETE /tags/{id}
+       */
+      delete: (id: string): Promise<void> =>
+        rt.request<void>({ method: "DELETE", path: `/tags/${encodeURIComponent(id)}` }),
+      /**
+       * 读取标签
+       *
+       * GET /tags/{id}
+       */
+      get: (id: string): Promise<TagDTO> =>
+        rt.request<TagDTO>({ method: "GET", path: `/tags/${encodeURIComponent(id)}` }),
+      /**
+       * 标签列表
+       *
+       * GET /tags
+       */
+      list: (input: TagListInput = {}): Promise<OffsetTagDTO> =>
+        rt.request<OffsetTagDTO>({ method: "GET", path: `/tags`, query: { "name": input["name"], "page": input["page"], "per_page": input["per_page"] } }),
+      /**
+       * 修改标签
+       *
+       * PUT /tags/{id}
+       */
+      update: (id: string, body: TagChanges): Promise<TagDTO> =>
+        rt.request<TagDTO>({ method: "PUT", path: `/tags/${encodeURIComponent(id)}`, body }),
     },
     /** operationId 以 team- 开头的接口。 */
     team: {
