@@ -610,9 +610,8 @@ func TestCustomerLanguage(t *testing.T) {
 	}
 }
 
-// TestPrimaryLanguages 检查收到时的主要语言规则（占比不少于 25% 或并列最多，最多 3 种）：
-// 2 中 1 英时两种都预译（避免双语团队悬崖退化）；4 中 1 英（英文占 20%）时只预译中文，英文成员看到时补译，
-// 且纯补译只推送给英文成员（带 item_seq）不打扰中文成员。
+// TestPrimaryLanguages 检查收到时只预译工作区的主要语言（用的人最多的语言）：2 中 1 英时只预译中文，英文成员看到时补译，
+// 且纯补译只推送给英文成员（带 item_seq），中文成员收不到。
 func TestPrimaryLanguages(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -644,20 +643,9 @@ func TestPrimaryLanguages(t *testing.T) {
 		}
 	}
 
-	// 2 中 1 英（67% vs 33%）：两种语言占比均 >= 25%，收到时一起预译
+	// 2 中 1 英：收到时只预译中文
 	addZH("zh2")
-	both := f.receive(t, "sita", "mera order abhi tak nahi aaya")
 	job := NewIncoming(f.env.DB, f.locker, f.translator, f.down)
-	if err := job.Job(ctx, both); err != nil {
-		t.Fatal(err)
-	}
-	if tr, _ := f.item(t, both.ItemID).Derived["translations"].(map[string]any); tr["zh-CN"] == nil || tr["en"] == nil {
-		t.Fatalf("2 中 1 英应当同时预译中英：%+v", tr)
-	}
-
-	// 4 中 1 英（80% vs 20%）：英文成为少数派，收到时只预译中文
-	addZH("zh3")
-	addZH("zh4")
 	p := f.receive(t, "rahul", "mera order abhi tak nahi aaya")
 	if err := job.Job(ctx, p); err != nil {
 		t.Fatal(err)
