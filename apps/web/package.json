@@ -22,6 +22,7 @@
     "@go-tenon/host": "workspace:*",
     "@go-tenon/start": "workspace:*",
     "@go-tenon/ui": "workspace:*",
+    "@mantine/charts": "^9.8.1",
     "@mantine/core": "^9.8.1",
     "@mantine/dates": "^9.8.1",
     "@mantine/form": "^9.8.1",
@@ -38,7 +39,8 @@
     "dayjs": "^1.11.19",
     "mantine-datatable": "^9.8.1",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "recharts": "^3.11.0"
   },
   "devDependencies": {
     "@types/react": "^19.1.0",

@@ -452,6 +452,11 @@ export const messages = {
     "nav.preferences": "Preferences",
     "nav.profile": "Profile",
     "nav.reports": "Reports",
+    "nav.reports_conversations": "Conversations",
+    "nav.reports_members": "Members",
+    "nav.reports_response_time": "Response time",
+    "nav.reports_satisfaction": "Satisfaction",
+    "nav.reports_translation": "Translation",
     "nav.roles": "Roles",
     "nav.settings": "Settings",
     "nav.status": "Status",
@@ -487,7 +492,140 @@ export const messages = {
     "prompt.reply_time_hour": "We've got your message and typically reply within an hour.",
     "prompt.reply_time_hours": "We've got your message and typically reply in a few hours.",
     "prompt.reply_time_minutes": "We've got your message and typically reply in a few minutes.",
-    "reports.placeholder": "Reports come with the basic reports work (R1).",
+    "reports.all_channels": "All channels",
+    "reports.all_teams": "All teams",
+    "reports.avg_duration": "Avg latency",
+    "reports.avg_score": "Average score",
+    "reports.backlog_now": "Current backlog",
+    "reports.backlog_secondary": "{{.waiting}} waiting · {{.unassigned}} unassigned · {{.snoozed}} snoozed",
+    "reports.bucket_15m_1h": "15m–1h",
+    "reports.bucket_1h_4h": "1–4h",
+    "reports.bucket_4h_24h": "4–24h",
+    "reports.bucket_5m_15m": "5–15m",
+    "reports.bucket_gt_24h": "\u003e 24h",
+    "reports.bucket_lt_5m": "\u003c 5m",
+    "reports.by_channel": "By channel",
+    "reports.by_language": "By customer language",
+    "reports.by_model": "By model",
+    "reports.by_operation": "By operation",
+    "reports.by_tag": "By tag (Top 10)",
+    "reports.by_team": "By team inbox",
+    "reports.channel_disabled": "{{.name}} (disabled)",
+    "reports.clear_filters": "Reset filters",
+    "reports.closed_rounds": "Closed rounds",
+    "reports.col_assignee": "Assignee",
+    "reports.col_avg": "Avg",
+    "reports.col_avg_duration": "Avg latency",
+    "reports.col_avg_score": "Avg score",
+    "reports.col_calls": "Calls",
+    "reports.col_channel": "Channel",
+    "reports.col_closed": "Closed",
+    "reports.col_comment": "Comment",
+    "reports.col_contact": "Contact",
+    "reports.col_cost": "Cost (USD)",
+    "reports.col_created": "Created",
+    "reports.col_csat": "CSAT",
+    "reports.col_failed": "Failed",
+    "reports.col_frt_median": "FRT median",
+    "reports.col_kind": "Type",
+    "reports.col_language": "Language",
+    "reports.col_median": "Median",
+    "reports.col_member": "Member",
+    "reports.col_model": "Model",
+    "reports.col_open_assigned": "Open now",
+    "reports.col_operation": "Operation",
+    "reports.col_rated": "Ratings",
+    "reports.col_rated_at": "Rated at",
+    "reports.col_replies": "Replies",
+    "reports.col_res_median": "Resolution median",
+    "reports.col_round": "Round",
+    "reports.col_samples": "Samples",
+    "reports.col_score": "Rating",
+    "reports.col_success_rate": "Success rate",
+    "reports.col_team": "Team inbox",
+    "reports.col_tokens": "Tokens",
+    "reports.conv_created": "Created conversations",
+    "reports.conv_created_desc": "Service conversations created during the selected period.",
+    "reports.conv_desc": "Track created, reopened, and closed conversation volume, live backlog, and breakdowns by channel, team, tag, and language.",
+    "reports.conv_reopened": "Reopened rounds",
+    "reports.conv_reopened_desc": "Service rounds reopened after a previous close (round 2+).",
+    "reports.conv_rounds_sub": "{{.n}} total rounds opened",
+    "reports.conv_series_title": "Conversation trend",
+    "reports.cost_and_latency": "Translation cost",
+    "reports.cost_sub": "Avg {{.ms}} · {{.n}} billed calls",
+    "reports.csat_desc": "Share of 4-star and 5-star ratings out of all ratings.",
+    "reports.csat_label": "CSAT",
+    "reports.csat_sub": "{{.pos}} positive / {{.total}} total",
+    "reports.csat_trend": "CSAT trend",
+    "reports.delta_pp": "{{.v}} pp",
+    "reports.detected_languages": "Detected customer languages",
+    "reports.disabled_badge": "Disabled",
+    "reports.empty": "No data for the selected period",
+    "reports.filter_all_ratings": "All",
+    "reports.filter_negative": "Negative (1–2★)",
+    "reports.filter_neutral": "Neutral (3★)",
+    "reports.filter_positive": "Positive (4–5★)",
+    "reports.frt_buckets": "First reply time distribution",
+    "reports.frt_desc": "Wall-clock duration from round open to the first customer-visible reply.",
+    "reports.frt_median": "First reply median",
+    "reports.frt_p90": "First reply P90",
+    "reports.lang_unknown": "Unknown",
+    "reports.load_failed": "Failed to load report data. Please try again.",
+    "reports.member_active": "Active members",
+    "reports.member_active_sub": "{{.total}} members listed",
+    "reports.member_chart_title": "Workload comparison",
+    "reports.member_desc": "Closed rounds, replies sent, response times, and CSAT per member. First reply time is attributed to the actual first responder.",
+    "reports.member_removed": "Removed",
+    "reports.member_table_title": "Member performance",
+    "reports.member_team_csat": "Team CSAT {{.v}}",
+    "reports.member_team_frt": "Team FRT median",
+    "reports.metric_calls": "Calls",
+    "reports.metric_cost": "Cost",
+    "reports.metric_tokens": "Tokens",
+    "reports.no_comment": "No comment",
+    "reports.no_team": "Unassigned",
+    "reports.op_back_translate": "Back-translation",
+    "reports.op_fill": "History backfill",
+    "reports.op_incoming": "Incoming message",
+    "reports.op_other": "Other",
+    "reports.op_reply": "Agent reply",
+    "reports.open_conversation": "Open",
+    "reports.period_range": "{{.from}} to {{.to}} · {{.tz}}",
+    "reports.rated_count": "Ratings received",
+    "reports.ratings_list": "Customer ratings",
+    "reports.replies_sent": "Replies sent",
+    "reports.reply_languages": "Reply target languages",
+    "reports.res_buckets": "Resolution time distribution",
+    "reports.res_desc": "Wall-clock duration from round open to round close.",
+    "reports.res_median": "Resolution median",
+    "reports.res_p90": "Resolution P90",
+    "reports.response_rate": "Response rate",
+    "reports.response_rate_sub": "{{.closed}} closed rounds",
+    "reports.response_time_desc": "First reply time (FRT) and resolution time percentiles, trends, histograms, and team/channel comparisons.",
+    "reports.response_time_series": "Median response time trend",
+    "reports.round_badge": "Round {{.n}}",
+    "reports.samples_avg_only": "Avg {{.avg}} · {{.n}} samples",
+    "reports.samples_avg_p90": "Avg {{.avg}} · P90 {{.p90}} · {{.n}} samples",
+    "reports.samples_short": "{{.n}} samples",
+    "reports.satisfaction_desc": "Customer satisfaction (CSAT), average rating, star distribution, trend, and paginated customer comments.",
+    "reports.score_distribution": "Rating distribution",
+    "reports.score_out_of": "Out of 5.0",
+    "reports.score_star": "{{.n}} star",
+    "reports.series_closed": "Closed",
+    "reports.series_created": "Created",
+    "reports.series_failed": "Failed",
+    "reports.series_frt": "First reply median",
+    "reports.series_reopened": "Reopened",
+    "reports.series_res": "Resolution median",
+    "reports.success_rate": "Success rate",
+    "reports.success_rate_sub": "{{.failed}} failed",
+    "reports.team_disabled": "{{.name}} (disabled)",
+    "reports.tokens_sub": "Prompt {{.prompt}} · Completion {{.completion}}",
+    "reports.tokens_total": "Total tokens",
+    "reports.translation_calls": "Translation calls",
+    "reports.translation_calls_sub": "{{.ok}} succeeded · {{.failed}} failed",
+    "reports.translation_desc": "Translation model calls, success rate, token usage, cost, latency, and language distributions.",
+    "reports.translation_series": "Translation trend",
     "roles.description": "The owner has every permission and is set by a platform admin. A role that members still use stays until you give those members another role.",
     "roles.permissions_hint": "Every role can view members and team inboxes, and view and reply to the conversations it can see",
     "settings.group_automation": "Automation",
@@ -1026,6 +1164,11 @@ export const messages = {
     "nav.preferences": "偏好设置",
     "nav.profile": "个人资料",
     "nav.reports": "报表",
+    "nav.reports_conversations": "会话",
+    "nav.reports_members": "成员",
+    "nav.reports_response_time": "响应时间",
+    "nav.reports_satisfaction": "满意度",
+    "nav.reports_translation": "翻译",
     "nav.roles": "角色",
     "nav.settings": "设置",
     "nav.status": "在线状态",
@@ -1061,7 +1204,140 @@ export const messages = {
     "prompt.reply_time_hour": "我们已收到你的消息，通常会在一小时内回复。",
     "prompt.reply_time_hours": "我们已收到你的消息，通常会在几小时内回复。",
     "prompt.reply_time_minutes": "我们已收到你的消息，通常会在几分钟内回复。",
-    "reports.placeholder": "各张报表在基础报表的开发（R1）中加入。",
+    "reports.all_channels": "全部渠道",
+    "reports.all_teams": "全部团队",
+    "reports.avg_duration": "平均耗时",
+    "reports.avg_score": "平均评分",
+    "reports.backlog_now": "当前积压",
+    "reports.backlog_secondary": "待回复 {{.waiting}} · 未指派 {{.unassigned}} · 稍后 {{.snoozed}}",
+    "reports.bucket_15m_1h": "15 分–1 小时",
+    "reports.bucket_1h_4h": "1–4 小时",
+    "reports.bucket_4h_24h": "4–24 小时",
+    "reports.bucket_5m_15m": "5–15 分",
+    "reports.bucket_gt_24h": "超过 24 小时",
+    "reports.bucket_lt_5m": "5 分钟内",
+    "reports.by_channel": "按渠道分布",
+    "reports.by_language": "按客户语言分布",
+    "reports.by_model": "按模型分布",
+    "reports.by_operation": "按调用场景分布",
+    "reports.by_tag": "按标签分布（Top 10）",
+    "reports.by_team": "按团队收件箱分布",
+    "reports.channel_disabled": "{{.name}}（已停用）",
+    "reports.clear_filters": "重置筛选",
+    "reports.closed_rounds": "关闭轮次",
+    "reports.col_assignee": "负责人",
+    "reports.col_avg": "均值",
+    "reports.col_avg_duration": "平均耗时",
+    "reports.col_avg_score": "平均分",
+    "reports.col_calls": "调用数",
+    "reports.col_channel": "渠道",
+    "reports.col_closed": "关闭轮次",
+    "reports.col_comment": "评价意见",
+    "reports.col_contact": "联系人",
+    "reports.col_cost": "费用（USD）",
+    "reports.col_created": "新建会话",
+    "reports.col_csat": "满意度",
+    "reports.col_failed": "失败",
+    "reports.col_frt_median": "首响中位数",
+    "reports.col_kind": "类型",
+    "reports.col_language": "语言",
+    "reports.col_median": "中位数",
+    "reports.col_member": "成员",
+    "reports.col_model": "模型",
+    "reports.col_open_assigned": "当前待处理",
+    "reports.col_operation": "场景",
+    "reports.col_rated": "评价数",
+    "reports.col_rated_at": "评价时间",
+    "reports.col_replies": "发出回复",
+    "reports.col_res_median": "解决中位数",
+    "reports.col_round": "轮次",
+    "reports.col_samples": "样本数",
+    "reports.col_score": "星级",
+    "reports.col_success_rate": "成功率",
+    "reports.col_team": "团队收件箱",
+    "reports.col_tokens": "Token",
+    "reports.conv_created": "新建会话",
+    "reports.conv_created_desc": "统计期内新创建的服务型会话总数。",
+    "reports.conv_desc": "统计服务型会话的新建、重开、关闭趋势，以及当前实时积压和各维度分布。",
+    "reports.conv_reopened": "重新打开",
+    "reports.conv_reopened_desc": "已关闭后再次打开的服务轮次数（第 2 轮及以上）。",
+    "reports.conv_rounds_sub": "共开启 {{.n}} 轮服务",
+    "reports.conv_series_title": "会话趋势",
+    "reports.cost_and_latency": "翻译费用",
+    "reports.cost_sub": "平均耗时 {{.ms}} · {{.n}} 次含计费",
+    "reports.csat_desc": "4 星与 5 星评价占全部评价的比例。",
+    "reports.csat_label": "满意度（CSAT）",
+    "reports.csat_sub": "好评 {{.pos}} / 共 {{.total}} 条",
+    "reports.csat_trend": "满意度趋势",
+    "reports.delta_pp": "{{.v}} 百分点",
+    "reports.detected_languages": "客户消息识别语言",
+    "reports.disabled_badge": "已停用",
+    "reports.empty": "所选时间范围内暂无数据",
+    "reports.filter_all_ratings": "全部",
+    "reports.filter_negative": "差评（1–2 星）",
+    "reports.filter_neutral": "中评（3 星）",
+    "reports.filter_positive": "好评（4–5 星）",
+    "reports.frt_buckets": "首次回复时长分布",
+    "reports.frt_desc": "每轮服务从打开到首次客户可见回复的自然时长。",
+    "reports.frt_median": "首次回复中位数",
+    "reports.frt_p90": "首次回复 P90",
+    "reports.lang_unknown": "未识别",
+    "reports.load_failed": "加载报表数据失败，请稍后重试。",
+    "reports.member_active": "活跃成员",
+    "reports.member_active_sub": "共 {{.total}} 名成员",
+    "reports.member_chart_title": "成员工作量对比",
+    "reports.member_desc": "按成员统计关闭轮次、回复量、首响与解决时长及客户满意度；首响按实际首次回复人归因。",
+    "reports.member_removed": "已移出",
+    "reports.member_table_title": "成员绩效明细",
+    "reports.member_team_csat": "团队满意度 {{.v}}",
+    "reports.member_team_frt": "团队首响中位数",
+    "reports.metric_calls": "调用量",
+    "reports.metric_cost": "费用",
+    "reports.metric_tokens": "Token",
+    "reports.no_comment": "无文字意见",
+    "reports.no_team": "未归属团队",
+    "reports.op_back_translate": "回译确认",
+    "reports.op_fill": "历史补译",
+    "reports.op_incoming": "客户消息翻译",
+    "reports.op_other": "其他",
+    "reports.op_reply": "成员回复翻译",
+    "reports.open_conversation": "查看会话",
+    "reports.period_range": "{{.from}} 至 {{.to}} · {{.tz}}",
+    "reports.rated_count": "收到评价",
+    "reports.ratings_list": "评价明细",
+    "reports.replies_sent": "发出回复",
+    "reports.reply_languages": "回复目标语言",
+    "reports.res_buckets": "解决时长分布",
+    "reports.res_desc": "每轮服务从打开到关闭的自然时长。",
+    "reports.res_median": "解决时长中位数",
+    "reports.res_p90": "解决时长 P90",
+    "reports.response_rate": "参评率",
+    "reports.response_rate_sub": "关闭 {{.closed}} 轮",
+    "reports.response_time_desc": "统计首次回复时长（FRT）与解决时长的分位数、趋势、分布直方图及团队/渠道对比。",
+    "reports.response_time_series": "响应时长中位数趋势",
+    "reports.round_badge": "第 {{.n}} 轮",
+    "reports.samples_avg_only": "均值 {{.avg}} · {{.n}} 样本",
+    "reports.samples_avg_p90": "均值 {{.avg}} · P90 {{.p90}} · {{.n}} 样本",
+    "reports.samples_short": "{{.n}} 样本",
+    "reports.satisfaction_desc": "统计客户满意度（CSAT）、平均评分、星级分布、趋势及原始评价明细。",
+    "reports.score_distribution": "星级分布",
+    "reports.score_out_of": "满分 5.0",
+    "reports.score_star": "{{.n}} 星",
+    "reports.series_closed": "关闭轮次",
+    "reports.series_created": "新建会话",
+    "reports.series_failed": "失败调用",
+    "reports.series_frt": "首次回复中位数",
+    "reports.series_reopened": "重新打开",
+    "reports.series_res": "解决时长中位数",
+    "reports.success_rate": "调用成功率",
+    "reports.success_rate_sub": "失败 {{.failed}} 次",
+    "reports.team_disabled": "{{.name}}（已停用）",
+    "reports.tokens_sub": "输入 {{.prompt}} · 输出 {{.completion}}",
+    "reports.tokens_total": "Token 消耗",
+    "reports.translation_calls": "翻译调用",
+    "reports.translation_calls_sub": "成功 {{.ok}} · 失败 {{.failed}}",
+    "reports.translation_desc": "统计翻译模型调用量、成功率、Token 消耗、费用、耗时及语言分布。",
+    "reports.translation_series": "翻译调用趋势",
     "roles.description": "主管理员拥有全部权限，由平台管理员指定。还有成员使用的角色不能删除，先把他们改成别的角色。",
     "roles.permissions_hint": "每个角色都能查看成员和团队收件箱、查看和回复看得到的会话",
     "settings.group_automation": "自动化",
@@ -1603,6 +1879,11 @@ export type MessageId =
   | "nav.preferences"
   | "nav.profile"
   | "nav.reports"
+  | "nav.reports_conversations"
+  | "nav.reports_members"
+  | "nav.reports_response_time"
+  | "nav.reports_satisfaction"
+  | "nav.reports_translation"
   | "nav.roles"
   | "nav.settings"
   | "nav.status"
@@ -1638,7 +1919,140 @@ export type MessageId =
   | "prompt.reply_time_hour"
   | "prompt.reply_time_hours"
   | "prompt.reply_time_minutes"
-  | "reports.placeholder"
+  | "reports.all_channels"
+  | "reports.all_teams"
+  | "reports.avg_duration"
+  | "reports.avg_score"
+  | "reports.backlog_now"
+  | "reports.backlog_secondary"
+  | "reports.bucket_15m_1h"
+  | "reports.bucket_1h_4h"
+  | "reports.bucket_4h_24h"
+  | "reports.bucket_5m_15m"
+  | "reports.bucket_gt_24h"
+  | "reports.bucket_lt_5m"
+  | "reports.by_channel"
+  | "reports.by_language"
+  | "reports.by_model"
+  | "reports.by_operation"
+  | "reports.by_tag"
+  | "reports.by_team"
+  | "reports.channel_disabled"
+  | "reports.clear_filters"
+  | "reports.closed_rounds"
+  | "reports.col_assignee"
+  | "reports.col_avg"
+  | "reports.col_avg_duration"
+  | "reports.col_avg_score"
+  | "reports.col_calls"
+  | "reports.col_channel"
+  | "reports.col_closed"
+  | "reports.col_comment"
+  | "reports.col_contact"
+  | "reports.col_cost"
+  | "reports.col_created"
+  | "reports.col_csat"
+  | "reports.col_failed"
+  | "reports.col_frt_median"
+  | "reports.col_kind"
+  | "reports.col_language"
+  | "reports.col_median"
+  | "reports.col_member"
+  | "reports.col_model"
+  | "reports.col_open_assigned"
+  | "reports.col_operation"
+  | "reports.col_rated"
+  | "reports.col_rated_at"
+  | "reports.col_replies"
+  | "reports.col_res_median"
+  | "reports.col_round"
+  | "reports.col_samples"
+  | "reports.col_score"
+  | "reports.col_success_rate"
+  | "reports.col_team"
+  | "reports.col_tokens"
+  | "reports.conv_created"
+  | "reports.conv_created_desc"
+  | "reports.conv_desc"
+  | "reports.conv_reopened"
+  | "reports.conv_reopened_desc"
+  | "reports.conv_rounds_sub"
+  | "reports.conv_series_title"
+  | "reports.cost_and_latency"
+  | "reports.cost_sub"
+  | "reports.csat_desc"
+  | "reports.csat_label"
+  | "reports.csat_sub"
+  | "reports.csat_trend"
+  | "reports.delta_pp"
+  | "reports.detected_languages"
+  | "reports.disabled_badge"
+  | "reports.empty"
+  | "reports.filter_all_ratings"
+  | "reports.filter_negative"
+  | "reports.filter_neutral"
+  | "reports.filter_positive"
+  | "reports.frt_buckets"
+  | "reports.frt_desc"
+  | "reports.frt_median"
+  | "reports.frt_p90"
+  | "reports.lang_unknown"
+  | "reports.load_failed"
+  | "reports.member_active"
+  | "reports.member_active_sub"
+  | "reports.member_chart_title"
+  | "reports.member_desc"
+  | "reports.member_removed"
+  | "reports.member_table_title"
+  | "reports.member_team_csat"
+  | "reports.member_team_frt"
+  | "reports.metric_calls"
+  | "reports.metric_cost"
+  | "reports.metric_tokens"
+  | "reports.no_comment"
+  | "reports.no_team"
+  | "reports.op_back_translate"
+  | "reports.op_fill"
+  | "reports.op_incoming"
+  | "reports.op_other"
+  | "reports.op_reply"
+  | "reports.open_conversation"
+  | "reports.period_range"
+  | "reports.rated_count"
+  | "reports.ratings_list"
+  | "reports.replies_sent"
+  | "reports.reply_languages"
+  | "reports.res_buckets"
+  | "reports.res_desc"
+  | "reports.res_median"
+  | "reports.res_p90"
+  | "reports.response_rate"
+  | "reports.response_rate_sub"
+  | "reports.response_time_desc"
+  | "reports.response_time_series"
+  | "reports.round_badge"
+  | "reports.samples_avg_only"
+  | "reports.samples_avg_p90"
+  | "reports.samples_short"
+  | "reports.satisfaction_desc"
+  | "reports.score_distribution"
+  | "reports.score_out_of"
+  | "reports.score_star"
+  | "reports.series_closed"
+  | "reports.series_created"
+  | "reports.series_failed"
+  | "reports.series_frt"
+  | "reports.series_reopened"
+  | "reports.series_res"
+  | "reports.success_rate"
+  | "reports.success_rate_sub"
+  | "reports.team_disabled"
+  | "reports.tokens_sub"
+  | "reports.tokens_total"
+  | "reports.translation_calls"
+  | "reports.translation_calls_sub"
+  | "reports.translation_desc"
+  | "reports.translation_series"
   | "roles.description"
   | "roles.permissions_hint"
   | "settings.group_automation"
