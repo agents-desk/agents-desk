@@ -66,8 +66,13 @@ export interface ConversationContent {
   data?: Record<string, unknown>
   /** 系统事件的名称，例如 conversation.reopened */
   event?: string
+  /** text 的语言（BCP 47），只有翻译后发出的回复有 */
+  language?: string
   /** 内部备注中 @ 到的成员 ID */
   mentions?: string[]
+  /** 成员写的原文；只有翻译后发出的回复有 */
+  original?: string
+  /** 文字；翻译后发出的回复是发给对方的译文 */
   text?: string
 }
 
@@ -170,6 +175,13 @@ export interface ConversationReadInputBody {
   seq: number
 }
 
+export interface ConversationReplyBody {
+  /** 成员写的文字 */
+  text: string
+  /** 发给对方的译文，由翻译的预览给出、成员确认；不带时按原文发出 */
+  translation?: ConversationTranslation
+}
+
 export type ConversationScope = "all" | "team" | "assigned"
 
 export interface ConversationSnoozeInputBody {
@@ -201,7 +213,10 @@ export interface ConversationTeamSummary {
   waiting: number
 }
 
-export interface ConversationTextBody {
+export interface ConversationTranslation {
+  /** 译文的语言（BCP 47），例如 hi-Latn */
+  language: string
+  /** 发给对方的译文 */
   text: string
 }
 
@@ -443,6 +458,52 @@ export interface TenantGeneralSettings {
   name: string
 }
 
+export interface TranslationGlossaryInputBody {
+  glossary: TranslationTerm[]
+}
+
+export interface TranslationPreviewBody {
+  /** 发给对方的语言（BCP 47）；不填时取对方最近一条消息的语言 */
+  language?: string
+  /** 成员写的回复 */
+  text: string
+}
+
+export interface TranslationPreviewDTO {
+  /** 译文译回成员语言的结果，成员据此确认；不需要翻译时为空 */
+  back_translation: string
+  /** 成员的语言 */
+  from: string
+  /** 发给对方的语言；不需要翻译时可能为空 */
+  language: string
+  /** 是否需要翻译：对方的语言未知，或者与成员的语言相同时为 false，按原文发出 */
+  needed: boolean
+  /** 发给对方的译文；不需要翻译时等于原文 */
+  translation: string
+}
+
+export interface TranslationSettings {
+  /** 术语表 */
+  glossary: TranslationTerm[]
+  /** 回复译文的语气 */
+  tone: TranslationTone
+}
+
+export interface TranslationTerm {
+  /** 保持原样，不翻译 */
+  keep: boolean
+  /** 原文中的词，不区分大小写 */
+  term: string
+  /** 各语言的固定译法，键是语言（BCP 47），例如 zh-CN；保持原样时不用填 */
+  translations?: Record<string, string>
+}
+
+export type TranslationTone = "friendly" | "neutral" | "formal"
+
+export interface TranslationToneInputBody {
+  tone: TranslationTone
+}
+
 export interface WidgetChanges {
   /** 允许嵌入聊天窗口的网站，形如 https://shop.example.com；不填时所有网站都可以嵌入 */
   allowed_origins?: string[]
@@ -664,7 +725,7 @@ export function createClient(options: ClientOptions) {
        *
        * POST /conversations/{id}/replies
        */
-      reply: (id: string, body: ConversationTextBody): Promise<ConversationItemDTO> =>
+      reply: (id: string, body: ConversationReplyBody): Promise<ConversationItemDTO> =>
         rt.request<ConversationItemDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/replies`, body }),
       /**
        * 重发发送失败的消息
@@ -891,6 +952,37 @@ export function createClient(options: ClientOptions) {
        */
       rename: (body: TenantGeneralSettings): Promise<TenantCurrentDTO> =>
         rt.request<TenantCurrentDTO>({ method: "PUT", path: `/tenant`, body }),
+    },
+    /** operationId 以 translation- 开头的接口。 */
+    translation: {
+      /**
+       * 保存术语表
+       *
+       * PUT /settings/translation/glossary
+       */
+      glossarySave: (body: TranslationGlossaryInputBody): Promise<TranslationSettings> =>
+        rt.request<TranslationSettings>({ method: "PUT", path: `/settings/translation/glossary`, body }),
+      /**
+       * 回复的译文和回译
+       *
+       * POST /conversations/{id}/translations
+       */
+      preview: (id: string, body: TranslationPreviewBody): Promise<TranslationPreviewDTO> =>
+        rt.request<TranslationPreviewDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/translations`, body }),
+      /**
+       * 读取翻译设置
+       *
+       * GET /settings/translation
+       */
+      settings: (): Promise<TranslationSettings> =>
+        rt.request<TranslationSettings>({ method: "GET", path: `/settings/translation` }),
+      /**
+       * 保存翻译的语气
+       *
+       * PUT /settings/translation/tone
+       */
+      toneSave: (body: TranslationToneInputBody): Promise<TranslationSettings> =>
+        rt.request<TranslationSettings>({ method: "PUT", path: `/settings/translation/tone`, body }),
     },
     /** operationId 以 widget- 开头的接口。 */
     widget: {

@@ -105,7 +105,7 @@ export const schemas = {
     },
     reply: {
       body: {
-        "$ref": "#/components/schemas/ConversationTextBody"
+        "$ref": "#/components/schemas/ConversationReplyBody"
       },
     },
     snooze: {
@@ -260,6 +260,23 @@ export const schemas = {
     rename: {
       body: {
         "$ref": "#/components/schemas/TenantGeneralSettings"
+      },
+    },
+  },
+  translation: {
+    glossarySave: {
+      body: {
+        "$ref": "#/components/schemas/TranslationGlossaryInputBody"
+      },
+    },
+    preview: {
+      body: {
+        "$ref": "#/components/schemas/TranslationPreviewBody"
+      },
+    },
+    toneSave: {
+      body: {
+        "$ref": "#/components/schemas/TranslationToneInputBody"
       },
     },
   },
@@ -421,6 +438,23 @@ export const components = {
     ],
     "type": "object"
   },
+  ConversationReplyBody: {
+    "additionalProperties": false,
+    "properties": {
+      "text": {
+        "maxLength": 10000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "translation": {
+        "$ref": "#/components/schemas/ConversationTranslation"
+      }
+    },
+    "required": [
+      "text"
+    ],
+    "type": "object"
+  },
   ConversationScope: {
     "enum": [
       "all",
@@ -457,16 +491,22 @@ export const components = {
     ],
     "type": "string"
   },
-  ConversationTextBody: {
+  ConversationTranslation: {
     "additionalProperties": false,
     "properties": {
+      "language": {
+        "maxLength": 35,
+        "minLength": 2,
+        "type": "string"
+      },
       "text": {
-        "maxLength": 10000,
+        "maxLength": 20000,
         "minLength": 1,
         "type": "string"
       }
     },
     "required": [
+      "language",
       "text"
     ],
     "type": "object"
@@ -784,6 +824,84 @@ export const components = {
     },
     "required": [
       "name"
+    ],
+    "type": "object"
+  },
+  TranslationGlossaryInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "glossary": {
+        "items": {
+          "$ref": "#/components/schemas/TranslationTerm"
+        },
+        "maxItems": 500,
+        "type": "array"
+      }
+    },
+    "required": [
+      "glossary"
+    ],
+    "type": "object"
+  },
+  TranslationPreviewBody: {
+    "additionalProperties": false,
+    "properties": {
+      "language": {
+        "maxLength": 35,
+        "type": "string"
+      },
+      "text": {
+        "maxLength": 10000,
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "text"
+    ],
+    "type": "object"
+  },
+  TranslationTerm: {
+    "additionalProperties": false,
+    "properties": {
+      "keep": {
+        "type": "boolean"
+      },
+      "term": {
+        "maxLength": 100,
+        "minLength": 1,
+        "type": "string"
+      },
+      "translations": {
+        "additionalProperties": {
+          "type": "string"
+        },
+        "type": "object"
+      }
+    },
+    "required": [
+      "term",
+      "keep"
+    ],
+    "type": "object"
+  },
+  TranslationTone: {
+    "enum": [
+      "friendly",
+      "neutral",
+      "formal"
+    ],
+    "type": "string"
+  },
+  TranslationToneInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "tone": {
+        "$ref": "#/components/schemas/TranslationTone"
+      }
+    },
+    "required": [
+      "tone"
     ],
     "type": "object"
   },

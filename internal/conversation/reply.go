@@ -12,15 +12,27 @@ import (
 	"agents-desk/internal/auth"
 )
 
-// TextBody 是回复和内部备注的请求体。
+// TextBody 是内部备注等只有文字的请求体。
 type TextBody struct {
 	Text string `json:"text" minLength:"1" maxLength:"10000"`
 }
 
-// TextInput 是向会话写入文字的 HTTP 请求。
-type TextInput struct {
+// Translation 是成员确认过的发给对方的译文。
+type Translation struct {
+	Language string `json:"language" minLength:"2" maxLength:"35" doc:"译文的语言（BCP 47），例如 hi-Latn"`
+	Text     string `json:"text" minLength:"1" maxLength:"20000" doc:"发给对方的译文"`
+}
+
+// ReplyBody 是回复的请求体：成员写的文字，以及可选的、他确认过的译文。带译文时发给对方的是译文，时间线中同时保存原文。
+type ReplyBody struct {
+	Text        string       `json:"text" minLength:"1" maxLength:"10000" doc:"成员写的文字"`
+	Translation *Translation `json:"translation,omitempty" doc:"发给对方的译文，由翻译的预览给出、成员确认；不带时按原文发出"`
+}
+
+// ReplyInput 是回复会话的 HTTP 请求。
+type ReplyInput struct {
 	ID   string `path:"id" format:"uuid"`
-	Body TextBody
+	Body ReplyBody
 }
 
 // Reply 是成员回复会话：消息发给对方。
@@ -32,10 +44,10 @@ type Reply struct {
 // NewReply 返回回复会话的动作；down 是时间线有新内容时通知的下游，其中包括把消息发到外部渠道。
 func NewReply(db *bun.DB, down Downstream) *Reply { return &Reply{db: db, down: down} }
 
-// Handle 由 sub 回复 sub 所在工作区中的会话 id：追加一条发给对方的消息，记为发送中；会话不再等待回复，
+// Handle 由 sub 回复 sub 所在工作区中的会话 id：追加一条发给对方的消息（带译文时发出译文，时间线中同时保存原文），记为发送中；会话不再等待回复，
 // 第一次回复时记下时间；sub 成为会话的参与者。会话没有负责人时由 sub 领取（回复即领取），时间线中先追加领取的系统事件。
 // 会话不存在或 sub 看不到时返回 ErrNotFound，没有权限时返回 ErrForbidden。
-func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id, text string) (*ItemDTO, error) {
+func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, body ReplyBody) (*ItemDTO, error) {
 	if err := authorize(sub, auth.ConversationsReply); err != nil {
 		return nil, err
 	}
@@ -46,7 +58,11 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id, text strin
 			return err
 		}
 		actor := actorOf(sub)
-		item = Item{Kind: Message, ActorType: actor, ActorID: sub.ID, Visibility: Everyone, Content: Content{Text: text}, ChannelID: c.ChannelID}
+		content := Content{Text: body.Text}
+		if body.Translation != nil {
+			content = Content{Text: body.Translation.Text, Original: body.Text, Language: body.Translation.Language}
+		}
+		item = Item{Kind: Message, ActorType: actor, ActorID: sub.ID, Visibility: Everyone, Content: content, ChannelID: c.ChannelID}
 		items := []*Item{&item}
 		// 回复即领取：成员回复没有负责人的会话时，会话归他，团队收件箱不变
 		if actor == MemberActor && c.AssigneeType == "" {
@@ -81,9 +97,9 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id, text strin
 }
 
 // HTTP 处理 POST /t/{slug}/api/conversations/{id}/replies。
-func (a *Reply) HTTP(ctx context.Context, in *TextInput) (*ItemOutput, error) {
+func (a *Reply) HTTP(ctx context.Context, in *ReplyInput) (*ItemOutput, error) {
 	sub, _ := identity.FromContext(ctx)
-	item, err := a.Handle(ctx, sub, in.ID, in.Body.Text)
+	item, err := a.Handle(ctx, sub, in.ID, in.Body)
 	if err != nil {
 		return nil, err
 	}

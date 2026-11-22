@@ -206,7 +206,9 @@ type Participant struct {
 
 // Content 是时间线中一项的内容：消息和备注的文字，或者系统事件的名称和数据。
 type Content struct {
-	Text     string         `json:"text,omitempty"`
+	Text     string         `json:"text,omitempty" doc:"文字；翻译后发出的回复是发给对方的译文"`
+	Original string         `json:"original,omitempty" doc:"成员写的原文；只有翻译后发出的回复有"`
+	Language string         `json:"language,omitempty" doc:"text 的语言（BCP 47），只有翻译后发出的回复有"`
 	Mentions []string       `json:"mentions,omitempty" doc:"内部备注中 @ 到的成员 ID"`
 	Event    string         `json:"event,omitempty" doc:"系统事件的名称，例如 conversation.reopened"`
 	Data     map[string]any `json:"data,omitempty" doc:"系统事件的数据"`

@@ -211,7 +211,7 @@ func TestConversation(t *testing.T) {
 	}
 	pubs := hub.Subscribe(Channel(f.widget.ID, visitor.ID))
 	defer pubs.Close()
-	reply, err := conversation.NewReply(env.DB, down).Handle(ctx, f.agent, sent.ConversationID, "您好，我帮您查一下")
+	reply, err := conversation.NewReply(env.DB, down).Handle(ctx, f.agent, sent.ConversationID, conversation.ReplyBody{Text: "您好，我帮您查一下"})
 	if err != nil {
 		t.Fatal(err)
 	}
