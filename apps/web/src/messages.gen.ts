@@ -245,6 +245,7 @@ export const messages = {
     "inbox.details_contact": "Contact",
     "inbox.details_conversation": "Conversation",
     "inbox.details_history": "Recent conversations",
+    "inbox.draft_prefix": "Draft: ",
     "inbox.empty": "No conversations in this list",
     "inbox.enter_again": "Translation updated. Check it, then press Enter again to send",
     "inbox.enter_hint": "Enter to send, Shift + Enter for a new line",
@@ -255,6 +256,7 @@ export const messages = {
     "inbox.language_not_found": "No such language. Type a language tag, for example hi-Latn",
     "inbox.mode_note": "Internal note",
     "inbox.mode_reply": "Reply",
+    "inbox.new_message_jump": "New messages ({{.n}})",
     "inbox.new_messages": "New messages",
     "inbox.next_waiting": "Next waiting conversation",
     "inbox.no_assignee": "No assignee",
@@ -277,10 +279,12 @@ export const messages = {
     "inbox.rating": "Rating",
     "inbox.remove_tag": "Remove tag {{.tag}}",
     "inbox.reopen": "Reopen",
+    "inbox.reopen_reply_placeholder": "Sending a reply will reopen this conversation…",
     "inbox.reply_placeholder": "Type a reply…",
     "inbox.retranslating": "Text changed, translating again",
     "inbox.retry": "Resend",
     "inbox.said": "{{.who}}: ",
+    "inbox.scroll_to_bottom": "Jump to latest",
     "inbox.select": "Select",
     "inbox.selected": "{{.n}} selected",
     "inbox.send": "Send",
@@ -694,6 +698,7 @@ export const messages = {
     "inbox.details_contact": "联系人",
     "inbox.details_conversation": "会话",
     "inbox.details_history": "最近的会话",
+    "inbox.draft_prefix": "草稿：",
     "inbox.empty": "这个列表中没有会话",
     "inbox.enter_again": "译文已更新，确认后再按一次回车发送",
     "inbox.enter_hint": "回车发送，Shift + 回车换行",
@@ -704,6 +709,7 @@ export const messages = {
     "inbox.language_not_found": "没有这种语言，可以输入语言标签，例如 hi-Latn",
     "inbox.mode_note": "内部备注",
     "inbox.mode_reply": "回复",
+    "inbox.new_message_jump": "{{.n}} 条新消息",
     "inbox.new_messages": "新消息",
     "inbox.next_waiting": "下一个待回复",
     "inbox.no_assignee": "没有负责人",
@@ -726,10 +732,12 @@ export const messages = {
     "inbox.rating": "评价",
     "inbox.remove_tag": "移除标签 {{.tag}}",
     "inbox.reopen": "重新打开",
+    "inbox.reopen_reply_placeholder": "发送回复将重新打开此会话…",
     "inbox.reply_placeholder": "输入回复…",
     "inbox.retranslating": "原文改了，正在重新翻译",
     "inbox.retry": "重发",
     "inbox.said": "{{.who}}：",
+    "inbox.scroll_to_bottom": "回到底部",
     "inbox.select": "选择",
     "inbox.selected": "已选 {{.n}} 个",
     "inbox.send": "发送",
@@ -1146,6 +1154,7 @@ export type MessageId =
   | "inbox.details_contact"
   | "inbox.details_conversation"
   | "inbox.details_history"
+  | "inbox.draft_prefix"
   | "inbox.empty"
   | "inbox.enter_again"
   | "inbox.enter_hint"
@@ -1156,6 +1165,7 @@ export type MessageId =
   | "inbox.language_not_found"
   | "inbox.mode_note"
   | "inbox.mode_reply"
+  | "inbox.new_message_jump"
   | "inbox.new_messages"
   | "inbox.next_waiting"
   | "inbox.no_assignee"
@@ -1178,10 +1188,12 @@ export type MessageId =
   | "inbox.rating"
   | "inbox.remove_tag"
   | "inbox.reopen"
+  | "inbox.reopen_reply_placeholder"
   | "inbox.reply_placeholder"
   | "inbox.retranslating"
   | "inbox.retry"
   | "inbox.said"
+  | "inbox.scroll_to_bottom"
   | "inbox.select"
   | "inbox.selected"
   | "inbox.send"

@@ -106,12 +106,46 @@
   background: var(--mantine-color-yellow-light);
 }
 
+/* 会话列表等待时长徽标：用主题语义浅色底与文字色，亮暗模式均保持清晰对比度 */
+.inbox-wait {
+  font-variant-numeric: tabular-nums;
+  border-radius: var(--mantine-radius-xs);
+}
+
+.inbox-wait[data-level="warn"] {
+  background: var(--mantine-color-yellow-light);
+  color: var(--mantine-color-yellow-light-color);
+}
+
+.inbox-wait[data-level="alert"] {
+  background: var(--mantine-color-deep-orange-light);
+  color: var(--mantine-color-deep-orange-light-color);
+}
+
+/* 时间线容器与悬浮回底按钮 */
+.inbox-timeline-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 /* 时间线：可以滚动，使用语义画布底色，亮暗模式自然分层 */
 .inbox-timeline {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   background: var(--tn-canvas);
+}
+
+.inbox-scroll-bottom {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  z-index: 4;
+  box-shadow: var(--mantine-shadow-sm);
 }
 
 .inbox-event {
@@ -127,6 +161,13 @@
 
 .inbox-composer[data-note] {
   background: var(--mantine-color-yellow-light);
+}
+
+/* 发送拆分按钮中间的细分隔线：跟随按钮前景色与禁用态自然过渡 */
+.inbox-send-menu {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: 1px solid color-mix(in srgb, currentColor 22%, transparent);
 }
 
 .inbox-mention[data-active],

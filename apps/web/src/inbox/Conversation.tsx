@@ -17,6 +17,27 @@ import { contactName } from "./List"
 import { AssignMenu, SnoozeMenu } from "./menus"
 import { hasTranslation, Timeline } from "./Timeline"
 
+/** DETAILS_STORAGE_KEY 保存宽屏下右侧详情栏的展开偏好，切换会话时保持一致。 */
+const DETAILS_STORAGE_KEY = "agents-desk:inbox-details-open"
+
+/** readSavedDetails 读出宽屏下保存的详情栏展开状态，读取失败时默认关闭。 */
+function readSavedDetails(): boolean {
+  try {
+    return localStorage.getItem(DETAILS_STORAGE_KEY) === "1"
+  } catch {
+    return false
+  }
+}
+
+/** saveDetails 持久化宽屏下详情栏的展开偏好。 */
+function saveDetails(open: boolean): void {
+  try {
+    localStorage.setItem(DETAILS_STORAGE_KEY, open ? "1" : "0")
+  } catch {
+    // 浏览器禁用存储时仅在当前会话生效
+  }
+}
+
 /** ConversationProps 是会话页的设置。 */
 interface ConversationProps {
   id: string
@@ -47,10 +68,27 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
   const timeline = useTimeline(id)
   const { viewers, typing, notifyTyping, clearTyping } = useConversationChannel(tenantId, id, me.data?.id)
   const ui = useLanguage()
-  const [details, setDetails] = useState(false)
+  const [details, setDetails] = useState(() => (narrow ? false : readSavedDetails()))
   const [original, setOriginal] = useState(false) // 对方的消息都显示原文
   const detailSize = useResizableWidth("agents-desk:inbox-details-w", 300, 260, 420, "left")
   useCollapseNav(details && canInlineDetails && !wide && !narrow)
+
+  // 从宽屏切到窄屏时自动收起详情，避免详情页占满整屏遮挡聊天记录
+  useEffect(() => {
+    if (narrow) setDetails(false)
+  }, [narrow])
+
+  const closeDetails = () => {
+    setDetails(false)
+    if (!narrow) saveDetails(false)
+  }
+  const toggleDetails = () => {
+    setDetails((prev) => {
+      const next = !prev
+      if (!narrow) saveDetails(next)
+      return next
+    })
+  }
 
   // 打开时读到的位置：“新消息”分隔线画在它之后，读过之后也保持在原处
   const readAtOpen = useRef<number | null>(null)
@@ -93,7 +131,7 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
     .filter(Boolean)
     .join(" · ")
 
-  if (narrow && details) return <Details c={c} onClose={() => setDetails(false)} onOpen={open} />
+  if (narrow && details) return <Details c={c} onClose={closeDetails} onOpen={open} />
   const inlineDetails = details && !narrow && canInlineDetails
   const drawerDetails = details && !narrow && !canInlineDetails
   return (
@@ -178,7 +216,7 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
               </Tooltip>
             )}
             <Tooltip label={t("inbox.details")}>
-              <ActionIcon variant={details ? "light" : "default"} size={30} onClick={() => setDetails((d) => !d)} aria-label={t("inbox.details")}>
+              <ActionIcon variant={details ? "light" : "default"} size={30} onClick={toggleDetails} aria-label={t("inbox.details")}>
                 <IconLayoutSidebarRight size={16} />
               </ActionIcon>
             </Tooltip>
@@ -195,13 +233,13 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
             onPointerDown={detailSize.onPointerDown}
             onDoubleClick={detailSize.onDoubleClick}
           />
-          <Details c={c} onClose={() => setDetails(false)} onOpen={open} />
+          <Details c={c} onClose={closeDetails} onOpen={open} />
         </Box>
       )}
       {!narrow && !canInlineDetails && (
-        <Drawer opened={drawerDetails} onClose={() => setDetails(false)} position="right" size={340} padding={0} withCloseButton={false}>
+        <Drawer opened={drawerDetails} onClose={closeDetails} position="right" size={340} padding={0} withCloseButton={false}>
           <Box h="100dvh">
-            <Details c={c} onClose={() => setDetails(false)} onOpen={open} />
+            <Details c={c} onClose={closeDetails} onOpen={open} />
           </Box>
         </Drawer>
       )}

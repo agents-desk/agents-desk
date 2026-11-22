@@ -7,6 +7,7 @@ import { notifyError, notifySuccess, useCan, useLanguage, useNavControl, useT, u
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { flatten, useConversationList, useMe, useMembers, useTags, useTeams, useThresholds } from "./data"
+import { useDraft } from "./drafts"
 import { type FillWatcher, useFillVisible } from "./fill"
 import { activity, duration, waitColor, waitLevel } from "./format"
 import { useNow } from "./Nav"
@@ -259,7 +260,10 @@ function Row({
   const th = useThresholds()
   const me = useMe()
   const { byId } = useMembers()
+  const draft = useDraft(c.id)
+  const draftText = !active && draft?.text.trim() ? draft.text.trim() : ""
   const level = c.waiting_since ? waitLevel(c.waiting_since, now, th) : "ok"
+  const alertWait = Boolean(c.waiting_since) && level !== "ok"
   const who =
     c.preview_actor?.type === "member"
       ? c.preview_actor.id === me.data?.id
@@ -299,22 +303,34 @@ function Row({
             <Text
               size="xs"
               ml="auto"
-              px={c.waiting_since && level !== "ok" ? 6 : 0}
-              style={{ flex: "none", borderRadius: 4 }}
-              c={c.waiting_since ? (waitColor[level] ?? "dimmed") : "dimmed"}
-              fw={level !== "ok" ? 600 : undefined}
-              bg={level !== "ok" ? `${waitColor[level]}.0` : undefined}
+              px={alertWait ? 6 : 0}
+              className="inbox-wait"
+              data-level={alertWait ? level : undefined}
+              style={{ flex: "none" }}
+              c={alertWait ? undefined : "dimmed"}
+              fw={alertWait ? 600 : undefined}
             >
               {c.waiting_since ? duration(c.waiting_since, now, t) : activity(c.last_message_at, language, t, zone)}
             </Text>
           </Group>
-          <Text size="sm" c={c.unread ? undefined : "dimmed"} truncate mt={2} pl={13}>
-            {who && (
-              <Text span size="sm" c="dimmed">
-                {t("inbox.said", { who })}
-              </Text>
+          <Text size="sm" c={draftText || c.unread ? undefined : "dimmed"} truncate mt={2} pl={13}>
+            {draftText ? (
+              <>
+                <Text span size="sm" fw={600} c="deep-orange">
+                  {t("inbox.draft_prefix")}
+                </Text>
+                {draftText}
+              </>
+            ) : (
+              <>
+                {who && (
+                  <Text span size="sm" c="dimmed">
+                    {t("inbox.said", { who })}
+                  </Text>
+                )}
+                {c.preview}
+              </>
             )}
-            {c.preview}
           </Text>
           {c.tags.length > 0 && (
             <Group gap={4} mt={4} pl={13} wrap="nowrap">
