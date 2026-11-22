@@ -164,10 +164,6 @@ export const messages = {
     "inbox.sends_original": "Sends your original text",
     "inbox.sent_as": "Sent in {{.lang}}",
     "inbox.sent_translation": "Translation sent ({{.lang}})",
-    "inbox.show_original": "Show original",
-    "inbox.show_originals": "Show original",
-    "inbox.show_translation": "Show translation",
-    "inbox.show_translations": "Show translation",
     "inbox.snooze": "Snooze",
     "inbox.snooze_custom": "Pick a time",
     "inbox.snooze_later": "Later today",
@@ -185,9 +181,9 @@ export const messages = {
     "inbox.status_snoozed": "Snoozed",
     "inbox.team": "Team inbox",
     "inbox.teams": "Team inboxes",
+    "inbox.text_shown": "Show messages translated or original",
     "inbox.their_language": "{{.lang}} · their language",
     "inbox.translated": "Translation",
-    "inbox.translated_from": "Translated from {{.lang}}",
     "inbox.translating": "Translating",
     "inbox.translation_failed": "Translation failed: {{.error}}",
     "inbox.typing": "{{.who}} is typing…",
@@ -474,10 +470,6 @@ export const messages = {
     "inbox.sends_original": "发送原文",
     "inbox.sent_as": "已译成 {{.lang}}",
     "inbox.sent_translation": "发给对方的译文（{{.lang}}）",
-    "inbox.show_original": "显示原文",
-    "inbox.show_originals": "显示原文",
-    "inbox.show_translation": "显示译文",
-    "inbox.show_translations": "显示译文",
     "inbox.snooze": "稍后处理",
     "inbox.snooze_custom": "自定义时间",
     "inbox.snooze_later": "今天晚些时候",
@@ -495,9 +487,9 @@ export const messages = {
     "inbox.status_snoozed": "稍后处理",
     "inbox.team": "团队收件箱",
     "inbox.teams": "团队收件箱",
+    "inbox.text_shown": "切换消息显示译文还是原文",
     "inbox.their_language": "{{.lang}} · 对方的语言",
     "inbox.translated": "译文",
-    "inbox.translated_from": "译自 {{.lang}}",
     "inbox.translating": "翻译中",
     "inbox.translation_failed": "翻译失败：{{.error}}",
     "inbox.typing": "{{.who}} 正在输入…",
@@ -787,10 +779,6 @@ export type MessageId =
   | "inbox.sends_original"
   | "inbox.sent_as"
   | "inbox.sent_translation"
-  | "inbox.show_original"
-  | "inbox.show_originals"
-  | "inbox.show_translation"
-  | "inbox.show_translations"
   | "inbox.snooze"
   | "inbox.snooze_custom"
   | "inbox.snooze_later"
@@ -808,9 +796,9 @@ export type MessageId =
   | "inbox.status_snoozed"
   | "inbox.team"
   | "inbox.teams"
+  | "inbox.text_shown"
   | "inbox.their_language"
   | "inbox.translated"
-  | "inbox.translated_from"
   | "inbox.translating"
   | "inbox.translation_failed"
   | "inbox.typing"

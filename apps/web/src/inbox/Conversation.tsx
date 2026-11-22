@@ -1,7 +1,7 @@
-import { ActionIcon, Avatar, Badge, Box, Button, Center, Group, Loader, Text, Tooltip } from "@mantine/core"
+import { ActionIcon, Avatar, Badge, Box, Button, Center, Group, Loader, SegmentedControl, Text, Tooltip } from "@mantine/core"
 import { useMediaQuery } from "@mantine/hooks"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { IconArrowRight, IconCheck, IconChevronLeft, IconLanguage, IconLayoutSidebarRight, IconRefresh } from "@tabler/icons-react"
+import { IconArrowRight, IconCheck, IconChevronLeft, IconLayoutSidebarRight, IconRefresh } from "@tabler/icons-react"
 import { notifyError, useCollapseNav, useLanguage, useNarrow, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
@@ -26,7 +26,7 @@ interface ConversationProps {
 /**
  * ConversationView 是会话：顶部是联系人、渠道、语言、团队收件箱、负责人，谁也在看，以及指派、稍后处理、关闭或重新打开、
  * 下一个待回复、详情；中间是时间线；底部是回复框。打开时和有新消息时（页面在前台）标记已读。
- * 对方的消息有译文时，顶部的“显示原文”把它们一次切换成原文。
+ * 对方的消息有译文时，顶部的“译文 | 原文”把它们一次切换成原文。
  * 详情是第五栏：窗口宽度小于 1600px 时打开详情先收起二级导航，关掉后恢复。窄屏时左上角返回会话列表，详情占满。
  */
 export function ConversationView({ id, tenantId, open, next, back }: ConversationProps): ReactNode {
@@ -124,18 +124,16 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
           )}
           <Group gap={6} wrap="nowrap" ml={viewers.length > 0 && !narrow ? undefined : "auto"} w={narrow ? "100%" : undefined} justify={narrow ? "flex-end" : undefined}>
             {hasTranslation(timeline.data, me.data?.language) && (
-              <Tooltip label={t(original ? "inbox.show_translations" : "inbox.show_originals")} disabled={!narrow}>
-                <Button
-                  size="xs"
-                  variant={original ? "light" : "default"}
-                  color={original ? "bright-blue" : undefined}
-                  leftSection={<IconLanguage size={14} />}
-                  onClick={() => setOriginal((o) => !o)}
-                  aria-label={t(original ? "inbox.show_translations" : "inbox.show_originals")}
-                >
-                  {narrow ? null : t(original ? "inbox.show_translations" : "inbox.show_originals")}
-                </Button>
-              </Tooltip>
+              <SegmentedControl
+                size="xs"
+                value={original ? "original" : "translation"}
+                onChange={(v) => setOriginal(v === "original")}
+                data={[
+                  { value: "translation", label: t("inbox.translated") },
+                  { value: "original", label: t("inbox.original") },
+                ]}
+                aria-label={t("inbox.text_shown")}
+              />
             )}
             <AssignMenu c={c} compact={narrow} />
             {c.status !== "closed" && <SnoozeMenu id={c.id} compact={narrow} />}

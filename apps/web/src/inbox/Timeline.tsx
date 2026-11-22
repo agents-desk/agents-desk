@@ -23,7 +23,7 @@ export function translationOf(it: ConversationItemDTO, lang: string | undefined)
   return lang ? all?.[lang] : undefined
 }
 
-/** hasTranslation 返回时间线中是否有对方的消息带着成员语言 lang 的译文：有时会话顶部显示“显示原文”。 */
+/** hasTranslation 返回时间线中是否有对方的消息带着成员语言 lang 的译文：有时会话顶部显示“译文 | 原文”的切换。 */
 export function hasTranslation(items: ConversationItemDTO[] | undefined, lang: string | undefined): boolean {
   return !!items?.some((it) => it.actor.type === "contact" && translationOf(it, lang))
 }
@@ -32,7 +32,7 @@ export function hasTranslation(items: ConversationItemDTO[] | undefined, lang: s
  * Timeline 是会话的时间线：按天分隔；对方的消息在左侧，成员和系统发的在右侧并显示送达状态（失败时可以重发）；
  * 系统事件居中、灰色；内部备注占满一行、黄色底。打开时读到的位置 readSeq 之后显示“新消息”分隔线。
  * 新的内容出现时滚到底部；最下面是正在输入的人。
- * 对方的消息显示成员语言的译文，original 为真时（顶部的“显示原文”）显示原文，每条也可以单独切换；
+ * 对方的消息显示成员语言的译文，original 为真时（顶部选了“原文”）显示原文，每条也可以单独切换；
  * 成员翻译后发出的消息显示成员写的原文，可以展开发给对方的译文。
  */
 export function Timeline({ c, readSeq, typing, original }: { c: ConversationDTO; readSeq: number; typing: TypingNow[]; original: boolean }): ReactNode {
@@ -111,13 +111,13 @@ interface MessageProps {
   author: string
   time: string
   lang: string | undefined // 成员的语言：对方的消息显示这种语言的译文
-  original: boolean // 顶部的“显示原文”：对方的消息都显示原文
+  original: boolean // 顶部选了“原文”：对方的消息都显示原文
   translating: boolean // 翻译可用：刚收到、还没有译文的消息显示“翻译中”
 }
 
 /**
  * Message 是一条消息：对方的在左侧，成员和系统发的在右侧，旁边是送达状态，失败时可以重发。
- * 对方的消息有译文时显示译文，下面一行切换原文（单独切换和顶部的“显示原文”相反）；成员翻译后发出的消息显示原文，下面一行展开译文。
+ * 对方的消息有译文时显示译文，下面一行“译文 · 原文”切换（单独切换和顶部的选择相反）；成员翻译后发出的消息显示原文，下面一行展开译文。
  */
 function Message({ it, c, mine, author, time, lang, original, translating }: MessageProps): ReactNode {
   const t = useT()
@@ -140,19 +140,20 @@ function Message({ it, c, mine, author, time, lang, original, translating }: Mes
   const from = it.derived.language as string | undefined
   let caption: ReactNode = null
   if (translated) {
-    caption = showOriginal ? (
+    // “译文 · 原文”两个词总在这一行的最左边，切换时只互换哪个是链接，文字和位置都不变
+    const toggle = () => setFlip((f) => !f)
+    caption = (
       <>
+        {showOriginal ? <Toggle label={t("inbox.translated")} onClick={toggle} /> : <Current label={t("inbox.translated")} />}
         <Text size="xs" c="dimmed">
-          {t("inbox.original")} ·
+          ·
         </Text>
-        <Toggle label={t("inbox.show_translation")} onClick={() => setFlip((f) => !f)} />
-      </>
-    ) : (
-      <>
-        <Text size="xs" c="dimmed">
-          {from ? t("inbox.translated_from", { lang: languageName(from, ui) }) : t("inbox.translated")} ·
-        </Text>
-        <Toggle label={t("inbox.show_original")} onClick={() => setFlip((f) => !f)} />
+        {showOriginal ? <Current label={t("inbox.original")} /> : <Toggle label={t("inbox.original")} onClick={toggle} />}
+        {from && (
+          <Text size="xs" c="dimmed" ml={6}>
+            {languageName(from, ui)}
+          </Text>
+        )}
       </>
     )
   } else if (!mine && translating && text && !from && Date.now() - new Date(it.created_at).getTime() < TRANSLATING_FOR) {
@@ -221,6 +222,15 @@ function Message({ it, c, mine, author, time, lang, original, translating }: Mes
         </Group>
       )}
     </Box>
+  )
+}
+
+/** Current 是“译文 · 原文”中正在显示的那个：和链接同样大小，不能点。 */
+function Current({ label }: { label: string }): ReactNode {
+  return (
+    <Text size="xs" span>
+      {label}
+    </Text>
   )
 }
 
