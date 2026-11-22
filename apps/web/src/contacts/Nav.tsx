@@ -19,7 +19,7 @@ export function ContactsNav({ search, go }: { search: ContactsSearch; go: (patch
   const pick = (kind?: ContactKind) => go({ kind })
   const count = (n?: number) =>
     n === undefined ? null : (
-      <Text size="xs" c="dimmed">
+      <Text size="xs" c="dimmed" style={{ fontVariantNumeric: "tabular-nums" }}>
         {n}
       </Text>
     )

@@ -1,6 +1,6 @@
 import { ActionIcon, Autocomplete, Button, Group, Select, Stack, Switch, Text } from "@mantine/core"
 import type { UseFormReturnType } from "@mantine/form"
-import { IconPlus, IconX } from "@tabler/icons-react"
+import { IconCopy, IconPlus, IconX } from "@tabler/icons-react"
 import { useT } from "@go-tenon/ui"
 import type { HoursInterval, HoursSchedule, HoursWeek } from "@agents-desk/client/tenant"
 import type { ReactNode } from "react"
@@ -83,11 +83,23 @@ export function Intervals({ form, path }: { form: UseFormReturnType<any>; path: 
 /** WeekEditor 是每周七天的工作时间：每天一行，左边是“上班”开关，右边是这天的时间段。path 是 Week 在表单中的位置。 */
 export function WeekEditor({ form, path }: { form: UseFormReturnType<any>; path: string }): ReactNode {
   const t = useT()
+  const monday = ((form.getInputProps(`${path}.monday`).value as HoursInterval[] | undefined) ?? [])
+  const applyWeekdays = () => {
+    const copy = monday.map((x) => ({ start: x.start, end: x.end }))
+    for (const day of ["tuesday", "wednesday", "thursday", "friday"] as const) {
+      form.setFieldValue(`${path}.${day}`, copy.map((x) => ({ ...x })))
+    }
+  }
   return (
     <Stack gap="sm">
-      <Text size="sm" fw={500}>
-        {t("hours.week")}
-      </Text>
+      <Group justify="space-between" align="center">
+        <Text size="sm" fw={500}>
+          {t("hours.week")}
+        </Text>
+        <Button variant="subtle" size="compact-xs" leftSection={<IconCopy size={13} />} onClick={applyWeekdays}>
+          {t("hours.apply_weekdays")}
+        </Button>
+      </Group>
       {days.map((d) => {
         const dayPath = `${path}.${d.key}`
         const working = ((form.getInputProps(dayPath).value as HoursInterval[] | undefined) ?? []).length > 0

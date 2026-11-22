@@ -61,8 +61,12 @@ function ContactsLayout() {
             <ResizeHandle
               side="left"
               dragging={asideSize.dragging}
+              width={asideSize.width}
+              min={asideSize.min}
+              max={asideSize.max}
               onPointerDown={asideSize.onPointerDown}
               onDoubleClick={asideSize.onDoubleClick}
+              onKeyDown={asideSize.onKeyDown}
             />
           )}
           <Outlet />

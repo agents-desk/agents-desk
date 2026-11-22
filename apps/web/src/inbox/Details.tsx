@@ -1,8 +1,8 @@
 import type { ConversationDTO } from "@agents-desk/client/tenant"
-import { Accordion, ActionIcon, Anchor, Box, Button, Group, Select, Stack, Text, Textarea, UnstyledButton } from "@mantine/core"
+import { Accordion, ActionIcon, Anchor, Box, Button, CopyButton, Group, Rating, Select, Stack, Text, Textarea, Tooltip, UnstyledButton } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useParams } from "@tanstack/react-router"
-import { IconExternalLink, IconX } from "@tabler/icons-react"
+import { IconCheck, IconCopy, IconExternalLink, IconX } from "@tabler/icons-react"
 import { notifyError, notifySuccess, useCan, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../api"
@@ -164,6 +164,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                     data={assignees.map((m) => ({ value: m.id, label: m.id === me.data?.id ? t("inbox.you") : m.name }))}
                     onChange={(v) => assign.mutate({ assignee_id: v ?? "" })}
                     clearable={can("conversations:assign")}
+                    disabled={assign.isPending}
                     searchable
                   />
                 </Field>
@@ -181,7 +182,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                       }))}
                     onChange={(v) => assign.mutate({ team_id: v ?? "" })}
                     clearable
-                    disabled={!can("conversations:assign")}
+                    disabled={!can("conversations:assign") || assign.isPending}
                   />
                 </Field>
                 <Field label={t("inbox.priority")}>
@@ -193,6 +194,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                       { value: "normal", label: t("inbox.priority_normal") },
                       { value: "high", label: t("inbox.priority_high") },
                     ]}
+                    disabled={priority.isPending}
                     onChange={(v) => v && priority.mutate(v as "normal" | "high")}
                   />
                 </Field>
@@ -221,16 +223,20 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                   </Field>
                 ))}
                 {c.rating && (
-                  <Field label={t("inbox.rating")}>
-                    <Text size="sm">
-                      {"★".repeat(c.rating.score)}
+                  <Field label={t("inbox.rating")} align="flex-start">
+                    <Stack gap={2}>
+                      <Group gap={6} wrap="nowrap">
+                        <Rating value={c.rating.score} readOnly size="xs" color="yellow" />
+                        <Text size="xs" c="dimmed" style={{ fontVariantNumeric: "tabular-nums" }}>
+                          {c.rating.score}/5
+                        </Text>
+                      </Group>
                       {c.rating.comment && (
-                        <Text span size="xs" c="dimmed">
-                          {" "}
+                        <Text size="xs" c="dimmed">
                           {c.rating.comment}
                         </Text>
                       )}
-                    </Text>
+                    </Stack>
                   </Field>
                 )}
               </Stack>
@@ -250,9 +256,9 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                       to="/t/$slug/contacts/$id"
                       params={{ slug, id: c.contact.id }}
                       search={{ sort: "recent" }}
-                      style={{ textDecoration: "none" }}
+                      className="inbox-contact-link"
                     >
-                      <Text size="sm" fw={500} c="brand">
+                      <Text size="sm" fw={500} c="brand" truncate>
                         {c.contact.name || t("inbox.visitor")}
                       </Text>
                     </Link>
@@ -264,9 +270,22 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                   <Text size="sm">{c.contact ? kit.label("ContactKind", c.contact.kind) : ""}</Text>
                 </Field>
                 <Field label={t("inbox.contact_email")}>
-                  <Text size="sm" c={c.contact?.email ? undefined : "dimmed"} truncate>
-                    {c.contact?.email || "—"}
-                  </Text>
+                  <Group gap={4} wrap="nowrap" justify="space-between">
+                    <Text size="sm" c={c.contact?.email ? undefined : "dimmed"} truncate style={{ flex: 1, minWidth: 0 }}>
+                      {c.contact?.email || "—"}
+                    </Text>
+                    {c.contact?.email && (
+                      <CopyButton value={c.contact.email} timeout={1500}>
+                        {({ copied, copy }) => (
+                          <Tooltip label={t(copied ? "contacts.copied" : "contacts.copy")} withArrow>
+                            <ActionIcon variant="subtle" color={copied ? "green" : "gray"} size={22} onClick={copy} aria-label={t("contacts.copy")}>
+                              {copied ? <IconCheck size={13} /> : <IconCopy size={13} />}
+                            </ActionIcon>
+                          </Tooltip>
+                        )}
+                      </CopyButton>
+                    )}
+                  </Group>
                 </Field>
                 <Field label={t("inbox.contact_language")}>
                   <LanguageSelect
@@ -326,11 +345,17 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                         />
                       </Field>
                     ))}
-                    <Stack gap={4} mt={4}>
-                      <Text size="xs" c="dimmed">
-                        {t("inbox.contact_notes")}
-                      </Text>
+                    <Box p="sm" mt={4} className="desk-note">
+                      <Group justify="space-between" mb={4}>
+                        <Text size="xs" fw={600}>
+                          {t("inbox.contact_notes")}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          {t("contacts.notes_hint")}
+                        </Text>
+                      </Group>
                       <Textarea
+                        variant="unstyled"
                         size="xs"
                         autosize
                         minRows={2}
@@ -339,11 +364,17 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                         placeholder={t("inbox.contact_notes_placeholder")}
                         value={notes}
                         onChange={(e) => setNotes(e.currentTarget.value)}
+                        onKeyDown={(e) => {
+                          if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && notesDirty && can("contacts:update") && !saveNotes.isPending) {
+                            e.preventDefault()
+                            saveNotes.mutate(notes)
+                          }
+                        }}
                         disabled={!can("contacts:update") || contactDetail.isPending}
                       />
                       {can("contacts:update") && notesDirty && (
-                        <Group justify="flex-end" gap="xs">
-                          <Button size="xs" variant="default" onClick={() => setNotes(serverNotes)}>
+                        <Group justify="flex-end" gap="xs" mt="xs">
+                          <Button size="xs" variant="subtle" color="gray" onClick={() => setNotes(serverNotes)}>
                             {t("common.cancel")}
                           </Button>
                           <Button size="xs" loading={saveNotes.isPending} onClick={() => saveNotes.mutate(notes)}>
@@ -351,7 +382,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                           </Button>
                         </Group>
                       )}
-                    </Stack>
+                    </Box>
                   </>
                 )}
               </Stack>

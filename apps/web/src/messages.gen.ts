@@ -95,6 +95,7 @@ export const messages = {
     "contacts.email": "Email",
     "contacts.email_placeholder": "e.g. rahul@example.com",
     "contacts.empty": "No matching contacts",
+    "contacts.empty_filtered": "No contacts match the current filters",
     "contacts.external_user_id": "User ID",
     "contacts.filter_channel": "All channels",
     "contacts.filter_language": "All languages",
@@ -183,6 +184,7 @@ export const messages = {
     "home.no_pages": "Your role has no pages to open yet. Ask a workspace admin.",
     "home.title": "Workspace",
     "hours.add_interval": "Add time range",
+    "hours.apply_weekdays": "Copy Monday to weekdays",
     "hours.day.friday": "Friday",
     "hours.day.monday": "Monday",
     "hours.day.saturday": "Saturday",
@@ -569,6 +571,7 @@ export const messages = {
     "contacts.email": "邮箱",
     "contacts.email_placeholder": "例如 rahul@example.com",
     "contacts.empty": "没有符合条件的联系人",
+    "contacts.empty_filtered": "没有符合当前筛选条件的联系人",
     "contacts.external_user_id": "用户编号",
     "contacts.filter_channel": "全部渠道",
     "contacts.filter_language": "全部语言",
@@ -657,6 +660,7 @@ export const messages = {
     "home.no_pages": "你的角色还没有可以进入的页面，请联系工作区的管理员。",
     "home.title": "工作区",
     "hours.add_interval": "添加时间段",
+    "hours.apply_weekdays": "同步周一到工作日",
     "hours.day.friday": "周五",
     "hours.day.monday": "周一",
     "hours.day.saturday": "周六",
@@ -1046,6 +1050,7 @@ export type MessageId =
   | "contacts.email"
   | "contacts.email_placeholder"
   | "contacts.empty"
+  | "contacts.empty_filtered"
   | "contacts.external_user_id"
   | "contacts.filter_channel"
   | "contacts.filter_language"
@@ -1134,6 +1139,7 @@ export type MessageId =
   | "home.no_pages"
   | "home.title"
   | "hours.add_interval"
+  | "hours.apply_weekdays"
   | "hours.day.friday"
   | "hours.day.monday"
   | "hours.day.saturday"

@@ -1,5 +1,6 @@
 import "@fontsource-variable/inter/index.css"
 import "@go-tenon/ui/styles.css"
+import "../desk.css"
 import "../tabs.css"
 import type { ReactNode } from "react"
 import { ColorSchemeScript, mantineHtmlProps } from "@mantine/core"
