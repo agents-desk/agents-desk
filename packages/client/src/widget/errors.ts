@@ -11,6 +11,22 @@ export const AccountErrors = {
   WrongPassword: "account.wrong_password",
 } as const
 
+/** agents-desk/internal/attribute 的错误码。 */
+export const AttributeErrors = {
+  /** ErrNotFound 是属性定义不存在，或者属于别的工作区。 */
+  NotFound: "attribute.not_found",
+  /** ErrKeyTaken 是同一个对象下已经存在相同的属性标识。 */
+  KeyTaken: "attribute.key_taken",
+  /** ErrOptionsRequired 是单选或多选属性没有填写任何选项。 */
+  OptionsRequired: "attribute.options_required",
+  /** ErrDuplicateOption 是属性的选项列表中有重复项。 */
+  DuplicateOption: "attribute.duplicate_option",
+  /** ErrUnknownKey 是写入的属性标识没有在当前工作区的对应对象中定义。 */
+  UnknownKey: "attribute.unknown_key",
+  /** ErrInvalidValue 是写入的属性值不符合该属性的类型或选项约束。 */
+  InvalidValue: "attribute.invalid_value",
+} as const
+
 /** agents-desk/internal/channel 的错误码。 */
 export const ChannelErrors = {
   /** ErrNotFound 是渠道不存在，或者属于别的工作区。 */
@@ -96,6 +112,14 @@ export const RoleErrors = {
   NameTaken: "role.name_taken",
   /** ErrInUse 是还有成员使用这个角色，不能删除。 */
   InUse: "role.in_use",
+} as const
+
+/** agents-desk/internal/tag 的错误码。 */
+export const TagErrors = {
+  /** ErrNotFound 是标签不存在，或者属于别的工作区。 */
+  NotFound: "tag.not_found",
+  /** ErrNameTaken 是工作区中已经有一个同名的标签（不区分大小写）。 */
+  NameTaken: "tag.name_taken",
 } as const
 
 /** agents-desk/internal/team 的错误码。 */

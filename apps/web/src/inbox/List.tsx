@@ -1,12 +1,12 @@
 import type { ConversationBulkResult, ConversationDTO, ConversationSummary } from "@agents-desk/client/tenant"
-import { Badge, Box, Button, Center, Checkbox, Group, Loader, Menu, SegmentedControl, Select, Stack, Text, UnstyledButton } from "@mantine/core"
+import { Badge, Box, Button, Center, Checkbox, ColorSwatch, Group, Loader, Menu, SegmentedControl, Select, Stack, Text, UnstyledButton } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { notifications } from "@mantine/notifications"
 import { IconChevronDown } from "@tabler/icons-react"
 import { notifyError, notifySuccess, useCan, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { flatten, useConversationList, useMe, useMembers, useTeams, useThresholds } from "./data"
+import { flatten, useConversationList, useMe, useMembers, useTags, useTeams, useThresholds } from "./data"
 import { type FillWatcher, useFillVisible } from "./fill"
 import { activity, duration, waitColor, waitLevel } from "./format"
 import { useNow } from "./Nav"
@@ -29,7 +29,9 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
   const now = useNow()
   const th = useThresholds()
   const me = useMe()
+  const tags = useTags()
   const list = useConversationList(search)
+  const tagById = new Map(tags.map((x) => [x.id, x]))
   const inbox = useQuery(kit.queries.conversation.inbox())
   const translation = useQuery(kit.queries.translation.settings())
   const watch = useFillVisible(translation.data?.enabled ?? false, me.data?.language)
@@ -143,6 +145,36 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                 comboboxProps={{ withinPortal: true }}
               />
             </Group>
+          )}
+          {tags.length > 0 && (
+            <Select
+              size="xs"
+              mt={6}
+              placeholder={t("inbox.tag_filter")}
+              aria-label={t("inbox.tag_filter")}
+              value={search.tag ?? null}
+              onChange={(v) => go({ tag: v || undefined })}
+              data={tags.map((tag) => ({ value: tag.id, label: tag.name }))}
+              leftSection={
+                search.tag && tagById.get(search.tag) ? (
+                  <ColorSwatch color={`var(--mantine-color-${tagById.get(search.tag)?.color}-6)`} size={10} />
+                ) : undefined
+              }
+              renderOption={({ option }) => {
+                const tag = tagById.get(option.value)
+                return (
+                  <Group gap="xs" wrap="nowrap">
+                    {tag && <ColorSwatch color={`var(--mantine-color-${tag.color}-6)`} size={10} />}
+                    <Text size="xs" truncate>
+                      {option.label}
+                    </Text>
+                  </Group>
+                )
+              }}
+              clearable
+              searchable
+              comboboxProps={{ withinPortal: true }}
+            />
           )}
         </Box>
       )}
@@ -267,6 +299,20 @@ function Row({
             )}
             {c.preview}
           </Text>
+          {c.tags.length > 0 && (
+            <Group gap={4} mt={4} pl={13} wrap="nowrap">
+              {c.tags.slice(0, 2).map((tag) => (
+                <Badge key={tag.id} size="xs" variant="light" color={tag.color} style={{ flex: "0 1 auto" }}>
+                  {tag.name}
+                </Badge>
+              ))}
+              {c.tags.length > 2 && (
+                <Badge size="xs" variant="light" color="gray" style={{ flex: "none" }}>
+                  +{c.tags.length - 2}
+                </Badge>
+              )}
+            </Group>
+          )}
         </Box>
       </Group>
     </UnstyledButton>

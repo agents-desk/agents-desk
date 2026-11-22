@@ -163,6 +163,57 @@ export const resources = {
       },
     },
   },
+  tag: {
+    name: "tag",
+    key: "id",
+    operations: {
+      list: ["tag", "list"],
+      get: ["tag", "get"],
+      create: ["tag", "create"],
+      update: ["tag", "update"],
+      delete: ["tag", "delete"],
+    },
+    permissions: {
+      list: [],
+      get: [],
+      create: ["tenant-settings:manage"],
+      update: ["tenant-settings:manage"],
+      delete: ["tenant-settings:manage"],
+    },
+    columns: [
+      { name: "name", type: "string", required: true },
+      { name: "conversation_count", type: "integer", format: "int64", required: true },
+      { name: "contact_count", type: "integer", format: "int64", required: true },
+      { name: "description", type: "string", required: true },
+    ],
+    filters: [
+      { name: "name", type: "string" },
+    ],
+    createForm: [
+      { name: "name", type: "string", required: true },
+      { name: "color", type: "string", enum: "TagColor" },
+      { name: "description", type: "string" },
+    ],
+    updateForm: [
+      { name: "name", type: "string", required: true },
+      { name: "color", type: "string", enum: "TagColor" },
+      { name: "description", type: "string" },
+    ],
+    actions: [
+    ],
+    labels: {
+      "en": {
+        title: "Tags",
+        fields: { name: "Name", conversation_count: "Conversations", contact_count: "Contacts", description: "Description", color: "Color" },
+        actions: {  },
+      },
+      "zh-CN": {
+        title: "标签",
+        fields: { name: "名称", conversation_count: "会话数", contact_count: "联系人数", description: "说明", color: "颜色" },
+        actions: {  },
+      },
+    },
+  },
   widget: {
     name: "widget",
     key: "id",

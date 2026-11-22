@@ -5,6 +5,22 @@
  * labels 按语言列出显示文字，取自翻译文件中 <前缀>.<取值> 的消息；缺少时先用默认语言，再用取值本身。
  */
 export const enums = {
+  AttributeTarget: {
+    prefix: "attribute.target",
+    values: ["conversation", "contact"],
+    labels: {
+      "en": { conversation: "Conversation", contact: "Contact" },
+      "zh-CN": { conversation: "会话", contact: "联系人" },
+    },
+  },
+  AttributeType: {
+    prefix: "attribute.type",
+    values: ["text", "number", "boolean", "date", "select", "multi_select"],
+    labels: {
+      "en": { text: "Text", number: "Number", boolean: "Boolean", date: "Date", select: "Select", multi_select: "Multi-select" },
+      "zh-CN": { text: "文本", number: "数字", boolean: "开关", date: "日期", select: "单选", multi_select: "多选" },
+    },
+  },
   ChannelKind: {
     prefix: "channel.kind",
     values: ["test", "widget"],
@@ -123,6 +139,14 @@ export const enums = {
     labels: {
       "en": { "conversations:assign": "Reassign conversations to others", "members:manage": "Manage members and roles", "teams:manage": "Manage team inboxes", "channels:manage": "Manage channels", "tenant-settings:manage": "Manage workspace settings" },
       "zh-CN": { "conversations:assign": "把会话改派给别人", "members:manage": "管理成员和角色", "teams:manage": "管理团队收件箱", "channels:manage": "管理渠道", "tenant-settings:manage": "管理工作区设置" },
+    },
+  },
+  TagColor: {
+    prefix: "tag.color",
+    values: ["blue-gray", "red", "deep-orange", "yellow", "green", "sky-blue", "bright-blue", "violet", "purple", "magenta", "brown"],
+    labels: {
+      "en": { "blue-gray": "Blue gray", red: "Red", "deep-orange": "Deep orange", yellow: "Yellow", green: "Green", "sky-blue": "Sky blue", "bright-blue": "Bright blue", violet: "Violet", purple: "Purple", magenta: "Magenta", brown: "Brown" },
+      "zh-CN": { "blue-gray": "灰蓝", red: "红色", "deep-orange": "深橙", yellow: "黄色", green: "绿色", "sky-blue": "天蓝", "bright-blue": "亮蓝", violet: "紫罗兰", purple: "紫色", magenta: "洋红", brown: "棕色" },
     },
   },
   TeamAssignment: {

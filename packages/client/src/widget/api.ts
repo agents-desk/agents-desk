@@ -8,6 +8,8 @@ export { ApiError, isApiError, saveBlob, type ClientOptions, type Download, type
 export type ContactKind = "user" | "lead"
 
 export interface ContactSummary {
+  /** 联系人的自定义属性 */
+  attributes: Record<string, unknown>
   email: string
   id: string
   kind: ContactKind
@@ -16,6 +18,8 @@ export interface ContactSummary {
   /** 对方的语言是成员手动设置的：收到的消息不再改它 */
   language_manual: boolean
   name: string
+  /** 联系人上的标签 */
+  tags: TagSummary[]
 }
 
 export type ConversationActorType = "contact" | "member" | "system"
@@ -94,6 +98,14 @@ export interface ErrorModel {
   title?: string
   /** A URI reference to human-readable documentation for the error. */
   type?: string
+}
+
+export type TagColor = "blue-gray" | "red" | "deep-orange" | "yellow" | "green" | "sky-blue" | "bright-blue" | "violet" | "purple" | "magenta" | "brown"
+
+export interface TagSummary {
+  color: TagColor
+  id: string
+  name: string
 }
 
 export interface WidgetConfigDTO {

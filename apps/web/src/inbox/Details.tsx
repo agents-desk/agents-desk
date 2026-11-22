@@ -7,7 +7,8 @@ import type { ReactNode } from "react"
 import { kit, tenantApi } from "../api"
 import { LanguageSelect } from "../LanguageSelect"
 import { languageName } from "../languages"
-import { useContactHistory, useMe, useMembers, useTeams } from "./data"
+import { useAttributes, useContactHistory, useMe, useMembers, useTags, useTeams } from "./data"
+import { AttributeInput, TagsEditor } from "./fields"
 import { activity } from "./format"
 
 /** Field 是详情中的一行：左边是名称，右边是值。 */
@@ -26,8 +27,9 @@ function Field({ label, children }: { label: string; children: ReactNode }): Rea
 const AUTO = "auto"
 
 /**
- * Details 是会话的详情栏（第五栏）：会话（负责人、团队收件箱、优先级可以直接修改）、联系人、同一个联系人的其他会话。
- * 联系人的语言可以手动设置，识别错了时改成正确的；选“自动识别”恢复按收到的消息更新。各部分可以折叠。标签和属性在 P1 中加入，联系人的所在地和来源页面在 U1 中加入。
+ * Details 是会话的详情栏（第五栏）：会话（负责人、团队收件箱、优先级、标签和自定义属性可以直接修改）、联系人（含标签和自定义属性）、
+ * 同一个联系人的其他会话。联系人的语言可以手动设置，识别错了时改成正确的；选“自动识别”恢复按收到的消息更新。各部分可以折叠。
+ * 联系人的所在地和来源页面在 U1 中加入。
  */
 export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: () => void; onOpen: (id: string) => void }): ReactNode {
   const t = useT()
@@ -38,7 +40,11 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
   const me = useMe()
   const { list: members } = useMembers()
   const teams = useTeams()
+  const allTags = useTags()
+  const convAttrs = useAttributes("conversation")
+  const contactAttrs = useAttributes("contact")
   const history = useContactHistory(c.contact?.id)
+  const canEdit = can("conversations:reply")
   const invalidate = () => queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
   const assign = useMutation({
     mutationFn: (body: { assignee_id?: string; team_id?: string }) => tenantApi.conversation.assign(c.id, body),
@@ -52,6 +58,36 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
   })
   const setLanguage = useMutation({
     mutationFn: (lang: string) => tenantApi.conversation.language(c.id, { language: lang }),
+    onSuccess: invalidate,
+    onError: (err) => notifyError(err),
+  })
+  const addConvTag = useMutation({
+    mutationFn: (tag_id: string) => tenantApi.conversation.tagAdd(c.id, { tag_id }),
+    onSuccess: invalidate,
+    onError: (err) => notifyError(err),
+  })
+  const removeConvTag = useMutation({
+    mutationFn: (tagId: string) => tenantApi.conversation.tagRemove(c.id, tagId),
+    onSuccess: invalidate,
+    onError: (err) => notifyError(err),
+  })
+  const patchConvAttr = useMutation({
+    mutationFn: (attributes: Record<string, unknown>) => tenantApi.conversation.attributesPatch(c.id, { attributes }),
+    onSuccess: invalidate,
+    onError: (err) => notifyError(err),
+  })
+  const addContactTag = useMutation({
+    mutationFn: (tag_id: string) => tenantApi.conversation.contactTagAdd(c.id, { tag_id }),
+    onSuccess: invalidate,
+    onError: (err) => notifyError(err),
+  })
+  const removeContactTag = useMutation({
+    mutationFn: (tagId: string) => tenantApi.conversation.contactTagRemove(c.id, tagId),
+    onSuccess: invalidate,
+    onError: (err) => notifyError(err),
+  })
+  const patchContactAttr = useMutation({
+    mutationFn: (attributes: Record<string, unknown>) => tenantApi.conversation.contactAttributesPatch(c.id, { attributes }),
     onSuccess: invalidate,
     onError: (err) => notifyError(err),
   })
@@ -119,6 +155,27 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                 <Field label={t("inbox.status")}>
                   <Text size="sm">{t(`inbox.status_${c.status}` as const)}</Text>
                 </Field>
+                <Field label={t("inbox.tags")}>
+                  <TagsEditor
+                    tags={c.tags}
+                    allTags={allTags}
+                    editable={canEdit}
+                    disabled={addConvTag.isPending || removeConvTag.isPending}
+                    onAdd={(tagId) => addConvTag.mutate(tagId)}
+                    onRemove={(tagId) => removeConvTag.mutate(tagId)}
+                  />
+                </Field>
+                {convAttrs.map((def) => (
+                  <Field key={def.id} label={def.name}>
+                    <AttributeInput
+                      key={`${c.id}:${def.key}`}
+                      def={def}
+                      value={c.attributes[def.key]}
+                      disabled={!canEdit || patchConvAttr.isPending}
+                      onSave={(val) => patchConvAttr.mutate({ [def.key]: val })}
+                    />
+                  </Field>
+                ))}
                 {c.rating && (
                   <Field label={t("inbox.rating")}>
                     <Text size="sm">
@@ -174,6 +231,31 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                 <Field label={t("inbox.channel")}>
                   <Text size="sm">{c.channel?.name ?? "—"}</Text>
                 </Field>
+                {c.contact && (
+                  <>
+                    <Field label={t("inbox.tags")}>
+                      <TagsEditor
+                        tags={c.contact.tags}
+                        allTags={allTags}
+                        editable={canEdit}
+                        disabled={addContactTag.isPending || removeContactTag.isPending}
+                        onAdd={(tagId) => addContactTag.mutate(tagId)}
+                        onRemove={(tagId) => removeContactTag.mutate(tagId)}
+                      />
+                    </Field>
+                    {contactAttrs.map((def) => (
+                      <Field key={def.id} label={def.name}>
+                        <AttributeInput
+                          key={`${c.contact?.id}:${def.key}`}
+                          def={def}
+                          value={c.contact?.attributes[def.key]}
+                          disabled={!canEdit || patchContactAttr.isPending}
+                          onSave={(val) => patchContactAttr.mutate({ [def.key]: val })}
+                        />
+                      </Field>
+                    ))}
+                  </>
+                )}
               </Stack>
             </Accordion.Panel>
           </Accordion.Item>

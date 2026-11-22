@@ -23,6 +23,7 @@ import (
 	"github.com/go-tenon/tenon/realtime"
 
 	"agents-desk/apps"
+	"agents-desk/internal/attribute"
 	"agents-desk/internal/auth"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
@@ -32,6 +33,7 @@ import (
 	"agents-desk/internal/platformadmin"
 	"agents-desk/internal/push"
 	"agents-desk/internal/role"
+	"agents-desk/internal/tag"
 	"agents-desk/internal/team"
 	"agents-desk/internal/tenant"
 	"agents-desk/internal/translation"
@@ -202,6 +204,8 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		role.RegisterRoutes(api, require, a.db, a.roles)
 		hours.RegisterRoutes(api, require, a.db)
 		team.RegisterRoutes(api, require, a.db, a.roles, a.memberLogins, a.files)
+		tag.RegisterRoutes(api, require, a.db)
+		attribute.RegisterRoutes(api, require, a.db)
 		conversation.RegisterRoutes(api, require, a.db, a.downstream())
 		widget.RegisterRoutes(api, require, a.db, a.crypt, a.cfg.PublicURL)
 		translation.RegisterRoutes(api, require, a.db, a.translator, translation.NewIncoming(a.db, a.locker, a.translator, a.downstream()), a.translationSettings)

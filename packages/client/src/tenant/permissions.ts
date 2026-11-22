@@ -23,11 +23,21 @@ export type Permission = keyof typeof permissions
 
 /** 每个接口要求的权限，调用者必须全部具备；没有列出的接口不要求权限。 */
 export const required = {
+  attribute: {
+    create: ["tenant-settings:manage"],
+    delete: ["tenant-settings:manage"],
+    reorder: ["tenant-settings:manage"],
+    update: ["tenant-settings:manage"],
+  },
   conversation: {
     assign: ["conversations:reply"],
+    attributesPatch: ["conversations:reply"],
     bulkAssign: ["conversations:reply"],
     bulkClose: ["conversations:reply"],
     close: ["conversations:reply"],
+    contactAttributesPatch: ["conversations:reply"],
+    contactTagAdd: ["conversations:reply"],
+    contactTagRemove: ["conversations:reply"],
     get: ["conversations:read"],
     inbox: ["conversations:read"],
     items: ["conversations:read"],
@@ -40,6 +50,8 @@ export const required = {
     reply: ["conversations:reply"],
     retry: ["conversations:reply"],
     snooze: ["conversations:reply"],
+    tagAdd: ["conversations:reply"],
+    tagRemove: ["conversations:reply"],
   },
   hours: {
     replyTimeSave: ["tenant-settings:manage"],
@@ -60,6 +72,11 @@ export const required = {
     get: ["members:manage"],
     list: ["members:manage"],
     update: ["members:manage"],
+  },
+  tag: {
+    create: ["tenant-settings:manage"],
+    delete: ["tenant-settings:manage"],
+    update: ["tenant-settings:manage"],
   },
   team: {
     businessHours: ["teams:manage"],

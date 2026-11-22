@@ -12,3 +12,6 @@ export const roles = resourceModel(kit.resources.role, kit)
 
 // widgets 是当前工作区的网页聊天插件：列表、新建和修改来自 Go 中的声明（internal/widget/routes.go）。
 export const widgets = resourceModel(kit.resources.widget, kit)
+
+// tags 是当前工作区的标签：列表、新建、修改和删除来自 Go 中的声明（internal/tag/routes.go）。
+export const tags = resourceModel(kit.resources.tag, kit)

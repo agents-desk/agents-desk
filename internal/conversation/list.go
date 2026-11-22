@@ -56,6 +56,7 @@ type ListInput struct {
 	ChannelID  string   `query:"channel_id" format:"uuid" doc:"只列出来自这个渠道的会话"`
 	ContactID  string   `query:"contact_id" format:"uuid" doc:"只列出这个联系人的会话，不按状态筛选，例如详情中的“最近的会话”"`
 	Priority   Priority `query:"priority" doc:"只列出这个优先级的会话"`
+	TagID      string   `query:"tag_id" format:"uuid" doc:"只列出带有这个标签的会话"`
 	Sort       Sort     `query:"sort" default:"waiting" doc:"排序；@我 的列表总是最近被 @ 的在前"`
 }
 
@@ -128,6 +129,9 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) 
 	}
 	if in.Priority != "" {
 		q = q.Where("conversation.priority = ?", in.Priority)
+	}
+	if in.TagID != "" {
+		q = q.Where("EXISTS (SELECT 1 FROM conversation_tags AS ct WHERE ct.tenant_id = ? AND ct.tag_id = ? AND ct.conversation_id = conversation.id)", sub.Tenant, in.TagID)
 	}
 
 	// 排序和游标：@我 按最近被 @ 的时间，其他列表按 in.Sort
