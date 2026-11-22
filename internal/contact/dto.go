@@ -7,6 +7,8 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/identity"
+
 	"agents-desk/internal/channel"
 )
 
@@ -24,7 +26,7 @@ type ContactDTO struct {
 	Referrer          string         `json:"referrer" doc:"首次访问的来源页面"`
 	Notes             string         `json:"notes" doc:"成员填写的内部备注，只给成员看"`
 	Attributes        map[string]any `json:"attributes" doc:"自定义属性"`
-	ConversationCount int            `json:"conversation_count" doc:"这个联系人的全部会话数"`
+	ConversationCount int            `json:"conversation_count" doc:"当前成员可见的该联系人会话数"`
 	LastSeenAt        *time.Time     `json:"last_seen_at,omitempty" doc:"最近活跃或联系的时间"`
 	CreatedAt         time.Time      `json:"created_at"`
 	UpdatedAt         time.Time      `json:"updated_at"`
@@ -48,8 +50,8 @@ type ContactDetailOutput struct {
 	Body ContactDetailDTO
 }
 
-// toDTOs 把一批联系人转换为接口中的形式，并一次查出每个联系人的会话数。
-func toDTOs(ctx context.Context, db bun.IDB, tenant string, rows []Contact) ([]ContactDTO, error) {
+// toDTOs 把一批联系人转换为接口中的形式，并一次查出每个联系人对 sub 可见的会话数。
+func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, rows []Contact) ([]ContactDTO, error) {
 	out := make([]ContactDTO, len(rows))
 	if len(rows) == 0 {
 		return out, nil
@@ -62,10 +64,12 @@ func toDTOs(ctx context.Context, db bun.IDB, tenant string, rows []Contact) ([]C
 		ContactID string `bun:"contact_id"`
 		Count     int    `bun:"count"`
 	}
-	err := db.NewSelect().Table("conversations").
-		Column("contact_id").ColumnExpr("count(*) AS count").
-		Where("tenant_id = ? AND contact_id IN (?)", tenant, bun.In(ids)).
-		Group("contact_id").Scan(ctx, &counts)
+	err := visibleConversations(
+		db.NewSelect().TableExpr("conversations AS conv").
+			Column("conv.contact_id").ColumnExpr("count(*) AS count").
+			Where("conv.tenant_id = ? AND conv.contact_id IN (?)", sub.Tenant, bun.In(ids)),
+		sub,
+	).Group("conv.contact_id").Scan(ctx, &counts)
 	if err != nil {
 		return nil, errors.Wrap(err, "count contact conversations")
 	}
@@ -90,15 +94,15 @@ func toDTOs(ctx context.Context, db bun.IDB, tenant string, rows []Contact) ([]C
 	return out, nil
 }
 
-// loadDetail 读取工作区 tenant 中联系人 c 的完整资料（含渠道身份和会话数）。
-func loadDetail(ctx context.Context, db bun.IDB, tenant string, c *Contact) (*ContactDetailDTO, error) {
-	dtos, err := toDTOs(ctx, db, tenant, []Contact{*c})
+// loadDetail 读取 sub 所在工作区中联系人 c 的完整资料（含渠道身份和 sub 可见的会话数）。
+func loadDetail(ctx context.Context, db bun.IDB, sub identity.Subject, c *Contact) (*ContactDetailDTO, error) {
+	dtos, err := toDTOs(ctx, db, sub, []Contact{*c})
 	if err != nil {
 		return nil, err
 	}
 	var idRows []Identity
 	if err := db.NewSelect().Model(&idRows).
-		Where("tenant_id = ? AND contact_id = ?", tenant, c.ID).
+		Where("tenant_id = ? AND contact_id = ?", sub.Tenant, c.ID).
 		OrderExpr("created_at ASC, channel_id ASC").Scan(ctx); err != nil {
 		return nil, errors.Wrap(err, "load contact identities")
 	}
@@ -110,7 +114,7 @@ func loadDetail(ctx context.Context, db bun.IDB, tenant string, c *Contact) (*Co
 		}
 		var chRows []channel.Channel
 		if err := db.NewSelect().Model(&chRows).
-			Where("tenant_id = ? AND id IN (?)", tenant, bun.In(chIDs)).Scan(ctx); err != nil {
+			Where("tenant_id = ? AND id IN (?)", sub.Tenant, bun.In(chIDs)).Scan(ctx); err != nil {
 			return nil, errors.Wrap(err, "load identity channels")
 		}
 		for i := range chRows {

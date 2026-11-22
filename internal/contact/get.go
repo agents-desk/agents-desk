@@ -21,13 +21,13 @@ type Get struct {
 // NewGet 返回读取联系人的动作。
 func NewGet(db *bun.DB) *Get { return &Get{db: db} }
 
-// Handle 返回 sub 所在工作区中联系人 id 的完整资料（含渠道身份和会话数），不存在或属于别的工作区时返回 ErrNotFound。
+// Handle 返回 sub 所在工作区中 sub 能看到的联系人 id 的完整资料（含渠道身份和可见会话数），不存在、属于别的工作区或无权查看时返回 ErrNotFound。
 func (a *Get) Handle(ctx context.Context, sub identity.Subject, id string) (*ContactDetailDTO, error) {
-	c, err := Find(ctx, a.db, sub.Tenant, id)
+	c, err := findVisible(ctx, a.db, sub, id, false)
 	if err != nil {
 		return nil, err
 	}
-	return loadDetail(ctx, a.db, sub.Tenant, c)
+	return loadDetail(ctx, a.db, sub, c)
 }
 
 // HTTP 处理 GET /t/{slug}/api/contacts/{id}。

@@ -11,12 +11,12 @@ import (
 	"agents-desk/internal/channel"
 )
 
-// SummaryDTO 是联系人模块的概览：各类联系人的数量，以及工作区的渠道列表（用于联系人列表按渠道筛选）。
+// SummaryDTO 是联系人模块的概览：当前成员可见的各类联系人数量，以及可见的渠道列表（用于联系人列表按渠道筛选）。
 type SummaryDTO struct {
 	All      int64             `json:"all" doc:"全部联系人数量"`
 	Users    int64             `json:"users" doc:"用户数量"`
 	Leads    int64             `json:"leads" doc:"线索数量"`
-	Channels []channel.Summary `json:"channels" doc:"工作区中的渠道，供联系人列表按渠道筛选"`
+	Channels []channel.Summary `json:"channels" doc:"当前成员可见的渠道，供联系人列表按渠道筛选"`
 }
 
 // SummaryOutput 是联系人概览的响应。
@@ -32,16 +32,18 @@ type GetSummary struct {
 // NewGetSummary 返回读取联系人概览的动作。
 func NewGetSummary(db *bun.DB) *GetSummary { return &GetSummary{db: db} }
 
-// Handle 返回 sub 所在工作区的全部/用户/线索数量，以及渠道概要列表。
+// Handle 返回 sub 所在工作区中 sub 能看到的全部/用户/线索数量，以及可见渠道概要列表。
 func (a *GetSummary) Handle(ctx context.Context, sub identity.Subject) (*SummaryDTO, error) {
 	var counts []struct {
 		Kind  Kind  `bun:"kind"`
 		Count int64 `bun:"count"`
 	}
-	err := a.db.NewSelect().Table("contacts").
-		Column("kind").ColumnExpr("count(*) AS count").
-		Where("tenant_id = ?", sub.Tenant).
-		Group("kind").Scan(ctx, &counts)
+	err := visible(
+		a.db.NewSelect().TableExpr("contacts AS contact").
+			Column("contact.kind").ColumnExpr("count(*) AS count").
+			Where("contact.tenant_id = ?", sub.Tenant),
+		sub,
+	).Group("contact.kind").Scan(ctx, &counts)
 	if err != nil {
 		return nil, errors.Wrap(err, "count contacts by kind")
 	}
@@ -56,9 +58,10 @@ func (a *GetSummary) Handle(ctx context.Context, sub identity.Subject) (*Summary
 		}
 	}
 	var chRows []channel.Channel
-	if err := a.db.NewSelect().Model(&chRows).
-		Where("tenant_id = ?", sub.Tenant).
-		OrderExpr("name ASC, id ASC").Scan(ctx); err != nil {
+	if err := visibleChannels(
+		a.db.NewSelect().Model(&chRows).Where("channel.tenant_id = ?", sub.Tenant),
+		sub,
+	).OrderExpr("channel.name ASC, channel.id ASC").Scan(ctx); err != nil {
 		return nil, errors.Wrap(err, "list channels for contacts")
 	}
 	for i := range chRows {

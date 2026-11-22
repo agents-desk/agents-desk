@@ -60,10 +60,10 @@ type List struct {
 // NewList 返回联系人列表的动作。
 func NewList(db *bun.DB) *List { return &List{db: db} }
 
-// Handle 返回 sub 所在工作区的一页联系人（游标分页），支持按类型、关键词、语言和渠道筛选。
+// Handle 返回 sub 所在工作区中 sub 能看到的一页联系人（游标分页），支持按类型、关键词、语言和渠道筛选。
 func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) (*page.Cursor[ContactDTO], error) {
 	var rows []Contact
-	q := a.db.NewSelect().Model(&rows).Where("contact.tenant_id = ?", sub.Tenant).Limit(in.Limit())
+	q := visible(a.db.NewSelect().Model(&rows).Where("contact.tenant_id = ?", sub.Tenant), sub).Limit(in.Limit())
 	if in.Kind != "" {
 		q = q.Where("contact.kind = ?", in.Kind)
 	}
@@ -120,7 +120,7 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) 
 	if err := q.Scan(ctx); err != nil {
 		return nil, errors.Wrap(err, "list contacts")
 	}
-	items, err := toDTOs(ctx, a.db, sub.Tenant, rows)
+	items, err := toDTOs(ctx, a.db, sub, rows)
 	if err != nil {
 		return nil, err
 	}

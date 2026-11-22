@@ -96,7 +96,7 @@ export interface ChannelSummary {
 export interface ContactDTO {
   /** 自定义属性 */
   attributes: Record<string, unknown>
-  /** 这个联系人的全部会话数 */
+  /** 当前成员可见的该联系人会话数 */
   conversation_count: number
   created_at: string
   email: string
@@ -125,7 +125,7 @@ export interface ContactDTO {
 export interface ContactDetailDTO {
   /** 自定义属性 */
   attributes: Record<string, unknown>
-  /** 这个联系人的全部会话数 */
+  /** 当前成员可见的该联系人会话数 */
   conversation_count: number
   created_at: string
   email: string
@@ -187,7 +187,7 @@ export interface ContactSummary {
 export interface ContactSummaryDTO {
   /** 全部联系人数量 */
   all: number
-  /** 工作区中的渠道，供联系人列表按渠道筛选 */
+  /** 当前成员可见的渠道，供联系人列表按渠道筛选 */
   channels: ChannelSummary[]
   /** 线索数量 */
   leads: number
