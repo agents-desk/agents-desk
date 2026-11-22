@@ -1,20 +1,22 @@
 import type { ConversationDTO } from "@agents-desk/client/tenant"
-import { Accordion, ActionIcon, Box, Group, Select, Stack, Text, UnstyledButton } from "@mantine/core"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { IconX } from "@tabler/icons-react"
-import { notifyError, useCan, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
-import type { ReactNode } from "react"
+import { Accordion, ActionIcon, Anchor, Box, Button, Group, Select, Stack, Text, Textarea, UnstyledButton } from "@mantine/core"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Link, useParams } from "@tanstack/react-router"
+import { IconExternalLink, IconX } from "@tabler/icons-react"
+import { notifyError, notifySuccess, useCan, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
+import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { LanguageSelect } from "../LanguageSelect"
 import { languageName } from "../languages"
+import { formatLocalTime } from "../timezone"
 import { useAttributes, useContactHistory, useMe, useMembers, useTags, useTeams } from "./data"
 import { AttributeInput, TagsEditor } from "./fields"
 import { activity } from "./format"
 
 /** Field 是详情中的一行：左边是名称，右边是值。 */
-function Field({ label, children }: { label: string; children: ReactNode }): ReactNode {
+function Field({ label, children, align = "center" }: { label: string; children: ReactNode; align?: "center" | "flex-start" }): ReactNode {
   return (
-    <Group gap="xs" wrap="nowrap" align="center">
+    <Group gap="xs" wrap="nowrap" align={align}>
       <Text size="xs" c="dimmed" w={76} style={{ flex: "none" }}>
         {label}
       </Text>
@@ -27,15 +29,16 @@ function Field({ label, children }: { label: string; children: ReactNode }): Rea
 const AUTO = "auto"
 
 /**
- * Details 是会话的详情栏（第五栏）：会话（负责人、团队收件箱、优先级、标签和自定义属性可以直接修改）、联系人（含标签和自定义属性）、
- * 同一个联系人的其他会话。联系人的语言可以手动设置，识别错了时改成正确的；选“自动识别”恢复按收到的消息更新。各部分可以折叠。
- * 联系人的所在地和来源页面在 U1 中加入。
+ * Details 是会话的详情栏（第五栏）：会话（负责人、团队收件箱、优先级、标签和自定义属性可以直接修改）、
+ * 联系人（支持跳转到资料页、展示所在地和当地时间、来源页面、快捷编辑备注、标签和自定义属性）、同一个联系人的其他会话。
+ * 联系人的语言可以手动设置，识别错了时改成正确的；选“自动识别”恢复按收到的消息更新。各部分可以折叠。
  */
 export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: () => void; onOpen: (id: string) => void }): ReactNode {
   const t = useT()
   const can = useCan()
   const language = useLanguage()
   const zone = useTimeZone()
+  const { slug } = useParams({ from: "/t/$slug" })
   const queryClient = useQueryClient()
   const me = useMe()
   const { list: members } = useMembers()
@@ -44,6 +47,15 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
   const convAttrs = useAttributes("conversation")
   const contactAttrs = useAttributes("contact")
   const history = useContactHistory(c.contact?.id)
+  const contactDetail = useQuery({
+    ...kit.queries.contact.get(c.contact?.id ?? ""),
+    enabled: !!c.contact?.id,
+  })
+  const [notes, setNotes] = useState("")
+  const serverNotes = contactDetail.data?.notes ?? ""
+  useEffect(() => {
+    setNotes(serverNotes)
+  }, [c.contact?.id, serverNotes])
   const canEdit = can("conversations:reply")
   const invalidate = () => queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
   const assign = useMutation({
@@ -58,7 +70,18 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
   })
   const setLanguage = useMutation({
     mutationFn: (lang: string) => tenantApi.conversation.language(c.id, { language: lang }),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      void invalidate()
+      void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
+    },
+    onError: (err) => notifyError(err),
+  })
+  const saveNotes = useMutation({
+    mutationFn: (next: string) => tenantApi.contact.update(c.contact!.id, { notes: next }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
+      notifySuccess(t("common.saved"))
+    },
     onError: (err) => notifyError(err),
   })
   const addConvTag = useMutation({
@@ -78,17 +101,26 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
   })
   const addContactTag = useMutation({
     mutationFn: (tag_id: string) => tenantApi.conversation.contactTagAdd(c.id, { tag_id }),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      void invalidate()
+      void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
+    },
     onError: (err) => notifyError(err),
   })
   const removeContactTag = useMutation({
     mutationFn: (tagId: string) => tenantApi.conversation.contactTagRemove(c.id, tagId),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      void invalidate()
+      void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
+    },
     onError: (err) => notifyError(err),
   })
   const patchContactAttr = useMutation({
     mutationFn: (attributes: Record<string, unknown>) => tenantApi.conversation.contactAttributesPatch(c.id, { attributes }),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      void invalidate()
+      void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
+    },
     onError: (err) => notifyError(err),
   })
   // 对方的语言：手动设置的显示那种语言，否则显示“自动识别”（带上识别出的语言）
@@ -97,6 +129,12 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
   // 没有“改派给别人”的权限时，负责人只能选自己
   const assignees = can("conversations:assign") ? members : members.filter((m) => m.id === me.data?.id)
   const others = (history.data?.items ?? []).filter((x) => x.id !== c.id)
+  const location = contactDetail.data?.location || c.contact?.location || ""
+  const timeZone = contactDetail.data?.time_zone || c.contact?.time_zone || ""
+  const localTime = formatLocalTime(timeZone)
+  const locationText = [location, localTime ? t("contacts.local_time", { time: localTime }) : ""].filter(Boolean).join(" · ")
+  const referrer = contactDetail.data?.referrer ?? ""
+  const notesDirty = notes !== serverNotes
 
   return (
     <Stack gap={0} h="100%" className="inbox-details">
@@ -201,13 +239,26 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
             <Accordion.Panel>
               <Stack gap={8}>
                 <Field label={t("inbox.contact_name")}>
-                  <Text size="sm">{c.contact?.name || t("inbox.visitor")}</Text>
+                  {c.contact ? (
+                    <Link
+                      to="/t/$slug/contacts/$id"
+                      params={{ slug, id: c.contact.id }}
+                      search={{ sort: "recent" }}
+                      style={{ textDecoration: "none" }}
+                    >
+                      <Text size="sm" fw={500} c="brand">
+                        {c.contact.name || t("inbox.visitor")}
+                      </Text>
+                    </Link>
+                  ) : (
+                    <Text size="sm">{t("inbox.visitor")}</Text>
+                  )}
                 </Field>
                 <Field label={t("inbox.contact_kind")}>
                   <Text size="sm">{c.contact ? kit.label("ContactKind", c.contact.kind) : ""}</Text>
                 </Field>
                 <Field label={t("inbox.contact_email")}>
-                  <Text size="sm" c={c.contact?.email ? undefined : "dimmed"}>
+                  <Text size="sm" c={c.contact?.email ? undefined : "dimmed"} truncate>
                     {c.contact?.email || "—"}
                   </Text>
                 </Field>
@@ -228,6 +279,21 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                     </Text>
                   )}
                 </Field>
+                <Field label={t("inbox.contact_location")}>
+                  <Text size="sm" c={locationText ? undefined : "dimmed"} truncate>
+                    {locationText || "—"}
+                  </Text>
+                </Field>
+                {referrer && (
+                  <Field label={t("inbox.contact_referrer")}>
+                    <Anchor href={referrer} target="_blank" rel="noopener noreferrer" size="xs" style={{ display: "inline-flex", alignItems: "center", gap: 4, maxWidth: "100%" }}>
+                      <Text span size="xs" truncate>
+                        {referrer}
+                      </Text>
+                      <IconExternalLink size={12} style={{ flex: "none" }} />
+                    </Anchor>
+                  </Field>
+                )}
                 <Field label={t("inbox.channel")}>
                   <Text size="sm">{c.channel?.name ?? "—"}</Text>
                 </Field>
@@ -254,6 +320,32 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                         />
                       </Field>
                     ))}
+                    <Stack gap={4} mt={4}>
+                      <Text size="xs" c="dimmed">
+                        {t("inbox.contact_notes")}
+                      </Text>
+                      <Textarea
+                        size="xs"
+                        autosize
+                        minRows={2}
+                        maxRows={5}
+                        maxLength={4000}
+                        placeholder={t("inbox.contact_notes_placeholder")}
+                        value={notes}
+                        onChange={(e) => setNotes(e.currentTarget.value)}
+                        disabled={!can("contacts:update") || contactDetail.isPending}
+                      />
+                      {can("contacts:update") && notesDirty && (
+                        <Group justify="flex-end" gap="xs">
+                          <Button size="xs" variant="default" onClick={() => setNotes(serverNotes)}>
+                            {t("common.cancel")}
+                          </Button>
+                          <Button size="xs" loading={saveNotes.isPending} onClick={() => saveNotes.mutate(notes)}>
+                            {t("common.save")}
+                          </Button>
+                        </Group>
+                      )}
+                    </Stack>
                   </>
                 )}
               </Stack>

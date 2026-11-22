@@ -83,7 +83,77 @@ export interface ChannelSummary {
   name: string
 }
 
+export interface ContactDTO {
+  /** 自定义属性 */
+  attributes: Record<string, unknown>
+  /** 这个联系人的全部会话数 */
+  conversation_count: number
+  created_at: string
+  email: string
+  /** 产品后端传来的用户编号；线索为空 */
+  external_user_id?: string
+  id: string
+  kind: ContactKind
+  /** 客户的语言（BCP 47），按最近几条消息识别或成员手动设置 */
+  language: string
+  /** 语言是成员手动设置的：收到的消息不再改它 */
+  language_manual: boolean
+  /** 最近活跃或联系的时间 */
+  last_seen_at?: string
+  /** 所在地 */
+  location: string
+  name: string
+  /** 成员填写的内部备注，只给成员看 */
+  notes: string
+  /** 首次访问的来源页面 */
+  referrer: string
+  /** IANA 时区名，用于显示对方的当地时间 */
+  time_zone: string
+  updated_at: string
+}
+
+export interface ContactDetailDTO {
+  /** 自定义属性 */
+  attributes: Record<string, unknown>
+  /** 这个联系人的全部会话数 */
+  conversation_count: number
+  created_at: string
+  email: string
+  /** 产品后端传来的用户编号；线索为空 */
+  external_user_id?: string
+  id: string
+  /** 联系人在各个渠道中的身份 */
+  identities: ContactIdentityDTO[]
+  kind: ContactKind
+  /** 客户的语言（BCP 47），按最近几条消息识别或成员手动设置 */
+  language: string
+  /** 语言是成员手动设置的：收到的消息不再改它 */
+  language_manual: boolean
+  /** 最近活跃或联系的时间 */
+  last_seen_at?: string
+  /** 所在地 */
+  location: string
+  name: string
+  /** 成员填写的内部备注，只给成员看 */
+  notes: string
+  /** 首次访问的来源页面 */
+  referrer: string
+  /** IANA 时区名，用于显示对方的当地时间 */
+  time_zone: string
+  updated_at: string
+}
+
+export interface ContactIdentityDTO {
+  /** 所属渠道 */
+  channel: ChannelSummary
+  created_at: string
+  /** 在该渠道中的外部编号 */
+  external_id: string
+}
+
 export type ContactKind = "user" | "lead"
+
+export type ContactSort = "recent" | "created"
 
 export interface ContactSummary {
   /** 联系人的自定义属性 */
@@ -95,9 +165,39 @@ export interface ContactSummary {
   language: string
   /** 对方的语言是成员手动设置的：收到的消息不再改它 */
   language_manual: boolean
+  /** 所在地 */
+  location?: string
   name: string
   /** 联系人上的标签 */
   tags: TagSummary[]
+  /** IANA 时区名，用于显示对方的当地时间 */
+  time_zone?: string
+}
+
+export interface ContactSummaryDTO {
+  /** 全部联系人数量 */
+  all: number
+  /** 工作区中的渠道，供联系人列表按渠道筛选 */
+  channels: ChannelSummary[]
+  /** 线索数量 */
+  leads: number
+  /** 用户数量 */
+  users: number
+}
+
+export interface ContactUpdateBody {
+  /** 邮箱 */
+  email?: string
+  /** 对方的语言（BCP 47）；传空字符串恢复自动识别 */
+  language?: string
+  /** 所在地 */
+  location?: string
+  /** 名字 */
+  name?: string
+  /** 成员填写的内部备注 */
+  notes?: string
+  /** IANA 时区名，例如 Asia/Shanghai；传空字符串清除 */
+  time_zone?: string
 }
 
 export interface ConversationActor {
@@ -330,6 +430,12 @@ export interface ConversationTranslation {
 }
 
 export type ConversationVisibility = "all" | "members"
+
+export interface CursorContactDTO {
+  items: ContactDTO[]
+  /** Pass as cursor to fetch the next page. Absent on the last page. */
+  next_cursor?: string
+}
 
 export interface CursorConversationDTO {
   items: ConversationDTO[]
@@ -718,6 +824,24 @@ export interface AttributeListInput {
   target?: AttributeTarget
 }
 
+/** contact-list 的参数。 */
+export interface ContactListInput {
+  /** Opaque cursor from next_cursor of the previous page. Omit for the first page. */
+  cursor?: string
+  /** Items per page. */
+  per_page?: number
+  /** 按联系人类型筛选：user 或 lead；不传为全部 */
+  kind?: ContactKind
+  /** 按名字、邮箱或外部用户编号搜索 */
+  q?: string
+  /** 按客户的语言（BCP 47）筛选，传主语言时同时匹配带子标签的写法 */
+  language?: string
+  /** 只列出在该渠道有身份的联系人 */
+  channel_id?: string
+  /** 排序方式 */
+  sort?: ContactSort
+}
+
 /** conversation-items 的参数。 */
 export interface ConversationItemsInput {
   /** 只读取序号大于它的项；收到推送后用它增量读取 */
@@ -868,6 +992,37 @@ export function createClient(options: ClientOptions) {
        */
       update: (id: string, body: AutomationUpdateBody): Promise<AutomationRuleDTO> =>
         rt.request<AutomationRuleDTO>({ method: "PUT", path: `/automations/${encodeURIComponent(id)}`, body }),
+    },
+    /** operationId 以 contact- 开头的接口。 */
+    contact: {
+      /**
+       * 读取联系人
+       *
+       * GET /contacts/{id}
+       */
+      get: (id: string): Promise<ContactDetailDTO> =>
+        rt.request<ContactDetailDTO>({ method: "GET", path: `/contacts/${encodeURIComponent(id)}` }),
+      /**
+       * 联系人列表
+       *
+       * GET /contacts
+       */
+      list: (input: ContactListInput = {}): Promise<CursorContactDTO> =>
+        rt.request<CursorContactDTO>({ method: "GET", path: `/contacts`, query: { "channel_id": input["channel_id"], "cursor": input["cursor"], "kind": input["kind"], "language": input["language"], "per_page": input["per_page"], "q": input["q"], "sort": input["sort"] } }),
+      /**
+       * 联系人的数量和渠道列表
+       *
+       * GET /contacts/summary
+       */
+      summary: (): Promise<ContactSummaryDTO> =>
+        rt.request<ContactSummaryDTO>({ method: "GET", path: `/contacts/summary` }),
+      /**
+       * 修改联系人资料
+       *
+       * PUT /contacts/{id}
+       */
+      update: (id: string, body: ContactUpdateBody): Promise<ContactDetailDTO> =>
+        rt.request<ContactDetailDTO>({ method: "PUT", path: `/contacts/${encodeURIComponent(id)}`, body }),
     },
     /** operationId 以 conversation- 开头的接口。 */
     conversation: {

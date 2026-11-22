@@ -1,0 +1,128 @@
+/* 联系人工作台样式：与收件箱共用细分隔线与浅色高亮，去掉传统后台表单和重边框表格感。 */
+.ct-divider {
+  border-bottom: 1px solid var(--tn-border, var(--mantine-color-gray-3));
+  flex: none;
+}
+
+.ct-footer {
+  border-top: 1px solid var(--tn-border, var(--mantine-color-gray-3));
+  flex: none;
+}
+
+.ct-aside {
+  border-left: 1px solid var(--tn-border, var(--mantine-color-gray-3));
+}
+
+.ct-aside-narrow {
+  border-top: 1px solid var(--tn-border, var(--mantine-color-gray-3));
+}
+
+.ct-list-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--mantine-color-body);
+  border-bottom: 1px solid var(--tn-border, var(--mantine-color-gray-3));
+}
+
+.ct-row {
+  position: relative;
+  border-bottom: 1px solid var(--mantine-color-gray-1);
+  transition: background-color 0.15s ease;
+  cursor: pointer;
+  scroll-margin-top: 36px;
+}
+
+.ct-row:hover {
+  background: var(--mantine-color-gray-0);
+}
+
+.ct-row[data-active] {
+  background: var(--mantine-color-bright-blue-light);
+}
+
+.ct-row[data-active]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--mantine-color-bright-blue-filled);
+}
+
+[data-mantine-color-scheme="dark"] .ct-row {
+  border-bottom-color: var(--mantine-color-dark-6);
+}
+
+[data-mantine-color-scheme="dark"] .ct-row:hover {
+  background: var(--mantine-color-dark-6);
+}
+
+/* 仅在悬停当前行或字段时露出轻量的复制/编辑小按钮，保持画面安静 */
+.ct-hover-action {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.ct-row:hover .ct-hover-action,
+.ct-field:hover .ct-hover-action,
+.ct-identity:hover .ct-hover-action,
+.ct-hover-action:focus-visible {
+  opacity: 1;
+}
+
+/* 联系人内部备注便签块：与收件箱内部备注同源的淡黄底色 */
+.ct-note {
+  background: var(--mantine-color-yellow-light);
+  border: 1px solid var(--mantine-color-yellow-3);
+  border-radius: var(--mantine-radius-md);
+}
+
+[data-mantine-color-scheme="dark"] .ct-note {
+  border-color: var(--mantine-color-yellow-8);
+}
+
+/* 历史会话流中的条目 */
+.ct-conv {
+  border: 1px solid var(--tn-border, var(--mantine-color-gray-2));
+  border-radius: var(--mantine-radius-md);
+  background: var(--mantine-color-body);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.ct-conv:hover {
+  border-color: var(--mantine-color-gray-4);
+}
+
+[data-mantine-color-scheme="dark"] .ct-conv:hover {
+  border-color: var(--mantine-color-dark-3);
+}
+
+.ct-section-divider {
+  border-top: 1px solid var(--tn-border, var(--mantine-color-gray-2));
+}
+
+[data-mantine-color-scheme="dark"] .ct-section-divider {
+  border-top-color: var(--mantine-color-dark-5);
+}
+
+/* 状态色圆点 */
+.ct-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.ct-dot[data-status="open"] {
+  background: var(--mantine-color-bright-blue-6);
+}
+
+.ct-dot[data-status="snoozed"] {
+  background: var(--mantine-color-yellow-6);
+}
+
+.ct-dot[data-status="closed"] {
+  background: var(--mantine-color-gray-5);
+}

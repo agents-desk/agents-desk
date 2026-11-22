@@ -117,6 +117,9 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 		}
 		items = append(items, auto...)
 		at := now()
+		if err := contact.TouchSeen(ctx, tx, sub.Tenant, person.ID, at); err != nil {
+			return err
+		}
 		c.LastMessageAt = at
 		if c.WaitingSince == nil {
 			c.WaitingSince = &at

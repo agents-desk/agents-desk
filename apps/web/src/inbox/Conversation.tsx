@@ -1,11 +1,13 @@
 import { ActionIcon, Avatar, Badge, Box, Button, Center, Group, Loader, SegmentedControl, Text, Tooltip } from "@mantine/core"
 import { useMediaQuery } from "@mantine/hooks"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { Link, useParams } from "@tanstack/react-router"
 import { IconArrowRight, IconCheck, IconChevronLeft, IconLayoutSidebarRight, IconRefresh } from "@tabler/icons-react"
 import { notifyError, useCollapseNav, useLanguage, useNarrow, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { languageName } from "../languages"
+import { formatLocalTime } from "../timezone"
 import { useConversationChannel } from "./channel"
 import { Composer } from "./Composer"
 import { useConversation, useMe, useMembers, useTeams, useTimeline } from "./data"
@@ -33,6 +35,7 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
   const t = useT()
   const narrow = useNarrow()
   const wide = useMediaQuery("(min-width: 1600px)")
+  const { slug } = useParams({ from: "/t/$slug" })
   const queryClient = useQueryClient()
   const me = useMe()
   const { byId } = useMembers()
@@ -80,7 +83,9 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
   }
   const assignee = c.assignee?.type === "member" ? (c.assignee.id === me.data?.id ? t("inbox.you") : byId.get(c.assignee.id)?.name) : undefined
   const team = c.team_id ? teams.find((x) => x.id === c.team_id)?.name : undefined
-  const meta = [c.channel?.name, c.language ? languageName(c.language, ui) : undefined, team, assignee ? t("inbox.assigned_to", { who: assignee }) : t("inbox.no_assignee")]
+  const localTime = formatLocalTime(c.contact?.time_zone)
+  const place = [c.contact?.location, localTime ? t("contacts.local_time", { time: localTime }) : undefined].filter(Boolean).join(" ")
+  const meta = [c.channel?.name, c.language ? languageName(c.language, ui) : undefined, place || undefined, team, assignee ? t("inbox.assigned_to", { who: assignee }) : t("inbox.no_assignee")]
     .filter(Boolean)
     .join(" · ")
 
@@ -97,9 +102,22 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
           )}
           <Box style={{ minWidth: 0, flex: narrow ? 1 : undefined }}>
             <Group gap={6} wrap="nowrap">
-              <Text fw={600} truncate>
-                {contactName(c, t)}
-              </Text>
+              {c.contact ? (
+                <Link
+                  to="/t/$slug/contacts/$id"
+                  params={{ slug, id: c.contact.id }}
+                  search={{ sort: "recent" }}
+                  style={{ color: "inherit", textDecoration: "none", minWidth: 0 }}
+                >
+                  <Text fw={600} truncate>
+                    {contactName(c, t)}
+                  </Text>
+                </Link>
+              ) : (
+                <Text fw={600} truncate>
+                  {contactName(c, t)}
+                </Text>
+              )}
               {c.contact && (
                 <Badge size="xs" variant="light" color="gray" style={{ flex: "none" }}>
                   {kit.label("ContactKind", c.contact.kind)}

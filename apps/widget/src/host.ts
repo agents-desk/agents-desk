@@ -82,6 +82,7 @@ export function openLink(url: string): void {
 export interface Init {
   userToken?: string // 已登录用户的身份
   mobile: boolean // 产品页面是不是手机的宽度，展开后占满屏幕
+  referrer?: string // 嵌入聊天窗口的产品页面地址
 }
 
 /**
@@ -113,12 +114,19 @@ export function listen(handlers: { command: (c: Command) => void; layout: (mobil
  * 独立时读取 App 在页面加载前设置的 window.agentsDesk，总是占满屏幕。
  */
 export function waitInit(): Promise<Init> {
-  if (!embedded) return Promise.resolve({ userToken: window.agentsDesk?.user_token, mobile: true })
+  if (!embedded) {
+    const referrer = typeof document !== "undefined" && document.referrer ? document.referrer : undefined
+    return Promise.resolve({ userToken: window.agentsDesk?.user_token, mobile: true, referrer })
+  }
   return new Promise((resolve) => {
     const timer = setTimeout(() => done({ mobile: false }), 1500)
     const onMessage = (e: MessageEvent) => {
       if (e.source !== window.parent || e.data?.type !== PREFIX + "init") return
-      done({ userToken: e.data.user_token || undefined, mobile: Boolean(e.data.mobile) })
+      done({
+        userToken: e.data.user_token || undefined,
+        mobile: Boolean(e.data.mobile),
+        referrer: typeof e.data.referrer === "string" && e.data.referrer ? e.data.referrer : undefined,
+      })
     }
     const done = (init: Init) => {
       clearTimeout(timer)

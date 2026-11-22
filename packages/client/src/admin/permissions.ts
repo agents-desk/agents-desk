@@ -4,6 +4,8 @@
 export const permissions = {
   "audit:read": "查看操作日志",
   "channels:manage": "管理渠道",
+  "contacts:read": "查看联系人",
+  "contacts:update": "修改联系人",
   "conversations:assign": "把会话改派给别人",
   "conversations:read": "查看会话",
   "conversations:read-all": "可以看到全部会话",

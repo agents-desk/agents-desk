@@ -39,6 +39,49 @@ export const schemas = {
       },
     },
   },
+  contact: {
+    list: {
+      query: {
+        "properties": {
+          "channel_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "cursor": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ContactKind"
+          },
+          "language": {
+            "maxLength": 35,
+            "type": "string"
+          },
+          "per_page": {
+            "default": 20,
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "q": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/ContactSort",
+            "default": "recent"
+          }
+        },
+        "type": "object"
+      },
+    },
+    update: {
+      body: {
+        "$ref": "#/components/schemas/ContactUpdateBody"
+      },
+    },
+  },
   conversation: {
     assign: {
       body: {
@@ -543,6 +586,50 @@ export const components = {
     "required": [
       "enabled"
     ],
+    "type": "object"
+  },
+  ContactKind: {
+    "enum": [
+      "user",
+      "lead"
+    ],
+    "type": "string"
+  },
+  ContactSort: {
+    "enum": [
+      "recent",
+      "created"
+    ],
+    "type": "string"
+  },
+  ContactUpdateBody: {
+    "additionalProperties": false,
+    "properties": {
+      "email": {
+        "maxLength": 254,
+        "type": "string"
+      },
+      "language": {
+        "maxLength": 35,
+        "type": "string"
+      },
+      "location": {
+        "maxLength": 120,
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 120,
+        "type": "string"
+      },
+      "notes": {
+        "maxLength": 4000,
+        "type": "string"
+      },
+      "time_zone": {
+        "maxLength": 64,
+        "type": "string"
+      }
+    },
     "type": "object"
   },
   ConversationAddTagInputBody: {

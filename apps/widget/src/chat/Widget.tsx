@@ -21,7 +21,7 @@ let started: Promise<Init> | undefined
  */
 function initOnce(): Promise<Init> {
   started ??= waitInit().then(async (init) => {
-    await identity.start(init.userToken)
+    await identity.start(init.userToken, init.referrer)
     if (!embedded) tell("ready")
     return init
   })

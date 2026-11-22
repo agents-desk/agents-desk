@@ -36,13 +36,16 @@ const (
 	ConversationsAssign   Permission = "conversations:assign"    // 工作区：把会话改派给别人：指派别人负责的会话，或者把没有负责人的会话指派给别人、转到别的团队收件箱
 	ConversationsReadAll  Permission = "conversations:read-all"  // 工作区：会话的可见范围是全部会话
 	ConversationsReadTeam Permission = "conversations:read-team" // 工作区：会话的可见范围是所在团队收件箱的和指派给自己的
+	ContactsRead          Permission = "contacts:read"           // 工作区：查看联系人列表和资料
+	ContactsUpdate        Permission = "contacts:update"         // 工作区：修改联系人资料和备注
 )
 
 // Permissions 是全部权限，显示文字是翻译文件中 permission.<权限> 的消息。
 var Permissions = enum.New("permission", TenantsRead, TenantsManage, PlatformAdminsManage, PlatformSettingsManage,
 	QueueManage, SchedulesManage, SystemRead, AuditRead,
 	MembersRead, MembersManage, TenantSettingsManage, TeamsRead, TeamsManage, ChannelsManage,
-	ConversationsRead, ConversationsReply, ConversationsAssign, ConversationsReadAll, ConversationsReadTeam)
+	ConversationsRead, ConversationsReply, ConversationsAssign, ConversationsReadAll, ConversationsReadTeam,
+	ContactsRead, ContactsUpdate)
 
 // Schema 让 OpenAPI 中的 Permission 只接受目录中的取值。
 func (Permission) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Permissions) }
@@ -68,11 +71,13 @@ var Catalog = authz.Catalog{
 	{Name: string(ConversationsAssign), Description: "把会话改派给别人"},
 	{Name: string(ConversationsReadAll), Description: "可以看到全部会话"},
 	{Name: string(ConversationsReadTeam), Description: "可以看到所在团队收件箱的会话"},
+	{Name: string(ContactsRead), Description: "查看联系人"},
+	{Name: string(ContactsUpdate), Description: "修改联系人"},
 }
 
-// BasePermissions 是工作区每位成员都有的基本权限：查看成员和团队收件箱、查看和回复会话，能看到哪些会话由可见范围决定。
-// 它们不保存在角色中，加载成员的权限时由 WithBase 加上，所以改了这里，所有成员下一个请求起都按新的基本权限检查。
-var BasePermissions = []Permission{MembersRead, TeamsRead, ConversationsRead, ConversationsReply}
+// BasePermissions 是工作区每位成员都有的基本权限：查看成员和团队收件箱、查看和回复会话、查看和修改联系人，
+// 能看到哪些会话由可见范围决定。它们不保存在角色中，加载成员的权限时由 WithBase 加上，所以改了这里，所有成员下一个请求起都按新的基本权限检查。
+var BasePermissions = []Permission{MembersRead, TeamsRead, ConversationsRead, ConversationsReply, ContactsRead, ContactsUpdate}
 
 // WithBase 返回 perms 加上基本权限，去重并排序：成员在工作区中的全部权限。
 func WithBase(perms []string) []string {

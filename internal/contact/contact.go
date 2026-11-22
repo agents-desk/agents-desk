@@ -4,6 +4,8 @@ package contact
 import (
 	"context"
 	"database/sql"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -27,6 +29,12 @@ const Type identity.SubjectType = "contact"
 var (
 	// ErrNotFound 是联系人不存在，或者属于别的工作区。
 	ErrNotFound = errorx.Define(errorx.NotFound, "contact.not_found")
+	// ErrInvalidEmail 是联系人邮箱格式不正确。
+	ErrInvalidEmail = errorx.Define(errorx.InvalidArgument, "contact.invalid_email")
+	// ErrInvalidLanguage 是联系人语言不是合法的 BCP 47 标签。
+	ErrInvalidLanguage = errorx.Define(errorx.InvalidArgument, "contact.invalid_language")
+	// ErrInvalidTimeZone 是联系人时区不是认识的 IANA 时区名。
+	ErrInvalidTimeZone = errorx.Define(errorx.InvalidArgument, "contact.invalid_time_zone")
 	// ErrForbidden 是调用者不能修改这位联系人。
 	ErrForbidden = errorx.Define(errorx.PermissionDenied, "contact.forbidden")
 	// ErrNotLead 是已登录用户的邮箱由产品后端签名提供，不能通过访客表单修改。
@@ -61,9 +69,14 @@ type Contact struct {
 	Language       string         `bun:"language,notnull"`         // 客户的语言：按最近几条消息判断（conversation.CustomerLanguage），或者成员手动设置的
 	LanguageManual bool           `bun:"language_manual,notnull"`  // 成员手动设置了 Language：收到的消息不再改它
 	Attributes     map[string]any `bun:"attributes,type:jsonb,notnull"`
+	Notes          string         `bun:"notes,notnull"`     // 成员填写的内部备注，只给成员看
+	Location       string         `bun:"location,notnull"`  // 所在地，例如“上海”“Mumbai”
+	TimeZone       string         `bun:"time_zone,notnull"` // IANA 时区名，例如 Asia/Shanghai，用于显示对方当地时间
+	Referrer       string         `bun:"referrer,notnull"`  // 首次访问的来源页面地址
+	LastSeenAt     *time.Time     `bun:"last_seen_at"`      // 最近活跃或联系的时间
 }
 
-// Summary 是接口中联系人的概要，显示在会话中。
+// Summary 是接口中联系人的概要，显示在会话中和聊天插件的会话响应里。只包含对客户也安全的字段，不含内部备注。
 type Summary struct {
 	ID             string         `json:"id"`
 	Kind           Kind           `json:"kind"`
@@ -71,6 +84,8 @@ type Summary struct {
 	Email          string         `json:"email"`
 	Language       string         `json:"language" doc:"客户的语言：按最近几条确定了语言的消息判断，或者成员手动设置的；还没有时为空"`
 	LanguageManual bool           `json:"language_manual" doc:"对方的语言是成员手动设置的：收到的消息不再改它"`
+	Location       string         `json:"location,omitempty" doc:"所在地"`
+	TimeZone       string         `json:"time_zone,omitempty" doc:"IANA 时区名，用于显示对方的当地时间"`
 	Tags           []tag.Summary  `json:"tags" doc:"联系人上的标签"`
 	Attributes     map[string]any `json:"attributes" doc:"联系人的自定义属性"`
 }
@@ -84,6 +99,7 @@ func (c *Contact) Summary() Summary {
 	return Summary{
 		ID: c.ID, Kind: c.Kind, Name: c.Name, Email: c.Email,
 		Language: c.Language, LanguageManual: c.LanguageManual,
+		Location: c.Location, TimeZone: c.TimeZone,
 		Tags: []tag.Summary{}, Attributes: attrs,
 	}
 }
@@ -99,29 +115,43 @@ type Identity struct {
 	CreatedAt  time.Time `bun:"created_at,notnull"`
 }
 
-// Profile 是渠道告诉我们的联系人资料，新建联系人时使用。
+// Profile 是渠道告诉我们的联系人资料，新建或更新联系人时使用。TimeZone 和 Referrer 由浏览器自动上报，不合法时忽略。
 type Profile struct {
-	Name  string
-	Email string
+	Name     string
+	Email    string
+	TimeZone string
+	Referrer string
 }
 
 // ResolveIdentity 在事务 tx 中按渠道 channelID 和外部编号 externalID 找到联系人；还没有时新建一个线索和他的渠道身份。
-// 新建时 created 为 true。
+// 新建时 created 为 true；已存在时按 p 补全时区和来源页面，并刷新最近活跃时间。
 func ResolveIdentity(ctx context.Context, tx bun.IDB, tenant, channelID, externalID string, p Profile) (c *Contact, created bool, err error) {
+	at := now()
 	var id Identity
 	err = tx.NewSelect().Model(&id).Where("channel_id = ? AND external_id = ?", channelID, externalID).Scan(ctx)
 	switch {
 	case err == nil:
 		c, err = Find(ctx, tx, tenant, id.ContactID)
-		return c, false, err
+		if err != nil {
+			return nil, false, err
+		}
+		if err := applySessionMeta(ctx, tx, c, p, at); err != nil {
+			return nil, false, err
+		}
+		return c, false, nil
 	case !errors.Is(err, sql.ErrNoRows):
 		return nil, false, errors.Wrap(err, "load contact identity")
 	}
-	c = &Contact{ID: newID(), TenantID: tenant, Kind: Lead, Name: p.Name, Email: p.Email, Attributes: map[string]any{}}
+	c = &Contact{
+		ID: newID(), TenantID: tenant, Kind: Lead,
+		Name: p.Name, Email: p.Email,
+		TimeZone: sanitizeTimeZone(p.TimeZone), Referrer: sanitizeReferrer(p.Referrer),
+		LastSeenAt: &at, Attributes: map[string]any{},
+	}
 	if _, err := tx.NewInsert().Model(c).Exec(ctx); err != nil {
 		return nil, false, errors.Wrap(err, "insert contact")
 	}
-	id = Identity{TenantID: tenant, ChannelID: channelID, ExternalID: externalID, ContactID: c.ID, CreatedAt: now()}
+	id = Identity{TenantID: tenant, ChannelID: channelID, ExternalID: externalID, ContactID: c.ID, CreatedAt: at}
 	if _, err := tx.NewInsert().Model(&id).Exec(ctx); err != nil {
 		return nil, false, errors.Wrap(err, "insert contact identity")
 	}
@@ -129,9 +159,9 @@ func ResolveIdentity(ctx context.Context, tx bun.IDB, tenant, channelID, externa
 }
 
 // ResolveUser 在事务 tx 中按产品后端传来的用户编号 userID 找到工作区 tenant 中的用户，还没有时新建一个，并确保他在渠道
-// channelID 中有外部编号为 externalID 的身份。p 是产品传来的最新资料，非空的项写入联系人。
-// 渠道身份已经存在时用它对应的联系人。
+// channelID 中有外部编号为 externalID 的身份。p 是产品传来的最新资料，非空的项写入联系人；渠道身份已经存在时用它对应的联系人。
 func ResolveUser(ctx context.Context, tx bun.IDB, tenant, channelID, externalID, userID string, p Profile) (*Contact, error) {
+	at := now()
 	var id Identity
 	err := tx.NewSelect().Model(&id).Where("channel_id = ? AND external_id = ?", channelID, externalID).Scan(ctx)
 	var c *Contact
@@ -146,7 +176,11 @@ func ResolveUser(ctx context.Context, tx bun.IDB, tenant, channelID, externalID,
 		c = new(Contact)
 		err = tx.NewSelect().Model(c).Where("tenant_id = ? AND external_user_id = ?", tenant, userID).Scan(ctx)
 		if errors.Is(err, sql.ErrNoRows) {
-			c = &Contact{ID: newID(), TenantID: tenant, Kind: User, ExternalUserID: userID, Attributes: map[string]any{}}
+			c = &Contact{
+				ID: newID(), TenantID: tenant, Kind: User, ExternalUserID: userID,
+				TimeZone: sanitizeTimeZone(p.TimeZone), Referrer: sanitizeReferrer(p.Referrer),
+				LastSeenAt: &at, Attributes: map[string]any{},
+			}
 			if _, err := tx.NewInsert().Model(c).On("CONFLICT DO NOTHING").Exec(ctx); err != nil {
 				return nil, errors.Wrap(err, "insert user")
 			}
@@ -157,12 +191,12 @@ func ResolveUser(ctx context.Context, tx bun.IDB, tenant, channelID, externalID,
 		} else if err != nil {
 			return nil, errors.Wrap(err, "load user")
 		}
-		id = Identity{TenantID: tenant, ChannelID: channelID, ExternalID: externalID, ContactID: c.ID, CreatedAt: now()}
+		id = Identity{TenantID: tenant, ChannelID: channelID, ExternalID: externalID, ContactID: c.ID, CreatedAt: at}
 		if _, err := tx.NewInsert().Model(&id).On("CONFLICT DO NOTHING").Exec(ctx); err != nil {
 			return nil, errors.Wrap(err, "insert contact identity")
 		}
 	}
-	// 产品传来的资料是最新的
+	// 产品传来的资料是最新的；时区按最新上报更新，来源页面只在空时补齐
 	var changed []string
 	if p.Name != "" && p.Name != c.Name {
 		c.Name, changed = p.Name, append(changed, "name")
@@ -170,12 +204,40 @@ func ResolveUser(ctx context.Context, tx bun.IDB, tenant, channelID, externalID,
 	if p.Email != "" && p.Email != c.Email {
 		c.Email, changed = p.Email, append(changed, "email")
 	}
-	if len(changed) > 0 {
-		if _, err := tx.NewUpdate().Model(c).Column(append(changed, "updated_at")...).WherePK().Exec(ctx); err != nil {
-			return nil, errors.Wrap(err, "update user profile")
-		}
+	if tz := sanitizeTimeZone(p.TimeZone); tz != "" && tz != c.TimeZone {
+		c.TimeZone, changed = tz, append(changed, "time_zone")
+	}
+	if ref := sanitizeReferrer(p.Referrer); ref != "" && c.Referrer == "" {
+		c.Referrer, changed = ref, append(changed, "referrer")
+	}
+	c.LastSeenAt, changed = &at, append(changed, "last_seen_at")
+	if _, err := tx.NewUpdate().Model(c).Column(append(changed, "updated_at")...).WherePK().Exec(ctx); err != nil {
+		return nil, errors.Wrap(err, "update user profile")
 	}
 	return c, nil
+}
+
+// applySessionMeta 把聊天插件上报的时区、来源页面写入已有联系人 c，并刷新最近活跃时间。
+func applySessionMeta(ctx context.Context, tx bun.IDB, c *Contact, p Profile, at time.Time) error {
+	var changed []string
+	if tz := sanitizeTimeZone(p.TimeZone); tz != "" && tz != c.TimeZone {
+		c.TimeZone, changed = tz, append(changed, "time_zone")
+	}
+	if ref := sanitizeReferrer(p.Referrer); ref != "" && c.Referrer == "" {
+		c.Referrer, changed = ref, append(changed, "referrer")
+	}
+	c.LastSeenAt, changed = &at, append(changed, "last_seen_at")
+	_, err := tx.NewUpdate().Model(c).Column(append(changed, "updated_at")...).WherePK().Exec(ctx)
+	return errors.Wrap(err, "update contact session meta")
+}
+
+// TouchSeen 在事务 tx 中把联系人 id 的最近活跃时间更新为 at（不倒退）。
+func TouchSeen(ctx context.Context, tx bun.IDB, tenant, id string, at time.Time) error {
+	_, err := tx.NewUpdate().Model((*Contact)(nil)).
+		Set("last_seen_at = ?", at).
+		Where("id = ? AND tenant_id = ? AND (last_seen_at IS NULL OR last_seen_at < ?)", id, tenant, at).
+		Exec(ctx)
+	return errors.Wrap(err, "touch contact last_seen_at")
 }
 
 // Find 读取工作区 tenant 中的联系人 id，不存在或属于别的工作区时返回 ErrNotFound。
@@ -186,6 +248,37 @@ func Find(ctx context.Context, db bun.IDB, tenant, id string) (*Contact, error) 
 		return nil, ErrNotFound.New()
 	}
 	return c, errors.Wrap(err, "load contact")
+}
+
+// validTimeZone 检查 s 是否是有效的 IANA 时区名（不接受 Go 特有的 "Local"）。
+func validTimeZone(s string) bool {
+	if s == "" || s == "Local" || len(s) > 64 {
+		return false
+	}
+	_, err := time.LoadLocation(s)
+	return err == nil
+}
+
+// sanitizeTimeZone 返回合法的 IANA 时区名，不合法时返回空字符串。
+func sanitizeTimeZone(s string) string {
+	s = strings.TrimSpace(s)
+	if !validTimeZone(s) {
+		return ""
+	}
+	return s
+}
+
+// sanitizeReferrer 校验浏览器上报的来源页面地址：只接受 http 或 https 且长度不超过 2048，否则返回空字符串。
+func sanitizeReferrer(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" || len(s) > 2048 {
+		return ""
+	}
+	u, err := url.Parse(s)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return ""
+	}
+	return u.String()
 }
 
 // AddTag 在事务 tx 中给工作区 tenant 的联系人 contactID 添加标签 tagID。

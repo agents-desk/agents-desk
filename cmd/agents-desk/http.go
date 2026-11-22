@@ -229,6 +229,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		role.RegisterRoutes(api, require, a.db, a.roles)
 		hours.RegisterRoutes(api, require, a.db)
 		team.RegisterRoutes(api, require, a.db, a.roles, a.memberLogins, a.files)
+		contact.RegisterRoutes(api, require, a.db)
 		tag.RegisterRoutes(api, require, a.db)
 		attribute.RegisterRoutes(api, require, a.db)
 		conversation.RegisterRoutes(api, require, a.db, a.downstream())

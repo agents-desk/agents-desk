@@ -56,11 +56,15 @@ export function validLanguage(tag: string): string {
   }
 }
 
-/** languageOptions 返回选择语言的选项：先是 first 中的（去重），再是常用语言，名字按界面语言 ui。 */
-export function languageOptions(ui: string, first: string[] = []): { value: string; label: string }[] {
+/** languageOptions 返回选择语言的选项：先是 first 中的（去重），再是 base 中的常用语言，名字按界面语言 ui。 */
+export function languageOptions(
+  ui: string,
+  first: string[] = [],
+  base: readonly string[] = commonLanguages,
+): { value: string; label: string }[] {
   const seen = new Set<string>()
   const out: { value: string; label: string }[] = []
-  for (const tag of [...first, ...commonLanguages]) {
+  for (const tag of [...first, ...base]) {
     if (!tag || seen.has(tag)) continue
     seen.add(tag)
     out.push({ value: tag, label: languageName(tag, ui) })

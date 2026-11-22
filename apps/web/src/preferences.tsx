@@ -7,53 +7,9 @@ import { type ReactNode, useMemo, useState } from "react"
 import { api, apiKit, kit } from "./api"
 import { i18n } from "./i18n"
 import { me } from "./auth"
+import { allZones, browserZone, offsetOf } from "./timezone"
 
 // 偏好设置：语言和时区，属于账号本身，在所有工作区中一样。按表单的约定：宽度不限，一个输入框一行，保存按钮在右侧。
-
-/**
- * 浏览器（例如 Chrome）的时区列表中仍用旧名字的时区，换成 IANA 现在的名字：用户按现在的名字搜索（例如 Kolkata）也能找到，
- * 保存的也是现在的名字。服务端两种名字都认识。
- */
-const renamed: Record<string, string> = {
-  "Asia/Calcutta": "Asia/Kolkata",
-  "Asia/Saigon": "Asia/Ho_Chi_Minh",
-  "Asia/Katmandu": "Asia/Kathmandu",
-  "Asia/Rangoon": "Asia/Yangon",
-  "Europe/Kiev": "Europe/Kyiv",
-  "Africa/Asmera": "Africa/Asmara",
-  "Atlantic/Faeroe": "Atlantic/Faroe",
-  "America/Godthab": "America/Nuuk",
-  "America/Buenos_Aires": "America/Argentina/Buenos_Aires",
-  "America/Catamarca": "America/Argentina/Catamarca",
-  "America/Cordoba": "America/Argentina/Cordoba",
-  "America/Jujuy": "America/Argentina/Jujuy",
-  "America/Mendoza": "America/Argentina/Mendoza",
-  "America/Indianapolis": "America/Indiana/Indianapolis",
-  "America/Louisville": "America/Kentucky/Louisville",
-  "Pacific/Truk": "Pacific/Chuuk",
-  "Pacific/Ponape": "Pacific/Pohnpei",
-  "Pacific/Enderbury": "Pacific/Kanton",
-}
-
-/** 浏览器所在的时区，例如 Asia/Shanghai。 */
-const browserZone = (() => {
-  const z = Intl.DateTimeFormat().resolvedOptions().timeZone
-  return renamed[z] ?? z
-})()
-
-/** 浏览器支持的全部时区，旧名字换成现在的名字，按名字排序。 */
-function allZones(): string[] {
-  const zones = new Set(Intl.supportedValuesOf("timeZone").map((z) => renamed[z] ?? z))
-  return [...zones].sort()
-}
-
-/** 时区 zone 现在的 UTC 偏移，例如 UTC+05:30。 */
-function offsetOf(zone: string): string {
-  const name = new Intl.DateTimeFormat("en-US", { timeZone: zone, timeZoneName: "longOffset" })
-    .formatToParts(new Date())
-    .find((p) => p.type === "timeZoneName")?.value
-  return !name || name === "GMT" ? "UTC+00:00" : name.replace("GMT", "UTC")
-}
 
 /** 偏好设置的表单。 */
 export function PreferencesForm(): ReactNode {

@@ -17,9 +17,13 @@ export interface ContactSummary {
   language: string
   /** 对方的语言是成员手动设置的：收到的消息不再改它 */
   language_manual: boolean
+  /** 所在地 */
+  location?: string
   name: string
   /** 联系人上的标签 */
   tags: TagSummary[]
+  /** IANA 时区名，用于显示对方的当地时间 */
+  time_zone?: string
 }
 
 export type ConversationActorType = "contact" | "member" | "system"
@@ -161,6 +165,10 @@ export interface WidgetSent {
 }
 
 export interface WidgetSessionBody {
+  /** 嵌入聊天窗口的产品页面地址 */
+  referrer?: string
+  /** 浏览器上报的 IANA 时区名，例如 Asia/Shanghai */
+  time_zone?: string
   /** 已登录的用户：产品后端用身份验证密钥签名的 JWT（HS256），sub 是用户编号，必须有 exp，可以带 name、email */
   user_token?: string
   /** 上次返回的访客编号，浏览器保存它；第一次打开或编号无效时不填，返回新的编号 */
@@ -172,7 +180,7 @@ export interface WidgetSessionDTO {
   contact: ContactSummary
   /** 联系人的令牌：之后的请求和实时连接用 Authorization: Bearer 带上它 */
   token: string
-  /** 访客编号，浏览器保存它，下次建立会话时带上；用户的会话原样返回请求中的编号 */
+  /** 访客编号，浏览器保存它，下次建立会话时带上；用户会话为空（原有访客已合并消费） */
   visitor_id?: string
 }
 
