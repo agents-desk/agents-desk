@@ -56,6 +56,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         queryKey: key("attribute", "list", ...args),
         queryFn: () => client.attribute.list(...args),
       }),
+      /** PUT /attributes/order */
+      reorder: () => ({
+        mutationFn: (variables: Parameters<Client["attribute"]["reorder"]>[0]) => client.attribute.reorder(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "attribute"),
+      }),
       /** PUT /attributes/{id} */
       update: () => ({
         mutationFn: (variables: Parameters<Client["attribute"]["update"]>) => client.attribute.update(...variables),

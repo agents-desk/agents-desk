@@ -1,14 +1,18 @@
 import type { AttributeDTO, AttributeTarget, AttributeType } from "@agents-desk/client/tenant"
+import { closestCenter, DndContext, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core"
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers"
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import { ActionIcon, Badge, Button, Code, Group, Modal, SegmentedControl, Select, Stack, Table, TagsInput, Text, TextInput } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { IconArrowDown, IconArrowUp, IconPencil, IconPlus, IconTrash } from "@tabler/icons-react"
+import { IconGripVertical, IconPencil, IconPlus, IconTrash } from "@tabler/icons-react"
 import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../../../../../api"
 
-// 属性：管理会话和联系人的自定义属性定义，按对象分组切换。key 和 type 创建后不可修改。
+// 属性：管理会话和联系人的自定义属性定义，按对象分组切换，支持拖动调整展示顺序。key 和 type 创建后不可修改。
 export const Route = createFileRoute("/t/$slug/settings/_data/attributes")({
   staticData: { title: "nav.attributes", icon: "list", order: 1, permission: "tenant-settings:manage" },
   component: Attributes,
@@ -23,8 +27,14 @@ function Attributes(): ReactNode {
   const [target, setTarget] = useState<AttributeTarget>("conversation")
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<AttributeDTO>()
-  const list = useQuery(kit.queries.attribute.list({ target }))
+  const listQuery = kit.queries.attribute.list({ target })
+  const list = useQuery(listQuery)
   const items = list.data ?? []
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: kit.queries.attribute.key() })
 
@@ -45,21 +55,23 @@ function Attributes(): ReactNode {
     }
   }
 
-  // move 通过交换相邻两项的 position 调整展示顺序（位置相同时按当前索引重新编号）
-  const move = async (index: number, delta: -1 | 1) => {
-    const other = index + delta
-    if (other < 0 || other >= items.length) return
-    const a = items[index]
-    const b = items[other]
-    const posA = b.position === a.position ? other : b.position
-    const posB = b.position === a.position ? index : a.position
+  // onDragEnd 拖动结束后先乐观更新列表顺序，再批量持久化；失败时回滚并提示错误
+  const onDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = items.findIndex((x) => x.id === active.id)
+    const newIndex = items.findIndex((x) => x.id === over.id)
+    if (oldIndex < 0 || newIndex < 0) return
+
+    const previous = items
+    const next = arrayMove(items, oldIndex, newIndex).map((item, position) => ({ ...item, position }))
+    queryClient.setQueryData(listQuery.queryKey, next)
     try {
-      await Promise.all([
-        tenantApi.attribute.update(a.id, { name: a.name, description: a.description, options: a.options, position: posA }),
-        tenantApi.attribute.update(b.id, { name: b.name, description: b.description, options: b.options, position: posB }),
-      ])
+      const saved = await tenantApi.attribute.reorder({ target, ids: next.map((x) => x.id) })
+      queryClient.setQueryData(listQuery.queryKey, saved)
       await invalidate()
     } catch (err) {
+      queryClient.setQueryData(listQuery.queryKey, previous)
       notifyError(err)
     }
   }
@@ -89,80 +101,39 @@ function Attributes(): ReactNode {
             {t("attributes.empty")}
           </Text>
         ) : (
-          <Table verticalSpacing="sm">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th w="22%">{t("attributes.name")}</Table.Th>
-                <Table.Th w="20%">{t("attributes.key")}</Table.Th>
-                <Table.Th w={100}>{t("attributes.type")}</Table.Th>
-                <Table.Th>{t("attributes.details")}</Table.Th>
-                <Table.Th w={132} />
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {items.map((attr, i) => (
-                <Table.Tr key={attr.id}>
-                  <Table.Td fw={500}>{attr.name}</Table.Td>
-                  <Table.Td>
-                    <Code>{attr.key}</Code>
-                  </Table.Td>
-                  <Table.Td>
-                    <Badge variant="light" color="blue-gray">
-                      {kit.label("AttributeType", attr.type)}
-                    </Badge>
-                  </Table.Td>
-                  <Table.Td>
-                    <Stack gap={4}>
-                      {hasOptions(attr.type) && attr.options.length > 0 && (
-                        <Group gap={4}>
-                          {attr.options.map((opt) => (
-                            <Badge key={opt} size="xs" variant="default" fw={400}>
-                              {opt}
-                            </Badge>
-                          ))}
-                        </Group>
-                      )}
-                      {attr.description ? (
-                        <Text size="xs" c="dimmed">
-                          {attr.description}
-                        </Text>
-                      ) : !hasOptions(attr.type) ? (
-                        <Text size="xs" c="dimmed">
-                          —
-                        </Text>
-                      ) : null}
-                    </Stack>
-                  </Table.Td>
-                  <Table.Td>
-                    <Group gap={4} justify="flex-end" wrap="nowrap">
-                      <ActionIcon variant="subtle" color="gray" disabled={i === 0} onClick={() => void move(i, -1)} aria-label={t("attributes.move_up")}>
-                        <IconArrowUp size={15} />
-                      </ActionIcon>
-                      <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        disabled={i === items.length - 1}
-                        onClick={() => void move(i, 1)}
-                        aria-label={t("attributes.move_down")}
-                      >
-                        <IconArrowDown size={15} />
-                      </ActionIcon>
-                      <ActionIcon variant="subtle" color="gray" onClick={() => setEditing(attr)} aria-label={t("attributes.edit")}>
-                        <IconPencil size={15} />
-                      </ActionIcon>
-                      <ActionIcon variant="subtle" color="red" onClick={() => void remove(attr)} aria-label={t("attributes.delete")}>
-                        <IconTrash size={15} />
-                      </ActionIcon>
-                    </Group>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} onDragEnd={(e) => void onDragEnd(e)}>
+            <SortableContext items={items.map((x) => x.id)} strategy={verticalListSortingStrategy}>
+              <Table verticalSpacing="sm">
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th w={36} />
+                    <Table.Th w="22%">{t("attributes.name")}</Table.Th>
+                    <Table.Th w="20%">{t("attributes.key")}</Table.Th>
+                    <Table.Th w={100}>{t("attributes.type")}</Table.Th>
+                    <Table.Th>{t("attributes.details")}</Table.Th>
+                    <Table.Th w={80} />
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {items.map((attr) => (
+                    <SortableRow key={attr.id} attr={attr} onEdit={() => setEditing(attr)} onRemove={() => void remove(attr)} />
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </SortableContext>
+          </DndContext>
         )}
       </Stack>
 
-      <Modal opened={creating || !!editing} onClose={() => { setCreating(false); setEditing(undefined) }} title={t(editing ? "attributes.edit" : "attributes.add")} size="md">
+      <Modal
+        opened={creating || !!editing}
+        onClose={() => {
+          setCreating(false)
+          setEditing(undefined)
+        }}
+        title={t(editing ? "attributes.edit" : "attributes.add")}
+        size="md"
+      >
         {(creating || editing) && (
           <AttributeForm
             target={editing?.target ?? target}
@@ -181,6 +152,80 @@ function Attributes(): ReactNode {
         )}
       </Modal>
     </Page>
+  )
+}
+
+/** SortableRow 是可拖动排序的属性表格行，通过左侧手柄拖拽调整顺序。 */
+function SortableRow({ attr, onEdit, onRemove }: { attr: AttributeDTO; onEdit: () => void; onRemove: () => void }): ReactNode {
+  const t = useT()
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: attr.id })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    position: isDragging ? ("relative" as const) : undefined,
+    zIndex: isDragging ? 1 : undefined,
+    backgroundColor: isDragging ? "var(--mantine-color-body)" : undefined,
+    boxShadow: isDragging ? "var(--mantine-shadow-sm)" : undefined,
+    opacity: isDragging ? 0.92 : undefined,
+  }
+
+  return (
+    <Table.Tr ref={setNodeRef} style={style}>
+      <Table.Td>
+        <ActionIcon
+          variant="subtle"
+          color="gray"
+          size="sm"
+          style={{ cursor: isDragging ? "grabbing" : "grab", touchAction: "none" }}
+          aria-label={t("attributes.drag_handle")}
+          {...attributes}
+          {...listeners}
+        >
+          <IconGripVertical size={16} />
+        </ActionIcon>
+      </Table.Td>
+      <Table.Td fw={500}>{attr.name}</Table.Td>
+      <Table.Td>
+        <Code>{attr.key}</Code>
+      </Table.Td>
+      <Table.Td>
+        <Badge variant="light" color="blue-gray">
+          {kit.label("AttributeType", attr.type)}
+        </Badge>
+      </Table.Td>
+      <Table.Td>
+        <Stack gap={4}>
+          {hasOptions(attr.type) && attr.options.length > 0 && (
+            <Group gap={4}>
+              {attr.options.map((opt) => (
+                <Badge key={opt} size="xs" variant="default" fw={400}>
+                  {opt}
+                </Badge>
+              ))}
+            </Group>
+          )}
+          {attr.description ? (
+            <Text size="xs" c="dimmed">
+              {attr.description}
+            </Text>
+          ) : !hasOptions(attr.type) ? (
+            <Text size="xs" c="dimmed">
+              —
+            </Text>
+          ) : null}
+        </Stack>
+      </Table.Td>
+      <Table.Td>
+        <Group gap={4} justify="flex-end" wrap="nowrap">
+          <ActionIcon variant="subtle" color="gray" onClick={onEdit} aria-label={t("attributes.edit")}>
+            <IconPencil size={15} />
+          </ActionIcon>
+          <ActionIcon variant="subtle" color="red" onClick={onRemove} aria-label={t("attributes.delete")}>
+            <IconTrash size={15} />
+          </ActionIcon>
+        </Group>
+      </Table.Td>
+    </Table.Tr>
   )
 }
 

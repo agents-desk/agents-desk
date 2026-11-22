@@ -21,6 +21,11 @@ export const schemas = {
         "type": "object"
       },
     },
+    reorder: {
+      body: {
+        "$ref": "#/components/schemas/AttributeReorderParams"
+      },
+    },
     update: {
       body: {
         "$ref": "#/components/schemas/AttributeUpdateParams"
@@ -450,6 +455,26 @@ export const components = {
       "key",
       "name",
       "type"
+    ],
+    "type": "object"
+  },
+  AttributeReorderParams: {
+    "additionalProperties": false,
+    "properties": {
+      "ids": {
+        "items": {
+          "type": "string"
+        },
+        "minItems": 1,
+        "type": "array"
+      },
+      "target": {
+        "$ref": "#/components/schemas/AttributeTarget"
+      }
+    },
+    "required": [
+      "target",
+      "ids"
     ],
     "type": "object"
   },

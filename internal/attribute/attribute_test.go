@@ -86,10 +86,24 @@ func TestAttributeCRUDAndPatch(t *testing.T) {
 		t.Fatalf("别的工作区同 key 应成功：%v", err)
 	}
 
-	// 列表按 target 过滤
+	// 列表按 target 过滤，以及批量调整顺序
 	convList, err := list.Handle(ctx, inA, &attribute.ListInput{Target: attribute.TargetConversation})
 	if err != nil || len(convList) != 6 {
 		t.Fatalf("会话属性列表：%v %d", err, len(convList))
+	}
+	reorder := attribute.NewReorder(env.DB)
+	reordered, err := reorder.Handle(ctx, inA, attribute.ReorderParams{
+		Target: attribute.TargetConversation,
+		IDs:    []string{convList[2].ID, convList[0].ID, convList[1].ID},
+	})
+	if err != nil || len(reordered) != 6 || reordered[0].ID != convList[2].ID || reordered[1].ID != convList[0].ID || reordered[2].ID != convList[1].ID {
+		t.Fatalf("调整顺序：%v %+v", err, reordered)
+	}
+	if _, err := reorder.Handle(ctx, inA, attribute.ReorderParams{
+		Target: attribute.TargetConversation,
+		IDs:    []string{betaDef.ID},
+	}); !errors.Is(err, attribute.ErrNotFound) {
+		t.Fatalf("跨工作区调整顺序应返回 ErrNotFound：%v", err)
 	}
 	allList, err := list.Handle(ctx, inA, &attribute.ListInput{})
 	if err != nil || len(allList) != 7 {

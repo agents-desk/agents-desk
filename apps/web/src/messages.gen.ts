@@ -13,6 +13,7 @@ export const messages = {
     "attributes.description_label": "Description",
     "attributes.description_placeholder": "e.g. Related order number",
     "attributes.details": "Options / Description",
+    "attributes.drag_handle": "Drag to reorder",
     "attributes.edit": "Edit attribute",
     "attributes.empty": "No custom attributes yet",
     "attributes.key": "Key",
@@ -20,8 +21,6 @@ export const messages = {
     "attributes.key_invalid": "Start with a lowercase letter and use only lowercase letters, digits, and underscores",
     "attributes.key_locked": "Fixed once created",
     "attributes.key_placeholder": "e.g. order_no",
-    "attributes.move_down": "Move down",
-    "attributes.move_up": "Move up",
     "attributes.name": "Name",
     "attributes.name_placeholder": "e.g. Order number",
     "attributes.name_required": "Enter a name",
@@ -381,6 +380,7 @@ export const messages = {
     "attributes.description_label": "说明",
     "attributes.description_placeholder": "例如 关联的业务订单编号",
     "attributes.details": "选项 / 说明",
+    "attributes.drag_handle": "拖动调整顺序",
     "attributes.edit": "编辑属性",
     "attributes.empty": "还没有自定义属性",
     "attributes.key": "标识",
@@ -388,8 +388,6 @@ export const messages = {
     "attributes.key_invalid": "请输入以小写字母开头、只含小写字母、数字和下划线的标识",
     "attributes.key_locked": "创建后不能修改",
     "attributes.key_placeholder": "例如 order_no",
-    "attributes.move_down": "下移",
-    "attributes.move_up": "上移",
     "attributes.name": "名称",
     "attributes.name_placeholder": "例如 订单号",
     "attributes.name_required": "请填写属性名称",
@@ -752,6 +750,7 @@ export type MessageId =
   | "attributes.description_label"
   | "attributes.description_placeholder"
   | "attributes.details"
+  | "attributes.drag_handle"
   | "attributes.edit"
   | "attributes.empty"
   | "attributes.key"
@@ -759,8 +758,6 @@ export type MessageId =
   | "attributes.key_invalid"
   | "attributes.key_locked"
   | "attributes.key_placeholder"
-  | "attributes.move_down"
-  | "attributes.move_up"
   | "attributes.name"
   | "attributes.name_placeholder"
   | "attributes.name_required"

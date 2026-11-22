@@ -90,6 +90,18 @@ func TestTagsAndAttributes(t *testing.T) {
 	if r.status != http.StatusCreated {
 		t.Fatalf("新建会话属性：%d %s", r.status, r.body)
 	}
+	issueAttr := idOf(r.body)
+	r = call(h, "POST", "/t/alpha/api/attributes", `{"target":"conversation","key":"order_no","name":"订单号","type":"text"}`, owner)
+	if r.status != http.StatusCreated {
+		t.Fatalf("新建第二条会话属性：%d %s", r.status, r.body)
+	}
+	orderAttr := idOf(r.body)
+	if r := call(h, "PUT", "/t/alpha/api/attributes/order", `{"target":"conversation","ids":["`+orderAttr+`","`+issueAttr+`"]}`, agent); r.status != http.StatusForbidden {
+		t.Fatalf("坐席调整属性顺序应 403：%d %s", r.status, r.body)
+	}
+	if r := call(h, "PUT", "/t/alpha/api/attributes/order", `{"target":"conversation","ids":["`+orderAttr+`","`+issueAttr+`"]}`, owner); r.status != http.StatusOK || strings.Index(r.body, orderAttr) > strings.Index(r.body, issueAttr) {
+		t.Fatalf("调整属性顺序：%d %s", r.status, r.body)
+	}
 	r = call(h, "POST", "/t/alpha/api/attributes", `{"target":"contact","key":"plan","name":"套餐","type":"select","options":["免费版","专业版"]}`, owner)
 	if r.status != http.StatusCreated {
 		t.Fatalf("新建联系人属性：%d %s", r.status, r.body)

@@ -26,6 +26,7 @@ export const required = {
   attribute: {
     create: ["tenant-settings:manage"],
     delete: ["tenant-settings:manage"],
+    reorder: ["tenant-settings:manage"],
     update: ["tenant-settings:manage"],
   },
   conversation: {

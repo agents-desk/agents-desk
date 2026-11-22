@@ -31,6 +31,13 @@ export interface AttributeDTO {
   type: AttributeType
 }
 
+export interface AttributeReorderParams {
+  /** 按新顺序排列的属性定义 ID */
+  ids: string[]
+  /** 属性所属对象（conversation 或 contact） */
+  target: AttributeTarget
+}
+
 export type AttributeTarget = "conversation" | "contact"
 
 export type AttributeType = "text" | "number" | "boolean" | "date" | "select" | "multi_select"
@@ -797,6 +804,13 @@ export function createClient(options: ClientOptions) {
        */
       list: (input: AttributeListInput = {}): Promise<AttributeDTO[]> =>
         rt.request<AttributeDTO[]>({ method: "GET", path: `/attributes`, query: { "target": input["target"] } }),
+      /**
+       * 调整属性顺序
+       *
+       * PUT /attributes/order
+       */
+      reorder: (body: AttributeReorderParams): Promise<AttributeDTO[]> =>
+        rt.request<AttributeDTO[]>({ method: "PUT", path: `/attributes/order`, body }),
       /**
        * 修改属性
        *
