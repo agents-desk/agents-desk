@@ -94,8 +94,10 @@ tenant.status.disabled: 已停用
 "permission.tenant-settings:manage": 管理工作区设置
 "permission.teams:read": 查看团队收件箱
 "permission.teams:manage": 管理团队收件箱
+"permission.channels:read": 查看渠道
 "permission.channels:manage": 管理渠道
 "permission.macros:manage": 管理共享的快捷回复
+"permission.reports:read": 查看报表
 
 role.owner: 主管理员
 role.not_found: 角色不存在
@@ -113,6 +115,7 @@ conversation_scope.team: 所在团队收件箱的和指派给自己的会话
 conversation_scope.assigned: 只有指派给自己的会话
 "role_permission.conversations:assign": 把会话改派给别人
 "role_permission.macros:manage": 管理共享的快捷回复
+"role_permission.reports:read": 查看报表
 "role_permission.members:manage": 管理成员和角色
 "role_permission.teams:manage": 管理团队收件箱
 "role_permission.channels:manage": 管理渠道

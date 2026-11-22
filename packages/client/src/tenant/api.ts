@@ -77,6 +77,16 @@ export interface AutomationUpdateBody {
 
 export type ChannelKind = "test" | "widget"
 
+export interface ChannelListItem {
+  /** 渠道是否启用 */
+  enabled: boolean
+  id: string
+  kind: ChannelKind
+  name: string
+  /** 默认进入的团队收件箱 ID */
+  team_id?: string
+}
+
 export interface ChannelSummary {
   id: string
   kind: ChannelKind
@@ -288,30 +298,6 @@ export interface ConversationBulkResult {
   ok: boolean
 }
 
-export interface ConversationClosureDTO {
-  /** 关闭时的负责人 */
-  assignee?: ConversationActor
-  /** 本轮关闭的时间 */
-  closed_at: string
-  /** 执行关闭的发起者 */
-  closed_by: ConversationActor
-  /** 本轮首次回复的时间，未回复即关闭时为空 */
-  first_reply_at?: string
-  /** 本轮首次回复时长（秒），未回复即关闭时为空 */
-  first_reply_seconds?: number
-  id: string
-  /** 本轮打开或重新打开的时间 */
-  opened_at: string
-  /** 客户对本轮关闭的评价 */
-  rating?: ConversationRating
-  /** 本轮解决时长（秒） */
-  resolution_seconds: number
-  /** 该会话的第几次关闭，从 1 递增 */
-  round: number
-  /** 关闭时归属的团队收件箱 ID */
-  team_id?: string
-}
-
 export interface ConversationContent {
   /** 系统事件的数据 */
   data?: Record<string, unknown>
@@ -471,6 +457,32 @@ export interface ConversationReplyBody {
   text?: string
   /** 发给对方的译文，由翻译的预览给出、成员确认；不带时按原文发出 */
   translation?: ConversationTranslation
+}
+
+export interface ConversationRoundDTO {
+  /** 本轮负责人 */
+  assignee?: ConversationActor
+  /** 本轮关闭的时间，进行中时为空 */
+  closed_at?: string
+  /** 执行关闭的发起者，未关闭时为空 */
+  closed_by?: ConversationActor
+  /** 本轮首次回复的时间，尚未回复时为空 */
+  first_reply_at?: string
+  /** 本轮首次回复的发起者 */
+  first_reply_by?: ConversationActor
+  /** 本轮首次回复时长（秒），尚未回复时为空 */
+  first_reply_seconds?: number
+  id: string
+  /** 本轮打开或重新打开的时间 */
+  opened_at: string
+  /** 客户对本轮服务的评价 */
+  rating?: ConversationRating
+  /** 本轮解决时长（秒），尚未关闭时为空 */
+  resolution_seconds?: number
+  /** 该会话的第几轮服务，从 1 递增 */
+  round: number
+  /** 本轮归属的团队收件箱 ID */
+  team_id?: string
 }
 
 export type ConversationScope = "all" | "team" | "assigned"
@@ -869,7 +881,7 @@ export interface RoleParams {
   permissions?: RolePermission[]
 }
 
-export type RolePermission = "conversations:assign" | "macros:manage" | "members:manage" | "teams:manage" | "channels:manage" | "tenant-settings:manage"
+export type RolePermission = "conversations:assign" | "macros:manage" | "reports:read" | "members:manage" | "teams:manage" | "channels:manage" | "tenant-settings:manage"
 
 export interface TagChanges {
   /** 标签的颜色，不填时是灰蓝 */
@@ -1288,6 +1300,16 @@ export function createClient(options: ClientOptions) {
       update: (id: string, body: AutomationUpdateBody): Promise<AutomationRuleDTO> =>
         rt.request<AutomationRuleDTO>({ method: "PUT", path: `/automations/${encodeURIComponent(id)}`, body }),
     },
+    /** operationId 以 channel- 开头的接口。 */
+    channel: {
+      /**
+       * 渠道列表
+       *
+       * GET /channels
+       */
+      list: (): Promise<ChannelListItem[]> =>
+        rt.request<ChannelListItem[]>({ method: "GET", path: `/channels` }),
+    },
     /** operationId 以 contact- 开头的接口。 */
     contact: {
       /**
@@ -1363,13 +1385,6 @@ export function createClient(options: ClientOptions) {
        */
       close: (id: string): Promise<ConversationDTO> =>
         rt.request<ConversationDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/close` }),
-      /**
-       * 读取关闭记录
-       *
-       * GET /conversations/{id}/closures
-       */
-      closures: (id: string): Promise<ConversationClosureDTO[]> =>
-        rt.request<ConversationClosureDTO[]>({ method: "GET", path: `/conversations/${encodeURIComponent(id)}/closures` }),
       /**
        * 修改联系人属性
        *
@@ -1468,6 +1483,13 @@ export function createClient(options: ClientOptions) {
        */
       retry: (id: string, itemID: string): Promise<ConversationItemDTO> =>
         rt.request<ConversationItemDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/items/${encodeURIComponent(itemID)}/retry` }),
+      /**
+       * 读取服务轮次记录
+       *
+       * GET /conversations/{id}/rounds
+       */
+      rounds: (id: string): Promise<ConversationRoundDTO[]> =>
+        rt.request<ConversationRoundDTO[]>({ method: "GET", path: `/conversations/${encodeURIComponent(id)}/rounds` }),
       /**
        * 全文搜索会话
        *

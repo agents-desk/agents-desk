@@ -41,16 +41,16 @@ func (a *RateByContact) Handle(ctx context.Context, sub identity.Subject, channe
 			return ErrAlreadyRated.New()
 		}
 		at := now()
-		var closure Closure
-		err = tx.NewSelect().Model(&closure).
-			Where("tenant_id = ? AND conversation_id = ?", c.TenantID, c.ID).
+		var r Round
+		err = tx.NewSelect().Model(&r).
+			Where("tenant_id = ? AND conversation_id = ? AND closed_at IS NOT NULL", c.TenantID, c.ID).
 			OrderExpr("round DESC").Limit(1).For("UPDATE").Scan(ctx)
 		if err != nil {
-			return errors.Wrap(err, "load latest closure")
+			return errors.Wrap(err, "load latest closed round")
 		}
-		closure.Rating, closure.RatingComment, closure.RatedAt, closure.UpdatedAt = &score, comment, &at, at
-		if _, err := tx.NewUpdate().Model(&closure).Column("rating", "rating_comment", "rated_at", "updated_at").WherePK().Exec(ctx); err != nil {
-			return errors.Wrap(err, "update closure rating")
+		r.Rating, r.RatingComment, r.RatedAt, r.UpdatedAt = &score, comment, &at, at
+		if _, err := tx.NewUpdate().Model(&r).Column("rating", "rating_comment", "rated_at", "updated_at").WherePK().Exec(ctx); err != nil {
+			return errors.Wrap(err, "update round rating")
 		}
 		c.Rating, c.RatingComment, c.RatedAt = &score, comment, &at
 		return commit(ctx, tx, a.down, c, &Item{

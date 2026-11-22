@@ -261,26 +261,69 @@ type Delivery struct {
 	UpdatedAt  time.Time      `bun:"updated_at,notnull"`
 }
 
-// Closure 是会话一次关闭的轮次记录：保存这一轮（从打开或重新打开到关闭）的首次回复时间、关闭时间、归属快照和客户评价。
-type Closure struct {
-	bun.BaseModel `bun:"table:conversation_closures"`
+// Round 是服务型会话的一轮服务记录：从打开或重新打开开始，记录本轮首次回复（含首次回复人）、关闭归属快照和客户评价。
+type Round struct {
+	bun.BaseModel `bun:"table:conversation_rounds"`
 
 	ID string `bun:"id,pk"`
 	database.Timestamps
-	TenantID       string     `bun:"tenant_id,notnull"`
-	ConversationID string     `bun:"conversation_id,notnull"`
-	Round          int        `bun:"round,notnull"`
-	TeamID         *string    `bun:"team_id"`
-	AssigneeType   ActorType  `bun:"assignee_type,notnull"`
-	AssigneeID     string     `bun:"assignee_id,notnull"`
-	ClosedByType   ActorType  `bun:"closed_by_type,notnull"`
-	ClosedByID     string     `bun:"closed_by_id,notnull"`
-	OpenedAt       time.Time  `bun:"opened_at,notnull"`
-	FirstReplyAt   *time.Time `bun:"first_reply_at"`
-	ClosedAt       time.Time  `bun:"closed_at,notnull"`
-	Rating         *int       `bun:"rating"`
-	RatingComment  string     `bun:"rating_comment,notnull"`
-	RatedAt        *time.Time `bun:"rated_at"`
+	TenantID         string     `bun:"tenant_id,notnull"`
+	ConversationID   string     `bun:"conversation_id,notnull"`
+	Round            int        `bun:"round,notnull"`
+	TeamID           *string    `bun:"team_id"`
+	AssigneeType     ActorType  `bun:"assignee_type,notnull"`
+	AssigneeID       string     `bun:"assignee_id,notnull"`
+	ClosedByType     ActorType  `bun:"closed_by_type,notnull"`
+	ClosedByID       string     `bun:"closed_by_id,notnull"`
+	OpenedAt         time.Time  `bun:"opened_at,notnull"`
+	FirstReplyAt     *time.Time `bun:"first_reply_at"`
+	FirstReplyByType ActorType  `bun:"first_reply_by_type,notnull"`
+	FirstReplyByID   string     `bun:"first_reply_by_id,notnull"`
+	ClosedAt         *time.Time `bun:"closed_at"`
+	Rating           *int       `bun:"rating"`
+	RatingComment    string     `bun:"rating_comment,notnull"`
+	RatedAt          *time.Time `bun:"rated_at"`
+}
+
+// openRound 在事务 tx 中为服务型会话 c 创建新的一轮服务记录，轮次号从 1 递增。
+func openRound(ctx context.Context, tx bun.IDB, c *Conversation, at time.Time) error {
+	if c.Kind != Service {
+		return nil
+	}
+	var next int
+	if err := tx.NewRaw("SELECT coalesce(max(round), 0) + 1 FROM conversation_rounds WHERE conversation_id = ?", c.ID).Scan(ctx, &next); err != nil {
+		return errors.Wrap(err, "next conversation round")
+	}
+	r := &Round{
+		ID:             newID(),
+		TenantID:       c.TenantID,
+		ConversationID: c.ID,
+		Round:          next,
+		TeamID:         c.TeamID,
+		AssigneeType:   c.AssigneeType,
+		AssigneeID:     c.AssigneeID,
+		OpenedAt:       at,
+	}
+	_, err := tx.NewInsert().Model(r).Exec(ctx)
+	return errors.Wrap(err, "insert conversation round")
+}
+
+// recordFirstReply 在事务 tx 中把本轮首次回复的时间与发起者写入当前未关闭的服务轮次。
+func recordFirstReply(ctx context.Context, tx bun.IDB, c *Conversation, actor ActorType, actorID string, at time.Time) error {
+	if c.Kind != Service {
+		return nil
+	}
+	_, err := tx.NewUpdate().Table("conversation_rounds").
+		Set("first_reply_at = ?", at).
+		Set("first_reply_by_type = ?", actor).
+		Set("first_reply_by_id = ?", actorID).
+		Set("team_id = ?", c.TeamID).
+		Set("assignee_type = ?", c.AssigneeType).
+		Set("assignee_id = ?", c.AssigneeID).
+		Set("updated_at = ?", at).
+		Where("tenant_id = ? AND conversation_id = ? AND closed_at IS NULL AND first_reply_at IS NULL", c.TenantID, c.ID).
+		Exec(ctx)
+	return errors.Wrap(err, "record round first reply")
 }
 
 // Appended 是“时间线有新内容”的任务内容：每个下游收到一份，按它读取新的一项。下游可能收到重复的任务，处理要能重复执行。

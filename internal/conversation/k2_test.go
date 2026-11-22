@@ -149,9 +149,9 @@ func TestClosuresAndRounds(t *testing.T) {
 		closeConv := conversation.NewClose(env.DB, down)
 		reqRating := conversation.NewRequestRating(env.DB, down)
 		rate := conversation.NewRateByContact(env.DB, down)
-		listClosures := conversation.NewListClosures(env.DB)
+		listRounds := conversation.NewListRounds(env.DB)
 
-		// Round 1：打开 → 10 分钟后回复 → 稍后处理再恢复（不重置轮次）→ 30 分钟关闭 → 请求评价 → 客户评 5 星
+		// Round 1：打开（即产生进行中的第 1 轮）→ 10 分钟后回复（记录首次回复人与时间）→ 稍后处理再恢复（不重置轮次）→ 30 分钟关闭 → 请求评价 → 客户评 5 星
 		res, err := receive.Handle(ctx, system, conversation.ReceiveParams{ChannelID: ch.ID, From: "rahul", Text: "help"})
 		if err != nil {
 			t.Fatal(err)
@@ -163,9 +163,18 @@ func TestClosuresAndRounds(t *testing.T) {
 		}
 		customer := identity.Subject{Type: contact.Type, ID: contactID, Tenant: alpha.ID}
 
+		openRounds, err := listRounds.Handle(ctx, agent, convID)
+		if err != nil || len(openRounds) != 1 || openRounds[0].ClosedAt != nil || openRounds[0].FirstReplyAt != nil {
+			t.Fatalf("新建即应存在第 1 轮进行中记录：err=%v rounds=%+v", err, openRounds)
+		}
+
 		time.Sleep(10 * time.Minute)
 		if _, err := reply.Handle(ctx, agent, convID, conversation.ReplyBody{Text: "on it"}); err != nil {
 			t.Fatal(err)
+		}
+		afterReply, err := listRounds.Handle(ctx, agent, convID)
+		if err != nil || len(afterReply) != 1 || afterReply[0].FirstReplyBy == nil || afterReply[0].FirstReplyBy.ID != alpha.OwnerID || afterReply[0].FirstReplySeconds == nil || *afterReply[0].FirstReplySeconds != 600 || afterReply[0].ClosedAt != nil {
+			t.Fatalf("首响后应立刻记录首次回复人与时长：err=%v rounds=%+v", err, afterReply)
 		}
 		if _, err := snooze.Handle(ctx, agent, convID, time.Now().UTC().Add(time.Hour)); err != nil {
 			t.Fatal(err)
@@ -211,41 +220,41 @@ func TestClosuresAndRounds(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		closures, err := listClosures.Handle(ctx, agent, convID)
+		rounds, err := listRounds.Handle(ctx, agent, convID)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(closures) != 3 {
-			t.Fatalf("关闭轮次数：%d，期望 3", len(closures))
+		if len(rounds) != 3 {
+			t.Fatalf("服务轮次数：%d，期望 3", len(rounds))
 		}
 		// 校验第 1 轮
-		c1 := closures[0]
-		if c1.Round != 1 || c1.TeamID == nil || *c1.TeamID != tm.ID || c1.Assignee == nil || c1.Assignee.ID != alpha.OwnerID {
+		c1 := rounds[0]
+		if c1.Round != 1 || c1.TeamID == nil || *c1.TeamID != tm.ID || c1.Assignee == nil || c1.Assignee.ID != alpha.OwnerID || c1.FirstReplyBy == nil || c1.FirstReplyBy.ID != alpha.OwnerID {
 			t.Errorf("第 1 轮归属：%+v", c1)
 		}
-		if c1.FirstReplySeconds == nil || *c1.FirstReplySeconds != 600 || c1.ResolutionSeconds != 1800 {
-			t.Errorf("第 1 轮时长：first=%v res=%d", c1.FirstReplySeconds, c1.ResolutionSeconds)
+		if c1.FirstReplySeconds == nil || *c1.FirstReplySeconds != 600 || c1.ResolutionSeconds == nil || *c1.ResolutionSeconds != 1800 {
+			t.Errorf("第 1 轮时长：first=%v res=%v", c1.FirstReplySeconds, c1.ResolutionSeconds)
 		}
 		if c1.Rating == nil || c1.Rating.Score != 5 || c1.Rating.Comment != "great" {
 			t.Errorf("第 1 轮评价：%+v", c1.Rating)
 		}
 		// 校验第 2 轮：未回复，未评价
-		c2 := closures[1]
-		if c2.Round != 2 || c2.FirstReplyAt != nil || c2.FirstReplySeconds != nil || c2.ResolutionSeconds != 300 || c2.Rating != nil {
+		c2 := rounds[1]
+		if c2.Round != 2 || c2.FirstReplyAt != nil || c2.FirstReplySeconds != nil || c2.FirstReplyBy != nil || c2.ResolutionSeconds == nil || *c2.ResolutionSeconds != 300 || c2.Rating != nil {
 			t.Errorf("第 2 轮：%+v", c2)
 		}
 		// 校验第 3 轮：Reply 自动重开并即时回复
-		c3 := closures[2]
-		if c3.Round != 3 || c3.FirstReplySeconds == nil || *c3.FirstReplySeconds != 0 || c3.ResolutionSeconds != 120 {
+		c3 := rounds[2]
+		if c3.Round != 3 || c3.FirstReplySeconds == nil || *c3.FirstReplySeconds != 0 || c3.ResolutionSeconds == nil || *c3.ResolutionSeconds != 120 {
 			t.Errorf("第 3 轮时长：%+v", c3)
 		}
 		if c3.Rating == nil || c3.Rating.Score != 4 || c3.Rating.Comment != "good" {
 			t.Errorf("第 3 轮评价：%+v", c3.Rating)
 		}
 
-		// 其他工作区访问不到关闭记录
-		if _, err := listClosures.Handle(ctx, betaAgent, convID); !errors.Is(err, conversation.ErrNotFound) {
-			t.Errorf("跨工作区读关闭记录：%v", err)
+		// 其他工作区访问不到服务轮次记录
+		if _, err := listRounds.Handle(ctx, betaAgent, convID); !errors.Is(err, conversation.ErrNotFound) {
+			t.Errorf("跨工作区读服务轮次记录：%v", err)
 		}
 
 		// 停用团队的轮流分配跳过测试：停用后即使有在线成员也不自动分派

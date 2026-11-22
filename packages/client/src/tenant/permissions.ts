@@ -4,6 +4,7 @@
 export const permissions = {
   "audit:read": "查看操作日志",
   "channels:manage": "管理渠道",
+  "channels:read": "查看渠道",
   "contacts:read": "查看联系人",
   "contacts:update": "修改联系人",
   "conversations:assign": "把会话改派给别人",
@@ -18,6 +19,7 @@ export const permissions = {
   "platform-admins:manage": "管理平台管理员",
   "platform-settings:manage": "修改平台设置",
   "queue:manage": "管理队列",
+  "reports:read": "查看报表",
   "schedules:manage": "管理定时任务",
   "system:read": "查看系统自检",
   "teams:manage": "管理团队收件箱",
@@ -42,6 +44,9 @@ export const required = {
     list: ["tenant-settings:manage"],
     update: ["tenant-settings:manage"],
   },
+  channel: {
+    list: ["channels:read"],
+  },
   contact: {
     get: ["contacts:read"],
     list: ["contacts:read"],
@@ -55,7 +60,6 @@ export const required = {
     bulkAssign: ["conversations:reply"],
     bulkClose: ["conversations:reply"],
     close: ["conversations:reply"],
-    closures: ["conversations:read"],
     contactAttributesPatch: ["conversations:reply"],
     contactTagAdd: ["conversations:reply"],
     contactTagRemove: ["conversations:reply"],
@@ -70,6 +74,7 @@ export const required = {
     reopen: ["conversations:reply"],
     reply: ["conversations:reply"],
     retry: ["conversations:reply"],
+    rounds: ["conversations:read"],
     search: ["conversations:read"],
     snooze: ["conversations:reply"],
     tagAdd: ["conversations:reply"],
