@@ -11,7 +11,7 @@ export const Route = createFileRoute("/t/$slug/settings/_personal/profile")({
 function Profile() {
   const t = useT()
   return (
-    <Page title={t("nav.profile")} width="narrow">
+    <Page title={t("nav.profile")}>
       <ProfileTabs />
     </Page>
   )

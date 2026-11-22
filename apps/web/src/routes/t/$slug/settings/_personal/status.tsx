@@ -12,7 +12,7 @@ export const Route = createFileRoute("/t/$slug/settings/_personal/status")({
 function Status() {
   const t = useT()
   return (
-    <Page title={t("nav.status")} description={t("status_page.description")} width="narrow">
+    <Page title={t("nav.status")} description={t("status_page.description")}>
       <StatusControl description />
     </Page>
   )

@@ -11,7 +11,7 @@ export const Route = createFileRoute("/t/$slug/settings/_personal/preferences")(
 function Preferences() {
   const t = useT()
   return (
-    <Page title={t("nav.preferences")} width="narrow">
+    <Page title={t("nav.preferences")}>
       <PreferencesForm />
     </Page>
   )
