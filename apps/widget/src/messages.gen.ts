@@ -8,7 +8,9 @@ export const messages = {
     "chat.failed": "Not sent",
     "chat.me": "You",
     "chat.new": "New conversation",
+    "chat.new_message_jump": "New messages ({{.n}})",
     "chat.retry": "Retry",
+    "chat.scroll_to_bottom": "Jump to latest",
     "chat.sending": "Sending…",
     "chat.status_closed": "Ended",
     "chat.status_open": "In progress",
@@ -72,7 +74,9 @@ export const messages = {
     "chat.failed": "发送失败",
     "chat.me": "我",
     "chat.new": "新会话",
+    "chat.new_message_jump": "{{.n}} 条新消息",
     "chat.retry": "重试",
+    "chat.scroll_to_bottom": "回到底部",
     "chat.sending": "发送中…",
     "chat.status_closed": "已结束",
     "chat.status_open": "会话进行中",
@@ -139,7 +143,9 @@ export type MessageId =
   | "chat.failed"
   | "chat.me"
   | "chat.new"
+  | "chat.new_message_jump"
   | "chat.retry"
+  | "chat.scroll_to_bottom"
   | "chat.sending"
   | "chat.status_closed"
   | "chat.status_open"

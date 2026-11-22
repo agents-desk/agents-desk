@@ -1,6 +1,6 @@
 import type { ConversationContactConversationDTO } from "@agents-desk/client/widget"
 import { Badge, Box, Button, Group, Paper, Stack, Text, ThemeIcon, UnstyledButton } from "@mantine/core"
-import { IconHeadset, IconPlus } from "@tabler/icons-react"
+import { IconChevronRight, IconHeadset, IconPlus } from "@tabler/icons-react"
 import { useLanguage, useT } from "@go-tenon/ui"
 import type { ReactNode } from "react"
 import { ago } from "./format"
@@ -49,7 +49,7 @@ export function Home({ color, name, conversations, onOpen, onNew }: HomeProps): 
                           {t("chat.status_closed")}
                         </Badge>
                       )}
-                      <Text size="xs" c="dimmed" ml="auto" style={{ flex: "none" }}>
+                      <Text size="xs" c="dimmed" ml="auto" style={{ flex: "none", fontVariantNumeric: "tabular-nums" }}>
                         {ago(c.last_message_at, language, t)}
                       </Text>
                     </Group>
@@ -57,6 +57,7 @@ export function Home({ color, name, conversations, onOpen, onNew }: HomeProps): 
                       {promptText(c.preview_prompt, c.preview, language, t)}
                     </Text>
                   </Box>
+                  <IconChevronRight size={16} className="w-conversation-arrow" style={{ flex: "none" }} />
                 </Group>
               </UnstyledButton>
             )

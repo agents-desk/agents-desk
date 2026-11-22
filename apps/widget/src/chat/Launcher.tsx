@@ -3,11 +3,12 @@ import { IconChevronDown, IconMessageCircle } from "@tabler/icons-react"
 import { useT } from "@go-tenon/ui"
 import type { ReactNode } from "react"
 
-/** Launcher 是嵌入网页时右下角的启动按钮：收起时是聊天图标，有未读时带角标；展开时是收起的箭头。 */
+/** Launcher 是嵌入网页时右下角的启动按钮：收起时是聊天图标，有未读时带角标（超过 99 显示 99+）；展开时是收起的箭头。 */
 export function Launcher({ color, open, unread, onClick }: { color: string; open: boolean; unread: number; onClick: () => void }): ReactNode {
   const t = useT()
+  const badge = unread > 99 ? "99+" : unread
   return (
-    <Indicator label={unread} size={20} color="red" offset={6} disabled={open || unread === 0} withBorder>
+    <Indicator label={badge} size={20} color="red" offset={6} disabled={open || unread === 0} withBorder styles={{ indicator: { fontVariantNumeric: "tabular-nums" } }}>
       <ActionIcon
         size={56}
         radius="xl"
