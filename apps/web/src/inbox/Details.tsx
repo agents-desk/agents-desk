@@ -6,6 +6,7 @@ import { IconCheck, IconCopy, IconExternalLink, IconX } from "@tabler/icons-reac
 import { notifyError, notifySuccess, useCan, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../api"
+import { contactDisplayName } from "../contacts/display"
 import { LanguageSelect } from "../LanguageSelect"
 import { languageName } from "../languages"
 import { formatLocalTime } from "../timezone"
@@ -260,7 +261,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                       className="inbox-contact-link"
                     >
                       <Text size="sm" fw={500} c="brand" truncate>
-                        {c.contact.name || t("inbox.visitor")}
+                        {contactDisplayName(c.contact, t)}
                       </Text>
                     </Link>
                   ) : (

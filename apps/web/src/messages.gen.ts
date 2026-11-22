@@ -125,7 +125,7 @@ export const messages = {
     "contacts.open_in_inbox": "Open",
     "contacts.profile": "Profile",
     "contacts.referrer": "Source page",
-    "contacts.search_placeholder": "Search by name, email or user ID…",
+    "contacts.search_placeholder": "Search by name, email, user ID, or #number…",
     "contacts.sort": "Sort",
     "contacts.time_zone": "Time zone",
     "contacts.time_zone_placeholder": "Choose or search a time zone",
@@ -389,6 +389,7 @@ export const messages = {
     "inbox.view_translation": "View translation",
     "inbox.viewing": "{{.who}} is also viewing",
     "inbox.visitor": "Visitor",
+    "inbox.visitor_numbered": "Visitor #{{.n}}",
     "inbox.you": "You",
     "layout.resize": "Drag to resize column, double-click to reset",
     "login.description": "Sign in with the email and password your workspace admin gave you",
@@ -912,7 +913,7 @@ export const messages = {
     "contacts.open_in_inbox": "打开",
     "contacts.profile": "资料",
     "contacts.referrer": "来源页面",
-    "contacts.search_placeholder": "搜索名字、邮箱或用户编号…",
+    "contacts.search_placeholder": "搜索名字、邮箱、用户编号或 #访客号…",
     "contacts.sort": "排序",
     "contacts.time_zone": "时区",
     "contacts.time_zone_placeholder": "选择或搜索时区",
@@ -1176,6 +1177,7 @@ export const messages = {
     "inbox.view_translation": "查看译文",
     "inbox.viewing": "{{.who}} 也在看这个会话",
     "inbox.visitor": "访客",
+    "inbox.visitor_numbered": "访客 #{{.n}}",
     "inbox.you": "你",
     "layout.resize": "拖动调整栏宽，双击恢复默认",
     "login.description": "用工作区管理员给你的邮箱和密码登录",
@@ -1966,6 +1968,7 @@ export type MessageId =
   | "inbox.view_translation"
   | "inbox.viewing"
   | "inbox.visitor"
+  | "inbox.visitor_numbered"
   | "inbox.you"
   | "layout.resize"
   | "login.description"

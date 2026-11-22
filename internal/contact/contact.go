@@ -62,6 +62,7 @@ type Contact struct {
 	ID string `bun:"id,pk"`
 	database.Timestamps
 	TenantID       string         `bun:"tenant_id,notnull"`
+	Number         int64          `bun:"number,notnull"` // 联系人在工作区内的递增编号，从 1 开始，创建后不变
 	Kind           Kind           `bun:"kind,notnull"`
 	Name           string         `bun:"name,notnull"`
 	Email          string         `bun:"email,notnull"`
@@ -79,6 +80,7 @@ type Contact struct {
 // Summary 是接口中联系人的概要，显示在会话中和聊天插件的会话响应里。只包含对客户也安全的字段，不含内部备注。
 type Summary struct {
 	ID             string         `json:"id"`
+	Number         int64          `json:"number" doc:"联系人在工作区内的递增编号，从 1 开始"`
 	Kind           Kind           `json:"kind"`
 	Name           string         `json:"name"`
 	Email          string         `json:"email"`
@@ -97,7 +99,7 @@ func (c *Contact) Summary() Summary {
 		attrs = map[string]any{}
 	}
 	return Summary{
-		ID: c.ID, Kind: c.Kind, Name: c.Name, Email: c.Email,
+		ID: c.ID, Number: c.Number, Kind: c.Kind, Name: c.Name, Email: c.Email,
 		Language: c.Language, LanguageManual: c.LanguageManual,
 		Location: c.Location, TimeZone: c.TimeZone,
 		Tags: []tag.Summary{}, Attributes: attrs,
@@ -142,8 +144,12 @@ func ResolveIdentity(ctx context.Context, tx bun.IDB, tenant, channelID, externa
 	case !errors.Is(err, sql.ErrNoRows):
 		return nil, false, errors.Wrap(err, "load contact identity")
 	}
+	num, err := nextNumber(ctx, tx, tenant)
+	if err != nil {
+		return nil, false, err
+	}
 	c = &Contact{
-		ID: newID(), TenantID: tenant, Kind: Lead,
+		ID: newID(), TenantID: tenant, Number: num, Kind: Lead,
 		Name: p.Name, Email: p.Email,
 		TimeZone: sanitizeTimeZone(p.TimeZone), Referrer: sanitizeReferrer(p.Referrer),
 		LastSeenAt: &at, Attributes: map[string]any{},
@@ -176,8 +182,12 @@ func ResolveUser(ctx context.Context, tx bun.IDB, tenant, channelID, externalID,
 		c = new(Contact)
 		err = tx.NewSelect().Model(c).Where("tenant_id = ? AND external_user_id = ?", tenant, userID).Scan(ctx)
 		if errors.Is(err, sql.ErrNoRows) {
+			num, err := nextNumber(ctx, tx, tenant)
+			if err != nil {
+				return nil, err
+			}
 			c = &Contact{
-				ID: newID(), TenantID: tenant, Kind: User, ExternalUserID: userID,
+				ID: newID(), TenantID: tenant, Number: num, Kind: User, ExternalUserID: userID,
 				TimeZone: sanitizeTimeZone(p.TimeZone), Referrer: sanitizeReferrer(p.Referrer),
 				LastSeenAt: &at, Attributes: map[string]any{},
 			}
@@ -339,6 +349,16 @@ func PatchAttributes(ctx context.Context, tx bun.IDB, tenant, contactID string, 
 		return nil, errors.Wrap(err, "update contact attributes")
 	}
 	return changes, nil
+}
+
+// nextNumber 在事务 tx 中原子递增工作区 tenant 的联系人计数器，返回本次分配的递增编号。
+func nextNumber(ctx context.Context, tx bun.IDB, tenant string) (int64, error) {
+	var n int64
+	err := tx.NewRaw(
+		`UPDATE tenants SET next_contact_number = next_contact_number + 1 WHERE id = ? RETURNING next_contact_number - 1`,
+		tenant,
+	).Scan(ctx, &n)
+	return n, errors.Wrap(err, "allocate contact number")
 }
 
 // newID 返回按时间递增的 UUIDv7。

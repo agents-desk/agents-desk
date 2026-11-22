@@ -1,5 +1,5 @@
 import type { ContactSort } from "@agents-desk/client/tenant"
-import { ActionIcon, Avatar, Badge, Box, Button, Center, Group, Loader, Select, Skeleton, Stack, Text, TextInput, Tooltip } from "@mantine/core"
+import { ActionIcon, Badge, Box, Button, Center, Group, Loader, Select, Skeleton, Stack, Text, TextInput, Tooltip } from "@mantine/core"
 import { useDebouncedValue } from "@mantine/hooks"
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
@@ -11,6 +11,7 @@ import { activity } from "../inbox/format"
 import { languageName } from "../languages"
 import { NARROW_QUERY } from "../layout"
 import { formatLocalTime } from "../timezone"
+import { ContactAvatar, contactDisplayName, contactSubline } from "./display"
 import type { ContactsSearch } from "./search"
 
 /** FILTER_LANGUAGES 是联系人列表语言筛选的三种常用语言：中文、英语、印地语（后端按主语言前缀同时匹配 zh-CN、hi-Latn 等）。 */
@@ -286,11 +287,11 @@ export function ContactDirectory({
         ) : (
           <>
             {items.map((c) => {
-              const displayName = c.name || t("inbox.visitor")
+              const displayName = contactDisplayName(c, t)
               const localTime = formatLocalTime(c.time_zone)
               const place = [c.location, localTime ? t("contacts.local_time", { time: localTime }) : ""].filter(Boolean).join(" · ")
               const langLabel = c.language ? languageName(c.language, ui) : ""
-              const subline = [c.email, c.external_user_id].filter(Boolean).join(" · ")
+              const subline = contactSubline(c)
               const active = c.id === openId
               return (
                 <Group
@@ -317,7 +318,7 @@ export function ContactDirectory({
                   }}
                 >
                   <Group gap="sm" wrap="nowrap" style={{ flex: narrow ? "1 1 100%" : 2.2, minWidth: 200 }}>
-                    <Avatar size={34} name={displayName} color="initials" />
+                    <ContactAvatar contact={c} size={34} />
                     <Box style={{ minWidth: 0, flex: 1 }}>
                       <Group gap={6} wrap="nowrap">
                         <Text size="sm" fw={500} truncate>

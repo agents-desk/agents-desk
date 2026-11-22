@@ -536,3 +536,55 @@ func TestVisibilityScope(t *testing.T) {
 		t.Fatalf("会话转派到 teamB 后张三应能看到 cAOnly：%v", err)
 	}
 }
+
+// TestContactNumberAndSearch 检查联系人在工作区内的递增编号：按工作区独立从 1 开始递增，
+// 同时暴露在 Summary/ContactDTO 中，并支持按 2、#2、访客 #2、Visitor #2 搜索命中。
+func TestContactNumberAndSearch(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	env := apptest.New(t)
+	alpha := setupWorkspace(t, env, "alpha")
+	beta := setupWorkspace(t, env, "beta")
+
+	var lead1, user2, lead3, beta1 *contact.Contact
+	err := database.RunInTx(ctx, env.DB, nil, func(ctx context.Context, tx database.Tx) error {
+		var err error
+		if lead1, _, err = contact.ResolveIdentity(ctx, tx, alpha.tenant, alpha.channel.ID, "visitor:1", contact.Profile{}); err != nil {
+			return err
+		}
+		if user2, err = contact.ResolveUser(ctx, tx, alpha.tenant, alpha.channel.ID, "user:u2", "u2", contact.Profile{Name: "Alice"}); err != nil {
+			return err
+		}
+		if lead3, _, err = contact.ResolveIdentity(ctx, tx, alpha.tenant, alpha.channel.ID, "visitor:3", contact.Profile{}); err != nil {
+			return err
+		}
+		beta1, _, err = contact.ResolveIdentity(ctx, tx, beta.tenant, beta.channel.ID, "visitor:b1", contact.Profile{})
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lead1.Number != 1 || user2.Number != 2 || lead3.Number != 3 {
+		t.Fatalf("alpha 联系人编号应依次为 1,2,3，实际 %d,%d,%d", lead1.Number, user2.Number, lead3.Number)
+	}
+	if beta1.Number != 1 {
+		t.Fatalf("beta 联系人编号应独立从 1 开始，实际 %d", beta1.Number)
+	}
+	if lead1.Summary().Number != 1 {
+		t.Fatalf("Summary 应包含编号 1：%+v", lead1.Summary())
+	}
+
+	// 按编号搜索支持多种常见写法
+	list := contact.NewList(env.DB)
+	for _, kw := range []string{"3", "#3", "访客 #3", "访客#3", "Visitor #3", "visitor #3"} {
+		res, err := list.Handle(ctx, alpha.agent, &contact.ListInput{CursorParams: page.CursorParams{PerPage: 20}, Q: kw})
+		if err != nil || len(res.Items) != 1 || res.Items[0].ID != lead3.ID || res.Items[0].Number != 3 {
+			t.Errorf("关键词 %q 期望命中 #3：%+v %v", kw, res, err)
+		}
+	}
+	// 无效编号写法不会报错也不误匹配
+	res, err := list.Handle(ctx, alpha.agent, &contact.ListInput{CursorParams: page.CursorParams{PerPage: 20}, Q: "#0"})
+	if err != nil || len(res.Items) != 0 {
+		t.Errorf("#0 不应命中：%+v %v", res, err)
+	}
+}

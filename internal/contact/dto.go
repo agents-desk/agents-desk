@@ -15,6 +15,7 @@ import (
 // ContactDTO 是接口中的联系人概要信息，用于联系人列表和资料页。
 type ContactDTO struct {
 	ID                string         `json:"id"`
+	Number            int64          `json:"number" doc:"联系人在工作区内的递增编号，从 1 开始"`
 	Kind              Kind           `json:"kind"`
 	Name              string         `json:"name"`
 	Email             string         `json:"email"`
@@ -84,7 +85,7 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, rows []Contac
 			attrs = map[string]any{}
 		}
 		out[i] = ContactDTO{
-			ID: c.ID, Kind: c.Kind, Name: c.Name, Email: c.Email, ExternalUserID: c.ExternalUserID,
+			ID: c.ID, Number: c.Number, Kind: c.Kind, Name: c.Name, Email: c.Email, ExternalUserID: c.ExternalUserID,
 			Language: c.Language, LanguageManual: c.LanguageManual,
 			Location: c.Location, TimeZone: c.TimeZone, Referrer: c.Referrer, Notes: c.Notes,
 			Attributes: attrs, ConversationCount: byID[c.ID],

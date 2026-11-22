@@ -115,6 +115,8 @@ export interface ContactDTO {
   name: string
   /** 成员填写的内部备注，只给成员看 */
   notes: string
+  /** 联系人在工作区内的递增编号，从 1 开始 */
+  number: number
   /** 首次访问的来源页面 */
   referrer: string
   /** IANA 时区名，用于显示对方的当地时间 */
@@ -146,6 +148,8 @@ export interface ContactDetailDTO {
   name: string
   /** 成员填写的内部备注，只给成员看 */
   notes: string
+  /** 联系人在工作区内的递增编号，从 1 开始 */
+  number: number
   /** 首次访问的来源页面 */
   referrer: string
   /** IANA 时区名，用于显示对方的当地时间 */
@@ -178,6 +182,8 @@ export interface ContactSummary {
   /** 所在地 */
   location?: string
   name: string
+  /** 联系人在工作区内的递增编号，从 1 开始 */
+  number: number
   /** 联系人上的标签 */
   tags: TagSummary[]
   /** IANA 时区名，用于显示对方的当地时间 */
@@ -1560,7 +1566,7 @@ export interface ContactListInput {
   per_page?: number
   /** 按联系人类型筛选：user 或 lead；不传为全部 */
   kind?: ContactKind
-  /** 按名字、邮箱或外部用户编号搜索 */
+  /** 按名字、邮箱、外部用户编号或工作区内编号（如 #128）搜索 */
   q?: string
   /** 按客户的语言（BCP 47）筛选，传主语言时同时匹配带子标签的写法 */
   language?: string

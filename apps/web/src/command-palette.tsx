@@ -20,6 +20,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { Icon, type MenuItem, useCan, useLanguage, useNavigation, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useMemo, useState } from "react"
 import { kit, tenantApi } from "./api"
+import { contactDisplayName, contactSubline } from "./contacts/display"
 import { activity } from "./inbox/format"
 import { HighlightedSnippet, HighlightQuery } from "./inbox/Highlight"
 import type { MatchField } from "./inbox/search"
@@ -255,7 +256,7 @@ export function CommandPalette({ slug }: { slug: string }): ReactNode {
                     <Box style={{ flex: 1, minWidth: 0 }}>
                       <Group gap={6} wrap="nowrap">
                         <Text size="sm" fw={600} truncate>
-                          {c.contact?.name || t("inbox.visitor")}
+                          {contactDisplayName(c.contact, t)}
                         </Text>
                         {c.channel && (
                           <Badge size="xs" variant="outline" color="gray" style={{ flex: "none" }}>
@@ -306,7 +307,8 @@ export function CommandPalette({ slug }: { slug: string }): ReactNode {
         {contactHits.length > 0 && (
           <Spotlight.ActionsGroup label={t("command.contacts_group")}>
             {contactHits.map((ct) => {
-              const subtitle = [ct.email, ct.external_user_id].filter(Boolean).join(" · ")
+              const displayName = contactDisplayName(ct, t)
+              const subtitle = contactSubline(ct)
               return (
                 <Spotlight.Action
                   key={`contact:${ct.id}`}
@@ -325,7 +327,7 @@ export function CommandPalette({ slug }: { slug: string }): ReactNode {
                     <Box style={{ flex: 1, minWidth: 0 }}>
                       <Group gap={6} wrap="nowrap">
                         <Text size="sm" fw={500} truncate>
-                          <HighlightQuery text={ct.name || t("inbox.visitor")} query={debounced} />
+                          <HighlightQuery text={displayName} query={debounced} />
                         </Text>
                         <Badge size="xs" variant="light" color="gray" style={{ flex: "none" }}>
                           {kit.label("ContactKind", ct.kind)}
