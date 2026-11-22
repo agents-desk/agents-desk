@@ -89,6 +89,7 @@ export const messages = {
     "settings.general_description": "Configure the platform display name, support contact email, and default interface language.",
     "settings.mail_description": "Configure Resend for outgoing email. The sender domain must be verified in Resend; leave the API key empty to log emails without sending.",
     "tenants.change_owner": "Change owner",
+    "tenants.export": "Export workspaces",
     "test_account.failed": "Test account sign-in failed. Run go run ./cmd/agents-desk seed first",
     "test_account.sign_in": "Sign in with a test account",
   },
@@ -179,6 +180,7 @@ export const messages = {
     "settings.general_description": "配置平台显示名称、联系邮箱和默认界面语言，保存后立即生效。",
     "settings.mail_description": "配置 Resend 发信服务，发件人邮箱所属域名需先在 Resend 完成验证；API Key 留空表示暂不外发（仅写入日志）。",
     "tenants.change_owner": "更换主管理员",
+    "tenants.export": "导出工作区",
     "test_account.failed": "测试账号登录失败，先运行 go run ./cmd/agents-desk seed",
     "test_account.sign_in": "用测试账号登录",
   },
@@ -272,6 +274,7 @@ export type MessageId =
   | "settings.general_description"
   | "settings.mail_description"
   | "tenants.change_owner"
+  | "tenants.export"
   | "test_account.failed"
   | "test_account.sign_in"
 

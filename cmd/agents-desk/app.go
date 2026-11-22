@@ -30,6 +30,8 @@ import (
 	"github.com/go-tenon/tenon/logging"
 	"github.com/go-tenon/tenon/login"
 	"github.com/go-tenon/tenon/natsx"
+	"github.com/go-tenon/tenon/notification"
+	"github.com/go-tenon/tenon/operation"
 	"github.com/go-tenon/tenon/queue"
 	"github.com/go-tenon/tenon/ratelimit"
 	"github.com/go-tenon/tenon/ratelimit/pglimit"
@@ -38,6 +40,7 @@ import (
 	"github.com/go-tenon/tenon/schedule"
 	"github.com/go-tenon/tenon/schedule/scheduleapi"
 	"github.com/go-tenon/tenon/settings"
+	"github.com/go-tenon/tenon/sheet/exports"
 
 	"agents-desk/internal/auth"
 	"agents-desk/internal/automation"
@@ -48,6 +51,7 @@ import (
 	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
 	"agents-desk/internal/platformsettings"
+	"agents-desk/internal/tenant"
 	"agents-desk/internal/translation"
 	"agents-desk/internal/widget"
 	"agents-desk/migrations"
@@ -77,7 +81,9 @@ type App struct {
 	features            *feature.Store                            // 平台功能开关与灰度规则
 	translator          *translation.Translator                   // 调用模型识别语言和翻译
 
-	files       *filesystem.Service // 上传的文件：头像等
+	files       *filesystem.Service // 上传的文件：头像与导出文件等
+	ops         *operation.Service  // 后台长任务状态与进度
+	exporter    *exports.Service    // 后台表格导出服务
 	defaultDisk filesystem.Disk     // 默认文件存储磁盘，用于运行环境自检
 	localDisk   *local.Disk         // 本地磁盘，在 /storage/ 下提供访问；没有配置本地磁盘时为空
 	locker      *lock.Locker        // 多个实例之间的锁：定时任务去重
@@ -174,6 +180,8 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	generalSettings, mailSettings := platformsettings.NewGeneralGroup(db), platformsettings.NewMailGroup(db)
 	llmSettings, translationSettings := llm.NewGroup(db), translation.NewGroup(db)
 	featureStore := flags.NewStore(db)
+	ops := operation.New(db)
+	exporter := exports.New(db, ops, files)
 
 	return &App{
 		cfg: cfg, db: db, nc: nc, hub: hub, presence: presence, roles: roles,
@@ -182,6 +190,7 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		contactTokens: apitoken.NewStore(db, cfg.ContactToken), crypt: keys,
 		generalSettings: generalSettings, mailSettings: mailSettings,
 		llmSettings: llmSettings, translationSettings: translationSettings, features: featureStore,
+		ops: ops, exporter: exporter,
 		translator: translation.NewTranslator(db, llm.NewClient(db, llmSettings, &http.Client{Timeout: 60 * time.Second}), translationSettings),
 		files:      files, defaultDisk: disks[cfg.Filesystem.DefaultDisk], localDisk: localDisk, locker: lock.New(pglock.New(db)),
 		channels: registry(hub),
@@ -211,6 +220,7 @@ func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
 	conversation.RegisterJobs(w, a.db, a.channels)
 	translation.RegisterJobs(w, a.db, a.locker, a.translator, down)
 	automation.RegisterJobs(w, a.db, a.locker, down)
+	tenant.RegisterJobs(w, a.db, a.memberLogins, tenant.Addresses{PublicURL: a.cfg.PublicURL}, a.hub, a.exporter)
 	scheduleapi.HandleRunNow(w, a.tasks)
 	return w.Run, nil
 }
@@ -234,6 +244,10 @@ func (a *App) tasks() *schedule.Scheduler {
 		schedule.Describe("删除 7 天前的定时任务执行记录"))
 	sched.Add("activity:cleanup", "@daily", schedule.Cleanup(activity.Cleanup(a.db, 180*24*time.Hour), 1000),
 		schedule.Describe("删除 180 天前的操作日志"))
+	sched.Add("notifications:cleanup", "@daily", schedule.Cleanup(notification.Cleanup(a.db, 90*24*time.Hour), 1000),
+		schedule.Describe("删除 90 天前的站内通知"))
+	sched.Add("operations:cleanup", "@daily", schedule.Cleanup(operation.New(a.db).Cleanup(30*24*time.Hour), 1000),
+		schedule.Describe("删除 30 天前的后台操作与导出记录"))
 	expire := conversation.NewExpireSnoozes(a.db, a.downstream())
 	sched.Add("conversations:unsnooze", "* * * * *", func(ctx context.Context) error {
 		_, err := expire.Handle(ctx, time.Now())

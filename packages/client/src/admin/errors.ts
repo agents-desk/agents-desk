@@ -2,200 +2,6 @@
 
 // 业务错误码：与 ApiError.code 比较，或交给 isApiError(err, code)。
 
-/** agents-desk/internal/account 的错误码。 */
-export const AccountErrors = {
-  /**
-   * ErrWrongPassword 是修改密码时当前密码不正确（422），提示显示在“当前密码”下面。
-   * 登录的 login.ErrInvalidCredentials 是 401，前端收到 401 会当作登录失效，所以这里换成这个错误。
-   */
-  WrongPassword: "account.wrong_password",
-} as const
-
-/** agents-desk/internal/attribute 的错误码。 */
-export const AttributeErrors = {
-  /** ErrNotFound 是属性定义不存在，或者属于别的工作区。 */
-  NotFound: "attribute.not_found",
-  /** ErrKeyTaken 是同一个对象下已经存在相同的属性标识。 */
-  KeyTaken: "attribute.key_taken",
-  /** ErrOptionsRequired 是单选或多选属性没有填写任何选项。 */
-  OptionsRequired: "attribute.options_required",
-  /** ErrDuplicateOption 是属性的选项列表中有重复项。 */
-  DuplicateOption: "attribute.duplicate_option",
-  /** ErrUnknownKey 是写入的属性标识没有在当前工作区的对应对象中定义。 */
-  UnknownKey: "attribute.unknown_key",
-  /** ErrInvalidValue 是写入的属性值不符合该属性的类型或选项约束。 */
-  InvalidValue: "attribute.invalid_value",
-} as const
-
-/** agents-desk/internal/automation 的错误码。 */
-export const AutomationErrors = {
-  /** ErrNotFound 是自动化规则不存在，或者属于别的工作区。 */
-  NotFound: "automation.not_found",
-  /** ErrForbidden 是调用者没有管理自动化的权限。 */
-  Forbidden: "automation.forbidden",
-} as const
-
-/** agents-desk/internal/channel 的错误码。 */
-export const ChannelErrors = {
-  /** ErrNotFound 是渠道不存在，或者属于别的工作区。 */
-  NotFound: "channel.not_found",
-  /** ErrDisabled 是渠道已停用，不再收发消息。 */
-  Disabled: "channel.disabled",
-} as const
-
-/** agents-desk/internal/contact 的错误码。 */
-export const ContactErrors = {
-  /** ErrNotFound 是联系人不存在，或者属于别的工作区。 */
-  NotFound: "contact.not_found",
-  /** ErrInvalidEmail 是联系人邮箱格式不正确。 */
-  InvalidEmail: "contact.invalid_email",
-  /** ErrInvalidLanguage 是联系人语言不是合法的 BCP 47 标签。 */
-  InvalidLanguage: "contact.invalid_language",
-  /** ErrInvalidTimeZone 是联系人时区不是认识的 IANA 时区名。 */
-  InvalidTimeZone: "contact.invalid_time_zone",
-  /** ErrForbidden 是调用者不能修改这位联系人。 */
-  Forbidden: "contact.forbidden",
-  /** ErrNotLead 是已登录用户的邮箱由产品后端签名提供，不能通过访客表单修改。 */
-  NotLead: "contact.not_lead",
-} as const
-
-/** agents-desk/internal/conversation 的错误码。 */
-export const ConversationErrors = {
-  /** ErrAlreadyAssigned 是要领取的会话已经被别人领取了：两个人同时领取时，先到者生效。 */
-  AlreadyAssigned: "conversation.already_assigned",
-  /** ErrClosed 是会话已经关闭，不能执行这个操作，例如稍后处理一个已关闭的会话。 */
-  Closed: "conversation.closed",
-  /** ErrSnoozeInPast 是稍后处理的时间不晚于现在。 */
-  SnoozeInPast: "conversation.snooze_in_past",
-  /** ErrNotFound 是会话不存在，或者属于别的工作区。 */
-  NotFound: "conversation.not_found",
-  /** ErrForbidden 是调用者没有权限执行这个会话动作。 */
-  Forbidden: "conversation.forbidden",
-  /** ErrNotClosed 是会话还没有关闭，客户不能评价。 */
-  NotClosed: "conversation.not_closed",
-  /** ErrRatingNotRequested 是这次关闭没有向客户发出评价邀请，不能评价。 */
-  RatingNotRequested: "conversation.rating_not_requested",
-  /** ErrAlreadyRated 是客户已经评价过这次关闭的会话；会话重新打开、再关闭后可以再评价。 */
-  AlreadyRated: "conversation.already_rated",
-  /** ErrInvalidLanguage 是设置的对方语言不是合法的 BCP 47 标签。 */
-  InvalidLanguage: "conversation.invalid_language",
-  /** ErrNotFailed 是要重发的消息没有发送失败：还在发送中，或者已经送达。 */
-  NotFailed: "conversation.not_failed",
-} as const
-
-/** agents-desk/internal/flags 的错误码。 */
-export const FlagsErrors = {
-  /** ErrNotFound 表示请求的开关不在代码声明的目录中。 */
-  NotFound: "flags.not_found",
-  /** ErrTenantRequired 表示作用域为 tenant 时缺少有效的 tenant_id。 */
-  TenantRequired: "flags.tenant_required",
-} as const
-
-/** agents-desk/internal/hours 的错误码。 */
-export const HoursErrors = {
-  /** ErrInvalidTimeZone 是不认识的时区名。 */
-  InvalidTimeZone: "hours.invalid_time_zone",
-  /** ErrInvalidInterval 是时间段的开始不早于结束。 */
-  InvalidInterval: "hours.invalid_interval",
-  /** ErrOverlap 是同一天的两段时间重叠。 */
-  Overlap: "hours.overlap",
-  /** ErrDuplicateDate 是两个特殊日期是同一天。 */
-  DuplicateDate: "hours.duplicate_date",
-} as const
-
-/** agents-desk/internal/llm 的错误码。 */
-export const LlmErrors = {
-  /** ErrNotConfigured 是这种调用类型还没有配置模型接口：平台管理员在管理员端的平台设置中填写。 */
-  NotConfigured: "llm.not_configured",
-  /** ErrFailed 是模型接口调用失败，或者回答不是要求的格式。 */
-  Failed: "llm.failed",
-} as const
-
-/** agents-desk/internal/member 的错误码。 */
-export const MemberErrors = {
-  NotFound: "member.not_found",
-  Disabled: "member.disabled",
-  DetailsMissing: "member.details_missing",
-  /** ErrAccountDisabled 是登录或调用接口的成员账号已停用（或已删除）：响应 401，前端回到登录页。 */
-  AccountDisabled: "member.account_disabled",
-  /** ErrInvalidTimeZone 是不认识的时区名（422），提示显示在“时区”下面。 */
-  InvalidTimeZone: "member.invalid_time_zone",
-  AlreadyMember: "member.already_member",
-  OwnerProtected: "member.owner_protected",
-  Self: "member.self",
-} as const
-
-/** agents-desk/internal/platformadmin 的错误码。 */
-export const PlatformadminErrors = {
-  NotFound: "platform_admin.not_found",
-  Disabled: "platform_admin.disabled",
-  Self: "platform_admin.self",
-  EmailTaken: "platform_admin.email_taken",
-} as const
-
-/** agents-desk/internal/platformsettings 的错误码。 */
-export const PlatformsettingsErrors = {
-  /** ErrInvalidEmail 表示填写的邮箱格式不正确。 */
-  InvalidEmail: "platform_settings.invalid_email",
-  /** ErrRequiredField 表示启用 Resend 时必填项未填写。 */
-  RequiredField: "platform_settings.required_field",
-} as const
-
-/** agents-desk/internal/role 的错误码。 */
-export const RoleErrors = {
-  /** ErrNotFound 是角色不存在，或者不是这个工作区自己的角色（例如主管理员、别的工作区的角色）。 */
-  NotFound: "role.not_found",
-  /** ErrNameTaken 是同一个工作区中已经有同名的角色。 */
-  NameTaken: "role.name_taken",
-  /** ErrInUse 是还有成员使用这个角色，不能删除。 */
-  InUse: "role.in_use",
-} as const
-
-/** agents-desk/internal/tag 的错误码。 */
-export const TagErrors = {
-  /** ErrNotFound 是标签不存在，或者属于别的工作区。 */
-  NotFound: "tag.not_found",
-  /** ErrNameTaken 是工作区中已经有一个同名的标签（不区分大小写）。 */
-  NameTaken: "tag.name_taken",
-} as const
-
-/** agents-desk/internal/team 的错误码。 */
-export const TeamErrors = {
-  NotFound: "team.not_found",
-  NameTaken: "team.name_taken",
-  /** ErrNotInTeam 是要移出的人不在这个团队收件箱中。 */
-  NotInTeam: "team.not_in_team",
-  /** ErrInUse 是团队收件箱还在被使用：还有没关闭的会话，或者是某个渠道的默认团队收件箱，不能删除。 */
-  InUse: "team.in_use",
-} as const
-
-/** agents-desk/internal/tenant 的错误码。 */
-export const TenantErrors = {
-  NotFound: "tenant.not_found",
-  SlugTaken: "tenant.slug_taken",
-  SlugReserved: "tenant.slug_reserved",
-  /** ErrDisabled 是成员进入的工作区已停用（403）：只有这个工作区的成员会看到它，其他人得到 404。 */
-  Disabled: "tenant.disabled",
-} as const
-
-/** agents-desk/internal/translation 的错误码。 */
-export const TranslationErrors = {
-  /** ErrForbidden 是调用者没有回复会话的权限。 */
-  Forbidden: "translation.forbidden",
-  /** ErrDuplicateTerm 是术语表中有重复的词（不区分大小写）。 */
-  DuplicateTerm: "translation.duplicate_term",
-} as const
-
-/** agents-desk/internal/widget 的错误码。 */
-export const WidgetErrors = {
-  /** ErrInvalidUserToken 是产品后端签名的用户身份无效：签名不对、已过期或者缺少用户编号。 */
-  InvalidUserToken: "widget.invalid_user_token",
-  /** ErrTeamNotFound 是新会话进入的团队收件箱不存在，或者属于别的工作区。 */
-  TeamNotFound: "widget.team_not_found",
-  /** ErrInvalidOrigin 是允许嵌入的网站写得不对：要写成 http:// 或 https:// 开头、只有域名（和端口）的地址。 */
-  InvalidOrigin: "widget.invalid_origin",
-} as const
-
 /** github.com/go-tenon/tenon/apitoken 的错误码。 */
 export const ApitokenErrors = {
   /** ErrInvalid 表示 token 不存在、已撤销或已过期。rest.RequireToken 把它呈现为 401。 */
@@ -333,6 +139,18 @@ export const LoginErrors = {
   TwoFactorDisabled: "login.two_factor_disabled",
 } as const
 
+/** github.com/go-tenon/tenon/notification 的错误码。 */
+export const NotificationErrors = {
+  /** ErrNotFound 表示通知不存在或不属于该收件人。 */
+  NotFound: "notification.not_found",
+} as const
+
+/** github.com/go-tenon/tenon/operation 的错误码。 */
+export const OperationErrors = {
+  /** ErrNotFound 表示操作不存在，或者不是这个主体发起的。 */
+  NotFound: "operation.not_found",
+} as const
+
 /** github.com/go-tenon/tenon/page 的错误码。 */
 export const PageErrors = {
   /** ErrInvalidCursor 表示客户端传入的游标无法解析。 */
@@ -368,4 +186,18 @@ export const ScheduleapiErrors = {
 export const SettingsErrors = {
   /** ErrInvalid 表示租户 ID 为空或包含空白。 */
   Invalid: "settings.invalid",
+} as const
+
+/** github.com/go-tenon/tenon/sheet 的错误码。 */
+export const SheetErrors = {
+  /** ErrFormat 表示不支持的文件类型，只支持 .csv 和 .xlsx。 */
+  Format: "sheet.unsupported_format",
+  /** ErrBadFile 表示文件无法按表格读取，例如损坏的 XLSX 或引号不配对的 CSV。 */
+  BadFile: "sheet.bad_file",
+  /** ErrNoHeader 表示文件中没有表头。 */
+  NoHeader: "sheet.no_header",
+  /** ErrMissingColumns 表示缺少必填字段对应的列，公开参数 columns 是缺少的列名，以顿号分隔。 */
+  MissingColumns: "sheet.missing_columns",
+  /** ErrUnknownColumn 表示 Columns.Select 收到了不存在的列，公开参数 column 是这个列的 Key。 */
+  UnknownColumn: "sheet.unknown_column",
 } as const

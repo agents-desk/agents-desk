@@ -28,6 +28,8 @@ import (
 	"github.com/go-tenon/tenon/lock/pglock"
 	"github.com/go-tenon/tenon/login"
 	"github.com/go-tenon/tenon/natsx"
+	"github.com/go-tenon/tenon/notification"
+	"github.com/go-tenon/tenon/operation"
 	"github.com/go-tenon/tenon/queue"
 	"github.com/go-tenon/tenon/queue/queuecmd"
 	"github.com/go-tenon/tenon/ratelimit/pglimit"
@@ -35,6 +37,7 @@ import (
 	"github.com/go-tenon/tenon/schedule/scheduleapi"
 	"github.com/go-tenon/tenon/schedule/schedulecmd"
 	"github.com/go-tenon/tenon/settings"
+	"github.com/go-tenon/tenon/sheet/exports"
 
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/platformadmin"
@@ -125,6 +128,9 @@ func migrateCommand() *cobra.Command {
 		settings.Migrations(),
 		feature.Migrations(),
 		activity.Migrations(),
+		notification.Migrations(),
+		operation.Migrations(),
+		exports.Migrations(),
 		queue.Migrations(),
 		scheduleapi.Migrations(),
 		filesystem.Migrations(),

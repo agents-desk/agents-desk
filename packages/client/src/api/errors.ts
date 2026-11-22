@@ -333,6 +333,18 @@ export const LoginErrors = {
   TwoFactorDisabled: "login.two_factor_disabled",
 } as const
 
+/** github.com/go-tenon/tenon/notification 的错误码。 */
+export const NotificationErrors = {
+  /** ErrNotFound 表示通知不存在或不属于该收件人。 */
+  NotFound: "notification.not_found",
+} as const
+
+/** github.com/go-tenon/tenon/operation 的错误码。 */
+export const OperationErrors = {
+  /** ErrNotFound 表示操作不存在，或者不是这个主体发起的。 */
+  NotFound: "operation.not_found",
+} as const
+
 /** github.com/go-tenon/tenon/page 的错误码。 */
 export const PageErrors = {
   /** ErrInvalidCursor 表示客户端传入的游标无法解析。 */
@@ -368,4 +380,18 @@ export const ScheduleapiErrors = {
 export const SettingsErrors = {
   /** ErrInvalid 表示租户 ID 为空或包含空白。 */
   Invalid: "settings.invalid",
+} as const
+
+/** github.com/go-tenon/tenon/sheet 的错误码。 */
+export const SheetErrors = {
+  /** ErrFormat 表示不支持的文件类型，只支持 .csv 和 .xlsx。 */
+  Format: "sheet.unsupported_format",
+  /** ErrBadFile 表示文件无法按表格读取，例如损坏的 XLSX 或引号不配对的 CSV。 */
+  BadFile: "sheet.bad_file",
+  /** ErrNoHeader 表示文件中没有表头。 */
+  NoHeader: "sheet.no_header",
+  /** ErrMissingColumns 表示缺少必填字段对应的列，公开参数 columns 是缺少的列名，以顿号分隔。 */
+  MissingColumns: "sheet.missing_columns",
+  /** ErrUnknownColumn 表示 Columns.Select 收到了不存在的列，公开参数 column 是这个列的 Key。 */
+  UnknownColumn: "sheet.unknown_column",
 } as const

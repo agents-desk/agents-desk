@@ -83,6 +83,8 @@ export const required = {
     create: ["tenants:manage"],
     disable: ["tenants:manage"],
     enable: ["tenants:manage"],
+    exportProgress: ["tenants:read"],
+    exportStart: ["tenants:read"],
     get: ["tenants:read"],
     list: ["tenants:read"],
     update: ["tenants:manage"],
