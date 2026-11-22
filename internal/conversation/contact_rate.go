@@ -3,6 +3,7 @@ package conversation
 import (
 	"context"
 
+	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/database"
@@ -40,6 +41,17 @@ func (a *RateByContact) Handle(ctx context.Context, sub identity.Subject, channe
 			return ErrAlreadyRated.New()
 		}
 		at := now()
+		var closure Closure
+		err = tx.NewSelect().Model(&closure).
+			Where("tenant_id = ? AND conversation_id = ?", c.TenantID, c.ID).
+			OrderExpr("round DESC").Limit(1).For("UPDATE").Scan(ctx)
+		if err != nil {
+			return errors.Wrap(err, "load latest closure")
+		}
+		closure.Rating, closure.RatingComment, closure.RatedAt, closure.UpdatedAt = &score, comment, &at, at
+		if _, err := tx.NewUpdate().Model(&closure).Column("rating", "rating_comment", "rated_at", "updated_at").WherePK().Exec(ctx); err != nil {
+			return errors.Wrap(err, "update closure rating")
+		}
 		c.Rating, c.RatingComment, c.RatedAt = &score, comment, &at
 		return commit(ctx, tx, a.down, c, &Item{
 			Kind: Event, ActorType: ContactActor, ActorID: sub.ID, Visibility: MembersOnly,

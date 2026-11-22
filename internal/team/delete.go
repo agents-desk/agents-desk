@@ -12,8 +12,8 @@ import (
 	"github.com/go-tenon/tenon/identity"
 )
 
-// Delete 删除当前工作区中的一个团队收件箱，成员关系随之删除，成员本身不受影响。还在被使用时不能删除：
-// 还有没关闭的会话，或者是某个渠道的默认团队收件箱。已关闭的会话保留，它们的团队收件箱变为空。
+// Delete 删除当前工作区中一个空的团队收件箱，成员关系随之删除，成员本身不受影响。
+// 只要有会话（包括已关闭的历史会话）、关闭记录或者渠道默认团队收件箱引用，就不能删除，管理员可以改为停用。
 type Delete struct {
 	db *bun.DB
 }
@@ -22,7 +22,7 @@ type Delete struct {
 func NewDelete(db *bun.DB) *Delete { return &Delete{db: db} }
 
 // Handle 删除 sub 所在工作区中的团队收件箱 id 并记录操作日志。不存在时返回 ErrNotFound；还在被使用时返回 ErrInUse，
-// 带有没关闭的会话数 conversations 和以它为默认的渠道数 channels。
+// 带有相关会话数 conversations（含历史会话和关闭记录）和以它为默认的渠道数 channels。
 func (a *Delete) Handle(ctx context.Context, sub identity.Subject, id string) error {
 	return database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		t, err := find(ctx, tx, sub.Tenant, id, true)
@@ -35,9 +35,13 @@ func (a *Delete) Handle(ctx context.Context, sub identity.Subject, id string) er
 			Channels      int `bun:"channels"`
 		}
 		err = tx.NewRaw(`SELECT
-			(SELECT count(*) FROM conversations WHERE tenant_id = ? AND team_id = ? AND status <> 'closed') AS conversations,
+			(SELECT count(*) FROM (
+				SELECT id FROM conversations WHERE tenant_id = ? AND team_id = ?
+				UNION
+				SELECT conversation_id AS id FROM conversation_closures WHERE tenant_id = ? AND team_id = ?
+			) u) AS conversations,
 			(SELECT count(*) FROM channels WHERE tenant_id = ? AND team_id = ?) AS channels`,
-			sub.Tenant, id, sub.Tenant, id).Scan(ctx, &use)
+			sub.Tenant, id, sub.Tenant, id, sub.Tenant, id).Scan(ctx, &use)
 		if err != nil {
 			return errors.Wrap(err, "count team usage")
 		}

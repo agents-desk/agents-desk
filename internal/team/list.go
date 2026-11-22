@@ -13,8 +13,9 @@ import (
 // ListInput 是团队收件箱列表的查询条件。
 type ListInput struct {
 	page.OffsetParams
-	Name string `query:"name" maxLength:"60" doc:"名称包含的文字"`
-	Mine bool   `query:"mine" doc:"只列出我所在的团队收件箱"`
+	Name   string `query:"name" maxLength:"60" doc:"名称包含的文字"`
+	Status Status `query:"status" doc:"按状态筛选：正常或已停用"`
+	Mine   bool   `query:"mine" doc:"只列出我所在的团队收件箱"`
 }
 
 // ListOutput 是一页团队收件箱。
@@ -37,6 +38,12 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) 
 		OrderExpr("name, id").Limit(in.Limit()).Offset(in.Offset())
 	if in.Name != "" {
 		q = q.Where("name ILIKE ?", "%"+in.Name+"%")
+	}
+	switch in.Status {
+	case Active:
+		q = q.Where("disabled_at IS NULL")
+	case Disabled:
+		q = q.Where("disabled_at IS NOT NULL")
 	}
 	if in.Mine {
 		q = q.Where("id IN (SELECT team_id FROM team_members WHERE member_id = ?)", sub.ID)

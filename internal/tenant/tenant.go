@@ -50,18 +50,22 @@ var Statuses = enum.New("tenant.status", Active, Disabled)
 // Schema 让 OpenAPI 中的 Status 只接受上面的取值，并带有显示文字。
 func (Status) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Statuses) }
 
+// DefaultReopenWindowHours 是单窗口渠道会话关闭后的默认重开窗口（小时）。
+const DefaultReopenWindowHours = 24
+
 // Tenant 是一个租户。主管理员在 owner_id 中，同时在 authz 中拥有这个租户的 owner 角色，两者在同一个事务中修改。
 type Tenant struct {
 	bun.BaseModel `bun:"table:tenants"`
 
-	ID         string         `bun:"id,pk"`
-	Slug       string         `bun:"slug,notnull"`
-	Name       string         `bun:"name,notnull"`
-	OwnerID    string         `bun:"owner_id,notnull"`
-	Owner      *member.Member `bun:"rel:belongs-to,join:owner_id=id"`
-	DisabledAt *time.Time     `bun:"disabled_at"` // 非空表示已停用
-	CreatedAt  time.Time      `bun:"created_at,notnull"`
-	UpdatedAt  time.Time      `bun:"updated_at,notnull"`
+	ID                string         `bun:"id,pk"`
+	Slug              string         `bun:"slug,notnull"`
+	Name              string         `bun:"name,notnull"`
+	OwnerID           string         `bun:"owner_id,notnull"`
+	Owner             *member.Member `bun:"rel:belongs-to,join:owner_id=id"`
+	DisabledAt        *time.Time     `bun:"disabled_at"`                 // 非空表示已停用
+	ReopenWindowHours int            `bun:"reopen_window_hours,notnull"` // 单窗口渠道会话关闭后的重开窗口（小时），0 表示不再重开
+	CreatedAt         time.Time      `bun:"created_at,notnull"`
+	UpdatedAt         time.Time      `bun:"updated_at,notnull"`
 }
 
 // Status 返回租户当前的状态。

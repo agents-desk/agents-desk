@@ -1,13 +1,13 @@
-import { ActionIcon, Avatar, Badge, Button, Group, Radio, Stack, Table, Tabs, Text } from "@mantine/core"
+import { ActionIcon, Alert, Avatar, Badge, Button, Group, Radio, Stack, Table, Tabs, Text } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { IconTrash } from "@tabler/icons-react"
 import type { ErrorInfo } from "@go-tenon/client"
-import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, ResourceSelect, useT } from "@go-tenon/ui"
+import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, ResourceSelect, useCan, useT } from "@go-tenon/ui"
 import type { HoursSchedule, TeamDTO } from "@agents-desk/client/tenant"
 import { type ReactNode, useEffect, useState } from "react"
-import { tenantApi } from "../../../../../../api"
+import { kit, tenantApi } from "../../../../../../api"
 import { emptySchedule, ScheduleFields } from "../../../../../../business-hours"
 import { members as memberResource } from "../../../../../../resources"
 import { StatusBadge } from "../../../../../../status"
@@ -22,10 +22,34 @@ function TeamMembers(): ReactNode {
   const { slug, id } = Route.useParams()
   const navigate = useNavigate()
   const t = useT()
+  const can = useCan()
   const queryClient = useQueryClient()
   const team = useQuery({ queryKey: ["team", id], queryFn: () => tenantApi.team.get(id) })
   const members = useQuery({ queryKey: ["team", id, "members"], queryFn: () => tenantApi.team.members(id) })
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["team", id] })
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: ["team", id] })
+    void queryClient.invalidateQueries({ queryKey: kit.queries.team.key() })
+    void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
+  }
+
+  const disable = useMutation({
+    mutationFn: () => tenantApi.team.disable(id),
+    onSuccess: (saved) => {
+      queryClient.setQueryData(["team", id], saved)
+      refresh()
+      notifySuccess(t("teams.disabled_done"))
+    },
+    onError: (err) => notifyError(err),
+  })
+  const enable = useMutation({
+    mutationFn: () => tenantApi.team.enable(id),
+    onSuccess: (saved) => {
+      queryClient.setQueryData(["team", id], saved)
+      refresh()
+      notifySuccess(t("teams.enabled_done"))
+    },
+    onError: (err) => notifyError(err),
+  })
 
   const put = useMutation({
     mutationFn: (memberID: string) => tenantApi.team.memberPut(id, memberID),
@@ -47,13 +71,50 @@ function TeamMembers(): ReactNode {
     setAdding(null)
   }
 
+  const isDisabled = team.data?.status === "disabled"
+  const toggleDisabled = async () => {
+    if (!team.data) return
+    if (isDisabled) {
+      enable.mutate()
+      return
+    }
+    if (
+      await confirm({
+        title: t("teams.disable_confirm", { name: team.data.name }),
+        message: t("teams.disable_message"),
+        danger: true,
+        confirmLabel: t("teams.disable"),
+      })
+    ) {
+      disable.mutate()
+    }
+  }
+
   return (
     <Page
       title={team.data ? t("team_members.heading", { name: team.data.name }) : t("team_members.title")}
       description={team.data?.description || undefined}
       // 标题左边的返回回到团队收件箱列表，而不是离开设置
       back={() => void navigate({ to: "/t/$slug/settings/teams", params: { slug } })}
+      actions={
+        can("teams:manage") && team.data ? (
+          <Button
+            variant={isDisabled ? "filled" : "light"}
+            color={isDisabled ? undefined : "red"}
+            size="xs"
+            loading={disable.isPending || enable.isPending}
+            onClick={() => void toggleDisabled()}
+          >
+            {t(isDisabled ? "teams.enable" : "teams.disable")}
+          </Button>
+        ) : undefined
+      }
     >
+      {isDisabled && (
+        <Alert color="gray" variant="light" mb="md">
+          {t("teams.disabled_notice")}
+        </Alert>
+      )}
       <Tabs defaultValue="members" keepMounted={false}>
         <Tabs.List>
           <Tabs.Tab value="members">{t("team_members.tab_members")}</Tabs.Tab>

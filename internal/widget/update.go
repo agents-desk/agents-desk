@@ -45,8 +45,10 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 		if err != nil {
 			return err
 		}
-		if err := checkTeam(ctx, tx, sub.Tenant, b.TeamID); err != nil {
-			return err
+		if !sameTeam(ch.TeamID, b.TeamID) {
+			if err := checkTeam(ctx, tx, sub.Tenant, b.TeamID); err != nil {
+				return err
+			}
 		}
 		s, err := settingsOf(ch)
 		if err != nil {

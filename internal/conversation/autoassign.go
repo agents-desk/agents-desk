@@ -3,6 +3,7 @@ package conversation
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
@@ -49,9 +50,12 @@ func roundRobin(ctx context.Context, tx bun.IDB, c *Conversation) (*Item, error)
 	if c.TeamID == nil || c.AssigneeType != "" || c.Status == Closed {
 		return nil, nil
 	}
-	var assignment string
-	err := tx.NewRaw("SELECT assignment FROM teams WHERE id = ? AND tenant_id = ? FOR UPDATE", *c.TeamID, c.TenantID).Scan(ctx, &assignment)
-	if errors.Is(err, sql.ErrNoRows) || err == nil && assignment != "round_robin" {
+	var teamRow struct {
+		Assignment string     `bun:"assignment"`
+		DisabledAt *time.Time `bun:"disabled_at"`
+	}
+	err := tx.NewRaw("SELECT assignment, disabled_at FROM teams WHERE id = ? AND tenant_id = ? FOR UPDATE", *c.TeamID, c.TenantID).Scan(ctx, &teamRow)
+	if errors.Is(err, sql.ErrNoRows) || err == nil && (teamRow.DisabledAt != nil || teamRow.Assignment != "round_robin") {
 		return nil, nil
 	}
 	if err != nil {

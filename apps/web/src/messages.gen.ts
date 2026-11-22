@@ -157,6 +157,8 @@ export const messages = {
     "general.address": "Address",
     "general.address_hint": "Fixed once the workspace is created",
     "general.name": "Name",
+    "general.reopen_window": "Reopen window (hours)",
+    "general.reopen_window_hint": "For single-window channels (such as test channel, Telegram DM, or WhatsApp), a message arriving within this window after close reopens the conversation; after that, a new conversation is started. Set to 0 to always start a new conversation.",
     "glossary.add": "Add term",
     "glossary.add_translation": "Add language",
     "glossary.delete": "Delete",
@@ -314,6 +316,7 @@ export const messages = {
     "inbox.tag_filter": "Filter by tag",
     "inbox.tags": "Tags",
     "inbox.team": "Team inbox",
+    "inbox.team_disabled_suffix": "{{.name}} (disabled)",
     "inbox.teams": "Team inboxes",
     "inbox.text_shown": "Show messages translated or original",
     "inbox.their_language": "{{.lang}} · their language",
@@ -411,6 +414,13 @@ export const messages = {
     "team_members.tab_hours": "Business hours",
     "team_members.tab_members": "Members",
     "team_members.title": "Team inbox members",
+    "teams.disable": "Disable",
+    "teams.disable_confirm": "Disable team inbox “{{.name}}”?",
+    "teams.disable_message": "It will stop receiving new conversations and automatic assignments, and will be hidden from the inbox sidebar. Historical conversations and reports keep its name.",
+    "teams.disabled_done": "Team inbox disabled",
+    "teams.disabled_notice": "This team inbox is disabled and no longer receives new conversations or automatic assignments.",
+    "teams.enable": "Enable",
+    "teams.enabled_done": "Team inbox enabled",
     "test_account.failed": "Test account sign-in failed. Run go run ./cmd/agents-desk seed first",
     "test_account.sign_in": "Sign in with a test account",
     "time.days": "{{.n}} d",
@@ -452,6 +462,7 @@ export const messages = {
     "widget_install.title": "Website chat widget",
     "widgets.disabled": "Disabled",
     "widgets.enabled": "Enabled",
+    "widgets.team_disabled_suffix": "{{.name}} (disabled)",
     "widgets.team_hint": "The team inbox new conversations go to",
     "widgets.team_unassigned": "Unassigned",
   },
@@ -610,6 +621,8 @@ export const messages = {
     "general.address": "地址",
     "general.address_hint": "创建后不能修改",
     "general.name": "名称",
+    "general.reopen_window": "重开窗口（小时）",
+    "general.reopen_window_hint": "只有一个聊天窗口的渠道（例如测试渠道、Telegram 私聊、WhatsApp）在会话关闭后，客户在这个时间内再发消息会重新打开原会话，超时则新建会话；填 0 表示关闭后直接新建会话。",
     "glossary.add": "添加术语",
     "glossary.add_translation": "添加语言",
     "glossary.delete": "删除",
@@ -767,6 +780,7 @@ export const messages = {
     "inbox.tag_filter": "按标签筛选",
     "inbox.tags": "标签",
     "inbox.team": "团队收件箱",
+    "inbox.team_disabled_suffix": "{{.name}}（已停用）",
     "inbox.teams": "团队收件箱",
     "inbox.text_shown": "切换消息显示译文还是原文",
     "inbox.their_language": "{{.lang}} · 对方的语言",
@@ -864,6 +878,13 @@ export const messages = {
     "team_members.tab_hours": "工作时间",
     "team_members.tab_members": "成员",
     "team_members.title": "团队收件箱成员",
+    "teams.disable": "停用",
+    "teams.disable_confirm": "停用团队收件箱“{{.name}}”？",
+    "teams.disable_message": "停用后将不再接收新会话和自动分配，并从收件箱侧栏隐藏；历史会话和报表仍保留它的名称。",
+    "teams.disabled_done": "已停用团队收件箱",
+    "teams.disabled_notice": "这个团队收件箱已停用，不会再接收新会话或自动分配。",
+    "teams.enable": "启用",
+    "teams.enabled_done": "已启用团队收件箱",
     "test_account.failed": "测试账号登录失败，先运行 go run ./cmd/agents-desk seed",
     "test_account.sign_in": "用测试账号登录",
     "time.days": "{{.n}} 天",
@@ -905,6 +926,7 @@ export const messages = {
     "widget_install.title": "网页聊天插件",
     "widgets.disabled": "已停用",
     "widgets.enabled": "启用",
+    "widgets.team_disabled_suffix": "{{.name}}（已停用）",
     "widgets.team_hint": "新会话进入的团队收件箱",
     "widgets.team_unassigned": "未指派",
   },
@@ -1066,6 +1088,8 @@ export type MessageId =
   | "general.address"
   | "general.address_hint"
   | "general.name"
+  | "general.reopen_window"
+  | "general.reopen_window_hint"
   | "glossary.add"
   | "glossary.add_translation"
   | "glossary.delete"
@@ -1223,6 +1247,7 @@ export type MessageId =
   | "inbox.tag_filter"
   | "inbox.tags"
   | "inbox.team"
+  | "inbox.team_disabled_suffix"
   | "inbox.teams"
   | "inbox.text_shown"
   | "inbox.their_language"
@@ -1320,6 +1345,13 @@ export type MessageId =
   | "team_members.tab_hours"
   | "team_members.tab_members"
   | "team_members.title"
+  | "teams.disable"
+  | "teams.disable_confirm"
+  | "teams.disable_message"
+  | "teams.disabled_done"
+  | "teams.disabled_notice"
+  | "teams.enable"
+  | "teams.enabled_done"
   | "test_account.failed"
   | "test_account.sign_in"
   | "time.days"
@@ -1361,6 +1393,7 @@ export type MessageId =
   | "widget_install.title"
   | "widgets.disabled"
   | "widgets.enabled"
+  | "widgets.team_disabled_suffix"
   | "widgets.team_hint"
   | "widgets.team_unassigned"
 

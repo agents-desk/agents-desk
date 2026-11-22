@@ -39,7 +39,8 @@ member.fields.password: 初始密码
 member.actions.remove: 移出
 team.not_found: 团队收件箱不存在
 team.name_taken: "名称“{{.name}}”已被使用"
-team.in_use: "还有 {{.conversations}} 个没关闭的会话、{{.channels}} 个渠道在使用这个团队收件箱，先把会话转走、改掉渠道的默认团队收件箱"
+team.in_use: "还有 {{.conversations}} 个会话、{{.channels}} 个渠道引用这个团队收件箱，不能删除，可以改为停用"
+team.disabled: 这个团队收件箱已停用
 team.not_in_team: 这位成员不在这个团队收件箱中
 team.title: 团队收件箱
 team.fields.id: ID
@@ -47,6 +48,12 @@ team.fields.name: 名称
 team.fields.description: 说明
 team.fields.member_count: 人数
 team.fields.assignment: 分配方式
+team.fields.status: 状态
+team.fields.disabled_at: 停用时间
+team.status.active: 正常
+team.status.disabled: 已停用
+team.actions.disable: 停用
+team.actions.enable: 启用
 account.wrong_password: 当前密码不正确
 member.invalid_time_zone: "不认识的时区“{{.time_zone}}”"
 member.language.zh-CN: 简体中文
@@ -260,6 +267,7 @@ activity.platform_admin.profile_updated: "更新了个人资料（{{.changed}}�
 activity.platform_admin.password_changed: "修改了登录密码"
 activity.tenant.created: "创建了工作区「{{.name}}」（{{.slug}}）"
 activity.tenant.renamed: "将工作区名称从「{{.from}}」修改为「{{.to}}」"
+activity.tenant.reopen_window_updated: "将单窗口渠道重开窗口从 {{.from}} 小时修改为 {{.to}} 小时"
 activity.tenant.disabled: "停用了工作区「{{.name}}」"
 activity.tenant.enabled: "启用了工作区「{{.name}}」"
 activity.tenant.owner_changed: "更换了工作区「{{.name}}」的主管理员"

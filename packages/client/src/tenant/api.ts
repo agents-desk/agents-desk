@@ -246,6 +246,30 @@ export interface ConversationBulkResult {
   ok: boolean
 }
 
+export interface ConversationClosureDTO {
+  /** 关闭时的负责人 */
+  assignee?: ConversationActor
+  /** 本轮关闭的时间 */
+  closed_at: string
+  /** 执行关闭的发起者 */
+  closed_by: ConversationActor
+  /** 本轮首次回复的时间，未回复即关闭时为空 */
+  first_reply_at?: string
+  /** 本轮首次回复时长（秒），未回复即关闭时为空 */
+  first_reply_seconds?: number
+  id: string
+  /** 本轮打开或重新打开的时间 */
+  opened_at: string
+  /** 客户对本轮关闭的评价 */
+  rating?: ConversationRating
+  /** 本轮解决时长（秒） */
+  resolution_seconds: number
+  /** 该会话的第几次关闭，从 1 递增 */
+  round: number
+  /** 关闭时归属的团队收件箱 ID */
+  team_id?: string
+}
+
 export interface ConversationContent {
   /** 系统事件的数据 */
   data?: Record<string, unknown>
@@ -677,10 +701,14 @@ export interface TeamDTO {
   /** 单独设置的时区和每周的工作时间；为空表示使用工作区的工作时间 */
   business_hours?: HoursSchedule
   description: string
+  /** 停用时间，正常启用时为空 */
+  disabled_at?: string
   id: string
   /** 团队收件箱中的人数 */
   member_count: number
   name: string
+  /** 状态：正常或已停用 */
+  status: TeamStatus
 }
 
 export interface TeamMember {
@@ -695,16 +723,22 @@ export interface TeamMember {
   status: MemberStatus
 }
 
+export type TeamStatus = "active" | "disabled"
+
 export interface TenantCurrentDTO {
   id: string
   name: string
   /** 当前成员在这个工作区中的权限 */
   permissions: string[]
+  /** 单窗口渠道会话关闭后的重开窗口（小时），0 表示关闭后不再重开 */
+  reopen_window_hours: number
   slug: string
 }
 
 export interface TenantGeneralSettings {
   name: string
+  /** 单窗口渠道会话关闭后的重开窗口（小时），不传保持原样，0 表示关闭后直接新建会话 */
+  reopen_window_hours?: number
 }
 
 export interface TranslationFillBody {
@@ -915,6 +949,8 @@ export interface TeamListInput {
   per_page?: number
   /** 名称包含的文字 */
   name?: string
+  /** 按状态筛选：正常或已停用 */
+  status?: TeamStatus
   /** 只列出我所在的团队收件箱 */
   mine?: boolean
 }
@@ -1061,6 +1097,13 @@ export function createClient(options: ClientOptions) {
        */
       close: (id: string): Promise<ConversationDTO> =>
         rt.request<ConversationDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/close` }),
+      /**
+       * 读取关闭记录
+       *
+       * GET /conversations/{id}/closures
+       */
+      closures: (id: string): Promise<ConversationClosureDTO[]> =>
+        rt.request<ConversationClosureDTO[]>({ method: "GET", path: `/conversations/${encodeURIComponent(id)}/closures` }),
       /**
        * 修改联系人属性
        *
@@ -1371,6 +1414,20 @@ export function createClient(options: ClientOptions) {
       delete: (id: string): Promise<void> =>
         rt.request<void>({ method: "DELETE", path: `/teams/${encodeURIComponent(id)}` }),
       /**
+       * 停用团队收件箱
+       *
+       * POST /teams/{id}/disable
+       */
+      disable: (id: string): Promise<TeamDTO> =>
+        rt.request<TeamDTO>({ method: "POST", path: `/teams/${encodeURIComponent(id)}/disable` }),
+      /**
+       * 启用团队收件箱
+       *
+       * POST /teams/{id}/enable
+       */
+      enable: (id: string): Promise<TeamDTO> =>
+        rt.request<TeamDTO>({ method: "POST", path: `/teams/${encodeURIComponent(id)}/enable` }),
+      /**
        * 读取团队收件箱
        *
        * GET /teams/{id}
@@ -1383,7 +1440,7 @@ export function createClient(options: ClientOptions) {
        * GET /teams
        */
       list: (input: TeamListInput = {}): Promise<OffsetTeamDTO> =>
-        rt.request<OffsetTeamDTO>({ method: "GET", path: `/teams`, query: { "mine": input["mine"], "name": input["name"], "page": input["page"], "per_page": input["per_page"] } }),
+        rt.request<OffsetTeamDTO>({ method: "GET", path: `/teams`, query: { "mine": input["mine"], "name": input["name"], "page": input["page"], "per_page": input["per_page"], "status": input["status"] } }),
       /**
        * 加入团队收件箱
        *

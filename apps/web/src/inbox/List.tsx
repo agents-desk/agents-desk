@@ -364,7 +364,7 @@ function BulkBar({ ids, onDone }: { ids: string[]; onDone: () => void }): ReactN
   const queryClient = useQueryClient()
   const me = useMe()
   const { list: members } = useMembers()
-  const teams = useTeams()
+  const teams = useTeams().filter((x) => x.status === "active")
   // done 提示做成了几个；有失败的（例如没有权限、会话已不存在）时另外提示第一条原因
   const done = (results: ConversationBulkResult[], message: "inbox.bulk_assigned" | "inbox.bulk_closed") => {
     const ok = results.filter((r) => r.ok).length

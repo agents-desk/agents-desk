@@ -342,7 +342,7 @@ func seedConversations(ctx context.Context, out io.Writer, db *bun.DB, memberLog
 	if err != nil {
 		return err
 	}
-	receive, reply := conversation.NewReceive(db, channels, down), conversation.NewReply(db, down)
+	receive, reply, closeConv := conversation.NewReceive(db, channels, down), conversation.NewReply(db, down), conversation.NewClose(db, down)
 	addConvTag := conversation.NewAddTag(db, down)
 	patchConvAttr := conversation.NewPatchAttributes(db, down)
 	addContactTag := conversation.NewAddContactTag(db, down)
@@ -421,6 +421,11 @@ func seedConversations(ctx context.Context, out io.Writer, db *bun.DB, memberLog
 				}
 			}
 			if _, err := patchConvAttr.Handle(ctx, inDemo, id, map[string]any{"issue_type": "账号"}); err != nil {
+				return err
+			}
+		case 5:
+			// 关闭一个已回复完毕的示例会话，生成真实的关闭轮次记录
+			if _, err := closeConv.Handle(ctx, agent, id); err != nil {
 				return err
 			}
 		}

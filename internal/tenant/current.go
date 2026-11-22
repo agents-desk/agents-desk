@@ -8,12 +8,13 @@ import (
 	"github.com/go-tenon/tenon/identity"
 )
 
-// CurrentDTO 是成员所在的工作区，以及他在其中的权限：工作区端据此显示名称、菜单和按钮。
+// CurrentDTO 是成员所在的工作区，以及他在其中的权限：工作区端据此显示名称、常规设置、菜单和按钮。
 type CurrentDTO struct {
-	ID          string   `json:"id"`
-	Slug        string   `json:"slug"`
-	Name        string   `json:"name"`
-	Permissions []string `json:"permissions" doc:"当前成员在这个工作区中的权限"`
+	ID                string   `json:"id"`
+	Slug              string   `json:"slug"`
+	Name              string   `json:"name"`
+	ReopenWindowHours int      `json:"reopen_window_hours" doc:"单窗口渠道会话关闭后的重开窗口（小时），0 表示关闭后不再重开"`
+	Permissions       []string `json:"permissions" doc:"当前成员在这个工作区中的权限"`
 }
 
 // CurrentOutput 是当前工作区的响应。
@@ -35,7 +36,9 @@ func (a *Current) Handle(ctx context.Context, sub identity.Subject) (*CurrentDTO
 	if err != nil {
 		return nil, err
 	}
-	return &CurrentDTO{ID: t.ID, Slug: t.Slug, Name: t.Name, Permissions: sub.Permissions}, nil
+	return &CurrentDTO{
+		ID: t.ID, Slug: t.Slug, Name: t.Name, ReopenWindowHours: t.ReopenWindowHours, Permissions: sub.Permissions,
+	}, nil
 }
 
 // HTTP 处理 GET /t/{slug}/api/tenant。

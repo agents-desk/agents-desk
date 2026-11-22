@@ -124,7 +124,8 @@ export function ConversationView({ id, tenantId, open, next, back }: Conversatio
     )
   }
   const assignee = c.assignee?.type === "member" ? (c.assignee.id === me.data?.id ? t("inbox.you") : byId.get(c.assignee.id)?.name) : undefined
-  const team = c.team_id ? teams.find((x) => x.id === c.team_id)?.name : undefined
+  const teamRow = c.team_id ? teams.find((x) => x.id === c.team_id) : undefined
+  const team = teamRow ? (teamRow.status === "disabled" ? t("inbox.team_disabled_suffix", { name: teamRow.name }) : teamRow.name) : undefined
   const localTime = formatLocalTime(c.contact?.time_zone)
   const place = [c.contact?.location, localTime ? t("contacts.local_time", { time: localTime }) : undefined].filter(Boolean).join(" ")
   const meta = [c.channel?.name, c.language ? languageName(c.language, ui) : undefined, place || undefined, team, assignee ? t("inbox.assigned_to", { who: assignee }) : t("inbox.no_assignee")]

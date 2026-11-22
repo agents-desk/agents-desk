@@ -36,6 +36,9 @@ func reopen(sub identity.Subject) changeFunc {
 			name = "conversation.unsnoozed"
 		}
 		from := c.Status
+		if from == Closed {
+			c.OpenedAt, c.FirstReplyAt = now(), nil
+		}
 		c.Status, c.SnoozedUntil = Open, nil
 		return []*Item{event(sub, name, map[string]any{"from": string(from)})}, nil
 	}

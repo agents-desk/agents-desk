@@ -165,7 +165,8 @@ type Conversation struct {
 	Priority          Priority       `bun:"priority,notnull"`        // 优先级
 	Language          string         `bun:"language,notnull"`        // 客户的语言，见 CustomerLanguage
 	WaitingSince      *time.Time     `bun:"waiting_since"`           // 对方的消息开始等待回复的时间；已回复时为空
-	FirstReplyAt      *time.Time     `bun:"first_reply_at"`          // 第一次回复的时间
+	OpenedAt          time.Time      `bun:"opened_at,notnull"`       // 当前这一轮（新建或重新打开）的开始时间
+	FirstReplyAt      *time.Time     `bun:"first_reply_at"`          // 当前这一轮第一次回复的时间；重开后清空
 	ClosedAt          *time.Time     `bun:"closed_at"`               // 最近一次关闭的时间
 	LastMessageAt     time.Time      `bun:"last_message_at,notnull"` // 最近一条消息的时间
 	LastSeq           int64          `bun:"last_seq,notnull"`        // 时间线中最新一项的序号
@@ -258,6 +259,28 @@ type Delivery struct {
 	ExternalID string         `bun:"external_id,notnull"` // 发出后在渠道中的编号，用来对应回执
 	Error      string         `bun:"error,notnull"`
 	UpdatedAt  time.Time      `bun:"updated_at,notnull"`
+}
+
+// Closure 是会话一次关闭的轮次记录：保存这一轮（从打开或重新打开到关闭）的首次回复时间、关闭时间、归属快照和客户评价。
+type Closure struct {
+	bun.BaseModel `bun:"table:conversation_closures"`
+
+	ID string `bun:"id,pk"`
+	database.Timestamps
+	TenantID       string     `bun:"tenant_id,notnull"`
+	ConversationID string     `bun:"conversation_id,notnull"`
+	Round          int        `bun:"round,notnull"`
+	TeamID         *string    `bun:"team_id"`
+	AssigneeType   ActorType  `bun:"assignee_type,notnull"`
+	AssigneeID     string     `bun:"assignee_id,notnull"`
+	ClosedByType   ActorType  `bun:"closed_by_type,notnull"`
+	ClosedByID     string     `bun:"closed_by_id,notnull"`
+	OpenedAt       time.Time  `bun:"opened_at,notnull"`
+	FirstReplyAt   *time.Time `bun:"first_reply_at"`
+	ClosedAt       time.Time  `bun:"closed_at,notnull"`
+	Rating         *int       `bun:"rating"`
+	RatingComment  string     `bun:"rating_comment,notnull"`
+	RatedAt        *time.Time `bun:"rated_at"`
 }
 
 // Appended 是“时间线有新内容”的任务内容：每个下游收到一份，按它读取新的一项。下游可能收到重复的任务，处理要能重复执行。

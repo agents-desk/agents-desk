@@ -12,9 +12,10 @@ import (
 	"github.com/go-tenon/tenon/identity"
 )
 
-// GeneralSettings 是工作区的常规设置。
+// GeneralSettings 是工作区的常规设置：名称和单窗口渠道的重开窗口。
 type GeneralSettings struct {
-	Name string `json:"name" minLength:"1" maxLength:"60"`
+	Name              string `json:"name" minLength:"1" maxLength:"60"`
+	ReopenWindowHours *int   `json:"reopen_window_hours,omitempty" minimum:"0" maximum:"720" doc:"单窗口渠道会话关闭后的重开窗口（小时），不传保持原样，0 表示关闭后直接新建会话"`
 }
 
 // RenameInput 是修改常规设置的 HTTP 请求。
@@ -22,33 +23,57 @@ type RenameInput struct {
 	Body GeneralSettings
 }
 
-// Rename 修改当前工作区的常规设置：名称。地址（slug）创建后不能修改。
+// Rename 修改当前工作区的常规设置：名称和重开窗口。地址（slug）创建后不能修改。
 type Rename struct {
 	db *bun.DB
 }
 
-// NewRename 返回修改工作区名称的动作。
+// NewRename 返回修改工作区常规设置的动作。
 func NewRename(db *bun.DB) *Rename { return &Rename{db: db} }
 
-// Handle 把 sub 所在工作区的名称改为 s.Name，并记录操作日志，返回修改后的当前工作区。
+// Handle 更新 sub 所在工作区的常规设置并记录操作日志，返回修改后的当前工作区。
 func (a *Rename) Handle(ctx context.Context, sub identity.Subject, s GeneralSettings) (*CurrentDTO, error) {
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		t, err := find(ctx, tx, sub.Tenant, true)
 		if err != nil {
 			return err
 		}
-		if t.Name == s.Name {
+		nameChanged := t.Name != s.Name
+		reopenChanged := s.ReopenWindowHours != nil && t.ReopenWindowHours != *s.ReopenWindowHours
+		if !nameChanged && !reopenChanged {
 			return nil
 		}
-		from := t.Name
-		t.Name, t.UpdatedAt = s.Name, time.Now().UTC()
-		if _, err := tx.NewUpdate().Model(t).Column("name", "updated_at").WherePK().Exec(ctx); err != nil {
-			return errors.Wrap(err, "rename tenant")
+		fromName := t.Name
+		fromReopen := t.ReopenWindowHours
+		t.Name, t.UpdatedAt = s.Name, time.Now().UTC().Truncate(time.Microsecond)
+		cols := []string{"updated_at"}
+		if nameChanged {
+			cols = append(cols, "name")
 		}
-		return activity.Record(ctx, tx, sub, activity.Activity{
-			Event: "tenant.renamed", TargetType: "tenant", TargetID: t.ID,
-			Properties: map[string]any{"from": from, "to": s.Name},
-		})
+		if reopenChanged {
+			t.ReopenWindowHours = *s.ReopenWindowHours
+			cols = append(cols, "reopen_window_hours")
+		}
+		if _, err := tx.NewUpdate().Model(t).Column(cols...).WherePK().Exec(ctx); err != nil {
+			return errors.Wrap(err, "update tenant general settings")
+		}
+		if nameChanged {
+			if err := activity.Record(ctx, tx, sub, activity.Activity{
+				Event: "tenant.renamed", TargetType: "tenant", TargetID: t.ID,
+				Properties: map[string]any{"from": fromName, "to": s.Name},
+			}); err != nil {
+				return err
+			}
+		}
+		if reopenChanged {
+			if err := activity.Record(ctx, tx, sub, activity.Activity{
+				Event: "tenant.reopen_window_updated", TargetType: "tenant", TargetID: t.ID,
+				Properties: map[string]any{"from": fromReopen, "to": t.ReopenWindowHours},
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err

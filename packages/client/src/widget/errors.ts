@@ -165,8 +165,10 @@ export const TeamErrors = {
   NameTaken: "team.name_taken",
   /** ErrNotInTeam 是要移出的人不在这个团队收件箱中。 */
   NotInTeam: "team.not_in_team",
-  /** ErrInUse 是团队收件箱还在被使用：还有没关闭的会话，或者是某个渠道的默认团队收件箱，不能删除。 */
+  /** ErrInUse 是团队收件箱已有会话、历史关闭记录或渠道引用，不能删除，可以改为停用。 */
   InUse: "team.in_use",
+  /** ErrDisabled 是团队收件箱已停用，不能再接收新会话或被选为目标团队收件箱。 */
+  Disabled: "team.disabled",
 } as const
 
 /** agents-desk/internal/tenant 的错误码。 */

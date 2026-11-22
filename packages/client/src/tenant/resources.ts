@@ -133,11 +133,13 @@ export const resources = {
     columns: [
       { name: "name", type: "string", required: true },
       { name: "assignment", type: "string", enum: "TeamAssignment", required: true },
+      { name: "status", type: "string", enum: "TeamStatus", required: true },
       { name: "member_count", type: "integer", format: "int64", required: true },
       { name: "description", type: "string", required: true },
     ],
     filters: [
       { name: "name", type: "string" },
+      { name: "status", type: "string", enum: "TeamStatus" },
     ],
     createForm: [
       { name: "name", type: "string", required: true },
@@ -150,17 +152,19 @@ export const resources = {
       { name: "assignment", type: "string", enum: "TeamAssignment" },
     ],
     actions: [
+      { name: "disable", operation: ["team", "disable"], permissions: ["teams:manage"], confirm: true, danger: true, when: { "status": ["active"] } },
+      { name: "enable", operation: ["team", "enable"], permissions: ["teams:manage"], confirm: true, danger: false, when: { "status": ["disabled"] } },
     ],
     labels: {
       "en": {
         title: "Team inboxes",
-        fields: { name: "Name", assignment: "Assignment", member_count: "Members", description: "Description" },
-        actions: {  },
+        fields: { name: "Name", assignment: "Assignment", status: "Status", member_count: "Members", description: "Description" },
+        actions: { disable: "Disable", enable: "Enable" },
       },
       "zh-CN": {
         title: "团队收件箱",
-        fields: { name: "名称", assignment: "分配方式", member_count: "人数", description: "说明" },
-        actions: {  },
+        fields: { name: "名称", assignment: "分配方式", status: "状态", member_count: "人数", description: "说明" },
+        actions: { disable: "停用", enable: "启用" },
       },
     },
   },
