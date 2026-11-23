@@ -1688,8 +1688,8 @@ export interface TranslationToneInputBody {
 export interface WidgetChanges {
   /** 允许嵌入聊天窗口的网站，形如 https://shop.example.com；不填时所有网站都可以嵌入 */
   allowed_origins?: string[]
-  /** 聊天窗口的主题色，不填时是 bright-blue */
-  color?: "blue-gray" | "brown" | "tomato" | "deep-orange" | "bright-orange" | "yellow" | "bright-green" | "green" | "light-blue" | "sky-blue" | "pale-blue" | "bright-blue" | "deep-blue" | "pale-indigo" | "purple" | "pale-purple" | "violet" | "pale-violet" | "dark-pink" | "bright-pink" | "pink" | "magenta" | "bright-red" | "pale-red" | "deep-red" | "red"
+  /** 聊天窗口的主题色，支持预设色名或 #rrggbb 十六进制颜色值，缺省为 bright-blue */
+  color?: string
   /** 聊天窗口顶部的问候语；不填时显示默认的问候语 */
   greeting?: string
   name: string
@@ -1701,7 +1701,7 @@ export interface WidgetDTO {
   /** 允许嵌入聊天窗口的网站；为空表示所有网站 */
   allowed_origins: string[]
   /** 聊天窗口的主题色 */
-  color: "blue-gray" | "brown" | "tomato" | "deep-orange" | "bright-orange" | "yellow" | "bright-green" | "green" | "light-blue" | "sky-blue" | "pale-blue" | "bright-blue" | "deep-blue" | "pale-indigo" | "purple" | "pale-purple" | "violet" | "pale-violet" | "dark-pink" | "bright-pink" | "pink" | "magenta" | "bright-red" | "pale-red" | "deep-red" | "red"
+  color: string
   created_at: string
   /** 停用后聊天窗口不再显示，客户不能再发消息 */
   enabled: boolean
@@ -1727,8 +1727,8 @@ export interface WidgetInstallationDTO {
 export interface WidgetUpdateBody {
   /** 允许嵌入聊天窗口的网站，形如 https://shop.example.com；不填时所有网站都可以嵌入 */
   allowed_origins?: string[]
-  /** 聊天窗口的主题色，不填时是 bright-blue */
-  color?: "blue-gray" | "brown" | "tomato" | "deep-orange" | "bright-orange" | "yellow" | "bright-green" | "green" | "light-blue" | "sky-blue" | "pale-blue" | "bright-blue" | "deep-blue" | "pale-indigo" | "purple" | "pale-purple" | "violet" | "pale-violet" | "dark-pink" | "bright-pink" | "pink" | "magenta" | "bright-red" | "pale-red" | "deep-red" | "red"
+  /** 聊天窗口的主题色，支持预设色名或 #rrggbb 十六进制颜色值，缺省为 bright-blue */
+  color?: string
   /** 停用后聊天窗口不再显示，客户不能再发消息 */
   enabled: boolean
   /** 聊天窗口顶部的问候语；不填时显示默认的问候语 */

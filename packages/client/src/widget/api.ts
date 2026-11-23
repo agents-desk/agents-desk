@@ -183,7 +183,7 @@ export interface TagSummary {
 
 export interface WidgetConfigDTO {
   /** 聊天窗口的主题色 */
-  color: "blue-gray" | "brown" | "tomato" | "deep-orange" | "bright-orange" | "yellow" | "bright-green" | "green" | "light-blue" | "sky-blue" | "pale-blue" | "bright-blue" | "deep-blue" | "pale-indigo" | "purple" | "pale-purple" | "violet" | "pale-violet" | "dark-pink" | "bright-pink" | "pink" | "magenta" | "bright-red" | "pale-red" | "deep-red" | "red"
+  color: string
   /** 聊天窗口顶部的问候语；为空时显示默认的问候语 */
   greeting: string
   /** 聊天插件的名称，显示在聊天窗口的标题中 */

@@ -193,6 +193,7 @@ telegram.descriptions.enabled: 停用后不再接收或发送消息
 widget.invalid_user_token: 用户身份的签名无效或已过期
 widget.team_not_found: 团队收件箱不存在
 widget.invalid_origin: "“{{.origin}}”要写成 https:// 或 http:// 开头、只有域名的地址，例如 https://shop.example.com"
+widget.invalid_color: "“{{.color}}”不是有效的颜色，请填写预设名或 #rrggbb 十六进制颜色值"
 widget.title: 网页聊天插件
 widget.fields.id: ID
 widget.fields.name: 名称
@@ -206,6 +207,7 @@ widget.fields.created_at: 创建时间
 widget.descriptions.name: 显示在聊天窗口的标题中
 widget.descriptions.team_id: 新会话进入的团队收件箱；不选时进入未指派
 widget.descriptions.greeting: 显示在聊天窗口的顶部；不填时显示默认的问候语
+widget.descriptions.color: 聊天窗口的主题色，支持选择预设色块或输入自定义 #rrggbb 颜色值
 widget.descriptions.allowed_origins: 聊天窗口只在这些网站中显示，例如 https://shop.example.com；不填时所有网站都可以嵌入。App 用 WebView 打开时不受它限制
 widget.descriptions.enabled: 停用后聊天窗口不再显示，客户不能再发消息
 

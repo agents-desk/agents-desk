@@ -2,31 +2,63 @@ package widget
 
 import (
 	"context"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/channel"
 )
 
-// Color 是聊天窗口的主题色，取值见 colors。
+// Color 是聊天窗口的主题色：预设色名（见 colors）或 #rrggbb 十六进制颜色值。
 type Color string
 
-// colors 是聊天窗口可以选的主题色：界面主题中预设的色板。
+// colors 是聊天窗口预设的主题色板名称。
 var colors = []string{
 	"blue-gray", "brown", "tomato", "deep-orange", "bright-orange", "yellow", "bright-green", "green", "light-blue",
 	"sky-blue", "pale-blue", "bright-blue", "deep-blue", "pale-indigo", "purple", "pale-purple", "violet", "pale-violet",
 	"dark-pink", "bright-pink", "pink", "magenta", "bright-red", "pale-red", "deep-red", "red",
 }
 
-// defaultColor 是没有选主题色时聊天窗口的颜色。
+// defaultColor 是聊天窗口的默认主题色。
 const defaultColor Color = "bright-blue"
 
-// color 返回设置中的主题色，没有选时是默认的颜色。
+// normalizeColor 校验并标准化主题色：空值返回默认主题色，预设名原样返回，#rrggbb 转为小写；其余返回 ErrInvalidColor。
+func normalizeColor(raw Color) (Color, error) {
+	s := strings.TrimSpace(string(raw))
+	if s == "" {
+		return defaultColor, nil
+	}
+	if slices.Contains(colors, s) {
+		return Color(s), nil
+	}
+	if isHexColor(s) {
+		return Color(strings.ToLower(s)), nil
+	}
+	return "", ErrInvalidColor.New(errorx.Field("color"), errorx.Public("color", s))
+}
+
+// isHexColor 报告 s 是否为 #rrggbb 形式的 6 位十六进制颜色值。
+func isHexColor(s string) bool {
+	if len(s) != 7 || s[0] != '#' {
+		return false
+	}
+	for i := 1; i < 7; i++ {
+		c := s[i]
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			return false
+		}
+	}
+	return true
+}
+
+// color 返回设置中的主题色，缺省时返回默认主题色。
 func (s Settings) color() Color {
 	if s.Color == "" {
 		return defaultColor
@@ -42,13 +74,9 @@ func (s Settings) origins() []string {
 	return s.AllowedOrigins
 }
 
-// Schema 让 OpenAPI 中的 Color 只接受 colors 中的取值。
+// Schema 声明 OpenAPI 中的 Color 为字符串，由业务逻辑校验预设名或 #rrggbb 格式。
 func (Color) Schema(huma.Registry) *huma.Schema {
-	s := &huma.Schema{Type: huma.TypeString}
-	for _, c := range colors {
-		s.Enum = append(s.Enum, c)
-	}
-	return s
+	return &huma.Schema{Type: huma.TypeString}
 }
 
 // WidgetDTO 是接口中的聊天插件。

@@ -34,8 +34,13 @@ type Update struct {
 func NewUpdate(db *bun.DB) *Update { return &Update{db: db} }
 
 // Handle 修改 sub 所在工作区中的聊天插件 id 并记录操作日志，身份验证密钥保持不变。聊天插件不存在时返回
-// channel.ErrNotFound，团队收件箱不属于这个工作区时返回 ErrTeamNotFound，允许嵌入的网站写得不对时返回 ErrInvalidOrigin。
+// channel.ErrNotFound，团队收件箱不属于这个工作区时返回 ErrTeamNotFound，主题色格式不对时返回 ErrInvalidColor，
+// 允许嵌入的网站写得不对时返回 ErrInvalidOrigin。
 func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b UpdateBody) (*WidgetDTO, error) {
+	color, err := normalizeColor(b.Color)
+	if err != nil {
+		return nil, err
+	}
 	origins, err := normalizeOrigins(b.AllowedOrigins)
 	if err != nil {
 		return nil, err
@@ -64,13 +69,13 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 		if ch.Enabled != b.Enabled {
 			changed = append(changed, "enabled")
 		}
-		if s.Greeting != b.Greeting || s.Color != string(b.color()) || !slices.Equal(s.AllowedOrigins, origins) {
+		if s.Greeting != b.Greeting || s.Color != string(color) || !slices.Equal(s.AllowedOrigins, origins) {
 			changed = append(changed, "settings")
 		}
 		if len(changed) == 0 {
 			return nil
 		}
-		s.Greeting, s.Color, s.AllowedOrigins = b.Greeting, string(b.color()), origins
+		s.Greeting, s.Color, s.AllowedOrigins = b.Greeting, string(color), origins
 		settings, err := s.toMap()
 		if err != nil {
 			return err

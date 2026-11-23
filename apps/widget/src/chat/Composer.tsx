@@ -82,7 +82,7 @@ export function Composer({ color, touch, placeholder, onSend, onTyping }: Compos
       }}
     >
       {dragging && (
-        <Text size="xs" c={color} fw={500} ta="center" pt={6}>
+        <Text size="xs" c="dimmed" fw={500} ta="center" pt={6}>
           {t("composer.attach_drop")}
         </Text>
       )}

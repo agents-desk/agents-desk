@@ -343,6 +343,24 @@ func TestManage(t *testing.T) {
 	if err != nil || cfg.Greeting != "你好" || cfg.Color != "green" || cfg.Name != "官网" {
 		t.Fatalf("公开设置：%+v %v", cfg, err)
 	}
+
+	// 支持自定义 #rrggbb 十六进制颜色并标准化为小写，非法格式返回 ErrInvalidColor
+	w, err = NewUpdate(env.DB).Handle(ctx, alpha.system, alpha.widget.ID, UpdateBody{Changes: Changes{Name: "官网", Greeting: "你好", Color: "#FEDC20"}, Enabled: true})
+	if err != nil || w.Color != "#fedc20" {
+		t.Fatalf("自定义颜色修改后：%+v %v", w, err)
+	}
+	cfg, err = NewGetConfig().Handle(alpha.in(t, alpha.widget.ID))
+	if err != nil || cfg.Color != "#fedc20" {
+		t.Fatalf("自定义颜色公开设置：%+v %v", cfg, err)
+	}
+	for _, bad := range []Color{"invalid", "#fff", "#gggggg", "fedc20"} {
+		if _, err := NewCreate(env.DB, env.Crypt).Handle(ctx, alpha.system, Changes{Name: "x", Color: bad}); !errors.Is(err, ErrInvalidColor) {
+			t.Errorf("非法主题色 %q 新建：%v", bad, err)
+		}
+		if _, err := NewUpdate(env.DB).Handle(ctx, alpha.system, alpha.widget.ID, UpdateBody{Changes: Changes{Name: "官网", Color: bad}, Enabled: true}); !errors.Is(err, ErrInvalidColor) {
+			t.Errorf("非法主题色 %q 修改：%v", bad, err)
+		}
+	}
 }
 
 // TestRating 检查客户评价：打开的会话不能评价；坐席关闭会话时推送给客户，客户看到已关闭、还没有评价；评价后
