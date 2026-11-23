@@ -121,9 +121,9 @@ export const schemas = {
     },
   },
   llm: {
-    endpointSave: {
+    settingsSave: {
       body: {
-        "$ref": "#/components/schemas/LlmEndpoint"
+        "$ref": "#/components/schemas/LlmSettings"
       },
     },
   },
@@ -383,7 +383,7 @@ export const components = {
     ],
     "type": "object"
   },
-  LlmEndpoint: {
+  LlmGateway: {
     "additionalProperties": false,
     "properties": {
       "api_key": {
@@ -394,16 +394,40 @@ export const components = {
         "maxLength": 500,
         "pattern": "^(https?://\\S+)?$",
         "type": "string"
-      },
-      "model": {
+      }
+    },
+    "required": [
+      "base_url",
+      "api_key"
+    ],
+    "type": "object"
+  },
+  LlmModels: {
+    "additionalProperties": false,
+    "properties": {
+      "translation": {
         "maxLength": 200,
         "type": "string"
       }
     },
     "required": [
-      "base_url",
-      "api_key",
-      "model"
+      "translation"
+    ],
+    "type": "object"
+  },
+  LlmSettings: {
+    "additionalProperties": false,
+    "properties": {
+      "gateway": {
+        "$ref": "#/components/schemas/LlmGateway"
+      },
+      "models": {
+        "$ref": "#/components/schemas/LlmModels"
+      }
+    },
+    "required": [
+      "gateway",
+      "models"
     ],
     "type": "object"
   },

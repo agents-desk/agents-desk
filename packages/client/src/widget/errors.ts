@@ -115,7 +115,7 @@ export const HoursErrors = {
 
 /** agents-desk/internal/llm 的错误码。 */
 export const LlmErrors = {
-  /** ErrNotConfigured 是这种调用类型还没有配置模型接口：平台管理员在管理员端的平台设置中填写。 */
+  /** ErrNotConfigured 是网关或这种调用类型的模型名还没有配置：平台管理员在管理员端的平台设置中填写。 */
   NotConfigured: "llm.not_configured",
   /** ErrFailed 是模型接口调用失败，或者回答不是要求的格式。 */
   Failed: "llm.failed",

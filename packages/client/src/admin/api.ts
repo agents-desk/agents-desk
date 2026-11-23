@@ -148,20 +148,23 @@ export interface FormFile {
   Size: number
 }
 
-export type LlmCallType = "translation"
-
-export interface LlmEndpoint {
-  /** 接口的密钥，明文保存 */
+export interface LlmGateway {
+  /** 网关密钥（Virtual Key），明文保存 */
   api_key: string
-  /** 接口的地址，http:// 或 https:// 开头，例如 https://api.example.com/v1 */
+  /** 统一模型网关地址，http:// 或 https:// 开头，例如 https://gateway.example.com/v1 */
   base_url: string
-  /** 模型名 */
-  model: string
+}
+
+export interface LlmModels {
+  /** 翻译：在不同语言之间互译文本，同时识别原文的语言和书写方式 */
+  translation: string
 }
 
 export interface LlmSettings {
-  /** 翻译：在不同语言之间互译文本，同时识别原文的语言和书写方式 */
-  translation: LlmEndpoint
+  /** 统一模型网关连接 */
+  gateway: LlmGateway
+  /** 各调用类型使用的逻辑模型名 */
+  models: LlmModels
 }
 
 export interface Meta {
@@ -721,19 +724,19 @@ export function createClient(options: ClientOptions) {
     /** operationId 以 llm- 开头的接口。 */
     llm: {
       /**
-       * 保存一种调用类型的模型接口
-       *
-       * PUT /settings/model/{call_type}
-       */
-      endpointSave: (callType: LlmCallType, body: LlmEndpoint): Promise<LlmEndpoint> =>
-        rt.request<LlmEndpoint>({ method: "PUT", path: `/settings/model/${encodeURIComponent(callType)}`, body }),
-      /**
-       * 读取模型接口设置
+       * 读取模型网关与调用类型设置
        *
        * GET /settings/model
        */
       settingsGet: (): Promise<LlmSettings> =>
         rt.request<LlmSettings>({ method: "GET", path: `/settings/model` }),
+      /**
+       * 保存模型网关与调用类型设置
+       *
+       * PUT /settings/model
+       */
+      settingsSave: (body: LlmSettings): Promise<LlmSettings> =>
+        rt.request<LlmSettings>({ method: "PUT", path: `/settings/model`, body }),
     },
     /** operationId 以 mail- 开头的接口。 */
     mail: {

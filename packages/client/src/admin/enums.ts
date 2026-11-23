@@ -22,14 +22,6 @@ export const enums = {
       "zh-CN": { everyone: "全员", tenant: "工作区" },
     },
   },
-  LlmCallType: {
-    prefix: "llm.call_type",
-    values: ["translation"],
-    labels: {
-      "en": { translation: "Translation" },
-      "zh-CN": { translation: "翻译" },
-    },
-  },
   PlatformAdminStatus: {
     prefix: "platform_admin.status",
     values: ["active", "disabled"],

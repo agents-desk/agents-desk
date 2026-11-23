@@ -57,8 +57,8 @@ export const required = {
     settingsUpdate: ["platform-settings:manage"],
   },
   llm: {
-    endpointSave: ["platform-settings:manage"],
     settingsGet: ["platform-settings:manage"],
+    settingsSave: ["platform-settings:manage"],
   },
   mail: {
     settingsGet: ["platform-settings:manage"],

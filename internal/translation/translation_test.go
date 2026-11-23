@@ -53,6 +53,7 @@ func (f *fakeModel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if status != 0 {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(status)
 		_, _ = w.Write([]byte(`{"error":{"message":"overloaded"}}`))
 		return
@@ -90,6 +91,7 @@ func (f *fakeModel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		"usage": map[string]any{"prompt_tokens": 120, "completion_tokens": 30, "cost": 0.00042,
 			"completion_tokens_details": map[string]any{"reasoning_tokens": 4}},
 	}
+	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
@@ -178,7 +180,10 @@ func setup(t *testing.T, configured bool) fixture {
 	t.Cleanup(srv.Close)
 	llmSettings := llm.NewGroup(env.DB)
 	if configured {
-		if err := llmSettings.Save(ctx, llm.Settings{Translation: llm.Endpoint{BaseURL: srv.URL + "/v1", APIKey: "test-key", Model: "test-model"}}); err != nil {
+		if err := llmSettings.Save(ctx, llm.Settings{
+			Gateway: llm.Gateway{BaseURL: srv.URL + "/v1", APIKey: "test-key"},
+			Models:  llm.Models{Translation: "test-model"},
+		}); err != nil {
 			t.Fatal(err)
 		}
 	}
