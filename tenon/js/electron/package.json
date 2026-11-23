@@ -1,0 +1,28 @@
+{
+  "name": "@go-tenon/electron",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./main": "./src/main.ts",
+    "./preload": "./src/preload.ts",
+    "./update": "./src/update.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@go-tenon/client": "workspace:*",
+    "@go-tenon/host": "workspace:*",
+    "@types/node": "^24.10.15"
+  },
+  "peerDependencies": {
+    "electron": ">=45.0.0",
+    "electron-updater": ">=6.8.0"
+  },
+  "peerDependenciesMeta": {
+    "electron-updater": {
+      "optional": true
+    }
+  }
+}

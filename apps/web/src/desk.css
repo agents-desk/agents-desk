@@ -1,39 +1,14 @@
 /*
- * 工作台跨模块公共样式（收件箱、联系人、工作区选择页共用）：
+ * 工作台跨模块公共样式与聊天节奏令牌（收件箱、联系人、工作区选择页共用）：
  * 全部基于 --tn-* 与 Mantine 主题语义变量，明暗主题一致。
  */
 
-/* 可拖拽与键盘微调的分栏分隔手柄：悬停、聚焦或拖动时浮现品牌色细线 */
-.desk-resize-handle {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 6px;
-  z-index: 5;
-  cursor: col-resize;
-  touch-action: none;
-}
-
-.desk-resize-handle::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 2px;
-  transform: translateX(-50%);
-  background: transparent;
-  transition: background-color 140ms ease;
-}
-
-.desk-resize-handle:hover::after,
-.desk-resize-handle:focus-visible::after,
-.desk-resize-handle[data-dragging]::after {
-  background: var(--mantine-primary-color-filled);
-}
-
-.desk-resize-handle:focus-visible {
-  outline: none;
+:root {
+  --desk-row-height: 64px;
+  --desk-msg-gap-group: 4px;
+  --desk-msg-gap-turn: 16px;
+  --desk-bubble-px: 12px;
+  --desk-bubble-py: 9px;
 }
 
 /* 内部备注便签块：联系人档案与收件箱详情共用的淡黄便签样式 */

@@ -1,10 +1,10 @@
 import type { ContactSort } from "@agents-desk/client/tenant"
-import { ActionIcon, Badge, Box, Button, Center, Group, Loader, Select, Skeleton, Stack, Text, TextInput, Tooltip } from "@mantine/core"
+import { ActionIcon, Badge, Box, Button, Center, Group, Loader, Select, Skeleton, Stack, Text, TextInput } from "@mantine/core"
 import { useDebouncedValue } from "@mantine/hooks"
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
-import { IconBookmarkPlus, IconLayoutSidebarLeftExpand, IconMessageCircle, IconSearch, IconX } from "@tabler/icons-react"
-import { ExportButton, useCan, useLanguage, useNarrow, useNavControl, useT, useTimeZone } from "@go-tenon/ui"
+import { IconBookmarkPlus, IconMessageCircle, IconSearch, IconX } from "@tabler/icons-react"
+import { ExportButton, PaneBody, PaneHeader, PaneToolbar, useCan, useLanguage, useNarrow, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { useTags } from "../inbox/data"
@@ -37,7 +37,6 @@ export function ContactDirectory({
   const ui = useLanguage()
   const zone = useTimeZone()
   const narrow = useNarrow(NARROW_QUERY)
-  const nav = useNavControl()
   const { slug } = useParams({ from: "/t/$slug" })
   const navigate = useNavigate()
   const tags = useTags()
@@ -164,132 +163,129 @@ export function ContactDirectory({
   return (
     <Box style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* 52px 基准顶栏：与二级导航头和右侧档案顶栏严格齐平 */}
-      <Group gap="xs" px="md" wrap="nowrap" className="ct-header">
-        {nav && !nav.open && (
-          <Tooltip label={t("nav.expand_nav")} openDelay={350}>
-            <ActionIcon variant="subtle" color="gray" onClick={nav.openNav} aria-label={t("nav.expand_nav")}>
-              <IconLayoutSidebarLeftExpand size={18} stroke={1.6} />
-            </ActionIcon>
-          </Tooltip>
-        )}
-        <Text fw={600} size="sm" truncate>
-          {title}
-        </Text>
-        {badgeCount !== undefined && (
-          <Badge size="xs" variant="light" color="gray" radius="sm" style={{ flex: "none" }}>
-            {badgeCount}
-          </Badge>
-        )}
-        <Group gap={6} ml="auto" wrap="nowrap" style={{ flex: "none" }}>
-          {hasFilters && (
-            <Button
-              size="compact-xs"
-              variant="subtle"
-              color="gray"
-              onClick={() => {
-                setKeyword("")
-                go({ q: undefined, language: undefined, channel: undefined, tag: undefined })
-              }}
-            >
-              {t("contacts.clear_filters")}
-            </Button>
-          )}
-          {!search.view && (hasFilters || search.kind) && (
-            <Button
-              size="compact-xs"
-              variant="light"
-              leftSection={<IconBookmarkPlus size={13} />}
-              onClick={() => setSaveViewOpen(true)}
-            >
-              {t("contacts.save_view")}
-            </Button>
-          )}
-          {can("contacts:export") && (
-            <ExportButton
-              title={t("contacts.export")}
-              source={{
-                start: () =>
-                  tenantApi.contact.exportStart({
-                    format: "xlsx",
-                    view_id: search.view,
-                    kind: search.kind,
-                    q: search.q,
-                    language: search.language,
-                    channel_id: search.channel,
-                    tag_id: search.tag,
-                    sort: search.sort,
-                  }),
-                progress: (id) => (o) => tenantApi.contact.exportProgress(id, o),
-              }}
-            />
-          )}
-        </Group>
-      </Group>
+      <PaneHeader
+        showNavToggle
+        title={
+          <Group gap="xs" wrap="nowrap">
+            <Text fw={600} size="sm" truncate>
+              {title}
+            </Text>
+            {badgeCount !== undefined && (
+              <Badge size="xs" variant="light" color="gray" radius="sm" style={{ flex: "none" }}>
+                {badgeCount}
+              </Badge>
+            )}
+          </Group>
+        }
+        actions={
+          <Group gap={6} wrap="nowrap" style={{ flex: "none" }} data-tn-density="dense">
+            {hasFilters && (
+              <Button
+                size="compact-xs"
+                variant="subtle"
+                color="gray"
+                onClick={() => {
+                  setKeyword("")
+                  go({ q: undefined, language: undefined, channel: undefined, tag: undefined })
+                }}
+              >
+                {t("contacts.clear_filters")}
+              </Button>
+            )}
+            {!search.view && (hasFilters || search.kind) && (
+              <Button
+                size="compact-xs"
+                variant="light"
+                leftSection={<IconBookmarkPlus size={13} />}
+                onClick={() => setSaveViewOpen(true)}
+              >
+                {t("contacts.save_view")}
+              </Button>
+            )}
+            {can("contacts:export") && (
+              <ExportButton
+                title={t("contacts.export")}
+                source={{
+                  start: () =>
+                    tenantApi.contact.exportStart({
+                      format: "xlsx",
+                      view_id: search.view,
+                      kind: search.kind,
+                      q: search.q,
+                      language: search.language,
+                      channel_id: search.channel,
+                      tag_id: search.tag,
+                      sort: search.sort,
+                    }),
+                  progress: (id) => (o) => tenantApi.contact.exportProgress(id, o),
+                }}
+              />
+            )}
+          </Group>
+        }
+      />
 
       {/* 独立搜索与筛选工具条 */}
-      <Group gap="xs" px="md" py={8} wrap="wrap" className="ct-toolbar">
-        <TextInput
-          size="xs"
-          style={{ flex: 1, minWidth: 200 }}
-          value={keyword}
-          onChange={(e) => setKeyword(e.currentTarget.value)}
-          placeholder={t("contacts.search_placeholder")}
-          leftSection={<IconSearch size={14} />}
-          rightSection={
-            keyword ? (
-              <ActionIcon variant="subtle" color="gray" size="xs" onClick={() => setKeyword("")} aria-label={t("common.cancel")}>
-                <IconX size={12} />
-              </ActionIcon>
-            ) : null
-          }
-        />
-        <Select
-          size="xs"
-          w={compact ? 108 : 124}
-          clearable
-          placeholder={t("contacts.filter_language")}
-          data={languageChoices}
-          value={search.language ?? null}
-          onChange={(v) => go({ language: v || undefined })}
-          aria-label={t("contacts.language")}
-        />
-        {channels.length > 0 && (
-          <Select
-            size="xs"
-            w={compact ? 116 : 140}
-            clearable
-            placeholder={t("contacts.filter_channel")}
-            data={channels}
-            value={search.channel ?? null}
-            onChange={(v) => go({ channel: v || undefined })}
-            aria-label={t("contacts.filter_channel")}
+      <PaneToolbar>
+        <Group gap="xs" wrap="wrap">
+          <TextInput
+            style={{ flex: 1, minWidth: 200 }}
+            value={keyword}
+            onChange={(e) => setKeyword(e.currentTarget.value)}
+            placeholder={t("contacts.search_placeholder")}
+            leftSection={<IconSearch size={14} />}
+            rightSection={
+              keyword ? (
+                <ActionIcon variant="subtle" color="gray" size="xs" onClick={() => setKeyword("")} aria-label={t("common.cancel")}>
+                  <IconX size={12} />
+                </ActionIcon>
+              ) : null
+            }
           />
-        )}
-        {tagChoices.length > 0 && (
           <Select
-            size="xs"
-            w={compact ? 112 : 132}
+            w={compact ? 112 : 128}
             clearable
-            searchable
-            placeholder={t("contacts.filter_tag")}
-            data={tagChoices}
-            value={search.tag ?? null}
-            onChange={(v) => go({ tag: v || undefined })}
-            aria-label={t("contacts.filter_tag")}
+            placeholder={t("contacts.filter_language")}
+            data={languageChoices}
+            value={search.language ?? null}
+            onChange={(v) => go({ language: v || undefined })}
+            aria-label={t("contacts.language")}
           />
-        )}
-        <Select
-          size="xs"
-          w={108}
-          allowDeselect={false}
-          data={sorts}
-          value={search.sort}
-          onChange={(v) => v && go({ sort: v as ContactSort })}
-          aria-label={t("contacts.sort")}
-        />
-      </Group>
+          {channels.length > 0 && (
+            <Select
+              w={compact ? 120 : 144}
+              clearable
+              placeholder={t("contacts.filter_channel")}
+              data={channels}
+              value={search.channel ?? null}
+              onChange={(v) => go({ channel: v || undefined })}
+              aria-label={t("contacts.filter_channel")}
+            />
+          )}
+          {tagChoices.length > 0 && (
+            <Select
+              w={compact ? 116 : 136}
+              clearable
+              searchable
+              placeholder={t("contacts.filter_tag")}
+              data={tagChoices}
+              value={search.tag ?? null}
+              onChange={(v) => go({ tag: v || undefined })}
+              aria-label={t("contacts.filter_tag")}
+            />
+          )}
+          <Select
+            w={112}
+            allowDeselect={false}
+            data={sorts}
+            value={search.sort}
+            onChange={(v) => v && go({ sort: v as ContactSort })}
+            aria-label={t("contacts.sort")}
+          />
+        </Group>
+      </PaneToolbar>
 
-      <Box style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+      <PaneBody>
         {!narrow && items.length > 0 && (
           <Group gap="md" px="lg" py={7} wrap="nowrap" className="ct-list-head">
             <Text size="xs" c="dimmed" fw={500} style={{ flex: 2.2, minWidth: 200 }}>
@@ -447,7 +443,7 @@ export function ContactDirectory({
             </Box>
           </>
         )}
-      </Box>
+      </PaneBody>
       <ContactViewModal
         opened={saveViewOpen}
         onClose={() => setSaveViewOpen(false)}

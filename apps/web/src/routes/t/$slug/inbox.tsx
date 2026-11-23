@@ -1,13 +1,13 @@
 import { Box } from "@mantine/core"
 import { createFileRoute, Outlet, useNavigate, useParams } from "@tanstack/react-router"
-import { useNarrow } from "@go-tenon/ui"
+import { Pane, useNarrow } from "@go-tenon/ui"
 import { useCallback, useEffect } from "react"
 import "../../../inbox/inbox.css"
 import { flatten, flattenSearchHits, useConversationList, useConversationSearch } from "../../../inbox/data"
 import { ConversationList, type OpenFocus } from "../../../inbox/List"
 import { InboxNav } from "../../../inbox/Nav"
 import { type InboxSearch, type MatchField, validateInboxSearch } from "../../../inbox/search"
-import { isTypingTarget, NARROW_QUERY, ResizeHandle, useResizableWidth } from "../../../layout"
+import { isTypingTarget, NARROW_QUERY } from "../../../layout"
 
 // 收件箱：坐席接待会话的地方，铺满内容区（fullBleed），见产品设计的 13.2。二级导航是带数量的收件箱列表（nav 插槽），
 // 右侧是会话列表和会话（子路由 inbox/$id）；当前的列表、状态和排序在地址参数中，切换会话时保留。
@@ -24,7 +24,6 @@ function Inbox() {
   const { id } = useParams({ strict: false }) as { id?: string }
   const navigate = useNavigate()
   const narrow = useNarrow(NARROW_QUERY)
-  const listSize = useResizableWidth("agents-desk:inbox-list-w", 320, 260, 420, "right")
   const list = useConversationList(search)
   const searchQuery = useConversationSearch(search)
   const searching = Boolean(search.q?.trim())
@@ -78,21 +77,13 @@ function Inbox() {
     <Box style={{ display: "flex", height: "100%" }}>
       <InboxNav search={search} go={go} />
       {(!narrow || !id) && (
-        <Box w={narrow ? "100%" : listSize.width} pos="relative" style={{ flex: "none", minWidth: 0 }}>
+        <Pane
+          width={narrow ? "100%" : undefined}
+          border={narrow ? "none" : "right"}
+          resizable={!narrow && { storageKey: "inbox-list", defaultWidth: 320, min: 260, max: 420, side: "right" }}
+        >
           <ConversationList search={search} openId={id} go={go} open={open} />
-          {!narrow && (
-            <ResizeHandle
-              side="right"
-              dragging={listSize.dragging}
-              width={listSize.width}
-              min={listSize.min}
-              max={listSize.max}
-              onPointerDown={listSize.onPointerDown}
-              onDoubleClick={listSize.onDoubleClick}
-              onKeyDown={listSize.onKeyDown}
-            />
-          )}
-        </Box>
+        </Pane>
       )}
       {(!narrow || id) && (
         <Box style={{ flex: 1, minWidth: 0, display: "flex" }}>

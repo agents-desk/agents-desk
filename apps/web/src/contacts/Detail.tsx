@@ -4,7 +4,6 @@ import {
   Anchor,
   Badge,
   Box,
-  Button,
   Center,
   Code,
   CopyButton,
@@ -13,14 +12,26 @@ import {
   Select,
   Stack,
   Text,
-  Textarea,
   TextInput,
   Tooltip,
 } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { IconArrowUpRight, IconCheck, IconChevronLeft, IconCopy, IconExternalLink, IconPencil, IconX } from "@tabler/icons-react"
-import { notifyError, notifySuccess, useCan, useLanguage, useNarrow, useT, useTimeZone } from "@go-tenon/ui"
+import { IconArrowUpRight, IconCheck, IconCopy, IconExternalLink, IconPencil, IconX } from "@tabler/icons-react"
+import {
+  Inspector,
+  InspectorField,
+  InspectorSection,
+  notifyError,
+  notifySuccess,
+  PaneBody,
+  PaneHeader,
+  useCan,
+  useLanguage,
+  useNarrow,
+  useT,
+  useTimeZone,
+} from "@go-tenon/ui"
 import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { previewSummary } from "../inbox/Attachments"
@@ -29,6 +40,7 @@ import { LanguageSelect } from "../LanguageSelect"
 import { languageName } from "../languages"
 import { NARROW_QUERY } from "../layout"
 import { allZones, formatLocalTime, offsetOf } from "../timezone"
+import { ContactNotesCard } from "./ContactNotesCard"
 import { ContactAvatar, contactDisplayName } from "./display"
 
 /** AUTO 是语言选择器中的“自动识别”。 */
@@ -38,8 +50,8 @@ const AUTO = "auto"
 const PROFILE_LANGUAGES = ["zh-CN", "en", "hi"] as const
 
 /**
- * ContactDetailPanel 是联系人列表右侧的分栏档案（440px，窄屏占满）：
- * 顶部是头像、名字、类型和关闭/返回按钮；下方单列依次是内部备注便签、可就地编辑的资料属性、历史会话流和渠道身份。
+ * ContactDetailPanel 是联系人列表右侧的分栏档案（窄屏占满）：
+ * 使用框架的 PaneHeader/PaneBody 与 Inspector 分区展示内部备注便签、可就地编辑的资料属性、历史会话流和渠道身份。
  */
 export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: string; onClose: () => void }): ReactNode {
   const t = useT()
@@ -66,12 +78,8 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
     onError: (err) => notifyError(err),
   })
 
-  const closeButton = narrow ? (
+  const closeAction = !narrow && (
     <ActionIcon variant="subtle" color="gray" onClick={onClose} aria-label={t("contacts.close_detail")}>
-      <IconChevronLeft size={18} />
-    </ActionIcon>
-  ) : (
-    <ActionIcon variant="subtle" color="gray" ml="auto" onClick={onClose} aria-label={t("contacts.close_detail")}>
       <IconX size={16} />
     </ActionIcon>
   )
@@ -79,13 +87,7 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
   if (detail.isPending) {
     return (
       <Stack gap={0} h="100%" w="100%">
-        <Group px="md" className="ct-header">
-          {narrow && closeButton}
-          <Text fw={600} size="sm">
-            {t("nav.contacts")}
-          </Text>
-          {!narrow && closeButton}
-        </Group>
+        <PaneHeader title={t("nav.contacts")} back={narrow ? onClose : undefined} actions={closeAction} />
         <Center style={{ flex: 1 }}>
           <Loader size="sm" />
         </Center>
@@ -96,13 +98,7 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
   if (!detail.data) {
     return (
       <Stack gap={0} h="100%" w="100%">
-        <Group px="md" className="ct-header">
-          {narrow && closeButton}
-          <Text fw={600} size="sm">
-            {t("nav.contacts")}
-          </Text>
-          {!narrow && closeButton}
-        </Group>
+        <PaneHeader title={t("nav.contacts")} back={narrow ? onClose : undefined} actions={closeAction} />
         <Center style={{ flex: 1 }}>
           <Text size="sm" c="dimmed">
             {t("contacts.not_found")}
@@ -122,12 +118,12 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
   return (
     <Stack gap={0} h="100%" w="100%">
       {/* 顶部人物头：与左侧 52px 基准顶栏严格齐平 */}
-      <Group gap="sm" px="md" wrap="nowrap" className="ct-header">
-        {narrow && closeButton}
-        <ContactAvatar contact={c} size={32} />
-        <Box style={{ minWidth: 0, flex: 1 }}>
+      <PaneHeader
+        back={narrow ? onClose : undefined}
+        left={<ContactAvatar contact={c} size={32} />}
+        title={
           <Group gap={6} wrap="nowrap">
-            <Text fw={600} size="sm" truncate>
+            <Text fw={600} size="sm" truncate lh={1.25}>
               {displayName}
             </Text>
             {showNumberBadge && (
@@ -139,37 +135,39 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
               {kit.label("ContactKind", c.kind)}
             </Badge>
           </Group>
-          {subtitle && (
-            <Text size="xs" c="dimmed" truncate>
-              {subtitle}
-            </Text>
-          )}
-        </Box>
-        {!narrow && closeButton}
-      </Group>
+        }
+        subtitle={subtitle || undefined}
+        actions={closeAction}
+      />
 
       {/* 独立滚动的档案正文 */}
-      <Box style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-        <Stack gap={0}>
+      <PaneBody>
+        <Inspector>
           {/* 1. 置顶内部备注便签 */}
-          <Box p="md">
-            <NotesCard contact={c} editable={editable} saving={update.isPending} onSave={(notes) => update.mutate({ notes })} />
+          <Box px="var(--tn-pane-px)" pt="md" pb="xs">
+            <ContactNotesCard
+              contactId={c.id}
+              value={c.notes}
+              title={t("contacts.notes")}
+              placeholder={t("contacts.notes_placeholder")}
+              editable={editable}
+              saving={update.isPending}
+              onSave={(notes) => update.mutate({ notes })}
+            />
           </Box>
 
           {/* 2. 可就地编辑的资料属性 */}
           <PropertiesSection contact={c} editable={editable} saving={update.isPending} onUpdate={(patch) => update.mutateAsync(patch)} />
 
           {/* 3. 历史会话流 */}
-          <Stack gap="xs" p="md" className="ct-section-divider">
-            <Group gap="xs">
-              <Text size="xs" fw={600} c="dimmed">
-                {t("contacts.conversations")}
-              </Text>
+          <InspectorSection
+            title={t("contacts.conversations")}
+            extra={
               <Badge size="xs" variant="light" color="gray" radius="sm">
                 {c.conversation_count}
               </Badge>
-            </Group>
-
+            }
+          >
             {conversations.isPending ? (
               <Center py="md">
                 <Loader size="xs" />
@@ -212,7 +210,7 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
                       </Group>
                       <Group justify="space-between" align="flex-end" gap="xs" wrap="nowrap">
                         <Text
-                          size="xs"
+                          size="sm"
                           c={conv.preview || conv.preview_attachment ? undefined : "dimmed"}
                           lineClamp={2}
                           style={{ flex: 1, minWidth: 0 }}
@@ -234,90 +232,17 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
                 ))}
               </Stack>
             )}
-          </Stack>
+          </InspectorSection>
 
           {/* 4. 渠道身份 */}
           <IdentitiesSection identities={c.identities} />
-        </Stack>
-      </Box>
+        </Inspector>
+      </PaneBody>
     </Stack>
   )
 }
 
-/** NotesCard 是内部备注便签块：无重边框输入框，直接点击书写，修改后就地保存。 */
-function NotesCard({
-  contact: c,
-  editable,
-  saving,
-  onSave,
-}: {
-  contact: ContactDetailDTO
-  editable: boolean
-  saving: boolean
-  onSave: (notes: string) => void
-}): ReactNode {
-  const t = useT()
-  const [value, setValue] = useState(c.notes)
-  useEffect(() => {
-    setValue(c.notes)
-  }, [c.id, c.notes])
-  const dirty = value !== c.notes
-
-  return (
-    <Box p="sm" className="desk-note">
-      <Group justify="space-between" mb={4}>
-        <Text size="xs" fw={600}>
-          {t("contacts.notes")}
-        </Text>
-        <Text size="xs" c="dimmed">
-          {t("contacts.notes_hint")}
-        </Text>
-      </Group>
-      <Textarea
-        variant="unstyled"
-        size="xs"
-        autosize
-        minRows={2}
-        maxRows={6}
-        maxLength={4000}
-        placeholder={t("contacts.notes_placeholder")}
-        value={value}
-        onChange={(e) => setValue(e.currentTarget.value)}
-        onKeyDown={(e) => {
-          if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && dirty && editable && !saving) {
-            e.preventDefault()
-            onSave(value)
-          }
-        }}
-        disabled={!editable}
-      />
-      {editable && dirty && (
-        <Group justify="flex-end" gap="xs" mt="xs">
-          <Button size="xs" variant="subtle" color="gray" onClick={() => setValue(c.notes)}>
-            {t("common.cancel")}
-          </Button>
-          <Button size="xs" loading={saving} onClick={() => onSave(value)}>
-            {t("common.save")}
-          </Button>
-        </Group>
-      )}
-    </Box>
-  )
-}
-
-/** PropRow 是属性检查区中的一行：左边是弱化的字段名，右边是值。 */
-function PropRow({ label, children }: { label: string; children: ReactNode }): ReactNode {
-  return (
-    <Group gap="xs" wrap="nowrap" align="center" className="ct-field" py={3}>
-      <Text size="xs" c="dimmed" w={72} style={{ flex: "none" }}>
-        {label}
-      </Text>
-      <Box style={{ flex: 1, minWidth: 0 }}>{children}</Box>
-    </Group>
-  )
-}
-
-/** InlineTextField 是默认纯文本阅读态、点编辑或双击就地修改的单行字段。 */
+/** InlineTextField 是默认纯文本阅读态、点编辑或双击就地修改的单行字段。阅读态与编辑态均为 13px 字号。 */
 function InlineTextField({
   value,
   placeholder,
@@ -355,7 +280,6 @@ function InlineTextField({
   if (editing) {
     return (
       <TextInput
-        size="xs"
         autoFocus
         maxLength={maxLength}
         placeholder={placeholder}
@@ -431,12 +355,8 @@ function PropertiesSection({
   const localTime = formatLocalTime(c.time_zone)
 
   return (
-    <Stack gap={6} px="md" pb="md">
-      <Text size="xs" fw={600} c="dimmed" mb={2}>
-        {t("contacts.profile")}
-      </Text>
-
-      <PropRow label={t("contacts.name")}>
+    <InspectorSection title={t("contacts.profile")} withDivider={false}>
+      <InspectorField label={t("contacts.name")} className="ct-field">
         <InlineTextField
           value={c.name}
           placeholder={t("contacts.name_placeholder")}
@@ -444,9 +364,9 @@ function PropertiesSection({
           editable={editable}
           onSave={(name) => onUpdate({ name })}
         />
-      </PropRow>
+      </InspectorField>
 
-      <PropRow label={t("contacts.email")}>
+      <InspectorField label={t("contacts.email")} className="ct-field">
         <InlineTextField
           value={c.email}
           placeholder={t("contacts.email_placeholder")}
@@ -455,10 +375,10 @@ function PropertiesSection({
           copyable
           onSave={(email) => onUpdate({ email })}
         />
-      </PropRow>
+      </InspectorField>
 
       {c.external_user_id && (
-        <PropRow label={t("contacts.external_user_id")}>
+        <InspectorField label={t("contacts.external_user_id")} className="ct-field">
           <Group gap={4} wrap="nowrap" justify="space-between" style={{ minWidth: 0 }}>
             <Code className="ct-code">{c.external_user_id}</Code>
             <CopyButton value={c.external_user_id} timeout={1500}>
@@ -479,12 +399,11 @@ function PropertiesSection({
               )}
             </CopyButton>
           </Group>
-        </PropRow>
+        </InspectorField>
       )}
 
-      <PropRow label={t("contacts.language")}>
+      <InspectorField label={t("contacts.language")} align={c.language_manual ? "start" : "center"} className="ct-field">
         <LanguageSelect
-          size="xs"
           languages={PROFILE_LANGUAGES}
           before={[
             {
@@ -504,9 +423,9 @@ function PropertiesSection({
             {t("inbox.language_manual_hint")}
           </Text>
         )}
-      </PropRow>
+      </InspectorField>
 
-      <PropRow label={t("contacts.location")}>
+      <InspectorField label={t("contacts.location")} className="ct-field">
         <InlineTextField
           value={c.location}
           placeholder={t("contacts.location_placeholder")}
@@ -514,12 +433,11 @@ function PropertiesSection({
           editable={editable}
           onSave={(location) => onUpdate({ location })}
         />
-      </PropRow>
+      </InspectorField>
 
-      <PropRow label={t("contacts.time_zone")}>
+      <InspectorField label={t("contacts.time_zone")} className="ct-field">
         {editingZone ? (
           <Select
-            size="xs"
             autoFocus
             defaultDropdownOpened
             placeholder={t("contacts.time_zone_placeholder")}
@@ -562,39 +480,39 @@ function PropertiesSection({
             )}
           </Group>
         )}
-      </PropRow>
+      </InspectorField>
 
       {c.referrer && (
-        <PropRow label={t("contacts.referrer")}>
+        <InspectorField label={t("contacts.referrer")} className="ct-field">
           <Anchor
             href={c.referrer}
             target="_blank"
             rel="noopener noreferrer"
-            size="xs"
+            size="sm"
             style={{ display: "inline-flex", alignItems: "center", gap: 4, maxWidth: "100%" }}
           >
-            <Text span size="xs" truncate>
+            <Text span size="sm" truncate>
               {c.referrer}
             </Text>
             <IconExternalLink size={12} style={{ flex: "none" }} />
           </Anchor>
-        </PropRow>
+        </InspectorField>
       )}
 
-      <PropRow label={t("contacts.created_at")}>
-        <Text size="xs" c="dimmed">
+      <InspectorField label={t("contacts.created_at")}>
+        <Text size="sm" c="dimmed">
           {activity(c.created_at, ui, t, zone)}
         </Text>
-      </PropRow>
+      </InspectorField>
 
       {c.last_seen_at && (
-        <PropRow label={t("contacts.last_seen_at")}>
-          <Text size="xs" c="dimmed">
+        <InspectorField label={t("contacts.last_seen_at")}>
+          <Text size="sm" c="dimmed">
             {activity(c.last_seen_at, ui, t, zone)}
           </Text>
-        </PropRow>
+        </InspectorField>
       )}
-    </Stack>
+    </InspectorSection>
   )
 }
 
@@ -604,16 +522,14 @@ function IdentitiesSection({ identities }: { identities: ContactIdentityDTO[] })
   const ui = useLanguage()
   const zone = useTimeZone()
   return (
-    <Stack gap="xs" p="md" className="ct-section-divider">
-      <Group gap="xs">
-        <Text size="xs" fw={600} c="dimmed">
-          {t("contacts.channel_identities")}
-        </Text>
+    <InspectorSection
+      title={t("contacts.channel_identities")}
+      extra={
         <Badge size="xs" variant="light" color="gray" radius="sm">
           {identities.length}
         </Badge>
-      </Group>
-
+      }
+    >
       {identities.length === 0 ? (
         <Text size="xs" c="dimmed">
           {t("contacts.identities_empty")}
@@ -624,7 +540,7 @@ function IdentitiesSection({ identities }: { identities: ContactIdentityDTO[] })
             <Box key={`${ident.channel.id}:${ident.external_id}`} className="ct-identity">
               <Group justify="space-between" wrap="nowrap" gap={6}>
                 <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
-                  <Text size="xs" fw={500} truncate>
+                  <Text size="sm" fw={500} truncate>
                     {ident.channel.name}
                   </Text>
                   <Badge size="xs" variant="light" color="gray" style={{ flex: "none" }}>
@@ -659,6 +575,6 @@ function IdentitiesSection({ identities }: { identities: ContactIdentityDTO[] })
           ))}
         </Stack>
       )}
-    </Stack>
+    </InspectorSection>
   )
 }

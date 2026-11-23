@@ -447,7 +447,6 @@ export const messages = {
     "inbox.visitor": "Visitor",
     "inbox.visitor_numbered": "Visitor #{{.n}}",
     "inbox.you": "You",
-    "layout.resize": "Drag to resize column, double-click to reset",
     "login.description": "Sign in with the email and password your workspace admin gave you",
     "login.title": "Sign in",
     "macros.action_add_attr": "Add attribute",
@@ -502,7 +501,6 @@ export const messages = {
     "nav.assignment": "Assignment",
     "nav.attributes": "Attributes",
     "nav.contacts": "Contacts",
-    "nav.expand_nav": "Expand navigation",
     "nav.general": "General",
     "nav.inbox": "Inbox",
     "nav.macros": "Quick replies",
@@ -1333,7 +1331,6 @@ export const messages = {
     "inbox.visitor": "访客",
     "inbox.visitor_numbered": "访客 #{{.n}}",
     "inbox.you": "你",
-    "layout.resize": "拖动调整栏宽，双击恢复默认",
     "login.description": "用工作区管理员给你的邮箱和密码登录",
     "login.title": "登录",
     "macros.action_add_attr": "添加属性",
@@ -1388,7 +1385,6 @@ export const messages = {
     "nav.assignment": "指派",
     "nav.attributes": "属性",
     "nav.contacts": "联系人",
-    "nav.expand_nav": "展开侧边导航",
     "nav.general": "常规",
     "nav.inbox": "收件箱",
     "nav.macros": "快捷回复",
@@ -2222,7 +2218,6 @@ export type MessageId =
   | "inbox.visitor"
   | "inbox.visitor_numbered"
   | "inbox.you"
-  | "layout.resize"
   | "login.description"
   | "login.title"
   | "macros.action_add_attr"
@@ -2277,7 +2272,6 @@ export type MessageId =
   | "nav.assignment"
   | "nav.attributes"
   | "nav.contacts"
-  | "nav.expand_nav"
   | "nav.general"
   | "nav.inbox"
   | "nav.macros"

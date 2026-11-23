@@ -1,33 +1,4 @@
-/* 联系人工作台样式：与收件箱共用 52px 顶栏基线、细分隔线与品牌色高亮，明暗主题一致。 */
-.ct-divider {
-  border-bottom: 1px solid var(--tn-border);
-  flex: none;
-}
-
-.ct-header {
-  height: var(--tn-rail-header, 52px);
-  border-bottom: 1px solid var(--tn-border);
-  flex: none;
-}
-
-.ct-toolbar {
-  border-bottom: 1px solid var(--tn-border);
-  background: color-mix(in srgb, var(--tn-surface) 70%, var(--tn-canvas));
-  flex: none;
-}
-
-.ct-footer {
-  border-top: 1px solid var(--tn-border);
-  flex: none;
-}
-
-.ct-aside {
-  border-left: 1px solid var(--tn-border);
-}
-
-.ct-aside-narrow {
-  border-top: 1px solid var(--tn-border);
-}
+/* 联系人模块业务样式：分栏骨架、顶栏、工具条与属性检查器由 @go-tenon/ui 的 Pane 与 Inspector 提供。 */
 
 .ct-list-head {
   position: sticky;
@@ -119,10 +90,6 @@
 .ct-conv:focus-visible {
   outline: 2px solid var(--mantine-primary-color-filled);
   outline-offset: 2px;
-}
-
-.ct-section-divider {
-  border-top: 1px solid var(--tn-border);
 }
 
 /* 状态色圆点 */

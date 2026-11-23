@@ -1,33 +1,4 @@
-/* 收件箱与工作台分栏样式：统一使用主题语义变量（--tn-* 与 brand），明暗主题一致。 */
-.inbox-divider {
-  border-bottom: 1px solid var(--tn-border);
-  flex: none;
-}
-
-/* 与二级导航头部 --tn-rail-header（默认 52px）齐平的各栏顶栏 */
-.inbox-header {
-  min-height: var(--tn-rail-header, 52px);
-  border-bottom: 1px solid var(--tn-border);
-  flex: none;
-}
-
-.inbox-header[data-fixed] {
-  height: var(--tn-rail-header, 52px);
-}
-
-.inbox-toolbar {
-  border-bottom: 1px solid var(--tn-border);
-  background: color-mix(in srgb, var(--tn-surface) 70%, var(--tn-canvas));
-  flex: none;
-}
-
-.inbox-list {
-  border-right: 1px solid var(--tn-border);
-}
-
-.inbox-aside {
-  border-left: 1px solid var(--tn-border);
-}
+/* 收件箱业务样式：分栏骨架、顶栏与工具条由 @go-tenon/ui 的 Pane 体系提供，此处仅保留聊天领域语义样式。 */
 
 /* 团队收件箱项的首字小方块，和上方系统视图线框图标形成一眼可辨的区分 */
 .inbox-team-badge {
@@ -103,11 +74,11 @@
   }
 }
 
-/* 会话列表的一行：严格固定 60px 等高，当前打开的左边有品牌色细竖条，刚有新消息的短暂黄底 */
+/* 会话列表的一行：固定 64px 等高（--desk-row-height），当前打开的左边有品牌色细竖条，刚有新消息的短暂黄底 */
 .inbox-row {
   display: flex;
   align-items: center;
-  height: 60px;
+  height: var(--desk-row-height, 64px);
   position: relative;
   border-bottom: 1px solid color-mix(in srgb, var(--tn-border) 65%, transparent);
   transition: background-color 0.25s ease;

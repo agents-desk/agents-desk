@@ -128,7 +128,6 @@ function TextAttrInput({ value, disabled, onSave }: { value: string; disabled?: 
   }
   return (
     <TextInput
-      size="xs"
       value={draft}
       placeholder={t("inbox.attr_text_placeholder")}
       disabled={disabled}
@@ -157,7 +156,6 @@ function NumberAttrInput({ value, disabled, onSave }: { value: number | ""; disa
   }
   return (
     <NumberInput
-      size="xs"
       value={draft}
       placeholder={t("inbox.attr_number_placeholder")}
       disabled={disabled}
@@ -187,7 +185,6 @@ function BooleanAttrInput({ value, disabled, onSave }: { value: boolean; disable
 function DateAttrInput({ value, disabled, onSave }: { value: string; disabled?: boolean; onSave: (next: unknown) => void }): ReactNode {
   return (
     <TextInput
-      size="xs"
       type="date"
       value={value}
       disabled={disabled}
@@ -213,7 +210,6 @@ function SelectAttrInput({
   const t = useT()
   return (
     <Select
-      size="xs"
       placeholder={t("inbox.attr_select")}
       value={value}
       data={options}
@@ -242,7 +238,6 @@ function MultiSelectAttrInput({
   const t = useT()
   return (
     <MultiSelect
-      size="xs"
       placeholder={value.length === 0 ? t("inbox.attr_select") : undefined}
       value={value}
       data={options}

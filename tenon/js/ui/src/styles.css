@@ -1,0 +1,1681 @@
+/*
+ * @go-tenon/ui 的样式：Mantine 的样式加上布局用到的少量类名。颜色全部来自主题的 CSS 变量，
+ * 亮色和暗色各定义一次语义变量，组件只用语义变量。
+ */
+@import "@mantine/core/styles.css";
+@import "@mantine/notifications/styles.css";
+@import "@mantine/nprogress/styles.css";
+@import "@mantine/spotlight/styles.css";
+@import "@mantine/dates/styles.css";
+@import "mantine-datatable/styles.css";
+
+/*
+ * 中英文共用码位的标点：引号 ‘’“”、省略号 …、破折号 —、间隔号 ·。西文字体排在字体栈前面，这几个字符在中文里
+ * 也会显示成窄的西文样式；"Tenon CJK Punctuation" 只包含它们（unicode-range），取自系统的中文字体，显示为全角。
+ * 主题的字体栈在中文页面中以它开头（--tn-cjk-punctuation），其他字符继续使用字体栈中后面的字体。
+ * local() 按字体的全名或 PostScript 名匹配，各系统的名称不同，所以都列出；粗体单独一组，标题中的标点不用模拟的粗体。
+ */
+@font-face {
+  font-family: "Tenon CJK Punctuation";
+  font-weight: 100 500;
+  src:
+    local("PingFang SC Regular"), local("PingFangSC-Regular"), local("Hiragino Sans GB W3"), local("HiraginoSansGB-W3"),
+    local("Noto Sans CJK SC"), local("Noto Sans CJK SC Regular"), local("NotoSansCJKsc-Regular"),
+    local("Noto Sans SC Regular"), local("NotoSansSC-Regular"), local("Source Han Sans SC Regular"),
+    local("SourceHanSansSC-Regular"), local("Microsoft YaHei"), local("MicrosoftYaHei");
+  unicode-range: U+00B7, U+2014, U+2018-2019, U+201C-201D, U+2026;
+}
+
+@font-face {
+  font-family: "Tenon CJK Punctuation";
+  font-weight: 600 900;
+  src:
+    local("PingFang SC Semibold"), local("PingFangSC-Semibold"), local("Hiragino Sans GB W6"),
+    local("HiraginoSansGB-W6"), local("Noto Sans CJK SC Bold"), local("NotoSansCJKsc-Bold"), local("Noto Sans SC Bold"),
+    local("NotoSansSC-Bold"), local("Source Han Sans SC Bold"), local("SourceHanSansSC-Bold"),
+    local("Microsoft YaHei Bold"), local("MicrosoftYaHei-Bold");
+  unicode-range: U+00B7, U+2014, U+2018-2019, U+201C-201D, U+2026;
+}
+
+/* 中文页面的字体栈以 "Tenon CJK Punctuation" 开头，见 theme.ts 的 cjkPunctuation。 */
+:root:lang(zh) {
+  --tn-cjk-punctuation: "Tenon CJK Punctuation",;
+}
+
+:root {
+  --tn-canvas: var(--mantine-color-gray-0);
+  --tn-surface: var(--mantine-color-white);
+  --tn-border: var(--mantine-color-gray-2);
+  --tn-border-strong: var(--mantine-color-gray-3);
+  --tn-hover: var(--mantine-color-gray-1);
+  --tn-text: var(--mantine-color-gray-9);
+  --tn-muted: var(--mantine-color-gray-6);
+  --tn-subtle: var(--mantine-color-gray-5);
+  --tn-active-bg: var(--mantine-color-brand-0);
+  --tn-active-text: var(--mantine-color-brand-7);
+  --tn-header-blur: rgba(255, 255, 255, 0.78);
+  --tn-pane-px: var(--mantine-spacing-md);
+  --tn-inspector-label-width: 84px;
+}
+
+[data-mantine-color-scheme="dark"] {
+  --tn-canvas: var(--mantine-color-dark-8);
+  --tn-surface: var(--mantine-color-dark-7);
+  --tn-border: var(--mantine-color-dark-5);
+  --tn-border-strong: var(--mantine-color-dark-4);
+  --tn-hover: var(--mantine-color-dark-6);
+  --tn-text: var(--mantine-color-dark-0);
+  --tn-muted: var(--mantine-color-dark-2);
+  --tn-subtle: var(--mantine-color-dark-3);
+  --tn-active-bg: color-mix(in srgb, var(--mantine-color-brand-5) 16%, transparent);
+  --tn-active-text: var(--mantine-color-brand-2);
+  --tn-header-blur: rgba(20, 22, 27, 0.72);
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv11", "ss01";
+}
+
+/* 按钮类的元素用手型指针（Mantine 默认跟随浏览器，按钮是箭头）；禁用时是 not-allowed。 */
+.mantine-Button-root,
+.mantine-ActionIcon-root,
+.mantine-UnstyledButton-root,
+.mantine-Pagination-control,
+.mantine-SegmentedControl-label {
+  cursor: pointer;
+}
+
+:is(.mantine-Button-root, .mantine-ActionIcon-root, .mantine-Pagination-control):is(:disabled, [data-disabled]) {
+  cursor: not-allowed;
+}
+
+/* ———————————————— 应用外壳 ———————————————— */
+
+.tn-shell {
+  --app-shell-border-color: var(--tn-border);
+}
+
+.tn-shell .mantine-AppShell-main {
+  min-height: 100dvh;
+}
+
+/* 侧栏比内容区深一档。 */
+.tn-navbar {
+  background: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-8));
+}
+
+.tn-header-inner {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding-inline: var(--mantine-spacing-md);
+}
+
+/* 顶栏左边：收起侧栏的按钮（窄屏是汉堡按钮）和标志。 */
+.tn-header-start {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--mantine-spacing-sm);
+  padding-right: 16px;
+}
+
+.tn-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--mantine-color-text);
+  font-size: var(--mantine-font-size-md);
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.tn-brand-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--mantine-radius-md);
+  background: var(--mantine-primary-color-filled);
+  color: var(--mantine-color-white);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* 侧栏顶部的搜索入口：像一个输入框。 */
+.tn-nav-search-wrap {
+  padding: var(--mantine-spacing-sm) var(--mantine-spacing-sm) 0;
+}
+
+.tn-nav-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 32px;
+  padding-inline: 10px;
+  border: 1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
+  border-radius: var(--mantine-radius-sm);
+  background: var(--mantine-color-body);
+  color: var(--mantine-color-dimmed);
+  font-size: var(--mantine-font-size-sm);
+
+  & span {
+    flex: 1;
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      border-color: light-dark(var(--mantine-color-gray-4), var(--mantine-color-dark-3));
+    }
+  }
+}
+
+.tn-nav {
+  padding-block: var(--mantine-spacing-sm);
+}
+
+/* 菜单项。第一级：左右留 8px，浅色底的图标；当前页面主色实底、白字。分组是 button，所以宽度要写明。 */
+.tn-nav-item {
+  --tn-nav-indent: 8px;
+  width: calc(100% - var(--tn-nav-indent) - 8px);
+  margin: 1px 8px 1px var(--tn-nav-indent);
+  padding: 6px 8px;
+  border-radius: var(--mantine-radius-sm);
+  color: var(--mantine-color-text);
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 500;
+
+  & .mantine-NavLink-section[data-position="left"] {
+    margin-inline-end: var(--mantine-spacing-sm);
+  }
+
+  & .mantine-NavLink-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      background-color: light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-6));
+    }
+  }
+
+  /* 当前页面所在的分组 */
+  &[data-in-path] {
+    color: var(--mantine-primary-color-filled);
+    font-weight: 600;
+  }
+
+  &[data-active],
+  &[data-active]:hover {
+    background-color: var(--mantine-primary-color-filled);
+    color: var(--mantine-color-white);
+    font-weight: 600;
+  }
+}
+
+.tn-nav-chevron {
+  transition: transform 200ms ease;
+}
+
+.tn-nav-item[data-opened] .tn-nav-chevron {
+  transform: rotate(90deg);
+}
+
+/* 下级菜单：左侧一条竖线（对准上级图标的中线），向右缩进；每深一级再缩进 16px。 */
+.tn-nav-item:not([data-depth="0"]) {
+  --tn-nav-indent: calc(29px + (var(--tn-nav-depth) - 1) * 16px);
+  padding: 6px 10px;
+  border-left: 1px solid light-dark(var(--mantine-color-gray-4), var(--mantine-color-dark-4));
+  border-radius: 0 var(--mantine-radius-sm) var(--mantine-radius-sm) 0;
+  color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-1));
+
+  & .mantine-NavLink-section[data-position="left"] {
+    margin-inline-end: 8px;
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--mantine-color-text);
+    }
+  }
+
+  &[data-in-path] {
+    color: var(--mantine-primary-color-filled);
+  }
+
+  &[data-active],
+  &[data-active]:hover {
+    border-left-color: var(--mantine-primary-color-filled);
+    color: var(--mantine-color-white);
+  }
+}
+
+/* 收起时的窄栏：40px 的图标按钮，当前分组主色实底。 */
+.tn-nav-collapsed,
+.tn-nav-search-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.tn-nav-search-rail {
+  padding-top: var(--mantine-spacing-sm);
+}
+
+.tn-nav-rail-item {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--mantine-radius-md);
+  color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-1));
+
+  @media (hover: hover) {
+    &:hover {
+      background-color: light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-6));
+      color: var(--mantine-color-text);
+    }
+  }
+
+  &[data-active],
+  &[data-active]:hover {
+    background-color: var(--mantine-primary-color-filled);
+    color: var(--mantine-color-white);
+  }
+}
+
+.tn-nav-divider {
+  width: 24px;
+  height: 1px;
+  margin-top: 4px;
+  background: light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
+}
+
+.tn-nav-menu-item[data-active] {
+  background-color: var(--mantine-primary-color-light);
+  color: var(--mantine-primary-color-light-color);
+  font-weight: 600;
+}
+
+/* 用户菜单：只有头像；菜单分成几段，配色是三格。 */
+.tn-avatar {
+  display: block;
+  border-radius: 50%;
+}
+
+.tn-menu-section {
+  padding: 4px;
+
+  /* 统一左侧图标槽宽为 18px，与主题、多标签、退出登录的图标对齐 */
+  & .mantine-Menu-itemSection[data-position="left"] {
+    width: 18px;
+    flex-shrink: 0;
+  }
+}
+
+/* 用户菜单顶部的名称和邮箱。左右内边距与 Menu.Item 一致（4px + spacing-sm）。 */
+.tn-menu-user {
+  padding: 10px calc(4px + var(--mantine-spacing-sm));
+}
+
+/* 配色行不在 tn-menu-section 内，左右内边距补齐 4px 以与各菜单项左右对齐。 */
+.tn-schemes {
+  padding: 6px calc(4px + var(--mantine-spacing-sm));
+}
+
+.tn-menu-toggles {
+  padding-top: 0;
+}
+
+.tn-menu-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--mantine-spacing-xs);
+  width: 100%;
+  padding: calc(var(--mantine-spacing-xs) / 1.5) var(--mantine-spacing-sm);
+  border-radius: var(--mantine-radius-default);
+  font-size: var(--mantine-font-size-sm);
+
+  & > span {
+    flex: 1;
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      background-color: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-4));
+    }
+  }
+}
+
+/* 各段之间一条横线；配色和下面的多标签开关算一段（开关在窄屏时隐藏，横线只画在每段的上边）。 */
+.tn-menu-section + .tn-menu-section,
+.tn-menu-section + .tn-schemes {
+  border-top: 1px solid light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+}
+
+.tn-schemes + .tn-menu-section:not(.tn-menu-toggles) {
+  border-top: 1px solid light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+}
+
+.tn-crumbs .mantine-Breadcrumbs-separator {
+  color: var(--mantine-color-dimmed);
+  font-size: var(--mantine-font-size-xs);
+}
+
+.tn-content {
+  width: 100%;
+  margin-inline: auto;
+}
+
+/* 铺满的页面：高度是顶栏以下的整个窗口，内容区不滚动，页面中的各栏自己滚动。 */
+.tn-content[data-full-bleed] {
+  height: calc(100dvh - var(--app-shell-header-offset, 0rem));
+  overflow: hidden;
+}
+
+/* ———————————————— 标签栏 ———————————————— */
+
+/*
+ * 标签栏在顶栏中间，上下居中，32px 高（与两侧的图标按钮同高）。底部一条细线，只覆盖已经打开的标签和两端的箭头，
+ * 标签站在线上，连成一个整体：
+ *   - 未选中的标签没有底色，相邻的之间一条细竖线；悬停时缩进的灰底；
+ *   - 选中的标签是主色实底、白字，底部左右外翻的圆弧落在底线上。
+ */
+.tn-tabbar {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+  margin-right: var(--mantine-spacing-sm);
+}
+
+.tn-tab-strip {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: stretch;
+  min-width: 0;
+  height: 32px;
+  box-shadow: inset 0 -1px 0 light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
+}
+
+/* 放不下时收缩并左右滚动（滚动条隐藏，用两端的箭头）；还有被挡住的标签的一端渐隐，底线一起渐隐。 */
+.tn-tab-scroller {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: flex-end;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  &[data-fade-left] {
+    mask-image: linear-gradient(to right, transparent, #000 28px);
+  }
+
+  &[data-fade-right] {
+    mask-image: linear-gradient(to left, transparent, #000 28px);
+  }
+
+  &[data-fade-left][data-fade-right] {
+    mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent);
+  }
+}
+
+/* 一组标签（固定或未固定）：拖动被限制在组内。 */
+.tn-tab-group {
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+}
+
+/* 未选中的标签和两端的箭头：悬停时灰底的顶部与标签齐平，左、右和底部各留 3px（画在 ::after 上，::before 是竖线）。 */
+.tn-tab,
+.tn-tab-arrow {
+  position: relative;
+  isolation: isolate;
+  color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-1));
+
+  @media (hover: hover) {
+    &:not([data-active], :disabled):hover {
+      color: var(--mantine-color-text);
+
+      &::after {
+        content: "";
+        position: absolute;
+        inset: 0 3px 3px;
+        z-index: -1;
+        border-radius: var(--mantine-radius-sm);
+        background-color: light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5));
+      }
+    }
+  }
+}
+
+.tn-tab-arrow {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 26px;
+
+  &:disabled {
+    opacity: 0.3;
+    cursor: default;
+  }
+}
+
+.tn-tab {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  max-width: 220px;
+  /* 左边的图标线条离边框还有约 2px 的空白，汉字却几乎撑满字框，所以右边多留一些，看起来左右才均匀。 */
+  padding-inline: 16px 20px;
+  border-radius: var(--mantine-radius-md) var(--mantine-radius-md) 0 0;
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  touch-action: none;
+  user-select: none;
+
+  &[data-pinned] {
+    padding-right: 18px;
+  }
+
+  /* 选中：主色实底、白字，与侧栏菜单的选中样式一致；底部左右各向外伸出一段反向圆弧。 */
+  &[data-active] {
+    z-index: 1;
+    background-color: var(--mantine-primary-color-filled);
+    color: var(--mantine-color-white);
+    font-weight: 600;
+
+    &::before,
+    &::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      width: 6px;
+      height: 6px;
+      pointer-events: none;
+    }
+
+    &::before {
+      left: -6px;
+      background: radial-gradient(circle at 0 0, transparent 5.5px, var(--mantine-primary-color-filled) 6px);
+    }
+
+    &::after {
+      right: -6px;
+      background: radial-gradient(circle at 100% 0, transparent 5.5px, var(--mantine-primary-color-filled) 6px);
+    }
+  }
+}
+
+/* 未选中的标签之间一条细竖线（是否显示由代码按整行的顺序算出）；悬停的标签两侧不显示。 */
+.tn-tab[data-separator]::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 1px;
+  height: 14px;
+  transform: translateY(-50%);
+  background: light-dark(var(--mantine-color-gray-4), var(--mantine-color-dark-4));
+}
+
+@media (hover: hover) {
+  .tn-tab[data-separator]:hover::before,
+  .tn-tab:hover + .tn-tab[data-separator]::before {
+    display: none;
+  }
+}
+
+.tn-tab[data-dragging] {
+  z-index: 2;
+  background-color: var(--mantine-color-body);
+  box-shadow: var(--mantine-shadow-sm);
+  cursor: grabbing;
+}
+
+.tn-tab[data-dragging]::before,
+.tn-tab[data-dragging] + .tn-tab::before {
+  display: none;
+}
+
+.tn-tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tn-tab-pin {
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.tn-tab-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--mantine-color-deep-orange-5);
+}
+
+/* 最后一个标签右边的刷新按钮：跟在标签后面；放不下时固定在标签栏的最右端。 */
+.tn-tab-reload {
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+/* ———————————————— 表格 ———————————————— */
+
+/* 列设置（mantine-datatable 自带）：表头上不显示隐藏列的按钮，显示哪些列在表格上方的“列设置”菜单中选择。
+   表头保持干净，标题和下面的内容左对齐。 */
+.tn-datatable .mantine-datatable-header-cell-toggleable-icon {
+  display: none;
+}
+
+/* ———————————————— 页面 ———————————————— */
+
+.tn-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.tn-page-title {
+  letter-spacing: -0.01em;
+}
+
+/* ———————————————— 认证页 ———————————————— */
+
+.tn-auth {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 48px 16px;
+  background:
+    radial-gradient(
+      1200px 500px at 50% -10%,
+      color-mix(in srgb, var(--mantine-color-brand-5) 10%, transparent),
+      transparent 70%
+    ),
+    var(--tn-canvas);
+}
+
+.tn-auth-card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--tn-surface);
+  border: 1px solid var(--tn-border);
+  border-radius: var(--mantine-radius-lg);
+  padding: 32px;
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.04),
+    0 12px 32px -12px rgba(16, 24, 40, 0.12);
+}
+
+[data-mantine-color-scheme="dark"] .tn-auth-card {
+  box-shadow: none;
+}
+
+/*
+ * 左右分栏（SplitAuthLayout）：左栏是品牌色的展示区，上面叠一层淡淡的网格和光晕；右栏是表单。
+ * 窄屏（小于 Mantine 的 md 断点）时去掉左栏。
+ */
+.tn-auth-split {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  background: var(--tn-surface);
+}
+
+.tn-auth-split-aside {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 40px 48px;
+  color: var(--mantine-color-white);
+  background:
+    radial-gradient(
+      900px 600px at 0% 0%,
+      color-mix(in srgb, var(--mantine-color-white) 16%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      700px 500px at 100% 100%,
+      color-mix(in srgb, var(--mantine-color-black) 22%, transparent),
+      transparent 70%
+    ),
+    var(--mantine-primary-color-filled);
+}
+
+/* 网格线：越靠近中间越清楚，向四周淡出。 */
+.tn-auth-split-aside::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--mantine-color-white) 9%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--mantine-color-white) 9%, transparent) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 20%, transparent 75%);
+}
+
+.tn-auth-split-brand {
+  font-weight: 600;
+}
+
+/* 左栏是品牌色，标志反过来用白底品牌色字。 */
+.tn-auth-split-aside .tn-brand-mark {
+  background: var(--mantine-color-white);
+  color: var(--mantine-primary-color-filled);
+}
+
+.tn-auth-split-aside-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 480px;
+}
+
+.tn-auth-split-aside-footer {
+  color: color-mix(in srgb, var(--mantine-color-white) 70%, transparent);
+}
+
+.tn-auth-split-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+}
+
+@media (max-width: 61.99em) {
+  .tn-auth-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tn-auth-split-aside {
+    display: none;
+  }
+
+  .tn-auth-split-main {
+    align-items: flex-start;
+    padding-top: 64px;
+  }
+}
+
+/* ———————————————— Rail 布局（RailLayout） ———————————————— */
+
+/*
+ * 最左侧是 48px 的模块图标栏，底色与画布相同；右侧的工作区是一张四周微留白的圆角浮岛卡片，
+ * 其中是二级导航（默认 260px，RailLayout 的 navWidth 设置，可以收起）和内容。窄屏时卡片贴边无圆角，二级导航是抽屉。
+ */
+.tn-rail {
+  --tn-rail-rail: 48px;
+  --tn-rail-secondary: 260px;
+  --tn-rail-header: 52px;
+  display: flex;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--tn-canvas);
+}
+
+.tn-rail-rail {
+  display: flex;
+  width: var(--tn-rail-rail);
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: center;
+  padding-block: 6px;
+}
+
+.tn-rail-logo {
+  display: grid;
+  height: var(--tn-rail-header);
+  flex-shrink: 0;
+  place-items: center;
+}
+
+.tn-rail-top {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 6px;
+}
+
+/* 模块的列表占满图标栏的宽度，图标右上角的徽标不被滚动区域裁掉。 */
+.tn-rail-modules {
+  flex: 1;
+  align-self: stretch;
+  min-height: 0;
+  padding-top: 4px;
+  overflow-y: auto;
+}
+
+.tn-rail-module {
+  position: relative;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: var(--mantine-radius-sm);
+  color: var(--tn-muted);
+
+  &:not([aria-current]):hover {
+    background: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-5));
+    color: var(--tn-text);
+  }
+
+  &[aria-current] {
+    background: var(--mantine-primary-color-light);
+    color: var(--mantine-primary-color-light-color);
+  }
+}
+
+.tn-rail-module-icon {
+  display: grid;
+  place-items: center;
+}
+
+.tn-rail-module-expand {
+  position: absolute;
+  opacity: 0;
+}
+/* 模块的徽标在图标的右上角，例如待处理数、未读数。 */
+.tn-rail-module-badge {
+  position: absolute;
+  top: -4px;
+  left: 20px;
+  display: flex;
+  pointer-events: none;
+}
+
+.tn-rail-module[data-expand]:is(:hover, :focus-visible) {
+  .tn-rail-module-icon {
+    opacity: 0;
+  }
+
+  .tn-rail-module-expand {
+    opacity: 1;
+  }
+}
+
+.tn-rail-footer {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding-top: 6px;
+  padding-bottom: 4px;
+}
+
+.tn-rail-workspace {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  margin: 6px 6px 6px 0;
+  border: 1px solid var(--tn-border);
+  border-radius: 10px;
+  background: var(--tn-surface);
+}
+
+.tn-rail-secondary {
+  width: 0;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--tn-surface) 65%, var(--tn-canvas));
+  transition: width 160ms ease;
+}
+
+.tn-rail[data-open] .tn-rail-secondary {
+  width: var(--tn-rail-secondary);
+}
+
+.tn-rail-secondary-inner,
+.tn-rail-secondary-drawer {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+}
+
+.tn-rail-secondary-inner {
+  width: var(--tn-rail-secondary);
+  border-right: 1px solid var(--tn-border);
+}
+
+.tn-rail-secondary-drawer {
+  height: 100dvh;
+}
+
+.tn-rail-secondary-header {
+  height: var(--tn-rail-header);
+  flex-shrink: 0;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--tn-border);
+}
+
+.tn-rail-secondary-content {
+  flex: 1;
+  min-height: 0;
+}
+
+/* 二级导航的链接 32px 高、13px 的字，比 Mantine 默认的 NavLink 紧凑。 */
+.tn-rail-secondary .mantine-NavLink-root,
+.tn-rail-secondary-drawer .mantine-NavLink-root {
+  height: 32px;
+  padding-block: 0;
+  border-radius: var(--mantine-radius-sm);
+}
+
+.tn-rail-secondary .mantine-NavLink-label,
+.tn-rail-secondary-drawer .mantine-NavLink-label {
+  font-size: var(--mantine-font-size-sm);
+}
+
+.tn-rail-section {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--tn-border);
+}
+
+.tn-rail-secondary-content nav > .tn-rail-section:first-child,
+.tn-rail-secondary-content nav > .mantine-TextInput-root + .tn-rail-section,
+.tn-rail-secondary-content [data-slot="nav"] > .tn-rail-section:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.tn-rail-section-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 4px;
+}
+
+.tn-rail-section-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  padding: 2px 10px 4px;
+  color: var(--tn-subtle);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  user-select: none;
+
+  &[data-collapsible] {
+    border-radius: var(--mantine-radius-sm);
+
+    @media (hover: hover) {
+      &:hover {
+        color: var(--tn-muted);
+      }
+    }
+  }
+}
+
+.tn-rail-section-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tn-rail-section-action {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.tn-rail-section-chevron {
+  flex-shrink: 0;
+  transition: transform 150ms ease;
+}
+
+.tn-rail-section-title[data-opened] .tn-rail-section-chevron {
+  transform: rotate(90deg);
+}
+
+.tn-rail-main {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  outline: none;
+}
+
+.tn-rail-page {
+  padding: 28px 24px 24px;
+}
+
+/* 铺满的页面（staticData.fullBleed）：内容区不滚动，页面占满它的宽度和高度，页面中的各栏自己滚动。 */
+.tn-rail-main[data-full-bleed] {
+  overflow: hidden;
+}
+.tn-rail-full {
+  height: 100%;
+}
+
+.tn-rail[data-compact] .tn-rail-rail {
+  padding-block: 0;
+}
+
+.tn-rail[data-compact] .tn-rail-workspace {
+  margin: 0;
+  border: 0;
+  border-left: 1px solid var(--tn-border);
+  border-radius: 0;
+}
+
+@media (max-width: 48em) {
+  .tn-rail-page {
+    padding: 20px 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tn-rail-secondary,
+  .tn-rail-section-chevron {
+    transition: none;
+  }
+}
+
+/* 跳到主要内容的链接：平时在屏幕外，用 Tab 键聚焦时出现在左上角。 */
+.tn-skip-link {
+  position: fixed;
+  top: -80px;
+  left: 16px;
+  z-index: 300;
+  padding: 10px 16px;
+  border-radius: var(--mantine-radius-md);
+  background: var(--mantine-primary-color-filled);
+  color: var(--mantine-color-white);
+
+  &:focus {
+    top: 8px;
+  }
+}
+
+/* ———————————————— 官网 ———————————————— */
+
+.tn-site {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--tn-surface);
+  color: var(--tn-text);
+}
+
+.tn-site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-bottom: 1px solid var(--tn-border);
+  background: var(--tn-header-blur);
+  backdrop-filter: saturate(180%) blur(12px);
+}
+
+.tn-site-header-inner {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  height: var(--tn-header-height);
+}
+
+.tn-site-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  color: var(--tn-text);
+  text-decoration: none;
+}
+
+.tn-site-nav a {
+  color: var(--tn-muted);
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 500;
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: var(--mantine-radius-sm);
+}
+
+.tn-site-nav a:hover,
+.tn-site-nav a[data-status="active"] {
+  color: var(--tn-text);
+}
+
+.tn-site-main {
+  flex: 1;
+}
+
+.tn-site-footer {
+  border-top: 1px solid var(--tn-border);
+  padding-block: 48px 32px;
+  color: var(--tn-muted);
+  font-size: var(--mantine-font-size-sm);
+}
+
+.tn-site-footer a {
+  color: var(--tn-muted);
+  text-decoration: none;
+}
+
+.tn-site-footer a:hover {
+  color: var(--tn-text);
+}
+
+/* ———————————————— 文档 ———————————————— */
+
+.tn-docs {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr) 200px;
+  gap: 48px;
+  align-items: start;
+  padding-block: 32px 64px;
+}
+
+@media (max-width: 1199px) {
+  .tn-docs {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+  .tn-docs-toc {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .tn-docs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .tn-docs-sidebar {
+    display: none;
+  }
+}
+
+.tn-docs-sidebar,
+.tn-docs-toc {
+  position: sticky;
+  top: calc(var(--tn-header-height) + 24px);
+  max-height: calc(100dvh - var(--tn-header-height) - 48px);
+  overflow-y: auto;
+}
+
+.tn-docs-section {
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 600;
+  color: var(--tn-text);
+  margin: 20px 0 6px 10px;
+}
+
+.tn-docs-sidebar > div:first-child .tn-docs-section {
+  margin-top: 0;
+}
+
+.tn-docs-article {
+  max-width: 760px;
+  min-width: 0;
+}
+
+.tn-docs-toc a {
+  display: block;
+  padding: 3px 0 3px 12px;
+  border-inline-start: 1px solid var(--tn-border);
+  color: var(--tn-muted);
+  font-size: var(--mantine-font-size-xs);
+  line-height: 1.6;
+  text-decoration: none;
+}
+
+.tn-docs-toc a[data-depth="3"] {
+  padding-inline-start: 24px;
+}
+
+.tn-docs-toc a:hover {
+  color: var(--tn-text);
+}
+
+.tn-docs-toc a[data-active] {
+  color: var(--tn-active-text);
+  border-inline-start-color: var(--mantine-color-brand-6);
+}
+
+.tn-prose h1,
+.tn-prose h2,
+.tn-prose h3 {
+  scroll-margin-top: calc(var(--tn-header-height) + 16px);
+  letter-spacing: -0.015em;
+}
+
+/* 文档正文的标题比官网的大标题小一号，层级靠字号和间距区分。 */
+.tn-docs-article .tn-prose h1 {
+  font-size: 34px;
+  line-height: 1.2;
+  margin-bottom: 16px;
+}
+
+.tn-docs-article .tn-prose h2 {
+  font-size: 24px;
+  line-height: 1.3;
+  margin-top: 48px;
+  padding-top: 8px;
+}
+
+.tn-docs-article .tn-prose h3 {
+  font-size: 18px;
+  margin-top: 32px;
+}
+
+.tn-prose pre {
+  border: 1px solid var(--tn-border);
+  border-radius: var(--mantine-radius-md);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.tn-prose pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+.tn-prose :not(pre) > code {
+  font-size: 0.875em;
+  padding: 2px 6px;
+  border-radius: var(--mantine-radius-sm);
+  border: 1px solid var(--tn-border);
+  background: var(--tn-canvas);
+}
+
+.tn-prose blockquote {
+  border-inline-start: 3px solid var(--mantine-color-brand-5);
+  border-radius: 0 var(--mantine-radius-md) var(--mantine-radius-md) 0;
+  font-size: inherit;
+}
+
+/* ———————————————— 错误页 ———————————————— */
+
+.tn-error {
+  display: grid;
+  place-items: center;
+  min-height: 60dvh;
+  padding: 48px 16px;
+  text-align: center;
+}
+
+.tn-error-code {
+  font-size: 64px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--tn-border-strong);
+}
+
+/* ———————————————— 表格 ———————————————— */
+
+.tn-datatable thead th {
+  background: var(--tn-canvas);
+  color: var(--tn-muted);
+  font-weight: 500;
+}
+
+.tn-datatable tbody td {
+  background: var(--tn-surface);
+}
+
+/* ———————————————— 描述列表 ———————————————— */
+
+/* 卡片中名称在左、值靠右，行间一条淡线；标题没有底色。值太长时在右侧换行。 */
+.tn-dl {
+  margin: 0;
+  padding: 0 var(--mantine-spacing-lg) 4px;
+  font-size: var(--mantine-font-size-sm);
+}
+
+.tn-dl-header {
+  padding: var(--mantine-spacing-lg) var(--mantine-spacing-lg) var(--mantine-spacing-xs);
+}
+
+.tn-dl-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--mantine-spacing-lg);
+  padding: 12px 0;
+  line-height: 1.55;
+}
+
+.tn-dl-row + .tn-dl-row {
+  border-top: 1px solid var(--tn-border);
+}
+
+.tn-dl dt {
+  flex-shrink: 0;
+  max-width: 50%;
+  color: var(--tn-muted);
+}
+
+.tn-dl dd {
+  margin: 0;
+  min-width: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.tn-dl [data-mono] {
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 0.95em;
+}
+
+/* 不带卡片时（对话框中），行贴着左右边缘。 */
+.tn-dl-plain .tn-dl,
+.tn-dl-plain .tn-dl-header {
+  padding-inline: 0;
+}
+
+.tn-status-dot-mark {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* ———————————————— 输入框触发补全（TriggerMenu） ———————————————— */
+
+.tn-trigger-menu {
+  position: absolute;
+  left: 0;
+  z-index: 20;
+  background: var(--tn-surface);
+  border-color: var(--tn-border);
+}
+
+.tn-trigger-menu[data-position="top"] {
+  bottom: 100%;
+  margin-bottom: 4px;
+}
+
+.tn-trigger-menu[data-position="bottom"] {
+  top: 100%;
+  margin-top: 4px;
+}
+
+.tn-trigger-header {
+  padding: 4px 8px 6px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--tn-border);
+  font-size: var(--mantine-font-size-xs);
+  color: var(--tn-muted);
+}
+
+.tn-trigger-item {
+  display: block;
+  padding: 6px 8px;
+  border-radius: var(--mantine-radius-sm);
+  color: var(--tn-text);
+  transition: background-color 100ms ease;
+}
+
+.tn-trigger-item:hover {
+  background: var(--tn-hover);
+}
+
+.tn-trigger-item[data-active] {
+  background: var(--mantine-primary-color-light);
+  color: var(--mantine-primary-color-light-color);
+}
+
+/* ———————————————— 指标卡片（StatCard）与时间窗口选择器（PeriodPicker） ———————————————— */
+
+.tn-stat-card {
+  background: var(--tn-surface);
+  border-color: var(--tn-border);
+}
+
+.tn-stat-card-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--tn-muted);
+}
+
+.tn-stat-card-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--tn-text);
+}
+
+.tn-stat-card-secondary {
+  font-variant-numeric: tabular-nums;
+}
+
+.tn-period-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ———————————————— 分段切换（SegmentedControl）与标签页（Tabs） ———————————————— */
+
+.mantine-SegmentedControl-root {
+  --sc-padding-xs: 4px 8px;
+  --sc-padding-sm: 5px 12px;
+  padding: 3px;
+  background-color: color-mix(in srgb, var(--tn-text) 5%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tn-border) 85%, transparent);
+}
+
+[data-mantine-color-scheme="dark"] .mantine-SegmentedControl-root {
+  background-color: color-mix(in srgb, var(--tn-text) 7%, transparent);
+}
+
+.mantine-SegmentedControl-indicator {
+  border-radius: calc(var(--sc-radius, var(--mantine-radius-md)) - 2px);
+  background-color: var(--sc-color, var(--tn-surface));
+  border: 1px solid color-mix(in srgb, var(--tn-border-strong) 45%, transparent);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--mantine-color-black) 6%, transparent),
+    0 1px 1px color-mix(in srgb, var(--mantine-color-black) 4%, transparent);
+}
+
+[data-mantine-color-scheme="dark"] .mantine-SegmentedControl-indicator {
+  background-color: var(--sc-color, var(--mantine-color-dark-5));
+  border-color: color-mix(in srgb, var(--mantine-color-dark-3) 40%, transparent);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--mantine-color-black) 28%, transparent);
+}
+
+.mantine-SegmentedControl-label {
+  border-radius: calc(var(--sc-radius, var(--mantine-radius-md)) - 2px);
+  color: var(--tn-muted);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.mantine-SegmentedControl-label[data-active] {
+  color: var(--sc-label-color, var(--tn-text));
+  font-weight: 600;
+}
+
+.mantine-SegmentedControl-label[data-active]::before {
+  border-radius: calc(var(--sc-radius, var(--mantine-radius-md)) - 2px);
+  background-color: var(--sc-color, var(--tn-surface));
+}
+
+[data-mantine-color-scheme="dark"] .mantine-SegmentedControl-label[data-active]::before {
+  background-color: var(--sc-color, var(--mantine-color-dark-5));
+}
+
+@media (hover: hover) {
+  .mantine-SegmentedControl-label:not([data-disabled], [data-active], [data-read-only]):hover {
+    color: var(--tn-text);
+  }
+}
+
+.mantine-Tabs-root[data-variant="default"] {
+  --tab-border-color: var(--tn-border);
+  --tabs-list-gap: 4px;
+}
+
+.mantine-Tabs-root[data-variant="default"] .mantine-Tabs-list::before {
+  border-width: 0 0 1px 0;
+}
+
+.mantine-Tabs-root[data-variant="default"] .mantine-Tabs-tab {
+  padding: 9px 12px;
+  color: var(--tn-muted);
+  font-weight: 500;
+  border-radius: var(--mantine-radius-sm) var(--mantine-radius-sm) 0 0;
+  transition:
+    color 150ms ease,
+    border-color 150ms ease;
+}
+
+@media (hover: hover) {
+  .mantine-Tabs-root[data-variant="default"] .mantine-Tabs-tab:not([data-disabled]):hover {
+    background-color: transparent;
+    color: var(--tn-text);
+  }
+
+  .mantine-Tabs-root[data-variant="default"] .mantine-Tabs-tab:not([data-disabled], [data-active]):hover {
+    border-color: var(--tn-border-strong);
+  }
+}
+
+.mantine-Tabs-root[data-variant="default"] .mantine-Tabs-tab[data-active] {
+  color: var(--mantine-primary-color-light-color);
+  font-weight: 600;
+  border-color: var(--mantine-primary-color-filled);
+}
+
+/* ———————————————— 工作台密度作用域（dense / inspector） ———————————————— */
+
+/*
+ * 将控件高度与字号解耦：工具条（dense）使用 30px 控件，检查器（inspector）使用 28px 控件，
+ * 内部字号始终保持 sm（13px），与相邻纯文本值一致。
+ */
+[data-tn-density="dense"] {
+  --tn-control-height: 30px;
+
+  & .mantine-Input-wrapper {
+    --input-height-sm: 30px;
+    --input-padding-y-sm: 4px;
+  }
+
+  & .mantine-Button-root {
+    --button-height-sm: 30px;
+    --button-padding-x-sm: 10px;
+  }
+
+  & .mantine-ActionIcon-root {
+    --ai-size-input-sm: 30px;
+  }
+
+  & .mantine-SegmentedControl-root {
+    --sc-padding-sm: 4px 10px;
+  }
+}
+
+[data-tn-density="inspector"] {
+  --tn-control-height: 28px;
+
+  & .mantine-Input-wrapper {
+    --input-height-sm: 28px;
+    --input-padding-y-sm: 3px;
+  }
+
+  & .mantine-Button-root {
+    --button-height-sm: 28px;
+    --button-padding-x-sm: 10px;
+  }
+
+  & .mantine-ActionIcon-root {
+    --ai-size-input-sm: 28px;
+  }
+
+  & .mantine-SegmentedControl-root {
+    --sc-padding-sm: 3px 8px;
+  }
+}
+
+/* ———————————————— 多栏面板（Pane） ———————————————— */
+
+.tn-pane {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.tn-pane[data-border="left"],
+.tn-pane[data-border="both"] {
+  border-left: 1px solid var(--tn-border);
+}
+
+.tn-pane[data-border="right"],
+.tn-pane[data-border="both"] {
+  border-right: 1px solid var(--tn-border);
+}
+
+.tn-pane-header {
+  flex: none;
+  min-height: var(--tn-rail-header, 52px);
+  padding-inline: var(--tn-pane-px);
+  border-bottom: 1px solid var(--tn-border);
+}
+
+.tn-pane-header[data-fixed] {
+  height: var(--tn-rail-header, 52px);
+}
+
+.tn-pane-toolbar {
+  flex: none;
+  padding: 8px var(--tn-pane-px);
+  border-bottom: 1px solid var(--tn-border);
+  background: color-mix(in srgb, var(--tn-surface) 70%, var(--tn-canvas));
+}
+
+.tn-pane-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.tn-pane-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  z-index: 5;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.tn-pane-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: transparent;
+  transition: background-color 140ms ease;
+}
+
+.tn-pane-resize-handle:hover::after,
+.tn-pane-resize-handle:focus-visible::after,
+.tn-pane-resize-handle[data-dragging]::after {
+  background: var(--mantine-primary-color-filled);
+}
+
+.tn-pane-resize-handle:focus-visible {
+  outline: none;
+}
+
+/* ———————————————— 侧栏属性检查器（Inspector） ———————————————— */
+
+.tn-inspector {
+  display: flex;
+  flex-direction: column;
+}
+
+.tn-inspector-section {
+  padding: 12px var(--tn-pane-px);
+  border-top: 1px solid var(--tn-border);
+}
+
+.tn-inspector-section:first-child,
+.tn-inspector-section[data-no-divider] {
+  border-top: 0;
+}
+
+.tn-inspector-section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.tn-inspector-section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  color: var(--tn-text);
+  border-radius: var(--mantine-radius-sm);
+}
+
+.tn-inspector-section-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.tn-inspector-section-extra {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+}
+
+.tn-inspector-chevron {
+  flex-shrink: 0;
+  color: var(--tn-muted);
+  transition: transform 150ms ease;
+}
+
+.tn-inspector-section-toggle[data-opened] .tn-inspector-chevron {
+  transform: rotate(90deg);
+}
+
+.tn-inspector-field {
+  min-height: 28px;
+}
+
+.tn-inspector-field-label {
+  flex: none;
+  width: var(--tn-inspector-label-width, 84px);
+}
+
+.tn-inspector-field-value {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tn-inspector-chevron,
+  .tn-pane-resize-handle::after {
+    transition: none;
+  }
+}

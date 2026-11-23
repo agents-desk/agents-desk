@@ -173,7 +173,7 @@ export function Timeline({
 
   if (items.isPending) {
     return (
-      <Box className="inbox-timeline" p="md">
+      <Box className="inbox-timeline" px="var(--tn-pane-px)" py="md">
         <Stack gap="md">
           <Box style={{ alignSelf: "flex-start", width: "54%", maxWidth: 360 }}>
             <Skeleton h={10} w={88} mb={6} radius="sm" />
@@ -199,7 +199,7 @@ export function Timeline({
   return (
     <Box className="inbox-timeline-wrap">
       <Box ref={scroller} className="inbox-timeline" onScroll={onScroll}>
-        <Stack gap={0} p="md">
+        <Stack gap={0} px="var(--tn-pane-px)" py="md">
           {list.map((it, i) => {
             const prev = list[i - 1]
             const next = list[i + 1]
@@ -207,11 +207,11 @@ export function Timeline({
             const showNew = readSeq > 0 && it === firstNew
             const groupedWithPrev = !showDay && !showNew && canGroup(prev, it, firstNew)
             const groupedWithNext = Boolean(next) && canGroup(it, next, firstNew)
-            const gapTop = i === 0 ? 0 : groupedWithPrev ? 3 : 10
+            const gapTop = i === 0 ? 0 : groupedWithPrev ? 4 : 16
             return (
               <Fragment key={it.id}>
-                {showDay && <Divider my={i === 0 ? 4 : 10} label={dayLabel(it.created_at, language, t, zone)} labelPosition="center" />}
-                {showNew && <Divider my={10} color="red.3" label={<Text size="xs" c="red">{t("inbox.new_messages")}</Text>} labelPosition="center" />}
+                {showDay && <Divider my={i === 0 ? 4 : 12} label={dayLabel(it.created_at, language, t, zone)} labelPosition="center" />}
+                {showNew && <Divider my={12} color="red.3" label={<Text size="xs" c="red">{t("inbox.new_messages")}</Text>} labelPosition="center" />}
                 {it.kind === "event" ? (
                   <Text size="xs" c="dimmed" ta="center" mt={gapTop} className="inbox-event">
                     {describeEvent(it, byId, names, t, language)} · {clock(it.created_at, language, zone)}
@@ -421,8 +421,8 @@ function Message({ it, c, mine, author, time, fullTime, first, last, mt, lang, o
       )}
       <Group gap={6} wrap="nowrap" align="center" style={{ flexDirection: mine ? "row-reverse" : "row" }}>
         <Paper
-          px={shown || sent ? "sm" : 6}
-          py={shown || sent ? 8 : 6}
+          px={shown || sent ? 12 : 6}
+          py={shown || sent ? 9 : 6}
           withBorder={!mine}
           bg={mine ? "var(--mantine-primary-color-light)" : undefined}
           className={focused ? "inbox-bubble inbox-focus-pulse" : "inbox-bubble"}
@@ -562,7 +562,7 @@ function Note({
         )}
       </Group>
       {raw && (
-        <Text size="sm" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+        <Text size="md" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
           {raw.split(/(@\S+)/).map((part, i) =>
             part.startsWith("@") ? (
               // biome-ignore lint/suspicious/noArrayIndexKey: 拆分出的片段没有别的标识，顺序固定
@@ -600,7 +600,7 @@ function Linkified({ text, highlight }: { text: string; highlight?: string }): R
       )
     }
     parts.push(
-      <Anchor key={`a:${at}`} href={m[0]} target="_blank" rel="noopener noreferrer" size="sm">
+      <Anchor key={`a:${at}`} href={m[0]} target="_blank" rel="noopener noreferrer" size="md">
         <HighlightQuery text={m[0]} query={highlight} />
       </Anchor>,
     )
@@ -614,7 +614,7 @@ function Linkified({ text, highlight }: { text: string; highlight?: string }): R
     )
   }
   return (
-    <Text size="sm" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+    <Text size="md" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
       {parts}
     </Text>
   )
