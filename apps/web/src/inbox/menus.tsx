@@ -37,12 +37,12 @@ export function AssignMenu({ c, compact }: { c: ConversationDTO; compact?: boole
       <Menu.Target>
         {compact ? (
           <Tooltip label={t("inbox.assign")}>
-            <ActionIcon variant="default" size={30} loading={assign.isPending} aria-label={t("inbox.assign")}>
+            <ActionIcon variant="default" size="input-sm" loading={assign.isPending} aria-label={t("inbox.assign")}>
               <IconUserPlus size={15} />
             </ActionIcon>
           </Tooltip>
         ) : (
-          <Button size="xs" variant="default" leftSection={<IconUserPlus size={14} />} rightSection={<IconChevronDown size={12} />} loading={assign.isPending}>
+          <Button variant="default" leftSection={<IconUserPlus size={14} />} rightSection={<IconChevronDown size={12} />} loading={assign.isPending}>
             {t("inbox.assign")}
           </Button>
         )}
@@ -120,12 +120,12 @@ export function SnoozeMenu({ id, compact }: { id: string; compact?: boolean }): 
         <Menu.Target>
           {compact ? (
             <Tooltip label={t("inbox.snooze")}>
-              <ActionIcon variant="default" size={30} loading={snooze.isPending} aria-label={t("inbox.snooze")}>
+              <ActionIcon variant="default" size="input-sm" loading={snooze.isPending} aria-label={t("inbox.snooze")}>
                 <IconClock size={15} />
               </ActionIcon>
             </Tooltip>
           ) : (
-            <Button size="xs" variant="default" leftSection={<IconClock size={14} />} rightSection={<IconChevronDown size={12} />} loading={snooze.isPending}>
+            <Button variant="default" leftSection={<IconClock size={14} />} rightSection={<IconChevronDown size={12} />} loading={snooze.isPending}>
               {t("inbox.snooze")}
             </Button>
           )}

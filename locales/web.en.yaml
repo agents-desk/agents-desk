@@ -120,8 +120,6 @@ shortcuts.list_next_waiting: "Next waiting conversation"
 shortcuts.list_prev: "Previous conversation"
 shortcuts.title: "Keyboard shortcuts"
 
-layout.resize: "Drag to resize column, double-click to reset"
-
 contacts.channel_identities: "Channel identities"
 contacts.clear_filters: "Clear filters"
 contacts.close_detail: "Close details"
@@ -247,7 +245,6 @@ members.password_hint: "Required when this email has no account yet. Share it wi
 nav.assignment: "Assignment"
 nav.attributes: "Attributes"
 nav.contacts: "Contacts"
-nav.expand_nav: "Expand navigation"
 nav.general: "General"
 nav.inbox: "Inbox"
 nav.members: "Members"

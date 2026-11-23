@@ -2,12 +2,12 @@ import { ActionIcon, Avatar, Badge, Box, Button, Center, Drawer, Group, Loader, 
 import { useElementSize, useMediaQuery } from "@mantine/hooks"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Link, useParams } from "@tanstack/react-router"
-import { IconArrowRight, IconCheck, IconChevronLeft, IconLayoutSidebarRight, IconRefresh } from "@tabler/icons-react"
-import { notifyError, useCollapseNav, useLanguage, useNarrow, useT } from "@go-tenon/ui"
+import { IconArrowRight, IconCheck, IconLayoutSidebarRight, IconRefresh } from "@tabler/icons-react"
+import { notifyError, Pane, PaneHeader, useCollapseNav, useLanguage, useNarrow, useT } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { languageName } from "../languages"
-import { isTypingTarget, NARROW_QUERY, ResizeHandle, useResizableWidth } from "../layout"
+import { isTypingTarget, NARROW_QUERY } from "../layout"
 import { formatLocalTime } from "../timezone"
 import { useConversationChannel } from "./channel"
 import { Composer, type ComposerHandle } from "./Composer"
@@ -74,7 +74,6 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
   const ui = useLanguage()
   const [details, setDetails] = useState(() => (narrow ? false : readSavedDetails()))
   const [original, setOriginal] = useState(false) // 对方的消息都显示原文
-  const detailSize = useResizableWidth("agents-desk:inbox-details-w", 300, 260, 420, "left")
   const { ref: mainRef, width: mainWidth } = useElementSize()
   const composerRef = useRef<ComposerHandle>(null)
   useCollapseNav(details && canInlineDetails && !wide && !narrow)
@@ -178,12 +177,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
     <Group gap={0} h="100%" wrap="nowrap" align="stretch" style={{ flex: 1, minWidth: 0 }}>
       <Box ref={mainRef} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
         {/* 宽屏锁定 52px 基准顶栏与相邻各栏齐平；窄屏操作按钮换到第二行 */}
-        <Group gap="sm" px="md" py={narrow ? 8 : 0} wrap={narrow ? "wrap" : "nowrap"} className="inbox-header" data-fixed={!narrow || undefined}>
-          {narrow && (
-            <ActionIcon variant="subtle" color="gray" onClick={back} aria-label={t("inbox.back")}>
-              <IconChevronLeft size={18} />
-            </ActionIcon>
-          )}
+        <PaneHeader fixed={!narrow} back={narrow ? back : undefined} style={narrow ? { paddingBlock: 8 } : undefined}>
           <Box style={{ minWidth: 0, flex: 1 }}>
             <Group gap={6} wrap="nowrap">
               {c.contact ? (
@@ -193,12 +187,12 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
                   search={{ sort: "recent" }}
                   className="inbox-contact-link"
                 >
-                  <Text fw={600} truncate>
+                  <Text size="md" fw={600} truncate lh={1.25}>
                     {contactName(c, t)}
                   </Text>
                 </Link>
               ) : (
-                <Text fw={600} truncate>
+                <Text size="md" fw={600} truncate lh={1.25}>
                   {contactName(c, t)}
                 </Text>
               )}
@@ -211,7 +205,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
                 {t(`inbox.status_${c.status}` as const)}
               </Badge>
             </Group>
-            <Text size="xs" c="dimmed" truncate>
+            <Text size="xs" c="dimmed" truncate lh={1.3}>
               {meta}
             </Text>
           </Box>
@@ -224,10 +218,16 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
               </Avatar.Group>
             </Tooltip>
           )}
-          <Group gap={6} wrap="nowrap" w={narrow ? "100%" : undefined} justify={narrow ? "flex-end" : undefined} style={{ flex: "none" }}>
+          <Group
+            gap={6}
+            wrap="nowrap"
+            w={narrow ? "100%" : undefined}
+            justify={narrow ? "flex-end" : undefined}
+            style={{ flex: "none" }}
+            data-tn-density="dense"
+          >
             {hasTranslation(timeline.data, me.data?.language) && (
               <SegmentedControl
-                size="xs"
                 value={original ? "original" : "translation"}
                 onChange={(v) => setOriginal(v === "original")}
                 data={[
@@ -242,40 +242,40 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
             {c.status === "closed" ? (
               compactActions ? (
                 <Tooltip label={t("inbox.reopen")}>
-                  <ActionIcon variant="default" size={30} loading={reopen.isPending} onClick={() => reopen.mutate()} aria-label={t("inbox.reopen")}>
+                  <ActionIcon variant="default" size="input-sm" loading={reopen.isPending} onClick={() => reopen.mutate()} aria-label={t("inbox.reopen")}>
                     <IconRefresh size={15} />
                   </ActionIcon>
                 </Tooltip>
               ) : (
-                <Button size="xs" variant="default" leftSection={<IconRefresh size={14} />} loading={reopen.isPending} onClick={() => reopen.mutate()}>
+                <Button variant="default" leftSection={<IconRefresh size={14} />} loading={reopen.isPending} onClick={() => reopen.mutate()}>
                   {t("inbox.reopen")}
                 </Button>
               )
             ) : compactActions ? (
               <Tooltip label={t("inbox.close")}>
-                <ActionIcon variant="default" size={30} loading={close.isPending} onClick={() => close.mutate()} aria-label={t("inbox.close")}>
+                <ActionIcon variant="default" size="input-sm" loading={close.isPending} onClick={() => close.mutate()} aria-label={t("inbox.close")}>
                   <IconCheck size={15} />
                 </ActionIcon>
               </Tooltip>
             ) : (
-              <Button size="xs" variant="default" leftSection={<IconCheck size={14} />} loading={close.isPending} onClick={() => close.mutate()}>
+              <Button variant="default" leftSection={<IconCheck size={14} />} loading={close.isPending} onClick={() => close.mutate()}>
                 {t("inbox.close")}
               </Button>
             )}
             {next && (
               <Tooltip label={t("inbox.next_waiting")}>
-                <ActionIcon variant="default" size={30} onClick={next} aria-label={t("inbox.next_waiting")}>
+                <ActionIcon variant="default" size="input-sm" onClick={next} aria-label={t("inbox.next_waiting")}>
                   <IconArrowRight size={16} />
                 </ActionIcon>
               </Tooltip>
             )}
             <Tooltip label={t("inbox.details")}>
-              <ActionIcon variant={details ? "light" : "default"} size={30} onClick={toggleDetails} aria-label={t("inbox.details")}>
+              <ActionIcon variant={details ? "light" : "default"} size="input-sm" onClick={toggleDetails} aria-label={t("inbox.details")}>
                 <IconLayoutSidebarRight size={16} />
               </ActionIcon>
             </Tooltip>
           </Group>
-        </Group>
+        </PaneHeader>
         <Timeline
           c={c}
           readSeq={readAtOpen.current ?? 0}
@@ -294,19 +294,9 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
         />
       </Box>
       {inlineDetails && (
-        <Box w={detailSize.width} pos="relative" style={{ flex: "none" }} className="inbox-aside">
-          <ResizeHandle
-            side="left"
-            dragging={detailSize.dragging}
-            width={detailSize.width}
-            min={detailSize.min}
-            max={detailSize.max}
-            onPointerDown={detailSize.onPointerDown}
-            onDoubleClick={detailSize.onDoubleClick}
-            onKeyDown={detailSize.onKeyDown}
-          />
+        <Pane border="left" resizable={{ storageKey: "inbox-details", defaultWidth: 320, min: 260, max: 420, side: "left" }}>
           <Details c={c} onClose={closeDetails} onOpen={open} />
-        </Box>
+        </Pane>
       )}
       {!narrow && !canInlineDetails && (
         <Drawer opened={drawerDetails} onClose={closeDetails} position="right" size={340} padding={0} withCloseButton={false}>

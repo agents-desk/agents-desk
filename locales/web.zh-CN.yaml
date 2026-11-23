@@ -120,8 +120,6 @@ shortcuts.list_next_waiting: "下一个待回复会话"
 shortcuts.list_prev: "上一个会话"
 shortcuts.title: "键盘快捷键"
 
-layout.resize: "拖动调整栏宽，双击恢复默认"
-
 contacts.channel_identities: "渠道身份"
 contacts.clear_filters: "清除筛选"
 contacts.close_detail: "关闭详情"
@@ -247,7 +245,6 @@ members.password_hint: "这个邮箱还没有账号时必填，由你告诉本�
 nav.assignment: "指派"
 nav.attributes: "属性"
 nav.contacts: "联系人"
-nav.expand_nav: "展开侧边导航"
 nav.general: "常规"
 nav.inbox: "收件箱"
 nav.members: "成员"

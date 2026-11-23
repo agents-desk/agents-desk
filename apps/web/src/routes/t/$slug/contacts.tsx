@@ -1,12 +1,12 @@
 import { Box, Drawer } from "@mantine/core"
 import { useMediaQuery } from "@mantine/hooks"
 import { createFileRoute, Outlet, useNavigate, useParams } from "@tanstack/react-router"
-import { useCollapseNav, useNarrow } from "@go-tenon/ui"
+import { Pane, useCollapseNav, useNarrow } from "@go-tenon/ui"
 import "../../../contacts/contacts.css"
 import { ContactDirectory } from "../../../contacts/List"
 import { ContactsNav } from "../../../contacts/Nav"
 import { type ContactsSearch, validateContactsSearch } from "../../../contacts/search"
-import { NARROW_QUERY, ResizeHandle, useResizableWidth } from "../../../layout"
+import { NARROW_QUERY } from "../../../layout"
 
 // 联系人模块：与收件箱一致的分栏工作台布局（fullBleed）。二级导航是全部/用户/线索（nav 插槽），
 // 左侧常驻联系人名录，选中某位联系人后右侧展开可拖拽调节的档案分栏（子路由 contacts/$id）：
@@ -25,7 +25,6 @@ function ContactsLayout() {
   const narrow = useNarrow(NARROW_QUERY)
   const wide = useMediaQuery("(min-width: 1440px)") ?? false
   const canInlineAside = useMediaQuery("(min-width: 1200px)") ?? false
-  const asideSize = useResizableWidth("agents-desk:contact-aside-w", 420, 360, 540, "left")
 
   // 1200–1439px 展开内联档案分栏时自动收起二级导航，关闭后恢复
   useCollapseNav(Boolean(id) && canInlineAside && !wide && !narrow)
@@ -46,31 +45,18 @@ function ContactsLayout() {
     <Box style={{ display: "flex", height: "100%" }}>
       <ContactsNav search={search} go={go} />
       {(!narrow || !id) && (
-        <Box style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+        <Pane>
           <ContactDirectory search={search} openId={id} go={go} />
-        </Box>
+        </Pane>
       )}
       {showInlineAside && (
-        <Box
-          w={narrow ? "100%" : asideSize.width}
-          pos="relative"
-          style={{ flex: "none", minWidth: 0, display: "flex" }}
-          className={narrow ? undefined : "ct-aside"}
+        <Pane
+          width={narrow ? "100%" : undefined}
+          border={narrow ? "none" : "left"}
+          resizable={!narrow && { storageKey: "contact-aside", defaultWidth: 420, min: 360, max: 540, side: "left" }}
         >
-          {!narrow && (
-            <ResizeHandle
-              side="left"
-              dragging={asideSize.dragging}
-              width={asideSize.width}
-              min={asideSize.min}
-              max={asideSize.max}
-              onPointerDown={asideSize.onPointerDown}
-              onDoubleClick={asideSize.onDoubleClick}
-              onKeyDown={asideSize.onKeyDown}
-            />
-          )}
           <Outlet />
-        </Box>
+        </Pane>
       )}
       {!narrow && !canInlineAside && (
         <Drawer opened={showDrawerAside} onClose={closeAside} position="right" size={420} padding={0} withCloseButton={false}>

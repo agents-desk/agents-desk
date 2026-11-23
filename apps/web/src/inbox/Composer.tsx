@@ -370,9 +370,9 @@ export function Composer({
       className="inbox-composer"
       data-note={note || undefined}
       data-dragging={dragging || undefined}
-      px="sm"
-      pt={8}
-      pb={10}
+      px="var(--tn-pane-px)"
+      pt={10}
+      pb={12}
       onDragEnter={(e) => {
         if (!e.dataTransfer.types.includes("Files")) return
         e.preventDefault()
@@ -412,10 +412,9 @@ export function Composer({
           onDismissWarnings={() => setMacroWarnings([])}
         />
       )}
-      <Group gap="xs" mb={6}>
+      <Group gap="xs" mb={8} data-tn-density="dense">
         <Tooltip label={t("inbox.switch_mode_hint", { key: modeKey })} openDelay={350}>
           <SegmentedControl
-            size="xs"
             value={mode}
             onChange={(v) => {
               setMode(v as Mode)
@@ -452,6 +451,7 @@ export function Composer({
         />
         <Textarea
           ref={area}
+          size="md"
           value={text}
           onChange={(e) => trigger.handleChange(e.currentTarget.value, e.currentTarget.selectionStart)}
           onPaste={(e) => {
@@ -481,17 +481,17 @@ export function Composer({
           aria-label={t(note ? "inbox.mode_note" : "inbox.mode_reply")}
         />
       </Box>
-      <Group gap="xs" mt={8}>
+      <Group gap="xs" mt={8} data-tn-density="dense">
         {!note && (
           <Tooltip label={t("inbox.macro_button")}>
             <ActionIcon
               variant="subtle"
               color="gray"
-              size="sm"
+              size="input-sm"
               onClick={() => trigger.open("macro")}
               aria-label={t("inbox.macro_button")}
             >
-              <IconMessageBolt size={15} />
+              <IconMessageBolt size={16} />
             </ActionIcon>
           </Tooltip>
         )}
@@ -506,16 +506,16 @@ export function Composer({
         >
           {(props) => (
             <Tooltip label={t("inbox.attach")}>
-              <ActionIcon {...props} variant="subtle" color="gray" size="sm" aria-label={t("inbox.attach")}>
-                <IconPaperclip size={15} />
+              <ActionIcon {...props} variant="subtle" color="gray" size="input-sm" aria-label={t("inbox.attach")}>
+                <IconPaperclip size={16} />
               </ActionIcon>
             </Tooltip>
           )}
         </FileButton>
         {!note && preview.enabled && !!value && !preview.shown && (
           <Tooltip label={t("inbox.choose_language")}>
-            <ActionIcon variant="subtle" color="gray" size="sm" onClick={preview.pick} aria-label={t("inbox.choose_language")}>
-              <IconLanguage size={14} />
+            <ActionIcon variant="subtle" color="gray" size="input-sm" onClick={preview.pick} aria-label={t("inbox.choose_language")}>
+              <IconLanguage size={15} />
             </ActionIcon>
           </Tooltip>
         )}
@@ -526,7 +526,6 @@ export function Composer({
         </Text>
         <Group gap={0} ml="auto" wrap="nowrap">
           <Button
-            size="xs"
             color={note ? "yellow" : undefined}
             disabled={!canSubmit}
             loading={send.isPending || (!note && preview.pending)}
@@ -538,7 +537,7 @@ export function Composer({
           {!note && (
             <Menu position="top-end" withinPortal>
               <Menu.Target>
-                <Button size="xs" px={6} disabled={!canSubmit} className="inbox-send-menu" aria-label={t("inbox.send_options")}>
+                <Button px={7} disabled={!canSubmit} className="inbox-send-menu" aria-label={t("inbox.send_options")}>
                   <IconChevronDown size={14} />
                 </Button>
               </Menu.Target>
@@ -875,12 +874,11 @@ function TranslationPreview({ c, preview, onSendOriginal }: { c: ConversationDTO
       data-stale={(stale && !off) || undefined}
       bg={preview.error && !off ? "var(--mantine-color-red-light)" : "var(--mantine-primary-color-light)"}
     >
-      <Group gap="xs" wrap="wrap">
+      <Group gap="xs" wrap="wrap" data-tn-density="inspector">
         <Text size="xs" c="dimmed" style={{ flex: "none" }}>
           {t("inbox.preview_to")}
         </Text>
         <LanguageSelect
-          size="xs"
           style={{ flex: "1 1 160px", maxWidth: 220, minWidth: 140 }}
           before={[{ value: NO_TRANSLATION, label: t("inbox.no_translation") }]}
           first={[theirs]}
@@ -915,7 +913,7 @@ function TranslationPreview({ c, preview, onSendOriginal }: { c: ConversationDTO
       )}
       {!off && !preview.error && shown?.needed && (
         <Box mt={6} className="inbox-preview-text">
-          <Text size="sm" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+          <Text size="md" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
             {shown.translation}
           </Text>
           <Text size="xs" c="dimmed" mt={4} style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>

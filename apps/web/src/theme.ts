@@ -1,22 +1,13 @@
-import { SegmentedControl } from "@mantine/core"
 import { createUiTheme } from "@go-tenon/ui"
 
-// 主题：样式预设（compact 紧凑、comfortable 舒展、spacious 宽松）加上品牌色。改品牌色只改这里。
-// 品牌色写预设的名称（primaryColors，例如 sky-blue）或者颜色值；datetimeFormat 是日期时间的显示格式。
+// 工作台字体：西文和数字优先使用随包引入的 Inter Variable，中文与全角标点由系统字体渲染。
+const fontFamily =
+  '"Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif'
+
+// 主题：舒展预设（comfortable）配合品牌色与日期格式；工具条与检查器通过框架的 dense/inspector 密度作用域保持紧凑高度与清晰字号。
 export const theme = createUiTheme({
-  preset: "compact",
+  preset: "comfortable",
   primary: "dark-pink",
+  fontFamily,
   datetimeFormat: "MM/DD HH:mm",
-  override: {
-    components: {
-      SegmentedControl: SegmentedControl.extend({
-        defaultProps: {
-          radius: "md",
-          withItemsBorders: false,
-          transitionDuration: 180,
-          transitionTimingFunction: "cubic-bezier(0.2, 0.8, 0.2, 1)",
-        },
-      }),
-    },
-  },
 })

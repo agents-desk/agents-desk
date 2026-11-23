@@ -37,7 +37,6 @@ import {
   IconCheck,
   IconFilter,
   IconFlame,
-  IconLayoutSidebarLeftExpand,
   IconLock,
   IconPencil,
   IconSearch,
@@ -45,7 +44,7 @@ import {
   IconUsers,
   IconX,
 } from "@tabler/icons-react"
-import { notifyError, notifySuccess, useCan, useLanguage, useNavControl, useSavedView, useT, useTimeZone } from "@go-tenon/ui"
+import { notifyError, notifySuccess, PaneBody, PaneHeader, PaneToolbar, useCan, useLanguage, useSavedView, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { ContactAvatar, contactDisplayName } from "../contacts/display"
@@ -92,7 +91,6 @@ interface ListProps {
  */
 export function ConversationList({ search, openId, go, open }: ListProps): ReactNode {
   const t = useT()
-  const nav = useNavControl()
   const now = useNow()
   const th = useThresholds()
   const me = useMe()
@@ -279,7 +277,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
   const sortLabel = search.sort === "waiting" ? t("inbox.sort_waiting") : t("inbox.sort_recent")
 
   return (
-    <Stack gap={0} h="100%" className="inbox-list">
+    <Stack gap={0} h="100%">
       {selecting ? (
         <BulkBar
           ids={[...selected]}
@@ -292,15 +290,9 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
       ) : (
         <>
           {/* 52px 基准顶栏：与二级导航头、会话头、详情头严格齐平 */}
-          <Group gap="xs" px="sm" wrap="nowrap" className="inbox-header" data-fixed="">
-            {nav && !nav.open && (
-              <Tooltip label={t("nav.expand_nav")} openDelay={350}>
-                <ActionIcon variant="subtle" color="gray" onClick={nav.openNav} aria-label={t("nav.expand_nav")}>
-                  <IconLayoutSidebarLeftExpand size={18} stroke={1.6} />
-                </ActionIcon>
-              </Tooltip>
-            )}
-            <Box style={{ flex: 1, minWidth: 0 }}>
+          <PaneHeader
+            showNavToggle
+            title={
               <Group gap={5} wrap="nowrap">
                 {activeView &&
                   (activeView.scope === "shared" ? (
@@ -312,7 +304,9 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                   {title}
                 </Text>
               </Group>
-              {searching ? (
+            }
+            subtitle={
+              searching ? (
                 <Text size="xs" c="dimmed" truncate lh={1.25} style={{ fontVariantNumeric: "tabular-nums" }}>
                   {searchQuery.isPending ? "…" : t("inbox.search_results_count", { n: searchTotal })}
                 </Text>
@@ -337,27 +331,30 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                     {t("inbox.backlog_open", { n: summary.count })}
                   </Text>
                 )
-              )}
-            </Box>
-            {!searching && activeView?.editable && (
-              <Tooltip label={t("views.edit")} openDelay={300}>
-                <ActionIcon variant="subtle" color="gray" size="sm" aria-label={t("views.edit")} onClick={openEditView}>
-                  <IconPencil size={15} />
-                </ActionIcon>
-              </Tooltip>
-            )}
-            {!searching && !viewMissing && (
-              <Button size="compact-xs" variant="subtle" color="gray" onClick={() => setSelecting(true)} style={{ flex: "none" }}>
-                {t("inbox.select")}
-              </Button>
-            )}
-          </Group>
+              )
+            }
+            actions={
+              <Group gap={4} wrap="nowrap" style={{ flex: "none" }}>
+                {!searching && activeView?.editable && (
+                  <Tooltip label={t("views.edit")} openDelay={300}>
+                    <ActionIcon variant="subtle" color="gray" size="sm" aria-label={t("views.edit")} onClick={openEditView}>
+                      <IconPencil size={15} />
+                    </ActionIcon>
+                  </Tooltip>
+                )}
+                {!searching && !viewMissing && (
+                  <Button size="compact-xs" variant="subtle" color="gray" onClick={() => setSelecting(true)}>
+                    {t("inbox.select")}
+                  </Button>
+                )}
+              </Group>
+            }
+          />
 
           {/* 独立筛选工具条：搜索框、状态/筛选/排序、摘要胶囊、脏状态保存条，260px 最小栏宽下也不挤压 */}
           {!viewMissing && (
-            <Stack gap={6} px="sm" py={8} className="inbox-toolbar">
+            <PaneToolbar gap={6}>
               <TextInput
-                size="xs"
                 value={draftQ}
                 onChange={(e) => setDraftQ(e.currentTarget.value)}
                 onKeyDown={(e) => {
@@ -378,7 +375,6 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
 
               {searching ? (
                 <SegmentedControl
-                  size="xs"
                   fullWidth
                   value={search.scope ?? "all"}
                   onChange={(v) => go({ scope: v as SearchScope })}
@@ -391,7 +387,6 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                 <Group gap={6} wrap="nowrap">
                   {!search.view && !parsedUrlFilter && search.box !== "mentions" ? (
                     <SegmentedControl
-                      size="xs"
                       style={{ flex: 1, minWidth: 0 }}
                       value={search.status}
                       onChange={(v) => go({ status: v as InboxSearch["status"] })}
@@ -405,7 +400,6 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                     <Popover opened={filterOpen} onChange={setFilterOpen} position="bottom-start" width={312} shadow="md" withinPortal>
                       <Popover.Target>
                         <Button
-                          size="xs"
                           variant={filterCount > 0 ? "light" : "default"}
                           leftSection={<IconFilter size={14} />}
                           rightSection={
@@ -443,7 +437,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                           <Indicator disabled={filterCount === 0} size={7} offset={3}>
                             <ActionIcon
                               variant={filterCount > 0 ? "light" : "default"}
-                              size={30}
+                              size="input-sm"
                               aria-label={t("views.filter_button")}
                               style={{ flex: "none" }}
                               onClick={() => setFilterOpen((o) => !o)}
@@ -469,7 +463,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                     <Menu position="bottom-end" withinPortal>
                       <Menu.Target>
                         <Tooltip label={`${t("inbox.sort")} · ${sortLabel}`} openDelay={300}>
-                          <ActionIcon variant="default" size={30} aria-label={t("inbox.sort")} style={{ flex: "none" }}>
+                          <ActionIcon variant="default" size="input-sm" aria-label={t("inbox.sort")} style={{ flex: "none" }}>
                             <IconArrowsSort size={15} />
                           </ActionIcon>
                         </Tooltip>
@@ -545,12 +539,12 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                   </Button>
                 </Group>
               )}
-            </Stack>
+            </PaneToolbar>
           )}
         </>
       )}
 
-      <Box style={{ flex: 1, overflowY: "auto" }}>
+      <PaneBody>
         {viewMissing ? (
           <Stack gap="sm" align="center" p="xl">
             <Text c="dimmed" size="sm" ta="center">
@@ -641,7 +635,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
             <Loader size="xs" />
           </Center>
         )}
-      </Box>
+      </PaneBody>
 
       <ViewModal
         opened={modalOpen}
@@ -774,19 +768,19 @@ function Row({
       data-flash={flash || undefined}
       data-read={!c.unread || undefined}
       w="100%"
-      px="sm"
+      px="var(--tn-pane-px)"
     >
       <Group gap={10} wrap="nowrap" align="center" w="100%" style={{ minWidth: 0 }}>
         {selecting ? (
           <Checkbox checked={selected} readOnly size="xs" tabIndex={-1} style={{ flex: "none" }} />
         ) : (
           <Indicator disabled={!c.unread} color="brand" size={8} offset={2} withBorder style={{ flex: "none" }}>
-            <ContactAvatar contact={c.contact} size={28} />
+            <ContactAvatar contact={c.contact} size={30} />
           </Indicator>
         )}
         <Box style={{ flex: 1, minWidth: 0 }}>
           <Group gap={5} wrap="nowrap" h={20}>
-            <Text size="sm" fw={c.unread ? 700 : 500} truncate lh={1.3}>
+            <Text size="sm" fw={c.unread ? 700 : 600} truncate lh={1.3}>
               {name}
             </Text>
             {c.channel && (
@@ -812,11 +806,11 @@ function Row({
               {c.waiting_since ? duration(c.waiting_since, now, t) : activity(c.last_message_at, language, t, zone)}
             </Text>
           </Group>
-          <Group gap={6} wrap="nowrap" align="center" mt={3} h={20}>
-            <Text size="sm" c={draftText || c.unread ? undefined : "dimmed"} truncate lh={1.3} style={{ flex: 1, minWidth: 0 }}>
+          <Group gap={6} wrap="nowrap" align="center" mt={4} h={18}>
+            <Text size="xs" c={draftText || c.unread ? undefined : "dimmed"} truncate lh={1.35} style={{ flex: 1, minWidth: 0 }}>
               {draftText ? (
                 <>
-                  <Text span size="sm" fw={600} c="deep-orange">
+                  <Text span size="xs" fw={600} c="deep-orange">
                     {t("inbox.draft_prefix")}
                   </Text>
                   {draftText}
@@ -824,7 +818,7 @@ function Row({
               ) : (
                 <>
                   {who && (
-                    <Text span size="sm" c="dimmed">
+                    <Text span size="xs" c="dimmed">
                       {t("inbox.said", { who })}
                     </Text>
                   )}
@@ -902,7 +896,7 @@ function BulkBar({
   // 没有“改派给别人”的权限时只能领取
   const others = can("conversations:assign")
   return (
-    <Group gap={6} px="sm" bg="var(--tn-active-bg)" wrap="nowrap" className="inbox-header" data-fixed="">
+    <PaneHeader style={{ background: "var(--tn-active-bg)" }}>
       <Tooltip label={t("inbox.select_all")} openDelay={300}>
         <Checkbox
           size="xs"
@@ -959,6 +953,6 @@ function BulkBar({
           </ActionIcon>
         </Tooltip>
       </Group>
-    </Group>
+    </PaneHeader>
   )
 }
