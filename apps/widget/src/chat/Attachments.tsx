@@ -3,7 +3,7 @@ import { ActionIcon, Box, Group, Loader, Stack, Text, Tooltip, UnstyledButton } 
 import { IconAlertCircle, IconDownload, IconFile, IconFileSpreadsheet, IconFileText, IconFileZip, IconRefresh, IconX } from "@tabler/icons-react"
 import { formatFileSize, type UploadQueueItem, useT } from "@go-tenon/ui"
 import type { ReactNode } from "react"
-import { embedded, openLink } from "../host"
+import { delegatesOpenLink, openLink } from "../host"
 
 /** ATTACHMENT_ACCEPT 是聊天窗口允许选择的图片和常用文件类型，与服务端白名单一致。 */
 export const ATTACHMENT_ACCEPT =
@@ -27,12 +27,6 @@ export function attachmentMaxSize(file: File): number {
 export interface LightboxImage {
   src: string
   filename?: string
-}
-
-/** hasAppBridge 报告当前是否运行在提供原生桥的 App WebView 中。 */
-function hasAppBridge(): boolean {
-  if (embedded || typeof window === "undefined") return false
-  return Boolean(window.webkit?.messageHandlers?.agentsDesk || window.AgentsDeskBridge || window.ReactNativeWebView)
 }
 
 /** widgetPreviewSummary 拼出聊天窗口首页会话列表的最后一条消息摘要。 */
@@ -198,7 +192,7 @@ export function WidgetMessageAttachments({
               data-mine={mine || undefined}
               aria-label={t("chat.download_file")}
               onClick={(e) => {
-                if (hasAppBridge()) {
+                if (delegatesOpenLink()) {
                   e.preventDefault()
                   openLink(f.url)
                 }

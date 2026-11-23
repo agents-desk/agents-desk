@@ -148,6 +148,7 @@ const bridgeMessages = [
   { type: "close", when: "widget_install.app_msg_close" },
   { type: "unread {count}", when: "widget_install.app_msg_unread" },
   { type: "open_url {url}", when: "widget_install.app_msg_open_url" },
+  { type: "need_token", when: "widget_install.app_msg_need_token" },
 ] as const
 
 /**
