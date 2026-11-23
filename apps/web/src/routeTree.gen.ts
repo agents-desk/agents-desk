@@ -36,6 +36,7 @@ import { Route as TSlugSettingsPersonalRouteImport } from './routes/t/$slug/sett
 import { Route as TSlugSettingsTranslationRouteImport } from './routes/t/$slug/settings/_translation'
 import { Route as TSlugSettingsWorkspaceRouteImport } from './routes/t/$slug/settings/_workspace'
 import { Route as TSlugSettingsAutomationRulesRouteImport } from './routes/t/$slug/settings/_automation/rules'
+import { Route as TSlugSettingsChannelsTelegramsRouteImport } from './routes/t/$slug/settings/_channels/telegrams'
 import { Route as TSlugSettingsChannelsWidgetsRouteImport } from './routes/t/$slug/settings/_channels/widgets'
 import { Route as TSlugSettingsDataAttributesRouteImport } from './routes/t/$slug/settings/_data/attributes'
 import { Route as TSlugSettingsDataTagsRouteImport } from './routes/t/$slug/settings/_data/tags'
@@ -52,6 +53,8 @@ import { Route as TSlugSettingsWorkspaceBusinessHoursRouteImport } from './route
 import { Route as TSlugSettingsWorkspaceGeneralRouteImport } from './routes/t/$slug/settings/_workspace/general'
 import { Route as TSlugSettingsWorkspaceMembersRouteImport } from './routes/t/$slug/settings/_workspace/members'
 import { Route as TSlugSettingsWorkspaceRolesRouteImport } from './routes/t/$slug/settings/_workspace/roles'
+import { Route as TSlugSettingsChannelsTelegramsIndexRouteImport } from './routes/t/$slug/settings/_channels/telegrams/index'
+import { Route as TSlugSettingsChannelsTelegramsIdRouteImport } from './routes/t/$slug/settings/_channels/telegrams/$id'
 import { Route as TSlugSettingsChannelsWidgetsIndexRouteImport } from './routes/t/$slug/settings/_channels/widgets/index'
 import { Route as TSlugSettingsChannelsWidgetsIdRouteImport } from './routes/t/$slug/settings/_channels/widgets/$id'
 import { Route as TSlugSettingsInboxTeamsIndexRouteImport } from './routes/t/$slug/settings/_inbox/teams/index'
@@ -190,6 +193,12 @@ const TSlugSettingsAutomationRulesRoute =
     path: '/rules',
     getParentRoute: () => TSlugSettingsAutomationRoute,
   } as any)
+const TSlugSettingsChannelsTelegramsRoute =
+  TSlugSettingsChannelsTelegramsRouteImport.update({
+    id: '/telegrams',
+    path: '/telegrams',
+    getParentRoute: () => TSlugSettingsChannelsRoute,
+  } as any)
 const TSlugSettingsChannelsWidgetsRoute =
   TSlugSettingsChannelsWidgetsRouteImport.update({
     id: '/widgets',
@@ -284,6 +293,18 @@ const TSlugSettingsWorkspaceRolesRoute =
     path: '/roles',
     getParentRoute: () => TSlugSettingsWorkspaceRoute,
   } as any)
+const TSlugSettingsChannelsTelegramsIndexRoute =
+  TSlugSettingsChannelsTelegramsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => TSlugSettingsChannelsTelegramsRoute,
+  } as any)
+const TSlugSettingsChannelsTelegramsIdRoute =
+  TSlugSettingsChannelsTelegramsIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => TSlugSettingsChannelsTelegramsRoute,
+  } as any)
 const TSlugSettingsChannelsWidgetsIndexRoute =
   TSlugSettingsChannelsWidgetsIndexRouteImport.update({
     id: '/',
@@ -330,6 +351,7 @@ export interface FileRoutesByFullPath {
   '/t/$slug/reports/': typeof TSlugReportsIndexRoute
   '/t/$slug/settings/': typeof TSlugSettingsIndexRoute
   '/t/$slug/settings/rules': typeof TSlugSettingsAutomationRulesRoute
+  '/t/$slug/settings/telegrams': typeof TSlugSettingsChannelsTelegramsRouteWithChildren
   '/t/$slug/settings/widgets': typeof TSlugSettingsChannelsWidgetsRouteWithChildren
   '/t/$slug/settings/attributes': typeof TSlugSettingsDataAttributesRoute
   '/t/$slug/settings/tags': typeof TSlugSettingsDataTagsRoute
@@ -346,8 +368,10 @@ export interface FileRoutesByFullPath {
   '/t/$slug/settings/general': typeof TSlugSettingsWorkspaceGeneralRoute
   '/t/$slug/settings/members': typeof TSlugSettingsWorkspaceMembersRoute
   '/t/$slug/settings/roles': typeof TSlugSettingsWorkspaceRolesRoute
+  '/t/$slug/settings/telegrams/$id': typeof TSlugSettingsChannelsTelegramsIdRoute
   '/t/$slug/settings/widgets/$id': typeof TSlugSettingsChannelsWidgetsIdRoute
   '/t/$slug/settings/teams/$id': typeof TSlugSettingsInboxTeamsIdRoute
+  '/t/$slug/settings/telegrams/': typeof TSlugSettingsChannelsTelegramsIndexRoute
   '/t/$slug/settings/widgets/': typeof TSlugSettingsChannelsWidgetsIndexRoute
   '/t/$slug/settings/teams/': typeof TSlugSettingsInboxTeamsIndexRoute
 }
@@ -381,8 +405,10 @@ export interface FileRoutesByTo {
   '/t/$slug/settings/general': typeof TSlugSettingsWorkspaceGeneralRoute
   '/t/$slug/settings/members': typeof TSlugSettingsWorkspaceMembersRoute
   '/t/$slug/settings/roles': typeof TSlugSettingsWorkspaceRolesRoute
+  '/t/$slug/settings/telegrams/$id': typeof TSlugSettingsChannelsTelegramsIdRoute
   '/t/$slug/settings/widgets/$id': typeof TSlugSettingsChannelsWidgetsIdRoute
   '/t/$slug/settings/teams/$id': typeof TSlugSettingsInboxTeamsIdRoute
+  '/t/$slug/settings/telegrams': typeof TSlugSettingsChannelsTelegramsIndexRoute
   '/t/$slug/settings/widgets': typeof TSlugSettingsChannelsWidgetsIndexRoute
   '/t/$slug/settings/teams': typeof TSlugSettingsInboxTeamsIndexRoute
 }
@@ -415,6 +441,7 @@ export interface FileRoutesById {
   '/t/$slug/reports/': typeof TSlugReportsIndexRoute
   '/t/$slug/settings/': typeof TSlugSettingsIndexRoute
   '/t/$slug/settings/_automation/rules': typeof TSlugSettingsAutomationRulesRoute
+  '/t/$slug/settings/_channels/telegrams': typeof TSlugSettingsChannelsTelegramsRouteWithChildren
   '/t/$slug/settings/_channels/widgets': typeof TSlugSettingsChannelsWidgetsRouteWithChildren
   '/t/$slug/settings/_data/attributes': typeof TSlugSettingsDataAttributesRoute
   '/t/$slug/settings/_data/tags': typeof TSlugSettingsDataTagsRoute
@@ -431,8 +458,10 @@ export interface FileRoutesById {
   '/t/$slug/settings/_workspace/general': typeof TSlugSettingsWorkspaceGeneralRoute
   '/t/$slug/settings/_workspace/members': typeof TSlugSettingsWorkspaceMembersRoute
   '/t/$slug/settings/_workspace/roles': typeof TSlugSettingsWorkspaceRolesRoute
+  '/t/$slug/settings/_channels/telegrams/$id': typeof TSlugSettingsChannelsTelegramsIdRoute
   '/t/$slug/settings/_channels/widgets/$id': typeof TSlugSettingsChannelsWidgetsIdRoute
   '/t/$slug/settings/_inbox/teams/$id': typeof TSlugSettingsInboxTeamsIdRoute
+  '/t/$slug/settings/_channels/telegrams/': typeof TSlugSettingsChannelsTelegramsIndexRoute
   '/t/$slug/settings/_channels/widgets/': typeof TSlugSettingsChannelsWidgetsIndexRoute
   '/t/$slug/settings/_inbox/teams/': typeof TSlugSettingsInboxTeamsIndexRoute
 }
@@ -459,6 +488,7 @@ export interface FileRouteTypes {
     | '/t/$slug/reports/'
     | '/t/$slug/settings/'
     | '/t/$slug/settings/rules'
+    | '/t/$slug/settings/telegrams'
     | '/t/$slug/settings/widgets'
     | '/t/$slug/settings/attributes'
     | '/t/$slug/settings/tags'
@@ -475,8 +505,10 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/general'
     | '/t/$slug/settings/members'
     | '/t/$slug/settings/roles'
+    | '/t/$slug/settings/telegrams/$id'
     | '/t/$slug/settings/widgets/$id'
     | '/t/$slug/settings/teams/$id'
+    | '/t/$slug/settings/telegrams/'
     | '/t/$slug/settings/widgets/'
     | '/t/$slug/settings/teams/'
   fileRoutesByTo: FileRoutesByTo
@@ -510,8 +542,10 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/general'
     | '/t/$slug/settings/members'
     | '/t/$slug/settings/roles'
+    | '/t/$slug/settings/telegrams/$id'
     | '/t/$slug/settings/widgets/$id'
     | '/t/$slug/settings/teams/$id'
+    | '/t/$slug/settings/telegrams'
     | '/t/$slug/settings/widgets'
     | '/t/$slug/settings/teams'
   id:
@@ -543,6 +577,7 @@ export interface FileRouteTypes {
     | '/t/$slug/reports/'
     | '/t/$slug/settings/'
     | '/t/$slug/settings/_automation/rules'
+    | '/t/$slug/settings/_channels/telegrams'
     | '/t/$slug/settings/_channels/widgets'
     | '/t/$slug/settings/_data/attributes'
     | '/t/$slug/settings/_data/tags'
@@ -559,8 +594,10 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/_workspace/general'
     | '/t/$slug/settings/_workspace/members'
     | '/t/$slug/settings/_workspace/roles'
+    | '/t/$slug/settings/_channels/telegrams/$id'
     | '/t/$slug/settings/_channels/widgets/$id'
     | '/t/$slug/settings/_inbox/teams/$id'
+    | '/t/$slug/settings/_channels/telegrams/'
     | '/t/$slug/settings/_channels/widgets/'
     | '/t/$slug/settings/_inbox/teams/'
   fileRoutesById: FileRoutesById
@@ -762,6 +799,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugSettingsAutomationRulesRouteImport
       parentRoute: typeof TSlugSettingsAutomationRoute
     }
+    '/t/$slug/settings/_channels/telegrams': {
+      id: '/t/$slug/settings/_channels/telegrams'
+      path: '/telegrams'
+      fullPath: '/t/$slug/settings/telegrams'
+      preLoaderRoute: typeof TSlugSettingsChannelsTelegramsRouteImport
+      parentRoute: typeof TSlugSettingsChannelsRoute
+    }
     '/t/$slug/settings/_channels/widgets': {
       id: '/t/$slug/settings/_channels/widgets'
       path: '/widgets'
@@ -874,6 +918,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugSettingsWorkspaceRolesRouteImport
       parentRoute: typeof TSlugSettingsWorkspaceRoute
     }
+    '/t/$slug/settings/_channels/telegrams/': {
+      id: '/t/$slug/settings/_channels/telegrams/'
+      path: '/'
+      fullPath: '/t/$slug/settings/telegrams/'
+      preLoaderRoute: typeof TSlugSettingsChannelsTelegramsIndexRouteImport
+      parentRoute: typeof TSlugSettingsChannelsTelegramsRoute
+    }
+    '/t/$slug/settings/_channels/telegrams/$id': {
+      id: '/t/$slug/settings/_channels/telegrams/$id'
+      path: '/$id'
+      fullPath: '/t/$slug/settings/telegrams/$id'
+      preLoaderRoute: typeof TSlugSettingsChannelsTelegramsIdRouteImport
+      parentRoute: typeof TSlugSettingsChannelsTelegramsRoute
+    }
     '/t/$slug/settings/_channels/widgets/': {
       id: '/t/$slug/settings/_channels/widgets/'
       path: '/'
@@ -969,6 +1027,24 @@ const TSlugSettingsAutomationRouteWithChildren =
     TSlugSettingsAutomationRouteChildren,
   )
 
+interface TSlugSettingsChannelsTelegramsRouteChildren {
+  TSlugSettingsChannelsTelegramsIdRoute: typeof TSlugSettingsChannelsTelegramsIdRoute
+  TSlugSettingsChannelsTelegramsIndexRoute: typeof TSlugSettingsChannelsTelegramsIndexRoute
+}
+
+const TSlugSettingsChannelsTelegramsRouteChildren: TSlugSettingsChannelsTelegramsRouteChildren =
+  {
+    TSlugSettingsChannelsTelegramsIdRoute:
+      TSlugSettingsChannelsTelegramsIdRoute,
+    TSlugSettingsChannelsTelegramsIndexRoute:
+      TSlugSettingsChannelsTelegramsIndexRoute,
+  }
+
+const TSlugSettingsChannelsTelegramsRouteWithChildren =
+  TSlugSettingsChannelsTelegramsRoute._addFileChildren(
+    TSlugSettingsChannelsTelegramsRouteChildren,
+  )
+
 interface TSlugSettingsChannelsWidgetsRouteChildren {
   TSlugSettingsChannelsWidgetsIdRoute: typeof TSlugSettingsChannelsWidgetsIdRoute
   TSlugSettingsChannelsWidgetsIndexRoute: typeof TSlugSettingsChannelsWidgetsIndexRoute
@@ -987,10 +1063,13 @@ const TSlugSettingsChannelsWidgetsRouteWithChildren =
   )
 
 interface TSlugSettingsChannelsRouteChildren {
+  TSlugSettingsChannelsTelegramsRoute: typeof TSlugSettingsChannelsTelegramsRouteWithChildren
   TSlugSettingsChannelsWidgetsRoute: typeof TSlugSettingsChannelsWidgetsRouteWithChildren
 }
 
 const TSlugSettingsChannelsRouteChildren: TSlugSettingsChannelsRouteChildren = {
+  TSlugSettingsChannelsTelegramsRoute:
+    TSlugSettingsChannelsTelegramsRouteWithChildren,
   TSlugSettingsChannelsWidgetsRoute:
     TSlugSettingsChannelsWidgetsRouteWithChildren,
 }

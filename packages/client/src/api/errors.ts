@@ -197,6 +197,16 @@ export const TeamErrors = {
   Disabled: "team.disabled",
 } as const
 
+/** agents-desk/internal/telegram 的错误码。 */
+export const TelegramErrors = {
+  /** ErrTeamNotFound 是新会话进入的团队收件箱不存在，或者属于别的工作区。 */
+  TeamNotFound: "telegram.team_not_found",
+  /** ErrInvalidBotToken 是 Telegram Bot Token 校验失败（无效或已被吊销）。 */
+  InvalidBotToken: "telegram.invalid_bot_token",
+  /** ErrWebhookFailed 是调用 Telegram Bot API 设置或移除 Webhook 失败。 */
+  WebhookFailed: "telegram.webhook_failed",
+} as const
+
 /** agents-desk/internal/tenant 的错误码。 */
 export const TenantErrors = {
   NotFound: "tenant.not_found",

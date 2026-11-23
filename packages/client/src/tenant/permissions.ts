@@ -142,6 +142,14 @@ export const required = {
     members: ["teams:read"],
     update: ["teams:manage"],
   },
+  telegram: {
+    create: ["channels:manage"],
+    get: ["channels:manage"],
+    installation: ["channels:manage"],
+    list: ["channels:manage"],
+    rotateSecret: ["channels:manage"],
+    update: ["channels:manage"],
+  },
   tenant: {
     rename: ["tenant-settings:manage"],
   },

@@ -50,6 +50,7 @@ import (
 	"agents-desk/internal/role"
 	"agents-desk/internal/tag"
 	"agents-desk/internal/team"
+	"agents-desk/internal/telegram"
 	"agents-desk/internal/tenant"
 	"agents-desk/internal/translation"
 	"agents-desk/internal/widget"
@@ -271,6 +272,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		conversation.RegisterRoutes(api, require, a.db, a.downstream())
 		file.RegisterRoutes(api, require(auth.ConversationsReply), a.files, a.cfg.Filesystem.MaxUploadSize)
 		widget.RegisterRoutes(api, require, a.db, a.crypt, a.cfg.PublicURL)
+		telegram.RegisterRoutes(api, require, a.db, a.crypt, a.telegram, a.cfg.PublicURL)
 		translation.RegisterRoutes(api, require, a.db, a.translator, translation.NewIncoming(a.db, a.locker, a.translator, a.downstream()), a.translationSettings)
 		automation.RegisterRoutes(api, require, a.db)
 		report.RegisterRoutes(api, require, a.db, a.roles, a.files)
@@ -289,6 +291,10 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		widget.RegisterVisitorRoutes(api, rest.RequireToken(api, a.contactTokens.Validate), a.db, a.crypt, a.contactTokens,
 			conversation.NewReceive(a.db, a.channels, down), down, a.cfg.Filesystem.MaxUploadSize)
 	})
+
+	// Telegram 机器人 Webhook：接收 Telegram 官方直连或外部业务网关转发的 Update，使用渠道自己的 secret_token 鉴权。
+	router.With(httpx.Timeout(a.cfg.HTTP.Timeout)).Post("/webhooks/telegram/{channel}",
+		telegram.NewWebhook(a.db, a.crypt, a.files, a.telegram, conversation.NewReceive(a.db, a.channels, a.downstream()), a.downstream()).ServeHTTP)
 
 	// 本地磁盘中上传的文件（头像等），地址是 filesystem.disks.local.public_url。
 	if a.localDisk != nil {

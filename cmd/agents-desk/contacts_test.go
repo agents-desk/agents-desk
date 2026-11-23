@@ -34,7 +34,7 @@ func TestContactsAPI(t *testing.T) {
 		memberLogins: env.MemberLogins, memberTokens: apitoken.NewStore(env.DB, tokens),
 		contactTokens: apitoken.NewStore(env.DB, tokens), crypt: env.Crypt,
 		llmSettings: llm.NewGroup(env.DB), files: env.Files, localDisk: env.Disk,
-		channels: registry(nil),
+		channels: registry(nil, env.Crypt, env.Files, nil),
 	}
 	h := a.routes(nil)
 

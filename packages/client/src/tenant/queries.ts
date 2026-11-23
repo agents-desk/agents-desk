@@ -599,6 +599,43 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
           invalidate(context, "team"),
       }),
     },
+    telegram: {
+      /** telegram 分组全部查询的 key 前缀。 */
+      key: () => key("telegram"),
+      /** POST /telegrams */
+      create: () => ({
+        mutationFn: (variables: Parameters<Client["telegram"]["create"]>[0]) => client.telegram.create(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "telegram"),
+      }),
+      /** GET /telegrams/{id} */
+      get: (...args: Parameters<Client["telegram"]["get"]>) => ({
+        queryKey: key("telegram", "get", ...args),
+        queryFn: () => client.telegram.get(...args),
+      }),
+      /** GET /telegrams/{id}/installation */
+      installation: (...args: Parameters<Client["telegram"]["installation"]>) => ({
+        queryKey: key("telegram", "installation", ...args),
+        queryFn: () => client.telegram.installation(...args),
+      }),
+      /** GET /telegrams */
+      list: (...args: Parameters<Client["telegram"]["list"]>) => ({
+        queryKey: key("telegram", "list", ...args),
+        queryFn: () => client.telegram.list(...args),
+      }),
+      /** POST /telegrams/{id}/webhook-secret */
+      rotateSecret: () => ({
+        mutationFn: (variables: Parameters<Client["telegram"]["rotateSecret"]>[0]) => client.telegram.rotateSecret(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "telegram"),
+      }),
+      /** PUT /telegrams/{id} */
+      update: () => ({
+        mutationFn: (variables: Parameters<Client["telegram"]["update"]>) => client.telegram.update(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "telegram"),
+      }),
+    },
     tenant: {
       /** tenant 分组全部查询的 key 前缀。 */
       key: () => key("tenant"),
