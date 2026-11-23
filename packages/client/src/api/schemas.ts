@@ -11,6 +11,11 @@ export const schemas = {
         "$ref": "#/components/schemas/MemberLoginInputBody"
       },
     },
+    notificationsUpdate: {
+      body: {
+        "$ref": "#/components/schemas/MemberNotificationSettings"
+      },
+    },
     passwordChange: {
       body: {
         "$ref": "#/components/schemas/AccountPasswordChange"
@@ -69,6 +74,22 @@ export const components = {
     ],
     "type": "object"
   },
+  MemberAlertChannel: {
+    "additionalProperties": false,
+    "properties": {
+      "browser": {
+        "type": "boolean"
+      },
+      "sound": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "browser",
+      "sound"
+    ],
+    "type": "object"
+  },
   MemberLanguage: {
     "enum": [
       "zh-CN",
@@ -96,11 +117,37 @@ export const components = {
     ],
     "type": "object"
   },
+  MemberNotificationSettings: {
+    "additionalProperties": false,
+    "properties": {
+      "assigned": {
+        "$ref": "#/components/schemas/MemberAlertChannel"
+      },
+      "mention": {
+        "$ref": "#/components/schemas/MemberAlertChannel"
+      },
+      "new_message": {
+        "$ref": "#/components/schemas/MemberAlertChannel"
+      }
+    },
+    "required": [
+      "assigned",
+      "new_message",
+      "mention"
+    ],
+    "type": "object"
+  },
   MemberPreferences: {
     "additionalProperties": false,
     "properties": {
       "language": {
         "$ref": "#/components/schemas/MemberLanguage"
+      },
+      "open_next_after_reply": {
+        "type": "boolean"
+      },
+      "send_shortcut": {
+        "$ref": "#/components/schemas/MemberSendShortcut"
       },
       "time_zone": {
         "maxLength": 64,
@@ -111,5 +158,12 @@ export const components = {
       "language"
     ],
     "type": "object"
+  },
+  MemberSendShortcut: {
+    "enum": [
+      "enter",
+      "ctrl_enter"
+    ],
+    "type": "string"
   },
 } as const

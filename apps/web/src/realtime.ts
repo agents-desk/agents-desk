@@ -1,7 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query"
 import { Centrifuge } from "centrifuge"
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useEffect, useRef, useState } from "react"
 import { kit } from "./api"
+import type { PushAlert } from "./inbox/alerts"
 
 // 实时推送：成员在每个工作区中有一个个人频道，会话有变化（新消息、指派、关闭等）或者自己在别的页面标记了已读时，
 // 服务端往里面推送一个事件 { type: "conversation" | "read", id: 会话 ID, seq?: 时间线最新一项的序号 }（服务端的 push.Event）。
@@ -22,6 +23,7 @@ interface PushEvent {
   id?: string
   seq?: number
   item_seq?: number
+  alert?: PushAlert
 }
 
 /** refreshFrom 记录每个会话在推送中发生变化的最早历史消息序号，useTimeline 刷新时据此覆盖历史补译的消息。 */
@@ -36,12 +38,20 @@ export function consumeRefreshFrom(id: string): number | undefined {
 
 /**
  * useRealtime 在工作区 slug 中建立实时连接，订阅成员 memberId 的个人频道，返回这条连接交给 RealtimeContext。
- * 收到事件后让会话分组的查询（收件箱的数量、会话列表、会话和时间线）失效，200 毫秒内的多条合并成一次；断线重连、
- * 重新订阅之后也让它们失效，补上断线期间的变化。离开工作区、退出登录时组件卸载，连接随之断开。memberId 还没读到时不连接。
+ * 收到事件后让会话分组的查询（收件箱的数量、会话列表、会话和时间线）失效，200 毫秒内的多条合并成一次；
+ * 若事件带有实时提醒信号（alert），立即回调 onAlert 触发桌面通知或提示音；
+ * 断线重连、重新订阅之后也让查询失效，补上断线期间的变化。离开工作区、退出登录时组件卸载，连接随之断开。
  */
-export function useRealtime(slug: string, tenantId: string, memberId: string | undefined): Centrifuge | null {
+export function useRealtime(
+  slug: string,
+  tenantId: string,
+  memberId: string | undefined,
+  onAlert?: (ev: { id: string; alert: PushAlert }) => void,
+): Centrifuge | null {
   const queryClient = useQueryClient()
   const [client, setClient] = useState<Centrifuge | null>(null)
+  const alertRef = useRef(onAlert)
+  alertRef.current = onAlert
   useEffect(() => {
     if (!memberId) return
     const scheme = location.protocol === "https:" ? "wss" : "ws"
@@ -63,6 +73,9 @@ export function useRealtime(slug: string, tenantId: string, memberId: string | u
       if (ev?.id && typeof ev.item_seq === "number" && ev.item_seq > 0) {
         const prev = refreshFrom.get(ev.id)
         refreshFrom.set(ev.id, prev === undefined ? ev.item_seq : Math.min(prev, ev.item_seq))
+      }
+      if (ev?.id && ev.alert) {
+        alertRef.current?.({ id: ev.id, alert: ev.alert })
       }
       refresh()
     })

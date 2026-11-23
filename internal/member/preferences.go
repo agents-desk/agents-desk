@@ -36,10 +36,28 @@ var Languages = enum.New("member.language", enum.Item(SimplifiedChinese), enum.I
 // Schema 让 OpenAPI 中的 Language 只接受上面的取值，并带有显示文字。
 func (Language) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Languages) }
 
+// SendShortcut 是回复框的发送快捷键：回车发送，或者 Ctrl/Cmd + 回车发送。
+type SendShortcut string
+
+const (
+	SendEnter     SendShortcut = "enter"
+	SendCtrlEnter SendShortcut = "ctrl_enter"
+)
+
+// SendShortcuts 是可选的发送快捷键，显示文字是翻译文件中 member.send_shortcut.<方式> 的消息。
+var SendShortcuts = enum.New("member.send_shortcut", enum.Item(SendEnter), enum.Item(SendCtrlEnter))
+
+// Schema 让 OpenAPI 中的 SendShortcut 只接受上面的取值，并带有显示文字。
+func (SendShortcut) Schema(r huma.Registry) *huma.Schema {
+	return contract.EnumSchema(r, SendShortcuts)
+}
+
 // Preferences 是成员的偏好设置，属于账号本身，在所有工作区中一样。
 type Preferences struct {
-	Language Language `json:"language"`
-	TimeZone string   `json:"time_zone,omitempty" maxLength:"64" doc:"IANA 时区名，例如 Asia/Shanghai；不传表示跟随浏览器"`
+	Language           Language     `json:"language"`
+	TimeZone           string       `json:"time_zone,omitempty" maxLength:"64" doc:"IANA 时区名，例如 Asia/Shanghai；不传表示跟随浏览器"`
+	SendShortcut       SendShortcut `json:"send_shortcut,omitempty" doc:"回复框发送快捷键：enter 回车发送，ctrl_enter Ctrl/Cmd + 回车发送；不传默认为 enter"`
+	OpenNextAfterReply bool         `json:"open_next_after_reply,omitempty" doc:"发送回复后是否自动打开下一个待回复的会话"`
 }
 
 // PreferencesInput 是修改偏好设置的 HTTP 请求。
@@ -59,8 +77,8 @@ func NewUpdatePreferences(db *bun.DB, logins *login.Realm, files *filesystem.Ser
 	return &UpdatePreferences{db: db, logins: logins, files: files}
 }
 
-// Handle 保存 sub 的语言和时区并记录操作日志，返回修改后的个人资料。时区不是 IANA 时区名时返回 ErrInvalidTimeZone
-// （字段 time_zone）；语言的取值由接口的枚举校验。
+// Handle 保存 sub 的语言、时区、发送方式和发送后自动跳转偏好并记录操作日志，返回修改后的个人资料。
+// 时区不是 IANA 时区名时返回 ErrInvalidTimeZone（字段 time_zone）；语言与发送快捷键的取值由接口枚举校验。
 func (a *UpdatePreferences) Handle(ctx context.Context, sub identity.Subject, p Preferences) (*Profile, error) {
 	if p.TimeZone != "" {
 		// time.LoadLocation 把 "Local" 当作服务器的时区，它不是一个时区名
@@ -68,21 +86,33 @@ func (a *UpdatePreferences) Handle(ctx context.Context, sub identity.Subject, p 
 			return nil, ErrInvalidTimeZone.New(errorx.Field("time_zone"), errorx.Public("time_zone", p.TimeZone))
 		}
 	}
+	if p.SendShortcut == "" {
+		p.SendShortcut = SendEnter
+	}
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		m := new(Member)
 		if err := tx.NewSelect().Model(m).Where("id = ?", sub.ID).For("UPDATE").Scan(ctx); err != nil {
 			return errors.Wrap(err, "load member")
 		}
-		if m.Language == p.Language && m.TimeZone == p.TimeZone {
+		if m.Language == p.Language && m.TimeZone == p.TimeZone && m.SendShortcut == p.SendShortcut && m.OpenNextAfterReply == p.OpenNextAfterReply {
 			return nil
 		}
-		m.Language, m.TimeZone, m.UpdatedAt = p.Language, p.TimeZone, time.Now().UTC()
-		if _, err := tx.NewUpdate().Model(m).Column("language", "time_zone", "updated_at").WherePK().Exec(ctx); err != nil {
+		m.Language = p.Language
+		m.TimeZone = p.TimeZone
+		m.SendShortcut = p.SendShortcut
+		m.OpenNextAfterReply = p.OpenNextAfterReply
+		m.UpdatedAt = time.Now().UTC()
+		if _, err := tx.NewUpdate().Model(m).Column("language", "time_zone", "send_shortcut", "open_next_after_reply", "updated_at").WherePK().Exec(ctx); err != nil {
 			return errors.Wrap(err, "update member preferences")
 		}
 		return activity.Record(ctx, tx, sub, activity.Activity{
 			Event: "member.preferences_updated", TargetType: string(Type), TargetID: sub.ID,
-			Properties: map[string]any{"language": p.Language, "time_zone": p.TimeZone},
+			Properties: map[string]any{
+				"language":              p.Language,
+				"time_zone":             p.TimeZone,
+				"send_shortcut":         p.SendShortcut,
+				"open_next_after_reply": p.OpenNextAfterReply,
+			},
 		})
 	})
 	if err != nil {

@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { IconSettings, IconSwitchHorizontal } from "@tabler/icons-react"
 import { enterTenant, Fill, RailLayout, requireAuth, TimeZoneProvider, UserMenu, useMenuBadge, useTenant, useT } from "@go-tenon/ui"
 import { kit, tenantApi } from "../../api"
 import { logout, me } from "../../auth"
 import { CommandPalette, CommandSearchButton } from "../../command-palette"
+import { dispatchPushAlert } from "../../inbox/alerts"
 import { NARROW_QUERY } from "../../layout"
 import { RealtimeContext, useRealtime } from "../../realtime"
 import { StatusControl } from "../../status"
@@ -25,10 +26,26 @@ function TenantLayout() {
   const user = useQuery({ queryKey: ["me"], queryFn: me })
   const myStatus = useQuery({ queryKey: ["me", "status", tenant.slug], queryFn: () => tenantApi.member.myStatus() })
   const { tenants } = useTenant()
+  const navigate = useNavigate()
   const t = useT()
-  // 实时推送：会话有变化时刷新收件箱的数量和会话；图标栏中收件箱的角标是“我的”会话中等待回复的数量。
+  // 实时推送：会话有变化时刷新收件箱的数量和会话，命中提醒时按通知偏好播放提示音或弹桌面通知；
+  // 图标栏中收件箱的角标是“我的”会话中等待回复的数量。
   // 同一条连接交给页面（RealtimeContext），收件箱用它加入打开着的会话的频道
-  const centrifuge = useRealtime(tenant.slug, tenant.id, user.data?.id)
+  const centrifuge = useRealtime(tenant.slug, tenant.id, user.data?.id, ({ id, alert }) => {
+    dispatchPushAlert({
+      slug: tenant.slug,
+      conversationId: id,
+      alert,
+      settings: user.data?.notifications,
+      t,
+      onOpen: (convId) =>
+        void navigate({
+          to: "/t/$slug/inbox/$id",
+          params: { slug: tenant.slug, id: convId },
+          search: { box: "all", status: "open", sort: "waiting" },
+        }),
+    })
+  })
   const inbox = useQuery(kit.queries.conversation.inbox())
   useMenuBadge("/t/$slug/inbox", inbox.data?.mine.waiting)
   // 工作区设置不进图标栏，从个人菜单进入；属于多个工作区时，个人菜单中还可以回到选择工作区的页面。

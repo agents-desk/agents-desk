@@ -51,6 +51,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         queryKey: key("auth", "me", ...args),
         queryFn: () => client.auth.me(...args),
       }),
+      /** PUT /me/notifications */
+      notificationsUpdate: () => ({
+        mutationFn: (variables: Parameters<Client["auth"]["notificationsUpdate"]>[0]) => client.auth.notificationsUpdate(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "auth"),
+      }),
       /** PUT /me/password */
       passwordChange: () => ({
         mutationFn: (variables: Parameters<Client["auth"]["passwordChange"]>[0]) => client.auth.passwordChange(variables),

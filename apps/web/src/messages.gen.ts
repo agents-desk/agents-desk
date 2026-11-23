@@ -3,6 +3,12 @@
 /** 前端 web 的界面文字，来自 locales/web.<语言>.yaml。交给 @go-tenon/client 的 createI18n。 */
 export const messages = {
   "en": {
+    "alerts.assigned_body": "A conversation was assigned to you. Click to open",
+    "alerts.assigned_title": "Assigned to you: {{.contact}}",
+    "alerts.mention_body": "Someone mentioned you in an internal note. Click to open",
+    "alerts.mention_title": "Mentioned you: {{.contact}}",
+    "alerts.new_message_body": "Customer sent a new message. Click to open",
+    "alerts.new_message_title": "New message: {{.contact}}",
     "app.web": "agents-desk",
     "attributes.add": "New attribute",
     "attributes.delete": "Delete",
@@ -257,6 +263,8 @@ export const messages = {
     "inbox.contact_view": "View contact profile",
     "inbox.copied": "Copied",
     "inbox.copy_message": "Copy message",
+    "inbox.ctrl_enter_again": "Translation updated. Check it, then press {{.key}} again to send",
+    "inbox.ctrl_enter_hint": "{{.key}} to send, Enter for a new line",
     "inbox.delivery_delivered": "Delivered",
     "inbox.delivery_failed": "Not sent",
     "inbox.delivery_read": "Read",
@@ -450,6 +458,7 @@ export const messages = {
     "nav.inbox": "Inbox",
     "nav.macros": "Quick replies",
     "nav.members": "Members",
+    "nav.notifications": "Notifications",
     "nav.preferences": "Preferences",
     "nav.profile": "Profile",
     "nav.reports": "Reports",
@@ -465,10 +474,30 @@ export const messages = {
     "nav.tags": "Tags",
     "nav.team_inboxes": "Team inboxes",
     "nav.widgets": "Website chat widgets",
+    "notifications_page.assigned_desc": "Notify when a teammate assigns a conversation to you or auto-assignment routes one to you",
+    "notifications_page.assigned_title": "Conversation assigned to me",
+    "notifications_page.col_browser": "Browser notification",
+    "notifications_page.col_event": "Event",
+    "notifications_page.col_sound": "Sound",
+    "notifications_page.description": "Choose when to show browser desktop notifications and play alert sounds. Saved on your account across all workspaces.",
+    "notifications_page.mention_desc": "Notify when a teammate mentions you in an internal note",
+    "notifications_page.mention_title": "Mentioned in a note",
+    "notifications_page.new_message_desc": "Notify when a customer sends a new message in a conversation assigned to you",
+    "notifications_page.new_message_title": "New message on my conversation",
+    "notifications_page.permission_default": "Browser notification permission hasn't been granted yet. Enable it to receive desktop alerts while this tab is in the background.",
+    "notifications_page.permission_denied": "Browser notifications are blocked for this site. Allow notifications in your browser's site settings to re-enable them.",
+    "notifications_page.permission_granted": "Browser desktop notifications are enabled.",
+    "notifications_page.permission_unsupported": "This browser does not support desktop notifications. Sound alerts still work.",
+    "notifications_page.request_permission": "Enable browser notifications",
+    "notifications_page.test_sound": "Test sound",
     "preferences.follow_browser": "Follow the browser (currently {{.zone}})",
     "preferences.language": "Language",
     "preferences.language_hint": "The interface language. Customer messages are also translated into this language",
     "preferences.no_time_zone": "No such time zone",
+    "preferences.open_next_after_reply": "Open next waiting conversation after replying",
+    "preferences.open_next_after_reply_hint": "Automatically jump to the next waiting conversation in the current list after sending a reply; internal notes stay on the current conversation",
+    "preferences.send_shortcut": "Send shortcut",
+    "preferences.send_shortcut_hint": "Keyboard shortcut used to send messages from the inbox composer",
     "preferences.time_zone": "Time zone",
     "preferences.time_zone_hint": "Times on pages are shown in this time zone. It is now {{.now}}",
     "profile.avatar": "Avatar",
@@ -791,6 +820,12 @@ export const messages = {
     "widgets.team_unassigned": "Unassigned",
   },
   "zh-CN": {
+    "alerts.assigned_body": "会话已指派给你，点击查看",
+    "alerts.assigned_title": "新会话指派：{{.contact}}",
+    "alerts.mention_body": "有人在内部备注中 @ 了你，点击查看",
+    "alerts.mention_title": "内部备注 @ 你：{{.contact}}",
+    "alerts.new_message_body": "客户发来新消息，点击查看",
+    "alerts.new_message_title": "新消息：{{.contact}}",
     "app.web": "agents-desk",
     "attributes.add": "新建属性",
     "attributes.delete": "删除",
@@ -1045,6 +1080,8 @@ export const messages = {
     "inbox.contact_view": "查看联系人资料",
     "inbox.copied": "已复制",
     "inbox.copy_message": "复制消息",
+    "inbox.ctrl_enter_again": "译文已更新，确认后再按一次 {{.key}} 发送",
+    "inbox.ctrl_enter_hint": "{{.key}} 发送，回车换行",
     "inbox.delivery_delivered": "已送达",
     "inbox.delivery_failed": "发送失败",
     "inbox.delivery_read": "已读",
@@ -1238,6 +1275,7 @@ export const messages = {
     "nav.inbox": "收件箱",
     "nav.macros": "快捷回复",
     "nav.members": "成员",
+    "nav.notifications": "通知",
     "nav.preferences": "偏好设置",
     "nav.profile": "个人资料",
     "nav.reports": "报表",
@@ -1253,10 +1291,30 @@ export const messages = {
     "nav.tags": "标签",
     "nav.team_inboxes": "团队收件箱",
     "nav.widgets": "网页聊天插件",
+    "notifications_page.assigned_desc": "同事把会话改派给你，或系统自动轮流分配给你时提醒",
+    "notifications_page.assigned_title": "新会话指派给我",
+    "notifications_page.col_browser": "浏览器通知",
+    "notifications_page.col_event": "提醒事件",
+    "notifications_page.col_sound": "提示音",
+    "notifications_page.description": "设置新会话指派、客户新消息和 @ 提及的浏览器桌面通知与提示音。账号级设置，在所有工作区生效。",
+    "notifications_page.mention_desc": "同事在内部备注中 @ 你时提醒",
+    "notifications_page.mention_title": "有人 @ 我",
+    "notifications_page.new_message_desc": "你负责的会话收到客户发来的新消息时提醒",
+    "notifications_page.new_message_title": "我负责的会话有新消息",
+    "notifications_page.permission_default": "尚未授予浏览器通知权限，授权后可在后台标签页收到系统桌面弹窗。",
+    "notifications_page.permission_denied": "浏览器已拦截通知权限，请在浏览器地址栏的站点设置中手动允许通知。",
+    "notifications_page.permission_granted": "已开启浏览器桌面通知权限。",
+    "notifications_page.permission_unsupported": "当前浏览器不支持桌面通知，仍可使用提示音提醒。",
+    "notifications_page.request_permission": "开启浏览器通知",
+    "notifications_page.test_sound": "试听提示音",
     "preferences.follow_browser": "跟随浏览器（当前是 {{.zone}}）",
     "preferences.language": "语言",
     "preferences.language_hint": "界面的语言，客户的消息也翻译成这种语言",
     "preferences.no_time_zone": "没有这个时区",
+    "preferences.open_next_after_reply": "发送回复后自动打开下一个待回复会话",
+    "preferences.open_next_after_reply_hint": "在收件箱发送回复后自动跳转到当前列表中下一个等待回复的会话；添加内部备注时不跳转",
+    "preferences.send_shortcut": "发送方式",
+    "preferences.send_shortcut_hint": "在收件箱回复框中按下快捷键发送消息",
     "preferences.time_zone": "时区",
     "preferences.time_zone_hint": "页面中的时间按这个时区显示，现在是 {{.now}}",
     "profile.avatar": "头像",
@@ -1582,6 +1640,12 @@ export const messages = {
 
 /** 界面文字的消息 ID。 */
 export type MessageId =
+  | "alerts.assigned_body"
+  | "alerts.assigned_title"
+  | "alerts.mention_body"
+  | "alerts.mention_title"
+  | "alerts.new_message_body"
+  | "alerts.new_message_title"
   | "app.web"
   | "attributes.add"
   | "attributes.delete"
@@ -1836,6 +1900,8 @@ export type MessageId =
   | "inbox.contact_view"
   | "inbox.copied"
   | "inbox.copy_message"
+  | "inbox.ctrl_enter_again"
+  | "inbox.ctrl_enter_hint"
   | "inbox.delivery_delivered"
   | "inbox.delivery_failed"
   | "inbox.delivery_read"
@@ -2029,6 +2095,7 @@ export type MessageId =
   | "nav.inbox"
   | "nav.macros"
   | "nav.members"
+  | "nav.notifications"
   | "nav.preferences"
   | "nav.profile"
   | "nav.reports"
@@ -2044,10 +2111,30 @@ export type MessageId =
   | "nav.tags"
   | "nav.team_inboxes"
   | "nav.widgets"
+  | "notifications_page.assigned_desc"
+  | "notifications_page.assigned_title"
+  | "notifications_page.col_browser"
+  | "notifications_page.col_event"
+  | "notifications_page.col_sound"
+  | "notifications_page.description"
+  | "notifications_page.mention_desc"
+  | "notifications_page.mention_title"
+  | "notifications_page.new_message_desc"
+  | "notifications_page.new_message_title"
+  | "notifications_page.permission_default"
+  | "notifications_page.permission_denied"
+  | "notifications_page.permission_granted"
+  | "notifications_page.permission_unsupported"
+  | "notifications_page.request_permission"
+  | "notifications_page.test_sound"
   | "preferences.follow_browser"
   | "preferences.language"
   | "preferences.language_hint"
   | "preferences.no_time_zone"
+  | "preferences.open_next_after_reply"
+  | "preferences.open_next_after_reply_hint"
+  | "preferences.send_shortcut"
+  | "preferences.send_shortcut_hint"
   | "preferences.time_zone"
   | "preferences.time_zone_hint"
   | "profile.avatar"

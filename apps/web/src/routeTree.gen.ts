@@ -41,6 +41,7 @@ import { Route as TSlugSettingsDataAttributesRouteImport } from './routes/t/$slu
 import { Route as TSlugSettingsDataTagsRouteImport } from './routes/t/$slug/settings/_data/tags'
 import { Route as TSlugSettingsInboxMacrosRouteImport } from './routes/t/$slug/settings/_inbox/macros'
 import { Route as TSlugSettingsInboxTeamsRouteImport } from './routes/t/$slug/settings/_inbox/teams'
+import { Route as TSlugSettingsPersonalNotificationsRouteImport } from './routes/t/$slug/settings/_personal/notifications'
 import { Route as TSlugSettingsPersonalPreferencesRouteImport } from './routes/t/$slug/settings/_personal/preferences'
 import { Route as TSlugSettingsPersonalProfileRouteImport } from './routes/t/$slug/settings/_personal/profile'
 import { Route as TSlugSettingsPersonalStatusRouteImport } from './routes/t/$slug/settings/_personal/status'
@@ -216,6 +217,12 @@ const TSlugSettingsInboxTeamsRoute = TSlugSettingsInboxTeamsRouteImport.update({
   path: '/teams',
   getParentRoute: () => TSlugSettingsInboxRoute,
 } as any)
+const TSlugSettingsPersonalNotificationsRoute =
+  TSlugSettingsPersonalNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => TSlugSettingsPersonalRoute,
+  } as any)
 const TSlugSettingsPersonalPreferencesRoute =
   TSlugSettingsPersonalPreferencesRouteImport.update({
     id: '/preferences',
@@ -321,6 +328,7 @@ export interface FileRoutesByFullPath {
   '/t/$slug/settings/tags': typeof TSlugSettingsDataTagsRoute
   '/t/$slug/settings/macros': typeof TSlugSettingsInboxMacrosRoute
   '/t/$slug/settings/teams': typeof TSlugSettingsInboxTeamsRouteWithChildren
+  '/t/$slug/settings/notifications': typeof TSlugSettingsPersonalNotificationsRoute
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/status': typeof TSlugSettingsPersonalStatusRoute
@@ -354,6 +362,7 @@ export interface FileRoutesByTo {
   '/t/$slug/settings/attributes': typeof TSlugSettingsDataAttributesRoute
   '/t/$slug/settings/tags': typeof TSlugSettingsDataTagsRoute
   '/t/$slug/settings/macros': typeof TSlugSettingsInboxMacrosRoute
+  '/t/$slug/settings/notifications': typeof TSlugSettingsPersonalNotificationsRoute
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/status': typeof TSlugSettingsPersonalStatusRoute
@@ -402,6 +411,7 @@ export interface FileRoutesById {
   '/t/$slug/settings/_data/tags': typeof TSlugSettingsDataTagsRoute
   '/t/$slug/settings/_inbox/macros': typeof TSlugSettingsInboxMacrosRoute
   '/t/$slug/settings/_inbox/teams': typeof TSlugSettingsInboxTeamsRouteWithChildren
+  '/t/$slug/settings/_personal/notifications': typeof TSlugSettingsPersonalNotificationsRoute
   '/t/$slug/settings/_personal/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/_personal/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/_personal/status': typeof TSlugSettingsPersonalStatusRoute
@@ -444,6 +454,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/tags'
     | '/t/$slug/settings/macros'
     | '/t/$slug/settings/teams'
+    | '/t/$slug/settings/notifications'
     | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
     | '/t/$slug/settings/status'
@@ -477,6 +488,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/attributes'
     | '/t/$slug/settings/tags'
     | '/t/$slug/settings/macros'
+    | '/t/$slug/settings/notifications'
     | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
     | '/t/$slug/settings/status'
@@ -524,6 +536,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/_data/tags'
     | '/t/$slug/settings/_inbox/macros'
     | '/t/$slug/settings/_inbox/teams'
+    | '/t/$slug/settings/_personal/notifications'
     | '/t/$slug/settings/_personal/preferences'
     | '/t/$slug/settings/_personal/profile'
     | '/t/$slug/settings/_personal/status'
@@ -771,6 +784,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugSettingsInboxTeamsRouteImport
       parentRoute: typeof TSlugSettingsInboxRoute
     }
+    '/t/$slug/settings/_personal/notifications': {
+      id: '/t/$slug/settings/_personal/notifications'
+      path: '/notifications'
+      fullPath: '/t/$slug/settings/notifications'
+      preLoaderRoute: typeof TSlugSettingsPersonalNotificationsRouteImport
+      parentRoute: typeof TSlugSettingsPersonalRoute
+    }
     '/t/$slug/settings/_personal/preferences': {
       id: '/t/$slug/settings/_personal/preferences'
       path: '/preferences'
@@ -1003,12 +1023,15 @@ const TSlugSettingsInboxRouteWithChildren =
   TSlugSettingsInboxRoute._addFileChildren(TSlugSettingsInboxRouteChildren)
 
 interface TSlugSettingsPersonalRouteChildren {
+  TSlugSettingsPersonalNotificationsRoute: typeof TSlugSettingsPersonalNotificationsRoute
   TSlugSettingsPersonalPreferencesRoute: typeof TSlugSettingsPersonalPreferencesRoute
   TSlugSettingsPersonalProfileRoute: typeof TSlugSettingsPersonalProfileRoute
   TSlugSettingsPersonalStatusRoute: typeof TSlugSettingsPersonalStatusRoute
 }
 
 const TSlugSettingsPersonalRouteChildren: TSlugSettingsPersonalRouteChildren = {
+  TSlugSettingsPersonalNotificationsRoute:
+    TSlugSettingsPersonalNotificationsRoute,
   TSlugSettingsPersonalPreferencesRoute: TSlugSettingsPersonalPreferencesRoute,
   TSlugSettingsPersonalProfileRoute: TSlugSettingsPersonalProfileRoute,
   TSlugSettingsPersonalStatusRoute: TSlugSettingsPersonalStatusRoute,

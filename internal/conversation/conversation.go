@@ -376,9 +376,10 @@ func find(ctx context.Context, db bun.IDB, tenant, id string, lock bool) (*Conve
 // 提交后把变化推送给修改前后能看到 c 的成员。调用前 c 已经被锁住（find 的 lock）；items 的序号、时间和工作区在这里填写。
 func commit(ctx context.Context, tx database.Tx, down Downstream, c *Conversation, items ...*Item) error {
 	var audience []string // 提交后推送给这些成员
+	var alerts map[string]string
 	if down.Hub != nil {
 		var err error
-		if audience, err = audienceOf(ctx, tx, down.Roles, c, items); err != nil {
+		if audience, alerts, err = audienceAndAlertsOf(ctx, tx, down.Roles, c, items); err != nil {
 			return err
 		}
 	}
@@ -420,7 +421,7 @@ func commit(ctx context.Context, tx database.Tx, down Downstream, c *Conversatio
 	if down.Hub != nil {
 		hub, tenant := down.Hub, c.TenantID
 		tx.AfterCommit(func(ctx context.Context) error {
-			return errors.Wrap(push.Send(ctx, hub, tenant, audience, ev), "push conversation changed")
+			return errors.Wrap(push.SendWithAlerts(ctx, hub, tenant, audience, ev, alerts), "push conversation changed")
 		})
 	}
 	if toContact {
