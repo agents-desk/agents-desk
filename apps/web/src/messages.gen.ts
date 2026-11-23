@@ -789,13 +789,42 @@ export const messages = {
     "telegram_install.webhook": "Webhook setup",
     "telegram_install.webhook_secret": "Webhook secret",
     "telegram_install.webhook_url": "Webhook URL",
+    "telegram_studio.discard": "Discard",
+    "telegram_studio.enabled": "Enable channel",
+    "telegram_studio.enabled_hint": "When disabled, messages are no longer received or sent",
+    "telegram_studio.save": "Save \u0026 publish",
+    "telegram_studio.saved": "Telegram bot settings saved",
+    "telegram_studio.section_basic": "Basics",
+    "telegram_studio.section_basic_desc": "Set the channel name and availability",
+    "telegram_studio.section_bot": "Bot \u0026 connection mode",
+    "telegram_studio.section_bot_desc": "Manage the bot token and webhook delivery mode",
+    "telegram_studio.section_routing": "Routing",
+    "telegram_studio.section_routing_desc": "Choose the destination team inbox for new conversations",
+    "telegram_studio.tab_config": "Configure",
+    "telegram_studio.tab_install": "Install \u0026 webhook",
+    "telegram_studio.unsaved": "Unsaved changes",
+    "telegrams.bot_token": "Bot Token",
+    "telegrams.bot_token_hint": "Bot token obtained from @BotFather",
+    "telegrams.bot_token_update_hint": "Leave empty to keep the current token; entering a new token re-verifies the bot",
+    "telegrams.bot_username": "Bot",
+    "telegrams.cancel": "Cancel",
+    "telegrams.configure": "Configure",
+    "telegrams.create_submit": "Create \u0026 configure",
+    "telegrams.create_title": "New Telegram bot",
     "telegrams.disabled": "Disabled",
+    "telegrams.empty": "No Telegram bot channels yet. Create one to receive private messages.",
     "telegrams.enabled": "Enabled",
+    "telegrams.mode": "Connection mode",
     "telegrams.mode_direct": "Direct",
+    "telegrams.mode_direct_desc": "This app calls Telegram setWebhook directly to receive and reply to private messages",
     "telegrams.mode_gateway": "External gateway",
+    "telegrams.mode_gateway_desc": "Your external gateway forwards Telegram updates here; setWebhook is managed externally",
+    "telegrams.name": "Channel name",
+    "telegrams.new": "New bot",
     "telegrams.team_disabled_suffix": "{{.name}} (disabled)",
     "telegrams.team_hint": "The team inbox new conversations go to",
     "telegrams.team_unassigned": "Unassigned",
+    "telegrams.title": "Telegram bots",
     "test_account.failed": "Test account sign-in failed. Run go run ./cmd/agents-desk seed first",
     "test_account.sign_in": "Sign in with a test account",
     "time.days": "{{.n}} d",
@@ -1749,13 +1778,42 @@ export const messages = {
     "telegram_install.webhook": "Webhook 接入",
     "telegram_install.webhook_secret": "Webhook 密钥",
     "telegram_install.webhook_url": "Webhook 地址",
+    "telegram_studio.discard": "还原",
+    "telegram_studio.enabled": "启用渠道",
+    "telegram_studio.enabled_hint": "停用后不再接收或发送 Telegram 消息",
+    "telegram_studio.save": "保存并发布",
+    "telegram_studio.saved": "已保存 Telegram 机器人配置",
+    "telegram_studio.section_basic": "基础信息",
+    "telegram_studio.section_basic_desc": "设置渠道名称与启用状态",
+    "telegram_studio.section_bot": "机器人与接入模式",
+    "telegram_studio.section_bot_desc": "管理 Bot Token 与 Webhook 接收方式",
+    "telegram_studio.section_routing": "路由设置",
+    "telegram_studio.section_routing_desc": "配置新会话进入的团队收件箱",
+    "telegram_studio.tab_config": "基本配置",
+    "telegram_studio.tab_install": "安装与接入",
+    "telegram_studio.unsaved": "有未保存的修改",
+    "telegrams.bot_token": "Bot Token",
+    "telegrams.bot_token_hint": "从 @BotFather 获取的机器人 Token",
+    "telegrams.bot_token_update_hint": "留空保持原 Token 不变；更换 Token 后系统会重新校验机器人身份",
+    "telegrams.bot_username": "机器人",
+    "telegrams.cancel": "取消",
+    "telegrams.configure": "配置",
+    "telegrams.create_submit": "创建并配置",
+    "telegrams.create_title": "新建 Telegram 机器人",
     "telegrams.disabled": "已停用",
+    "telegrams.empty": "还没有 Telegram 机器人渠道，新建一个接入客户私聊消息。",
     "telegrams.enabled": "启用",
+    "telegrams.mode": "接入模式",
     "telegrams.mode_direct": "直连模式",
+    "telegrams.mode_direct_desc": "系统自动调用 Telegram setWebhook 接管该机器人，接收并回复私聊消息",
     "telegrams.mode_gateway": "外部网关转发",
+    "telegrams.mode_gateway_desc": "由外部业务网关转发 Telegram Webhook 到本系统，系统不调用 setWebhook",
+    "telegrams.name": "渠道名称",
+    "telegrams.new": "新建机器人",
     "telegrams.team_disabled_suffix": "{{.name}}（已停用）",
     "telegrams.team_hint": "新会话进入的团队收件箱",
     "telegrams.team_unassigned": "未指派",
+    "telegrams.title": "Telegram 机器人",
     "test_account.failed": "测试账号登录失败，先运行 go run ./cmd/agents-desk seed",
     "test_account.sign_in": "用测试账号登录",
     "time.days": "{{.n}} 天",
@@ -2712,13 +2770,42 @@ export type MessageId =
   | "telegram_install.webhook"
   | "telegram_install.webhook_secret"
   | "telegram_install.webhook_url"
+  | "telegram_studio.discard"
+  | "telegram_studio.enabled"
+  | "telegram_studio.enabled_hint"
+  | "telegram_studio.save"
+  | "telegram_studio.saved"
+  | "telegram_studio.section_basic"
+  | "telegram_studio.section_basic_desc"
+  | "telegram_studio.section_bot"
+  | "telegram_studio.section_bot_desc"
+  | "telegram_studio.section_routing"
+  | "telegram_studio.section_routing_desc"
+  | "telegram_studio.tab_config"
+  | "telegram_studio.tab_install"
+  | "telegram_studio.unsaved"
+  | "telegrams.bot_token"
+  | "telegrams.bot_token_hint"
+  | "telegrams.bot_token_update_hint"
+  | "telegrams.bot_username"
+  | "telegrams.cancel"
+  | "telegrams.configure"
+  | "telegrams.create_submit"
+  | "telegrams.create_title"
   | "telegrams.disabled"
+  | "telegrams.empty"
   | "telegrams.enabled"
+  | "telegrams.mode"
   | "telegrams.mode_direct"
+  | "telegrams.mode_direct_desc"
   | "telegrams.mode_gateway"
+  | "telegrams.mode_gateway_desc"
+  | "telegrams.name"
+  | "telegrams.new"
   | "telegrams.team_disabled_suffix"
   | "telegrams.team_hint"
   | "telegrams.team_unassigned"
+  | "telegrams.title"
   | "test_account.failed"
   | "test_account.sign_in"
   | "time.days"
