@@ -4,7 +4,7 @@
 
 包：`command`、`command/httpcmd`、`command/migratecmd`。
 
-- 每次发布按顺序执行：构建 → `config check` → `doctor` → `migrate up` → 启动或热重载服务。迁移在新版本启动之前执行：新代码用到的表和列要先存在。
+- 每次发布按顺序执行：构建 → `config check` → `migrate up` → `doctor` → 启动或热重载服务。迁移在新版本启动与全量自检之前执行：新代码用到的表、列和队列复制槽要先就绪。
 - 发布期间新旧版本同时运行，每次的表结构变化都要让两个版本都能运行，见[零停机变更](../database/migrations.md#zero-downtime-changes)。
 
 <a id="building"></a>
@@ -33,7 +33,7 @@ go tool tenon deploy
 ```
 
 - `tenon deploy setup` 检查目标机为带 systemd 的 Linux（含 SSR 时检查 glibc），建系统用户和目录，写入 `<应用>@.service` 与角色级 drop-in 覆盖文件并 `daemon-reload`。
-- `tenon deploy` 自动探测目标架构并本地交叉编译（在 CI 中可传 `--binary` 跳过构建），在主节点加发布锁，全集群并行上传二进制与剔除了 `local.yaml` 的 `config/` 并校验 SHA-256，在主迁移节点执行 `config check`、`doctor` 和一次 `migrate up`，随后按波次切换并清理旧版本。
+- `tenon deploy` 自动探测目标架构并本地交叉编译（在 CI 中可传 `--binary` 跳过构建），在主节点加发布锁，全集群并行上传二进制与配置文件并校验 SHA-256，在主迁移节点依次执行 `config check`、`migrate up` 与 `doctor`，随后按波次切换并清理旧版本。
 - 常用运维命令：`rollback [version]`（回退二进制与配置）、`status [--role http]`（集群表格状态）、`logs [--role http] [-F] [--since 15m] [--contains ERR]`（多机实时日志汇流）、`run -- doctor`（以服务用户和环境变量执行一次性命令）、`maintenance on|off`（默认仅开关入口主机维护页）。
 - **AI 助手与人类同等优先**：所有 `tenon deploy` 子命令均支持 `--format json` 结构化输出且全程非交互；只读观测与发布预演同步作为 MCP 工具暴露（`tenon_deploy_info`、`tenon_deploy_status`、`tenon_deploy_logs`、`tenon_deploy_plan`），见 [MCP 服务](ai-assistants.md#mcp-servers)。
 
@@ -66,6 +66,25 @@ environments:
 
 - **分波次金丝雀滚动**：先升级后端节点（`rpc`、`worker`、`scheduler`），再升级入口节点（`http`、`all`）；每组超过 1 台时先单独切换首台金丝雀并校验 `StatusText` 与本机 `health`，通过后再按 `max_parallel` 滚动其余节点，任一台失败立即熔断并输出最近日志。
 - **声明式 unit 对账**：切换每台主机时自动停用并禁用已不在期望列表中的旧 `<应用>@*.service`（例如从 `all` 拆分为 `http` 与 `worker` 时先停 `blog@all.service`），避免端口冲突和孤儿进程。
+
+<a id="deploy-config-files"></a>
+### 按环境叠加配置文件：`config_files`
+
+在 `deploy.yaml` 的环境中用 `config_files` 声明该环境按顺序叠加加载的本地配置文件列表（与 `config_dir` 互斥），将生产覆盖文件（例如加入 `.gitignore` 的 `config/prod.yaml`）随发布一起同步：
+
+```yaml
+environments:
+  production:
+    user: deploy
+    config_files:
+      - config/app.yaml
+      - config/prod.yaml
+    hosts: [203.0.113.10]
+```
+
+- **精确同步与权限隔离**：`tenon deploy` 在构建前校验清单中的每个文件存在，仅打包清单内文件上传到远端 `releases/<version>/config/`，目录与文件权限分别设为 `0750` / `0640`（属主 `root:<service_user>`），避免把其他环境的配置传到目标机。
+- **自动注入 `--config`**：systemd 模板 unit 的 `ExecStart` 以及 `config check`、`doctor`、`migrate up`、`health`、`tenon deploy run` 自动携带 `--config config/app.yaml,config/prod.yaml`，无需在 `/etc/<应用>/env` 中设置 `APP_CONFIG`。
+- **零停机生效与随版本回滚**：修改配置文件内容后执行 `tenon deploy` 即可经热重载零停机生效，执行 `tenon deploy rollback` 时配置与二进制一起回退；变更 `config_files` 文件列表本身后需重启对应 unit 使新的 `ExecStart` 生效。
 
 <a id="release-process"></a>
 ## 第一次发布与手动步骤

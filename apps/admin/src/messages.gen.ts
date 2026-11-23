@@ -54,11 +54,15 @@ export const messages = {
     "features.select_tenant": "Select workspace",
     "login.description": "For platform admins",
     "login.title": "Admin sign-in",
-    "model.api_key": "API key",
-    "model.base_url": "Base URL",
-    "model.description": "Configure the model API and model name for each call type. Call types can use different APIs and providers. Leave the base URL empty to turn a call type off.",
-    "model.model": "Model",
+    "model.api_key": "Gateway API key",
+    "model.base_url": "Gateway URL",
+    "model.description": "Configure the unified model gateway connection and logical model name for each call type. Leave the gateway URL or model name empty to disable a call type.",
+    "model.gateway_description": "All model capabilities are routed through this OpenAI-compatible gateway (such as OmiRouter). The base URL usually ends with /v1.",
+    "model.gateway_title": "Unified Model Gateway",
+    "model.model": "Logical model name",
+    "model.models_title": "Models by Call Type",
     "model.translation_description": "Translates text between languages and detects the source language and script",
+    "model.translation_label": "Translation",
     "nav.admins": "Platform admins",
     "nav.audit": "Audit log",
     "nav.doctor": "Diagnostics",
@@ -145,11 +149,15 @@ export const messages = {
     "features.select_tenant": "选择工作区",
     "login.description": "平台管理员使用",
     "login.title": "管理员登录",
-    "model.api_key": "密钥",
-    "model.base_url": "接口地址",
-    "model.description": "为每种调用类型配置模型接口和模型名，不同调用类型可以使用不同的接口和供应商。接口地址留空表示不启用这种调用类型。",
-    "model.model": "模型名",
+    "model.api_key": "网关密钥",
+    "model.base_url": "网关地址",
+    "model.description": "配置统一的模型网关连接和各业务调用类型使用的逻辑模型名。网关地址或对应模型名留空表示不启用该调用类型。",
+    "model.gateway_description": "所有模型能力统一经此 OpenAI 兼容网关（如 OmiRouter）调用，地址通常以 /v1 结尾。",
+    "model.gateway_title": "统一模型网关",
+    "model.model": "逻辑模型名",
+    "model.models_title": "各调用类型模型",
     "model.translation_description": "在不同语言之间互译文本，同时识别原文的语言和书写方式",
+    "model.translation_label": "翻译",
     "nav.admins": "平台管理员",
     "nav.audit": "操作日志",
     "nav.doctor": "系统自检",
@@ -242,8 +250,12 @@ export type MessageId =
   | "model.api_key"
   | "model.base_url"
   | "model.description"
+  | "model.gateway_description"
+  | "model.gateway_title"
   | "model.model"
+  | "model.models_title"
   | "model.translation_description"
+  | "model.translation_label"
   | "nav.admins"
   | "nav.audit"
   | "nav.doctor"
