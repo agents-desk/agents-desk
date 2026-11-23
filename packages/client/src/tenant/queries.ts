@@ -111,6 +111,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
     contact: {
       /** contact 分组全部查询的 key 前缀。 */
       key: () => key("contact"),
+      /** POST /contacts/exports */
+      exportStart: () => ({
+        mutationFn: (variables: Parameters<Client["contact"]["exportStart"]>[0]) => client.contact.exportStart(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "contact"),
+      }),
       /** GET /contacts/{id} */
       get: (...args: Parameters<Client["contact"]["get"]>) => ({
         queryKey: key("contact", "get", ...args),
@@ -129,6 +135,35 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       /** PUT /contacts/{id} */
       update: () => ({
         mutationFn: (variables: Parameters<Client["contact"]["update"]>) => client.contact.update(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "contact"),
+      }),
+      /** POST /contacts/views */
+      viewCreate: () => ({
+        mutationFn: (variables: Parameters<Client["contact"]["viewCreate"]>[0]) => client.contact.viewCreate(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "contact"),
+      }),
+      /** DELETE /contacts/views/{id} */
+      viewDelete: () => ({
+        mutationFn: (variables: Parameters<Client["contact"]["viewDelete"]>[0]) => client.contact.viewDelete(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "contact"),
+      }),
+      /** GET /contacts/views */
+      viewList: (...args: Parameters<Client["contact"]["viewList"]>) => ({
+        queryKey: key("contact", "viewList", ...args),
+        queryFn: () => client.contact.viewList(...args),
+      }),
+      /** PUT /contacts/views/reorder */
+      viewReorder: () => ({
+        mutationFn: (variables: Parameters<Client["contact"]["viewReorder"]>[0]) => client.contact.viewReorder(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "contact"),
+      }),
+      /** PUT /contacts/views/{id} */
+      viewUpdate: () => ({
+        mutationFn: (variables: Parameters<Client["contact"]["viewUpdate"]>) => client.contact.viewUpdate(...variables),
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "contact"),
       }),

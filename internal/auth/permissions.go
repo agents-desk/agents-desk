@@ -43,6 +43,7 @@ const (
 	ConversationsReadTeam Permission = "conversations:read-team" // 工作区：会话的可见范围是所在团队收件箱的和指派给自己的
 	ContactsRead          Permission = "contacts:read"           // 工作区：查看联系人列表和资料
 	ContactsUpdate        Permission = "contacts:update"         // 工作区：修改联系人资料和备注
+	ContactsExport        Permission = "contacts:export"         // 工作区：导出联系人列表
 )
 
 // Permissions 是全部权限，显示文字是翻译文件中 permission.<权限> 的消息。
@@ -50,7 +51,7 @@ var Permissions = enum.New("permission", enum.Item(TenantsRead), enum.Item(Tenan
 	enum.Item(FeaturesManage), enum.Item(QueueManage), enum.Item(SchedulesManage), enum.Item(SystemRead), enum.Item(AuditRead),
 	enum.Item(MembersRead), enum.Item(MembersManage), enum.Item(TenantSettingsManage), enum.Item(TeamsRead), enum.Item(TeamsManage), enum.Item(ChannelsRead), enum.Item(ChannelsManage), enum.Item(MacrosManage), enum.Item(ViewsManage), enum.Item(ReportsRead),
 	enum.Item(ConversationsRead), enum.Item(ConversationsReply), enum.Item(ConversationsAssign), enum.Item(ConversationsReadAll), enum.Item(ConversationsReadTeam),
-	enum.Item(ContactsRead), enum.Item(ContactsUpdate))
+	enum.Item(ContactsRead), enum.Item(ContactsUpdate), enum.Item(ContactsExport))
 
 // Schema 让 OpenAPI 中的 Permission 只接受目录中的取值。
 func (Permission) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Permissions) }
@@ -83,6 +84,7 @@ var Catalog = authz.Catalog{
 	{Name: string(ConversationsReadTeam), Description: "可以看到所在团队收件箱的会话"},
 	{Name: string(ContactsRead), Description: "查看联系人"},
 	{Name: string(ContactsUpdate), Description: "修改联系人"},
+	{Name: string(ContactsExport), Description: "导出联系人"},
 }
 
 // BasePermissions 是工作区每位成员都有的基本权限：查看成员、团队收件箱和渠道、查看和回复会话、查看和修改联系人，
@@ -105,7 +107,7 @@ type TenantPermission string
 // TenantPermissions 是可以勾选的操作权限，显示文字是翻译文件中 role_permission.<权限> 的消息。前缀与 Permissions 不同：
 // 枚举在接口文档中按前缀命名，同一个前缀的两个枚举会被当成同一个类型，平台的权限就成了可以勾选的权限。
 var TenantPermissions = enum.New("role_permission",
-	enum.Item(TenantPermission(ConversationsAssign)), enum.Item(TenantPermission(MacrosManage)), enum.Item(TenantPermission(ViewsManage)), enum.Item(TenantPermission(ReportsRead)), enum.Item(TenantPermission(MembersManage)), enum.Item(TenantPermission(TeamsManage)), enum.Item(TenantPermission(ChannelsManage)), enum.Item(TenantPermission(TenantSettingsManage)))
+	enum.Item(TenantPermission(ConversationsAssign)), enum.Item(TenantPermission(MacrosManage)), enum.Item(TenantPermission(ViewsManage)), enum.Item(TenantPermission(ReportsRead)), enum.Item(TenantPermission(ContactsExport)), enum.Item(TenantPermission(MembersManage)), enum.Item(TenantPermission(TeamsManage)), enum.Item(TenantPermission(ChannelsManage)), enum.Item(TenantPermission(TenantSettingsManage)))
 
 // Schema 让 OpenAPI 中的 TenantPermission 只接受上面的取值，并带有显示文字。
 func (TenantPermission) Schema(r huma.Registry) *huma.Schema {

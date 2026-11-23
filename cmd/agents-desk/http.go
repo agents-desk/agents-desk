@@ -205,6 +205,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 				queue.Topic[string]("search.sync.conversation_items").Meta("queue.topic.search.sync.conversation_items.label", "queue.topic.search.sync.conversation_items.description"),
 				queue.Topic[string]("search.reindex.conversation_items").Meta("queue.topic.search.reindex.conversation_items.label", "queue.topic.search.reindex.conversation_items.description"),
 				tenant.ExportJob.Meta("queue.topic.tenants.export.label", "queue.topic.tenants.export.description"),
+				contact.ExportJob.Meta("queue.topic.contacts.export.label", "queue.topic.contacts.export.description"),
 			},
 		}
 		if a.nc != nil { // docRouter 离线构造路由时没有 NATS 连接
@@ -263,7 +264,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		hours.RegisterRoutes(api, require, a.db)
 		team.RegisterRoutes(api, require, a.db, a.roles, a.memberLogins, a.files)
 		channel.RegisterRoutes(api, require, a.db)
-		contact.RegisterRoutes(api, require, a.db)
+		contact.RegisterRoutes(api, require, a.db, a.hub, a.roles, a.exporter)
 		tag.RegisterRoutes(api, require, a.db)
 		attribute.RegisterRoutes(api, require, a.db)
 		macro.RegisterRoutes(api, require, a.db)

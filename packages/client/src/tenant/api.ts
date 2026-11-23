@@ -157,6 +157,44 @@ export interface ContactDetailDTO {
   updated_at: string
 }
 
+export interface ContactExportProgress {
+  completed_at?: string
+  created_at: string
+  error?: string
+  error_message?: string
+  expires_at?: string
+  failed: number
+  file_id?: string
+  filename?: string
+  format: string
+  id: string
+  kind: string
+  processed: number
+  status: string
+  total: number
+  updated_at: string
+  url?: string
+}
+
+export interface ContactExportStartInputBody {
+  /** 渠道筛选 */
+  channel_id?: string
+  /** 导出格式，默认 xlsx */
+  format?: "xlsx" | "csv"
+  /** 按联系人类型筛选：user 或 lead */
+  kind?: ContactKind
+  /** 语言筛选 */
+  language?: string
+  /** 关键词筛选 */
+  q?: string
+  /** 排序方式 */
+  sort?: ContactSort
+  /** 标签筛选 */
+  tag_id?: string
+  /** 基于指定联系人视图的筛选条件导出 */
+  view_id?: string
+}
+
 export interface ContactIdentityDTO {
   /** 所属渠道 */
   channel: ChannelSummary
@@ -199,6 +237,8 @@ export interface ContactSummaryDTO {
   leads: number
   /** 用户数量 */
   users: number
+  /** 当前成员可见的联系人已保存筛选视图及实时数量 */
+  views: ContactViewSummary[]
 }
 
 export interface ContactUpdateBody {
@@ -214,6 +254,73 @@ export interface ContactUpdateBody {
   notes?: string
   /** IANA 时区名，例如 Asia/Shanghai；传空字符串清除 */
   time_zone?: string
+}
+
+export interface ContactViewConfig {
+  /** 按渠道筛选 */
+  channel_id?: string
+  /** 按联系人类型筛选：user 或 lead；为空表示全部 */
+  kind?: ContactKind
+  /** 按客户的语言（BCP 47）筛选，传主语言时同时匹配带子标签的写法 */
+  language?: string
+  /** 按名字、邮箱、外部用户编号或工作区内编号（如 #128）搜索 */
+  q?: string
+  /** 默认排序方式：recent 或 created */
+  sort?: ContactSort
+  /** 按标签筛选 */
+  tag_id?: string
+}
+
+export interface ContactViewCreateParams {
+  /** 视图的筛选条件与默认排序 */
+  config: ContactViewConfig
+  /** 视图名称 */
+  name: string
+  /** 作用域：shared 共享（需要 views:manage 权限），personal 个人 */
+  scope: SavedviewScope
+}
+
+export interface ContactViewDTO {
+  /** 保存的筛选条件与默认排序 */
+  config: ContactViewConfig
+  created_at: string
+  /** 当前成员是否有权修改或删除这个视图 */
+  editable: boolean
+  id: string
+  name: string
+  /** 同作用域内的展示顺序 */
+  position: number
+  /** 作用域：shared 共享，personal 个人 */
+  scope: SavedviewScope
+  updated_at: string
+}
+
+export interface ContactViewListOutputBody {
+  items: ContactViewDTO[]
+}
+
+export interface ContactViewReorderInputBody {
+  /** 按展示顺序排列的视图 ID 列表 */
+  ids: string[]
+  /** 要排序的作用域：shared 或 personal */
+  scope: SavedviewScope
+}
+
+export interface ContactViewSummary {
+  config: ContactViewConfig
+  count: number
+  editable: boolean
+  id: string
+  name: string
+  position: number
+  scope: SavedviewScope
+}
+
+export interface ContactViewUpdateParams {
+  /** 视图的筛选条件与默认排序 */
+  config: ContactViewConfig
+  /** 视图名称 */
+  name: string
 }
 
 export interface ConversationActions {
@@ -1371,7 +1478,7 @@ export interface RoleParams {
   permissions?: RolePermission[]
 }
 
-export type RolePermission = "conversations:assign" | "macros:manage" | "views:manage" | "reports:read" | "members:manage" | "teams:manage" | "channels:manage" | "tenant-settings:manage"
+export type RolePermission = "conversations:assign" | "macros:manage" | "views:manage" | "reports:read" | "contacts:export" | "members:manage" | "teams:manage" | "channels:manage" | "tenant-settings:manage"
 
 export type SavedviewScope = "shared" | "personal"
 
@@ -1578,12 +1685,18 @@ export interface AttributeListInput {
   target?: AttributeTarget
 }
 
+/** contact-export-progress 推送的事件，按 event 区分。 */
+export type ContactExportProgressEvent =
+  | { event: "progress"; data: ContactExportProgress; id?: string }
+
 /** contact-list 的参数。 */
 export interface ContactListInput {
   /** Opaque cursor from next_cursor of the previous page. Omit for the first page. */
   cursor?: string
   /** Items per page. */
   per_page?: number
+  /** 应用已保存联系人视图的筛选条件 */
+  view_id?: string
   /** 按联系人类型筛选：user 或 lead；不传为全部 */
   kind?: ContactKind
   /** 按名字、邮箱、外部用户编号或工作区内编号（如 #128）搜索 */
@@ -1592,6 +1705,8 @@ export interface ContactListInput {
   language?: string
   /** 只列出在该渠道有身份的联系人 */
   channel_id?: string
+  /** 只列出带有该标签的联系人 */
+  tag_id?: string
   /** 排序方式 */
   sort?: ContactSort
 }
@@ -1936,6 +2051,20 @@ export function createClient(options: ClientOptions) {
     /** operationId 以 contact- 开头的接口。 */
     contact: {
       /**
+       * 联系人导出进度
+       *
+       * GET /contacts/exports/{id}/progress
+       */
+      exportProgress: (id: string, options?: StreamOptions): AsyncGenerator<ContactExportProgressEvent> =>
+        rt.stream<ContactExportProgressEvent>({ method: "GET", path: `/contacts/exports/${encodeURIComponent(id)}/progress` }, options, ["progress"]),
+      /**
+       * 发起联系人后台导出
+       *
+       * POST /contacts/exports
+       */
+      exportStart: (body: ContactExportStartInputBody): Promise<ContactExportProgress> =>
+        rt.request<ContactExportProgress>({ method: "POST", path: `/contacts/exports`, body }),
+      /**
        * 读取联系人
        *
        * GET /contacts/{id}
@@ -1948,9 +2077,9 @@ export function createClient(options: ClientOptions) {
        * GET /contacts
        */
       list: (input: ContactListInput = {}): Promise<CursorContactDTO> =>
-        rt.request<CursorContactDTO>({ method: "GET", path: `/contacts`, query: { "channel_id": input["channel_id"], "cursor": input["cursor"], "kind": input["kind"], "language": input["language"], "per_page": input["per_page"], "q": input["q"], "sort": input["sort"] } }),
+        rt.request<CursorContactDTO>({ method: "GET", path: `/contacts`, query: { "channel_id": input["channel_id"], "cursor": input["cursor"], "kind": input["kind"], "language": input["language"], "per_page": input["per_page"], "q": input["q"], "sort": input["sort"], "tag_id": input["tag_id"], "view_id": input["view_id"] } }),
       /**
-       * 联系人的数量和渠道列表
+       * 联系人的数量、渠道和视图列表
        *
        * GET /contacts/summary
        */
@@ -1963,6 +2092,41 @@ export function createClient(options: ClientOptions) {
        */
       update: (id: string, body: ContactUpdateBody): Promise<ContactDetailDTO> =>
         rt.request<ContactDetailDTO>({ method: "PUT", path: `/contacts/${encodeURIComponent(id)}`, body }),
+      /**
+       * 新建联系人筛选视图
+       *
+       * POST /contacts/views
+       */
+      viewCreate: (body: ContactViewCreateParams): Promise<ContactViewDTO> =>
+        rt.request<ContactViewDTO>({ method: "POST", path: `/contacts/views`, body }),
+      /**
+       * 删除联系人筛选视图
+       *
+       * DELETE /contacts/views/{id}
+       */
+      viewDelete: (id: string): Promise<void> =>
+        rt.request<void>({ method: "DELETE", path: `/contacts/views/${encodeURIComponent(id)}` }),
+      /**
+       * 联系人筛选视图列表
+       *
+       * GET /contacts/views
+       */
+      viewList: (): Promise<ContactViewListOutputBody> =>
+        rt.request<ContactViewListOutputBody>({ method: "GET", path: `/contacts/views` }),
+      /**
+       * 调整联系人筛选视图顺序
+       *
+       * PUT /contacts/views/reorder
+       */
+      viewReorder: (body: ContactViewReorderInputBody): Promise<void> =>
+        rt.request<void>({ method: "PUT", path: `/contacts/views/reorder`, body }),
+      /**
+       * 修改联系人筛选视图
+       *
+       * PUT /contacts/views/{id}
+       */
+      viewUpdate: (id: string, body: ContactViewUpdateParams): Promise<ContactViewDTO> =>
+        rt.request<ContactViewDTO>({ method: "PUT", path: `/contacts/views/${encodeURIComponent(id)}`, body }),
     },
     /** operationId 以 conversation- 开头的接口。 */
     conversation: {
