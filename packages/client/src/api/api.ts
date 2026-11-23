@@ -68,6 +68,13 @@ export interface FormFile {
   Size: number
 }
 
+export interface MemberAlertChannel {
+  /** 是否发送浏览器桌面通知 */
+  browser: boolean
+  /** 是否播放提示音 */
+  sound: boolean
+}
+
 export type MemberLanguage = "zh-CN" | "en"
 
 export interface MemberLoginInputBody {
@@ -75,8 +82,21 @@ export interface MemberLoginInputBody {
   password: string
 }
 
+export interface MemberNotificationSettings {
+  /** 新会话指派给我时的提醒 */
+  assigned: MemberAlertChannel
+  /** 有人在内部备注中 @ 我时的提醒 */
+  mention: MemberAlertChannel
+  /** 我负责的会话有新消息时的提醒 */
+  new_message: MemberAlertChannel
+}
+
 export interface MemberPreferences {
   language: MemberLanguage
+  /** 发送回复后是否自动打开下一个待回复的会话 */
+  open_next_after_reply?: boolean
+  /** 回复框发送快捷键：enter 回车发送，ctrl_enter Ctrl/Cmd + 回车发送；不传默认为 enter */
+  send_shortcut?: MemberSendShortcut
   /** IANA 时区名，例如 Asia/Shanghai；不传表示跟随浏览器 */
   time_zone?: string
 }
@@ -90,9 +110,17 @@ export interface MemberProfile {
   id: string
   language: MemberLanguage
   name: string
+  /** 实时提醒设置：浏览器通知与提示音开关 */
+  notifications: MemberNotificationSettings
+  /** 发送回复后是否自动打开下一个待回复的会话 */
+  open_next_after_reply?: boolean
+  /** 回复框发送快捷键：enter 回车发送，ctrl_enter Ctrl/Cmd + 回车发送；不传默认为 enter */
+  send_shortcut?: MemberSendShortcut
   /** IANA 时区名，例如 Asia/Shanghai；不传表示跟随浏览器 */
   time_zone?: string
 }
+
+export type MemberSendShortcut = "enter" | "ctrl_enter"
 
 export interface Meta {
   height?: number
@@ -141,6 +169,13 @@ export function createClient(options: ClientOptions) {
        */
       me: (): Promise<MemberProfile> =>
         rt.request<MemberProfile>({ method: "GET", path: `/me` }),
+      /**
+       * 修改通知设置
+       *
+       * PUT /me/notifications
+       */
+      notificationsUpdate: (body: MemberNotificationSettings): Promise<MemberProfile> =>
+        rt.request<MemberProfile>({ method: "PUT", path: `/me/notifications`, body }),
       /**
        * 修改密码
        *

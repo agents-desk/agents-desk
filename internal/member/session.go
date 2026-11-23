@@ -31,11 +31,12 @@ type SessionOutput struct {
 
 // Profile 是当前登录的成员。他所属的工作区和在工作区中的权限分别由 tenant-mine、tenant-current 返回。
 type Profile struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	Email        string `json:"email"`
-	AvatarFileID string `json:"avatar_file_id,omitempty" doc:"头像的文件 ID，修改个人资料时原样传回表示不换头像"`
-	AvatarURL    string `json:"avatar_url" doc:"头像的地址；没有头像时为空"`
+	ID            string               `json:"id"`
+	Name          string               `json:"name"`
+	Email         string               `json:"email"`
+	AvatarFileID  string               `json:"avatar_file_id,omitempty" doc:"头像的文件 ID，修改个人资料时原样传回表示不换头像"`
+	AvatarURL     string               `json:"avatar_url" doc:"头像的地址；没有头像时为空"`
+	Notifications NotificationSettings `json:"notifications" doc:"实时提醒设置：浏览器通知与提示音开关"`
 	Preferences
 }
 
@@ -105,7 +106,23 @@ func loadProfile(ctx context.Context, db bun.IDB, logins *login.Realm, files *fi
 	if err != nil {
 		return nil, err
 	}
-	p := &Profile{ID: m.ID, Name: m.Name, Email: email, AvatarURL: avatar, Preferences: Preferences{Language: m.Language, TimeZone: m.TimeZone}}
+	shortcut := m.SendShortcut
+	if shortcut == "" {
+		shortcut = SendEnter
+	}
+	p := &Profile{
+		ID:            m.ID,
+		Name:          m.Name,
+		Email:         email,
+		AvatarURL:     avatar,
+		Notifications: m.NotificationPreferences.Settings(),
+		Preferences: Preferences{
+			Language:           m.Language,
+			TimeZone:           m.TimeZone,
+			SendShortcut:       shortcut,
+			OpenNextAfterReply: m.OpenNextAfterReply,
+		},
+	}
 	if m.AvatarFileID != nil {
 		p.AvatarFileID = m.AvatarFileID.String()
 	}

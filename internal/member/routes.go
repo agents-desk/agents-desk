@@ -46,5 +46,9 @@ func RegisterRoutes(api *rest.API, requireMember func(*huma.Operation), db *bun.
 	requireMember(&op)
 	rest.Register(api, op, NewUpdatePreferences(db, logins, files).HTTP)
 
+	op = huma.Operation{OperationID: "auth-notifications-update", Method: http.MethodPut, Path: "/me/notifications", Summary: "修改通知设置"}
+	requireMember(&op)
+	rest.Register(api, op, NewUpdateNotifications(db, logins, files).HTTP)
+
 	file.RegisterRoutes(api, requireMember, files, maxUpload)
 }

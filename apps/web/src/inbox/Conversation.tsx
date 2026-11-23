@@ -275,7 +275,13 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
           focusSeq={focusSeq}
           focusField={focusField}
         />
-        <Composer key={c.id} c={c} onTyping={notifyTyping} inputRef={composerRef} />
+        <Composer
+          key={c.id}
+          c={c}
+          onTyping={notifyTyping}
+          onReplied={me.data?.open_next_after_reply && next ? next : undefined}
+          inputRef={composerRef}
+        />
       </Box>
       {inlineDetails && (
         <Box w={detailSize.width} pos="relative" style={{ flex: "none" }} className="inbox-aside">

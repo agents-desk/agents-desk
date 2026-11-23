@@ -20,10 +20,18 @@ import (
 // @ 到的（它们的记录在追加之后才写入）。看得到修改前的会话的人也要收到推送，他的列表和数量随之变化。
 // c 是修改后的会话，修改前的团队收件箱和负责人从数据库中读取，所以要在保存 c 之前调用。
 func audienceOf(ctx context.Context, db bun.IDB, roles *authz.Store, c *Conversation, items []*Item) ([]string, error) {
+	audience, _, err := audienceAndAlertsOf(ctx, db, roles, c, items)
+	return audience, err
+}
+
+// audienceAndAlertsOf 在计算可见推送对象（audienceOf）的同时，计算每个成员本次应触发的实时提醒类型：
+// 有人在内部备注中 @ 我（mention）、新会话指派给我（assigned）、我负责的会话收到客户新消息（new_message）。
+// 成员自己发起的操作不提醒本人；同一事务命中多种提醒时按 mention > assigned > new_message 选主提醒。
+func audienceAndAlertsOf(ctx context.Context, db bun.IDB, roles *authz.Store, c *Conversation, items []*Item) ([]string, map[string]string, error) {
 	before := new(Conversation)
 	err := db.NewSelect().Model(before).Column("team_id", "assignee_type", "assignee_id").Where("id = ?", c.ID).Scan(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "load conversation before change")
+		return nil, nil, errors.Wrap(err, "load conversation before change")
 	}
 
 	// 负责人和被 @ 的成员：不论可见范围都能看到
@@ -41,7 +49,7 @@ func audienceOf(ctx context.Context, db bun.IDB, roles *authz.Store, c *Conversa
 	err = db.NewSelect().Table("conversation_mentions").Column("member_id").
 		Where("tenant_id = ? AND conversation_id = ?", c.TenantID, c.ID).Scan(ctx, &mentioned)
 	if err != nil {
-		return nil, errors.Wrap(err, "load mentioned members")
+		return nil, nil, errors.Wrap(err, "load mentioned members")
 	}
 	for _, it := range items {
 		mentioned = append(mentioned, it.Content.Mentions...)
@@ -55,7 +63,7 @@ func audienceOf(ctx context.Context, db bun.IDB, roles *authz.Store, c *Conversa
 	if len(teams) > 0 {
 		var ids []string
 		if err := db.NewSelect().Table("team_members").Column("member_id").Where("team_id IN (?)", bun.In(teams)).Scan(ctx, &ids); err != nil {
-			return nil, errors.Wrap(err, "load team members")
+			return nil, nil, errors.Wrap(err, "load team members")
 		}
 		for _, id := range ids {
 			inTeam[id] = true
@@ -65,9 +73,10 @@ func audienceOf(ctx context.Context, db bun.IDB, roles *authz.Store, c *Conversa
 	// 按每个成员的角色得出可见范围，权限与 member.Resolve 加载的相同：角色的权限加上基本权限
 	members, err := roles.Members(ctx, c.TenantID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var out []string
+	visibleSet := map[string]bool{}
 	for _, m := range members {
 		if m.Subject.Type != member.Type {
 			continue
@@ -80,9 +89,72 @@ func audienceOf(ctx context.Context, db bun.IDB, roles *authz.Store, c *Conversa
 		switch scope := auth.ScopeOf(sub); {
 		case scope == auth.ScopeAll, scope == auth.ScopeTeam && inTeam[sub.ID], direct[sub.ID]:
 			out = append(out, sub.ID)
+			visibleSet[sub.ID] = true
 		}
 	}
-	return out, nil
+
+	alerts := computeAlerts(before, c, items, visibleSet)
+	return out, alerts, nil
+}
+
+// computeAlerts 根据变更前后的会话状态与本次追加的 items，计算需要提醒的成员及其主提醒类型。
+// 优先级从低到高依次写入：new_message < assigned < mention，高优先级覆盖低优先级。
+func computeAlerts(before, after *Conversation, items []*Item, visible map[string]bool) map[string]string {
+	if len(items) == 0 {
+		return nil
+	}
+	alerts := map[string]string{}
+	set := func(memberID, alert string) {
+		if memberID != "" && visible[memberID] {
+			alerts[memberID] = alert
+		}
+	}
+
+	// 1. 客户发来新消息：提醒会话当前负责人
+	hasCustomerMsg := false
+	for _, it := range items {
+		if it.Kind == Message && it.ActorType == ContactActor {
+			hasCustomerMsg = true
+			break
+		}
+	}
+	if hasCustomerMsg && after.AssigneeType == MemberActor && after.AssigneeID != "" {
+		set(after.AssigneeID, push.AlertNewMessage)
+	}
+
+	// 2. 新会话指派给我：负责人变为某成员，且不是他本人主动领取或指派给自己
+	assigneeChanged := after.AssigneeType == MemberActor && after.AssigneeID != "" &&
+		(before.AssigneeType != MemberActor || before.AssigneeID != after.AssigneeID)
+	if assigneeChanged {
+		selfAssigned := false
+		for _, it := range items {
+			if it.Kind == Event && it.Content.Event == "conversation.assigned" && it.ActorType == MemberActor && it.ActorID == after.AssigneeID {
+				selfAssigned = true
+				break
+			}
+		}
+		if !selfAssigned {
+			set(after.AssigneeID, push.AlertAssigned)
+		}
+	}
+
+	// 3. 有人在内部备注中 @ 我（排除自己 @ 自己）
+	for _, it := range items {
+		if it.Kind != Note {
+			continue
+		}
+		for _, mid := range it.Content.Mentions {
+			if it.ActorType == MemberActor && it.ActorID == mid {
+				continue
+			}
+			set(mid, push.AlertMention)
+		}
+	}
+
+	if len(alerts) == 0 {
+		return nil
+	}
+	return alerts
 }
 
 // NotifyUpdated 在事务 tx 中为会话 ids 登记提交后的实时推送：通知能看到这些会话的成员刷新列表和详情，

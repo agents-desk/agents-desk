@@ -96,14 +96,27 @@ interface Preview {
  * 可以换成别的语言或者“不翻译”。预览之后改了原文、马上按回车时，先翻译并显示新的译文，再按一次回车才发送：发出的总是成员看过的译文。
  * 不需要翻译时（对方和成员同一种语言、还没识别出对方的语言）不显示预览，直接发送原文。内部备注不翻译。
  */
-export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTyping: () => void; inputRef?: RefObject<HTMLTextAreaElement | null> }): ReactNode {
+export function Composer({
+  c,
+  onTyping,
+  onReplied,
+  inputRef,
+}: {
+  c: ConversationDTO
+  onTyping: () => void
+  onReplied?: () => void
+  inputRef?: RefObject<HTMLTextAreaElement | null>
+}): ReactNode {
   const t = useT()
   const can = useCan()
   const os = useOs()
-  const modeKey = os === "macos" || os === "ios" ? "⌘I" : "Ctrl+I"
+  const isMac = os === "macos" || os === "ios"
+  const modeKey = isMac ? "⌘I" : "Ctrl+I"
+  const sendModKey = isMac ? "⌘ + ↵" : "Ctrl + Enter"
   const zone = useTimeZone()
   const queryClient = useQueryClient()
   const me = useMe()
+  const ctrlEnterSend = me.data?.send_shortcut === "ctrl_enter"
   const { list: members, byId: memberById } = useMembers()
   const teams = useTeams()
   const tags = useTags()
@@ -141,9 +154,9 @@ export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTypi
   }, [c.id, text, mode, mentionIds])
 
   const send = useMutation({
-    mutationFn: async ({ after, translation }: { after: After; translation?: ConversationTranslation }) => {
+    mutationFn: async ({ after, translation, mode: sendMode }: { after: After; translation?: ConversationTranslation; mode: Mode }) => {
       const attachments = attachmentIds.length > 0 ? attachmentIds : undefined
-      if (mode === "note") {
+      if (sendMode === "note") {
         // 只算还留在文字中的 @
         const ids = members.filter((m) => mentionIds.includes(m.id) && value.includes(`@${m.name}`)).map((m) => m.id)
         await tenantApi.conversation.note(c.id, {
@@ -166,7 +179,7 @@ export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTypi
         await tenantApi.conversation.applyActions(c.id, actions)
       }
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       clearDraft(c.id)
       setText("")
       setMentionIds([])
@@ -175,6 +188,10 @@ export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTypi
       queue.clear()
       preview.reset()
       void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
+      // 回复发送成功且开启了“发送后自动打开下一个待回复”时，自动跳转（内部备注不跳转）
+      if (variables.mode === "reply") {
+        onReplied?.()
+      }
     },
     onError: (err) => notifyError(err),
   })
@@ -184,17 +201,17 @@ export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTypi
     if (queue.uploading || queue.hasError || send.isPending || (!note && preview.pending)) return
     if (note) {
       if (!hasContent) return
-      return send.mutate({ after })
+      return send.mutate({ after, mode: "note" })
     }
     if (!value) {
       if (!hasContent && !hasPending && after.kind === "none") return
-      return send.mutate({ after })
+      return send.mutate({ after, mode: "reply" })
     }
-    if (!preview.active) return send.mutate({ after })
+    if (!preview.active) return send.mutate({ after, mode: "reply" })
     const current = preview.current ?? (await preview.translateNow())
     if (!current) return
-    if (!current.needed) return send.mutate({ after })
-    if (preview.current) return send.mutate({ after, translation: { language: current.language, text: current.translation } })
+    if (!current.needed) return send.mutate({ after, mode: "reply" })
+    if (preview.current) return send.mutate({ after, mode: "reply", translation: { language: current.language, text: current.translation } })
     preview.askConfirm()
   }
 
@@ -423,7 +440,10 @@ export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTypi
               return
             }
             if (trigger.handleKeyDown(e)) return
-            if (e.key === "Enter" && !e.shiftKey) {
+            const hitSend = ctrlEnterSend
+              ? e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey
+              : e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey
+            if (hitSend) {
               e.preventDefault()
               void submit({ kind: "none" })
             }
@@ -475,7 +495,9 @@ export function Composer({ c, onTyping, inputRef }: { c: ConversationDTO; onTypi
           </Tooltip>
         )}
         <Text size="xs" c={preview.confirming ? "brand" : "dimmed"}>
-          {t(preview.confirming ? "inbox.enter_again" : "inbox.enter_hint")}
+          {ctrlEnterSend
+            ? t(preview.confirming ? "inbox.ctrl_enter_again" : "inbox.ctrl_enter_hint", { key: sendModKey })
+            : t(preview.confirming ? "inbox.enter_again" : "inbox.enter_hint")}
         </Text>
         <Group gap={0} ml="auto" wrap="nowrap">
           <Button
