@@ -2,7 +2,7 @@ import { ActionIcon, Box, Group, Text, Title } from "@mantine/core"
 import { IconChevronDown, IconChevronLeft, IconX } from "@tabler/icons-react"
 import { useT } from "@go-tenon/ui"
 import type { ReactNode } from "react"
-import { onBrandColor } from "./contrast"
+import { useBrandForeground } from "./contrast"
 
 /** HeaderProps 是聊天窗口顶部的内容。 */
 interface HeaderProps {
@@ -18,7 +18,7 @@ interface HeaderProps {
 /** Header 是聊天窗口的顶部：主题色的底，首页是名称和问候语，会话页是返回、名称和会话的状态。顶部留出刘海的安全区域。 */
 export function Header({ color, title, greeting, status, onBack, close, onClose }: HeaderProps): ReactNode {
   const t = useT()
-  const fg = onBrandColor(color)
+  const fg = useBrandForeground()
   const closeButton = close && (
     <ActionIcon variant="transparent" c={fg} size="lg" onClick={onClose} aria-label={t(close === "collapse" ? "panel.collapse" : "panel.close")}>
       {close === "collapse" ? <IconChevronDown size={20} /> : <IconX size={20} />}

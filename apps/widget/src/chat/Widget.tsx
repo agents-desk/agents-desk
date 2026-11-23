@@ -5,6 +5,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react"
 import { channel, embedded, hasCloseButton, type Init, inline, listen, tell, waitInit } from "../host"
 import { identity } from "../identity"
 import { useIdentity, useRealtime } from "../realtime"
+import { DEFAULT_WIDGET_COLOR, useSetWidgetBrand } from "../theme"
 import { ConversationView } from "./Conversation"
 import { Header } from "./Header"
 import { FirstMessage, Home } from "./Home"
@@ -123,7 +124,13 @@ export function Widget(): ReactNode {
     if (ready) tell("unread", { count: unread })
   }, [ready, unread])
 
-  const color = config.data?.color ?? "bright-blue"
+  const setBrandColor = useSetWidgetBrand()
+  const rawColor = config.data?.color ?? DEFAULT_WIDGET_COLOR
+  useEffect(() => {
+    setBrandColor(rawColor)
+  }, [rawColor, setBrandColor])
+
+  const color = "brand"
   const name = config.data?.name ?? t("app.widget")
   if (!channel || config.isError || failed) {
     return floating ? null : (

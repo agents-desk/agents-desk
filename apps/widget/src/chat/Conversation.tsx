@@ -8,7 +8,7 @@ import { authed, widgetApi } from "../api"
 import { useIdentity } from "../realtime"
 import { type LightboxImage, WidgetMessageAttachments } from "./Attachments"
 import { Composer } from "./Composer"
-import { onBrandColor } from "./contrast"
+import { useBrandForeground } from "./contrast"
 import { clock, dayLabel, sameDay } from "./format"
 import { Linkify } from "./linkify"
 import { CollectEmailCard, promptText } from "./Prompt"
@@ -328,6 +328,7 @@ function Bubble({
   state?: "sending" | "failed"
   onPreview: (image: LightboxImage) => void
 }): ReactNode {
+  const fg = useBrandForeground()
   const mediaOnly = !text && Boolean(attachments?.length) && attachments!.every((a) => a.kind === "image")
   return (
     <Box
@@ -347,7 +348,7 @@ function Bubble({
         data-state={state}
         data-media-only={mediaOnly || undefined}
         bg={mine ? (state === "failed" ? "red.1" : `var(--mantine-color-${color}-filled)`) : undefined}
-        c={mine ? (state === "failed" ? "red.8" : onBrandColor(color)) : undefined}
+        c={mine ? (state === "failed" ? "red.8" : fg) : undefined}
       >
         {text && <Linkify text={text} />}
         <WidgetMessageAttachments attachments={attachments} hasText={Boolean(text)} mine={mine} onPreview={onPreview} />

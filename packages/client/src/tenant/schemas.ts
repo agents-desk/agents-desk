@@ -2445,34 +2445,6 @@ export const components = {
         "type": "array"
       },
       "color": {
-        "enum": [
-          "blue-gray",
-          "brown",
-          "tomato",
-          "deep-orange",
-          "bright-orange",
-          "yellow",
-          "bright-green",
-          "green",
-          "light-blue",
-          "sky-blue",
-          "pale-blue",
-          "bright-blue",
-          "deep-blue",
-          "pale-indigo",
-          "purple",
-          "pale-purple",
-          "violet",
-          "pale-violet",
-          "dark-pink",
-          "bright-pink",
-          "pink",
-          "magenta",
-          "bright-red",
-          "pale-red",
-          "deep-red",
-          "red"
-        ],
         "type": "string"
       },
       "greeting": {
@@ -2505,34 +2477,6 @@ export const components = {
         "type": "array"
       },
       "color": {
-        "enum": [
-          "blue-gray",
-          "brown",
-          "tomato",
-          "deep-orange",
-          "bright-orange",
-          "yellow",
-          "bright-green",
-          "green",
-          "light-blue",
-          "sky-blue",
-          "pale-blue",
-          "bright-blue",
-          "deep-blue",
-          "pale-indigo",
-          "purple",
-          "pale-purple",
-          "violet",
-          "pale-violet",
-          "dark-pink",
-          "bright-pink",
-          "pink",
-          "magenta",
-          "bright-red",
-          "pale-red",
-          "deep-red",
-          "red"
-        ],
         "type": "string"
       },
       "enabled": {

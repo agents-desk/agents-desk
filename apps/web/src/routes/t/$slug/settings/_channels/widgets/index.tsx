@@ -1,6 +1,6 @@
-import { Anchor, Badge, ColorSwatch, Group, Select, Text } from "@mantine/core"
+import { Anchor, Badge, ColorInput as MantineColorInput, Text } from "@mantine/core"
 import { createFileRoute, Link } from "@tanstack/react-router"
-import { type FieldInput, ResourcePage, ResourceSelect, useT } from "@go-tenon/ui"
+import { type FieldInput, type PrimaryColor, primaryColors, ResourcePage, ResourceSelect, useT } from "@go-tenon/ui"
 import { teams, widgets } from "../../../../../../resources"
 
 // 网页聊天插件：有 channels:manage 权限的成员新建、修改、停用聊天插件；点名称进入聊天插件，拿到嵌入代码和身份验证密钥。
@@ -33,29 +33,31 @@ const TeamInput: FieldInput = ({ label, value, onChange, error, disabled }) => {
   )
 }
 
-// ColorInput 是聊天窗口的主题色：界面主题中预设的色板，每项前面是色块。
-const ColorInput: FieldInput = ({ field, label, value, onChange, error, disabled }) => {
-  const swatch = (c: string) => <ColorSwatch color={`var(--mantine-color-${c}-6)`} size={14} />
-  const current = (value as string | undefined) ?? "bright-blue"
-  return (
-    <Select
-      label={label}
-      data={(field.options ?? []).map((o) => o.value)}
-      value={current}
-      onChange={(v) => onChange?.(v ?? undefined)}
-      leftSection={swatch(current)}
-      renderOption={({ option }) => (
-        <Group gap="xs">
-          {swatch(option.value)}
-          <Text size="sm">{option.value}</Text>
-        </Group>
-      )}
-      error={error}
-      disabled={disabled}
-      allowDeselect={false}
-    />
-  )
+// presetSwatches 是 26 种主题预设色的十六进制色块，供颜色选择器快速点选。
+const presetSwatches = Object.values(primaryColors)
+
+// resolveHex 将预设色名转换为对应的十六进制色值，自定义颜色值原样返回。
+function resolveHex(v: unknown): string {
+  if (v === undefined || v === null) return primaryColors["bright-blue"]
+  const s = String(v)
+  return Object.hasOwn(primaryColors, s) ? primaryColors[s as PrimaryColor] : s
 }
+
+// ColorInput 是聊天窗口的主题色：支持从预设色块点选或输入自定义 #rrggbb 十六进制颜色值。
+const ColorInput: FieldInput = ({ field, label, value, onChange, error, disabled }) => (
+  <MantineColorInput
+    label={label}
+    description={field.description}
+    format="hex"
+    swatches={presetSwatches}
+    swatchesPerRow={7}
+    value={resolveHex(value)}
+    onChange={(v) => onChange?.(v)}
+    error={error}
+    disabled={disabled}
+    fixOnBlur={false}
+  />
+)
 
 function Widgets() {
   const { slug } = Route.useParams()
