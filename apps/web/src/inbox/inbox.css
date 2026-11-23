@@ -117,6 +117,14 @@
   background: var(--mantine-color-yellow-light);
 }
 
+/* 会话列表中的高优先级火苗标识 */
+.inbox-priority-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--mantine-color-red-6);
+  flex: none;
+}
+
 /* 会话列表等待时长徽标：用主题语义浅色底与文字色，亮暗模式均保持清晰对比度 */
 .inbox-wait {
   font-variant-numeric: tabular-nums;
@@ -163,28 +171,98 @@
   align-self: center;
 }
 
-/* 回复框：内部备注时是淡黄底 */
+/* 回复框容器：声明容器查询供宽屏左右分栏与窄屏单栏自适应切换 */
 .inbox-composer {
-  border-top: 1px solid var(--tn-border);
-  background: var(--tn-surface);
+  container-type: inline-size;
+  padding: 6px var(--tn-pane-px) 8px;
+  background: var(--tn-canvas);
   flex: none;
 }
 
-.inbox-composer[data-note] {
+/* 一体化回复输入卡片：顶部模式切换、中间文本与附件、底部工具与发送按钮全部内联其中 */
+.inbox-composer-box {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--mantine-radius-lg);
+  border: 1px solid var(--tn-border-strong);
+  background: var(--tn-surface);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--mantine-color-black) 4%, transparent);
+  transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
+}
+
+.inbox-composer-box:focus-within {
+  border-color: var(--mantine-primary-color-filled);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mantine-primary-color-filled) 12%, transparent);
+}
+
+/* 内部备注模式：整张卡片切换为暖黄底与暖黄描边，防止误把备注当作对外回复 */
+.inbox-composer-box[data-note] {
   background: var(--mantine-color-yellow-light);
-}
-
-.inbox-composer[data-note] .mantine-SegmentedControl-label[data-active] {
-  color: var(--mantine-color-yellow-light-color);
-}
-
-/* 内部备注模式下的输入框暖黄描边与焦点强调，防止误把备注当作对外回复 */
-.inbox-composer[data-note] .mantine-Textarea-input {
   border-color: color-mix(in srgb, var(--mantine-color-yellow-6) 45%, var(--tn-border));
 }
 
-.inbox-composer[data-note] .mantine-Textarea-input:focus {
+.inbox-composer-box[data-note]:focus-within {
   border-color: var(--mantine-color-yellow-6);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mantine-color-yellow-6) 16%, transparent);
+}
+
+.inbox-composer-box[data-note] .mantine-SegmentedControl-label[data-active] {
+  color: var(--mantine-color-yellow-light-color);
+}
+
+/* 拖入文件到回复框时卡片浮现品牌色虚线边框提示 */
+.inbox-composer-box[data-dragging] {
+  border-style: dashed;
+  border-color: var(--mantine-primary-color-filled);
+  background: color-mix(in srgb, var(--mantine-primary-color-light) 55%, var(--tn-surface));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mantine-primary-color-filled) 14%, transparent);
+}
+
+.inbox-composer-head {
+  padding: 8px 10px 7px;
+  border-bottom: 1px solid color-mix(in srgb, var(--tn-border) 70%, transparent);
+}
+
+.inbox-composer-box[data-note] .inbox-composer-head {
+  border-bottom-color: color-mix(in srgb, var(--mantine-color-yellow-6) 24%, transparent);
+}
+
+.inbox-composer-box > .inbox-attach-strip {
+  padding: 8px 12px 0;
+  margin-bottom: 0;
+}
+
+.inbox-composer-main {
+  display: flex;
+  flex-direction: column;
+}
+
+.inbox-composer-main[data-split] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.inbox-composer-body {
+  padding: 8px 12px 4px;
+  cursor: text;
+}
+
+.inbox-composer-input {
+  min-height: 76px;
+  padding: 0;
+  line-height: 1.55;
+  background: transparent;
+}
+
+.inbox-composer-foot {
+  padding: 6px 10px 7px;
+  border-top: 1px solid color-mix(in srgb, var(--tn-border) 55%, transparent);
+}
+
+.inbox-composer-box[data-note] .inbox-composer-foot {
+  border-top-color: color-mix(in srgb, var(--mantine-color-yellow-6) 20%, transparent);
 }
 
 /* 发送拆分按钮中间的细分隔线：跟随按钮前景色与禁用态自然过渡 */
@@ -203,14 +281,149 @@
   display: block;
 }
 
+/* 详情栏就地编辑控件：静止态隐藏边框与右侧箭头，悬停显露浅底，聚焦呈现输入边框 */
+.inbox-details .tn-inspector-field-value .mantine-Input-wrapper {
+  margin-left: -6px;
+  width: calc(100% + 6px);
+}
+
+.inbox-details .tn-inspector-field-value .mantine-Input-input {
+  background: transparent;
+  border-color: transparent;
+  padding-inline-start: 6px;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.inbox-details .tn-inspector-field-value .mantine-Input-section[data-position="right"] {
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.inbox-details .tn-inspector-field:hover .mantine-Input-input:not(:disabled),
+.inbox-details .tn-inspector-field-value .mantine-Input-wrapper:hover .mantine-Input-input:not(:disabled) {
+  background: var(--tn-hover);
+}
+
+.inbox-details .tn-inspector-field:hover .mantine-Input-section[data-position="right"],
+.inbox-details .tn-inspector-field-value .mantine-Input-wrapper:focus-within .mantine-Input-section[data-position="right"],
+.inbox-details .tn-inspector-field-value .mantine-Input-input[aria-expanded="true"] ~ .mantine-Input-section[data-position="right"] {
+  opacity: 1;
+}
+
+.inbox-details .tn-inspector-field-value .mantine-Input-wrapper:focus-within .mantine-Input-input:not(:disabled),
+.inbox-details .tn-inspector-field-value .mantine-Input-input:focus:not(:disabled),
+.inbox-details .tn-inspector-field-value .mantine-Input-input[aria-expanded="true"]:not(:disabled) {
+  background: var(--tn-surface);
+  border-color: var(--mantine-primary-color-filled);
+}
+
+.inbox-details .tn-inspector-field-value .mantine-Input-input:disabled {
+  background: transparent;
+  border-color: transparent;
+  opacity: 1;
+  color: var(--tn-text);
+  cursor: default;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .inbox-details .tn-inspector-field-value .mantine-Input-section[data-position="right"] {
+    opacity: 0.7;
+  }
+}
+
+/* 消息气泡下方的轻量译文切换按钮与图标：默认柔和灰字，悬停时切换为品牌色 */
+.inbox-caption-icon {
+  color: var(--tn-muted);
+  flex: none;
+}
+
+.inbox-caption-btn {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--mantine-font-size-xs);
+  line-height: 1.3;
+  color: var(--tn-muted);
+  transition: color 120ms ease;
+}
+
+@media (hover: hover) {
+  .inbox-caption-btn:hover {
+    color: var(--mantine-primary-color-light-color);
+  }
+}
+
 /* 成员翻译后发出的消息中展开的译文：和原文之间一条虚线 */
 .inbox-sent-translation {
   border-top: 1px dashed color-mix(in srgb, var(--mantine-primary-color-filled) 35%, transparent);
 }
 
-/* 回复框上方的译文预览；原文改了、正在重新翻译时旧的译文变淡 */
-.inbox-preview[data-stale] .inbox-preview-text {
+/* 内联在输入卡片内的实时译文区：宽屏居右与原文左右对照，窄屏退化到输入框上方保持输入框零跳动 */
+.inbox-composer-translation {
+  padding: 8px 12px 6px;
+  border-left: 1px solid color-mix(in srgb, var(--tn-border) 75%, transparent);
+  background: color-mix(in srgb, var(--mantine-primary-color-light) 30%, var(--tn-canvas));
+  max-height: 240px;
+  overflow-y: auto;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.inbox-composer-translation[data-empty] {
+  background: color-mix(in srgb, var(--tn-canvas) 65%, var(--tn-surface));
+}
+
+.inbox-composer-translation[data-confirming] {
+  background: var(--mantine-primary-color-light);
+}
+
+.inbox-composer-translation[data-error] {
+  background: var(--mantine-color-red-light);
+}
+
+.inbox-composer-translation[data-stale] .inbox-preview-text {
   opacity: 0.45;
+}
+
+.inbox-translation-placeholder {
+  opacity: 0.72;
+  user-select: none;
+}
+
+.inbox-translation-editable {
+  cursor: text;
+  border-radius: var(--mantine-radius-xs);
+  margin: -2px -4px;
+  padding: 2px 4px;
+  transition: background-color 120ms ease;
+}
+
+@media (hover: hover) {
+  .inbox-translation-editable:hover {
+    background: color-mix(in srgb, var(--mantine-primary-color-filled) 8%, transparent);
+  }
+}
+
+.inbox-translation-input {
+  padding: 0;
+  line-height: 1.55;
+  background: transparent;
+}
+
+@container (max-width: 580px) {
+  .inbox-composer-main[data-split] {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .inbox-composer-main[data-split] .inbox-composer-translation {
+    order: -1;
+    border-left: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--tn-border) 75%, transparent);
+    max-height: 160px;
+  }
+
+  .inbox-composer-main[data-split] .inbox-composer-translation[data-empty] {
+    display: none;
+  }
 }
 
 /* 对方的消息气泡使用纯面底色，切换到原文时略沉以示区分；方向性圆角随连续消息分组自然融合 */
@@ -363,13 +576,6 @@
     outline-color: transparent;
     box-shadow: 0 0 0 0 transparent;
   }
-}
-
-/* 拖入文件到回复框时显示品牌色虚线边框提示 */
-.inbox-composer[data-dragging] {
-  outline: 2px dashed var(--mantine-primary-color-filled);
-  outline-offset: -4px;
-  background: color-mix(in srgb, var(--mantine-primary-color-light) 55%, var(--tn-surface));
 }
 
 /* 待发送附件预览条：图片缩略图与文件卡片 */

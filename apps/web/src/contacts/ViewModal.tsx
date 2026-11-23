@@ -5,9 +5,7 @@ import { notifyError, notifySuccess, useCan, useLanguage, useT } from "@go-tenon
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { useTags } from "../inbox/data"
-import { languageName } from "../languages"
-
-const FILTER_LANGUAGES = ["zh", "en", "hi"] as const
+import { filterLanguages, languageName } from "../languages"
 
 /** ContactViewModal 是新建或编辑联系人保存筛选视图的弹窗。 */
 export function ContactViewModal({
@@ -81,7 +79,7 @@ export function ContactViewModal({
   })
 
   const kindOptions = kit.enums.ContactKind.values.map((v) => ({ value: v, label: kit.label("ContactKind", v) }))
-  const languageOptions = FILTER_LANGUAGES.map((tag) => ({ value: tag, label: languageName(tag, ui) }))
+  const languageOptions = filterLanguages.map((tag) => ({ value: tag, label: languageName(tag, ui) }))
   const channelOptions = (summary.data?.channels ?? []).map((ch) => ({ value: ch.id, label: ch.name }))
   const tagOptions = tags.map((tg) => ({ value: tg.id, label: tg.name }))
   const sortOptions = kit.enums.ContactSort.values.map((v) => ({ value: v, label: kit.label("ContactSort", v) }))

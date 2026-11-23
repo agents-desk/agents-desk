@@ -9,7 +9,7 @@ import { kit, tenantApi } from "../../../../../api"
 
 // 语气：系统把成员的回复翻译给客户时用的语气。收到的消息照原意翻译，不受语气影响。
 export const Route = createFileRoute("/t/$slug/settings/_translation/tone")({
-  staticData: { title: "tone.title", icon: "message", order: 0, permission: "tenant-settings:manage" },
+  staticData: { title: "tone.title", icon: "ai", order: 0, permission: "tenant-settings:manage" },
   component: Tone,
 })
 

@@ -70,14 +70,14 @@ type Contact struct {
 	Language       string         `bun:"language,notnull"`         // 客户的语言：按最近几条消息判断（conversation.CustomerLanguage），或者成员手动设置的
 	LanguageManual bool           `bun:"language_manual,notnull"`  // 成员手动设置了 Language：收到的消息不再改它
 	Attributes     map[string]any `bun:"attributes,type:jsonb,notnull"`
-	Notes          string         `bun:"notes,notnull"`     // 成员填写的内部备注，只给成员看
+	Notes          string         `bun:"notes,notnull"`     // 成员填写的联系人备注，跨会话持久可见
 	Location       string         `bun:"location,notnull"`  // 所在地，例如“上海”“Mumbai”
 	TimeZone       string         `bun:"time_zone,notnull"` // IANA 时区名，例如 Asia/Shanghai，用于显示对方当地时间
 	Referrer       string         `bun:"referrer,notnull"`  // 首次访问的来源页面地址
 	LastSeenAt     *time.Time     `bun:"last_seen_at"`      // 最近活跃或联系的时间
 }
 
-// Summary 是接口中联系人的概要，显示在会话中和聊天插件的会话响应里。只包含对客户也安全的字段，不含内部备注。
+// Summary 是接口中联系人的概要，显示在会话中和聊天插件的会话响应里，包含可向客户展示的字段。
 type Summary struct {
 	ID             string         `json:"id"`
 	Number         int64          `json:"number" doc:"联系人在工作区内的递增编号，从 1 开始"`

@@ -16,17 +16,19 @@ import (
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/login"
+
+	"agents-desk/internal/lang"
 )
 
 // ErrInvalidTimeZone 是不认识的时区名（422），提示显示在“时区”下面。
 var ErrInvalidTimeZone = errorx.Define(errorx.InvalidArgument, "member.invalid_time_zone")
 
-// Language 是成员的语言：界面的语言，也是把客户的消息译成的语言。
+// Language 是成员的界面语言，同时作为客户消息自动翻译的目标语言。
 type Language string
 
 const (
-	SimplifiedChinese Language = "zh-CN"
-	English           Language = "en"
+	SimplifiedChinese Language = lang.ZhCN
+	English           Language = lang.En
 )
 
 // Languages 是可以选的语言，与界面的翻译文件（locales/web.<语言>.yaml）的语言相同；显示文字是翻译文件中

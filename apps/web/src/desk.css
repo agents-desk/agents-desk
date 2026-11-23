@@ -11,11 +11,17 @@
   --desk-bubble-py: 9px;
 }
 
-/* 内部备注便签块：联系人档案与收件箱详情共用的淡黄便签样式 */
+/* 联系人长期备注卡片：联系人档案与收件箱详情共用的中性档案卡片样式 */
 .desk-note {
-  background: var(--mantine-color-yellow-light);
-  border: 1px solid color-mix(in srgb, var(--mantine-color-yellow-6) 30%, transparent);
+  background: var(--tn-canvas);
+  border: 1px solid var(--tn-border);
   border-radius: var(--mantine-radius-md);
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.desk-note:focus-within {
+  background: var(--tn-surface);
+  border-color: var(--mantine-primary-color-filled);
 }
 
 /* 选择工作区卡片：提供清晰的悬停高亮与右箭头微移反馈 */

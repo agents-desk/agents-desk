@@ -12,9 +12,9 @@ import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../../../../../api"
 
-// 属性：管理会话和联系人的自定义属性定义，按对象分组切换，支持拖动调整展示顺序。key 和 type 创建后不可修改。
-export const Route = createFileRoute("/t/$slug/settings/_data/attributes")({
-  staticData: { title: "nav.attributes", icon: "list", order: 1, permission: "tenant-settings:manage" },
+// 属性：管理会话和联系人的自定义属性定义，按对象分组切换，支持拖动调整展示顺序。key 和 type 创建后锁定。
+export const Route = createFileRoute("/t/$slug/settings/_workspace/attributes")({
+  staticData: { title: "nav.attributes", icon: "list", order: 4, permission: "tenant-settings:manage" },
   component: Attributes,
 })
 
@@ -175,7 +175,7 @@ function SortableRow({ attr, onEdit, onRemove }: { attr: AttributeDTO; onEdit: (
   })
   const style = {
     transform: CSS.Translate.toString(transform),
-    // 只在拖动过程中播放让位动画，松手落位时不再做二次位移动画
+    // 只在拖动过程中播放让位动画，松手落位时保持静止
     transition: isSorting ? transition : undefined,
     position: isDragging ? ("relative" as const) : undefined,
     zIndex: isDragging ? 1 : undefined,

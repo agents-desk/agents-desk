@@ -9,15 +9,12 @@ import { type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { useTags } from "../inbox/data"
 import { activity } from "../inbox/format"
-import { languageName } from "../languages"
+import { filterLanguages, languageName } from "../languages"
 import { NARROW_QUERY } from "../layout"
 import { formatLocalTime } from "../timezone"
 import { ContactAvatar, contactDisplayName, contactSubline } from "./display"
 import type { ContactsSearch } from "./search"
 import { ContactViewModal } from "./ViewModal"
-
-/** FILTER_LANGUAGES 是联系人列表语言筛选的三种常用语言：中文、英语、印地语（后端按主语言前缀同时匹配 zh-CN、hi-Latn 等）。 */
-const FILTER_LANGUAGES = ["zh", "en", "hi"] as const
 
 /**
  * ContactDirectory 是左侧的联系人名录：顶部一个整体标题与筛选块（第一行是分类标题和数量，第二行是搜索、语言、渠道和排序，
@@ -139,7 +136,7 @@ export function ContactDirectory({
         : t("nav.contacts")
   const channels = (summary.data?.channels ?? []).map((ch) => ({ value: ch.id, label: ch.name }))
   const tagChoices = tags.map((tg) => ({ value: tg.id, label: tg.name }))
-  const languageChoices = FILTER_LANGUAGES.map((tag) => ({ value: tag, label: languageName(tag, ui) }))
+  const languageChoices = filterLanguages.map((tag) => ({ value: tag, label: languageName(tag, ui) }))
   const sorts = kit.enums.ContactSort.values.map((v) => ({ value: v, label: kit.label("ContactSort", v) }))
   const hasFilters = Boolean(search.q || search.language || search.channel || search.tag)
   const summaryCount = activeView

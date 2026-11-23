@@ -1,11 +1,11 @@
 import type { ConversationDTO, ConversationItemDTO } from "@agents-desk/client/tenant"
 import { ActionIcon, Anchor, Box, Button, CopyButton, Divider, Group, Loader, Paper, Skeleton, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { IconArrowDown, IconCheck, IconCopy, IconLock } from "@tabler/icons-react"
+import { IconArrowDown, IconCheck, IconCopy, IconLanguage, IconLock } from "@tabler/icons-react"
 import { ImageLightbox, notifyError, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
 import { Fragment, type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { languageName } from "../languages"
+import { languageName, sameLanguage } from "../languages"
 import { type LightboxImage, MessageAttachments } from "./Attachments"
 import type { TypingNow } from "./channel"
 import { useMe, useMembers, useTeams, useTimeline } from "./data"
@@ -340,20 +340,22 @@ function Message({ it, c, mine, author, time, fullTime, first, last, mt, lang, o
   const from = it.derived.language as string | undefined
   let caption: ReactNode = null
   if (translated) {
-    // “译文 · 原文”两个词总在这一行的最左边，切换时只互换哪个是链接，文字和位置都不变
-    const toggle = () => setFlip((f) => !f)
+    // 始终只保留单个译文/原文切换按钮；单条消息语言与会话主语言不同时附带语言名。
+    const showFromLang = Boolean(from && !sameLanguage(from, c.language))
     caption = (
       <>
-        {showOriginal ? <Toggle label={t("inbox.translated")} onClick={toggle} /> : <Current label={t("inbox.translated")} />}
-        <Text size="xs" c="dimmed">
-          ·
-        </Text>
-        {showOriginal ? <Current label={t("inbox.original")} /> : <Toggle label={t("inbox.original")} onClick={toggle} />}
-        {from && (
-          <Text size="xs" c="dimmed" ml={6}>
-            {languageName(from, ui)}
-          </Text>
+        <IconLanguage size={12} className="inbox-caption-icon" />
+        {showFromLang && from && (
+          <>
+            <Text size="xs" c="dimmed">
+              {languageName(from, ui)}
+            </Text>
+            <Text size="xs" c="dimmed">
+              ·
+            </Text>
+          </>
         )}
+        <CaptionToggle label={t(showOriginal ? "inbox.view_translation" : "inbox.view_original")} onClick={() => setFlip((f) => !f)} />
       </>
     )
   } else if (!mine && translating && it.untranslated) {
@@ -366,12 +368,20 @@ function Message({ it, c, mine, author, time, fullTime, first, last, mt, lang, o
       </>
     )
   } else if (sentAs) {
+    const showTargetLang = !sameLanguage(sentAs, c.language)
     caption = (
       <>
-        <Text size="xs" c="dimmed">
-          {t("inbox.sent_as", { lang: languageName(sentAs, ui) })} ·
-        </Text>
-        <Toggle label={t(sent ? "inbox.hide_translation" : "inbox.view_translation")} onClick={() => setSent((v) => !v)} />
+        {showTargetLang && (
+          <>
+            <Text size="xs" c="dimmed">
+              {t("inbox.sent_as", { lang: languageName(sentAs, ui) })}
+            </Text>
+            <Text size="xs" c="dimmed">
+              ·
+            </Text>
+          </>
+        )}
+        <CaptionToggle label={t(sent ? "inbox.hide_translation" : "inbox.view_translation")} onClick={() => setSent((v) => !v)} />
       </>
     )
   }
@@ -492,19 +502,10 @@ function CopyAction({ value }: { value: string }): ReactNode {
   )
 }
 
-/** Current 是“译文 · 原文”中正在显示的那个：和链接同样大小，不能点。 */
-function Current({ label }: { label: string }): ReactNode {
+/** CaptionToggle 是消息下方的轻量译文切换按钮，默认柔和灰字，悬停时浮现品牌色。 */
+function CaptionToggle({ label, onClick }: { label: string; onClick: () => void }): ReactNode {
   return (
-    <Text size="xs" span>
-      {label}
-    </Text>
-  )
-}
-
-/** Toggle 是消息下面一行中的切换链接。 */
-function Toggle({ label, onClick }: { label: string; onClick: () => void }): ReactNode {
-  return (
-    <UnstyledButton fz="xs" c="brand" onClick={onClick}>
+    <UnstyledButton className="inbox-caption-btn" onClick={onClick}>
       {label}
     </UnstyledButton>
   )

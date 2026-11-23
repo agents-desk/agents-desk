@@ -23,7 +23,7 @@ type UpdateBody struct {
 	Language *string `json:"language,omitempty" maxLength:"35" doc:"对方的语言（BCP 47）；传空字符串恢复自动识别"`
 	Location *string `json:"location,omitempty" maxLength:"120" doc:"所在地"`
 	TimeZone *string `json:"time_zone,omitempty" maxLength:"64" doc:"IANA 时区名，例如 Asia/Shanghai；传空字符串清除"`
-	Notes    *string `json:"notes,omitempty" maxLength:"4000" doc:"成员填写的内部备注"`
+	Notes    *string `json:"notes,omitempty" maxLength:"4000" doc:"成员填写的联系人备注，跨会话持久可见"`
 }
 
 // UpdateInput 是修改联系人的 HTTP 请求。

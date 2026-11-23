@@ -11,7 +11,7 @@ import { useMembers, useTeams } from "../../../../../inbox/data"
 
 // 指派设置：配置工作区的新会话默认指派目标（团队收件箱或指定成员），当渠道未单独指定默认团队收件箱时生效。
 export const Route = createFileRoute("/t/$slug/settings/_inbox/assignment")({
-  staticData: { title: "nav.assignment", icon: "task", order: 1, permission: "tenant-settings:manage" },
+  staticData: { title: "nav.assignment", icon: "task", order: 2, permission: "tenant-settings:manage" },
   loader: () => tenantApi.assignment.settingsGet(),
   component: AssignmentPage,
 })

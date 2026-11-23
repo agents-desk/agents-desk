@@ -4,8 +4,8 @@ import { type FieldInput, ResourcePage, useT } from "@go-tenon/ui"
 import { tags } from "../../../../../resources"
 
 // 标签：有 tenant-settings:manage 权限的成员新建、修改、删除标签；会话和联系人共用同一套标签定义。
-export const Route = createFileRoute("/t/$slug/settings/_data/tags")({
-  staticData: { title: "nav.tags", icon: "tags", order: 0, permission: "tenant-settings:manage" },
+export const Route = createFileRoute("/t/$slug/settings/_workspace/tags")({
+  staticData: { title: "nav.tags", icon: "tags", order: 3, permission: "tenant-settings:manage" },
   validateSearch: tags.listSearch,
   component: Tags,
 })

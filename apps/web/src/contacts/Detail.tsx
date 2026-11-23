@@ -46,9 +46,6 @@ import { ContactAvatar, contactDisplayName } from "./display"
 /** AUTO 是语言选择器中的“自动识别”。 */
 const AUTO = "auto"
 
-/** PROFILE_LANGUAGES 是联系人档案中手动设置语言时的默认候选：中文、英语、印地语。 */
-const PROFILE_LANGUAGES = ["zh-CN", "en", "hi"] as const
-
 /**
  * ContactDetailPanel 是联系人列表右侧的分栏档案（窄屏占满）：
  * 使用框架的 PaneHeader/PaneBody 与 Inspector 分区展示内部备注便签、可就地编辑的资料属性、历史会话流和渠道身份。
@@ -404,7 +401,6 @@ function PropertiesSection({
 
       <InspectorField label={t("contacts.language")} align={c.language_manual ? "start" : "center"} className="ct-field">
         <LanguageSelect
-          languages={PROFILE_LANGUAGES}
           before={[
             {
               value: AUTO,

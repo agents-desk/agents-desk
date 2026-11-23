@@ -1,5 +1,5 @@
 import type { ConversationDTO } from "@agents-desk/client/tenant"
-import { ActionIcon, Anchor, CopyButton, Group, Rating, Select, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
+import { ActionIcon, Anchor, Badge, Box, CopyButton, Group, Rating, Select, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useParams } from "@tanstack/react-router"
 import { IconCheck, IconCopy, IconExternalLink, IconX } from "@tabler/icons-react"
@@ -231,22 +231,24 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
           <InspectorSection title={t("inbox.details_contact")} collapsible storeKey="inbox-details-contact">
             <InspectorField label={t("inbox.contact_name")}>
               {c.contact ? (
-                <Link
-                  to="/t/$slug/contacts/$id"
-                  params={{ slug, id: c.contact.id }}
-                  search={{ sort: "recent" }}
-                  className="inbox-contact-link"
-                >
-                  <Text size="sm" fw={500} c="brand" truncate>
-                    {contactDisplayName(c.contact, t)}
-                  </Text>
-                </Link>
+                <Group gap={6} wrap="nowrap">
+                  <Link
+                    to="/t/$slug/contacts/$id"
+                    params={{ slug, id: c.contact.id }}
+                    search={{ sort: "recent" }}
+                    className="inbox-contact-link"
+                  >
+                    <Text size="sm" fw={500} c="brand" truncate>
+                      {contactDisplayName(c.contact, t)}
+                    </Text>
+                  </Link>
+                  <Badge size="xs" variant="light" color="gray" style={{ flex: "none" }}>
+                    {kit.label("ContactKind", c.contact.kind)}
+                  </Badge>
+                </Group>
               ) : (
                 <Text size="sm">{t("inbox.visitor")}</Text>
               )}
-            </InspectorField>
-            <InspectorField label={t("inbox.contact_kind")}>
-              <Text size="sm">{c.contact ? kit.label("ContactKind", c.contact.kind) : ""}</Text>
             </InspectorField>
             <InspectorField label={t("inbox.contact_email")}>
               <Group gap={4} wrap="nowrap" justify="space-between">
@@ -282,11 +284,13 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                 </Text>
               )}
             </InspectorField>
-            <InspectorField label={t("inbox.contact_location")}>
-              <Text size="sm" c={locationText ? undefined : "dimmed"} truncate>
-                {locationText || "—"}
-              </Text>
-            </InspectorField>
+            {locationText && (
+              <InspectorField label={t("inbox.contact_location")}>
+                <Text size="sm" truncate>
+                  {locationText}
+                </Text>
+              </InspectorField>
+            )}
             {referrer && (
               <InspectorField label={t("inbox.contact_referrer")}>
                 <Anchor href={referrer} target="_blank" rel="noopener noreferrer" size="sm" style={{ display: "inline-flex", alignItems: "center", gap: 4, maxWidth: "100%" }}>
@@ -323,22 +327,35 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                     />
                   </InspectorField>
                 ))}
-                <ContactNotesCard
-                  contactId={c.contact.id}
-                  value={serverNotes}
-                  title={t("inbox.contact_notes")}
-                  placeholder={t("inbox.contact_notes_placeholder")}
-                  editable={can("contacts:update")}
-                  disabled={contactDetail.isPending}
-                  saving={saveNotes.isPending}
-                  maxRows={5}
-                  onSave={(next) => saveNotes.mutate(next)}
-                />
+                <Box mt={4}>
+                  <ContactNotesCard
+                    contactId={c.contact.id}
+                    value={serverNotes}
+                    title={t("inbox.contact_notes")}
+                    placeholder={t("inbox.contact_notes_placeholder")}
+                    editable={can("contacts:update")}
+                    disabled={contactDetail.isPending}
+                    saving={saveNotes.isPending}
+                    maxRows={5}
+                    onSave={(next) => saveNotes.mutate(next)}
+                  />
+                </Box>
               </>
             )}
           </InspectorSection>
 
-          <InspectorSection title={t("inbox.details_history")} collapsible storeKey="inbox-details-history">
+          <InspectorSection
+            title={t("inbox.details_history")}
+            collapsible
+            storeKey="inbox-details-history"
+            extra={
+              others.length > 0 ? (
+                <Text size="xs" c="dimmed" style={{ fontVariantNumeric: "tabular-nums" }}>
+                  {others.length}
+                </Text>
+              ) : undefined
+            }
+          >
             {others.length === 0 ? (
               <Text size="xs" c="dimmed">
                 {t("inbox.no_history")}

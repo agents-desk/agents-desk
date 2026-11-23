@@ -314,21 +314,25 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                 summary &&
                 !savedViewState.dirty && (
                   <Text size="xs" c="dimmed" truncate lh={1.25} style={{ fontVariantNumeric: "tabular-nums" }}>
-                    {t("inbox.backlog_waiting")}{" "}
-                    <Text span size="xs" fw={600} c={summary.waiting > 0 ? "deep-orange" : undefined}>
-                      {summary.waiting}
-                    </Text>
-                    {summary.oldest_waiting_since && (
+                    {summary.waiting > 0 ? (
                       <>
-                        {" · "}
-                        {t("inbox.backlog_oldest")}{" "}
-                        <Text span size="xs" fw={600} c={waitColor[waitLevel(summary.oldest_waiting_since, now, th)]}>
-                          {duration(summary.oldest_waiting_since, now, t)}
+                        {t("inbox.backlog_waiting")}{" "}
+                        <Text span size="xs" fw={600} c="deep-orange">
+                          {summary.waiting}
                         </Text>
+                        {summary.oldest_waiting_since && (
+                          <>
+                            {" · "}
+                            {t("inbox.backlog_oldest")}{" "}
+                            <Text span size="xs" fw={600} c={waitColor[waitLevel(summary.oldest_waiting_since, now, th)]}>
+                              {duration(summary.oldest_waiting_since, now, t)}
+                            </Text>
+                          </>
+                        )}
                       </>
+                    ) : (
+                      t("inbox.backlog_open", { n: summary.count })
                     )}
-                    {" · "}
-                    {t("inbox.backlog_open", { n: summary.count })}
                   </Text>
                 )
               )
@@ -355,6 +359,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
           {!viewMissing && (
             <PaneToolbar gap={6}>
               <TextInput
+                variant="filled"
                 value={draftQ}
                 onChange={(e) => setDraftQ(e.currentTarget.value)}
                 onKeyDown={(e) => {
@@ -384,7 +389,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                   ]}
                 />
               ) : (
-                <Group gap={6} wrap="nowrap">
+                <Group gap={4} wrap="nowrap">
                   {!search.view && !parsedUrlFilter && search.box !== "mentions" ? (
                     <SegmentedControl
                       style={{ flex: 1, minWidth: 0 }}
@@ -400,7 +405,8 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                     <Popover opened={filterOpen} onChange={setFilterOpen} position="bottom-start" width={312} shadow="md" withinPortal>
                       <Popover.Target>
                         <Button
-                          variant={filterCount > 0 ? "light" : "default"}
+                          variant={filterCount > 0 ? "light" : "subtle"}
+                          color={filterCount > 0 ? undefined : "gray"}
                           leftSection={<IconFilter size={14} />}
                           rightSection={
                             filterCount > 0 ? (
@@ -436,7 +442,8 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                         <Tooltip label={t("views.filter_button")} openDelay={300}>
                           <Indicator disabled={filterCount === 0} size={7} offset={3}>
                             <ActionIcon
-                              variant={filterCount > 0 ? "light" : "default"}
+                              variant={filterCount > 0 ? "light" : "subtle"}
+                              color={filterCount > 0 ? undefined : "gray"}
                               size="input-sm"
                               aria-label={t("views.filter_button")}
                               style={{ flex: "none" }}
@@ -463,7 +470,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                     <Menu position="bottom-end" withinPortal>
                       <Menu.Target>
                         <Tooltip label={`${t("inbox.sort")} · ${sortLabel}`} openDelay={300}>
-                          <ActionIcon variant="default" size="input-sm" aria-label={t("inbox.sort")} style={{ flex: "none" }}>
+                          <ActionIcon variant="subtle" color="gray" size="input-sm" aria-label={t("inbox.sort")} style={{ flex: "none" }}>
                             <IconArrowsSort size={15} />
                           </ActionIcon>
                         </Tooltip>
@@ -660,7 +667,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
 /** statusColor 是会话状态的语义徽标颜色。 */
 const statusColor = { open: "bright-blue", snoozed: "yellow", closed: "gray" } as const
 
-/** SearchRow 是全文搜索结果中的一行会话：联系人、渠道、状态、命中时间、高亮摘要以及同会话命中条数。 */
+/** SearchRow 是全文搜索结果中的一行会话：联系人、非默认状态、命中时间、高亮摘要以及同会话命中条数。 */
 function SearchRow({ hit, active, onClick }: { hit: ConversationSearchHitDTO; active: boolean; onClick: () => void }): ReactNode {
   const t = useT()
   const language = useLanguage()
@@ -670,18 +677,15 @@ function SearchRow({ hit, active, onClick }: { hit: ConversationSearchHitDTO; ac
   return (
     <UnstyledButton onClick={onClick} className="inbox-row" data-search="" data-active={active || undefined} w="100%" px="sm" py={9}>
       <Box style={{ minWidth: 0 }}>
-        <Group gap={6} wrap="nowrap">
+        <Group gap={5} wrap="nowrap">
           <Text size="sm" fw={600} truncate>
             {contactName(c, t)}
           </Text>
-          {c.channel && (
-            <Badge size="xs" variant="outline" color="gray" style={{ flex: "none" }}>
-              {c.channel.name}
+          {c.status !== "open" && (
+            <Badge size="xs" variant="light" color={statusColor[c.status]} style={{ flex: "none" }}>
+              {t(`inbox.status_${c.status}` as const)}
             </Badge>
           )}
-          <Badge size="xs" variant="light" color={statusColor[c.status]} style={{ flex: "none" }}>
-            {t(`inbox.status_${c.status}` as const)}
-          </Badge>
           <Text size="xs" c="dimmed" ml="auto" style={{ flex: "none", fontVariantNumeric: "tabular-nums" }}>
             {activity(m.created_at, language, t, zone)}
           </Text>
@@ -717,10 +721,10 @@ function SearchRow({ hit, active, onClick }: { hit: ConversationSearchHitDTO; ac
 }
 
 /**
- * Row 是会话列表的一行（固定 60px 等高两行结构）：
- * 第一行是头像/未读角标、联系人、渠道、优先级、等待时长（已回复的显示最近活动时间）；
+ * Row 是会话列表的一行（固定 64px 等高两行结构）：
+ * 第一行是头像/未读角标、联系人、高优先级图标、等待时长（已回复的显示最近活动时间）；
  * 第二行左侧是草稿或最后一条消息预览，右侧紧凑展示首个标签与 +N 计数（悬停提示全部标签）。
- * 还缺译文时第二行先显示原文，这一行出现在页面上时请求补译（watch）。
+ * 缺少译文时第二行先显示原文，这一行出现在视口中时请求补译（watch）。
  */
 function Row({
   c,
@@ -783,15 +787,12 @@ function Row({
             <Text size="sm" fw={c.unread ? 700 : 600} truncate lh={1.3}>
               {name}
             </Text>
-            {c.channel && (
-              <Badge size="xs" variant="outline" color="gray" style={{ flex: "none" }}>
-                {c.channel.name}
-              </Badge>
-            )}
             {c.priority === "high" && (
-              <Badge size="xs" variant="light" color="red" leftSection={<IconFlame size={10} />} style={{ flex: "none" }}>
-                {t("inbox.priority_high")}
-              </Badge>
+              <Tooltip label={t("inbox.priority_high")} openDelay={300}>
+                <span className="inbox-priority-icon" aria-label={t("inbox.priority_high")}>
+                  <IconFlame size={13} stroke={1.9} />
+                </span>
+              </Tooltip>
             )}
             <Text
               size="xs"
@@ -828,14 +829,14 @@ function Row({
             </Text>
             {firstTag && (
               <Tooltip label={c.tags.map((x) => x.name).join(" · ")} openDelay={250}>
-                <Group gap={3} wrap="nowrap" style={{ flex: "none" }}>
+                <Group gap={4} wrap="nowrap" style={{ flex: "none" }}>
                   <Badge size="xs" variant="light" color={firstTag.color} maw={76}>
                     {firstTag.name}
                   </Badge>
                   {c.tags.length > 1 && (
-                    <Badge size="xs" variant="light" color="gray" px={5} style={{ fontVariantNumeric: "tabular-nums" }}>
+                    <Text size="xs" c="dimmed" style={{ fontVariantNumeric: "tabular-nums" }}>
                       +{c.tags.length - 1}
-                    </Badge>
+                    </Text>
                   )}
                 </Group>
               </Tooltip>

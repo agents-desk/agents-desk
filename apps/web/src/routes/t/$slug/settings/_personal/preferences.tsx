@@ -4,7 +4,7 @@ import { PreferencesForm } from "../../../../../preferences"
 
 // 偏好设置：语言和时区。账号是全局的，在哪个工作区中修改都一样。
 export const Route = createFileRoute("/t/$slug/settings/_personal/preferences")({
-  staticData: { title: "nav.preferences", icon: "settings", order: 1 },
+  staticData: { title: "nav.preferences", icon: "sliders", order: 1 },
   component: Preferences,
 })
 

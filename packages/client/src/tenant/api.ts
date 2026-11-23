@@ -113,7 +113,7 @@ export interface ContactDTO {
   /** 所在地 */
   location: string
   name: string
-  /** 成员填写的内部备注，只给成员看 */
+  /** 成员填写的联系人备注，跨会话持久可见 */
   notes: string
   /** 联系人在工作区内的递增编号，从 1 开始 */
   number: number
@@ -146,7 +146,7 @@ export interface ContactDetailDTO {
   /** 所在地 */
   location: string
   name: string
-  /** 成员填写的内部备注，只给成员看 */
+  /** 成员填写的联系人备注，跨会话持久可见 */
   notes: string
   /** 联系人在工作区内的递增编号，从 1 开始 */
   number: number
@@ -250,7 +250,7 @@ export interface ContactUpdateBody {
   location?: string
   /** 名字 */
   name?: string
-  /** 成员填写的内部备注 */
+  /** 成员填写的联系人备注，跨会话持久可见 */
   notes?: string
   /** IANA 时区名，例如 Asia/Shanghai；传空字符串清除 */
   time_zone?: string
