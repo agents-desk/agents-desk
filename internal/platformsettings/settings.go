@@ -20,6 +20,8 @@ import (
 	"github.com/go-tenon/tenon/mail/logmail"
 	"github.com/go-tenon/tenon/mail/resend"
 	"github.com/go-tenon/tenon/settings"
+
+	"agents-desk/internal/lang"
 )
 
 var (
@@ -33,8 +35,8 @@ var (
 type Language string
 
 const (
-	LangZhCN Language = "zh-CN" // 简体中文
-	LangEN   Language = "en"    // English
+	LangZhCN Language = lang.ZhCN // 简体中文
+	LangEN   Language = lang.En   // English
 )
 
 // Languages 是平台支持的默认界面语言。

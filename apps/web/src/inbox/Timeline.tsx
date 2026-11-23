@@ -5,7 +5,7 @@ import { IconArrowDown, IconCheck, IconCopy, IconLanguage, IconLock } from "@tab
 import { ImageLightbox, notifyError, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
 import { Fragment, type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { languageName } from "../languages"
+import { languageName, sameLanguage } from "../languages"
 import { type LightboxImage, MessageAttachments } from "./Attachments"
 import type { TypingNow } from "./channel"
 import { useMe, useMembers, useTeams, useTimeline } from "./data"
@@ -338,11 +338,10 @@ function Message({ it, c, mine, author, time, fullTime, first, last, mt, lang, o
   const sentAs = mine && it.content.original ? it.content.language : undefined
   const shown = translated && !showOriginal ? translated : sentAs ? (it.content.original ?? "") : text
   const from = it.derived.language as string | undefined
-  const sameLang = (a?: string, b?: string) => Boolean(a && b && a.toLowerCase() === b.toLowerCase())
   let caption: ReactNode = null
   if (translated) {
     // 始终只保留单个译文/原文切换按钮；单条消息语言与会话主语言不同时附带语言名。
-    const showFromLang = Boolean(from && !sameLang(from, c.language))
+    const showFromLang = Boolean(from && !sameLanguage(from, c.language))
     caption = (
       <>
         <IconLanguage size={12} className="inbox-caption-icon" />
@@ -369,7 +368,7 @@ function Message({ it, c, mine, author, time, fullTime, first, last, mt, lang, o
       </>
     )
   } else if (sentAs) {
-    const showTargetLang = !sameLang(sentAs, c.language)
+    const showTargetLang = !sameLanguage(sentAs, c.language)
     caption = (
       <>
         {showTargetLang && (

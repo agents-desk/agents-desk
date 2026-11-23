@@ -61,7 +61,7 @@ import {
 } from "@go-tenon/ui"
 import { type ReactNode, type RefObject, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { languageName, languageOptions, validLanguage } from "../languages"
+import { languageName, languageOptions, sameLanguage, validLanguage } from "../languages"
 import {
   countMacroActions,
   emptyPendingActions,
@@ -95,18 +95,6 @@ const NO_TRANSLATION = "none"
 
 /** PAUSE 是停止输入后触发翻译预览的防抖时长（毫秒）。 */
 const PAUSE = 600
-
-/** sameLanguage 判断两个 BCP 47 语言标签是否指向同一书写语言（合并 zh-CN/zh-Hans 与 zh-TW/zh-Hant）。 */
-function sameLanguage(a?: string, b?: string): boolean {
-  if (!a || !b) return false
-  const norm = (s: string) => {
-    const k = s.trim().toLowerCase().replaceAll("_", "-")
-    if (k === "zh-cn" || k === "zh-sg" || k === "zh-hans") return "zh-hans"
-    if (k === "zh-tw" || k === "zh-hk" || k === "zh-mo" || k === "zh-hant") return "zh-hant"
-    return k
-  }
-  return norm(a) === norm(b)
-}
 
 /** Preview 是一次翻译预览：为哪段文字、哪个目标语言（空是对方的语言）做的，以及结果。 */
 interface Preview {

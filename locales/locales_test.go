@@ -8,16 +8,15 @@ import (
 
 	"go.yaml.in/yaml/v4"
 
+	"agents-desk/internal/lang"
 	"agents-desk/locales"
 )
 
-// languages 是应用支持的语言，每个翻译文件都有这几种语言的版本。
-var languages = []string{"zh-CN", "en"}
-
 // TestEveryLanguageHasEveryMessage 检查每组翻译文件（服务端的 <语言>.yaml、各前端的 <前端>.<语言>.yaml）
-// 在每种语言中都有同样的消息 ID：加一条消息时，每种语言都要写上它。
+// 在每种界面语言中都有同样的消息 ID：加一条消息时，每种语言都要写上它。
 func TestEveryLanguageHasEveryMessage(t *testing.T) {
 	t.Parallel()
+	languages := lang.UILanguages
 	for _, prefix := range []string{"", "web.", "admin."} {
 		ids := map[string][]string{}
 		for _, lang := range languages {

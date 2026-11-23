@@ -1,27 +1,34 @@
-// 语言（BCP 47 标签）的显示：名字由浏览器的 Intl.DisplayNames 按界面语言给出，例如 hi-Latn 是“印地语（拉丁字母）”，
-// 不写进翻译文件。回复框选择目标语言、术语表选择译法的语言时列出常用的语言，也可以输入任意标签。
+// 业务语言单一数据源：所有语言选择器（回复框翻译、会话与联系人详情、筛选、术语表）均由此派生。
+// 后续新增支持的语种，只需在 commonLanguages 中追加对应 BCP 47 标签即可；筛选与下拉列表自动同步。
+// 名字由浏览器的 Intl.DisplayNames 按界面语言动态生成，同时支持输入任意合法 BCP 47 标签。
 
-/** commonLanguages 是常用的语言：客户常用的在前，成员常用的在后。 */
+/** commonLanguages 是当前核心支持的常用业务语言（BCP 47）：中文、英语、拉丁印地语、印地语。 */
 export const commonLanguages = [
+  "zh-CN",
+  "en",
   "hi-Latn",
   "hi",
-  "en",
-  "bn",
-  "ta",
-  "te",
-  "mr",
-  "ur",
-  "ar",
-  "id",
-  "es",
-  "pt",
-  "fr",
-  "ru",
-  "zh-CN",
-  "zh-TW",
-  "ja",
-  "ko",
 ] as const
+
+/**
+ * filterLanguages 是按主语言去重后的筛选语言列表（例如 zh-CN -> zh，hi-Latn / hi -> hi），
+ * 供联系人列表与保存筛选按主语言前缀同时命中所有书写变体。
+ */
+export const filterLanguages: readonly string[] = [
+  ...new Set(commonLanguages.map((tag) => tag.split("-")[0])),
+]
+
+/** sameLanguage 判断两个 BCP 47 语言标签是否指向同一书写语言（合并 zh-CN/zh-Hans 与 zh-TW/zh-Hant）。 */
+export function sameLanguage(a?: string, b?: string): boolean {
+  if (!a || !b) return false
+  const norm = (s: string) => {
+    const k = s.trim().toLowerCase().replaceAll("_", "-")
+    if (k === "zh-cn" || k === "zh-sg" || k === "zh-hans") return "zh-hans"
+    if (k === "zh-tw" || k === "zh-hk" || k === "zh-mo" || k === "zh-hant") return "zh-hant"
+    return k
+  }
+  return norm(a) === norm(b)
+}
 
 /** displayNames 缓存每种界面语言的 Intl.DisplayNames。 */
 const displayNames = new Map<string, Intl.DisplayNames>()

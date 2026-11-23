@@ -1,5 +1,4 @@
-// Package lang 是语言标签（BCP 47）的比较和规范化：会话的翻译用它判断对方和成员是不是同一种语言，
-// 成员手动设置对方的语言时用它检查标签。
+// Package lang 集中维护应用界面语言常量以及业务语言标签（BCP 47）的比较和规范化。
 package lang
 
 import (
@@ -7,6 +6,14 @@ import (
 
 	"golang.org/x/text/language"
 )
+
+const (
+	ZhCN = "zh-CN" // 简体中文
+	En   = "en"    // English
+)
+
+// UILanguages 是应用支持的界面语言，与 locales/ 中的翻译文件一一对应。
+var UILanguages = []string{ZhCN, En}
 
 // Same 报告两个 BCP 47 标签是不是同一种语言、同一种书写方式：主语言相同，书写方式也相同。没有写书写方式时按这门语言
 // 在这个地区通常的书写方式推断（CLDR），例如 zh-CN 和 zh-Hans 相同，zh-TW 是繁体，hi 是天城文、和 hi-Latn（用拉丁字母写的
