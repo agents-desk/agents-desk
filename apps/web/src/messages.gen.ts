@@ -360,7 +360,6 @@ export const messages = {
     "inbox.mode_reply": "Reply",
     "inbox.new_message_jump": "New messages ({{.n}})",
     "inbox.new_messages": "New messages",
-    "inbox.next_waiting": "Next waiting conversation",
     "inbox.no_assignee": "No assignee",
     "inbox.no_history": "No other conversations",
     "inbox.no_tags": "No tags to add",
@@ -1278,7 +1277,6 @@ export const messages = {
     "inbox.mode_reply": "回复",
     "inbox.new_message_jump": "{{.n}} 条新消息",
     "inbox.new_messages": "新消息",
-    "inbox.next_waiting": "下一个待回复",
     "inbox.no_assignee": "没有负责人",
     "inbox.no_history": "没有其他会话",
     "inbox.no_tags": "没有可添加的标签",
@@ -2199,7 +2197,6 @@ export type MessageId =
   | "inbox.mode_reply"
   | "inbox.new_message_jump"
   | "inbox.new_messages"
-  | "inbox.next_waiting"
   | "inbox.no_assignee"
   | "inbox.no_history"
   | "inbox.no_tags"

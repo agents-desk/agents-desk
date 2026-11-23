@@ -149,7 +149,8 @@ export function Composer({
   const value = text.trim()
   const note = mode === "note"
   const hasPending = !note && hasPendingActions(pendingActions)
-  const preview = useReplyTranslation(c.id, !note ? value : "", c.language, me.data?.language)
+  const translatableText = !note && !value.startsWith("/") ? value : ""
+  const preview = useReplyTranslation(c.id, translatableText, c.language, me.data?.language)
   const queue = useUploadQueue<UploadedFile>({
     upload: (file) => tenantApi.file.upload({ file }),
     accept: ATTACHMENT_ACCEPT,
@@ -284,9 +285,9 @@ export function Composer({
                   {t(m.scope === "shared" ? "inbox.macro_scope_shared" : "inbox.macro_scope_personal")}
                 </Badge>
               </Group>
-              <Group gap={6} wrap="nowrap">
+              <Group gap={6} wrap="nowrap" align="flex-start">
                 {m.body ? (
-                  <Text size="xs" c="dimmed" truncate style={{ flex: 1 }}>
+                  <Text size="xs" c="dimmed" lineClamp={2} lh={1.45} style={{ flex: 1, minWidth: 0 }}>
                     {m.body}
                   </Text>
                 ) : (
@@ -295,7 +296,7 @@ export function Composer({
                   </Text>
                 )}
                 {actionCount > 0 && (
-                  <Badge size="xs" variant="dot" color="bright-blue" style={{ flex: "none" }}>
+                  <Badge size="xs" variant="dot" color="bright-blue" mt={1} style={{ flex: "none" }}>
                     {t("macros.summary_actions_count", { n: actionCount })}
                   </Badge>
                 )}
@@ -426,7 +427,8 @@ export function Composer({
         <TriggerMenu
           trigger={trigger}
           position="top"
-          width={trigger.activeRule?.id === "macro" ? 360 : 240}
+          width={trigger.activeRule?.id === "macro" ? "100%" : "min(100%, 280px)"}
+          maxHeight={trigger.activeRule?.id === "macro" ? 320 : 240}
           header={trigger.activeRule?.id === "macro" ? t("inbox.macro_header") : undefined}
           empty={trigger.activeRule?.id === "macro" ? t("inbox.macro_empty") : undefined}
         />
@@ -505,7 +507,7 @@ export function Composer({
           {!note && preview.split && (
             <InlineTranslationPreview
               c={c}
-              hasText={Boolean(value)}
+              hasText={Boolean(translatableText)}
               preview={preview}
               ctrlEnterSend={ctrlEnterSend}
               onSendOriginal={() => void submit({ kind: "none" }, { skipTranslation: true })}
@@ -834,12 +836,13 @@ function useReplyTranslation(id: string, value: string, customerLang?: string, m
     setEditedText(undefined)
   }, [value, target])
 
-  // 停止输入片刻后自动翻译；原文或目标语言变化时作废在途请求
+  // 停止输入片刻后自动翻译；输入清空或停用翻译时作废在途请求并清除旧译文
   useEffect(() => {
     if (!active) {
       seq.current++
       setPending(false)
       setError(undefined)
+      if (!value) setLast(undefined)
       return
     }
     if (last && last.text === value && last.target === target) return

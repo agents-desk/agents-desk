@@ -2,7 +2,7 @@ import { ActionIcon, Avatar, Badge, Box, Button, Center, Divider, Drawer, Group,
 import { useElementSize, useMediaQuery } from "@mantine/hooks"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Link, useParams } from "@tanstack/react-router"
-import { IconArrowRight, IconCheck, IconLayoutSidebarRight, IconRefresh } from "@tabler/icons-react"
+import { IconCheck, IconLayoutSidebarRight, IconRefresh } from "@tabler/icons-react"
 import { notifyError, Pane, PaneHeader, useCollapseNav, useNarrow, useT } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
@@ -259,13 +259,6 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
               </Button>
             )}
             <Divider orientation="vertical" h={16} mx={2} style={{ alignSelf: "center" }} />
-            {next && (
-              <Tooltip label={t("inbox.next_waiting")}>
-                <ActionIcon variant="subtle" color="gray" size="input-sm" onClick={next} aria-label={t("inbox.next_waiting")}>
-                  <IconArrowRight size={16} />
-                </ActionIcon>
-              </Tooltip>
-            )}
             <Tooltip label={t("inbox.details")}>
               <ActionIcon
                 variant={details ? "light" : "subtle"}
