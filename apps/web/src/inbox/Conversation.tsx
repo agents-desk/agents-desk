@@ -1,14 +1,12 @@
-import { ActionIcon, Avatar, Badge, Box, Button, Center, Drawer, Group, Loader, SegmentedControl, Text, Tooltip } from "@mantine/core"
+import { ActionIcon, Avatar, Badge, Box, Button, Center, Divider, Drawer, Group, Loader, SegmentedControl, Text, Tooltip } from "@mantine/core"
 import { useElementSize, useMediaQuery } from "@mantine/hooks"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Link, useParams } from "@tanstack/react-router"
 import { IconArrowRight, IconCheck, IconLayoutSidebarRight, IconRefresh } from "@tabler/icons-react"
-import { notifyError, Pane, PaneHeader, useCollapseNav, useLanguage, useNarrow, useT } from "@go-tenon/ui"
+import { notifyError, Pane, PaneHeader, useCollapseNav, useNarrow, useT } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { languageName } from "../languages"
 import { isTypingTarget, NARROW_QUERY } from "../layout"
-import { formatLocalTime } from "../timezone"
 import { useConversationChannel } from "./channel"
 import { Composer, type ComposerHandle } from "./Composer"
 import { useConversation, useMe, useMembers, useTeams, useTimeline } from "./data"
@@ -52,10 +50,9 @@ interface ConversationProps {
 }
 
 /**
- * ConversationView 是会话：顶部是联系人、渠道、语言、团队收件箱、负责人，谁也在看，以及指派、稍后处理、关闭或重新打开、
- * 下一个待回复、详情；中间是时间线；底部是回复框。打开时和有新消息时（页面在前台）标记已读。
- * 对方的消息有译文时，顶部的“译文 | 原文”把它们一次切换成原文。
- * 详情是第五栏：窗口宽度小于 1600px 时打开详情先收起二级导航，关掉后恢复。窄屏时左上角返回会话列表，详情占满。
+ * ConversationView 是会话视图：顶部展示联系人、非默认状态及渠道/团队/负责人上下文，右侧按主次分层排列译文切换、
+ * 指派、稍后处理、关闭/重开与导航控件；中间是时间线；底部是回复框。打开时和前台收到新消息时自动标记已读。
+ * 详情是第五栏：窗口宽度小于 1600px 时打开详情自动收起二级导航，关闭后恢复；窄屏时详情占满并支持返回列表。
  */
 export function ConversationView({ id, tenantId, highlight, focusSeq, focusField, open, next, back }: ConversationProps): ReactNode {
   const t = useT()
@@ -71,7 +68,6 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
   const conversation = useConversation(id)
   const timeline = useTimeline(id, focusSeq)
   const { viewers, typing, notifyTyping, clearTyping } = useConversationChannel(tenantId, id, me.data?.id)
-  const ui = useLanguage()
   const [details, setDetails] = useState(() => (narrow ? false : readSavedDetails()))
   const [original, setOriginal] = useState(false) // 对方的消息都显示原文
   const { ref: mainRef, width: mainWidth } = useElementSize()
@@ -162,11 +158,11 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
   const assignee = c.assignee?.type === "member" ? (c.assignee.id === me.data?.id ? t("inbox.you") : byId.get(c.assignee.id)?.name) : undefined
   const teamRow = c.team_id ? teams.find((x) => x.id === c.team_id) : undefined
   const team = teamRow ? (teamRow.status === "disabled" ? t("inbox.team_disabled_suffix", { name: teamRow.name }) : teamRow.name) : undefined
-  const localTime = formatLocalTime(c.contact?.time_zone)
-  const place = [c.contact?.location, localTime ? t("contacts.local_time", { time: localTime }) : undefined].filter(Boolean).join(" ")
-  const meta = [c.channel?.name, c.language ? languageName(c.language, ui) : undefined, place || undefined, team, assignee ? t("inbox.assigned_to", { who: assignee }) : t("inbox.no_assignee")]
+  // 顶栏副标题只保留渠道、团队和负责人三项高频上下文，语言与所在地等完整资料在右侧详情栏查看
+  const meta = [c.channel?.name, team, assignee ? t("inbox.assigned_to", { who: assignee }) : t("inbox.no_assignee")]
     .filter(Boolean)
     .join(" · ")
+  const showTranslateToggle = hasTranslation(timeline.data, me.data?.language)
 
   if (narrow && details) return <Details c={c} onClose={closeDetails} onOpen={open} />
   const inlineDetails = details && !narrow && canInlineDetails
@@ -196,14 +192,11 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
                   {contactName(c, t)}
                 </Text>
               )}
-              {c.contact && (
-                <Badge size="xs" variant="light" color="gray" style={{ flex: "none" }}>
-                  {kit.label("ContactKind", c.contact.kind)}
+              {c.status !== "open" && (
+                <Badge size="xs" variant="light" color={c.status === "snoozed" ? "yellow" : "gray"} style={{ flex: "none" }}>
+                  {t(`inbox.status_${c.status}` as const)}
                 </Badge>
               )}
-              <Badge size="xs" variant="light" color={c.status === "open" ? "bright-blue" : c.status === "snoozed" ? "yellow" : "gray"} style={{ flex: "none" }}>
-                {t(`inbox.status_${c.status}` as const)}
-              </Badge>
             </Group>
             <Text size="xs" c="dimmed" truncate lh={1.3}>
               {meta}
@@ -219,58 +212,68 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
             </Tooltip>
           )}
           <Group
-            gap={6}
+            gap={4}
             wrap="nowrap"
             w={narrow ? "100%" : undefined}
             justify={narrow ? "flex-end" : undefined}
             style={{ flex: "none" }}
             data-tn-density="dense"
           >
-            {hasTranslation(timeline.data, me.data?.language) && (
-              <SegmentedControl
-                value={original ? "original" : "translation"}
-                onChange={(v) => setOriginal(v === "original")}
-                data={[
-                  { value: "translation", label: t("inbox.translated") },
-                  { value: "original", label: t("inbox.original") },
-                ]}
-                aria-label={t("inbox.text_shown")}
-              />
+            {showTranslateToggle && (
+              <>
+                <SegmentedControl
+                  value={original ? "original" : "translation"}
+                  onChange={(v) => setOriginal(v === "original")}
+                  data={[
+                    { value: "translation", label: t("inbox.translated") },
+                    { value: "original", label: t("inbox.original") },
+                  ]}
+                  aria-label={t("inbox.text_shown")}
+                />
+                <Divider orientation="vertical" h={16} mx={2} style={{ alignSelf: "center" }} />
+              </>
             )}
             <AssignMenu c={c} compact={compactActions} />
             {c.status !== "closed" && <SnoozeMenu id={c.id} compact={compactActions} />}
             {c.status === "closed" ? (
               compactActions ? (
                 <Tooltip label={t("inbox.reopen")}>
-                  <ActionIcon variant="default" size="input-sm" loading={reopen.isPending} onClick={() => reopen.mutate()} aria-label={t("inbox.reopen")}>
+                  <ActionIcon variant="light" size="input-sm" loading={reopen.isPending} onClick={() => reopen.mutate()} aria-label={t("inbox.reopen")}>
                     <IconRefresh size={15} />
                   </ActionIcon>
                 </Tooltip>
               ) : (
-                <Button variant="default" leftSection={<IconRefresh size={14} />} loading={reopen.isPending} onClick={() => reopen.mutate()}>
+                <Button variant="light" ml={2} leftSection={<IconRefresh size={14} />} loading={reopen.isPending} onClick={() => reopen.mutate()}>
                   {t("inbox.reopen")}
                 </Button>
               )
             ) : compactActions ? (
               <Tooltip label={t("inbox.close")}>
-                <ActionIcon variant="default" size="input-sm" loading={close.isPending} onClick={() => close.mutate()} aria-label={t("inbox.close")}>
+                <ActionIcon variant="light" color="green" size="input-sm" loading={close.isPending} onClick={() => close.mutate()} aria-label={t("inbox.close")}>
                   <IconCheck size={15} />
                 </ActionIcon>
               </Tooltip>
             ) : (
-              <Button variant="default" leftSection={<IconCheck size={14} />} loading={close.isPending} onClick={() => close.mutate()}>
+              <Button variant="light" color="green" ml={2} leftSection={<IconCheck size={14} />} loading={close.isPending} onClick={() => close.mutate()}>
                 {t("inbox.close")}
               </Button>
             )}
+            <Divider orientation="vertical" h={16} mx={2} style={{ alignSelf: "center" }} />
             {next && (
               <Tooltip label={t("inbox.next_waiting")}>
-                <ActionIcon variant="default" size="input-sm" onClick={next} aria-label={t("inbox.next_waiting")}>
+                <ActionIcon variant="subtle" color="gray" size="input-sm" onClick={next} aria-label={t("inbox.next_waiting")}>
                   <IconArrowRight size={16} />
                 </ActionIcon>
               </Tooltip>
             )}
             <Tooltip label={t("inbox.details")}>
-              <ActionIcon variant={details ? "light" : "default"} size="input-sm" onClick={toggleDetails} aria-label={t("inbox.details")}>
+              <ActionIcon
+                variant={details ? "light" : "subtle"}
+                color={details ? undefined : "gray"}
+                size="input-sm"
+                onClick={toggleDetails}
+                aria-label={t("inbox.details")}
+              >
                 <IconLayoutSidebarRight size={16} />
               </ActionIcon>
             </Tooltip>

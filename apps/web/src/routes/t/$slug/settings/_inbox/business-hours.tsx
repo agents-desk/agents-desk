@@ -11,10 +11,10 @@ import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../../../../../api"
 import { emptySchedule, Intervals, ScheduleFields } from "../../../../../business-hours"
 
-// 工作时间：时区和每周的工作时间、特殊日期（节假日、调休）、通常的回复时间。三个标签各自保存，保存一个不影响其他的。
+// 工作时间：时区和每周的工作时间、特殊日期（节假日、调休）、通常的回复时间。三个标签各自独立保存。
 // 聊天插件和自动化用它们告诉客户什么时候能得到回复，收件箱按回复时间给等待时长变色。
-export const Route = createFileRoute("/t/$slug/settings/_workspace/business-hours")({
-  staticData: { title: "business_hours.title", icon: "clock", order: 3, permission: "tenant-settings:manage" },
+export const Route = createFileRoute("/t/$slug/settings/_inbox/business-hours")({
+  staticData: { title: "business_hours.title", icon: "calendar", order: 1, permission: "tenant-settings:manage" },
   component: BusinessHours,
 })
 
@@ -70,7 +70,7 @@ function useSave<T extends object>(form: ReturnType<typeof useForm<T>>, pick: (s
   return { error, saving, submit }
 }
 
-/** SaveButton 是靠右的保存按钮，没有修改时不能点。 */
+/** SaveButton 是靠右的保存按钮，表单未修改时禁用。 */
 function SaveButton({ dirty, saving }: { dirty: boolean; saving: boolean }): ReactNode {
   const t = useT()
   return (
@@ -102,7 +102,7 @@ function ScheduleForm({ saved }: { saved: HoursSettingsDTO }): ReactNode {
   )
 }
 
-/** SpecialDatesForm 是特殊日期：节假日全天不上班，调休的日子按自己的时间段上班。 */
+/** SpecialDatesForm 是特殊日期：节假日全天休息，调休的日子按自定义时间段工作。 */
 function SpecialDatesForm({ saved }: { saved: HoursSettingsDTO }): ReactNode {
   const pick = (s: HoursSettingsDTO) => ({ special_dates: s.special_dates })
   const form = useForm<{ special_dates: HoursSpecialDate[] }>({ initialValues: { special_dates: [] } })

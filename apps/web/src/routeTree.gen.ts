@@ -28,20 +28,17 @@ import { Route as TSlugReportsResponseTimeRouteImport } from './routes/t/$slug/r
 import { Route as TSlugReportsSatisfactionRouteImport } from './routes/t/$slug/reports/satisfaction'
 import { Route as TSlugReportsTranslationRouteImport } from './routes/t/$slug/reports/translation'
 import { Route as TSlugSettingsIndexRouteImport } from './routes/t/$slug/settings/index'
-import { Route as TSlugSettingsAutomationRouteImport } from './routes/t/$slug/settings/_automation'
 import { Route as TSlugSettingsChannelsRouteImport } from './routes/t/$slug/settings/_channels'
-import { Route as TSlugSettingsDataRouteImport } from './routes/t/$slug/settings/_data'
 import { Route as TSlugSettingsInboxRouteImport } from './routes/t/$slug/settings/_inbox'
 import { Route as TSlugSettingsPersonalRouteImport } from './routes/t/$slug/settings/_personal'
 import { Route as TSlugSettingsTranslationRouteImport } from './routes/t/$slug/settings/_translation'
 import { Route as TSlugSettingsWorkspaceRouteImport } from './routes/t/$slug/settings/_workspace'
-import { Route as TSlugSettingsAutomationRulesRouteImport } from './routes/t/$slug/settings/_automation/rules'
 import { Route as TSlugSettingsChannelsTelegramsRouteImport } from './routes/t/$slug/settings/_channels/telegrams'
 import { Route as TSlugSettingsChannelsWidgetsRouteImport } from './routes/t/$slug/settings/_channels/widgets'
-import { Route as TSlugSettingsDataAttributesRouteImport } from './routes/t/$slug/settings/_data/attributes'
-import { Route as TSlugSettingsDataTagsRouteImport } from './routes/t/$slug/settings/_data/tags'
 import { Route as TSlugSettingsInboxAssignmentRouteImport } from './routes/t/$slug/settings/_inbox/assignment'
+import { Route as TSlugSettingsInboxBusinessHoursRouteImport } from './routes/t/$slug/settings/_inbox/business-hours'
 import { Route as TSlugSettingsInboxMacrosRouteImport } from './routes/t/$slug/settings/_inbox/macros'
+import { Route as TSlugSettingsInboxRulesRouteImport } from './routes/t/$slug/settings/_inbox/rules'
 import { Route as TSlugSettingsInboxTeamsRouteImport } from './routes/t/$slug/settings/_inbox/teams'
 import { Route as TSlugSettingsPersonalNotificationsRouteImport } from './routes/t/$slug/settings/_personal/notifications'
 import { Route as TSlugSettingsPersonalPreferencesRouteImport } from './routes/t/$slug/settings/_personal/preferences'
@@ -49,10 +46,11 @@ import { Route as TSlugSettingsPersonalProfileRouteImport } from './routes/t/$sl
 import { Route as TSlugSettingsPersonalStatusRouteImport } from './routes/t/$slug/settings/_personal/status'
 import { Route as TSlugSettingsTranslationGlossaryRouteImport } from './routes/t/$slug/settings/_translation/glossary'
 import { Route as TSlugSettingsTranslationToneRouteImport } from './routes/t/$slug/settings/_translation/tone'
-import { Route as TSlugSettingsWorkspaceBusinessHoursRouteImport } from './routes/t/$slug/settings/_workspace/business-hours'
+import { Route as TSlugSettingsWorkspaceAttributesRouteImport } from './routes/t/$slug/settings/_workspace/attributes'
 import { Route as TSlugSettingsWorkspaceGeneralRouteImport } from './routes/t/$slug/settings/_workspace/general'
 import { Route as TSlugSettingsWorkspaceMembersRouteImport } from './routes/t/$slug/settings/_workspace/members'
 import { Route as TSlugSettingsWorkspaceRolesRouteImport } from './routes/t/$slug/settings/_workspace/roles'
+import { Route as TSlugSettingsWorkspaceTagsRouteImport } from './routes/t/$slug/settings/_workspace/tags'
 import { Route as TSlugSettingsChannelsTelegramsIndexRouteImport } from './routes/t/$slug/settings/_channels/telegrams/index'
 import { Route as TSlugSettingsChannelsTelegramsIdRouteImport } from './routes/t/$slug/settings/_channels/telegrams/$id'
 import { Route as TSlugSettingsChannelsWidgetsIndexRouteImport } from './routes/t/$slug/settings/_channels/widgets/index'
@@ -158,16 +156,8 @@ const TSlugSettingsIndexRoute = TSlugSettingsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => TSlugSettingsRoute,
 } as any)
-const TSlugSettingsAutomationRoute = TSlugSettingsAutomationRouteImport.update({
-  id: '/_automation',
-  getParentRoute: () => TSlugSettingsRoute,
-} as any)
 const TSlugSettingsChannelsRoute = TSlugSettingsChannelsRouteImport.update({
   id: '/_channels',
-  getParentRoute: () => TSlugSettingsRoute,
-} as any)
-const TSlugSettingsDataRoute = TSlugSettingsDataRouteImport.update({
-  id: '/_data',
   getParentRoute: () => TSlugSettingsRoute,
 } as any)
 const TSlugSettingsInboxRoute = TSlugSettingsInboxRouteImport.update({
@@ -187,12 +177,6 @@ const TSlugSettingsWorkspaceRoute = TSlugSettingsWorkspaceRouteImport.update({
   id: '/_workspace',
   getParentRoute: () => TSlugSettingsRoute,
 } as any)
-const TSlugSettingsAutomationRulesRoute =
-  TSlugSettingsAutomationRulesRouteImport.update({
-    id: '/rules',
-    path: '/rules',
-    getParentRoute: () => TSlugSettingsAutomationRoute,
-  } as any)
 const TSlugSettingsChannelsTelegramsRoute =
   TSlugSettingsChannelsTelegramsRouteImport.update({
     id: '/telegrams',
@@ -205,21 +189,16 @@ const TSlugSettingsChannelsWidgetsRoute =
     path: '/widgets',
     getParentRoute: () => TSlugSettingsChannelsRoute,
   } as any)
-const TSlugSettingsDataAttributesRoute =
-  TSlugSettingsDataAttributesRouteImport.update({
-    id: '/attributes',
-    path: '/attributes',
-    getParentRoute: () => TSlugSettingsDataRoute,
-  } as any)
-const TSlugSettingsDataTagsRoute = TSlugSettingsDataTagsRouteImport.update({
-  id: '/tags',
-  path: '/tags',
-  getParentRoute: () => TSlugSettingsDataRoute,
-} as any)
 const TSlugSettingsInboxAssignmentRoute =
   TSlugSettingsInboxAssignmentRouteImport.update({
     id: '/assignment',
     path: '/assignment',
+    getParentRoute: () => TSlugSettingsInboxRoute,
+  } as any)
+const TSlugSettingsInboxBusinessHoursRoute =
+  TSlugSettingsInboxBusinessHoursRouteImport.update({
+    id: '/business-hours',
+    path: '/business-hours',
     getParentRoute: () => TSlugSettingsInboxRoute,
   } as any)
 const TSlugSettingsInboxMacrosRoute =
@@ -228,6 +207,11 @@ const TSlugSettingsInboxMacrosRoute =
     path: '/macros',
     getParentRoute: () => TSlugSettingsInboxRoute,
   } as any)
+const TSlugSettingsInboxRulesRoute = TSlugSettingsInboxRulesRouteImport.update({
+  id: '/rules',
+  path: '/rules',
+  getParentRoute: () => TSlugSettingsInboxRoute,
+} as any)
 const TSlugSettingsInboxTeamsRoute = TSlugSettingsInboxTeamsRouteImport.update({
   id: '/teams',
   path: '/teams',
@@ -269,10 +253,10 @@ const TSlugSettingsTranslationToneRoute =
     path: '/tone',
     getParentRoute: () => TSlugSettingsTranslationRoute,
   } as any)
-const TSlugSettingsWorkspaceBusinessHoursRoute =
-  TSlugSettingsWorkspaceBusinessHoursRouteImport.update({
-    id: '/business-hours',
-    path: '/business-hours',
+const TSlugSettingsWorkspaceAttributesRoute =
+  TSlugSettingsWorkspaceAttributesRouteImport.update({
+    id: '/attributes',
+    path: '/attributes',
     getParentRoute: () => TSlugSettingsWorkspaceRoute,
   } as any)
 const TSlugSettingsWorkspaceGeneralRoute =
@@ -291,6 +275,12 @@ const TSlugSettingsWorkspaceRolesRoute =
   TSlugSettingsWorkspaceRolesRouteImport.update({
     id: '/roles',
     path: '/roles',
+    getParentRoute: () => TSlugSettingsWorkspaceRoute,
+  } as any)
+const TSlugSettingsWorkspaceTagsRoute =
+  TSlugSettingsWorkspaceTagsRouteImport.update({
+    id: '/tags',
+    path: '/tags',
     getParentRoute: () => TSlugSettingsWorkspaceRoute,
   } as any)
 const TSlugSettingsChannelsTelegramsIndexRoute =
@@ -350,13 +340,12 @@ export interface FileRoutesByFullPath {
   '/t/$slug/inbox/': typeof TSlugInboxIndexRoute
   '/t/$slug/reports/': typeof TSlugReportsIndexRoute
   '/t/$slug/settings/': typeof TSlugSettingsIndexRoute
-  '/t/$slug/settings/rules': typeof TSlugSettingsAutomationRulesRoute
   '/t/$slug/settings/telegrams': typeof TSlugSettingsChannelsTelegramsRouteWithChildren
   '/t/$slug/settings/widgets': typeof TSlugSettingsChannelsWidgetsRouteWithChildren
-  '/t/$slug/settings/attributes': typeof TSlugSettingsDataAttributesRoute
-  '/t/$slug/settings/tags': typeof TSlugSettingsDataTagsRoute
   '/t/$slug/settings/assignment': typeof TSlugSettingsInboxAssignmentRoute
+  '/t/$slug/settings/business-hours': typeof TSlugSettingsInboxBusinessHoursRoute
   '/t/$slug/settings/macros': typeof TSlugSettingsInboxMacrosRoute
+  '/t/$slug/settings/rules': typeof TSlugSettingsInboxRulesRoute
   '/t/$slug/settings/teams': typeof TSlugSettingsInboxTeamsRouteWithChildren
   '/t/$slug/settings/notifications': typeof TSlugSettingsPersonalNotificationsRoute
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
@@ -364,10 +353,11 @@ export interface FileRoutesByFullPath {
   '/t/$slug/settings/status': typeof TSlugSettingsPersonalStatusRoute
   '/t/$slug/settings/glossary': typeof TSlugSettingsTranslationGlossaryRoute
   '/t/$slug/settings/tone': typeof TSlugSettingsTranslationToneRoute
-  '/t/$slug/settings/business-hours': typeof TSlugSettingsWorkspaceBusinessHoursRoute
+  '/t/$slug/settings/attributes': typeof TSlugSettingsWorkspaceAttributesRoute
   '/t/$slug/settings/general': typeof TSlugSettingsWorkspaceGeneralRoute
   '/t/$slug/settings/members': typeof TSlugSettingsWorkspaceMembersRoute
   '/t/$slug/settings/roles': typeof TSlugSettingsWorkspaceRolesRoute
+  '/t/$slug/settings/tags': typeof TSlugSettingsWorkspaceTagsRoute
   '/t/$slug/settings/telegrams/$id': typeof TSlugSettingsChannelsTelegramsIdRoute
   '/t/$slug/settings/widgets/$id': typeof TSlugSettingsChannelsWidgetsIdRoute
   '/t/$slug/settings/teams/$id': typeof TSlugSettingsInboxTeamsIdRoute
@@ -390,21 +380,21 @@ export interface FileRoutesByTo {
   '/t/$slug/contacts': typeof TSlugContactsIndexRoute
   '/t/$slug/inbox': typeof TSlugInboxIndexRoute
   '/t/$slug/reports': typeof TSlugReportsIndexRoute
-  '/t/$slug/settings/rules': typeof TSlugSettingsAutomationRulesRoute
-  '/t/$slug/settings/attributes': typeof TSlugSettingsDataAttributesRoute
-  '/t/$slug/settings/tags': typeof TSlugSettingsDataTagsRoute
   '/t/$slug/settings/assignment': typeof TSlugSettingsInboxAssignmentRoute
+  '/t/$slug/settings/business-hours': typeof TSlugSettingsInboxBusinessHoursRoute
   '/t/$slug/settings/macros': typeof TSlugSettingsInboxMacrosRoute
+  '/t/$slug/settings/rules': typeof TSlugSettingsInboxRulesRoute
   '/t/$slug/settings/notifications': typeof TSlugSettingsPersonalNotificationsRoute
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/status': typeof TSlugSettingsPersonalStatusRoute
   '/t/$slug/settings/glossary': typeof TSlugSettingsTranslationGlossaryRoute
   '/t/$slug/settings/tone': typeof TSlugSettingsTranslationToneRoute
-  '/t/$slug/settings/business-hours': typeof TSlugSettingsWorkspaceBusinessHoursRoute
+  '/t/$slug/settings/attributes': typeof TSlugSettingsWorkspaceAttributesRoute
   '/t/$slug/settings/general': typeof TSlugSettingsWorkspaceGeneralRoute
   '/t/$slug/settings/members': typeof TSlugSettingsWorkspaceMembersRoute
   '/t/$slug/settings/roles': typeof TSlugSettingsWorkspaceRolesRoute
+  '/t/$slug/settings/tags': typeof TSlugSettingsWorkspaceTagsRoute
   '/t/$slug/settings/telegrams/$id': typeof TSlugSettingsChannelsTelegramsIdRoute
   '/t/$slug/settings/widgets/$id': typeof TSlugSettingsChannelsWidgetsIdRoute
   '/t/$slug/settings/teams/$id': typeof TSlugSettingsInboxTeamsIdRoute
@@ -429,9 +419,7 @@ export interface FileRoutesById {
   '/t/$slug/reports/response-time': typeof TSlugReportsResponseTimeRoute
   '/t/$slug/reports/satisfaction': typeof TSlugReportsSatisfactionRoute
   '/t/$slug/reports/translation': typeof TSlugReportsTranslationRoute
-  '/t/$slug/settings/_automation': typeof TSlugSettingsAutomationRouteWithChildren
   '/t/$slug/settings/_channels': typeof TSlugSettingsChannelsRouteWithChildren
-  '/t/$slug/settings/_data': typeof TSlugSettingsDataRouteWithChildren
   '/t/$slug/settings/_inbox': typeof TSlugSettingsInboxRouteWithChildren
   '/t/$slug/settings/_personal': typeof TSlugSettingsPersonalRouteWithChildren
   '/t/$slug/settings/_translation': typeof TSlugSettingsTranslationRouteWithChildren
@@ -440,13 +428,12 @@ export interface FileRoutesById {
   '/t/$slug/inbox/': typeof TSlugInboxIndexRoute
   '/t/$slug/reports/': typeof TSlugReportsIndexRoute
   '/t/$slug/settings/': typeof TSlugSettingsIndexRoute
-  '/t/$slug/settings/_automation/rules': typeof TSlugSettingsAutomationRulesRoute
   '/t/$slug/settings/_channels/telegrams': typeof TSlugSettingsChannelsTelegramsRouteWithChildren
   '/t/$slug/settings/_channels/widgets': typeof TSlugSettingsChannelsWidgetsRouteWithChildren
-  '/t/$slug/settings/_data/attributes': typeof TSlugSettingsDataAttributesRoute
-  '/t/$slug/settings/_data/tags': typeof TSlugSettingsDataTagsRoute
   '/t/$slug/settings/_inbox/assignment': typeof TSlugSettingsInboxAssignmentRoute
+  '/t/$slug/settings/_inbox/business-hours': typeof TSlugSettingsInboxBusinessHoursRoute
   '/t/$slug/settings/_inbox/macros': typeof TSlugSettingsInboxMacrosRoute
+  '/t/$slug/settings/_inbox/rules': typeof TSlugSettingsInboxRulesRoute
   '/t/$slug/settings/_inbox/teams': typeof TSlugSettingsInboxTeamsRouteWithChildren
   '/t/$slug/settings/_personal/notifications': typeof TSlugSettingsPersonalNotificationsRoute
   '/t/$slug/settings/_personal/preferences': typeof TSlugSettingsPersonalPreferencesRoute
@@ -454,10 +441,11 @@ export interface FileRoutesById {
   '/t/$slug/settings/_personal/status': typeof TSlugSettingsPersonalStatusRoute
   '/t/$slug/settings/_translation/glossary': typeof TSlugSettingsTranslationGlossaryRoute
   '/t/$slug/settings/_translation/tone': typeof TSlugSettingsTranslationToneRoute
-  '/t/$slug/settings/_workspace/business-hours': typeof TSlugSettingsWorkspaceBusinessHoursRoute
+  '/t/$slug/settings/_workspace/attributes': typeof TSlugSettingsWorkspaceAttributesRoute
   '/t/$slug/settings/_workspace/general': typeof TSlugSettingsWorkspaceGeneralRoute
   '/t/$slug/settings/_workspace/members': typeof TSlugSettingsWorkspaceMembersRoute
   '/t/$slug/settings/_workspace/roles': typeof TSlugSettingsWorkspaceRolesRoute
+  '/t/$slug/settings/_workspace/tags': typeof TSlugSettingsWorkspaceTagsRoute
   '/t/$slug/settings/_channels/telegrams/$id': typeof TSlugSettingsChannelsTelegramsIdRoute
   '/t/$slug/settings/_channels/widgets/$id': typeof TSlugSettingsChannelsWidgetsIdRoute
   '/t/$slug/settings/_inbox/teams/$id': typeof TSlugSettingsInboxTeamsIdRoute
@@ -487,13 +475,12 @@ export interface FileRouteTypes {
     | '/t/$slug/inbox/'
     | '/t/$slug/reports/'
     | '/t/$slug/settings/'
-    | '/t/$slug/settings/rules'
     | '/t/$slug/settings/telegrams'
     | '/t/$slug/settings/widgets'
-    | '/t/$slug/settings/attributes'
-    | '/t/$slug/settings/tags'
     | '/t/$slug/settings/assignment'
+    | '/t/$slug/settings/business-hours'
     | '/t/$slug/settings/macros'
+    | '/t/$slug/settings/rules'
     | '/t/$slug/settings/teams'
     | '/t/$slug/settings/notifications'
     | '/t/$slug/settings/preferences'
@@ -501,10 +488,11 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/status'
     | '/t/$slug/settings/glossary'
     | '/t/$slug/settings/tone'
-    | '/t/$slug/settings/business-hours'
+    | '/t/$slug/settings/attributes'
     | '/t/$slug/settings/general'
     | '/t/$slug/settings/members'
     | '/t/$slug/settings/roles'
+    | '/t/$slug/settings/tags'
     | '/t/$slug/settings/telegrams/$id'
     | '/t/$slug/settings/widgets/$id'
     | '/t/$slug/settings/teams/$id'
@@ -527,21 +515,21 @@ export interface FileRouteTypes {
     | '/t/$slug/contacts'
     | '/t/$slug/inbox'
     | '/t/$slug/reports'
-    | '/t/$slug/settings/rules'
-    | '/t/$slug/settings/attributes'
-    | '/t/$slug/settings/tags'
     | '/t/$slug/settings/assignment'
+    | '/t/$slug/settings/business-hours'
     | '/t/$slug/settings/macros'
+    | '/t/$slug/settings/rules'
     | '/t/$slug/settings/notifications'
     | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
     | '/t/$slug/settings/status'
     | '/t/$slug/settings/glossary'
     | '/t/$slug/settings/tone'
-    | '/t/$slug/settings/business-hours'
+    | '/t/$slug/settings/attributes'
     | '/t/$slug/settings/general'
     | '/t/$slug/settings/members'
     | '/t/$slug/settings/roles'
+    | '/t/$slug/settings/tags'
     | '/t/$slug/settings/telegrams/$id'
     | '/t/$slug/settings/widgets/$id'
     | '/t/$slug/settings/teams/$id'
@@ -565,9 +553,7 @@ export interface FileRouteTypes {
     | '/t/$slug/reports/response-time'
     | '/t/$slug/reports/satisfaction'
     | '/t/$slug/reports/translation'
-    | '/t/$slug/settings/_automation'
     | '/t/$slug/settings/_channels'
-    | '/t/$slug/settings/_data'
     | '/t/$slug/settings/_inbox'
     | '/t/$slug/settings/_personal'
     | '/t/$slug/settings/_translation'
@@ -576,13 +562,12 @@ export interface FileRouteTypes {
     | '/t/$slug/inbox/'
     | '/t/$slug/reports/'
     | '/t/$slug/settings/'
-    | '/t/$slug/settings/_automation/rules'
     | '/t/$slug/settings/_channels/telegrams'
     | '/t/$slug/settings/_channels/widgets'
-    | '/t/$slug/settings/_data/attributes'
-    | '/t/$slug/settings/_data/tags'
     | '/t/$slug/settings/_inbox/assignment'
+    | '/t/$slug/settings/_inbox/business-hours'
     | '/t/$slug/settings/_inbox/macros'
+    | '/t/$slug/settings/_inbox/rules'
     | '/t/$slug/settings/_inbox/teams'
     | '/t/$slug/settings/_personal/notifications'
     | '/t/$slug/settings/_personal/preferences'
@@ -590,10 +575,11 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/_personal/status'
     | '/t/$slug/settings/_translation/glossary'
     | '/t/$slug/settings/_translation/tone'
-    | '/t/$slug/settings/_workspace/business-hours'
+    | '/t/$slug/settings/_workspace/attributes'
     | '/t/$slug/settings/_workspace/general'
     | '/t/$slug/settings/_workspace/members'
     | '/t/$slug/settings/_workspace/roles'
+    | '/t/$slug/settings/_workspace/tags'
     | '/t/$slug/settings/_channels/telegrams/$id'
     | '/t/$slug/settings/_channels/widgets/$id'
     | '/t/$slug/settings/_inbox/teams/$id'
@@ -743,25 +729,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugSettingsIndexRouteImport
       parentRoute: typeof TSlugSettingsRoute
     }
-    '/t/$slug/settings/_automation': {
-      id: '/t/$slug/settings/_automation'
-      path: ''
-      fullPath: '/t/$slug/settings'
-      preLoaderRoute: typeof TSlugSettingsAutomationRouteImport
-      parentRoute: typeof TSlugSettingsRoute
-    }
     '/t/$slug/settings/_channels': {
       id: '/t/$slug/settings/_channels'
       path: ''
       fullPath: '/t/$slug/settings'
       preLoaderRoute: typeof TSlugSettingsChannelsRouteImport
-      parentRoute: typeof TSlugSettingsRoute
-    }
-    '/t/$slug/settings/_data': {
-      id: '/t/$slug/settings/_data'
-      path: ''
-      fullPath: '/t/$slug/settings'
-      preLoaderRoute: typeof TSlugSettingsDataRouteImport
       parentRoute: typeof TSlugSettingsRoute
     }
     '/t/$slug/settings/_inbox': {
@@ -792,13 +764,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugSettingsWorkspaceRouteImport
       parentRoute: typeof TSlugSettingsRoute
     }
-    '/t/$slug/settings/_automation/rules': {
-      id: '/t/$slug/settings/_automation/rules'
-      path: '/rules'
-      fullPath: '/t/$slug/settings/rules'
-      preLoaderRoute: typeof TSlugSettingsAutomationRulesRouteImport
-      parentRoute: typeof TSlugSettingsAutomationRoute
-    }
     '/t/$slug/settings/_channels/telegrams': {
       id: '/t/$slug/settings/_channels/telegrams'
       path: '/telegrams'
@@ -813,20 +778,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugSettingsChannelsWidgetsRouteImport
       parentRoute: typeof TSlugSettingsChannelsRoute
     }
-    '/t/$slug/settings/_data/attributes': {
-      id: '/t/$slug/settings/_data/attributes'
-      path: '/attributes'
-      fullPath: '/t/$slug/settings/attributes'
-      preLoaderRoute: typeof TSlugSettingsDataAttributesRouteImport
-      parentRoute: typeof TSlugSettingsDataRoute
-    }
-    '/t/$slug/settings/_data/tags': {
-      id: '/t/$slug/settings/_data/tags'
-      path: '/tags'
-      fullPath: '/t/$slug/settings/tags'
-      preLoaderRoute: typeof TSlugSettingsDataTagsRouteImport
-      parentRoute: typeof TSlugSettingsDataRoute
-    }
     '/t/$slug/settings/_inbox/assignment': {
       id: '/t/$slug/settings/_inbox/assignment'
       path: '/assignment'
@@ -834,11 +785,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugSettingsInboxAssignmentRouteImport
       parentRoute: typeof TSlugSettingsInboxRoute
     }
+    '/t/$slug/settings/_inbox/business-hours': {
+      id: '/t/$slug/settings/_inbox/business-hours'
+      path: '/business-hours'
+      fullPath: '/t/$slug/settings/business-hours'
+      preLoaderRoute: typeof TSlugSettingsInboxBusinessHoursRouteImport
+      parentRoute: typeof TSlugSettingsInboxRoute
+    }
     '/t/$slug/settings/_inbox/macros': {
       id: '/t/$slug/settings/_inbox/macros'
       path: '/macros'
       fullPath: '/t/$slug/settings/macros'
       preLoaderRoute: typeof TSlugSettingsInboxMacrosRouteImport
+      parentRoute: typeof TSlugSettingsInboxRoute
+    }
+    '/t/$slug/settings/_inbox/rules': {
+      id: '/t/$slug/settings/_inbox/rules'
+      path: '/rules'
+      fullPath: '/t/$slug/settings/rules'
+      preLoaderRoute: typeof TSlugSettingsInboxRulesRouteImport
       parentRoute: typeof TSlugSettingsInboxRoute
     }
     '/t/$slug/settings/_inbox/teams': {
@@ -890,11 +855,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugSettingsTranslationToneRouteImport
       parentRoute: typeof TSlugSettingsTranslationRoute
     }
-    '/t/$slug/settings/_workspace/business-hours': {
-      id: '/t/$slug/settings/_workspace/business-hours'
-      path: '/business-hours'
-      fullPath: '/t/$slug/settings/business-hours'
-      preLoaderRoute: typeof TSlugSettingsWorkspaceBusinessHoursRouteImport
+    '/t/$slug/settings/_workspace/attributes': {
+      id: '/t/$slug/settings/_workspace/attributes'
+      path: '/attributes'
+      fullPath: '/t/$slug/settings/attributes'
+      preLoaderRoute: typeof TSlugSettingsWorkspaceAttributesRouteImport
       parentRoute: typeof TSlugSettingsWorkspaceRoute
     }
     '/t/$slug/settings/_workspace/general': {
@@ -916,6 +881,13 @@ declare module '@tanstack/react-router' {
       path: '/roles'
       fullPath: '/t/$slug/settings/roles'
       preLoaderRoute: typeof TSlugSettingsWorkspaceRolesRouteImport
+      parentRoute: typeof TSlugSettingsWorkspaceRoute
+    }
+    '/t/$slug/settings/_workspace/tags': {
+      id: '/t/$slug/settings/_workspace/tags'
+      path: '/tags'
+      fullPath: '/t/$slug/settings/tags'
+      preLoaderRoute: typeof TSlugSettingsWorkspaceTagsRouteImport
       parentRoute: typeof TSlugSettingsWorkspaceRoute
     }
     '/t/$slug/settings/_channels/telegrams/': {
@@ -1013,20 +985,6 @@ const TSlugReportsRouteWithChildren = TSlugReportsRoute._addFileChildren(
   TSlugReportsRouteChildren,
 )
 
-interface TSlugSettingsAutomationRouteChildren {
-  TSlugSettingsAutomationRulesRoute: typeof TSlugSettingsAutomationRulesRoute
-}
-
-const TSlugSettingsAutomationRouteChildren: TSlugSettingsAutomationRouteChildren =
-  {
-    TSlugSettingsAutomationRulesRoute: TSlugSettingsAutomationRulesRoute,
-  }
-
-const TSlugSettingsAutomationRouteWithChildren =
-  TSlugSettingsAutomationRoute._addFileChildren(
-    TSlugSettingsAutomationRouteChildren,
-  )
-
 interface TSlugSettingsChannelsTelegramsRouteChildren {
   TSlugSettingsChannelsTelegramsIdRoute: typeof TSlugSettingsChannelsTelegramsIdRoute
   TSlugSettingsChannelsTelegramsIndexRoute: typeof TSlugSettingsChannelsTelegramsIndexRoute
@@ -1079,19 +1037,6 @@ const TSlugSettingsChannelsRouteWithChildren =
     TSlugSettingsChannelsRouteChildren,
   )
 
-interface TSlugSettingsDataRouteChildren {
-  TSlugSettingsDataAttributesRoute: typeof TSlugSettingsDataAttributesRoute
-  TSlugSettingsDataTagsRoute: typeof TSlugSettingsDataTagsRoute
-}
-
-const TSlugSettingsDataRouteChildren: TSlugSettingsDataRouteChildren = {
-  TSlugSettingsDataAttributesRoute: TSlugSettingsDataAttributesRoute,
-  TSlugSettingsDataTagsRoute: TSlugSettingsDataTagsRoute,
-}
-
-const TSlugSettingsDataRouteWithChildren =
-  TSlugSettingsDataRoute._addFileChildren(TSlugSettingsDataRouteChildren)
-
 interface TSlugSettingsInboxTeamsRouteChildren {
   TSlugSettingsInboxTeamsIdRoute: typeof TSlugSettingsInboxTeamsIdRoute
   TSlugSettingsInboxTeamsIndexRoute: typeof TSlugSettingsInboxTeamsIndexRoute
@@ -1110,13 +1055,17 @@ const TSlugSettingsInboxTeamsRouteWithChildren =
 
 interface TSlugSettingsInboxRouteChildren {
   TSlugSettingsInboxAssignmentRoute: typeof TSlugSettingsInboxAssignmentRoute
+  TSlugSettingsInboxBusinessHoursRoute: typeof TSlugSettingsInboxBusinessHoursRoute
   TSlugSettingsInboxMacrosRoute: typeof TSlugSettingsInboxMacrosRoute
+  TSlugSettingsInboxRulesRoute: typeof TSlugSettingsInboxRulesRoute
   TSlugSettingsInboxTeamsRoute: typeof TSlugSettingsInboxTeamsRouteWithChildren
 }
 
 const TSlugSettingsInboxRouteChildren: TSlugSettingsInboxRouteChildren = {
   TSlugSettingsInboxAssignmentRoute: TSlugSettingsInboxAssignmentRoute,
+  TSlugSettingsInboxBusinessHoursRoute: TSlugSettingsInboxBusinessHoursRoute,
   TSlugSettingsInboxMacrosRoute: TSlugSettingsInboxMacrosRoute,
+  TSlugSettingsInboxRulesRoute: TSlugSettingsInboxRulesRoute,
   TSlugSettingsInboxTeamsRoute: TSlugSettingsInboxTeamsRouteWithChildren,
 }
 
@@ -1161,19 +1110,21 @@ const TSlugSettingsTranslationRouteWithChildren =
   )
 
 interface TSlugSettingsWorkspaceRouteChildren {
-  TSlugSettingsWorkspaceBusinessHoursRoute: typeof TSlugSettingsWorkspaceBusinessHoursRoute
+  TSlugSettingsWorkspaceAttributesRoute: typeof TSlugSettingsWorkspaceAttributesRoute
   TSlugSettingsWorkspaceGeneralRoute: typeof TSlugSettingsWorkspaceGeneralRoute
   TSlugSettingsWorkspaceMembersRoute: typeof TSlugSettingsWorkspaceMembersRoute
   TSlugSettingsWorkspaceRolesRoute: typeof TSlugSettingsWorkspaceRolesRoute
+  TSlugSettingsWorkspaceTagsRoute: typeof TSlugSettingsWorkspaceTagsRoute
 }
 
 const TSlugSettingsWorkspaceRouteChildren: TSlugSettingsWorkspaceRouteChildren =
   {
-    TSlugSettingsWorkspaceBusinessHoursRoute:
-      TSlugSettingsWorkspaceBusinessHoursRoute,
+    TSlugSettingsWorkspaceAttributesRoute:
+      TSlugSettingsWorkspaceAttributesRoute,
     TSlugSettingsWorkspaceGeneralRoute: TSlugSettingsWorkspaceGeneralRoute,
     TSlugSettingsWorkspaceMembersRoute: TSlugSettingsWorkspaceMembersRoute,
     TSlugSettingsWorkspaceRolesRoute: TSlugSettingsWorkspaceRolesRoute,
+    TSlugSettingsWorkspaceTagsRoute: TSlugSettingsWorkspaceTagsRoute,
   }
 
 const TSlugSettingsWorkspaceRouteWithChildren =
@@ -1182,9 +1133,7 @@ const TSlugSettingsWorkspaceRouteWithChildren =
   )
 
 interface TSlugSettingsRouteChildren {
-  TSlugSettingsAutomationRoute: typeof TSlugSettingsAutomationRouteWithChildren
   TSlugSettingsChannelsRoute: typeof TSlugSettingsChannelsRouteWithChildren
-  TSlugSettingsDataRoute: typeof TSlugSettingsDataRouteWithChildren
   TSlugSettingsInboxRoute: typeof TSlugSettingsInboxRouteWithChildren
   TSlugSettingsPersonalRoute: typeof TSlugSettingsPersonalRouteWithChildren
   TSlugSettingsTranslationRoute: typeof TSlugSettingsTranslationRouteWithChildren
@@ -1193,9 +1142,7 @@ interface TSlugSettingsRouteChildren {
 }
 
 const TSlugSettingsRouteChildren: TSlugSettingsRouteChildren = {
-  TSlugSettingsAutomationRoute: TSlugSettingsAutomationRouteWithChildren,
   TSlugSettingsChannelsRoute: TSlugSettingsChannelsRouteWithChildren,
-  TSlugSettingsDataRoute: TSlugSettingsDataRouteWithChildren,
   TSlugSettingsInboxRoute: TSlugSettingsInboxRouteWithChildren,
   TSlugSettingsPersonalRoute: TSlugSettingsPersonalRouteWithChildren,
   TSlugSettingsTranslationRoute: TSlugSettingsTranslationRouteWithChildren,

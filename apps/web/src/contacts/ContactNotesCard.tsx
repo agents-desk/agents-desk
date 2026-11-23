@@ -2,7 +2,7 @@ import { Box, Button, Group, Text, Textarea } from "@mantine/core"
 import { useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 
-/** ContactNotesCard 是联系人内部备注便签块（收件箱详情与联系人档案共用）：淡黄底，就地编辑与 Cmd/Ctrl+Enter 保存。 */
+/** ContactNotesCard 是联系人长期备注卡片（收件箱详情与联系人档案共用）：中性档案风格，支持就地编辑与 Cmd/Ctrl+Enter 保存。 */
 export function ContactNotesCard({
   contactId,
   value: serverValue,

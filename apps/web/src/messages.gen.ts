@@ -160,9 +160,9 @@ export const messages = {
     "contacts.nav_users": "Users",
     "contacts.no_conversations": "No conversations yet",
     "contacts.not_found": "Contact not found",
-    "contacts.notes": "Internal notes",
-    "contacts.notes_hint": "Members only",
-    "contacts.notes_placeholder": "Click to add internal notes about this contact…",
+    "contacts.notes": "Contact notes",
+    "contacts.notes_hint": "Visible across all conversations",
+    "contacts.notes_placeholder": "Record long-term context or preferences, visible across all conversations…",
     "contacts.open_in_inbox": "Open",
     "contacts.profile": "Profile",
     "contacts.referrer": "Source page",
@@ -300,13 +300,13 @@ export const messages = {
     "inbox.clear_filters": "Clear filters",
     "inbox.close": "Close",
     "inbox.close_details": "Close details",
+    "inbox.confirm_send": "Confirm \u0026 send",
     "inbox.contact_email": "Email",
-    "inbox.contact_kind": "Type",
     "inbox.contact_language": "Language",
     "inbox.contact_location": "Location",
     "inbox.contact_name": "Name",
-    "inbox.contact_notes": "Notes",
-    "inbox.contact_notes_placeholder": "Write an internal note for members…",
+    "inbox.contact_notes": "Contact notes",
+    "inbox.contact_notes_placeholder": "Record long-term context or preferences, visible across all conversations…",
     "inbox.contact_referrer": "Source page",
     "inbox.contact_view": "View contact profile",
     "inbox.copied": "Copied",
@@ -323,6 +323,7 @@ export const messages = {
     "inbox.details_history": "Recent conversations",
     "inbox.download_file": "Download file",
     "inbox.draft_prefix": "Draft: ",
+    "inbox.edit_translation": "Edit translation",
     "inbox.empty": "No conversations in this list",
     "inbox.empty_filtered": "No conversations match the current filter",
     "inbox.enter_again": "Translation updated. Check it, then press Enter again to send",
@@ -365,7 +366,6 @@ export const messages = {
     "inbox.no_tags": "No tags to add",
     "inbox.no_team": "No team inbox",
     "inbox.no_translation": "Don't translate",
-    "inbox.no_translation_needed": "Same language as yours, sends your original text",
     "inbox.not_found": "This conversation doesn't exist, or you can't see it",
     "inbox.note_by": "Internal note · {{.who}}",
     "inbox.note_hint": "Only members can see this. Type @ to mention a teammate",
@@ -375,7 +375,6 @@ export const messages = {
     "inbox.pick_shortcut": "Press {{.key}} to jump to any view, contact, or setting",
     "inbox.preview_file": "[File]",
     "inbox.preview_image": "[Image]",
-    "inbox.preview_to": "To customer",
     "inbox.priority": "Priority",
     "inbox.priority_high": "High",
     "inbox.priority_normal": "Normal",
@@ -384,6 +383,8 @@ export const messages = {
     "inbox.reopen": "Reopen",
     "inbox.reopen_reply_placeholder": "Sending a reply will reopen this conversation…",
     "inbox.reply_placeholder": "Type a reply, or press / for quick replies…",
+    "inbox.reset_translation": "Reset to auto",
+    "inbox.retranslate": "Retranslate",
     "inbox.retranslating": "Text changed, translating again",
     "inbox.retry": "Resend",
     "inbox.said": "{{.who}}: ",
@@ -436,12 +437,16 @@ export const messages = {
     "inbox.teams": "Team inboxes",
     "inbox.text_shown": "Show messages translated or original",
     "inbox.their_language": "{{.lang}} · their language",
+    "inbox.translate_to": "To {{.lang}}",
     "inbox.translated": "Translation",
     "inbox.translating": "Translating",
+    "inbox.translation_edited": "Edited",
     "inbox.translation_failed": "Translation failed: {{.error}}",
+    "inbox.translation_placeholder": "Your reply will be translated to {{.lang}}…",
     "inbox.typing": "{{.who}} is typing…",
     "inbox.unassign": "Remove assignee",
     "inbox.view_image": "View image",
+    "inbox.view_original": "View original",
     "inbox.view_translation": "View translation",
     "inbox.viewing": "{{.who}} is also viewing",
     "inbox.visitor": "Visitor",
@@ -706,9 +711,7 @@ export const messages = {
     "reports.translation_series": "Translation trend",
     "roles.description": "The owner has every permission and is set by a platform admin. A role that members still use stays until you give those members another role.",
     "roles.permissions_hint": "Every role can view members and team inboxes, and view and reply to the conversations it can see",
-    "settings.group_automation": "Automation",
     "settings.group_channels": "Channels",
-    "settings.group_data": "Data",
     "settings.group_inbox": "Inbox",
     "settings.group_personal": "Personal",
     "settings.group_translation": "Translation",
@@ -1075,9 +1078,9 @@ export const messages = {
     "contacts.nav_users": "用户",
     "contacts.no_conversations": "还没有会话",
     "contacts.not_found": "联系人不存在",
-    "contacts.notes": "内部备注",
-    "contacts.notes_hint": "仅成员可见",
-    "contacts.notes_placeholder": "点击记录关于这位联系人的备注…",
+    "contacts.notes": "联系人备注",
+    "contacts.notes_hint": "跨会话持久可见",
+    "contacts.notes_placeholder": "记录客户背景、偏好等长期信息，所有会话均可见…",
     "contacts.open_in_inbox": "打开",
     "contacts.profile": "资料",
     "contacts.referrer": "来源页面",
@@ -1215,13 +1218,13 @@ export const messages = {
     "inbox.clear_filters": "清除筛选",
     "inbox.close": "关闭",
     "inbox.close_details": "关闭详情",
+    "inbox.confirm_send": "确认发送",
     "inbox.contact_email": "邮箱",
-    "inbox.contact_kind": "类型",
     "inbox.contact_language": "语言",
     "inbox.contact_location": "所在地",
     "inbox.contact_name": "名字",
-    "inbox.contact_notes": "备注",
-    "inbox.contact_notes_placeholder": "写下仅成员可见的备注…",
+    "inbox.contact_notes": "联系人备注",
+    "inbox.contact_notes_placeholder": "记录客户背景、偏好等长期信息，所有会话均可见…",
     "inbox.contact_referrer": "来源页面",
     "inbox.contact_view": "查看联系人资料",
     "inbox.copied": "已复制",
@@ -1238,6 +1241,7 @@ export const messages = {
     "inbox.details_history": "最近的会话",
     "inbox.download_file": "下载文件",
     "inbox.draft_prefix": "草稿：",
+    "inbox.edit_translation": "编辑译文",
     "inbox.empty": "这个列表中没有会话",
     "inbox.empty_filtered": "没有符合当前筛选条件的会话",
     "inbox.enter_again": "译文已更新，确认后再按一次回车发送",
@@ -1280,7 +1284,6 @@ export const messages = {
     "inbox.no_tags": "没有可添加的标签",
     "inbox.no_team": "没有团队收件箱",
     "inbox.no_translation": "不翻译",
-    "inbox.no_translation_needed": "和你的语言相同，发送原文",
     "inbox.not_found": "会话不存在，或者你看不到它",
     "inbox.note_by": "内部备注 · {{.who}}",
     "inbox.note_hint": "只有成员可见，输入 @ 提到同事",
@@ -1290,7 +1293,6 @@ export const messages = {
     "inbox.pick_shortcut": "按 {{.key}} 快速切换视图、联系人或设置",
     "inbox.preview_file": "[文件]",
     "inbox.preview_image": "[图片]",
-    "inbox.preview_to": "发给对方",
     "inbox.priority": "优先级",
     "inbox.priority_high": "高",
     "inbox.priority_normal": "普通",
@@ -1299,6 +1301,8 @@ export const messages = {
     "inbox.reopen": "重新打开",
     "inbox.reopen_reply_placeholder": "发送回复将重新打开此会话…",
     "inbox.reply_placeholder": "输入回复，或输入 / 使用快捷回复…",
+    "inbox.reset_translation": "恢复自动译文",
+    "inbox.retranslate": "重新翻译",
     "inbox.retranslating": "原文改了，正在重新翻译",
     "inbox.retry": "重发",
     "inbox.said": "{{.who}}：",
@@ -1351,12 +1355,16 @@ export const messages = {
     "inbox.teams": "团队收件箱",
     "inbox.text_shown": "切换消息显示译文还是原文",
     "inbox.their_language": "{{.lang}} · 对方的语言",
+    "inbox.translate_to": "译为 {{.lang}}",
     "inbox.translated": "译文",
     "inbox.translating": "翻译中",
+    "inbox.translation_edited": "已手动修改",
     "inbox.translation_failed": "翻译失败：{{.error}}",
+    "inbox.translation_placeholder": "输入回复后将自动译为{{.lang}}…",
     "inbox.typing": "{{.who}} 正在输入…",
     "inbox.unassign": "取消负责人",
     "inbox.view_image": "查看大图",
+    "inbox.view_original": "查看原文",
     "inbox.view_translation": "查看译文",
     "inbox.viewing": "{{.who}} 也在看这个会话",
     "inbox.visitor": "访客",
@@ -1621,9 +1629,7 @@ export const messages = {
     "reports.translation_series": "翻译调用趋势",
     "roles.description": "主管理员拥有全部权限，由平台管理员指定。还有成员使用的角色不能删除，先把他们改成别的角色。",
     "roles.permissions_hint": "每个角色都能查看成员和团队收件箱、查看和回复看得到的会话",
-    "settings.group_automation": "自动化",
     "settings.group_channels": "渠道",
-    "settings.group_data": "数据",
     "settings.group_inbox": "收件箱",
     "settings.group_personal": "个人",
     "settings.group_translation": "翻译",
@@ -2133,8 +2139,8 @@ export type MessageId =
   | "inbox.clear_filters"
   | "inbox.close"
   | "inbox.close_details"
+  | "inbox.confirm_send"
   | "inbox.contact_email"
-  | "inbox.contact_kind"
   | "inbox.contact_language"
   | "inbox.contact_location"
   | "inbox.contact_name"
@@ -2156,6 +2162,7 @@ export type MessageId =
   | "inbox.details_history"
   | "inbox.download_file"
   | "inbox.draft_prefix"
+  | "inbox.edit_translation"
   | "inbox.empty"
   | "inbox.empty_filtered"
   | "inbox.enter_again"
@@ -2198,7 +2205,6 @@ export type MessageId =
   | "inbox.no_tags"
   | "inbox.no_team"
   | "inbox.no_translation"
-  | "inbox.no_translation_needed"
   | "inbox.not_found"
   | "inbox.note_by"
   | "inbox.note_hint"
@@ -2208,7 +2214,6 @@ export type MessageId =
   | "inbox.pick_shortcut"
   | "inbox.preview_file"
   | "inbox.preview_image"
-  | "inbox.preview_to"
   | "inbox.priority"
   | "inbox.priority_high"
   | "inbox.priority_normal"
@@ -2217,6 +2222,8 @@ export type MessageId =
   | "inbox.reopen"
   | "inbox.reopen_reply_placeholder"
   | "inbox.reply_placeholder"
+  | "inbox.reset_translation"
+  | "inbox.retranslate"
   | "inbox.retranslating"
   | "inbox.retry"
   | "inbox.said"
@@ -2269,12 +2276,16 @@ export type MessageId =
   | "inbox.teams"
   | "inbox.text_shown"
   | "inbox.their_language"
+  | "inbox.translate_to"
   | "inbox.translated"
   | "inbox.translating"
+  | "inbox.translation_edited"
   | "inbox.translation_failed"
+  | "inbox.translation_placeholder"
   | "inbox.typing"
   | "inbox.unassign"
   | "inbox.view_image"
+  | "inbox.view_original"
   | "inbox.view_translation"
   | "inbox.viewing"
   | "inbox.visitor"
@@ -2539,9 +2550,7 @@ export type MessageId =
   | "reports.translation_series"
   | "roles.description"
   | "roles.permissions_hint"
-  | "settings.group_automation"
   | "settings.group_channels"
-  | "settings.group_data"
   | "settings.group_inbox"
   | "settings.group_personal"
   | "settings.group_translation"

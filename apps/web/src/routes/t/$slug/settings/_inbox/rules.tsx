@@ -7,8 +7,8 @@ import type { ReactNode } from "react"
 import { kit, tenantApi } from "../../../../../api"
 
 // 内置自动化：管理员可以逐条开关。触发、条件和动作由服务端引擎按规则执行。
-export const Route = createFileRoute("/t/$slug/settings/_automation/rules")({
-  staticData: { title: "automations.title", icon: "bolt", order: 0, permission: "tenant-settings:manage" },
+export const Route = createFileRoute("/t/$slug/settings/_inbox/rules")({
+  staticData: { title: "automations.title", icon: "bolt", order: 4, permission: "tenant-settings:manage" },
   component: Automations,
 })
 

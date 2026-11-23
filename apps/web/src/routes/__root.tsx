@@ -7,7 +7,16 @@ import type { ReactNode } from "react"
 import { ColorSchemeScript, mantineHtmlProps } from "@mantine/core"
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts, useRouter } from "@tanstack/react-router"
 import { type RouterContext, UIProvider } from "@go-tenon/ui"
-import { IconAddressBook, IconBolt, IconBrandTelegram, IconInbox, IconLanguage, IconMessageBolt, IconStar } from "@tabler/icons-react"
+import {
+  IconAddressBook,
+  IconAdjustmentsHorizontal,
+  IconBolt,
+  IconBrandTelegram,
+  IconInbox,
+  IconLanguage,
+  IconMessageBolt,
+  IconStar,
+} from "@tabler/icons-react"
 import { i18n } from "../i18n"
 import { theme } from "../theme"
 
@@ -26,6 +35,7 @@ const icons = {
   contacts: IconAddressBook,
   bolt: IconBolt,
   macro: IconMessageBolt,
+  sliders: IconAdjustmentsHorizontal,
   star: IconStar,
   language: IconLanguage,
   telegram: IconBrandTelegram,

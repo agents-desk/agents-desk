@@ -17,22 +17,35 @@ import {
   Box,
   Button,
   Code,
+  Combobox,
   FileButton,
   Group,
   Loader,
   Menu,
   Paper,
+  ScrollArea,
   SegmentedControl,
   Stack,
   Text,
   Textarea,
   Tooltip,
   UnstyledButton,
+  useCombobox,
 } from "@mantine/core"
 import { useOs } from "@mantine/hooks"
 import { notifications } from "@mantine/notifications"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { IconChevronDown, IconLanguage, IconLock, IconMessageBolt, IconPaperclip, IconX } from "@tabler/icons-react"
+import {
+  IconCheck,
+  IconChevronDown,
+  IconLanguage,
+  IconLock,
+  IconMessageBolt,
+  IconPaperclip,
+  IconPencil,
+  IconRefresh,
+  IconX,
+} from "@tabler/icons-react"
 import { describeError } from "@go-tenon/client"
 import {
   errorMessage,
@@ -48,8 +61,7 @@ import {
 } from "@go-tenon/ui"
 import { type ReactNode, type RefObject, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { LanguageSelect } from "../LanguageSelect"
-import { languageName } from "../languages"
+import { languageName, languageOptions, validLanguage } from "../languages"
 import {
   countMacroActions,
   emptyPendingActions,
@@ -81,8 +93,20 @@ type After = { kind: "none" } | { kind: "close" } | { kind: "snooze"; until: Dat
 /** NO_TRANSLATION 是目标语言中的“不翻译”：发送原文。 */
 const NO_TRANSLATION = "none"
 
-/** PAUSE 是停止输入多久之后开始翻译（毫秒）。 */
-const PAUSE = 800
+/** PAUSE 是停止输入后触发翻译预览的防抖时长（毫秒）。 */
+const PAUSE = 600
+
+/** sameLanguage 判断两个 BCP 47 语言标签是否指向同一书写语言（合并 zh-CN/zh-Hans 与 zh-TW/zh-Hant）。 */
+function sameLanguage(a?: string, b?: string): boolean {
+  if (!a || !b) return false
+  const norm = (s: string) => {
+    const k = s.trim().toLowerCase().replaceAll("_", "-")
+    if (k === "zh-cn" || k === "zh-sg" || k === "zh-hans") return "zh-hans"
+    if (k === "zh-tw" || k === "zh-hk" || k === "zh-mo" || k === "zh-hant") return "zh-hant"
+    return k
+  }
+  return norm(a) === norm(b)
+}
 
 /** Preview 是一次翻译预览：为哪段文字、哪个目标语言（空是对方的语言）做的，以及结果。 */
 interface Preview {
@@ -92,14 +116,10 @@ interface Preview {
 }
 
 /**
- * Composer 是会话底部的回复框：回复和内部备注两种模式，内部备注时变成黄色底，输入 @ 选择同事；
- * 回复模式下输入 / 或点击工具栏按钮搜索并插入快捷回复（0ms 本地展开联系人与成员变量，附带操作以可移除胶囊条预览）。
- * 回车发送，Shift + 回车换行，用输入法选词时的回车只确认候选词。发送按钮的下拉中有“发送并关闭”“发送并稍后处理”。
- * 回复与附带操作（及发送并关闭/稍后处理）统一走单事务原子接口提交。
- *
- * 翻译可用时，回复在停止输入片刻后翻译，输入框上方显示发给对方的译文和回译，发送的就是这段译文。目标语言默认是对方的语言，
- * 可以换成别的语言或者“不翻译”。预览之后改了原文、马上按回车时，先翻译并显示新的译文，再按一次回车才发送：发出的总是成员看过的译文。
- * 不需要翻译时（对方和成员同一种语言、还没识别出对方的语言）不显示预览，直接发送原文。内部备注不翻译。
+ * Composer 是会话底部的一体化回复卡片：顶栏切换回复与内部备注模式（外语回复时右侧附带目标语言选择器），
+ * 内部备注切换为淡黄底并支持输入 @ 提及同事；回复模式输入 / 或点击工具栏按钮搜索并插入快捷回复。
+ * 翻译开启且目标语言与坐席不同时，宽屏在卡片内以“左原文 | 右译文”左右对照展示实时译文与回译（窄屏自动退化到输入框上方），
+ * 支持点击译文轻量手动微调、恢复自动译文、重新翻译，以及在发送下拉菜单中单次发送原文。
  */
 export function Composer({
   c,
@@ -141,7 +161,7 @@ export function Composer({
   const value = text.trim()
   const note = mode === "note"
   const hasPending = !note && hasPendingActions(pendingActions)
-  const preview = useReplyTranslation(c.id, !note ? value : "")
+  const preview = useReplyTranslation(c.id, !note ? value : "", c.language, me.data?.language)
   const queue = useUploadQueue<UploadedFile>({
     upload: (file) => tenantApi.file.upload({ file }),
     accept: ATTACHMENT_ACCEPT,
@@ -200,8 +220,8 @@ export function Composer({
     onError: (err) => notifyError(err),
   })
 
-  // 发送：有文字且需要翻译时先确保译文与当前原文一致；无文字仅有附件或附带操作时直接发送/应用
-  const submit = async (after: After) => {
+  // 发送：有文字且需要翻译时确保译文与当前原文一致（支持发送手动微调后的译文）；skipTranslation 可单次跳过翻译直接发原文。
+  const submit = async (after: After, options?: { skipTranslation?: boolean }) => {
     if (queue.uploading || queue.hasError || send.isPending || (!note && preview.pending)) return
     if (note) {
       if (!hasContent) return
@@ -211,11 +231,15 @@ export function Composer({
       if (!hasContent && !hasPending && after.kind === "none") return
       return send.mutate({ after, mode: "reply" })
     }
-    if (!preview.active) return send.mutate({ after, mode: "reply" })
+    if (options?.skipTranslation || !preview.active) return send.mutate({ after, mode: "reply" })
     const current = preview.current ?? (await preview.translateNow())
     if (!current) return
     if (!current.needed) return send.mutate({ after, mode: "reply" })
-    if (preview.current) return send.mutate({ after, mode: "reply", translation: { language: current.language, text: current.translation } })
+    if (preview.current) {
+      const translatedText = preview.editedText !== undefined ? preview.editedText.trim() : current.translation
+      if (!translatedText) return send.mutate({ after, mode: "reply" })
+      return send.mutate({ after, mode: "reply", translation: { language: current.language, text: translatedText } })
+    }
     preview.askConfirm()
   }
 
@@ -357,22 +381,21 @@ export function Composer({
 
   const canSubmit =
     !queue.uploading && !queue.hasError && !send.isPending && !(!note && preview.pending) && (note ? hasContent : hasContent || hasPending)
+  const sendHint = ctrlEnterSend ? t("inbox.ctrl_enter_hint", { key: sendModKey }) : t("inbox.enter_hint")
+  const hasTranslationOutput = !note && preview.active && Boolean(preview.current?.needed || preview.last?.result.needed)
   const mainLabel = note
     ? t("inbox.add_note")
     : !hasContent && hasPending
       ? t("inbox.apply_actions")
-      : preview.current?.needed
-        ? t("inbox.send_translation")
-        : t("inbox.send")
+      : preview.confirming
+        ? t("inbox.confirm_send")
+        : preview.current?.needed
+          ? t("inbox.send_translation")
+          : t("inbox.send")
 
   return (
     <Box
       className="inbox-composer"
-      data-note={note || undefined}
-      data-dragging={dragging || undefined}
-      px="var(--tn-pane-px)"
-      pt={10}
-      pb={12}
       onDragEnter={(e) => {
         if (!e.dataTransfer.types.includes("Files")) return
         e.preventDefault()
@@ -394,8 +417,7 @@ export function Composer({
         queue.handleDrop(e)
       }}
     >
-      {/* 译文预览在最上面：它出现、变高、消失时，输入框和发送按钮的位置不动 */}
-      {!note && <TranslationPreview c={c} preview={preview} onSendOriginal={() => preview.setTarget(NO_TRANSLATION)} />}
+      {/* 待执行快捷操作胶囊条在输入卡片上方 */}
       {!note && (hasPending || macroWarnings.length > 0) && (
         <PendingActionsBar
           pending={pendingActions}
@@ -412,36 +434,7 @@ export function Composer({
           onDismissWarnings={() => setMacroWarnings([])}
         />
       )}
-      <Group gap="xs" mb={8} data-tn-density="dense">
-        <Tooltip label={t("inbox.switch_mode_hint", { key: modeKey })} openDelay={350}>
-          <SegmentedControl
-            value={mode}
-            onChange={(v) => {
-              setMode(v as Mode)
-              trigger.close()
-            }}
-            data={[
-              { value: "reply", label: t("inbox.mode_reply") },
-              { value: "note", label: t("inbox.mode_note") },
-            ]}
-          />
-        </Tooltip>
-        {note && (
-          <Group gap={4} wrap="nowrap">
-            <IconLock size={12} className="inbox-note-accent" style={{ flex: "none" }} />
-            <Text size="xs" className="inbox-note-accent">
-              {t("inbox.note_hint")}
-            </Text>
-          </Group>
-        )}
-        {dragging && (
-          <Text size="xs" c="brand" fw={500} ml="auto">
-            {t("inbox.attach_drop")}
-          </Text>
-        )}
-      </Group>
-      <AttachmentStrip items={queue.items} onRemove={queue.remove} onRetry={queue.retry} />
-      <Box pos="relative">
+      <Box className="inbox-composer-box" data-note={note || undefined} data-dragging={dragging || undefined}>
         <TriggerMenu
           trigger={trigger}
           position="top"
@@ -449,112 +442,162 @@ export function Composer({
           header={trigger.activeRule?.id === "macro" ? t("inbox.macro_header") : undefined}
           empty={trigger.activeRule?.id === "macro" ? t("inbox.macro_empty") : undefined}
         />
-        <Textarea
-          ref={area}
-          size="md"
-          value={text}
-          onChange={(e) => trigger.handleChange(e.currentTarget.value, e.currentTarget.selectionStart)}
-          onPaste={(e) => {
-            queue.handlePaste(e)
-          }}
-          onKeyDown={(e) => {
-            if (e.nativeEvent.isComposing) return
-            if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "i") {
-              e.preventDefault()
-              toggleMode()
-              return
-            }
-            if (trigger.handleKeyDown(e)) return
-            const hitSend = ctrlEnterSend
-              ? e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey
-              : e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey
-            if (hitSend) {
-              e.preventDefault()
-              void submit({ kind: "none" })
-            }
-          }}
-          placeholder={t(note ? "inbox.note_placeholder" : c.status === "closed" ? "inbox.reopen_reply_placeholder" : "inbox.reply_placeholder")}
-          autosize
-          minRows={2}
-          maxRows={8}
-          maxLength={10000}
-          aria-label={t(note ? "inbox.mode_note" : "inbox.mode_reply")}
-        />
-      </Box>
-      <Group gap="xs" mt={8} data-tn-density="dense">
-        {!note && (
-          <Tooltip label={t("inbox.macro_button")}>
-            <ActionIcon
-              variant="subtle"
-              color="gray"
-              size="input-sm"
-              onClick={() => trigger.open("macro")}
-              aria-label={t("inbox.macro_button")}
-            >
-              <IconMessageBolt size={16} />
-            </ActionIcon>
+        <Group gap="xs" className="inbox-composer-head" data-tn-density="inspector">
+          <Tooltip label={t("inbox.switch_mode_hint", { key: modeKey })} openDelay={350}>
+            <SegmentedControl
+              value={mode}
+              onChange={(v) => {
+                setMode(v as Mode)
+                trigger.close()
+              }}
+              data={[
+                { value: "reply", label: t("inbox.mode_reply") },
+                { value: "note", label: t("inbox.mode_note") },
+              ]}
+            />
           </Tooltip>
-        )}
-        <FileButton
-          resetRef={resetFile}
-          multiple
-          accept={ATTACHMENT_ACCEPT}
-          onChange={(files) => {
-            if (files.length > 0) queue.add(files)
-            resetFile.current?.()
-          }}
-        >
-          {(props) => (
-            <Tooltip label={t("inbox.attach")}>
-              <ActionIcon {...props} variant="subtle" color="gray" size="input-sm" aria-label={t("inbox.attach")}>
-                <IconPaperclip size={16} />
+          {note && (
+            <Group gap={4} wrap="nowrap">
+              <IconLock size={12} className="inbox-note-accent" style={{ flex: "none" }} />
+              <Text size="xs" className="inbox-note-accent">
+                {t("inbox.note_hint")}
+              </Text>
+            </Group>
+          )}
+          {dragging ? (
+            <Text size="xs" c="brand" fw={500} ml="auto">
+              {t("inbox.attach_drop")}
+            </Text>
+          ) : (
+            !note && preview.enabled && <TranslationTargetPicker c={c} myLang={me.data?.language} preview={preview} />
+          )}
+        </Group>
+        <AttachmentStrip items={queue.items} onRemove={queue.remove} onRetry={queue.retry} />
+        <Box className="inbox-composer-main" data-split={(!note && preview.split) || undefined}>
+          <Box
+            className="inbox-composer-body"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) area.current?.focus()
+            }}
+          >
+            <Textarea
+              ref={area}
+              variant="unstyled"
+              size="md"
+              classNames={{ input: "inbox-composer-input" }}
+              value={text}
+              onChange={(e) => trigger.handleChange(e.currentTarget.value, e.currentTarget.selectionStart)}
+              onPaste={(e) => {
+                queue.handlePaste(e)
+              }}
+              onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return
+                if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "i") {
+                  e.preventDefault()
+                  toggleMode()
+                  return
+                }
+                if (trigger.handleKeyDown(e)) return
+                const hitSend = ctrlEnterSend
+                  ? e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey
+                  : e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey
+                if (hitSend) {
+                  e.preventDefault()
+                  void submit({ kind: "none" })
+                }
+              }}
+              placeholder={t(note ? "inbox.note_placeholder" : c.status === "closed" ? "inbox.reopen_reply_placeholder" : "inbox.reply_placeholder")}
+              autosize
+              minRows={3}
+              maxRows={10}
+              maxLength={10000}
+              aria-label={t(note ? "inbox.mode_note" : "inbox.mode_reply")}
+            />
+          </Box>
+          {!note && preview.split && (
+            <InlineTranslationPreview
+              c={c}
+              hasText={Boolean(value)}
+              preview={preview}
+              ctrlEnterSend={ctrlEnterSend}
+              onSendOriginal={() => void submit({ kind: "none" }, { skipTranslation: true })}
+              onSubmit={() => void submit({ kind: "none" })}
+            />
+          )}
+        </Box>
+        <Group gap={6} className="inbox-composer-foot" data-tn-density="dense">
+          {!note && (
+            <Tooltip label={t("inbox.macro_button")}>
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                size="input-sm"
+                onClick={() => trigger.open("macro")}
+                aria-label={t("inbox.macro_button")}
+              >
+                <IconMessageBolt size={16} />
               </ActionIcon>
             </Tooltip>
           )}
-        </FileButton>
-        {!note && preview.enabled && !!value && !preview.shown && (
-          <Tooltip label={t("inbox.choose_language")}>
-            <ActionIcon variant="subtle" color="gray" size="input-sm" onClick={preview.pick} aria-label={t("inbox.choose_language")}>
-              <IconLanguage size={15} />
-            </ActionIcon>
-          </Tooltip>
-        )}
-        <Text size="xs" c={preview.confirming ? "brand" : "dimmed"}>
-          {ctrlEnterSend
-            ? t(preview.confirming ? "inbox.ctrl_enter_again" : "inbox.ctrl_enter_hint", { key: sendModKey })
-            : t(preview.confirming ? "inbox.enter_again" : "inbox.enter_hint")}
-        </Text>
-        <Group gap={0} ml="auto" wrap="nowrap">
-          <Button
-            color={note ? "yellow" : undefined}
-            disabled={!canSubmit}
-            loading={send.isPending || (!note && preview.pending)}
-            onClick={() => void submit({ kind: "none" })}
-            style={note ? undefined : { borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+          <FileButton
+            resetRef={resetFile}
+            multiple
+            accept={ATTACHMENT_ACCEPT}
+            onChange={(files) => {
+              if (files.length > 0) queue.add(files)
+              resetFile.current?.()
+            }}
           >
-            {mainLabel}
-          </Button>
-          {!note && (
-            <Menu position="top-end" withinPortal>
-              <Menu.Target>
-                <Button px={7} disabled={!canSubmit} className="inbox-send-menu" aria-label={t("inbox.send_options")}>
-                  <IconChevronDown size={14} />
-                </Button>
-              </Menu.Target>
-              <Menu.Dropdown>
-                <Menu.Item onClick={() => void submit({ kind: "none" })}>{t("inbox.send")}</Menu.Item>
-                <Menu.Item onClick={() => void submit({ kind: "close" })}>{t("inbox.send_close")}</Menu.Item>
-                <Menu.Label>{t("inbox.send_snooze")}</Menu.Label>
-                {snoozeOptions(zone).map((o) => (
-                  <Menu.Item key={o.key} onClick={() => void submit({ kind: "snooze", until: o.until })}>
-                    {t(`inbox.snooze_${o.key}` as const)}
-                  </Menu.Item>
-                ))}
-              </Menu.Dropdown>
-            </Menu>
+            {(props) => (
+              <Tooltip label={t("inbox.attach")}>
+                <ActionIcon {...props} variant="subtle" color="gray" size="input-sm" aria-label={t("inbox.attach")}>
+                  <IconPaperclip size={16} />
+                </ActionIcon>
+              </Tooltip>
+            )}
+          </FileButton>
+          {!note && preview.confirming && (
+            <Text size="xs" c="brand" ml={4}>
+              {ctrlEnterSend ? t("inbox.ctrl_enter_again", { key: sendModKey }) : t("inbox.enter_again")}
+            </Text>
           )}
+          <Group gap={0} ml="auto" wrap="nowrap">
+            <Tooltip label={sendHint} openDelay={350}>
+              <Button
+                color={note ? "yellow" : undefined}
+                disabled={!canSubmit}
+                loading={send.isPending || (!note && preview.pending)}
+                onClick={() => void submit({ kind: "none" })}
+                style={note ? undefined : { borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+              >
+                {mainLabel}
+              </Button>
+            </Tooltip>
+            {!note && (
+              <Menu position="top-end" withinPortal>
+                <Menu.Target>
+                  <Button px={7} disabled={!canSubmit} className="inbox-send-menu" aria-label={t("inbox.send_options")}>
+                    <IconChevronDown size={14} />
+                  </Button>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  <Menu.Item onClick={() => void submit({ kind: "none" })}>{t("inbox.send")}</Menu.Item>
+                  {hasTranslationOutput && (
+                    <Menu.Item onClick={() => void submit({ kind: "none" }, { skipTranslation: true })}>{t("inbox.send_original")}</Menu.Item>
+                  )}
+                  <Menu.Item onClick={() => void submit({ kind: "close" })}>{t("inbox.send_close")}</Menu.Item>
+                  <Menu.Label>{t("inbox.send_snooze")}</Menu.Label>
+                  {snoozeOptions(zone).map((o) => (
+                    <Menu.Item key={o.key} onClick={() => void submit({ kind: "snooze", until: o.until })}>
+                      {t(`inbox.snooze_${o.key}` as const)}
+                    </Menu.Item>
+                  ))}
+                </Menu.Dropdown>
+              </Menu>
+            )}
+          </Group>
         </Group>
-      </Group>
+      </Box>
     </Box>
   )
 }
@@ -736,40 +779,41 @@ function PendingActionsBar({
   )
 }
 
-/** ReplyTranslation 是回复的翻译预览的状态和操作，见 useReplyTranslation。 */
+/** ReplyTranslation 是回复的翻译预览状态和操作，包含手动微调译文的能力。 */
 interface ReplyTranslation {
   enabled: boolean // 翻译可用
-  active: boolean // 这段回复要经过翻译：翻译可用、有文字、目标语言不是“不翻译”
-  shown: boolean // 输入框上方显示预览
-  target: string // 选的目标语言；空是对方的语言
+  active: boolean // 这段回复要经过翻译：翻译可用、有文字、目标语言有效
+  split: boolean // 启用左右对照译文栏：翻译开启且当前目标语言需要翻译（或已有译文/错误）
+  target: string // 选的目标语言；空为跟随对方语言，NO_TRANSLATION 为不翻译
   setTarget: (target: string) => void
-  pick: () => void // 显示预览来选择目标语言（不需要翻译、预览没显示时）
-  last?: Preview // 最近一次预览，可能是改动之前的文字的
-  current?: TranslationPreviewDTO // 最近一次预览正是当前的文字和目标语言时的结果
+  last?: Preview // 最近一次预览，可能是改动原文之前的结果
+  current?: TranslationPreviewDTO // 与当前原文和目标语言一致的最新预览结果
+  editedText?: string // 坐席手动微调后的译文；未修改时为 undefined
+  setEditedText: (text: string | undefined) => void
   pending: boolean
   error?: string // 翻译失败的提示
-  confirming: boolean // 按回车时先翻译了，等成员再按一次
-  translateNow: () => Promise<TranslationPreviewDTO | undefined> // 马上翻译当前的文字
+  confirming: boolean // 按回车时先触发了翻译，等待成员再按一次发送
+  translateNow: () => Promise<TranslationPreviewDTO | undefined> // 立即翻译当前文字
   retry: () => void
   askConfirm: () => void
   reset: () => void // 发送之后清空
 }
 
 /**
- * useReplyTranslation 翻译会话 id 中的回复 value：停止输入 PAUSE 毫秒后调用预览接口，旧的请求的结果丢弃。
- * value 为空（没有文字、内部备注）时什么也不做。
+ * useReplyTranslation 翻译会话 id 中的回复 value：停止输入 PAUSE 毫秒后调用预览接口，旧请求的结果自动丢弃；
+ * 支持坐席手动微调译文，原文或目标语言变化时自动清空手动修改并重新翻译。
  */
-function useReplyTranslation(id: string, value: string): ReplyTranslation {
+function useReplyTranslation(id: string, value: string, customerLang?: string, myLang?: string): ReplyTranslation {
   const settings = useQuery(kit.queries.translation.settings())
   const enabled = settings.data?.enabled ?? false
   const [target, setTargetState] = useState("")
-  const [manual, setManual] = useState(false)
   const [last, setLast] = useState<Preview>()
+  const [editedText, setEditedText] = useState<string | undefined>(undefined)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string>()
   const [confirming, setConfirming] = useState(false)
-  const seq = useRef(0) // 每次请求加一，只采用最新一次的结果
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined) // 等停止输入后再翻译的计时
+  const seq = useRef(0) // 每次请求递增，只采用最新一次结果
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const active = enabled && !!value && target !== NO_TRANSLATION
   const current = last && last.text === value && last.target === target ? last.result : undefined
 
@@ -780,7 +824,10 @@ function useReplyTranslation(id: string, value: string): ReplyTranslation {
       setError(undefined)
       try {
         const result = await tenantApi.translation.preview(id, { text, language: to || undefined })
-        if (n === seq.current) setLast({ text, target: to, result })
+        if (n === seq.current) {
+          setLast({ text, target: to, result })
+          setEditedText(undefined)
+        }
         return n === seq.current ? result : undefined
       } catch (err) {
         if (n === seq.current) setError(errorMessage(describeError(err)))
@@ -792,11 +839,14 @@ function useReplyTranslation(id: string, value: string): ReplyTranslation {
     [id],
   )
 
-  // 文字或目标语言变了：不再等成员确认
-  // biome-ignore lint/correctness/useExhaustiveDependencies: 只在文字或目标语言变化时清掉
-  useEffect(() => setConfirming(false), [value, target])
+  // 原文或目标语言变化时清除二次确认态和手动译文编辑
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 只在原文或目标语言变化时重置
+  useEffect(() => {
+    setConfirming(false)
+    setEditedText(undefined)
+  }, [value, target])
 
-  // 停止输入片刻后翻译；文字或目标语言变了，之前没回来的请求作废
+  // 停止输入片刻后自动翻译；原文或目标语言变化时作废在途请求
   useEffect(() => {
     if (!active) {
       seq.current++
@@ -809,32 +859,37 @@ function useReplyTranslation(id: string, value: string): ReplyTranslation {
     return () => clearTimeout(timer.current)
   }, [active, value, target, run, last])
 
+  const willTranslate =
+    enabled &&
+    target !== NO_TRANSLATION &&
+    (target !== "" ? !sameLanguage(target, myLang) : Boolean(customerLang) && !sameLanguage(customerLang, myLang))
   const needed = current?.needed ?? last?.result.needed ?? false
   return {
     enabled,
     active,
-    shown: enabled && !!value && (manual || target !== "" || needed || !!error),
+    split: willTranslate || (active && (needed || !!error)),
     target,
-    setTarget: (to) => {
-      setTargetState(to)
-      setManual(true)
-    },
-    pick: () => setManual(true),
+    setTarget: (to) => setTargetState(to),
     last,
     current,
+    editedText,
+    setEditedText,
     pending,
     error,
     confirming: confirming && !!current,
-    // 马上翻译：取消还在等的那次，否则它晚些发出的请求会让这次的结果作废
     translateNow: () => {
       clearTimeout(timer.current)
       return run(value, target)
     },
-    retry: () => void run(value, target),
+    retry: () => {
+      clearTimeout(timer.current)
+      void run(value, target)
+    },
     askConfirm: () => setConfirming(true),
     reset: () => {
       seq.current++
       setLast(undefined)
+      setEditedText(undefined)
       setPending(false)
       setError(undefined)
       setConfirming(false)
@@ -843,92 +898,303 @@ function useReplyTranslation(id: string, value: string): ReplyTranslation {
 }
 
 /**
- * TranslationPreview 是输入框上方的译文预览：发给对方的语言（可以换，或者不翻译），译文和回译；
- * 正在翻译、原文改了正在重新翻译、翻译失败（重试或者发送原文）。
+ * TranslationTargetPicker 是输入卡片顶栏右侧的目标语言选择器：
+ * 打开会话即可直观看到当前翻译目标语言，点击弹出可搜索下拉菜单切换语言或关闭翻译。
  */
-function TranslationPreview({ c, preview, onSendOriginal }: { c: ConversationDTO; preview: ReplyTranslation; onSendOriginal: () => void }): ReactNode {
+function TranslationTargetPicker({
+  c,
+  myLang,
+  preview,
+}: {
+  c: ConversationDTO
+  myLang?: string
+  preview: ReplyTranslation
+}): ReactNode {
   const t = useT()
   const ui = useLanguage()
-  if (!preview.shown) return null
+  const [search, setSearch] = useState("")
+  const combobox = useCombobox({
+    onDropdownClose: () => {
+      combobox.resetSelectedOption()
+      setSearch("")
+    },
+    onDropdownOpen: () => {
+      combobox.focusSearchInput()
+    },
+  })
 
-  // 目标语言的选项：不翻译、对方的语言（注明）、常用语言
   const theirs = c.language ?? ""
-  const value = preview.target || preview.last?.result.language || theirs || null
-
   const off = preview.target === NO_TRANSLATION
-  const shown = preview.current ?? preview.last?.result
-  const stale = !preview.current && !!preview.last
-  let status: ReactNode = null
-  if (off) status = t("inbox.sends_original")
-  else if (preview.pending) status = stale ? t("inbox.retranslating") : t("inbox.translating")
-  else if (stale && !preview.error) status = t("inbox.retranslating")
+  const effectiveLang = off ? "" : preview.target || preview.last?.result.language || theirs
+  const sameAsMe = Boolean(effectiveLang) && sameLanguage(effectiveLang, myLang)
+  const activeValue = off ? NO_TRANSLATION : effectiveLang
+
+  let label: string
+  let active = false
+  if (off) {
+    label = t("inbox.no_translation")
+  } else if (effectiveLang && !sameAsMe) {
+    label = t("inbox.translate_to", { lang: languageName(effectiveLang, ui) })
+    active = true
+  } else {
+    label = t("inbox.sends_original")
+  }
+
+  const baseOptions = languageOptions(ui, [effectiveLang, theirs].filter(Boolean))
+  const typed = validLanguage(search)
+  const rawOptions = [
+    { value: NO_TRANSLATION, label: t("inbox.no_translation") },
+    ...baseOptions.map((o) => ({
+      value: o.value,
+      label: theirs && o.value === theirs ? t("inbox.their_language", { lang: o.label }) : o.label,
+    })),
+  ]
+  if (typed && !rawOptions.some((o) => o.value === typed)) {
+    rawOptions.splice(1, 0, { value: typed, label: `${languageName(typed, ui)} (${typed})` })
+  }
+  const q = search.trim().toLowerCase()
+  const filtered = q ? rawOptions.filter((o) => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q)) : rawOptions
 
   return (
-    <Paper
-      withBorder
-      radius="md"
-      px="sm"
-      py={6}
-      mb={8}
-      className="inbox-preview"
-      data-stale={(stale && !off) || undefined}
-      bg={preview.error && !off ? "var(--mantine-color-red-light)" : "var(--mantine-primary-color-light)"}
+    <Combobox
+      store={combobox}
+      width={240}
+      position="top-end"
+      withinPortal
+      onOptionSubmit={(val) => {
+        preview.setTarget(val === theirs ? "" : val)
+        combobox.closeDropdown()
+      }}
     >
-      <Group gap="xs" wrap="wrap" data-tn-density="inspector">
-        <Text size="xs" c="dimmed" style={{ flex: "none" }}>
-          {t("inbox.preview_to")}
-        </Text>
-        <LanguageSelect
-          style={{ flex: "1 1 160px", maxWidth: 220, minWidth: 140 }}
-          before={[{ value: NO_TRANSLATION, label: t("inbox.no_translation") }]}
-          first={[theirs]}
-          labels={theirs ? { [theirs]: t("inbox.their_language", { lang: languageName(theirs, ui) }) } : {}}
-          value={value}
-          onChange={(v) => v && preview.setTarget(v === theirs ? "" : v)}
+      <Combobox.Target targetType="button">
+        <Button
+          ml="auto"
+          size="compact-xs"
+          variant={active ? "light" : "subtle"}
+          color={active ? undefined : "gray"}
+          leftSection={<IconLanguage size={13} />}
+          rightSection={<IconChevronDown size={11} />}
+          onClick={() => combobox.toggleDropdown()}
+          aria-label={t("inbox.choose_language")}
+        >
+          {label}
+        </Button>
+      </Combobox.Target>
+      <Combobox.Dropdown>
+        <Combobox.Search
+          value={search}
+          onChange={(e) => setSearch(e.currentTarget.value)}
           placeholder={t("inbox.choose_language")}
           aria-label={t("inbox.choose_language")}
-          allowDeselect={false}
         />
-        {status && (
-          <Group gap={4} ml="auto" wrap="nowrap">
-            {preview.pending && !off && <Loader size={10} />}
-            <Text size="xs" c="dimmed">
-              {status}
-            </Text>
-          </Group>
-        )}
-      </Group>
-      {!off && preview.error && (
-        <Group gap="xs" mt={6}>
-          <Text size="xs" c="red" style={{ flex: 1 }}>
+        <Combobox.Options>
+          <ScrollArea.Autosize mah={220} type="scroll">
+            {filtered.length === 0 ? (
+              <Combobox.Empty>{t("inbox.language_not_found")}</Combobox.Empty>
+            ) : (
+              filtered.map((o) => (
+                <Combobox.Option value={o.value} key={o.value} active={o.value === activeValue}>
+                  <Group gap="xs" wrap="nowrap" justify="space-between">
+                    <Text size="xs" truncate>
+                      {o.label}
+                    </Text>
+                    {o.value === activeValue && <IconCheck size={13} color="var(--mantine-primary-color-filled)" style={{ flex: "none" }} />}
+                  </Group>
+                </Combobox.Option>
+              ))
+            )}
+          </ScrollArea.Autosize>
+        </Combobox.Options>
+      </Combobox.Dropdown>
+    </Combobox>
+  )
+}
+
+/**
+ * InlineTranslationPreview 是输入卡片内的译文区（宽屏居右与原文左右对照，窄屏自动排在输入框上方）：
+ * 展示空态占位、翻译中、实时译文与回译校验，支持点击译文直接轻量手动微调并可一键恢复或重新翻译。
+ */
+function InlineTranslationPreview({
+  c,
+  hasText,
+  preview,
+  ctrlEnterSend,
+  onSendOriginal,
+  onSubmit,
+}: {
+  c: ConversationDTO
+  hasText: boolean
+  preview: ReplyTranslation
+  ctrlEnterSend: boolean
+  onSendOriginal: () => void
+  onSubmit: () => void
+}): ReactNode {
+  const t = useT()
+  const ui = useLanguage()
+  const [editing, setEditing] = useState(false)
+  const shown = preview.current ?? preview.last?.result
+  const stale = hasText && !preview.current && !!preview.last
+  const isEdited = preview.editedText !== undefined && shown !== undefined && preview.editedText !== shown.translation
+  const displayText = preview.editedText ?? shown?.translation ?? ""
+  const targetLang = preview.target || shown?.language || c.language || ""
+  const empty = !hasText && !preview.error
+
+  // 新译文到达、清空输入或出错时自动退出编辑态
+  useEffect(() => {
+    if (!hasText || preview.pending || preview.error) {
+      setEditing(false)
+    }
+  }, [hasText, preview.pending, preview.error])
+
+  const startEdit = () => {
+    if (!shown?.needed || preview.pending || stale) return
+    if (preview.editedText === undefined) {
+      preview.setEditedText(shown.translation)
+    }
+    setEditing(true)
+  }
+
+  return (
+    <Box
+      className="inbox-composer-translation"
+      data-empty={empty || undefined}
+      data-stale={stale || undefined}
+      data-confirming={preview.confirming || undefined}
+      data-error={preview.error ? "" : undefined}
+    >
+      {preview.error ? (
+        <Stack gap={6}>
+          <Text size="xs" c="red">
             {t("inbox.translation_failed", { error: preview.error })}
           </Text>
-          <UnstyledButton fz="xs" c="brand" onClick={preview.retry}>
-            {t("inbox.retry")}
-          </UnstyledButton>
-          <UnstyledButton fz="xs" c="brand" onClick={onSendOriginal}>
-            {t("inbox.send_original")}
-          </UnstyledButton>
+          <Group gap="sm" wrap="nowrap">
+            <UnstyledButton fz="xs" c="brand" onClick={preview.retry}>
+              {t("inbox.retry")}
+            </UnstyledButton>
+            <UnstyledButton fz="xs" c="dimmed" onClick={onSendOriginal}>
+              {t("inbox.send_original")}
+            </UnstyledButton>
+          </Group>
+        </Stack>
+      ) : empty ? (
+        <Text size="md" c="dimmed" lh={1.55} className="inbox-translation-placeholder">
+          {targetLang ? t("inbox.translation_placeholder", { lang: languageName(targetLang, ui) }) : t("inbox.choose_language")}
+        </Text>
+      ) : !shown?.needed ? (
+        <Group gap={6} wrap="nowrap">
+          <Loader size={12} />
+          <Text size="xs" c="dimmed">
+            {t("inbox.translating")}
+          </Text>
         </Group>
-      )}
-      {!off && !preview.error && shown?.needed && (
-        <Box mt={6} className="inbox-preview-text">
-          <Text size="md" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-            {shown.translation}
-          </Text>
-          <Text size="xs" c="dimmed" mt={4} style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-            <Text span size="xs" fw={600} mr={6}>
-              {t("inbox.back_translation")}
-            </Text>
-            {shown.back_translation}
-          </Text>
+      ) : (
+        <Box className="inbox-preview-text">
+          <Group gap={6} align="flex-start" wrap="nowrap">
+            <Box style={{ flex: 1, minWidth: 0 }}>
+              {editing ? (
+                <Textarea
+                  variant="unstyled"
+                  size="md"
+                  autosize
+                  minRows={1}
+                  maxRows={8}
+                  autoFocus
+                  classNames={{ input: "inbox-translation-input" }}
+                  value={displayText}
+                  onChange={(e) => preview.setEditedText(e.currentTarget.value)}
+                  onBlur={() => {
+                    const trimmed = displayText.trim()
+                    if (!trimmed || trimmed === shown.translation) {
+                      preview.setEditedText(undefined)
+                    }
+                    setEditing(false)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.nativeEvent.isComposing) return
+                    if (e.key === "Escape") {
+                      e.preventDefault()
+                      setEditing(false)
+                      return
+                    }
+                    const hitSend = ctrlEnterSend
+                      ? e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey
+                      : e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey
+                    if (hitSend) {
+                      e.preventDefault()
+                      setEditing(false)
+                      onSubmit()
+                    }
+                  }}
+                  aria-label={t("inbox.edit_translation")}
+                />
+              ) : (
+                <Text
+                  size="md"
+                  lh={1.55}
+                  className="inbox-translation-editable"
+                  style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
+                  onClick={startEdit}
+                  title={t("inbox.edit_translation")}
+                >
+                  {displayText}
+                </Text>
+              )}
+            </Box>
+            <Group gap={2} wrap="nowrap" style={{ flex: "none" }}>
+              {preview.pending || stale ? (
+                <Tooltip label={t("inbox.retranslating")} openDelay={200}>
+                  <Box px={4} pt={4}>
+                    <Loader size={11} />
+                  </Box>
+                </Tooltip>
+              ) : (
+                <>
+                  {!editing && (
+                    <Tooltip label={t("inbox.edit_translation")} openDelay={300}>
+                      <ActionIcon size={22} variant="subtle" color="gray" aria-label={t("inbox.edit_translation")} onClick={startEdit}>
+                        <IconPencil size={13} />
+                      </ActionIcon>
+                    </Tooltip>
+                  )}
+                  <Tooltip label={t("inbox.retranslate")} openDelay={300}>
+                    <ActionIcon size={22} variant="subtle" color="gray" aria-label={t("inbox.retranslate")} onClick={preview.retry}>
+                      <IconRefresh size={13} />
+                    </ActionIcon>
+                  </Tooltip>
+                </>
+              )}
+            </Group>
+          </Group>
+          {isEdited ? (
+            <Group gap={6} mt={6} wrap="nowrap">
+              <Text size="xs" c="brand" fw={500}>
+                {t("inbox.translation_edited")}
+              </Text>
+              <Text size="xs" c="dimmed">
+                ·
+              </Text>
+              <UnstyledButton
+                className="inbox-caption-btn"
+                onClick={() => {
+                  preview.setEditedText(undefined)
+                  setEditing(false)
+                }}
+              >
+                {t("inbox.reset_translation")}
+              </UnstyledButton>
+            </Group>
+          ) : (
+            shown.back_translation && (
+              <Text size="xs" c="dimmed" mt={6} lh={1.45} style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+                <Text span size="xs" fw={600} mr={6}>
+                  {t("inbox.back_translation")}
+                </Text>
+                {shown.back_translation}
+              </Text>
+            )
+          )}
         </Box>
       )}
-      {!off && !preview.error && shown && !shown.needed && !preview.pending && (
-        <Text size="xs" c="dimmed" mt={4}>
-          {t("inbox.no_translation_needed")}
-        </Text>
-      )}
-    </Paper>
+    </Box>
   )
 }

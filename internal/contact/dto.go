@@ -25,7 +25,7 @@ type ContactDTO struct {
 	Location          string         `json:"location" doc:"所在地"`
 	TimeZone          string         `json:"time_zone" doc:"IANA 时区名，用于显示对方的当地时间"`
 	Referrer          string         `json:"referrer" doc:"首次访问的来源页面"`
-	Notes             string         `json:"notes" doc:"成员填写的内部备注，只给成员看"`
+	Notes             string         `json:"notes" doc:"成员填写的联系人备注，跨会话持久可见"`
 	Attributes        map[string]any `json:"attributes" doc:"自定义属性"`
 	ConversationCount int            `json:"conversation_count" doc:"当前成员可见的该联系人会话数"`
 	LastSeenAt        *time.Time     `json:"last_seen_at,omitempty" doc:"最近活跃或联系的时间"`
