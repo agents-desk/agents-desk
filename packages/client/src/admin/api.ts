@@ -464,6 +464,30 @@ export interface TenantExportStartInputBody {
   status?: TenantStatus
 }
 
+export interface TenantImpersonateMemberDTO {
+  email: string
+  id: string
+  name: string
+  /** 是否是这个工作区的主管理员 */
+  owner: boolean
+}
+
+export interface TenantImpersonateOutputBody {
+  member_id: string
+  member_name: string
+  /** 工作区进入路径，前端打开即可 */
+  url: string
+}
+
+export interface TenantImpersonateRequest {
+  /** 要代为登录的成员 ID；留空时默认代为登录该工作区的主管理员 */
+  member_id?: string
+  /** 开启后限制为只读排查模式，只能查看数据，不能修改或回复 */
+  read_only?: boolean
+  /** 代为登录原因或工单号，写入操作日志 */
+  reason: string
+}
+
 export interface TenantOwnerParams {
   email: string
   /** 这个邮箱还没有成员账号时必填 */
@@ -938,12 +962,26 @@ export function createClient(options: ClientOptions) {
       get: (id: string): Promise<TenantDTO> =>
         rt.request<TenantDTO>({ method: "GET", path: `/tenants/${encodeURIComponent(id)}` }),
       /**
+       * 以工作区成员身份代为登录
+       *
+       * POST /tenants/{id}/impersonate
+       */
+      impersonate: (id: string, body: TenantImpersonateRequest): Promise<TenantImpersonateOutputBody> =>
+        rt.request<TenantImpersonateOutputBody>({ method: "POST", path: `/tenants/${encodeURIComponent(id)}/impersonate`, body }),
+      /**
        * 工作区列表
        *
        * GET /tenants
        */
       list: (input: TenantListInput = {}): Promise<OffsetTenantDTO> =>
         rt.request<OffsetTenantDTO>({ method: "GET", path: `/tenants`, query: { "name": input["name"], "page": input["page"], "per_page": input["per_page"], "status": input["status"] } }),
+      /**
+       * 工作区可代为登录的成员列表
+       *
+       * GET /tenants/{id}/members
+       */
+      members: (id: string): Promise<TenantImpersonateMemberDTO[]> =>
+        rt.request<TenantImpersonateMemberDTO[]>({ method: "GET", path: `/tenants/${encodeURIComponent(id)}/members` }),
       /**
        * 修改工作区
        *

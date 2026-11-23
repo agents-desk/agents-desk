@@ -14,7 +14,7 @@ var (
 	PlatformAdmin = authz.Role{
 		Name: "platform-admin", Description: "平台管理员",
 		Permissions: []string{
-			string(TenantsRead), string(TenantsManage), string(PlatformAdminsManage), string(PlatformSettingsManage),
+			string(TenantsRead), string(TenantsManage), string(TenantsImpersonate), string(PlatformAdminsManage), string(PlatformSettingsManage),
 			string(FeaturesManage), string(QueueManage), string(SchedulesManage), string(SystemRead), string(AuditRead),
 		},
 	}

@@ -2,6 +2,7 @@ package tenant
 
 import (
 	"context"
+	"slices"
 
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
@@ -36,10 +37,18 @@ func NewMine(db *bun.DB, roles *authz.Store, addr Addresses) *Mine {
 }
 
 // Handle 返回 sub 有角色的全部工作区，按名称排序。
+// 凭据绑定了单个租户（sub.BoundTenant 非空，如代为登录）时，只返回这个工作区，不暴露成员所属的其他工作区。
 func (a *Mine) Handle(ctx context.Context, sub identity.Subject) ([]MineItem, error) {
 	ids, err := a.roles.Tenants(ctx, sub.Ref())
 	if err != nil {
 		return nil, err
+	}
+	if sub.BoundTenant != "" {
+		if slices.Contains(ids, sub.BoundTenant) {
+			ids = []string{sub.BoundTenant}
+		} else {
+			ids = nil
+		}
 	}
 	items := []MineItem{}
 	if len(ids) == 0 {

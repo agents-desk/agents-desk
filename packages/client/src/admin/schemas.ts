@@ -251,6 +251,11 @@ export const schemas = {
         "$ref": "#/components/schemas/TenantExportStartInputBody"
       },
     },
+    impersonate: {
+      body: {
+        "$ref": "#/components/schemas/TenantImpersonateRequest"
+      },
+    },
     list: {
       query: {
         "properties": {
@@ -602,6 +607,27 @@ export const components = {
         "$ref": "#/components/schemas/TenantStatus"
       }
     },
+    "type": "object"
+  },
+  TenantImpersonateRequest: {
+    "additionalProperties": false,
+    "properties": {
+      "member_id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "read_only": {
+        "type": "boolean"
+      },
+      "reason": {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "reason"
+    ],
     "type": "object"
   },
   TenantOwnerParams: {

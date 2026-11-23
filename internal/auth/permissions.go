@@ -18,6 +18,7 @@ type Permission string
 const (
 	TenantsRead            Permission = "tenants:read"             // 平台：查看租户
 	TenantsManage          Permission = "tenants:manage"           // 平台：创建、修改、停用租户，更换主管理员
+	TenantsImpersonate     Permission = "tenants:impersonate"      // 平台：代为登录工作区成员排查问题
 	PlatformAdminsManage   Permission = "platform-admins:manage"   // 平台：查看、创建、修改、停用、启用平台管理员
 	PlatformSettingsManage Permission = "platform-settings:manage" // 平台：修改平台设置
 	FeaturesManage         Permission = "features:manage"          // 平台：管理功能开关与灰度放量
@@ -47,7 +48,7 @@ const (
 )
 
 // Permissions 是全部权限，显示文字是翻译文件中 permission.<权限> 的消息。
-var Permissions = enum.New("permission", enum.Item(TenantsRead), enum.Item(TenantsManage), enum.Item(PlatformAdminsManage), enum.Item(PlatformSettingsManage),
+var Permissions = enum.New("permission", enum.Item(TenantsRead), enum.Item(TenantsManage), enum.Item(TenantsImpersonate), enum.Item(PlatformAdminsManage), enum.Item(PlatformSettingsManage),
 	enum.Item(FeaturesManage), enum.Item(QueueManage), enum.Item(SchedulesManage), enum.Item(SystemRead), enum.Item(AuditRead),
 	enum.Item(MembersRead), enum.Item(MembersManage), enum.Item(TenantSettingsManage), enum.Item(TeamsRead), enum.Item(TeamsManage), enum.Item(ChannelsRead), enum.Item(ChannelsManage), enum.Item(MacrosManage), enum.Item(ViewsManage), enum.Item(ReportsRead),
 	enum.Item(ConversationsRead), enum.Item(ConversationsReply), enum.Item(ConversationsAssign), enum.Item(ConversationsReadAll), enum.Item(ConversationsReadTeam),
@@ -60,6 +61,7 @@ func (Permission) Schema(r huma.Registry) *huma.Schema { return contract.EnumSch
 var Catalog = authz.Catalog{
 	{Name: string(TenantsRead), Description: "查看工作区"},
 	{Name: string(TenantsManage), Description: "管理工作区"},
+	{Name: string(TenantsImpersonate), Description: "代为登录工作区"},
 	{Name: string(PlatformAdminsManage), Description: "管理平台管理员"},
 	{Name: string(PlatformSettingsManage), Description: "修改平台设置"},
 	{Name: string(FeaturesManage), Description: "管理功能开关"},

@@ -5,6 +5,7 @@ import type { TenantDTO } from "@agents-desk/client/admin"
 import { useState } from "react"
 import { api } from "../../api"
 import { ChangeOwnerModal } from "../../change-owner"
+import { ImpersonateTenantModal } from "../../impersonate-tenant"
 import { tenants } from "../../resources"
 
 export const Route = createFileRoute("/_app/tenants")({
@@ -32,6 +33,7 @@ function Tenants() {
   const t = useT()
   const search = Route.useSearch()
   const [changing, setChanging] = useState<TenantDTO>()
+  const [impersonating, setImpersonating] = useState<TenantDTO>()
   return (
     <>
       <ResourcePage
@@ -66,11 +68,20 @@ function Tenants() {
             </Badge>
           ),
         }}
-        rowActions={(row) =>
-          can("tenants:manage") ? [{ label: t("tenants.change_owner"), onClick: () => setChanging(row as unknown as TenantDTO) }] : []
-        }
+        rowActions={(row) => {
+          const item = row as unknown as TenantDTO
+          const actions: { label: string; onClick: () => void }[] = []
+          if (can("tenants:impersonate") && item.status === "active") {
+            actions.push({ label: t("tenants.impersonate"), onClick: () => setImpersonating(item) })
+          }
+          if (can("tenants:manage")) {
+            actions.push({ label: t("tenants.change_owner"), onClick: () => setChanging(item) })
+          }
+          return actions
+        }}
       />
       <ChangeOwnerModal tenant={changing} onClose={() => setChanging(undefined)} />
+      <ImpersonateTenantModal tenant={impersonating} onClose={() => setImpersonating(undefined)} />
     </>
   )
 }

@@ -26,6 +26,7 @@ export const permissions = {
   "teams:manage": "管理团队收件箱",
   "teams:read": "查看团队收件箱",
   "tenant-settings:manage": "管理工作区设置",
+  "tenants:impersonate": "代为登录工作区",
   "tenants:manage": "管理工作区",
   "tenants:read": "查看工作区",
   "views:manage": "管理共享视图",
@@ -91,7 +92,9 @@ export const required = {
     exportProgress: ["tenants:read"],
     exportStart: ["tenants:read"],
     get: ["tenants:read"],
+    impersonate: ["tenants:impersonate"],
     list: ["tenants:read"],
+    members: ["tenants:impersonate"],
     update: ["tenants:manage"],
   },
 } as const satisfies Record<string, readonly Permission[] | Record<string, readonly Permission[]>>

@@ -8,6 +8,8 @@ export const ApitokenErrors = {
   Invalid: "apitoken.invalid",
   /** ErrNotFound 表示要撤销的 token 不存在或不属于该主体。 */
   NotFound: "apitoken.not_found",
+  /** ErrTicketInvalid 表示代为登录交换票据不存在、已被消费或已过期。 */
+  TicketInvalid: "apitoken.ticket_invalid",
 } as const
 
 /** github.com/go-tenon/tenon/authz 的错误码。 */
@@ -95,6 +97,8 @@ export const IdentityErrors = {
   Unauthenticated: "auth.unauthenticated",
   /** ErrForbidden 表示凭据有效但无权执行操作：凭据绑定了其他租户，或主体缺少所需的权限。 */
   Forbidden: "auth.forbidden",
+  /** ErrImpersonationForbidden 表示该操作只能由账号本人执行，拒绝代为登录的凭据。 */
+  ImpersonationForbidden: "auth.impersonation_forbidden",
   /**
    * ErrConfirmRequired 表示操作要求最近确认过身份（rest.Confirmed）：客户端让用户再次输入密码或验证码，
    * 确认后（apitoken 的 Confirm）重试。

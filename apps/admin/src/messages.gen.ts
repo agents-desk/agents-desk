@@ -52,6 +52,15 @@ export const messages = {
     "features.remove_override": "Remove override",
     "features.saved": "Feature flag updated",
     "features.select_tenant": "Select workspace",
+    "impersonate.description": "Starts a 1-hour session locked to this workspace without affecting your admin session or existing member session. All actions are recorded in the audit log.",
+    "impersonate.member": "Target member",
+    "impersonate.owner_tag": "Owner",
+    "impersonate.read_only": "Read-only mode",
+    "impersonate.read_only_hint": "Allows viewing data only without modifying settings or replying to customers",
+    "impersonate.reason": "Reason or ticket number",
+    "impersonate.reason_placeholder": "e.g., Ticket #1024 investigating message delivery",
+    "impersonate.submit": "Open workspace",
+    "impersonate.title": "Impersonate in “{{.name}}”",
     "login.description": "For platform admins",
     "login.title": "Admin sign-in",
     "model.api_key": "Gateway API key",
@@ -94,6 +103,7 @@ export const messages = {
     "settings.mail_description": "Configure Resend for outgoing email. The sender domain must be verified in Resend; leave the API key empty to log emails without sending.",
     "tenants.change_owner": "Change owner",
     "tenants.export": "Export workspaces",
+    "tenants.impersonate": "Impersonate",
     "test_account.failed": "Test account sign-in failed. Run go run ./cmd/agents-desk seed first",
     "test_account.sign_in": "Sign in with a test account",
   },
@@ -147,6 +157,15 @@ export const messages = {
     "features.remove_override": "移除覆盖",
     "features.saved": "开关规则已更新",
     "features.select_tenant": "选择工作区",
+    "impersonate.description": "将开启一个最长 1 小时、且锁定在当前工作区内的独立代登会话，不影响你的管理员登录态及原有工作区登录态，所有操作都会记入审计日志。",
+    "impersonate.member": "目标成员",
+    "impersonate.owner_tag": "主管理员",
+    "impersonate.read_only": "只读排查模式",
+    "impersonate.read_only_hint": "开启后只能查看数据，不能修改设置或回复客户消息",
+    "impersonate.reason": "排查原因或工单号",
+    "impersonate.reason_placeholder": "例如：工单 #1024 排查会话收发异常",
+    "impersonate.submit": "进入工作区",
+    "impersonate.title": "代为登录“{{.name}}”",
     "login.description": "平台管理员使用",
     "login.title": "管理员登录",
     "model.api_key": "网关密钥",
@@ -189,6 +208,7 @@ export const messages = {
     "settings.mail_description": "配置 Resend 发信服务，发件人邮箱所属域名需先在 Resend 完成验证；API Key 留空表示暂不外发（仅写入日志）。",
     "tenants.change_owner": "更换主管理员",
     "tenants.export": "导出工作区",
+    "tenants.impersonate": "代为登录",
     "test_account.failed": "测试账号登录失败，先运行 go run ./cmd/agents-desk seed",
     "test_account.sign_in": "用测试账号登录",
   },
@@ -245,6 +265,15 @@ export type MessageId =
   | "features.remove_override"
   | "features.saved"
   | "features.select_tenant"
+  | "impersonate.description"
+  | "impersonate.member"
+  | "impersonate.owner_tag"
+  | "impersonate.read_only"
+  | "impersonate.read_only_hint"
+  | "impersonate.reason"
+  | "impersonate.reason_placeholder"
+  | "impersonate.submit"
+  | "impersonate.title"
   | "login.description"
   | "login.title"
   | "model.api_key"
@@ -287,6 +316,7 @@ export type MessageId =
   | "settings.mail_description"
   | "tenants.change_owner"
   | "tenants.export"
+  | "tenants.impersonate"
   | "test_account.failed"
   | "test_account.sign_in"
 

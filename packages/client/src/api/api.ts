@@ -75,6 +75,15 @@ export interface MemberAlertChannel {
   sound: boolean
 }
 
+export interface MemberImpersonationInfo {
+  /** 发起代为登录的平台管理员 ID */
+  actor_id: string
+  /** 发起代为登录的平台管理员姓名 */
+  actor_name: string
+  /** 当前代为登录会话是否限制为只读排查模式 */
+  read_only: boolean
+}
+
 export type MemberLanguage = "zh-CN" | "en"
 
 export interface MemberLoginInputBody {
@@ -108,6 +117,8 @@ export interface MemberProfile {
   avatar_url: string
   email: string
   id: string
+  /** 代为登录状态；本人登录时为空 */
+  impersonation?: MemberImpersonationInfo
   language: MemberLanguage
   name: string
   /** 实时提醒设置：浏览器通知与提示音开关 */

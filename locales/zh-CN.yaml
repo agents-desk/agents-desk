@@ -84,6 +84,7 @@ tenant.status.disabled: 已停用
 
 "permission.tenants:read": 查看工作区
 "permission.tenants:manage": 管理工作区
+"permission.tenants:impersonate": 代为登录工作区
 "permission.platform-admins:manage": 管理平台管理员
 "permission.platform-settings:manage": 修改平台设置
 "permission.features:manage": 管理功能开关
@@ -309,6 +310,7 @@ activity.tenant.reopen_window_updated: "将单窗口渠道重开窗口从 {{.fro
 activity.tenant.disabled: "停用了工作区「{{.name}}」"
 activity.tenant.enabled: "启用了工作区「{{.name}}」"
 activity.tenant.owner_changed: "更换了工作区「{{.name}}」的主管理员"
+activity.tenant.impersonated: "以「{{.member_name}}」的身份代为登录了工作区「{{.name}}」（原因：{{.reason}}）"
 activity.platform_settings.changed: "更新了平台设置（{{.call_type}}）"
 activity.platform_settings.general_updated: "更新了平台常规设置（{{.changed}}）"
 activity.platform_settings.mail_updated: "更新了邮件服务设置（{{.changed}}）"

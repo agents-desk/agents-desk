@@ -32,8 +32,9 @@ var (
 	ErrAccountDisabled = errorx.Define(errorx.Unauthenticated, "member.account_disabled")
 )
 
-// SessionCookie 是成员的会话 cookie，用默认的名称 __Host-session，与平台管理员的 __Host-admin 分开。
-var SessionCookie = httpx.SessionCookie{}
+// SessionCookie 是成员的会话 cookie：普通登录用默认的 __Host-session，代为登录用独立的 __Host-impersonation，
+// 两者与平台管理员的 __Host-admin 互不覆盖；退出代为登录时仅清除 __Host-impersonation，保留原有登录态。
+var SessionCookie = httpx.SessionCookie{Impersonation: "__Host-impersonation"}
 
 // Member 是一个成员账号。
 type Member struct {
