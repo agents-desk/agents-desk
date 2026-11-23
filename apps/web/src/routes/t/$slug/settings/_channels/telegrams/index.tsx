@@ -121,9 +121,7 @@ function Telegrams(): ReactNode {
                     )}
                   </Table.Td>
                   <Table.Td>
-                    <Badge variant="light" color={row.gateway_managed ? "bright-blue" : "gray"}>
-                      {t(row.gateway_managed ? "telegrams.mode_gateway" : "telegrams.mode_direct")}
-                    </Badge>
+                    <Text size="sm">{t(row.gateway_managed ? "telegrams.mode_gateway" : "telegrams.mode_direct")}</Text>
                   </Table.Td>
                   <Table.Td>
                     <Badge variant="dot" color={row.enabled ? "green" : "gray"}>

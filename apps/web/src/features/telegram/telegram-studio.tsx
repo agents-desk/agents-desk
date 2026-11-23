@@ -29,14 +29,14 @@ import { type ReactNode, useEffect, useState } from "react"
 import { tenantApi } from "../../api"
 import { teams } from "../../resources"
 
-/** Copy 复制 value 并在按钮上短暂显示对勾。 */
+/** Copy 复制 value 并在按钮上短暂显示对勾；默认尺寸与 sm 输入框等高。 */
 function Copy({ value }: { value: string }): ReactNode {
   const t = useT()
   return (
     <CopyButton value={value} timeout={1500}>
       {({ copied, copy }) => (
         <Tooltip label={t(copied ? "telegram_install.copied" : "telegram_install.copy")} withArrow>
-          <ActionIcon variant="subtle" color={copied ? "green" : "gray"} onClick={copy} aria-label={t("telegram_install.copy")}>
+          <ActionIcon variant="subtle" size="input-sm" color={copied ? "green" : "gray"} onClick={copy} aria-label={t("telegram_install.copy")}>
             {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
           </ActionIcon>
         </Tooltip>

@@ -1,9 +1,9 @@
-import { Badge, Button, ColorSwatch, Group, Modal, Paper, Skeleton, Stack, Table, Text, TextInput } from "@mantine/core"
+import { Badge, Button, Group, Modal, Paper, Skeleton, Stack, Table, Text, TextInput } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { IconPlus } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
-import { applyServerErrors, FormError, Page, primaryColors, ResourceSelect, useT } from "@go-tenon/ui"
+import { applyServerErrors, FormError, Page, ResourceSelect, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { tenantApi } from "../../../../../../api"
 import { teams } from "../../../../../../resources"
@@ -94,12 +94,9 @@ function Widgets(): ReactNode {
               {list.data.items.map((row) => (
                 <Table.Tr key={row.id}>
                   <Table.Td>
-                    <Group gap="xs" wrap="nowrap">
-                      <ColorSwatch color={row.appearance.color || primaryColors["bright-blue"]} size={14} />
-                      <Text size="sm" fw={500}>
-                        {row.name}
-                      </Text>
-                    </Group>
+                    <Text size="sm" fw={500}>
+                      {row.name}
+                    </Text>
                   </Table.Td>
                   <Table.Td>
                     {row.team_name ? (

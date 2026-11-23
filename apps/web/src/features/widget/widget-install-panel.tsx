@@ -5,14 +5,20 @@ import { confirm, notifyError, notifySuccess, useT } from "@go-tenon/ui"
 import type { ReactNode } from "react"
 import { tenantApi } from "../../api"
 
-/** Copy 是复制 value 的小按钮，复制后短暂显示对勾。 */
-function Copy({ value }: { value: string }): ReactNode {
+/** Copy 是复制 value 的小按钮，复制后短暂显示对勾；alignInput 时与 sm 输入框等高对齐。 */
+function Copy({ value, alignInput = false }: { value: string; alignInput?: boolean }): ReactNode {
   const t = useT()
   return (
     <CopyButton value={value} timeout={1500}>
       {({ copied, copy }) => (
         <Tooltip label={t(copied ? "widget_install.copied" : "widget_install.copy")} withArrow>
-          <ActionIcon variant="subtle" color={copied ? "green" : "gray"} onClick={copy} aria-label={t("widget_install.copy")}>
+          <ActionIcon
+            variant="subtle"
+            size={alignInput ? "input-sm" : undefined}
+            color={copied ? "green" : "gray"}
+            onClick={copy}
+            aria-label={t("widget_install.copy")}
+          >
             {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
           </ActionIcon>
         </Tooltip>
@@ -85,7 +91,7 @@ function AppSetup({ appURL }: { appURL: string }): ReactNode {
       </Text>
       <Group align="flex-end" gap="xs">
         <TextInput label={t("widget_install.app_url")} value={appURL} readOnly style={{ flex: 1 }} />
-        <Copy value={appURL} />
+        <Copy value={appURL} alignInput />
       </Group>
       <Tabs defaultValue="ios" keepMounted={false}>
         <Tabs.List>
@@ -179,7 +185,7 @@ export function WidgetInstallPanel({ id }: { id: string }): ReactNode {
         </Text>
         <Group align="flex-end" gap="xs">
           <PasswordInput label={t("widget_install.secret")} value={install.data?.identity_secret ?? ""} readOnly style={{ flex: 1 }} />
-          {install.data && <Copy value={install.data.identity_secret} />}
+          {install.data && <Copy value={install.data.identity_secret} alignInput />}
         </Group>
         <Code block>{t("widget_install.claims_example")}</Code>
         <Group justify="flex-end">
