@@ -1685,13 +1685,18 @@ export interface TranslationToneInputBody {
   tone: TranslationTone
 }
 
+export interface WidgetAppearance {
+  /** 聊天窗口的主题色（#rrggbb 十六进制颜色值），缺省为 #0063ff */
+  color?: string
+  /** 聊天窗口顶部的问候语；为空时显示默认问候语 */
+  greeting?: string
+}
+
 export interface WidgetChanges {
   /** 允许嵌入聊天窗口的网站，形如 https://shop.example.com；不填时所有网站都可以嵌入 */
   allowed_origins?: string[]
-  /** 聊天窗口的主题色，支持预设色名或 #rrggbb 十六进制颜色值，缺省为 bright-blue */
-  color?: string
-  /** 聊天窗口顶部的问候语；不填时显示默认的问候语 */
-  greeting?: string
+  /** 聊天窗口的外观配置 */
+  appearance?: WidgetAppearance
   name: string
   /** 新会话进入的团队收件箱；不填时进入未指派 */
   team_id?: string
@@ -1700,13 +1705,11 @@ export interface WidgetChanges {
 export interface WidgetDTO {
   /** 允许嵌入聊天窗口的网站；为空表示所有网站 */
   allowed_origins: string[]
-  /** 聊天窗口的主题色 */
-  color: string
+  /** 聊天窗口的外观配置 */
+  appearance: WidgetAppearance
   created_at: string
   /** 停用后聊天窗口不再显示，客户不能再发消息 */
   enabled: boolean
-  /** 聊天窗口顶部的问候语 */
-  greeting: string
   id: string
   name: string
   /** 新会话进入的团队收件箱；为空时进入未指派 */
@@ -1727,12 +1730,10 @@ export interface WidgetInstallationDTO {
 export interface WidgetUpdateBody {
   /** 允许嵌入聊天窗口的网站，形如 https://shop.example.com；不填时所有网站都可以嵌入 */
   allowed_origins?: string[]
-  /** 聊天窗口的主题色，支持预设色名或 #rrggbb 十六进制颜色值，缺省为 bright-blue */
-  color?: string
+  /** 聊天窗口的外观配置 */
+  appearance?: WidgetAppearance
   /** 停用后聊天窗口不再显示，客户不能再发消息 */
   enabled: boolean
-  /** 聊天窗口顶部的问候语；不填时显示默认的问候语 */
-  greeting?: string
   name: string
   /** 新会话进入的团队收件箱；不填时进入未指派 */
   team_id?: string

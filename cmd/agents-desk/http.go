@@ -105,6 +105,11 @@ func (a *App) pageCSP(r *http.Request, nonce string) string {
 	if r.URL.Path != "/widget" && !strings.HasPrefix(r.URL.Path, "/widget/") {
 		return p.String()
 	}
+	// 预览路由（/widget/preview）仅允许同源工作区设置工作台以 iframe 嵌入。
+	if r.URL.Path == "/widget/preview" || r.URL.Path == "/widget/preview/" {
+		p.FrameAncestors = []string{"'self'"}
+		return p.String()
+	}
 	ancestors, err := widget.FrameAncestors(r.Context(), a.db, r.URL.Query().Get("channel"))
 	if err != nil {
 		slog.ErrorContext(r.Context(), "load widget frame ancestors", "error", err)

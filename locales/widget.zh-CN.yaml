@@ -82,3 +82,8 @@ time.just_now: "刚刚"
 time.minutes_ago: "{{.n}} 分钟前"
 time.today: "今天"
 time.yesterday: "昨天"
+
+preview.agent_name: "在线客服"
+preview.sample_agent_reply: "你好！可以发一下订单号吗，我马上帮你核实进度。"
+preview.sample_customer_msg: "你好，我想查询一下刚才提交的订单状态。"
+preview.sample_prev_msg: "感谢帮助，问题已经解决啦！"

@@ -181,11 +181,16 @@ export interface TagSummary {
   name: string
 }
 
+export interface WidgetAppearance {
+  /** 聊天窗口的主题色（#rrggbb 十六进制颜色值），缺省为 #0063ff */
+  color?: string
+  /** 聊天窗口顶部的问候语；为空时显示默认问候语 */
+  greeting?: string
+}
+
 export interface WidgetConfigDTO {
-  /** 聊天窗口的主题色 */
-  color: string
-  /** 聊天窗口顶部的问候语；为空时显示默认的问候语 */
-  greeting: string
+  /** 聊天窗口的外观配置 */
+  appearance: WidgetAppearance
   /** 聊天插件的名称，显示在聊天窗口的标题中 */
   name: string
 }

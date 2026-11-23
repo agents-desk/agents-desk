@@ -6,9 +6,8 @@ import (
 
 // ConfigDTO 是聊天窗口打开之前读取的公开设置。
 type ConfigDTO struct {
-	Name     string `json:"name" doc:"聊天插件的名称，显示在聊天窗口的标题中"`
-	Greeting string `json:"greeting" doc:"聊天窗口顶部的问候语；为空时显示默认的问候语"`
-	Color    Color  `json:"color" doc:"聊天窗口的主题色"`
+	Name       string     `json:"name" doc:"聊天插件的名称，显示在聊天窗口的标题中"`
+	Appearance Appearance `json:"appearance" doc:"聊天窗口的外观配置"`
 }
 
 // ConfigOutput 是返回公开设置的响应。
@@ -16,13 +15,13 @@ type ConfigOutput struct {
 	Body ConfigDTO
 }
 
-// GetConfig 读取客户在用的聊天插件的公开设置，不需要登录。
+// GetConfig 读取客户在用的聊天插件的公开设置，公开接口无需登录。
 type GetConfig struct{}
 
 // NewGetConfig 返回读取公开设置的动作。
 func NewGetConfig() *GetConfig { return &GetConfig{} }
 
-// Handle 返回本次请求的聊天插件（Middleware 查出的）的名称、问候语和主题色。聊天插件不存在、已停用或者
+// Handle 返回本次请求的聊天插件（Middleware 查出的）的名称与外观配置。聊天插件不存在、已停用或者
 // 所在的工作区已停用时返回 channel.ErrNotFound。
 func (a *GetConfig) Handle(ctx context.Context) (*ConfigDTO, error) {
 	ch, err := channelFrom(ctx)
@@ -33,7 +32,7 @@ func (a *GetConfig) Handle(ctx context.Context) (*ConfigDTO, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ConfigDTO{Name: ch.Name, Greeting: s.Greeting, Color: s.color()}, nil
+	return &ConfigDTO{Name: ch.Name, Appearance: s.appearance()}, nil
 }
 
 // HTTP 处理 GET /w/{channel}/api/config。

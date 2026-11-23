@@ -1,0 +1,68 @@
+/* 网页聊天插件工作台的响应式双栏布局与实时预览画布。所有颜色均来自 Mantine 主题变量。 */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 440px) minmax(420px, 1fr);
+  gap: var(--mantine-spacing-lg);
+  align-items: start;
+}
+
+.previewColumn {
+  position: sticky;
+  top: var(--mantine-spacing-md);
+}
+
+.stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 680px;
+  padding: var(--mantine-spacing-lg);
+  border-radius: var(--mantine-radius-md);
+  border: 1px solid var(--tn-border, var(--mantine-color-gray-3));
+  background-color: var(--mantine-color-gray-0);
+  background-image: radial-gradient(var(--mantine-color-gray-3) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+.desktopShell {
+  width: 420px;
+  max-width: 100%;
+  height: 640px;
+  background: transparent;
+  transition: width 180ms ease, border-radius 180ms ease;
+}
+
+.mobileShell {
+  width: 375px;
+  max-width: 100%;
+  height: 640px;
+  border-radius: 24px;
+  border: 4px solid var(--mantine-color-gray-4);
+  overflow: hidden;
+  box-shadow: var(--mantine-shadow-lg);
+  background: var(--mantine-color-body);
+  transition: width 180ms ease, border-radius 180ms ease;
+}
+
+.frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  display: block;
+}
+
+@media (max-width: 1080px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .previewColumn {
+    position: static;
+  }
+
+  .stage {
+    min-height: 620px;
+  }
+}

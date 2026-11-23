@@ -2434,6 +2434,19 @@ export const components = {
     ],
     "type": "object"
   },
+  WidgetAppearance: {
+    "additionalProperties": false,
+    "properties": {
+      "color": {
+        "type": "string"
+      },
+      "greeting": {
+        "maxLength": 500,
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
   WidgetChanges: {
     "additionalProperties": false,
     "properties": {
@@ -2444,12 +2457,8 @@ export const components = {
         "maxItems": 20,
         "type": "array"
       },
-      "color": {
-        "type": "string"
-      },
-      "greeting": {
-        "maxLength": 500,
-        "type": "string"
+      "appearance": {
+        "$ref": "#/components/schemas/WidgetAppearance"
       },
       "name": {
         "maxLength": 60,
@@ -2476,15 +2485,11 @@ export const components = {
         "maxItems": 20,
         "type": "array"
       },
-      "color": {
-        "type": "string"
+      "appearance": {
+        "$ref": "#/components/schemas/WidgetAppearance"
       },
       "enabled": {
         "type": "boolean"
-      },
-      "greeting": {
-        "maxLength": 500,
-        "type": "string"
       },
       "name": {
         "maxLength": 60,

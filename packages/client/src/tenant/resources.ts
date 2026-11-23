@@ -302,15 +302,10 @@ export const resources = {
     createForm: [
       { name: "name", type: "string", required: true },
       { name: "team_id", type: "string", format: "uuid", ref: "team" },
-      { name: "greeting", type: "string" },
-      { name: "color", type: "string" },
-      { name: "allowed_origins", type: "array", items: "string" },
     ],
     updateForm: [
       { name: "name", type: "string", required: true },
       { name: "team_id", type: "string", format: "uuid", ref: "team" },
-      { name: "greeting", type: "string" },
-      { name: "color", type: "string" },
       { name: "allowed_origins", type: "array", items: "string" },
       { name: "enabled", type: "boolean", required: true },
     ],
@@ -319,14 +314,14 @@ export const resources = {
     labels: {
       "en": {
         title: "Website chat widgets",
-        fields: { name: "Name", team_name: "Team inbox", enabled: "Enabled", team_id: "Team inbox", greeting: "Greeting", color: "Theme color", allowed_origins: "Allowed websites" },
-        descriptions: { name: "Shown in the chat window’s title", enabled: "When disabled, the chat window is hidden and customers can no longer send messages", team_id: "The team inbox new conversations go to; leave empty to keep them unassigned", greeting: "Shown at the top of the chat window; leave empty for the default greeting", color: "Chat window theme color; pick a preset swatch or enter a custom #rrggbb hex color", allowed_origins: "The chat window only shows on these websites, for example https://shop.example.com. Leave empty to allow every website. Apps opening it in a WebView are not affected" },
+        fields: { name: "Name", team_name: "Team inbox", enabled: "Enabled", team_id: "Team inbox", allowed_origins: "Allowed websites" },
+        descriptions: { name: "Shown in the chat window’s title", enabled: "When disabled, the chat window is hidden and customers can no longer send messages", team_id: "The team inbox new conversations go to; leave empty to keep them unassigned", allowed_origins: "The chat window only shows on these websites, for example https://shop.example.com. Leave empty to allow every website. Apps opening it in a WebView are not affected" },
         actions: {  },
       },
       "zh-CN": {
         title: "网页聊天插件",
-        fields: { name: "名称", team_name: "团队收件箱", enabled: "启用", team_id: "团队收件箱", greeting: "问候语", color: "主题色", allowed_origins: "允许嵌入的网站" },
-        descriptions: { name: "显示在聊天窗口的标题中", enabled: "停用后聊天窗口不再显示，客户不能再发消息", team_id: "新会话进入的团队收件箱；不选时进入未指派", greeting: "显示在聊天窗口的顶部；不填时显示默认的问候语", color: "聊天窗口的主题色，支持选择预设色块或输入自定义", allowed_origins: "聊天窗口只在这些网站中显示，例如 https://shop.example.com；不填时所有网站都可以嵌入。App 用 WebView 打开时不受它限制" },
+        fields: { name: "名称", team_name: "团队收件箱", enabled: "启用", team_id: "团队收件箱", allowed_origins: "允许嵌入的网站" },
+        descriptions: { name: "显示在聊天窗口的标题中", enabled: "停用后聊天窗口不再显示，客户不能再发消息", team_id: "新会话进入的团队收件箱；不选时进入未指派", allowed_origins: "聊天窗口只在这些网站中显示，例如 https://shop.example.com；不填时所有网站都可以嵌入。App 用 WebView 打开时不受它限制" },
         actions: {  },
       },
     },

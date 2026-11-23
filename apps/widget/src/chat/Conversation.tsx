@@ -303,7 +303,7 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
 }
 
 /** Bubble 是时间线中的一条消息：客户的在右边、用主题色，别人的在左边、纯白底配轻边框与名字。 */
-function Bubble({
+export function Bubble({
   mine,
   author,
   text,

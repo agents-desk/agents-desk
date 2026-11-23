@@ -33,16 +33,21 @@ var (
 	ErrTeamNotFound = errorx.Define(errorx.InvalidArgument, "widget.team_not_found")
 	// ErrInvalidOrigin 是允许嵌入的网站写得不对：要写成 http:// 或 https:// 开头、只有域名（和端口）的地址。
 	ErrInvalidOrigin = errorx.Define(errorx.InvalidArgument, "widget.invalid_origin")
-	// ErrInvalidColor 是主题色格式无效：应为预设名或 #rrggbb 十六进制颜色值。
+	// ErrInvalidColor 是主题色格式无效：应为 #rrggbb 十六进制颜色值。
 	ErrInvalidColor = errorx.Define(errorx.InvalidArgument, "widget.invalid_color")
 )
 
+// Appearance 是聊天窗口的外观配置，持久化在渠道设置中并直接暴露给公开配置与预览协议。
+type Appearance struct {
+	Color    Color  `json:"color,omitempty" doc:"聊天窗口的主题色（#rrggbb 十六进制颜色值），缺省为 #0063ff"`
+	Greeting string `json:"greeting,omitempty" maxLength:"500" doc:"聊天窗口顶部的问候语；为空时显示默认问候语"`
+}
+
 // Settings 是聊天插件保存在渠道设置（channels.settings）中的内容。
 type Settings struct {
-	Greeting       string   `json:"greeting"`        // 聊天窗口顶部的问候语
-	Color          string   `json:"color"`           // 聊天窗口的主题色，预设名或 #rrggbb 十六进制颜色值
-	AllowedOrigins []string `json:"allowed_origins"` // 允许嵌入聊天窗口的网站，形如 https://shop.example.com；为空表示所有网站
-	IdentitySecret string   `json:"identity_secret"` // 身份验证密钥，用应用密钥加密保存；产品后端用明文签名用户身份
+	Appearance     Appearance `json:"appearance"`      // 聊天窗口的外观配置
+	AllowedOrigins []string   `json:"allowed_origins"` // 允许嵌入聊天窗口的网站，形如 https://shop.example.com；为空表示所有网站
+	IdentitySecret string     `json:"identity_secret"` // 身份验证密钥，用应用密钥加密保存；产品后端用明文签名用户身份
 }
 
 // settingsOf 读出渠道 ch 中聊天插件的设置。

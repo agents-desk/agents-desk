@@ -54,6 +54,10 @@ export const messages = {
     "panel.close": "Close",
     "panel.collapse": "Collapse",
     "panel.unavailable": "Support chat is unavailable right now. Please try again later.",
+    "preview.agent_name": "Support",
+    "preview.sample_agent_reply": "Hi! Could you share your order number? I'll check the status right away.",
+    "preview.sample_customer_msg": "Hi, I'd like to check the status of my recent order.",
+    "preview.sample_prev_msg": "Thanks for the help, everything is resolved now!",
     "prompt.collect_contact": "Leave your email so we can get back to you.",
     "prompt.reply_time_closed": "We're currently outside business hours. We'll be back at {{.time}} and reply as soon as we can.",
     "prompt.reply_time_closed_unknown": "We're currently outside business hours and will reply as soon as we're back.",
@@ -128,6 +132,10 @@ export const messages = {
     "panel.close": "关闭",
     "panel.collapse": "收起",
     "panel.unavailable": "在线客服暂时不可用，请稍后再试。",
+    "preview.agent_name": "在线客服",
+    "preview.sample_agent_reply": "你好！可以发一下订单号吗，我马上帮你核实进度。",
+    "preview.sample_customer_msg": "你好，我想查询一下刚才提交的订单状态。",
+    "preview.sample_prev_msg": "感谢帮助，问题已经解决啦！",
     "prompt.collect_contact": "请留下你的邮箱，方便我们后续联系你。",
     "prompt.reply_time_closed": "当前为非工作时间，我们将在 {{.time}} 恢复工作后尽快回复。",
     "prompt.reply_time_closed_unknown": "当前为非工作时间，我们将在恢复工作后尽快回复。",
@@ -205,6 +213,10 @@ export type MessageId =
   | "panel.close"
   | "panel.collapse"
   | "panel.unavailable"
+  | "preview.agent_name"
+  | "preview.sample_agent_reply"
+  | "preview.sample_customer_msg"
+  | "preview.sample_prev_msg"
   | "prompt.collect_contact"
   | "prompt.reply_time_closed"
   | "prompt.reply_time_closed_unknown"

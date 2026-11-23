@@ -125,7 +125,7 @@ export function Widget(): ReactNode {
   }, [ready, unread])
 
   const setBrandColor = useSetWidgetBrand()
-  const rawColor = config.data?.color ?? DEFAULT_WIDGET_COLOR
+  const rawColor = config.data?.appearance.color ?? DEFAULT_WIDGET_COLOR
   useEffect(() => {
     setBrandColor(rawColor)
   }, [rawColor, setBrandColor])
@@ -164,7 +164,7 @@ export function Widget(): ReactNode {
         </Center>
       ) : view.kind === "home" ? (
         <Box key="home" className="w-view">
-          <Header color={color} title={name} greeting={config.data.greeting || t("home.default_greeting")} close={close} onClose={onClose} />
+          <Header color={color} title={name} greeting={config.data.appearance.greeting || t("home.default_greeting")} close={close} onClose={onClose} />
           {conversations.data.length > 0 ? (
             <Home
               color={color}
