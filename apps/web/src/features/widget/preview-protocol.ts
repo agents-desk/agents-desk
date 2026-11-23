@@ -1,4 +1,4 @@
-import type { WidgetAppearance } from "@agents-desk/client/tenant"
+import type { WidgetAppearance, WidgetBehavior } from "@agents-desk/client/tenant"
 
 /** PREVIEW_PREFIX 是配置工作台与 /widget/preview 之间 postMessage 的消息前缀。 */
 export const PREVIEW_PREFIX = "agents-desk:"
@@ -14,6 +14,7 @@ export interface PreviewMessage {
   type: `${typeof PREVIEW_PREFIX}preview`
   name: string
   appearance: WidgetAppearance
+  behavior: WidgetBehavior
   scene: PreviewScene
   viewport: PreviewViewport
 }

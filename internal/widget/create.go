@@ -19,6 +19,7 @@ type Changes struct {
 	Name       string     `json:"name" minLength:"1" maxLength:"60"`
 	TeamID     *string    `json:"team_id,omitempty" format:"uuid" doc:"新会话进入的团队收件箱；不填时进入未指派"`
 	Appearance Appearance `json:"appearance,omitempty" doc:"聊天窗口的外观配置"`
+	Behavior   Behavior   `json:"behavior,omitempty" doc:"聊天窗口的交互行为配置"`
 	// AllowedOrigins 是允许嵌入聊天窗口的网站；App 的 WebView 不受它限制
 	AllowedOrigins []string `json:"allowed_origins,omitempty" maxItems:"20" doc:"允许嵌入聊天窗口的网站，形如 https://shop.example.com；不填时所有网站都可以嵌入"`
 }
@@ -44,12 +45,16 @@ func (a *Create) Handle(ctx context.Context, sub identity.Subject, c Changes) (*
 	if err != nil {
 		return nil, err
 	}
+	behavior, err := normalizeBehavior(c.Behavior)
+	if err != nil {
+		return nil, err
+	}
 	origins, err := normalizeOrigins(c.AllowedOrigins)
 	if err != nil {
 		return nil, err
 	}
 	settings, err := Settings{
-		Appearance: appearance, AllowedOrigins: origins, IdentitySecret: a.crypt.Encrypt(newSecret()),
+		Appearance: appearance, Behavior: behavior, AllowedOrigins: origins, IdentitySecret: a.crypt.Encrypt(newSecret()),
 	}.toMap()
 	if err != nil {
 		return nil, err

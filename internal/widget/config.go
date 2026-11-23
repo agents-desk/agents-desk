@@ -8,6 +8,7 @@ import (
 type ConfigDTO struct {
 	Name       string     `json:"name" doc:"聊天插件的名称，显示在聊天窗口的标题中"`
 	Appearance Appearance `json:"appearance" doc:"聊天窗口的外观配置"`
+	Behavior   Behavior   `json:"behavior" doc:"聊天窗口的交互行为配置"`
 }
 
 // ConfigOutput 是返回公开设置的响应。
@@ -32,7 +33,7 @@ func (a *GetConfig) Handle(ctx context.Context) (*ConfigDTO, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ConfigDTO{Name: ch.Name, Appearance: s.appearance()}, nil
+	return &ConfigDTO{Name: ch.Name, Appearance: s.appearance(), Behavior: s.behavior()}, nil
 }
 
 // HTTP 处理 GET /w/{channel}/api/config。

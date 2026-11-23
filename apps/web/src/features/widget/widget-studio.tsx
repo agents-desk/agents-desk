@@ -1,5 +1,5 @@
 import type { WidgetDTO } from "@agents-desk/client/tenant"
-import { Badge, Box, Button, ColorInput, Group, Paper, Skeleton, Stack, Switch, Tabs, TagsInput, Text, Textarea, TextInput, Title } from "@mantine/core"
+import { Badge, Box, Button, ColorInput, Group, Paper, SegmentedControl, Skeleton, Stack, Switch, Tabs, TagsInput, Text, Textarea, TextInput, Title } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
@@ -26,6 +26,9 @@ interface StudioFormValues {
     color: string
     greeting: string
   }
+  behavior: {
+    conversation_mode: "multiple" | "single"
+  }
   allowed_origins: string[]
 }
 
@@ -38,6 +41,9 @@ function toFormValues(w: WidgetDTO): StudioFormValues {
     appearance: {
       color: w.appearance.color || defaultColorHex,
       greeting: w.appearance.greeting ?? "",
+    },
+    behavior: {
+      conversation_mode: w.behavior.conversation_mode === "single" ? "single" : "multiple",
     },
     allowed_origins: w.allowed_origins ?? [],
   }
@@ -83,6 +89,7 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
       team_id: null,
       enabled: true,
       appearance: { color: defaultColorHex, greeting: "" },
+      behavior: { conversation_mode: "multiple" },
       allowed_origins: [],
     },
   })
@@ -104,14 +111,18 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
           color: values.appearance.color.trim(),
           greeting: values.appearance.greeting,
         },
+        behavior: {
+          conversation_mode: values.behavior.conversation_mode,
+        },
         allowed_origins: values.allowed_origins,
       }),
     onSuccess: (updated) => {
       setServerError(undefined)
       queryClient.setQueryData(["widget", id], updated)
       void queryClient.invalidateQueries({ queryKey: ["resource", "widget"] })
-      form.setValues(toFormValues(updated))
-      form.resetDirty(toFormValues(updated))
+      const next = toFormValues(updated)
+      form.setValues(next)
+      form.resetDirty(next)
       notifySuccess(t("widget_studio.saved"))
     },
     onError: (err) => {
@@ -135,8 +146,14 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
       title={widget.data ? widget.data.name : t("widget_install.title")}
       back={() => void navigate({ to: "/t/$slug/settings/widgets", params: { slug } })}
       actions={
-        tab === "config" && widget.data ? (
-          <Group gap="xs">
+        widget.data ? (
+          <Group
+            gap="xs"
+            style={{
+              visibility: tab === "config" ? "visible" : "hidden",
+              pointerEvents: tab === "config" ? "auto" : "none",
+            }}
+          >
             {dirty && (
               <Badge variant="light" color="yellow">
                 {t("widget_studio.unsaved")}
@@ -158,12 +175,13 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
           <Tabs.Tab value="install">{t("widget_studio.tab_install")}</Tabs.Tab>
         </Tabs.List>
 
-        <Tabs.Panel value="config">
+        <Tabs.Panel value="config" className={classes.tabPanel}>
           {widget.isPending ? (
             <Box className={classes.layout}>
               <Stack gap="md">
                 <Skeleton height={160} radius="md" />
                 <Skeleton height={220} radius="md" />
+                <Skeleton height={150} radius="md" />
                 <Skeleton height={200} radius="md" />
               </Stack>
               <Skeleton height={680} radius="md" />
@@ -211,6 +229,32 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
                     />
                   </SectionCard>
 
+                  <SectionCard title={t("widget_studio.section_behavior")} description={t("widget_studio.section_behavior_desc")}>
+                    <Stack gap={6}>
+                      <Text size="sm" fw={500}>
+                        {t("widget_studio.conversation_mode")}
+                      </Text>
+                      <SegmentedControl
+                        fullWidth
+                        value={form.values.behavior.conversation_mode}
+                        onChange={(v) =>
+                          form.setFieldValue("behavior.conversation_mode", v === "single" ? "single" : "multiple")
+                        }
+                        data={[
+                          { value: "multiple", label: t("widget_studio.mode_multiple") },
+                          { value: "single", label: t("widget_studio.mode_single") },
+                        ]}
+                      />
+                      <Text size="xs" c="dimmed">
+                        {t(
+                          form.values.behavior.conversation_mode === "single"
+                            ? "widget_studio.mode_single_desc"
+                            : "widget_studio.mode_multiple_desc",
+                        )}
+                      </Text>
+                    </Stack>
+                  </SectionCard>
+
                   <SectionCard title={t("widget_studio.section_routing")} description={t("widget_studio.section_routing_desc")}>
                     <ResourceSelect
                       model={teams}
@@ -239,13 +283,17 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
                   </SectionCard>
                 </Stack>
 
-                <WidgetPreviewStage name={form.values.name} appearance={form.values.appearance} />
+                <WidgetPreviewStage
+                  name={form.values.name}
+                  appearance={form.values.appearance}
+                  behavior={form.values.behavior}
+                />
               </Box>
             </form>
           )}
         </Tabs.Panel>
 
-        <Tabs.Panel value="install">
+        <Tabs.Panel value="install" className={classes.tabPanel}>
           <WidgetInstallPanel id={id} />
         </Tabs.Panel>
       </Tabs>

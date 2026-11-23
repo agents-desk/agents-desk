@@ -1692,11 +1692,18 @@ export interface WidgetAppearance {
   greeting?: string
 }
 
+export interface WidgetBehavior {
+  /** 会话模式：multiple 允许多个会话，single 仅保留单一对话流，缺省为 multiple */
+  conversation_mode?: "multiple" | "single"
+}
+
 export interface WidgetChanges {
   /** 允许嵌入聊天窗口的网站，形如 https://shop.example.com；不填时所有网站都可以嵌入 */
   allowed_origins?: string[]
   /** 聊天窗口的外观配置 */
   appearance?: WidgetAppearance
+  /** 聊天窗口的交互行为配置 */
+  behavior?: WidgetBehavior
   name: string
   /** 新会话进入的团队收件箱；不填时进入未指派 */
   team_id?: string
@@ -1707,6 +1714,8 @@ export interface WidgetDTO {
   allowed_origins: string[]
   /** 聊天窗口的外观配置 */
   appearance: WidgetAppearance
+  /** 聊天窗口的交互行为配置 */
+  behavior: WidgetBehavior
   created_at: string
   /** 停用后聊天窗口不再显示，客户不能再发消息 */
   enabled: boolean
@@ -1732,6 +1741,8 @@ export interface WidgetUpdateBody {
   allowed_origins?: string[]
   /** 聊天窗口的外观配置 */
   appearance?: WidgetAppearance
+  /** 聊天窗口的交互行为配置 */
+  behavior?: WidgetBehavior
   /** 停用后聊天窗口不再显示，客户不能再发消息 */
   enabled: boolean
   name: string

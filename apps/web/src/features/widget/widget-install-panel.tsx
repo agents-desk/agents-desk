@@ -158,7 +158,7 @@ export function WidgetInstallPanel({ id }: { id: string }): ReactNode {
   }
 
   return (
-    <Stack gap="xl" maw={820}>
+    <Stack gap="xl">
       <Stack gap="xs">
         <Group justify="space-between">
           <Title order={4}>{t("widget_install.embed")}</Title>

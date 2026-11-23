@@ -916,12 +916,17 @@ export const messages = {
     "widget_studio.allowed_origins_placeholder": "Type https://example.com and press Enter",
     "widget_studio.color": "Theme color",
     "widget_studio.color_hint": "Pick a swatch or enter any #rrggbb brand color; text contrast adapts automatically",
+    "widget_studio.conversation_mode": "Conversation mode",
     "widget_studio.discard": "Discard",
     "widget_studio.enabled": "Enable widget",
     "widget_studio.enabled_hint": "When disabled, the chat window is hidden and customers can no longer send messages",
     "widget_studio.greeting": "Greeting",
     "widget_studio.greeting_hint": "Shown at the top of the widget home screen; leave empty for the default greeting",
     "widget_studio.greeting_placeholder": "Hi there! How can we help?",
+    "widget_studio.mode_multiple": "Multiple",
+    "widget_studio.mode_multiple_desc": "Customers can view past conversations on the home screen and start new threads",
+    "widget_studio.mode_single": "Single",
+    "widget_studio.mode_single_desc": "Customers land straight in one continuous conversation thread with no home screen",
     "widget_studio.name": "Widget name",
     "widget_studio.name_hint": "Shown in the chat window header",
     "widget_studio.preview_hint": "Interactive preview — click around to test; click Save \u0026 publish to apply",
@@ -935,6 +940,8 @@ export const messages = {
     "widget_studio.section_appearance_desc": "Customize the chat window's brand color and greeting",
     "widget_studio.section_basic": "Basics",
     "widget_studio.section_basic_desc": "Set the widget title and availability",
+    "widget_studio.section_behavior": "Conversation \u0026 behavior",
+    "widget_studio.section_behavior_desc": "Control how customers start and continue conversations",
     "widget_studio.section_routing": "Routing \u0026 security",
     "widget_studio.section_routing_desc": "Choose the destination team inbox and allowed embed origins",
     "widget_studio.tab_config": "Configure \u0026 preview",
@@ -1869,12 +1876,17 @@ export const messages = {
     "widget_studio.allowed_origins_placeholder": "输入 https://example.com 后回车",
     "widget_studio.color": "主题色",
     "widget_studio.color_hint": "点选预设色块或输入自定义 #rrggbb 品牌色，顶栏与气泡文字颜色会自动适配对比度",
+    "widget_studio.conversation_mode": "会话模式",
     "widget_studio.discard": "还原",
     "widget_studio.enabled": "启用聊天插件",
     "widget_studio.enabled_hint": "停用后聊天窗口不再向客户展示，客户无法发起新会话或发送消息",
     "widget_studio.greeting": "顶部问候语",
     "widget_studio.greeting_hint": "展示在聊天窗口首页顶部；留空时显示默认问候语",
     "widget_studio.greeting_placeholder": "你好！有什么可以帮你？",
+    "widget_studio.mode_multiple": "多会话",
+    "widget_studio.mode_multiple_desc": "客户可以在首页查看历史会话并随时发起多个并行会话",
+    "widget_studio.mode_single": "单会话",
+    "widget_studio.mode_single_desc": "客户打开窗口直接进入对话，所有消息保持在单一连续对话流中",
     "widget_studio.name": "插件名称",
     "widget_studio.name_hint": "显示在聊天窗口标题栏中",
     "widget_studio.preview_hint": "实时预览支持直接点击体验，修改后需点击「保存并发布」生效",
@@ -1888,6 +1900,8 @@ export const messages = {
     "widget_studio.section_appearance_desc": "自定义聊天窗口的品牌主题色与欢迎语",
     "widget_studio.section_basic": "基础信息",
     "widget_studio.section_basic_desc": "设置插件标题与启用状态",
+    "widget_studio.section_behavior": "会话与交互",
+    "widget_studio.section_behavior_desc": "控制客户在聊天窗口中的会话流形态",
     "widget_studio.section_routing": "路由与安全",
     "widget_studio.section_routing_desc": "配置新会话进入的团队收件箱与允许嵌入的域名",
     "widget_studio.tab_config": "配置与预览",
@@ -2825,12 +2839,17 @@ export type MessageId =
   | "widget_studio.allowed_origins_placeholder"
   | "widget_studio.color"
   | "widget_studio.color_hint"
+  | "widget_studio.conversation_mode"
   | "widget_studio.discard"
   | "widget_studio.enabled"
   | "widget_studio.enabled_hint"
   | "widget_studio.greeting"
   | "widget_studio.greeting_hint"
   | "widget_studio.greeting_placeholder"
+  | "widget_studio.mode_multiple"
+  | "widget_studio.mode_multiple_desc"
+  | "widget_studio.mode_single"
+  | "widget_studio.mode_single_desc"
   | "widget_studio.name"
   | "widget_studio.name_hint"
   | "widget_studio.preview_hint"
@@ -2844,6 +2863,8 @@ export type MessageId =
   | "widget_studio.section_appearance_desc"
   | "widget_studio.section_basic"
   | "widget_studio.section_basic_desc"
+  | "widget_studio.section_behavior"
+  | "widget_studio.section_behavior_desc"
   | "widget_studio.section_routing"
   | "widget_studio.section_routing_desc"
   | "widget_studio.tab_config"

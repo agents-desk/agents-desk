@@ -1,4 +1,4 @@
-import type { ConversationContactConversationDTO, WidgetAppearance } from "@agents-desk/client/widget"
+import type { ConversationContactConversationDTO, WidgetAppearance, WidgetBehavior } from "@agents-desk/client/widget"
 import { Box, Stack } from "@mantine/core"
 import { useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react"
@@ -22,6 +22,7 @@ type PreviewViewport = "desktop" | "mobile"
 interface PreviewState {
   name: string
   appearance: WidgetAppearance
+  behavior: WidgetBehavior
   scene: PreviewScene
   viewport: PreviewViewport
 }
@@ -51,6 +52,7 @@ export function Preview(): ReactNode {
   const [state, setState] = useState<PreviewState>({
     name: "",
     appearance: { color: DEFAULT_WIDGET_COLOR, greeting: "" },
+    behavior: { conversation_mode: "multiple" },
     scene: "home",
     viewport: "desktop",
   })
@@ -64,13 +66,15 @@ export function Preview(): ReactNode {
       if (!e.data || e.data.type !== `${PREFIX}preview`) return
       const nextColor = typeof e.data.appearance?.color === "string" ? e.data.appearance.color : DEFAULT_WIDGET_COLOR
       const nextGreeting = typeof e.data.appearance?.greeting === "string" ? e.data.appearance.greeting : ""
+      const nextMode: WidgetBehavior["conversation_mode"] = e.data.behavior?.conversation_mode === "single" ? "single" : "multiple"
       const nextScene: PreviewScene =
         e.data.scene === "conversation" || e.data.scene === "launcher" ? e.data.scene : "home"
       const nextViewport: PreviewViewport = e.data.viewport === "mobile" ? "mobile" : "desktop"
       setState({
         name: typeof e.data.name === "string" ? e.data.name : "",
         appearance: { color: nextColor, greeting: nextGreeting },
-        scene: nextScene,
+        behavior: { conversation_mode: nextMode },
+        scene: nextMode === "single" && nextScene === "home" ? "conversation" : nextScene,
         viewport: nextViewport,
       })
     }
@@ -168,28 +172,29 @@ export function Preview(): ReactNode {
   const title = state.name.trim() || t("app.widget")
   const greeting = state.appearance.greeting?.trim() || t("home.default_greeting")
   const full = state.viewport === "mobile"
+  const single = state.behavior.conversation_mode === "single"
 
   // 桌面收起态仅渲染右下角启动按钮。
   if (!full && state.scene === "launcher") {
     return (
       <Box className="w-dock">
-        <Launcher color={color} open={false} unread={1} onClick={() => switchScene("home")} />
+        <Launcher color={color} open={false} unread={1} onClick={() => switchScene(single ? "conversation" : "home")} />
       </Box>
     )
   }
 
   const closeMode: "collapse" | "close" = full ? "close" : "collapse"
-  const onClose = () => switchScene(full ? "home" : "launcher")
+  const onClose = () => switchScene(full ? (single ? "conversation" : "home") : "launcher")
 
   const panel = (
     <Box className="w-panel" data-full={full || undefined}>
-      {state.scene === "conversation" ? (
+      {single || state.scene === "conversation" ? (
         <Box key="conversation" className="w-view">
           <Header
             color={color}
             title={title}
             status={t("chat.status_open")}
-            onBack={() => switchScene("home")}
+            onBack={single ? undefined : () => switchScene("home")}
             close={closeMode}
             onClose={onClose}
           />

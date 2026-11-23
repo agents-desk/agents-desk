@@ -1,4 +1,4 @@
-import type { WidgetAppearance } from "@agents-desk/client/tenant"
+import type { WidgetAppearance, WidgetBehavior } from "@agents-desk/client/tenant"
 import { Box, Center, Group, SegmentedControl, Stack, Text } from "@mantine/core"
 import { IconDeviceDesktop, IconDeviceMobile, IconHome, IconMessage, IconMessageCircle } from "@tabler/icons-react"
 import { useT } from "@go-tenon/ui"
@@ -10,18 +10,27 @@ import classes from "./widget-studio.module.css"
 interface WidgetPreviewStageProps {
   name: string
   appearance: WidgetAppearance
+  behavior: WidgetBehavior
 }
 
 /**
  * WidgetPreviewStage 是 Intercom 风格的右侧实时预览舞台：
  * 通过同源 iframe 嵌入真实的 /widget/preview，双向同步草稿配置与用户点击切换的场景，支持桌面浮窗与手机全屏视图。
  */
-export function WidgetPreviewStage({ name, appearance }: WidgetPreviewStageProps): ReactNode {
+export function WidgetPreviewStage({ name, appearance, behavior }: WidgetPreviewStageProps): ReactNode {
   const t = useT()
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [ready, setReady] = useState(false)
-  const [scene, setScene] = useState<PreviewScene>("home")
+  const single = behavior.conversation_mode === "single"
+  const [scene, setScene] = useState<PreviewScene>(single ? "conversation" : "home")
   const [viewport, setViewport] = useState<PreviewViewport>("desktop")
+
+  // 单会话模式跳过首页，自动切到对话中视图。
+  useEffect(() => {
+    if (single && scene === "home") {
+      setScene("conversation")
+    }
+  }, [single, scene])
 
   const postPreview = useCallback(
     (nextScene: PreviewScene, nextViewport: PreviewViewport) => {
@@ -31,12 +40,13 @@ export function WidgetPreviewStage({ name, appearance }: WidgetPreviewStageProps
         type: `${PREVIEW_PREFIX}preview`,
         name,
         appearance,
+        behavior,
         scene: nextScene,
         viewport: nextViewport,
       }
       target.postMessage(payload, window.location.origin)
     },
-    [appearance, name],
+    [appearance, behavior, name],
   )
   const latestPostRef = useRef<() => void>(() => {})
   latestPostRef.current = () => postPreview(scene, viewport)
@@ -73,20 +83,24 @@ export function WidgetPreviewStage({ name, appearance }: WidgetPreviewStageProps
     const v: PreviewViewport = next === "mobile" ? "mobile" : "desktop"
     setViewport(v)
     if (v === "mobile" && scene === "launcher") {
-      setScene("home")
+      setScene(single ? "conversation" : "home")
     }
   }
 
   const sceneOptions = [
-    {
-      value: "home",
-      label: (
-        <Center style={{ gap: 6 }}>
-          <IconHome size={14} />
-          <span>{t("widget_studio.scene_home")}</span>
-        </Center>
-      ),
-    },
+    ...(!single
+      ? [
+          {
+            value: "home",
+            label: (
+              <Center style={{ gap: 6 }}>
+                <IconHome size={14} />
+                <span>{t("widget_studio.scene_home")}</span>
+              </Center>
+            ),
+          },
+        ]
+      : []),
     {
       value: "conversation",
       label: (

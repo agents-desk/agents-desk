@@ -41,6 +41,10 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 	if err != nil {
 		return nil, err
 	}
+	behavior, err := normalizeBehavior(b.Behavior)
+	if err != nil {
+		return nil, err
+	}
 	origins, err := normalizeOrigins(b.AllowedOrigins)
 	if err != nil {
 		return nil, err
@@ -69,13 +73,13 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 		if ch.Enabled != b.Enabled {
 			changed = append(changed, "enabled")
 		}
-		if s.appearance() != appearance || !slices.Equal(s.AllowedOrigins, origins) {
+		if s.appearance() != appearance || s.behavior() != behavior || !slices.Equal(s.AllowedOrigins, origins) {
 			changed = append(changed, "settings")
 		}
 		if len(changed) == 0 {
 			return nil
 		}
-		s.Appearance, s.AllowedOrigins = appearance, origins
+		s.Appearance, s.Behavior, s.AllowedOrigins = appearance, behavior, origins
 		settings, err := s.toMap()
 		if err != nil {
 			return err

@@ -1,5 +1,9 @@
 /* 网页聊天插件工作台的响应式双栏布局与实时预览画布。所有颜色均来自 Mantine 主题变量。 */
 
+.tabPanel {
+  min-height: 740px;
+}
+
 .layout {
   display: grid;
   grid-template-columns: minmax(320px, 440px) minmax(420px, 1fr);

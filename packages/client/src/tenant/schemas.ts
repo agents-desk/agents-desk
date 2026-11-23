@@ -2447,6 +2447,19 @@ export const components = {
     },
     "type": "object"
   },
+  WidgetBehavior: {
+    "additionalProperties": false,
+    "properties": {
+      "conversation_mode": {
+        "enum": [
+          "multiple",
+          "single"
+        ],
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
   WidgetChanges: {
     "additionalProperties": false,
     "properties": {
@@ -2459,6 +2472,9 @@ export const components = {
       },
       "appearance": {
         "$ref": "#/components/schemas/WidgetAppearance"
+      },
+      "behavior": {
+        "$ref": "#/components/schemas/WidgetBehavior"
       },
       "name": {
         "maxLength": 60,
@@ -2487,6 +2503,9 @@ export const components = {
       },
       "appearance": {
         "$ref": "#/components/schemas/WidgetAppearance"
+      },
+      "behavior": {
+        "$ref": "#/components/schemas/WidgetBehavior"
       },
       "enabled": {
         "type": "boolean"

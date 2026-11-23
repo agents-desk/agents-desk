@@ -234,6 +234,8 @@ export const WidgetErrors = {
   InvalidOrigin: "widget.invalid_origin",
   /** ErrInvalidColor 是主题色格式无效：应为 #rrggbb 十六进制颜色值。 */
   InvalidColor: "widget.invalid_color",
+  /** ErrInvalidConversationMode 是会话模式无效：应为 multiple 或 single。 */
+  InvalidConversationMode: "widget.invalid_conversation_mode",
 } as const
 
 /** github.com/go-tenon/tenon/apitoken 的错误码。 */

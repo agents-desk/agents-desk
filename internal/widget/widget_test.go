@@ -306,7 +306,7 @@ func TestManage(t *testing.T) {
 	env := apptest.New(t)
 	alpha, beta := setup(t, env, "alpha"), setup(t, env, "beta")
 
-	if alpha.widget.Appearance.Color != defaultColor || !alpha.widget.Enabled {
+	if alpha.widget.Appearance.Color != defaultColor || alpha.widget.Behavior.ConversationMode != MultipleConversations || !alpha.widget.Enabled {
 		t.Fatalf("新建的聊天插件：%+v", alpha.widget)
 	}
 	var betaTeam string
@@ -366,6 +366,69 @@ func TestManage(t *testing.T) {
 		if _, err := NewUpdate(env.DB).Handle(ctx, alpha.system, alpha.widget.ID, UpdateBody{Changes: Changes{Name: "官网", Appearance: Appearance{Color: bad}}, Enabled: true}); !errors.Is(err, ErrInvalidColor) {
 			t.Errorf("非法主题色 %q 修改：%v", bad, err)
 		}
+	}
+
+	// 支持单会话模式配置，非法模式返回 ErrInvalidConversationMode
+	w, err = NewUpdate(env.DB).Handle(ctx, alpha.system, alpha.widget.ID, UpdateBody{
+		Changes: Changes{
+			Name:       "官网",
+			Appearance: Appearance{Greeting: "你好", Color: "#FEDC20"},
+			Behavior:   Behavior{ConversationMode: SingleConversation},
+		},
+		Enabled: true,
+	})
+	if err != nil || w.Behavior.ConversationMode != SingleConversation {
+		t.Fatalf("切换单会话模式后：%+v %v", w, err)
+	}
+	cfg, err = NewGetConfig().Handle(alpha.in(t, alpha.widget.ID))
+	if err != nil || cfg.Behavior.ConversationMode != SingleConversation {
+		t.Fatalf("单会话模式公开设置：%+v %v", cfg, err)
+	}
+	if _, err := NewCreate(env.DB, env.Crypt).Handle(ctx, alpha.system, Changes{Name: "x", Behavior: Behavior{ConversationMode: "invalid"}}); !errors.Is(err, ErrInvalidConversationMode) {
+		t.Errorf("非法会话模式新建：%v", err)
+	}
+	if _, err := NewUpdate(env.DB).Handle(ctx, alpha.system, alpha.widget.ID, UpdateBody{Changes: Changes{Name: "官网", Behavior: Behavior{ConversationMode: "invalid"}}, Enabled: true}); !errors.Is(err, ErrInvalidConversationMode) {
+		t.Errorf("非法会话模式修改：%v", err)
+	}
+}
+
+// TestSingleConversationMode 检查单会话模式下客户连续发消息始终归入同一会话。
+func TestSingleConversationMode(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	env := apptest.New(t)
+	f := setup(t, env, "alpha")
+	if _, err := NewUpdate(env.DB).Handle(ctx, f.system, f.widget.ID, UpdateBody{
+		Changes: Changes{Name: f.widget.Name, Behavior: Behavior{ConversationMode: SingleConversation}},
+		Enabled: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	hub := broadcast.New(broadcasttest.NewBackend(), nil)
+	t.Cleanup(func() { _ = hub.Close() })
+	registry := channel.Registry{channel.Widget: NewConnector(hub)}
+	down := conversation.Downstream{Hub: hub, Roles: env.Roles, ContactPush: Push(hub)}
+	send := NewSendMessage(env.DB, conversation.NewReceive(env.DB, registry, down))
+	list := conversation.NewListForContact(env.DB)
+
+	_, visitor := f.session(t, SessionBody{})
+	in := f.in(t, f.widget.ID)
+
+	first, err := send.Handle(in, visitor, "", MessageBody{Text: "first"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := send.Handle(in, visitor, "", MessageBody{Text: "second"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.ConversationID != first.ConversationID {
+		t.Fatalf("单会话模式应复用同一会话：first=%s second=%s", first.ConversationID, second.ConversationID)
+	}
+	convs, err := list.Handle(ctx, visitor, f.widget.ID)
+	if err != nil || len(convs) != 1 {
+		t.Fatalf("单会话模式会话列表：%+v %v", convs, err)
 	}
 }
 
