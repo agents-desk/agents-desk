@@ -119,14 +119,32 @@ func (a *App) pageCSP(r *http.Request, nonce string) string {
 	return p.String()
 }
 
+// credentialWatcher 返回长连接凭据复查监听器；离线构造路由时没有 broadcast，返回 nil。
+func (a *App) credentialWatcher() identity.CredentialWatcher {
+	if a.creds == nil {
+		return nil
+	}
+	return a.creds
+}
+
+// memberImpersonation 返回工作区端允许平台管理员代为登录的策略：操作者必须未停用且在平台域拥有 tenants:impersonate 权限。
+func (a *App) memberImpersonation() *identity.Impersonation {
+	return &identity.Impersonation{
+		Actors:      identity.Accounts{platformadmin.Type: platformadmin.Resolve(a.db, a.roles)},
+		Permissions: []string{string(auth.TenantsImpersonate)},
+	}
+}
+
 // newRealtime 创建工作区端的实时连接，挂在 /t/{slug}/realtime（前面是 tenant.Middleware）。它与工作区的接口使用
-// 同一套成员 token、会话 cookie、租户和权限；成员在其中订阅自己的个人频道（push.Register），以及能看到的会话的频道
+// 同一套成员 token、会话 cookie、租户、代为登录策略和权限；成员在其中订阅自己的个人频道（push.Register），以及能看到的会话的频道
 // （conversation.RegisterRealtime：谁正在看、谁正在输入）。
 func (a *App) newRealtime() (*realtime.Realtime, error) {
 	rt, err := realtime.New(a.hub, realtime.Options{
 		Authenticate:  a.memberTokens.Validate,
 		Accounts:      identity.Accounts{member.Type: tenant.Resolve(member.Resolve(a.db, a.roles))},
+		Impersonation: a.memberImpersonation(),
 		SessionCookie: member.SessionCookie,
+		Credentials:   a.credentialWatcher(),
 		Tenant:        func(r *http.Request) string { return tenant.IDFrom(r.Context()) },
 		Presence:      a.presence,
 	})
@@ -177,13 +195,14 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		conversation.OnMemberLeft(a.downstream()), team.OnMemberRemoved, macro.OnMemberRemoved, removeViews,
 	}}
 
-	// 管理员端：只接受平台管理员，会话 cookie 是 __Host-admin，权限按平台的域加载。
+	// 管理员端：只接受平台管理员，会话 cookie 是 __Host-admin，权限按平台的域加载；未配置 Impersonation，默认拒绝所有代为登录凭据。
 	router.Route("/admin/api", func(r chi.Router) {
 		r.Use(httpx.Timeout(a.cfg.HTTP.Timeout))
 		api := rest.New(r, rest.Options{
 			Title: "agents-desk 管理员端", Version: "0.1.0", BasePath: "/admin/api",
 			Accounts:      identity.Accounts{platformadmin.Type: platformadmin.Resolve(a.db, a.roles)},
 			SessionCookie: platformadmin.SessionCookie,
+			Credentials:   a.credentialWatcher(),
 			Permissions:   auth.Catalog,
 		})
 		require := func(perms ...auth.Permission) func(*huma.Operation) {
@@ -194,9 +213,9 @@ func (a *App) routes(pages http.Handler) chi.Router {
 			return rest.RequireToken(api, a.adminTokens.Validate, names...)
 		}
 		platformadmin.RegisterRoutes(api, require(), a.db, a.adminLogins, a.adminTokens, a.files, a.cfg.Filesystem.MaxUploadSize, a.cfg.AdminToken.Lifetime)
-		platformadmin.RegisterManageRoutes(api, require(auth.PlatformAdminsManage), a.db, a.adminLogins)
+		platformadmin.RegisterManageRoutes(api, require(auth.PlatformAdminsManage), a.db, a.adminLogins, a.creds)
 		adminnotify.RegisterRoutes(api, require(), a.db, a.hub)
-		tenant.RegisterRoutes(api, require(auth.TenantsRead), require(auth.TenantsManage), a.db, a.memberLogins, addr, memberHooks)
+		tenant.RegisterRoutes(api, require(auth.TenantsRead), require(auth.TenantsManage), require(auth.TenantsImpersonate), a.db, a.roles, a.memberLogins, a.memberTokens, addr, memberHooks)
 		tenant.RegisterExportRoutes(api, require(auth.TenantsRead), a.db, a.memberLogins, addr, a.exporter, a.hub)
 		platformsettings.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.generalSettings, a.mailSettings)
 		llm.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.llmSettings)
@@ -232,17 +251,20 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		})
 	})
 
-	// 工作区端的账号级接口：成员的登录、退出、当前账号和所属的工作区。只接受成员，会话 cookie 是 __Host-session，
-	// 租户是平台本身（""），成员在其中没有权限。
+	// 工作区端的账号级接口：成员的登录、退出、当前账号和所属的工作区。只接受成员，会话 cookie 是 __Host-session（代登时优先读 __Host-impersonation），
+	// AccountScope 放行锁定在单个工作区的代登凭据并保留 Subject.BoundTenant；修改个人资料与密码等敏感路由标有 rest.DirectOnly。
 	router.Route("/api", func(r chi.Router) {
 		r.Use(httpx.Timeout(a.cfg.HTTP.Timeout))
 		api := rest.New(r, rest.Options{
 			Title: "agents-desk", Version: "0.1.0", BasePath: "/api",
 			Accounts:      identity.Accounts{member.Type: member.Resolve(a.db, a.roles)},
+			Impersonation: a.memberImpersonation(),
+			AccountScope:  true,
 			SessionCookie: member.SessionCookie,
+			Credentials:   a.credentialWatcher(),
 		})
 		requireMember := rest.RequireToken(api, a.memberTokens.Validate)
-		member.RegisterRoutes(api, requireMember, a.db, a.memberLogins, a.memberTokens, a.files, a.cfg.Filesystem.MaxUploadSize, a.cfg.MemberToken.Lifetime)
+		member.RegisterRoutes(api, requireMember, a.db, a.memberLogins, a.memberTokens, a.files, a.creds, a.cfg.Filesystem.MaxUploadSize, a.cfg.MemberToken.Lifetime)
 		tenant.RegisterMemberRoutes(api, requireMember, a.db, a.roles, addr)
 	})
 
@@ -254,7 +276,9 @@ func (a *App) routes(pages http.Handler) chi.Router {
 			Title: "agents-desk 工作区", Version: "0.1.0", BasePath: "/t/{slug}/api",
 			Tenant:        tenant.FromRequest,
 			Accounts:      identity.Accounts{member.Type: tenant.Resolve(member.Resolve(a.db, a.roles))},
+			Impersonation: a.memberImpersonation(),
 			SessionCookie: member.SessionCookie,
+			Credentials:   a.credentialWatcher(),
 			Permissions:   auth.Catalog,
 		})
 		require := func(perms ...auth.Permission) func(*huma.Operation) {

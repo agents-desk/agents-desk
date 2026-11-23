@@ -102,6 +102,17 @@ profile.upload_failed: "上传失败"
 
 tenants.change_owner: "更换主管理员"
 tenants.export: "导出工作区"
+tenants.impersonate: "代为登录"
+
+impersonate.title: "代为登录“{{.name}}”"
+impersonate.description: "将开启一个最长 1 小时、且锁定在当前工作区内的独立代登会话，不影响你的管理员登录态及原有工作区登录态，所有操作都会记入审计日志。"
+impersonate.member: "目标成员"
+impersonate.owner_tag: "主管理员"
+impersonate.reason: "排查原因或工单号"
+impersonate.reason_placeholder: "例如：工单 #1024 排查会话收发异常"
+impersonate.read_only: "只读排查模式"
+impersonate.read_only_hint: "开启后只能查看数据，不能修改设置或回复客户消息"
+impersonate.submit: "进入工作区"
 
 test_account.failed: "测试账号登录失败，先运行 go run ./cmd/agents-desk seed"
 test_account.sign_in: "用测试账号登录"

@@ -34,7 +34,8 @@ func newTestAPI() http.Handler {
 	}
 	// 这些请求在调用 Handle 之前就会被拒绝，所以 db 和 logins 传 nil，也没有 hooks
 	tenant.RegisterRoutes(api, rest.RequireToken(api, validate, string(auth.TenantsRead)),
-		rest.RequireToken(api, validate, string(auth.TenantsManage)), nil, nil, addr, member.Hooks{})
+		rest.RequireToken(api, validate, string(auth.TenantsManage)),
+		rest.RequireToken(api, validate, string(auth.TenantsImpersonate)), nil, nil, nil, nil, addr, member.Hooks{})
 	return api.Handler()
 }
 

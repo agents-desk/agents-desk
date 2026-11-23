@@ -102,6 +102,17 @@ profile.upload_failed: "Upload failed"
 
 tenants.change_owner: "Change owner"
 tenants.export: "Export workspaces"
+tenants.impersonate: "Impersonate"
+
+impersonate.title: "Impersonate in “{{.name}}”"
+impersonate.description: "Starts a 1-hour session locked to this workspace without affecting your admin session or existing member session. All actions are recorded in the audit log."
+impersonate.member: "Target member"
+impersonate.owner_tag: "Owner"
+impersonate.reason: "Reason or ticket number"
+impersonate.reason_placeholder: "e.g., Ticket #1024 investigating message delivery"
+impersonate.read_only: "Read-only mode"
+impersonate.read_only_hint: "Allows viewing data only without modifying settings or replying to customers"
+impersonate.submit: "Open workspace"
 
 test_account.failed: "Test account sign-in failed. Run go run ./cmd/agents-desk seed first"
 test_account.sign_in: "Sign in with a test account"

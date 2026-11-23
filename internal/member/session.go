@@ -2,12 +2,17 @@ package member
 
 import (
 	"context"
+	"database/sql"
+	"log/slog"
 	"net/http"
+	"slices"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/apitoken"
+	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/login"
@@ -29,6 +34,13 @@ type SessionOutput struct {
 	SetCookie *http.Cookie `header:"Set-Cookie"`
 }
 
+// ImpersonationInfo 描述当前会话的代为登录状态。
+type ImpersonationInfo struct {
+	ActorID   string `json:"actor_id" doc:"发起代为登录的平台管理员 ID"`
+	ActorName string `json:"actor_name" doc:"发起代为登录的平台管理员姓名"`
+	ReadOnly  bool   `json:"read_only" doc:"当前代为登录会话是否限制为只读排查模式"`
+}
+
 // Profile 是当前登录的成员。他所属的工作区和在工作区中的权限分别由 tenant-mine、tenant-current 返回。
 type Profile struct {
 	ID            string               `json:"id"`
@@ -37,6 +49,7 @@ type Profile struct {
 	AvatarFileID  string               `json:"avatar_file_id,omitempty" doc:"头像的文件 ID，修改个人资料时原样传回表示不换头像"`
 	AvatarURL     string               `json:"avatar_url" doc:"头像的地址；没有头像时为空"`
 	Notifications NotificationSettings `json:"notifications" doc:"实时提醒设置：浏览器通知与提示音开关"`
+	Impersonation *ImpersonationInfo   `json:"impersonation,omitempty" doc:"代为登录状态；本人登录时为空"`
 	Preferences
 }
 
@@ -51,12 +64,13 @@ type Session struct {
 	logins   *login.Realm
 	tokens   *apitoken.Store
 	files    *filesystem.Service
-	lifetime time.Duration // 浏览器保存会话 cookie 的时长，与登录 token 的最长有效期相同
+	creds    *broadcast.Credentials // 撤销凭据后立即通知长连接复查；离线构造路由或单测时可为 nil
+	lifetime time.Duration          // 浏览器保存会话 cookie 的时长，与登录 token 的最长有效期相同
 }
 
 // NewSession 返回成员的会话处理器，logins 是成员的 login.Realm，tokens 签发成员的登录 token，files 读取头像。
-func NewSession(db *bun.DB, logins *login.Realm, tokens *apitoken.Store, files *filesystem.Service, lifetime time.Duration) *Session {
-	return &Session{db: db, logins: logins, tokens: tokens, files: files, lifetime: lifetime}
+func NewSession(db *bun.DB, logins *login.Realm, tokens *apitoken.Store, files *filesystem.Service, creds *broadcast.Credentials, lifetime time.Duration) *Session {
+	return &Session{db: db, logins: logins, tokens: tokens, files: files, creds: creds, lifetime: lifetime}
 }
 
 // Login 校验邮箱和密码，签发登录 token 写进会话 cookie。密码错误返回 401，同一个邮箱错太多次返回 429，
@@ -73,16 +87,25 @@ func (s *Session) Login(ctx context.Context, in *LoginInput) (*SessionOutput, er
 	return &SessionOutput{SetCookie: SessionCookie.Set(token, s.lifetime)}, nil
 }
 
-// Logout 撤销这次登录的 token，并清除会话 cookie。
+// Logout 撤销这次登录的 token，并清除对应的会话 cookie。
+// 代为登录状态下仅清除独立的代登 cookie（__Host-impersonation），不影响浏览器中已有的普通成员会话。
 func (s *Session) Logout(ctx context.Context, _ *struct{}) (*SessionOutput, error) {
 	sub, _ := identity.FromContext(ctx)
 	if err := s.tokens.Revoke(ctx, sub, sub.Credential); err != nil {
 		return nil, err
 	}
+	if s.creds != nil && sub.Credential != "" {
+		if err := s.creds.RecheckCredential(ctx, sub.Credential); err != nil {
+			slog.WarnContext(ctx, "recheck revoked member credential failed", "credential", sub.Credential, "error", err)
+		}
+	}
+	if sub.Impersonated() {
+		return &SessionOutput{SetCookie: SessionCookie.ImpersonationCookie().Clear()}, nil
+	}
 	return &SessionOutput{SetCookie: SessionCookie.Clear()}, nil
 }
 
-// Me 返回当前登录的成员：名字、登录邮箱和头像。
+// Me 返回当前登录的成员：名字、登录邮箱、头像及代为登录信息。
 func (s *Session) Me(ctx context.Context, _ *struct{}) (*ProfileOutput, error) {
 	sub, _ := identity.FromContext(ctx)
 	p, err := loadProfile(ctx, s.db, s.logins, s.files, sub)
@@ -92,7 +115,7 @@ func (s *Session) Me(ctx context.Context, _ *struct{}) (*ProfileOutput, error) {
 	return &ProfileOutput{Body: *p}, nil
 }
 
-// loadProfile 读取 sub 的个人资料：名字、登录邮箱和头像的地址。
+// loadProfile 读取 sub 的个人资料：名字、登录邮箱、头像地址与代为登录状态。
 func loadProfile(ctx context.Context, db bun.IDB, logins *login.Realm, files *filesystem.Service, sub identity.Subject) (*Profile, error) {
 	m, err := Find(ctx, db, sub.ID)
 	if err != nil {
@@ -126,5 +149,29 @@ func loadProfile(ctx context.Context, db bun.IDB, logins *login.Realm, files *fi
 	if m.AvatarFileID != nil {
 		p.AvatarFileID = m.AvatarFileID.String()
 	}
+	if sub.Impersonated() {
+		var actorName string
+		err := db.NewSelect().Table("platform_admins").Column("name").Where("id = ?", sub.Impersonator.ID).Scan(ctx, &actorName)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.Wrap(err, "load impersonator name")
+		}
+		p.Impersonation = &ImpersonationInfo{
+			ActorID:   sub.Impersonator.ID,
+			ActorName: actorName,
+			ReadOnly:  isReadOnlyScopes(sub.Scopes),
+		}
+	}
 	return p, nil
+}
+
+// isReadOnlyScopes 报告凭据的 Scopes 是否属于只读排查模式。
+func isReadOnlyScopes(scopes []string) bool {
+	if len(scopes) == 0 {
+		return false
+	}
+	return slices.Equal(scopes, []string{"*:read"}) || !slices.ContainsFunc(scopes, func(s string) bool {
+		return s == "*" || s != "*:read" && !slices.Contains([]string{
+			"members:read", "teams:read", "channels:read", "conversations:read", "conversations:read-all", "conversations:read-team", "contacts:read", "reports:read",
+		}, s)
+	})
 }

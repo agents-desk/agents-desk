@@ -2,6 +2,7 @@ package platformadmin
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -9,21 +10,27 @@ import (
 
 	"github.com/go-tenon/tenon/activity"
 	"github.com/go-tenon/tenon/apitoken"
+	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/login"
 )
 
-// SetDisabled 停用或启用平台管理员账号。停用时同时撤销该管理员的全部登录令牌，不能停用自己。
+// SetDisabled 停用或启用平台管理员账号。停用时同时撤销该管理员的全部登录令牌与代为登录令牌，并通知长连接立即复查，不能停用自己。
 type SetDisabled struct {
 	db       *bun.DB
 	logins   *login.Realm
-	disabled bool // true 是停用，false 是启用
+	creds    *broadcast.Credentials // 非 nil 时在停用提交后立即通知该管理员及其代登的长连接复查
+	disabled bool                   // true 是停用，false 是启用
 }
 
 // NewDisable 返回停用平台管理员的动作。
-func NewDisable(db *bun.DB, logins *login.Realm) *SetDisabled {
-	return &SetDisabled{db: db, logins: logins, disabled: true}
+func NewDisable(db *bun.DB, logins *login.Realm, creds ...*broadcast.Credentials) *SetDisabled {
+	var c *broadcast.Credentials
+	if len(creds) > 0 {
+		c = creds[0]
+	}
+	return &SetDisabled{db: db, logins: logins, creds: c, disabled: true}
 }
 
 // NewEnable 返回启用平台管理员的动作。
@@ -57,6 +64,15 @@ func (a *SetDisabled) Handle(ctx context.Context, subject identity.Subject, id s
 		if a.disabled {
 			if err := apitoken.Erase(ctx, tx, admin.Ref()); err != nil {
 				return err
+			}
+			if a.creds != nil {
+				ref := admin.Ref()
+				tx.AfterCommit(func(ctx context.Context) error {
+					if err := a.creds.RecheckSubject(ctx, ref); err != nil {
+						slog.WarnContext(ctx, "recheck disabled platform admin failed", "admin_id", ref.ID, "error", err)
+					}
+					return nil
+				})
 			}
 		}
 		return activity.Record(ctx, tx, subject, activity.Activity{

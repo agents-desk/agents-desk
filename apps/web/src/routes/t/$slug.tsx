@@ -2,7 +2,8 @@ import { useDisclosure } from "@mantine/hooks"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { IconSettings, IconSwitchHorizontal } from "@tabler/icons-react"
-import { enterTenant, Fill, RailLayout, requireAuth, TimeZoneProvider, UserMenu, useMenuBadge, useTenant, useT } from "@go-tenon/ui"
+import { enterTenant, Fill, ImpersonationBanner, RailLayout, requireAuth, TimeZoneProvider, UserMenu, useMenuBadge, useTenant, useT } from "@go-tenon/ui"
+import { useState } from "react"
 import { kit, tenantApi } from "../../api"
 import { logout, me } from "../../auth"
 import { CommandPalette, CommandSearchButton } from "../../command-palette"
@@ -31,6 +32,18 @@ function TenantLayout() {
   const navigate = useNavigate()
   const t = useT()
   const [shortcutsOpened, shortcutsHandlers] = useDisclosure(false)
+  const [exitingImpersonation, setExitingImpersonation] = useState(false)
+  const impersonation = user.data?.impersonation
+  // 退出代为登录：撤销当前代登令牌并清除独立的 __Host-impersonation cookie，然后回到管理员端。
+  const exitImpersonation = async () => {
+    setExitingImpersonation(true)
+    try {
+      await logout()
+      window.location.assign("/admin/tenants")
+    } finally {
+      setExitingImpersonation(false)
+    }
+  }
   // 实时推送：会话有变化时刷新收件箱的数量和会话，命中提醒时按通知偏好播放提示音或弹桌面通知；
   // 图标栏中收件箱的角标是“我的”会话中等待回复的数量。
   // 同一条连接交给页面（RealtimeContext），收件箱用它加入打开着的会话的频道
@@ -51,11 +64,11 @@ function TenantLayout() {
   })
   const inbox = useQuery(kit.queries.conversation.inbox())
   useMenuBadge("/t/$slug/inbox", inbox.data?.mine.waiting)
-  // 工作区设置不进图标栏，从个人菜单进入；属于多个工作区时，个人菜单中还可以回到选择工作区的页面。
+  // 工作区设置不进图标栏，从个人菜单进入；非代为登录且属于多个工作区时，个人菜单中还可以回到选择工作区的页面。
   const settings = `/t/${tenant.slug}/settings`
   const items = [
     { label: t("nav.settings"), icon: <IconSettings size={16} />, to: settings },
-    ...(tenants.length > 1 ? [{ label: t("nav.switch_tenant"), icon: <IconSwitchHorizontal size={16} />, to: "/" }] : []),
+    ...(!impersonation && tenants.length > 1 ? [{ label: t("nav.switch_tenant"), icon: <IconSwitchHorizontal size={16} />, to: "/" }] : []),
   ]
   const statusColor = myStatus.data ? (myStatus.data.status === "online" ? "green" : "gray") : undefined
   // 页面中的时间按成员在偏好设置中选的时区显示，没有选时按浏览器的时区。
@@ -69,6 +82,18 @@ function TenantLayout() {
           navWidth={200}
           compactQuery={NARROW_QUERY}
           railTop={<CommandSearchButton />}
+          banner={
+            impersonation && user.data ? (
+              <ImpersonationBanner
+                target={user.data.name}
+                actor={impersonation.actor_name || undefined}
+                tenant={tenant.name}
+                readOnly={impersonation.read_only}
+                exiting={exitingImpersonation}
+                onExit={exitImpersonation}
+              />
+            ) : undefined
+          }
           user={
             <UserMenu
               name={user.data?.name}

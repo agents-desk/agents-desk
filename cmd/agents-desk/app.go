@@ -62,10 +62,11 @@ import (
 
 // App 是进程中各部分共用的资源，每个进程只装配一次。
 type App struct {
-	cfg Config
-	db  *bun.DB
-	nc  *nats.Conn
-	hub *broadcast.Hub // 经 NATS 把消息送到每个实例：实时推送
+	cfg   Config
+	db    *bun.DB
+	nc    *nats.Conn
+	hub   *broadcast.Hub         // 经 NATS 把消息送到每个实例：实时推送
+	creds *broadcast.Credentials // 凭据撤销、管理员停用时通知长连接立即复查
 	// presence 保存会话频道的在线成员（谁正在看），所有实例共用 NATS 中的存储
 	presence realtime.PresenceStore
 	roles    *authz.Store // 平台和各租户的角色与权限
@@ -134,6 +135,7 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	// 广播：会话的变化经它推送给各实例上的实时连接。登记在 NATS 之后，退出时先于 NATS 关闭
 	hub := broadcast.New(natsbroadcast.New(nc, "agents-desk.broadcast"), nil)
 	stack.MustAdd("broadcast", func(context.Context) error { return hub.Close() })
+	creds := broadcast.NewCredentials(hub)
 	presence, err := natspresence.New(ctx, nc, natspresence.Options{Bucket: "agents_desk_presence"})
 	if err != nil {
 		return nil, err
@@ -199,7 +201,7 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 
 	tgClient := telegram.NewClient(&http.Client{Timeout: 30 * time.Second})
 	return &App{
-		cfg: cfg, db: db, nc: nc, hub: hub, presence: presence, roles: roles,
+		cfg: cfg, db: db, nc: nc, hub: hub, creds: creds, presence: presence, roles: roles,
 		adminLogins: adminLogins, adminTokens: apitoken.NewStore(db, cfg.AdminToken),
 		memberLogins: memberLogins, memberTokens: apitoken.NewStore(db, cfg.MemberToken),
 		contactTokens: apitoken.NewStore(db, cfg.ContactToken), crypt: keys,

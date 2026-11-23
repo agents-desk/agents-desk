@@ -330,10 +330,21 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         queryKey: key("tenant", "get", ...args),
         queryFn: () => client.tenant.get(...args),
       }),
+      /** POST /tenants/{id}/impersonate */
+      impersonate: () => ({
+        mutationFn: (variables: Parameters<Client["tenant"]["impersonate"]>) => client.tenant.impersonate(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "tenant"),
+      }),
       /** GET /tenants */
       list: (...args: Parameters<Client["tenant"]["list"]>) => ({
         queryKey: key("tenant", "list", ...args),
         queryFn: () => client.tenant.list(...args),
+      }),
+      /** GET /tenants/{id}/members */
+      members: (...args: Parameters<Client["tenant"]["members"]>) => ({
+        queryKey: key("tenant", "members", ...args),
+        queryFn: () => client.tenant.members(...args),
       }),
       /** PUT /tenants/{id} */
       update: () => ({
