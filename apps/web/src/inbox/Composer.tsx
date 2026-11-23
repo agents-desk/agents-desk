@@ -46,7 +46,7 @@ import {
   useTimeZone,
   useUploadQueue,
 } from "@go-tenon/ui"
-import { type ReactNode, type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { type ReactNode, type RefObject, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { LanguageSelect } from "../LanguageSelect"
 import { languageName } from "../languages"
@@ -69,6 +69,11 @@ import { snoozeOptions } from "./menus"
 
 /** Mode 是回复框的模式：回复发给对方；内部备注只有成员可见，可以 @ 同事。 */
 type Mode = DraftMode
+
+/** ComposerHandle 是暴露给会话视图的命令式控制接口，用于快捷键 R / N 切换模式并聚焦输入框。 */
+export interface ComposerHandle {
+  focus: (mode?: Mode) => void
+}
 
 /** After 是发送之后对会话做的事：什么也不做、关闭、稍后处理到某个时间。 */
 type After = { kind: "none" } | { kind: "close" } | { kind: "snooze"; until: Date }
@@ -100,12 +105,12 @@ export function Composer({
   c,
   onTyping,
   onReplied,
-  inputRef,
+  handleRef,
 }: {
   c: ConversationDTO
   onTyping: () => void
   onReplied?: () => void
-  inputRef?: RefObject<HTMLTextAreaElement | null>
+  handleRef?: RefObject<ComposerHandle | null>
 }): ReactNode {
   const t = useT()
   const can = useCan()
@@ -132,8 +137,7 @@ export function Composer({
   const dragDepth = useRef(0)
   const resetFile = useRef<() => void>(null)
 
-  const localArea = useRef<HTMLTextAreaElement>(null)
-  const area = inputRef ?? localArea
+  const area = useRef<HTMLTextAreaElement>(null)
   const value = text.trim()
   const note = mode === "note"
   const hasPending = !note && hasPendingActions(pendingActions)
@@ -329,6 +333,27 @@ export function Composer({
     setMode((m) => (m === "reply" ? "note" : "reply"))
     trigger.close()
   }
+
+  // 供 R / N 快捷键切换到对应模式并聚焦回复框
+  useImperativeHandle(
+    handleRef,
+    () => ({
+      focus: (nextMode?: Mode) => {
+        if (nextMode) {
+          setMode(nextMode)
+          trigger.close()
+        }
+        requestAnimationFrame(() => {
+          const el = area.current
+          if (!el) return
+          el.focus()
+          const end = el.value.length
+          el.setSelectionRange(end, end)
+        })
+      },
+    }),
+    [trigger],
+  )
 
   const canSubmit =
     !queue.uploading && !queue.hasError && !send.isPending && !(!note && preview.pending) && (note ? hasContent : hasContent || hasPending)

@@ -69,17 +69,30 @@ export const messages = {
     "choose_tenant.none": "You aren’t in any workspace yet. Ask a workspace admin to add you.",
     "choose_tenant.sign_out": "Sign out",
     "choose_tenant.title": "Choose a workspace",
+    "command.action_assigned": "Assignment updated",
+    "command.action_closed": "Conversation closed",
+    "command.action_priority_high": "Set high priority",
+    "command.action_priority_normal": "Set normal priority",
+    "command.action_priority_updated": "Priority updated",
+    "command.action_reopened": "Conversation reopened",
+    "command.action_snooze": "Snooze: {{.when}}",
+    "command.action_snoozed": "Conversation snoozed",
+    "command.assign_member": "Assign to {{.name}}",
+    "command.assign_team": "Move to team inbox {{.name}}",
     "command.contacts_group": "Contacts",
+    "command.conversation_actions_group": "Current conversation",
     "command.conversations_group": "Conversations",
     "command.empty": "No matching conversations, contacts, or pages",
     "command.hint_close": "Close",
     "command.hint_navigate": "Navigate",
     "command.hint_open": "Open",
+    "command.hint_shortcuts": "Shortcuts",
     "command.inbox_group": "Inbox \u0026 Teams",
     "command.pages_group": "Pages \u0026 Settings",
-    "command.placeholder": "Search messages, contacts, inbox, or pages…",
+    "command.placeholder": "Search messages, contacts, inbox, pages, or actions…",
     "command.search": "Search \u0026 quick jump",
     "command.searching": "Searching…",
+    "command.shortcuts_action": "Show keyboard shortcuts",
     "command.view_all_results": "View all {{.n}} conversations in Inbox",
     "common.cancel": "Cancel",
     "common.save": "Save",
@@ -665,6 +678,25 @@ export const messages = {
     "settings.group_personal": "Personal",
     "settings.group_translation": "Translation",
     "settings.group_workspace": "Workspace",
+    "shortcuts.composer_group": "Composer",
+    "shortcuts.composer_macro": "Insert quick reply",
+    "shortcuts.composer_mention": "Mention a teammate in note",
+    "shortcuts.composer_mode": "Toggle reply / internal note",
+    "shortcuts.composer_send": "Send message",
+    "shortcuts.conversation_close": "Close current conversation",
+    "shortcuts.conversation_details": "Toggle details panel",
+    "shortcuts.conversation_group": "Conversation",
+    "shortcuts.conversation_note": "Focus composer in internal note mode",
+    "shortcuts.conversation_reply": "Focus composer in reply mode",
+    "shortcuts.global_group": "Global",
+    "shortcuts.global_help": "Toggle keyboard shortcuts",
+    "shortcuts.global_palette": "Open command palette",
+    "shortcuts.hint": "Single-letter shortcuts work when focus is outside input fields",
+    "shortcuts.list_group": "Inbox list navigation",
+    "shortcuts.list_next": "Next conversation",
+    "shortcuts.list_next_waiting": "Next waiting conversation",
+    "shortcuts.list_prev": "Previous conversation",
+    "shortcuts.title": "Keyboard shortcuts",
     "status.description": "While online, you can be assigned conversations automatically. While away, automatic assignment skips you, and you keep the conversations you already own.",
     "status.reassign": "Reassign my conversations",
     "status.reassign_hint": "When the customer writes again, the conversation goes back to its team inbox to be reassigned",
@@ -886,17 +918,30 @@ export const messages = {
     "choose_tenant.none": "你还不属于任何工作区，请联系工作区的管理员把你加入。",
     "choose_tenant.sign_out": "退出登录",
     "choose_tenant.title": "选择工作区",
+    "command.action_assigned": "会话指派已更新",
+    "command.action_closed": "会话已关闭",
+    "command.action_priority_high": "设为高优先级",
+    "command.action_priority_normal": "设为普通优先级",
+    "command.action_priority_updated": "优先级已更新",
+    "command.action_reopened": "会话已重新打开",
+    "command.action_snooze": "稍后处理：{{.when}}",
+    "command.action_snoozed": "会话已设为稍后处理",
+    "command.assign_member": "改派给 {{.name}}",
+    "command.assign_team": "转到团队收件箱 {{.name}}",
     "command.contacts_group": "联系人",
+    "command.conversation_actions_group": "当前会话操作",
     "command.conversations_group": "会话",
     "command.empty": "没有找到匹配的会话、联系人或页面",
     "command.hint_close": "关闭",
     "command.hint_navigate": "选择",
     "command.hint_open": "打开",
+    "command.hint_shortcuts": "快捷键",
     "command.inbox_group": "收件箱与团队",
     "command.pages_group": "页面与设置",
-    "command.placeholder": "搜索会话消息、联系人、收件箱或页面…",
+    "command.placeholder": "搜索会话消息、联系人、收件箱、页面或会话操作…",
     "command.search": "搜索与快速跳转",
     "command.searching": "正在搜索…",
+    "command.shortcuts_action": "查看全部键盘快捷键",
     "command.view_all_results": "在收件箱中查看全部 {{.n}} 个会话",
     "common.cancel": "取消",
     "common.save": "保存",
@@ -1482,6 +1527,25 @@ export const messages = {
     "settings.group_personal": "个人",
     "settings.group_translation": "翻译",
     "settings.group_workspace": "工作区",
+    "shortcuts.composer_group": "回复框",
+    "shortcuts.composer_macro": "插入快捷回复",
+    "shortcuts.composer_mention": "内部备注中 @ 同事",
+    "shortcuts.composer_mode": "切换回复 / 内部备注",
+    "shortcuts.composer_send": "发送消息",
+    "shortcuts.conversation_close": "关闭当前会话",
+    "shortcuts.conversation_details": "展开或收起右侧详情栏",
+    "shortcuts.conversation_group": "会话操作",
+    "shortcuts.conversation_note": "聚焦回复框并切换到内部备注",
+    "shortcuts.conversation_reply": "聚焦回复框并切换到回复",
+    "shortcuts.global_group": "全局",
+    "shortcuts.global_help": "打开或关闭快捷键说明",
+    "shortcuts.global_palette": "打开命令面板",
+    "shortcuts.hint": "单字母快捷键在焦点位于输入框之外时生效",
+    "shortcuts.list_group": "会话列表导航",
+    "shortcuts.list_next": "下一个会话",
+    "shortcuts.list_next_waiting": "下一个待回复会话",
+    "shortcuts.list_prev": "上一个会话",
+    "shortcuts.title": "键盘快捷键",
     "status.description": "在线时可以被自动分配会话；离开时不会被自动分配，已经负责的会话仍由你处理。",
     "status.reassign": "把我的会话重新分配",
     "status.reassign_hint": "对方再发来消息时，会话回到团队收件箱重新分配",
@@ -1706,17 +1770,30 @@ export type MessageId =
   | "choose_tenant.none"
   | "choose_tenant.sign_out"
   | "choose_tenant.title"
+  | "command.action_assigned"
+  | "command.action_closed"
+  | "command.action_priority_high"
+  | "command.action_priority_normal"
+  | "command.action_priority_updated"
+  | "command.action_reopened"
+  | "command.action_snooze"
+  | "command.action_snoozed"
+  | "command.assign_member"
+  | "command.assign_team"
   | "command.contacts_group"
+  | "command.conversation_actions_group"
   | "command.conversations_group"
   | "command.empty"
   | "command.hint_close"
   | "command.hint_navigate"
   | "command.hint_open"
+  | "command.hint_shortcuts"
   | "command.inbox_group"
   | "command.pages_group"
   | "command.placeholder"
   | "command.search"
   | "command.searching"
+  | "command.shortcuts_action"
   | "command.view_all_results"
   | "common.cancel"
   | "common.save"
@@ -2302,6 +2379,25 @@ export type MessageId =
   | "settings.group_personal"
   | "settings.group_translation"
   | "settings.group_workspace"
+  | "shortcuts.composer_group"
+  | "shortcuts.composer_macro"
+  | "shortcuts.composer_mention"
+  | "shortcuts.composer_mode"
+  | "shortcuts.composer_send"
+  | "shortcuts.conversation_close"
+  | "shortcuts.conversation_details"
+  | "shortcuts.conversation_group"
+  | "shortcuts.conversation_note"
+  | "shortcuts.conversation_reply"
+  | "shortcuts.global_group"
+  | "shortcuts.global_help"
+  | "shortcuts.global_palette"
+  | "shortcuts.hint"
+  | "shortcuts.list_group"
+  | "shortcuts.list_next"
+  | "shortcuts.list_next_waiting"
+  | "shortcuts.list_prev"
+  | "shortcuts.title"
   | "status.description"
   | "status.reassign"
   | "status.reassign_hint"

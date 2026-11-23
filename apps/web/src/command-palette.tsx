@@ -4,25 +4,34 @@ import { Spotlight, spotlight } from "@mantine/spotlight"
 import {
   IconArrowRight,
   IconAt,
+  IconCheck,
+  IconClock,
   IconFilter,
+  IconFlag,
   IconInbox,
+  IconKeyboard,
   IconListDetails,
   IconLock,
   IconMessage,
+  IconRefresh,
   IconSearch,
   IconUser,
+  IconUserOff,
+  IconUserPlus,
   IconUserQuestion,
   IconUsers,
   IconUsersGroup,
 } from "@tabler/icons-react"
-import { useQuery } from "@tanstack/react-query"
-import { useNavigate } from "@tanstack/react-router"
-import { Icon, type MenuItem, useCan, useLanguage, useNavigation, useT, useTimeZone } from "@go-tenon/ui"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMatch, useNavigate } from "@tanstack/react-router"
+import { Icon, type MenuItem, notifyError, notifySuccess, useCan, useLanguage, useNavigation, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useMemo, useState } from "react"
 import { kit, tenantApi } from "./api"
 import { contactDisplayName, contactSubline } from "./contacts/display"
+import { useMe, useMembers, useTeams } from "./inbox/data"
 import { activity } from "./inbox/format"
 import { HighlightedSnippet, HighlightQuery } from "./inbox/Highlight"
+import { snoozeOptions } from "./inbox/menus"
 import type { MatchField } from "./inbox/search"
 
 /** flattenPages 将菜单树拍平为叶子页面列表，保留上级分组名称和最近图标。 */
@@ -65,27 +74,40 @@ interface NavAction {
   label: string
   description?: string
   icon: ReactNode
+  quick?: boolean // 是否在未输入关键词的默认面板中展示
   onClick: () => void
 }
 
 /**
  * CommandPalette 是工作台的全局命令面板（Cmd/Ctrl + K）：
- * 固定舒适高度避免输入筛选时尺寸跳动；未输入时展示精简的收件箱与一级模块快捷入口，
- * 输入关键词后实时全文搜索会话消息（含高亮摘要）、联系人、收件箱与全部页面设置。
+ * 固定舒适高度避免输入筛选时尺寸跳动；处于会话页时顶部提供当前会话的指派、关闭、稍后处理与优先级快捷操作；
+ * 未输入时展示精简的收件箱与一级模块快捷入口，输入关键词后实时全文搜索会话消息（含高亮摘要）、联系人、收件箱、全部页面与改派动作。
  */
-export function CommandPalette({ slug }: { slug: string }): ReactNode {
+export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShowShortcuts: () => void }): ReactNode {
   const t = useT()
   const can = useCan()
   const language = useLanguage()
   const zone = useTimeZone()
   const { menu } = useNavigation()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [query, setQuery] = useState("")
   const trimmed = query.trim()
   const [debounced] = useDebouncedValue(trimmed, 250)
   const canReadInbox = can("conversations:read")
+  const canReply = can("conversations:reply")
+  const canAssignOthers = can("conversations:assign")
   const canReadContacts = can("contacts:read")
   const inbox = useQuery({ ...kit.queries.conversation.inbox(), enabled: canReadInbox })
+  const convMatch = useMatch({ from: "/t/$slug/inbox/$id", shouldThrow: false })
+  const currentConvId = convMatch?.params.id
+  const currentConv = useQuery({
+    ...kit.queries.conversation.get(currentConvId ?? ""),
+    enabled: Boolean(currentConvId && canReadInbox),
+  })
+  const me = useMe()
+  const { list: members } = useMembers()
+  const teams = useTeams()
 
   const convSearch = useQuery({
     queryKey: [...kit.queries.conversation.key(), "palette-search", debounced],
@@ -97,6 +119,111 @@ export function CommandPalette({ slug }: { slug: string }): ReactNode {
     queryFn: () => tenantApi.contact.list({ q: debounced, per_page: 5 }),
     enabled: canReadContacts && debounced.length > 0,
   })
+
+  const conversationActions = useMemo<NavAction[]>(() => {
+    const c = currentConv.data
+    if (!c || !canReply) return []
+    const contactLabel = contactDisplayName(c.contact, t)
+    const run = (fn: () => Promise<unknown>, okMessage: string) => {
+      void fn()
+        .then(() => {
+          void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
+          notifySuccess(okMessage)
+        })
+        .catch((err) => notifyError(err))
+    }
+
+    const actions: NavAction[] = []
+    const assignedToMe = c.assignee?.type === "member" && c.assignee.id === me.data?.id
+    if (me.data && !assignedToMe) {
+      actions.push({
+        id: "conv:assign:me",
+        label: t("inbox.assign_me"),
+        description: contactLabel,
+        icon: <IconUserPlus size={15} stroke={1.6} />,
+        quick: true,
+        onClick: () => run(() => tenantApi.conversation.assign(c.id, { assignee_id: me.data.id }), t("command.action_assigned")),
+      })
+    }
+    if (c.status === "closed") {
+      actions.push({
+        id: "conv:reopen",
+        label: t("inbox.reopen"),
+        description: contactLabel,
+        icon: <IconRefresh size={15} stroke={1.6} />,
+        quick: true,
+        onClick: () => run(() => tenantApi.conversation.reopen(c.id), t("command.action_reopened")),
+      })
+    } else {
+      actions.push({
+        id: "conv:close",
+        label: t("inbox.close"),
+        description: contactLabel,
+        icon: <IconCheck size={15} stroke={1.6} />,
+        quick: true,
+        onClick: () => run(() => tenantApi.conversation.close(c.id), t("command.action_closed")),
+      })
+      for (const opt of snoozeOptions(zone)) {
+        const when = t(`inbox.snooze_${opt.key}` as const)
+        actions.push({
+          id: `conv:snooze:${opt.key}`,
+          label: t("command.action_snooze", { when }),
+          description: contactLabel,
+          icon: <IconClock size={15} stroke={1.6} />,
+          quick: opt.key === "later" || opt.key === "tomorrow",
+          onClick: () => run(() => tenantApi.conversation.snooze(c.id, { until: opt.until.toISOString() }), t("command.action_snoozed")),
+        })
+      }
+    }
+    actions.push({
+      id: "conv:priority",
+      label: t(c.priority === "high" ? "command.action_priority_normal" : "command.action_priority_high"),
+      description: contactLabel,
+      icon: <IconFlag size={15} stroke={1.6} />,
+      quick: false,
+      onClick: () =>
+        run(
+          () => tenantApi.conversation.priority(c.id, { priority: c.priority === "high" ? "normal" : "high" }),
+          t("command.action_priority_updated"),
+        ),
+    })
+
+    if (canAssignOthers) {
+      if (c.assignee) {
+        actions.push({
+          id: "conv:unassign",
+          label: t("inbox.unassign"),
+          description: contactLabel,
+          icon: <IconUserOff size={15} stroke={1.6} />,
+          quick: false,
+          onClick: () => run(() => tenantApi.conversation.assign(c.id, { assignee_id: "" }), t("command.action_assigned")),
+        })
+      }
+      for (const m of members) {
+        if (m.id === me.data?.id || (c.assignee?.type === "member" && c.assignee.id === m.id)) continue
+        actions.push({
+          id: `conv:assign:member:${m.id}`,
+          label: t("command.assign_member", { name: m.name }),
+          description: m.status === "away" ? t("inbox.away") : contactLabel,
+          icon: <IconUserPlus size={15} stroke={1.6} />,
+          quick: false,
+          onClick: () => run(() => tenantApi.conversation.assign(c.id, { assignee_id: m.id }), t("command.action_assigned")),
+        })
+      }
+      for (const team of teams) {
+        if (team.status !== "active" || c.team_id === team.id) continue
+        actions.push({
+          id: `conv:assign:team:${team.id}`,
+          label: t("command.assign_team", { name: team.name }),
+          description: contactLabel,
+          icon: <IconUsersGroup size={15} stroke={1.6} />,
+          quick: false,
+          onClick: () => run(() => tenantApi.conversation.assign(c.id, { team_id: team.id }), t("command.action_assigned")),
+        })
+      }
+    }
+    return actions
+  }, [canAssignOthers, canReply, currentConv.data, me.data, members, queryClient, t, teams, zone])
 
   const { inboxActions, quickPageActions, allPageActions } = useMemo(() => {
     const inboxList: NavAction[] = []
@@ -154,35 +281,50 @@ export function CommandPalette({ slug }: { slug: string }): ReactNode {
       )
     }
 
-    // 初始空查询只放一级模块（排除已在上方展开的收件箱），保持默认面板精简克制
-    const inboxPath = `/t/${slug}/inbox`
-    const quickPages: NavAction[] = menu
-      .filter((item) => !(canReadInbox && item.path === inboxPath))
-      .map((item) => {
-        const target = firstLeaf(item)
-        return {
-          id: `quick:${item.id}`,
-          label: item.title,
-          icon: <Icon name={item.icon ?? "apps"} size={15} stroke={1.6} />,
-          onClick: () => void navigate({ to: target.path }),
-        }
-      })
+    const shortcutsItem: NavAction = {
+      id: "global:shortcuts",
+      label: t("command.shortcuts_action"),
+      description: "?",
+      icon: <IconKeyboard size={15} stroke={1.6} />,
+      onClick: onShowShortcuts,
+    }
 
-    // 输入关键词后搜索全部叶子页面（含所有设置子页）
-    const allPages: NavAction[] = flattenPages(menu).map(({ item, trail, icon }) => ({
-      id: `page:${item.id}`,
-      label: item.title,
-      description: trail.length > 0 ? trail.join(" / ") : undefined,
-      icon: <Icon name={icon ?? "apps"} size={15} stroke={1.6} />,
-      onClick: () => void navigate({ to: item.path }),
-    }))
+    // 初始空查询只放一级模块（排除已在上方展开的收件箱）和快捷键帮助入口，保持默认面板精简克制
+    const inboxPath = `/t/${slug}/inbox`
+    const quickPages: NavAction[] = [
+      ...menu
+        .filter((item) => !(canReadInbox && item.path === inboxPath))
+        .map((item) => {
+          const target = firstLeaf(item)
+          return {
+            id: `quick:${item.id}`,
+            label: item.title,
+            icon: <Icon name={item.icon ?? "apps"} size={15} stroke={1.6} />,
+            onClick: () => void navigate({ to: target.path }),
+          }
+        }),
+      shortcutsItem,
+    ]
+
+    // 输入关键词后搜索全部叶子页面（含所有设置子页）及快捷键帮助
+    const allPages: NavAction[] = [
+      ...flattenPages(menu).map(({ item, trail, icon }) => ({
+        id: `page:${item.id}`,
+        label: item.title,
+        description: trail.length > 0 ? trail.join(" / ") : undefined,
+        icon: <Icon name={icon ?? "apps"} size={15} stroke={1.6} />,
+        onClick: () => void navigate({ to: item.path }),
+      })),
+      shortcutsItem,
+    ]
 
     return { inboxActions: inboxList, quickPageActions: quickPages, allPageActions: allPages }
-  }, [canReadInbox, inbox.data?.teams, inbox.data?.views, menu, navigate, slug, t])
+  }, [canReadInbox, inbox.data?.teams, inbox.data?.views, menu, navigate, onShowShortcuts, slug, t])
 
   const kw = trimmed.toLowerCase()
   const matchesLocal = (a: NavAction) =>
     !kw || a.label.toLowerCase().includes(kw) || (a.description?.toLowerCase().includes(kw) ?? false)
+  const filteredConvActions = kw ? conversationActions.filter(matchesLocal) : conversationActions.filter((a) => a.quick)
   const filteredInbox = kw ? inboxActions.filter(matchesLocal) : inboxActions
   const filteredPages = kw ? allPageActions.filter(matchesLocal) : quickPageActions
   const convHits = debounced ? (convSearch.data?.items ?? []) : []
@@ -192,7 +334,12 @@ export function CommandPalette({ slug }: { slug: string }): ReactNode {
     trimmed.length > 0 &&
     (canReadInbox || canReadContacts) &&
     (debounced !== trimmed || convSearch.isFetching || contactSearch.isFetching)
-  const hasAny = convHits.length > 0 || contactHits.length > 0 || filteredInbox.length > 0 || filteredPages.length > 0
+  const hasAny =
+    filteredConvActions.length > 0 ||
+    convHits.length > 0 ||
+    contactHits.length > 0 ||
+    filteredInbox.length > 0 ||
+    filteredPages.length > 0
 
   return (
     <Spotlight.Root
@@ -225,6 +372,26 @@ export function CommandPalette({ slug }: { slug: string }): ReactNode {
       />
 
       <Spotlight.ActionsList>
+        {filteredConvActions.length > 0 && (
+          <Spotlight.ActionsGroup label={t("command.conversation_actions_group")}>
+            {filteredConvActions.map((a) => (
+              <Spotlight.Action key={a.id} onClick={a.onClick}>
+                <Group gap="sm" wrap="nowrap" w="100%">
+                  <Box className="cmd-palette-icon">{a.icon}</Box>
+                  <Text size="sm" fw={500} truncate style={{ flex: 1, minWidth: 0 }}>
+                    <HighlightQuery text={a.label} query={query} />
+                  </Text>
+                  {a.description && (
+                    <Text size="xs" c="dimmed" truncate maw={180} style={{ flex: "none" }}>
+                      {a.description}
+                    </Text>
+                  )}
+                </Group>
+              </Spotlight.Action>
+            ))}
+          </Spotlight.ActionsGroup>
+        )}
+
         {convHits.length > 0 && (
           <Spotlight.ActionsGroup label={t("command.conversations_group")}>
             {convHits.map((hit) => {
@@ -427,6 +594,19 @@ export function CommandPalette({ slug }: { slug: string }): ReactNode {
               </Text>
             </Group>
           </Group>
+          <UnstyledButton
+            onClick={() => {
+              spotlight.close()
+              onShowShortcuts()
+            }}
+          >
+            <Group gap={6}>
+              <Kbd size="xs">?</Kbd>
+              <Text size="xs" c="dimmed">
+                {t("command.hint_shortcuts")}
+              </Text>
+            </Group>
+          </UnstyledButton>
         </Group>
       </Spotlight.Footer>
     </Spotlight.Root>

@@ -10,7 +10,7 @@ import { languageName } from "../languages"
 import { isTypingTarget, NARROW_QUERY, ResizeHandle, useResizableWidth } from "../layout"
 import { formatLocalTime } from "../timezone"
 import { useConversationChannel } from "./channel"
-import { Composer } from "./Composer"
+import { Composer, type ComposerHandle } from "./Composer"
 import { useConversation, useMe, useMembers, useTeams, useTimeline } from "./data"
 import { Details } from "./Details"
 import { contactName } from "./List"
@@ -76,7 +76,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
   const [original, setOriginal] = useState(false) // 对方的消息都显示原文
   const detailSize = useResizableWidth("agents-desk:inbox-details-w", 300, 260, 420, "left")
   const { ref: mainRef, width: mainWidth } = useElementSize()
-  const composerRef = useRef<HTMLTextAreaElement>(null)
+  const composerRef = useRef<ComposerHandle>(null)
   useCollapseNav(details && canInlineDetails && !wide && !narrow)
 
   // 从宽屏切到窄屏时自动收起详情，避免详情页占满整屏遮挡聊天记录
@@ -122,18 +122,28 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
   const close = useMutation({ mutationFn: () => tenantApi.conversation.close(id), onSuccess: invalidate, onError: (err) => notifyError(err) })
   const reopen = useMutation({ mutationFn: () => tenantApi.conversation.reopen(id), onSuccess: invalidate, onError: (err) => notifyError(err) })
 
-  // 会话级单键快捷键（非输入态生效）：R 聚焦回复框、I 切换详情栏、E 关闭会话
+  // 会话级快捷键（非输入态生效）：Shift+J 下一个待回复、R 回复、N 内部备注、I 切换详情栏、E 关闭会话
   const status = c?.status
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || isTypingTarget(e.target)) return
+      if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return
       const key = e.key.toLowerCase()
+      if (e.shiftKey) {
+        if (key === "j" && next) {
+          e.preventDefault()
+          next()
+        }
+        return
+      }
       if (key === "i") {
         e.preventDefault()
         toggleDetails()
       } else if (key === "r") {
         e.preventDefault()
-        composerRef.current?.focus()
+        composerRef.current?.focus("reply")
+      } else if (key === "n") {
+        e.preventDefault()
+        composerRef.current?.focus("note")
       } else if (key === "e" && status && status !== "closed" && !close.isPending) {
         e.preventDefault()
         close.mutate()
@@ -141,7 +151,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
     }
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
-  }, [close, status, toggleDetails])
+  }, [close, next, status, toggleDetails])
 
   if (!c) {
     return (
@@ -280,7 +290,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
           c={c}
           onTyping={notifyTyping}
           onReplied={me.data?.open_next_after_reply && next ? next : undefined}
-          inputRef={composerRef}
+          handleRef={composerRef}
         />
       </Box>
       {inlineDetails && (
