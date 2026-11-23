@@ -1,4 +1,4 @@
-import { Anchor, Badge, Button, ColorSwatch, Group, Modal, Paper, Skeleton, Stack, Table, Text, TextInput } from "@mantine/core"
+import { Badge, Button, ColorSwatch, Group, Modal, Paper, Skeleton, Stack, Table, Text, TextInput } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { IconPlus } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -96,14 +96,9 @@ function Widgets(): ReactNode {
                   <Table.Td>
                     <Group gap="xs" wrap="nowrap">
                       <ColorSwatch color={row.appearance.color || primaryColors["bright-blue"]} size={14} />
-                      <Anchor
-                        fw={500}
-                        renderRoot={(props) => (
-                          <Link {...props} to="/t/$slug/settings/widgets/$id" params={{ slug, id: row.id }} />
-                        )}
-                      >
+                      <Text size="sm" fw={500}>
                         {row.name}
-                      </Anchor>
+                      </Text>
                     </Group>
                   </Table.Td>
                   <Table.Td>
