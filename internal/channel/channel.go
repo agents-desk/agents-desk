@@ -28,12 +28,13 @@ var (
 type Kind string
 
 const (
-	Test   Kind = "test"   // 测试渠道：开发、演示和测试用，发出的消息直接记为已送达
-	Widget Kind = "widget" // 网页聊天插件：嵌入产品网站的聊天窗口，见 internal/widget
+	Test     Kind = "test"     // 测试渠道：开发、演示和测试用，发出的消息直接记为已送达
+	Widget   Kind = "widget"   // 网页聊天插件：嵌入产品网站的聊天窗口，见 internal/widget
+	Telegram Kind = "telegram" // Telegram 机器人私聊渠道，见 internal/telegram
 )
 
 // Kinds 是全部渠道种类，显示文字是翻译文件中 channel.kind.<种类> 的消息。
-var Kinds = enum.New("channel.kind", enum.Item(Test), enum.Item(Widget))
+var Kinds = enum.New("channel.kind", enum.Item(Test), enum.Item(Widget), enum.Item(Telegram))
 
 // Schema 让 OpenAPI 中的 Kind 只接受上面的取值，并带有显示文字。
 func (Kind) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Kinds) }

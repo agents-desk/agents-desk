@@ -7,7 +7,7 @@ import type { ReactNode } from "react"
 import { ColorSchemeScript, mantineHtmlProps } from "@mantine/core"
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts, useRouter } from "@tanstack/react-router"
 import { type RouterContext, UIProvider } from "@go-tenon/ui"
-import { IconAddressBook, IconBolt, IconInbox, IconLanguage, IconMessageBolt, IconStar } from "@tabler/icons-react"
+import { IconAddressBook, IconBolt, IconBrandTelegram, IconInbox, IconLanguage, IconMessageBolt, IconStar } from "@tabler/icons-react"
 import { i18n } from "../i18n"
 import { theme } from "../theme"
 
@@ -28,6 +28,7 @@ const icons = {
   macro: IconMessageBolt,
   star: IconStar,
   language: IconLanguage,
+  telegram: IconBrandTelegram,
 }
 
 function Document({ children }: { children: ReactNode }) {

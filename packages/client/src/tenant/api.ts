@@ -75,7 +75,7 @@ export interface AutomationUpdateBody {
   enabled: boolean
 }
 
-export type ChannelKind = "test" | "widget"
+export type ChannelKind = "test" | "widget" | "telegram"
 
 export interface ChannelListItem {
   /** 渠道是否启用 */
@@ -1099,6 +1099,14 @@ export interface OffsetTeamDTO {
   total: number
 }
 
+export interface OffsetTelegramDTO {
+  items: TelegramDTO[]
+  page: number
+  per_page: number
+  /** Total number of items across all pages. */
+  total: number
+}
+
 export interface OffsetWidgetDTO {
   items: WidgetDTO[]
   page: number
@@ -1552,6 +1560,57 @@ export interface TeamMember {
 
 export type TeamStatus = "active" | "disabled"
 
+export interface TelegramCreateBody {
+  /** 从 @BotFather 获取的 Bot Token */
+  bot_token: string
+  /** 开启后由外部业务网关转发 Webhook，系统不自动调用 setWebhook */
+  gateway_managed?: boolean
+  name: string
+  /** 新会话进入的团队收件箱；不填时进入未指派 */
+  team_id?: string
+}
+
+export interface TelegramDTO {
+  /** Telegram 机器人的用户名（不含 @） */
+  bot_username: string
+  created_at: string
+  /** 停用后不再接收或发送消息 */
+  enabled: boolean
+  /** 开启后由外部业务网关转发 Webhook，系统不调用 setWebhook */
+  gateway_managed: boolean
+  id: string
+  name: string
+  /** 新会话进入的团队收件箱；为空时进入未指派 */
+  team_id?: string
+  /** 新会话进入的团队收件箱的名称；未指派时为空 */
+  team_name: string
+}
+
+export interface TelegramInstallationDTO {
+  /** Telegram 机器人用户名（不含 @） */
+  bot_username: string
+  /** Telegram 渠道 ID */
+  channel_id: string
+  /** 是否由外部业务网关转发 Webhook */
+  gateway_managed: boolean
+  /** Webhook 鉴权密钥，放入 X-Telegram-Bot-Api-Secret-Token 请求头 */
+  webhook_secret: string
+  /** 接收 Telegram Update 的 Webhook 地址 */
+  webhook_url: string
+}
+
+export interface TelegramUpdateBody {
+  /** 新的 Bot Token；留空则保持原 Token 不变 */
+  bot_token?: string
+  /** 停用后不再接收或发送消息 */
+  enabled: boolean
+  /** 开启后由外部业务网关转发 Webhook，系统不自动调用 setWebhook */
+  gateway_managed: boolean
+  name: string
+  /** 新会话进入的团队收件箱；不填时进入未指派 */
+  team_id?: string
+}
+
 export interface TenantCurrentDTO {
   id: string
   name: string
@@ -1939,6 +1998,14 @@ export interface TeamListInput {
   status?: TeamStatus
   /** 只列出我所在的团队收件箱 */
   mine?: boolean
+}
+
+/** telegram-list 的参数。 */
+export interface TelegramListInput {
+  /** Page number, starting at 1. */
+  page?: number
+  /** Items per page. */
+  per_page?: number
 }
 
 /** view-list 的参数。 */
@@ -2644,6 +2711,51 @@ export function createClient(options: ClientOptions) {
        */
       update: (id: string, body: TeamChanges): Promise<TeamDTO> =>
         rt.request<TeamDTO>({ method: "PUT", path: `/teams/${encodeURIComponent(id)}`, body }),
+    },
+    /** operationId 以 telegram- 开头的接口。 */
+    telegram: {
+      /**
+       * 新建 Telegram 机器人
+       *
+       * POST /telegrams
+       */
+      create: (body: TelegramCreateBody): Promise<TelegramDTO> =>
+        rt.request<TelegramDTO>({ method: "POST", path: `/telegrams`, body }),
+      /**
+       * 读取 Telegram 机器人
+       *
+       * GET /telegrams/{id}
+       */
+      get: (id: string): Promise<TelegramDTO> =>
+        rt.request<TelegramDTO>({ method: "GET", path: `/telegrams/${encodeURIComponent(id)}` }),
+      /**
+       * Telegram 机器人的接入配置与 Webhook 密钥
+       *
+       * GET /telegrams/{id}/installation
+       */
+      installation: (id: string): Promise<TelegramInstallationDTO> =>
+        rt.request<TelegramInstallationDTO>({ method: "GET", path: `/telegrams/${encodeURIComponent(id)}/installation` }),
+      /**
+       * Telegram 机器人列表
+       *
+       * GET /telegrams
+       */
+      list: (input: TelegramListInput = {}): Promise<OffsetTelegramDTO> =>
+        rt.request<OffsetTelegramDTO>({ method: "GET", path: `/telegrams`, query: { "page": input["page"], "per_page": input["per_page"] } }),
+      /**
+       * 更换 Webhook 密钥
+       *
+       * POST /telegrams/{id}/webhook-secret
+       */
+      rotateSecret: (id: string): Promise<TelegramInstallationDTO> =>
+        rt.request<TelegramInstallationDTO>({ method: "POST", path: `/telegrams/${encodeURIComponent(id)}/webhook-secret` }),
+      /**
+       * 修改 Telegram 机器人
+       *
+       * PUT /telegrams/{id}
+       */
+      update: (id: string, body: TelegramUpdateBody): Promise<TelegramDTO> =>
+        rt.request<TelegramDTO>({ method: "PUT", path: `/telegrams/${encodeURIComponent(id)}`, body }),
     },
     /** operationId 以 tenant- 开头的接口。 */
     tenant: {

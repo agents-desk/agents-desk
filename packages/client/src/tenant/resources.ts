@@ -331,4 +331,58 @@ export const resources = {
       },
     },
   },
+  telegram: {
+    name: "telegram",
+    key: "id",
+    operations: {
+      list: ["telegram", "list"],
+      get: ["telegram", "get"],
+      create: ["telegram", "create"],
+      update: ["telegram", "update"],
+    },
+    permissions: {
+      list: ["channels:manage"],
+      get: ["channels:manage"],
+      create: ["channels:manage"],
+      update: ["channels:manage"],
+    },
+    columns: [
+      { name: "name", type: "string", required: true },
+      { name: "bot_username", type: "string", required: true },
+      { name: "team_name", type: "string", required: true },
+      { name: "gateway_managed", type: "boolean", required: true },
+      { name: "enabled", type: "boolean", required: true },
+    ],
+    filters: [
+    ],
+    createForm: [
+      { name: "name", type: "string", required: true },
+      { name: "team_id", type: "string", format: "uuid", ref: "team" },
+      { name: "bot_token", type: "string", format: "password", required: true },
+      { name: "gateway_managed", type: "boolean" },
+    ],
+    updateForm: [
+      { name: "name", type: "string", required: true },
+      { name: "team_id", type: "string", format: "uuid", ref: "team" },
+      { name: "bot_token", type: "string", format: "password" },
+      { name: "gateway_managed", type: "boolean", required: true },
+      { name: "enabled", type: "boolean", required: true },
+    ],
+    actions: [
+    ],
+    labels: {
+      "en": {
+        title: "Telegram bots",
+        fields: { name: "Name", bot_username: "Bot username", team_name: "Team inbox", gateway_managed: "External gateway forwarding", enabled: "Enabled", team_id: "Team inbox", bot_token: "Bot token" },
+        descriptions: { name: "Identifies this Telegram bot in the workspace", gateway_managed: "When enabled, an external business gateway forwards Telegram updates and this app skips setWebhook", enabled: "When disabled, messages are no longer received or sent", team_id: "The team inbox new conversations go to; leave empty to keep them unassigned", bot_token: "Bot token from @BotFather; leave empty when updating to keep the existing token" },
+        actions: {  },
+      },
+      "zh-CN": {
+        title: "Telegram 机器人",
+        fields: { name: "名称", bot_username: "机器人用户名", team_name: "团队收件箱", gateway_managed: "外部网关转发", enabled: "启用", team_id: "团队收件箱", bot_token: "Bot Token" },
+        descriptions: { name: "用于在工作区中区分这个 Telegram 机器人", gateway_managed: "开启后由外部业务网关转发 Webhook，系统不自动调用 Telegram setWebhook", enabled: "停用后不再接收或发送消息", team_id: "新会话进入的团队收件箱；不选时进入未指派", bot_token: "从 @BotFather 获取的 Bot Token；修改时留空保持不变" },
+        actions: {  },
+      },
+    },
+  },
 } as const

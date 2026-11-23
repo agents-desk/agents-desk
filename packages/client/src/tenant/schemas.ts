@@ -785,6 +785,38 @@ export const schemas = {
       },
     },
   },
+  telegram: {
+    create: {
+      body: {
+        "$ref": "#/components/schemas/TelegramCreateBody"
+      },
+    },
+    list: {
+      query: {
+        "properties": {
+          "page": {
+            "default": 1,
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "per_page": {
+            "default": 20,
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+    },
+    update: {
+      body: {
+        "$ref": "#/components/schemas/TelegramUpdateBody"
+      },
+    },
+  },
   tenant: {
     rename: {
       body: {
@@ -2227,6 +2259,65 @@ export const components = {
       "disabled"
     ],
     "type": "string"
+  },
+  TelegramCreateBody: {
+    "additionalProperties": false,
+    "properties": {
+      "bot_token": {
+        "format": "password",
+        "maxLength": 256,
+        "minLength": 10,
+        "type": "string"
+      },
+      "gateway_managed": {
+        "type": "boolean"
+      },
+      "name": {
+        "maxLength": 60,
+        "minLength": 1,
+        "type": "string"
+      },
+      "team_id": {
+        "format": "uuid",
+        "type": "string"
+      }
+    },
+    "required": [
+      "name",
+      "bot_token"
+    ],
+    "type": "object"
+  },
+  TelegramUpdateBody: {
+    "additionalProperties": false,
+    "properties": {
+      "bot_token": {
+        "format": "password",
+        "maxLength": 256,
+        "type": "string"
+      },
+      "enabled": {
+        "type": "boolean"
+      },
+      "gateway_managed": {
+        "type": "boolean"
+      },
+      "name": {
+        "maxLength": 60,
+        "minLength": 1,
+        "type": "string"
+      },
+      "team_id": {
+        "format": "uuid",
+        "type": "string"
+      }
+    },
+    "required": [
+      "name",
+      "gateway_managed",
+      "enabled"
+    ],
+    "type": "object"
   },
   TenantGeneralSettings: {
     "additionalProperties": false,

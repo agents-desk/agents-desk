@@ -53,6 +53,7 @@ import (
 	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
 	"agents-desk/internal/platformsettings"
+	"agents-desk/internal/telegram"
 	"agents-desk/internal/tenant"
 	"agents-desk/internal/translation"
 	"agents-desk/internal/widget"
@@ -92,6 +93,7 @@ type App struct {
 	locker      *lock.Locker        // 多个实例之间的锁：定时任务去重
 
 	channels channel.Registry // 各种渠道的连接器
+	telegram *telegram.Client // 调用 Telegram Bot API 的客户端
 }
 
 // downstream 返回会话有变化时通知的下游：把发给对方的消息交给连接器发出，翻译收到的消息，提交后推送给能看到会话的成员，
@@ -195,6 +197,7 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	ops := operation.New(db)
 	exporter := exports.New(db, ops, files)
 
+	tgClient := telegram.NewClient(&http.Client{Timeout: 30 * time.Second})
 	return &App{
 		cfg: cfg, db: db, nc: nc, hub: hub, presence: presence, roles: roles,
 		adminLogins: adminLogins, adminTokens: apitoken.NewStore(db, cfg.AdminToken),
@@ -205,14 +208,16 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		ops: ops, exporter: exporter,
 		translator: translation.NewTranslator(db, llm.NewClient(db, llmSettings, &http.Client{Timeout: 60 * time.Second}), translationSettings),
 		files:      files, images: images, defaultDisk: disks[cfg.Filesystem.DefaultDisk], localDisk: localDisk, locker: lock.New(pglock.New(db)),
-		channels: registry(hub),
+		channels: registry(hub, keys, files, tgClient),
+		telegram: tgClient,
 	}, nil
 }
 
-// registry 返回各种渠道的连接器：内置的测试渠道，以及把回复推送给聊天窗口的网页聊天插件。
-func registry(hub *broadcast.Hub) channel.Registry {
+// registry 返回各种渠道的连接器：内置测试渠道、网页聊天插件和 Telegram 机器人。
+func registry(hub *broadcast.Hub, keys *crypt.Crypt, files *filesystem.Service, tgClient *telegram.Client) channel.Registry {
 	r := channel.DefaultRegistry()
 	r[channel.Widget] = widget.NewConnector(hub)
+	r[channel.Telegram] = telegram.NewConnector(keys, files, tgClient)
 	return r
 }
 

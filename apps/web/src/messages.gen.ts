@@ -520,6 +520,7 @@ export const messages = {
     "nav.switch_tenant": "Switch workspace",
     "nav.tags": "Tags",
     "nav.team_inboxes": "Team inboxes",
+    "nav.telegrams": "Telegram bots",
     "nav.widgets": "Website chat widgets",
     "notifications_page.assigned_desc": "Notify when a teammate assigns a conversation to you or auto-assignment routes one to you",
     "notifications_page.assigned_title": "Conversation assigned to me",
@@ -765,6 +766,36 @@ export const messages = {
     "teams.disabled_notice": "This team inbox is disabled and no longer receives new conversations or automatic assignments.",
     "teams.enable": "Enable",
     "teams.enabled_done": "Team inbox enabled",
+    "telegram_install.bot_username": "Bot username",
+    "telegram_install.channel_id": "Channel ID",
+    "telegram_install.copied": "Copied",
+    "telegram_install.copy": "Copy",
+    "telegram_install.gateway_header_email": "Customer email (optional)",
+    "telegram_install.gateway_header_id": "Customer user ID in your product",
+    "telegram_install.gateway_header_name": "Customer name (optional)",
+    "telegram_install.gateway_headers": "Optional gateway identity headers",
+    "telegram_install.gateway_headers_hint": "When forwarding updates authenticated with X-Telegram-Bot-Api-Secret-Token, include these headers to automatically link or merge the Telegram contact with your product user:",
+    "telegram_install.header": "Header",
+    "telegram_install.header_desc": "Description",
+    "telegram_install.heading": "Telegram bot: {{.name}}",
+    "telegram_install.mode": "Connection mode",
+    "telegram_install.mode_direct_hint": "Direct mode: this app automatically calls Telegram setWebhook to manage updates.",
+    "telegram_install.mode_gateway_hint": "External gateway mode: this app does not call Telegram setWebhook. Forward private message updates from your gateway to the Webhook URL below with X-Telegram-Bot-Api-Secret-Token.",
+    "telegram_install.rotate": "Rotate secret",
+    "telegram_install.rotate_confirm": "Rotate the webhook secret?",
+    "telegram_install.rotate_message": "Direct mode syncs the new secret to Telegram automatically; in gateway mode, update your gateway configuration with the new secret.",
+    "telegram_install.rotated": "Webhook secret rotated",
+    "telegram_install.title": "Telegram bot",
+    "telegram_install.webhook": "Webhook setup",
+    "telegram_install.webhook_secret": "Webhook secret",
+    "telegram_install.webhook_url": "Webhook URL",
+    "telegrams.disabled": "Disabled",
+    "telegrams.enabled": "Enabled",
+    "telegrams.mode_direct": "Direct",
+    "telegrams.mode_gateway": "External gateway",
+    "telegrams.team_disabled_suffix": "{{.name}} (disabled)",
+    "telegrams.team_hint": "The team inbox new conversations go to",
+    "telegrams.team_unassigned": "Unassigned",
     "test_account.failed": "Test account sign-in failed. Run go run ./cmd/agents-desk seed first",
     "test_account.sign_in": "Sign in with a test account",
     "time.days": "{{.n}} d",
@@ -1404,6 +1435,7 @@ export const messages = {
     "nav.switch_tenant": "切换工作区",
     "nav.tags": "标签",
     "nav.team_inboxes": "团队收件箱",
+    "nav.telegrams": "Telegram 机器人",
     "nav.widgets": "网页聊天插件",
     "notifications_page.assigned_desc": "同事把会话改派给你，或系统自动轮流分配给你时提醒",
     "notifications_page.assigned_title": "新会话指派给我",
@@ -1649,6 +1681,36 @@ export const messages = {
     "teams.disabled_notice": "这个团队收件箱已停用，不会再接收新会话或自动分配。",
     "teams.enable": "启用",
     "teams.enabled_done": "已启用团队收件箱",
+    "telegram_install.bot_username": "机器人用户名",
+    "telegram_install.channel_id": "渠道 ID",
+    "telegram_install.copied": "已复制",
+    "telegram_install.copy": "复制",
+    "telegram_install.gateway_header_email": "客户邮箱（可选）",
+    "telegram_install.gateway_header_id": "客户在产品中的用户编号",
+    "telegram_install.gateway_header_name": "客户姓名（可选）",
+    "telegram_install.gateway_headers": "外部网关透传身份请求头（可选）",
+    "telegram_install.gateway_headers_hint": "业务网关在通过 X-Telegram-Bot-Api-Secret-Token 鉴权的转发请求中附带以下请求头，即可将 Telegram 客户自动关联或合并到产品用户档案：",
+    "telegram_install.header": "请求头",
+    "telegram_install.header_desc": "说明",
+    "telegram_install.heading": "Telegram 机器人：{{.name}}",
+    "telegram_install.mode": "接入模式",
+    "telegram_install.mode_direct_hint": "直连模式：系统已自动调用 Telegram setWebhook 接管该机器人，无需手动配置 Webhook。",
+    "telegram_install.mode_gateway_hint": "外部网关转发模式：系统不会调用 Telegram setWebhook。请在业务网关中将私聊 Update 原样 POST 到下方 Webhook 地址，并在 X-Telegram-Bot-Api-Secret-Token 头中带上 Webhook 密钥。",
+    "telegram_install.rotate": "更换密钥",
+    "telegram_install.rotate_confirm": "更换 Webhook 密钥？",
+    "telegram_install.rotate_message": "直连模式下系统会自动同步新密钥到 Telegram；外部网关模式下更换后请同步更新业务网关配置。",
+    "telegram_install.rotated": "已更换 Webhook 密钥",
+    "telegram_install.title": "Telegram 机器人",
+    "telegram_install.webhook": "Webhook 接入",
+    "telegram_install.webhook_secret": "Webhook 密钥",
+    "telegram_install.webhook_url": "Webhook 地址",
+    "telegrams.disabled": "已停用",
+    "telegrams.enabled": "启用",
+    "telegrams.mode_direct": "直连模式",
+    "telegrams.mode_gateway": "外部网关转发",
+    "telegrams.team_disabled_suffix": "{{.name}}（已停用）",
+    "telegrams.team_hint": "新会话进入的团队收件箱",
+    "telegrams.team_unassigned": "未指派",
     "test_account.failed": "测试账号登录失败，先运行 go run ./cmd/agents-desk seed",
     "test_account.sign_in": "用测试账号登录",
     "time.days": "{{.n}} 天",
@@ -2291,6 +2353,7 @@ export type MessageId =
   | "nav.switch_tenant"
   | "nav.tags"
   | "nav.team_inboxes"
+  | "nav.telegrams"
   | "nav.widgets"
   | "notifications_page.assigned_desc"
   | "notifications_page.assigned_title"
@@ -2536,6 +2599,36 @@ export type MessageId =
   | "teams.disabled_notice"
   | "teams.enable"
   | "teams.enabled_done"
+  | "telegram_install.bot_username"
+  | "telegram_install.channel_id"
+  | "telegram_install.copied"
+  | "telegram_install.copy"
+  | "telegram_install.gateway_header_email"
+  | "telegram_install.gateway_header_id"
+  | "telegram_install.gateway_header_name"
+  | "telegram_install.gateway_headers"
+  | "telegram_install.gateway_headers_hint"
+  | "telegram_install.header"
+  | "telegram_install.header_desc"
+  | "telegram_install.heading"
+  | "telegram_install.mode"
+  | "telegram_install.mode_direct_hint"
+  | "telegram_install.mode_gateway_hint"
+  | "telegram_install.rotate"
+  | "telegram_install.rotate_confirm"
+  | "telegram_install.rotate_message"
+  | "telegram_install.rotated"
+  | "telegram_install.title"
+  | "telegram_install.webhook"
+  | "telegram_install.webhook_secret"
+  | "telegram_install.webhook_url"
+  | "telegrams.disabled"
+  | "telegrams.enabled"
+  | "telegrams.mode_direct"
+  | "telegrams.mode_gateway"
+  | "telegrams.team_disabled_suffix"
+  | "telegrams.team_hint"
+  | "telegrams.team_unassigned"
   | "test_account.failed"
   | "test_account.sign_in"
   | "time.days"

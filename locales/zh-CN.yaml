@@ -171,6 +171,25 @@ channel.not_found: 渠道不存在
 channel.disabled: 这个渠道已停用
 channel.kind.test: 测试渠道
 channel.kind.widget: 网页聊天插件
+channel.kind.telegram: Telegram 机器人
+telegram.team_not_found: 团队收件箱不存在
+telegram.invalid_bot_token: Telegram Bot Token 无效，请核对后重试
+telegram.webhook_failed: "设置 Telegram Webhook 失败：{{.reason}}"
+telegram.title: Telegram 机器人
+telegram.fields.id: ID
+telegram.fields.name: 名称
+telegram.fields.team_id: 团队收件箱
+telegram.fields.team_name: 团队收件箱
+telegram.fields.bot_token: Bot Token
+telegram.fields.bot_username: 机器人用户名
+telegram.fields.gateway_managed: 外部网关转发
+telegram.fields.enabled: 启用
+telegram.fields.created_at: 创建时间
+telegram.descriptions.name: 用于在工作区中区分这个 Telegram 机器人
+telegram.descriptions.team_id: 新会话进入的团队收件箱；不选时进入未指派
+telegram.descriptions.bot_token: 从 @BotFather 获取的 Bot Token；修改时留空保持不变
+telegram.descriptions.gateway_managed: 开启后由外部业务网关转发 Webhook，系统不自动调用 Telegram setWebhook
+telegram.descriptions.enabled: 停用后不再接收或发送消息
 widget.invalid_user_token: 用户身份的签名无效或已过期
 widget.team_not_found: 团队收件箱不存在
 widget.invalid_origin: "“{{.origin}}”要写成 https:// 或 http:// 开头、只有域名的地址，例如 https://shop.example.com"

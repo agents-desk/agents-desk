@@ -40,10 +40,10 @@ export const enums = {
   },
   ChannelKind: {
     prefix: "channel.kind",
-    values: ["test", "widget"],
+    values: ["test", "widget", "telegram"],
     labels: {
-      "en": { test: "Test channel", widget: "Website chat widget" },
-      "zh-CN": { test: "测试渠道", widget: "网页聊天插件" },
+      "en": { test: "Test channel", widget: "Website chat widget", telegram: "Telegram bot" },
+      "zh-CN": { test: "测试渠道", widget: "网页聊天插件", telegram: "Telegram 机器人" },
     },
   },
   ContactKind: {
