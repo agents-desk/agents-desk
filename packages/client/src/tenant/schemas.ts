@@ -5,6 +5,13 @@
  * 规则与服务端相同，交给 @go-tenon/client 的校验函数使用；$ref 指向 components 中的命名类型。
  */
 export const schemas = {
+  assignment: {
+    settingsUpdate: {
+      body: {
+        "$ref": "#/components/schemas/ConversationAssignmentSettingsInputBody"
+      },
+    },
+  },
   attribute: {
     create: {
       body: {
@@ -1115,6 +1122,26 @@ export const components = {
     },
     "type": "object"
   },
+  ConversationAssignmentSettingsInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "default_member_id": {
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
+        "type": "string"
+      },
+      "default_target": {
+        "$ref": "#/components/schemas/ConversationDefaultTarget"
+      },
+      "default_team_id": {
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
+        "type": "string"
+      }
+    },
+    "required": [
+      "default_target"
+    ],
+    "type": "object"
+  },
   ConversationAttributeFilter: {
     "additionalProperties": false,
     "properties": {
@@ -1205,6 +1232,14 @@ export const components = {
       "ids"
     ],
     "type": "object"
+  },
+  ConversationDefaultTarget: {
+    "enum": [
+      "none",
+      "team",
+      "member"
+    ],
+    "type": "string"
   },
   ConversationInbox: {
     "enum": [

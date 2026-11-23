@@ -8,11 +8,14 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/identity"
 
+	"agents-desk/internal/auth"
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
+	"agents-desk/internal/member"
 )
 
 // ReceiveParams 是渠道收到的一条消息。
@@ -93,11 +96,11 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 			return err
 		}
 		at := now()
-		c, created, opened, err := a.conversationFor(ctx, tx, ch, person, p, connector.Capabilities().MultipleConversations, at)
+		c, created, opened, defaultMemberID, err := a.conversationFor(ctx, tx, ch, person, p, connector.Capabilities().MultipleConversations, at)
 		if err != nil {
 			return err
 		}
-		items := make([]*Item, 0, 2)
+		items := make([]*Item, 0, 3)
 		reopened := false
 		if opened != "" {
 			items = append(items, &Item{
@@ -118,21 +121,26 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 			msg.ExternalID = &p.ExternalID
 		}
 		items = append(items, msg)
-		// 自动指派：负责人离开并选了重新分配时放回团队收件箱；没有负责人时按团队收件箱的分配方式分配
-		auto, err := releaseIfAway(ctx, tx, c)
-		if err != nil {
-			return err
-		}
-		if len(auto) == 0 {
-			next, err := roundRobin(ctx, tx, c)
+		// 自动指派：新会话命中工作区默认成员时直接指派并记录系统事件；否则按离开重分配与团队轮流分配规则处理
+		if defaultMemberID != "" {
+			c.AssigneeType, c.AssigneeID = MemberActor, defaultMemberID
+			items = append(items, assignedEvent(system(c.TenantID), c, c.TeamID, "", "", ReasonDefault))
+		} else {
+			auto, err := releaseIfAway(ctx, tx, c)
 			if err != nil {
 				return err
 			}
-			if next != nil {
-				auto = append(auto, next)
+			if len(auto) == 0 {
+				next, err := roundRobin(ctx, tx, c)
+				if err != nil {
+					return err
+				}
+				if next != nil {
+					auto = append(auto, next)
+				}
 			}
+			items = append(items, auto...)
 		}
-		items = append(items, auto...)
 		if created || reopened {
 			if err := openRound(ctx, tx, c, at); err != nil {
 				return err
@@ -196,15 +204,16 @@ func (a *Receive) previous(ctx context.Context, sub identity.Subject, p ReceiveP
 // conversationFor 在事务 tx 中找到消息要归入的会话并锁住它，没有时新建。
 // 只有一个聊天窗口的渠道（!multiple）：最近的会话已关闭时，若在工作区的重开窗口内则重新打开它，超过重开窗口则新建会话。
 // 会话原来是已关闭或稍后处理时，opened 是要追加的系统事件名称（conversation.reopened 或 conversation.unsnoozed）。
-func (a *Receive) conversationFor(ctx context.Context, tx bun.IDB, ch *channel.Channel, person *contact.Contact, p ReceiveParams, multiple bool, at time.Time) (c *Conversation, created bool, opened string, err error) {
+// 若新建会话命中了工作区级默认成员指派，defaultMemberID 返回该成员 ID。
+func (a *Receive) conversationFor(ctx context.Context, tx bun.IDB, ch *channel.Channel, person *contact.Contact, p ReceiveParams, multiple bool, at time.Time) (c *Conversation, created bool, opened string, defaultMemberID string, err error) {
 	switch {
 	case multiple && p.ConversationID != "":
 		c, err = find(ctx, tx, ch.TenantID, p.ConversationID, true)
 		if err != nil {
-			return nil, false, "", err
+			return nil, false, "", "", err
 		}
 		if c.ContactID == nil || *c.ContactID != person.ID || c.ChannelID == nil || *c.ChannelID != ch.ID {
-			return nil, false, "", ErrNotFound.New()
+			return nil, false, "", "", ErrNotFound.New()
 		}
 	case !multiple:
 		c = new(Conversation)
@@ -213,12 +222,12 @@ func (a *Receive) conversationFor(ctx context.Context, tx bun.IDB, ch *channel.C
 		if errors.Is(err, sql.ErrNoRows) {
 			c = nil
 		} else if err != nil {
-			return nil, false, "", errors.Wrap(err, "load latest conversation")
+			return nil, false, "", "", errors.Wrap(err, "load latest conversation")
 		}
 		if c != nil && c.Status == Closed {
 			var hours int
 			if err := tx.NewSelect().Table("tenants").Column("reopen_window_hours").Where("id = ?", ch.TenantID).Scan(ctx, &hours); err != nil {
-				return nil, false, "", errors.Wrap(err, "load tenant reopen window")
+				return nil, false, "", "", errors.Wrap(err, "load tenant reopen window")
 			}
 			window := time.Duration(hours) * time.Hour
 			if window <= 0 || c.ClosedAt == nil || at.Sub(*c.ClosedAt) > window {
@@ -227,29 +236,67 @@ func (a *Receive) conversationFor(ctx context.Context, tx bun.IDB, ch *channel.C
 		}
 	}
 	if c == nil {
-		c, err = start(ctx, tx, ch, person, at)
-		return c, err == nil, "", err
+		c, defaultMemberID, err = start(ctx, tx, ch, person, at)
+		return c, err == nil, "", defaultMemberID, err
 	}
 	switch c.Status {
 	case Closed:
-		return c, false, "conversation.reopened", nil
+		return c, false, "conversation.reopened", "", nil
 	case Snoozed:
-		return c, false, "conversation.unsnoozed", nil
+		return c, false, "conversation.unsnoozed", "", nil
 	}
-	return c, false, "", nil
+	return c, false, "", "", nil
 }
 
-// start 在事务 tx 中为联系人 person 在渠道 ch 上新建一个打开的服务型会话，进入渠道未停用的默认团队收件箱，联系人是参与者。
-func start(ctx context.Context, tx bun.IDB, ch *channel.Channel, person *contact.Contact, at time.Time) (*Conversation, error) {
+// start 在事务 tx 中为联系人 person 在渠道 ch 上新建一个打开的服务型会话，联系人是参与者。
+// 默认归属优先级：渠道单独配置的未停用默认团队收件箱 > 工作区默认指派（团队收件箱或指定成员） > 未指派。
+func start(ctx context.Context, tx bun.IDB, ch *channel.Channel, person *contact.Contact, at time.Time) (*Conversation, string, error) {
 	teamID := ch.TeamID
 	if teamID != nil {
 		active, err := tx.NewSelect().Table("teams").
 			Where("id = ? AND tenant_id = ? AND disabled_at IS NULL", *teamID, ch.TenantID).Exists(ctx)
 		if err != nil {
-			return nil, errors.Wrap(err, "check default team")
+			return nil, "", errors.Wrap(err, "check default team")
 		}
 		if !active {
 			teamID = nil
+		}
+	}
+	var defaultMemberID string
+	if teamID == nil {
+		cfg, err := NewAssignmentSettingsGroup(tx).Tenant(ch.TenantID).Get(ctx)
+		if err != nil {
+			return nil, "", errors.Wrap(err, "load default assignment settings")
+		}
+		switch cfg.DefaultTarget {
+		case DefaultTeam:
+			if cfg.DefaultTeamID != "" {
+				active, err := tx.NewSelect().Table("teams").
+					Where("id = ? AND tenant_id = ? AND disabled_at IS NULL", cfg.DefaultTeamID, ch.TenantID).Exists(ctx)
+				if err != nil {
+					return nil, "", errors.Wrap(err, "check workspace default team")
+				}
+				if active {
+					id := cfg.DefaultTeamID
+					teamID = &id
+				}
+			}
+		case DefaultMember:
+			if cfg.DefaultMemberID != "" {
+				ref := identity.Ref{Type: member.Type, ID: cfg.DefaultMemberID}
+				if _, err := member.RoleOf(ctx, authz.NewStore(tx, auth.Catalog), ref, ch.TenantID); err == nil {
+					active, err := tx.NewSelect().Table("members").
+						Where("id = ? AND disabled_at IS NULL", cfg.DefaultMemberID).Exists(ctx)
+					if err != nil {
+						return nil, "", errors.Wrap(err, "check workspace default member")
+					}
+					if active {
+						defaultMemberID = cfg.DefaultMemberID
+					}
+				} else if !errors.Is(err, member.ErrNotFound) {
+					return nil, "", err
+				}
+			}
 		}
 	}
 	c := &Conversation{
@@ -257,7 +304,7 @@ func start(ctx context.Context, tx bun.IDB, ch *channel.Channel, person *contact
 		Status: Open, Priority: Normal, Language: person.Language, OpenedAt: at, LastMessageAt: at, Attributes: map[string]any{},
 	}
 	if _, err := tx.NewInsert().Model(c).Exec(ctx); err != nil {
-		return nil, errors.Wrap(err, "insert conversation")
+		return nil, "", errors.Wrap(err, "insert conversation")
 	}
-	return c, join(ctx, tx, c.ID, ContactActor, person.ID)
+	return c, defaultMemberID, join(ctx, tx, c.ID, ContactActor, person.ID)
 }

@@ -31,6 +31,21 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
   return {
     /** 这个 API 全部查询的 key 前缀。 */
     key: () => key(),
+    assignment: {
+      /** assignment 分组全部查询的 key 前缀。 */
+      key: () => key("assignment"),
+      /** GET /settings/assignment */
+      settingsGet: (...args: Parameters<Client["assignment"]["settingsGet"]>) => ({
+        queryKey: key("assignment", "settingsGet", ...args),
+        queryFn: () => client.assignment.settingsGet(...args),
+      }),
+      /** PUT /settings/assignment */
+      settingsUpdate: () => ({
+        mutationFn: (variables: Parameters<Client["assignment"]["settingsUpdate"]>[0]) => client.assignment.settingsUpdate(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "assignment"),
+      }),
+    },
     attribute: {
       /** attribute 分组全部查询的 key 前缀。 */
       key: () => key("attribute"),

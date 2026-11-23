@@ -63,6 +63,10 @@ export const ContactErrors = {
 export const ConversationErrors = {
   /** ErrInvalidActions 是附带操作的参数不完整或互相冲突（例如空的批量操作、set 模式缺少 ID、snooze 缺少 until）。 */
   InvalidActions: "conversation.invalid_actions",
+  /** ErrDefaultTeamRequired 是选择默认指派到团队收件箱但未指定团队 ID。 */
+  DefaultTeamRequired: "conversation.default_team_required",
+  /** ErrDefaultMemberRequired 是选择默认指派给成员但未指定成员 ID。 */
+  DefaultMemberRequired: "conversation.default_member_required",
   /** ErrEmptyMessage 是消息或内部备注既没有文字也没有附件。 */
   EmptyMessage: "conversation.empty_message",
   /** ErrAlreadyAssigned 是要领取的会话已经被别人领取了：两个人同时领取时，先到者生效。 */

@@ -39,6 +39,7 @@ import { Route as TSlugSettingsAutomationRulesRouteImport } from './routes/t/$sl
 import { Route as TSlugSettingsChannelsWidgetsRouteImport } from './routes/t/$slug/settings/_channels/widgets'
 import { Route as TSlugSettingsDataAttributesRouteImport } from './routes/t/$slug/settings/_data/attributes'
 import { Route as TSlugSettingsDataTagsRouteImport } from './routes/t/$slug/settings/_data/tags'
+import { Route as TSlugSettingsInboxAssignmentRouteImport } from './routes/t/$slug/settings/_inbox/assignment'
 import { Route as TSlugSettingsInboxMacrosRouteImport } from './routes/t/$slug/settings/_inbox/macros'
 import { Route as TSlugSettingsInboxTeamsRouteImport } from './routes/t/$slug/settings/_inbox/teams'
 import { Route as TSlugSettingsPersonalNotificationsRouteImport } from './routes/t/$slug/settings/_personal/notifications'
@@ -206,6 +207,12 @@ const TSlugSettingsDataTagsRoute = TSlugSettingsDataTagsRouteImport.update({
   path: '/tags',
   getParentRoute: () => TSlugSettingsDataRoute,
 } as any)
+const TSlugSettingsInboxAssignmentRoute =
+  TSlugSettingsInboxAssignmentRouteImport.update({
+    id: '/assignment',
+    path: '/assignment',
+    getParentRoute: () => TSlugSettingsInboxRoute,
+  } as any)
 const TSlugSettingsInboxMacrosRoute =
   TSlugSettingsInboxMacrosRouteImport.update({
     id: '/macros',
@@ -326,6 +333,7 @@ export interface FileRoutesByFullPath {
   '/t/$slug/settings/widgets': typeof TSlugSettingsChannelsWidgetsRouteWithChildren
   '/t/$slug/settings/attributes': typeof TSlugSettingsDataAttributesRoute
   '/t/$slug/settings/tags': typeof TSlugSettingsDataTagsRoute
+  '/t/$slug/settings/assignment': typeof TSlugSettingsInboxAssignmentRoute
   '/t/$slug/settings/macros': typeof TSlugSettingsInboxMacrosRoute
   '/t/$slug/settings/teams': typeof TSlugSettingsInboxTeamsRouteWithChildren
   '/t/$slug/settings/notifications': typeof TSlugSettingsPersonalNotificationsRoute
@@ -361,6 +369,7 @@ export interface FileRoutesByTo {
   '/t/$slug/settings/rules': typeof TSlugSettingsAutomationRulesRoute
   '/t/$slug/settings/attributes': typeof TSlugSettingsDataAttributesRoute
   '/t/$slug/settings/tags': typeof TSlugSettingsDataTagsRoute
+  '/t/$slug/settings/assignment': typeof TSlugSettingsInboxAssignmentRoute
   '/t/$slug/settings/macros': typeof TSlugSettingsInboxMacrosRoute
   '/t/$slug/settings/notifications': typeof TSlugSettingsPersonalNotificationsRoute
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
@@ -409,6 +418,7 @@ export interface FileRoutesById {
   '/t/$slug/settings/_channels/widgets': typeof TSlugSettingsChannelsWidgetsRouteWithChildren
   '/t/$slug/settings/_data/attributes': typeof TSlugSettingsDataAttributesRoute
   '/t/$slug/settings/_data/tags': typeof TSlugSettingsDataTagsRoute
+  '/t/$slug/settings/_inbox/assignment': typeof TSlugSettingsInboxAssignmentRoute
   '/t/$slug/settings/_inbox/macros': typeof TSlugSettingsInboxMacrosRoute
   '/t/$slug/settings/_inbox/teams': typeof TSlugSettingsInboxTeamsRouteWithChildren
   '/t/$slug/settings/_personal/notifications': typeof TSlugSettingsPersonalNotificationsRoute
@@ -452,6 +462,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/widgets'
     | '/t/$slug/settings/attributes'
     | '/t/$slug/settings/tags'
+    | '/t/$slug/settings/assignment'
     | '/t/$slug/settings/macros'
     | '/t/$slug/settings/teams'
     | '/t/$slug/settings/notifications'
@@ -487,6 +498,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/rules'
     | '/t/$slug/settings/attributes'
     | '/t/$slug/settings/tags'
+    | '/t/$slug/settings/assignment'
     | '/t/$slug/settings/macros'
     | '/t/$slug/settings/notifications'
     | '/t/$slug/settings/preferences'
@@ -534,6 +546,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/_channels/widgets'
     | '/t/$slug/settings/_data/attributes'
     | '/t/$slug/settings/_data/tags'
+    | '/t/$slug/settings/_inbox/assignment'
     | '/t/$slug/settings/_inbox/macros'
     | '/t/$slug/settings/_inbox/teams'
     | '/t/$slug/settings/_personal/notifications'
@@ -769,6 +782,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/t/$slug/settings/tags'
       preLoaderRoute: typeof TSlugSettingsDataTagsRouteImport
       parentRoute: typeof TSlugSettingsDataRoute
+    }
+    '/t/$slug/settings/_inbox/assignment': {
+      id: '/t/$slug/settings/_inbox/assignment'
+      path: '/assignment'
+      fullPath: '/t/$slug/settings/assignment'
+      preLoaderRoute: typeof TSlugSettingsInboxAssignmentRouteImport
+      parentRoute: typeof TSlugSettingsInboxRoute
     }
     '/t/$slug/settings/_inbox/macros': {
       id: '/t/$slug/settings/_inbox/macros'
@@ -1010,11 +1030,13 @@ const TSlugSettingsInboxTeamsRouteWithChildren =
   )
 
 interface TSlugSettingsInboxRouteChildren {
+  TSlugSettingsInboxAssignmentRoute: typeof TSlugSettingsInboxAssignmentRoute
   TSlugSettingsInboxMacrosRoute: typeof TSlugSettingsInboxMacrosRoute
   TSlugSettingsInboxTeamsRoute: typeof TSlugSettingsInboxTeamsRouteWithChildren
 }
 
 const TSlugSettingsInboxRouteChildren: TSlugSettingsInboxRouteChildren = {
+  TSlugSettingsInboxAssignmentRoute: TSlugSettingsInboxAssignmentRoute,
   TSlugSettingsInboxMacrosRoute: TSlugSettingsInboxMacrosRoute,
   TSlugSettingsInboxTeamsRoute: TSlugSettingsInboxTeamsRouteWithChildren,
 }

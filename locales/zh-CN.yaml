@@ -357,6 +357,11 @@ schedule.task.conversations_unsnooze.description: 重新打开稍后处理到期
 
 conversation.invalid_actions: 附带操作的参数无效
 conversation.invalid_filter: 筛选条件配置无效
+conversation.default_team_required: 请选择默认团队收件箱
+conversation.default_member_required: 请选择默认负责人
+conversation.default_target.none: 不自动指派（进入未指派）
+conversation.default_target.team: 进入指定团队收件箱
+conversation.default_target.member: 直接指派给指定成员
 conversation.team_filter_mode.my_teams: 我所在的团队收件箱
 conversation.team_filter_mode.unassigned: 未分配团队收件箱
 conversation.team_filter_mode.ids: 指定团队收件箱

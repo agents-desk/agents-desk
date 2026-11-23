@@ -267,6 +267,24 @@ export interface ConversationAssignment {
   team_id?: string
 }
 
+export interface ConversationAssignmentSettings {
+  /** 默认成员 ID（default_target 为 member 时有效） */
+  default_member_id: string
+  /** 默认指派目标：none 不自动指派，team 默认团队收件箱，member 默认成员 */
+  default_target: ConversationDefaultTarget
+  /** 默认团队收件箱 ID（default_target 为 team 时有效） */
+  default_team_id: string
+}
+
+export interface ConversationAssignmentSettingsInputBody {
+  /** 默认成员 ID */
+  default_member_id?: string
+  /** 默认指派目标：none、team 或 member */
+  default_target: ConversationDefaultTarget
+  /** 默认团队收件箱 ID */
+  default_team_id?: string
+}
+
 export interface ConversationAttachmentDTO {
   content_type: string
   file_id: string
@@ -388,6 +406,8 @@ export interface ConversationDTO {
   /** 对方的消息开始等待回复的时间；已回复时为空 */
   waiting_since?: string
 }
+
+export type ConversationDefaultTarget = "none" | "team" | "member"
 
 export type ConversationDelivery = "sending" | "delivered" | "read" | "failed"
 
@@ -1824,6 +1844,23 @@ export interface WidgetListInput {
 export function createClient(options: ClientOptions) {
   const rt = new Runtime(options)
   return {
+    /** operationId 以 assignment- 开头的接口。 */
+    assignment: {
+      /**
+       * 读取工作区默认指派设置
+       *
+       * GET /settings/assignment
+       */
+      settingsGet: (): Promise<ConversationAssignmentSettings> =>
+        rt.request<ConversationAssignmentSettings>({ method: "GET", path: `/settings/assignment` }),
+      /**
+       * 修改工作区默认指派设置
+       *
+       * PUT /settings/assignment
+       */
+      settingsUpdate: (body: ConversationAssignmentSettingsInputBody): Promise<ConversationAssignmentSettings> =>
+        rt.request<ConversationAssignmentSettings>({ method: "PUT", path: `/settings/assignment`, body }),
+    },
     /** operationId 以 attribute- 开头的接口。 */
     attribute: {
       /**

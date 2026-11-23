@@ -102,6 +102,14 @@ export const enums = {
       "zh-CN": { eq: "等于", neq: "不等于", contains: "包含", gt: "大于", gte: "大于等于", lt: "小于", lte: "小于等于", in: "包含任一选项", is_set: "已填写", is_empty: "未填写" },
     },
   },
+  ConversationDefaultTarget: {
+    prefix: "conversation.default_target",
+    values: ["none", "team", "member"],
+    labels: {
+      "en": { none: "Do not auto-assign (leave unassigned)", team: "Route to a team inbox", member: "Assign directly to a member" },
+      "zh-CN": { none: "不自动指派（进入未指派）", team: "进入指定团队收件箱", member: "直接指派给指定成员" },
+    },
+  },
   ConversationDelivery: {
     prefix: "conversation.delivery",
     values: ["sending", "delivered", "read", "failed"],

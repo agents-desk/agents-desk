@@ -20,6 +20,7 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 		return op
 	}
 	read, reply := require(auth.ConversationsRead), require(auth.ConversationsReply)
+	manageSettings := require(auth.TenantSettingsManage)
 	replyOp := route(reply, "conversation-reply", http.MethodPost, "/conversations/{id}/replies", "回复会话")
 	replyOp.DefaultStatus = http.StatusCreated
 	noteOp := route(reply, "conversation-note", http.MethodPost, "/conversations/{id}/notes", "写内部备注")
@@ -36,6 +37,9 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	// 会话的操作：权限在业务动作中检查（指派要看是不是领取、是不是自己负责的会话），路由只要求能处理会话
 	act := func(id, method, path, summary string) huma.Operation { return route(reply, id, method, path, summary) }
 
+	assignSettings := NewAssignmentSettingsActions(db)
+	rest.Register(api, route(read, "assignment-settings-get", http.MethodGet, "/settings/assignment", "读取工作区默认指派设置"), assignSettings.GetHTTP)
+	rest.Register(api, route(manageSettings, "assignment-settings-update", http.MethodPut, "/settings/assignment", "修改工作区默认指派设置"), assignSettings.UpdateHTTP)
 	rest.Register(api, route(read, "conversation-inbox", http.MethodGet, "/inbox", "收件箱的列表和数量"), NewGetInbox(db).HTTP)
 	rest.Register(api, route(read, "view-list", http.MethodGet, "/views", "收件箱视图列表"), NewListViews(db).HTTP)
 	rest.Register(api, route(read, "view-get", http.MethodGet, "/views/{id}", "读取收件箱视图"), NewGetView(db).HTTP)
