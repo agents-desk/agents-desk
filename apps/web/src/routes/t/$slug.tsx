@@ -1,3 +1,4 @@
+import { useDisclosure } from "@mantine/hooks"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { IconSettings, IconSwitchHorizontal } from "@tabler/icons-react"
@@ -8,6 +9,7 @@ import { CommandPalette, CommandSearchButton } from "../../command-palette"
 import { dispatchPushAlert } from "../../inbox/alerts"
 import { NARROW_QUERY } from "../../layout"
 import { RealtimeContext, useRealtime } from "../../realtime"
+import { ShortcutsModal } from "../../shortcuts-modal"
 import { StatusControl } from "../../status"
 
 // 工作区的布局路由：地址中的 slug 就是当前工作区。进入时会话的身份切换到这个工作区，再读取工作区和成员的权限：
@@ -28,6 +30,7 @@ function TenantLayout() {
   const { tenants } = useTenant()
   const navigate = useNavigate()
   const t = useT()
+  const [shortcutsOpened, shortcutsHandlers] = useDisclosure(false)
   // 实时推送：会话有变化时刷新收件箱的数量和会话，命中提醒时按通知偏好播放提示音或弹桌面通知；
   // 图标栏中收件箱的角标是“我的”会话中等待回复的数量。
   // 同一条连接交给页面（RealtimeContext），收件箱用它加入打开着的会话的频道
@@ -78,7 +81,8 @@ function TenantLayout() {
             />
           }
         />
-        <CommandPalette slug={tenant.slug} />
+        <CommandPalette slug={tenant.slug} onShowShortcuts={shortcutsHandlers.open} />
+        <ShortcutsModal opened={shortcutsOpened} onClose={shortcutsHandlers.close} onToggle={shortcutsHandlers.toggle} />
         {/* 个人菜单中切换我在这个工作区的在线状态 */}
         <Fill name="user-menu">
           <div className="tn-menu-section">
