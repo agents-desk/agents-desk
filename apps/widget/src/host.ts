@@ -1,23 +1,30 @@
-// 聊天窗口和外面的通信。聊天窗口有两种运行方式：
-//   - 嵌入：产品网站的 loader.js 把它放在 iframe 中（地址带 embed=1），通过 postMessage 和 loader.js 通信；
+// 聊天窗口和外面的通信。聊天窗口有三种运行方式：
+//   - 浮窗嵌入：产品网站的 loader.js 把它放在右下角 iframe 中（embed=1），通过 postMessage 和 loader.js 通信；
+//   - 容器内联：H5 或单页应用在自己的页面容器中放 iframe（embed=1&inline=1），通过 postMessage 通信，默认直接展开铺满容器；
 //   - 独立：App 用 WebView 整页打开，或者直接在浏览器中打开。App 在页面加载前设置 window.agentsDesk = { user_token }，
 //     之后调用 window.AgentsDesk(命令) 切换身份；聊天窗口通过 App 提供的桥通知 App。
-// 发给外面的消息只有窗口的开合、未读数、要打开的链接，不带会话的内容。
+// 发给外面的消息只有窗口的开合、未读数、需要刷新身份令牌、要打开的链接，不带会话的内容。
 
-/** PREFIX 是聊天窗口和 loader.js 之间每条消息的类型前缀。 */
+/** PREFIX 是聊天窗口和父页面之间每条消息的类型前缀。 */
 const PREFIX = "agents-desk:"
 
-/** search 是聊天窗口页面的查询参数：channel 是聊天插件，embed=1 表示在 iframe 中，hide_close=1 表示 App 自己有关闭按钮。 */
+/** search 是聊天窗口页面的查询参数：channel 是聊天插件，embed=1 表示在 iframe 中，inline=1 表示内联铺满容器，hide_close=1 表示宿主自己有关闭按钮。 */
 const search = new URLSearchParams(typeof location === "undefined" ? "" : location.search)
 
 /** channel 是这个聊天窗口的聊天插件 ID。 */
 export const channel = search.get("channel") ?? ""
 
-/** embedded 报告聊天窗口是不是被 loader.js 放在 iframe 中。 */
+/** embedded 报告聊天窗口是不是被父页面放在 iframe 中（带 embed=1）。 */
 export const embedded = search.get("embed") === "1" && typeof window !== "undefined" && window.parent !== window
 
-// 嵌入时页面背景透明（widget.css）：页面外壳是构建时生成的，属性在浏览器中加上
-if (embedded) document.documentElement.dataset.embedded = ""
+/** inline 报告聊天窗口是不是内联铺满父页面容器（embed=1&inline=1）：不渲染右下角启动按钮，默认直接展开。 */
+export const inline = embedded && search.get("inline") === "1"
+
+// 浮窗嵌入时页面背景透明（widget.css）；容器内联与独立模式使用实底背景
+if (embedded && !inline) document.documentElement.dataset.embedded = ""
+
+/** hostHandlesOpenURL 报告嵌入模式的父页面是否在 init 握手中声明接管外链打开。 */
+let hostHandlesOpenURL = false
 
 /** Command 是外面发给聊天窗口的命令。 */
 export type Command =
@@ -53,14 +60,23 @@ function appBridge(): ((message: object) => void) | undefined {
   return undefined
 }
 
-/** hasCloseButton 报告聊天窗口要不要显示关闭按钮：嵌入时总是显示（收起）；独立时有 App 的桥、并且 App 没有要求隐藏时显示。 */
+/** hasCloseButton 报告聊天窗口要不要显示关闭按钮：浮窗嵌入时总是显示（收起）；容器内联或独立带 App 桥时，宿主未要求隐藏（hide_close=1）则显示。 */
 export function hasCloseButton(): boolean {
-  if (embedded) return true
+  if (embedded && !inline) return true
+  if (inline) return search.get("hide_close") !== "1"
   return appBridge() !== undefined && search.get("hide_close") !== "1"
 }
 
-/** tell 把消息发给外面：嵌入时发给 loader.js，独立时发给 App 的桥；直接在浏览器中打开时什么也不做。 */
-export function tell(type: "ready" | "open" | "close" | "unread" | "open_url", data: Record<string, unknown> = {}): void {
+/** delegatesOpenLink 报告链接和文件下载是否交由宿主打开：独立模式有 App 桥，或嵌入模式的父页面声明了 open_url。 */
+export function delegatesOpenLink(): boolean {
+  return embedded ? hostHandlesOpenURL : appBridge() !== undefined
+}
+
+/** tell 把消息发给外面：嵌入时发给父页面，独立时发给 App 的桥；直接在浏览器中打开时什么也不做。 */
+export function tell(
+  type: "ready" | "open" | "close" | "unread" | "open_url" | "need_token",
+  data: Record<string, unknown> = {},
+): void {
   if (embedded) {
     window.parent.postMessage({ type: PREFIX + type, ...data }, "*")
     return
@@ -68,11 +84,10 @@ export function tell(type: "ready" | "open" | "close" | "unread" | "open_url", d
   appBridge()?.({ type, ...data })
 }
 
-/** openLink 打开消息中的链接：App 中交给 App 用系统浏览器打开，其他时候在新的标签页中打开。 */
+/** openLink 打开消息中的链接：宿主接管时发出 open_url 交由宿主打开，其他时候在新的标签页中打开。 */
 export function openLink(url: string): void {
-  const bridge = !embedded && appBridge()
-  if (bridge) {
-    bridge({ type: "open_url", url })
+  if (delegatesOpenLink()) {
+    tell("open_url", { url })
     return
   }
   window.open(url, "_blank", "noopener")
@@ -110,7 +125,7 @@ export function listen(handlers: { command: (c: Command) => void; layout: (mobil
 }
 
 /**
- * waitInit 等待外面给出的初始状态：嵌入时等 loader.js 的 init（最多一秒半，loader.js 不在时按访客、电脑宽度继续）；
+ * waitInit 等待外面给出的初始状态：嵌入时等父页面的 init（最多一秒半，父页面未应答时按访客继续，内联模式固定铺满容器）；
  * 独立时读取 App 在页面加载前设置的 window.agentsDesk，总是占满屏幕。
  */
 export function waitInit(): Promise<Init> {
@@ -119,12 +134,13 @@ export function waitInit(): Promise<Init> {
     return Promise.resolve({ userToken: window.agentsDesk?.user_token, mobile: true, referrer })
   }
   return new Promise((resolve) => {
-    const timer = setTimeout(() => done({ mobile: false }), 1500)
+    const timer = setTimeout(() => done({ mobile: inline }), 1500)
     const onMessage = (e: MessageEvent) => {
       if (e.source !== window.parent || e.data?.type !== PREFIX + "init") return
+      hostHandlesOpenURL = Boolean(e.data.open_url)
       done({
         userToken: e.data.user_token || undefined,
-        mobile: Boolean(e.data.mobile),
+        mobile: inline || Boolean(e.data.mobile),
         referrer: typeof e.data.referrer === "string" && e.data.referrer ? e.data.referrer : undefined,
       })
     }

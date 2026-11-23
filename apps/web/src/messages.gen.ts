@@ -826,6 +826,7 @@ export const messages = {
     "widget_install.app_hint": "Your app opens the address below full screen in a WebView. For a signed-in user, pass the identity before the page loads (window.agentsDesk.user_token); after signing in or out, run AgentsDesk('login', { user_token }) or AgentsDesk('logout'). If your app has its own navigation bar, add \u0026hide_close=1 to the address to hide the chat window's close button. On Android, enable JavaScript and DOM storage, and set windowSoftInputMode to adjustResize.",
     "widget_install.app_msg": "Message",
     "widget_install.app_msg_close": "The customer tapped close; the app closes the WebView",
+    "widget_install.app_msg_need_token": "The user identity token expired while renewing the session; issue a fresh JWT and call AgentsDesk('login', { user_token })",
     "widget_install.app_msg_open_url": "The customer tapped a link in a message; the app opens it in the system browser",
     "widget_install.app_msg_ready": "The chat window is ready",
     "widget_install.app_msg_unread": "The unread count changed; the app can show a badge on its support entry",
@@ -1675,6 +1676,7 @@ export const messages = {
     "widget_install.app_hint": "App 用 WebView 全屏打开下面的地址。已登录的用户在页面加载前传入身份（window.agentsDesk.user_token）；登录、退出后执行 AgentsDesk('login', { user_token }) 或 AgentsDesk('logout')。App 自己有导航栏时，在地址后加上 \u0026hide_close=1 隐藏聊天窗口的关闭按钮。Android 要开启 JavaScript 和 DOM storage，并把 windowSoftInputMode 设为 adjustResize。",
     "widget_install.app_msg": "消息",
     "widget_install.app_msg_close": "客户点了关闭按钮，App 关闭 WebView",
+    "widget_install.app_msg_need_token": "用户身份令牌已过期需要重建会话，重新签发后调用 AgentsDesk('login', { user_token })",
     "widget_install.app_msg_open_url": "客户点了消息中的链接，App 用系统浏览器打开",
     "widget_install.app_msg_ready": "聊天窗口准备好了",
     "widget_install.app_msg_unread": "未读数变化，App 可以在客服入口上显示角标",
@@ -2527,6 +2529,7 @@ export type MessageId =
   | "widget_install.app_hint"
   | "widget_install.app_msg"
   | "widget_install.app_msg_close"
+  | "widget_install.app_msg_need_token"
   | "widget_install.app_msg_open_url"
   | "widget_install.app_msg_ready"
   | "widget_install.app_msg_unread"

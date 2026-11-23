@@ -5,8 +5,9 @@
  *   <script async src="https://<agents-desk 的地址>/widget/loader.js"></script>
  *
  * 它在页面右下角放一个 iframe，里面是聊天窗口（/widget/?channel=…&embed=1），按聊天窗口发来的消息调整 iframe 的大小：
- * 收起时只有启动按钮；电脑上展开后是浮层；手机的宽度（≤ 480px）展开后占满屏幕，并锁住页面的滚动。
+ * 收起时只有启动按钮；电脑上展开后是浮层；手机或触屏设备展开后占满屏幕，并锁住页面的滚动。
  * 页面通过 window.AgentsDesk(命令) 控制聊天窗口：open、close、login（{ user_token }）、logout。
+ * 可选回调：onNeedToken（user_token 过期时按需刷新）、onUnread(count)、onOpenURL(url)。
  * user_token 通过 postMessage 交给聊天窗口，不放进地址。脚本不依赖任何库，可以在任何网站上运行。
  */
 (function () {
@@ -18,7 +19,7 @@
   var PREFIX = "agents-desk:";
   var script = document.currentScript;
   var origin = new URL(script ? script.src : "/widget/loader.js", location.href).origin;
-  var mobileQuery = window.matchMedia("(max-width: 480px)");
+  var mobileQuery = window.matchMedia("(max-width: 640px), (pointer: coarse)");
   var state = { ready: false, open: false, queue: [] };
 
   // iframe：透明、没有边框，固定在右下角
@@ -76,13 +77,28 @@
     var type = e.data.type.slice(PREFIX.length);
     if (type === "ready") {
       state.ready = true;
-      frame.contentWindow.postMessage({ type: PREFIX + "init", user_token: config.user_token || "", mobile: mobileQuery.matches, referrer: location.href }, origin);
+      frame.contentWindow.postMessage(
+        {
+          type: PREFIX + "init",
+          user_token: config.user_token || "",
+          mobile: mobileQuery.matches,
+          referrer: location.href,
+          open_url: typeof config.onOpenURL === "function",
+        },
+        origin,
+      );
       var queued = state.queue;
       state.queue = [];
       queued.forEach(post);
     } else if (type === "open" || type === "close") {
       state.open = type === "open";
       layout();
+    } else if (type === "unread" && typeof config.onUnread === "function") {
+      config.onUnread(Number(e.data.count) || 0);
+    } else if (type === "need_token" && typeof config.onNeedToken === "function") {
+      config.onNeedToken();
+    } else if (type === "open_url" && typeof config.onOpenURL === "function" && typeof e.data.url === "string") {
+      config.onOpenURL(e.data.url);
     }
   });
 
