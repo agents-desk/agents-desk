@@ -58,7 +58,14 @@ export function describeEvent(it: ConversationItemDTO, members: Map<string, Memb
       const assignee = actorName(d.assignee, names, t)
       const team = typeof d.team_id === "string" ? names.team(d.team_id) : undefined
       const teamChanged = d.team_id !== d.from_team_id
-      const via = d.reason === "round_robin" ? t("event.via_round_robin") : d.reason === "reply" ? t("event.via_reply") : ""
+      const via =
+        d.reason === "round_robin"
+          ? t("event.via_round_robin")
+          : d.reason === "reply"
+            ? t("event.via_reply")
+            : d.reason === "default"
+              ? t("event.via_default")
+              : ""
       if (assignee && teamChanged && team) return t("event.assigned_team_member", { who, team, assignee }) + via
       if (assignee) return t("event.assigned", { who, assignee }) + via
       if (teamChanged && team) return t("event.moved_team", { who, team })

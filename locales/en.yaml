@@ -357,6 +357,11 @@ schedule.task.conversations_unsnooze.description: "Reopens conversations whose s
 
 conversation.invalid_actions: "Invalid conversation actions"
 conversation.invalid_filter: "Invalid filter configuration"
+conversation.default_team_required: "Select a default team inbox"
+conversation.default_member_required: "Select a default assignee"
+conversation.default_target.none: "Do not auto-assign (leave unassigned)"
+conversation.default_target.team: "Route to a team inbox"
+conversation.default_target.member: "Assign directly to a member"
 conversation.team_filter_mode.my_teams: "My team inboxes"
 conversation.team_filter_mode.unassigned: "No team inbox"
 conversation.team_filter_mode.ids: "Specific team inboxes"

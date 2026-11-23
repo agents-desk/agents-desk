@@ -10,6 +10,23 @@ export const messages = {
     "alerts.new_message_body": "Customer sent a new message. Click to open",
     "alerts.new_message_title": "New message: {{.contact}}",
     "app.web": "agents-desk",
+    "assignment_page.default_member": "Default assignee",
+    "assignment_page.default_member_hint": "New conversations are assigned directly to this member with a default-assignment event on the timeline",
+    "assignment_page.default_member_placeholder": "Select a member",
+    "assignment_page.default_target": "Default assignment target",
+    "assignment_page.default_target_hint": "Used for new conversations when their channel does not specify a default team inbox",
+    "assignment_page.default_team": "Default team inbox",
+    "assignment_page.default_team_disabled_warning": "The configured default team inbox is disabled, so new conversations remain unassigned. Choose an active team inbox or change the target.",
+    "assignment_page.default_team_hint": "New conversations enter this team inbox; if round-robin is enabled, they are routed to online members automatically",
+    "assignment_page.default_team_placeholder": "Select a team inbox",
+    "assignment_page.description": "Configure the workspace fallback assignment rule for new conversations and review how routing rules work together.",
+    "assignment_page.go_teams": "Manage team inboxes",
+    "assignment_page.go_widgets": "Manage chat widgets",
+    "assignment_page.priority_notice": "Priority: A channel's own default team inbox always takes precedence; this workspace rule applies when a channel has none configured.",
+    "assignment_page.rule_away": "Reassign when away: If a member sets status to away with reassignment enabled, subsequent customer messages return the conversation to its team inbox.",
+    "assignment_page.rule_reply": "Claim on reply: Replying to an unassigned conversation (or one assigned only to a team inbox) automatically assigns it to you.",
+    "assignment_page.rule_round_robin": "Round robin: Configure round-robin assignment on each team inbox to distribute incoming conversations among online members in turn.",
+    "assignment_page.rules_title": "Other built-in assignment rules",
     "attributes.add": "New attribute",
     "attributes.delete": "Delete",
     "attributes.delete_confirm": "Delete attribute “{{.name}}”?",
@@ -179,6 +196,7 @@ export const messages = {
     "event.system": "System",
     "event.unassigned": "{{.who}} removed the assignee",
     "event.unsnoozed": "The conversation is open again",
+    "event.via_default": " (default assignment)",
     "event.via_reply": " (claimed by replying)",
     "event.via_round_robin": " (round robin)",
     "general.address": "Address",
@@ -464,6 +482,7 @@ export const messages = {
     "macros.var_empty": "No matching variables",
     "macros.var_member_name": "Current member name",
     "members.password_hint": "Required when this email has no account yet. Share it with the person yourself",
+    "nav.assignment": "Assignment",
     "nav.attributes": "Attributes",
     "nav.contacts": "Contacts",
     "nav.expand_nav": "Expand navigation",
@@ -860,6 +879,23 @@ export const messages = {
     "alerts.new_message_body": "客户发来新消息，点击查看",
     "alerts.new_message_title": "新消息：{{.contact}}",
     "app.web": "agents-desk",
+    "assignment_page.default_member": "默认负责人",
+    "assignment_page.default_member_hint": "新会话直接指派给这位成员，并在时间线中记录默认指派事件",
+    "assignment_page.default_member_placeholder": "选择成员",
+    "assignment_page.default_target": "默认指派目标",
+    "assignment_page.default_target_hint": "当渠道没有单独指定默认团队收件箱时，新会话按此规则归属",
+    "assignment_page.default_team": "默认团队收件箱",
+    "assignment_page.default_team_disabled_warning": "当前配置的默认团队收件箱已停用，新会话将暂进入未指派；请改选其他团队收件箱或修改默认目标。",
+    "assignment_page.default_team_hint": "新会话进入该团队收件箱；如果该团队开启了轮流分配，将自动分给在线成员",
+    "assignment_page.default_team_placeholder": "选择团队收件箱",
+    "assignment_page.description": "设置工作区的新会话默认指派规则，并了解渠道、团队轮流分配和自动领取之间的优先级。",
+    "assignment_page.go_teams": "管理团队收件箱",
+    "assignment_page.go_widgets": "管理网页聊天插件",
+    "assignment_page.priority_notice": "优先级：渠道单独设置的默认团队收件箱优先于此处的工作区默认指派；未设置时才回退到这里的规则。",
+    "assignment_page.rule_away": "离开时重新分配：成员设为离开并勾选重新分配后，客户再发来新消息时会话会回到团队收件箱重新分配。",
+    "assignment_page.rule_reply": "回复即领取：成员回复未指派或仅指派到团队收件箱的会话时，会自动成为该会话的负责人。",
+    "assignment_page.rule_round_robin": "团队轮流分配：在各团队收件箱的设置中选择“轮流”分配方式，新会话会按顺序分配给团队内在线成员。",
+    "assignment_page.rules_title": "其他内置指派规则",
     "attributes.add": "新建属性",
     "attributes.delete": "删除",
     "attributes.delete_confirm": "删除属性“{{.name}}”？",
@@ -1029,6 +1065,7 @@ export const messages = {
     "event.system": "系统",
     "event.unassigned": "{{.who}} 取消了负责人",
     "event.unsnoozed": "会话回到打开",
+    "event.via_default": "（默认指派）",
     "event.via_reply": "（回复即领取）",
     "event.via_round_robin": "（轮流分配）",
     "general.address": "地址",
@@ -1314,6 +1351,7 @@ export const messages = {
     "macros.var_empty": "没有匹配的变量",
     "macros.var_member_name": "当前成员名字",
     "members.password_hint": "这个邮箱还没有账号时必填，由你告诉本人",
+    "nav.assignment": "指派",
     "nav.attributes": "属性",
     "nav.contacts": "联系人",
     "nav.expand_nav": "展开侧边导航",
@@ -1713,6 +1751,23 @@ export type MessageId =
   | "alerts.new_message_body"
   | "alerts.new_message_title"
   | "app.web"
+  | "assignment_page.default_member"
+  | "assignment_page.default_member_hint"
+  | "assignment_page.default_member_placeholder"
+  | "assignment_page.default_target"
+  | "assignment_page.default_target_hint"
+  | "assignment_page.default_team"
+  | "assignment_page.default_team_disabled_warning"
+  | "assignment_page.default_team_hint"
+  | "assignment_page.default_team_placeholder"
+  | "assignment_page.description"
+  | "assignment_page.go_teams"
+  | "assignment_page.go_widgets"
+  | "assignment_page.priority_notice"
+  | "assignment_page.rule_away"
+  | "assignment_page.rule_reply"
+  | "assignment_page.rule_round_robin"
+  | "assignment_page.rules_title"
   | "attributes.add"
   | "attributes.delete"
   | "attributes.delete_confirm"
@@ -1882,6 +1937,7 @@ export type MessageId =
   | "event.system"
   | "event.unassigned"
   | "event.unsnoozed"
+  | "event.via_default"
   | "event.via_reply"
   | "event.via_round_robin"
   | "general.address"
@@ -2167,6 +2223,7 @@ export type MessageId =
   | "macros.var_empty"
   | "macros.var_member_name"
   | "members.password_hint"
+  | "nav.assignment"
   | "nav.attributes"
   | "nav.contacts"
   | "nav.expand_nav"

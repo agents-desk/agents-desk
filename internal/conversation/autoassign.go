@@ -23,6 +23,7 @@ type AssignReason string
 
 const (
 	ReasonManual     AssignReason = "manual"      // 成员手动指派
+	ReasonDefault    AssignReason = "default"     // 工作区默认指派
 	ReasonRoundRobin AssignReason = "round_robin" // 团队收件箱轮流分配
 	ReasonReply      AssignReason = "reply"       // 回复后领取
 	ReasonAway       AssignReason = "away"        // 负责人离开并选了重新分配，对方再发来消息
@@ -125,6 +126,20 @@ func OnMemberLeft(down Downstream) member.RemovedHook {
 				return err
 			}
 			if err := commit(ctx, tx, down, &convs[i], items...); err != nil {
+				return err
+			}
+		}
+		// 若工作区默认指派目标正是离开的成员，自动重置为不指派
+		group := NewAssignmentSettingsGroup(tx).Tenant(tenant)
+		cfg, err := group.Get(ctx)
+		if err != nil {
+			return err
+		}
+		if cfg.DefaultTarget == DefaultMember && cfg.DefaultMemberID == memberID {
+			if err := group.Update(ctx, func(s *AssignmentSettings) error {
+				*s = AssignmentSettings{DefaultTarget: DefaultNone}
+				return nil
+			}); err != nil {
 				return err
 			}
 		}

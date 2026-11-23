@@ -35,6 +35,10 @@ export type Permission = keyof typeof permissions
 
 /** 每个接口要求的权限，调用者必须全部具备；没有列出的接口不要求权限。 */
 export const required = {
+  assignment: {
+    settingsGet: ["conversations:read"],
+    settingsUpdate: ["tenant-settings:manage"],
+  },
   attribute: {
     create: ["tenant-settings:manage"],
     delete: ["tenant-settings:manage"],
