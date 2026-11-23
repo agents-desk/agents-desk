@@ -3,16 +3,18 @@ import { ActionIcon, Badge, Box, Button, Center, Group, Loader, Select, Skeleton
 import { useDebouncedValue } from "@mantine/hooks"
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
-import { IconLayoutSidebarLeftExpand, IconMessageCircle, IconSearch, IconX } from "@tabler/icons-react"
-import { useLanguage, useNarrow, useNavControl, useT, useTimeZone } from "@go-tenon/ui"
+import { IconBookmarkPlus, IconLayoutSidebarLeftExpand, IconMessageCircle, IconSearch, IconX } from "@tabler/icons-react"
+import { ExportButton, useCan, useLanguage, useNarrow, useNavControl, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
+import { useTags } from "../inbox/data"
 import { activity } from "../inbox/format"
 import { languageName } from "../languages"
 import { NARROW_QUERY } from "../layout"
 import { formatLocalTime } from "../timezone"
 import { ContactAvatar, contactDisplayName, contactSubline } from "./display"
 import type { ContactsSearch } from "./search"
+import { ContactViewModal } from "./ViewModal"
 
 /** FILTER_LANGUAGES 是联系人列表语言筛选的三种常用语言：中文、英语、印地语（后端按主语言前缀同时匹配 zh-CN、hi-Latn 等）。 */
 const FILTER_LANGUAGES = ["zh", "en", "hi"] as const
@@ -31,15 +33,18 @@ export function ContactDirectory({
   go: (patch: Partial<ContactsSearch>) => void
 }): ReactNode {
   const t = useT()
+  const can = useCan()
   const ui = useLanguage()
   const zone = useTimeZone()
   const narrow = useNarrow(NARROW_QUERY)
   const nav = useNavControl()
   const { slug } = useParams({ from: "/t/$slug" })
   const navigate = useNavigate()
+  const tags = useTags()
 
   const [keyword, setKeyword] = useState(search.q ?? "")
   const [debounced] = useDebouncedValue(keyword, 250)
+  const [saveViewOpen, setSaveViewOpen] = useState(false)
 
   useEffect(() => {
     setKeyword(search.q ?? "")
@@ -54,22 +59,27 @@ export function ContactDirectory({
   }, [debounced])
 
   const summary = useQuery(kit.queries.contact.summary())
+  const activeView = search.view ? (summary.data?.views ?? []).find((v) => v.id === search.view) : undefined
   const list = useInfiniteQuery({
     queryKey: [
       ...kit.queries.contact.key(),
       "cursor-list",
+      search.view ?? "",
       search.kind ?? "",
       search.q ?? "",
       search.language ?? "",
       search.channel ?? "",
+      search.tag ?? "",
       search.sort,
     ],
     queryFn: ({ pageParam }) =>
       tenantApi.contact.list({
+        view_id: search.view,
         kind: search.kind,
         q: search.q,
         language: search.language,
         channel_id: search.channel,
+        tag_id: search.tag,
         sort: search.sort,
         cursor: pageParam || undefined,
         per_page: 50,
@@ -101,7 +111,7 @@ export function ContactDirectory({
   useEffect(() => {
     autoPages.current = 0
     scrolledFor.current = undefined
-  }, [openId, search.kind, search.q, search.language, search.channel, search.sort])
+  }, [openId, search.view, search.kind, search.q, search.language, search.channel, search.tag, search.sort])
   useEffect(() => {
     if (!openId || scrolledFor.current === openId) return
     if (clickedId.current === openId) {
@@ -121,18 +131,27 @@ export function ContactDirectory({
     }
   }, [openId, items.length, list])
 
-  const title = search.kind === "user" ? t("contacts.nav_users") : search.kind === "lead" ? t("contacts.nav_leads") : t("nav.contacts")
+  const title = activeView
+    ? activeView.name
+    : search.kind === "user"
+      ? t("contacts.nav_users")
+      : search.kind === "lead"
+        ? t("contacts.nav_leads")
+        : t("nav.contacts")
   const channels = (summary.data?.channels ?? []).map((ch) => ({ value: ch.id, label: ch.name }))
+  const tagChoices = tags.map((tg) => ({ value: tg.id, label: tg.name }))
   const languageChoices = FILTER_LANGUAGES.map((tag) => ({ value: tag, label: languageName(tag, ui) }))
   const sorts = kit.enums.ContactSort.values.map((v) => ({ value: v, label: kit.label("ContactSort", v) }))
-  const hasFilters = Boolean(search.q || search.language || search.channel)
-  const summaryCount = summary.data
-    ? search.kind === "user"
-      ? summary.data.users
-      : search.kind === "lead"
-        ? summary.data.leads
-        : summary.data.all
-    : undefined
+  const hasFilters = Boolean(search.q || search.language || search.channel || search.tag)
+  const summaryCount = activeView
+    ? activeView.count
+    : summary.data
+      ? search.kind === "user"
+        ? summary.data.users
+        : search.kind === "lead"
+          ? summary.data.leads
+          : summary.data.all
+      : undefined
   const badgeCount = hasFilters ? (list.data ? `${items.length}${list.hasNextPage ? "+" : ""}` : undefined) : summaryCount
   // 右侧分栏打开时空间收窄，自动隐藏中间列（右侧档案栏中已经完整展示地区与语言）
   const compact = narrow || Boolean(openId)
@@ -161,20 +180,50 @@ export function ContactDirectory({
             {badgeCount}
           </Badge>
         )}
-        {hasFilters && (
-          <Button
-            size="compact-xs"
-            variant="subtle"
-            color="gray"
-            ml="auto"
-            onClick={() => {
-              setKeyword("")
-              go({ q: undefined, language: undefined, channel: undefined })
-            }}
-          >
-            {t("contacts.clear_filters")}
-          </Button>
-        )}
+        <Group gap={6} ml="auto" wrap="nowrap" style={{ flex: "none" }}>
+          {hasFilters && (
+            <Button
+              size="compact-xs"
+              variant="subtle"
+              color="gray"
+              onClick={() => {
+                setKeyword("")
+                go({ q: undefined, language: undefined, channel: undefined, tag: undefined })
+              }}
+            >
+              {t("contacts.clear_filters")}
+            </Button>
+          )}
+          {!search.view && (hasFilters || search.kind) && (
+            <Button
+              size="compact-xs"
+              variant="light"
+              leftSection={<IconBookmarkPlus size={13} />}
+              onClick={() => setSaveViewOpen(true)}
+            >
+              {t("contacts.save_view")}
+            </Button>
+          )}
+          {can("contacts:export") && (
+            <ExportButton
+              title={t("contacts.export")}
+              source={{
+                start: () =>
+                  tenantApi.contact.exportStart({
+                    format: "xlsx",
+                    view_id: search.view,
+                    kind: search.kind,
+                    q: search.q,
+                    language: search.language,
+                    channel_id: search.channel,
+                    tag_id: search.tag,
+                    sort: search.sort,
+                  }),
+                progress: (id) => (o) => tenantApi.contact.exportProgress(id, o),
+              }}
+            />
+          )}
+        </Group>
       </Group>
 
       {/* 独立搜索与筛选工具条 */}
@@ -214,6 +263,19 @@ export function ContactDirectory({
             value={search.channel ?? null}
             onChange={(v) => go({ channel: v || undefined })}
             aria-label={t("contacts.filter_channel")}
+          />
+        )}
+        {tagChoices.length > 0 && (
+          <Select
+            size="xs"
+            w={compact ? 112 : 132}
+            clearable
+            searchable
+            placeholder={t("contacts.filter_tag")}
+            data={tagChoices}
+            value={search.tag ?? null}
+            onChange={(v) => go({ tag: v || undefined })}
+            aria-label={t("contacts.filter_tag")}
           />
         )}
         <Select
@@ -276,7 +338,7 @@ export function ContactDirectory({
                   variant="light"
                   onClick={() => {
                     setKeyword("")
-                    go({ q: undefined, language: undefined, channel: undefined })
+                    go({ q: undefined, language: undefined, channel: undefined, tag: undefined })
                   }}
                 >
                   {t("contacts.clear_filters")}
@@ -386,6 +448,29 @@ export function ContactDirectory({
           </>
         )}
       </Box>
+      <ContactViewModal
+        opened={saveViewOpen}
+        onClose={() => setSaveViewOpen(false)}
+        initialConfig={{
+          kind: search.kind,
+          q: search.q,
+          language: search.language,
+          channel_id: search.channel,
+          tag_id: search.tag,
+          sort: search.sort,
+        }}
+        onSaved={(saved) =>
+          go({
+            view: saved.id,
+            kind: undefined,
+            q: undefined,
+            language: undefined,
+            channel: undefined,
+            tag: undefined,
+            sort: saved.config.sort ?? "recent",
+          })
+        }
+      />
     </Box>
   )
 }

@@ -14,8 +14,6 @@ import (
 	"github.com/go-tenon/tenon/enum"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/page"
-
-	"agents-desk/internal/lang"
 )
 
 // Sort 是联系人列表的排序方式。
@@ -35,10 +33,12 @@ func (Sort) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r,
 // ListInput 是联系人列表的查询条件。
 type ListInput struct {
 	page.CursorParams
+	ViewID    string `query:"view_id" format:"uuid" doc:"应用已保存联系人视图的筛选条件"`
 	Kind      Kind   `query:"kind" doc:"按联系人类型筛选：user 或 lead；不传为全部"`
 	Q         string `query:"q" maxLength:"100" doc:"按名字、邮箱、外部用户编号或工作区内编号（如 #128）搜索"`
 	Language  string `query:"language" maxLength:"35" doc:"按客户的语言（BCP 47）筛选，传主语言时同时匹配带子标签的写法"`
 	ChannelID string `query:"channel_id" format:"uuid" doc:"只列出在该渠道有身份的联系人"`
+	TagID     string `query:"tag_id" format:"uuid" doc:"只列出带有该标签的联系人"`
 	Sort      Sort   `query:"sort" default:"recent" doc:"排序方式"`
 }
 
@@ -61,42 +61,33 @@ type List struct {
 // NewList 返回联系人列表的动作。
 func NewList(db *bun.DB) *List { return &List{db: db} }
 
-// Handle 返回 sub 所在工作区中 sub 能看到的一页联系人（游标分页），支持按类型、关键词、语言和渠道筛选。
+// Handle 返回 sub 所在工作区中 sub 能看到的一页联系人（游标分页），支持按视图、类型、关键词、语言、渠道和标签筛选。
 func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) (*page.Cursor[ContactDTO], error) {
-	var rows []Contact
-	q := visible(a.db.NewSelect().Model(&rows).Where("contact.tenant_id = ?", sub.Tenant), sub).Limit(in.Limit())
-	if in.Kind != "" {
-		q = q.Where("contact.kind = ?", in.Kind)
+	f := Filter{
+		Kind:      in.Kind,
+		Q:         in.Q,
+		Language:  in.Language,
+		ChannelID: in.ChannelID,
+		TagID:     in.TagID,
 	}
-	if kw := strings.TrimSpace(in.Q); kw != "" {
-		like := "%" + kw + "%"
-		num, hasNum := parseNumberQuery(kw)
-		q = q.WhereGroup(" AND ", func(q *bun.SelectQuery) *bun.SelectQuery {
-			q = q.Where("contact.name ILIKE ?", like).
-				WhereOr("contact.email ILIKE ?", like).
-				WhereOr("contact.external_user_id ILIKE ?", like)
-			if hasNum {
-				q = q.WhereOr("contact.number = ?", num)
-			}
-			return q
-		})
-	}
-	if l := strings.TrimSpace(in.Language); l != "" {
-		if canonical, ok := lang.Canonical(l); ok {
-			l = canonical
+	sort := in.Sort
+	if in.ViewID != "" {
+		v, err := NewViews(a.db).Get(ctx, sub, in.ViewID)
+		if err != nil {
+			return nil, err
 		}
-		if !strings.Contains(l, "-") {
-			q = q.Where("(contact.language = ? OR contact.language LIKE ?)", l, l+"-%")
-		} else {
-			q = q.Where("contact.language = ?", l)
+		cfg := normalizeViewConfig(v.Config)
+		f = mergeFilter(cfg.Filter, f)
+		if sort == "" {
+			sort = cfg.Sort
 		}
-	}
-	if in.ChannelID != "" {
-		q = q.Where("EXISTS (SELECT 1 FROM contact_identities ci WHERE ci.tenant_id = contact.tenant_id AND ci.contact_id = contact.id AND ci.channel_id = ?)", in.ChannelID)
 	}
 
+	var rows []Contact
+	q := applyFilter(visible(a.db.NewSelect().Model(&rows).Where("contact.tenant_id = ?", sub.Tenant), sub), f).Limit(in.Limit())
+
 	var key func(ContactDTO) any
-	switch in.Sort {
+	switch sort {
 	case ByCreated:
 		q = q.OrderExpr("contact.created_at DESC, contact.id DESC")
 		var after timeKey

@@ -144,3 +144,29 @@
 .ct-dot[data-status="closed"] {
   background: var(--mantine-color-gray-5);
 }
+
+/* 二级导航中的联系人保存筛选条目：悬停时将右侧计数切换为更多操作菜单 */
+.ct-view-row {
+  position: relative;
+}
+
+.ct-view-actions {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.ct-view-row[data-editable]:hover .ct-view-actions,
+.ct-view-row[data-editable]:focus-within .ct-view-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.ct-view-row[data-editable]:hover .ct-view-count,
+.ct-view-row[data-editable]:focus-within .ct-view-count {
+  opacity: 0;
+}

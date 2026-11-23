@@ -11,12 +11,13 @@ import (
 	"agents-desk/internal/channel"
 )
 
-// SummaryDTO 是联系人模块的概览：当前成员可见的各类联系人数量，以及可见的渠道列表（用于联系人列表按渠道筛选）。
+// SummaryDTO 是联系人模块的概览：当前成员可见的各类联系人数量、可见的渠道列表，以及已保存的联系人筛选视图和计数。
 type SummaryDTO struct {
 	All      int64             `json:"all" doc:"全部联系人数量"`
 	Users    int64             `json:"users" doc:"用户数量"`
 	Leads    int64             `json:"leads" doc:"线索数量"`
 	Channels []channel.Summary `json:"channels" doc:"当前成员可见的渠道，供联系人列表按渠道筛选"`
+	Views    []ViewSummary     `json:"views" doc:"当前成员可见的联系人已保存筛选视图及实时数量"`
 }
 
 // SummaryOutput 是联系人概览的响应。
@@ -47,7 +48,7 @@ func (a *GetSummary) Handle(ctx context.Context, sub identity.Subject) (*Summary
 	if err != nil {
 		return nil, errors.Wrap(err, "count contacts by kind")
 	}
-	out := SummaryDTO{Channels: []channel.Summary{}}
+	out := SummaryDTO{Channels: []channel.Summary{}, Views: []ViewSummary{}}
 	for _, r := range counts {
 		out.All += r.Count
 		switch r.Kind {
@@ -66,6 +67,31 @@ func (a *GetSummary) Handle(ctx context.Context, sub identity.Subject) (*Summary
 	}
 	for i := range chRows {
 		out.Channels = append(out.Channels, chRows[i].Summary())
+	}
+
+	viewGroup := NewViews(a.db)
+	savedViews, err := viewGroup.List(ctx, sub, "")
+	if err != nil {
+		return nil, errors.Wrap(err, "list contact views for summary")
+	}
+	for _, v := range savedViews {
+		cfg := normalizeViewConfig(v.Config)
+		n, err := applyFilter(
+			visible(a.db.NewSelect().TableExpr("contacts AS contact").Where("contact.tenant_id = ?", sub.Tenant), sub),
+			cfg.Filter,
+		).Count(ctx)
+		if err != nil {
+			return nil, errors.Wrap(err, "count contacts for view")
+		}
+		out.Views = append(out.Views, ViewSummary{
+			ID:       v.ID,
+			Scope:    v.Scope,
+			Name:     v.Name,
+			Config:   cfg,
+			Position: v.Position,
+			Editable: viewGroup.CanManage(sub, v),
+			Count:    int64(n),
+		})
 	}
 	return &out, nil
 }

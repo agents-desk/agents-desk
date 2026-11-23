@@ -120,6 +120,7 @@ conversation_scope.assigned: 只有指派给自己的会话
 "role_permission.macros:manage": 管理共享的快捷回复
 "role_permission.views:manage": 管理共享视图
 "role_permission.reports:read": 查看报表
+"role_permission.contacts:export": 导出联系人
 "role_permission.members:manage": 管理成员和角色
 "role_permission.teams:manage": 管理团队收件箱
 "role_permission.channels:manage": 管理渠道
@@ -153,6 +154,7 @@ translation.tone.formal: 正式
 "permission.conversations:read-team": 可以看到所在团队收件箱的会话
 "permission.contacts:read": 查看联系人
 "permission.contacts:update": 修改联系人
+"permission.contacts:export": 导出联系人
 
 contact.not_found: 联系人不存在
 contact.invalid_email: 邮箱格式不正确
@@ -331,6 +333,8 @@ queue.topic.search.reindex.conversation_items.label: 会话搜索索引重建
 queue.topic.search.reindex.conversation_items.description: 在后台分批重建全部会话消息与内部备注的全文索引
 queue.topic.tenants.export.label: 工作区列表导出
 queue.topic.tenants.export.description: 后台生成工作区列表表格文件并推送完成通知
+queue.topic.contacts.export.label: 联系人列表导出
+queue.topic.contacts.export.description: 后台按筛选条件与可见范围生成联系人表格文件
 
 schedule.task.files_cleanup.label: 清理过期文件
 schedule.task.files_cleanup.description: 删除过期的临时文件和已删除的文件

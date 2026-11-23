@@ -46,6 +46,7 @@ import (
 	"agents-desk/internal/auth"
 	"agents-desk/internal/automation"
 	"agents-desk/internal/channel"
+	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/flags"
 	"agents-desk/internal/llm"
@@ -232,6 +233,7 @@ func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
 	translation.RegisterJobs(w, a.db, a.locker, a.translator, down)
 	automation.RegisterJobs(w, a.db, a.locker, down)
 	tenant.RegisterJobs(w, a.db, a.memberLogins, tenant.Addresses{PublicURL: a.cfg.PublicURL}, a.hub, a.exporter)
+	contact.RegisterJobs(w, a.db, a.hub, a.exporter)
 	scheduleapi.HandleRunNow(w, a.tasks)
 	return w.Run, nil
 }

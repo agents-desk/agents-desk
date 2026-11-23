@@ -139,9 +139,14 @@ export const messages = {
     "contacts.email_placeholder": "e.g. rahul@example.com",
     "contacts.empty": "No matching contacts",
     "contacts.empty_filtered": "No contacts match the current filters",
+    "contacts.export": "Export",
+    "contacts.export_csv": "Export as CSV",
+    "contacts.export_xlsx": "Export as Excel",
     "contacts.external_user_id": "User ID",
     "contacts.filter_channel": "All channels",
+    "contacts.filter_kind": "All types",
     "contacts.filter_language": "All languages",
+    "contacts.filter_tag": "All tags",
     "contacts.identities_empty": "No channel identities yet",
     "contacts.language": "Language",
     "contacts.last_seen_at": "Last active",
@@ -161,10 +166,22 @@ export const messages = {
     "contacts.open_in_inbox": "Open",
     "contacts.profile": "Profile",
     "contacts.referrer": "Source page",
+    "contacts.save_view": "Save filter",
     "contacts.search_placeholder": "Search by name, email, user ID, or #number…",
     "contacts.sort": "Sort",
     "contacts.time_zone": "Time zone",
     "contacts.time_zone_placeholder": "Choose or search a time zone",
+    "contacts.view_create": "New saved filter",
+    "contacts.view_created": "Filter saved",
+    "contacts.view_delete_confirm": "Delete filter “{{.name}}”?",
+    "contacts.view_deleted": "Filter deleted",
+    "contacts.view_edit": "Edit saved filter",
+    "contacts.view_empty": "No saved filters yet",
+    "contacts.view_keyword": "Keyword",
+    "contacts.view_name": "Name",
+    "contacts.view_name_placeholder": "e.g. VIP users, Chinese leads",
+    "contacts.view_section": "Saved filters",
+    "contacts.view_updated": "Filter updated",
     "event.assigned": "{{.who}} assigned the conversation to {{.assignee}}",
     "event.assigned_team_member": "{{.who}} moved the conversation to {{.team}} and assigned it to {{.assignee}}",
     "event.attr_changed": "{{.name}}: {{.from}} → {{.to}}",
@@ -1008,9 +1025,14 @@ export const messages = {
     "contacts.email_placeholder": "例如 rahul@example.com",
     "contacts.empty": "没有符合条件的联系人",
     "contacts.empty_filtered": "没有符合当前筛选条件的联系人",
+    "contacts.export": "导出",
+    "contacts.export_csv": "导出为 CSV",
+    "contacts.export_xlsx": "导出为 Excel",
     "contacts.external_user_id": "用户编号",
     "contacts.filter_channel": "全部渠道",
+    "contacts.filter_kind": "全部类型",
     "contacts.filter_language": "全部语言",
+    "contacts.filter_tag": "全部标签",
     "contacts.identities_empty": "还没有渠道身份",
     "contacts.language": "语言",
     "contacts.last_seen_at": "最近活跃",
@@ -1030,10 +1052,22 @@ export const messages = {
     "contacts.open_in_inbox": "打开",
     "contacts.profile": "资料",
     "contacts.referrer": "来源页面",
+    "contacts.save_view": "保存筛选",
     "contacts.search_placeholder": "搜索名字、邮箱、用户编号或 #访客号…",
     "contacts.sort": "排序",
     "contacts.time_zone": "时区",
     "contacts.time_zone_placeholder": "选择或搜索时区",
+    "contacts.view_create": "新建保存的筛选",
+    "contacts.view_created": "已保存筛选",
+    "contacts.view_delete_confirm": "删除筛选“{{.name}}”？",
+    "contacts.view_deleted": "已删除筛选",
+    "contacts.view_edit": "编辑保存的筛选",
+    "contacts.view_empty": "还没有保存的筛选",
+    "contacts.view_keyword": "关键词",
+    "contacts.view_name": "名称",
+    "contacts.view_name_placeholder": "例如 VIP 客户、中文用户",
+    "contacts.view_section": "保存的筛选",
+    "contacts.view_updated": "已更新筛选",
     "event.assigned": "{{.who}} 把会话指派给 {{.assignee}}",
     "event.assigned_team_member": "{{.who}} 把会话转到 {{.team}}，指派给 {{.assignee}}",
     "event.attr_changed": "{{.name}}：{{.from}} → {{.to}}",
@@ -1880,9 +1914,14 @@ export type MessageId =
   | "contacts.email_placeholder"
   | "contacts.empty"
   | "contacts.empty_filtered"
+  | "contacts.export"
+  | "contacts.export_csv"
+  | "contacts.export_xlsx"
   | "contacts.external_user_id"
   | "contacts.filter_channel"
+  | "contacts.filter_kind"
   | "contacts.filter_language"
+  | "contacts.filter_tag"
   | "contacts.identities_empty"
   | "contacts.language"
   | "contacts.last_seen_at"
@@ -1902,10 +1941,22 @@ export type MessageId =
   | "contacts.open_in_inbox"
   | "contacts.profile"
   | "contacts.referrer"
+  | "contacts.save_view"
   | "contacts.search_placeholder"
   | "contacts.sort"
   | "contacts.time_zone"
   | "contacts.time_zone_placeholder"
+  | "contacts.view_create"
+  | "contacts.view_created"
+  | "contacts.view_delete_confirm"
+  | "contacts.view_deleted"
+  | "contacts.view_edit"
+  | "contacts.view_empty"
+  | "contacts.view_keyword"
+  | "contacts.view_name"
+  | "contacts.view_name_placeholder"
+  | "contacts.view_section"
+  | "contacts.view_updated"
   | "event.assigned"
   | "event.assigned_team_member"
   | "event.attr_changed"

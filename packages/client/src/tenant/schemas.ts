@@ -47,6 +47,11 @@ export const schemas = {
     },
   },
   contact: {
+    exportStart: {
+      body: {
+        "$ref": "#/components/schemas/ContactExportStartInputBody"
+      },
+    },
     list: {
       query: {
         "properties": {
@@ -78,6 +83,14 @@ export const schemas = {
           "sort": {
             "$ref": "#/components/schemas/ContactSort",
             "default": "recent"
+          },
+          "tag_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "view_id": {
+            "format": "uuid",
+            "type": "string"
           }
         },
         "type": "object"
@@ -86,6 +99,21 @@ export const schemas = {
     update: {
       body: {
         "$ref": "#/components/schemas/ContactUpdateBody"
+      },
+    },
+    viewCreate: {
+      body: {
+        "$ref": "#/components/schemas/ContactViewCreateParams"
+      },
+    },
+    viewReorder: {
+      body: {
+        "$ref": "#/components/schemas/ContactViewReorderInputBody"
+      },
+    },
+    viewUpdate: {
+      body: {
+        "$ref": "#/components/schemas/ContactViewUpdateParams"
       },
     },
   },
@@ -974,6 +1002,45 @@ export const components = {
     ],
     "type": "object"
   },
+  ContactExportStartInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "channel_id": {
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
+        "type": "string"
+      },
+      "format": {
+        "enum": [
+          "xlsx",
+          "csv"
+        ],
+        "type": "string"
+      },
+      "kind": {
+        "$ref": "#/components/schemas/ContactKind"
+      },
+      "language": {
+        "maxLength": 35,
+        "type": "string"
+      },
+      "q": {
+        "maxLength": 100,
+        "type": "string"
+      },
+      "sort": {
+        "$ref": "#/components/schemas/ContactSort"
+      },
+      "tag_id": {
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
+        "type": "string"
+      },
+      "view_id": {
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
   ContactKind: {
     "enum": [
       "user",
@@ -1016,6 +1083,96 @@ export const components = {
         "type": "string"
       }
     },
+    "type": "object"
+  },
+  ContactViewConfig: {
+    "additionalProperties": false,
+    "properties": {
+      "channel_id": {
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
+        "type": "string"
+      },
+      "kind": {
+        "$ref": "#/components/schemas/ContactKind"
+      },
+      "language": {
+        "maxLength": 35,
+        "type": "string"
+      },
+      "q": {
+        "maxLength": 100,
+        "type": "string"
+      },
+      "sort": {
+        "$ref": "#/components/schemas/ContactSort"
+      },
+      "tag_id": {
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  ContactViewCreateParams: {
+    "additionalProperties": false,
+    "properties": {
+      "config": {
+        "$ref": "#/components/schemas/ContactViewConfig"
+      },
+      "name": {
+        "maxLength": 50,
+        "minLength": 1,
+        "type": "string"
+      },
+      "scope": {
+        "$ref": "#/components/schemas/SavedviewScope"
+      }
+    },
+    "required": [
+      "scope",
+      "name",
+      "config"
+    ],
+    "type": "object"
+  },
+  ContactViewReorderInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 100,
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "scope": {
+        "$ref": "#/components/schemas/SavedviewScope"
+      }
+    },
+    "required": [
+      "scope",
+      "ids"
+    ],
+    "type": "object"
+  },
+  ContactViewUpdateParams: {
+    "additionalProperties": false,
+    "properties": {
+      "config": {
+        "$ref": "#/components/schemas/ContactViewConfig"
+      },
+      "name": {
+        "maxLength": 50,
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "name",
+      "config"
+    ],
     "type": "object"
   },
   ConversationActions: {
@@ -1975,6 +2132,7 @@ export const components = {
       "macros:manage",
       "views:manage",
       "reports:read",
+      "contacts:export",
       "members:manage",
       "teams:manage",
       "channels:manage",
