@@ -181,11 +181,23 @@ export interface TagSummary {
   name: string
 }
 
+export interface WidgetAppearance {
+  /** 聊天窗口的主题色（#rrggbb 十六进制颜色值），缺省为 #0063ff */
+  color?: string
+  /** 聊天窗口顶部的问候语；为空时显示默认问候语 */
+  greeting?: string
+}
+
+export interface WidgetBehavior {
+  /** 会话模式：multiple 允许多个会话，single 仅保留单一对话流，缺省为 multiple */
+  conversation_mode?: "multiple" | "single"
+}
+
 export interface WidgetConfigDTO {
-  /** 聊天窗口的主题色 */
-  color: string
-  /** 聊天窗口顶部的问候语；为空时显示默认的问候语 */
-  greeting: string
+  /** 聊天窗口的外观配置 */
+  appearance: WidgetAppearance
+  /** 聊天窗口的交互行为配置 */
+  behavior: WidgetBehavior
   /** 聊天插件的名称，显示在聊天窗口的标题中 */
   name: string
 }

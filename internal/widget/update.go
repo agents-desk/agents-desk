@@ -25,7 +25,7 @@ type UpdateInput struct {
 	Body UpdateBody
 }
 
-// Update 修改当前工作区中一个聊天插件的名称、团队收件箱、问候语、主题色，启用或停用它。
+// Update 修改当前工作区中一个聊天插件的名称、团队收件箱、外观配置与允许嵌入的网站，启用或停用它。
 type Update struct {
 	db *bun.DB
 }
@@ -37,7 +37,11 @@ func NewUpdate(db *bun.DB) *Update { return &Update{db: db} }
 // channel.ErrNotFound，团队收件箱不属于这个工作区时返回 ErrTeamNotFound，主题色格式不对时返回 ErrInvalidColor，
 // 允许嵌入的网站写得不对时返回 ErrInvalidOrigin。
 func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b UpdateBody) (*WidgetDTO, error) {
-	color, err := normalizeColor(b.Color)
+	appearance, err := normalizeAppearance(b.Appearance)
+	if err != nil {
+		return nil, err
+	}
+	behavior, err := normalizeBehavior(b.Behavior)
 	if err != nil {
 		return nil, err
 	}
@@ -69,13 +73,13 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 		if ch.Enabled != b.Enabled {
 			changed = append(changed, "enabled")
 		}
-		if s.Greeting != b.Greeting || s.Color != string(color) || !slices.Equal(s.AllowedOrigins, origins) {
+		if s.appearance() != appearance || s.behavior() != behavior || !slices.Equal(s.AllowedOrigins, origins) {
 			changed = append(changed, "settings")
 		}
 		if len(changed) == 0 {
 			return nil
 		}
-		s.Greeting, s.Color, s.AllowedOrigins = b.Greeting, string(color), origins
+		s.Appearance, s.Behavior, s.AllowedOrigins = appearance, behavior, origins
 		settings, err := s.toMap()
 		if err != nil {
 			return err

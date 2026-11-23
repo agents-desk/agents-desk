@@ -104,7 +104,7 @@ func TestWidgetAPI(t *testing.T) {
 
 	// 管理：主管理员新建两个聊天插件，读取嵌入代码；坐席没有 channels:manage
 	var w, other widget.WidgetDTO
-	decode(call(h, "POST", "/t/alpha/api/widgets", `{"name":"官网","greeting":"你好"}`, owner), http.StatusCreated, &w)
+	decode(call(h, "POST", "/t/alpha/api/widgets", `{"name":"官网","appearance":{"greeting":"你好"}}`, owner), http.StatusCreated, &w)
 	decode(call(h, "POST", "/t/alpha/api/widgets", `{"name":"App"}`, owner), http.StatusCreated, &other)
 	var inst widget.InstallationDTO
 	decode(call(h, "GET", "/t/alpha/api/widgets/"+w.ID+"/installation", "", owner), http.StatusOK, &inst)
@@ -124,7 +124,7 @@ func TestWidgetAPI(t *testing.T) {
 	base := "/w/" + w.ID + "/api"
 	var cfg widget.ConfigDTO
 	decode(callBearer(h, "GET", base+"/config", "", ""), http.StatusOK, &cfg)
-	if cfg.Name != "官网" || cfg.Greeting != "你好" {
+	if cfg.Name != "官网" || cfg.Appearance.Greeting != "你好" {
 		t.Fatalf("公开设置：%+v", cfg)
 	}
 	if r := callBearer(h, "GET", "/w/00000000-0000-7000-8000-000000000000/api/config", "", ""); r.status != http.StatusNotFound || r.code != "channel.not_found" {
@@ -248,6 +248,8 @@ func TestPageCSP(t *testing.T) {
 		"/widget/?channel=" + open.ID:    "frame-ancestors *",
 		"/widget/?channel=" + limited.ID: "frame-ancestors https://shop.example.com",
 		"/widget/?channel=x":             "frame-ancestors 'none'",
+		"/widget/preview":                "frame-ancestors 'self'",
+		"/widget/preview/":               "frame-ancestors 'self'",
 		"/widget/demo":                   "frame-ancestors 'none'",
 		"/t/alpha/inbox":                 "frame-ancestors 'none'",
 		"/widgets?channel=" + open.ID:    "frame-ancestors 'none'",

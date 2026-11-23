@@ -232,8 +232,10 @@ export const WidgetErrors = {
   TeamNotFound: "widget.team_not_found",
   /** ErrInvalidOrigin 是允许嵌入的网站写得不对：要写成 http:// 或 https:// 开头、只有域名（和端口）的地址。 */
   InvalidOrigin: "widget.invalid_origin",
-  /** ErrInvalidColor 是主题色格式无效：应为预设名或 #rrggbb 十六进制颜色值。 */
+  /** ErrInvalidColor 是主题色格式无效：应为 #rrggbb 十六进制颜色值。 */
   InvalidColor: "widget.invalid_color",
+  /** ErrInvalidConversationMode 是会话模式无效：应为 multiple 或 single。 */
+  InvalidConversationMode: "widget.invalid_conversation_mode",
 } as const
 
 /** github.com/go-tenon/tenon/apitoken 的错误码。 */

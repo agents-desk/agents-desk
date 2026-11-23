@@ -11,12 +11,13 @@ interface ComposerProps {
   color: string
   touch: boolean // 手机和 App：回车换行，用按钮发送；电脑：回车发送，Shift + 回车换行
   placeholder: string
+  allowAttachments?: boolean // 预览模式关闭附件上传，仅保留文字发送体验
   onSend: (text: string, attachments: ConversationAttachmentDTO[]) => void
   onTyping?: () => void // 客户在输入：会话页据此告诉成员“正在输入”
 }
 
 /** Composer 是底部的输入框、附件上传与发送按钮。字号 16px，iOS 点进去时页面不会放大；底部留出横条的安全区域。 */
-export function Composer({ color, touch, placeholder, onSend, onTyping }: ComposerProps): ReactNode {
+export function Composer({ color, touch, placeholder, allowAttachments = true, onSend, onTyping }: ComposerProps): ReactNode {
   const t = useT()
   const [text, setText] = useState("")
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -60,33 +61,34 @@ export function Composer({ color, touch, placeholder, onSend, onTyping }: Compos
       data-dragging={dragging || undefined}
       style={{ flex: "none" }}
       onDragEnter={(e) => {
-        if (!e.dataTransfer.types.includes("Files")) return
+        if (!allowAttachments || !e.dataTransfer.types.includes("Files")) return
         e.preventDefault()
         dragDepth.current++
         setDragging(true)
       }}
       onDragOver={(e) => {
-        if (!e.dataTransfer.types.includes("Files")) return
+        if (!allowAttachments || !e.dataTransfer.types.includes("Files")) return
         e.preventDefault()
       }}
       onDragLeave={() => {
-        if (dragDepth.current === 0) return
+        if (!allowAttachments || dragDepth.current === 0) return
         dragDepth.current--
         if (dragDepth.current === 0) setDragging(false)
       }}
       onDrop={(e) => {
+        if (!allowAttachments) return
         dragDepth.current = 0
         setDragging(false)
         setUploadError(null)
         queue.handleDrop(e)
       }}
     >
-      {dragging && (
+      {allowAttachments && dragging && (
         <Text size="xs" c="dimmed" fw={500} ta="center" pt={6}>
           {t("composer.attach_drop")}
         </Text>
       )}
-      {uploadError && (
+      {allowAttachments && uploadError && (
         <Group gap={6} px="xs" pt={6} wrap="nowrap">
           <Text size="xs" c="red" style={{ flex: 1 }}>
             {uploadError}
@@ -96,26 +98,28 @@ export function Composer({ color, touch, placeholder, onSend, onTyping }: Compos
           </ActionIcon>
         </Group>
       )}
-      <WidgetAttachmentStrip items={queue.items} onRemove={queue.remove} onRetry={queue.retry} />
+      {allowAttachments && <WidgetAttachmentStrip items={queue.items} onRemove={queue.remove} onRetry={queue.retry} />}
       <Group gap="xs" align="flex-end" wrap="nowrap" p="xs">
-        <FileButton
-          resetRef={resetFile}
-          multiple
-          accept={ATTACHMENT_ACCEPT}
-          onChange={(files) => {
-            if (files.length > 0) {
-              setUploadError(null)
-              queue.add(files)
-            }
-            resetFile.current?.()
-          }}
-        >
-          {(props) => (
-            <ActionIcon {...props} size={42} radius="xl" variant="subtle" color="gray" aria-label={t("composer.attach")}>
-              <IconPaperclip size={18} />
-            </ActionIcon>
-          )}
-        </FileButton>
+        {allowAttachments && (
+          <FileButton
+            resetRef={resetFile}
+            multiple
+            accept={ATTACHMENT_ACCEPT}
+            onChange={(files) => {
+              if (files.length > 0) {
+                setUploadError(null)
+                queue.add(files)
+              }
+              resetFile.current?.()
+            }}
+          >
+            {(props) => (
+              <ActionIcon {...props} size={42} radius="xl" variant="subtle" color="gray" aria-label={t("composer.attach")}>
+                <IconPaperclip size={18} />
+              </ActionIcon>
+            )}
+          </FileButton>
+        )}
         <Textarea
           value={text}
           onChange={(e) => {
@@ -123,7 +127,7 @@ export function Composer({ color, touch, placeholder, onSend, onTyping }: Compos
             if (e.currentTarget.value.trim()) onTyping?.()
           }}
           onPaste={(e) => {
-            if (queue.handlePaste(e)) setUploadError(null)
+            if (allowAttachments && queue.handlePaste(e)) setUploadError(null)
           }}
           onKeyDown={(e) => {
             if (!touch && e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {

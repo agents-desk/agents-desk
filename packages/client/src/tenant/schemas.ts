@@ -2434,6 +2434,32 @@ export const components = {
     ],
     "type": "object"
   },
+  WidgetAppearance: {
+    "additionalProperties": false,
+    "properties": {
+      "color": {
+        "type": "string"
+      },
+      "greeting": {
+        "maxLength": 500,
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  WidgetBehavior: {
+    "additionalProperties": false,
+    "properties": {
+      "conversation_mode": {
+        "enum": [
+          "multiple",
+          "single"
+        ],
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
   WidgetChanges: {
     "additionalProperties": false,
     "properties": {
@@ -2444,12 +2470,11 @@ export const components = {
         "maxItems": 20,
         "type": "array"
       },
-      "color": {
-        "type": "string"
+      "appearance": {
+        "$ref": "#/components/schemas/WidgetAppearance"
       },
-      "greeting": {
-        "maxLength": 500,
-        "type": "string"
+      "behavior": {
+        "$ref": "#/components/schemas/WidgetBehavior"
       },
       "name": {
         "maxLength": 60,
@@ -2476,15 +2501,14 @@ export const components = {
         "maxItems": 20,
         "type": "array"
       },
-      "color": {
-        "type": "string"
+      "appearance": {
+        "$ref": "#/components/schemas/WidgetAppearance"
+      },
+      "behavior": {
+        "$ref": "#/components/schemas/WidgetBehavior"
       },
       "enabled": {
         "type": "boolean"
-      },
-      "greeting": {
-        "maxLength": 500,
-        "type": "string"
       },
       "name": {
         "maxLength": 60,

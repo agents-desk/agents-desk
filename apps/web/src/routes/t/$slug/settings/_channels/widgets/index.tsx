@@ -1,88 +1,169 @@
-import { Anchor, Badge, ColorInput as MantineColorInput, Text } from "@mantine/core"
-import { createFileRoute, Link } from "@tanstack/react-router"
-import { type FieldInput, type PrimaryColor, primaryColors, ResourcePage, ResourceSelect, useT } from "@go-tenon/ui"
-import { teams, widgets } from "../../../../../../resources"
+import { Badge, Button, Group, Modal, Paper, Skeleton, Stack, Table, Text, TextInput } from "@mantine/core"
+import { useForm } from "@mantine/form"
+import { IconPlus } from "@tabler/icons-react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { applyServerErrors, FormError, Page, ResourceSelect, useT } from "@go-tenon/ui"
+import { type ReactNode, useState } from "react"
+import { tenantApi } from "../../../../../../api"
+import { teams } from "../../../../../../resources"
 
-// 网页聊天插件：有 channels:manage 权限的成员新建、修改、停用聊天插件；点名称进入聊天插件，拿到嵌入代码和身份验证密钥。
+// 网页聊天插件列表：浏览工作区中的聊天插件，新建后直接进入实时预览配置工作台。
 export const Route = createFileRoute("/t/$slug/settings/_channels/widgets/")({
-  validateSearch: widgets.listSearch,
   component: Widgets,
 })
 
-// TeamInput 是新会话进入的团队收件箱：从启用的团队收件箱中选，可以清空（进入未指派）；如果原渠道绑定的团队已停用，保留回显并标明已停用。
-const TeamInput: FieldInput = ({ label, value, onChange, error, disabled }) => {
-  const t = useT()
-  const current = (value as string | undefined) ?? null
-  return (
-    <ResourceSelect
-      model={teams}
-      label={label}
-      description={t("widgets.team_hint")}
-      placeholder={t("widgets.team_unassigned")}
-      filterRow={(row) => row.status === "active" || String(row.id) === String(current ?? "")}
-      getOption={(row) => ({
-        value: String(row.id),
-        label: row.status === "disabled" ? t("widgets.team_disabled_suffix", { name: String(row.name ?? "") }) : String(row.name ?? ""),
-      })}
-      value={current}
-      onChange={(v) => onChange?.(v ?? undefined)}
-      error={error}
-      disabled={disabled}
-      clearable
-    />
-  )
-}
-
-// presetSwatches 是 26 种主题预设色的十六进制色块，供颜色选择器快速点选。
-const presetSwatches = Object.values(primaryColors)
-
-// resolveHex 将预设色名转换为对应的十六进制色值，自定义颜色值原样返回。
-function resolveHex(v: unknown): string {
-  if (v === undefined || v === null) return primaryColors["bright-blue"]
-  const s = String(v)
-  return Object.hasOwn(primaryColors, s) ? primaryColors[s as PrimaryColor] : s
-}
-
-// ColorInput 是聊天窗口的主题色：支持从预设色块点选或输入自定义 #rrggbb 十六进制颜色值。
-const ColorInput: FieldInput = ({ field, label, value, onChange, error, disabled }) => (
-  <MantineColorInput
-    label={label}
-    description={field.description}
-    format="hex"
-    swatches={presetSwatches}
-    swatchesPerRow={7}
-    value={resolveHex(value)}
-    onChange={(v) => onChange?.(v)}
-    error={error}
-    disabled={disabled}
-    fixOnBlur={false}
-  />
-)
-
-function Widgets() {
+function Widgets(): ReactNode {
   const { slug } = Route.useParams()
+  const navigate = useNavigate()
   const t = useT()
+  const queryClient = useQueryClient()
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState<ReturnType<typeof applyServerErrors>>()
+
+  const list = useQuery({
+    queryKey: ["resource", "widget", "list"],
+    queryFn: () => tenantApi.widget.list(),
+  })
+
+  const form = useForm<{ name: string; team_id: string | null }>({
+    initialValues: { name: "", team_id: null },
+  })
+
+  const create = useMutation({
+    mutationFn: (v: { name: string; team_id: string | null }) =>
+      tenantApi.widget.create({
+        name: v.name.trim(),
+        team_id: v.team_id || undefined,
+      }),
+    onSuccess: (created) => {
+      setCreating(false)
+      setCreateError(undefined)
+      form.reset()
+      void queryClient.invalidateQueries({ queryKey: ["resource", "widget"] })
+      void navigate({ to: "/t/$slug/settings/widgets/$id", params: { slug, id: created.id } })
+    },
+    onError: (err) => {
+      setCreateError(applyServerErrors(form, err))
+    },
+  })
+
+  const openCreate = () => {
+    setCreateError(undefined)
+    form.reset()
+    setCreating(true)
+  }
+
   return (
-    <ResourcePage
-      model={widgets}
-      route={Route}
-      form="modal"
-      inputs={{ team_id: TeamInput, color: ColorInput }}
-      render={{
-        name: (v, row) => (
-          <Anchor
-            renderRoot={(props) => <Link {...props} to="/t/$slug/settings/widgets/$id" params={{ slug, id: String(row.id) }} />}
-          >
-            {String(v)}
-          </Anchor>
-        ),
-        team_name: (v) => (v ? String(v) : <Text c="dimmed" size="sm">{t("widgets.team_unassigned")}</Text>),
-        enabled: (v) => (
-          <Badge variant="dot" color={v ? "green" : "gray"}>
-            {t(v ? "widgets.enabled" : "widgets.disabled")}
-          </Badge>
-        ),
-      }}
-    />
+    <Page
+      title={t("widgets.title")}
+      actions={
+        <Button leftSection={<IconPlus size={16} />} onClick={openCreate}>
+          {t("widgets.new")}
+        </Button>
+      }
+    >
+      {list.isPending ? (
+        <Stack gap="sm">
+          <Skeleton height={48} radius="md" />
+          <Skeleton height={48} radius="md" />
+        </Stack>
+      ) : !list.data?.items.length ? (
+        <Paper withBorder p="xl" radius="md">
+          <Stack align="center" gap="sm">
+            <Text c="dimmed" size="sm">
+              {t("widgets.empty")}
+            </Text>
+            <Button leftSection={<IconPlus size={16} />} onClick={openCreate}>
+              {t("widgets.new")}
+            </Button>
+          </Stack>
+        </Paper>
+      ) : (
+        <Paper withBorder radius="md" style={{ overflow: "hidden" }}>
+          <Table highlightOnHover>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>{t("widget_studio.name")}</Table.Th>
+                <Table.Th>{t("widgets.team_hint")}</Table.Th>
+                <Table.Th>{t("widgets.enabled")}</Table.Th>
+                <Table.Th w={100} />
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {list.data.items.map((row) => (
+                <Table.Tr key={row.id}>
+                  <Table.Td>
+                    <Text size="sm" fw={500}>
+                      {row.name}
+                    </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    {row.team_name ? (
+                      <Text size="sm">{row.team_name}</Text>
+                    ) : (
+                      <Text c="dimmed" size="sm">
+                        {t("widgets.team_unassigned")}
+                      </Text>
+                    )}
+                  </Table.Td>
+                  <Table.Td>
+                    <Badge variant="dot" color={row.enabled ? "green" : "gray"}>
+                      {t(row.enabled ? "widgets.enabled" : "widgets.disabled")}
+                    </Badge>
+                  </Table.Td>
+                  <Table.Td ta="right">
+                    <Button
+                      size="xs"
+                      variant="subtle"
+                      renderRoot={(props) => (
+                        <Link {...props} to="/t/$slug/settings/widgets/$id" params={{ slug, id: row.id }} />
+                      )}
+                    >
+                      {t("widgets.configure")}
+                    </Button>
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        </Paper>
+      )}
+
+      <Modal opened={creating} onClose={() => setCreating(false)} title={t("widgets.create_title")}>
+        <form onSubmit={form.onSubmit((v) => create.mutate(v))}>
+          <Stack gap="md">
+            <FormError error={createError} />
+            <TextInput
+              label={t("widget_studio.name")}
+              description={t("widget_studio.name_hint")}
+              required
+              maxLength={60}
+              data-autofocus
+              {...form.getInputProps("name")}
+            />
+            <ResourceSelect
+              model={teams}
+              label={t("widgets.team_hint")}
+              placeholder={t("widgets.team_unassigned")}
+              filterRow={(row) => row.status === "active"}
+              getOption={(row) => ({ value: String(row.id), label: String(row.name ?? "") })}
+              value={form.values.team_id}
+              onChange={(v) => form.setFieldValue("team_id", v)}
+              error={form.errors.team_id}
+              clearable
+            />
+            <Group justify="flex-end">
+              <Button variant="default" onClick={() => setCreating(false)}>
+                {t("widgets.cancel")}
+              </Button>
+              <Button type="submit" loading={create.isPending}>
+                {t("widgets.create_submit")}
+              </Button>
+            </Group>
+          </Stack>
+        </form>
+      </Modal>
+    </Page>
   )
 }

@@ -46,7 +46,7 @@ interface ConversationProps {
   touch: boolean // 手机和 App
   visible: boolean // 聊天窗口展开着并且页面在前台：这时读到的消息记为已读
   onStarted: (id: string) => void
-  onBack: () => void
+  onBack?: () => void
 }
 
 /**
@@ -166,7 +166,7 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
       const sent = await authed(() => (id ? widgetApi.conversation.send(id, body) : widgetApi.conversation.start(body)))
       await queryClient.invalidateQueries({ queryKey: ["widget", contact?.id] })
       setPending((all) => all.filter((x) => x.clientId !== p.clientId))
-      if (!id) onStarted(sent.conversation_id)
+      if (sent.conversation_id !== id) onStarted(sent.conversation_id)
     } catch {
       setPending((all) => all.map((x) => (x.clientId === p.clientId ? { ...x, failed: true } : x)))
     }
@@ -181,22 +181,23 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
     void authed(() => widgetApi.conversation.typing(id)).catch(() => {})
   }
 
-  // 手机上从左边缘向右滑返回首页
+  // 手机上从左边缘向右滑返回首页（仅在多会话模式下启用）
   const touchStart = useRef<{ x: number; y: number } | null>(null)
-  const swipe = touch
-    ? {
-        onTouchStart: (e: React.TouchEvent) => {
-          const p = e.touches[0]
-          touchStart.current = p.clientX < 40 ? { x: p.clientX, y: p.clientY } : null
-        },
-        onTouchEnd: (e: React.TouchEvent) => {
-          const s = touchStart.current
-          const p = e.changedTouches[0]
-          if (s && p.clientX - s.x > 80 && Math.abs(p.clientY - s.y) < 60) onBack()
-          touchStart.current = null
-        },
-      }
-    : {}
+  const swipe =
+    touch && onBack
+      ? {
+          onTouchStart: (e: React.TouchEvent) => {
+            const p = e.touches[0]
+            touchStart.current = p.clientX < 40 ? { x: p.clientX, y: p.clientY } : null
+          },
+          onTouchEnd: (e: React.TouchEvent) => {
+            const s = touchStart.current
+            const p = e.changedTouches[0]
+            if (s && p.clientX - s.x > 80 && Math.abs(p.clientY - s.y) < 60) onBack()
+            touchStart.current = null
+          },
+        }
+      : {}
 
   return (
     <>
@@ -303,7 +304,7 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
 }
 
 /** Bubble 是时间线中的一条消息：客户的在右边、用主题色，别人的在左边、纯白底配轻边框与名字。 */
-function Bubble({
+export function Bubble({
   mine,
   author,
   text,

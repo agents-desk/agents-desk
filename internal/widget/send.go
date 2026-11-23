@@ -48,6 +48,10 @@ func (a *SendMessage) Handle(ctx context.Context, sub identity.Subject, conversa
 	if err != nil {
 		return nil, err
 	}
+	s, err := settingsOf(ch)
+	if err != nil {
+		return nil, err
+	}
 	var from string
 	err = a.db.NewSelect().Table("contact_identities").Column("external_id").
 		Where("tenant_id = ? AND channel_id = ? AND contact_id = ?", sub.Tenant, ch.ID, sub.ID).Limit(1).Scan(ctx, &from)
@@ -55,7 +59,12 @@ func (a *SendMessage) Handle(ctx context.Context, sub identity.Subject, conversa
 		return nil, errors.Wrap(err, "load contact identity")
 	}
 	p := conversation.ReceiveParams{
-		ChannelID: ch.ID, From: from, Text: b.Text, AttachmentFileIDs: b.Attachments, ConversationID: conversationID,
+		ChannelID:          ch.ID,
+		From:               from,
+		Text:               b.Text,
+		AttachmentFileIDs:  b.Attachments,
+		ConversationID:     conversationID,
+		SingleConversation: s.behavior().ConversationMode == SingleConversation,
 	}
 	if b.ClientID != "" {
 		p.ExternalID = sub.ID + ":" + b.ClientID // 编号由客户生成，加上联系人的前缀，不会与别人的重复

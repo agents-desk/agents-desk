@@ -233,7 +233,11 @@ func seedWidget(ctx context.Context, out io.Writer, db *bun.DB, keys *crypt.Cryp
 	if err := db.NewRaw("SELECT id FROM teams WHERE tenant_id = ? AND name = '一线客服'", inDemo.Tenant).Scan(ctx, &teamID); err != nil {
 		return errors.Wrap(err, "find demo team")
 	}
-	w, err := widget.NewCreate(db, keys).Handle(ctx, inDemo, widget.Changes{Name: "官网", TeamID: &teamID, Greeting: "你好！有什么可以帮你？"})
+	w, err := widget.NewCreate(db, keys).Handle(ctx, inDemo, widget.Changes{
+		Name:       "官网",
+		TeamID:     &teamID,
+		Appearance: widget.Appearance{Greeting: "你好！有什么可以帮你？"},
+	})
 	if err != nil {
 		return err
 	}

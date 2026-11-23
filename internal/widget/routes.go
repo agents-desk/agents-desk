@@ -47,8 +47,8 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 		Create:     "widget-create",
 		Update:     "widget-update",
 		Columns:    []string{"name", "team_name", "enabled"},
-		CreateForm: []string{"name", "team_id", "greeting", "color", "allowed_origins"},
-		UpdateForm: []string{"name", "team_id", "greeting", "color", "allowed_origins", "enabled"},
+		CreateForm: []string{"name", "team_id"},
+		UpdateForm: []string{"name", "team_id", "allowed_origins", "enabled"},
 		Refs:       map[string]string{"team_id": "team"},
 	})
 }

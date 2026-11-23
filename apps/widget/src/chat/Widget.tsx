@@ -125,7 +125,7 @@ export function Widget(): ReactNode {
   }, [ready, unread])
 
   const setBrandColor = useSetWidgetBrand()
-  const rawColor = config.data?.color ?? DEFAULT_WIDGET_COLOR
+  const rawColor = config.data?.appearance.color ?? DEFAULT_WIDGET_COLOR
   useEffect(() => {
     setBrandColor(rawColor)
   }, [rawColor, setBrandColor])
@@ -152,6 +152,8 @@ export function Widget(): ReactNode {
   const full = mobile || !floating // 占满屏幕或容器：手机、容器内联和 App
   const close = floating ? (full ? "close" : "collapse") : hasCloseButton() ? "close" : undefined
   const onClose = () => (floating ? toggle(false) : tell("close"))
+  const single = config.data?.behavior.conversation_mode === "single"
+  const latestConversationId = conversations.data?.[0]?.id
   const panel = (
     <Box
       className="w-panel"
@@ -162,9 +164,37 @@ export function Widget(): ReactNode {
         <Center style={{ flex: 1 }}>
           <Loader color={color} />
         </Center>
+      ) : single ? (
+        latestConversationId ? (
+          <Box key={latestConversationId} className="w-view">
+            <ConversationPage
+              id={latestConversationId}
+              color={color}
+              name={name}
+              full={full}
+              visible={open && visible}
+              close={close}
+              onClose={onClose}
+              single
+              onView={setView}
+            />
+          </Box>
+        ) : (
+          <Box key="single-new" className="w-view">
+            <Header color={color} title={name} greeting={config.data.appearance.greeting || t("home.default_greeting")} close={close} onClose={onClose} />
+            <ConversationView
+              intro={<FirstMessage />}
+              color={color}
+              name={name}
+              touch={full}
+              visible={open && visible}
+              onStarted={(id) => setView({ kind: "conversation", id })}
+            />
+          </Box>
+        )
       ) : view.kind === "home" ? (
         <Box key="home" className="w-view">
-          <Header color={color} title={name} greeting={config.data.greeting || t("home.default_greeting")} close={close} onClose={onClose} />
+          <Header color={color} title={name} greeting={config.data.appearance.greeting || t("home.default_greeting")} close={close} onClose={onClose} />
           {conversations.data.length > 0 ? (
             <Home
               color={color}
@@ -210,7 +240,7 @@ export function Widget(): ReactNode {
   )
 }
 
-/** ConversationPage 是会话页：顶部有返回首页和会话的状态，下面是会话。 */
+/** ConversationPage 是会话页：顶部显示标题与会话状态（多会话模式附带返回首页），下面是会话。 */
 function ConversationPage({
   id,
   color,
@@ -219,6 +249,7 @@ function ConversationPage({
   visible,
   close,
   onClose,
+  single = false,
   onView,
 }: {
   id?: string
@@ -228,14 +259,16 @@ function ConversationPage({
   visible: boolean
   close?: "collapse" | "close"
   onClose: () => void
+  single?: boolean
   onView: (v: View) => void
 }): ReactNode {
   const t = useT()
   const conversation = useConversation(id ?? "")
   const status = !id ? t("chat.new") : conversation.data?.status === "closed" ? t("chat.status_closed") : t("chat.status_open")
+  const onBack = single ? undefined : () => onView({ kind: "home" })
   return (
     <>
-      <Header color={color} title={name} status={status} onBack={() => onView({ kind: "home" })} close={close} onClose={onClose} />
+      <Header color={color} title={name} status={status} onBack={onBack} close={close} onClose={onClose} />
       <ConversationView
         id={id}
         intro={<FirstMessage />}
@@ -244,7 +277,7 @@ function ConversationPage({
         touch={full}
         visible={visible}
         onStarted={(next) => onView({ kind: "conversation", id: next })}
-        onBack={() => onView({ kind: "home" })}
+        onBack={onBack}
       />
     </>
   )

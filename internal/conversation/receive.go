@@ -20,13 +20,14 @@ import (
 
 // ReceiveParams 是渠道收到的一条消息。
 type ReceiveParams struct {
-	ChannelID         string
-	From              string // 对方在渠道中的外部编号
-	FromName          string // 对方在渠道中显示的名字，新建联系人时使用
-	ExternalID        string // 消息在渠道中的编号，用来去重；渠道没有编号时为空
-	Text              string
-	AttachmentFileIDs []string // 附带的文件 ID（由发送者上传的临时文件，在写入事务中确认）
-	ConversationID    string   // 对方选定继续的会话；只在可以有多个会话的渠道中使用，为空时新建会话
+	ChannelID          string
+	From               string // 对方在渠道中的外部编号
+	FromName           string // 对方在渠道中显示的名字，新建联系人时使用
+	ExternalID         string // 消息在渠道中的编号，用来去重；渠道没有编号时为空
+	Text               string
+	AttachmentFileIDs  []string // 附带的文件 ID（由发送者上传的临时文件，在写入事务中确认）
+	ConversationID     string   // 对方选定继续的会话；只在可以有多个会话的渠道中使用，为空时新建会话
+	SingleConversation bool     // 为 true 时按单会话模式归入该联系人在本渠道最近的会话，不新建并行会话
 }
 
 // Received 是写入收到的消息的结果。
@@ -96,7 +97,8 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 			return err
 		}
 		at := now()
-		c, created, opened, defaultMemberID, err := a.conversationFor(ctx, tx, ch, person, p, connector.Capabilities().MultipleConversations, at)
+		multiple := connector.Capabilities().MultipleConversations && !p.SingleConversation
+		c, created, opened, defaultMemberID, err := a.conversationFor(ctx, tx, ch, person, p, multiple, at)
 		if err != nil {
 			return err
 		}
