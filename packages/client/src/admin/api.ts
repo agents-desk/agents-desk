@@ -300,20 +300,27 @@ export interface QueueFailedList {
 export interface QueueJetStream {
   /** stream 占用的存储（字节） */
   bytes: number
-  /** 等待到时间投递的定时消息：延迟任务和重试 */
-  deferred: number
   /** 读不到 JetStream 时的错误（例如 NATS 不可用、读取超过 3 秒），这时其余字段为零值，topics 中只有失败任务数 */
   error?: string
   /** stream 是否存在；Worker 第一次启动时创建它 */
   exists: boolean
   /** 集群中负责这个 stream 的服务器，单个服务器时没有这个字段 */
   leader?: string
-  /** stream 中的消息数：等待处理、处理中的任务和定时消息 */
+  /** stream 中的消息数：等待处理、处理中和等待退避重试的任务 */
   messages: number
   /** 副本数 */
   replicas: number
   /** stream 的名字 */
   stream: string
+}
+
+export interface QueueOutbox {
+  /** 尚未到执行时间的延迟任务数 */
+  deferred: number
+  /** 最早一条待转发任务的可用时间；没有待转发任务时没有这个字段 */
+  oldest_pending?: string
+  /** 已到期、等待 Worker 转发到 JetStream 的任务数 */
+  pending: number
 }
 
 export interface QueuePaused {
@@ -322,28 +329,13 @@ export interface QueuePaused {
   topic: string
 }
 
-export interface QueueSlot {
-  /** 是否有 Worker 正在转发 */
-  active: boolean
-  /** 正在转发的复制连接在 PostgreSQL 中的进程号，没有时为 0 */
-  active_pid: number
-  /** 复制槽是否存在；为 false 时 Worker 拒绝启动，要运行 queue slot recreate */
-  exists: boolean
-  /** Worker 还没确认的 WAL 字节数（积压），包含整个数据库的写入 */
-  lag: number
-  /** 复制槽的名字 */
-  name: string
-  /** pg_replication_slots.wal_status：reserved、extended 正常，unreserved 即将失效，lost 已失效；复制槽不存在时为空 */
-  wal_status: string
-}
-
 export interface QueueStatus {
   /** 全部 topic 的失败任务数 */
   failed: number
   /** JetStream 一侧的状态；应用没有设置 Options.Admin 时没有这个字段，暂停和恢复返回 queue.no_admin */
   jetstream?: QueueJetStream
-  /** 转发任务的复制槽：数据库一侧的状态 */
-  slot: QueueSlot
+  /** 待转发任务与延迟任务：数据库一侧的状态 */
+  outbox: QueueOutbox
   /** JetStream 中的 topic 和有失败任务的 topic，按名字排序 */
   topics: QueueTopic[]
 }
@@ -353,7 +345,7 @@ export interface QueueTopic {
   description?: string
   /** 失败任务数 */
   failed: number
-  /** 已经交给 Worker、还没有确认的任务数 */
+  /** 已经交给 Worker、还没有确认的任务数（含处理中和等待退避重试的任务） */
   in_flight: number
   /** 任务类型的显示名称 */
   label?: string
@@ -363,7 +355,7 @@ export interface QueueTopic {
   paused_until?: string
   /** 等待处理的任务数 */
   pending: number
-  /** 租约到期或停止时放回、再次投递还没有确认的任务数 */
+  /** 失败退避、租约到期或停止时放回、再次投递还没有确认的任务数 */
   redelivered: number
   /** ok 正常；no_handler 没有 Worker 注册处理函数；paused 暂停中；stalled 有任务在等待却没有 Worker 在处理；absent 没有 JetStream 中的状态，只有失败任务数。ok、stalled 可以暂停，paused 可以恢复 */
   state: "ok" | "no_handler" | "paused" | "stalled" | "absent"
@@ -377,7 +369,7 @@ export interface ScheduleRun {
   /** 失败的原因；跳过时是跳过的原因，例如 overlap */
   error: string
   id: string
-  /** 立即执行的，不是按表达式触发 */
+  /** 来自手动立即执行 */
   manual: boolean
   started_at: string
   status: "succeeded" | "failed" | "skipped"

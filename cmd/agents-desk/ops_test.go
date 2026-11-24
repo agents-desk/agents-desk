@@ -50,8 +50,8 @@ func TestAdminOpsAPIs(t *testing.T) {
 		t.Fatalf("管理员登录：%d %s", login.status, login.body)
 	}
 
-	// 队列概览（无 NATS 连接时返回数据库侧复制槽与失败任务计数）
-	if r := call(h, http.MethodGet, "/admin/api/queue/status", "", login.cookie); r.status != http.StatusOK || !strings.Contains(r.body, `"slot"`) {
+	// 队列概览（无 NATS 连接时返回数据库侧待转发队列与失败任务计数）
+	if r := call(h, http.MethodGet, "/admin/api/queue/status", "", login.cookie); r.status != http.StatusOK || !strings.Contains(r.body, `"outbox"`) {
 		t.Fatalf("GET /admin/api/queue/status：%d %s", r.status, r.body)
 	}
 

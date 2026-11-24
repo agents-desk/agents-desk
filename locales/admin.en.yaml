@@ -74,7 +74,7 @@ settings.general_description: "Configure the platform display name, support cont
 settings.mail_description: "Configure Resend for outgoing email. The sender domain must be verified in Resend; leave the API key empty to log emails without sending."
 
 doctor.all_passed: "All checks passed"
-doctor.description: "Inspect database, migration status, queue replication slot, NATS JetStream, and file storage configuration."
+doctor.description: "Inspect database, migration status, queue tables, NATS JetStream, and file storage configuration."
 doctor.failed_summary: "{{.count}} check(s) failed. Follow the instructions below to resolve them."
 doctor.fix: "How to fix"
 doctor.refresh: "Re-run checks"

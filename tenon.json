@@ -1,4 +1,5 @@
 {
+  "languages": ["zh-CN", "en"],
   "apis": {
     "/t/{slug}/api": { "name": "tenant" },
     "/w/{channel}/api": { "name": "widget" }

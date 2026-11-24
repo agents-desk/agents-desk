@@ -57,6 +57,7 @@ type Call struct {
 
 	ID               string         `bun:"id,pk"`
 	CreatedAt        time.Time      `bun:"created_at,notnull"`
+	UpdatedAt        time.Time      `bun:"updated_at,notnull"`
 	TenantID         *string        `bun:"tenant_id"`
 	CallType         CallType       `bun:"call_type,notnull"`
 	Operation        string         `bun:"operation,notnull"` // 业务场景名，例如 incoming、fill、reply、back_translate
@@ -180,7 +181,7 @@ func (c *Client) JSON(ctx context.Context, t CallType, target Target, req JSONRe
 		// 若传输层已记录成功响应但 JSON 解码失败，将解码错误补充回同一条 llm_calls 记录。
 		if callID != "" {
 			_, _ = c.db.NewUpdate().Model((*Call)(nil)).
-				Set("error = ?", err.Error()).
+				Set("error = ?, updated_at = ?", err.Error(), time.Now().UTC().Truncate(time.Microsecond)).
 				Where("id = ? AND error = ''", callID).
 				Exec(context.WithoutCancel(ctx))
 		}
@@ -250,9 +251,11 @@ func (t *observingTransport) RoundTrip(req *http.Request) (*http.Response, error
 	if meta == nil {
 		meta = map[string]any{}
 	}
+	now := time.Now().UTC().Truncate(time.Microsecond)
 	call := &Call{
 		ID:         uuid.Must(uuid.NewV7()).String(),
-		CreatedAt:  time.Now().UTC().Truncate(time.Microsecond),
+		CreatedAt:  now,
+		UpdatedAt:  now,
 		CallType:   t.callType,
 		Operation:  target.Operation,
 		Meta:       meta,

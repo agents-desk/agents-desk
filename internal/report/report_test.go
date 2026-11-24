@@ -178,7 +178,7 @@ func TestReportsAggregationAndIsolation(t *testing.T) {
 	mustExec(t, env.DB, "UPDATE timeline_items SET created_at = ?, derived = '{\"language\":\"ja\"}'::jsonb WHERE conversation_id = ?", day1, cBeta.ConversationID)
 	// 插入一条成员带译文回复
 	replyItem := &conversation.Item{
-		ID: uuid.Must(uuid.NewV7()).String(), CreatedAt: day2.Add(5 * time.Minute), TenantID: alpha.ID, ConversationID: c2.ConversationID, Seq: 99,
+		ID: uuid.Must(uuid.NewV7()).String(), CreatedAt: day2.Add(5 * time.Minute), UpdatedAt: day2.Add(5 * time.Minute), TenantID: alpha.ID, ConversationID: c2.ConversationID, Seq: 99,
 		Kind: conversation.Message, ActorType: conversation.MemberActor, ActorID: agentB.ID, Visibility: conversation.Everyone,
 		Content: conversation.Content{Text: "namaste ji", Original: "您好", Language: "hi-Latn"}, Derived: map[string]any{},
 	}
@@ -189,11 +189,11 @@ func TestReportsAggregationAndIsolation(t *testing.T) {
 	// 插入翻译 llm_calls（alpha 2 成功 + 1 失败，beta 1 成功）
 	cost1, cost2 := 0.001, 0.002
 	for _, rec := range []*llm.Call{
-		{ID: uuid.Must(uuid.NewV7()).String(), CreatedAt: day1, TenantID: &alpha.ID, CallType: llm.Translation, Operation: "incoming", Meta: map[string]any{}, Endpoint: "https://openrouter.ai/api/v1", Model: "m1", Request: map[string]any{}, Response: "{}", PromptTokens: 100, CompletionTokens: 50, ReasoningTokens: 10, Cost: &cost1, DurationMS: 400},
-		{ID: uuid.Must(uuid.NewV7()).String(), CreatedAt: day2, TenantID: &alpha.ID, CallType: llm.Translation, Operation: "reply", Meta: map[string]any{}, Endpoint: "https://openrouter.ai/api/v1", Model: "m1", Request: map[string]any{}, Response: "{}", PromptTokens: 200, CompletionTokens: 100, Cost: &cost2, DurationMS: 600},
-		{ID: uuid.Must(uuid.NewV7()).String(), CreatedAt: day2, TenantID: &alpha.ID, CallType: llm.Translation, Operation: "reply", Meta: map[string]any{}, Endpoint: "https://openrouter.ai/api/v1", Model: "m1", Request: map[string]any{}, Response: "", PromptTokens: 0, CompletionTokens: 0, DurationMS: 800, Error: "timeout"},
-		{ID: uuid.Must(uuid.NewV7()).String(), CreatedAt: prevDay, TenantID: &alpha.ID, CallType: llm.Translation, Operation: "incoming", Meta: map[string]any{}, Endpoint: "https://openrouter.ai/api/v1", Model: "m1", Request: map[string]any{}, Response: "{}", PromptTokens: 80, CompletionTokens: 20, Cost: &cost1, DurationMS: 300},
-		{ID: uuid.Must(uuid.NewV7()).String(), CreatedAt: day1, TenantID: &beta.ID, CallType: llm.Translation, Operation: "incoming", Meta: map[string]any{}, Endpoint: "https://openrouter.ai/api/v1", Model: "m-beta", Request: map[string]any{}, Response: "{}", PromptTokens: 999, CompletionTokens: 999, Cost: &cost2, DurationMS: 100},
+		{ID: uuid.Must(uuid.NewV7()).String(), CreatedAt: day1, UpdatedAt: day1, TenantID: &alpha.ID, CallType: llm.Translation, Operation: "incoming", Meta: map[string]any{}, Endpoint: "https://openrouter.ai/api/v1", Model: "m1", Request: map[string]any{}, Response: "{}", PromptTokens: 100, CompletionTokens: 50, ReasoningTokens: 10, Cost: &cost1, DurationMS: 400},
+		{ID: uuid.Must(uuid.NewV7()).String(), CreatedAt: day2, UpdatedAt: day2, TenantID: &alpha.ID, CallType: llm.Translation, Operation: "reply", Meta: map[string]any{}, Endpoint: "https://openrouter.ai/api/v1", Model: "m1", Request: map[string]any{}, Response: "{}", PromptTokens: 200, CompletionTokens: 100, Cost: &cost2, DurationMS: 600},
+		{ID: uuid.Must(uuid.NewV7()).String(), CreatedAt: day2, UpdatedAt: day2, TenantID: &alpha.ID, CallType: llm.Translation, Operation: "reply", Meta: map[string]any{}, Endpoint: "https://openrouter.ai/api/v1", Model: "m1", Request: map[string]any{}, Response: "", PromptTokens: 0, CompletionTokens: 0, DurationMS: 800, Error: "timeout"},
+		{ID: uuid.Must(uuid.NewV7()).String(), CreatedAt: prevDay, UpdatedAt: prevDay, TenantID: &alpha.ID, CallType: llm.Translation, Operation: "incoming", Meta: map[string]any{}, Endpoint: "https://openrouter.ai/api/v1", Model: "m1", Request: map[string]any{}, Response: "{}", PromptTokens: 80, CompletionTokens: 20, Cost: &cost1, DurationMS: 300},
+		{ID: uuid.Must(uuid.NewV7()).String(), CreatedAt: day1, UpdatedAt: day1, TenantID: &beta.ID, CallType: llm.Translation, Operation: "incoming", Meta: map[string]any{}, Endpoint: "https://openrouter.ai/api/v1", Model: "m-beta", Request: map[string]any{}, Response: "{}", PromptTokens: 999, CompletionTokens: 999, Cost: &cost2, DurationMS: 100},
 	} {
 		if _, err := env.DB.NewInsert().Model(rec).Exec(ctx); err != nil {
 			t.Fatal(err)

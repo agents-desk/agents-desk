@@ -237,6 +237,7 @@ type Item struct {
 
 	ID             string         `bun:"id,pk"`
 	CreatedAt      time.Time      `bun:"created_at,notnull"`
+	UpdatedAt      time.Time      `bun:"updated_at,notnull"`
 	TenantID       string         `bun:"tenant_id,notnull"`
 	ConversationID string         `bun:"conversation_id,notnull"`
 	Seq            int64          `bun:"seq,notnull"`
@@ -392,7 +393,7 @@ func commit(ctx context.Context, tx database.Tx, down Downstream, c *Conversatio
 	syncIDs := make([]string, 0, len(items))
 	for _, it := range items {
 		c.LastSeq++
-		it.ID, it.Seq, it.CreatedAt, it.TenantID, it.ConversationID = newID(), c.LastSeq, at, c.TenantID, c.ID
+		it.ID, it.Seq, it.CreatedAt, it.UpdatedAt, it.TenantID, it.ConversationID = newID(), c.LastSeq, at, at, c.TenantID, c.ID
 		if it.Derived == nil {
 			it.Derived = map[string]any{}
 		}

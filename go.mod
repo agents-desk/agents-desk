@@ -9,7 +9,7 @@ require (
 	github.com/coder/websocket v1.8.15
 	github.com/danielgtaylor/huma/v2 v2.40.0
 	github.com/go-chi/chi/v5 v5.5.0
-	github.com/go-tenon/tenon v0.2.15
+	github.com/go-tenon/tenon v0.2.20
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/nats-io/nats.go v1.55.0
@@ -55,8 +55,6 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/jackc/pgio v1.0.0 // indirect
-	github.com/jackc/pglogrepl v0.0.0-20261111174325-d50336b09c47 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/pgx/v5 v5.13.0 // indirect

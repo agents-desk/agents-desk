@@ -1,5 +1,4 @@
 -- +goose Up
--- 快捷回复：owner_id 为空表示工作区共享，非空表示该成员个人。
 CREATE TABLE macros (
     id         uuid PRIMARY KEY,
     created_at timestamptz NOT NULL,
@@ -16,15 +15,12 @@ CREATE TABLE macros (
 CREATE INDEX idx_macros_tenant_shared
     ON macros (tenant_id, updated_at DESC, id DESC)
     WHERE owner_id IS NULL;
-
 CREATE INDEX idx_macros_tenant_personal
     ON macros (tenant_id, owner_id, updated_at DESC, id DESC)
     WHERE owner_id IS NOT NULL;
-
 CREATE UNIQUE INDEX uq_macros_tenant_shared_shortcut
     ON macros (tenant_id, shortcut)
     WHERE owner_id IS NULL AND shortcut <> '';
-
 CREATE UNIQUE INDEX uq_macros_tenant_personal_shortcut
     ON macros (tenant_id, owner_id, shortcut)
     WHERE owner_id IS NOT NULL AND shortcut <> '';

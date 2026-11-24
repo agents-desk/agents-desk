@@ -21,11 +21,12 @@ import {
   Tooltip,
 } from "@mantine/core"
 import { IconDots } from "@tabler/icons-react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { type ReactNode, useState } from "react"
 import { CellLink, type Column, DataTable } from "../components/data-table/data-table"
 import { confirm, notifyError, notifySuccess } from "../components/feedback"
+import { useSmoothTransition } from "../components/loading"
 import { Page } from "../components/page"
 import { type UiMessageId, text as uiText, useLanguage, useText } from "../i18n/i18n"
 import { useFormatDateTime } from "../theme/format"
@@ -96,7 +97,7 @@ const statusText: Record<ScheduleStatus, { label: UiMessageId; color: string }> 
 /** 跳过的原因（schedule.SkipReason）的说明的消息 ID，其他错误原样显示。 */
 const skipText: Record<string, UiMessageId> = {
   overlap: "tenon.schedule.skip_overlap",
-  lock_failed: "tenon.schedule.skip_lock_failed",
+  store_failed: "tenon.schedule.skip_store_failed",
 }
 
 /** 执行记录中错误的显示：跳过的原因换成说明，其他错误原样返回。 */
@@ -390,9 +391,12 @@ function Runs({
   const list = useQuery({
     queryKey: ["tenon", "schedule", "runs", task, status, page, perPage],
     queryFn: () => api.runs({ task, status, page, per_page: perPage }),
-    // 换筛选、翻页时总是向服务器读最新的，读取中显示加载状态；不用缓存的旧数据。
+    // 换筛选、翻页时总是向服务器读最新的，读取中暂留旧行并展示统一最短时长的加载态。
     gcTime: 0,
+    placeholderData: keepPreviousData,
   })
+  const transition = useSmoothTransition(list.data, `${task ?? ""}|${status ?? ""}|${page}|${perPage}`, list.isFetching)
+  const data = transition.data
   // 从任务列表带着任务打开时回到第一页。
   const [shownTask, setShownTask] = useState(task)
   if (shownTask !== task) {
@@ -505,9 +509,9 @@ function Runs({
             {statusFilter}
           </Group>
         }
-        records={list.data?.items ?? []}
-        total={list.data?.total}
-        loading={list.isPending}
+        records={data?.items ?? []}
+        total={data?.total}
+        loading={(list.isPending && !data) || transition.busy}
         list={{
           page,
           perPage,
