@@ -1,7 +1,7 @@
 import { Avatar, Button, FileButton, Group, PasswordInput, Stack, Tabs, Text, TextInput } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { applyServerErrors, FormError, notifyError, notifySuccess, useT } from "@go-tenon/ui"
+import { applyServerErrors, FormError, LoadingStage, notifyError, notifySuccess, useSmoothTransition, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { api } from "./api"
 import { me } from "./auth"
@@ -12,19 +12,20 @@ import { me } from "./auth"
 export function ProfileTabs(): ReactNode {
   const profile = useQuery({ queryKey: ["me"], queryFn: me })
   const t = useT()
+  const [tab, setTab] = useState<"basic" | "password">("basic")
+  const { data: shown, busy } = useSmoothTransition(tab, tab, false)
   if (!profile.data) return null
   return (
-    <Tabs defaultValue="basic" keepMounted={false}>
+    <Tabs value={tab} onChange={(v) => v && setTab(v as "basic" | "password")}>
       <Tabs.List>
         <Tabs.Tab value="basic">{t("profile.tab_basic")}</Tabs.Tab>
         <Tabs.Tab value="password">{t("profile.tab_password")}</Tabs.Tab>
       </Tabs.List>
-      <Tabs.Panel value="basic" pt="md">
-        <BasicForm profile={profile.data} />
-      </Tabs.Panel>
-      <Tabs.Panel value="password" pt="md">
-        <PasswordForm />
-      </Tabs.Panel>
+      <LoadingStage loading={busy}>
+        <div role="tabpanel" style={{ paddingTop: "var(--mantine-spacing-md)" }}>
+          {shown === "basic" ? <BasicForm profile={profile.data} /> : <PasswordForm />}
+        </div>
+      </LoadingStage>
     </Tabs>
   )
 }

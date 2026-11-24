@@ -1,27 +1,32 @@
-// 成员报表：团队核心汇总、成员工作量对比柱状图，以及支持全列排序的成员绩效明细表（保留已移出成员的历史记录）。
+// 成员报表：团队汇总指标带与工作量对比融合面板，以及全列排序绩效表（当前待处理数可一键下钻收件箱）。
 
 import type { MemberStatus, ReportMemberMetrics } from "@agents-desk/client/tenant"
 import { BarChart } from "@mantine/charts"
-import { Avatar, Badge, Group, SimpleGrid, Stack, Text } from "@mantine/core"
-import { IconCheck, IconClock, IconMessageReply, IconUsers } from "@tabler/icons-react"
-import { useQuery } from "@tanstack/react-query"
+import { Avatar, Badge, Group, Skeleton, Stack, Text, Tooltip } from "@mantine/core"
+import { IconArrowUpRight } from "@tabler/icons-react"
+import { keepPreviousData, useQuery } from "@tanstack/react-query"
+import { Link, useParams } from "@tanstack/react-router"
 import {
   type Column,
   DataTable,
-  Page,
+  LoadingStage,
   type PeriodRoute,
-  StatCard,
+  useCan,
   useFormatDuration,
   useLanguage,
+  useSmoothTransition,
   useT,
 } from "@go-tenon/ui"
 import { type ReactNode, useMemo, useState } from "react"
 import { kit } from "../api"
 import { StatusBadge } from "../status"
-import { ReportFilterBar } from "./FilterBar"
+import { REPORT_BAR_PROPS } from "./Breakdown"
+import { memberOpenInboxSearch } from "./drilldown"
 import { csatColor, formatInt, formatPercent, formatScore } from "./format"
+import { type MetricItem, MetricStrip } from "./MetricStrip"
+import { ReportShell } from "./ReportShell"
 import { useReportFilters } from "./search"
-import { SectionCard } from "./SectionCard"
+import { DetailSection } from "./SectionCard"
 
 /** 比较可为空的数字，空值始终排在末尾。 */
 function compareNum(a: number | undefined, b: number | undefined, desc: boolean): number {
@@ -36,18 +41,30 @@ function compareNum(a: number | undefined, b: number | undefined, desc: boolean)
 /** 成员报表页面组件。 */
 export function MembersPage({ route }: { route: PeriodRoute }): ReactNode {
   const t = useT()
+  const can = useCan()
   const uiLang = useLanguage()
   const formatDuration = useFormatDuration()
+  const { slug } = useParams({ from: "/t/$slug" })
   const filters = useReportFilters(route)
-  const query = useQuery(kit.queries.report.members(filters.queryParams))
-  const data = query.data
-  const loading = query.isPending
+  const query = useQuery({
+    ...kit.queries.report.members(filters.queryParams),
+    placeholderData: keepPreviousData,
+  })
+  const scopeKey = `${filters.queryParams.from}|${filters.queryParams.to}|${filters.queryParams.tz ?? ""}|${filters.teamId ?? ""}|${filters.channelId ?? ""}`
+  const pageState = useSmoothTransition(query.data, scopeKey, query.isFetching)
+  const data = pageState.data
+  const loading = query.isPending && !data
   const s = data?.summary
+  const canInbox = can("conversations:read")
+  const scope = useMemo(
+    () => ({ teamId: filters.teamId, channelId: filters.channelId }),
+    [filters.channelId, filters.teamId],
+  )
 
   const [sort, setSort] = useState<string | undefined>("-closed_count")
 
   const sortedItems = useMemo(() => {
-    const list = [...(data?.items ?? [])]
+    const list = [...(query.data?.items ?? [])]
     if (!sort) return list
     const desc = sort.startsWith("-")
     const field = desc ? sort.slice(1) : sort
@@ -72,7 +89,9 @@ export function MembersPage({ route }: { route: PeriodRoute }): ReactNode {
       }
     })
     return list
-  }, [data?.items, sort])
+  }, [query.data?.items, sort])
+
+  const tableState = useSmoothTransition(sortedItems, `${scopeKey}|${sort ?? ""}`, query.isFetching, { minMs: 200 })
 
   const chartData = useMemo(
     () =>
@@ -86,6 +105,31 @@ export function MembersPage({ route }: { route: PeriodRoute }): ReactNode {
         })),
     [data?.items],
   )
+
+  const metrics: MetricItem[] = [
+    {
+      key: "active_members",
+      label: t("reports.member_active"),
+      value: formatInt(s?.active_members, uiLang),
+      secondary: data ? t("reports.member_active_sub", { total: formatInt(data.items.length, uiLang) }) : undefined,
+    },
+    {
+      key: "closed_count",
+      label: t("reports.closed_rounds"),
+      value: formatInt(s?.closed_count, uiLang),
+    },
+    {
+      key: "replies_sent",
+      label: t("reports.replies_sent"),
+      value: formatInt(s?.replies_sent, uiLang),
+    },
+    {
+      key: "team_frt",
+      label: t("reports.member_team_frt"),
+      value: formatDuration(s?.first_reply_median),
+      secondary: s?.csat !== undefined ? t("reports.member_team_csat", { v: formatPercent(s.csat) }) : undefined,
+    },
+  ]
 
   const columns = useMemo<Column<ReportMemberMetrics>[]>(
     () => [
@@ -140,12 +184,27 @@ export function MembersPage({ route }: { route: PeriodRoute }): ReactNode {
         title: t("reports.col_open_assigned"),
         sortable: true,
         textAlign: "right",
-        width: 110,
-        render: (row) => (
-          <Text size="sm" c={row.open_assigned > 0 ? undefined : "dimmed"} style={{ fontVariantNumeric: "tabular-nums" }}>
-            {formatInt(row.open_assigned, uiLang)}
-          </Text>
-        ),
+        width: 116,
+        render: (row) =>
+          canInbox && row.open_assigned > 0 ? (
+            <Tooltip label={t("reports.drill_member_inbox")} openDelay={250} withArrow>
+              <Link
+                to="/t/$slug/inbox"
+                params={{ slug }}
+                search={memberOpenInboxSearch(row.member_id, scope)}
+                className="rp-drill-link"
+              >
+                <Text span size="sm" fw={500}>
+                  {formatInt(row.open_assigned, uiLang)}
+                </Text>
+                <IconArrowUpRight size={13} stroke={1.8} />
+              </Link>
+            </Tooltip>
+          ) : (
+            <Text size="sm" c={row.open_assigned > 0 ? undefined : "dimmed"} style={{ fontVariantNumeric: "tabular-nums" }}>
+              {formatInt(row.open_assigned, uiLang)}
+            </Text>
+          ),
       },
       {
         accessor: "first_reply_median",
@@ -208,76 +267,56 @@ export function MembersPage({ route }: { route: PeriodRoute }): ReactNode {
           ),
       },
     ],
-    [formatDuration, t, uiLang],
+    [canInbox, formatDuration, scope, slug, t, uiLang],
   )
 
   return (
-    <Page title={t("nav.reports_members")} description={t("reports.member_desc")} breadcrumbs={false}>
-      <Stack gap="md">
-        <ReportFilterBar
-          period={filters.period}
-          filters={filters}
-          showGranularity={false}
-          meta={data?.period}
-          error={query.error}
-        />
-
-        <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md">
-          <StatCard
-            label={t("reports.member_active")}
-            value={formatInt(s?.active_members, uiLang)}
-            secondary={data ? t("reports.member_active_sub", { total: formatInt(data.items.length, uiLang) }) : undefined}
-            icon={<IconUsers size={16} stroke={1.6} />}
-            loading={loading}
-          />
-          <StatCard
-            label={t("reports.closed_rounds")}
-            value={formatInt(s?.closed_count, uiLang)}
-            icon={<IconCheck size={16} stroke={1.6} />}
-            loading={loading}
-          />
-          <StatCard
-            label={t("reports.replies_sent")}
-            value={formatInt(s?.replies_sent, uiLang)}
-            icon={<IconMessageReply size={16} stroke={1.6} />}
-            loading={loading}
-          />
-          <StatCard
-            label={t("reports.member_team_frt")}
-            value={formatDuration(s?.first_reply_median)}
-            secondary={
-              s?.csat !== undefined ? t("reports.member_team_csat", { v: formatPercent(s.csat) }) : undefined
-            }
-            icon={<IconClock size={16} stroke={1.6} />}
-            loading={loading}
-          />
-        </SimpleGrid>
-
-        {chartData.length > 0 && (
-          <SectionCard title={t("reports.member_chart_title")} loading={loading} minHeight={220}>
-            <BarChart
-              h={220}
-              data={chartData}
-              dataKey="name"
-              series={[
-                { name: "closed_count", label: t("reports.col_closed"), color: "brand.6" },
-                { name: "replies_sent", label: t("reports.col_replies"), color: "bright-blue.6" },
-              ]}
-              withLegend
-              gridAxis="y"
-            />
-          </SectionCard>
+    <ReportShell
+      title={t("nav.reports_members")}
+      period={filters.period}
+      filters={filters}
+      meta={data?.period}
+      error={query.error}
+      updating={pageState.busy}
+    >
+      {/* 主分析面板：团队指标带 + 成员工作量对比 */}
+      <section className="rp-panel">
+        <MetricStrip items={metrics} loading={loading} />
+        {(loading || chartData.length > 0) && (
+          <div className="rp-panel-body">
+            <Text size="sm" fw={600} mb="sm">
+              {t("reports.member_chart_title")}
+            </Text>
+            {loading ? (
+              <Skeleton height={210} radius="sm" />
+            ) : (
+              <BarChart
+                h={210}
+                data={chartData}
+                dataKey="name"
+                series={[
+                  { name: "closed_count", label: t("reports.col_closed"), color: "brand.6" },
+                  { name: "replies_sent", label: t("reports.col_replies"), color: "bright-blue.6" },
+                ]}
+                barProps={REPORT_BAR_PROPS}
+                withLegend
+                gridAxis="y"
+              />
+            )}
+          </div>
         )}
+      </section>
 
-        <SectionCard title={t("reports.member_table_title")}>
+      <DetailSection title={t("reports.member_table_title")}>
+        <LoadingStage loading={tableState.busy && !pageState.busy}>
           <DataTable
-            records={sortedItems}
+            records={tableState.data}
             columns={columns}
             rowKey="member_id"
-            loading={query.isFetching}
+            loading={query.isPending && !data}
             list={{
               page: 1,
-              perPage: Math.max(20, sortedItems.length),
+              perPage: Math.max(20, tableState.data.length),
               sort,
               setPage: () => {},
               setPerPage: () => {},
@@ -289,8 +328,8 @@ export function MembersPage({ route }: { route: PeriodRoute }): ReactNode {
             }}
             empty={t("reports.empty")}
           />
-        </SectionCard>
-      </Stack>
-    </Page>
+        </LoadingStage>
+      </DetailSection>
+    </ReportShell>
   )
 }

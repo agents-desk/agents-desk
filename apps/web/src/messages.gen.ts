@@ -578,8 +578,6 @@ export const messages = {
     "reports.all_teams": "All teams",
     "reports.avg_duration": "Avg latency",
     "reports.avg_score": "Average score",
-    "reports.backlog_now": "Current backlog",
-    "reports.backlog_secondary": "{{.waiting}} waiting · {{.unassigned}} unassigned · {{.snoozed}} snoozed",
     "reports.bucket_15m_1h": "15m–1h",
     "reports.bucket_1h_4h": "1–4h",
     "reports.bucket_4h_24h": "4–24h",
@@ -628,10 +626,10 @@ export const messages = {
     "reports.col_tokens": "Tokens",
     "reports.conv_created": "Created conversations",
     "reports.conv_created_desc": "Service conversations created during the selected period.",
-    "reports.conv_desc": "Track created, reopened, and closed conversation volume, live backlog, and breakdowns by channel, team, tag, and language.",
     "reports.conv_reopened": "Reopened rounds",
     "reports.conv_reopened_desc": "Service rounds reopened after a previous close (round 2+).",
-    "reports.conv_rounds_sub": "{{.n}} total rounds opened",
+    "reports.conv_rounds_opened": "Rounds opened",
+    "reports.conv_rounds_opened_desc": "Total service rounds opened during the period (new plus reopened).",
     "reports.conv_series_title": "Conversation trend",
     "reports.cost_and_latency": "Translation cost",
     "reports.cost_sub": "Avg {{.ms}} · {{.n}} billed calls",
@@ -642,21 +640,41 @@ export const messages = {
     "reports.delta_pp": "{{.v}} pp",
     "reports.detected_languages": "Detected customer languages",
     "reports.disabled_badge": "Disabled",
+    "reports.drill_channel_inbox": "View currently open conversations for this channel in Inbox",
+    "reports.drill_contact": "Open contact profile",
+    "reports.drill_language_inbox": "View conversations in this language in Inbox",
+    "reports.drill_member_inbox": "View open conversations assigned to this member in Inbox",
+    "reports.drill_tag_inbox": "View conversations with this tag in Inbox",
+    "reports.drill_team_inbox": "View currently open conversations for this team in Inbox",
     "reports.empty": "No data for the selected period",
     "reports.filter_all_ratings": "All",
     "reports.filter_negative": "Negative (1–2★)",
     "reports.filter_neutral": "Neutral (3★)",
     "reports.filter_positive": "Positive (4–5★)",
+    "reports.focus_clear_hint": "Click to clear focus",
+    "reports.focus_hint": "Click row to filter",
     "reports.frt_buckets": "First reply time distribution",
     "reports.frt_desc": "Wall-clock duration from round open to the first customer-visible reply.",
     "reports.frt_median": "First reply median",
     "reports.frt_p90": "First reply P90",
+    "reports.gran_auto": "Auto",
+    "reports.gran_day": "Day",
+    "reports.gran_month": "Month",
+    "reports.gran_week": "Week",
     "reports.lang_unknown": "Unknown",
+    "reports.live_label": "Live",
+    "reports.live_open": "Open",
+    "reports.live_open_tip": "Open currently active conversations in Inbox",
+    "reports.live_snoozed": "Snoozed",
+    "reports.live_snoozed_tip": "Open currently snoozed conversations in Inbox",
+    "reports.live_unassigned": "Unassigned",
+    "reports.live_unassigned_tip": "Open currently unassigned conversations in Inbox",
+    "reports.live_waiting": "Waiting",
+    "reports.live_waiting_tip": "Open conversations currently waiting for a reply in Inbox",
     "reports.load_failed": "Failed to load report data. Please try again.",
     "reports.member_active": "Active members",
     "reports.member_active_sub": "{{.total}} members listed",
     "reports.member_chart_title": "Workload comparison",
-    "reports.member_desc": "Closed rounds, replies sent, response times, and CSAT per member. First reply time is attributed to the actual first responder.",
     "reports.member_removed": "Removed",
     "reports.member_table_title": "Member performance",
     "reports.member_team_csat": "Team CSAT {{.v}}",
@@ -672,7 +690,12 @@ export const messages = {
     "reports.op_other": "Other",
     "reports.op_reply": "Agent reply",
     "reports.open_conversation": "Open",
+    "reports.period_30d": "Last 30 days",
+    "reports.period_7d": "Last 7 days",
+    "reports.period_last_month": "Last month",
     "reports.period_range": "{{.from}} to {{.to}} · {{.tz}}",
+    "reports.period_this_month": "This month",
+    "reports.period_today": "Today",
     "reports.rated_count": "Ratings received",
     "reports.ratings_list": "Customer ratings",
     "reports.replies_sent": "Replies sent",
@@ -683,14 +706,14 @@ export const messages = {
     "reports.res_p90": "Resolution P90",
     "reports.response_rate": "Response rate",
     "reports.response_rate_sub": "{{.closed}} closed rounds",
-    "reports.response_time_desc": "First reply time (FRT) and resolution time percentiles, trends, histograms, and team/channel comparisons.",
     "reports.response_time_series": "Median response time trend",
     "reports.round_badge": "Round {{.n}}",
     "reports.samples_avg_only": "Avg {{.avg}} · {{.n}} samples",
     "reports.samples_avg_p90": "Avg {{.avg}} · P90 {{.p90}} · {{.n}} samples",
     "reports.samples_short": "{{.n}} samples",
-    "reports.satisfaction_desc": "Customer satisfaction (CSAT), average rating, star distribution, trend, and paginated customer comments.",
     "reports.score_distribution": "Rating distribution",
+    "reports.score_filter_hint": "Click a star row to filter ratings below",
+    "reports.score_only_badge": "{{.n}}-star only",
     "reports.score_out_of": "Out of 5.0",
     "reports.score_star": "{{.n}} star",
     "reports.series_closed": "Closed",
@@ -706,8 +729,8 @@ export const messages = {
     "reports.tokens_total": "Total tokens",
     "reports.translation_calls": "Translation calls",
     "reports.translation_calls_sub": "{{.ok}} succeeded · {{.failed}} failed",
-    "reports.translation_desc": "Translation model calls, success rate, token usage, cost, latency, and language distributions.",
     "reports.translation_series": "Translation trend",
+    "reports.translation_switch_hint": "Click a metric above to switch the trend",
     "roles.description": "The owner has every permission and is set by a platform admin. A role that members still use stays until you give those members another role.",
     "roles.permissions_hint": "Every role can view members and team inboxes, and view and reply to the conversations it can see",
     "settings.group_channels": "Channels",
@@ -1569,8 +1592,6 @@ export const messages = {
     "reports.all_teams": "全部团队",
     "reports.avg_duration": "平均耗时",
     "reports.avg_score": "平均评分",
-    "reports.backlog_now": "当前积压",
-    "reports.backlog_secondary": "待回复 {{.waiting}} · 未指派 {{.unassigned}} · 稍后 {{.snoozed}}",
     "reports.bucket_15m_1h": "15 分–1 小时",
     "reports.bucket_1h_4h": "1–4 小时",
     "reports.bucket_4h_24h": "4–24 小时",
@@ -1619,10 +1640,10 @@ export const messages = {
     "reports.col_tokens": "Token",
     "reports.conv_created": "新建会话",
     "reports.conv_created_desc": "统计期内新创建的服务型会话总数。",
-    "reports.conv_desc": "统计服务型会话的新建、重开、关闭趋势，以及当前实时积压和各维度分布。",
     "reports.conv_reopened": "重新打开",
     "reports.conv_reopened_desc": "已关闭后再次打开的服务轮次数（第 2 轮及以上）。",
-    "reports.conv_rounds_sub": "共开启 {{.n}} 轮服务",
+    "reports.conv_rounds_opened": "开启轮次",
+    "reports.conv_rounds_opened_desc": "统计期内新开启的服务轮次总数（新建与重开之和）。",
     "reports.conv_series_title": "会话趋势",
     "reports.cost_and_latency": "翻译费用",
     "reports.cost_sub": "平均耗时 {{.ms}} · {{.n}} 次含计费",
@@ -1633,21 +1654,41 @@ export const messages = {
     "reports.delta_pp": "{{.v}} 百分点",
     "reports.detected_languages": "客户消息识别语言",
     "reports.disabled_badge": "已停用",
+    "reports.drill_channel_inbox": "在收件箱查看该渠道当前打开的会话",
+    "reports.drill_contact": "查看联系人档案",
+    "reports.drill_language_inbox": "在收件箱查看该语言的会话",
+    "reports.drill_member_inbox": "在收件箱查看该成员当前待处理会话",
+    "reports.drill_tag_inbox": "在收件箱查看该标签的会话",
+    "reports.drill_team_inbox": "在收件箱查看该团队当前打开的会话",
     "reports.empty": "所选时间范围内暂无数据",
     "reports.filter_all_ratings": "全部",
     "reports.filter_negative": "差评（1–2 星）",
     "reports.filter_neutral": "中评（3 星）",
     "reports.filter_positive": "好评（4–5 星）",
+    "reports.focus_clear_hint": "点击取消聚焦",
+    "reports.focus_hint": "点击行聚焦筛选",
     "reports.frt_buckets": "首次回复时长分布",
     "reports.frt_desc": "每轮服务从打开到首次客户可见回复的自然时长。",
     "reports.frt_median": "首次回复中位数",
     "reports.frt_p90": "首次回复 P90",
+    "reports.gran_auto": "自动",
+    "reports.gran_day": "按天",
+    "reports.gran_month": "按月",
+    "reports.gran_week": "按周",
     "reports.lang_unknown": "未识别",
+    "reports.live_label": "实时",
+    "reports.live_open": "打开中",
+    "reports.live_open_tip": "在收件箱查看当前打开中的会话",
+    "reports.live_snoozed": "稍后处理",
+    "reports.live_snoozed_tip": "在收件箱查看当前稍后处理的会话",
+    "reports.live_unassigned": "未指派",
+    "reports.live_unassigned_tip": "在收件箱查看当前无负责人的打开会话",
+    "reports.live_waiting": "等待回复",
+    "reports.live_waiting_tip": "在收件箱查看当前等待客服回复的会话",
     "reports.load_failed": "加载报表数据失败，请稍后重试。",
     "reports.member_active": "活跃成员",
     "reports.member_active_sub": "共 {{.total}} 名成员",
     "reports.member_chart_title": "成员工作量对比",
-    "reports.member_desc": "按成员统计关闭轮次、回复量、首响与解决时长及客户满意度；首响按实际首次回复人归因。",
     "reports.member_removed": "已移出",
     "reports.member_table_title": "成员绩效明细",
     "reports.member_team_csat": "团队满意度 {{.v}}",
@@ -1663,7 +1704,12 @@ export const messages = {
     "reports.op_other": "其他",
     "reports.op_reply": "成员回复翻译",
     "reports.open_conversation": "查看会话",
+    "reports.period_30d": "近 30 天",
+    "reports.period_7d": "近 7 天",
+    "reports.period_last_month": "上月",
     "reports.period_range": "{{.from}} 至 {{.to}} · {{.tz}}",
+    "reports.period_this_month": "本月",
+    "reports.period_today": "今天",
     "reports.rated_count": "收到评价",
     "reports.ratings_list": "评价明细",
     "reports.replies_sent": "发出回复",
@@ -1674,14 +1720,14 @@ export const messages = {
     "reports.res_p90": "解决时长 P90",
     "reports.response_rate": "参评率",
     "reports.response_rate_sub": "关闭 {{.closed}} 轮",
-    "reports.response_time_desc": "统计首次回复时长（FRT）与解决时长的分位数、趋势、分布直方图及团队/渠道对比。",
     "reports.response_time_series": "响应时长中位数趋势",
     "reports.round_badge": "第 {{.n}} 轮",
     "reports.samples_avg_only": "均值 {{.avg}} · {{.n}} 样本",
     "reports.samples_avg_p90": "均值 {{.avg}} · P90 {{.p90}} · {{.n}} 样本",
     "reports.samples_short": "{{.n}} 样本",
-    "reports.satisfaction_desc": "统计客户满意度（CSAT）、平均评分、星级分布、趋势及原始评价明细。",
     "reports.score_distribution": "星级分布",
+    "reports.score_filter_hint": "点击星级筛选下方评价",
+    "reports.score_only_badge": "仅 {{.n}} 星",
     "reports.score_out_of": "满分 5.0",
     "reports.score_star": "{{.n}} 星",
     "reports.series_closed": "关闭轮次",
@@ -1697,8 +1743,8 @@ export const messages = {
     "reports.tokens_total": "Token 消耗",
     "reports.translation_calls": "翻译调用",
     "reports.translation_calls_sub": "成功 {{.ok}} · 失败 {{.failed}}",
-    "reports.translation_desc": "统计翻译模型调用量、成功率、Token 消耗、费用、耗时及语言分布。",
     "reports.translation_series": "翻译调用趋势",
+    "reports.translation_switch_hint": "点击上方指标切换趋势",
     "roles.description": "主管理员拥有全部权限，由平台管理员指定。还有成员使用的角色不能删除，先把他们改成别的角色。",
     "roles.permissions_hint": "每个角色都能查看成员和团队收件箱、查看和回复看得到的会话",
     "settings.group_channels": "渠道",
@@ -2563,8 +2609,6 @@ export type MessageId =
   | "reports.all_teams"
   | "reports.avg_duration"
   | "reports.avg_score"
-  | "reports.backlog_now"
-  | "reports.backlog_secondary"
   | "reports.bucket_15m_1h"
   | "reports.bucket_1h_4h"
   | "reports.bucket_4h_24h"
@@ -2613,10 +2657,10 @@ export type MessageId =
   | "reports.col_tokens"
   | "reports.conv_created"
   | "reports.conv_created_desc"
-  | "reports.conv_desc"
   | "reports.conv_reopened"
   | "reports.conv_reopened_desc"
-  | "reports.conv_rounds_sub"
+  | "reports.conv_rounds_opened"
+  | "reports.conv_rounds_opened_desc"
   | "reports.conv_series_title"
   | "reports.cost_and_latency"
   | "reports.cost_sub"
@@ -2627,21 +2671,41 @@ export type MessageId =
   | "reports.delta_pp"
   | "reports.detected_languages"
   | "reports.disabled_badge"
+  | "reports.drill_channel_inbox"
+  | "reports.drill_contact"
+  | "reports.drill_language_inbox"
+  | "reports.drill_member_inbox"
+  | "reports.drill_tag_inbox"
+  | "reports.drill_team_inbox"
   | "reports.empty"
   | "reports.filter_all_ratings"
   | "reports.filter_negative"
   | "reports.filter_neutral"
   | "reports.filter_positive"
+  | "reports.focus_clear_hint"
+  | "reports.focus_hint"
   | "reports.frt_buckets"
   | "reports.frt_desc"
   | "reports.frt_median"
   | "reports.frt_p90"
+  | "reports.gran_auto"
+  | "reports.gran_day"
+  | "reports.gran_month"
+  | "reports.gran_week"
   | "reports.lang_unknown"
+  | "reports.live_label"
+  | "reports.live_open"
+  | "reports.live_open_tip"
+  | "reports.live_snoozed"
+  | "reports.live_snoozed_tip"
+  | "reports.live_unassigned"
+  | "reports.live_unassigned_tip"
+  | "reports.live_waiting"
+  | "reports.live_waiting_tip"
   | "reports.load_failed"
   | "reports.member_active"
   | "reports.member_active_sub"
   | "reports.member_chart_title"
-  | "reports.member_desc"
   | "reports.member_removed"
   | "reports.member_table_title"
   | "reports.member_team_csat"
@@ -2657,7 +2721,12 @@ export type MessageId =
   | "reports.op_other"
   | "reports.op_reply"
   | "reports.open_conversation"
+  | "reports.period_30d"
+  | "reports.period_7d"
+  | "reports.period_last_month"
   | "reports.period_range"
+  | "reports.period_this_month"
+  | "reports.period_today"
   | "reports.rated_count"
   | "reports.ratings_list"
   | "reports.replies_sent"
@@ -2668,14 +2737,14 @@ export type MessageId =
   | "reports.res_p90"
   | "reports.response_rate"
   | "reports.response_rate_sub"
-  | "reports.response_time_desc"
   | "reports.response_time_series"
   | "reports.round_badge"
   | "reports.samples_avg_only"
   | "reports.samples_avg_p90"
   | "reports.samples_short"
-  | "reports.satisfaction_desc"
   | "reports.score_distribution"
+  | "reports.score_filter_hint"
+  | "reports.score_only_badge"
   | "reports.score_out_of"
   | "reports.score_star"
   | "reports.series_closed"
@@ -2691,8 +2760,8 @@ export type MessageId =
   | "reports.tokens_total"
   | "reports.translation_calls"
   | "reports.translation_calls_sub"
-  | "reports.translation_desc"
   | "reports.translation_series"
+  | "reports.translation_switch_hint"
   | "roles.description"
   | "roles.permissions_hint"
   | "settings.group_channels"
