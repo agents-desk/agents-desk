@@ -3,9 +3,11 @@ package llm
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"agents-desk/internal/apptest"
@@ -40,7 +42,7 @@ func TestJSONGatewayHeadersAndStandardParams(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	group := NewGroup(env.DB)
+	group := NewGroup(env.DB, env.Crypt)
 	if err := group.Save(ctx, Settings{
 		Gateway: Gateway{BaseURL: srv.URL + "/v1", APIKey: "sk-gw-test"},
 		Models:  Models{Translation: "translate-fast"},
@@ -95,5 +97,71 @@ func TestJSONGatewayHeadersAndStandardParams(t *testing.T) {
 	if c0.RequestID != "req-gw-123" || c0.PromptTokens != 200 || c0.CachedTokens != 80 ||
 		c0.CompletionTokens != 45 || c0.ReasoningTokens != 12 || c0.Cost == nil || *c0.Cost != 0.00125 {
 		t.Fatalf("网关响应头未正确落库：%+v", c0)
+	}
+}
+
+// TestStreamObserveRecordsUsage 检查流式 SSE 模型调用由 ai.ObserveTransport 完整记录内容与用量。
+func TestStreamObserveRecordsUsage(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	env := apptest.New(t)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("X-Omirouter-Request-Id", "req-stream-1")
+		flusher, _ := w.(http.Flusher)
+		chunks := []string{
+			`{"choices":[{"delta":{"content":"你好"}}]}`,
+			`{"choices":[{"delta":{"content":"，世界"}}]}`,
+			`{"choices":[],"usage":{"prompt_tokens":120,"completion_tokens":30,"prompt_tokens_details":{"cached_tokens":40},"completion_tokens_details":{"reasoning_tokens":5}}}`,
+		}
+		for _, c := range chunks {
+			fmt.Fprintf(w, "data: %s\n\n", c)
+			if flusher != nil {
+				flusher.Flush()
+			}
+		}
+		fmt.Fprint(w, "data: [DONE]\n\n")
+	}))
+	t.Cleanup(srv.Close)
+
+	group := NewGroup(env.DB, env.Crypt)
+	if err := group.Save(ctx, Settings{
+		Gateway: Gateway{BaseURL: srv.URL + "/v1", APIKey: "sk-stream-secret"},
+		Models:  Models{Translation: "chat-stream"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	client := NewClient(env.DB, group, srv.Client())
+	callCtx := WithTarget(WithSession(ctx, "conv-stream"), Target{Type: "conversation", ID: "c1", Operation: "draft"})
+	req, err := http.NewRequestWithContext(callCtx, http.MethodPost, srv.URL+"/v1/chat/completions", strings.NewReader(`{"model":"chat-stream","stream":true,"messages":[{"role":"user","content":"hi"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.observedHTTPClient(Translation, srv.URL+"/v1", "chat-stream").Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rawSSE, err := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(rawSSE), "你好") || !strings.Contains(string(rawSSE), "，世界") {
+		t.Fatalf("流式响应未透传：%s", string(rawSSE))
+	}
+
+	var calls []Call
+	if err := env.DB.NewSelect().Model(&calls).Scan(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if len(calls) != 1 {
+		t.Fatalf("期望 1 条流式 llm_calls 记录，实际 %d", len(calls))
+	}
+	c := calls[0]
+	if c.RequestID != "req-stream-1" || c.Response != "你好，世界" ||
+		c.PromptTokens != 120 || c.CachedTokens != 40 || c.CompletionTokens != 30 || c.ReasoningTokens != 5 {
+		t.Fatalf("流式观测落库字段不匹配：%+v", c)
 	}
 }

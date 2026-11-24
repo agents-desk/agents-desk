@@ -39,17 +39,17 @@ func TestImpersonateEndToEnd(t *testing.T) {
 	system := identity.Subject{Type: identity.System, ID: "system"}
 
 	// 创建两位平台管理员（operator 发起代登，supervisor 负责停用 operator）。
-	supervisor, err := platformadmin.NewCreate(env.DB, env.AdminLogins).Handle(ctx, system, "超级管理员", "super@example.com", "secret-pass-123")
+	supervisor, err := platformadmin.NewCreate(env.DB, env.Roles, env.AdminLogins).Handle(ctx, system, "超级管理员", "super@example.com", "secret-pass-123")
 	if err != nil {
 		t.Fatal(err)
 	}
-	operator, err := platformadmin.NewCreate(env.DB, env.AdminLogins).Handle(ctx, system, "值班运营", "ops@example.com", "secret-pass-123")
+	operator, err := platformadmin.NewCreate(env.DB, env.Roles, env.AdminLogins).Handle(ctx, system, "值班运营", "ops@example.com", "secret-pass-123")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// 创建两个工作区，同一个主管理员 alice 同时属于 acme 和 globex。
-	createTenant := tenant.NewCreate(env.DB, env.MemberLogins, addr)
+	createTenant := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, addr)
 	acme, err := createTenant.Handle(ctx, apptest.Admin, tenant.CreateParams{
 		Name: "Acme", Slug: "acme", OwnerEmail: "alice@example.com", OwnerName: "Alice", OwnerPassword: "secret-pass-123",
 	})
@@ -104,7 +104,7 @@ func TestImpersonateEndToEnd(t *testing.T) {
 			SessionCookie: member.SessionCookie,
 		})
 		requireMember := rest.RequireToken(api, memberTokens.Validate)
-		member.RegisterRoutes(api, requireMember, env.DB, env.MemberLogins, memberTokens, env.Files, nil, 2<<20, time.Hour)
+		member.RegisterRoutes(api, requireMember, env.DB, env.MemberLogins, memberTokens, env.Files, 2<<20, time.Hour)
 		tenant.RegisterMemberRoutes(api, requireMember, env.DB, env.Roles, addr)
 	})
 	router.Route("/t/{slug}/api", func(r chi.Router) {

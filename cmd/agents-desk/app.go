@@ -33,6 +33,7 @@ import (
 	"github.com/go-tenon/tenon/natsx"
 	"github.com/go-tenon/tenon/notification"
 	"github.com/go-tenon/tenon/operation"
+	"github.com/go-tenon/tenon/outbound"
 	"github.com/go-tenon/tenon/queue"
 	"github.com/go-tenon/tenon/ratelimit"
 	"github.com/go-tenon/tenon/ratelimit/pglimit"
@@ -142,9 +143,9 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		return nil, err
 	}
 
-	keys := crypt.New(cfg.Crypt) // 派生登录验证码的密钥，加密聊天插件的身份验证密钥
+	keys := crypt.New(cfg.Crypt) // 派生登录验证码的密钥，加密保存聊天插件密钥与平台密钥设置
 	hasher := hashing.New(cfg.Hashing)
-	roles := authz.NewStore(db, auth.Catalog)
+	roles := authz.NewStore(db, auth.Catalog, authz.Credentials(creds))
 	if err := auth.EnsureRoles(ctx, roles); err != nil {
 		return nil, err
 	}
@@ -194,22 +195,26 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	generalSettings, mailSettings := platformsettings.NewGeneralGroup(db), platformsettings.NewMailGroup(db)
-	llmSettings, translationSettings := llm.NewGroup(db), translation.NewGroup(db)
+	generalSettings, mailSettings := platformsettings.NewGeneralGroup(db), platformsettings.NewMailGroup(db, keys)
+	llmSettings, translationSettings := llm.NewGroup(db, keys), translation.NewGroup(db)
 	featureStore := flags.NewStore(db)
 	ops := operation.New(db)
 	exporter := exports.New(db, ops, files)
 
-	tgClient := telegram.NewClient(&http.Client{Timeout: 30 * time.Second})
+	tgClient := telegram.NewClient(outbound.New(outbound.Options{Timeout: 30 * time.Second}))
 	return &App{
 		cfg: cfg, db: db, nc: nc, hub: hub, creds: creds, presence: presence, roles: roles,
-		adminLogins: adminLogins, adminTokens: apitoken.NewStore(db, cfg.AdminToken),
-		memberLogins: memberLogins, memberTokens: apitoken.NewStore(db, cfg.MemberToken),
-		contactTokens: apitoken.NewStore(db, cfg.ContactToken), crypt: keys,
+		adminLogins:     adminLogins,
+		adminTokens:     apitoken.NewStore(db, cfg.AdminToken, apitoken.Credentials(creds)),
+		memberLogins:    memberLogins,
+		memberTokens:    apitoken.NewStore(db, cfg.MemberToken, apitoken.Credentials(creds)),
+		contactTokens:   apitoken.NewStore(db, cfg.ContactToken, apitoken.Credentials(creds)),
+		crypt:           keys,
 		generalSettings: generalSettings, mailSettings: mailSettings,
 		llmSettings: llmSettings, translationSettings: translationSettings, features: featureStore,
 		ops: ops, exporter: exporter,
-		translator: translation.NewTranslator(db, llm.NewClient(db, llmSettings, &http.Client{Timeout: 60 * time.Second}), translationSettings),
+		// 模型网关不设固定整请求超时（由调用上下文控制），以便兼容流式 SSE 长响应及自托管网关地址。
+		translator: translation.NewTranslator(db, llm.NewClient(db, llmSettings, &http.Client{}), translationSettings),
 		files:      files, images: images, defaultDisk: disks[cfg.Filesystem.DefaultDisk], localDisk: localDisk, locker: lock.New(pglock.New(db)),
 		channels: registry(hub, keys, files, tgClient),
 		telegram: tgClient,
@@ -237,7 +242,7 @@ func parts(a *App) []command.Part {
 func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
 	w := queue.NewWorker(a.db, a.nc, a.cfg.Queue, nil)
 	down := a.downstream()
-	conversation.RegisterJobs(w, a.db, a.channels, down.Media)
+	conversation.RegisterJobs(w, a.db, a.channels, down)
 	translation.RegisterJobs(w, a.db, a.locker, a.translator, down)
 	automation.RegisterJobs(w, a.db, a.locker, down)
 	tenant.RegisterJobs(w, a.db, a.memberLogins, tenant.Addresses{PublicURL: a.cfg.PublicURL}, a.hub, a.exporter)

@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -176,7 +177,7 @@ func samplePNG(t *testing.T) []byte {
 
 func setupTenant(t *testing.T, env *apptest.Env, slug string) (string, identity.Subject, identity.Subject) {
 	t.Helper()
-	tn, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(context.Background(), apptest.Admin, tenant.CreateParams{
+	tn, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(context.Background(), apptest.Admin, tenant.CreateParams{
 		Name: slug, Slug: slug, OwnerEmail: "owner@" + slug + ".com", OwnerName: "owner", OwnerPassword: "password",
 	})
 	if err != nil {
@@ -382,7 +383,7 @@ func TestTelegramWebhookReceiveGatewayIdentityAndSend(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := conversation.NewDeliver(env.DB, reg, down.Media).Job(ctx, conversation.Appended{
+	if err := conversation.NewDeliver(env.DB, reg, down).Job(ctx, conversation.Appended{
 		TenantID: tenantID, ConversationID: convs[0].ID, ItemID: replyOut.ID,
 	}); err != nil {
 		t.Fatal(err)
@@ -396,12 +397,26 @@ func TestTelegramWebhookReceiveGatewayIdentityAndSend(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := conversation.NewDeliver(env.DB, reg, down.Media).Job(ctx, conversation.Appended{
+	if err := conversation.NewDeliver(env.DB, reg, down).Job(ctx, conversation.Appended{
 		TenantID: tenantID, ConversationID: convs[0].ID, ItemID: textOut.ID,
 	}); err != nil {
 		t.Fatal(err)
 	}
 	if len(fake.sentMessages) != 1 || fake.sentMessages[0]["chat_id"] != "777001" || fake.sentMessages[0]["text"] != "Anything else?" {
 		t.Fatalf("expected 1 sent text message, got %+v", fake.sentMessages)
+	}
+}
+
+// TestClientRedactsBotTokenInErrors 检查网络层出错时错误信息不包含明文 Bot Token。
+func TestClientRedactsBotTokenInErrors(t *testing.T) {
+	t.Parallel()
+	const secretToken = "999888:SUPER_SECRET_BOT_TOKEN"
+	cli := NewClient(&http.Client{Timeout: 50 * time.Millisecond}, "http://127.0.0.1:1")
+	_, err := cli.SendMessage(context.Background(), secretToken, "12345", "hello")
+	if err == nil {
+		t.Fatal("expected network error")
+	}
+	if strings.Contains(err.Error(), secretToken) {
+		t.Fatalf("error leaked bot token: %v", err)
 	}
 }

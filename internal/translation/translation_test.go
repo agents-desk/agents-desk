@@ -141,14 +141,14 @@ func setup(t *testing.T, configured bool) fixture {
 	t.Helper()
 	ctx := context.Background()
 	env := apptest.New(t)
-	tn, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+	tn, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
 		Name: "alpha", Slug: "alpha", OwnerEmail: "owner@alpha.com", OwnerName: "owner", OwnerPassword: "password",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	system := identity.Subject{Type: identity.System, ID: "test", Tenant: tn.ID}
-	owner := identity.Subject{Type: member.Type, ID: tn.OwnerID, Tenant: tn.ID, Permissions: auth.WithBase(auth.RolePermissions(auth.ScopeAll, nil))}
+	owner := identity.Subject{Type: member.Type, ID: tn.OwnerID, Tenant: tn.ID, Permissions: auth.WithBase(auth.Owner.Permissions)}
 	if _, err := env.DB.NewRaw("UPDATE members SET language = 'zh-CN' WHERE id = ?", tn.OwnerID).Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +163,7 @@ func setup(t *testing.T, configured bool) fixture {
 			roleID = r.ID
 		}
 	}
-	if _, err := member.NewAdd(env.DB, env.MemberLogins, env.Files).Handle(ctx, owner, member.AddParams{
+	if _, err := member.NewAdd(env.DB, env.Roles, env.MemberLogins, env.Files).Handle(ctx, owner, member.AddParams{
 		Email: "en@alpha.com", Name: "en", Password: "password", RoleID: roleID,
 	}); err != nil {
 		t.Fatal(err)
@@ -178,7 +178,7 @@ func setup(t *testing.T, configured bool) fixture {
 	model := &fakeModel{language: "hi-Latn"}
 	srv := httptest.NewServer(model)
 	t.Cleanup(srv.Close)
-	llmSettings := llm.NewGroup(env.DB)
+	llmSettings := llm.NewGroup(env.DB, env.Crypt)
 	if configured {
 		if err := llmSettings.Save(ctx, llm.Settings{
 			Gateway: llm.Gateway{BaseURL: srv.URL + "/v1", APIKey: "test-key"},
@@ -667,7 +667,7 @@ func TestPrimaryLanguages(t *testing.T) {
 	}
 	addZH := func(name string) {
 		t.Helper()
-		if _, err := member.NewAdd(f.env.DB, f.env.MemberLogins, f.env.Files).Handle(ctx, f.agent, member.AddParams{
+		if _, err := member.NewAdd(f.env.DB, f.env.Roles, f.env.MemberLogins, f.env.Files).Handle(ctx, f.agent, member.AddParams{
 			Email: name + "@alpha.com", Name: name, Password: "password", RoleID: roleID,
 		}); err != nil {
 			t.Fatal(err)

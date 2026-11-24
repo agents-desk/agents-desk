@@ -127,6 +127,21 @@ func (a *App) credentialWatcher() identity.CredentialWatcher {
 	return a.creds
 }
 
+// bodyLimitFor 为文件上传接口（POST .../files）放宽请求体上限至 MaxUploadSize + 512 KiB，其余接口沿用默认 1 MiB 上限。
+func (a *App) bodyLimitFor(r *http.Request) int64 {
+	if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/files") {
+		return int64(a.cfg.Filesystem.MaxUploadSize) + 512<<10
+	}
+	return 0
+}
+
+// trackPrimary 为每次 HTTP 请求开启读写分离主库跟踪：同请求中发生写事务后，后续只读查询自动路由到主库。
+func trackPrimary(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r.WithContext(database.TrackPrimary(r.Context())))
+	})
+}
+
 // memberImpersonation 返回工作区端允许平台管理员代为登录的策略：操作者必须未停用且在平台域拥有 tenants:impersonate 权限。
 func (a *App) memberImpersonation() *identity.Impersonation {
 	return &identity.Impersonation{
@@ -146,6 +161,7 @@ func (a *App) newRealtime() (*realtime.Realtime, error) {
 		SessionCookie: member.SessionCookie,
 		Credentials:   a.credentialWatcher(),
 		Tenant:        func(r *http.Request) string { return tenant.IDFrom(r.Context()) },
+		CheckTenant:   tenant.CheckEnabled(a.db),
 		Presence:      a.presence,
 	})
 	if err != nil {
@@ -162,7 +178,9 @@ func (a *App) newWidgetRealtime() (*realtime.Realtime, error) {
 	rt, err := realtime.New(a.hub, realtime.Options{
 		Authenticate: a.contactTokens.Validate,
 		Accounts:     identity.Accounts{contact.Type: widget.Resolve(a.db)},
+		Credentials:  a.credentialWatcher(),
 		Tenant:       func(r *http.Request) string { return widget.TenantFrom(r.Context()) },
+		CheckTenant:  tenant.CheckEnabled(a.db),
 	})
 	if err != nil {
 		return nil, err
@@ -176,7 +194,8 @@ func (a *App) newWidgetRealtime() (*realtime.Realtime, error) {
 // 它只保存 App 的字段、处理请求时才使用，所以 docRouter 可以用没有打开资源的 App 调用它。
 func (a *App) routes(pages http.Handler) chi.Router {
 	router := chi.NewRouter()
-	router.Use(httpx.Defaults(a.cfg.HTTP, httpx.Languages(i18n.MustNew("zh-CN", locales.FS)))...)
+	router.Use(httpx.Defaults(a.cfg.HTTP, httpx.Languages(i18n.MustNew("zh-CN", locales.FS)), httpx.BodyLimitFor(a.bodyLimitFor))...)
+	router.Use(trackPrimary)
 	router.Get("/livez", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
 	router.Handle("/readyz", httpx.Ready(httpx.ReadyOptions{
 		Checks: []health.Check{
@@ -213,9 +232,9 @@ func (a *App) routes(pages http.Handler) chi.Router {
 			return rest.RequireToken(api, a.adminTokens.Validate, names...)
 		}
 		platformadmin.RegisterRoutes(api, require(), a.db, a.adminLogins, a.adminTokens, a.files, a.cfg.Filesystem.MaxUploadSize, a.cfg.AdminToken.Lifetime)
-		platformadmin.RegisterManageRoutes(api, require(auth.PlatformAdminsManage), a.db, a.adminLogins, a.creds)
+		platformadmin.RegisterManageRoutes(api, require(auth.PlatformAdminsManage), a.db, a.roles, a.adminLogins, a.creds)
 		adminnotify.RegisterRoutes(api, require(), a.db, a.hub)
-		tenant.RegisterRoutes(api, require(auth.TenantsRead), require(auth.TenantsManage), require(auth.TenantsImpersonate), a.db, a.roles, a.memberLogins, a.memberTokens, addr, memberHooks)
+		tenant.RegisterRoutes(api, require(auth.TenantsRead), require(auth.TenantsManage), require(auth.TenantsImpersonate), a.db, a.roles, a.memberLogins, a.memberTokens, addr, memberHooks, a.creds)
 		tenant.RegisterExportRoutes(api, require(auth.TenantsRead), a.db, a.memberLogins, addr, a.exporter, a.hub)
 		platformsettings.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.generalSettings, a.mailSettings)
 		llm.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.llmSettings)
@@ -264,7 +283,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 			Credentials:   a.credentialWatcher(),
 		})
 		requireMember := rest.RequireToken(api, a.memberTokens.Validate)
-		member.RegisterRoutes(api, requireMember, a.db, a.memberLogins, a.memberTokens, a.files, a.creds, a.cfg.Filesystem.MaxUploadSize, a.cfg.MemberToken.Lifetime)
+		member.RegisterRoutes(api, requireMember, a.db, a.memberLogins, a.memberTokens, a.files, a.cfg.Filesystem.MaxUploadSize, a.cfg.MemberToken.Lifetime)
 		tenant.RegisterMemberRoutes(api, requireMember, a.db, a.roles, addr)
 	})
 
@@ -297,7 +316,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		contact.RegisterRoutes(api, require, a.db, a.hub, a.roles, a.exporter)
 		tag.RegisterRoutes(api, require, a.db)
 		attribute.RegisterRoutes(api, require, a.db)
-		macro.RegisterRoutes(api, require, a.db)
+		macro.RegisterRoutes(api, require, a.db, a.roles)
 		conversation.RegisterRoutes(api, require, a.db, a.downstream())
 		file.RegisterRoutes(api, require(auth.ConversationsReply), a.files, a.cfg.Filesystem.MaxUploadSize)
 		widget.RegisterRoutes(api, require, a.db, a.crypt, a.cfg.PublicURL)
@@ -313,8 +332,9 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		r.Use(httpx.Timeout(a.cfg.HTTP.Timeout), httpx.RateLimit(ratelimit.NewMemory(a.cfg.HTTP.RateLimit), httpx.KeyByIP), widget.Middleware(a.db))
 		api := rest.New(r, rest.Options{
 			Title: "agents-desk 聊天插件", Version: "0.1.0", BasePath: "/w/{channel}/api",
-			Tenant:   widget.TenantFromRequest,
-			Accounts: identity.Accounts{contact.Type: widget.Resolve(a.db)},
+			Tenant:      widget.TenantFromRequest,
+			Accounts:    identity.Accounts{contact.Type: widget.Resolve(a.db)},
+			Credentials: a.credentialWatcher(),
 		})
 		down := a.downstream()
 		widget.RegisterVisitorRoutes(api, rest.RequireToken(api, a.contactTokens.Validate), a.db, a.crypt, a.contactTokens,

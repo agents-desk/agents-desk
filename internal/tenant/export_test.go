@@ -20,7 +20,7 @@ func TestQueueExportTenants(t *testing.T) {
 	ctx := context.Background()
 
 	addr := tenant.Addresses{PublicURL: "http://localhost:8081"}
-	create := tenant.NewCreate(env.DB, env.MemberLogins, addr)
+	create := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, addr)
 	for _, item := range []struct{ name, slug, email string }{
 		{"示例工作区", "demo", "demo@example.com"},
 		{"测试团队", "beta", "beta@example.com"},

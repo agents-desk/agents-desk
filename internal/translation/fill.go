@@ -7,7 +7,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/identity"
+	"github.com/go-tenon/tenon/queue"
 
 	"agents-desk/internal/conversation"
 )
@@ -75,8 +77,19 @@ func (a *FillMissing) Handle(ctx context.Context, sub identity.Subject, itemIDs 
 			jobs = append(jobs, FillJob{TenantID: sub.Tenant, ItemID: it.ID, Language: language})
 		}
 	}
-	if err := FillTopic.PublishAll(ctx, a.db, jobs); err != nil {
-		return 0, errors.Wrap(err, "publish fill jobs")
+	if len(jobs) == 0 {
+		return 0, nil
+	}
+	err = database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
+		for _, job := range jobs {
+			if err := FillTopic.Publish(ctx, tx, job, queue.DedupKey(job.ItemID+":"+job.Language)); err != nil {
+				return errors.Wrap(err, "publish fill jobs")
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
 	}
 	return len(jobs), nil
 }

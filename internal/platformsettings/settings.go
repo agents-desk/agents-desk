@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-tenon/tenon/activity"
 	"github.com/go-tenon/tenon/contract"
+	"github.com/go-tenon/tenon/crypt"
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/enum"
 	"github.com/go-tenon/tenon/errorx"
@@ -59,12 +60,12 @@ var GeneralDefaults = General{
 	DefaultLanguage: LangZhCN,
 }
 
-// Mail 是平台邮件服务（Resend）设置。APIKey 为空表示暂不启用外发（仅写入日志）。
+// Mail 是平台邮件服务（Resend）设置。APIKey 为空表示暂不启用外发（仅写入日志），落库时自动加密保存。
 // 字段不带 omitempty，见 tenon/settings 文档。
 type Mail struct {
 	FromName  string `json:"from_name" maxLength:"80"`
 	FromEmail string `json:"from_email" maxLength:"120"`
-	APIKey    string `json:"api_key" maxLength:"256"`
+	APIKey    string `json:"api_key" maxLength:"256" format:"password" settings:"secret"`
 }
 
 // MailDefaults 是平台邮件服务的默认值。
@@ -90,9 +91,9 @@ func NewGeneralGroup(db bun.IDB) *settings.Group[General] {
 	return settings.New(db, "platform.general", GeneralDefaults)
 }
 
-// NewMailGroup 返回平台邮件设置的存储组。
-func NewMailGroup(db bun.IDB) *settings.Group[Mail] {
-	return settings.New(db, "platform.mail", MailDefaults)
+// NewMailGroup 返回平台邮件设置的存储组，密钥字段经 keys 透明加密存储。
+func NewMailGroup(db bun.IDB, keys *crypt.Crypt) *settings.Group[Mail] {
+	return settings.New(db, "platform.mail", MailDefaults, settings.WithCrypt(keys))
 }
 
 // GeneralBody 是常规设置的请求与响应体。

@@ -170,7 +170,7 @@ func TestAttachmentsFlow(t *testing.T) {
 	// 连接器发出时带上完整附件
 	recConn := &recordingConnector{}
 	reg := channel.Registry{channel.Test: recConn}
-	deliver := conversation.NewDeliver(env.DB, reg, media)
+	deliver := conversation.NewDeliver(env.DB, reg, conversation.Downstream{Media: media})
 	for _, job := range queuetest.Pending(t, env.DB, conversation.DeliverTopic) {
 		if err := deliver.Job(ctx, job); err != nil {
 			t.Fatal(err)

@@ -48,6 +48,15 @@ func Grant(ctx context.Context, roles *authz.Store, ref identity.Ref, tenant str
 	return roles.Assign(ctx, ref, tenant, r.ID)
 }
 
+// Set 在 tenant 中把 ref 的全部角色原子替换为预置角色 role。roles 可以建在业务事务上，与业务数据一起提交。
+func Set(ctx context.Context, roles *authz.Store, ref identity.Ref, tenant string, role authz.Role) error {
+	r, err := roles.RoleByName(ctx, role.Name, "")
+	if err != nil {
+		return err
+	}
+	return roles.SetRoles(ctx, ref, tenant, r.ID)
+}
+
 // Revoke 在 tenant 中撤销 ref 的预置角色 role。
 func Revoke(ctx context.Context, roles *authz.Store, ref identity.Ref, tenant string, role authz.Role) error {
 	r, err := roles.RoleByName(ctx, role.Name, "")

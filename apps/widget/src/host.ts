@@ -26,6 +26,9 @@ if (embedded && !inline) document.documentElement.dataset.embedded = ""
 /** hostHandlesOpenURL 报告嵌入模式的父页面是否在 init 握手中声明接管外链打开。 */
 let hostHandlesOpenURL = false
 
+/** parentOrigin 在 init 握手后锁定父页面源，用于校验后续 postMessage 来源并定向发送消息。 */
+let parentOrigin: string | undefined
+
 /** Command 是外面发给聊天窗口的命令。 */
 export type Command =
   | { command: "open" }
@@ -78,7 +81,7 @@ export function tell(
   data: Record<string, unknown> = {},
 ): void {
   if (embedded) {
-    window.parent.postMessage({ type: PREFIX + type, ...data }, "*")
+    window.parent.postMessage({ type: PREFIX + type, ...data }, parentOrigin ?? "*")
     return
   }
   appBridge()?.({ type, ...data })
@@ -108,6 +111,7 @@ export function listen(handlers: { command: (c: Command) => void; layout: (mobil
   if (embedded) {
     const onMessage = (e: MessageEvent) => {
       if (e.source !== window.parent || typeof e.data?.type !== "string" || !e.data.type.startsWith(PREFIX)) return
+      if (parentOrigin && e.origin !== parentOrigin) return
       const type = e.data.type.slice(PREFIX.length)
       if (type === "layout") handlers.layout(Boolean(e.data.mobile))
       if (type === "command") handlers.command(e.data as Command)
@@ -137,6 +141,7 @@ export function waitInit(): Promise<Init> {
     const timer = setTimeout(() => done({ mobile: inline }), 1500)
     const onMessage = (e: MessageEvent) => {
       if (e.source !== window.parent || e.data?.type !== PREFIX + "init") return
+      if (e.origin && e.origin !== "null") parentOrigin = e.origin
       hostHandlesOpenURL = Boolean(e.data.open_url)
       done({
         userToken: e.data.user_token || undefined,

@@ -36,7 +36,7 @@ func TestLoginSetsAdminCookieAndMeReturnsPermissions(t *testing.T) {
 	t.Parallel()
 	env := apptest.New(t)
 	ctx := context.Background()
-	if _, err := platformadmin.NewCreate(env.DB, env.AdminLogins).Handle(ctx, system, "运维", "ops@example.com", "secret-pass-123"); err != nil {
+	if _, err := platformadmin.NewCreate(env.DB, env.Roles, env.AdminLogins).Handle(ctx, system, "运维", "ops@example.com", "secret-pass-123"); err != nil {
 		t.Fatal(err)
 	}
 	h := newAdminAPI(env, apitoken.NewStore(env.DB, apitoken.Config{Lifetime: time.Hour}))
@@ -71,7 +71,7 @@ func TestAdminAPIRejectsMemberTokensAndDisabledAdmins(t *testing.T) {
 	t.Parallel()
 	env := apptest.New(t)
 	ctx := context.Background()
-	admin, err := platformadmin.NewCreate(env.DB, env.AdminLogins).Handle(ctx, system, "运维", "ops@example.com", "secret-pass-123")
+	admin, err := platformadmin.NewCreate(env.DB, env.Roles, env.AdminLogins).Handle(ctx, system, "运维", "ops@example.com", "secret-pass-123")
 	if err != nil {
 		t.Fatal(err)
 	}

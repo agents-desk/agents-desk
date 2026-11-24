@@ -7,6 +7,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/page"
 
@@ -54,8 +55,8 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in ListInput) (
 		}
 	}
 	if kw := strings.TrimSpace(in.Q); kw != "" {
-		like := "%" + kw + "%"
-		q = q.Where("(title ILIKE ? OR shortcut ILIKE ? OR body ILIKE ?)", like, like, like)
+		like := "%" + database.EscapeLike(kw) + "%"
+		q = q.Where(`(title ILIKE ? ESCAPE '\' OR shortcut ILIKE ? ESCAPE '\' OR body ILIKE ? ESCAPE '\')`, like, like, like)
 	}
 	total, err := q.OrderExpr("updated_at DESC, id DESC").Offset(in.Offset()).Limit(in.Limit()).ScanAndCount(ctx)
 	if err != nil {

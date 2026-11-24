@@ -45,7 +45,7 @@ func TestPushAlerts(t *testing.T) {
 	hub := broadcast.New(broadcasttest.NewBackend(), nil)
 	t.Cleanup(func() { _ = hub.Close() })
 
-	tn, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+	tn, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
 		Name: "alerts", Slug: "alerts", OwnerEmail: "owner@alerts.com", OwnerName: "Owner", OwnerPassword: "password",
 	})
 	if err != nil {
@@ -55,7 +55,7 @@ func TestPushAlerts(t *testing.T) {
 		Type: member.Type, ID: tn.OwnerID, Tenant: tn.ID,
 		Permissions: auth.WithBase(auth.RolePermissions(auth.ScopeAll, auth.TenantPermissions.Values())),
 	}
-	agentRole, err := role.NewCreate(env.DB).Handle(ctx, ownerSub, role.Params{
+	agentRole, err := role.NewCreate(env.DB, env.Roles).Handle(ctx, ownerSub, role.Params{
 		Name:              "测试坐席",
 		ConversationScope: auth.ScopeTeam,
 	})
@@ -63,7 +63,7 @@ func TestPushAlerts(t *testing.T) {
 		t.Fatal(err)
 	}
 	agentRoleID := agentRole.ID
-	add := member.NewAdd(env.DB, env.MemberLogins, env.Files)
+	add := member.NewAdd(env.DB, env.Roles, env.MemberLogins, env.Files)
 	a1, err := add.Handle(ctx, ownerSub, member.AddParams{Email: "a1@alerts.com", Name: "坐席一", Password: "password", RoleID: agentRoleID})
 	if err != nil {
 		t.Fatal(err)

@@ -35,7 +35,7 @@ export const settings = {
     form: [
       { name: "from_name", type: "string", required: true },
       { name: "from_email", type: "string", required: true },
-      { name: "api_key", type: "string", required: true },
+      { name: "api_key", type: "string", format: "password", required: true },
     ],
     labels: {
       "en": {

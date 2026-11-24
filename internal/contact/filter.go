@@ -5,6 +5,8 @@ import (
 
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/database"
+
 	"agents-desk/internal/lang"
 )
 
@@ -23,12 +25,12 @@ func applyFilter(q *bun.SelectQuery, f Filter) *bun.SelectQuery {
 		q = q.Where("contact.kind = ?", f.Kind)
 	}
 	if kw := strings.TrimSpace(f.Q); kw != "" {
-		like := "%" + kw + "%"
+		like := "%" + database.EscapeLike(kw) + "%"
 		num, hasNum := parseNumberQuery(kw)
 		q = q.WhereGroup(" AND ", func(q *bun.SelectQuery) *bun.SelectQuery {
-			q = q.Where("contact.name ILIKE ?", like).
-				WhereOr("contact.email ILIKE ?", like).
-				WhereOr("contact.external_user_id ILIKE ?", like)
+			q = q.Where(`contact.name ILIKE ? ESCAPE '\'`, like).
+				WhereOr(`contact.email ILIKE ? ESCAPE '\'`, like).
+				WhereOr(`contact.external_user_id ILIKE ? ESCAPE '\'`, like)
 			if hasNum {
 				q = q.WhereOr("contact.number = ?", num)
 			}

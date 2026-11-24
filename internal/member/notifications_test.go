@@ -17,7 +17,7 @@ func TestPreferencesAndNotifications(t *testing.T) {
 	ctx := context.Background()
 	env := apptest.New(t)
 
-	tn, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+	tn, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
 		Name: "prefs", Slug: "prefs", OwnerEmail: "owner@prefs.com", OwnerName: "Owner", OwnerPassword: "password",
 	})
 	if err != nil {

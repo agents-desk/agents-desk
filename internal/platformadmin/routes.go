@@ -8,6 +8,7 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/apitoken"
+	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/httpx/rest"
@@ -49,7 +50,7 @@ func RegisterRoutes(api *rest.API, requireAdmin func(*huma.Operation), db *bun.D
 
 // RegisterManageRoutes 注册平台管理员账号的增查改与停用/启用接口，并声明为管理员端的资源。
 // requireManage 要求 platform-admins:manage 权限；creds 非 nil 时在停用管理员后通知长连接立即复查。
-func RegisterManageRoutes(api *rest.API, requireManage func(*huma.Operation), db *bun.DB, logins *login.Realm, creds ...*broadcast.Credentials) {
+func RegisterManageRoutes(api *rest.API, requireManage func(*huma.Operation), db *bun.DB, roles *authz.Store, logins *login.Realm, creds ...*broadcast.Credentials) {
 	route := func(id, method, path, summary string) huma.Operation {
 		op := huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary}
 		requireManage(&op)
@@ -60,7 +61,7 @@ func RegisterManageRoutes(api *rest.API, requireManage func(*huma.Operation), db
 
 	rest.Register(api, route("admin-list", http.MethodGet, "/admins", "平台管理员列表"), NewList(db, logins).HTTP)
 	rest.Register(api, route("admin-get", http.MethodGet, "/admins/{id}", "读取平台管理员"), NewGet(db, logins).HTTP)
-	rest.Register(api, create, NewCreate(db, logins).HTTP)
+	rest.Register(api, create, NewCreate(db, roles, logins).HTTP)
 	rest.Register(api, route("admin-update", http.MethodPut, "/admins/{id}", "修改平台管理员"), NewUpdate(db, logins).HTTP)
 	rest.Register(api, route("admin-disable", http.MethodPost, "/admins/{id}/disable", "停用平台管理员"), NewDisable(db, logins, creds...).HTTP)
 	rest.Register(api, route("admin-enable", http.MethodPost, "/admins/{id}/enable", "启用平台管理员"), NewEnable(db, logins).HTTP)

@@ -1,4 +1,4 @@
-import { createUiTheme, primaryColors } from "@go-tenon/ui"
+import { createUiTheme, primaryColors } from "@go-tenon/ui/theme"
 import { createContext, useContext } from "react"
 
 /** DEFAULT_WIDGET_COLOR 是聊天窗口的默认主题色（#0063ff）。 */

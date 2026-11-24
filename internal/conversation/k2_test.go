@@ -36,7 +36,7 @@ func TestReopenWindow(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		env := apptest.New(t)
 		ctx := context.Background()
-		tn, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+		tn, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
 			Name: "alpha", Slug: "alpha", OwnerEmail: "owner@alpha.com", OwnerName: "owner", OwnerPassword: "password",
 		})
 		if err != nil {
@@ -117,13 +117,13 @@ func TestClosuresAndRounds(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		env := apptest.New(t)
 		ctx := context.Background()
-		alpha, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+		alpha, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
 			Name: "alpha", Slug: "alpha", OwnerEmail: "owner@alpha.com", OwnerName: "owner", OwnerPassword: "password",
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
-		beta, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+		beta, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
 			Name: "beta", Slug: "beta", OwnerEmail: "owner@beta.com", OwnerName: "beta", OwnerPassword: "password",
 		})
 		if err != nil {
@@ -262,7 +262,7 @@ func TestClosuresAndRounds(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := team.NewPutMember(env.DB, env.MemberLogins, env.Files).Handle(ctx, system, rrTeam.ID, alpha.OwnerID); err != nil {
+		if _, err := team.NewPutMember(env.DB, env.Roles, env.MemberLogins, env.Files).Handle(ctx, system, rrTeam.ID, alpha.OwnerID); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := member.NewSetMyStatus(env.DB).Handle(ctx, agent, member.StatusSetting{Status: member.Online}); err != nil {

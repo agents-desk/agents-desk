@@ -7,6 +7,7 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/activity"
+	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
@@ -21,11 +22,12 @@ type CreateInput struct {
 
 // Create 在当前工作区中新建一条共享或个人快捷回复。
 type Create struct {
-	db *bun.DB
+	db    *bun.DB
+	roles *authz.Store
 }
 
 // NewCreate 返回新建快捷回复的动作。
-func NewCreate(db *bun.DB) *Create { return &Create{db: db} }
+func NewCreate(db *bun.DB, roles *authz.Store) *Create { return &Create{db: db, roles: roles} }
 
 // Handle 由 sub 按 p 创建快捷回复。共享快捷回复要求 macros:manage 权限并记录工作区操作日志；
 // 个人快捷回复归属 sub 本人。同作用域下快捷指令码重复时返回 ErrShortcutTaken。
@@ -54,7 +56,7 @@ func (a *Create) Handle(ctx context.Context, sub identity.Subject, p CreateParam
 
 	var m *Macro
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
-		title, shortcut, body, actions, err := validateAndNormalize(ctx, tx, sub.Tenant, p.Title, p.Shortcut, p.Body, p.Actions)
+		title, shortcut, body, actions, err := validateAndNormalize(ctx, tx, a.roles, sub.Tenant, p.Title, p.Shortcut, p.Body, p.Actions)
 		if err != nil {
 			return err
 		}

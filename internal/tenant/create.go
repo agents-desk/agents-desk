@@ -37,13 +37,14 @@ type CreateInput struct {
 // Create 新建租户并指定主管理员：主管理员的邮箱没有成员账号时同时创建账号。
 type Create struct {
 	db     *bun.DB
+	roles  *authz.Store
 	logins *login.Realm // 成员的 login.Realm
 	addr   Addresses
 }
 
 // NewCreate 返回新建租户的动作。
-func NewCreate(db *bun.DB, logins *login.Realm, addr Addresses) *Create {
-	return &Create{db: db, logins: logins, addr: addr}
+func NewCreate(db *bun.DB, roles *authz.Store, logins *login.Realm, addr Addresses) *Create {
+	return &Create{db: db, roles: roles, logins: logins, addr: addr}
 }
 
 // Handle 在一个事务中写入租户、找到或创建主管理员的账号、分配 owner 角色、创建初始角色（role.Defaults），并记录操作日志，
@@ -67,10 +68,11 @@ func (a *Create) Handle(ctx context.Context, subject identity.Subject, p CreateP
 			}
 			return errors.Wrap(err, "insert tenant")
 		}
-		if err := auth.Grant(ctx, authz.NewStore(tx, auth.Catalog), owner.Ref(), t.ID, auth.Owner); err != nil {
+		roles := a.roles.WithDB(tx)
+		if err := auth.Grant(ctx, roles, owner.Ref(), t.ID, auth.Owner); err != nil {
 			return err
 		}
-		if err := role.CreateDefaults(ctx, tx, t.ID); err != nil {
+		if err := role.CreateDefaults(ctx, roles, t.ID); err != nil {
 			return err
 		}
 		if err := automation.EnsureBuiltins(ctx, tx, t.ID); err != nil {

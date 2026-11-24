@@ -6,7 +6,6 @@ import (
 	"context"
 
 	"github.com/cockroachdb/errors"
-	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/errorx"
@@ -58,9 +57,8 @@ var Defaults = []Params{
 	{Name: "坐席", Description: "处理所在团队收件箱的和指派给自己的会话", ConversationScope: auth.ScopeTeam, Permissions: []auth.TenantPermission{}},
 }
 
-// CreateDefaults 在事务 tx 中为工作区 tenant 创建初始角色 Defaults，新建工作区时调用。
-func CreateDefaults(ctx context.Context, tx bun.IDB, tenant string) error {
-	roles := authz.NewStore(tx, auth.Catalog)
+// CreateDefaults 通过 roles 为工作区 tenant 创建初始角色 Defaults，新建工作区时调用。
+func CreateDefaults(ctx context.Context, roles *authz.Store, tenant string) error {
 	for _, p := range Defaults {
 		if _, err := roles.CreateRole(ctx, toRole(tenant, p)); err != nil {
 			return err

@@ -71,8 +71,8 @@ export const resources = {
       delete: ["role", "delete"],
     },
     permissions: {
-      list: ["members:manage"],
-      get: ["members:manage"],
+      list: ["members:read"],
+      get: ["members:read"],
       create: ["members:manage"],
       update: ["members:manage"],
       delete: ["members:manage"],

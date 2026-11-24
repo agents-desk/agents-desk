@@ -22,7 +22,7 @@ func TestCreateGrantsPlatformAdminRole(t *testing.T) {
 	env := apptest.New(t)
 	ctx := context.Background()
 
-	admin, err := platformadmin.NewCreate(env.DB, env.AdminLogins).Handle(ctx, system, "运维", "ops@example.com", "secret-pass-123")
+	admin, err := platformadmin.NewCreate(env.DB, env.Roles, env.AdminLogins).Handle(ctx, system, "运维", "ops@example.com", "secret-pass-123")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +49,7 @@ func TestCreateRejectsTakenEmailAndWeakPassword(t *testing.T) {
 	t.Parallel()
 	env := apptest.New(t)
 	ctx := context.Background()
-	create := platformadmin.NewCreate(env.DB, env.AdminLogins)
+	create := platformadmin.NewCreate(env.DB, env.Roles, env.AdminLogins)
 	if _, err := create.Handle(ctx, system, "运维", "ops@example.com", "secret-pass-123"); err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func TestCreateCommandReadsPasswordFromStdin(t *testing.T) {
 	t.Parallel()
 	env := apptest.New(t)
 
-	cmd := platformadmin.Commands(env.DB, env.AdminLogins)
+	cmd := platformadmin.Commands(env.DB, env.Roles, env.AdminLogins)
 	var out bytes.Buffer
 	cmd.SetIn(strings.NewReader("secret-pass-123\n"))
 	cmd.SetOut(&out)

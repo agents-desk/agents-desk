@@ -3,7 +3,6 @@ package member
 import (
 	"context"
 	"database/sql"
-	"log/slog"
 	"net/http"
 	"slices"
 	"time"
@@ -12,7 +11,6 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/apitoken"
-	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/login"
@@ -64,13 +62,12 @@ type Session struct {
 	logins   *login.Realm
 	tokens   *apitoken.Store
 	files    *filesystem.Service
-	creds    *broadcast.Credentials // 撤销凭据后立即通知长连接复查；离线构造路由或单测时可为 nil
-	lifetime time.Duration          // 浏览器保存会话 cookie 的时长，与登录 token 的最长有效期相同
+	lifetime time.Duration // 浏览器保存会话 cookie 的时长，与登录 token 的最长有效期相同
 }
 
 // NewSession 返回成员的会话处理器，logins 是成员的 login.Realm，tokens 签发成员的登录 token，files 读取头像。
-func NewSession(db *bun.DB, logins *login.Realm, tokens *apitoken.Store, files *filesystem.Service, creds *broadcast.Credentials, lifetime time.Duration) *Session {
-	return &Session{db: db, logins: logins, tokens: tokens, files: files, creds: creds, lifetime: lifetime}
+func NewSession(db *bun.DB, logins *login.Realm, tokens *apitoken.Store, files *filesystem.Service, lifetime time.Duration) *Session {
+	return &Session{db: db, logins: logins, tokens: tokens, files: files, lifetime: lifetime}
 }
 
 // Login 校验邮箱和密码，签发登录 token 写进会话 cookie。密码错误返回 401，同一个邮箱错太多次返回 429，
@@ -87,17 +84,12 @@ func (s *Session) Login(ctx context.Context, in *LoginInput) (*SessionOutput, er
 	return &SessionOutput{SetCookie: SessionCookie.Set(token, s.lifetime)}, nil
 }
 
-// Logout 撤销这次登录的 token，并清除对应的会话 cookie。
+// Logout 撤销这次登录的 token，并清除对应的会话 cookie；凭据撤销后由 tokens 的 Credentials 联动通知长连接复查。
 // 代为登录状态下仅清除独立的代登 cookie（__Host-impersonation），不影响浏览器中已有的普通成员会话。
 func (s *Session) Logout(ctx context.Context, _ *struct{}) (*SessionOutput, error) {
 	sub, _ := identity.FromContext(ctx)
 	if err := s.tokens.Revoke(ctx, sub, sub.Credential); err != nil {
 		return nil, err
-	}
-	if s.creds != nil && sub.Credential != "" {
-		if err := s.creds.RecheckCredential(ctx, sub.Credential); err != nil {
-			slog.WarnContext(ctx, "recheck revoked member credential failed", "credential", sub.Credential, "error", err)
-		}
 	}
 	if sub.Impersonated() {
 		return &SessionOutput{SetCookie: SessionCookie.ImpersonationCookie().Clear()}, nil

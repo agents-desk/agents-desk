@@ -14,7 +14,7 @@ func TestSaveSettings(t *testing.T) {
 	t.Parallel()
 	env := apptest.New(t)
 	ctx := context.Background()
-	group := llm.NewGroup(env.DB)
+	group := llm.NewGroup(env.DB, env.Crypt)
 	save := llm.NewSaveSettings(env.DB, group)
 
 	// 没有保存过时网关和调用类型模型都为空
@@ -39,6 +39,14 @@ func TestSaveSettings(t *testing.T) {
 	}
 	if got != cfg {
 		t.Fatalf("读回 %+v，期望 %+v", got, cfg)
+	}
+	// settings 表中 api_key 必须以密文保存，不能出现明文密钥
+	var raw string
+	if err := env.DB.NewRaw("SELECT payload::text FROM settings WHERE name = 'llm' AND tenant = ''").Scan(ctx, &raw); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(raw, "sk-gateway-secret") || !strings.Contains(raw, "enc:v1:") {
+		t.Fatalf("settings 表未加密保存 api_key：%s", raw)
 	}
 
 	// 只改翻译模型名：操作日志只记下 models.translation；没有修改时不记录

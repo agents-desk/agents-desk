@@ -7,6 +7,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/queue"
 
 	"agents-desk/internal/channel"
@@ -19,21 +20,22 @@ var DeliverTopic = queue.Topic[Appended]("conversation.deliver")
 type Deliver struct {
 	db       *bun.DB
 	registry channel.Registry
-	media    Media
+	down     Downstream
 }
 
-// NewDeliver 返回发出消息的动作；registry 按渠道的种类找到连接器，media 用于解析消息附带的附件地址（测试中不涉及附件时可省略）。
-func NewDeliver(db *bun.DB, registry channel.Registry, media ...Media) *Deliver {
-	var m Media
-	if len(media) > 0 {
-		m = media[0]
+// NewDeliver 返回发出消息的动作；registry 按渠道的种类找到连接器，down 提供附件解析与送达状态实时推送依赖。
+func NewDeliver(db *bun.DB, registry channel.Registry, down ...Downstream) *Deliver {
+	var d Downstream
+	if len(down) > 0 {
+		d = down[0]
 	}
-	return &Deliver{db: db, registry: registry, media: m}
+	return &Deliver{db: db, registry: registry, down: d}
 }
 
 // Job 处理 DeliverTopic 的任务：时间线的新一项是成员或 AI 发给对方的消息、送达状态还是发送中时，
-// 交给连接器发出，发出即送达的记为已送达。其他的项不处理。重复的任务不会重复发出已送达的消息。
-// 连接器失败时返回错误，任务稍后重试；最后一次也失败时记为失败。
+// 交给连接器发出，发出即送达的记为已送达并实时推送给能看到会话的成员。其他的项不处理。
+// 重复的任务不会重复发出已送达的消息。渠道已停用时返回永久错误；临时失败时返回错误等待重试，
+// 最终放弃（永久错误、业务错误或重试次数耗尽）由 queue.OnDead 统一回调 OnDead 记为失败并推送。
 func (a *Deliver) Job(ctx context.Context, p Appended) error {
 	var it Item
 	err := a.db.NewSelect().Model(&it).Where("id = ? AND tenant_id = ?", p.ItemID, p.TenantID).Scan(ctx)
@@ -62,6 +64,9 @@ func (a *Deliver) Job(ctx context.Context, p Appended) error {
 	if err != nil {
 		return err
 	}
+	if !ch.Enabled {
+		return queue.Permanent(channel.ErrDisabled.New())
+	}
 	connector, err := a.registry.Connector(ch.Kind)
 	if err != nil {
 		return err
@@ -75,7 +80,7 @@ func (a *Deliver) Job(ctx context.Context, p Appended) error {
 			return errors.Wrap(err, "load contact identity")
 		}
 	}
-	attachmentsByItem, err := loadAttachments(ctx, a.db, a.media, []string{it.ID})
+	attachmentsByItem, err := loadAttachments(ctx, a.db, a.down.Media, []string{it.ID})
 	if err != nil {
 		return err
 	}
@@ -84,24 +89,45 @@ func (a *Deliver) Job(ctx context.Context, p Appended) error {
 		Text: it.Content.Text, Attachments: toChannelAttachments(attachmentsByItem[it.ID]),
 	})
 	if err != nil {
-		if _, final := queue.AttemptFromContext(ctx); final {
-			if markErr := a.mark(ctx, it.ID, Failed, "", err.Error()); markErr != nil {
-				return markErr
-			}
-		}
 		return err
 	}
 	status := Sending
 	if delivered {
 		status = Delivered
 	}
-	return a.mark(ctx, it.ID, status, externalID, "")
+	return a.markAndNotify(ctx, p.TenantID, c.ID, it.ID, status, externalID, "", delivered)
 }
 
-// mark 把消息 itemID 的送达状态改为 status，记下渠道中的编号和失败的原因。
-func (a *Deliver) mark(ctx context.Context, itemID string, status DeliveryStatus, externalID, reason string) error {
-	_, err := a.db.NewUpdate().Model((*Delivery)(nil)).
-		Set("status = ?", status).Set("external_id = ?", externalID).Set("error = ?", reason).Set("updated_at = ?", now()).
-		Where("item_id = ?", itemID).Exec(ctx)
-	return errors.Wrap(err, "update delivery")
+// OnDead 在消息投递任务因永久错误、业务错误或重试次数耗尽而进入失败任务表前执行一次：
+// 将仍处于发送中状态的送达记录标记为失败并写入原因，同时推送给能看到会话的成员。
+func (a *Deliver) OnDead(ctx context.Context, p Appended, cause error) error {
+	reason := ""
+	if cause != nil {
+		reason = cause.Error()
+	}
+	return a.markAndNotify(ctx, p.TenantID, p.ConversationID, p.ItemID, Failed, "", reason, true)
+}
+
+// markAndNotify 在事务中更新消息 itemID 的送达状态，需要时在提交后向能看到会话的成员推送变更事件。
+func (a *Deliver) markAndNotify(ctx context.Context, tenantID, conversationID, itemID string, status DeliveryStatus, externalID, reason string, notify bool) error {
+	return database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
+		q := tx.NewUpdate().Model((*Delivery)(nil)).
+			Set("status = ?", status).Set("external_id = ?", externalID).Set("error = ?", reason).Set("updated_at = ?", now()).
+			Where("item_id = ?", itemID)
+		if status == Failed {
+			q = q.Where("status = ?", Sending)
+		}
+		res, err := q.Exec(ctx)
+		if err != nil {
+			return errors.Wrap(err, "update delivery")
+		}
+		affected, err := res.RowsAffected()
+		if err != nil {
+			return errors.Wrap(err, "update delivery")
+		}
+		if !notify || affected == 0 {
+			return nil
+		}
+		return NotifyUpdated(ctx, tx, a.down, tenantID, []string{conversationID})
+	})
 }

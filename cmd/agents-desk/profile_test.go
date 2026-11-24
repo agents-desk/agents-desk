@@ -87,17 +87,17 @@ func TestProfile(t *testing.T) {
 		cfg: config.Default[Config](), db: env.DB, roles: env.Roles,
 		adminLogins: env.AdminLogins, adminTokens: apitoken.NewStore(env.DB, tokens),
 		memberLogins: env.MemberLogins, memberTokens: apitoken.NewStore(env.DB, tokens),
-		llmSettings: llm.NewGroup(env.DB), files: env.Files, localDisk: env.Disk,
+		llmSettings: llm.NewGroup(env.DB, env.Crypt), files: env.Files, localDisk: env.Disk,
 	}
 	// 与 config/app.yaml 相同：全局的请求体上限容纳 20 MiB 的上传
 	a.cfg.Filesystem.MaxUploadSize = 20 * filesystem.MiB
 	a.cfg.HTTP.BodyLimit.MaxBytes = 21495808
 	h := a.routes(nil)
 
-	if _, err := platformadmin.NewCreate(env.DB, env.AdminLogins).Handle(ctx, apptest.Admin, "运维", "ops@example.com", "password"); err != nil {
+	if _, err := platformadmin.NewCreate(env.DB, env.Roles, env.AdminLogins).Handle(ctx, apptest.Admin, "运维", "ops@example.com", "password"); err != nil {
 		t.Fatal(err)
 	}
-	create := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{})
+	create := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{})
 	for _, owner := range []string{"owner", "other"} {
 		if _, err := create.Handle(ctx, apptest.Admin, tenant.CreateParams{
 			Name: owner, Slug: owner + "-team", OwnerEmail: owner + "@example.com", OwnerName: owner, OwnerPassword: "password",

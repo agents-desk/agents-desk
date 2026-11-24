@@ -32,7 +32,7 @@ type fixture struct {
 func setup(t *testing.T, env *apptest.Env, slug string) fixture {
 	t.Helper()
 	ctx := context.Background()
-	tn, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+	tn, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
 		Name: slug, Slug: slug, OwnerEmail: "owner@" + slug + ".com", OwnerName: "owner", OwnerPassword: "password",
 	})
 	if err != nil {

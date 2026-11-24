@@ -35,7 +35,7 @@ func TestConversationChannel(t *testing.T) {
 		cfg: config.Default[Config](), db: env.DB, hub: hub, roles: env.Roles, presence: realtimetest.NewPresence(),
 		adminLogins: env.AdminLogins, adminTokens: apitoken.NewStore(env.DB, tokens),
 		memberLogins: env.MemberLogins, memberTokens: apitoken.NewStore(env.DB, tokens),
-		llmSettings: llm.NewGroup(env.DB), files: env.Files, localDisk: env.Disk, channels: channel.DefaultRegistry(),
+		llmSettings: llm.NewGroup(env.DB, env.Crypt), files: env.Files, localDisk: env.Disk, channels: channel.DefaultRegistry(),
 	}
 	rt, err := a.newRealtime()
 	if err != nil {
@@ -47,7 +47,7 @@ func TestConversationChannel(t *testing.T) {
 	srv := httptest.NewServer(h)
 	t.Cleanup(srv.Close)
 
-	tn, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+	tn, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
 		Name: "alpha", Slug: "alpha", OwnerEmail: "owner@alpha.com", OwnerName: "owner", OwnerPassword: "password",
 	})
 	if err != nil {

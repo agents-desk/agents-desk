@@ -26,10 +26,10 @@ func TestMemberStatus(t *testing.T) {
 		cfg: config.Default[Config](), db: env.DB, roles: env.Roles,
 		adminLogins: env.AdminLogins, adminTokens: apitoken.NewStore(env.DB, tokens),
 		memberLogins: env.MemberLogins, memberTokens: apitoken.NewStore(env.DB, tokens),
-		llmSettings: llm.NewGroup(env.DB), files: env.Files, localDisk: env.Disk,
+		llmSettings: llm.NewGroup(env.DB, env.Crypt), files: env.Files, localDisk: env.Disk,
 	}
 	h := a.routes(nil)
-	create := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{})
+	create := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{})
 	for _, slug := range []string{"alpha", "beta"} {
 		if _, err := create.Handle(ctx, apptest.Admin, tenant.CreateParams{
 			Name: slug, Slug: slug, OwnerEmail: "owner@" + slug + ".com", OwnerName: slug + " 主管理员", OwnerPassword: "password",

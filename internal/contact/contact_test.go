@@ -33,7 +33,7 @@ type testWorkspace struct {
 func setupWorkspace(t *testing.T, env *apptest.Env, slug string) testWorkspace {
 	t.Helper()
 	ctx := context.Background()
-	tn, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+	tn, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
 		Name: slug, Slug: slug, OwnerEmail: "owner@" + slug + ".com", OwnerName: "owner", OwnerPassword: "password",
 	})
 	if err != nil {
@@ -344,7 +344,7 @@ func TestVisibilityScope(t *testing.T) {
 	}
 
 	// 创建角色和成员：agentA（teamA, ScopeTeam）、agentB/张三（teamB, ScopeTeam）、assignedOnly（teamB, ScopeAssigned）、homeless（无团队, ScopeTeam）
-	createRole := role.NewCreate(env.DB)
+	createRole := role.NewCreate(env.DB, env.Roles)
 	teamRole, err := createRole.Handle(ctx, owner, role.Params{Name: "品牌坐席", ConversationScope: auth.ScopeTeam})
 	if err != nil {
 		t.Fatal(err)
@@ -353,8 +353,8 @@ func TestVisibilityScope(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	addMember := member.NewAdd(env.DB, env.MemberLogins, nil)
-	putMember := team.NewPutMember(env.DB, env.MemberLogins, nil)
+	addMember := member.NewAdd(env.DB, env.Roles, env.MemberLogins, nil)
+	putMember := team.NewPutMember(env.DB, env.Roles, env.MemberLogins, nil)
 	newAgent := func(email, name, roleID string, scope auth.ConversationScope, teamID string) identity.Subject {
 		t.Helper()
 		m, err := addMember.Handle(ctx, owner, member.AddParams{Email: email, Name: name, Password: "password", RoleID: roleID})

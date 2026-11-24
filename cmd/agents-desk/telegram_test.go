@@ -45,13 +45,13 @@ func TestTelegramHTTPAndWebhook(t *testing.T) {
 		adminLogins: env.AdminLogins, adminTokens: apitoken.NewStore(env.DB, tokens),
 		memberLogins: env.MemberLogins, memberTokens: apitoken.NewStore(env.DB, tokens),
 		contactTokens: apitoken.NewStore(env.DB, tokens), crypt: env.Crypt,
-		llmSettings: llm.NewGroup(env.DB), files: env.Files, localDisk: env.Disk,
+		llmSettings: llm.NewGroup(env.DB, env.Crypt), files: env.Files, localDisk: env.Disk,
 		channels: registry(nil, env.Crypt, env.Files, tgClient),
 		telegram: tgClient,
 	}
 	h := a.routes(nil)
 
-	if _, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+	if _, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
 		Name: "alpha", Slug: "alpha", OwnerEmail: "owner@alpha.com", OwnerName: "owner", OwnerPassword: "password",
 	}); err != nil {
 		t.Fatal(err)

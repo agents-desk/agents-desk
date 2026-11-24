@@ -38,13 +38,13 @@ import (
 const seedPassword = "password"
 
 // seedCommand 返回 seed 命令：写入开发和演示用的数据，见 seed。
-func seedCommand(db *bun.DB, adminLogins, memberLogins *login.Realm, files *filesystem.Service, keys *crypt.Crypt, addr tenant.Addresses, channels channel.Registry, down conversation.Downstream) *cobra.Command {
+func seedCommand(db *bun.DB, roles *authz.Store, adminLogins, memberLogins *login.Realm, files *filesystem.Service, keys *crypt.Crypt, addr tenant.Addresses, channels channel.Registry, down conversation.Downstream) *cobra.Command {
 	return &cobra.Command{
 		Use:   "seed",
 		Short: "写入开发和演示用的账号和工作区（密码都是 password），只在开发和演示环境中运行",
 		Args:  command.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return seed(cmd.Context(), cmd.OutOrStdout(), db, adminLogins, memberLogins, files, keys, addr, channels, down)
+			return seed(cmd.Context(), cmd.OutOrStdout(), db, roles, adminLogins, memberLogins, files, keys, addr, channels, down)
 		},
 	}
 }
@@ -58,11 +58,11 @@ func seedCommand(db *bun.DB, adminLogins, memberLogins *login.Realm, files *file
 //   - demo 中的聊天插件“官网”，新会话进入“一线客服”。
 //
 // 每一项写入或跳过时向 out 输出一行。
-func seed(ctx context.Context, out io.Writer, db *bun.DB, adminLogins, memberLogins *login.Realm, files *filesystem.Service, keys *crypt.Crypt, addr tenant.Addresses, channels channel.Registry, down conversation.Downstream) error {
+func seed(ctx context.Context, out io.Writer, db *bun.DB, roles *authz.Store, adminLogins, memberLogins *login.Realm, files *filesystem.Service, keys *crypt.Crypt, addr tenant.Addresses, channels channel.Registry, down conversation.Downstream) error {
 	system := identity.Subject{Type: identity.System, ID: "seed"}
 
 	// 平台管理员
-	_, err := platformadmin.NewCreate(db, adminLogins).Handle(ctx, system, "admin", "admin@example.com", seedPassword)
+	_, err := platformadmin.NewCreate(db, roles, adminLogins).Handle(ctx, system, "admin", "admin@example.com", seedPassword)
 	switch {
 	case errors.Is(err, platformadmin.ErrEmailTaken):
 		fmt.Fprintln(out, "平台管理员 admin@example.com 已存在，跳过")
@@ -73,7 +73,7 @@ func seed(ctx context.Context, out io.Writer, db *bun.DB, adminLogins, memberLog
 	}
 
 	// 示例工作区和它的主管理员
-	_, err = tenant.NewCreate(db, memberLogins, addr).Handle(ctx, system, tenant.CreateParams{
+	_, err = tenant.NewCreate(db, roles, memberLogins, addr).Handle(ctx, system, tenant.CreateParams{
 		Name: "示例工作区", Slug: "demo",
 		OwnerEmail: "owner@example.com", OwnerName: "主管理员", OwnerPassword: seedPassword,
 	})
@@ -91,8 +91,7 @@ func seed(ctx context.Context, out io.Writer, db *bun.DB, adminLogins, memberLog
 	if err := db.NewRaw("SELECT id FROM tenants WHERE slug = 'demo'").Scan(ctx, &demo); err != nil {
 		return errors.Wrap(err, "find demo tenant")
 	}
-	roles := authz.NewStore(db, auth.Catalog)
-	add := member.NewAdd(db, memberLogins, files)
+	add := member.NewAdd(db, roles, memberLogins, files)
 	inDemo := identity.Subject{Type: identity.System, ID: "seed", Tenant: demo}
 	for _, m := range []struct{ email, name string }{
 		{"manager@example.com", "管理员"},
@@ -133,17 +132,17 @@ func seed(ctx context.Context, out io.Writer, db *bun.DB, adminLogins, memberLog
 	case err != nil:
 		return err
 	default:
-		if err := seedTeamMembers(ctx, out, db, memberLogins, files, inDemo, t.ID); err != nil {
+		if err := seedTeamMembers(ctx, out, db, roles, memberLogins, files, inDemo, t.ID); err != nil {
 			return err
 		}
 	}
 	if err := seedTagsAndAttributes(ctx, out, db, inDemo); err != nil {
 		return err
 	}
-	if err := seedMacros(ctx, out, db, memberLogins, inDemo); err != nil {
+	if err := seedMacros(ctx, out, db, roles, memberLogins, inDemo); err != nil {
 		return err
 	}
-	if err := seedConversations(ctx, out, db, memberLogins, inDemo, channels, down); err != nil {
+	if err := seedConversations(ctx, out, db, roles, memberLogins, inDemo, channels, down); err != nil {
 		return err
 	}
 	if err := seedViews(ctx, out, db, memberLogins, inDemo, down); err != nil {
@@ -246,8 +245,8 @@ func seedWidget(ctx context.Context, out io.Writer, db *bun.DB, keys *crypt.Cryp
 }
 
 // seedTeamMembers 把管理员 manager@ 和坐席 agent@ 加入示例工作区的团队收件箱 teamID。
-func seedTeamMembers(ctx context.Context, out io.Writer, db *bun.DB, memberLogins *login.Realm, files *filesystem.Service, inDemo identity.Subject, teamID string) error {
-	put := team.NewPutMember(db, memberLogins, files)
+func seedTeamMembers(ctx context.Context, out io.Writer, db *bun.DB, roles *authz.Store, memberLogins *login.Realm, files *filesystem.Service, inDemo identity.Subject, teamID string) error {
+	put := team.NewPutMember(db, roles, memberLogins, files)
 	for _, email := range []string{"manager@example.com", "agent@example.com"} {
 		ref, err := memberLogins.Lookup(ctx, login.Email(email))
 		if err != nil {
@@ -334,7 +333,7 @@ var seedChats = []seedChat{
 
 // seedConversations 在示例工作区中建一个测试渠道，新会话进入团队收件箱“一线客服”，并写入示例会话。
 // 示例工作区中已经有渠道时跳过。坐席的回复以 agent@ 的身份发出。
-func seedConversations(ctx context.Context, out io.Writer, db *bun.DB, memberLogins *login.Realm, inDemo identity.Subject, channels channel.Registry, down conversation.Downstream) error {
+func seedConversations(ctx context.Context, out io.Writer, db *bun.DB, roles *authz.Store, memberLogins *login.Realm, inDemo identity.Subject, channels channel.Registry, down conversation.Downstream) error {
 	n, err := db.NewSelect().Model((*channel.Channel)(nil)).Where("tenant_id = ?", inDemo.Tenant).Count(ctx)
 	if err != nil {
 		return errors.Wrap(err, "count channels")
@@ -356,7 +355,7 @@ func seedConversations(ctx context.Context, out io.Writer, db *bun.DB, memberLog
 		return err
 	}
 	// 坐席的身份和权限与他在请求中的相同
-	agent, err := member.Resolve(db, authz.NewStore(db, auth.Catalog))(identity.WithTenant(ctx, inDemo.Tenant), identity.Subject{Type: member.Type, ID: ref.ID})
+	agent, err := member.Resolve(db, roles)(identity.WithTenant(ctx, inDemo.Tenant), identity.Subject{Type: member.Type, ID: ref.ID})
 	if err != nil {
 		return err
 	}
@@ -465,8 +464,8 @@ func seedConversations(ctx context.Context, out io.Writer, db *bun.DB, memberLog
 }
 
 // seedMacros 在示例工作区中写入共享和个人示例快捷回复，已存在相同快捷码的跳过。
-func seedMacros(ctx context.Context, out io.Writer, db *bun.DB, memberLogins *login.Realm, inDemo identity.Subject) error {
-	create := macro.NewCreate(db)
+func seedMacros(ctx context.Context, out io.Writer, db *bun.DB, roles *authz.Store, memberLogins *login.Realm, inDemo identity.Subject) error {
+	create := macro.NewCreate(db, roles)
 	high := conversation.High
 	tomorrow := macro.SnoozeTomorrow
 

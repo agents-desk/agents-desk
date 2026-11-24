@@ -157,8 +157,9 @@ func (a *QueueExport) Job(ctx context.Context, req ExportRequest) error {
 		baseQuery := func() *bun.SelectQuery {
 			q := a.db.NewSelect().Model((*Tenant)(nil))
 			if req.Name != "" {
+				like := "%" + database.EscapeLike(req.Name) + "%"
 				q = q.WhereGroup(" AND ", func(q *bun.SelectQuery) *bun.SelectQuery {
-					return q.Where("tenant.name ILIKE ?", "%"+req.Name+"%").WhereOr("tenant.slug ILIKE ?", "%"+req.Name+"%")
+					return q.Where(`tenant.name ILIKE ? ESCAPE '\'`, like).WhereOr(`tenant.slug ILIKE ? ESCAPE '\'`, like)
 				})
 			}
 			switch req.Status {

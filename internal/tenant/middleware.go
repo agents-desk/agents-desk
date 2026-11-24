@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/danielgtaylor/huma/v2"
@@ -66,6 +67,30 @@ func Resolve(next identity.Resolver) identity.Resolver {
 			return identity.Subject{}, ErrDisabled.New()
 		}
 		return sub, nil
+	}
+}
+
+// CheckEnabled 返回 realtime.Options.CheckTenant：按租户 ID 实时查询数据库，确认租户存在且未停用。
+// 租户不存在时返回 ErrNotFound，已停用时返回 ErrDisabled，长连接在握手与凭据复查时据此立即断开。
+func CheckEnabled(db bun.IDB) func(context.Context, string) error {
+	return func(ctx context.Context, tenantID string) error {
+		if tenantID == "" || tenantID == unknown {
+			return ErrNotFound.New()
+		}
+		var row struct {
+			DisabledAt *time.Time `bun:"disabled_at"`
+		}
+		err := db.NewSelect().Table("tenants").Column("disabled_at").Where("id = ?", tenantID).Scan(ctx, &row)
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound.New()
+		}
+		if err != nil {
+			return errors.Wrap(err, "check tenant status")
+		}
+		if row.DisabledAt != nil {
+			return ErrDisabled.New()
+		}
+		return nil
 	}
 }
 

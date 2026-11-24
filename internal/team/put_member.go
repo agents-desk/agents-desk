@@ -14,7 +14,6 @@ import (
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/login"
 
-	"agents-desk/internal/auth"
 	"agents-desk/internal/member"
 )
 
@@ -27,13 +26,14 @@ type MemberInput struct {
 // PutMember 把工作区的成员加入团队收件箱，已经在团队收件箱中时保持原样。
 type PutMember struct {
 	db     *bun.DB
+	roles  *authz.Store
 	logins *login.Realm
 	files  *filesystem.Service
 }
 
 // NewPutMember 返回加入团队收件箱的动作。
-func NewPutMember(db *bun.DB, logins *login.Realm, files *filesystem.Service) *PutMember {
-	return &PutMember{db: db, logins: logins, files: files}
+func NewPutMember(db *bun.DB, roles *authz.Store, logins *login.Realm, files *filesystem.Service) *PutMember {
+	return &PutMember{db: db, roles: roles, logins: logins, files: files}
 }
 
 // Handle 把成员 memberID 加入 sub 所在工作区的团队收件箱 id，新加入时记录操作日志，返回团队收件箱中的这个成员。
@@ -45,7 +45,7 @@ func (a *PutMember) Handle(ctx context.Context, sub identity.Subject, id, member
 			return err
 		}
 		ref := identity.Ref{Type: member.Type, ID: memberID}
-		if _, err := member.RoleOf(ctx, authz.NewStore(tx, auth.Catalog), ref, sub.Tenant); err != nil {
+		if _, err := member.RoleOf(ctx, a.roles.WithDB(tx), ref, sub.Tenant); err != nil {
 			return err
 		}
 		// 插入不经过 Timestamps 的钩子，时间自己写；已经在团队收件箱中时不插入
@@ -77,7 +77,7 @@ func (a *PutMember) Handle(ctx context.Context, sub identity.Subject, id, member
 	if err != nil {
 		return nil, err
 	}
-	item, err := toTeamMember(ctx, authz.NewStore(a.db, auth.Catalog), a.logins, a.files, sub.Tenant, m, statuses[memberID])
+	item, err := toTeamMember(ctx, a.roles, a.logins, a.files, sub.Tenant, m, statuses[memberID])
 	if err != nil {
 		return nil, err
 	}

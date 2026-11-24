@@ -1,14 +1,14 @@
-import "@fontsource-variable/inter/index.css"
-import "@go-tenon/ui/styles.css"
+import "@go-tenon/ui/base.css"
 import "../widget.css"
 import { type ReactNode, useMemo, useState } from "react"
-import { ColorSchemeScript, mantineHtmlProps } from "@mantine/core"
+import { ColorSchemeScript, MantineProvider, mantineHtmlProps } from "@mantine/core"
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts, useRouter } from "@tanstack/react-router"
-import { type RouterContext, UIProvider } from "@go-tenon/ui"
+import type { RouterContext } from "@go-tenon/ui"
 import { i18n } from "../i18n"
 import { buildWidgetTheme, DEFAULT_WIDGET_COLOR, WidgetBrandContext } from "../theme"
 
-// 根路由：整个 HTML 文档。聊天窗口嵌在第三方网站中，配色固定为浅色，品牌色随渠道配置动态生成；嵌入时页面背景透明（host.ts）。
+// 根路由：整个 HTML 文档。聊天窗口嵌在第三方网站中，使用 @go-tenon/ui/base.css 和轻量 MantineProvider，
+// 配色固定为浅色，品牌色随渠道配置动态生成；嵌入时页面背景透明（host.ts）。
 // viewport-fit=cover 让页面延伸到刘海和底部横条下面，安全区域由 widget.css 留出。
 export const Route = createRootRouteWithContext<RouterContext>()({
   head: () => ({
@@ -34,9 +34,9 @@ function Document({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <UIProvider theme={theme} defaultColorScheme="light">
+        <MantineProvider theme={theme} forceColorScheme="light">
           <WidgetBrandContext.Provider value={setBrandColor}>{children}</WidgetBrandContext.Provider>
-        </UIProvider>
+        </MantineProvider>
         <Scripts />
       </body>
     </html>

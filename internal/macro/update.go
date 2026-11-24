@@ -7,6 +7,7 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/activity"
+	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
@@ -20,11 +21,12 @@ type UpdateInput struct {
 
 // Update 修改一条快捷回复的标题、快捷指令码、正文和附带操作；作用域不可修改。
 type Update struct {
-	db *bun.DB
+	db    *bun.DB
+	roles *authz.Store
 }
 
 // NewUpdate 返回修改快捷回复的动作。
-func NewUpdate(db *bun.DB) *Update { return &Update{db: db} }
+func NewUpdate(db *bun.DB, roles *authz.Store) *Update { return &Update{db: db, roles: roles} }
 
 // Handle 由 sub 修改快捷回复 id。共享快捷回复要求 macros:manage 权限并记录操作日志；
 // 个人快捷回复只允许本人修改。不存在或不可见返回 ErrNotFound，无权管理返回 ErrForbidden。
@@ -39,7 +41,7 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, p 
 		if !canManage(sub, m) {
 			return ErrForbidden.New()
 		}
-		title, shortcut, body, actions, err := validateAndNormalize(ctx, tx, sub.Tenant, p.Title, p.Shortcut, p.Body, p.Actions)
+		title, shortcut, body, actions, err := validateAndNormalize(ctx, tx, a.roles, sub.Tenant, p.Title, p.Shortcut, p.Body, p.Actions)
 		if err != nil {
 			return err
 		}

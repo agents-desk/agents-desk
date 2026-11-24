@@ -74,12 +74,12 @@ func TestMemberAPIs(t *testing.T) {
 		cfg: config.Default[Config](), db: env.DB, roles: env.Roles,
 		adminLogins: env.AdminLogins, adminTokens: apitoken.NewStore(env.DB, tokens),
 		memberLogins: env.MemberLogins, memberTokens: apitoken.NewStore(env.DB, tokens),
-		llmSettings: llm.NewGroup(env.DB), files: env.Files, localDisk: env.Disk,
+		llmSettings: llm.NewGroup(env.DB, env.Crypt), files: env.Files, localDisk: env.Disk,
 	}
 	h := a.routes(nil)
 
 	// 工作区：demo 和 off 的主管理员是 owner，other 的是另一个人；off 已停用
-	create := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{PublicURL: "http://localhost:8081"})
+	create := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{PublicURL: "http://localhost:8081"})
 	ids := map[string]string{}
 	for _, c := range []struct{ slug, name, owner string }{{"demo", "B 示例", "owner"}, {"off", "A 已停用", "owner"}, {"other", "C 别人的", "other"}} {
 		created, err := create.Handle(ctx, apptest.Admin, tenant.CreateParams{
@@ -137,7 +137,7 @@ func TestMemberAPIs(t *testing.T) {
 	}
 
 	// 平台管理员的登录凭据：cookie 名称不同，换成成员的 cookie 名称也不被接受
-	if _, err := platformadmin.NewCreate(env.DB, env.AdminLogins).Handle(ctx, apptest.Admin, "ops", "ops@example.com", "password"); err != nil {
+	if _, err := platformadmin.NewCreate(env.DB, env.Roles, env.AdminLogins).Handle(ctx, apptest.Admin, "ops", "ops@example.com", "password"); err != nil {
 		t.Fatal(err)
 	}
 	admin := call(h, "POST", "/admin/api/auth/login", `{"email":"ops@example.com","password":"password"}`, nil)

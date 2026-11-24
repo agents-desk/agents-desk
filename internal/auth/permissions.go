@@ -94,8 +94,12 @@ var Catalog = authz.Catalog{
 var BasePermissions = []Permission{MembersRead, TeamsRead, ChannelsRead, ConversationsRead, ConversationsReply, ContactsRead, ContactsUpdate}
 
 // WithBase 返回 perms 加上基本权限，去重并排序：成员在工作区中的全部权限。
+// 拥有 conversations:read-all 时同时包含 conversations:read-team（全部会话严格包含所在团队收件箱的会话）。
 func WithBase(perms []string) []string {
 	all := slices.Clone(perms)
+	if slices.Contains(all, string(ConversationsReadAll)) {
+		all = append(all, string(ConversationsReadTeam))
+	}
 	for _, p := range BasePermissions {
 		all = append(all, string(p))
 	}
@@ -134,7 +138,11 @@ func (ConversationScope) Schema(r huma.Registry) *huma.Schema {
 }
 
 // scopePermissions 是可见范围在角色中对应的权限；只看指派给自己的会话不需要权限。
-var scopePermissions = map[ConversationScope]Permission{ScopeAll: ConversationsReadAll, ScopeTeam: ConversationsReadTeam}
+// ScopeAll 严格包含 ScopeTeam，以便权限子集校验（authz.Store.CheckGrant）允许全部可见的管理员分配团队可见角色。
+var scopePermissions = map[ConversationScope][]Permission{
+	ScopeAll:  {ConversationsReadAll, ConversationsReadTeam},
+	ScopeTeam: {ConversationsReadTeam},
+}
 
 // ScopeOf 返回 sub 的会话可见范围：有 conversations:read-all 时是全部，有 conversations:read-team 时是所在团队收件箱的，
 // 否则只有指派给自己的。
@@ -150,8 +158,8 @@ func ScopeOf(sub identity.Subject) ConversationScope {
 
 // RolePermissions 返回工作区的角色保存在 authz 中的权限：可见范围对应的权限和勾选的操作权限，去重并排序。
 func RolePermissions(scope ConversationScope, ops []TenantPermission) []string {
-	perms := make([]string, 0, 1+len(ops))
-	if p, ok := scopePermissions[scope]; ok {
+	perms := make([]string, 0, len(scopePermissions[scope])+len(ops))
+	for _, p := range scopePermissions[scope] {
 		perms = append(perms, string(p))
 	}
 	for _, p := range ops {

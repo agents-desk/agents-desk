@@ -37,7 +37,7 @@ func TestReportsAggregationAndIsolation(t *testing.T) {
 	env := apptest.New(t)
 	ctx := context.Background()
 
-	createTenant := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{})
+	createTenant := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{})
 	alpha, err := createTenant.Handle(ctx, apptest.Admin, tenant.CreateParams{
 		Name: "alpha", Slug: "alpha", OwnerEmail: "owner@alpha.com", OwnerName: "主管理员", OwnerPassword: "password",
 	})
@@ -59,7 +59,7 @@ func TestReportsAggregationAndIsolation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	addMember := member.NewAdd(env.DB, env.MemberLogins, env.Files)
+	addMember := member.NewAdd(env.DB, env.Roles, env.MemberLogins, env.Files)
 	agentA, err := addMember.Handle(ctx, alphaSys, member.AddParams{Email: "a@alpha.com", Name: "坐席A", Password: "password", RoleID: agentRole.ID})
 	if err != nil {
 		t.Fatal(err)

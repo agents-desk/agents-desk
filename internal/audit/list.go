@@ -57,6 +57,7 @@ func NewList(db *bun.DB) *List { return &List{db: db} }
 func (a *List) Handle(ctx context.Context, in ListInput) (page.Offset[Item], error) {
 	res, err := activity.List(ctx, a.db, activity.Query{
 		Tenant:     "",
+		ActorTypes: []identity.SubjectType{platformadmin.Type, identity.System},
 		TargetType: in.TargetType,
 		Page:       in.OffsetParams,
 	})

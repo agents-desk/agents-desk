@@ -19,7 +19,7 @@ func TestFeatureFlagsManagement(t *testing.T) {
 	ctx := context.Background()
 	store := flags.NewStore(env.DB)
 
-	created, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{PublicURL: "http://localhost:8081"}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+	created, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{PublicURL: "http://localhost:8081"}).Handle(ctx, apptest.Admin, tenant.CreateParams{
 		Name: "测试工作区", Slug: "beta", OwnerEmail: "owner@example.com", OwnerName: "主管理", OwnerPassword: "password123",
 	})
 	if err != nil {
