@@ -258,6 +258,8 @@ export const AuthzErrors = {
   RoleExists: "authz.role_exists",
   /** ErrRoleInUse 表示角色还有分配，使用 RestrictInUse 删除时拒绝。公开参数 count 是使用它的分配数。 */
   RoleInUse: "authz.role_in_use",
+  /** ErrExceedsPermissions 表示授予的权限超出了操作者自身的权限范围。 */
+  ExceedsPermissions: "authz.exceeds_permissions",
   /** ErrInvalid 表示输入不合法，例如权限不在目录中、把租户自定义的角色分配到其他租户。 */
   Invalid: "authz.invalid",
 } as const

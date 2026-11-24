@@ -39,6 +39,7 @@ import (
 	"github.com/go-tenon/tenon/realtime"
 	"github.com/go-tenon/tenon/realtime/natspresence"
 	"github.com/go-tenon/tenon/schedule"
+	"github.com/go-tenon/tenon/schedule/pgschedule"
 	"github.com/go-tenon/tenon/schedule/scheduleapi"
 	"github.com/go-tenon/tenon/settings"
 	"github.com/go-tenon/tenon/sheet/exports"
@@ -91,7 +92,7 @@ type App struct {
 	exporter    *exports.Service    // 后台表格导出服务
 	defaultDisk filesystem.Disk     // 默认文件存储磁盘，用于运行环境自检
 	localDisk   *local.Disk         // 本地磁盘，在 /storage/ 下提供访问；没有配置本地磁盘时为空
-	locker      *lock.Locker        // 多个实例之间的锁：定时任务去重
+	locker      *lock.Locker        // 多个实例之间的锁：协调翻译和自动化等任务的互斥执行
 
 	channels channel.Registry // 各种渠道的连接器
 	telegram *telegram.Client // 调用 Telegram Bot API 的客户端
@@ -247,7 +248,7 @@ func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
 
 // tasks 创建调度器并注册全部定时任务：调度器进程、schedules 命令和管理员端定时任务面板共用这一份定义。
 func (a *App) tasks() *schedule.Scheduler {
-	sched := schedule.New(a.locker, a.cfg.Schedule, nil, schedule.WithObserver(scheduleapi.Observer(a.db)))
+	sched := schedule.New(pgschedule.New(a.db), a.cfg.Schedule, nil, schedule.WithObserver(scheduleapi.Observer(a.db)))
 	sched.Add("files:cleanup", "*/5 * * * *", schedule.Cleanup(a.files.Cleanup, 500),
 		schedule.Label("schedule.task.files_cleanup.label"),
 		schedule.Describe("schedule.task.files_cleanup.description"))
@@ -293,7 +294,7 @@ func (a *App) scheduler(*command.Daemon) (func(context.Context) error, error) {
 	return a.tasks().Run, nil
 }
 
-// doctor 返回运行环境自检分组：数据库、迁移、队列（复制槽与 NATS/JetStream）以及默认文件存储。
+// doctor 返回运行环境自检分组：数据库、迁移、队列（数据表与 NATS/JetStream）以及默认文件存储。
 // doctor 命令和管理后台的 /admin/api/system/doctor 接口共用这一份检查定义。
 func (a *App) doctor() []doctor.Group {
 	groups := []doctor.Group{

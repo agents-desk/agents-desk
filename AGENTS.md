@@ -144,7 +144,7 @@ CI（`.github/workflows/ci.yml`）运行同样的检查并构建一次；生成�
 
 - 一个用例写成一个业务动作，放在 `internal/<模块>/`，一个动作一个文件。HTTP、命令、队列、MCP 等入口只做输入转换并调用 `Handle`。
 - 业务规则、权限判断和校验写在 Go 中；前端和 App 只负责展示和交互。
-- 业务错误用 `errorx.Define(kind, code, "默认提示")` 定义稳定错误码与源语言提示；无需为源语言另建翻译文件。
+- 业务错误用 `errorx.Define(kind, code, "源语言提示")` 定义稳定错误码与源语言提示，其余语言的译文写在 `locales/<语言>.yaml` 中。
 
 ### 数据与事务
 
@@ -172,7 +172,7 @@ CI（`.github/workflows/ci.yml`）运行同样的检查并构建一次；生成�
 - 用 Mantine 和 `@go-tenon/ui` 组件，用生成的客户端和 TanStack Query 调接口，路由用 TanStack Router 文件路由。
 - 颜色从 Mantine 主题取：默认品牌色 `brand`，彩色写预设名（`deep-orange`、`var(--mantine-color-deep-orange-6)`），中性色用 `gray`/`dark`/`c="dimmed"`/`--tn-*`，不写十六进制或 `rgb()`。
 - 状态色固定：成功 `green`，进行中 `bright-blue`，等待 `yellow`，注意 `deep-orange`，失败 `red`，无状态 `gray`。
-- 界面文字与菜单标题直接写在页面代码中，无需抽到 `locales/`；需要多语言时运行 `go tool tenon add language <语言>`，见 `tenon/docs/frontend/i18n.md`。
+- 界面文字写在 `locales/<前端>.<语言>.yaml`，页面用 `useT`，菜单标题写消息 ID，见 `tenon/docs/frontend/i18n.md`。
 - 生成或同步的代码（`tenon/`、`packages/client`、`routeTree.gen.ts`、`messages.gen.ts`）不手改。
 
 ### 接口
