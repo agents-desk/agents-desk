@@ -1,18 +1,6 @@
-// 报表通用的数值格式化、环比计算和图表色板工具。
+// 报表通用的数值格式化与环比计算工具。
 
 import type { StatDelta } from "@go-tenon/ui"
-
-/** 报表图表使用的主题预设色序列（严格使用 Tenon Mantine 主题预设色名）。 */
-export const REPORT_CHART_COLORS = [
-  "brand.6",
-  "bright-blue.6",
-  "green.6",
-  "yellow.6",
-  "deep-orange.6",
-  "violet.6",
-  "sky-blue.6",
-  "gray.6",
-] as const
 
 /** 按界面语言格式化整数（千分位）。 */
 export function formatInt(value: number | null | undefined, locale?: string): string {

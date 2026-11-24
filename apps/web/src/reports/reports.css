@@ -1,0 +1,541 @@
+/*
+ * 统计模块工作台样式：全部基于 --tn-* 与 Mantine 主题语义变量，保持与收件箱、联系人一致的密度和质感。
+ */
+
+/* 正文滚动容器内的内容区：铺满工作台宽度，左右边距与 PaneHeader / PaneToolbar 对齐 */
+.rp-body {
+  width: 100%;
+  padding: 16px var(--tn-pane-px) 28px;
+}
+
+@media (max-width: 899px) {
+  .rp-body {
+    padding: 16px;
+  }
+}
+
+/* 实时积压状态条：与历史周期统计视觉分离，每一项可直达收件箱实时视图 */
+.rp-live-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 14px;
+  border: 1px solid var(--tn-border);
+  border-radius: var(--mantine-radius-md);
+  background: var(--tn-surface);
+}
+
+.rp-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 10px;
+  border-right: 1px solid var(--tn-border);
+  color: var(--tn-muted);
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.rp-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--mantine-color-green-6);
+  flex: none;
+}
+
+.rp-live-items {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.rp-live-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--mantine-radius-sm);
+  color: var(--tn-text);
+  text-decoration: none;
+  font-size: var(--mantine-font-size-xs);
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.rp-live-item[data-clickable] {
+  cursor: pointer;
+}
+
+.rp-live-item[data-clickable]:hover {
+  background: var(--tn-hover);
+}
+
+.rp-live-item[data-clickable]:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -1px;
+}
+
+.rp-live-value {
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.rp-live-arrow {
+  color: var(--tn-subtle);
+  opacity: 0;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.rp-live-item[data-clickable]:hover .rp-live-arrow,
+.rp-live-item[data-clickable]:focus-visible .rp-live-arrow {
+  opacity: 1;
+  transform: translate(1px, -1px);
+}
+
+/* 主分析面板：承载等分指标带与主趋势图，建立页面视觉锚点 */
+.rp-panel {
+  border: 1px solid var(--tn-border);
+  border-radius: var(--mantine-radius-md);
+  background: var(--tn-surface);
+  overflow: hidden;
+}
+
+/* 统一指标带：按列细线等分 */
+.rp-metric-strip {
+  display: grid;
+  grid-template-columns: repeat(var(--rp-cols, 4), minmax(0, 1fr));
+}
+
+.rp-metric-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px 20px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--tn-border);
+  color: inherit;
+  font: inherit;
+  transition: background-color 140ms ease;
+}
+
+.rp-metric-cell:last-child {
+  border-right: 0;
+}
+
+.rp-metric-cell[data-interactive] {
+  cursor: pointer;
+}
+
+.rp-metric-cell[data-interactive]:hover {
+  background: var(--tn-hover);
+}
+
+.rp-metric-cell[data-interactive]:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -2px;
+}
+
+.rp-metric-cell[data-active] {
+  background: var(--tn-active-bg);
+}
+
+.rp-metric-cell[data-active]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--mantine-primary-color-filled);
+}
+
+@media (max-width: 960px) {
+  .rp-metric-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rp-metric-cell {
+    border-bottom: 1px solid var(--tn-border);
+  }
+
+  .rp-metric-cell:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .rp-metric-cell:nth-last-child(-n + 2) {
+    border-bottom: 0;
+  }
+}
+
+@media (max-width: 540px) {
+  .rp-metric-strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rp-metric-cell {
+    border-right: 0;
+    border-bottom: 1px solid var(--tn-border);
+  }
+
+  .rp-metric-cell:last-child {
+    border-bottom: 0;
+  }
+}
+
+.rp-metric-value {
+  font-size: 1.5rem;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+  color: var(--tn-text);
+}
+
+.rp-metric-secondary {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 主面板内的图表区与横线分隔 */
+.rp-panel-body {
+  border-top: 1px solid var(--tn-border);
+  padding: 16px 20px 18px;
+}
+
+.rp-panel-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  border-top: 1px solid var(--tn-border);
+}
+
+.rp-panel-split-pane {
+  padding: 16px 20px 18px;
+  min-width: 0;
+}
+
+.rp-panel-split-pane + .rp-panel-split-pane {
+  border-left: 1px solid var(--tn-border);
+}
+
+@media (max-width: 960px) {
+  .rp-panel-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rp-panel-split-pane + .rp-panel-split-pane {
+    border-left: 0;
+    border-top: 1px solid var(--tn-border);
+  }
+}
+
+/* 拆解卡片：轻量边线、紧凑标题栏 */
+.rp-section {
+  border: 1px solid var(--tn-border);
+  border-radius: var(--mantine-radius-md);
+  background: var(--tn-surface);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.rp-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--tn-border) 75%, transparent);
+}
+
+.rp-section-content {
+  padding: 14px 16px;
+  flex: 1;
+}
+
+.rp-section-content[data-flush] {
+  padding: 0;
+}
+
+/* 明细表格区（成员绩效、满意度评价）：标题栏与直接承载的 DataTable */
+.rp-detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rp-detail-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+/* 拆解数据表：浅行底线与悬停高亮 */
+.rp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--mantine-font-size-sm);
+}
+
+.rp-table th {
+  padding: 8px 12px;
+  text-align: left;
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 500;
+  color: var(--tn-muted);
+  border-bottom: 1px solid var(--tn-border);
+  white-space: nowrap;
+}
+
+.rp-table th:first-child,
+.rp-table td:first-child {
+  padding-left: 16px;
+}
+
+.rp-table th:last-child,
+.rp-table td:last-child {
+  padding-right: 16px;
+}
+
+.rp-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--tn-border) 60%, transparent);
+  vertical-align: middle;
+}
+
+.rp-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.rp-table th[data-align="right"],
+.rp-table td[data-align="right"] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.rp-row {
+  position: relative;
+  transition: background-color 140ms ease;
+}
+
+.rp-row[data-clickable] {
+  cursor: pointer;
+}
+
+.rp-row[data-clickable]:hover {
+  background: var(--tn-hover);
+}
+
+.rp-row[data-selected] {
+  background: var(--tn-active-bg);
+}
+
+.rp-row[data-selected] td:first-child {
+  box-shadow: inset 3px 0 0 var(--mantine-primary-color-filled);
+}
+
+/* 行尾悬停露出的下钻小按钮（触屏常显以保证可达性） */
+.rp-row-action {
+  opacity: 0;
+  transition: opacity 140ms ease, background-color 140ms ease, color 140ms ease;
+}
+
+.rp-row-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--mantine-radius-sm);
+  color: var(--tn-muted);
+  text-decoration: none;
+}
+
+.rp-row-action-btn:hover {
+  background: var(--tn-hover);
+  color: var(--tn-text);
+}
+
+.rp-row-action-btn:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -1px;
+}
+
+.rp-row:hover .rp-row-action,
+.rp-row:focus-within .rp-row-action,
+.rp-row-action:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .rp-row-action {
+    opacity: 0.78;
+  }
+}
+
+/* 表格单元格内的轻量占比细条 */
+.rp-inline-bar-track {
+  height: 3px;
+  margin-top: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tn-text) 7%, transparent);
+  overflow: hidden;
+}
+
+.rp-inline-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--mantine-primary-color-filled);
+  transition: width 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.rp-body .mantine-Progress-section {
+  transition: width 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rp-inline-bar-fill,
+  .rp-body .mantine-Progress-section {
+    transition: none;
+  }
+}
+
+/* 分布占比条行（标签、语言、1-5 星分布）：支持点击下钻或联动筛选 */
+.rp-bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--mantine-radius-sm);
+  background: transparent;
+  color: inherit;
+  text-decoration: none;
+  text-align: left;
+  font: inherit;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.rp-bar-row[data-clickable] {
+  cursor: pointer;
+}
+
+.rp-bar-row[data-clickable]:hover {
+  background: var(--tn-hover);
+}
+
+.rp-bar-row[data-clickable]:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -1px;
+}
+
+.rp-bar-row[data-selected] {
+  background: var(--tn-active-bg);
+  border-color: color-mix(in srgb, var(--mantine-primary-color-filled) 35%, transparent);
+}
+
+.rp-bar-row-arrow {
+  color: var(--tn-subtle);
+  opacity: 0;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.rp-bar-row[data-clickable]:hover .rp-bar-row-arrow,
+.rp-bar-row[data-clickable]:focus-visible .rp-bar-row-arrow {
+  opacity: 1;
+  transform: translate(1px, -1px);
+}
+
+/* 单元格内的数值或名称下钻链接 */
+.rp-drill-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: inherit;
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+  border-radius: var(--mantine-radius-xs);
+  padding: 1px 4px;
+  margin-inline: -4px;
+  transition: color 140ms ease, background-color 140ms ease;
+}
+
+.rp-drill-link:hover {
+  color: var(--mantine-primary-color-light-color);
+  background: var(--tn-hover);
+}
+
+/* 合并时间选择器 Popover：左侧快捷预设 + 右侧日历 */
+.rp-period-popover {
+  display: flex;
+  align-items: stretch;
+}
+
+.rp-period-presets {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 124px;
+  padding: 10px 8px;
+  border-right: 1px solid var(--tn-border);
+}
+
+.rp-period-preset-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--mantine-radius-sm);
+  background: transparent;
+  color: var(--tn-text);
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.rp-period-preset-btn:hover {
+  background: var(--tn-hover);
+}
+
+.rp-period-preset-btn[data-active] {
+  background: var(--tn-active-bg);
+  color: var(--tn-active-text);
+  font-weight: 600;
+}
+
+.rp-period-calendar {
+  padding: 10px 12px;
+}
+
+@media (max-width: 540px) {
+  .rp-period-popover {
+    flex-direction: column;
+  }
+
+  .rp-period-presets {
+    width: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: 0;
+    border-bottom: 1px solid var(--tn-border);
+  }
+
+  .rp-period-preset-btn {
+    width: auto;
+  }
+}
