@@ -17,7 +17,7 @@ func TestGeneralAndMailSettings(t *testing.T) {
 	ctx := context.Background()
 
 	generalGroup := platformsettings.NewGeneralGroup(env.DB)
-	mailGroup := platformsettings.NewMailGroup(env.DB)
+	mailGroup := platformsettings.NewMailGroup(env.DB, env.Crypt)
 
 	// 默认值
 	gotGeneral, err := generalGroup.Get(ctx)

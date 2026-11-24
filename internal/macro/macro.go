@@ -217,7 +217,7 @@ func findVisible(ctx context.Context, db bun.IDB, sub identity.Subject, id strin
 }
 
 // validateAndNormalize 规范化并校验标题、快捷指令码、正文及附带操作引用。
-func validateAndNormalize(ctx context.Context, db bun.IDB, tenantID string, title, shortcut, body string, actions Actions) (string, string, string, Actions, error) {
+func validateAndNormalize(ctx context.Context, db bun.IDB, roles *authz.Store, tenantID string, title, shortcut, body string, actions Actions) (string, string, string, Actions, error) {
 	title = strings.TrimSpace(title)
 	shortcut = strings.ToLower(strings.TrimSpace(shortcut))
 	if shortcut != "" && !shortcutPattern.MatchString(shortcut) {
@@ -225,7 +225,7 @@ func validateAndNormalize(ctx context.Context, db bun.IDB, tenantID string, titl
 	}
 	body = strings.TrimSpace(body)
 
-	norm, err := validateActions(ctx, db, tenantID, actions)
+	norm, err := validateActions(ctx, db, roles, tenantID, actions)
 	if err != nil {
 		return "", "", "", Actions{}, err
 	}
@@ -236,7 +236,7 @@ func validateAndNormalize(ctx context.Context, db bun.IDB, tenantID string, titl
 }
 
 // validateActions 校验并规范化模板中的附带会话操作：验证引用的团队、成员、标签和会话自定义属性均属于当前工作区且有效。
-func validateActions(ctx context.Context, db bun.IDB, tenantID string, in Actions) (Actions, error) {
+func validateActions(ctx context.Context, db bun.IDB, roles *authz.Store, tenantID string, in Actions) (Actions, error) {
 	var out Actions
 
 	if in.Team != nil {
@@ -277,7 +277,7 @@ func validateActions(ctx context.Context, db bun.IDB, tenantID string, in Action
 				return Actions{}, ErrInvalidActions.New(errorx.Field("actions.assignee.id"))
 			}
 			ref := identity.Ref{Type: member.Type, ID: in.Assignee.ID}
-			if _, err := member.RoleOf(ctx, authz.NewStore(db, auth.Catalog), ref, tenantID); err != nil {
+			if _, err := member.RoleOf(ctx, roles.WithDB(db), ref, tenantID); err != nil {
 				if errors.Is(err, member.ErrNotFound) {
 					return Actions{}, member.ErrNotFound.New(errorx.Field("actions.assignee.id"))
 				}

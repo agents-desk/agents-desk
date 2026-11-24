@@ -57,15 +57,58 @@ export function useRealtime(
     const scheme = location.protocol === "https:" ? "wss" : "ws"
     const centrifuge = new Centrifuge(`${scheme}://${location.host}/t/${slug}/realtime`)
     let timer: ReturnType<typeof setTimeout> | undefined
-    const refresh = () => {
-      clearTimeout(timer)
-      timer = setTimeout(() => {
+    const pending = {
+      all: false,
+      inbox: false,
+      views: false,
+      contacts: false,
+      conversations: new Set<string>(),
+    }
+    const flush = () => {
+      if (pending.all) {
+        pending.all = false
+        pending.inbox = false
+        pending.views = false
+        pending.contacts = false
+        pending.conversations.clear()
         void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
         void queryClient.invalidateQueries({ queryKey: kit.queries.view.key() })
         void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
-      }, 200)
+        return
+      }
+      if (pending.inbox) {
+        pending.inbox = false
+        void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.inbox().queryKey })
+        void queryClient.invalidateQueries({ queryKey: [...kit.queries.conversation.key(), "list"] })
+      }
+      if (pending.conversations.size > 0) {
+        for (const id of pending.conversations) {
+          void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.get(id).queryKey })
+          void queryClient.invalidateQueries({ queryKey: [...kit.queries.conversation.key(), "items", id] })
+          void queryClient.invalidateQueries({ queryKey: [...kit.queries.conversation.key(), "rounds", id] })
+        }
+        pending.conversations.clear()
+      }
+      if (pending.views) {
+        pending.views = false
+        void queryClient.invalidateQueries({ queryKey: kit.queries.view.key() })
+        void queryClient.invalidateQueries({ queryKey: [...kit.queries.contact.key(), "views"] })
+        void queryClient.invalidateQueries({ queryKey: [...kit.queries.contact.key(), "sidebar"] })
+      }
+      if (pending.contacts) {
+        pending.contacts = false
+        void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
+      }
     }
-    // 第一次订阅成功时页面刚刚读过数据，之后每次重新订阅成功都重新读取
+    const schedule = () => {
+      clearTimeout(timer)
+      timer = setTimeout(flush, 200)
+    }
+    const refreshAll = () => {
+      pending.all = true
+      schedule()
+    }
+    // 第一次订阅成功时页面刚刚读过数据，之后每次重新订阅成功都全量补拉断线期间的变化
     let first = true
     const sub = centrifuge.newSubscription(channelOf(tenantId, memberId))
     sub.on("publication", (ctx) => {
@@ -77,10 +120,26 @@ export function useRealtime(
       if (ev?.id && ev.alert) {
         alertRef.current?.({ id: ev.id, alert: ev.alert })
       }
-      refresh()
+      switch (ev?.type) {
+        case "conversation":
+          pending.inbox = true
+          if (ev.id) pending.conversations.add(ev.id)
+          break
+        case "read":
+          pending.inbox = true
+          if (ev.id) pending.conversations.add(ev.id)
+          break
+        case "views":
+          pending.views = true
+          pending.inbox = true
+          break
+        default:
+          pending.all = true
+      }
+      schedule()
     })
     sub.on("subscribed", () => {
-      if (!first) refresh()
+      if (!first) refreshAll()
       first = false
     })
     sub.subscribe()
@@ -88,6 +147,7 @@ export function useRealtime(
     setClient(centrifuge)
     return () => {
       clearTimeout(timer)
+      refreshFrom.clear()
       setClient(null)
       centrifuge.disconnect()
     }

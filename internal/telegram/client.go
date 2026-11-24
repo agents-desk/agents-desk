@@ -8,6 +8,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"path"
 	"strings"
 	"time"
@@ -64,7 +65,7 @@ func (c *Client) callJSON(ctx context.Context, botToken, method string, payload 
 	if payload != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	return c.do(req)
+	return c.do(req, botToken)
 }
 
 // callMultipart 以 multipart/form-data 方式上传媒体文件给 Telegram Bot API。
@@ -91,13 +92,13 @@ func (c *Client) callMultipart(ctx context.Context, botToken, method string, fie
 		return nil, 0, "", errors.Wrap(err, "build telegram multipart request")
 	}
 	req.Header.Set("Content-Type", mw.FormDataContentType())
-	return c.do(req)
+	return c.do(req, botToken)
 }
 
-func (c *Client) do(req *http.Request) (json.RawMessage, int, string, error) {
+func (c *Client) do(req *http.Request, botToken string) (json.RawMessage, int, string, error) {
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, 0, "", errors.Wrap(err, "call telegram api")
+		return nil, 0, "", errors.Wrap(redactToken(err, botToken), "call telegram api")
 	}
 	defer resp.Body.Close()
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
@@ -222,7 +223,7 @@ func (c *Client) DownloadFile(ctx context.Context, botToken, fileID string) ([]b
 	}
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, "", "", errors.Wrap(err, "download telegram file")
+		return nil, "", "", errors.Wrap(redactToken(err, botToken), "download telegram file")
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
@@ -255,6 +256,23 @@ func fallbackFilename(name, fallback string) string {
 		return fallback
 	}
 	return name
+}
+
+// redactToken 去除网络错误（尤其是 *url.Error 的 URL 字段）中的明文 Bot Token，防止凭据落入日志或送达失败记录。
+func redactToken(err error, botToken string) error {
+	if err == nil || botToken == "" {
+		return err
+	}
+	var ue *url.Error
+	if errors.As(err, &ue) && strings.Contains(ue.URL, botToken) {
+		cloned := *ue
+		cloned.URL = strings.ReplaceAll(cloned.URL, botToken, "[REDACTED]")
+		return &cloned
+	}
+	if strings.Contains(err.Error(), botToken) {
+		return errors.New(strings.ReplaceAll(err.Error(), botToken, "[REDACTED]"))
+	}
+	return err
 }
 
 func firstNonEmpty(a, b string) string {

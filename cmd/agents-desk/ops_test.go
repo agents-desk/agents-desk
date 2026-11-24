@@ -29,7 +29,7 @@ func TestAdminOpsAPIs(t *testing.T) {
 		cfg: config.Default[Config](), db: env.DB, roles: env.Roles,
 		adminLogins: env.AdminLogins, adminTokens: apitoken.NewStore(env.DB, tokens),
 		memberLogins: env.MemberLogins, memberTokens: apitoken.NewStore(env.DB, tokens),
-		llmSettings: llm.NewGroup(env.DB), files: env.Files, defaultDisk: env.Disk, localDisk: env.Disk,
+		llmSettings: llm.NewGroup(env.DB, env.Crypt), files: env.Files, defaultDisk: env.Disk, localDisk: env.Disk,
 		locker: lock.New(pglock.New(env.DB)),
 	}
 	h := a.routes(nil)
@@ -42,7 +42,7 @@ func TestAdminOpsAPIs(t *testing.T) {
 	}
 
 	// 创建平台管理员并登录
-	if _, err := platformadmin.NewCreate(env.DB, env.AdminLogins).Handle(ctx, apptest.Admin, "ops", "ops@example.com", "password"); err != nil {
+	if _, err := platformadmin.NewCreate(env.DB, env.Roles, env.AdminLogins).Handle(ctx, apptest.Admin, "ops", "ops@example.com", "password"); err != nil {
 		t.Fatal(err)
 	}
 	login := call(h, http.MethodPost, "/admin/api/auth/login", `{"email":"ops@example.com","password":"password"}`, nil)

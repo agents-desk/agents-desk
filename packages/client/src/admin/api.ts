@@ -149,7 +149,7 @@ export interface FormFile {
 }
 
 export interface LlmGateway {
-  /** 网关密钥（Virtual Key），明文保存 */
+  /** 网关密钥（Virtual Key），落库时自动加密保存 */
   api_key: string
   /** 统一模型网关地址，http:// 或 https:// 开头，例如 https://gateway.example.com/v1 */
   base_url: string

@@ -46,8 +46,8 @@ export function StatusControl({ description }: { description?: boolean }): React
     mutationFn: (s: MemberStatusSetting) => tenantApi.member.myStatusUpdate(s),
     onSuccess: (s) => {
       queryClient.setQueryData(queryKey, s)
-      void queryClient.invalidateQueries({ queryKey: ["member"] })
-      void queryClient.invalidateQueries({ queryKey: ["team"] })
+      void queryClient.invalidateQueries({ queryKey: kit.queries.member.key() })
+      void queryClient.invalidateQueries({ queryKey: kit.queries.team.key() })
     },
     onError: (err) => notifyError(err),
   })

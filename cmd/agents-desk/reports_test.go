@@ -26,11 +26,11 @@ func TestReportsAPI(t *testing.T) {
 		cfg: config.Default[Config](), db: env.DB, roles: env.Roles,
 		adminLogins: env.AdminLogins, adminTokens: apitoken.NewStore(env.DB, tokens),
 		memberLogins: env.MemberLogins, memberTokens: apitoken.NewStore(env.DB, tokens),
-		llmSettings: llm.NewGroup(env.DB), files: env.Files, localDisk: env.Disk,
+		llmSettings: llm.NewGroup(env.DB, env.Crypt), files: env.Files, localDisk: env.Disk,
 	}
 	h := a.routes(nil)
 
-	tn, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+	tn, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
 		Name: "alpha", Slug: "alpha", OwnerEmail: "owner@alpha.com", OwnerName: "owner", OwnerPassword: "password",
 	})
 	if err != nil {
@@ -41,7 +41,7 @@ func TestReportsAPI(t *testing.T) {
 		t.Fatal(err)
 	}
 	sys := identity.Subject{Type: identity.System, ID: "test", Tenant: tn.ID}
-	if _, err := member.NewAdd(env.DB, env.MemberLogins, env.Files).Handle(ctx, sys, member.AddParams{
+	if _, err := member.NewAdd(env.DB, env.Roles, env.MemberLogins, env.Files).Handle(ctx, sys, member.AddParams{
 		Email: "agent@alpha.com", Name: "坐席", Password: "password", RoleID: agentRole.ID,
 	}); err != nil {
 		t.Fatal(err)

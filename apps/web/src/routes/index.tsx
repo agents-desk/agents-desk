@@ -1,7 +1,7 @@
 import { Badge, Button, Group, Paper, Stack, Text } from "@mantine/core"
 import { createFileRoute, Link, redirect } from "@tanstack/react-router"
 import { IconChevronRight } from "@tabler/icons-react"
-import { CenteredAuthLayout, requireAuth, useT } from "@go-tenon/ui"
+import { CenteredAuthLayout, requireAuth, useApp, useT } from "@go-tenon/ui"
 import { api } from "../api"
 import { logout } from "../auth"
 
@@ -19,7 +19,15 @@ export const Route = createFileRoute("/")({
 
 function ChooseTenant() {
   const mine = Route.useLoaderData()
+  const app = useApp()
   const t = useT()
+  const signOut = async () => {
+    try {
+      await logout()
+    } finally {
+      app.session.signOut()
+    }
+  }
   return (
     <CenteredAuthLayout brand={t("app.web")} title={t("choose_tenant.title")}>
       <Stack gap="sm">
@@ -58,7 +66,7 @@ function ChooseTenant() {
           ),
         )}
         <Group justify="flex-end">
-          <Button variant="subtle" color="gray" onClick={() => void logout()}>
+          <Button variant="subtle" color="gray" onClick={() => void signOut()}>
             {t("choose_tenant.sign_out")}
           </Button>
         </Group>

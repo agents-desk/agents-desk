@@ -17,7 +17,7 @@ func TestListChannels(t *testing.T) {
 	env := apptest.New(t)
 	ctx := context.Background()
 
-	createTenant := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{})
+	createTenant := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{})
 	alpha, err := createTenant.Handle(ctx, apptest.Admin, tenant.CreateParams{
 		Name: "alpha", Slug: "alpha", OwnerEmail: "owner@alpha.com", OwnerName: "alpha", OwnerPassword: "password",
 	})

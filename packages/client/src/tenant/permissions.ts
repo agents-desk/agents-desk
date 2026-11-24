@@ -121,8 +121,8 @@ export const required = {
   role: {
     create: ["members:manage"],
     delete: ["members:manage"],
-    get: ["members:manage"],
-    list: ["members:manage"],
+    get: ["members:read"],
+    list: ["members:read"],
     update: ["members:manage"],
   },
   tag: {

@@ -14,7 +14,6 @@ import (
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/login"
 
-	"agents-desk/internal/auth"
 	"agents-desk/internal/role"
 )
 
@@ -34,18 +33,19 @@ type AddInput struct {
 // Add 把一个人加入当前工作区：邮箱没有账号时同时创建账号。
 type Add struct {
 	db     *bun.DB
+	roles  *authz.Store
 	logins *login.Realm
 	files  *filesystem.Service
 }
 
 // NewAdd 返回添加成员的动作。
-func NewAdd(db *bun.DB, logins *login.Realm, files *filesystem.Service) *Add {
-	return &Add{db: db, logins: logins, files: files}
+func NewAdd(db *bun.DB, roles *authz.Store, logins *login.Realm, files *filesystem.Service) *Add {
+	return &Add{db: db, roles: roles, logins: logins, files: files}
 }
 
 // Handle 在一个事务中找到或创建邮箱为 p.Email 的账号，在 sub 所在的工作区中分配角色 p.RoleID，并记录操作日志。
 // 他已经是这个工作区的成员时返回 ErrAlreadyMember；角色不是这个工作区自己的角色时返回 role.ErrNotFound；
-// 账号的错误见 Ensure。错误都指向对应的字段。
+// 角色权限超出 sub 自身权限时返回 authz.ErrExceedsPermissions；账号的错误见 Ensure。错误都指向对应的字段。
 func (a *Add) Handle(ctx context.Context, sub identity.Subject, p AddParams) (*TenantMember, error) {
 	var added *Member
 	var assigned authz.Role
@@ -63,7 +63,7 @@ func (a *Add) Handle(ctx context.Context, sub identity.Subject, p AddParams) (*T
 		case err != nil:
 			return err
 		}
-		roles := authz.NewStore(tx, auth.Catalog)
+		roles := a.roles.WithDB(tx)
 		existing, err := roles.RolesOf(ctx, m.Ref(), sub.Tenant)
 		if err != nil {
 			return err
@@ -74,7 +74,10 @@ func (a *Add) Handle(ctx context.Context, sub identity.Subject, p AddParams) (*T
 		if assigned, err = role.Find(ctx, roles, sub.Tenant, p.RoleID, errorx.Field("role_id")); err != nil {
 			return err
 		}
-		if err := roles.Assign(ctx, m.Ref(), sub.Tenant, assigned.ID); err != nil {
+		if err := roles.CheckGrant(sub, assigned.Permissions); err != nil {
+			return err
+		}
+		if err := roles.SetRoles(ctx, m.Ref(), sub.Tenant, assigned.ID); err != nil {
 			if errors.Is(err, authz.ErrRoleNotFound) {
 				return role.ErrNotFound.New(errorx.Field("role_id"))
 			}

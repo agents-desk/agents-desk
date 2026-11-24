@@ -29,13 +29,13 @@ func TestDefaultAssignmentSettings(t *testing.T) {
 	hub := broadcast.New(broadcasttest.NewBackend(), nil)
 	t.Cleanup(func() { _ = hub.Close() })
 
-	tn, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+	tn, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
 		Name: "assign-a", Slug: "assign-a", OwnerEmail: "owner@a.com", OwnerName: "OwnerA", OwnerPassword: "password",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	otherTn, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+	otherTn, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
 		Name: "assign-b", Slug: "assign-b", OwnerEmail: "owner@b.com", OwnerName: "OwnerB", OwnerPassword: "password",
 	})
 	if err != nil {
@@ -50,11 +50,11 @@ func TestDefaultAssignmentSettings(t *testing.T) {
 		Type: member.Type, ID: otherTn.OwnerID, Tenant: otherTn.ID,
 		Permissions: auth.WithBase(auth.RolePermissions(auth.ScopeAll, auth.TenantPermissions.Values())),
 	}
-	agentRole, err := role.NewCreate(env.DB).Handle(ctx, ownerSub, role.Params{Name: "客服", ConversationScope: auth.ScopeAll})
+	agentRole, err := role.NewCreate(env.DB, env.Roles).Handle(ctx, ownerSub, role.Params{Name: "客服", ConversationScope: auth.ScopeAll})
 	if err != nil {
 		t.Fatal(err)
 	}
-	agent, err := member.NewAdd(env.DB, env.MemberLogins, env.Files).Handle(ctx, ownerSub, member.AddParams{
+	agent, err := member.NewAdd(env.DB, env.Roles, env.MemberLogins, env.Files).Handle(ctx, ownerSub, member.AddParams{
 		Email: "agent@a.com", Name: "坐席甲", Password: "password", RoleID: agentRole.ID,
 	})
 	if err != nil {
@@ -157,7 +157,7 @@ func TestDefaultAssignmentSettings(t *testing.T) {
 
 	// 5. 移出默认成员后，工作区默认指派自动重置为 none
 	hooks := member.Hooks{Removed: []member.RemovedHook{conversation.OnMemberLeft(down)}}
-	if err := member.NewRemove(env.DB, hooks).Handle(ctx, ownerSub, agent.ID); err != nil {
+	if err := member.NewRemove(env.DB, env.Roles, hooks).Handle(ctx, ownerSub, agent.ID); err != nil {
 		t.Fatal(err)
 	}
 	gotAfterRemove, err := actions.Get(ctx, ownerSub)

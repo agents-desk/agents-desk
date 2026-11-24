@@ -5,12 +5,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-tenon/tenon/activity"
 	"github.com/go-tenon/tenon/i18n"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/page"
 
 	"agents-desk/internal/apptest"
 	"agents-desk/internal/audit"
+	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
 	"agents-desk/internal/tenant"
 	"agents-desk/locales"
@@ -23,18 +25,24 @@ func TestListPlatformAuditLog(t *testing.T) {
 	ctx := i18n.WithLocale(context.Background(), bundle, "zh-CN")
 
 	// 创建平台管理员并执行若干平台动作，都会写入平台域（tenant = ""）的操作日志
-	ops, err := platformadmin.NewCreate(env.DB, env.AdminLogins).Handle(ctx, identity.Subject{Type: identity.System, ID: "cli"}, "运维小明", "ops@example.com", "secret-pass-123")
+	ops, err := platformadmin.NewCreate(env.DB, env.Roles, env.AdminLogins).Handle(ctx, identity.Subject{Type: identity.System, ID: "cli"}, "运维小明", "ops@example.com", "secret-pass-123")
 	if err != nil {
 		t.Fatal(err)
 	}
 	actor := identity.Subject{Type: platformadmin.Type, ID: ops.ID}
-	created, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{PublicURL: "http://localhost:8081"}).Handle(ctx, actor, tenant.CreateParams{
+	created, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{PublicURL: "http://localhost:8081"}).Handle(ctx, actor, tenant.CreateParams{
 		Name: "测试工作区", Slug: "acme", OwnerEmail: "owner@example.com", OwnerName: "主管理", OwnerPassword: "password123",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := tenant.NewDisable(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, actor, created.ID); err != nil {
+		t.Fatal(err)
+	}
+	// 成员在账号级（tenant = ""）的个人操作不能混入平台审计日志
+	if err := activity.Record(ctx, env.DB, identity.Subject{Type: member.Type, ID: created.OwnerID}, activity.Activity{
+		Event: "member.password_changed", TargetType: string(member.Type), TargetID: created.OwnerID,
+	}); err != nil {
 		t.Fatal(err)
 	}
 

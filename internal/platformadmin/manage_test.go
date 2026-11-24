@@ -27,7 +27,7 @@ func TestManagePlatformAdmins(t *testing.T) {
 	ctx := context.Background()
 
 	// 先创建一位初始管理员，再通过接口管理其他管理员
-	first, err := platformadmin.NewCreate(env.DB, env.AdminLogins).Handle(ctx, system, "一号管理员", "first@example.com", "secret-pass-123")
+	first, err := platformadmin.NewCreate(env.DB, env.Roles, env.AdminLogins).Handle(ctx, system, "一号管理员", "first@example.com", "secret-pass-123")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestManagePlatformAdmins(t *testing.T) {
 		Accounts:    identity.Accounts{platformadmin.Type: platformadmin.Resolve(env.DB, env.Roles)},
 		Permissions: auth.Catalog,
 	})
-	platformadmin.RegisterManageRoutes(api, rest.RequireToken(api, tokens.Validate, string(auth.PlatformAdminsManage)), env.DB, env.AdminLogins)
+	platformadmin.RegisterManageRoutes(api, rest.RequireToken(api, tokens.Validate, string(auth.PlatformAdminsManage)), env.DB, env.Roles, env.AdminLogins)
 	h := api.Handler()
 
 	do := func(method, path, body string) *httptest.ResponseRecorder {

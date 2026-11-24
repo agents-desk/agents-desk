@@ -169,7 +169,7 @@ func (tr *Translator) Incoming(ctx context.Context, tenant string, it *conversat
 		"Reply with JSON only.",
 	), "\n\n")
 	var out incoming
-	err = tr.llm.JSON(ctx, llm.Translation, llm.Target{
+	err = tr.llm.JSON(llm.WithSession(ctx, it.ConversationID), llm.Translation, llm.Target{
 		Tenant: tenant, Type: "timeline_item", ID: it.ID, Operation: "incoming",
 		Meta: map[string]any{"targets": targets},
 	}, llm.JSONRequest{
@@ -235,7 +235,7 @@ func (tr *Translator) Translate(ctx context.Context, tenant string, it *conversa
 		"Reply with JSON only.",
 	), "\n\n")
 	var out fillResult
-	err = tr.llm.JSON(ctx, llm.Translation, llm.Target{
+	err = tr.llm.JSON(llm.WithSession(ctx, it.ConversationID), llm.Translation, llm.Target{
 		Tenant: tenant, Type: "timeline_item", ID: it.ID, Operation: "fill",
 		Meta: map[string]any{"source": source, "targets": targets},
 	}, llm.JSONRequest{
@@ -303,7 +303,7 @@ func (tr *Translator) Reply(ctx context.Context, tenant, conversationID, text, f
 		"Reply with JSON only.",
 	), "\n\n")
 	var out translated
-	err = tr.llm.JSON(ctx, llm.Translation, replyTarget, llm.JSONRequest{
+	err = tr.llm.JSON(llm.WithSession(ctx, conversationID), llm.Translation, replyTarget, llm.JSONRequest{
 		Messages:    []llm.Message{{Role: "system", Content: system}, {Role: "user", Content: text}},
 		SchemaName:  "reply_translation",
 		Schema:      translationSchema("the agent's message in " + to),
@@ -325,7 +325,7 @@ func (tr *Translator) Reply(ctx context.Context, tenant, conversationID, text, f
 		Meta: map[string]any{"from": to, "to": from},
 	}
 	var backOut translated
-	err = tr.llm.JSON(ctx, llm.Translation, backTarget, llm.JSONRequest{
+	err = tr.llm.JSON(llm.WithSession(ctx, conversationID), llm.Translation, backTarget, llm.JSONRequest{
 		Messages:    []llm.Message{{Role: "system", Content: system}, {Role: "user", Content: out.Translation}},
 		SchemaName:  "back_translation",
 		Schema:      translationSchema("the message translated back into " + from),

@@ -1,16 +1,14 @@
 package llm
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/cockroachdb/errors"
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
@@ -190,80 +188,76 @@ func (c *Client) JSON(ctx context.Context, t CallType, target Target, req JSONRe
 	return nil
 }
 
-// observedHTTPClient 返回包装了统一观测传输层的 *http.Client，保留基础客户端的超时与底层 Transport。
+// observedHTTPClient 返回包装了会话粘性头和 ai.ObserveTransport 的 *http.Client，
+// 保留基础客户端的底层 Transport 与超时策略（不做硬编码超时截断，以支持流式长响应）。
 func (c *Client) observedHTTPClient(t CallType, endpoint, modelName string) *http.Client {
 	base := http.DefaultTransport
-	timeout := 60 * time.Second
+	var timeout time.Duration
 	if c.http != nil {
 		if c.http.Transport != nil {
 			base = c.http.Transport
 		}
-		if c.http.Timeout > 0 {
-			timeout = c.http.Timeout
-		}
+		timeout = c.http.Timeout
 	}
-	return &http.Client{
-		Timeout: timeout,
-		Transport: &observingTransport{
-			base:     base,
-			db:       c.db,
-			callType: t,
-			endpoint: endpoint,
-			model:    modelName,
-		},
-	}
+	observed := ai.ObserveTransport(sessionTransport{base: base}, func(ctx context.Context, ev ai.CallEvent) {
+		c.recordCall(ctx, t, endpoint, modelName, ev)
+	}, ai.ObserveOptions{MaxBodyBytes: 4 << 20})
+	return &http.Client{Timeout: timeout, Transport: observed}
 }
 
-// observingTransport 在统一 HTTP 传输层注入网关会话头、采集 OmiRouter 计量响应头并写入 llm_calls。
-type observingTransport struct {
-	base     http.RoundTripper
-	db       bun.IDB
-	callType CallType
-	endpoint string
-	model    string
+// sessionTransport 在发出模型请求前把上下文中的网关会话粘性 ID 写入 X-Omirouter-Session 请求头。
+type sessionTransport struct {
+	base http.RoundTripper
 }
 
-// RoundTrip 实现 http.RoundTripper：透传会话粘性头、记录非流式调用的请求、响应、用量、费用和耗时。
-func (t *observingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	ctx := req.Context()
-	cloned := req.Clone(ctx)
-	if sid := SessionFromContext(ctx); sid != "" && cloned.Header.Get("X-Omirouter-Session") == "" {
-		cloned.Header.Set("X-Omirouter-Session", sid)
+// RoundTrip 实现 http.RoundTripper，透传会话粘性头。
+func (t sessionTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if sid := SessionFromContext(req.Context()); sid != "" && req.Header.Get("X-Omirouter-Session") == "" {
+		req = req.Clone(req.Context())
+		req.Header.Set("X-Omirouter-Session", sid)
 	}
+	return t.base.RoundTrip(req)
+}
 
+// recordCall 将 ai.ObserveTransport 采集的非流式或流式 SSE 模型调用写入 llm_calls。
+// 优先使用 OmiRouter 统一计量响应头，缺失时回退使用 CallEvent 解析出的标准用量；落库失败只记错误日志，不丢弃已返回的模型响应。
+func (c *Client) recordCall(ctx context.Context, callType CallType, endpoint, modelName string, ev ai.CallEvent) {
 	var reqJSON any = map[string]any{}
-	if cloned.Body != nil {
-		rawReq, err := io.ReadAll(io.LimitReader(cloned.Body, 4<<20))
-		_ = cloned.Body.Close()
-		if err != nil {
-			return nil, errors.Wrap(err, "read llm request body")
-		}
-		cloned.Body = io.NopCloser(bytes.NewReader(rawReq))
-		cloned.ContentLength = int64(len(rawReq))
+	if len(ev.RequestBody) > 0 {
 		var obj map[string]any
-		if json.Unmarshal(rawReq, &obj) == nil && obj != nil {
+		if json.Unmarshal(ev.RequestBody, &obj) == nil && obj != nil {
 			reqJSON = obj
 		}
 	}
-
 	target, _ := ctx.Value(targetCtxKey{}).(Target)
 	meta := target.Meta
 	if meta == nil {
 		meta = map[string]any{}
 	}
+	model := modelName
+	if model == "" {
+		model = ev.Model
+	}
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	call := &Call{
-		ID:         uuid.Must(uuid.NewV7()).String(),
-		CreatedAt:  now,
-		UpdatedAt:  now,
-		CallType:   t.callType,
-		Operation:  target.Operation,
-		Meta:       meta,
-		Endpoint:   t.endpoint,
-		Model:      t.model,
-		Request:    reqJSON,
-		TargetType: target.Type,
-		TargetID:   target.ID,
+		ID:               uuid.Must(uuid.NewV7()).String(),
+		CreatedAt:        now,
+		UpdatedAt:        now,
+		CallType:         callType,
+		Operation:        target.Operation,
+		Meta:             meta,
+		Endpoint:         endpoint,
+		Model:            model,
+		RequestID:        ev.Headers.Get("X-Omirouter-Request-Id"),
+		Request:          reqJSON,
+		Response:         ev.Content,
+		PromptTokens:     ev.PromptTokens,
+		CachedTokens:     ev.CachedTokens,
+		CompletionTokens: ev.CompletionTokens,
+		ReasoningTokens:  ev.ReasoningTokens,
+		DurationMS:       int(ev.Duration.Milliseconds()),
+		TargetType:       target.Type,
+		TargetID:         target.ID,
 	}
 	if target.Tenant != "" {
 		call.TenantID = &target.Tenant
@@ -271,117 +265,46 @@ func (t *observingTransport) RoundTrip(req *http.Request) (*http.Response, error
 	if slot, ok := ctx.Value(callIDCtxKey{}).(*string); ok && slot != nil {
 		*slot = call.ID
 	}
+	if call.Response == "" && len(ev.ResponseBody) > 0 {
+		call.Response = string(ev.ResponseBody)
+	}
+	if ev.Err != nil {
+		call.Error = ev.Err.Error()
+	}
 
-	start := time.Now()
-	resp, callErr := t.base.RoundTrip(cloned)
-	call.DurationMS = int(time.Since(start).Milliseconds())
-
-	if callErr != nil {
-		call.Error = callErr.Error()
-		if _, err := t.db.NewInsert().Model(call).Exec(context.WithoutCancel(ctx)); err != nil {
-			return nil, errors.Join(callErr, errors.Wrap(err, "record llm call"))
+	// 优先读取 OmiRouter 统一计量响应头覆盖用量和费用。
+	if ev.Headers != nil {
+		if v, ok := parseHeaderInt(ev.Headers.Get("X-Omirouter-Prompt-Tokens")); ok {
+			call.PromptTokens = v
 		}
-		return nil, callErr
-	}
-
-	// 流式 SSE 响应直接透传，不缓冲整个响应体。
-	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(resp.Header.Get("Content-Type"))), "text/event-stream") {
-		call.RequestID = resp.Header.Get("X-Omirouter-Request-Id")
-		return resp, nil
-	}
-
-	data, readErr := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
-	_ = resp.Body.Close()
-	if readErr != nil {
-		call.Error = readErr.Error()
-		if _, err := t.db.NewInsert().Model(call).Exec(context.WithoutCancel(ctx)); err != nil {
-			return nil, errors.Join(readErr, errors.Wrap(err, "record llm call"))
+		if v, ok := parseHeaderInt(ev.Headers.Get("X-Omirouter-Cached-Tokens")); ok {
+			call.CachedTokens = v
 		}
-		return nil, readErr
-	}
-	resp.Body = io.NopCloser(bytes.NewReader(data))
-
-	fillCallFromResponse(call, resp.StatusCode, resp.Header, data)
-	if _, err := t.db.NewInsert().Model(call).Exec(context.WithoutCancel(ctx)); err != nil {
-		return nil, errors.Wrap(err, "record llm call")
-	}
-	return resp, nil
-}
-
-// responseEnvelope 是非流式 OpenAI 兼容响应中用于补充记账的最小字段。
-type responseEnvelope struct {
-	Choices []struct {
-		Message struct {
-			Content string `json:"content"`
-		} `json:"message"`
-	} `json:"choices"`
-	Usage struct {
-		PromptTokens        int `json:"prompt_tokens"`
-		CompletionTokens    int `json:"completion_tokens"`
-		PromptTokensDetails struct {
-			CachedTokens int `json:"cached_tokens"`
-		} `json:"prompt_tokens_details"`
-		CompletionTokensDetails struct {
-			ReasoningTokens int `json:"reasoning_tokens"`
-		} `json:"completion_tokens_details"`
-		Cost *float64 `json:"cost"`
-	} `json:"usage"`
-	Error *struct {
-		Message string `json:"message"`
-	} `json:"error"`
-}
-
-// fillCallFromResponse 优先从 OmiRouter 统一计量响应头填充调用记录，未提供响应头时回退解析标准 JSON 响应体。
-func fillCallFromResponse(call *Call, statusCode int, h http.Header, data []byte) {
-	call.RequestID = h.Get("X-Omirouter-Request-Id")
-	call.Response = string(data)
-
-	hasHeaderTokens := false
-	if v, ok := parseHeaderInt(h.Get("X-Omirouter-Prompt-Tokens")); ok {
-		call.PromptTokens = v
-		hasHeaderTokens = true
-	}
-	if v, ok := parseHeaderInt(h.Get("X-Omirouter-Cached-Tokens")); ok {
-		call.CachedTokens = v
-		hasHeaderTokens = true
-	}
-	if v, ok := parseHeaderInt(h.Get("X-Omirouter-Completion-Tokens")); ok {
-		call.CompletionTokens = v
-		hasHeaderTokens = true
-	}
-	if v, ok := parseHeaderInt(h.Get("X-Omirouter-Reasoning-Tokens")); ok {
-		call.ReasoningTokens = v
-		hasHeaderTokens = true
-	}
-	if rawCost := strings.TrimSpace(h.Get("X-Omirouter-Cost")); rawCost != "" {
-		if cost, err := strconv.ParseFloat(rawCost, 64); err == nil {
-			call.Cost = &cost
+		if v, ok := parseHeaderInt(ev.Headers.Get("X-Omirouter-Completion-Tokens")); ok {
+			call.CompletionTokens = v
 		}
-	}
-
-	var env responseEnvelope
-	if json.Unmarshal(data, &env) == nil {
-		if !hasHeaderTokens {
-			call.PromptTokens = env.Usage.PromptTokens
-			call.CachedTokens = env.Usage.PromptTokensDetails.CachedTokens
-			call.CompletionTokens = env.Usage.CompletionTokens
-			call.ReasoningTokens = env.Usage.CompletionTokensDetails.ReasoningTokens
+		if v, ok := parseHeaderInt(ev.Headers.Get("X-Omirouter-Reasoning-Tokens")); ok {
+			call.ReasoningTokens = v
 		}
-		if call.Cost == nil && env.Usage.Cost != nil {
-			call.Cost = env.Usage.Cost
-		}
-		if statusCode >= http.StatusOK && statusCode < http.StatusMultipleChoices && len(env.Choices) > 0 {
-			call.Response = env.Choices[0].Message.Content
-		}
-		if statusCode >= http.StatusMultipleChoices || env.Error != nil {
-			msg := ""
-			if env.Error != nil {
-				msg = env.Error.Message
+		if rawCost := strings.TrimSpace(ev.Headers.Get("X-Omirouter-Cost")); rawCost != "" {
+			if cost, err := strconv.ParseFloat(rawCost, 64); err == nil {
+				call.Cost = &cost
 			}
-			call.Error = "model returned status " + strconv.Itoa(statusCode) + ": " + msg
 		}
-	} else if statusCode >= http.StatusMultipleChoices {
-		call.Error = "model returned status " + strconv.Itoa(statusCode)
+	}
+	if call.Cost == nil && len(ev.ResponseBody) > 0 {
+		var costEnv struct {
+			Usage struct {
+				Cost *float64 `json:"cost"`
+			} `json:"usage"`
+		}
+		if json.Unmarshal(ev.ResponseBody, &costEnv) == nil && costEnv.Usage.Cost != nil {
+			call.Cost = costEnv.Usage.Cost
+		}
+	}
+
+	if _, err := c.db.NewInsert().Model(call).Exec(ctx); err != nil {
+		slog.ErrorContext(ctx, "record llm call failed", "call_id", call.ID, "operation", call.Operation, "error", err)
 	}
 }
 

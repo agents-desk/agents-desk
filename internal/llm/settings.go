@@ -8,6 +8,7 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/contract"
+	"github.com/go-tenon/tenon/crypt"
 	"github.com/go-tenon/tenon/enum"
 	"github.com/go-tenon/tenon/settings"
 )
@@ -15,7 +16,7 @@ import (
 // Gateway 是统一模型网关（例如 OmiRouter）的连接配置。地址为空表示未启用模型能力。
 type Gateway struct {
 	BaseURL string `json:"base_url" maxLength:"500" pattern:"^(https?://\\S+)?$" doc:"统一模型网关地址，http:// 或 https:// 开头，例如 https://gateway.example.com/v1"`
-	APIKey  string `json:"api_key" maxLength:"500" doc:"网关密钥（Virtual Key），明文保存"`
+	APIKey  string `json:"api_key" maxLength:"500" format:"password" settings:"secret" doc:"网关密钥（Virtual Key），落库时自动加密保存"`
 }
 
 // Models 是各业务调用类型在网关中对应的逻辑模型名。模型名为空表示未启用该调用类型。
@@ -31,9 +32,9 @@ type Settings struct {
 	Models  Models  `json:"models" doc:"各调用类型使用的逻辑模型名"`
 }
 
-// NewGroup 返回平台的模型配置组，名称 llm 保存在 settings 表中，发布后保持固定。
-func NewGroup(db bun.IDB) *settings.Group[Settings] {
-	return settings.New(db, "llm", Settings{})
+// NewGroup 返回平台的模型配置组，名称 llm 保存在 settings 表中，密钥字段经 keys 透明加密存储。
+func NewGroup(db bun.IDB, keys *crypt.Crypt) *settings.Group[Settings] {
+	return settings.New(db, "llm", Settings{}, settings.WithCrypt(keys))
 }
 
 // SettingsBody 是读取或保存设置的响应体。

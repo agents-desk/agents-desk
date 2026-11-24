@@ -50,7 +50,7 @@ func TestCreateMakesOwnerAccountAndRole(t *testing.T) {
 	env := apptest.New(t)
 	ctx := context.Background()
 
-	ten, err := tenant.NewCreate(env.DB, env.MemberLogins, addr).Handle(ctx, apptest.Admin, acme)
+	ten, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, addr).Handle(ctx, apptest.Admin, acme)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func TestCreateReusesExistingMember(t *testing.T) {
 	t.Parallel()
 	env := apptest.New(t)
 	ctx := context.Background()
-	create := tenant.NewCreate(env.DB, env.MemberLogins, addr)
+	create := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, addr)
 	first, err := create.Handle(ctx, apptest.Admin, acme)
 	if err != nil {
 		t.Fatal(err)
@@ -108,7 +108,7 @@ func TestCreateRejectsAndRollsBack(t *testing.T) {
 	t.Parallel()
 	env := apptest.New(t)
 	ctx := context.Background()
-	create := tenant.NewCreate(env.DB, env.MemberLogins, addr)
+	create := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, addr)
 	if _, err := create.Handle(ctx, apptest.Admin, acme); err != nil {
 		t.Fatal(err)
 	}

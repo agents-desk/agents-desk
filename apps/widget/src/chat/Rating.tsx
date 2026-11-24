@@ -1,7 +1,8 @@
 import type { ConversationContactConversationDTO } from "@agents-desk/client/widget"
 import { Button, Paper, Rating as Stars, Stack, Text, Textarea } from "@mantine/core"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { notifyError, useT } from "@go-tenon/ui"
+import { describeError } from "@go-tenon/client"
+import { useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { authed, widgetApi } from "../api"
 import { useIdentity } from "../realtime"
@@ -19,6 +20,7 @@ export function RatingCard({ conversation, color }: { conversation: Conversation
   const { contact } = useIdentity()
   const [score, setScore] = useState(0)
   const [comment, setComment] = useState("")
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const card = useRef<HTMLDivElement>(null)
   // 选了星数后出现意见和提交按钮，把卡片的底部滚到可见的位置
   useEffect(() => {
@@ -27,10 +29,11 @@ export function RatingCard({ conversation, color }: { conversation: Conversation
   const rate = useMutation({
     mutationFn: () => authed(() => widgetApi.conversation.rate(conversation.id, { score, comment: comment.trim() || undefined })),
     onSuccess: (updated) => {
+      setSubmitError(null)
       queryClient.setQueryData(["widget", contact?.id, "conversation", conversation.id], updated)
       void queryClient.invalidateQueries({ queryKey: ["widget", contact?.id, "conversations"] })
     },
-    onError: (err) => notifyError(err),
+    onError: (err) => setSubmitError(describeError(err).message ?? t("chat.failed")),
   })
 
   if (conversation.rating) {
@@ -76,6 +79,11 @@ export function RatingCard({ conversation, color }: { conversation: Conversation
               size="md"
               w="100%"
             />
+            {submitError && (
+              <Text size="xs" c="red">
+                {submitError}
+              </Text>
+            )}
             <Button fullWidth color={color} loading={rate.isPending} onClick={() => rate.mutate()}>
               {t("rating.submit")}
             </Button>

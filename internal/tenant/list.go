@@ -6,6 +6,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/login"
 	"github.com/go-tenon/tenon/page"
 )
@@ -41,8 +42,9 @@ func (a *List) HTTP(ctx context.Context, in *ListInput) (*ListOutput, error) {
 		OrderExpr("tenant.created_at DESC, tenant.id DESC").
 		Limit(in.Limit()).Offset(in.Offset())
 	if in.Name != "" {
+		like := "%" + database.EscapeLike(in.Name) + "%"
 		q = q.WhereGroup(" AND ", func(q *bun.SelectQuery) *bun.SelectQuery {
-			return q.Where("tenant.name ILIKE ?", "%"+in.Name+"%").WhereOr("tenant.slug ILIKE ?", "%"+in.Name+"%")
+			return q.Where(`tenant.name ILIKE ? ESCAPE '\'`, like).WhereOr(`tenant.slug ILIKE ? ESCAPE '\'`, like)
 		})
 	}
 	switch in.Status {

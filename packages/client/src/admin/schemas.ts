@@ -392,6 +392,7 @@ export const components = {
     "additionalProperties": false,
     "properties": {
       "api_key": {
+        "format": "password",
         "maxLength": 500,
         "type": "string"
       },
@@ -537,6 +538,7 @@ export const components = {
     "additionalProperties": false,
     "properties": {
       "api_key": {
+        "format": "password",
         "maxLength": 256,
         "type": "string"
       },

@@ -25,11 +25,19 @@ export function useRealtime(): void {
   useEffect(() => {
     if (!token || !contact) return
     const scheme = location.protocol === "https:" ? "wss" : "ws"
-    const centrifuge = new Centrifuge(`${scheme}://${location.host}/w/${encodeURIComponent(channel)}/realtime`, { token })
+    const centrifuge = new Centrifuge(`${scheme}://${location.host}/w/${encodeURIComponent(channel)}/realtime`, {
+      token,
+      // 长连接令牌过期时通过 identity.renew 续签联系人令牌。
+      getToken: async () => {
+        await identity.renew()
+        return identity.token() ?? ""
+      },
+    })
     let timer: ReturnType<typeof setTimeout> | undefined
     const refresh = () => {
       clearTimeout(timer)
-      timer = setTimeout(() => void queryClient.invalidateQueries({ queryKey: ["widget"] }), 200)
+      // 只失效当前联系人的会话与时间线查询，不重复刷新 ["widget", "config"]。
+      timer = setTimeout(() => void queryClient.invalidateQueries({ queryKey: ["widget", contact.id] }), 200)
     }
     // 第一次订阅成功时页面刚刚读过数据，之后每次重新订阅成功都重新读取
     let first = true

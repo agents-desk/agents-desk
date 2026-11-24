@@ -26,7 +26,7 @@ func TestMacroCRUDPermissionsAndIsolation(t *testing.T) {
 	env := apptest.New(t)
 	ctx := context.Background()
 
-	createTenant := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{})
+	createTenant := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{})
 	alpha, err := createTenant.Handle(ctx, apptest.Admin, tenant.CreateParams{
 		Name: "alpha", Slug: "alpha", OwnerEmail: "owner@alpha.com", OwnerName: "主管理员", OwnerPassword: "password",
 	})
@@ -51,7 +51,7 @@ func TestMacroCRUDPermissionsAndIsolation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	addMember := member.NewAdd(env.DB, env.MemberLogins, env.Files)
+	addMember := member.NewAdd(env.DB, env.Roles, env.MemberLogins, env.Files)
 	adminMember, err := addMember.Handle(ctx, inAlpha, member.AddParams{
 		Email: "admin@alpha.com", Name: "管理员", Password: "password", RoleID: adminRole.ID,
 	})
@@ -108,7 +108,7 @@ func TestMacroCRUDPermissionsAndIsolation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	create, get, list, update, del := macro.NewCreate(env.DB), macro.NewGet(env.DB), macro.NewList(env.DB), macro.NewUpdate(env.DB), macro.NewDelete(env.DB)
+	create, get, list, update, del := macro.NewCreate(env.DB, env.Roles), macro.NewGet(env.DB), macro.NewList(env.DB), macro.NewUpdate(env.DB, env.Roles), macro.NewDelete(env.DB)
 
 	// 1. 权限校验：无 macros:manage 不能创建共享快捷回复
 	if _, err := create.Handle(ctx, subA, macro.CreateParams{

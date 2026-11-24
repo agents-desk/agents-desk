@@ -41,7 +41,7 @@ func TestRealtime(t *testing.T) {
 		cfg: config.Default[Config](), db: env.DB, hub: hub, roles: env.Roles,
 		adminLogins: env.AdminLogins, adminTokens: apitoken.NewStore(env.DB, tokens),
 		memberLogins: env.MemberLogins, memberTokens: apitoken.NewStore(env.DB, tokens),
-		llmSettings: llm.NewGroup(env.DB), files: env.Files, localDisk: env.Disk,
+		llmSettings: llm.NewGroup(env.DB, env.Crypt), files: env.Files, localDisk: env.Disk,
 		channels: channel.DefaultRegistry(), presence: realtimetest.NewPresence(),
 	}
 	rt, err := a.newRealtime()
@@ -57,7 +57,7 @@ func TestRealtime(t *testing.T) {
 	// 两个工作区；alpha 中有两位坐席（各在一个团队收件箱中）和一位只看指派给自己的会话的专员
 	tenants, owners := map[string]string{}, map[string]string{}
 	for _, slug := range []string{"alpha", "beta"} {
-		tn, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+		tn, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
 			Name: slug, Slug: slug, OwnerEmail: "owner@" + slug + ".com", OwnerName: slug, OwnerPassword: "password",
 		})
 		if err != nil {

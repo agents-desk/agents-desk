@@ -66,16 +66,32 @@ func TenantFrom(ctx context.Context) string {
 }
 
 // Resolve 是联系人的 Resolver：联系人要在本次请求的聊天插件中有身份（StartSession 建立的），否则令牌无效（401），
-// 聊天窗口重新建立会话。聊天插件查不到时返回 channel.ErrNotFound。联系人没有权限，能做什么由业务动作按归属判断。
+// 聊天窗口重新建立会话。聊天插件查不到时返回 channel.ErrNotFound。
+// 长连接复查（identity.Rechecking）时没有 HTTP 路径参数，实时确认该联系人在当前租户下仍有启用中的聊天插件身份。
 func Resolve(db bun.IDB) identity.Resolver {
 	return func(ctx context.Context, sub identity.Subject) (identity.Subject, error) {
-		ch, err := channelFrom(ctx)
-		if err != nil {
-			return identity.Subject{}, err
+		if ch, err := channelFrom(ctx); err == nil {
+			ok, err := hasIdentity(ctx, db, sub, ch.ID)
+			if err != nil {
+				return identity.Subject{}, err
+			}
+			if !ok {
+				return identity.Subject{}, identity.ErrUnauthenticated.New()
+			}
+			return sub, nil
 		}
-		ok, err := hasIdentity(ctx, db, sub, ch.ID)
+		if !identity.Rechecking(ctx) {
+			return identity.Subject{}, channel.ErrNotFound.New()
+		}
+		if sub.Type != contact.Type {
+			return identity.Subject{}, identity.ErrUnauthenticated.New()
+		}
+		ok, err := db.NewSelect().TableExpr("contact_identities AS ci").
+			Join("JOIN channels AS ch ON ch.id = ci.channel_id AND ch.tenant_id = ci.tenant_id").
+			Where("ci.tenant_id = ? AND ci.contact_id = ? AND ch.kind = ? AND ch.enabled = TRUE", sub.Tenant, sub.ID, channel.Widget).
+			Exists(ctx)
 		if err != nil {
-			return identity.Subject{}, err
+			return identity.Subject{}, errors.Wrap(err, "recheck contact widget identity")
 		}
 		if !ok {
 			return identity.Subject{}, identity.ErrUnauthenticated.New()
@@ -97,13 +113,26 @@ func hasIdentity(ctx context.Context, db bun.IDB, sub identity.Subject, channelI
 // Channel 返回联系人 contactID 在聊天插件 channelID 中的实时频道：成员的回复经它推送给聊天窗口。
 func Channel(channelID, contactID string) string { return "w:" + channelID + ":contact:" + contactID }
 
-// RegisterRealtime 在聊天插件的实时连接 rt 上登记联系人的频道：只有在这个聊天插件中有身份的联系人自己能订阅。
+// RegisterRealtime 在聊天插件的实时连接 rt 上登记联系人的频道：只有在这个启用中的聊天插件中有身份的联系人自己能订阅。
 func RegisterRealtime(rt *realtime.Realtime, db bun.IDB) {
 	rt.Channel("w:{channel}:contact:{contact}", realtime.Private(func(ctx context.Context, sub identity.Subject, p realtime.Params) (bool, error) {
 		if p["contact"] != sub.ID {
 			return false, nil
 		}
 		if _, err := uuid.Parse(p["channel"]); err != nil {
+			return false, nil
+		}
+		if ch, err := channelFrom(ctx); err == nil && ch.ID != p["channel"] {
+			return false, nil
+		}
+		ch, err := findPublic(ctx, db, p["channel"])
+		if errors.Is(err, channel.ErrNotFound) {
+			return false, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		if ch.TenantID != sub.Tenant {
 			return false, nil
 		}
 		return hasIdentity(ctx, db, sub, p["channel"])

@@ -77,14 +77,11 @@ func (c *Config) SetDefaults() {
 	}
 }
 
-// Validate 检查对外地址是 http 或 https 的绝对地址，以及全局的请求体上限能容纳最大的上传文件。
+// Validate 检查对外地址是 http 或 https 的绝对地址。
 func (c Config) Validate() error {
 	u, err := url.Parse(c.PublicURL)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		return errors.Newf("public_url: %q 不是 http:// 或 https:// 开头的地址", c.PublicURL)
-	}
-	if c.HTTP.BodyLimit.MaxBytes < int64(c.Filesystem.MaxUploadSize) {
-		return errors.Newf("http.body_limit.max_bytes (%d) 小于 filesystem.max_upload_size (%s)，上传会被拒绝", c.HTTP.BodyLimit.MaxBytes, c.Filesystem.MaxUploadSize)
 	}
 	return nil
 }
@@ -104,8 +101,8 @@ func main() {
 			queuecmd.New(a.db, queuecmd.WithJetStream(a.nc, a.cfg.Queue)),
 			schedulecmd.New(a.tasks),
 			searchcmd.New(a.db, conversation.SearchIndex),
-			platformadmin.Commands(a.db, a.adminLogins),
-			seedCommand(a.db, a.adminLogins, a.memberLogins, a.files, a.crypt, tenant.Addresses{PublicURL: a.cfg.PublicURL}, a.channels, a.downstream()),
+			platformadmin.Commands(a.db, a.roles, a.adminLogins),
+			seedCommand(a.db, a.roles, a.adminLogins, a.memberLogins, a.files, a.crypt, tenant.Addresses{PublicURL: a.cfg.PublicURL}, a.channels, a.downstream()),
 			devCommands(a),
 		}
 	})...)

@@ -38,7 +38,7 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	rest.Register(api, route(manage, "team-disable", http.MethodPost, "/teams/{id}/disable", "停用团队收件箱"), NewDisable(db).HTTP)
 	rest.Register(api, route(manage, "team-enable", http.MethodPost, "/teams/{id}/enable", "启用团队收件箱"), NewEnable(db).HTTP)
 	rest.Register(api, route(read, "team-members", http.MethodGet, "/teams/{id}/members", "团队收件箱的成员"), NewListMembers(db, roles, logins, files).HTTP)
-	rest.Register(api, route(manage, "team-member-put", http.MethodPut, "/teams/{id}/members/{member_id}", "加入团队收件箱"), NewPutMember(db, logins, files).HTTP)
+	rest.Register(api, route(manage, "team-member-put", http.MethodPut, "/teams/{id}/members/{member_id}", "加入团队收件箱"), NewPutMember(db, roles, logins, files).HTTP)
 	rest.Register(api, removeMember, NewRemoveMember(db).HTTP)
 	rest.Register(api, route(manage, "team-business-hours", http.MethodPut, "/teams/{id}/business-hours", "设置团队收件箱的工作时间"), NewSetBusinessHours(db).HTTP)
 

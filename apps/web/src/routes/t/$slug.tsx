@@ -2,7 +2,20 @@ import { useDisclosure } from "@mantine/hooks"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { IconSettings, IconSwitchHorizontal } from "@tabler/icons-react"
-import { enterTenant, Fill, ImpersonationBanner, RailLayout, requireAuth, TimeZoneProvider, UserMenu, useMenuBadge, useTenant, useT } from "@go-tenon/ui"
+import {
+  enterTenant,
+  Fill,
+  ImpersonationBanner,
+  OperationsMenu,
+  RailLayout,
+  requireAuth,
+  TimeZoneProvider,
+  UserMenu,
+  useCan,
+  useMenuBadge,
+  useTenant,
+  useT,
+} from "@go-tenon/ui"
 import { useState } from "react"
 import { kit, tenantApi } from "../../api"
 import { logout, me } from "../../auth"
@@ -29,6 +42,7 @@ function TenantLayout() {
   const user = useQuery({ queryKey: ["me"], queryFn: me })
   const myStatus = useQuery({ queryKey: ["me", "status", tenant.slug], queryFn: () => tenantApi.member.myStatus() })
   const { tenants } = useTenant()
+  const can = useCan()
   const navigate = useNavigate()
   const t = useT()
   const [shortcutsOpened, shortcutsHandlers] = useDisclosure(false)
@@ -62,7 +76,7 @@ function TenantLayout() {
         }),
     })
   })
-  const inbox = useQuery(kit.queries.conversation.inbox())
+  const inbox = useQuery({ ...kit.queries.conversation.inbox(), enabled: can("conversations:read") })
   useMenuBadge("/t/$slug/inbox", inbox.data?.mine.waiting)
   // 工作区设置不进图标栏，从个人菜单进入；非代为登录且属于多个工作区时，个人菜单中还可以回到选择工作区的页面。
   const settings = `/t/${tenant.slug}/settings`
@@ -82,6 +96,7 @@ function TenantLayout() {
           navWidth={200}
           compactQuery={NARROW_QUERY}
           railTop={<CommandSearchButton />}
+          railBottom={<OperationsMenu />}
           banner={
             impersonation && user.data ? (
               <ImpersonationBanner

@@ -28,10 +28,10 @@ func TestRoles(t *testing.T) {
 		cfg: config.Default[Config](), db: env.DB, roles: env.Roles,
 		adminLogins: env.AdminLogins, adminTokens: apitoken.NewStore(env.DB, tokens),
 		memberLogins: env.MemberLogins, memberTokens: apitoken.NewStore(env.DB, tokens),
-		llmSettings: llm.NewGroup(env.DB), files: env.Files, localDisk: env.Disk,
+		llmSettings: llm.NewGroup(env.DB, env.Crypt), files: env.Files, localDisk: env.Disk,
 	}
 	h := a.routes(nil)
-	create := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{})
+	create := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{})
 	for _, slug := range []string{"alpha", "beta"} {
 		if _, err := create.Handle(ctx, apptest.Admin, tenant.CreateParams{
 			Name: slug, Slug: slug, OwnerEmail: "owner@" + slug + ".com", OwnerName: slug + " 主管理员", OwnerPassword: "password",
@@ -96,7 +96,7 @@ func TestRoles(t *testing.T) {
 		t.Errorf("平台的权限：%d %s", r.status, r.body)
 	}
 
-	// 角色为质检的成员：能看成员、能看会话，只能看指派给自己的；不能管理角色
+	// 角色为质检的成员：能看成员和角色列表（供成员列表筛选器使用）、能看会话，只能看指派给自己的；不能管理角色
 	call(h, "POST", "/t/alpha/api/members", `{"email":"qa@alpha.com","name":"质检员","password":"password","role_id":"`+qa+`"}`, owner)
 	inspector := login("qa@alpha.com")
 	if got := permissions(inspector); !strings.Contains(got, `"conversations:read"`) || strings.Contains(got, "conversations:read-") || strings.Contains(got, "members:manage") {
@@ -105,8 +105,11 @@ func TestRoles(t *testing.T) {
 	if r := call(h, "GET", "/t/alpha/api/members", "", inspector); r.status != http.StatusOK {
 		t.Errorf("质检员看成员：%d", r.status)
 	}
-	if r := call(h, "GET", "/t/alpha/api/roles", "", inspector); r.status != http.StatusForbidden {
-		t.Errorf("质检员看角色：%d", r.status)
+	if r := call(h, "GET", "/t/alpha/api/roles", "", inspector); r.status != http.StatusOK {
+		t.Errorf("质检员看角色列表：%d", r.status)
+	}
+	if r := call(h, "POST", "/t/alpha/api/roles", `{"name":"x","description":"","conversation_scope":"assigned","permissions":[]}`, inspector); r.status != http.StatusForbidden {
+		t.Errorf("质检员建角色：%d", r.status)
 	}
 	if r := call(h, "GET", "/t/alpha/api/roles/"+qa, "", owner); decode(r.body).MemberCount != 1 {
 		t.Errorf("人数：%s", r.body)
@@ -117,8 +120,19 @@ func TestRoles(t *testing.T) {
 	if r.status != http.StatusOK || decode(r.body).ConversationScope != "team" || len(decode(r.body).Permissions) != 1 {
 		t.Fatalf("修改角色：%d %s", r.status, r.body)
 	}
-	if r := call(h, "GET", "/t/alpha/api/roles", "", inspector); r.status != http.StatusOK {
-		t.Errorf("加上权限后看角色：%d %s", r.status, r.body)
+	// 防自我提权：只拥有 team 范围 + members:manage 的质检员，不能创建或修改出超过自身权限的角色，也不能给别人分配更高权限的角色
+	if r := call(h, "POST", "/t/alpha/api/roles", `{"name":"超权范围","description":"","conversation_scope":"all","permissions":[]}`, inspector); r.status != http.StatusForbidden || r.code != "authz.exceeds_permissions" {
+		t.Errorf("超权可见范围：%d %s", r.status, r.body)
+	}
+	if r := call(h, "POST", "/t/alpha/api/roles", `{"name":"超权操作","description":"","conversation_scope":"team","permissions":["channels:manage"]}`, inspector); r.status != http.StatusForbidden || r.code != "authz.exceeds_permissions" {
+		t.Errorf("超权操作权限：%d %s", r.status, r.body)
+	}
+	if r := call(h, "PUT", "/t/alpha/api/roles/"+qa, `{"name":"质检","description":"","conversation_scope":"all","permissions":["members:manage"]}`, inspector); r.status != http.StatusForbidden || r.code != "authz.exceeds_permissions" {
+		t.Errorf("修改角色提权：%d %s", r.status, r.body)
+	}
+	adminRole := roleID(t, h, "alpha", "管理员", owner)
+	if r := call(h, "POST", "/t/alpha/api/members", `{"email":"escalate@alpha.com","name":"提权","password":"password","role_id":"`+adminRole+`"}`, inspector); r.status != http.StatusForbidden || r.code != "authz.exceeds_permissions" {
+		t.Errorf("分配超权角色：%d %s", r.status, r.body)
 	}
 	if got := permissions(inspector); !strings.Contains(got, `"conversations:read-team"`) {
 		t.Errorf("修改后的权限：%s", got)
@@ -148,9 +162,11 @@ func TestRoles(t *testing.T) {
 		t.Errorf("删除后：%d %s", r.status, r.body)
 	}
 
-	// 坐席不能管理角色
+	// 坐席可以读取角色列表（供成员筛选），但不能新建、修改、删除角色
+	if r := call(h, "GET", "/t/alpha/api/roles", "", inspector); r.status != http.StatusOK {
+		t.Errorf("坐席 GET /t/alpha/api/roles：%d %s", r.status, r.body)
+	}
 	for _, c := range []struct{ method, path, body string }{
-		{"GET", "/t/alpha/api/roles", ""},
 		{"POST", "/t/alpha/api/roles", `{"name":"x","description":"","conversation_scope":"all","permissions":[]}`},
 		{"PUT", "/t/alpha/api/roles/" + agentRole, `{"name":"x","description":"","conversation_scope":"all","permissions":[]}`},
 		{"DELETE", "/t/alpha/api/roles/" + agentRole, ""},

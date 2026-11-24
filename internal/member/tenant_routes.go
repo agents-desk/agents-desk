@@ -38,10 +38,10 @@ func RegisterTenantRoutes(api *rest.API, require func(...auth.Permission) func(*
 
 	rest.Register(api, route(read, "member-list", http.MethodGet, "/members", "成员列表"), NewList(db, roles, logins, files).HTTP)
 	rest.Register(api, route(read, "member-get", http.MethodGet, "/members/{id}", "读取成员"), NewGet(db, roles, logins, files).HTTP)
-	rest.Register(api, add, NewAdd(db, logins, files).HTTP)
-	rest.Register(api, route(manage, "member-update", http.MethodPut, "/members/{id}", "修改成员的角色"), NewChangeRole(db, logins, files).HTTP)
-	rest.Register(api, remove, NewRemove(db, hooks).HTTP)
-	rest.Register(api, away, NewSetAway(db).HTTP)
+	rest.Register(api, add, NewAdd(db, roles, logins, files).HTTP)
+	rest.Register(api, route(manage, "member-update", http.MethodPut, "/members/{id}", "修改成员的角色"), NewChangeRole(db, roles, logins, files).HTTP)
+	rest.Register(api, remove, NewRemove(db, roles, hooks).HTTP)
+	rest.Register(api, away, NewSetAway(db, roles).HTTP)
 	rest.Register(api, route(require(), "member-my-status", http.MethodGet, "/me/status", "我在这个工作区的在线状态"), NewGetMyStatus(db).HTTP)
 	rest.Register(api, route(require(), "member-my-status-update", http.MethodPut, "/me/status", "修改我在这个工作区的在线状态"), NewSetMyStatus(db).HTTP)
 

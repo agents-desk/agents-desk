@@ -16,6 +16,7 @@ import (
 
 	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/contract"
+	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/enum"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
@@ -593,7 +594,7 @@ func buildAttrPredicate(def attribute.Definition, cond AttributeFilter) (string,
 		case AttrOpNeq:
 			return "(NOT jsonb_exists(conversation.attributes, ?) OR (conversation.attributes->>?) <> ?)", []any{k, k, s}
 		case AttrOpContains:
-			return "(jsonb_exists(conversation.attributes, ?) AND (conversation.attributes->>?) ILIKE ? ESCAPE '\\')", []any{k, k, "%" + escapeLike(s) + "%"}
+			return "(jsonb_exists(conversation.attributes, ?) AND (conversation.attributes->>?) ILIKE ? ESCAPE '\\')", []any{k, k, "%" + database.EscapeLike(s) + "%"}
 		}
 
 	case attribute.TypeNumber:
@@ -751,10 +752,4 @@ func parseStrings(v any) ([]string, bool) {
 		out = append(out, s)
 	}
 	return out, true
-}
-
-// escapeLike 转义 ILIKE 模式中的通配符，使输入按字面子串匹配。
-func escapeLike(s string) string {
-	r := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
-	return r.Replace(s)
 }

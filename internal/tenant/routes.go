@@ -9,6 +9,7 @@ import (
 	"github.com/go-tenon/tenon/apitoken"
 	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/httpx/rest"
+	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/login"
 
 	"agents-desk/internal/member"
@@ -16,8 +17,8 @@ import (
 
 // RegisterRoutes 注册平台管理员管理租户的接口，并把租户声明为管理员端的资源。
 // requireRead 要求 tenants:read，requireManage 要求 tenants:manage，requireImpersonate 要求 tenants:impersonate；
-// logins 是成员的 login.Realm；hooks 是更换主管理员时原主管理员离开租户之后其他模块跟着做的事。
-func RegisterRoutes(api *rest.API, requireRead, requireManage, requireImpersonate func(*huma.Operation), db *bun.DB, roles *authz.Store, logins *login.Realm, memberTokens *apitoken.Store, addr Addresses, hooks member.Hooks) {
+// logins 是成员的 login.Realm；hooks 是更换主管理员时原主管理员离开租户之后其他模块跟着做的事；creds 非 nil 时在停用工作区后通知长连接立即复查。
+func RegisterRoutes(api *rest.API, requireRead, requireManage, requireImpersonate func(*huma.Operation), db *bun.DB, roles *authz.Store, logins *login.Realm, memberTokens *apitoken.Store, addr Addresses, hooks member.Hooks, creds ...identity.CredentialRechecker) {
 	route := func(access func(*huma.Operation), id, method, path, summary string) huma.Operation {
 		op := huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary}
 		access(&op)
@@ -28,11 +29,11 @@ func RegisterRoutes(api *rest.API, requireRead, requireManage, requireImpersonat
 
 	rest.Register(api, route(requireRead, "tenant-list", http.MethodGet, "/tenants", "工作区列表"), NewList(db, logins, addr).HTTP)
 	rest.Register(api, route(requireRead, "tenant-get", http.MethodGet, "/tenants/{id}", "读取工作区"), NewGet(db, logins, addr).HTTP)
-	rest.Register(api, create, NewCreate(db, logins, addr).HTTP)
+	rest.Register(api, create, NewCreate(db, roles, logins, addr).HTTP)
 	rest.Register(api, route(requireManage, "tenant-update", http.MethodPut, "/tenants/{id}", "修改工作区"), NewUpdate(db, logins, addr).HTTP)
-	rest.Register(api, route(requireManage, "tenant-disable", http.MethodPost, "/tenants/{id}/disable", "停用工作区"), NewDisable(db, logins, addr).HTTP)
+	rest.Register(api, route(requireManage, "tenant-disable", http.MethodPost, "/tenants/{id}/disable", "停用工作区"), NewDisable(db, logins, addr, creds...).HTTP)
 	rest.Register(api, route(requireManage, "tenant-enable", http.MethodPost, "/tenants/{id}/enable", "启用工作区"), NewEnable(db, logins, addr).HTTP)
-	rest.Register(api, route(requireManage, "tenant-change-owner", http.MethodPut, "/tenants/{id}/owner", "更换主管理员"), NewChangeOwner(db, logins, addr, hooks).HTTP)
+	rest.Register(api, route(requireManage, "tenant-change-owner", http.MethodPut, "/tenants/{id}/owner", "更换主管理员"), NewChangeOwner(db, roles, logins, addr, hooks).HTTP)
 	rest.Register(api, route(requireImpersonate, "tenant-members", http.MethodGet, "/tenants/{id}/members", "工作区可代为登录的成员列表"), NewListMembers(db, roles, logins).HTTP)
 	rest.Register(api, route(requireImpersonate, "tenant-impersonate", http.MethodPost, "/tenants/{id}/impersonate", "以工作区成员身份代为登录"), NewImpersonate(db, roles, memberTokens).HTTP)
 

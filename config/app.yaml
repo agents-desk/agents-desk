@@ -2,9 +2,6 @@
 # ${VAR:-默认值} 读取环境变量，生产环境用环境变量覆盖开发时的默认值；本机的覆盖写在 config/local.yaml，不提交。
 http:
   addr: ":8081"
-  # 全局的请求体上限，要比 filesystem.max_upload_size 大一些，上传文件才能通过；JSON 接口另有 Huma 的 1 MiB 上限，不受影响。
-  body_limit:
-    max_bytes: 21495808 # 20.5 MiB
 
 # 应用对外的地址：生成工作区的地址、聊天插件的嵌入代码等链接时使用。
 public_url: ${PUBLIC_URL:-http://localhost:8081}

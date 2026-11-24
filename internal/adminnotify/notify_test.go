@@ -30,7 +30,7 @@ func TestAdminNotifications(t *testing.T) {
 	env := apptest.New(t)
 	ctx := context.Background()
 
-	admin, err := platformadmin.NewCreate(env.DB, env.AdminLogins).Handle(ctx, identity.Subject{Type: identity.System, ID: "cli"}, "运维", "ops@example.com", "secret-pass-123")
+	admin, err := platformadmin.NewCreate(env.DB, env.Roles, env.AdminLogins).Handle(ctx, identity.Subject{Type: identity.System, ID: "cli"}, "运维", "ops@example.com", "secret-pass-123")
 	if err != nil {
 		t.Fatal(err)
 	}

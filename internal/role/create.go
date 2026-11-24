@@ -9,8 +9,6 @@ import (
 	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/identity"
-
-	"agents-desk/internal/auth"
 )
 
 // CreateInput 是新建角色的 HTTP 请求。
@@ -20,18 +18,24 @@ type CreateInput struct {
 
 // Create 在当前工作区中新建角色。
 type Create struct {
-	db *bun.DB
+	db    *bun.DB
+	roles *authz.Store
 }
 
 // NewCreate 返回新建角色的动作。
-func NewCreate(db *bun.DB) *Create { return &Create{db: db} }
+func NewCreate(db *bun.DB, roles *authz.Store) *Create { return &Create{db: db, roles: roles} }
 
-// Handle 在 sub 所在工作区中新建角色 p 并记录操作日志。名称已被使用时返回 ErrNameTaken（字段 name）。
+// Handle 在 sub 所在工作区中新建角色 p 并记录操作日志。授予的权限超出 sub 自身权限时返回 authz.ErrExceedsPermissions，
+// 名称已被使用时返回 ErrNameTaken（字段 name）。
 func (a *Create) Handle(ctx context.Context, sub identity.Subject, p Params) (*RoleDTO, error) {
+	r := toRole(sub.Tenant, p)
+	if err := a.roles.CheckGrant(sub, r.Permissions); err != nil {
+		return nil, err
+	}
 	var created authz.Role
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		var err error
-		created, err = authz.NewStore(tx, auth.Catalog).CreateRole(ctx, toRole(sub.Tenant, p))
+		created, err = a.roles.WithDB(tx).CreateRole(ctx, r)
 		if err != nil {
 			return nameTaken(err, p.Name)
 		}

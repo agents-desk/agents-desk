@@ -11,23 +11,22 @@ import (
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
-
-	"agents-desk/internal/auth"
 )
 
 // Delete 删除当前工作区的一个角色。还有成员使用它时不能删除：每位成员都要有一个角色。
 type Delete struct {
-	db *bun.DB
+	db    *bun.DB
+	roles *authz.Store
 }
 
 // NewDelete 返回删除角色的动作。
-func NewDelete(db *bun.DB) *Delete { return &Delete{db: db} }
+func NewDelete(db *bun.DB, roles *authz.Store) *Delete { return &Delete{db: db, roles: roles} }
 
 // Handle 删除 sub 所在工作区的角色 id 并记录操作日志。角色不存在、或者不是这个工作区自己的角色时返回 ErrNotFound；
 // 还有成员使用它时返回 ErrInUse，带有人数 count。
 func (a *Delete) Handle(ctx context.Context, sub identity.Subject, id string) error {
 	return database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
-		roles := authz.NewStore(tx, auth.Catalog)
+		roles := a.roles.WithDB(tx)
 		r, err := Find(ctx, roles, sub.Tenant, id)
 		if err != nil {
 			return err

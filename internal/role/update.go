@@ -10,8 +10,6 @@ import (
 	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/identity"
-
-	"agents-desk/internal/auth"
 )
 
 // UpdateInput 是修改角色的 HTTP 请求。
@@ -20,7 +18,7 @@ type UpdateInput struct {
 	Body Params
 }
 
-// Update 修改当前工作区的一个角色，拥有这个角色的成员从下一个请求起按新的权限检查。
+// Update 修改当前工作区的一个角色，提交后立即通知拥有该角色的在线长连接复查权限。
 type Update struct {
 	db    *bun.DB
 	roles *authz.Store
@@ -29,13 +27,16 @@ type Update struct {
 // NewUpdate 返回修改角色的动作。
 func NewUpdate(db *bun.DB, roles *authz.Store) *Update { return &Update{db: db, roles: roles} }
 
-// Handle 把 sub 所在工作区的角色 id 改成 p 并记录操作日志。角色不存在、或者不是这个工作区自己的角色时返回 ErrNotFound；
-// 名称已被使用时返回 ErrNameTaken（字段 name）。
+// Handle 把 sub 所在工作区的角色 id 改成 p 并记录操作日志。授予的权限超出 sub 自身权限时返回 authz.ErrExceedsPermissions；
+// 角色不存在、或者不是这个工作区自己的角色时返回 ErrNotFound；名称已被使用时返回 ErrNameTaken（字段 name）。
 func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, p Params) (*RoleDTO, error) {
+	r := toRole(sub.Tenant, p)
+	r.ID = id
+	if err := a.roles.CheckGrant(sub, r.Permissions); err != nil {
+		return nil, err
+	}
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
-		r := toRole(sub.Tenant, p)
-		r.ID = id
-		if _, err := authz.NewStore(tx, auth.Catalog).UpdateRole(ctx, r, sub.Tenant); err != nil {
+		if _, err := a.roles.WithDB(tx).UpdateRole(ctx, r, sub.Tenant); err != nil {
 			if errors.Is(err, authz.ErrRoleNotFound) {
 				return ErrNotFound.New()
 			}

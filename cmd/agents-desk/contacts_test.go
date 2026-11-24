@@ -33,13 +33,13 @@ func TestContactsAPI(t *testing.T) {
 		adminLogins: env.AdminLogins, adminTokens: apitoken.NewStore(env.DB, tokens),
 		memberLogins: env.MemberLogins, memberTokens: apitoken.NewStore(env.DB, tokens),
 		contactTokens: apitoken.NewStore(env.DB, tokens), crypt: env.Crypt,
-		llmSettings: llm.NewGroup(env.DB), files: env.Files, localDisk: env.Disk,
+		llmSettings: llm.NewGroup(env.DB, env.Crypt), files: env.Files, localDisk: env.Disk,
 		channels: registry(nil, env.Crypt, env.Files, nil),
 	}
 	h := a.routes(nil)
 
 	for _, slug := range []string{"alpha", "beta"} {
-		if _, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+		if _, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
 			Name: slug, Slug: slug, OwnerEmail: "owner@" + slug + ".com", OwnerName: "owner", OwnerPassword: "password",
 		}); err != nil {
 			t.Fatal(err)

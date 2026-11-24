@@ -32,18 +32,19 @@ type ChangeRoleInput struct {
 // ChangeRole 修改当前工作区中一个成员的角色。
 type ChangeRole struct {
 	db     *bun.DB
+	roles  *authz.Store
 	logins *login.Realm
 	files  *filesystem.Service
 }
 
 // NewChangeRole 返回修改角色的动作。
-func NewChangeRole(db *bun.DB, logins *login.Realm, files *filesystem.Service) *ChangeRole {
-	return &ChangeRole{db: db, logins: logins, files: files}
+func NewChangeRole(db *bun.DB, roles *authz.Store, logins *login.Realm, files *filesystem.Service) *ChangeRole {
+	return &ChangeRole{db: db, roles: roles, logins: logins, files: files}
 }
 
-// Handle 在 sub 所在的工作区中把成员 id 的角色换成 roleID，并记录操作日志。不能修改自己（ErrSelf）和主管理员
+// Handle 在 sub 所在的工作区中把成员 id 的角色原子替换为 roleID，并记录操作日志。不能修改自己（ErrSelf）和主管理员
 // （ErrOwnerProtected）；他不是这个工作区的成员时返回 ErrNotFound；roleID 不是这个工作区自己的角色时返回
-// role.ErrNotFound（字段 role_id）。
+// role.ErrNotFound（字段 role_id）；目标角色权限超出 sub 自身权限时返回 authz.ErrExceedsPermissions。
 func (a *ChangeRole) Handle(ctx context.Context, sub identity.Subject, id, roleID string) (*TenantMember, error) {
 	if id == sub.ID {
 		return nil, ErrSelf.New()
@@ -51,7 +52,7 @@ func (a *ChangeRole) Handle(ctx context.Context, sub identity.Subject, id, roleI
 	ref := identity.Ref{Type: Type, ID: id}
 	var next authz.Role
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
-		roles := authz.NewStore(tx, auth.Catalog)
+		roles := a.roles.WithDB(tx)
 		current, err := RoleOf(ctx, roles, ref, sub.Tenant)
 		if err != nil {
 			return err
@@ -62,13 +63,13 @@ func (a *ChangeRole) Handle(ctx context.Context, sub identity.Subject, id, roleI
 		if next, err = role.Find(ctx, roles, sub.Tenant, roleID, errorx.Field("role_id")); err != nil {
 			return err
 		}
+		if err := roles.CheckGrant(sub, next.Permissions); err != nil {
+			return err
+		}
 		if current.ID == next.ID {
 			return nil
 		}
-		if err := roles.Unassign(ctx, ref, sub.Tenant, current.ID); err != nil {
-			return err
-		}
-		if err := roles.Assign(ctx, ref, sub.Tenant, next.ID); err != nil {
+		if err := roles.SetRoles(ctx, ref, sub.Tenant, next.ID); err != nil {
 			if errors.Is(err, authz.ErrRoleNotFound) {
 				return role.ErrNotFound.New(errorx.Field("role_id"))
 			}

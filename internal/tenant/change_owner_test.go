@@ -17,12 +17,12 @@ func TestChangeOwnerMovesOwnerRole(t *testing.T) {
 	t.Parallel()
 	env := apptest.New(t)
 	ctx := context.Background()
-	ten, err := tenant.NewCreate(env.DB, env.MemberLogins, addr).Handle(ctx, apptest.Admin, acme)
+	ten, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, addr).Handle(ctx, apptest.Admin, acme)
 	if err != nil {
 		t.Fatal(err)
 	}
 	alice := identity.Ref{Type: member.Type, ID: ten.OwnerID}
-	change := tenant.NewChangeOwner(env.DB, env.MemberLogins, addr, member.Hooks{Removed: []member.RemovedHook{team.OnMemberRemoved}})
+	change := tenant.NewChangeOwner(env.DB, env.Roles, env.MemberLogins, addr, member.Hooks{Removed: []member.RemovedHook{team.OnMemberRemoved}})
 
 	// Alice 在线，并且在一个团队收件箱中
 	inTenant := identity.Subject{Type: identity.System, ID: "test", Tenant: ten.ID}
@@ -30,7 +30,7 @@ func TestChangeOwnerMovesOwnerRole(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := team.NewPutMember(env.DB, env.MemberLogins, env.Files).Handle(ctx, inTenant, tm.ID, alice.ID); err != nil {
+	if _, err := team.NewPutMember(env.DB, env.Roles, env.MemberLogins, env.Files).Handle(ctx, inTenant, tm.ID, alice.ID); err != nil {
 		t.Fatal(err)
 	}
 	asAlice := identity.Subject{Type: member.Type, ID: alice.ID, Tenant: ten.ID}
@@ -73,7 +73,7 @@ func TestChangeOwnerMovesOwnerRole(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	carol, err := member.NewAdd(env.DB, env.MemberLogins, env.Files).Handle(ctx, inTenant,
+	carol, err := member.NewAdd(env.DB, env.Roles, env.MemberLogins, env.Files).Handle(ctx, inTenant,
 		member.AddParams{Email: "carol@acme.com", Name: "Carol", Password: "carol-pass-1234", RoleID: agentRole.ID})
 	if err != nil {
 		t.Fatal(err)
@@ -89,7 +89,7 @@ func TestChangeOwnerMovesOwnerRole(t *testing.T) {
 func TestChangeOwnerOfMissingTenant(t *testing.T) {
 	t.Parallel()
 	env := apptest.New(t)
-	_, err := tenant.NewChangeOwner(env.DB, env.MemberLogins, addr, member.Hooks{}).Handle(context.Background(), apptest.Admin,
+	_, err := tenant.NewChangeOwner(env.DB, env.Roles, env.MemberLogins, addr, member.Hooks{}).Handle(context.Background(), apptest.Admin,
 		"01900000-0000-7000-8000-0000000000ff", tenant.OwnerParams{Email: "bob@acme.com", Name: "Bob", Password: "bob-pass-1234"})
 	if !errors.Is(err, tenant.ErrNotFound) {
 		t.Fatalf("得到 %v", err)

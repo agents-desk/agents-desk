@@ -27,11 +27,14 @@ var ErrEmailTaken = errorx.Define(errorx.Conflict, "platform_admin.email_taken")
 // 第一个平台管理员只能这样创建，入口是命令 admin create。
 type Create struct {
 	db     *bun.DB
+	roles  *authz.Store
 	logins *login.Realm
 }
 
 // NewCreate 返回创建平台管理员的动作，logins 是平台管理员的 login.Realm。
-func NewCreate(db *bun.DB, logins *login.Realm) *Create { return &Create{db: db, logins: logins} }
+func NewCreate(db *bun.DB, roles *authz.Store, logins *login.Realm) *Create {
+	return &Create{db: db, roles: roles, logins: logins}
+}
 
 // Handle 在一个事务中创建账号、写入邮箱和密码、分配 platform-admin 角色，并记录操作日志，任何一步失败时整体回滚。
 // actor 是执行创建的主体，命令行中是系统。邮箱已被使用时返回 ErrEmailTaken，密码不符合要求时返回 login.ErrWeakPassword。
@@ -52,7 +55,7 @@ func (a *Create) Handle(ctx context.Context, actor identity.Subject, name, email
 		if err := a.logins.SetPassword(ctx, tx, admin.Ref(), password); err != nil {
 			return err
 		}
-		if err := auth.Grant(ctx, authz.NewStore(tx, auth.Catalog), admin.Ref(), "", auth.PlatformAdmin); err != nil {
+		if err := auth.Grant(ctx, a.roles.WithDB(tx), admin.Ref(), "", auth.PlatformAdmin); err != nil {
 			return err
 		}
 		return activity.Record(ctx, tx, actor, activity.Activity{

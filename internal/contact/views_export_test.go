@@ -40,13 +40,13 @@ func TestContactViewsAndExport(t *testing.T) {
 	hub := broadcast.New(broadcasttest.NewBackend(), nil)
 	t.Cleanup(func() { _ = hub.Close() })
 
-	tn, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+	tn, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
 		Name: "cv-a", Slug: "cv-a", OwnerEmail: "owner@cva.com", OwnerName: "OwnerA", OwnerPassword: "password",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	otherTn, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+	otherTn, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
 		Name: "cv-b", Slug: "cv-b", OwnerEmail: "owner@cvb.com", OwnerName: "OwnerB", OwnerPassword: "password",
 	})
 	if err != nil {
@@ -63,11 +63,11 @@ func TestContactViewsAndExport(t *testing.T) {
 	}
 
 	// 创建一个无 views:manage 权限且仅看所在团队的坐席
-	agentRole, err := role.NewCreate(env.DB).Handle(ctx, ownerSub, role.Params{Name: "团队坐席", ConversationScope: auth.ScopeTeam})
+	agentRole, err := role.NewCreate(env.DB, env.Roles).Handle(ctx, ownerSub, role.Params{Name: "团队坐席", ConversationScope: auth.ScopeTeam})
 	if err != nil {
 		t.Fatal(err)
 	}
-	agent, err := member.NewAdd(env.DB, env.MemberLogins, env.Files).Handle(ctx, ownerSub, member.AddParams{
+	agent, err := member.NewAdd(env.DB, env.Roles, env.MemberLogins, env.Files).Handle(ctx, ownerSub, member.AddParams{
 		Email: "agent@cva.com", Name: "坐席", Password: "password", RoleID: agentRole.ID,
 	})
 	if err != nil {
@@ -81,7 +81,7 @@ func TestContactViewsAndExport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := team.NewPutMember(env.DB, env.MemberLogins, env.Files).Handle(ctx, ownerSub, tm.ID, agent.ID); err != nil {
+	if _, err := team.NewPutMember(env.DB, env.Roles, env.MemberLogins, env.Files).Handle(ctx, ownerSub, tm.ID, agent.ID); err != nil {
 		t.Fatal(err)
 	}
 

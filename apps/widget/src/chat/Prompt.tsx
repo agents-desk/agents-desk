@@ -2,7 +2,8 @@ import type { ConversationPrompt } from "@agents-desk/client/widget"
 import { Button, Group, Paper, Stack, Text, TextInput } from "@mantine/core"
 import { IconCheck } from "@tabler/icons-react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { notifyError, useT } from "@go-tenon/ui"
+import { describeError } from "@go-tenon/client"
+import { useT } from "@go-tenon/ui"
 import { type FormEvent, type ReactNode, useState } from "react"
 import { authed, widgetApi } from "../api"
 import { identity } from "../identity"
@@ -62,14 +63,16 @@ export function CollectEmailCard({ conversationId, color }: { conversationId?: s
   const { contact } = useIdentity()
   const [email, setEmail] = useState("")
   const [invalid, setInvalid] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const submit = useMutation({
     mutationFn: (value: string) => authed(() => widgetApi.contact.email({ email: value, conversation_id: conversationId || undefined })),
     onSuccess: (updated) => {
+      setSubmitError(null)
       identity.updateContact(updated)
       void queryClient.invalidateQueries({ queryKey: ["widget", contact?.id] })
     },
-    onError: (err) => notifyError(err),
+    onError: (err) => setSubmitError(describeError(err).message ?? t("chat.failed")),
   })
 
   if (contact?.email) {
@@ -114,9 +117,10 @@ export function CollectEmailCard({ conversationId, color }: { conversationId?: s
             onChange={(e) => {
               setEmail(e.currentTarget.value)
               if (invalid) setInvalid(false)
+              if (submitError) setSubmitError(null)
             }}
             placeholder={t("collect_email.placeholder")}
-            error={invalid ? t("collect_email.invalid") : undefined}
+            error={invalid ? t("collect_email.invalid") : (submitError ?? undefined)}
             size="sm"
             autoComplete="email"
           />

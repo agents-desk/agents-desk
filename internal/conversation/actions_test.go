@@ -26,7 +26,7 @@ func TestReplyAndApplyActionsAtomicity(t *testing.T) {
 	env := apptest.New(t)
 	ctx := context.Background()
 
-	alpha, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+	alpha, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
 		Name: "alpha", Slug: "alpha", OwnerEmail: "owner@alpha.com", OwnerName: "主管理员", OwnerPassword: "password",
 	})
 	if err != nil {
@@ -42,7 +42,7 @@ func TestReplyAndApplyActionsAtomicity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	addMember := member.NewAdd(env.DB, env.MemberLogins, env.Files)
+	addMember := member.NewAdd(env.DB, env.Roles, env.MemberLogins, env.Files)
 	adminM, err := addMember.Handle(ctx, inAlpha, member.AddParams{Email: "admin@alpha.com", Name: "管理员", Password: "password", RoleID: adminRole.ID})
 	if err != nil {
 		t.Fatal(err)
@@ -60,7 +60,7 @@ func TestReplyAndApplyActionsAtomicity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := team.NewPutMember(env.DB, env.MemberLogins, env.Files).Handle(ctx, inAlpha, team1.ID, agentM.ID); err != nil {
+	if _, err := team.NewPutMember(env.DB, env.Roles, env.MemberLogins, env.Files).Handle(ctx, inAlpha, team1.ID, agentM.ID); err != nil {
 		t.Fatal(err)
 	}
 

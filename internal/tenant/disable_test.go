@@ -12,7 +12,7 @@ func TestDisableAndEnableAreIdempotent(t *testing.T) {
 	t.Parallel()
 	env := apptest.New(t)
 	ctx := context.Background()
-	ten, err := tenant.NewCreate(env.DB, env.MemberLogins, addr).Handle(ctx, apptest.Admin, acme)
+	ten, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, addr).Handle(ctx, apptest.Admin, acme)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -51,7 +51,7 @@ type fixture struct {
 func setup(t *testing.T, env *apptest.Env, slug string) *fixture {
 	t.Helper()
 	ctx := context.Background()
-	tn, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+	tn, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
 		Name: slug, Slug: slug, OwnerEmail: slug + "-owner@example.com", OwnerName: "主管理员", OwnerPassword: "password123",
 	})
 	if err != nil {
@@ -62,7 +62,7 @@ func setup(t *testing.T, env *apptest.Env, slug string) *fixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ag, err := member.NewAdd(env.DB, env.MemberLogins, env.Files).Handle(ctx, sys, member.AddParams{
+	ag, err := member.NewAdd(env.DB, env.Roles, env.MemberLogins, env.Files).Handle(ctx, sys, member.AddParams{
 		Email: slug + "-agent@example.com", Name: "坐席", Password: "password123", RoleID: agentRole.ID,
 	})
 	if err != nil {

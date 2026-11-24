@@ -48,13 +48,13 @@ func TestSearchFullTextAndTranslation(t *testing.T) {
 	down := conversation.Downstream{}
 
 	// 创建两个工作区验证租户隔离
-	t1, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+	t1, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
 		Name: "工作区一", Slug: "ws1", OwnerEmail: "owner1@example.com", OwnerName: "主管理一", OwnerPassword: "password123",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t2, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+	t2, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
 		Name: "工作区二", Slug: "ws2", OwnerEmail: "owner2@example.com", OwnerName: "主管理二", OwnerPassword: "password123",
 	})
 	if err != nil {
@@ -238,7 +238,7 @@ func TestSearchVisibilityScopes(t *testing.T) {
 	env := apptest.New(t)
 	down := conversation.Downstream{}
 
-	ws, err := tenant.NewCreate(env.DB, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+	ws, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
 		Name: "权限测试", Slug: "perm-search", OwnerEmail: "owner@example.com", OwnerName: "主管理", OwnerPassword: "password123",
 	})
 	if err != nil {
@@ -251,19 +251,19 @@ func TestSearchVisibilityScopes(t *testing.T) {
 	}
 
 	// 创建两个角色：仅自己可见（ScopeAssigned）、所在团队可见（ScopeTeam）
-	roleAssigned, err := role.NewCreate(env.DB).Handle(ctx, sys, role.Params{
+	roleAssigned, err := role.NewCreate(env.DB, env.Roles).Handle(ctx, sys, role.Params{
 		Name: "仅自己", ConversationScope: auth.ScopeAssigned,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	roleTeam, err := role.NewCreate(env.DB).Handle(ctx, sys, role.Params{
+	roleTeam, err := role.NewCreate(env.DB, env.Roles).Handle(ctx, sys, role.Params{
 		Name: "团队内", ConversationScope: auth.ScopeTeam,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	addMember := member.NewAdd(env.DB, env.MemberLogins, env.Files)
+	addMember := member.NewAdd(env.DB, env.Roles, env.MemberLogins, env.Files)
 	mAssigned, err := addMember.Handle(ctx, sys, member.AddParams{
 		Email: "a@example.com", Name: "坐席A", Password: "password123", RoleID: roleAssigned.ID,
 	})
@@ -293,7 +293,7 @@ func TestSearchVisibilityScopes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := team.NewPutMember(env.DB, env.MemberLogins, env.Files).Handle(ctx, sys, team1.ID, mTeam.ID); err != nil {
+	if _, err := team.NewPutMember(env.DB, env.Roles, env.MemberLogins, env.Files).Handle(ctx, sys, team1.ID, mTeam.ID); err != nil {
 		t.Fatal(err)
 	}
 

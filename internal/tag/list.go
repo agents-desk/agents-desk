@@ -6,6 +6,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/page"
 )
@@ -35,7 +36,7 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) 
 	q := a.db.NewSelect().Model(&rows).Where("tenant_id = ?", sub.Tenant).
 		OrderExpr("lower(name), id").Limit(in.Limit()).Offset(in.Offset())
 	if in.Name != "" {
-		q = q.Where("name ILIKE ?", "%"+in.Name+"%")
+		q = q.Where(`name ILIKE ? ESCAPE '\'`, "%"+database.EscapeLike(in.Name)+"%")
 	}
 	total, err := q.ScanAndCount(ctx)
 	if err != nil {
