@@ -15,7 +15,7 @@ import {
   useSmoothTransition,
   useT,
 } from "@go-tenon/ui"
-import { type ReactNode, useState } from "react"
+import { type ReactNode, useMemo, useState } from "react"
 import { kit } from "../api"
 import { languageName } from "../languages"
 import { InlineShareBar, REPORT_AREA_PROPS } from "./Breakdown"
@@ -44,7 +44,8 @@ export function TranslationPage({ route }: { route: PeriodRoute }): ReactNode {
   const scopeKey = `${period.params.from}|${period.params.to}|${period.params.tz ?? ""}`
   const chartKey = `${scopeKey}|${period.params.granularity ?? ""}|${metric}`
   const pageState = useSmoothTransition(query.data, scopeKey, query.isFetching)
-  const chartState = useSmoothTransition({ series: query.data?.series, metric }, chartKey, query.isFetching)
+  const chartValue = useMemo(() => ({ series: query.data?.series, metric }), [query.data?.series, metric])
+  const chartState = useSmoothTransition(chartValue, chartKey, query.isFetching)
   const data = pageState.data
   const loading = query.isPending && !data
   const s = data?.summary
