@@ -1,10 +1,19 @@
-import type { ConversationAttachmentDTO, File as UploadedFile } from "@agents-desk/client/widget"
+import type { ConversationAttachmentDTO, ConversationAttachmentInput } from "@agents-desk/client/widget"
 import { ActionIcon, Box, FileButton, Group, Text, Textarea } from "@mantine/core"
 import { IconPaperclip, IconSend, IconX } from "@tabler/icons-react"
 import { useT, useUploadQueue } from "@go-tenon/ui"
 import { type ReactNode, useRef, useState } from "react"
 import { authed, widgetApi } from "../api"
-import { ATTACHMENT_ACCEPT, attachmentMaxSize, MAX_ATTACHMENTS, WidgetAttachmentStrip } from "./Attachments"
+import {
+  ATTACHMENT_ACCEPT,
+  attachmentMaxSize,
+  MAX_ATTACHMENTS,
+  toOptimisticAttachment,
+  toWidgetAttachmentInput,
+  uploadWidgetMediaFile,
+  WidgetAttachmentStrip,
+  type WidgetUploadedMedia,
+} from "./Attachments"
 
 /** ComposerProps 是输入框的设置。 */
 interface ComposerProps {
@@ -12,7 +21,7 @@ interface ComposerProps {
   touch: boolean // 手机和 App：回车换行，用按钮发送；电脑：回车发送，Shift + 回车换行
   placeholder: string
   allowAttachments?: boolean // 预览模式关闭附件上传，仅保留文字发送体验
-  onSend: (text: string, attachments: ConversationAttachmentDTO[]) => void
+  onSend: (text: string, inputs: ConversationAttachmentInput[], previews: ConversationAttachmentDTO[]) => void
   onTyping?: () => void // 客户在输入：会话页据此告诉成员“正在输入”
 }
 
@@ -24,8 +33,8 @@ export function Composer({ color, touch, placeholder, allowAttachments = true, o
   const [dragging, setDragging] = useState(false)
   const dragDepth = useRef(0)
   const resetFile = useRef<() => void>(null)
-  const queue = useUploadQueue<UploadedFile>({
-    upload: (file) => authed(() => widgetApi.file.upload({ file })),
+  const queue = useUploadQueue<WidgetUploadedMedia>({
+    upload: (file) => uploadWidgetMediaFile(file, (f) => authed(() => widgetApi.file.upload({ file: f }))),
     accept: ATTACHMENT_ACCEPT,
     maxFiles: MAX_ATTACHMENTS,
     maxSize: attachmentMaxSize,
@@ -37,19 +46,9 @@ export function Composer({ color, touch, placeholder, allowAttachments = true, o
   const send = () => {
     if (!canSend) return
     const value = text.trim()
-    const attachments: ConversationAttachmentDTO[] = queue.ready.map((f) => {
-      const isImage = f.content_type.startsWith("image/")
-      return {
-        file_id: f.id,
-        kind: isImage ? "image" : "file",
-        filename: f.filename,
-        content_type: f.content_type,
-        size: f.size,
-        url: f.url,
-        thumb_url: isImage ? f.url : undefined,
-      }
-    })
-    onSend(value, attachments)
+    const inputs = queue.ready.map(toWidgetAttachmentInput)
+    const previews = queue.ready.map(toOptimisticAttachment)
+    onSend(value, inputs, previews)
     setText("")
     setUploadError(null)
     queue.clear()

@@ -3,6 +3,7 @@ package telegram
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"image"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/identity"
+	"github.com/go-tenon/tenon/queue/queuetest"
 
 	"agents-desk/internal/apptest"
 	"agents-desk/internal/auth"
@@ -40,7 +42,11 @@ type fakeTelegramAPI struct {
 	deleteWebhooks int
 	sentMessages   []map[string]any
 	sentPhotos     []sentMedia
+	sentVideos     []sentMedia
+	sentVoices     []sentMedia
+	sentAudios     []sentMedia
 	sentDocuments  []sentMedia
+	getFileCalls   []string
 	files          map[string][]byte
 	nextMessageID  int64
 }
@@ -121,7 +127,8 @@ func (f *fakeTelegramAPI) serve(w http.ResponseWriter, r *http.Request) {
 			FileID string `json:"file_id"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&body)
-		filePath := "photos/" + body.FileID
+		f.getFileCalls = append(f.getFileCalls, body.FileID)
+		filePath := "media/" + body.FileID
 		data, exists := f.files[filePath]
 		if !exists {
 			w.WriteHeader(http.StatusBadRequest)
@@ -138,12 +145,15 @@ func (f *fakeTelegramAPI) serve(w http.ResponseWriter, r *http.Request) {
 		f.sentMessages = append(f.sentMessages, body)
 		f.nextMessageID++
 		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "result": map[string]any{"message_id": f.nextMessageID}})
-	case "sendPhoto", "sendDocument":
+	case "sendPhoto", "sendVideo", "sendVoice", "sendAudio", "sendDocument":
 		_ = r.ParseMultipartForm(10 << 20)
-		field := "photo"
-		if method == "sendDocument" {
-			field = "document"
-		}
+		field := map[string]string{
+			"sendPhoto":    "photo",
+			"sendVideo":    "video",
+			"sendVoice":    "voice",
+			"sendAudio":    "audio",
+			"sendDocument": "document",
+		}[method]
 		file, hdr, err := r.FormFile(field)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -152,9 +162,16 @@ func (f *fakeTelegramAPI) serve(w http.ResponseWriter, r *http.Request) {
 		data, _ := io.ReadAll(file)
 		_ = file.Close()
 		item := sentMedia{ChatID: r.FormValue("chat_id"), Caption: r.FormValue("caption"), Filename: hdr.Filename, Body: data}
-		if method == "sendPhoto" {
+		switch method {
+		case "sendPhoto":
 			f.sentPhotos = append(f.sentPhotos, item)
-		} else {
+		case "sendVideo":
+			f.sentVideos = append(f.sentVideos, item)
+		case "sendVoice":
+			f.sentVoices = append(f.sentVoices, item)
+		case "sendAudio":
+			f.sentAudios = append(f.sentAudios, item)
+		default:
 			f.sentDocuments = append(f.sentDocuments, item)
 		}
 		f.nextMessageID++
@@ -285,7 +302,17 @@ func TestTelegramWebhookReceiveGatewayIdentityAndSend(t *testing.T) {
 
 	fake, _, client := newFakeTelegramAPI(t, "123456:valid-bot-token", "trader_bot")
 	pngData := samplePNG(t)
-	fake.files["photos/photo-file-1"] = pngData
+	mp4Data := make([]byte, 28)
+	binary.BigEndian.PutUint32(mp4Data[0:4], 20)
+	copy(mp4Data[4:8], "ftyp")
+	copy(mp4Data[8:12], "isom")
+	copy(mp4Data[16:20], "mp41")
+	oggData := append(append([]byte("OggS"), make([]byte, 24)...), []byte("OpusHead\x01\x01")...)
+	fake.files["media/photo-file-1.png"] = pngData
+	fake.files["media/video-thumb-1.png"] = pngData
+	fake.files["media/video-file-1.mp4"] = mp4Data
+	fake.files["media/voice-file-1.ogg"] = oggData
+	fake.files["media/huge-thumb-1.png"] = pngData
 
 	gw, err := NewCreate(env.DB, env.Crypt, client, "https://desk.example.com").Handle(ctx, sys, CreateBody{
 		Name: "业务网关机器人", BotToken: "123456:valid-bot-token", GatewayManaged: true,
@@ -303,7 +330,9 @@ func TestTelegramWebhookReceiveGatewayIdentityAndSend(t *testing.T) {
 	reg[channel.Telegram] = conn
 	down := conversation.Downstream{Media: conversation.Media{Files: env.Files}}
 	recv := conversation.NewReceive(env.DB, reg, down)
-	wh := NewWebhook(env.DB, env.Crypt, env.Files, client, recv, down)
+	wh := NewWebhook(env.DB, env.Crypt, recv, down)
+	ingestor := conversation.NewMediaIngestor(env.DB, reg, down)
+	fetcher := conversation.NewFetchAttachment(env.DB, reg, down)
 
 	r := chi.NewRouter()
 	r.Post("/webhooks/telegram/{channel}", wh.ServeHTTP)
@@ -335,8 +364,8 @@ func TestTelegramWebhookReceiveGatewayIdentityAndSend(t *testing.T) {
 		t.Fatalf("expected 200 on duplicate, got %d", rec.Code)
 	}
 
-	// 3. 随后客户绑定账号，外部网关带 X-Agents-Desk-External-Id 转发图片消息 → 自动合并旧线索并入库图片附件
-	msg2 := `{"update_id":11,"message":{"message_id":102,"from":{"id":777001,"first_name":"Rahul"},"chat":{"id":777001,"type":"private"},"caption":"receipt attached","photo":[{"file_id":"photo-file-1","width":4,"height":4}]}}`
+	// 3. 客户绑定账号后发图片、语音、视频、超大视频：Webhook 阶段 0 次 getFile 同步下载
+	msg2 := `{"update_id":11,"message":{"message_id":102,"from":{"id":777001,"first_name":"Rahul"},"chat":{"id":777001,"type":"private"},"caption":"receipt attached","photo":[{"file_id":"photo-file-1.png","width":4,"height":4,"file_size":100}]}}`
 	rec := postUpdate(inst.WebhookSecret, map[string]string{
 		ExternalIDHeader:    "10086",
 		ExternalEmailHeader: "rahul@example.com",
@@ -345,8 +374,23 @@ func TestTelegramWebhookReceiveGatewayIdentityAndSend(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200 for photo update, got %d: %s", rec.Code, rec.Body.String())
 	}
+	msg3 := `{"update_id":12,"message":{"message_id":103,"from":{"id":777001,"first_name":"Rahul"},"chat":{"id":777001,"type":"private"},"voice":{"file_id":"voice-file-1.ogg","duration":7,"mime_type":"audio/ogg","file_size":40}}}`
+	if rec := postUpdate(inst.WebhookSecret, nil, msg3); rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 for voice update, got %d: %s", rec.Code, rec.Body.String())
+	}
+	msg4 := `{"update_id":13,"message":{"message_id":104,"from":{"id":777001,"first_name":"Rahul"},"chat":{"id":777001,"type":"private"},"caption":"screen recording","video":{"file_id":"video-file-1.mp4","width":1280,"height":720,"duration":18,"file_name":"demo.mp4","mime_type":"video/mp4","file_size":28,"thumbnail":{"file_id":"video-thumb-1.png","width":4,"height":4}}}}`
+	if rec := postUpdate(inst.WebhookSecret, nil, msg4); rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 for video update, got %d: %s", rec.Code, rec.Body.String())
+	}
+	msg5 := `{"update_id":14,"message":{"message_id":105,"from":{"id":777001,"first_name":"Rahul"},"chat":{"id":777001,"type":"private"},"video":{"file_id":"huge-video.mp4","width":1920,"height":1080,"duration":90,"mime_type":"video/mp4","file_size":26214400,"thumbnail":{"file_id":"huge-thumb-1.png","width":4,"height":4}}}}`
+	if rec := postUpdate(inst.WebhookSecret, nil, msg5); rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 for huge video update, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if len(fake.getFileCalls) != 0 {
+		t.Fatalf("webhook must not download media synchronously, got getFile calls: %v", fake.getFileCalls)
+	}
 
-	// 验证原线索已合并为 external_user_id = 10086 的唯一用户，且同一会话包含 2 条消息（去重生效）且第 2 条含图片附件
+	// 验证原线索已合并为 external_user_id = 10086 的唯一用户
 	var contacts []contact.Contact
 	if err := env.DB.NewSelect().Model(&contacts).Where("tenant_id = ?", tenantID).Scan(ctx); err != nil {
 		t.Fatal(err)
@@ -362,23 +406,101 @@ func TestTelegramWebhookReceiveGatewayIdentityAndSend(t *testing.T) {
 	if len(convs) != 1 || convs[0].ContactID == nil || *convs[0].ContactID != contacts[0].ID {
 		t.Fatalf("expected 1 conversation owned by merged user, got %+v", convs)
 	}
+
+	// 4. 运行异步媒体拉取队列：图片、语音、两个视频封面均应落盘；视频本体绝不被自动下载
+	for _, job := range queuetest.Pending(t, env.DB, conversation.MediaIngestTopic) {
+		if err := ingestor.Job(ctx, job); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, called := range fake.getFileCalls {
+		if called == "video-file-1.mp4" || called == "huge-video.mp4" {
+			t.Fatalf("video body should not be auto-fetched, got getFile call: %s", called)
+		}
+	}
+
 	timeline, err := conversation.NewTimeline(env.DB, down.Media).Handle(ctx, agent, convs[0].ID, 0, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(timeline) != 2 || len(timeline[1].Attachments) != 1 || timeline[1].Attachments[0].Kind != conversation.AttachmentImage {
-		t.Fatalf("expected 2 timeline items with confirmed image attachment on 2nd item, got %+v", timeline)
+	if len(timeline) != 5 {
+		t.Fatalf("expected 5 timeline items, got %d", len(timeline))
+	}
+	// 第 2 条图片已就绪
+	if img := timeline[1].Attachments[0]; img.Kind != conversation.AttachmentImage || img.Status != conversation.FetchReady || img.URL == "" {
+		t.Fatalf("expected ready image attachment, got %+v", img)
+	}
+	// 第 3 条语音已就绪且带 is_voice 与时长
+	if voice := timeline[2].Attachments[0]; voice.Kind != conversation.AttachmentAudio || !voice.IsVoice || voice.DurationMs != 7000 || voice.Status != conversation.FetchReady || voice.URL == "" {
+		t.Fatalf("expected ready voice attachment, got %+v", voice)
+	}
+	// 第 4 条视频：封面已就绪，主视频仍为 remote（未占用存储）
+	vidAtt := timeline[3].Attachments[0]
+	if vidAtt.Kind != conversation.AttachmentVideo || vidAtt.Status != conversation.FetchRemote || vidAtt.URL != "" || vidAtt.ThumbURL == "" || vidAtt.DurationMs != 18000 {
+		t.Fatalf("expected remote video with thumb, got %+v", vidAtt)
+	}
+	// 第 5 条超大视频：封面已就绪，主视频标记为 unavailable（channel.media_too_large）
+	hugeAtt := timeline[4].Attachments[0]
+	if hugeAtt.Kind != conversation.AttachmentVideo || hugeAtt.Status != conversation.FetchUnavailable || hugeAtt.Error != channel.ErrMediaTooLarge.Code() || hugeAtt.ThumbURL == "" {
+		t.Fatalf("expected unavailable huge video with thumb, got %+v", hugeAtt)
 	}
 
-	// 4. 坐席回复文本 + 图片附件 → Connector 通过 Telegram Bot API 发出
-	uploaded, err := env.Files.Upload(ctx, agent, filesystem.FileInput{
+	// 5. 坐席点击第 4 条视频按需拉取 → 流式拉取落盘为 ready，返回可播放 URL；其他工作区访问不到
+	_, _, otherAgent := setupTenant(t, env, "tg-other")
+	if _, err := fetcher.Handle(ctx, otherAgent, convs[0].ID, vidAtt.ID); !errors.Is(err, conversation.ErrNotFound) {
+		t.Fatalf("cross-tenant fetch should fail with ErrNotFound, got %v", err)
+	}
+	fetchedVid, err := fetcher.Handle(ctx, agent, convs[0].ID, vidAtt.ID)
+	if err != nil {
+		t.Fatalf("fetch video failed: %v", err)
+	}
+	if fetchedVid.Status != conversation.FetchReady || fetchedVid.URL == "" || fetchedVid.ThumbURL == "" {
+		t.Fatalf("expected fetched video ready with url and thumb, got %+v", fetchedVid)
+	}
+	// 再次点击幂等返回，不重复请求 Telegram
+	callsBefore := len(fake.getFileCalls)
+	if again, err := fetcher.Handle(ctx, agent, convs[0].ID, vidAtt.ID); err != nil || again.Status != conversation.FetchReady || len(fake.getFileCalls) != callsBefore {
+		t.Fatalf("repeat fetch should be idempotent, got %+v %v calls=%d", again, err, len(fake.getFileCalls))
+	}
+
+	// 6. 冷缓存回收：将刚缓存的视频回收后，主文件删除并回退为 remote，封面与 source_ref 保留
+	if evicted, err := conversation.EvictCachedMedia(ctx, env.DB, env.Files, time.Now().Add(time.Minute), 10); err != nil || evicted != 1 {
+		t.Fatalf("expected 1 evicted cached video, got %d %v", evicted, err)
+	}
+	afterEvict, err := conversation.NewTimeline(env.DB, down.Media).Handle(ctx, agent, convs[0].ID, 0, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v := afterEvict[3].Attachments[0]; v.Status != conversation.FetchRemote || v.URL != "" || v.ThumbURL == "" {
+		t.Fatalf("evicted video should revert to remote with thumb kept, got %+v", v)
+	}
+
+	// 7. 坐席回复文本 + 图片 / 视频 / 语音 → Connector 按类型调用 sendPhoto / sendVideo / sendVoice
+	uploadedImg, err := env.Files.Upload(ctx, agent, filesystem.FileInput{
 		Filename: "reply.png", ContentType: "image/png", Size: int64(len(pngData)),
 	}, bytes.NewReader(pngData))
 	if err != nil {
 		t.Fatal(err)
 	}
+	uploadedVid, err := env.Files.Upload(ctx, agent, filesystem.FileInput{
+		Filename: "guide.mp4", ContentType: "video/mp4", Size: int64(len(mp4Data)),
+	}, bytes.NewReader(mp4Data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	uploadedVoice, err := env.Files.Upload(ctx, agent, filesystem.FileInput{
+		Filename: "answer.ogg", ContentType: "audio/ogg", Size: int64(len(oggData)),
+	}, bytes.NewReader(oggData))
+	if err != nil {
+		t.Fatal(err)
+	}
 	replyOut, err := conversation.NewReply(env.DB, down).Handle(ctx, agent, convs[0].ID, conversation.ReplyBody{
-		Text: "Here is your receipt", Attachments: []string{uploaded.ID.String()},
+		Text: "Here is your receipt",
+		Attachments: []conversation.AttachmentInput{
+			{FileID: uploadedImg.ID.String()},
+			{FileID: uploadedVid.ID.String(), DurationMs: 5000, Width: 640, Height: 360},
+			{FileID: uploadedVoice.ID.String(), DurationMs: 3000, IsVoice: true},
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -391,8 +513,14 @@ func TestTelegramWebhookReceiveGatewayIdentityAndSend(t *testing.T) {
 	if len(fake.sentPhotos) != 1 || fake.sentPhotos[0].ChatID != "777001" || fake.sentPhotos[0].Caption != "Here is your receipt" {
 		t.Fatalf("expected 1 sent photo to 777001, got %+v", fake.sentPhotos)
 	}
+	if len(fake.sentVideos) != 1 || fake.sentVideos[0].ChatID != "777001" {
+		t.Fatalf("expected 1 sent video to 777001, got %+v", fake.sentVideos)
+	}
+	if len(fake.sentVoices) != 1 || fake.sentVoices[0].ChatID != "777001" {
+		t.Fatalf("expected 1 sent voice to 777001, got %+v", fake.sentVoices)
+	}
 
-	// 5. 坐席发纯文本回复 → 调用 sendMessage
+	// 8. 坐席发纯文本回复 → 调用 sendMessage
 	textOut, err := conversation.NewReply(env.DB, down).Handle(ctx, agent, convs[0].ID, conversation.ReplyBody{Text: "Anything else?"})
 	if err != nil {
 		t.Fatal(err)

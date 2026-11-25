@@ -32,21 +32,47 @@ export type ConversationActorType = "contact" | "member" | "system"
 
 export interface ConversationAttachmentDTO {
   content_type: string
-  file_id: string
+  /** 音频或视频时长（毫秒） */
+  duration_ms?: number
+  /** 不可用或拉取失败的原因码 */
+  error?: string
+  /** 主文件 ID；远端尚未拉取时为空 */
+  file_id?: string
   filename: string
-  /** 图片高度（像素）；非图片为空 */
+  /** 图片或视频高度（像素） */
   height?: number
+  /** 附件唯一标识 */
+  id: string
+  /** 是否为语音条消息 */
+  is_voice?: boolean
   kind: ConversationAttachmentKind
   size: number
-  /** 图片缩略图地址；未配置 imgproxy 时与 url 相同，非图片为空 */
+  /** 物化状态：ready 可直接播放/下载，remote 点击按需拉取，pending/fetching 拉取中，unavailable 不可用 */
+  status: ConversationFetchStatus
+  /** 图片缩略图或视频封面地址 */
   thumb_url?: string
-  /** 原文件的公开地址 */
-  url: string
-  /** 图片宽度（像素）；非图片为空 */
+  /** 原文件的公开地址；尚未拉取时为空 */
+  url?: string
+  /** 图片或视频宽度（像素） */
   width?: number
 }
 
-export type ConversationAttachmentKind = "image" | "file"
+export interface ConversationAttachmentInput {
+  /** 可选：音频或视频时长（毫秒） */
+  duration_ms?: number
+  /** 通过 /files 上传的主文件 ID */
+  file_id: string
+  /** 可选：视频高度（像素） */
+  height?: number
+  /** 是否为语音消息（按语音条样式展示） */
+  is_voice?: boolean
+  /** 可选：通过 /files 上传的封面缩略图 ID（例如视频首帧） */
+  thumb_file_id?: string
+  /** 可选：视频宽度（像素） */
+  width?: number
+}
+
+export type ConversationAttachmentKind = "image" | "video" | "audio" | "file"
 
 export interface ConversationContactAuthor {
   /** 成员的名字；联系人自己和系统为空 */
@@ -91,6 +117,8 @@ export interface ConversationContactItemDTO {
   seq: number
   text: string
 }
+
+export type ConversationFetchStatus = "ready" | "remote" | "pending" | "fetching" | "unavailable"
 
 export type ConversationItemKind = "message" | "note" | "event"
 
@@ -210,8 +238,8 @@ export interface WidgetContactEmailBody {
 }
 
 export interface WidgetMessageBody {
-  /** 通过 /files 上传的附件文件 ID 列表 */
-  attachments?: string[]
+  /** 通过 /files 上传的媒体附件列表 */
+  attachments?: ConversationAttachmentInput[]
   /** 聊天窗口为这条消息生成的编号；网络出错重发时带同一个编号，消息只记录一次 */
   client_id?: string
   text?: string

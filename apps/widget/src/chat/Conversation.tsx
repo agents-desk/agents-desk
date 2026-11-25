@@ -1,4 +1,4 @@
-import type { ConversationAttachmentDTO, ConversationContactItemDTO } from "@agents-desk/client/widget"
+import type { ConversationAttachmentDTO, ConversationAttachmentInput, ConversationContactItemDTO } from "@agents-desk/client/widget"
 import { Box, Button, Divider, Stack, Text, UnstyledButton } from "@mantine/core"
 import { IconArrowDown } from "@tabler/icons-react"
 import { useQueryClient } from "@tanstack/react-query"
@@ -30,6 +30,7 @@ function canGroup(prev: ConversationContactItemDTO | undefined, cur: Conversatio
 interface Pending {
   clientId: string // 重试时带同一个编号，消息只记录一次
   text: string
+  inputs: ConversationAttachmentInput[]
   attachments: ConversationAttachmentDTO[]
   failed: boolean
 }
@@ -160,7 +161,7 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
     try {
       const body = {
         text: p.text || undefined,
-        attachments: p.attachments.length > 0 ? p.attachments.map((a) => a.file_id) : undefined,
+        attachments: p.inputs.length > 0 ? p.inputs : undefined,
         client_id: p.clientId,
       }
       const sent = await authed(() => (id ? widgetApi.conversation.send(id, body) : widgetApi.conversation.start(body)))
@@ -295,7 +296,7 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
         color={color}
         touch={touch}
         placeholder={t(closed ? "composer.reopen_placeholder" : "composer.placeholder")}
-        onSend={(text, attachments) => void send({ clientId: newClientId(), text, attachments, failed: false })}
+        onSend={(text, inputs, attachments) => void send({ clientId: newClientId(), text, inputs, attachments, failed: false })}
         onTyping={typing}
       />
       <ImageLightbox src={lightbox?.src ?? null} filename={lightbox?.filename} onClose={() => setLightbox(null)} />

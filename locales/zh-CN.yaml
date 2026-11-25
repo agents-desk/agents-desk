@@ -170,6 +170,8 @@ contact.sort.created: 创建时间
 
 channel.not_found: 渠道不存在
 channel.disabled: 这个渠道已停用
+channel.media_too_large: 媒体文件超出该渠道允许下载的大小上限
+channel.media_unavailable: 外部渠道上的媒体已失效或无法拉取
 channel.kind.test: 测试渠道
 channel.kind.widget: 网页聊天插件
 channel.kind.telegram: Telegram 机器人
@@ -226,8 +228,16 @@ conversation.already_assigned: 这个会话已经被别人领取了
 conversation.invalid_language: 不是有效的语言，请从列表中选择，或者输入语言标签，例如 hi-Latn
 conversation.snooze_in_past: 稍后处理的时间要晚于现在
 conversation.empty_message: 请输入内容或添加附件
+conversation.attachment_not_found: 附件不存在
 conversation.attachment_kind.image: 图片
+conversation.attachment_kind.video: 视频
+conversation.attachment_kind.audio: 语音/音频
 conversation.attachment_kind.file: 文件
+conversation.fetch_status.ready: 已就绪
+conversation.fetch_status.remote: 待下载
+conversation.fetch_status.pending: 等待拉取
+conversation.fetch_status.fetching: 拉取中
+conversation.fetch_status.unavailable: 不可用
 conversation.kind.service: 服务型会话
 conversation.kind.chat: 聊天型会话
 conversation.status.open: 打开
@@ -366,6 +376,8 @@ queue.topic.contacts.export.description: 后台按筛选条件与可见范围生
 
 schedule.task.files_cleanup.label: 清理过期文件
 schedule.task.files_cleanup.description: 删除过期的临时文件和已删除的文件
+schedule.task.media_evict_cache.label: 回收冷视频缓存
+schedule.task.media_evict_cache.description: 回收超过 30 天的外部渠道视频本地缓存，保留封面和远端引用以便按需重拉
 schedule.task.locks_cleanup.label: 清理过期锁
 schedule.task.locks_cleanup.description: 删除过期的分布式锁记录
 schedule.task.apitoken_cleanup.label: 清理过期令牌

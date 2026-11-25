@@ -8,16 +8,22 @@ export const messages = {
     "chat.ended": "This conversation has ended",
     "chat.failed": "Not sent",
     "chat.me": "You",
+    "chat.media_loading": "Loading…",
+    "chat.media_unavailable": "Media unavailable",
     "chat.new": "New conversation",
     "chat.new_message_jump": "New messages ({{.n}})",
+    "chat.play_video": "Play video",
+    "chat.preview_audio": "[Audio]",
     "chat.preview_file": "[File]",
     "chat.preview_image": "[Image]",
+    "chat.preview_video": "[Video]",
     "chat.retry": "Retry",
     "chat.scroll_to_bottom": "Jump to latest",
     "chat.sending": "Sending…",
     "chat.status_closed": "Ended",
     "chat.status_open": "In progress",
     "chat.view_image": "View image",
+    "chat.voice_message": "Voice message",
     "collect_email.invalid": "Please enter a valid email address",
     "collect_email.placeholder": "Enter your email address",
     "collect_email.saved": "Email saved: {{.email}}",
@@ -86,16 +92,22 @@ export const messages = {
     "chat.ended": "会话已结束",
     "chat.failed": "发送失败",
     "chat.me": "我",
+    "chat.media_loading": "加载中…",
+    "chat.media_unavailable": "媒体不可用",
     "chat.new": "新会话",
     "chat.new_message_jump": "{{.n}} 条新消息",
+    "chat.play_video": "播放视频",
+    "chat.preview_audio": "[语音]",
     "chat.preview_file": "[文件]",
     "chat.preview_image": "[图片]",
+    "chat.preview_video": "[视频]",
     "chat.retry": "重试",
     "chat.scroll_to_bottom": "回到底部",
     "chat.sending": "发送中…",
     "chat.status_closed": "已结束",
     "chat.status_open": "会话进行中",
     "chat.view_image": "查看大图",
+    "chat.voice_message": "语音消息",
     "collect_email.invalid": "请输入有效的邮箱地址",
     "collect_email.placeholder": "输入你的邮箱地址",
     "collect_email.saved": "已留下邮箱：{{.email}}",
@@ -167,16 +179,22 @@ export type MessageId =
   | "chat.ended"
   | "chat.failed"
   | "chat.me"
+  | "chat.media_loading"
+  | "chat.media_unavailable"
   | "chat.new"
   | "chat.new_message_jump"
+  | "chat.play_video"
+  | "chat.preview_audio"
   | "chat.preview_file"
   | "chat.preview_image"
+  | "chat.preview_video"
   | "chat.retry"
   | "chat.scroll_to_bottom"
   | "chat.sending"
   | "chat.status_closed"
   | "chat.status_open"
   | "chat.view_image"
+  | "chat.voice_message"
   | "collect_email.invalid"
   | "collect_email.placeholder"
   | "collect_email.saved"

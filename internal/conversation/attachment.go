@@ -26,48 +26,128 @@ const (
 	MaxAttachments = 10
 	// MaxImageSize 是单张图片附件的最大体积。
 	MaxImageSize = 10 * filesystem.MiB
+	// MaxThumbSize 是单张视频或文档封面缩略图的最大体积。
+	MaxThumbSize = 2 * filesystem.MiB
+	// MaxAudioSize 是单个音频或语音附件的最大体积。
+	MaxAudioSize = 15 * filesystem.MiB
 	// MaxFileSize 是单个常用文件附件的最大体积。
 	MaxFileSize = 20 * filesystem.MiB
+	// MaxVideoSize 是单个视频附件的最大体积。
+	MaxVideoSize = 50 * filesystem.MiB
 	// MaxImageDimension 是图片附件允许的最大边长（像素），避免异常像素炸弹。
 	MaxImageDimension = 10000
+	// MaxThumbDimension 是封面缩略图允许的最大边长（像素）。
+	MaxThumbDimension = 2048
 )
 
 // ImageThumb 是时间线中图片缩略图的尺寸与格式：保持比例缩放到 480×480 以内，输出 WebP。
 var ImageThumb = imgproxy.Options{Width: 480, Height: 480, Resize: imgproxy.Fit, Format: "webp"}
 
-// ErrEmptyMessage 是消息或内部备注既没有文字也没有附件。
-var ErrEmptyMessage = errorx.Define(errorx.InvalidArgument, "conversation.empty_message")
+var (
+	// ErrEmptyMessage 是消息或内部备注既没有文字也没有附件。
+	ErrEmptyMessage = errorx.Define(errorx.InvalidArgument, "conversation.empty_message")
+	// ErrAttachmentNotFound 是附件不存在，或者不属于这个工作区和会话。
+	ErrAttachmentNotFound = errorx.Define(errorx.NotFound, "conversation.attachment_not_found")
+)
 
-// AttachmentKind 是附件的展示类型：图片显示缩略图，文件显示文件卡片。
+// AttachmentKind 是附件的展示类型：图片显示缩略图网格，视频显示封面与播放器，音频显示语音/音频条，文件显示下载卡片。
 type AttachmentKind string
 
 const (
 	AttachmentImage AttachmentKind = "image" // 图片
+	AttachmentVideo AttachmentKind = "video" // 视频
+	AttachmentAudio AttachmentKind = "audio" // 音频或语音
 	AttachmentFile  AttachmentKind = "file"  // 文件
 )
 
 // AttachmentKinds 是附件的全部展示类型，显示文字是翻译文件中 conversation.attachment_kind.<类型> 的消息。
-var AttachmentKinds = enum.New("conversation.attachment_kind", enum.Item(AttachmentImage), enum.Item(AttachmentFile))
+var AttachmentKinds = enum.New("conversation.attachment_kind",
+	enum.Item(AttachmentImage),
+	enum.Item(AttachmentVideo),
+	enum.Item(AttachmentAudio),
+	enum.Item(AttachmentFile),
+)
 
 // Schema 让 OpenAPI 中的 AttachmentKind 只接受上面的取值，并带有显示文字。
 func (AttachmentKind) Schema(r huma.Registry) *huma.Schema {
 	return contract.EnumSchema(r, AttachmentKinds)
 }
 
-// AttachmentDTO 是接口中一条消息或内部备注附带的图片或文件。
+// FetchStatus 是附件主文件的物化状态。
+type FetchStatus string
+
+const (
+	FetchReady       FetchStatus = "ready"       // 主文件已落盘就绪，可直接预览、播放或下载
+	FetchRemote      FetchStatus = "remote"      // 位于外部渠道尚未拉取（如视频或大文件），点击后按需下载
+	FetchPending     FetchStatus = "pending"     // 外部媒体已入队，等待后台自动拉取
+	FetchFetching    FetchStatus = "fetching"    // 正在从外部渠道拉取
+	FetchUnavailable FetchStatus = "unavailable" // 无法从外部渠道拉取（如超出渠道下载限制或源文件失效）
+)
+
+// FetchStatuses 是全部附件物化状态，显示文字是翻译文件中 conversation.fetch_status.<状态> 的消息。
+var FetchStatuses = enum.New("conversation.fetch_status",
+	enum.Item(FetchReady),
+	enum.Item(FetchRemote),
+	enum.Item(FetchPending),
+	enum.Item(FetchFetching),
+	enum.Item(FetchUnavailable),
+)
+
+// Schema 让 OpenAPI 中的 FetchStatus 只接受上面的取值，并带有显示文字。
+func (FetchStatus) Schema(r huma.Registry) *huma.Schema {
+	return contract.EnumSchema(r, FetchStatuses)
+}
+
+// AttachmentInput 是客户端发消息或内部备注时提交的一个已上传媒体附件。
+type AttachmentInput struct {
+	FileID      string `json:"file_id" format:"uuid" doc:"通过 /files 上传的主文件 ID"`
+	ThumbFileID string `json:"thumb_file_id,omitempty" format:"uuid" doc:"可选：通过 /files 上传的封面缩略图 ID（例如视频首帧）"`
+	DurationMs  int    `json:"duration_ms,omitempty" minimum:"0" maximum:"86400000" doc:"可选：音频或视频时长（毫秒）"`
+	Width       int    `json:"width,omitempty" minimum:"0" maximum:"10000" doc:"可选：视频宽度（像素）"`
+	Height      int    `json:"height,omitempty" minimum:"0" maximum:"10000" doc:"可选：视频高度（像素）"`
+	IsVoice     bool   `json:"is_voice,omitempty" doc:"是否为语音消息（按语音条样式展示）"`
+}
+
+// IncomingAttachment 是外部渠道连接器收到的媒体元数据，入库时不阻塞 Webhook，由队列自动拉取或点击按需拉取。
+type IncomingAttachment struct {
+	Kind           AttachmentKind // 媒体展示类型：image、video、audio、file
+	Filename       string         // 原始或推断的文件名
+	ContentType    string         // 渠道声明的 MIME 类型
+	Size           int64          // 渠道报告的字节数（未知时为 0）
+	Width          int            // 图片或视频宽度（像素）
+	Height         int            // 图片或视频高度（像素）
+	DurationMs     int            // 音频或视频时长（毫秒）
+	IsVoice        bool           // 是否为语音条消息
+	SourceRef      string         // 外部渠道主文件引用（例如 Telegram file_id）
+	ThumbSourceRef string         // 外部渠道封面缩略图引用（例如 Telegram thumbnail.file_id）
+	AutoFetch      bool           // true 表示后台队列自动拉取主文件；false 表示保持 remote 等待点击按需拉取
+	Unavailable    string         // 非空表示已知无法拉取的原因码（如 channel.media_too_large）
+}
+
+// AttachmentDTO 是接口中一条消息或内部备注附带的媒体附件。
 type AttachmentDTO struct {
-	FileID      string         `json:"file_id"`
+	ID          string         `json:"id" doc:"附件唯一标识"`
+	FileID      string         `json:"file_id,omitempty" doc:"主文件 ID；远端尚未拉取时为空"`
 	Kind        AttachmentKind `json:"kind"`
+	Status      FetchStatus    `json:"status" doc:"物化状态：ready 可直接播放/下载，remote 点击按需拉取，pending/fetching 拉取中，unavailable 不可用"`
+	Error       string         `json:"error,omitempty" doc:"不可用或拉取失败的原因码"`
 	Filename    string         `json:"filename"`
 	ContentType string         `json:"content_type"`
 	Size        int64          `json:"size"`
-	Width       int            `json:"width,omitempty" doc:"图片宽度（像素）；非图片为空"`
-	Height      int            `json:"height,omitempty" doc:"图片高度（像素）；非图片为空"`
-	URL         string         `json:"url" doc:"原文件的公开地址"`
-	ThumbURL    string         `json:"thumb_url,omitempty" doc:"图片缩略图地址；未配置 imgproxy 时与 url 相同，非图片为空"`
+	Width       int            `json:"width,omitempty" doc:"图片或视频宽度（像素）"`
+	Height      int            `json:"height,omitempty" doc:"图片或视频高度（像素）"`
+	DurationMs  int            `json:"duration_ms,omitempty" doc:"音频或视频时长（毫秒）"`
+	IsVoice     bool           `json:"is_voice,omitempty" doc:"是否为语音条消息"`
+	URL         string         `json:"url,omitempty" doc:"原文件的公开地址；尚未拉取时为空"`
+	ThumbURL    string         `json:"thumb_url,omitempty" doc:"图片缩略图或视频封面地址"`
 }
 
-// PreviewAttachment 是会话列表中最后一条消息的附件摘要：前端按界面语言渲染“[图片]”或“[文件]”。
+// AttachmentOutput 是返回单个附件的响应（用于按需拉取完成后返回最新状态与公开地址）。
+type AttachmentOutput struct {
+	Body AttachmentDTO
+}
+
+// PreviewAttachment 是会话列表中最后一条消息的附件摘要：前端按界面语言渲染“[图片]”、“[视频]”、“[语音]”或“[文件]”。
 type PreviewAttachment struct {
 	Kind  AttachmentKind `json:"kind"`
 	Count int            `json:"count"`
@@ -79,13 +159,23 @@ type Media struct {
 	Images *imgproxy.Proxy
 }
 
-// attachmentAccept 是消息和内部备注允许确认的附件白名单：图片（排除 SVG）和常用办公/文本/压缩文件。
+// attachmentAccept 是消息和内部备注允许确认的附件白名单：图片（排除 SVG）、主流视频与音频/语音以及常用办公/文本/压缩文件。
 var attachmentAccept = filesystem.Accept{
 	Types: []string{
 		"image/png",
 		"image/jpeg",
 		"image/webp",
 		"image/gif",
+		"video/mp4",
+		"video/webm",
+		"video/quicktime",
+		"audio/ogg",
+		"audio/mpeg",
+		"audio/mp4",
+		"audio/webm",
+		"audio/wav",
+		"audio/aac",
+		"audio/flac",
 		"application/pdf",
 		"application/zip",
 		"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -99,46 +189,102 @@ var attachmentAccept = filesystem.Accept{
 		"text/markdown",
 		"application/json",
 	},
-	MaxSize:      MaxFileSize,
+	MaxSize:      MaxVideoSize,
 	MaxDimension: MaxImageDimension,
 }
 
-// itemFile 是 timeline_item_files 表的记录：时间线项与已确认文件的有序关联。
-type itemFile struct {
-	bun.BaseModel `bun:"table:timeline_item_files"`
+// thumbAccept 是视频或文档封面缩略图允许确认的白名单：仅常见静态/动图图片，限制体积和像素尺寸。
+var thumbAccept = filesystem.Accept{
+	Types: []string{
+		"image/png",
+		"image/jpeg",
+		"image/webp",
+		"image/gif",
+	},
+	MaxSize:      MaxThumbSize,
+	MaxDimension: MaxThumbDimension,
+}
 
-	ItemID   string    `bun:"item_id,pk"`
-	FileID   uuid.UUID `bun:"file_id,notnull,type:uuid"`
-	Position int       `bun:"position,pk"`
+// Attachment 是 timeline_attachments 表的领域记录：独立保存媒体元数据、主/封面存储指针与外部渠道懒拉取引用。
+type Attachment struct {
+	bun.BaseModel `bun:"table:timeline_attachments,alias:ta"`
+
+	ID string `bun:"id,pk"`
+	database.Timestamps
+	TenantID        string         `bun:"tenant_id,notnull"`
+	ItemID          string         `bun:"item_id,notnull"`
+	Position        int            `bun:"position,notnull"`
+	Kind            AttachmentKind `bun:"kind,notnull"`
+	Filename        string         `bun:"filename,notnull"`
+	ContentType     string         `bun:"content_type,notnull"`
+	Size            int64          `bun:"size,notnull"`
+	Width           int            `bun:"width,notnull"`
+	Height          int            `bun:"height,notnull"`
+	DurationMs      int            `bun:"duration_ms,notnull"`
+	IsVoice         bool           `bun:"is_voice,notnull"`
+	FileID          *uuid.UUID     `bun:"file_id,type:uuid"`
+	ThumbFileID     *uuid.UUID     `bun:"thumb_file_id,type:uuid"`
+	SourceChannelID *string        `bun:"source_channel_id"`
+	SourceRef       string         `bun:"source_ref,notnull"`
+	ThumbSourceRef  string         `bun:"thumb_source_ref,notnull"`
+	FetchStatus     FetchStatus    `bun:"fetch_status,notnull"`
+	FetchError      string         `bun:"fetch_error,notnull"`
 }
 
 // requireMessageContent 检查文字和附件不能同时为空。
-func requireMessageContent(text string, attachments []string) error {
-	if strings.TrimSpace(text) == "" && len(attachments) == 0 {
+func requireMessageContent(text string, attachmentCount int) error {
+	if strings.TrimSpace(text) == "" && attachmentCount == 0 {
 		return ErrEmptyMessage.New()
 	}
 	return nil
 }
 
-// confirmAttachments 在事务 tx 中校验并确认 fileIDs：必须是 owner 自己上传、未过期且在白名单中的文件；
-// 图片体积不超过 MaxImageSize 且宽高由框架自动解析并校验不超过 MaxImageDimension。任何一项不合格时返回带字段
-// attachments[i] 的业务错误，由调用方的事务回滚，所有文件保持 temporary 等待清理。
-func confirmAttachments(ctx context.Context, tx bun.IDB, files *filesystem.Service, owner identity.Subject, fileIDs []string) ([]filesystem.File, error) {
-	if len(fileIDs) == 0 {
+// maxSizeForKind 返回指定媒体类型允许的最大文件体积。
+func maxSizeForKind(kind AttachmentKind) filesystem.ByteSize {
+	switch kind {
+	case AttachmentImage:
+		return MaxImageSize
+	case AttachmentVideo:
+		return MaxVideoSize
+	case AttachmentAudio:
+		return MaxAudioSize
+	default:
+		return MaxFileSize
+	}
+}
+
+// confirmAttachmentInputs 在事务 tx 中校验并确认客户端提交的媒体附件输入列表：
+// 主文件和可选封面都必须是 owner 自己上传、未过期、未绑定到其他消息且满足白名单与各类型体积上限。
+// 任何一项不合格时返回带字段 attachments[i] 的业务错误，由调用方事务回滚，所有文件保持 temporary 等待清理。
+func confirmAttachmentInputs(ctx context.Context, tx bun.IDB, files *filesystem.Service, owner identity.Subject, inputs []AttachmentInput) ([]*Attachment, error) {
+	if len(inputs) == 0 {
 		return nil, nil
 	}
-	if len(fileIDs) > MaxAttachments {
+	if len(inputs) > MaxAttachments {
 		return nil, filesystem.ErrNotAccepted.New(errorx.Field("attachments"))
 	}
 	if files == nil {
 		return nil, errors.New("conversation: filesystem service is required for attachments")
 	}
 	fs := files.WithDB(tx)
-	seen := make(map[uuid.UUID]struct{}, len(fileIDs))
-	out := make([]filesystem.File, 0, len(fileIDs))
-	for i, raw := range fileIDs {
+	seen := make(map[uuid.UUID]struct{}, len(inputs)*2)
+	out := make([]*Attachment, 0, len(inputs))
+
+	checkUnbound := func(id uuid.UUID, field string) error {
+		bound, err := tx.NewSelect().Model((*Attachment)(nil)).
+			Where("file_id = ? OR thumb_file_id = ?", id, id).Exists(ctx)
+		if err != nil {
+			return errors.Wrap(err, "check attachment binding")
+		}
+		if bound {
+			return filesystem.ErrNotFound.New(errorx.Field(field))
+		}
+		return nil
+	}
+
+	for i, in := range inputs {
 		field := fmt.Sprintf("attachments[%d]", i)
-		id, err := uuid.Parse(raw)
+		id, err := uuid.Parse(in.FileID)
 		if err != nil {
 			return nil, filesystem.ErrNotFound.New(errorx.Field(field))
 		}
@@ -156,40 +302,140 @@ func confirmAttachments(ctx context.Context, tx bun.IDB, files *filesystem.Servi
 			}
 			return nil, err
 		}
-		// 已经绑定到其他消息的附件不能再次使用（Confirm 对同主体幂等，跨消息或跨工作区需在此拦截）
-		bound, err := tx.NewSelect().Model((*itemFile)(nil)).Where("file_id = ?", id).Exists(ctx)
-		if err != nil {
-			return nil, errors.Wrap(err, "check attachment binding")
+		if err := checkUnbound(id, field); err != nil {
+			return nil, err
 		}
-		if bound {
-			return nil, filesystem.ErrNotFound.New(errorx.Field(field))
-		}
-		if attachmentKind(f.ContentType) == AttachmentImage && f.Size > int64(MaxImageSize) {
+		kind := attachmentKind(f.ContentType)
+		if f.Size > int64(maxSizeForKind(kind)) {
 			return nil, filesystem.ErrNotAccepted.New(errorx.Field(field))
 		}
-		out = append(out, f)
+
+		// 可选封面缩略图：同样校验归属、未绑定和图片白名单
+		var thumbID *uuid.UUID
+		if in.ThumbFileID != "" {
+			tid, err := uuid.Parse(in.ThumbFileID)
+			if err != nil {
+				return nil, filesystem.ErrNotFound.New(errorx.Field(field + ".thumb_file_id"))
+			}
+			if _, dup := seen[tid]; dup {
+				return nil, filesystem.ErrNotAccepted.New(errorx.Field(field + ".thumb_file_id"))
+			}
+			seen[tid] = struct{}{}
+			tf, err := fs.Confirm(ctx, owner, tid, thumbAccept)
+			if err != nil {
+				for _, known := range []*errorx.Template{filesystem.ErrNotFound, filesystem.ErrNotAccepted, filesystem.ErrNotUploaded} {
+					if errors.Is(err, known) {
+						return nil, known.New(errorx.Field(field + ".thumb_file_id"))
+					}
+				}
+				return nil, err
+			}
+			if err := checkUnbound(tf.ID, field+".thumb_file_id"); err != nil {
+				return nil, err
+			}
+			thumbID = &tf.ID
+		}
+
+		w, h := f.Meta.Width, f.Meta.Height
+		if kind == AttachmentVideo && w == 0 && h == 0 {
+			w, h = in.Width, in.Height
+		}
+		dur := 0
+		if kind == AttachmentVideo || kind == AttachmentAudio {
+			dur = in.DurationMs
+		}
+		fileUUID := f.ID
+		out = append(out, &Attachment{
+			ID:          newID(),
+			Kind:        kind,
+			Filename:    f.Filename,
+			ContentType: f.ContentType,
+			Size:        f.Size,
+			Width:       w,
+			Height:      h,
+			DurationMs:  dur,
+			IsVoice:     kind == AttachmentAudio && in.IsVoice,
+			FileID:      &fileUUID,
+			ThumbFileID: thumbID,
+			FetchStatus: FetchReady,
+		})
 	}
 	return out, nil
 }
 
-// insertItemFiles 在事务 tx 中把已确认的附件按顺序绑定到时间线项 itemID。
-func insertItemFiles(ctx context.Context, tx bun.IDB, itemID string, confirmed []filesystem.File) error {
-	if len(confirmed) == 0 {
+// buildIncomingAttachments 将外部渠道收到的媒体元数据转为待落库的 Attachment 记录，返回记录列表和是否需要异步拉取队列。
+func buildIncomingAttachments(channelID string, incoming []IncomingAttachment) ([]*Attachment, bool) {
+	if len(incoming) == 0 {
+		return nil, false
+	}
+	if len(incoming) > MaxAttachments {
+		incoming = incoming[:MaxAttachments]
+	}
+	out := make([]*Attachment, 0, len(incoming))
+	needsIngest := false
+	for _, in := range incoming {
+		kind := in.Kind
+		if kind == "" {
+			kind = attachmentKind(in.ContentType)
+		}
+		status := FetchRemote
+		fetchErr := ""
+		switch {
+		case in.Unavailable != "":
+			status = FetchUnavailable
+			fetchErr = in.Unavailable
+		case in.SourceRef == "":
+			status = FetchUnavailable
+			fetchErr = "channel.media_unavailable"
+		case in.AutoFetch:
+			status = FetchPending
+			needsIngest = true
+		}
+		if in.ThumbSourceRef != "" {
+			needsIngest = true
+		}
+		chID := channelID
+		out = append(out, &Attachment{
+			ID:              newID(),
+			Kind:            kind,
+			Filename:        in.Filename,
+			ContentType:     in.ContentType,
+			Size:            max(in.Size, 0),
+			Width:           max(in.Width, 0),
+			Height:          max(in.Height, 0),
+			DurationMs:      max(in.DurationMs, 0),
+			IsVoice:         kind == AttachmentAudio && in.IsVoice,
+			SourceChannelID: &chID,
+			SourceRef:       in.SourceRef,
+			ThumbSourceRef:  in.ThumbSourceRef,
+			FetchStatus:     status,
+			FetchError:      fetchErr,
+		})
+	}
+	return out, needsIngest
+}
+
+// insertAttachments 在事务 tx 中把附件列表按顺序绑定到租户 tenantID 的时间线项 itemID。
+func insertAttachments(ctx context.Context, tx bun.IDB, tenantID, itemID string, rows []*Attachment) error {
+	if len(rows) == 0 {
 		return nil
 	}
-	rows := make([]itemFile, len(confirmed))
-	for i, f := range confirmed {
-		rows[i] = itemFile{
-			ItemID:   itemID,
-			FileID:   f.ID,
-			Position: i,
+	at := now()
+	for i, a := range rows {
+		if a.ID == "" {
+			a.ID = newID()
 		}
+		a.CreatedAt = at
+		a.UpdatedAt = at
+		a.TenantID = tenantID
+		a.ItemID = itemID
+		a.Position = i
 	}
 	_, err := tx.NewInsert().Model(&rows).Exec(ctx)
-	if database.IsUniqueViolation(err, "timeline_item_files_file") {
+	if database.IsUniqueViolation(err, "timeline_attachments_file") || database.IsUniqueViolation(err, "timeline_attachments_thumb") {
 		return filesystem.ErrNotFound.New(errorx.Field("attachments"))
 	}
-	return errors.Wrap(err, "insert timeline item files")
+	return errors.Wrap(err, "insert timeline attachments")
 }
 
 // loadAttachments 批量加载 itemIDs 对应的附件列表，按 position 排序，并经 files.GetMany 和 images 生成公开地址与缩略图地址。
@@ -198,43 +444,89 @@ func loadAttachments(ctx context.Context, db bun.IDB, media Media, itemIDs []str
 	if len(itemIDs) == 0 {
 		return out, nil
 	}
-	var links []itemFile
-	err := db.NewSelect().Model(&links).Where("item_id IN (?)", bun.In(itemIDs)).
+	var rows []Attachment
+	err := db.NewSelect().Model(&rows).Where("item_id IN (?)", bun.In(itemIDs)).
 		OrderExpr("item_id, position").Scan(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "load timeline item files")
+		return nil, errors.Wrap(err, "load timeline attachments")
 	}
-	if len(links) == 0 || media.Files == nil {
+	if len(rows) == 0 {
 		return out, nil
 	}
-	fileIDs := make([]uuid.UUID, 0, len(links))
-	for _, l := range links {
-		fileIDs = append(fileIDs, l.FileID)
-	}
-	filesByID, err := media.Files.WithDB(db).GetMany(ctx, fileIDs)
+	dtos, err := buildAttachmentDTOs(ctx, db, media, rows)
 	if err != nil {
 		return nil, err
 	}
-	for _, l := range links {
-		f, ok := filesByID[l.FileID]
-		if !ok {
-			continue
+	for i, row := range rows {
+		out[row.ItemID] = append(out[row.ItemID], dtos[i])
+	}
+	return out, nil
+}
+
+// buildAttachmentDTOs 批量为附件记录填充主文件与封面缩略图的公开地址和最终元数据。
+func buildAttachmentDTOs(ctx context.Context, db bun.IDB, media Media, rows []Attachment) ([]AttachmentDTO, error) {
+	fileIDs := make([]uuid.UUID, 0, len(rows)*2)
+	for _, r := range rows {
+		if r.FileID != nil {
+			fileIDs = append(fileIDs, *r.FileID)
 		}
-		kind := attachmentKind(f.ContentType)
+		if r.ThumbFileID != nil {
+			fileIDs = append(fileIDs, *r.ThumbFileID)
+		}
+	}
+	filesByID := map[uuid.UUID]filesystem.File{}
+	if len(fileIDs) > 0 && media.Files != nil {
+		var err error
+		filesByID, err = media.Files.WithDB(db).GetMany(ctx, fileIDs)
+		if err != nil {
+			return nil, err
+		}
+	}
+	out := make([]AttachmentDTO, len(rows))
+	for i, r := range rows {
 		dto := AttachmentDTO{
-			FileID:      f.ID.String(),
-			Kind:        kind,
-			Filename:    f.Filename,
-			ContentType: f.ContentType,
-			Size:        f.Size,
-			Width:       f.Meta.Width,
-			Height:      f.Meta.Height,
-			URL:         f.URL,
+			ID:          r.ID,
+			Kind:        r.Kind,
+			Status:      r.FetchStatus,
+			Error:       r.FetchError,
+			Filename:    r.Filename,
+			ContentType: r.ContentType,
+			Size:        r.Size,
+			Width:       r.Width,
+			Height:      r.Height,
+			DurationMs:  r.DurationMs,
+			IsVoice:     r.IsVoice,
 		}
-		if kind == AttachmentImage {
-			dto.ThumbURL = media.Images.URL(f.URL, ImageThumb)
+		if r.FileID != nil {
+			dto.FileID = r.FileID.String()
+			if f, ok := filesByID[*r.FileID]; ok {
+				dto.URL = f.URL
+				if dto.Filename == "" {
+					dto.Filename = f.Filename
+				}
+				if dto.ContentType == "" {
+					dto.ContentType = f.ContentType
+				}
+				if dto.Size == 0 {
+					dto.Size = f.Size
+				}
+				if dto.Width == 0 {
+					dto.Width = f.Meta.Width
+				}
+				if dto.Height == 0 {
+					dto.Height = f.Meta.Height
+				}
+				if r.Kind == AttachmentImage && r.ThumbFileID == nil {
+					dto.ThumbURL = media.Images.URL(f.URL, ImageThumb)
+				}
+			}
 		}
-		out[l.ItemID] = append(out[l.ItemID], dto)
+		if r.ThumbFileID != nil {
+			if tf, ok := filesByID[*r.ThumbFileID]; ok {
+				dto.ThumbURL = media.Images.URL(tf.URL, ImageThumb)
+			}
+		}
+		out[i] = dto
 	}
 	return out, nil
 }
@@ -246,23 +538,23 @@ func loadPreviewAttachments(ctx context.Context, db bun.IDB, itemIDs []string) (
 		return out, nil
 	}
 	var rows []struct {
-		ItemID      string `bun:"item_id"`
-		ContentType string `bun:"content_type"`
-		Count       int    `bun:"count"`
+		ItemID string         `bun:"item_id"`
+		Kind   AttachmentKind `bun:"kind"`
+		Count  int            `bun:"count"`
 	}
-	err := db.NewRaw(`SELECT tif.item_id,
-			(SELECT f.content_type FROM timeline_item_files t2 JOIN files f ON f.id = t2.file_id
-				WHERE t2.item_id = tif.item_id ORDER BY t2.position LIMIT 1) AS content_type,
+	err := db.NewRaw(`SELECT ta.item_id,
+			(SELECT t2.kind FROM timeline_attachments t2
+				WHERE t2.item_id = ta.item_id ORDER BY t2.position LIMIT 1) AS kind,
 			count(*) AS count
-		FROM timeline_item_files tif
-		WHERE tif.item_id IN (?)
-		GROUP BY tif.item_id`, bun.In(itemIDs)).Scan(ctx, &rows)
+		FROM timeline_attachments ta
+		WHERE ta.item_id IN (?)
+		GROUP BY ta.item_id`, bun.In(itemIDs)).Scan(ctx, &rows)
 	if err != nil {
 		return nil, errors.Wrap(err, "load preview attachments")
 	}
 	for _, r := range rows {
 		if r.Count > 0 {
-			out[r.ItemID] = &PreviewAttachment{Kind: attachmentKind(r.ContentType), Count: r.Count}
+			out[r.ItemID] = &PreviewAttachment{Kind: r.Kind, Count: r.Count}
 		}
 	}
 	return out, nil
@@ -276,6 +568,7 @@ func toChannelAttachments(list []AttachmentDTO) []channel.Attachment {
 	out := make([]channel.Attachment, len(list))
 	for i, a := range list {
 		out[i] = channel.Attachment{
+			ID:          a.ID,
 			FileID:      a.FileID,
 			Kind:        string(a.Kind),
 			Filename:    a.Filename,
@@ -283,6 +576,8 @@ func toChannelAttachments(list []AttachmentDTO) []channel.Attachment {
 			Size:        a.Size,
 			Width:       a.Width,
 			Height:      a.Height,
+			DurationMs:  a.DurationMs,
+			IsVoice:     a.IsVoice,
 			URL:         a.URL,
 			ThumbURL:    a.ThumbURL,
 		}
@@ -290,10 +585,17 @@ func toChannelAttachments(list []AttachmentDTO) []channel.Attachment {
 	return out
 }
 
-// attachmentKind 根据 MIME 类型判断附件展示为图片还是文件。
+// attachmentKind 根据 MIME 类型判断附件展示类型（图片、视频、音频或文件）。
 func attachmentKind(contentType string) AttachmentKind {
-	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(contentType)), "image/") {
+	ct := strings.ToLower(strings.TrimSpace(strings.Split(contentType, ";")[0]))
+	switch {
+	case strings.HasPrefix(ct, "image/"):
 		return AttachmentImage
+	case strings.HasPrefix(ct, "video/"):
+		return AttachmentVideo
+	case strings.HasPrefix(ct, "audio/"):
+		return AttachmentAudio
+	default:
+		return AttachmentFile
 	}
-	return AttachmentFile
 }

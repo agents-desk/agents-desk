@@ -36,7 +36,7 @@ contact_token:
 # 改用 S3：配置 disks.s3，并把 default_disk 改为 s3，见 Tenon 文档的 libraries/filesystem.md。
 filesystem:
   default_disk: ${FILES_DISK:-local}
-  max_upload_size: 20MiB
+  max_upload_size: 50MiB
   disks:
     local:
       root: ${FILES_ROOT:-storage/files}

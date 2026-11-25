@@ -24,10 +24,18 @@ export const enums = {
   },
   ConversationAttachmentKind: {
     prefix: "conversation.attachment_kind",
-    values: ["image", "file"],
+    values: ["image", "video", "audio", "file"],
     labels: {
-      "en": { image: "Image", file: "File" },
-      "zh-CN": { image: "图片", file: "文件" },
+      "en": { image: "Image", video: "Video", audio: "Audio", file: "File" },
+      "zh-CN": { image: "图片", video: "视频", audio: "语音/音频", file: "文件" },
+    },
+  },
+  ConversationFetchStatus: {
+    prefix: "conversation.fetch_status",
+    values: ["ready", "remote", "pending", "fetching", "unavailable"],
+    labels: {
+      "en": { ready: "Ready", remote: "Not downloaded", pending: "Queued", fetching: "Downloading", unavailable: "Unavailable" },
+      "zh-CN": { ready: "已就绪", remote: "待下载", pending: "等待拉取", fetching: "拉取中", unavailable: "不可用" },
     },
   },
   ConversationItemKind: {

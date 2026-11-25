@@ -20,14 +20,15 @@ import (
 
 // ReceiveParams 是渠道收到的一条消息。
 type ReceiveParams struct {
-	ChannelID          string
-	From               string // 对方在渠道中的外部编号
-	FromName           string // 对方在渠道中显示的名字，新建联系人时使用
-	ExternalID         string // 消息在渠道中的编号，用来去重；渠道没有编号时为空
-	Text               string
-	AttachmentFileIDs  []string // 附带的文件 ID（由发送者上传的临时文件，在写入事务中确认）
-	ConversationID     string   // 对方选定继续的会话；只在可以有多个会话的渠道中使用，为空时新建会话
-	SingleConversation bool     // 为 true 时按单会话模式归入该联系人在本渠道最近的会话，不新建并行会话
+	ChannelID           string
+	From                string // 对方在渠道中的外部编号
+	FromName            string // 对方在渠道中显示的名字，新建联系人时使用
+	ExternalID          string // 消息在渠道中的编号，用来去重；渠道没有编号时为空
+	Text                string
+	Attachments         []AttachmentInput    // 客户端通过 /files 上传的已就绪媒体附件（在写入事务中确认）
+	IncomingAttachments []IncomingAttachment // 外部渠道收到的媒体元数据（不阻塞 Webhook，由队列自动拉取或点击按需拉取）
+	ConversationID      string               // 对方选定继续的会话；只在可以有多个会话的渠道中使用，为空时新建会话
+	SingleConversation  bool                 // 为 true 时按单会话模式归入该联系人在本渠道最近的会话，不新建并行会话
 }
 
 // Received 是写入收到的消息的结果。
@@ -66,7 +67,7 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 			return nil, err
 		}
 	}
-	if err := requireMessageContent(p.Text, p.AttachmentFileIDs); err != nil {
+	if err := requireMessageContent(p.Text, len(p.Attachments)+len(p.IncomingAttachments)); err != nil {
 		return nil, err
 	}
 	if prev, err := a.previous(ctx, sub, p); prev != nil || err != nil {
@@ -92,10 +93,12 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 		if sub.Type == contact.Type && person.ID != sub.ID {
 			return ErrForbidden.New()
 		}
-		confirmed, err := confirmAttachments(ctx, tx, a.down.Media.Files, sub, p.AttachmentFileIDs)
+		confirmed, err := confirmAttachmentInputs(ctx, tx, a.down.Media.Files, sub, p.Attachments)
 		if err != nil {
 			return err
 		}
+		incomingAtts, needsIngest := buildIncomingAttachments(ch.ID, p.IncomingAttachments)
+		allAttachments := append(confirmed, incomingAtts...)
 		at := now()
 		multiple := connector.Capabilities().MultipleConversations && !p.SingleConversation
 		c, created, opened, defaultMemberID, err := a.conversationFor(ctx, tx, ch, person, p, multiple, at)
@@ -158,8 +161,15 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 		if err := commit(ctx, tx, a.down, c, items...); err != nil {
 			return err
 		}
-		if err := insertItemFiles(ctx, tx, msg.ID, confirmed); err != nil {
+		if err := insertAttachments(ctx, tx, c.TenantID, msg.ID, allAttachments); err != nil {
 			return err
+		}
+		if needsIngest {
+			if err := MediaIngestTopic.Publish(ctx, tx, MediaIngestJob{
+				TenantID: c.TenantID, ConversationID: c.ID, ItemID: msg.ID,
+			}); err != nil {
+				return errors.Wrap(err, "publish media ingest job")
+			}
 		}
 		dtos, err := toItemDTOs(ctx, tx, a.down.Media, []Item{*msg})
 		if err != nil {
