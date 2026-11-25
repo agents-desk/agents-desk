@@ -126,7 +126,7 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	}
 	stack.MustAdd("database", func(context.Context) error { return db.Close() })
 
-	nc, err := natsx.Connect(cfg.NATS, "agents-desk", nil)
+	nc, err := natsx.Connect(cfg.NATS, "agents-desk")
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +135,7 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		return nil
 	})
 	// 广播：会话的变化经它推送给各实例上的实时连接。登记在 NATS 之后，退出时先于 NATS 关闭
-	hub := broadcast.New(natsbroadcast.New(nc, "agents-desk.broadcast"), nil)
+	hub := broadcast.New(natsbroadcast.New(nc, "agents-desk.broadcast"))
 	stack.MustAdd("broadcast", func(context.Context) error { return hub.Close() })
 	creds := broadcast.NewCredentials(hub)
 	presence, err := natspresence.New(ctx, nc, natspresence.Options{Bucket: "agents_desk_presence"})
@@ -240,7 +240,7 @@ func parts(a *App) []command.Part {
 
 // worker 装配队列 worker：把业务事务中发布的任务转发到 JetStream 并处理。各模块的任务在这里登记。
 func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
-	w := queue.NewWorker(a.db, a.nc, a.cfg.Queue, nil)
+	w := queue.NewWorker(a.db, a.nc, a.cfg.Queue)
 	down := a.downstream()
 	conversation.RegisterJobs(w, a.db, a.channels, down)
 	translation.RegisterJobs(w, a.db, a.locker, a.translator, down)
@@ -253,23 +253,23 @@ func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
 
 // tasks 创建调度器并注册全部定时任务：调度器进程、schedules 命令和管理员端定时任务面板共用这一份定义。
 func (a *App) tasks() *schedule.Scheduler {
-	sched := schedule.New(pgschedule.New(a.db), a.cfg.Schedule, nil, schedule.WithObserver(scheduleapi.Observer(a.db)))
+	sched := schedule.New(pgschedule.New(a.db), a.cfg.Schedule, schedule.WithObserver(scheduleapi.Observer(a.db)))
 	sched.Add("files:cleanup", "*/5 * * * *", schedule.Cleanup(a.files.Cleanup, 500),
 		schedule.Label("schedule.task.files_cleanup.label"),
 		schedule.Describe("schedule.task.files_cleanup.description"))
-	sched.Add("locks:cleanup", "@hourly", schedule.Cleanup(pglock.New(a.db).Cleanup, 1000),
+	sched.Add("locks:cleanup", "@hourly", schedule.Cleanup(pglock.Cleanup(a.db), 1000),
 		schedule.Label("schedule.task.locks_cleanup.label"),
 		schedule.Describe("schedule.task.locks_cleanup.description"))
-	sched.Add("apitoken:cleanup", "@hourly", schedule.Cleanup(a.adminTokens.Cleanup, 1000),
+	sched.Add("apitoken:cleanup", "@hourly", schedule.Cleanup(apitoken.Cleanup(a.db), 1000),
 		schedule.Label("schedule.task.apitoken_cleanup.label"),
 		schedule.Describe("schedule.task.apitoken_cleanup.description"))
-	sched.Add("login:cleanup", "@hourly", schedule.Cleanup(a.adminLogins.Cleanup, 1000),
+	sched.Add("login:cleanup", "@hourly", schedule.Cleanup(login.Cleanup(a.db), 1000),
 		schedule.Label("schedule.task.login_cleanup.label"),
 		schedule.Describe("schedule.task.login_cleanup.description"))
-	sched.Add("ratelimit:cleanup", "@hourly", schedule.Cleanup(pglimit.New(a.db, "cleanup", ratelimit.Config{Rate: 1, Interval: time.Minute, Burst: 1}).Cleanup, 1000),
+	sched.Add("ratelimit:cleanup", "@hourly", schedule.Cleanup(pglimit.Cleanup(a.db), 1000),
 		schedule.Label("schedule.task.ratelimit_cleanup.label"),
 		schedule.Describe("schedule.task.ratelimit_cleanup.description"))
-	sched.Add("queue:prune-failed", "@daily", schedule.Cleanup(queue.NewFailedJobs(a.db).Cleanup(30*24*time.Hour), 1000),
+	sched.Add("queue:prune-failed", "@daily", schedule.Cleanup(queue.CleanupFailed(a.db, 30*24*time.Hour), 1000),
 		schedule.Label("schedule.task.queue_prune_failed.label"),
 		schedule.Describe("schedule.task.queue_prune_failed.description"))
 	sched.Add("schedule:prune-runs", "@daily", schedule.Cleanup(scheduleapi.Cleanup(a.db, 7*24*time.Hour), 1000),
@@ -281,7 +281,7 @@ func (a *App) tasks() *schedule.Scheduler {
 	sched.Add("notifications:cleanup", "@daily", schedule.Cleanup(notification.Cleanup(a.db, 90*24*time.Hour), 1000),
 		schedule.Label("schedule.task.notifications_cleanup.label"),
 		schedule.Describe("schedule.task.notifications_cleanup.description"))
-	sched.Add("operations:cleanup", "@daily", schedule.Cleanup(operation.New(a.db).Cleanup(30*24*time.Hour), 1000),
+	sched.Add("operations:cleanup", "@daily", schedule.Cleanup(operation.Cleanup(a.db, 30*24*time.Hour), 1000),
 		schedule.Label("schedule.task.operations_cleanup.label"),
 		schedule.Describe("schedule.task.operations_cleanup.description"))
 	expire := conversation.NewExpireSnoozes(a.db, a.downstream())
@@ -305,7 +305,7 @@ func (a *App) doctor() []doctor.Group {
 	groups := []doctor.Group{
 		database.Doctor(a.db),
 		migrate.Doctor(a.db, migrations.FS),
-		queue.Doctor(a.db, a.nc, a.cfg.Queue),
+		queue.Doctor(a.db, a.nc),
 	}
 	if a.defaultDisk != nil {
 		groups = append(groups, filesystem.Doctor(a.defaultDisk))

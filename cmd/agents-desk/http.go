@@ -11,9 +11,10 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/go-tenon/tenon/command"
+	"github.com/go-tenon/tenon/command/httpcmd"
 	"github.com/go-tenon/tenon/config"
 	"github.com/go-tenon/tenon/database"
-	"github.com/go-tenon/tenon/doctor"
+	"github.com/go-tenon/tenon/doctor/doctorapi"
 	"github.com/go-tenon/tenon/frontend"
 	"github.com/go-tenon/tenon/health"
 	"github.com/go-tenon/tenon/httpx"
@@ -62,9 +63,7 @@ import (
 // /t/{slug}/realtime 是工作区端的实时连接（WebSocket），成员在其中订阅自己的个人频道；/w/{channel}/realtime 是聊天窗口的
 // 实时连接，客户在其中订阅自己的频道，收到成员的回复。
 func (a *App) serveHTTP(d *command.Daemon) (func(context.Context) error, error) {
-	var router chi.Router
-	api := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { router.ServeHTTP(w, r) })
-	pages, err := frontend.New(apps.Dist, frontend.Options{API: api, DevServers: a.cfg.DevServers, CSP: a.pageCSP})
+	pages, err := frontend.New(apps.Dist, frontend.Options{DevServers: a.cfg.DevServers, CSP: a.pageCSP})
 	if err != nil {
 		return nil, err
 	}
@@ -76,16 +75,18 @@ func (a *App) serveHTTP(d *command.Daemon) (func(context.Context) error, error) 
 	if err != nil {
 		return nil, err
 	}
-	router = a.routes(pages.Handler())
+	router := a.routes(pages.Handler())
 	router.With(tenant.Middleware(a.db)).Handle("/t/{slug}/realtime", rt.Handler())
 	router.With(widget.Middleware(a.db)).Handle("/w/{channel}/realtime", widgetRT.Handler())
+	pages.SetAPI(router)
 	ln, err := d.Listen("tcp", a.cfg.HTTP.Addr)
 	if err != nil {
 		return nil, err
 	}
+	serveOpts := httpcmd.ServeOptions(d)
 	return func(ctx context.Context) error {
 		err := pages.Run(ctx, func(ctx context.Context) error {
-			return httpx.Serve(ctx, a.cfg.HTTP, ln, router)
+			return httpx.Serve(ctx, a.cfg.HTTP, ln, router, serveOpts...)
 		})
 		// 先断开实时连接，广播随后在退出时关闭
 		return errors.Join(err, rt.Shutdown(context.WithoutCancel(ctx)), widgetRT.Shutdown(context.WithoutCancel(ctx)))
@@ -119,27 +120,12 @@ func (a *App) pageCSP(r *http.Request, nonce string) string {
 	return p.String()
 }
 
-// credentialWatcher 返回长连接凭据复查监听器；离线构造路由时没有 broadcast，返回 nil。
-func (a *App) credentialWatcher() identity.CredentialWatcher {
-	if a.creds == nil {
-		return nil
-	}
-	return a.creds
-}
-
 // bodyLimitFor 为文件上传接口（POST .../files）放宽请求体上限至 MaxUploadSize + 512 KiB，其余接口沿用默认 1 MiB 上限。
 func (a *App) bodyLimitFor(r *http.Request) int64 {
 	if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/files") {
 		return int64(a.cfg.Filesystem.MaxUploadSize) + 512<<10
 	}
 	return 0
-}
-
-// trackPrimary 为每次 HTTP 请求开启读写分离主库跟踪：同请求中发生写事务后，后续只读查询自动路由到主库。
-func trackPrimary(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		next.ServeHTTP(w, r.WithContext(database.TrackPrimary(r.Context())))
-	})
 }
 
 // memberImpersonation 返回工作区端允许平台管理员代为登录的策略：操作者必须未停用且在平台域拥有 tenants:impersonate 权限。
@@ -155,11 +141,11 @@ func (a *App) memberImpersonation() *identity.Impersonation {
 // （conversation.RegisterRealtime：谁正在看、谁正在输入）。
 func (a *App) newRealtime() (*realtime.Realtime, error) {
 	rt, err := realtime.New(a.hub, realtime.Options{
-		Authenticate:  a.memberTokens.Validate,
+		Validate:      a.memberTokens.Validate,
 		Accounts:      identity.Accounts{member.Type: tenant.Resolve(member.Resolve(a.db, a.roles))},
 		Impersonation: a.memberImpersonation(),
 		SessionCookie: member.SessionCookie,
-		Credentials:   a.credentialWatcher(),
+		Credentials:   a.creds,
 		Tenant:        func(r *http.Request) string { return tenant.IDFrom(r.Context()) },
 		CheckTenant:   tenant.CheckEnabled(a.db),
 		Presence:      a.presence,
@@ -176,11 +162,11 @@ func (a *App) newRealtime() (*realtime.Realtime, error) {
 // 聊天窗口在第三方网站的页面中，令牌由 SDK 传入，不用 cookie；客户只能订阅自己在这个聊天插件中的频道（widget.RegisterRealtime）。
 func (a *App) newWidgetRealtime() (*realtime.Realtime, error) {
 	rt, err := realtime.New(a.hub, realtime.Options{
-		Authenticate: a.contactTokens.Validate,
-		Accounts:     identity.Accounts{contact.Type: widget.Resolve(a.db)},
-		Credentials:  a.credentialWatcher(),
-		Tenant:       func(r *http.Request) string { return widget.TenantFrom(r.Context()) },
-		CheckTenant:  tenant.CheckEnabled(a.db),
+		Validate:    a.contactTokens.Validate,
+		Accounts:    identity.Accounts{contact.Type: widget.Resolve(a.db)},
+		Credentials: a.creds,
+		Tenant:      func(r *http.Request) string { return widget.TenantFrom(r.Context()) },
+		CheckTenant: tenant.CheckEnabled(a.db),
 	})
 	if err != nil {
 		return nil, err
@@ -194,8 +180,11 @@ func (a *App) newWidgetRealtime() (*realtime.Realtime, error) {
 // 它只保存 App 的字段、处理请求时才使用，所以 docRouter 可以用没有打开资源的 App 调用它。
 func (a *App) routes(pages http.Handler) chi.Router {
 	router := chi.NewRouter()
-	router.Use(httpx.Defaults(a.cfg.HTTP, httpx.Languages(i18n.MustNew("zh-CN", locales.FS)), httpx.BodyLimitFor(a.bodyLimitFor))...)
-	router.Use(trackPrimary)
+	router.Use(httpx.Defaults(a.cfg.HTTP,
+		httpx.Languages(i18n.MustNew("zh-CN", locales.FS)),
+		httpx.BodyLimitFor(a.bodyLimitFor),
+		httpx.WithContext(database.TrackPrimary),
+	)...)
 	router.Get("/livez", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
 	router.Handle("/readyz", httpx.Ready(httpx.ReadyOptions{
 		Checks: []health.Check{
@@ -219,9 +208,10 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		r.Use(httpx.Timeout(a.cfg.HTTP.Timeout))
 		api := rest.New(r, rest.Options{
 			Title: "agents-desk 管理员端", Version: "0.1.0", BasePath: "/admin/api",
+			Validate:      a.adminTokens.Validate,
 			Accounts:      identity.Accounts{platformadmin.Type: platformadmin.Resolve(a.db, a.roles)},
 			SessionCookie: platformadmin.SessionCookie,
-			Credentials:   a.credentialWatcher(),
+			Credentials:   a.creds,
 			Permissions:   auth.Catalog,
 		})
 		require := func(perms ...auth.Permission) func(*huma.Operation) {
@@ -229,7 +219,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 			for i, p := range perms {
 				names[i] = string(p)
 			}
-			return rest.RequireToken(api, a.adminTokens.Validate, names...)
+			return api.RequireToken(names...)
 		}
 		platformadmin.RegisterRoutes(api, require(), a.db, a.adminLogins, a.adminTokens, a.files, a.cfg.Filesystem.MaxUploadSize, a.cfg.AdminToken.Lifetime)
 		platformadmin.RegisterManageRoutes(api, require(auth.PlatformAdminsManage), a.db, a.roles, a.adminLogins, a.creds)
@@ -246,8 +236,8 @@ func (a *App) routes(pages http.Handler) chi.Router {
 				translation.Topic.Meta("queue.topic.conversation.translate.label", "queue.topic.conversation.translate.description"),
 				translation.FillTopic.Meta("queue.topic.translation.fill.label", "queue.topic.translation.fill.description"),
 				automation.Topic.Meta("queue.topic.conversation.automate.label", "queue.topic.conversation.automate.description"),
-				queue.Topic[string]("search.sync.conversation_items").Meta("queue.topic.search.sync.conversation_items.label", "queue.topic.search.sync.conversation_items.description"),
-				queue.Topic[string]("search.reindex.conversation_items").Meta("queue.topic.search.reindex.conversation_items.label", "queue.topic.search.reindex.conversation_items.description"),
+				conversation.SearchIndex.SyncTopic().Meta("queue.topic.search.sync.conversation_items.label", "queue.topic.search.sync.conversation_items.description"),
+				conversation.SearchIndex.ReindexTopic().Meta("queue.topic.search.reindex.conversation_items.label", "queue.topic.search.reindex.conversation_items.description"),
 				tenant.ExportJob.Meta("queue.topic.tenants.export.label", "queue.topic.tenants.export.description"),
 				contact.ExportJob.Meta("queue.topic.contacts.export.label", "queue.topic.contacts.export.description"),
 			},
@@ -257,17 +247,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		}
 		queueapi.Register(api, require(auth.QueueManage), a.db, queueOpts)
 		scheduleapi.Register(api, require(auth.SchedulesManage), a.db, a.tasks)
-		doctorOp := huma.Operation{
-			OperationID: "system-doctor",
-			Method:      http.MethodGet,
-			Path:        "/system/doctor",
-			Summary:     "运行环境自检",
-			Tags:        []string{"system"},
-		}
-		require(auth.SystemRead)(&doctorOp)
-		rest.Register(api, doctorOp, func(ctx context.Context, _ *struct{}) (*doctorOutput, error) {
-			return &doctorOutput{Body: doctor.Run(ctx, a.doctor()...)}, nil
-		})
+		doctorapi.Register(api, require(auth.SystemRead), a.doctor)
 	})
 
 	// 工作区端的账号级接口：成员的登录、退出、当前账号和所属的工作区。只接受成员，会话 cookie 是 __Host-session（代登时优先读 __Host-impersonation），
@@ -276,13 +256,14 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		r.Use(httpx.Timeout(a.cfg.HTTP.Timeout))
 		api := rest.New(r, rest.Options{
 			Title: "agents-desk", Version: "0.1.0", BasePath: "/api",
+			Validate:      a.memberTokens.Validate,
 			Accounts:      identity.Accounts{member.Type: member.Resolve(a.db, a.roles)},
 			Impersonation: a.memberImpersonation(),
 			AccountScope:  true,
 			SessionCookie: member.SessionCookie,
-			Credentials:   a.credentialWatcher(),
+			Credentials:   a.creds,
 		})
-		requireMember := rest.RequireToken(api, a.memberTokens.Validate)
+		requireMember := api.RequireToken()
 		member.RegisterRoutes(api, requireMember, a.db, a.memberLogins, a.memberTokens, a.files, a.cfg.Filesystem.MaxUploadSize, a.cfg.MemberToken.Lifetime)
 		tenant.RegisterMemberRoutes(api, requireMember, a.db, a.roles, addr)
 	})
@@ -293,11 +274,12 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		r.Use(httpx.Timeout(a.cfg.HTTP.Timeout), tenant.Middleware(a.db))
 		api := rest.New(r, rest.Options{
 			Title: "agents-desk 工作区", Version: "0.1.0", BasePath: "/t/{slug}/api",
+			Validate:      a.memberTokens.Validate,
 			Tenant:        tenant.FromRequest,
 			Accounts:      identity.Accounts{member.Type: tenant.Resolve(member.Resolve(a.db, a.roles))},
 			Impersonation: a.memberImpersonation(),
 			SessionCookie: member.SessionCookie,
-			Credentials:   a.credentialWatcher(),
+			Credentials:   a.creds,
 			Permissions:   auth.Catalog,
 		})
 		require := func(perms ...auth.Permission) func(*huma.Operation) {
@@ -305,7 +287,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 			for i, p := range perms {
 				names[i] = string(p)
 			}
-			return rest.RequireToken(api, a.memberTokens.Validate, names...)
+			return api.RequireToken(names...)
 		}
 		tenant.RegisterTenantRoutes(api, require, a.db)
 		member.RegisterTenantRoutes(api, require, a.db, a.roles, a.memberLogins, a.files, memberHooks)
@@ -332,12 +314,13 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		r.Use(httpx.Timeout(a.cfg.HTTP.Timeout), httpx.RateLimit(ratelimit.NewMemory(a.cfg.HTTP.RateLimit), httpx.KeyByIP), widget.Middleware(a.db))
 		api := rest.New(r, rest.Options{
 			Title: "agents-desk 聊天插件", Version: "0.1.0", BasePath: "/w/{channel}/api",
+			Validate:    a.contactTokens.Validate,
 			Tenant:      widget.TenantFromRequest,
 			Accounts:    identity.Accounts{contact.Type: widget.Resolve(a.db)},
-			Credentials: a.credentialWatcher(),
+			Credentials: a.creds,
 		})
 		down := a.downstream()
-		widget.RegisterVisitorRoutes(api, rest.RequireToken(api, a.contactTokens.Validate), a.db, a.crypt, a.contactTokens,
+		widget.RegisterVisitorRoutes(api, api.RequireToken(), a.db, a.crypt, a.contactTokens,
 			conversation.NewReceive(a.db, a.channels, down), down, a.cfg.Filesystem.MaxUploadSize)
 	})
 
@@ -354,11 +337,6 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		router.Handle("/*", pages)
 	}
 	return router
-}
-
-// doctorOutput 是运行环境自检接口的响应。
-type doctorOutput struct {
-	Body doctor.DoctorReport
 }
 
 // docRouter 用默认配置和没有打开任何资源的 App 构造路由，openapi、routes、client 命令用它。

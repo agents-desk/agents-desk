@@ -26,7 +26,7 @@ func TestDefaultAssignmentSettings(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	env := apptest.New(t)
-	hub := broadcast.New(broadcasttest.NewBackend(), nil)
+	hub := broadcast.New(broadcasttest.NewBackend())
 	t.Cleanup(func() { _ = hub.Close() })
 
 	tn, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
