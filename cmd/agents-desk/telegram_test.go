@@ -39,7 +39,7 @@ func TestTelegramHTTPAndWebhook(t *testing.T) {
 	tgClient := telegram.NewClient(botSrv.Client(), botSrv.URL)
 	tokens := apitoken.Config{Lifetime: time.Hour, IdleTimeout: time.Hour}
 	cfg := config.Default[Config]()
-	cfg.PublicURL = "https://desk.example.com"
+	cfg.HTTP.PublicURL = "https://desk.example.com"
 	a := &App{
 		cfg: cfg, db: env.DB, roles: env.Roles,
 		adminLogins: env.AdminLogins, adminTokens: apitoken.NewStore(env.DB, tokens),

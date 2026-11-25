@@ -245,7 +245,7 @@ func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
 	conversation.RegisterJobs(w, a.db, a.channels, down)
 	translation.RegisterJobs(w, a.db, a.locker, a.translator, down)
 	automation.RegisterJobs(w, a.db, a.locker, down)
-	tenant.RegisterJobs(w, a.db, a.memberLogins, tenant.Addresses{PublicURL: a.cfg.PublicURL}, a.hub, a.exporter)
+	tenant.RegisterJobs(w, a.db, a.memberLogins, tenant.Addresses{PublicURL: a.cfg.HTTP.PublicURL}, a.hub, a.exporter)
 	contact.RegisterJobs(w, a.db, a.hub, a.exporter)
 	scheduleapi.HandleRunNow(w, a.tasks)
 	return w.Run, nil

@@ -4,11 +4,9 @@ package main
 
 import (
 	"io/fs"
-	"net/url"
 	// 程序内嵌时区数据：校验成员选的时区时，不依赖服务器（例如容器镜像）中有没有系统的时区文件。
 	_ "time/tzdata"
 
-	"github.com/cockroachdb/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/go-tenon/tenon/activity"
@@ -55,7 +53,6 @@ import (
 // Config 是应用的配置：config/app.yaml。
 type Config struct {
 	HTTP         httpx.Config      `yaml:"http"`
-	PublicURL    string            `yaml:"public_url"` // 应用对外的地址，例如 https://desk.example.com，生成工作区的地址等链接时使用
 	Database     database.Config   `yaml:"database"`
 	NATS         natsx.Config      `yaml:"nats"`
 	Queue        queue.Config      `yaml:"queue"`
@@ -72,18 +69,15 @@ type Config struct {
 
 // SetDefaults 给出开发时的对外地址。
 func (c *Config) SetDefaults() {
-	if c.PublicURL == "" {
-		c.PublicURL = "http://localhost:8081"
+	if c.HTTP.PublicURL == "" {
+		c.HTTP.PublicURL = "http://localhost:8081"
 	}
 }
 
-// Validate 检查对外地址是 http 或 https 的绝对地址。
+// Validate 要求配置对外地址，格式由 httpx.Config.Validate 检查。
 func (c Config) Validate() error {
-	u, err := url.Parse(c.PublicURL)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		return errors.Newf("public_url: %q 不是 http:// 或 https:// 开头的地址", c.PublicURL)
-	}
-	return nil
+	_, err := c.HTTP.BaseURL()
+	return err
 }
 
 func main() {
@@ -102,7 +96,7 @@ func main() {
 			schedulecmd.New(a.tasks),
 			searchcmd.New(a.db, conversation.SearchIndex),
 			platformadmin.Commands(a.db, a.roles, a.adminLogins),
-			seedCommand(a.db, a.roles, a.adminLogins, a.memberLogins, a.files, a.crypt, tenant.Addresses{PublicURL: a.cfg.PublicURL}, a.channels, a.downstream()),
+			seedCommand(a.db, a.roles, a.adminLogins, a.memberLogins, a.files, a.crypt, tenant.Addresses{PublicURL: a.cfg.HTTP.PublicURL}, a.channels, a.downstream()),
 			devCommands(a),
 		}
 	})...)
