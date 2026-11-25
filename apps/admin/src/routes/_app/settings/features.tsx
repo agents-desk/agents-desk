@@ -23,7 +23,7 @@ import { tenants } from "../../../resources"
 
 // 功能开关管理：配置每个开关的全员规则（跟随默认、全员开启、全员关闭、按比例放量）与按工作区的单独覆盖。
 export const Route = createFileRoute("/_app/settings/features")({
-  staticData: { title: "nav.features", icon: "plugin", order: 5, permission: "features:manage" },
+  staticData: { title: "nav.features", icon: "plugin", order: 3, permission: "features:manage" },
   component: FeatureFlagsPage,
 })
 

@@ -8,7 +8,7 @@ import { generalSettings, mailSettings } from "../../../resources"
 
 // 系统设置：通过框架的 SettingsPage 把常规设置和邮件服务（Resend）合并为多标签页，字段和校验来自 Go 声明。
 export const Route = createFileRoute("/_app/settings/general")({
-  staticData: { title: "nav.general_settings", icon: "settings", order: 3, permission: "platform-settings:manage" },
+  staticData: { title: "nav.general_settings", icon: "settings", order: 5, permission: "platform-settings:manage" },
   component: GeneralSettingsPage,
 })
 
