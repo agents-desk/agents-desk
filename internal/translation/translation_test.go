@@ -650,7 +650,7 @@ func TestPrimaryLanguages(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	f := setup(t, true)
-	hub := broadcast.New(broadcasttest.NewBackend(), nil)
+	hub := broadcast.New(broadcasttest.NewBackend())
 	t.Cleanup(func() { _ = hub.Close() })
 	f.down.Hub = hub
 	f.down.Roles = f.env.Roles

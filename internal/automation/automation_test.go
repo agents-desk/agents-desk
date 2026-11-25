@@ -76,7 +76,7 @@ func setup(t *testing.T, env *apptest.Env, slug string) *fixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	hub := broadcast.New(broadcasttest.NewBackend(), nil)
+	hub := broadcast.New(broadcasttest.NewBackend())
 	t.Cleanup(func() { _ = hub.Close() })
 	reg := channel.DefaultRegistry()
 	reg[channel.Widget] = widget.NewConnector(hub)

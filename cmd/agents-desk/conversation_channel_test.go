@@ -29,7 +29,7 @@ func TestConversationChannel(t *testing.T) {
 	env := apptest.New(t)
 	ctx := context.Background()
 	tokens := apitoken.Config{Lifetime: time.Hour, IdleTimeout: time.Hour}
-	hub := broadcast.New(broadcasttest.NewBackend(), nil)
+	hub := broadcast.New(broadcasttest.NewBackend())
 	t.Cleanup(func() { _ = hub.Close() })
 	a := &App{
 		cfg: config.Default[Config](), db: env.DB, hub: hub, roles: env.Roles, presence: realtimetest.NewPresence(),

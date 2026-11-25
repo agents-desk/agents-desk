@@ -192,7 +192,7 @@ func TestConversation(t *testing.T) {
 	ctx := context.Background()
 	env := apptest.New(t)
 	f := setup(t, env, "alpha")
-	hub := broadcast.New(broadcasttest.NewBackend(), nil)
+	hub := broadcast.New(broadcasttest.NewBackend())
 	t.Cleanup(func() { _ = hub.Close() })
 	registry := channel.Registry{channel.Widget: NewConnector(hub)}
 	down := conversation.Downstream{Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic}, Hub: hub, Roles: env.Roles}
@@ -405,7 +405,7 @@ func TestSingleConversationMode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	hub := broadcast.New(broadcasttest.NewBackend(), nil)
+	hub := broadcast.New(broadcasttest.NewBackend())
 	t.Cleanup(func() { _ = hub.Close() })
 	registry := channel.Registry{channel.Widget: NewConnector(hub)}
 	down := conversation.Downstream{Hub: hub, Roles: env.Roles, ContactPush: Push(hub)}
@@ -440,7 +440,7 @@ func TestRating(t *testing.T) {
 	ctx := context.Background()
 	env := apptest.New(t)
 	f := setup(t, env, "alpha")
-	hub := broadcast.New(broadcasttest.NewBackend(), nil)
+	hub := broadcast.New(broadcasttest.NewBackend())
 	t.Cleanup(func() { _ = hub.Close() })
 	registry := channel.Registry{channel.Widget: NewConnector(hub)}
 	down := conversation.Downstream{Hub: hub, Roles: env.Roles, ContactPush: Push(hub)}
@@ -603,7 +603,7 @@ func TestLeadMergeOnLogin(t *testing.T) {
 	ctx := context.Background()
 	env := apptest.New(t)
 	f := setup(t, env, "alpha")
-	hub := broadcast.New(broadcasttest.NewBackend(), nil)
+	hub := broadcast.New(broadcasttest.NewBackend())
 	t.Cleanup(func() { _ = hub.Close() })
 	registry := channel.Registry{channel.Widget: NewConnector(hub)}
 	down := conversation.Downstream{Hub: hub, Roles: env.Roles, ContactPush: Push(hub)}
