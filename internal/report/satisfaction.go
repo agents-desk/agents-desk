@@ -70,10 +70,10 @@ type ChannelSatisfaction struct {
 type SatisfactionReport struct {
 	Period       PeriodMeta            `json:"period"`
 	Summary      SatisfactionSummary   `json:"summary"`
-	Distribution []ScoreCount          `json:"distribution"`
-	Series       []SatisfactionPoint   `json:"series"`
-	ByTeam       []TeamSatisfaction    `json:"by_team"`
-	ByChannel    []ChannelSatisfaction `json:"by_channel"`
+	Distribution []ScoreCount          `json:"distribution" nullable:"false"`
+	Series       []SatisfactionPoint   `json:"series" nullable:"false"`
+	ByTeam       []TeamSatisfaction    `json:"by_team" nullable:"false"`
+	ByChannel    []ChannelSatisfaction `json:"by_channel" nullable:"false"`
 }
 
 // SatisfactionOutput 是满意度报表的 HTTP 响应。

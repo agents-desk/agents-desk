@@ -70,11 +70,11 @@ type ResponseTimeReport struct {
 	Period            PeriodMeta            `json:"period"`
 	FirstReply        DurationStats         `json:"first_reply"`
 	Resolution        DurationStats         `json:"resolution"`
-	Series            []ResponseTimePoint   `json:"series"`
-	FirstReplyBuckets []DurationBucket      `json:"first_reply_buckets"`
-	ResolutionBuckets []DurationBucket      `json:"resolution_buckets"`
-	ByTeam            []TeamResponseTime    `json:"by_team"`
-	ByChannel         []ChannelResponseTime `json:"by_channel"`
+	Series            []ResponseTimePoint   `json:"series" nullable:"false"`
+	FirstReplyBuckets []DurationBucket      `json:"first_reply_buckets" nullable:"false"`
+	ResolutionBuckets []DurationBucket      `json:"resolution_buckets" nullable:"false"`
+	ByTeam            []TeamResponseTime    `json:"by_team" nullable:"false"`
+	ByChannel         []ChannelResponseTime `json:"by_channel" nullable:"false"`
 }
 
 // ResponseTimeOutput 是响应时间报表的 HTTP 响应。

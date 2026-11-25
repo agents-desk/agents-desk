@@ -69,11 +69,11 @@ type TranslationModelBreakdown struct {
 type TranslationReport struct {
 	Period            PeriodMeta                      `json:"period"`
 	Summary           TranslationSummary              `json:"summary"`
-	Series            []TranslationPoint              `json:"series"`
-	ByOperation       []TranslationOperationBreakdown `json:"by_operation"`
-	ByModel           []TranslationModelBreakdown     `json:"by_model"`
-	DetectedLanguages []LanguageCount                 `json:"detected_languages"`
-	ReplyLanguages    []LanguageCount                 `json:"reply_languages"`
+	Series            []TranslationPoint              `json:"series" nullable:"false"`
+	ByOperation       []TranslationOperationBreakdown `json:"by_operation" nullable:"false"`
+	ByModel           []TranslationModelBreakdown     `json:"by_model" nullable:"false"`
+	DetectedLanguages []LanguageCount                 `json:"detected_languages" nullable:"false"`
+	ReplyLanguages    []LanguageCount                 `json:"reply_languages" nullable:"false"`
 }
 
 // TranslationOutput 是翻译报表的 HTTP 响应。
@@ -233,7 +233,7 @@ func (a *Translation) Handle(ctx context.Context, sub identity.Subject, p period
 	}
 
 	// 客户消息识别语言分布（timeline_items.derived->>'language'）
-	var detected []LanguageCount
+	detected := []LanguageCount{}
 	err = a.db.NewSelect().TableExpr("timeline_items it").
 		ColumnExpr("COALESCE(NULLIF(it.derived->>'language', ''), 'und') AS language, count(*) AS count").
 		Where("it.tenant_id = ? AND it.kind = ? AND it.actor_type = ? AND it.visibility = ? AND it.created_at >= ? AND it.created_at < ?",
@@ -246,9 +246,12 @@ func (a *Translation) Handle(ctx context.Context, sub identity.Subject, p period
 	if err != nil {
 		return nil, errors.Wrap(err, "report detected languages")
 	}
+	if detected == nil {
+		detected = []LanguageCount{}
+	}
 
 	// 成员回复译文目标语言分布（timeline_items.content->>'language'）
-	var replyLangs []LanguageCount
+	replyLangs := []LanguageCount{}
 	err = a.db.NewSelect().TableExpr("timeline_items it").
 		ColumnExpr("it.content->>'language' AS language, count(*) AS count").
 		Where("it.tenant_id = ? AND it.kind = ? AND it.actor_type = ? AND it.visibility = ? AND it.created_at >= ? AND it.created_at < ?",
@@ -260,6 +263,9 @@ func (a *Translation) Handle(ctx context.Context, sub identity.Subject, p period
 		Scan(ctx, &replyLangs)
 	if err != nil {
 		return nil, errors.Wrap(err, "report reply languages")
+	}
+	if replyLangs == nil {
+		replyLangs = []LanguageCount{}
 	}
 
 	return &TranslationReport{

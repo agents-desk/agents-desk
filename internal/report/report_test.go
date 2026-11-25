@@ -2,6 +2,7 @@ package report_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -319,4 +320,73 @@ func mustExec(t *testing.T, db *bun.DB, query string, args ...any) {
 	if _, err := db.ExecContext(context.Background(), query, args...); err != nil {
 		t.Fatalf("%s: %v", query, err)
 	}
+}
+
+// TestEmptyWorkspaceReportsReturnEmptyArrays 验证空工作区的全部报表在 JSON 序列化时均输出空数组 []，不返回 null。
+func TestEmptyWorkspaceReportsReturnEmptyArrays(t *testing.T) {
+	t.Parallel()
+	env := apptest.New(t)
+	ctx := context.Background()
+
+	tn, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+		Name: "empty", Slug: "empty", OwnerEmail: "owner@empty.com", OwnerName: "Owner", OwnerPassword: "password",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sub := identity.Subject{
+		Type:        member.Type,
+		ID:          tn.OwnerID,
+		Tenant:      tn.ID,
+		Permissions: auth.WithBase(auth.RolePermissions(auth.ScopeAll, auth.TenantPermissions.Values())),
+	}
+	p := period.Params{From: "2026-11-19", To: "2026-11-25", TimeZone: "UTC"}
+	f := report.FilterParams{Params: p}
+
+	assertNonNullArrays := func(name string, v any, fields ...string) {
+		t.Helper()
+		raw, err := json.Marshal(v)
+		if err != nil {
+			t.Fatalf("%s marshal: %v", name, err)
+		}
+		var obj map[string]any
+		if err := json.Unmarshal(raw, &obj); err != nil {
+			t.Fatalf("%s unmarshal: %v", name, err)
+		}
+		for _, field := range fields {
+			if _, ok := obj[field].([]any); !ok {
+				t.Fatalf("%s.%s should be JSON array, got %#v (raw=%s)", name, field, obj[field], string(raw))
+			}
+		}
+	}
+
+	conv, err := report.NewConversations(env.DB).Handle(ctx, sub, f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertNonNullArrays("conversations", conv, "series", "by_channel", "by_team", "by_tag", "by_language")
+
+	rt, err := report.NewResponseTime(env.DB).Handle(ctx, sub, f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertNonNullArrays("response_time", rt, "series", "first_reply_buckets", "resolution_buckets", "by_team", "by_channel")
+
+	sat, err := report.NewSatisfaction(env.DB).Handle(ctx, sub, f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertNonNullArrays("satisfaction", sat, "distribution", "series", "by_team", "by_channel")
+
+	mem, err := report.NewMembers(env.DB, env.Roles, env.Files).Handle(ctx, sub, f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertNonNullArrays("members", mem, "items")
+
+	tr, err := report.NewTranslation(env.DB).Handle(ctx, sub, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertNonNullArrays("translation", tr, "series", "by_operation", "by_model", "detected_languages", "reply_languages")
 }

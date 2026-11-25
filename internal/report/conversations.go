@@ -68,11 +68,11 @@ type TagVolume struct {
 type ConversationsReport struct {
 	Period     PeriodMeta           `json:"period"`
 	Summary    ConversationsSummary `json:"summary"`
-	Series     []ConversationsPoint `json:"series"`
-	ByChannel  []ChannelVolume      `json:"by_channel"`
-	ByTeam     []TeamVolume         `json:"by_team"`
-	ByTag      []TagVolume          `json:"by_tag"`
-	ByLanguage []LanguageCount      `json:"by_language"`
+	Series     []ConversationsPoint `json:"series" nullable:"false"`
+	ByChannel  []ChannelVolume      `json:"by_channel" nullable:"false"`
+	ByTeam     []TeamVolume         `json:"by_team" nullable:"false"`
+	ByTag      []TagVolume          `json:"by_tag" nullable:"false"`
+	ByLanguage []LanguageCount      `json:"by_language" nullable:"false"`
 }
 
 // ConversationsOutput 是会话报表的 HTTP 响应。
@@ -216,7 +216,7 @@ func (a *Conversations) Handle(ctx context.Context, sub identity.Subject, f Filt
 	}
 
 	// 7. 按标签分布（统计期内新建会话上的标签 Top 10）
-	var byTag []TagVolume
+	byTag := []TagVolume{}
 	qTags := a.db.NewSelect().TableExpr("conversation_tags ct").
 		Join("JOIN conversations c ON c.id = ct.conversation_id").
 		Join("JOIN tags tg ON tg.id = ct.tag_id").
@@ -229,9 +229,12 @@ func (a *Conversations) Handle(ctx context.Context, sub identity.Subject, f Filt
 	if err := qTags.Scan(ctx, &byTag); err != nil {
 		return nil, errors.Wrap(err, "report conversations by tag")
 	}
+	if byTag == nil {
+		byTag = []TagVolume{}
+	}
 
 	// 8. 按客户语言分布（统计期内新建会话）
-	var byLang []LanguageCount
+	byLang := []LanguageCount{}
 	qLang := a.db.NewSelect().TableExpr("conversations c").
 		ColumnExpr("COALESCE(NULLIF(c.language, ''), 'und') AS language, count(*) AS count").
 		Where("c.tenant_id = ? AND c.kind = ? AND c.created_at >= ? AND c.created_at < ?", sub.Tenant, conversation.Service, w.Start, w.End).
@@ -241,6 +244,9 @@ func (a *Conversations) Handle(ctx context.Context, sub identity.Subject, f Filt
 	applyConvFilters(qLang, f)
 	if err := qLang.Scan(ctx, &byLang); err != nil {
 		return nil, errors.Wrap(err, "report conversations by language")
+	}
+	if byLang == nil {
+		byLang = []LanguageCount{}
 	}
 
 	return &ConversationsReport{

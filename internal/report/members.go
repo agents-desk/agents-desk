@@ -52,7 +52,7 @@ type MemberMetrics struct {
 type MembersReport struct {
 	Period  PeriodMeta      `json:"period"`
 	Summary MembersSummary  `json:"summary"`
-	Items   []MemberMetrics `json:"items"`
+	Items   []MemberMetrics `json:"items" nullable:"false"`
 }
 
 // MembersOutput 是成员绩效报表的 HTTP 响应。
