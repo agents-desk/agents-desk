@@ -86,6 +86,15 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
           invalidate(context, "file"),
       }),
     },
+    site: {
+      /** site 分组全部查询的 key 前缀。 */
+      key: () => key("site"),
+      /** GET /site */
+      get: (...args: Parameters<Client["site"]["get"]>) => ({
+        queryKey: key("site", "get", ...args),
+        queryFn: () => client.site.get(...args),
+      }),
+    },
     tenant: {
       /** tenant 分组全部查询的 key 前缀。 */
       key: () => key("tenant"),

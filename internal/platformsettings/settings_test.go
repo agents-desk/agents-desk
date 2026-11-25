@@ -40,6 +40,10 @@ func TestGeneralAndMailSettings(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	pub, err := platformsettings.NewGetPublicSite(generalGroup).HTTP(ctx, &struct{}{})
+	if err != nil || pub.Body.SiteName != "Acme Desk" {
+		t.Fatalf("公开平台名称：%+v err=%v", pub, err)
+	}
 
 	saveMail := platformsettings.NewSaveMail(env.DB, mailGroup)
 

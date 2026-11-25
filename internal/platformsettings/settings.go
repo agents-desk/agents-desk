@@ -106,6 +106,33 @@ type MailBody struct {
 	Body Mail
 }
 
+// PublicSite 是无需登录即可读取的平台公开信息，供管理端与工作区端的顶栏、登录页和浏览器标签页显示。
+type PublicSite struct {
+	SiteName string `json:"site_name"` // 平台名称
+}
+
+// PublicSiteBody 是 GET /site 的响应体。
+type PublicSiteBody struct {
+	Body PublicSite
+}
+
+// GetPublicSite 读取平台公开信息。
+type GetPublicSite struct{ group *settings.Group[General] }
+
+// NewGetPublicSite 返回读取平台公开信息的动作。
+func NewGetPublicSite(group *settings.Group[General]) *GetPublicSite {
+	return &GetPublicSite{group: group}
+}
+
+// HTTP 处理 GET /site，仅返回公开的平台名称。
+func (a *GetPublicSite) HTTP(ctx context.Context, _ *struct{}) (*PublicSiteBody, error) {
+	v, err := a.group.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &PublicSiteBody{Body: PublicSite{SiteName: v.SiteName}}, nil
+}
+
 // GetGeneral 读取平台常规设置。
 type GetGeneral struct{ group *settings.Group[General] }
 

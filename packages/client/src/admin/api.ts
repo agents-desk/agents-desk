@@ -256,6 +256,10 @@ export interface PlatformsettingsMail {
   from_name: string
 }
 
+export interface PlatformsettingsPublicSite {
+  site_name: string
+}
+
 export interface QueueBulkResult {
   /** 处理的条数 */
   count: number
@@ -891,6 +895,16 @@ export function createClient(options: ClientOptions) {
        */
       runs: (input: ScheduleRunsInput = {}): Promise<OffsetScheduleRun> =>
         rt.request<OffsetScheduleRun>({ method: "GET", path: `/schedules/runs`, query: { "page": input["page"], "per_page": input["per_page"], "status": input["status"], "task": input["task"] } }),
+    },
+    /** operationId 以 site- 开头的接口。 */
+    site: {
+      /**
+       * 读取平台公开信息
+       *
+       * GET /site
+       */
+      get: (): Promise<PlatformsettingsPublicSite> =>
+        rt.request<PlatformsettingsPublicSite>({ method: "GET", path: `/site`, public: true }),
     },
     /** operationId 以 system- 开头的接口。 */
     system: {

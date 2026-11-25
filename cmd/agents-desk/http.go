@@ -226,6 +226,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		adminnotify.RegisterRoutes(api, require(), a.db, a.hub)
 		tenant.RegisterRoutes(api, require(auth.TenantsRead), require(auth.TenantsManage), require(auth.TenantsImpersonate), a.db, a.roles, a.memberLogins, a.memberTokens, addr, memberHooks, a.creds)
 		tenant.RegisterExportRoutes(api, require(auth.TenantsRead), a.db, a.memberLogins, addr, a.exporter, a.hub)
+		platformsettings.RegisterPublicRoutes(api, a.generalSettings)
 		platformsettings.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.generalSettings, a.mailSettings)
 		llm.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.llmSettings)
 		flags.RegisterRoutes(api, require(auth.FeaturesManage), a.db, a.features)
@@ -264,6 +265,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 			Credentials:   a.creds,
 		})
 		requireMember := api.RequireToken()
+		platformsettings.RegisterPublicRoutes(api, a.generalSettings)
 		member.RegisterRoutes(api, requireMember, a.db, a.memberLogins, a.memberTokens, a.files, a.cfg.Filesystem.MaxUploadSize, a.cfg.MemberToken.Lifetime)
 		tenant.RegisterMemberRoutes(api, requireMember, a.db, a.roles, addr)
 	})

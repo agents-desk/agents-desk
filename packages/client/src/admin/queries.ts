@@ -283,6 +283,15 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         queryFn: () => client.schedule.runs(...args),
       }),
     },
+    site: {
+      /** site 分组全部查询的 key 前缀。 */
+      key: () => key("site"),
+      /** GET /site */
+      get: (...args: Parameters<Client["site"]["get"]>) => ({
+        queryKey: key("site", "get", ...args),
+        queryFn: () => client.site.get(...args),
+      }),
+    },
     system: {
       /** system 分组全部查询的 key 前缀。 */
       key: () => key("system"),

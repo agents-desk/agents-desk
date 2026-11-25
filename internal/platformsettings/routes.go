@@ -34,3 +34,16 @@ func RegisterRoutes(api *rest.API, requireManage func(*huma.Operation), db *bun.
 		Update: "mail-settings-update",
 	})
 }
+
+// RegisterPublicRoutes 注册免登录的平台公开信息接口（GET /site），供管理端与工作区端读取平台名称。
+func RegisterPublicRoutes(api *rest.API, general *settings.Group[General]) {
+	op := huma.Operation{
+		OperationID: "site-get",
+		Method:      http.MethodGet,
+		Path:        "/site",
+		Summary:     "读取平台公开信息",
+		Tags:        []string{"site"},
+	}
+	rest.Public()(&op)
+	rest.Register(api, op, NewGetPublicSite(general).HTTP)
+}

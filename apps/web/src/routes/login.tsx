@@ -1,6 +1,8 @@
+import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { host } from "@go-tenon/host"
 import { BrowserSignIn, CenteredAuthLayout, LoginForm, useT } from "@go-tenon/ui"
+import { apiKit } from "../api"
 import { login } from "../auth"
 import { TestAccountSignIn } from "../test-account"
 
@@ -15,10 +17,11 @@ export const Route = createFileRoute("/login")({
 function Login() {
   const { redirect } = Route.useSearch()
   const t = useT()
+  const site = useQuery(apiKit.queries.site.get()) // 平台名称来自系统设置，免登录读取
   // 在桌面端（Electron 等宿主）中，用户在系统浏览器中登录；在网页中用邮箱和密码登录。
   const desktop = host()
   return (
-    <CenteredAuthLayout brand={t("app.web")} title={t("login.title")} description={t("login.description")}>
+    <CenteredAuthLayout brand={site.data?.site_name ?? ""} title={t("login.title")} description={t("login.description")}>
       {desktop ? (
         <BrowserSignIn signIn={desktop.auth.signIn} redirect={redirect} />
       ) : (

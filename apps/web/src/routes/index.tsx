@@ -1,8 +1,9 @@
 import { Badge, Button, Group, Paper, Stack, Text } from "@mantine/core"
+import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, Link, redirect } from "@tanstack/react-router"
 import { IconChevronRight } from "@tabler/icons-react"
 import { CenteredAuthLayout, requireAuth, useApp, useT } from "@go-tenon/ui"
-import { api } from "../api"
+import { api, apiKit } from "../api"
 import { logout } from "../auth"
 
 // 登录后的去处：只属于一个可以进入的工作区时直接进入；属于多个时在这里选择；一个都没有时提示联系管理员。
@@ -21,6 +22,7 @@ function ChooseTenant() {
   const mine = Route.useLoaderData()
   const app = useApp()
   const t = useT()
+  const site = useQuery(apiKit.queries.site.get())
   const signOut = async () => {
     try {
       await logout()
@@ -29,7 +31,7 @@ function ChooseTenant() {
     }
   }
   return (
-    <CenteredAuthLayout brand={t("app.web")} title={t("choose_tenant.title")}>
+    <CenteredAuthLayout brand={site.data?.site_name ?? ""} title={t("choose_tenant.title")}>
       <Stack gap="sm">
         {mine.length === 0 && <Text c="dimmed">{t("choose_tenant.none")}</Text>}
         {mine.map((tn) =>

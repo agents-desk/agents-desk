@@ -138,6 +138,10 @@ export interface Meta {
   width?: number
 }
 
+export interface PlatformsettingsPublicSite {
+  site_name: string
+}
+
 export interface TenantMineItem {
   name: string
   slug: string
@@ -218,6 +222,16 @@ export function createClient(options: ClientOptions) {
        */
       upload: (form: FileUploadForm): Promise<File> =>
         rt.request<File>({ method: "POST", path: `/files`, form }),
+    },
+    /** operationId 以 site- 开头的接口。 */
+    site: {
+      /**
+       * 读取平台公开信息
+       *
+       * GET /site
+       */
+      get: (): Promise<PlatformsettingsPublicSite> =>
+        rt.request<PlatformsettingsPublicSite>({ method: "GET", path: `/site`, public: true }),
     },
     /** operationId 以 tenant- 开头的接口。 */
     tenant: {
