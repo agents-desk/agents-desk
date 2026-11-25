@@ -1,9 +1,10 @@
 import "@go-tenon/ui/base.css"
 import "../widget.css"
-import { type ReactNode, useMemo, useState } from "react"
+import { telemetryMeta } from "@go-tenon/start"
+import type { RouterContext } from "@go-tenon/ui"
 import { ColorSchemeScript, MantineProvider, mantineHtmlProps } from "@mantine/core"
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts, useRouter } from "@tanstack/react-router"
-import type { RouterContext } from "@go-tenon/ui"
+import { type ReactNode, useMemo, useState } from "react"
 import { i18n } from "../i18n"
 import { buildWidgetTheme, DEFAULT_WIDGET_COLOR, WidgetBrandContext } from "../theme"
 
@@ -11,13 +12,17 @@ import { buildWidgetTheme, DEFAULT_WIDGET_COLOR, WidgetBrandContext } from "../t
 // 配色固定为浅色，品牌色随渠道配置动态生成；嵌入时页面背景透明（host.ts）。
 // viewport-fit=cover 让页面延伸到刘海和底部横条下面，安全区域由 widget.css 留出。
 export const Route = createRootRouteWithContext<RouterContext>()({
-  head: () => ({
-    meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { title: i18n.t("app.widget") },
-    ],
-  }),
+  head: () => {
+    const telemetry = telemetryMeta()
+    return {
+      meta: [
+        { charSet: "utf-8" },
+        { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+        { title: i18n.t("app.widget") },
+        ...(telemetry ? [{ name: "tenon-telemetry", content: telemetry }] : []),
+      ],
+    }
+  },
   shellComponent: Document,
   component: Outlet,
 })

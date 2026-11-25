@@ -25,6 +25,7 @@ import (
 	"github.com/go-tenon/tenon/i18n"
 	"github.com/go-tenon/tenon/imgproxy"
 	"github.com/go-tenon/tenon/lock/pglock"
+	"github.com/go-tenon/tenon/logging"
 	"github.com/go-tenon/tenon/login"
 	"github.com/go-tenon/tenon/natsx"
 	"github.com/go-tenon/tenon/notification"
@@ -41,6 +42,7 @@ import (
 	"github.com/go-tenon/tenon/search/searchcmd"
 	"github.com/go-tenon/tenon/settings"
 	"github.com/go-tenon/tenon/sheet/exports"
+	"github.com/go-tenon/tenon/telemetry"
 
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/platformadmin"
@@ -53,6 +55,8 @@ import (
 // Config 是应用的配置：config/app.yaml。
 type Config struct {
 	HTTP         httpx.Config      `yaml:"http"`
+	Logs         logging.Config    `yaml:"logs"`
+	Telemetry    telemetry.Config  `yaml:"telemetry"`
 	Database     database.Config   `yaml:"database"`
 	NATS         natsx.Config      `yaml:"nats"`
 	Queue        queue.Config      `yaml:"queue"`
@@ -67,10 +71,13 @@ type Config struct {
 	DevServers   map[string]string `yaml:"dev_servers"`   // 各前端开发服务器的地址，按前端的名称（apps 中的目录名）；只在 tenon dev 时有值，它把地址写入 .tenon/dev.yaml，页面请求转给对应的开发服务器
 }
 
-// SetDefaults 给出开发时的对外地址。
+// SetDefaults 给出开发时的对外地址与默认遥测服务名。
 func (c *Config) SetDefaults() {
 	if c.HTTP.PublicURL == "" {
 		c.HTTP.PublicURL = "http://localhost:8081"
+	}
+	if c.Telemetry.Service == "" {
+		c.Telemetry.Service = "agents-desk"
 	}
 }
 

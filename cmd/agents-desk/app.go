@@ -44,6 +44,7 @@ import (
 	"github.com/go-tenon/tenon/schedule/scheduleapi"
 	"github.com/go-tenon/tenon/settings"
 	"github.com/go-tenon/tenon/sheet/exports"
+	"github.com/go-tenon/tenon/telemetry"
 
 	"agents-desk/internal/auth"
 	"agents-desk/internal/automation"
@@ -67,6 +68,7 @@ type App struct {
 	cfg   Config
 	db    *bun.DB
 	nc    *nats.Conn
+	tel   *telemetry.Providers   // OpenTelemetry 指标、链路和日志提供方；离线构造路由时为 nil
 	hub   *broadcast.Hub         // 经 NATS 把消息送到每个实例：实时推送
 	creds *broadcast.Credentials // 凭据撤销、管理员停用时通知长连接立即复查
 	// presence 保存会话频道的在线成员（谁正在看），所有实例共用 NATS 中的存储
@@ -115,12 +117,17 @@ func (a *App) downstream() conversation.Downstream {
 	return down
 }
 
-// open 安装日志器，连接 PostgreSQL 和 NATS，确保预置的角色存在，创建账号、权限和设置的存储。serve 和需要资源的命令执行时调用它，
+// open 安装可观测性与日志器，连接 PostgreSQL 和 NATS，确保预置的角色存在，创建账号、权限和设置的存储。serve 和需要资源的命令执行时调用它，
 // 登记到 stack 的资源在进程退出时按相反顺序关闭。
 func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
-	slog.SetDefault(logging.New(logging.Config{}))
+	tel, err := telemetry.Open(ctx, cfg.Telemetry)
+	if err != nil {
+		return nil, err
+	}
+	stack.MustAdd("telemetry", tel.Shutdown)
+	slog.SetDefault(logging.New(cfg.Logs, logging.Export(tel.Logs)))
 
-	db, err := database.Open(ctx, cfg.Database)
+	db, err := database.Open(ctx, cfg.Database, database.WithTelemetry(tel.Meters, tel.Tracers))
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +210,7 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 
 	tgClient := telegram.NewClient(outbound.New(outbound.Options{Timeout: 30 * time.Second}))
 	return &App{
-		cfg: cfg, db: db, nc: nc, hub: hub, creds: creds, presence: presence, roles: roles,
+		cfg: cfg, db: db, nc: nc, tel: tel, hub: hub, creds: creds, presence: presence, roles: roles,
 		adminLogins:     adminLogins,
 		adminTokens:     apitoken.NewStore(db, cfg.AdminToken, apitoken.Credentials(creds)),
 		memberLogins:    memberLogins,
@@ -240,7 +247,11 @@ func parts(a *App) []command.Part {
 
 // worker 装配队列 worker：把业务事务中发布的任务转发到 JetStream 并处理。各模块的任务在这里登记。
 func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
-	w := queue.NewWorker(a.db, a.nc, a.cfg.Queue)
+	var opts []queue.WorkerOption
+	if a.tel != nil {
+		opts = append(opts, queue.WithTelemetry(a.tel.Meters, a.tel.Tracers))
+	}
+	w := queue.NewWorker(a.db, a.nc, a.cfg.Queue, opts...)
 	down := a.downstream()
 	conversation.RegisterJobs(w, a.db, a.channels, down)
 	translation.RegisterJobs(w, a.db, a.locker, a.translator, down)
@@ -253,7 +264,11 @@ func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
 
 // tasks 创建调度器并注册全部定时任务：调度器进程、schedules 命令和管理员端定时任务面板共用这一份定义。
 func (a *App) tasks() *schedule.Scheduler {
-	sched := schedule.New(pgschedule.New(a.db), a.cfg.Schedule, schedule.WithObserver(scheduleapi.Observer(a.db)))
+	opts := []schedule.SchedulerOption{schedule.WithObserver(scheduleapi.Observer(a.db))}
+	if a.tel != nil {
+		opts = append(opts, schedule.WithTelemetry(a.tel.Meters, a.tel.Tracers))
+	}
+	sched := schedule.New(pgschedule.New(a.db), a.cfg.Schedule, opts...)
 	sched.Add("files:cleanup", "*/5 * * * *", schedule.Cleanup(a.files.Cleanup, 500),
 		schedule.Label("schedule.task.files_cleanup.label"),
 		schedule.Describe("schedule.task.files_cleanup.description"))

@@ -64,7 +64,15 @@ import (
 // /t/{slug}/realtime 是工作区端的实时连接（WebSocket），成员在其中订阅自己的个人频道；/w/{channel}/realtime 是聊天窗口的
 // 实时连接，客户在其中订阅自己的频道，收到成员的回复。
 func (a *App) serveHTTP(d *command.Daemon) (func(context.Context) error, error) {
-	pages, err := frontend.New(apps.Dist, frontend.Options{DevServers: a.cfg.DevServers, CSP: a.pageCSP})
+	feOpts := frontend.Options{
+		DevServers: a.cfg.DevServers,
+		CSP:        a.pageCSP,
+		Telemetry:  a.cfg.Telemetry,
+	}
+	if a.tel != nil {
+		feOpts.MeterProvider = a.tel.Meters
+	}
+	pages, err := frontend.New(apps.Dist, feOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -104,6 +112,10 @@ func (a *App) pageCSP(r *http.Request, nonce string) string {
 		frontend.Origin(a.cfg.Filesystem.Disks.S3.PublicURL),
 		frontend.Origin(a.cfg.Filesystem.Disks.Local.PublicURL),
 	)
+	if origin := a.cfg.Telemetry.Browser.Origin(); origin != "" {
+		p.AddConnectSrc(origin)
+		p.AddWorkerSrc("blob:")
+	}
 	if r.URL.Path != "/widget" && !strings.HasPrefix(r.URL.Path, "/widget/") {
 		return p.String()
 	}
@@ -141,7 +153,7 @@ func (a *App) memberImpersonation() *identity.Impersonation {
 // 同一套成员 token、会话 cookie、租户、代为登录策略和权限；成员在其中订阅自己的个人频道（push.Register），以及能看到的会话的频道
 // （conversation.RegisterRealtime：谁正在看、谁正在输入）。
 func (a *App) newRealtime() (*realtime.Realtime, error) {
-	rt, err := realtime.New(a.hub, realtime.Options{
+	opts := realtime.Options{
 		Validate:      a.memberTokens.Validate,
 		Accounts:      identity.Accounts{member.Type: tenant.Resolve(member.Resolve(a.db, a.roles))},
 		Impersonation: a.memberImpersonation(),
@@ -150,7 +162,11 @@ func (a *App) newRealtime() (*realtime.Realtime, error) {
 		Tenant:        func(r *http.Request) string { return tenant.IDFrom(r.Context()) },
 		CheckTenant:   tenant.CheckEnabled(a.db),
 		Presence:      a.presence,
-	})
+	}
+	if a.tel != nil {
+		opts.MeterProvider = a.tel.Meters
+	}
+	rt, err := realtime.New(a.hub, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -162,13 +178,17 @@ func (a *App) newRealtime() (*realtime.Realtime, error) {
 // newWidgetRealtime 创建聊天窗口的实时连接，挂在 /w/{channel}/realtime（前面是 widget.Middleware）。它只接受联系人的令牌：
 // 聊天窗口在第三方网站的页面中，令牌由 SDK 传入，不用 cookie；客户只能订阅自己在这个聊天插件中的频道（widget.RegisterRealtime）。
 func (a *App) newWidgetRealtime() (*realtime.Realtime, error) {
-	rt, err := realtime.New(a.hub, realtime.Options{
+	opts := realtime.Options{
 		Validate:    a.contactTokens.Validate,
 		Accounts:    identity.Accounts{contact.Type: widget.Resolve(a.db)},
 		Credentials: a.creds,
 		Tenant:      func(r *http.Request) string { return widget.TenantFrom(r.Context()) },
 		CheckTenant: tenant.CheckEnabled(a.db),
-	})
+	}
+	if a.tel != nil {
+		opts.MeterProvider = a.tel.Meters
+	}
+	rt, err := realtime.New(a.hub, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -181,6 +201,9 @@ func (a *App) newWidgetRealtime() (*realtime.Realtime, error) {
 // 它只保存 App 的字段、处理请求时才使用，所以 docRouter 可以用没有打开资源的 App 调用它。
 func (a *App) routes(pages http.Handler) chi.Router {
 	router := chi.NewRouter()
+	if a.tel != nil {
+		router.Use(httpx.Telemetry(a.tel.Meters, a.tel.Tracers))
+	}
 	router.Use(httpx.Defaults(a.cfg.HTTP,
 		httpx.Languages(i18n.MustNew("zh-CN", locales.FS)),
 		httpx.BodyLimitFor(a.bodyLimitFor),

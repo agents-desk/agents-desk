@@ -31,6 +31,8 @@
     "@mantine/notifications": "^9.8.1",
     "@mantine/nprogress": "^9.8.1",
     "@mantine/spotlight": "^9.8.1",
+    "@openobserve/browser-logs": "^0.4.3",
+    "@openobserve/browser-rum": "^0.4.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "@tabler/icons-react": "^3.50.0",

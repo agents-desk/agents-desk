@@ -1,16 +1,25 @@
 import "@go-tenon/ui/styles.css"
-import type { ReactNode } from "react"
+import { telemetryMeta } from "@go-tenon/start"
+import { type RouterContext, UIProvider } from "@go-tenon/ui"
 import { ColorSchemeScript, mantineHtmlProps } from "@mantine/core"
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts, useRouter } from "@tanstack/react-router"
-import { type RouterContext, UIProvider } from "@go-tenon/ui"
+import type { ReactNode } from "react"
 import { i18n } from "../i18n"
 import { theme } from "../theme"
 
 // 根路由：整个 HTML 文档。页面在 <Outlet /> 中。
 export const Route = createRootRouteWithContext<RouterContext>()({
-  head: () => ({
-    meta: [{ charSet: "utf-8" }, { name: "viewport", content: "width=device-width, initial-scale=1" }, { title: i18n.t("app.admin") }],
-  }),
+  head: () => {
+    const telemetry = telemetryMeta()
+    return {
+      meta: [
+        { charSet: "utf-8" },
+        { name: "viewport", content: "width=device-width, initial-scale=1" },
+        { title: i18n.t("app.admin") },
+        ...(telemetry ? [{ name: "tenon-telemetry", content: telemetry }] : []),
+      ],
+    }
+  },
   shellComponent: Document,
   component: Outlet,
 })

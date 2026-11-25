@@ -3,10 +3,9 @@ import "@go-tenon/ui/styles.css"
 import "@mantine/charts/styles.css"
 import "../desk.css"
 import "../command-palette.css"
-import type { ReactNode } from "react"
-import { ColorSchemeScript, mantineHtmlProps } from "@mantine/core"
-import { createRootRouteWithContext, HeadContent, Outlet, Scripts, useRouter } from "@tanstack/react-router"
+import { telemetryMeta } from "@go-tenon/start"
 import { type RouterContext, UIProvider } from "@go-tenon/ui"
+import { ColorSchemeScript, mantineHtmlProps } from "@mantine/core"
 import {
   IconAddressBook,
   IconAdjustmentsHorizontal,
@@ -17,14 +16,24 @@ import {
   IconMessageBolt,
   IconStar,
 } from "@tabler/icons-react"
+import { createRootRouteWithContext, HeadContent, Outlet, Scripts, useRouter } from "@tanstack/react-router"
+import type { ReactNode } from "react"
 import { i18n } from "../i18n"
 import { theme } from "../theme"
 
 // 根路由：整个 HTML 文档。页面在 <Outlet /> 中。
 export const Route = createRootRouteWithContext<RouterContext>()({
-  head: () => ({
-    meta: [{ charSet: "utf-8" }, { name: "viewport", content: "width=device-width, initial-scale=1" }, { title: i18n.t("app.web") }],
-  }),
+  head: () => {
+    const telemetry = telemetryMeta()
+    return {
+      meta: [
+        { charSet: "utf-8" },
+        { name: "viewport", content: "width=device-width, initial-scale=1" },
+        { title: i18n.t("app.web") },
+        ...(telemetry ? [{ name: "tenon-telemetry", content: telemetry }] : []),
+      ],
+    }
+  },
   shellComponent: Document,
   component: Outlet,
 })

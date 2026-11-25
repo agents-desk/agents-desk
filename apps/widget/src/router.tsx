@@ -1,6 +1,7 @@
 import { cspNonce } from "@go-tenon/start"
 import { createApp, NotFoundPage, RouteError } from "@go-tenon/ui"
 import { i18n } from "./i18n"
+import { bindObserve, reportRouteError } from "./observe"
 import { routeTree } from "./routeTree.gen"
 
 // getRouter 创建应用：路由、TanStack Query、界面文字，见框架文档的“应用骨架”。
@@ -10,8 +11,10 @@ export function getRouter() {
     id: "widget",
     routeTree,
     i18n,
+    onError: reportRouteError,
     router: { ssr: { nonce: cspNonce() }, defaultErrorComponent: RouteError, defaultNotFoundComponent: NotFoundPage },
   })
+  bindObserve(app)
   return app.router
 }
 

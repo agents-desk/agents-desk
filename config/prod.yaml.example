@@ -1,0 +1,50 @@
+# 生产环境独立配置模板：复制为 config/prod.yaml 后填写真实值（config/prod.yaml 已在 .gitignore 中，不提交仓库）。
+# 未显式填写的超时、健康探针过滤等均由框架默认值补全。
+http:
+  addr: "127.0.0.1:8081"                # 仅监听本机回环，由同机 Nginx 反向代理转发
+  public_url: "https://example.com"     # 应用对外的访问地址
+  client_ip:
+    trusted_proxies:
+      - "127.0.0.1/32"                  # 同机 Nginx 反代网段，用于还原客户端真实 IP
+  access_log:
+    disabled: true                      # 反向代理已记录访问日志时关闭应用访问日志；也可改为 logs.levels.http: warn 只记 4xx/5xx
+
+logs:
+  level: info
+
+# 可观测性（OpenObserve）：以下示例默认注释，直接拷贝使用不会上报指标或前端数据；生产启用时取消注释并填写。
+telemetry:
+  service: agents-desk
+  # endpoint: https://o2.example.com/api/default
+  # headers:
+  #   Authorization: Basic <base64(user:password)>
+  # version: ""
+  # browser:
+  #   site: https://o2.example.com
+  #   client_token: <openobserve-rum-client-token>
+  #   organization: default
+  #   environment: production
+
+# 生产 PostgreSQL 连接串（密码含 @ 等特殊字符需 URL 编码；未启用 TLS 时设为 sslmode=disable）。
+database:
+  dsn: postgres://agents_desk:change-me@127.0.0.1:5432/agents_desk?sslmode=disable
+
+# 生产 NATS JetStream 地址（要求 NATS 2.15+ 且启用 -js）。
+nats:
+  url: nats://agents-desk:change-me@127.0.0.1:4222
+
+queue:
+  stream: agents_desk_jobs
+
+# 应用密钥：执行 openssl rand -base64 32 生成，生成后保持固定。
+crypt:
+  key: "replace-with-openssl-rand-base64-32"
+
+# 上传文件存储：单机使用本地绝对路径（归属服务用户），多机改用 S3。
+filesystem:
+  default_disk: local
+  max_upload_size: 50MiB
+  disks:
+    local:
+      root: /opt/agents-desk/storage/files
+      public_url: /storage
