@@ -193,7 +193,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		},
 	}))
 
-	addr := tenant.Addresses{PublicURL: a.cfg.PublicURL}
+	addr := tenant.Addresses{PublicURL: a.cfg.HTTP.PublicURL}
 	// 成员离开工作区之后（移出成员、更换主管理员），在同一个事务中：他负责的未关闭会话放回团队收件箱重新分配，
 	// 团队收件箱把他移出，个人快捷回复和个人视图一并清理
 	removeViews := func(ctx context.Context, tx database.Tx, tenantID, memberID string) error {
@@ -301,8 +301,8 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		macro.RegisterRoutes(api, require, a.db, a.roles)
 		conversation.RegisterRoutes(api, require, a.db, a.downstream())
 		file.RegisterRoutes(api, require(auth.ConversationsReply), a.files, a.cfg.Filesystem.MaxUploadSize)
-		widget.RegisterRoutes(api, require, a.db, a.crypt, a.cfg.PublicURL)
-		telegram.RegisterRoutes(api, require, a.db, a.crypt, a.telegram, a.cfg.PublicURL)
+		widget.RegisterRoutes(api, require, a.db, a.crypt, a.cfg.HTTP.PublicURL)
+		telegram.RegisterRoutes(api, require, a.db, a.crypt, a.telegram, a.cfg.HTTP.PublicURL)
 		translation.RegisterRoutes(api, require, a.db, a.translator, translation.NewIncoming(a.db, a.locker, a.translator, a.downstream()), a.translationSettings)
 		automation.RegisterRoutes(api, require, a.db)
 		report.RegisterRoutes(api, require, a.db, a.roles, a.files)
