@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
 
       # 数据库测试用 dbtest 为每个测试建一个临时库。队列经由逻辑复制转发任务，每个测试数据库一个复制槽；
-      # 服务容器不能传启动参数，所以用 docker run 启动，参数与 compose.test.yml 相同。
+      # 通过 docker run 显式开启 wal_level=logical 并调高复制槽与连接数上限。
       - name: Start PostgreSQL
         run: |
           docker run -d --name postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:18 \

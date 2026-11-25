@@ -24,14 +24,17 @@ telemetry:
   #   organization: default
   #   environment: production
 
+# 本机开发复用共享常驻 PostgreSQL，通过 .env 中的 DATABASE_URL 指定项目或 worktree 的独立数据库。
 database:
-  dsn: ${DATABASE_URL:-postgres://agents_desk:agents_desk@127.0.0.1:15432/agents_desk?sslmode=disable}
+  dsn: ${DATABASE_URL:-postgres://postgres:postgres@127.0.0.1:5432/agents_desk?sslmode=disable}
 
+# 本机开发复用共享常驻 NATS（开启 JetStream），通过 .env 中的 NATS_URL 覆盖。
 nats:
-  url: ${NATS_URL:-nats://127.0.0.1:14222}
+  url: ${NATS_URL:-nats://127.0.0.1:4222}
 
+# 队列 stream 区分共用一套 NATS 的应用与 worktree，可通过 .env 中的 QUEUE_STREAM 覆盖。
 queue:
-  stream: agents_desk_jobs
+  stream: ${QUEUE_STREAM:-agents_desk_jobs}
 
 # 应用密钥：32 字节随机数的 base64（openssl rand -base64 32），必填：生产环境用环境变量 APP_KEY，本机写在 config/local.yaml。
 # 它派生登录验证码的密钥，加密保存聊天插件的身份验证密钥，以后也用于签名链接。

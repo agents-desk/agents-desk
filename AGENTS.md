@@ -24,13 +24,12 @@ agents-desk 是团队的综合服务平台，以 AI 为核心，以聊天为基�
 
 - Go，版本以 [go.mod](go.mod) 为准；
 - [Bun](https://bun.sh)，安装前端依赖、运行前端的开发服务器；
-- Docker，在本机启动 PostgreSQL 和 NATS。
+- Docker，仅用于开发和测试期：全机共享常驻 PostgreSQL、NATS 等依赖，各项目与 `git worktree` 通过 `.env` 和 `config/local.yaml` 隔离（设置 `TENON_WT_SETUP` 时 `bun run dev` 自动初始化）。
 
 第一次运行：
 
 ```bash
-docker compose up -d --wait                                          # PostgreSQL（127.0.0.1:15432）和 NATS（127.0.0.1:14222）
-printf 'crypt:\n  key: %s\n' "$(openssl rand -base64 32)" > config/local.yaml   # 应用密钥，只在本机
+printf 'crypt:\n  key: %s\n' "$(openssl rand -base64 32)" > config/local.yaml   # 应用密钥，只在本机（或写入 .env 的 APP_KEY）
 go run ./cmd/agents-desk migrate up
 go run ./cmd/agents-desk seed                                        # 开发用的数据：平台管理员 admin@example.com、示例工作区 demo（主管理员 owner@、管理员 manager@、坐席 agent@example.com，团队收件箱“一线客服”，测试渠道和 10 个示例会话），密码都是 password
 bun run dev                                                          # 管理员端在 http://localhost:8081/admin/
@@ -73,7 +72,7 @@ tenon/                   tenon 同步的框架前端包与文档（随仓库提�
 
 ## 测试数据库
 
-依赖数据库的测试用 `internal/apptest` 的 `New`（其中是 `database/dbtest` 的 `Open`）为每个测试建一个临时库，需要环境变量 `POSTGRES_TEST_URL`。本机用 `docker compose -f compose.test.yml up -d --wait` 启动测试用的 PostgreSQL，然后 `export POSTGRES_TEST_URL='postgres://postgres:postgres@127.0.0.1:15433/postgres?sslmode=disable'`。
+依赖数据库的测试用 `internal/apptest` 的 `New`（其中是 `database/dbtest` 的 `Open`）为每个测试建一个临时库，直接读取环境中的 `POSTGRES_TEST_URL`（指向本机共享常驻测试 PostgreSQL）。
 
 ## 依赖的文档
 

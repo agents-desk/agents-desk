@@ -9,12 +9,11 @@
 
 ### 开始
 
-需要 Go（版本见 [go.mod](go.mod)）、[Bun](https://bun.sh) 和 Docker：
+需要 Go（版本见 [go.mod](go.mod)）、[Bun](https://bun.sh)，以及本机共享常驻的 PostgreSQL 18+ 与开启 JetStream 的 NATS 2.15+（默认连接 `127.0.0.1:5432` 与 `127.0.0.1:4222`，通过 `.env` 中的 `DATABASE_URL`、`NATS_URL`、`QUEUE_STREAM` 覆盖；配置了 `TENON_WT_SETUP` 时 `bun run dev` 自动初始化 `.env` 与 `config/local.yaml`）：
 
 ```bash
 bun install
-docker compose up -d --wait      # PostgreSQL 和 NATS
-printf 'crypt:\n  key: %s\n' "$(openssl rand -base64 32)" > config/local.yaml   # 应用密钥，只在本机
+printf 'crypt:\n  key: %s\n' "$(openssl rand -base64 32)" > config/local.yaml   # 应用密钥，只在本机（或写入 .env 的 APP_KEY）
 go run ./cmd/agents-desk migrate up
 go run ./cmd/agents-desk seed    # 开发用的账号和示例工作区，密码都是 password
 bun run dev      # 工作区端在 http://localhost:8081，管理员端在 /admin/，接口文档在 /api/docs、/admin/api/docs
