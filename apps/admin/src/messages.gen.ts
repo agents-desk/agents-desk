@@ -78,12 +78,45 @@ export const messages = {
     "nav.features": "Feature flags",
     "nav.general_settings": "System settings",
     "nav.model": "Model APIs",
-    "nav.ops": "Operations",
-    "nav.platform_settings": "Platform settings",
+    "nav.overview": "Overview",
     "nav.profile": "Profile",
     "nav.queue": "Queue",
     "nav.schedules": "Schedules",
     "nav.tenants": "Workspaces",
+    "overview.admins_hint": "{{.active}} active · {{.disabled}} disabled",
+    "overview.admins_label": "Platform admins",
+    "overview.col_created": "Created",
+    "overview.col_status": "Status",
+    "overview.col_workspace": "Workspace",
+    "overview.conversations_7d": "Conversations (7d)",
+    "overview.conversations_7d_sub": "{{.today}} today · {{.open}} open now",
+    "overview.conversations_hint": "{{.total}} total · {{.today}} today",
+    "overview.conversations_label": "Open conversations",
+    "overview.description": "Summary of workspaces, active conversations, model usage, and queue health (time zone: {{.tz}}).",
+    "overview.llm_calls_7d": "Model calls (7d)",
+    "overview.llm_calls_7d_sub": "{{.today}} today · {{.failed}} failed · {{.cost}}",
+    "overview.load_failed": "Failed to load overview",
+    "overview.members_hint": "{{.contacts}} contacts across workspaces",
+    "overview.members_label": "Workspace members",
+    "overview.new_tenants_7d": "New workspaces (7d)",
+    "overview.new_tenants_7d_sub": "{{.total}} workspaces total",
+    "overview.no_sections": "No overview sections are available for your permissions. Open Profile from the top-right menu to view your account.",
+    "overview.queue_failed_action": "Inspect queue",
+    "overview.queue_failed_alert": "{{.count}} failed queue job(s) need attention",
+    "overview.queue_failed_count": "{{.count}} failed",
+    "overview.queue_healthy": "Healthy",
+    "overview.queue_label": "Queue jobs",
+    "overview.queue_pending_sub": "{{.pending}} pending · {{.failed}} failed",
+    "overview.recent_audits_empty": "No platform activity yet",
+    "overview.recent_audits_title": "Recent platform activity",
+    "overview.recent_tenants_empty": "No workspaces yet",
+    "overview.recent_tenants_title": "Recent workspaces",
+    "overview.status_active": "Active",
+    "overview.status_disabled": "Disabled",
+    "overview.tenants_disabled_badge": "{{.count}} disabled",
+    "overview.tenants_hint": "{{.active}} active · {{.disabled}} disabled",
+    "overview.tenants_label": "Workspaces",
+    "overview.view_all": "View all",
     "profile.avatar": "Avatar",
     "profile.avatar_hint": "PNG, JPEG or WebP, up to 2 MB",
     "profile.change_password": "Change password",
@@ -99,7 +132,11 @@ export const messages = {
     "profile.tab_password": "Change password",
     "profile.upload": "Upload image",
     "profile.upload_failed": "Upload failed",
-    "settings.general_description": "Configure the platform display name, support contact email, and default interface language.",
+    "settings.general_description": "Configure the platform display name, logo, support contact email, and default interface language.",
+    "settings.logo_hint": "PNG, JPEG or WebP, up to 2 MB. Shown in the console, sign-in page, and browser tab icon",
+    "settings.logo_remove": "Remove",
+    "settings.logo_upload": "Upload image",
+    "settings.logo_upload_failed": "Upload failed",
     "settings.mail_description": "Configure Resend for outgoing email. The sender domain must be verified in Resend; leave the API key empty to log emails without sending.",
     "tenants.change_owner": "Change owner",
     "tenants.export": "Export workspaces",
@@ -183,12 +220,45 @@ export const messages = {
     "nav.features": "功能开关",
     "nav.general_settings": "系统设置",
     "nav.model": "模型接口",
-    "nav.ops": "系统运维",
-    "nav.platform_settings": "平台设置",
+    "nav.overview": "概览",
     "nav.profile": "个人资料",
     "nav.queue": "队列",
     "nav.schedules": "定时任务",
     "nav.tenants": "工作区",
+    "overview.admins_hint": "正常 {{.active}} · 已停用 {{.disabled}}",
+    "overview.admins_label": "平台管理员",
+    "overview.col_created": "创建时间",
+    "overview.col_status": "状态",
+    "overview.col_workspace": "工作区",
+    "overview.conversations_7d": "近 7 天新建会话",
+    "overview.conversations_7d_sub": "今日 {{.today}} · 当前打开 {{.open}}",
+    "overview.conversations_hint": "累计 {{.total}} · 今日新增 {{.today}}",
+    "overview.conversations_label": "打开中的会话",
+    "overview.description": "平台工作区、活跃会话、模型调用与队列运行摘要（统计按 {{.tz}} 划分）。",
+    "overview.llm_calls_7d": "近 7 天模型调用",
+    "overview.llm_calls_7d_sub": "今日 {{.today}} · 失败 {{.failed}} · 费用 {{.cost}}",
+    "overview.load_failed": "读取概览失败",
+    "overview.members_hint": "全平台联系人 {{.contacts}}",
+    "overview.members_label": "工作区成员",
+    "overview.new_tenants_7d": "近 7 天新建工作区",
+    "overview.new_tenants_7d_sub": "全部工作区 {{.total}}",
+    "overview.no_sections": "当前账号暂无可查看的概览模块，可在右上角「个人资料」中查看账号信息。",
+    "overview.queue_failed_action": "前往队列排查",
+    "overview.queue_failed_alert": "当前有 {{.count}} 个失败队列任务待排查",
+    "overview.queue_failed_count": "{{.count}} 失败",
+    "overview.queue_healthy": "运行正常",
+    "overview.queue_label": "队列任务",
+    "overview.queue_pending_sub": "待转发 {{.pending}} · 失败 {{.failed}}",
+    "overview.recent_audits_empty": "还没有平台操作记录",
+    "overview.recent_audits_title": "最近平台操作",
+    "overview.recent_tenants_empty": "还没有工作区",
+    "overview.recent_tenants_title": "最近创建的工作区",
+    "overview.status_active": "正常",
+    "overview.status_disabled": "已停用",
+    "overview.tenants_disabled_badge": "{{.count}} 已停用",
+    "overview.tenants_hint": "正常 {{.active}} · 已停用 {{.disabled}}",
+    "overview.tenants_label": "工作区",
+    "overview.view_all": "查看全部",
     "profile.avatar": "头像",
     "profile.avatar_hint": "PNG、JPEG 或 WebP，不超过 2 MB",
     "profile.change_password": "修改密码",
@@ -204,7 +274,11 @@ export const messages = {
     "profile.tab_password": "修改密码",
     "profile.upload": "上传图片",
     "profile.upload_failed": "上传失败",
-    "settings.general_description": "配置平台显示名称、联系邮箱和默认界面语言，保存后立即生效。",
+    "settings.general_description": "配置平台显示名称、Logo、联系邮箱和默认界面语言，保存后立即生效。",
+    "settings.logo_hint": "PNG、JPEG 或 WebP，不超过 2 MB；同步显示在管理后台、登录页与浏览器标签图标",
+    "settings.logo_remove": "移除",
+    "settings.logo_upload": "上传图片",
+    "settings.logo_upload_failed": "上传失败",
     "settings.mail_description": "配置 Resend 发信服务，发件人邮箱所属域名需先在 Resend 完成验证；API Key 留空表示暂不外发（仅写入日志）。",
     "tenants.change_owner": "更换主管理员",
     "tenants.export": "导出工作区",
@@ -291,12 +365,45 @@ export type MessageId =
   | "nav.features"
   | "nav.general_settings"
   | "nav.model"
-  | "nav.ops"
-  | "nav.platform_settings"
+  | "nav.overview"
   | "nav.profile"
   | "nav.queue"
   | "nav.schedules"
   | "nav.tenants"
+  | "overview.admins_hint"
+  | "overview.admins_label"
+  | "overview.col_created"
+  | "overview.col_status"
+  | "overview.col_workspace"
+  | "overview.conversations_7d"
+  | "overview.conversations_7d_sub"
+  | "overview.conversations_hint"
+  | "overview.conversations_label"
+  | "overview.description"
+  | "overview.llm_calls_7d"
+  | "overview.llm_calls_7d_sub"
+  | "overview.load_failed"
+  | "overview.members_hint"
+  | "overview.members_label"
+  | "overview.new_tenants_7d"
+  | "overview.new_tenants_7d_sub"
+  | "overview.no_sections"
+  | "overview.queue_failed_action"
+  | "overview.queue_failed_alert"
+  | "overview.queue_failed_count"
+  | "overview.queue_healthy"
+  | "overview.queue_label"
+  | "overview.queue_pending_sub"
+  | "overview.recent_audits_empty"
+  | "overview.recent_audits_title"
+  | "overview.recent_tenants_empty"
+  | "overview.recent_tenants_title"
+  | "overview.status_active"
+  | "overview.status_disabled"
+  | "overview.tenants_disabled_badge"
+  | "overview.tenants_hint"
+  | "overview.tenants_label"
+  | "overview.view_all"
   | "profile.avatar"
   | "profile.avatar_hint"
   | "profile.change_password"
@@ -313,6 +420,10 @@ export type MessageId =
   | "profile.upload"
   | "profile.upload_failed"
   | "settings.general_description"
+  | "settings.logo_hint"
+  | "settings.logo_remove"
+  | "settings.logo_upload"
+  | "settings.logo_upload_failed"
   | "settings.mail_description"
   | "tenants.change_owner"
   | "tenants.export"

@@ -6,7 +6,7 @@ import { api } from "../../../api"
 
 // 平台操作日志：展示平台域（工作区、平台管理员、平台设置、功能开关）的操作记录表格，支持按对象类型筛选和固定分页。
 export const Route = createFileRoute("/_app/ops/audit")({
-  staticData: { title: "nav.audit", icon: "file-text", order: 4, permission: "audit:read" },
+  staticData: { title: "nav.audit", icon: "file-text", order: 9, permission: "audit:read" },
   component: AuditLog,
 })
 

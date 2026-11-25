@@ -45,6 +45,7 @@ import (
 	"agents-desk/internal/macro"
 	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
+	"agents-desk/internal/platformoverview"
 	"agents-desk/internal/platformsettings"
 	"agents-desk/internal/push"
 	"agents-desk/internal/report"
@@ -223,11 +224,12 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		}
 		platformadmin.RegisterRoutes(api, require(), a.db, a.adminLogins, a.adminTokens, a.files, a.cfg.Filesystem.MaxUploadSize, a.cfg.AdminToken.Lifetime)
 		platformadmin.RegisterManageRoutes(api, require(auth.PlatformAdminsManage), a.db, a.roles, a.adminLogins, a.creds)
+		platformoverview.RegisterRoutes(api, require(), a.db, a.files, addr)
 		adminnotify.RegisterRoutes(api, require(), a.db, a.hub)
 		tenant.RegisterRoutes(api, require(auth.TenantsRead), require(auth.TenantsManage), require(auth.TenantsImpersonate), a.db, a.roles, a.memberLogins, a.memberTokens, addr, memberHooks, a.creds)
 		tenant.RegisterExportRoutes(api, require(auth.TenantsRead), a.db, a.memberLogins, addr, a.exporter, a.hub)
-		platformsettings.RegisterPublicRoutes(api, a.generalSettings)
-		platformsettings.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.generalSettings, a.mailSettings)
+		platformsettings.RegisterPublicRoutes(api, a.generalSettings, a.files)
+		platformsettings.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.generalSettings, a.mailSettings, a.files)
 		llm.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.llmSettings)
 		flags.RegisterRoutes(api, require(auth.FeaturesManage), a.db, a.features)
 		audit.RegisterRoutes(api, require(auth.AuditRead), a.db)
@@ -265,9 +267,9 @@ func (a *App) routes(pages http.Handler) chi.Router {
 			Credentials:   a.creds,
 		})
 		requireMember := api.RequireToken()
-		platformsettings.RegisterPublicRoutes(api, a.generalSettings)
+		platformsettings.RegisterPublicRoutes(api, a.generalSettings, a.files)
 		member.RegisterRoutes(api, requireMember, a.db, a.memberLogins, a.memberTokens, a.files, a.cfg.Filesystem.MaxUploadSize, a.cfg.MemberToken.Lifetime)
-		tenant.RegisterMemberRoutes(api, requireMember, a.db, a.roles, addr)
+		tenant.RegisterMemberRoutes(api, requireMember, a.db, a.roles, a.files, addr)
 	})
 
 	// 工作区的接口：tenant.Middleware 按路径中的 slug 查出工作区，业务代码只见到它的 ID（sub.Tenant）。
@@ -291,7 +293,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 			}
 			return api.RequireToken(names...)
 		}
-		tenant.RegisterTenantRoutes(api, require, a.db)
+		tenant.RegisterTenantRoutes(api, require, a.db, a.files)
 		member.RegisterTenantRoutes(api, require, a.db, a.roles, a.memberLogins, a.files, memberHooks)
 		role.RegisterRoutes(api, require, a.db, a.roles)
 		hours.RegisterRoutes(api, require, a.db)

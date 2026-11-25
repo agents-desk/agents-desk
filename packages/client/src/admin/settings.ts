@@ -14,17 +14,18 @@ export const settings = {
     permissions: { get: ["platform-settings:manage"], update: ["platform-settings:manage"] },
     form: [
       { name: "site_name", type: "string", required: true },
+      { name: "logo_file_id", type: "string", required: true },
       { name: "support_email", type: "string", required: true },
       { name: "default_language", type: "string", enum: "PlatformSettingsLanguage", required: true },
     ],
     labels: {
       "en": {
         title: "General",
-        fields: { site_name: "Platform name", support_email: "Support email", default_language: "Default language" },
+        fields: { site_name: "Platform name", logo_file_id: "Platform logo", support_email: "Support email", default_language: "Default language" },
       },
       "zh-CN": {
         title: "常规设置",
-        fields: { site_name: "平台名称", support_email: "支持联系邮箱", default_language: "默认界面语言" },
+        fields: { site_name: "平台名称", logo_file_id: "平台 Logo", support_email: "支持联系邮箱", default_language: "默认界面语言" },
       },
     },
   },

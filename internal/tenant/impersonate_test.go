@@ -105,7 +105,7 @@ func TestImpersonateEndToEnd(t *testing.T) {
 		})
 		requireMember := rest.RequireToken(api, memberTokens.Validate)
 		member.RegisterRoutes(api, requireMember, env.DB, env.MemberLogins, memberTokens, env.Files, 2<<20, time.Hour)
-		tenant.RegisterMemberRoutes(api, requireMember, env.DB, env.Roles, addr)
+		tenant.RegisterMemberRoutes(api, requireMember, env.DB, env.Roles, env.Files, addr)
 	})
 	router.Route("/t/{slug}/api", func(r chi.Router) {
 		r.Use(tenant.Middleware(env.DB))
@@ -123,7 +123,7 @@ func TestImpersonateEndToEnd(t *testing.T) {
 			}
 			return rest.RequireToken(api, memberTokens.Validate, names...)
 		}
-		tenant.RegisterTenantRoutes(api, require, env.DB)
+		tenant.RegisterTenantRoutes(api, require, env.DB, env.Files)
 	})
 
 	do := func(method, path, body, bearer string, cookies ...*http.Cookie) *httptest.ResponseRecorder {

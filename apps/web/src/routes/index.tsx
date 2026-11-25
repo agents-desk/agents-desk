@@ -1,10 +1,11 @@
-import { Badge, Button, Group, Paper, Stack, Text } from "@mantine/core"
+import { Avatar, Badge, Button, Group, Paper, Stack, Text } from "@mantine/core"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, Link, redirect } from "@tanstack/react-router"
 import { IconChevronRight } from "@tabler/icons-react"
-import { CenteredAuthLayout, requireAuth, useApp, useT } from "@go-tenon/ui"
+import { CenteredAuthLayout, requireAuth, useApp, useFavicon, useT } from "@go-tenon/ui"
 import { api, apiKit } from "../api"
 import { logout } from "../auth"
+import { brandLogo } from "../brand-logo"
 
 // 登录后的去处：只属于一个可以进入的工作区时直接进入；属于多个时在这里选择；一个都没有时提示联系管理员。
 export const Route = createFileRoute("/")({
@@ -23,6 +24,7 @@ function ChooseTenant() {
   const app = useApp()
   const t = useT()
   const site = useQuery(apiKit.queries.site.get())
+  useFavicon(site.data?.logo_url || undefined)
   const signOut = async () => {
     try {
       await logout()
@@ -31,7 +33,11 @@ function ChooseTenant() {
     }
   }
   return (
-    <CenteredAuthLayout brand={site.data?.site_name ?? ""} title={t("choose_tenant.title")}>
+    <CenteredAuthLayout
+      logo={brandLogo(site.data?.logo_url, site.data?.site_name, 32)}
+      brand={site.data?.site_name ?? ""}
+      title={t("choose_tenant.title")}
+    >
       <Stack gap="sm">
         {mine.length === 0 && <Text c="dimmed">{t("choose_tenant.none")}</Text>}
         {mine.map((tn) =>
@@ -39,12 +45,17 @@ function ChooseTenant() {
             <Link key={tn.slug} to="/t/$slug" params={{ slug: tn.slug }} className="desk-tenant-card">
               <Paper withBorder p="md" className="desk-tenant-paper">
                 <Group justify="space-between" wrap="nowrap">
-                  <div>
-                    <Text fw={500}>{tn.name}</Text>
-                    <Text size="sm" c="dimmed">
-                      /t/{tn.slug}/
-                    </Text>
-                  </div>
+                  <Group gap="sm" wrap="nowrap">
+                    <Avatar src={tn.logo_url || null} size={36} radius="sm" color="brand">
+                      {tn.name.slice(0, 1)}
+                    </Avatar>
+                    <div>
+                      <Text fw={500}>{tn.name}</Text>
+                      <Text size="sm" c="dimmed">
+                        /t/{tn.slug}/
+                      </Text>
+                    </div>
+                  </Group>
                   <IconChevronRight size={16} className="desk-tenant-arrow" style={{ flex: "none" }} />
                 </Group>
               </Paper>
@@ -52,14 +63,19 @@ function ChooseTenant() {
           ) : (
             <Paper key={tn.slug} withBorder p="md">
               <Group justify="space-between">
-                <div>
-                  <Text fw={500} c="dimmed">
-                    {tn.name}
-                  </Text>
-                  <Text size="sm" c="dimmed">
-                    /t/{tn.slug}/
-                  </Text>
-                </div>
+                <Group gap="sm" wrap="nowrap">
+                  <Avatar src={tn.logo_url || null} size={36} radius="sm" color="gray">
+                    {tn.name.slice(0, 1)}
+                  </Avatar>
+                  <div>
+                    <Text fw={500} c="dimmed">
+                      {tn.name}
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                      /t/{tn.slug}/
+                    </Text>
+                  </div>
+                </Group>
                 <Badge variant="light" color="gray">
                   {t("choose_tenant.disabled")}
                 </Badge>

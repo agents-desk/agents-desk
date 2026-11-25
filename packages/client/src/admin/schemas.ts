@@ -157,6 +157,18 @@ export const schemas = {
       },
     },
   },
+  overview: {
+    get: {
+      query: {
+        "properties": {
+          "tz": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+    },
+  },
   queue: {
     failedDeleteAll: {
       query: {
@@ -517,6 +529,10 @@ export const components = {
       "default_language": {
         "$ref": "#/components/schemas/PlatformSettingsLanguage"
       },
+      "logo_file_id": {
+        "maxLength": 36,
+        "type": "string"
+      },
       "site_name": {
         "maxLength": 60,
         "minLength": 1,
@@ -529,6 +545,7 @@ export const components = {
     },
     "required": [
       "site_name",
+      "logo_file_id",
       "support_email",
       "default_language"
     ],

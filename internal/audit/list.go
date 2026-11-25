@@ -226,7 +226,7 @@ func targetHref(targetType, targetID string) string {
 		case "general", "mail":
 			return "/settings/general"
 		default:
-			return "/settings"
+			return "/settings/general"
 		}
 	default:
 		return ""

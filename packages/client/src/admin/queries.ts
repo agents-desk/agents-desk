@@ -208,6 +208,15 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
           invalidate(context, "notification"),
       }),
     },
+    overview: {
+      /** overview 分组全部查询的 key 前缀。 */
+      key: () => key("overview"),
+      /** GET /overview */
+      get: (...args: Parameters<Client["overview"]["get"]>) => ({
+        queryKey: key("overview", "get", ...args),
+        queryFn: () => client.overview.get(...args),
+      }),
+    },
     queue: {
       /** queue 分组全部查询的 key 前缀。 */
       key: () => key("queue"),

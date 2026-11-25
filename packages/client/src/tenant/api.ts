@@ -1613,6 +1613,10 @@ export interface TelegramUpdateBody {
 
 export interface TenantCurrentDTO {
   id: string
+  /** 工作区 Logo 文件 ID，未设置时为空 */
+  logo_file_id?: string
+  /** 工作区 Logo 公开地址，未设置时为空 */
+  logo_url: string
   name: string
   /** 当前成员在这个工作区中的权限 */
   permissions: string[]
@@ -1622,6 +1626,8 @@ export interface TenantCurrentDTO {
 }
 
 export interface TenantGeneralSettings {
+  /** 工作区 Logo 文件 ID：传空字符串表示移除，不传保持原样 */
+  logo_file_id?: string
   name: string
   /** 单窗口渠道会话关闭后的重开窗口（小时），不传保持原样，0 表示关闭后直接新建会话 */
   reopen_window_hours?: number

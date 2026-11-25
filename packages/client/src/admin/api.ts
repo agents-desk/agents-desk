@@ -244,8 +244,59 @@ export interface PlatformadminUpdateInputBody {
   name: string
 }
 
+export interface PlatformoverviewAdminSummary {
+  active: number
+  disabled: number
+  total: number
+}
+
+export interface PlatformoverviewOverview {
+  admins?: PlatformoverviewAdminSummary
+  queue?: PlatformoverviewQueueSummary
+  recent_audits?: AuditItem[]
+  recent_tenants?: PlatformoverviewRecentTenant[]
+  tenants?: PlatformoverviewTenantSummary
+  usage?: PlatformoverviewUsageSummary
+}
+
+export interface PlatformoverviewQueueSummary {
+  failed_total: number
+  outbox_pending: number
+}
+
+export interface PlatformoverviewRecentTenant {
+  created_at: string
+  id: string
+  logo_url: string
+  name: string
+  slug: string
+  status: TenantStatus
+  url: string
+}
+
+export interface PlatformoverviewTenantSummary {
+  active: number
+  disabled: number
+  new_last_7_days: number
+  total: number
+}
+
+export interface PlatformoverviewUsageSummary {
+  contacts_total: number
+  conversations_last_7_days: number
+  conversations_open: number
+  conversations_today: number
+  conversations_total: number
+  llm_calls_last_7_days: number
+  llm_calls_today: number
+  llm_cost_last_7_days: number
+  llm_failures_last_7_days: number
+  members_total: number
+}
+
 export interface PlatformsettingsGeneral {
   default_language: PlatformSettingsLanguage
+  logo_file_id: string
   site_name: string
   support_email: string
 }
@@ -257,6 +308,7 @@ export interface PlatformsettingsMail {
 }
 
 export interface PlatformsettingsPublicSite {
+  logo_url: string
   site_name: string
 }
 
@@ -543,6 +595,12 @@ export interface NotificationListInput {
   limit?: number
 }
 
+/** overview-get 的参数。 */
+export interface OverviewGetInput {
+  /** 统计“今日”与“近 7 天”边界使用的 IANA 时区，默认 UTC */
+  tz?: string
+}
+
 /** queue-failed-delete-all 的参数。 */
 export interface QueueFailedDeleteAllInput {
   /** 只处理这个 topic 的失败任务，为空时处理全部 topic */
@@ -805,6 +863,16 @@ export function createClient(options: ClientOptions) {
        */
       readAll: (): Promise<void> =>
         rt.request<void>({ method: "POST", path: `/notifications/read-all` }),
+    },
+    /** operationId 以 overview- 开头的接口。 */
+    overview: {
+      /**
+       * 平台运行概览
+       *
+       * GET /overview
+       */
+      get: (input: OverviewGetInput = {}): Promise<PlatformoverviewOverview> =>
+        rt.request<PlatformoverviewOverview>({ method: "GET", path: `/overview`, query: { "tz": input["tz"] } }),
     },
     /** operationId 以 queue- 开头的接口。 */
     queue: {

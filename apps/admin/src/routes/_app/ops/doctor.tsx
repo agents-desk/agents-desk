@@ -4,6 +4,6 @@ import { api } from "../../../api"
 
 // 运行环境自检页面：调用 /admin/api/system/doctor，按依赖分组展示检查结果和修复指引。
 export const Route = createFileRoute("/_app/ops/doctor")({
-  staticData: { title: "nav.doctor", icon: "shield", order: 3, permission: "system:read" },
+  staticData: { title: "nav.doctor", icon: "shield", order: 8, permission: "system:read" },
   component: () => <DoctorPanel api={api.system} />,
 })

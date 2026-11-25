@@ -8,7 +8,7 @@ import { useEffect, useState } from "react"
 import { api, kit } from "../../../api"
 
 export const Route = createFileRoute("/_app/settings/model")({
-  staticData: { title: "nav.model", order: 2, permission: "platform-settings:manage" },
+  staticData: { title: "nav.model", icon: "ai", order: 4, permission: "platform-settings:manage" },
   component: ModelSettings,
 })
 

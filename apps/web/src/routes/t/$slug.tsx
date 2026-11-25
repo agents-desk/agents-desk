@@ -12,13 +12,15 @@ import {
   TimeZoneProvider,
   UserMenu,
   useCan,
+  useFavicon,
   useMenuBadge,
   useTenant,
   useT,
 } from "@go-tenon/ui"
 import { useState } from "react"
-import { kit, tenantApi } from "../../api"
+import { apiKit, kit, tenantApi } from "../../api"
 import { logout, me } from "../../auth"
+import { brandLogo } from "../../brand-logo"
 import { CommandPalette, CommandSearchButton } from "../../command-palette"
 import { dispatchPushAlert } from "../../inbox/alerts"
 import { NARROW_QUERY } from "../../layout"
@@ -40,6 +42,8 @@ export const Route = createFileRoute("/t/$slug")({
 function TenantLayout() {
   const tenant = Route.useLoaderData()
   const user = useQuery({ queryKey: ["me"], queryFn: me })
+  const site = useQuery(apiKit.queries.site.get())
+  useFavicon(tenant.logo_url || site.data?.logo_url || undefined)
   const myStatus = useQuery({ queryKey: ["me", "status", tenant.slug], queryFn: () => tenantApi.member.myStatus() })
   const { tenants } = useTenant()
   const can = useCan()
@@ -92,6 +96,7 @@ function TenantLayout() {
       <RealtimeContext.Provider value={centrifuge}>
         <RailLayout
           title={tenant.name}
+          logo={brandLogo(tenant.logo_url, tenant.name)}
           settings={settings}
           navWidth={200}
           compactQuery={NARROW_QUERY}

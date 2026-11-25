@@ -82,7 +82,7 @@ func TestReopenWindow(t *testing.T) {
 
 		// 3. 把重开窗口改为 0 小时：关闭后立刻来消息也新建会话
 		zero := 0
-		if _, err := tenant.NewRename(env.DB).Handle(ctx, agent, tenant.GeneralSettings{Name: tn.Name, ReopenWindowHours: &zero}); err != nil {
+		if _, err := tenant.NewRename(env.DB, env.Files).Handle(ctx, agent, tenant.GeneralSettings{Name: tn.Name, ReopenWindowHours: &zero}); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := closeConv.Handle(ctx, agent, after.ConversationID); err != nil {

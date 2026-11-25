@@ -60,6 +60,7 @@ type Tenant struct {
 	ID                string         `bun:"id,pk"`
 	Slug              string         `bun:"slug,notnull"`
 	Name              string         `bun:"name,notnull"`
+	LogoFileID        *uuid.UUID     `bun:"logo_file_id,type:uuid"` // 工作区 Logo 文件 ID，关联 files.id；为空表示未设置
 	OwnerID           string         `bun:"owner_id,notnull"`
 	Owner             *member.Member `bun:"rel:belongs-to,join:owner_id=id"`
 	DisabledAt        *time.Time     `bun:"disabled_at"`                 // 非空表示已停用

@@ -13,9 +13,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAdminsRouteImport } from './routes/_app/admins'
-import { Route as AppOpsRouteImport } from './routes/_app/ops'
 import { Route as AppProfileRouteImport } from './routes/_app/profile'
-import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppTenantsRouteImport } from './routes/_app/tenants'
 import { Route as AppOpsAuditRouteImport } from './routes/_app/ops/audit'
 import { Route as AppOpsDoctorRouteImport } from './routes/_app/ops/doctor'
@@ -44,19 +42,9 @@ const AppAdminsRoute = AppAdminsRouteImport.update({
   path: '/admins',
   getParentRoute: () => AppRoute,
 } as any)
-const AppOpsRoute = AppOpsRouteImport.update({
-  id: '/ops',
-  path: '/ops',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppProfileRoute = AppProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSettingsRoute = AppSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
 const AppTenantsRoute = AppTenantsRouteImport.update({
@@ -65,48 +53,46 @@ const AppTenantsRoute = AppTenantsRouteImport.update({
   getParentRoute: () => AppRoute,
 } as any)
 const AppOpsAuditRoute = AppOpsAuditRouteImport.update({
-  id: '/audit',
-  path: '/audit',
-  getParentRoute: () => AppOpsRoute,
+  id: '/ops/audit',
+  path: '/ops/audit',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppOpsDoctorRoute = AppOpsDoctorRouteImport.update({
-  id: '/doctor',
-  path: '/doctor',
-  getParentRoute: () => AppOpsRoute,
+  id: '/ops/doctor',
+  path: '/ops/doctor',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppOpsQueueRoute = AppOpsQueueRouteImport.update({
-  id: '/queue',
-  path: '/queue',
-  getParentRoute: () => AppOpsRoute,
+  id: '/ops/queue',
+  path: '/ops/queue',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppOpsSchedulesRoute = AppOpsSchedulesRouteImport.update({
-  id: '/schedules',
-  path: '/schedules',
-  getParentRoute: () => AppOpsRoute,
+  id: '/ops/schedules',
+  path: '/ops/schedules',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsFeaturesRoute = AppSettingsFeaturesRouteImport.update({
-  id: '/features',
-  path: '/features',
-  getParentRoute: () => AppSettingsRoute,
+  id: '/settings/features',
+  path: '/settings/features',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsGeneralRoute = AppSettingsGeneralRouteImport.update({
-  id: '/general',
-  path: '/general',
-  getParentRoute: () => AppSettingsRoute,
+  id: '/settings/general',
+  path: '/settings/general',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsModelRoute = AppSettingsModelRouteImport.update({
-  id: '/model',
-  path: '/model',
-  getParentRoute: () => AppSettingsRoute,
+  id: '/settings/model',
+  path: '/settings/model',
+  getParentRoute: () => AppRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/admins': typeof AppAdminsRoute
-  '/ops': typeof AppOpsRouteWithChildren
   '/profile': typeof AppProfileRoute
-  '/settings': typeof AppSettingsRouteWithChildren
   '/tenants': typeof AppTenantsRoute
   '/ops/audit': typeof AppOpsAuditRoute
   '/ops/doctor': typeof AppOpsDoctorRoute
@@ -119,9 +105,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/admins': typeof AppAdminsRoute
-  '/ops': typeof AppOpsRouteWithChildren
   '/profile': typeof AppProfileRoute
-  '/settings': typeof AppSettingsRouteWithChildren
   '/tenants': typeof AppTenantsRoute
   '/': typeof AppIndexRoute
   '/ops/audit': typeof AppOpsAuditRoute
@@ -137,9 +121,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/admins': typeof AppAdminsRoute
-  '/_app/ops': typeof AppOpsRouteWithChildren
   '/_app/profile': typeof AppProfileRoute
-  '/_app/settings': typeof AppSettingsRouteWithChildren
   '/_app/tenants': typeof AppTenantsRoute
   '/_app/': typeof AppIndexRoute
   '/_app/ops/audit': typeof AppOpsAuditRoute
@@ -156,9 +138,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/admins'
-    | '/ops'
     | '/profile'
-    | '/settings'
     | '/tenants'
     | '/ops/audit'
     | '/ops/doctor'
@@ -171,9 +151,7 @@ export interface FileRouteTypes {
   to:
     | '/login'
     | '/admins'
-    | '/ops'
     | '/profile'
-    | '/settings'
     | '/tenants'
     | '/'
     | '/ops/audit'
@@ -188,9 +166,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/_app/admins'
-    | '/_app/ops'
     | '/_app/profile'
-    | '/_app/settings'
     | '/_app/tenants'
     | '/_app/'
     | '/_app/ops/audit'
@@ -237,25 +213,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/ops': {
-      id: '/_app/ops'
-      path: '/ops'
-      fullPath: '/ops'
-      preLoaderRoute: typeof AppOpsRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/profile': {
       id: '/_app/profile'
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof AppProfileRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/settings': {
-      id: '/_app/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/tenants': {
@@ -267,105 +229,82 @@ declare module '@tanstack/react-router' {
     }
     '/_app/ops/audit': {
       id: '/_app/ops/audit'
-      path: '/audit'
+      path: '/ops/audit'
       fullPath: '/ops/audit'
       preLoaderRoute: typeof AppOpsAuditRouteImport
-      parentRoute: typeof AppOpsRoute
+      parentRoute: typeof AppRoute
     }
     '/_app/ops/doctor': {
       id: '/_app/ops/doctor'
-      path: '/doctor'
+      path: '/ops/doctor'
       fullPath: '/ops/doctor'
       preLoaderRoute: typeof AppOpsDoctorRouteImport
-      parentRoute: typeof AppOpsRoute
+      parentRoute: typeof AppRoute
     }
     '/_app/ops/queue': {
       id: '/_app/ops/queue'
-      path: '/queue'
+      path: '/ops/queue'
       fullPath: '/ops/queue'
       preLoaderRoute: typeof AppOpsQueueRouteImport
-      parentRoute: typeof AppOpsRoute
+      parentRoute: typeof AppRoute
     }
     '/_app/ops/schedules': {
       id: '/_app/ops/schedules'
-      path: '/schedules'
+      path: '/ops/schedules'
       fullPath: '/ops/schedules'
       preLoaderRoute: typeof AppOpsSchedulesRouteImport
-      parentRoute: typeof AppOpsRoute
+      parentRoute: typeof AppRoute
     }
     '/_app/settings/features': {
       id: '/_app/settings/features'
-      path: '/features'
+      path: '/settings/features'
       fullPath: '/settings/features'
       preLoaderRoute: typeof AppSettingsFeaturesRouteImport
-      parentRoute: typeof AppSettingsRoute
+      parentRoute: typeof AppRoute
     }
     '/_app/settings/general': {
       id: '/_app/settings/general'
-      path: '/general'
+      path: '/settings/general'
       fullPath: '/settings/general'
       preLoaderRoute: typeof AppSettingsGeneralRouteImport
-      parentRoute: typeof AppSettingsRoute
+      parentRoute: typeof AppRoute
     }
     '/_app/settings/model': {
       id: '/_app/settings/model'
-      path: '/model'
+      path: '/settings/model'
       fullPath: '/settings/model'
       preLoaderRoute: typeof AppSettingsModelRouteImport
-      parentRoute: typeof AppSettingsRoute
+      parentRoute: typeof AppRoute
     }
   }
 }
 
-interface AppOpsRouteChildren {
+interface AppRouteChildren {
+  AppAdminsRoute: typeof AppAdminsRoute
+  AppProfileRoute: typeof AppProfileRoute
+  AppTenantsRoute: typeof AppTenantsRoute
+  AppIndexRoute: typeof AppIndexRoute
   AppOpsAuditRoute: typeof AppOpsAuditRoute
   AppOpsDoctorRoute: typeof AppOpsDoctorRoute
   AppOpsQueueRoute: typeof AppOpsQueueRoute
   AppOpsSchedulesRoute: typeof AppOpsSchedulesRoute
-}
-
-const AppOpsRouteChildren: AppOpsRouteChildren = {
-  AppOpsAuditRoute: AppOpsAuditRoute,
-  AppOpsDoctorRoute: AppOpsDoctorRoute,
-  AppOpsQueueRoute: AppOpsQueueRoute,
-  AppOpsSchedulesRoute: AppOpsSchedulesRoute,
-}
-
-const AppOpsRouteWithChildren =
-  AppOpsRoute._addFileChildren(AppOpsRouteChildren)
-
-interface AppSettingsRouteChildren {
   AppSettingsFeaturesRoute: typeof AppSettingsFeaturesRoute
   AppSettingsGeneralRoute: typeof AppSettingsGeneralRoute
   AppSettingsModelRoute: typeof AppSettingsModelRoute
 }
 
-const AppSettingsRouteChildren: AppSettingsRouteChildren = {
+const AppRouteChildren: AppRouteChildren = {
+  AppAdminsRoute: AppAdminsRoute,
+  AppProfileRoute: AppProfileRoute,
+  AppTenantsRoute: AppTenantsRoute,
+  AppIndexRoute: AppIndexRoute,
+  AppOpsAuditRoute: AppOpsAuditRoute,
+  AppOpsDoctorRoute: AppOpsDoctorRoute,
+  AppOpsQueueRoute: AppOpsQueueRoute,
+  AppOpsSchedulesRoute: AppOpsSchedulesRoute,
   AppSettingsFeaturesRoute: AppSettingsFeaturesRoute,
   AppSettingsGeneralRoute: AppSettingsGeneralRoute,
   AppSettingsModelRoute: AppSettingsModelRoute,
-}
-
-const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
-  AppSettingsRouteChildren,
-)
-
-interface AppRouteChildren {
-  AppAdminsRoute: typeof AppAdminsRoute
-  AppOpsRoute: typeof AppOpsRouteWithChildren
-  AppProfileRoute: typeof AppProfileRoute
-  AppSettingsRoute: typeof AppSettingsRouteWithChildren
-  AppTenantsRoute: typeof AppTenantsRoute
-  AppIndexRoute: typeof AppIndexRoute
-}
-
-const AppRouteChildren: AppRouteChildren = {
-  AppAdminsRoute: AppAdminsRoute,
-  AppOpsRoute: AppOpsRouteWithChildren,
-  AppProfileRoute: AppProfileRoute,
-  AppSettingsRoute: AppSettingsRouteWithChildren,
-  AppTenantsRoute: AppTenantsRoute,
-  AppIndexRoute: AppIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

@@ -139,10 +139,13 @@ export interface Meta {
 }
 
 export interface PlatformsettingsPublicSite {
+  logo_url: string
   site_name: string
 }
 
 export interface TenantMineItem {
+  /** 工作区 Logo 公开地址，未设置时为空 */
+  logo_url: string
   name: string
   slug: string
   status: TenantStatus

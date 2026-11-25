@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/activity"
@@ -16,12 +17,14 @@ import (
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/enum"
 	"github.com/go-tenon/tenon/errorx"
+	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/mail"
 	"github.com/go-tenon/tenon/mail/logmail"
 	"github.com/go-tenon/tenon/mail/resend"
 	"github.com/go-tenon/tenon/settings"
 
+	"agents-desk/internal/file"
 	"agents-desk/internal/lang"
 )
 
@@ -49,6 +52,7 @@ func (Language) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchem
 // General 是平台常规设置。字段不带 omitempty，见 tenon/settings 文档。
 type General struct {
 	SiteName        string   `json:"site_name" minLength:"1" maxLength:"60"`
+	LogoFileID      string   `json:"logo_file_id" maxLength:"36"`
 	SupportEmail    string   `json:"support_email" maxLength:"120"`
 	DefaultLanguage Language `json:"default_language"`
 }
@@ -56,6 +60,7 @@ type General struct {
 // GeneralDefaults 是平台常规设置的默认值。
 var GeneralDefaults = General{
 	SiteName:        "agents-desk",
+	LogoFileID:      "",
 	SupportEmail:    "",
 	DefaultLanguage: LangZhCN,
 }
@@ -109,6 +114,7 @@ type MailBody struct {
 // PublicSite 是无需登录即可读取的平台公开信息，供管理端与工作区端的顶栏、登录页和浏览器标签页显示。
 type PublicSite struct {
 	SiteName string `json:"site_name"` // 平台名称
+	LogoURL  string `json:"logo_url"`  // 平台 Logo 公开地址，未设置时为空
 }
 
 // PublicSiteBody 是 GET /site 的响应体。
@@ -117,20 +123,34 @@ type PublicSiteBody struct {
 }
 
 // GetPublicSite 读取平台公开信息。
-type GetPublicSite struct{ group *settings.Group[General] }
-
-// NewGetPublicSite 返回读取平台公开信息的动作。
-func NewGetPublicSite(group *settings.Group[General]) *GetPublicSite {
-	return &GetPublicSite{group: group}
+type GetPublicSite struct {
+	group *settings.Group[General]
+	files *filesystem.Service
 }
 
-// HTTP 处理 GET /site，仅返回公开的平台名称。
+// NewGetPublicSite 返回读取平台公开信息的动作。
+func NewGetPublicSite(group *settings.Group[General], files *filesystem.Service) *GetPublicSite {
+	return &GetPublicSite{group: group, files: files}
+}
+
+// HTTP 处理 GET /site，返回公开的平台名称与 Logo 地址。
 func (a *GetPublicSite) HTTP(ctx context.Context, _ *struct{}) (*PublicSiteBody, error) {
 	v, err := a.group.Get(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &PublicSiteBody{Body: PublicSite{SiteName: v.SiteName}}, nil
+	var logoURL string
+	if v.LogoFileID != "" {
+		id, err := uuid.Parse(v.LogoFileID)
+		if err != nil {
+			return nil, err
+		}
+		logoURL, err = file.URL(ctx, a.files, &id)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &PublicSiteBody{Body: PublicSite{SiteName: v.SiteName, LogoURL: logoURL}}, nil
 }
 
 // GetGeneral 读取平台常规设置。
@@ -152,16 +172,18 @@ func (a *GetGeneral) HTTP(ctx context.Context, _ *struct{}) (*GeneralBody, error
 type SaveGeneral struct {
 	db    *bun.DB
 	group *settings.Group[General]
+	files *filesystem.Service
 }
 
 // NewSaveGeneral 返回保存平台常规设置的动作。
-func NewSaveGeneral(db *bun.DB, group *settings.Group[General]) *SaveGeneral {
-	return &SaveGeneral{db: db, group: group}
+func NewSaveGeneral(db *bun.DB, group *settings.Group[General], files *filesystem.Service) *SaveGeneral {
+	return &SaveGeneral{db: db, group: group, files: files}
 }
 
-// Handle 校验并保存平台常规设置，有修改时在同一事务中写入操作日志。
+// Handle 校验并保存平台常规设置，确认或替换平台 Logo 文件，有修改时在同一事务中写入操作日志。
 func (a *SaveGeneral) Handle(ctx context.Context, subject identity.Subject, next General) (General, error) {
 	next.SiteName = strings.TrimSpace(next.SiteName)
+	next.LogoFileID = strings.TrimSpace(next.LogoFileID)
 	next.SupportEmail = strings.TrimSpace(next.SupportEmail)
 	if next.SupportEmail != "" && !validEmail(next.SupportEmail) {
 		return General{}, ErrInvalidEmail.New(errorx.Field("support_email"))
@@ -171,6 +193,26 @@ func (a *SaveGeneral) Handle(ctx context.Context, subject identity.Subject, next
 		err := a.group.WithDB(tx).Update(ctx, func(cur *General) error {
 			if cur.SiteName != next.SiteName {
 				changed = append(changed, "site_name")
+			}
+			if cur.LogoFileID != next.LogoFileID {
+				var curID *uuid.UUID
+				if cur.LogoFileID != "" {
+					parsed, err := uuid.Parse(cur.LogoFileID)
+					if err != nil {
+						return err
+					}
+					curID = &parsed
+				}
+				newID, err := file.ReplaceImage(ctx, tx, a.files, subject, "logo_file_id", file.Logo, curID, next.LogoFileID)
+				if err != nil {
+					return err
+				}
+				if newID != nil {
+					next.LogoFileID = newID.String()
+				} else {
+					next.LogoFileID = ""
+				}
+				changed = append(changed, "logo_file_id")
 			}
 			if cur.SupportEmail != next.SupportEmail {
 				changed = append(changed, "support_email")

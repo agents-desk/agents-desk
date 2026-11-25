@@ -2322,6 +2322,10 @@ export const components = {
   TenantGeneralSettings: {
     "additionalProperties": false,
     "properties": {
+      "logo_file_id": {
+        "maxLength": 36,
+        "type": "string"
+      },
       "name": {
         "maxLength": 60,
         "minLength": 1,

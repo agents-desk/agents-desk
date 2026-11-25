@@ -218,6 +218,11 @@ export const messages = {
     "event.via_round_robin": " (round robin)",
     "general.address": "Address",
     "general.address_hint": "Fixed once the workspace is created",
+    "general.logo": "Workspace logo",
+    "general.logo_hint": "PNG, JPEG or WebP, up to 2 MB. Shown in the sidebar and workspace switcher",
+    "general.logo_remove": "Remove",
+    "general.logo_upload": "Upload image",
+    "general.logo_upload_failed": "Upload failed",
     "general.name": "Name",
     "general.reopen_window": "Reopen window (hours)",
     "general.reopen_window_hint": "For single-window channels (such as test channel, Telegram DM, or WhatsApp), a message arriving within this window after close reopens the conversation; after that, a new conversation is started. Set to 0 to always start a new conversation.",
@@ -1232,6 +1237,11 @@ export const messages = {
     "event.via_round_robin": "（轮流分配）",
     "general.address": "地址",
     "general.address_hint": "创建后不能修改",
+    "general.logo": "工作区 Logo",
+    "general.logo_hint": "PNG、JPEG 或 WebP，不超过 2 MB；显示在工作区左侧栏顶部与工作区选择页",
+    "general.logo_remove": "移除",
+    "general.logo_upload": "上传图片",
+    "general.logo_upload_failed": "上传失败",
     "general.name": "名称",
     "general.reopen_window": "重开窗口（小时）",
     "general.reopen_window_hint": "只有一个聊天窗口的渠道（例如测试渠道、Telegram 私聊、WhatsApp）在会话关闭后，客户在这个时间内再发消息会重新打开原会话，超时则新建会话；填 0 表示关闭后直接新建会话。",
@@ -2249,6 +2259,11 @@ export type MessageId =
   | "event.via_round_robin"
   | "general.address"
   | "general.address_hint"
+  | "general.logo"
+  | "general.logo_hint"
+  | "general.logo_remove"
+  | "general.logo_upload"
+  | "general.logo_upload_failed"
   | "general.name"
   | "general.reopen_window"
   | "general.reopen_window_hint"
