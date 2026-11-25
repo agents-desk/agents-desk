@@ -120,10 +120,13 @@ func TestAttachmentsFlow(t *testing.T) {
 	pngFile := uploadAs(f.system, "shot.png", "image/png", makePNG(t, 120, 80))
 	webpFile := uploadAs(f.system, "pic.webp", "image/webp", makeWebPVP8L(320, 240))
 	rec, err := conversation.NewReceive(env.DB, channel.DefaultRegistry(), f.down).Handle(ctx, f.system, conversation.ReceiveParams{
-		ChannelID:         f.ch.ID,
-		From:              "rahul",
-		FromName:          "Rahul",
-		AttachmentFileIDs: []string{pngFile.ID.String(), webpFile.ID.String()},
+		ChannelID: f.ch.ID,
+		From:      "rahul",
+		FromName:  "Rahul",
+		Attachments: []conversation.AttachmentInput{
+			{FileID: pngFile.ID.String()},
+			{FileID: webpFile.ID.String()},
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -132,7 +135,7 @@ func TestAttachmentsFlow(t *testing.T) {
 		t.Fatalf("来信附件数 = %d，期望 2", len(rec.Item.Attachments))
 	}
 	a0, a1 := rec.Item.Attachments[0], rec.Item.Attachments[1]
-	if a0.Kind != conversation.AttachmentImage || a0.Width != 120 || a0.Height != 80 ||
+	if a0.Kind != conversation.AttachmentImage || a0.Status != conversation.FetchReady || a0.Width != 120 || a0.Height != 80 ||
 		!strings.HasPrefix(a0.URL, "/storage/") || !strings.HasPrefix(a0.ThumbURL, "https://img.example.com/") {
 		t.Fatalf("PNG 附件 = %+v", a0)
 	}
@@ -152,8 +155,11 @@ func TestAttachmentsFlow(t *testing.T) {
 	docxFile := uploadAs(f.agent, "合同.docx", "application/octet-stream", makeDOCX(t))
 	csvFile := uploadAs(f.agent, "orders.csv", "application/vnd.ms-excel", []byte("id,total\n1,99\n"))
 	reply, err := conversation.NewReply(env.DB, f.down).Handle(ctx, f.agent, conv.ID, conversation.ReplyBody{
-		Text:        "请查收附件",
-		Attachments: []string{docxFile.ID.String(), csvFile.ID.String()},
+		Text: "请查收附件",
+		Attachments: []conversation.AttachmentInput{
+			{FileID: docxFile.ID.String()},
+			{FileID: csvFile.ID.String()},
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -182,7 +188,7 @@ func TestAttachmentsFlow(t *testing.T) {
 
 	// 3. 内部备注也可以纯发图片
 	noteImg := uploadAs(f.agent, "internal.png", "image/png", makePNG(t, 64, 64))
-	note, err := conversation.NewAddNote(env.DB, f.down).Handle(ctx, f.agent, conv.ID, "", nil, noteImg.ID.String())
+	note, err := conversation.NewAddNote(env.DB, f.down).Handle(ctx, f.agent, conv.ID, "", nil, conversation.AttachmentInput{FileID: noteImg.ID.String()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -252,7 +258,7 @@ func TestAttachmentsValidationAndIsolation(t *testing.T) {
 	// 伪装成 PNG 的 HTML 被拒绝
 	fakePNG := uploadAs(alpha.agent, "evil.png", "image/png", []byte("<html><script>alert(1)</script></html>"))
 	if _, err := conversation.NewReply(env.DB, alpha.down).Handle(ctx, alpha.agent, convID, conversation.ReplyBody{
-		Attachments: []string{fakePNG.ID.String()},
+		Attachments: []conversation.AttachmentInput{{FileID: fakePNG.ID.String()}},
 	}); !errors.Is(err, filesystem.ErrNotAccepted) {
 		t.Fatalf("HTML 伪装 PNG 应返回 ErrNotAccepted，得到 %v", err)
 	}
@@ -260,7 +266,7 @@ func TestAttachmentsValidationAndIsolation(t *testing.T) {
 	// SVG 被拒绝
 	svg := uploadAs(alpha.agent, "icon.svg", "image/svg+xml", []byte(`<svg xmlns="http://www.w3.org/2000/svg"></svg>`))
 	if _, err := conversation.NewReply(env.DB, alpha.down).Handle(ctx, alpha.agent, convID, conversation.ReplyBody{
-		Attachments: []string{svg.ID.String()},
+		Attachments: []conversation.AttachmentInput{{FileID: svg.ID.String()}},
 	}); !errors.Is(err, filesystem.ErrNotAccepted) {
 		t.Fatalf("SVG 应返回 ErrNotAccepted，得到 %v", err)
 	}
@@ -268,7 +274,10 @@ func TestAttachmentsValidationAndIsolation(t *testing.T) {
 	// 同一条消息中第二个附件失败时，事务整体回滚，第一个合法文件也保持 temporary
 	goodPNG := uploadAs(alpha.agent, "good.png", "image/png", makePNG(t, 40, 40))
 	if _, err := conversation.NewReply(env.DB, alpha.down).Handle(ctx, alpha.agent, convID, conversation.ReplyBody{
-		Attachments: []string{goodPNG.ID.String(), fakePNG.ID.String()},
+		Attachments: []conversation.AttachmentInput{
+			{FileID: goodPNG.ID.String()},
+			{FileID: fakePNG.ID.String()},
+		},
 	}); !errors.Is(err, filesystem.ErrNotAccepted) {
 		t.Fatalf("混合非法附件应返回 ErrNotAccepted，得到 %v", err)
 	}
@@ -279,29 +288,59 @@ func TestAttachmentsValidationAndIsolation(t *testing.T) {
 	// 其他成员和其他工作区的成员不能引用别人上传的文件；已确认的文件即使同一成员也不能跨工作区复用
 	otherMember := identity.Subject{Type: member.Type, ID: "01900000-0000-7000-8000-0000000000b2", Tenant: alpha.system.Tenant, Permissions: alpha.agent.Permissions}
 	if _, err := conversation.NewReply(env.DB, alpha.down).Handle(ctx, otherMember, convID, conversation.ReplyBody{
-		Attachments: []string{goodPNG.ID.String()},
+		Attachments: []conversation.AttachmentInput{{FileID: goodPNG.ID.String()}},
 	}); !errors.Is(err, filesystem.ErrNotFound) {
 		t.Fatalf("引用他人上传的文件应返回 ErrNotFound，得到 %v", err)
 	}
 	betaConv := beta.receive(t, "priya", "hello", "").ConversationID
 	betaMember := identity.Subject{Type: member.Type, ID: "01900000-0000-7000-8000-0000000000b3", Tenant: beta.system.Tenant, Permissions: beta.agent.Permissions}
 	if _, err := conversation.NewReply(env.DB, beta.down).Handle(ctx, betaMember, betaConv, conversation.ReplyBody{
-		Attachments: []string{goodPNG.ID.String()},
+		Attachments: []conversation.AttachmentInput{{FileID: goodPNG.ID.String()}},
 	}); !errors.Is(err, filesystem.ErrNotFound) {
 		t.Fatalf("跨工作区其他成员引用文件应返回 ErrNotFound，得到 %v", err)
 	}
 	// 在 alpha 确认绑定后，状态变为 ready，同一成员在 beta 中也不能再次绑定；beta 成员也不能读取 alpha 的时间线
 	if _, err := conversation.NewReply(env.DB, alpha.down).Handle(ctx, alpha.agent, convID, conversation.ReplyBody{
-		Attachments: []string{goodPNG.ID.String()},
+		Attachments: []conversation.AttachmentInput{{FileID: goodPNG.ID.String()}},
 	}); err != nil {
 		t.Fatalf("alpha 确认合法附件失败：%v", err)
 	}
 	if _, err := conversation.NewReply(env.DB, beta.down).Handle(ctx, beta.agent, betaConv, conversation.ReplyBody{
-		Attachments: []string{goodPNG.ID.String()},
+		Attachments: []conversation.AttachmentInput{{FileID: goodPNG.ID.String()}},
 	}); !errors.Is(err, filesystem.ErrNotFound) {
 		t.Fatalf("已确认的附件不能跨工作区复用，应返回 ErrNotFound，得到 %v", err)
 	}
 	if _, err := conversation.NewTimeline(env.DB, beta.down.Media).Handle(ctx, beta.agent, convID, 0, 50); !errors.Is(err, conversation.ErrNotFound) {
 		t.Fatalf("跨工作区读取带附件的时间线应返回 ErrNotFound，得到 %v", err)
+	}
+
+	// 支持视频 + 封面图 + 音频语音上传确认
+	mp4Data := make([]byte, 28)
+	binary.BigEndian.PutUint32(mp4Data[0:4], 20)
+	copy(mp4Data[4:8], "ftyp")
+	copy(mp4Data[8:12], "isom")
+	copy(mp4Data[16:20], "mp41")
+	vidFile := uploadAs(alpha.agent, "demo.mp4", "video/mp4", mp4Data)
+	thumbFile := uploadAs(alpha.agent, "poster.png", "image/png", makePNG(t, 160, 90))
+	oggData := append(append([]byte("OggS"), make([]byte, 24)...), []byte("OpusHead\x01\x01")...)
+	voiceFile := uploadAs(alpha.agent, "voice.ogg", "audio/ogg", oggData)
+
+	mediaReply, err := conversation.NewReply(env.DB, alpha.down).Handle(ctx, alpha.agent, convID, conversation.ReplyBody{
+		Attachments: []conversation.AttachmentInput{
+			{FileID: vidFile.ID.String(), ThumbFileID: thumbFile.ID.String(), DurationMs: 12500, Width: 1280, Height: 720},
+			{FileID: voiceFile.ID.String(), DurationMs: 4200, IsVoice: true},
+		},
+	})
+	if err != nil {
+		t.Fatalf("音视频附件回复失败：%v", err)
+	}
+	if len(mediaReply.Attachments) != 2 ||
+		mediaReply.Attachments[0].Kind != conversation.AttachmentVideo ||
+		mediaReply.Attachments[0].ThumbURL == "" ||
+		mediaReply.Attachments[0].DurationMs != 12500 ||
+		mediaReply.Attachments[1].Kind != conversation.AttachmentAudio ||
+		!mediaReply.Attachments[1].IsVoice ||
+		mediaReply.Attachments[1].DurationMs != 4200 {
+		t.Fatalf("音视频附件 DTO = %+v", mediaReply.Attachments)
 	}
 }

@@ -183,6 +183,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "conversation"),
       }),
+      /** POST /conversations/{id}/attachments/{attachment_id}/fetch */
+      attachmentFetch: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["attachmentFetch"]>) => client.conversation.attachmentFetch(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
       /** PATCH /conversations/{id}/attributes */
       attributesPatch: () => ({
         mutationFn: (variables: Parameters<Client["conversation"]["attributesPatch"]>) => client.conversation.attributesPatch(...variables),

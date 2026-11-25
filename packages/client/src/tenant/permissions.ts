@@ -70,6 +70,7 @@ export const required = {
   conversation: {
     applyActions: ["conversations:reply"],
     assign: ["conversations:reply"],
+    attachmentFetch: ["conversations:read"],
     attributesPatch: ["conversations:reply"],
     bulkAssign: ["conversations:reply"],
     bulkClose: ["conversations:reply"],

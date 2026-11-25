@@ -16,11 +16,20 @@ import (
 	"github.com/cockroachdb/errors"
 
 	"github.com/go-tenon/tenon/errorx"
+	"github.com/go-tenon/tenon/filesystem"
 
-	"agents-desk/internal/conversation"
+	"agents-desk/internal/channel"
 )
 
-const defaultAPIBaseURL = "https://api.telegram.org"
+const (
+	defaultAPIBaseURL = "https://api.telegram.org"
+	// MaxDownloadSize 是 Telegram 官方 Bot API getFile 允许下载的单文件最大体积（20 MiB）。
+	MaxDownloadSize = 20 * filesystem.MiB
+	// autoFetchFileThreshold 是普通文档和音频自动下载的体积阈值，超过它时保留远端引用等待点击按需拉取。
+	autoFetchFileThreshold = 5 * filesystem.MiB
+	// autoFetchAnimationThreshold 是动图自动下载的体积阈值，超过它时等待点击按需拉取。
+	autoFetchAnimationThreshold = 2 * filesystem.MiB
+)
 
 // Client 调用 Telegram Bot API：校验 Bot Token、设置/删除 Webhook、收发消息与下载文件。
 type Client struct {
@@ -197,49 +206,149 @@ func (c *Client) SendDocument(ctx context.Context, botToken, chatID, filename st
 	return decodeMessageID(res)
 }
 
-// DownloadFile 按 Telegram file_id 下载文件字节（不超过 conversation.MaxFileSize），返回字节、推断文件名和探测 MIME 类型。
-func (c *Client) DownloadFile(ctx context.Context, botToken, fileID string) ([]byte, string, string, error) {
-	res, _, _, err := c.callJSON(ctx, botToken, "getFile", map[string]any{"file_id": fileID})
+// SendVideo 向 chatID 发送视频附件及可选说明文字和元数据，返回 Telegram 生成的消息编号。
+func (c *Client) SendVideo(ctx context.Context, botToken, chatID, filename string, content io.Reader, caption string, durationSec, width, height int) (int64, error) {
+	fields := map[string]string{"chat_id": chatID, "supports_streaming": "true"}
+	if caption != "" {
+		fields["caption"] = caption
+	}
+	if durationSec > 0 {
+		fields["duration"] = fmt.Sprintf("%d", durationSec)
+	}
+	if width > 0 {
+		fields["width"] = fmt.Sprintf("%d", width)
+	}
+	if height > 0 {
+		fields["height"] = fmt.Sprintf("%d", height)
+	}
+	res, _, _, err := c.callMultipart(ctx, botToken, "sendVideo", fields, "video", fallbackFilename(filename, "video.mp4"), content)
 	if err != nil {
-		return nil, "", "", errors.Wrap(err, "telegram getFile")
+		return 0, errors.Wrap(err, "telegram sendVideo")
+	}
+	return decodeMessageID(res)
+}
+
+// SendVoice 向 chatID 发送 OGG Opus 语音消息，返回 Telegram 生成的消息编号。
+func (c *Client) SendVoice(ctx context.Context, botToken, chatID, filename string, content io.Reader, caption string, durationSec int) (int64, error) {
+	fields := map[string]string{"chat_id": chatID}
+	if caption != "" {
+		fields["caption"] = caption
+	}
+	if durationSec > 0 {
+		fields["duration"] = fmt.Sprintf("%d", durationSec)
+	}
+	res, _, _, err := c.callMultipart(ctx, botToken, "sendVoice", fields, "voice", fallbackFilename(filename, "voice.ogg"), content)
+	if err != nil {
+		return 0, errors.Wrap(err, "telegram sendVoice")
+	}
+	return decodeMessageID(res)
+}
+
+// SendAudio 向 chatID 发送音频文件及可选说明文字，返回 Telegram 生成的消息编号。
+func (c *Client) SendAudio(ctx context.Context, botToken, chatID, filename string, content io.Reader, caption string, durationSec int) (int64, error) {
+	fields := map[string]string{"chat_id": chatID}
+	if caption != "" {
+		fields["caption"] = caption
+	}
+	if durationSec > 0 {
+		fields["duration"] = fmt.Sprintf("%d", durationSec)
+	}
+	res, _, _, err := c.callMultipart(ctx, botToken, "sendAudio", fields, "audio", fallbackFilename(filename, "audio.mp3"), content)
+	if err != nil {
+		return 0, errors.Wrap(err, "telegram sendAudio")
+	}
+	return decodeMessageID(res)
+}
+
+// OpenFile 按 Telegram file_id 打开文件流而不把正文全部读入内存，超出 maxBytes 或 Telegram 20 MiB 上限时返回 channel.ErrMediaTooLarge。
+func (c *Client) OpenFile(ctx context.Context, botToken, fileID string, maxBytes int64) (*channel.FetchedMedia, error) {
+	res, code, desc, err := c.callJSON(ctx, botToken, "getFile", map[string]any{"file_id": fileID})
+	if err != nil {
+		lower := strings.ToLower(desc)
+		if strings.Contains(lower, "too big") {
+			return nil, channel.ErrMediaTooLarge.New()
+		}
+		if code == http.StatusBadRequest && (strings.Contains(lower, "file_id") || strings.Contains(lower, "not found")) {
+			return nil, channel.ErrMediaUnavailable.New()
+		}
+		return nil, errors.Wrap(err, "telegram getFile")
 	}
 	var info struct {
 		FilePath string `json:"file_path"`
 		FileSize int64  `json:"file_size"`
 	}
 	if err := json.Unmarshal(res, &info); err != nil {
-		return nil, "", "", errors.Wrap(err, "decode telegram getFile")
+		return nil, errors.Wrap(err, "decode telegram getFile")
 	}
 	if info.FilePath == "" {
-		return nil, "", "", errors.New("telegram getFile returned empty file_path")
+		return nil, channel.ErrMediaUnavailable.New()
 	}
-	maxBytes := int64(conversation.MaxFileSize)
-	if info.FileSize > maxBytes {
-		return nil, "", "", errors.Newf("telegram file size %d exceeds max %d", info.FileSize, maxBytes)
+	limit := int64(MaxDownloadSize)
+	if maxBytes > 0 && maxBytes < limit {
+		limit = maxBytes
+	}
+	if info.FileSize > limit {
+		return nil, channel.ErrMediaTooLarge.New()
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/file/bot%s/%s", c.baseURL, botToken, strings.TrimLeft(info.FilePath, "/")), nil)
 	if err != nil {
-		return nil, "", "", errors.Wrap(err, "build telegram download request")
+		return nil, errors.Wrap(err, "build telegram download request")
 	}
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, "", "", errors.Wrap(redactToken(err, botToken), "download telegram file")
+		return nil, errors.Wrap(redactToken(err, botToken), "download telegram file")
 	}
-	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		_ = resp.Body.Close()
+		return nil, channel.ErrMediaUnavailable.New()
+	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, "", "", errors.Newf("telegram file download http %d", resp.StatusCode)
+		_ = resp.Body.Close()
+		return nil, errors.Newf("telegram file download http %d", resp.StatusCode)
 	}
-	data, err := io.ReadAll(io.LimitReader(resp.Body, maxBytes+1))
-	if err != nil {
-		return nil, "", "", errors.Wrap(err, "read telegram file body")
+	size := resp.ContentLength
+	if size <= 0 && info.FileSize > 0 {
+		size = info.FileSize
 	}
-	if int64(len(data)) > maxBytes {
-		return nil, "", "", errors.Newf("telegram downloaded file exceeds max %d", maxBytes)
+	if size > limit {
+		_ = resp.Body.Close()
+		return nil, channel.ErrMediaTooLarge.New()
 	}
-	name := path.Base(info.FilePath)
-	ct := http.DetectContentType(data)
-	return data, name, ct, nil
+	if size <= 0 {
+		size = filesystem.UnknownSize
+	}
+	return &channel.FetchedMedia{
+		Body:        &boundedReadCloser{rc: resp.Body, remain: limit},
+		Filename:    path.Base(info.FilePath),
+		ContentType: resp.Header.Get("Content-Type"),
+		Size:        size,
+	}, nil
 }
+
+// boundedReadCloser 在流式读取过程中保护内存与磁盘，实际正文超过上限时立即返回 channel.ErrMediaTooLarge。
+type boundedReadCloser struct {
+	rc     io.ReadCloser
+	remain int64
+}
+
+func (b *boundedReadCloser) Read(p []byte) (int, error) {
+	if b.remain <= 0 {
+		var one [1]byte
+		n, err := b.rc.Read(one[:])
+		if n > 0 {
+			return 0, channel.ErrMediaTooLarge.New()
+		}
+		return 0, err
+	}
+	if int64(len(p)) > b.remain {
+		p = p[:b.remain]
+	}
+	n, err := b.rc.Read(p)
+	b.remain -= int64(n)
+	return n, err
+}
+
+func (b *boundedReadCloser) Close() error { return b.rc.Close() }
 
 func decodeMessageID(res json.RawMessage) (int64, error) {
 	var msg struct {

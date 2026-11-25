@@ -19,13 +19,13 @@ type Translation struct {
 	Text     string `json:"text" minLength:"1" maxLength:"20000" doc:"发给对方的译文"`
 }
 
-// ReplyBody 是回复的请求体：成员写的文字、可选的附件文件 ID 列表，以及可选的、他确认过的译文和随回复原子执行的会话操作。
+// ReplyBody 是回复的请求体：成员写的文字、可选的媒体附件列表，以及可选的、他确认过的译文和随回复原子执行的会话操作。
 // 文字和附件不能同时为空；带译文时发给对方的是译文，时间线中同时保存原文。
 type ReplyBody struct {
-	Text        string       `json:"text,omitempty" maxLength:"10000" doc:"成员写的文字"`
-	Attachments []string     `json:"attachments,omitempty" maxItems:"10" uniqueItems:"true" doc:"通过 /files 上传的附件文件 ID 列表"`
-	Translation *Translation `json:"translation,omitempty" doc:"发给对方的译文，由翻译的预览给出、成员确认；不带时按原文发出"`
-	Actions     *Actions     `json:"actions,omitempty" doc:"随回复在同一个事务中原子执行的会话操作（如指派、改优先级、加标签、改属性、关闭或稍后处理）"`
+	Text        string            `json:"text,omitempty" maxLength:"10000" doc:"成员写的文字"`
+	Attachments []AttachmentInput `json:"attachments,omitempty" maxItems:"10" doc:"通过 /files 上传的媒体附件列表（可附带封面图与音视频元数据）"`
+	Translation *Translation      `json:"translation,omitempty" doc:"发给对方的译文，由翻译的预览给出、成员确认；不带时按原文发出"`
+	Actions     *Actions          `json:"actions,omitempty" doc:"随回复在同一个事务中原子执行的会话操作（如指派、改优先级、加标签、改属性、关闭或稍后处理）"`
 }
 
 // ReplyInput 是回复会话的 HTTP 请求。
@@ -50,7 +50,7 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 	if err := authorize(sub, auth.ConversationsReply); err != nil {
 		return nil, err
 	}
-	if err := requireMessageContent(body.Text, body.Attachments); err != nil {
+	if err := requireMessageContent(body.Text, len(body.Attachments)); err != nil {
 		return nil, err
 	}
 	var item Item
@@ -59,7 +59,7 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 		if err != nil {
 			return err
 		}
-		confirmed, err := confirmAttachments(ctx, tx, a.down.Media.Files, sub, body.Attachments)
+		confirmed, err := confirmAttachmentInputs(ctx, tx, a.down.Media.Files, sub, body.Attachments)
 		if err != nil {
 			return err
 		}
@@ -111,7 +111,7 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 		if err := commit(ctx, tx, a.down, c, items...); err != nil {
 			return err
 		}
-		if err := insertItemFiles(ctx, tx, item.ID, confirmed); err != nil {
+		if err := insertAttachments(ctx, tx, c.TenantID, item.ID, confirmed); err != nil {
 			return err
 		}
 		if c.ChannelID == nil {

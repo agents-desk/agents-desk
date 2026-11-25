@@ -9,11 +9,12 @@ import (
 	"github.com/go-tenon/tenon/httpx/rest"
 
 	"agents-desk/internal/auth"
+	"agents-desk/internal/channel"
 )
 
-// RegisterRoutes 在工作区的 API（/t/{slug}/api）中注册会话的读取、回复和内部备注。
-// require 返回要求成员登录凭据和给定权限的访问策略；down 是时间线有新内容时通知的下游。
-func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.Operation), db *bun.DB, down Downstream) {
+// RegisterRoutes 在工作区的 API（/t/{slug}/api）中注册会话的读取、回复、内部备注与远端附件按需拉取。
+// require 返回要求成员登录凭据和给定权限的访问策略；registry 用来按渠道种类查找连接器；down 是时间线有新内容时通知的下游。
+func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.Operation), db *bun.DB, registry channel.Registry, down Downstream) {
 	route := func(access func(*huma.Operation), id, method, path, summary string) huma.Operation {
 		op := huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary}
 		access(&op)
@@ -51,6 +52,7 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	rest.Register(api, route(read, "conversation-search", http.MethodGet, "/conversations/search", "全文搜索会话"), NewSearch(db).HTTP)
 	rest.Register(api, route(read, "conversation-get", http.MethodGet, "/conversations/{id}", "读取会话"), NewGet(db).HTTP)
 	rest.Register(api, route(read, "conversation-items", http.MethodGet, "/conversations/{id}/items", "读取时间线"), NewTimeline(db, down.Media).HTTP)
+	rest.Register(api, route(read, "conversation-attachment-fetch", http.MethodPost, "/conversations/{id}/attachments/{attachment_id}/fetch", "按需拉取外部渠道的远端媒体附件"), NewFetchAttachment(db, registry, down).HTTP)
 	rest.Register(api, route(read, "conversation-rounds", http.MethodGet, "/conversations/{id}/rounds", "读取服务轮次记录"), NewListRounds(db).HTTP)
 	rest.Register(api, replyOp, NewReply(db, down).HTTP)
 	rest.Register(api, noteOp, NewAddNote(db, down).HTTP)

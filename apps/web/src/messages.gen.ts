@@ -361,6 +361,15 @@ export const messages = {
     "inbox.macro_warn_tag_missing": "Some tags were deleted and skipped",
     "inbox.macro_warn_team_disabled": "Team inbox “{{.name}}” is disabled; assignment skipped",
     "inbox.macro_warn_team_missing": "Target team inbox was deleted; assignment skipped",
+    "inbox.media_load_file": "Click to fetch attachment",
+    "inbox.media_load_video": "Click to load video",
+    "inbox.media_loading": "Fetching media…",
+    "inbox.media_play_audio": "Play audio",
+    "inbox.media_play_video": "Play video",
+    "inbox.media_retry": "Retry",
+    "inbox.media_too_large": "Exceeds channel download size limit",
+    "inbox.media_unavailable": "Media unavailable",
+    "inbox.media_voice": "Voice message",
     "inbox.mode_note": "Internal note",
     "inbox.mode_reply": "Reply",
     "inbox.new_message_jump": "New messages ({{.n}})",
@@ -377,8 +386,10 @@ export const messages = {
     "inbox.original": "Original",
     "inbox.pick": "Pick a conversation on the left",
     "inbox.pick_shortcut": "Press {{.key}} to jump to any view, contact, or setting",
+    "inbox.preview_audio": "[Audio]",
     "inbox.preview_file": "[File]",
     "inbox.preview_image": "[Image]",
+    "inbox.preview_video": "[Video]",
     "inbox.priority": "Priority",
     "inbox.priority_high": "High",
     "inbox.priority_normal": "Normal",
@@ -1380,6 +1391,15 @@ export const messages = {
     "inbox.macro_warn_tag_missing": "部分标签已删除，已跳过",
     "inbox.macro_warn_team_disabled": "团队收件箱“{{.name}}”已停用，已跳过指派",
     "inbox.macro_warn_team_missing": "目标团队收件箱已删除，已跳过指派",
+    "inbox.media_load_file": "点击下载附件",
+    "inbox.media_load_video": "点击加载视频",
+    "inbox.media_loading": "正在拉取媒体…",
+    "inbox.media_play_audio": "播放音频",
+    "inbox.media_play_video": "播放视频",
+    "inbox.media_retry": "重试加载",
+    "inbox.media_too_large": "超出渠道下载大小限制",
+    "inbox.media_unavailable": "媒体不可用",
+    "inbox.media_voice": "语音消息",
     "inbox.mode_note": "内部备注",
     "inbox.mode_reply": "回复",
     "inbox.new_message_jump": "{{.n}} 条新消息",
@@ -1396,8 +1416,10 @@ export const messages = {
     "inbox.original": "原文",
     "inbox.pick": "从左边选一个会话",
     "inbox.pick_shortcut": "按 {{.key}} 快速切换视图、联系人或设置",
+    "inbox.preview_audio": "[语音]",
     "inbox.preview_file": "[文件]",
     "inbox.preview_image": "[图片]",
+    "inbox.preview_video": "[视频]",
     "inbox.priority": "优先级",
     "inbox.priority_high": "高",
     "inbox.priority_normal": "普通",
@@ -2402,6 +2424,15 @@ export type MessageId =
   | "inbox.macro_warn_tag_missing"
   | "inbox.macro_warn_team_disabled"
   | "inbox.macro_warn_team_missing"
+  | "inbox.media_load_file"
+  | "inbox.media_load_video"
+  | "inbox.media_loading"
+  | "inbox.media_play_audio"
+  | "inbox.media_play_video"
+  | "inbox.media_retry"
+  | "inbox.media_too_large"
+  | "inbox.media_unavailable"
+  | "inbox.media_voice"
   | "inbox.mode_note"
   | "inbox.mode_reply"
   | "inbox.new_message_jump"
@@ -2418,8 +2449,10 @@ export type MessageId =
   | "inbox.original"
   | "inbox.pick"
   | "inbox.pick_shortcut"
+  | "inbox.preview_audio"
   | "inbox.preview_file"
   | "inbox.preview_image"
+  | "inbox.preview_video"
   | "inbox.priority"
   | "inbox.priority_high"
   | "inbox.priority_normal"

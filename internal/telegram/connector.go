@@ -3,6 +3,7 @@ package telegram
 import (
 	"context"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/cockroachdb/errors"
@@ -17,14 +18,17 @@ import (
 // maxCaptionRunes 是 Telegram 媒体消息 caption 的最大字符数。
 const maxCaptionRunes = 1024
 
-// Connector 是 Telegram 机器人私聊渠道的连接器：把坐席或系统的回复经 Telegram Bot API 发给对方。
+// Connector 是 Telegram 机器人私聊渠道的连接器：把坐席或系统的回复经 Telegram Bot API 发给对方，
+// 并实现 channel.MediaFetcher 供会话层异步或按需流式拉取 Telegram 媒体。
 type Connector struct {
 	crypt  *crypt.Crypt
 	files  *filesystem.Service
 	client *Client
 }
 
-// NewConnector 返回 Telegram 渠道的连接器；crypt 解密 Bot Token，files 读取消息附带的图片和文件流，client 调用 Bot API。
+var _ channel.MediaFetcher = Connector{}
+
+// NewConnector 返回 Telegram 渠道的连接器；crypt 解密 Bot Token，files 读取消息附带的媒体流，client 调用 Bot API。
 func NewConnector(c *crypt.Crypt, files *filesystem.Service, client *Client) Connector {
 	if client == nil {
 		client = NewClient(nil)
@@ -32,13 +36,29 @@ func NewConnector(c *crypt.Crypt, files *filesystem.Service, client *Client) Con
 	return Connector{crypt: c, files: files, client: client}
 }
 
-// Capabilities 返回 Telegram 私聊的能力：支持文字、图片和文件；单聊天窗口（按重开窗口归入会话）；不支持已读回执。
+// Capabilities 返回 Telegram 私聊的能力：支持文字、图片、视频、音频和文件；单聊天窗口；不支持已读回执。
 func (Connector) Capabilities() channel.Capabilities {
 	return channel.Capabilities{
-		MessageTypes:          []string{"text", "image", "file"},
+		MessageTypes:          []string{"text", "image", "video", "audio", "file"},
 		ReadReceipts:          false,
 		MultipleConversations: false,
 	}
+}
+
+// FetchMedia 实现 channel.MediaFetcher：按 Telegram file_id 解密渠道 Bot Token 后流式拉取媒体正文。
+func (c Connector) FetchMedia(ctx context.Context, ch *channel.Channel, ref string, maxBytes int64) (*channel.FetchedMedia, error) {
+	if strings.TrimSpace(ref) == "" {
+		return nil, channel.ErrMediaUnavailable.New()
+	}
+	s, err := settingsOf(ch)
+	if err != nil {
+		return nil, err
+	}
+	botToken, err := c.crypt.Decrypt(s.BotToken)
+	if err != nil {
+		return nil, errors.Wrap(err, "decrypt telegram bot token")
+	}
+	return c.client.OpenFile(ctx, botToken, ref, maxBytes)
 }
 
 // Send 把时间线中的回复 m 发给 Telegram 用户（m.ExternalTo 为 chat_id），返回 Telegram 生成的消息编号并报告已送达。
@@ -87,9 +107,19 @@ func (c Connector) Send(ctx context.Context, m channel.Outgoing) (string, bool, 
 		if i == 0 {
 			attCaption = caption
 		}
-		if att.Kind == "image" {
+		durSec := att.DurationMs / 1000
+		switch att.Kind {
+		case "image":
 			lastMsgID, err = c.client.SendPhoto(ctx, botToken, m.ExternalTo, att.Filename, rc, attCaption)
-		} else {
+		case "video":
+			lastMsgID, err = c.client.SendVideo(ctx, botToken, m.ExternalTo, att.Filename, rc, attCaption, durSec, att.Width, att.Height)
+		case "audio":
+			if att.IsVoice && strings.HasPrefix(strings.ToLower(att.ContentType), "audio/ogg") {
+				lastMsgID, err = c.client.SendVoice(ctx, botToken, m.ExternalTo, att.Filename, rc, attCaption, durSec)
+			} else {
+				lastMsgID, err = c.client.SendAudio(ctx, botToken, m.ExternalTo, att.Filename, rc, attCaption, durSec)
+			}
+		default:
 			lastMsgID, err = c.client.SendDocument(ctx, botToken, m.ExternalTo, att.Filename, rc, attCaption)
 		}
 		_ = rc.Close()

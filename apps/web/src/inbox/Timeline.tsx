@@ -218,6 +218,7 @@ export function Timeline({
                   </Text>
                 ) : it.kind === "note" ? (
                   <Note
+                    conversationId={c.id}
                     it={it}
                     author={names.member(it.actor.id)}
                     time={clock(it.created_at, language, zone)}
@@ -444,7 +445,7 @@ function Message({ it, c, mine, author, time, fullTime, first, last, mt, lang, o
           style={{ minWidth: 0 }}
         >
           {shown && <Linkified text={shown} highlight={highlight} />}
-          <MessageAttachments attachments={it.attachments} hasText={Boolean(shown)} onPreview={onPreview} />
+          <MessageAttachments conversationId={c.id} attachments={it.attachments} hasText={Boolean(shown)} onPreview={onPreview} />
           {sentAs && sent && (
             <Box mt={6} pt={6} className="inbox-sent-translation">
               <Text size="xs" c="dimmed">
@@ -513,6 +514,7 @@ function CaptionToggle({ label, onClick }: { label: string; onClick: () => void 
 
 /** Note 是内部备注：占满一行、黄色底加左侧强调条与锁图标，@ 到的同事加粗。只有成员可见。 */
 function Note({
+  conversationId,
   it,
   author,
   time,
@@ -522,6 +524,7 @@ function Note({
   focused,
   onPreview,
 }: {
+  conversationId: string
   it: ConversationItemDTO
   author: string
   time: string
@@ -579,7 +582,7 @@ function Note({
           )}
         </Text>
       )}
-      <MessageAttachments attachments={it.attachments} hasText={Boolean(raw)} onPreview={onPreview} />
+      <MessageAttachments conversationId={conversationId} attachments={it.attachments} hasText={Boolean(raw)} onPreview={onPreview} />
     </Paper>
   )
 }

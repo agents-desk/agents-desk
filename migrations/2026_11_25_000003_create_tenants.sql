@@ -9,6 +9,7 @@ CREATE TABLE tenants (
     disabled_at         timestamptz,
     reopen_window_hours integer NOT NULL DEFAULT 24 CHECK (reopen_window_hours >= 0),
     next_contact_number bigint NOT NULL DEFAULT 1 CHECK (next_contact_number > 0),
+    logo_file_id        uuid REFERENCES files (id),
     CONSTRAINT tenants_slug_unique UNIQUE (slug)
 );
 
@@ -25,6 +26,7 @@ COMMENT ON COLUMN tenants.owner_id IS '主管理员，同时在 authz 中拥有�
 COMMENT ON COLUMN tenants.disabled_at IS '非空表示已停用：成员不能进入，数据保留';
 COMMENT ON COLUMN tenants.reopen_window_hours IS '单窗口渠道会话关闭后的重开窗口（小时），0 表示关闭后直接新建会话';
 COMMENT ON COLUMN tenants.next_contact_number IS '工作区下一个新建联系人分配的递增编号';
+COMMENT ON COLUMN tenants.logo_file_id IS '工作区 Logo 文件 ID，关联 files.id；为空表示未设置';
 
 -- +goose Down
 DROP TABLE tenants;

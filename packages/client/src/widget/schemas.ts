@@ -64,6 +64,44 @@ export const schemas = {
 
 /** schemas 中 $ref 引用的命名类型，键是 OpenAPI 中的名称。 */
 export const components = {
+  ConversationAttachmentInput: {
+    "additionalProperties": false,
+    "properties": {
+      "duration_ms": {
+        "format": "int64",
+        "maximum": 86400000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "file_id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "height": {
+        "format": "int64",
+        "maximum": 10000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "is_voice": {
+        "type": "boolean"
+      },
+      "thumb_file_id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "width": {
+        "format": "int64",
+        "maximum": 10000,
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "file_id"
+    ],
+    "type": "object"
+  },
   WidgetContactEmailBody: {
     "additionalProperties": false,
     "properties": {
@@ -87,11 +125,10 @@ export const components = {
     "properties": {
       "attachments": {
         "items": {
-          "type": "string"
+          "$ref": "#/components/schemas/ConversationAttachmentInput"
         },
         "maxItems": 10,
-        "type": "array",
-        "uniqueItems": true
+        "type": "array"
       },
       "client_id": {
         "pattern": "^[A-Za-z0-9_-]{1,64}$",

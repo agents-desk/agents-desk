@@ -394,21 +394,47 @@ export interface ConversationAssignmentSettingsInputBody {
 
 export interface ConversationAttachmentDTO {
   content_type: string
-  file_id: string
+  /** 音频或视频时长（毫秒） */
+  duration_ms?: number
+  /** 不可用或拉取失败的原因码 */
+  error?: string
+  /** 主文件 ID；远端尚未拉取时为空 */
+  file_id?: string
   filename: string
-  /** 图片高度（像素）；非图片为空 */
+  /** 图片或视频高度（像素） */
   height?: number
+  /** 附件唯一标识 */
+  id: string
+  /** 是否为语音条消息 */
+  is_voice?: boolean
   kind: ConversationAttachmentKind
   size: number
-  /** 图片缩略图地址；未配置 imgproxy 时与 url 相同，非图片为空 */
+  /** 物化状态：ready 可直接播放/下载，remote 点击按需拉取，pending/fetching 拉取中，unavailable 不可用 */
+  status: ConversationFetchStatus
+  /** 图片缩略图或视频封面地址 */
   thumb_url?: string
-  /** 原文件的公开地址 */
-  url: string
-  /** 图片宽度（像素）；非图片为空 */
+  /** 原文件的公开地址；尚未拉取时为空 */
+  url?: string
+  /** 图片或视频宽度（像素） */
   width?: number
 }
 
-export type ConversationAttachmentKind = "image" | "file"
+export interface ConversationAttachmentInput {
+  /** 可选：音频或视频时长（毫秒） */
+  duration_ms?: number
+  /** 通过 /files 上传的主文件 ID */
+  file_id: string
+  /** 可选：视频高度（像素） */
+  height?: number
+  /** 是否为语音消息（按语音条样式展示） */
+  is_voice?: boolean
+  /** 可选：通过 /files 上传的封面缩略图 ID（例如视频首帧） */
+  thumb_file_id?: string
+  /** 可选：视频宽度（像素） */
+  width?: number
+}
+
+export type ConversationAttachmentKind = "image" | "video" | "audio" | "file"
 
 export interface ConversationAttributeFilter {
   /** 会话自定义属性标识 */
@@ -518,6 +544,8 @@ export type ConversationDefaultTarget = "none" | "team" | "member"
 
 export type ConversationDelivery = "sending" | "delivered" | "read" | "failed"
 
+export type ConversationFetchStatus = "ready" | "remote" | "pending" | "fetching" | "unavailable"
+
 export type ConversationInbox = "mine" | "mentions" | "unassigned" | "all"
 
 export interface ConversationInboxDTO {
@@ -564,8 +592,8 @@ export interface ConversationLanguageInputBody {
 }
 
 export interface ConversationNoteBody {
-  /** 通过 /files 上传的附件文件 ID 列表 */
-  attachments?: string[]
+  /** 通过 /files 上传的媒体附件列表 */
+  attachments?: ConversationAttachmentInput[]
   /** @ 到的成员 ID；他们的“@我”中出现这个会话，并且能看到它 */
   mentions?: string[]
   /** 内部备注的文字 */
@@ -613,8 +641,8 @@ export interface ConversationReorderViewsParams {
 export interface ConversationReplyBody {
   /** 随回复在同一个事务中原子执行的会话操作（如指派、改优先级、加标签、改属性、关闭或稍后处理） */
   actions?: ConversationActions
-  /** 通过 /files 上传的附件文件 ID 列表 */
-  attachments?: string[]
+  /** 通过 /files 上传的媒体附件列表（可附带封面图与音视频元数据） */
+  attachments?: ConversationAttachmentInput[]
   /** 成员写的文字 */
   text?: string
   /** 发给对方的译文，由翻译的预览给出、成员确认；不带时按原文发出 */
@@ -2229,6 +2257,13 @@ export function createClient(options: ClientOptions) {
        */
       assign: (id: string, body: ConversationAssignment): Promise<ConversationDTO> =>
         rt.request<ConversationDTO>({ method: "PUT", path: `/conversations/${encodeURIComponent(id)}/assignment`, body }),
+      /**
+       * 按需拉取外部渠道的远端媒体附件
+       *
+       * POST /conversations/{id}/attachments/{attachment_id}/fetch
+       */
+      attachmentFetch: (id: string, attachmentID: string): Promise<ConversationAttachmentDTO> =>
+        rt.request<ConversationAttachmentDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/attachments/${encodeURIComponent(attachmentID)}/fetch` }),
       /**
        * 修改会话属性
        *

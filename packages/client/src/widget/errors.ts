@@ -41,6 +41,10 @@ export const ChannelErrors = {
   NotFound: "channel.not_found",
   /** ErrDisabled 是渠道已停用，不再收发消息。 */
   Disabled: "channel.disabled",
+  /** ErrMediaTooLarge 是外部渠道的媒体超出该渠道接口允许下载的大小上限（例如 Telegram Bot API 20 MiB 限制）。 */
+  MediaTooLarge: "channel.media_too_large",
+  /** ErrMediaUnavailable 是外部渠道上的媒体已失效、被删除或渠道不支持按需拉取。 */
+  MediaUnavailable: "channel.media_unavailable",
 } as const
 
 /** agents-desk/internal/contact 的错误码。 */
@@ -69,6 +73,8 @@ export const ConversationErrors = {
   DefaultMemberRequired: "conversation.default_member_required",
   /** ErrEmptyMessage 是消息或内部备注既没有文字也没有附件。 */
   EmptyMessage: "conversation.empty_message",
+  /** ErrAttachmentNotFound 是附件不存在，或者不属于这个工作区和会话。 */
+  AttachmentNotFound: "conversation.attachment_not_found",
   /** ErrAlreadyAssigned 是要领取的会话已经被别人领取了：两个人同时领取时，先到者生效。 */
   AlreadyAssigned: "conversation.already_assigned",
   /** ErrClosed 是会话已经关闭，不能执行这个操作，例如稍后处理一个已关闭的会话。 */

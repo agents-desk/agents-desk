@@ -25,11 +25,11 @@ type AddNote struct {
 // NewAddNote 返回写内部备注的动作；down 是时间线有新内容时通知的下游。
 func NewAddNote(db *bun.DB, down Downstream) *AddNote { return &AddNote{db: db, down: down} }
 
-// NoteBody 是写内部备注的请求体：文字、@ 到的成员和可选附件。文字和附件不能同时为空。
+// NoteBody 是写内部备注的请求体：文字、@ 到的成员和可选媒体附件。文字和附件不能同时为空。
 type NoteBody struct {
-	Text        string   `json:"text,omitempty" maxLength:"10000" doc:"内部备注的文字"`
-	Mentions    []string `json:"mentions,omitempty" maxItems:"20" uniqueItems:"true" doc:"@ 到的成员 ID；他们的“@我”中出现这个会话，并且能看到它"`
-	Attachments []string `json:"attachments,omitempty" maxItems:"10" uniqueItems:"true" doc:"通过 /files 上传的附件文件 ID 列表"`
+	Text        string            `json:"text,omitempty" maxLength:"10000" doc:"内部备注的文字"`
+	Mentions    []string          `json:"mentions,omitempty" maxItems:"20" uniqueItems:"true" doc:"@ 到的成员 ID；他们的“@我”中出现这个会话，并且能看到它"`
+	Attachments []AttachmentInput `json:"attachments,omitempty" maxItems:"10" doc:"通过 /files 上传的媒体附件列表"`
 }
 
 // NoteInput 是写内部备注的 HTTP 请求：文字、@ 到的成员和附件。
@@ -41,11 +41,11 @@ type NoteInput struct {
 // Handle 由 sub 在 sub 所在工作区的会话 id 中写一条内部备注，@ 到成员 mentions，附带可选附件 attachments，sub 成为会话的参与者。
 // 文字和附件都为空时返回 ErrEmptyMessage；会话不存在或 sub 看不到时返回 ErrNotFound，没有权限时返回 ErrForbidden；
 // @ 到的人不是这个工作区的成员时返回 member.ErrNotFound（字段 mentions[i]）。
-func (a *AddNote) Handle(ctx context.Context, sub identity.Subject, id, text string, mentions []string, attachments ...string) (*ItemDTO, error) {
+func (a *AddNote) Handle(ctx context.Context, sub identity.Subject, id, text string, mentions []string, attachments ...AttachmentInput) (*ItemDTO, error) {
 	if err := authorize(sub, auth.ConversationsReply); err != nil {
 		return nil, err
 	}
-	if err := requireMessageContent(text, attachments); err != nil {
+	if err := requireMessageContent(text, len(attachments)); err != nil {
 		return nil, err
 	}
 	var item Item
@@ -54,7 +54,7 @@ func (a *AddNote) Handle(ctx context.Context, sub identity.Subject, id, text str
 		if err != nil {
 			return err
 		}
-		confirmed, err := confirmAttachments(ctx, tx, a.down.Media.Files, sub, attachments)
+		confirmed, err := confirmAttachmentInputs(ctx, tx, a.down.Media.Files, sub, attachments)
 		if err != nil {
 			return err
 		}
@@ -75,7 +75,7 @@ func (a *AddNote) Handle(ctx context.Context, sub identity.Subject, id, text str
 		if err := commit(ctx, tx, a.down, c, &item); err != nil {
 			return err
 		}
-		if err := insertItemFiles(ctx, tx, item.ID, confirmed); err != nil {
+		if err := insertAttachments(ctx, tx, c.TenantID, item.ID, confirmed); err != nil {
 			return err
 		}
 		for _, m := range mentions {

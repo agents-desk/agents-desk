@@ -257,6 +257,12 @@ func (a *App) tasks() *schedule.Scheduler {
 	sched.Add("files:cleanup", "*/5 * * * *", schedule.Cleanup(a.files.Cleanup, 500),
 		schedule.Label("schedule.task.files_cleanup.label"),
 		schedule.Describe("schedule.task.files_cleanup.description"))
+	sched.Add("media:evict-cache", "@daily", func(ctx context.Context) error {
+		_, err := conversation.EvictCachedMedia(ctx, a.db, a.files, time.Now().UTC().Add(-30*24*time.Hour), 200)
+		return err
+	},
+		schedule.Label("schedule.task.media_evict_cache.label"),
+		schedule.Describe("schedule.task.media_evict_cache.description"))
 	sched.Add("locks:cleanup", "@hourly", schedule.Cleanup(pglock.Cleanup(a.db), 1000),
 		schedule.Label("schedule.task.locks_cleanup.label"),
 		schedule.Describe("schedule.task.locks_cleanup.description"))

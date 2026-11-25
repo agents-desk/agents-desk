@@ -387,7 +387,7 @@ func TestAttachmentsHTTP(t *testing.T) {
 		t.Fatalf("访客上传：%d %s", upRes.status, upRes.body)
 	}
 	var sent widget.Sent
-	sendRes := callBearer(h, "POST", base+"/conversations", `{"attachments":["`+vFile.ID.String()+`"],"client_id":"img-1"}`, visitor.Token)
+	sendRes := callBearer(h, "POST", base+"/conversations", `{"attachments":[{"file_id":"`+vFile.ID.String()+`"}],"client_id":"img-1"}`, visitor.Token)
 	if sendRes.status != http.StatusCreated || json.Unmarshal([]byte(sendRes.body), &sent) != nil {
 		t.Fatalf("访客发送纯图片：%d %s", sendRes.status, sendRes.body)
 	}
@@ -401,7 +401,7 @@ func TestAttachmentsHTTP(t *testing.T) {
 	if sUp.status != http.StatusCreated || json.Unmarshal([]byte(sUp.body), &sFile) != nil {
 		t.Fatalf("陌生人上传：%d %s", sUp.status, sUp.body)
 	}
-	if r := callBearer(h, "POST", base+"/conversations/"+sent.ConversationID+"/messages", `{"attachments":["`+sFile.ID.String()+`"]}`, visitor.Token); r.status != http.StatusNotFound {
+	if r := callBearer(h, "POST", base+"/conversations/"+sent.ConversationID+"/messages", `{"attachments":[{"file_id":"`+sFile.ID.String()+`"}]}`, visitor.Token); r.status != http.StatusNotFound {
 		t.Fatalf("跨访客引用文件应返回 404，得到 %d %s", r.status, r.body)
 	}
 
@@ -412,7 +412,7 @@ func TestAttachmentsHTTP(t *testing.T) {
 		t.Fatalf("成员上传：%d %s", aUp.status, aUp.body)
 	}
 	var reply conversation.ItemDTO
-	rRes := call(h, "POST", "/t/alpha/api/conversations/"+sent.ConversationID+"/replies", `{"text":"请查收","attachments":["`+aFile.ID.String()+`"]}`, owner)
+	rRes := call(h, "POST", "/t/alpha/api/conversations/"+sent.ConversationID+"/replies", `{"text":"请查收","attachments":[{"file_id":"`+aFile.ID.String()+`"}]}`, owner)
 	if rRes.status != http.StatusCreated || json.Unmarshal([]byte(rRes.body), &reply) != nil {
 		t.Fatalf("成员带附件回复：%d %s", rRes.status, rRes.body)
 	}

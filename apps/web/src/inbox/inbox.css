@@ -621,6 +621,21 @@
   z-index: 2;
 }
 
+.inbox-attach-badge {
+  position: absolute;
+  left: 3px;
+  bottom: 3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: var(--mantine-radius-xs);
+  background: color-mix(in srgb, var(--mantine-color-black) 65%, transparent);
+  color: var(--mantine-color-white);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
 .inbox-attach-file {
   max-width: 220px;
   border-radius: var(--mantine-radius-sm);
@@ -694,4 +709,118 @@
 
 .inbox-msg-file:hover {
   background: var(--tn-hover);
+}
+
+.inbox-msg-img-placeholder {
+  position: relative;
+  min-width: 140px;
+  min-height: 100px;
+  cursor: pointer;
+}
+
+.inbox-msg-video {
+  position: relative;
+  width: 280px;
+  max-width: 100%;
+  min-height: 158px;
+  max-height: 320px;
+  overflow: hidden;
+  border-radius: var(--mantine-radius-sm);
+  background: var(--mantine-color-dark-8);
+}
+
+.inbox-msg-video img,
+.inbox-msg-video video {
+  width: 100%;
+  height: 100%;
+  max-height: 320px;
+  object-fit: cover;
+  display: block;
+}
+
+.inbox-msg-video video {
+  object-fit: contain;
+  background: var(--mantine-color-black);
+}
+
+.inbox-msg-video-empty {
+  width: 100%;
+  height: 158px;
+  display: grid;
+  place-items: center;
+  color: var(--mantine-color-gray-4);
+}
+
+.inbox-media-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--mantine-color-black) 38%, transparent);
+  color: var(--mantine-color-white);
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.inbox-media-overlay:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--mantine-color-black) 52%, transparent);
+}
+
+.inbox-media-overlay:disabled {
+  cursor: default;
+}
+
+.inbox-media-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--mantine-color-black) 60%, transparent);
+  border: 1px solid color-mix(in srgb, var(--mantine-color-white) 32%, transparent);
+}
+
+.inbox-media-hint {
+  color: var(--mantine-color-white);
+  text-align: center;
+  text-shadow: 0 1px 2px color-mix(in srgb, var(--mantine-color-black) 60%, transparent);
+}
+
+.inbox-msg-video-meta {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  padding: 2px 6px;
+  border-radius: var(--mantine-radius-xs);
+  background: color-mix(in srgb, var(--mantine-color-black) 62%, transparent);
+  color: var(--mantine-color-white);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.inbox-msg-video-dl {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+}
+
+.inbox-msg-audio {
+  width: 260px;
+  max-width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--mantine-radius-sm);
+  border: 1px solid var(--tn-border);
+  background: var(--tn-surface);
+}
+
+.inbox-audio-player {
+  width: 100%;
+  height: 32px;
+  display: block;
 }

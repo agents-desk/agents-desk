@@ -1,7 +1,6 @@
 package telegram
 
 import (
-	"bytes"
 	"context"
 	"crypto/subtle"
 	"encoding/json"
@@ -19,7 +18,6 @@ import (
 
 	"github.com/go-tenon/tenon/crypt"
 	"github.com/go-tenon/tenon/database"
-	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/channel"
@@ -28,22 +26,18 @@ import (
 )
 
 // Webhook 处理 POST /webhooks/telegram/{channel}：接收 Telegram 官方直连或外部业务网关转发的 Update，
-// 校验 X-Telegram-Bot-Api-Secret-Token，按需通过外部身份头关联客户，下载图片/文件附件，再写入会话内核。
+// 校验 X-Telegram-Bot-Api-Secret-Token，按需通过外部身份头关联客户，并将文字与媒体元数据毫秒级写入会话内核
+// （不阻塞于外部文件下载，媒体由后台队列自动拉取封面/图片/语音，视频与大文件保持远端态等待按需拉取）。
 type Webhook struct {
 	db      *bun.DB
 	crypt   *crypt.Crypt
-	files   *filesystem.Service
-	client  *Client
 	receive *conversation.Receive
 	down    conversation.Downstream
 }
 
 // NewWebhook 返回 Telegram Webhook 处理器。
-func NewWebhook(db *bun.DB, c *crypt.Crypt, files *filesystem.Service, client *Client, receive *conversation.Receive, down conversation.Downstream) *Webhook {
-	if client == nil {
-		client = NewClient(nil)
-	}
-	return &Webhook{db: db, crypt: c, files: files, client: client, receive: receive, down: down}
+func NewWebhook(db *bun.DB, c *crypt.Crypt, receive *conversation.Receive, down conversation.Downstream) *Webhook {
+	return &Webhook{db: db, crypt: c, receive: receive, down: down}
 }
 
 type updatePayload struct {
@@ -52,13 +46,19 @@ type updatePayload struct {
 }
 
 type incomingMsg struct {
-	MessageID int64         `json:"message_id"`
-	From      *telegramUser `json:"from"`
-	Chat      telegramChat  `json:"chat"`
-	Text      string        `json:"text"`
-	Caption   string        `json:"caption"`
-	Photo     []photoSize   `json:"photo"`
-	Document  *docFile      `json:"document"`
+	MessageID int64          `json:"message_id"`
+	From      *telegramUser  `json:"from"`
+	Chat      telegramChat   `json:"chat"`
+	Text      string         `json:"text"`
+	Caption   string         `json:"caption"`
+	Photo     []photoSize    `json:"photo"`
+	Video     *videoFile     `json:"video"`
+	VideoNote *videoNoteFile `json:"video_note"`
+	Animation *videoFile     `json:"animation"`
+	Voice     *voiceFile     `json:"voice"`
+	Audio     *audioFile     `json:"audio"`
+	Sticker   *stickerFile   `json:"sticker"`
+	Document  *docFile       `json:"document"`
 }
 
 type telegramUser struct {
@@ -81,11 +81,60 @@ type photoSize struct {
 	FileSize int64  `json:"file_size"`
 }
 
-type docFile struct {
+type videoFile struct {
+	FileID    string     `json:"file_id"`
+	Width     int        `json:"width"`
+	Height    int        `json:"height"`
+	Duration  int        `json:"duration"`
+	Thumbnail *photoSize `json:"thumbnail"`
+	FileName  string     `json:"file_name"`
+	MimeType  string     `json:"mime_type"`
+	FileSize  int64      `json:"file_size"`
+}
+
+type videoNoteFile struct {
+	FileID    string     `json:"file_id"`
+	Length    int        `json:"length"`
+	Duration  int        `json:"duration"`
+	Thumbnail *photoSize `json:"thumbnail"`
+	FileSize  int64      `json:"file_size"`
+}
+
+type voiceFile struct {
 	FileID   string `json:"file_id"`
-	FileName string `json:"file_name"`
+	Duration int    `json:"duration"`
 	MimeType string `json:"mime_type"`
 	FileSize int64  `json:"file_size"`
+}
+
+type audioFile struct {
+	FileID    string     `json:"file_id"`
+	Duration  int        `json:"duration"`
+	Performer string     `json:"performer"`
+	Title     string     `json:"title"`
+	FileName  string     `json:"file_name"`
+	MimeType  string     `json:"mime_type"`
+	FileSize  int64      `json:"file_size"`
+	Thumbnail *photoSize `json:"thumbnail"`
+}
+
+type stickerFile struct {
+	FileID     string     `json:"file_id"`
+	Width      int        `json:"width"`
+	Height     int        `json:"height"`
+	IsAnimated bool       `json:"is_animated"`
+	IsVideo    bool       `json:"is_video"`
+	Thumbnail  *photoSize `json:"thumbnail"`
+	Emoji      string     `json:"emoji"`
+	FileSize   int64      `json:"file_size"`
+}
+
+type docFile struct {
+	FileID    string     `json:"file_id"`
+	FileName  string     `json:"file_name"`
+	MimeType  string     `json:"mime_type"`
+	FileSize  int64      `json:"file_size"`
+	Thumbnail *photoSize `json:"thumbnail"`
 }
 
 // ServeHTTP 实现 http.Handler，供 chi 挂载到 POST /webhooks/telegram/{channel}。
@@ -170,28 +219,11 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	sys := identity.Subject{Type: identity.System, ID: "telegram:" + ch.ID, Tenant: ch.TenantID}
 	text := strings.TrimSpace(firstNonEmpty(msg.Text, msg.Caption))
-	var attachmentIDs []string
-
-	if len(msg.Photo) > 0 || msg.Document != nil {
-		botToken, err := h.crypt.Decrypt(s.BotToken)
-		if err != nil {
-			slog.ErrorContext(ctx, "decrypt telegram bot token for media", "channel_id", id, "error", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		fileID, fallbackName, mimeHint := pickMedia(msg)
-		uploadedID, fallbackNote, err := h.ingestMedia(ctx, sys, botToken, fileID, fallbackName, mimeHint)
-		if err != nil {
-			slog.WarnContext(ctx, "ingest telegram media failed", "channel_id", id, "message_id", msg.MessageID, "error", err)
-			if text == "" {
-				text = fallbackNote
-			}
-		} else if uploadedID != "" {
-			attachmentIDs = []string{uploadedID}
-		}
+	incoming, fallbackText := extractIncomingAttachments(msg)
+	if text == "" && len(incoming) == 0 {
+		text = fallbackText
 	}
-
-	if text == "" && len(attachmentIDs) == 0 {
+	if text == "" && len(incoming) == 0 {
 		slog.InfoContext(ctx, "ignore unsupported empty telegram message", "channel_id", id, "message_id", msg.MessageID)
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -199,29 +231,13 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	extMsgID := fmt.Sprintf("%d:%d", msg.Chat.ID, msg.MessageID)
 	_, err = h.receive.Handle(ctx, sys, conversation.ReceiveParams{
-		ChannelID:         ch.ID,
-		From:              chatID,
-		FromName:          firstNonEmpty(extName, fromName),
-		ExternalID:        extMsgID,
-		Text:              text,
-		AttachmentFileIDs: attachmentIDs,
+		ChannelID:           ch.ID,
+		From:                chatID,
+		FromName:            firstNonEmpty(extName, fromName),
+		ExternalID:          extMsgID,
+		Text:                text,
+		IncomingAttachments: incoming,
 	})
-	if err != nil && len(attachmentIDs) > 0 && errors.Is(err, filesystem.ErrNotAccepted) {
-		// 附件不在会话白名单（例如不支持的格式或超限图片）时，回退记录可读说明，避免 Webhook 500 无限重试。
-		slog.WarnContext(ctx, "telegram attachment rejected by whitelist, recording text fallback", "channel_id", id, "message_id", msg.MessageID)
-		fallback := text
-		if fallback == "" {
-			_, name, _ := pickMedia(msg)
-			fallback = "[Attachment: " + fallbackFilename(name, "file") + "]"
-		}
-		_, err = h.receive.Handle(ctx, sys, conversation.ReceiveParams{
-			ChannelID:  ch.ID,
-			From:       chatID,
-			FromName:   firstNonEmpty(extName, fromName),
-			ExternalID: extMsgID,
-			Text:       fallback,
-		})
-	}
 	if err != nil {
 		slog.ErrorContext(ctx, "receive telegram message failed", "channel_id", id, "message_id", msg.MessageID, "error", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -232,57 +248,196 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(`{"ok":true}`))
 }
 
-// ingestMedia 从 Telegram 下载媒体并上传为临时文件，供 conversation.Receive 在事务中校验与确认。
-func (h *Webhook) ingestMedia(ctx context.Context, owner identity.Subject, botToken, fileID, nameHint, mimeHint string) (string, string, error) {
-	if h.files == nil {
-		return "", "[Attachment: " + fallbackFilename(nameHint, "file") + "]", errors.New("filesystem service not configured")
+// extractIncomingAttachments 将 Telegram 消息体中的各类媒体转换为会话层的 IncomingAttachment 元数据。
+// 图片、语音与小文件设置 AutoFetch=true 由后台异步落盘；视频和大文件设置 AutoFetch=false 仅异步拉取封面，
+// 主文件等待成员点击按需拉取；超过 Telegram 20 MiB 下载上限的直接标明 channel.media_too_large。
+func extractIncomingAttachments(msg *incomingMsg) ([]conversation.IncomingAttachment, string) {
+	thumbID := func(p *photoSize) string {
+		if p == nil {
+			return ""
+		}
+		return p.FileID
 	}
-	data, inferredName, detectedType, err := h.client.DownloadFile(ctx, botToken, fileID)
-	if err != nil {
-		return "", "[Attachment: " + fallbackFilename(nameHint, "file") + "]", err
-	}
-	contentType := firstNonEmpty(mimeHint, detectedType)
-	filename := firstNonEmpty(nameHint, inferredName)
-	if filename == "" || !strings.Contains(filename, ".") {
-		filename = "file" + extForContentType(contentType)
-	}
-	f, err := h.files.Upload(ctx, owner, filesystem.FileInput{
-		Filename:    filename,
-		ContentType: contentType,
-		Size:        int64(len(data)),
-	}, bytes.NewReader(data))
-	if err != nil {
-		return "", "[Attachment: " + fallbackFilename(filename, "file") + "]", err
-	}
-	return f.ID.String(), "", nil
-}
-
-func extForContentType(ct string) string {
-	switch strings.ToLower(strings.TrimSpace(strings.Split(ct, ";")[0])) {
-	case "image/png":
-		return ".png"
-	case "image/jpeg":
-		return ".jpg"
-	case "image/webp":
-		return ".webp"
-	case "image/gif":
-		return ".gif"
-	case "application/pdf":
-		return ".pdf"
-	default:
+	tooLarge := func(size int64) string {
+		if size > int64(MaxDownloadSize) {
+			return channel.ErrMediaTooLarge.Code()
+		}
 		return ""
 	}
+
+	switch {
+	case len(msg.Photo) > 0:
+		best := msg.Photo[len(msg.Photo)-1]
+		return []conversation.IncomingAttachment{{
+			Kind:        conversation.AttachmentImage,
+			Size:        best.FileSize,
+			Width:       best.Width,
+			Height:      best.Height,
+			SourceRef:   best.FileID,
+			AutoFetch:   best.FileSize <= int64(conversation.MaxImageSize),
+			Unavailable: tooLarge(best.FileSize),
+		}}, ""
+
+	case msg.Video != nil:
+		v := msg.Video
+		mime := firstNonEmpty(v.MimeType, "video/mp4")
+		return []conversation.IncomingAttachment{{
+			Kind:           conversation.AttachmentVideo,
+			Filename:       firstNonEmpty(v.FileName, "video.mp4"),
+			ContentType:    mime,
+			Size:           v.FileSize,
+			Width:          v.Width,
+			Height:         v.Height,
+			DurationMs:     v.Duration * 1000,
+			SourceRef:      v.FileID,
+			ThumbSourceRef: thumbID(v.Thumbnail),
+			AutoFetch:      false,
+			Unavailable:    tooLarge(v.FileSize),
+		}}, ""
+
+	case msg.VideoNote != nil:
+		vn := msg.VideoNote
+		return []conversation.IncomingAttachment{{
+			Kind:           conversation.AttachmentVideo,
+			Filename:       "video_note.mp4",
+			ContentType:    "video/mp4",
+			Size:           vn.FileSize,
+			Width:          vn.Length,
+			Height:         vn.Length,
+			DurationMs:     vn.Duration * 1000,
+			SourceRef:      vn.FileID,
+			ThumbSourceRef: thumbID(vn.Thumbnail),
+			AutoFetch:      false,
+			Unavailable:    tooLarge(vn.FileSize),
+		}}, ""
+
+	case msg.Animation != nil:
+		a := msg.Animation
+		mime := firstNonEmpty(a.MimeType, "video/mp4")
+		kind := conversation.AttachmentVideo
+		if strings.HasPrefix(strings.ToLower(mime), "image/") {
+			kind = conversation.AttachmentImage
+		}
+		return []conversation.IncomingAttachment{{
+			Kind:           kind,
+			Filename:       firstNonEmpty(a.FileName, "animation.mp4"),
+			ContentType:    mime,
+			Size:           a.FileSize,
+			Width:          a.Width,
+			Height:         a.Height,
+			DurationMs:     a.Duration * 1000,
+			SourceRef:      a.FileID,
+			ThumbSourceRef: thumbID(a.Thumbnail),
+			AutoFetch:      a.FileSize <= int64(autoFetchAnimationThreshold),
+			Unavailable:    tooLarge(a.FileSize),
+		}}, ""
+
+	case msg.Voice != nil:
+		v := msg.Voice
+		return []conversation.IncomingAttachment{{
+			Kind:        conversation.AttachmentAudio,
+			Filename:    "voice.ogg",
+			ContentType: firstNonEmpty(v.MimeType, "audio/ogg"),
+			Size:        v.FileSize,
+			DurationMs:  v.Duration * 1000,
+			IsVoice:     true,
+			SourceRef:   v.FileID,
+			AutoFetch:   v.FileSize <= int64(conversation.MaxAudioSize),
+			Unavailable: tooLarge(v.FileSize),
+		}}, ""
+
+	case msg.Audio != nil:
+		a := msg.Audio
+		name := a.FileName
+		if name == "" && a.Title != "" {
+			name = a.Title + ".mp3"
+		}
+		return []conversation.IncomingAttachment{{
+			Kind:           conversation.AttachmentAudio,
+			Filename:       firstNonEmpty(name, "audio.mp3"),
+			ContentType:    firstNonEmpty(a.MimeType, "audio/mpeg"),
+			Size:           a.FileSize,
+			DurationMs:     a.Duration * 1000,
+			SourceRef:      a.FileID,
+			ThumbSourceRef: thumbID(a.Thumbnail),
+			AutoFetch:      a.FileSize <= int64(autoFetchFileThreshold),
+			Unavailable:    tooLarge(a.FileSize),
+		}}, ""
+
+	case msg.Sticker != nil:
+		st := msg.Sticker
+		if st.IsVideo {
+			return []conversation.IncomingAttachment{{
+				Kind:           conversation.AttachmentVideo,
+				Filename:       "sticker.webm",
+				ContentType:    "video/webm",
+				Size:           st.FileSize,
+				Width:          st.Width,
+				Height:         st.Height,
+				SourceRef:      st.FileID,
+				ThumbSourceRef: thumbID(st.Thumbnail),
+				AutoFetch:      st.FileSize <= int64(autoFetchAnimationThreshold),
+				Unavailable:    tooLarge(st.FileSize),
+			}}, ""
+		}
+		// TGS 矢量贴纸在浏览器无法原生展示，优先拉取静态缩略图；无缩略图时回退其 emoji
+		if st.IsAnimated {
+			if st.Thumbnail != nil && st.Thumbnail.FileID != "" {
+				return []conversation.IncomingAttachment{{
+					Kind:        conversation.AttachmentImage,
+					Filename:    "sticker.webp",
+					ContentType: "image/webp",
+					Size:        st.Thumbnail.FileSize,
+					Width:       st.Thumbnail.Width,
+					Height:      st.Thumbnail.Height,
+					SourceRef:   st.Thumbnail.FileID,
+					AutoFetch:   true,
+				}}, ""
+			}
+			return nil, strings.TrimSpace(st.Emoji)
+		}
+		return []conversation.IncomingAttachment{{
+			Kind:        conversation.AttachmentImage,
+			Filename:    "sticker.webp",
+			ContentType: "image/webp",
+			Size:        st.FileSize,
+			Width:       st.Width,
+			Height:      st.Height,
+			SourceRef:   st.FileID,
+			AutoFetch:   st.FileSize <= int64(conversation.MaxImageSize),
+			Unavailable: tooLarge(st.FileSize),
+		}}, ""
+
+	case msg.Document != nil:
+		d := msg.Document
+		kind := kindForDocumentMIME(d.MimeType)
+		auto := kind != conversation.AttachmentVideo && d.FileSize <= int64(autoFetchFileThreshold)
+		return []conversation.IncomingAttachment{{
+			Kind:           kind,
+			Filename:       firstNonEmpty(d.FileName, "file"),
+			ContentType:    d.MimeType,
+			Size:           d.FileSize,
+			SourceRef:      d.FileID,
+			ThumbSourceRef: thumbID(d.Thumbnail),
+			AutoFetch:      auto,
+			Unavailable:    tooLarge(d.FileSize),
+		}}, ""
+	}
+	return nil, ""
 }
 
-func pickMedia(msg *incomingMsg) (fileID, name, mime string) {
-	if len(msg.Photo) > 0 {
-		best := msg.Photo[len(msg.Photo)-1]
-		return best.FileID, "", ""
+func kindForDocumentMIME(ct string) conversation.AttachmentKind {
+	ct = strings.ToLower(strings.TrimSpace(strings.Split(ct, ";")[0]))
+	switch {
+	case strings.HasPrefix(ct, "image/"):
+		return conversation.AttachmentImage
+	case strings.HasPrefix(ct, "video/"):
+		return conversation.AttachmentVideo
+	case strings.HasPrefix(ct, "audio/"):
+		return conversation.AttachmentAudio
+	default:
+		return conversation.AttachmentFile
 	}
-	if msg.Document != nil {
-		return msg.Document.FileID, msg.Document.FileName, msg.Document.MimeType
-	}
-	return "", "", ""
 }
 
 func displayNameOf(u *telegramUser, chatID string) string {

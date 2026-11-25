@@ -3,7 +3,6 @@ import type {
   ConversationActions,
   ConversationDTO,
   ConversationTranslation,
-  File as UploadedFile,
   MacroDTO,
   MemberTenantMember,
   TagDTO,
@@ -74,7 +73,15 @@ import {
   resolveMacroActions,
   toConversationActions,
 } from "../macros/template"
-import { ATTACHMENT_ACCEPT, AttachmentStrip, attachmentMaxSize, MAX_ATTACHMENTS } from "./Attachments"
+import {
+  ATTACHMENT_ACCEPT,
+  AttachmentStrip,
+  attachmentMaxSize,
+  MAX_ATTACHMENTS,
+  toAttachmentInput,
+  type UploadedMedia,
+  uploadMediaFile,
+} from "./Attachments"
 import { useAttributes, useMacros, useMe, useMembers, useTags, useTeams } from "./data"
 import { clearDraft, type DraftMode, getDraft, saveDraft } from "./drafts"
 import { snoozeOptions } from "./menus"
@@ -151,15 +158,15 @@ export function Composer({
   const hasPending = !note && hasPendingActions(pendingActions)
   const translatableText = !note && !value.startsWith("/") ? value : ""
   const preview = useReplyTranslation(c.id, translatableText, c.language, me.data?.language)
-  const queue = useUploadQueue<UploadedFile>({
-    upload: (file) => tenantApi.file.upload({ file }),
+  const queue = useUploadQueue<UploadedMedia>({
+    upload: (file) => uploadMediaFile(file, (f) => tenantApi.file.upload({ file: f })),
     accept: ATTACHMENT_ACCEPT,
     maxFiles: MAX_ATTACHMENTS,
     maxSize: attachmentMaxSize,
     onError: (message) => notifications.show({ color: "red", message }),
   })
-  const attachmentIds = queue.ready.map((f) => f.id)
-  const hasContent = Boolean(value) || attachmentIds.length > 0
+  const attachmentInputs = queue.ready.map(toAttachmentInput)
+  const hasContent = Boolean(value) || attachmentInputs.length > 0
 
   // 实时保存草稿，切换会话后再回来不丢失已输入内容与模式
   useEffect(() => {
@@ -168,7 +175,7 @@ export function Composer({
 
   const send = useMutation({
     mutationFn: async ({ after, translation, mode: sendMode }: { after: After; translation?: ConversationTranslation; mode: Mode }) => {
-      const attachments = attachmentIds.length > 0 ? attachmentIds : undefined
+      const attachments = attachmentInputs.length > 0 ? attachmentInputs : undefined
       if (sendMode === "note") {
         // 只算还留在文字中的 @
         const ids = members.filter((m) => mentionIds.includes(m.id) && value.includes(`@${m.name}`)).map((m) => m.id)
