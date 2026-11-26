@@ -20,14 +20,34 @@ type Translation struct {
 	Text     string `json:"text" minLength:"1" maxLength:"20000" doc:"发给对方的译文"`
 }
 
-// ReplyBody 是回复的请求体：成员写的文字、可选的媒体附件列表、可选的发送渠道，以及可选的译文和随回复原子执行的会话操作。
-// 文字和附件不能同时为空；带译文时发给对方的是译文，时间线中同时保存原文。
+// AutoTranslateRequest 指示服务端在后台投递前将成员原文异步翻译为目标语言，避免阻塞发送交互。
+type AutoTranslateRequest struct {
+	Language string `json:"language,omitempty" maxLength:"35" doc:"目标语言（BCP 47）；留空时按会话对方语言自动推断"`
+	Tone     string `json:"tone,omitempty" maxLength:"20" doc:"可选语气覆盖（friendly、neutral 或 formal）；留空使用工作区默认语气"`
+}
+
+// pendingTranslationDerived 生成写入 timeline_items.derived 的异步待翻译标记。
+func pendingTranslationDerived(req *AutoTranslateRequest) map[string]any {
+	if req == nil {
+		return nil
+	}
+	return map[string]any{
+		"pending_translation": map[string]any{
+			"language": strings.TrimSpace(req.Language),
+			"tone":     strings.TrimSpace(req.Tone),
+		},
+	}
+}
+
+// ReplyBody 是回复的请求体：成员写的文字、可选的媒体附件列表、可选的发送渠道，以及可选的译文、后台自动翻译指示和随回复原子执行的会话操作。
+// 文字和附件不能同时为空；带译文时发给对方的是译文，带 auto_translate 时先快速落库并由投递任务在后台翻译后发出，时间线中均保存原文。
 type ReplyBody struct {
-	Text        string            `json:"text,omitempty" maxLength:"10000" doc:"成员写的文字"`
-	Attachments []AttachmentInput `json:"attachments,omitempty" maxItems:"10" doc:"通过 /files 上传的媒体附件列表（可附带封面图与音视频元数据）"`
-	ChannelID   string            `json:"channel_id,omitempty" format:"uuid" doc:"发往的渠道 ID；为空时发往会话当前的默认回复渠道"`
-	Translation *Translation      `json:"translation,omitempty" doc:"发给对方的译文，由翻译的预览给出、成员确认；不带时按原文发出"`
-	Actions     *Actions          `json:"actions,omitempty" doc:"随回复在同一个事务中原子执行的会话操作（如指派、改优先级、加标签、改属性、关闭或稍后处理）"`
+	Text          string                `json:"text,omitempty" maxLength:"10000" doc:"成员写的文字"`
+	Attachments   []AttachmentInput     `json:"attachments,omitempty" maxItems:"10" doc:"通过 /files 上传的媒体附件列表（可附带封面图与音视频元数据）"`
+	ChannelID     string                `json:"channel_id,omitempty" format:"uuid" doc:"发往的渠道 ID；为空时发往会话当前的默认回复渠道"`
+	Translation   *Translation          `json:"translation,omitempty" doc:"发给对方的译文，由翻译的预览给出、成员确认；不带时按原文或 auto_translate 发出"`
+	AutoTranslate *AutoTranslateRequest `json:"auto_translate,omitempty" doc:"后台自动翻译参数：不携带 translation 时，先立刻落库并由投递任务异步翻译后发给对方"`
+	Actions       *Actions              `json:"actions,omitempty" doc:"随回复在同一个事务中原子执行的会话操作（如指派、改优先级、加标签、改属性、关闭或稍后处理）"`
 }
 
 // ReplyInput 是回复会话的 HTTP 请求。
@@ -79,10 +99,13 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 		at := now()
 		actor := actorOf(sub)
 		content := Content{Text: body.Text}
+		var derived map[string]any
 		if body.Translation != nil && strings.TrimSpace(body.Text) != "" {
 			content = Content{Text: body.Translation.Text, Original: body.Text, Language: body.Translation.Language}
+		} else if body.AutoTranslate != nil && strings.TrimSpace(body.Text) != "" {
+			derived = pendingTranslationDerived(body.AutoTranslate)
 		}
-		item = Item{Kind: Message, ActorType: actor, ActorID: sub.ID, Visibility: Everyone, Content: content, ChannelID: targetChannelID}
+		item = Item{Kind: Message, ActorType: actor, ActorID: sub.ID, Visibility: Everyone, Content: content, Derived: derived, ChannelID: targetChannelID}
 		items := make([]*Item, 0, 3)
 		// 回复已关闭或稍后处理的会话时自动恢复打开，保证轮次与状态机自洽；若联系人已有其他活跃会话则拒绝重开
 		switch c.Status {

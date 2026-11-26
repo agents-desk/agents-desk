@@ -1,8 +1,8 @@
 import type { ChatScope } from "@agents-desk/client/tenant"
-import { ActionIcon, Badge, Box, NavLink, Text, Tooltip } from "@mantine/core"
+import { Badge, Box, NavLink, Text } from "@mantine/core"
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
-import { IconBriefcase, IconMessageCircle, IconMessages, IconPlus, IconSettings, IconUsersGroup } from "@tabler/icons-react"
+import { IconBriefcase, IconMessageCircle, IconMessages, IconPlus, IconUsersGroup } from "@tabler/icons-react"
 import { Fill, RailSection, useT } from "@go-tenon/ui"
 import type { ReactNode } from "react"
 import { kit } from "../api"
@@ -18,9 +18,8 @@ export interface ChatNavTarget {
 
 /**
  * ChatNav 是放进二级导航（nav 插槽）的聊天分组菜单：
- * 上半区提供内部聊天分组（全部、单聊、群聊）；
- * 下半区提供商务沟通（全部商务沟通与成员个人网页链接、Telegram 个人号快捷筛选），
- * 与收件箱、联系人、报表保持一致的 200px 二级导航栏布局。
+ * 采用对称的双分组结构——「内部聊天（全部/单聊/群聊）」与「商务沟通（全部商务沟通与个人商务渠道）」，
+ * 两组均支持折叠并持久记住状态，与收件箱、联系人、报表保持一致的 200px 二级导航栏布局。
  */
 export function ChatNav({
   scope,
@@ -52,44 +51,35 @@ export function ChatNav({
 
   return (
     <Fill name="nav">
-      <NavLink
-        label={t("chat.internal_section")}
-        leftSection={<IconMessages size={16} stroke={1.6} />}
-        rightSection={
-          internalUnread > 0 ? (
-            <Badge size="xs" circle color="brand" style={{ fontVariantNumeric: "tabular-nums" }}>
-              {internalUnread > 99 ? "99+" : internalUnread}
-            </Badge>
-          ) : undefined
-        }
-        active={scope === "internal" && filter === "all"}
-        onClick={() => onSelect({ scope: "internal" })}
-      />
-      <NavLink
-        label={t("chat.filter_direct")}
-        leftSection={<IconMessageCircle size={16} stroke={1.6} />}
-        active={scope === "internal" && filter === "direct"}
-        onClick={() => onSelect({ scope: "internal", filter: "direct" })}
-      />
-      <NavLink
-        label={t("chat.filter_group")}
-        leftSection={<IconUsersGroup size={16} stroke={1.6} />}
-        active={scope === "internal" && filter === "group"}
-        onClick={() => onSelect({ scope: "internal", filter: "group" })}
-      />
+      <RailSection title={t("chat.internal_section")} collapsible storeKey="chat-internal">
+        <NavLink
+          label={t("chat.filter_all")}
+          leftSection={<IconMessages size={16} stroke={1.6} />}
+          rightSection={
+            internalUnread > 0 ? (
+              <Badge size="xs" circle color="brand" style={{ fontVariantNumeric: "tabular-nums" }}>
+                {internalUnread > 99 ? "99+" : internalUnread}
+              </Badge>
+            ) : undefined
+          }
+          active={scope === "internal" && filter === "all"}
+          onClick={() => onSelect({ scope: "internal" })}
+        />
+        <NavLink
+          label={t("chat.filter_direct")}
+          leftSection={<IconMessageCircle size={16} stroke={1.6} />}
+          active={scope === "internal" && filter === "direct"}
+          onClick={() => onSelect({ scope: "internal", filter: "direct" })}
+        />
+        <NavLink
+          label={t("chat.filter_group")}
+          leftSection={<IconUsersGroup size={16} stroke={1.6} />}
+          active={scope === "internal" && filter === "group"}
+          onClick={() => onSelect({ scope: "internal", filter: "group" })}
+        />
+      </RailSection>
 
-      <RailSection
-        title={t("chat.business_section")}
-        collapsible
-        storeKey="chat-business"
-        action={
-          <Tooltip label={t("chat.business_manage")} openDelay={300}>
-            <ActionIcon size="xs" variant="subtle" color="gray" aria-label={t("chat.business_manage")} onClick={goBusinessSettings}>
-              <IconSettings size={13} />
-            </ActionIcon>
-          </Tooltip>
-        }
-      >
+      <RailSection title={t("chat.business_section")} collapsible storeKey="chat-business">
         <NavLink
           label={t("chat.business_all")}
           leftSection={<IconBriefcase size={16} stroke={1.6} />}

@@ -1,6 +1,7 @@
 import type {
   AttributeDTO,
   ConversationActions,
+  ConversationAutoTranslateRequest,
   ConversationDTO,
   ConversationTranslation,
   MacroDTO,
@@ -198,7 +199,17 @@ export function Composer({
   }, [c.id, text, mode, mentionIds])
 
   const send = useMutation({
-    mutationFn: async ({ after, translation, mode: sendMode }: { after: After; translation?: ConversationTranslation; mode: Mode }) => {
+    mutationFn: async ({
+      after,
+      translation,
+      autoTranslate,
+      mode: sendMode,
+    }: {
+      after: After
+      translation?: ConversationTranslation
+      autoTranslate?: ConversationAutoTranslateRequest
+      mode: Mode
+    }) => {
       const attachments = attachmentInputs.length > 0 ? attachmentInputs : undefined
       if (sendMode === "note") {
         // 只算还留在文字中的 @
@@ -220,7 +231,14 @@ export function Composer({
       }
       if (value || attachments) {
         const channel_id = selectedChannelId && selectedChannelId !== defaultReplyChannelId ? selectedChannelId : undefined
-        await tenantApi.conversation.reply(c.id, { text: value || undefined, channel_id, translation, attachments, actions })
+        await tenantApi.conversation.reply(c.id, {
+          text: value || undefined,
+          channel_id,
+          translation,
+          auto_translate: autoTranslate,
+          attachments,
+          actions,
+        })
       } else if (actions) {
         await tenantApi.conversation.applyActions(c.id, actions)
       }
@@ -257,7 +275,7 @@ export function Composer({
     }
     const prep = await preview.prepareSubmit({ skipTranslation: options?.skipTranslation })
     if (!prep.send) return
-    return send.mutate({ after, translation: prep.translation, mode: "reply" })
+    return send.mutate({ after, translation: prep.translation, autoTranslate: prep.autoTranslate, mode: "reply" })
   }
 
   const canAssignOthers = can("conversations:assign")

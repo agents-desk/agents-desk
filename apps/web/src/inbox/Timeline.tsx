@@ -384,11 +384,13 @@ function Message({ it, c, mine, isOwn, author, time, fullTime, first, last, mt, 
   }
 
   // 己方消息在组尾展示送达状态；发送中或发送失败时无论是否组尾都立即展示
+  const pendingAutoTranslate = Boolean(it.delivery === "sending" && it.derived?.pending_translation)
   const showDelivery = Boolean(mine && it.delivery && (last || it.delivery === "failed" || it.delivery === "sending"))
   const deliveryNode = showDelivery && it.delivery && (
     <>
+      {pendingAutoTranslate && <Loader size={10} />}
       <Text span size="xs" c={deliveryColor[it.delivery]}>
-        {t(`inbox.delivery_${it.delivery}` as const)}
+        {pendingAutoTranslate ? t("inbox.delivery_translating") : t(`inbox.delivery_${it.delivery}` as const)}
       </Text>
       {it.delivery === "failed" && (
         <>

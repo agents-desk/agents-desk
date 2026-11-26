@@ -14,6 +14,7 @@ import (
 	"agents-desk/internal/auth"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/lang"
+	"agents-desk/internal/llm"
 	"agents-desk/internal/member"
 )
 
@@ -58,6 +59,56 @@ type Preview struct {
 // NewPreview 返回翻译预览的动作；incoming 用来在还不知道对方的语言时先识别对方的消息。
 func NewPreview(db *bun.DB, translator *Translator, incoming *Incoming) *Preview {
 	return &Preview{db: db, translator: translator, incoming: incoming}
+}
+
+// AutoTranslateFunc 返回供 conversation.Deliver 在后台异步投递前使用的自动翻译函数：
+// 按成员语言与会话/客户语言判断是否需要翻译（目标未知时先识别对方最近消息），跳过盲回译直接生成发给对方的译文；
+// 平台未配置翻译模型时降级为按原文发出，不阻断投递。
+func AutoTranslateFunc(db *bun.DB, translator *Translator, incoming *Incoming) conversation.AutoTranslator {
+	preview := NewPreview(db, translator, incoming)
+	return func(ctx context.Context, req conversation.AutoTranslateJob) (string, string, bool, error) {
+		var from string
+		if req.MemberID != "" {
+			m, err := member.Find(ctx, db, req.MemberID)
+			if err != nil {
+				return "", "", false, err
+			}
+			from = string(m.Language)
+		}
+		to := req.Language
+		if to == "" {
+			var convLang string
+			err := db.NewRaw(`SELECT COALESCE(NULLIF(ct.language, ''), c.language) FROM conversations c
+				LEFT JOIN contacts ct ON ct.id = c.contact_id AND ct.tenant_id = c.tenant_id
+				WHERE c.id = ? AND c.tenant_id = ?`, req.ConversationID, req.TenantID).Scan(ctx, &convLang)
+			if err != nil {
+				return "", "", false, errors.Wrap(err, "load conversation language for auto translate")
+			}
+			to = convLang
+			if to == "" {
+				sys := identity.Subject{Type: identity.System, ID: "deliver", Tenant: req.TenantID}
+				detected, err := preview.detect(ctx, sys, req.ConversationID, from)
+				if errors.Is(err, llm.ErrNotConfigured) {
+					return req.Text, "", false, nil
+				}
+				if err != nil {
+					return "", "", false, err
+				}
+				to = detected
+			}
+		}
+		if to == "" || lang.Same(from, to) {
+			return req.Text, to, false, nil
+		}
+		translated, err := translator.ReplyText(ctx, req.TenantID, req.ConversationID, req.Text, from, to, Tone(req.Tone))
+		if errors.Is(err, llm.ErrNotConfigured) {
+			return req.Text, "", false, nil
+		}
+		if err != nil {
+			return "", "", false, err
+		}
+		return translated, to, true, nil
+	}
 }
 
 // Handle 为成员 sub 在他所在工作区的会话 id（支持服务型会话、内部聊天与工单）中写的文字 b.Text 给出目标语言译文和可选盲回译。

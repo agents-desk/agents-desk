@@ -185,6 +185,28 @@ export function InboxNav({
         {item("unassigned", t("inbox.box_unassigned"), <IconUserQuestion size={16} stroke={1.6} />, d?.unassigned)}
         {item("all", t("inbox.box_all"), <IconListDetails size={16} stroke={1.6} />, d?.all)}
 
+        {(d?.teams.length ?? 0) > 0 && (
+          <RailSection title={t("inbox.teams")} collapsible storeKey="inbox-teams">
+            {d?.teams.map((team) => {
+              const active = Boolean(search && !activeTicketBox && search.team === team.id && !search.view)
+              return (
+                <NavLink
+                  key={team.id}
+                  label={team.name}
+                  leftSection={
+                    <span className="inbox-team-badge" data-active={active || undefined}>
+                      {team.name.slice(0, 1)}
+                    </span>
+                  }
+                  rightSection={<Count s={team} now={now} th={th} />}
+                  active={active}
+                  onClick={() => navigateInbox({ box: "all", team: team.id, view: undefined, filter: undefined })}
+                />
+              )
+            })}
+          </RailSection>
+        )}
+
         <RailSection
           title={t("tickets.nav_section")}
           collapsible
@@ -209,28 +231,6 @@ export function InboxNav({
           {ticketItem("unassigned", t("tickets.box_unassigned"), <IconUserQuestion size={15} stroke={1.6} />, d?.tickets.unassigned)}
           {ticketItem("all", t("tickets.box_all"), <IconListDetails size={15} stroke={1.6} />, d?.tickets.all)}
         </RailSection>
-
-        {(d?.teams.length ?? 0) > 0 && (
-          <RailSection title={t("inbox.teams")} collapsible storeKey="inbox-teams">
-            {d?.teams.map((team) => {
-              const active = Boolean(search && !activeTicketBox && search.team === team.id && !search.view)
-              return (
-                <NavLink
-                  key={team.id}
-                  label={team.name}
-                  leftSection={
-                    <span className="inbox-team-badge" data-active={active || undefined}>
-                      {team.name.slice(0, 1)}
-                    </span>
-                  }
-                  rightSection={<Count s={team} now={now} th={th} />}
-                  active={active}
-                  onClick={() => navigateInbox({ box: "all", team: team.id, view: undefined, filter: undefined })}
-                />
-              )
-            })}
-          </RailSection>
-        )}
 
         <RailSection
           title={t("views.section")}

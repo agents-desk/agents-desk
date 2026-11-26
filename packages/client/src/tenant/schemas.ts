@@ -1693,6 +1693,20 @@ export const components = {
     ],
     "type": "object"
   },
+  ConversationAutoTranslateRequest: {
+    "additionalProperties": false,
+    "properties": {
+      "language": {
+        "maxLength": 35,
+        "type": "string"
+      },
+      "tone": {
+        "maxLength": 20,
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
   ConversationBulkAssignInputBody: {
     "additionalProperties": false,
     "properties": {
@@ -1986,6 +2000,9 @@ export const components = {
         "maxItems": 10,
         "type": "array"
       },
+      "auto_translate": {
+        "$ref": "#/components/schemas/ConversationAutoTranslateRequest"
+      },
       "channel_id": {
         "format": "uuid",
         "type": "string"
@@ -2017,6 +2034,9 @@ export const components = {
         },
         "maxItems": 10,
         "type": "array"
+      },
+      "auto_translate": {
+        "$ref": "#/components/schemas/ConversationAutoTranslateRequest"
       },
       "mentions": {
         "items": {

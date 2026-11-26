@@ -1,4 +1,10 @@
-import type { ConversationChatDTO, ConversationItemDTO, ConversationTranslation, MemberTenantMember } from "@agents-desk/client/tenant"
+import type {
+  ConversationAutoTranslateRequest,
+  ConversationChatDTO,
+  ConversationItemDTO,
+  ConversationTranslation,
+  MemberTenantMember,
+} from "@agents-desk/client/tenant"
 import {
   ActionIcon,
   Anchor,
@@ -566,8 +572,11 @@ function ChatBubble({
                   ·
                 </Text>
               )}
+              {it.delivery === "sending" && Boolean(it.derived?.pending_translation) && <Loader size={10} />}
               <Text span size="xs" c={deliveryColor[it.delivery]}>
-                {t(`inbox.delivery_${it.delivery}` as const)}
+                {it.delivery === "sending" && Boolean(it.derived?.pending_translation)
+                  ? t("inbox.delivery_translating")
+                  : t(`inbox.delivery_${it.delivery}` as const)}
               </Text>
               {it.delivery === "failed" && (
                 <UnstyledButton className="inbox-caption-btn" onClick={() => retry.mutate()} disabled={retry.isPending}>
@@ -834,14 +843,15 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
   })
 
   const send = useMutation({
-    mutationFn: (translation?: ConversationTranslation) => {
+    mutationFn: (vars: { translation?: ConversationTranslation; autoTranslate?: ConversationAutoTranslateRequest }) => {
       const ids = mentionCandidates.filter((m) => mentionIds.includes(m.id) && value.includes(`@${m.name}`)).map((m) => m.id)
       return tenantApi.chat.messageSend(chat.id, {
         text: value || undefined,
         mentions: ids.length > 0 ? ids : undefined,
         attachments: attachmentInputs.length > 0 ? attachmentInputs : undefined,
         note: note || undefined,
-        translation,
+        translation: vars.translation,
+        auto_translate: vars.autoTranslate,
       })
     },
     onSuccess: () => {
@@ -859,7 +869,7 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
     if (!hasContent || queue.uploading || queue.hasError || send.isPending || preview.pending) return
     const prep = await preview.prepareSubmit({ skipTranslation: options?.skipTranslation })
     if (!prep.send) return
-    send.mutate(prep.translation)
+    send.mutate({ translation: prep.translation, autoTranslate: prep.autoTranslate })
   }
 
   const triggerRules = useMemo(

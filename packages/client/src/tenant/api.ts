@@ -474,6 +474,13 @@ export interface ConversationAttributesInputBody {
   attributes: Record<string, unknown>
 }
 
+export interface ConversationAutoTranslateRequest {
+  /** 目标语言（BCP 47）；留空时按会话对方语言自动推断 */
+  language?: string
+  /** 可选语气覆盖（friendly、neutral 或 formal）；留空使用工作区默认语气 */
+  tone?: string
+}
+
 export interface ConversationBulkAssignInputBody {
   /** 负责人（成员 ID）；空字符串表示没有负责人；不传时，转到别的团队收件箱则清空负责人，否则保持原样 */
   assignee_id?: string
@@ -809,11 +816,13 @@ export interface ConversationReplyBody {
   actions?: ConversationActions
   /** 通过 /files 上传的媒体附件列表（可附带封面图与音视频元数据） */
   attachments?: ConversationAttachmentInput[]
+  /** 后台自动翻译参数：不携带 translation 时，先立刻落库并由投递任务异步翻译后发给对方 */
+  auto_translate?: ConversationAutoTranslateRequest
   /** 发往的渠道 ID；为空时发往会话当前的默认回复渠道 */
   channel_id?: string
   /** 成员写的文字 */
   text?: string
-  /** 发给对方的译文，由翻译的预览给出、成员确认；不带时按原文发出 */
+  /** 发给对方的译文，由翻译的预览给出、成员确认；不带时按原文或 auto_translate 发出 */
   translation?: ConversationTranslation
 }
 
@@ -873,6 +882,8 @@ export interface ConversationSearchMatch {
 export interface ConversationSendChatMessageBody {
   /** 通过 /files 上传的媒体附件列表 */
   attachments?: ConversationAttachmentInput[]
+  /** 仅外部商务聊天对外回复可用：不携带 translation 时，先立刻落库并由投递任务异步翻译后发往外部渠道 */
+  auto_translate?: ConversationAutoTranslateRequest
   /** @ 到的成员 ID */
   mentions?: string[]
   /** 仅商务外部聊天可用：为 true 时写为仅成员可见的内部备注，不发往外部渠道 */

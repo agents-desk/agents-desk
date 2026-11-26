@@ -1365,3 +1365,7 @@ business_channels.tg_dialogs_empty: "没有找到匹配的 Telegram 单聊或群
 business_channels.tg_backfill_label: "同步新增对话的最近 20 条历史消息"
 business_channels.tg_selected_count: "已选 {{.n}} 个对话"
 business_channels.tg_peers_saved: "已更新同步对话列表"
+business_channels.col_url: "沟通地址"
+business_channels.col_synced: "同步对话"
+business_channels.col_status: "状态"
+inbox.delivery_translating: "翻译并发送中…"

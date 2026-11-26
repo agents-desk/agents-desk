@@ -69,6 +69,9 @@ export const messages = {
     "automations.ticket_status_notify_desc": "Automatically notify customers in all linked service conversations when a customer-visible ticket changes status.",
     "automations.ticket_status_notify_title": "Notify linked customers on ticket status change",
     "automations.title": "Built-in automations",
+    "business_channels.col_status": "Status",
+    "business_channels.col_synced": "Synced chats",
+    "business_channels.col_url": "Chat URL",
     "business_channels.copy_url": "Copy URL",
     "business_channels.description": "Manage your personal web business chat links and Telegram personal accounts. Conversations flow into Chat → Business chats with automatic cross-language translation and teammate collaboration.",
     "business_channels.disabled_short": "Disabled",
@@ -502,6 +505,7 @@ export const messages = {
     "inbox.delivery_failed": "Not sent",
     "inbox.delivery_read": "Read",
     "inbox.delivery_sending": "Sending",
+    "inbox.delivery_translating": "Translating \u0026 sending…",
     "inbox.details": "Details",
     "inbox.details_contact": "Contact",
     "inbox.details_conversation": "Conversation",
@@ -1404,6 +1408,9 @@ export const messages = {
     "automations.ticket_status_notify_desc": "客户可见工单的状态发生变化时，自动通知该工单关联的所有服务型会话中的客户（聊天插件显示状态卡片，Telegram 等渠道按客户语言发送文本通知）。",
     "automations.ticket_status_notify_title": "工单状态变化时通知关联客户",
     "automations.title": "内置自动化",
+    "business_channels.col_status": "状态",
+    "business_channels.col_synced": "同步对话",
+    "business_channels.col_url": "沟通地址",
     "business_channels.copy_url": "复制链接",
     "business_channels.description": "每个成员可自助管理个人专属的网页商务沟通链接与 Telegram 个人号，对外消息统一归集到“聊天 → 商务沟通”中，支持自动跨语言互译与同事协作。",
     "business_channels.disabled_short": "已停用",
@@ -1837,6 +1844,7 @@ export const messages = {
     "inbox.delivery_failed": "发送失败",
     "inbox.delivery_read": "已读",
     "inbox.delivery_sending": "发送中",
+    "inbox.delivery_translating": "翻译并发送中…",
     "inbox.details": "详情",
     "inbox.details_contact": "联系人",
     "inbox.details_conversation": "会话",
@@ -2742,6 +2750,9 @@ export type MessageId =
   | "automations.ticket_status_notify_desc"
   | "automations.ticket_status_notify_title"
   | "automations.title"
+  | "business_channels.col_status"
+  | "business_channels.col_synced"
+  | "business_channels.col_url"
   | "business_channels.copy_url"
   | "business_channels.description"
   | "business_channels.disabled_short"
@@ -3175,6 +3186,7 @@ export type MessageId =
   | "inbox.delivery_failed"
   | "inbox.delivery_read"
   | "inbox.delivery_sending"
+  | "inbox.delivery_translating"
   | "inbox.details"
   | "inbox.details_contact"
   | "inbox.details_conversation"

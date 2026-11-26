@@ -103,6 +103,15 @@ body {
   background: var(--mantine-color-body);
 }
 
+/* 输入框单行高度精确对齐左右 42px 圆形按钮（9px + 22px + 9px + 2px 边框 = 42px），文字严格垂直居中 */
+.w-composer-input {
+  font-size: 16px;
+  line-height: 22px;
+  padding-block: 9px;
+  padding-inline: 14px;
+  min-height: 42px;
+}
+
 /* 工单列表的一行：点击区域至少 44px，悬停与按压有清晰反馈 */
 .w-conversation {
   min-height: 56px;
