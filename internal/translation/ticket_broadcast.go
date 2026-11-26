@@ -152,21 +152,63 @@ func (b *TicketBroadcast) Handle(ctx context.Context, p conversation.Appended) e
 
 	var (
 		sourceLang   string
-		translations map[string]string
+		translations = map[string]string{}
 	)
-	if b.translator != nil && len(uniqueLangs) > 0 && strings.TrimSpace(it.Content.Text) != "" {
-		var authorLang string
-		if it.ActorType == conversation.MemberActor && it.ActorID != "" {
-			_ = b.db.NewSelect().Table("members").Column("language").Where("id = ?", it.ActorID).Scan(ctx, &authorLang)
+	if s, _ := it.Derived["language"].(string); s != "" {
+		sourceLang = s
+	}
+	// 先采纳成员发送前已人工校对的译文，避免重复调用模型
+	if pre, _ := it.Derived["translations"].(map[string]any); len(pre) > 0 {
+		for k, raw := range pre {
+			if v, ok := raw.(string); ok && strings.TrimSpace(v) != "" {
+				translations[k] = v
+			}
 		}
-		detected, translatedMap, err := b.translator.Incoming(ctx, p.TenantID, &it, authorLang, uniqueLangs)
-		if errors.Is(err, llm.ErrNotConfigured) {
-			slog.DebugContext(ctx, "ticket broadcast translation not configured, sending original text", "item", it.ID)
-		} else if err != nil {
-			return err
+	}
+	needLangs := make([]string, 0, len(uniqueLangs))
+	for _, targetLang := range uniqueLangs {
+		if sourceLang != "" && lang.Same(sourceLang, targetLang) {
+			continue
+		}
+		covered := false
+		for k := range translations {
+			if lang.Same(k, targetLang) {
+				covered = true
+				break
+			}
+		}
+		if !covered {
+			needLangs = append(needLangs, targetLang)
+		}
+	}
+	if b.translator != nil && len(needLangs) > 0 && strings.TrimSpace(it.Content.Text) != "" {
+		if sourceLang != "" {
+			translatedMap, err := b.translator.Translate(ctx, p.TenantID, &it, sourceLang, needLangs)
+			if errors.Is(err, llm.ErrNotConfigured) {
+				slog.DebugContext(ctx, "ticket broadcast translation not configured, sending original text", "item", it.ID)
+			} else if err != nil {
+				return err
+			} else {
+				for k, v := range translatedMap {
+					translations[k] = v
+				}
+			}
 		} else {
-			sourceLang = detected
-			translations = translatedMap
+			var authorLang string
+			if it.ActorType == conversation.MemberActor && it.ActorID != "" {
+				_ = b.db.NewSelect().Table("members").Column("language").Where("id = ?", it.ActorID).Scan(ctx, &authorLang)
+			}
+			detected, translatedMap, err := b.translator.Incoming(ctx, p.TenantID, &it, authorLang, needLangs)
+			if errors.Is(err, llm.ErrNotConfigured) {
+				slog.DebugContext(ctx, "ticket broadcast translation not configured, sending original text", "item", it.ID)
+			} else if err != nil {
+				return err
+			} else {
+				sourceLang = detected
+				for k, v := range translatedMap {
+					translations[k] = v
+				}
+			}
 		}
 	}
 

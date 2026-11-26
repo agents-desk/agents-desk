@@ -16,6 +16,7 @@ import (
 type PublishTicketUpdateBody struct {
 	Text        string            `json:"text,omitempty" maxLength:"10000" doc:"公开进度文字内容"`
 	Attachments []AttachmentInput `json:"attachments,omitempty" maxItems:"10" doc:"通过 /files 上传的媒体附件列表"`
+	Translation *Translation      `json:"translation,omitempty" doc:"成员在发送前校对或微调过的某一种目标语言译文；向该语言的受影响客户同步时直接使用该译文"`
 }
 
 // PublishTicketUpdateInput 是发布公开进度的 HTTP 请求。
@@ -64,6 +65,9 @@ func (a *PublishTicketUpdate) Handle(ctx context.Context, sub identity.Subject, 
 			ActorID:    sub.ID,
 			Visibility: Everyone,
 			Content:    Content{Text: body.Text},
+		}
+		if err := applyVerifiedTranslation(ctx, tx, sub, &item, body.Translation); err != nil {
+			return err
 		}
 		c.LastMessageAt = now()
 		if err := join(ctx, tx, c.ID, actor, sub.ID); err != nil {

@@ -1,4 +1,4 @@
-import type { ConversationChatDTO, ConversationItemDTO, MemberTenantMember } from "@agents-desk/client/tenant"
+import type { ConversationChatDTO, ConversationItemDTO, ConversationTranslation, MemberTenantMember } from "@agents-desk/client/tenant"
 import {
   ActionIcon,
   Anchor,
@@ -61,6 +61,13 @@ import {
   uploadMediaFile,
 } from "../inbox/Attachments"
 import { useConversationChannel } from "../inbox/channel"
+import {
+  defaultPeerLanguage,
+  InlineTranslationPane,
+  TranslationToggleButton,
+  useComposerTranslation,
+  verifiedTranslationOf,
+} from "../inbox/ComposerTranslation"
 import { useMe, useMembers, useTeams, useTimeline } from "../inbox/data"
 import { describeEvent } from "../inbox/events"
 import { type FillWatcher, useFillVisible } from "../inbox/fill"
@@ -341,6 +348,7 @@ function ChatBubble({
   const ui = useLanguage()
   const [prevOriginal, setPrevOriginal] = useState(original)
   const [flip, setFlip] = useState(false)
+  const [showVerified, setShowVerified] = useState(false)
   if (prevOriginal !== original) {
     setPrevOriginal(original)
     setFlip(false)
@@ -348,6 +356,7 @@ function ChatBubble({
 
   const raw = it.content.text ?? ""
   const translated = isOwn ? undefined : translationOf(it, lang)
+  const verified = isOwn ? verifiedTranslationOf(it) : undefined
   const showOriginal = original !== flip
   const shown = translated && !showOriginal ? translated : raw
   const fromLang = it.derived.language as string | undefined
@@ -377,8 +386,8 @@ function ChatBubble({
 
       <Group gap={6} wrap="nowrap" align="center" style={{ flexDirection: isOwn ? "row-reverse" : "row" }}>
         <Paper
-          px={shown ? 12 : 6}
-          py={shown ? 9 : 6}
+          px={shown || showVerified ? 12 : 6}
+          py={shown || showVerified ? 9 : 6}
           withBorder={!isOwn}
           bg={isOwn ? "var(--mantine-primary-color-light)" : undefined}
           className="inbox-bubble"
@@ -391,6 +400,14 @@ function ChatBubble({
         >
           {shown && <ChatText text={shown} />}
           <MessageAttachments conversationId={chatId} attachments={it.attachments} hasText={Boolean(shown)} onPreview={onPreview} />
+          {verified && showVerified && (
+            <Box mt={6} pt={6} className="inbox-sent-translation">
+              <Text size="xs" c="dimmed">
+                {t("inbox.sent_translation", { lang: languageName(verified.language, ui) })}
+              </Text>
+              <ChatText text={verified.text} />
+            </Box>
+          )}
         </Paper>
         {shown && (
           <Box className="inbox-msg-actions" style={{ flex: "none" }}>
@@ -407,7 +424,7 @@ function ChatBubble({
         )}
       </Group>
 
-      {(translated || needFill) && (
+      {(translated || needFill || verified) && (
         <Group gap={4} mt={3} px={6} justify={isOwn ? "flex-end" : "flex-start"} wrap="wrap">
           {translated ? (
             <>
@@ -426,14 +443,27 @@ function ChatBubble({
                 {t(showOriginal ? "inbox.view_translation" : "inbox.view_original")}
               </UnstyledButton>
             </>
-          ) : (
+          ) : needFill ? (
             <>
               <Loader size={10} />
               <Text size="xs" c="dimmed">
                 {t("inbox.translating")}
               </Text>
             </>
-          )}
+          ) : verified ? (
+            <>
+              <IconLanguage size={12} className="inbox-caption-icon" />
+              <Text size="xs" c="dimmed">
+                {t("inbox.sent_as", { lang: languageName(verified.language, ui) })}
+              </Text>
+              <Text size="xs" c="dimmed">
+                ·
+              </Text>
+              <UnstyledButton className="inbox-caption-btn" onClick={() => setShowVerified((v) => !v)}>
+                {t(showVerified ? "inbox.hide_translation" : "inbox.view_translation")}
+              </UnstyledButton>
+            </>
+          ) : null}
         </Group>
       )}
     </Box>
@@ -527,24 +557,53 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
     [allMembers, participantMemberIds],
   )
 
+  const defaultTarget = useMemo(() => {
+    if (chat.mode === "direct") {
+      return defaultPeerLanguage([chat.peer?.language], me.data?.language)
+    }
+    return defaultPeerLanguage(
+      (chat.participants ?? [])
+        .filter((p) => !(p.type === "member" && p.id === me.data?.id))
+        .map((p) => p.language),
+      me.data?.language,
+    )
+  }, [chat.mode, chat.peer?.language, chat.participants, me.data?.id, me.data?.language])
+
+  const preview = useComposerTranslation({
+    conversationId: chat.id,
+    text: value,
+    defaultTarget,
+    myLang: me.data?.language,
+    mode: "verified",
+  })
+
   const send = useMutation({
-    mutationFn: () => {
+    mutationFn: (translation?: ConversationTranslation) => {
       const ids = mentionCandidates.filter((m) => mentionIds.includes(m.id) && value.includes(`@${m.name}`)).map((m) => m.id)
       return tenantApi.chat.messageSend(chat.id, {
         text: value || undefined,
         mentions: ids.length > 0 ? ids : undefined,
         attachments: attachmentInputs.length > 0 ? attachmentInputs : undefined,
+        translation,
       })
     },
     onSuccess: () => {
       setText("")
       setMentionIds([])
       queue.clear()
+      preview.reset()
       void queryClient.invalidateQueries({ queryKey: kit.queries.chat.key() })
       void queryClient.invalidateQueries({ queryKey: [...kit.queries.conversation.key(), "timeline", chat.id] })
     },
     onError: (err) => notifyError(err),
   })
+
+  const submit = async (options?: { skipTranslation?: boolean }) => {
+    if (!hasContent || queue.uploading || queue.hasError || send.isPending || preview.pending) return
+    const prep = await preview.prepareSubmit({ skipTranslation: options?.skipTranslation })
+    if (!prep.send) return
+    send.mutate(prep.translation)
+  }
 
   const triggerRules = useMemo(
     () => [
@@ -589,8 +648,9 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
     rules: triggerRules,
   })
 
-  const canSubmit = hasContent && !queue.uploading && !queue.hasError && !send.isPending
+  const canSubmit = hasContent && !queue.uploading && !queue.hasError && !send.isPending && !preview.pending
   const sendHint = ctrlEnterSend ? t("inbox.ctrl_enter_hint", { key: sendModKey }) : t("inbox.enter_hint")
+  const mainLabel = preview.confirming ? t("inbox.confirm_send") : t("inbox.send")
 
   return (
     <Box
@@ -628,38 +688,50 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
 
         <AttachmentStrip items={queue.items} onRemove={queue.remove} onRetry={queue.retry} />
 
-        <Box
-          className="inbox-composer-body"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) area.current?.focus()
-          }}
-        >
-          <Textarea
-            ref={area}
-            variant="unstyled"
-            size="md"
-            classNames={{ input: "inbox-composer-input" }}
-            value={text}
-            onChange={(e) => trigger.handleChange(e.currentTarget.value, e.currentTarget.selectionStart)}
-            onPaste={(e) => queue.handlePaste(e)}
-            onKeyDown={(e) => {
-              if (e.nativeEvent.isComposing) return
-              if (trigger.handleKeyDown(e)) return
-              const hitSend = ctrlEnterSend
-                ? e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey
-                : e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey
-              if (hitSend && canSubmit) {
-                e.preventDefault()
-                send.mutate()
-              }
+        <Box className="inbox-composer-main" data-split={preview.expanded || undefined}>
+          <Box
+            className="inbox-composer-body"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) area.current?.focus()
             }}
-            placeholder={t("chat.composer_placeholder")}
-            autosize
-            minRows={2}
-            maxRows={8}
-            maxLength={10000}
-            aria-label={t("chat.composer_placeholder")}
-          />
+          >
+            <Textarea
+              ref={area}
+              variant="unstyled"
+              size="md"
+              classNames={{ input: "inbox-composer-input" }}
+              value={text}
+              onChange={(e) => trigger.handleChange(e.currentTarget.value, e.currentTarget.selectionStart)}
+              onPaste={(e) => queue.handlePaste(e)}
+              onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return
+                if (trigger.handleKeyDown(e)) return
+                const hitSend = ctrlEnterSend
+                  ? e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey
+                  : e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey
+                if (hitSend && canSubmit) {
+                  e.preventDefault()
+                  void submit()
+                }
+              }}
+              placeholder={t("chat.composer_placeholder")}
+              autosize
+              minRows={2}
+              maxRows={8}
+              maxLength={10000}
+              aria-label={t("chat.composer_placeholder")}
+            />
+          </Box>
+          {preview.expanded && (
+            <InlineTranslationPane
+              hasText={Boolean(value)}
+              myLang={me.data?.language}
+              preview={preview}
+              ctrlEnterSend={ctrlEnterSend}
+              onSendWithoutTranslation={() => void submit({ skipTranslation: true })}
+              onSubmit={() => void submit()}
+            />
+          )}
         </Box>
 
         <Group gap={6} className="inbox-composer-foot" data-tn-density="dense">
@@ -681,9 +753,23 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
             )}
           </FileButton>
 
+          <TranslationToggleButton preview={preview} myLang={me.data?.language} />
+
+          {preview.confirming && (
+            <Text size="xs" c="brand" ml={4}>
+              {ctrlEnterSend ? t("inbox.ctrl_enter_again", { key: sendModKey }) : t("inbox.enter_again")}
+            </Text>
+          )}
+
           <Tooltip label={sendHint} openDelay={350}>
-            <Button ml="auto" leftSection={<IconSend size={14} />} disabled={!canSubmit} loading={send.isPending} onClick={() => send.mutate()}>
-              {t("inbox.send")}
+            <Button
+              ml="auto"
+              leftSection={<IconSend size={14} />}
+              disabled={!canSubmit}
+              loading={send.isPending || preview.pending}
+              onClick={() => void submit()}
+            >
+              {mainLabel}
             </Button>
           </Tooltip>
         </Group>

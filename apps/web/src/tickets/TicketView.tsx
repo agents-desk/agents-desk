@@ -52,6 +52,7 @@ import { languageName } from "../languages"
 import { NARROW_QUERY } from "../layout"
 import { type LightboxImage, MessageAttachments } from "../inbox/Attachments"
 import { useConversationChannel } from "../inbox/channel"
+import { verifiedTranslationOf } from "../inbox/ComposerTranslation"
 import { useMe, useMembers, useTeams, useTimeline } from "../inbox/data"
 import { describeEvent } from "../inbox/events"
 import { type FillWatcher, useFillVisible } from "../inbox/fill"
@@ -570,6 +571,7 @@ function TicketTimelineCard({
   const ui = useLanguage()
   const [prevOriginal, setPrevOriginal] = useState(original)
   const [flip, setFlip] = useState(false)
+  const [showVerified, setShowVerified] = useState(false)
   if (prevOriginal !== original) {
     setPrevOriginal(original)
     setFlip(false)
@@ -578,6 +580,7 @@ function TicketTimelineCard({
   const isPublic = it.kind === "message" && it.visibility === "all"
   const raw = it.content.text ?? ""
   const translated = isOwn ? undefined : translationOf(it, lang)
+  const verified = isOwn ? verifiedTranslationOf(it) : undefined
   const showOriginal = original !== flip
   const shown = translated && !showOriginal ? translated : raw
   const fromLang = it.derived.language as string | undefined
@@ -649,7 +652,18 @@ function TicketTimelineCard({
 
       <MessageAttachments conversationId={ticket.id} attachments={it.attachments} hasText={Boolean(shown)} onPreview={onPreview} />
 
-      {(translated || needFill || (isPublic && ticket.linked_count > 0)) && (
+      {verified && showVerified && (
+        <Box mt={6} pt={6} className="inbox-sent-translation">
+          <Text size="xs" c="dimmed">
+            {t("inbox.sent_translation", { lang: languageName(verified.language, ui) })}
+          </Text>
+          <Text size="md" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+            {verified.text}
+          </Text>
+        </Box>
+      )}
+
+      {(translated || needFill || verified || (isPublic && ticket.linked_count > 0)) && (
         <Group gap={6} mt={6} wrap="wrap">
           {translated ? (
             <>
@@ -675,9 +689,22 @@ function TicketTimelineCard({
                 {t("inbox.translating")}
               </Text>
             </>
+          ) : verified ? (
+            <>
+              <IconLanguage size={12} className="inbox-caption-icon" />
+              <Text size="xs" c="dimmed">
+                {t("inbox.sent_as", { lang: languageName(verified.language, ui) })}
+              </Text>
+              <Text size="xs" c="dimmed">
+                ·
+              </Text>
+              <UnstyledButton className="inbox-caption-btn" onClick={() => setShowVerified((v) => !v)}>
+                {t(showVerified ? "inbox.hide_translation" : "inbox.view_translation")}
+              </UnstyledButton>
+            </>
           ) : null}
           {isPublic && ticket.linked_count > 0 && (
-            <Text size="xs" c="dimmed" ml={translated || needFill ? "auto" : undefined}>
+            <Text size="xs" c="dimmed" ml={translated || needFill || verified ? "auto" : undefined}>
               {t("tickets.public_synced_hint", { n: ticket.linked_count })}
             </Text>
           )}

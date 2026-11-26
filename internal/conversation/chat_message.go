@@ -16,11 +16,12 @@ import (
 	"agents-desk/internal/member"
 )
 
-// SendChatMessageBody 是发送内部聊天消息的请求体：文字、@ 提及的成员和媒体附件（文字与附件不能同时为空）。
+// SendChatMessageBody 是发送内部聊天消息的请求体：文字、@ 提及的成员、媒体附件与可选的发送前校对译文（文字与附件不能同时为空）。
 type SendChatMessageBody struct {
 	Text        string            `json:"text,omitempty" maxLength:"10000" doc:"消息正文"`
 	Mentions    []string          `json:"mentions,omitempty" maxItems:"20" uniqueItems:"true" doc:"@ 到的成员 ID"`
 	Attachments []AttachmentInput `json:"attachments,omitempty" maxItems:"10" doc:"通过 /files 上传的媒体附件列表"`
+	Translation *Translation      `json:"translation,omitempty" doc:"成员在发送前校对或微调过的某一种目标语言译文；消息正文仍保存原文，该译文直接写入派生译文供该语言成员查看"`
 }
 
 // SendChatMessageInput 是发送内部聊天消息的 HTTP 请求。
@@ -77,6 +78,9 @@ func (a *SendChatMessage) Handle(ctx context.Context, sub identity.Subject, id s
 			ActorID:    sub.ID,
 			Visibility: Everyone,
 			Content:    Content{Text: body.Text, Mentions: body.Mentions},
+		}
+		if err := applyVerifiedTranslation(ctx, tx, sub, &item, body.Translation); err != nil {
+			return err
 		}
 		c.LastMessageAt = at
 		if err := commit(ctx, tx, a.down, c, &item); err != nil {

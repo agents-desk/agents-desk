@@ -271,13 +271,12 @@ func translationSchema(description string) map[string]any {
 	}
 }
 
-// Reply 把成员在工作区 tenant 的会话 conversationID 中写的文字 text 从 from 翻译成 to，并给出回译，成员据此确认意思没有走样。
-// 分两次调用模型：第一次翻译，按工作区的语气和术语表，带上会话最近的几条消息作参考；第二次是盲回译，模型只看到译文，
-// 把它逐字译回 from，回译因此反映译文本身的意思。模型没有配置时返回 llm.ErrNotConfigured。
-func (tr *Translator) Reply(ctx context.Context, tenant, conversationID, text, from, to string) (translation, back string, err error) {
+// ReplyText 把成员在工作区 tenant 的会话 conversationID 中写的文字 text 从 from 翻译成 to（不做盲回译）。
+// 按工作区的语气和术语表，带上会话最近的几条消息作参考。模型没有配置时返回 llm.ErrNotConfigured。
+func (tr *Translator) ReplyText(ctx context.Context, tenant, conversationID, text, from, to string) (string, error) {
 	s, err := tr.settings.Tenant(tenant).Get(ctx)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 	tone := toneHint[s.Tone]
 	if tone == "" {
@@ -285,14 +284,13 @@ func (tr *Translator) Reply(ctx context.Context, tenant, conversationID, text, f
 	}
 	earlier, err := tr.history(ctx, tenant, conversationID, 0)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 	replyTarget := llm.Target{
 		Tenant: tenant, Type: "conversation", ID: conversationID, Operation: "reply",
 		Meta: map[string]any{"from": from, "to": to},
 	}
 
-	// 翻译
 	system := strings.Join(nonEmpty(
 		"You help a customer support agent reply to a customer in the customer's language.",
 		fmt.Sprintf(`Translate the agent's message from %s into %s. When %s has a script subtag (for example "hi-Latn"), write in that script.`, from, to, to),
@@ -310,11 +308,21 @@ func (tr *Translator) Reply(ctx context.Context, tenant, conversationID, text, f
 		NoReasoning: true,
 	}, &out)
 	if err != nil {
+		return "", err
+	}
+	return out.Translation, nil
+}
+
+// Reply 把成员在工作区 tenant 的会话 conversationID 中写的文字 text 从 from 翻译成 to，并给出盲回译，成员据此确认意思没有走样。
+// 分两次调用模型：第一次调用 ReplyText 翻译；第二次是盲回译，模型只看到译文，把它逐字译回 from。模型没有配置时返回 llm.ErrNotConfigured。
+func (tr *Translator) Reply(ctx context.Context, tenant, conversationID, text, from, to string) (translation, back string, err error) {
+	translatedText, err := tr.ReplyText(ctx, tenant, conversationID, text, from, to)
+	if err != nil {
 		return "", "", err
 	}
 
 	// 盲回译：只给译文
-	system = strings.Join([]string{
+	system := strings.Join([]string{
 		fmt.Sprintf("Translate this customer support message from %s into %s literally, so that a reader can check exactly what it says. "+
 			"Keep its meaning, tone and details as they are; do not improve, correct or explain it.", to, from),
 		"Keep order numbers, amounts, prices, phone numbers, URLs, email addresses, codes and emoji exactly as written.",
@@ -326,7 +334,7 @@ func (tr *Translator) Reply(ctx context.Context, tenant, conversationID, text, f
 	}
 	var backOut translated
 	err = tr.llm.JSON(llm.WithSession(ctx, conversationID), llm.Translation, backTarget, llm.JSONRequest{
-		Messages:    []llm.Message{{Role: "system", Content: system}, {Role: "user", Content: out.Translation}},
+		Messages:    []llm.Message{{Role: "system", Content: system}, {Role: "user", Content: translatedText}},
 		SchemaName:  "back_translation",
 		Schema:      translationSchema("the message translated back into " + from),
 		NoReasoning: true,
@@ -334,7 +342,7 @@ func (tr *Translator) Reply(ctx context.Context, tenant, conversationID, text, f
 	if err != nil {
 		return "", "", err
 	}
-	return out.Translation, backOut.Translation, nil
+	return translatedText, backOut.Translation, nil
 }
 
 // nonEmpty 返回 parts 中不为空的那些。

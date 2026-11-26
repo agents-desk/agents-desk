@@ -7,7 +7,6 @@ import type {
   MemberTenantMember,
   TagDTO,
   TeamDTO,
-  TranslationPreviewDTO,
 } from "@agents-desk/client/tenant"
 import {
   ActionIcon,
@@ -16,43 +15,33 @@ import {
   Box,
   Button,
   Code,
-  Combobox,
   FileButton,
   Group,
-  Loader,
   Menu,
   Paper,
-  ScrollArea,
   SegmentedControl,
   Stack,
   Text,
   Textarea,
   Tooltip,
   UnstyledButton,
-  useCombobox,
 } from "@mantine/core"
 import { useOs } from "@mantine/hooks"
 import { notifications } from "@mantine/notifications"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   IconCheck,
   IconChevronDown,
-  IconLanguage,
   IconLock,
   IconMessageBolt,
   IconPaperclip,
-  IconPencil,
-  IconRefresh,
   IconX,
 } from "@tabler/icons-react"
-import { describeError } from "@go-tenon/client"
 import {
-  errorMessage,
   notifyError,
   TriggerMenu,
   textTriggerRule,
   useCan,
-  useLanguage,
   useT,
   useTextTrigger,
   useTimeZone,
@@ -60,7 +49,7 @@ import {
 } from "@go-tenon/ui"
 import { type ReactNode, type RefObject, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { languageName, languageOptions, sameLanguage, validLanguage } from "../languages"
+import { sameLanguage } from "../languages"
 import {
   countMacroActions,
   emptyPendingActions,
@@ -82,8 +71,15 @@ import {
   type UploadedMedia,
   uploadMediaFile,
 } from "./Attachments"
-import { useAttributes, useMacros, useMe, useMembers, useTags, useTeams } from "./data"
 import { ChannelIcon } from "./channel-badge"
+import {
+  defaultPeerLanguage,
+  InlineTranslationPane,
+  NO_TRANSLATION,
+  TranslationToggleButton,
+  useComposerTranslation,
+} from "./ComposerTranslation"
+import { useAttributes, useMacros, useMe, useMembers, useTags, useTeams } from "./data"
 import { clearDraft, type DraftMode, getDraft, saveDraft } from "./drafts"
 import { snoozeOptions } from "./menus"
 
@@ -98,24 +94,11 @@ export interface ComposerHandle {
 /** After 是发送之后对会话做的事：什么也不做、关闭、稍后处理到某个时间。 */
 type After = { kind: "none" } | { kind: "close" } | { kind: "snooze"; until: Date }
 
-/** NO_TRANSLATION 是目标语言中的“不翻译”：发送原文。 */
-const NO_TRANSLATION = "none"
-
-/** PAUSE 是停止输入后触发翻译预览的防抖时长（毫秒）。 */
-const PAUSE = 600
-
-/** Preview 是一次翻译预览：为哪段文字、哪个目标语言（空是对方的语言）做的，以及结果。 */
-interface Preview {
-  text: string
-  target: string
-  result: TranslationPreviewDTO
-}
-
 /**
- * Composer 是会话底部的一体化回复卡片：顶栏切换回复与内部备注模式（外语回复时右侧附带目标语言选择器），
- * 内部备注切换为淡黄底并支持输入 @ 提及同事；回复模式输入 / 或点击工具栏按钮搜索并插入快捷回复。
- * 翻译开启且目标语言与坐席不同时，宽屏在卡片内以“左原文 | 右译文”左右对照展示实时译文与回译（窄屏自动退化到输入框上方），
- * 支持点击译文轻量手动微调、恢复自动译文、重新翻译，以及在发送下拉菜单中单次发送原文。
+ * Composer 是会话底部的一体化回复卡片：顶栏切换回复与内部备注模式，内部备注切换为淡黄底并支持输入 @ 提及同事，
+ * 回复模式输入 / 或点击工具栏按钮搜索并插入快捷回复。
+ * 回复与内部备注共用同一套跨语言翻译交互：默认收起自动翻译，点击底栏“译文校对”可在卡片内展开“左原文 | 右译文”对照栏
+ * 进行目标语言选择、盲回译核对与轻量手动微调。
  */
 export function Composer({
   c,
@@ -177,8 +160,25 @@ export function Composer({
   const value = text.trim()
   const note = mode === "note"
   const hasPending = !note && hasPendingActions(pendingActions)
-  const translatableText = !note && !value.startsWith("/") ? value : ""
-  const preview = useReplyTranslation(c.id, translatableText, c.language, me.data?.language)
+  const translatableText = !value.startsWith("/") ? value : ""
+  // 内部备注模式按被 @ 的同事（或工作区其他成员）推导默认目标语言；回复模式默认跟随客户语言
+  const noteDefaultTarget = useMemo(() => {
+    const mentioned = members.filter((m) => mentionIds.includes(m.id) && m.id !== me.data?.id).map((m) => m.language)
+    return (
+      defaultPeerLanguage(mentioned, me.data?.language) ||
+      defaultPeerLanguage(
+        members.filter((m) => m.id !== me.data?.id).map((m) => m.language),
+        me.data?.language,
+      )
+    )
+  }, [members, mentionIds, me.data?.id, me.data?.language])
+  const preview = useComposerTranslation({
+    conversationId: c.id,
+    text: translatableText,
+    defaultTarget: note ? noteDefaultTarget : (c.language ?? ""),
+    myLang: me.data?.language,
+    mode: note ? "verified" : "replace",
+  })
   const queue = useUploadQueue<UploadedMedia>({
     upload: (file) => uploadMediaFile(file, (f) => tenantApi.file.upload({ file: f })),
     accept: ATTACHMENT_ACCEPT,
@@ -204,6 +204,7 @@ export function Composer({
           text: value || undefined,
           mentions: ids.length > 0 ? ids : undefined,
           attachments,
+          translation,
         })
         return
       }
@@ -238,27 +239,22 @@ export function Composer({
     onError: (err) => notifyError(err),
   })
 
-  // 发送：有文字且需要翻译时确保译文与当前原文一致（支持发送手动微调后的译文）；skipTranslation 可单次跳过翻译直接发原文。
+  // 发送：折叠态回复自动翻译发出、备注直发由后台互译；展开校对时发送核对/微调后的译文；skipTranslation 可单次跳过翻译。
   const submit = async (after: After, options?: { skipTranslation?: boolean }) => {
-    if (queue.uploading || queue.hasError || send.isPending || (!note && preview.pending)) return
+    if (queue.uploading || queue.hasError || send.isPending || preview.pending) return
     if (note) {
       if (!hasContent) return
-      return send.mutate({ after, mode: "note" })
+      const prep = await preview.prepareSubmit({ skipTranslation: options?.skipTranslation })
+      if (!prep.send) return
+      return send.mutate({ after, translation: prep.translation, mode: "note" })
     }
     if (!value) {
       if (!hasContent && !hasPending && after.kind === "none") return
       return send.mutate({ after, mode: "reply" })
     }
-    if (options?.skipTranslation || !preview.active) return send.mutate({ after, mode: "reply" })
-    const current = preview.current ?? (await preview.translateNow())
-    if (!current) return
-    if (!current.needed) return send.mutate({ after, mode: "reply" })
-    if (preview.current) {
-      const translatedText = preview.editedText !== undefined ? preview.editedText.trim() : current.translation
-      if (!translatedText) return send.mutate({ after, mode: "reply" })
-      return send.mutate({ after, mode: "reply", translation: { language: current.language, text: translatedText } })
-    }
-    preview.askConfirm()
+    const prep = await preview.prepareSubmit({ skipTranslation: options?.skipTranslation })
+    if (!prep.send) return
+    return send.mutate({ after, translation: prep.translation, mode: "reply" })
   }
 
   const canAssignOthers = can("conversations:assign")
@@ -371,9 +367,16 @@ export function Composer({
     rules: triggerRules,
   })
 
-  const toggleMode = () => {
-    setMode((m) => (m === "reply" ? "note" : "reply"))
+  const switchMode = (nextMode: Mode) => {
+    if (nextMode === mode) return
+    setMode(nextMode)
+    preview.setTarget("")
+    preview.reset()
     trigger.close()
+  }
+
+  const toggleMode = () => {
+    switchMode(mode === "reply" ? "note" : "reply")
   }
 
   // 供 R / N 快捷键切换到对应模式并聚焦回复框
@@ -381,8 +384,10 @@ export function Composer({
     handleRef,
     () => ({
       focus: (nextMode?: Mode) => {
-        if (nextMode) {
+        if (nextMode && nextMode !== mode) {
           setMode(nextMode)
+          preview.setTarget("")
+          preview.reset()
           trigger.close()
         }
         requestAnimationFrame(() => {
@@ -394,20 +399,25 @@ export function Composer({
         })
       },
     }),
-    [trigger],
+    [mode, preview, trigger],
   )
 
   const canSubmit =
-    !queue.uploading && !queue.hasError && !send.isPending && !(!note && preview.pending) && (note ? hasContent : hasContent || hasPending)
+    !queue.uploading && !queue.hasError && !send.isPending && !preview.pending && (note ? hasContent : hasContent || hasPending)
   const sendHint = ctrlEnterSend ? t("inbox.ctrl_enter_hint", { key: sendModKey }) : t("inbox.enter_hint")
-  const hasTranslationOutput = !note && preview.active && Boolean(preview.current?.needed || preview.last?.result.needed)
-  const mainLabel = note
-    ? t("inbox.add_note")
-    : !hasContent && hasPending
-      ? t("inbox.apply_actions")
-      : preview.confirming
-        ? t("inbox.confirm_send")
-        : preview.current?.needed
+  const willAutoTranslateReply =
+    !note &&
+    preview.enabled &&
+    Boolean(value) &&
+    preview.target !== NO_TRANSLATION &&
+    ((Boolean(preview.effectiveLang) && !sameLanguage(preview.effectiveLang, me.data?.language)) || Boolean(preview.current?.needed))
+  const mainLabel = preview.confirming
+    ? t("inbox.confirm_send")
+    : note
+      ? t("inbox.add_note")
+      : !hasContent && hasPending
+        ? t("inbox.apply_actions")
+        : preview.expanded && preview.current?.needed
           ? t("inbox.send_translation")
           : t("inbox.send")
 
@@ -465,10 +475,7 @@ export function Composer({
           <Tooltip label={t("inbox.switch_mode_hint", { key: modeKey })} openDelay={350}>
             <SegmentedControl
               value={mode}
-              onChange={(v) => {
-                setMode(v as Mode)
-                trigger.close()
-              }}
+              onChange={(v) => switchMode(v as Mode)}
               data={[
                 { value: "reply", label: t("inbox.mode_reply") },
                 { value: "note", label: t("inbox.mode_note") },
@@ -513,16 +520,14 @@ export function Composer({
               </Menu.Dropdown>
             </Menu>
           )}
-          {dragging ? (
+          {dragging && (
             <Text size="xs" c="brand" fw={500} ml="auto">
               {t("inbox.attach_drop")}
             </Text>
-          ) : (
-            !note && preview.enabled && <TranslationTargetPicker c={c} myLang={me.data?.language} preview={preview} />
           )}
         </Group>
         <AttachmentStrip items={queue.items} onRemove={queue.remove} onRetry={queue.retry} />
-        <Box className="inbox-composer-main" data-split={(!note && preview.split) || undefined}>
+        <Box className="inbox-composer-main" data-split={preview.expanded || undefined}>
           <Box
             className="inbox-composer-body"
             onClick={(e) => {
@@ -563,13 +568,13 @@ export function Composer({
               aria-label={t(note ? "inbox.mode_note" : "inbox.mode_reply")}
             />
           </Box>
-          {!note && preview.split && (
-            <InlineTranslationPreview
-              c={c}
+          {preview.expanded && (
+            <InlineTranslationPane
               hasText={Boolean(translatableText)}
+              myLang={me.data?.language}
               preview={preview}
               ctrlEnterSend={ctrlEnterSend}
-              onSendOriginal={() => void submit({ kind: "none" }, { skipTranslation: true })}
+              onSendWithoutTranslation={() => void submit({ kind: "none" }, { skipTranslation: true })}
               onSubmit={() => void submit({ kind: "none" })}
             />
           )}
@@ -605,7 +610,8 @@ export function Composer({
               </Tooltip>
             )}
           </FileButton>
-          {!note && preview.confirming && (
+          <TranslationToggleButton preview={preview} myLang={me.data?.language} note={note} />
+          {preview.confirming && (
             <Text size="xs" c="brand" ml={4}>
               {ctrlEnterSend ? t("inbox.ctrl_enter_again", { key: sendModKey }) : t("inbox.enter_again")}
             </Text>
@@ -615,7 +621,7 @@ export function Composer({
               <Button
                 color={note ? "yellow" : undefined}
                 disabled={!canSubmit}
-                loading={send.isPending || (!note && preview.pending)}
+                loading={send.isPending || preview.pending}
                 onClick={() => void submit({ kind: "none" })}
                 style={note ? undefined : { borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
               >
@@ -631,7 +637,7 @@ export function Composer({
                 </Menu.Target>
                 <Menu.Dropdown>
                   <Menu.Item onClick={() => void submit({ kind: "none" })}>{t("inbox.send")}</Menu.Item>
-                  {hasTranslationOutput && (
+                  {willAutoTranslateReply && (
                     <Menu.Item onClick={() => void submit({ kind: "none" }, { skipTranslation: true })}>{t("inbox.send_original")}</Menu.Item>
                   )}
                   <Menu.Item onClick={() => void submit({ kind: "close" })}>{t("inbox.send_close")}</Menu.Item>
@@ -828,423 +834,4 @@ function PendingActionsBar({
   )
 }
 
-/** ReplyTranslation 是回复的翻译预览状态和操作，包含手动微调译文的能力。 */
-interface ReplyTranslation {
-  enabled: boolean // 翻译可用
-  active: boolean // 这段回复要经过翻译：翻译可用、有文字、目标语言有效
-  split: boolean // 启用左右对照译文栏：翻译开启且当前目标语言需要翻译（或已有译文/错误）
-  target: string // 选的目标语言；空为跟随对方语言，NO_TRANSLATION 为不翻译
-  setTarget: (target: string) => void
-  last?: Preview // 最近一次预览，可能是改动原文之前的结果
-  current?: TranslationPreviewDTO // 与当前原文和目标语言一致的最新预览结果
-  editedText?: string // 坐席手动微调后的译文；未修改时为 undefined
-  setEditedText: (text: string | undefined) => void
-  pending: boolean
-  error?: string // 翻译失败的提示
-  confirming: boolean // 按回车时先触发了翻译，等待成员再按一次发送
-  translateNow: () => Promise<TranslationPreviewDTO | undefined> // 立即翻译当前文字
-  retry: () => void
-  askConfirm: () => void
-  reset: () => void // 发送之后清空
-}
 
-/**
- * useReplyTranslation 翻译会话 id 中的回复 value：停止输入 PAUSE 毫秒后调用预览接口，旧请求的结果自动丢弃；
- * 支持坐席手动微调译文，原文或目标语言变化时自动清空手动修改并重新翻译。
- */
-function useReplyTranslation(id: string, value: string, customerLang?: string, myLang?: string): ReplyTranslation {
-  const settings = useQuery(kit.queries.translation.settings())
-  const enabled = settings.data?.enabled ?? false
-  const [target, setTargetState] = useState("")
-  const [last, setLast] = useState<Preview>()
-  const [editedText, setEditedText] = useState<string | undefined>(undefined)
-  const [pending, setPending] = useState(false)
-  const [error, setError] = useState<string>()
-  const [confirming, setConfirming] = useState(false)
-  const seq = useRef(0) // 每次请求递增，只采用最新一次结果
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
-  const active = enabled && !!value && target !== NO_TRANSLATION
-  const current = last && last.text === value && last.target === target ? last.result : undefined
-
-  const run = useCallback(
-    async (text: string, to: string): Promise<TranslationPreviewDTO | undefined> => {
-      const n = ++seq.current
-      setPending(true)
-      setError(undefined)
-      try {
-        const result = await tenantApi.translation.preview(id, { text, language: to || undefined })
-        if (n === seq.current) {
-          setLast({ text, target: to, result })
-          setEditedText(undefined)
-        }
-        return n === seq.current ? result : undefined
-      } catch (err) {
-        if (n === seq.current) setError(errorMessage(describeError(err)))
-        return undefined
-      } finally {
-        if (n === seq.current) setPending(false)
-      }
-    },
-    [id],
-  )
-
-  // 原文或目标语言变化时清除二次确认态和手动译文编辑
-  // biome-ignore lint/correctness/useExhaustiveDependencies: 只在原文或目标语言变化时重置
-  useEffect(() => {
-    setConfirming(false)
-    setEditedText(undefined)
-  }, [value, target])
-
-  // 停止输入片刻后自动翻译；输入清空或停用翻译时作废在途请求并清除旧译文
-  useEffect(() => {
-    if (!active) {
-      seq.current++
-      setPending(false)
-      setError(undefined)
-      if (!value) setLast(undefined)
-      return
-    }
-    if (last && last.text === value && last.target === target) return
-    timer.current = setTimeout(() => void run(value, target), PAUSE)
-    return () => clearTimeout(timer.current)
-  }, [active, value, target, run, last])
-
-  const willTranslate =
-    enabled &&
-    target !== NO_TRANSLATION &&
-    (target !== "" ? !sameLanguage(target, myLang) : Boolean(customerLang) && !sameLanguage(customerLang, myLang))
-  const needed = current?.needed ?? last?.result.needed ?? false
-  return {
-    enabled,
-    active,
-    split: willTranslate || (active && (needed || !!error)),
-    target,
-    setTarget: (to) => setTargetState(to),
-    last,
-    current,
-    editedText,
-    setEditedText,
-    pending,
-    error,
-    confirming: confirming && !!current,
-    translateNow: () => {
-      clearTimeout(timer.current)
-      return run(value, target)
-    },
-    retry: () => {
-      clearTimeout(timer.current)
-      void run(value, target)
-    },
-    askConfirm: () => setConfirming(true),
-    reset: () => {
-      seq.current++
-      setLast(undefined)
-      setEditedText(undefined)
-      setPending(false)
-      setError(undefined)
-      setConfirming(false)
-    },
-  }
-}
-
-/**
- * TranslationTargetPicker 是输入卡片顶栏右侧的目标语言选择器：
- * 打开会话即可直观看到当前翻译目标语言，点击弹出可搜索下拉菜单切换语言或关闭翻译。
- */
-function TranslationTargetPicker({
-  c,
-  myLang,
-  preview,
-}: {
-  c: ConversationDTO
-  myLang?: string
-  preview: ReplyTranslation
-}): ReactNode {
-  const t = useT()
-  const ui = useLanguage()
-  const [search, setSearch] = useState("")
-  const combobox = useCombobox({
-    onDropdownClose: () => {
-      combobox.resetSelectedOption()
-      setSearch("")
-    },
-    onDropdownOpen: () => {
-      combobox.focusSearchInput()
-    },
-  })
-
-  const theirs = c.language ?? ""
-  const off = preview.target === NO_TRANSLATION
-  const effectiveLang = off ? "" : preview.target || preview.last?.result.language || theirs
-  const sameAsMe = Boolean(effectiveLang) && sameLanguage(effectiveLang, myLang)
-  const activeValue = off ? NO_TRANSLATION : effectiveLang
-
-  let label: string
-  let active = false
-  if (off) {
-    label = t("inbox.no_translation")
-  } else if (effectiveLang && !sameAsMe) {
-    label = t("inbox.translate_to", { lang: languageName(effectiveLang, ui) })
-    active = true
-  } else {
-    label = t("inbox.sends_original")
-  }
-
-  const baseOptions = languageOptions(ui, [effectiveLang, theirs].filter(Boolean))
-  const typed = validLanguage(search)
-  const rawOptions = [
-    { value: NO_TRANSLATION, label: t("inbox.no_translation") },
-    ...baseOptions.map((o) => ({
-      value: o.value,
-      label: theirs && o.value === theirs ? t("inbox.their_language", { lang: o.label }) : o.label,
-    })),
-  ]
-  if (typed && !rawOptions.some((o) => o.value === typed)) {
-    rawOptions.splice(1, 0, { value: typed, label: `${languageName(typed, ui)} (${typed})` })
-  }
-  const q = search.trim().toLowerCase()
-  const filtered = q ? rawOptions.filter((o) => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q)) : rawOptions
-
-  return (
-    <Combobox
-      store={combobox}
-      width={240}
-      position="top-end"
-      withinPortal
-      onOptionSubmit={(val) => {
-        preview.setTarget(val === theirs ? "" : val)
-        combobox.closeDropdown()
-      }}
-    >
-      <Combobox.Target targetType="button">
-        <Button
-          ml="auto"
-          size="compact-xs"
-          variant={active ? "light" : "subtle"}
-          color={active ? undefined : "gray"}
-          leftSection={<IconLanguage size={13} />}
-          rightSection={<IconChevronDown size={11} />}
-          onClick={() => combobox.toggleDropdown()}
-          aria-label={t("inbox.choose_language")}
-        >
-          {label}
-        </Button>
-      </Combobox.Target>
-      <Combobox.Dropdown>
-        <Combobox.Search
-          value={search}
-          onChange={(e) => setSearch(e.currentTarget.value)}
-          placeholder={t("inbox.choose_language")}
-          aria-label={t("inbox.choose_language")}
-        />
-        <Combobox.Options>
-          <ScrollArea.Autosize mah={220} type="scroll">
-            {filtered.length === 0 ? (
-              <Combobox.Empty>{t("inbox.language_not_found")}</Combobox.Empty>
-            ) : (
-              filtered.map((o) => (
-                <Combobox.Option value={o.value} key={o.value} active={o.value === activeValue}>
-                  <Group gap="xs" wrap="nowrap" justify="space-between">
-                    <Text size="xs" truncate>
-                      {o.label}
-                    </Text>
-                    {o.value === activeValue && <IconCheck size={13} color="var(--mantine-primary-color-filled)" style={{ flex: "none" }} />}
-                  </Group>
-                </Combobox.Option>
-              ))
-            )}
-          </ScrollArea.Autosize>
-        </Combobox.Options>
-      </Combobox.Dropdown>
-    </Combobox>
-  )
-}
-
-/**
- * InlineTranslationPreview 是输入卡片内的译文区（宽屏居右与原文左右对照，窄屏自动排在输入框上方）：
- * 展示空态占位、翻译中、实时译文与回译校验，支持点击译文直接轻量手动微调并可一键恢复或重新翻译。
- */
-function InlineTranslationPreview({
-  c,
-  hasText,
-  preview,
-  ctrlEnterSend,
-  onSendOriginal,
-  onSubmit,
-}: {
-  c: ConversationDTO
-  hasText: boolean
-  preview: ReplyTranslation
-  ctrlEnterSend: boolean
-  onSendOriginal: () => void
-  onSubmit: () => void
-}): ReactNode {
-  const t = useT()
-  const ui = useLanguage()
-  const [editing, setEditing] = useState(false)
-  const shown = preview.current ?? preview.last?.result
-  const stale = hasText && !preview.current && !!preview.last
-  const isEdited = preview.editedText !== undefined && shown !== undefined && preview.editedText !== shown.translation
-  const displayText = preview.editedText ?? shown?.translation ?? ""
-  const targetLang = preview.target || shown?.language || c.language || ""
-  const empty = !hasText && !preview.error
-
-  // 新译文到达、清空输入或出错时自动退出编辑态
-  useEffect(() => {
-    if (!hasText || preview.pending || preview.error) {
-      setEditing(false)
-    }
-  }, [hasText, preview.pending, preview.error])
-
-  const startEdit = () => {
-    if (!shown?.needed || preview.pending || stale) return
-    if (preview.editedText === undefined) {
-      preview.setEditedText(shown.translation)
-    }
-    setEditing(true)
-  }
-
-  return (
-    <Box
-      className="inbox-composer-translation"
-      data-empty={empty || undefined}
-      data-stale={stale || undefined}
-      data-confirming={preview.confirming || undefined}
-      data-error={preview.error ? "" : undefined}
-    >
-      {preview.error ? (
-        <Stack gap={6}>
-          <Text size="xs" c="red">
-            {t("inbox.translation_failed", { error: preview.error })}
-          </Text>
-          <Group gap="sm" wrap="nowrap">
-            <UnstyledButton fz="xs" c="brand" onClick={preview.retry}>
-              {t("inbox.retry")}
-            </UnstyledButton>
-            <UnstyledButton fz="xs" c="dimmed" onClick={onSendOriginal}>
-              {t("inbox.send_original")}
-            </UnstyledButton>
-          </Group>
-        </Stack>
-      ) : empty ? (
-        <Text size="md" c="dimmed" lh={1.55} className="inbox-translation-placeholder">
-          {targetLang ? t("inbox.translation_placeholder", { lang: languageName(targetLang, ui) }) : t("inbox.choose_language")}
-        </Text>
-      ) : !shown?.needed ? (
-        <Group gap={6} wrap="nowrap">
-          <Loader size={12} />
-          <Text size="xs" c="dimmed">
-            {t("inbox.translating")}
-          </Text>
-        </Group>
-      ) : (
-        <Box className="inbox-preview-text">
-          <Group gap={6} align="flex-start" wrap="nowrap">
-            <Box style={{ flex: 1, minWidth: 0 }}>
-              {editing ? (
-                <Textarea
-                  variant="unstyled"
-                  size="md"
-                  autosize
-                  minRows={1}
-                  maxRows={8}
-                  autoFocus
-                  classNames={{ input: "inbox-translation-input" }}
-                  value={displayText}
-                  onChange={(e) => preview.setEditedText(e.currentTarget.value)}
-                  onBlur={() => {
-                    const trimmed = displayText.trim()
-                    if (!trimmed || trimmed === shown.translation) {
-                      preview.setEditedText(undefined)
-                    }
-                    setEditing(false)
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.nativeEvent.isComposing) return
-                    if (e.key === "Escape") {
-                      e.preventDefault()
-                      setEditing(false)
-                      return
-                    }
-                    const hitSend = ctrlEnterSend
-                      ? e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey
-                      : e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey
-                    if (hitSend) {
-                      e.preventDefault()
-                      setEditing(false)
-                      onSubmit()
-                    }
-                  }}
-                  aria-label={t("inbox.edit_translation")}
-                />
-              ) : (
-                <Text
-                  size="md"
-                  lh={1.55}
-                  className="inbox-translation-editable"
-                  style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
-                  onClick={startEdit}
-                  title={t("inbox.edit_translation")}
-                >
-                  {displayText}
-                </Text>
-              )}
-            </Box>
-            <Group gap={2} wrap="nowrap" style={{ flex: "none" }}>
-              {preview.pending || stale ? (
-                <Tooltip label={t("inbox.retranslating")} openDelay={200}>
-                  <Box px={4} pt={4}>
-                    <Loader size={11} />
-                  </Box>
-                </Tooltip>
-              ) : (
-                <>
-                  {!editing && (
-                    <Tooltip label={t("inbox.edit_translation")} openDelay={300}>
-                      <ActionIcon size={22} variant="subtle" color="gray" aria-label={t("inbox.edit_translation")} onClick={startEdit}>
-                        <IconPencil size={13} />
-                      </ActionIcon>
-                    </Tooltip>
-                  )}
-                  <Tooltip label={t("inbox.retranslate")} openDelay={300}>
-                    <ActionIcon size={22} variant="subtle" color="gray" aria-label={t("inbox.retranslate")} onClick={preview.retry}>
-                      <IconRefresh size={13} />
-                    </ActionIcon>
-                  </Tooltip>
-                </>
-              )}
-            </Group>
-          </Group>
-          {isEdited ? (
-            <Group gap={6} mt={6} wrap="nowrap">
-              <Text size="xs" c="brand" fw={500}>
-                {t("inbox.translation_edited")}
-              </Text>
-              <Text size="xs" c="dimmed">
-                ·
-              </Text>
-              <UnstyledButton
-                className="inbox-caption-btn"
-                onClick={() => {
-                  preview.setEditedText(undefined)
-                  setEditing(false)
-                }}
-              >
-                {t("inbox.reset_translation")}
-              </UnstyledButton>
-            </Group>
-          ) : (
-            shown.back_translation && (
-              <Text size="xs" c="dimmed" mt={6} lh={1.45} style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-                <Text span size="xs" fw={600} mr={6}>
-                  {t("inbox.back_translation")}
-                </Text>
-                {shown.back_translation}
-              </Text>
-            )
-          )}
-        </Box>
-      )}
-    </Box>
-  )
-}

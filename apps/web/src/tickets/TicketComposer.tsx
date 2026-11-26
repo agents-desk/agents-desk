@@ -1,4 +1,4 @@
-import type { ConversationTicketDTO, MemberTenantMember } from "@agents-desk/client/tenant"
+import type { ConversationTicketDTO, ConversationTranslation, MemberTenantMember } from "@agents-desk/client/tenant"
 import { ActionIcon, Avatar, Box, Button, FileButton, Group, SegmentedControl, Text, Textarea, Tooltip } from "@mantine/core"
 import { useOs } from "@mantine/hooks"
 import { notifications } from "@mantine/notifications"
@@ -16,6 +16,12 @@ import {
   type UploadedMedia,
   uploadMediaFile,
 } from "../inbox/Attachments"
+import {
+  defaultPeerLanguage,
+  InlineTranslationPane,
+  TranslationToggleButton,
+  useComposerTranslation,
+} from "../inbox/ComposerTranslation"
 import { useMe, useMembers } from "../inbox/data"
 
 /** TicketComposerMode 是工单输入区的两种模式：内部讨论备注或发布对外公开进度。 */
@@ -63,21 +69,51 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
   const hasContent = Boolean(value) || attachmentInputs.length > 0
   const note = mode === "note"
 
+  const noteDefaultTarget = useMemo(() => {
+    const mentioned = members.filter((m) => mentionIds.includes(m.id) && m.id !== me.data?.id).map((m) => m.language)
+    return (
+      defaultPeerLanguage(mentioned, me.data?.language) ||
+      defaultPeerLanguage(
+        members.filter((m) => m.id !== me.data?.id).map((m) => m.language),
+        me.data?.language,
+      )
+    )
+  }, [members, mentionIds, me.data?.id, me.data?.language])
+
+  const publicDefaultTarget = useMemo(
+    () =>
+      defaultPeerLanguage(
+        (ticket.linked_contacts ?? []).map((lc) => lc.contact.language),
+        me.data?.language,
+      ) || noteDefaultTarget,
+    [ticket.linked_contacts, me.data?.language, noteDefaultTarget],
+  )
+
+  const preview = useComposerTranslation({
+    conversationId: ticket.id,
+    text: value,
+    defaultTarget: note ? noteDefaultTarget : publicDefaultTarget,
+    myLang: me.data?.language,
+    mode: "verified",
+  })
+
   const send = useMutation({
-    mutationFn: async () => {
+    mutationFn: async ({ translation, sendMode }: { translation?: ConversationTranslation; sendMode: TicketComposerMode }) => {
       const attachments = attachmentInputs.length > 0 ? attachmentInputs : undefined
-      if (note) {
+      if (sendMode === "note") {
         const ids = members.filter((m) => mentionIds.includes(m.id) && value.includes(`@${m.name}`)).map((m) => m.id)
         await tenantApi.conversation.note(ticket.id, {
           text: value || undefined,
           mentions: ids.length > 0 ? ids : undefined,
           attachments,
+          translation,
         })
         return "note" as const
       }
       await tenantApi.ticket.publishUpdate(ticket.id, {
         text: value || undefined,
         attachments,
+        translation,
       })
       return "public" as const
     },
@@ -85,12 +121,20 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
       setText("")
       setMentionIds([])
       queue.clear()
+      preview.reset()
       if (sentMode === "public") notifySuccess(t("tickets.public_sent"))
       void queryClient.invalidateQueries({ queryKey: kit.queries.ticket.key() })
       void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
     },
     onError: (err) => notifyError(err),
   })
+
+  const submit = async (options?: { skipTranslation?: boolean }) => {
+    if (!hasContent || queue.uploading || queue.hasError || send.isPending || preview.pending) return
+    const prep = await preview.prepareSubmit({ skipTranslation: options?.skipTranslation })
+    if (!prep.send) return
+    send.mutate({ translation: prep.translation, sendMode: mode })
+  }
 
   const triggerRules = useMemo(
     () => [
@@ -140,8 +184,9 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
 
   if (!can("conversations:reply")) return null
 
-  const canSubmit = hasContent && !queue.uploading && !queue.hasError && !send.isPending
+  const canSubmit = hasContent && !queue.uploading && !queue.hasError && !send.isPending && !preview.pending
   const sendHint = ctrlEnterSend ? t("inbox.ctrl_enter_hint", { key: sendModKey }) : t("inbox.enter_hint")
+  const mainLabel = preview.confirming ? t("inbox.confirm_send") : t(note ? "inbox.add_note" : "tickets.public_send")
 
   return (
     <Box
@@ -174,6 +219,8 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
             value={mode}
             onChange={(v) => {
               setMode(v as TicketComposerMode)
+              preview.setTarget("")
+              preview.reset()
               trigger.close()
             }}
             data={[
@@ -207,38 +254,50 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
 
         <AttachmentStrip items={queue.items} onRemove={queue.remove} onRetry={queue.retry} />
 
-        <Box
-          className="inbox-composer-body"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) area.current?.focus()
-          }}
-        >
-          <Textarea
-            ref={area}
-            variant="unstyled"
-            size="md"
-            classNames={{ input: "inbox-composer-input" }}
-            value={text}
-            onChange={(e) => trigger.handleChange(e.currentTarget.value, e.currentTarget.selectionStart)}
-            onPaste={(e) => queue.handlePaste(e)}
-            onKeyDown={(e) => {
-              if (e.nativeEvent.isComposing) return
-              if (trigger.handleKeyDown(e)) return
-              const hitSend = ctrlEnterSend
-                ? e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey
-                : e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey
-              if (hitSend && canSubmit) {
-                e.preventDefault()
-                send.mutate()
-              }
+        <Box className="inbox-composer-main" data-split={preview.expanded || undefined}>
+          <Box
+            className="inbox-composer-body"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) area.current?.focus()
             }}
-            placeholder={t(note ? "tickets.note_placeholder" : "tickets.public_placeholder")}
-            autosize
-            minRows={3}
-            maxRows={10}
-            maxLength={10000}
-            aria-label={t(note ? "tickets.mode_note" : "tickets.mode_public")}
-          />
+          >
+            <Textarea
+              ref={area}
+              variant="unstyled"
+              size="md"
+              classNames={{ input: "inbox-composer-input" }}
+              value={text}
+              onChange={(e) => trigger.handleChange(e.currentTarget.value, e.currentTarget.selectionStart)}
+              onPaste={(e) => queue.handlePaste(e)}
+              onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return
+                if (trigger.handleKeyDown(e)) return
+                const hitSend = ctrlEnterSend
+                  ? e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey
+                  : e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey
+                if (hitSend && canSubmit) {
+                  e.preventDefault()
+                  void submit()
+                }
+              }}
+              placeholder={t(note ? "tickets.note_placeholder" : "tickets.public_placeholder")}
+              autosize
+              minRows={3}
+              maxRows={10}
+              maxLength={10000}
+              aria-label={t(note ? "tickets.mode_note" : "tickets.mode_public")}
+            />
+          </Box>
+          {preview.expanded && (
+            <InlineTranslationPane
+              hasText={Boolean(value)}
+              myLang={me.data?.language}
+              preview={preview}
+              ctrlEnterSend={ctrlEnterSend}
+              onSendWithoutTranslation={() => void submit({ skipTranslation: true })}
+              onSubmit={() => void submit()}
+            />
+          )}
         </Box>
 
         <Group gap={6} className="inbox-composer-foot" data-tn-density="dense">
@@ -260,16 +319,24 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
             )}
           </FileButton>
 
+          <TranslationToggleButton preview={preview} myLang={me.data?.language} note={note} />
+
+          {preview.confirming && (
+            <Text size="xs" c="brand" ml={4}>
+              {ctrlEnterSend ? t("inbox.ctrl_enter_again", { key: sendModKey }) : t("inbox.enter_again")}
+            </Text>
+          )}
+
           <Tooltip label={sendHint} openDelay={350}>
             <Button
               ml="auto"
               color={note ? "yellow" : undefined}
               leftSection={note ? <IconLock size={14} /> : <IconSend size={14} />}
               disabled={!canSubmit}
-              loading={send.isPending}
-              onClick={() => send.mutate()}
+              loading={send.isPending || preview.pending}
+              onClick={() => void submit()}
             >
-              {t(note ? "inbox.add_note" : "tickets.public_send")}
+              {mainLabel}
             </Button>
           </Tooltip>
         </Group>

@@ -22,8 +22,9 @@ var ErrForbidden = errorx.Define(errorx.PermissionDenied, "translation.forbidden
 
 // PreviewBody 是翻译预览的请求体。
 type PreviewBody struct {
-	Text     string `json:"text" minLength:"1" maxLength:"10000" doc:"成员写的回复"`
-	Language string `json:"language,omitempty" maxLength:"35" doc:"发给对方的语言（BCP 47）；不填时取客户的语言"`
+	Text                string `json:"text" minLength:"1" maxLength:"10000" doc:"成员写的回复或消息"`
+	Language            string `json:"language,omitempty" maxLength:"35" doc:"目标语言（BCP 47）；不填时按会话类型自动推断（服务型会话取客户语言，内部聊天取其他参与者语言，工单取关联客户或参与者语言）"`
+	SkipBackTranslation bool   `json:"skip_back_translation,omitempty" doc:"为 true 时仅返回译文、跳过盲回译，用于折叠态自动翻译发送"`
 }
 
 // PreviewInput 是翻译预览的 HTTP 请求。
@@ -58,17 +59,20 @@ func NewPreview(db *bun.DB, translator *Translator, incoming *Incoming) *Preview
 	return &Preview{db: db, translator: translator, incoming: incoming}
 }
 
-// Handle 为成员 sub 在他所在工作区的会话 id 中写的回复 b.Text 给出发给对方的译文和回译。目标语言是 b.Language，
-// 不填时取会话中对方的语言；还不知道时（消息刚到、后台还没识别完）先识别对方最近的几条消息。目标语言仍然未知，
-// 或者与成员的语言相同时不调用模型，按原文发出（Needed 为 false）。
-// 会话不存在或看不到时返回 conversation.ErrNotFound，没有回复的权限时返回 ErrForbidden，翻译没有配置时返回 llm.ErrNotConfigured。
+// Handle 为成员 sub 在他所在工作区的会话 id（支持服务型会话、内部聊天与工单）中写的文字 b.Text 给出目标语言译文和可选盲回译。
+// 目标语言是 b.Language，不填时按会话类型自动推断：服务型会话取客户语言（未知时先识别最近消息），内部聊天取其他参与成员的主要外语，
+// 工单优先取关联客户的外语、否则取其他参与成员语言。目标语言仍然未知或与成员语言相同时不调用模型（Needed 为 false）。
+// 会话不存在或看不到时返回 conversation.ErrNotFound，没有对应权限时返回 ErrForbidden，翻译没有配置时返回 llm.ErrNotConfigured。
 func (a *Preview) Handle(ctx context.Context, sub identity.Subject, id string, b PreviewBody) (*PreviewDTO, error) {
-	if sub.Type != member.Type || !sub.Can(string(auth.ConversationsReply)) {
+	if sub.Type != member.Type || !sub.Can(string(auth.ConversationsRead)) {
 		return nil, ErrForbidden.New()
 	}
 	c, err := conversation.NewGet(a.db).Handle(ctx, sub, id)
 	if err != nil {
 		return nil, err
+	}
+	if c.Kind != conversation.Chat && !sub.Can(string(auth.ConversationsReply)) {
+		return nil, ErrForbidden.New()
 	}
 	m, err := member.Find(ctx, a.db, sub.ID)
 	if err != nil {
@@ -76,21 +80,87 @@ func (a *Preview) Handle(ctx context.Context, sub identity.Subject, id string, b
 	}
 	from, to := string(m.Language), b.Language
 	if to == "" {
-		to = c.Language
-	}
-	if to == "" {
-		if to, err = a.detect(ctx, sub, c.ID, from); err != nil {
-			return nil, err
+		switch c.Kind {
+		case conversation.Chat:
+			if to, err = a.detectPeerLanguage(ctx, c.ID, sub.ID, from); err != nil {
+				return nil, err
+			}
+		case conversation.Ticket:
+			if to, err = a.detectTicketLanguage(ctx, sub.Tenant, c.ID, sub.ID, from); err != nil {
+				return nil, err
+			}
+		default:
+			to = c.Language
+			if to == "" {
+				if to, err = a.detect(ctx, sub, c.ID, from); err != nil {
+					return nil, err
+				}
+			}
 		}
 	}
 	if to == "" || lang.Same(from, to) {
 		return &PreviewDTO{From: from, Language: to, Translation: b.Text}, nil
+	}
+	if b.SkipBackTranslation {
+		translation, err := a.translator.ReplyText(ctx, sub.Tenant, id, b.Text, from, to)
+		if err != nil {
+			return nil, err
+		}
+		return &PreviewDTO{Needed: true, From: from, Language: to, Translation: translation}, nil
 	}
 	translation, back, err := a.translator.Reply(ctx, sub.Tenant, id, b.Text, from, to)
 	if err != nil {
 		return nil, err
 	}
 	return &PreviewDTO{Needed: true, From: from, Language: to, Translation: translation, BackTranslation: back}, nil
+}
+
+// detectPeerLanguage 从会话 conversationID 中除 viewerID 外的参与成员里选出最常见且与 from 不同的语言；全员同语言时返回空字符串。
+func (a *Preview) detectPeerLanguage(ctx context.Context, conversationID, viewerID, from string) (string, error) {
+	var langs []string
+	err := a.db.NewSelect().
+		TableExpr("conversation_participants AS cp").
+		Join("JOIN members AS m ON m.id::text = cp.participant_id").
+		ColumnExpr("m.language").
+		Where("cp.conversation_id = ? AND cp.participant_type = ? AND cp.participant_id <> ?", conversationID, conversation.MemberActor, viewerID).
+		OrderExpr("cp.created_at ASC, cp.participant_id ASC").
+		Scan(ctx, &langs)
+	if err != nil {
+		return "", errors.Wrap(err, "load participant languages")
+	}
+	best, counts := "", map[string]int{}
+	for _, l := range langs {
+		if l == "" || lang.Same(from, l) {
+			continue
+		}
+		counts[l]++
+		if best == "" || counts[l] > counts[best] {
+			best = l
+		}
+	}
+	return best, nil
+}
+
+// detectTicketLanguage 为工单推断默认目标语言：优先取关联受影响客户中与 from 不同的主要语言，否则回退到工单其他参与成员的语言。
+func (a *Preview) detectTicketLanguage(ctx context.Context, tenant, ticketID, viewerID, from string) (string, error) {
+	targets, err := conversation.ResolveTicketNotifyTargets(ctx, a.db, tenant, ticketID)
+	if err != nil {
+		return "", err
+	}
+	best, counts := "", map[string]int{}
+	for _, tc := range targets {
+		if tc.Language == "" || lang.Same(from, tc.Language) {
+			continue
+		}
+		counts[tc.Language]++
+		if best == "" || counts[tc.Language] > counts[best] {
+			best = tc.Language
+		}
+	}
+	if best != "" {
+		return best, nil
+	}
+	return a.detectPeerLanguage(ctx, ticketID, viewerID, from)
 }
 
 // detect 识别 sub 能看到的会话 id 中对方最近还没识别过语言的消息，顺带翻译成工作区主要语言和当前成员的语言

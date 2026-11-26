@@ -22,7 +22,7 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	}
 	manage := require(auth.TenantSettingsManage)
 	actions := NewSettingsActions(db, s, translator)
-	rest.Register(api, route(require(auth.ConversationsReply), "translation-preview", http.MethodPost, "/conversations/{id}/translations", "回复的译文和回译"),
+	rest.Register(api, route(require(auth.ConversationsRead), "translation-preview", http.MethodPost, "/conversations/{id}/translations", "回复的译文和回译"),
 		NewPreview(db, translator, incoming).HTTP)
 	rest.Register(api, route(require(auth.ConversationsRead), "translation-fill", http.MethodPost, "/translations/fill", "补译看到的消息"),
 		NewFillMissing(db, translator).HTTP)

@@ -359,12 +359,26 @@
 
 /* 内联在输入卡片内的实时译文区：宽屏居右与原文左右对照，窄屏退化到输入框上方保持输入框零跳动 */
 .inbox-composer-translation {
-  padding: 8px 12px 6px;
+  padding: 6px 12px 8px;
   border-left: 1px solid color-mix(in srgb, var(--tn-border) 75%, transparent);
   background: color-mix(in srgb, var(--mantine-primary-color-light) 30%, var(--tn-canvas));
   max-height: 240px;
   overflow-y: auto;
   transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.inbox-composer-box[data-note] .inbox-composer-translation {
+  border-left-color: color-mix(in srgb, var(--mantine-color-yellow-6) 28%, transparent);
+  background: color-mix(in srgb, var(--mantine-color-yellow-light) 65%, var(--tn-surface));
+}
+
+.inbox-translation-head {
+  padding-bottom: 4px;
+  border-bottom: 1px solid color-mix(in srgb, var(--tn-border) 50%, transparent);
+}
+
+.inbox-composer-box[data-note] .inbox-translation-head {
+  border-bottom-color: color-mix(in srgb, var(--mantine-color-yellow-6) 20%, transparent);
 }
 
 .inbox-composer-translation[data-empty] {
@@ -421,8 +435,8 @@
     max-height: 160px;
   }
 
-  .inbox-composer-main[data-split] .inbox-composer-translation[data-empty] {
-    display: none;
+  .inbox-composer-box[data-note] .inbox-composer-main[data-split] .inbox-composer-translation {
+    border-bottom-color: color-mix(in srgb, var(--mantine-color-yellow-6) 28%, transparent);
   }
 }
 

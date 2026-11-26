@@ -797,3 +797,101 @@ func TestHistory(t *testing.T) {
 		t.Fatalf("总长 %d，%d 条：%q", total, len(lines), lines)
 	}
 }
+
+// TestUnifiedComposerTranslation 检查统一输入框翻译交互：
+// 1. 折叠态跳过盲回译（SkipBackTranslation）仅调用 1 次模型；
+// 2. 内部聊天预览自动推断对方成员语言，且仅需 conversations:read 权限（服务型会话仍需 conversations:reply）；
+// 3. 内部聊天消息与内部备注附带人工校对译文时写入 derived.translations 与 derived.verified_language，
+// 后台自动翻译与按需补译不会覆盖已校对译文，其余语言仍正常基于原文翻译。
+func TestUnifiedComposerTranslation(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	f := setup(t, true)
+	incoming := NewIncoming(f.env.DB, f.locker, f.translator, f.down)
+	preview := NewPreview(f.env.DB, f.translator, incoming)
+
+	// 1. SkipBackTranslation：仅调用 1 次模型（跳过盲回译）
+	p := f.receive(t, "rahul", "mera order abhi tak nahi aaya")
+	if err := incoming.Job(ctx, p); err != nil {
+		t.Fatal(err)
+	}
+	before := f.model.count()
+	fast, err := preview.Handle(ctx, f.agent, p.ConversationID, PreviewBody{Text: "好的，正在查", SkipBackTranslation: true})
+	if err != nil || !fast.Needed || fast.Language != "hi-Latn" || fast.Translation == "" || fast.BackTranslation != "" {
+		t.Fatalf("跳过盲回译预览：%+v %v", fast, err)
+	}
+	if f.model.count() != before+1 {
+		t.Fatalf("跳过盲回译应只调用 1 次模型，实际 %d 次", f.model.count()-before)
+	}
+
+	// 2. 内部聊天预览：自动推断对方英文成员的语言，且仅拥有 conversations:read 即可预览，但不能预览服务型会话
+	var enID string
+	if err := f.env.DB.NewRaw("SELECT id FROM members WHERE name = 'en'").Scan(ctx, &enID); err != nil {
+		t.Fatal(err)
+	}
+	dm, err := conversation.NewCreateDirectChat(f.env.DB, f.down).Handle(ctx, f.agent, conversation.CreateDirectChatParams{
+		ParticipantType: conversation.MemberActor, ParticipantID: enID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dm.Peer == nil || dm.Peer.Language != "en" {
+		t.Fatalf("单聊对方应返回语言 en：%+v", dm.Peer)
+	}
+	readOnly := identity.Subject{Type: member.Type, ID: f.agent.ID, Tenant: f.system.Tenant, Permissions: []string{string(auth.ConversationsRead), string(auth.ConversationsReadAll)}}
+	if _, err := preview.Handle(ctx, readOnly, p.ConversationID, PreviewBody{Text: "hi"}); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("服务型会话预览应需要 conversations:reply，实际：%v", err)
+	}
+	chatPreview, err := preview.Handle(ctx, readOnly, dm.ID, PreviewBody{Text: "请核对退款金额"})
+	if err != nil || !chatPreview.Needed || chatPreview.Language != "en" || chatPreview.BackTranslation == "" {
+		t.Fatalf("内部聊天预览应自动推断目标语言 en 并返回盲回译：%+v %v", chatPreview, err)
+	}
+
+	// 3. 内部聊天发送附带人工校对译文：写入 derived.translations 与 verified_language，后台自动翻译不覆盖，补译日语仅译日语
+	sent, err := conversation.NewSendChatMessage(f.env.DB, f.down).Handle(ctx, f.agent, dm.ID, conversation.SendChatMessageBody{
+		Text:        "请核对退款金额 500 卢比",
+		Translation: &conversation.Translation{Language: "en", Text: "Please verify the refund amount of 500 INR"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sent.Content.Text != "请核对退款金额 500 卢比" {
+		t.Fatalf("消息正文应保持原文：%q", sent.Content.Text)
+	}
+	if sent.Derived["language"] != "zh-CN" || sent.Derived["verified_language"] != "en" {
+		t.Fatalf("派生语言与已校对语言标记异常：%+v", sent.Derived)
+	}
+	before = f.model.count()
+	if err := incoming.Job(ctx, conversation.Appended{TenantID: f.system.Tenant, ConversationID: dm.ID, ItemID: sent.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if f.model.count() != before {
+		t.Fatalf("工作区主要语言 zh-CN/en 已全部满足，不应重复调模型，实际 %d 次", f.model.count()-before)
+	}
+	if err := incoming.Fill(ctx, FillJob{TenantID: f.system.Tenant, ItemID: sent.ID, Language: "ja"}); err != nil {
+		t.Fatal(err)
+	}
+	tr, _ := f.item(t, sent.ID).Derived["translations"].(map[string]any)
+	if tr["en"] != "Please verify the refund amount of 500 INR" || tr["ja"] == nil {
+		t.Fatalf("补译日语后应保留人工校对英文译文并补上日语：%+v", tr)
+	}
+
+	// 4. 内部备注附带人工校对译文同样保留并不被后台覆写
+	note, err := conversation.NewAddNote(f.env.DB, f.down).HandleBody(ctx, f.agent, p.ConversationID, conversation.NoteBody{
+		Text:        "已转财务加急处理",
+		Translation: &conversation.Translation{Language: "en", Text: "Escalated to finance for urgent handling"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if note.Derived["verified_language"] != "en" {
+		t.Fatalf("内部备注应记录 verified_language：%+v", note.Derived)
+	}
+	before = f.model.count()
+	if err := incoming.Job(ctx, conversation.Appended{TenantID: f.system.Tenant, ConversationID: p.ConversationID, ItemID: note.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if f.model.count() != before {
+		t.Fatalf("已校对内部备注不应重复调模型，实际 %d 次", f.model.count()-before)
+	}
+}

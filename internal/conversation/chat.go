@@ -52,6 +52,7 @@ type ChatParticipantDTO struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
 	AvatarURL string    `json:"avatar_url,omitempty"`
+	Language  string    `json:"language,omitempty" doc:"成员偏好的翻译语言（BCP 47）"`
 	Status    string    `json:"status,omitempty" doc:"在线状态：online 或 away"`
 	JoinedAt  time.Time `json:"joined_at"`
 }
@@ -181,6 +182,7 @@ func toChatDTOs(ctx context.Context, db bun.IDB, files *filesystem.Service, sub 
 				ID:        m.ID,
 				Name:      m.Name,
 				AvatarURL: avatar,
+				Language:  string(m.Language),
 				Status:    string(statuses[m.ID]),
 			}
 		}

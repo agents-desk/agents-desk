@@ -199,4 +199,33 @@ func TestTicketBroadcastDedupAndNoteTranslation(t *testing.T) {
 	if enText, _ := pubTrMap["en"].(string); !strings.Contains(enText, "My order") {
 		t.Fatalf("公开进度应包含英文译文，实际 derived=%+v", translatedPub.Derived)
 	}
+
+	// 发送前人工校对的公开进度译文：该语言直接沿用人工译文，其余客户语言继续自动翻译
+	beforeCalls := len(model.requests)
+	pubVerified, err := conversation.NewPublishTicketUpdate(env.DB, down).Handle(ctx, subOwner, tk.ID, conversation.PublishTicketUpdateBody{
+		Text:        "退款已原路退回，请查收。",
+		Translation: &conversation.Translation{Language: "hi-Latn", Text: "Refund wapas bhej diya gaya hai, kripya check karein."},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := broadcaster.Handle(ctx, conversation.Appended{TenantID: tn.ID, ConversationID: tk.ID, ItemID: pubVerified.ID, Seq: pubVerified.Seq}); err != nil {
+		t.Fatalf("带校对译文的公开进度广播失败：%v", err)
+	}
+	if got := len(model.requests) - beforeCalls; got != 1 {
+		t.Fatalf("应只对未校对的 en 语言调用 1 次模型，实际 %d 次", got)
+	}
+	hiItems, err := tl.Handle(ctx, subOwner, c1.ConversationID, 0, 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var gotHi string
+	for _, it := range hiItems {
+		if it.Content.Prompt != nil && it.Content.Prompt.Params["item_id"] == pubVerified.ID {
+			gotHi = it.Content.Text
+		}
+	}
+	if gotHi != "Refund wapas bhej diya gaya hai, kripya check karein." {
+		t.Fatalf("印地语客户应直接收到人工校对译文，实际：%q", gotHi)
+	}
 }

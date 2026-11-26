@@ -3,6 +3,7 @@ package conversation
 import (
 	"context"
 	"database/sql"
+	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
@@ -61,8 +62,13 @@ func SaveTranslation(ctx context.Context, db *bun.DB, down Downstream, tenant, i
 		if translations == nil {
 			translations = map[string]any{}
 		}
+		verified, _ := it.Derived["verified_language"].(string)
 		added := make([]string, 0, len(t.Translations))
 		for target, text := range t.Translations {
+			// 保留发送者发送前已人工校对过的目标语言译文，避免后台自动翻译覆盖
+			if verified != "" && lang.Same(verified, target) && hasTranslationFor(translations, target) {
+				continue
+			}
 			if prev, _ := translations[target].(string); prev != text {
 				added = append(added, target)
 			}
@@ -221,11 +227,61 @@ func MissingTranslations(derived map[string]any, targets []string) []string {
 	translations, _ := derived["translations"].(map[string]any)
 	var missing []string
 	for _, t := range targets {
-		if _, ok := translations[t]; !ok && !lang.Same(source, t) {
+		if !hasTranslationFor(translations, t) && !lang.Same(source, t) {
 			missing = append(missing, t)
 		}
 	}
 	return missing
+}
+
+// hasTranslationFor 报告派生译文表 translations 中是否已有与 target 相同语言（含 BCP 47 等价写法）的非空译文。
+func hasTranslationFor(translations map[string]any, target string) bool {
+	if len(translations) == 0 {
+		return false
+	}
+	if v, ok := translations[target].(string); ok && strings.TrimSpace(v) != "" {
+		return true
+	}
+	for k, raw := range translations {
+		if v, ok := raw.(string); ok && strings.TrimSpace(v) != "" && lang.Same(k, target) {
+			return true
+		}
+	}
+	return false
+}
+
+// applyVerifiedTranslation 把成员在发送前校对或微调过的译文 tr 写入时间线项 it 的派生内容：
+// 消息正文仍保持原文，译文写入 derived.translations[language] 并记下 derived.verified_language 与作者语言 derived.language，
+// 使该语言读者立即可见精准译文且不被后台重译，其余语言的读者仍基于原文自动翻译。
+func applyVerifiedTranslation(ctx context.Context, db bun.IDB, sub identity.Subject, it *Item, tr *Translation) error {
+	if tr == nil || strings.TrimSpace(it.Content.Text) == "" || strings.TrimSpace(tr.Text) == "" {
+		return nil
+	}
+	target, ok := lang.Canonical(tr.Language)
+	if !ok {
+		return ErrInvalidLanguage.New()
+	}
+	from, err := MemberLanguage(ctx, db, sub)
+	if err != nil {
+		return err
+	}
+	if from != "" && lang.Same(from, target) {
+		return nil
+	}
+	if it.Derived == nil {
+		it.Derived = map[string]any{}
+	}
+	if from != "" {
+		it.Derived["language"] = from
+	}
+	translations, _ := it.Derived["translations"].(map[string]any)
+	if translations == nil {
+		translations = map[string]any{}
+	}
+	translations[target] = strings.TrimSpace(tr.Text)
+	it.Derived["translations"] = translations
+	it.Derived["verified_language"] = target
+	return nil
 }
 
 // SourceText 返回用于自动翻译与跨语言阅读的源文本：翻译后发出的回复取成员写的原文，其余取消息正文。
