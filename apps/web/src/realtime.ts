@@ -46,7 +46,7 @@ export function useRealtime(
   slug: string,
   tenantId: string,
   memberId: string | undefined,
-  onAlert?: (ev: { id: string; alert: PushAlert }) => void,
+  onAlert?: (ev: { type?: string; id: string; alert: PushAlert }) => void,
 ): Centrifuge | null {
   const queryClient = useQueryClient()
   const [client, setClient] = useState<Centrifuge | null>(null)
@@ -61,6 +61,7 @@ export function useRealtime(
       all: false,
       inbox: false,
       tickets: false,
+      chats: false,
       views: false,
       contacts: false,
       conversations: new Set<string>(),
@@ -70,11 +71,13 @@ export function useRealtime(
         pending.all = false
         pending.inbox = false
         pending.tickets = false
+        pending.chats = false
         pending.views = false
         pending.contacts = false
         pending.conversations.clear()
         void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
         void queryClient.invalidateQueries({ queryKey: kit.queries.ticket.key() })
+        void queryClient.invalidateQueries({ queryKey: kit.queries.chat.key() })
         void queryClient.invalidateQueries({ queryKey: kit.queries.view.key() })
         void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
         return
@@ -87,6 +90,10 @@ export function useRealtime(
       if (pending.tickets) {
         pending.tickets = false
         void queryClient.invalidateQueries({ queryKey: kit.queries.ticket.key() })
+      }
+      if (pending.chats) {
+        pending.chats = false
+        void queryClient.invalidateQueries({ queryKey: kit.queries.chat.key() })
       }
       if (pending.conversations.size > 0) {
         for (const id of pending.conversations) {
@@ -126,7 +133,7 @@ export function useRealtime(
         refreshFrom.set(ev.id, prev === undefined ? ev.item_seq : Math.min(prev, ev.item_seq))
       }
       if (ev?.id && ev.alert) {
-        alertRef.current?.({ id: ev.id, alert: ev.alert })
+        alertRef.current?.({ type: ev.type, id: ev.id, alert: ev.alert })
       }
       switch (ev?.type) {
         case "conversation":
@@ -138,9 +145,14 @@ export function useRealtime(
           pending.tickets = true
           if (ev.id) pending.conversations.add(ev.id)
           break
+        case "chat":
+          pending.chats = true
+          if (ev.id) pending.conversations.add(ev.id)
+          break
         case "read":
           pending.inbox = true
           pending.tickets = true
+          pending.chats = true
           if (ev.id) pending.conversations.add(ev.id)
           break
         case "views":

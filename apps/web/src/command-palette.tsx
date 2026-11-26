@@ -13,6 +13,7 @@ import {
   IconListDetails,
   IconLock,
   IconMessage,
+  IconMessages,
   IconRefresh,
   IconSearch,
   IconTicket,
@@ -28,6 +29,7 @@ import { useMatch, useNavigate } from "@tanstack/react-router"
 import { Icon, type MenuItem, notifyError, notifySuccess, useCan, useLanguage, useNavigation, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useMemo, useState } from "react"
 import { kit, tenantApi } from "./api"
+import { chatDisplayName } from "./chat/data"
 import { contactDisplayName, contactSubline } from "./contacts/display"
 import { useMe, useMembers, useTeams } from "./inbox/data"
 import { activity } from "./inbox/format"
@@ -138,6 +140,11 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
   const ticketSearch = useQuery({
     queryKey: [...kit.queries.ticket.key(), "palette-search", debounced],
     queryFn: () => tenantApi.ticket.list({ q: debounced, per_page: 5 }),
+    enabled: canReadInbox && debounced.length > 0,
+  })
+  const chatSearch = useQuery({
+    queryKey: [...kit.queries.chat.key(), "palette-search", debounced],
+    queryFn: () => tenantApi.chat.list({ q: debounced, per_page: 5 }),
     enabled: canReadInbox && debounced.length > 0,
   })
 
@@ -372,6 +379,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
   const convHits = debounced ? (convSearch.data?.items ?? []) : []
   const convTotal = debounced ? (convSearch.data?.total ?? 0) : 0
   const contactHits = debounced ? (contactSearch.data?.items ?? []) : []
+  const chatHits = debounced ? (chatSearch.data?.items ?? []) : []
   const ticketHits = useMemo(() => {
     if (!debounced) return []
     const items = ticketSearch.data?.items ?? []
@@ -382,9 +390,15 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
   const remotePending =
     trimmed.length > 0 &&
     (canReadInbox || canReadContacts) &&
-    (debounced !== trimmed || convSearch.isFetching || contactSearch.isFetching || ticketSearch.isFetching || ticketExact.isFetching)
+    (debounced !== trimmed ||
+      convSearch.isFetching ||
+      contactSearch.isFetching ||
+      ticketSearch.isFetching ||
+      ticketExact.isFetching ||
+      chatSearch.isFetching)
   const hasAny =
     filteredConvActions.length > 0 ||
+    chatHits.length > 0 ||
     ticketHits.length > 0 ||
     convHits.length > 0 ||
     contactHits.length > 0 ||
@@ -436,6 +450,38 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
                       {a.description}
                     </Text>
                   )}
+                </Group>
+              </Spotlight.Action>
+            ))}
+          </Spotlight.ActionsGroup>
+        )}
+
+        {chatHits.length > 0 && (
+          <Spotlight.ActionsGroup label={t("nav.chat")}>
+            {chatHits.map((ch) => (
+              <Spotlight.Action
+                key={`chat:${ch.id}`}
+                onClick={() => void navigate({ to: "/t/$slug/chat/$id", params: { slug, id: ch.id } })}
+              >
+                <Group gap="sm" wrap="nowrap" w="100%">
+                  <Box className="cmd-palette-icon">
+                    {ch.mode === "group" ? <IconUsersGroup size={15} stroke={1.6} /> : <IconMessages size={15} stroke={1.6} />}
+                  </Box>
+                  <Box style={{ flex: 1, minWidth: 0 }}>
+                    <Group gap={6} wrap="nowrap">
+                      <Text size="sm" fw={500} truncate>
+                        <HighlightQuery text={chatDisplayName(ch, t)} query={debounced} />
+                      </Text>
+                      <Badge size="xs" variant="light" color="gray" style={{ flex: "none" }}>
+                        {t(ch.mode === "group" ? "chat.mode_group" : "chat.mode_direct")}
+                      </Badge>
+                    </Group>
+                    {ch.preview && (
+                      <Text size="xs" c="dimmed" truncate>
+                        {ch.preview}
+                      </Text>
+                    )}
+                  </Box>
                 </Group>
               </Spotlight.Action>
             ))}

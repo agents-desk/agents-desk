@@ -7,7 +7,7 @@ export const Route = createFileRoute("/t/$slug/reports")({
   staticData: {
     title: "nav.reports",
     icon: "chart",
-    order: 3,
+    order: 4,
     permission: "reports:read",
     fullBleed: true,
     preserveSearch: ["preset", "from", "to", "granularity", "team_id", "channel_id"],

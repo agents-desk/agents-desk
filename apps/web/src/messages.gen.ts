@@ -84,6 +84,46 @@ export const messages = {
     "business_hours.tab_schedule": "Business hours",
     "business_hours.tab_special": "Special dates",
     "business_hours.title": "Business hours",
+    "chat.add_members": "Add members",
+    "chat.add_members_submit": "Add to group",
+    "chat.composer_placeholder": "Send a message, @ mention teammates or paste images — auto-translates across languages…",
+    "chat.create_group": "Create group",
+    "chat.empty": "No internal chats yet — click + to start a DM or group",
+    "chat.empty_filtered": "No matching chats",
+    "chat.filter_all": "All",
+    "chat.filter_direct": "Direct",
+    "chat.filter_group": "Groups",
+    "chat.group_name": "Group name",
+    "chat.group_name_placeholder": "e.g. Support Ops Team",
+    "chat.group_name_required": "Enter a group name",
+    "chat.group_settings": "Group settings \u0026 members",
+    "chat.leave": "Leave group",
+    "chat.leave_confirm": "Leave this group chat?",
+    "chat.leave_message": "You will no longer see this group unless another member invites you back.",
+    "chat.left_group": "Left the group",
+    "chat.member_removed": "Member removed",
+    "chat.members_added": "Members added",
+    "chat.members_count": "{{.n}} members",
+    "chat.mode_direct": "Direct",
+    "chat.mode_group": "Group",
+    "chat.new": "New chat",
+    "chat.new_title": "Start a chat",
+    "chat.no_colleagues": "No teammates available",
+    "chat.no_messages": "No messages yet",
+    "chat.not_found": "Chat not found or you are not a participant",
+    "chat.pick": "Select a chat to start messaging",
+    "chat.pick_hint": "Supports 1:1 DMs and group chats with automatic cross-language translation",
+    "chat.pick_member_placeholder": "Search teammate name or email…",
+    "chat.remove_member": "Remove from group",
+    "chat.remove_member_confirm": "Remove {{.name}} from this group?",
+    "chat.remove_member_message": "They will no longer receive new messages in this group.",
+    "chat.search_placeholder": "Search teammates or groups…",
+    "chat.selected_members": "{{.n}} member(s) selected (including you)",
+    "chat.start_hint": "Send the first message to start chatting",
+    "chat.status_away": "Away",
+    "chat.status_online": "Online",
+    "chat.unknown_peer": "Teammate",
+    "chat.untitled_group": "Untitled group",
     "choose_tenant.disabled": "Disabled",
     "choose_tenant.none": "You aren’t in any workspace yet. Ask a workspace admin to add you.",
     "choose_tenant.sign_out": "Sign out",
@@ -199,6 +239,11 @@ export const messages = {
     "event.attr_no": "No",
     "event.attr_set": "{{.name}} set to {{.to}}",
     "event.attr_yes": "Yes",
+    "event.chat_created": "{{.who}} created group “{{.name}}”",
+    "event.chat_member_added": "{{.who}} added {{.names}} to the group",
+    "event.chat_member_left": "{{.who}} left the group",
+    "event.chat_member_removed": "{{.who}} removed {{.name}} from the group",
+    "event.chat_renamed": "{{.who}} renamed the group to “{{.name}}”",
     "event.closed": "{{.who}} closed the conversation",
     "event.contact_attrs_changed": "{{.who}} updated contact attributes: {{.changes}}",
     "event.contact_email_provided": "The customer left their email {{.email}}",
@@ -552,6 +597,7 @@ export const messages = {
     "members.password_hint": "Required when this email has no account yet. Share it with the person yourself",
     "nav.assignment": "Assignment",
     "nav.attributes": "Attributes",
+    "nav.chat": "Chat",
     "nav.contacts": "Contacts",
     "nav.general": "General",
     "nav.inbox": "Inbox",
@@ -1262,6 +1308,46 @@ export const messages = {
     "business_hours.tab_schedule": "工作时间",
     "business_hours.tab_special": "特殊日期",
     "business_hours.title": "工作时间",
+    "chat.add_members": "邀请成员",
+    "chat.add_members_submit": "添加到群聊",
+    "chat.composer_placeholder": "发送消息，支持 @ 同事与粘贴图片，跨语言消息自动互译…",
+    "chat.create_group": "创建群聊",
+    "chat.empty": "还没有内部聊天，点击右上角发起单聊或建群",
+    "chat.empty_filtered": "没有匹配的聊天",
+    "chat.filter_all": "全部",
+    "chat.filter_direct": "单聊",
+    "chat.filter_group": "群聊",
+    "chat.group_name": "群名称",
+    "chat.group_name_placeholder": "例如：中印客服协作群",
+    "chat.group_name_required": "请填写群名称",
+    "chat.group_settings": "群设置与成员",
+    "chat.leave": "退出群聊",
+    "chat.leave_confirm": "确定退出这个群聊？",
+    "chat.leave_message": "退出后你将看不到该群聊，需要群内成员重新邀请才能加入。",
+    "chat.left_group": "已退出群聊",
+    "chat.member_removed": "已移出成员",
+    "chat.members_added": "已添加群成员",
+    "chat.members_count": "{{.n}} 位成员",
+    "chat.mode_direct": "单聊",
+    "chat.mode_group": "群聊",
+    "chat.new": "发起聊天",
+    "chat.new_title": "发起内部聊天",
+    "chat.no_colleagues": "没有可选择的同事",
+    "chat.no_messages": "暂无消息",
+    "chat.not_found": "聊天不存在或你不是参与者",
+    "chat.pick": "选择一个聊天开始沟通",
+    "chat.pick_hint": "支持团队内单聊与群聊，跨语言同事消息自动互译",
+    "chat.pick_member_placeholder": "搜索同事姓名或邮箱…",
+    "chat.remove_member": "移出群聊",
+    "chat.remove_member_confirm": "将 {{.name}} 移出群聊？",
+    "chat.remove_member_message": "移出后对方将不再收到本群的新消息。",
+    "chat.search_placeholder": "搜索同事或群聊…",
+    "chat.selected_members": "已选 {{.n}} 位成员（含自己）",
+    "chat.start_hint": "发送第一条消息开始聊天",
+    "chat.status_away": "离开",
+    "chat.status_online": "在线",
+    "chat.unknown_peer": "同事",
+    "chat.untitled_group": "未命名群聊",
     "choose_tenant.disabled": "已停用",
     "choose_tenant.none": "你还不属于任何工作区，请联系工作区的管理员把你加入。",
     "choose_tenant.sign_out": "退出登录",
@@ -1377,6 +1463,11 @@ export const messages = {
     "event.attr_no": "否",
     "event.attr_set": "{{.name}} 设为 {{.to}}",
     "event.attr_yes": "是",
+    "event.chat_created": "{{.who}} 创建了群聊「{{.name}}」",
+    "event.chat_member_added": "{{.who}} 邀请了 {{.names}} 加入群聊",
+    "event.chat_member_left": "{{.who}} 退出了群聊",
+    "event.chat_member_removed": "{{.who}} 将 {{.name}} 移出了群聊",
+    "event.chat_renamed": "{{.who}} 将群名称修改为「{{.name}}」",
     "event.closed": "{{.who}} 关闭了会话",
     "event.contact_attrs_changed": "{{.who}} 修改了联系人属性：{{.changes}}",
     "event.contact_email_provided": "客户留下了邮箱 {{.email}}",
@@ -1730,6 +1821,7 @@ export const messages = {
     "members.password_hint": "这个邮箱还没有账号时必填，由你告诉本人",
     "nav.assignment": "指派",
     "nav.attributes": "属性",
+    "nav.chat": "聊天",
     "nav.contacts": "联系人",
     "nav.general": "常规",
     "nav.inbox": "收件箱",
@@ -2443,6 +2535,46 @@ export type MessageId =
   | "business_hours.tab_schedule"
   | "business_hours.tab_special"
   | "business_hours.title"
+  | "chat.add_members"
+  | "chat.add_members_submit"
+  | "chat.composer_placeholder"
+  | "chat.create_group"
+  | "chat.empty"
+  | "chat.empty_filtered"
+  | "chat.filter_all"
+  | "chat.filter_direct"
+  | "chat.filter_group"
+  | "chat.group_name"
+  | "chat.group_name_placeholder"
+  | "chat.group_name_required"
+  | "chat.group_settings"
+  | "chat.leave"
+  | "chat.leave_confirm"
+  | "chat.leave_message"
+  | "chat.left_group"
+  | "chat.member_removed"
+  | "chat.members_added"
+  | "chat.members_count"
+  | "chat.mode_direct"
+  | "chat.mode_group"
+  | "chat.new"
+  | "chat.new_title"
+  | "chat.no_colleagues"
+  | "chat.no_messages"
+  | "chat.not_found"
+  | "chat.pick"
+  | "chat.pick_hint"
+  | "chat.pick_member_placeholder"
+  | "chat.remove_member"
+  | "chat.remove_member_confirm"
+  | "chat.remove_member_message"
+  | "chat.search_placeholder"
+  | "chat.selected_members"
+  | "chat.start_hint"
+  | "chat.status_away"
+  | "chat.status_online"
+  | "chat.unknown_peer"
+  | "chat.untitled_group"
   | "choose_tenant.disabled"
   | "choose_tenant.none"
   | "choose_tenant.sign_out"
@@ -2558,6 +2690,11 @@ export type MessageId =
   | "event.attr_no"
   | "event.attr_set"
   | "event.attr_yes"
+  | "event.chat_created"
+  | "event.chat_member_added"
+  | "event.chat_member_left"
+  | "event.chat_member_removed"
+  | "event.chat_renamed"
   | "event.closed"
   | "event.contact_attrs_changed"
   | "event.contact_email_provided"
@@ -2911,6 +3048,7 @@ export type MessageId =
   | "members.password_hint"
   | "nav.assignment"
   | "nav.attributes"
+  | "nav.chat"
   | "nav.contacts"
   | "nav.general"
   | "nav.inbox"

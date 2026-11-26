@@ -14,6 +14,7 @@ import {
   IconInbox,
   IconLanguage,
   IconMessageBolt,
+  IconMessages,
   IconStar,
   IconTicket,
 } from "@tabler/icons-react"
@@ -42,6 +43,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 // 框架自带的图标之外，图标栏和设置菜单中用到的图标。
 const icons = {
   inbox: IconInbox,
+  chat: IconMessages,
   contacts: IconAddressBook,
   bolt: IconBolt,
   macro: IconMessageBolt,
