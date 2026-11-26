@@ -25,7 +25,7 @@ func NewRateByContact(db *bun.DB, down Downstream) *RateByContact {
 // 只有成员可见的 conversation.rated。会话还没有关闭时返回 ErrNotClosed；这次关闭已经评价过时返回 ErrAlreadyRated，
 // 会话重新打开、再关闭后可以再评价。sub 不是联系人时返回 ErrForbidden；会话不存在、属于别人或别的渠道时返回 ErrNotFound。
 // score 的范围由入口校验。
-func (a *RateByContact) Handle(ctx context.Context, sub identity.Subject, channelID, id string, score int, comment string) (*ContactConversationDTO, error) {
+func (a *RateByContact) Handle(ctx context.Context, sub identity.Subject, channelID, id string, score int, comment string) (*ContactConversationMeta, error) {
 	var c *Conversation
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		var err error
@@ -61,9 +61,6 @@ func (a *RateByContact) Handle(ctx context.Context, sub identity.Subject, channe
 	if err != nil {
 		return nil, err
 	}
-	dtos, err := toContactDTOs(ctx, a.db, []Conversation{*c})
-	if err != nil {
-		return nil, err
-	}
-	return &dtos[0], nil
+	meta := toContactConversationMeta(c)
+	return &meta, nil
 }

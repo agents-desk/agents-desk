@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -139,25 +138,25 @@ func TestWidgetAPI(t *testing.T) {
 		t.Errorf("无效的用户身份：%d %s", r.status, r.code)
 	}
 	var sent widget.Sent
-	decode(callBearer(h, "POST", base+"/conversations", `{"text":"mera order nahi aaya","client_id":"m1"}`, session.Token), http.StatusCreated, &sent)
-	decode(callBearer(h, "POST", base+"/conversations/"+sent.ConversationID+"/messages", `{"text":"kab aayega?"}`, session.Token), http.StatusCreated, &sent)
-	var list []conversation.ContactConversationDTO
-	decode(callBearer(h, "GET", base+"/conversations", "", session.Token), http.StatusOK, &list)
-	if len(list) != 1 || list[0].ID != sent.ConversationID || list[0].Preview != "kab aayega?" {
-		t.Fatalf("我的会话：%+v", list)
+	decode(callBearer(h, "POST", base+"/messages", `{"text":"mera order nahi aaya","client_id":"m1"}`, session.Token), http.StatusCreated, &sent)
+	decode(callBearer(h, "POST", base+"/messages", `{"text":"kab aayega?"}`, session.Token), http.StatusCreated, &sent)
+	var tl conversation.ContactTimelineDTO
+	decode(callBearer(h, "GET", base+"/timeline", "", session.Token), http.StatusOK, &tl)
+	if len(tl.Items) != 2 || tl.LatestConversation == nil || tl.LatestConversation.ID != sent.ConversationID || tl.Items[1].Text != "kab aayega?" {
+		t.Fatalf("连续时间线：%+v", tl)
 	}
 
 	// 令牌只用于自己的聊天插件；联系人的令牌不能调用工作区的接口；成员的凭据不能调用聊天插件的接口
-	if r := callBearer(h, "GET", "/w/"+other.ID+"/api/conversations", "", session.Token); r.status != http.StatusUnauthorized {
+	if r := callBearer(h, "GET", "/w/"+other.ID+"/api/timeline", "", session.Token); r.status != http.StatusUnauthorized {
 		t.Errorf("别的聊天插件：%d", r.status)
 	}
 	if r := callBearer(h, "GET", "/t/alpha/api/inbox", "", session.Token); r.status != http.StatusUnauthorized {
 		t.Errorf("联系人调用工作区的接口：%d", r.status)
 	}
-	if r := call(h, "GET", base+"/conversations", "", owner); r.status != http.StatusUnauthorized {
+	if r := call(h, "GET", base+"/timeline", "", owner); r.status != http.StatusUnauthorized {
 		t.Errorf("成员调用聊天插件的接口：%d", r.status)
 	}
-	if r := callBearer(h, "GET", base+"/conversations", "", ""); r.status != http.StatusUnauthorized {
+	if r := callBearer(h, "GET", base+"/timeline", "", ""); r.status != http.StatusUnauthorized {
 		t.Errorf("没有令牌：%d", r.status)
 	}
 
@@ -186,16 +185,18 @@ func TestWidgetAPI(t *testing.T) {
 	if ev := ws.publication(); ev.ID != sent.ConversationID || ev.Seq != reply.Seq {
 		t.Fatalf("推送：%+v", ev)
 	}
-	var items []conversation.ContactItemDTO
-	decode(callBearer(h, "GET", base+"/conversations/"+sent.ConversationID+"/items", "", session.Token), http.StatusOK, &items)
-	if len(items) != 3 || items[2].ID != reply.ID || items[2].Author.Name != "owner" {
-		t.Fatalf("时间线：%+v", items)
+	var tl2 conversation.ContactTimelineDTO
+	decode(callBearer(h, "GET", base+"/timeline", "", session.Token), http.StatusOK, &tl2)
+	if len(tl2.Items) != 3 || tl2.Items[2].ID != reply.ID || tl2.Items[2].Author.Name != "owner" {
+		t.Fatalf("时间线：%+v", tl2)
 	}
-	if r := callBearer(h, "POST", base+"/conversations/"+sent.ConversationID+"/read", `{"seq":`+strconv.FormatInt(reply.Seq, 10)+`}`, session.Token); r.status != http.StatusNoContent {
+	if r := callBearer(h, "POST", base+"/read", `{"up_to_item_id":"`+reply.ID+`"}`, session.Token); r.status != http.StatusNoContent {
 		t.Fatalf("标记已读：%d %s", r.status, r.body)
 	}
-	if r := callBearer(h, "GET", base+"/conversations/"+sent.ConversationID, "", stranger.Token); r.status != http.StatusNotFound {
-		t.Errorf("别人读取会话：%d", r.status)
+	var strangerTL conversation.ContactTimelineDTO
+	decode(callBearer(h, "GET", base+"/timeline", "", stranger.Token), http.StatusOK, &strangerTL)
+	if len(strangerTL.Items) != 0 {
+		t.Errorf("陌生人不应看到他人消息：%+v", strangerTL)
 	}
 	// 评价：打开的会话不能评价，星数在 1 到 5 之间
 	if r := callBearer(h, "POST", base+"/conversations/"+sent.ConversationID+"/rating", `{"score":5}`, session.Token); r.status != http.StatusConflict || r.code != "conversation.not_closed" {
@@ -216,7 +217,7 @@ func TestWidgetAPI(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	var rated conversation.ContactConversationDTO
+	var rated conversation.ContactConversationMeta
 	decode(callBearer(h, "POST", base+"/conversations/"+sent.ConversationID+"/rating", `{"score":5,"comment":"谢谢"}`, session.Token), http.StatusOK, &rated)
 	if rated.Status != conversation.Closed || !rated.RatingRequested || rated.Rating == nil || rated.Rating.Score != 5 {
 		t.Fatalf("评价后：%+v", rated)
@@ -387,7 +388,7 @@ func TestAttachmentsHTTP(t *testing.T) {
 		t.Fatalf("访客上传：%d %s", upRes.status, upRes.body)
 	}
 	var sent widget.Sent
-	sendRes := callBearer(h, "POST", base+"/conversations", `{"attachments":[{"file_id":"`+vFile.ID.String()+`"}],"client_id":"img-1"}`, visitor.Token)
+	sendRes := callBearer(h, "POST", base+"/messages", `{"attachments":[{"file_id":"`+vFile.ID.String()+`"}],"client_id":"img-1"}`, visitor.Token)
 	if sendRes.status != http.StatusCreated || json.Unmarshal([]byte(sendRes.body), &sent) != nil {
 		t.Fatalf("访客发送纯图片：%d %s", sendRes.status, sendRes.body)
 	}
@@ -401,7 +402,7 @@ func TestAttachmentsHTTP(t *testing.T) {
 	if sUp.status != http.StatusCreated || json.Unmarshal([]byte(sUp.body), &sFile) != nil {
 		t.Fatalf("陌生人上传：%d %s", sUp.status, sUp.body)
 	}
-	if r := callBearer(h, "POST", base+"/conversations/"+sent.ConversationID+"/messages", `{"attachments":[{"file_id":"`+sFile.ID.String()+`"}]}`, visitor.Token); r.status != http.StatusNotFound {
+	if r := callBearer(h, "POST", base+"/messages", `{"attachments":[{"file_id":"`+sFile.ID.String()+`"}]}`, visitor.Token); r.status != http.StatusNotFound {
 		t.Fatalf("跨访客引用文件应返回 404，得到 %d %s", r.status, r.body)
 	}
 
@@ -420,19 +421,12 @@ func TestAttachmentsHTTP(t *testing.T) {
 		t.Fatalf("成员回复附件：%+v", reply.Attachments)
 	}
 
-	// 访客读取时间线和会话列表均包含附件信息
-	var cItems []conversation.ContactItemDTO
-	if r := callBearer(h, "GET", base+"/conversations/"+sent.ConversationID+"/items", "", visitor.Token); r.status != http.StatusOK || json.Unmarshal([]byte(r.body), &cItems) != nil {
-		t.Fatalf("访客读取时间线：%d %s", r.status, r.body)
+	// 访客读取连续时间线包含双方附件信息
+	var cStream conversation.ContactTimelineDTO
+	if r := callBearer(h, "GET", base+"/timeline", "", visitor.Token); r.status != http.StatusOK || json.Unmarshal([]byte(r.body), &cStream) != nil {
+		t.Fatalf("访客读取连续时间线：%d %s", r.status, r.body)
 	}
-	if len(cItems) != 2 || len(cItems[0].Attachments) != 1 || len(cItems[1].Attachments) != 1 {
-		t.Fatalf("访客时间线附件：%+v", cItems)
-	}
-	var cList []conversation.ContactConversationDTO
-	if r := callBearer(h, "GET", base+"/conversations", "", visitor.Token); r.status != http.StatusOK || json.Unmarshal([]byte(r.body), &cList) != nil {
-		t.Fatalf("访客读取会话列表：%d %s", r.status, r.body)
-	}
-	if len(cList) != 1 || cList[0].PreviewAttachment == nil || cList[0].PreviewAttachment.Kind != conversation.AttachmentFile {
-		t.Fatalf("访客会话列表摘要：%+v", cList)
+	if len(cStream.Items) != 2 || len(cStream.Items[0].Attachments) != 1 || len(cStream.Items[1].Attachments) != 1 {
+		t.Fatalf("访客时间线附件：%+v", cStream.Items)
 	}
 }

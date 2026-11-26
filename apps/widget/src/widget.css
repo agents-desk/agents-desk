@@ -55,7 +55,7 @@ body {
   height: 100dvh;
 }
 
-/* 首页与会话页切换容器：轻量淡入过渡 */
+/* 对话流与工单视图切换容器：轻量淡入过渡 */
 .w-view {
   flex: 1;
   min-height: 0;
@@ -73,7 +73,7 @@ body {
   flex-direction: column;
 }
 
-/* 可以滚动的中间部分：首页的会话列表、会话页的时间线 */
+/* 可以滚动的中间部分：连续对话时间线与工单列表 */
 .w-scroll {
   flex: 1;
   min-height: 0;
@@ -103,7 +103,7 @@ body {
   background: var(--mantine-color-body);
 }
 
-/* 会话列表的一行：点击区域至少 44px，悬停与按压有清晰反馈 */
+/* 工单列表的一行：点击区域至少 44px，悬停与按压有清晰反馈 */
 .w-conversation {
   min-height: 56px;
   border-top: 1px solid var(--mantine-color-gray-2);

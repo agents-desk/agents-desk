@@ -1,4 +1,4 @@
-import type { ConversationContactConversationDTO } from "@agents-desk/client/widget"
+import type { ConversationContactConversationMeta, ConversationContactTimelineDTO } from "@agents-desk/client/widget"
 import { Button, Paper, Rating as Stars, Stack, Text, Textarea } from "@mantine/core"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { describeError } from "@go-tenon/client"
@@ -12,9 +12,9 @@ const scoreLabels = ["rating.score_1", "rating.score_2", "rating.score_3", "rati
 
 /**
  * RatingCard 是会话关闭后的评价卡片：还没有评价时选 1 到 5 星，选了以后出现意见和提交按钮；评价过以后显示感谢、星数和意见。
- * 提交后用返回的会话更新会话的查询，列表随之刷新。
+ * 提交后直接把返回的轮次摘要写回连续时间线缓存，界面立即更新。
  */
-export function RatingCard({ conversation, color }: { conversation: ConversationContactConversationDTO; color: string }): ReactNode {
+export function RatingCard({ conversation, color }: { conversation: ConversationContactConversationMeta; color: string }): ReactNode {
   const t = useT()
   const queryClient = useQueryClient()
   const { contact } = useIdentity()
@@ -30,8 +30,14 @@ export function RatingCard({ conversation, color }: { conversation: Conversation
     mutationFn: () => authed(() => widgetApi.conversation.rate(conversation.id, { score, comment: comment.trim() || undefined })),
     onSuccess: (updated) => {
       setSubmitError(null)
-      queryClient.setQueryData(["widget", contact?.id, "conversation", conversation.id], updated)
-      void queryClient.invalidateQueries({ queryKey: ["widget", contact?.id, "conversations"] })
+      queryClient.setQueryData<ConversationContactTimelineDTO>(["widget", contact?.id, "timeline"], (cur) => {
+        if (!cur) return cur
+        return {
+          ...cur,
+          conversations: { ...cur.conversations, [updated.id]: updated },
+          latest_conversation: cur.latest_conversation?.id === updated.id ? updated : cur.latest_conversation,
+        }
+      })
     },
     onError: (err) => setSubmitError(describeError(err).message ?? t("chat.failed")),
   })

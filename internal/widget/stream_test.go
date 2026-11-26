@@ -119,7 +119,7 @@ func TestContactStreamPaginationReadTypingAndTicketWakeup(t *testing.T) {
 	}
 
 	// 第 2 轮（网页插件）：携带 TicketID 发消息 -> 开启新活跃会话 C2、关联并唤醒工单 -> 坐席回复
-	s2, err := send.Handle(in, userSub, "", MessageBody{Text: "第2轮补充退款信息", TicketID: tk.ID})
+	s2, err := send.Handle(in, userSub, MessageBody{Text: "第2轮补充退款信息", TicketID: tk.ID})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -173,7 +173,7 @@ func TestContactStreamPaginationReadTypingAndTicketWakeup(t *testing.T) {
 	}
 
 	// 3. after 增量拉取：追加新消息后，用 rep2.ID 作为 after 游标只拉到增量项
-	s3, err := send.Handle(in, userSub, "", MessageBody{Text: "第2轮追问"})
+	s3, err := send.Handle(in, userSub, MessageBody{Text: "第2轮追问"})
 	if err != nil {
 		t.Fatal(err)
 	}

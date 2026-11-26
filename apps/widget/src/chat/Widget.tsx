@@ -1,4 +1,4 @@
-import { Box, Button, Center, Loader, Paper, Text } from "@mantine/core"
+import { Box, Button, Center, Indicator, Loader, Paper, Text } from "@mantine/core"
 import { IconTicket } from "@tabler/icons-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useT } from "@go-tenon/ui"
@@ -10,10 +10,9 @@ import { DEFAULT_WIDGET_COLOR, useSetWidgetBrand } from "../theme"
 import { useBrandForeground } from "./contrast"
 import { ConversationView } from "./Conversation"
 import { Header } from "./Header"
-import { FirstMessage, Home, type HomeTab } from "./Home"
 import { Launcher } from "./Launcher"
-import { useConfig, useConversation, useConversations, useTicket, useTickets } from "./queries"
-import { TicketDetailView, TicketListItems } from "./TicketDetail"
+import { useConfig, useTicket, useTickets, useTimeline } from "./queries"
+import { type ReplyTicketContext, TicketDetailView, TicketListItems } from "./TicketDetail"
 import { useViewportHeight } from "./viewport"
 
 /** started 是页面的初始化：整个页面只做一次（开发时 React 的 StrictMode 会把 effect 执行两遍）。 */
@@ -32,13 +31,11 @@ function initOnce(): Promise<Init> {
   return started
 }
 
-/** View 是聊天窗口当前显示的页面：首页、会话、新会话、单会话工单列表或工单详情。 */
+/** View 是聊天窗口当前显示的视图：统一连续对话流、工单列表或单张工单详情。 */
 type View =
-  | { kind: "home" }
-  | { kind: "conversation"; id: string }
-  | { kind: "new" }
+  | { kind: "chat" }
   | { kind: "tickets" }
-  | { kind: "ticket"; id: string }
+  | { kind: "ticket"; id: string; from: "chat" | "tickets" }
 
 /**
  * Widget 是整个聊天窗口。四种运行方式：
@@ -59,13 +56,13 @@ export function Widget(): ReactNode {
   const [open, setOpen] = useState(!floating)
   const openRef = useRef(open)
   openRef.current = open
-  const [view, setView] = useState<View>({ kind: "home" })
-  const [homeTab, setHomeTab] = useState<HomeTab>("conversations")
+  const [view, setView] = useState<View>({ kind: "chat" })
+  const [replyTicket, setReplyTicket] = useState<ReplyTicketContext | null>(null)
   const [visible, setVisible] = useState(() => typeof document === "undefined" || document.visibilityState === "visible")
   const height = useViewportHeight()
   const { contact } = useIdentity()
   const config = useConfig()
-  const conversations = useConversations()
+  const timeline = useTimeline()
   const tickets = useTickets()
   useRealtime()
 
@@ -89,7 +86,7 @@ export function Widget(): ReactNode {
       .catch(() => setFailed(true))
   }, [])
 
-  // 外面的命令：展开、收起、登录、退出；同用户续签 token 静默刷新不打断当前聊天页，换人或退出才回到首页
+  // 外面的命令：展开、收起、登录、退出；同用户续签 token 静默刷新，换人或退出回到对话流并清空工单上下文
   useEffect(
     () =>
       listen({
@@ -107,15 +104,15 @@ export function Widget(): ReactNode {
               .login(c.user_token)
               .then((switched) => {
                 if (!switched) return
-                setView({ kind: "home" })
-                setHomeTab("conversations")
+                setView({ kind: "chat" })
+                setReplyTicket(null)
                 void queryClient.invalidateQueries({ queryKey: ["widget"] })
               })
               .catch(() => setFailed(true))
             return
           }
-          setView({ kind: "home" })
-          setHomeTab("conversations")
+          setView({ kind: "chat" })
+          setReplyTicket(null)
           void identity
             .logout(openRef.current)
             .then(() => queryClient.invalidateQueries({ queryKey: ["widget"] }))
@@ -132,7 +129,7 @@ export function Widget(): ReactNode {
   }, [])
 
   // 未读数：启动按钮的角标；嵌入时告诉 loader.js，App 中告诉 App
-  const unread = (conversations.data ?? []).reduce((n, c) => n + c.unread, 0)
+  const unread = timeline.data?.unread ?? 0
   useEffect(() => {
     if (ready) tell("unread", { count: unread })
   }, [ready, unread])
@@ -165,17 +162,26 @@ export function Widget(): ReactNode {
   const full = mobile || !floating // 占满屏幕或容器：手机、容器内联和 App
   const close = floating ? (full ? "close" : "collapse") : hasCloseButton() ? "close" : undefined
   const onClose = () => (floating ? toggle(false) : tell("close"))
-  const single = true
   const ticketList = tickets.data ?? []
-  const latestConversationId = conversations.data?.[0]?.id
+  const hasWaitingTicket = ticketList.some((tk) => tk.status === "waiting_on_customer")
+  const latestConversation = timeline.data?.latest_conversation
+  const chatStatus = latestConversation
+    ? latestConversation.status === "closed"
+      ? t("chat.status_closed")
+      : t("chat.status_open")
+    : undefined
 
-  const singleTicketAction =
-    single && ticketList.length > 0 ? (
+  const ticketAction =
+    ticketList.length > 0 ? (
       <Button
         size="compact-xs"
         variant="subtle"
         c={fg}
-        leftSection={<IconTicket size={14} />}
+        leftSection={
+          <Indicator color="yellow" size={7} disabled={!hasWaitingTicket} offset={1}>
+            <IconTicket size={14} />
+          </Indicator>
+        }
         onClick={() => setView({ kind: "tickets" })}
       >
         {t("tickets.single_entry", { n: ticketList.length })}
@@ -188,7 +194,7 @@ export function Widget(): ReactNode {
       data-full={full || undefined}
       style={full && height ? { height } : undefined}
     >
-      {!ready || !config.data || !contact || !conversations.data ? (
+      {!ready || !config.data || !contact || timeline.isPending ? (
         <Center style={{ flex: 1 }}>
           <Loader color={color} />
         </Center>
@@ -200,15 +206,11 @@ export function Widget(): ReactNode {
             name={name}
             close={close}
             onClose={onClose}
-            onBack={() => {
-              if (single) {
-                setView({ kind: "tickets" })
-              } else {
-                setHomeTab("tickets")
-                setView({ kind: "home" })
-              }
+            onBack={() => setView(view.from === "tickets" ? { kind: "tickets" } : { kind: "chat" })}
+            onReplyInChat={(tk) => {
+              setReplyTicket(tk)
+              setView({ kind: "chat" })
             }}
-            onOpenConversation={(convId) => setView({ kind: "conversation", id: convId })}
           />
         </Box>
       ) : view.kind === "tickets" ? (
@@ -216,90 +218,35 @@ export function Widget(): ReactNode {
           <Header
             color={color}
             title={t("tickets.my_tickets")}
-            onBack={() => setView({ kind: "home" })}
+            onBack={() => setView({ kind: "chat" })}
             close={close}
             onClose={onClose}
           />
           <Box className="w-scroll" p="md">
             <Paper withBorder radius="lg" style={{ overflow: "hidden" }}>
-              <TicketListItems tickets={ticketList} color={color} onOpen={(id) => setView({ kind: "ticket", id })} />
+              <TicketListItems tickets={ticketList} color={color} onOpen={(id) => setView({ kind: "ticket", id, from: "tickets" })} />
             </Paper>
           </Box>
         </Box>
-      ) : single ? (
-        latestConversationId ? (
-          <Box key={latestConversationId} className="w-view">
-            <ConversationPage
-              id={view.kind === "conversation" ? view.id : latestConversationId}
-              color={color}
-              name={name}
-              full={full}
-              visible={open && visible}
-              close={close}
-              onClose={onClose}
-              extra={singleTicketAction}
-              single
-              onView={setView}
-            />
-          </Box>
-        ) : (
-          <Box key="single-new" className="w-view">
-            <Header
-              color={color}
-              title={name}
-              greeting={config.data.appearance.greeting || t("home.default_greeting")}
-              extra={singleTicketAction}
-              close={close}
-              onClose={onClose}
-            />
-            <ConversationView
-              intro={<FirstMessage />}
-              color={color}
-              name={name}
-              touch={full}
-              visible={open && visible}
-              onStarted={(id) => setView({ kind: "conversation", id })}
-            />
-          </Box>
-        )
-      ) : view.kind === "home" ? (
-        <Box key="home" className="w-view">
-          <Header color={color} title={name} greeting={config.data.appearance.greeting || t("home.default_greeting")} close={close} onClose={onClose} />
-          {conversations.data.length > 0 || ticketList.length > 0 ? (
-            <Home
-              color={color}
-              name={name}
-              conversations={conversations.data}
-              tickets={ticketList}
-              tab={conversations.data.length === 0 && ticketList.length > 0 ? "tickets" : homeTab}
-              onTabChange={setHomeTab}
-              onOpen={(id) => setView({ kind: "conversation", id })}
-              onOpenTicket={(id) => setView({ kind: "ticket", id })}
-              onNew={() => setView({ kind: "new" })}
-            />
-          ) : (
-            <ConversationView
-              intro={<FirstMessage />}
-              color={color}
-              name={name}
-              touch={full}
-              visible={open && visible}
-              onStarted={(id) => setView({ kind: "conversation", id })}
-              onBack={() => setView({ kind: "home" })}
-            />
-          )}
-        </Box>
       ) : (
-        <Box key={view.kind === "conversation" ? view.id : "new"} className="w-view">
-          <ConversationPage
-            id={view.kind === "conversation" ? view.id : undefined}
+        <Box key="chat" className="w-view">
+          <Header
             color={color}
-            name={name}
-            full={full}
-            visible={open && visible}
+            title={name}
+            greeting={latestConversation ? undefined : config.data.appearance.greeting || t("home.default_greeting")}
+            status={chatStatus}
+            extra={ticketAction}
             close={close}
             onClose={onClose}
-            onView={setView}
+          />
+          <ConversationView
+            color={color}
+            name={name}
+            touch={full}
+            visible={open && visible}
+            replyTicket={replyTicket}
+            onClearReplyTicket={() => setReplyTicket(null)}
+            onOpenTicket={(id) => setView({ kind: "ticket", id, from: "chat" })}
           />
         </Box>
       )}
@@ -314,7 +261,7 @@ export function Widget(): ReactNode {
   )
 }
 
-/** TicketPage 是单张工单的页面壳：顶栏显示工单编号与返回按钮，下方展示工单进度和去会话补充信息入口。 */
+/** TicketPage 是单张工单的页面壳：顶栏显示工单编号与返回按钮，下方展示工单进度和去对话补充信息入口。 */
 function TicketPage({
   id,
   color,
@@ -322,7 +269,7 @@ function TicketPage({
   close,
   onClose,
   onBack,
-  onOpenConversation,
+  onReplyInChat,
 }: {
   id: string
   color: string
@@ -330,7 +277,7 @@ function TicketPage({
   close?: "collapse" | "close"
   onClose: () => void
   onBack: () => void
-  onOpenConversation: (conversationId: string) => void
+  onReplyInChat: (ticket: ReplyTicketContext) => void
 }): ReactNode {
   const t = useT()
   const ticket = useTicket(id)
@@ -338,52 +285,7 @@ function TicketPage({
   return (
     <>
       <Header color={color} title={title} onBack={onBack} close={close} onClose={onClose} />
-      <TicketDetailView id={id} color={color} name={name} onOpenConversation={onOpenConversation} />
-    </>
-  )
-}
-
-/** ConversationPage 是会话页：顶部显示标题与会话状态（多会话模式附带返回首页），下面是会话。 */
-function ConversationPage({
-  id,
-  color,
-  name,
-  full,
-  visible,
-  close,
-  onClose,
-  extra,
-  single = false,
-  onView,
-}: {
-  id?: string
-  color: string
-  name: string
-  full: boolean
-  visible: boolean
-  close?: "collapse" | "close"
-  onClose: () => void
-  extra?: ReactNode
-  single?: boolean
-  onView: (v: View) => void
-}): ReactNode {
-  const t = useT()
-  const conversation = useConversation(id ?? "")
-  const status = !id ? t("chat.new") : conversation.data?.status === "closed" ? t("chat.status_closed") : t("chat.status_open")
-  const onBack = single ? undefined : () => onView({ kind: "home" })
-  return (
-    <>
-      <Header color={color} title={name} status={status} onBack={onBack} extra={extra} close={close} onClose={onClose} />
-      <ConversationView
-        id={id}
-        intro={<FirstMessage />}
-        color={color}
-        name={name}
-        touch={full}
-        visible={visible}
-        onStarted={(next) => onView({ kind: "conversation", id: next })}
-        onBack={onBack}
-      />
+      <TicketDetailView id={id} color={color} name={name} onReplyInChat={onReplyInChat} />
     </>
   )
 }

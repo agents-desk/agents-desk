@@ -53,19 +53,9 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	})
 }
 
-// ConversationInput 是指定客户的一个会话的请求。
-type ConversationInput struct {
-	ID string `path:"id" format:"uuid"`
-}
-
-// ConversationListOutput 是客户的会话列表。
-type ConversationListOutput struct {
-	Body []conversation.ContactConversationDTO
-}
-
-// ConversationOutput 是客户的一个会话。
-type ConversationOutput struct {
-	Body conversation.ContactConversationDTO
+// SendMessageInput 是客户发送消息的请求体包装。
+type SendMessageInput struct {
+	Body MessageBody
 }
 
 // TicketInput 是指定客户的一张工单的请求。
@@ -81,29 +71,6 @@ type TicketListOutput struct {
 // TicketDetailOutput 是客户可见的单张工单详情。
 type TicketDetailOutput struct {
 	Body conversation.ContactTicketDetailDTO
-}
-
-// NewConversationInput 是客户发起新会话的请求：第一条消息。
-type NewConversationInput struct {
-	Body MessageBody
-}
-
-// MessageInput 是客户在会话中发消息的请求。
-type MessageInput struct {
-	ID   string `path:"id" format:"uuid"`
-	Body MessageBody
-}
-
-// ItemsInput 是客户读取时间线的请求：从序号 after 之后读，最多 limit 项。
-type ItemsInput struct {
-	ID    string `path:"id" format:"uuid"`
-	After int64  `query:"after" minimum:"0" doc:"只读取序号大于它的项；收到推送后用它增量读取"`
-	Limit int    `query:"limit" minimum:"1" maximum:"500" default:"100"`
-}
-
-// ItemsOutput 是客户看到的时间线中的一段，按序号从小到大。
-type ItemsOutput struct {
-	Body []conversation.ContactItemDTO
 }
 
 // TimelineInput 是客户读取跨会话连续时间线的请求：支持向上翻历史（before）和收到推送后增量拉取（after）。
@@ -125,7 +92,7 @@ type StreamReadInput struct {
 	}
 }
 
-// RateInput 是客户评价已关闭的会话。
+// RateInput 是客户评价已关闭会话轮次的请求。
 type RateInput struct {
 	ID   string `path:"id" format:"uuid"`
 	Body struct {
@@ -134,17 +101,13 @@ type RateInput struct {
 	}
 }
 
-// ReadInput 是客户读到了会话中序号 seq 及之前的消息。
-type ReadInput struct {
-	ID   string `path:"id" format:"uuid"`
-	Body struct {
-		Seq int64 `json:"seq" minimum:"0" doc:"读到的最后一项的序号"`
-	}
+// RatedConversationOutput 是评价后的会话轮次摘要。
+type RatedConversationOutput struct {
+	Body conversation.ContactConversationMeta
 }
 
-// RegisterVisitorRoutes 在聊天插件的 API（/w/{channel}/api，前面是 Middleware）中注册客户用的接口：公开设置、建立会话、上传附件，
-// 以及客户以联系人的身份读取自己的会话和时间线、发消息、标记已读、评价已关闭的会话、告诉成员自己正在输入。requireContact 要求联系人的令牌（Authorization: Bearer）；
-// tokens 签发联系人的令牌，receive 写入收到的消息，down 和 maxUpload 用于推送、附件确认与上传大小上限。
+// RegisterVisitorRoutes 在聊天插件的 API（/w/{channel}/api，前面是 Middleware）中注册客户用的接口：
+// 公开设置、建立会话、上传附件、连续跨会话时间线、统一发消息、标记已读、正在输入、轮次评价、线索留邮箱与客户工单视图。
 func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), db *bun.DB, c *crypt.Crypt, tokens *apitoken.Store, receive *conversation.Receive, down conversation.Downstream, maxUpload filesystem.ByteSize) {
 	route := func(access func(*huma.Operation), id, method, path, summary string) huma.Operation {
 		op := huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary}
@@ -152,40 +115,29 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 		return op
 	}
 	public := rest.Public()
-	start := route(requireContact, "conversation-start", http.MethodPost, "/conversations", "发起新会话")
-	start.DefaultStatus = http.StatusCreated
-	send := route(requireContact, "conversation-send", http.MethodPost, "/conversations/{id}/messages", "发消息")
-	send.DefaultStatus = http.StatusCreated
-	read := route(requireContact, "conversation-read", http.MethodPost, "/conversations/{id}/read", "标记已读")
-	read.DefaultStatus = http.StatusNoContent
-	rateOp := route(requireContact, "conversation-rate", http.MethodPost, "/conversations/{id}/rating", "评价会话")
-	typingOp := route(requireContact, "conversation-typing", http.MethodPost, "/conversations/{id}/typing", "正在输入")
-	typingOp.DefaultStatus = http.StatusNoContent
-	contactEmailOp := route(requireContact, "contact-email", http.MethodPost, "/contact/email", "线索留下邮箱")
 	streamSendOp := route(requireContact, "message-send", http.MethodPost, "/messages", "发送消息")
 	streamSendOp.DefaultStatus = http.StatusCreated
 	streamReadOp := route(requireContact, "timeline-read", http.MethodPost, "/read", "标记连续时间线已读")
 	streamReadOp.DefaultStatus = http.StatusNoContent
 	streamTypingOp := route(requireContact, "timeline-typing", http.MethodPost, "/typing", "在当前活跃会话中正在输入")
 	streamTypingOp.DefaultStatus = http.StatusNoContent
+	rateOp := route(requireContact, "conversation-rate", http.MethodPost, "/conversations/{id}/rating", "评价已关闭的会话")
+	contactEmailOp := route(requireContact, "contact-email", http.MethodPost, "/contact/email", "线索留下邮箱")
 
 	sendMessage := NewSendMessage(db, receive)
 	leaveEmail := NewLeaveEmail(db, down)
 	stream := conversation.NewContactStream(db, down.Media)
 	markAllRead := conversation.NewMarkAllReadByContact(db, down)
 	typingActive := conversation.NewTypingOnActiveByContact(db, down)
-	list, get, items := conversation.NewListForContact(db), conversation.NewGetForContact(db), conversation.NewTimelineForContact(db, down.Media)
-	listTickets, getTicket := conversation.NewListTicketsForContact(db), conversation.NewGetTicketForContact(db, down.Media)
-	markRead := conversation.NewMarkReadByContact(db, down)
 	rate := conversation.NewRateByContact(db, down)
-	typing := conversation.NewTypingByContact(db, down)
+	listTickets, getTicket := conversation.NewListTicketsForContact(db), conversation.NewGetTicketForContact(db, down.Media)
 
 	file.RegisterRoutes(api, requireContact, down.Media.Files, maxUpload)
 
 	rest.Register(api, route(public, "widget-config", http.MethodGet, "/config", "聊天插件的公开设置"), NewGetConfig().HTTP)
 	rest.Register(api, route(public, "widget-session", http.MethodPost, "/session", "建立会话"), NewStartSession(db, c, tokens, down).HTTP)
 
-	// 连续时间线核心接口：跨历史会话无缝读取、统一发消息、标记已读与正在输入
+	// 客户连续时间线与工单接口：渠道来自本次请求的聊天插件，归属由业务动作检查
 	rest.Register(api, route(requireContact, "timeline-get", http.MethodGet, "/timeline", "读取客户跨会话连续时间线"),
 		func(ctx context.Context, in *TimelineInput) (*TimelineOutput, error) {
 			sub, ch, err := visitor(ctx)
@@ -198,9 +150,9 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 			}
 			return &TimelineOutput{Body: *out}, nil
 		})
-	rest.Register(api, streamSendOp, func(ctx context.Context, in *NewConversationInput) (*SentOutput, error) {
+	rest.Register(api, streamSendOp, func(ctx context.Context, in *SendMessageInput) (*SentOutput, error) {
 		sub, _ := identity.FromContext(ctx)
-		out, err := sendMessage.Handle(ctx, sub, "", in.Body)
+		out, err := sendMessage.Handle(ctx, sub, in.Body)
 		if err != nil {
 			return nil, err
 		}
@@ -220,61 +172,7 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 		}
 		return nil, typingActive.Handle(ctx, sub, ch)
 	})
-
-	// 以下是联系人的接口：只做输入转换，渠道是本次请求的聊天插件，归属由业务动作检查
-	rest.Register(api, route(requireContact, "conversation-list", http.MethodGet, "/conversations", "我的会话"),
-		func(ctx context.Context, _ *struct{}) (*ConversationListOutput, error) {
-			sub, ch, err := visitor(ctx)
-			if err != nil {
-				return nil, err
-			}
-			out, err := list.Handle(ctx, sub, ch)
-			if err != nil {
-				return nil, err
-			}
-			return &ConversationListOutput{Body: out}, nil
-		})
-	rest.Register(api, start, func(ctx context.Context, in *NewConversationInput) (*SentOutput, error) {
-		sub, _ := identity.FromContext(ctx)
-		out, err := sendMessage.Handle(ctx, sub, "", in.Body)
-		if err != nil {
-			return nil, err
-		}
-		return &SentOutput{Body: *out}, nil
-	})
-	rest.Register(api, route(requireContact, "conversation-get", http.MethodGet, "/conversations/{id}", "读取会话"),
-		func(ctx context.Context, in *ConversationInput) (*ConversationOutput, error) {
-			sub, ch, err := visitor(ctx)
-			if err != nil {
-				return nil, err
-			}
-			out, err := get.Handle(ctx, sub, ch, in.ID)
-			if err != nil {
-				return nil, err
-			}
-			return &ConversationOutput{Body: *out}, nil
-		})
-	rest.Register(api, route(requireContact, "conversation-items", http.MethodGet, "/conversations/{id}/items", "读取时间线"),
-		func(ctx context.Context, in *ItemsInput) (*ItemsOutput, error) {
-			sub, ch, err := visitor(ctx)
-			if err != nil {
-				return nil, err
-			}
-			out, err := items.Handle(ctx, sub, ch, in.ID, in.After, in.Limit)
-			if err != nil {
-				return nil, err
-			}
-			return &ItemsOutput{Body: out}, nil
-		})
-	rest.Register(api, send, func(ctx context.Context, in *MessageInput) (*SentOutput, error) {
-		sub, _ := identity.FromContext(ctx)
-		out, err := sendMessage.Handle(ctx, sub, in.ID, in.Body)
-		if err != nil {
-			return nil, err
-		}
-		return &SentOutput{Body: *out}, nil
-	})
-	rest.Register(api, rateOp, func(ctx context.Context, in *RateInput) (*ConversationOutput, error) {
+	rest.Register(api, rateOp, func(ctx context.Context, in *RateInput) (*RatedConversationOutput, error) {
 		sub, ch, err := visitor(ctx)
 		if err != nil {
 			return nil, err
@@ -283,21 +181,7 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 		if err != nil {
 			return nil, err
 		}
-		return &ConversationOutput{Body: *out}, nil
-	})
-	rest.Register(api, typingOp, func(ctx context.Context, in *ConversationInput) (*struct{}, error) {
-		sub, ch, err := visitor(ctx)
-		if err != nil {
-			return nil, err
-		}
-		return nil, typing.Handle(ctx, sub, ch, in.ID)
-	})
-	rest.Register(api, read, func(ctx context.Context, in *ReadInput) (*struct{}, error) {
-		sub, ch, err := visitor(ctx)
-		if err != nil {
-			return nil, err
-		}
-		return nil, markRead.Handle(ctx, sub, ch, in.ID, in.Body.Seq)
+		return &RatedConversationOutput{Body: *out}, nil
 	})
 	rest.Register(api, contactEmailOp, func(ctx context.Context, in *ContactEmailInput) (*ContactOutput, error) {
 		sub, ch, err := visitor(ctx)
