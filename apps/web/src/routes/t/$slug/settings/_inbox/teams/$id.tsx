@@ -1,14 +1,16 @@
-import { ActionIcon, Alert, Avatar, Badge, Button, Group, Radio, Stack, Table, Tabs, Text } from "@mantine/core"
+import { Alert, Avatar, Badge, Button, Group, Radio, Stack, Text } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { IconTrash } from "@tabler/icons-react"
+import { IconUserMinus } from "@tabler/icons-react"
 import type { ErrorInfo } from "@go-tenon/client"
-import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, ResourceSelect, useCan, useT } from "@go-tenon/ui"
+import { applyServerErrors, confirm, DataTable, FormError, notifyError, notifySuccess, Page, ResourceSelect, useCan, useT } from "@go-tenon/ui"
 import type { HoursSchedule, TeamDTO } from "@agents-desk/client/tenant"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../../../../../../api"
 import { emptySchedule, ScheduleFields } from "../../../../../../business-hours"
+import { RowActions } from "../../../../../../components/row-actions"
+import { useUnsavedGuard } from "../../../../../../components/unsaved-guard"
 import { members as memberResource } from "../../../../../../resources"
 import { StatusBadge } from "../../../../../../status"
 
@@ -109,56 +111,44 @@ function TeamMembers(): ReactNode {
           </Button>
         ) : undefined
       }
-    >
-      {isDisabled && (
-        <Alert color="gray" variant="light" mb="md">
-          {t("teams.disabled_notice")}
-        </Alert>
-      )}
-      <Tabs defaultValue="members" keepMounted={false}>
-        <Tabs.List>
-          <Tabs.Tab value="members">{t("team_members.tab_members")}</Tabs.Tab>
-          <Tabs.Tab value="hours">{t("team_members.tab_hours")}</Tabs.Tab>
-        </Tabs.List>
-        <Tabs.Panel value="members" pt="md">
-          <Stack gap="md">
-            <Group align="flex-end" gap="sm">
-              <ResourceSelect
-                model={memberResource}
-                label={t("team_members.add")}
-                placeholder={t("team_members.add_placeholder")}
-                filterRow={(row) => !inTeam.has(String(row.id))}
-                getOption={(row) => ({
-                  value: String(row.id),
-                  label: t("team_members.add_option", { name: String(row.name ?? ""), role: String(row.role_name ?? "") }),
-                })}
-                value={adding}
-                onChange={setAdding}
-                nothingFoundMessage={t("team_members.no_candidates")}
-                style={{ flex: 1 }}
-              />
-              <Button onClick={() => void add()} disabled={!adding} loading={put.isPending && !!adding}>
-                {t("team_members.add_submit")}
-              </Button>
-            </Group>
-
-            <Table verticalSpacing="sm">
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>{t("team_members.member")}</Table.Th>
-                  <Table.Th>{t("team_members.role")}</Table.Th>
-                  <Table.Th>{t("team_members.status")}</Table.Th>
-                  <Table.Th />
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {(members.data ?? []).map((m) => (
-                  <Table.Tr key={m.member_id}>
-                    <Table.Td>
+      tabs={[
+        {
+          value: "members",
+          label: t("team_members.tab_members"),
+          count: members.data?.length || undefined,
+          content: (
+            <Stack gap="md">
+              <Group align="flex-end" gap="sm">
+                <ResourceSelect
+                  model={memberResource}
+                  label={t("team_members.add")}
+                  placeholder={t("team_members.add_placeholder")}
+                  filterRow={(row) => !inTeam.has(String(row.id))}
+                  getOption={(row) => ({
+                    value: String(row.id),
+                    label: t("team_members.add_option", { name: String(row.name ?? ""), role: String(row.role_name ?? "") }),
+                  })}
+                  value={adding}
+                  onChange={setAdding}
+                  nothingFoundMessage={t("team_members.no_candidates")}
+                  style={{ flex: 1 }}
+                />
+                <Button onClick={() => void add()} disabled={!adding} loading={put.isPending && !!adding}>
+                  {t("team_members.add_submit")}
+                </Button>
+              </Group>
+              <DataTable
+                records={members.data ?? []}
+                rowKey="member_id"
+                loading={members.isPending}
+                empty={t("team_members.empty")}
+                columns={[
+                  {
+                    accessor: "name",
+                    title: t("team_members.member"),
+                    render: (m) => (
                       <Group gap="sm" wrap="nowrap">
-                        <Avatar src={m.avatar_url || null} size={28} radius="xl">
-                          {m.name.slice(0, 1)}
-                        </Avatar>
+                        <Avatar src={m.avatar_url || null} size={32} radius="xl" name={m.name} color="initials" />
                         <div>
                           <Text size="sm">{m.name}</Text>
                           <Text size="xs" c="dimmed">
@@ -166,47 +156,58 @@ function TeamMembers(): ReactNode {
                           </Text>
                         </div>
                       </Group>
-                    </Table.Td>
-                    <Table.Td>
+                    ),
+                  },
+                  {
+                    accessor: "role_name",
+                    title: t("team_members.role"),
+                    render: (m) => (
                       <Badge variant="light" color="gray">
                         {m.role_name}
                       </Badge>
-                    </Table.Td>
-                    <Table.Td>
-                      <StatusBadge status={m.status} />
-                    </Table.Td>
-                    <Table.Td align="right">
-                      <ActionIcon
-                        variant="subtle"
-                        color="red"
-                        aria-label={t("team_members.remove_label", { name: m.name })}
-                        onClick={async () => {
-                          if (await confirm({ title: t("team_members.remove_confirm", { name: m.name }), message: t("team_members.remove_message"), danger: true, confirmLabel: t("team_members.remove") }))
-                            remove.mutate(m.member_id)
-                        }}
-                      >
-                        <IconTrash size={16} stroke={1.6} />
-                      </ActionIcon>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-                {members.data?.length === 0 && (
-                  <Table.Tr>
-                    <Table.Td colSpan={4}>
-                      <Text c="dimmed" size="sm" ta="center">
-                        {t("team_members.empty")}
-                      </Text>
-                    </Table.Td>
-                  </Table.Tr>
-                )}
-              </Table.Tbody>
-            </Table>
-          </Stack>
-        </Tabs.Panel>
-        <Tabs.Panel value="hours" pt="md">
-          {team.data && <TeamHours team={team.data} />}
-        </Tabs.Panel>
-      </Tabs>
+                    ),
+                  },
+                  { accessor: "status", title: t("team_members.status"), render: (m) => <StatusBadge status={m.status} /> },
+                  {
+                    accessor: "actions",
+                    title: "",
+                    textAlign: "right",
+                    render: (m) => (
+                      <RowActions
+                        actions={[
+                          {
+                            label: t("team_members.remove"),
+                            icon: <IconUserMinus size={14} />,
+                            danger: true,
+                            onClick: async () => {
+                              if (
+                                await confirm({
+                                  title: t("team_members.remove_confirm", { name: m.name }),
+                                  message: t("team_members.remove_message"),
+                                  danger: true,
+                                  confirmLabel: t("team_members.remove"),
+                                })
+                              )
+                                remove.mutate(m.member_id)
+                            },
+                          },
+                        ]}
+                      />
+                    ),
+                  },
+                ]}
+              />
+            </Stack>
+          ),
+        },
+        { value: "hours", label: t("team_members.tab_hours"), content: team.data && <TeamHours team={team.data} /> },
+      ]}
+    >
+      {isDisabled && (
+        <Alert color="gray" variant="light">
+          {t("teams.disabled_notice")}
+        </Alert>
+      )}
     </Page>
   )
 }
@@ -229,6 +230,7 @@ function TeamHours({ team }: { team: TeamDTO }): ReactNode {
     }
   }, [workspace.data])
   const custom = form.getValues().custom === "custom"
+  useUnsavedGuard(form.isDirty())
   return (
     <form
       noValidate

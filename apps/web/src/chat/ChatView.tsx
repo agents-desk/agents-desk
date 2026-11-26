@@ -85,11 +85,13 @@ import { type FillWatcher, useFillVisible } from "../inbox/fill"
 import { clock, dayLabel, fullDateTime, sameDay } from "../inbox/format"
 import { translationOf } from "../inbox/Timeline"
 import { languageName, sameLanguage } from "../languages"
-import { NARROW_QUERY } from "../layout"
+import { isTypingTarget, NARROW_QUERY } from "../layout"
 import { BusinessDetails } from "./BusinessDetails"
 import { chatDisplayName, useChat } from "./data"
 import { GroupDetails } from "./GroupDetails"
 import { PeerDetails } from "./PeerDetails"
+import { firstUnread, NewMessagesDivider, ScrollToBottomButton, useStickToBottom } from "../inbox/stick-to-bottom"
+import { clearDraft, type DraftMode, getDraft, saveDraft } from "../inbox/drafts"
 
 /** LINK 匹配消息中的网址。 */
 const LINK = /https?:\/\/[^\s<>\x22]+[^\s<>\x22\x27.,;:!?)\]}。，；：！？）】」』]/g
@@ -126,6 +128,9 @@ export function ChatView({
   const details = useAsidePaneState("chat-details", { compactQuery: NARROW_QUERY })
 
   const chat = chatQuery.data
+  // 打开时读到的位置：“新消息”分隔线画在它之后，读过之后也保持在原处
+  const readAtOpen = useRef<number | null>(null)
+  if (chat && readAtOpen.current === null) readAtOpen.current = chat.read_seq
   const last = timeline.data?.at(-1)
   useEffect(() => {
     if (last?.kind === "message") {
@@ -143,6 +148,19 @@ export function ChatView({
       void queryClient.invalidateQueries({ queryKey: kit.queries.chat.key() })
     })
   }, [chat, id, lastSeq, queryClient])
+
+  // 聊天的快捷键（非输入态生效）：I 切换详情栏；R、N 由输入框处理
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || isTypingTarget(e.target)) return
+      if (e.key.toLowerCase() === "i") {
+        e.preventDefault()
+        details.toggle()
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [details.toggle])
 
   if (!chat) {
     return (
@@ -182,7 +200,7 @@ export function ChatView({
           <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
             {chat.mode === "group" ? (
               <ThemeIcon size={32} radius="xl" variant="light" color={isExternal ? chColor : "brand"} style={{ flex: "none" }}>
-                <IconUsersGroup size={17} stroke={1.6} />
+                <IconUsersGroup size={16} stroke={1.6} />
               </ThemeIcon>
             ) : isExternal ? (
               <Avatar size={32} radius="xl" name={title} color="initials" style={{ flex: "none" }} />
@@ -228,7 +246,7 @@ export function ChatView({
           </Group>
         </PaneHeader>
 
-        <ChatTimeline chat={chat} typingNames={typing.map((x) => (x.contact ? title : (x.name ?? ""))).filter(Boolean)} />
+        <ChatTimeline chat={chat} readSeq={readAtOpen.current ?? 0} typingNames={typing.map((x) => (x.contact ? title : (x.name ?? ""))).filter(Boolean)} />
 
         <ChatComposer key={chat.id} chat={chat} onTyping={notifyTyping} />
       </Box>
@@ -237,7 +255,7 @@ export function ChatView({
         opened={details.opened}
         onClose={details.close}
         compactQuery={NARROW_QUERY}
-        resizable={{ storageKey: "chat-details", defaultWidth: 320, min: 280, max: 400 }}
+        resizable={{ storageKey: "chat-details", defaultWidth: 320, min: 260, max: 420 }}
       >
         {isExternal ? (
           <BusinessDetails chat={chat} onClose={details.close} onLeft={back} />
@@ -254,9 +272,11 @@ export function ChatView({
 /** ChatTimeline 渲染聊天的消息流，支持按天分组、内部备注、跨语言译文与单条原文切换、送达状态、附件灯箱与正在输入提示。 */
 function ChatTimeline({
   chat,
+  readSeq,
   typingNames,
 }: {
   chat: ConversationChatDTO
+  readSeq: number
   typingNames: string[]
 }): ReactNode {
   const t = useT()
@@ -269,16 +289,10 @@ function ChatTimeline({
   const translation = useQuery(kit.queries.translation.settings())
   const translating = translation.data?.enabled ?? false
   const watch = useFillVisible(translating, me.data?.language)
-  const scroller = useRef<HTMLDivElement>(null)
   const [lightbox, setLightbox] = useState<LightboxImage | null>(null)
   const list = items.data ?? []
   const isExternal = chat.scope === "external"
-
-  useEffect(() => {
-    if (items.isPending) return
-    const el = scroller.current
-    if (el) el.scrollTop = el.scrollHeight
-  }, [items.isPending, list.length])
+  const stick = useStickToBottom({ ready: !items.isPending, list, myId: me.data?.id, typingCount: typingNames.length })
 
   const names = {
     member: (id: string) => (id === me.data?.id ? t("inbox.you") : (byId.get(id)?.name ?? t("event.someone"))),
@@ -307,9 +321,10 @@ function ChatTimeline({
     )
   }
 
+  const firstNew = firstUnread(list, readSeq, me.data?.id)
   return (
     <Box className="inbox-timeline-wrap">
-      <Box ref={scroller} className="inbox-timeline">
+      <Box ref={stick.scroller} className="inbox-timeline" onScroll={stick.onScroll}>
         <Stack gap={0} px="var(--tn-pane-px)" py="md">
           {list.length === 0 && (
             <Center py="xl">
@@ -327,6 +342,7 @@ function ChatTimeline({
             return (
               <Fragment key={it.id}>
                 {showDay && <Divider my={i === 0 ? 4 : 12} label={dayLabel(it.created_at, ui, t, zone)} labelPosition="center" />}
+                {it === firstNew && <NewMessagesDivider />}
                 {it.kind === "event" ? (
                   <Text size="xs" c="dimmed" ta="center" mt={gapTop} className="inbox-event">
                     {describeEvent(it, byId, names, t, ui)} · {clock(it.created_at, ui, zone)}
@@ -379,6 +395,7 @@ function ChatTimeline({
           )}
         </Stack>
       </Box>
+      <ScrollToBottomButton stick={stick} />
       <ImageLightbox src={lightbox?.src ?? null} filename={lightbox?.filename} onClose={() => setLightbox(null)} />
     </Box>
   )
@@ -502,7 +519,7 @@ function ChatBubble({
               {({ copied, copy }) => (
                 <Tooltip label={t(copied ? "inbox.copied" : "inbox.copy_message")} openDelay={250}>
                   <ActionIcon variant="subtle" color={copied ? "green" : "gray"} size={22} onClick={copy} aria-label={t("inbox.copy_message")}>
-                    {copied ? <IconCheck size={13} /> : <IconCopy size={13} />}
+                    {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
                   </ActionIcon>
                 </Tooltip>
               )}
@@ -658,7 +675,7 @@ function ChatNote({
               {({ copied, copy }) => (
                 <Tooltip label={t(copied ? "inbox.copied" : "inbox.copy_message")} openDelay={250}>
                   <ActionIcon variant="subtle" color={copied ? "green" : "gray"} size={22} onClick={copy} aria-label={t("inbox.copy_message")}>
-                    {copied ? <IconCheck size={13} /> : <IconCopy size={13} />}
+                    {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
                   </ActionIcon>
                 </Tooltip>
               )}
@@ -779,15 +796,39 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
   const { list: allMembers } = useMembers()
 
   const isExternal = chat.scope === "external"
-  const [replyMode, setReplyMode] = useState<"reply" | "note">("reply")
+  // 未发送的内容按聊天保存为草稿（与收件箱共用），切换聊天再回来不丢失
+  const [replyMode, setReplyMode] = useState<DraftMode>(() => (isExternal ? (getDraft(chat.id)?.mode ?? "reply") : "reply"))
   const note = isExternal && replyMode === "note"
 
-  const [text, setText] = useState("")
-  const [mentionIds, setMentionIds] = useState<string[]>([])
+  const [text, setText] = useState(() => getDraft(chat.id)?.text ?? "")
+  const [mentionIds, setMentionIds] = useState<string[]>(() => getDraft(chat.id)?.mentionIds ?? [])
   const [dragging, setDragging] = useState(false)
   const dragDepth = useRef(0)
   const area = useRef<HTMLTextAreaElement>(null)
   const resetFile = useRef<() => void>(null)
+
+  useEffect(() => {
+    saveDraft(chat.id, { text, mode: replyMode, mentionIds })
+  }, [chat.id, text, replyMode, mentionIds])
+
+  // 非输入态按 R 聚焦回复，商务沟通中按 N 切到内部备注并聚焦
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || isTypingTarget(e.target)) return
+      const key = e.key.toLowerCase()
+      if (key === "r") {
+        e.preventDefault()
+        setReplyMode("reply")
+        area.current?.focus()
+      } else if (key === "n" && isExternal) {
+        e.preventDefault()
+        setReplyMode("note")
+        area.current?.focus()
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [isExternal])
 
   const queue = useUploadQueue<UploadedMedia>({
     upload: (file) => uploadMediaFile(file, (f) => tenantApi.file.upload({ file: f })),
@@ -855,6 +896,7 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
       })
     },
     onSuccess: () => {
+      clearDraft(chat.id)
       setText("")
       setMentionIds([])
       queue.clear()
@@ -966,7 +1008,7 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
               <SegmentedControl
                 size="xs"
                 value={replyMode}
-                onChange={(v) => setReplyMode(v as "reply" | "note")}
+                onChange={(v) => setReplyMode(v as DraftMode)}
                 data={[
                   { value: "reply", label: t("inbox.mode_reply") },
                   {

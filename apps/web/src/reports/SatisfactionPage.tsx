@@ -195,7 +195,7 @@ export function SatisfactionPage({ route }: { route: PeriodRoute }): ReactNode {
         title: t("reports.col_score"),
         width: 92,
         render: (row) => (
-          <Badge size="sm" variant="light" color={scoreColor(row.score)} leftSection={<IconStarFilled size={11} />}>
+          <Badge size="sm" variant="light" color={scoreColor(row.score)} leftSection={<IconStarFilled size={12} />}>
             {row.score}
           </Badge>
         ),

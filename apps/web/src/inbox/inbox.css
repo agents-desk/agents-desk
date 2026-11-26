@@ -1,24 +1,5 @@
 /* 收件箱业务样式：分栏骨架、顶栏与工具条由 @go-tenon/ui 的 Pane 体系提供，此处仅保留聊天领域语义样式。 */
 
-/* 团队收件箱项的首字小方块，和上方系统视图线框图标形成一眼可辨的区分 */
-.inbox-team-badge {
-  display: grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  border-radius: var(--mantine-radius-xs);
-  background: var(--tn-hover);
-  color: var(--tn-muted);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
-}
-
-.inbox-team-badge[data-active] {
-  background: color-mix(in srgb, var(--mantine-primary-color-filled) 18%, transparent);
-  color: var(--mantine-primary-color-light-color);
-}
-
 /* 二级导航中的视图项：平时显示计数，悬停或键盘聚焦且可编辑时平滑切出操作菜单 */
 .inbox-view-row {
   position: relative;

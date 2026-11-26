@@ -1,6 +1,7 @@
 import type {
   ConversationBulkResult,
   ConversationDTO,
+  ConversationStatus,
   ConversationSearchHitDTO,
   ConversationSummary,
   ConversationViewConfig,
@@ -69,6 +70,7 @@ import {
   serializeFilter,
 } from "./search"
 import { ViewModal } from "./ViewModal"
+import { EmptyState } from "../components/empty-state"
 
 /** OpenFocus 是点击搜索结果打开会话时附带的消息定位信息。 */
 export interface OpenFocus {
@@ -168,6 +170,8 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
   )
   const savedViewState = useSavedView(activeView?.config, currentViewConfig, { normalize: normalizeViewConfig })
   const filterCount = countFilterCriteria(activeFilter)
+  // filterMode：视图或高级筛选中，状态是筛选条件的一部分
+  const filterMode = Boolean(search.view || parsedUrlFilter)
   const showSaveFromPlain = !search.view && (Boolean(parsedUrlFilter) || Boolean(search.tag))
 
   const updateFilter = (next: ConversationFilter) => {
@@ -297,9 +301,9 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
               <Group gap={5} wrap="nowrap">
                 {activeView &&
                   (activeView.scope === "shared" ? (
-                    <IconUsers size={14} stroke={1.7} style={{ flex: "none", color: "var(--tn-muted)" }} />
+                    <IconUsers size={14} stroke={1.6} style={{ flex: "none", color: "var(--tn-muted)" }} />
                   ) : (
-                    <IconFilter size={14} stroke={1.7} style={{ flex: "none", color: "var(--tn-muted)" }} />
+                    <IconFilter size={14} stroke={1.6} style={{ flex: "none", color: "var(--tn-muted)" }} />
                   ))}
                 <Text fw={600} size="sm" truncate lh={1.25}>
                   {title}
@@ -343,7 +347,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                 {!searching && activeView?.editable && (
                   <Tooltip label={t("views.edit")} openDelay={300}>
                     <ActionIcon variant="subtle" color="gray" size="sm" aria-label={t("views.edit")} onClick={openEditView}>
-                      <IconPencil size={15} />
+                      <IconPencil size={16} />
                     </ActionIcon>
                   </Tooltip>
                 )}
@@ -391,55 +395,38 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                 />
               ) : (
                 <Group gap={4} wrap="nowrap">
-                  {!search.view && !parsedUrlFilter && search.box !== "mentions" ? (
+                  {/* 状态：普通收件箱切换地址中的状态；视图和高级筛选中改筛选条件里的状态（多了“全部”）。@我 不按状态筛选。 */}
+                  {(filterMode || search.box !== "mentions") && (
                     <SegmentedControl
                       style={{ flex: 1, minWidth: 0 }}
-                      value={search.status}
-                      onChange={(v) => go({ status: v as InboxSearch["status"] })}
+                      value={filterMode ? (activeFilter.statuses?.length === 1 ? activeFilter.statuses[0] : activeFilter.statuses?.length ? "" : "all") : search.status}
+                      onChange={(v) =>
+                        filterMode
+                          ? updateFilter({ ...activeFilter, statuses: v === "all" ? undefined : [v as ConversationStatus] })
+                          : go({ status: v as InboxSearch["status"] })
+                      }
                       data={[
+                        ...(filterMode ? [{ value: "all", label: t("inbox.status_all") }] : []),
                         { value: "open", label: t("inbox.status_open") },
                         { value: "snoozed", label: t("inbox.status_snoozed") },
                         { value: "closed", label: t("inbox.status_closed") },
                       ]}
                     />
-                  ) : (
-                    <Popover opened={filterOpen} onChange={setFilterOpen} position="bottom-start" width={312} shadow="md" withinPortal>
-                      <Popover.Target>
+                  )}
+
+                  <Popover opened={filterOpen} onChange={setFilterOpen} position="bottom-end" width={312} shadow="md" withinPortal>
+                    <Popover.Target>
+                      {!filterMode && search.box === "mentions" ? (
                         <Button
-                          variant={filterCount > 0 ? "light" : "subtle"}
-                          color={filterCount > 0 ? undefined : "gray"}
+                          variant="subtle"
+                          color="gray"
                           leftSection={<IconFilter size={14} />}
-                          rightSection={
-                            filterCount > 0 ? (
-                              <Badge size="xs" circle variant="filled">
-                                {filterCount}
-                              </Badge>
-                            ) : undefined
-                          }
                           style={{ flex: 1 }}
                           onClick={() => setFilterOpen((o) => !o)}
                         >
                           {t("views.filter_button")}
                         </Button>
-                      </Popover.Target>
-                      <Popover.Dropdown p="sm">
-                        <ScrollArea.Autosize mah={420} offsetScrollbars="y">
-                          <FilterFields value={activeFilter} onChange={updateFilter} compact />
-                        </ScrollArea.Autosize>
-                        {filterCount > 0 && (
-                          <Group justify="flex-end" mt="xs" pt="xs" style={{ borderTop: "1px solid var(--tn-border)" }}>
-                            <Button size="compact-xs" variant="subtle" color="gray" onClick={() => updateFilter({})}>
-                              {t("views.clear_filters")}
-                            </Button>
-                          </Group>
-                        )}
-                      </Popover.Dropdown>
-                    </Popover>
-                  )}
-
-                  {!search.view && !parsedUrlFilter && search.box !== "mentions" && (
-                    <Popover opened={filterOpen} onChange={setFilterOpen} position="bottom-end" width={312} shadow="md" withinPortal>
-                      <Popover.Target>
+                      ) : (
                         <Tooltip label={t("views.filter_button")} openDelay={300}>
                           <Indicator disabled={filterCount === 0} size={7} offset={3}>
                             <ActionIcon
@@ -450,29 +437,32 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                               style={{ flex: "none" }}
                               onClick={() => setFilterOpen((o) => !o)}
                             >
-                              <IconFilter size={15} />
+                              <IconFilter size={16} />
                             </ActionIcon>
                           </Indicator>
                         </Tooltip>
-                      </Popover.Target>
-                      <Popover.Dropdown p="sm">
-                        <ScrollArea.Autosize mah={420} offsetScrollbars="y">
-                          <FilterFields
-                            value={parsedUrlFilter ? activeFilter : filterFromSearch(search)}
-                            onChange={(next) => updateFilter(next)}
-                            compact
-                          />
-                        </ScrollArea.Autosize>
-                      </Popover.Dropdown>
-                    </Popover>
-                  )}
+                      )}
+                    </Popover.Target>
+                    <Popover.Dropdown p="sm">
+                      <ScrollArea.Autosize mah={420} offsetScrollbars="y">
+                        <FilterFields value={filterMode ? activeFilter : filterFromSearch(search)} onChange={updateFilter} compact />
+                      </ScrollArea.Autosize>
+                      {filterMode && filterCount > 0 && (
+                        <Group justify="flex-end" mt="xs" pt="xs" style={{ borderTop: "1px solid var(--tn-border)" }}>
+                          <Button size="compact-xs" variant="subtle" color="gray" onClick={() => updateFilter({})}>
+                            {t("views.clear_filters")}
+                          </Button>
+                        </Group>
+                      )}
+                    </Popover.Dropdown>
+                  </Popover>
 
                   {(search.view || search.box !== "mentions") && (
                     <Menu position="bottom-end" withinPortal>
                       <Menu.Target>
                         <Tooltip label={`${t("inbox.sort")} · ${sortLabel}`} openDelay={300}>
                           <ActionIcon variant="subtle" color="gray" size="input-sm" aria-label={t("inbox.sort")} style={{ flex: "none" }}>
-                            <IconArrowsSort size={15} />
+                            <IconArrowsSort size={16} />
                           </ActionIcon>
                         </Tooltip>
                       </Menu.Target>
@@ -540,7 +530,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                   <Button
                     size="compact-xs"
                     variant="light"
-                    leftSection={<IconBookmarkPlus size={13} />}
+                    leftSection={<IconBookmarkPlus size={14} />}
                     onClick={() => openSaveAsView(filterFromSearch(search))}
                   >
                     {t("views.save_as")}
@@ -554,14 +544,14 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
 
       <PaneBody>
         {viewMissing ? (
-          <Stack gap="sm" align="center" p="xl">
-            <Text c="dimmed" size="sm" ta="center">
-              {t("views.not_found")}
-            </Text>
-            <Button size="xs" variant="light" onClick={() => go({ view: undefined, filter: undefined, box: "mine", team: undefined })}>
-              {t("views.back_to_mine")}
-            </Button>
-          </Stack>
+          <EmptyState
+            title={t("views.not_found")}
+            action={
+              <Button size="xs" variant="light" onClick={() => go({ view: undefined, filter: undefined, box: "mine", team: undefined })}>
+                {t("views.back_to_mine")}
+              </Button>
+            }
+          />
         ) : searching ? (
           searchQuery.isPending ? (
             <Stack gap={0}>
@@ -576,9 +566,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
               ))}
             </Stack>
           ) : hits.length === 0 ? (
-            <Text c="dimmed" size="sm" ta="center" p="xl">
-              {t("inbox.search_empty", { q: search.q?.trim() ?? "" })}
-            </Text>
+            <EmptyState title={t("inbox.search_empty", { q: search.q?.trim() ?? "" })} />
           ) : (
             hits.map((hit) => (
               <SearchRow
@@ -612,16 +600,17 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
             ))}
           </Stack>
         ) : items.length === 0 ? (
-          <Stack gap="xs" align="center" p="xl">
-            <Text c="dimmed" size="sm" ta="center">
-              {t(filterCount > 0 ? "inbox.empty_filtered" : "inbox.empty")}
-            </Text>
-            {filterCount > 0 && !search.view && (
-              <Button size="xs" variant="light" onClick={() => go({ filter: undefined, tag: undefined })}>
-                {t("inbox.clear_filters")}
-              </Button>
-            )}
-          </Stack>
+          <EmptyState
+            title={t(filterCount > 0 ? "inbox.empty_filtered" : "inbox.empty")}
+            action={
+              filterCount > 0 &&
+              !search.view && (
+                <Button size="xs" variant="light" onClick={() => go({ filter: undefined, tag: undefined })}>
+                  {t("inbox.clear_filters")}
+                </Button>
+              )
+            }
+          />
         ) : (
           items.map((c) => (
             <Row
@@ -792,7 +781,7 @@ function Row({
             {c.priority === "high" && (
               <Tooltip label={t("inbox.priority_high")} openDelay={300}>
                 <span className="inbox-priority-icon" aria-label={t("inbox.priority_high")}>
-                  <IconFlame size={13} stroke={1.9} />
+                  <IconFlame size={14} stroke={1.6} />
                 </span>
               </Tooltip>
             )}
@@ -952,7 +941,7 @@ function BulkBar({
         </Tooltip>
         <Tooltip label={t("inbox.cancel")} openDelay={250}>
           <ActionIcon variant="subtle" color="gray" size={28} onClick={onDone} aria-label={t("inbox.cancel")}>
-            <IconX size={15} />
+            <IconX size={16} />
           </ActionIcon>
         </Tooltip>
       </Group>

@@ -31,7 +31,7 @@ function DeltaBadge({ delta }: { delta?: StatDelta }): ReactNode {
   const label = delta.label ?? (v > 0 ? `+${v}` : String(v))
   if (v === 0) {
     return (
-      <Badge size="xs" variant="light" color="gray" leftSection={<IconMinus size={11} stroke={2} />}>
+      <Badge size="xs" variant="light" color="gray" leftSection={<IconMinus size={12} stroke={2} />}>
         {label}
       </Badge>
     )
@@ -39,7 +39,7 @@ function DeltaBadge({ delta }: { delta?: StatDelta }): ReactNode {
   const positive = v > 0
   const good = delta.invert ? !positive : positive
   const color = good ? "green" : "deep-orange"
-  const arrow = positive ? <IconArrowUpRight size={11} stroke={2} /> : <IconArrowDownRight size={11} stroke={2} />
+  const arrow = positive ? <IconArrowUpRight size={12} stroke={2} /> : <IconArrowDownRight size={12} stroke={2} />
   return (
     <Badge size="xs" variant="light" color={color} leftSection={arrow}>
       {label}
@@ -69,7 +69,7 @@ export function MetricStrip({ items, loading }: MetricStripProps): ReactNode {
                     aria-label={String(item.label)}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <IconInfoCircle size={13} stroke={1.6} />
+                    <IconInfoCircle size={14} stroke={1.6} />
                   </ActionIcon>
                 </Tooltip>
               )}

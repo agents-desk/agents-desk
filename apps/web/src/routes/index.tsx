@@ -49,12 +49,7 @@ function ChooseTenant() {
                     <Avatar src={tn.logo_url || null} size={36} radius="sm" color="brand">
                       {tn.name.slice(0, 1)}
                     </Avatar>
-                    <div>
-                      <Text fw={500}>{tn.name}</Text>
-                      <Text size="sm" c="dimmed">
-                        /t/{tn.slug}/
-                      </Text>
-                    </div>
+                    <Text fw={500}>{tn.name}</Text>
                   </Group>
                   <IconChevronRight size={16} className="desk-tenant-arrow" style={{ flex: "none" }} />
                 </Group>
@@ -67,14 +62,9 @@ function ChooseTenant() {
                   <Avatar src={tn.logo_url || null} size={36} radius="sm" color="gray">
                     {tn.name.slice(0, 1)}
                   </Avatar>
-                  <div>
-                    <Text fw={500} c="dimmed">
-                      {tn.name}
-                    </Text>
-                    <Text size="sm" c="dimmed">
-                      /t/{tn.slug}/
-                    </Text>
-                  </div>
+                  <Text fw={500} c="dimmed">
+                    {tn.name}
+                  </Text>
                 </Group>
                 <Badge variant="light" color="gray">
                   {t("choose_tenant.disabled")}

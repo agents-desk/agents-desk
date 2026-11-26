@@ -5,6 +5,7 @@ import { applyServerErrors, FormError, LoadingStage, notifyError, notifySuccess,
 import { type ReactNode, useState } from "react"
 import { api } from "./api"
 import { me } from "./auth"
+import { useUnsavedGuard } from "./components/unsaved-guard"
 
 // 个人资料：基本资料（头像、名字）和修改密码两个标签页，各自提交。按表单的约定：宽度不限，一个输入框一行，保存按钮在右侧。
 
@@ -70,6 +71,7 @@ function BasicForm({ profile }: { profile: { name: string; avatar_file_id?: stri
   })
 
   const dirty = form.isDirty() || preview !== profile.avatar_url
+  useUnsavedGuard(dirty)
   return (
     <form noValidate onSubmit={submit}>
       <Stack gap="md">

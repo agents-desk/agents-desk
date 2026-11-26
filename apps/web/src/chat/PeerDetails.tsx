@@ -148,7 +148,7 @@ export function PeerDetails({ chat, onClose, onOpenChat }: PeerDetailsProps): Re
                   >
                     <Group gap="xs" wrap="nowrap">
                       <ThemeIcon size={24} radius="xl" variant="light" color="brand" style={{ flex: "none" }}>
-                        <IconUsersGroup size={13} stroke={1.6} />
+                        <IconUsersGroup size={14} stroke={1.6} />
                       </ThemeIcon>
                       <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
                         <Text size="sm" truncate>

@@ -127,7 +127,7 @@ export function NewChatModal({ opened, onClose, onOpened }: NewChatModalProps): 
           value={q}
           onChange={(e) => setQ(e.currentTarget.value)}
           placeholder={t("chat.pick_member_placeholder")}
-          leftSection={<IconSearch size={15} />}
+          leftSection={<IconSearch size={16} />}
           data-autofocus={tab === "direct" ? true : undefined}
         />
 
@@ -201,7 +201,7 @@ export function NewChatModal({ opened, onClose, onOpened }: NewChatModalProps): 
                 <Button variant="default" onClick={onClose} disabled={startGroup.isPending}>
                   {t("common.cancel")}
                 </Button>
-                <Button type="submit" leftSection={<IconUsersGroup size={15} />} loading={startGroup.isPending}>
+                <Button type="submit" leftSection={<IconUsersGroup size={16} />} loading={startGroup.isPending}>
                   {t("chat.create_group")}
                 </Button>
               </Group>

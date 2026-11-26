@@ -4,6 +4,7 @@ import { createFileRoute, useRouter } from "@tanstack/react-router"
 import { applyServerErrors, FormError, notifyError, notifySuccess, Page, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { api, tenantApi } from "../../../../../api"
+import { useUnsavedGuard } from "../../../../../components/unsaved-guard"
 
 // 常规设置：工作区的 Logo、名称和单窗口渠道的重开窗口。地址（slug）创建后不能修改。
 export const Route = createFileRoute("/t/$slug/settings/_workspace/general")({
@@ -63,6 +64,7 @@ function General(): ReactNode {
     }
   })
 
+  useUnsavedGuard(form.isDirty())
   return (
     <Page title={t("nav.general")}>
       <form noValidate onSubmit={submit}>

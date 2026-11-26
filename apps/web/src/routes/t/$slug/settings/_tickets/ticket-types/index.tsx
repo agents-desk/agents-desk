@@ -7,10 +7,12 @@ import { ActionIcon, Anchor, Badge, Button, Group, Modal, Radio, Select, Stack, 
 import { useForm } from "@mantine/form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, Link } from "@tanstack/react-router"
-import { IconGripVertical, IconPencil, IconPlayerPause, IconPlayerPlay, IconPlus, IconTrash } from "@tabler/icons-react"
-import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, useT } from "@go-tenon/ui"
+import { IconGripVertical, IconPlayerPause, IconPlayerPlay, IconPlus, IconTrash } from "@tabler/icons-react"
+import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, StatusDot, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../../../../../../api"
+import { EmptyState } from "../../../../../../components/empty-state"
+import { RowActions } from "../../../../../../components/row-actions"
 
 // 工单类型列表：管理工单模板、默认团队收件箱、默认可见范围、拖拽排序及停用/启用；点击名称进入字段配置。
 export const Route = createFileRoute("/t/$slug/settings/_tickets/ticket-types/")({
@@ -112,9 +114,9 @@ function TicketTypesPage(): ReactNode {
       }
     >
       {items.length === 0 ? (
-        <Text c="dimmed" ta="center" py="xl">
-          {t("ticket_types.empty")}
-        </Text>
+        <div className="desk-table-card">
+          <EmptyState title={t("ticket_types.empty")} />
+        </div>
       ) : (
         <DndContext
           sensors={sensors}
@@ -123,31 +125,33 @@ function TicketTypesPage(): ReactNode {
           onDragEnd={(e) => void onDragEnd(e)}
         >
           <SortableContext items={items.map((x) => x.id)} strategy={verticalListSortingStrategy}>
-            <Table verticalSpacing="sm">
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th w={36} />
-                  <Table.Th>{t("ticket_types.name")}</Table.Th>
-                  <Table.Th w={140}>{t("ticket_types.default_visibility")}</Table.Th>
-                  <Table.Th w={160}>{t("ticket_types.default_team")}</Table.Th>
-                  <Table.Th w={90}>{t("ticket_types.field_count")}</Table.Th>
-                  <Table.Th w={90}>{t("ticket_types.status")}</Table.Th>
-                  <Table.Th w={120} />
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {items.map((item) => (
-                  <SortableTypeRow
-                    key={item.id}
-                    slug={slug}
-                    item={item}
-                    onEdit={() => setEditing(item)}
-                    onToggleDisabled={() => void toggleDisabled(item)}
-                    onRemove={() => void remove(item)}
-                  />
-                ))}
-              </Table.Tbody>
-            </Table>
+            <Table.ScrollContainer minWidth={760} className="desk-table-card" type="native">
+              <Table verticalSpacing="sm" horizontalSpacing="md">
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th w={36} />
+                    <Table.Th>{t("ticket_types.name")}</Table.Th>
+                    <Table.Th w={140}>{t("ticket_types.default_visibility")}</Table.Th>
+                    <Table.Th w={160}>{t("ticket_types.default_team")}</Table.Th>
+                    <Table.Th w={90}>{t("ticket_types.field_count")}</Table.Th>
+                    <Table.Th w={90}>{t("ticket_types.status")}</Table.Th>
+                    <Table.Th w={120} />
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {items.map((item) => (
+                    <SortableTypeRow
+                      key={item.id}
+                      slug={slug}
+                      item={item}
+                      onEdit={() => setEditing(item)}
+                      onToggleDisabled={() => void toggleDisabled(item)}
+                      onRemove={() => void remove(item)}
+                    />
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
           </SortableContext>
         </DndContext>
       )}
@@ -255,27 +259,20 @@ function SortableTypeRow({
         <Text size="sm">{item.field_count}</Text>
       </Table.Td>
       <Table.Td>
-        <Badge variant="light" color={isDisabled ? "gray" : "green"}>
-          {kit.label("TicketTypeStatus", item.status)}
-        </Badge>
+        <StatusDot color={isDisabled ? "gray" : "green"}>{kit.label("TicketTypeStatus", item.status)}</StatusDot>
       </Table.Td>
       <Table.Td>
-        <Group gap={4} justify="flex-end" wrap="nowrap">
-          <ActionIcon variant="subtle" color="gray" onClick={onEdit} aria-label={t("ticket_types.edit")}>
-            <IconPencil size={15} />
-          </ActionIcon>
-          <ActionIcon
-            variant="subtle"
-            color={isDisabled ? "green" : "gray"}
-            onClick={onToggleDisabled}
-            aria-label={t(isDisabled ? "ticket_types.enable" : "ticket_types.disable")}
-          >
-            {isDisabled ? <IconPlayerPlay size={15} /> : <IconPlayerPause size={15} />}
-          </ActionIcon>
-          <ActionIcon variant="subtle" color="red" onClick={onRemove} aria-label={t("ticket_types.delete")}>
-            <IconTrash size={15} />
-          </ActionIcon>
-        </Group>
+        <RowActions
+          onEdit={onEdit}
+          actions={[
+            {
+              label: t(isDisabled ? "ticket_types.enable" : "ticket_types.disable"),
+              icon: isDisabled ? <IconPlayerPlay size={14} /> : <IconPlayerPause size={14} />,
+              onClick: onToggleDisabled,
+            },
+            { label: t("common.delete"), icon: <IconTrash size={14} />, danger: true, onClick: onRemove },
+          ]}
+        />
       </Table.Td>
     </Table.Tr>
   )

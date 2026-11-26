@@ -73,7 +73,7 @@ export function ReportFilterBar({ period, filters, right }: ReportFilterBarProps
                 size="sm"
                 variant="subtle"
                 color="gray"
-                leftSection={<IconX size={13} stroke={1.8} />}
+                leftSection={<IconX size={14} stroke={1.6} />}
                 onClick={filters.clearDimensions}
               >
                 {t("reports.clear_filters")}

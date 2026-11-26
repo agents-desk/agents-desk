@@ -41,7 +41,7 @@ export function InboxDrillButton({
         aria-label={label}
         onClick={(e) => e.stopPropagation()}
       >
-        <IconArrowUpRight size={14} stroke={1.8} />
+        <IconArrowUpRight size={14} stroke={1.6} />
       </Link>
     </Tooltip>
   )

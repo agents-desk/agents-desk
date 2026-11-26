@@ -193,7 +193,7 @@ export function FilterFields({ value, onChange, compact }: FilterFieldsProps): R
             onChange={(ids) => patch({ team: { mode: "ids", ids } })}
             data={teams.map((tm) => ({
               value: tm.id,
-              label: tm.status === "disabled" ? t("widgets.team_disabled_suffix", { name: tm.name }) : tm.name,
+              label: tm.status === "disabled" ? t("inbox.team_disabled_suffix", { name: tm.name }) : tm.name,
             }))}
             searchable
             clearable
@@ -370,7 +370,7 @@ export function FilterFields({ value, onChange, compact }: FilterFieldsProps): R
                     aria-label={t("views.delete")}
                     onClick={() => removeAttribute(index)}
                   >
-                    <IconTrash size={13} />
+                    <IconTrash size={14} />
                   </ActionIcon>
                 </Group>
                 {needVal && def && (

@@ -38,7 +38,7 @@ export function AssignMenu({ c, compact }: { c: ConversationDTO; compact?: boole
         {compact ? (
           <Tooltip label={t("inbox.assign")}>
             <ActionIcon variant="subtle" color="gray" size="input-sm" loading={assign.isPending} aria-label={t("inbox.assign")}>
-              <IconUserPlus size={15} />
+              <IconUserPlus size={16} />
             </ActionIcon>
           </Tooltip>
         ) : (
@@ -121,7 +121,7 @@ export function SnoozeMenu({ id, compact }: { id: string; compact?: boolean }): 
           {compact ? (
             <Tooltip label={t("inbox.snooze")}>
               <ActionIcon variant="subtle" color="gray" size="input-sm" loading={snooze.isPending} aria-label={t("inbox.snooze")}>
-                <IconClock size={15} />
+                <IconClock size={16} />
               </ActionIcon>
             </Tooltip>
           ) : (

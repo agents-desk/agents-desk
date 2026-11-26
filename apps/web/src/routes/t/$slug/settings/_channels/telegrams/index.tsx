@@ -1,11 +1,12 @@
-import { Badge, Button, Group, Modal, Paper, PasswordInput, SegmentedControl, Skeleton, Stack, Table, Text, TextInput } from "@mantine/core"
+import { Button, Group, Modal, PasswordInput, SegmentedControl, Stack, Text, TextInput } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { IconPlus } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
-import { applyServerErrors, FormError, Page, ResourceSelect, useT } from "@go-tenon/ui"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { AnchorLink, applyServerErrors, DataTable, FormError, Page, ResourceSelect, StatusDot, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { tenantApi } from "../../../../../../api"
+import { RowActions } from "../../../../../../components/row-actions"
 import { teams } from "../../../../../../resources"
 
 // Telegram 机器人渠道列表：浏览工作区中的 Telegram 机器人，新建后直接进入渠道配置工作台。
@@ -65,86 +66,53 @@ function Telegrams(): ReactNode {
         </Button>
       }
     >
-      {list.isPending ? (
-        <Stack gap="sm">
-          <Skeleton height={48} radius="md" />
-          <Skeleton height={48} radius="md" />
-        </Stack>
-      ) : !list.data?.items.length ? (
-        <Paper withBorder p="xl" radius="md">
-          <Stack align="center" gap="sm">
-            <Text c="dimmed" size="sm">
-              {t("telegrams.empty")}
-            </Text>
-            <Button leftSection={<IconPlus size={16} />} onClick={openCreate}>
-              {t("telegrams.new")}
-            </Button>
-          </Stack>
-        </Paper>
-      ) : (
-        <Paper withBorder radius="md" style={{ overflow: "hidden" }}>
-          <Table highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>{t("telegrams.name")}</Table.Th>
-                <Table.Th>{t("telegrams.bot_username")}</Table.Th>
-                <Table.Th>{t("telegrams.team_hint")}</Table.Th>
-                <Table.Th>{t("telegrams.mode")}</Table.Th>
-                <Table.Th>{t("telegrams.enabled")}</Table.Th>
-                <Table.Th w={100} />
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {list.data.items.map((row) => (
-                <Table.Tr key={row.id}>
-                  <Table.Td>
-                    <Text size="sm" fw={500}>
-                      {row.name}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    {row.bot_username ? (
-                      <Text size="sm">@{row.bot_username}</Text>
-                    ) : (
-                      <Text c="dimmed" size="sm">
-                        —
-                      </Text>
-                    )}
-                  </Table.Td>
-                  <Table.Td>
-                    {row.team_name ? (
-                      <Text size="sm">{row.team_name}</Text>
-                    ) : (
-                      <Text c="dimmed" size="sm">
-                        {t("telegrams.team_unassigned")}
-                      </Text>
-                    )}
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm">{t(row.gateway_managed ? "telegrams.mode_gateway" : "telegrams.mode_direct")}</Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Badge variant="dot" color={row.enabled ? "green" : "gray"}>
-                      {t(row.enabled ? "telegrams.enabled" : "telegrams.disabled")}
-                    </Badge>
-                  </Table.Td>
-                  <Table.Td ta="right">
-                    <Button
-                      size="xs"
-                      variant="subtle"
-                      renderRoot={(props) => (
-                        <Link {...props} to="/t/$slug/settings/telegrams/$id" params={{ slug, id: row.id }} />
-                      )}
-                    >
-                      {t("telegrams.configure")}
-                    </Button>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Paper>
-      )}
+      <DataTable
+        records={list.data?.items ?? []}
+        loading={list.isPending}
+        empty={t("telegrams.empty")}
+        columns={[
+          {
+            accessor: "name",
+            title: t("telegrams.name"),
+            render: (row) => (
+              <AnchorLink to="/t/$slug/settings/telegrams/$id" params={{ slug, id: row.id }} size="sm" fw={500}>
+                {row.name}
+              </AnchorLink>
+            ),
+          },
+          {
+            accessor: "bot_username",
+            title: t("telegrams.bot_username"),
+            render: (row) => (row.bot_username ? `@${row.bot_username}` : <Text c="dimmed" size="sm">—</Text>),
+          },
+          {
+            accessor: "team_name",
+            title: t("common.team_inbox"),
+            render: (row) => row.team_name || <Text c="dimmed" size="sm">{t("telegrams.team_unassigned")}</Text>,
+          },
+          {
+            accessor: "gateway_managed",
+            title: t("telegrams.mode"),
+            render: (row) => t(row.gateway_managed ? "telegrams.mode_gateway" : "telegrams.mode_direct"),
+          },
+          {
+            accessor: "enabled",
+            title: t("common.status"),
+            render: (row) => <StatusDot color={row.enabled ? "green" : "gray"}>{t(row.enabled ? "common.enabled" : "common.disabled")}</StatusDot>,
+          },
+          {
+            accessor: "actions",
+            title: "",
+            textAlign: "right",
+            render: (row) => (
+              <RowActions
+                editLabel={t("telegrams.configure")}
+                onEdit={() => void navigate({ to: "/t/$slug/settings/telegrams/$id", params: { slug, id: row.id } })}
+              />
+            ),
+          },
+        ]}
+      />
 
       <Modal opened={creating} onClose={() => setCreating(false)} title={t("telegrams.create_title")}>
         <form onSubmit={form.onSubmit((v) => create.mutate(v))}>
@@ -188,7 +156,7 @@ function Telegrams(): ReactNode {
             />
             <Group justify="flex-end">
               <Button variant="default" onClick={() => setCreating(false)}>
-                {t("telegrams.cancel")}
+                {t("common.cancel")}
               </Button>
               <Button type="submit" loading={create.isPending}>
                 {t("telegrams.create_submit")}

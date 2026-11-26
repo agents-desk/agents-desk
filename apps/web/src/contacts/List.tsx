@@ -1,9 +1,9 @@
 import type { ContactSort } from "@agents-desk/client/tenant"
-import { ActionIcon, Badge, Box, Button, Center, Group, Loader, Select, Skeleton, Stack, Text, TextInput } from "@mantine/core"
+import { Badge, Box, Button, Center, CloseButton, Group, Loader, Select, Skeleton, Stack, Text, TextInput } from "@mantine/core"
 import { useDebouncedValue } from "@mantine/hooks"
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
-import { IconBookmarkPlus, IconMessageCircle, IconSearch, IconX } from "@tabler/icons-react"
+import { IconBookmarkPlus, IconMessageCircle, IconSearch } from "@tabler/icons-react"
 import { ExportButton, PaneBody, PaneHeader, PaneToolbar, useCan, useLanguage, useNarrow, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
@@ -15,6 +15,7 @@ import { formatLocalTime } from "../timezone"
 import { ContactAvatar, contactDisplayName, contactSubline } from "./display"
 import type { ContactsSearch } from "./search"
 import { ContactViewModal } from "./ViewModal"
+import { EmptyState } from "../components/empty-state"
 
 /**
  * ContactDirectory 是左侧的联系人名录：顶部一个整体标题与筛选块（第一行是分类标题和数量，第二行是搜索、语言、渠道和排序，
@@ -193,7 +194,7 @@ export function ContactDirectory({
               <Button
                 size="compact-xs"
                 variant="light"
-                leftSection={<IconBookmarkPlus size={13} />}
+                leftSection={<IconBookmarkPlus size={14} />}
                 onClick={() => setSaveViewOpen(true)}
               >
                 {t("contacts.save_view")}
@@ -226,18 +227,20 @@ export function ContactDirectory({
       <PaneToolbar>
         <Group gap="xs" wrap="wrap">
           <TextInput
+            variant="filled"
             style={{ flex: 1, minWidth: 200 }}
             value={keyword}
             onChange={(e) => setKeyword(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && keyword) {
+                e.stopPropagation()
+                setKeyword("")
+              }
+            }}
             placeholder={t("contacts.search_placeholder")}
-            leftSection={<IconSearch size={14} />}
-            rightSection={
-              keyword ? (
-                <ActionIcon variant="subtle" color="gray" size="xs" onClick={() => setKeyword("")} aria-label={t("common.cancel")}>
-                  <IconX size={12} />
-                </ActionIcon>
-              ) : null
-            }
+            aria-label={t("contacts.search_placeholder")}
+            leftSection={<IconSearch size={14} stroke={1.6} />}
+            rightSection={keyword ? <CloseButton size="xs" aria-label={t("common.clear_search")} onClick={() => setKeyword("")} /> : null}
           />
           <Select
             w={compact ? 112 : 128}
@@ -307,7 +310,7 @@ export function ContactDirectory({
             {[0, 1, 2, 3, 4, 5].map((i) => (
               <Group key={i} gap="md" px="lg" py={11} wrap="nowrap" className="ct-row">
                 <Group gap="sm" wrap="nowrap" style={{ flex: 2.2, minWidth: 200 }}>
-                  <Skeleton circle h={34} w={34} style={{ flex: "none" }} />
+                  <Skeleton circle h={36} w={36} style={{ flex: "none" }} />
                   <Box style={{ flex: 1, minWidth: 0 }}>
                     <Skeleton h={12} w="42%" mb={6} radius="sm" />
                     <Skeleton h={10} w="64%" radius="sm" />
@@ -320,12 +323,10 @@ export function ContactDirectory({
             ))}
           </Stack>
         ) : items.length === 0 ? (
-          <Center py={64}>
-            <Stack gap="xs" align="center">
-              <Text size="sm" c="dimmed">
-                {t(hasFilters ? "contacts.empty_filtered" : "contacts.empty")}
-              </Text>
-              {hasFilters && (
+          <EmptyState
+            title={t(hasFilters ? "contacts.empty_filtered" : "contacts.empty")}
+            action={
+              hasFilters && (
                 <Button
                   size="xs"
                   variant="light"
@@ -336,9 +337,9 @@ export function ContactDirectory({
                 >
                   {t("contacts.clear_filters")}
                 </Button>
-              )}
-            </Stack>
-          </Center>
+              )
+            }
+          />
         ) : (
           <>
             {items.map((c) => {
@@ -373,7 +374,7 @@ export function ContactDirectory({
                   }}
                 >
                   <Group gap="sm" wrap="nowrap" style={{ flex: narrow ? "1 1 100%" : 2.2, minWidth: 200 }}>
-                    <ContactAvatar contact={c} size={34} />
+                    <ContactAvatar contact={c} size={36} />
                     <Box style={{ minWidth: 0, flex: 1 }}>
                       <Group gap={6} wrap="nowrap">
                         <Text size="sm" fw={500} truncate>
@@ -412,7 +413,7 @@ export function ContactDirectory({
                   )}
 
                   <Group gap={4} justify="flex-end" wrap="nowrap" w={narrow ? "auto" : 72} style={{ flex: "none" }}>
-                    <IconMessageCircle size={13} style={{ color: "var(--mantine-color-dimmed)" }} />
+                    <IconMessageCircle size={14} style={{ color: "var(--mantine-color-dimmed)" }} />
                     <Text size="xs" c={c.conversation_count > 0 ? undefined : "dimmed"} style={{ fontVariantNumeric: "tabular-nums" }}>
                       {c.conversation_count}
                     </Text>

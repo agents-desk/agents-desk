@@ -69,7 +69,6 @@ export const messages = {
     "automations.ticket_status_notify_desc": "Automatically notify customers in all linked service conversations when a customer-visible ticket changes status.",
     "automations.ticket_status_notify_title": "Notify linked customers on ticket status change",
     "automations.title": "Built-in automations",
-    "business_channels.col_status": "Status",
     "business_channels.col_synced": "Synced chats",
     "business_channels.col_url": "Chat URL",
     "business_channels.copy_url": "Copy URL",
@@ -180,6 +179,8 @@ export const messages = {
     "chat.filter_all": "All",
     "chat.filter_direct": "Direct",
     "chat.filter_group": "Groups",
+    "chat.group_info": "Group info",
+    "chat.group_members": "Members",
     "chat.group_name": "Group name",
     "chat.group_name_placeholder": "e.g. Support Ops Team",
     "chat.group_name_required": "Enter a group name",
@@ -219,6 +220,7 @@ export const messages = {
     "chat.status_away": "Away",
     "chat.status_online": "Online",
     "chat.unknown_peer": "Teammate",
+    "chat.unnamed_member": "Unnamed member",
     "chat.unread_chats_hint": "{{.n}} unread chat(s)",
     "chat.untitled_group": "Untitled group",
     "choose_tenant.disabled": "Disabled",
@@ -251,8 +253,24 @@ export const messages = {
     "command.shortcuts_action": "Show keyboard shortcuts",
     "command.view_all_results": "View all {{.n}} conversations in Inbox",
     "common.cancel": "Cancel",
+    "common.clear_search": "Clear search",
+    "common.copied": "Copied",
+    "common.delete": "Delete",
+    "common.disable": "Disable",
+    "common.disabled": "Disabled",
+    "common.discard": "Discard changes",
+    "common.edit": "Edit",
+    "common.enable": "Enable",
+    "common.enabled": "Enabled",
+    "common.leave": "Leave",
+    "common.more": "More actions",
     "common.save": "Save",
     "common.saved": "Saved",
+    "common.status": "Status",
+    "common.team_inbox": "Team inbox",
+    "common.unsaved": "Unsaved",
+    "common.unsaved_message": "Your changes will be lost if you leave.",
+    "common.unsaved_title": "Leave without saving?",
     "contacts.channel_identities": "Channel identities",
     "contacts.clear_filters": "Clear filters",
     "contacts.close_detail": "Close details",
@@ -394,7 +412,6 @@ export const messages = {
     "general.reopen_window_hint": "Across all chat channels (widget, Telegram, etc.), a message arriving within this window after close reopens the conversation; after that, a new service conversation is started. Set to 0 to always start a new conversation.",
     "glossary.add": "Add term",
     "glossary.add_translation": "Add language",
-    "glossary.delete": "Delete",
     "glossary.delete_confirm": "Delete the term \"{{.term}}\"?",
     "glossary.description": "Product and brand names are translated as written here, whenever they appear in a message. Order numbers, amounts and links are always kept as they are.",
     "glossary.edit": "Edit term",
@@ -628,6 +645,7 @@ export const messages = {
     "inbox.sort_recent": "Recent activity",
     "inbox.sort_waiting": "Waiting time",
     "inbox.status": "Status",
+    "inbox.status_all": "All",
     "inbox.status_closed": "Closed",
     "inbox.status_open": "Open",
     "inbox.status_snoozed": "Snoozed",
@@ -957,19 +975,19 @@ export const messages = {
     "shortcuts.composer_mention": "Mention a teammate in note",
     "shortcuts.composer_mode": "Toggle reply / internal note",
     "shortcuts.composer_send": "Send message",
-    "shortcuts.conversation_close": "Close current conversation",
+    "shortcuts.conversation_close": "Close current conversation (inbox)",
     "shortcuts.conversation_details": "Toggle details panel",
-    "shortcuts.conversation_group": "Conversation",
+    "shortcuts.conversation_group": "Open conversation, chat or ticket",
     "shortcuts.conversation_note": "Focus composer in internal note mode",
     "shortcuts.conversation_reply": "Focus composer in reply mode",
     "shortcuts.global_group": "Global",
     "shortcuts.global_help": "Toggle keyboard shortcuts",
     "shortcuts.global_palette": "Open command palette",
     "shortcuts.hint": "Single-letter shortcuts work when focus is outside input fields",
-    "shortcuts.list_group": "Inbox list navigation",
-    "shortcuts.list_next": "Next conversation",
-    "shortcuts.list_next_waiting": "Next waiting conversation",
-    "shortcuts.list_prev": "Previous conversation",
+    "shortcuts.list_group": "List navigation (inbox, chat, tickets)",
+    "shortcuts.list_next": "Next item",
+    "shortcuts.list_next_waiting": "Next waiting conversation (inbox)",
+    "shortcuts.list_prev": "Previous item",
     "shortcuts.title": "Keyboard shortcuts",
     "status.description": "While online, you can be assigned conversations automatically. While away, automatic assignment skips you, and you keep the conversations you already own.",
     "status.reassign": "Reassign my conversations",
@@ -990,7 +1008,6 @@ export const messages = {
     "team_members.no_candidates": "No members to add",
     "team_members.remove": "Remove",
     "team_members.remove_confirm": "Remove {{.name}} from the team inbox?",
-    "team_members.remove_label": "Remove {{.name}} from the team inbox",
     "team_members.remove_message": "They stay a member of the workspace.",
     "team_members.role": "Role",
     "team_members.status": "Status",
@@ -1045,13 +1062,10 @@ export const messages = {
     "telegrams.bot_token_hint": "Bot token obtained from @BotFather",
     "telegrams.bot_token_update_hint": "Leave empty to keep the current token; entering a new token re-verifies the bot",
     "telegrams.bot_username": "Bot",
-    "telegrams.cancel": "Cancel",
     "telegrams.configure": "Configure",
     "telegrams.create_submit": "Create \u0026 configure",
     "telegrams.create_title": "New Telegram bot",
-    "telegrams.disabled": "Disabled",
     "telegrams.empty": "No Telegram bot channels yet. Create one to receive private messages.",
-    "telegrams.enabled": "Enabled",
     "telegrams.mode": "Connection mode",
     "telegrams.mode_direct": "Direct",
     "telegrams.mode_direct_desc": "This app calls Telegram setWebhook directly to receive and reply to private messages",
@@ -1328,13 +1342,10 @@ export const messages = {
     "widget_studio.unsaved": "Unsaved changes",
     "widget_studio.viewport_desktop": "Desktop",
     "widget_studio.viewport_mobile": "Mobile",
-    "widgets.cancel": "Cancel",
     "widgets.configure": "Configure",
     "widgets.create_submit": "Create \u0026 configure",
     "widgets.create_title": "New website chat widget",
-    "widgets.disabled": "Disabled",
     "widgets.empty": "No website chat widgets yet. Create one to embed in your website or app.",
-    "widgets.enabled": "Enabled",
     "widgets.new": "New chat widget",
     "widgets.team_disabled_suffix": "{{.name}} (disabled)",
     "widgets.team_hint": "The team inbox new conversations go to",
@@ -1408,7 +1419,6 @@ export const messages = {
     "automations.ticket_status_notify_desc": "客户可见工单的状态发生变化时，自动通知该工单关联的所有服务型会话中的客户（聊天插件显示状态卡片，Telegram 等渠道按客户语言发送文本通知）。",
     "automations.ticket_status_notify_title": "工单状态变化时通知关联客户",
     "automations.title": "内置自动化",
-    "business_channels.col_status": "状态",
     "business_channels.col_synced": "同步对话",
     "business_channels.col_url": "沟通地址",
     "business_channels.copy_url": "复制链接",
@@ -1519,6 +1529,8 @@ export const messages = {
     "chat.filter_all": "全部",
     "chat.filter_direct": "单聊",
     "chat.filter_group": "群聊",
+    "chat.group_info": "群聊信息",
+    "chat.group_members": "群成员",
     "chat.group_name": "群名称",
     "chat.group_name_placeholder": "例如：中印客服协作群",
     "chat.group_name_required": "请填写群名称",
@@ -1558,6 +1570,7 @@ export const messages = {
     "chat.status_away": "离开",
     "chat.status_online": "在线",
     "chat.unknown_peer": "同事",
+    "chat.unnamed_member": "未命名成员",
     "chat.unread_chats_hint": "{{.n}} 个聊天有未读消息",
     "chat.untitled_group": "未命名群聊",
     "choose_tenant.disabled": "已停用",
@@ -1590,8 +1603,24 @@ export const messages = {
     "command.shortcuts_action": "查看全部键盘快捷键",
     "command.view_all_results": "在收件箱中查看全部 {{.n}} 个会话",
     "common.cancel": "取消",
+    "common.clear_search": "清除搜索",
+    "common.copied": "已复制",
+    "common.delete": "删除",
+    "common.disable": "停用",
+    "common.disabled": "已停用",
+    "common.discard": "放弃修改",
+    "common.edit": "编辑",
+    "common.enable": "启用",
+    "common.enabled": "已启用",
+    "common.leave": "离开",
+    "common.more": "更多操作",
     "common.save": "保存",
     "common.saved": "已保存",
+    "common.status": "状态",
+    "common.team_inbox": "团队收件箱",
+    "common.unsaved": "未保存",
+    "common.unsaved_message": "离开后这些修改会丢失。",
+    "common.unsaved_title": "有未保存的修改，确定离开吗？",
     "contacts.channel_identities": "渠道身份",
     "contacts.clear_filters": "清除筛选",
     "contacts.close_detail": "关闭详情",
@@ -1733,7 +1762,6 @@ export const messages = {
     "general.reopen_window_hint": "会话关闭后，客户在所有聊天渠道（网页插件、Telegram 等）于此时间内再发消息会自动重新打开原会话，超时则开启新一轮服务会话；填 0 表示关闭后直接开启新会话。",
     "glossary.add": "添加术语",
     "glossary.add_translation": "添加语言",
-    "glossary.delete": "删除",
     "glossary.delete_confirm": "删除术语“{{.term}}”？",
     "glossary.description": "产品名、品牌名按这里的写法翻译。只在消息中出现这个词时生效；订单号、金额、链接总是原样保留，不用加。",
     "glossary.edit": "编辑术语",
@@ -1967,6 +1995,7 @@ export const messages = {
     "inbox.sort_recent": "最近活动",
     "inbox.sort_waiting": "等待时长",
     "inbox.status": "状态",
+    "inbox.status_all": "全部",
     "inbox.status_closed": "已关闭",
     "inbox.status_open": "打开",
     "inbox.status_snoozed": "稍后处理",
@@ -2296,19 +2325,19 @@ export const messages = {
     "shortcuts.composer_mention": "内部备注中 @ 同事",
     "shortcuts.composer_mode": "切换回复 / 内部备注",
     "shortcuts.composer_send": "发送消息",
-    "shortcuts.conversation_close": "关闭当前会话",
+    "shortcuts.conversation_close": "关闭当前会话（收件箱）",
     "shortcuts.conversation_details": "展开或收起右侧详情栏",
-    "shortcuts.conversation_group": "会话操作",
+    "shortcuts.conversation_group": "打开着的会话、聊天或工单",
     "shortcuts.conversation_note": "聚焦回复框并切换到内部备注",
     "shortcuts.conversation_reply": "聚焦回复框并切换到回复",
     "shortcuts.global_group": "全局",
     "shortcuts.global_help": "打开或关闭快捷键说明",
     "shortcuts.global_palette": "打开命令面板",
     "shortcuts.hint": "单字母快捷键在焦点位于输入框之外时生效",
-    "shortcuts.list_group": "会话列表导航",
-    "shortcuts.list_next": "下一个会话",
-    "shortcuts.list_next_waiting": "下一个待回复会话",
-    "shortcuts.list_prev": "上一个会话",
+    "shortcuts.list_group": "列表导航（收件箱、聊天、工单）",
+    "shortcuts.list_next": "下一条",
+    "shortcuts.list_next_waiting": "下一个待回复会话（收件箱）",
+    "shortcuts.list_prev": "上一条",
     "shortcuts.title": "键盘快捷键",
     "status.description": "在线时可以被自动分配会话；离开时不会被自动分配，已经负责的会话仍由你处理。",
     "status.reassign": "把我的会话重新分配",
@@ -2329,7 +2358,6 @@ export const messages = {
     "team_members.no_candidates": "没有可以加入的成员",
     "team_members.remove": "移出",
     "team_members.remove_confirm": "把 {{.name}} 移出团队收件箱？",
-    "team_members.remove_label": "把 {{.name}} 移出团队收件箱",
     "team_members.remove_message": "移出后仍是工作区的成员。",
     "team_members.role": "角色",
     "team_members.status": "在线状态",
@@ -2384,13 +2412,10 @@ export const messages = {
     "telegrams.bot_token_hint": "从 @BotFather 获取的机器人 Token",
     "telegrams.bot_token_update_hint": "留空保持原 Token 不变；更换 Token 后系统会重新校验机器人身份",
     "telegrams.bot_username": "机器人",
-    "telegrams.cancel": "取消",
     "telegrams.configure": "配置",
     "telegrams.create_submit": "创建并配置",
     "telegrams.create_title": "新建 Telegram 机器人",
-    "telegrams.disabled": "已停用",
     "telegrams.empty": "还没有 Telegram 机器人渠道，新建一个接入客户私聊消息。",
-    "telegrams.enabled": "启用",
     "telegrams.mode": "接入模式",
     "telegrams.mode_direct": "直连模式",
     "telegrams.mode_direct_desc": "系统自动调用 Telegram setWebhook 接管该机器人，接收并回复私聊消息",
@@ -2667,13 +2692,10 @@ export const messages = {
     "widget_studio.unsaved": "有未保存的修改",
     "widget_studio.viewport_desktop": "桌面浮窗",
     "widget_studio.viewport_mobile": "手机全屏",
-    "widgets.cancel": "取消",
     "widgets.configure": "配置",
     "widgets.create_submit": "创建并配置",
     "widgets.create_title": "新建网页聊天插件",
-    "widgets.disabled": "已停用",
     "widgets.empty": "还没有网页聊天插件，新建一个嵌入到你的产品网站或 App 中。",
-    "widgets.enabled": "启用",
     "widgets.new": "新建聊天插件",
     "widgets.team_disabled_suffix": "{{.name}}（已停用）",
     "widgets.team_hint": "新会话进入的团队收件箱",
@@ -2750,7 +2772,6 @@ export type MessageId =
   | "automations.ticket_status_notify_desc"
   | "automations.ticket_status_notify_title"
   | "automations.title"
-  | "business_channels.col_status"
   | "business_channels.col_synced"
   | "business_channels.col_url"
   | "business_channels.copy_url"
@@ -2861,6 +2882,8 @@ export type MessageId =
   | "chat.filter_all"
   | "chat.filter_direct"
   | "chat.filter_group"
+  | "chat.group_info"
+  | "chat.group_members"
   | "chat.group_name"
   | "chat.group_name_placeholder"
   | "chat.group_name_required"
@@ -2900,6 +2923,7 @@ export type MessageId =
   | "chat.status_away"
   | "chat.status_online"
   | "chat.unknown_peer"
+  | "chat.unnamed_member"
   | "chat.unread_chats_hint"
   | "chat.untitled_group"
   | "choose_tenant.disabled"
@@ -2932,8 +2956,24 @@ export type MessageId =
   | "command.shortcuts_action"
   | "command.view_all_results"
   | "common.cancel"
+  | "common.clear_search"
+  | "common.copied"
+  | "common.delete"
+  | "common.disable"
+  | "common.disabled"
+  | "common.discard"
+  | "common.edit"
+  | "common.enable"
+  | "common.enabled"
+  | "common.leave"
+  | "common.more"
   | "common.save"
   | "common.saved"
+  | "common.status"
+  | "common.team_inbox"
+  | "common.unsaved"
+  | "common.unsaved_message"
+  | "common.unsaved_title"
   | "contacts.channel_identities"
   | "contacts.clear_filters"
   | "contacts.close_detail"
@@ -3075,7 +3115,6 @@ export type MessageId =
   | "general.reopen_window_hint"
   | "glossary.add"
   | "glossary.add_translation"
-  | "glossary.delete"
   | "glossary.delete_confirm"
   | "glossary.description"
   | "glossary.edit"
@@ -3309,6 +3348,7 @@ export type MessageId =
   | "inbox.sort_recent"
   | "inbox.sort_waiting"
   | "inbox.status"
+  | "inbox.status_all"
   | "inbox.status_closed"
   | "inbox.status_open"
   | "inbox.status_snoozed"
@@ -3671,7 +3711,6 @@ export type MessageId =
   | "team_members.no_candidates"
   | "team_members.remove"
   | "team_members.remove_confirm"
-  | "team_members.remove_label"
   | "team_members.remove_message"
   | "team_members.role"
   | "team_members.status"
@@ -3726,13 +3765,10 @@ export type MessageId =
   | "telegrams.bot_token_hint"
   | "telegrams.bot_token_update_hint"
   | "telegrams.bot_username"
-  | "telegrams.cancel"
   | "telegrams.configure"
   | "telegrams.create_submit"
   | "telegrams.create_title"
-  | "telegrams.disabled"
   | "telegrams.empty"
-  | "telegrams.enabled"
   | "telegrams.mode"
   | "telegrams.mode_direct"
   | "telegrams.mode_direct_desc"
@@ -4009,13 +4045,10 @@ export type MessageId =
   | "widget_studio.unsaved"
   | "widget_studio.viewport_desktop"
   | "widget_studio.viewport_mobile"
-  | "widgets.cancel"
   | "widgets.configure"
   | "widgets.create_submit"
   | "widgets.create_title"
-  | "widgets.disabled"
   | "widgets.empty"
-  | "widgets.enabled"
   | "widgets.new"
   | "widgets.team_disabled_suffix"
   | "widgets.team_hint"

@@ -259,7 +259,7 @@ export function CreateTicketModal({ opened, onClose, sourceConversation, onCreat
             <Button variant="default" onClick={onClose} disabled={create.isPending}>
               {t("common.cancel")}
             </Button>
-            <Button type="submit" leftSection={<IconTicket size={15} />} loading={create.isPending}>
+            <Button type="submit" leftSection={<IconTicket size={16} />} loading={create.isPending}>
               {t("tickets.submit")}
             </Button>
           </Group>

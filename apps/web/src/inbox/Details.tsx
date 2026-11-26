@@ -295,7 +295,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                           setLinkTicketOpen(true)
                         }}
                       >
-                        <IconLink size={13} />
+                        <IconLink size={14} />
                       </ActionIcon>
                     </Tooltip>
                     <Tooltip label={t("tickets.create_from_conversation")} openDelay={250}>
@@ -309,7 +309,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                           setCreateTicketOpen(true)
                         }}
                       >
-                        <IconPlus size={13} />
+                        <IconPlus size={14} />
                       </ActionIcon>
                     </Tooltip>
                   </>
@@ -385,7 +385,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                       setMergeContactOpen(true)
                     }}
                   >
-                    <IconGitMerge size={13} />
+                    <IconGitMerge size={14} />
                   </ActionIcon>
                 </Tooltip>
               ) : undefined
@@ -422,7 +422,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                     {({ copied, copy }) => (
                       <Tooltip label={t(copied ? "contacts.copied" : "contacts.copy")} withArrow>
                         <ActionIcon variant="subtle" color={copied ? "green" : "gray"} size={22} onClick={copy} aria-label={t("contacts.copy")}>
-                          {copied ? <IconCheck size={13} /> : <IconCopy size={13} />}
+                          {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
                         </ActionIcon>
                       </Tooltip>
                     )}

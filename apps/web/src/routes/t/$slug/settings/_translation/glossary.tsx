@@ -1,12 +1,13 @@
 import type { TranslationSettingsDTO, TranslationTerm } from "@agents-desk/client/tenant"
-import { ActionIcon, Badge, Button, Group, Modal, SegmentedControl, Stack, Table, Text, TextInput } from "@mantine/core"
+import { ActionIcon, Badge, Button, Group, Modal, SegmentedControl, Stack, Text, TextInput } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { IconPencil, IconPlus, IconTrash } from "@tabler/icons-react"
-import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, useLanguage, useT } from "@go-tenon/ui"
+import { IconPlus, IconTrash } from "@tabler/icons-react"
+import { applyServerErrors, confirm, DataTable, FormError, notifyError, notifySuccess, Page, useLanguage, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../../../../../api"
+import { RowActions } from "../../../../../components/row-actions"
 import { LanguageSelect } from "../../../../../LanguageSelect"
 import { languageName } from "../../../../../languages"
 
@@ -40,7 +41,7 @@ function Glossary(): ReactNode {
   }
   const remove = async (index: number) => {
     const term = glossary[index]
-    if (!(await confirm({ title: t("glossary.delete_confirm", { term: term.term }), danger: true, confirmLabel: t("glossary.delete") }))) return
+    if (!(await confirm({ title: t("glossary.delete_confirm", { term: term.term }), danger: true, confirmLabel: t("common.delete") }))) return
     try {
       await save(glossary.filter((_, i) => i !== index))
     } catch (err) {
@@ -58,60 +59,57 @@ function Glossary(): ReactNode {
         </Button>
       }
     >
-      {glossary.length === 0 ? (
-        <Text c="dimmed" ta="center" py="xl">
-          {t("glossary.empty")}
-        </Text>
-      ) : (
-        <Table verticalSpacing="sm">
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th w="25%">{t("glossary.term")}</Table.Th>
-              <Table.Th w={120}>{t("glossary.handling")}</Table.Th>
-              <Table.Th>{t("glossary.translations")}</Table.Th>
-              <Table.Th w={80} />
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {glossary.map((term, i) => (
-              <Table.Tr key={term.term}>
-                <Table.Td>{term.term}</Table.Td>
-                <Table.Td>
-                  <Badge variant="light" color={term.keep ? "gray" : "bright-blue"}>
-                    {t(term.keep ? "glossary.keep" : "glossary.fixed")}
-                  </Badge>
-                </Table.Td>
-                <Table.Td>
-                  {term.keep ? (
-                    <Text c="dimmed">—</Text>
-                  ) : (
-                    <Group gap={6}>
-                      {Object.entries(term.translations ?? {}).map(([lang, text]) => (
-                        <Badge key={lang} variant="default" tt="none" fw={400} radius="sm">
-                          <Text span size="xs" c="dimmed" mr={6}>
-                            {languageName(lang, ui)}
-                          </Text>
-                          {text}
-                        </Badge>
-                      ))}
-                    </Group>
-                  )}
-                </Table.Td>
-                <Table.Td>
-                  <Group gap={4} justify="flex-end" wrap="nowrap">
-                    <ActionIcon variant="subtle" color="gray" onClick={() => setEditing({ index: i, term })} aria-label={t("glossary.edit")}>
-                      <IconPencil size={16} />
-                    </ActionIcon>
-                    <ActionIcon variant="subtle" color="red" onClick={() => void remove(i)} aria-label={t("glossary.delete")}>
-                      <IconTrash size={16} />
-                    </ActionIcon>
-                  </Group>
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
-      )}
+      <DataTable
+        records={glossary.map((term, index) => ({ ...term, index }))}
+        rowKey={(row) => row.term}
+        loading={settings.isPending}
+        empty={t("glossary.empty")}
+        columns={[
+          { accessor: "term", title: t("glossary.term"), width: "25%" },
+          {
+            accessor: "keep",
+            title: t("glossary.handling"),
+            width: 120,
+            render: (row) => (
+              <Badge variant="light" color={row.keep ? "gray" : "bright-blue"}>
+                {t(row.keep ? "glossary.keep" : "glossary.fixed")}
+              </Badge>
+            ),
+          },
+          {
+            accessor: "translations",
+            title: t("glossary.translations"),
+            render: (row) =>
+              row.keep ? (
+                <Text c="dimmed" size="sm">
+                  —
+                </Text>
+              ) : (
+                <Group gap={6}>
+                  {Object.entries(row.translations ?? {}).map(([lang, text]) => (
+                    <Badge key={lang} variant="default" tt="none" fw={400} radius="sm">
+                      <Text span size="xs" c="dimmed" mr={6}>
+                        {languageName(lang, ui)}
+                      </Text>
+                      {text}
+                    </Badge>
+                  ))}
+                </Group>
+              ),
+          },
+          {
+            accessor: "actions",
+            title: "",
+            textAlign: "right",
+            render: (row) => (
+              <RowActions
+                onEdit={() => setEditing({ index: row.index, term: row })}
+                actions={[{ label: t("common.delete"), icon: <IconTrash size={14} />, danger: true, onClick: () => void remove(row.index) }]}
+              />
+            ),
+          },
+        ]}
+      />
       <Modal opened={!!editing} onClose={() => setEditing(undefined)} title={t(editing?.index === undefined ? "glossary.add" : "glossary.edit")} size="lg">
         {editing && (
           <TermForm

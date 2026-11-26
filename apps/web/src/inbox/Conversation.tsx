@@ -200,7 +200,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
                     onClick={() => setCreateTicketOpen(true)}
                     aria-label={t("tickets.create_from_conversation")}
                   >
-                    <IconTicket size={15} />
+                    <IconTicket size={16} />
                   </ActionIcon>
                 </Tooltip>
               ) : (
@@ -219,7 +219,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
                       onClick={() => open(activeSibling.id)}
                       aria-label={t("inbox.go_to_active_conversation")}
                     >
-                      <IconArrowRight size={15} />
+                      <IconArrowRight size={16} />
                     </ActionIcon>
                   </Tooltip>
                 ) : (
@@ -230,7 +230,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
               ) : compactActions ? (
                 <Tooltip label={t("inbox.reopen")}>
                   <ActionIcon variant="light" size="input-sm" loading={reopen.isPending} onClick={() => reopen.mutate()} aria-label={t("inbox.reopen")}>
-                    <IconRefresh size={15} />
+                    <IconRefresh size={16} />
                   </ActionIcon>
                 </Tooltip>
               ) : (
@@ -241,7 +241,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
             ) : compactActions ? (
               <Tooltip label={t("inbox.close")}>
                 <ActionIcon variant="light" color="green" size="input-sm" loading={close.isPending} onClick={() => close.mutate()} aria-label={t("inbox.close")}>
-                  <IconCheck size={15} />
+                  <IconCheck size={16} />
                 </ActionIcon>
               </Tooltip>
             ) : (
@@ -264,19 +264,8 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
           </Group>
         </PaneHeader>
         {activeSibling && (
-          <Alert
-            variant="light"
-            color="bright-blue"
-            radius={0}
-            py={8}
-            px="md"
-            icon={<IconInfoCircle size={16} />}
-            styles={{ message: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" } }}
-          >
+          <Alert variant="light" color="bright-blue" radius={0} py={8} px="md" icon={<IconInfoCircle size={16} />}>
             <Text size="xs">{t("inbox.active_conversation_banner")}</Text>
-            <Button size="compact-xs" variant="light" rightSection={<IconArrowRight size={12} />} onClick={() => open(activeSibling.id)}>
-              {t("inbox.go_to_active_conversation")}
-            </Button>
           </Alert>
         )}
         <Timeline

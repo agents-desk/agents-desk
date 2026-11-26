@@ -14,7 +14,6 @@ import {
   Stack,
   Switch,
   Table,
-  Tabs,
   Text,
   TextInput,
   Title,
@@ -23,10 +22,11 @@ import {
 import { useForm } from "@mantine/form"
 import { IconCheck, IconCopy } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useNavigate } from "@tanstack/react-router"
+import { useNavigate, useSearch } from "@tanstack/react-router"
 import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, ResourceSelect, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { tenantApi } from "../../api"
+import { useUnsavedGuard } from "../../components/unsaved-guard"
 import { teams } from "../../resources"
 
 /** Copy 复制 value 并在按钮上短暂显示对勾；默认尺寸与 sm 输入框等高。 */
@@ -190,7 +190,8 @@ export function TelegramStudio({ slug, id }: { slug: string; id: string }): Reac
   const t = useT()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [tab, setTab] = useState<string>("config")
+  // 当前标签记在地址的 ?tab= 中（Page 的 tabs），只有“配置”标签显示保存按钮
+  const tab = ((useSearch({ strict: false }) as { tab?: string }).tab ?? "config")
   const [serverError, setServerError] = useState<ReturnType<typeof applyServerErrors>>()
 
   const tg = useQuery({
@@ -239,6 +240,7 @@ export function TelegramStudio({ slug, id }: { slug: string; id: string }): Reac
   })
 
   const dirty = form.isDirty()
+  useUnsavedGuard(dirty)
 
   const handleDiscard = () => {
     if (!tg.data) return
@@ -276,88 +278,93 @@ export function TelegramStudio({ slug, id }: { slug: string; id: string }): Reac
           </Group>
         ) : undefined
       }
-    >
-      <Tabs value={tab} onChange={(v) => setTab(v ?? "config")} keepMounted={false}>
-        <Tabs.List mb="lg">
-          <Tabs.Tab value="config">{t("telegram_studio.tab_config")}</Tabs.Tab>
-          <Tabs.Tab value="install">{t("telegram_studio.tab_install")}</Tabs.Tab>
-        </Tabs.List>
+      tabs={[
+        {
+          value: "config",
+          label: t("telegram_studio.tab_config"),
+          content: (
+            <Box mih={640}>
+              {tg.isPending ? (
+                <Stack gap="md">
+                  <Skeleton height={150} radius="md" />
+                  <Skeleton height={200} radius="md" />
+                  <Skeleton height={130} radius="md" />
+                </Stack>
+              ) : (
+                <form onSubmit={form.onSubmit((v) => save.mutate(v))}>
+                  <Stack gap="md">
+                    <FormError error={serverError} />
 
-        <Tabs.Panel value="config" mih={640}>
-          {tg.isPending ? (
-            <Stack gap="md">
-              <Skeleton height={150} radius="md" />
-              <Skeleton height={200} radius="md" />
-              <Skeleton height={130} radius="md" />
-            </Stack>
-          ) : (
-            <form onSubmit={form.onSubmit((v) => save.mutate(v))}>
-              <Stack gap="md">
-                <FormError error={serverError} />
+                    <SectionCard title={t("telegram_studio.section_basic")} description={t("telegram_studio.section_basic_desc")}>
+                      <TextInput label={t("telegrams.name")} required maxLength={60} {...form.getInputProps("name")} />
+                      <Switch
+                        label={t("telegram_studio.enabled")}
+                        description={t("telegram_studio.enabled_hint")}
+                        {...form.getInputProps("enabled", { type: "checkbox" })}
+                      />
+                    </SectionCard>
 
-                <SectionCard title={t("telegram_studio.section_basic")} description={t("telegram_studio.section_basic_desc")}>
-                  <TextInput label={t("telegrams.name")} required maxLength={60} {...form.getInputProps("name")} />
-                  <Switch
-                    label={t("telegram_studio.enabled")}
-                    description={t("telegram_studio.enabled_hint")}
-                    {...form.getInputProps("enabled", { type: "checkbox" })}
-                  />
-                </SectionCard>
+                    <SectionCard title={t("telegram_studio.section_bot")} description={t("telegram_studio.section_bot_desc")}>
+                      <PasswordInput
+                        label={t("telegrams.bot_token")}
+                        description={t("telegrams.bot_token_update_hint")}
+                        autoComplete="off"
+                        {...form.getInputProps("bot_token")}
+                      />
+                      <Stack gap={6}>
+                        <Text size="sm" fw={500}>
+                          {t("telegrams.mode")}
+                        </Text>
+                        <SegmentedControl
+                          fullWidth
+                          value={form.values.gateway_managed ? "gateway" : "direct"}
+                          onChange={(v) => form.setFieldValue("gateway_managed", v === "gateway")}
+                          data={[
+                            { value: "direct", label: t("telegrams.mode_direct") },
+                            { value: "gateway", label: t("telegrams.mode_gateway") },
+                          ]}
+                        />
+                        <Text size="xs" c="dimmed">
+                          {t(form.values.gateway_managed ? "telegrams.mode_gateway_desc" : "telegrams.mode_direct_desc")}
+                        </Text>
+                      </Stack>
+                    </SectionCard>
 
-                <SectionCard title={t("telegram_studio.section_bot")} description={t("telegram_studio.section_bot_desc")}>
-                  <PasswordInput
-                    label={t("telegrams.bot_token")}
-                    description={t("telegrams.bot_token_update_hint")}
-                    autoComplete="off"
-                    {...form.getInputProps("bot_token")}
-                  />
-                  <Stack gap={6}>
-                    <Text size="sm" fw={500}>
-                      {t("telegrams.mode")}
-                    </Text>
-                    <SegmentedControl
-                      fullWidth
-                      value={form.values.gateway_managed ? "gateway" : "direct"}
-                      onChange={(v) => form.setFieldValue("gateway_managed", v === "gateway")}
-                      data={[
-                        { value: "direct", label: t("telegrams.mode_direct") },
-                        { value: "gateway", label: t("telegrams.mode_gateway") },
-                      ]}
-                    />
-                    <Text size="xs" c="dimmed">
-                      {t(form.values.gateway_managed ? "telegrams.mode_gateway_desc" : "telegrams.mode_direct_desc")}
-                    </Text>
+                    <SectionCard title={t("telegram_studio.section_routing")} description={t("telegram_studio.section_routing_desc")}>
+                      <ResourceSelect
+                        model={teams}
+                        label={t("telegrams.team_hint")}
+                        placeholder={t("telegrams.team_unassigned")}
+                        filterRow={(row) => row.status === "active" || String(row.id) === String(form.values.team_id ?? "")}
+                        getOption={(row) => ({
+                          value: String(row.id),
+                          label:
+                            row.status === "disabled"
+                              ? t("telegrams.team_disabled_suffix", { name: String(row.name ?? "") })
+                              : String(row.name ?? ""),
+                        })}
+                        value={form.values.team_id}
+                        onChange={(v) => form.setFieldValue("team_id", v)}
+                        error={form.errors.team_id}
+                        clearable
+                      />
+                    </SectionCard>
                   </Stack>
-                </SectionCard>
-
-                <SectionCard title={t("telegram_studio.section_routing")} description={t("telegram_studio.section_routing_desc")}>
-                  <ResourceSelect
-                    model={teams}
-                    label={t("telegrams.team_hint")}
-                    placeholder={t("telegrams.team_unassigned")}
-                    filterRow={(row) => row.status === "active" || String(row.id) === String(form.values.team_id ?? "")}
-                    getOption={(row) => ({
-                      value: String(row.id),
-                      label:
-                        row.status === "disabled"
-                          ? t("telegrams.team_disabled_suffix", { name: String(row.name ?? "") })
-                          : String(row.name ?? ""),
-                    })}
-                    value={form.values.team_id}
-                    onChange={(v) => form.setFieldValue("team_id", v)}
-                    error={form.errors.team_id}
-                    clearable
-                  />
-                </SectionCard>
-              </Stack>
-            </form>
-          )}
-        </Tabs.Panel>
-
-        <Tabs.Panel value="install" mih={640}>
-          <TelegramInstallPanel id={id} />
-        </Tabs.Panel>
-      </Tabs>
-    </Page>
+                </form>
+              )}
+            </Box>
+          ),
+        },
+        {
+          value: "install",
+          label: t("telegram_studio.tab_install"),
+          content: (
+            <Box mih={640}>
+              <TelegramInstallPanel id={id} />
+            </Box>
+          ),
+        },
+      ]}
+    />
   )
 }

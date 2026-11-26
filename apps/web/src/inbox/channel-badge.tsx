@@ -8,16 +8,16 @@ import type { ReactNode } from "react"
 export function ChannelIcon({ kind, size = 12 }: { kind: ChannelSummary["kind"] | string; size?: number }): ReactNode {
   switch (kind) {
     case "widget":
-      return <IconWorld size={size} stroke={1.8} style={{ flex: "none" }} />
+      return <IconWorld size={size} stroke={1.6} style={{ flex: "none" }} />
     case "business_link":
-      return <IconLink size={size} stroke={1.8} style={{ flex: "none" }} />
+      return <IconLink size={size} stroke={1.6} style={{ flex: "none" }} />
     case "telegram":
     case "telegram_account":
-      return <IconBrandTelegram size={size} stroke={1.8} style={{ flex: "none" }} />
+      return <IconBrandTelegram size={size} stroke={1.6} style={{ flex: "none" }} />
     case "test":
-      return <IconFlask size={size} stroke={1.8} style={{ flex: "none" }} />
+      return <IconFlask size={size} stroke={1.6} style={{ flex: "none" }} />
     default:
-      return <IconMessageCircle size={size} stroke={1.8} style={{ flex: "none" }} />
+      return <IconMessageCircle size={size} stroke={1.6} style={{ flex: "none" }} />
   }
 }
 
