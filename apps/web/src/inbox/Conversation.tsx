@@ -1,8 +1,8 @@
-import { ActionIcon, Avatar, Badge, Box, Button, Center, Divider, Drawer, Group, Loader, SegmentedControl, Text, Tooltip } from "@mantine/core"
+import { ActionIcon, Alert, Avatar, Badge, Box, Button, Center, Divider, Drawer, Group, Loader, SegmentedControl, Text, Tooltip } from "@mantine/core"
 import { useElementSize, useMediaQuery } from "@mantine/hooks"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate, useParams } from "@tanstack/react-router"
-import { IconCheck, IconLayoutSidebarRight, IconRefresh, IconTicket } from "@tabler/icons-react"
+import { IconArrowRight, IconCheck, IconInfoCircle, IconLayoutSidebarRight, IconRefresh, IconTicket } from "@tabler/icons-react"
 import { notifyError, Pane, PaneHeader, useCan, useCollapseNav, useNarrow, useT } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
@@ -10,7 +10,7 @@ import { isTypingTarget, NARROW_QUERY } from "../layout"
 import { CreateTicketModal } from "../tickets/CreateTicketModal"
 import { useConversationChannel } from "./channel"
 import { Composer, type ComposerHandle } from "./Composer"
-import { useConversation, useMe, useMembers, useTeams, useTimeline } from "./data"
+import { useContactHistory, useConversation, useMe, useMembers, useTeams, useTimeline } from "./data"
 import { Details } from "./Details"
 import { contactName } from "./List"
 import { AssignMenu, SnoozeMenu } from "./menus"
@@ -119,7 +119,16 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
   const close = useMutation({ mutationFn: () => tenantApi.conversation.close(id), onSuccess: invalidate, onError: (err) => notifyError(err) })
-  const reopen = useMutation({ mutationFn: () => tenantApi.conversation.reopen(id), onSuccess: invalidate, onError: (err) => notifyError(err) })
+  const reopen = useMutation({
+    mutationFn: () => tenantApi.conversation.reopen(id),
+    onSuccess: invalidate,
+    onError: (err) => {
+      notifyError(err)
+      void invalidate()
+    },
+  })
+  const contactHistory = useContactHistory(c?.status === "closed" ? c.contact?.id : undefined)
+  const activeSibling = c?.status === "closed" ? contactHistory.data?.items.find((x) => x.id !== c.id && x.status !== "closed") : undefined
 
   // 会话级快捷键（非输入态生效）：Shift+J 下一个待回复、R 回复、N 内部备注、I 切换详情栏、E 关闭会话
   const status = c?.status
@@ -262,7 +271,24 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
               ))}
             {c.status !== "closed" && <SnoozeMenu id={c.id} compact={compactActions} />}
             {c.status === "closed" ? (
-              compactActions ? (
+              activeSibling ? (
+                compactActions ? (
+                  <Tooltip label={t("inbox.go_to_active_conversation")}>
+                    <ActionIcon
+                      variant="light"
+                      size="input-sm"
+                      onClick={() => open(activeSibling.id)}
+                      aria-label={t("inbox.go_to_active_conversation")}
+                    >
+                      <IconArrowRight size={15} />
+                    </ActionIcon>
+                  </Tooltip>
+                ) : (
+                  <Button variant="light" ml={2} rightSection={<IconArrowRight size={14} />} onClick={() => open(activeSibling.id)}>
+                    {t("inbox.go_to_active_conversation")}
+                  </Button>
+                )
+              ) : compactActions ? (
                 <Tooltip label={t("inbox.reopen")}>
                   <ActionIcon variant="light" size="input-sm" loading={reopen.isPending} onClick={() => reopen.mutate()} aria-label={t("inbox.reopen")}>
                     <IconRefresh size={15} />
@@ -298,6 +324,22 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
             </Tooltip>
           </Group>
         </PaneHeader>
+        {activeSibling && (
+          <Alert
+            variant="light"
+            color="bright-blue"
+            radius={0}
+            py={8}
+            px="md"
+            icon={<IconInfoCircle size={16} />}
+            styles={{ message: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" } }}
+          >
+            <Text size="xs">{t("inbox.active_conversation_banner")}</Text>
+            <Button size="compact-xs" variant="light" rightSection={<IconArrowRight size={12} />} onClick={() => open(activeSibling.id)}>
+              {t("inbox.go_to_active_conversation")}
+            </Button>
+          </Alert>
+        )}
         <Timeline
           c={c}
           readSeq={readAtOpen.current ?? 0}

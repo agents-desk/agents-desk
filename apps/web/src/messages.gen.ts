@@ -156,10 +156,8 @@ export const messages = {
     "contacts.location": "Location",
     "contacts.location_placeholder": "e.g. Shanghai, Mumbai",
     "contacts.merge": "Merge contact",
-    "contacts.merge_active_conversations": "Also merge their open conversations",
-    "contacts.merge_active_conversations_hint": "When checked, open service conversations from both contacts will be merged chronologically into one window.",
     "contacts.merge_confirm_btn": "Merge contacts",
-    "contacts.merge_desc": "Select a duplicate contact to merge into “{{.name}}”. Their channel identities, conversations, tags, and notes will be moved here, and the source contact will be permanently deleted.",
+    "contacts.merge_desc": "Select a duplicate contact to merge into “{{.name}}”. Their channel identities, conversations, tags, and notes will move here, any open conversations from both contacts will merge chronologically into one thread, and the source contact will be permanently deleted.",
     "contacts.merge_done": "Contacts merged",
     "contacts.merge_empty": "No other contacts found",
     "contacts.merge_search": "Search contact to merge in (name, email, or #number)…",
@@ -248,7 +246,7 @@ export const messages = {
     "general.logo_upload_failed": "Upload failed",
     "general.name": "Name",
     "general.reopen_window": "Reopen window (hours)",
-    "general.reopen_window_hint": "For single-window channels (such as test channel, Telegram DM, or WhatsApp), a message arriving within this window after close reopens the conversation; after that, a new conversation is started. Set to 0 to always start a new conversation.",
+    "general.reopen_window_hint": "Across all chat channels (widget, Telegram, etc.), a message arriving within this window after close reopens the conversation; after that, a new service conversation is started. Set to 0 to always start a new conversation.",
     "glossary.add": "Add term",
     "glossary.add_translation": "Add language",
     "glossary.delete": "Delete",
@@ -288,6 +286,7 @@ export const messages = {
     "hours.time_zone": "Time zone",
     "hours.time_zone_hint": "Business hours follow the clock in this time zone",
     "hours.week": "Weekly hours",
+    "inbox.active_conversation_banner": "This contact already has an active conversation. Historical conversations are read-only for customer replies; continue in the active thread.",
     "inbox.add_note": "Add note",
     "inbox.add_tag": "Add tag",
     "inbox.all_tags": "All tags",
@@ -362,6 +361,7 @@ export const messages = {
     "inbox.empty_filtered": "No conversations match the current filter",
     "inbox.enter_again": "Translation updated. Check it, then press Enter again to send",
     "inbox.enter_hint": "Enter to send, Shift + Enter for a new line",
+    "inbox.go_to_active_conversation": "Go to active conversation",
     "inbox.hide_translation": "Hide translation",
     "inbox.language_auto": "Detect automatically",
     "inbox.language_auto_detected": "Detected: {{.lang}}",
@@ -399,12 +399,6 @@ export const messages = {
     "inbox.media_too_large": "Exceeds channel download size limit",
     "inbox.media_unavailable": "Media unavailable",
     "inbox.media_voice": "Voice message",
-    "inbox.merge_conversation": "Merge into current",
-    "inbox.merge_conversation_confirm": "Merge the conversation from {{.channel}} into the current one?",
-    "inbox.merge_conversation_desc": "Both timelines will be combined chronologically in one window with each message keeping its channel. The source conversation will be deleted and cannot be undone.",
-    "inbox.merge_conversation_done": "Conversations merged",
-    "inbox.merge_conversation_submit": "Merge",
-    "inbox.merge_conversation_title": "Merge conversation",
     "inbox.mode_note": "Internal note",
     "inbox.mode_reply": "Reply",
     "inbox.new_message_jump": "New messages ({{.n}})",
@@ -1144,17 +1138,12 @@ export const messages = {
     "widget_studio.allowed_origins_placeholder": "Type https://example.com and press Enter",
     "widget_studio.color": "Theme color",
     "widget_studio.color_hint": "Pick a swatch or enter any #rrggbb brand color; text contrast adapts automatically",
-    "widget_studio.conversation_mode": "Conversation mode",
     "widget_studio.discard": "Discard",
     "widget_studio.enabled": "Enable widget",
     "widget_studio.enabled_hint": "When disabled, the chat window is hidden and customers can no longer send messages",
     "widget_studio.greeting": "Greeting",
-    "widget_studio.greeting_hint": "Shown at the top of the widget home screen; leave empty for the default greeting",
+    "widget_studio.greeting_hint": "Shown at the top of the chat window; leave empty for the default greeting",
     "widget_studio.greeting_placeholder": "Hi there! How can we help?",
-    "widget_studio.mode_multiple": "Multiple",
-    "widget_studio.mode_multiple_desc": "Customers can view past conversations on the home screen and start new threads",
-    "widget_studio.mode_single": "Single",
-    "widget_studio.mode_single_desc": "Customers land straight in one continuous conversation thread with no home screen",
     "widget_studio.name": "Widget name",
     "widget_studio.name_hint": "Shown in the chat window header",
     "widget_studio.preview_hint": "Interactive preview — click around to test; click Save \u0026 publish to apply",
@@ -1162,14 +1151,11 @@ export const messages = {
     "widget_studio.save": "Save \u0026 publish",
     "widget_studio.saved": "Chat widget settings saved",
     "widget_studio.scene_conversation": "Chat",
-    "widget_studio.scene_home": "Home",
     "widget_studio.scene_launcher": "Launcher",
     "widget_studio.section_appearance": "Appearance \u0026 copy",
     "widget_studio.section_appearance_desc": "Customize the chat window's brand color and greeting",
     "widget_studio.section_basic": "Basics",
     "widget_studio.section_basic_desc": "Set the widget title and availability",
-    "widget_studio.section_behavior": "Conversation \u0026 behavior",
-    "widget_studio.section_behavior_desc": "Control how customers start and continue conversations",
     "widget_studio.section_routing": "Routing \u0026 security",
     "widget_studio.section_routing_desc": "Choose the destination team inbox and allowed embed origins",
     "widget_studio.tab_config": "Configure \u0026 preview",
@@ -1344,10 +1330,8 @@ export const messages = {
     "contacts.location": "所在地",
     "contacts.location_placeholder": "例如 上海、Mumbai",
     "contacts.merge": "合并联系人",
-    "contacts.merge_active_conversations": "同时合并两者正在进行中的会话",
-    "contacts.merge_active_conversations_hint": "勾选后，两个联系人名下未关闭的服务型会话将按时间合流到同一聊天窗口，方便继续跨渠道接待。",
     "contacts.merge_confirm_btn": "确认合并",
-    "contacts.merge_desc": "选择一个重复联系人合并进“{{.name}}”。其渠道身份、历史会话、标签与备注都会迁入当前联系人，原联系人将被删除且不可撤销。",
+    "contacts.merge_desc": "选择一个重复联系人合并进“{{.name}}”。其渠道身份、历史会话、标签与备注都会迁入当前联系人，双方正在进行中的会话会自动按时间归并为同一会话，原联系人将被删除且不可撤销。",
     "contacts.merge_done": "已合并联系人",
     "contacts.merge_empty": "没有找到其他可合并的联系人",
     "contacts.merge_search": "搜索要合并进来的联系人（名字、邮箱或 #编号）…",
@@ -1436,7 +1420,7 @@ export const messages = {
     "general.logo_upload_failed": "上传失败",
     "general.name": "名称",
     "general.reopen_window": "重开窗口（小时）",
-    "general.reopen_window_hint": "只有一个聊天窗口的渠道（例如测试渠道、Telegram 私聊、WhatsApp）在会话关闭后，客户在这个时间内再发消息会重新打开原会话，超时则新建会话；填 0 表示关闭后直接新建会话。",
+    "general.reopen_window_hint": "会话关闭后，客户在所有聊天渠道（网页插件、Telegram 等）于此时间内再发消息会自动重新打开原会话，超时则开启新一轮服务会话；填 0 表示关闭后直接开启新会话。",
     "glossary.add": "添加术语",
     "glossary.add_translation": "添加语言",
     "glossary.delete": "删除",
@@ -1476,6 +1460,7 @@ export const messages = {
     "hours.time_zone": "时区",
     "hours.time_zone_hint": "工作时间按这个时区的钟点计算",
     "hours.week": "每周的工作时间",
+    "inbox.active_conversation_banner": "该客户当前已有一条进行中的会话，历史会话仅可查阅或写内部备注，请直接在当前会话中沟通。",
     "inbox.add_note": "添加备注",
     "inbox.add_tag": "添加标签",
     "inbox.all_tags": "全部标签",
@@ -1550,6 +1535,7 @@ export const messages = {
     "inbox.empty_filtered": "没有符合当前筛选条件的会话",
     "inbox.enter_again": "译文已更新，确认后再按一次回车发送",
     "inbox.enter_hint": "回车发送，Shift + 回车换行",
+    "inbox.go_to_active_conversation": "前往当前会话",
     "inbox.hide_translation": "收起译文",
     "inbox.language_auto": "自动识别",
     "inbox.language_auto_detected": "自动识别：{{.lang}}",
@@ -1587,12 +1573,6 @@ export const messages = {
     "inbox.media_too_large": "超出渠道下载大小限制",
     "inbox.media_unavailable": "媒体不可用",
     "inbox.media_voice": "语音消息",
-    "inbox.merge_conversation": "合并到当前会话",
-    "inbox.merge_conversation_confirm": "把来自 {{.channel}} 的会话合并到当前会话？",
-    "inbox.merge_conversation_desc": "两条会话的时间线将按时间顺序合并到同一窗口，每条消息保留各自的渠道来源，来源会话合并后将被删除且无法撤销。",
-    "inbox.merge_conversation_done": "已合并会话",
-    "inbox.merge_conversation_submit": "确认合并",
-    "inbox.merge_conversation_title": "合并会话",
     "inbox.mode_note": "内部备注",
     "inbox.mode_reply": "回复",
     "inbox.new_message_jump": "{{.n}} 条新消息",
@@ -2332,17 +2312,12 @@ export const messages = {
     "widget_studio.allowed_origins_placeholder": "输入 https://example.com 后回车",
     "widget_studio.color": "主题色",
     "widget_studio.color_hint": "点选预设色块或输入自定义 #rrggbb 品牌色，顶栏与气泡文字颜色会自动适配对比度",
-    "widget_studio.conversation_mode": "会话模式",
     "widget_studio.discard": "还原",
     "widget_studio.enabled": "启用聊天插件",
-    "widget_studio.enabled_hint": "停用后聊天窗口不再向客户展示，客户无法发起新会话或发送消息",
+    "widget_studio.enabled_hint": "停用后聊天窗口不再向客户展示，客户无法发送消息",
     "widget_studio.greeting": "顶部问候语",
-    "widget_studio.greeting_hint": "展示在聊天窗口首页顶部；留空时显示默认问候语",
+    "widget_studio.greeting_hint": "展示在聊天窗口顶部；留空时显示默认问候语",
     "widget_studio.greeting_placeholder": "你好！有什么可以帮你？",
-    "widget_studio.mode_multiple": "多会话",
-    "widget_studio.mode_multiple_desc": "客户可以在首页查看历史会话并随时发起多个并行会话",
-    "widget_studio.mode_single": "单会话",
-    "widget_studio.mode_single_desc": "客户打开窗口直接进入对话，所有消息保持在单一连续对话流中",
     "widget_studio.name": "插件名称",
     "widget_studio.name_hint": "显示在聊天窗口标题栏中",
     "widget_studio.preview_hint": "实时预览支持直接点击体验，修改后需点击「保存并发布」生效",
@@ -2350,14 +2325,11 @@ export const messages = {
     "widget_studio.save": "保存并发布",
     "widget_studio.saved": "已保存聊天插件配置",
     "widget_studio.scene_conversation": "对话中",
-    "widget_studio.scene_home": "首页",
     "widget_studio.scene_launcher": "启动气泡",
     "widget_studio.section_appearance": "外观与文案",
     "widget_studio.section_appearance_desc": "自定义聊天窗口的品牌主题色与欢迎语",
     "widget_studio.section_basic": "基础信息",
     "widget_studio.section_basic_desc": "设置插件标题与启用状态",
-    "widget_studio.section_behavior": "会话与交互",
-    "widget_studio.section_behavior_desc": "控制客户在聊天窗口中的会话流形态",
     "widget_studio.section_routing": "路由与安全",
     "widget_studio.section_routing_desc": "配置新会话进入的团队收件箱与允许嵌入的域名",
     "widget_studio.tab_config": "配置与预览",
@@ -2535,8 +2507,6 @@ export type MessageId =
   | "contacts.location"
   | "contacts.location_placeholder"
   | "contacts.merge"
-  | "contacts.merge_active_conversations"
-  | "contacts.merge_active_conversations_hint"
   | "contacts.merge_confirm_btn"
   | "contacts.merge_desc"
   | "contacts.merge_done"
@@ -2667,6 +2637,7 @@ export type MessageId =
   | "hours.time_zone"
   | "hours.time_zone_hint"
   | "hours.week"
+  | "inbox.active_conversation_banner"
   | "inbox.add_note"
   | "inbox.add_tag"
   | "inbox.all_tags"
@@ -2741,6 +2712,7 @@ export type MessageId =
   | "inbox.empty_filtered"
   | "inbox.enter_again"
   | "inbox.enter_hint"
+  | "inbox.go_to_active_conversation"
   | "inbox.hide_translation"
   | "inbox.language_auto"
   | "inbox.language_auto_detected"
@@ -2778,12 +2750,6 @@ export type MessageId =
   | "inbox.media_too_large"
   | "inbox.media_unavailable"
   | "inbox.media_voice"
-  | "inbox.merge_conversation"
-  | "inbox.merge_conversation_confirm"
-  | "inbox.merge_conversation_desc"
-  | "inbox.merge_conversation_done"
-  | "inbox.merge_conversation_submit"
-  | "inbox.merge_conversation_title"
   | "inbox.mode_note"
   | "inbox.mode_reply"
   | "inbox.new_message_jump"
@@ -3523,17 +3489,12 @@ export type MessageId =
   | "widget_studio.allowed_origins_placeholder"
   | "widget_studio.color"
   | "widget_studio.color_hint"
-  | "widget_studio.conversation_mode"
   | "widget_studio.discard"
   | "widget_studio.enabled"
   | "widget_studio.enabled_hint"
   | "widget_studio.greeting"
   | "widget_studio.greeting_hint"
   | "widget_studio.greeting_placeholder"
-  | "widget_studio.mode_multiple"
-  | "widget_studio.mode_multiple_desc"
-  | "widget_studio.mode_single"
-  | "widget_studio.mode_single_desc"
   | "widget_studio.name"
   | "widget_studio.name_hint"
   | "widget_studio.preview_hint"
@@ -3541,14 +3502,11 @@ export type MessageId =
   | "widget_studio.save"
   | "widget_studio.saved"
   | "widget_studio.scene_conversation"
-  | "widget_studio.scene_home"
   | "widget_studio.scene_launcher"
   | "widget_studio.section_appearance"
   | "widget_studio.section_appearance_desc"
   | "widget_studio.section_basic"
   | "widget_studio.section_basic_desc"
-  | "widget_studio.section_behavior"
-  | "widget_studio.section_behavior_desc"
   | "widget_studio.section_routing"
   | "widget_studio.section_routing_desc"
   | "widget_studio.tab_config"

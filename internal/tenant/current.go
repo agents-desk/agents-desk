@@ -18,7 +18,7 @@ type CurrentDTO struct {
 	Name              string   `json:"name"`
 	LogoFileID        string   `json:"logo_file_id,omitempty" doc:"工作区 Logo 文件 ID，未设置时为空"`
 	LogoURL           string   `json:"logo_url" doc:"工作区 Logo 公开地址，未设置时为空"`
-	ReopenWindowHours int      `json:"reopen_window_hours" doc:"单窗口渠道会话关闭后的重开窗口（小时），0 表示关闭后不再重开"`
+	ReopenWindowHours int      `json:"reopen_window_hours" doc:"会话关闭后的重开窗口（小时），0 表示关闭后不再重开"`
 	Permissions       []string `json:"permissions" doc:"当前成员在这个工作区中的权限"`
 }
 

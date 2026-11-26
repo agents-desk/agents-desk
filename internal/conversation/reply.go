@@ -84,9 +84,12 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 		}
 		item = Item{Kind: Message, ActorType: actor, ActorID: sub.ID, Visibility: Everyone, Content: content, ChannelID: targetChannelID}
 		items := make([]*Item, 0, 3)
-		// 回复已关闭或稍后处理的会话时自动恢复打开，保证轮次与状态机自洽
+		// 回复已关闭或稍后处理的会话时自动恢复打开，保证轮次与状态机自洽；若联系人已有其他活跃会话则拒绝重开
 		switch c.Status {
 		case Closed:
+			if err := ensureNoOtherActive(ctx, tx, c); err != nil {
+				return err
+			}
 			items = append(items, event(sub, "conversation.reopened", map[string]any{"from": string(Closed)}))
 			c.Status, c.SnoozedUntil, c.OpenedAt, c.FirstReplyAt = Open, nil, at, nil
 			if err := openRound(ctx, tx, c, at); err != nil {

@@ -43,18 +43,8 @@ func reopen(sub identity.Subject) changeFunc {
 		}
 		from := c.Status
 		if from == Closed {
-			if c.ContactID != nil {
-				var activeID string
-				err := tx.NewSelect().Table("conversations").Column("id").
-					Where("tenant_id = ? AND kind = ? AND contact_id = ? AND id <> ? AND status IN (?)",
-						c.TenantID, Service, *c.ContactID, c.ID, bun.In([]Status{Open, Snoozed})).
-					Limit(1).Scan(ctx, &activeID)
-				if err == nil && activeID != "" {
-					return nil, ErrActiveConversationExists.New(errorx.Public("active_conversation_id", activeID))
-				}
-				if err != nil && !errors.Is(err, sql.ErrNoRows) {
-					return nil, errors.Wrap(err, "check active conversation before reopen")
-				}
+			if err := ensureNoOtherActive(ctx, tx, c); err != nil {
+				return nil, err
 			}
 			at := now()
 			c.OpenedAt, c.FirstReplyAt = at, nil
@@ -65,6 +55,26 @@ func reopen(sub identity.Subject) changeFunc {
 		c.Status, c.SnoozedUntil = Open, nil
 		return []*Item{event(sub, name, map[string]any{"from": string(from)})}, nil
 	}
+}
+
+// ensureNoOtherActive 检查联系人名下是否已存在其他未关闭（open/snoozed）的服务型会话；
+// 存在时返回 ErrActiveConversationExists 并携带当前活跃会话 ID，防止破坏单一活跃会话不变量。
+func ensureNoOtherActive(ctx context.Context, tx bun.IDB, c *Conversation) error {
+	if c.ContactID == nil || *c.ContactID == "" {
+		return nil
+	}
+	var activeID string
+	err := tx.NewSelect().Table("conversations").Column("id").
+		Where("tenant_id = ? AND kind = ? AND contact_id = ? AND id <> ? AND status IN (?)",
+			c.TenantID, Service, *c.ContactID, c.ID, bun.In([]Status{Open, Snoozed})).
+		Limit(1).Scan(ctx, &activeID)
+	if err == nil && activeID != "" {
+		return ErrActiveConversationExists.New(errorx.Public("active_conversation_id", activeID))
+	}
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return errors.Wrap(err, "check active conversation before reopen")
+	}
+	return nil
 }
 
 // HTTP 处理 POST /t/{slug}/api/conversations/{id}/reopen。
