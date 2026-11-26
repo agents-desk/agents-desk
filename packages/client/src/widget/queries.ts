@@ -100,6 +100,20 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
           invalidate(context, "file"),
       }),
     },
+    ticket: {
+      /** ticket 分组全部查询的 key 前缀。 */
+      key: () => key("ticket"),
+      /** GET /tickets/{id} */
+      get: (...args: Parameters<Client["ticket"]["get"]>) => ({
+        queryKey: key("ticket", "get", ...args),
+        queryFn: () => client.ticket.get(...args),
+      }),
+      /** GET /tickets */
+      list: (...args: Parameters<Client["ticket"]["list"]>) => ({
+        queryKey: key("ticket", "list", ...args),
+        queryFn: () => client.ticket.list(...args),
+      }),
+    },
     widget: {
       /** widget 分组全部查询的 key 前缀。 */
       key: () => key("widget"),

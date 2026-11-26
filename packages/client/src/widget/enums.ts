@@ -70,4 +70,12 @@ export const enums = {
       "zh-CN": { "blue-gray": "灰蓝", red: "红色", "deep-orange": "深橙", yellow: "黄色", green: "绿色", "sky-blue": "天蓝", "bright-blue": "亮蓝", violet: "紫罗兰", purple: "紫色", magenta: "洋红", brown: "棕色" },
     },
   },
+  TicketStatus: {
+    prefix: "ticket.status",
+    values: ["submitted", "in_progress", "waiting_on_customer", "resolved"],
+    labels: {
+      "en": { submitted: "Submitted", in_progress: "In progress", waiting_on_customer: "Waiting on customer", resolved: "Resolved" },
+      "zh-CN": { submitted: "已提交", in_progress: "处理中", waiting_on_customer: "等待客户", resolved: "已解决" },
+    },
+  },
 } as const

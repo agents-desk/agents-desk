@@ -72,6 +72,8 @@ export const messages = {
     "prompt.reply_time_hour": "We've got your message and typically reply within an hour.",
     "prompt.reply_time_hours": "We've got your message and typically reply in a few hours.",
     "prompt.reply_time_minutes": "We've got your message and typically reply in a few minutes.",
+    "prompt.ticket_status_changed": "Ticket #{{.number}} ({{.title}}) status updated to {{.status}}",
+    "prompt.ticket_update": "Ticket #{{.number}} update: {{.text}}",
     "rating.comment_placeholder": "Anything else you'd like to tell us? (optional)",
     "rating.question": "How was our service?",
     "rating.score_1": "Very unsatisfied",
@@ -82,6 +84,21 @@ export const messages = {
     "rating.submit": "Submit",
     "rating.subtitle": "Your feedback helps us do better",
     "rating.thanks": "Thanks for your feedback!",
+    "tickets.my_tickets": "Your tickets",
+    "tickets.not_found": "Ticket not found or unavailable",
+    "tickets.open_conversation": "Open conversation",
+    "tickets.reply_action": "Reply with details",
+    "tickets.single_entry": "Tickets ({{.n}})",
+    "tickets.status_in_progress": "In progress",
+    "tickets.status_resolved": "Resolved",
+    "tickets.status_submitted": "Submitted",
+    "tickets.status_waiting_on_customer": "Waiting for your reply",
+    "tickets.tab_conversations": "Conversations",
+    "tickets.tab_tickets": "Tickets",
+    "tickets.title": "Ticket #{{.number}}",
+    "tickets.updates_empty": "Our team is working on this and will share updates here soon.",
+    "tickets.updates_heading": "Updates",
+    "tickets.waiting_hint": "Our team needs more details from you. Reply in the linked conversation below.",
     "time.just_now": "Just now",
     "time.minutes_ago": "{{.n}} min ago",
     "time.today": "Today",
@@ -157,6 +174,8 @@ export const messages = {
     "prompt.reply_time_hour": "我们已收到你的消息，通常会在一小时内回复。",
     "prompt.reply_time_hours": "我们已收到你的消息，通常会在几小时内回复。",
     "prompt.reply_time_minutes": "我们已收到你的消息，通常会在几分钟内回复。",
+    "prompt.ticket_status_changed": "工单 #{{.number}}（{{.title}}）状态已更新为「{{.status}}」",
+    "prompt.ticket_update": "工单 #{{.number}} 进度更新：{{.text}}",
     "rating.comment_placeholder": "还想说点什么？（选填）",
     "rating.question": "这次服务怎么样？",
     "rating.score_1": "很不满意",
@@ -167,6 +186,21 @@ export const messages = {
     "rating.submit": "提交评价",
     "rating.subtitle": "你的评价会帮助我们做得更好",
     "rating.thanks": "感谢你的评价！",
+    "tickets.my_tickets": "我的工单",
+    "tickets.not_found": "该工单不存在或暂时无法查看",
+    "tickets.open_conversation": "查看关联会话",
+    "tickets.reply_action": "去补充信息",
+    "tickets.single_entry": "工单 ({{.n}})",
+    "tickets.status_in_progress": "处理中",
+    "tickets.status_resolved": "已解决",
+    "tickets.status_submitted": "已提交",
+    "tickets.status_waiting_on_customer": "等待您补充信息",
+    "tickets.tab_conversations": "会话",
+    "tickets.tab_tickets": "工单",
+    "tickets.title": "工单 #{{.number}}",
+    "tickets.updates_empty": "团队正在跟进处理，有最新进展将第一时间同步到这里。",
+    "tickets.updates_heading": "处理进度",
+    "tickets.waiting_hint": "客服正在等待您补充信息，点击下方按钮回到会话回复。",
     "time.just_now": "刚刚",
     "time.minutes_ago": "{{.n}} 分钟前",
     "time.today": "今天",
@@ -245,6 +279,8 @@ export type MessageId =
   | "prompt.reply_time_hour"
   | "prompt.reply_time_hours"
   | "prompt.reply_time_minutes"
+  | "prompt.ticket_status_changed"
+  | "prompt.ticket_update"
   | "rating.comment_placeholder"
   | "rating.question"
   | "rating.score_1"
@@ -255,6 +291,21 @@ export type MessageId =
   | "rating.submit"
   | "rating.subtitle"
   | "rating.thanks"
+  | "tickets.my_tickets"
+  | "tickets.not_found"
+  | "tickets.open_conversation"
+  | "tickets.reply_action"
+  | "tickets.single_entry"
+  | "tickets.status_in_progress"
+  | "tickets.status_resolved"
+  | "tickets.status_submitted"
+  | "tickets.status_waiting_on_customer"
+  | "tickets.tab_conversations"
+  | "tickets.tab_tickets"
+  | "tickets.title"
+  | "tickets.updates_empty"
+  | "tickets.updates_heading"
+  | "tickets.waiting_hint"
   | "time.just_now"
   | "time.minutes_ago"
   | "time.today"

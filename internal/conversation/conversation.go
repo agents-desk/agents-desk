@@ -440,6 +440,10 @@ func commit(ctx context.Context, tx database.Tx, down Downstream, c *Conversatio
 	if err != nil {
 		return err
 	}
+	ticketTargets, err := ticketContactPushTargets(ctx, tx, down, c, items)
+	if err != nil {
+		return err
+	}
 	at := now()
 	tasks := make([]Appended, 0, len(items))
 	syncIDs := make([]string, 0, len(items))
@@ -489,7 +493,81 @@ func commit(ctx context.Context, tx database.Tx, down Downstream, c *Conversatio
 			return errors.Join(errs...)
 		})
 	}
+	if len(ticketTargets) > 0 {
+		notify := down.ContactPush
+		tx.AfterCommit(func(ctx context.Context) error {
+			var errs []error
+			for _, target := range ticketTargets {
+				if err := notify(ctx, target.ChannelID, target.ContactID, ev); err != nil {
+					errs = append(errs, errors.Wrap(err, "push ticket changed to contact"))
+				}
+			}
+			return errors.Join(errs...)
+		})
+	}
 	return nil
+}
+
+// contactPushTarget 是工单变更推送到客户聊天插件频道的目标（渠道 ID + 联系人 ID）。
+type contactPushTarget struct {
+	ChannelID string `bun:"channel_id"`
+	ContactID string `bun:"contact_id"`
+}
+
+// ticketContactPushTargets 返回工单 c 发生对客户有意义的变更（公开进度、状态变化、标题/描述/可见范围修改、
+// 建单或关联关系变更）后，需要向网页聊天插件推送 push.Ticket 的目标频道列表。
+func ticketContactPushTargets(ctx context.Context, db bun.IDB, down Downstream, c *Conversation, items []*Item) ([]contactPushTarget, error) {
+	if down.ContactPush == nil || c.Kind != Ticket {
+		return nil, nil
+	}
+	relevant := false
+	for _, it := range items {
+		if it.Kind == Message && it.Visibility == Everyone {
+			relevant = true
+			break
+		}
+		if it.Kind == Event {
+			switch it.Content.Event {
+			case "ticket.created", "ticket.updated", "ticket.status_changed", "ticket.conversation_linked", "ticket.conversation_unlinked":
+				relevant = true
+			}
+		}
+		if relevant {
+			break
+		}
+	}
+	if !relevant {
+		return nil, nil
+	}
+	// 查出关联服务型会话对应的全部联系人及其可推送的启用网页聊天插件频道：
+	// 已登录用户推送到其全部已启用 widget 渠道，访客线索推送到关联会话所在的启用 widget 渠道。
+	var targets []contactPushTarget
+	err := db.NewRaw(`
+		SELECT DISTINCT ci.channel_id, sc.contact_id
+		FROM conversation_links cl
+		JOIN conversations sc ON sc.id = cl.conversation_id
+		JOIN contacts ct ON ct.id = sc.contact_id
+		JOIN contact_identities ci ON ci.tenant_id = sc.tenant_id AND ci.contact_id = sc.contact_id
+		JOIN channels ch ON ch.id = ci.channel_id
+		WHERE cl.tenant_id = ? AND cl.ticket_id = ?
+			AND sc.tenant_id = ? AND sc.kind = ? AND sc.contact_id IS NOT NULL
+			AND ct.kind = ? AND ch.kind = ? AND ch.enabled = true
+		UNION
+		SELECT DISTINCT sc.channel_id, sc.contact_id
+		FROM conversation_links cl
+		JOIN conversations sc ON sc.id = cl.conversation_id
+		JOIN contacts ct ON ct.id = sc.contact_id
+		JOIN channels ch ON ch.id = sc.channel_id
+		WHERE cl.tenant_id = ? AND cl.ticket_id = ?
+			AND sc.tenant_id = ? AND sc.kind = ? AND sc.contact_id IS NOT NULL AND sc.channel_id IS NOT NULL
+			AND ct.kind <> ? AND ch.kind = ? AND ch.enabled = true`,
+		c.TenantID, c.ID, c.TenantID, Service, contact.User, channel.Widget,
+		c.TenantID, c.ID, c.TenantID, Service, contact.User, channel.Widget,
+	).Scan(ctx, &targets)
+	if err != nil {
+		return nil, errors.Wrap(err, "load ticket contact push targets")
+	}
+	return targets, nil
 }
 
 // pushType 返回会话种类对应的实时推送事件类型：工单推 push.Ticket，其余推 push.Conversation。

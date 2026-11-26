@@ -68,6 +68,21 @@ type ConversationOutput struct {
 	Body conversation.ContactConversationDTO
 }
 
+// TicketInput 是指定客户的一张工单的请求。
+type TicketInput struct {
+	ID string `path:"id" format:"uuid"`
+}
+
+// TicketListOutput 是客户可见的工单列表。
+type TicketListOutput struct {
+	Body []conversation.ContactTicketDTO
+}
+
+// TicketDetailOutput 是客户可见的单张工单详情。
+type TicketDetailOutput struct {
+	Body conversation.ContactTicketDetailDTO
+}
+
 // NewConversationInput 是客户发起新会话的请求：第一条消息。
 type NewConversationInput struct {
 	Body MessageBody
@@ -132,6 +147,7 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 	sendMessage := NewSendMessage(db, receive)
 	leaveEmail := NewLeaveEmail(db, down)
 	list, get, items := conversation.NewListForContact(db), conversation.NewGetForContact(db), conversation.NewTimelineForContact(db, down.Media)
+	listTickets, getTicket := conversation.NewListTicketsForContact(db), conversation.NewGetTicketForContact(db, down.Media)
 	markRead := conversation.NewMarkReadByContact(db, down)
 	rate := conversation.NewRateByContact(db, down)
 	typing := conversation.NewTypingByContact(db, down)
@@ -230,6 +246,30 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 		}
 		return &ContactOutput{Body: *out}, nil
 	})
+	rest.Register(api, route(requireContact, "ticket-list", http.MethodGet, "/tickets", "我的工单"),
+		func(ctx context.Context, _ *struct{}) (*TicketListOutput, error) {
+			sub, ch, err := visitor(ctx)
+			if err != nil {
+				return nil, err
+			}
+			out, err := listTickets.Handle(ctx, sub, ch)
+			if err != nil {
+				return nil, err
+			}
+			return &TicketListOutput{Body: out}, nil
+		})
+	rest.Register(api, route(requireContact, "ticket-get", http.MethodGet, "/tickets/{id}", "读取工单详情"),
+		func(ctx context.Context, in *TicketInput) (*TicketDetailOutput, error) {
+			sub, ch, err := visitor(ctx)
+			if err != nil {
+				return nil, err
+			}
+			out, err := getTicket.Handle(ctx, sub, ch, in.ID)
+			if err != nil {
+				return nil, err
+			}
+			return &TicketDetailOutput{Body: *out}, nil
+		})
 }
 
 // visitor 返回请求的调用者（联系人）和本次请求的聊天插件的 ID。
