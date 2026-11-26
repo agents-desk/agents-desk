@@ -640,7 +640,6 @@ export const messages = {
     "nav.reports_translation": "Translation",
     "nav.roles": "Roles",
     "nav.settings": "Settings",
-    "nav.status": "Status",
     "nav.switch_tenant": "Switch workspace",
     "nav.tags": "Tags",
     "nav.team_inboxes": "Team inboxes",
@@ -884,7 +883,6 @@ export const messages = {
     "status.description": "While online, you can be assigned conversations automatically. While away, automatic assignment skips you, and you keep the conversations you already own.",
     "status.reassign": "Reassign my conversations",
     "status.reassign_hint": "When the customer writes again, the conversation goes back to its team inbox to be reassigned",
-    "status_page.description": "Set separately for each workspace. Changes take effect immediately.",
     "tags.description": "Tags can be applied to conversations and contacts for categorization, filtering, and reporting. Deleting a tag removes it from tagged conversations and contacts.",
     "team_hours.custom": "Set its own time zone and weekly hours",
     "team_hours.hint": "Special dates and reply time apply to the whole workspace. Change them in “Settings → Business hours”.",
@@ -1890,7 +1888,6 @@ export const messages = {
     "nav.reports_translation": "翻译",
     "nav.roles": "角色",
     "nav.settings": "设置",
-    "nav.status": "在线状态",
     "nav.switch_tenant": "切换工作区",
     "nav.tags": "标签",
     "nav.team_inboxes": "团队收件箱",
@@ -2134,7 +2131,6 @@ export const messages = {
     "status.description": "在线时可以被自动分配会话；离开时不会被自动分配，已经负责的会话仍由你处理。",
     "status.reassign": "把我的会话重新分配",
     "status.reassign_hint": "对方再发来消息时，会话回到团队收件箱重新分配",
-    "status_page.description": "每个工作区分开设置。修改后立即生效。",
     "tags.description": "标签可以打在会话和联系人上，用于分类、筛选和统计。删除标签会同时从已打标的会话和联系人上移除。",
     "team_hours.custom": "单独设置时区和每周的工作时间",
     "team_hours.hint": "特殊日期和回复时间对整个工作区有效，在“设置 → 工作时间”中修改。",
@@ -3143,7 +3139,6 @@ export type MessageId =
   | "nav.reports_translation"
   | "nav.roles"
   | "nav.settings"
-  | "nav.status"
   | "nav.switch_tenant"
   | "nav.tags"
   | "nav.team_inboxes"
@@ -3387,7 +3382,6 @@ export type MessageId =
   | "status.description"
   | "status.reassign"
   | "status.reassign_hint"
-  | "status_page.description"
   | "tags.description"
   | "team_hours.custom"
   | "team_hours.hint"

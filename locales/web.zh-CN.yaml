@@ -273,7 +273,6 @@ nav.reports_satisfaction: "满意度"
 nav.reports_translation: "翻译"
 nav.roles: "角色"
 nav.settings: "设置"
-nav.status: "在线状态"
 nav.switch_tenant: "切换工作区"
 nav.tags: "标签"
 nav.team_inboxes: "团队收件箱"
@@ -505,8 +504,6 @@ tags.description: "标签可以打在会话和联系人上，用于分类、筛�
 status.description: "在线时可以被自动分配会话；离开时不会被自动分配，已经负责的会话仍由你处理。"
 status.reassign: "把我的会话重新分配"
 status.reassign_hint: "对方再发来消息时，会话回到团队收件箱重新分配"
-
-status_page.description: "每个工作区分开设置。修改后立即生效。"
 
 team_hours.custom: "单独设置时区和每周的工作时间"
 team_hours.hint: "特殊日期和回复时间对整个工作区有效，在“设置 → 工作时间”中修改。"

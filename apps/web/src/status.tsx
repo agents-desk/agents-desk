@@ -1,4 +1,4 @@
-import { Badge, Box, Checkbox, Group, SegmentedControl, Skeleton, Stack, Text } from "@mantine/core"
+import { Badge, Box, Checkbox, Group, SegmentedControl, Skeleton, Stack, Tooltip } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useParams } from "@tanstack/react-router"
 import { notifyError, useLanguage, useT } from "@go-tenon/ui"
@@ -34,9 +34,9 @@ function StatusLabel({ status }: { status: MemberStatus }): ReactNode {
 
 /**
  * StatusControl 是我在当前工作区的在线状态：在线、离开两段切换；离开时下面是“把我的会话重新分配”。修改后立即保存，
- * 并刷新成员列表和团队收件箱的成员，让其中的状态跟着变。个人菜单和设置中的“在线状态”都用它。
+ * 并刷新成员列表和团队收件箱的成员，让其中的状态跟着变。放在个人菜单中。
  */
-export function StatusControl({ description }: { description?: boolean }): ReactNode {
+export function StatusControl(): ReactNode {
   const { slug } = useParams({ from: "/t/$slug" })
   const queryClient = useQueryClient()
   const t = useT()
@@ -55,23 +55,20 @@ export function StatusControl({ description }: { description?: boolean }): React
   if (!value) return <Skeleton h={30} radius="md" />
   return (
     <Stack gap="xs">
-      <SegmentedControl
-        fullWidth
-        size="xs"
-        value={value.status}
-        onChange={(s) => save.mutate({ ...value, status: s as MemberStatus })}
-        data={statuses.map((s) => ({ value: s, label: <StatusLabel status={s} /> }))}
-      />
-      {description && (
-        <Text size="sm" c="dimmed">
-          {t("status.description")}
-        </Text>
-      )}
+      <Tooltip label={t("status.description")} multiline w={220} withArrow openDelay={300}>
+        <SegmentedControl
+          fullWidth
+          size="xs"
+          value={value.status}
+          onChange={(s) => save.mutate({ ...value, status: s as MemberStatus })}
+          data={statuses.map((s) => ({ value: s, label: <StatusLabel status={s} /> }))}
+        />
+      </Tooltip>
       {value.status === "away" && (
         <Checkbox
           size="xs"
           label={t("status.reassign")}
-          description={description ? t("status.reassign_hint") : undefined}
+          description={t("status.reassign_hint")}
           checked={value.reassign}
           onChange={(e) => save.mutate({ ...value, reassign: e.currentTarget.checked })}
         />

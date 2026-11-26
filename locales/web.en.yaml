@@ -273,7 +273,6 @@ nav.reports_satisfaction: "Satisfaction"
 nav.reports_translation: "Translation"
 nav.roles: "Roles"
 nav.settings: "Settings"
-nav.status: "Status"
 nav.switch_tenant: "Switch workspace"
 nav.tags: "Tags"
 nav.team_inboxes: "Team inboxes"
@@ -505,8 +504,6 @@ tags.description: "Tags can be applied to conversations and contacts for categor
 status.description: "While online, you can be assigned conversations automatically. While away, automatic assignment skips you, and you keep the conversations you already own."
 status.reassign: "Reassign my conversations"
 status.reassign_hint: "When the customer writes again, the conversation goes back to its team inbox to be reassigned"
-
-status_page.description: "Set separately for each workspace. Changes take effect immediately."
 
 team_hours.custom: "Set its own time zone and weekly hours"
 team_hours.hint: "Special dates and reply time apply to the whole workspace. Change them in “Settings → Business hours”."
