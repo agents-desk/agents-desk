@@ -65,23 +65,38 @@ function TenantLayout() {
   // 实时推送：会话有变化时刷新收件箱的数量和会话，命中提醒时按通知偏好播放提示音或弹桌面通知；
   // 图标栏中收件箱的角标是“我的”会话中等待回复的数量。
   // 同一条连接交给页面（RealtimeContext），收件箱用它加入打开着的会话的频道
-  const centrifuge = useRealtime(tenant.slug, tenant.id, user.data?.id, ({ id, alert }) => {
+  const centrifuge = useRealtime(tenant.slug, tenant.id, user.data?.id, ({ type, id, alert }) => {
     dispatchPushAlert({
       slug: tenant.slug,
       conversationId: id,
       alert,
       settings: user.data?.notifications,
       t,
-      onOpen: (convId) =>
+      onOpen: (convId) => {
+        if (type === "chat") {
+          void navigate({ to: "/t/$slug/chat/$id", params: { slug: tenant.slug, id: convId } })
+          return
+        }
+        if (type === "ticket") {
+          void navigate({
+            to: "/t/$slug/tickets/$id",
+            params: { slug: tenant.slug, id: convId },
+            search: { box: "all", status: "unresolved" },
+          })
+          return
+        }
         void navigate({
           to: "/t/$slug/inbox/$id",
           params: { slug: tenant.slug, id: convId },
           search: { box: "all", status: "open", sort: "waiting" },
-        }),
+        })
+      },
     })
   })
   const inbox = useQuery({ ...kit.queries.conversation.inbox(), enabled: can("conversations:read") })
+  const chatUnread = useQuery({ ...kit.queries.chat.unread(), enabled: can("conversations:read") })
   useMenuBadge("/t/$slug/inbox", inbox.data?.mine.waiting)
+  useMenuBadge("/t/$slug/chat", chatUnread.data?.unread_messages)
   // 工作区设置不进图标栏，从个人菜单进入；非代为登录且属于多个工作区时，个人菜单中还可以回到选择工作区的页面。
   const settings = `/t/${tenant.slug}/settings`
   const items = [

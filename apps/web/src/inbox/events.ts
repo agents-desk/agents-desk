@@ -158,6 +158,21 @@ export function describeEvent(it: ConversationItemDTO, members: Map<string, Memb
       return t("event.conv_ticket_linked", { who, number: Number(d.number ?? 0), title: String(d.title ?? "") })
     case "conversation.ticket_unlinked":
       return t("event.conv_ticket_unlinked", { who, number: Number(d.number ?? 0) })
+    case "chat.created":
+      return t("event.chat_created", { who, name: String(d.name ?? "") })
+    case "chat.renamed":
+      return t("event.chat_renamed", { who, name: String(d.to ?? "") })
+    case "chat.member_added": {
+      const ids = Array.isArray(d.member_ids) ? d.member_ids.map(String) : []
+      const addedNames = ids.map((id) => names.member(id)).filter(Boolean).join(", ")
+      return t("event.chat_member_added", { who, names: addedNames || t("event.someone") })
+    }
+    case "chat.member_removed": {
+      const target = typeof d.participant_id === "string" ? names.member(d.participant_id) : t("event.someone")
+      return t("event.chat_member_removed", { who, name: target })
+    }
+    case "chat.member_left":
+      return t("event.chat_member_left", { who })
     default:
       return it.content.event ?? ""
   }

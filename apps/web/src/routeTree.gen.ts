@@ -13,11 +13,14 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as TSlugRouteImport } from './routes/t/$slug'
 import { Route as TSlugIndexRouteImport } from './routes/t/$slug/index'
+import { Route as TSlugChatRouteImport } from './routes/t/$slug/chat'
 import { Route as TSlugContactsRouteImport } from './routes/t/$slug/contacts'
 import { Route as TSlugInboxRouteImport } from './routes/t/$slug/inbox'
 import { Route as TSlugReportsRouteImport } from './routes/t/$slug/reports'
 import { Route as TSlugSettingsRouteImport } from './routes/t/$slug/settings'
 import { Route as TSlugTicketsRouteImport } from './routes/t/$slug/tickets'
+import { Route as TSlugChatIndexRouteImport } from './routes/t/$slug/chat/index'
+import { Route as TSlugChatIdRouteImport } from './routes/t/$slug/chat/$id'
 import { Route as TSlugContactsIndexRouteImport } from './routes/t/$slug/contacts/index'
 import { Route as TSlugContactsIdRouteImport } from './routes/t/$slug/contacts/$id'
 import { Route as TSlugInboxIndexRouteImport } from './routes/t/$slug/inbox/index'
@@ -85,6 +88,11 @@ const TSlugIndexRoute = TSlugIndexRouteImport.update({
   path: '/',
   getParentRoute: () => TSlugRoute,
 } as any)
+const TSlugChatRoute = TSlugChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => TSlugRoute,
+} as any)
 const TSlugContactsRoute = TSlugContactsRouteImport.update({
   id: '/contacts',
   path: '/contacts',
@@ -109,6 +117,16 @@ const TSlugTicketsRoute = TSlugTicketsRouteImport.update({
   id: '/tickets',
   path: '/tickets',
   getParentRoute: () => TSlugRoute,
+} as any)
+const TSlugChatIndexRoute = TSlugChatIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => TSlugChatRoute,
+} as any)
+const TSlugChatIdRoute = TSlugChatIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => TSlugChatRoute,
 } as any)
 const TSlugContactsIndexRoute = TSlugContactsIndexRouteImport.update({
   id: '/',
@@ -368,12 +386,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/t/$slug': typeof TSlugRouteWithChildren
+  '/t/$slug/chat': typeof TSlugChatRouteWithChildren
   '/t/$slug/contacts': typeof TSlugContactsRouteWithChildren
   '/t/$slug/inbox': typeof TSlugInboxRouteWithChildren
   '/t/$slug/reports': typeof TSlugReportsRouteWithChildren
   '/t/$slug/settings': typeof TSlugSettingsRouteWithChildren
   '/t/$slug/tickets': typeof TSlugTicketsRouteWithChildren
   '/t/$slug/': typeof TSlugIndexRoute
+  '/t/$slug/chat/$id': typeof TSlugChatIdRoute
   '/t/$slug/contacts/$id': typeof TSlugContactsIdRoute
   '/t/$slug/inbox/$id': typeof TSlugInboxIdRoute
   '/t/$slug/reports/conversations': typeof TSlugReportsConversationsRoute
@@ -382,6 +402,7 @@ export interface FileRoutesByFullPath {
   '/t/$slug/reports/satisfaction': typeof TSlugReportsSatisfactionRoute
   '/t/$slug/reports/translation': typeof TSlugReportsTranslationRoute
   '/t/$slug/tickets/$id': typeof TSlugTicketsIdRoute
+  '/t/$slug/chat/': typeof TSlugChatIndexRoute
   '/t/$slug/contacts/': typeof TSlugContactsIndexRoute
   '/t/$slug/inbox/': typeof TSlugInboxIndexRoute
   '/t/$slug/reports/': typeof TSlugReportsIndexRoute
@@ -419,6 +440,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/t/$slug': typeof TSlugIndexRoute
+  '/t/$slug/chat/$id': typeof TSlugChatIdRoute
   '/t/$slug/contacts/$id': typeof TSlugContactsIdRoute
   '/t/$slug/inbox/$id': typeof TSlugInboxIdRoute
   '/t/$slug/reports/conversations': typeof TSlugReportsConversationsRoute
@@ -428,6 +450,7 @@ export interface FileRoutesByTo {
   '/t/$slug/reports/translation': typeof TSlugReportsTranslationRoute
   '/t/$slug/settings': typeof TSlugSettingsIndexRoute
   '/t/$slug/tickets/$id': typeof TSlugTicketsIdRoute
+  '/t/$slug/chat': typeof TSlugChatIndexRoute
   '/t/$slug/contacts': typeof TSlugContactsIndexRoute
   '/t/$slug/inbox': typeof TSlugInboxIndexRoute
   '/t/$slug/reports': typeof TSlugReportsIndexRoute
@@ -461,12 +484,14 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/t/$slug': typeof TSlugRouteWithChildren
+  '/t/$slug/chat': typeof TSlugChatRouteWithChildren
   '/t/$slug/contacts': typeof TSlugContactsRouteWithChildren
   '/t/$slug/inbox': typeof TSlugInboxRouteWithChildren
   '/t/$slug/reports': typeof TSlugReportsRouteWithChildren
   '/t/$slug/settings': typeof TSlugSettingsRouteWithChildren
   '/t/$slug/tickets': typeof TSlugTicketsRouteWithChildren
   '/t/$slug/': typeof TSlugIndexRoute
+  '/t/$slug/chat/$id': typeof TSlugChatIdRoute
   '/t/$slug/contacts/$id': typeof TSlugContactsIdRoute
   '/t/$slug/inbox/$id': typeof TSlugInboxIdRoute
   '/t/$slug/reports/conversations': typeof TSlugReportsConversationsRoute
@@ -481,6 +506,7 @@ export interface FileRoutesById {
   '/t/$slug/settings/_translation': typeof TSlugSettingsTranslationRouteWithChildren
   '/t/$slug/settings/_workspace': typeof TSlugSettingsWorkspaceRouteWithChildren
   '/t/$slug/tickets/$id': typeof TSlugTicketsIdRoute
+  '/t/$slug/chat/': typeof TSlugChatIndexRoute
   '/t/$slug/contacts/': typeof TSlugContactsIndexRoute
   '/t/$slug/inbox/': typeof TSlugInboxIndexRoute
   '/t/$slug/reports/': typeof TSlugReportsIndexRoute
@@ -520,12 +546,14 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/t/$slug'
+    | '/t/$slug/chat'
     | '/t/$slug/contacts'
     | '/t/$slug/inbox'
     | '/t/$slug/reports'
     | '/t/$slug/settings'
     | '/t/$slug/tickets'
     | '/t/$slug/'
+    | '/t/$slug/chat/$id'
     | '/t/$slug/contacts/$id'
     | '/t/$slug/inbox/$id'
     | '/t/$slug/reports/conversations'
@@ -534,6 +562,7 @@ export interface FileRouteTypes {
     | '/t/$slug/reports/satisfaction'
     | '/t/$slug/reports/translation'
     | '/t/$slug/tickets/$id'
+    | '/t/$slug/chat/'
     | '/t/$slug/contacts/'
     | '/t/$slug/inbox/'
     | '/t/$slug/reports/'
@@ -571,6 +600,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/t/$slug'
+    | '/t/$slug/chat/$id'
     | '/t/$slug/contacts/$id'
     | '/t/$slug/inbox/$id'
     | '/t/$slug/reports/conversations'
@@ -580,6 +610,7 @@ export interface FileRouteTypes {
     | '/t/$slug/reports/translation'
     | '/t/$slug/settings'
     | '/t/$slug/tickets/$id'
+    | '/t/$slug/chat'
     | '/t/$slug/contacts'
     | '/t/$slug/inbox'
     | '/t/$slug/reports'
@@ -612,12 +643,14 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/t/$slug'
+    | '/t/$slug/chat'
     | '/t/$slug/contacts'
     | '/t/$slug/inbox'
     | '/t/$slug/reports'
     | '/t/$slug/settings'
     | '/t/$slug/tickets'
     | '/t/$slug/'
+    | '/t/$slug/chat/$id'
     | '/t/$slug/contacts/$id'
     | '/t/$slug/inbox/$id'
     | '/t/$slug/reports/conversations'
@@ -632,6 +665,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/_translation'
     | '/t/$slug/settings/_workspace'
     | '/t/$slug/tickets/$id'
+    | '/t/$slug/chat/'
     | '/t/$slug/contacts/'
     | '/t/$slug/inbox/'
     | '/t/$slug/reports/'
@@ -702,6 +736,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugIndexRouteImport
       parentRoute: typeof TSlugRoute
     }
+    '/t/$slug/chat': {
+      id: '/t/$slug/chat'
+      path: '/chat'
+      fullPath: '/t/$slug/chat'
+      preLoaderRoute: typeof TSlugChatRouteImport
+      parentRoute: typeof TSlugRoute
+    }
     '/t/$slug/contacts': {
       id: '/t/$slug/contacts'
       path: '/contacts'
@@ -736,6 +777,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/t/$slug/tickets'
       preLoaderRoute: typeof TSlugTicketsRouteImport
       parentRoute: typeof TSlugRoute
+    }
+    '/t/$slug/chat/': {
+      id: '/t/$slug/chat/'
+      path: '/'
+      fullPath: '/t/$slug/chat/'
+      preLoaderRoute: typeof TSlugChatIndexRouteImport
+      parentRoute: typeof TSlugChatRoute
+    }
+    '/t/$slug/chat/$id': {
+      id: '/t/$slug/chat/$id'
+      path: '/$id'
+      fullPath: '/t/$slug/chat/$id'
+      preLoaderRoute: typeof TSlugChatIdRouteImport
+      parentRoute: typeof TSlugChatRoute
     }
     '/t/$slug/contacts/': {
       id: '/t/$slug/contacts/'
@@ -1062,6 +1117,20 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface TSlugChatRouteChildren {
+  TSlugChatIdRoute: typeof TSlugChatIdRoute
+  TSlugChatIndexRoute: typeof TSlugChatIndexRoute
+}
+
+const TSlugChatRouteChildren: TSlugChatRouteChildren = {
+  TSlugChatIdRoute: TSlugChatIdRoute,
+  TSlugChatIndexRoute: TSlugChatIndexRoute,
+}
+
+const TSlugChatRouteWithChildren = TSlugChatRoute._addFileChildren(
+  TSlugChatRouteChildren,
+)
+
 interface TSlugContactsRouteChildren {
   TSlugContactsIdRoute: typeof TSlugContactsIdRoute
   TSlugContactsIndexRoute: typeof TSlugContactsIndexRoute
@@ -1328,6 +1397,7 @@ const TSlugTicketsRouteWithChildren = TSlugTicketsRoute._addFileChildren(
 )
 
 interface TSlugRouteChildren {
+  TSlugChatRoute: typeof TSlugChatRouteWithChildren
   TSlugContactsRoute: typeof TSlugContactsRouteWithChildren
   TSlugInboxRoute: typeof TSlugInboxRouteWithChildren
   TSlugReportsRoute: typeof TSlugReportsRouteWithChildren
@@ -1337,6 +1407,7 @@ interface TSlugRouteChildren {
 }
 
 const TSlugRouteChildren: TSlugRouteChildren = {
+  TSlugChatRoute: TSlugChatRouteWithChildren,
   TSlugContactsRoute: TSlugContactsRouteWithChildren,
   TSlugInboxRoute: TSlugInboxRouteWithChildren,
   TSlugReportsRoute: TSlugReportsRouteWithChildren,

@@ -12,7 +12,7 @@ import { NARROW_QUERY } from "../../../layout"
 // 左侧常驻联系人名录，选中某位联系人后右侧展开可拖拽调节的档案分栏（子路由 contacts/$id）：
 // 1440px 以上三栏并排；1200–1439px 自动收起二级导航；900–1199px 改为右侧浮层抽屉；小于 900px 轮流占满。
 export const Route = createFileRoute("/t/$slug/contacts")({
-  staticData: { title: "nav.contacts", icon: "contacts", order: 2, permission: "contacts:read", fullBleed: true },
+  staticData: { title: "nav.contacts", icon: "contacts", order: 3, permission: "contacts:read", fullBleed: true },
   validateSearch: validateContactsSearch,
   component: ContactsLayout,
 })
