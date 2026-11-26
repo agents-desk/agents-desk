@@ -177,13 +177,13 @@ func TestSearchFullTextAndTranslation(t *testing.T) {
 		t.Fatalf("成员回复译文检索异常：%+v", resReplyTrans.Items)
 	}
 
-	// 4. 非工作区主要语言的补译（fr）不进入全文索引
+	// 4. 所有已生成的跨语言派生译文（含非主要语言补译 fr）均进入全文索引，便于多语言团队成员按各自语言检索
 	resFR, err := searcher.Handle(ctx, owner1, &conversation.SearchInput{Q: "exclusive_fr_token"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resFR.Total != 0 {
-		t.Fatalf("非主要语言译文不应被搜到，实际 total=%d", resFR.Total)
+	if resFR.Total != 1 || resFR.Items[0].Match.Field != "translated" {
+		t.Fatalf("已生成的跨语言补译应可被检索到，实际：%+v", resFR.Items)
 	}
 
 	// 5. 内部备注可以搜到，且标识 kind=note, field=note

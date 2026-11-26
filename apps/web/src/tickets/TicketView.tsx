@@ -8,12 +8,10 @@ import {
   Center,
   CopyButton,
   Divider,
-  Drawer,
   Group,
   Loader,
   Menu,
   Paper,
-  SegmentedControl,
   Skeleton,
   Stack,
   Text,
@@ -21,7 +19,7 @@ import {
   Tooltip,
   UnstyledButton,
 } from "@mantine/core"
-import { useElementSize, useMediaQuery } from "@mantine/hooks"
+import { useElementSize } from "@mantine/hooks"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   IconCheck,
@@ -35,18 +33,18 @@ import {
   IconWorld,
 } from "@tabler/icons-react"
 import {
+  AsidePane,
   ImageLightbox,
   notifyError,
-  Pane,
   PaneHeader,
+  useAsidePaneState,
   useCan,
-  useCollapseNav,
   useLanguage,
   useNarrow,
   useT,
   useTimeZone,
 } from "@go-tenon/ui"
-import { Fragment, type ReactNode, useCallback, useEffect, useRef, useState } from "react"
+import { Fragment, type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { languageName } from "../languages"
 import { NARROW_QUERY } from "../layout"
@@ -62,37 +60,16 @@ import { TICKET_STATUSES, ticketStatusColor, ticketStatusLabel, ticketVisibility
 import { TicketComposer } from "./TicketComposer"
 import { TicketDetails } from "./TicketDetails"
 
-const DETAILS_STORAGE_KEY = "agents-desk:ticket-details-open"
-
-function readSavedDetails(): boolean {
-  try {
-    const raw = localStorage.getItem(DETAILS_STORAGE_KEY)
-    return raw === null ? true : raw === "1"
-  } catch {
-    return true
-  }
-}
-
-function saveDetails(open: boolean): void {
-  try {
-    localStorage.setItem(DETAILS_STORAGE_KEY, open ? "1" : "0")
-  } catch {
-    // 浏览器禁用存储时仅在当前会话生效
-  }
-}
-
 /**
  * TicketView 是单张工单的协作主工作区：
- * 顶栏展示 #编号、可就地编辑标题、类型与可见范围、译文/原文切换、4 状态下拉、指派菜单和详情栏开关；
+ * 顶栏展示 #编号、可就地编辑标题、类型与可见范围、4 状态下拉、指派菜单和详情栏开关；
  * 中间时间线展示系统事件、跨语言自动互译的内部讨论备注和对外同步的公开进度消息；
- * 底部是双模式输入卡片（内部讨论 / 公开进度），右侧是工单字段与关联会话栏。
+ * 底部是双模式输入卡片（内部讨论 / 公开进度），右侧由框架 AsidePane 承载工单字段与受影响客户详情栏。
  */
 export function TicketView({ id, tenantId, back }: { id: string; tenantId: string; back: () => void }): ReactNode {
   const t = useT()
   const can = useCan()
   const narrow = useNarrow(NARROW_QUERY)
-  const wide = useMediaQuery("(min-width: 1600px)") ?? false
-  const canInlineDetails = useMediaQuery("(min-width: 1360px)") ?? false
   const queryClient = useQueryClient()
   const me = useMe()
   const { list: members, byId } = useMembers()
@@ -101,28 +78,10 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
   const timeline = useTimeline(id)
   const { viewers, typing, notifyTyping, clearTyping } = useConversationChannel(tenantId, id, me.data?.id)
 
-  const [details, setDetails] = useState(() => (narrow ? false : readSavedDetails()))
-  const [original, setOriginal] = useState(false)
+  const details = useAsidePaneState("ticket-details", { defaultOpen: true, compactQuery: NARROW_QUERY })
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState("")
   const { ref: mainRef, width: mainWidth } = useElementSize()
-  useCollapseNav(details && canInlineDetails && !wide && !narrow)
-
-  useEffect(() => {
-    if (narrow) setDetails(false)
-  }, [narrow])
-
-  const closeDetails = useCallback(() => {
-    setDetails(false)
-    if (!narrow) saveDetails(false)
-  }, [narrow])
-  const toggleDetails = useCallback(() => {
-    setDetails((prev) => {
-      const next = !prev
-      if (!narrow) saveDetails(next)
-      return next
-    })
-  }, [narrow])
 
   const tk = ticketQuery.data
   const last = timeline.data?.at(-1)
@@ -175,15 +134,7 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
     )
   }
 
-  if (narrow && details) return <TicketDetails ticket={tk} onClose={closeDetails} />
-
   const myId = me.data?.id
-  const myLang = me.data?.language
-  const hasTrans = Boolean(
-    timeline.data?.some(
-      (it) => (it.kind === "note" || it.kind === "message") && it.actor.id !== myId && Boolean(translationOf(it, myLang)),
-    ),
-  )
   const assignee = tk.assignee?.type === "member" ? (tk.assignee.id === myId ? t("inbox.you") : byId.get(tk.assignee.id)?.name) : undefined
   const teamRow = tk.team_id ? teams.find((x) => x.id === tk.team_id) : undefined
   const meta = [
@@ -195,8 +146,6 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
     .filter(Boolean)
     .join(" · ")
 
-  const inlineDetails = details && !narrow && canInlineDetails
-  const drawerDetails = details && !narrow && !canInlineDetails
   const compactActions = narrow || (mainWidth > 0 && mainWidth < 680)
   const canEdit = can("conversations:reply")
   const canAssignOthers = can("conversations:assign")
@@ -301,21 +250,6 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
             style={{ flex: "none" }}
             data-tn-density="dense"
           >
-            {hasTrans && (
-              <>
-                <SegmentedControl
-                  value={original ? "original" : "translation"}
-                  onChange={(v) => setOriginal(v === "original")}
-                  data={[
-                    { value: "translation", label: t("inbox.translated") },
-                    { value: "original", label: t("inbox.original") },
-                  ]}
-                  aria-label={t("inbox.text_shown")}
-                />
-                <Divider orientation="vertical" h={16} mx={2} style={{ alignSelf: "center" }} />
-              </>
-            )}
-
             <Menu position="bottom-end" withinPortal>
               <Menu.Target>
                 <Button
@@ -406,10 +340,10 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
             <Divider orientation="vertical" h={16} mx={2} style={{ alignSelf: "center" }} />
             <Tooltip label={t("inbox.details")}>
               <ActionIcon
-                variant={details ? "light" : "subtle"}
-                color={details ? undefined : "gray"}
+                variant={details.opened ? "light" : "subtle"}
+                color={details.opened ? undefined : "gray"}
                 size="input-sm"
-                onClick={toggleDetails}
+                onClick={details.toggle}
                 aria-label={t("inbox.details")}
               >
                 <IconLayoutSidebarRight size={16} />
@@ -418,23 +352,19 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
           </Group>
         </PaneHeader>
 
-        <TicketTimeline ticket={tk} original={original} typingNames={typing.map((x) => x.name ?? "").filter(Boolean)} />
+        <TicketTimeline ticket={tk} typingNames={typing.map((x) => x.name ?? "").filter(Boolean)} />
 
         <TicketComposer key={tk.id} ticket={tk} onTyping={notifyTyping} />
       </Box>
 
-      {inlineDetails && (
-        <Pane border="left" resizable={{ storageKey: "ticket-details", defaultWidth: 340, min: 280, max: 440, side: "left" }}>
-          <TicketDetails ticket={tk} onClose={closeDetails} />
-        </Pane>
-      )}
-      {!narrow && !canInlineDetails && (
-        <Drawer opened={drawerDetails} onClose={closeDetails} position="right" size={350} padding={0} withCloseButton={false}>
-          <Box h="100dvh">
-            <TicketDetails ticket={tk} onClose={closeDetails} />
-          </Box>
-        </Drawer>
-      )}
+      <AsidePane
+        opened={details.opened}
+        onClose={details.close}
+        compactQuery={NARROW_QUERY}
+        resizable={{ storageKey: "ticket-details", defaultWidth: 340, min: 280, max: 440 }}
+      >
+        <TicketDetails ticket={tk} onClose={details.close} />
+      </AsidePane>
     </Group>
   )
 }
@@ -442,11 +372,9 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
 /** TicketTimeline 渲染工单的协作时间线：系统事件、跨语言内部讨论备注和同步至客户的公开进度消息。 */
 function TicketTimeline({
   ticket,
-  original,
   typingNames,
 }: {
   ticket: ConversationTicketDTO
-  original: boolean
   typingNames: string[]
 }): ReactNode {
   const t = useT()
@@ -510,7 +438,6 @@ function TicketTimeline({
                     time={clock(it.created_at, ui, zone)}
                     fullTime={fullDateTime(it.created_at, ui, zone)}
                     lang={me.data?.language}
-                    original={original}
                     translating={translating}
                     watch={watch}
                     mt={gapTop}
@@ -548,7 +475,6 @@ function TicketTimelineCard({
   time,
   fullTime,
   lang,
-  original,
   translating,
   watch,
   mt,
@@ -561,7 +487,6 @@ function TicketTimelineCard({
   time: string
   fullTime: string
   lang: string | undefined
-  original: boolean
   translating: boolean
   watch: FillWatcher
   mt: number
@@ -569,19 +494,13 @@ function TicketTimelineCard({
 }): ReactNode {
   const t = useT()
   const ui = useLanguage()
-  const [prevOriginal, setPrevOriginal] = useState(original)
-  const [flip, setFlip] = useState(false)
+  const [showOriginal, setShowOriginal] = useState(false)
   const [showVerified, setShowVerified] = useState(false)
-  if (prevOriginal !== original) {
-    setPrevOriginal(original)
-    setFlip(false)
-  }
 
   const isPublic = it.kind === "message" && it.visibility === "all"
   const raw = it.content.text ?? ""
   const translated = isOwn ? undefined : translationOf(it, lang)
   const verified = isOwn ? verifiedTranslationOf(it) : undefined
-  const showOriginal = original !== flip
   const shown = translated && !showOriginal ? translated : raw
   const fromLang = it.derived.language as string | undefined
   const needFill = !isOwn && translating && it.untranslated
@@ -678,7 +597,7 @@ function TicketTimelineCard({
                   </Text>
                 </>
               )}
-              <UnstyledButton className="inbox-caption-btn" onClick={() => setFlip((f) => !f)}>
+              <UnstyledButton className="inbox-caption-btn" onClick={() => setShowOriginal((v) => !v)}>
                 {t(showOriginal ? "inbox.view_translation" : "inbox.view_original")}
               </UnstyledButton>
             </>

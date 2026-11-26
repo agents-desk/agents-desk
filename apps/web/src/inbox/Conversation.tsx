@@ -1,10 +1,10 @@
-import { ActionIcon, Alert, Avatar, Badge, Box, Button, Center, Divider, Drawer, Group, Loader, SegmentedControl, Text, Tooltip } from "@mantine/core"
-import { useElementSize, useMediaQuery } from "@mantine/hooks"
+import { ActionIcon, Alert, Avatar, Badge, Box, Button, Center, Divider, Group, Loader, Text, Tooltip } from "@mantine/core"
+import { useElementSize } from "@mantine/hooks"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate, useParams } from "@tanstack/react-router"
 import { IconArrowRight, IconCheck, IconInfoCircle, IconLayoutSidebarRight, IconRefresh, IconTicket } from "@tabler/icons-react"
-import { notifyError, Pane, PaneHeader, useCan, useCollapseNav, useNarrow, useT } from "@go-tenon/ui"
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
+import { AsidePane, notifyError, PaneHeader, useAsidePaneState, useCan, useNarrow, useT } from "@go-tenon/ui"
+import { type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { isTypingTarget, NARROW_QUERY } from "../layout"
 import { CreateTicketModal } from "../tickets/CreateTicketModal"
@@ -15,28 +15,7 @@ import { Details } from "./Details"
 import { contactName } from "./List"
 import { AssignMenu, SnoozeMenu } from "./menus"
 import type { MatchField } from "./search"
-import { hasTranslation, Timeline } from "./Timeline"
-
-/** DETAILS_STORAGE_KEY 保存宽屏下右侧详情栏的展开偏好，切换会话时保持一致。 */
-const DETAILS_STORAGE_KEY = "agents-desk:inbox-details-open"
-
-/** readSavedDetails 读出宽屏下保存的详情栏展开状态，读取失败时默认关闭。 */
-function readSavedDetails(): boolean {
-  try {
-    return localStorage.getItem(DETAILS_STORAGE_KEY) === "1"
-  } catch {
-    return false
-  }
-}
-
-/** saveDetails 持久化宽屏下详情栏的展开偏好。 */
-function saveDetails(open: boolean): void {
-  try {
-    localStorage.setItem(DETAILS_STORAGE_KEY, open ? "1" : "0")
-  } catch {
-    // 浏览器禁用存储时仅在当前会话生效
-  }
-}
+import { Timeline } from "./Timeline"
 
 /** ConversationProps 是会话页的设置。 */
 interface ConversationProps {
@@ -51,18 +30,15 @@ interface ConversationProps {
 }
 
 /**
- * ConversationView 是会话视图：顶部展示联系人、非默认状态及渠道/团队/负责人上下文，右侧按主次分层排列译文切换、
- * 指派、稍后处理、关闭/重开与导航控件；中间是时间线；底部是回复框。打开时和前台收到新消息时自动标记已读。
- * 详情是第五栏：窗口宽度小于 1600px 时打开详情自动收起二级导航，关闭后恢复；窄屏时详情占满并支持返回列表。
+ * ConversationView 是会话视图：顶部展示联系人、非默认状态及渠道/团队/负责人上下文，右侧按主次分层排列
+ * 指派、稍后处理、关闭/重开与详情栏开关；中间是时间线；底部是回复框。打开时和前台收到新消息时自动标记已读。
+ * 右侧详情栏由框架 AsidePane 统一响应式适配（宽屏内联可调宽、中屏浮层抽屉、窄屏全屏覆盖）。
  */
 export function ConversationView({ id, tenantId, highlight, focusSeq, focusField, open, next, back }: ConversationProps): ReactNode {
   const t = useT()
   const can = useCan()
   const navigate = useNavigate()
   const narrow = useNarrow(NARROW_QUERY)
-  // 1600px 以上四栏+详情并排；1360–1599px 打开详情自动收起二级导航；900–1359px 详情改为右侧浮层抽屉避免挤压聊天区。
-  const wide = useMediaQuery("(min-width: 1600px)") ?? false
-  const canInlineDetails = useMediaQuery("(min-width: 1360px)") ?? false
   const { slug } = useParams({ from: "/t/$slug" })
   const queryClient = useQueryClient()
   const me = useMe()
@@ -71,29 +47,10 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
   const conversation = useConversation(id)
   const timeline = useTimeline(id, focusSeq)
   const { viewers, typing, notifyTyping, clearTyping } = useConversationChannel(tenantId, id, me.data?.id)
-  const [details, setDetails] = useState(() => (narrow ? false : readSavedDetails()))
-  const [original, setOriginal] = useState(false) // 对方的消息都显示原文
+  const details = useAsidePaneState("inbox-details", { compactQuery: NARROW_QUERY })
   const [createTicketOpen, setCreateTicketOpen] = useState(false)
   const { ref: mainRef, width: mainWidth } = useElementSize()
   const composerRef = useRef<ComposerHandle>(null)
-  useCollapseNav(details && canInlineDetails && !wide && !narrow)
-
-  // 从宽屏切到窄屏时自动收起详情，避免详情页占满整屏遮挡聊天记录
-  useEffect(() => {
-    if (narrow) setDetails(false)
-  }, [narrow])
-
-  const closeDetails = useCallback(() => {
-    setDetails(false)
-    if (!narrow) saveDetails(false)
-  }, [narrow])
-  const toggleDetails = useCallback(() => {
-    setDetails((prev) => {
-      const next = !prev
-      if (!narrow) saveDetails(next)
-      return next
-    })
-  }, [narrow])
 
   // 打开时读到的位置：“新消息”分隔线画在它之后，读过之后也保持在原处
   const readAtOpen = useRef<number | null>(null)
@@ -145,7 +102,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
       }
       if (key === "i") {
         e.preventDefault()
-        toggleDetails()
+        details.toggle()
       } else if (key === "r") {
         e.preventDefault()
         composerRef.current?.focus("reply")
@@ -159,7 +116,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
     }
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
-  }, [close, next, status, toggleDetails])
+  }, [close, next, status, details.toggle])
 
   if (!c) {
     return (
@@ -179,11 +136,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
   const meta = [channelText, team, assignee ? t("inbox.assigned_to", { who: assignee }) : t("inbox.no_assignee")]
     .filter(Boolean)
     .join(" · ")
-  const showTranslateToggle = hasTranslation(timeline.data, me.data?.language, me.data?.id)
 
-  if (narrow && details) return <Details c={c} onClose={closeDetails} onOpen={open} />
-  const inlineDetails = details && !narrow && canInlineDetails
-  const drawerDetails = details && !narrow && !canInlineDetails
   // 当聊天列实际宽度小于 640px（例如中屏四栏并排）或移动端窄屏时，操作按钮降级为图标 + Tooltip，避免挤压联系人名字
   const compactActions = narrow || (mainWidth > 0 && mainWidth < 640)
   return (
@@ -236,20 +189,6 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
             style={{ flex: "none" }}
             data-tn-density="dense"
           >
-            {showTranslateToggle && (
-              <>
-                <SegmentedControl
-                  value={original ? "original" : "translation"}
-                  onChange={(v) => setOriginal(v === "original")}
-                  data={[
-                    { value: "translation", label: t("inbox.translated") },
-                    { value: "original", label: t("inbox.original") },
-                  ]}
-                  aria-label={t("inbox.text_shown")}
-                />
-                <Divider orientation="vertical" h={16} mx={2} style={{ alignSelf: "center" }} />
-              </>
-            )}
             <AssignMenu c={c} compact={compactActions} />
             {can("conversations:reply") &&
               (compactActions ? (
@@ -313,10 +252,10 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
             <Divider orientation="vertical" h={16} mx={2} style={{ alignSelf: "center" }} />
             <Tooltip label={t("inbox.details")}>
               <ActionIcon
-                variant={details ? "light" : "subtle"}
-                color={details ? undefined : "gray"}
+                variant={details.opened ? "light" : "subtle"}
+                color={details.opened ? undefined : "gray"}
                 size="input-sm"
-                onClick={toggleDetails}
+                onClick={details.toggle}
                 aria-label={t("inbox.details")}
               >
                 <IconLayoutSidebarRight size={16} />
@@ -344,7 +283,6 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
           c={c}
           readSeq={readAtOpen.current ?? 0}
           typing={typing}
-          original={original}
           highlight={highlight}
           focusSeq={focusSeq}
           focusField={focusField}
@@ -357,18 +295,14 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
           handleRef={composerRef}
         />
       </Box>
-      {inlineDetails && (
-        <Pane border="left" resizable={{ storageKey: "inbox-details", defaultWidth: 320, min: 260, max: 420, side: "left" }}>
-          <Details c={c} onClose={closeDetails} onOpen={open} />
-        </Pane>
-      )}
-      {!narrow && !canInlineDetails && (
-        <Drawer opened={drawerDetails} onClose={closeDetails} position="right" size={340} padding={0} withCloseButton={false}>
-          <Box h="100dvh">
-            <Details c={c} onClose={closeDetails} onOpen={open} />
-          </Box>
-        </Drawer>
-      )}
+      <AsidePane
+        opened={details.opened}
+        onClose={details.close}
+        compactQuery={NARROW_QUERY}
+        resizable={{ storageKey: "inbox-details", defaultWidth: 320, min: 260, max: 420 }}
+      >
+        <Details c={c} onClose={details.close} onOpen={open} />
+      </AsidePane>
       <CreateTicketModal
         opened={createTicketOpen}
         onClose={() => setCreateTicketOpen(false)}

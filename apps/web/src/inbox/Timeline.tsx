@@ -41,27 +41,17 @@ export function translationOf(it: ConversationItemDTO, lang: string | undefined)
   return lang ? all?.[lang] : undefined
 }
 
-/** hasTranslation 返回时间线中是否有非本人发出的消息或内部备注带着成员语言 lang 的译文：有时会话顶部显示“译文 | 原文”的切换。 */
-export function hasTranslation(items: ConversationItemDTO[] | undefined, lang: string | undefined, myId?: string): boolean {
-  return !!items?.some(
-    (it) =>
-      (it.actor.type === "contact" || (it.actor.type === "member" && it.actor.id !== myId)) &&
-      Boolean(translationOf(it, lang)),
-  )
-}
-
 /**
  * Timeline 是会话的时间线：按天分隔；对方的消息在左侧，成员和系统发的在右侧并显示送达状态（失败时可以重发）；
  * 系统事件居中、灰色；内部备注占满一行、黄色底。打开时读到的位置 readSeq 之后显示“新消息”分隔线。
  * 新的内容出现时滚到底部；最下面是正在输入的人。
- * 对方的消息显示成员语言的译文，original 为真时（顶部选了“原文”）显示原文，每条也可以单独切换；
+ * 非本人消息默认展示当前成员语言的译文，每条消息或备注可单独切换查看原文；
  * 成员翻译后发出的消息显示成员写的原文，可以展开发给对方的译文。
  */
 export function Timeline({
   c,
   readSeq,
   typing,
-  original,
   highlight,
   focusSeq,
   focusField,
@@ -69,7 +59,6 @@ export function Timeline({
   c: ConversationDTO
   readSeq: number
   typing: TypingNow[]
-  original: boolean
   highlight?: string
   focusSeq?: number
   focusField?: MatchField
@@ -233,7 +222,6 @@ export function Timeline({
                     fullTime={fullDateTime(it.created_at, language, zone)}
                     mt={gapTop}
                     lang={me.data?.language}
-                    original={original}
                     translating={enabled}
                     watch={watch}
                     highlight={highlight}
@@ -253,7 +241,6 @@ export function Timeline({
                     last={!groupedWithNext}
                     mt={gapTop}
                     lang={me.data?.language}
-                    original={original}
                     translating={enabled}
                     watch={watch}
                     highlight={highlight}
@@ -309,7 +296,6 @@ interface MessageProps {
   last: boolean // 连续同人消息组的最后一条：己方消息在底部显示送达状态
   mt: number // 顶部间距（组内紧凑、跨组舒展）
   lang: string | undefined // 成员的语言：对方的消息显示这种语言的译文
-  original: boolean // 顶部选了“原文”：对方的消息都显示原文
   translating: boolean // 翻译可用：还缺我的语言的译文的消息显示“翻译中”，出现在页面上时请求补译
   watch: FillWatcher // 挂在还缺译文的消息上，见 useFillVisible
   highlight?: string // 当前搜索词：高亮气泡内命中的文本
@@ -322,20 +308,15 @@ interface MessageProps {
  * Message 是一条消息：对方的在左侧，成员和系统发的在右侧，旁边是悬浮复制按钮，底部是译文切换与送达状态（失败时可以重发）。
  * 连续同人消息合并为组：组首显示作者与时间，组内消息省略重复头部并用方向圆角自然衔接。
  */
-function Message({ it, c, mine, isOwn, author, time, fullTime, first, last, mt, lang, original, translating, watch, highlight, focused, preferOriginal, onPreview }: MessageProps): ReactNode {
+function Message({ it, c, mine, isOwn, author, time, fullTime, first, last, mt, lang, translating, watch, highlight, focused, preferOriginal, onPreview }: MessageProps): ReactNode {
   const t = useT()
   const ui = useLanguage()
   const zone = useTimeZone()
-  const [prevOriginal, setPrevOriginal] = useState(original)
-  const [flip, setFlip] = useState(() => Boolean(preferOriginal && !original)) // 这一条和顶部的“显示原文”相反；顶部切换时重置
-  if (prevOriginal !== original) {
-    setPrevOriginal(original)
-    setFlip(false)
-  }
+  const [showOriginal, setShowOriginal] = useState(() => Boolean(preferOriginal))
   const [prevPrefer, setPrevPrefer] = useState(preferOriginal)
   if (prevPrefer !== preferOriginal) {
     setPrevPrefer(preferOriginal)
-    if (preferOriginal && !original) setFlip(true)
+    if (preferOriginal) setShowOriginal(true)
   }
   const [sent, setSent] = useState(false) // 展开发给对方的译文
   const queryClient = useQueryClient()
@@ -350,7 +331,6 @@ function Message({ it, c, mine, isOwn, author, time, fullTime, first, last, mt, 
   const text = it.content.prompt ? promptText(it.content.prompt, it.content.text ?? "", ui, t, zone) : (it.content.text ?? "")
   const translatableForViewer = it.actor.type === "contact" || (it.actor.type === "member" && !isOwn)
   const translated = translatableForViewer ? translationOf(it, lang) : undefined
-  const showOriginal = original !== flip
   const sentAs = mine && it.content.original ? it.content.language : undefined
   const shown = translated && !showOriginal ? translated : sentAs ? (it.content.original ?? "") : text
   const from = it.derived.language as string | undefined
@@ -372,7 +352,7 @@ function Message({ it, c, mine, isOwn, author, time, fullTime, first, last, mt, 
             </Text>
           </>
         )}
-        <CaptionToggle label={t(showOriginal ? "inbox.view_translation" : "inbox.view_original")} onClick={() => setFlip((f) => !f)} />
+        <CaptionToggle label={t(showOriginal ? "inbox.view_translation" : "inbox.view_original")} onClick={() => setShowOriginal((v) => !v)} />
       </>
     )
   } else if (needFill) {
@@ -542,7 +522,6 @@ function Note({
   fullTime,
   mt,
   lang,
-  original,
   translating,
   watch,
   highlight,
@@ -557,7 +536,6 @@ function Note({
   fullTime: string
   mt: number
   lang: string | undefined
-  original: boolean
   translating: boolean
   watch: FillWatcher
   highlight?: string
@@ -566,17 +544,11 @@ function Note({
 }): ReactNode {
   const t = useT()
   const ui = useLanguage()
-  const [prevOriginal, setPrevOriginal] = useState(original)
-  const [flip, setFlip] = useState(false)
+  const [showOriginal, setShowOriginal] = useState(false)
   const [showVerified, setShowVerified] = useState(false)
-  if (prevOriginal !== original) {
-    setPrevOriginal(original)
-    setFlip(false)
-  }
   const raw = it.content.text ?? ""
   const translated = isOwn ? undefined : translationOf(it, lang)
   const verified = isOwn ? verifiedTranslationOf(it) : undefined
-  const showOriginal = original !== flip
   const shown = translated && !showOriginal ? translated : raw
   const from = it.derived.language as string | undefined
   const needFill = !isOwn && translating && it.untranslated
@@ -653,7 +625,7 @@ function Note({
                   </Text>
                 </>
               )}
-              <CaptionToggle label={t(showOriginal ? "inbox.view_translation" : "inbox.view_original")} onClick={() => setFlip((f) => !f)} />
+              <CaptionToggle label={t(showOriginal ? "inbox.view_translation" : "inbox.view_original")} onClick={() => setShowOriginal((v) => !v)} />
             </>
           ) : needFill ? (
             <>

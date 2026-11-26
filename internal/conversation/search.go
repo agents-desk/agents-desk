@@ -3,6 +3,7 @@ package conversation
 import (
 	"context"
 	"database/sql"
+	"slices"
 	"strings"
 	"time"
 
@@ -16,8 +17,6 @@ import (
 
 	"agents-desk/internal/attribute"
 	"agents-desk/internal/auth"
-	"agents-desk/internal/lang"
-	"agents-desk/internal/member"
 )
 
 // ItemSearchDoc 是会话时间线中一条消息或内部备注在全文搜索中的索引文档。
@@ -66,28 +65,31 @@ func LoadSearchDocs(ctx context.Context, tx bun.IDB, key string) ([]ItemSearchDo
 		ActorID:        it.ActorID,
 		CreatedAt:      it.CreatedAt,
 	}
+	derivedTrans := allTranslationsText(it.Derived)
 	switch {
 	case it.Kind == Note:
 		doc.Note = strings.TrimSpace(it.Content.Text)
+		doc.Translated = derivedTrans
 	case it.ActorType == ContactActor:
 		doc.Original = strings.TrimSpace(it.Content.Text)
-		primary, err := member.PrimaryLanguages(ctx, tx, it.TenantID)
-		if err != nil {
-			return nil, err
-		}
-		doc.Translated = primaryTranslationsText(it.Derived, primary)
+		doc.Translated = derivedTrans
 	default:
-		// 成员发出的消息：若经翻译发出，原文和发给对方的译文都纳入索引；否则只索引原文
+		// 成员发出的消息（回复、内部聊天、工单公开进度）：索引原文，并合并发给对方的译文与跨语言派生译文
 		orig := strings.TrimSpace(it.Content.Original)
 		text := strings.TrimSpace(it.Content.Text)
+		var transParts []string
 		if orig != "" {
 			doc.Original = orig
 			if text != "" && text != orig {
-				doc.Translated = text
+				transParts = append(transParts, text)
 			}
 		} else {
 			doc.Original = text
 		}
+		if derivedTrans != "" {
+			transParts = append(transParts, derivedTrans)
+		}
+		doc.Translated = strings.Join(transParts, "\n")
 	}
 	if doc.Original == "" && doc.Translated == "" && doc.Note == "" {
 		return nil, nil
@@ -95,28 +97,29 @@ func LoadSearchDocs(ctx context.Context, tx bun.IDB, key string) ([]ItemSearchDo
 	return []ItemSearchDoc{doc}, nil
 }
 
-// primaryTranslationsText 从派生内容 derived 中提取工作区主要语言 primary 对应的译文，去重后按行拼接。
-func primaryTranslationsText(derived map[string]any, primary []string) string {
-	if len(primary) == 0 || derived == nil {
+// allTranslationsText 从派生内容 derived 中提取全部已有语言的译文（按语言键排序、去重拼接），
+// 让工作区内任意语言的成员都能搜到各自语言版本的译文。
+func allTranslationsText(derived map[string]any) string {
+	if derived == nil {
 		return ""
 	}
 	all, _ := derived["translations"].(map[string]any)
 	if len(all) == 0 {
 		return ""
 	}
+	keys := make([]string, 0, len(all))
+	for k := range all {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
 	seen := map[string]bool{}
 	var parts []string
-	for _, target := range primary {
-		for k, v := range all {
-			if !lang.Same(k, target) {
-				continue
-			}
-			s, _ := v.(string)
-			s = strings.TrimSpace(s)
-			if s != "" && !seen[s] {
-				seen[s] = true
-				parts = append(parts, s)
-			}
+	for _, k := range keys {
+		s, _ := all[k].(string)
+		s = strings.TrimSpace(s)
+		if s != "" && !seen[s] {
+			seen[s] = true
+			parts = append(parts, s)
 		}
 	}
 	return strings.Join(parts, "\n")
@@ -326,7 +329,7 @@ func pickSearchSnippet(hit search.Hit[ItemSearchDoc]) (field string, snippet sea
 	var order []string
 	switch {
 	case hit.Doc.Kind == Note:
-		order = []string{"note"}
+		order = []string{"note", "translated"}
 	case hit.Doc.ActorType == ContactActor:
 		order = []string{"translated", "original"}
 	default:

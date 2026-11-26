@@ -498,6 +498,10 @@ export interface ConversationChatDTO {
   id: string
   last_message_at: string
   last_seq: number
+  /** 按关键词搜索聊天记录时命中的代表性消息与高亮摘要 */
+  match?: ConversationSearchMatch
+  /** 按关键词搜索时该聊天中命中的消息总条数 */
+  match_count?: number
   /** direct（单聊）或 group（群聊） */
   mode: ChatMode
   /** 群聊名称；单聊为空，前端展示 peer.name */
@@ -1967,6 +1971,8 @@ export interface TranslationPreviewBody {
   skip_back_translation?: boolean
   /** 成员写的回复或消息 */
   text: string
+  /** 可选：覆盖本次翻译的语气（friendly、neutral 或 formal）；不填时使用工作区默认语气 */
+  tone?: TranslationTone
 }
 
 export interface TranslationPreviewDTO {
@@ -2076,7 +2082,7 @@ export interface ChatListInput {
   per_page?: number
   /** 可选：按聊天模式筛选（direct 或 group） */
   mode?: ChatMode
-  /** 按群聊名称或单聊对方姓名搜索 */
+  /** 按群聊名称、参与者姓名或聊天消息全文搜索 */
   q?: string
 }
 

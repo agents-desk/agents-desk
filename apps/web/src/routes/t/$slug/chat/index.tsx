@@ -1,6 +1,6 @@
 import { Button, Center, Stack, Text, ThemeIcon } from "@mantine/core"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { IconMessages, IconPlus } from "@tabler/icons-react"
+import { IconMessageCircle, IconPlus } from "@tabler/icons-react"
 import { useT } from "@go-tenon/ui"
 import { useState } from "react"
 import { NewChatModal } from "../../../../chat/NewChatModal"
@@ -18,7 +18,7 @@ function NoChat() {
     <Center style={{ flex: 1, background: "var(--tn-canvas)" }}>
       <Stack gap="sm" align="center" px="md">
         <ThemeIcon size={48} radius="xl" variant="light" color="gray">
-          <IconMessages size={24} stroke={1.5} />
+          <IconMessageCircle size={24} stroke={1.5} />
         </ThemeIcon>
         <Stack gap={4} align="center">
           <Text fw={500} size="sm">

@@ -272,13 +272,17 @@ func translationSchema(description string) map[string]any {
 }
 
 // ReplyText 把成员在工作区 tenant 的会话 conversationID 中写的文字 text 从 from 翻译成 to（不做盲回译）。
-// 按工作区的语气和术语表，带上会话最近的几条消息作参考。模型没有配置时返回 llm.ErrNotConfigured。
-func (tr *Translator) ReplyText(ctx context.Context, tenant, conversationID, text, from, to string) (string, error) {
+// 按工作区的语气（可由 toneOverride 单次覆盖）和术语表，带上会话最近的几条消息作参考。模型没有配置时返回 llm.ErrNotConfigured。
+func (tr *Translator) ReplyText(ctx context.Context, tenant, conversationID, text, from, to string, toneOverride ...Tone) (string, error) {
 	s, err := tr.settings.Tenant(tenant).Get(ctx)
 	if err != nil {
 		return "", err
 	}
-	tone := toneHint[s.Tone]
+	chosenTone := s.Tone
+	if len(toneOverride) > 0 && toneOverride[0] != "" {
+		chosenTone = toneOverride[0]
+	}
+	tone := toneHint[chosenTone]
 	if tone == "" {
 		tone = toneHint[Neutral]
 	}
@@ -314,9 +318,9 @@ func (tr *Translator) ReplyText(ctx context.Context, tenant, conversationID, tex
 }
 
 // Reply 把成员在工作区 tenant 的会话 conversationID 中写的文字 text 从 from 翻译成 to，并给出盲回译，成员据此确认意思没有走样。
-// 分两次调用模型：第一次调用 ReplyText 翻译；第二次是盲回译，模型只看到译文，把它逐字译回 from。模型没有配置时返回 llm.ErrNotConfigured。
-func (tr *Translator) Reply(ctx context.Context, tenant, conversationID, text, from, to string) (translation, back string, err error) {
-	translatedText, err := tr.ReplyText(ctx, tenant, conversationID, text, from, to)
+// 分两次调用模型：第一次调用 ReplyText 翻译（可由 toneOverride 单次覆盖语气）；第二次是盲回译，模型只看到译文，把它逐字译回 from。
+func (tr *Translator) Reply(ctx context.Context, tenant, conversationID, text, from, to string, toneOverride ...Tone) (translation, back string, err error) {
+	translatedText, err := tr.ReplyText(ctx, tenant, conversationID, text, from, to, toneOverride...)
 	if err != nil {
 		return "", "", err
 	}

@@ -842,9 +842,12 @@ func TestUnifiedComposerTranslation(t *testing.T) {
 	if _, err := preview.Handle(ctx, readOnly, p.ConversationID, PreviewBody{Text: "hi"}); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("服务型会话预览应需要 conversations:reply，实际：%v", err)
 	}
-	chatPreview, err := preview.Handle(ctx, readOnly, dm.ID, PreviewBody{Text: "请核对退款金额"})
+	chatPreview, err := preview.Handle(ctx, readOnly, dm.ID, PreviewBody{Text: "请核对退款金额", Tone: Formal})
 	if err != nil || !chatPreview.Needed || chatPreview.Language != "en" || chatPreview.BackTranslation == "" {
 		t.Fatalf("内部聊天预览应自动推断目标语言 en 并返回盲回译：%+v %v", chatPreview, err)
+	}
+	if sys, _ := f.model.last("reply_translation"); !strings.Contains(sys, toneHint[Formal]) {
+		t.Fatalf("单次语气覆盖 formal 未注入提示词：%s", sys)
 	}
 
 	// 3. 内部聊天发送附带人工校对译文：写入 derived.translations 与 verified_language，后台自动翻译不覆盖，补译日语仅译日语

@@ -24,6 +24,7 @@ var ErrForbidden = errorx.Define(errorx.PermissionDenied, "translation.forbidden
 type PreviewBody struct {
 	Text                string `json:"text" minLength:"1" maxLength:"10000" doc:"成员写的回复或消息"`
 	Language            string `json:"language,omitempty" maxLength:"35" doc:"目标语言（BCP 47）；不填时按会话类型自动推断（服务型会话取客户语言，内部聊天取其他参与者语言，工单取关联客户或参与者语言）"`
+	Tone                Tone   `json:"tone,omitempty" doc:"可选：覆盖本次翻译的语气（friendly、neutral 或 formal）；不填时使用工作区默认语气"`
 	SkipBackTranslation bool   `json:"skip_back_translation,omitempty" doc:"为 true 时仅返回译文、跳过盲回译，用于折叠态自动翻译发送"`
 }
 
@@ -102,13 +103,13 @@ func (a *Preview) Handle(ctx context.Context, sub identity.Subject, id string, b
 		return &PreviewDTO{From: from, Language: to, Translation: b.Text}, nil
 	}
 	if b.SkipBackTranslation {
-		translation, err := a.translator.ReplyText(ctx, sub.Tenant, id, b.Text, from, to)
+		translation, err := a.translator.ReplyText(ctx, sub.Tenant, id, b.Text, from, to, b.Tone)
 		if err != nil {
 			return nil, err
 		}
 		return &PreviewDTO{Needed: true, From: from, Language: to, Translation: translation}, nil
 	}
-	translation, back, err := a.translator.Reply(ctx, sub.Tenant, id, b.Text, from, to)
+	translation, back, err := a.translator.Reply(ctx, sub.Tenant, id, b.Text, from, to, b.Tone)
 	if err != nil {
 		return nil, err
 	}
