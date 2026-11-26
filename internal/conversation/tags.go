@@ -45,6 +45,9 @@ func (a *AddTag) Handle(ctx context.Context, sub identity.Subject, id, tagID str
 
 // applyAddTag 在事务 tx 中给会话 c 添加标签 tagID，返回要追加的系统事件；已存在该标签时返回 nil。
 func applyAddTag(ctx context.Context, tx bun.IDB, sub identity.Subject, c *Conversation, tagID string) ([]*Item, error) {
+	if c.Kind == Chat {
+		return nil, ErrWrongKind.New()
+	}
 	t, err := tag.Find(ctx, tx, c.TenantID, tagID, false)
 	if err != nil {
 		return nil, err
@@ -86,6 +89,9 @@ func NewRemoveTag(db *bun.DB, down Downstream) *RemoveTag { return &RemoveTag{db
 // Handle 由 sub 从会话 id 移除标签 tagID，并追加系统事件 conversation.tag_removed；原本没有该标签时什么也不做。
 func (a *RemoveTag) Handle(ctx context.Context, sub identity.Subject, id, tagID string) (*ConversationDTO, error) {
 	return change(ctx, a.db, a.down, sub, id, auth.ConversationsReply, func(ctx context.Context, tx bun.IDB, c *Conversation) ([]*Item, error) {
+		if c.Kind == Chat {
+			return nil, ErrWrongKind.New()
+		}
 		t, err := tag.Find(ctx, tx, c.TenantID, tagID, false)
 		if err != nil {
 			return nil, err

@@ -108,6 +108,67 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         queryFn: () => client.channel.list(...args),
       }),
     },
+    chat: {
+      /** chat 分组全部查询的 key 前缀。 */
+      key: () => key("chat"),
+      /** POST /chats/direct */
+      createDirect: () => ({
+        mutationFn: (variables: Parameters<Client["chat"]["createDirect"]>[0]) => client.chat.createDirect(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "chat"),
+      }),
+      /** POST /chats/group */
+      createGroup: () => ({
+        mutationFn: (variables: Parameters<Client["chat"]["createGroup"]>[0]) => client.chat.createGroup(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "chat"),
+      }),
+      /** GET /chats/{id} */
+      get: (...args: Parameters<Client["chat"]["get"]>) => ({
+        queryKey: key("chat", "get", ...args),
+        queryFn: () => client.chat.get(...args),
+      }),
+      /** POST /chats/{id}/leave */
+      leave: () => ({
+        mutationFn: (variables: Parameters<Client["chat"]["leave"]>[0]) => client.chat.leave(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "chat"),
+      }),
+      /** GET /chats */
+      list: (...args: Parameters<Client["chat"]["list"]>) => ({
+        queryKey: key("chat", "list", ...args),
+        queryFn: () => client.chat.list(...args),
+      }),
+      /** POST /chats/{id}/messages */
+      messageSend: () => ({
+        mutationFn: (variables: Parameters<Client["chat"]["messageSend"]>) => client.chat.messageSend(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "chat"),
+      }),
+      /** DELETE /chats/{id}/participants/{participant_type}/{participant_id} */
+      participantRemove: () => ({
+        mutationFn: (variables: Parameters<Client["chat"]["participantRemove"]>) => client.chat.participantRemove(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "chat"),
+      }),
+      /** POST /chats/{id}/participants */
+      participantsAdd: () => ({
+        mutationFn: (variables: Parameters<Client["chat"]["participantsAdd"]>) => client.chat.participantsAdd(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "chat"),
+      }),
+      /** GET /chats/unread */
+      unread: (...args: Parameters<Client["chat"]["unread"]>) => ({
+        queryKey: key("chat", "unread", ...args),
+        queryFn: () => client.chat.unread(...args),
+      }),
+      /** PATCH /chats/{id} */
+      update: () => ({
+        mutationFn: (variables: Parameters<Client["chat"]["update"]>) => client.chat.update(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "chat"),
+      }),
+    },
     contact: {
       /** contact 分组全部查询的 key 前缀。 */
       key: () => key("contact"),

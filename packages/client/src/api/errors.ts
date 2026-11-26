@@ -113,6 +113,16 @@ export const ConversationErrors = {
   ChannelUnavailable: "conversation.channel_unavailable",
   /** ErrActiveConversationExists 是该联系人当前已有一条进行中或稍后处理的服务型会话，不能再重开其他历史会话。 */
   ActiveConversationExists: "conversation.active_exists",
+  /** ErrChatGroupOnly 是该操作仅适用于群聊（例如修改群名称、增删群成员、退出群聊）。 */
+  ChatGroupOnly: "chat.group_only",
+  /** ErrChatSelfDirect 是不能与自己发起单聊。 */
+  ChatSelfDirect: "chat.self_direct",
+  /** ErrChatUnsupportedParticipant 是不支持的聊天参与者类型或尚未启用的机器人参与者。 */
+  ChatUnsupportedParticipant: "chat.unsupported_participant",
+  /** ErrChatNotParticipant 是目标参与者不在这个群聊中。 */
+  ChatNotParticipant: "chat.not_participant",
+  /** ErrChatNameRequired 是群聊名称不能为空。 */
+  ChatNameRequired: "chat.name_required",
   /** ErrInvalidFilter 是视图或列表传入的筛选条件不合法。 */
   InvalidFilter: "conversation.invalid_filter",
   /** ErrInvalidLanguage 是设置的对方语言不是合法的 BCP 47 标签。 */

@@ -152,6 +152,9 @@ func seed(ctx context.Context, out io.Writer, db *bun.DB, roles *authz.Store, ad
 	if err := seedTickets(ctx, out, db, memberLogins, inDemo, down); err != nil {
 		return err
 	}
+	if err := seedInternalChats(ctx, out, db, memberLogins, inDemo, down); err != nil {
+		return err
+	}
 	if err := seedViews(ctx, out, db, memberLogins, inDemo, down); err != nil {
 		return err
 	}
@@ -440,6 +443,82 @@ func seedTickets(ctx context.Context, out io.Writer, db *bun.DB, memberLogins *l
 	}
 
 	fmt.Fprintln(out, "已在示例工作区中创建 3 个示例工单")
+	return nil
+}
+
+// seedInternalChats 在示例工作区中写入 1 个全员协作群聊和 1 条主管理员与坐席的单聊（含示例消息），已存在时跳过。
+func seedInternalChats(ctx context.Context, out io.Writer, db *bun.DB, memberLogins *login.Realm, inDemo identity.Subject, down conversation.Downstream) error {
+	existing, err := db.NewSelect().Table("chats").Where("tenant_id = ?", inDemo.Tenant).Count(ctx)
+	if err != nil {
+		return errors.Wrap(err, "count seed chats")
+	}
+	if existing > 0 {
+		fmt.Fprintln(out, "示例工作区已有示例内部聊天，跳过")
+		return nil
+	}
+	ownerRef, err := memberLogins.Lookup(ctx, login.Email("owner@example.com"))
+	if err != nil {
+		return err
+	}
+	managerRef, err := memberLogins.Lookup(ctx, login.Email("manager@example.com"))
+	if err != nil {
+		return err
+	}
+	agentRef, err := memberLogins.Lookup(ctx, login.Email("agent@example.com"))
+	if err != nil {
+		return err
+	}
+
+	subOwner := identity.Subject{Type: member.Type, ID: ownerRef.ID, Tenant: inDemo.Tenant, Permissions: auth.WithBase(auth.Owner.Permissions)}
+	subManager := identity.Subject{Type: member.Type, ID: managerRef.ID, Tenant: inDemo.Tenant, Permissions: auth.WithBase(auth.Owner.Permissions)}
+	subAgent := identity.Subject{Type: member.Type, ID: agentRef.ID, Tenant: inDemo.Tenant, Permissions: auth.WithBase(auth.Owner.Permissions)}
+
+	createGroup := conversation.NewCreateGroupChat(db, down)
+	createDM := conversation.NewCreateDirectChat(db, down)
+	sendMsg := conversation.NewSendChatMessage(db, down)
+
+	grp, err := createGroup.Handle(ctx, subOwner, conversation.CreateGroupChatParams{
+		Name:      "中印客服协作群",
+		MemberIDs: []string{managerRef.ID, agentRef.ID},
+	})
+	if err != nil {
+		return err
+	}
+	if _, err := sendMsg.Handle(ctx, subOwner, grp.ID, conversation.SendChatMessageBody{
+		Text: "欢迎大家使用内部聊天！客户侧异常单可以直接在这里同步进展，跨语言消息会自动互译。",
+	}); err != nil {
+		return err
+	}
+	if _, err := sendMsg.Handle(ctx, subManager, grp.ID, conversation.SendChatMessageBody{
+		Text:     "收到！刚刚 UPI 掉单的 3 位客户已经全部挂到工单 #1 了，技术侧预计 20 分钟内恢复。",
+		Mentions: []string{agentRef.ID},
+	}); err != nil {
+		return err
+	}
+	if _, err := sendMsg.Handle(ctx, subAgent, grp.ID, conversation.SendChatMessageBody{
+		Text: "Got it, I will notify the waiting customers right away once ticket #1 updates.",
+	}); err != nil {
+		return err
+	}
+
+	dm, err := createDM.Handle(ctx, subOwner, conversation.CreateDirectChatParams{
+		ParticipantID: agentRef.ID,
+	})
+	if err != nil {
+		return err
+	}
+	if _, err := sendMsg.Handle(ctx, subAgent, dm.ID, conversation.SendChatMessageBody{
+		Text: "Hi boss, Rahul just sent his bank receipt for order #A1029384. Should we prioritize the refund?",
+	}); err != nil {
+		return err
+	}
+	if _, err := sendMsg.Handle(ctx, subOwner, dm.ID, conversation.SendChatMessageBody{
+		Text: "收到，我来通知财务优先复核这一笔，你先稳住客户情绪。",
+	}); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(out, "已在示例工作区中创建 2 个示例内部聊天")
 	return nil
 }
 

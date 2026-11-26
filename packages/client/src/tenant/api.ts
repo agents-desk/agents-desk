@@ -98,6 +98,8 @@ export interface ChannelSummary {
   name: string
 }
 
+export type ChatMode = "direct" | "group"
+
 export interface ContactDTO {
   /** 自定义属性 */
   attributes: Record<string, unknown>
@@ -353,7 +355,12 @@ export interface ConversationActor {
   type: ConversationActorType
 }
 
-export type ConversationActorType = "contact" | "member" | "system"
+export type ConversationActorType = "contact" | "member" | "bot" | "system"
+
+export interface ConversationAddChatParticipantsBody {
+  /** 要加入群聊的工作区成员 ID */
+  member_ids: string[]
+}
 
 export interface ConversationAddTagInputBody {
   tag_id: string
@@ -485,6 +492,52 @@ export interface ConversationBulkResult {
   ok: boolean
 }
 
+export interface ConversationChatDTO {
+  created_at: string
+  created_by?: string
+  id: string
+  last_message_at: string
+  last_seq: number
+  /** direct（单聊）或 group（群聊） */
+  mode: ChatMode
+  /** 群聊名称；单聊为空，前端展示 peer.name */
+  name: string
+  /** 当前聊天参与者总数 */
+  participant_count: number
+  /** 聊天参与者列表（详情接口返回） */
+  participants?: ConversationChatParticipantDTO[]
+  /** 单聊时的对方参与者资料 */
+  peer?: ConversationChatParticipantDTO
+  /** 最近一条消息的文字摘要（非本人消息优先显示我的语言译文） */
+  preview: string
+  preview_actor?: ConversationActor
+  preview_attachment?: ConversationPreviewAttachment
+  preview_item_id?: string
+  preview_untranslated?: boolean
+  read_seq: number
+  unread: boolean
+  /** 未读消息条数 */
+  unread_count: number
+  updated_at: string
+}
+
+export interface ConversationChatParticipantDTO {
+  avatar_url?: string
+  id: string
+  joined_at: string
+  name: string
+  /** 在线状态：online 或 away */
+  status?: string
+  type: ConversationActorType
+}
+
+export interface ConversationChatUnreadDTO {
+  /** 包含未读消息的聊天会话数 */
+  unread_chats: number
+  /** 未读消息总条数 */
+  unread_messages: number
+}
+
 export interface ConversationContent {
   /** 系统事件的数据 */
   data?: Record<string, unknown>
@@ -500,6 +553,20 @@ export interface ConversationContent {
   prompt?: ConversationPrompt
   /** 文字；翻译后发出的回复是发给对方的译文 */
   text?: string
+}
+
+export interface ConversationCreateDirectChatParams {
+  /** 对方参与者 ID */
+  participant_id: string
+  /** 对方参与者类型：member（默认）或未来扩展的 bot */
+  participant_type?: ConversationActorType
+}
+
+export interface ConversationCreateGroupChatParams {
+  /** 初始群成员 ID（自动包含创建者本人） */
+  member_ids?: string[]
+  /** 群聊名称 */
+  name: string
 }
 
 export interface ConversationCreateTicketParams {
@@ -774,6 +841,15 @@ export interface ConversationSearchMatch {
   snippet: Part[]
 }
 
+export interface ConversationSendChatMessageBody {
+  /** 通过 /files 上传的媒体附件列表 */
+  attachments?: ConversationAttachmentInput[]
+  /** @ 到的成员 ID */
+  mentions?: string[]
+  /** 消息正文 */
+  text?: string
+}
+
 export interface ConversationSnoozeInputBody {
   /** 回到打开的时间，必须晚于现在；“明天”“下周一”这类选项由客户端按成员的时区算出 */
   until: string
@@ -884,6 +960,11 @@ export interface ConversationTranslation {
   text: string
 }
 
+export interface ConversationUpdateChatParams {
+  /** 新的群聊名称 */
+  name: string
+}
+
 export interface ConversationUpdateTicketParams {
   /** 新的工单描述 */
   description?: string
@@ -970,6 +1051,12 @@ export type ConversationVisibility = "all" | "members"
 
 export interface CursorContactDTO {
   items: ContactDTO[]
+  /** Pass as cursor to fetch the next page. Absent on the last page. */
+  next_cursor?: string
+}
+
+export interface CursorConversationChatDTO {
+  items: ConversationChatDTO[]
   /** Pass as cursor to fetch the next page. Absent on the last page. */
   next_cursor?: string
 }
@@ -1967,6 +2054,18 @@ export interface AttributeListInput {
   ticket_type_id?: string
 }
 
+/** chat-list 的参数。 */
+export interface ChatListInput {
+  /** Opaque cursor from next_cursor of the previous page. Omit for the first page. */
+  cursor?: string
+  /** Items per page. */
+  per_page?: number
+  /** 可选：按聊天模式筛选（direct 或 group） */
+  mode?: ChatMode
+  /** 按群聊名称或单聊对方姓名搜索 */
+  q?: string
+}
+
 /** contact-export-progress 推送的事件，按 event 区分。 */
 export type ContactExportProgressEvent =
   | { event: "progress"; data: ContactExportProgress; id?: string }
@@ -2371,6 +2470,79 @@ export function createClient(options: ClientOptions) {
        */
       list: (): Promise<ChannelListItem[]> =>
         rt.request<ChannelListItem[]>({ method: "GET", path: `/channels` }),
+    },
+    /** operationId 以 chat- 开头的接口。 */
+    chat: {
+      /**
+       * 发起或打开单聊
+       *
+       * POST /chats/direct
+       */
+      createDirect: (body: ConversationCreateDirectChatParams): Promise<ConversationChatDTO> =>
+        rt.request<ConversationChatDTO>({ method: "POST", path: `/chats/direct`, body }),
+      /**
+       * 新建内部群聊
+       *
+       * POST /chats/group
+       */
+      createGroup: (body: ConversationCreateGroupChatParams): Promise<ConversationChatDTO> =>
+        rt.request<ConversationChatDTO>({ method: "POST", path: `/chats/group`, body }),
+      /**
+       * 读取内部聊天详情
+       *
+       * GET /chats/{id}
+       */
+      get: (id: string): Promise<ConversationChatDTO> =>
+        rt.request<ConversationChatDTO>({ method: "GET", path: `/chats/${encodeURIComponent(id)}` }),
+      /**
+       * 退出群聊
+       *
+       * POST /chats/{id}/leave
+       */
+      leave: (id: string): Promise<void> =>
+        rt.request<void>({ method: "POST", path: `/chats/${encodeURIComponent(id)}/leave` }),
+      /**
+       * 内部聊天列表
+       *
+       * GET /chats
+       */
+      list: (input: ChatListInput = {}): Promise<CursorConversationChatDTO> =>
+        rt.request<CursorConversationChatDTO>({ method: "GET", path: `/chats`, query: { "cursor": input["cursor"], "mode": input["mode"], "per_page": input["per_page"], "q": input["q"] } }),
+      /**
+       * 发送内部聊天消息
+       *
+       * POST /chats/{id}/messages
+       */
+      messageSend: (id: string, body: ConversationSendChatMessageBody): Promise<ConversationItemDTO> =>
+        rt.request<ConversationItemDTO>({ method: "POST", path: `/chats/${encodeURIComponent(id)}/messages`, body }),
+      /**
+       * 移出群聊成员
+       *
+       * DELETE /chats/{id}/participants/{participant_type}/{participant_id}
+       */
+      participantRemove: (id: string, participantType: ConversationActorType, participantID: string): Promise<void> =>
+        rt.request<void>({ method: "DELETE", path: `/chats/${encodeURIComponent(id)}/participants/${encodeURIComponent(participantType)}/${encodeURIComponent(participantID)}` }),
+      /**
+       * 添加群聊成员
+       *
+       * POST /chats/{id}/participants
+       */
+      participantsAdd: (id: string, body: ConversationAddChatParticipantsBody): Promise<ConversationChatDTO> =>
+        rt.request<ConversationChatDTO>({ method: "POST", path: `/chats/${encodeURIComponent(id)}/participants`, body }),
+      /**
+       * 内部聊天未读统计
+       *
+       * GET /chats/unread
+       */
+      unread: (): Promise<ConversationChatUnreadDTO> =>
+        rt.request<ConversationChatUnreadDTO>({ method: "GET", path: `/chats/unread` }),
+      /**
+       * 修改群聊名称
+       *
+       * PATCH /chats/{id}
+       */
+      update: (id: string, body: ConversationUpdateChatParams): Promise<ConversationChatDTO> =>
+        rt.request<ConversationChatDTO>({ method: "PATCH", path: `/chats/${encodeURIComponent(id)}`, body }),
     },
     /** operationId 以 contact- 开头的接口。 */
     contact: {

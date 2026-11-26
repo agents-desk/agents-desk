@@ -152,6 +152,9 @@ func (a Actions) toAssignment(sub identity.Subject) (Assignment, error) {
 // applyActions 在事务 tx 中按确定顺序对已锁住的会话 c 执行一组操作，返回产生的全部系统事件。
 // 执行顺序：优先级 → 标签 → 自定义属性 → 指派 → 状态变更（关闭/稍后处理）。任一步失败时整笔事务回滚。
 func applyActions(ctx context.Context, tx bun.IDB, sub identity.Subject, c *Conversation, act Actions) ([]*Item, error) {
+	if c.Kind == Chat {
+		return nil, ErrWrongKind.New()
+	}
 	var items []*Item
 
 	if act.Priority != nil {

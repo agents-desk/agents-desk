@@ -53,6 +53,9 @@ func (a *Assign) Handle(ctx context.Context, sub identity.Subject, id string, p 
 
 // applyAssign 在事务 tx 中按 p 修改已锁住的会话 c 的团队收件箱和负责人，返回要追加的系统事件。
 func applyAssign(ctx context.Context, tx bun.IDB, sub identity.Subject, c *Conversation, p Assignment) ([]*Item, error) {
+	if c.Kind == Chat {
+		return nil, ErrWrongKind.New()
+	}
 	// 新的团队收件箱
 	toTeam := c.TeamID
 	if p.TeamID != nil {

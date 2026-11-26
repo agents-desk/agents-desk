@@ -28,6 +28,23 @@ func audienceOf(ctx context.Context, db bun.IDB, roles *authz.Store, c *Conversa
 // 有人在内部备注中 @ 我（mention）、新会话指派给我（assigned）、我负责的会话收到客户新消息（new_message）。
 // 成员自己发起的操作不提醒本人；同一事务命中多种提醒时按 mention > assigned > new_message 选主提醒。
 func audienceAndAlertsOf(ctx context.Context, db bun.IDB, roles *authz.Store, c *Conversation, items []*Item) ([]string, map[string]string, error) {
+	// 内部聊天严格按参与者推送：只推给当前参与者成员，并按新消息与 @提及 生成实时提醒
+	if c.Kind == Chat {
+		var out []string
+		err := db.NewSelect().Table("conversation_participants").Column("participant_id").
+			Where("conversation_id = ? AND participant_type = ?", c.ID, MemberActor).
+			Scan(ctx, &out)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "load chat participants for push")
+		}
+		visibleSet := make(map[string]bool, len(out))
+		for _, id := range out {
+			visibleSet[id] = true
+		}
+		alerts := computeChatAlerts(items, visibleSet)
+		return out, alerts, nil
+	}
+
 	before := new(Conversation)
 	err := db.NewSelect().Model(before).Column("team_id", "assignee_type", "assignee_id").Where("id = ?", c.ID).Scan(ctx)
 	if err != nil {
@@ -191,6 +208,36 @@ func computeAlerts(before, after *Conversation, items []*Item, visible map[strin
 		}
 	}
 
+	if len(alerts) == 0 {
+		return nil
+	}
+	return alerts
+}
+
+// computeChatAlerts 计算内部聊天本次追加的 items 应触发的实时提醒：
+// 发消息时提醒除发送者外的其他参与者（new_message），被 @ 到的参与者升级为 mention。
+func computeChatAlerts(items []*Item, visible map[string]bool) map[string]string {
+	if len(items) == 0 {
+		return nil
+	}
+	alerts := map[string]string{}
+	for _, it := range items {
+		if it.Kind != Message {
+			continue
+		}
+		for memberID := range visible {
+			if it.ActorType == MemberActor && it.ActorID == memberID {
+				continue
+			}
+			alerts[memberID] = push.AlertNewMessage
+		}
+		for _, mid := range it.Content.Mentions {
+			if !visible[mid] || (it.ActorType == MemberActor && it.ActorID == mid) {
+				continue
+			}
+			alerts[mid] = push.AlertMention
+		}
+	}
 	if len(alerts) == 0 {
 		return nil
 	}
