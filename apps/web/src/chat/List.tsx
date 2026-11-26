@@ -20,7 +20,7 @@ import {
 } from "@mantine/core"
 import { useDebouncedValue } from "@mantine/hooks"
 import { useQuery } from "@tanstack/react-query"
-import { IconPlus, IconSearch, IconSettings, IconUsersGroup } from "@tabler/icons-react"
+import { IconPlus, IconSearch, IconUsersGroup } from "@tabler/icons-react"
 import { PaneBody, PaneHeader, PaneToolbar, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { kit } from "../api"
@@ -96,6 +96,7 @@ export function ChatList({
   return (
     <Stack gap={0} h="100%">
       <PaneHeader
+        showNavToggle
         title={
           <Text fw={600} size="sm" truncate lh={1.25}>
             {heading}
@@ -103,11 +104,9 @@ export function ChatList({
         }
         actions={
           isExternal ? (
-            <Tooltip label={t("chat.business_manage")} openDelay={300}>
-              <ActionIcon variant="subtle" color="gray" size="sm" aria-label={t("chat.business_manage")} onClick={onManageBusinessChannels}>
-                <IconSettings size={15} />
-              </ActionIcon>
-            </Tooltip>
+            <Button size="compact-xs" variant="subtle" color="gray" onClick={onManageBusinessChannels}>
+              {t("chat.business_manage")}
+            </Button>
           ) : (
             <Tooltip label={t("chat.new")} openDelay={300}>
               <ActionIcon variant="light" size="sm" aria-label={t("chat.new")} onClick={onNewChat}>

@@ -1,4 +1,10 @@
-import type { ConversationItemDTO, ConversationTranslation, TranslationPreviewDTO, TranslationTone } from "@agents-desk/client/tenant"
+import type {
+  ConversationAutoTranslateRequest,
+  ConversationItemDTO,
+  ConversationTranslation,
+  TranslationPreviewDTO,
+  TranslationTone,
+} from "@agents-desk/client/tenant"
 import {
   ActionIcon,
   Box,
@@ -65,7 +71,9 @@ export interface ComposerTranslation {
   pending: boolean
   error?: string
   confirming: boolean
-  prepareSubmit: (options?: { skipTranslation?: boolean }) => Promise<{ send: boolean; translation?: ConversationTranslation }>
+  prepareSubmit: (options?: {
+    skipTranslation?: boolean
+  }) => Promise<{ send: boolean; translation?: ConversationTranslation; autoTranslate?: ConversationAutoTranslateRequest }>
   retry: () => void
   reset: () => void
 }
@@ -197,7 +205,9 @@ export function useComposerTranslation({
   }, [livePreviewActive, expanded, text, targetKey, requestedTarget, tone, run, last])
 
   const prepareSubmit = useCallback(
-    async (options?: { skipTranslation?: boolean }): Promise<{ send: boolean; translation?: ConversationTranslation }> => {
+    async (options?: {
+      skipTranslation?: boolean
+    }): Promise<{ send: boolean; translation?: ConversationTranslation; autoTranslate?: ConversationAutoTranslateRequest }> => {
       if (options?.skipTranslation || !enabled || !text || off) {
         return { send: true }
       }
@@ -209,17 +219,15 @@ export function useComposerTranslation({
         if (sameAsMe) {
           return { send: true }
         }
-        // 客服回复在折叠态默认自动翻译（跳过盲回译节省延迟与费用）；若翻译失败则自动展开校对栏供重试或发原文
+        // 客服回复与商务对外回复在折叠态零等待秒发：交由后端投递队列异步翻译并发出，不阻塞输入框
         clearTimeout(timer.current)
-        const res = await run(text, requestedTarget, tone, true)
-        if (!res) {
-          setExpanded(true)
-          return { send: false }
+        return {
+          send: true,
+          autoTranslate: {
+            language: requestedTarget || undefined,
+            tone: tone || undefined,
+          },
         }
-        if (!res.needed) {
-          return { send: true }
-        }
-        return { send: true, translation: { language: res.language, text: res.translation } }
       }
 
       // 展开态：所有场景统一遵循“有最新译文直接发送（含手动微调），未翻译完先触发预览并提示再按一次确认”

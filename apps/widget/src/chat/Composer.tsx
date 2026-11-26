@@ -141,6 +141,7 @@ export function Composer({ color, touch, placeholder, allowAttachments = true, o
           radius="xl"
           size="md"
           maxLength={10000}
+          classNames={{ input: "w-composer-input" }}
           style={{ flex: 1 }}
           aria-label={placeholder}
         />

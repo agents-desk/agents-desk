@@ -25,6 +25,7 @@ import {
   IconLayoutSidebarLeftCollapse,
   IconLayoutSidebarLeftExpand,
   IconSearch,
+  IconX,
 } from "@tabler/icons-react"
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router"
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useState } from "react"
@@ -62,7 +63,7 @@ export interface RailLayoutProps {
   navWidth?: number // 二级导航的宽度，默认 260
   headerHeight?: number // 顶栏基准高度（像素），默认 52，写入 --tn-rail-header 供各栏齐平
   settingsSearch?: boolean // 是否在设置页二级导航顶部显示搜索框，默认 false
-  compactQuery?: string // 窄屏抽屉模式的媒体查询，默认 "(max-width: 48em)"
+  compactQuery?: string // 窄屏抽屉模式的媒体查询，默认 "(max-width: 47.99em)"
   documentTitle?: boolean // 浏览器标签的标题是“页面 - 应用的名称”，页面是路由的 staticData.title；默认开启，false 时不设置
   banner?: ReactNode // 布局最顶部的通栏提示，例如 ImpersonationBanner
   children?: ReactNode // 页面内容；默认是子路由
@@ -193,7 +194,7 @@ export function RailLayout({
   navWidth = 260,
   headerHeight = 52,
   settingsSearch = false,
-  compactQuery = "(max-width: 48em)",
+  compactQuery = "(max-width: 47.99em)",
   documentTitle = true,
   banner,
   children,
@@ -274,15 +275,26 @@ export function RailLayout({
         <Text fw={600} truncate style={{ flex: 1 }}>
           {current?.title}
         </Text>
-        {!compact && !inSettings && (
+        {compact ? (
           <ActionIcon
             variant="subtle"
             color="gray"
-            aria-label={t("tenon.rail.collapse_nav")}
-            onClick={() => setExpanded(false)}
+            aria-label={t("tenon.common.close")}
+            onClick={() => setDrawer(false)}
           >
-            <IconLayoutSidebarLeftCollapse size={18} stroke={1.6} />
+            <IconX size={18} stroke={1.6} />
           </ActionIcon>
+        ) : (
+          !inSettings && (
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              aria-label={t("tenon.rail.collapse_nav")}
+              onClick={() => setExpanded(false)}
+            >
+              <IconLayoutSidebarLeftCollapse size={18} stroke={1.6} />
+            </ActionIcon>
+          )
         )}
       </Group>
       <ScrollArea className="tn-rail-secondary-content" type="hover">
@@ -390,8 +402,17 @@ export function RailLayout({
       <div className="tn-rail-workspace">
         {compact ? (
           hasSecondary && (
-            <Drawer opened={drawer} onClose={() => setDrawer(false)} size={288} padding={0} withCloseButton={false}>
-              <div className="tn-rail-secondary-drawer">{secondary}</div>
+            <Drawer
+              opened={drawer}
+              onClose={() => setDrawer(false)}
+              size={288}
+              padding={0}
+              withCloseButton={false}
+              styles={{ body: { padding: 0 } }}
+            >
+              <div className="tn-rail-secondary-drawer" style={vars}>
+                {secondary}
+              </div>
             </Drawer>
           )
         ) : (

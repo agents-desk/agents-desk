@@ -18,13 +18,14 @@ import (
 	"agents-desk/internal/member"
 )
 
-// SendChatMessageBody 是发送聊天消息的请求体：文字、@ 提及的成员、媒体附件、可选内部备注标记与可选译文（文字与附件不能同时为空）。
+// SendChatMessageBody 是发送聊天消息的请求体：文字、@ 提及的成员、媒体附件、可选内部备注标记、可选译文与后台自动翻译参数（文字与附件不能同时为空）。
 type SendChatMessageBody struct {
-	Text        string            `json:"text,omitempty" maxLength:"10000" doc:"消息正文"`
-	Mentions    []string          `json:"mentions,omitempty" maxItems:"20" uniqueItems:"true" doc:"@ 到的成员 ID"`
-	Attachments []AttachmentInput `json:"attachments,omitempty" maxItems:"10" doc:"通过 /files 上传的媒体附件列表"`
-	Note        bool              `json:"note,omitempty" doc:"仅商务外部聊天可用：为 true 时写为仅成员可见的内部备注，不发往外部渠道"`
-	Translation *Translation      `json:"translation,omitempty" doc:"发送译文：外部商务聊天对外回复时替换发出并保留原文；内部聊天与内部备注时写入派生译文供该语言成员查看"`
+	Text          string                `json:"text,omitempty" maxLength:"10000" doc:"消息正文"`
+	Mentions      []string              `json:"mentions,omitempty" maxItems:"20" uniqueItems:"true" doc:"@ 到的成员 ID"`
+	Attachments   []AttachmentInput     `json:"attachments,omitempty" maxItems:"10" doc:"通过 /files 上传的媒体附件列表"`
+	Note          bool                  `json:"note,omitempty" doc:"仅商务外部聊天可用：为 true 时写为仅成员可见的内部备注，不发往外部渠道"`
+	Translation   *Translation          `json:"translation,omitempty" doc:"发送译文：外部商务聊天对外回复时替换发出并保留原文；内部聊天与内部备注时写入派生译文供该语言成员查看"`
+	AutoTranslate *AutoTranslateRequest `json:"auto_translate,omitempty" doc:"仅外部商务聊天对外回复可用：不携带 translation 时，先立刻落库并由投递任务异步翻译后发往外部渠道"`
 }
 
 // SendChatMessageInput 是发送聊天消息的 HTTP 请求。
@@ -101,8 +102,11 @@ func (a *SendChatMessage) Handle(ctx context.Context, sub identity.Subject, id s
 
 		if isExternalReply {
 			content := Content{Text: body.Text, Mentions: body.Mentions}
+			var derived map[string]any
 			if body.Translation != nil && strings.TrimSpace(body.Text) != "" {
 				content = Content{Text: body.Translation.Text, Original: body.Text, Language: body.Translation.Language, Mentions: body.Mentions}
+			} else if body.AutoTranslate != nil && strings.TrimSpace(body.Text) != "" {
+				derived = pendingTranslationDerived(body.AutoTranslate)
 			}
 			item = Item{
 				Kind:       Message,
@@ -111,6 +115,7 @@ func (a *SendChatMessage) Handle(ctx context.Context, sub identity.Subject, id s
 				Visibility: Everyone,
 				ChannelID:  targetChannelID,
 				Content:    content,
+				Derived:    derived,
 			}
 		} else {
 			kind := Message

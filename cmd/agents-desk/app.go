@@ -266,6 +266,7 @@ func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
 	}
 	w := queue.NewWorker(a.db, a.nc, a.cfg.Queue, opts...)
 	down := a.downstream()
+	down.AutoTranslate = translation.AutoTranslateFunc(a.db, a.translator, translation.NewIncoming(a.db, a.locker, a.translator, down))
 	conversation.RegisterJobs(w, a.db, a.channels, down)
 	translation.RegisterJobs(w, a.db, a.locker, a.translator, down)
 	automation.RegisterJobs(w, a.db, a.locker, down)
