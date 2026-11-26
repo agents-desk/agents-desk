@@ -21,7 +21,7 @@ import (
 type GeneralSettings struct {
 	Name              string  `json:"name" minLength:"1" maxLength:"60"`
 	LogoFileID        *string `json:"logo_file_id,omitempty" maxLength:"36" doc:"工作区 Logo 文件 ID：传空字符串表示移除，不传保持原样"`
-	ReopenWindowHours *int    `json:"reopen_window_hours,omitempty" minimum:"0" maximum:"720" doc:"单窗口渠道会话关闭后的重开窗口（小时），不传保持原样，0 表示关闭后直接新建会话"`
+	ReopenWindowHours *int    `json:"reopen_window_hours,omitempty" minimum:"0" maximum:"720" doc:"会话关闭后的重开窗口（小时），不传保持原样，0 表示关闭后直接新建会话"`
 }
 
 // RenameInput 是修改常规设置的 HTTP 请求。

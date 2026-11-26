@@ -110,6 +110,9 @@ func TestReopenWindow(t *testing.T) {
 		if _, err := conversation.NewReopen(env.DB, conversation.Downstream{}).Handle(ctx, agent, wc.ConversationID); !errors.Is(err, conversation.ErrActiveConversationExists) {
 			t.Fatalf("存在其他活跃会话时重开历史会话应返回 ErrActiveConversationExists，实际 %v", err)
 		}
+		if _, err := conversation.NewReply(env.DB, conversation.Downstream{}).Handle(ctx, agent, wc.ConversationID, conversation.ReplyBody{Text: "reply old"}); !errors.Is(err, conversation.ErrActiveConversationExists) {
+			t.Fatalf("存在其他活跃会话时回复历史已关闭会话应返回 ErrActiveConversationExists，实际 %v", err)
+		}
 	})
 }
 
