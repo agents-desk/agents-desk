@@ -1,9 +1,14 @@
-import type { ConversationAttachmentDTO, ConversationAttachmentInput, ConversationContactItemDTO } from "@agents-desk/client/widget"
-import { Box, Button, Divider, Stack, Text, UnstyledButton } from "@mantine/core"
-import { IconArrowDown } from "@tabler/icons-react"
+import type {
+  ConversationAttachmentDTO,
+  ConversationAttachmentInput,
+  ConversationContactItemDTO,
+  ConversationContactTimelineDTO,
+} from "@agents-desk/client/widget"
+import { ActionIcon, Box, Button, Center, Divider, Group, Loader, Stack, Text, ThemeIcon, UnstyledButton } from "@mantine/core"
+import { IconArrowDown, IconChevronRight, IconMessageCircle, IconTicket, IconX } from "@tabler/icons-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { ImageLightbox, useLanguage, useT } from "@go-tenon/ui"
-import { Fragment, type ReactNode, useEffect, useRef, useState } from "react"
+import { Fragment, type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { authed, widgetApi } from "../api"
 import { channel as currentChannelId } from "../host"
 import { useIdentity } from "../realtime"
@@ -12,16 +17,18 @@ import { Composer } from "./Composer"
 import { useBrandForeground } from "./contrast"
 import { clock, dayLabel, sameDay } from "./format"
 import { Linkify } from "./linkify"
-import { CollectEmailCard, promptText } from "./Prompt"
-import { useConversation, useItems } from "./queries"
+import { CollectEmailCard, promptText, ticketPromptTarget } from "./Prompt"
+import { useTimeline } from "./queries"
 import { RatingCard } from "./Rating"
+import type { ReplyTicketContext } from "./TicketDetail"
 
 /** GROUP_WINDOW_MS 是同一发送者连续消息合并为同一组的间隔上限（3 分钟）。 */
 const GROUP_WINDOW_MS = 3 * 60 * 1000
 
-/** canGroup 判断相邻两条时间线消息是否属于同人同渠道连续发送的同一组。 */
+/** canGroup 判断相邻两条时间线消息是否属于同轮次、同发送者、同渠道的连续消息组。 */
 function canGroup(prev: ConversationContactItemDTO | undefined, cur: ConversationContactItemDTO): boolean {
   if (!prev || prev.prompt?.kind === "collect_contact" || cur.prompt?.kind === "collect_contact") return false
+  if (prev.conversation_id !== cur.conversation_id) return false
   if (prev.author.type !== cur.author.type || prev.author.name !== cur.author.name) return false
   if (prev.channel?.id !== cur.channel?.id) return false
   if (!sameDay(prev.created_at, cur.created_at)) return false
@@ -34,82 +41,144 @@ interface Pending {
   text: string
   inputs: ConversationAttachmentInput[]
   attachments: ConversationAttachmentDTO[]
+  ticketId?: string
   failed: boolean
 }
 
 /** newClientId 返回一条消息的编号，服务端用它去重。 */
 const newClientId = () => crypto.randomUUID().replace(/-/g, "")
 
-/** ConversationProps 是会话页的设置。 */
+/** FirstMessage 是客户还没有历史消息时，时间线底部贴近输入框的引导文案。 */
+function FirstMessage({ color }: { color: string }): ReactNode {
+  const t = useT()
+  return (
+    <Stack gap={6} align="center" py="lg" px="md">
+      <ThemeIcon size={44} radius="xl" variant="light" color={color}>
+        <IconMessageCircle size={22} />
+      </ThemeIcon>
+      <Text size="sm" fw={600} ta="center">
+        {t("home.first_title")}
+      </Text>
+      <Text size="xs" c="dimmed" ta="center">
+        {t("home.first_hint")}
+      </Text>
+    </Stack>
+  )
+}
+
+/** ConversationProps 是连续对话流视图的参数。 */
 interface ConversationProps {
-  id?: string // 会话；为空时是新会话，发出第一条后由 onStarted 换成新建的会话
-  intro?: ReactNode // 新会话还没有消息时，时间线中贴着输入框显示的提示
   color: string
   name: string // 聊天插件的名称：系统发的消息显示它
   touch: boolean // 手机和 App
   visible: boolean // 聊天窗口展开着并且页面在前台：这时读到的消息记为已读
-  onStarted: (id: string) => void
-  onBack?: () => void
+  replyTicket: ReplyTicketContext | null // 从工单详情带回的补充上下文
+  onClearReplyTicket: () => void
+  onOpenTicket: (id: string) => void
 }
 
 /**
- * ConversationView 是会话页：时间线、关闭后的评价卡片和输入框。
- *   - 客户的消息在右边，成员的在左边并显示名字，按日期分组；
- *   - 发出的消息先显示为发送中，失败时可以重试，重试用同一个 client_id；
- *   - 可见时把最后一项记为已读；
- *   - 手机上从左边缘向右滑返回首页。
+ * ConversationView 是客户侧统一的跨会话连续对话流：
+ *   - 向上滚动自动加载更早的历史消息并保持滚动位置；
+ *   - 不同服务轮次之间显示轻量分隔线与历史评价摘要；
+ *   - 工单进度消息卡片可直接跳转到工单详情，从工单详情返回时展示关联上下文条；
+ *   - 最近一轮已关闭时在底部展示结束分隔线与评价卡片，客户可直接继续发消息开启或恢复服务。
  */
-export function ConversationView({ id, intro, color, name, touch, visible, onStarted, onBack }: ConversationProps): ReactNode {
+export function ConversationView({
+  color,
+  name,
+  touch,
+  visible,
+  replyTicket,
+  onClearReplyTicket,
+  onOpenTicket,
+}: ConversationProps): ReactNode {
   const t = useT()
   const language = useLanguage()
   const queryClient = useQueryClient()
   const { contact } = useIdentity()
-  const conversation = useConversation(id ?? "")
-  const items = useItems(id ?? "")
+  const { data, isPending, loadOlder, loadingOlder } = useTimeline()
   const [pending, setPending] = useState<Pending[]>([])
   const scroller = useRef<HTMLDivElement>(null)
   const nearBottom = useRef(true)
   const initialized = useRef(false)
+  const prevTailId = useRef<string | undefined>(undefined)
   const prevCount = useRef(0)
+  const prependAnchor = useRef<{ scrollHeight: number; scrollTop: number } | null>(null)
+  const lastMarkedId = useRef<string | undefined>(undefined)
   const [showScrollDown, setShowScrollDown] = useState(false)
   const [unseenCount, setUnseenCount] = useState(0)
   const [lightbox, setLightbox] = useState<LightboxImage | null>(null)
-  const lastRead = useRef(0)
 
-  const list: ConversationContactItemDTO[] = id ? (items.data ?? []) : []
-  const closed = conversation.data?.status === "closed"
+  const list = data?.items ?? []
+  const conversations = data?.conversations ?? {}
+  const latest = data?.latest_conversation
+  const unread = data?.unread ?? 0
+  const hasMore = data?.has_more ?? false
+  const closed = latest?.status === "closed"
+  const lastItemId = list.at(-1)?.id
 
-  // 首次加载直接落底；客户发消息或在底部附近时自动跟随，翻看历史时不强行拉回底部
+  // triggerLoadOlder 记录当前滚动锚点后拉取更早一页历史消息。
+  const triggerLoadOlder = useCallback(async () => {
+    const el = scroller.current
+    if (!el || !hasMore || loadingOlder) return
+    prependAnchor.current = { scrollHeight: el.scrollHeight, scrollTop: el.scrollTop }
+    const loaded = await loadOlder()
+    if (!loaded) prependAnchor.current = null
+  }, [hasMore, loadingOlder, loadOlder])
+
+  // 头部插入历史消息后，在浏览器绘制前补偿滚动高度差，保持客户当前阅读位置不动。
+  useLayoutEffect(() => {
+    const anchor = prependAnchor.current
+    const el = scroller.current
+    if (!anchor || !el) return
+    const delta = el.scrollHeight - anchor.scrollHeight
+    if (delta > 0) {
+      el.scrollTop = anchor.scrollTop + delta
+    }
+    prependAnchor.current = null
+    prevCount.current = list.length
+    prevTailId.current = list.at(-1)?.id
+  }, [list])
+
+  // 首次加载直接落底；尾部追加新消息时，客户自己发的或在底部附近自动跟随，翻看历史时提示新消息数。
   useEffect(() => {
-    if (id && items.isPending) return
+    if (isPending || prependAnchor.current) return
     const el = scroller.current
     if (!el) return
+    const tailId = list.at(-1)?.id
     if (!initialized.current) {
       initialized.current = true
       prevCount.current = list.length
+      prevTailId.current = tailId
       el.scrollTop = el.scrollHeight
       nearBottom.current = true
       return
     }
-    if (list.length > prevCount.current) {
-      const added = list.slice(prevCount.current)
+    if (tailId && tailId !== prevTailId.current) {
+      const prevIndex = prevTailId.current ? list.findIndex((it) => it.id === prevTailId.current) : -1
+      const added = prevIndex >= 0 ? list.slice(prevIndex + 1) : list.slice(prevCount.current)
       prevCount.current = list.length
-      const hasOwn = added.some((it) => it.author.type === "contact")
-      if (hasOwn || nearBottom.current) {
-        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
-        nearBottom.current = true
-        setShowScrollDown(false)
-        setUnseenCount(0)
-      } else {
-        setUnseenCount((n) => n + added.length)
-        setShowScrollDown(true)
+      prevTailId.current = tailId
+      if (added.length > 0) {
+        const hasOwn = added.some((it) => it.author.type === "contact")
+        if (hasOwn || nearBottom.current) {
+          el.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
+          nearBottom.current = true
+          setShowScrollDown(false)
+          setUnseenCount(0)
+        } else {
+          setUnseenCount((n) => n + added.length)
+          setShowScrollDown(true)
+        }
       }
       return
     }
     prevCount.current = list.length
-  }, [id, items.isPending, list])
+    prevTailId.current = tailId
+  }, [isPending, list])
 
-  // 自己刚发出新消息或会话刚结束出现评价卡时（在底部附近）滚到底部
+  // 自己刚发出新消息或最新一轮刚结束出现评价卡时（在底部附近）滚到底部。
   useEffect(() => {
     const el = scroller.current
     if (!el) return
@@ -132,6 +201,9 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
     } else if (gap > 120) {
       setShowScrollDown(true)
     }
+    if (el.scrollTop <= 60 && hasMore && !loadingOlder) {
+      void triggerLoadOlder()
+    }
   }
 
   const scrollToBottom = () => {
@@ -143,80 +215,91 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
   }
 
-  // 可见时把读到的最后一项记为已读，未读数随之清零
-  const lastSeq = list.at(-1)?.seq ?? 0
+  // 聊天窗口可见且存在未读客服消息时，按最新一条消息 ID 标记已读并同步清零缓存中的未读数。
   useEffect(() => {
-    if (!id || !visible || lastSeq <= lastRead.current) return
-    if (!list.some((it) => it.seq > lastRead.current && it.author.type !== "contact")) {
-      lastRead.current = lastSeq
-      return
-    }
-    lastRead.current = lastSeq
-    void authed(() => widgetApi.conversation.read(id, { seq: lastSeq })).then(() =>
-      queryClient.invalidateQueries({ queryKey: ["widget", contact?.id, "conversations"] }),
-    )
-  }, [id, visible, lastSeq, list, queryClient, contact])
+    if (!visible || unread <= 0 || !lastItemId || lastMarkedId.current === lastItemId) return
+    lastMarkedId.current = lastItemId
+    void authed(() => widgetApi.timeline.read({ up_to_item_id: lastItemId }))
+      .then(() => {
+        queryClient.setQueryData<ConversationContactTimelineDTO>(["widget", contact?.id, "timeline"], (cur) =>
+          cur ? { ...cur, unread: 0 } : cur,
+        )
+      })
+      .catch(() => {
+        lastMarkedId.current = undefined
+      })
+  }, [visible, unread, lastItemId, queryClient, contact])
 
-  // send 发出一条消息：新会话时发起会话，否则发到这个会话；成功后时间线和列表重新读取
+  // send 向统一消息入口发送消息，附带 client_id 去重与可选的工单上下文。
   const send = async (p: Pending) => {
     setPending((all) => [...all.filter((x) => x.clientId !== p.clientId), { ...p, failed: false }])
     try {
-      const body = {
-        text: p.text || undefined,
-        attachments: p.inputs.length > 0 ? p.inputs : undefined,
-        client_id: p.clientId,
-      }
-      const sent = await authed(() => (id ? widgetApi.conversation.send(id, body) : widgetApi.conversation.start(body)))
+      await authed(() =>
+        widgetApi.message.send({
+          text: p.text || undefined,
+          attachments: p.inputs.length > 0 ? p.inputs : undefined,
+          client_id: p.clientId,
+          ticket_id: p.ticketId,
+        }),
+      )
+      if (p.ticketId) onClearReplyTicket()
       await queryClient.invalidateQueries({ queryKey: ["widget", contact?.id] })
       setPending((all) => all.filter((x) => x.clientId !== p.clientId))
-      if (sent.conversation_id !== id) onStarted(sent.conversation_id)
     } catch {
       setPending((all) => all.map((x) => (x.clientId === p.clientId ? { ...x, failed: true } : x)))
     }
   }
 
-  // 客户在输入时告诉成员，每 3 秒最多一次；新会话还没有会话可以告诉
+  // 客户在当前活跃轮次输入时通知客服，每 3 秒最多一次。
   const lastTyping = useRef(0)
   const typing = () => {
-    if (!id || Date.now() - lastTyping.current < 3000) return
+    if (!latest || latest.status === "closed" || Date.now() - lastTyping.current < 3000) return
     lastTyping.current = Date.now()
-    // “正在输入”是尽力而为的提示：发不出去时客户照常聊天，不提示错误
-    void authed(() => widgetApi.conversation.typing(id)).catch(() => {})
+    // “正在输入”是尽力而为的提示：网络波动时客户照常聊天。
+    void authed(() => widgetApi.timeline.typing()).catch(() => {})
   }
-
-  // 手机上从左边缘向右滑返回首页（仅在多会话模式下启用）
-  const touchStart = useRef<{ x: number; y: number } | null>(null)
-  const swipe =
-    touch && onBack
-      ? {
-          onTouchStart: (e: React.TouchEvent) => {
-            const p = e.touches[0]
-            touchStart.current = p.clientX < 40 ? { x: p.clientX, y: p.clientY } : null
-          },
-          onTouchEnd: (e: React.TouchEvent) => {
-            const s = touchStart.current
-            const p = e.changedTouches[0]
-            if (s && p.clientX - s.x > 80 && Math.abs(p.clientY - s.y) < 60) onBack()
-            touchStart.current = null
-          },
-        }
-      : {}
 
   return (
     <>
       <Box className="w-scroll-wrap">
-        <Box ref={scroller} className="w-scroll" onScroll={onScroll} {...swipe}>
-          <Stack gap={0} p="md" justify={!id ? "flex-end" : undefined} mih="100%">
-            {!id && pending.length === 0 && intro}
+        <Box ref={scroller} className="w-scroll" onScroll={onScroll}>
+          <Stack gap={0} p="md" justify={list.length === 0 && pending.length === 0 ? "flex-end" : undefined} mih="100%">
+            {hasMore && (
+              <Center mb="sm">
+                <Button
+                  size="compact-xs"
+                  variant="subtle"
+                  color="gray"
+                  loading={loadingOlder}
+                  onClick={() => void triggerLoadOlder()}
+                >
+                  {loadingOlder ? t("chat.loading_older") : t("chat.load_older")}
+                </Button>
+              </Center>
+            )}
+            {isPending ? (
+              <Center style={{ flex: 1 }}>
+                <Loader color={color} size="sm" />
+              </Center>
+            ) : (
+              list.length === 0 && pending.length === 0 && <FirstMessage color={color} />
+            )}
             {list.map((it, i) => {
               const prev = list[i - 1]
               const next = list[i + 1]
+              const roundChanged = Boolean(prev?.conversation_id && it.conversation_id && prev.conversation_id !== it.conversation_id)
+              const prevRound = prev?.conversation_id ? conversations[prev.conversation_id] : undefined
+              const roundLabel = prevRound?.rating
+                ? `${t("chat.round_ended")} · ${t("chat.rated_summary", { score: prevRound.rating.score })}`
+                : t("chat.round_ended")
               const showDay = i === 0 || !sameDay(prev.created_at, it.created_at)
-              const groupedWithPrev = !showDay && canGroup(prev, it)
+              const groupedWithPrev = !showDay && !roundChanged && canGroup(prev, it)
               const groupedWithNext = Boolean(next) && canGroup(it, next)
-              const gapTop = i === 0 ? 0 : groupedWithPrev ? 4 : 10
+              const gapTop = i === 0 || roundChanged || showDay ? 0 : groupedWithPrev ? 4 : 10
+              const ticketTarget = ticketPromptTarget(it.prompt)
               return (
                 <Fragment key={it.id}>
+                  {roundChanged && <Divider label={roundLabel} labelPosition="center" my="sm" />}
                   {showDay && (
                     <Text size="xs" c="dimmed" ta="center" my={i === 0 ? 4 : 8}>
                       {dayLabel(it.created_at, language, t)}
@@ -224,7 +307,7 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
                   )}
                   {it.prompt?.kind === "collect_contact" ? (
                     <Box mt={gapTop}>
-                      <CollectEmailCard conversationId={id} color={color} />
+                      <CollectEmailCard conversationId={it.conversation_id ?? latest?.id} color={color} />
                     </Box>
                   ) : (
                     <Bubble
@@ -232,6 +315,21 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
                       author={!groupedWithPrev ? (it.author.type === "member" ? it.author.name : it.author.type === "system" ? name : undefined) : undefined}
                       text={promptText(it.prompt, it.text, language, t)}
                       attachments={it.attachments}
+                      action={
+                        ticketTarget ? (
+                          <Button
+                            mt={6}
+                            size="compact-xs"
+                            variant="light"
+                            color={color}
+                            leftSection={<IconTicket size={13} />}
+                            rightSection={<IconChevronRight size={13} />}
+                            onClick={() => onOpenTicket(ticketTarget.id)}
+                          >
+                            {t("tickets.view_ticket", { number: ticketTarget.number })}
+                          </Button>
+                        ) : undefined
+                      }
                       meta={
                         !groupedWithNext
                           ? [
@@ -279,12 +377,10 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
                 }
               />
             ))}
-            {closed && conversation.data && (
+            {closed && latest && (
               <>
                 <Divider label={t("chat.ended")} labelPosition="center" my="sm" />
-                {(conversation.data.rating_requested || conversation.data.rating) && (
-                  <RatingCard conversation={conversation.data} color={color} />
-                )}
+                {(latest.rating_requested || latest.rating) && <RatingCard conversation={latest} color={color} />}
               </>
             )}
           </Stack>
@@ -303,11 +399,38 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
           </Button>
         )}
       </Box>
+      {replyTicket && (
+        <Group
+          gap="xs"
+          px="sm"
+          py={6}
+          wrap="nowrap"
+          bg="var(--mantine-color-yellow-light)"
+          style={{ borderTop: "1px solid var(--mantine-color-yellow-3)" }}
+        >
+          <IconTicket size={15} color="var(--mantine-color-yellow-7)" style={{ flex: "none" }} />
+          <Text size="xs" fw={500} style={{ flex: 1, minWidth: 0 }} truncate>
+            {t("tickets.replying_context", { number: replyTicket.number, title: replyTicket.title })}
+          </Text>
+          <ActionIcon size="xs" variant="subtle" color="gray" onClick={onClearReplyTicket} aria-label={t("tickets.clear_context")}>
+            <IconX size={14} />
+          </ActionIcon>
+        </Group>
+      )}
       <Composer
         color={color}
         touch={touch}
-        placeholder={t(closed ? "composer.reopen_placeholder" : "composer.placeholder")}
-        onSend={(text, inputs, attachments) => void send({ clientId: newClientId(), text, inputs, attachments, failed: false })}
+        placeholder={t("composer.placeholder")}
+        onSend={(text, inputs, attachments) =>
+          void send({
+            clientId: newClientId(),
+            text,
+            inputs,
+            attachments,
+            ticketId: replyTicket?.id,
+            failed: false,
+          })
+        }
         onTyping={typing}
       />
       <ImageLightbox src={lightbox?.src ?? null} filename={lightbox?.filename} onClose={() => setLightbox(null)} />
@@ -321,6 +444,7 @@ export function Bubble({
   author,
   text,
   attachments,
+  action,
   meta,
   color,
   first = true,
@@ -333,6 +457,7 @@ export function Bubble({
   author?: string
   text: string
   attachments?: ConversationAttachmentDTO[]
+  action?: ReactNode
   meta?: ReactNode
   color: string
   first?: boolean
@@ -342,7 +467,7 @@ export function Bubble({
   onPreview: (image: LightboxImage) => void
 }): ReactNode {
   const fg = useBrandForeground()
-  const mediaOnly = !text && Boolean(attachments?.length) && attachments!.every((a) => a.kind === "image")
+  const mediaOnly = !text && !action && Boolean(attachments?.length) && attachments!.every((a) => a.kind === "image")
   return (
     <Box
       mt={mt}
@@ -365,6 +490,7 @@ export function Bubble({
       >
         {text && <Linkify text={text} />}
         <WidgetMessageAttachments attachments={attachments} hasText={Boolean(text)} mine={mine} onPreview={onPreview} />
+        {action && <Box>{action}</Box>}
       </Box>
       {meta && (
         <Text size="xs" c={state === "failed" ? "red" : "dimmed"} mx={4} mt={2} component="div" style={{ fontVariantNumeric: "tabular-nums" }}>

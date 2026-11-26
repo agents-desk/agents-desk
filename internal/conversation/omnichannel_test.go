@@ -168,18 +168,14 @@ func TestOmnichannelAutoMergeReplyAndContactView(t *testing.T) {
 		t.Fatalf("按 Telegram 筛选应命中跨渠道会话，实际 %d 条", len(listRes.Items))
 	}
 
-	// 8. 客户侧（网页聊天插件）：已登录用户能看到该跨渠道会话及来自 Telegram 的消息，并自动归入当前活跃会话
+	// 8. 客户侧（网页聊天插件）：已登录用户在连续时间线中能看到跨渠道消息，并自动归入当前活跃会话
 	contactSub := identity.Subject{Type: contact.Type, ID: user.ID, Tenant: tenantID}
-	cList, err := conversation.NewListForContact(env.DB).Handle(ctx, contactSub, widgetCh.ID)
-	if err != nil || len(cList) != 1 || cList[0].ID != r1.ConversationID {
-		t.Fatalf("已登录用户在插件应看到跨渠道会话：len=%d err=%v", len(cList), err)
+	cStream, err := conversation.NewContactStream(env.DB).Handle(ctx, contactSub, widgetCh.ID, "", "", 50)
+	if err != nil || len(cStream.Items) != 4 || cStream.LatestConversation == nil || cStream.LatestConversation.ID != r1.ConversationID {
+		t.Fatalf("已登录用户连续时间线应包含 4 条跨渠道消息：%+v err=%v", cStream, err)
 	}
-	cItems, err := conversation.NewTimelineForContact(env.DB).Handle(ctx, contactSub, widgetCh.ID, r1.ConversationID, 0, 50)
-	if err != nil || len(cItems) != 4 {
-		t.Fatalf("已登录用户时间线应包含 4 条跨渠道消息：len=%d err=%v", len(cItems), err)
-	}
-	if cItems[1].Channel == nil || cItems[1].Channel.ID != tgCh.ID {
-		t.Fatalf("第 2 条消息应标记来自 Telegram，实际 %+v", cItems[1].Channel)
+	if cStream.Items[1].Channel == nil || cStream.Items[1].Channel.ID != tgCh.ID {
+		t.Fatalf("第 2 条消息应标记来自 Telegram，实际 %+v", cStream.Items[1].Channel)
 	}
 	r3, err := receive.Handle(ctx, contactSub, conversation.ReceiveParams{
 		ChannelID: widgetCh.ID, From: "w-u100", Text: "我在网页看到了，谢谢！",

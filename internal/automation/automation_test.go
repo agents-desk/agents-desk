@@ -388,8 +388,8 @@ func TestCloseRequestRatingAndToggle(t *testing.T) {
 
 	// 第 1 次关闭：规则开启 → 发出邀请 → 可以评价
 	closeAndRun()
-	got, err := conversation.NewGetForContact(env.DB).Handle(ctx, visitor, f.widget.ID, msg.ConversationID)
-	if err != nil || !got.RatingRequested {
+	got, err := conversation.NewContactStream(env.DB).Handle(ctx, visitor, f.widget.ID, "", "", 10)
+	if err != nil || got.LatestConversation == nil || !got.LatestConversation.RatingRequested {
 		t.Fatalf("第 1 次关闭后应请求评价：%+v %v", got, err)
 	}
 	if _, err := conversation.NewRateByContact(env.DB, f.down).Handle(ctx, visitor, f.widget.ID, msg.ConversationID, 5, "很好"); err != nil {
@@ -403,8 +403,8 @@ func TestCloseRequestRatingAndToggle(t *testing.T) {
 		t.Fatal(err)
 	}
 	closeAndRun()
-	got2, err := conversation.NewGetForContact(env.DB).Handle(ctx, visitor, f.widget.ID, msg.ConversationID)
-	if err != nil || !got2.RatingRequested || got2.Rating != nil {
+	got2, err := conversation.NewContactStream(env.DB).Handle(ctx, visitor, f.widget.ID, "", "", 10)
+	if err != nil || got2.LatestConversation == nil || !got2.LatestConversation.RatingRequested || got2.LatestConversation.Rating != nil {
 		t.Fatalf("第 2 次关闭后应重新请求评价：%+v %v", got2, err)
 	}
 
@@ -433,8 +433,8 @@ func TestCloseRequestRatingAndToggle(t *testing.T) {
 		t.Fatal(err)
 	}
 	closeAndRun()
-	got3, err := conversation.NewGetForContact(env.DB).Handle(ctx, visitor, f.widget.ID, msg.ConversationID)
-	if err != nil || got3.RatingRequested {
+	got3, err := conversation.NewContactStream(env.DB).Handle(ctx, visitor, f.widget.ID, "", "", 10)
+	if err != nil || got3.LatestConversation == nil || got3.LatestConversation.RatingRequested {
 		t.Fatalf("停用后不应请求评价：%+v %v", got3, err)
 	}
 	if _, err := conversation.NewRateByContact(env.DB, f.down).Handle(ctx, visitor, f.widget.ID, msg.ConversationID, 4, ""); !errors.Is(err, conversation.ErrRatingNotRequested) {

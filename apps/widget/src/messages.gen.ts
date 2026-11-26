@@ -7,17 +7,15 @@ export const messages = {
     "chat.download_file": "Download file",
     "chat.ended": "This conversation has ended",
     "chat.failed": "Not sent",
-    "chat.me": "You",
+    "chat.load_older": "Load earlier messages",
+    "chat.loading_older": "Loading earlier messages…",
     "chat.media_loading": "Loading…",
     "chat.media_unavailable": "Media unavailable",
-    "chat.new": "New conversation",
     "chat.new_message_jump": "New messages ({{.n}})",
     "chat.play_video": "Play video",
-    "chat.preview_audio": "[Audio]",
-    "chat.preview_file": "[File]",
-    "chat.preview_image": "[Image]",
-    "chat.preview_video": "[Video]",
+    "chat.rated_summary": "Rated {{.score}}/5",
     "chat.retry": "Retry",
+    "chat.round_ended": "Previous session ended",
     "chat.scroll_to_bottom": "Jump to latest",
     "chat.sending": "Sending…",
     "chat.status_closed": "Ended",
@@ -36,7 +34,6 @@ export const messages = {
     "composer.attach_retry": "Retry",
     "composer.hint": "Enter to send, Shift + Enter for a new line",
     "composer.placeholder": "Type a message…",
-    "composer.reopen_placeholder": "Send a message to reopen this conversation…",
     "composer.send": "Send",
     "demo.channel": "Chat widget ID",
     "demo.channel_hint": "Enter the ID of a chat widget in the demo workspace (seed prints it), and this page embeds it like a product website would. The command below signs the identity of a signed-in user and also prints the widget ID:",
@@ -53,9 +50,6 @@ export const messages = {
     "home.default_greeting": "Hi there! How can we help?",
     "home.first_hint": "We'll reply as soon as we can, and the replies show up here.",
     "home.first_title": "Send us a message",
-    "home.my_conversations": "Your conversations",
-    "home.new_conversation": "Start a new conversation",
-    "home.unread": "{{.n}} unread",
     "launcher.open": "Open support chat",
     "panel.back": "Back",
     "panel.close": "Close",
@@ -64,7 +58,6 @@ export const messages = {
     "preview.agent_name": "Support",
     "preview.sample_agent_reply": "Hi! Could you share your order number? I'll check the status right away.",
     "preview.sample_customer_msg": "Hi, I'd like to check the status of my recent order.",
-    "preview.sample_prev_msg": "Thanks for the help, everything is resolved now!",
     "prompt.collect_contact": "Leave your email so we can get back to you.",
     "prompt.reply_time_closed": "We're currently outside business hours. We'll be back at {{.time}} and reply as soon as we can.",
     "prompt.reply_time_closed_unknown": "We're currently outside business hours and will reply as soon as we're back.",
@@ -84,21 +77,22 @@ export const messages = {
     "rating.submit": "Submit",
     "rating.subtitle": "Your feedback helps us do better",
     "rating.thanks": "Thanks for your feedback!",
+    "tickets.clear_context": "Clear ticket context",
     "tickets.my_tickets": "Your tickets",
     "tickets.not_found": "Ticket not found or unavailable",
-    "tickets.open_conversation": "Open conversation",
+    "tickets.open_chat": "Continue in chat",
     "tickets.reply_action": "Reply with details",
+    "tickets.replying_context": "Replying to ticket #{{.number}}: {{.title}}",
     "tickets.single_entry": "Tickets ({{.n}})",
     "tickets.status_in_progress": "In progress",
     "tickets.status_resolved": "Resolved",
     "tickets.status_submitted": "Submitted",
     "tickets.status_waiting_on_customer": "Waiting for your reply",
-    "tickets.tab_conversations": "Conversations",
-    "tickets.tab_tickets": "Tickets",
     "tickets.title": "Ticket #{{.number}}",
     "tickets.updates_empty": "Our team is working on this and will share updates here soon.",
     "tickets.updates_heading": "Updates",
-    "tickets.waiting_hint": "Our team needs more details from you. Reply in the linked conversation below.",
+    "tickets.view_ticket": "View ticket #{{.number}}",
+    "tickets.waiting_hint": "Our team needs more details from you. Tap below to reply in chat.",
     "time.just_now": "Just now",
     "time.minutes_ago": "{{.n}} min ago",
     "time.today": "Today",
@@ -109,17 +103,15 @@ export const messages = {
     "chat.download_file": "下载文件",
     "chat.ended": "会话已结束",
     "chat.failed": "发送失败",
-    "chat.me": "我",
+    "chat.load_older": "加载更早的消息",
+    "chat.loading_older": "加载历史消息…",
     "chat.media_loading": "加载中…",
     "chat.media_unavailable": "媒体不可用",
-    "chat.new": "新会话",
     "chat.new_message_jump": "{{.n}} 条新消息",
     "chat.play_video": "播放视频",
-    "chat.preview_audio": "[语音]",
-    "chat.preview_file": "[文件]",
-    "chat.preview_image": "[图片]",
-    "chat.preview_video": "[视频]",
+    "chat.rated_summary": "已评价 {{.score}} 星",
     "chat.retry": "重试",
+    "chat.round_ended": "本次服务已结束",
     "chat.scroll_to_bottom": "回到底部",
     "chat.sending": "发送中…",
     "chat.status_closed": "已结束",
@@ -138,7 +130,6 @@ export const messages = {
     "composer.attach_retry": "重试",
     "composer.hint": "回车发送，Shift + 回车换行",
     "composer.placeholder": "输入消息…",
-    "composer.reopen_placeholder": "继续发消息会重新打开会话…",
     "composer.send": "发送",
     "demo.channel": "聊天插件的 ID",
     "demo.channel_hint": "填写示例工作区中聊天插件的 ID（运行 seed 时会打印出来），这个页面就像产品网站一样嵌入它。下面的命令签出一个已登录用户的身份，同时打印聊天插件的 ID：",
@@ -155,9 +146,6 @@ export const messages = {
     "home.default_greeting": "你好！有什么可以帮你？",
     "home.first_hint": "我们会尽快回复你，回复也会显示在这里。",
     "home.first_title": "给我们发消息",
-    "home.my_conversations": "我的会话",
-    "home.new_conversation": "发起新会话",
-    "home.unread": "{{.n}} 条未读",
     "launcher.open": "打开在线客服",
     "panel.back": "返回",
     "panel.close": "关闭",
@@ -166,7 +154,6 @@ export const messages = {
     "preview.agent_name": "在线客服",
     "preview.sample_agent_reply": "你好！可以发一下订单号吗，我马上帮你核实进度。",
     "preview.sample_customer_msg": "你好，我想查询一下刚才提交的订单状态。",
-    "preview.sample_prev_msg": "感谢帮助，问题已经解决啦！",
     "prompt.collect_contact": "请留下你的邮箱，方便我们后续联系你。",
     "prompt.reply_time_closed": "当前为非工作时间，我们将在 {{.time}} 恢复工作后尽快回复。",
     "prompt.reply_time_closed_unknown": "当前为非工作时间，我们将在恢复工作后尽快回复。",
@@ -186,21 +173,22 @@ export const messages = {
     "rating.submit": "提交评价",
     "rating.subtitle": "你的评价会帮助我们做得更好",
     "rating.thanks": "感谢你的评价！",
+    "tickets.clear_context": "取消关联工单",
     "tickets.my_tickets": "我的工单",
     "tickets.not_found": "该工单不存在或暂时无法查看",
-    "tickets.open_conversation": "查看关联会话",
+    "tickets.open_chat": "去对话沟通",
     "tickets.reply_action": "去补充信息",
+    "tickets.replying_context": "正在补充工单 #{{.number}}：{{.title}}",
     "tickets.single_entry": "工单 ({{.n}})",
     "tickets.status_in_progress": "处理中",
     "tickets.status_resolved": "已解决",
     "tickets.status_submitted": "已提交",
     "tickets.status_waiting_on_customer": "等待您补充信息",
-    "tickets.tab_conversations": "会话",
-    "tickets.tab_tickets": "工单",
     "tickets.title": "工单 #{{.number}}",
     "tickets.updates_empty": "团队正在跟进处理，有最新进展将第一时间同步到这里。",
     "tickets.updates_heading": "处理进度",
-    "tickets.waiting_hint": "客服正在等待您补充信息，点击下方按钮回到会话回复。",
+    "tickets.view_ticket": "查看工单 #{{.number}}",
+    "tickets.waiting_hint": "客服正在等待您补充信息，点击下方按钮回到对话回复。",
     "time.just_now": "刚刚",
     "time.minutes_ago": "{{.n}} 分钟前",
     "time.today": "今天",
@@ -214,17 +202,15 @@ export type MessageId =
   | "chat.download_file"
   | "chat.ended"
   | "chat.failed"
-  | "chat.me"
+  | "chat.load_older"
+  | "chat.loading_older"
   | "chat.media_loading"
   | "chat.media_unavailable"
-  | "chat.new"
   | "chat.new_message_jump"
   | "chat.play_video"
-  | "chat.preview_audio"
-  | "chat.preview_file"
-  | "chat.preview_image"
-  | "chat.preview_video"
+  | "chat.rated_summary"
   | "chat.retry"
+  | "chat.round_ended"
   | "chat.scroll_to_bottom"
   | "chat.sending"
   | "chat.status_closed"
@@ -243,7 +229,6 @@ export type MessageId =
   | "composer.attach_retry"
   | "composer.hint"
   | "composer.placeholder"
-  | "composer.reopen_placeholder"
   | "composer.send"
   | "demo.channel"
   | "demo.channel_hint"
@@ -260,9 +245,6 @@ export type MessageId =
   | "home.default_greeting"
   | "home.first_hint"
   | "home.first_title"
-  | "home.my_conversations"
-  | "home.new_conversation"
-  | "home.unread"
   | "launcher.open"
   | "panel.back"
   | "panel.close"
@@ -271,7 +253,6 @@ export type MessageId =
   | "preview.agent_name"
   | "preview.sample_agent_reply"
   | "preview.sample_customer_msg"
-  | "preview.sample_prev_msg"
   | "prompt.collect_contact"
   | "prompt.reply_time_closed"
   | "prompt.reply_time_closed_unknown"
@@ -291,20 +272,21 @@ export type MessageId =
   | "rating.submit"
   | "rating.subtitle"
   | "rating.thanks"
+  | "tickets.clear_context"
   | "tickets.my_tickets"
   | "tickets.not_found"
-  | "tickets.open_conversation"
+  | "tickets.open_chat"
   | "tickets.reply_action"
+  | "tickets.replying_context"
   | "tickets.single_entry"
   | "tickets.status_in_progress"
   | "tickets.status_resolved"
   | "tickets.status_submitted"
   | "tickets.status_waiting_on_customer"
-  | "tickets.tab_conversations"
-  | "tickets.tab_tickets"
   | "tickets.title"
   | "tickets.updates_empty"
   | "tickets.updates_heading"
+  | "tickets.view_ticket"
   | "tickets.waiting_hint"
   | "time.just_now"
   | "time.minutes_ago"

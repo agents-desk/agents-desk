@@ -7,16 +7,16 @@ import { useBrandForeground } from "./contrast"
 /** HeaderProps 是聊天窗口顶部的内容。 */
 interface HeaderProps {
   color: string // 主题色
-  title: string // 聊天插件的名称
-  greeting?: string // 首页的问候语；会话页没有
-  status?: string // 会话页标题旁的状态
-  onBack?: () => void // 会话页的返回首页
-  extra?: ReactNode // 标题栏右侧的附加按钮（如单会话模式下的工单入口）
-  close?: "collapse" | "close" // 右上角的按钮：电脑上收起，手机全屏和 App 中关闭；没有时不显示
+  title: string // 聊天插件的名称或子页面标题
+  greeting?: string // 首次进入时的欢迎问候语
+  status?: string // 对话标题旁的当前服务状态
+  onBack?: () => void // 子页面返回按钮回调
+  extra?: ReactNode // 标题栏右侧的附加按钮（如我的工单入口）
+  close?: "collapse" | "close" // 右上角的按钮：电脑上收起，手机全屏和 App 中关闭
   onClose?: () => void
 }
 
-/** Header 是聊天窗口的顶部：主题色的底，首页是名称和问候语，会话页是返回、名称和会话的状态。顶部留出刘海的安全区域。 */
+/** Header 是聊天窗口的顶部：主题色的底，首次进入展示名称和问候语，对话及子页面展示标题、状态和返回操作。顶部留出刘海的安全区域。 */
 export function Header({ color, title, greeting, status, onBack, extra, close, onClose }: HeaderProps): ReactNode {
   const t = useT()
   const fg = useBrandForeground()

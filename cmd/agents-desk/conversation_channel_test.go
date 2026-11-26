@@ -102,7 +102,7 @@ func TestConversationChannel(t *testing.T) {
 		t.Fatal(err)
 	}
 	visitor := identity.Subject{Type: contact.Type, ID: contactID, Tenant: tn.ID}
-	if err := conversation.NewTypingByContact(env.DB, down).Handle(ctx, visitor, ch.ID, got.ConversationID); err != nil {
+	if err := conversation.NewTypingOnActiveByContact(env.DB, down).Handle(ctx, visitor, ch.ID); err != nil {
 		t.Fatal(err)
 	}
 	if ev := ownerWS.publication(); ev.Type != "typing" {

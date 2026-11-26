@@ -13,43 +13,9 @@ export const schemas = {
     },
   },
   conversation: {
-    items: {
-      query: {
-        "properties": {
-          "after": {
-            "format": "int64",
-            "minimum": 0,
-            "type": "integer"
-          },
-          "limit": {
-            "default": 100,
-            "format": "int64",
-            "maximum": 500,
-            "minimum": 1,
-            "type": "integer"
-          }
-        },
-        "type": "object"
-      },
-    },
     rate: {
       body: {
         "$ref": "#/components/schemas/WidgetRateInputBody"
-      },
-    },
-    read: {
-      body: {
-        "$ref": "#/components/schemas/WidgetReadInputBody"
-      },
-    },
-    send: {
-      body: {
-        "$ref": "#/components/schemas/WidgetMessageBody"
-      },
-    },
-    start: {
-      body: {
-        "$ref": "#/components/schemas/WidgetMessageBody"
       },
     },
   },
@@ -197,20 +163,6 @@ export const components = {
     },
     "required": [
       "score"
-    ],
-    "type": "object"
-  },
-  WidgetReadInputBody: {
-    "additionalProperties": false,
-    "properties": {
-      "seq": {
-        "format": "int64",
-        "minimum": 0,
-        "type": "integer"
-      }
-    },
-    "required": [
-      "seq"
     ],
     "type": "object"
   },

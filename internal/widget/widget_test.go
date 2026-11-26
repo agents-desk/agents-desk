@@ -203,20 +203,17 @@ func TestConversation(t *testing.T) {
 	in := f.in(t, f.widget.ID)
 
 	// 发起会话；同一个 client_id 重发时是同一条
-	sent, err := send.Handle(in, visitor, "", MessageBody{Text: "mera order nahi aaya", ClientID: "c1"})
+	sent, err := send.Handle(in, visitor, MessageBody{Text: "mera order nahi aaya", ClientID: "c1"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	resent, err := send.Handle(in, visitor, sent.ConversationID, MessageBody{Text: "mera order nahi aaya", ClientID: "c1"})
+	resent, err := send.Handle(in, visitor, MessageBody{Text: "mera order nahi aaya", ClientID: "c1"})
 	if err != nil || resent.Item.ID != sent.Item.ID {
 		t.Fatalf("重发：%+v %v", resent, err)
 	}
-	// 别人用同一个 client_id 是他自己的消息；他不能往别人的会话里发
-	if s, err := send.Handle(in, stranger, "", MessageBody{Text: "hello", ClientID: "c1"}); err != nil || s.ConversationID == sent.ConversationID {
+	// 别人用同一个 client_id 是他自己的消息
+	if s, err := send.Handle(in, stranger, MessageBody{Text: "hello", ClientID: "c1"}); err != nil || s.ConversationID == sent.ConversationID {
 		t.Fatalf("别人的同一个 client_id：%+v %v", s, err)
-	}
-	if _, err := send.Handle(in, stranger, sent.ConversationID, MessageBody{Text: "hi"}); !errors.Is(err, conversation.ErrNotFound) {
-		t.Fatalf("往别人的会话里发：%v", err)
 	}
 
 	// 坐席写备注、回复；连接器把回复推送到客户的频道
@@ -245,22 +242,19 @@ func TestConversation(t *testing.T) {
 		t.Fatal("没有收到推送")
 	}
 
-	// 客户看到的会话和时间线：自己的消息和坐席的回复，没有备注和指派的系统事件
-	list, err := conversation.NewListForContact(env.DB).Handle(ctx, visitor, f.widget.ID)
-	if err != nil || len(list) != 1 || list[0].ID != sent.ConversationID || list[0].Unread != 1 || list[0].Preview != "您好，我帮您查一下" ||
-		list[0].PreviewAuthor.Type != conversation.MemberActor || list[0].PreviewAuthor.Name != "owner" {
-		t.Fatalf("客户的会话列表：%+v %v", list, err)
-	}
-	items, err := conversation.NewTimelineForContact(env.DB).Handle(ctx, visitor, f.widget.ID, sent.ConversationID, 0, 100)
-	if err != nil || len(items) != 2 || items[0].Author.Type != conversation.ContactActor ||
-		items[1].ID != reply.ID || items[1].Author.Type != conversation.MemberActor || items[1].Author.Name != "owner" {
-		t.Fatalf("客户的时间线：%+v %v", items, err)
+	// 客户看到的连续时间线：自己的消息和坐席的回复，没有备注和指派的系统事件
+	stream := conversation.NewContactStream(env.DB)
+	tl, err := stream.Handle(ctx, visitor, f.widget.ID, "", "", 100)
+	if err != nil || len(tl.Items) != 2 || tl.Unread != 1 || tl.LatestConversation == nil || tl.LatestConversation.ID != sent.ConversationID ||
+		tl.Items[0].Author.Type != conversation.ContactActor ||
+		tl.Items[1].ID != reply.ID || tl.Items[1].Author.Type != conversation.MemberActor || tl.Items[1].Author.Name != "owner" {
+		t.Fatalf("客户的连续时间线：%+v %v", tl, err)
 	}
 
 	// 客户读到回复：记为已读，成员收到推送
 	memberPubs := hub.Subscribe(push.Channel(f.system.Tenant, f.agent.ID))
 	defer memberPubs.Close()
-	if err := conversation.NewMarkReadByContact(env.DB, down).Handle(ctx, visitor, f.widget.ID, sent.ConversationID, reply.Seq); err != nil {
+	if err := conversation.NewMarkAllReadByContact(env.DB, down).Handle(ctx, visitor, f.widget.ID, reply.ID); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -272,30 +266,23 @@ func TestConversation(t *testing.T) {
 	if err != nil || len(timeline) != 1 || timeline[0].Delivery == nil || *timeline[0].Delivery != conversation.Read {
 		t.Fatalf("坐席看到的送达状态：%+v %v", timeline, err)
 	}
-	if got, err := conversation.NewGetForContact(env.DB).Handle(ctx, visitor, f.widget.ID, sent.ConversationID); err != nil || got.Unread != 0 {
-		t.Fatalf("读过之后：%+v %v", got, err)
+	if afterRead, err := stream.Handle(ctx, visitor, f.widget.ID, "", "", 100); err != nil || afterRead.Unread != 0 {
+		t.Fatalf("读过之后：%+v %v", afterRead, err)
 	}
 
-	// 别的客户、别的聊天插件、成员都不能以客户的身份读取
+	// 别的客户看不到 visitor 的消息；别的聊天插件隔离访客线索；成员不能以客户身份读取
 	second, err := NewCreate(env.DB, env.Crypt).Handle(ctx, f.system, Changes{Name: "App"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	for name, c := range map[string]struct {
-		sub     identity.Subject
-		channel string
-		want    error
-	}{
-		"别的客户":   {stranger, f.widget.ID, conversation.ErrNotFound},
-		"别的聊天插件": {visitor, second.ID, conversation.ErrNotFound},
-		"成员":     {f.agent, f.widget.ID, conversation.ErrForbidden},
-	} {
-		if _, err := conversation.NewTimelineForContact(env.DB).Handle(ctx, c.sub, c.channel, sent.ConversationID, 0, 100); !errors.Is(err, c.want) {
-			t.Errorf("%s读取时间线：%v", name, err)
-		}
-		if err := conversation.NewMarkReadByContact(env.DB, down).Handle(ctx, c.sub, c.channel, sent.ConversationID, 100); !errors.Is(err, c.want) {
-			t.Errorf("%s标记已读：%v", name, err)
-		}
+	if otherTL, err := stream.Handle(ctx, visitor, second.ID, "", "", 100); err != nil || len(otherTL.Items) != 0 {
+		t.Errorf("别的聊天插件应隔离访客线索：%+v %v", otherTL, err)
+	}
+	if _, err := stream.Handle(ctx, f.agent, f.widget.ID, "", "", 100); !errors.Is(err, conversation.ErrForbidden) {
+		t.Errorf("成员读取时间线：%v", err)
+	}
+	if err := conversation.NewMarkAllReadByContact(env.DB, down).Handle(ctx, f.agent, f.widget.ID, ""); !errors.Is(err, conversation.ErrForbidden) {
+		t.Errorf("成员标记已读：%v", err)
 	}
 }
 
@@ -381,25 +368,25 @@ func TestSingleConversationMode(t *testing.T) {
 	registry := channel.Registry{channel.Widget: NewConnector(hub)}
 	down := conversation.Downstream{Hub: hub, Roles: env.Roles, ContactPush: Push(hub)}
 	send := NewSendMessage(env.DB, conversation.NewReceive(env.DB, registry, down))
-	list := conversation.NewListForContact(env.DB)
+	stream := conversation.NewContactStream(env.DB)
 
 	_, visitor := f.session(t, SessionBody{})
 	in := f.in(t, f.widget.ID)
 
-	first, err := send.Handle(in, visitor, "", MessageBody{Text: "first"})
+	first, err := send.Handle(in, visitor, MessageBody{Text: "first"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := send.Handle(in, visitor, "", MessageBody{Text: "second"})
+	second, err := send.Handle(in, visitor, MessageBody{Text: "second"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if second.ConversationID != first.ConversationID {
-		t.Fatalf("单会话模式应复用同一会话：first=%s second=%s", first.ConversationID, second.ConversationID)
+		t.Fatalf("单活跃会话应复用同一会话：first=%s second=%s", first.ConversationID, second.ConversationID)
 	}
-	convs, err := list.Handle(ctx, visitor, f.widget.ID)
-	if err != nil || len(convs) != 1 {
-		t.Fatalf("单会话模式会话列表：%+v %v", convs, err)
+	tl, err := stream.Handle(ctx, visitor, f.widget.ID, "", "", 50)
+	if err != nil || len(tl.Items) != 2 || len(tl.Conversations) != 1 {
+		t.Fatalf("连续时间线：%+v %v", tl, err)
 	}
 }
 
@@ -417,7 +404,7 @@ func TestRating(t *testing.T) {
 	down := conversation.Downstream{Hub: hub, Roles: env.Roles, ContactPush: Push(hub)}
 	send := NewSendMessage(env.DB, conversation.NewReceive(env.DB, registry, down))
 	rate := conversation.NewRateByContact(env.DB, down)
-	get := conversation.NewGetForContact(env.DB)
+	stream := conversation.NewContactStream(env.DB)
 
 	_, visitor := f.session(t, SessionBody{})
 	in := f.in(t, f.widget.ID)
@@ -432,7 +419,7 @@ func TestRating(t *testing.T) {
 		}
 	}
 
-	sent, err := send.Handle(in, visitor, "", MessageBody{Text: "hello"})
+	sent, err := send.Handle(in, visitor, MessageBody{Text: "hello"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -446,8 +433,8 @@ func TestRating(t *testing.T) {
 		t.Fatal(err)
 	}
 	expectPush("稍后处理")
-	if c, err := get.Handle(ctx, visitor, f.widget.ID, sent.ConversationID); err != nil || c.Status != conversation.Open {
-		t.Fatalf("稍后处理的会话：%+v %v", c, err)
+	if tl, err := stream.Handle(ctx, visitor, f.widget.ID, "", "", 10); err != nil || tl.LatestConversation == nil || tl.LatestConversation.Status != conversation.Open {
+		t.Fatalf("稍后处理的会话：%+v %v", tl, err)
 	}
 
 	// 关闭：推送给客户；还没有发出评价邀请时不能评价，系统发出评价邀请后推送给客户，客户看到可以评价
@@ -455,8 +442,8 @@ func TestRating(t *testing.T) {
 		t.Fatal(err)
 	}
 	expectPush("关闭")
-	if c, err := get.Handle(ctx, visitor, f.widget.ID, sent.ConversationID); err != nil || c.Status != conversation.Closed || c.RatingRequested || c.Rating != nil {
-		t.Fatalf("关闭后、未邀请前：%+v %v", c, err)
+	if tl, err := stream.Handle(ctx, visitor, f.widget.ID, "", "", 10); err != nil || tl.LatestConversation == nil || tl.LatestConversation.Status != conversation.Closed || tl.LatestConversation.RatingRequested || tl.LatestConversation.Rating != nil {
+		t.Fatalf("关闭后、未邀请前：%+v %v", tl, err)
 	}
 	if _, err := rate.Handle(ctx, visitor, f.widget.ID, sent.ConversationID, 5, ""); !errors.Is(err, conversation.ErrRatingNotRequested) {
 		t.Fatalf("未邀请时评价：%v", err)
@@ -466,8 +453,8 @@ func TestRating(t *testing.T) {
 		t.Fatalf("发出评价邀请：%v %v", ok, err)
 	}
 	expectPush("邀请评价")
-	if c, err := get.Handle(ctx, visitor, f.widget.ID, sent.ConversationID); err != nil || c.Status != conversation.Closed || !c.RatingRequested || c.Rating != nil {
-		t.Fatalf("邀请评价后：%+v %v", c, err)
+	if tl, err := stream.Handle(ctx, visitor, f.widget.ID, "", "", 10); err != nil || tl.LatestConversation == nil || tl.LatestConversation.Status != conversation.Closed || !tl.LatestConversation.RatingRequested || tl.LatestConversation.Rating != nil {
+		t.Fatalf("邀请评价后：%+v %v", tl, err)
 	}
 	rated, err := rate.Handle(ctx, visitor, f.widget.ID, sent.ConversationID, 4, "挺快的")
 	if err != nil || rated.Rating == nil || rated.Rating.Score != 4 || rated.Rating.Comment != "挺快的" {
@@ -484,17 +471,17 @@ func TestRating(t *testing.T) {
 	if err != nil || items[len(items)-1].Content.Event != "conversation.rated" || items[len(items)-1].Visibility != conversation.MembersOnly {
 		t.Fatalf("时间线：%+v %v", items, err)
 	}
-	if theirs, err := conversation.NewTimelineForContact(env.DB).Handle(ctx, visitor, f.widget.ID, sent.ConversationID, 0, 100); err != nil || len(theirs) != 1 {
+	if theirs, err := stream.Handle(ctx, visitor, f.widget.ID, "", "", 100); err != nil || len(theirs.Items) != 1 {
 		t.Fatalf("客户看到的时间线：%+v %v", theirs, err)
 	}
 
 	// 客户再发消息重新打开，坐席再关闭并邀请评价后可以再评价
-	if _, err := send.Handle(in, visitor, sent.ConversationID, MessageBody{Text: "one more thing"}); err != nil {
+	if _, err := send.Handle(in, visitor, MessageBody{Text: "one more thing"}); err != nil {
 		t.Fatal(err)
 	}
 	expectPush("重新打开")
-	if c, err := get.Handle(ctx, visitor, f.widget.ID, sent.ConversationID); err != nil || c.Status != conversation.Open || c.RatingRequested || c.Rating != nil {
-		t.Fatalf("重新打开后：%+v %v", c, err)
+	if tl, err := stream.Handle(ctx, visitor, f.widget.ID, "", "", 10); err != nil || tl.LatestConversation == nil || tl.LatestConversation.Status != conversation.Open || tl.LatestConversation.RatingRequested || tl.LatestConversation.Rating != nil {
+		t.Fatalf("重新打开后：%+v %v", tl, err)
 	}
 	if _, err := conversation.NewClose(env.DB, down).Handle(ctx, f.agent, sent.ConversationID); err != nil {
 		t.Fatal(err)
@@ -583,7 +570,7 @@ func TestLeadMergeOnLogin(t *testing.T) {
 	// 访客打开聊天窗口，带上来源页面和时区，发起会话
 	leadSession, lead := f.sessionWithDown(t, SessionBody{TimeZone: "Asia/Shanghai", Referrer: "https://shop.example.com/pricing"}, down)
 	in := f.in(t, f.widget.ID)
-	sent, err := send.Handle(in, lead, "", MessageBody{Text: "hello before login", ClientID: "pre-1"})
+	sent, err := send.Handle(in, lead, MessageBody{Text: "hello before login", ClientID: "pre-1"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -618,12 +605,12 @@ func TestLeadMergeOnLogin(t *testing.T) {
 	if err := json.Unmarshal(broadcasttest.Receive(t, memberPubs).Data, &ev); err != nil || ev.Type != push.Conversation || ev.ID != sent.ConversationID {
 		t.Fatalf("合并后推送：%+v %v", ev, err)
 	}
-	// 用户登录后能直接看到合并过来的会话，并且可以继续发消息
-	convs, err := conversation.NewListForContact(env.DB).Handle(ctx, user, f.widget.ID)
-	if err != nil || len(convs) != 1 || convs[0].ID != sent.ConversationID {
-		t.Fatalf("用户看到的会话列表：%+v %v", convs, err)
+	// 用户登录后能直接看到合并过来的会话消息，并且可以继续发消息
+	tl, err := conversation.NewContactStream(env.DB).Handle(ctx, user, f.widget.ID, "", "", 50)
+	if err != nil || tl.LatestConversation == nil || tl.LatestConversation.ID != sent.ConversationID || len(tl.Items) != 1 {
+		t.Fatalf("用户看到的连续时间线：%+v %v", tl, err)
 	}
-	if _, err := send.Handle(in, user, sent.ConversationID, MessageBody{Text: "after login"}); err != nil {
+	if _, err := send.Handle(in, user, MessageBody{Text: "after login"}); err != nil {
 		t.Fatalf("用户继续发消息：%v", err)
 	}
 	// 线索原记录已删，资料已回填到用户

@@ -11,6 +11,22 @@ import { useIdentity } from "../realtime"
 
 type T = ReturnType<typeof useT>
 
+/** TicketPromptTarget 是工单进度或状态变更系统消息对应的工单跳转目标。 */
+export interface TicketPromptTarget {
+  id: string
+  number: number
+}
+
+/** ticketPromptTarget 从工单类系统提示中提取工单 ID 与编号，用于渲染直达工单详情的操作入口。 */
+export function ticketPromptTarget(prompt: ConversationPrompt | undefined): TicketPromptTarget | null {
+  if (!prompt || (prompt.kind !== "ticket_update" && prompt.kind !== "ticket_status_changed")) return null
+  const params = prompt.params ?? {}
+  const id = typeof params.ticket_id === "string" ? params.ticket_id : ""
+  const num = Number(params.number ?? params.ticket_number ?? 0)
+  if (!id || !(num > 0)) return null
+  return { id, number: num }
+}
+
 /** formatNextOpen 把 RFC3339 时刻按客户当前的语言和本地时区格式化成简短的日期与时间。 */
 function formatNextOpen(iso: string, language: string): string {
   const d = new Date(iso)
@@ -45,24 +61,25 @@ export function promptText(prompt: ConversationPrompt | undefined, fallback: str
     case "collect_contact":
       return t("prompt.collect_contact")
     case "ticket_update": {
-      const num = Number(params.ticket_number ?? 0)
+      const num = Number(params.number ?? params.ticket_number ?? 0)
       if (num > 0 && fallback) return t("prompt.ticket_update", { number: num, text: fallback })
       return fallback
     }
     case "ticket_status_changed": {
-      const num = Number(params.ticket_number ?? 0)
-      const title = typeof params.ticket_title === "string" ? params.ticket_title : ""
-      const to = typeof params.to === "string" ? params.to : ""
+      const num = Number(params.number ?? params.ticket_number ?? 0)
+      const title =
+        typeof params.title === "string" ? params.title : typeof params.ticket_title === "string" ? params.ticket_title : ""
+      const status = typeof params.status === "string" ? params.status : typeof params.to === "string" ? params.to : ""
       const statusLabel =
-        to === "submitted"
+        status === "submitted"
           ? t("tickets.status_submitted")
-          : to === "in_progress"
+          : status === "in_progress"
             ? t("tickets.status_in_progress")
-            : to === "waiting_on_customer"
+            : status === "waiting_on_customer"
               ? t("tickets.status_waiting_on_customer")
-              : to === "resolved"
+              : status === "resolved"
                 ? t("tickets.status_resolved")
-                : to
+                : status
       if (num > 0 && statusLabel) return t("prompt.ticket_status_changed", { number: num, title, status: statusLabel })
       return fallback
     }
@@ -110,7 +127,7 @@ export function CollectEmailCard({ conversationId, color }: { conversationId?: s
     )
   }
 
-  // 已登录用户不需要通过访客表单留邮箱
+  // 已登录用户无需通过访客表单留邮箱
   if (contact && contact.kind !== "lead") {
     return null
   }

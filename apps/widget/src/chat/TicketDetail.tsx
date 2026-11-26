@@ -10,6 +10,13 @@ import { useTicket } from "./queries"
 
 type T = ReturnType<typeof useT>
 
+/** ReplyTicketContext 是客户从工单详情返回对话流补充信息时附带的工单上下文。 */
+export interface ReplyTicketContext {
+  id: string
+  number: number
+  title: string
+}
+
 /** ticketStatusColor 是客户侧工单状态的语义色板。 */
 export const ticketStatusColor: Record<ConversationContactTicketDTO["status"], string> = {
   submitted: "gray",
@@ -32,7 +39,7 @@ export function ticketStatusLabel(status: ConversationContactTicketDTO["status"]
   }
 }
 
-/** TicketListItems 渲染客户可见的工单列表项，供首页工单标签页和单会话工单视图共用。 */
+/** TicketListItems 渲染客户可见的工单列表项。 */
 export function TicketListItems({
   tickets,
   color,
@@ -83,18 +90,18 @@ export function TicketListItems({
 
 /**
  * TicketDetailView 是客户侧单张工单详情页：
- * 展示工单编号、状态、标题、描述与公开进度记录；点击底部按钮直达关联会话补充文字或图片。
+ * 展示工单编号、状态、标题、描述与公开进度记录；点击底部按钮带着该工单上下文回到统一对话流补充信息。
  */
 export function TicketDetailView({
   id,
   color,
   name,
-  onOpenConversation,
+  onReplyInChat,
 }: {
   id: string
   color: string
   name: string
-  onOpenConversation: (conversationId: string) => void
+  onReplyInChat: (ticket: ReplyTicketContext) => void
 }): ReactNode {
   const t = useT()
   const language = useLanguage()
@@ -194,20 +201,18 @@ export function TicketDetailView({
         </Stack>
       </Box>
 
-      {tk.conversation_id && (
-        <Box p="sm" className="w-composer w-safe-bottom">
-          <Button
-            fullWidth
-            size="md"
-            radius="md"
-            color={waiting ? "yellow" : color}
-            leftSection={<IconMessageCircle size={17} />}
-            onClick={() => onOpenConversation(tk.conversation_id)}
-          >
-            {t(waiting ? "tickets.reply_action" : "tickets.open_conversation")}
-          </Button>
-        </Box>
-      )}
+      <Box p="sm" className="w-composer w-safe-bottom">
+        <Button
+          fullWidth
+          size="md"
+          radius="md"
+          color={waiting ? "yellow" : color}
+          leftSection={<IconMessageCircle size={17} />}
+          onClick={() => onReplyInChat({ id: tk.id, number: tk.number, title: tk.title })}
+        >
+          {t(waiting ? "tickets.reply_action" : "tickets.open_chat")}
+        </Button>
+      </Box>
       <ImageLightbox src={lightbox?.src ?? null} filename={lightbox?.filename} onClose={() => setLightbox(null)} />
     </>
   )

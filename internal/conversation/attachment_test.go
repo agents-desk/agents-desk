@@ -210,17 +210,12 @@ func TestAttachmentsFlow(t *testing.T) {
 	}
 
 	contactSub := identity.Subject{Type: contact.Type, ID: conv.Contact.ID, Tenant: f.system.Tenant}
-	contactItems, err := conversation.NewTimelineForContact(env.DB, media).Handle(ctx, contactSub, f.ch.ID, conv.ID, 0, 50)
+	contactStream, err := conversation.NewContactStream(env.DB, media).Handle(ctx, contactSub, f.ch.ID, "", "", 50)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(contactItems) != 2 || len(contactItems[0].Attachments) != 2 || len(contactItems[1].Attachments) != 2 {
-		t.Fatalf("联系人时间线 = %+v", contactItems)
-	}
-	contactConvs, err := conversation.NewListForContact(env.DB).Handle(ctx, contactSub, f.ch.ID)
-	if err != nil || len(contactConvs) != 1 || contactConvs[0].PreviewAttachment == nil ||
-		contactConvs[0].PreviewAttachment.Kind != conversation.AttachmentFile || contactConvs[0].PreviewAttachment.Count != 2 {
-		t.Fatalf("联系人会话列表摘要 = %+v %v", contactConvs, err)
+	if len(contactStream.Items) != 2 || len(contactStream.Items[0].Attachments) != 2 || len(contactStream.Items[1].Attachments) != 2 {
+		t.Fatalf("联系人连续时间线附件 = %+v", contactStream.Items)
 	}
 }
 

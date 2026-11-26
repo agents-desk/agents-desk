@@ -44,48 +44,9 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
     conversation: {
       /** conversation 分组全部查询的 key 前缀。 */
       key: () => key("conversation"),
-      /** GET /conversations/{id} */
-      get: (...args: Parameters<Client["conversation"]["get"]>) => ({
-        queryKey: key("conversation", "get", ...args),
-        queryFn: () => client.conversation.get(...args),
-      }),
-      /** GET /conversations/{id}/items */
-      items: (...args: Parameters<Client["conversation"]["items"]>) => ({
-        queryKey: key("conversation", "items", ...args),
-        queryFn: () => client.conversation.items(...args),
-      }),
-      /** GET /conversations */
-      list: (...args: Parameters<Client["conversation"]["list"]>) => ({
-        queryKey: key("conversation", "list", ...args),
-        queryFn: () => client.conversation.list(...args),
-      }),
       /** POST /conversations/{id}/rating */
       rate: () => ({
         mutationFn: (variables: Parameters<Client["conversation"]["rate"]>) => client.conversation.rate(...variables),
-        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
-          invalidate(context, "conversation"),
-      }),
-      /** POST /conversations/{id}/read */
-      read: () => ({
-        mutationFn: (variables: Parameters<Client["conversation"]["read"]>) => client.conversation.read(...variables),
-        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
-          invalidate(context, "conversation"),
-      }),
-      /** POST /conversations/{id}/messages */
-      send: () => ({
-        mutationFn: (variables: Parameters<Client["conversation"]["send"]>) => client.conversation.send(...variables),
-        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
-          invalidate(context, "conversation"),
-      }),
-      /** POST /conversations */
-      start: () => ({
-        mutationFn: (variables: Parameters<Client["conversation"]["start"]>[0]) => client.conversation.start(variables),
-        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
-          invalidate(context, "conversation"),
-      }),
-      /** POST /conversations/{id}/typing */
-      typing: () => ({
-        mutationFn: (variables: Parameters<Client["conversation"]["typing"]>[0]) => client.conversation.typing(variables),
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "conversation"),
       }),

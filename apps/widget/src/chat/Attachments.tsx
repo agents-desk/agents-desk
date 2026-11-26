@@ -1,7 +1,6 @@
 import type {
   ConversationAttachmentDTO,
   ConversationAttachmentInput,
-  ConversationPreviewAttachment,
   File as UploadedFile,
 } from "@agents-desk/client/widget"
 import { ActionIcon, Box, Group, Loader, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
@@ -216,25 +215,6 @@ function formatDuration(ms?: number): string {
 export interface LightboxImage {
   src: string
   filename?: string
-}
-
-/** widgetPreviewSummary 拼出聊天窗口首页会话列表的最后一条消息摘要。 */
-export function widgetPreviewSummary(
-  text: string,
-  attachment: ConversationPreviewAttachment | undefined,
-  t: ReturnType<typeof useT>,
-): string {
-  if (!attachment) return text
-  const label =
-    attachment.kind === "image"
-      ? t("chat.preview_image")
-      : attachment.kind === "video"
-        ? t("chat.preview_video")
-        : attachment.kind === "audio"
-          ? t("chat.preview_audio")
-          : t("chat.preview_file")
-  if (!text.trim()) return attachment.count > 1 ? `${label} ×${attachment.count}` : label
-  return `${label} ${text}`
 }
 
 /** fileIcon 按文件类型和扩展名返回合适的文档或媒体图标。 */

@@ -160,9 +160,6 @@ func TestContactTicketsVisibilityAndCrossChannel(t *testing.T) {
 	if list[0].ID != publicTk.ID || list[0].Status != conversation.TicketWaiting {
 		t.Fatalf("unexpected summary: %+v", list[0])
 	}
-	if list[0].ConversationID != otherRecv.ConversationID {
-		t.Fatalf("want linked conversation %s, got %s", otherRecv.ConversationID, list[0].ConversationID)
-	}
 	if list[0].LatestUpdate != "已提交支付通道补单，预计 10 分钟到账。" {
 		t.Fatalf("unexpected latest update: %q", list[0].LatestUpdate)
 	}

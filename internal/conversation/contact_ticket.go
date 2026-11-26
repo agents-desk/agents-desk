@@ -14,19 +14,21 @@ import (
 	"agents-desk/internal/tickettype"
 )
 
+// contactTicketLimit 是客户侧工单列表最多返回的工单数。
+const contactTicketLimit = 50
+
 // ContactTicketDTO 是客户在网页聊天插件中看到的工单摘要，仅暴露对外可见（visibility=all）的工单。
 type ContactTicketDTO struct {
-	ID             string       `json:"id"`
-	Number         int64        `json:"number" doc:"工单编号"`
-	TypeName       string       `json:"type_name" doc:"工单类型名称"`
-	Title          string       `json:"title"`
-	Description    string       `json:"description"`
-	Status         TicketStatus `json:"status" doc:"submitted、in_progress、waiting_on_customer 或 resolved"`
-	ConversationID string       `json:"conversation_id" doc:"优先匹配当前渠道的关联服务型会话 ID，供客户跳转补充信息"`
-	LatestUpdate   string       `json:"latest_update" doc:"最近一条公开进度的文字摘要"`
-	LastMessageAt  time.Time    `json:"last_message_at"`
-	CreatedAt      time.Time    `json:"created_at"`
-	UpdatedAt      time.Time    `json:"updated_at"`
+	ID            string       `json:"id"`
+	Number        int64        `json:"number" doc:"工单编号"`
+	TypeName      string       `json:"type_name" doc:"工单类型名称"`
+	Title         string       `json:"title"`
+	Description   string       `json:"description"`
+	Status        TicketStatus `json:"status" doc:"submitted、in_progress、waiting_on_customer 或 resolved"`
+	LatestUpdate  string       `json:"latest_update" doc:"最近一条公开进度的文字摘要"`
+	LastMessageAt time.Time    `json:"last_message_at"`
+	CreatedAt     time.Time    `json:"created_at"`
+	UpdatedAt     time.Time    `json:"updated_at"`
 }
 
 // ContactTicketDetailDTO 是客户在网页聊天插件中看到的工单详情，包含全部对外公开进度记录。
@@ -79,10 +81,10 @@ func (a *ListTicketsForContact) Handle(ctx context.Context, sub identity.Subject
 				AND sc.tenant_id = ? AND sc.kind = ? AND sc.contact_id = ? AND sc.channel_id = ?
 		)`, sub.Tenant, sub.Tenant, Service, sub.ID, channelID)
 	}
-	if err := q.OrderExpr("conversation.last_message_at DESC, conversation.id DESC").Limit(contactListLimit).Scan(ctx); err != nil {
+	if err := q.OrderExpr("conversation.last_message_at DESC, conversation.id DESC").Limit(contactTicketLimit).Scan(ctx); err != nil {
 		return nil, errors.Wrap(err, "list contact tickets")
 	}
-	return toContactTicketDTOs(ctx, a.db, sub, kind, channelID, convs)
+	return toContactTicketDTOs(ctx, a.db, sub, convs)
 }
 
 // GetTicketForContact 返回客户在网页聊天插件中查看的单张工单详情与公开进度列表。
@@ -137,7 +139,7 @@ func (a *GetTicketForContact) Handle(ctx context.Context, sub identity.Subject, 
 		return nil, errors.Wrap(err, "load contact ticket")
 	}
 
-	summaries, err := toContactTicketDTOs(ctx, a.db, sub, kind, channelID, []Conversation{conv})
+	summaries, err := toContactTicketDTOs(ctx, a.db, sub, []Conversation{conv})
 	if err != nil {
 		return nil, err
 	}
@@ -172,9 +174,8 @@ func contactKindOf(ctx context.Context, db bun.IDB, sub identity.Subject) (conta
 	return kind, true, nil
 }
 
-// toContactTicketDTOs 批量组装客户侧工单摘要：读取工单元数据、类型名、最新公开进度，
-// 并为每张工单挑选最佳关联服务型会话 ID（优先当前插件渠道，其次该联系人最近活跃的关联会话）。
-func toContactTicketDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, kind contact.Kind, channelID string, convs []Conversation) ([]ContactTicketDTO, error) {
+// toContactTicketDTOs 批量组装客户侧工单摘要：读取工单元数据、类型名与最新公开进度。
+func toContactTicketDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conversation) ([]ContactTicketDTO, error) {
 	out := make([]ContactTicketDTO, len(convs))
 	if len(convs) == 0 {
 		return out, nil
@@ -227,42 +228,19 @@ func toContactTicketDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, 
 		latestByID[r.TicketID] = r.Text
 	}
 
-	// 为每张工单选出该联系人可打开的关联服务型会话 ID：优先当前插件渠道，其次最近活跃的关联会话
-	var linkRows []struct {
-		TicketID       string `bun:"ticket_id"`
-		ConversationID string `bun:"conversation_id"`
-	}
-	linkQ := db.NewSelect().TableExpr("conversation_links AS cl").
-		Join("JOIN conversations AS sc ON sc.id = cl.conversation_id").
-		ColumnExpr("DISTINCT ON (cl.ticket_id) cl.ticket_id, cl.conversation_id").
-		Where("cl.tenant_id = ? AND cl.ticket_id IN (?) AND sc.tenant_id = ? AND sc.kind = ? AND sc.contact_id = ?",
-			sub.Tenant, bun.In(ids), sub.Tenant, Service, sub.ID)
-	if kind != contact.User {
-		linkQ = linkQ.Where("sc.channel_id = ?", channelID)
-	}
-	linkQ = linkQ.OrderExpr("cl.ticket_id, (sc.channel_id = ?) DESC, sc.last_message_at DESC, sc.id DESC", channelID)
-	if err := linkQ.Scan(ctx, &linkRows); err != nil {
-		return nil, errors.Wrap(err, "load contact ticket linked conversation")
-	}
-	convByTicket := make(map[string]string, len(linkRows))
-	for _, r := range linkRows {
-		convByTicket[r.TicketID] = r.ConversationID
-	}
-
 	for i, c := range convs {
 		m := metaByID[c.ID]
 		out[i] = ContactTicketDTO{
-			ID:             c.ID,
-			Number:         m.Number,
-			TypeName:       typeNames[m.TypeID],
-			Title:          m.Title,
-			Description:    m.Description,
-			Status:         TicketStatus(c.Status),
-			ConversationID: convByTicket[c.ID],
-			LatestUpdate:   latestByID[c.ID],
-			LastMessageAt:  c.LastMessageAt,
-			CreatedAt:      c.CreatedAt,
-			UpdatedAt:      c.UpdatedAt,
+			ID:            c.ID,
+			Number:        m.Number,
+			TypeName:      typeNames[m.TypeID],
+			Title:         m.Title,
+			Description:   m.Description,
+			Status:        TicketStatus(c.Status),
+			LatestUpdate:  latestByID[c.ID],
+			LastMessageAt: c.LastMessageAt,
+			CreatedAt:     c.CreatedAt,
+			UpdatedAt:     c.UpdatedAt,
 		}
 	}
 	return out, nil

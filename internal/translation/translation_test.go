@@ -387,8 +387,8 @@ func TestPreviewAndReply(t *testing.T) {
 	if err := f.env.DB.NewRaw("SELECT contact_id FROM conversations WHERE id = ?", p.ConversationID).Scan(ctx, &contactID); err != nil {
 		t.Fatal(err)
 	}
-	theirs, err := conversation.NewTimelineForContact(f.env.DB).Handle(ctx, identity.Subject{Type: contact.Type, ID: contactID, Tenant: f.system.Tenant}, f.ch.ID, p.ConversationID, 0, 100)
-	if err != nil || theirs[len(theirs)-1].Text != got.Translation {
+	theirs, err := conversation.NewContactStream(f.env.DB).Handle(ctx, identity.Subject{Type: contact.Type, ID: contactID, Tenant: f.system.Tenant}, f.ch.ID, "", "", 100)
+	if err != nil || len(theirs.Items) == 0 || theirs.Items[len(theirs.Items)-1].Text != got.Translation {
 		t.Fatalf("客户看到的回复：%+v %v", theirs, err)
 	}
 }

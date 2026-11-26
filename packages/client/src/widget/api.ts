@@ -89,30 +89,6 @@ export interface ConversationContactAuthor {
   type: ConversationActorType
 }
 
-export interface ConversationContactConversationDTO {
-  created_at: string
-  id: string
-  last_message_at: string
-  /** 时间线中最新一项的序号；联系人看到的时间线跳过内部备注和系统事件，序号不连续 */
-  last_seq: number
-  /** 最后一条消息的文字 */
-  preview: string
-  /** 最后一条消息附带图片或文件时的摘要 */
-  preview_attachment?: ConversationPreviewAttachment
-  /** 最后一条消息是谁发的 */
-  preview_author: ConversationContactAuthor
-  /** 最后一条消息的结构化提示；不为空时前端按客户的语言渲染 */
-  preview_prompt?: ConversationPrompt
-  /** 客户对最近一次关闭的评价；会话已关闭且 rating_requested 为真、它为空时可以评价 */
-  rating?: ConversationRating
-  /** 这次关闭是否向客户发出了评价邀请；为真且 rating 为空时可以评价 */
-  rating_requested: boolean
-  /** 打开或已关闭；稍后处理的会话对客户显示为打开 */
-  status: ConversationStatus
-  /** 成员发来、联系人还没读到的消息数 */
-  unread: number
-}
-
 export interface ConversationContactConversationMeta {
   /** 最近一次关闭的时间 */
   closed_at?: string
@@ -143,8 +119,6 @@ export interface ConversationContactItemDTO {
 }
 
 export interface ConversationContactTicketDTO {
-  /** 优先匹配当前渠道的关联服务型会话 ID，供客户跳转补充信息 */
-  conversation_id: string
   created_at: string
   description: string
   id: string
@@ -162,8 +136,6 @@ export interface ConversationContactTicketDTO {
 }
 
 export interface ConversationContactTicketDetailDTO {
-  /** 优先匹配当前渠道的关联服务型会话 ID，供客户跳转补充信息 */
-  conversation_id: string
   created_at: string
   description: string
   id: string
@@ -198,11 +170,6 @@ export interface ConversationContactTimelineDTO {
 export type ConversationFetchStatus = "ready" | "remote" | "pending" | "fetching" | "unavailable"
 
 export type ConversationItemKind = "message" | "note" | "event"
-
-export interface ConversationPreviewAttachment {
-  count: number
-  kind: ConversationAttachmentKind
-}
 
 export interface ConversationPrompt {
   /** 提示的种类：reply_time_open、reply_time_closed、collect_contact */
@@ -326,11 +293,6 @@ export interface WidgetRateInputBody {
   score: number
 }
 
-export interface WidgetReadInputBody {
-  /** 读到的最后一项的序号 */
-  seq: number
-}
-
 export interface WidgetSent {
   conversation_id: string
   item: ConversationContactItemDTO
@@ -359,13 +321,6 @@ export interface WidgetSessionDTO {
 export interface WidgetStreamReadInputBody {
   /** 可选：截至已读的消息 ID；不填时将全部未读客服消息标为已读 */
   up_to_item_id?: string
-}
-
-/** conversation-items 的参数。 */
-export interface ConversationItemsInput {
-  /** 只读取序号大于它的项；收到推送后用它增量读取 */
-  after?: number
-  limit?: number
 }
 
 /** file-upload 的表单。 */
@@ -399,61 +354,12 @@ export function createClient(options: ClientOptions) {
     /** operationId 以 conversation- 开头的接口。 */
     conversation: {
       /**
-       * 读取会话
-       *
-       * GET /conversations/{id}
-       */
-      get: (id: string): Promise<ConversationContactConversationDTO> =>
-        rt.request<ConversationContactConversationDTO>({ method: "GET", path: `/conversations/${encodeURIComponent(id)}` }),
-      /**
-       * 读取时间线
-       *
-       * GET /conversations/{id}/items
-       */
-      items: (id: string, input: ConversationItemsInput = {}): Promise<ConversationContactItemDTO[]> =>
-        rt.request<ConversationContactItemDTO[]>({ method: "GET", path: `/conversations/${encodeURIComponent(id)}/items`, query: { "after": input["after"], "limit": input["limit"] } }),
-      /**
-       * 我的会话
-       *
-       * GET /conversations
-       */
-      list: (): Promise<ConversationContactConversationDTO[]> =>
-        rt.request<ConversationContactConversationDTO[]>({ method: "GET", path: `/conversations` }),
-      /**
-       * 评价会话
+       * 评价已关闭的会话
        *
        * POST /conversations/{id}/rating
        */
-      rate: (id: string, body: WidgetRateInputBody): Promise<ConversationContactConversationDTO> =>
-        rt.request<ConversationContactConversationDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/rating`, body }),
-      /**
-       * 标记已读
-       *
-       * POST /conversations/{id}/read
-       */
-      read: (id: string, body: WidgetReadInputBody): Promise<void> =>
-        rt.request<void>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/read`, body }),
-      /**
-       * 发消息
-       *
-       * POST /conversations/{id}/messages
-       */
-      send: (id: string, body: WidgetMessageBody): Promise<WidgetSent> =>
-        rt.request<WidgetSent>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/messages`, body }),
-      /**
-       * 发起新会话
-       *
-       * POST /conversations
-       */
-      start: (body: WidgetMessageBody): Promise<WidgetSent> =>
-        rt.request<WidgetSent>({ method: "POST", path: `/conversations`, body }),
-      /**
-       * 正在输入
-       *
-       * POST /conversations/{id}/typing
-       */
-      typing: (id: string): Promise<void> =>
-        rt.request<void>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/typing` }),
+      rate: (id: string, body: WidgetRateInputBody): Promise<ConversationContactConversationMeta> =>
+        rt.request<ConversationContactConversationMeta>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/rating`, body }),
     },
     /** operationId 以 file- 开头的接口。 */
     file: {
