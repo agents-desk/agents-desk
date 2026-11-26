@@ -926,6 +926,8 @@ automations.reply_time_desc: "工作时间内告知客户通常多久回复；�
 automations.reply_time_title: "告知回复时间"
 automations.request_rating_desc: "会话关闭后请客户给出 1 到 5 星评价和意见；会话重新打开、再次关闭后会再次邀请。"
 automations.request_rating_title: "关闭后请客户评价"
+automations.ticket_status_notify_desc: "客户可见工单的状态发生变化时，自动通知该工单关联的所有服务型会话中的客户（聊天插件显示状态卡片，Telegram 等渠道按客户语言发送文本通知）。"
+automations.ticket_status_notify_title: "工单状态变化时通知关联客户"
 automations.title: "内置自动化"
 
 prompt.collect_contact: "请留下你的邮箱，方便我们后续联系你。"

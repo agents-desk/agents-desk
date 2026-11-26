@@ -66,6 +66,8 @@ export const messages = {
     "automations.reply_time_title": "Share reply time",
     "automations.request_rating_desc": "Ask customers for a 1–5 star rating and comment when a conversation is closed. Reopened conversations can be rated again on the next close.",
     "automations.request_rating_title": "Ask for a rating on close",
+    "automations.ticket_status_notify_desc": "Automatically notify customers in all linked service conversations when a customer-visible ticket changes status.",
+    "automations.ticket_status_notify_title": "Notify linked customers on ticket status change",
     "automations.title": "Built-in automations",
     "business_hours.add_date": "Add date",
     "business_hours.closed": "Closed all day",
@@ -1130,6 +1132,8 @@ export const messages = {
     "automations.reply_time_title": "告知回复时间",
     "automations.request_rating_desc": "会话关闭后请客户给出 1 到 5 星评价和意见；会话重新打开、再次关闭后会再次邀请。",
     "automations.request_rating_title": "关闭后请客户评价",
+    "automations.ticket_status_notify_desc": "客户可见工单的状态发生变化时，自动通知该工单关联的所有服务型会话中的客户（聊天插件显示状态卡片，Telegram 等渠道按客户语言发送文本通知）。",
+    "automations.ticket_status_notify_title": "工单状态变化时通知关联客户",
     "automations.title": "内置自动化",
     "business_hours.add_date": "添加日期",
     "business_hours.closed": "全天不上班",
@@ -2197,6 +2201,8 @@ export type MessageId =
   | "automations.reply_time_title"
   | "automations.request_rating_desc"
   | "automations.request_rating_title"
+  | "automations.ticket_status_notify_desc"
+  | "automations.ticket_status_notify_title"
   | "automations.title"
   | "business_hours.add_date"
   | "business_hours.closed"

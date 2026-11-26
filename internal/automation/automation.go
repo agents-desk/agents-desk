@@ -29,12 +29,13 @@ var (
 type Trigger string
 
 const (
-	TriggerFirstMessage Trigger = "conversation.first_message" // 客户在会话中发来第一条消息
-	TriggerClosed       Trigger = "conversation.closed"        // 会话关闭
+	TriggerFirstMessage        Trigger = "conversation.first_message" // 客户在会话中发来第一条消息
+	TriggerClosed              Trigger = "conversation.closed"        // 会话关闭
+	TriggerTicketStatusChanged Trigger = "ticket.status_changed"      // 工单状态变化
 )
 
 // Triggers 是全部触发时机，显示文字是翻译文件中 automation.trigger.<触发> 的消息。
-var Triggers = enum.New("automation.trigger", enum.Item(TriggerFirstMessage), enum.Item(TriggerClosed))
+var Triggers = enum.New("automation.trigger", enum.Item(TriggerFirstMessage), enum.Item(TriggerClosed), enum.Item(TriggerTicketStatusChanged))
 
 // Schema 让 OpenAPI 中的 Trigger 只接受上面的取值，并带有显示文字。
 func (Trigger) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Triggers) }
@@ -46,10 +47,11 @@ const (
 	BuiltinReplyTime          BuiltinKey = "reply_time"           // 客户发来第一条消息时告知回复时间
 	BuiltinCollectLeadContact BuiltinKey = "collect_lead_contact" // 线索发来第一条消息时请他留下联系方式
 	BuiltinRequestRating      BuiltinKey = "request_rating"       // 会话关闭时请客户评价
+	BuiltinTicketStatusNotify BuiltinKey = "ticket_status_notify" // 工单状态变化时通知关联的客户
 )
 
 // BuiltinKeys 是全部内置规则标识，显示文字是翻译文件中 automation.builtin.<标识> 的消息。
-var BuiltinKeys = enum.New("automation.builtin", enum.Item(BuiltinReplyTime), enum.Item(BuiltinCollectLeadContact), enum.Item(BuiltinRequestRating))
+var BuiltinKeys = enum.New("automation.builtin", enum.Item(BuiltinReplyTime), enum.Item(BuiltinCollectLeadContact), enum.Item(BuiltinRequestRating), enum.Item(BuiltinTicketStatusNotify))
 
 // Schema 让 OpenAPI 中的 BuiltinKey 只接受上面的取值，并带有显示文字。
 func (BuiltinKey) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, BuiltinKeys) }

@@ -926,6 +926,8 @@ automations.reply_time_desc: "Tell customers the typical reply time during busin
 automations.reply_time_title: "Share reply time"
 automations.request_rating_desc: "Ask customers for a 1–5 star rating and comment when a conversation is closed. Reopened conversations can be rated again on the next close."
 automations.request_rating_title: "Ask for a rating on close"
+automations.ticket_status_notify_desc: "Automatically notify customers in all linked service conversations when a customer-visible ticket changes status."
+automations.ticket_status_notify_title: "Notify linked customers on ticket status change"
 automations.title: "Built-in automations"
 
 prompt.collect_contact: "Leave your email so we can get back to you."

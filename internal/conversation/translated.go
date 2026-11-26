@@ -78,10 +78,13 @@ func SaveTranslation(ctx context.Context, db *bun.DB, down Downstream, tenant, i
 			}
 		}
 
-		// 客户的语言：手动设置的不改，否则按最近几条消息
-		langChanged, err := updateCustomerLanguage(ctx, tx, c, false)
-		if err != nil {
-			return err
+		// 客户的语言：仅联系人消息参与更新，成员内部备注不改变客户语言
+		langChanged := false
+		if it.ActorType == ContactActor {
+			langChanged, err = updateCustomerLanguage(ctx, tx, c, false)
+			if err != nil {
+				return err
+			}
 		}
 
 		if down.Hub == nil || (!detectedNow && !langChanged && len(added) == 0) {
@@ -225,9 +228,17 @@ func MissingTranslations(derived map[string]any, targets []string) []string {
 	return missing
 }
 
-// Translatable 报告时间线的一项是不是要识别和翻译的消息：对方发来、对所有人可见、有文字。
+// Translatable 报告时间线的一项是不是要识别和翻译的文本：
+//   - 对方发来、对所有人可见、有文字的消息；
+//   - 成员写的有文字内部备注（支持不同语言成员在会话与工单中跨语言协作）。
 func (it *Item) Translatable() bool {
-	return it.Kind == Message && it.ActorType == ContactActor && it.Visibility == Everyone && it.Content.Text != ""
+	if it.Content.Text == "" {
+		return false
+	}
+	if it.Kind == Message && it.ActorType == ContactActor && it.Visibility == Everyone {
+		return true
+	}
+	return it.Kind == Note && it.ActorType == MemberActor
 }
 
 // untranslated 报告时间线的一项对语言是 language 的成员来说是不是还缺译文：要翻译的消息、还没有这种语言的译文、也不是这种语言。

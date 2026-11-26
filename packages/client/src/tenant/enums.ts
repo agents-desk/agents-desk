@@ -24,18 +24,18 @@ export const enums = {
   },
   AutomationBuiltin: {
     prefix: "automation.builtin",
-    values: ["reply_time", "collect_lead_contact", "request_rating"],
+    values: ["reply_time", "collect_lead_contact", "request_rating", "ticket_status_notify"],
     labels: {
-      "en": { reply_time: "Share reply time", collect_lead_contact: "Ask leads for contact details", request_rating: "Ask for a rating on close" },
-      "zh-CN": { reply_time: "告知回复时间", collect_lead_contact: "请线索留联系方式", request_rating: "关闭后请客户评价" },
+      "en": { reply_time: "Share reply time", collect_lead_contact: "Ask leads for contact details", request_rating: "Ask for a rating on close", ticket_status_notify: "Notify linked customers on ticket status change" },
+      "zh-CN": { reply_time: "告知回复时间", collect_lead_contact: "请线索留联系方式", request_rating: "关闭后请客户评价", ticket_status_notify: "工单状态变化时通知关联客户" },
     },
   },
   AutomationTrigger: {
     prefix: "automation.trigger",
-    values: ["conversation.first_message", "conversation.closed"],
+    values: ["conversation.first_message", "conversation.closed", "ticket.status_changed"],
     labels: {
-      "en": { "conversation.first_message": "When a customer sends their first message", "conversation.closed": "When a conversation is closed" },
-      "zh-CN": { "conversation.first_message": "客户发来第一条消息时", "conversation.closed": "会话关闭时" },
+      "en": { "conversation.first_message": "When a customer sends their first message", "conversation.closed": "When a conversation is closed", "ticket.status_changed": "When a ticket status changes" },
+      "zh-CN": { "conversation.first_message": "客户发来第一条消息时", "conversation.closed": "会话关闭时", "ticket.status_changed": "工单状态变化时" },
     },
   },
   ChannelKind: {

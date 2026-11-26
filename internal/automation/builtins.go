@@ -14,6 +14,7 @@ const (
 	ActionSendReplyTime      = "send_reply_time"      // 按工作时间告知客户回复时间或下次上班时间
 	ActionRequestContactInfo = "request_contact_info" // 请线索留下邮箱
 	ActionRequestRating      = "request_rating"       // 会话关闭后向客户发出评价邀请
+	ActionNotifyTicketStatus = "notify_ticket_status" // 工单状态变化时通知关联服务型会话中的客户
 )
 
 // builtinDef 是一条内置自动化规则的声明，用来为工作区初始化规则。
@@ -51,6 +52,13 @@ var builtins = []builtinDef{
 		Key:      BuiltinRequestRating,
 		Trigger:  TriggerClosed,
 		Actions:  []Action{{Type: ActionRequestRating}},
+		Position: 10,
+		Enabled:  true,
+	},
+	{
+		Key:      BuiltinTicketStatusNotify,
+		Trigger:  TriggerTicketStatusChanged,
+		Actions:  []Action{{Type: ActionNotifyTicketStatus}},
 		Position: 10,
 		Enabled:  true,
 	},

@@ -106,7 +106,7 @@ type App struct {
 // 没有广播时（只构造路由的命令）两种推送都不做。
 func (a *App) downstream() conversation.Downstream {
 	down := conversation.Downstream{
-		Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic, translation.Topic, automation.Topic},
+		Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic, translation.Topic, translation.TicketBroadcastTopic, automation.Topic},
 		Hub:    a.hub,
 		Roles:  a.roles,
 		Media:  conversation.Media{Files: a.files, Images: a.images},

@@ -56,7 +56,7 @@ export interface AttributeUpdateParams {
   position?: number
 }
 
-export type AutomationBuiltin = "reply_time" | "collect_lead_contact" | "request_rating"
+export type AutomationBuiltin = "reply_time" | "collect_lead_contact" | "request_rating" | "ticket_status_notify"
 
 export interface AutomationRuleDTO {
   /** 内置规则的固定标识；自定义规则为空 */
@@ -73,7 +73,7 @@ export interface AutomationRuleDTO {
   updated_at: string
 }
 
-export type AutomationTrigger = "conversation.first_message" | "conversation.closed"
+export type AutomationTrigger = "conversation.first_message" | "conversation.closed" | "ticket.status_changed"
 
 export interface AutomationUpdateBody {
   /** 是否启用这条自动化规则 */

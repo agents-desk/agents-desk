@@ -311,9 +311,11 @@ automation.not_found: 自动化规则不存在
 automation.forbidden: 你没有管理自动化的权限
 automation.trigger.conversation.first_message: 客户发来第一条消息时
 automation.trigger.conversation.closed: 会话关闭时
+automation.trigger.ticket.status_changed: 工单状态变化时
 automation.builtin.reply_time: 告知回复时间
 automation.builtin.collect_lead_contact: 请线索留联系方式
 automation.builtin.request_rating: 关闭后请客户评价
+automation.builtin.ticket_status_notify: 工单状态变化时通知关联客户
 
 activity.platform_admin.created: "创建了平台管理员「{{.name}}」"
 activity.platform_admin.updated: "将平台管理员名称从「{{.from}}」修改为「{{.to}}」"
@@ -372,6 +374,8 @@ queue.topic.translation.fill.label: 历史消息补译
 queue.topic.translation.fill.description: 为切换主要语言后的工作区补齐历史会话翻译
 queue.topic.conversation.automate.label: 自动化规则执行
 queue.topic.conversation.automate.description: 按工作区配置的自动化规则处理会话事件与自动分配
+queue.topic.ticket.broadcast.label: 工单公开进度同步
+queue.topic.ticket.broadcast.description: 按关联会话的客户语言去重翻译工单公开进度并批量投递
 queue.topic.search.sync.conversation_items.label: 会话搜索索引同步
 queue.topic.search.sync.conversation_items.description: 将新增或译文更新后的会话消息和内部备注同步到全文索引
 queue.topic.search.reindex.conversation_items.label: 会话搜索索引重建

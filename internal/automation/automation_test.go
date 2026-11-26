@@ -534,7 +534,7 @@ func TestPermissionsAndTenantIsolation(t *testing.T) {
 		t.Fatalf("无权限列出：%v", err)
 	}
 	rules, err := automation.NewList(env.DB).Handle(ctx, alpha.owner)
-	if err != nil || len(rules) != 3 {
+	if err != nil || len(rules) != 4 {
 		t.Fatalf("管理员列出规则：len=%d err=%v", len(rules), err)
 	}
 	if _, err := automation.NewUpdate(env.DB).Handle(ctx, alpha.agent, rules[0].ID, false); !errors.Is(err, automation.ErrForbidden) {
