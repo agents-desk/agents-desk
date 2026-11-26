@@ -209,6 +209,9 @@ export const messages = {
     "event.conv_attrs_changed": "{{.who}} updated conversation attributes: {{.changes}}",
     "event.conv_tag_added": "{{.who}} added tag {{.tag}}",
     "event.conv_tag_removed": "{{.who}} removed tag {{.tag}}",
+    "event.conv_ticket_created": "{{.who}} created ticket #{{.number}} {{.title}} from this conversation",
+    "event.conv_ticket_linked": "{{.who}} linked this conversation to ticket #{{.number}} {{.title}}",
+    "event.conv_ticket_unlinked": "{{.who}} unlinked this conversation from ticket #{{.number}}",
     "event.customer": "The customer",
     "event.language_auto": "{{.who}} set the customer's language back to automatic detection",
     "event.language_set": "{{.who}} set the customer's language to {{.lang}}",
@@ -225,6 +228,12 @@ export const messages = {
     "event.snoozed": "{{.who}} snoozed the conversation until {{.until}}",
     "event.someone": "A member",
     "event.system": "System",
+    "event.ticket_conversation_linked": "{{.who}} linked a customer conversation",
+    "event.ticket_conversation_unlinked": "{{.who}} unlinked a customer conversation",
+    "event.ticket_created": "{{.who}} created ticket #{{.number}} ({{.type}})",
+    "event.ticket_resumed_by_customer": "Customer replied in a linked conversation; status returned to In progress",
+    "event.ticket_status_changed": "{{.who}} changed status from {{.from}} to {{.to}}",
+    "event.ticket_updated": "{{.who}} updated ticket details",
     "event.unassigned": "{{.who}} removed the assignee",
     "event.unsnoozed": "The conversation is open again",
     "event.via_default": " (default assignment)",
@@ -617,6 +626,8 @@ export const messages = {
     "prompt.reply_time_hour": "We've got your message and typically reply within an hour.",
     "prompt.reply_time_hours": "We've got your message and typically reply in a few hours.",
     "prompt.reply_time_minutes": "We've got your message and typically reply in a few minutes.",
+    "prompt.ticket_status_changed": "Ticket #{{.number}} ({{.title}}) status changed to {{.status}}",
+    "prompt.ticket_update": "Ticket #{{.number}} update: {{.text}}",
     "reports.all_channels": "All channels",
     "reports.all_teams": "All teams",
     "reports.avg_duration": "Avg latency",
@@ -903,7 +914,7 @@ export const messages = {
     "ticket_types.default_visibility": "Default visibility",
     "ticket_types.default_visibility_hint": "Default visibility when creating tickets of this type; can still be changed per ticket",
     "ticket_types.delete": "Delete",
-    "ticket_types.delete_confirm": "Delete ticket type “{{name}}”?",
+    "ticket_types.delete_confirm": "Delete ticket type “{{.name}}”?",
     "ticket_types.delete_message": "Its custom fields will also be removed. Types referenced by tickets cannot be deleted; disable them instead.",
     "ticket_types.deleted": "Ticket type deleted",
     "ticket_types.description": "Configure ticket templates, default team inboxes, default visibility, and type-specific custom fields.",
@@ -911,7 +922,7 @@ export const messages = {
     "ticket_types.description_placeholder": "Describe what kind of issues this ticket type handles",
     "ticket_types.detail_title": "Ticket type",
     "ticket_types.disable": "Disable",
-    "ticket_types.disable_confirm": "Disable ticket type “{{name}}”?",
+    "ticket_types.disable_confirm": "Disable ticket type “{{.name}}”?",
     "ticket_types.disable_message": "Disabled types cannot be used for new tickets. Existing tickets keep their type and fields.",
     "ticket_types.disabled_done": "Ticket type disabled",
     "ticket_types.disabled_notice": "This ticket type is disabled and cannot be used for new tickets.",
@@ -928,6 +939,93 @@ export const messages = {
     "ticket_types.name_required": "Please enter a ticket type name",
     "ticket_types.status": "Status",
     "ticket_types.title": "Ticket types",
+    "tickets.back": "Back to tickets",
+    "tickets.box_all": "All tickets",
+    "tickets.box_mine": "My tickets",
+    "tickets.box_unassigned": "Unassigned",
+    "tickets.clear_filters": "Clear filters",
+    "tickets.command_all": "All tickets",
+    "tickets.command_group": "Tickets",
+    "tickets.command_mine": "My tickets",
+    "tickets.command_unassigned": "Unassigned tickets",
+    "tickets.contact_empty": "No tickets linked to this contact",
+    "tickets.contact_section": "Tickets",
+    "tickets.conversation_empty": "No tickets linked to this conversation",
+    "tickets.conversation_section": "Tickets",
+    "tickets.count_unresolved": "{{.n}} unresolved",
+    "tickets.create": "New ticket",
+    "tickets.create_from_conversation": "Create ticket",
+    "tickets.create_from_conversation_title": "Create ticket from conversation",
+    "tickets.create_title": "New ticket",
+    "tickets.created": "Ticket #{{.number}} created",
+    "tickets.description": "Description",
+    "tickets.description_placeholder": "Add context, investigation steps, or customer impact…",
+    "tickets.details_basic": "Ticket info",
+    "tickets.details_fields": "Ticket fields",
+    "tickets.details_no_fields": "No custom fields for this ticket type",
+    "tickets.edit_description": "Edit description",
+    "tickets.edit_title": "Edit title",
+    "tickets.empty": "No tickets in this list",
+    "tickets.empty_filtered": "No tickets match the current filters",
+    "tickets.filter_type_all": "All types",
+    "tickets.link_conversation": "Link conversation",
+    "tickets.link_conversation_done": "Conversation linked",
+    "tickets.link_conversation_empty": "No available conversations to link",
+    "tickets.link_conversation_placeholder": "Search contact or message…",
+    "tickets.link_conversation_title": "Link customer conversation",
+    "tickets.link_ticket": "Link existing ticket",
+    "tickets.link_ticket_done": "Linked to ticket #{{.number}}",
+    "tickets.link_ticket_empty": "No matching tickets found",
+    "tickets.link_ticket_placeholder": "Search by #number or title…",
+    "tickets.link_ticket_title": "Link to existing ticket",
+    "tickets.linked_count": "{{.n}} linked",
+    "tickets.linked_empty": "No linked conversations yet",
+    "tickets.linked_section": "Linked conversations",
+    "tickets.linked_visibility_summary": "{{.visible}} visible of {{.total}}",
+    "tickets.mode_note": "Internal note",
+    "tickets.mode_public": "Public update",
+    "tickets.nav_section": "Tickets",
+    "tickets.no_description": "Click to add a description…",
+    "tickets.not_found": "Ticket not found or not accessible",
+    "tickets.note_placeholder": "Write an internal note, @ mention teammates — cross-language notes auto-translate…",
+    "tickets.open_ticket": "Open",
+    "tickets.pick": "Select a ticket from the list",
+    "tickets.pick_hint": "Or click “New ticket” above to group customer issues",
+    "tickets.public_badge": "Public update",
+    "tickets.public_composer_hint": "Will be translated per customer language and sent to {{.n}} linked conversation(s)",
+    "tickets.public_composer_no_links": "No linked conversations yet; the update will still be saved on the ticket",
+    "tickets.public_disabled_hint": "Internal-only tickets cannot publish public updates",
+    "tickets.public_placeholder": "Write a customer-facing progress update…",
+    "tickets.public_send": "Publish update",
+    "tickets.public_sent": "Public update published",
+    "tickets.public_synced_hint": "Translated and synced to {{.n}} linked conversation(s)",
+    "tickets.relation_linked": "Linked",
+    "tickets.relation_source": "Source",
+    "tickets.search_placeholder": "Search #number or title…",
+    "tickets.source_conversation_hint": "Source conversation: {{.contact}} ({{.channel}})",
+    "tickets.status": "Status",
+    "tickets.status_all": "All statuses",
+    "tickets.status_in_progress": "In progress",
+    "tickets.status_resolved": "Resolved",
+    "tickets.status_submitted": "Submitted",
+    "tickets.status_unresolved": "Unresolved",
+    "tickets.status_waiting_on_customer": "Waiting on customer",
+    "tickets.submit": "Create ticket",
+    "tickets.title": "Title",
+    "tickets.title_placeholder": "Briefly summarize the issue",
+    "tickets.title_required": "Please enter a ticket title",
+    "tickets.type": "Ticket type",
+    "tickets.type_empty": "No active ticket types. Create or enable one in Settings first.",
+    "tickets.type_placeholder": "Select ticket type",
+    "tickets.unlink": "Unlink",
+    "tickets.unlink_confirm": "Unlink this conversation from the ticket?",
+    "tickets.unlink_done": "Conversation unlinked",
+    "tickets.unlink_message": "Conversation history stays intact, but future public updates and status notices will no longer sync to it.",
+    "tickets.visibility": "Visibility",
+    "tickets.visibility_all": "Customer visible",
+    "tickets.visibility_all_hint": "Linked customers can track progress in the chat widget and receive public updates",
+    "tickets.visibility_members": "Internal only",
+    "tickets.visibility_members_hint": "Visible to workspace members only; hidden from customers and cannot publish public updates",
     "time.days": "{{.n}} d",
     "time.hours": "{{.n}} h",
     "time.just_now": "Just now",
@@ -1299,6 +1397,9 @@ export const messages = {
     "event.conv_attrs_changed": "{{.who}} 修改了会话属性：{{.changes}}",
     "event.conv_tag_added": "{{.who}} 给会话添加了标签 {{.tag}}",
     "event.conv_tag_removed": "{{.who}} 移除了会话标签 {{.tag}}",
+    "event.conv_ticket_created": "{{.who}} 将此会话转成了工单 #{{.number}} {{.title}}",
+    "event.conv_ticket_linked": "{{.who}} 将此会话关联到了工单 #{{.number}} {{.title}}",
+    "event.conv_ticket_unlinked": "{{.who}} 取消了此会话与工单 #{{.number}} 的关联",
     "event.customer": "客户",
     "event.language_auto": "{{.who}} 把对方的语言改回自动识别",
     "event.language_set": "{{.who}} 把对方的语言改为 {{.lang}}",
@@ -1315,6 +1416,12 @@ export const messages = {
     "event.snoozed": "{{.who}} 把会话稍后处理到 {{.until}}",
     "event.someone": "某位成员",
     "event.system": "系统",
+    "event.ticket_conversation_linked": "{{.who}} 关联了一条客户会话",
+    "event.ticket_conversation_unlinked": "{{.who}} 取消关联了一条客户会话",
+    "event.ticket_created": "{{.who}} 创建了工单 #{{.number}}（{{.type}}）",
+    "event.ticket_resumed_by_customer": "客户回复了关联会话，工单状态自动切回「处理中」",
+    "event.ticket_status_changed": "{{.who}} 将状态从「{{.from}}」改为「{{.to}}」",
+    "event.ticket_updated": "{{.who}} 更新了工单信息",
     "event.unassigned": "{{.who}} 取消了负责人",
     "event.unsnoozed": "会话回到打开",
     "event.via_default": "（默认指派）",
@@ -1707,6 +1814,8 @@ export const messages = {
     "prompt.reply_time_hour": "我们已收到你的消息，通常会在一小时内回复。",
     "prompt.reply_time_hours": "我们已收到你的消息，通常会在几小时内回复。",
     "prompt.reply_time_minutes": "我们已收到你的消息，通常会在几分钟内回复。",
+    "prompt.ticket_status_changed": "工单 #{{.number}}（{{.title}}）状态已更新为「{{.status}}」",
+    "prompt.ticket_update": "工单 #{{.number}} 进度更新：{{.text}}",
     "reports.all_channels": "全部渠道",
     "reports.all_teams": "全部团队",
     "reports.avg_duration": "平均耗时",
@@ -1993,7 +2102,7 @@ export const messages = {
     "ticket_types.default_visibility": "默认可见范围",
     "ticket_types.default_visibility_hint": "新建这类工单时的默认可见范围，单张工单仍可按需调整",
     "ticket_types.delete": "删除",
-    "ticket_types.delete_confirm": "删除工单类型“{{name}}”？",
+    "ticket_types.delete_confirm": "删除工单类型“{{.name}}”？",
     "ticket_types.delete_message": "删除后会同时移除该类型下的自定义字段；已被工单引用的类型不能删除，只能停用。",
     "ticket_types.deleted": "已删除工单类型",
     "ticket_types.description": "配置不同问题类别的工单模板、默认团队收件箱、默认可见范围和专属字段。",
@@ -2001,7 +2110,7 @@ export const messages = {
     "ticket_types.description_placeholder": "说明这类工单用于处理什么问题",
     "ticket_types.detail_title": "工单类型详情",
     "ticket_types.disable": "停用",
-    "ticket_types.disable_confirm": "停用工单类型“{{name}}”？",
+    "ticket_types.disable_confirm": "停用工单类型“{{.name}}”？",
     "ticket_types.disable_message": "停用后不能用于新建工单，历史工单会保留原类型和字段。",
     "ticket_types.disabled_done": "已停用工单类型",
     "ticket_types.disabled_notice": "该工单类型已停用，当前不可用于新建工单。",
@@ -2018,6 +2127,93 @@ export const messages = {
     "ticket_types.name_required": "请填写工单类型名称",
     "ticket_types.status": "状态",
     "ticket_types.title": "工单类型",
+    "tickets.back": "返回工单列表",
+    "tickets.box_all": "全部工单",
+    "tickets.box_mine": "我的工单",
+    "tickets.box_unassigned": "未指派",
+    "tickets.clear_filters": "清除筛选",
+    "tickets.command_all": "全部工单",
+    "tickets.command_group": "工单",
+    "tickets.command_mine": "我的工单",
+    "tickets.command_unassigned": "未指派工单",
+    "tickets.contact_empty": "这位联系人还没有关联工单",
+    "tickets.contact_section": "关联工单",
+    "tickets.conversation_empty": "此会话还没有关联工单",
+    "tickets.conversation_section": "关联工单",
+    "tickets.count_unresolved": "未解决 {{.n}}",
+    "tickets.create": "新建工单",
+    "tickets.create_from_conversation": "转成工单",
+    "tickets.create_from_conversation_title": "从会话转成工单",
+    "tickets.create_title": "新建工单",
+    "tickets.created": "已创建工单 #{{.number}}",
+    "tickets.description": "描述",
+    "tickets.description_placeholder": "补充问题背景、排查步骤或客户诉求…",
+    "tickets.details_basic": "工单信息",
+    "tickets.details_fields": "工单字段",
+    "tickets.details_no_fields": "该工单类型没有自定义字段",
+    "tickets.edit_description": "编辑描述",
+    "tickets.edit_title": "编辑标题",
+    "tickets.empty": "这个列表中没有工单",
+    "tickets.empty_filtered": "没有符合当前筛选条件的工单",
+    "tickets.filter_type_all": "全部类型",
+    "tickets.link_conversation": "关联会话",
+    "tickets.link_conversation_done": "已关联会话",
+    "tickets.link_conversation_empty": "没有可关联的会话",
+    "tickets.link_conversation_placeholder": "搜索联系人或会话消息…",
+    "tickets.link_conversation_title": "关联客户会话到工单",
+    "tickets.link_ticket": "关联已有工单",
+    "tickets.link_ticket_done": "已关联到工单 #{{.number}}",
+    "tickets.link_ticket_empty": "没有找到可关联的工单",
+    "tickets.link_ticket_placeholder": "输入 #编号 或工单标题搜索…",
+    "tickets.link_ticket_title": "关联到已有工单",
+    "tickets.linked_count": "{{.n}} 个会话",
+    "tickets.linked_empty": "还没有关联的客户会话",
+    "tickets.linked_section": "关联会话",
+    "tickets.linked_visibility_summary": "你可见 {{.visible}} / 共 {{.total}} 个",
+    "tickets.mode_note": "内部讨论",
+    "tickets.mode_public": "公开进度",
+    "tickets.nav_section": "工单",
+    "tickets.no_description": "点击补充工单描述…",
+    "tickets.not_found": "工单不存在，或者你看不到它",
+    "tickets.note_placeholder": "写内部讨论，支持 @ 同事，跨语言成员将自动互译…",
+    "tickets.open_ticket": "查看",
+    "tickets.pick": "从左边选一张工单",
+    "tickets.pick_hint": "或点击上方“新建工单”创建并归集客户问题",
+    "tickets.public_badge": "公开进度",
+    "tickets.public_composer_hint": "将按各客户语言自动翻译并同步至关联的 {{.n}} 个客户会话",
+    "tickets.public_composer_no_links": "当前没有关联的客户会话，公开进度仍会保存在工单中供客户查看",
+    "tickets.public_disabled_hint": "仅成员可见的工单不可发布公开进度",
+    "tickets.public_placeholder": "写下要向关联客户同步的排查或处理进展…",
+    "tickets.public_send": "发布公开进度",
+    "tickets.public_sent": "已发布公开进度",
+    "tickets.public_synced_hint": "已按各客户语言同步至关联的 {{.n}} 个客户会话",
+    "tickets.relation_linked": "关联",
+    "tickets.relation_source": "来源",
+    "tickets.search_placeholder": "搜索 #编号 或标题…",
+    "tickets.source_conversation_hint": "来源会话：{{.contact}}（{{.channel}}）",
+    "tickets.status": "状态",
+    "tickets.status_all": "全部状态",
+    "tickets.status_in_progress": "处理中",
+    "tickets.status_resolved": "已解决",
+    "tickets.status_submitted": "已提交",
+    "tickets.status_unresolved": "未解决",
+    "tickets.status_waiting_on_customer": "等待客户",
+    "tickets.submit": "创建工单",
+    "tickets.title": "标题",
+    "tickets.title_placeholder": "简要概括需要处理的问题",
+    "tickets.title_required": "请填写工单标题",
+    "tickets.type": "工单类型",
+    "tickets.type_empty": "暂无可用的工单类型，请先在设置中启用或新建。",
+    "tickets.type_placeholder": "选择工单类型",
+    "tickets.unlink": "取消关联",
+    "tickets.unlink_confirm": "取消该会话与此工单的关联？",
+    "tickets.unlink_done": "已取消关联",
+    "tickets.unlink_message": "取消后该会话的历史记录不变，但后续工单公开进度和状态通知不再同步到该会话。",
+    "tickets.visibility": "可见范围",
+    "tickets.visibility_all": "客户可见",
+    "tickets.visibility_all_hint": "关联客户可在网页插件查看进度，成员可发布公开进度同步到全部关联会话",
+    "tickets.visibility_members": "仅成员可见",
+    "tickets.visibility_members_hint": "仅工作区成员可见，不会向客户展示，也不可发布公开进度",
     "time.days": "{{.n}} 天",
     "time.hours": "{{.n}} 小时",
     "time.just_now": "刚刚",
@@ -2392,6 +2588,9 @@ export type MessageId =
   | "event.conv_attrs_changed"
   | "event.conv_tag_added"
   | "event.conv_tag_removed"
+  | "event.conv_ticket_created"
+  | "event.conv_ticket_linked"
+  | "event.conv_ticket_unlinked"
   | "event.customer"
   | "event.language_auto"
   | "event.language_set"
@@ -2408,6 +2607,12 @@ export type MessageId =
   | "event.snoozed"
   | "event.someone"
   | "event.system"
+  | "event.ticket_conversation_linked"
+  | "event.ticket_conversation_unlinked"
+  | "event.ticket_created"
+  | "event.ticket_resumed_by_customer"
+  | "event.ticket_status_changed"
+  | "event.ticket_updated"
   | "event.unassigned"
   | "event.unsnoozed"
   | "event.via_default"
@@ -2800,6 +3005,8 @@ export type MessageId =
   | "prompt.reply_time_hour"
   | "prompt.reply_time_hours"
   | "prompt.reply_time_minutes"
+  | "prompt.ticket_status_changed"
+  | "prompt.ticket_update"
   | "reports.all_channels"
   | "reports.all_teams"
   | "reports.avg_duration"
@@ -3111,6 +3318,93 @@ export type MessageId =
   | "ticket_types.name_required"
   | "ticket_types.status"
   | "ticket_types.title"
+  | "tickets.back"
+  | "tickets.box_all"
+  | "tickets.box_mine"
+  | "tickets.box_unassigned"
+  | "tickets.clear_filters"
+  | "tickets.command_all"
+  | "tickets.command_group"
+  | "tickets.command_mine"
+  | "tickets.command_unassigned"
+  | "tickets.contact_empty"
+  | "tickets.contact_section"
+  | "tickets.conversation_empty"
+  | "tickets.conversation_section"
+  | "tickets.count_unresolved"
+  | "tickets.create"
+  | "tickets.create_from_conversation"
+  | "tickets.create_from_conversation_title"
+  | "tickets.create_title"
+  | "tickets.created"
+  | "tickets.description"
+  | "tickets.description_placeholder"
+  | "tickets.details_basic"
+  | "tickets.details_fields"
+  | "tickets.details_no_fields"
+  | "tickets.edit_description"
+  | "tickets.edit_title"
+  | "tickets.empty"
+  | "tickets.empty_filtered"
+  | "tickets.filter_type_all"
+  | "tickets.link_conversation"
+  | "tickets.link_conversation_done"
+  | "tickets.link_conversation_empty"
+  | "tickets.link_conversation_placeholder"
+  | "tickets.link_conversation_title"
+  | "tickets.link_ticket"
+  | "tickets.link_ticket_done"
+  | "tickets.link_ticket_empty"
+  | "tickets.link_ticket_placeholder"
+  | "tickets.link_ticket_title"
+  | "tickets.linked_count"
+  | "tickets.linked_empty"
+  | "tickets.linked_section"
+  | "tickets.linked_visibility_summary"
+  | "tickets.mode_note"
+  | "tickets.mode_public"
+  | "tickets.nav_section"
+  | "tickets.no_description"
+  | "tickets.not_found"
+  | "tickets.note_placeholder"
+  | "tickets.open_ticket"
+  | "tickets.pick"
+  | "tickets.pick_hint"
+  | "tickets.public_badge"
+  | "tickets.public_composer_hint"
+  | "tickets.public_composer_no_links"
+  | "tickets.public_disabled_hint"
+  | "tickets.public_placeholder"
+  | "tickets.public_send"
+  | "tickets.public_sent"
+  | "tickets.public_synced_hint"
+  | "tickets.relation_linked"
+  | "tickets.relation_source"
+  | "tickets.search_placeholder"
+  | "tickets.source_conversation_hint"
+  | "tickets.status"
+  | "tickets.status_all"
+  | "tickets.status_in_progress"
+  | "tickets.status_resolved"
+  | "tickets.status_submitted"
+  | "tickets.status_unresolved"
+  | "tickets.status_waiting_on_customer"
+  | "tickets.submit"
+  | "tickets.title"
+  | "tickets.title_placeholder"
+  | "tickets.title_required"
+  | "tickets.type"
+  | "tickets.type_empty"
+  | "tickets.type_placeholder"
+  | "tickets.unlink"
+  | "tickets.unlink_confirm"
+  | "tickets.unlink_done"
+  | "tickets.unlink_message"
+  | "tickets.visibility"
+  | "tickets.visibility_all"
+  | "tickets.visibility_all_hint"
+  | "tickets.visibility_members"
+  | "tickets.visibility_members_hint"
   | "time.days"
   | "time.hours"
   | "time.just_now"

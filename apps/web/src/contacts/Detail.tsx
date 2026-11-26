@@ -40,6 +40,7 @@ import { LanguageSelect } from "../LanguageSelect"
 import { languageName } from "../languages"
 import { NARROW_QUERY } from "../layout"
 import { allZones, formatLocalTime, offsetOf } from "../timezone"
+import { ticketStatusColor, ticketStatusLabel, useContactTickets } from "../tickets/meta"
 import { ContactNotesCard } from "./ContactNotesCard"
 import { ContactAvatar, contactDisplayName } from "./display"
 import { MergeContactModal } from "./MergeContactModal"
@@ -65,6 +66,7 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
     queryKey: [...kit.queries.conversation.key(), "contact-detail", id],
     queryFn: () => tenantApi.conversation.list({ contact_id: id, per_page: 30, sort: "recent" }),
   })
+  const contactTickets = useContactTickets(can("conversations:read") ? id : undefined)
 
   const update = useMutation({
     mutationFn: (body: ContactUpdateBody) => tenantApi.contact.update(id, body),
@@ -244,7 +246,73 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
             )}
           </InspectorSection>
 
-          {/* 4. 渠道身份 */}
+          {/* 4. 关联工单 */}
+          {can("conversations:read") && (
+            <InspectorSection
+              title={t("tickets.contact_section")}
+              extra={
+                (contactTickets.data?.items.length ?? 0) > 0 ? (
+                  <Badge size="xs" variant="light" color="gray" radius="sm">
+                    {contactTickets.data?.items.length}
+                  </Badge>
+                ) : undefined
+              }
+            >
+              {contactTickets.isPending ? (
+                <Center py="md">
+                  <Loader size="xs" />
+                </Center>
+              ) : (contactTickets.data?.items.length ?? 0) === 0 ? (
+                <Text size="xs" c="dimmed">
+                  {t("tickets.contact_empty")}
+                </Text>
+              ) : (
+                <Stack gap={8}>
+                  {contactTickets.data?.items.map((tk) => (
+                    <Link
+                      key={tk.id}
+                      to="/t/$slug/tickets/$id"
+                      params={{ slug, id: tk.id }}
+                      search={{ box: "all", status: "unresolved" }}
+                      className="ct-conv"
+                    >
+                      <Box p="xs">
+                        <Group justify="space-between" wrap="nowrap" mb={4}>
+                          <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
+                            <Text size="xs" fw={600} c="dimmed" style={{ flex: "none", fontVariantNumeric: "tabular-nums" }}>
+                              #{tk.number}
+                            </Text>
+                            <Badge size="xs" variant="light" color={ticketStatusColor[tk.status]} style={{ flex: "none" }}>
+                              {ticketStatusLabel(tk.status, t)}
+                            </Badge>
+                            {tk.type_name && (
+                              <Text size="xs" c="dimmed" truncate>
+                                · {tk.type_name}
+                              </Text>
+                            )}
+                          </Group>
+                          <Text size="xs" c="dimmed" style={{ flex: "none", fontVariantNumeric: "tabular-nums" }}>
+                            {activity(tk.last_message_at, ui, t, zone)}
+                          </Text>
+                        </Group>
+                        <Group justify="space-between" align="center" gap="xs" wrap="nowrap">
+                          <Text size="sm" fw={500} truncate style={{ flex: 1, minWidth: 0 }}>
+                            {tk.title}
+                          </Text>
+                          <Text size="xs" fw={500} c="brand" style={{ flex: "none", display: "inline-flex", alignItems: "center", gap: 2 }}>
+                            <span>{t("tickets.open_ticket")}</span>
+                            <IconArrowUpRight size={12} />
+                          </Text>
+                        </Group>
+                      </Box>
+                    </Link>
+                  ))}
+                </Stack>
+              )}
+            </InspectorSection>
+          )}
+
+          {/* 5. 渠道身份 */}
           <IdentitiesSection identities={c.identities} />
         </Inspector>
       </PaneBody>

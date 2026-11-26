@@ -1,6 +1,7 @@
 import type { ConversationSummary, ConversationViewSummary } from "@agents-desk/client/tenant"
 import { ActionIcon, Menu, NavLink, Text, Tooltip } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useNavigate, useParams } from "@tanstack/react-router"
 import {
   IconAt,
   IconDots,
@@ -9,13 +10,16 @@ import {
   IconListDetails,
   IconPencil,
   IconPlus,
+  IconTicket,
   IconTrash,
   IconUserQuestion,
   IconUsers,
 } from "@tabler/icons-react"
-import { confirm, Fill, notifyError, notifySuccess, RailSection, useT } from "@go-tenon/ui"
+import { confirm, Fill, notifyError, notifySuccess, RailSection, useCan, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../api"
+import { CreateTicketModal } from "../tickets/CreateTicketModal"
+import type { TicketBox } from "../tickets/search"
 import { type Thresholds, useThresholds } from "./data"
 import { waitColor, waitLevel } from "./format"
 import type { InboxSearch } from "./search"
@@ -42,20 +46,79 @@ function Count({ s, now, th }: { s?: ConversationSummary; now: number; th?: Thre
   )
 }
 
+/** PlainCount 是纯数字计数（工单未解决数）。 */
+function PlainCount({ n }: { n?: number }): ReactNode {
+  if (n === undefined) return null
+  return (
+    <Text size="xs" c="dimmed" style={{ fontVariantNumeric: "tabular-nums" }}>
+      {n}
+    </Text>
+  )
+}
+
 /**
- * InboxNav 是放进二级导航（nav 插槽）的收件箱列表：我的、@我、未指派、全部，各团队收件箱，以及已保存视图（共享和个人），
- * 每一项带数量，随实时推送更新。分组折叠状态按账号持久化，视图分组标题行右侧提供快捷新建按钮。
+ * InboxNav 是放进二级导航（nav 插槽）的统一收件箱导航：
+ * 包含会话列表（我的、@我、未指派、全部）、团队收件箱、已保存视图，以及工单分组（我的、未指派、全部）。
+ * 在收件箱路由和工单路由中共用，点击任意分组平滑切换。
  */
-export function InboxNav({ search, go }: { search: InboxSearch; go: (s: Partial<InboxSearch>) => void }): ReactNode {
+export function InboxNav({
+  search,
+  go,
+  activeTicketBox,
+  onSelectTicketBox,
+  onCreateTicket,
+}: {
+  search?: InboxSearch
+  go?: (s: Partial<InboxSearch>) => void
+  activeTicketBox?: TicketBox
+  onSelectTicketBox?: (box: TicketBox) => void
+  onCreateTicket?: () => void
+}): ReactNode {
   const t = useT()
+  const can = useCan()
   const now = useNow()
   const th = useThresholds()
+  const { slug } = useParams({ from: "/t/$slug" })
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const inbox = useQuery(kit.queries.conversation.inbox())
   const d = inbox.data
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<ConversationViewSummary | undefined>()
+  const [createTicketOpen, setCreateTicketOpen] = useState(false)
+
+  const navigateInbox = (patch: Partial<InboxSearch>) => {
+    if (go) {
+      go(patch)
+      return
+    }
+    void navigate({
+      to: "/t/$slug/inbox",
+      params: { slug },
+      search: {
+        box: patch.box ?? "mine",
+        team: patch.team,
+        view: patch.view,
+        filter: patch.filter,
+        tag: patch.tag,
+        status: patch.status ?? "open",
+        sort: patch.sort ?? "waiting",
+      },
+    })
+  }
+
+  const navigateTicket = (box: TicketBox) => {
+    if (onSelectTicketBox) {
+      onSelectTicketBox(box)
+      return
+    }
+    void navigate({
+      to: "/t/$slug/tickets",
+      params: { slug },
+      search: { box, status: "unresolved" },
+    })
+  }
 
   const remove = useMutation({
     mutationFn: (id: string) => tenantApi.view.delete(id),
@@ -63,8 +126,8 @@ export function InboxNav({ search, go }: { search: InboxSearch; go: (s: Partial<
       notifySuccess(t("views.deleted"))
       void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
       void queryClient.invalidateQueries({ queryKey: kit.queries.view.key() })
-      if (search.view === id) {
-        go({ view: undefined, filter: undefined, box: "mine", team: undefined })
+      if (search?.view === id) {
+        navigateInbox({ view: undefined, filter: undefined, box: "mine", team: undefined })
       }
     },
     onError: (err) => notifyError(err),
@@ -80,12 +143,12 @@ export function InboxNav({ search, go }: { search: InboxSearch; go: (s: Partial<
     if (ok) remove.mutate(v.id)
   }
 
-  const openCreate = () => {
+  const openCreateView = () => {
     setEditing(undefined)
     setModalOpen(true)
   }
 
-  const openEdit = (v: ConversationViewSummary) => {
+  const openEditView = (v: ConversationViewSummary) => {
     setEditing(v)
     setModalOpen(true)
   }
@@ -96,8 +159,19 @@ export function InboxNav({ search, go }: { search: InboxSearch; go: (s: Partial<
       label={label}
       leftSection={icon}
       rightSection={<Count s={s} now={now} th={th} />}
-      active={search.box === box && !search.team && !search.view}
-      onClick={() => go({ box, team: undefined, view: undefined, filter: undefined })}
+      active={Boolean(search && !activeTicketBox && search.box === box && !search.team && !search.view)}
+      onClick={() => navigateInbox({ box, team: undefined, view: undefined, filter: undefined })}
+    />
+  )
+
+  const ticketItem = (box: TicketBox, label: string, icon: ReactNode, count?: number) => (
+    <NavLink
+      key={`ticket:${box}`}
+      label={label}
+      leftSection={icon}
+      rightSection={<PlainCount n={count} />}
+      active={activeTicketBox === box}
+      onClick={() => navigateTicket(box)}
     />
   )
 
@@ -111,10 +185,35 @@ export function InboxNav({ search, go }: { search: InboxSearch; go: (s: Partial<
         {item("unassigned", t("inbox.box_unassigned"), <IconUserQuestion size={16} stroke={1.6} />, d?.unassigned)}
         {item("all", t("inbox.box_all"), <IconListDetails size={16} stroke={1.6} />, d?.all)}
 
+        <RailSection
+          title={t("tickets.nav_section")}
+          collapsible
+          storeKey="inbox-tickets"
+          action={
+            can("conversations:reply") ? (
+              <Tooltip label={t("tickets.create")} openDelay={300}>
+                <ActionIcon
+                  size="xs"
+                  variant="subtle"
+                  color="gray"
+                  aria-label={t("tickets.create")}
+                  onClick={() => (onCreateTicket ? onCreateTicket() : setCreateTicketOpen(true))}
+                >
+                  <IconPlus size={14} stroke={1.8} />
+                </ActionIcon>
+              </Tooltip>
+            ) : undefined
+          }
+        >
+          {ticketItem("mine", t("tickets.box_mine"), <IconTicket size={15} stroke={1.6} />, d?.tickets.mine)}
+          {ticketItem("unassigned", t("tickets.box_unassigned"), <IconUserQuestion size={15} stroke={1.6} />, d?.tickets.unassigned)}
+          {ticketItem("all", t("tickets.box_all"), <IconListDetails size={15} stroke={1.6} />, d?.tickets.all)}
+        </RailSection>
+
         {(d?.teams.length ?? 0) > 0 && (
           <RailSection title={t("inbox.teams")} collapsible storeKey="inbox-teams">
             {d?.teams.map((team) => {
-              const active = search.team === team.id && !search.view
+              const active = Boolean(search && !activeTicketBox && search.team === team.id && !search.view)
               return (
                 <NavLink
                   key={team.id}
@@ -126,7 +225,7 @@ export function InboxNav({ search, go }: { search: InboxSearch; go: (s: Partial<
                   }
                   rightSection={<Count s={team} now={now} th={th} />}
                   active={active}
-                  onClick={() => go({ box: "all", team: team.id, view: undefined, filter: undefined })}
+                  onClick={() => navigateInbox({ box: "all", team: team.id, view: undefined, filter: undefined })}
                 />
               )
             })}
@@ -139,7 +238,7 @@ export function InboxNav({ search, go }: { search: InboxSearch; go: (s: Partial<
           storeKey="inbox-views"
           action={
             <Tooltip label={t("views.create")} openDelay={300}>
-              <ActionIcon size="xs" variant="subtle" color="gray" aria-label={t("views.create")} onClick={openCreate}>
+              <ActionIcon size="xs" variant="subtle" color="gray" aria-label={t("views.create")} onClick={openCreateView}>
                 <IconPlus size={14} stroke={1.8} />
               </ActionIcon>
             </Tooltip>
@@ -151,7 +250,7 @@ export function InboxNav({ search, go }: { search: InboxSearch; go: (s: Partial<
             </Text>
           ) : (
             views.map((v) => {
-              const active = search.view === v.id
+              const active = Boolean(search && !activeTicketBox && search.view === v.id)
               return (
                 <div key={v.id} className="inbox-view-row" data-editable={v.editable || undefined}>
                   <NavLink
@@ -166,7 +265,7 @@ export function InboxNav({ search, go }: { search: InboxSearch; go: (s: Partial<
                     }
                     active={active}
                     onClick={() =>
-                      go({
+                      navigateInbox({
                         box: "all",
                         team: undefined,
                         view: v.id,
@@ -191,7 +290,7 @@ export function InboxNav({ search, go }: { search: InboxSearch; go: (s: Partial<
                           </ActionIcon>
                         </Menu.Target>
                         <Menu.Dropdown>
-                          <Menu.Item leftSection={<IconPencil size={13} />} onClick={() => openEdit(v)}>
+                          <Menu.Item leftSection={<IconPencil size={13} />} onClick={() => openEditView(v)}>
                             {t("views.edit")}
                           </Menu.Item>
                           <Menu.Item leftSection={<IconTrash size={13} />} color="red" onClick={() => void handleDelete(v)}>
@@ -213,7 +312,7 @@ export function InboxNav({ search, go }: { search: InboxSearch; go: (s: Partial<
         onClose={() => setModalOpen(false)}
         editing={editing}
         onSaved={(saved) =>
-          go({
+          navigateInbox({
             box: "all",
             team: undefined,
             view: saved.id,
@@ -223,6 +322,20 @@ export function InboxNav({ search, go }: { search: InboxSearch; go: (s: Partial<
           })
         }
       />
+
+      {!onCreateTicket && (
+        <CreateTicketModal
+          opened={createTicketOpen}
+          onClose={() => setCreateTicketOpen(false)}
+          onCreated={(created) =>
+            void navigate({
+              to: "/t/$slug/tickets/$id",
+              params: { slug, id: created.id },
+              search: { box: "all", status: "unresolved" },
+            })
+          }
+        />
+      )}
     </>
   )
 }

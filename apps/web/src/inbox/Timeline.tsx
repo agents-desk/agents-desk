@@ -40,9 +40,13 @@ export function translationOf(it: ConversationItemDTO, lang: string | undefined)
   return lang ? all?.[lang] : undefined
 }
 
-/** hasTranslation 返回时间线中是否有对方的消息带着成员语言 lang 的译文：有时会话顶部显示“译文 | 原文”的切换。 */
-export function hasTranslation(items: ConversationItemDTO[] | undefined, lang: string | undefined): boolean {
-  return !!items?.some((it) => it.actor.type === "contact" && translationOf(it, lang))
+/** hasTranslation 返回时间线中是否有对方的消息或同事的内部备注带着成员语言 lang 的译文：有时会话顶部显示“译文 | 原文”的切换。 */
+export function hasTranslation(items: ConversationItemDTO[] | undefined, lang: string | undefined, myId?: string): boolean {
+  return !!items?.some(
+    (it) =>
+      (it.actor.type === "contact" || (it.kind === "note" && it.actor.id !== myId)) &&
+      Boolean(translationOf(it, lang)),
+  )
 }
 
 /**
@@ -223,9 +227,14 @@ export function Timeline({
                     conversationId={c.id}
                     it={it}
                     author={names.member(it.actor.id)}
+                    isOwn={it.actor.type === "member" && it.actor.id === me.data?.id}
                     time={clock(it.created_at, language, zone)}
                     fullTime={fullDateTime(it.created_at, language, zone)}
                     mt={gapTop}
+                    lang={me.data?.language}
+                    original={original}
+                    translating={enabled}
+                    watch={watch}
                     highlight={highlight}
                     focused={pulseSeq === it.seq}
                     onPreview={setLightbox}
@@ -518,14 +527,19 @@ function CaptionToggle({ label, onClick }: { label: string; onClick: () => void 
   )
 }
 
-/** Note 是内部备注：占满一行、黄色底加左侧强调条与锁图标，@ 到的同事加粗。只有成员可见。 */
+/** Note 是内部备注：占满一行、黄色底加左侧强调条与锁图标，@ 到的同事加粗。只有成员可见，支持跨语言译文与原文切换。 */
 function Note({
   conversationId,
   it,
   author,
+  isOwn,
   time,
   fullTime,
   mt,
+  lang,
+  original,
+  translating,
+  watch,
   highlight,
   focused,
   onPreview,
@@ -533,17 +547,35 @@ function Note({
   conversationId: string
   it: ConversationItemDTO
   author: string
+  isOwn: boolean
   time: string
   fullTime: string
   mt: number
+  lang: string | undefined
+  original: boolean
+  translating: boolean
+  watch: FillWatcher
   highlight?: string
   focused?: boolean
   onPreview: (image: LightboxImage) => void
 }): ReactNode {
   const t = useT()
+  const ui = useLanguage()
+  const [prevOriginal, setPrevOriginal] = useState(original)
+  const [flip, setFlip] = useState(false)
+  if (prevOriginal !== original) {
+    setPrevOriginal(original)
+    setFlip(false)
+  }
   const raw = it.content.text ?? ""
+  const translated = isOwn ? undefined : translationOf(it, lang)
+  const showOriginal = original !== flip
+  const shown = translated && !showOriginal ? translated : raw
+  const from = it.derived.language as string | undefined
+  const needFill = !isOwn && translating && it.untranslated
   return (
     <Paper
+      ref={needFill ? watch(it.id) : undefined}
       mt={mt}
       px="sm"
       py={8}
@@ -565,15 +597,15 @@ function Note({
             {time}
           </Text>
         </Tooltip>
-        {raw && (
+        {shown && (
           <Box ml="auto" className="inbox-msg-actions">
-            <CopyAction value={raw} />
+            <CopyAction value={shown} />
           </Box>
         )}
       </Group>
-      {raw && (
+      {shown && (
         <Text size="md" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-          {raw.split(/(@\S+)/).map((part, i) =>
+          {shown.split(/(@\S+)/).map((part, i) =>
             part.startsWith("@") ? (
               // biome-ignore lint/suspicious/noArrayIndexKey: 拆分出的片段没有别的标识，顺序固定
               <Text key={i} span fw={700} className="inbox-note-accent">
@@ -588,7 +620,34 @@ function Note({
           )}
         </Text>
       )}
-      <MessageAttachments conversationId={conversationId} attachments={it.attachments} hasText={Boolean(raw)} onPreview={onPreview} />
+      <MessageAttachments conversationId={conversationId} attachments={it.attachments} hasText={Boolean(shown)} onPreview={onPreview} />
+      {(translated || needFill) && (
+        <Group gap={4} mt={4} wrap="wrap">
+          {translated ? (
+            <>
+              <IconLanguage size={12} className="inbox-caption-icon" />
+              {from && (
+                <>
+                  <Text size="xs" c="dimmed">
+                    {languageName(from, ui)}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    ·
+                  </Text>
+                </>
+              )}
+              <CaptionToggle label={t(showOriginal ? "inbox.view_translation" : "inbox.view_original")} onClick={() => setFlip((f) => !f)} />
+            </>
+          ) : (
+            <>
+              <Loader size={10} />
+              <Text size="xs" c="dimmed">
+                {t("inbox.translating")}
+              </Text>
+            </>
+          )}
+        </Group>
+      )}
     </Paper>
   )
 }
