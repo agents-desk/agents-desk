@@ -155,6 +155,9 @@ func seed(ctx context.Context, out io.Writer, db *bun.DB, roles *authz.Store, ad
 	if err := seedInternalChats(ctx, out, db, memberLogins, inDemo, down); err != nil {
 		return err
 	}
+	if err := seedBusinessDemo(ctx, out, db, memberLogins, inDemo, addr, channels, down); err != nil {
+		return err
+	}
 	if err := seedViews(ctx, out, db, memberLogins, inDemo, down); err != nil {
 		return err
 	}
@@ -519,6 +522,75 @@ func seedInternalChats(ctx context.Context, out io.Writer, db *bun.DB, memberLog
 	}
 
 	fmt.Fprintln(out, "已在示例工作区中创建 2 个示例内部聊天")
+	return nil
+}
+
+// seedBusinessDemo 为主管理员创建示例网页商务沟通链接与一条跨语言外部商务对话（幂等），
+// 方便开箱预览“聊天 → 商务沟通”的外部单聊、内部协作备注与个人商务链接设置。
+func seedBusinessDemo(ctx context.Context, out io.Writer, db *bun.DB, memberLogins *login.Realm, inDemo identity.Subject, addr tenant.Addresses, channels channel.Registry, down conversation.Downstream) error {
+	exists, err := db.NewSelect().Model((*channel.Channel)(nil)).
+		Where("tenant_id = ? AND kind = ?", inDemo.Tenant, channel.BusinessLink).Exists(ctx)
+	if err != nil {
+		return errors.Wrap(err, "check seed business links")
+	}
+	if exists {
+		fmt.Fprintln(out, "示例工作区已有示例商务沟通数据，跳过")
+		return nil
+	}
+	ownerRef, err := memberLogins.Lookup(ctx, login.Email("owner@example.com"))
+	if err != nil {
+		return err
+	}
+	managerRef, err := memberLogins.Lookup(ctx, login.Email("manager@example.com"))
+	if err != nil {
+		return err
+	}
+	subOwner := identity.Subject{Type: member.Type, ID: ownerRef.ID, Tenant: inDemo.Tenant, Permissions: auth.WithBase(auth.Owner.Permissions)}
+
+	link, err := widget.NewCreateBusinessLink(db, addr.PublicURL).Handle(ctx, subOwner, widget.CreateBusinessLinkBody{
+		Name: "主管理员商务专线",
+		Appearance: widget.Appearance{
+			Greeting: "您好，欢迎直接联系我沟通代理与商务合作事宜！",
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	receive := conversation.NewReceive(db, channels, down)
+	sendMsg := conversation.NewSendChatMessage(db, down)
+
+	// 外部合作伙伴经网页商务链接发来第一条英文合作咨询
+	res, err := receive.Handle(ctx, inDemo, conversation.ReceiveParams{
+		ChannelID: link.ID,
+		From:      "b2b-vikram-1",
+		FromName:  "Vikram Mehta",
+		Text:      "Hi! We distribute mobile accessories across Mumbai and Pune. Could you share wholesale pricing for 500 units?",
+	})
+	if err != nil {
+		return err
+	}
+	if _, err := db.NewUpdate().Table("conversations").Set("language = ?", "en").Where("id = ?", res.ConversationID).Exec(ctx); err != nil {
+		return errors.Wrap(err, "set seed business chat language")
+	}
+	if _, err := db.NewUpdate().Table("contacts").Set("email = ?", "vikram@indusparts.in").
+		Where("id = (SELECT contact_id FROM conversations WHERE id = ?)", res.ConversationID).Exec(ctx); err != nil {
+		return errors.Wrap(err, "set seed business contact email")
+	}
+	if _, err := sendMsg.Handle(ctx, subOwner, res.ConversationID, conversation.SendChatMessageBody{
+		Text: "你好 Vikram，欢迎合作！500 台的阶梯批发报价表我马上整理发给你，请问预计首单什么时候出货？",
+	}); err != nil {
+		return err
+	}
+	if _, err := sendMsg.Handle(ctx, subOwner, res.ConversationID, conversation.SendChatMessageBody{
+		Text:     "@管理员 这家印度渠道商体量不错，帮忙确认一下华南仓现货库存。",
+		Note:     true,
+		Mentions: []string{managerRef.ID},
+	}); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(out, "已在示例工作区中创建示例商务沟通链接与商务对话：", link.ChatURL)
 	return nil
 }
 

@@ -1,4 +1,4 @@
-import type { ChatMode, ConversationChatDTO } from "@agents-desk/client/tenant"
+import type { ChatMode, ChatScope, ConversationChatDTO } from "@agents-desk/client/tenant"
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
 import type { useT } from "@go-tenon/ui"
 import { kit, tenantApi } from "../api"
@@ -8,15 +8,17 @@ type T = ReturnType<typeof useT>
 /** ChatModeFilter 是聊天列表的模式筛选：全部、仅单聊或仅群聊。 */
 export type ChatModeFilter = "all" | ChatMode
 
-/** useChatList 按搜索词与模式拉取当前成员参与的内部聊天列表（游标无限滚动）。 */
-export function useChatList(q: string, mode: ChatModeFilter) {
+/** useChatList 按范围（内部聊天/商务沟通）、模式、渠道与搜索词拉取当前成员参与的聊天列表（游标无限滚动）。 */
+export function useChatList(q: string, mode: ChatModeFilter, scope: ChatScope, channelId?: string) {
   const trimmed = q.trim()
   return useInfiniteQuery({
-    queryKey: [...kit.queries.chat.key(), "list", mode, trimmed],
+    queryKey: [...kit.queries.chat.key(), "list", scope, mode, channelId ?? "", trimmed],
     queryFn: ({ pageParam }) =>
       tenantApi.chat.list({
         cursor: pageParam || undefined,
+        scope,
         mode: mode === "all" ? undefined : mode,
+        channel_id: channelId || undefined,
         q: trimmed || undefined,
         per_page: 30,
       }),
@@ -25,7 +27,7 @@ export function useChatList(q: string, mode: ChatModeFilter) {
   })
 }
 
-/** useChat 读取单条内部聊天的详情及完整参与者列表。 */
+/** useChat 读取单条聊天的详情及完整参与者列表。 */
 export function useChat(id: string) {
   return useQuery({
     ...kit.queries.chat.get(id),
@@ -48,10 +50,13 @@ export function flattenChats(pages: { items: ConversationChatDTO[] }[] | undefin
   return out
 }
 
-/** chatDisplayName 返回聊天的显示标题：群聊取群名，单聊取对方姓名。 */
+/** chatDisplayName 返回聊天的显示标题：群聊取群名，外部单聊取联系人名，内部单聊取对方同事名。 */
 export function chatDisplayName(chat: ConversationChatDTO, t: T): string {
   if (chat.mode === "group") {
     return chat.name || t("chat.untitled_group")
+  }
+  if (chat.scope === "external") {
+    return chat.contact?.name || chat.peer?.name || chat.name || t("inbox.visitor")
   }
   return chat.peer?.name || t("chat.unknown_peer")
 }

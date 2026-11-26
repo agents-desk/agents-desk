@@ -69,6 +69,74 @@ export const messages = {
     "automations.ticket_status_notify_desc": "Automatically notify customers in all linked service conversations when a customer-visible ticket changes status.",
     "automations.ticket_status_notify_title": "Notify linked customers on ticket status change",
     "automations.title": "Built-in automations",
+    "business_channels.copy_url": "Copy URL",
+    "business_channels.description": "Manage your personal web business chat links and Telegram personal accounts. Conversations flow into Chat → Business chats with automatic cross-language translation and teammate collaboration.",
+    "business_channels.disabled_short": "Disabled",
+    "business_channels.link_color": "Accent color",
+    "business_channels.link_create_title": "New web business chat link",
+    "business_channels.link_created": "Web business chat link created",
+    "business_channels.link_delete_confirm": "Delete chat link “{{.name}}”?",
+    "business_channels.link_delete_message": "Links already used by conversations cannot be deleted; disable them instead.",
+    "business_channels.link_deleted": "Web business chat link deleted",
+    "business_channels.link_edit_title": "Edit web business chat link",
+    "business_channels.link_greeting": "Greeting (optional)",
+    "business_channels.link_greeting_placeholder": "e.g. Hi! Feel free to reach out here for partnership inquiries.",
+    "business_channels.link_name": "Link name",
+    "business_channels.link_name_placeholder": "e.g. Alex Business Line",
+    "business_channels.link_new": "New chat link",
+    "business_channels.links_desc": "Share a dedicated web chat URL with external partners so they can message you directly without installing any app.",
+    "business_channels.links_empty": "No web business chat links yet",
+    "business_channels.links_title": "Web business chat links",
+    "business_channels.open_preview": "Open preview",
+    "business_channels.tg_account_name": "Display name",
+    "business_channels.tg_account_name_placeholder": "e.g. Sales TG #1 (defaults to Telegram profile name)",
+    "business_channels.tg_back": "Back",
+    "business_channels.tg_backfill_label": "Import last 20 messages for newly selected chats",
+    "business_channels.tg_code": "Verification code",
+    "business_channels.tg_code_hint": "Enter the login code received in your Telegram app or via SMS.",
+    "business_channels.tg_connect": "Connect Telegram account",
+    "business_channels.tg_connect_title": "Connect Telegram personal account",
+    "business_channels.tg_connected": "Telegram personal account connected",
+    "business_channels.tg_desc": "Connect one or more Telegram personal accounts and pick only the business DMs or groups you want to sync — private chats stay untouched.",
+    "business_channels.tg_dialogs_empty": "No matching Telegram DMs or groups found",
+    "business_channels.tg_dialogs_failed": "Failed to load Telegram dialogs. Make sure the account is connected and retry.",
+    "business_channels.tg_dialogs_search": "Search contact name, group title, or @username…",
+    "business_channels.tg_disconnect": "Disconnect",
+    "business_channels.tg_disconnect_confirm": "Disconnect Telegram account “{{.name}}”?",
+    "business_channels.tg_disconnect_message": "Message syncing will stop immediately and encrypted session credentials will be removed. Existing chat history stays in the workspace.",
+    "business_channels.tg_disconnected": "Telegram account disconnected",
+    "business_channels.tg_empty": "No Telegram personal accounts connected yet",
+    "business_channels.tg_generate_qr": "Generate QR code",
+    "business_channels.tg_login_failed": "Login failed",
+    "business_channels.tg_mode_phone": "Phone \u0026 code",
+    "business_channels.tg_mode_qr": "QR code",
+    "business_channels.tg_no_synced_peers": "No synced chats selected yet — click “Select synced chats” to pick business DMs or groups",
+    "business_channels.tg_not_configured_desc": "Ask a platform admin to configure Telegram API ID and API Hash under Admin → Settings → Telegram Personal API before connecting accounts.",
+    "business_channels.tg_not_configured_short": "Ask platform admin to configure Telegram API first",
+    "business_channels.tg_not_configured_title": "Platform Telegram API not configured",
+    "business_channels.tg_password": "2FA Cloud Password",
+    "business_channels.tg_password_hint": "Two-step verification is enabled on this account. Enter your cloud password.",
+    "business_channels.tg_password_hint_with_tip": "Two-step verification is enabled (hint: {{.hint}}). Enter your cloud password.",
+    "business_channels.tg_peers_saved": "Synced chats updated",
+    "business_channels.tg_phone": "Phone number",
+    "business_channels.tg_phone_hint": "Include international code, e.g. +14155550100",
+    "business_channels.tg_pick_dialogs": "Select synced chats",
+    "business_channels.tg_pick_dialogs_hint": "Only checked 1:1 DMs and groups are synced into Business chats. Unchecked personal chats are ignored.",
+    "business_channels.tg_pick_dialogs_title": "Select synced chats: {{.name}}",
+    "business_channels.tg_qr_instructions": "Open Telegram on your phone → Settings → Devices → Link Desktop Device, then scan this QR code.",
+    "business_channels.tg_refresh_dialogs": "Refresh dialogs",
+    "business_channels.tg_relogin": "Reconnect",
+    "business_channels.tg_rename": "Rename",
+    "business_channels.tg_retry": "Retry",
+    "business_channels.tg_selected_count": "{{.n}} selected",
+    "business_channels.tg_send_code": "Send login code",
+    "business_channels.tg_status_connected": "Connected",
+    "business_channels.tg_status_disconnected": "Disconnected",
+    "business_channels.tg_status_expired": "Session expired",
+    "business_channels.tg_synced_summary": "{{.total}} synced ({{.direct}} DMs · {{.groups}} groups)",
+    "business_channels.tg_title": "Telegram personal accounts",
+    "business_channels.tg_verify": "Verify",
+    "business_channels.tg_waiting_scan": "Waiting for scan confirmation…",
     "business_hours.add_date": "Add date",
     "business_hours.closed": "Closed all day",
     "business_hours.date": "Date",
@@ -86,6 +154,21 @@ export const messages = {
     "business_hours.title": "Business hours",
     "chat.add_members": "Add members",
     "chat.add_members_submit": "Add to group",
+    "chat.business_all": "All business chats",
+    "chat.business_colleagues": "Collaborators",
+    "chat.business_colleagues_hint": "Invited teammates can view history, leave internal notes, or reply on this thread.",
+    "chat.business_details": "Business chat details",
+    "chat.business_empty": "No business chats yet — create a web chat link or connect a Telegram account",
+    "chat.business_external_members": "External members",
+    "chat.business_info": "Chat info",
+    "chat.business_manage": "Manage business channels",
+    "chat.business_note_hint": "Visible only to workspace collaborators, never sent externally",
+    "chat.business_reply_placeholder": "Reply to your business partner, or paste images and attachments…",
+    "chat.business_search_placeholder": "Search partners, groups, or messages…",
+    "chat.business_section": "Business chats",
+    "chat.business_setup_cta": "Set up business channels",
+    "chat.business_type_direct": "1:1 Business DM",
+    "chat.business_type_group": "External group",
     "chat.composer_placeholder": "Send a message, @ mention teammates or paste images — auto-translates across languages…",
     "chat.copy_email": "Copy email",
     "chat.create_group": "Create group",
@@ -98,6 +181,8 @@ export const messages = {
     "chat.group_name_placeholder": "e.g. Support Ops Team",
     "chat.group_name_required": "Enter a group name",
     "chat.group_settings": "Group settings \u0026 members",
+    "chat.internal_section": "Internal chat",
+    "chat.invite_colleagues_submit": "Invite teammates",
     "chat.leave": "Leave group",
     "chat.leave_confirm": "Leave this group chat?",
     "chat.leave_message": "You will no longer see this group unless another member invites you back.",
@@ -112,6 +197,7 @@ export const messages = {
     "chat.no_colleagues": "No teammates available",
     "chat.no_messages": "No messages yet",
     "chat.not_found": "Chat not found or you are not a participant",
+    "chat.open_contact": "View contact profile",
     "chat.peer_details": "Teammate profile",
     "chat.peer_info": "Member info",
     "chat.peer_language": "Preferred language",
@@ -623,6 +709,7 @@ export const messages = {
     "members.password_hint": "Required when this email has no account yet. Share it with the person yourself",
     "nav.assignment": "Assignment",
     "nav.attributes": "Attributes",
+    "nav.business_channels": "My business channels",
     "nav.chat": "Chat",
     "nav.contacts": "Contacts",
     "nav.general": "General",
@@ -1317,6 +1404,74 @@ export const messages = {
     "automations.ticket_status_notify_desc": "客户可见工单的状态发生变化时，自动通知该工单关联的所有服务型会话中的客户（聊天插件显示状态卡片，Telegram 等渠道按客户语言发送文本通知）。",
     "automations.ticket_status_notify_title": "工单状态变化时通知关联客户",
     "automations.title": "内置自动化",
+    "business_channels.copy_url": "复制链接",
+    "business_channels.description": "每个成员可自助管理个人专属的网页商务沟通链接与 Telegram 个人号，对外消息统一归集到“聊天 → 商务沟通”中，支持自动跨语言互译与同事协作。",
+    "business_channels.disabled_short": "已停用",
+    "business_channels.link_color": "主题色",
+    "business_channels.link_create_title": "新建网页商务沟通链接",
+    "business_channels.link_created": "已创建网页商务沟通链接",
+    "business_channels.link_delete_confirm": "删除沟通链接“{{.name}}”？",
+    "business_channels.link_delete_message": "已被对话使用的链接不能删除，可先关闭启用开关停用。",
+    "business_channels.link_deleted": "已删除网页商务沟通链接",
+    "business_channels.link_edit_title": "编辑网页商务沟通链接",
+    "business_channels.link_greeting": "顶部问候语（可选）",
+    "business_channels.link_greeting_placeholder": "例如：您好，欢迎直接与我沟通商务合作事宜！",
+    "business_channels.link_name": "链接名称",
+    "business_channels.link_name_placeholder": "例如：Alex 商务合作专线",
+    "business_channels.link_new": "新建沟通链接",
+    "business_channels.links_desc": "生成专属网页聊天地址发给外部合作伙伴，对方点击即可与你直接沟通，免安装应用。",
+    "business_channels.links_empty": "还没有创建网页商务沟通链接",
+    "business_channels.links_title": "网页商务沟通链接",
+    "business_channels.open_preview": "打开测试",
+    "business_channels.tg_account_name": "账号显示名称",
+    "business_channels.tg_account_name_placeholder": "例如：商务一号（留空默认取 Telegram 昵称）",
+    "business_channels.tg_back": "返回上一步",
+    "business_channels.tg_backfill_label": "同步新增对话的最近 20 条历史消息",
+    "business_channels.tg_code": "验证码",
+    "business_channels.tg_code_hint": "请输入 Telegram 客户端或短信收到的登录验证码。",
+    "business_channels.tg_connect": "绑定 Telegram 个人号",
+    "business_channels.tg_connect_title": "绑定 Telegram 个人号",
+    "business_channels.tg_connected": "Telegram 个人号绑定成功",
+    "business_channels.tg_desc": "绑定一个或多个 Telegram 个人号，按白名单勾选需要同步的商务单聊或群组，不会导入个人私密聊天。",
+    "business_channels.tg_dialogs_empty": "没有找到匹配的 Telegram 单聊或群组",
+    "business_channels.tg_dialogs_failed": "读取 Telegram 对话列表失败，请确认账号在线后重试。",
+    "business_channels.tg_dialogs_search": "搜索联系人姓名、群聊标题或 @username…",
+    "business_channels.tg_disconnect": "解绑账号",
+    "business_channels.tg_disconnect_confirm": "解绑 Telegram 个人号“{{.name}}”？",
+    "business_channels.tg_disconnect_message": "解绑后将立即停止收发消息并清除加密会话凭据，已有历史对话记录保留在工作台中。",
+    "business_channels.tg_disconnected": "已解绑 Telegram 个人号",
+    "business_channels.tg_empty": "还没有绑定 Telegram 个人号",
+    "business_channels.tg_generate_qr": "生成登录二维码",
+    "business_channels.tg_login_failed": "登录失败",
+    "business_channels.tg_mode_phone": "手机号验证码",
+    "business_channels.tg_mode_qr": "扫码登录",
+    "business_channels.tg_no_synced_peers": "尚未勾选任何同步对话，点击右侧“选择同步对话”开始挑选",
+    "business_channels.tg_not_configured_desc": "请联系平台管理员前往「管理员端 → 系统设置 → Telegram 个人号 API」填写 API ID 与 API Hash 后，即可在此扫码或用手机号绑定个人号。",
+    "business_channels.tg_not_configured_short": "需平台管理员先配置 Telegram API",
+    "business_channels.tg_not_configured_title": "尚未配置平台级 Telegram API 凭据",
+    "business_channels.tg_password": "两步验证云密码",
+    "business_channels.tg_password_hint": "该账号开启了两步验证，请输入云密码完成登录。",
+    "business_channels.tg_password_hint_with_tip": "该账号开启了两步验证（密码提示：{{.hint}}），请输入云密码完成登录。",
+    "business_channels.tg_peers_saved": "已更新同步对话列表",
+    "business_channels.tg_phone": "手机号",
+    "business_channels.tg_phone_hint": "需带国际区号，例如 +8613800138000",
+    "business_channels.tg_pick_dialogs": "选择同步对话",
+    "business_channels.tg_pick_dialogs_hint": "仅勾选需要纳入工作台商务沟通的 1:1 单聊或群组，未勾选的私人聊天不会同步。",
+    "business_channels.tg_pick_dialogs_title": "选择同步对话：{{.name}}",
+    "business_channels.tg_qr_instructions": "打开手机 Telegram → 设置 → 设备 → 连接桌面设备，扫描上方二维码完成绑定。",
+    "business_channels.tg_refresh_dialogs": "刷新对话列表",
+    "business_channels.tg_relogin": "重新登录",
+    "business_channels.tg_rename": "修改名称",
+    "business_channels.tg_retry": "重试",
+    "business_channels.tg_selected_count": "已选 {{.n}} 个对话",
+    "business_channels.tg_send_code": "发送验证码",
+    "business_channels.tg_status_connected": "已连接",
+    "business_channels.tg_status_disconnected": "未连接",
+    "business_channels.tg_status_expired": "登录已过期",
+    "business_channels.tg_synced_summary": "已同步 {{.total}} 个对话（{{.direct}} 个单聊 · {{.groups}} 个群聊）",
+    "business_channels.tg_title": "Telegram 个人号",
+    "business_channels.tg_verify": "确认验证",
+    "business_channels.tg_waiting_scan": "正在等待扫码确认…",
     "business_hours.add_date": "添加日期",
     "business_hours.closed": "全天不上班",
     "business_hours.date": "日期",
@@ -1334,6 +1489,21 @@ export const messages = {
     "business_hours.title": "工作时间",
     "chat.add_members": "邀请成员",
     "chat.add_members_submit": "添加到群聊",
+    "chat.business_all": "全部商务沟通",
+    "chat.business_colleagues": "协作成员",
+    "chat.business_colleagues_hint": "邀请同事加入后，对方可查看历史记录、发表内部备注或直接协同回复。",
+    "chat.business_details": "商务沟通详情",
+    "chat.business_empty": "还没有商务沟通对话，可创建个人网页链接或绑定 Telegram 个人号",
+    "chat.business_external_members": "外部群成员",
+    "chat.business_info": "沟通信息",
+    "chat.business_manage": "管理商务渠道",
+    "chat.business_note_hint": "仅工作区协作成员可见，不会发送给外部对方",
+    "chat.business_reply_placeholder": "直接回复外部合作伙伴，支持粘贴图片与附件…",
+    "chat.business_search_placeholder": "搜索外部联系人、群聊或消息记录…",
+    "chat.business_section": "商务沟通",
+    "chat.business_setup_cta": "配置个人商务渠道",
+    "chat.business_type_direct": "1:1 商务单聊",
+    "chat.business_type_group": "外部商务群聊",
     "chat.composer_placeholder": "发送消息，支持 @ 同事与粘贴图片，跨语言消息自动互译…",
     "chat.copy_email": "复制邮箱",
     "chat.create_group": "创建群聊",
@@ -1346,6 +1516,8 @@ export const messages = {
     "chat.group_name_placeholder": "例如：中印客服协作群",
     "chat.group_name_required": "请填写群名称",
     "chat.group_settings": "群设置与成员",
+    "chat.internal_section": "内部聊天",
+    "chat.invite_colleagues_submit": "邀请加入协作",
     "chat.leave": "退出群聊",
     "chat.leave_confirm": "确定退出这个群聊？",
     "chat.leave_message": "退出后你将看不到该群聊，需要群内成员重新邀请才能加入。",
@@ -1360,6 +1532,7 @@ export const messages = {
     "chat.no_colleagues": "没有可选择的同事",
     "chat.no_messages": "暂无消息",
     "chat.not_found": "聊天不存在或你不是参与者",
+    "chat.open_contact": "查看联系人详情",
     "chat.peer_details": "同事资料",
     "chat.peer_info": "成员信息",
     "chat.peer_language": "偏好语言",
@@ -1871,6 +2044,7 @@ export const messages = {
     "members.password_hint": "这个邮箱还没有账号时必填，由你告诉本人",
     "nav.assignment": "指派",
     "nav.attributes": "属性",
+    "nav.business_channels": "我的商务渠道",
     "nav.chat": "聊天",
     "nav.contacts": "联系人",
     "nav.general": "常规",
@@ -2568,6 +2742,74 @@ export type MessageId =
   | "automations.ticket_status_notify_desc"
   | "automations.ticket_status_notify_title"
   | "automations.title"
+  | "business_channels.copy_url"
+  | "business_channels.description"
+  | "business_channels.disabled_short"
+  | "business_channels.link_color"
+  | "business_channels.link_create_title"
+  | "business_channels.link_created"
+  | "business_channels.link_delete_confirm"
+  | "business_channels.link_delete_message"
+  | "business_channels.link_deleted"
+  | "business_channels.link_edit_title"
+  | "business_channels.link_greeting"
+  | "business_channels.link_greeting_placeholder"
+  | "business_channels.link_name"
+  | "business_channels.link_name_placeholder"
+  | "business_channels.link_new"
+  | "business_channels.links_desc"
+  | "business_channels.links_empty"
+  | "business_channels.links_title"
+  | "business_channels.open_preview"
+  | "business_channels.tg_account_name"
+  | "business_channels.tg_account_name_placeholder"
+  | "business_channels.tg_back"
+  | "business_channels.tg_backfill_label"
+  | "business_channels.tg_code"
+  | "business_channels.tg_code_hint"
+  | "business_channels.tg_connect"
+  | "business_channels.tg_connect_title"
+  | "business_channels.tg_connected"
+  | "business_channels.tg_desc"
+  | "business_channels.tg_dialogs_empty"
+  | "business_channels.tg_dialogs_failed"
+  | "business_channels.tg_dialogs_search"
+  | "business_channels.tg_disconnect"
+  | "business_channels.tg_disconnect_confirm"
+  | "business_channels.tg_disconnect_message"
+  | "business_channels.tg_disconnected"
+  | "business_channels.tg_empty"
+  | "business_channels.tg_generate_qr"
+  | "business_channels.tg_login_failed"
+  | "business_channels.tg_mode_phone"
+  | "business_channels.tg_mode_qr"
+  | "business_channels.tg_no_synced_peers"
+  | "business_channels.tg_not_configured_desc"
+  | "business_channels.tg_not_configured_short"
+  | "business_channels.tg_not_configured_title"
+  | "business_channels.tg_password"
+  | "business_channels.tg_password_hint"
+  | "business_channels.tg_password_hint_with_tip"
+  | "business_channels.tg_peers_saved"
+  | "business_channels.tg_phone"
+  | "business_channels.tg_phone_hint"
+  | "business_channels.tg_pick_dialogs"
+  | "business_channels.tg_pick_dialogs_hint"
+  | "business_channels.tg_pick_dialogs_title"
+  | "business_channels.tg_qr_instructions"
+  | "business_channels.tg_refresh_dialogs"
+  | "business_channels.tg_relogin"
+  | "business_channels.tg_rename"
+  | "business_channels.tg_retry"
+  | "business_channels.tg_selected_count"
+  | "business_channels.tg_send_code"
+  | "business_channels.tg_status_connected"
+  | "business_channels.tg_status_disconnected"
+  | "business_channels.tg_status_expired"
+  | "business_channels.tg_synced_summary"
+  | "business_channels.tg_title"
+  | "business_channels.tg_verify"
+  | "business_channels.tg_waiting_scan"
   | "business_hours.add_date"
   | "business_hours.closed"
   | "business_hours.date"
@@ -2585,6 +2827,21 @@ export type MessageId =
   | "business_hours.title"
   | "chat.add_members"
   | "chat.add_members_submit"
+  | "chat.business_all"
+  | "chat.business_colleagues"
+  | "chat.business_colleagues_hint"
+  | "chat.business_details"
+  | "chat.business_empty"
+  | "chat.business_external_members"
+  | "chat.business_info"
+  | "chat.business_manage"
+  | "chat.business_note_hint"
+  | "chat.business_reply_placeholder"
+  | "chat.business_search_placeholder"
+  | "chat.business_section"
+  | "chat.business_setup_cta"
+  | "chat.business_type_direct"
+  | "chat.business_type_group"
   | "chat.composer_placeholder"
   | "chat.copy_email"
   | "chat.create_group"
@@ -2597,6 +2854,8 @@ export type MessageId =
   | "chat.group_name_placeholder"
   | "chat.group_name_required"
   | "chat.group_settings"
+  | "chat.internal_section"
+  | "chat.invite_colleagues_submit"
   | "chat.leave"
   | "chat.leave_confirm"
   | "chat.leave_message"
@@ -2611,6 +2870,7 @@ export type MessageId =
   | "chat.no_colleagues"
   | "chat.no_messages"
   | "chat.not_found"
+  | "chat.open_contact"
   | "chat.peer_details"
   | "chat.peer_info"
   | "chat.peer_language"
@@ -3122,6 +3382,7 @@ export type MessageId =
   | "members.password_hint"
   | "nav.assignment"
   | "nav.attributes"
+  | "nav.business_channels"
   | "nav.chat"
   | "nav.contacts"
   | "nav.general"

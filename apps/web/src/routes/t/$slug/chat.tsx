@@ -1,24 +1,36 @@
+import type { ChatScope } from "@agents-desk/client/tenant"
 import { Box } from "@mantine/core"
+import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, Outlet, useNavigate, useParams } from "@tanstack/react-router"
 import { Pane, useNarrow } from "@go-tenon/ui"
-import { useCallback, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import "../../../inbox/inbox.css"
+import { kit } from "../../../api"
 import type { ChatModeFilter } from "../../../chat/data"
 import { ChatList } from "../../../chat/List"
-import { ChatNav } from "../../../chat/Nav"
+import { ChatNav, type ChatNavTarget } from "../../../chat/Nav"
 import { NewChatModal } from "../../../chat/NewChatModal"
 import { NARROW_QUERY } from "../../../layout"
 
-/** ChatSearch 是聊天模块的路由查询参数，决定二级导航栏高亮与列表筛选模式。 */
+/** ChatSearch 是聊天模块的路由查询参数，决定二级导航栏高亮与列表筛选模式（内部聊天或商务沟通）。 */
 export interface ChatSearch {
+  scope?: ChatScope
   filter?: Exclude<ChatModeFilter, "all">
+  channel?: string
 }
 
-// 内部聊天模块：一级图标栏独立入口，二级导航提供全部/单聊/群聊分组，主区为列表与对话区。
+// 聊天模块：一级图标栏独立入口，二级导航提供内部聊天（全部/单聊/群聊）与商务沟通（全部/个人渠道），主区为列表与对话区。
 export const Route = createFileRoute("/t/$slug/chat")({
-  validateSearch: (raw: Record<string, unknown>): ChatSearch => ({
-    filter: raw.filter === "direct" || raw.filter === "group" ? raw.filter : undefined,
-  }),
+  validateSearch: (raw: Record<string, unknown>): ChatSearch => {
+    const scope: ChatScope | undefined = raw.scope === "external" || raw.scope === "internal" ? raw.scope : undefined
+    const filter: Exclude<ChatModeFilter, "all"> | undefined = raw.filter === "direct" || raw.filter === "group" ? raw.filter : undefined
+    const channel = typeof raw.channel === "string" && raw.channel.trim() ? raw.channel.trim() : undefined
+    return {
+      scope,
+      filter: scope === "external" ? undefined : filter,
+      channel: scope === "external" ? channel : undefined,
+    }
+  },
   staticData: { title: "nav.chat", icon: "chat", order: 2, permission: "conversations:read", fullBleed: true },
   component: ChatLayout,
 })
@@ -31,14 +43,29 @@ function ChatLayout() {
   const narrow = useNarrow(NARROW_QUERY)
   const [newOpen, setNewOpen] = useState(false)
 
-  const filter: ChatModeFilter = search.filter ?? "all"
+  const scope: ChatScope = search.scope ?? "internal"
+  const filter: ChatModeFilter = scope === "external" ? "all" : (search.filter ?? "all")
+  const channelId = scope === "external" ? search.channel : undefined
 
-  const selectFilter = useCallback(
-    (next: ChatModeFilter) => {
+  const businessLinks = useQuery(kit.queries.business.linkList())
+  const tgAccounts = useQuery(kit.queries.tgaccount.list())
+  const channelName = useMemo(() => {
+    if (!channelId) return undefined
+    const link = businessLinks.data?.find((x) => x.id === channelId)
+    if (link) return link.name
+    return tgAccounts.data?.accounts.find((x) => x.id === channelId)?.name
+  }, [businessLinks.data, channelId, tgAccounts.data?.accounts])
+
+  const selectNav = useCallback(
+    (next: ChatNavTarget) => {
       void navigate({
         to: id ? "/t/$slug/chat/$id" : "/t/$slug/chat",
         params: id ? { slug, id } : { slug },
-        search: { filter: next === "all" ? undefined : next },
+        search: {
+          scope: next.scope === "external" ? "external" : undefined,
+          filter: next.scope === "internal" ? next.filter : undefined,
+          channel: next.scope === "external" ? next.channel : undefined,
+        },
       })
     },
     [id, navigate, slug],
@@ -49,21 +76,38 @@ function ChatLayout() {
       void navigate({
         to: "/t/$slug/chat/$id",
         params: { slug, id: nextId },
-        search: { filter: search.filter },
+        search: {
+          scope: search.scope,
+          filter: search.filter,
+          channel: search.channel,
+        },
       }),
-    [navigate, search.filter, slug],
+    [navigate, search.channel, search.filter, search.scope, slug],
   )
+
+  const goBusinessSettings = useCallback(() => {
+    void navigate({ to: "/t/$slug/settings/business-channels", params: { slug } })
+  }, [navigate, slug])
 
   return (
     <Box style={{ display: "flex", height: "100%" }}>
-      <ChatNav filter={filter} onSelect={selectFilter} />
+      <ChatNav scope={scope} filter={filter} channelId={channelId} onSelect={selectNav} />
       {(!narrow || !id) && (
         <Pane
           width={narrow ? "100%" : undefined}
           border={narrow ? "none" : "right"}
           resizable={!narrow && { storageKey: "chat-list", defaultWidth: 300, min: 250, max: 400, side: "right" }}
         >
-          <ChatList mode={filter} openId={id} open={open} onNewChat={() => setNewOpen(true)} />
+          <ChatList
+            scope={scope}
+            mode={filter}
+            channelId={channelId}
+            channelName={channelName}
+            openId={id}
+            open={open}
+            onNewChat={() => setNewOpen(true)}
+            onManageBusinessChannels={goBusinessSettings}
+          />
         </Pane>
       )}
       {(!narrow || id) && (
