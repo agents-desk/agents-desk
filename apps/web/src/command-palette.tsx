@@ -13,7 +13,7 @@ import {
   IconListDetails,
   IconLock,
   IconMessage,
-  IconMessages,
+  IconMessageCircle,
   IconRefresh,
   IconSearch,
   IconTicket,
@@ -465,7 +465,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
               >
                 <Group gap="sm" wrap="nowrap" w="100%">
                   <Box className="cmd-palette-icon">
-                    {ch.mode === "group" ? <IconUsersGroup size={15} stroke={1.6} /> : <IconMessages size={15} stroke={1.6} />}
+                    {ch.mode === "group" ? <IconUsersGroup size={15} stroke={1.6} /> : <IconMessageCircle size={15} stroke={1.6} />}
                   </Box>
                   <Box style={{ flex: 1, minWidth: 0 }}>
                     <Group gap={6} wrap="nowrap">

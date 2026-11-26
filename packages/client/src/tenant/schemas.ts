@@ -2947,6 +2947,9 @@ export const components = {
         "maxLength": 10000,
         "minLength": 1,
         "type": "string"
+      },
+      "tone": {
+        "$ref": "#/components/schemas/TranslationTone"
       }
     },
     "required": [

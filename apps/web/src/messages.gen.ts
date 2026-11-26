@@ -117,7 +117,7 @@ export const messages = {
     "chat.remove_member": "Remove from group",
     "chat.remove_member_confirm": "Remove {{.name}} from this group?",
     "chat.remove_member_message": "They will no longer receive new messages in this group.",
-    "chat.search_placeholder": "Search teammates or groups…",
+    "chat.search_placeholder": "Search teammates, groups, or messages…",
     "chat.selected_members": "{{.n}} member(s) selected (including you)",
     "chat.start_hint": "Send the first message to start chatting",
     "chat.status_away": "Away",
@@ -358,7 +358,8 @@ export const messages = {
     "inbox.attr_yes": "Yes",
     "inbox.away": "Away",
     "inbox.back": "Back to conversations",
-    "inbox.back_translation": "Back translation",
+    "inbox.back_translation": "Back-translation check",
+    "inbox.back_translation_hint": "Independently translates the text above back to your language so you can verify meaning",
     "inbox.backlog_oldest": "oldest",
     "inbox.backlog_open": "{{.n}} open",
     "inbox.backlog_waiting": "Waiting",
@@ -377,7 +378,9 @@ export const messages = {
     "inbox.channel_send_via": "Send via {{.channel}}",
     "inbox.channel_via": "via {{.channel}}",
     "inbox.check_translation": "Review translation",
-    "inbox.check_translation_hint": "Expand live translation \u0026 back-translation review (auto-translates by default)",
+    "inbox.check_translation_auto": "Review translation (auto-translates by default)",
+    "inbox.check_translation_auto_to": "Review translation (auto-translates to {{.lang}})",
+    "inbox.check_translation_off": "Review translation (currently off)",
     "inbox.choose_language": "Choose the language to send in",
     "inbox.choose_reply_channel": "Choose reply channel",
     "inbox.clear_filters": "Clear filters",
@@ -533,6 +536,9 @@ export const messages = {
     "inbox.teams": "Team inboxes",
     "inbox.text_shown": "Show messages translated or original",
     "inbox.their_language": "{{.lang}} · their language",
+    "inbox.tone_formal": "Formal",
+    "inbox.tone_friendly": "Friendly",
+    "inbox.tone_neutral": "Neutral",
     "inbox.translate_to": "To {{.lang}}",
     "inbox.translated": "Translation",
     "inbox.translating": "Translating",
@@ -540,6 +546,8 @@ export const messages = {
     "inbox.translation_failed": "Translation failed: {{.error}}",
     "inbox.translation_placeholder": "Type to preview {{.lang}} translation \u0026 back-translation…",
     "inbox.translation_placeholder_generic": "Choose a target language to preview translation \u0026 back-translation…",
+    "inbox.translation_tone": "Tone",
+    "inbox.translation_tone_default": "Default tone",
     "inbox.typing": "{{.who}} is typing…",
     "inbox.unassign": "Remove assignee",
     "inbox.view_image": "View image",
@@ -1346,7 +1354,7 @@ export const messages = {
     "chat.remove_member": "移出群聊",
     "chat.remove_member_confirm": "将 {{.name}} 移出群聊？",
     "chat.remove_member_message": "移出后对方将不再收到本群的新消息。",
-    "chat.search_placeholder": "搜索同事或群聊…",
+    "chat.search_placeholder": "搜索同事、群聊或聊天记录…",
     "chat.selected_members": "已选 {{.n}} 位成员（含自己）",
     "chat.start_hint": "发送第一条消息开始聊天",
     "chat.status_away": "离开",
@@ -1587,7 +1595,8 @@ export const messages = {
     "inbox.attr_yes": "是",
     "inbox.away": "离开",
     "inbox.back": "返回会话列表",
-    "inbox.back_translation": "回译",
+    "inbox.back_translation": "回译校验",
+    "inbox.back_translation_hint": "将上方译文独立译回你的语言（不参考原文），用于核对意思是否准确",
     "inbox.backlog_oldest": "最久",
     "inbox.backlog_open": "打开 {{.n}}",
     "inbox.backlog_waiting": "待回复",
@@ -1606,7 +1615,9 @@ export const messages = {
     "inbox.channel_send_via": "经由 {{.channel}} 发送",
     "inbox.channel_via": "经由 {{.channel}}",
     "inbox.check_translation": "译文校对",
-    "inbox.check_translation_hint": "展开译文校对与回译（默认自动翻译）",
+    "inbox.check_translation_auto": "译文校对（默认自动互译）",
+    "inbox.check_translation_auto_to": "译文校对（默认自动译为{{.lang}}）",
+    "inbox.check_translation_off": "译文校对（当前不翻译）",
     "inbox.choose_language": "选择译文的语言",
     "inbox.choose_reply_channel": "选择回复渠道",
     "inbox.clear_filters": "清除筛选",
@@ -1762,6 +1773,9 @@ export const messages = {
     "inbox.teams": "团队收件箱",
     "inbox.text_shown": "切换消息显示译文还是原文",
     "inbox.their_language": "{{.lang}} · 对方的语言",
+    "inbox.tone_formal": "正式",
+    "inbox.tone_friendly": "亲切",
+    "inbox.tone_neutral": "中性",
     "inbox.translate_to": "译为 {{.lang}}",
     "inbox.translated": "译文",
     "inbox.translating": "翻译中",
@@ -1769,6 +1783,8 @@ export const messages = {
     "inbox.translation_failed": "翻译失败：{{.error}}",
     "inbox.translation_placeholder": "输入内容后将预览{{.lang}}译文与回译…",
     "inbox.translation_placeholder_generic": "选择目标语言以预览译文与回译…",
+    "inbox.translation_tone": "语气",
+    "inbox.translation_tone_default": "默认语气",
     "inbox.typing": "{{.who}} 正在输入…",
     "inbox.unassign": "取消负责人",
     "inbox.view_image": "查看大图",
@@ -2820,6 +2836,7 @@ export type MessageId =
   | "inbox.away"
   | "inbox.back"
   | "inbox.back_translation"
+  | "inbox.back_translation_hint"
   | "inbox.backlog_oldest"
   | "inbox.backlog_open"
   | "inbox.backlog_waiting"
@@ -2838,7 +2855,9 @@ export type MessageId =
   | "inbox.channel_send_via"
   | "inbox.channel_via"
   | "inbox.check_translation"
-  | "inbox.check_translation_hint"
+  | "inbox.check_translation_auto"
+  | "inbox.check_translation_auto_to"
+  | "inbox.check_translation_off"
   | "inbox.choose_language"
   | "inbox.choose_reply_channel"
   | "inbox.clear_filters"
@@ -2994,6 +3013,9 @@ export type MessageId =
   | "inbox.teams"
   | "inbox.text_shown"
   | "inbox.their_language"
+  | "inbox.tone_formal"
+  | "inbox.tone_friendly"
+  | "inbox.tone_neutral"
   | "inbox.translate_to"
   | "inbox.translated"
   | "inbox.translating"
@@ -3001,6 +3023,8 @@ export type MessageId =
   | "inbox.translation_failed"
   | "inbox.translation_placeholder"
   | "inbox.translation_placeholder_generic"
+  | "inbox.translation_tone"
+  | "inbox.translation_tone_default"
   | "inbox.typing"
   | "inbox.unassign"
   | "inbox.view_image"

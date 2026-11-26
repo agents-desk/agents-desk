@@ -13,7 +13,6 @@ import {
   Indicator,
   Loader,
   Paper,
-  SegmentedControl,
   Skeleton,
   Stack,
   Text,
@@ -29,17 +28,19 @@ import {
   IconCheck,
   IconCopy,
   IconLanguage,
+  IconLayoutSidebarRight,
   IconPaperclip,
   IconSend,
-  IconUsers,
   IconUsersGroup,
 } from "@tabler/icons-react"
 import {
+  AsidePane,
   ImageLightbox,
   notifyError,
   PaneHeader,
   TriggerMenu,
   textTriggerRule,
+  useAsidePaneState,
   useLanguage,
   useNarrow,
   useT,
@@ -76,16 +77,16 @@ import { translationOf } from "../inbox/Timeline"
 import { languageName } from "../languages"
 import { NARROW_QUERY } from "../layout"
 import { chatDisplayName, useChat } from "./data"
-import { GroupDrawer } from "./GroupDrawer"
+import { GroupDetails } from "./GroupDetails"
 
 /** LINK 匹配消息中的网址。 */
 const LINK = /https?:\/\/[^\s<>\x22]+[^\s<>\x22\x27.,;:!?)\]}。，；：！？）】」』]/g
 
 /**
  * ChatView 是单条内部聊天（单聊或群聊）的主对话区：
- * 顶栏展示对方资料/群成员数、全局译文/原文切换与群管理抽屉入口；
- * 中间消息流支持跨语言自动互译（按阅读者语言展示译文并支持单条切换原文）、附件灯箱、@高亮和正在输入提示；
- * 底部输入框支持 @ 提及、拖拽/粘贴附件及回车发送快捷键。
+ * 顶栏展示对方资料/群成员数与群详情右侧栏开关；
+ * 中间消息流支持跨语言自动互译（按阅读者语言默认展示译文并支持单条切换原文）、附件灯箱、@高亮和正在输入提示；
+ * 底部输入框支持 @ 提及、拖拽/粘贴附件、统一译文校对展开栏及快捷键发送。
  */
 export function ChatView({ id, tenantId, back }: { id: string; tenantId: string; back: () => void }): ReactNode {
   const t = useT()
@@ -96,8 +97,7 @@ export function ChatView({ id, tenantId, back }: { id: string; tenantId: string;
   const timeline = useTimeline(id)
   const { typing, notifyTyping, clearTyping } = useConversationChannel(tenantId, id, me.data?.id)
 
-  const [original, setOriginal] = useState(false)
-  const [groupOpen, setGroupOpen] = useState(false)
+  const details = useAsidePaneState("chat-group-details", { compactQuery: NARROW_QUERY })
 
   const chat = chatQuery.data
   const last = timeline.data?.at(-1)
@@ -127,11 +127,6 @@ export function ChatView({ id, tenantId, back }: { id: string; tenantId: string;
   }
 
   const title = chatDisplayName(chat, t)
-  const myId = me.data?.id
-  const myLang = me.data?.language
-  const hasTrans = Boolean(
-    timeline.data?.some((it) => it.kind === "message" && it.actor.id !== myId && Boolean(translationOf(it, myLang))),
-  )
   const subtitle =
     chat.mode === "group"
       ? t("chat.members_count", { n: chat.participant_count })
@@ -140,80 +135,78 @@ export function ChatView({ id, tenantId, back }: { id: string; tenantId: string;
         : t("chat.status_away")
 
   return (
-    <Box style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", height: "100%" }}>
-      <PaneHeader fixed={!narrow} back={narrow ? back : undefined}>
-        <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-          {chat.mode === "group" ? (
-            <ThemeIcon size={32} radius="xl" variant="light" color="brand" style={{ flex: "none" }}>
-              <IconUsersGroup size={17} stroke={1.6} />
-            </ThemeIcon>
-          ) : (
-            <Indicator
-              size={8}
-              offset={2}
-              position="bottom-end"
-              color={chat.peer?.status === "online" ? "green" : "gray"}
-              withBorder
-              style={{ flex: "none" }}
-            >
-              <Avatar size={32} radius="xl" name={title} color="initials" src={chat.peer?.avatar_url || undefined} />
-            </Indicator>
-          )}
-          <Box style={{ minWidth: 0, flex: 1 }}>
-            <Text size="md" fw={600} truncate lh={1.25}>
-              {title}
-            </Text>
-            <Text size="xs" c="dimmed" truncate lh={1.25}>
-              {subtitle}
-            </Text>
-          </Box>
-        </Group>
-
-        <Group gap={6} wrap="nowrap" style={{ flex: "none" }} data-tn-density="dense">
-          {hasTrans && (
-            <SegmentedControl
-              value={original ? "original" : "translation"}
-              onChange={(v) => setOriginal(v === "original")}
-              data={[
-                { value: "translation", label: t("inbox.translated") },
-                { value: "original", label: t("inbox.original") },
-              ]}
-              aria-label={t("inbox.text_shown")}
-            />
-          )}
-          {chat.mode === "group" && (
-            <Tooltip label={t("chat.group_settings")}>
-              <ActionIcon
-                variant={groupOpen ? "light" : "subtle"}
-                color={groupOpen ? undefined : "gray"}
-                size="input-sm"
-                aria-label={t("chat.group_settings")}
-                onClick={() => setGroupOpen(true)}
+    <Group gap={0} h="100%" wrap="nowrap" align="stretch" style={{ flex: 1, minWidth: 0 }}>
+      <Box style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", height: "100%" }}>
+        <PaneHeader fixed={!narrow} back={narrow ? back : undefined}>
+          <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+            {chat.mode === "group" ? (
+              <ThemeIcon size={32} radius="xl" variant="light" color="brand" style={{ flex: "none" }}>
+                <IconUsersGroup size={17} stroke={1.6} />
+              </ThemeIcon>
+            ) : (
+              <Indicator
+                size={8}
+                offset={2}
+                position="bottom-end"
+                color={chat.peer?.status === "online" ? "green" : "gray"}
+                withBorder
+                style={{ flex: "none" }}
               >
-                <IconUsers size={16} />
-              </ActionIcon>
-            </Tooltip>
+                <Avatar size={32} radius="xl" name={title} color="initials" src={chat.peer?.avatar_url || undefined} />
+              </Indicator>
+            )}
+            <Box style={{ minWidth: 0, flex: 1 }}>
+              <Text size="md" fw={600} truncate lh={1.25}>
+                {title}
+              </Text>
+              <Text size="xs" c="dimmed" truncate lh={1.25}>
+                {subtitle}
+              </Text>
+            </Box>
+          </Group>
+
+          {chat.mode === "group" && (
+            <Group gap={6} wrap="nowrap" style={{ flex: "none" }} data-tn-density="dense">
+              <Tooltip label={t("chat.group_settings")}>
+                <ActionIcon
+                  variant={details.opened ? "light" : "subtle"}
+                  color={details.opened ? undefined : "gray"}
+                  size="input-sm"
+                  aria-label={t("chat.group_settings")}
+                  onClick={details.toggle}
+                >
+                  <IconLayoutSidebarRight size={16} />
+                </ActionIcon>
+              </Tooltip>
+            </Group>
           )}
-        </Group>
-      </PaneHeader>
+        </PaneHeader>
 
-      <ChatTimeline chat={chat} original={original} typingNames={typing.map((x) => x.name ?? "").filter(Boolean)} />
+        <ChatTimeline chat={chat} typingNames={typing.map((x) => x.name ?? "").filter(Boolean)} />
 
-      <ChatComposer key={chat.id} chat={chat} onTyping={notifyTyping} />
+        <ChatComposer key={chat.id} chat={chat} onTyping={notifyTyping} />
+      </Box>
 
-      {chat.mode === "group" && <GroupDrawer opened={groupOpen} chat={chat} onClose={() => setGroupOpen(false)} onLeft={back} />}
-    </Box>
+      {chat.mode === "group" && (
+        <AsidePane
+          opened={details.opened}
+          onClose={details.close}
+          compactQuery={NARROW_QUERY}
+          resizable={{ storageKey: "chat-group-details", defaultWidth: 320, min: 280, max: 400 }}
+        >
+          <GroupDetails chat={chat} onClose={details.close} onLeft={back} />
+        </AsidePane>
+      )}
+    </Group>
   )
 }
 
-/** ChatTimeline 渲染内部聊天的消息流，支持按天分组、跨语言译文与原文切换、附件灯箱与正在输入提示。 */
+/** ChatTimeline 渲染内部聊天的消息流，支持按天分组、跨语言译文与单条原文切换、附件灯箱与正在输入提示。 */
 function ChatTimeline({
   chat,
-  original,
   typingNames,
 }: {
   chat: ConversationChatDTO
-  original: boolean
   typingNames: string[]
 }): ReactNode {
   const t = useT()
@@ -285,7 +278,6 @@ function ChatTimeline({
                     time={clock(it.created_at, ui, zone)}
                     fullTime={fullDateTime(it.created_at, ui, zone)}
                     lang={me.data?.language}
-                    original={original}
                     translating={translating}
                     watch={watch}
                     mt={gapTop}
@@ -324,7 +316,6 @@ function ChatBubble({
   time,
   fullTime,
   lang,
-  original,
   translating,
   watch,
   mt,
@@ -338,7 +329,6 @@ function ChatBubble({
   time: string
   fullTime: string
   lang: string | undefined
-  original: boolean
   translating: boolean
   watch: FillWatcher
   mt: number
@@ -346,18 +336,12 @@ function ChatBubble({
 }): ReactNode {
   const t = useT()
   const ui = useLanguage()
-  const [prevOriginal, setPrevOriginal] = useState(original)
-  const [flip, setFlip] = useState(false)
+  const [showOriginal, setShowOriginal] = useState(false)
   const [showVerified, setShowVerified] = useState(false)
-  if (prevOriginal !== original) {
-    setPrevOriginal(original)
-    setFlip(false)
-  }
 
   const raw = it.content.text ?? ""
   const translated = isOwn ? undefined : translationOf(it, lang)
   const verified = isOwn ? verifiedTranslationOf(it) : undefined
-  const showOriginal = original !== flip
   const shown = translated && !showOriginal ? translated : raw
   const fromLang = it.derived.language as string | undefined
   const needFill = !isOwn && translating && it.untranslated
@@ -439,7 +423,7 @@ function ChatBubble({
                   </Text>
                 </>
               )}
-              <UnstyledButton className="inbox-caption-btn" onClick={() => setFlip((f) => !f)}>
+              <UnstyledButton className="inbox-caption-btn" onClick={() => setShowOriginal((v) => !v)}>
                 {t(showOriginal ? "inbox.view_translation" : "inbox.view_original")}
               </UnstyledButton>
             </>

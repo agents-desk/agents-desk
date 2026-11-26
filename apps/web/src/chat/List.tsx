@@ -28,6 +28,7 @@ import { previewSummary } from "../inbox/Attachments"
 import { useMe, useMembers } from "../inbox/data"
 import { type FillWatcher, useFillVisible } from "../inbox/fill"
 import { activity } from "../inbox/format"
+import { HighlightedSnippet } from "../inbox/Highlight"
 import { chatDisplayName, type ChatModeFilter, flattenChats, useChatList } from "./data"
 
 /** ChatListProps 是内部聊天列表栏的设置。 */
@@ -177,6 +178,8 @@ function ChatRow({
       ? `${chat.preview_actor.id === me.data?.id ? t("inbox.you") : (byId.get(chat.preview_actor.id)?.name ?? "")}: `
       : ""
   const previewText = rawPreview ? `${senderPrefix}${rawPreview}` : t("chat.no_messages")
+  const matchSnippet = chat.match?.snippet
+  const matchCount = chat.match_count ?? 0
 
   return (
     <UnstyledButton
@@ -188,7 +191,7 @@ function ChatRow({
       px="var(--tn-pane-px)"
       py={10}
     >
-      <Group gap="sm" wrap="nowrap" align="center">
+      <Group gap="sm" wrap="nowrap" align="center" w="100%" style={{ minWidth: 0 }}>
         {chat.mode === "group" ? (
           <ThemeIcon size={36} radius="xl" variant="light" color="brand" style={{ flex: "none" }}>
             <IconUsersGroup size={18} stroke={1.6} />
@@ -207,7 +210,7 @@ function ChatRow({
         )}
 
         <Stack gap={3} style={{ flex: 1, minWidth: 0 }}>
-          <Group gap={6} wrap="nowrap">
+          <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
             <Text size="sm" fw={chat.unread ? 700 : 600} truncate style={{ flex: 1, minWidth: 0 }}>
               {title}
             </Text>
@@ -216,15 +219,25 @@ function ChatRow({
             </Text>
           </Group>
 
-          <Group gap={6} wrap="nowrap">
-            <Text size="xs" c={chat.unread ? undefined : "dimmed"} fw={chat.unread ? 500 : undefined} truncate style={{ flex: 1, minWidth: 0 }}>
-              {previewText}
-            </Text>
-            {chat.unread_count > 0 && (
+          <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
+            {matchSnippet && matchSnippet.length > 0 ? (
+              <Text size="xs" c="dimmed" truncate style={{ flex: 1, minWidth: 0 }}>
+                <HighlightedSnippet parts={matchSnippet} />
+              </Text>
+            ) : (
+              <Text size="xs" c={chat.unread ? undefined : "dimmed"} fw={chat.unread ? 500 : undefined} truncate style={{ flex: 1, minWidth: 0 }}>
+                {previewText}
+              </Text>
+            )}
+            {matchCount > 1 ? (
+              <Badge size="xs" variant="light" color="gray" style={{ flex: "none", fontVariantNumeric: "tabular-nums" }}>
+                {t("inbox.search_match_count", { n: matchCount })}
+              </Badge>
+            ) : chat.unread_count > 0 ? (
               <Badge size="xs" circle color="brand" style={{ flex: "none", fontVariantNumeric: "tabular-nums" }}>
                 {chat.unread_count > 99 ? "99+" : chat.unread_count}
               </Badge>
-            )}
+            ) : null}
           </Group>
         </Stack>
       </Group>

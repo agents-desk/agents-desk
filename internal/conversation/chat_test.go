@@ -201,6 +201,31 @@ func TestInternalChatLifecycleIsolationAndPush(t *testing.T) {
 		t.Fatalf("退群后主管理员应不再可见群聊：%v", err)
 	}
 
+	// 6. 聊天搜索：支持按单聊对方姓名、群聊名、聊天记录原文及跨语言译文全文检索并返回高亮摘要
+	if _, err := sendMsg.Handle(ctx, subAlice, dm1.ID, conversation.SendChatMessageBody{
+		Text:        "请核实 UTR 998877 的结算状态",
+		Translation: &conversation.Translation{Language: "en", Text: "Please verify settlement status for UTR 998877"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	refreshAllSearch(t, env)
+	byPeer, err := listChats.Handle(ctx, subAlice, &conversation.ListChatsInput{CursorParams: page.CursorParams{PerPage: 20}, Q: "Bob"})
+	if err != nil || len(byPeer.Items) != 2 {
+		t.Fatalf("按同事姓名搜索应命中单聊和含该同事的群聊：%v %+v", err, byPeer)
+	}
+	byGroup, err := listChats.Handle(ctx, subAlice, &conversation.ListChatsInput{CursorParams: page.CursorParams{PerPage: 20}, Q: "支付故障"})
+	if err != nil || len(byGroup.Items) != 1 || byGroup.Items[0].ID != grp.ID {
+		t.Fatalf("按群聊名搜索异常：%v %+v", err, byGroup)
+	}
+	byMsgZh, err := listChats.Handle(ctx, subAlice, &conversation.ListChatsInput{CursorParams: page.CursorParams{PerPage: 20}, Q: "结算状态"})
+	if err != nil || len(byMsgZh.Items) != 1 || byMsgZh.Items[0].ID != dm1.ID || byMsgZh.Items[0].Match == nil {
+		t.Fatalf("按中文消息全文搜索应命中单聊并返回摘要：%v %+v", err, byMsgZh)
+	}
+	byMsgEn, err := listChats.Handle(ctx, subBob, &conversation.ListChatsInput{CursorParams: page.CursorParams{PerPage: 20}, Q: "settlement"})
+	if err != nil || len(byMsgEn.Items) != 1 || byMsgEn.Items[0].ID != dm1.ID || byMsgEn.Items[0].Match == nil {
+		t.Fatalf("按英文译文全文搜索应命中单聊并返回摘要：%v %+v", err, byMsgEn)
+	}
+
 	// 5. 边界校验：服务型与工单动作拒绝内部聊天，收件箱不混入聊天
 	if _, err := conversation.NewReply(env.DB, down).Handle(ctx, subAlice, dm1.ID, conversation.ReplyBody{Text: "hi"}); !errors.Is(err, conversation.ErrWrongKind) {
 		t.Fatalf("Reply 应拒绝内部聊天：%v", err)

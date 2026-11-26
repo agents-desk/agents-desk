@@ -70,6 +70,8 @@ type ChatDTO struct {
 	PreviewAttachment   *PreviewAttachment   `json:"preview_attachment,omitempty"`
 	PreviewItemID       string               `json:"preview_item_id,omitempty"`
 	PreviewUntranslated bool                 `json:"preview_untranslated,omitempty"`
+	Match               *SearchMatch         `json:"match,omitempty" doc:"按关键词搜索聊天记录时命中的代表性消息与高亮摘要"`
+	MatchCount          int                  `json:"match_count,omitempty" doc:"按关键词搜索时该聊天中命中的消息总条数"`
 	LastMessageAt       time.Time            `json:"last_message_at"`
 	LastSeq             int64                `json:"last_seq"`
 	UnreadCount         int                  `json:"unread_count" doc:"未读消息条数"`

@@ -1,4 +1,4 @@
-import type { ConversationItemDTO, ConversationTranslation, TranslationPreviewDTO } from "@agents-desk/client/tenant"
+import type { ConversationItemDTO, ConversationTranslation, TranslationPreviewDTO, TranslationTone } from "@agents-desk/client/tenant"
 import {
   ActionIcon,
   Box,
@@ -6,6 +6,7 @@ import {
   Combobox,
   Group,
   Loader,
+  Menu,
   ScrollArea,
   Stack,
   Text,
@@ -28,10 +29,11 @@ export const NO_TRANSLATION = "none"
 /** PAUSE 是展开校对面板后停止输入触发翻译预览的防抖时长（毫秒）。 */
 const PAUSE = 600
 
-/** Preview 是一次翻译预览缓存：为哪段文字、哪个目标语言做的，以及结果。 */
+/** Preview 是一次翻译预览缓存：为哪段文字、哪个目标语言与语气做的，以及结果。 */
 interface Preview {
   text: string
   target: string
+  tone: TranslationTone | ""
   result: TranslationPreviewDTO
 }
 
@@ -54,6 +56,8 @@ export interface ComposerTranslation {
   target: string // 用户显式选择的目标语言；空表示跟随 defaultTarget，NO_TRANSLATION 表示不翻译
   effectiveLang: string // 生效中的目标语言（不含 NO_TRANSLATION）
   setTarget: (target: string) => void
+  tone: TranslationTone | "" // 本次单条翻译的可选语气覆盖；空表示使用工作区默认语气
+  setTone: (tone: TranslationTone | "") => void
   last?: Preview
   current?: TranslationPreviewDTO
   editedText?: string
@@ -100,7 +104,7 @@ export function verifiedTranslationOf(it: ConversationItemDTO): { language: stri
 /**
  * useComposerTranslation 管理统一的输入框翻译校对状态：
  * 默认折叠（输入零打扰，不触发击键防抖请求）；展开后与客服回复一致，停止输入 600ms 后实时预览目标译文与盲回译，
- * 支持切换目标语言、点击译文轻量微调、恢复自动译文与重新翻译。
+ * 支持切换目标语言、单次覆盖语气、点击译文轻量微调、恢复自动译文与重新翻译。
  */
 export function useComposerTranslation({
   conversationId,
@@ -123,6 +127,7 @@ export function useComposerTranslation({
 
   const [expanded, setExpanded] = useState(false)
   const [target, setTargetState] = useState("")
+  const [tone, setToneState] = useState<TranslationTone | "">("")
   const [last, setLast] = useState<Preview>()
   const [editedText, setEditedText] = useState<string | undefined>(undefined)
   const [pending, setPending] = useState(false)
@@ -138,10 +143,10 @@ export function useComposerTranslation({
   const sameAsMe = Boolean(requestedTarget) && sameLanguage(requestedTarget, myLang)
   // 展开态下需要预览的条件：有文字、未关闭翻译，且目标语言与我不同（replace 模式允许目标未知时交由后端自动识别客户语言）
   const livePreviewActive = enabled && expanded && Boolean(text) && !off && !sameAsMe && (mode === "replace" || Boolean(requestedTarget))
-  const current = last && last.text === text && last.target === targetKey ? last.result : undefined
+  const current = last && last.text === text && last.target === targetKey && last.tone === tone ? last.result : undefined
 
   const run = useCallback(
-    async (bodyText: string, to: string, skipBack: boolean): Promise<TranslationPreviewDTO | undefined> => {
+    async (bodyText: string, to: string, chosenTone: TranslationTone | "", skipBack: boolean): Promise<TranslationPreviewDTO | undefined> => {
       const n = ++seq.current
       setPending(true)
       setError(undefined)
@@ -149,11 +154,12 @@ export function useComposerTranslation({
         const result = await tenantApi.translation.preview(conversationId, {
           text: bodyText,
           language: to || undefined,
+          tone: chosenTone || undefined,
           skip_back_translation: skipBack || undefined,
         })
         if (n === seq.current) {
           if (!skipBack) {
-            setLast({ text: bodyText, target: to, result })
+            setLast({ text: bodyText, target: to, tone: chosenTone, result })
             setEditedText(undefined)
           }
         }
@@ -168,12 +174,12 @@ export function useComposerTranslation({
     [conversationId],
   )
 
-  // 原文或目标语言变化时清除二次确认态和手动译文编辑
-  // biome-ignore lint/correctness/useExhaustiveDependencies: 只在原文或目标语言变化时重置
+  // 原文、目标语言或语气变化时清除二次确认态和手动译文编辑
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 只在原文、目标语言或语气变化时重置
   useEffect(() => {
     setConfirming(false)
     setEditedText(undefined)
-  }, [text, targetKey])
+  }, [text, targetKey, tone])
 
   // 仅在展开校对面板时，停止输入 PAUSE 毫秒后实时预览译文与盲回译
   useEffect(() => {
@@ -185,10 +191,10 @@ export function useComposerTranslation({
       if (!text) setLast(undefined)
       return
     }
-    if (last && last.text === text && last.target === targetKey) return
-    timer.current = setTimeout(() => void run(text, requestedTarget, false), PAUSE)
+    if (last && last.text === text && last.target === targetKey && last.tone === tone) return
+    timer.current = setTimeout(() => void run(text, requestedTarget, tone, false), PAUSE)
     return () => clearTimeout(timer.current)
-  }, [livePreviewActive, expanded, text, targetKey, requestedTarget, run, last])
+  }, [livePreviewActive, expanded, text, targetKey, requestedTarget, tone, run, last])
 
   const prepareSubmit = useCallback(
     async (options?: { skipTranslation?: boolean }): Promise<{ send: boolean; translation?: ConversationTranslation }> => {
@@ -205,7 +211,7 @@ export function useComposerTranslation({
         }
         // 客服回复在折叠态默认自动翻译（跳过盲回译节省延迟与费用）；若翻译失败则自动展开校对栏供重试或发原文
         clearTimeout(timer.current)
-        const res = await run(text, requestedTarget, true)
+        const res = await run(text, requestedTarget, tone, true)
         if (!res) {
           setExpanded(true)
           return { send: false }
@@ -227,13 +233,13 @@ export function useComposerTranslation({
         return { send: true, translation: { language: current.language, text: translatedText } }
       }
       clearTimeout(timer.current)
-      const res = await run(text, requestedTarget, false)
+      const res = await run(text, requestedTarget, tone, false)
       if (!res) return { send: false }
       if (!res.needed) return { send: true }
       setConfirming(true)
       return { send: false }
     },
-    [enabled, text, off, expanded, mode, sameAsMe, requestedTarget, current, editedText, run],
+    [enabled, text, off, expanded, mode, sameAsMe, requestedTarget, tone, current, editedText, run],
   )
 
   return {
@@ -247,6 +253,8 @@ export function useComposerTranslation({
     target,
     effectiveLang,
     setTarget: (to) => setTargetState(to),
+    tone,
+    setTone: (nextTone) => setToneState(nextTone),
     last,
     current,
     editedText,
@@ -258,13 +266,14 @@ export function useComposerTranslation({
     retry: () => {
       clearTimeout(timer.current)
       if (!text || off || sameAsMe) return
-      void run(text, requestedTarget, false)
+      void run(text, requestedTarget, tone, false)
     },
     reset: () => {
       clearTimeout(timer.current)
       seq.current++
       setLast(undefined)
       setEditedText(undefined)
+      setToneState("")
       setPending(false)
       setError(undefined)
       setConfirming(false)
@@ -273,8 +282,8 @@ export function useComposerTranslation({
 }
 
 /**
- * TranslationToggleButton 是所有输入框底栏统一放置的译文校对开关：
- * 折叠态展示自动翻译状态或“译文校对”入口，点击展开/收起左右对照译文校对面板。
+ * TranslationToggleButton 是所有输入框底栏统一放置的译文校对图标开关，
+ * 与快捷回复、附件等纯图标按钮保持一致视觉密度；状态细节通过 Tooltip 提示。
  */
 export function TranslationToggleButton({
   preview,
@@ -291,33 +300,31 @@ export function TranslationToggleButton({
 
   const off = preview.allowOff && preview.target === NO_TRANSLATION
   const sameAsMe = Boolean(preview.effectiveLang) && sameLanguage(preview.effectiveLang, myLang)
-  const showTarget = Boolean(preview.effectiveLang) && !sameAsMe && (preview.expanded || preview.allowOff)
 
-  let label: string
-  if (off) {
-    label = t("inbox.no_translation")
-  } else if (showTarget) {
-    label = t("inbox.translate_to", { lang: languageName(preview.effectiveLang, ui) })
+  let tooltip: string
+  if (preview.expanded) {
+    tooltip = t("inbox.collapse_translation")
+  } else if (off) {
+    tooltip = t("inbox.check_translation_off")
+  } else if (preview.allowOff && preview.effectiveLang && !sameAsMe) {
+    tooltip = t("inbox.check_translation_auto_to", { lang: languageName(preview.effectiveLang, ui) })
   } else {
-    label = t("inbox.check_translation")
+    tooltip = t("inbox.check_translation_auto")
   }
 
-  const highlighted = preview.expanded || (preview.allowOff && !off && showTarget)
-  const color = highlighted ? (note ? "yellow" : undefined) : "gray"
-
   return (
-    <Tooltip label={t(preview.expanded ? "inbox.collapse_translation" : "inbox.check_translation_hint")} openDelay={300}>
-      <Button
-        size="compact-xs"
-        variant={highlighted ? "light" : "subtle"}
-        color={color}
-        leftSection={<IconLanguage size={14} />}
+    <Tooltip label={tooltip} openDelay={250}>
+      <ActionIcon
+        variant={preview.expanded ? "light" : "subtle"}
+        color={preview.expanded ? (note ? "yellow" : undefined) : "gray"}
+        size="input-sm"
+        opacity={off && !preview.expanded ? 0.55 : undefined}
         onClick={preview.toggleExpanded}
         aria-pressed={preview.expanded}
         aria-label={t(preview.expanded ? "inbox.collapse_translation" : "inbox.check_translation")}
       >
-        {label}
-      </Button>
+        <IconLanguage size={16} />
+      </ActionIcon>
     </Tooltip>
   )
 }
@@ -434,9 +441,53 @@ function TranslationTargetPicker({
   )
 }
 
+/** TranslationTonePicker 是展开后的单次翻译语气选择器：默认沿用工作区全局语气，可按需单条切换亲切/中性/正式。 */
+function TranslationTonePicker({ preview }: { preview: ComposerTranslation }): ReactNode {
+  const t = useT()
+  const toneLabels: Record<TranslationTone, string> = {
+    friendly: t("inbox.tone_friendly"),
+    neutral: t("inbox.tone_neutral"),
+    formal: t("inbox.tone_formal"),
+  }
+  const options: { value: TranslationTone | ""; label: string }[] = [
+    { value: "", label: t("inbox.translation_tone_default") },
+    { value: "friendly", label: toneLabels.friendly },
+    { value: "neutral", label: toneLabels.neutral },
+    { value: "formal", label: toneLabels.formal },
+  ]
+  const currentLabel = preview.tone ? toneLabels[preview.tone] : t("inbox.translation_tone")
+
+  return (
+    <Menu position="top-start" withinPortal>
+      <Menu.Target>
+        <Button
+          size="compact-xs"
+          variant={preview.tone ? "light" : "subtle"}
+          color={preview.tone ? undefined : "gray"}
+          rightSection={<IconChevronDown size={11} />}
+          aria-label={t("inbox.translation_tone")}
+        >
+          {currentLabel}
+        </Button>
+      </Menu.Target>
+      <Menu.Dropdown>
+        {options.map((o) => (
+          <Menu.Item
+            key={o.value || "default"}
+            rightSection={preview.tone === o.value ? <IconCheck size={13} color="var(--mantine-primary-color-filled)" /> : undefined}
+            onClick={() => preview.setTone(o.value)}
+          >
+            {o.label}
+          </Menu.Item>
+        ))}
+      </Menu.Dropdown>
+    </Menu>
+  )
+}
+
 /**
  * InlineTranslationPane 是输入卡片内展开后的右侧实时译文校对栏（窄容器自动排在输入框上方）：
- * 顶部内置目标语言选择器与编辑/重译/收起按钮，主体展示实时译文、轻量就地微调与盲回译校验。
+ * 顶部内置目标语言选择器、可选单次语气选择器与编辑/重译/收起按钮，主体展示实时译文、轻量就地微调与盲回译校验。
  */
 export function InlineTranslationPane({
   hasText,
@@ -489,7 +540,10 @@ export function InlineTranslationPane({
       data-error={preview.error ? "" : undefined}
     >
       <Group gap={4} mb={6} wrap="nowrap" justify="space-between" className="inbox-translation-head">
-        <TranslationTargetPicker myLang={myLang} preview={preview} />
+        <Group gap={4} wrap="nowrap" style={{ minWidth: 0 }}>
+          <TranslationTargetPicker myLang={myLang} preview={preview} />
+          {!off && !sameAsMe && <TranslationTonePicker preview={preview} />}
+        </Group>
         <Group gap={2} wrap="nowrap" style={{ flex: "none" }}>
           {shown?.needed && !off && !sameAsMe && (
             <>
@@ -639,9 +693,11 @@ export function InlineTranslationPane({
           ) : (
             shown.back_translation && (
               <Text size="xs" c="dimmed" mt={6} lh={1.45} style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-                <Text span size="xs" fw={600} mr={6}>
-                  {t("inbox.back_translation")}
-                </Text>
+                <Tooltip label={t("inbox.back_translation_hint")} multiline w={240} openDelay={200}>
+                  <Text span size="xs" fw={600} mr={6} style={{ cursor: "help", textDecoration: "underline dotted" }}>
+                    {t("inbox.back_translation")}
+                  </Text>
+                </Tooltip>
                 {shown.back_translation}
               </Text>
             )

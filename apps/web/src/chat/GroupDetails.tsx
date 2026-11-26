@@ -5,35 +5,32 @@ import {
   Badge,
   Button,
   Divider,
-  Drawer,
   Group,
   Indicator,
   MultiSelect,
-  ScrollArea,
   Stack,
   Text,
   TextInput,
   Tooltip,
 } from "@mantine/core"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { IconLogout, IconUserMinus, IconUserPlus } from "@tabler/icons-react"
-import { confirm, notifyError, notifySuccess, useT } from "@go-tenon/ui"
+import { IconLogout, IconUserMinus, IconUserPlus, IconX } from "@tabler/icons-react"
+import { confirm, notifyError, notifySuccess, PaneBody, PaneHeader, useT } from "@go-tenon/ui"
 import { type FormEvent, type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { useMe, useMembers } from "../inbox/data"
 
-/** GroupDrawerProps 是群聊设置与成员管理抽屉的设置。 */
-interface GroupDrawerProps {
-  opened: boolean
+/** GroupDetailsProps 是群聊右侧详情栏的设置。 */
+interface GroupDetailsProps {
   chat: ConversationChatDTO
   onClose: () => void
   onLeft: () => void
 }
 
 /**
- * GroupDrawer 是群聊的右侧管理抽屉：支持修改群名称、查看成员列表、邀请新成员、移出成员以及退出群聊。
+ * GroupDetails 是群聊的右侧内联详情栏内容：支持修改群名称、查看成员列表、邀请新成员、移出成员以及退出群聊。
  */
-export function GroupDrawer({ opened, chat, onClose, onLeft }: GroupDrawerProps): ReactNode {
+export function GroupDetails({ chat, onClose, onLeft }: GroupDetailsProps): ReactNode {
   const t = useT()
   const queryClient = useQueryClient()
   const me = useMe()
@@ -45,7 +42,7 @@ export function GroupDrawer({ opened, chat, onClose, onLeft }: GroupDrawerProps)
   useEffect(() => {
     setName(chat.name)
     setToAdd([])
-  }, [chat.id, chat.name, opened])
+  }, [chat.id, chat.name])
 
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: kit.queries.chat.key() })
@@ -124,55 +121,64 @@ export function GroupDrawer({ opened, chat, onClose, onLeft }: GroupDrawerProps)
   }
 
   return (
-    <Drawer opened={opened} onClose={onClose} position="right" size={340} title={t("chat.group_settings")}>
-      <Stack gap="md" h="calc(100dvh - 80px)">
-        <form onSubmit={onSaveName}>
+    <Stack gap={0} h="100%">
+      <PaneHeader
+        title={t("chat.group_settings")}
+        actions={
+          <ActionIcon variant="subtle" color="gray" size="sm" aria-label={t("inbox.close_details")} onClick={onClose}>
+            <IconX size={16} />
+          </ActionIcon>
+        }
+      />
+
+      <PaneBody>
+        <Stack gap="md" p="var(--tn-pane-px)">
+          <form onSubmit={onSaveName}>
+            <Stack gap="xs">
+              <TextInput
+                label={t("chat.group_name")}
+                value={name}
+                onChange={(e) => setName(e.currentTarget.value)}
+                maxLength={80}
+              />
+              {name.trim() && name.trim() !== chat.name && (
+                <Group justify="flex-end">
+                  <Button size="compact-xs" type="submit" loading={rename.isPending}>
+                    {t("common.save")}
+                  </Button>
+                </Group>
+              )}
+            </Stack>
+          </form>
+
+          <Divider />
+
+          {addable.length > 0 && (
+            <Stack gap="xs">
+              <MultiSelect
+                label={t("chat.add_members")}
+                placeholder={t("chat.pick_member_placeholder")}
+                value={toAdd}
+                onChange={setToAdd}
+                data={addable}
+                searchable
+                clearable
+              />
+              {toAdd.length > 0 && (
+                <Group justify="flex-end">
+                  <Button size="compact-xs" leftSection={<IconUserPlus size={13} />} loading={addMembers.isPending} onClick={() => addMembers.mutate()}>
+                    {t("chat.add_members_submit")}
+                  </Button>
+                </Group>
+              )}
+            </Stack>
+          )}
+
           <Stack gap="xs">
-            <TextInput
-              label={t("chat.group_name")}
-              value={name}
-              onChange={(e) => setName(e.currentTarget.value)}
-              maxLength={80}
-            />
-            {name.trim() && name.trim() !== chat.name && (
-              <Group justify="flex-end">
-                <Button size="compact-xs" type="submit" loading={rename.isPending}>
-                  {t("common.save")}
-                </Button>
-              </Group>
-            )}
-          </Stack>
-        </form>
-
-        <Divider />
-
-        {addable.length > 0 && (
-          <Stack gap="xs">
-            <MultiSelect
-              label={t("chat.add_members")}
-              placeholder={t("chat.pick_member_placeholder")}
-              value={toAdd}
-              onChange={setToAdd}
-              data={addable}
-              searchable
-              clearable
-            />
-            {toAdd.length > 0 && (
-              <Group justify="flex-end">
-                <Button size="compact-xs" leftSection={<IconUserPlus size={13} />} loading={addMembers.isPending} onClick={() => addMembers.mutate()}>
-                  {t("chat.add_members_submit")}
-                </Button>
-              </Group>
-            )}
-          </Stack>
-        )}
-
-        <Stack gap="xs" style={{ flex: 1, minHeight: 0 }}>
-          <Text size="xs" fw={600} c="dimmed">
-            {t("chat.members_count", { n: participants.length })}
-          </Text>
-          <ScrollArea style={{ flex: 1 }}>
-            <Stack gap={6}>
+            <Text size="xs" fw={600} c="dimmed">
+              {t("chat.members_count", { n: participants.length })}
+            </Text>
+            <Stack gap={8}>
               {participants.map((p) => {
                 const isMe = p.type === "member" && p.id === me.data?.id
                 return (
@@ -215,15 +221,15 @@ export function GroupDrawer({ opened, chat, onClose, onLeft }: GroupDrawerProps)
                 )
               })}
             </Stack>
-          </ScrollArea>
+          </Stack>
+
+          <Divider />
+
+          <Button variant="light" color="red" leftSection={<IconLogout size={15} />} loading={leave.isPending} onClick={() => void handleLeave()}>
+            {t("chat.leave")}
+          </Button>
         </Stack>
-
-        <Divider />
-
-        <Button variant="light" color="red" leftSection={<IconLogout size={15} />} loading={leave.isPending} onClick={() => void handleLeave()}>
-          {t("chat.leave")}
-        </Button>
-      </Stack>
-    </Drawer>
+      </PaneBody>
+    </Stack>
   )
 }
