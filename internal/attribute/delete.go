@@ -26,6 +26,9 @@ func (a *Delete) Handle(ctx context.Context, sub identity.Subject, id string) er
 		if err != nil {
 			return err
 		}
+		if err := authorizeManage(sub, d.Target); err != nil {
+			return err
+		}
 		if _, err := tx.NewDelete().Model(d).WherePK().Exec(ctx); err != nil {
 			return errors.Wrap(err, "delete attribute definition")
 		}

@@ -29,6 +29,7 @@ export const permissions = {
   "tenants:impersonate": "代为登录工作区",
   "tenants:manage": "管理工作区",
   "tenants:read": "查看工作区",
+  "ticket-types:manage": "管理工单类型",
   "views:manage": "管理共享视图",
 } as const
 
@@ -40,12 +41,6 @@ export const required = {
   assignment: {
     settingsGet: ["conversations:read"],
     settingsUpdate: ["tenant-settings:manage"],
-  },
-  attribute: {
-    create: ["tenant-settings:manage"],
-    delete: ["tenant-settings:manage"],
-    reorder: ["tenant-settings:manage"],
-    update: ["tenant-settings:manage"],
   },
   automation: {
     list: ["tenant-settings:manage"],
@@ -154,6 +149,14 @@ export const required = {
   },
   tenant: {
     rename: ["tenant-settings:manage"],
+  },
+  ticket: {
+    typeCreate: ["ticket-types:manage"],
+    typeDelete: ["ticket-types:manage"],
+    typeDisable: ["ticket-types:manage"],
+    typeEnable: ["ticket-types:manage"],
+    typeReorder: ["ticket-types:manage"],
+    typeUpdate: ["ticket-types:manage"],
   },
   translation: {
     fill: ["conversations:read"],

@@ -29,6 +29,7 @@ export const permissions = {
   "tenants:impersonate": "代为登录工作区",
   "tenants:manage": "管理工作区",
   "tenants:read": "查看工作区",
+  "ticket-types:manage": "管理工单类型",
   "views:manage": "管理共享视图",
 } as const
 

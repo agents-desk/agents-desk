@@ -39,7 +39,7 @@ member.fields.password: 初始密码
 member.actions.remove: 移出
 team.not_found: 团队收件箱不存在
 team.name_taken: "名称“{{.name}}”已被使用"
-team.in_use: "还有 {{.conversations}} 个会话、{{.channels}} 个渠道引用这个团队收件箱，不能删除，可以改为停用"
+team.in_use: "还有 {{.conversations}} 个会话、{{.channels}} 个渠道、{{.ticket_types}} 个工单类型引用这个团队收件箱，不能删除，可以改为停用"
 team.disabled: 这个团队收件箱已停用
 team.not_in_team: 这位成员不在这个团队收件箱中
 team.title: 团队收件箱
@@ -122,6 +122,7 @@ conversation_scope.assigned: 只有指派给自己的会话
 "role_permission.views:manage": 管理共享视图
 "role_permission.reports:read": 查看报表
 "role_permission.contacts:export": 导出联系人
+"role_permission.ticket-types:manage": 管理工单类型
 "role_permission.members:manage": 管理成员和角色
 "role_permission.teams:manage": 管理团队收件箱
 "role_permission.channels:manage": 管理渠道
@@ -156,6 +157,7 @@ translation.tone.formal: 正式
 "permission.contacts:read": 查看联系人
 "permission.contacts:update": 修改联系人
 "permission.contacts:export": 导出联系人
+"permission.ticket-types:manage": 管理工单类型
 
 contact.not_found: 联系人不存在
 contact.invalid_email: 邮箱格式不正确
@@ -286,13 +288,17 @@ tag.color.magenta: 洋红
 tag.color.brown: 棕色
 
 attribute.not_found: 属性不存在
+attribute.forbidden: 你没有管理这类属性的权限
 attribute.key_taken: "标识“{{.key}}”已被使用"
 attribute.options_required: 单选或多选属性至少需要一个选项
 attribute.duplicate_option: "选项“{{.option}}”重复了"
 attribute.unknown_key: "未定义的属性“{{.key}}”"
 attribute.invalid_value: "属性“{{.name}}”的值不符合格式要求"
+attribute.ticket_type_required: 工单属性必须指定所属工单类型
+attribute.ticket_type_invalid: 所属工单类型无效
 attribute.target.conversation: 会话
 attribute.target.contact: 联系人
+attribute.target.ticket: 工单
 attribute.type.text: 文本
 attribute.type.number: 数字
 attribute.type.boolean: 开关
@@ -456,3 +462,12 @@ macro.fields.editable: 可管理
 macro.fields.q: 搜索
 macro.fields.created_at: 创建时间
 macro.fields.updated_at: 更新时间
+
+ticket_type.not_found: 工单类型不存在
+ticket_type.name_taken: "名称“{{.name}}”已被使用"
+ticket_type.disabled: 这个工单类型已停用
+ticket_type.in_use: 已有工单使用这个类型，不能删除，可以改为停用
+ticket_type.visibility.all: 客户可见
+ticket_type.visibility.members: 仅成员可见
+ticket_type.status.active: 正常
+ticket_type.status.disabled: 已停用

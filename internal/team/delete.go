@@ -33,6 +33,7 @@ func (a *Delete) Handle(ctx context.Context, sub identity.Subject, id string) er
 		var use struct {
 			Conversations int `bun:"conversations"`
 			Channels      int `bun:"channels"`
+			TicketTypes   int `bun:"ticket_types"`
 		}
 		err = tx.NewRaw(`SELECT
 			(SELECT count(*) FROM (
@@ -40,13 +41,18 @@ func (a *Delete) Handle(ctx context.Context, sub identity.Subject, id string) er
 				UNION
 				SELECT conversation_id AS id FROM conversation_rounds WHERE tenant_id = ? AND team_id = ?
 			) u) AS conversations,
-			(SELECT count(*) FROM channels WHERE tenant_id = ? AND team_id = ?) AS channels`,
-			sub.Tenant, id, sub.Tenant, id, sub.Tenant, id).Scan(ctx, &use)
+			(SELECT count(*) FROM channels WHERE tenant_id = ? AND team_id = ?) AS channels,
+			(SELECT count(*) FROM ticket_types WHERE tenant_id = ? AND default_team_id = ?) AS ticket_types`,
+			sub.Tenant, id, sub.Tenant, id, sub.Tenant, id, sub.Tenant, id).Scan(ctx, &use)
 		if err != nil {
 			return errors.Wrap(err, "count team usage")
 		}
-		if use.Conversations > 0 || use.Channels > 0 {
-			return ErrInUse.New(errorx.Public("conversations", use.Conversations), errorx.Public("channels", use.Channels))
+		if use.Conversations > 0 || use.Channels > 0 || use.TicketTypes > 0 {
+			return ErrInUse.New(
+				errorx.Public("conversations", use.Conversations),
+				errorx.Public("channels", use.Channels),
+				errorx.Public("ticket_types", use.TicketTypes),
+			)
 		}
 		if _, err := tx.NewDelete().Model(t).WherePK().Exec(ctx); err != nil {
 			return errors.Wrap(err, "delete team")

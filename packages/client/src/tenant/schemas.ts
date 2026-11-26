@@ -23,6 +23,10 @@ export const schemas = {
         "properties": {
           "target": {
             "$ref": "#/components/schemas/AttributeTarget"
+          },
+          "ticket_type_id": {
+            "format": "uuid",
+            "type": "string"
           }
         },
         "type": "object"
@@ -824,6 +828,33 @@ export const schemas = {
       },
     },
   },
+  ticket: {
+    typeCreate: {
+      body: {
+        "$ref": "#/components/schemas/TickettypeCreateParams"
+      },
+    },
+    typeList: {
+      query: {
+        "properties": {
+          "enabled_only": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+    },
+    typeReorder: {
+      body: {
+        "$ref": "#/components/schemas/TickettypeReorderParams"
+      },
+    },
+    typeUpdate: {
+      body: {
+        "$ref": "#/components/schemas/TickettypeUpdateParams"
+      },
+    },
+  },
   translation: {
     fill: {
       body: {
@@ -942,6 +973,10 @@ export const components = {
       "target": {
         "$ref": "#/components/schemas/AttributeTarget"
       },
+      "ticket_type_id": {
+        "format": "uuid",
+        "type": "string"
+      },
       "type": {
         "$ref": "#/components/schemas/AttributeType"
       }
@@ -966,6 +1001,10 @@ export const components = {
       },
       "target": {
         "$ref": "#/components/schemas/AttributeTarget"
+      },
+      "ticket_type_id": {
+        "format": "uuid",
+        "type": "string"
       }
     },
     "required": [
@@ -977,7 +1016,8 @@ export const components = {
   AttributeTarget: {
     "enum": [
       "conversation",
-      "contact"
+      "contact",
+      "ticket"
     ],
     "type": "string"
   },
@@ -2201,6 +2241,7 @@ export const components = {
       "views:manage",
       "reports:read",
       "contacts:export",
+      "ticket-types:manage",
       "members:manage",
       "teams:manage",
       "channels:manage",
@@ -2376,6 +2417,90 @@ export const components = {
     },
     "required": [
       "name"
+    ],
+    "type": "object"
+  },
+  TicketTypeVisibility: {
+    "enum": [
+      "all",
+      "members"
+    ],
+    "type": "string"
+  },
+  TickettypeCreateParams: {
+    "additionalProperties": false,
+    "properties": {
+      "default_team_id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "default_visibility": {
+        "$ref": "#/components/schemas/TicketTypeVisibility"
+      },
+      "description": {
+        "maxLength": 200,
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 60,
+        "minLength": 1,
+        "type": "string"
+      },
+      "position": {
+        "format": "int64",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "type": "object"
+  },
+  TickettypeReorderParams: {
+    "additionalProperties": false,
+    "properties": {
+      "ids": {
+        "items": {
+          "type": "string"
+        },
+        "minItems": 1,
+        "type": "array"
+      }
+    },
+    "required": [
+      "ids"
+    ],
+    "type": "object"
+  },
+  TickettypeUpdateParams: {
+    "additionalProperties": false,
+    "properties": {
+      "default_team_id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "default_visibility": {
+        "$ref": "#/components/schemas/TicketTypeVisibility"
+      },
+      "description": {
+        "maxLength": 200,
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 60,
+        "minLength": 1,
+        "type": "string"
+      },
+      "position": {
+        "format": "int64",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "name",
+      "default_visibility"
     ],
     "type": "object"
   },

@@ -45,6 +45,9 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, p 
 		if err != nil {
 			return err
 		}
+		if err := authorizeManage(sub, d.Target); err != nil {
+			return err
+		}
 		opts, err := normalizeOptions(d.Type, p.Options)
 		if err != nil {
 			return err

@@ -657,6 +657,56 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
           invalidate(context, "tenant"),
       }),
     },
+    ticket: {
+      /** ticket 分组全部查询的 key 前缀。 */
+      key: () => key("ticket"),
+      /** POST /ticket-types */
+      typeCreate: () => ({
+        mutationFn: (variables: Parameters<Client["ticket"]["typeCreate"]>[0]) => client.ticket.typeCreate(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "ticket"),
+      }),
+      /** DELETE /ticket-types/{id} */
+      typeDelete: () => ({
+        mutationFn: (variables: Parameters<Client["ticket"]["typeDelete"]>[0]) => client.ticket.typeDelete(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "ticket"),
+      }),
+      /** POST /ticket-types/{id}/disable */
+      typeDisable: () => ({
+        mutationFn: (variables: Parameters<Client["ticket"]["typeDisable"]>[0]) => client.ticket.typeDisable(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "ticket"),
+      }),
+      /** POST /ticket-types/{id}/enable */
+      typeEnable: () => ({
+        mutationFn: (variables: Parameters<Client["ticket"]["typeEnable"]>[0]) => client.ticket.typeEnable(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "ticket"),
+      }),
+      /** GET /ticket-types/{id} */
+      typeGet: (...args: Parameters<Client["ticket"]["typeGet"]>) => ({
+        queryKey: key("ticket", "typeGet", ...args),
+        queryFn: () => client.ticket.typeGet(...args),
+      }),
+      /** GET /ticket-types */
+      typeList: (...args: Parameters<Client["ticket"]["typeList"]>) => ({
+        queryKey: key("ticket", "typeList", ...args),
+        queryFn: () => client.ticket.typeList(...args),
+      }),
+      /** PUT /ticket-types/order */
+      typeReorder: () => ({
+        mutationFn: (variables: Parameters<Client["ticket"]["typeReorder"]>[0]) => client.ticket.typeReorder(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "ticket"),
+      }),
+      /** PUT /ticket-types/{id} */
+      typeUpdate: () => ({
+        mutationFn: (variables: Parameters<Client["ticket"]["typeUpdate"]>) => client.ticket.typeUpdate(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "ticket"),
+      }),
+    },
     translation: {
       /** translation 分组全部查询的 key 前缀。 */
       key: () => key("translation"),

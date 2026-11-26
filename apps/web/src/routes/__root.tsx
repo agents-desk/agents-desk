@@ -15,6 +15,7 @@ import {
   IconLanguage,
   IconMessageBolt,
   IconStar,
+  IconTicket,
 } from "@tabler/icons-react"
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts, useRouter } from "@tanstack/react-router"
 import type { ReactNode } from "react"
@@ -48,6 +49,7 @@ const icons = {
   star: IconStar,
   language: IconLanguage,
   telegram: IconBrandTelegram,
+  ticket: IconTicket,
 }
 
 function Document({ children }: { children: ReactNode }) {

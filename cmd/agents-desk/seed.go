@@ -31,6 +31,7 @@ import (
 	"agents-desk/internal/tag"
 	"agents-desk/internal/team"
 	"agents-desk/internal/tenant"
+	"agents-desk/internal/tickettype"
 	"agents-desk/internal/widget"
 )
 
@@ -139,6 +140,9 @@ func seed(ctx context.Context, out io.Writer, db *bun.DB, roles *authz.Store, ad
 	if err := seedTagsAndAttributes(ctx, out, db, inDemo); err != nil {
 		return err
 	}
+	if err := seedTicketTypes(ctx, out, db, inDemo); err != nil {
+		return err
+	}
 	if err := seedMacros(ctx, out, db, roles, memberLogins, inDemo); err != nil {
 		return err
 	}
@@ -214,6 +218,90 @@ func seedTagsAndAttributes(ctx context.Context, out io.Writer, db *bun.DB, inDem
 		fmt.Fprintln(out, "已在示例工作区中创建", createdAttrs, "个示例属性")
 	} else {
 		fmt.Fprintln(out, "示例工作区已有示例属性，跳过")
+	}
+	return nil
+}
+
+// seedTicketTypes 在示例工作区中写入默认工单类型及各自自定义字段，已存在的跳过。
+func seedTicketTypes(ctx context.Context, out io.Writer, db *bun.DB, inDemo identity.Subject) error {
+	var teamID string
+	if err := db.NewRaw("SELECT id FROM teams WHERE tenant_id = ? AND name = '一线客服'", inDemo.Tenant).Scan(ctx, &teamID); err != nil {
+		return errors.Wrap(err, "find demo team for ticket types")
+	}
+	type seedDef struct {
+		params tickettype.CreateParams
+		fields []attribute.CreateParams
+	}
+	defs := []seedDef{
+		{
+			params: tickettype.CreateParams{
+				Name:              "充值问题",
+				Description:       "处理客户充值未到账、扣款异常等支付相关问题",
+				DefaultTeamID:     &teamID,
+				DefaultVisibility: tickettype.VisibilityAll,
+			},
+			fields: []attribute.CreateParams{
+				{Key: "order_no", Name: "订单号", Description: "支付或充值单号", Type: attribute.TypeText},
+				{Key: "payment_channel", Name: "支付渠道", Description: "客户使用的支付方式", Type: attribute.TypeSelect, Options: []string{"UPI", "Paytm", "银行卡", "其他"}},
+				{Key: "amount", Name: "充值金额", Description: "涉及的交易金额", Type: attribute.TypeNumber},
+			},
+		},
+		{
+			params: tickettype.CreateParams{
+				Name:              "Bug 反馈",
+				Description:       "记录产品功能故障、界面异常与技术排查进展",
+				DefaultTeamID:     &teamID,
+				DefaultVisibility: tickettype.VisibilityAll,
+			},
+			fields: []attribute.CreateParams{
+				{Key: "platform", Name: "客户端平台", Description: "问题出现的端类型", Type: attribute.TypeSelect, Options: []string{"Web", "Android", "iOS"}},
+				{Key: "severity", Name: "严重程度", Description: "故障影响级别", Type: attribute.TypeSelect, Options: []string{"一般", "严重", "阻塞"}},
+			},
+		},
+		{
+			params: tickettype.CreateParams{
+				Name:              "内部退款审批",
+				Description:       "内部跨团队核实与审批客户退款，仅工作区成员可见",
+				DefaultTeamID:     &teamID,
+				DefaultVisibility: tickettype.VisibilityMembers,
+			},
+			fields: []attribute.CreateParams{
+				{Key: "refund_amount", Name: "退款金额", Description: "申请退回的金额", Type: attribute.TypeNumber},
+				{Key: "reason", Name: "退款原因", Description: "人工核实的退款理由", Type: attribute.TypeText},
+			},
+		},
+	}
+
+	createType := tickettype.NewCreate(db)
+	createAttr := attribute.NewCreate(db)
+	createdTypes := 0
+	for _, def := range defs {
+		var typeID string
+		created, err := createType.Handle(ctx, inDemo, def.params)
+		switch {
+		case errors.Is(err, tickettype.ErrNameTaken):
+			if err := db.NewRaw("SELECT id FROM ticket_types WHERE tenant_id = ? AND lower(name) = lower(?)", inDemo.Tenant, def.params.Name).Scan(ctx, &typeID); err != nil {
+				return errors.Wrap(err, "find existing ticket type")
+			}
+		case err != nil:
+			return err
+		default:
+			typeID = created.ID
+			createdTypes++
+		}
+		for _, field := range def.fields {
+			field.Target = attribute.TargetTicket
+			field.TicketTypeID = &typeID
+			_, err := createAttr.Handle(ctx, inDemo, field)
+			if err != nil && !errors.Is(err, attribute.ErrKeyTaken) {
+				return err
+			}
+		}
+	}
+	if createdTypes > 0 {
+		fmt.Fprintln(out, "已在示例工作区中创建", createdTypes, "个示例工单类型")
+	} else {
+		fmt.Fprintln(out, "示例工作区已有示例工单类型，跳过")
 	}
 	return nil
 }

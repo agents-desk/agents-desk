@@ -13,8 +13,9 @@ import (
 
 // ReorderParams 是调整属性展示顺序的请求。
 type ReorderParams struct {
-	Target Target   `json:"target" doc:"属性所属对象（conversation 或 contact）"`
-	IDs    []string `json:"ids" minItems:"1" doc:"按新顺序排列的属性定义 ID"`
+	Target       Target   `json:"target" doc:"属性所属对象（conversation、contact 或 ticket）"`
+	TicketTypeID *string  `json:"ticket_type_id,omitempty" format:"uuid" doc:"所属工单类型 ID，仅当 target 为 ticket 时必填"`
+	IDs          []string `json:"ids" minItems:"1" doc:"按新顺序排列的属性定义 ID"`
 }
 
 // ReorderInput 是调整属性展示顺序的 HTTP 请求。
@@ -30,14 +31,28 @@ type Reorder struct {
 // NewReorder 返回调整属性顺序的动作。
 func NewReorder(db *bun.DB) *Reorder { return &Reorder{db: db} }
 
-// Handle 在一个事务中按 p.IDs 的顺序更新 sub 所在工作区中对象 p.Target 的属性 position，
-// 并返回排序后的最新列表。出现不存在或属于别的工作区/对象的 ID 时返回 ErrNotFound。
+// Handle 在一个事务中按 p.IDs 的顺序更新 sub 所在工作区中对象 p.Target（以及工单类型 p.TicketTypeID）的属性 position，
+// 并返回排序后的最新列表。权限不足返回 ErrForbidden；出现不存在或属于别的工作区/对象的 ID 时返回 ErrNotFound。
 func (a *Reorder) Handle(ctx context.Context, sub identity.Subject, p ReorderParams) ([]AttributeDTO, error) {
+	if err := authorizeManage(sub, p.Target); err != nil {
+		return nil, err
+	}
+	var ticketTypeID string
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
+		typeID, err := validateTicketType(ctx, tx, sub.Tenant, p.Target, p.TicketTypeID)
+		if err != nil {
+			return err
+		}
 		var rows []Definition
-		if err := tx.NewSelect().Model(&rows).
-			Where("tenant_id = ? AND target = ?", sub.Tenant, p.Target).
-			OrderExpr("position, created_at, id").
+		q := tx.NewSelect().Model(&rows).
+			Where("tenant_id = ? AND target = ?", sub.Tenant, p.Target)
+		if typeID != nil {
+			ticketTypeID = *typeID
+			q = q.Where("ticket_type_id = ?", *typeID)
+		} else {
+			q = q.Where("ticket_type_id IS NULL")
+		}
+		if err := q.OrderExpr("position, created_at, id").
 			For("UPDATE").
 			Scan(ctx); err != nil {
 			return errors.Wrap(err, "load attribute definitions for reorder")
@@ -81,15 +96,19 @@ func (a *Reorder) Handle(ctx context.Context, sub identity.Subject, p ReorderPar
 		if !changed {
 			return nil
 		}
+		props := map[string]any{"target": string(p.Target), "ids": p.IDs}
+		if typeID != nil {
+			props["ticket_type_id"] = *typeID
+		}
 		return activity.Record(ctx, tx, sub, activity.Activity{
 			Event: "attribute.reordered", TargetType: "attribute", TargetID: string(p.Target),
-			Properties: map[string]any{"target": string(p.Target), "ids": p.IDs},
+			Properties: props,
 		})
 	})
 	if err != nil {
 		return nil, err
 	}
-	return NewList(a.db).Handle(ctx, sub, &ListInput{Target: p.Target})
+	return NewList(a.db).Handle(ctx, sub, &ListInput{Target: p.Target, TicketTypeID: ticketTypeID})
 }
 
 // HTTP 处理 PUT /t/{slug}/api/attributes/order。
