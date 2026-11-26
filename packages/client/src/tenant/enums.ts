@@ -144,10 +144,10 @@ export const enums = {
   },
   ConversationKind: {
     prefix: "conversation.kind",
-    values: ["service", "chat"],
+    values: ["service", "ticket", "chat"],
     labels: {
-      "en": { service: "Service conversation", chat: "Chat conversation" },
-      "zh-CN": { service: "服务型会话", chat: "聊天型会话" },
+      "en": { service: "Service conversation", ticket: "Ticket", chat: "Chat conversation" },
+      "zh-CN": { service: "服务型会话", ticket: "工单", chat: "聊天型会话" },
     },
   },
   ConversationPriority: {
@@ -292,6 +292,22 @@ export const enums = {
     labels: {
       "en": { active: "Active", disabled: "Disabled" },
       "zh-CN": { active: "正常", disabled: "已停用" },
+    },
+  },
+  TicketLinkRelation: {
+    prefix: "ticket.link_relation",
+    values: ["source", "linked"],
+    labels: {
+      "en": { source: "Source conversation", linked: "Linked conversation" },
+      "zh-CN": { source: "来源会话", linked: "关联会话" },
+    },
+  },
+  TicketStatus: {
+    prefix: "ticket.status",
+    values: ["submitted", "in_progress", "waiting_on_customer", "resolved"],
+    labels: {
+      "en": { submitted: "Submitted", in_progress: "In progress", waiting_on_customer: "Waiting on customer", resolved: "Resolved" },
+      "zh-CN": { submitted: "已提交", in_progress: "处理中", waiting_on_customer: "等待客户", resolved: "已解决" },
     },
   },
   TicketTypeStatus: {

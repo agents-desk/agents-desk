@@ -241,6 +241,7 @@ conversation.fetch_status.pending: 等待拉取
 conversation.fetch_status.fetching: 拉取中
 conversation.fetch_status.unavailable: 不可用
 conversation.kind.service: 服务型会话
+conversation.kind.ticket: 工单
 conversation.kind.chat: 聊天型会话
 conversation.status.open: 打开
 conversation.status.snoozed: 稍后处理
@@ -471,3 +472,14 @@ ticket_type.visibility.all: 客户可见
 ticket_type.visibility.members: 仅成员可见
 ticket_type.status.active: 正常
 ticket_type.status.disabled: 已停用
+
+conversation.wrong_kind: 该操作不适用于当前会话类型
+ticket.link_exists: 这个会话已经关联到该工单
+ticket.link_not_found: 未找到工单与该会话的关联
+ticket.private: 仅成员可见的工单不能向客户发布公开进度
+ticket.status.submitted: 已提交
+ticket.status.in_progress: 处理中
+ticket.status.waiting_on_customer: 等待客户
+ticket.status.resolved: 已解决
+ticket.link_relation.source: 来源会话
+ticket.link_relation.linked: 关联会话

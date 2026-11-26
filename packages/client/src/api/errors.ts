@@ -97,6 +97,14 @@ export const ConversationErrors = {
   RatingNotRequested: "conversation.rating_not_requested",
   /** ErrAlreadyRated 是客户已经评价过这次关闭的会话；会话重新打开、再关闭后可以再评价。 */
   AlreadyRated: "conversation.already_rated",
+  /** ErrWrongKind 是当前操作不适用于这个种类的会话（例如对工单执行关闭/回复，或对服务型会话执行工单操作）。 */
+  WrongKind: "conversation.wrong_kind",
+  /** ErrLinkAlreadyExists 是该服务型会话已经关联到目标工单。 */
+  LinkAlreadyExists: "ticket.link_exists",
+  /** ErrLinkNotFound 是工单与该会话之间不存在关联关系。 */
+  LinkNotFound: "ticket.link_not_found",
+  /** ErrPrivateTicket 是仅成员可见的工单不能向客户发布公开进度。 */
+  PrivateTicket: "ticket.private",
   /** ErrInvalidFilter 是视图或列表传入的筛选条件不合法。 */
   InvalidFilter: "conversation.invalid_filter",
   /** ErrInvalidLanguage 是设置的对方语言不是合法的 BCP 47 标签。 */

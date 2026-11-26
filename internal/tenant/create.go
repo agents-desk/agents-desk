@@ -55,7 +55,7 @@ func (a *Create) Handle(ctx context.Context, subject identity.Subject, p CreateP
 		return nil, err
 	}
 	now := time.Now().UTC().Truncate(time.Microsecond) // PostgreSQL 只保存到微秒：创建后返回的值与之后读出的相同
-	t := &Tenant{ID: newID(), Slug: p.Slug, Name: p.Name, ReopenWindowHours: DefaultReopenWindowHours, NextContactNumber: 1, CreatedAt: now, UpdatedAt: now}
+	t := &Tenant{ID: newID(), Slug: p.Slug, Name: p.Name, ReopenWindowHours: DefaultReopenWindowHours, NextContactNumber: 1, NextTicketNumber: 1, CreatedAt: now, UpdatedAt: now}
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		owner, err := member.Ensure(ctx, tx, a.logins, member.Account{Email: p.OwnerEmail, Name: p.OwnerName, Password: p.OwnerPassword})
 		if err != nil {

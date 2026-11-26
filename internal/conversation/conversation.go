@@ -40,6 +40,14 @@ var (
 	ErrRatingNotRequested = errorx.Define(errorx.Conflict, "conversation.rating_not_requested")
 	// ErrAlreadyRated 是客户已经评价过这次关闭的会话；会话重新打开、再关闭后可以再评价。
 	ErrAlreadyRated = errorx.Define(errorx.Conflict, "conversation.already_rated")
+	// ErrWrongKind 是当前操作不适用于这个种类的会话（例如对工单执行关闭/回复，或对服务型会话执行工单操作）。
+	ErrWrongKind = errorx.Define(errorx.Conflict, "conversation.wrong_kind")
+	// ErrLinkAlreadyExists 是该服务型会话已经关联到目标工单。
+	ErrLinkAlreadyExists = errorx.Define(errorx.Conflict, "ticket.link_exists")
+	// ErrLinkNotFound 是工单与该会话之间不存在关联关系。
+	ErrLinkNotFound = errorx.Define(errorx.NotFound, "ticket.link_not_found")
+	// ErrPrivateTicket 是仅成员可见的工单不能向客户发布公开进度。
+	ErrPrivateTicket = errorx.Define(errorx.Conflict, "ticket.private")
 )
 
 // Kind 是会话的种类。
@@ -47,11 +55,12 @@ type Kind string
 
 const (
 	Service Kind = "service" // 服务型会话：在收件箱中处理，有团队收件箱、负责人和状态
+	Ticket  Kind = "ticket"  // 工单：围绕长期或跨团队事项协作，可多对多关联服务型会话
 	Chat    Kind = "chat"    // 聊天型会话：长期存在的单聊或群聊（以后的阶段）
 )
 
 // Kinds 是会话的全部种类，显示文字是翻译文件中 conversation.kind.<种类> 的消息。
-var Kinds = enum.New("conversation.kind", enum.Item(Service), enum.Item(Chat))
+var Kinds = enum.New("conversation.kind", enum.Item(Service), enum.Item(Ticket), enum.Item(Chat))
 
 // Schema 让 OpenAPI 中的 Kind 只接受上面的取值，并带有显示文字。
 func (Kind) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Kinds) }
@@ -70,6 +79,24 @@ var Statuses = enum.New("conversation.status", enum.Item(Open), enum.Item(Snooze
 
 // Schema 让 OpenAPI 中的 Status 只接受上面的取值，并带有显示文字。
 func (Status) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Statuses) }
+
+// TicketStatus 是工单的 4 个固定状态大类，未来自定义细状态都归入其中一个大类。
+type TicketStatus string
+
+const (
+	TicketSubmitted  TicketStatus = "submitted"           // 已提交
+	TicketInProgress TicketStatus = "in_progress"         // 处理中
+	TicketWaiting    TicketStatus = "waiting_on_customer" // 等待客户
+	TicketResolved   TicketStatus = "resolved"            // 已解决
+)
+
+// TicketStatuses 是工单的全部状态，显示文字是翻译文件中 ticket.status.<状态> 的消息。
+var TicketStatuses = enum.New("ticket.status", enum.Item(TicketSubmitted), enum.Item(TicketInProgress), enum.Item(TicketWaiting), enum.Item(TicketResolved))
+
+// Schema 让 OpenAPI 中的 TicketStatus 只接受上面的取值，并带有显示文字。
+func (TicketStatus) Schema(r huma.Registry) *huma.Schema {
+	return contract.EnumSchema(r, TicketStatuses)
+}
 
 // Priority 是会话的优先级。
 type Priority string
@@ -176,6 +203,17 @@ type Conversation struct {
 	RatedAt           *time.Time     `bun:"rated_at"`               // 最近一次评价的时间
 	RatingRequestedAt *time.Time     `bun:"rating_requested_at"`    // 最近一次关闭后向客户发出评价邀请的时间
 	MentionedAt       *time.Time     `bun:"mentioned_at,scanonly"`  // 只在“@我”的列表中读出：最近一次被 @ 的时间
+}
+
+// DeliveryChannelID 返回向该会话的对方发送消息时使用的活跃出站渠道 ID。
+// 当前直接返回 ChannelID；后续全渠道跨渠道合并引入 reply_channel_id 后统一在此优先返回它。
+func (c *Conversation) DeliveryChannelID() *string {
+	return c.ChannelID
+}
+
+// isFinished 报告会话 c 是否已处于结束状态（服务型会话已关闭或工单已解决）。
+func (c *Conversation) isFinished() bool {
+	return (c.Kind == Service && c.Status == Closed) || (c.Kind == Ticket && c.Status == Status(TicketResolved))
 }
 
 // Rating 是客户对会话的评价。
@@ -418,7 +456,7 @@ func commit(ctx context.Context, tx database.Tx, down Downstream, c *Conversatio
 			return err
 		}
 	}
-	ev := push.Event{Type: push.Conversation, ID: c.ID, Seq: c.LastSeq}
+	ev := push.Event{Type: pushType(c.Kind), ID: c.ID, Seq: c.LastSeq}
 	if down.Hub != nil {
 		hub, tenant := down.Hub, c.TenantID
 		tx.AfterCommit(func(ctx context.Context) error {
@@ -426,7 +464,7 @@ func commit(ctx context.Context, tx database.Tx, down Downstream, c *Conversatio
 		})
 	}
 	if toContact {
-		notify, channelID, contactID := down.ContactPush, *c.ChannelID, *c.ContactID
+		notify, channelID, contactID := down.ContactPush, *c.DeliveryChannelID(), *c.ContactID
 		tx.AfterCommit(func(ctx context.Context) error {
 			return errors.Wrap(notify(ctx, channelID, contactID, ev), "push conversation changed to contact")
 		})
@@ -434,10 +472,18 @@ func commit(ctx context.Context, tx database.Tx, down Downstream, c *Conversatio
 	return nil
 }
 
+// pushType 返回会话种类对应的实时推送事件类型：工单推 push.Ticket，其余推 push.Conversation。
+func pushType(kind Kind) string {
+	if kind == Ticket {
+		return push.Ticket
+	}
+	return push.Conversation
+}
+
 // contactSees 报告这次修改要不要推送给会话 c 的对方（联系人）：会话来自渠道、有联系人、设置了 ContactPush，
 // 并且状态变了、发出了评价邀请，或者 items 中有联系人自己发的消息。要在保存 c 之前调用，修改前的状态从数据库中读取。
 func contactSees(ctx context.Context, db bun.IDB, down Downstream, c *Conversation, items []*Item) (bool, error) {
-	if down.ContactPush == nil || c.ChannelID == nil || c.ContactID == nil {
+	if down.ContactPush == nil || c.Kind != Service || c.DeliveryChannelID() == nil || c.ContactID == nil {
 		return false, nil
 	}
 	for _, it := range items {

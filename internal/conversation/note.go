@@ -69,6 +69,9 @@ func (a *AddNote) Handle(ctx context.Context, sub identity.Subject, id, text str
 			}
 		}
 		item = Item{Kind: Note, ActorType: actor, ActorID: sub.ID, Visibility: MembersOnly, Content: Content{Text: text, Mentions: mentions}}
+		if c.Kind == Ticket {
+			c.LastMessageAt = now()
+		}
 		if err := join(ctx, tx, c.ID, actor, sub.ID); err != nil {
 			return err
 		}

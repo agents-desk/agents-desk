@@ -829,6 +829,79 @@ export const schemas = {
     },
   },
   ticket: {
+    create: {
+      body: {
+        "$ref": "#/components/schemas/ConversationCreateTicketParams"
+      },
+    },
+    linkAdd: {
+      body: {
+        "$ref": "#/components/schemas/ConversationLinkConversationInputBody"
+      },
+    },
+    list: {
+      query: {
+        "properties": {
+          "contact_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "conversation_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "cursor": {
+            "type": "string"
+          },
+          "inbox": {
+            "$ref": "#/components/schemas/ConversationInbox",
+            "default": "all"
+          },
+          "per_page": {
+            "default": 20,
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/ConversationPriority"
+          },
+          "q": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TicketStatus"
+          },
+          "team_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "type_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "unresolved_only": {
+            "type": "boolean"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/TicketTypeVisibility"
+          }
+        },
+        "type": "object"
+      },
+    },
+    publishUpdate: {
+      body: {
+        "$ref": "#/components/schemas/ConversationPublishTicketUpdateBody"
+      },
+    },
+    status: {
+      body: {
+        "$ref": "#/components/schemas/ConversationTicketStatusInputBody"
+      },
+    },
     typeCreate: {
       body: {
         "$ref": "#/components/schemas/TickettypeCreateParams"
@@ -852,6 +925,11 @@ export const schemas = {
     typeUpdate: {
       body: {
         "$ref": "#/components/schemas/TickettypeUpdateParams"
+      },
+    },
+    update: {
+      body: {
+        "$ref": "#/components/schemas/ConversationUpdateTicketParams"
       },
     },
   },
@@ -1500,6 +1578,59 @@ export const components = {
     ],
     "type": "object"
   },
+  ConversationCreateTicketParams: {
+    "additionalProperties": false,
+    "properties": {
+      "assignee_id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "attributes": {
+        "additionalProperties": {},
+        "type": "object"
+      },
+      "conversation_ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 50,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "description": {
+        "maxLength": 5000,
+        "type": "string"
+      },
+      "priority": {
+        "$ref": "#/components/schemas/ConversationPriority"
+      },
+      "source_conversation_id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "team_id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "title": {
+        "maxLength": 120,
+        "minLength": 1,
+        "type": "string"
+      },
+      "type_id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "visibility": {
+        "$ref": "#/components/schemas/TicketTypeVisibility"
+      }
+    },
+    "required": [
+      "type_id",
+      "title"
+    ],
+    "type": "object"
+  },
   ConversationDefaultTarget: {
     "enum": [
       "none",
@@ -1527,6 +1658,19 @@ export const components = {
     },
     "required": [
       "language"
+    ],
+    "type": "object"
+  },
+  ConversationLinkConversationInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "conversation_id": {
+        "format": "uuid",
+        "type": "string"
+      }
+    },
+    "required": [
+      "conversation_id"
     ],
     "type": "object"
   },
@@ -1572,6 +1716,23 @@ export const components = {
     "required": [
       "priority"
     ],
+    "type": "object"
+  },
+  ConversationPublishTicketUpdateBody: {
+    "additionalProperties": false,
+    "properties": {
+      "attachments": {
+        "items": {
+          "$ref": "#/components/schemas/ConversationAttachmentInput"
+        },
+        "maxItems": 10,
+        "type": "array"
+      },
+      "text": {
+        "maxLength": 10000,
+        "type": "string"
+      }
+    },
     "type": "object"
   },
   ConversationReadInputBody: {
@@ -1748,6 +1909,18 @@ export const components = {
     ],
     "type": "string"
   },
+  ConversationTicketStatusInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "status": {
+        "$ref": "#/components/schemas/TicketStatus"
+      }
+    },
+    "required": [
+      "status"
+    ],
+    "type": "object"
+  },
   ConversationTranslation: {
     "additionalProperties": false,
     "properties": {
@@ -1766,6 +1939,24 @@ export const components = {
       "language",
       "text"
     ],
+    "type": "object"
+  },
+  ConversationUpdateTicketParams: {
+    "additionalProperties": false,
+    "properties": {
+      "description": {
+        "maxLength": 5000,
+        "type": "string"
+      },
+      "title": {
+        "maxLength": 120,
+        "minLength": 1,
+        "type": "string"
+      },
+      "visibility": {
+        "$ref": "#/components/schemas/TicketTypeVisibility"
+      }
+    },
     "type": "object"
   },
   ConversationViewConfig: {
@@ -2419,6 +2610,15 @@ export const components = {
       "name"
     ],
     "type": "object"
+  },
+  TicketStatus: {
+    "enum": [
+      "submitted",
+      "in_progress",
+      "waiting_on_customer",
+      "resolved"
+    ],
+    "type": "string"
   },
   TicketTypeVisibility: {
     "enum": [

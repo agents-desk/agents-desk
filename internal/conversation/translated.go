@@ -100,7 +100,7 @@ func SaveTranslation(ctx context.Context, db *bun.DB, down Downstream, tenant, i
 		if len(audience) == 0 {
 			return nil
 		}
-		hub, ev := down.Hub, push.Event{Type: push.Conversation, ID: c.ID, Seq: c.LastSeq, ItemSeq: it.Seq}
+		hub, ev := down.Hub, push.Event{Type: pushType(c.Kind), ID: c.ID, Seq: c.LastSeq, ItemSeq: it.Seq}
 		tx.AfterCommit(func(ctx context.Context) error {
 			return errors.Wrap(push.Send(ctx, hub, tenant, audience, ev), "push translation")
 		})

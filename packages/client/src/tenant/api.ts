@@ -497,6 +497,29 @@ export interface ConversationContent {
   text?: string
 }
 
+export interface ConversationCreateTicketParams {
+  /** 负责人成员 ID；可为空 */
+  assignee_id?: string
+  /** 工单类型对应的自定义字段初始值 */
+  attributes?: Record<string, unknown>
+  /** 可选：创建时一并关联的其他服务型会话 ID */
+  conversation_ids?: string[]
+  /** 工单详细描述 */
+  description?: string
+  /** 优先级；不填默认为 normal */
+  priority?: ConversationPriority
+  /** 可选：由哪条服务型会话转成工单 */
+  source_conversation_id?: string
+  /** 归属团队收件箱 ID；不填取工单类型默认团队 */
+  team_id?: string
+  /** 工单标题 */
+  title: string
+  /** 工单类型 ID */
+  type_id: string
+  /** 工单可见范围（all 或 members）；不填取工单类型默认值 */
+  visibility?: TicketTypeVisibility
+}
+
 export interface ConversationDTO {
   /** 负责人；为空表示没有负责人 */
   assignee?: ConversationActor
@@ -562,6 +585,8 @@ export interface ConversationInboxDTO {
   mine: ConversationSummary
   /** 团队收件箱：我所在的；可见范围是全部会话的成员是全部团队收件箱，按名称排列 */
   teams: ConversationTeamSummary[]
+  /** 工单分组的未解决数量 */
+  tickets: ConversationTicketInboxSummary
   /** 未指派 */
   unassigned: ConversationSummary
   /** 已保存视图：共享在前、个人在后，各带实时会话数量与积压情况 */
@@ -589,11 +614,29 @@ export interface ConversationItemDTO {
 
 export type ConversationItemKind = "message" | "note" | "event"
 
-export type ConversationKind = "service" | "chat"
+export type ConversationKind = "service" | "ticket" | "chat"
 
 export interface ConversationLanguageInputBody {
   /** 对方的语言（BCP 47），例如 hi-Latn；空字符串恢复为按收到的消息自动识别 */
   language: string
+}
+
+export interface ConversationLinkConversationInputBody {
+  /** 要关联的服务型会话 ID */
+  conversation_id: string
+}
+
+export interface ConversationLinkedConversationDTO {
+  assignee?: ConversationActor
+  channel?: ChannelSummary
+  contact?: ContactSummary
+  id: string
+  last_message_at: string
+  linked_at: string
+  preview: string
+  relation: TicketLinkRelation
+  status: ConversationStatus
+  team_id?: string
 }
 
 export interface ConversationNoteBody {
@@ -621,6 +664,13 @@ export interface ConversationPrompt {
   kind: string
   /** 渲染提示用的参数 */
   params?: Record<string, unknown>
+}
+
+export interface ConversationPublishTicketUpdateBody {
+  /** 通过 /files 上传的媒体附件列表 */
+  attachments?: ConversationAttachmentInput[]
+  /** 公开进度文字内容 */
+  text?: string
 }
 
 export interface ConversationRating {
@@ -765,11 +815,64 @@ export interface ConversationTeamSummary {
   waiting: number
 }
 
+export interface ConversationTicketDTO {
+  assignee?: ConversationActor
+  attributes: Record<string, unknown>
+  created_at: string
+  created_by?: string
+  description: string
+  id: string
+  last_message_at: string
+  last_seq: number
+  /** 当前成员有权限看到的关联服务型会话列表（详情接口返回） */
+  linked_conversations?: ConversationLinkedConversationDTO[]
+  /** 工单关联的服务型会话总数 */
+  linked_count: number
+  /** 工作区内递增编号，例如 1024 */
+  number: number
+  priority: ConversationPriority
+  read_seq: number
+  resolved_at?: string
+  status: TicketStatus
+  tags: TagSummary[]
+  team_id?: string
+  title: string
+  type_id: string
+  type_name: string
+  unread: boolean
+  updated_at: string
+  /** all（客户可见）或 members（仅成员可见） */
+  visibility: TicketTypeVisibility
+}
+
+export interface ConversationTicketInboxSummary {
+  /** 我能看到的全部未解决工单数 */
+  all: number
+  /** 指派给我的未解决工单数 */
+  mine: number
+  /** 未指派团队且未指派负责人的未解决工单数 */
+  unassigned: number
+}
+
+export interface ConversationTicketStatusInputBody {
+  /** 目标状态：submitted、in_progress、waiting_on_customer 或 resolved */
+  status: TicketStatus
+}
+
 export interface ConversationTranslation {
   /** 译文的语言（BCP 47），例如 hi-Latn */
   language: string
   /** 发给对方的译文 */
   text: string
+}
+
+export interface ConversationUpdateTicketParams {
+  /** 新的工单描述 */
+  description?: string
+  /** 新的工单标题 */
+  title?: string
+  /** 新的可见范围（all 或 members） */
+  visibility?: TicketTypeVisibility
 }
 
 export interface ConversationViewConfig {
@@ -853,6 +956,12 @@ export interface CursorContactDTO {
 
 export interface CursorConversationDTO {
   items: ConversationDTO[]
+  /** Pass as cursor to fetch the next page. Absent on the last page. */
+  next_cursor?: string
+}
+
+export interface CursorConversationTicketDTO {
+  items: ConversationTicketDTO[]
   /** Pass as cursor to fetch the next page. Absent on the last page. */
   next_cursor?: string
 }
@@ -1666,6 +1775,10 @@ export interface TenantGeneralSettings {
   reopen_window_hours?: number
 }
 
+export type TicketLinkRelation = "source" | "linked"
+
+export type TicketStatus = "submitted" | "in_progress" | "waiting_on_customer" | "resolved"
+
 export interface TicketTypeDTO {
   /** 默认团队收件箱 ID，为空表示不指定默认团队 */
   default_team_id?: string
@@ -2109,6 +2222,34 @@ export interface TelegramListInput {
   page?: number
   /** Items per page. */
   per_page?: number
+}
+
+/** ticket-list 的参数。 */
+export interface TicketListInput {
+  /** Opaque cursor from next_cursor of the previous page. Omit for the first page. */
+  cursor?: string
+  /** Items per page. */
+  per_page?: number
+  /** 工单列表分组：mine（指派给我）、unassigned（未指派）或 all（全部） */
+  inbox?: ConversationInbox
+  /** 按团队收件箱筛选 */
+  team_id?: string
+  /** 按单个工单状态筛选 */
+  status?: TicketStatus
+  /** 为 true 时只列出未解决的工单（排除 resolved） */
+  unresolved_only?: boolean
+  /** 按工单类型筛选 */
+  type_id?: string
+  /** 按可见范围筛选（all 或 members） */
+  visibility?: TicketTypeVisibility
+  /** 按优先级筛选 */
+  priority?: ConversationPriority
+  /** 只列出关联了该服务型会话的工单 */
+  conversation_id?: string
+  /** 只列出关联了该联系人任意会话的工单 */
+  contact_id?: string
+  /** 按工单编号（如 #1024 或 1024）或标题关键词搜索 */
+  q?: string
 }
 
 /** ticket-type-list 的参数。 */
@@ -2893,6 +3034,62 @@ export function createClient(options: ClientOptions) {
     /** operationId 以 ticket- 开头的接口。 */
     ticket: {
       /**
+       * 新建工单
+       *
+       * POST /tickets
+       */
+      create: (body: ConversationCreateTicketParams): Promise<ConversationTicketDTO> =>
+        rt.request<ConversationTicketDTO>({ method: "POST", path: `/tickets`, body }),
+      /**
+       * 读取工单
+       *
+       * GET /tickets/{id}
+       */
+      get: (id: string): Promise<ConversationTicketDTO> =>
+        rt.request<ConversationTicketDTO>({ method: "GET", path: `/tickets/${encodeURIComponent(id)}` }),
+      /**
+       * 按编号读取工单
+       *
+       * GET /tickets/number/{number}
+       */
+      getByNumber: (number: number): Promise<ConversationTicketDTO> =>
+        rt.request<ConversationTicketDTO>({ method: "GET", path: `/tickets/number/${encodeURIComponent(number)}` }),
+      /**
+       * 关联服务型会话到工单
+       *
+       * POST /tickets/{id}/links
+       */
+      linkAdd: (id: string, body: ConversationLinkConversationInputBody): Promise<ConversationTicketDTO> =>
+        rt.request<ConversationTicketDTO>({ method: "POST", path: `/tickets/${encodeURIComponent(id)}/links`, body }),
+      /**
+       * 取消工单与会话的关联
+       *
+       * DELETE /tickets/{id}/links/{conversation_id}
+       */
+      linkRemove: (id: string, conversationID: string): Promise<ConversationTicketDTO> =>
+        rt.request<ConversationTicketDTO>({ method: "DELETE", path: `/tickets/${encodeURIComponent(id)}/links/${encodeURIComponent(conversationID)}` }),
+      /**
+       * 工单列表
+       *
+       * GET /tickets
+       */
+      list: (input: TicketListInput = {}): Promise<CursorConversationTicketDTO> =>
+        rt.request<CursorConversationTicketDTO>({ method: "GET", path: `/tickets`, query: { "contact_id": input["contact_id"], "conversation_id": input["conversation_id"], "cursor": input["cursor"], "inbox": input["inbox"], "per_page": input["per_page"], "priority": input["priority"], "q": input["q"], "status": input["status"], "team_id": input["team_id"], "type_id": input["type_id"], "unresolved_only": input["unresolved_only"], "visibility": input["visibility"] } }),
+      /**
+       * 发布工单公开进度
+       *
+       * POST /tickets/{id}/updates
+       */
+      publishUpdate: (id: string, body: ConversationPublishTicketUpdateBody): Promise<ConversationItemDTO> =>
+        rt.request<ConversationItemDTO>({ method: "POST", path: `/tickets/${encodeURIComponent(id)}/updates`, body }),
+      /**
+       * 修改工单状态
+       *
+       * PUT /tickets/{id}/status
+       */
+      status: (id: string, body: ConversationTicketStatusInputBody): Promise<ConversationTicketDTO> =>
+        rt.request<ConversationTicketDTO>({ method: "PUT", path: `/tickets/${encodeURIComponent(id)}/status`, body }),
+      /**
        * 新建工单类型
        *
        * POST /ticket-types
@@ -2948,6 +3145,13 @@ export function createClient(options: ClientOptions) {
        */
       typeUpdate: (id: string, body: TickettypeUpdateParams): Promise<TicketTypeDTO> =>
         rt.request<TicketTypeDTO>({ method: "PUT", path: `/ticket-types/${encodeURIComponent(id)}`, body }),
+      /**
+       * 修改工单信息
+       *
+       * PATCH /tickets/{id}
+       */
+      update: (id: string, body: ConversationUpdateTicketParams): Promise<ConversationTicketDTO> =>
+        rt.request<ConversationTicketDTO>({ method: "PATCH", path: `/tickets/${encodeURIComponent(id)}`, body }),
     },
     /** operationId 以 translation- 开头的接口。 */
     translation: {

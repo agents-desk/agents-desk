@@ -33,7 +33,7 @@ func (a *RequestRating) Handle(ctx context.Context, sub identity.Subject, id str
 		if err != nil {
 			return err
 		}
-		if c.Status != Closed || c.ratingRequestedSinceClosed() {
+		if c.Kind != Service || c.Status != Closed || c.ratingRequestedSinceClosed() {
 			return nil
 		}
 		at := now()

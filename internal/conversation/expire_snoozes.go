@@ -30,7 +30,7 @@ func (a *ExpireSnoozes) Handle(ctx context.Context, at time.Time) (int, error) {
 		TenantID string `bun:"tenant_id"`
 	}
 	err := a.db.NewSelect().Table("conversations").Column("id", "tenant_id").
-		Where("status = ? AND snoozed_until <= ?", Snoozed, at).OrderExpr("snoozed_until").Limit(500).Scan(ctx, &due)
+		Where("kind = ? AND status = ? AND snoozed_until <= ?", Service, Snoozed, at).OrderExpr("snoozed_until").Limit(500).Scan(ctx, &due)
 	if err != nil {
 		return 0, errors.Wrap(err, "list due snoozes")
 	}
