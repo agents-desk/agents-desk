@@ -14,8 +14,10 @@ export interface AttributeCreateParams {
   options?: string[]
   /** 展示顺序，不填时排在最后 */
   position?: number
-  /** 属性所属对象（conversation 或 contact） */
+  /** 属性所属对象（conversation、contact 或 ticket） */
   target: AttributeTarget
+  /** 所属工单类型 ID，仅当 target 为 ticket 时必填 */
+  ticket_type_id?: string
   /** 属性的数据类型；创建后不可修改 */
   type: AttributeType
 }
@@ -28,17 +30,20 @@ export interface AttributeDTO {
   options: string[]
   position: number
   target: AttributeTarget
+  ticket_type_id?: string
   type: AttributeType
 }
 
 export interface AttributeReorderParams {
   /** 按新顺序排列的属性定义 ID */
   ids: string[]
-  /** 属性所属对象（conversation 或 contact） */
+  /** 属性所属对象（conversation、contact 或 ticket） */
   target: AttributeTarget
+  /** 所属工单类型 ID，仅当 target 为 ticket 时必填 */
+  ticket_type_id?: string
 }
 
-export type AttributeTarget = "conversation" | "contact"
+export type AttributeTarget = "conversation" | "contact" | "ticket"
 
 export type AttributeType = "text" | "number" | "boolean" | "date" | "select" | "multi_select"
 
@@ -1514,7 +1519,7 @@ export interface RoleParams {
   permissions?: RolePermission[]
 }
 
-export type RolePermission = "conversations:assign" | "macros:manage" | "views:manage" | "reports:read" | "contacts:export" | "members:manage" | "teams:manage" | "channels:manage" | "tenant-settings:manage"
+export type RolePermission = "conversations:assign" | "macros:manage" | "views:manage" | "reports:read" | "contacts:export" | "ticket-types:manage" | "members:manage" | "teams:manage" | "channels:manage" | "tenant-settings:manage"
 
 export type SavedviewScope = "shared" | "personal"
 
@@ -1661,6 +1666,56 @@ export interface TenantGeneralSettings {
   reopen_window_hours?: number
 }
 
+export interface TicketTypeDTO {
+  /** 默认团队收件箱 ID，为空表示不指定默认团队 */
+  default_team_id?: string
+  /** 默认团队收件箱名称 */
+  default_team_name?: string
+  /** 新建工单的默认可见范围 */
+  default_visibility: TicketTypeVisibility
+  description: string
+  /** 停用时间，正常启用时为空 */
+  disabled_at?: string
+  /** 该工单类型下的自定义字段数量 */
+  field_count: number
+  id: string
+  name: string
+  position: number
+  /** 状态：正常或已停用 */
+  status: TicketTypeStatus
+}
+
+export type TicketTypeStatus = "active" | "disabled"
+
+export type TicketTypeVisibility = "all" | "members"
+
+export interface TickettypeCreateParams {
+  /** 默认进入的团队收件箱 ID，留空表示不指定 */
+  default_team_id?: string
+  /** 新建工单的默认可见范围，不填默认为 all（客户可见） */
+  default_visibility?: TicketTypeVisibility
+  description?: string
+  name: string
+  /** 展示顺序，不填排在最后 */
+  position?: number
+}
+
+export interface TickettypeReorderParams {
+  /** 按新顺序排列的工单类型 ID */
+  ids: string[]
+}
+
+export interface TickettypeUpdateParams {
+  /** 默认进入的团队收件箱 ID，不填或为空表示清除 */
+  default_team_id?: string
+  /** 新建工单的默认可见范围 */
+  default_visibility: TicketTypeVisibility
+  description?: string
+  name: string
+  /** 展示顺序，不填保持不变 */
+  position?: number
+}
+
 export interface TranslationFillBody {
   /** 时间线中的项：会话中标为 untranslated 的消息、会话列表中 preview_untranslated 的那一行的 preview_item_id */
   item_ids: string[]
@@ -1786,8 +1841,10 @@ export interface WidgetUpdateBody {
 
 /** attribute-list 的参数。 */
 export interface AttributeListInput {
-  /** 按对象筛选（conversation 或 contact）；不填返回全部 */
+  /** 按对象筛选（conversation、contact 或 ticket）；不填返回全部 */
   target?: AttributeTarget
+  /** 按工单类型筛选（配合 target=ticket 使用） */
+  ticket_type_id?: string
 }
 
 /** contact-export-progress 推送的事件，按 event 区分。 */
@@ -2054,6 +2111,12 @@ export interface TelegramListInput {
   per_page?: number
 }
 
+/** ticket-type-list 的参数。 */
+export interface TicketTypeListInput {
+  /** 为 true 时只返回未停用的工单类型 */
+  enabled_only?: boolean
+}
+
 /** view-list 的参数。 */
 export interface ViewListInput {
   /** 可选：按作用域筛选（shared 或 personal） */
@@ -2118,7 +2181,7 @@ export function createClient(options: ClientOptions) {
        * GET /attributes
        */
       list: (input: AttributeListInput = {}): Promise<AttributeDTO[]> =>
-        rt.request<AttributeDTO[]>({ method: "GET", path: `/attributes`, query: { "target": input["target"] } }),
+        rt.request<AttributeDTO[]>({ method: "GET", path: `/attributes`, query: { "target": input["target"], "ticket_type_id": input["ticket_type_id"] } }),
       /**
        * 调整属性顺序
        *
@@ -2826,6 +2889,65 @@ export function createClient(options: ClientOptions) {
        */
       rename: (body: TenantGeneralSettings): Promise<TenantCurrentDTO> =>
         rt.request<TenantCurrentDTO>({ method: "PUT", path: `/tenant`, body }),
+    },
+    /** operationId 以 ticket- 开头的接口。 */
+    ticket: {
+      /**
+       * 新建工单类型
+       *
+       * POST /ticket-types
+       */
+      typeCreate: (body: TickettypeCreateParams): Promise<TicketTypeDTO> =>
+        rt.request<TicketTypeDTO>({ method: "POST", path: `/ticket-types`, body }),
+      /**
+       * 删除工单类型
+       *
+       * DELETE /ticket-types/{id}
+       */
+      typeDelete: (id: string): Promise<void> =>
+        rt.request<void>({ method: "DELETE", path: `/ticket-types/${encodeURIComponent(id)}` }),
+      /**
+       * 停用工单类型
+       *
+       * POST /ticket-types/{id}/disable
+       */
+      typeDisable: (id: string): Promise<TicketTypeDTO> =>
+        rt.request<TicketTypeDTO>({ method: "POST", path: `/ticket-types/${encodeURIComponent(id)}/disable` }),
+      /**
+       * 启用工单类型
+       *
+       * POST /ticket-types/{id}/enable
+       */
+      typeEnable: (id: string): Promise<TicketTypeDTO> =>
+        rt.request<TicketTypeDTO>({ method: "POST", path: `/ticket-types/${encodeURIComponent(id)}/enable` }),
+      /**
+       * 读取工单类型
+       *
+       * GET /ticket-types/{id}
+       */
+      typeGet: (id: string): Promise<TicketTypeDTO> =>
+        rt.request<TicketTypeDTO>({ method: "GET", path: `/ticket-types/${encodeURIComponent(id)}` }),
+      /**
+       * 工单类型列表
+       *
+       * GET /ticket-types
+       */
+      typeList: (input: TicketTypeListInput = {}): Promise<TicketTypeDTO[]> =>
+        rt.request<TicketTypeDTO[]>({ method: "GET", path: `/ticket-types`, query: { "enabled_only": input["enabled_only"] } }),
+      /**
+       * 调整工单类型顺序
+       *
+       * PUT /ticket-types/order
+       */
+      typeReorder: (body: TickettypeReorderParams): Promise<TicketTypeDTO[]> =>
+        rt.request<TicketTypeDTO[]>({ method: "PUT", path: `/ticket-types/order`, body }),
+      /**
+       * 修改工单类型
+       *
+       * PUT /ticket-types/{id}
+       */
+      typeUpdate: (id: string, body: TickettypeUpdateParams): Promise<TicketTypeDTO> =>
+        rt.request<TicketTypeDTO>({ method: "PUT", path: `/ticket-types/${encodeURIComponent(id)}`, body }),
     },
     /** operationId 以 translation- 开头的接口。 */
     translation: {

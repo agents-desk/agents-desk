@@ -15,6 +15,8 @@ export const AccountErrors = {
 export const AttributeErrors = {
   /** ErrNotFound 是属性定义不存在，或者属于别的工作区。 */
   NotFound: "attribute.not_found",
+  /** ErrForbidden 是调用者没有权限管理该对象的属性定义。 */
+  Forbidden: "attribute.forbidden",
   /** ErrKeyTaken 是同一个对象下已经存在相同的属性标识。 */
   KeyTaken: "attribute.key_taken",
   /** ErrOptionsRequired 是单选或多选属性没有填写任何选项。 */
@@ -25,6 +27,10 @@ export const AttributeErrors = {
   UnknownKey: "attribute.unknown_key",
   /** ErrInvalidValue 是写入的属性值不符合该属性的类型或选项约束。 */
   InvalidValue: "attribute.invalid_value",
+  /** ErrTicketTypeRequired 是创建或排序工单属性时未指定所属工单类型。 */
+  TicketTypeRequired: "attribute.ticket_type_required",
+  /** ErrTicketTypeInvalid 是所属工单类型不存在、属于别的工作区，或非工单属性传入了工单类型。 */
+  TicketTypeInvalid: "attribute.ticket_type_invalid",
 } as const
 
 /** agents-desk/internal/automation 的错误码。 */
@@ -220,6 +226,18 @@ export const TenantErrors = {
   SlugReserved: "tenant.slug_reserved",
   /** ErrDisabled 是成员进入的工作区已停用（403）：只有这个工作区的成员会看到它，其他人得到 404。 */
   Disabled: "tenant.disabled",
+} as const
+
+/** agents-desk/internal/tickettype 的错误码。 */
+export const TickettypeErrors = {
+  /** ErrNotFound 是工单类型不存在，或者属于别的工作区。 */
+  NotFound: "ticket_type.not_found",
+  /** ErrNameTaken 是同一个工作区中已有同名的工单类型（忽略大小写）。 */
+  NameTaken: "ticket_type.name_taken",
+  /** ErrDisabled 是工单类型已停用，不能用于新建工单。 */
+  Disabled: "ticket_type.disabled",
+  /** ErrInUse 是已有工单引用该类型，不能删除，可以改为停用。 */
+  InUse: "ticket_type.in_use",
 } as const
 
 /** agents-desk/internal/translation 的错误码。 */

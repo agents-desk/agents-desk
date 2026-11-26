@@ -16,6 +16,7 @@ import {
   IconLanguage,
   IconMessageBolt,
   IconStar,
+  IconTicket,
 } from "@tabler/icons-react"
 import { i18n } from "../i18n"
 import { theme } from "../theme"
@@ -39,6 +40,7 @@ const icons = {
   star: IconStar,
   language: IconLanguage,
   telegram: IconBrandTelegram,
+  ticket: IconTicket,
 }
 
 function Document({ children }: { children: ReactNode }) {

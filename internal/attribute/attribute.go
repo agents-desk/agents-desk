@@ -20,11 +20,16 @@ import (
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/enum"
 	"github.com/go-tenon/tenon/errorx"
+	"github.com/go-tenon/tenon/identity"
+
+	"agents-desk/internal/auth"
 )
 
 var (
 	// ErrNotFound 是属性定义不存在，或者属于别的工作区。
 	ErrNotFound = errorx.Define(errorx.NotFound, "attribute.not_found")
+	// ErrForbidden 是调用者没有权限管理该对象的属性定义。
+	ErrForbidden = errorx.Define(errorx.PermissionDenied, "attribute.forbidden")
 	// ErrKeyTaken 是同一个对象下已经存在相同的属性标识。
 	ErrKeyTaken = errorx.Define(errorx.Conflict, "attribute.key_taken")
 	// ErrOptionsRequired 是单选或多选属性没有填写任何选项。
@@ -35,6 +40,10 @@ var (
 	ErrUnknownKey = errorx.Define(errorx.InvalidArgument, "attribute.unknown_key")
 	// ErrInvalidValue 是写入的属性值不符合该属性的类型或选项约束。
 	ErrInvalidValue = errorx.Define(errorx.InvalidArgument, "attribute.invalid_value")
+	// ErrTicketTypeRequired 是创建或排序工单属性时未指定所属工单类型。
+	ErrTicketTypeRequired = errorx.Define(errorx.InvalidArgument, "attribute.ticket_type_required")
+	// ErrTicketTypeInvalid 是所属工单类型不存在、属于别的工作区，或非工单属性传入了工单类型。
+	ErrTicketTypeInvalid = errorx.Define(errorx.InvalidArgument, "attribute.ticket_type_invalid")
 )
 
 // Target 是属性定义所属的对象。
@@ -43,10 +52,11 @@ type Target string
 const (
 	TargetConversation Target = "conversation" // 会话
 	TargetContact      Target = "contact"      // 联系人
+	TargetTicket       Target = "ticket"       // 工单（按工单类型隔离）
 )
 
 // Targets 是全部可用的属性对象，显示文字是翻译文件中 attribute.target.<对象> 的消息。
-var Targets = enum.New("attribute.target", enum.Item(TargetConversation), enum.Item(TargetContact))
+var Targets = enum.New("attribute.target", enum.Item(TargetConversation), enum.Item(TargetContact), enum.Item(TargetTicket))
 
 // Schema 让 OpenAPI 中的 Target 只接受上面的取值，并带有显示文字。
 func (Target) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Targets) }
@@ -75,26 +85,28 @@ type Definition struct {
 
 	ID string `bun:"id,pk"`
 	database.Timestamps
-	TenantID    string   `bun:"tenant_id,notnull"`
-	Target      Target   `bun:"target,notnull"`
-	Key         string   `bun:"key,notnull"`
-	Name        string   `bun:"name,notnull"`
-	Description string   `bun:"description,notnull"`
-	Type        Type     `bun:"type,notnull"`
-	Options     []string `bun:"options,type:jsonb,notnull"`
-	Position    int      `bun:"position,notnull"`
+	TenantID     string   `bun:"tenant_id,notnull"`
+	Target       Target   `bun:"target,notnull"`
+	TicketTypeID *string  `bun:"ticket_type_id"`
+	Key          string   `bun:"key,notnull"`
+	Name         string   `bun:"name,notnull"`
+	Description  string   `bun:"description,notnull"`
+	Type         Type     `bun:"type,notnull"`
+	Options      []string `bun:"options,type:jsonb,notnull"`
+	Position     int      `bun:"position,notnull"`
 }
 
 // AttributeDTO 是接口中的自定义属性定义。
 type AttributeDTO struct {
-	ID          string   `json:"id"`
-	Target      Target   `json:"target"`
-	Key         string   `json:"key"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Type        Type     `json:"type"`
-	Options     []string `json:"options"`
-	Position    int      `json:"position"`
+	ID           string   `json:"id"`
+	Target       Target   `json:"target"`
+	TicketTypeID *string  `json:"ticket_type_id,omitempty"`
+	Key          string   `json:"key"`
+	Name         string   `json:"name"`
+	Description  string   `json:"description"`
+	Type         Type     `json:"type"`
+	Options      []string `json:"options"`
+	Position     int      `json:"position"`
 }
 
 // DTO 把属性定义转换为接口中的形式。
@@ -104,7 +116,7 @@ func (d *Definition) DTO() AttributeDTO {
 		opts = []string{}
 	}
 	return AttributeDTO{
-		ID: d.ID, Target: d.Target, Key: d.Key, Name: d.Name,
+		ID: d.ID, Target: d.Target, TicketTypeID: d.TicketTypeID, Key: d.Key, Name: d.Name,
 		Description: d.Description, Type: d.Type, Options: opts, Position: d.Position,
 	}
 }
@@ -165,9 +177,63 @@ func normalizeOptions(typ Type, raw []string) ([]string, error) {
 	return out, nil
 }
 
-// ApplyPatch 按工作区 tenant 下对象 target 的属性定义校验并合并 patch 到 current，返回新的属性表和实际发生变化的列表。
+// authorizeManage 检查调用者 sub 是否有权管理对象 target 的属性定义：
+// 系统主体直接放行；工单属性要求 ticket-types:manage，其余属性要求 tenant-settings:manage。
+func authorizeManage(sub identity.Subject, target Target) error {
+	if sub.Type == identity.System {
+		return nil
+	}
+	need := auth.TenantSettingsManage
+	if target == TargetTicket {
+		need = auth.TicketTypesManage
+	}
+	if !sub.Can(string(need)) {
+		return ErrForbidden.New()
+	}
+	return nil
+}
+
+// validateTicketType 校验属性对象 target 与工单类型 ticketTypeID 的搭配关系：
+// target=ticket 时必填且必须存在于当前工作区；其他 target 时必须为空。
+func validateTicketType(ctx context.Context, db bun.IDB, tenant string, target Target, raw *string) (*string, error) {
+	var id *string
+	if raw != nil && *raw != "" {
+		v := *raw
+		id = &v
+	}
+	if target != TargetTicket {
+		if id != nil {
+			return nil, ErrTicketTypeInvalid.New(errorx.Field("ticket_type_id"))
+		}
+		return nil, nil
+	}
+	if id == nil {
+		return nil, ErrTicketTypeRequired.New(errorx.Field("ticket_type_id"))
+	}
+	exists, err := db.NewSelect().Table("ticket_types").
+		Where("id = ? AND tenant_id = ?", *id, tenant).Exists(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "check ticket type")
+	}
+	if !exists {
+		return nil, ErrTicketTypeInvalid.New(errorx.Field("ticket_type_id"))
+	}
+	return id, nil
+}
+
+// ApplyPatch 按工作区 tenant 下对象 target（conversation 或 contact）的属性定义校验并合并 patch 到 current，返回新的属性表和实际发生变化的列表。
 // patch 中未出现的 key 保持原样；值为 nil（或文本/日期/单选为空串、多选为空数组）时清空该属性。
 func ApplyPatch(ctx context.Context, db bun.IDB, tenant string, target Target, current, patch map[string]any) (map[string]any, []Change, error) {
+	return applyPatch(ctx, db, tenant, target, nil, current, patch)
+}
+
+// ApplyTicketPatch 按工作区 tenant 下工单类型 ticketTypeID 的属性定义校验并合并 patch 到 current。
+func ApplyTicketPatch(ctx context.Context, db bun.IDB, tenant, ticketTypeID string, current, patch map[string]any) (map[string]any, []Change, error) {
+	return applyPatch(ctx, db, tenant, TargetTicket, &ticketTypeID, current, patch)
+}
+
+// applyPatch 按属性定义校验并合并 patch 到 current。
+func applyPatch(ctx context.Context, db bun.IDB, tenant string, target Target, ticketTypeID *string, current, patch map[string]any) (map[string]any, []Change, error) {
 	next := make(map[string]any, len(current))
 	for k, v := range current {
 		next[k] = v
@@ -177,7 +243,13 @@ func ApplyPatch(ctx context.Context, db bun.IDB, tenant string, target Target, c
 	}
 
 	var defs []Definition
-	if err := db.NewSelect().Model(&defs).Where("tenant_id = ? AND target = ?", tenant, target).Scan(ctx); err != nil {
+	q := db.NewSelect().Model(&defs).Where("tenant_id = ? AND target = ?", tenant, target)
+	if ticketTypeID != nil {
+		q = q.Where("ticket_type_id = ?", *ticketTypeID)
+	} else {
+		q = q.Where("ticket_type_id IS NULL")
+	}
+	if err := q.Scan(ctx); err != nil {
 		return nil, nil, errors.Wrap(err, "load attribute definitions")
 	}
 	byKey := make(map[string]Definition, len(defs))

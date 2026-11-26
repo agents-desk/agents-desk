@@ -54,6 +54,7 @@ import (
 	"agents-desk/internal/team"
 	"agents-desk/internal/telegram"
 	"agents-desk/internal/tenant"
+	"agents-desk/internal/tickettype"
 	"agents-desk/internal/translation"
 	"agents-desk/internal/widget"
 	"agents-desk/locales"
@@ -302,6 +303,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		contact.RegisterRoutes(api, require, a.db, a.hub, a.roles, a.exporter)
 		tag.RegisterRoutes(api, require, a.db)
 		attribute.RegisterRoutes(api, require, a.db)
+		tickettype.RegisterRoutes(api, require, a.db)
 		macro.RegisterRoutes(api, require, a.db, a.roles)
 		conversation.RegisterRoutes(api, require, a.db, a.channels, a.downstream())
 		file.RegisterRoutes(api, require(auth.ConversationsReply), a.files, a.cfg.Filesystem.MaxUploadSize)

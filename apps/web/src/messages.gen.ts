@@ -541,6 +541,7 @@ export const messages = {
     "nav.tags": "Tags",
     "nav.team_inboxes": "Team inboxes",
     "nav.telegrams": "Telegram bots",
+    "nav.ticket_types": "Ticket types",
     "nav.widgets": "Website chat widgets",
     "notifications_page.assigned_desc": "Notify when a teammate assigns a conversation to you or auto-assignment routes one to you",
     "notifications_page.assigned_title": "Conversation assigned to me",
@@ -752,6 +753,7 @@ export const messages = {
     "settings.group_channels": "Channels",
     "settings.group_inbox": "Inbox",
     "settings.group_personal": "Personal",
+    "settings.group_tickets": "Tickets",
     "settings.group_translation": "Translation",
     "settings.group_workspace": "Workspace",
     "shortcuts.composer_group": "Composer",
@@ -868,6 +870,38 @@ export const messages = {
     "telegrams.title": "Telegram bots",
     "test_account.failed": "Test account sign-in failed. Run go run ./cmd/agents-desk seed first",
     "test_account.sign_in": "Sign in with a test account",
+    "ticket_types.add": "New ticket type",
+    "ticket_types.add_field": "Add field",
+    "ticket_types.default_team": "Default team inbox",
+    "ticket_types.default_team_placeholder": "No default team inbox",
+    "ticket_types.default_visibility": "Default visibility",
+    "ticket_types.default_visibility_hint": "Default visibility when creating tickets of this type; can still be changed per ticket",
+    "ticket_types.delete": "Delete",
+    "ticket_types.delete_confirm": "Delete ticket type “{{name}}”?",
+    "ticket_types.delete_message": "Its custom fields will also be removed. Types referenced by tickets cannot be deleted; disable them instead.",
+    "ticket_types.deleted": "Ticket type deleted",
+    "ticket_types.description": "Configure ticket templates, default team inboxes, default visibility, and type-specific custom fields.",
+    "ticket_types.description_label": "Description",
+    "ticket_types.description_placeholder": "Describe what kind of issues this ticket type handles",
+    "ticket_types.detail_title": "Ticket type",
+    "ticket_types.disable": "Disable",
+    "ticket_types.disable_confirm": "Disable ticket type “{{name}}”?",
+    "ticket_types.disable_message": "Disabled types cannot be used for new tickets. Existing tickets keep their type and fields.",
+    "ticket_types.disabled_done": "Ticket type disabled",
+    "ticket_types.disabled_notice": "This ticket type is disabled and cannot be used for new tickets.",
+    "ticket_types.drag_handle": "Drag to reorder",
+    "ticket_types.edit": "Edit ticket type",
+    "ticket_types.empty": "No ticket types yet. Click above to create one.",
+    "ticket_types.enable": "Enable",
+    "ticket_types.enabled_done": "Ticket type enabled",
+    "ticket_types.field_count": "Fields",
+    "ticket_types.fields_empty": "No custom fields yet. Click “Add field” above to add one.",
+    "ticket_types.fields_heading": "Custom fields",
+    "ticket_types.name": "Name",
+    "ticket_types.name_placeholder": "e.g. Billing issue, Bug report, Internal approval",
+    "ticket_types.name_required": "Please enter a ticket type name",
+    "ticket_types.status": "Status",
+    "ticket_types.title": "Ticket types",
     "time.days": "{{.n}} d",
     "time.hours": "{{.n}} h",
     "time.just_now": "Just now",
@@ -1571,6 +1605,7 @@ export const messages = {
     "nav.tags": "标签",
     "nav.team_inboxes": "团队收件箱",
     "nav.telegrams": "Telegram 机器人",
+    "nav.ticket_types": "工单类型",
     "nav.widgets": "网页聊天插件",
     "notifications_page.assigned_desc": "同事把会话改派给你，或系统自动轮流分配给你时提醒",
     "notifications_page.assigned_title": "新会话指派给我",
@@ -1782,6 +1817,7 @@ export const messages = {
     "settings.group_channels": "渠道",
     "settings.group_inbox": "收件箱",
     "settings.group_personal": "个人",
+    "settings.group_tickets": "工单",
     "settings.group_translation": "翻译",
     "settings.group_workspace": "工作区",
     "shortcuts.composer_group": "回复框",
@@ -1898,6 +1934,38 @@ export const messages = {
     "telegrams.title": "Telegram 机器人",
     "test_account.failed": "测试账号登录失败，先运行 go run ./cmd/agents-desk seed",
     "test_account.sign_in": "用测试账号登录",
+    "ticket_types.add": "新建工单类型",
+    "ticket_types.add_field": "新建字段",
+    "ticket_types.default_team": "默认团队收件箱",
+    "ticket_types.default_team_placeholder": "不指定默认团队收件箱",
+    "ticket_types.default_visibility": "默认可见范围",
+    "ticket_types.default_visibility_hint": "新建这类工单时的默认可见范围，单张工单仍可按需调整",
+    "ticket_types.delete": "删除",
+    "ticket_types.delete_confirm": "删除工单类型“{{name}}”？",
+    "ticket_types.delete_message": "删除后会同时移除该类型下的自定义字段；已被工单引用的类型不能删除，只能停用。",
+    "ticket_types.deleted": "已删除工单类型",
+    "ticket_types.description": "配置不同问题类别的工单模板、默认团队收件箱、默认可见范围和专属字段。",
+    "ticket_types.description_label": "说明",
+    "ticket_types.description_placeholder": "说明这类工单用于处理什么问题",
+    "ticket_types.detail_title": "工单类型详情",
+    "ticket_types.disable": "停用",
+    "ticket_types.disable_confirm": "停用工单类型“{{name}}”？",
+    "ticket_types.disable_message": "停用后不能用于新建工单，历史工单会保留原类型和字段。",
+    "ticket_types.disabled_done": "已停用工单类型",
+    "ticket_types.disabled_notice": "该工单类型已停用，当前不可用于新建工单。",
+    "ticket_types.drag_handle": "拖动调整顺序",
+    "ticket_types.edit": "编辑工单类型",
+    "ticket_types.empty": "还没有工单类型，点右上角新建一个。",
+    "ticket_types.enable": "启用",
+    "ticket_types.enabled_done": "已启用工单类型",
+    "ticket_types.field_count": "字段数",
+    "ticket_types.fields_empty": "这个工单类型还没有自定义字段，点右上角“新建字段”添加。",
+    "ticket_types.fields_heading": "自定义字段",
+    "ticket_types.name": "名称",
+    "ticket_types.name_placeholder": "例如 充值问题、Bug 反馈、内部审批",
+    "ticket_types.name_required": "请填写工单类型名称",
+    "ticket_types.status": "状态",
+    "ticket_types.title": "工单类型",
     "time.days": "{{.n}} 天",
     "time.hours": "{{.n}} 小时",
     "time.just_now": "刚刚",
@@ -2604,6 +2672,7 @@ export type MessageId =
   | "nav.tags"
   | "nav.team_inboxes"
   | "nav.telegrams"
+  | "nav.ticket_types"
   | "nav.widgets"
   | "notifications_page.assigned_desc"
   | "notifications_page.assigned_title"
@@ -2815,6 +2884,7 @@ export type MessageId =
   | "settings.group_channels"
   | "settings.group_inbox"
   | "settings.group_personal"
+  | "settings.group_tickets"
   | "settings.group_translation"
   | "settings.group_workspace"
   | "shortcuts.composer_group"
@@ -2931,6 +3001,38 @@ export type MessageId =
   | "telegrams.title"
   | "test_account.failed"
   | "test_account.sign_in"
+  | "ticket_types.add"
+  | "ticket_types.add_field"
+  | "ticket_types.default_team"
+  | "ticket_types.default_team_placeholder"
+  | "ticket_types.default_visibility"
+  | "ticket_types.default_visibility_hint"
+  | "ticket_types.delete"
+  | "ticket_types.delete_confirm"
+  | "ticket_types.delete_message"
+  | "ticket_types.deleted"
+  | "ticket_types.description"
+  | "ticket_types.description_label"
+  | "ticket_types.description_placeholder"
+  | "ticket_types.detail_title"
+  | "ticket_types.disable"
+  | "ticket_types.disable_confirm"
+  | "ticket_types.disable_message"
+  | "ticket_types.disabled_done"
+  | "ticket_types.disabled_notice"
+  | "ticket_types.drag_handle"
+  | "ticket_types.edit"
+  | "ticket_types.empty"
+  | "ticket_types.enable"
+  | "ticket_types.enabled_done"
+  | "ticket_types.field_count"
+  | "ticket_types.fields_empty"
+  | "ticket_types.fields_heading"
+  | "ticket_types.name"
+  | "ticket_types.name_placeholder"
+  | "ticket_types.name_required"
+  | "ticket_types.status"
+  | "ticket_types.title"
   | "time.days"
   | "time.hours"
   | "time.just_now"

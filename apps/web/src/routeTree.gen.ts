@@ -31,6 +31,7 @@ import { Route as TSlugSettingsIndexRouteImport } from './routes/t/$slug/setting
 import { Route as TSlugSettingsChannelsRouteImport } from './routes/t/$slug/settings/_channels'
 import { Route as TSlugSettingsInboxRouteImport } from './routes/t/$slug/settings/_inbox'
 import { Route as TSlugSettingsPersonalRouteImport } from './routes/t/$slug/settings/_personal'
+import { Route as TSlugSettingsTicketsRouteImport } from './routes/t/$slug/settings/_tickets'
 import { Route as TSlugSettingsTranslationRouteImport } from './routes/t/$slug/settings/_translation'
 import { Route as TSlugSettingsWorkspaceRouteImport } from './routes/t/$slug/settings/_workspace'
 import { Route as TSlugSettingsChannelsTelegramsRouteImport } from './routes/t/$slug/settings/_channels/telegrams'
@@ -44,6 +45,7 @@ import { Route as TSlugSettingsPersonalNotificationsRouteImport } from './routes
 import { Route as TSlugSettingsPersonalPreferencesRouteImport } from './routes/t/$slug/settings/_personal/preferences'
 import { Route as TSlugSettingsPersonalProfileRouteImport } from './routes/t/$slug/settings/_personal/profile'
 import { Route as TSlugSettingsPersonalStatusRouteImport } from './routes/t/$slug/settings/_personal/status'
+import { Route as TSlugSettingsTicketsTicketTypesRouteImport } from './routes/t/$slug/settings/_tickets/ticket-types'
 import { Route as TSlugSettingsTranslationGlossaryRouteImport } from './routes/t/$slug/settings/_translation/glossary'
 import { Route as TSlugSettingsTranslationToneRouteImport } from './routes/t/$slug/settings/_translation/tone'
 import { Route as TSlugSettingsWorkspaceAttributesRouteImport } from './routes/t/$slug/settings/_workspace/attributes'
@@ -57,6 +59,8 @@ import { Route as TSlugSettingsChannelsWidgetsIndexRouteImport } from './routes/
 import { Route as TSlugSettingsChannelsWidgetsIdRouteImport } from './routes/t/$slug/settings/_channels/widgets/$id'
 import { Route as TSlugSettingsInboxTeamsIndexRouteImport } from './routes/t/$slug/settings/_inbox/teams/index'
 import { Route as TSlugSettingsInboxTeamsIdRouteImport } from './routes/t/$slug/settings/_inbox/teams/$id'
+import { Route as TSlugSettingsTicketsTicketTypesIndexRouteImport } from './routes/t/$slug/settings/_tickets/ticket-types/index'
+import { Route as TSlugSettingsTicketsTicketTypesIdRouteImport } from './routes/t/$slug/settings/_tickets/ticket-types/$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -168,6 +172,10 @@ const TSlugSettingsPersonalRoute = TSlugSettingsPersonalRouteImport.update({
   id: '/_personal',
   getParentRoute: () => TSlugSettingsRoute,
 } as any)
+const TSlugSettingsTicketsRoute = TSlugSettingsTicketsRouteImport.update({
+  id: '/_tickets',
+  getParentRoute: () => TSlugSettingsRoute,
+} as any)
 const TSlugSettingsTranslationRoute =
   TSlugSettingsTranslationRouteImport.update({
     id: '/_translation',
@@ -240,6 +248,12 @@ const TSlugSettingsPersonalStatusRoute =
     id: '/status',
     path: '/status',
     getParentRoute: () => TSlugSettingsPersonalRoute,
+  } as any)
+const TSlugSettingsTicketsTicketTypesRoute =
+  TSlugSettingsTicketsTicketTypesRouteImport.update({
+    id: '/ticket-types',
+    path: '/ticket-types',
+    getParentRoute: () => TSlugSettingsTicketsRoute,
   } as any)
 const TSlugSettingsTranslationGlossaryRoute =
   TSlugSettingsTranslationGlossaryRouteImport.update({
@@ -319,6 +333,18 @@ const TSlugSettingsInboxTeamsIdRoute =
     path: '/$id',
     getParentRoute: () => TSlugSettingsInboxTeamsRoute,
   } as any)
+const TSlugSettingsTicketsTicketTypesIndexRoute =
+  TSlugSettingsTicketsTicketTypesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => TSlugSettingsTicketsTicketTypesRoute,
+  } as any)
+const TSlugSettingsTicketsTicketTypesIdRoute =
+  TSlugSettingsTicketsTicketTypesIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => TSlugSettingsTicketsTicketTypesRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -351,6 +377,7 @@ export interface FileRoutesByFullPath {
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/status': typeof TSlugSettingsPersonalStatusRoute
+  '/t/$slug/settings/ticket-types': typeof TSlugSettingsTicketsTicketTypesRouteWithChildren
   '/t/$slug/settings/glossary': typeof TSlugSettingsTranslationGlossaryRoute
   '/t/$slug/settings/tone': typeof TSlugSettingsTranslationToneRoute
   '/t/$slug/settings/attributes': typeof TSlugSettingsWorkspaceAttributesRoute
@@ -361,9 +388,11 @@ export interface FileRoutesByFullPath {
   '/t/$slug/settings/telegrams/$id': typeof TSlugSettingsChannelsTelegramsIdRoute
   '/t/$slug/settings/widgets/$id': typeof TSlugSettingsChannelsWidgetsIdRoute
   '/t/$slug/settings/teams/$id': typeof TSlugSettingsInboxTeamsIdRoute
+  '/t/$slug/settings/ticket-types/$id': typeof TSlugSettingsTicketsTicketTypesIdRoute
   '/t/$slug/settings/telegrams/': typeof TSlugSettingsChannelsTelegramsIndexRoute
   '/t/$slug/settings/widgets/': typeof TSlugSettingsChannelsWidgetsIndexRoute
   '/t/$slug/settings/teams/': typeof TSlugSettingsInboxTeamsIndexRoute
+  '/t/$slug/settings/ticket-types/': typeof TSlugSettingsTicketsTicketTypesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -398,9 +427,11 @@ export interface FileRoutesByTo {
   '/t/$slug/settings/telegrams/$id': typeof TSlugSettingsChannelsTelegramsIdRoute
   '/t/$slug/settings/widgets/$id': typeof TSlugSettingsChannelsWidgetsIdRoute
   '/t/$slug/settings/teams/$id': typeof TSlugSettingsInboxTeamsIdRoute
+  '/t/$slug/settings/ticket-types/$id': typeof TSlugSettingsTicketsTicketTypesIdRoute
   '/t/$slug/settings/telegrams': typeof TSlugSettingsChannelsTelegramsIndexRoute
   '/t/$slug/settings/widgets': typeof TSlugSettingsChannelsWidgetsIndexRoute
   '/t/$slug/settings/teams': typeof TSlugSettingsInboxTeamsIndexRoute
+  '/t/$slug/settings/ticket-types': typeof TSlugSettingsTicketsTicketTypesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -422,6 +453,7 @@ export interface FileRoutesById {
   '/t/$slug/settings/_channels': typeof TSlugSettingsChannelsRouteWithChildren
   '/t/$slug/settings/_inbox': typeof TSlugSettingsInboxRouteWithChildren
   '/t/$slug/settings/_personal': typeof TSlugSettingsPersonalRouteWithChildren
+  '/t/$slug/settings/_tickets': typeof TSlugSettingsTicketsRouteWithChildren
   '/t/$slug/settings/_translation': typeof TSlugSettingsTranslationRouteWithChildren
   '/t/$slug/settings/_workspace': typeof TSlugSettingsWorkspaceRouteWithChildren
   '/t/$slug/contacts/': typeof TSlugContactsIndexRoute
@@ -439,6 +471,7 @@ export interface FileRoutesById {
   '/t/$slug/settings/_personal/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/_personal/profile': typeof TSlugSettingsPersonalProfileRoute
   '/t/$slug/settings/_personal/status': typeof TSlugSettingsPersonalStatusRoute
+  '/t/$slug/settings/_tickets/ticket-types': typeof TSlugSettingsTicketsTicketTypesRouteWithChildren
   '/t/$slug/settings/_translation/glossary': typeof TSlugSettingsTranslationGlossaryRoute
   '/t/$slug/settings/_translation/tone': typeof TSlugSettingsTranslationToneRoute
   '/t/$slug/settings/_workspace/attributes': typeof TSlugSettingsWorkspaceAttributesRoute
@@ -449,9 +482,11 @@ export interface FileRoutesById {
   '/t/$slug/settings/_channels/telegrams/$id': typeof TSlugSettingsChannelsTelegramsIdRoute
   '/t/$slug/settings/_channels/widgets/$id': typeof TSlugSettingsChannelsWidgetsIdRoute
   '/t/$slug/settings/_inbox/teams/$id': typeof TSlugSettingsInboxTeamsIdRoute
+  '/t/$slug/settings/_tickets/ticket-types/$id': typeof TSlugSettingsTicketsTicketTypesIdRoute
   '/t/$slug/settings/_channels/telegrams/': typeof TSlugSettingsChannelsTelegramsIndexRoute
   '/t/$slug/settings/_channels/widgets/': typeof TSlugSettingsChannelsWidgetsIndexRoute
   '/t/$slug/settings/_inbox/teams/': typeof TSlugSettingsInboxTeamsIndexRoute
+  '/t/$slug/settings/_tickets/ticket-types/': typeof TSlugSettingsTicketsTicketTypesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -486,6 +521,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
     | '/t/$slug/settings/status'
+    | '/t/$slug/settings/ticket-types'
     | '/t/$slug/settings/glossary'
     | '/t/$slug/settings/tone'
     | '/t/$slug/settings/attributes'
@@ -496,9 +532,11 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/telegrams/$id'
     | '/t/$slug/settings/widgets/$id'
     | '/t/$slug/settings/teams/$id'
+    | '/t/$slug/settings/ticket-types/$id'
     | '/t/$slug/settings/telegrams/'
     | '/t/$slug/settings/widgets/'
     | '/t/$slug/settings/teams/'
+    | '/t/$slug/settings/ticket-types/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -533,9 +571,11 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/telegrams/$id'
     | '/t/$slug/settings/widgets/$id'
     | '/t/$slug/settings/teams/$id'
+    | '/t/$slug/settings/ticket-types/$id'
     | '/t/$slug/settings/telegrams'
     | '/t/$slug/settings/widgets'
     | '/t/$slug/settings/teams'
+    | '/t/$slug/settings/ticket-types'
   id:
     | '__root__'
     | '/'
@@ -556,6 +596,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/_channels'
     | '/t/$slug/settings/_inbox'
     | '/t/$slug/settings/_personal'
+    | '/t/$slug/settings/_tickets'
     | '/t/$slug/settings/_translation'
     | '/t/$slug/settings/_workspace'
     | '/t/$slug/contacts/'
@@ -573,6 +614,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/_personal/preferences'
     | '/t/$slug/settings/_personal/profile'
     | '/t/$slug/settings/_personal/status'
+    | '/t/$slug/settings/_tickets/ticket-types'
     | '/t/$slug/settings/_translation/glossary'
     | '/t/$slug/settings/_translation/tone'
     | '/t/$slug/settings/_workspace/attributes'
@@ -583,9 +625,11 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/_channels/telegrams/$id'
     | '/t/$slug/settings/_channels/widgets/$id'
     | '/t/$slug/settings/_inbox/teams/$id'
+    | '/t/$slug/settings/_tickets/ticket-types/$id'
     | '/t/$slug/settings/_channels/telegrams/'
     | '/t/$slug/settings/_channels/widgets/'
     | '/t/$slug/settings/_inbox/teams/'
+    | '/t/$slug/settings/_tickets/ticket-types/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -750,6 +794,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugSettingsPersonalRouteImport
       parentRoute: typeof TSlugSettingsRoute
     }
+    '/t/$slug/settings/_tickets': {
+      id: '/t/$slug/settings/_tickets'
+      path: ''
+      fullPath: '/t/$slug/settings'
+      preLoaderRoute: typeof TSlugSettingsTicketsRouteImport
+      parentRoute: typeof TSlugSettingsRoute
+    }
     '/t/$slug/settings/_translation': {
       id: '/t/$slug/settings/_translation'
       path: ''
@@ -841,6 +892,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugSettingsPersonalStatusRouteImport
       parentRoute: typeof TSlugSettingsPersonalRoute
     }
+    '/t/$slug/settings/_tickets/ticket-types': {
+      id: '/t/$slug/settings/_tickets/ticket-types'
+      path: '/ticket-types'
+      fullPath: '/t/$slug/settings/ticket-types'
+      preLoaderRoute: typeof TSlugSettingsTicketsTicketTypesRouteImport
+      parentRoute: typeof TSlugSettingsTicketsRoute
+    }
     '/t/$slug/settings/_translation/glossary': {
       id: '/t/$slug/settings/_translation/glossary'
       path: '/glossary'
@@ -931,6 +989,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/t/$slug/settings/teams/$id'
       preLoaderRoute: typeof TSlugSettingsInboxTeamsIdRouteImport
       parentRoute: typeof TSlugSettingsInboxTeamsRoute
+    }
+    '/t/$slug/settings/_tickets/ticket-types/': {
+      id: '/t/$slug/settings/_tickets/ticket-types/'
+      path: '/'
+      fullPath: '/t/$slug/settings/ticket-types/'
+      preLoaderRoute: typeof TSlugSettingsTicketsTicketTypesIndexRouteImport
+      parentRoute: typeof TSlugSettingsTicketsTicketTypesRoute
+    }
+    '/t/$slug/settings/_tickets/ticket-types/$id': {
+      id: '/t/$slug/settings/_tickets/ticket-types/$id'
+      path: '/$id'
+      fullPath: '/t/$slug/settings/ticket-types/$id'
+      preLoaderRoute: typeof TSlugSettingsTicketsTicketTypesIdRouteImport
+      parentRoute: typeof TSlugSettingsTicketsTicketTypesRoute
     }
   }
 }
@@ -1092,6 +1164,36 @@ const TSlugSettingsPersonalRouteWithChildren =
     TSlugSettingsPersonalRouteChildren,
   )
 
+interface TSlugSettingsTicketsTicketTypesRouteChildren {
+  TSlugSettingsTicketsTicketTypesIdRoute: typeof TSlugSettingsTicketsTicketTypesIdRoute
+  TSlugSettingsTicketsTicketTypesIndexRoute: typeof TSlugSettingsTicketsTicketTypesIndexRoute
+}
+
+const TSlugSettingsTicketsTicketTypesRouteChildren: TSlugSettingsTicketsTicketTypesRouteChildren =
+  {
+    TSlugSettingsTicketsTicketTypesIdRoute:
+      TSlugSettingsTicketsTicketTypesIdRoute,
+    TSlugSettingsTicketsTicketTypesIndexRoute:
+      TSlugSettingsTicketsTicketTypesIndexRoute,
+  }
+
+const TSlugSettingsTicketsTicketTypesRouteWithChildren =
+  TSlugSettingsTicketsTicketTypesRoute._addFileChildren(
+    TSlugSettingsTicketsTicketTypesRouteChildren,
+  )
+
+interface TSlugSettingsTicketsRouteChildren {
+  TSlugSettingsTicketsTicketTypesRoute: typeof TSlugSettingsTicketsTicketTypesRouteWithChildren
+}
+
+const TSlugSettingsTicketsRouteChildren: TSlugSettingsTicketsRouteChildren = {
+  TSlugSettingsTicketsTicketTypesRoute:
+    TSlugSettingsTicketsTicketTypesRouteWithChildren,
+}
+
+const TSlugSettingsTicketsRouteWithChildren =
+  TSlugSettingsTicketsRoute._addFileChildren(TSlugSettingsTicketsRouteChildren)
+
 interface TSlugSettingsTranslationRouteChildren {
   TSlugSettingsTranslationGlossaryRoute: typeof TSlugSettingsTranslationGlossaryRoute
   TSlugSettingsTranslationToneRoute: typeof TSlugSettingsTranslationToneRoute
@@ -1136,6 +1238,7 @@ interface TSlugSettingsRouteChildren {
   TSlugSettingsChannelsRoute: typeof TSlugSettingsChannelsRouteWithChildren
   TSlugSettingsInboxRoute: typeof TSlugSettingsInboxRouteWithChildren
   TSlugSettingsPersonalRoute: typeof TSlugSettingsPersonalRouteWithChildren
+  TSlugSettingsTicketsRoute: typeof TSlugSettingsTicketsRouteWithChildren
   TSlugSettingsTranslationRoute: typeof TSlugSettingsTranslationRouteWithChildren
   TSlugSettingsWorkspaceRoute: typeof TSlugSettingsWorkspaceRouteWithChildren
   TSlugSettingsIndexRoute: typeof TSlugSettingsIndexRoute
@@ -1145,6 +1248,7 @@ const TSlugSettingsRouteChildren: TSlugSettingsRouteChildren = {
   TSlugSettingsChannelsRoute: TSlugSettingsChannelsRouteWithChildren,
   TSlugSettingsInboxRoute: TSlugSettingsInboxRouteWithChildren,
   TSlugSettingsPersonalRoute: TSlugSettingsPersonalRouteWithChildren,
+  TSlugSettingsTicketsRoute: TSlugSettingsTicketsRouteWithChildren,
   TSlugSettingsTranslationRoute: TSlugSettingsTranslationRouteWithChildren,
   TSlugSettingsWorkspaceRoute: TSlugSettingsWorkspaceRouteWithChildren,
   TSlugSettingsIndexRoute: TSlugSettingsIndexRoute,
