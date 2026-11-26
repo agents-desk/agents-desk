@@ -165,7 +165,7 @@ export function Widget(): ReactNode {
   const full = mobile || !floating // 占满屏幕或容器：手机、容器内联和 App
   const close = floating ? (full ? "close" : "collapse") : hasCloseButton() ? "close" : undefined
   const onClose = () => (floating ? toggle(false) : tell("close"))
-  const single = config.data?.behavior.conversation_mode === "single"
+  const single = true
   const ticketList = tickets.data ?? []
   const latestConversationId = conversations.data?.[0]?.id
 

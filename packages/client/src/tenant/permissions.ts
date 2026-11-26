@@ -79,7 +79,6 @@ export const required = {
     items: ["conversations:read"],
     language: ["conversations:reply"],
     list: ["conversations:read"],
-    merge: ["conversations:reply"],
     note: ["conversations:reply"],
     priority: ["conversations:reply"],
     read: ["conversations:read"],

@@ -249,20 +249,9 @@ func (r *Runner) notifyTicketStatus(ctx context.Context, sys identity.Subject, f
 		toStatus = string(fact.Conv.Status)
 	}
 
-	var targets []struct {
-		ID       string `bun:"id"`
-		Language string `bun:"language"`
-	}
-	err = r.db.NewSelect().TableExpr("conversation_links cl").
-		Join("JOIN conversations sc ON sc.id = cl.conversation_id").
-		Join("LEFT JOIN contacts ct ON ct.id = sc.contact_id AND ct.tenant_id = sc.tenant_id").
-		ColumnExpr("sc.id, COALESCE(NULLIF(ct.language, ''), sc.language, '') AS language").
-		Where("cl.tenant_id = ? AND cl.ticket_id = ? AND sc.tenant_id = ? AND sc.kind = ?",
-			fact.TenantID, fact.Conv.ID, fact.TenantID, conversation.Service).
-		OrderExpr("cl.created_at ASC, sc.id ASC").
-		Scan(ctx, &targets)
+	targets, err := conversation.ResolveTicketNotifyTargets(ctx, r.db, fact.TenantID, fact.Conv.ID)
 	if err != nil {
-		return errors.Wrap(err, "load linked conversations for ticket status notify")
+		return err
 	}
 	if len(targets) == 0 {
 		return nil
@@ -279,8 +268,8 @@ func (r *Runner) notifyTicketStatus(ctx context.Context, sys identity.Subject, f
 	}
 	for _, tc := range targets {
 		text := formatTicketStatusText(tc.Language, tk.Number, tk.Title, conversation.TicketStatus(toStatus))
-		if _, err := r.sendMsg.Handle(ctx, sys, tc.ID, text, prompt); err != nil {
-			return errors.Wrapf(err, "notify ticket status to conversation %s", tc.ID)
+		if _, err := r.sendMsg.Handle(ctx, sys, tc.ConversationID, text, prompt); err != nil {
+			return errors.Wrapf(err, "notify ticket status to conversation %s", tc.ConversationID)
 		}
 	}
 	return nil

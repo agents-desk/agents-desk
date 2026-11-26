@@ -19,18 +19,18 @@ import (
 	"agents-desk/internal/tenant"
 )
 
-// multiConnector 是支持多会话的测试连接器，用来对照验证重开窗口只作用于单窗口渠道。
-type multiConnector struct{}
+// stubWidgetConnector 是模拟网页聊天插件的测试连接器，用于验证所有渠道统一遵守工作区重开窗口。
+type stubWidgetConnector struct{}
 
-func (multiConnector) Capabilities() channel.Capabilities {
-	return channel.Capabilities{MessageTypes: []string{"text"}, MultipleConversations: true}
+func (stubWidgetConnector) Capabilities() channel.Capabilities {
+	return channel.Capabilities{MessageTypes: []string{"text"}}
 }
 
-func (multiConnector) Send(_ context.Context, m channel.Outgoing) (string, bool, error) {
-	return "multi-" + m.ItemID, true, nil
+func (stubWidgetConnector) Send(_ context.Context, m channel.Outgoing) (string, bool, error) {
+	return "widget-" + m.ItemID, true, nil
 }
 
-// TestReopenWindow 检查单窗口渠道按工作区的重开窗口决定重新打开还是新建会话，以及多会话渠道不受它限制。
+// TestReopenWindow 检查所有渠道统一按工作区的重开窗口决定重新打开还是新建会话。
 func TestReopenWindow(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
@@ -44,19 +44,19 @@ func TestReopenWindow(t *testing.T) {
 		}
 		system := identity.Subject{Type: identity.System, ID: "test", Tenant: tn.ID}
 		agent := identity.Subject{Type: member.Type, ID: tn.OwnerID, Tenant: tn.ID, Permissions: auth.WithBase(auth.RolePermissions(auth.ScopeAll, nil))}
-		reg := channel.Registry{channel.Test: channel.TestConnector{}, channel.Widget: multiConnector{}}
+		reg := channel.Registry{channel.Test: channel.TestConnector{}, channel.Widget: stubWidgetConnector{}}
 		singleCh, err := channel.NewCreate(env.DB).Handle(ctx, system, channel.CreateParams{Kind: channel.Test, Name: "测试渠道"})
 		if err != nil {
 			t.Fatal(err)
 		}
-		multiCh, err := channel.NewCreate(env.DB).Handle(ctx, system, channel.CreateParams{Kind: channel.Widget, Name: "多会话渠道"})
+		widgetCh, err := channel.NewCreate(env.DB).Handle(ctx, system, channel.CreateParams{Kind: channel.Widget, Name: "网页插件"})
 		if err != nil {
 			t.Fatal(err)
 		}
 		receive := conversation.NewReceive(env.DB, reg, conversation.Downstream{})
 		closeConv := conversation.NewClose(env.DB, conversation.Downstream{})
 
-		// 1. 单窗口渠道：默认 24 小时重开窗口内，客户再发消息重新打开原会话
+		// 1. 默认 24 小时重开窗口内，客户再发消息重新打开原会话
 		first, err := receive.Handle(ctx, system, conversation.ReceiveParams{ChannelID: singleCh.ID, From: "rahul", Text: "first"})
 		if err != nil || !first.Created || first.Reopened {
 			t.Fatalf("新建会话：%v %+v", err, first)
@@ -94,18 +94,21 @@ func TestReopenWindow(t *testing.T) {
 			t.Fatalf("重开窗口为 0 应立刻新建会话：%v %+v", err, immediate)
 		}
 
-		// 4. 多会话渠道不受重开窗口限制：即使窗口为 0，客户指定已关闭会话 ID 依然重新打开
-		mc, err := receive.Handle(ctx, system, conversation.ReceiveParams{ChannelID: multiCh.ID, From: "u1", Text: "hello"})
+		// 4. 网页插件渠道同样遵守重开窗口与单一活跃会话规则：窗口为 0 时关闭后发消息新建会话，不能重开旧会话破坏唯一活跃约束
+		wc, err := receive.Handle(ctx, system, conversation.ReceiveParams{ChannelID: widgetCh.ID, From: "u1", Text: "hello"})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := closeConv.Handle(ctx, agent, mc.ConversationID); err != nil {
+		if _, err := closeConv.Handle(ctx, agent, wc.ConversationID); err != nil {
 			t.Fatal(err)
 		}
-		time.Sleep(48 * time.Hour)
-		mcReopen, err := receive.Handle(ctx, system, conversation.ReceiveParams{ChannelID: multiCh.ID, From: "u1", ConversationID: mc.ConversationID, Text: "again"})
-		if err != nil || mcReopen.ConversationID != mc.ConversationID || !mcReopen.Reopened {
-			t.Fatalf("多会话渠道指定会话应重开：%v %+v", err, mcReopen)
+		time.Sleep(time.Second)
+		wcNext, err := receive.Handle(ctx, system, conversation.ReceiveParams{ChannelID: widgetCh.ID, From: "u1", Text: "again"})
+		if err != nil || wcNext.ConversationID == wc.ConversationID || !wcNext.Created {
+			t.Fatalf("网页插件在重开窗口为 0 时应新建会话：%v %+v", err, wcNext)
+		}
+		if _, err := conversation.NewReopen(env.DB, conversation.Downstream{}).Handle(ctx, agent, wc.ConversationID); !errors.Is(err, conversation.ErrActiveConversationExists) {
+			t.Fatalf("存在其他活跃会话时重开历史会话应返回 ErrActiveConversationExists，实际 %v", err)
 		}
 	})
 }

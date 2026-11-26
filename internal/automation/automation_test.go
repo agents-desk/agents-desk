@@ -196,7 +196,7 @@ func TestFirstMessageReplyTimeAndLeadContact(t *testing.T) {
 
 	// 线索发第二条消息：不是首条消息，不触发
 	second, err := recv.Handle(ctx, f.system, conversation.ReceiveParams{
-		ChannelID: f.widget.ID, From: "visitor:lead-1", ConversationID: first.ConversationID, Text: "有人在吗？",
+		ChannelID: f.widget.ID, From: "visitor:lead-1", Text: "有人在吗？",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -398,7 +398,7 @@ func TestCloseRequestRatingAndToggle(t *testing.T) {
 
 	// 客户回复重开 → 再次关闭 → 第 2 次触发评价邀请
 	if _, err := recv.Handle(ctx, f.system, conversation.ReceiveParams{
-		ChannelID: f.widget.ID, From: "visitor:v-rate", ConversationID: msg.ConversationID, Text: "还有个问题",
+		ChannelID: f.widget.ID, From: "visitor:v-rate", Text: "还有个问题",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -428,7 +428,7 @@ func TestCloseRequestRatingAndToggle(t *testing.T) {
 
 	// 再次重开并关闭：规则已停用 → 不请求评价，调用评价报错
 	if _, err := recv.Handle(ctx, f.system, conversation.ReceiveParams{
-		ChannelID: f.widget.ID, From: "visitor:v-rate", ConversationID: msg.ConversationID, Text: "第三个问题",
+		ChannelID: f.widget.ID, From: "visitor:v-rate", Text: "第三个问题",
 	}); err != nil {
 		t.Fatal(err)
 	}

@@ -233,11 +233,11 @@ func ResolveUser(ctx context.Context, tx bun.IDB, tenant, channelID, externalID,
 
 // LinkUser 在事务 tx 中把渠道 channelID 里的外部身份 externalID 关联到工作区 tenant 的产品用户 userID：
 //   - 渠道身份尚未存在时，按 userID 查找或新建用户并绑定该渠道身份；
-//   - 渠道身份已存在且原为线索时，查找或新建目标用户并调用 MergeLead 将线索及其历史会话、渠道身份一并迁到用户名下；
+//   - 渠道身份已存在且原为线索时，查找或新建目标用户，调用可选 beforeMerge 钩子归并双方活跃会话后，再调用 MergeLead 将线索及其历史会话、渠道身份一并迁到用户名下；
 //   - 渠道身份已属于用户时直接更新资料。
 //
 // 返回关联后的用户，以及合并线索时 contact_id 发生变化的会话 ID 列表，供调用方通知成员刷新。
-func LinkUser(ctx context.Context, tx bun.IDB, tenant, channelID, externalID, userID string, p Profile) (*Contact, []string, error) {
+func LinkUser(ctx context.Context, tx database.Tx, tenant, channelID, externalID, userID string, p Profile, beforeMerge ...BeforeMergeHook) (*Contact, []string, error) {
 	var id Identity
 	err := tx.NewSelect().Model(&id).Where("channel_id = ? AND external_id = ?", channelID, externalID).Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -289,6 +289,11 @@ func LinkUser(ctx context.Context, tx bun.IDB, tenant, channelID, externalID, us
 		u.LastSeenAt, changed = &at, append(changed, "last_seen_at")
 		if _, err := tx.NewUpdate().Model(u).Column(append(changed, "updated_at")...).WherePK().Exec(ctx); err != nil {
 			return nil, nil, errors.Wrap(err, "update user profile")
+		}
+	}
+	if len(beforeMerge) > 0 && beforeMerge[0] != nil {
+		if err := beforeMerge[0](ctx, tx, u.ID, existing.ID); err != nil {
+			return nil, nil, err
 		}
 	}
 	return MergeLead(ctx, tx, tenant, existing.ID, u.ID, "", "")

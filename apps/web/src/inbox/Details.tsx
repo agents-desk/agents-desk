@@ -1,5 +1,5 @@
 import type { ConversationDTO } from "@agents-desk/client/tenant"
-import { ActionIcon, Anchor, Badge, Box, Button, CopyButton, Group, Modal, Rating, Select, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
+import { ActionIcon, Anchor, Badge, Box, Button, CopyButton, Group, Rating, Select, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate, useParams } from "@tanstack/react-router"
 import { IconCheck, IconCopy, IconExternalLink, IconGitMerge, IconLink, IconPlus, IconX } from "@tabler/icons-react"
@@ -131,17 +131,6 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
     onError: (err) => notifyError(err),
   })
   const [mergeContactOpen, setMergeContactOpen] = useState(false)
-  const [mergeSource, setMergeSource] = useState<ConversationDTO | null>(null)
-  const mergeConversation = useMutation({
-    mutationFn: (sourceId: string) => tenantApi.conversation.merge(c.id, { source_id: sourceId }),
-    onSuccess: () => {
-      notifySuccess(t("inbox.merge_conversation_done"))
-      setMergeSource(null)
-      void invalidate()
-      void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
-    },
-    onError: (err) => notifyError(err),
-  })
   // 对方的语言：手动设置的显示那种语言，否则显示“自动识别”（带上识别出的语言）
   const manual = c.contact?.language_manual ?? false
   const detected = c.language ? languageName(c.language, language) : ""
@@ -551,34 +540,19 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
             ) : (
               <Stack gap={4}>
                 {others.map((x) => (
-                  <Group key={x.id} gap={4} wrap="nowrap" align="center">
-                    <UnstyledButton onClick={() => onOpen(x.id)} className="inbox-history" px={6} py={5} style={{ flex: 1, minWidth: 0 }}>
-                      <Text size="sm" truncate>
-                        {previewSummary(x.preview, x.preview_attachment, t) || "—"}
+                  <UnstyledButton key={x.id} onClick={() => onOpen(x.id)} className="inbox-history" px={6} py={5} style={{ width: "100%" }}>
+                    <Text size="sm" truncate>
+                      {previewSummary(x.preview, x.preview_attachment, t) || "—"}
+                    </Text>
+                    <Group gap={5} wrap="nowrap" mt={2}>
+                      {x.channel && <ChannelIcon kind={x.channel.kind} size={11} />}
+                      <Text size="xs" c="dimmed" truncate>
+                        {[x.channel?.name, t(`inbox.status_${x.status}` as const), activity(x.last_message_at, language, t, zone)]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </Text>
-                      <Group gap={5} wrap="nowrap" mt={2}>
-                        {x.channel && <ChannelIcon kind={x.channel.kind} size={11} />}
-                        <Text size="xs" c="dimmed" truncate>
-                          {[x.channel?.name, t(`inbox.status_${x.status}` as const), activity(x.last_message_at, language, t, zone)]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </Text>
-                      </Group>
-                    </UnstyledButton>
-                    {canEdit && (
-                      <Tooltip label={t("inbox.merge_conversation")} openDelay={250}>
-                        <ActionIcon
-                          size={24}
-                          variant="subtle"
-                          color="gray"
-                          aria-label={t("inbox.merge_conversation")}
-                          onClick={() => setMergeSource(x)}
-                        >
-                          <IconGitMerge size={14} />
-                        </ActionIcon>
-                      </Tooltip>
-                    )}
-                  </Group>
+                    </Group>
+                  </UnstyledButton>
                 ))}
               </Stack>
             )}
@@ -597,34 +571,6 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
         }
         onClose={() => setMergeContactOpen(false)}
       />
-      <Modal
-        opened={Boolean(mergeSource)}
-        onClose={() => setMergeSource(null)}
-        title={t("inbox.merge_conversation_title")}
-        size="sm"
-        centered
-      >
-        <Stack gap="sm">
-          <Text size="sm" fw={500}>
-            {t("inbox.merge_conversation_confirm", { channel: mergeSource?.channel?.name ?? "—" })}
-          </Text>
-          <Text size="xs" c="dimmed">
-            {t("inbox.merge_conversation_desc")}
-          </Text>
-          <Group justify="flex-end" mt="xs">
-            <Button variant="default" onClick={() => setMergeSource(null)} disabled={mergeConversation.isPending}>
-              {t("common.cancel")}
-            </Button>
-            <Button
-              leftSection={<IconGitMerge size={14} />}
-              loading={mergeConversation.isPending}
-              onClick={() => mergeSource && mergeConversation.mutate(mergeSource.id)}
-            >
-              {t("inbox.merge_conversation_submit")}
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
       <CreateTicketModal
         opened={createTicketOpen}
         onClose={() => setCreateTicketOpen(false)}

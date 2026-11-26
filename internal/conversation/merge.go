@@ -13,124 +13,87 @@ import (
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/identity"
 
-	"agents-desk/internal/auth"
 	"agents-desk/internal/channel"
+	"agents-desk/internal/contact"
 	"agents-desk/internal/push"
 )
 
-// MergeBody 是合并会话的请求体：把 source_id 指定的会话合并进路径指定的目标会话。
-type MergeBody struct {
-	SourceID string `json:"source_id" format:"uuid" doc:"要被合并进来的来源会话 ID（合并后删除）"`
-}
-
-// MergeInput 是合并会话的 HTTP 请求。
-type MergeInput struct {
-	ID   string `path:"id" format:"uuid"`
-	Body MergeBody
-}
-
-// Merge 把同一个联系人的另一个服务型会话合并进目标会话：按时间顺序归并时间线、保留每条消息各自的来源渠道、
-// 合并标签/属性/参与者，并在目标时间线记一条合并事件后删除来源会话。
-type Merge struct {
-	db   *bun.DB
-	down Downstream
-}
-
-// NewMerge 返回合并会话的动作。
-func NewMerge(db *bun.DB, down Downstream) *Merge { return &Merge{db: db, down: down} }
-
-// Handle 由 sub 把工作区中的来源会话 sourceID 合并到目标会话 targetID 中，返回合并后的目标会话。
-// 两个会话必须同属当前工作区、同为服务型会话、同属一个联系人，且 sub 对两者都有可见权限。
-func (a *Merge) Handle(ctx context.Context, sub identity.Subject, targetID, sourceID string) (*ConversationDTO, error) {
-	if err := authorize(sub, auth.ConversationsReply); err != nil {
-		return nil, err
+// OnContactMerge 返回供 contact.Merge 使用的事务钩子：
+//   - BeforeMigrate 在迁移会话前先归并两个联系人各自可能存在的活跃服务型会话，严格满足唯一活跃约束；
+//   - AfterMigrate 在迁移完成后通知受影响会话的可见成员刷新。
+func OnContactMerge(down Downstream) contact.MergeHooks {
+	return contact.MergeHooks{
+		BeforeMigrate: func(ctx context.Context, tx database.Tx, sub identity.Subject, targetContactID, sourceContactID string) error {
+			return MergeActiveBetweenContacts(ctx, tx, down, sub, targetContactID, sourceContactID)
+		},
+		AfterMigrate: func(ctx context.Context, tx database.Tx, sub identity.Subject, _ string, affectedConvIDs []string) error {
+			return NotifyUpdated(ctx, tx, down, sub.Tenant, affectedConvIDs)
+		},
 	}
-	if targetID == sourceID {
-		return nil, ErrMergeSelf.New()
+}
+
+// BeforeContactMerge 返回供 contact.LinkUser 使用的前置归并钩子，在自动将线索合并到已登录用户前先归并双方活跃会话。
+func BeforeContactMerge(down Downstream, sub identity.Subject) contact.BeforeMergeHook {
+	return func(ctx context.Context, tx database.Tx, targetContactID, sourceContactID string) error {
+		return MergeActiveBetweenContacts(ctx, tx, down, sub, targetContactID, sourceContactID)
 	}
-	var merged *Conversation
-	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
-		var err error
-		merged, err = mergePair(ctx, tx, a.down, sub, targetID, sourceID, true)
-		return err
-	})
+}
+
+// MergeActiveBetweenContacts 在同一事务中检查 targetContactID 与 sourceContactID 是否各自拥有未关闭（open/snoozed）的
+// 服务型会话：当双方都存在活跃会话时，将来源联系人的活跃会话归并进目标联系人的活跃会话并删除来源活跃会话，
+// 保证后续迁移来源联系人的其余历史会话时不触发“同一联系人最多一条活跃服务型会话”唯一约束冲突。
+func MergeActiveBetweenContacts(ctx context.Context, tx database.Tx, down Downstream, sub identity.Subject, targetContactID, sourceContactID string) error {
+	if targetContactID == "" || sourceContactID == "" || targetContactID == sourceContactID {
+		return nil
+	}
+	var active []Conversation
+	err := tx.NewSelect().Model(&active).
+		Where("tenant_id = ? AND kind = ? AND contact_id IN (?) AND status IN (?)",
+			sub.Tenant, Service, bun.In([]string{targetContactID, sourceContactID}), bun.In([]Status{Open, Snoozed})).
+		OrderExpr("last_message_at DESC, id DESC").Scan(ctx)
 	if err != nil {
-		return nil, err
+		return errors.Wrap(err, "load active conversations for contact merge")
 	}
-	dtos, err := toDTOs(ctx, a.db, sub, []Conversation{*merged})
-	if err != nil {
-		return nil, err
-	}
-	return &dtos[0], nil
-}
-
-// HTTP 处理 POST /t/{slug}/api/conversations/{id}/merge。
-func (a *Merge) HTTP(ctx context.Context, in *MergeInput) (*ConversationOutput, error) {
-	sub, _ := identity.FromContext(ctx)
-	dto, err := a.Handle(ctx, sub, in.ID, in.Body.SourceID)
-	if err != nil {
-		return nil, err
-	}
-	return &ConversationOutput{Body: *dto}, nil
-}
-
-// OnContactMerged 返回供 contact.Merge 调用的合并后钩子：
-//   - 当 mergeActive 为 true 时，在同一个事务中把目标联系人名下所有未关闭（open/snoozed）的服务型会话
-//     按最近活跃时间归并进最新的一条活跃会话中；
-//   - 通知修改前后能看到受影响会话的成员刷新列表与详情。
-func OnContactMerged(down Downstream) func(ctx context.Context, tx database.Tx, sub identity.Subject, targetContactID string, affectedConvIDs []string, mergeActive bool) error {
-	return func(ctx context.Context, tx database.Tx, sub identity.Subject, targetContactID string, affectedConvIDs []string, mergeActive bool) error {
-		mergedSources := map[string]bool{}
-		if mergeActive {
-			var active []Conversation
-			err := tx.NewSelect().Model(&active).
-				Where("tenant_id = ? AND kind = ? AND contact_id = ? AND status IN (?)",
-					sub.Tenant, Service, targetContactID, bun.In([]Status{Open, Snoozed})).
-				OrderExpr("last_message_at DESC, id DESC").Scan(ctx)
-			if err != nil {
-				return errors.Wrap(err, "load active conversations for contact merge")
+	var targetActiveID, sourceActiveID string
+	for i := range active {
+		if active[i].ContactID == nil {
+			continue
+		}
+		switch *active[i].ContactID {
+		case targetContactID:
+			if targetActiveID == "" {
+				targetActiveID = active[i].ID
 			}
-			if len(active) > 1 {
-				primary := active[0].ID
-				for _, src := range active[1:] {
-					if _, err := mergePair(ctx, tx, down, sub, primary, src.ID, false); err != nil {
-						return err
-					}
-					mergedSources[src.ID] = true
-				}
+		case sourceContactID:
+			if sourceActiveID == "" {
+				sourceActiveID = active[i].ID
 			}
 		}
-		remaining := make([]string, 0, len(affectedConvIDs))
-		for _, id := range affectedConvIDs {
-			if !mergedSources[id] {
-				remaining = append(remaining, id)
-			}
-		}
-		return NotifyUpdated(ctx, tx, down, sub.Tenant, remaining)
 	}
+	if targetActiveID == "" || sourceActiveID == "" {
+		return nil
+	}
+	_, err = mergePair(ctx, tx, down, sub, targetActiveID, sourceActiveID, targetContactID, sourceContactID)
+	return err
 }
 
 // mergePair 在事务 tx 中把 sourceID 合并到 targetID 中：
 //   - 按 ID 升序加行锁，防止并发合并死锁；
-//   - checkVisibility 为 true 时要求 sub 对源/目标两个会话都拥有可见权限；
 //   - 按时间顺序归并全部时间线条目并重排连续 seq，保留各消息原有的 channel_id 与关联附件/送达状态；
-//   - 合并参与者、标签、属性、已读进度与会话状态，在目标时间线末尾追加 conversation.merged 事件后删除来源会话。
-func mergePair(ctx context.Context, tx database.Tx, down Downstream, sub identity.Subject, targetID, sourceID string, checkVisibility bool) (*Conversation, error) {
+//   - 合并参与者、标签、工单关联、属性、已读进度与会话状态，在目标时间线末尾追加 conversation.merged 事件后删除来源会话。
+func mergePair(ctx context.Context, tx database.Tx, down Downstream, sub identity.Subject, targetID, sourceID, targetContactID, sourceContactID string) (*Conversation, error) {
 	if targetID == sourceID {
-		return nil, ErrMergeSelf.New()
+		return nil, nil
 	}
 	first, second := targetID, sourceID
 	if first > second {
 		first, second = second, first
 	}
 	var locked []Conversation
-	q := tx.NewSelect().Model(&locked).
+	err := tx.NewSelect().Model(&locked).
 		Where("conversation.tenant_id = ? AND conversation.id IN (?)", sub.Tenant, bun.In([]string{first, second})).
-		OrderExpr("conversation.id ASC").For("UPDATE")
-	if checkVisibility {
-		q = visible(q, sub)
-	}
-	if err := q.Scan(ctx); err != nil {
+		OrderExpr("conversation.id ASC").For("UPDATE").Scan(ctx)
+	if err != nil {
 		return nil, errors.Wrap(err, "lock conversations for merge")
 	}
 	var target, source *Conversation
@@ -147,9 +110,6 @@ func mergePair(ctx context.Context, tx database.Tx, down Downstream, sub identit
 	}
 	if target.Kind != Service || source.Kind != Service {
 		return nil, ErrNotFound.New()
-	}
-	if target.ContactID == nil || source.ContactID == nil || *target.ContactID != *source.ContactID {
-		return nil, ErrMergeDifferentContact.New()
 	}
 
 	// 记录合并前两者的可见成员，以便提交后把合并与删除都推送出去
@@ -425,18 +385,22 @@ func mergePair(ctx context.Context, tx database.Tx, down Downstream, sub identit
 			})
 		}
 	}
-	if down.ContactPush != nil && target.ContactID != nil {
+	if down.ContactPush != nil && targetContactID != "" {
+		contactIDs := []string{targetContactID}
+		if sourceContactID != "" && sourceContactID != targetContactID {
+			contactIDs = append(contactIDs, sourceContactID)
+		}
 		var widgetIDs []string
 		err := tx.NewSelect().TableExpr("contact_identities AS ci").
 			ColumnExpr("DISTINCT ci.channel_id").
 			Join("JOIN channels AS ch ON ch.id = ci.channel_id").
-			Where("ci.tenant_id = ? AND ci.contact_id = ? AND ch.kind = ? AND ch.enabled = true", target.TenantID, *target.ContactID, channel.Widget).
+			Where("ci.tenant_id = ? AND ci.contact_id IN (?) AND ch.kind = ? AND ch.enabled = true", target.TenantID, bun.In(contactIDs), channel.Widget).
 			Scan(ctx, &widgetIDs)
 		if err != nil {
 			return nil, errors.Wrap(err, "load contact widget channels after merge")
 		}
 		if len(widgetIDs) > 0 {
-			notify, contactID := down.ContactPush, *target.ContactID
+			notify, contactID := down.ContactPush, targetContactID
 			ev := push.Event{Type: push.Conversation, ID: target.ID, Seq: target.LastSeq}
 			tx.AfterCommit(func(ctx context.Context) error {
 				var errs []error

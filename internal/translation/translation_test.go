@@ -560,15 +560,21 @@ func TestManualLanguage(t *testing.T) {
 		t.Fatalf("只有 und 时恢复自动识别应当清空语言：%+v %v", c, err)
 	}
 
-	// 同一个联系人的多个会话：在一个会话手动设置语言，另一个会话立即同步看到新语言
+	// 同一个联系人的多个轮次会话（前一条关闭且重开窗口为 0 后新建第二条）：在一个会话手动设置语言，另一个会话立即同步看到新语言
 	multiCh, err := channel.NewCreate(f.env.DB).Handle(ctx, f.system, channel.CreateParams{Kind: channel.Widget, Name: "插件"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	reg := channel.Registry{channel.Widget: multiConnector{}}
+	if _, err := f.env.DB.NewRaw("UPDATE tenants SET reopen_window_hours = 0 WHERE id = ?", f.system.Tenant).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	reg := channel.Registry{channel.Widget: stubWidgetConnector{}}
 	recv := conversation.NewReceive(f.env.DB, reg, f.down)
 	r1, err := recv.Handle(ctx, f.system, conversation.ReceiveParams{ChannelID: multiCh.ID, From: "same-user", Text: "hello"})
 	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conversation.NewClose(f.env.DB, f.down).Handle(ctx, f.agent, r1.ConversationID); err != nil {
 		t.Fatal(err)
 	}
 	r2, err := recv.Handle(ctx, f.system, conversation.ReceiveParams{ChannelID: multiCh.ID, From: "same-user", Text: "second"})
@@ -583,15 +589,15 @@ func TestManualLanguage(t *testing.T) {
 	}
 }
 
-// multiConnector 是允许同一联系人发起多个会话的测试连接器。
-type multiConnector struct{}
+// stubWidgetConnector 是用于测试的网页插件连接器。
+type stubWidgetConnector struct{}
 
-func (multiConnector) Capabilities() channel.Capabilities {
-	return channel.Capabilities{MultipleConversations: true}
+func (stubWidgetConnector) Capabilities() channel.Capabilities {
+	return channel.Capabilities{}
 }
 
-func (multiConnector) Send(_ context.Context, m channel.Outgoing) (string, bool, error) {
-	return "multi-" + m.ItemID, true, nil
+func (stubWidgetConnector) Send(_ context.Context, m channel.Outgoing) (string, bool, error) {
+	return "widget-" + m.ItemID, true, nil
 }
 
 // TestCustomerLanguage 检查客户的语言：判断不出语言的消息（ok）记为 und、不翻译、不改客户的语言；一段英文不改，连续两段英文才改。

@@ -21,9 +21,6 @@ type Capabilities struct {
 	MessageTypes []string // 支持的消息类型，例如 text、image、video、audio、file
 	ReadReceipts bool     // 能不能报告对方已读
 	GroupChat    bool     // 是不是群聊类渠道
-	// MultipleConversations 表示对方可以同时有多个会话，自己选择继续哪一个（例如网页聊天插件）；
-	// 为 false 时渠道只有一个聊天窗口，消息归入对方最近的会话。
-	MultipleConversations bool
 }
 
 // Attachment 是发到外部渠道的一条消息附带的媒体附件。

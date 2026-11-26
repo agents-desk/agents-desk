@@ -201,14 +201,12 @@ widget.invalid_user_token: 用户身份的签名无效或已过期
 widget.team_not_found: 团队收件箱不存在
 widget.invalid_origin: "“{{.origin}}”要写成 https:// 或 http:// 开头、只有域名的地址，例如 https://shop.example.com"
 widget.invalid_color: "“{{.color}}”不是有效的颜色，请填写 #rrggbb 十六进制颜色值"
-widget.invalid_conversation_mode: "“{{.mode}}”不是有效的会话模式，请填写 multiple 或 single"
 widget.title: 网页聊天插件
 widget.fields.id: ID
 widget.fields.name: 名称
 widget.fields.team_id: 团队收件箱
 widget.fields.team_name: 团队收件箱
 widget.fields.appearance: 外观配置
-widget.fields.behavior: 交互行为
 widget.fields.greeting: 问候语
 widget.fields.color: 主题色
 widget.fields.allowed_origins: 允许嵌入的网站
@@ -234,8 +232,7 @@ conversation.snooze_in_past: 稍后处理的时间要晚于现在
 conversation.empty_message: 请输入内容或添加附件
 conversation.attachment_not_found: 附件不存在
 conversation.channel_unavailable: 目标回复渠道不可用、已停用，或该联系人未绑定该渠道
-conversation.merge_self: 不能将会话合并到它自身
-conversation.merge_different_contact: 只能合并同一个联系人的服务型会话
+conversation.active_exists: 该联系人当前已有一条进行中的会话，请直接在当前会话中沟通
 conversation.attachment_kind.image: 图片
 conversation.attachment_kind.video: 视频
 conversation.attachment_kind.audio: 语音/音频

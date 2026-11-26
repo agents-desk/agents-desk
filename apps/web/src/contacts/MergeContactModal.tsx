@@ -1,5 +1,5 @@
 import type { ContactDTO, ContactSummary } from "@agents-desk/client/tenant"
-import { Badge, Box, Button, Checkbox, Group, Loader, Modal, Paper, ScrollArea, Stack, Text, TextInput, UnstyledButton } from "@mantine/core"
+import { Badge, Box, Button, Group, Loader, Modal, Paper, ScrollArea, Stack, Text, TextInput, UnstyledButton } from "@mantine/core"
 import { useDebouncedValue } from "@mantine/hooks"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { IconGitMerge, IconSearch } from "@tabler/icons-react"
@@ -31,13 +31,11 @@ export function MergeContactModal({
   const [keyword, setKeyword] = useState("")
   const [debounced] = useDebouncedValue(keyword.trim(), 200)
   const [selected, setSelected] = useState<ContactDTO | null>(null)
-  const [mergeActive, setMergeActive] = useState(true)
 
   useEffect(() => {
     if (!opened) {
       setKeyword("")
       setSelected(null)
-      setMergeActive(true)
     }
   }, [opened])
 
@@ -52,7 +50,6 @@ export function MergeContactModal({
       if (!target || !selected) throw new Error("missing contact")
       return tenantApi.contact.merge(target.id, {
         source_id: selected.id,
-        merge_active_conversations: mergeActive,
       })
     },
     onSuccess: () => {
@@ -154,13 +151,6 @@ export function MergeContactModal({
             </Group>
           </Paper>
         )}
-
-        <Checkbox
-          checked={mergeActive}
-          onChange={(e) => setMergeActive(e.currentTarget.checked)}
-          label={t("contacts.merge_active_conversations")}
-          description={t("contacts.merge_active_conversations_hint")}
-        />
 
         <Group justify="flex-end" mt="xs">
           <Button variant="default" onClick={onClose} disabled={merge.isPending}>

@@ -93,39 +93,41 @@ func (b *TicketBroadcast) Handle(ctx context.Context, p conversation.Appended) e
 		defer func() { _ = lk.Release(context.WithoutCancel(ctx)) }()
 	}
 
-	var targets []broadcastTarget
-	err = b.db.NewSelect().TableExpr("conversation_links cl").
-		Join("JOIN conversations sc ON sc.id = cl.conversation_id").
-		Join("LEFT JOIN contacts ct ON ct.id = sc.contact_id AND ct.tenant_id = sc.tenant_id").
-		ColumnExpr("sc.id, COALESCE(NULLIF(ct.language, ''), sc.language, '') AS language").
-		Where("cl.tenant_id = ? AND cl.ticket_id = ? AND sc.tenant_id = ? AND sc.kind = ?",
-			p.TenantID, it.ConversationID, p.TenantID, conversation.Service).
-		OrderExpr("cl.created_at ASC, sc.id ASC").
-		Scan(ctx, &targets)
+	targets, err := conversation.ResolveTicketNotifyTargets(ctx, b.db, p.TenantID, it.ConversationID)
 	if err != nil {
-		return errors.Wrap(err, "load linked conversations for broadcast")
+		return err
 	}
 	if len(targets) == 0 {
 		return nil
 	}
 
-	// 跳过已投递过该条公开进度的关联会话，保证队列重试幂等
-	var alreadySent []string
-	err = b.db.NewRaw(`SELECT DISTINCT conversation_id FROM timeline_items
-		WHERE tenant_id = ? AND conversation_id IN (?) AND content->'prompt'->>'kind' = 'ticket_update'
-		AND content->'prompt'->'params'->>'item_id' = ?`, p.TenantID, bun.In(convIDsOf(targets)), it.ID).Scan(ctx, &alreadySent)
+	// 跳过已投递过该条公开进度的关联客户或会话，保证队列重试幂等且不重复打扰同一客户
+	var sentRows []struct {
+		ConversationID string  `bun:"conversation_id"`
+		ContactID      *string `bun:"contact_id"`
+	}
+	err = b.db.NewRaw(`SELECT DISTINCT ti.conversation_id, c.contact_id
+		FROM timeline_items ti
+		JOIN conversations c ON c.id = ti.conversation_id
+		WHERE ti.tenant_id = ? AND ti.content->'prompt'->>'kind' = 'ticket_update'
+		  AND ti.content->'prompt'->'params'->>'item_id' = ?`, p.TenantID, it.ID).Scan(ctx, &sentRows)
 	if err != nil {
 		return errors.Wrap(err, "check sent ticket updates")
 	}
-	sentSet := make(map[string]bool, len(alreadySent))
-	for _, cid := range alreadySent {
-		sentSet[cid] = true
-	}
-	pending := make([]broadcastTarget, 0, len(targets))
-	for _, tc := range targets {
-		if !sentSet[tc.ID] {
-			pending = append(pending, tc)
+	sentConv := make(map[string]bool, len(sentRows))
+	sentContact := make(map[string]bool, len(sentRows))
+	for _, r := range sentRows {
+		sentConv[r.ConversationID] = true
+		if r.ContactID != nil && *r.ContactID != "" {
+			sentContact[*r.ContactID] = true
 		}
+	}
+	pending := make([]conversation.TicketNotifyTarget, 0, len(targets))
+	for _, tc := range targets {
+		if sentConv[tc.ConversationID] || (tc.ContactID != "" && sentContact[tc.ContactID]) {
+			continue
+		}
+		pending = append(pending, tc)
 	}
 	if len(pending) == 0 {
 		return nil
@@ -193,26 +195,11 @@ func (b *TicketBroadcast) Handle(ctx context.Context, p conversation.Appended) e
 				}
 			}
 		}
-		if _, err := b.sendMsg.HandleTranslated(ctx, sys, tc.ID, outText, original, outLang, prompt); err != nil {
-			return errors.Wrapf(err, "broadcast ticket update to conversation %s", tc.ID)
+		if _, err := b.sendMsg.HandleTranslated(ctx, sys, tc.ConversationID, outText, original, outLang, prompt); err != nil {
+			return errors.Wrapf(err, "broadcast ticket update to conversation %s", tc.ConversationID)
 		}
 	}
 	slog.InfoContext(ctx, "ticket public update broadcasted",
 		"ticket_id", it.ConversationID, "item_id", it.ID, "recipients", len(pending), "translated_languages", len(translations))
 	return nil
-}
-
-// broadcastTarget 是工单公开进度需要同步投递的一条关联服务型会话及其活跃客户语言。
-type broadcastTarget struct {
-	ID       string `bun:"id"`
-	Language string `bun:"language"`
-}
-
-// convIDsOf 从目标会话切片提取 ID 列表。
-func convIDsOf(items []broadcastTarget) []string {
-	ids := make([]string, len(items))
-	for i := range items {
-		ids[i] = items[i].ID
-	}
-	return ids
 }

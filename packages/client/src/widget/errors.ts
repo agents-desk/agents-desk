@@ -111,10 +111,8 @@ export const ConversationErrors = {
   PrivateTicket: "ticket.private",
   /** ErrChannelUnavailable 是目标回复渠道不可用、已停用，或者该联系人未绑定该渠道身份。 */
   ChannelUnavailable: "conversation.channel_unavailable",
-  /** ErrMergeSelf 是不能把会话合并到它自己。 */
-  MergeSelf: "conversation.merge_self",
-  /** ErrMergeDifferentContact 是只能合并同一个联系人的服务型会话。 */
-  MergeDifferentContact: "conversation.merge_different_contact",
+  /** ErrActiveConversationExists 是该联系人当前已有一条进行中或稍后处理的服务型会话，不能再重开其他历史会话。 */
+  ActiveConversationExists: "conversation.active_exists",
   /** ErrInvalidFilter 是视图或列表传入的筛选条件不合法。 */
   InvalidFilter: "conversation.invalid_filter",
   /** ErrInvalidLanguage 是设置的对方语言不是合法的 BCP 47 标签。 */
@@ -276,8 +274,6 @@ export const WidgetErrors = {
   InvalidOrigin: "widget.invalid_origin",
   /** ErrInvalidColor 是主题色格式无效：应为 #rrggbb 十六进制颜色值。 */
   InvalidColor: "widget.invalid_color",
-  /** ErrInvalidConversationMode 是会话模式无效：应为 multiple 或 single。 */
-  InvalidConversationMode: "widget.invalid_conversation_mode",
 } as const
 
 /** github.com/go-tenon/tenon/apitoken 的错误码。 */

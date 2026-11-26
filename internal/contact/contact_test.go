@@ -497,11 +497,12 @@ func TestVisibilityScope(t *testing.T) {
 	if _, err := assign.Handle(ctx, owner, recA.ConversationID, conversation.Assignment{AssigneeID: &assignedOnly.ID}); err != nil {
 		t.Fatal(err)
 	}
+	closedAt := time.Now().UTC().Add(-time.Hour)
 	secondConv := &conversation.Conversation{
 		ID: "01950000-0000-7000-8000-000000000002", TenantID: w.tenant, Kind: conversation.Service,
 		ChannelID: &chA.ID, ContactID: &cAConv.ID, TeamID: &teamA.ID,
-		Status: conversation.Open, Priority: conversation.Normal,
-		OpenedAt: time.Now().UTC(), LastMessageAt: time.Now().UTC(), Attributes: map[string]any{},
+		Status: conversation.Closed, ClosedAt: &closedAt, Priority: conversation.Normal,
+		OpenedAt: closedAt.Add(-time.Hour), LastMessageAt: closedAt, Attributes: map[string]any{},
 	}
 	if _, err := env.DB.NewInsert().Model(secondConv).Exec(ctx); err != nil {
 		t.Fatal(err)

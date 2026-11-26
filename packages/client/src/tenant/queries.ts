@@ -263,12 +263,6 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         queryKey: key("conversation", "list", ...args),
         queryFn: () => client.conversation.list(...args),
       }),
-      /** POST /conversations/{id}/merge */
-      merge: () => ({
-        mutationFn: (variables: Parameters<Client["conversation"]["merge"]>) => client.conversation.merge(...variables),
-        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
-          invalidate(context, "conversation"),
-      }),
       /** POST /conversations/{id}/notes */
       note: () => ({
         mutationFn: (variables: Parameters<Client["conversation"]["note"]>) => client.conversation.note(...variables),

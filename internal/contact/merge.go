@@ -17,13 +17,21 @@ import (
 	"agents-desk/internal/auth"
 )
 
-// MergeHook 在手动合并两个联系人完成数据迁移后的同一事务中执行，供会话模块同步合并活跃会话并推送刷新。
-type MergeHook func(ctx context.Context, tx database.Tx, sub identity.Subject, targetContactID string, affectedConvIDs []string, mergeActiveConversations bool) error
+// BeforeMergeHook 在两个联系人合并迁移会话之前于同一事务中执行，供会话模块先将来源的活跃服务型会话归并到目标活跃会话，
+// 保证后续迁移其余历史会话时严格满足“同一联系人最多一条活跃服务型会话”的唯一约束。
+type BeforeMergeHook func(ctx context.Context, tx database.Tx, targetContactID, sourceContactID string) error
+
+// MergeHooks 是手动合并联系人时接入会话模块的事务钩子：
+//   - BeforeMigrate 在迁移 conversations.contact_id 之前归并双活服务型会话；
+//   - AfterMigrate 在完成联系人合并后向受影响的成员和客户端推送刷新。
+type MergeHooks struct {
+	BeforeMigrate func(ctx context.Context, tx database.Tx, sub identity.Subject, targetContactID, sourceContactID string) error
+	AfterMigrate  func(ctx context.Context, tx database.Tx, sub identity.Subject, targetContactID string, affectedConvIDs []string) error
+}
 
 // MergeBody 是手动合并联系人的请求体：把 source_id 指定的联系人合并进路径指定的目标联系人。
 type MergeBody struct {
-	SourceID                 string `json:"source_id" format:"uuid" doc:"要被合并进来的来源联系人 ID（合并后删除）"`
-	MergeActiveConversations bool   `json:"merge_active_conversations,omitempty" doc:"合并联系人时是否同时把两者正在进行中的服务型会话合并为同一条会话"`
+	SourceID string `json:"source_id" format:"uuid" doc:"要被合并进来的来源联系人 ID（合并后删除）"`
 }
 
 // MergeInput 是手动合并联系人的 HTTP 请求。
@@ -34,13 +42,17 @@ type MergeInput struct {
 
 // Merge 由成员手动把同工作区的来源联系人合并到目标联系人名下，合并资料、标签、渠道身份和全部会话。
 type Merge struct {
-	db       *bun.DB
-	onMerged MergeHook
+	db    *bun.DB
+	hooks MergeHooks
 }
 
-// NewMerge 返回手动合并联系人的动作；onMerged 可选，用于在合并同一事务中合并活跃会话并通知成员刷新。
-func NewMerge(db *bun.DB, onMerged MergeHook) *Merge {
-	return &Merge{db: db, onMerged: onMerged}
+// NewMerge 返回手动合并联系人的动作；hooks 可选，用于在合并同一事务中归并双活会话并通知成员刷新。
+func NewMerge(db *bun.DB, hooks ...MergeHooks) *Merge {
+	var h MergeHooks
+	if len(hooks) > 0 {
+		h = hooks[0]
+	}
+	return &Merge{db: db, hooks: h}
 }
 
 // Handle 由 sub 把工作区中的来源联系人 body.SourceID 合并到目标联系人 targetID：
@@ -154,6 +166,13 @@ func (a *Merge) Handle(ctx context.Context, sub identity.Subject, targetID strin
 			}
 		}
 
+		// 先归并双方可能同时存在的活跃服务型会话，保证后续迁移全部会话时不违反唯一活跃约束
+		if a.hooks.BeforeMigrate != nil {
+			if err := a.hooks.BeforeMigrate(ctx, tx, sub, target.ID, source.ID); err != nil {
+				return err
+			}
+		}
+
 		// 迁移来源联系人的全部会话、参与者、时间线发起者、标签与渠道身份
 		var convIDs []string
 		if err := tx.NewRaw(
@@ -221,14 +240,14 @@ func (a *Merge) Handle(ctx context.Context, sub identity.Subject, targetID strin
 		if _, err := tx.NewDelete().Model((*Contact)(nil)).Where("id = ? AND tenant_id = ?", source.ID, sub.Tenant).Exec(ctx); err != nil {
 			return errors.Wrap(err, "delete source contact")
 		}
-		if a.onMerged != nil {
-			if err := a.onMerged(ctx, tx, sub, target.ID, convIDs, body.MergeActiveConversations); err != nil {
+		if a.hooks.AfterMigrate != nil {
+			if err := a.hooks.AfterMigrate(ctx, tx, sub, target.ID, convIDs); err != nil {
 				return err
 			}
 		}
 		slog.InfoContext(ctx, "merged contacts",
 			"tenant_id", sub.Tenant, "target_id", target.ID, "source_id", source.ID,
-			"moved_conversations", len(convIDs), "merge_active_conversations", body.MergeActiveConversations)
+			"moved_conversations", len(convIDs))
 		merged = target
 		return nil
 	})

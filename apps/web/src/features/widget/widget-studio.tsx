@@ -1,5 +1,5 @@
 import type { WidgetDTO } from "@agents-desk/client/tenant"
-import { Badge, Box, Button, ColorInput, Group, Paper, SegmentedControl, Skeleton, Stack, Switch, Tabs, TagsInput, Text, Textarea, TextInput, Title } from "@mantine/core"
+import { Badge, Box, Button, ColorInput, Group, Paper, Skeleton, Stack, Switch, Tabs, TagsInput, Text, Textarea, TextInput, Title } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
@@ -26,9 +26,6 @@ interface StudioFormValues {
     color: string
     greeting: string
   }
-  behavior: {
-    conversation_mode: "multiple" | "single"
-  }
   allowed_origins: string[]
 }
 
@@ -41,9 +38,6 @@ function toFormValues(w: WidgetDTO): StudioFormValues {
     appearance: {
       color: w.appearance.color || defaultColorHex,
       greeting: w.appearance.greeting ?? "",
-    },
-    behavior: {
-      conversation_mode: w.behavior.conversation_mode === "single" ? "single" : "multiple",
     },
     allowed_origins: w.allowed_origins ?? [],
   }
@@ -89,7 +83,6 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
       team_id: null,
       enabled: true,
       appearance: { color: defaultColorHex, greeting: "" },
-      behavior: { conversation_mode: "multiple" },
       allowed_origins: [],
     },
   })
@@ -110,9 +103,6 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
         appearance: {
           color: values.appearance.color.trim(),
           greeting: values.appearance.greeting,
-        },
-        behavior: {
-          conversation_mode: values.behavior.conversation_mode,
         },
         allowed_origins: values.allowed_origins,
       }),
@@ -229,32 +219,6 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
                     />
                   </SectionCard>
 
-                  <SectionCard title={t("widget_studio.section_behavior")} description={t("widget_studio.section_behavior_desc")}>
-                    <Stack gap={6}>
-                      <Text size="sm" fw={500}>
-                        {t("widget_studio.conversation_mode")}
-                      </Text>
-                      <SegmentedControl
-                        fullWidth
-                        value={form.values.behavior.conversation_mode}
-                        onChange={(v) =>
-                          form.setFieldValue("behavior.conversation_mode", v === "single" ? "single" : "multiple")
-                        }
-                        data={[
-                          { value: "multiple", label: t("widget_studio.mode_multiple") },
-                          { value: "single", label: t("widget_studio.mode_single") },
-                        ]}
-                      />
-                      <Text size="xs" c="dimmed">
-                        {t(
-                          form.values.behavior.conversation_mode === "single"
-                            ? "widget_studio.mode_single_desc"
-                            : "widget_studio.mode_multiple_desc",
-                        )}
-                      </Text>
-                    </Stack>
-                  </SectionCard>
-
                   <SectionCard title={t("widget_studio.section_routing")} description={t("widget_studio.section_routing_desc")}>
                     <ResourceSelect
                       model={teams}
@@ -286,7 +250,6 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
                 <WidgetPreviewStage
                   name={form.values.name}
                   appearance={form.values.appearance}
-                  behavior={form.values.behavior}
                 />
               </Box>
             </form>
