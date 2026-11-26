@@ -73,6 +73,9 @@ func (a *FillMissing) Handle(ctx context.Context, sub identity.Subject, itemIDs 
 	}
 	var jobs []FillJob
 	for _, it := range items {
+		if it.ActorType == conversation.MemberActor && it.ActorID == sub.ID {
+			continue
+		}
 		if it.Translatable() && len(conversation.MissingTranslations(it.Derived, []string{language})) > 0 {
 			jobs = append(jobs, FillJob{TenantID: sub.Tenant, ItemID: it.ID, Language: language})
 		}

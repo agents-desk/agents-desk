@@ -32,29 +32,29 @@ func visible(q *bun.SelectQuery, sub identity.Subject) *bun.SelectQuery {
 		if scope == auth.ScopeTeam {
 			q = q.WhereOr("conversation.team_id IN (SELECT team_id FROM team_members WHERE member_id = ?)", sub.ID)
 		}
-		// 工单额外规则：创建人始终可见；拥有该工单下任意可见关联服务型会话的成员可见
+		// 工单额外规则：创建人始终可见；能看到该工单下任意受影响联系人的服务型会话的成员可见
 		q = q.WhereOr("conversation.kind = ? AND EXISTS (SELECT 1 FROM tickets tk WHERE tk.conversation_id = conversation.id AND tk.created_by = ?)", Ticket, sub.ID)
 		if scope == auth.ScopeTeam {
 			q = q.WhereOr(`conversation.kind = ? AND EXISTS (
-				SELECT 1 FROM conversation_links cl
-				JOIN conversations sc ON sc.id = cl.conversation_id
-				WHERE cl.tenant_id = ? AND cl.ticket_id = conversation.id AND sc.tenant_id = ? AND sc.kind = ?
+				SELECT 1 FROM ticket_contacts tc
+				JOIN conversations sc ON sc.tenant_id = tc.tenant_id AND sc.kind = ? AND sc.contact_id = tc.contact_id
+				WHERE tc.tenant_id = ? AND tc.ticket_id = conversation.id
 				AND (
 					(sc.assignee_type = ? AND sc.assignee_id = ?)
 					OR sc.team_id IN (SELECT team_id FROM team_members WHERE member_id = ?)
 					OR sc.id IN (SELECT conversation_id FROM conversation_mentions WHERE tenant_id = ? AND member_id = ?)
 				)
-			)`, Ticket, sub.Tenant, sub.Tenant, Service, MemberActor, sub.ID, sub.ID, sub.Tenant, sub.ID)
+			)`, Ticket, Service, sub.Tenant, MemberActor, sub.ID, sub.ID, sub.Tenant, sub.ID)
 		} else {
 			q = q.WhereOr(`conversation.kind = ? AND EXISTS (
-				SELECT 1 FROM conversation_links cl
-				JOIN conversations sc ON sc.id = cl.conversation_id
-				WHERE cl.tenant_id = ? AND cl.ticket_id = conversation.id AND sc.tenant_id = ? AND sc.kind = ?
+				SELECT 1 FROM ticket_contacts tc
+				JOIN conversations sc ON sc.tenant_id = tc.tenant_id AND sc.kind = ? AND sc.contact_id = tc.contact_id
+				WHERE tc.tenant_id = ? AND tc.ticket_id = conversation.id
 				AND (
 					(sc.assignee_type = ? AND sc.assignee_id = ?)
 					OR sc.id IN (SELECT conversation_id FROM conversation_mentions WHERE tenant_id = ? AND member_id = ?)
 				)
-			)`, Ticket, sub.Tenant, sub.Tenant, Service, MemberActor, sub.ID, sub.Tenant, sub.ID)
+			)`, Ticket, Service, sub.Tenant, MemberActor, sub.ID, sub.Tenant, sub.ID)
 		}
 		return q
 	})

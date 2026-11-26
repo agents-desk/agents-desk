@@ -82,18 +82,24 @@ func TestTicketBroadcastDedupAndNoteTranslation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// 新建聚合工单关联这 3 个会话，并发布一条中文公开进度
+	// 新建聚合工单关联这 3 位客户，并发布一条中文公开进度
 	tt, err := tickettype.NewCreate(env.DB).Handle(ctx, sys, tickettype.CreateParams{Name: "充值问题", DefaultVisibility: tickettype.VisibilityAll})
 	if err != nil {
 		t.Fatal(err)
 	}
 	tk, err := conversation.NewCreateTicket(env.DB, down).Handle(ctx, subOwner, conversation.CreateTicketParams{
-		TypeID:               tt.ID,
+		TypeID:               &tt.ID,
 		Title:                "UPI 通道掉单",
 		SourceConversationID: &c1.ConversationID,
-		ConversationIDs:      []string{c2.ConversationID, c3.ConversationID},
 	})
 	if err != nil {
+		t.Fatal(err)
+	}
+	linkContact := conversation.NewLinkTicketContact(env.DB, down)
+	if _, err := linkContact.Handle(ctx, subOwner, tk.ID, conversation.LinkTicketContactBody{ConversationID: &c2.ConversationID}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := linkContact.Handle(ctx, subOwner, tk.ID, conversation.LinkTicketContactBody{ConversationID: &c3.ConversationID}); err != nil {
 		t.Fatal(err)
 	}
 	pub, err := conversation.NewPublishTicketUpdate(env.DB, down).Handle(ctx, subOwner, tk.ID, conversation.PublishTicketUpdateBody{
@@ -165,21 +171,32 @@ func TestTicketBroadcastDedupAndNoteTranslation(t *testing.T) {
 	if err := incoming.Ensure(ctx, tn.ID, note.ID, []string{"en"}); err != nil {
 		t.Fatalf("工单内部备注补译失败：%v", err)
 	}
+	// 统一翻译公理验证：工单公开进度消息与内部备注均支持跨语言成员补译成英文
+	if err := incoming.Ensure(ctx, tn.ID, pub.ID, []string{"en"}); err != nil {
+		t.Fatalf("工单公开进度补译失败：%v", err)
+	}
 	tkItems, err := tl.Handle(ctx, subOwner, tk.ID, 0, 50)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var translatedNote *conversation.ItemDTO
+	var translatedNote, translatedPub *conversation.ItemDTO
 	for i := range tkItems {
 		if tkItems[i].ID == note.ID {
 			translatedNote = &tkItems[i]
 		}
+		if tkItems[i].ID == pub.ID {
+			translatedPub = &tkItems[i]
+		}
 	}
-	if translatedNote == nil {
-		t.Fatalf("未找到工单内部备注")
+	if translatedNote == nil || translatedPub == nil {
+		t.Fatalf("未找到工单内部备注或公开进度")
 	}
 	trMap, _ := translatedNote.Derived["translations"].(map[string]any)
 	if enText, _ := trMap["en"].(string); !strings.Contains(enText, "My order") {
 		t.Fatalf("内部备注应包含英文译文，实际 derived=%+v", translatedNote.Derived)
+	}
+	pubTrMap, _ := translatedPub.Derived["translations"].(map[string]any)
+	if enText, _ := pubTrMap["en"].(string); !strings.Contains(enText, "My order") {
+		t.Fatalf("公开进度应包含英文译文，实际 derived=%+v", translatedPub.Derived)
 	}
 }

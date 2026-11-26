@@ -666,6 +666,18 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
     ticket: {
       /** ticket 分组全部查询的 key 前缀。 */
       key: () => key("ticket"),
+      /** POST /tickets/{id}/contacts */
+      contactAdd: () => ({
+        mutationFn: (variables: Parameters<Client["ticket"]["contactAdd"]>) => client.ticket.contactAdd(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "ticket"),
+      }),
+      /** DELETE /tickets/{id}/contacts/{contact_id} */
+      contactRemove: () => ({
+        mutationFn: (variables: Parameters<Client["ticket"]["contactRemove"]>) => client.ticket.contactRemove(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "ticket"),
+      }),
       /** POST /tickets */
       create: () => ({
         mutationFn: (variables: Parameters<Client["ticket"]["create"]>[0]) => client.ticket.create(variables),
@@ -681,18 +693,6 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       getByNumber: (...args: Parameters<Client["ticket"]["getByNumber"]>) => ({
         queryKey: key("ticket", "getByNumber", ...args),
         queryFn: () => client.ticket.getByNumber(...args),
-      }),
-      /** POST /tickets/{id}/links */
-      linkAdd: () => ({
-        mutationFn: (variables: Parameters<Client["ticket"]["linkAdd"]>) => client.ticket.linkAdd(...variables),
-        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
-          invalidate(context, "ticket"),
-      }),
-      /** DELETE /tickets/{id}/links/{conversation_id} */
-      linkRemove: () => ({
-        mutationFn: (variables: Parameters<Client["ticket"]["linkRemove"]>) => client.ticket.linkRemove(...variables),
-        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
-          invalidate(context, "ticket"),
       }),
       /** GET /tickets */
       list: (...args: Parameters<Client["ticket"]["list"]>) => ({

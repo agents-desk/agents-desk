@@ -228,6 +228,22 @@ func (a *Merge) Handle(ctx context.Context, sub identity.Subject, targetID strin
 		).Exec(ctx); err != nil {
 			return errors.Wrap(err, "delete source contact tags")
 		}
+		if _, err := tx.NewRaw(
+			`INSERT INTO ticket_contacts (id, tenant_id, ticket_id, contact_id, source_conversation_id, created_by, created_at, updated_at)
+			 SELECT id, tenant_id, ticket_id, ?, source_conversation_id, created_by, created_at, ?
+			 FROM ticket_contacts
+			 WHERE tenant_id = ? AND contact_id = ?
+			 ON CONFLICT (tenant_id, ticket_id, contact_id) DO NOTHING`,
+			target.ID, at, sub.Tenant, source.ID,
+		).Exec(ctx); err != nil {
+			return errors.Wrap(err, "migrate merged ticket contacts")
+		}
+		if _, err := tx.NewRaw(
+			`DELETE FROM ticket_contacts WHERE tenant_id = ? AND contact_id = ?`,
+			sub.Tenant, source.ID,
+		).Exec(ctx); err != nil {
+			return errors.Wrap(err, "delete source ticket contacts")
+		}
 		if _, err := tx.NewUpdate().Model((*Identity)(nil)).
 			Set("contact_id = ?", target.ID).
 			Where("tenant_id = ? AND contact_id = ?", sub.Tenant, source.ID).Exec(ctx); err != nil {
@@ -405,7 +421,7 @@ func MergeLead(ctx context.Context, tx bun.IDB, tenant, leadID, userID, consumeC
 		return nil, nil, errors.Wrap(err, "migrate timeline actors")
 	}
 
-	// 4. 合并联系人标签（保留线索已打的标签，冲突时去重）
+	// 4. 合并联系人标签与工单关联（保留线索已打的标签与关联的工单，冲突时去重）
 	if _, err := tx.NewRaw(
 		`INSERT INTO contact_tags (tenant_id, contact_id, tag_id, created_at)
 		 SELECT tenant_id, ?, tag_id, created_at
@@ -421,6 +437,22 @@ func MergeLead(ctx context.Context, tx bun.IDB, tenant, leadID, userID, consumeC
 		tenant, lead.ID,
 	).Exec(ctx); err != nil {
 		return nil, nil, errors.Wrap(err, "delete lead contact tags")
+	}
+	if _, err := tx.NewRaw(
+		`INSERT INTO ticket_contacts (id, tenant_id, ticket_id, contact_id, source_conversation_id, created_by, created_at, updated_at)
+		 SELECT id, tenant_id, ticket_id, ?, source_conversation_id, created_by, created_at, ?
+		 FROM ticket_contacts
+		 WHERE tenant_id = ? AND contact_id = ?
+		 ON CONFLICT (tenant_id, ticket_id, contact_id) DO NOTHING`,
+		user.ID, at, tenant, lead.ID,
+	).Exec(ctx); err != nil {
+		return nil, nil, errors.Wrap(err, "migrate lead ticket contacts")
+	}
+	if _, err := tx.NewRaw(
+		`DELETE FROM ticket_contacts WHERE tenant_id = ? AND contact_id = ?`,
+		tenant, lead.ID,
+	).Exec(ctx); err != nil {
+		return nil, nil, errors.Wrap(err, "delete lead ticket contacts")
 	}
 
 	// 5. 渠道身份：删除已消费的访客编号，其余渠道身份迁到用户名下

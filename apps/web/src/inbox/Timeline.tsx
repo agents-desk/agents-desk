@@ -40,11 +40,11 @@ export function translationOf(it: ConversationItemDTO, lang: string | undefined)
   return lang ? all?.[lang] : undefined
 }
 
-/** hasTranslation 返回时间线中是否有对方的消息或同事的内部备注带着成员语言 lang 的译文：有时会话顶部显示“译文 | 原文”的切换。 */
+/** hasTranslation 返回时间线中是否有非本人发出的消息或内部备注带着成员语言 lang 的译文：有时会话顶部显示“译文 | 原文”的切换。 */
 export function hasTranslation(items: ConversationItemDTO[] | undefined, lang: string | undefined, myId?: string): boolean {
   return !!items?.some(
     (it) =>
-      (it.actor.type === "contact" || (it.kind === "note" && it.actor.id !== myId)) &&
+      (it.actor.type === "contact" || (it.actor.type === "member" && it.actor.id !== myId)) &&
       Boolean(translationOf(it, lang)),
   )
 }
@@ -244,6 +244,7 @@ export function Timeline({
                     it={it}
                     c={c}
                     mine={it.actor.type !== "contact"}
+                    isOwn={it.actor.type === "member" && it.actor.id === me.data?.id}
                     author={it.actor.type === "contact" ? contactName(c, t) : it.actor.type === "member" ? names.member(it.actor.id) : whoDid(it, byId, t)}
                     time={clock(it.created_at, language, zone)}
                     fullTime={fullDateTime(it.created_at, language, zone)}
@@ -299,6 +300,7 @@ interface MessageProps {
   it: ConversationItemDTO
   c: ConversationDTO
   mine: boolean // 成员和系统发的，在右侧
+  isOwn: boolean // 当前登录成员自己发出的消息
   author: string
   time: string
   fullTime: string // 完整日期时间，悬停提示用
@@ -319,7 +321,7 @@ interface MessageProps {
  * Message 是一条消息：对方的在左侧，成员和系统发的在右侧，旁边是悬浮复制按钮，底部是译文切换与送达状态（失败时可以重发）。
  * 连续同人消息合并为组：组首显示作者与时间，组内消息省略重复头部并用方向圆角自然衔接。
  */
-function Message({ it, c, mine, author, time, fullTime, first, last, mt, lang, original, translating, watch, highlight, focused, preferOriginal, onPreview }: MessageProps): ReactNode {
+function Message({ it, c, mine, isOwn, author, time, fullTime, first, last, mt, lang, original, translating, watch, highlight, focused, preferOriginal, onPreview }: MessageProps): ReactNode {
   const t = useT()
   const ui = useLanguage()
   const zone = useTimeZone()
@@ -342,18 +344,20 @@ function Message({ it, c, mine, author, time, fullTime, first, last, mt, lang, o
     onError: (err) => notifyError(err),
   })
 
-  // 对方的消息：有成员语言的译文时显示译文；成员翻译后发出的消息：显示原文，content.text 是发给对方的译文；
+  // 对方或其他同事的消息：有当前成员语言的译文时显示译文；成员翻译后发出的消息：原文来自 content.original，content.text 是发给对方的译文；
   // 系统发出的结构化提示：按成员的界面语言和时区渲染
   const text = it.content.prompt ? promptText(it.content.prompt, it.content.text ?? "", ui, t, zone) : (it.content.text ?? "")
-  const translated = mine ? undefined : translationOf(it, lang)
+  const translatableForViewer = it.actor.type === "contact" || (it.actor.type === "member" && !isOwn)
+  const translated = translatableForViewer ? translationOf(it, lang) : undefined
   const showOriginal = original !== flip
   const sentAs = mine && it.content.original ? it.content.language : undefined
   const shown = translated && !showOriginal ? translated : sentAs ? (it.content.original ?? "") : text
   const from = it.derived.language as string | undefined
+  const needFill = translatableForViewer && translating && it.untranslated
   let caption: ReactNode = null
   if (translated) {
     // 始终只保留单个译文/原文切换按钮；单条消息语言与会话主语言不同时附带语言名。
-    const showFromLang = Boolean(from && !sameLanguage(from, c.language))
+    const showFromLang = Boolean(from && (!sameLanguage(from, c.language) || mine))
     caption = (
       <>
         <IconLanguage size={12} className="inbox-caption-icon" />
@@ -370,7 +374,7 @@ function Message({ it, c, mine, author, time, fullTime, first, last, mt, lang, o
         <CaptionToggle label={t(showOriginal ? "inbox.view_translation" : "inbox.view_original")} onClick={() => setFlip((f) => !f)} />
       </>
     )
-  } else if (!mine && translating && it.untranslated) {
+  } else if (needFill) {
     caption = (
       <>
         <Loader size={10} />
@@ -427,7 +431,7 @@ function Message({ it, c, mine, author, time, fullTime, first, last, mt, lang, o
       data-seq={it.seq}
       className="inbox-msg"
       style={{ alignSelf: mine ? "flex-end" : "flex-start", maxWidth: "min(72%, 620px)" }}
-      ref={!mine && translating && it.untranslated ? watch(it.id) : undefined}
+      ref={needFill ? watch(it.id) : undefined}
     >
       {first && (
         <Group gap={5} mb={3} px={4} justify={mine ? "flex-end" : "flex-start"} wrap="nowrap">

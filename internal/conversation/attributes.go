@@ -2,9 +2,11 @@ package conversation
 
 import (
 	"context"
+	"sort"
 
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/attribute"
@@ -46,11 +48,22 @@ func applyAttributes(ctx context.Context, tx bun.IDB, sub identity.Subject, c *C
 		err     error
 	)
 	if c.Kind == Ticket {
-		var typeID string
+		var typeID *string
 		if err = tx.NewSelect().Table("tickets").Column("type_id").Where("conversation_id = ?", c.ID).Scan(ctx, &typeID); err != nil {
 			return nil, err
 		}
-		next, changes, err = attribute.ApplyTicketPatch(ctx, tx, c.TenantID, typeID, c.Attributes, patch)
+		if typeID == nil || *typeID == "" {
+			if len(patch) == 0 {
+				return nil, nil
+			}
+			keys := make([]string, 0, len(patch))
+			for k := range patch {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+			return nil, attribute.ErrUnknownKey.New(errorx.Field("attributes."+keys[0]), errorx.Public("key", keys[0]))
+		}
+		next, changes, err = attribute.ApplyTicketPatch(ctx, tx, c.TenantID, *typeID, c.Attributes, patch)
 	} else {
 		next, changes, err = attribute.ApplyPatch(ctx, tx, c.TenantID, attribute.TargetConversation, c.Attributes, patch)
 	}

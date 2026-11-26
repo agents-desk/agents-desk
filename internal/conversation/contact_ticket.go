@@ -65,21 +65,11 @@ func (a *ListTicketsForContact) Handle(ctx context.Context, sub identity.Subject
 	var convs []Conversation
 	q := a.db.NewSelect().Model(&convs).
 		Join("JOIN tickets tk ON tk.conversation_id = conversation.id").
-		Where("conversation.tenant_id = ? AND conversation.kind = ? AND tk.visibility = ?", sub.Tenant, Ticket, tickettype.VisibilityAll)
-	if kind == contact.User {
-		q = q.Where(`EXISTS (
-			SELECT 1 FROM conversation_links cl
-			JOIN conversations sc ON sc.id = cl.conversation_id
-			WHERE cl.tenant_id = ? AND cl.ticket_id = conversation.id
-				AND sc.tenant_id = ? AND sc.kind = ? AND sc.contact_id = ?
-		)`, sub.Tenant, sub.Tenant, Service, sub.ID)
-	} else {
-		q = q.Where(`EXISTS (
-			SELECT 1 FROM conversation_links cl
-			JOIN conversations sc ON sc.id = cl.conversation_id
-			WHERE cl.tenant_id = ? AND cl.ticket_id = conversation.id
-				AND sc.tenant_id = ? AND sc.kind = ? AND sc.contact_id = ? AND sc.channel_id = ?
-		)`, sub.Tenant, sub.Tenant, Service, sub.ID, channelID)
+		Where("conversation.tenant_id = ? AND conversation.kind = ? AND tk.visibility = ?", sub.Tenant, Ticket, tickettype.VisibilityAll).
+		Where("EXISTS (SELECT 1 FROM ticket_contacts tc WHERE tc.tenant_id = ? AND tc.ticket_id = conversation.id AND tc.contact_id = ?)", sub.Tenant, sub.ID)
+	if kind != contact.User {
+		q = q.Where("EXISTS (SELECT 1 FROM conversations sc WHERE sc.tenant_id = ? AND sc.kind = ? AND sc.contact_id = ? AND sc.channel_id = ?)",
+			sub.Tenant, Service, sub.ID, channelID)
 	}
 	if err := q.OrderExpr("conversation.last_message_at DESC, conversation.id DESC").Limit(contactTicketLimit).Scan(ctx); err != nil {
 		return nil, errors.Wrap(err, "list contact tickets")
@@ -115,21 +105,11 @@ func (a *GetTicketForContact) Handle(ctx context.Context, sub identity.Subject, 
 	var conv Conversation
 	q := a.db.NewSelect().Model(&conv).
 		Join("JOIN tickets tk ON tk.conversation_id = conversation.id").
-		Where("conversation.id = ? AND conversation.tenant_id = ? AND conversation.kind = ? AND tk.visibility = ?", id, sub.Tenant, Ticket, tickettype.VisibilityAll)
-	if kind == contact.User {
-		q = q.Where(`EXISTS (
-			SELECT 1 FROM conversation_links cl
-			JOIN conversations sc ON sc.id = cl.conversation_id
-			WHERE cl.tenant_id = ? AND cl.ticket_id = conversation.id
-				AND sc.tenant_id = ? AND sc.kind = ? AND sc.contact_id = ?
-		)`, sub.Tenant, sub.Tenant, Service, sub.ID)
-	} else {
-		q = q.Where(`EXISTS (
-			SELECT 1 FROM conversation_links cl
-			JOIN conversations sc ON sc.id = cl.conversation_id
-			WHERE cl.tenant_id = ? AND cl.ticket_id = conversation.id
-				AND sc.tenant_id = ? AND sc.kind = ? AND sc.contact_id = ? AND sc.channel_id = ?
-		)`, sub.Tenant, sub.Tenant, Service, sub.ID, channelID)
+		Where("conversation.id = ? AND conversation.tenant_id = ? AND conversation.kind = ? AND tk.visibility = ?", id, sub.Tenant, Ticket, tickettype.VisibilityAll).
+		Where("EXISTS (SELECT 1 FROM ticket_contacts tc WHERE tc.tenant_id = ? AND tc.ticket_id = conversation.id AND tc.contact_id = ?)", sub.Tenant, sub.ID)
+	if kind != contact.User {
+		q = q.Where("EXISTS (SELECT 1 FROM conversations sc WHERE sc.tenant_id = ? AND sc.kind = ? AND sc.contact_id = ? AND sc.channel_id = ?)",
+			sub.Tenant, Service, sub.ID, channelID)
 	}
 	err = q.Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -190,10 +170,16 @@ func toContactTicketDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, 
 		return nil, errors.Wrap(err, "load contact ticket metas")
 	}
 	metaByID := make(map[string]TicketMeta, len(metas))
+	typeIDSet := map[string]struct{}{}
 	typeIDs := make([]string, 0, len(metas))
 	for _, m := range metas {
 		metaByID[m.ConversationID] = m
-		typeIDs = append(typeIDs, m.TypeID)
+		if m.TypeID != nil && *m.TypeID != "" {
+			if _, ok := typeIDSet[*m.TypeID]; !ok {
+				typeIDSet[*m.TypeID] = struct{}{}
+				typeIDs = append(typeIDs, *m.TypeID)
+			}
+		}
 	}
 
 	typeNames := map[string]string{}
@@ -230,10 +216,14 @@ func toContactTicketDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, 
 
 	for i, c := range convs {
 		m := metaByID[c.ID]
+		var typeName string
+		if m.TypeID != nil {
+			typeName = typeNames[*m.TypeID]
+		}
 		out[i] = ContactTicketDTO{
 			ID:            c.ID,
 			Number:        m.Number,
-			TypeName:      typeNames[m.TypeID],
+			TypeName:      typeName,
 			Title:         m.Title,
 			Description:   m.Description,
 			Status:        TicketStatus(c.Status),

@@ -133,7 +133,7 @@ func (tr *Translator) Incoming(ctx context.Context, tenant string, it *conversat
 	if err != nil {
 		return "", nil, err
 	}
-	text := it.Content.Text
+	text := it.SourceText()
 	earlier, err := tr.history(ctx, tenant, it.ConversationID, it.Seq)
 	if err != nil {
 		return "", nil, err
@@ -210,7 +210,7 @@ func (tr *Translator) Translate(ctx context.Context, tenant string, it *conversa
 	if err != nil {
 		return nil, err
 	}
-	text := it.Content.Text
+	text := it.SourceText()
 	earlier, err := tr.history(ctx, tenant, it.ConversationID, it.Seq)
 	if err != nil {
 		return nil, err

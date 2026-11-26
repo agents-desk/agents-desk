@@ -103,9 +103,9 @@ export const ConversationErrors = {
   AlreadyRated: "conversation.already_rated",
   /** ErrWrongKind 是当前操作不适用于这个种类的会话（例如对工单执行关闭/回复，或对服务型会话执行工单操作）。 */
   WrongKind: "conversation.wrong_kind",
-  /** ErrLinkAlreadyExists 是该服务型会话已经关联到目标工单。 */
+  /** ErrLinkAlreadyExists 是该联系人已经关联到目标工单。 */
   LinkAlreadyExists: "ticket.link_exists",
-  /** ErrLinkNotFound 是工单与该会话之间不存在关联关系。 */
+  /** ErrLinkNotFound 是工单与该联系人之间不存在关联关系。 */
   LinkNotFound: "ticket.link_not_found",
   /** ErrPrivateTicket 是仅成员可见的工单不能向客户发布公开进度。 */
   PrivateTicket: "ticket.private",

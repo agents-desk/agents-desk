@@ -44,9 +44,9 @@ var (
 	ErrAlreadyRated = errorx.Define(errorx.Conflict, "conversation.already_rated")
 	// ErrWrongKind 是当前操作不适用于这个种类的会话（例如对工单执行关闭/回复，或对服务型会话执行工单操作）。
 	ErrWrongKind = errorx.Define(errorx.Conflict, "conversation.wrong_kind")
-	// ErrLinkAlreadyExists 是该服务型会话已经关联到目标工单。
+	// ErrLinkAlreadyExists 是该联系人已经关联到目标工单。
 	ErrLinkAlreadyExists = errorx.Define(errorx.Conflict, "ticket.link_exists")
-	// ErrLinkNotFound 是工单与该会话之间不存在关联关系。
+	// ErrLinkNotFound 是工单与该联系人之间不存在关联关系。
 	ErrLinkNotFound = errorx.Define(errorx.NotFound, "ticket.link_not_found")
 	// ErrPrivateTicket 是仅成员可见的工单不能向客户发布公开进度。
 	ErrPrivateTicket = errorx.Define(errorx.Conflict, "ticket.private")
@@ -526,7 +526,7 @@ func ticketContactPushTargets(ctx context.Context, db bun.IDB, down Downstream, 
 		}
 		if it.Kind == Event {
 			switch it.Content.Event {
-			case "ticket.created", "ticket.updated", "ticket.status_changed", "ticket.conversation_linked", "ticket.conversation_unlinked":
+			case "ticket.created", "ticket.updated", "ticket.status_changed", "ticket.contact_linked", "ticket.contact_unlinked":
 				relevant = true
 			}
 		}
@@ -537,30 +537,28 @@ func ticketContactPushTargets(ctx context.Context, db bun.IDB, down Downstream, 
 	if !relevant {
 		return nil, nil
 	}
-	// 查出关联服务型会话对应的全部联系人及其可推送的启用网页聊天插件频道：
-	// 已登录用户推送到其全部已启用 widget 渠道，访客线索推送到关联会话所在的启用 widget 渠道。
+	// 查出关联联系人可推送的启用网页聊天插件频道：
+	// 已登录用户推送到其全部已启用 widget 渠道，访客线索推送到其服务型会话所在的启用 widget 渠道。
 	var targets []contactPushTarget
 	err := db.NewRaw(`
-		SELECT DISTINCT ci.channel_id, sc.contact_id
-		FROM conversation_links cl
-		JOIN conversations sc ON sc.id = cl.conversation_id
-		JOIN contacts ct ON ct.id = sc.contact_id
-		JOIN contact_identities ci ON ci.tenant_id = sc.tenant_id AND ci.contact_id = sc.contact_id
+		SELECT DISTINCT ci.channel_id, tc.contact_id
+		FROM ticket_contacts tc
+		JOIN contacts ct ON ct.id = tc.contact_id AND ct.tenant_id = tc.tenant_id
+		JOIN contact_identities ci ON ci.tenant_id = tc.tenant_id AND ci.contact_id = tc.contact_id
 		JOIN channels ch ON ch.id = ci.channel_id
-		WHERE cl.tenant_id = ? AND cl.ticket_id = ?
-			AND sc.tenant_id = ? AND sc.kind = ? AND sc.contact_id IS NOT NULL
+		WHERE tc.tenant_id = ? AND tc.ticket_id = ?
 			AND ct.kind = ? AND ch.kind = ? AND ch.enabled = true
 		UNION
-		SELECT DISTINCT sc.channel_id, sc.contact_id
-		FROM conversation_links cl
-		JOIN conversations sc ON sc.id = cl.conversation_id
-		JOIN contacts ct ON ct.id = sc.contact_id
+		SELECT DISTINCT sc.channel_id, tc.contact_id
+		FROM ticket_contacts tc
+		JOIN contacts ct ON ct.id = tc.contact_id AND ct.tenant_id = tc.tenant_id
+		JOIN conversations sc ON sc.tenant_id = tc.tenant_id AND sc.kind = ? AND sc.contact_id = tc.contact_id
 		JOIN channels ch ON ch.id = sc.channel_id
-		WHERE cl.tenant_id = ? AND cl.ticket_id = ?
-			AND sc.tenant_id = ? AND sc.kind = ? AND sc.contact_id IS NOT NULL AND sc.channel_id IS NOT NULL
+		WHERE tc.tenant_id = ? AND tc.ticket_id = ?
+			AND sc.channel_id IS NOT NULL
 			AND ct.kind <> ? AND ch.kind = ? AND ch.enabled = true`,
-		c.TenantID, c.ID, c.TenantID, Service, contact.User, channel.Widget,
-		c.TenantID, c.ID, c.TenantID, Service, contact.User, channel.Widget,
+		c.TenantID, c.ID, contact.User, channel.Widget,
+		Service, c.TenantID, c.ID, contact.User, channel.Widget,
 	).Scan(ctx, &targets)
 	if err != nil {
 		return nil, errors.Wrap(err, "load ticket contact push targets")

@@ -58,16 +58,18 @@ func TestTicketStatusNotifyAutomation(t *testing.T) {
 	tl := conversation.NewTimeline(env.DB)
 
 	tkPub, err := createTicket.Handle(ctx, f.owner, conversation.CreateTicketParams{
-		TypeID:               ttPub.ID,
+		TypeID:               &ttPub.ID,
 		Title:                "UPI 掉单",
 		SourceConversationID: &cEn.ConversationID,
-		ConversationIDs:      []string{cZh.ConversationID},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err := conversation.NewLinkTicketContact(env.DB, f.down).Handle(ctx, f.owner, tkPub.ID, conversation.LinkTicketContactBody{ConversationID: &cZh.ConversationID}); err != nil {
+		t.Fatal(err)
+	}
 	tkPriv, err := createTicket.Handle(ctx, f.owner, conversation.CreateTicketParams{
-		TypeID:               ttPriv.ID,
+		TypeID:               &ttPriv.ID,
 		Title:                "财务内部复核",
 		SourceConversationID: &cEn.ConversationID,
 	})

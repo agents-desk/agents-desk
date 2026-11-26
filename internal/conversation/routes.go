@@ -86,6 +86,6 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	rest.Register(api, act("ticket-update", http.MethodPatch, "/tickets/{id}", "修改工单信息"), NewUpdateTicket(db, down).HTTP)
 	rest.Register(api, act("ticket-status", http.MethodPut, "/tickets/{id}/status", "修改工单状态"), NewSetTicketStatus(db, down).HTTP)
 	rest.Register(api, ticketUpdatePubOp, NewPublishTicketUpdate(db, down).HTTP)
-	rest.Register(api, act("ticket-link-add", http.MethodPost, "/tickets/{id}/links", "关联服务型会话到工单"), NewLinkConversation(db, down).HTTP)
-	rest.Register(api, act("ticket-link-remove", http.MethodDelete, "/tickets/{id}/links/{conversation_id}", "取消工单与会话的关联"), NewUnlinkConversation(db, down).HTTP)
+	rest.Register(api, act("ticket-contact-add", http.MethodPost, "/tickets/{id}/contacts", "关联受影响客户到工单"), NewLinkTicketContact(db, down).HTTP)
+	rest.Register(api, act("ticket-contact-remove", http.MethodDelete, "/tickets/{id}/contacts/{contact_id}", "取消工单与客户的关联"), NewUnlinkTicketContact(db, down).HTTP)
 }

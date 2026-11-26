@@ -98,7 +98,7 @@ func TestContactStreamPaginationReadTypingAndTicketWakeup(t *testing.T) {
 		t.Fatal(err)
 	}
 	tk, err := createTicket.Handle(ctx, f.system, conversation.CreateTicketParams{
-		TypeID: tt.ID, Title: "退款核对", SourceConversationID: &r1.ConversationID,
+		TypeID: &tt.ID, Title: "退款核对", SourceConversationID: &r1.ConversationID,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -130,8 +130,8 @@ func TestContactStreamPaginationReadTypingAndTicketWakeup(t *testing.T) {
 		t.Fatalf("发消息返回项应带 conversation_id=%s，实际 %q", s2.ConversationID, s2.Item.ConversationID)
 	}
 	gotTk, err := conversation.NewGetTicket(env.DB).Handle(ctx, f.agent, tk.ID)
-	if err != nil || gotTk.Status != conversation.TicketInProgress || gotTk.LinkedCount != 2 {
-		t.Fatalf("携带 TicketID 发消息后工单应关联新会话并切回 in_progress：status=%s links=%d err=%v", gotTk.Status, gotTk.LinkedCount, err)
+	if err != nil || gotTk.Status != conversation.TicketInProgress || gotTk.LinkedCount != 1 {
+		t.Fatalf("携带 TicketID 发消息后工单应按客户去重关联并切回 in_progress：status=%s links=%d err=%v", gotTk.Status, gotTk.LinkedCount, err)
 	}
 	rep2, err := reply.Handle(ctx, f.agent, s2.ConversationID, conversation.ReplyBody{Text: "第2轮坐席回复"})
 	if err != nil {

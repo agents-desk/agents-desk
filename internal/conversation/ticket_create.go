@@ -3,6 +3,7 @@ package conversation
 import (
 	"context"
 	"database/sql"
+	"sort"
 	"strings"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 
 	"agents-desk/internal/attribute"
 	"agents-desk/internal/auth"
+	"agents-desk/internal/contact"
 	"agents-desk/internal/member"
 	"agents-desk/internal/team"
 	"agents-desk/internal/tickettype"
@@ -23,15 +25,15 @@ import (
 
 // CreateTicketParams 是新建工单（直接创建或由服务型会话转成）的请求体。
 type CreateTicketParams struct {
-	TypeID               string                `json:"type_id" format:"uuid" doc:"工单类型 ID"`
+	TypeID               *string               `json:"type_id,omitempty" format:"uuid" doc:"可选：工单类型 ID；不选则为通用工单"`
 	Title                string                `json:"title" minLength:"1" maxLength:"120" doc:"工单标题"`
 	Description          string                `json:"description,omitempty" maxLength:"5000" doc:"工单详细描述"`
-	Visibility           tickettype.Visibility `json:"visibility,omitempty" doc:"工单可见范围（all 或 members）；不填取工单类型默认值"`
+	Visibility           tickettype.Visibility `json:"visibility,omitempty" doc:"工单可见范围（all 或 members）；不填取工单类型默认值或 all"`
 	Priority             Priority              `json:"priority,omitempty" doc:"优先级；不填默认为 normal"`
 	TeamID               *string               `json:"team_id,omitempty" format:"uuid" doc:"归属团队收件箱 ID；不填取工单类型默认团队"`
 	AssigneeID           *string               `json:"assignee_id,omitempty" format:"uuid" doc:"负责人成员 ID；可为空"`
-	SourceConversationID *string               `json:"source_conversation_id,omitempty" format:"uuid" doc:"可选：由哪条服务型会话转成工单"`
-	ConversationIDs      []string              `json:"conversation_ids,omitempty" maxItems:"50" uniqueItems:"true" doc:"可选：创建时一并关联的其他服务型会话 ID"`
+	SourceConversationID *string               `json:"source_conversation_id,omitempty" format:"uuid" doc:"可选：由哪条服务型会话转成工单，自动关联该会话联系人"`
+	ContactIDs           []string              `json:"contact_ids,omitempty" maxItems:"50" uniqueItems:"true" doc:"可选：创建时一并关联的受影响联系人 ID"`
 	Attributes           map[string]any        `json:"attributes,omitempty" doc:"工单类型对应的自定义字段初始值"`
 }
 
@@ -51,8 +53,8 @@ func NewCreateTicket(db *bun.DB, down Downstream) *CreateTicket {
 	return &CreateTicket{db: db, down: down}
 }
 
-// Handle 在 sub 所在的工作区中创建工单：校验工单类型未停用、自定义字段合法、关联服务型会话对 sub 可见，
-// 在单个事务内分配递增编号、写入 conversations(kind=ticket)、tickets、conversation_links 及两端系统事件。
+// Handle 在 sub 所在的工作区中创建工单：校验可选工单类型未停用、自定义字段合法、来源会话与受影响联系人可见，
+// 在单个事务内分配递增编号、写入 conversations(kind=ticket)、tickets、ticket_contacts 及系统事件。
 func (a *CreateTicket) Handle(ctx context.Context, sub identity.Subject, p CreateTicketParams) (*TicketDTO, error) {
 	if err := authorize(sub, auth.ConversationsReply); err != nil {
 		return nil, err
@@ -66,16 +68,24 @@ func (a *CreateTicket) Handle(ctx context.Context, sub identity.Subject, p Creat
 
 	var convID string
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
-		tt, err := tickettype.FindActive(ctx, tx, sub.Tenant, p.TypeID)
-		if err != nil {
-			return err
+		var tt *tickettype.TicketType
+		if p.TypeID != nil && *p.TypeID != "" {
+			var err error
+			tt, err = tickettype.FindActive(ctx, tx, sub.Tenant, *p.TypeID)
+			if err != nil {
+				return err
+			}
 		}
 		vis := p.Visibility
 		if vis == "" {
-			vis = tt.DefaultVisibility
+			if tt != nil {
+				vis = tt.DefaultVisibility
+			} else {
+				vis = tickettype.VisibilityAll
+			}
 		}
 
-		// 确定归属团队收件箱：显式传入时校验未停用；未传时继承工单类型默认团队（若未停用）
+		// 确定归属团队收件箱：显式传入时校验未停用；未传且选了工单类型时继承类型默认团队（若未停用）
 		var teamID *string
 		if p.TeamID != nil && *p.TeamID != "" {
 			var row struct {
@@ -94,7 +104,7 @@ func (a *CreateTicket) Handle(ctx context.Context, sub identity.Subject, p Creat
 			}
 			id := *p.TeamID
 			teamID = &id
-		} else if p.TeamID == nil && tt.DefaultTeamID != nil && *tt.DefaultTeamID != "" {
+		} else if p.TeamID == nil && tt != nil && tt.DefaultTeamID != nil && *tt.DefaultTeamID != "" {
 			active, err := tx.NewSelect().Table("teams").
 				Where("id = ? AND tenant_id = ? AND disabled_at IS NULL", *tt.DefaultTeamID, sub.Tenant).Exists(ctx)
 			if err != nil {
@@ -123,46 +133,58 @@ func (a *CreateTicket) Handle(ctx context.Context, sub identity.Subject, p Creat
 			assigneeType, assigneeID = MemberActor, *p.AssigneeID
 		}
 
-		// 校验初始自定义字段
-		attrs, _, err := attribute.ApplyTicketPatch(ctx, tx, sub.Tenant, tt.ID, map[string]any{}, p.Attributes)
-		if err != nil {
-			return err
+		// 校验初始自定义字段：有类型时按类型定义校验，通用工单不接受自定义字段
+		attrs := map[string]any{}
+		if tt != nil {
+			var err error
+			attrs, _, err = attribute.ApplyTicketPatch(ctx, tx, sub.Tenant, tt.ID, map[string]any{}, p.Attributes)
+			if err != nil {
+				return err
+			}
+		} else if len(p.Attributes) > 0 {
+			keys := make([]string, 0, len(p.Attributes))
+			for k := range p.Attributes {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+			return attribute.ErrUnknownKey.New(errorx.Field("attributes."+keys[0]), errorx.Public("key", keys[0]))
 		}
 
-		// 校验并锁住所有需要关联的服务型会话（按 ID 排序加锁避免死锁）
-		type linkTarget struct {
-			id       string
-			relation LinkRelation
+		// 解析并校验来源服务型会话与受影响联系人列表
+		type contactLink struct {
+			contactID string
+			sourceID  *string
 		}
-		seenLinks := map[string]struct{}{}
-		var targets []linkTarget
+		seenContacts := map[string]bool{}
+		var links []contactLink
+		var sourceConv *Conversation
 		if p.SourceConversationID != nil && *p.SourceConversationID != "" {
-			seenLinks[*p.SourceConversationID] = struct{}{}
-			targets = append(targets, linkTarget{id: *p.SourceConversationID, relation: LinkSource})
-		}
-		for _, cid := range p.ConversationIDs {
-			if cid == "" {
-				continue
-			}
-			if _, dup := seenLinks[cid]; dup {
-				continue
-			}
-			seenLinks[cid] = struct{}{}
-			targets = append(targets, linkTarget{id: cid, relation: LinkLinked})
-		}
-		linkedConvs := make([]*Conversation, 0, len(targets))
-		for _, tgt := range targets {
-			sc, err := findVisible(ctx, tx, sub, tgt.id, true)
+			sc, err := findVisible(ctx, tx, sub, *p.SourceConversationID, true)
 			if err != nil {
 				return err
 			}
 			if sc.Kind != Service {
 				return ErrWrongKind.New()
 			}
-			linkedConvs = append(linkedConvs, sc)
+			sourceConv = sc
+			if sc.ContactID != nil && *sc.ContactID != "" {
+				seenContacts[*sc.ContactID] = true
+				sid := sc.ID
+				links = append(links, contactLink{contactID: *sc.ContactID, sourceID: &sid})
+			}
+		}
+		for _, cid := range p.ContactIDs {
+			if cid == "" || seenContacts[cid] {
+				continue
+			}
+			if err := ensureVisibleContact(ctx, tx, sub, cid); err != nil {
+				return err
+			}
+			seenContacts[cid] = true
+			links = append(links, contactLink{contactID: cid})
 		}
 
-		// 在写入末段分配递增编号，尽量缩短对 tenants 行的锁持有时间
+		// 在写入末段分配递增编号，缩短对 tenants 行的锁持有时间
 		num, err := nextTicketNumber(ctx, tx, sub.Tenant)
 		if err != nil {
 			return err
@@ -192,11 +214,18 @@ func (a *CreateTicket) Handle(ctx context.Context, sub identity.Subject, p Creat
 				return err
 			}
 		}
+		var typeID *string
+		var typeName string
+		if tt != nil {
+			id := tt.ID
+			typeID = &id
+			typeName = tt.Name
+		}
 		tk := &TicketMeta{
 			ConversationID: c.ID,
 			TenantID:       sub.Tenant,
 			Number:         num,
-			TypeID:         tt.ID,
+			TypeID:         typeID,
 			Title:          title,
 			Description:    desc,
 			Visibility:     vis,
@@ -206,44 +235,42 @@ func (a *CreateTicket) Handle(ctx context.Context, sub identity.Subject, p Creat
 			return errors.Wrap(err, "insert ticket meta")
 		}
 
-		// 建立工单与服务型会话的关联关系，并在各关联服务型会话写入系统事件
-		for i, tgt := range targets {
-			link := &ConversationLink{
-				ID:             newID(),
-				TenantID:       sub.Tenant,
-				TicketID:       c.ID,
-				ConversationID: tgt.id,
-				Relation:       tgt.relation,
-				CreatedBy:      createdBy,
+		// 写入受影响联系人关联，并在来源服务型会话记系统事件
+		for _, l := range links {
+			rec := &TicketContact{
+				ID:                   newID(),
+				TenantID:             sub.Tenant,
+				TicketID:             c.ID,
+				ContactID:            l.contactID,
+				SourceConversationID: l.sourceID,
+				CreatedBy:            createdBy,
 			}
-			if _, err := tx.NewInsert().Model(link).Exec(ctx); err != nil {
-				return errors.Wrap(err, "insert conversation link")
+			if _, err := tx.NewInsert().Model(rec).Exec(ctx); err != nil {
+				return errors.Wrap(err, "insert ticket contact")
 			}
-			evName := "conversation.ticket_linked"
-			if tgt.relation == LinkSource {
-				evName = "conversation.ticket_created"
-			}
-			sc := linkedConvs[i]
-			scEv := event(sub, evName, map[string]any{
+		}
+		if sourceConv != nil {
+			scEv := event(sub, "conversation.ticket_created", map[string]any{
 				"ticket_id": c.ID,
 				"number":    num,
 				"title":     title,
 			})
-			if err := commit(ctx, tx, a.down, sc, scEv); err != nil {
+			if err := commit(ctx, tx, a.down, sourceConv, scEv); err != nil {
 				return err
 			}
 		}
 
 		// 未指定负责人时，按默认团队收件箱的轮流分配规则自动分派
-		items := []*Item{
-			event(sub, "ticket.created", map[string]any{
-				"number":     num,
-				"type_id":    tt.ID,
-				"type_name":  tt.Name,
-				"title":      title,
-				"visibility": string(vis),
-			}),
+		evData := map[string]any{
+			"number":     num,
+			"title":      title,
+			"visibility": string(vis),
 		}
+		if typeID != nil {
+			evData["type_id"] = *typeID
+			evData["type_name"] = typeName
+		}
+		items := []*Item{event(sub, "ticket.created", evData)}
 		if c.AssigneeType == "" {
 			if auto, err := roundRobin(ctx, tx, c); err != nil {
 				return err
@@ -261,6 +288,31 @@ func (a *CreateTicket) Handle(ctx context.Context, sub identity.Subject, p Creat
 		return nil, err
 	}
 	return NewGetTicket(a.db).Handle(ctx, sub, convID)
+}
+
+// ensureVisibleContact 校验联系人 contactID 属于 sub 所在工作区；若 sub 属于受限可见范围，还校验其能看到该联系人的至少一条服务型会话。
+func ensureVisibleContact(ctx context.Context, db bun.IDB, sub identity.Subject, contactID string) error {
+	exists, err := db.NewSelect().Table("contacts").Where("id = ? AND tenant_id = ?", contactID, sub.Tenant).Exists(ctx)
+	if err != nil {
+		return errors.Wrap(err, "check contact exists")
+	}
+	if !exists {
+		return contact.ErrNotFound.New()
+	}
+	if sub.Type == identity.System || auth.ScopeOf(sub) == auth.ScopeAll {
+		return nil
+	}
+	q := db.NewSelect().Model((*Conversation)(nil)).
+		Where("conversation.tenant_id = ? AND conversation.kind = ? AND conversation.contact_id = ?", sub.Tenant, Service, contactID)
+	q = visible(q, sub)
+	canSee, err := q.Exists(ctx)
+	if err != nil {
+		return errors.Wrap(err, "check visible contact conversation")
+	}
+	if !canSee {
+		return contact.ErrNotFound.New()
+	}
+	return nil
 }
 
 // HTTP 处理 POST /t/{slug}/api/tickets。

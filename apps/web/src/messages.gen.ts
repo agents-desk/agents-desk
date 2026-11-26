@@ -226,10 +226,13 @@ export const messages = {
     "event.snoozed": "{{.who}} snoozed the conversation until {{.until}}",
     "event.someone": "A member",
     "event.system": "System",
-    "event.ticket_conversation_linked": "{{.who}} linked a customer conversation",
-    "event.ticket_conversation_unlinked": "{{.who}} unlinked a customer conversation",
+    "event.ticket_contact_linked": "{{.who}} linked an affected customer",
+    "event.ticket_contact_linked_name": "{{.who}} linked affected customer {{.name}}",
+    "event.ticket_contact_unlinked": "{{.who}} unlinked an affected customer",
+    "event.ticket_contact_unlinked_name": "{{.who}} unlinked affected customer {{.name}}",
     "event.ticket_created": "{{.who}} created ticket #{{.number}} ({{.type}})",
-    "event.ticket_resumed_by_customer": "Customer replied in a linked conversation; status returned to In progress",
+    "event.ticket_created_generic": "{{.who}} created ticket #{{.number}}",
+    "event.ticket_resumed_by_customer": "Customer replied; status returned to In progress",
     "event.ticket_status_changed": "{{.who}} changed status from {{.from}} to {{.to}}",
     "event.ticket_updated": "{{.who}} updated ticket details",
     "event.unassigned": "{{.who}} removed the assignee",
@@ -944,7 +947,7 @@ export const messages = {
     "tickets.command_unassigned": "Unassigned tickets",
     "tickets.contact_empty": "No tickets linked to this contact",
     "tickets.contact_section": "Tickets",
-    "tickets.conversation_empty": "No tickets linked to this conversation",
+    "tickets.conversation_empty": "No tickets linked to this customer",
     "tickets.conversation_section": "Tickets",
     "tickets.count_unresolved": "{{.n}} unresolved",
     "tickets.create": "New ticket",
@@ -962,22 +965,23 @@ export const messages = {
     "tickets.empty": "No tickets in this list",
     "tickets.empty_filtered": "No tickets match the current filters",
     "tickets.filter_type_all": "All types",
-    "tickets.link_conversation": "Link conversation",
-    "tickets.link_conversation_done": "Conversation linked",
-    "tickets.link_conversation_empty": "No available conversations to link",
-    "tickets.link_conversation_placeholder": "Search contact or message…",
-    "tickets.link_conversation_title": "Link customer conversation",
+    "tickets.link_contact": "Link customer",
+    "tickets.link_contact_done": "Customer linked",
+    "tickets.link_contact_empty": "No available customers to link",
+    "tickets.link_contact_placeholder": "Search customer name or email…",
+    "tickets.link_contact_title": "Link affected customer",
     "tickets.link_ticket": "Link existing ticket",
     "tickets.link_ticket_done": "Linked to ticket #{{.number}}",
     "tickets.link_ticket_empty": "No matching tickets found",
     "tickets.link_ticket_placeholder": "Search by #number or title…",
     "tickets.link_ticket_title": "Link to existing ticket",
-    "tickets.linked_count": "{{.n}} linked",
-    "tickets.linked_empty": "No linked conversations yet",
-    "tickets.linked_section": "Linked conversations",
+    "tickets.linked_count": "{{.n}} customer(s)",
+    "tickets.linked_empty": "No affected customers linked yet",
+    "tickets.linked_section": "Affected customers",
     "tickets.linked_visibility_summary": "{{.visible}} visible of {{.total}}",
     "tickets.mode_note": "Internal note",
     "tickets.mode_public": "Public update",
+    "tickets.more_options": "More options (type, visibility, team \u0026 assignee)",
     "tickets.nav_section": "Tickets",
     "tickets.no_description": "Click to add a description…",
     "tickets.not_found": "Ticket not found or not accessible",
@@ -986,14 +990,13 @@ export const messages = {
     "tickets.pick": "Select a ticket from the list",
     "tickets.pick_hint": "Or click “New ticket” above to group customer issues",
     "tickets.public_badge": "Public update",
-    "tickets.public_composer_hint": "Will be translated per customer language and sent to {{.n}} linked conversation(s)",
-    "tickets.public_composer_no_links": "No linked conversations yet; the update will still be saved on the ticket",
+    "tickets.public_composer_hint": "Will be translated per customer language and sent to {{.n}} affected customer(s)",
+    "tickets.public_composer_no_links": "No affected customers linked yet; the update will still be saved on the ticket",
     "tickets.public_disabled_hint": "Internal-only tickets cannot publish public updates",
     "tickets.public_placeholder": "Write a customer-facing progress update…",
     "tickets.public_send": "Publish update",
     "tickets.public_sent": "Public update published",
-    "tickets.public_synced_hint": "Translated and synced to {{.n}} linked conversation(s)",
-    "tickets.relation_linked": "Linked",
+    "tickets.public_synced_hint": "Translated and synced to {{.n}} affected customer(s)",
     "tickets.relation_source": "Source",
     "tickets.search_placeholder": "Search #number or title…",
     "tickets.source_conversation_hint": "Source conversation: {{.contact}} ({{.channel}})",
@@ -1010,11 +1013,12 @@ export const messages = {
     "tickets.title_required": "Please enter a ticket title",
     "tickets.type": "Ticket type",
     "tickets.type_empty": "No active ticket types. Create or enable one in Settings first.",
+    "tickets.type_generic": "Generic ticket (optional)",
     "tickets.type_placeholder": "Select ticket type",
     "tickets.unlink": "Unlink",
-    "tickets.unlink_confirm": "Unlink this conversation from the ticket?",
-    "tickets.unlink_done": "Conversation unlinked",
-    "tickets.unlink_message": "Conversation history stays intact, but future public updates and status notices will no longer sync to it.",
+    "tickets.unlink_confirm": "Unlink this customer from the ticket?",
+    "tickets.unlink_done": "Customer unlinked",
+    "tickets.unlink_message": "Conversation history stays intact, but future public updates and status notices will no longer sync to this customer.",
     "tickets.visibility": "Visibility",
     "tickets.visibility_all": "Customer visible",
     "tickets.visibility_all_hint": "Linked customers can track progress in the chat widget and receive public updates",
@@ -1400,10 +1404,13 @@ export const messages = {
     "event.snoozed": "{{.who}} 把会话稍后处理到 {{.until}}",
     "event.someone": "某位成员",
     "event.system": "系统",
-    "event.ticket_conversation_linked": "{{.who}} 关联了一条客户会话",
-    "event.ticket_conversation_unlinked": "{{.who}} 取消关联了一条客户会话",
+    "event.ticket_contact_linked": "{{.who}} 关联了一位受影响客户",
+    "event.ticket_contact_linked_name": "{{.who}} 关联了受影响客户 {{.name}}",
+    "event.ticket_contact_unlinked": "{{.who}} 取消关联了一位受影响客户",
+    "event.ticket_contact_unlinked_name": "{{.who}} 取消关联了受影响客户 {{.name}}",
     "event.ticket_created": "{{.who}} 创建了工单 #{{.number}}（{{.type}}）",
-    "event.ticket_resumed_by_customer": "客户回复了关联会话，工单状态自动切回「处理中」",
+    "event.ticket_created_generic": "{{.who}} 创建了工单 #{{.number}}",
+    "event.ticket_resumed_by_customer": "客户回复了会话，工单状态自动切回「处理中」",
     "event.ticket_status_changed": "{{.who}} 将状态从「{{.from}}」改为「{{.to}}」",
     "event.ticket_updated": "{{.who}} 更新了工单信息",
     "event.unassigned": "{{.who}} 取消了负责人",
@@ -2118,7 +2125,7 @@ export const messages = {
     "tickets.command_unassigned": "未指派工单",
     "tickets.contact_empty": "这位联系人还没有关联工单",
     "tickets.contact_section": "关联工单",
-    "tickets.conversation_empty": "此会话还没有关联工单",
+    "tickets.conversation_empty": "此客户还没有关联工单",
     "tickets.conversation_section": "关联工单",
     "tickets.count_unresolved": "未解决 {{.n}}",
     "tickets.create": "新建工单",
@@ -2136,22 +2143,23 @@ export const messages = {
     "tickets.empty": "这个列表中没有工单",
     "tickets.empty_filtered": "没有符合当前筛选条件的工单",
     "tickets.filter_type_all": "全部类型",
-    "tickets.link_conversation": "关联会话",
-    "tickets.link_conversation_done": "已关联会话",
-    "tickets.link_conversation_empty": "没有可关联的会话",
-    "tickets.link_conversation_placeholder": "搜索联系人或会话消息…",
-    "tickets.link_conversation_title": "关联客户会话到工单",
+    "tickets.link_contact": "关联客户",
+    "tickets.link_contact_done": "已关联客户",
+    "tickets.link_contact_empty": "没有可关联的客户",
+    "tickets.link_contact_placeholder": "搜索客户姓名或邮箱…",
+    "tickets.link_contact_title": "关联受影响客户到工单",
     "tickets.link_ticket": "关联已有工单",
     "tickets.link_ticket_done": "已关联到工单 #{{.number}}",
     "tickets.link_ticket_empty": "没有找到可关联的工单",
     "tickets.link_ticket_placeholder": "输入 #编号 或工单标题搜索…",
     "tickets.link_ticket_title": "关联到已有工单",
-    "tickets.linked_count": "{{.n}} 个会话",
-    "tickets.linked_empty": "还没有关联的客户会话",
-    "tickets.linked_section": "关联会话",
-    "tickets.linked_visibility_summary": "你可见 {{.visible}} / 共 {{.total}} 个",
+    "tickets.linked_count": "{{.n}} 位客户",
+    "tickets.linked_empty": "还没有关联的受影响客户",
+    "tickets.linked_section": "受影响客户",
+    "tickets.linked_visibility_summary": "你可见 {{.visible}} / 共 {{.total}} 位",
     "tickets.mode_note": "内部讨论",
     "tickets.mode_public": "公开进度",
+    "tickets.more_options": "更多选项（类型、可见范围、团队与负责人）",
     "tickets.nav_section": "工单",
     "tickets.no_description": "点击补充工单描述…",
     "tickets.not_found": "工单不存在，或者你看不到它",
@@ -2160,14 +2168,13 @@ export const messages = {
     "tickets.pick": "从左边选一张工单",
     "tickets.pick_hint": "或点击上方“新建工单”创建并归集客户问题",
     "tickets.public_badge": "公开进度",
-    "tickets.public_composer_hint": "将按各客户语言自动翻译并同步至关联的 {{.n}} 个客户会话",
-    "tickets.public_composer_no_links": "当前没有关联的客户会话，公开进度仍会保存在工单中供客户查看",
+    "tickets.public_composer_hint": "将按各客户语言自动翻译并同步至关联的 {{.n}} 位客户",
+    "tickets.public_composer_no_links": "当前没有关联的受影响客户，公开进度仍会保存在工单中供客户查看",
     "tickets.public_disabled_hint": "仅成员可见的工单不可发布公开进度",
     "tickets.public_placeholder": "写下要向关联客户同步的排查或处理进展…",
     "tickets.public_send": "发布公开进度",
     "tickets.public_sent": "已发布公开进度",
-    "tickets.public_synced_hint": "已按各客户语言同步至关联的 {{.n}} 个客户会话",
-    "tickets.relation_linked": "关联",
+    "tickets.public_synced_hint": "已按各客户语言同步至关联的 {{.n}} 位客户",
     "tickets.relation_source": "来源",
     "tickets.search_placeholder": "搜索 #编号 或标题…",
     "tickets.source_conversation_hint": "来源会话：{{.contact}}（{{.channel}}）",
@@ -2184,11 +2191,12 @@ export const messages = {
     "tickets.title_required": "请填写工单标题",
     "tickets.type": "工单类型",
     "tickets.type_empty": "暂无可用的工单类型，请先在设置中启用或新建。",
+    "tickets.type_generic": "通用工单（可选）",
     "tickets.type_placeholder": "选择工单类型",
     "tickets.unlink": "取消关联",
-    "tickets.unlink_confirm": "取消该会话与此工单的关联？",
+    "tickets.unlink_confirm": "取消该客户与此工单的关联？",
     "tickets.unlink_done": "已取消关联",
-    "tickets.unlink_message": "取消后该会话的历史记录不变，但后续工单公开进度和状态通知不再同步到该会话。",
+    "tickets.unlink_message": "取消后该客户的历史对话记录不变，但后续工单公开进度和状态通知不再同步给该客户。",
     "tickets.visibility": "可见范围",
     "tickets.visibility_all": "客户可见",
     "tickets.visibility_all_hint": "关联客户可在网页插件查看进度，成员可发布公开进度同步到全部关联会话",
@@ -2577,9 +2585,12 @@ export type MessageId =
   | "event.snoozed"
   | "event.someone"
   | "event.system"
-  | "event.ticket_conversation_linked"
-  | "event.ticket_conversation_unlinked"
+  | "event.ticket_contact_linked"
+  | "event.ticket_contact_linked_name"
+  | "event.ticket_contact_unlinked"
+  | "event.ticket_contact_unlinked_name"
   | "event.ticket_created"
+  | "event.ticket_created_generic"
   | "event.ticket_resumed_by_customer"
   | "event.ticket_status_changed"
   | "event.ticket_updated"
@@ -3313,11 +3324,11 @@ export type MessageId =
   | "tickets.empty"
   | "tickets.empty_filtered"
   | "tickets.filter_type_all"
-  | "tickets.link_conversation"
-  | "tickets.link_conversation_done"
-  | "tickets.link_conversation_empty"
-  | "tickets.link_conversation_placeholder"
-  | "tickets.link_conversation_title"
+  | "tickets.link_contact"
+  | "tickets.link_contact_done"
+  | "tickets.link_contact_empty"
+  | "tickets.link_contact_placeholder"
+  | "tickets.link_contact_title"
   | "tickets.link_ticket"
   | "tickets.link_ticket_done"
   | "tickets.link_ticket_empty"
@@ -3329,6 +3340,7 @@ export type MessageId =
   | "tickets.linked_visibility_summary"
   | "tickets.mode_note"
   | "tickets.mode_public"
+  | "tickets.more_options"
   | "tickets.nav_section"
   | "tickets.no_description"
   | "tickets.not_found"
@@ -3344,7 +3356,6 @@ export type MessageId =
   | "tickets.public_send"
   | "tickets.public_sent"
   | "tickets.public_synced_hint"
-  | "tickets.relation_linked"
   | "tickets.relation_source"
   | "tickets.search_placeholder"
   | "tickets.source_conversation_hint"
@@ -3361,6 +3372,7 @@ export type MessageId =
   | "tickets.title_required"
   | "tickets.type"
   | "tickets.type_empty"
+  | "tickets.type_generic"
   | "tickets.type_placeholder"
   | "tickets.unlink"
   | "tickets.unlink_confirm"

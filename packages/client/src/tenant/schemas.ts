@@ -834,14 +834,14 @@ export const schemas = {
     },
   },
   ticket: {
+    contactAdd: {
+      body: {
+        "$ref": "#/components/schemas/ConversationLinkTicketContactBody"
+      },
+    },
     create: {
       body: {
         "$ref": "#/components/schemas/ConversationCreateTicketParams"
-      },
-    },
-    linkAdd: {
-      body: {
-        "$ref": "#/components/schemas/ConversationLinkConversationInputBody"
       },
     },
     list: {
@@ -1607,7 +1607,7 @@ export const components = {
         "additionalProperties": {},
         "type": "object"
       },
-      "conversation_ids": {
+      "contact_ids": {
         "items": {
           "type": "string"
         },
@@ -1644,7 +1644,6 @@ export const components = {
       }
     },
     "required": [
-      "type_id",
       "title"
     ],
     "type": "object"
@@ -1679,17 +1678,18 @@ export const components = {
     ],
     "type": "object"
   },
-  ConversationLinkConversationInputBody: {
+  ConversationLinkTicketContactBody: {
     "additionalProperties": false,
     "properties": {
+      "contact_id": {
+        "format": "uuid",
+        "type": "string"
+      },
       "conversation_id": {
         "format": "uuid",
         "type": "string"
       }
     },
-    "required": [
-      "conversation_id"
-    ],
     "type": "object"
   },
   ConversationNoteBody: {
@@ -1973,6 +1973,9 @@ export const components = {
       "title": {
         "maxLength": 120,
         "minLength": 1,
+        "type": "string"
+      },
+      "type_id": {
         "type": "string"
       },
       "visibility": {

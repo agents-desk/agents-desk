@@ -83,14 +83,14 @@ func (a *ListTickets) Handle(ctx context.Context, sub identity.Subject, in *List
 		q = q.Where("conversation.priority = ?", in.Priority)
 	}
 	if in.ConversationID != "" {
-		q = q.Where("EXISTS (SELECT 1 FROM conversation_links cl WHERE cl.tenant_id = ? AND cl.ticket_id = conversation.id AND cl.conversation_id = ?)", sub.Tenant, in.ConversationID)
+		q = q.Where(`EXISTS (
+			SELECT 1 FROM ticket_contacts tc
+			JOIN conversations sc ON sc.tenant_id = tc.tenant_id AND sc.contact_id = tc.contact_id
+			WHERE tc.tenant_id = ? AND tc.ticket_id = conversation.id AND sc.id = ? AND sc.kind = ?
+		)`, sub.Tenant, in.ConversationID, Service)
 	}
 	if in.ContactID != "" {
-		q = q.Where(`EXISTS (
-			SELECT 1 FROM conversation_links cl
-			JOIN conversations sc ON sc.id = cl.conversation_id
-			WHERE cl.tenant_id = ? AND cl.ticket_id = conversation.id AND sc.tenant_id = ? AND sc.kind = ? AND sc.contact_id = ?
-		)`, sub.Tenant, sub.Tenant, Service, in.ContactID)
+		q = q.Where("EXISTS (SELECT 1 FROM ticket_contacts tc WHERE tc.tenant_id = ? AND tc.ticket_id = conversation.id AND tc.contact_id = ?)", sub.Tenant, in.ContactID)
 	}
 	if kw := strings.TrimSpace(in.Q); kw != "" {
 		numStr := strings.TrimPrefix(kw, "#")

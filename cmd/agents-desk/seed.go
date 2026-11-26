@@ -322,13 +322,16 @@ func seedTickets(ctx context.Context, out io.Writer, db *bun.DB, memberLogins *l
 		fmt.Fprintln(out, "示例工作区已有示例工单，跳过")
 		return nil
 	}
-	var convIDs []string
-	if err := db.NewSelect().Table("conversations").Column("id").
-		Where("tenant_id = ? AND kind = ?", inDemo.Tenant, conversation.Service).
-		OrderExpr("created_at ASC, id ASC").Limit(5).Scan(ctx, &convIDs); err != nil {
+	var convRows []struct {
+		ID        string `bun:"id"`
+		ContactID string `bun:"contact_id"`
+	}
+	if err := db.NewSelect().Table("conversations").Column("id", "contact_id").
+		Where("tenant_id = ? AND kind = ? AND contact_id IS NOT NULL", inDemo.Tenant, conversation.Service).
+		OrderExpr("created_at ASC, id ASC").Limit(5).Scan(ctx, &convRows); err != nil {
 		return errors.Wrap(err, "load conversations for seed tickets")
 	}
-	if len(convIDs) < 5 {
+	if len(convRows) < 5 {
 		fmt.Fprintln(out, "示例工作区已有示例工单，跳过")
 		return nil
 	}
@@ -359,17 +362,24 @@ func seedTickets(ctx context.Context, out io.Writer, db *bun.DB, memberLogins *l
 	setStatus := conversation.NewSetTicketStatus(db, down)
 	addNote := conversation.NewAddNote(db, down)
 	publish := conversation.NewPublishTicketUpdate(db, down)
+	typePtr := func(name string) *string {
+		id := typeIDByName[name]
+		if id == "" {
+			return nil
+		}
+		return &id
+	}
 
-	// 1. 聚合故障工单：一次关联 3 个印度客户会话
+	// 1. 聚合故障工单：一次关联 3 位受影响印度客户
 	t1, err := create.Handle(ctx, inDemo, conversation.CreateTicketParams{
-		TypeID:               typeIDByName["充值问题"],
+		TypeID:               typePtr("充值问题"),
 		Title:                "UPI 支付通道延迟掉单统一排查",
-		Description:          "多位印度客户反馈 UPI 扣款成功但余额未到账，已归集全部受影响会话由支付团队集中核对。",
+		Description:          "多位印度客户反馈 UPI 扣款成功但余额未到账，已归集全部受影响客户由支付团队集中核对。",
 		Visibility:           tickettype.VisibilityAll,
 		Priority:             conversation.High,
 		AssigneeID:           &managerRef.ID,
-		SourceConversationID: &convIDs[0],
-		ConversationIDs:      []string{convIDs[1], convIDs[2]},
+		SourceConversationID: &convRows[0].ID,
+		ContactIDs:           []string{convRows[1].ContactID, convRows[2].ContactID},
 		Attributes: map[string]any{
 			"payment_channel": "UPI",
 			"order_no":        "UPI-BATCH-202611",
@@ -382,7 +392,7 @@ func seedTickets(ctx context.Context, out io.Writer, db *bun.DB, memberLogins *l
 	if _, err := setStatus.Handle(ctx, inDemo, t1.ID, conversation.TicketInProgress); err != nil {
 		return err
 	}
-	if _, err := addNote.Handle(ctx, inDemo, t1.ID, "技术侧已定位到 UPI 回调队列积压，正在补单核对，预计 20 分钟内恢复。请一线同事和印度代理继续把同类会话挂到本工单。", []string{agentRef.ID}); err != nil {
+	if _, err := addNote.Handle(ctx, inDemo, t1.ID, "技术侧已定位到 UPI 回调队列积压，正在补单核对，预计 20 分钟内恢复。请一线同事和印度代理继续把同类客户挂到本工单。", []string{agentRef.ID}); err != nil {
 		return err
 	}
 	if _, err := publish.Handle(ctx, inDemo, t1.ID, conversation.PublishTicketUpdateBody{
@@ -393,13 +403,13 @@ func seedTickets(ctx context.Context, out io.Writer, db *bun.DB, memberLogins *l
 
 	// 2. 等待客户补充信息的 Bug 单
 	t2, err := create.Handle(ctx, inDemo, conversation.CreateTicketParams{
-		TypeID:               typeIDByName["Bug 反馈"],
+		TypeID:               typePtr("Bug 反馈"),
 		Title:                "Android 客户端切换语言后偶发白屏",
 		Description:          "客户反馈在 Android App 内切换到印地语后进入充值页白屏，需要对方补充系统版本和复现录屏。",
 		Visibility:           tickettype.VisibilityAll,
 		Priority:             conversation.Normal,
 		AssigneeID:           &agentRef.ID,
-		SourceConversationID: &convIDs[3],
+		SourceConversationID: &convRows[3].ID,
 		Attributes: map[string]any{
 			"platform": "Android",
 			"severity": "严重",
@@ -414,13 +424,13 @@ func seedTickets(ctx context.Context, out io.Writer, db *bun.DB, memberLogins *l
 
 	// 3. 仅成员可见的内部退款审批单
 	if _, err := create.Handle(ctx, inDemo, conversation.CreateTicketParams{
-		TypeID:               typeIDByName["内部退款审批"],
+		TypeID:               typePtr("内部退款审批"),
 		Title:                "大额重复扣款人工退款复核",
 		Description:          "财务复核客户两笔重复扣款流水，核实无误后原路退回第二笔款项，客户侧不可见内部审批过程。",
 		Visibility:           tickettype.VisibilityMembers,
 		Priority:             conversation.High,
 		AssigneeID:           &managerRef.ID,
-		SourceConversationID: &convIDs[4],
+		SourceConversationID: &convRows[4].ID,
 		Attributes: map[string]any{
 			"refund_amount": 2500,
 			"reason":        "支付网关超时重试导致重复扣款",
