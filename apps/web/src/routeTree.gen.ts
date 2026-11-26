@@ -50,7 +50,6 @@ import { Route as TSlugSettingsInboxTeamsRouteImport } from './routes/t/$slug/se
 import { Route as TSlugSettingsPersonalNotificationsRouteImport } from './routes/t/$slug/settings/_personal/notifications'
 import { Route as TSlugSettingsPersonalPreferencesRouteImport } from './routes/t/$slug/settings/_personal/preferences'
 import { Route as TSlugSettingsPersonalProfileRouteImport } from './routes/t/$slug/settings/_personal/profile'
-import { Route as TSlugSettingsPersonalStatusRouteImport } from './routes/t/$slug/settings/_personal/status'
 import { Route as TSlugSettingsTicketsTicketTypesRouteImport } from './routes/t/$slug/settings/_tickets/ticket-types'
 import { Route as TSlugSettingsTranslationGlossaryRouteImport } from './routes/t/$slug/settings/_translation/glossary'
 import { Route as TSlugSettingsTranslationToneRouteImport } from './routes/t/$slug/settings/_translation/tone'
@@ -279,12 +278,6 @@ const TSlugSettingsPersonalProfileRoute =
     path: '/profile',
     getParentRoute: () => TSlugSettingsPersonalRoute,
   } as any)
-const TSlugSettingsPersonalStatusRoute =
-  TSlugSettingsPersonalStatusRouteImport.update({
-    id: '/status',
-    path: '/status',
-    getParentRoute: () => TSlugSettingsPersonalRoute,
-  } as any)
 const TSlugSettingsTicketsTicketTypesRoute =
   TSlugSettingsTicketsTicketTypesRouteImport.update({
     id: '/ticket-types',
@@ -418,7 +411,6 @@ export interface FileRoutesByFullPath {
   '/t/$slug/settings/notifications': typeof TSlugSettingsPersonalNotificationsRoute
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
-  '/t/$slug/settings/status': typeof TSlugSettingsPersonalStatusRoute
   '/t/$slug/settings/ticket-types': typeof TSlugSettingsTicketsTicketTypesRouteWithChildren
   '/t/$slug/settings/glossary': typeof TSlugSettingsTranslationGlossaryRoute
   '/t/$slug/settings/tone': typeof TSlugSettingsTranslationToneRoute
@@ -462,7 +454,6 @@ export interface FileRoutesByTo {
   '/t/$slug/settings/notifications': typeof TSlugSettingsPersonalNotificationsRoute
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
-  '/t/$slug/settings/status': typeof TSlugSettingsPersonalStatusRoute
   '/t/$slug/settings/glossary': typeof TSlugSettingsTranslationGlossaryRoute
   '/t/$slug/settings/tone': typeof TSlugSettingsTranslationToneRoute
   '/t/$slug/settings/attributes': typeof TSlugSettingsWorkspaceAttributesRoute
@@ -522,7 +513,6 @@ export interface FileRoutesById {
   '/t/$slug/settings/_personal/notifications': typeof TSlugSettingsPersonalNotificationsRoute
   '/t/$slug/settings/_personal/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/_personal/profile': typeof TSlugSettingsPersonalProfileRoute
-  '/t/$slug/settings/_personal/status': typeof TSlugSettingsPersonalStatusRoute
   '/t/$slug/settings/_tickets/ticket-types': typeof TSlugSettingsTicketsTicketTypesRouteWithChildren
   '/t/$slug/settings/_translation/glossary': typeof TSlugSettingsTranslationGlossaryRoute
   '/t/$slug/settings/_translation/tone': typeof TSlugSettingsTranslationToneRoute
@@ -578,7 +568,6 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/notifications'
     | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
-    | '/t/$slug/settings/status'
     | '/t/$slug/settings/ticket-types'
     | '/t/$slug/settings/glossary'
     | '/t/$slug/settings/tone'
@@ -622,7 +611,6 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/notifications'
     | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
-    | '/t/$slug/settings/status'
     | '/t/$slug/settings/glossary'
     | '/t/$slug/settings/tone'
     | '/t/$slug/settings/attributes'
@@ -681,7 +669,6 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/_personal/notifications'
     | '/t/$slug/settings/_personal/preferences'
     | '/t/$slug/settings/_personal/profile'
-    | '/t/$slug/settings/_personal/status'
     | '/t/$slug/settings/_tickets/ticket-types'
     | '/t/$slug/settings/_translation/glossary'
     | '/t/$slug/settings/_translation/tone'
@@ -995,13 +982,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugSettingsPersonalProfileRouteImport
       parentRoute: typeof TSlugSettingsPersonalRoute
     }
-    '/t/$slug/settings/_personal/status': {
-      id: '/t/$slug/settings/_personal/status'
-      path: '/status'
-      fullPath: '/t/$slug/settings/status'
-      preLoaderRoute: typeof TSlugSettingsPersonalStatusRouteImport
-      parentRoute: typeof TSlugSettingsPersonalRoute
-    }
     '/t/$slug/settings/_tickets/ticket-types': {
       id: '/t/$slug/settings/_tickets/ticket-types'
       path: '/ticket-types'
@@ -1272,7 +1252,6 @@ interface TSlugSettingsPersonalRouteChildren {
   TSlugSettingsPersonalNotificationsRoute: typeof TSlugSettingsPersonalNotificationsRoute
   TSlugSettingsPersonalPreferencesRoute: typeof TSlugSettingsPersonalPreferencesRoute
   TSlugSettingsPersonalProfileRoute: typeof TSlugSettingsPersonalProfileRoute
-  TSlugSettingsPersonalStatusRoute: typeof TSlugSettingsPersonalStatusRoute
 }
 
 const TSlugSettingsPersonalRouteChildren: TSlugSettingsPersonalRouteChildren = {
@@ -1280,7 +1259,6 @@ const TSlugSettingsPersonalRouteChildren: TSlugSettingsPersonalRouteChildren = {
     TSlugSettingsPersonalNotificationsRoute,
   TSlugSettingsPersonalPreferencesRoute: TSlugSettingsPersonalPreferencesRoute,
   TSlugSettingsPersonalProfileRoute: TSlugSettingsPersonalProfileRoute,
-  TSlugSettingsPersonalStatusRoute: TSlugSettingsPersonalStatusRoute,
 }
 
 const TSlugSettingsPersonalRouteWithChildren =
