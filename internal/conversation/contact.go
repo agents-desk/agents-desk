@@ -35,8 +35,8 @@ type ContactItemDTO struct {
 }
 
 // findForContact 读取联系人 sub 在渠道 channelID 中可见的会话 id。
-// 已登录用户（contact.User）可跨渠道访问自己在当前工作区名下的所有服务型会话；
-// 访客线索（contact.Lead）只允许访问来源渠道为 channelID 的会话。
+// 个人商务沟通链接（owner_member_id 非空）仅返回该渠道下的外部商务聊天（kind=chat）；
+// 公共网页聊天插件中，已登录用户（contact.User）可跨渠道访问本工作区名下全部服务型会话，访客线索仅限当前渠道。
 // sub 不是联系人时返回 ErrForbidden；会话不存在、属于别的工作区、别的联系人或不可见时返回 ErrNotFound。
 func findForContact(ctx context.Context, db bun.IDB, sub identity.Subject, channelID, id string, lock bool) (*Conversation, error) {
 	if sub.Type != contact.Type {
@@ -50,9 +50,13 @@ func findForContact(ctx context.Context, db bun.IDB, sub identity.Subject, chann
 	if err != nil {
 		return nil, errors.Wrap(err, "load contact kind")
 	}
+	targetKind, restrictChannel, err := contactChannelScope(ctx, db, sub.Tenant, channelID, kind)
+	if err != nil {
+		return nil, err
+	}
 	c := new(Conversation)
-	q := db.NewSelect().Model(c).Where("id = ? AND tenant_id = ? AND kind = ? AND contact_id = ?", id, sub.Tenant, Service, sub.ID)
-	if kind != contact.User {
+	q := db.NewSelect().Model(c).Where("id = ? AND tenant_id = ? AND kind = ? AND contact_id = ?", id, sub.Tenant, targetKind, sub.ID)
+	if restrictChannel {
 		q = q.Where("channel_id = ?", channelID)
 	}
 	if lock {
@@ -63,6 +67,24 @@ func findForContact(ctx context.Context, db bun.IDB, sub identity.Subject, chann
 		return nil, ErrNotFound.New()
 	}
 	return c, errors.Wrap(err, "load conversation")
+}
+
+// contactChannelScope 返回联系人通过渠道 channelID 访问连续时间线时对应的会话种类与是否限定到本渠道：
+// 个人商务渠道（owner_member_id 非空）限定为 kind=chat 且仅看本渠道；公共客服渠道为 kind=service，线索限定到本渠道、用户跨渠道可见。
+func contactChannelScope(ctx context.Context, db bun.IDB, tenantID, channelID string, ck contact.Kind) (Kind, bool, error) {
+	var owner *string
+	err := db.NewSelect().Table("channels").Column("owner_member_id").
+		Where("id = ? AND tenant_id = ?", channelID, tenantID).Scan(ctx, &owner)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Service, ck != contact.User, nil
+	}
+	if err != nil {
+		return Service, false, errors.Wrap(err, "load channel owner for contact scope")
+	}
+	if owner != nil && *owner != "" {
+		return Chat, true, nil
+	}
+	return Service, ck != contact.User, nil
 }
 
 // toContactItemDTOs 把时间线的各项转换为联系人看到的形式，一次读出成员的名字、所属渠道和附件。

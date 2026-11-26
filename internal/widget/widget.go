@@ -35,6 +35,8 @@ var (
 	ErrInvalidOrigin = errorx.Define(errorx.InvalidArgument, "widget.invalid_origin")
 	// ErrInvalidColor 是主题色格式无效：应为 #rrggbb 十六进制颜色值。
 	ErrInvalidColor = errorx.Define(errorx.InvalidArgument, "widget.invalid_color")
+	// ErrBusinessLinkInUse 是个人商务沟通链接已有聊天或联系人记录，不能删除，只能停用。
+	ErrBusinessLinkInUse = errorx.Define(errorx.Conflict, "widget.business_link_in_use")
 )
 
 // Appearance 是聊天窗口的外观配置，持久化在渠道设置中并直接暴露给公开配置与预览协议。
@@ -100,12 +102,12 @@ func find(ctx context.Context, db bun.IDB, tenant, id string, lock bool) (*chann
 	return ch, errors.Wrap(err, "load widget")
 }
 
-// findPublic 按 ID 读取客户在用的聊天插件：渠道启用、所在的工作区没有停用。否则返回 channel.ErrNotFound，
-// 不透露渠道是否存在。
+// findPublic 按 ID 读取客户或外部商户在用的网页聊天渠道（公共聊天插件或成员个人商务沟通链接）：渠道启用、所在工作区未停用。
+// 否则返回 channel.ErrNotFound，不透露渠道是否存在。
 func findPublic(ctx context.Context, db bun.IDB, id string) (*channel.Channel, error) {
 	ch := new(channel.Channel)
 	err := db.NewSelect().Model(ch).
-		Where("channel.id = ? AND channel.kind = ? AND channel.enabled", id, channel.Widget).
+		Where("channel.id = ? AND channel.kind IN (?) AND channel.enabled", id, bun.In([]channel.Kind{channel.Widget, channel.BusinessLink})).
 		Where("EXISTS (SELECT 1 FROM tenants t WHERE t.id = channel.tenant_id AND t.disabled_at IS NULL)").Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, channel.ErrNotFound.New()

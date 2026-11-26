@@ -123,6 +123,10 @@ export const ConversationErrors = {
   ChatNotParticipant: "chat.not_participant",
   /** ErrChatNameRequired 是群聊名称不能为空。 */
   ChatNameRequired: "chat.name_required",
+  /** ErrChatOwnerProtected 是不能移出商务渠道归属成员。 */
+  ChatOwnerProtected: "chat.owner_protected",
+  /** ErrChatContactProtected 是不能移出外部联系人参与者。 */
+  ChatContactProtected: "chat.contact_protected",
   /** ErrInvalidFilter 是视图或列表传入的筛选条件不合法。 */
   InvalidFilter: "conversation.invalid_filter",
   /** ErrInvalidLanguage 是设置的对方语言不是合法的 BCP 47 标签。 */
@@ -284,6 +288,8 @@ export const WidgetErrors = {
   InvalidOrigin: "widget.invalid_origin",
   /** ErrInvalidColor 是主题色格式无效：应为 #rrggbb 十六进制颜色值。 */
   InvalidColor: "widget.invalid_color",
+  /** ErrBusinessLinkInUse 是个人商务沟通链接已有聊天或联系人记录，不能删除，只能停用。 */
+  BusinessLinkInUse: "widget.business_link_in_use",
 } as const
 
 /** github.com/go-tenon/tenon/apitoken 的错误码。 */

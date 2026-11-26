@@ -50,6 +50,18 @@ export const schemas = {
       },
     },
   },
+  business: {
+    linkCreate: {
+      body: {
+        "$ref": "#/components/schemas/WidgetCreateBusinessLinkBody"
+      },
+    },
+    linkUpdate: {
+      body: {
+        "$ref": "#/components/schemas/WidgetUpdateBusinessLinkBody"
+      },
+    },
+  },
   chat: {
     createDirect: {
       body: {
@@ -64,6 +76,10 @@ export const schemas = {
     list: {
       query: {
         "properties": {
+          "channel_id": {
+            "format": "uuid",
+            "type": "string"
+          },
           "cursor": {
             "type": "string"
           },
@@ -83,6 +99,9 @@ export const schemas = {
           "q": {
             "maxLength": 100,
             "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ChatScope"
           }
         },
         "type": "object"
@@ -1218,6 +1237,13 @@ export const components = {
     ],
     "type": "string"
   },
+  ChatScope: {
+    "enum": [
+      "internal",
+      "external"
+    ],
+    "type": "string"
+  },
   ContactExportStartInputBody: {
     "additionalProperties": false,
     "properties": {
@@ -1972,6 +1998,9 @@ export const components = {
         "maxItems": 20,
         "type": "array",
         "uniqueItems": true
+      },
+      "note": {
+        "type": "boolean"
       },
       "text": {
         "maxLength": 10000,
@@ -3045,6 +3074,23 @@ export const components = {
     ],
     "type": "object"
   },
+  WidgetCreateBusinessLinkBody: {
+    "additionalProperties": false,
+    "properties": {
+      "appearance": {
+        "$ref": "#/components/schemas/WidgetAppearance"
+      },
+      "name": {
+        "maxLength": 60,
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "type": "object"
+  },
   WidgetUpdateBody: {
     "additionalProperties": false,
     "properties": {
@@ -3074,6 +3120,27 @@ export const components = {
     "required": [
       "enabled",
       "name"
+    ],
+    "type": "object"
+  },
+  WidgetUpdateBusinessLinkBody: {
+    "additionalProperties": false,
+    "properties": {
+      "appearance": {
+        "$ref": "#/components/schemas/WidgetAppearance"
+      },
+      "enabled": {
+        "type": "boolean"
+      },
+      "name": {
+        "maxLength": 60,
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "name",
+      "enabled"
     ],
     "type": "object"
   },

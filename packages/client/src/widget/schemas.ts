@@ -169,6 +169,14 @@ export const components = {
   WidgetSessionBody: {
     "additionalProperties": false,
     "properties": {
+      "email": {
+        "maxLength": 254,
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 100,
+        "type": "string"
+      },
       "referrer": {
         "maxLength": 2048,
         "type": "string"

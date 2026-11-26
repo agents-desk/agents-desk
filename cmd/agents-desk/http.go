@@ -225,7 +225,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		return savedview.DeleteByOwner(ctx, tx, tenantID, identity.Ref{Type: member.Type, ID: memberID})
 	}
 	memberHooks := member.Hooks{Removed: []member.RemovedHook{
-		conversation.OnMemberLeft(a.downstream()), team.OnMemberRemoved, macro.OnMemberRemoved, removeViews,
+		conversation.OnMemberLeft(a.downstream()), channel.OnMemberRemoved, team.OnMemberRemoved, macro.OnMemberRemoved, removeViews,
 	}}
 
 	// 管理员端：只接受平台管理员，会话 cookie 是 __Host-admin，权限按平台的域加载；未配置 Impersonation，默认拒绝所有代为登录凭据。
@@ -333,6 +333,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		conversation.RegisterRoutes(api, require, a.db, a.channels, down)
 		file.RegisterRoutes(api, require(auth.ConversationsReply), a.files, a.cfg.Filesystem.MaxUploadSize)
 		widget.RegisterRoutes(api, require, a.db, a.crypt, a.cfg.HTTP.PublicURL)
+		widget.RegisterBusinessLinkRoutes(api, require, a.db, a.cfg.HTTP.PublicURL)
 		telegram.RegisterRoutes(api, require, a.db, a.crypt, a.telegram, a.cfg.HTTP.PublicURL)
 		translation.RegisterRoutes(api, require, a.db, a.translator, translation.NewIncoming(a.db, a.locker, a.translator, a.downstream()), a.translationSettings)
 		automation.RegisterRoutes(api, require, a.db)

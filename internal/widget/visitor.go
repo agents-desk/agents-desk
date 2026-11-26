@@ -88,7 +88,8 @@ func Resolve(db bun.IDB) identity.Resolver {
 		}
 		ok, err := db.NewSelect().TableExpr("contact_identities AS ci").
 			Join("JOIN channels AS ch ON ch.id = ci.channel_id AND ch.tenant_id = ci.tenant_id").
-			Where("ci.tenant_id = ? AND ci.contact_id = ? AND ch.kind = ? AND ch.enabled = TRUE", sub.Tenant, sub.ID, channel.Widget).
+			Where("ci.tenant_id = ? AND ci.contact_id = ? AND ch.kind IN (?) AND ch.enabled = TRUE",
+				sub.Tenant, sub.ID, bun.In([]channel.Kind{channel.Widget, channel.BusinessLink})).
 			Exists(ctx)
 		if err != nil {
 			return identity.Subject{}, errors.Wrap(err, "recheck contact widget identity")

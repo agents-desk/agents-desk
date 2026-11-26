@@ -75,7 +75,7 @@ func (a *Retry) Handle(ctx context.Context, sub identity.Subject, id, itemID str
 		if err != nil {
 			return err
 		}
-		hub, tenant, ev := a.down.Hub, c.TenantID, push.Event{Type: push.Conversation, ID: c.ID, Seq: c.LastSeq}
+		hub, tenant, ev := a.down.Hub, c.TenantID, push.Event{Type: pushType(c.Kind), ID: c.ID, Seq: c.LastSeq}
 		tx.AfterCommit(func(ctx context.Context) error {
 			return errors.Wrap(push.Send(ctx, hub, tenant, audience, ev), "push delivery retried")
 		})

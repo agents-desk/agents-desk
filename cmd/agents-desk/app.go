@@ -228,10 +228,12 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	}, nil
 }
 
-// registry 返回各种渠道的连接器：内置测试渠道、网页聊天插件和 Telegram 机器人。
+// registry 返回各种渠道的连接器：内置测试渠道、网页聊天插件、个人网页商务沟通链接和 Telegram 机器人。
 func registry(hub *broadcast.Hub, keys *crypt.Crypt, files *filesystem.Service, tgClient *telegram.Client) channel.Registry {
 	r := channel.DefaultRegistry()
-	r[channel.Widget] = widget.NewConnector(hub)
+	widgetConn := widget.NewConnector(hub)
+	r[channel.Widget] = widgetConn
+	r[channel.BusinessLink] = widgetConn
 	r[channel.Telegram] = telegram.NewConnector(keys, files, tgClient)
 	return r
 }

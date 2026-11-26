@@ -64,6 +64,10 @@ var (
 	ErrChatNotParticipant = errorx.Define(errorx.NotFound, "chat.not_participant")
 	// ErrChatNameRequired 是群聊名称不能为空。
 	ErrChatNameRequired = errorx.Define(errorx.InvalidArgument, "chat.name_required")
+	// ErrChatOwnerProtected 是不能移出商务渠道归属成员。
+	ErrChatOwnerProtected = errorx.Define(errorx.Conflict, "chat.owner_protected")
+	// ErrChatContactProtected 是不能移出外部联系人参与者。
+	ErrChatContactProtected = errorx.Define(errorx.Conflict, "chat.contact_protected")
 )
 
 // Kind 是会话的种类。
@@ -458,7 +462,11 @@ func commit(ctx context.Context, tx database.Tx, down Downstream, c *Conversatio
 	syncIDs := make([]string, 0, len(items))
 	for _, it := range items {
 		c.LastSeq++
-		it.ID, it.Seq, it.CreatedAt, it.UpdatedAt, it.TenantID, it.ConversationID = newID(), c.LastSeq, at, at, c.TenantID, c.ID
+		itemAt := at
+		if !it.CreatedAt.IsZero() {
+			itemAt = it.CreatedAt.UTC().Truncate(time.Microsecond)
+		}
+		it.ID, it.Seq, it.CreatedAt, it.UpdatedAt, it.TenantID, it.ConversationID = newID(), c.LastSeq, itemAt, at, c.TenantID, c.ID
 		if it.Derived == nil {
 			it.Derived = map[string]any{}
 		}
@@ -596,7 +604,21 @@ func pushType(kind Kind) string {
 //
 // 要在保存 c 之前调用，以便读取变更前的状态。
 func contactPushChannels(ctx context.Context, db bun.IDB, down Downstream, c *Conversation, items []*Item) ([]string, error) {
-	if down.ContactPush == nil || c.Kind != Service || c.ContactID == nil {
+	if down.ContactPush == nil || c.ContactID == nil {
+		return nil, nil
+	}
+	if c.Kind == Chat {
+		if c.ChannelID == nil {
+			return nil, nil
+		}
+		for _, it := range items {
+			if it.Kind == Message && it.Visibility == Everyone && it.ActorType == ContactActor {
+				return []string{*c.ChannelID}, nil
+			}
+		}
+		return nil, nil
+	}
+	if c.Kind != Service {
 		return nil, nil
 	}
 	needPush := false

@@ -3,6 +3,7 @@ package conversation
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -21,9 +22,14 @@ import (
 // ReceiveParams 是渠道收到的一条消息。
 type ReceiveParams struct {
 	ChannelID           string
-	From                string // 对方在渠道中的外部编号
-	FromName            string // 对方在渠道中显示的名字，新建联系人时使用
-	ExternalID          string // 消息在渠道中的编号，用来去重；渠道没有编号时为空
+	From                string     // 对方在渠道中的外部编号（外部群聊中为发言人在该渠道中的外部编号）
+	FromName            string     // 对方在渠道中显示的名字，新建联系人时使用
+	ExternalID          string     // 消息在渠道中的编号，用来去重；渠道没有编号时为空
+	ExternalChatID      string     // 可选：个人商务渠道中的外部会话或群聊唯一标识（如 Telegram peer/group ID）
+	IsGroup             bool       // 可选：个人商务渠道中该会话是否为外部群聊（如 Telegram 群）
+	ChatTitle           string     // 可选：外部群聊的标题，收到消息时同步更新
+	FromOwner           bool       // 可选：由个人渠道归属成员在外部客户端（如官方 Telegram App）发出的同步消息
+	CreatedAt           *time.Time // 可选：外部消息原始时间（用于历史消息同步）；为空时取当前时间
 	Text                string
 	Attachments         []AttachmentInput    // 客户端通过 /files 上传的已就绪媒体附件（在写入事务中确认）
 	IncomingAttachments []IncomingAttachment // 外部渠道收到的媒体元数据（不阻塞 Webhook，由队列自动拉取或点击按需拉取）
@@ -87,6 +93,15 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 			}
 			if _, err := a.registry.Connector(ch.Kind); err != nil {
 				return err
+			}
+			// 成员个人商务渠道（owner_member_id 非空）：归入外部商务聊天（kind=chat, scope=external），不进入客服收件箱
+			if ch.IsPersonal() {
+				out, err := a.receiveExternalChat(ctx, tx, sub, ch, p)
+				if err != nil {
+					return err
+				}
+				res = *out
+				return nil
 			}
 			person, _, err := contact.ResolveIdentity(ctx, tx, sub.Tenant, ch.ID, p.From, contact.Profile{Name: p.FromName})
 			if err != nil {
@@ -185,7 +200,8 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 			res = Received{ConversationID: c.ID, Item: dtos[0], Created: created, Reopened: opened == "conversation.reopened"}
 			return nil
 		})
-		if attempt == 0 && database.IsUniqueViolation(err, "conversations_one_active_service_per_contact") {
+		if attempt == 0 && (database.IsUniqueViolation(err, "conversations_one_active_service_per_contact") ||
+			database.IsUniqueViolation(err, "chats_tenant_channel_external")) {
 			continue
 		}
 		break
@@ -329,4 +345,185 @@ func start(ctx context.Context, tx bun.IDB, ch *channel.Channel, person *contact
 		return nil, "", errors.Wrap(err, "insert conversation")
 	}
 	return c, defaultMemberID, join(ctx, tx, c.ID, ContactActor, person.ID)
+}
+
+// receiveExternalChat 在事务 tx 中将个人商务渠道 ch 收到（或由归属成员在外部客户端同步发出）的消息写入外部商务聊天：
+//   - 1:1 外部商务聊天（IsGroup=false）：解析对方联系人，按 (tenant_id, channel_id, external_chat_id) 复用或创建外部单聊，
+//     归属成员与联系人为参与者；
+//   - 外部群聊（IsGroup=true，如 Telegram 群）：按 (tenant_id, channel_id, external_chat_id) 复用或创建外部群聊并同步群标题，
+//     归属成员为参与者，每条群消息按发言人的渠道外部编号解析为对应联系人以便准确展示发言人姓名。
+//
+// 当 FromOwner 为 true 时，消息发起者记为渠道归属成员且不写入 Delivery（已在外部客户端发出），并自动推进归属成员的已读位置。
+func (a *Receive) receiveExternalChat(ctx context.Context, tx database.Tx, sub identity.Subject, ch *channel.Channel, p ReceiveParams) (*Received, error) {
+	ownerID := *ch.OwnerMemberID
+	var person *contact.Contact
+	var err error
+	if !p.FromOwner || (!p.IsGroup && strings.TrimSpace(p.From) != "") {
+		person, _, err = contact.ResolveIdentity(ctx, tx, sub.Tenant, ch.ID, p.From, contact.Profile{Name: p.FromName})
+		if err != nil {
+			return nil, err
+		}
+		if sub.Type == contact.Type && person.ID != sub.ID {
+			return nil, ErrForbidden.New()
+		}
+	}
+	confirmed, err := confirmAttachmentInputs(ctx, tx, a.down.Media.Files, sub, p.Attachments)
+	if err != nil {
+		return nil, err
+	}
+	incomingAtts, needsIngest := buildIncomingAttachments(ch.ID, p.IncomingAttachments)
+	allAttachments := append(confirmed, incomingAtts...)
+
+	at := now()
+	if p.CreatedAt != nil && !p.CreatedAt.IsZero() {
+		at = p.CreatedAt.UTC().Truncate(time.Microsecond)
+	}
+	extChatID := strings.TrimSpace(p.ExternalChatID)
+	if extChatID == "" {
+		if person == nil {
+			return nil, errors.New("conversation: external_chat_id or contact is required for external chat")
+		}
+		extChatID = "contact:" + person.ID
+	}
+
+	// 按 (tenant_id, channel_id, external_chat_id) 查找或创建外部商务聊天
+	cm := new(ChatMeta)
+	err = tx.NewSelect().Model(cm).
+		Where("tenant_id = ? AND channel_id = ? AND external_chat_id = ?", ch.TenantID, ch.ID, extChatID).
+		For("UPDATE").Scan(ctx)
+	var c *Conversation
+	created := false
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		mode := ChatDirect
+		title := ""
+		var contactID *string
+		var lang string
+		if p.IsGroup {
+			mode = ChatGroup
+			title = strings.TrimSpace(p.ChatTitle)
+		} else if person != nil {
+			cid := person.ID
+			contactID = &cid
+			lang = person.Language
+		}
+		chID := ch.ID
+		replyChID := ch.ID
+		c = &Conversation{
+			ID:             newID(),
+			TenantID:       ch.TenantID,
+			Kind:           Chat,
+			ChannelID:      &chID,
+			ReplyChannelID: &replyChID,
+			ContactID:      contactID,
+			Status:         Open,
+			Priority:       Normal,
+			Language:       lang,
+			OpenedAt:       at,
+			LastMessageAt:  at,
+			Attributes:     map[string]any{},
+		}
+		if _, err := tx.NewInsert().Model(c).Exec(ctx); err != nil {
+			return nil, errors.Wrap(err, "insert external chat conversation")
+		}
+		cm = &ChatMeta{
+			ConversationID: c.ID,
+			TenantID:       ch.TenantID,
+			Mode:           mode,
+			Scope:          ChatExternal,
+			Name:           title,
+			ChannelID:      &chID,
+			ExternalChatID: extChatID,
+			CreatedBy:      &ownerID,
+		}
+		if _, err := tx.NewInsert().Model(cm).Exec(ctx); err != nil {
+			return nil, err
+		}
+		if err := join(ctx, tx, c.ID, MemberActor, ownerID); err != nil {
+			return nil, err
+		}
+		if !p.IsGroup && person != nil {
+			if err := join(ctx, tx, c.ID, ContactActor, person.ID); err != nil {
+				return nil, err
+			}
+		}
+		created = true
+	case err != nil:
+		return nil, errors.Wrap(err, "load external chat meta")
+	default:
+		c, err = find(ctx, tx, ch.TenantID, cm.ConversationID, true)
+		if err != nil {
+			return nil, err
+		}
+		if err := join(ctx, tx, c.ID, MemberActor, ownerID); err != nil {
+			return nil, err
+		}
+		if p.IsGroup {
+			if title := strings.TrimSpace(p.ChatTitle); title != "" && cm.Name != title {
+				cm.Name = title
+				if _, err := tx.NewUpdate().Model(cm).Column("name", "updated_at").WherePK().Exec(ctx); err != nil {
+					return nil, errors.Wrap(err, "update external group title")
+				}
+			}
+		}
+	}
+
+	actorType := ContactActor
+	actorID := ""
+	if p.FromOwner {
+		actorType = MemberActor
+		actorID = ownerID
+	} else if person != nil {
+		actorID = person.ID
+	}
+	chID := ch.ID
+	msg := &Item{
+		Kind:       Message,
+		ActorType:  actorType,
+		ActorID:    actorID,
+		Visibility: Everyone,
+		ChannelID:  &chID,
+		Content:    Content{Text: p.Text},
+	}
+	if p.CreatedAt != nil && !p.CreatedAt.IsZero() {
+		msg.CreatedAt = at
+	}
+	if p.ExternalID != "" {
+		ext := p.ExternalID
+		msg.ExternalID = &ext
+	}
+	if person != nil && !p.FromOwner {
+		if err := contact.TouchSeen(ctx, tx, sub.Tenant, person.ID, at); err != nil {
+			return nil, err
+		}
+	}
+	if at.After(c.LastMessageAt) || created {
+		c.LastMessageAt = at
+	}
+	if err := commit(ctx, tx, a.down, c, msg); err != nil {
+		return nil, err
+	}
+	if err := insertAttachments(ctx, tx, c.TenantID, msg.ID, allAttachments); err != nil {
+		return nil, err
+	}
+	if needsIngest {
+		if err := MediaIngestTopic.Publish(ctx, tx, MediaIngestJob{
+			TenantID: c.TenantID, ConversationID: c.ID, ItemID: msg.ID,
+		}); err != nil {
+			return nil, errors.Wrap(err, "publish media ingest job")
+		}
+	}
+	if p.FromOwner {
+		if _, err := tx.NewRaw(`INSERT INTO conversation_reads (member_id, conversation_id, last_read_seq, updated_at) VALUES (?, ?, ?, ?)
+			ON CONFLICT (member_id, conversation_id) DO UPDATE
+			SET last_read_seq = GREATEST(conversation_reads.last_read_seq, EXCLUDED.last_read_seq), updated_at = EXCLUDED.updated_at`,
+			ownerID, c.ID, msg.Seq, now()).Exec(ctx); err != nil {
+			return nil, errors.Wrap(err, "advance owner external chat read seq")
+		}
+	}
+	dtos, err := toItemDTOs(ctx, tx, a.down.Media, []Item{*msg})
+	if err != nil {
+		return nil, err
+	}
+	return &Received{ConversationID: c.ID, Item: dtos[0], Created: created}, nil
 }

@@ -102,6 +102,7 @@ func (a *CreateDirectChat) Handle(ctx context.Context, sub identity.Subject, p C
 			ConversationID: c.ID,
 			TenantID:       sub.Tenant,
 			Mode:           ChatDirect,
+			Scope:          ChatInternal,
 			Name:           "",
 			DMKey:          &key,
 			CreatedBy:      &createdBy,
@@ -220,6 +221,7 @@ func (a *CreateGroupChat) Handle(ctx context.Context, sub identity.Subject, p Cr
 			ConversationID: c.ID,
 			TenantID:       sub.Tenant,
 			Mode:           ChatGroup,
+			Scope:          ChatInternal,
 			Name:           name,
 			CreatedBy:      createdBy,
 		}

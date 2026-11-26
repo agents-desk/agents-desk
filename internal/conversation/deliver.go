@@ -76,8 +76,19 @@ func (a *Deliver) Job(ctx context.Context, p Appended) error {
 		contactID = *c.ContactID
 		err = a.db.NewSelect().Table("contact_identities").Column("external_id").
 			Where("channel_id = ? AND contact_id = ?", ch.ID, *c.ContactID).Limit(1).Scan(ctx, &to)
-		if err != nil {
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return errors.Wrap(err, "load contact identity")
+		}
+	}
+	// 外部商务聊天（含 1:1 与外部群聊）：优先使用 chats.external_chat_id 作为目标会话地址
+	if c.Kind == Chat {
+		var extChatID string
+		err = a.db.NewSelect().Table("chats").Column("external_chat_id").Where("conversation_id = ?", c.ID).Scan(ctx, &extChatID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return errors.Wrap(err, "load chat external id")
+		}
+		if extChatID != "" && (to == "" || ch.Kind == channel.TelegramAccount) {
+			to = extChatID
 		}
 	}
 	attachmentsByItem, err := loadAttachments(ctx, a.db, a.down.Media, []string{it.ID})

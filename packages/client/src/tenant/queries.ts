@@ -99,6 +99,33 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
           invalidate(context, "automation"),
       }),
     },
+    business: {
+      /** business 分组全部查询的 key 前缀。 */
+      key: () => key("business"),
+      /** POST /my/business-links */
+      linkCreate: () => ({
+        mutationFn: (variables: Parameters<Client["business"]["linkCreate"]>[0]) => client.business.linkCreate(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "business"),
+      }),
+      /** DELETE /my/business-links/{id} */
+      linkDelete: () => ({
+        mutationFn: (variables: Parameters<Client["business"]["linkDelete"]>[0]) => client.business.linkDelete(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "business"),
+      }),
+      /** GET /my/business-links */
+      linkList: (...args: Parameters<Client["business"]["linkList"]>) => ({
+        queryKey: key("business", "linkList", ...args),
+        queryFn: () => client.business.linkList(...args),
+      }),
+      /** PUT /my/business-links/{id} */
+      linkUpdate: () => ({
+        mutationFn: (variables: Parameters<Client["business"]["linkUpdate"]>) => client.business.linkUpdate(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "business"),
+      }),
+    },
     channel: {
       /** channel 分组全部查询的 key 前缀。 */
       key: () => key("channel"),
