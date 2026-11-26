@@ -21,6 +21,7 @@ chat.scroll_to_bottom: "回到底部"
 chat.sending: "发送中…"
 chat.status_closed: "已结束"
 chat.status_open: "会话进行中"
+chat.via_channel: "通过 {{.channel}}"
 chat.view_image: "查看大图"
 
 composer.attach: "添加附件"

@@ -11,6 +11,7 @@ import (
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/auth"
+	"agents-desk/internal/channel"
 )
 
 // Translation 是成员确认过的发给对方的译文。
@@ -19,11 +20,12 @@ type Translation struct {
 	Text     string `json:"text" minLength:"1" maxLength:"20000" doc:"发给对方的译文"`
 }
 
-// ReplyBody 是回复的请求体：成员写的文字、可选的媒体附件列表，以及可选的、他确认过的译文和随回复原子执行的会话操作。
+// ReplyBody 是回复的请求体：成员写的文字、可选的媒体附件列表、可选的发送渠道，以及可选的译文和随回复原子执行的会话操作。
 // 文字和附件不能同时为空；带译文时发给对方的是译文，时间线中同时保存原文。
 type ReplyBody struct {
 	Text        string            `json:"text,omitempty" maxLength:"10000" doc:"成员写的文字"`
 	Attachments []AttachmentInput `json:"attachments,omitempty" maxItems:"10" doc:"通过 /files 上传的媒体附件列表（可附带封面图与音视频元数据）"`
+	ChannelID   string            `json:"channel_id,omitempty" format:"uuid" doc:"发往的渠道 ID；为空时发往会话当前的默认回复渠道"`
 	Translation *Translation      `json:"translation,omitempty" doc:"发给对方的译文，由翻译的预览给出、成员确认；不带时按原文发出"`
 	Actions     *Actions          `json:"actions,omitempty" doc:"随回复在同一个事务中原子执行的会话操作（如指派、改优先级、加标签、改属性、关闭或稍后处理）"`
 }
@@ -62,6 +64,14 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 		if c.Kind != Service {
 			return ErrWrongKind.New()
 		}
+		targetChannelID, err := resolveReplyChannel(ctx, tx, c, body.ChannelID)
+		if err != nil {
+			return err
+		}
+		if body.ChannelID != "" && targetChannelID != nil {
+			chID := *targetChannelID
+			c.ReplyChannelID = &chID
+		}
 		confirmed, err := confirmAttachmentInputs(ctx, tx, a.down.Media.Files, sub, body.Attachments)
 		if err != nil {
 			return err
@@ -72,8 +82,7 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 		if body.Translation != nil && strings.TrimSpace(body.Text) != "" {
 			content = Content{Text: body.Translation.Text, Original: body.Text, Language: body.Translation.Language}
 		}
-		deliveryChannelID := c.DeliveryChannelID()
-		item = Item{Kind: Message, ActorType: actor, ActorID: sub.ID, Visibility: Everyone, Content: content, ChannelID: deliveryChannelID}
+		item = Item{Kind: Message, ActorType: actor, ActorID: sub.ID, Visibility: Everyone, Content: content, ChannelID: targetChannelID}
 		items := make([]*Item, 0, 3)
 		// 回复已关闭或稍后处理的会话时自动恢复打开，保证轮次与状态机自洽
 		switch c.Status {
@@ -118,7 +127,7 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 		if err := insertAttachments(ctx, tx, c.TenantID, item.ID, confirmed); err != nil {
 			return err
 		}
-		if deliveryChannelID == nil {
+		if targetChannelID == nil {
 			return nil
 		}
 		_, err = tx.NewInsert().Model(&Delivery{ItemID: item.ID, Status: Sending, UpdatedAt: at}).Exec(ctx)
@@ -132,6 +141,34 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 		return nil, err
 	}
 	return &dtos[0], nil
+}
+
+// resolveReplyChannel 解析回复要发往的渠道 ID：
+//   - requested 为空时返回会话当前默认出站渠道（c.DeliveryChannelID()）；
+//   - requested 非空时校验该渠道属于本工作区且处于启用状态，并且当会话关联联系人时该联系人拥有该渠道的身份，否则返回 ErrChannelUnavailable。
+func resolveReplyChannel(ctx context.Context, tx bun.IDB, c *Conversation, requested string) (*string, error) {
+	if requested == "" {
+		return c.DeliveryChannelID(), nil
+	}
+	ch, err := channel.Find(ctx, tx, c.TenantID, requested)
+	if errors.Is(err, channel.ErrNotFound) || (err == nil && !ch.Enabled) {
+		return nil, ErrChannelUnavailable.New()
+	}
+	if err != nil {
+		return nil, err
+	}
+	if c.ContactID != nil {
+		exists, err := tx.NewSelect().Table("contact_identities").
+			Where("tenant_id = ? AND channel_id = ? AND contact_id = ?", c.TenantID, ch.ID, *c.ContactID).Exists(ctx)
+		if err != nil {
+			return nil, errors.Wrap(err, "check contact channel identity")
+		}
+		if !exists {
+			return nil, ErrChannelUnavailable.New()
+		}
+	}
+	id := ch.ID
+	return &id, nil
 }
 
 // HTTP 处理 POST /t/{slug}/api/conversations/{id}/replies。

@@ -17,7 +17,7 @@ import {
 } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { IconArrowUpRight, IconCheck, IconCopy, IconExternalLink, IconPencil, IconX } from "@tabler/icons-react"
+import { IconArrowUpRight, IconCheck, IconCopy, IconExternalLink, IconGitMerge, IconPencil, IconX } from "@tabler/icons-react"
 import {
   Inspector,
   InspectorField,
@@ -42,6 +42,7 @@ import { NARROW_QUERY } from "../layout"
 import { allZones, formatLocalTime, offsetOf } from "../timezone"
 import { ContactNotesCard } from "./ContactNotesCard"
 import { ContactAvatar, contactDisplayName } from "./display"
+import { MergeContactModal } from "./MergeContactModal"
 
 /** AUTO 是语言选择器中的“自动识别”。 */
 const AUTO = "auto"
@@ -57,6 +58,7 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
   const narrow = useNarrow(NARROW_QUERY)
   const can = useCan()
   const queryClient = useQueryClient()
+  const [mergeOpen, setMergeOpen] = useState(false)
 
   const detail = useQuery(kit.queries.contact.get(id))
   const conversations = useQuery({
@@ -134,7 +136,18 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
           </Group>
         }
         subtitle={subtitle || undefined}
-        actions={closeAction}
+        actions={
+          <Group gap={4} wrap="nowrap">
+            {editable && (
+              <Tooltip label={t("contacts.merge")} openDelay={250}>
+                <ActionIcon variant="subtle" color="gray" onClick={() => setMergeOpen(true)} aria-label={t("contacts.merge")}>
+                  <IconGitMerge size={16} />
+                </ActionIcon>
+              </Tooltip>
+            )}
+            {closeAction}
+          </Group>
+        }
       />
 
       {/* 独立滚动的档案正文 */}
@@ -235,6 +248,7 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
           <IdentitiesSection identities={c.identities} />
         </Inspector>
       </PaneBody>
+      <MergeContactModal opened={mergeOpen} target={c} onClose={() => setMergeOpen(false)} />
     </Stack>
   )
 }

@@ -172,7 +172,7 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) 
 			q = q.Where("conversation.assignee_type = ? AND conversation.assignee_id = ?", MemberActor, in.AssigneeID)
 		}
 		if in.ChannelID != "" {
-			q = q.Where("conversation.channel_id = ?", in.ChannelID)
+			q = q.Where("(conversation.channel_id = ? OR conversation.reply_channel_id = ? OR EXISTS (SELECT 1 FROM timeline_items AS ti WHERE ti.conversation_id = conversation.id AND ti.channel_id = ?))", in.ChannelID, in.ChannelID, in.ChannelID)
 		}
 		if in.Priority != "" {
 			q = q.Where("conversation.priority = ?", in.Priority)

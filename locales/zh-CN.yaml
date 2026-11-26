@@ -165,6 +165,8 @@ contact.invalid_language: 不是有效的语言，请从列表中选择，或者
 contact.invalid_time_zone: "不认识的时区“{{.time_zone}}”"
 contact.forbidden: 你没有权限修改这位联系人
 contact.not_lead: 已登录用户的邮箱由产品自动同步，不能在这里修改
+contact.merge_self: 不能把联系人合并到他自己
+contact.merge_conflict: 这两个联系人绑定了不同的业务用户编号，不能直接合并
 contact.kind.user: 用户
 contact.kind.lead: 线索
 contact.sort.recent: 最近活跃
@@ -231,6 +233,9 @@ conversation.invalid_language: 不是有效的语言，请从列表中选择，�
 conversation.snooze_in_past: 稍后处理的时间要晚于现在
 conversation.empty_message: 请输入内容或添加附件
 conversation.attachment_not_found: 附件不存在
+conversation.channel_unavailable: 目标回复渠道不可用、已停用，或该联系人未绑定该渠道
+conversation.merge_self: 不能将会话合并到它自身
+conversation.merge_different_contact: 只能合并同一个联系人的服务型会话
 conversation.attachment_kind.image: 图片
 conversation.attachment_kind.video: 视频
 conversation.attachment_kind.audio: 语音/音频

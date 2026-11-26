@@ -83,6 +83,7 @@ import {
   uploadMediaFile,
 } from "./Attachments"
 import { useAttributes, useMacros, useMe, useMembers, useTags, useTeams } from "./data"
+import { ChannelIcon } from "./channel-badge"
 import { clearDraft, type DraftMode, getDraft, saveDraft } from "./drafts"
 import { snoozeOptions } from "./menus"
 
@@ -152,6 +153,26 @@ export function Composer({
   const dragDepth = useRef(0)
   const resetFile = useRef<() => void>(null)
 
+  // 发送渠道选择：默认跟随会话最新的默认回复渠道，坐席可手动切换到联系人已绑定的其他启用渠道
+  const defaultReplyChannelId = c.reply_channel?.id ?? c.channel?.id ?? ""
+  const availableChannels = c.available_channels ?? []
+  const [selectedChannelId, setSelectedChannelId] = useState<string | undefined>(undefined)
+  const effectiveChannelId =
+    selectedChannelId && availableChannels.some((ch) => ch.id === selectedChannelId)
+      ? selectedChannelId
+      : defaultReplyChannelId
+  const effectiveChannel =
+    availableChannels.find((ch) => ch.id === effectiveChannelId) ??
+    (c.reply_channel?.id === effectiveChannelId ? c.reply_channel : undefined) ??
+    c.channel
+  const prevDefaultChannel = useRef(defaultReplyChannelId)
+  useEffect(() => {
+    if (prevDefaultChannel.current !== defaultReplyChannelId) {
+      prevDefaultChannel.current = defaultReplyChannelId
+      setSelectedChannelId(undefined)
+    }
+  }, [defaultReplyChannelId])
+
   const area = useRef<HTMLTextAreaElement>(null)
   const value = text.trim()
   const note = mode === "note"
@@ -194,7 +215,8 @@ export function Composer({
         actions = { ...(actions ?? {}), status: { kind: "snooze", until: after.until.toISOString() } }
       }
       if (value || attachments) {
-        await tenantApi.conversation.reply(c.id, { text: value || undefined, translation, attachments, actions })
+        const channel_id = selectedChannelId && selectedChannelId !== defaultReplyChannelId ? selectedChannelId : undefined
+        await tenantApi.conversation.reply(c.id, { text: value || undefined, channel_id, translation, attachments, actions })
       } else if (actions) {
         await tenantApi.conversation.applyActions(c.id, actions)
       }
@@ -460,6 +482,36 @@ export function Composer({
                 {t("inbox.note_hint")}
               </Text>
             </Group>
+          )}
+          {!note && availableChannels.length > 1 && effectiveChannel && (
+            <Menu position="top-start" withinPortal>
+              <Menu.Target>
+                <Tooltip label={t("inbox.choose_reply_channel")} openDelay={350}>
+                  <Button
+                    size="compact-xs"
+                    variant="light"
+                    color="bright-blue"
+                    leftSection={<ChannelIcon kind={effectiveChannel.kind} size={12} />}
+                    rightSection={<IconChevronDown size={12} />}
+                  >
+                    {t("inbox.channel_send_via", { channel: effectiveChannel.name })}
+                  </Button>
+                </Tooltip>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Label>{t("inbox.choose_reply_channel")}</Menu.Label>
+                {availableChannels.map((ch) => (
+                  <Menu.Item
+                    key={ch.id}
+                    leftSection={<ChannelIcon kind={ch.kind} size={13} />}
+                    rightSection={ch.id === effectiveChannel.id ? <IconCheck size={13} /> : undefined}
+                    onClick={() => setSelectedChannelId(ch.id)}
+                  >
+                    {ch.name}
+                  </Menu.Item>
+                ))}
+              </Menu.Dropdown>
+            </Menu>
           )}
           {dragging ? (
             <Text size="xs" c="brand" fw={500} ml="auto">

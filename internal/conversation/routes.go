@@ -73,6 +73,7 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	rest.Register(api, act("conversation-bulk-assign", http.MethodPost, "/conversations/bulk/assign", "批量指派"), NewBulkAssign(db, down).HTTP)
 	rest.Register(api, act("conversation-bulk-close", http.MethodPost, "/conversations/bulk/close", "批量关闭"), NewBulkClose(db, down).HTTP)
 	rest.Register(api, act("conversation-apply-actions", http.MethodPost, "/conversations/{id}/actions", "批量执行会话操作"), NewApplyActions(db, down).HTTP)
+	rest.Register(api, act("conversation-merge", http.MethodPost, "/conversations/{id}/merge", "合并另一个会话到当前会话"), NewMerge(db, down).HTTP)
 
 	// 工单接口：工单是 conversations.kind = ticket，复用时间线、备注、指派、标签、属性和已读等会话接口。
 	ticketCreateOp := route(reply, "ticket-create", http.MethodPost, "/tickets", "新建工单")

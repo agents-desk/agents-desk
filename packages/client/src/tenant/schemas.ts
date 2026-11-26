@@ -100,6 +100,11 @@ export const schemas = {
         "type": "object"
       },
     },
+    merge: {
+      body: {
+        "$ref": "#/components/schemas/ContactMergeBody"
+      },
+    },
     update: {
       body: {
         "$ref": "#/components/schemas/ContactUpdateBody"
@@ -243,6 +248,11 @@ export const schemas = {
           }
         },
         "type": "object"
+      },
+    },
+    merge: {
+      body: {
+        "$ref": "#/components/schemas/ConversationMergeBody"
       },
     },
     note: {
@@ -1198,6 +1208,22 @@ export const components = {
     ],
     "type": "string"
   },
+  ContactMergeBody: {
+    "additionalProperties": false,
+    "properties": {
+      "merge_active_conversations": {
+        "type": "boolean"
+      },
+      "source_id": {
+        "format": "uuid",
+        "type": "string"
+      }
+    },
+    "required": [
+      "source_id"
+    ],
+    "type": "object"
+  },
   ContactSort: {
     "enum": [
       "recent",
@@ -1674,6 +1700,19 @@ export const components = {
     ],
     "type": "object"
   },
+  ConversationMergeBody: {
+    "additionalProperties": false,
+    "properties": {
+      "source_id": {
+        "format": "uuid",
+        "type": "string"
+      }
+    },
+    "required": [
+      "source_id"
+    ],
+    "type": "object"
+  },
   ConversationNoteBody: {
     "additionalProperties": false,
     "properties": {
@@ -1782,6 +1821,10 @@ export const components = {
         },
         "maxItems": 10,
         "type": "array"
+      },
+      "channel_id": {
+        "format": "uuid",
+        "type": "string"
       },
       "text": {
         "maxLength": 10000,

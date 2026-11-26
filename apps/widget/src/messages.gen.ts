@@ -22,6 +22,7 @@ export const messages = {
     "chat.sending": "Sending…",
     "chat.status_closed": "Ended",
     "chat.status_open": "In progress",
+    "chat.via_channel": "via {{.channel}}",
     "chat.view_image": "View image",
     "chat.voice_message": "Voice message",
     "collect_email.invalid": "Please enter a valid email address",
@@ -106,6 +107,7 @@ export const messages = {
     "chat.sending": "发送中…",
     "chat.status_closed": "已结束",
     "chat.status_open": "会话进行中",
+    "chat.via_channel": "通过 {{.channel}}",
     "chat.view_image": "查看大图",
     "chat.voice_message": "语音消息",
     "collect_email.invalid": "请输入有效的邮箱地址",
@@ -193,6 +195,7 @@ export type MessageId =
   | "chat.sending"
   | "chat.status_closed"
   | "chat.status_open"
+  | "chat.via_channel"
   | "chat.view_image"
   | "chat.voice_message"
   | "collect_email.invalid"

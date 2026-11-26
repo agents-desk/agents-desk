@@ -15,6 +15,7 @@ import (
 	"agents-desk/internal/channel"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/tenant"
+	"agents-desk/internal/widget"
 )
 
 func TestSeed(t *testing.T) {
@@ -22,15 +23,17 @@ func TestSeed(t *testing.T) {
 	env := apptest.New(t)
 	ctx := context.Background()
 	addr := tenant.Addresses{PublicURL: "http://localhost:8081"}
+	reg := channel.DefaultRegistry()
+	reg[channel.Widget] = widget.NewConnector(nil)
 
 	// 第一次全部写入，第二次全部跳过
 	for i, skipped := range []bool{false, true} {
 		var out bytes.Buffer
-		if err := seed(ctx, &out, env.DB, env.Roles, env.AdminLogins, env.MemberLogins, env.Files, env.Crypt, addr, channel.DefaultRegistry(), conversation.Downstream{Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic}}); err != nil {
+		if err := seed(ctx, &out, env.DB, env.Roles, env.AdminLogins, env.MemberLogins, env.Files, env.Crypt, addr, reg, conversation.Downstream{Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic}}); err != nil {
 			t.Fatal(err)
 		}
 		lines := strings.Split(strings.TrimSpace(out.String()), "\n")
-		if len(lines) != 14 || slices.ContainsFunc(lines, func(l string) bool { return strings.Contains(l, "跳过") != skipped }) {
+		if len(lines) != 15 || slices.ContainsFunc(lines, func(l string) bool { return strings.Contains(l, "跳过") != skipped }) {
 			t.Fatalf("第 %d 次：\n%s", i+1, out.String())
 		}
 	}
@@ -60,9 +63,9 @@ func TestSeed(t *testing.T) {
 	if err != nil || len(members) != 3 {
 		t.Fatalf("示例工作区的成员：%d %v", len(members), err)
 	}
-	// 示例会话：每个客户一个会话，最后一条是客户发的会话在等待回复
+	// 示例会话：10 个基础会话 + 1 个跨渠道合并演示会话 + 2 个待合并重复联系人会话，共 13 个，其中 10 个等待回复
 	var convs, waiting int
-	if err := env.DB.NewRaw("SELECT count(*), count(waiting_since) FROM conversations WHERE tenant_id = ? AND kind = 'service'", demo).Scan(ctx, &convs, &waiting); err != nil || convs != 10 || waiting != 7 {
+	if err := env.DB.NewRaw("SELECT count(*), count(waiting_since) FROM conversations WHERE tenant_id = ? AND kind = 'service'", demo).Scan(ctx, &convs, &waiting); err != nil || convs != 13 || waiting != 10 {
 		t.Fatalf("示例会话：%d 个，%d 个等待回复，%v", convs, waiting, err)
 	}
 	// 示例会话的全文搜索索引已就绪：中英文均可直接搜到

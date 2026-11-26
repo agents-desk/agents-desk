@@ -1,8 +1,8 @@
 import type { ConversationDTO } from "@agents-desk/client/tenant"
-import { ActionIcon, Anchor, Badge, Box, CopyButton, Group, Rating, Select, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
+import { ActionIcon, Anchor, Badge, Box, Button, CopyButton, Group, Modal, Rating, Select, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useParams } from "@tanstack/react-router"
-import { IconCheck, IconCopy, IconExternalLink, IconX } from "@tabler/icons-react"
+import { IconCheck, IconCopy, IconExternalLink, IconGitMerge, IconX } from "@tabler/icons-react"
 import {
   Inspector,
   InspectorField,
@@ -16,14 +16,16 @@ import {
   useT,
   useTimeZone,
 } from "@go-tenon/ui"
-import type { ReactNode } from "react"
+import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { ContactNotesCard } from "../contacts/ContactNotesCard"
 import { contactDisplayName } from "../contacts/display"
+import { MergeContactModal } from "../contacts/MergeContactModal"
 import { LanguageSelect } from "../LanguageSelect"
 import { languageName } from "../languages"
 import { formatLocalTime } from "../timezone"
 import { previewSummary } from "./Attachments"
+import { ChannelIcon } from "./channel-badge"
 import { useAttributes, useContactHistory, useMe, useMembers, useTags, useTeams } from "./data"
 import { AttributeInput, TagsEditor } from "./fields"
 import { activity } from "./format"
@@ -121,6 +123,18 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
     },
     onError: (err) => notifyError(err),
   })
+  const [mergeContactOpen, setMergeContactOpen] = useState(false)
+  const [mergeSource, setMergeSource] = useState<ConversationDTO | null>(null)
+  const mergeConversation = useMutation({
+    mutationFn: (sourceId: string) => tenantApi.conversation.merge(c.id, { source_id: sourceId }),
+    onSuccess: () => {
+      notifySuccess(t("inbox.merge_conversation_done"))
+      setMergeSource(null)
+      void invalidate()
+      void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
+    },
+    onError: (err) => notifyError(err),
+  })
   // 对方的语言：手动设置的显示那种语言，否则显示“自动识别”（带上识别出的语言）
   const manual = c.contact?.language_manual ?? false
   const detected = c.language ? languageName(c.language, language) : ""
@@ -188,6 +202,39 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
             <InspectorField label={t("inbox.status")}>
               <Text size="sm">{t(`inbox.status_${c.status}` as const)}</Text>
             </InspectorField>
+            {c.reply_channel && c.channel && c.reply_channel.id !== c.channel.id ? (
+              <>
+                <InspectorField label={t("inbox.channel_origin")}>
+                  <Group gap={5} wrap="nowrap">
+                    <ChannelIcon kind={c.channel.kind} size={13} />
+                    <Text size="sm" truncate>
+                      {c.channel.name}
+                    </Text>
+                  </Group>
+                </InspectorField>
+                <InspectorField label={t("inbox.channel_reply")}>
+                  <Group gap={5} wrap="nowrap">
+                    <ChannelIcon kind={c.reply_channel.kind} size={13} />
+                    <Text size="sm" truncate>
+                      {c.reply_channel.name}
+                    </Text>
+                  </Group>
+                </InspectorField>
+              </>
+            ) : (
+              <InspectorField label={t("inbox.channel")}>
+                {c.channel ? (
+                  <Group gap={5} wrap="nowrap">
+                    <ChannelIcon kind={c.channel.kind} size={13} />
+                    <Text size="sm" truncate>
+                      {c.channel.name}
+                    </Text>
+                  </Group>
+                ) : (
+                  <Text size="sm">—</Text>
+                )}
+              </InspectorField>
+            )}
             <InspectorField label={t("inbox.tags")} align="start">
               <TagsEditor
                 tags={c.tags}
@@ -228,7 +275,29 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
             )}
           </InspectorSection>
 
-          <InspectorSection title={t("inbox.details_contact")} collapsible storeKey="inbox-details-contact">
+          <InspectorSection
+            title={t("inbox.details_contact")}
+            collapsible
+            storeKey="inbox-details-contact"
+            extra={
+              c.contact && can("contacts:update") ? (
+                <Tooltip label={t("contacts.merge")} openDelay={250}>
+                  <ActionIcon
+                    size={22}
+                    variant="subtle"
+                    color="gray"
+                    aria-label={t("contacts.merge")}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setMergeContactOpen(true)
+                    }}
+                  >
+                    <IconGitMerge size={13} />
+                  </ActionIcon>
+                </Tooltip>
+              ) : undefined
+            }
+          >
             <InspectorField label={t("inbox.contact_name")}>
               {c.contact ? (
                 <Group gap={6} wrap="nowrap">
@@ -301,9 +370,24 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                 </Anchor>
               </InspectorField>
             )}
-            <InspectorField label={t("inbox.channel")}>
-              <Text size="sm">{c.channel?.name ?? "—"}</Text>
-            </InspectorField>
+            {c.available_channels && c.available_channels.length > 0 && (
+              <InspectorField label={t("contacts.channel_identities")} align="start">
+                <Group gap={4} wrap="wrap">
+                  {c.available_channels.map((ch) => (
+                    <Badge
+                      key={ch.id}
+                      size="xs"
+                      variant="light"
+                      color="gray"
+                      leftSection={<ChannelIcon kind={ch.kind} size={10} />}
+                      style={{ textTransform: "none" }}
+                    >
+                      {ch.name}
+                    </Badge>
+                  ))}
+                </Group>
+              </InspectorField>
+            )}
             {c.contact && (
               <>
                 <InspectorField label={t("inbox.tags")} align="start">
@@ -363,20 +447,80 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
             ) : (
               <Stack gap={4}>
                 {others.map((x) => (
-                  <UnstyledButton key={x.id} onClick={() => onOpen(x.id)} className="inbox-history" px={6} py={5}>
-                    <Text size="sm" truncate>
-                      {previewSummary(x.preview, x.preview_attachment, t) || "—"}
-                    </Text>
-                    <Text size="xs" c="dimmed" mt={2}>
-                      {t(`inbox.status_${x.status}` as const)} · {activity(x.last_message_at, language, t, zone)}
-                    </Text>
-                  </UnstyledButton>
+                  <Group key={x.id} gap={4} wrap="nowrap" align="center">
+                    <UnstyledButton onClick={() => onOpen(x.id)} className="inbox-history" px={6} py={5} style={{ flex: 1, minWidth: 0 }}>
+                      <Text size="sm" truncate>
+                        {previewSummary(x.preview, x.preview_attachment, t) || "—"}
+                      </Text>
+                      <Group gap={5} wrap="nowrap" mt={2}>
+                        {x.channel && <ChannelIcon kind={x.channel.kind} size={11} />}
+                        <Text size="xs" c="dimmed" truncate>
+                          {[x.channel?.name, t(`inbox.status_${x.status}` as const), activity(x.last_message_at, language, t, zone)]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </Text>
+                      </Group>
+                    </UnstyledButton>
+                    {canEdit && (
+                      <Tooltip label={t("inbox.merge_conversation")} openDelay={250}>
+                        <ActionIcon
+                          size={24}
+                          variant="subtle"
+                          color="gray"
+                          aria-label={t("inbox.merge_conversation")}
+                          onClick={() => setMergeSource(x)}
+                        >
+                          <IconGitMerge size={14} />
+                        </ActionIcon>
+                      </Tooltip>
+                    )}
+                  </Group>
                 ))}
               </Stack>
             )}
           </InspectorSection>
         </Inspector>
       </PaneBody>
+      <MergeContactModal
+        opened={mergeContactOpen}
+        target={
+          c.contact
+            ? {
+                ...c.contact,
+                external_user_id: contactDetail.data?.external_user_id,
+              }
+            : undefined
+        }
+        onClose={() => setMergeContactOpen(false)}
+      />
+      <Modal
+        opened={Boolean(mergeSource)}
+        onClose={() => setMergeSource(null)}
+        title={t("inbox.merge_conversation_title")}
+        size="sm"
+        centered
+      >
+        <Stack gap="sm">
+          <Text size="sm" fw={500}>
+            {t("inbox.merge_conversation_confirm", { channel: mergeSource?.channel?.name ?? "—" })}
+          </Text>
+          <Text size="xs" c="dimmed">
+            {t("inbox.merge_conversation_desc")}
+          </Text>
+          <Group justify="flex-end" mt="xs">
+            <Button variant="default" onClick={() => setMergeSource(null)} disabled={mergeConversation.isPending}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              leftSection={<IconGitMerge size={14} />}
+              loading={mergeConversation.isPending}
+              onClick={() => mergeSource && mergeConversation.mutate(mergeSource.id)}
+            >
+              {t("inbox.merge_conversation_submit")}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Stack>
   )
 }

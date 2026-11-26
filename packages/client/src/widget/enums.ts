@@ -6,6 +6,14 @@
  * 缺少时先用默认语言，再用取值本身。
  */
 export const enums = {
+  ChannelKind: {
+    prefix: "channel.kind",
+    values: ["test", "widget", "telegram"],
+    labels: {
+      "en": { test: "Test channel", widget: "Website chat widget", telegram: "Telegram bot" },
+      "zh-CN": { test: "测试渠道", widget: "网页聊天插件", telegram: "Telegram 机器人" },
+    },
+  },
   ContactKind: {
     prefix: "contact.kind",
     values: ["user", "lead"],

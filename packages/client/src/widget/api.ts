@@ -5,6 +5,14 @@ import { Runtime, type ClientOptions, type Download, type SessionLike, type Stre
 export * from "./errors"
 export { ApiError, isApiError, saveBlob, type ClientOptions, type Download, type SessionLike, type FieldError, type StreamOptions } from "./runtime"
 
+export type ChannelKind = "test" | "widget" | "telegram"
+
+export interface ChannelSummary {
+  id: string
+  kind: ChannelKind
+  name: string
+}
+
 export type ContactKind = "user" | "lead"
 
 export interface ContactSummary {
@@ -109,6 +117,8 @@ export interface ConversationContactItemDTO {
   /** 附带的图片和文件 */
   attachments?: ConversationAttachmentDTO[]
   author: ConversationContactAuthor
+  /** 该消息来自或发往的渠道 */
+  channel?: ChannelSummary
   created_at: string
   id: string
   kind: ConversationItemKind

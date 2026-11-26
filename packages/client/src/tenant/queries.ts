@@ -127,6 +127,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         queryKey: key("contact", "list", ...args),
         queryFn: () => client.contact.list(...args),
       }),
+      /** POST /contacts/{id}/merge */
+      merge: () => ({
+        mutationFn: (variables: Parameters<Client["contact"]["merge"]>) => client.contact.merge(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "contact"),
+      }),
       /** GET /contacts/summary */
       summary: (...args: Parameters<Client["contact"]["summary"]>) => ({
         queryKey: key("contact", "summary", ...args),
@@ -256,6 +262,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       list: (...args: Parameters<Client["conversation"]["list"]>) => ({
         queryKey: key("conversation", "list", ...args),
         queryFn: () => client.conversation.list(...args),
+      }),
+      /** POST /conversations/{id}/merge */
+      merge: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["merge"]>) => client.conversation.merge(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
       }),
       /** POST /conversations/{id}/notes */
       note: () => ({

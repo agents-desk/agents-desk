@@ -154,6 +154,8 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 		if err := contact.TouchSeen(ctx, tx, sub.Tenant, person.ID, at); err != nil {
 			return err
 		}
+		replyChID := ch.ID
+		c.ReplyChannelID = &replyChID
 		c.LastMessageAt = at
 		if c.WaitingSince == nil {
 			c.WaitingSince = &at
@@ -218,7 +220,12 @@ func (a *Receive) previous(ctx context.Context, sub identity.Subject, p ReceiveP
 }
 
 // conversationFor 在事务 tx 中找到消息要归入的会话并锁住它，没有时新建。
-// 只有一个聊天窗口的渠道（!multiple）：最近的会话已关闭时，若在工作区的重开窗口内则重新打开它，超过重开窗口则新建会话。
+// 跨渠道归并规则：
+//   - 已登录用户（contact.User）在多会话渠道指定了 ConversationID 时，允许跨渠道继续同一联系人名下的会话；
+//   - 已登录用户在单会话渠道（!multiple）收到消息时，跨渠道查找该联系人在本工作区最近一条服务型会话，
+//     进行中、稍后处理或在重开窗口内的直接合入；
+//   - 访客线索（contact.Lead）保持按单一渠道严格隔离。
+//
 // 会话原来是已关闭或稍后处理时，opened 是要追加的系统事件名称（conversation.reopened 或 conversation.unsnoozed）。
 // 若新建会话命中了工作区级默认成员指派，defaultMemberID 返回该成员 ID。
 func (a *Receive) conversationFor(ctx context.Context, tx bun.IDB, ch *channel.Channel, person *contact.Contact, p ReceiveParams, multiple bool, at time.Time) (c *Conversation, created bool, opened string, defaultMemberID string, err error) {
@@ -228,13 +235,19 @@ func (a *Receive) conversationFor(ctx context.Context, tx bun.IDB, ch *channel.C
 		if err != nil {
 			return nil, false, "", "", err
 		}
-		if c.Kind != Service || c.ContactID == nil || *c.ContactID != person.ID || c.ChannelID == nil || *c.ChannelID != ch.ID {
+		if c.Kind != Service || c.ContactID == nil || *c.ContactID != person.ID {
+			return nil, false, "", "", ErrNotFound.New()
+		}
+		if person.Kind != contact.User && (c.ChannelID == nil || *c.ChannelID != ch.ID) {
 			return nil, false, "", "", ErrNotFound.New()
 		}
 	case !multiple:
 		c = new(Conversation)
-		err = tx.NewSelect().Model(c).Where("tenant_id = ? AND kind = ? AND contact_id = ? AND channel_id = ?", ch.TenantID, Service, person.ID, ch.ID).
-			OrderExpr("last_message_at DESC, id DESC").Limit(1).For("UPDATE").Scan(ctx)
+		q := tx.NewSelect().Model(c).Where("tenant_id = ? AND kind = ? AND contact_id = ?", ch.TenantID, Service, person.ID)
+		if person.Kind != contact.User {
+			q = q.Where("channel_id = ?", ch.ID)
+		}
+		err = q.OrderExpr("last_message_at DESC, id DESC").Limit(1).For("UPDATE").Scan(ctx)
 		if errors.Is(err, sql.ErrNoRows) {
 			c = nil
 		} else if err != nil {
@@ -315,8 +328,10 @@ func start(ctx context.Context, tx bun.IDB, ch *channel.Channel, person *contact
 			}
 		}
 	}
+	chID := ch.ID
+	replyChID := ch.ID
 	c := &Conversation{
-		ID: newID(), TenantID: ch.TenantID, Kind: Service, ChannelID: &ch.ID, ContactID: &person.ID, TeamID: teamID,
+		ID: newID(), TenantID: ch.TenantID, Kind: Service, ChannelID: &chID, ReplyChannelID: &replyChID, ContactID: &person.ID, TeamID: teamID,
 		Status: Open, Priority: Normal, Language: person.Language, OpenedAt: at, LastMessageAt: at, Attributes: map[string]any{},
 	}
 	if _, err := tx.NewInsert().Model(c).Exec(ctx); err != nil {
