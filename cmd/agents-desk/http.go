@@ -54,6 +54,7 @@ import (
 	"agents-desk/internal/team"
 	"agents-desk/internal/telegram"
 	"agents-desk/internal/tenant"
+	"agents-desk/internal/tgaccount"
 	"agents-desk/internal/tickettype"
 	"agents-desk/internal/translation"
 	"agents-desk/internal/widget"
@@ -253,7 +254,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		tenant.RegisterRoutes(api, require(auth.TenantsRead), require(auth.TenantsManage), require(auth.TenantsImpersonate), a.db, a.roles, a.memberLogins, a.memberTokens, addr, memberHooks, a.creds)
 		tenant.RegisterExportRoutes(api, require(auth.TenantsRead), a.db, a.memberLogins, addr, a.exporter, a.hub)
 		platformsettings.RegisterPublicRoutes(api, a.generalSettings, a.files)
-		platformsettings.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.generalSettings, a.mailSettings, a.files)
+		platformsettings.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.generalSettings, a.mailSettings, a.telegramSettings, a.files)
 		llm.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.llmSettings)
 		flags.RegisterRoutes(api, require(auth.FeaturesManage), a.db, a.features)
 		audit.RegisterRoutes(api, require(auth.AuditRead), a.db)
@@ -335,6 +336,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		widget.RegisterRoutes(api, require, a.db, a.crypt, a.cfg.HTTP.PublicURL)
 		widget.RegisterBusinessLinkRoutes(api, require, a.db, a.cfg.HTTP.PublicURL)
 		telegram.RegisterRoutes(api, require, a.db, a.crypt, a.telegram, a.cfg.HTTP.PublicURL)
+		tgaccount.RegisterRoutes(api, require, a.tgAccounts)
 		translation.RegisterRoutes(api, require, a.db, a.translator, translation.NewIncoming(a.db, a.locker, a.translator, a.downstream()), a.translationSettings)
 		automation.RegisterRoutes(api, require, a.db)
 		report.RegisterRoutes(api, require, a.db, a.roles, a.files)

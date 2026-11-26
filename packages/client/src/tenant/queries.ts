@@ -751,6 +751,61 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
           invalidate(context, "tenant"),
       }),
     },
+    tgaccount: {
+      /** tgaccount 分组全部查询的 key 前缀。 */
+      key: () => key("tgaccount"),
+      /** GET /my/telegram-accounts/{id}/dialogs */
+      dialogs: (...args: Parameters<Client["tgaccount"]["dialogs"]>) => ({
+        queryKey: key("tgaccount", "dialogs", ...args),
+        queryFn: () => client.tgaccount.dialogs(...args),
+      }),
+      /** DELETE /my/telegram-accounts/{id} */
+      disconnect: () => ({
+        mutationFn: (variables: Parameters<Client["tgaccount"]["disconnect"]>[0]) => client.tgaccount.disconnect(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "tgaccount"),
+      }),
+      /** GET /my/telegram-accounts */
+      list: (...args: Parameters<Client["tgaccount"]["list"]>) => ({
+        queryKey: key("tgaccount", "list", ...args),
+        queryFn: () => client.tgaccount.list(...args),
+      }),
+      /** POST /my/telegram-accounts/login/{login_id}/code */
+      loginCode: () => ({
+        mutationFn: (variables: Parameters<Client["tgaccount"]["loginCode"]>) => client.tgaccount.loginCode(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "tgaccount"),
+      }),
+      /** GET /my/telegram-accounts/login/{login_id} */
+      loginGet: (...args: Parameters<Client["tgaccount"]["loginGet"]>) => ({
+        queryKey: key("tgaccount", "loginGet", ...args),
+        queryFn: () => client.tgaccount.loginGet(...args),
+      }),
+      /** POST /my/telegram-accounts/login/{login_id}/password */
+      loginPassword: () => ({
+        mutationFn: (variables: Parameters<Client["tgaccount"]["loginPassword"]>) => client.tgaccount.loginPassword(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "tgaccount"),
+      }),
+      /** POST /my/telegram-accounts/login/start */
+      loginStart: () => ({
+        mutationFn: (variables: Parameters<Client["tgaccount"]["loginStart"]>[0]) => client.tgaccount.loginStart(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "tgaccount"),
+      }),
+      /** PUT /my/telegram-accounts/{id}/synced-peers */
+      syncedPeers: () => ({
+        mutationFn: (variables: Parameters<Client["tgaccount"]["syncedPeers"]>) => client.tgaccount.syncedPeers(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "tgaccount"),
+      }),
+      /** PUT /my/telegram-accounts/{id} */
+      update: () => ({
+        mutationFn: (variables: Parameters<Client["tgaccount"]["update"]>) => client.tgaccount.update(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "tgaccount"),
+      }),
+    },
     ticket: {
       /** ticket 分组全部查询的 key 前缀。 */
       key: () => key("ticket"),

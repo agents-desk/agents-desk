@@ -169,6 +169,17 @@ export const required = {
   tenant: {
     rename: ["tenant-settings:manage"],
   },
+  tgaccount: {
+    dialogs: ["conversations:read"],
+    disconnect: ["conversations:read"],
+    list: ["conversations:read"],
+    loginCode: ["conversations:read"],
+    loginGet: ["conversations:read"],
+    loginPassword: ["conversations:read"],
+    loginStart: ["conversations:read"],
+    syncedPeers: ["conversations:read"],
+    update: ["conversations:read"],
+  },
   ticket: {
     contactAdd: ["conversations:reply"],
     contactRemove: ["conversations:reply"],

@@ -247,6 +247,13 @@ export const schemas = {
       },
     },
   },
+  telegram: {
+    settingsUpdate: {
+      body: {
+        "$ref": "#/components/schemas/PlatformsettingsTelegram"
+      },
+    },
+  },
   tenant: {
     changeOwner: {
       body: {
@@ -572,6 +579,26 @@ export const components = {
       "from_name",
       "from_email",
       "api_key"
+    ],
+    "type": "object"
+  },
+  PlatformsettingsTelegram: {
+    "additionalProperties": false,
+    "properties": {
+      "api_hash": {
+        "format": "password",
+        "maxLength": 128,
+        "type": "string"
+      },
+      "api_id": {
+        "format": "int64",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "api_id",
+      "api_hash"
     ],
     "type": "object"
   },

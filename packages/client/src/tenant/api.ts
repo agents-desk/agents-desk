@@ -1919,6 +1919,123 @@ export interface TenantGeneralSettings {
   reopen_window_hours?: number
 }
 
+export interface TgaccountAccountDTO {
+  created_at: string
+  /** Telegram 昵称 */
+  display_name?: string
+  enabled: boolean
+  id: string
+  /** 最近一次连接错误信息 */
+  last_error?: string
+  /** 账号显示名称，便于在商务沟通列表中区分多个个人号 */
+  name: string
+  /** 绑定的手机号（已脱敏展示） */
+  phone?: string
+  /** 连接状态：connected、disconnected 或 auth_expired */
+  status: TgaccountStatus
+  /** 已勾选同步的 1:1 单聊与群聊列表 */
+  synced_peers: TgaccountSyncedPeer[]
+  telegram_user_id?: number
+  updated_at: string
+  /** Telegram 用户名 */
+  username?: string
+}
+
+export interface TgaccountDialogDTO {
+  /** MTProto 访问所需的 access_hash */
+  access_hash?: number
+  /** 外部会话唯一标识（tg:user:<id>、tg:chat:<id> 或 tg:channel:<id>） */
+  external_chat_id: string
+  /** 是否为 Telegram 群聊或超级群 */
+  is_group: boolean
+  /** Telegram 数字 ID */
+  peer_id: number
+  /** Telegram 对端类型：user、chat 或 channel */
+  peer_type: string
+  /** 是否已在同步白名单中 */
+  synced: boolean
+  /** 对方姓名或群聊标题 */
+  title: string
+  /** 对方或群聊的 @username */
+  username?: string
+}
+
+export interface TgaccountListAccountsOutputBody {
+  accounts: TgaccountAccountDTO[]
+  /** 平台管理员是否已配置 Telegram API ID 与 API Hash */
+  configured: boolean
+}
+
+export type TgaccountLoginMode = "qr" | "phone"
+
+export interface TgaccountLoginSessionDTO {
+  /** 登录完成后生成的 Telegram 个人号渠道 */
+  account?: TgaccountAccountDTO
+  /** 失败原因 */
+  error?: string
+  login_id: string
+  mode: TgaccountLoginMode
+  /** 2FA 云密码提示 */
+  password_hint?: string
+  /** 扫码登录的二维码图片（data:image/png;base64,...） */
+  qr_data_url?: string
+  /** 当前二维码过期时间 */
+  qr_expires_at?: string
+  step: TgaccountLoginStep
+}
+
+export type TgaccountLoginStep = "awaiting_qr" | "awaiting_code" | "awaiting_password" | "connected" | "failed"
+
+export interface TgaccountStartLoginInputBody {
+  /** 登录方式：qr（默认扫码）或 phone（手机号验证码） */
+  mode?: TgaccountLoginMode
+  /** 可选：自定义该账号在工作区中的显示名称 */
+  name?: string
+  /** 手机号登录时必填，带国际区号，例如 +8613800138000 */
+  phone?: string
+}
+
+export type TgaccountStatus = "connected" | "disconnected" | "auth_expired"
+
+export interface TgaccountSubmitCodeInputBody {
+  /** 短信或 Telegram App 收到的登录验证码 */
+  code: string
+}
+
+export interface TgaccountSubmitPasswordInputBody {
+  /** Telegram 两步验证云密码 */
+  password: string
+}
+
+export interface TgaccountSyncedPeer {
+  /** MTProto 访问所需的 access_hash */
+  access_hash?: number
+  /** 外部会话唯一标识（tg:user:<id>、tg:chat:<id> 或 tg:channel:<id>） */
+  external_chat_id: string
+  /** 是否为 Telegram 群聊或超级群 */
+  is_group: boolean
+  /** Telegram 数字 ID */
+  peer_id: number
+  /** Telegram 对端类型：user、chat 或 channel */
+  peer_type: string
+  /** 对方姓名或群聊标题 */
+  title: string
+  /** 对方或群聊的 @username */
+  username?: string
+}
+
+export interface TgaccountUpdateAccountInputBody {
+  enabled: boolean
+  name: string
+}
+
+export interface TgaccountUpdateSyncedPeersInputBody {
+  /** 可选：为新增同步的会话拉取最近 N 条历史消息（默认 0 不拉取） */
+  backfill_limit?: number
+  /** 需要同步到商务沟通的 1:1 单聊与群聊列表 */
+  peers: TgaccountSyncedPeer[]
+}
+
 export type TicketStatus = "submitted" | "in_progress" | "waiting_on_customer" | "resolved"
 
 export interface TicketTypeDTO {
@@ -3321,6 +3438,72 @@ export function createClient(options: ClientOptions) {
        */
       rename: (body: TenantGeneralSettings): Promise<TenantCurrentDTO> =>
         rt.request<TenantCurrentDTO>({ method: "PUT", path: `/tenant`, body }),
+    },
+    /** operationId 以 tgaccount- 开头的接口。 */
+    tgaccount: {
+      /**
+       * 读取 Telegram 可同步的单聊与群聊
+       *
+       * GET /my/telegram-accounts/{id}/dialogs
+       */
+      dialogs: (id: string): Promise<TgaccountDialogDTO[]> =>
+        rt.request<TgaccountDialogDTO[]>({ method: "GET", path: `/my/telegram-accounts/${encodeURIComponent(id)}/dialogs` }),
+      /**
+       * 解绑并断开 Telegram 个人号
+       *
+       * DELETE /my/telegram-accounts/{id}
+       */
+      disconnect: (id: string): Promise<void> =>
+        rt.request<void>({ method: "DELETE", path: `/my/telegram-accounts/${encodeURIComponent(id)}` }),
+      /**
+       * 我的 Telegram 个人号列表
+       *
+       * GET /my/telegram-accounts
+       */
+      list: (): Promise<TgaccountListAccountsOutputBody> =>
+        rt.request<TgaccountListAccountsOutputBody>({ method: "GET", path: `/my/telegram-accounts` }),
+      /**
+       * 提交 Telegram 登录验证码
+       *
+       * POST /my/telegram-accounts/login/{login_id}/code
+       */
+      loginCode: (loginID: string, body: TgaccountSubmitCodeInputBody): Promise<TgaccountLoginSessionDTO> =>
+        rt.request<TgaccountLoginSessionDTO>({ method: "POST", path: `/my/telegram-accounts/login/${encodeURIComponent(loginID)}/code`, body }),
+      /**
+       * 查询 Telegram 个人号登录状态
+       *
+       * GET /my/telegram-accounts/login/{login_id}
+       */
+      loginGet: (loginID: string): Promise<TgaccountLoginSessionDTO> =>
+        rt.request<TgaccountLoginSessionDTO>({ method: "GET", path: `/my/telegram-accounts/login/${encodeURIComponent(loginID)}` }),
+      /**
+       * 提交 Telegram 两步验证密码
+       *
+       * POST /my/telegram-accounts/login/{login_id}/password
+       */
+      loginPassword: (loginID: string, body: TgaccountSubmitPasswordInputBody): Promise<TgaccountLoginSessionDTO> =>
+        rt.request<TgaccountLoginSessionDTO>({ method: "POST", path: `/my/telegram-accounts/login/${encodeURIComponent(loginID)}/password`, body }),
+      /**
+       * 发起 Telegram 个人号登录
+       *
+       * POST /my/telegram-accounts/login/start
+       */
+      loginStart: (body: TgaccountStartLoginInputBody): Promise<TgaccountLoginSessionDTO> =>
+        rt.request<TgaccountLoginSessionDTO>({ method: "POST", path: `/my/telegram-accounts/login/start`, body }),
+      /**
+       * 更新同步的 Telegram 单聊与群聊白名单
+       *
+       * PUT /my/telegram-accounts/{id}/synced-peers
+       */
+      syncedPeers: (id: string, body: TgaccountUpdateSyncedPeersInputBody): Promise<TgaccountAccountDTO> =>
+        rt.request<TgaccountAccountDTO>({ method: "PUT", path: `/my/telegram-accounts/${encodeURIComponent(id)}/synced-peers`, body }),
+      /**
+       * 修改 Telegram 个人号设置
+       *
+       * PUT /my/telegram-accounts/{id}
+       */
+      update: (id: string, body: TgaccountUpdateAccountInputBody): Promise<TgaccountAccountDTO> =>
+        rt.request<TgaccountAccountDTO>({ method: "PUT", path: `/my/telegram-accounts/${encodeURIComponent(id)}`, body }),
     },
     /** operationId 以 ticket- 开头的接口。 */
     ticket: {

@@ -207,6 +207,8 @@ export const PlatformsettingsErrors = {
   InvalidEmail: "platform_settings.invalid_email",
   /** ErrRequiredField 表示启用 Resend 时必填项未填写。 */
   RequiredField: "platform_settings.required_field",
+  /** ErrTelegramCredentialsIncomplete 表示配置 Telegram API 凭据时 API ID 与 API Hash 必须同时填写。 */
+  TelegramCredentialsIncomplete: "platform_settings.telegram_incomplete",
 } as const
 
 /** agents-desk/internal/role 的错误码。 */
@@ -256,6 +258,22 @@ export const TenantErrors = {
   SlugReserved: "tenant.slug_reserved",
   /** ErrDisabled 是成员进入的工作区已停用（403）：只有这个工作区的成员会看到它，其他人得到 404。 */
   Disabled: "tenant.disabled",
+} as const
+
+/** agents-desk/internal/tgaccount 的错误码。 */
+export const TgaccountErrors = {
+  /** ErrNotConfigured 是平台管理员尚未在系统设置中配置 Telegram API ID 与 API Hash。 */
+  NotConfigured: "tgaccount.not_configured",
+  /** ErrLoginNotFound 是登录会话不存在、已过期或不属于当前成员。 */
+  LoginNotFound: "tgaccount.login_not_found",
+  /** ErrLoginFailed 是 Telegram 登录验证失败（验证码错误、密码错误或连接中断）。 */
+  LoginFailed: "tgaccount.login_failed",
+  /** ErrNotConnected 是该 Telegram 个人号当前未连接或授权已失效，需要重新登录。 */
+  NotConnected: "tgaccount.not_connected",
+  /** ErrPeerNotFound 是目标 Telegram 单聊或群聊不在已同步列表中或缺少访问凭据。 */
+  PeerNotFound: "tgaccount.peer_not_found",
+  /** ErrPhoneRequired 是选择手机号登录时未填写带国际区号的手机号。 */
+  PhoneRequired: "tgaccount.phone_required",
 } as const
 
 /** agents-desk/internal/tickettype 的错误码。 */

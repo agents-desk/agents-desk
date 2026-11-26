@@ -33,6 +33,8 @@ var (
 	ErrInvalidEmail = errorx.Define(errorx.InvalidArgument, "platform_settings.invalid_email")
 	// ErrRequiredField 表示启用 Resend 时必填项未填写。
 	ErrRequiredField = errorx.Define(errorx.InvalidArgument, "platform_settings.required_field")
+	// ErrTelegramCredentialsIncomplete 表示配置 Telegram API 凭据时 API ID 与 API Hash 必须同时填写。
+	ErrTelegramCredentialsIncomplete = errorx.Define(errorx.InvalidArgument, "platform_settings.telegram_incomplete")
 )
 
 // Language 是平台默认界面语言。
@@ -80,6 +82,19 @@ var MailDefaults = Mail{
 	APIKey:    "",
 }
 
+// Telegram 是平台级 Telegram MTProto 应用凭据（用于成员绑定 Telegram 个人号商务渠道）。
+// 字段不带 omitempty，见 tenon/settings 文档；APIHash 落库时自动加密保存。
+type Telegram struct {
+	APIID   int    `json:"api_id" minimum:"0" doc:"Telegram 应用 API ID（在 my.telegram.org 申请）；填 0 表示暂不启用个人号绑定"`
+	APIHash string `json:"api_hash" maxLength:"128" format:"password" settings:"secret" doc:"Telegram 应用 API Hash，落库时自动加密保存"`
+}
+
+// TelegramDefaults 是平台 Telegram API 凭据的默认值。
+var TelegramDefaults = Telegram{}
+
+// Configured 报告平台是否已完整配置 Telegram MTProto 应用凭据。
+func (t Telegram) Configured() bool { return t.APIID > 0 && strings.TrimSpace(t.APIHash) != "" }
+
 // BuildMailer 按当前 Resend 设置构造 mail.Mailer；未填写 APIKey 时返回 logmail。
 func BuildMailer(m Mail) (mail.Mailer, error) {
 	if strings.TrimSpace(m.APIKey) == "" {
@@ -101,6 +116,11 @@ func NewMailGroup(db bun.IDB, keys *crypt.Crypt) *settings.Group[Mail] {
 	return settings.New(db, "platform.mail", MailDefaults, settings.WithCrypt(keys))
 }
 
+// NewTelegramGroup 返回平台 Telegram API 凭据的存储组，APIHash 经 keys 透明加密存储。
+func NewTelegramGroup(db bun.IDB, keys *crypt.Crypt) *settings.Group[Telegram] {
+	return settings.New(db, "platform.telegram", TelegramDefaults, settings.WithCrypt(keys))
+}
+
 // GeneralBody 是常规设置的请求与响应体。
 type GeneralBody struct {
 	Body General
@@ -109,6 +129,11 @@ type GeneralBody struct {
 // MailBody 是邮件设置的请求与响应体。
 type MailBody struct {
 	Body Mail
+}
+
+// TelegramBody 是 Telegram API 凭据设置的请求与响应体。
+type TelegramBody struct {
+	Body Telegram
 }
 
 // PublicSite 是无需登录即可读取的平台公开信息，供管理端与工作区端的顶栏、登录页和浏览器标签页显示。
@@ -317,6 +342,77 @@ func (a *SaveMail) HTTP(ctx context.Context, in *MailBody) (*MailBody, error) {
 		return nil, err
 	}
 	return &MailBody{Body: saved}, nil
+}
+
+// GetTelegram 读取平台 Telegram API 凭据设置。
+type GetTelegram struct{ group *settings.Group[Telegram] }
+
+// NewGetTelegram 返回读取平台 Telegram API 凭据设置的动作。
+func NewGetTelegram(group *settings.Group[Telegram]) *GetTelegram {
+	return &GetTelegram{group: group}
+}
+
+// HTTP 处理 GET /settings/telegram。
+func (a *GetTelegram) HTTP(ctx context.Context, _ *struct{}) (*TelegramBody, error) {
+	v, err := a.group.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &TelegramBody{Body: v}, nil
+}
+
+// SaveTelegram 保存平台 Telegram API 凭据设置。
+type SaveTelegram struct {
+	db    *bun.DB
+	group *settings.Group[Telegram]
+}
+
+// NewSaveTelegram 返回保存平台 Telegram API 凭据设置的动作。
+func NewSaveTelegram(db *bun.DB, group *settings.Group[Telegram]) *SaveTelegram {
+	return &SaveTelegram{db: db, group: group}
+}
+
+// Handle 校验并保存平台 Telegram MTProto 凭据（API ID 与 API Hash 须同时填写或同时留空），有修改时写入审计日志。
+func (a *SaveTelegram) Handle(ctx context.Context, subject identity.Subject, next Telegram) (Telegram, error) {
+	next.APIHash = strings.TrimSpace(next.APIHash)
+	if (next.APIID > 0) != (next.APIHash != "") {
+		field := "api_hash"
+		if next.APIID <= 0 {
+			field = "api_id"
+		}
+		return Telegram{}, ErrTelegramCredentialsIncomplete.New(errorx.Field(field))
+	}
+	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
+		var changed []string
+		err := a.group.WithDB(tx).Update(ctx, func(cur *Telegram) error {
+			if cur.APIID != next.APIID {
+				changed = append(changed, "api_id")
+			}
+			if cur.APIHash != next.APIHash {
+				changed = append(changed, "api_hash")
+			}
+			*cur = next
+			return nil
+		})
+		if err != nil || len(changed) == 0 {
+			return err
+		}
+		return activity.Record(ctx, tx, subject, activity.Activity{
+			Event: "platform_settings.telegram_updated", TargetType: "settings", TargetID: "telegram",
+			Properties: map[string]any{"changed": changed},
+		})
+	})
+	return next, err
+}
+
+// HTTP 处理 PUT /settings/telegram。
+func (a *SaveTelegram) HTTP(ctx context.Context, in *TelegramBody) (*TelegramBody, error) {
+	sub, _ := identity.FromContext(ctx)
+	saved, err := a.Handle(ctx, sub, in.Body)
+	if err != nil {
+		return nil, err
+	}
+	return &TelegramBody{Body: saved}, nil
 }
 
 // validEmail 检查字符串是不是不含显示名的纯邮箱地址。

@@ -8,6 +8,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/uptrace/bun"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/go-tenon/tenon/activity"
 	"github.com/go-tenon/tenon/apitoken"
@@ -58,6 +59,7 @@ import (
 	"agents-desk/internal/platformsettings"
 	"agents-desk/internal/telegram"
 	"agents-desk/internal/tenant"
+	"agents-desk/internal/tgaccount"
 	"agents-desk/internal/translation"
 	"agents-desk/internal/widget"
 	"agents-desk/migrations"
@@ -82,12 +84,13 @@ type App struct {
 	contactTokens *apitoken.Store // 客户（联系人）在聊天插件中的令牌
 	crypt         *crypt.Crypt    // 应用密钥：加密保存聊天插件的身份验证密钥
 
-	generalSettings     *settings.Group[platformsettings.General] // 平台常规设置
-	mailSettings        *settings.Group[platformsettings.Mail]    // 平台邮件服务设置
-	llmSettings         *settings.Group[llm.Settings]             // 模型接口的平台设置
-	translationSettings *settings.Group[translation.Settings]     // 各工作区的翻译设置：语气、术语表
-	features            *feature.Store                            // 平台功能开关与灰度规则
-	translator          *translation.Translator                   // 调用模型识别语言和翻译
+	generalSettings     *settings.Group[platformsettings.General]  // 平台常规设置
+	mailSettings        *settings.Group[platformsettings.Mail]     // 平台邮件服务设置
+	telegramSettings    *settings.Group[platformsettings.Telegram] // 平台 Telegram MTProto API 凭据设置
+	llmSettings         *settings.Group[llm.Settings]              // 模型接口的平台设置
+	translationSettings *settings.Group[translation.Settings]      // 各工作区的翻译设置：语气、术语表
+	features            *feature.Store                             // 平台功能开关与灰度规则
+	translator          *translation.Translator                    // 调用模型识别语言和翻译
 
 	files       *filesystem.Service // 上传的文件：头像、会话附件与导出文件等
 	images      *imgproxy.Proxy     // 图片缩略图地址生成；未配置 url 时返回原图地址
@@ -97,8 +100,9 @@ type App struct {
 	localDisk   *local.Disk         // 本地磁盘，在 /storage/ 下提供访问；没有配置本地磁盘时为空
 	locker      *lock.Locker        // 多个实例之间的锁：协调翻译和自动化等任务的互斥执行
 
-	channels channel.Registry // 各种渠道的连接器
-	telegram *telegram.Client // 调用 Telegram Bot API 的客户端
+	channels   channel.Registry   // 各种渠道的连接器
+	telegram   *telegram.Client   // 调用 Telegram Bot API 的客户端
+	tgAccounts *tgaccount.Manager // 成员 Telegram 个人号（纯 Go MTProto）管理器
 }
 
 // downstream 返回会话有变化时通知的下游：把发给对方的消息交给连接器发出，翻译收到的消息，提交后推送给能看到会话的成员，
@@ -202,14 +206,15 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	generalSettings, mailSettings := platformsettings.NewGeneralGroup(db), platformsettings.NewMailGroup(db, keys)
+	generalSettings, mailSettings, telegramSettings := platformsettings.NewGeneralGroup(db), platformsettings.NewMailGroup(db, keys), platformsettings.NewTelegramGroup(db, keys)
 	llmSettings, translationSettings := llm.NewGroup(db, keys), translation.NewGroup(db)
 	featureStore := flags.NewStore(db)
 	ops := operation.New(db)
 	exporter := exports.New(db, ops, files)
 
 	tgClient := telegram.NewClient(outbound.New(outbound.Options{Timeout: 30 * time.Second}))
-	return &App{
+	tgMgr := tgaccount.NewManager(db, keys, files, telegramSettings, nil)
+	app := &App{
 		cfg: cfg, db: db, nc: nc, tel: tel, hub: hub, creds: creds, presence: presence, roles: roles,
 		adminLogins:     adminLogins,
 		adminTokens:     apitoken.NewStore(db, cfg.AdminToken, apitoken.Credentials(creds)),
@@ -217,24 +222,30 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		memberTokens:    apitoken.NewStore(db, cfg.MemberToken, apitoken.Credentials(creds)),
 		contactTokens:   apitoken.NewStore(db, cfg.ContactToken, apitoken.Credentials(creds)),
 		crypt:           keys,
-		generalSettings: generalSettings, mailSettings: mailSettings,
+		generalSettings: generalSettings, mailSettings: mailSettings, telegramSettings: telegramSettings,
 		llmSettings: llmSettings, translationSettings: translationSettings, features: featureStore,
 		ops: ops, exporter: exporter,
 		// 模型网关不设固定整请求超时（由调用上下文控制），以便兼容流式 SSE 长响应及自托管网关地址。
 		translator: translation.NewTranslator(db, llm.NewClient(db, llmSettings, &http.Client{}), translationSettings),
 		files:      files, images: images, defaultDisk: disks[cfg.Filesystem.DefaultDisk], localDisk: localDisk, locker: lock.New(pglock.New(db)),
-		channels: registry(hub, keys, files, tgClient),
-		telegram: tgClient,
-	}, nil
+		channels:   registry(hub, keys, files, tgClient, tgMgr),
+		telegram:   tgClient,
+		tgAccounts: tgMgr,
+	}
+	tgMgr.SetReceive(conversation.NewReceive(db, app.channels, app.downstream()))
+	return app, nil
 }
 
-// registry 返回各种渠道的连接器：内置测试渠道、网页聊天插件、个人网页商务沟通链接和 Telegram 机器人。
-func registry(hub *broadcast.Hub, keys *crypt.Crypt, files *filesystem.Service, tgClient *telegram.Client) channel.Registry {
+// registry 返回各种渠道的连接器：内置测试渠道、网页聊天插件、个人网页商务沟通链接、Telegram 机器人和 Telegram 个人号。
+func registry(hub *broadcast.Hub, keys *crypt.Crypt, files *filesystem.Service, tgClient *telegram.Client, tgMgr *tgaccount.Manager) channel.Registry {
 	r := channel.DefaultRegistry()
 	widgetConn := widget.NewConnector(hub)
 	r[channel.Widget] = widgetConn
 	r[channel.BusinessLink] = widgetConn
 	r[channel.Telegram] = telegram.NewConnector(keys, files, tgClient)
+	if tgMgr != nil {
+		r[channel.TelegramAccount] = tgMgr.Connector()
+	}
 	return r
 }
 
@@ -261,7 +272,14 @@ func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
 	tenant.RegisterJobs(w, a.db, a.memberLogins, tenant.Addresses{PublicURL: a.cfg.HTTP.PublicURL}, a.hub, a.exporter)
 	contact.RegisterJobs(w, a.db, a.hub, a.exporter)
 	scheduleapi.HandleRunNow(w, a.tasks)
-	return w.Run, nil
+	return func(ctx context.Context) error {
+		g, gctx := errgroup.WithContext(ctx)
+		g.Go(func() error { return w.Run(gctx) })
+		if a.tgAccounts != nil {
+			g.Go(func() error { return a.tgAccounts.Run(gctx) })
+		}
+		return g.Wait()
+	}, nil
 }
 
 // tasks 创建调度器并注册全部定时任务：调度器进程、schedules 命令和管理员端定时任务面板共用这一份定义。

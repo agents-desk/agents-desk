@@ -49,4 +49,23 @@ export const settings = {
       },
     },
   },
+  "telegram-api": {
+    name: "telegram-api",
+    operations: { get: ["telegram", "settingsGet"], update: ["telegram", "settingsUpdate"] },
+    permissions: { get: ["platform-settings:manage"], update: ["platform-settings:manage"] },
+    form: [
+      { name: "api_id", type: "integer", format: "int64", required: true },
+      { name: "api_hash", type: "string", format: "password", required: true },
+    ],
+    labels: {
+      "en": {
+        title: "Telegram Personal API",
+        fields: { api_id: "API ID", api_hash: "API Hash" },
+      },
+      "zh-CN": {
+        title: "Telegram 个人号 API",
+        fields: { api_id: "API ID", api_hash: "API Hash" },
+      },
+    },
+  },
 } as const

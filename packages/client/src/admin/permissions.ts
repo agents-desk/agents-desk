@@ -85,6 +85,10 @@ export const required = {
   system: {
     doctor: ["system:read"],
   },
+  telegram: {
+    settingsGet: ["platform-settings:manage"],
+    settingsUpdate: ["platform-settings:manage"],
+  },
   tenant: {
     changeOwner: ["tenants:manage"],
     create: ["tenants:manage"],
