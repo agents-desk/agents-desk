@@ -96,7 +96,7 @@ function ChatLayout() {
         <Pane
           width={narrow ? "100%" : undefined}
           border={narrow ? "none" : "right"}
-          resizable={!narrow && { storageKey: "chat-list", defaultWidth: 300, min: 250, max: 400, side: "right" }}
+          resizable={!narrow && { storageKey: "chat-list", defaultWidth: 320, min: 260, max: 420, side: "right" }}
         >
           <ChatList
             scope={scope}

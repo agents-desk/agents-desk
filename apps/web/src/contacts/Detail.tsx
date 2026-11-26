@@ -395,7 +395,7 @@ function InlineTextField({
             {({ copied, copy }) => (
               <Tooltip label={t(copied ? "contacts.copied" : "contacts.copy")} withArrow>
                 <ActionIcon variant="subtle" color={copied ? "green" : "gray"} size={22} onClick={copy} aria-label={t("contacts.copy")}>
-                  {copied ? <IconCheck size={13} /> : <IconCopy size={13} />}
+                  {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
                 </ActionIcon>
               </Tooltip>
             )}
@@ -404,7 +404,7 @@ function InlineTextField({
         {editable && (
           <Tooltip label={t("contacts.edit")} withArrow>
             <ActionIcon variant="subtle" color="gray" size={22} onClick={() => setEditing(true)} aria-label={t("contacts.edit")}>
-              <IconPencil size={13} />
+              <IconPencil size={14} />
             </ActionIcon>
           </Tooltip>
         )}
@@ -472,7 +472,7 @@ function PropertiesSection({
                     onClick={copy}
                     aria-label={t("contacts.copy")}
                   >
-                    {copied ? <IconCheck size={13} /> : <IconCopy size={13} />}
+                    {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
                   </ActionIcon>
                 </Tooltip>
               )}
@@ -552,7 +552,7 @@ function PropertiesSection({
                   onClick={() => setEditingZone(true)}
                   aria-label={t("contacts.edit")}
                 >
-                  <IconPencil size={13} />
+                  <IconPencil size={14} />
                 </ActionIcon>
               </Tooltip>
             )}

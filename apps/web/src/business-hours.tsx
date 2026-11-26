@@ -96,7 +96,7 @@ export function WeekEditor({ form, path }: { form: UseFormReturnType<any>; path:
         <Text size="sm" fw={500}>
           {t("hours.week")}
         </Text>
-        <Button variant="subtle" size="compact-xs" leftSection={<IconCopy size={13} />} onClick={applyWeekdays}>
+        <Button variant="subtle" size="compact-xs" leftSection={<IconCopy size={14} />} onClick={applyWeekdays}>
           {t("hours.apply_weekdays")}
         </Button>
       </Group>

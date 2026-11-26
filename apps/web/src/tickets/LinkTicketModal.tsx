@@ -1,4 +1,4 @@
-import { Badge, Box, Center, Group, Loader, Modal, ScrollArea, Stack, Text, TextInput, UnstyledButton } from "@mantine/core"
+import { Badge, Center, Group, Loader, Modal, ScrollArea, Stack, Text, TextInput, UnstyledButton } from "@mantine/core"
 import { useDebouncedValue } from "@mantine/hooks"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { IconLink, IconLock, IconSearch } from "@tabler/icons-react"
@@ -55,7 +55,7 @@ export function LinkTicketModal({ opened, conversationId, linkedTicketIds, onClo
           value={q}
           onChange={(e) => setQ(e.currentTarget.value)}
           placeholder={t("tickets.link_ticket_placeholder")}
-          leftSection={<IconSearch size={15} />}
+          leftSection={<IconSearch size={16} />}
           data-autofocus
         />
         <ScrollArea.Autosize mah={360}>
@@ -86,7 +86,7 @@ export function LinkTicketModal({ opened, conversationId, linkedTicketIds, onClo
                     <Text size="sm" fw={500} truncate style={{ flex: 1, minWidth: 0 }}>
                       {tk.title}
                     </Text>
-                    {tk.visibility === "members" && <IconLock size={13} color="var(--tn-muted)" style={{ flex: "none" }} />}
+                    {tk.visibility === "members" && <IconLock size={14} color="var(--tn-muted)" style={{ flex: "none" }} />}
                     <Badge size="xs" variant="light" color={ticketStatusColor[tk.status]} style={{ flex: "none" }}>
                       {ticketStatusLabel(tk.status, t)}
                     </Badge>

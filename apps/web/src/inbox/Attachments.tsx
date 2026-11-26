@@ -295,7 +295,7 @@ export function AttachmentStrip({
               onClick={() => onRemove(it.id)}
               aria-label={t("inbox.attach_remove")}
             >
-              <IconX size={11} />
+              <IconX size={12} />
             </ActionIcon>
           </Box>
         ) : (
@@ -324,12 +324,12 @@ export function AttachmentStrip({
             {it.status === "error" && (
               <Tooltip label={t("inbox.attach_retry")}>
                 <ActionIcon size="xs" variant="subtle" color="red" onClick={() => onRetry(it.id)} aria-label={t("inbox.attach_retry")}>
-                  <IconRefresh size={13} />
+                  <IconRefresh size={14} />
                 </ActionIcon>
               </Tooltip>
             )}
             <ActionIcon size="xs" variant="subtle" color="gray" onClick={() => onRemove(it.id)} aria-label={t("inbox.attach_remove")}>
-              <IconX size={13} />
+              <IconX size={14} />
             </ActionIcon>
           </Group>
         )
@@ -488,7 +488,7 @@ export function MessageAttachments({
                     </Text>
                   </Box>
                   <Box className="inbox-attach-file-icon" c="dimmed">
-                    <IconDownload size={15} />
+                    <IconDownload size={16} />
                   </Box>
                 </a>
               )
@@ -526,7 +526,7 @@ export function MessageAttachments({
                 </Box>
                 {!loading && !tooLarge && (
                   <Box className="inbox-attach-file-icon" c="dimmed">
-                    {f.status === "unavailable" ? <IconRefresh size={15} /> : <IconDownload size={15} />}
+                    {f.status === "unavailable" ? <IconRefresh size={16} /> : <IconDownload size={16} />}
                   </Box>
                 )}
               </UnstyledButton>
@@ -581,7 +581,7 @@ function VideoAttachmentCard({
         <img src={att.thumb_url} alt={att.filename} loading="lazy" />
       ) : (
         <Box className="inbox-msg-video-empty">
-          <IconMovie size={28} stroke={1.4} />
+          <IconMovie size={28} stroke={1.6} />
         </Box>
       )}
       <UnstyledButton
@@ -634,7 +634,7 @@ function VideoAttachmentCard({
             className="inbox-msg-video-dl"
             aria-label={t("inbox.download_file")}
           >
-            <IconDownload size={13} />
+            <IconDownload size={14} />
           </ActionIcon>
         </Tooltip>
       )}
@@ -662,7 +662,7 @@ function AudioAttachmentCard({
       <Box className="inbox-msg-audio">
         <Group gap={6} wrap="nowrap" mb={4}>
           <Box className="inbox-attach-file-icon" c="brand">
-            {att.is_voice ? <IconMicrophone size={15} /> : <IconMusic size={15} />}
+            {att.is_voice ? <IconMicrophone size={16} /> : <IconMusic size={16} />}
           </Box>
           <Text size="xs" fw={500} truncate style={{ flex: 1 }}>
             {title}
@@ -684,7 +684,7 @@ function AudioAttachmentCard({
               color="gray"
               aria-label={t("inbox.download_file")}
             >
-              <IconDownload size={13} />
+              <IconDownload size={14} />
             </ActionIcon>
           </Tooltip>
         </Group>
@@ -713,7 +713,7 @@ function AudioAttachmentCard({
       </Box>
       {!loading && !tooLarge && (
         <Box className="inbox-attach-file-icon" c="dimmed">
-          <IconDownload size={15} />
+          <IconDownload size={16} />
         </Box>
       )}
     </UnstyledButton>

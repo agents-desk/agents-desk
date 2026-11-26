@@ -3,8 +3,8 @@ import {
   ActionIcon,
   Avatar,
   Badge,
+  Box,
   Button,
-  Divider,
   Group,
   Indicator,
   MultiSelect,
@@ -15,7 +15,7 @@ import {
 } from "@mantine/core"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { IconLogout, IconUserMinus, IconUserPlus, IconX } from "@tabler/icons-react"
-import { confirm, notifyError, notifySuccess, PaneBody, PaneHeader, useT } from "@go-tenon/ui"
+import { confirm, Inspector, InspectorSection, notifyError, notifySuccess, PaneBody, PaneHeader, useT } from "@go-tenon/ui"
 import { type FormEvent, type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { useMe, useMembers } from "../inbox/data"
@@ -125,110 +125,116 @@ export function GroupDetails({ chat, onClose, onLeft }: GroupDetailsProps): Reac
       <PaneHeader
         title={t("chat.group_settings")}
         actions={
-          <ActionIcon variant="subtle" color="gray" size="sm" aria-label={t("inbox.close_details")} onClick={onClose}>
+          <ActionIcon size="sm" aria-label={t("inbox.close_details")} onClick={onClose}>
             <IconX size={16} />
           </ActionIcon>
         }
       />
 
       <PaneBody>
-        <Stack gap="md" p="var(--tn-pane-px)">
-          <form onSubmit={onSaveName}>
-            <Stack gap="xs">
-              <TextInput
-                label={t("chat.group_name")}
-                value={name}
-                onChange={(e) => setName(e.currentTarget.value)}
-                maxLength={80}
-              />
-              {name.trim() && name.trim() !== chat.name && (
-                <Group justify="flex-end">
-                  <Button size="compact-xs" type="submit" loading={rename.isPending}>
-                    {t("common.save")}
-                  </Button>
-                </Group>
+        <Inspector>
+          <InspectorSection title={t("chat.group_info")} collapsible storeKey="chat-group-info">
+            <form onSubmit={onSaveName}>
+              <Stack gap="xs">
+                <TextInput
+                  label={t("chat.group_name")}
+                  value={name}
+                  onChange={(e) => setName(e.currentTarget.value)}
+                  maxLength={80}
+                />
+                {name.trim() && name.trim() !== chat.name && (
+                  <Group justify="flex-end">
+                    <Button size="compact-xs" type="submit" loading={rename.isPending}>
+                      {t("common.save")}
+                    </Button>
+                  </Group>
+                )}
+              </Stack>
+            </form>
+          </InspectorSection>
+
+          <InspectorSection
+            title={t("chat.group_members")}
+            collapsible
+            storeKey="chat-group-members"
+            extra={
+              <Text size="xs" c="dimmed" style={{ fontVariantNumeric: "tabular-nums" }}>
+                {participants.length}
+              </Text>
+            }
+          >
+            <Stack gap="sm">
+              {addable.length > 0 && (
+                <Stack gap="xs">
+                  <MultiSelect
+                    placeholder={t("chat.pick_member_placeholder")}
+                    aria-label={t("chat.add_members")}
+                    value={toAdd}
+                    onChange={setToAdd}
+                    data={addable}
+                    searchable
+                    clearable
+                  />
+                  {toAdd.length > 0 && (
+                    <Group justify="flex-end">
+                      <Button size="compact-xs" leftSection={<IconUserPlus size={12} />} loading={addMembers.isPending} onClick={() => addMembers.mutate()}>
+                        {t("chat.add_members_submit")}
+                      </Button>
+                    </Group>
+                  )}
+                </Stack>
               )}
-            </Stack>
-          </form>
-
-          <Divider />
-
-          {addable.length > 0 && (
-            <Stack gap="xs">
-              <MultiSelect
-                label={t("chat.add_members")}
-                placeholder={t("chat.pick_member_placeholder")}
-                value={toAdd}
-                onChange={setToAdd}
-                data={addable}
-                searchable
-                clearable
-              />
-              {toAdd.length > 0 && (
-                <Group justify="flex-end">
-                  <Button size="compact-xs" leftSection={<IconUserPlus size={13} />} loading={addMembers.isPending} onClick={() => addMembers.mutate()}>
-                    {t("chat.add_members_submit")}
-                  </Button>
-                </Group>
-              )}
-            </Stack>
-          )}
-
-          <Stack gap="xs">
-            <Text size="xs" fw={600} c="dimmed">
-              {t("chat.members_count", { n: participants.length })}
-            </Text>
-            <Stack gap={8}>
-              {participants.map((p) => {
-                const isMe = p.type === "member" && p.id === me.data?.id
-                return (
-                  <Group key={`${p.type}:${p.id}`} gap="sm" wrap="nowrap">
-                    <Indicator
-                      size={8}
-                      offset={2}
-                      position="bottom-end"
-                      color={p.status === "online" ? "green" : "gray"}
-                      withBorder
-                      disabled={p.type !== "member"}
-                    >
-                      <Avatar size={28} radius="xl" name={p.name || p.id} color="initials" src={p.avatar_url || undefined} />
-                    </Indicator>
-                    <Group gap={6} wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-                      <Text size="sm" truncate>
-                        {p.name || p.id}
-                      </Text>
-                      {isMe && (
-                        <Badge size="xs" variant="light" color="gray" style={{ flex: "none" }}>
-                          {t("inbox.you")}
-                        </Badge>
+              <Stack gap={8}>
+                {participants.map((p) => {
+                  const isMe = p.type === "member" && p.id === me.data?.id
+                  const name = p.name || t(p.type === "member" ? "chat.unnamed_member" : "inbox.visitor")
+                  return (
+                    <Group key={`${p.type}:${p.id}`} gap="sm" wrap="nowrap">
+                      <Indicator
+                        size={8}
+                        offset={2}
+                        position="bottom-end"
+                        color={p.status === "online" ? "green" : "gray"}
+                        withBorder
+                        disabled={p.type !== "member"}
+                      >
+                        <Avatar size={28} radius="xl" name={name} color="initials" src={p.avatar_url || undefined} />
+                      </Indicator>
+                      <Group gap={6} wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                        <Text size="sm" truncate>
+                          {name}
+                        </Text>
+                        {isMe && (
+                          <Badge size="xs" variant="light" color="gray" style={{ flex: "none" }}>
+                            {t("inbox.you")}
+                          </Badge>
+                        )}
+                      </Group>
+                      {!isMe && p.type === "member" && (
+                        <Tooltip label={t("chat.remove_member")} openDelay={250}>
+                          <ActionIcon
+                            size="sm"
+                            aria-label={t("chat.remove_member")}
+                            disabled={removeMember.isPending}
+                            onClick={() => void handleRemove(p.id, p.name)}
+                          >
+                            <IconUserMinus size={14} />
+                          </ActionIcon>
+                        </Tooltip>
                       )}
                     </Group>
-                    {!isMe && p.type === "member" && (
-                      <Tooltip label={t("chat.remove_member")} openDelay={250}>
-                        <ActionIcon
-                          size={24}
-                          variant="subtle"
-                          color="gray"
-                          aria-label={t("chat.remove_member")}
-                          disabled={removeMember.isPending}
-                          onClick={() => void handleRemove(p.id, p.name)}
-                        >
-                          <IconUserMinus size={14} />
-                        </ActionIcon>
-                      </Tooltip>
-                    )}
-                  </Group>
-                )
-              })}
+                  )
+                })}
+              </Stack>
             </Stack>
-          </Stack>
+          </InspectorSection>
 
-          <Divider />
-
-          <Button variant="light" color="red" leftSection={<IconLogout size={15} />} loading={leave.isPending} onClick={() => void handleLeave()}>
-            {t("chat.leave")}
-          </Button>
-        </Stack>
+          <Box px="var(--tn-pane-px)" py="md">
+            <Button fullWidth variant="light" color="red" leftSection={<IconLogout size={16} />} loading={leave.isPending} onClick={() => void handleLeave()}>
+              {t("chat.leave")}
+            </Button>
+          </Box>
+        </Inspector>
       </PaneBody>
     </Stack>
   )

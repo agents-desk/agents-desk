@@ -22,7 +22,7 @@ import { useDebouncedValue } from "@mantine/hooks"
 import { useQuery } from "@tanstack/react-query"
 import { IconPlus, IconSearch, IconUsersGroup } from "@tabler/icons-react"
 import { PaneBody, PaneHeader, PaneToolbar, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
-import { type ReactNode, useEffect, useRef, useState } from "react"
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react"
 import { kit } from "../api"
 import { previewSummary } from "../inbox/Attachments"
 import { channelColor, ChannelIcon } from "../inbox/channel-badge"
@@ -31,6 +31,8 @@ import { type FillWatcher, useFillVisible } from "../inbox/fill"
 import { activity } from "../inbox/format"
 import { HighlightedSnippet } from "../inbox/Highlight"
 import { chatDisplayName, type ChatModeFilter, flattenChats, useChatList } from "./data"
+import { EmptyState } from "../components/empty-state"
+import { useListKeys } from "../layout"
 
 /** ChatListProps 是聊天列表栏的设置。 */
 interface ChatListProps {
@@ -68,6 +70,10 @@ export function ChatList({
   const [debouncedQ] = useDebouncedValue(q, 200)
   const list = useChatList(debouncedQ, mode, scope, channelId)
   const items = flattenChats(list.data?.pages)
+  // 列表的顺序按 ID 串比较，数据刷新但顺序不变时不重新登记快捷键
+  const idsKey = items.map((x) => x.id).join("\n")
+  const ids = useMemo(() => (idsKey ? idsKey.split("\n") : []), [idsKey])
+  useListKeys(ids, openId, open)
 
   // 滚到底时加载下一页
   const end = useRef<HTMLDivElement>(null)
@@ -110,7 +116,7 @@ export function ChatList({
           ) : (
             <Tooltip label={t("chat.new")} openDelay={300}>
               <ActionIcon variant="light" size="sm" aria-label={t("chat.new")} onClick={onNewChat}>
-                <IconPlus size={15} />
+                <IconPlus size={16} />
               </ActionIcon>
             </Tooltip>
           )
@@ -131,7 +137,7 @@ export function ChatList({
           placeholder={t(isExternal ? "chat.business_search_placeholder" : "chat.search_placeholder")}
           aria-label={t(isExternal ? "chat.business_search_placeholder" : "chat.search_placeholder")}
           leftSection={<IconSearch size={14} stroke={1.6} />}
-          rightSection={q ? <CloseButton size="xs" aria-label={t("inbox.search_clear")} onClick={() => setQ("")} /> : undefined}
+          rightSection={q ? <CloseButton size="xs" aria-label={t("common.clear_search")} onClick={() => setQ("")} /> : undefined}
         />
       </PaneToolbar>
 
@@ -151,18 +157,17 @@ export function ChatList({
             ))}
           </Stack>
         ) : items.length === 0 ? (
-          <Center p="xl">
-            <Stack gap="sm" align="center">
-              <Text size="sm" c="dimmed" ta="center">
-                {t(hasFilters ? "chat.empty_filtered" : isExternal ? "chat.business_empty" : "chat.empty")}
-              </Text>
-              {isExternal && !debouncedQ.trim() && (
-                <Button size="compact-xs" variant="light" onClick={onManageBusinessChannels}>
+          <EmptyState
+            title={t(hasFilters ? "chat.empty_filtered" : isExternal ? "chat.business_empty" : "chat.empty")}
+            action={
+              isExternal &&
+              !debouncedQ.trim() && (
+                <Button size="xs" variant="light" onClick={onManageBusinessChannels}>
                   {t("chat.business_manage")}
                 </Button>
-              )}
-            </Stack>
-          </Center>
+              )
+            }
+          />
         ) : (
           items.map((chat) => <ChatRow key={chat.id} chat={chat} active={chat.id === openId} watch={watch} onClick={() => open(chat.id)} />)
         )}

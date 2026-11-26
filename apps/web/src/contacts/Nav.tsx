@@ -14,6 +14,7 @@ import {
 import { confirm, Fill, notifyError, notifySuccess, RailSection, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../api"
+import { NavCount } from "../components/nav-count"
 import type { ContactsSearch } from "./search"
 import { ContactViewModal } from "./ViewModal"
 
@@ -53,33 +54,28 @@ export function ContactsNav({ search, go }: { search: ContactsSearch; go: (patch
   }
 
   const pick = (kind?: ContactKind) => go({ view: undefined, kind })
-  const count = (n?: number) =>
-    n === undefined ? null : (
-      <Text size="xs" c="dimmed" style={{ fontVariantNumeric: "tabular-nums" }}>
-        {n}
-      </Text>
-    )
+  const count = (n?: number) => <NavCount n={n} />
 
   return (
     <>
       <Fill name="nav">
         <NavLink
           label={t("contacts.nav_all")}
-          leftSection={<IconUsers size={16} />}
+          leftSection={<IconUsers size={16} stroke={1.6} />}
           rightSection={count(d?.all)}
           active={!search.view && !search.kind}
           onClick={() => pick(undefined)}
         />
         <NavLink
           label={t("contacts.nav_users")}
-          leftSection={<IconUserCheck size={16} />}
+          leftSection={<IconUserCheck size={16} stroke={1.6} />}
           rightSection={count(d?.users)}
           active={!search.view && search.kind === "user"}
           onClick={() => pick("user")}
         />
         <NavLink
           label={t("contacts.nav_leads")}
-          leftSection={<IconUserQuestion size={16} />}
+          leftSection={<IconUserQuestion size={16} stroke={1.6} />}
           rightSection={count(d?.leads)}
           active={!search.view && search.kind === "lead"}
           onClick={() => pick("lead")}
@@ -101,7 +97,7 @@ export function ContactsNav({ search, go }: { search: ContactsSearch; go: (patch
                   setModalOpen(true)
                 }}
               >
-                <IconPlus size={14} stroke={1.8} />
+                <IconPlus size={14} stroke={1.6} />
               </ActionIcon>
             </Tooltip>
           }
@@ -117,7 +113,7 @@ export function ContactsNav({ search, go }: { search: ContactsSearch; go: (patch
                 <div key={v.id} className="ct-view-row" data-editable={v.editable || undefined}>
                   <NavLink
                     label={v.name}
-                    leftSection={v.scope === "shared" ? <IconUsers size={15} stroke={1.6} /> : <IconFilter size={15} stroke={1.6} />}
+                    leftSection={v.scope === "shared" ? <IconUsers size={16} stroke={1.6} /> : <IconFilter size={16} stroke={1.6} />}
                     rightSection={<span className="ct-view-count">{count(v.count)}</span>}
                     active={active}
                     onClick={() =>
@@ -148,7 +144,7 @@ export function ContactsNav({ search, go }: { search: ContactsSearch; go: (patch
                         </Menu.Target>
                         <Menu.Dropdown>
                           <Menu.Item
-                            leftSection={<IconPencil size={13} />}
+                            leftSection={<IconPencil size={14} />}
                             onClick={() => {
                               setEditing(v)
                               setModalOpen(true)
@@ -156,7 +152,7 @@ export function ContactsNav({ search, go }: { search: ContactsSearch; go: (patch
                           >
                             {t("views.edit")}
                           </Menu.Item>
-                          <Menu.Item leftSection={<IconTrash size={13} />} color="red" onClick={() => void handleDelete(v)}>
+                          <Menu.Item leftSection={<IconTrash size={14} />} color="red" onClick={() => void handleDelete(v)}>
                             {t("views.delete")}
                           </Menu.Item>
                         </Menu.Dropdown>

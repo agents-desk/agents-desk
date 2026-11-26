@@ -143,7 +143,7 @@ export function ConversationsPage({ route }: { route: PeriodRoute }): ReactNode 
                     {formatInt(item.value, uiLang)}
                   </Text>
                 )}
-                {canInbox && <IconArrowUpRight size={13} stroke={1.8} className="rp-live-arrow" />}
+                {canInbox && <IconArrowUpRight size={14} stroke={1.6} className="rp-live-arrow" />}
               </>
             )
             if (!canInbox) {
@@ -364,7 +364,7 @@ export function ConversationsPage({ route }: { route: PeriodRoute }): ReactNode 
                       <Text size="xs" fw={500} style={{ fontVariantNumeric: "tabular-nums" }}>
                         {formatInt(tag.count, uiLang)}
                       </Text>
-                      {canInbox && <IconArrowUpRight size={13} stroke={1.8} className="rp-bar-row-arrow" />}
+                      {canInbox && <IconArrowUpRight size={14} stroke={1.6} className="rp-bar-row-arrow" />}
                     </Group>
                   </Group>
                   <Progress value={(tag.count / maxTag) * 100} size="xs" color={tag.color || "brand"} radius="xl" />
@@ -416,7 +416,7 @@ export function ConversationsPage({ route }: { route: PeriodRoute }): ReactNode 
                       <Text size="xs" c="dimmed" style={{ fontVariantNumeric: "tabular-nums" }}>
                         {formatInt(item.count, uiLang)} ({share}%)
                       </Text>
-                      {clickable && <IconArrowUpRight size={13} stroke={1.8} className="rp-bar-row-arrow" />}
+                      {clickable && <IconArrowUpRight size={14} stroke={1.6} className="rp-bar-row-arrow" />}
                     </Group>
                   </Group>
                   <Progress

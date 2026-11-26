@@ -1,4 +1,4 @@
-import { ActionIcon, Alert, Button, Group, Radio, Stack, Switch, Tabs, Text, TextInput } from "@mantine/core"
+import { ActionIcon, Alert, Button, Group, Radio, Stack, Switch, Text, TextInput } from "@mantine/core"
 import { DateInput } from "@mantine/dates"
 import { useForm } from "@mantine/form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -10,6 +10,7 @@ import type { HoursReplyTime, HoursSchedule, HoursSettingsDTO, HoursSpecialDate 
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../../../../../api"
 import { emptySchedule, Intervals, ScheduleFields } from "../../../../../business-hours"
+import { useUnsavedGuard } from "../../../../../components/unsaved-guard"
 
 // 工作时间：时区和每周的工作时间、特殊日期（节假日、调休）、通常的回复时间。三个标签各自独立保存。
 // 聊天插件和自动化用它们告诉客户什么时候能得到回复，收件箱按回复时间给等待时长变色。
@@ -24,24 +25,15 @@ function BusinessHours(): ReactNode {
   const current = useQuery({ queryKey, queryFn: () => tenantApi.hours.get() })
   const t = useT()
   return (
-    <Page title={t("business_hours.title")} description={t("business_hours.description")}>
-      <Tabs defaultValue="schedule" keepMounted>
-        <Tabs.List>
-          <Tabs.Tab value="schedule">{t("business_hours.tab_schedule")}</Tabs.Tab>
-          <Tabs.Tab value="special">{t("business_hours.tab_special")}</Tabs.Tab>
-          <Tabs.Tab value="reply">{t("business_hours.tab_reply")}</Tabs.Tab>
-        </Tabs.List>
-        <Tabs.Panel value="schedule" pt="md">
-          {current.data && <ScheduleForm saved={current.data} />}
-        </Tabs.Panel>
-        <Tabs.Panel value="special" pt="md">
-          {current.data && <SpecialDatesForm saved={current.data} />}
-        </Tabs.Panel>
-        <Tabs.Panel value="reply" pt="md">
-          {current.data && <ReplyTimeForm saved={current.data} />}
-        </Tabs.Panel>
-      </Tabs>
-    </Page>
+    <Page
+      title={t("business_hours.title")}
+      description={t("business_hours.description")}
+      tabs={[
+        { value: "schedule", label: t("business_hours.tab_schedule"), content: current.data && <ScheduleForm saved={current.data} /> },
+        { value: "special", label: t("business_hours.tab_special"), content: current.data && <SpecialDatesForm saved={current.data} /> },
+        { value: "reply", label: t("business_hours.tab_reply"), content: current.data && <ReplyTimeForm saved={current.data} /> },
+      ]}
+    />
   )
 }
 
@@ -70,9 +62,10 @@ function useSave<T extends object>(form: ReturnType<typeof useForm<T>>, pick: (s
   return { error, saving, submit }
 }
 
-/** SaveButton 是靠右的保存按钮，表单未修改时禁用。 */
+/** SaveButton 是靠右的保存按钮，表单未修改时禁用；有未保存的修改时离开页面前提醒。 */
 function SaveButton({ dirty, saving }: { dirty: boolean; saving: boolean }): ReactNode {
   const t = useT()
+  useUnsavedGuard(dirty)
   return (
     <Group justify="flex-end">
       <Button type="submit" disabled={!dirty} loading={saving}>

@@ -21,12 +21,14 @@ import { useDebouncedValue } from "@mantine/hooks"
 import { useQuery } from "@tanstack/react-query"
 import { IconFlame, IconLink, IconLock, IconPlus, IconSearch } from "@tabler/icons-react"
 import { PaneBody, PaneHeader, PaneToolbar, useCan, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
-import { type ReactNode, useEffect, useRef, useState } from "react"
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react"
 import { kit } from "../api"
 import { useMe, useMembers, useTeams } from "../inbox/data"
 import { activity } from "../inbox/format"
 import { flattenTickets, TICKET_STATUSES, ticketStatusColor, ticketStatusLabel, useTicketList, useTicketTypes } from "./meta"
 import type { TicketSearch, TicketStatusFilter } from "./search"
+import { EmptyState } from "../components/empty-state"
+import { useListKeys } from "../layout"
 
 /** TicketListProps 是工单列表栏的设置。 */
 interface TicketListProps {
@@ -49,6 +51,10 @@ export function TicketList({ search, openId, go, open, onCreate }: TicketListPro
   const list = useTicketList(search)
   const types = useTicketTypes(false)
   const items = flattenTickets(list.data?.pages)
+  // 列表的顺序按 ID 串比较，数据刷新但顺序不变时不重新登记快捷键
+  const idsKey = items.map((x) => x.id).join("\n")
+  const ids = useMemo(() => (idsKey ? idsKey.split("\n") : []), [idsKey])
+  useListKeys(ids, openId, open)
 
   const [draftQ, setDraftQ] = useState(search.q ?? "")
   const [debouncedQ] = useDebouncedValue(draftQ, 250)
@@ -117,7 +123,7 @@ export function TicketList({ search, openId, go, open, onCreate }: TicketListPro
           can("conversations:reply") ? (
             <Tooltip label={t("tickets.create")} openDelay={300}>
               <ActionIcon variant="light" size="sm" aria-label={t("tickets.create")} onClick={onCreate}>
-                <IconPlus size={15} />
+                <IconPlus size={16} />
               </ActionIcon>
             </Tooltip>
           ) : undefined
@@ -144,7 +150,7 @@ export function TicketList({ search, openId, go, open, onCreate }: TicketListPro
             draftQ ? (
               <CloseButton
                 size="xs"
-                aria-label={t("inbox.search_clear")}
+                aria-label={t("common.clear_search")}
                 onClick={() => {
                   setDraftQ("")
                   prevUrlQ.current = ""
@@ -157,7 +163,6 @@ export function TicketList({ search, openId, go, open, onCreate }: TicketListPro
 
         <Group gap={6} grow wrap="nowrap">
           <Select
-            size="xs"
             value={search.status}
             onChange={(v) => v && go({ status: v as TicketStatusFilter })}
             data={statusOptions}
@@ -165,7 +170,6 @@ export function TicketList({ search, openId, go, open, onCreate }: TicketListPro
             aria-label={t("tickets.status")}
           />
           <Select
-            size="xs"
             value={search.type ?? ""}
             onChange={(v) => go({ type: v || undefined })}
             data={typeOptions}
@@ -189,16 +193,16 @@ export function TicketList({ search, openId, go, open, onCreate }: TicketListPro
             ))}
           </Stack>
         ) : items.length === 0 ? (
-          <Stack gap="xs" align="center" p="xl">
-            <Text c="dimmed" size="sm" ta="center">
-              {t(hasFilters ? "tickets.empty_filtered" : "tickets.empty")}
-            </Text>
-            {hasFilters && (
-              <Button size="xs" variant="light" onClick={() => go({ status: "unresolved", type: undefined, q: undefined })}>
-                {t("tickets.clear_filters")}
-              </Button>
-            )}
-          </Stack>
+          <EmptyState
+            title={t(hasFilters ? "tickets.empty_filtered" : "tickets.empty")}
+            action={
+              hasFilters && (
+                <Button size="xs" variant="light" onClick={() => go({ status: "unresolved", type: undefined, q: undefined })}>
+                  {t("tickets.clear_filters")}
+                </Button>
+              )
+            }
+          />
         ) : (
           items.map((tk) => <TicketRow key={tk.id} tk={tk} active={tk.id === openId} onClick={() => open(tk.id)} />)
         )}
@@ -255,7 +259,7 @@ function TicketRow({ tk, active, onClick }: { tk: ConversationTicketDTO; active:
           {tk.priority === "high" && (
             <Tooltip label={t("inbox.priority_high")} openDelay={300}>
               <span className="inbox-priority-icon" aria-label={t("inbox.priority_high")}>
-                <IconFlame size={13} stroke={1.9} />
+                <IconFlame size={14} stroke={1.6} />
               </span>
             </Tooltip>
           )}
@@ -287,7 +291,7 @@ function TicketRow({ tk, active, onClick }: { tk: ConversationTicketDTO; active:
           )}
           {tk.linked_count > 0 && (
             <Group gap={3} wrap="nowrap" ml="auto" style={{ flex: "none" }}>
-              <IconLink size={11} color="var(--tn-muted)" />
+              <IconLink size={12} color="var(--tn-muted)" />
               <Text size="xs" c="dimmed" style={{ fontVariantNumeric: "tabular-nums" }}>
                 {tk.linked_count}
               </Text>

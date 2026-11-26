@@ -541,7 +541,7 @@ export function Composer({
                   <Menu.Item
                     key={ch.id}
                     leftSection={<ChannelIcon kind={ch.kind} size={13} />}
-                    rightSection={ch.id === effectiveChannel.id ? <IconCheck size={13} /> : undefined}
+                    rightSection={ch.id === effectiveChannel.id ? <IconCheck size={14} /> : undefined}
                     onClick={() => setSelectedChannelId(ch.id)}
                   >
                     {ch.name}

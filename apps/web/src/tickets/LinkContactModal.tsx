@@ -54,7 +54,7 @@ export function LinkContactModal({ opened, ticketId, linkedContactIds, onClose }
           value={q}
           onChange={(e) => setQ(e.currentTarget.value)}
           placeholder={t("tickets.link_contact_placeholder")}
-          leftSection={<IconSearch size={15} />}
+          leftSection={<IconSearch size={16} />}
           data-autofocus
         />
         <ScrollArea.Autosize mah={360}>

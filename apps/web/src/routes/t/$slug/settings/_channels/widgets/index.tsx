@@ -1,11 +1,12 @@
-import { Badge, Button, Group, Modal, Paper, Skeleton, Stack, Table, Text, TextInput } from "@mantine/core"
+import { Button, Group, Modal, Stack, Text, TextInput } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { IconPlus } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
-import { applyServerErrors, FormError, Page, ResourceSelect, useT } from "@go-tenon/ui"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { AnchorLink, applyServerErrors, DataTable, FormError, Page, ResourceSelect, StatusDot, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { tenantApi } from "../../../../../../api"
+import { RowActions } from "../../../../../../components/row-actions"
 import { teams } from "../../../../../../resources"
 
 // 网页聊天插件列表：浏览工作区中的聊天插件，新建后直接进入实时预览配置工作台。
@@ -63,72 +64,43 @@ function Widgets(): ReactNode {
         </Button>
       }
     >
-      {list.isPending ? (
-        <Stack gap="sm">
-          <Skeleton height={48} radius="md" />
-          <Skeleton height={48} radius="md" />
-        </Stack>
-      ) : !list.data?.items.length ? (
-        <Paper withBorder p="xl" radius="md">
-          <Stack align="center" gap="sm">
-            <Text c="dimmed" size="sm">
-              {t("widgets.empty")}
-            </Text>
-            <Button leftSection={<IconPlus size={16} />} onClick={openCreate}>
-              {t("widgets.new")}
-            </Button>
-          </Stack>
-        </Paper>
-      ) : (
-        <Paper withBorder radius="md" style={{ overflow: "hidden" }}>
-          <Table highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>{t("widget_studio.name")}</Table.Th>
-                <Table.Th>{t("widgets.team_hint")}</Table.Th>
-                <Table.Th>{t("widgets.enabled")}</Table.Th>
-                <Table.Th w={100} />
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {list.data.items.map((row) => (
-                <Table.Tr key={row.id}>
-                  <Table.Td>
-                    <Text size="sm" fw={500}>
-                      {row.name}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    {row.team_name ? (
-                      <Text size="sm">{row.team_name}</Text>
-                    ) : (
-                      <Text c="dimmed" size="sm">
-                        {t("widgets.team_unassigned")}
-                      </Text>
-                    )}
-                  </Table.Td>
-                  <Table.Td>
-                    <Badge variant="dot" color={row.enabled ? "green" : "gray"}>
-                      {t(row.enabled ? "widgets.enabled" : "widgets.disabled")}
-                    </Badge>
-                  </Table.Td>
-                  <Table.Td ta="right">
-                    <Button
-                      size="xs"
-                      variant="subtle"
-                      renderRoot={(props) => (
-                        <Link {...props} to="/t/$slug/settings/widgets/$id" params={{ slug, id: row.id }} />
-                      )}
-                    >
-                      {t("widgets.configure")}
-                    </Button>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Paper>
-      )}
+      <DataTable
+        records={list.data?.items ?? []}
+        loading={list.isPending}
+        empty={t("widgets.empty")}
+        columns={[
+          {
+            accessor: "name",
+            title: t("widget_studio.name"),
+            render: (row) => (
+              <AnchorLink to="/t/$slug/settings/widgets/$id" params={{ slug, id: row.id }} size="sm" fw={500}>
+                {row.name}
+              </AnchorLink>
+            ),
+          },
+          {
+            accessor: "team_name",
+            title: t("common.team_inbox"),
+            render: (row) => row.team_name || <Text c="dimmed" size="sm">{t("widgets.team_unassigned")}</Text>,
+          },
+          {
+            accessor: "enabled",
+            title: t("common.status"),
+            render: (row) => <StatusDot color={row.enabled ? "green" : "gray"}>{t(row.enabled ? "common.enabled" : "common.disabled")}</StatusDot>,
+          },
+          {
+            accessor: "actions",
+            title: "",
+            textAlign: "right",
+            render: (row) => (
+              <RowActions
+                editLabel={t("widgets.configure")}
+                onEdit={() => void navigate({ to: "/t/$slug/settings/widgets/$id", params: { slug, id: row.id } })}
+              />
+            ),
+          },
+        ]}
+      />
 
       <Modal opened={creating} onClose={() => setCreating(false)} title={t("widgets.create_title")}>
         <form onSubmit={form.onSubmit((v) => create.mutate(v))}>
@@ -155,7 +127,7 @@ function Widgets(): ReactNode {
             />
             <Group justify="flex-end">
               <Button variant="default" onClick={() => setCreating(false)}>
-                {t("widgets.cancel")}
+                {t("common.cancel")}
               </Button>
               <Button type="submit" loading={create.isPending}>
                 {t("widgets.create_submit")}

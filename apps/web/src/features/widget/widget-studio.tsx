@@ -1,11 +1,12 @@
 import type { WidgetDTO } from "@agents-desk/client/tenant"
-import { Badge, Box, Button, ColorInput, Group, Paper, Skeleton, Stack, Switch, Tabs, TagsInput, Text, Textarea, TextInput, Title } from "@mantine/core"
+import { Badge, Box, Button, ColorInput, Group, Paper, Skeleton, Stack, Switch, TagsInput, Text, Textarea, TextInput, Title } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useNavigate } from "@tanstack/react-router"
+import { useNavigate, useSearch } from "@tanstack/react-router"
 import { applyServerErrors, FormError, notifySuccess, Page, primaryColors, ResourceSelect, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { tenantApi } from "../../api"
+import { useUnsavedGuard } from "../../components/unsaved-guard"
 import { teams } from "../../resources"
 import { WidgetInstallPanel } from "./widget-install-panel"
 import { WidgetPreviewStage } from "./widget-preview-stage"
@@ -69,7 +70,8 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
   const t = useT()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [tab, setTab] = useState<string>("config")
+  // 当前标签记在地址的 ?tab= 中（Page 的 tabs），只有“配置”标签显示保存按钮
+  const tab = ((useSearch({ strict: false }) as { tab?: string }).tab ?? "config")
   const [serverError, setServerError] = useState<ReturnType<typeof applyServerErrors>>()
 
   const widget = useQuery({
@@ -121,6 +123,7 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
   })
 
   const dirty = form.isDirty()
+  useUnsavedGuard(dirty)
 
   const handleDiscard = () => {
     if (!widget.data) return
@@ -158,108 +161,113 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
           </Group>
         ) : undefined
       }
-    >
-      <Tabs value={tab} onChange={(v) => setTab(v ?? "config")} keepMounted={false}>
-        <Tabs.List mb="lg">
-          <Tabs.Tab value="config">{t("widget_studio.tab_config")}</Tabs.Tab>
-          <Tabs.Tab value="install">{t("widget_studio.tab_install")}</Tabs.Tab>
-        </Tabs.List>
+      tabs={[
+        {
+          value: "config",
+          label: t("widget_studio.tab_config"),
+          content: (
+            <div className={classes.tabPanel}>
+              {widget.isPending ? (
+                <Box className={classes.layout}>
+                  <Stack gap="md">
+                    <Skeleton height={160} radius="md" />
+                    <Skeleton height={220} radius="md" />
+                    <Skeleton height={150} radius="md" />
+                    <Skeleton height={200} radius="md" />
+                  </Stack>
+                  <Skeleton height={680} radius="md" />
+                </Box>
+              ) : (
+                <form onSubmit={form.onSubmit((v) => save.mutate(v))}>
+                  <Box className={classes.layout}>
+                    <Stack gap="md">
+                      <FormError error={serverError} />
 
-        <Tabs.Panel value="config" className={classes.tabPanel}>
-          {widget.isPending ? (
-            <Box className={classes.layout}>
-              <Stack gap="md">
-                <Skeleton height={160} radius="md" />
-                <Skeleton height={220} radius="md" />
-                <Skeleton height={150} radius="md" />
-                <Skeleton height={200} radius="md" />
-              </Stack>
-              <Skeleton height={680} radius="md" />
-            </Box>
-          ) : (
-            <form onSubmit={form.onSubmit((v) => save.mutate(v))}>
-              <Box className={classes.layout}>
-                <Stack gap="md">
-                  <FormError error={serverError} />
+                      <SectionCard title={t("widget_studio.section_basic")} description={t("widget_studio.section_basic_desc")}>
+                        <TextInput
+                          label={t("widget_studio.name")}
+                          description={t("widget_studio.name_hint")}
+                          required
+                          maxLength={60}
+                          {...form.getInputProps("name")}
+                        />
+                        <Switch
+                          label={t("widget_studio.enabled")}
+                          description={t("widget_studio.enabled_hint")}
+                          {...form.getInputProps("enabled", { type: "checkbox" })}
+                        />
+                      </SectionCard>
 
-                  <SectionCard title={t("widget_studio.section_basic")} description={t("widget_studio.section_basic_desc")}>
-                    <TextInput
-                      label={t("widget_studio.name")}
-                      description={t("widget_studio.name_hint")}
-                      required
-                      maxLength={60}
-                      {...form.getInputProps("name")}
-                    />
-                    <Switch
-                      label={t("widget_studio.enabled")}
-                      description={t("widget_studio.enabled_hint")}
-                      {...form.getInputProps("enabled", { type: "checkbox" })}
-                    />
-                  </SectionCard>
+                      <SectionCard title={t("widget_studio.section_appearance")} description={t("widget_studio.section_appearance_desc")}>
+                        <ColorInput
+                          label={t("widget_studio.color")}
+                          description={t("widget_studio.color_hint")}
+                          format="hex"
+                          swatches={presetSwatches}
+                          swatchesPerRow={7}
+                          fixOnBlur={false}
+                          {...form.getInputProps("appearance.color")}
+                        />
+                        <Textarea
+                          label={t("widget_studio.greeting")}
+                          description={t("widget_studio.greeting_hint")}
+                          placeholder={t("widget_studio.greeting_placeholder")}
+                          autosize
+                          minRows={2}
+                          maxRows={5}
+                          maxLength={500}
+                          {...form.getInputProps("appearance.greeting")}
+                        />
+                      </SectionCard>
 
-                  <SectionCard title={t("widget_studio.section_appearance")} description={t("widget_studio.section_appearance_desc")}>
-                    <ColorInput
-                      label={t("widget_studio.color")}
-                      description={t("widget_studio.color_hint")}
-                      format="hex"
-                      swatches={presetSwatches}
-                      swatchesPerRow={7}
-                      fixOnBlur={false}
-                      {...form.getInputProps("appearance.color")}
-                    />
-                    <Textarea
-                      label={t("widget_studio.greeting")}
-                      description={t("widget_studio.greeting_hint")}
-                      placeholder={t("widget_studio.greeting_placeholder")}
-                      autosize
-                      minRows={2}
-                      maxRows={5}
-                      maxLength={500}
-                      {...form.getInputProps("appearance.greeting")}
-                    />
-                  </SectionCard>
+                      <SectionCard title={t("widget_studio.section_routing")} description={t("widget_studio.section_routing_desc")}>
+                        <ResourceSelect
+                          model={teams}
+                          label={t("widgets.team_hint")}
+                          placeholder={t("widgets.team_unassigned")}
+                          filterRow={(row) => row.status === "active" || String(row.id) === String(form.values.team_id ?? "")}
+                          getOption={(row) => ({
+                            value: String(row.id),
+                            label:
+                              row.status === "disabled"
+                                ? t("widgets.team_disabled_suffix", { name: String(row.name ?? "") })
+                                : String(row.name ?? ""),
+                          })}
+                          value={form.values.team_id}
+                          onChange={(v) => form.setFieldValue("team_id", v)}
+                          error={form.errors.team_id}
+                          clearable
+                        />
+                        <TagsInput
+                          label={t("widget_studio.allowed_origins")}
+                          description={t("widget_studio.allowed_origins_hint")}
+                          placeholder={t("widget_studio.allowed_origins_placeholder")}
+                          clearable
+                          {...form.getInputProps("allowed_origins")}
+                        />
+                      </SectionCard>
+                    </Stack>
 
-                  <SectionCard title={t("widget_studio.section_routing")} description={t("widget_studio.section_routing_desc")}>
-                    <ResourceSelect
-                      model={teams}
-                      label={t("widgets.team_hint")}
-                      placeholder={t("widgets.team_unassigned")}
-                      filterRow={(row) => row.status === "active" || String(row.id) === String(form.values.team_id ?? "")}
-                      getOption={(row) => ({
-                        value: String(row.id),
-                        label:
-                          row.status === "disabled"
-                            ? t("widgets.team_disabled_suffix", { name: String(row.name ?? "") })
-                            : String(row.name ?? ""),
-                      })}
-                      value={form.values.team_id}
-                      onChange={(v) => form.setFieldValue("team_id", v)}
-                      error={form.errors.team_id}
-                      clearable
+                    <WidgetPreviewStage
+                      name={form.values.name}
+                      appearance={form.values.appearance}
                     />
-                    <TagsInput
-                      label={t("widget_studio.allowed_origins")}
-                      description={t("widget_studio.allowed_origins_hint")}
-                      placeholder={t("widget_studio.allowed_origins_placeholder")}
-                      clearable
-                      {...form.getInputProps("allowed_origins")}
-                    />
-                  </SectionCard>
-                </Stack>
-
-                <WidgetPreviewStage
-                  name={form.values.name}
-                  appearance={form.values.appearance}
-                />
-              </Box>
-            </form>
-          )}
-        </Tabs.Panel>
-
-        <Tabs.Panel value="install" className={classes.tabPanel}>
-          <WidgetInstallPanel id={id} />
-        </Tabs.Panel>
-      </Tabs>
-    </Page>
+                  </Box>
+                </form>
+              )}
+            </div>
+          ),
+        },
+        {
+          value: "install",
+          label: t("widget_studio.tab_install"),
+          content: (
+            <div className={classes.tabPanel}>
+              <WidgetInstallPanel id={id} />
+            </div>
+          ),
+        },
+      ]}
+    />
   )
 }

@@ -315,7 +315,7 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
                         setLinkOpen(true)
                       }}
                     >
-                      <IconPlus size={13} />
+                      <IconPlus size={14} />
                     </ActionIcon>
                   </Tooltip>
                 )}
@@ -394,7 +394,7 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
                             onClick={() => void handleUnlink(lc.contact.id)}
                             mt={4}
                           >
-                            <IconLinkOff size={13} />
+                            <IconLinkOff size={14} />
                           </ActionIcon>
                         </Tooltip>
                       )}

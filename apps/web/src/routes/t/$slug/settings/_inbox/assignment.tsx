@@ -8,6 +8,7 @@ import { applyServerErrors, FormError, notifySuccess, Page, useCan, useT } from 
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../../../../../api"
 import { useMembers, useTeams } from "../../../../../inbox/data"
+import { useUnsavedGuard } from "../../../../../components/unsaved-guard"
 
 // 指派设置：配置工作区的新会话默认指派目标（团队收件箱或指定成员），当渠道未单独指定默认团队收件箱时生效。
 export const Route = createFileRoute("/t/$slug/settings/_inbox/assignment")({
@@ -79,6 +80,7 @@ function AssignmentForm({ initial, slug }: { initial: ConversationAssignmentSett
     }
   })
 
+  useUnsavedGuard(form.isDirty())
   return (
     <Stack gap="lg">
       <Alert color="bright-blue" variant="light" icon={<IconInfoCircle size={16} />}>

@@ -8,6 +8,7 @@ import { api, apiKit, kit } from "./api"
 import { me } from "./auth"
 import { i18n } from "./i18n"
 import { allZones, browserZone, offsetOf } from "./timezone"
+import { useUnsavedGuard } from "./components/unsaved-guard"
 
 // 偏好设置：语言、时区、发送方式和发送后自动打开下一个待回复，属于账号本身，在所有工作区中一样。
 
@@ -86,6 +87,7 @@ function Form({
     }
   })
 
+  useUnsavedGuard(form.isDirty())
   return (
     <form noValidate onSubmit={submit}>
       <Stack gap="md">

@@ -84,7 +84,7 @@ export function ContactAvatar({ contact, size }: { contact: ContactLabel | null 
   }
   return (
     <Avatar size={size} color={color} variant="light">
-      <IconUser size={Math.round(size * 0.54)} stroke={1.8} />
+      <IconUser size={Math.round(size * 0.54)} stroke={1.6} />
     </Avatar>
   )
 }

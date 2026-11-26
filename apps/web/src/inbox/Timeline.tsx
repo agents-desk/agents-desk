@@ -1,7 +1,7 @@
 import type { ConversationDTO, ConversationItemDTO } from "@agents-desk/client/tenant"
-import { ActionIcon, Anchor, Box, Button, CopyButton, Divider, Group, Loader, Paper, Skeleton, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
+import { ActionIcon, Anchor, Box, CopyButton, Divider, Group, Loader, Paper, Skeleton, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { IconArrowDown, IconCheck, IconCopy, IconLanguage, IconLock } from "@tabler/icons-react"
+import { IconCheck, IconCopy, IconLanguage, IconLock } from "@tabler/icons-react"
 import { ImageLightbox, notifyError, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
 import { Fragment, type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
@@ -18,6 +18,7 @@ import { HighlightQuery } from "./Highlight"
 import { contactName } from "./List"
 import { promptText } from "./prompts"
 import type { MatchField } from "./search"
+import { firstUnread, NewMessagesDivider, ScrollToBottomButton, useStickToBottom } from "./stick-to-bottom"
 
 /** GROUP_WINDOW_MS 是同一发送者连续消息合并为同一组的间隔上限（3 分钟）。 */
 const GROUP_WINDOW_MS = 3 * 60 * 1000
@@ -73,16 +74,19 @@ export function Timeline({
   const translation = useQuery(kit.queries.translation.settings())
   const enabled = translation.data?.enabled ?? false
   const watch = useFillVisible(enabled, me.data?.language)
-  const scroller = useRef<HTMLDivElement>(null)
-  const nearBottom = useRef(true) // 视口距离底部 <= 80px 时认为在底部，允许自动跟随新消息
-  const initialized = useRef(false)
-  const prevCount = useRef(0)
   const focusedRef = useRef<number | undefined>(undefined)
   const [pulseSeq, setPulseSeq] = useState<number | undefined>(undefined)
-  const [showScrollDown, setShowScrollDown] = useState(false)
-  const [unseenCount, setUnseenCount] = useState(0)
   const [lightbox, setLightbox] = useState<LightboxImage | null>(null)
   const list = items.data ?? []
+  // 打开时落到底部；带 focusSeq（从搜索结果跳转）时让位给下面的定位滚动
+  const stick = useStickToBottom({
+    ready: !items.isPending,
+    list,
+    myId: me.data?.id,
+    typingCount: typing.length,
+    hold: Boolean(focusSeq && list.some((it) => it.seq === focusSeq)),
+  })
+  const scroller = stick.scroller
   const names = {
     member: (id: string) => (id === me.data?.id ? t("inbox.you") : (byId.get(id)?.name ?? t("event.someone"))),
     team: (id: string) => teams.find((x) => x.id === id)?.name ?? "",
@@ -96,76 +100,12 @@ export function Timeline({
     const target = el.querySelector<HTMLElement>(`[data-seq="${focusSeq}"]`)
     if (!target) return
     focusedRef.current = focusSeq
-    initialized.current = true
-    prevCount.current = list.length
+    stick.settle()
     target.scrollIntoView({ block: "center", behavior: "smooth" })
     setPulseSeq(focusSeq)
     const timer = setTimeout(() => setPulseSeq((cur) => (cur === focusSeq ? undefined : cur)), 2500)
     return () => clearTimeout(timer)
   }, [focusSeq, items.isPending, list])
-
-  // 首次加载完成直接落到底部（若本次带有 focusSeq 则让位给定位滚动）；后续新增消息仅在底部附近或自己刚发送时自动跟随
-  useEffect(() => {
-    if (items.isPending) return
-    const el = scroller.current
-    if (!el) return
-    if (!initialized.current) {
-      if (focusSeq && list.some((it) => it.seq === focusSeq)) return
-      initialized.current = true
-      prevCount.current = list.length
-      el.scrollTop = el.scrollHeight
-      nearBottom.current = true
-      return
-    }
-    if (list.length > prevCount.current) {
-      const added = list.slice(prevCount.current)
-      prevCount.current = list.length
-      const hasOwn = added.some((it) => it.actor.type === "member" && it.actor.id === me.data?.id)
-      if (hasOwn || nearBottom.current) {
-        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
-        nearBottom.current = true
-        setShowScrollDown(false)
-        setUnseenCount(0)
-      } else {
-        const incoming = added.filter((it) => it.kind !== "event").length
-        if (incoming > 0) {
-          setUnseenCount((n) => n + incoming)
-          setShowScrollDown(true)
-        }
-      }
-      return
-    }
-    prevCount.current = list.length
-  }, [focusSeq, items.isPending, list, me.data?.id])
-
-  // 正在输入提示出现时，仅在用户停留在底部附近时跟随滚动
-  useEffect(() => {
-    if (!initialized.current || typing.length === 0 || !nearBottom.current) return
-    const el = scroller.current
-    el?.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
-  }, [typing.length])
-
-  const onScroll = () => {
-    const el = scroller.current
-    if (!el) return
-    const gap = el.scrollHeight - el.scrollTop - el.clientHeight
-    nearBottom.current = gap <= 80
-    if (gap <= 80) {
-      setShowScrollDown(false)
-      setUnseenCount(0)
-    } else if (gap > 120) {
-      setShowScrollDown(true)
-    }
-  }
-
-  const scrollToBottom = () => {
-    const el = scroller.current
-    if (!el) return
-    nearBottom.current = true
-    setShowScrollDown(false)
-    setUnseenCount(0)
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
-  }
 
   if (items.isPending) {
     return (
@@ -191,23 +131,23 @@ export function Timeline({
       </Box>
     )
   }
-  const firstNew = list.find((it) => it.seq > readSeq && !(it.actor.type === "member" && it.actor.id === me.data?.id))
+  const firstNew = firstUnread(list, readSeq, me.data?.id)
   return (
     <Box className="inbox-timeline-wrap">
-      <Box ref={scroller} className="inbox-timeline" onScroll={onScroll}>
+      <Box ref={scroller} className="inbox-timeline" onScroll={stick.onScroll}>
         <Stack gap={0} px="var(--tn-pane-px)" py="md">
           {list.map((it, i) => {
             const prev = list[i - 1]
             const next = list[i + 1]
             const showDay = i === 0 || !sameDay(prev.created_at, it.created_at)
-            const showNew = readSeq > 0 && it === firstNew
+            const showNew = it === firstNew
             const groupedWithPrev = !showDay && !showNew && canGroup(prev, it, firstNew)
             const groupedWithNext = Boolean(next) && canGroup(it, next, firstNew)
             const gapTop = i === 0 ? 0 : groupedWithPrev ? 4 : 16
             return (
               <Fragment key={it.id}>
                 {showDay && <Divider my={i === 0 ? 4 : 12} label={dayLabel(it.created_at, language, t, zone)} labelPosition="center" />}
-                {showNew && <Divider my={12} color="red.3" label={<Text size="xs" c="red">{t("inbox.new_messages")}</Text>} labelPosition="center" />}
+                {showNew && <NewMessagesDivider />}
                 {it.kind === "event" ? (
                   <Text size="xs" c="dimmed" ta="center" mt={gapTop} className="inbox-event">
                     {describeEvent(it, byId, names, t, language)} · {clock(it.created_at, language, zone)}
@@ -266,18 +206,7 @@ export function Timeline({
           )}
         </Stack>
       </Box>
-      {showScrollDown && (
-        <Button
-          size="compact-xs"
-          radius="xl"
-          variant={unseenCount > 0 ? "filled" : "default"}
-          leftSection={<IconArrowDown size={13} />}
-          className="inbox-scroll-bottom"
-          onClick={scrollToBottom}
-        >
-          {unseenCount > 0 ? t("inbox.new_message_jump", { n: unseenCount }) : t("inbox.scroll_to_bottom")}
-        </Button>
-      )}
+      <ScrollToBottomButton stick={stick} />
       <ImageLightbox src={lightbox?.src ?? null} filename={lightbox?.filename} onClose={() => setLightbox(null)} />
     </Box>
   )
@@ -497,7 +426,7 @@ function CopyAction({ value }: { value: string }): ReactNode {
             onClick={copy}
             aria-label={t("inbox.copy_message")}
           >
-            {copied ? <IconCheck size={13} /> : <IconCopy size={13} />}
+            {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
           </ActionIcon>
         </Tooltip>
       )}

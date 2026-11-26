@@ -26,8 +26,6 @@ import {
   SegmentedControl,
   Skeleton,
   Stack,
-  Switch,
-  Table,
   Text,
   Textarea,
   TextInput,
@@ -42,7 +40,9 @@ import {
   IconCopy,
   IconExternalLink,
   IconInfoCircle,
-  IconPencil,
+  IconPlayerPause,
+  IconPlayerPlay,
+  IconPlugConnectedX,
   IconPlus,
   IconRefresh,
   IconSearch,
@@ -53,15 +53,18 @@ import {
 import {
   applyServerErrors,
   confirm,
+  DataTable,
   FormError,
   notifyError,
   notifySuccess,
   Page,
   primaryColors,
+  StatusDot,
   useT,
 } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { kit, tenantApi } from "../../../../../api"
+import { RowActions } from "../../../../../components/row-actions"
 
 /** presetSwatches 是主题预设色的十六进制色块，供商务沟通链接外观配色点选。 */
 const presetSwatches = Object.values(primaryColors)
@@ -167,7 +170,10 @@ function BusinessLinksTab(): ReactNode {
         enabled: !item.enabled,
         appearance: item.appearance,
       }),
-    onSuccess: invalidate,
+    onSuccess: (updated) => {
+      notifySuccess(t(updated.enabled ? "common.enabled" : "common.disabled"))
+      invalidate()
+    },
     onError: (err) => notifyError(err),
   })
 
@@ -185,7 +191,7 @@ function BusinessLinksTab(): ReactNode {
       title: t("business_channels.link_delete_confirm", { name: item.name }),
       message: t("business_channels.link_delete_message"),
       danger: true,
-      confirmLabel: t("attributes.delete"),
+      confirmLabel: t("common.delete"),
     })
     if (ok) remove.mutate(item.id)
   }
@@ -196,139 +202,102 @@ function BusinessLinksTab(): ReactNode {
         <Text size="sm" c="dimmed">
           {t("business_channels.links_desc")}
         </Text>
-        <Button size="sm" leftSection={<IconPlus size={16} />} onClick={openCreate}>
+        <Button leftSection={<IconPlus size={16} />} onClick={openCreate}>
           {t("business_channels.link_new")}
         </Button>
       </Group>
 
-      {list.isPending ? (
-        <Stack gap="sm">
-          <Skeleton height={48} radius="md" />
-          <Skeleton height={48} radius="md" />
-        </Stack>
-      ) : items.length === 0 ? (
-        <Paper withBorder p="xl" radius="md">
-          <Stack align="center" gap="sm">
-            <Text c="dimmed" size="sm">
-              {t("business_channels.links_empty")}
-            </Text>
-            <Button leftSection={<IconPlus size={16} />} onClick={openCreate}>
-              {t("business_channels.link_new")}
-            </Button>
-          </Stack>
-        </Paper>
-      ) : (
-        <Paper withBorder radius="md" style={{ overflow: "hidden" }}>
-          <Table highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>{t("business_channels.link_name")}</Table.Th>
-                <Table.Th>{t("business_channels.col_url")}</Table.Th>
-                <Table.Th w={110}>{t("business_channels.col_status")}</Table.Th>
-                <Table.Th w={150} />
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {items.map((item) => (
-                <Table.Tr key={item.id}>
-                  <Table.Td>
-                    <Group gap="xs" wrap="nowrap">
-                      <Box
-                        w={9}
-                        h={9}
-                        style={{
-                          borderRadius: "50%",
-                          backgroundColor: item.appearance.color || "var(--mantine-primary-color-filled)",
-                          flex: "none",
-                        }}
-                      />
-                      <Box style={{ minWidth: 0 }}>
-                        <Text size="sm" fw={500} truncate>
-                          {item.name}
-                        </Text>
-                        {item.appearance.greeting && (
-                          <Text size="xs" c="dimmed" truncate maw={280}>
-                            {item.appearance.greeting}
-                          </Text>
-                        )}
-                      </Box>
-                    </Group>
-                  </Table.Td>
-                  <Table.Td>
-                    <Group gap={6} wrap="nowrap">
-                      <Text size="xs" c="dimmed" ff="monospace" truncate maw={320}>
-                        {item.chat_url}
-                      </Text>
-                      <CopyButton value={item.chat_url} timeout={1500}>
-                        {({ copied, copy }) => (
-                          <Tooltip label={t(copied ? "contacts.copied" : "business_channels.copy_url")} openDelay={200}>
-                            <ActionIcon
-                              size="sm"
-                              variant="subtle"
-                              color={copied ? "green" : "gray"}
-                              onClick={copy}
-                              aria-label={t("business_channels.copy_url")}
-                            >
-                              {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
-                            </ActionIcon>
-                          </Tooltip>
-                        )}
-                      </CopyButton>
-                      <Tooltip label={t("business_channels.open_preview")} openDelay={200}>
-                        <ActionIcon
-                          size="sm"
-                          variant="subtle"
-                          color="gray"
-                          component="a"
-                          href={item.chat_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          aria-label={t("business_channels.open_preview")}
-                        >
-                          <IconExternalLink size={14} />
-                        </ActionIcon>
-                      </Tooltip>
-                    </Group>
-                  </Table.Td>
-                  <Table.Td>
-                    <Badge variant="dot" color={item.enabled ? "green" : "gray"}>
-                      {t(item.enabled ? "widgets.enabled" : "widgets.disabled")}
-                    </Badge>
-                  </Table.Td>
-                  <Table.Td ta="right">
-                    <Group gap={6} justify="flex-end" wrap="nowrap">
-                      <Switch
-                        size="xs"
-                        checked={item.enabled}
-                        disabled={toggleEnabled.isPending}
-                        onChange={() => toggleEnabled.mutate(item)}
-                        aria-label={t("widgets.enabled")}
-                      />
-                      <Tooltip label={t("contacts.edit")} openDelay={250}>
-                        <ActionIcon size="sm" variant="subtle" color="gray" onClick={() => openEdit(item)} aria-label={t("contacts.edit")}>
-                          <IconPencil size={15} />
-                        </ActionIcon>
-                      </Tooltip>
-                      <Tooltip label={t("attributes.delete")} openDelay={250}>
-                        <ActionIcon
-                          size="sm"
-                          variant="subtle"
-                          color="red"
-                          disabled={remove.isPending}
-                          onClick={() => void handleDelete(item)}
-                          aria-label={t("attributes.delete")}
-                        >
-                          <IconTrash size={15} />
-                        </ActionIcon>
-                      </Tooltip>
-                    </Group>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </Paper>
-      )}
+      <DataTable
+        records={items}
+        loading={list.isPending}
+        empty={t("business_channels.links_empty")}
+        columns={[
+          {
+            accessor: "name",
+            title: t("business_channels.link_name"),
+            render: (item) => (
+              <Group gap="xs" wrap="nowrap">
+                <span
+                  className="desk-status-mark"
+                  aria-hidden
+                  style={{ background: item.appearance.color || "var(--mantine-primary-color-filled)" }}
+                />
+                <Box style={{ minWidth: 0 }}>
+                  <Text size="sm" fw={500} truncate>
+                    {item.name}
+                  </Text>
+                  {item.appearance.greeting && (
+                    <Text size="xs" c="dimmed" truncate maw={280}>
+                      {item.appearance.greeting}
+                    </Text>
+                  )}
+                </Box>
+              </Group>
+            ),
+          },
+          {
+            accessor: "chat_url",
+            title: t("business_channels.col_url"),
+            render: (item) => (
+              <Group gap={6} wrap="nowrap">
+                <Text size="xs" c="dimmed" ff="monospace" truncate maw={320}>
+                  {item.chat_url}
+                </Text>
+                <CopyButton value={item.chat_url} timeout={1500}>
+                  {({ copied, copy }) => (
+                    <Tooltip label={t(copied ? "common.copied" : "business_channels.copy_url")} openDelay={200}>
+                      <ActionIcon color={copied ? "green" : "gray"} onClick={copy} aria-label={t("business_channels.copy_url")}>
+                        {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
+                      </ActionIcon>
+                    </Tooltip>
+                  )}
+                </CopyButton>
+                <Tooltip label={t("business_channels.open_preview")} openDelay={200}>
+                  <ActionIcon
+                    component="a"
+                    href={item.chat_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={t("business_channels.open_preview")}
+                  >
+                    <IconExternalLink size={16} />
+                  </ActionIcon>
+                </Tooltip>
+              </Group>
+            ),
+          },
+          {
+            accessor: "enabled",
+            title: t("common.status"),
+            render: (item) => <StatusDot color={item.enabled ? "green" : "gray"}>{t(item.enabled ? "common.enabled" : "common.disabled")}</StatusDot>,
+          },
+          {
+            accessor: "actions",
+            title: "",
+            textAlign: "right",
+            render: (item) => (
+              <RowActions
+                onEdit={() => openEdit(item)}
+                actions={[
+                  {
+                    label: t(item.enabled ? "common.disable" : "common.enable"),
+                    icon: item.enabled ? <IconPlayerPause size={14} /> : <IconPlayerPlay size={14} />,
+                    disabled: toggleEnabled.isPending,
+                    onClick: () => toggleEnabled.mutate(item),
+                  },
+                  {
+                    label: t("common.delete"),
+                    icon: <IconTrash size={14} />,
+                    danger: true,
+                    disabled: remove.isPending,
+                    onClick: () => void handleDelete(item),
+                  },
+                ]}
+              />
+            ),
+          },
+        ]}
+      />
 
       <Modal
         opened={editing !== null}
@@ -397,7 +366,10 @@ function TelegramAccountsTab(): ReactNode {
   const toggleEnabled = useMutation({
     mutationFn: (acc: TgaccountAccountDTO) =>
       tenantApi.tgaccount.update(acc.id, { name: acc.name, enabled: !acc.enabled }),
-    onSuccess: invalidate,
+    onSuccess: (updated) => {
+      notifySuccess(t(updated.enabled ? "common.enabled" : "common.disabled"))
+      invalidate()
+    },
     onError: (err) => notifyError(err),
   })
 
@@ -440,7 +412,7 @@ function TelegramAccountsTab(): ReactNode {
           {t("business_channels.tg_desc")}
         </Text>
         <Tooltip label={t("business_channels.tg_not_configured_short")} disabled={configured || list.isPending}>
-          <Button size="sm" leftSection={<IconPlus size={16} />} disabled={!configured} onClick={() => setLoginOpen(true)}>
+          <Button leftSection={<IconPlus size={16} />} disabled={!configured} onClick={() => setLoginOpen(true)}>
             {t("business_channels.tg_connect")}
           </Button>
         </Tooltip>
@@ -452,173 +424,131 @@ function TelegramAccountsTab(): ReactNode {
         </Alert>
       )}
 
-      {list.isPending ? (
-        <Stack gap="sm">
-          <Skeleton height={48} radius="md" />
-          <Skeleton height={48} radius="md" />
-        </Stack>
-      ) : accounts.length === 0 ? (
-        <Paper withBorder p="xl" radius="md">
-          <Stack align="center" gap="sm">
-            <Text c="dimmed" size="sm">
-              {t("business_channels.tg_empty")}
-            </Text>
-            {configured && (
-              <Button leftSection={<IconPlus size={16} />} onClick={() => setLoginOpen(true)}>
-                {t("business_channels.tg_connect")}
-              </Button>
-            )}
-          </Stack>
-        </Paper>
-      ) : (
-        <Paper withBorder radius="md" style={{ overflow: "hidden" }}>
-          <Table highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>{t("business_channels.tg_account_name")}</Table.Th>
-                <Table.Th>{t("business_channels.col_synced")}</Table.Th>
-                <Table.Th w={110}>{t("business_channels.col_status")}</Table.Th>
-                <Table.Th w={230} />
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {accounts.map((acc) => {
-                const statusColor = !acc.enabled
-                  ? "gray"
-                  : acc.status === "connected"
-                    ? "green"
-                    : acc.status === "auth_expired"
-                      ? "red"
-                      : "gray"
-                const statusLabel = !acc.enabled
-                  ? t("widgets.disabled")
-                  : acc.status === "connected"
-                    ? t("business_channels.tg_status_connected")
-                    : acc.status === "auth_expired"
-                      ? t("business_channels.tg_status_expired")
-                      : t("business_channels.tg_status_disconnected")
-                const directCount = acc.synced_peers.filter((p) => !p.is_group).length
-                const groupCount = acc.synced_peers.filter((p) => p.is_group).length
-                const identityMeta = [acc.display_name, acc.username ? `@${acc.username}` : "", acc.phone].filter(Boolean).join(" · ")
-
+      <DataTable
+        records={accounts}
+        loading={list.isPending}
+        empty={t("business_channels.tg_empty")}
+        columns={[
+          {
+            accessor: "name",
+            title: t("business_channels.tg_account_name"),
+            render: (acc) => {
+              const identityMeta = [acc.display_name, acc.username ? `@${acc.username}` : "", acc.phone].filter(Boolean).join(" · ")
+              return (
+                <Box style={{ minWidth: 0 }}>
+                  <Text size="sm" fw={500} truncate>
+                    {acc.name}
+                  </Text>
+                  {identityMeta && (
+                    <Text size="xs" c="dimmed" truncate>
+                      {identityMeta}
+                    </Text>
+                  )}
+                  {acc.last_error && (
+                    <Text size="xs" c="red" truncate>
+                      {acc.last_error}
+                    </Text>
+                  )}
+                </Box>
+              )
+            },
+          },
+          {
+            accessor: "synced_peers",
+            title: t("business_channels.col_synced"),
+            render: (acc) => {
+              if (acc.synced_peers.length === 0) {
                 return (
-                  <Table.Tr key={acc.id}>
-                    <Table.Td>
-                      <Box style={{ minWidth: 0 }}>
-                        <Text size="sm" fw={500} truncate>
-                          {acc.name}
-                        </Text>
-                        {identityMeta && (
-                          <Text size="xs" c="dimmed" truncate>
-                            {identityMeta}
-                          </Text>
-                        )}
-                        {acc.last_error && (
-                          <Text size="xs" c="red" truncate>
-                            {acc.last_error}
-                          </Text>
-                        )}
-                      </Box>
-                    </Table.Td>
-                    <Table.Td>
-                      {acc.synced_peers.length === 0 ? (
-                        <Text size="xs" c="dimmed">
-                          {t("business_channels.tg_no_synced_peers")}
-                        </Text>
-                      ) : (
-                        <Stack gap={4}>
-                          <Text size="xs" c="dimmed">
-                            {t("business_channels.tg_synced_summary", {
-                              total: acc.synced_peers.length,
-                              direct: directCount,
-                              groups: groupCount,
-                            })}
-                          </Text>
-                          <Group gap={4} wrap="wrap">
-                            {acc.synced_peers.slice(0, 4).map((p) => (
-                              <Badge
-                                key={p.external_chat_id}
-                                size="xs"
-                                variant="light"
-                                color={p.is_group ? "brand" : "gray"}
-                                leftSection={p.is_group ? <IconUsersGroup size={10} /> : <IconUser size={10} />}
-                                style={{ textTransform: "none", fontWeight: 500 }}
-                              >
-                                {p.title}
-                              </Badge>
-                            ))}
-                            {acc.synced_peers.length > 4 && (
-                              <Text size="xs" c="dimmed">
-                                +{acc.synced_peers.length - 4}
-                              </Text>
-                            )}
-                          </Group>
-                        </Stack>
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      <Badge variant="dot" color={statusColor}>
-                        {statusLabel}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td ta="right">
-                      <Group gap={6} justify="flex-end" wrap="nowrap">
-                        <Switch
-                          size="xs"
-                          checked={acc.enabled}
-                          disabled={toggleEnabled.isPending}
-                          onChange={() => toggleEnabled.mutate(acc)}
-                          aria-label={t("widgets.enabled")}
-                        />
-                        {acc.status === "auth_expired" && configured ? (
-                          <Button size="xs" variant="subtle" color="deep-orange" onClick={() => setLoginOpen(true)}>
-                            {t("business_channels.tg_relogin")}
-                          </Button>
-                        ) : (
-                          <Button
-                            size="xs"
-                            variant="subtle"
-                            disabled={!acc.enabled || acc.status === "auth_expired"}
-                            onClick={() => setPeersTarget(acc)}
-                          >
-                            {t("business_channels.tg_pick_dialogs")}
-                          </Button>
-                        )}
-                        <Tooltip label={t("business_channels.tg_rename")} openDelay={250}>
-                          <ActionIcon
-                            size="sm"
-                            variant="subtle"
-                            color="gray"
-                            onClick={() => {
-                              setRenaming(acc)
-                              setRenameValue(acc.name)
-                            }}
-                            aria-label={t("business_channels.tg_rename")}
-                          >
-                            <IconPencil size={15} />
-                          </ActionIcon>
-                        </Tooltip>
-                        <Tooltip label={t("business_channels.tg_disconnect")} openDelay={250}>
-                          <ActionIcon
-                            size="sm"
-                            variant="subtle"
-                            color="red"
-                            disabled={disconnect.isPending}
-                            onClick={() => void handleDisconnect(acc)}
-                            aria-label={t("business_channels.tg_disconnect")}
-                          >
-                            <IconTrash size={15} />
-                          </ActionIcon>
-                        </Tooltip>
-                      </Group>
-                    </Table.Td>
-                  </Table.Tr>
+                  <Text size="xs" c="dimmed">
+                    {t("business_channels.tg_no_synced_peers")}
+                  </Text>
                 )
-              })}
-            </Table.Tbody>
-          </Table>
-        </Paper>
-      )}
+              }
+              const directCount = acc.synced_peers.filter((p) => !p.is_group).length
+              const groupCount = acc.synced_peers.filter((p) => p.is_group).length
+              return (
+                <Stack gap={4}>
+                  <Text size="xs" c="dimmed">
+                    {t("business_channels.tg_synced_summary", { total: acc.synced_peers.length, direct: directCount, groups: groupCount })}
+                  </Text>
+                  <Group gap={4} wrap="wrap">
+                    {acc.synced_peers.slice(0, 4).map((p) => (
+                      <Badge
+                        key={p.external_chat_id}
+                        size="xs"
+                        variant="light"
+                        color={p.is_group ? "brand" : "gray"}
+                        leftSection={p.is_group ? <IconUsersGroup size={10} /> : <IconUser size={10} />}
+                        style={{ textTransform: "none", fontWeight: 500 }}
+                      >
+                        {p.title}
+                      </Badge>
+                    ))}
+                    {acc.synced_peers.length > 4 && (
+                      <Text size="xs" c="dimmed">
+                        +{acc.synced_peers.length - 4}
+                      </Text>
+                    )}
+                  </Group>
+                </Stack>
+              )
+            },
+          },
+          {
+            accessor: "status",
+            title: t("common.status"),
+            render: (acc) => {
+              const [color, label] = !acc.enabled
+                ? (["gray", t("common.disabled")] as const)
+                : acc.status === "connected"
+                  ? (["green", t("business_channels.tg_status_connected")] as const)
+                  : acc.status === "auth_expired"
+                    ? (["red", t("business_channels.tg_status_expired")] as const)
+                    : (["gray", t("business_channels.tg_status_disconnected")] as const)
+              return <StatusDot color={color}>{label}</StatusDot>
+            },
+          },
+          {
+            accessor: "actions",
+            title: "",
+            textAlign: "right",
+            render: (acc) => (
+              <RowActions
+                editLabel={t("business_channels.tg_rename")}
+                onEdit={() => {
+                  setRenaming(acc)
+                  setRenameValue(acc.name)
+                }}
+                actions={[
+                  {
+                    label: t(acc.enabled ? "common.disable" : "common.enable"),
+                    icon: acc.enabled ? <IconPlayerPause size={14} /> : <IconPlayerPlay size={14} />,
+                    disabled: toggleEnabled.isPending,
+                    onClick: () => toggleEnabled.mutate(acc),
+                  },
+                  {
+                    label: t("business_channels.tg_disconnect"),
+                    icon: <IconPlugConnectedX size={14} />,
+                    danger: true,
+                    disabled: disconnect.isPending,
+                    onClick: () => void handleDisconnect(acc),
+                  },
+                ]}
+              >
+                {acc.status === "auth_expired" && configured ? (
+                  <Button size="xs" variant="subtle" color="deep-orange" onClick={() => setLoginOpen(true)}>
+                    {t("business_channels.tg_relogin")}
+                  </Button>
+                ) : (
+                  <Button size="xs" variant="subtle" disabled={!acc.enabled || acc.status === "auth_expired"} onClick={() => setPeersTarget(acc)}>
+                    {t("business_channels.tg_pick_dialogs")}
+                  </Button>
+                )}
+              </RowActions>
+            ),
+          },
+        ]}
+      />
 
       <TelegramLoginModal
         opened={loginOpen}
@@ -1035,7 +965,7 @@ function SyncedPeersModal({
           />
           <Tooltip label={t("business_channels.tg_refresh_dialogs")}>
             <ActionIcon variant="default" size="input-sm" loading={dialogsQuery.isFetching} onClick={() => void dialogsQuery.refetch()}>
-              <IconRefresh size={15} />
+              <IconRefresh size={16} />
             </ActionIcon>
           </Tooltip>
         </Group>

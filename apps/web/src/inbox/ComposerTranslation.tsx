@@ -453,8 +453,8 @@ function TranslationTargetPicker({
           size="compact-xs"
           variant={active ? "light" : "subtle"}
           color={active ? undefined : "gray"}
-          leftSection={<IconLanguage size={13} />}
-          rightSection={<IconChevronDown size={11} />}
+          leftSection={<IconLanguage size={14} />}
+          rightSection={<IconChevronDown size={12} />}
           onClick={() => combobox.toggleDropdown()}
           aria-label={t("inbox.choose_language")}
         >
@@ -479,7 +479,7 @@ function TranslationTargetPicker({
                     <Text size="xs" truncate>
                       {o.label}
                     </Text>
-                    {o.value === activeValue && <IconCheck size={13} color="var(--mantine-primary-color-filled)" style={{ flex: "none" }} />}
+                    {o.value === activeValue && <IconCheck size={14} color="var(--mantine-primary-color-filled)" style={{ flex: "none" }} />}
                   </Group>
                 </Combobox.Option>
               ))
@@ -514,7 +514,7 @@ function TranslationTonePicker({ preview }: { preview: ComposerTranslation }): R
           size="compact-xs"
           variant={preview.tone ? "light" : "subtle"}
           color={preview.tone ? undefined : "gray"}
-          rightSection={<IconChevronDown size={11} />}
+          rightSection={<IconChevronDown size={12} />}
           aria-label={t("inbox.translation_tone")}
         >
           {currentLabel}
@@ -524,7 +524,7 @@ function TranslationTonePicker({ preview }: { preview: ComposerTranslation }): R
         {options.map((o) => (
           <Menu.Item
             key={o.value || "default"}
-            rightSection={preview.tone === o.value ? <IconCheck size={13} color="var(--mantine-primary-color-filled)" /> : undefined}
+            rightSection={preview.tone === o.value ? <IconCheck size={14} color="var(--mantine-primary-color-filled)" /> : undefined}
             onClick={() => preview.setTone(o.value)}
           >
             {o.label}
@@ -608,13 +608,13 @@ export function InlineTranslationPane({
                   {!editing && (
                     <Tooltip label={t("inbox.edit_translation")} openDelay={300}>
                       <ActionIcon size={22} variant="subtle" color="gray" aria-label={t("inbox.edit_translation")} onClick={startEdit}>
-                        <IconPencil size={13} />
+                        <IconPencil size={14} />
                       </ActionIcon>
                     </Tooltip>
                   )}
                   <Tooltip label={t("inbox.retranslate")} openDelay={300}>
                     <ActionIcon size={22} variant="subtle" color="gray" aria-label={t("inbox.retranslate")} onClick={preview.retry}>
-                      <IconRefresh size={13} />
+                      <IconRefresh size={14} />
                     </ActionIcon>
                   </Tooltip>
                 </>
@@ -629,7 +629,7 @@ export function InlineTranslationPane({
               aria-label={t("inbox.collapse_translation")}
               onClick={() => preview.setExpanded(false)}
             >
-              <IconX size={13} />
+              <IconX size={14} />
             </ActionIcon>
           </Tooltip>
         </Group>

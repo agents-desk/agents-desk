@@ -47,7 +47,7 @@ import {
 import { Fragment, type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { languageName } from "../languages"
-import { NARROW_QUERY } from "../layout"
+import { isTypingTarget, NARROW_QUERY } from "../layout"
 import { type LightboxImage, MessageAttachments } from "../inbox/Attachments"
 import { useConversationChannel } from "../inbox/channel"
 import { verifiedTranslationOf } from "../inbox/ComposerTranslation"
@@ -59,6 +59,8 @@ import { translationOf } from "../inbox/Timeline"
 import { TICKET_STATUSES, ticketStatusColor, ticketStatusLabel, ticketVisibilityLabel, useTicket } from "./meta"
 import { TicketComposer } from "./TicketComposer"
 import { TicketDetails } from "./TicketDetails"
+import { StatusMark } from "../components/status-mark"
+import { firstUnread, NewMessagesDivider, ScrollToBottomButton, useStickToBottom } from "../inbox/stick-to-bottom"
 
 /**
  * TicketView 是单张工单的协作主工作区：
@@ -84,6 +86,9 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
   const { ref: mainRef, width: mainWidth } = useElementSize()
 
   const tk = ticketQuery.data
+  // 打开时读到的位置：“新消息”分隔线画在它之后，读过之后也保持在原处
+  const readAtOpen = useRef<number | null>(null)
+  if (tk && readAtOpen.current === null) readAtOpen.current = tk.read_seq
   const last = timeline.data?.at(-1)
   useEffect(() => {
     if (last?.kind === "message" || last?.kind === "note") {
@@ -125,6 +130,19 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
     onSuccess: invalidate,
     onError: (err) => notifyError(err),
   })
+
+  // 工单的快捷键（非输入态生效）：I 切换详情栏；R、N 由输入框处理
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || isTypingTarget(e.target)) return
+      if (e.key.toLowerCase() === "i") {
+        e.preventDefault()
+        details.toggle()
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [details.toggle])
 
   if (!tk) {
     return (
@@ -267,11 +285,11 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
                   <Menu.Item
                     key={st}
                     disabled={tk.status === st}
-                    rightSection={tk.status === st ? <IconCheck size={13} /> : undefined}
+                    rightSection={tk.status === st ? <IconCheck size={14} /> : undefined}
                     onClick={() => setStatus.mutate(st)}
                   >
                     <Group gap={6} wrap="nowrap">
-                      <Box w={8} h={8} bg={ticketStatusColor[st]} style={{ borderRadius: "50%" }} />
+                      <StatusMark color={ticketStatusColor[st]} />
                       <Text size="sm">{ticketStatusLabel(st, t)}</Text>
                     </Group>
                   </Menu.Item>
@@ -285,7 +303,7 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
                   {compactActions ? (
                     <Tooltip label={t("inbox.assign")}>
                       <ActionIcon variant="subtle" color="gray" size="input-sm" loading={assign.isPending} aria-label={t("inbox.assign")}>
-                        <IconUserPlus size={15} />
+                        <IconUserPlus size={16} />
                       </ActionIcon>
                     </Tooltip>
                   ) : (
@@ -352,7 +370,7 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
           </Group>
         </PaneHeader>
 
-        <TicketTimeline ticket={tk} typingNames={typing.map((x) => x.name ?? "").filter(Boolean)} />
+        <TicketTimeline ticket={tk} readSeq={readAtOpen.current ?? 0} typingNames={typing.map((x) => x.name ?? "").filter(Boolean)} />
 
         <TicketComposer key={tk.id} ticket={tk} onTyping={notifyTyping} />
       </Box>
@@ -361,7 +379,7 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
         opened={details.opened}
         onClose={details.close}
         compactQuery={NARROW_QUERY}
-        resizable={{ storageKey: "ticket-details", defaultWidth: 340, min: 280, max: 440 }}
+        resizable={{ storageKey: "ticket-details", defaultWidth: 320, min: 260, max: 420 }}
       >
         <TicketDetails ticket={tk} onClose={details.close} />
       </AsidePane>
@@ -372,9 +390,11 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
 /** TicketTimeline 渲染工单的协作时间线：系统事件、跨语言内部讨论备注和同步至客户的公开进度消息。 */
 function TicketTimeline({
   ticket,
+  readSeq,
   typingNames,
 }: {
   ticket: ConversationTicketDTO
+  readSeq: number
   typingNames: string[]
 }): ReactNode {
   const t = useT()
@@ -387,15 +407,9 @@ function TicketTimeline({
   const translation = useQuery(kit.queries.translation.settings())
   const translating = translation.data?.enabled ?? false
   const watch = useFillVisible(translating, me.data?.language)
-  const scroller = useRef<HTMLDivElement>(null)
   const [lightbox, setLightbox] = useState<LightboxImage | null>(null)
   const list = items.data ?? []
-
-  useEffect(() => {
-    if (items.isPending) return
-    const el = scroller.current
-    if (el) el.scrollTop = el.scrollHeight
-  }, [items.isPending, list.length])
+  const stick = useStickToBottom({ ready: !items.isPending, list, myId: me.data?.id, typingCount: typingNames.length })
 
   const names = {
     member: (id: string) => (id === me.data?.id ? t("inbox.you") : (byId.get(id)?.name ?? t("event.someone"))),
@@ -414,9 +428,10 @@ function TicketTimeline({
     )
   }
 
+  const firstNew = firstUnread(list, readSeq, me.data?.id)
   return (
     <Box className="inbox-timeline-wrap">
-      <Box ref={scroller} className="inbox-timeline">
+      <Box ref={stick.scroller} className="inbox-timeline" onScroll={stick.onScroll}>
         <Stack gap={0} px="var(--tn-pane-px)" py="md">
           {list.map((it, i) => {
             const prev = list[i - 1]
@@ -425,6 +440,7 @@ function TicketTimeline({
             return (
               <Fragment key={it.id}>
                 {showDay && <Divider my={i === 0 ? 4 : 12} label={dayLabel(it.created_at, ui, t, zone)} labelPosition="center" />}
+                {it === firstNew && <NewMessagesDivider />}
                 {it.kind === "event" ? (
                   <Text size="xs" c="dimmed" ta="center" mt={gapTop} className="inbox-event">
                     {describeEvent(it, byId, names, t, ui)} · {clock(it.created_at, ui, zone)}
@@ -461,6 +477,7 @@ function TicketTimeline({
           )}
         </Stack>
       </Box>
+      <ScrollToBottomButton stick={stick} />
       <ImageLightbox src={lightbox?.src ?? null} filename={lightbox?.filename} onClose={() => setLightbox(null)} />
     </Box>
   )
@@ -523,7 +540,7 @@ function TicketTimelineCard({
     >
       <Group gap={6} mb={4} wrap="nowrap">
         {isPublic ? (
-          <IconWorld size={13} color="var(--mantine-primary-color-filled)" style={{ flex: "none" }} />
+          <IconWorld size={14} color="var(--mantine-primary-color-filled)" style={{ flex: "none" }} />
         ) : (
           <IconLock size={12} className="inbox-note-accent" style={{ flex: "none" }} />
         )}
@@ -544,7 +561,7 @@ function TicketTimelineCard({
               {({ copied, copy }) => (
                 <Tooltip label={t(copied ? "inbox.copied" : "inbox.copy_message")} openDelay={250}>
                   <ActionIcon variant="subtle" color={copied ? "green" : "gray"} size={22} onClick={copy} aria-label={t("inbox.copy_message")}>
-                    {copied ? <IconCheck size={13} /> : <IconCopy size={13} />}
+                    {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
                   </ActionIcon>
                 </Tooltip>
               )}

@@ -11,6 +11,8 @@ import { IconGripVertical, IconPencil, IconPlus, IconTrash } from "@tabler/icons
 import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../../../../../../api"
+import { EmptyState } from "../../../../../../components/empty-state"
+import { RowActions } from "../../../../../../components/row-actions"
 import { TicketTypeForm } from "./index"
 
 // 工单类型详情页：管理该类型的基本信息及专属自定义字段（增删改与拖拽排序）。
@@ -85,7 +87,7 @@ function TicketTypeDetailPage(): ReactNode {
       title: t("attributes.delete_confirm", { name: attr.name }),
       message: t("attributes.delete_message"),
       danger: true,
-      confirmLabel: t("attributes.delete"),
+      confirmLabel: t("common.delete"),
     })
     if (!ok) return
     try {
@@ -178,9 +180,9 @@ function TicketTypeDetailPage(): ReactNode {
         </Text>
 
         {fields.length === 0 ? (
-          <Text c="dimmed" ta="center" py="xl">
-            {t("ticket_types.fields_empty")}
-          </Text>
+          <div className="desk-table-card">
+            <EmptyState title={t("ticket_types.fields_empty")} />
+          </div>
         ) : (
           <DndContext
             sensors={sensors}
@@ -189,28 +191,30 @@ function TicketTypeDetailPage(): ReactNode {
             onDragEnd={(e) => void onDragEnd(e)}
           >
             <SortableContext items={fields.map((x) => x.id)} strategy={verticalListSortingStrategy}>
-              <Table verticalSpacing="sm">
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th w={36} />
-                    <Table.Th w="22%">{t("attributes.name")}</Table.Th>
-                    <Table.Th w="20%">{t("attributes.key")}</Table.Th>
-                    <Table.Th w={100}>{t("attributes.type")}</Table.Th>
-                    <Table.Th>{t("attributes.details")}</Table.Th>
-                    <Table.Th w={80} />
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {fields.map((attr) => (
-                    <SortableFieldRow
-                      key={attr.id}
-                      attr={attr}
-                      onEdit={() => setEditingField(attr)}
-                      onRemove={() => void removeField(attr)}
-                    />
-                  ))}
-                </Table.Tbody>
-              </Table>
+              <Table.ScrollContainer minWidth={720} className="desk-table-card" type="native">
+                <Table verticalSpacing="sm" horizontalSpacing="md">
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th w={36} />
+                      <Table.Th w="22%">{t("attributes.name")}</Table.Th>
+                      <Table.Th w="20%">{t("attributes.key")}</Table.Th>
+                      <Table.Th w={100}>{t("attributes.type")}</Table.Th>
+                      <Table.Th>{t("attributes.details")}</Table.Th>
+                      <Table.Th w={80} />
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {fields.map((attr) => (
+                      <SortableFieldRow
+                        key={attr.id}
+                        attr={attr}
+                        onEdit={() => setEditingField(attr)}
+                        onRemove={() => void removeField(attr)}
+                      />
+                    ))}
+                  </Table.Tbody>
+                </Table>
+              </Table.ScrollContainer>
             </SortableContext>
           </DndContext>
         )}
@@ -324,14 +328,10 @@ function SortableFieldRow({ attr, onEdit, onRemove }: { attr: AttributeDTO; onEd
         </Stack>
       </Table.Td>
       <Table.Td>
-        <Group gap={4} justify="flex-end" wrap="nowrap">
-          <ActionIcon variant="subtle" color="gray" onClick={onEdit} aria-label={t("attributes.edit")}>
-            <IconPencil size={15} />
-          </ActionIcon>
-          <ActionIcon variant="subtle" color="red" onClick={onRemove} aria-label={t("attributes.delete")}>
-            <IconTrash size={15} />
-          </ActionIcon>
-        </Group>
+        <RowActions
+          onEdit={onEdit}
+          actions={[{ label: t("common.delete"), icon: <IconTrash size={14} />, danger: true, onClick: onRemove }]}
+        />
       </Table.Td>
     </Table.Tr>
   )

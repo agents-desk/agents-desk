@@ -1,11 +1,13 @@
 import type { ChatScope } from "@agents-desk/client/tenant"
-import { Badge, Box, NavLink, Text } from "@mantine/core"
+import { NavLink, Text } from "@mantine/core"
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
 import { IconBriefcase, IconMessageCircle, IconMessages, IconPlus, IconUsersGroup } from "@tabler/icons-react"
 import { Fill, RailSection, useT } from "@go-tenon/ui"
 import type { ReactNode } from "react"
 import { kit } from "../api"
+import { NavCount } from "../components/nav-count"
+import { StatusMark } from "../components/status-mark"
 import { ChannelIcon } from "../inbox/channel-badge"
 import type { ChatModeFilter } from "./data"
 
@@ -56,11 +58,7 @@ export function ChatNav({
           label={t("chat.filter_all")}
           leftSection={<IconMessages size={16} stroke={1.6} />}
           rightSection={
-            internalUnread > 0 ? (
-              <Badge size="xs" circle color="brand" style={{ fontVariantNumeric: "tabular-nums" }}>
-                {internalUnread > 99 ? "99+" : internalUnread}
-              </Badge>
-            ) : undefined
+            <NavCount n={internalUnread} unread />
           }
           active={scope === "internal" && filter === "all"}
           onClick={() => onSelect({ scope: "internal" })}
@@ -84,11 +82,7 @@ export function ChatNav({
           label={t("chat.business_all")}
           leftSection={<IconBriefcase size={16} stroke={1.6} />}
           rightSection={
-            externalUnread > 0 ? (
-              <Badge size="xs" circle color="brand" style={{ fontVariantNumeric: "tabular-nums" }}>
-                {externalUnread > 99 ? "99+" : externalUnread}
-              </Badge>
-            ) : undefined
+            <NavCount n={externalUnread} unread />
           }
           active={scope === "external" && !channelId}
           onClick={() => onSelect({ scope: "external" })}
@@ -98,7 +92,7 @@ export function ChatNav({
           <NavLink
             key={ch.id}
             label={ch.name}
-            leftSection={<ChannelIcon kind="business_link" size={15} />}
+            leftSection={<ChannelIcon kind="business_link" size={16} />}
             rightSection={
               !ch.enabled ? (
                 <Text size="xs" c="dimmed">
@@ -112,29 +106,13 @@ export function ChatNav({
         ))}
 
         {accounts.map((acc) => {
-          const dotColor = !acc.enabled
-            ? "var(--mantine-color-gray-5)"
-            : acc.status === "connected"
-              ? "var(--mantine-color-green-6)"
-              : acc.status === "auth_expired"
-                ? "var(--mantine-color-red-6)"
-                : "var(--mantine-color-gray-5)"
+          const dotColor = !acc.enabled ? "gray" : acc.status === "connected" ? "green" : acc.status === "auth_expired" ? "red" : "gray"
           return (
             <NavLink
               key={acc.id}
               label={acc.name}
-              leftSection={<ChannelIcon kind="telegram_account" size={15} />}
-              rightSection={
-                <Box
-                  w={7}
-                  h={7}
-                  style={{
-                    borderRadius: "50%",
-                    backgroundColor: dotColor,
-                    flex: "none",
-                  }}
-                />
-              }
+              leftSection={<ChannelIcon kind="telegram_account" size={16} />}
+              rightSection={<StatusMark color={dotColor} />}
               active={scope === "external" && channelId === acc.id}
               onClick={() => onSelect({ scope: "external", channel: acc.id })}
             />

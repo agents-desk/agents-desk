@@ -23,6 +23,8 @@ import {
   useComposerTranslation,
 } from "../inbox/ComposerTranslation"
 import { useMe, useMembers } from "../inbox/data"
+import { clearDraft, getDraft, saveDraft } from "../inbox/drafts"
+import { isTypingTarget } from "../layout"
 
 /** TicketComposerMode 是工单输入区的两种模式：内部讨论备注或发布对外公开进度。 */
 type TicketComposerMode = "note" | "public"
@@ -44,13 +46,37 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
   const { list: members } = useMembers()
 
   const canPublish = ticket.visibility === "all"
-  const [mode, setMode] = useState<TicketComposerMode>("note")
-  const [text, setText] = useState("")
-  const [mentionIds, setMentionIds] = useState<string[]>([])
+  // 未发送的内容按工单保存为草稿（与收件箱共用：公开进度记为 reply，内部讨论记为 note）
+  const [mode, setMode] = useState<TicketComposerMode>(() => (getDraft(ticket.id)?.mode === "reply" && canPublish ? "public" : "note"))
+  const [text, setText] = useState(() => getDraft(ticket.id)?.text ?? "")
+  const [mentionIds, setMentionIds] = useState<string[]>(() => getDraft(ticket.id)?.mentionIds ?? [])
   const [dragging, setDragging] = useState(false)
   const dragDepth = useRef(0)
   const area = useRef<HTMLTextAreaElement>(null)
   const resetFile = useRef<() => void>(null)
+
+  useEffect(() => {
+    saveDraft(ticket.id, { text, mode: mode === "public" ? "reply" : "note", mentionIds })
+  }, [ticket.id, text, mode, mentionIds])
+
+  // 非输入态按 N 聚焦内部讨论，可公开时按 R 切到公开进度并聚焦
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || isTypingTarget(e.target)) return
+      const key = e.key.toLowerCase()
+      if (key === "n" || (key === "r" && !canPublish)) {
+        e.preventDefault()
+        setMode("note")
+        area.current?.focus()
+      } else if (key === "r") {
+        e.preventDefault()
+        setMode("public")
+        area.current?.focus()
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [canPublish])
 
   // 工单被切回仅成员可见时自动切回内部讨论模式
   useEffect(() => {
@@ -118,6 +144,7 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
       return "public" as const
     },
     onSuccess: (sentMode) => {
+      clearDraft(ticket.id)
       setText("")
       setMentionIds([])
       queue.clear()
@@ -237,7 +264,7 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
             </Group>
           ) : (
             <Group gap={4} wrap="nowrap">
-              <IconWorld size={13} color="var(--mantine-primary-color-filled)" style={{ flex: "none" }} />
+              <IconWorld size={14} color="var(--mantine-primary-color-filled)" style={{ flex: "none" }} />
               <Text size="xs" c="brand">
                 {ticket.linked_count > 0
                   ? t("tickets.public_composer_hint", { n: ticket.linked_count })

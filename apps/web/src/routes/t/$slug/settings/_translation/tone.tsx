@@ -6,6 +6,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { applyServerErrors, FormError, notifySuccess, Page, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../../../../../api"
+import { useUnsavedGuard } from "../../../../../components/unsaved-guard"
 
 // 语气：系统把成员的回复翻译给客户时用的语气。收到的消息照原意翻译，不受语气影响。
 export const Route = createFileRoute("/t/$slug/settings/_translation/tone")({
@@ -49,6 +50,7 @@ function Tone(): ReactNode {
     }
   })
 
+  useUnsavedGuard(form.isDirty())
   return (
     <Page title={t("tone.title")} description={t("tone.description")}>
       <form noValidate onSubmit={submit}>

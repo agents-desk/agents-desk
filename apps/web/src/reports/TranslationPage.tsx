@@ -298,7 +298,7 @@ export function TranslationPage({ route }: { route: PeriodRoute }): ReactNode {
                       <Text size="xs" fw={500} style={{ fontVariantNumeric: "tabular-nums" }}>
                         {formatInt(item.count, uiLang)}
                       </Text>
-                      {clickable && <IconArrowUpRight size={13} stroke={1.8} className="rp-bar-row-arrow" />}
+                      {clickable && <IconArrowUpRight size={14} stroke={1.6} className="rp-bar-row-arrow" />}
                     </Group>
                   </Group>
                   <Progress

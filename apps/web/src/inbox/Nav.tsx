@@ -14,6 +14,7 @@ import {
   IconTrash,
   IconUserQuestion,
   IconUsers,
+  IconUsersGroup,
 } from "@tabler/icons-react"
 import { confirm, Fill, notifyError, notifySuccess, RailSection, useCan, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
@@ -24,6 +25,7 @@ import { type Thresholds, useThresholds } from "./data"
 import { waitColor, waitLevel } from "./format"
 import type { InboxSearch } from "./search"
 import { ViewModal } from "./ViewModal"
+import { NavCount } from "../components/nav-count"
 
 /** useNow 返回现在的时间，每 30 秒更新一次：等待时长随之变化。 */
 export function useNow(): number {
@@ -39,21 +41,7 @@ export function useNow(): number {
 function Count({ s, now, th }: { s?: ConversationSummary; now: number; th?: Thresholds }): ReactNode {
   if (!s) return null
   const color = s.oldest_waiting_since ? waitColor[waitLevel(s.oldest_waiting_since, now, th)] : undefined
-  return (
-    <Text size="xs" c={color ?? "dimmed"} fw={color ? 600 : undefined} style={{ fontVariantNumeric: "tabular-nums" }}>
-      {s.count}
-    </Text>
-  )
-}
-
-/** PlainCount 是纯数字计数（工单未解决数）。 */
-function PlainCount({ n }: { n?: number }): ReactNode {
-  if (n === undefined) return null
-  return (
-    <Text size="xs" c="dimmed" style={{ fontVariantNumeric: "tabular-nums" }}>
-      {n}
-    </Text>
-  )
+  return <NavCount n={s.count} color={color} />
 }
 
 /**
@@ -169,7 +157,7 @@ export function InboxNav({
       key={`ticket:${box}`}
       label={label}
       leftSection={icon}
-      rightSection={<PlainCount n={count} />}
+      rightSection={<NavCount n={count} />}
       active={activeTicketBox === box}
       onClick={() => navigateTicket(box)}
     />
@@ -193,11 +181,7 @@ export function InboxNav({
                 <NavLink
                   key={team.id}
                   label={team.name}
-                  leftSection={
-                    <span className="inbox-team-badge" data-active={active || undefined}>
-                      {team.name.slice(0, 1)}
-                    </span>
-                  }
+                  leftSection={<IconUsersGroup size={16} stroke={1.6} />}
                   rightSection={<Count s={team} now={now} th={th} />}
                   active={active}
                   onClick={() => navigateInbox({ box: "all", team: team.id, view: undefined, filter: undefined })}
@@ -221,15 +205,15 @@ export function InboxNav({
                   aria-label={t("tickets.create")}
                   onClick={() => (onCreateTicket ? onCreateTicket() : setCreateTicketOpen(true))}
                 >
-                  <IconPlus size={14} stroke={1.8} />
+                  <IconPlus size={14} stroke={1.6} />
                 </ActionIcon>
               </Tooltip>
             ) : undefined
           }
         >
-          {ticketItem("mine", t("tickets.box_mine"), <IconTicket size={15} stroke={1.6} />, d?.tickets.mine)}
-          {ticketItem("unassigned", t("tickets.box_unassigned"), <IconUserQuestion size={15} stroke={1.6} />, d?.tickets.unassigned)}
-          {ticketItem("all", t("tickets.box_all"), <IconListDetails size={15} stroke={1.6} />, d?.tickets.all)}
+          {ticketItem("mine", t("tickets.box_mine"), <IconTicket size={16} stroke={1.6} />, d?.tickets.mine)}
+          {ticketItem("unassigned", t("tickets.box_unassigned"), <IconUserQuestion size={16} stroke={1.6} />, d?.tickets.unassigned)}
+          {ticketItem("all", t("tickets.box_all"), <IconListDetails size={16} stroke={1.6} />, d?.tickets.all)}
         </RailSection>
 
         <RailSection
@@ -239,7 +223,7 @@ export function InboxNav({
           action={
             <Tooltip label={t("views.create")} openDelay={300}>
               <ActionIcon size="xs" variant="subtle" color="gray" aria-label={t("views.create")} onClick={openCreateView}>
-                <IconPlus size={14} stroke={1.8} />
+                <IconPlus size={14} stroke={1.6} />
               </ActionIcon>
             </Tooltip>
           }
@@ -256,7 +240,7 @@ export function InboxNav({
                   <NavLink
                     label={v.name}
                     leftSection={
-                      v.scope === "shared" ? <IconUsers size={15} stroke={1.6} /> : <IconFilter size={15} stroke={1.6} />
+                      v.scope === "shared" ? <IconUsers size={16} stroke={1.6} /> : <IconFilter size={16} stroke={1.6} />
                     }
                     rightSection={
                       <span className="inbox-view-count">
@@ -290,10 +274,10 @@ export function InboxNav({
                           </ActionIcon>
                         </Menu.Target>
                         <Menu.Dropdown>
-                          <Menu.Item leftSection={<IconPencil size={13} />} onClick={() => openEditView(v)}>
+                          <Menu.Item leftSection={<IconPencil size={14} />} onClick={() => openEditView(v)}>
                             {t("views.edit")}
                           </Menu.Item>
-                          <Menu.Item leftSection={<IconTrash size={13} />} color="red" onClick={() => void handleDelete(v)}>
+                          <Menu.Item leftSection={<IconTrash size={14} />} color="red" onClick={() => void handleDelete(v)}>
                             {t("views.delete")}
                           </Menu.Item>
                         </Menu.Dropdown>

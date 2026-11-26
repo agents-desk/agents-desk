@@ -7,10 +7,12 @@ import { ActionIcon, Badge, Button, Code, Group, Modal, SegmentedControl, Select
 import { useForm } from "@mantine/form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { IconGripVertical, IconPencil, IconPlus, IconTrash } from "@tabler/icons-react"
+import { IconGripVertical, IconPlus, IconTrash } from "@tabler/icons-react"
 import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../../../../../api"
+import { EmptyState } from "../../../../../components/empty-state"
+import { RowActions } from "../../../../../components/row-actions"
 
 // 属性：管理会话和联系人的自定义属性定义，按对象分组切换，支持拖动调整展示顺序。key 和 type 创建后锁定。
 export const Route = createFileRoute("/t/$slug/settings/_workspace/attributes")({
@@ -103,9 +105,9 @@ function Attributes(): ReactNode {
           ]}
         />
         {items.length === 0 ? (
-          <Text c="dimmed" ta="center" py="xl">
-            {t("attributes.empty")}
-          </Text>
+          <div className="desk-table-card">
+            <EmptyState title={t("attributes.empty")} />
+          </div>
         ) : (
           <DndContext
             sensors={sensors}
@@ -114,23 +116,25 @@ function Attributes(): ReactNode {
             onDragEnd={(e) => void onDragEnd(e)}
           >
             <SortableContext items={items.map((x) => x.id)} strategy={verticalListSortingStrategy}>
-              <Table verticalSpacing="sm">
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th w={36} />
-                    <Table.Th w="22%">{t("attributes.name")}</Table.Th>
-                    <Table.Th w="20%">{t("attributes.key")}</Table.Th>
-                    <Table.Th w={100}>{t("attributes.type")}</Table.Th>
-                    <Table.Th>{t("attributes.details")}</Table.Th>
-                    <Table.Th w={80} />
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {items.map((attr) => (
-                    <SortableRow key={attr.id} attr={attr} onEdit={() => setEditing(attr)} onRemove={() => void remove(attr)} />
-                  ))}
-                </Table.Tbody>
-              </Table>
+              <Table.ScrollContainer minWidth={720} className="desk-table-card" type="native">
+                <Table verticalSpacing="sm" horizontalSpacing="md">
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th w={36} />
+                      <Table.Th w="22%">{t("attributes.name")}</Table.Th>
+                      <Table.Th w="20%">{t("attributes.key")}</Table.Th>
+                      <Table.Th w={100}>{t("attributes.type")}</Table.Th>
+                      <Table.Th>{t("attributes.details")}</Table.Th>
+                      <Table.Th w={80} />
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {items.map((attr) => (
+                      <SortableRow key={attr.id} attr={attr} onEdit={() => setEditing(attr)} onRemove={() => void remove(attr)} />
+                    ))}
+                  </Table.Tbody>
+                </Table>
+              </Table.ScrollContainer>
             </SortableContext>
           </DndContext>
         )}
@@ -231,14 +235,10 @@ function SortableRow({ attr, onEdit, onRemove }: { attr: AttributeDTO; onEdit: (
         </Stack>
       </Table.Td>
       <Table.Td>
-        <Group gap={4} justify="flex-end" wrap="nowrap">
-          <ActionIcon variant="subtle" color="gray" onClick={onEdit} aria-label={t("attributes.edit")}>
-            <IconPencil size={15} />
-          </ActionIcon>
-          <ActionIcon variant="subtle" color="red" onClick={onRemove} aria-label={t("attributes.delete")}>
-            <IconTrash size={15} />
-          </ActionIcon>
-        </Group>
+        <RowActions
+          onEdit={onEdit}
+          actions={[{ label: t("common.delete"), icon: <IconTrash size={14} />, danger: true, onClick: onRemove }]}
+        />
       </Table.Td>
     </Table.Tr>
   )

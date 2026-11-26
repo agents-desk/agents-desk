@@ -1,10 +1,11 @@
-import { Badge, Box, Checkbox, Group, SegmentedControl, Skeleton, Stack, Tooltip } from "@mantine/core"
+import { Badge, Checkbox, Group, SegmentedControl, Skeleton, Stack, Tooltip } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useParams } from "@tanstack/react-router"
 import { notifyError, useLanguage, useT } from "@go-tenon/ui"
 import type { MemberStatus, MemberStatusSetting } from "@agents-desk/client/tenant"
 import type { ReactNode } from "react"
 import { kit, tenantApi } from "./api"
+import { StatusMark } from "./components/status-mark"
 
 const statuses: MemberStatus[] = ["online", "away"]
 
@@ -26,7 +27,7 @@ function StatusLabel({ status }: { status: MemberStatus }): ReactNode {
   useLanguage() // 枚举的显示文字按当前语言，切换语言时重新渲染
   return (
     <Group gap={6} wrap="nowrap" justify="center">
-      <Box w={8} h={8} style={{ borderRadius: "50%", background: `var(--mantine-color-${statusColor[status]}-6)` }} />
+      <StatusMark color={statusColor[status]} />
       {kit.label("MemberStatus", status)}
     </Group>
   )

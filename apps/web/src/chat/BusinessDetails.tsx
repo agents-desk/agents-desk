@@ -227,7 +227,7 @@ export function BusinessDetails({ chat, onClose, onLeft }: BusinessDetailsProps)
                     <Text span size="sm" c="brand" fw={500}>
                       {t("chat.open_contact")}
                     </Text>
-                    <IconExternalLink size={13} />
+                    <IconExternalLink size={14} />
                   </Link>
                 </InspectorField>
               </>
@@ -261,7 +261,7 @@ export function BusinessDetails({ chat, onClose, onLeft }: BusinessDetailsProps)
                   />
                   {toAdd.length > 0 && (
                     <Group justify="flex-end">
-                      <Button size="compact-xs" leftSection={<IconUserPlus size={13} />} loading={addMembers.isPending} onClick={() => addMembers.mutate()}>
+                      <Button size="compact-xs" leftSection={<IconUserPlus size={14} />} loading={addMembers.isPending} onClick={() => addMembers.mutate()}>
                         {t("chat.invite_colleagues_submit")}
                       </Button>
                     </Group>
@@ -275,11 +275,11 @@ export function BusinessDetails({ chat, onClose, onLeft }: BusinessDetailsProps)
                   return (
                     <Group key={p.id} gap="sm" wrap="nowrap">
                       <Indicator size={8} offset={2} position="bottom-end" color={p.status === "online" ? "green" : "gray"} withBorder>
-                        <Avatar size={26} radius="xl" name={p.name || p.id} color="initials" src={p.avatar_url || undefined} />
+                        <Avatar size={28} radius="xl" name={p.name || t("chat.unnamed_member")} color="initials" src={p.avatar_url || undefined} />
                       </Indicator>
                       <Group gap={6} wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
                         <Text size="sm" truncate>
-                          {p.name || p.id}
+                          {p.name || t("chat.unnamed_member")}
                         </Text>
                         {isMe && (
                           <Badge size="xs" variant="light" color="gray" style={{ flex: "none" }}>
@@ -331,7 +331,7 @@ export function BusinessDetails({ chat, onClose, onLeft }: BusinessDetailsProps)
               <Stack gap={8}>
                 {contactParticipants.map((p) => (
                   <Group key={p.id} gap="sm" wrap="nowrap">
-                    <Avatar size={26} radius="xl" name={p.name || p.id} color="initials" />
+                    <Avatar size={28} radius="xl" name={p.name || t("inbox.visitor")} color="initials" />
                     <Link
                       to="/t/$slug/contacts/$id"
                       params={{ slug, id: p.id }}

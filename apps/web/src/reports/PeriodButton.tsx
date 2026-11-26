@@ -59,7 +59,7 @@ export function PeriodButton({ period }: { period: PeriodState }): ReactNode {
           size="sm"
           variant="default"
           leftSection={<IconCalendar size={14} stroke={1.6} />}
-          rightSection={<IconChevronDown size={13} stroke={1.8} />}
+          rightSection={<IconChevronDown size={14} stroke={1.6} />}
           onClick={() => setOpened((v) => !v)}
           style={{ fontWeight: 500, fontVariantNumeric: "tabular-nums" }}
         >
@@ -84,7 +84,7 @@ export function PeriodButton({ period }: { period: PeriodState }): ReactNode {
                   }}
                 >
                   <span>{presetLabel(p)}</span>
-                  {active && <IconCheck size={13} stroke={2} />}
+                  {active && <IconCheck size={14} stroke={2} />}
                 </button>
               )
             })}

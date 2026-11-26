@@ -197,7 +197,7 @@ export function MembersPage({ route }: { route: PeriodRoute }): ReactNode {
                 <Text span size="sm" fw={500}>
                   {formatInt(row.open_assigned, uiLang)}
                 </Text>
-                <IconArrowUpRight size={13} stroke={1.8} />
+                <IconArrowUpRight size={14} stroke={1.6} />
               </Link>
             </Tooltip>
           ) : (

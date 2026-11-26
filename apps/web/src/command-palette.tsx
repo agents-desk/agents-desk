@@ -168,7 +168,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
         id: "conv:assign:me",
         label: t("inbox.assign_me"),
         description: contactLabel,
-        icon: <IconUserPlus size={15} stroke={1.6} />,
+        icon: <IconUserPlus size={16} stroke={1.6} />,
         quick: true,
         onClick: () => run(() => tenantApi.conversation.assign(c.id, { assignee_id: me.data.id }), t("command.action_assigned")),
       })
@@ -178,7 +178,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
         id: "conv:reopen",
         label: t("inbox.reopen"),
         description: contactLabel,
-        icon: <IconRefresh size={15} stroke={1.6} />,
+        icon: <IconRefresh size={16} stroke={1.6} />,
         quick: true,
         onClick: () => run(() => tenantApi.conversation.reopen(c.id), t("command.action_reopened")),
       })
@@ -187,7 +187,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
         id: "conv:close",
         label: t("inbox.close"),
         description: contactLabel,
-        icon: <IconCheck size={15} stroke={1.6} />,
+        icon: <IconCheck size={16} stroke={1.6} />,
         quick: true,
         onClick: () => run(() => tenantApi.conversation.close(c.id), t("command.action_closed")),
       })
@@ -197,7 +197,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
           id: `conv:snooze:${opt.key}`,
           label: t("command.action_snooze", { when }),
           description: contactLabel,
-          icon: <IconClock size={15} stroke={1.6} />,
+          icon: <IconClock size={16} stroke={1.6} />,
           quick: opt.key === "later" || opt.key === "tomorrow",
           onClick: () => run(() => tenantApi.conversation.snooze(c.id, { until: opt.until.toISOString() }), t("command.action_snoozed")),
         })
@@ -207,7 +207,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
       id: "conv:priority",
       label: t(c.priority === "high" ? "command.action_priority_normal" : "command.action_priority_high"),
       description: contactLabel,
-      icon: <IconFlag size={15} stroke={1.6} />,
+      icon: <IconFlag size={16} stroke={1.6} />,
       quick: false,
       onClick: () =>
         run(
@@ -222,7 +222,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
           id: "conv:unassign",
           label: t("inbox.unassign"),
           description: contactLabel,
-          icon: <IconUserOff size={15} stroke={1.6} />,
+          icon: <IconUserOff size={16} stroke={1.6} />,
           quick: false,
           onClick: () => run(() => tenantApi.conversation.assign(c.id, { assignee_id: "" }), t("command.action_assigned")),
         })
@@ -233,7 +233,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
           id: `conv:assign:member:${m.id}`,
           label: t("command.assign_member", { name: m.name }),
           description: m.status === "away" ? t("inbox.away") : contactLabel,
-          icon: <IconUserPlus size={15} stroke={1.6} />,
+          icon: <IconUserPlus size={16} stroke={1.6} />,
           quick: false,
           onClick: () => run(() => tenantApi.conversation.assign(c.id, { assignee_id: m.id }), t("command.action_assigned")),
         })
@@ -244,7 +244,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
           id: `conv:assign:team:${team.id}`,
           label: t("command.assign_team", { name: team.name }),
           description: contactLabel,
-          icon: <IconUsersGroup size={15} stroke={1.6} />,
+          icon: <IconUsersGroup size={16} stroke={1.6} />,
           quick: false,
           onClick: () => run(() => tenantApi.conversation.assign(c.id, { team_id: team.id }), t("command.action_assigned")),
         })
@@ -262,56 +262,56 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
           id: "inbox:mine",
           label: t("inbox.box_mine"),
           description: t("nav.inbox"),
-          icon: <IconInbox size={15} stroke={1.6} />,
+          icon: <IconInbox size={16} stroke={1.6} />,
           onClick: () => void navigate({ to: "/t/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "mine" } }),
         },
         {
           id: "inbox:mentions",
           label: t("inbox.box_mentions"),
           description: t("nav.inbox"),
-          icon: <IconAt size={15} stroke={1.6} />,
+          icon: <IconAt size={16} stroke={1.6} />,
           onClick: () => void navigate({ to: "/t/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "mentions" } }),
         },
         {
           id: "inbox:unassigned",
           label: t("inbox.box_unassigned"),
           description: t("nav.inbox"),
-          icon: <IconUserQuestion size={15} stroke={1.6} />,
+          icon: <IconUserQuestion size={16} stroke={1.6} />,
           onClick: () => void navigate({ to: "/t/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "unassigned" } }),
         },
         {
           id: "inbox:all",
           label: t("inbox.box_all"),
           description: t("nav.inbox"),
-          icon: <IconListDetails size={15} stroke={1.6} />,
+          icon: <IconListDetails size={16} stroke={1.6} />,
           onClick: () => void navigate({ to: "/t/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "all" } }),
         },
         {
           id: "tickets:mine",
           label: t("tickets.command_mine"),
           description: t("tickets.nav_section"),
-          icon: <IconTicket size={15} stroke={1.6} />,
+          icon: <IconTicket size={16} stroke={1.6} />,
           onClick: () => void navigate({ to: "/t/$slug/tickets", params: { slug }, search: { box: "mine", status: "unresolved" } }),
         },
         {
           id: "tickets:unassigned",
           label: t("tickets.command_unassigned"),
           description: t("tickets.nav_section"),
-          icon: <IconTicket size={15} stroke={1.6} />,
+          icon: <IconTicket size={16} stroke={1.6} />,
           onClick: () => void navigate({ to: "/t/$slug/tickets", params: { slug }, search: { box: "unassigned", status: "unresolved" } }),
         },
         {
           id: "tickets:all",
           label: t("tickets.command_all"),
           description: t("tickets.nav_section"),
-          icon: <IconTicket size={15} stroke={1.6} />,
+          icon: <IconTicket size={16} stroke={1.6} />,
           onClick: () => void navigate({ to: "/t/$slug/tickets", params: { slug }, search: { box: "all", status: "unresolved" } }),
         },
         ...(inbox.data?.teams ?? []).map((team) => ({
           id: `inbox:team:${team.id}`,
           label: team.name,
           description: t("inbox.teams"),
-          icon: <IconUsersGroup size={15} stroke={1.6} />,
+          icon: <IconUsersGroup size={16} stroke={1.6} />,
           onClick: () =>
             void navigate({ to: "/t/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "all", team: team.id } }),
         })),
@@ -319,7 +319,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
           id: `inbox:view:${v.id}`,
           label: v.name,
           description: t("views.section"),
-          icon: v.scope === "shared" ? <IconUsers size={15} stroke={1.6} /> : <IconFilter size={15} stroke={1.6} />,
+          icon: v.scope === "shared" ? <IconUsers size={16} stroke={1.6} /> : <IconFilter size={16} stroke={1.6} />,
           onClick: () =>
             void navigate({
               to: "/t/$slug/inbox",
@@ -334,7 +334,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
       id: "global:shortcuts",
       label: t("command.shortcuts_action"),
       description: "?",
-      icon: <IconKeyboard size={15} stroke={1.6} />,
+      icon: <IconKeyboard size={16} stroke={1.6} />,
       onClick: onShowShortcuts,
     }
 
@@ -428,7 +428,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
           remotePending ? (
             <Loader size={14} />
           ) : query.length > 0 ? (
-            <CloseButton size="sm" variant="subtle" aria-label={t("inbox.search_clear")} onClick={() => setQuery("")} />
+            <CloseButton size="sm" variant="subtle" aria-label={t("common.clear_search")} onClick={() => setQuery("")} />
           ) : undefined
         }
         rightSectionPointerEvents={query.length > 0 && !remotePending ? "auto" : "none"}
@@ -465,7 +465,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
               >
                 <Group gap="sm" wrap="nowrap" w="100%">
                   <Box className="cmd-palette-icon">
-                    {ch.mode === "group" ? <IconUsersGroup size={15} stroke={1.6} /> : <IconMessageCircle size={15} stroke={1.6} />}
+                    {ch.mode === "group" ? <IconUsersGroup size={16} stroke={1.6} /> : <IconMessageCircle size={16} stroke={1.6} />}
                   </Box>
                   <Box style={{ flex: 1, minWidth: 0 }}>
                     <Group gap={6} wrap="nowrap">
@@ -503,7 +503,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
               >
                 <Group gap="sm" wrap="nowrap" w="100%">
                   <Box className="cmd-palette-icon">
-                    <IconTicket size={15} stroke={1.6} />
+                    <IconTicket size={16} stroke={1.6} />
                   </Box>
                   <Box style={{ flex: 1, minWidth: 0 }}>
                     <Group gap={6} wrap="nowrap">
@@ -555,7 +555,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
                 >
                   <Group gap="sm" wrap="nowrap" w="100%" align="flex-start">
                     <Box className="cmd-palette-icon" mt={2}>
-                      {m.kind === "note" ? <IconLock size={15} stroke={1.6} /> : <IconMessage size={15} stroke={1.6} />}
+                      {m.kind === "note" ? <IconLock size={16} stroke={1.6} /> : <IconMessage size={16} stroke={1.6} />}
                     </Box>
                     <Box style={{ flex: 1, minWidth: 0 }}>
                       <Group gap={6} wrap="nowrap">
@@ -598,7 +598,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
                 }
               >
                 <Group gap="xs" c="brand" px={4}>
-                  <IconArrowRight size={15} stroke={1.8} />
+                  <IconArrowRight size={16} stroke={1.6} />
                   <Text size="xs" fw={600}>
                     {t("command.view_all_results", { n: convTotal })}
                   </Text>
@@ -626,7 +626,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
                 >
                   <Group gap="sm" wrap="nowrap" w="100%">
                     <Box className="cmd-palette-icon">
-                      <IconUser size={15} stroke={1.6} />
+                      <IconUser size={16} stroke={1.6} />
                     </Box>
                     <Box style={{ flex: 1, minWidth: 0 }}>
                       <Group gap={6} wrap="nowrap">
@@ -701,7 +701,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
 
         {!hasAny && !remotePending && (
           <Box className="cmd-palette-state">
-            <IconSearch size={22} stroke={1.4} />
+            <IconSearch size={24} stroke={1.6} />
             <Text size="sm" c="dimmed">
               {t("command.empty")}
             </Text>

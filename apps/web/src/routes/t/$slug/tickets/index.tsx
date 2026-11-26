@@ -1,9 +1,10 @@
-import { Button, Center, Stack, Text, ThemeIcon } from "@mantine/core"
+import { Button } from "@mantine/core"
 import { createFileRoute, getRouteApi, useNavigate } from "@tanstack/react-router"
 import { IconPlus, IconTicket } from "@tabler/icons-react"
 import { useCan, useT } from "@go-tenon/ui"
 import { useState } from "react"
 import { CreateTicketModal } from "../../../../tickets/CreateTicketModal"
+import { EmptyState } from "../../../../components/empty-state"
 
 // 还没有打开工单时的空态引导页。
 export const Route = createFileRoute("/t/$slug/tickets/")({ component: NoTicket })
@@ -19,25 +20,20 @@ function NoTicket() {
   const [createOpen, setCreateOpen] = useState(false)
 
   return (
-    <Center style={{ flex: 1, background: "var(--tn-canvas)" }}>
-      <Stack gap="sm" align="center" px="md">
-        <ThemeIcon size={48} radius="xl" variant="light" color="gray">
-          <IconTicket size={24} stroke={1.5} />
-        </ThemeIcon>
-        <Stack gap={4} align="center">
-          <Text fw={500} size="sm">
-            {t("tickets.pick")}
-          </Text>
-          <Text c="dimmed" size="xs" ta="center">
-            {t("tickets.pick_hint")}
-          </Text>
-        </Stack>
-        {can("conversations:reply") && (
-          <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => setCreateOpen(true)}>
-            {t("tickets.create")}
-          </Button>
-        )}
-      </Stack>
+    <>
+      <EmptyState
+        fill
+        icon={<IconTicket size={24} stroke={1.6} />}
+        title={t("tickets.pick")}
+        description={t("tickets.pick_hint")}
+        action={
+          can("conversations:reply") && (
+            <Button size="xs" variant="light" leftSection={<IconPlus size={14} />} onClick={() => setCreateOpen(true)}>
+              {t("tickets.create")}
+            </Button>
+          )
+        }
+      />
       <CreateTicketModal
         opened={createOpen}
         onClose={() => setCreateOpen(false)}
@@ -45,6 +41,6 @@ function NoTicket() {
           void navigate({ to: "/t/$slug/tickets/$id", params: { slug, id: created.id }, search })
         }
       />
-    </Center>
+    </>
   )
 }

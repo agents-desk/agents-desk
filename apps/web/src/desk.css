@@ -57,3 +57,33 @@
   outline: 2px solid var(--mantine-primary-color-filled);
   outline-offset: 2px;
 }
+
+/* 不带文字的状态圆点（StatusMark）：导航项、菜单项、列表行中统一 8px，颜色由组件以色板变量传入 */
+.desk-status-mark {
+  display: inline-block;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/*
+ * 设置页中不能用 DataTable 的表格（需要拖动排序的属性、工单类型、字段）：
+ * 外框、表头底色和文字颜色与框架 DataTable（.tn-datatable）一致，窄屏时在卡片内横向滚动而不是裁掉右侧的操作列。
+ */
+.desk-table-card {
+  border: 1px solid var(--tn-border);
+  border-radius: var(--mantine-radius-md);
+  overflow: hidden;
+  background: var(--tn-surface);
+}
+
+.desk-table-card thead th {
+  background: var(--tn-canvas);
+  color: var(--tn-muted);
+  font-weight: 500;
+}
+
+.desk-table-card tbody tr:last-child td {
+  border-bottom: 0;
+}
