@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -15,6 +16,7 @@ import (
 
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/hours"
+	"agents-desk/internal/tickettype"
 )
 
 // Topic 是自动化响应会话时间线变化的下游，在入口加入会话的 Downstream：时间线每有一项新内容，worker 收到一个任务。
@@ -114,7 +116,7 @@ func (r *Runner) Handle(ctx context.Context, p conversation.Appended) error {
 		if !matched {
 			continue
 		}
-		if err := r.executeActions(ctx, sys, fact, rule.Actions); err != nil {
+		if err := r.executeActions(ctx, sys, fact, &it, rule.Actions); err != nil {
 			_ = r.recordRun(ctx, p.TenantID, rule.ID, conv.ID, it.ID, dedupKey, RunFailed, err.Error())
 			return err
 		}
@@ -147,6 +149,12 @@ func classify(ctx context.Context, db bun.IDB, it *conversation.Item) (Trigger, 
 		return TriggerFirstMessage, "conv:" + it.ConversationID, true, nil
 	case it.Kind == conversation.Event && it.Content.Event == "conversation.closed":
 		return TriggerClosed, "item:" + it.ID, true, nil
+	case it.Kind == conversation.Event && it.Content.Event == "ticket.status_changed":
+		// 客户自己发消息触发“等待客户 → 处理中”时不再回发状态通知，避免多余打扰
+		if reason, _ := it.Content.Data["reason"].(string); reason == "customer_replied" {
+			return "", "", false, nil
+		}
+		return TriggerTicketStatusChanged, "item:" + it.ID, true, nil
 	}
 	return "", "", false, nil
 }
@@ -176,7 +184,7 @@ func (r *Runner) recordRun(ctx context.Context, tenantID, ruleID, conversationID
 }
 
 // executeActions 依次执行规则的动作列表，每个动作都调用对应模块的业务动作。
-func (r *Runner) executeActions(ctx context.Context, sys identity.Subject, fact *Fact, actions []Action) error {
+func (r *Runner) executeActions(ctx context.Context, sys identity.Subject, fact *Fact, triggerItem *conversation.Item, actions []Action) error {
 	for _, act := range actions {
 		switch act.Type {
 		case ActionSendReplyTime:
@@ -204,9 +212,113 @@ func (r *Runner) executeActions(ctx context.Context, sys identity.Subject, fact 
 			if _, err := r.reqRating.Handle(ctx, sys, fact.Conv.ID); err != nil {
 				return err
 			}
+		case ActionNotifyTicketStatus:
+			if err := r.notifyTicketStatus(ctx, sys, fact, triggerItem); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
+}
+
+// notifyTicketStatus 向客户可见工单（visibility = all）的全部关联服务型会话发送状态变更通知。
+// 每个会话按其客户语言生成纯文本回退（供 Telegram 等外部渠道直接发出），并附带结构化 Prompt 供聊天插件按客户浏览器语言渲染卡片。
+func (r *Runner) notifyTicketStatus(ctx context.Context, sys identity.Subject, fact *Fact, triggerItem *conversation.Item) error {
+	if fact.Conv.Kind != conversation.Ticket {
+		return nil
+	}
+	var tk struct {
+		Number     int64                 `bun:"number"`
+		Title      string                `bun:"title"`
+		Visibility tickettype.Visibility `bun:"visibility"`
+	}
+	err := r.db.NewSelect().Table("tickets").Column("number", "title", "visibility").
+		Where("conversation_id = ? AND tenant_id = ?", fact.Conv.ID, fact.TenantID).
+		Scan(ctx, &tk)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return errors.Wrap(err, "load ticket for status notify")
+	}
+	if tk.Visibility != tickettype.VisibilityAll {
+		return nil
+	}
+	toStatus, _ := triggerItem.Content.Data["to"].(string)
+	if toStatus == "" {
+		toStatus = string(fact.Conv.Status)
+	}
+
+	var targets []struct {
+		ID       string `bun:"id"`
+		Language string `bun:"language"`
+	}
+	err = r.db.NewSelect().TableExpr("conversation_links cl").
+		Join("JOIN conversations sc ON sc.id = cl.conversation_id").
+		Join("LEFT JOIN contacts ct ON ct.id = sc.contact_id AND ct.tenant_id = sc.tenant_id").
+		ColumnExpr("sc.id, COALESCE(NULLIF(ct.language, ''), sc.language, '') AS language").
+		Where("cl.tenant_id = ? AND cl.ticket_id = ? AND sc.tenant_id = ? AND sc.kind = ?",
+			fact.TenantID, fact.Conv.ID, fact.TenantID, conversation.Service).
+		OrderExpr("cl.created_at ASC, sc.id ASC").
+		Scan(ctx, &targets)
+	if err != nil {
+		return errors.Wrap(err, "load linked conversations for ticket status notify")
+	}
+	if len(targets) == 0 {
+		return nil
+	}
+
+	prompt := &conversation.Prompt{
+		Kind: "ticket_status_changed",
+		Params: map[string]any{
+			"ticket_id": fact.Conv.ID,
+			"number":    tk.Number,
+			"title":     tk.Title,
+			"status":    toStatus,
+		},
+	}
+	for _, tc := range targets {
+		text := formatTicketStatusText(tc.Language, tk.Number, tk.Title, conversation.TicketStatus(toStatus))
+		if _, err := r.sendMsg.Handle(ctx, sys, tc.ID, text, prompt); err != nil {
+			return errors.Wrapf(err, "notify ticket status to conversation %s", tc.ID)
+		}
+	}
+	return nil
+}
+
+// formatTicketStatusText 按客户语言生成工单状态变更的纯文本通知：中文客户用简体中文，其余语言用英文。
+func formatTicketStatusText(language string, number int64, title string, status conversation.TicketStatus) string {
+	isZH := strings.HasPrefix(strings.ToLower(strings.TrimSpace(language)), "zh")
+	if isZH {
+		var label string
+		switch status {
+		case conversation.TicketSubmitted:
+			label = "已提交"
+		case conversation.TicketInProgress:
+			label = "正在处理中"
+		case conversation.TicketWaiting:
+			label = "等待您补充信息"
+		case conversation.TicketResolved:
+			label = "已解决"
+		default:
+			label = string(status)
+		}
+		return fmt.Sprintf("工单 #%d（%s）状态已更新为：%s", number, title, label)
+	}
+	var label string
+	switch status {
+	case conversation.TicketSubmitted:
+		label = "Submitted"
+	case conversation.TicketInProgress:
+		label = "In progress"
+	case conversation.TicketWaiting:
+		label = "Waiting for your reply"
+	case conversation.TicketResolved:
+		label = "Resolved"
+	default:
+		label = string(status)
+	}
+	return fmt.Sprintf("Ticket #%d (%s) status updated to: %s", number, title, label)
 }
 
 // buildReplyTime 按工作时间 h、回复时间 rt 和消息到达时刻 at 构造告知回复时间的纯文本和结构化提示：

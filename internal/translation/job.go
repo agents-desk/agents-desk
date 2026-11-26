@@ -107,11 +107,17 @@ func (a *Incoming) Ensure(ctx context.Context, tenant, itemID string, targets []
 		translated.Translations = translations
 	} else {
 		var usual string
-		err := a.db.NewRaw(`SELECT COALESCE(NULLIF(ct.language, ''), c.language) FROM conversations c
-			LEFT JOIN contacts ct ON ct.id = c.contact_id AND ct.tenant_id = c.tenant_id
-			WHERE c.id = ? AND c.tenant_id = ?`, it.ConversationID, tenant).Scan(ctx, &usual)
-		if err != nil {
-			return errors.Wrap(err, "load conversation language")
+		if it.Kind == conversation.Note && it.ActorType == conversation.MemberActor && it.ActorID != "" {
+			if err := a.db.NewSelect().Table("members").Column("language").Where("id = ?", it.ActorID).Scan(ctx, &usual); err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return errors.Wrap(err, "load note author language")
+			}
+		} else {
+			err := a.db.NewRaw(`SELECT COALESCE(NULLIF(ct.language, ''), c.language) FROM conversations c
+				LEFT JOIN contacts ct ON ct.id = c.contact_id AND ct.tenant_id = c.tenant_id
+				WHERE c.id = ? AND c.tenant_id = ?`, it.ConversationID, tenant).Scan(ctx, &usual)
+			if err != nil {
+				return errors.Wrap(err, "load conversation language")
+			}
 		}
 		detected, translations, err := a.translator.Incoming(ctx, tenant, &it, usual, missing)
 		if errors.Is(err, llm.ErrNotConfigured) {
@@ -126,9 +132,10 @@ func (a *Incoming) Ensure(ctx context.Context, tenant, itemID string, targets []
 	return conversation.SaveTranslation(ctx, a.db, a.down, tenant, it.ID, translated)
 }
 
-// RegisterJobs 在 worker 上登记翻译收到的消息和补译的任务。
+// RegisterJobs 在 worker 上登记翻译收到的消息、补译与工单公开进度广播任务。
 func RegisterJobs(w *queue.Worker, db *bun.DB, locker *lock.Locker, translator *Translator, down conversation.Downstream) {
 	in := NewIncoming(db, locker, translator, down)
 	Topic.Handle(w, in.Job)
 	FillTopic.Handle(w, in.Fill)
+	TicketBroadcastTopic.Handle(w, NewTicketBroadcast(db, locker, translator, down).Job)
 }

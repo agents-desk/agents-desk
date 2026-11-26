@@ -262,6 +262,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 				conversation.DeliverTopic.Meta("queue.topic.conversation.deliver.label", "queue.topic.conversation.deliver.description"),
 				translation.Topic.Meta("queue.topic.conversation.translate.label", "queue.topic.conversation.translate.description"),
 				translation.FillTopic.Meta("queue.topic.translation.fill.label", "queue.topic.translation.fill.description"),
+				translation.TicketBroadcastTopic.Meta("queue.topic.ticket.broadcast.label", "queue.topic.ticket.broadcast.description"),
 				automation.Topic.Meta("queue.topic.conversation.automate.label", "queue.topic.conversation.automate.description"),
 				conversation.SearchIndex.SyncTopic().Meta("queue.topic.search.sync.conversation_items.label", "queue.topic.search.sync.conversation_items.description"),
 				conversation.SearchIndex.ReindexTopic().Meta("queue.topic.search.reindex.conversation_items.label", "queue.topic.search.reindex.conversation_items.description"),

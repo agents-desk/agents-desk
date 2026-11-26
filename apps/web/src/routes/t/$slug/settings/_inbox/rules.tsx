@@ -13,7 +13,10 @@ export const Route = createFileRoute("/t/$slug/settings/_inbox/rules")({
 })
 
 /** builtinCopy 返回内置规则的标题和说明消息 ID。 */
-function builtinCopy(key: AutomationBuiltin): { title: "automations.reply_time_title" | "automations.collect_lead_contact_title" | "automations.request_rating_title"; desc: "automations.reply_time_desc" | "automations.collect_lead_contact_desc" | "automations.request_rating_desc" } {
+function builtinCopy(key: AutomationBuiltin): {
+  title: "automations.reply_time_title" | "automations.collect_lead_contact_title" | "automations.request_rating_title" | "automations.ticket_status_notify_title"
+  desc: "automations.reply_time_desc" | "automations.collect_lead_contact_desc" | "automations.request_rating_desc" | "automations.ticket_status_notify_desc"
+} {
   switch (key) {
     case "reply_time":
       return { title: "automations.reply_time_title", desc: "automations.reply_time_desc" }
@@ -21,6 +24,8 @@ function builtinCopy(key: AutomationBuiltin): { title: "automations.reply_time_t
       return { title: "automations.collect_lead_contact_title", desc: "automations.collect_lead_contact_desc" }
     case "request_rating":
       return { title: "automations.request_rating_title", desc: "automations.request_rating_desc" }
+    case "ticket_status_notify":
+      return { title: "automations.ticket_status_notify_title", desc: "automations.ticket_status_notify_desc" }
   }
 }
 
