@@ -1,8 +1,8 @@
 import type { ConversationDTO } from "@agents-desk/client/tenant"
 import { ActionIcon, Anchor, Badge, Box, Button, CopyButton, Group, Modal, Rating, Select, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Link, useParams } from "@tanstack/react-router"
-import { IconCheck, IconCopy, IconExternalLink, IconGitMerge, IconX } from "@tabler/icons-react"
+import { Link, useNavigate, useParams } from "@tanstack/react-router"
+import { IconCheck, IconCopy, IconExternalLink, IconGitMerge, IconLink, IconPlus, IconX } from "@tabler/icons-react"
 import {
   Inspector,
   InspectorField,
@@ -23,6 +23,9 @@ import { contactDisplayName } from "../contacts/display"
 import { MergeContactModal } from "../contacts/MergeContactModal"
 import { LanguageSelect } from "../LanguageSelect"
 import { languageName } from "../languages"
+import { CreateTicketModal } from "../tickets/CreateTicketModal"
+import { LinkTicketModal } from "../tickets/LinkTicketModal"
+import { ticketStatusColor, ticketStatusLabel, useConversationTickets } from "../tickets/meta"
 import { formatLocalTime } from "../timezone"
 import { previewSummary } from "./Attachments"
 import { ChannelIcon } from "./channel-badge"
@@ -43,6 +46,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
   const language = useLanguage()
   const zone = useTimeZone()
   const { slug } = useParams({ from: "/t/$slug" })
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const me = useMe()
   const { list: members } = useMembers()
@@ -51,6 +55,9 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
   const convAttrs = useAttributes("conversation")
   const contactAttrs = useAttributes("contact")
   const history = useContactHistory(c.contact?.id)
+  const convTickets = useConversationTickets(c.id)
+  const [createTicketOpen, setCreateTicketOpen] = useState(false)
+  const [linkTicketOpen, setLinkTicketOpen] = useState(false)
   const contactDetail = useQuery({
     ...kit.queries.contact.get(c.contact?.id ?? ""),
     enabled: !!c.contact?.id,
@@ -272,6 +279,103 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                   )}
                 </Stack>
               </InspectorField>
+            )}
+          </InspectorSection>
+
+          <InspectorSection
+            title={t("tickets.conversation_section")}
+            collapsible
+            storeKey="inbox-details-tickets"
+            extra={
+              <Group gap={4} wrap="nowrap">
+                {(convTickets.data?.items.length ?? 0) > 0 && (
+                  <Text size="xs" c="dimmed" style={{ fontVariantNumeric: "tabular-nums" }}>
+                    {convTickets.data?.items.length}
+                  </Text>
+                )}
+                {canEdit && (
+                  <>
+                    <Tooltip label={t("tickets.link_ticket")} openDelay={250}>
+                      <ActionIcon
+                        size={22}
+                        variant="subtle"
+                        color="gray"
+                        aria-label={t("tickets.link_ticket")}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setLinkTicketOpen(true)
+                        }}
+                      >
+                        <IconLink size={13} />
+                      </ActionIcon>
+                    </Tooltip>
+                    <Tooltip label={t("tickets.create_from_conversation")} openDelay={250}>
+                      <ActionIcon
+                        size={22}
+                        variant="subtle"
+                        color="gray"
+                        aria-label={t("tickets.create_from_conversation")}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setCreateTicketOpen(true)
+                        }}
+                      >
+                        <IconPlus size={13} />
+                      </ActionIcon>
+                    </Tooltip>
+                  </>
+                )}
+              </Group>
+            }
+          >
+            {(convTickets.data?.items.length ?? 0) === 0 ? (
+              <Stack gap={6}>
+                <Text size="xs" c="dimmed">
+                  {t("tickets.conversation_empty")}
+                </Text>
+                {canEdit && (
+                  <Group gap={6}>
+                    <Button size="compact-xs" variant="light" leftSection={<IconPlus size={12} />} onClick={() => setCreateTicketOpen(true)}>
+                      {t("tickets.create_from_conversation")}
+                    </Button>
+                    <Button size="compact-xs" variant="subtle" color="gray" leftSection={<IconLink size={12} />} onClick={() => setLinkTicketOpen(true)}>
+                      {t("tickets.link_ticket")}
+                    </Button>
+                  </Group>
+                )}
+              </Stack>
+            ) : (
+              <Stack gap={6}>
+                {convTickets.data?.items.map((tk) => (
+                  <Link
+                    key={tk.id}
+                    to="/t/$slug/tickets/$id"
+                    params={{ slug, id: tk.id }}
+                    search={{ box: "all", status: "unresolved" }}
+                    className="inbox-history"
+                    style={{ textDecoration: "none", color: "inherit" }}
+                  >
+                    <Box px={6} py={5}>
+                      <Group gap={6} wrap="nowrap">
+                        <Text size="xs" fw={600} c="dimmed" style={{ flex: "none", fontVariantNumeric: "tabular-nums" }}>
+                          #{tk.number}
+                        </Text>
+                        <Text size="sm" fw={500} truncate style={{ flex: 1, minWidth: 0 }}>
+                          {tk.title}
+                        </Text>
+                        <Badge size="xs" variant="light" color={ticketStatusColor[tk.status]} style={{ flex: "none" }}>
+                          {ticketStatusLabel(tk.status, t)}
+                        </Badge>
+                      </Group>
+                      <Text size="xs" c="dimmed" truncate mt={2}>
+                        {[tk.type_name, tk.linked_count > 1 ? t("tickets.linked_count", { n: tk.linked_count }) : undefined]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </Text>
+                    </Box>
+                  </Link>
+                ))}
+              </Stack>
             )}
           </InspectorSection>
 
@@ -521,6 +625,24 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
           </Group>
         </Stack>
       </Modal>
+      <CreateTicketModal
+        opened={createTicketOpen}
+        onClose={() => setCreateTicketOpen(false)}
+        sourceConversation={c}
+        onCreated={(created) =>
+          void navigate({
+            to: "/t/$slug/tickets/$id",
+            params: { slug, id: created.id },
+            search: { box: "all", status: "unresolved" },
+          })
+        }
+      />
+      <LinkTicketModal
+        opened={linkTicketOpen}
+        conversationId={c.id}
+        linkedTicketIds={new Set((convTickets.data?.items ?? []).map((x) => x.id))}
+        onClose={() => setLinkTicketOpen(false)}
+      />
     </Stack>
   )
 }

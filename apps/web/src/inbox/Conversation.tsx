@@ -1,12 +1,13 @@
 import { ActionIcon, Avatar, Badge, Box, Button, Center, Divider, Drawer, Group, Loader, SegmentedControl, Text, Tooltip } from "@mantine/core"
 import { useElementSize, useMediaQuery } from "@mantine/hooks"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { Link, useParams } from "@tanstack/react-router"
-import { IconCheck, IconLayoutSidebarRight, IconRefresh } from "@tabler/icons-react"
-import { notifyError, Pane, PaneHeader, useCollapseNav, useNarrow, useT } from "@go-tenon/ui"
+import { Link, useNavigate, useParams } from "@tanstack/react-router"
+import { IconCheck, IconLayoutSidebarRight, IconRefresh, IconTicket } from "@tabler/icons-react"
+import { notifyError, Pane, PaneHeader, useCan, useCollapseNav, useNarrow, useT } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { isTypingTarget, NARROW_QUERY } from "../layout"
+import { CreateTicketModal } from "../tickets/CreateTicketModal"
 import { useConversationChannel } from "./channel"
 import { Composer, type ComposerHandle } from "./Composer"
 import { useConversation, useMe, useMembers, useTeams, useTimeline } from "./data"
@@ -56,6 +57,8 @@ interface ConversationProps {
  */
 export function ConversationView({ id, tenantId, highlight, focusSeq, focusField, open, next, back }: ConversationProps): ReactNode {
   const t = useT()
+  const can = useCan()
+  const navigate = useNavigate()
   const narrow = useNarrow(NARROW_QUERY)
   // 1600px 以上四栏+详情并排；1360–1599px 打开详情自动收起二级导航；900–1359px 详情改为右侧浮层抽屉避免挤压聊天区。
   const wide = useMediaQuery("(min-width: 1600px)") ?? false
@@ -70,6 +73,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
   const { viewers, typing, notifyTyping, clearTyping } = useConversationChannel(tenantId, id, me.data?.id)
   const [details, setDetails] = useState(() => (narrow ? false : readSavedDetails()))
   const [original, setOriginal] = useState(false) // 对方的消息都显示原文
+  const [createTicketOpen, setCreateTicketOpen] = useState(false)
   const { ref: mainRef, width: mainWidth } = useElementSize()
   const composerRef = useRef<ComposerHandle>(null)
   useCollapseNav(details && canInlineDetails && !wide && !narrow)
@@ -166,7 +170,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
   const meta = [channelText, team, assignee ? t("inbox.assigned_to", { who: assignee }) : t("inbox.no_assignee")]
     .filter(Boolean)
     .join(" · ")
-  const showTranslateToggle = hasTranslation(timeline.data, me.data?.language)
+  const showTranslateToggle = hasTranslation(timeline.data, me.data?.language, me.data?.id)
 
   if (narrow && details) return <Details c={c} onClose={closeDetails} onOpen={open} />
   const inlineDetails = details && !narrow && canInlineDetails
@@ -238,6 +242,24 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
               </>
             )}
             <AssignMenu c={c} compact={compactActions} />
+            {can("conversations:reply") &&
+              (compactActions ? (
+                <Tooltip label={t("tickets.create_from_conversation")}>
+                  <ActionIcon
+                    variant="subtle"
+                    color="gray"
+                    size="input-sm"
+                    onClick={() => setCreateTicketOpen(true)}
+                    aria-label={t("tickets.create_from_conversation")}
+                  >
+                    <IconTicket size={15} />
+                  </ActionIcon>
+                </Tooltip>
+              ) : (
+                <Button variant="subtle" color="gray" leftSection={<IconTicket size={14} />} onClick={() => setCreateTicketOpen(true)}>
+                  {t("tickets.create_from_conversation")}
+                </Button>
+              ))}
             {c.status !== "closed" && <SnoozeMenu id={c.id} compact={compactActions} />}
             {c.status === "closed" ? (
               compactActions ? (
@@ -305,6 +327,18 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
           </Box>
         </Drawer>
       )}
+      <CreateTicketModal
+        opened={createTicketOpen}
+        onClose={() => setCreateTicketOpen(false)}
+        sourceConversation={c}
+        onCreated={(created) =>
+          void navigate({
+            to: "/t/$slug/tickets/$id",
+            params: { slug, id: created.id },
+            search: { box: "all", status: "unresolved" },
+          })
+        }
+      />
     </Group>
   )
 }

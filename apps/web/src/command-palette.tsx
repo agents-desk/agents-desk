@@ -15,6 +15,7 @@ import {
   IconMessage,
   IconRefresh,
   IconSearch,
+  IconTicket,
   IconUser,
   IconUserOff,
   IconUserPlus,
@@ -33,6 +34,7 @@ import { activity } from "./inbox/format"
 import { HighlightedSnippet, HighlightQuery } from "./inbox/Highlight"
 import { snoozeOptions } from "./inbox/menus"
 import type { MatchField } from "./inbox/search"
+import { ticketStatusColor, ticketStatusLabel } from "./tickets/meta"
 
 /** flattenPages 将菜单树拍平为叶子页面列表，保留上级分组名称和最近图标。 */
 function flattenPages(
@@ -118,6 +120,25 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
     queryKey: [...kit.queries.contact.key(), "palette-search", debounced],
     queryFn: () => tenantApi.contact.list({ q: debounced, per_page: 5 }),
     enabled: canReadContacts && debounced.length > 0,
+  })
+  const ticketNumberMatch = debounced.match(/^#?(\d+)$/)
+  const exactTicketNum = ticketNumberMatch ? Number(ticketNumberMatch[1]) : 0
+  const ticketExact = useQuery({
+    queryKey: [...kit.queries.ticket.key(), "palette-number", exactTicketNum],
+    queryFn: async () => {
+      try {
+        return await tenantApi.ticket.getByNumber(exactTicketNum)
+      } catch {
+        return null
+      }
+    },
+    enabled: canReadInbox && exactTicketNum > 0,
+    retry: false,
+  })
+  const ticketSearch = useQuery({
+    queryKey: [...kit.queries.ticket.key(), "palette-search", debounced],
+    queryFn: () => tenantApi.ticket.list({ q: debounced, per_page: 5 }),
+    enabled: canReadInbox && debounced.length > 0,
   })
 
   const conversationActions = useMemo<NavAction[]>(() => {
@@ -258,6 +279,27 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
           icon: <IconListDetails size={15} stroke={1.6} />,
           onClick: () => void navigate({ to: "/t/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "all" } }),
         },
+        {
+          id: "tickets:mine",
+          label: t("tickets.command_mine"),
+          description: t("tickets.nav_section"),
+          icon: <IconTicket size={15} stroke={1.6} />,
+          onClick: () => void navigate({ to: "/t/$slug/tickets", params: { slug }, search: { box: "mine", status: "unresolved" } }),
+        },
+        {
+          id: "tickets:unassigned",
+          label: t("tickets.command_unassigned"),
+          description: t("tickets.nav_section"),
+          icon: <IconTicket size={15} stroke={1.6} />,
+          onClick: () => void navigate({ to: "/t/$slug/tickets", params: { slug }, search: { box: "unassigned", status: "unresolved" } }),
+        },
+        {
+          id: "tickets:all",
+          label: t("tickets.command_all"),
+          description: t("tickets.nav_section"),
+          icon: <IconTicket size={15} stroke={1.6} />,
+          onClick: () => void navigate({ to: "/t/$slug/tickets", params: { slug }, search: { box: "all", status: "unresolved" } }),
+        },
         ...(inbox.data?.teams ?? []).map((team) => ({
           id: `inbox:team:${team.id}`,
           label: team.name,
@@ -330,12 +372,20 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
   const convHits = debounced ? (convSearch.data?.items ?? []) : []
   const convTotal = debounced ? (convSearch.data?.total ?? 0) : 0
   const contactHits = debounced ? (contactSearch.data?.items ?? []) : []
+  const ticketHits = useMemo(() => {
+    if (!debounced) return []
+    const items = ticketSearch.data?.items ?? []
+    const exact = ticketExact.data
+    if (!exact) return items
+    return [exact, ...items.filter((x) => x.id !== exact.id)]
+  }, [debounced, ticketExact.data, ticketSearch.data?.items])
   const remotePending =
     trimmed.length > 0 &&
     (canReadInbox || canReadContacts) &&
-    (debounced !== trimmed || convSearch.isFetching || contactSearch.isFetching)
+    (debounced !== trimmed || convSearch.isFetching || contactSearch.isFetching || ticketSearch.isFetching || ticketExact.isFetching)
   const hasAny =
     filteredConvActions.length > 0 ||
+    ticketHits.length > 0 ||
     convHits.length > 0 ||
     contactHits.length > 0 ||
     filteredInbox.length > 0 ||
@@ -386,6 +436,47 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
                       {a.description}
                     </Text>
                   )}
+                </Group>
+              </Spotlight.Action>
+            ))}
+          </Spotlight.ActionsGroup>
+        )}
+
+        {ticketHits.length > 0 && (
+          <Spotlight.ActionsGroup label={t("tickets.command_group")}>
+            {ticketHits.map((tk) => (
+              <Spotlight.Action
+                key={`ticket:${tk.id}`}
+                onClick={() =>
+                  void navigate({
+                    to: "/t/$slug/tickets/$id",
+                    params: { slug, id: tk.id },
+                    search: { box: "all", status: "unresolved" },
+                  })
+                }
+              >
+                <Group gap="sm" wrap="nowrap" w="100%">
+                  <Box className="cmd-palette-icon">
+                    <IconTicket size={15} stroke={1.6} />
+                  </Box>
+                  <Box style={{ flex: 1, minWidth: 0 }}>
+                    <Group gap={6} wrap="nowrap">
+                      <Text size="xs" fw={600} c="dimmed" style={{ flex: "none", fontVariantNumeric: "tabular-nums" }}>
+                        #{tk.number}
+                      </Text>
+                      <Text size="sm" fw={500} truncate>
+                        <HighlightQuery text={tk.title} query={debounced} />
+                      </Text>
+                      <Badge size="xs" variant="light" color={ticketStatusColor[tk.status]} style={{ flex: "none" }}>
+                        {ticketStatusLabel(tk.status, t)}
+                      </Badge>
+                    </Group>
+                    <Text size="xs" c="dimmed" truncate>
+                      {[tk.type_name, tk.linked_count > 0 ? t("tickets.linked_count", { n: tk.linked_count }) : undefined]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </Text>
+                  </Box>
                 </Group>
               </Spotlight.Action>
             ))}

@@ -60,6 +60,7 @@ export function useRealtime(
     const pending = {
       all: false,
       inbox: false,
+      tickets: false,
       views: false,
       contacts: false,
       conversations: new Set<string>(),
@@ -68,10 +69,12 @@ export function useRealtime(
       if (pending.all) {
         pending.all = false
         pending.inbox = false
+        pending.tickets = false
         pending.views = false
         pending.contacts = false
         pending.conversations.clear()
         void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
+        void queryClient.invalidateQueries({ queryKey: kit.queries.ticket.key() })
         void queryClient.invalidateQueries({ queryKey: kit.queries.view.key() })
         void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
         return
@@ -79,11 +82,16 @@ export function useRealtime(
       if (pending.inbox) {
         pending.inbox = false
         void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.inbox().queryKey })
-        void queryClient.invalidateQueries({ queryKey: [...kit.queries.conversation.key(), "list"] })
+        void queryClient.invalidateQueries({ queryKey: [...kit.queries.conversation.key(), "inbox-list"] })
+      }
+      if (pending.tickets) {
+        pending.tickets = false
+        void queryClient.invalidateQueries({ queryKey: kit.queries.ticket.key() })
       }
       if (pending.conversations.size > 0) {
         for (const id of pending.conversations) {
           void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.get(id).queryKey })
+          void queryClient.invalidateQueries({ queryKey: [...kit.queries.conversation.key(), "timeline", id] })
           void queryClient.invalidateQueries({ queryKey: [...kit.queries.conversation.key(), "items", id] })
           void queryClient.invalidateQueries({ queryKey: [...kit.queries.conversation.key(), "rounds", id] })
         }
@@ -125,8 +133,14 @@ export function useRealtime(
           pending.inbox = true
           if (ev.id) pending.conversations.add(ev.id)
           break
+        case "ticket":
+          pending.inbox = true
+          pending.tickets = true
+          if (ev.id) pending.conversations.add(ev.id)
+          break
         case "read":
           pending.inbox = true
+          pending.tickets = true
           if (ev.id) pending.conversations.add(ev.id)
           break
         case "views":

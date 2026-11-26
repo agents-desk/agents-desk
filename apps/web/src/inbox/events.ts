@@ -111,6 +111,44 @@ export function describeEvent(it: ConversationItemDTO, members: Map<string, Memb
       const count = Number(d.moved_items ?? 0)
       return ch ? t("event.merged", { who, channel: ch, count }) : t("event.merged_unknown", { who, count })
     }
+    case "ticket.created":
+      return t("event.ticket_created", {
+        who,
+        number: Number(d.number ?? 0),
+        type: String(d.type_name ?? ""),
+      })
+    case "ticket.updated":
+      return t("event.ticket_updated", { who })
+    case "ticket.status_changed": {
+      if (d.reason === "customer_replied") {
+        return t("event.ticket_resumed_by_customer")
+      }
+      const statusText = (s: unknown) => {
+        switch (String(s ?? "")) {
+          case "submitted":
+            return t("tickets.status_submitted")
+          case "in_progress":
+            return t("tickets.status_in_progress")
+          case "waiting_on_customer":
+            return t("tickets.status_waiting_on_customer")
+          case "resolved":
+            return t("tickets.status_resolved")
+          default:
+            return String(s ?? "")
+        }
+      }
+      return t("event.ticket_status_changed", { who, from: statusText(d.from), to: statusText(d.to) })
+    }
+    case "ticket.conversation_linked":
+      return t("event.ticket_conversation_linked", { who })
+    case "ticket.conversation_unlinked":
+      return t("event.ticket_conversation_unlinked", { who })
+    case "conversation.ticket_created":
+      return t("event.conv_ticket_created", { who, number: Number(d.number ?? 0), title: String(d.title ?? "") })
+    case "conversation.ticket_linked":
+      return t("event.conv_ticket_linked", { who, number: Number(d.number ?? 0), title: String(d.title ?? "") })
+    case "conversation.ticket_unlinked":
+      return t("event.conv_ticket_unlinked", { who, number: Number(d.number ?? 0) })
     default:
       return it.content.event ?? ""
   }

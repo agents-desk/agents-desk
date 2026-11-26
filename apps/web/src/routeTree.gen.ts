@@ -17,6 +17,7 @@ import { Route as TSlugContactsRouteImport } from './routes/t/$slug/contacts'
 import { Route as TSlugInboxRouteImport } from './routes/t/$slug/inbox'
 import { Route as TSlugReportsRouteImport } from './routes/t/$slug/reports'
 import { Route as TSlugSettingsRouteImport } from './routes/t/$slug/settings'
+import { Route as TSlugTicketsRouteImport } from './routes/t/$slug/tickets'
 import { Route as TSlugContactsIndexRouteImport } from './routes/t/$slug/contacts/index'
 import { Route as TSlugContactsIdRouteImport } from './routes/t/$slug/contacts/$id'
 import { Route as TSlugInboxIndexRouteImport } from './routes/t/$slug/inbox/index'
@@ -34,6 +35,8 @@ import { Route as TSlugSettingsPersonalRouteImport } from './routes/t/$slug/sett
 import { Route as TSlugSettingsTicketsRouteImport } from './routes/t/$slug/settings/_tickets'
 import { Route as TSlugSettingsTranslationRouteImport } from './routes/t/$slug/settings/_translation'
 import { Route as TSlugSettingsWorkspaceRouteImport } from './routes/t/$slug/settings/_workspace'
+import { Route as TSlugTicketsIndexRouteImport } from './routes/t/$slug/tickets/index'
+import { Route as TSlugTicketsIdRouteImport } from './routes/t/$slug/tickets/$id'
 import { Route as TSlugSettingsChannelsTelegramsRouteImport } from './routes/t/$slug/settings/_channels/telegrams'
 import { Route as TSlugSettingsChannelsWidgetsRouteImport } from './routes/t/$slug/settings/_channels/widgets'
 import { Route as TSlugSettingsInboxAssignmentRouteImport } from './routes/t/$slug/settings/_inbox/assignment'
@@ -100,6 +103,11 @@ const TSlugReportsRoute = TSlugReportsRouteImport.update({
 const TSlugSettingsRoute = TSlugSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => TSlugRoute,
+} as any)
+const TSlugTicketsRoute = TSlugTicketsRouteImport.update({
+  id: '/tickets',
+  path: '/tickets',
   getParentRoute: () => TSlugRoute,
 } as any)
 const TSlugContactsIndexRoute = TSlugContactsIndexRouteImport.update({
@@ -184,6 +192,16 @@ const TSlugSettingsTranslationRoute =
 const TSlugSettingsWorkspaceRoute = TSlugSettingsWorkspaceRouteImport.update({
   id: '/_workspace',
   getParentRoute: () => TSlugSettingsRoute,
+} as any)
+const TSlugTicketsIndexRoute = TSlugTicketsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => TSlugTicketsRoute,
+} as any)
+const TSlugTicketsIdRoute = TSlugTicketsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => TSlugTicketsRoute,
 } as any)
 const TSlugSettingsChannelsTelegramsRoute =
   TSlugSettingsChannelsTelegramsRouteImport.update({
@@ -354,6 +372,7 @@ export interface FileRoutesByFullPath {
   '/t/$slug/inbox': typeof TSlugInboxRouteWithChildren
   '/t/$slug/reports': typeof TSlugReportsRouteWithChildren
   '/t/$slug/settings': typeof TSlugSettingsRouteWithChildren
+  '/t/$slug/tickets': typeof TSlugTicketsRouteWithChildren
   '/t/$slug/': typeof TSlugIndexRoute
   '/t/$slug/contacts/$id': typeof TSlugContactsIdRoute
   '/t/$slug/inbox/$id': typeof TSlugInboxIdRoute
@@ -362,10 +381,12 @@ export interface FileRoutesByFullPath {
   '/t/$slug/reports/response-time': typeof TSlugReportsResponseTimeRoute
   '/t/$slug/reports/satisfaction': typeof TSlugReportsSatisfactionRoute
   '/t/$slug/reports/translation': typeof TSlugReportsTranslationRoute
+  '/t/$slug/tickets/$id': typeof TSlugTicketsIdRoute
   '/t/$slug/contacts/': typeof TSlugContactsIndexRoute
   '/t/$slug/inbox/': typeof TSlugInboxIndexRoute
   '/t/$slug/reports/': typeof TSlugReportsIndexRoute
   '/t/$slug/settings/': typeof TSlugSettingsIndexRoute
+  '/t/$slug/tickets/': typeof TSlugTicketsIndexRoute
   '/t/$slug/settings/telegrams': typeof TSlugSettingsChannelsTelegramsRouteWithChildren
   '/t/$slug/settings/widgets': typeof TSlugSettingsChannelsWidgetsRouteWithChildren
   '/t/$slug/settings/assignment': typeof TSlugSettingsInboxAssignmentRoute
@@ -406,9 +427,11 @@ export interface FileRoutesByTo {
   '/t/$slug/reports/satisfaction': typeof TSlugReportsSatisfactionRoute
   '/t/$slug/reports/translation': typeof TSlugReportsTranslationRoute
   '/t/$slug/settings': typeof TSlugSettingsIndexRoute
+  '/t/$slug/tickets/$id': typeof TSlugTicketsIdRoute
   '/t/$slug/contacts': typeof TSlugContactsIndexRoute
   '/t/$slug/inbox': typeof TSlugInboxIndexRoute
   '/t/$slug/reports': typeof TSlugReportsIndexRoute
+  '/t/$slug/tickets': typeof TSlugTicketsIndexRoute
   '/t/$slug/settings/assignment': typeof TSlugSettingsInboxAssignmentRoute
   '/t/$slug/settings/business-hours': typeof TSlugSettingsInboxBusinessHoursRoute
   '/t/$slug/settings/macros': typeof TSlugSettingsInboxMacrosRoute
@@ -442,6 +465,7 @@ export interface FileRoutesById {
   '/t/$slug/inbox': typeof TSlugInboxRouteWithChildren
   '/t/$slug/reports': typeof TSlugReportsRouteWithChildren
   '/t/$slug/settings': typeof TSlugSettingsRouteWithChildren
+  '/t/$slug/tickets': typeof TSlugTicketsRouteWithChildren
   '/t/$slug/': typeof TSlugIndexRoute
   '/t/$slug/contacts/$id': typeof TSlugContactsIdRoute
   '/t/$slug/inbox/$id': typeof TSlugInboxIdRoute
@@ -456,10 +480,12 @@ export interface FileRoutesById {
   '/t/$slug/settings/_tickets': typeof TSlugSettingsTicketsRouteWithChildren
   '/t/$slug/settings/_translation': typeof TSlugSettingsTranslationRouteWithChildren
   '/t/$slug/settings/_workspace': typeof TSlugSettingsWorkspaceRouteWithChildren
+  '/t/$slug/tickets/$id': typeof TSlugTicketsIdRoute
   '/t/$slug/contacts/': typeof TSlugContactsIndexRoute
   '/t/$slug/inbox/': typeof TSlugInboxIndexRoute
   '/t/$slug/reports/': typeof TSlugReportsIndexRoute
   '/t/$slug/settings/': typeof TSlugSettingsIndexRoute
+  '/t/$slug/tickets/': typeof TSlugTicketsIndexRoute
   '/t/$slug/settings/_channels/telegrams': typeof TSlugSettingsChannelsTelegramsRouteWithChildren
   '/t/$slug/settings/_channels/widgets': typeof TSlugSettingsChannelsWidgetsRouteWithChildren
   '/t/$slug/settings/_inbox/assignment': typeof TSlugSettingsInboxAssignmentRoute
@@ -498,6 +524,7 @@ export interface FileRouteTypes {
     | '/t/$slug/inbox'
     | '/t/$slug/reports'
     | '/t/$slug/settings'
+    | '/t/$slug/tickets'
     | '/t/$slug/'
     | '/t/$slug/contacts/$id'
     | '/t/$slug/inbox/$id'
@@ -506,10 +533,12 @@ export interface FileRouteTypes {
     | '/t/$slug/reports/response-time'
     | '/t/$slug/reports/satisfaction'
     | '/t/$slug/reports/translation'
+    | '/t/$slug/tickets/$id'
     | '/t/$slug/contacts/'
     | '/t/$slug/inbox/'
     | '/t/$slug/reports/'
     | '/t/$slug/settings/'
+    | '/t/$slug/tickets/'
     | '/t/$slug/settings/telegrams'
     | '/t/$slug/settings/widgets'
     | '/t/$slug/settings/assignment'
@@ -550,9 +579,11 @@ export interface FileRouteTypes {
     | '/t/$slug/reports/satisfaction'
     | '/t/$slug/reports/translation'
     | '/t/$slug/settings'
+    | '/t/$slug/tickets/$id'
     | '/t/$slug/contacts'
     | '/t/$slug/inbox'
     | '/t/$slug/reports'
+    | '/t/$slug/tickets'
     | '/t/$slug/settings/assignment'
     | '/t/$slug/settings/business-hours'
     | '/t/$slug/settings/macros'
@@ -585,6 +616,7 @@ export interface FileRouteTypes {
     | '/t/$slug/inbox'
     | '/t/$slug/reports'
     | '/t/$slug/settings'
+    | '/t/$slug/tickets'
     | '/t/$slug/'
     | '/t/$slug/contacts/$id'
     | '/t/$slug/inbox/$id'
@@ -599,10 +631,12 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/_tickets'
     | '/t/$slug/settings/_translation'
     | '/t/$slug/settings/_workspace'
+    | '/t/$slug/tickets/$id'
     | '/t/$slug/contacts/'
     | '/t/$slug/inbox/'
     | '/t/$slug/reports/'
     | '/t/$slug/settings/'
+    | '/t/$slug/tickets/'
     | '/t/$slug/settings/_channels/telegrams'
     | '/t/$slug/settings/_channels/widgets'
     | '/t/$slug/settings/_inbox/assignment'
@@ -694,6 +728,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/t/$slug/settings'
       preLoaderRoute: typeof TSlugSettingsRouteImport
+      parentRoute: typeof TSlugRoute
+    }
+    '/t/$slug/tickets': {
+      id: '/t/$slug/tickets'
+      path: '/tickets'
+      fullPath: '/t/$slug/tickets'
+      preLoaderRoute: typeof TSlugTicketsRouteImport
       parentRoute: typeof TSlugRoute
     }
     '/t/$slug/contacts/': {
@@ -814,6 +855,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/t/$slug/settings'
       preLoaderRoute: typeof TSlugSettingsWorkspaceRouteImport
       parentRoute: typeof TSlugSettingsRoute
+    }
+    '/t/$slug/tickets/': {
+      id: '/t/$slug/tickets/'
+      path: '/'
+      fullPath: '/t/$slug/tickets/'
+      preLoaderRoute: typeof TSlugTicketsIndexRouteImport
+      parentRoute: typeof TSlugTicketsRoute
+    }
+    '/t/$slug/tickets/$id': {
+      id: '/t/$slug/tickets/$id'
+      path: '/$id'
+      fullPath: '/t/$slug/tickets/$id'
+      preLoaderRoute: typeof TSlugTicketsIdRouteImport
+      parentRoute: typeof TSlugTicketsRoute
     }
     '/t/$slug/settings/_channels/telegrams': {
       id: '/t/$slug/settings/_channels/telegrams'
@@ -1258,11 +1313,26 @@ const TSlugSettingsRouteWithChildren = TSlugSettingsRoute._addFileChildren(
   TSlugSettingsRouteChildren,
 )
 
+interface TSlugTicketsRouteChildren {
+  TSlugTicketsIdRoute: typeof TSlugTicketsIdRoute
+  TSlugTicketsIndexRoute: typeof TSlugTicketsIndexRoute
+}
+
+const TSlugTicketsRouteChildren: TSlugTicketsRouteChildren = {
+  TSlugTicketsIdRoute: TSlugTicketsIdRoute,
+  TSlugTicketsIndexRoute: TSlugTicketsIndexRoute,
+}
+
+const TSlugTicketsRouteWithChildren = TSlugTicketsRoute._addFileChildren(
+  TSlugTicketsRouteChildren,
+)
+
 interface TSlugRouteChildren {
   TSlugContactsRoute: typeof TSlugContactsRouteWithChildren
   TSlugInboxRoute: typeof TSlugInboxRouteWithChildren
   TSlugReportsRoute: typeof TSlugReportsRouteWithChildren
   TSlugSettingsRoute: typeof TSlugSettingsRouteWithChildren
+  TSlugTicketsRoute: typeof TSlugTicketsRouteWithChildren
   TSlugIndexRoute: typeof TSlugIndexRoute
 }
 
@@ -1271,6 +1341,7 @@ const TSlugRouteChildren: TSlugRouteChildren = {
   TSlugInboxRoute: TSlugInboxRouteWithChildren,
   TSlugReportsRoute: TSlugReportsRouteWithChildren,
   TSlugSettingsRoute: TSlugSettingsRouteWithChildren,
+  TSlugTicketsRoute: TSlugTicketsRouteWithChildren,
   TSlugIndexRoute: TSlugIndexRoute,
 }
 
