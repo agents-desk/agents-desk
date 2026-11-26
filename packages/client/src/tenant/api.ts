@@ -525,6 +525,8 @@ export interface ConversationChatParticipantDTO {
   avatar_url?: string
   id: string
   joined_at: string
+  /** 成员偏好的翻译语言（BCP 47） */
+  language?: string
   name: string
   /** 在线状态：online 或 away */
   status?: string
@@ -728,6 +730,8 @@ export interface ConversationNoteBody {
   mentions?: string[]
   /** 内部备注的文字 */
   text?: string
+  /** 成员在发送前校对或微调过的某一种目标语言译文；消息正文仍保存原文，该译文直接写入派生译文供该语言成员查看 */
+  translation?: ConversationTranslation
 }
 
 export interface ConversationPreviewAttachment {
@@ -753,6 +757,8 @@ export interface ConversationPublishTicketUpdateBody {
   attachments?: ConversationAttachmentInput[]
   /** 公开进度文字内容 */
   text?: string
+  /** 成员在发送前校对或微调过的某一种目标语言译文；向该语言的受影响客户同步时直接使用该译文 */
+  translation?: ConversationTranslation
 }
 
 export interface ConversationRating {
@@ -848,6 +854,8 @@ export interface ConversationSendChatMessageBody {
   mentions?: string[]
   /** 消息正文 */
   text?: string
+  /** 成员在发送前校对或微调过的某一种目标语言译文；消息正文仍保存原文，该译文直接写入派生译文供该语言成员查看 */
+  translation?: ConversationTranslation
 }
 
 export interface ConversationSnoozeInputBody {
@@ -1256,6 +1264,8 @@ export interface MemberAddParams {
   role_id: string
 }
 
+export type MemberLanguage = "zh-CN" | "en"
+
 export interface MemberRoleChange {
   /** 新的角色：这个工作区自己的角色 */
   role_id: string
@@ -1274,6 +1284,8 @@ export interface MemberTenantMember {
   avatar_url: string
   email: string
   id: string
+  /** 成员偏好的界面与翻译语言 */
+  language: MemberLanguage
   name: string
   /** 是不是主管理员：主管理员那一行不能修改角色、不能移出 */
   owner: boolean
@@ -1949,9 +1961,11 @@ export interface TranslationGlossaryInputBody {
 }
 
 export interface TranslationPreviewBody {
-  /** 发给对方的语言（BCP 47）；不填时取客户的语言 */
+  /** 目标语言（BCP 47）；不填时按会话类型自动推断（服务型会话取客户语言，内部聊天取其他参与者语言，工单取关联客户或参与者语言） */
   language?: string
-  /** 成员写的回复 */
+  /** 为 true 时仅返回译文、跳过盲回译，用于折叠态自动翻译发送 */
+  skip_back_translation?: boolean
+  /** 成员写的回复或消息 */
   text: string
 }
 

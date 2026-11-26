@@ -1836,6 +1836,9 @@ export const components = {
       "text": {
         "maxLength": 10000,
         "type": "string"
+      },
+      "translation": {
+        "$ref": "#/components/schemas/ConversationTranslation"
       }
     },
     "type": "object"
@@ -1872,6 +1875,9 @@ export const components = {
       "text": {
         "maxLength": 10000,
         "type": "string"
+      },
+      "translation": {
+        "$ref": "#/components/schemas/ConversationTranslation"
       }
     },
     "type": "object"
@@ -1967,6 +1973,9 @@ export const components = {
       "text": {
         "maxLength": 10000,
         "type": "string"
+      },
+      "translation": {
+        "$ref": "#/components/schemas/ConversationTranslation"
       }
     },
     "type": "object"
@@ -2930,6 +2939,9 @@ export const components = {
       "language": {
         "maxLength": 35,
         "type": "string"
+      },
+      "skip_back_translation": {
+        "type": "boolean"
       },
       "text": {
         "maxLength": 10000,

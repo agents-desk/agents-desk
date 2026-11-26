@@ -9,6 +9,7 @@ import { languageName, sameLanguage } from "../languages"
 import { type LightboxImage, MessageAttachments } from "./Attachments"
 import { ChannelChip } from "./channel-badge"
 import type { TypingNow } from "./channel"
+import { verifiedTranslationOf } from "./ComposerTranslation"
 import { useMe, useMembers, useTeams, useTimeline } from "./data"
 import { type FillWatcher, useFillVisible } from "./fill"
 import { describeEvent, whoDid } from "./events"
@@ -567,12 +568,14 @@ function Note({
   const ui = useLanguage()
   const [prevOriginal, setPrevOriginal] = useState(original)
   const [flip, setFlip] = useState(false)
+  const [showVerified, setShowVerified] = useState(false)
   if (prevOriginal !== original) {
     setPrevOriginal(original)
     setFlip(false)
   }
   const raw = it.content.text ?? ""
   const translated = isOwn ? undefined : translationOf(it, lang)
+  const verified = isOwn ? verifiedTranslationOf(it) : undefined
   const showOriginal = original !== flip
   const shown = translated && !showOriginal ? translated : raw
   const from = it.derived.language as string | undefined
@@ -625,7 +628,17 @@ function Note({
         </Text>
       )}
       <MessageAttachments conversationId={conversationId} attachments={it.attachments} hasText={Boolean(shown)} onPreview={onPreview} />
-      {(translated || needFill) && (
+      {verified && showVerified && (
+        <Box mt={6} pt={6} className="inbox-sent-translation">
+          <Text size="xs" c="dimmed">
+            {t("inbox.sent_translation", { lang: languageName(verified.language, ui) })}
+          </Text>
+          <Text size="md" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+            {verified.text}
+          </Text>
+        </Box>
+      )}
+      {(translated || needFill || verified) && (
         <Group gap={4} mt={4} wrap="wrap">
           {translated ? (
             <>
@@ -642,14 +655,25 @@ function Note({
               )}
               <CaptionToggle label={t(showOriginal ? "inbox.view_translation" : "inbox.view_original")} onClick={() => setFlip((f) => !f)} />
             </>
-          ) : (
+          ) : needFill ? (
             <>
               <Loader size={10} />
               <Text size="xs" c="dimmed">
                 {t("inbox.translating")}
               </Text>
             </>
-          )}
+          ) : verified ? (
+            <>
+              <IconLanguage size={12} className="inbox-caption-icon" />
+              <Text size="xs" c="dimmed">
+                {t("inbox.sent_as", { lang: languageName(verified.language, ui) })}
+              </Text>
+              <Text size="xs" c="dimmed">
+                ·
+              </Text>
+              <CaptionToggle label={t(showVerified ? "inbox.hide_translation" : "inbox.view_translation")} onClick={() => setShowVerified((v) => !v)} />
+            </>
+          ) : null}
         </Group>
       )}
     </Paper>

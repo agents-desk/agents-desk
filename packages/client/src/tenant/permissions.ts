@@ -183,7 +183,7 @@ export const required = {
   translation: {
     fill: ["conversations:read"],
     glossarySave: ["tenant-settings:manage"],
-    preview: ["conversations:reply"],
+    preview: ["conversations:read"],
     toneSave: ["tenant-settings:manage"],
   },
   view: {

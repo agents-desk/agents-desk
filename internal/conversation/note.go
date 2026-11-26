@@ -25,11 +25,12 @@ type AddNote struct {
 // NewAddNote 返回写内部备注的动作；down 是时间线有新内容时通知的下游。
 func NewAddNote(db *bun.DB, down Downstream) *AddNote { return &AddNote{db: db, down: down} }
 
-// NoteBody 是写内部备注的请求体：文字、@ 到的成员和可选媒体附件。文字和附件不能同时为空。
+// NoteBody 是写内部备注的请求体：文字、@ 到的成员、可选媒体附件与发送前校对的译文。文字和附件不能同时为空。
 type NoteBody struct {
 	Text        string            `json:"text,omitempty" maxLength:"10000" doc:"内部备注的文字"`
 	Mentions    []string          `json:"mentions,omitempty" maxItems:"20" uniqueItems:"true" doc:"@ 到的成员 ID；他们的“@我”中出现这个会话，并且能看到它"`
 	Attachments []AttachmentInput `json:"attachments,omitempty" maxItems:"10" doc:"通过 /files 上传的媒体附件列表"`
+	Translation *Translation      `json:"translation,omitempty" doc:"成员在发送前校对或微调过的某一种目标语言译文；消息正文仍保存原文，该译文直接写入派生译文供该语言成员查看"`
 }
 
 // NoteInput 是写内部备注的 HTTP 请求：文字、@ 到的成员和附件。
@@ -42,10 +43,15 @@ type NoteInput struct {
 // 文字和附件都为空时返回 ErrEmptyMessage；会话不存在或 sub 看不到时返回 ErrNotFound，没有权限时返回 ErrForbidden；
 // @ 到的人不是这个工作区的成员时返回 member.ErrNotFound（字段 mentions[i]）。
 func (a *AddNote) Handle(ctx context.Context, sub identity.Subject, id, text string, mentions []string, attachments ...AttachmentInput) (*ItemDTO, error) {
+	return a.HandleBody(ctx, sub, id, NoteBody{Text: text, Mentions: mentions, Attachments: attachments})
+}
+
+// HandleBody 使用完整请求体 body 在会话 id 中写入内部备注，支持附带发送前已校对的译文。
+func (a *AddNote) HandleBody(ctx context.Context, sub identity.Subject, id string, body NoteBody) (*ItemDTO, error) {
 	if err := authorize(sub, auth.ConversationsReply); err != nil {
 		return nil, err
 	}
-	if err := requireMessageContent(text, len(attachments)); err != nil {
+	if err := requireMessageContent(body.Text, len(body.Attachments)); err != nil {
 		return nil, err
 	}
 	var item Item
@@ -57,13 +63,13 @@ func (a *AddNote) Handle(ctx context.Context, sub identity.Subject, id, text str
 		if c.Kind == Chat {
 			return ErrWrongKind.New()
 		}
-		confirmed, err := confirmAttachmentInputs(ctx, tx, a.down.Media.Files, sub, attachments)
+		confirmed, err := confirmAttachmentInputs(ctx, tx, a.down.Media.Files, sub, body.Attachments)
 		if err != nil {
 			return err
 		}
 		actor := actorOf(sub)
 		roles := authz.NewStore(tx, auth.Catalog)
-		for i, m := range mentions {
+		for i, m := range body.Mentions {
 			if _, err := member.RoleOf(ctx, roles, identity.Ref{Type: member.Type, ID: m}, sub.Tenant); err != nil {
 				if errors.Is(err, member.ErrNotFound) {
 					return member.ErrNotFound.New(errorx.Field(fmt.Sprintf("mentions[%d]", i)))
@@ -71,7 +77,10 @@ func (a *AddNote) Handle(ctx context.Context, sub identity.Subject, id, text str
 				return err
 			}
 		}
-		item = Item{Kind: Note, ActorType: actor, ActorID: sub.ID, Visibility: MembersOnly, Content: Content{Text: text, Mentions: mentions}}
+		item = Item{Kind: Note, ActorType: actor, ActorID: sub.ID, Visibility: MembersOnly, Content: Content{Text: body.Text, Mentions: body.Mentions}}
+		if err := applyVerifiedTranslation(ctx, tx, sub, &item, body.Translation); err != nil {
+			return err
+		}
 		if c.Kind == Ticket {
 			c.LastMessageAt = now()
 		}
@@ -84,7 +93,7 @@ func (a *AddNote) Handle(ctx context.Context, sub identity.Subject, id, text str
 		if err := insertAttachments(ctx, tx, c.TenantID, item.ID, confirmed); err != nil {
 			return err
 		}
-		for _, m := range mentions {
+		for _, m := range body.Mentions {
 			_, err := tx.NewRaw(`INSERT INTO conversation_mentions (tenant_id, member_id, conversation_id, item_id, seq, created_at)
 				VALUES (?, ?, ?, ?, ?, ?)`, sub.Tenant, m, c.ID, item.ID, item.Seq, item.CreatedAt).Exec(ctx)
 			if err != nil {
@@ -106,7 +115,7 @@ func (a *AddNote) Handle(ctx context.Context, sub identity.Subject, id, text str
 // HTTP 处理 POST /t/{slug}/api/conversations/{id}/notes。
 func (a *AddNote) HTTP(ctx context.Context, in *NoteInput) (*ItemOutput, error) {
 	sub, _ := identity.FromContext(ctx)
-	item, err := a.Handle(ctx, sub, in.ID, in.Body.Text, in.Body.Mentions, in.Body.Attachments...)
+	item, err := a.HandleBody(ctx, sub, in.ID, in.Body)
 	if err != nil {
 		return nil, err
 	}

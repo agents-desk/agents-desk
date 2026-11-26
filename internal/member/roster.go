@@ -26,15 +26,16 @@ var (
 
 // TenantMember 是工作区中的一个成员：账号和他在这个工作区的角色。
 type TenantMember struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Email     string `json:"email"`
-	AvatarURL string `json:"avatar_url" doc:"头像的地址；没有头像时为空"`
-	RoleID    string `json:"role_id" format:"uuid" doc:"角色的 ID"`
-	RoleName  string `json:"role_name" doc:"角色的名称"`
-	Owner     bool   `json:"owner" doc:"是不是主管理员：主管理员那一行不能修改角色、不能移出"`
-	Status    Status `json:"status" doc:"在这个工作区中的在线状态"`
-	Self      bool   `json:"self" doc:"是不是当前登录的成员自己：自己那一行不能修改角色、不能移出"`
+	ID        string   `json:"id"`
+	Name      string   `json:"name"`
+	Email     string   `json:"email"`
+	AvatarURL string   `json:"avatar_url" doc:"头像的地址；没有头像时为空"`
+	Language  Language `json:"language" doc:"成员偏好的界面与翻译语言"`
+	RoleID    string   `json:"role_id" format:"uuid" doc:"角色的 ID"`
+	RoleName  string   `json:"role_name" doc:"角色的名称"`
+	Owner     bool     `json:"owner" doc:"是不是主管理员：主管理员那一行不能修改角色、不能移出"`
+	Status    Status   `json:"status" doc:"在这个工作区中的在线状态"`
+	Self      bool     `json:"self" doc:"是不是当前登录的成员自己：自己那一行不能修改角色、不能移出"`
 }
 
 // RemovedHook 是成员 memberID 离开工作区 tenant 之后，其他模块在同一个事务 tx 中跟着做的一件事；
@@ -82,6 +83,6 @@ func toTenantMember(ctx context.Context, logins *login.Realm, files *filesystem.
 	if err != nil {
 		return TenantMember{}, err
 	}
-	return TenantMember{ID: m.ID, Name: m.Name, Email: email, AvatarURL: avatar,
+	return TenantMember{ID: m.ID, Name: m.Name, Email: email, AvatarURL: avatar, Language: m.Language,
 		RoleID: role.ID, RoleName: RoleName(ctx, role), Owner: auth.IsOwner(role), Status: status, Self: m.ID == sub.ID}, nil
 }

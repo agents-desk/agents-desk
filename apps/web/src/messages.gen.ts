@@ -376,11 +376,14 @@ export const messages = {
     "inbox.channel_reply": "Reply channel",
     "inbox.channel_send_via": "Send via {{.channel}}",
     "inbox.channel_via": "via {{.channel}}",
+    "inbox.check_translation": "Review translation",
+    "inbox.check_translation_hint": "Expand live translation \u0026 back-translation review (auto-translates by default)",
     "inbox.choose_language": "Choose the language to send in",
     "inbox.choose_reply_channel": "Choose reply channel",
     "inbox.clear_filters": "Clear filters",
     "inbox.close": "Close",
     "inbox.close_details": "Close details",
+    "inbox.collapse_translation": "Hide translation review",
     "inbox.confirm_send": "Confirm \u0026 send",
     "inbox.contact_email": "Email",
     "inbox.contact_language": "Language",
@@ -506,6 +509,7 @@ export const messages = {
     "inbox.shortcut_details": "Details",
     "inbox.shortcut_nav": "Switch",
     "inbox.shortcut_reply": "Reply",
+    "inbox.skip_check_send": "Skip review \u0026 send",
     "inbox.snooze": "Snooze",
     "inbox.snooze_custom": "Pick a time",
     "inbox.snooze_later": "Later today",
@@ -534,7 +538,8 @@ export const messages = {
     "inbox.translating": "Translating",
     "inbox.translation_edited": "Edited",
     "inbox.translation_failed": "Translation failed: {{.error}}",
-    "inbox.translation_placeholder": "Your reply will be translated to {{.lang}}…",
+    "inbox.translation_placeholder": "Type to preview {{.lang}} translation \u0026 back-translation…",
+    "inbox.translation_placeholder_generic": "Choose a target language to preview translation \u0026 back-translation…",
     "inbox.typing": "{{.who}} is typing…",
     "inbox.unassign": "Remove assignee",
     "inbox.view_image": "View image",
@@ -1600,11 +1605,14 @@ export const messages = {
     "inbox.channel_reply": "回复渠道",
     "inbox.channel_send_via": "经由 {{.channel}} 发送",
     "inbox.channel_via": "经由 {{.channel}}",
+    "inbox.check_translation": "译文校对",
+    "inbox.check_translation_hint": "展开译文校对与回译（默认自动翻译）",
     "inbox.choose_language": "选择译文的语言",
     "inbox.choose_reply_channel": "选择回复渠道",
     "inbox.clear_filters": "清除筛选",
     "inbox.close": "关闭",
     "inbox.close_details": "关闭详情",
+    "inbox.collapse_translation": "收起译文校对",
     "inbox.confirm_send": "确认发送",
     "inbox.contact_email": "邮箱",
     "inbox.contact_language": "语言",
@@ -1730,6 +1738,7 @@ export const messages = {
     "inbox.shortcut_details": "切换详情",
     "inbox.shortcut_nav": "切换会话",
     "inbox.shortcut_reply": "聚焦回复",
+    "inbox.skip_check_send": "跳过校对，直接发送",
     "inbox.snooze": "稍后处理",
     "inbox.snooze_custom": "自定义时间",
     "inbox.snooze_later": "今天晚些时候",
@@ -1758,7 +1767,8 @@ export const messages = {
     "inbox.translating": "翻译中",
     "inbox.translation_edited": "已手动修改",
     "inbox.translation_failed": "翻译失败：{{.error}}",
-    "inbox.translation_placeholder": "输入回复后将自动译为{{.lang}}…",
+    "inbox.translation_placeholder": "输入内容后将预览{{.lang}}译文与回译…",
+    "inbox.translation_placeholder_generic": "选择目标语言以预览译文与回译…",
     "inbox.typing": "{{.who}} 正在输入…",
     "inbox.unassign": "取消负责人",
     "inbox.view_image": "查看大图",
@@ -2827,11 +2837,14 @@ export type MessageId =
   | "inbox.channel_reply"
   | "inbox.channel_send_via"
   | "inbox.channel_via"
+  | "inbox.check_translation"
+  | "inbox.check_translation_hint"
   | "inbox.choose_language"
   | "inbox.choose_reply_channel"
   | "inbox.clear_filters"
   | "inbox.close"
   | "inbox.close_details"
+  | "inbox.collapse_translation"
   | "inbox.confirm_send"
   | "inbox.contact_email"
   | "inbox.contact_language"
@@ -2957,6 +2970,7 @@ export type MessageId =
   | "inbox.shortcut_details"
   | "inbox.shortcut_nav"
   | "inbox.shortcut_reply"
+  | "inbox.skip_check_send"
   | "inbox.snooze"
   | "inbox.snooze_custom"
   | "inbox.snooze_later"
@@ -2986,6 +3000,7 @@ export type MessageId =
   | "inbox.translation_edited"
   | "inbox.translation_failed"
   | "inbox.translation_placeholder"
+  | "inbox.translation_placeholder_generic"
   | "inbox.typing"
   | "inbox.unassign"
   | "inbox.view_image"
