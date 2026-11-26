@@ -67,7 +67,7 @@ export function CommandSearchButton(): ReactNode {
   return (
     <Tooltip label={`${t("command.search")}  ${shortcut}`} position="right" openDelay={350}>
       <UnstyledButton className="tn-rail-module" aria-label={t("command.search")} onClick={spotlight.open}>
-        <IconSearch size={18} stroke={1.6} />
+        <IconSearch size={20} stroke={1.6} />
       </UnstyledButton>
     </Tooltip>
   )

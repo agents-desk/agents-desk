@@ -9,7 +9,6 @@ import {
   Group,
   Indicator,
   Loader,
-  SegmentedControl,
   Skeleton,
   Stack,
   Text,
@@ -33,17 +32,18 @@ import { chatDisplayName, type ChatModeFilter, flattenChats, useChatList } from 
 
 /** ChatListProps 是内部聊天列表栏的设置。 */
 interface ChatListProps {
+  mode: ChatModeFilter
   openId?: string
   open: (id: string) => void
   onNewChat: () => void
 }
 
 /**
- * ChatList 是“聊天”模块的左侧会话列表栏：
- * 顶栏提供发起单聊/建群入口，工具条支持按同事名或群名搜索及单聊/群聊筛选，
+ * ChatList 是“聊天”模块的会话列表栏：
+ * 顶栏显示当前分组名称及发起单聊/建群入口，工具条支持按同事名、群名或消息全文检索，
  * 列表按最近消息倒序展示头像/在线状态、未读数角标、跨语言译文预览与相对时间。
  */
-export function ChatList({ openId, open, onNewChat }: ChatListProps): ReactNode {
+export function ChatList({ mode, openId, open, onNewChat }: ChatListProps): ReactNode {
   const t = useT()
   const me = useMe()
   const translation = useQuery(kit.queries.translation.settings())
@@ -51,7 +51,6 @@ export function ChatList({ openId, open, onNewChat }: ChatListProps): ReactNode 
 
   const [q, setQ] = useState("")
   const [debouncedQ] = useDebouncedValue(q, 200)
-  const [mode, setMode] = useState<ChatModeFilter>("all")
   const list = useChatList(debouncedQ, mode)
   const items = flattenChats(list.data?.pages)
 
@@ -70,13 +69,14 @@ export function ChatList({ openId, open, onNewChat }: ChatListProps): ReactNode 
   }, [list])
 
   const hasFilters = Boolean(debouncedQ.trim() || mode !== "all")
+  const heading = mode === "direct" ? t("chat.filter_direct") : mode === "group" ? t("chat.filter_group") : t("nav.chat")
 
   return (
     <Stack gap={0} h="100%">
       <PaneHeader
         title={
           <Text fw={600} size="sm" truncate lh={1.25}>
-            {t("nav.chat")}
+            {heading}
           </Text>
         }
         actions={
@@ -103,18 +103,6 @@ export function ChatList({ openId, open, onNewChat }: ChatListProps): ReactNode 
           aria-label={t("chat.search_placeholder")}
           leftSection={<IconSearch size={14} stroke={1.6} />}
           rightSection={q ? <CloseButton size="xs" aria-label={t("inbox.search_clear")} onClick={() => setQ("")} /> : undefined}
-        />
-
-        <SegmentedControl
-          size="xs"
-          fullWidth
-          value={mode}
-          onChange={(v) => setMode(v as ChatModeFilter)}
-          data={[
-            { value: "all", label: t("chat.filter_all") },
-            { value: "direct", label: t("chat.filter_direct") },
-            { value: "group", label: t("chat.filter_group") },
-          ]}
         />
       </PaneToolbar>
 

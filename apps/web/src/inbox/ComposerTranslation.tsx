@@ -330,6 +330,48 @@ export function TranslationToggleButton({
 }
 
 /**
+ * AutoTranslateHint 是译文校对收起时展示在发送按钮旁的轻量自动翻译状态提示：
+ * 对外回复显示“自动译为 {{.lang}}”（或关闭时显示“按原文发送”），跨语言内部聊天显示“自动互译”，
+ * 点击直接展开译文校对栏；展开校对栏后自动隐藏，保持界面无重复提示。
+ */
+export function AutoTranslateHint({
+  preview,
+  myLang,
+}: {
+  preview: ComposerTranslation
+  myLang?: string
+}): ReactNode {
+  const t = useT()
+  const ui = useLanguage()
+  if (!preview.enabled || preview.expanded) return null
+
+  const off = preview.allowOff && preview.target === NO_TRANSLATION
+  const effectiveLang = preview.effectiveLang
+  const sameAsMe = Boolean(effectiveLang) && sameLanguage(effectiveLang, myLang)
+
+  let label = ""
+  if (preview.mode === "replace") {
+    if (off) {
+      label = t("inbox.auto_translate_off")
+    } else if (effectiveLang && !sameAsMe) {
+      label = t("inbox.auto_translate_to", { lang: languageName(effectiveLang, ui) })
+    }
+  } else if (effectiveLang && !sameAsMe) {
+    label = t("inbox.auto_translate_mutual")
+  }
+
+  if (!label) return null
+
+  return (
+    <Tooltip label={t("inbox.auto_translate_click_hint")} openDelay={300}>
+      <UnstyledButton className="inbox-caption-btn" onClick={() => preview.setExpanded(true)}>
+        {label}
+      </UnstyledButton>
+    </Tooltip>
+  )
+}
+
+/**
  * TranslationTargetPicker 是展开后的译文校对面板顶部的目标语言选择器：
  * 支持搜索常见语言或输入任意 BCP 47 标签；对外回复场景支持选择“不翻译”。
  */

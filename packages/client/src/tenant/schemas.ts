@@ -67,6 +67,9 @@ export const schemas = {
           "cursor": {
             "type": "string"
           },
+          "member_id": {
+            "type": "string"
+          },
           "mode": {
             "$ref": "#/components/schemas/ChatMode"
           },

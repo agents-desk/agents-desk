@@ -2082,6 +2082,8 @@ export interface ChatListInput {
   per_page?: number
   /** 可选：按聊天模式筛选（direct 或 group） */
   mode?: ChatMode
+  /** 可选：只返回同时包含指定成员的聊天（用于查询共同群聊） */
+  member_id?: string
   /** 按群聊名称、参与者姓名或聊天消息全文搜索 */
   q?: string
 }
@@ -2527,7 +2529,7 @@ export function createClient(options: ClientOptions) {
        * GET /chats
        */
       list: (input: ChatListInput = {}): Promise<CursorConversationChatDTO> =>
-        rt.request<CursorConversationChatDTO>({ method: "GET", path: `/chats`, query: { "cursor": input["cursor"], "mode": input["mode"], "per_page": input["per_page"], "q": input["q"] } }),
+        rt.request<CursorConversationChatDTO>({ method: "GET", path: `/chats`, query: { "cursor": input["cursor"], "member_id": input["member_id"], "mode": input["mode"], "per_page": input["per_page"], "q": input["q"] } }),
       /**
        * 发送内部聊天消息
        *
