@@ -16,7 +16,8 @@ import (
 // 列表、数量和单个会话的读写都经过它：
 //   - 系统主体能看到全部；
 //   - 成员按角色的可见范围（auth.ScopeOf）：全部；所在团队收件箱的和指派给自己的；只有指派给自己的；
-//   - 另外，成员在内部备注中被 @ 过的会话也能看到：同事 @ 他就是希望他来看。
+//   - 成员在内部备注中被 @ 过的会话也能看到；
+//   - 对工单（kind=ticket），工单创建人以及能看到该工单下任意关联服务型会话的成员也能看到。
 func visible(q *bun.SelectQuery, sub identity.Subject) *bun.SelectQuery {
 	if sub.Type == identity.System {
 		return q
@@ -30,6 +31,30 @@ func visible(q *bun.SelectQuery, sub identity.Subject) *bun.SelectQuery {
 			WhereOr("conversation.id IN (SELECT conversation_id FROM conversation_mentions WHERE tenant_id = ? AND member_id = ?)", sub.Tenant, sub.ID)
 		if scope == auth.ScopeTeam {
 			q = q.WhereOr("conversation.team_id IN (SELECT team_id FROM team_members WHERE member_id = ?)", sub.ID)
+		}
+		// 工单额外规则：创建人始终可见；拥有该工单下任意可见关联服务型会话的成员可见
+		q = q.WhereOr("conversation.kind = ? AND EXISTS (SELECT 1 FROM tickets tk WHERE tk.conversation_id = conversation.id AND tk.created_by = ?)", Ticket, sub.ID)
+		if scope == auth.ScopeTeam {
+			q = q.WhereOr(`conversation.kind = ? AND EXISTS (
+				SELECT 1 FROM conversation_links cl
+				JOIN conversations sc ON sc.id = cl.conversation_id
+				WHERE cl.tenant_id = ? AND cl.ticket_id = conversation.id AND sc.tenant_id = ? AND sc.kind = ?
+				AND (
+					(sc.assignee_type = ? AND sc.assignee_id = ?)
+					OR sc.team_id IN (SELECT team_id FROM team_members WHERE member_id = ?)
+					OR sc.id IN (SELECT conversation_id FROM conversation_mentions WHERE tenant_id = ? AND member_id = ?)
+				)
+			)`, Ticket, sub.Tenant, sub.Tenant, Service, MemberActor, sub.ID, sub.ID, sub.Tenant, sub.ID)
+		} else {
+			q = q.WhereOr(`conversation.kind = ? AND EXISTS (
+				SELECT 1 FROM conversation_links cl
+				JOIN conversations sc ON sc.id = cl.conversation_id
+				WHERE cl.tenant_id = ? AND cl.ticket_id = conversation.id AND sc.tenant_id = ? AND sc.kind = ?
+				AND (
+					(sc.assignee_type = ? AND sc.assignee_id = ?)
+					OR sc.id IN (SELECT conversation_id FROM conversation_mentions WHERE tenant_id = ? AND member_id = ?)
+				)
+			)`, Ticket, sub.Tenant, sub.Tenant, Service, MemberActor, sub.ID, sub.Tenant, sub.ID)
 		}
 		return q
 	})

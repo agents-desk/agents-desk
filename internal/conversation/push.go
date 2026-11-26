@@ -58,6 +58,45 @@ func audienceAndAlertsOf(ctx context.Context, db bun.IDB, roles *authz.Store, c 
 		direct[id] = true
 	}
 
+	// 工单：创建人以及关联服务型会话的负责人、被 @ 成员、所在团队成员也纳入可见推送范围
+	if c.Kind == Ticket {
+		var createdBy *string
+		if err := db.NewSelect().Table("tickets").Column("created_by").Where("conversation_id = ?", c.ID).Scan(ctx, &createdBy); err == nil && createdBy != nil && *createdBy != "" {
+			direct[*createdBy] = true
+		}
+		var linked []struct {
+			TeamID       *string   `bun:"team_id"`
+			AssigneeType ActorType `bun:"assignee_type"`
+			AssigneeID   string    `bun:"assignee_id"`
+		}
+		if err := db.NewSelect().TableExpr("conversation_links cl").
+			Join("JOIN conversations sc ON sc.id = cl.conversation_id").
+			ColumnExpr("sc.team_id, sc.assignee_type, sc.assignee_id").
+			Where("cl.tenant_id = ? AND cl.ticket_id = ? AND sc.kind = ?", c.TenantID, c.ID, Service).
+			Scan(ctx, &linked); err != nil {
+			return nil, nil, errors.Wrap(err, "load linked conversations for ticket push")
+		}
+		for _, sc := range linked {
+			if sc.AssigneeType == MemberActor && sc.AssigneeID != "" {
+				direct[sc.AssigneeID] = true
+			}
+			if sc.TeamID != nil {
+				teams = append(teams, *sc.TeamID)
+			}
+		}
+		var linkedMentioned []string
+		if err := db.NewSelect().TableExpr("conversation_links cl").
+			Join("JOIN conversation_mentions cm ON cm.conversation_id = cl.conversation_id AND cm.tenant_id = cl.tenant_id").
+			ColumnExpr("DISTINCT cm.member_id").
+			Where("cl.tenant_id = ? AND cl.ticket_id = ?", c.TenantID, c.ID).
+			Scan(ctx, &linkedMentioned); err != nil {
+			return nil, nil, errors.Wrap(err, "load linked mentioned members for ticket push")
+		}
+		for _, id := range linkedMentioned {
+			direct[id] = true
+		}
+	}
+
 	// 修改前后的团队收件箱中的成员
 	inTeam := map[string]bool{}
 	if len(teams) > 0 {
@@ -180,7 +219,7 @@ func NotifyUpdated(ctx context.Context, tx database.Tx, down Downstream, tenantI
 		if len(audience) == 0 {
 			continue
 		}
-		pending = append(pending, item{audience: audience, ev: push.Event{Type: push.Conversation, ID: convs[i].ID, Seq: convs[i].LastSeq}})
+		pending = append(pending, item{audience: audience, ev: push.Event{Type: pushType(convs[i].Kind), ID: convs[i].ID, Seq: convs[i].LastSeq}})
 	}
 	if len(pending) == 0 {
 		return nil

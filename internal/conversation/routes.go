@@ -73,4 +73,19 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	rest.Register(api, act("conversation-bulk-assign", http.MethodPost, "/conversations/bulk/assign", "批量指派"), NewBulkAssign(db, down).HTTP)
 	rest.Register(api, act("conversation-bulk-close", http.MethodPost, "/conversations/bulk/close", "批量关闭"), NewBulkClose(db, down).HTTP)
 	rest.Register(api, act("conversation-apply-actions", http.MethodPost, "/conversations/{id}/actions", "批量执行会话操作"), NewApplyActions(db, down).HTTP)
+
+	// 工单接口：工单是 conversations.kind = ticket，复用时间线、备注、指派、标签、属性和已读等会话接口。
+	ticketCreateOp := route(reply, "ticket-create", http.MethodPost, "/tickets", "新建工单")
+	ticketCreateOp.DefaultStatus = http.StatusCreated
+	ticketUpdatePubOp := route(reply, "ticket-publish-update", http.MethodPost, "/tickets/{id}/updates", "发布工单公开进度")
+	ticketUpdatePubOp.DefaultStatus = http.StatusCreated
+	rest.Register(api, route(read, "ticket-list", http.MethodGet, "/tickets", "工单列表"), NewListTickets(db).HTTP)
+	rest.Register(api, route(read, "ticket-get-by-number", http.MethodGet, "/tickets/number/{number}", "按编号读取工单"), NewGetTicketByNumber(db).HTTP)
+	rest.Register(api, route(read, "ticket-get", http.MethodGet, "/tickets/{id}", "读取工单"), NewGetTicket(db).HTTP)
+	rest.Register(api, ticketCreateOp, NewCreateTicket(db, down).HTTP)
+	rest.Register(api, act("ticket-update", http.MethodPatch, "/tickets/{id}", "修改工单信息"), NewUpdateTicket(db, down).HTTP)
+	rest.Register(api, act("ticket-status", http.MethodPut, "/tickets/{id}/status", "修改工单状态"), NewSetTicketStatus(db, down).HTTP)
+	rest.Register(api, ticketUpdatePubOp, NewPublishTicketUpdate(db, down).HTTP)
+	rest.Register(api, act("ticket-link-add", http.MethodPost, "/tickets/{id}/links", "关联服务型会话到工单"), NewLinkConversation(db, down).HTTP)
+	rest.Register(api, act("ticket-link-remove", http.MethodDelete, "/tickets/{id}/links/{conversation_id}", "取消工单与会话的关联"), NewUnlinkConversation(db, down).HTTP)
 }

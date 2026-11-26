@@ -66,6 +66,7 @@ type Tenant struct {
 	DisabledAt        *time.Time     `bun:"disabled_at"`                 // 非空表示已停用
 	ReopenWindowHours int            `bun:"reopen_window_hours,notnull"` // 单窗口渠道会话关闭后的重开窗口（小时），0 表示不再重开
 	NextContactNumber int64          `bun:"next_contact_number,notnull"` // 下一个新建联系人分配的递增编号，从 1 开始
+	NextTicketNumber  int64          `bun:"next_ticket_number,notnull"`  // 下一个新建工单分配的递增编号，从 1 开始
 	CreatedAt         time.Time      `bun:"created_at,notnull"`
 	UpdatedAt         time.Time      `bun:"updated_at,notnull"`
 }

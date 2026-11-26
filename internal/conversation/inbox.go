@@ -28,14 +28,22 @@ type TeamSummary struct {
 	Summary
 }
 
-// InboxDTO 是收件箱左侧的全部列表和它们的数量，只算当前成员能看到的会话。
+// TicketInboxSummary 是收件箱侧栏中工单分组的未解决数量统计。
+type TicketInboxSummary struct {
+	Mine       int `json:"mine" doc:"指派给我的未解决工单数"`
+	Unassigned int `json:"unassigned" doc:"未指派团队且未指派负责人的未解决工单数"`
+	All        int `json:"all" doc:"我能看到的全部未解决工单数"`
+}
+
+// InboxDTO 是收件箱左侧的全部列表和它们的数量，只算当前成员能看到的会话和工单。
 type InboxDTO struct {
-	Mine       Summary       `json:"mine" doc:"我的"`
-	Mentions   Summary       `json:"mentions" doc:"@我"`
-	Unassigned Summary       `json:"unassigned" doc:"未指派"`
-	All        Summary       `json:"all" doc:"全部"`
-	Teams      []TeamSummary `json:"teams" nullable:"false" doc:"团队收件箱：我所在的；可见范围是全部会话的成员是全部团队收件箱，按名称排列"`
-	Views      []ViewSummary `json:"views" nullable:"false" doc:"已保存视图：共享在前、个人在后，各带实时会话数量与积压情况"`
+	Mine       Summary            `json:"mine" doc:"我的"`
+	Mentions   Summary            `json:"mentions" doc:"@我"`
+	Unassigned Summary            `json:"unassigned" doc:"未指派"`
+	All        Summary            `json:"all" doc:"全部"`
+	Teams      []TeamSummary      `json:"teams" nullable:"false" doc:"团队收件箱：我所在的；可见范围是全部会话的成员是全部团队收件箱，按名称排列"`
+	Views      []ViewSummary      `json:"views" nullable:"false" doc:"已保存视图：共享在前、个人在后，各带实时会话数量与积压情况"`
+	Tickets    TicketInboxSummary `json:"tickets" doc:"工单分组的未解决数量"`
 }
 
 // InboxOutput 是收件箱列表的响应。
@@ -169,12 +177,24 @@ func (a *GetInbox) Handle(ctx context.Context, sub identity.Subject) (*InboxDTO,
 		}
 	}
 
-	// @我 的数量是还有未读的 @ 的会话，不论状态
+	// @我 的数量是还有未读的 @ 的服务型会话，不论状态
 	err = a.db.NewRaw(`SELECT count(DISTINCT m.conversation_id) FROM conversation_mentions m
+		JOIN conversations c ON c.id = m.conversation_id AND c.kind = ?
 		LEFT JOIN conversation_reads r ON r.conversation_id = m.conversation_id AND r.member_id = m.member_id
-		WHERE m.tenant_id = ? AND m.member_id = ? AND m.seq > coalesce(r.last_read_seq, 0)`, sub.Tenant, sub.ID).Scan(ctx, &out.Mentions.Count)
+		WHERE m.tenant_id = ? AND m.member_id = ? AND m.seq > coalesce(r.last_read_seq, 0)`, Service, sub.Tenant, sub.ID).Scan(ctx, &out.Mentions.Count)
 	if err != nil {
 		return nil, errors.Wrap(err, "count unread mentions")
+	}
+
+	// 工单分组：单次聚合统计当前成员可见的未解决工单数
+	ticketAgg := a.db.NewSelect().TableExpr("conversations AS conversation").
+		ColumnExpr("count(*) FILTER (WHERE conversation.assignee_type = ? AND conversation.assignee_id = ?)", MemberActor, sub.ID).
+		ColumnExpr("count(*) FILTER (WHERE conversation.team_id IS NULL AND conversation.assignee_type = '')").
+		ColumnExpr("count(*)").
+		Where("conversation.tenant_id = ? AND conversation.kind = ? AND conversation.status <> ?", sub.Tenant, Ticket, TicketResolved)
+	ticketAgg = visible(ticketAgg, sub)
+	if err := ticketAgg.Scan(ctx, &out.Tickets.Mine, &out.Tickets.Unassigned, &out.Tickets.All); err != nil {
+		return nil, errors.Wrap(err, "count ticket inbox")
 	}
 
 	// 团队收件箱：只列未停用的；我所在的；可见范围是全部会话时是全部

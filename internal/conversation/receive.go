@@ -171,6 +171,10 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 				return errors.Wrap(err, "publish media ingest job")
 			}
 		}
+		// 客户回复时，将关联到此会话且处于“等待客户”状态的工单自动切回“处理中”
+		if err := resumeWaitingTickets(ctx, tx, a.down, c.TenantID, c.ID, at); err != nil {
+			return err
+		}
 		dtos, err := toItemDTOs(ctx, tx, a.down.Media, []Item{*msg})
 		if err != nil {
 			return err
@@ -224,12 +228,12 @@ func (a *Receive) conversationFor(ctx context.Context, tx bun.IDB, ch *channel.C
 		if err != nil {
 			return nil, false, "", "", err
 		}
-		if c.ContactID == nil || *c.ContactID != person.ID || c.ChannelID == nil || *c.ChannelID != ch.ID {
+		if c.Kind != Service || c.ContactID == nil || *c.ContactID != person.ID || c.ChannelID == nil || *c.ChannelID != ch.ID {
 			return nil, false, "", "", ErrNotFound.New()
 		}
 	case !multiple:
 		c = new(Conversation)
-		err = tx.NewSelect().Model(c).Where("tenant_id = ? AND contact_id = ? AND channel_id = ?", ch.TenantID, person.ID, ch.ID).
+		err = tx.NewSelect().Model(c).Where("tenant_id = ? AND kind = ? AND contact_id = ? AND channel_id = ?", ch.TenantID, Service, person.ID, ch.ID).
 			OrderExpr("last_message_at DESC, id DESC").Limit(1).For("UPDATE").Scan(ctx)
 		if errors.Is(err, sql.ErrNoRows) {
 			c = nil

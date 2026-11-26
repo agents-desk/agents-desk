@@ -35,14 +35,18 @@ func (a *SendSystemMessage) Handle(ctx context.Context, sub identity.Subject, id
 		if err != nil {
 			return err
 		}
+		if c.Kind != Service {
+			return ErrWrongKind.New()
+		}
+		deliveryChannelID := c.DeliveryChannelID()
 		item = Item{
 			Kind: Message, ActorType: SystemActor, ActorID: sub.ID, Visibility: Everyone,
-			Content: Content{Text: text, Prompt: prompt}, ChannelID: c.ChannelID,
+			Content: Content{Text: text, Prompt: prompt}, ChannelID: deliveryChannelID,
 		}
 		if err := commit(ctx, tx, a.down, c, &item); err != nil {
 			return err
 		}
-		if c.ChannelID == nil {
+		if deliveryChannelID == nil {
 			return nil
 		}
 		_, err = tx.NewInsert().Model(&Delivery{ItemID: item.ID, Status: Sending, UpdatedAt: item.CreatedAt}).Exec(ctx)

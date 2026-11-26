@@ -30,7 +30,7 @@ func TestSeed(t *testing.T) {
 			t.Fatal(err)
 		}
 		lines := strings.Split(strings.TrimSpace(out.String()), "\n")
-		if len(lines) != 13 || slices.ContainsFunc(lines, func(l string) bool { return strings.Contains(l, "跳过") != skipped }) {
+		if len(lines) != 14 || slices.ContainsFunc(lines, func(l string) bool { return strings.Contains(l, "跳过") != skipped }) {
 			t.Fatalf("第 %d 次：\n%s", i+1, out.String())
 		}
 	}
@@ -62,7 +62,7 @@ func TestSeed(t *testing.T) {
 	}
 	// 示例会话：每个客户一个会话，最后一条是客户发的会话在等待回复
 	var convs, waiting int
-	if err := env.DB.NewRaw("SELECT count(*), count(waiting_since) FROM conversations WHERE tenant_id = ?", demo).Scan(ctx, &convs, &waiting); err != nil || convs != 10 || waiting != 7 {
+	if err := env.DB.NewRaw("SELECT count(*), count(waiting_since) FROM conversations WHERE tenant_id = ? AND kind = 'service'", demo).Scan(ctx, &convs, &waiting); err != nil || convs != 10 || waiting != 7 {
 		t.Fatalf("示例会话：%d 个，%d 个等待回复，%v", convs, waiting, err)
 	}
 	// 示例会话的全文搜索索引已就绪：中英文均可直接搜到

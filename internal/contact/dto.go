@@ -68,7 +68,7 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, rows []Contac
 	err := visibleConversations(
 		db.NewSelect().TableExpr("conversations AS conv").
 			Column("conv.contact_id").ColumnExpr("count(*) AS count").
-			Where("conv.tenant_id = ? AND conv.contact_id IN (?)", sub.Tenant, bun.In(ids)),
+			Where("conv.tenant_id = ? AND conv.kind = 'service' AND conv.contact_id IN (?)", sub.Tenant, bun.In(ids)),
 		sub,
 	).Group("conv.contact_id").Scan(ctx, &counts)
 	if err != nil {

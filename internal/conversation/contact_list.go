@@ -29,7 +29,7 @@ func (a *ListForContact) Handle(ctx context.Context, sub identity.Subject, chann
 	}
 	var convs []Conversation
 	err := a.db.NewSelect().Model(&convs).
-		Where("tenant_id = ? AND contact_id = ? AND channel_id = ?", sub.Tenant, sub.ID, channelID).
+		Where("tenant_id = ? AND kind = ? AND contact_id = ? AND channel_id = ?", sub.Tenant, Service, sub.ID, channelID).
 		OrderExpr("last_message_at DESC").Limit(contactListLimit).Scan(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "list contact conversations")

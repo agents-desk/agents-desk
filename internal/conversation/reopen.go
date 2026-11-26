@@ -28,6 +28,9 @@ func (a *Reopen) Handle(ctx context.Context, sub identity.Subject, id string) (*
 // reopen 返回把会话重新打开的修改，sub 是发起者：稍后处理到期时是系统。
 func reopen(sub identity.Subject) changeFunc {
 	return func(ctx context.Context, tx bun.IDB, c *Conversation) ([]*Item, error) {
+		if c.Kind != Service {
+			return nil, ErrWrongKind.New()
+		}
 		name := "conversation.reopened"
 		switch c.Status {
 		case Open:

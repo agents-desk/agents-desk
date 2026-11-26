@@ -59,6 +59,9 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 		if err != nil {
 			return err
 		}
+		if c.Kind != Service {
+			return ErrWrongKind.New()
+		}
 		confirmed, err := confirmAttachmentInputs(ctx, tx, a.down.Media.Files, sub, body.Attachments)
 		if err != nil {
 			return err
@@ -69,7 +72,8 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 		if body.Translation != nil && strings.TrimSpace(body.Text) != "" {
 			content = Content{Text: body.Translation.Text, Original: body.Text, Language: body.Translation.Language}
 		}
-		item = Item{Kind: Message, ActorType: actor, ActorID: sub.ID, Visibility: Everyone, Content: content, ChannelID: c.ChannelID}
+		deliveryChannelID := c.DeliveryChannelID()
+		item = Item{Kind: Message, ActorType: actor, ActorID: sub.ID, Visibility: Everyone, Content: content, ChannelID: deliveryChannelID}
 		items := make([]*Item, 0, 3)
 		// 回复已关闭或稍后处理的会话时自动恢复打开，保证轮次与状态机自洽
 		switch c.Status {
@@ -114,7 +118,7 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 		if err := insertAttachments(ctx, tx, c.TenantID, item.ID, confirmed); err != nil {
 			return err
 		}
-		if c.ChannelID == nil {
+		if deliveryChannelID == nil {
 			return nil
 		}
 		_, err = tx.NewInsert().Model(&Delivery{ItemID: item.ID, Status: Sending, UpdatedAt: at}).Exec(ctx)

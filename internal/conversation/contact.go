@@ -55,7 +55,7 @@ func findForContact(ctx context.Context, db bun.IDB, sub identity.Subject, chann
 	}
 	c := new(Conversation)
 	q := db.NewSelect().Model(c).
-		Where("id = ? AND tenant_id = ? AND contact_id = ? AND channel_id = ?", id, sub.Tenant, sub.ID, channelID)
+		Where("id = ? AND tenant_id = ? AND kind = ? AND contact_id = ? AND channel_id = ?", id, sub.Tenant, Service, sub.ID, channelID)
 	if lock {
 		q = q.For("UPDATE")
 	}

@@ -38,9 +38,22 @@ func (a *PatchAttributes) Handle(ctx context.Context, sub identity.Subject, id s
 	})
 }
 
-// applyAttributes 在事务 tx 中按工作区定义合并会话 c 的自定义属性，返回系统事件；未变化时返回 nil。
+// applyAttributes 在事务 tx 中按工作区定义合并会话或工单 c 的自定义属性，返回系统事件；未变化时返回 nil。
 func applyAttributes(ctx context.Context, tx bun.IDB, sub identity.Subject, c *Conversation, patch map[string]any) ([]*Item, error) {
-	next, changes, err := attribute.ApplyPatch(ctx, tx, c.TenantID, attribute.TargetConversation, c.Attributes, patch)
+	var (
+		next    map[string]any
+		changes []attribute.Change
+		err     error
+	)
+	if c.Kind == Ticket {
+		var typeID string
+		if err = tx.NewSelect().Table("tickets").Column("type_id").Where("conversation_id = ?", c.ID).Scan(ctx, &typeID); err != nil {
+			return nil, err
+		}
+		next, changes, err = attribute.ApplyTicketPatch(ctx, tx, c.TenantID, typeID, c.Attributes, patch)
+	} else {
+		next, changes, err = attribute.ApplyPatch(ctx, tx, c.TenantID, attribute.TargetConversation, c.Attributes, patch)
+	}
 	if err != nil || len(changes) == 0 {
 		return nil, err
 	}

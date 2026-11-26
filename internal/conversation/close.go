@@ -32,6 +32,9 @@ func (a *Close) Handle(ctx context.Context, sub identity.Subject, id string) (*C
 
 // applyClose 在事务 tx 中关闭会话 c、更新当前服务轮次的关闭时间与归属快照并返回系统事件；已关闭时返回 nil。
 func applyClose(ctx context.Context, tx bun.IDB, sub identity.Subject, c *Conversation) ([]*Item, error) {
+	if c.Kind != Service {
+		return nil, ErrWrongKind.New()
+	}
 	if c.Status == Closed {
 		return nil, nil
 	}

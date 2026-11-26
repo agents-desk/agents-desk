@@ -660,6 +660,51 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
     ticket: {
       /** ticket 分组全部查询的 key 前缀。 */
       key: () => key("ticket"),
+      /** POST /tickets */
+      create: () => ({
+        mutationFn: (variables: Parameters<Client["ticket"]["create"]>[0]) => client.ticket.create(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "ticket"),
+      }),
+      /** GET /tickets/{id} */
+      get: (...args: Parameters<Client["ticket"]["get"]>) => ({
+        queryKey: key("ticket", "get", ...args),
+        queryFn: () => client.ticket.get(...args),
+      }),
+      /** GET /tickets/number/{number} */
+      getByNumber: (...args: Parameters<Client["ticket"]["getByNumber"]>) => ({
+        queryKey: key("ticket", "getByNumber", ...args),
+        queryFn: () => client.ticket.getByNumber(...args),
+      }),
+      /** POST /tickets/{id}/links */
+      linkAdd: () => ({
+        mutationFn: (variables: Parameters<Client["ticket"]["linkAdd"]>) => client.ticket.linkAdd(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "ticket"),
+      }),
+      /** DELETE /tickets/{id}/links/{conversation_id} */
+      linkRemove: () => ({
+        mutationFn: (variables: Parameters<Client["ticket"]["linkRemove"]>) => client.ticket.linkRemove(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "ticket"),
+      }),
+      /** GET /tickets */
+      list: (...args: Parameters<Client["ticket"]["list"]>) => ({
+        queryKey: key("ticket", "list", ...args),
+        queryFn: () => client.ticket.list(...args),
+      }),
+      /** POST /tickets/{id}/updates */
+      publishUpdate: () => ({
+        mutationFn: (variables: Parameters<Client["ticket"]["publishUpdate"]>) => client.ticket.publishUpdate(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "ticket"),
+      }),
+      /** PUT /tickets/{id}/status */
+      status: () => ({
+        mutationFn: (variables: Parameters<Client["ticket"]["status"]>) => client.ticket.status(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "ticket"),
+      }),
       /** POST /ticket-types */
       typeCreate: () => ({
         mutationFn: (variables: Parameters<Client["ticket"]["typeCreate"]>[0]) => client.ticket.typeCreate(variables),
@@ -703,6 +748,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       /** PUT /ticket-types/{id} */
       typeUpdate: () => ({
         mutationFn: (variables: Parameters<Client["ticket"]["typeUpdate"]>) => client.ticket.typeUpdate(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "ticket"),
+      }),
+      /** PATCH /tickets/{id} */
+      update: () => ({
+        mutationFn: (variables: Parameters<Client["ticket"]["update"]>) => client.ticket.update(...variables),
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "ticket"),
       }),

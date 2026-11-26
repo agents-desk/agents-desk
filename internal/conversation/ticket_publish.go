@@ -1,0 +1,95 @@
+package conversation
+
+import (
+	"context"
+
+	"github.com/uptrace/bun"
+
+	"github.com/go-tenon/tenon/database"
+	"github.com/go-tenon/tenon/identity"
+
+	"agents-desk/internal/auth"
+	"agents-desk/internal/tickettype"
+)
+
+// PublishTicketUpdateBody 是向客户可见工单发布公开进度的请求体。
+type PublishTicketUpdateBody struct {
+	Text        string            `json:"text,omitempty" maxLength:"10000" doc:"公开进度文字内容"`
+	Attachments []AttachmentInput `json:"attachments,omitempty" maxItems:"10" doc:"通过 /files 上传的媒体附件列表"`
+}
+
+// PublishTicketUpdateInput 是发布公开进度的 HTTP 请求。
+type PublishTicketUpdateInput struct {
+	ID   string `path:"id" format:"uuid"`
+	Body PublishTicketUpdateBody
+}
+
+// PublishTicketUpdate 在客户可见的工单上发布一条公开进度消息（visibility = all），
+// 写入工单时间线并经 Downstream 下发任务（TK3 将据此按客户语言去重翻译并同步到关联服务型会话）。
+type PublishTicketUpdate struct {
+	db   *bun.DB
+	down Downstream
+}
+
+// NewPublishTicketUpdate 返回发布工单公开进度的动作。
+func NewPublishTicketUpdate(db *bun.DB, down Downstream) *PublishTicketUpdate {
+	return &PublishTicketUpdate{db: db, down: down}
+}
+
+// Handle 在 sub 可见的工单 id 上发布公开进度消息；若工单为 members（仅成员可见）则返回 ErrPrivateTicket。
+func (a *PublishTicketUpdate) Handle(ctx context.Context, sub identity.Subject, id string, body PublishTicketUpdateBody) (*ItemDTO, error) {
+	if err := authorize(sub, auth.ConversationsReply); err != nil {
+		return nil, err
+	}
+	if err := requireMessageContent(body.Text, len(body.Attachments)); err != nil {
+		return nil, err
+	}
+	var item Item
+	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
+		c, tk, err := findVisibleTicket(ctx, tx, sub, id, true)
+		if err != nil {
+			return err
+		}
+		if tk.Visibility != tickettype.VisibilityAll {
+			return ErrPrivateTicket.New()
+		}
+		confirmed, err := confirmAttachmentInputs(ctx, tx, a.down.Media.Files, sub, body.Attachments)
+		if err != nil {
+			return err
+		}
+		actor := actorOf(sub)
+		item = Item{
+			Kind:       Message,
+			ActorType:  actor,
+			ActorID:    sub.ID,
+			Visibility: Everyone,
+			Content:    Content{Text: body.Text},
+		}
+		c.LastMessageAt = now()
+		if err := join(ctx, tx, c.ID, actor, sub.ID); err != nil {
+			return err
+		}
+		if err := commit(ctx, tx, a.down, c, &item); err != nil {
+			return err
+		}
+		return insertAttachments(ctx, tx, c.TenantID, item.ID, confirmed)
+	})
+	if err != nil {
+		return nil, err
+	}
+	dtos, err := toItemDTOs(ctx, a.db, a.down.Media, []Item{item})
+	if err != nil {
+		return nil, err
+	}
+	return &dtos[0], nil
+}
+
+// HTTP 处理 POST /t/{slug}/api/tickets/{id}/updates。
+func (a *PublishTicketUpdate) HTTP(ctx context.Context, in *PublishTicketUpdateInput) (*ItemOutput, error) {
+	sub, _ := identity.FromContext(ctx)
+	item, err := a.Handle(ctx, sub, in.ID, in.Body)
+	if err != nil {
+		return nil, err
+	}
+	return &ItemOutput{Body: *item}, nil
+}

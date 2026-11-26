@@ -43,6 +43,9 @@ func (a *Snooze) Handle(ctx context.Context, sub identity.Subject, id string, un
 
 // applySnooze 把会话 c 设为稍后处理到 until 并返回系统事件；时间不在将来返回 ErrSnoozeInPast，已关闭返回 ErrClosed。
 func applySnooze(sub identity.Subject, c *Conversation, until time.Time) ([]*Item, error) {
+	if c.Kind != Service {
+		return nil, ErrWrongKind.New()
+	}
 	until = until.UTC().Truncate(time.Microsecond)
 	if !until.After(now()) {
 		return nil, ErrSnoozeInPast.New(errorx.Field("until"))

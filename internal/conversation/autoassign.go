@@ -48,7 +48,7 @@ func assignedEvent(sub identity.Subject, c *Conversation, fromTeam *string, from
 // 分给团队收件箱中在线、最久没有分到会话的成员，返回系统事件；条件不满足或者没有人在线时返回 nil，会话留在团队收件箱。
 // 先锁住团队收件箱这一行，同一个团队收件箱的分配依次进行，同时到达的会话不会分给同一个人。
 func roundRobin(ctx context.Context, tx bun.IDB, c *Conversation) (*Item, error) {
-	if c.TeamID == nil || c.AssigneeType != "" || c.Status == Closed {
+	if c.TeamID == nil || c.AssigneeType != "" || c.isFinished() {
 		return nil, nil
 	}
 	var teamRow struct {
@@ -115,7 +115,8 @@ func OnMemberLeft(down Downstream) member.RemovedHook {
 	return func(ctx context.Context, tx database.Tx, tenant, memberID string) error {
 		var convs []Conversation
 		err := tx.NewSelect().Model(&convs).
-			Where("tenant_id = ? AND assignee_type = ? AND assignee_id = ? AND status <> ?", tenant, MemberActor, memberID, Closed).
+			Where("tenant_id = ? AND assignee_type = ? AND assignee_id = ? AND ((kind = ? AND status <> ?) OR (kind = ? AND status <> ?))",
+				tenant, MemberActor, memberID, Service, Closed, Ticket, TicketResolved).
 			OrderExpr("id").For("UPDATE").Scan(ctx)
 		if err != nil {
 			return errors.Wrap(err, "load conversations of leaving member")
