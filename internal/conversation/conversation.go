@@ -54,6 +54,16 @@ var (
 	ErrChannelUnavailable = errorx.Define(errorx.Conflict, "conversation.channel_unavailable")
 	// ErrActiveConversationExists 是该联系人当前已有一条进行中或稍后处理的服务型会话，不能再重开其他历史会话。
 	ErrActiveConversationExists = errorx.Define(errorx.Conflict, "conversation.active_exists")
+	// ErrChatGroupOnly 是该操作仅适用于群聊（例如修改群名称、增删群成员、退出群聊）。
+	ErrChatGroupOnly = errorx.Define(errorx.Conflict, "chat.group_only")
+	// ErrChatSelfDirect 是不能与自己发起单聊。
+	ErrChatSelfDirect = errorx.Define(errorx.InvalidArgument, "chat.self_direct")
+	// ErrChatUnsupportedParticipant 是不支持的聊天参与者类型或尚未启用的机器人参与者。
+	ErrChatUnsupportedParticipant = errorx.Define(errorx.InvalidArgument, "chat.unsupported_participant")
+	// ErrChatNotParticipant 是目标参与者不在这个群聊中。
+	ErrChatNotParticipant = errorx.Define(errorx.NotFound, "chat.not_participant")
+	// ErrChatNameRequired 是群聊名称不能为空。
+	ErrChatNameRequired = errorx.Define(errorx.InvalidArgument, "chat.name_required")
 )
 
 // Kind 是会话的种类。
@@ -147,17 +157,18 @@ var Visibilities = enum.New("conversation.visibility", enum.Item(Everyone), enum
 // Schema 让 OpenAPI 中的 Visibility 只接受上面的取值，并带有显示文字。
 func (Visibility) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Visibilities) }
 
-// ActorType 是参与者和时间线中发起者的类型。参与者的类型会继续增加：外部群中的人、机器人、AI。
+// ActorType 是参与者和时间线中发起者的类型。
 type ActorType string
 
 const (
 	ContactActor ActorType = "contact" // 联系人
 	MemberActor  ActorType = "member"  // 成员
+	BotActor     ActorType = "bot"     // 机器人 / AI Agent
 	SystemActor  ActorType = "system"  // 系统
 )
 
 // ActorTypes 是参与者的全部类型，显示文字是翻译文件中 conversation.actor_type.<类型> 的消息。
-var ActorTypes = enum.New("conversation.actor_type", enum.Item(ContactActor), enum.Item(MemberActor), enum.Item(SystemActor))
+var ActorTypes = enum.New("conversation.actor_type", enum.Item(ContactActor), enum.Item(MemberActor), enum.Item(BotActor), enum.Item(SystemActor))
 
 // Schema 让 OpenAPI 中的 ActorType 只接受上面的取值，并带有显示文字。
 func (ActorType) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, ActorTypes) }
@@ -566,12 +577,16 @@ func ticketContactPushTargets(ctx context.Context, db bun.IDB, down Downstream, 
 	return targets, nil
 }
 
-// pushType 返回会话种类对应的实时推送事件类型：工单推 push.Ticket，其余推 push.Conversation。
+// pushType 返回会话种类对应的实时推送事件类型：工单推 push.Ticket，内部聊天推 push.Chat，其余推 push.Conversation。
 func pushType(kind Kind) string {
-	if kind == Ticket {
+	switch kind {
+	case Ticket:
 		return push.Ticket
+	case Chat:
+		return push.Chat
+	default:
+		return push.Conversation
 	}
-	return push.Conversation
 }
 
 // contactPushChannels 返回本次会话变更提交后需要向联系人实时推送的渠道 ID 列表。

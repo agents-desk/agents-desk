@@ -36,7 +36,7 @@ export interface ContactSummary {
   time_zone?: string
 }
 
-export type ConversationActorType = "contact" | "member" | "system"
+export type ConversationActorType = "contact" | "member" | "bot" | "system"
 
 export interface ConversationAttachmentDTO {
   content_type: string

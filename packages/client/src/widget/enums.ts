@@ -24,10 +24,10 @@ export const enums = {
   },
   ConversationActorType: {
     prefix: "conversation.actor_type",
-    values: ["contact", "member", "system"],
+    values: ["contact", "member", "bot", "system"],
     labels: {
-      "en": { contact: "Contact", member: "Member", system: "System" },
-      "zh-CN": { contact: "联系人", member: "成员", system: "系统" },
+      "en": { contact: "Contact", member: "Member", bot: "Bot", system: "System" },
+      "zh-CN": { contact: "联系人", member: "成员", bot: "机器人", system: "系统" },
     },
   },
   ConversationAttachmentKind: {

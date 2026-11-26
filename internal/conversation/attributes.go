@@ -42,6 +42,9 @@ func (a *PatchAttributes) Handle(ctx context.Context, sub identity.Subject, id s
 
 // applyAttributes 在事务 tx 中按工作区定义合并会话或工单 c 的自定义属性，返回系统事件；未变化时返回 nil。
 func applyAttributes(ctx context.Context, tx bun.IDB, sub identity.Subject, c *Conversation, patch map[string]any) ([]*Item, error) {
+	if c.Kind == Chat {
+		return nil, ErrWrongKind.New()
+	}
 	var (
 		next    map[string]any
 		changes []attribute.Change

@@ -50,6 +50,57 @@ export const schemas = {
       },
     },
   },
+  chat: {
+    createDirect: {
+      body: {
+        "$ref": "#/components/schemas/ConversationCreateDirectChatParams"
+      },
+    },
+    createGroup: {
+      body: {
+        "$ref": "#/components/schemas/ConversationCreateGroupChatParams"
+      },
+    },
+    list: {
+      query: {
+        "properties": {
+          "cursor": {
+            "type": "string"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/ChatMode"
+          },
+          "per_page": {
+            "default": 20,
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "q": {
+            "maxLength": 100,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+    },
+    messageSend: {
+      body: {
+        "$ref": "#/components/schemas/ConversationSendChatMessageBody"
+      },
+    },
+    participantsAdd: {
+      body: {
+        "$ref": "#/components/schemas/ConversationAddChatParticipantsBody"
+      },
+    },
+    update: {
+      body: {
+        "$ref": "#/components/schemas/ConversationUpdateChatParams"
+      },
+    },
+  },
   contact: {
     exportStart: {
       body: {
@@ -1157,6 +1208,13 @@ export const components = {
     ],
     "type": "object"
   },
+  ChatMode: {
+    "enum": [
+      "direct",
+      "group"
+    ],
+    "type": "string"
+  },
   ContactExportStartInputBody: {
     "additionalProperties": false,
     "properties": {
@@ -1370,6 +1428,33 @@ export const components = {
         "$ref": "#/components/schemas/ConversationTeamChange"
       }
     },
+    "type": "object"
+  },
+  ConversationActorType: {
+    "enum": [
+      "contact",
+      "member",
+      "bot",
+      "system"
+    ],
+    "type": "string"
+  },
+  ConversationAddChatParticipantsBody: {
+    "additionalProperties": false,
+    "properties": {
+      "member_ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 100,
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      }
+    },
+    "required": [
+      "member_ids"
+    ],
     "type": "object"
   },
   ConversationAddTagInputBody: {
@@ -1593,6 +1678,44 @@ export const components = {
     },
     "required": [
       "ids"
+    ],
+    "type": "object"
+  },
+  ConversationCreateDirectChatParams: {
+    "additionalProperties": false,
+    "properties": {
+      "participant_id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "participant_type": {
+        "$ref": "#/components/schemas/ConversationActorType"
+      }
+    },
+    "required": [
+      "participant_id"
+    ],
+    "type": "object"
+  },
+  ConversationCreateGroupChatParams: {
+    "additionalProperties": false,
+    "properties": {
+      "member_ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 100,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "name": {
+        "maxLength": 80,
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "name"
     ],
     "type": "object"
   },
@@ -1823,6 +1946,31 @@ export const components = {
     ],
     "type": "string"
   },
+  ConversationSendChatMessageBody: {
+    "additionalProperties": false,
+    "properties": {
+      "attachments": {
+        "items": {
+          "$ref": "#/components/schemas/ConversationAttachmentInput"
+        },
+        "maxItems": 10,
+        "type": "array"
+      },
+      "mentions": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 20,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "text": {
+        "maxLength": 10000,
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
   ConversationSnoozeInputBody: {
     "additionalProperties": false,
     "properties": {
@@ -1960,6 +2108,20 @@ export const components = {
     "required": [
       "language",
       "text"
+    ],
+    "type": "object"
+  },
+  ConversationUpdateChatParams: {
+    "additionalProperties": false,
+    "properties": {
+      "name": {
+        "maxLength": 80,
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "name"
     ],
     "type": "object"
   },

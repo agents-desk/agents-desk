@@ -46,6 +46,14 @@ export const enums = {
       "zh-CN": { test: "测试渠道", widget: "网页聊天插件", telegram: "Telegram 机器人" },
     },
   },
+  ChatMode: {
+    prefix: "chat.mode",
+    values: ["direct", "group"],
+    labels: {
+      "en": { direct: "Direct message", group: "Group chat" },
+      "zh-CN": { direct: "单聊", group: "群聊" },
+    },
+  },
   ContactKind: {
     prefix: "contact.kind",
     values: ["user", "lead"],
@@ -64,10 +72,10 @@ export const enums = {
   },
   ConversationActorType: {
     prefix: "conversation.actor_type",
-    values: ["contact", "member", "system"],
+    values: ["contact", "member", "bot", "system"],
     labels: {
-      "en": { contact: "Contact", member: "Member", system: "System" },
-      "zh-CN": { contact: "联系人", member: "成员", system: "系统" },
+      "en": { contact: "Contact", member: "Member", bot: "Bot", system: "System" },
+      "zh-CN": { contact: "联系人", member: "成员", bot: "机器人", system: "系统" },
     },
   },
   ConversationAssigneeChangeMode: {

@@ -88,4 +88,24 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	rest.Register(api, ticketUpdatePubOp, NewPublishTicketUpdate(db, down).HTTP)
 	rest.Register(api, act("ticket-contact-add", http.MethodPost, "/tickets/{id}/contacts", "关联受影响客户到工单"), NewLinkTicketContact(db, down).HTTP)
 	rest.Register(api, act("ticket-contact-remove", http.MethodDelete, "/tickets/{id}/contacts/{contact_id}", "取消工单与客户的关联"), NewUnlinkTicketContact(db, down).HTTP)
+
+	// 内部聊天接口：conversations.kind = chat，复用时间线、附件、已读和在线输入频道，严格按参与者隔离。
+	chatGroupOp := route(read, "chat-create-group", http.MethodPost, "/chats/group", "新建内部群聊")
+	chatGroupOp.DefaultStatus = http.StatusCreated
+	chatMsgOp := route(read, "chat-message-send", http.MethodPost, "/chats/{id}/messages", "发送内部聊天消息")
+	chatMsgOp.DefaultStatus = http.StatusCreated
+	chatRemovePartOp := route(read, "chat-participant-remove", http.MethodDelete, "/chats/{id}/participants/{participant_type}/{participant_id}", "移出群聊成员")
+	chatRemovePartOp.DefaultStatus = http.StatusNoContent
+	chatLeaveOp := route(read, "chat-leave", http.MethodPost, "/chats/{id}/leave", "退出群聊")
+	chatLeaveOp.DefaultStatus = http.StatusNoContent
+	rest.Register(api, route(read, "chat-list", http.MethodGet, "/chats", "内部聊天列表"), NewListChats(db, down.Media.Files).HTTP)
+	rest.Register(api, route(read, "chat-unread", http.MethodGet, "/chats/unread", "内部聊天未读统计"), NewGetChatUnread(db).HTTP)
+	rest.Register(api, route(read, "chat-get", http.MethodGet, "/chats/{id}", "读取内部聊天详情"), NewGetChat(db, down.Media.Files).HTTP)
+	rest.Register(api, route(read, "chat-create-direct", http.MethodPost, "/chats/direct", "发起或打开单聊"), NewCreateDirectChat(db, down).HTTP)
+	rest.Register(api, chatGroupOp, NewCreateGroupChat(db, down).HTTP)
+	rest.Register(api, route(read, "chat-update", http.MethodPatch, "/chats/{id}", "修改群聊名称"), NewUpdateChat(db, down).HTTP)
+	rest.Register(api, route(read, "chat-participants-add", http.MethodPost, "/chats/{id}/participants", "添加群聊成员"), NewAddChatParticipants(db, down).HTTP)
+	rest.Register(api, chatRemovePartOp, NewRemoveChatParticipant(db, down).HTTP)
+	rest.Register(api, chatLeaveOp, NewLeaveChat(db, down).HTTP)
+	rest.Register(api, chatMsgOp, NewSendChatMessage(db, down).HTTP)
 }

@@ -49,6 +49,18 @@ export const required = {
   channel: {
     list: ["channels:read"],
   },
+  chat: {
+    createDirect: ["conversations:read"],
+    createGroup: ["conversations:read"],
+    get: ["conversations:read"],
+    leave: ["conversations:read"],
+    list: ["conversations:read"],
+    messageSend: ["conversations:read"],
+    participantRemove: ["conversations:read"],
+    participantsAdd: ["conversations:read"],
+    unread: ["conversations:read"],
+    update: ["conversations:read"],
+  },
   contact: {
     exportProgress: ["contacts:export"],
     exportStart: ["contacts:export"],

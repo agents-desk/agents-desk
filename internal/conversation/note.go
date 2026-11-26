@@ -54,6 +54,9 @@ func (a *AddNote) Handle(ctx context.Context, sub identity.Subject, id, text str
 		if err != nil {
 			return err
 		}
+		if c.Kind == Chat {
+			return ErrWrongKind.New()
+		}
 		confirmed, err := confirmAttachmentInputs(ctx, tx, a.down.Media.Files, sub, attachments)
 		if err != nil {
 			return err

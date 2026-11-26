@@ -263,6 +263,7 @@ conversation.visibility.all: 所有人
 conversation.visibility.members: 仅成员
 conversation.actor_type.contact: 联系人
 conversation.actor_type.member: 成员
+conversation.actor_type.bot: 机器人
 conversation.actor_type.system: 系统
 conversation.delivery.sending: 发送中
 conversation.delivery.delivered: 已送达
@@ -487,3 +488,10 @@ ticket.status.submitted: 已提交
 ticket.status.in_progress: 处理中
 ticket.status.waiting_on_customer: 等待客户
 ticket.status.resolved: 已解决
+chat.mode.direct: 单聊
+chat.mode.group: 群聊
+chat.group_only: 该操作仅适用于群聊
+chat.self_direct: 不能与自己发起单聊
+chat.unsupported_participant: 不支持的参与者类型
+chat.not_participant: 该成员不在这个群聊中
+chat.name_required: 群聊名称不能为空
