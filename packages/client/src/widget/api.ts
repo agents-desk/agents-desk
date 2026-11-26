@@ -113,12 +113,26 @@ export interface ConversationContactConversationDTO {
   unread: number
 }
 
+export interface ConversationContactConversationMeta {
+  /** 最近一次关闭的时间 */
+  closed_at?: string
+  id: string
+  /** 客户对最近一次关闭的评价 */
+  rating?: ConversationRating
+  /** 这次关闭是否向客户发出了评价邀请；为真且 rating 为空时可以评价 */
+  rating_requested: boolean
+  /** 打开或已关闭；稍后处理的会话对客户显示为打开 */
+  status: ConversationStatus
+}
+
 export interface ConversationContactItemDTO {
   /** 附带的图片和文件 */
   attachments?: ConversationAttachmentDTO[]
   author: ConversationContactAuthor
   /** 该消息来自或发往的渠道 */
   channel?: ChannelSummary
+  /** 该消息所属的服务型会话 ID */
+  conversation_id?: string
   created_at: string
   id: string
   kind: ConversationItemKind
@@ -166,6 +180,19 @@ export interface ConversationContactTicketDetailDTO {
   updated_at: string
   /** 工单的公开进度记录，按时间顺序排列 */
   updates: ConversationContactItemDTO[]
+}
+
+export interface ConversationContactTimelineDTO {
+  /** 本页消息与最新会话涉及的轮次摘要，键为会话 ID */
+  conversations: Record<string, ConversationContactConversationMeta>
+  /** 是否还有更早的历史消息可供向上翻页加载 */
+  has_more: boolean
+  /** 按时间升序排列的跨会话可见消息 */
+  items: ConversationContactItemDTO[]
+  /** 该客户最近一条服务型会话摘要；从未发过消息时为空 */
+  latest_conversation?: ConversationContactConversationMeta
+  /** 客户尚未读到的客服消息总数 */
+  unread: number
 }
 
 export type ConversationFetchStatus = "ready" | "remote" | "pending" | "fetching" | "unavailable"
@@ -288,6 +315,8 @@ export interface WidgetMessageBody {
   /** 聊天窗口为这条消息生成的编号；网络出错重发时带同一个编号，消息只记录一次 */
   client_id?: string
   text?: string
+  /** 可选：客户从工单详情发起补充信息时附带的工单 ID，用于关联当前活跃会话并唤醒等待工单 */
+  ticket_id?: string
 }
 
 export interface WidgetRateInputBody {
@@ -327,6 +356,11 @@ export interface WidgetSessionDTO {
   visitor_id?: string
 }
 
+export interface WidgetStreamReadInputBody {
+  /** 可选：截至已读的消息 ID；不填时将全部未读客服消息标为已读 */
+  up_to_item_id?: string
+}
+
 /** conversation-items 的参数。 */
 export interface ConversationItemsInput {
   /** 只读取序号大于它的项；收到推送后用它增量读取 */
@@ -337,6 +371,15 @@ export interface ConversationItemsInput {
 /** file-upload 的表单。 */
 export type FileUploadForm = {
   file: Blob
+}
+
+/** timeline-get 的参数。 */
+export interface TimelineGetInput {
+  /** 只读取早于该消息 ID 的更早历史消息，用于向上滚动分页 */
+  before?: string
+  /** 只读取晚于该消息 ID 的新消息，用于收到实时推送后增量刷新 */
+  after?: string
+  limit?: number
 }
 
 /** 创建客户端。 */
@@ -422,6 +465,16 @@ export function createClient(options: ClientOptions) {
       upload: (form: FileUploadForm): Promise<File> =>
         rt.request<File>({ method: "POST", path: `/files`, form }),
     },
+    /** operationId 以 message- 开头的接口。 */
+    message: {
+      /**
+       * 发送消息
+       *
+       * POST /messages
+       */
+      send: (body: WidgetMessageBody): Promise<WidgetSent> =>
+        rt.request<WidgetSent>({ method: "POST", path: `/messages`, body }),
+    },
     /** operationId 以 ticket- 开头的接口。 */
     ticket: {
       /**
@@ -438,6 +491,30 @@ export function createClient(options: ClientOptions) {
        */
       list: (): Promise<ConversationContactTicketDTO[]> =>
         rt.request<ConversationContactTicketDTO[]>({ method: "GET", path: `/tickets` }),
+    },
+    /** operationId 以 timeline- 开头的接口。 */
+    timeline: {
+      /**
+       * 读取客户跨会话连续时间线
+       *
+       * GET /timeline
+       */
+      get: (input: TimelineGetInput = {}): Promise<ConversationContactTimelineDTO> =>
+        rt.request<ConversationContactTimelineDTO>({ method: "GET", path: `/timeline`, query: { "after": input["after"], "before": input["before"], "limit": input["limit"] } }),
+      /**
+       * 标记连续时间线已读
+       *
+       * POST /read
+       */
+      read: (body: WidgetStreamReadInputBody): Promise<void> =>
+        rt.request<void>({ method: "POST", path: `/read`, body }),
+      /**
+       * 在当前活跃会话中正在输入
+       *
+       * POST /typing
+       */
+      typing: (): Promise<void> =>
+        rt.request<void>({ method: "POST", path: `/typing` }),
     },
     /** operationId 以 widget- 开头的接口。 */
     widget: {
