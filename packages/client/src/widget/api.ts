@@ -5,7 +5,7 @@ import { Runtime, type ClientOptions, type Download, type SessionLike, type Stre
 export * from "./errors"
 export { ApiError, isApiError, saveBlob, type ClientOptions, type Download, type SessionLike, type FieldError, type StreamOptions } from "./runtime"
 
-export type ChannelKind = "test" | "widget" | "telegram"
+export type ChannelKind = "test" | "widget" | "telegram" | "business_link" | "telegram_account"
 
 export interface ChannelSummary {
   id: string
@@ -299,6 +299,10 @@ export interface WidgetSent {
 }
 
 export interface WidgetSessionBody {
+  /** 可选：访客或商务沟通对方自报的邮箱 */
+  email?: string
+  /** 可选：访客或商务沟通对方自报的称呼 */
+  name?: string
   /** 嵌入聊天窗口的产品页面地址 */
   referrer?: string
   /** 浏览器上报的 IANA 时区名，例如 Asia/Shanghai */

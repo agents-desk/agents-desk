@@ -14,6 +14,7 @@ import (
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/auth"
+	"agents-desk/internal/channel"
 	"agents-desk/internal/member"
 	"agents-desk/internal/push"
 )
@@ -117,7 +118,7 @@ func (a *AddChatParticipants) Handle(ctx context.Context, sub identity.Subject, 
 		if err != nil {
 			return err
 		}
-		if cm.Mode != ChatGroup {
+		if cm.Mode != ChatGroup && cm.Scope != ChatExternal {
 			return ErrChatGroupOnly.New()
 		}
 		roles := authz.NewStore(tx, auth.Catalog)
@@ -190,8 +191,20 @@ func (a *RemoveChatParticipant) Handle(ctx context.Context, sub identity.Subject
 		if err != nil {
 			return err
 		}
-		if cm.Mode != ChatGroup {
+		if cm.Mode != ChatGroup && cm.Scope != ChatExternal {
 			return ErrChatGroupOnly.New()
+		}
+		if participantType == ContactActor {
+			return ErrChatContactProtected.New()
+		}
+		if cm.Scope == ChatExternal && cm.ChannelID != nil && participantType == MemberActor {
+			ch, err := channel.Find(ctx, tx, c.TenantID, *cm.ChannelID)
+			if err != nil && !errors.Is(err, channel.ErrNotFound) {
+				return err
+			}
+			if ch != nil && ch.OwnerMemberID != nil && *ch.OwnerMemberID == participantID {
+				return ErrChatOwnerProtected.New()
+			}
 		}
 		res, err := tx.NewDelete().Model((*Participant)(nil)).
 			Where("conversation_id = ? AND participant_type = ? AND participant_id = ?", c.ID, participantType, participantID).

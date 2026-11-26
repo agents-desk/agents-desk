@@ -74,6 +74,10 @@ func (a *ContactStream) Handle(ctx context.Context, sub identity.Subject, channe
 	if !exists {
 		return empty, nil
 	}
+	targetKind, restrictChannel, err := contactChannelScope(ctx, a.db, sub.Tenant, channelID, kind)
+	if err != nil {
+		return nil, err
+	}
 
 	// 读取可选游标项的时间戳与 ID，避免跨会话合并后仅靠 created_at 出现同毫秒漏项
 	type cursorPoint struct {
@@ -86,8 +90,8 @@ func (a *ContactStream) Handle(ctx context.Context, sub identity.Subject, channe
 			Join("JOIN conversations AS c ON c.id = ti.conversation_id").
 			ColumnExpr("ti.id, ti.created_at").
 			Where("ti.id = ? AND ti.tenant_id = ? AND c.tenant_id = ? AND c.kind = ? AND c.contact_id = ?",
-				itemID, sub.Tenant, sub.Tenant, Service, sub.ID)
-		if kind != contact.User {
+				itemID, sub.Tenant, sub.Tenant, targetKind, sub.ID)
+		if restrictChannel {
 			q = q.Where("c.channel_id = ?", channelID)
 		}
 		err := q.Scan(ctx, &pt)
@@ -118,8 +122,8 @@ func (a *ContactStream) Handle(ctx context.Context, sub identity.Subject, channe
 	q := a.db.NewSelect().Model(&rawItems).
 		Join("JOIN conversations AS c ON c.id = item.conversation_id").
 		Where("item.tenant_id = ? AND item.visibility = ? AND c.tenant_id = ? AND c.kind = ? AND c.contact_id = ?",
-			sub.Tenant, Everyone, sub.Tenant, Service, sub.ID)
-	if kind != contact.User {
+			sub.Tenant, Everyone, sub.Tenant, targetKind, sub.ID)
+	if restrictChannel {
 		q = q.Where("c.channel_id = ?", channelID)
 	}
 	if afterPt != nil {
@@ -149,11 +153,11 @@ func (a *ContactStream) Handle(ctx context.Context, sub identity.Subject, channe
 		return nil, err
 	}
 
-	// 读取客户最近一条服务型会话摘要与全量未读数
+	// 读取客户最近一条会话摘要与全量未读数
 	var latest Conversation
 	latestQ := a.db.NewSelect().Model(&latest).
-		Where("tenant_id = ? AND kind = ? AND contact_id = ?", sub.Tenant, Service, sub.ID)
-	if kind != contact.User {
+		Where("tenant_id = ? AND kind = ? AND contact_id = ?", sub.Tenant, targetKind, sub.ID)
+	if restrictChannel {
 		latestQ = latestQ.Where("channel_id = ?", channelID)
 	}
 	var latestMeta *ContactConversationMeta
@@ -172,9 +176,9 @@ func (a *ContactStream) Handle(ctx context.Context, sub identity.Subject, channe
 		Join("JOIN message_deliveries AS d ON d.item_id = ti.id").
 		ColumnExpr("count(*)").
 		Where("ti.tenant_id = ? AND c.tenant_id = ? AND c.kind = ? AND c.contact_id = ?",
-			sub.Tenant, sub.Tenant, Service, sub.ID).
+			sub.Tenant, sub.Tenant, targetKind, sub.ID).
 		Where("ti.actor_type <> ? AND d.status <> ?", ContactActor, Read)
-	if kind != contact.User {
+	if restrictChannel {
 		unreadQ = unreadQ.Where("c.channel_id = ?", channelID)
 	}
 	if err := unreadQ.Scan(ctx, &unread); err != nil {
@@ -257,6 +261,10 @@ func (a *MarkAllReadByContact) Handle(ctx context.Context, sub identity.Subject,
 		if err != nil || !exists {
 			return err
 		}
+		targetKind, restrictChannel, err := contactChannelScope(ctx, tx, sub.Tenant, channelID, kind)
+		if err != nil {
+			return err
+		}
 		var cutoffTime time.Time
 		var cutoffID string
 		if upToItemID != "" {
@@ -268,8 +276,8 @@ func (a *MarkAllReadByContact) Handle(ctx context.Context, sub identity.Subject,
 				Join("JOIN conversations AS c ON c.id = ti.conversation_id").
 				ColumnExpr("ti.id, ti.created_at").
 				Where("ti.id = ? AND ti.tenant_id = ? AND c.tenant_id = ? AND c.kind = ? AND c.contact_id = ?",
-					upToItemID, sub.Tenant, sub.Tenant, Service, sub.ID)
-			if kind != contact.User {
+					upToItemID, sub.Tenant, sub.Tenant, targetKind, sub.ID)
+			if restrictChannel {
 				q = q.Where("c.channel_id = ?", channelID)
 			}
 			err := q.Scan(ctx, &pt)
@@ -282,10 +290,10 @@ func (a *MarkAllReadByContact) Handle(ctx context.Context, sub identity.Subject,
 			cutoffTime, cutoffID = pt.CreatedAt, pt.ID
 		}
 
-		// 批量更新所有可见会话中尚未已读的客服消息为已读，并收集受影响的会话 ID
+		// 批量更新所有可见会话中尚未已读的客服或商务回复消息为已读，并收集受影响的会话 ID
 		var affectedConvIDs []string
 		at := now()
-		if cutoffID != "" && kind == contact.User {
+		if cutoffID != "" && !restrictChannel {
 			err = tx.NewRaw(`UPDATE message_deliveries d SET status = ?, updated_at = ?
 				FROM timeline_items t
 				JOIN conversations c ON c.id = t.conversation_id
@@ -294,7 +302,7 @@ func (a *MarkAllReadByContact) Handle(ctx context.Context, sub identity.Subject,
 				  AND t.actor_type <> ? AND d.status IN (?)
 				  AND (t.created_at, t.id) <= (?, ?)
 				RETURNING t.conversation_id`,
-				Read, at, sub.Tenant, Service, sub.ID, ContactActor, bun.In([]DeliveryStatus{Sending, Delivered}), cutoffTime, cutoffID).
+				Read, at, sub.Tenant, targetKind, sub.ID, ContactActor, bun.In([]DeliveryStatus{Sending, Delivered}), cutoffTime, cutoffID).
 				Scan(ctx, &affectedConvIDs)
 		} else if cutoffID != "" {
 			err = tx.NewRaw(`UPDATE message_deliveries d SET status = ?, updated_at = ?
@@ -305,9 +313,9 @@ func (a *MarkAllReadByContact) Handle(ctx context.Context, sub identity.Subject,
 				  AND t.actor_type <> ? AND d.status IN (?)
 				  AND (t.created_at, t.id) <= (?, ?)
 				RETURNING t.conversation_id`,
-				Read, at, sub.Tenant, Service, sub.ID, channelID, ContactActor, bun.In([]DeliveryStatus{Sending, Delivered}), cutoffTime, cutoffID).
+				Read, at, sub.Tenant, targetKind, sub.ID, channelID, ContactActor, bun.In([]DeliveryStatus{Sending, Delivered}), cutoffTime, cutoffID).
 				Scan(ctx, &affectedConvIDs)
-		} else if kind == contact.User {
+		} else if !restrictChannel {
 			err = tx.NewRaw(`UPDATE message_deliveries d SET status = ?, updated_at = ?
 				FROM timeline_items t
 				JOIN conversations c ON c.id = t.conversation_id
@@ -315,7 +323,7 @@ func (a *MarkAllReadByContact) Handle(ctx context.Context, sub identity.Subject,
 				  AND c.tenant_id = ? AND c.kind = ? AND c.contact_id = ?
 				  AND t.actor_type <> ? AND d.status IN (?)
 				RETURNING t.conversation_id`,
-				Read, at, sub.Tenant, Service, sub.ID, ContactActor, bun.In([]DeliveryStatus{Sending, Delivered})).
+				Read, at, sub.Tenant, targetKind, sub.ID, ContactActor, bun.In([]DeliveryStatus{Sending, Delivered})).
 				Scan(ctx, &affectedConvIDs)
 		} else {
 			err = tx.NewRaw(`UPDATE message_deliveries d SET status = ?, updated_at = ?
@@ -325,7 +333,7 @@ func (a *MarkAllReadByContact) Handle(ctx context.Context, sub identity.Subject,
 				  AND c.tenant_id = ? AND c.kind = ? AND c.contact_id = ? AND c.channel_id = ?
 				  AND t.actor_type <> ? AND d.status IN (?)
 				RETURNING t.conversation_id`,
-				Read, at, sub.Tenant, Service, sub.ID, channelID, ContactActor, bun.In([]DeliveryStatus{Sending, Delivered})).
+				Read, at, sub.Tenant, targetKind, sub.ID, channelID, ContactActor, bun.In([]DeliveryStatus{Sending, Delivered})).
 				Scan(ctx, &affectedConvIDs)
 		}
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -357,7 +365,7 @@ func (a *MarkAllReadByContact) Handle(ctx context.Context, sub identity.Subject,
 			if len(audience) == 0 {
 				continue
 			}
-			hub, tenant, ev := a.down.Hub, c.TenantID, push.Event{Type: push.Conversation, ID: c.ID, Seq: c.LastSeq}
+			hub, tenant, ev := a.down.Hub, c.TenantID, push.Event{Type: pushType(c.Kind), ID: c.ID, Seq: c.LastSeq}
 			tx.AfterCommit(func(ctx context.Context) error {
 				return errors.Wrap(push.Send(ctx, hub, tenant, audience, ev), "push stream messages read")
 			})
@@ -390,11 +398,15 @@ func (a *TypingOnActiveByContact) Handle(ctx context.Context, sub identity.Subje
 	if err != nil || !exists {
 		return err
 	}
+	targetKind, restrictChannel, err := contactChannelScope(ctx, a.db, sub.Tenant, channelID, kind)
+	if err != nil {
+		return err
+	}
 	var c Conversation
 	q := a.db.NewSelect().Model(&c).
 		Where("tenant_id = ? AND kind = ? AND contact_id = ? AND status IN (?)",
-			sub.Tenant, Service, sub.ID, bun.In([]Status{Open, Snoozed}))
-	if kind != contact.User {
+			sub.Tenant, targetKind, sub.ID, bun.In([]Status{Open, Snoozed}))
+	if restrictChannel {
 		q = q.Where("channel_id = ?", channelID)
 	}
 	err = q.OrderExpr("last_message_at DESC, id DESC").Limit(1).Scan(ctx)

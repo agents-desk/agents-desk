@@ -40,10 +40,10 @@ export const enums = {
   },
   ChannelKind: {
     prefix: "channel.kind",
-    values: ["test", "widget", "telegram"],
+    values: ["test", "widget", "telegram", "business_link", "telegram_account"],
     labels: {
-      "en": { test: "Test channel", widget: "Website chat widget", telegram: "Telegram bot" },
-      "zh-CN": { test: "测试渠道", widget: "网页聊天插件", telegram: "Telegram 机器人" },
+      "en": { test: "Test channel", widget: "Website chat widget", telegram: "Telegram bot", business_link: "Business chat link", telegram_account: "Telegram account" },
+      "zh-CN": { test: "测试渠道", widget: "网页聊天插件", telegram: "Telegram 机器人", business_link: "商务沟通链接", telegram_account: "Telegram 个人号" },
     },
   },
   ChatMode: {
@@ -52,6 +52,14 @@ export const enums = {
     labels: {
       "en": { direct: "Direct message", group: "Group chat" },
       "zh-CN": { direct: "单聊", group: "群聊" },
+    },
+  },
+  ChatScope: {
+    prefix: "chat.scope",
+    values: ["internal", "external"],
+    labels: {
+      "en": { internal: "Internal chat", external: "Business chat" },
+      "zh-CN": { internal: "内部聊天", external: "商务沟通" },
     },
   },
   ContactKind: {

@@ -14,10 +14,11 @@ import (
 	"agents-desk/internal/tag"
 )
 
-// Actor 是接口中的参与者或发起者：类型和编号。
+// Actor 是接口中的参与者或发起者：类型、编号与可选显示名称（外部联系人消息携带姓名，便于外部群聊直接展示）。
 type Actor struct {
 	Type ActorType `json:"type"`
 	ID   string    `json:"id"`
+	Name string    `json:"name,omitempty"`
 }
 
 // ConversationDTO 是接口中的会话。
@@ -89,13 +90,18 @@ func toItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Item) ([]I
 		return out, nil
 	}
 	ids := make([]string, len(items))
-	var chIDs []string
+	var chIDs, contactActorIDs []string
 	seenCh := map[string]bool{}
+	seenCt := map[string]bool{}
 	for i := range items {
 		ids[i] = items[i].ID
 		if items[i].ChannelID != nil && !seenCh[*items[i].ChannelID] {
 			seenCh[*items[i].ChannelID] = true
 			chIDs = append(chIDs, *items[i].ChannelID)
+		}
+		if items[i].ActorType == ContactActor && items[i].ActorID != "" && !seenCt[items[i].ActorID] {
+			seenCt[items[i].ActorID] = true
+			contactActorIDs = append(contactActorIDs, items[i].ActorID)
 		}
 	}
 	var deliveries []Delivery
@@ -116,13 +122,32 @@ func toItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Item) ([]I
 			channels[rows[i].ID] = rows[i].Summary()
 		}
 	}
+	contactNames := map[string]string{}
+	if len(contactActorIDs) > 0 {
+		var rows []struct {
+			ID   string `bun:"id"`
+			Name string `bun:"name"`
+		}
+		if err := db.NewSelect().Table("contacts").Column("id", "name").Where("id IN (?)", bun.In(contactActorIDs)).Scan(ctx, &rows); err != nil {
+			return nil, errors.Wrap(err, "load item contact names")
+		}
+		for _, r := range rows {
+			if r.Name != "" {
+				contactNames[r.ID] = r.Name
+			}
+		}
+	}
 	attachments, err := loadAttachments(ctx, db, media, ids)
 	if err != nil {
 		return nil, err
 	}
 	for i, it := range items {
+		actor := Actor{Type: it.ActorType, ID: it.ActorID}
+		if it.ActorType == ContactActor {
+			actor.Name = contactNames[it.ActorID]
+		}
 		out[i] = ItemDTO{
-			ID: it.ID, Seq: it.Seq, Kind: it.Kind, Actor: Actor{Type: it.ActorType, ID: it.ActorID},
+			ID: it.ID, Seq: it.Seq, Kind: it.Kind, Actor: actor,
 			Visibility: it.Visibility, Content: it.Content, Attachments: attachments[it.ID], Derived: it.Derived, CreatedAt: it.CreatedAt,
 		}
 		if it.ChannelID != nil {

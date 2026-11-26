@@ -46,6 +46,12 @@ export const required = {
     list: ["tenant-settings:manage"],
     update: ["tenant-settings:manage"],
   },
+  business: {
+    linkCreate: ["conversations:read"],
+    linkDelete: ["conversations:read"],
+    linkList: ["conversations:read"],
+    linkUpdate: ["conversations:read"],
+  },
   channel: {
     list: ["channels:read"],
   },

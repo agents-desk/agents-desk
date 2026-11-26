@@ -50,7 +50,7 @@ func (a *SetLanguage) Handle(ctx context.Context, sub identity.Subject, id, lang
 		language = canonical
 	}
 	return change(ctx, a.db, a.down, sub, id, auth.ConversationsReply, func(ctx context.Context, tx bun.IDB, c *Conversation) ([]*Item, error) {
-		if c.Kind != Service {
+		if c.Kind != Service && !(c.Kind == Chat && c.ChannelID != nil) {
 			return nil, ErrWrongKind.New()
 		}
 		var ct *contact.Contact

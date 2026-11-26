@@ -25,6 +25,9 @@ func FrameAncestors(ctx context.Context, db bun.IDB, id string) (string, error) 
 	if err != nil {
 		return "", err
 	}
+	if ch.Kind == channel.BusinessLink {
+		return "'none'", nil
+	}
 	s, err := settingsOf(ch)
 	if err != nil {
 		return "", err

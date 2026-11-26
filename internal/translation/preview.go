@@ -83,8 +83,18 @@ func (a *Preview) Handle(ctx context.Context, sub identity.Subject, id string, b
 	if to == "" {
 		switch c.Kind {
 		case conversation.Chat:
-			if to, err = a.detectPeerLanguage(ctx, c.ID, sub.ID, from); err != nil {
-				return nil, err
+			// 外部商务聊天优先按对方或外部群的语言推导，内部聊天按其他参与成员语言推导
+			if c.Channel != nil {
+				to = c.Language
+				if to == "" {
+					if to, err = a.detect(ctx, sub, c.ID, from); err != nil {
+						return nil, err
+					}
+				}
+			} else {
+				if to, err = a.detectPeerLanguage(ctx, c.ID, sub.ID, from); err != nil {
+					return nil, err
+				}
 			}
 		case conversation.Ticket:
 			if to, err = a.detectTicketLanguage(ctx, sub.Tenant, c.ID, sub.ID, from); err != nil {

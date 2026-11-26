@@ -28,6 +28,8 @@ const (
 type SessionBody struct {
 	VisitorID string `json:"visitor_id,omitempty" maxLength:"64" doc:"上次返回的访客编号，浏览器保存它；第一次打开或编号无效时不填，返回新的编号"`
 	UserToken string `json:"user_token,omitempty" maxLength:"4096" doc:"已登录的用户：产品后端用身份验证密钥签名的 JWT（HS256），sub 是用户编号，必须有 exp，可以带 name、email"`
+	Name      string `json:"name,omitempty" maxLength:"100" doc:"可选：访客或商务沟通对方自报的称呼"`
+	Email     string `json:"email,omitempty" maxLength:"254" doc:"可选：访客或商务沟通对方自报的邮箱"`
 	TimeZone  string `json:"time_zone,omitempty" maxLength:"64" doc:"浏览器上报的 IANA 时区名，例如 Asia/Shanghai"`
 	Referrer  string `json:"referrer,omitempty" maxLength:"2048" doc:"嵌入聊天窗口的产品页面地址"`
 }
@@ -119,7 +121,7 @@ func (a *StartSession) Handle(ctx context.Context, b SessionBody, device apitoke
 			}
 			return nil
 		}
-		profile := contact.Profile{TimeZone: b.TimeZone, Referrer: b.Referrer}
+		profile := contact.Profile{Name: b.Name, Email: b.Email, TimeZone: b.TimeZone, Referrer: b.Referrer}
 		if b.VisitorID != "" {
 			var id contact.Identity
 			err := tx.NewSelect().Model(&id).Where("channel_id = ? AND external_id = ?", ch.ID, visitorPrefix+b.VisitorID).Scan(ctx)

@@ -80,7 +80,7 @@ export interface AutomationUpdateBody {
   enabled: boolean
 }
 
-export type ChannelKind = "test" | "widget" | "telegram"
+export type ChannelKind = "test" | "widget" | "telegram" | "business_link" | "telegram_account"
 
 export interface ChannelListItem {
   /** 渠道是否启用 */
@@ -88,6 +88,8 @@ export interface ChannelListItem {
   id: string
   kind: ChannelKind
   name: string
+  /** 个人商务渠道所属的成员 ID；公共客服渠道为空 */
+  owner_member_id?: string
   /** 默认进入的团队收件箱 ID */
   team_id?: string
 }
@@ -99,6 +101,8 @@ export interface ChannelSummary {
 }
 
 export type ChatMode = "direct" | "group"
+
+export type ChatScope = "internal" | "external"
 
 export interface ContactDTO {
   /** 自定义属性 */
@@ -352,6 +356,7 @@ export interface ConversationActions {
 
 export interface ConversationActor {
   id: string
+  name?: string
   type: ConversationActorType
 }
 
@@ -493,9 +498,17 @@ export interface ConversationBulkResult {
 }
 
 export interface ConversationChatDTO {
+  /** 外部商务聊天所属的个人商务渠道 */
+  channel?: ChannelSummary
+  /** 外部 1:1 商务聊天的对方联系人概要 */
+  contact?: ContactSummary
   created_at: string
   created_by?: string
+  /** 外部渠道中的会话或群聊唯一标识 */
+  external_chat_id?: string
   id: string
+  /** 外部商务聊天识别或手动设置的对方语言（BCP 47） */
+  language?: string
   last_message_at: string
   last_seq: number
   /** 按关键词搜索聊天记录时命中的代表性消息与高亮摘要 */
@@ -519,6 +532,8 @@ export interface ConversationChatDTO {
   preview_item_id?: string
   preview_untranslated?: boolean
   read_seq: number
+  /** internal（内部聊天）或 external（商务沟通） */
+  scope: ChatScope
   unread: boolean
   /** 未读消息条数 */
   unread_count: number
@@ -529,7 +544,7 @@ export interface ConversationChatParticipantDTO {
   avatar_url?: string
   id: string
   joined_at: string
-  /** 成员偏好的翻译语言（BCP 47） */
+  /** 参与者偏好的翻译语言（BCP 47） */
   language?: string
   name: string
   /** 在线状态：online 或 away */
@@ -538,7 +553,11 @@ export interface ConversationChatParticipantDTO {
 }
 
 export interface ConversationChatUnreadDTO {
-  /** 包含未读消息的聊天会话数 */
+  /** 商务沟通未读消息条数 */
+  external_unread_messages: number
+  /** 内部聊天未读消息条数 */
+  internal_unread_messages: number
+  /** 包含未读消息的聊天会话总数 */
   unread_chats: number
   /** 未读消息总条数 */
   unread_messages: number
@@ -856,9 +875,11 @@ export interface ConversationSendChatMessageBody {
   attachments?: ConversationAttachmentInput[]
   /** @ 到的成员 ID */
   mentions?: string[]
+  /** 仅商务外部聊天可用：为 true 时写为仅成员可见的内部备注，不发往外部渠道 */
+  note?: boolean
   /** 消息正文 */
   text?: string
-  /** 成员在发送前校对或微调过的某一种目标语言译文；消息正文仍保存原文，该译文直接写入派生译文供该语言成员查看 */
+  /** 发送译文：外部商务聊天对外回复时替换发出并保留原文；内部聊天与内部备注时写入派生译文供该语言成员查看 */
   translation?: ConversationTranslation
 }
 
@@ -2019,6 +2040,20 @@ export interface WidgetAppearance {
   greeting?: string
 }
 
+export interface WidgetBusinessLinkDTO {
+  /** 聊天窗口外观配置（主题色与问候语） */
+  appearance: WidgetAppearance
+  /** 发给外部商户直接打开的网页沟通地址 */
+  chat_url: string
+  created_at: string
+  /** 是否启用；停用后对方无法继续打开或发消息 */
+  enabled: boolean
+  id: string
+  /** 商务沟通链接名称，显示在对方打开的聊天窗口顶部 */
+  name: string
+  updated_at: string
+}
+
 export interface WidgetChanges {
   /** 允许嵌入聊天窗口的网站，形如 https://shop.example.com；不填时所有网站都可以嵌入 */
   allowed_origins?: string[]
@@ -2027,6 +2062,13 @@ export interface WidgetChanges {
   name: string
   /** 新会话进入的团队收件箱；不填时进入未指派 */
   team_id?: string
+}
+
+export interface WidgetCreateBusinessLinkBody {
+  /** 聊天窗口外观配置 */
+  appearance?: WidgetAppearance
+  /** 链接名称，例如：Alex 商务合作专线 */
+  name: string
 }
 
 export interface WidgetDTO {
@@ -2066,6 +2108,12 @@ export interface WidgetUpdateBody {
   team_id?: string
 }
 
+export interface WidgetUpdateBusinessLinkBody {
+  appearance?: WidgetAppearance
+  enabled: boolean
+  name: string
+}
+
 /** attribute-list 的参数。 */
 export interface AttributeListInput {
   /** 按对象筛选（conversation、contact 或 ticket）；不填返回全部 */
@@ -2080,11 +2128,15 @@ export interface ChatListInput {
   cursor?: string
   /** Items per page. */
   per_page?: number
+  /** 可选：按聊天范围筛选（internal 内部聊天，external 商务沟通） */
+  scope?: ChatScope
   /** 可选：按聊天模式筛选（direct 或 group） */
   mode?: ChatMode
+  /** 可选：按所属商务渠道 ID 筛选 */
+  channel_id?: string
   /** 可选：只返回同时包含指定成员的聊天（用于查询共同群聊） */
   member_id?: string
-  /** 按群聊名称、参与者姓名或聊天消息全文搜索 */
+  /** 按群聊名称、参与者姓名、联系人姓名或聊天消息全文搜索 */
   q?: string
 }
 
@@ -2483,6 +2535,37 @@ export function createClient(options: ClientOptions) {
       update: (id: string, body: AutomationUpdateBody): Promise<AutomationRuleDTO> =>
         rt.request<AutomationRuleDTO>({ method: "PUT", path: `/automations/${encodeURIComponent(id)}`, body }),
     },
+    /** operationId 以 business- 开头的接口。 */
+    business: {
+      /**
+       * 新建我的商务沟通链接
+       *
+       * POST /my/business-links
+       */
+      linkCreate: (body: WidgetCreateBusinessLinkBody): Promise<WidgetBusinessLinkDTO> =>
+        rt.request<WidgetBusinessLinkDTO>({ method: "POST", path: `/my/business-links`, body }),
+      /**
+       * 删除我的商务沟通链接
+       *
+       * DELETE /my/business-links/{id}
+       */
+      linkDelete: (id: string): Promise<void> =>
+        rt.request<void>({ method: "DELETE", path: `/my/business-links/${encodeURIComponent(id)}` }),
+      /**
+       * 我的商务沟通链接列表
+       *
+       * GET /my/business-links
+       */
+      linkList: (): Promise<WidgetBusinessLinkDTO[]> =>
+        rt.request<WidgetBusinessLinkDTO[]>({ method: "GET", path: `/my/business-links` }),
+      /**
+       * 修改我的商务沟通链接
+       *
+       * PUT /my/business-links/{id}
+       */
+      linkUpdate: (id: string, body: WidgetUpdateBusinessLinkBody): Promise<WidgetBusinessLinkDTO> =>
+        rt.request<WidgetBusinessLinkDTO>({ method: "PUT", path: `/my/business-links/${encodeURIComponent(id)}`, body }),
+    },
     /** operationId 以 channel- 开头的接口。 */
     channel: {
       /**
@@ -2529,7 +2612,7 @@ export function createClient(options: ClientOptions) {
        * GET /chats
        */
       list: (input: ChatListInput = {}): Promise<CursorConversationChatDTO> =>
-        rt.request<CursorConversationChatDTO>({ method: "GET", path: `/chats`, query: { "cursor": input["cursor"], "member_id": input["member_id"], "mode": input["mode"], "per_page": input["per_page"], "q": input["q"] } }),
+        rt.request<CursorConversationChatDTO>({ method: "GET", path: `/chats`, query: { "channel_id": input["channel_id"], "cursor": input["cursor"], "member_id": input["member_id"], "mode": input["mode"], "per_page": input["per_page"], "q": input["q"], "scope": input["scope"] } }),
       /**
        * 发送内部聊天消息
        *

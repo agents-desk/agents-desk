@@ -179,6 +179,8 @@ channel.media_unavailable: 外部渠道上的媒体已失效或无法拉取
 channel.kind.test: 测试渠道
 channel.kind.widget: 网页聊天插件
 channel.kind.telegram: Telegram 机器人
+channel.kind.business_link: 商务沟通链接
+channel.kind.telegram_account: Telegram 个人号
 telegram.team_not_found: 团队收件箱不存在
 telegram.invalid_bot_token: Telegram Bot Token 无效，请核对后重试
 telegram.webhook_failed: "设置 Telegram Webhook 失败：{{.reason}}"
@@ -201,6 +203,7 @@ widget.invalid_user_token: 用户身份的签名无效或已过期
 widget.team_not_found: 团队收件箱不存在
 widget.invalid_origin: "“{{.origin}}”要写成 https:// 或 http:// 开头、只有域名的地址，例如 https://shop.example.com"
 widget.invalid_color: "“{{.color}}”不是有效的颜色，请填写 #rrggbb 十六进制颜色值"
+widget.business_link_in_use: "该商务沟通链接已有聊天或联系人记录，不能删除，可以改为停用"
 widget.title: 网页聊天插件
 widget.fields.id: ID
 widget.fields.name: 名称
@@ -490,8 +493,12 @@ ticket.status.waiting_on_customer: 等待客户
 ticket.status.resolved: 已解决
 chat.mode.direct: 单聊
 chat.mode.group: 群聊
+chat.scope.internal: 内部聊天
+chat.scope.external: 商务沟通
 chat.group_only: 该操作仅适用于群聊
 chat.self_direct: 不能与自己发起单聊
 chat.unsupported_participant: 不支持的参与者类型
 chat.not_participant: 该成员不在这个群聊中
 chat.name_required: 群聊名称不能为空
+chat.owner_protected: 不能移出该商务渠道的归属成员
+chat.contact_protected: 不能移出外部联系人参与者
