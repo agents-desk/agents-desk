@@ -312,6 +312,13 @@ export interface PlatformsettingsPublicSite {
   site_name: string
 }
 
+export interface PlatformsettingsTelegram {
+  /** Telegram 应用 API Hash，落库时自动加密保存 */
+  api_hash: string
+  /** Telegram 应用 API ID（在 my.telegram.org 申请）；填 0 表示暂不启用个人号绑定 */
+  api_id: number
+}
+
 export interface QueueBulkResult {
   /** 处理的条数 */
   count: number
@@ -983,6 +990,23 @@ export function createClient(options: ClientOptions) {
        */
       doctor: (): Promise<DoctorReport> =>
         rt.request<DoctorReport>({ method: "GET", path: `/system/doctor` }),
+    },
+    /** operationId 以 telegram- 开头的接口。 */
+    telegram: {
+      /**
+       * 读取 Telegram API 凭据设置
+       *
+       * GET /settings/telegram
+       */
+      settingsGet: (): Promise<PlatformsettingsTelegram> =>
+        rt.request<PlatformsettingsTelegram>({ method: "GET", path: `/settings/telegram` }),
+      /**
+       * 保存 Telegram API 凭据设置
+       *
+       * PUT /settings/telegram
+       */
+      settingsUpdate: (body: PlatformsettingsTelegram): Promise<PlatformsettingsTelegram> =>
+        rt.request<PlatformsettingsTelegram>({ method: "PUT", path: `/settings/telegram`, body }),
     },
     /** operationId 以 tenant- 开头的接口。 */
     tenant: {

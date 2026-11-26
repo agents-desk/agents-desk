@@ -318,6 +318,30 @@ export const enums = {
       "zh-CN": { active: "正常", disabled: "已停用" },
     },
   },
+  TgaccountLoginMode: {
+    prefix: "tgaccount.login_mode",
+    values: ["qr", "phone"],
+    labels: {
+      "en": { qr: "QR code", phone: "Phone code" },
+      "zh-CN": { qr: "扫码登录", phone: "手机号验证码" },
+    },
+  },
+  TgaccountLoginStep: {
+    prefix: "tgaccount.login_step",
+    values: ["awaiting_qr", "awaiting_code", "awaiting_password", "connected", "failed"],
+    labels: {
+      "en": { awaiting_qr: "Waiting for QR scan", awaiting_code: "Waiting for code", awaiting_password: "Waiting for 2FA password", connected: "Connected", failed: "Failed" },
+      "zh-CN": { awaiting_qr: "等待扫码", awaiting_code: "等待验证码", awaiting_password: "等待两步验证密码", connected: "已连接", failed: "登录失败" },
+    },
+  },
+  TgaccountStatus: {
+    prefix: "tgaccount.status",
+    values: ["connected", "disconnected", "auth_expired"],
+    labels: {
+      "en": { connected: "Connected", disconnected: "Disconnected", auth_expired: "Auth expired" },
+      "zh-CN": { connected: "已连接", disconnected: "已断开", auth_expired: "授权已过期" },
+    },
+  },
   TicketStatus: {
     prefix: "ticket.status",
     values: ["submitted", "in_progress", "waiting_on_customer", "resolved"],

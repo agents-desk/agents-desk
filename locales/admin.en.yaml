@@ -75,6 +75,7 @@ settings.logo_remove: "Remove"
 settings.logo_upload: "Upload image"
 settings.logo_upload_failed: "Upload failed"
 settings.mail_description: "Configure Resend for outgoing email. The sender domain must be verified in Resend; leave the API key empty to log emails without sending."
+settings.telegram_description: "Configure Telegram app API ID and API Hash from my.telegram.org so workspace members can connect personal Telegram accounts for B2B chats. Leave empty to disable."
 
 overview.admins_hint: "{{.active}} active · {{.disabled}} disabled"
 overview.admins_label: "Platform admins"

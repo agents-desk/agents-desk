@@ -4,7 +4,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { type FieldInput, notifyError, SecretInput, SettingsPage, useT } from "@go-tenon/ui"
 import { useEffect, useState } from "react"
 import { api, kit } from "../../../api"
-import { generalSettings, mailSettings } from "../../../resources"
+import { generalSettings, mailSettings, telegramApiSettings } from "../../../resources"
 
 // 系统设置：通过框架的 SettingsPage 把常规设置和邮件服务（Resend）合并为多标签页，字段和校验来自 Go 声明。
 export const Route = createFileRoute("/_app/settings/general")({
@@ -17,6 +17,19 @@ const APIKeyField: FieldInput = ({ field, label, value, onChange, error, disable
   <SecretInput
     label={label}
     placeholder="re_..."
+    required={field.required}
+    error={error}
+    disabled={disabled}
+    value={(value as string) ?? ""}
+    onChange={(e) => onChange?.(e.currentTarget.value)}
+  />
+)
+
+// Telegram API Hash 使用框架的 SecretInput（默认掩码，可切换显示）。
+const APIHashField: FieldInput = ({ field, label, value, onChange, error, disabled }) => (
+  <SecretInput
+    label={label}
+    placeholder="0123456789abcdef..."
     required={field.required}
     error={error}
     disabled={disabled}
@@ -103,6 +116,7 @@ function GeneralSettingsPage() {
       groups={[
         { model: generalSettings, description: t("settings.general_description"), inputs: { logo_file_id: LogoField } },
         { model: mailSettings, description: t("settings.mail_description"), inputs: { api_key: APIKeyField } },
+        { model: telegramApiSettings, description: t("settings.telegram_description"), inputs: { api_hash: APIHashField } },
       ]}
     />
   )

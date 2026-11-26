@@ -12,16 +12,20 @@ require (
 	github.com/go-tenon/tenon v1.10.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
+	github.com/gotd/td v0.166.1
 	github.com/nats-io/nats.go v1.55.0
 	github.com/spf13/cobra v1.10.2
 	github.com/uptrace/bun v1.3.0
 	go.yaml.in/yaml/v4 v4.0.0
+	golang.org/x/sync v0.25.0
 	golang.org/x/text v0.44.0
+	rsc.io/qr v0.2.0
 )
 
 require (
 	code.dny.dev/ssrf v0.3.0 // indirect
 	github.com/adhocore/gronx v1.20.7 // indirect
+	github.com/andybalholm/brotli v1.3.0 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.48.0 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.27 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.33.19 // indirect
@@ -41,6 +45,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.52.0 // indirect
 	github.com/aws/smithy-go v1.28.9 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/centrifugal/centrifuge v0.40.1 // indirect
 	github.com/centrifugal/fdelta v0.0.3 // indirect
@@ -50,12 +55,22 @@ require (
 	github.com/cockroachdb/logtags v0.0.0-20241215232642-bb51bb14a506 // indirect
 	github.com/cockroachdb/redact v1.1.8 // indirect
 	github.com/coreos/go-systemd/v22 v22.7.0 // indirect
+	github.com/dlclark/regexp2 v1.12.0 // indirect
+	github.com/fatih/color v1.19.0 // indirect
 	github.com/getsentry/sentry-go v0.50.0 // indirect
+	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-ego/gse v1.3.1 // indirect
+	github.com/go-faster/errors v0.8.0 // indirect
+	github.com/go-faster/jx v1.2.0 // indirect
+	github.com/go-faster/xor v1.0.0 // indirect
+	github.com/go-faster/yaml v0.4.6 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/jsonschema-go v0.4.3 // indirect
+	github.com/gotd/ige v0.3.0 // indirect
+	github.com/gotd/log v0.1.0 // indirect
+	github.com/gotd/neo v0.1.5 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.33.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -68,6 +83,8 @@ require (
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lmittmann/tint v1.2.1 // indirect
+	github.com/mattn/go-colorable v0.1.16 // indirect
+	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/maypok86/otter/v2 v2.4.0 // indirect
 	github.com/mfridman/interpolate v0.2.0 // indirect
 	github.com/modelcontextprotocol/go-sdk v1.8.0 // indirect
@@ -75,6 +92,7 @@ require (
 	github.com/nats-io/nkeys v0.4.16 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/nicksnyder/go-i18n/v2 v2.7.0 // indirect
+	github.com/ogen-go/ogen v1.23.0 // indirect
 	github.com/openai/openai-go v1.12.0 // indirect
 	github.com/pandatix/go-abnf v0.5.5 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -87,6 +105,7 @@ require (
 	github.com/quagmt/udecimal v1.11.0 // indirect
 	github.com/redis/go-redis/v9 v9.23.0 // indirect
 	github.com/redis/rueidis v1.0.79 // indirect
+	github.com/refraction-networking/utls v1.8.2 // indirect
 	github.com/resend/resend-go/v3 v3.17.0 // indirect
 	github.com/richardlehane/mscfb v1.0.9 // indirect
 	github.com/richardlehane/msoleps v1.0.6 // indirect
@@ -100,6 +119,7 @@ require (
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect
 	github.com/sethvargo/go-retry v0.5.0 // indirect
+	github.com/shopspring/decimal v1.6.0 // indirect
 	github.com/spf13/pflag v1.1.0 // indirect
 	github.com/tidwall/gjson v1.20.3 // indirect
 	github.com/tidwall/match v1.2.0 // indirect
@@ -115,6 +135,7 @@ require (
 	github.com/xuri/excelize/v2 v2.11.1 // indirect
 	github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
+	github.com/yuin/goldmark v1.8.7 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/bridges/otelslog v0.21.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.72.0 // indirect
@@ -132,19 +153,21 @@ require (
 	go.opentelemetry.io/proto/otlp v1.11.1 // indirect
 	go.uber.org/atomic v1.12.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
+	go.uber.org/zap v1.28.0 // indirect
 	golang.org/x/crypto v0.59.0 // indirect
+	golang.org/x/exp v0.0.0-20261109185158-a52e3aef5920 // indirect
 	golang.org/x/mod v0.43.0 // indirect
 	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/oauth2 v0.38.0 // indirect
-	golang.org/x/sync v0.25.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/term v0.48.0 // indirect
 	golang.org/x/time v0.16.0 // indirect
-	golang.org/x/tools v0.52.0 // indirect
+	golang.org/x/tools v0.52.1-0.20261106145633-d407941a339a // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20261118221215-c8830f628b3f // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20261118221215-c8830f628b3f // indirect
 	google.golang.org/grpc v1.85.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
 tool github.com/go-tenon/tenon/cmd/tenon
