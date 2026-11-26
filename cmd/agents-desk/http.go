@@ -325,7 +325,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		team.RegisterRoutes(api, require, a.db, a.roles, a.memberLogins, a.files)
 		channel.RegisterRoutes(api, require, a.db)
 		down := a.downstream()
-		contact.RegisterRoutes(api, require, a.db, a.hub, a.roles, a.exporter, conversation.OnContactMerged(down))
+		contact.RegisterRoutes(api, require, a.db, a.hub, a.roles, a.exporter, conversation.OnContactMerge(down))
 		tag.RegisterRoutes(api, require, a.db)
 		attribute.RegisterRoutes(api, require, a.db)
 		tickettype.RegisterRoutes(api, require, a.db)

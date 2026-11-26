@@ -250,11 +250,6 @@ export const schemas = {
         "type": "object"
       },
     },
-    merge: {
-      body: {
-        "$ref": "#/components/schemas/ConversationMergeBody"
-      },
-    },
     note: {
       body: {
         "$ref": "#/components/schemas/ConversationNoteBody"
@@ -1211,9 +1206,6 @@ export const components = {
   ContactMergeBody: {
     "additionalProperties": false,
     "properties": {
-      "merge_active_conversations": {
-        "type": "boolean"
-      },
       "source_id": {
         "format": "uuid",
         "type": "string"
@@ -1697,19 +1689,6 @@ export const components = {
     },
     "required": [
       "conversation_id"
-    ],
-    "type": "object"
-  },
-  ConversationMergeBody: {
-    "additionalProperties": false,
-    "properties": {
-      "source_id": {
-        "format": "uuid",
-        "type": "string"
-      }
-    },
-    "required": [
-      "source_id"
     ],
     "type": "object"
   },
@@ -2855,19 +2834,6 @@ export const components = {
     },
     "type": "object"
   },
-  WidgetBehavior: {
-    "additionalProperties": false,
-    "properties": {
-      "conversation_mode": {
-        "enum": [
-          "multiple",
-          "single"
-        ],
-        "type": "string"
-      }
-    },
-    "type": "object"
-  },
   WidgetChanges: {
     "additionalProperties": false,
     "properties": {
@@ -2880,9 +2846,6 @@ export const components = {
       },
       "appearance": {
         "$ref": "#/components/schemas/WidgetAppearance"
-      },
-      "behavior": {
-        "$ref": "#/components/schemas/WidgetBehavior"
       },
       "name": {
         "maxLength": 60,
@@ -2911,9 +2874,6 @@ export const components = {
       },
       "appearance": {
         "$ref": "#/components/schemas/WidgetAppearance"
-      },
-      "behavior": {
-        "$ref": "#/components/schemas/WidgetBehavior"
       },
       "enabled": {
         "type": "boolean"

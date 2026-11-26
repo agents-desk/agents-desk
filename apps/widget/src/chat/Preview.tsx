@@ -1,4 +1,4 @@
-import type { ConversationContactConversationDTO, WidgetAppearance, WidgetBehavior } from "@agents-desk/client/widget"
+import type { WidgetAppearance } from "@agents-desk/client/widget"
 import { Box, Stack } from "@mantine/core"
 import { useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react"
@@ -6,14 +6,13 @@ import { DEFAULT_WIDGET_COLOR, isValidHexColor, useSetWidgetBrand } from "../the
 import { Composer } from "./Composer"
 import { Bubble } from "./Conversation"
 import { Header } from "./Header"
-import { Home } from "./Home"
 import { Launcher } from "./Launcher"
 
 /** PREFIX 是工作区配置工作台与预览窗口之间 postMessage 的消息前缀。 */
 const PREFIX = "agents-desk:"
 
-/** PreviewScene 是预览窗口展示的页面场景：首页、对话中、收起态（启动气泡）。 */
-type PreviewScene = "home" | "conversation" | "launcher"
+/** PreviewScene 是预览窗口展示的页面场景：对话中或收起态启动气泡。 */
+type PreviewScene = "conversation" | "launcher"
 
 /** PreviewViewport 是预览窗口模拟的宿主视口形态：桌面浮窗或手机全屏。 */
 type PreviewViewport = "desktop" | "mobile"
@@ -22,7 +21,6 @@ type PreviewViewport = "desktop" | "mobile"
 interface PreviewState {
   name: string
   appearance: WidgetAppearance
-  behavior: WidgetBehavior
   scene: PreviewScene
   viewport: PreviewViewport
 }
@@ -44,7 +42,7 @@ function notifyParent(type: "preview_ready" | "preview_scene", data: Record<stri
 
 /**
  * Preview 是网页聊天插件的纯客户端可交互预览壳（挂载于 /widget/preview）。
- * 复用真实的 Header、Home、Bubble、Composer、Launcher 组件与根主题，以本地示例数据驱动交互预览。
+ * 复用真实的 Header、Bubble、Composer、Launcher 组件与根主题，以本地示例数据驱动单一连续对话流预览。
  */
 export function Preview(): ReactNode {
   const t = useT()
@@ -52,8 +50,7 @@ export function Preview(): ReactNode {
   const [state, setState] = useState<PreviewState>({
     name: "",
     appearance: { color: DEFAULT_WIDGET_COLOR, greeting: "" },
-    behavior: { conversation_mode: "multiple" },
-    scene: "home",
+    scene: "conversation",
     viewport: "desktop",
   })
   const [extraMessages, setExtraMessages] = useState<PreviewMessage[]>([])
@@ -66,15 +63,12 @@ export function Preview(): ReactNode {
       if (!e.data || e.data.type !== `${PREFIX}preview`) return
       const nextColor = typeof e.data.appearance?.color === "string" ? e.data.appearance.color : DEFAULT_WIDGET_COLOR
       const nextGreeting = typeof e.data.appearance?.greeting === "string" ? e.data.appearance.greeting : ""
-      const nextMode: WidgetBehavior["conversation_mode"] = e.data.behavior?.conversation_mode === "single" ? "single" : "multiple"
-      const nextScene: PreviewScene =
-        e.data.scene === "conversation" || e.data.scene === "launcher" ? e.data.scene : "home"
+      const nextScene: PreviewScene = e.data.scene === "launcher" ? "launcher" : "conversation"
       const nextViewport: PreviewViewport = e.data.viewport === "mobile" ? "mobile" : "desktop"
       setState({
         name: typeof e.data.name === "string" ? e.data.name : "",
         appearance: { color: nextColor, greeting: nextGreeting },
-        behavior: { conversation_mode: nextMode },
-        scene: nextMode === "single" && nextScene === "home" ? "conversation" : nextScene,
+        scene: nextViewport === "mobile" && nextScene === "launcher" ? "conversation" : nextScene,
         viewport: nextViewport,
       })
     }
@@ -106,35 +100,6 @@ export function Preview(): ReactNode {
     const el = scrollRef.current
     if (el) el.scrollTop = el.scrollHeight
   }, [extraMessages.length, state.scene])
-
-  const sampleConversations = useMemo<ConversationContactConversationDTO[]>(() => {
-    const now = new Date().toISOString()
-    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-    return [
-      {
-        id: "preview-1",
-        status: "open",
-        unread: 1,
-        created_at: now,
-        last_message_at: now,
-        last_seq: 2,
-        preview: t("preview.sample_agent_reply"),
-        preview_author: { type: "member", name: t("preview.agent_name") },
-        rating_requested: false,
-      },
-      {
-        id: "preview-2",
-        status: "closed",
-        unread: 0,
-        created_at: yesterday,
-        last_message_at: yesterday,
-        last_seq: 4,
-        preview: t("preview.sample_prev_msg"),
-        preview_author: { type: "contact", name: "" },
-        rating_requested: false,
-      },
-    ]
-  }, [t])
 
   const sampleMessages = useMemo<PreviewMessage[]>(
     () => [
@@ -172,69 +137,54 @@ export function Preview(): ReactNode {
   const title = state.name.trim() || t("app.widget")
   const greeting = state.appearance.greeting?.trim() || t("home.default_greeting")
   const full = state.viewport === "mobile"
-  const single = state.behavior.conversation_mode === "single"
 
   // 桌面收起态仅渲染右下角启动按钮。
   if (!full && state.scene === "launcher") {
     return (
       <Box className="w-dock">
-        <Launcher color={color} open={false} unread={1} onClick={() => switchScene(single ? "conversation" : "home")} />
+        <Launcher color={color} open={false} unread={1} onClick={() => switchScene("conversation")} />
       </Box>
     )
   }
 
   const closeMode: "collapse" | "close" = full ? "close" : "collapse"
-  const onClose = () => switchScene(full ? (single ? "conversation" : "home") : "launcher")
+  const onClose = () => switchScene(full ? "conversation" : "launcher")
 
   const panel = (
     <Box className="w-panel" data-full={full || undefined}>
-      {single || state.scene === "conversation" ? (
-        <Box key="conversation" className="w-view">
-          <Header
-            color={color}
-            title={title}
-            status={t("chat.status_open")}
-            onBack={single ? undefined : () => switchScene("home")}
-            close={closeMode}
-            onClose={onClose}
-          />
-          <Box className="w-scroll-wrap">
-            <Box ref={scrollRef} className="w-scroll" p="md">
-              <Stack gap="sm">
-                {sampleMessages.map((m) => (
-                  <Bubble
-                    key={m.id}
-                    mine={m.mine}
-                    author={m.author}
-                    text={m.text}
-                    meta={m.time}
-                    color={color}
-                    onPreview={() => {}}
-                  />
-                ))}
-              </Stack>
-            </Box>
+      <Box key="conversation" className="w-view">
+        <Header
+          color={color}
+          title={title}
+          greeting={greeting}
+          close={closeMode}
+          onClose={onClose}
+        />
+        <Box className="w-scroll-wrap">
+          <Box ref={scrollRef} className="w-scroll" p="md">
+            <Stack gap="sm">
+              {sampleMessages.map((m) => (
+                <Bubble
+                  key={m.id}
+                  mine={m.mine}
+                  author={m.author}
+                  text={m.text}
+                  meta={m.time}
+                  color={color}
+                  onPreview={() => {}}
+                />
+              ))}
+            </Stack>
           </Box>
-          <Composer
-            color={color}
-            touch={full}
-            placeholder={t("composer.placeholder")}
-            allowAttachments={false}
-            onSend={handleSend}
-          />
         </Box>
-      ) : (
-        <Box key="home" className="w-view">
-          <Header color={color} title={title} greeting={greeting} close={closeMode} onClose={onClose} />
-          <Home
-            color={color}
-            name={title}
-            conversations={sampleConversations}
-            onOpen={() => switchScene("conversation")}
-            onNew={() => switchScene("conversation")}
-          />
-        </Box>
-      )}
+        <Composer
+          color={color}
+          touch={full}
+          placeholder={t("composer.placeholder")}
+          allowAttachments={false}
+          onSend={handleSend}
+        />
+      </Box>
     </Box>
   )
 

@@ -211,8 +211,6 @@ export interface ContactIdentityDTO {
 export type ContactKind = "user" | "lead"
 
 export interface ContactMergeBody {
-  /** 合并联系人时是否同时把两者正在进行中的服务型会话合并为同一条会话 */
-  merge_active_conversations?: boolean
   /** 要被合并进来的来源联系人 ID（合并后删除） */
   source_id: string
 }
@@ -652,11 +650,6 @@ export interface ConversationLinkedConversationDTO {
   relation: TicketLinkRelation
   status: ConversationStatus
   team_id?: string
-}
-
-export interface ConversationMergeBody {
-  /** 要被合并进来的来源会话 ID（合并后删除） */
-  source_id: string
 }
 
 export interface ConversationNoteBody {
@@ -1916,18 +1909,11 @@ export interface WidgetAppearance {
   greeting?: string
 }
 
-export interface WidgetBehavior {
-  /** 会话模式：multiple 允许多个会话，single 仅保留单一对话流，缺省为 multiple */
-  conversation_mode?: "multiple" | "single"
-}
-
 export interface WidgetChanges {
   /** 允许嵌入聊天窗口的网站，形如 https://shop.example.com；不填时所有网站都可以嵌入 */
   allowed_origins?: string[]
   /** 聊天窗口的外观配置 */
   appearance?: WidgetAppearance
-  /** 聊天窗口的交互行为配置 */
-  behavior?: WidgetBehavior
   name: string
   /** 新会话进入的团队收件箱；不填时进入未指派 */
   team_id?: string
@@ -1938,8 +1924,6 @@ export interface WidgetDTO {
   allowed_origins: string[]
   /** 聊天窗口的外观配置 */
   appearance: WidgetAppearance
-  /** 聊天窗口的交互行为配置 */
-  behavior: WidgetBehavior
   created_at: string
   /** 停用后聊天窗口不再显示，客户不能再发消息 */
   enabled: boolean
@@ -1965,8 +1949,6 @@ export interface WidgetUpdateBody {
   allowed_origins?: string[]
   /** 聊天窗口的外观配置 */
   appearance?: WidgetAppearance
-  /** 聊天窗口的交互行为配置 */
-  behavior?: WidgetBehavior
   /** 停用后聊天窗口不再显示，客户不能再发消息 */
   enabled: boolean
   name: string
@@ -2581,13 +2563,6 @@ export function createClient(options: ClientOptions) {
        */
       list: (input: ConversationListInput = {}): Promise<CursorConversationDTO> =>
         rt.request<CursorConversationDTO>({ method: "GET", path: `/conversations`, query: { "assignee_id": input["assignee_id"], "channel_id": input["channel_id"], "contact_id": input["contact_id"], "cursor": input["cursor"], "filter": input["filter"], "inbox": input["inbox"], "per_page": input["per_page"], "priority": input["priority"], "sort": input["sort"], "status": input["status"], "tag_id": input["tag_id"], "team_id": input["team_id"], "view_id": input["view_id"] } }),
-      /**
-       * 合并另一个会话到当前会话
-       *
-       * POST /conversations/{id}/merge
-       */
-      merge: (id: string, body: ConversationMergeBody): Promise<ConversationDTO> =>
-        rt.request<ConversationDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/merge`, body }),
       /**
        * 写内部备注
        *

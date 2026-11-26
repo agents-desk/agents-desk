@@ -45,27 +45,6 @@ func normalizeAppearance(in Appearance) (Appearance, error) {
 	}, nil
 }
 
-// normalizeBehavior 校验并标准化聊天窗口的交互行为配置。
-func normalizeBehavior(in Behavior) (Behavior, error) {
-	mode := ConversationMode(strings.TrimSpace(string(in.ConversationMode)))
-	switch mode {
-	case "", MultipleConversations:
-		return Behavior{ConversationMode: MultipleConversations}, nil
-	case SingleConversation:
-		return Behavior{ConversationMode: SingleConversation}, nil
-	default:
-		return Behavior{}, ErrInvalidConversationMode.New(errorx.Field("behavior.conversation_mode"), errorx.Public("mode", string(mode)))
-	}
-}
-
-// Schema 声明 OpenAPI 中的 ConversationMode 只接受 multiple 或 single。
-func (ConversationMode) Schema(huma.Registry) *huma.Schema {
-	return &huma.Schema{
-		Type: huma.TypeString,
-		Enum: []any{string(MultipleConversations), string(SingleConversation)},
-	}
-}
-
 // isHexColor 报告 s 是否为 #rrggbb 形式的 6 位十六进制颜色值。
 func isHexColor(s string) bool {
 	if len(s) != 7 || s[0] != '#' {
@@ -89,15 +68,6 @@ func (s Settings) appearance() Appearance {
 	return app
 }
 
-// behavior 返回设置中的交互行为配置，缺省会话模式填充为 MultipleConversations。
-func (s Settings) behavior() Behavior {
-	b := s.Behavior
-	if b.ConversationMode == "" {
-		b.ConversationMode = MultipleConversations
-	}
-	return b
-}
-
 // origins 返回设置中允许嵌入的网站，缺省为空切片。
 func (s Settings) origins() []string {
 	if s.AllowedOrigins == nil {
@@ -118,7 +88,6 @@ type WidgetDTO struct {
 	TeamID     *string    `json:"team_id,omitempty" doc:"新会话进入的团队收件箱；为空时进入未指派"`
 	TeamName   string     `json:"team_name" doc:"新会话进入的团队收件箱的名称；未指派时为空"`
 	Appearance Appearance `json:"appearance" doc:"聊天窗口的外观配置"`
-	Behavior   Behavior   `json:"behavior" doc:"聊天窗口的交互行为配置"`
 	// AllowedOrigins 是允许嵌入聊天窗口的网站
 	AllowedOrigins []string  `json:"allowed_origins" doc:"允许嵌入聊天窗口的网站；为空表示所有网站"`
 	Enabled        bool      `json:"enabled" doc:"停用后聊天窗口不再显示，客户不能再发消息"`
@@ -195,7 +164,7 @@ func toDTOs(ctx context.Context, db bun.IDB, chs []channel.Channel) ([]WidgetDTO
 			return nil, err
 		}
 		out[i] = WidgetDTO{
-			ID: ch.ID, Name: ch.Name, TeamID: ch.TeamID, Appearance: s.appearance(), Behavior: s.behavior(), AllowedOrigins: s.origins(),
+			ID: ch.ID, Name: ch.Name, TeamID: ch.TeamID, Appearance: s.appearance(), AllowedOrigins: s.origins(),
 			Enabled: ch.Enabled, CreatedAt: ch.CreatedAt,
 		}
 		if ch.TeamID != nil {

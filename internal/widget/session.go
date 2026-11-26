@@ -101,6 +101,10 @@ func (a *StartSession) Handle(ctx context.Context, b SessionBody, device apitoke
 				var id contact.Identity
 				err := tx.NewSelect().Model(&id).Where("channel_id = ? AND external_id = ?", ch.ID, visitorPrefix+b.VisitorID).Scan(ctx)
 				if err == nil && id.ContactID != person.ID {
+					sys := identity.Subject{Type: identity.System, ID: "widget:" + ch.ID, Tenant: ch.TenantID}
+					if err := conversation.MergeActiveBetweenContacts(ctx, tx, a.down, sys, person.ID, id.ContactID); err != nil {
+						return err
+					}
 					var convIDs []string
 					person, convIDs, err = contact.MergeLead(ctx, tx, ch.TenantID, id.ContactID, person.ID, ch.ID, visitorPrefix+b.VisitorID)
 					if err != nil {

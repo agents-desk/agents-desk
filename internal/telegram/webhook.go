@@ -197,6 +197,8 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		extUserID = extUserID[:200]
 	}
 
+	sys := identity.Subject{Type: identity.System, ID: "telegram:" + ch.ID, Tenant: ch.TenantID}
+
 	// 可信外部网关附带了产品用户编号时，先关联或合并联系人，打通网页端与 Telegram 同一客户档案。
 	if extUserID != "" {
 		profileName := firstNonEmpty(extName, fromName)
@@ -204,7 +206,7 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			_, convIDs, err := contact.LinkUser(ctx, tx, ch.TenantID, ch.ID, chatID, extUserID, contact.Profile{
 				Name:  profileName,
 				Email: extEmail,
-			})
+			}, conversation.BeforeContactMerge(h.down, sys))
 			if err != nil {
 				return err
 			}
@@ -217,7 +219,6 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	sys := identity.Subject{Type: identity.System, ID: "telegram:" + ch.ID, Tenant: ch.TenantID}
 	text := strings.TrimSpace(firstNonEmpty(msg.Text, msg.Caption))
 	incoming, fallbackText := extractIncomingAttachments(msg)
 	if text == "" && len(incoming) == 0 {

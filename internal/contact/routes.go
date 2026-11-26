@@ -15,11 +15,11 @@ import (
 )
 
 // RegisterRoutes 在工作区的 API（/t/{slug}/api）中注册联系人的列表、概览、视图、导出、读取、修改和合并接口。
-// require 返回要求成员登录凭据和给定权限的访问策略；onMerged 可选，在手动合并联系人后同步处理会话。
-func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.Operation), db *bun.DB, hub *broadcast.Hub, roles *authz.Store, exporter *exports.Service, onMerged ...MergeHook) {
-	var hook MergeHook
-	if len(onMerged) > 0 {
-		hook = onMerged[0]
+// require 返回要求成员登录凭据和给定权限的访问策略；hooks 可选，在手动合并联系人时归并双活会话并推送刷新。
+func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.Operation), db *bun.DB, hub *broadcast.Hub, roles *authz.Store, exporter *exports.Service, hooks ...MergeHooks) {
+	var h MergeHooks
+	if len(hooks) > 0 {
+		h = hooks[0]
 	}
 	route := func(access func(*huma.Operation), id, method, path, summary string) huma.Operation {
 		op := huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary}
@@ -52,5 +52,5 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	rest.Register(api, route(read, "contact-list", http.MethodGet, "/contacts", "联系人列表"), NewList(db).HTTP)
 	rest.Register(api, route(read, "contact-get", http.MethodGet, "/contacts/{id}", "读取联系人"), NewGet(db).HTTP)
 	rest.Register(api, route(update, "contact-update", http.MethodPut, "/contacts/{id}", "修改联系人资料"), NewUpdate(db).HTTP)
-	rest.Register(api, route(update, "contact-merge", http.MethodPost, "/contacts/{id}/merge", "合并联系人"), NewMerge(db, hook).HTTP)
+	rest.Register(api, route(update, "contact-merge", http.MethodPost, "/contacts/{id}/merge", "合并联系人"), NewMerge(db, h).HTTP)
 }

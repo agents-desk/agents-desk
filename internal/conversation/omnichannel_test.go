@@ -14,16 +14,16 @@ import (
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
+	"agents-desk/internal/tickettype"
 )
 
-// omniStubConnector 是测试多渠道投递的桩连接器，可配置多会话能力并记录发出消息。
+// omniStubConnector 是测试多渠道投递的桩连接器，记录发出消息。
 type omniStubConnector struct {
-	multi bool
-	sent  []channel.Outgoing
+	sent []channel.Outgoing
 }
 
 func (c *omniStubConnector) Capabilities() channel.Capabilities {
-	return channel.Capabilities{MessageTypes: []string{"text"}, MultipleConversations: c.multi}
+	return channel.Capabilities{MessageTypes: []string{"text"}}
 }
 
 func (c *omniStubConnector) Send(_ context.Context, m channel.Outgoing) (string, bool, error) {
@@ -38,8 +38,8 @@ func TestOmnichannelAutoMergeReplyAndContactView(t *testing.T) {
 	f := setup(t, env, "acme")
 	tenantID, agent, sys := f.system.Tenant, f.agent, f.system
 
-	widgetConn := &omniStubConnector{multi: true}
-	tgConn := &omniStubConnector{multi: false}
+	widgetConn := &omniStubConnector{}
+	tgConn := &omniStubConnector{}
 	reg := channel.Registry{
 		channel.Widget:   widgetConn,
 		channel.Telegram: tgConn,
@@ -85,7 +85,7 @@ func TestOmnichannelAutoMergeReplyAndContactView(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// 2. 同一用户紧接着在 Telegram 发消息：应自动归入同一条会话
+	// 2. 同一用户紧接着在 Telegram 发消息：应自动归入同一条活跃会话
 	r2, err := receive.Handle(ctx, sys, conversation.ReceiveParams{
 		ChannelID: tgCh.ID, From: "tg-100", Text: "TG 追问：订单号 888",
 	})
@@ -96,7 +96,7 @@ func TestOmnichannelAutoMergeReplyAndContactView(t *testing.T) {
 		t.Fatalf("期望跨渠道自动归入同一会话 %s，实际新建了 %s", r1.ConversationID, r2.ConversationID)
 	}
 
-	// 3. 检查会话 DTO：来源渠道为官网、默认回复渠道自动更新为 Telegram，Channels 包含两者，AvailableChannels 包含两者
+	// 3. 检查会话 DTO：来源渠道为官网、默认回复渠道自动更新为 Telegram，Channels 与 AvailableChannels 均包含两者
 	dto, err := get.Handle(ctx, agent, r1.ConversationID)
 	if err != nil {
 		t.Fatal(err)
@@ -168,7 +168,7 @@ func TestOmnichannelAutoMergeReplyAndContactView(t *testing.T) {
 		t.Fatalf("按 Telegram 筛选应命中跨渠道会话，实际 %d 条", len(listRes.Items))
 	}
 
-	// 8. 客户侧（网页聊天插件）：已登录用户能看到该跨渠道会话及来自 Telegram 的消息，并能继续发消息
+	// 8. 客户侧（网页聊天插件）：已登录用户能看到该跨渠道会话及来自 Telegram 的消息，并自动归入当前活跃会话
 	contactSub := identity.Subject{Type: contact.Type, ID: user.ID, Tenant: tenantID}
 	cList, err := conversation.NewListForContact(env.DB).Handle(ctx, contactSub, widgetCh.ID)
 	if err != nil || len(cList) != 1 || cList[0].ID != r1.ConversationID {
@@ -182,7 +182,7 @@ func TestOmnichannelAutoMergeReplyAndContactView(t *testing.T) {
 		t.Fatalf("第 2 条消息应标记来自 Telegram，实际 %+v", cItems[1].Channel)
 	}
 	r3, err := receive.Handle(ctx, contactSub, conversation.ReceiveParams{
-		ChannelID: widgetCh.ID, From: "w-u100", ConversationID: r1.ConversationID, Text: "我在网页看到了，谢谢！",
+		ChannelID: widgetCh.ID, From: "w-u100", Text: "我在网页看到了，谢谢！",
 	})
 	if err != nil || r3.ConversationID != r1.ConversationID {
 		t.Fatalf("已登录用户在插件继续跨渠道会话失败：%v", err)
@@ -202,17 +202,16 @@ func TestOmnichannelAutoMergeReplyAndContactView(t *testing.T) {
 	}
 }
 
-func TestConversationMergeAndContactMergeFlow(t *testing.T) {
+func TestContactMergeAutoMergesActiveConversations(t *testing.T) {
 	t.Parallel()
 	env := apptest.New(t)
 	ctx := context.Background()
 	f := setup(t, env, "beta")
-	other := setup(t, env, "other")
-	tenantID, agent, sys := f.system.Tenant, f.agent, f.system
+	agent, sys := f.agent, f.system
 
 	reg := channel.Registry{
-		channel.Widget:   &omniStubConnector{multi: true},
-		channel.Telegram: &omniStubConnector{multi: false},
+		channel.Widget:   &omniStubConnector{},
+		channel.Telegram: &omniStubConnector{},
 	}
 	down := conversation.Downstream{Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic}}
 
@@ -226,10 +225,9 @@ func TestConversationMergeAndContactMergeFlow(t *testing.T) {
 	}
 
 	receive := conversation.NewReceive(env.DB, reg, down)
-	mergeConv := conversation.NewMerge(env.DB, down)
-	mergeContact := contact.NewMerge(env.DB, conversation.OnContactMerged(down))
+	mergeContact := contact.NewMerge(env.DB, conversation.OnContactMerge(down))
 
-	// 创建两个独立线索在两个渠道的会话
+	// 创建两个独立线索在两个渠道各自的活跃会话
 	c1, err := receive.Handle(ctx, sys, conversation.ReceiveParams{ChannelID: widgetCh.ID, From: "guest-1", FromName: "林小雨（官网）", Text: "官网消息 1"})
 	if err != nil {
 		t.Fatal(err)
@@ -239,20 +237,6 @@ func TestConversationMergeAndContactMergeFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// 不同联系人的两个会话不能直接合并
-	if _, err := mergeConv.Handle(ctx, agent, c1.ConversationID, c2.ConversationID); !errors.Is(err, conversation.ErrMergeDifferentContact) {
-		t.Fatalf("不同联系人的会话应返回 ErrMergeDifferentContact，实际 %v", err)
-	}
-	// 合并自己返回 ErrMergeSelf
-	if _, err := mergeConv.Handle(ctx, agent, c1.ConversationID, c1.ConversationID); !errors.Is(err, conversation.ErrMergeSelf) {
-		t.Fatalf("合并自己应返回 ErrMergeSelf，实际 %v", err)
-	}
-	// 跨工作区访问不到
-	if _, err := mergeConv.Handle(ctx, other.agent, c1.ConversationID, c2.ConversationID); !errors.Is(err, conversation.ErrNotFound) {
-		t.Fatalf("其他工作区应返回 ErrNotFound，实际 %v", err)
-	}
-
-	// 读取两个联系人 ID
 	conv1, err := conversation.NewGet(env.DB).Handle(ctx, agent, c1.ConversationID)
 	if err != nil {
 		t.Fatal(err)
@@ -262,10 +246,9 @@ func TestConversationMergeAndContactMergeFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// 手动合并联系人，并开启 merge_active_conversations=true：两个进行中跨渠道会话应自动合流成一条
+	// 手动合并联系人：事务内自动先归并双活会话，满足唯一活跃约束
 	mergedContact, err := mergeContact.Handle(ctx, agent, conv1.Contact.ID, contact.MergeBody{
-		SourceID:                 conv2.Contact.ID,
-		MergeActiveConversations: true,
+		SourceID: conv2.Contact.ID,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -274,10 +257,9 @@ func TestConversationMergeAndContactMergeFlow(t *testing.T) {
 		t.Fatalf("合并后应保留 2 个渠道身份，实际 %d", len(mergedContact.Identities))
 	}
 	if mergedContact.ConversationCount != 1 {
-		t.Fatalf("勾选同时合并进行中会话后，联系人应只剩 1 个合并会话，实际 %d", mergedContact.ConversationCount)
+		t.Fatalf("合并联系人后双活会话应自动归并为 1 条，实际 %d", mergedContact.ConversationCount)
 	}
 
-	// 验证留存会话里包含两条渠道的消息和一条 conversation.merged 系统事件，且 seq 连续递增
 	listRes, err := conversation.NewList(env.DB).Handle(ctx, agent, &conversation.ListInput{
 		Inbox: conversation.InboxAll, ContactID: mergedContact.ID,
 	})
@@ -304,25 +286,118 @@ func TestConversationMergeAndContactMergeFlow(t *testing.T) {
 		t.Fatalf("末尾应为 conversation.merged 事件，实际 %+v", items[2])
 	}
 
-	// 同联系人手动合并两个会话（通过多会话插件新建第二条再手动合并）
-	secondConv, err := receive.Handle(ctx, sys, conversation.ReceiveParams{
-		ChannelID: widgetCh.ID, From: "guest-1", Text: "新开一条并行会话",
+	// 场景 2：LinkUser 自动将存在活跃会话的线索合并到已存在活跃会话的用户，同样满足唯一活跃约束
+	uWidget, err := receive.Handle(ctx, sys, conversation.ReceiveParams{ChannelID: widgetCh.ID, From: "u-link-web", FromName: "张三", Text: "官网已登录消息"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.DB.NewRaw("UPDATE contacts SET kind = 'user', external_user_id = 'ext-zhangsan' WHERE id = (SELECT contact_id FROM conversations WHERE id = ?)", uWidget.ConversationID).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	leadTG, err := receive.Handle(ctx, sys, conversation.ReceiveParams{ChannelID: tgCh.ID, From: "tg-lead-zs", FromName: "张三 TG", Text: "TG 匿名消息"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if leadTG.ConversationID == uWidget.ConversationID {
+		t.Fatalf("未绑定前应是两条会话")
+	}
+	if err := database.RunInTx(ctx, env.DB, nil, func(ctx context.Context, tx database.Tx) error {
+		_, _, err := contact.LinkUser(ctx, tx, sys.Tenant, tgCh.ID, "tg-lead-zs", "ext-zhangsan", contact.Profile{Name: "张三"}, conversation.BeforeContactMerge(down, sys))
+		return err
+	}); err != nil {
+		t.Fatalf("LinkUser 自动归并双活会话失败：%v", err)
+	}
+	gotMerged, err := conversation.NewTimeline(env.DB).Handle(ctx, agent, uWidget.ConversationID, 0, 50)
+	if err != nil || len(gotMerged) != 3 {
+		t.Fatalf("LinkUser 后主活跃会话应归并 2 条消息 + 1 条合并事件，实际 len=%d err=%v", len(gotMerged), err)
+	}
+}
+
+func TestTicketNotifyTargetRoutingAndCrossConversationWakeup(t *testing.T) {
+	t.Parallel()
+	env := apptest.New(t)
+	ctx := context.Background()
+	f := setup(t, env, "gamma")
+	tenantID, agent, sys := f.system.Tenant, f.agent, f.system
+
+	// 设置重开窗口为 0，方便模拟超过重开窗口后同一客户新开下一轮会话
+	if _, err := env.DB.NewRaw("UPDATE tenants SET reopen_window_hours = 0 WHERE id = ?", tenantID).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	reg := channel.Registry{channel.Widget: &omniStubConnector{}}
+	down := conversation.Downstream{}
+	ch, err := channel.NewCreate(env.DB).Handle(ctx, sys, channel.CreateParams{Kind: channel.Widget, Name: "App 客服"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tt, err := tickettype.NewCreate(env.DB).Handle(ctx, sys, tickettype.CreateParams{
+		Name: "充值问题", DefaultVisibility: tickettype.VisibilityAll,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if secondConv.ConversationID == surviving.ID {
-		t.Fatalf("多会话模式未指定 ConversationID 时应新建会话")
-	}
-	afterManual, err := mergeConv.Handle(ctx, agent, surviving.ID, secondConv.ConversationID)
+
+	receive := conversation.NewReceive(env.DB, reg, down)
+	closeConv := conversation.NewClose(env.DB, down)
+	createTicket := conversation.NewCreateTicket(env.DB, down)
+	setStatus := conversation.NewSetTicketStatus(env.DB, down)
+
+	// 1. 客户在会话 C1 提问并转成工单 T1（设为 waiting_on_customer），随后关闭 C1
+	c1, err := receive.Handle(ctx, sys, conversation.ReceiveParams{ChannelID: ch.ID, From: "u-99", Text: "充值未到账"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if afterManual.ID != surviving.ID {
-		t.Fatalf("目标会话 ID 不符：%s", afterManual.ID)
+	tk, err := createTicket.Handle(ctx, sys, conversation.CreateTicketParams{
+		TypeID: tt.ID, Title: "充值掉单", SourceConversationID: &c1.ConversationID,
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
-	count, err := env.DB.NewSelect().Table("conversations").Where("tenant_id = ? AND contact_id = ?", tenantID, mergedContact.ID).Count(ctx)
-	if err != nil || count != 1 {
-		t.Fatalf("手动合并后应只剩 1 条会话，实际 %d err=%v", count, err)
+	if _, err := setStatus.Handle(ctx, agent, tk.ID, conversation.TicketWaiting); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := closeConv.Handle(ctx, agent, c1.ConversationID); err != nil {
+		t.Fatal(err)
+	}
+
+	// 无活跃会话时，工单通知路由回退到关联的 C1
+	targets1, err := conversation.ResolveTicketNotifyTargets(ctx, env.DB, tenantID, tk.ID)
+	if err != nil || len(targets1) != 1 || targets1[0].ConversationID != c1.ConversationID {
+		t.Fatalf("无活跃会话时应回退到关联会话 C1：%+v err=%v", targets1, err)
+	}
+
+	// 2. 客户再次发消息开启新一轮活跃会话 C2，且未指定 TicketID：
+	//    - C2 应新建；
+	//    - 挂在旧会话 C1 上的等待工单 T1 应被自动唤醒回 in_progress；
+	//    - ResolveTicketNotifyTargets 应路由到当前活跃会话 C2（而非已关闭的 C1）且只返回 1 条
+	c2, err := receive.Handle(ctx, sys, conversation.ReceiveParams{ChannelID: ch.ID, From: "u-99", Text: "我补发一下付款截图"})
+	if err != nil || c2.ConversationID == c1.ConversationID {
+		t.Fatalf("应开启新会话 C2：%+v err=%v", c2, err)
+	}
+	gotTk, err := conversation.NewGetTicket(env.DB).Handle(ctx, agent, tk.ID)
+	if err != nil || gotTk.Status != conversation.TicketInProgress {
+		t.Fatalf("客户在新会话回复应自动唤醒旧会话关联的等待工单：status=%s err=%v", gotTk.Status, err)
+	}
+	targets2, err := conversation.ResolveTicketNotifyTargets(ctx, env.DB, tenantID, tk.ID)
+	if err != nil || len(targets2) != 1 || targets2[0].ConversationID != c2.ConversationID {
+		t.Fatalf("有活跃会话 C2 时工单通知应路由到 C2 且按客户去重：%+v err=%v", targets2, err)
+	}
+
+	// 3. 把工单再次切回 waiting_on_customer 并显式传 TicketID 回复：应自动把 C2 也关联到 T1 并唤醒 T1，且通知依然按客户去重为 1 条
+	if _, err := setStatus.Handle(ctx, agent, tk.ID, conversation.TicketWaiting); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := receive.Handle(ctx, sys, conversation.ReceiveParams{
+		ChannelID: ch.ID, From: "u-99", Text: "这是工单补充信息", TicketID: tk.ID,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	gotTk2, err := conversation.NewGetTicket(env.DB).Handle(ctx, agent, tk.ID)
+	if err != nil || gotTk2.Status != conversation.TicketInProgress || gotTk2.LinkedCount != 2 {
+		t.Fatalf("显式指定 TicketID 后应关联 C2 并唤醒工单：status=%s links=%d err=%v", gotTk2.Status, gotTk2.LinkedCount, err)
+	}
+	targets3, err := conversation.ResolveTicketNotifyTargets(ctx, env.DB, tenantID, tk.ID)
+	if err != nil || len(targets3) != 1 || targets3[0].ConversationID != c2.ConversationID {
+		t.Fatalf("同客户两条会话都关联同一工单时，通知仍应去重为 1 条且指向活跃会话 C2：%+v err=%v", targets3, err)
 	}
 }

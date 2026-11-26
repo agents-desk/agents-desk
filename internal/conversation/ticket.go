@@ -318,17 +318,52 @@ func loadVisibleLinkedConversations(ctx context.Context, db bun.IDB, sub identit
 	return result, nil
 }
 
-// resumeWaitingTickets 在客户往服务型会话 serviceConvID 发来新消息的同一事务中，
-// 将关联到此会话且正处于 waiting_on_customer 状态的工单自动切回 in_progress 并记系统事件。
-func resumeWaitingTickets(ctx context.Context, tx database.Tx, down Downstream, tenantID, serviceConvID string, at time.Time) error {
+// resumeWaitingTickets 在客户往服务型会话 c 发来新消息的同一事务中：
+//   - 若显式指定了 explicitTicketID 且该工单关联于该客户，则将其关联到当前会话 c（幂等），方便坐席在当前会话侧栏直接看到对应工单；
+//   - 将关联到此会话或该客户历史服务型会话、且正处于 waiting_on_customer 状态的工单自动切回 in_progress 并记系统事件。
+func resumeWaitingTickets(ctx context.Context, tx database.Tx, down Downstream, tenantID string, c *Conversation, explicitTicketID string, at time.Time) error {
+	if explicitTicketID != "" && c.ContactID != nil && *c.ContactID != "" {
+		// 仅允许关联该客户已通过会话接触过的客户可见工单，防止越权挂载其他客户的工单
+		var belongs bool
+		err := tx.NewRaw(`SELECT EXISTS (
+			SELECT 1 FROM conversation_links cl
+			JOIN conversations sc ON sc.id = cl.conversation_id
+			JOIN tickets tk ON tk.conversation_id = cl.ticket_id
+			WHERE cl.tenant_id = ? AND cl.ticket_id = ? AND tk.visibility = ?
+			  AND sc.tenant_id = ? AND sc.kind = ? AND sc.contact_id = ?
+		)`, tenantID, explicitTicketID, tickettype.VisibilityAll, tenantID, Service, *c.ContactID).Scan(ctx, &belongs)
+		if err != nil {
+			return errors.Wrap(err, "verify explicit ticket ownership")
+		}
+		if belongs {
+			link := &ConversationLink{
+				ID:             newID(),
+				TenantID:       tenantID,
+				TicketID:       explicitTicketID,
+				ConversationID: c.ID,
+				Relation:       LinkLinked,
+			}
+			link.CreatedAt, link.UpdatedAt = at, at
+			if _, err := tx.NewInsert().Model(link).On("CONFLICT DO NOTHING").Exec(ctx); err != nil {
+				return errors.Wrap(err, "link active conversation to explicit ticket")
+			}
+		}
+	}
+
 	var ticketIDs []string
-	err := tx.NewSelect().TableExpr("conversation_links cl").
+	q := tx.NewSelect().TableExpr("conversation_links cl").
 		Join("JOIN conversations tc ON tc.id = cl.ticket_id").
-		ColumnExpr("tc.id").
-		Where("cl.tenant_id = ? AND cl.conversation_id = ? AND tc.tenant_id = ? AND tc.kind = ? AND tc.status = ?",
-			tenantID, serviceConvID, tenantID, Ticket, TicketWaiting).
-		OrderExpr("tc.id ASC").
-		Scan(ctx, &ticketIDs)
+		Join("JOIN conversations sc ON sc.id = cl.conversation_id").
+		ColumnExpr("DISTINCT tc.id").
+		Where("cl.tenant_id = ? AND tc.tenant_id = ? AND tc.kind = ? AND tc.status = ?",
+			tenantID, tenantID, Ticket, TicketWaiting).
+		Where("sc.tenant_id = ? AND sc.kind = ?", tenantID, Service)
+	if c.ContactID != nil && *c.ContactID != "" {
+		q = q.Where("(sc.id = ? OR sc.contact_id = ?)", c.ID, *c.ContactID)
+	} else {
+		q = q.Where("sc.id = ?", c.ID)
+	}
+	err := q.OrderExpr("tc.id ASC").Scan(ctx, &ticketIDs)
 	if err != nil {
 		return errors.Wrap(err, "find waiting tickets for customer reply")
 	}
@@ -353,7 +388,7 @@ func resumeWaitingTickets(ctx context.Context, tx database.Tx, down Downstream, 
 			"from":            string(TicketWaiting),
 			"to":              string(TicketInProgress),
 			"reason":          "customer_replied",
-			"conversation_id": serviceConvID,
+			"conversation_id": c.ID,
 		})
 		if err := commit(ctx, tx, down, tc, ev); err != nil {
 			return err

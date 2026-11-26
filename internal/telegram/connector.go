@@ -36,12 +36,11 @@ func NewConnector(c *crypt.Crypt, files *filesystem.Service, client *Client) Con
 	return Connector{crypt: c, files: files, client: client}
 }
 
-// Capabilities 返回 Telegram 私聊的能力：支持文字、图片、视频、音频和文件；单聊天窗口；不支持已读回执。
+// Capabilities 返回 Telegram 私聊的能力：支持文字、图片、视频、音频和文件；不支持已读回执。
 func (Connector) Capabilities() channel.Capabilities {
 	return channel.Capabilities{
-		MessageTypes:          []string{"text", "image", "video", "audio", "file"},
-		ReadReceipts:          false,
-		MultipleConversations: false,
+		MessageTypes: []string{"text", "image", "video", "audio", "file"},
+		ReadReceipts: false,
 	}
 }
 

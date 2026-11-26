@@ -40,17 +40,18 @@ func NewSendMessage(db *bun.DB, receive *conversation.Receive) *SendMessage {
 	return &SendMessage{db: db, receive: receive}
 }
 
-// Handle 以联系人 sub 的身份在本次请求的聊天插件中发消息 b：conversationID 为空时发起新会话，否则继续这个会话，
-// 已关闭的会话重新打开。同一个 b.ClientID 重发时返回之前记录的那一条。会话不是他在这个聊天插件中的时返回
-// conversation.ErrNotFound；聊天插件不存在或已停用时返回 channel.ErrNotFound。
+// Handle 以联系人 sub 的身份在本次请求的聊天插件中发消息 b：归入该联系人的当前活跃会话，或按重开窗口重开/新建会话。
+// 若路径传入 conversationID，仍校验该会话属于联系人 sub（不属于时返回 conversation.ErrNotFound）。
+// 同一个 b.ClientID 重发时返回之前记录的那一条。聊天插件不存在或已停用时返回 channel.ErrNotFound。
 func (a *SendMessage) Handle(ctx context.Context, sub identity.Subject, conversationID string, b MessageBody) (*Sent, error) {
 	ch, err := channelFrom(ctx)
 	if err != nil {
 		return nil, err
 	}
-	s, err := settingsOf(ch)
-	if err != nil {
-		return nil, err
+	if conversationID != "" {
+		if _, err := conversation.NewGetForContact(a.db).Handle(ctx, sub, ch.ID, conversationID); err != nil {
+			return nil, err
+		}
 	}
 	var from string
 	err = a.db.NewSelect().Table("contact_identities").Column("external_id").
@@ -59,12 +60,10 @@ func (a *SendMessage) Handle(ctx context.Context, sub identity.Subject, conversa
 		return nil, errors.Wrap(err, "load contact identity")
 	}
 	p := conversation.ReceiveParams{
-		ChannelID:          ch.ID,
-		From:               from,
-		Text:               b.Text,
-		Attachments:        b.Attachments,
-		ConversationID:     conversationID,
-		SingleConversation: s.behavior().ConversationMode == SingleConversation,
+		ChannelID:   ch.ID,
+		From:        from,
+		Text:        b.Text,
+		Attachments: b.Attachments,
 	}
 	if b.ClientID != "" {
 		p.ExternalID = sub.ID + ":" + b.ClientID // 编号由客户生成，加上联系人的前缀，不会与别人的重复

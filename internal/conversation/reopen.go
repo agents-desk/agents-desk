@@ -2,9 +2,12 @@ package conversation
 
 import (
 	"context"
+	"database/sql"
 
+	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/auth"
@@ -40,6 +43,19 @@ func reopen(sub identity.Subject) changeFunc {
 		}
 		from := c.Status
 		if from == Closed {
+			if c.ContactID != nil {
+				var activeID string
+				err := tx.NewSelect().Table("conversations").Column("id").
+					Where("tenant_id = ? AND kind = ? AND contact_id = ? AND id <> ? AND status IN (?)",
+						c.TenantID, Service, *c.ContactID, c.ID, bun.In([]Status{Open, Snoozed})).
+					Limit(1).Scan(ctx, &activeID)
+				if err == nil && activeID != "" {
+					return nil, ErrActiveConversationExists.New(errorx.Public("active_conversation_id", activeID))
+				}
+				if err != nil && !errors.Is(err, sql.ErrNoRows) {
+					return nil, errors.Wrap(err, "check active conversation before reopen")
+				}
+			}
 			at := now()
 			c.OpenedAt, c.FirstReplyAt = at, nil
 			if err := openRound(ctx, tx, c, at); err != nil {

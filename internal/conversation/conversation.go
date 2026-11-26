@@ -52,10 +52,8 @@ var (
 	ErrPrivateTicket = errorx.Define(errorx.Conflict, "ticket.private")
 	// ErrChannelUnavailable 是目标回复渠道不可用、已停用，或者该联系人未绑定该渠道身份。
 	ErrChannelUnavailable = errorx.Define(errorx.Conflict, "conversation.channel_unavailable")
-	// ErrMergeSelf 是不能把会话合并到它自己。
-	ErrMergeSelf = errorx.Define(errorx.InvalidArgument, "conversation.merge_self")
-	// ErrMergeDifferentContact 是只能合并同一个联系人的服务型会话。
-	ErrMergeDifferentContact = errorx.Define(errorx.Conflict, "conversation.merge_different_contact")
+	// ErrActiveConversationExists 是该联系人当前已有一条进行中或稍后处理的服务型会话，不能再重开其他历史会话。
+	ErrActiveConversationExists = errorx.Define(errorx.Conflict, "conversation.active_exists")
 )
 
 // Kind 是会话的种类。

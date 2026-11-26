@@ -55,7 +55,7 @@ func TestManualMergeContacts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	merge := contact.NewMerge(env.DB, nil)
+	merge := contact.NewMerge(env.DB)
 
 	// 1. 权限与边界校验
 	noPerm := identity.Subject{Type: member.Type, ID: agent.ID, Tenant: tenantID}
