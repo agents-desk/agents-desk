@@ -1,9 +1,10 @@
-import type { ConversationChatDTO } from "@agents-desk/client/tenant"
+import type { ChatScope, ConversationChatDTO } from "@agents-desk/client/tenant"
 import {
   ActionIcon,
   Avatar,
   Badge,
   Box,
+  Button,
   Center,
   CloseButton,
   Group,
@@ -19,31 +20,45 @@ import {
 } from "@mantine/core"
 import { useDebouncedValue } from "@mantine/hooks"
 import { useQuery } from "@tanstack/react-query"
-import { IconPlus, IconSearch, IconUsersGroup } from "@tabler/icons-react"
+import { IconPlus, IconSearch, IconSettings, IconUsersGroup } from "@tabler/icons-react"
 import { PaneBody, PaneHeader, PaneToolbar, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { kit } from "../api"
 import { previewSummary } from "../inbox/Attachments"
+import { channelColor, ChannelIcon } from "../inbox/channel-badge"
 import { useMe, useMembers } from "../inbox/data"
 import { type FillWatcher, useFillVisible } from "../inbox/fill"
 import { activity } from "../inbox/format"
 import { HighlightedSnippet } from "../inbox/Highlight"
 import { chatDisplayName, type ChatModeFilter, flattenChats, useChatList } from "./data"
 
-/** ChatListProps 是内部聊天列表栏的设置。 */
+/** ChatListProps 是聊天列表栏的设置。 */
 interface ChatListProps {
+  scope: ChatScope
   mode: ChatModeFilter
+  channelId?: string
+  channelName?: string
   openId?: string
   open: (id: string) => void
   onNewChat: () => void
+  onManageBusinessChannels: () => void
 }
 
 /**
  * ChatList 是“聊天”模块的会话列表栏：
- * 顶栏显示当前分组名称及发起单聊/建群入口，工具条支持按同事名、群名或消息全文检索，
- * 列表按最近消息倒序展示头像/在线状态、未读数角标、跨语言译文预览与相对时间。
+ * 顶栏显示当前分组名称（内部聊天或商务沟通渠道）及操作按钮，工具条支持按同事名、联系人名、群名或消息全文检索，
+ * 列表按最近消息倒序展示头像/在线状态或商务渠道标识、未读数角标、跨语言译文预览与相对时间。
  */
-export function ChatList({ mode, openId, open, onNewChat }: ChatListProps): ReactNode {
+export function ChatList({
+  scope,
+  mode,
+  channelId,
+  channelName,
+  openId,
+  open,
+  onNewChat,
+  onManageBusinessChannels,
+}: ChatListProps): ReactNode {
   const t = useT()
   const me = useMe()
   const translation = useQuery(kit.queries.translation.settings())
@@ -51,7 +66,7 @@ export function ChatList({ mode, openId, open, onNewChat }: ChatListProps): Reac
 
   const [q, setQ] = useState("")
   const [debouncedQ] = useDebouncedValue(q, 200)
-  const list = useChatList(debouncedQ, mode)
+  const list = useChatList(debouncedQ, mode, scope, channelId)
   const items = flattenChats(list.data?.pages)
 
   // 滚到底时加载下一页
@@ -68,8 +83,15 @@ export function ChatList({ mode, openId, open, onNewChat }: ChatListProps): Reac
     return () => io.disconnect()
   }, [list])
 
-  const hasFilters = Boolean(debouncedQ.trim() || mode !== "all")
-  const heading = mode === "direct" ? t("chat.filter_direct") : mode === "group" ? t("chat.filter_group") : t("nav.chat")
+  const isExternal = scope === "external"
+  const hasFilters = Boolean(debouncedQ.trim() || (!isExternal && mode !== "all") || (isExternal && channelId))
+  const heading = isExternal
+    ? channelName || t("chat.business_all")
+    : mode === "direct"
+      ? t("chat.filter_direct")
+      : mode === "group"
+        ? t("chat.filter_group")
+        : t("chat.internal_section")
 
   return (
     <Stack gap={0} h="100%">
@@ -80,11 +102,19 @@ export function ChatList({ mode, openId, open, onNewChat }: ChatListProps): Reac
           </Text>
         }
         actions={
-          <Tooltip label={t("chat.new")} openDelay={300}>
-            <ActionIcon variant="light" size="sm" aria-label={t("chat.new")} onClick={onNewChat}>
-              <IconPlus size={15} />
-            </ActionIcon>
-          </Tooltip>
+          isExternal ? (
+            <Tooltip label={t("chat.business_manage")} openDelay={300}>
+              <ActionIcon variant="subtle" color="gray" size="sm" aria-label={t("chat.business_manage")} onClick={onManageBusinessChannels}>
+                <IconSettings size={15} />
+              </ActionIcon>
+            </Tooltip>
+          ) : (
+            <Tooltip label={t("chat.new")} openDelay={300}>
+              <ActionIcon variant="light" size="sm" aria-label={t("chat.new")} onClick={onNewChat}>
+                <IconPlus size={15} />
+              </ActionIcon>
+            </Tooltip>
+          )
         }
       />
 
@@ -99,8 +129,8 @@ export function ChatList({ mode, openId, open, onNewChat }: ChatListProps): Reac
               setQ("")
             }
           }}
-          placeholder={t("chat.search_placeholder")}
-          aria-label={t("chat.search_placeholder")}
+          placeholder={t(isExternal ? "chat.business_search_placeholder" : "chat.search_placeholder")}
+          aria-label={t(isExternal ? "chat.business_search_placeholder" : "chat.search_placeholder")}
           leftSection={<IconSearch size={14} stroke={1.6} />}
           rightSection={q ? <CloseButton size="xs" aria-label={t("inbox.search_clear")} onClick={() => setQ("")} /> : undefined}
         />
@@ -123,9 +153,16 @@ export function ChatList({ mode, openId, open, onNewChat }: ChatListProps): Reac
           </Stack>
         ) : items.length === 0 ? (
           <Center p="xl">
-            <Text size="sm" c="dimmed" ta="center">
-              {t(hasFilters ? "chat.empty_filtered" : "chat.empty")}
-            </Text>
+            <Stack gap="sm" align="center">
+              <Text size="sm" c="dimmed" ta="center">
+                {t(hasFilters ? "chat.empty_filtered" : isExternal ? "chat.business_empty" : "chat.empty")}
+              </Text>
+              {isExternal && !debouncedQ.trim() && (
+                <Button size="compact-xs" variant="light" onClick={onManageBusinessChannels}>
+                  {t("chat.business_manage")}
+                </Button>
+              )}
+            </Stack>
           </Center>
         ) : (
           items.map((chat) => <ChatRow key={chat.id} chat={chat} active={chat.id === openId} watch={watch} onClick={() => open(chat.id)} />)
@@ -141,7 +178,7 @@ export function ChatList({ mode, openId, open, onNewChat }: ChatListProps): Reac
   )
 }
 
-/** ChatRow 是聊天列表中的单行项：单聊显示对方头像与在线圆点，群聊显示群图标，右侧展示相对时间与未读数角标。 */
+/** ChatRow 是聊天列表中的单行项：单聊显示对方头像（内部聊天带在线圆点，商务沟通带渠道图标），群聊显示群图标，右侧展示相对时间与未读数角标。 */
 function ChatRow({
   chat,
   active,
@@ -159,15 +196,24 @@ function ChatRow({
   const me = useMe()
   const { byId } = useMembers()
 
+  const isExternal = chat.scope === "external"
   const title = chatDisplayName(chat, t)
   const rawPreview = previewSummary(chat.preview, chat.preview_attachment, t)
-  const senderPrefix =
-    chat.mode === "group" && chat.preview_actor?.type === "member" && rawPreview
-      ? `${chat.preview_actor.id === me.data?.id ? t("inbox.you") : (byId.get(chat.preview_actor.id)?.name ?? "")}: `
-      : ""
+
+  let senderPrefix = ""
+  if (chat.mode === "group" && chat.preview_actor && rawPreview) {
+    if (chat.preview_actor.type === "member") {
+      const name = chat.preview_actor.id === me.data?.id ? t("inbox.you") : (byId.get(chat.preview_actor.id)?.name ?? "")
+      if (name) senderPrefix = `${name}: `
+    } else if (chat.preview_actor.type === "contact") {
+      const name = chat.preview_actor.name || chat.contact?.name || t("inbox.visitor")
+      if (name) senderPrefix = `${name}: `
+    }
+  }
   const previewText = rawPreview ? `${senderPrefix}${rawPreview}` : t("chat.no_messages")
   const matchSnippet = chat.match?.snippet
   const matchCount = chat.match_count ?? 0
+  const chColor = chat.channel ? channelColor(chat.channel.kind) : "brand"
 
   return (
     <UnstyledButton
@@ -181,9 +227,11 @@ function ChatRow({
     >
       <Group gap="sm" wrap="nowrap" align="center" w="100%" style={{ minWidth: 0 }}>
         {chat.mode === "group" ? (
-          <ThemeIcon size={36} radius="xl" variant="light" color="brand" style={{ flex: "none" }}>
+          <ThemeIcon size={36} radius="xl" variant="light" color={isExternal ? chColor : "brand"} style={{ flex: "none" }}>
             <IconUsersGroup size={18} stroke={1.6} />
           </ThemeIcon>
+        ) : isExternal ? (
+          <Avatar size={36} radius="xl" name={title} color="initials" style={{ flex: "none" }} />
         ) : (
           <Indicator
             size={9}
@@ -198,7 +246,18 @@ function ChatRow({
         )}
 
         <Stack gap={3} style={{ flex: 1, minWidth: 0 }}>
-          <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
+          <Group gap={5} wrap="nowrap" style={{ minWidth: 0 }}>
+            {isExternal && chat.channel && (
+              <Tooltip label={chat.channel.name} openDelay={300}>
+                <Box
+                  component="span"
+                  c={chColor}
+                  style={{ display: "inline-flex", alignItems: "center", flex: "none" }}
+                >
+                  <ChannelIcon kind={chat.channel.kind} size={13} />
+                </Box>
+              </Tooltip>
+            )}
             <Text size="sm" fw={chat.unread ? 700 : 600} truncate style={{ flex: 1, minWidth: 0 }}>
               {title}
             </Text>

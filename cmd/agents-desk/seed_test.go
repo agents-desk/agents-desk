@@ -25,6 +25,7 @@ func TestSeed(t *testing.T) {
 	addr := tenant.Addresses{PublicURL: "http://localhost:8081"}
 	reg := channel.DefaultRegistry()
 	reg[channel.Widget] = widget.NewConnector(nil)
+	reg[channel.BusinessLink] = widget.NewConnector(nil)
 
 	// 第一次全部写入，第二次全部跳过
 	for i, skipped := range []bool{false, true} {
@@ -33,7 +34,7 @@ func TestSeed(t *testing.T) {
 			t.Fatal(err)
 		}
 		lines := strings.Split(strings.TrimSpace(out.String()), "\n")
-		if len(lines) != 16 || slices.ContainsFunc(lines, func(l string) bool { return strings.Contains(l, "跳过") != skipped }) {
+		if len(lines) != 17 || slices.ContainsFunc(lines, func(l string) bool { return strings.Contains(l, "跳过") != skipped }) {
 			t.Fatalf("第 %d 次：\n%s", i+1, out.String())
 		}
 	}

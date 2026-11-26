@@ -115,14 +115,14 @@ func (c *fakeLiveClient) SendMedia(_ context.Context, peer SyncedPeer, _ channel
 	return c.SendText(context.Background(), peer, caption)
 }
 
-// fakeBackend 模拟 MTProto 后端：可在测试中直接注入实时更新并校验会话密文存取。
+// fakeBackend 模拟 MTProto 后端：可在测试中按会话标识精确注入实时更新并校验会话密文存取。
 type fakeBackend struct {
 	mu          sync.Mutex
 	nextProfile TelegramProfile
 	need2FA     bool
 	live        *fakeLiveClient
-	onMessage   func(context.Context, IncomingMessage) error
-	startedCh   chan struct{}
+	onMessages  map[string]func(context.Context, IncomingMessage) error
+	startedCh   chan string
 }
 
 func (b *fakeBackend) StartPhoneLogin(_ context.Context, _ int, _, phone string) (LoginDriver, error) {
@@ -151,11 +151,16 @@ func (b *fakeBackend) StartQRLogin(_ context.Context, _ int, _ string) (LoginDri
 
 func (b *fakeBackend) RunAccount(ctx context.Context, _ int, _ string, storage session.Storage,
 	onMessage func(context.Context, IncomingMessage) error, onReady func(LiveClient)) error {
-	if _, err := storage.LoadSession(ctx); err != nil {
+	raw, err := storage.LoadSession(ctx)
+	if err != nil {
 		return err
 	}
+	key := string(raw)
 	b.mu.Lock()
-	b.onMessage = onMessage
+	if b.onMessages == nil {
+		b.onMessages = map[string]func(context.Context, IncomingMessage) error{}
+	}
+	b.onMessages[key] = onMessage
 	live := b.live
 	ch := b.startedCh
 	b.mu.Unlock()
@@ -164,7 +169,7 @@ func (b *fakeBackend) RunAccount(ctx context.Context, _ int, _ string, storage s
 	}
 	if ch != nil {
 		select {
-		case ch <- struct{}{}:
+		case ch <- key:
 		default:
 		}
 	}
@@ -240,7 +245,7 @@ func TestTelegramPersonalAccountFullFlow(t *testing.T) {
 		nextProfile: TelegramProfile{UserID: 88001, Username: "alice_bd", DisplayName: "Alice BD"},
 		need2FA:     true,
 		live:        live,
-		startedCh:   make(chan struct{}, 2),
+		startedCh:   make(chan string, 4),
 	}
 
 	mgr := NewManager(env.DB, env.Crypt, env.Files, tgSettings, backend)
@@ -338,15 +343,25 @@ func TestTelegramPersonalAccountFullFlow(t *testing.T) {
 		<-doneRun
 	})
 
-	select {
-	case <-backend.startedCh:
-	case <-time.After(3 * time.Second):
-		t.Fatal("等待 Telegram 个人号长连接就绪超时")
+	const acct1Session = `{"dc":2,"key":"secret-2fa-session-payload"}`
+	deadline := time.After(3 * time.Second)
+	for {
+		backend.mu.Lock()
+		_, ready := backend.onMessages[acct1Session]
+		backend.mu.Unlock()
+		if ready {
+			break
+		}
+		select {
+		case <-backend.startedCh:
+		case <-deadline:
+			t.Fatal("等待 Telegram 个人号长连接就绪超时")
+		}
 	}
 
 	// 推送一条未勾选的私人聊天消息 -> 应被严格忽略
 	backend.mu.Lock()
-	onMsg := backend.onMessage
+	onMsg := backend.onMessages[acct1Session]
 	backend.mu.Unlock()
 	if err := onMsg(ctx, IncomingMessage{
 		ExternalChatID: privatePeer.ExternalChatID,

@@ -13,6 +13,7 @@ import {
   IconBrandTelegram,
   IconInbox,
   IconLanguage,
+  IconLink,
   IconMessageBolt,
   IconMessageCircle,
   IconStar,
@@ -50,6 +51,7 @@ const icons = {
   sliders: IconAdjustmentsHorizontal,
   star: IconStar,
   language: IconLanguage,
+  link: IconLink,
   telegram: IconBrandTelegram,
   ticket: IconTicket,
 }

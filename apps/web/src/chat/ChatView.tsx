@@ -13,6 +13,7 @@ import {
   Indicator,
   Loader,
   Paper,
+  SegmentedControl,
   Skeleton,
   Stack,
   Text,
@@ -29,6 +30,7 @@ import {
   IconCopy,
   IconLanguage,
   IconLayoutSidebarRight,
+  IconLock,
   IconPaperclip,
   IconSend,
   IconUsersGroup,
@@ -62,6 +64,7 @@ import {
   uploadMediaFile,
 } from "../inbox/Attachments"
 import { useConversationChannel } from "../inbox/channel"
+import { channelColor, ChannelChip } from "../inbox/channel-badge"
 import {
   AutoTranslateHint,
   defaultPeerLanguage,
@@ -75,8 +78,9 @@ import { describeEvent } from "../inbox/events"
 import { type FillWatcher, useFillVisible } from "../inbox/fill"
 import { clock, dayLabel, fullDateTime, sameDay } from "../inbox/format"
 import { translationOf } from "../inbox/Timeline"
-import { languageName } from "../languages"
+import { languageName, sameLanguage } from "../languages"
 import { NARROW_QUERY } from "../layout"
+import { BusinessDetails } from "./BusinessDetails"
 import { chatDisplayName, useChat } from "./data"
 import { GroupDetails } from "./GroupDetails"
 import { PeerDetails } from "./PeerDetails"
@@ -84,11 +88,14 @@ import { PeerDetails } from "./PeerDetails"
 /** LINK 匹配消息中的网址。 */
 const LINK = /https?:\/\/[^\s<>\x22]+[^\s<>\x22\x27.,;:!?)\]}。，；：！？）】」』]/g
 
+/** deliveryColor 是外部渠道送达状态的颜色：已读是进行中的颜色，失败是红色，其余是灰色。 */
+const deliveryColor = { sending: "dimmed", delivered: "dimmed", read: "bright-blue", failed: "red" } as const
+
 /**
- * ChatView 是单条内部聊天（单聊或群聊）的主对话区：
- * 顶栏展示对方资料/群成员数与右侧详情栏开关（单聊展示同事资料与共同群聊，群聊展示群设置与成员）；
- * 中间消息流支持跨语言自动互译（按阅读者语言默认展示译文并支持单条切换原文）、附件灯箱、@高亮和正在输入提示；
- * 底部输入框支持 @ 提及、拖拽/粘贴附件、统一译文校对展开栏及快捷键发送。
+ * ChatView 是单条聊天（内部单聊/群聊 或 商务沟通 1:1/外部群聊）的主对话区：
+ * 顶栏展示对方资料/渠道徽章/群成员数与右侧详情栏开关；
+ * 中间消息流支持跨语言自动互译（按阅读者语言默认展示译文并支持单条切换原文）、商务沟通内部备注、外部渠道送达状态与重发、附件灯箱、@高亮和正在输入提示；
+ * 底部输入框支持商务沟通“回复 / 内部备注”切换、@ 提及、拖拽/粘贴附件、统一译文校对展开栏及快捷键发送。
  */
 export function ChatView({
   id,
@@ -102,6 +109,7 @@ export function ChatView({
   onOpenChat: (chatId: string) => void
 }): ReactNode {
   const t = useT()
+  const ui = useLanguage()
   const narrow = useNarrow(NARROW_QUERY)
   const queryClient = useQueryClient()
   const me = useMe()
@@ -138,13 +146,28 @@ export function ChatView({
     )
   }
 
+  const isExternal = chat.scope === "external"
   const title = chatDisplayName(chat, t)
-  const subtitle =
-    chat.mode === "group"
-      ? t("chat.members_count", { n: chat.participant_count })
-      : chat.peer?.status === "online"
-        ? t("chat.status_online")
-        : t("chat.status_away")
+  const chColor = chat.channel ? channelColor(chat.channel.kind) : "brand"
+
+  let subtitle: string
+  if (isExternal) {
+    const langLabel = chat.language ? languageName(chat.language, ui) : ""
+    if (chat.mode === "group") {
+      subtitle = [t("chat.members_count", { n: chat.participant_count }), langLabel].filter(Boolean).join(" · ")
+    } else {
+      subtitle = [chat.contact?.email, langLabel].filter(Boolean).join(" · ") || chat.channel?.name || ""
+    }
+  } else {
+    subtitle =
+      chat.mode === "group"
+        ? t("chat.members_count", { n: chat.participant_count })
+        : chat.peer?.status === "online"
+          ? t("chat.status_online")
+          : t("chat.status_away")
+  }
+
+  const detailsLabel = t(isExternal ? "chat.business_details" : chat.mode === "group" ? "chat.group_settings" : "chat.peer_details")
 
   return (
     <Group gap={0} h="100%" wrap="nowrap" align="stretch" style={{ flex: 1, minWidth: 0 }}>
@@ -152,9 +175,11 @@ export function ChatView({
         <PaneHeader fixed={!narrow} back={narrow ? back : undefined}>
           <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
             {chat.mode === "group" ? (
-              <ThemeIcon size={32} radius="xl" variant="light" color="brand" style={{ flex: "none" }}>
+              <ThemeIcon size={32} radius="xl" variant="light" color={isExternal ? chColor : "brand"} style={{ flex: "none" }}>
                 <IconUsersGroup size={17} stroke={1.6} />
               </ThemeIcon>
+            ) : isExternal ? (
+              <Avatar size={32} radius="xl" name={title} color="initials" style={{ flex: "none" }} />
             ) : (
               <Indicator
                 size={8}
@@ -168,22 +193,27 @@ export function ChatView({
               </Indicator>
             )}
             <Box style={{ minWidth: 0, flex: 1 }}>
-              <Text size="md" fw={600} truncate lh={1.25}>
-                {title}
-              </Text>
-              <Text size="xs" c="dimmed" truncate lh={1.25}>
-                {subtitle}
-              </Text>
+              <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
+                <Text size="md" fw={600} truncate lh={1.25}>
+                  {title}
+                </Text>
+                {isExternal && chat.channel && <ChannelChip channel={chat.channel} />}
+              </Group>
+              {subtitle && (
+                <Text size="xs" c="dimmed" truncate lh={1.25}>
+                  {subtitle}
+                </Text>
+              )}
             </Box>
           </Group>
 
           <Group gap={6} wrap="nowrap" style={{ flex: "none" }} data-tn-density="dense">
-            <Tooltip label={t(chat.mode === "group" ? "chat.group_settings" : "chat.peer_details")}>
+            <Tooltip label={detailsLabel}>
               <ActionIcon
                 variant={details.opened ? "light" : "subtle"}
                 color={details.opened ? undefined : "gray"}
                 size="input-sm"
-                aria-label={t(chat.mode === "group" ? "chat.group_settings" : "chat.peer_details")}
+                aria-label={detailsLabel}
                 onClick={details.toggle}
               >
                 <IconLayoutSidebarRight size={16} />
@@ -192,7 +222,7 @@ export function ChatView({
           </Group>
         </PaneHeader>
 
-        <ChatTimeline chat={chat} typingNames={typing.map((x) => x.name ?? "").filter(Boolean)} />
+        <ChatTimeline chat={chat} typingNames={typing.map((x) => (x.contact ? title : (x.name ?? ""))).filter(Boolean)} />
 
         <ChatComposer key={chat.id} chat={chat} onTyping={notifyTyping} />
       </Box>
@@ -203,7 +233,9 @@ export function ChatView({
         compactQuery={NARROW_QUERY}
         resizable={{ storageKey: "chat-details", defaultWidth: 320, min: 280, max: 400 }}
       >
-        {chat.mode === "group" ? (
+        {isExternal ? (
+          <BusinessDetails chat={chat} onClose={details.close} onLeft={back} />
+        ) : chat.mode === "group" ? (
           <GroupDetails chat={chat} onClose={details.close} onLeft={back} />
         ) : (
           <PeerDetails chat={chat} onClose={details.close} onOpenChat={onOpenChat} />
@@ -213,7 +245,7 @@ export function ChatView({
   )
 }
 
-/** ChatTimeline 渲染内部聊天的消息流，支持按天分组、跨语言译文与单条原文切换、附件灯箱与正在输入提示。 */
+/** ChatTimeline 渲染聊天的消息流，支持按天分组、内部备注、跨语言译文与单条原文切换、送达状态、附件灯箱与正在输入提示。 */
 function ChatTimeline({
   chat,
   typingNames,
@@ -234,6 +266,7 @@ function ChatTimeline({
   const scroller = useRef<HTMLDivElement>(null)
   const [lightbox, setLightbox] = useState<LightboxImage | null>(null)
   const list = items.data ?? []
+  const isExternal = chat.scope === "external"
 
   useEffect(() => {
     if (items.isPending) return
@@ -244,6 +277,16 @@ function ChatTimeline({
   const names = {
     member: (id: string) => (id === me.data?.id ? t("inbox.you") : (byId.get(id)?.name ?? t("event.someone"))),
     team: (id: string) => teams.find((x) => x.id === id)?.name ?? "",
+  }
+
+  const authorOf = (it: ConversationItemDTO): string => {
+    if (it.actor.type === "contact") {
+      return it.actor.name || chat.contact?.name || t("inbox.visitor")
+    }
+    if (it.actor.type === "member") {
+      return names.member(it.actor.id)
+    }
+    return t("event.system")
   }
 
   if (items.isPending) {
@@ -273,6 +316,8 @@ function ChatTimeline({
             const prev = list[i - 1]
             const showDay = i === 0 || !sameDay(prev.created_at, it.created_at)
             const gapTop = i === 0 ? 0 : 12
+            const isOwn = it.actor.type === "member" && it.actor.id === me.data?.id
+            const mine = isExternal ? it.actor.type !== "contact" : isOwn
             return (
               <Fragment key={it.id}>
                 {showDay && <Divider my={i === 0 ? 4 : 12} label={dayLabel(it.created_at, ui, t, zone)} labelPosition="center" />}
@@ -280,13 +325,28 @@ function ChatTimeline({
                   <Text size="xs" c="dimmed" ta="center" mt={gapTop} className="inbox-event">
                     {describeEvent(it, byId, names, t, ui)} · {clock(it.created_at, ui, zone)}
                   </Text>
-                ) : (
-                  <ChatBubble
+                ) : it.kind === "note" ? (
+                  <ChatNote
                     chatId={chat.id}
                     it={it}
-                    isOwn={it.actor.type === "member" && it.actor.id === me.data?.id}
-                    author={names.member(it.actor.id)}
-                    avatarUrl={byId.get(it.actor.id)?.avatar_url || undefined}
+                    author={authorOf(it)}
+                    isOwn={isOwn}
+                    time={clock(it.created_at, ui, zone)}
+                    fullTime={fullDateTime(it.created_at, ui, zone)}
+                    lang={me.data?.language}
+                    translating={translating}
+                    watch={watch}
+                    mt={gapTop}
+                    onPreview={setLightbox}
+                  />
+                ) : (
+                  <ChatBubble
+                    chat={chat}
+                    it={it}
+                    mine={mine}
+                    isOwn={isOwn}
+                    author={authorOf(it)}
+                    avatarUrl={it.actor.type === "member" ? byId.get(it.actor.id)?.avatar_url || undefined : undefined}
                     time={clock(it.created_at, ui, zone)}
                     fullTime={fullDateTime(it.created_at, ui, zone)}
                     lang={me.data?.language}
@@ -318,10 +378,11 @@ function ChatTimeline({
   )
 }
 
-/** ChatBubble 渲染内部聊天中的单条气泡消息，自动展示跨语言译文并支持单条切换原文。 */
+/** ChatBubble 渲染聊天中的单条气泡消息，自动展示跨语言译文并支持单条切换原文、发送译文展开以及外部渠道送达状态与失败重发。 */
 function ChatBubble({
-  chatId,
+  chat,
   it,
+  mine,
   isOwn,
   author,
   avatarUrl,
@@ -333,8 +394,9 @@ function ChatBubble({
   mt,
   onPreview,
 }: {
-  chatId: string
+  chat: ConversationChatDTO
   it: ConversationItemDTO
+  mine: boolean
   isOwn: boolean
   author: string
   avatarUrl?: string
@@ -348,25 +410,40 @@ function ChatBubble({
 }): ReactNode {
   const t = useT()
   const ui = useLanguage()
+  const queryClient = useQueryClient()
   const [showOriginal, setShowOriginal] = useState(false)
+  const [showSentTranslation, setShowSentTranslation] = useState(false)
   const [showVerified, setShowVerified] = useState(false)
 
+  const retry = useMutation({
+    mutationFn: () => tenantApi.conversation.retry(chat.id, it.id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: kit.queries.chat.key() })
+      void queryClient.invalidateQueries({ queryKey: [...kit.queries.conversation.key(), "timeline", chat.id] })
+    },
+    onError: (err) => notifyError(err),
+  })
+
+  const isExternal = chat.scope === "external"
   const raw = it.content.text ?? ""
-  const translated = isOwn ? undefined : translationOf(it, lang)
-  const verified = isOwn ? verifiedTranslationOf(it) : undefined
-  const shown = translated && !showOriginal ? translated : raw
+  const translatableForViewer = it.actor.type === "contact" || (it.actor.type === "member" && !isOwn)
+  const translated = translatableForViewer ? translationOf(it, lang) : undefined
+  const sentAs = isExternal && mine && it.content.original ? it.content.language : undefined
+  const verified = !sentAs && isOwn ? verifiedTranslationOf(it) : undefined
+  const shown = translated && !showOriginal ? translated : sentAs ? (it.content.original ?? "") : raw
   const fromLang = it.derived.language as string | undefined
-  const needFill = !isOwn && translating && it.untranslated
+  const needFill = translatableForViewer && translating && it.untranslated
+  const showDelivery = Boolean(isExternal && mine && it.delivery)
 
   return (
     <Box
       ref={needFill ? watch(it.id) : undefined}
       mt={mt}
       className="inbox-msg"
-      style={{ alignSelf: isOwn ? "flex-end" : "flex-start", maxWidth: "min(74%, 640px)" }}
+      style={{ alignSelf: mine ? "flex-end" : "flex-start", maxWidth: "min(74%, 640px)" }}
     >
-      <Group gap={6} mb={3} px={4} justify={isOwn ? "flex-end" : "flex-start"} wrap="nowrap">
-        {!isOwn && <Avatar size={18} radius="xl" name={author} color="initials" src={avatarUrl} />}
+      <Group gap={6} mb={3} px={4} justify={mine ? "flex-end" : "flex-start"} wrap="nowrap">
+        {!mine && <Avatar size={18} radius="xl" name={author} color="initials" src={avatarUrl} />}
         <Text size="xs" c="dimmed">
           {author}
         </Text>
@@ -380,22 +457,30 @@ function ChatBubble({
         </Tooltip>
       </Group>
 
-      <Group gap={6} wrap="nowrap" align="center" style={{ flexDirection: isOwn ? "row-reverse" : "row" }}>
+      <Group gap={6} wrap="nowrap" align="center" style={{ flexDirection: mine ? "row-reverse" : "row" }}>
         <Paper
-          px={shown || showVerified ? 12 : 6}
-          py={shown || showVerified ? 9 : 6}
-          withBorder={!isOwn}
-          bg={isOwn ? "var(--mantine-primary-color-light)" : undefined}
+          px={shown || showVerified || showSentTranslation ? 12 : 6}
+          py={shown || showVerified || showSentTranslation ? 9 : 6}
+          withBorder={!mine}
+          bg={mine ? "var(--mantine-primary-color-light)" : undefined}
           className="inbox-bubble"
-          data-mine={isOwn || undefined}
-          data-incoming={!isOwn || undefined}
+          data-mine={mine || undefined}
+          data-incoming={!mine || undefined}
           data-first
           data-last
           data-original={(translated && showOriginal) || undefined}
           style={{ minWidth: 0 }}
         >
           {shown && <ChatText text={shown} />}
-          <MessageAttachments conversationId={chatId} attachments={it.attachments} hasText={Boolean(shown)} onPreview={onPreview} />
+          <MessageAttachments conversationId={chat.id} attachments={it.attachments} hasText={Boolean(shown)} onPreview={onPreview} />
+          {sentAs && showSentTranslation && (
+            <Box mt={6} pt={6} className="inbox-sent-translation">
+              <Text size="xs" c="dimmed">
+                {t("inbox.sent_translation", { lang: languageName(sentAs, ui) })}
+              </Text>
+              <ChatText text={raw} />
+            </Box>
+          )}
           {verified && showVerified && (
             <Box mt={6} pt={6} className="inbox-sent-translation">
               <Text size="xs" c="dimmed">
@@ -420,8 +505,173 @@ function ChatBubble({
         )}
       </Group>
 
+      {(translated || needFill || sentAs || verified || showDelivery) && (
+        <Group gap={4} mt={3} px={6} justify={mine ? "flex-end" : "flex-start"} wrap="wrap">
+          {translated ? (
+            <>
+              <IconLanguage size={12} className="inbox-caption-icon" />
+              {fromLang && (
+                <>
+                  <Text size="xs" c="dimmed">
+                    {languageName(fromLang, ui)}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    ·
+                  </Text>
+                </>
+              )}
+              <UnstyledButton className="inbox-caption-btn" onClick={() => setShowOriginal((v) => !v)}>
+                {t(showOriginal ? "inbox.view_translation" : "inbox.view_original")}
+              </UnstyledButton>
+            </>
+          ) : needFill ? (
+            <>
+              <Loader size={10} />
+              <Text size="xs" c="dimmed">
+                {t("inbox.translating")}
+              </Text>
+            </>
+          ) : sentAs ? (
+            <>
+              <IconLanguage size={12} className="inbox-caption-icon" />
+              <Text size="xs" c="dimmed">
+                {t("inbox.sent_as", { lang: languageName(sentAs, ui) })}
+              </Text>
+              <Text size="xs" c="dimmed">
+                ·
+              </Text>
+              <UnstyledButton className="inbox-caption-btn" onClick={() => setShowSentTranslation((v) => !v)}>
+                {t(showSentTranslation ? "inbox.hide_translation" : "inbox.view_translation")}
+              </UnstyledButton>
+            </>
+          ) : verified ? (
+            <>
+              <IconLanguage size={12} className="inbox-caption-icon" />
+              <Text size="xs" c="dimmed">
+                {t("inbox.sent_as", { lang: languageName(verified.language, ui) })}
+              </Text>
+              <Text size="xs" c="dimmed">
+                ·
+              </Text>
+              <UnstyledButton className="inbox-caption-btn" onClick={() => setShowVerified((v) => !v)}>
+                {t(showVerified ? "inbox.hide_translation" : "inbox.view_translation")}
+              </UnstyledButton>
+            </>
+          ) : null}
+
+          {showDelivery && it.delivery && (
+            <>
+              {(translated || needFill || sentAs || verified) && (
+                <Text size="xs" c="dimmed">
+                  ·
+                </Text>
+              )}
+              <Text span size="xs" c={deliveryColor[it.delivery]}>
+                {t(`inbox.delivery_${it.delivery}` as const)}
+              </Text>
+              {it.delivery === "failed" && (
+                <UnstyledButton className="inbox-caption-btn" onClick={() => retry.mutate()} disabled={retry.isPending}>
+                  {t("inbox.retry")}
+                </UnstyledButton>
+              )}
+            </>
+          )}
+        </Group>
+      )}
+    </Box>
+  )
+}
+
+/** ChatNote 渲染商务沟通中的内部备注卡片：淡黄底加锁图标，仅团队成员可见，支持跨语言译文与原文切换。 */
+function ChatNote({
+  chatId,
+  it,
+  author,
+  isOwn,
+  time,
+  fullTime,
+  lang,
+  translating,
+  watch,
+  mt,
+  onPreview,
+}: {
+  chatId: string
+  it: ConversationItemDTO
+  author: string
+  isOwn: boolean
+  time: string
+  fullTime: string
+  lang: string | undefined
+  translating: boolean
+  watch: FillWatcher
+  mt: number
+  onPreview: (img: LightboxImage) => void
+}): ReactNode {
+  const t = useT()
+  const ui = useLanguage()
+  const [showOriginal, setShowOriginal] = useState(false)
+  const [showVerified, setShowVerified] = useState(false)
+
+  const raw = it.content.text ?? ""
+  const translated = isOwn ? undefined : translationOf(it, lang)
+  const verified = isOwn ? verifiedTranslationOf(it) : undefined
+  const shown = translated && !showOriginal ? translated : raw
+  const fromLang = it.derived.language as string | undefined
+  const needFill = !isOwn && translating && it.untranslated
+
+  return (
+    <Paper
+      ref={needFill ? watch(it.id) : undefined}
+      mt={mt}
+      px="sm"
+      py={8}
+      radius="md"
+      bg="var(--mantine-color-yellow-light)"
+      className="inbox-note"
+    >
+      <Group gap={6} mb={3} wrap="nowrap">
+        <IconLock size={12} className="inbox-note-accent" style={{ flex: "none" }} />
+        <Text size="xs" fw={600} className="inbox-note-accent">
+          {t("inbox.note_by", { who: author })}
+        </Text>
+        <Text size="xs" className="inbox-note-accent" opacity={0.75}>
+          ·
+        </Text>
+        <Tooltip label={fullTime} openDelay={300}>
+          <Text size="xs" className="inbox-note-accent" opacity={0.85} style={{ fontVariantNumeric: "tabular-nums" }}>
+            {time}
+          </Text>
+        </Tooltip>
+        {shown && (
+          <Box ml="auto" className="inbox-msg-actions">
+            <CopyButton value={shown} timeout={1500}>
+              {({ copied, copy }) => (
+                <Tooltip label={t(copied ? "inbox.copied" : "inbox.copy_message")} openDelay={250}>
+                  <ActionIcon variant="subtle" color={copied ? "green" : "gray"} size={22} onClick={copy} aria-label={t("inbox.copy_message")}>
+                    {copied ? <IconCheck size={13} /> : <IconCopy size={13} />}
+                  </ActionIcon>
+                </Tooltip>
+              )}
+            </CopyButton>
+          </Box>
+        )}
+      </Group>
+
+      {shown && <ChatText text={shown} />}
+      <MessageAttachments conversationId={chatId} attachments={it.attachments} hasText={Boolean(shown)} onPreview={onPreview} />
+
+      {verified && showVerified && (
+        <Box mt={6} pt={6} className="inbox-sent-translation">
+          <Text size="xs" c="dimmed">
+            {t("inbox.sent_translation", { lang: languageName(verified.language, ui) })}
+          </Text>
+          <ChatText text={verified.text} />
+        </Box>
+      )}
+
       {(translated || needFill || verified) && (
-        <Group gap={4} mt={3} px={6} justify={isOwn ? "flex-end" : "flex-start"} wrap="wrap">
+        <Group gap={4} mt={4} wrap="wrap">
           {translated ? (
             <>
               <IconLanguage size={12} className="inbox-caption-icon" />
@@ -462,7 +712,7 @@ function ChatBubble({
           ) : null}
         </Group>
       )}
-    </Box>
+    </Paper>
   )
 }
 
@@ -507,9 +757,10 @@ function MentionText({ text }: { text: string }): ReactNode {
   )
 }
 
-/** ChatComposer 是内部聊天底部的轻量化输入区，支持 @ 提及、拖拽/粘贴附件及快捷键发送。 */
+/** ChatComposer 是聊天底部的轻量化输入区：商务沟通支持“回复 / 内部备注”切换与对外自动翻译，支持 @ 提及、拖拽/粘贴附件及快捷键发送。 */
 function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping: () => void }): ReactNode {
   const t = useT()
+  const ui = useLanguage()
   const os = useOs()
   const isMac = os === "macos" || os === "ios"
   const sendModKey = isMac ? "⌘ + ↵" : "Ctrl + Enter"
@@ -517,6 +768,10 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
   const me = useMe()
   const ctrlEnterSend = me.data?.send_shortcut === "ctrl_enter"
   const { list: allMembers } = useMembers()
+
+  const isExternal = chat.scope === "external"
+  const [replyMode, setReplyMode] = useState<"reply" | "note">("reply")
+  const note = isExternal && replyMode === "note"
 
   const [text, setText] = useState("")
   const [mentionIds, setMentionIds] = useState<string[]>([])
@@ -536,7 +791,7 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
   const value = text.trim()
   const hasContent = Boolean(value) || attachmentInputs.length > 0
 
-  // 群聊仅提示当前群内其他成员；单聊提示对方成员
+  // 内部聊天仅提示当前参与者；商务沟通的内部备注可 @ 全部同事，对外回复不触发内部 @ 列表
   const participantMemberIds = useMemo(() => {
     const ids = new Set<string>()
     for (const p of chat.participants ?? []) {
@@ -548,29 +803,34 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
     return ids
   }, [chat.participants, chat.peer, me.data?.id])
 
-  const mentionCandidates = useMemo(
-    () => allMembers.filter((m) => participantMemberIds.has(m.id)),
-    [allMembers, participantMemberIds],
-  )
+  const mentionCandidates = useMemo(() => {
+    if (isExternal) {
+      return note ? allMembers.filter((m) => m.id !== me.data?.id) : []
+    }
+    return allMembers.filter((m) => participantMemberIds.has(m.id))
+  }, [allMembers, isExternal, me.data?.id, note, participantMemberIds])
 
   const defaultTarget = useMemo(() => {
-    if (chat.mode === "direct") {
+    if (isExternal && !note) {
+      return chat.language ?? ""
+    }
+    if (!isExternal && chat.mode === "direct") {
       return defaultPeerLanguage([chat.peer?.language], me.data?.language)
     }
     return defaultPeerLanguage(
       (chat.participants ?? [])
-        .filter((p) => !(p.type === "member" && p.id === me.data?.id))
+        .filter((p) => p.type === "member" && p.id !== me.data?.id)
         .map((p) => p.language),
       me.data?.language,
     )
-  }, [chat.mode, chat.peer?.language, chat.participants, me.data?.id, me.data?.language])
+  }, [chat.language, chat.mode, chat.participants, chat.peer?.language, isExternal, me.data?.id, me.data?.language, note])
 
   const preview = useComposerTranslation({
     conversationId: chat.id,
     text: value,
     defaultTarget,
     myLang: me.data?.language,
-    mode: "verified",
+    mode: isExternal && !note ? "replace" : "verified",
   })
 
   const send = useMutation({
@@ -580,6 +840,7 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
         text: value || undefined,
         mentions: ids.length > 0 ? ids : undefined,
         attachments: attachmentInputs.length > 0 ? attachmentInputs : undefined,
+        note: note || undefined,
         translation,
       })
     },
@@ -632,9 +893,9 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
   const handleTextChange = useCallback(
     (next: string) => {
       setText(next)
-      if (next.trim()) onTyping()
+      if (next.trim() && !note) onTyping()
     },
-    [onTyping],
+    [note, onTyping],
   )
 
   const trigger = useTextTrigger({
@@ -646,7 +907,22 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
 
   const canSubmit = hasContent && !queue.uploading && !queue.hasError && !send.isPending && !preview.pending
   const sendHint = ctrlEnterSend ? t("inbox.ctrl_enter_hint", { key: sendModKey }) : t("inbox.enter_hint")
-  const mainLabel = preview.confirming ? t("inbox.confirm_send") : t("inbox.send")
+  const mainLabel = preview.confirming ? t("inbox.confirm_send") : note ? t("inbox.add_note") : t("inbox.send")
+
+  const willAutoTranslateExternal =
+    isExternal &&
+    !note &&
+    preview.enabled &&
+    Boolean(preview.effectiveLang) &&
+    (!me.data?.language || !sameLanguage(preview.effectiveLang, me.data.language))
+
+  const placeholder = isExternal
+    ? note
+      ? t("inbox.note_placeholder")
+      : willAutoTranslateExternal
+        ? t("inbox.reply_placeholder_auto_translate", { lang: languageName(preview.effectiveLang, ui) })
+        : t("chat.business_reply_placeholder")
+    : t("chat.composer_placeholder")
 
   return (
     <Box
@@ -672,13 +948,40 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
         queue.handleDrop(e)
       }}
     >
-      <Box className="inbox-composer-box" data-dragging={dragging || undefined}>
+      <Box className="inbox-composer-box" data-note={note || undefined} data-dragging={dragging || undefined}>
         <TriggerMenu trigger={trigger} position="top" width="min(100%, 280px)" maxHeight={240} />
-        {dragging && (
-          <Group className="inbox-composer-head">
-            <Text size="xs" c="brand" fw={500}>
-              {t("inbox.attach_drop")}
-            </Text>
+        {(isExternal || dragging) && (
+          <Group className="inbox-composer-head" justify="space-between" gap="xs" wrap="nowrap">
+            {isExternal ? (
+              <SegmentedControl
+                size="xs"
+                value={replyMode}
+                onChange={(v) => setReplyMode(v as "reply" | "note")}
+                data={[
+                  { value: "reply", label: t("inbox.mode_reply") },
+                  {
+                    value: "note",
+                    label: (
+                      <Group gap={4} wrap="nowrap">
+                        <IconLock size={12} />
+                        <span>{t("inbox.mode_note")}</span>
+                      </Group>
+                    ),
+                  },
+                ]}
+              />
+            ) : (
+              <Box />
+            )}
+            {dragging ? (
+              <Text size="xs" c="brand" fw={500}>
+                {t("inbox.attach_drop")}
+              </Text>
+            ) : isExternal && note ? (
+              <Text size="xs" c="dimmed" truncate>
+                {t("chat.business_note_hint")}
+              </Text>
+            ) : null}
           </Group>
         )}
 
@@ -710,12 +1013,12 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
                   void submit()
                 }
               }}
-              placeholder={t("chat.composer_placeholder")}
+              placeholder={placeholder}
               autosize
               minRows={2}
               maxRows={8}
               maxLength={10000}
-              aria-label={t("chat.composer_placeholder")}
+              aria-label={placeholder}
             />
           </Box>
           {preview.expanded && (
@@ -749,7 +1052,7 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
             )}
           </FileButton>
 
-          <TranslationToggleButton preview={preview} myLang={me.data?.language} />
+          <TranslationToggleButton preview={preview} myLang={me.data?.language} note={note} />
 
           {preview.confirming && (
             <Text size="xs" c="brand" ml={4}>
@@ -761,7 +1064,8 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
             <AutoTranslateHint preview={preview} myLang={me.data?.language} />
             <Tooltip label={sendHint} openDelay={350}>
               <Button
-                leftSection={<IconSend size={14} />}
+                color={note ? "yellow" : undefined}
+                leftSection={note ? <IconLock size={14} /> : <IconSend size={14} />}
                 disabled={!canSubmit}
                 loading={send.isPending || preview.pending}
                 onClick={() => void submit()}

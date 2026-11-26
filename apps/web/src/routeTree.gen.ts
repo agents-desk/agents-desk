@@ -47,6 +47,7 @@ import { Route as TSlugSettingsInboxBusinessHoursRouteImport } from './routes/t/
 import { Route as TSlugSettingsInboxMacrosRouteImport } from './routes/t/$slug/settings/_inbox/macros'
 import { Route as TSlugSettingsInboxRulesRouteImport } from './routes/t/$slug/settings/_inbox/rules'
 import { Route as TSlugSettingsInboxTeamsRouteImport } from './routes/t/$slug/settings/_inbox/teams'
+import { Route as TSlugSettingsPersonalBusinessChannelsRouteImport } from './routes/t/$slug/settings/_personal/business-channels'
 import { Route as TSlugSettingsPersonalNotificationsRouteImport } from './routes/t/$slug/settings/_personal/notifications'
 import { Route as TSlugSettingsPersonalPreferencesRouteImport } from './routes/t/$slug/settings/_personal/preferences'
 import { Route as TSlugSettingsPersonalProfileRouteImport } from './routes/t/$slug/settings/_personal/profile'
@@ -260,6 +261,12 @@ const TSlugSettingsInboxTeamsRoute = TSlugSettingsInboxTeamsRouteImport.update({
   path: '/teams',
   getParentRoute: () => TSlugSettingsInboxRoute,
 } as any)
+const TSlugSettingsPersonalBusinessChannelsRoute =
+  TSlugSettingsPersonalBusinessChannelsRouteImport.update({
+    id: '/business-channels',
+    path: '/business-channels',
+    getParentRoute: () => TSlugSettingsPersonalRoute,
+  } as any)
 const TSlugSettingsPersonalNotificationsRoute =
   TSlugSettingsPersonalNotificationsRouteImport.update({
     id: '/notifications',
@@ -408,6 +415,7 @@ export interface FileRoutesByFullPath {
   '/t/$slug/settings/macros': typeof TSlugSettingsInboxMacrosRoute
   '/t/$slug/settings/rules': typeof TSlugSettingsInboxRulesRoute
   '/t/$slug/settings/teams': typeof TSlugSettingsInboxTeamsRouteWithChildren
+  '/t/$slug/settings/business-channels': typeof TSlugSettingsPersonalBusinessChannelsRoute
   '/t/$slug/settings/notifications': typeof TSlugSettingsPersonalNotificationsRoute
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
@@ -451,6 +459,7 @@ export interface FileRoutesByTo {
   '/t/$slug/settings/business-hours': typeof TSlugSettingsInboxBusinessHoursRoute
   '/t/$slug/settings/macros': typeof TSlugSettingsInboxMacrosRoute
   '/t/$slug/settings/rules': typeof TSlugSettingsInboxRulesRoute
+  '/t/$slug/settings/business-channels': typeof TSlugSettingsPersonalBusinessChannelsRoute
   '/t/$slug/settings/notifications': typeof TSlugSettingsPersonalNotificationsRoute
   '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
@@ -510,6 +519,7 @@ export interface FileRoutesById {
   '/t/$slug/settings/_inbox/macros': typeof TSlugSettingsInboxMacrosRoute
   '/t/$slug/settings/_inbox/rules': typeof TSlugSettingsInboxRulesRoute
   '/t/$slug/settings/_inbox/teams': typeof TSlugSettingsInboxTeamsRouteWithChildren
+  '/t/$slug/settings/_personal/business-channels': typeof TSlugSettingsPersonalBusinessChannelsRoute
   '/t/$slug/settings/_personal/notifications': typeof TSlugSettingsPersonalNotificationsRoute
   '/t/$slug/settings/_personal/preferences': typeof TSlugSettingsPersonalPreferencesRoute
   '/t/$slug/settings/_personal/profile': typeof TSlugSettingsPersonalProfileRoute
@@ -565,6 +575,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/macros'
     | '/t/$slug/settings/rules'
     | '/t/$slug/settings/teams'
+    | '/t/$slug/settings/business-channels'
     | '/t/$slug/settings/notifications'
     | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
@@ -608,6 +619,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/business-hours'
     | '/t/$slug/settings/macros'
     | '/t/$slug/settings/rules'
+    | '/t/$slug/settings/business-channels'
     | '/t/$slug/settings/notifications'
     | '/t/$slug/settings/preferences'
     | '/t/$slug/settings/profile'
@@ -666,6 +678,7 @@ export interface FileRouteTypes {
     | '/t/$slug/settings/_inbox/macros'
     | '/t/$slug/settings/_inbox/rules'
     | '/t/$slug/settings/_inbox/teams'
+    | '/t/$slug/settings/_personal/business-channels'
     | '/t/$slug/settings/_personal/notifications'
     | '/t/$slug/settings/_personal/preferences'
     | '/t/$slug/settings/_personal/profile'
@@ -961,6 +974,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugSettingsInboxTeamsRouteImport
       parentRoute: typeof TSlugSettingsInboxRoute
     }
+    '/t/$slug/settings/_personal/business-channels': {
+      id: '/t/$slug/settings/_personal/business-channels'
+      path: '/business-channels'
+      fullPath: '/t/$slug/settings/business-channels'
+      preLoaderRoute: typeof TSlugSettingsPersonalBusinessChannelsRouteImport
+      parentRoute: typeof TSlugSettingsPersonalRoute
+    }
     '/t/$slug/settings/_personal/notifications': {
       id: '/t/$slug/settings/_personal/notifications'
       path: '/notifications'
@@ -1249,12 +1269,15 @@ const TSlugSettingsInboxRouteWithChildren =
   TSlugSettingsInboxRoute._addFileChildren(TSlugSettingsInboxRouteChildren)
 
 interface TSlugSettingsPersonalRouteChildren {
+  TSlugSettingsPersonalBusinessChannelsRoute: typeof TSlugSettingsPersonalBusinessChannelsRoute
   TSlugSettingsPersonalNotificationsRoute: typeof TSlugSettingsPersonalNotificationsRoute
   TSlugSettingsPersonalPreferencesRoute: typeof TSlugSettingsPersonalPreferencesRoute
   TSlugSettingsPersonalProfileRoute: typeof TSlugSettingsPersonalProfileRoute
 }
 
 const TSlugSettingsPersonalRouteChildren: TSlugSettingsPersonalRouteChildren = {
+  TSlugSettingsPersonalBusinessChannelsRoute:
+    TSlugSettingsPersonalBusinessChannelsRoute,
   TSlugSettingsPersonalNotificationsRoute:
     TSlugSettingsPersonalNotificationsRoute,
   TSlugSettingsPersonalPreferencesRoute: TSlugSettingsPersonalPreferencesRoute,
