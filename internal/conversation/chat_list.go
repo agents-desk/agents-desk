@@ -20,8 +20,9 @@ import (
 // ListChatsInput 是内部聊天列表的查询参数。
 type ListChatsInput struct {
 	page.CursorParams
-	Mode ChatMode `query:"mode" doc:"可选：按聊天模式筛选（direct 或 group）"`
-	Q    string   `query:"q" maxLength:"100" doc:"按群聊名称、参与者姓名或聊天消息全文搜索"`
+	Mode     ChatMode `query:"mode" doc:"可选：按聊天模式筛选（direct 或 group）"`
+	MemberID string   `query:"member_id" doc:"可选：只返回同时包含指定成员的聊天（用于查询共同群聊）"`
+	Q        string   `query:"q" maxLength:"100" doc:"按群聊名称、参与者姓名或聊天消息全文搜索"`
 }
 
 // ListChatsOutput 是一页内部聊天列表。
@@ -62,6 +63,13 @@ func (a *ListChats) Handle(ctx context.Context, sub identity.Subject, in *ListCh
 
 	if in.Mode != "" {
 		q = q.Where("ch.mode = ?", in.Mode)
+	}
+	if memberID := strings.TrimSpace(in.MemberID); memberID != "" {
+		q = q.Where(`EXISTS (
+			SELECT 1 FROM conversation_participants cp_member
+			WHERE cp_member.conversation_id = conversation.id
+				AND cp_member.participant_type = ? AND cp_member.participant_id = ?
+		)`, MemberActor, memberID)
 	}
 	var matchByChat map[string]SearchMatch
 	var matchCountByChat map[string]int

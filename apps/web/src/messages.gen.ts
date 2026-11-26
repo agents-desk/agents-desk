@@ -87,6 +87,7 @@ export const messages = {
     "chat.add_members": "Add members",
     "chat.add_members_submit": "Add to group",
     "chat.composer_placeholder": "Send a message, @ mention teammates or paste images — auto-translates across languages…",
+    "chat.copy_email": "Copy email",
     "chat.create_group": "Create group",
     "chat.empty": "No internal chats yet — click + to start a DM or group",
     "chat.empty_filtered": "No matching chats",
@@ -111,6 +112,10 @@ export const messages = {
     "chat.no_colleagues": "No teammates available",
     "chat.no_messages": "No messages yet",
     "chat.not_found": "Chat not found or you are not a participant",
+    "chat.peer_details": "Teammate profile",
+    "chat.peer_info": "Member info",
+    "chat.peer_language": "Preferred language",
+    "chat.peer_role": "Role",
     "chat.pick": "Select a chat to start messaging",
     "chat.pick_hint": "Supports 1:1 DMs and group chats with automatic cross-language translation",
     "chat.pick_member_placeholder": "Search teammate name or email…",
@@ -119,10 +124,13 @@ export const messages = {
     "chat.remove_member_message": "They will no longer receive new messages in this group.",
     "chat.search_placeholder": "Search teammates, groups, or messages…",
     "chat.selected_members": "{{.n}} member(s) selected (including you)",
+    "chat.shared_groups": "Shared groups",
+    "chat.shared_groups_empty": "No shared group chats yet",
     "chat.start_hint": "Send the first message to start chatting",
     "chat.status_away": "Away",
     "chat.status_online": "Online",
     "chat.unknown_peer": "Teammate",
+    "chat.unread_chats_hint": "{{.n}} unread chat(s)",
     "chat.untitled_group": "Untitled group",
     "choose_tenant.disabled": "Disabled",
     "choose_tenant.none": "You aren’t in any workspace yet. Ask a workspace admin to add you.",
@@ -356,6 +364,10 @@ export const messages = {
     "inbox.attr_select": "Select",
     "inbox.attr_text_placeholder": "Enter value",
     "inbox.attr_yes": "Yes",
+    "inbox.auto_translate_click_hint": "Click to review translation or change target language",
+    "inbox.auto_translate_mutual": "Auto-translate",
+    "inbox.auto_translate_off": "Send original",
+    "inbox.auto_translate_to": "Auto-translates to {{.lang}}",
     "inbox.away": "Away",
     "inbox.back": "Back to conversations",
     "inbox.back_translation": "Back-translation check",
@@ -481,6 +493,7 @@ export const messages = {
     "inbox.reopen": "Reopen",
     "inbox.reopen_reply_placeholder": "Sending a reply will reopen this conversation…",
     "inbox.reply_placeholder": "Type a reply, or press / for quick replies…",
+    "inbox.reply_placeholder_auto_translate": "Type a reply (auto-translates to {{.lang}}), or press / for quick replies…",
     "inbox.reset_translation": "Reset to auto",
     "inbox.retranslate": "Retranslate",
     "inbox.retranslating": "Text changed, translating again",
@@ -1324,6 +1337,7 @@ export const messages = {
     "chat.add_members": "邀请成员",
     "chat.add_members_submit": "添加到群聊",
     "chat.composer_placeholder": "发送消息，支持 @ 同事与粘贴图片，跨语言消息自动互译…",
+    "chat.copy_email": "复制邮箱",
     "chat.create_group": "创建群聊",
     "chat.empty": "还没有内部聊天，点击右上角发起单聊或建群",
     "chat.empty_filtered": "没有匹配的聊天",
@@ -1348,6 +1362,10 @@ export const messages = {
     "chat.no_colleagues": "没有可选择的同事",
     "chat.no_messages": "暂无消息",
     "chat.not_found": "聊天不存在或你不是参与者",
+    "chat.peer_details": "同事资料",
+    "chat.peer_info": "成员信息",
+    "chat.peer_language": "偏好语言",
+    "chat.peer_role": "角色",
     "chat.pick": "选择一个聊天开始沟通",
     "chat.pick_hint": "支持团队内单聊与群聊，跨语言同事消息自动互译",
     "chat.pick_member_placeholder": "搜索同事姓名或邮箱…",
@@ -1356,10 +1374,13 @@ export const messages = {
     "chat.remove_member_message": "移出后对方将不再收到本群的新消息。",
     "chat.search_placeholder": "搜索同事、群聊或聊天记录…",
     "chat.selected_members": "已选 {{.n}} 位成员（含自己）",
+    "chat.shared_groups": "共同群聊",
+    "chat.shared_groups_empty": "还没有共同加入的群聊",
     "chat.start_hint": "发送第一条消息开始聊天",
     "chat.status_away": "离开",
     "chat.status_online": "在线",
     "chat.unknown_peer": "同事",
+    "chat.unread_chats_hint": "{{.n}} 个聊天有未读消息",
     "chat.untitled_group": "未命名群聊",
     "choose_tenant.disabled": "已停用",
     "choose_tenant.none": "你还不属于任何工作区，请联系工作区的管理员把你加入。",
@@ -1593,6 +1614,10 @@ export const messages = {
     "inbox.attr_select": "请选择",
     "inbox.attr_text_placeholder": "输入内容",
     "inbox.attr_yes": "是",
+    "inbox.auto_translate_click_hint": "点击展开译文校对或切换目标语言",
+    "inbox.auto_translate_mutual": "自动互译",
+    "inbox.auto_translate_off": "按原文发送",
+    "inbox.auto_translate_to": "自动译为 {{.lang}}",
     "inbox.away": "离开",
     "inbox.back": "返回会话列表",
     "inbox.back_translation": "回译校验",
@@ -1718,6 +1743,7 @@ export const messages = {
     "inbox.reopen": "重新打开",
     "inbox.reopen_reply_placeholder": "发送回复将重新打开此会话…",
     "inbox.reply_placeholder": "输入回复，或输入 / 使用快捷回复…",
+    "inbox.reply_placeholder_auto_translate": "输入回复（发送时自动译为{{.lang}}），或输入 / 使用快捷回复…",
     "inbox.reset_translation": "恢复自动译文",
     "inbox.retranslate": "重新翻译",
     "inbox.retranslating": "原文改了，正在重新翻译",
@@ -2564,6 +2590,7 @@ export type MessageId =
   | "chat.add_members"
   | "chat.add_members_submit"
   | "chat.composer_placeholder"
+  | "chat.copy_email"
   | "chat.create_group"
   | "chat.empty"
   | "chat.empty_filtered"
@@ -2588,6 +2615,10 @@ export type MessageId =
   | "chat.no_colleagues"
   | "chat.no_messages"
   | "chat.not_found"
+  | "chat.peer_details"
+  | "chat.peer_info"
+  | "chat.peer_language"
+  | "chat.peer_role"
   | "chat.pick"
   | "chat.pick_hint"
   | "chat.pick_member_placeholder"
@@ -2596,10 +2627,13 @@ export type MessageId =
   | "chat.remove_member_message"
   | "chat.search_placeholder"
   | "chat.selected_members"
+  | "chat.shared_groups"
+  | "chat.shared_groups_empty"
   | "chat.start_hint"
   | "chat.status_away"
   | "chat.status_online"
   | "chat.unknown_peer"
+  | "chat.unread_chats_hint"
   | "chat.untitled_group"
   | "choose_tenant.disabled"
   | "choose_tenant.none"
@@ -2833,6 +2867,10 @@ export type MessageId =
   | "inbox.attr_select"
   | "inbox.attr_text_placeholder"
   | "inbox.attr_yes"
+  | "inbox.auto_translate_click_hint"
+  | "inbox.auto_translate_mutual"
+  | "inbox.auto_translate_off"
+  | "inbox.auto_translate_to"
   | "inbox.away"
   | "inbox.back"
   | "inbox.back_translation"
@@ -2958,6 +2996,7 @@ export type MessageId =
   | "inbox.reopen"
   | "inbox.reopen_reply_placeholder"
   | "inbox.reply_placeholder"
+  | "inbox.reply_placeholder_auto_translate"
   | "inbox.reset_translation"
   | "inbox.retranslate"
   | "inbox.retranslating"

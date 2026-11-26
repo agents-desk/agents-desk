@@ -217,6 +217,22 @@ func TestInternalChatLifecycleIsolationAndPush(t *testing.T) {
 	if err != nil || len(byGroup.Items) != 1 || byGroup.Items[0].ID != grp.ID {
 		t.Fatalf("按群聊名搜索异常：%v %+v", err, byGroup)
 	}
+	sharedWithBob, err := listChats.Handle(ctx, subAlice, &conversation.ListChatsInput{
+		CursorParams: page.CursorParams{PerPage: 20},
+		Mode:         conversation.ChatGroup,
+		MemberID:     bob.ID,
+	})
+	if err != nil || len(sharedWithBob.Items) != 1 || sharedWithBob.Items[0].ID != grp.ID {
+		t.Fatalf("按 member_id 查询共同群聊异常：%v %+v", err, sharedWithBob)
+	}
+	sharedWithOwner, err := listChats.Handle(ctx, subAlice, &conversation.ListChatsInput{
+		CursorParams: page.CursorParams{PerPage: 20},
+		Mode:         conversation.ChatGroup,
+		MemberID:     alpha.OwnerID,
+	})
+	if err != nil || len(sharedWithOwner.Items) != 0 {
+		t.Fatalf("已退群成员不应出现在共同群聊中：%v %+v", err, sharedWithOwner)
+	}
 	byMsgZh, err := listChats.Handle(ctx, subAlice, &conversation.ListChatsInput{CursorParams: page.CursorParams{PerPage: 20}, Q: "结算状态"})
 	if err != nil || len(byMsgZh.Items) != 1 || byMsgZh.Items[0].ID != dm1.ID || byMsgZh.Items[0].Match == nil {
 		t.Fatalf("按中文消息全文搜索应命中单聊并返回摘要：%v %+v", err, byMsgZh)

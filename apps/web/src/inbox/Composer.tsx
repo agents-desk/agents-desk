@@ -42,6 +42,7 @@ import {
   TriggerMenu,
   textTriggerRule,
   useCan,
+  useLanguage,
   useT,
   useTextTrigger,
   useTimeZone,
@@ -49,7 +50,7 @@ import {
 } from "@go-tenon/ui"
 import { type ReactNode, type RefObject, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { sameLanguage } from "../languages"
+import { languageName, sameLanguage } from "../languages"
 import {
   countMacroActions,
   emptyPendingActions,
@@ -73,6 +74,7 @@ import {
 } from "./Attachments"
 import { ChannelIcon } from "./channel-badge"
 import {
+  AutoTranslateHint,
   defaultPeerLanguage,
   InlineTranslationPane,
   NO_TRANSLATION,
@@ -112,6 +114,7 @@ export function Composer({
   handleRef?: RefObject<ComposerHandle | null>
 }): ReactNode {
   const t = useT()
+  const ui = useLanguage()
   const can = useCan()
   const os = useOs()
   const isMac = os === "macos" || os === "ios"
@@ -405,6 +408,15 @@ export function Composer({
   const canSubmit =
     !queue.uploading && !queue.hasError && !send.isPending && !preview.pending && (note ? hasContent : hasContent || hasPending)
   const sendHint = ctrlEnterSend ? t("inbox.ctrl_enter_hint", { key: sendModKey }) : t("inbox.enter_hint")
+  const replyPlaceholder =
+    c.status === "closed"
+      ? t("inbox.reopen_reply_placeholder")
+      : preview.enabled &&
+          preview.target !== NO_TRANSLATION &&
+          preview.effectiveLang &&
+          !sameLanguage(preview.effectiveLang, me.data?.language)
+        ? t("inbox.reply_placeholder_auto_translate", { lang: languageName(preview.effectiveLang, ui) })
+        : t("inbox.reply_placeholder")
   const willAutoTranslateReply =
     !note &&
     preview.enabled &&
@@ -560,7 +572,7 @@ export function Composer({
                   void submit({ kind: "none" })
                 }
               }}
-              placeholder={t(note ? "inbox.note_placeholder" : c.status === "closed" ? "inbox.reopen_reply_placeholder" : "inbox.reply_placeholder")}
+              placeholder={note ? t("inbox.note_placeholder") : replyPlaceholder}
               autosize
               minRows={3}
               maxRows={10}
@@ -616,40 +628,43 @@ export function Composer({
               {ctrlEnterSend ? t("inbox.ctrl_enter_again", { key: sendModKey }) : t("inbox.enter_again")}
             </Text>
           )}
-          <Group gap={0} ml="auto" wrap="nowrap">
-            <Tooltip label={sendHint} openDelay={350}>
-              <Button
-                color={note ? "yellow" : undefined}
-                disabled={!canSubmit}
-                loading={send.isPending || preview.pending}
-                onClick={() => void submit({ kind: "none" })}
-                style={note ? undefined : { borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
-              >
-                {mainLabel}
-              </Button>
-            </Tooltip>
-            {!note && (
-              <Menu position="top-end" withinPortal>
-                <Menu.Target>
-                  <Button px={7} disabled={!canSubmit} className="inbox-send-menu" aria-label={t("inbox.send_options")}>
-                    <IconChevronDown size={14} />
-                  </Button>
-                </Menu.Target>
-                <Menu.Dropdown>
-                  <Menu.Item onClick={() => void submit({ kind: "none" })}>{t("inbox.send")}</Menu.Item>
-                  {willAutoTranslateReply && (
-                    <Menu.Item onClick={() => void submit({ kind: "none" }, { skipTranslation: true })}>{t("inbox.send_original")}</Menu.Item>
-                  )}
-                  <Menu.Item onClick={() => void submit({ kind: "close" })}>{t("inbox.send_close")}</Menu.Item>
-                  <Menu.Label>{t("inbox.send_snooze")}</Menu.Label>
-                  {snoozeOptions(zone).map((o) => (
-                    <Menu.Item key={o.key} onClick={() => void submit({ kind: "snooze", until: o.until })}>
-                      {t(`inbox.snooze_${o.key}` as const)}
-                    </Menu.Item>
-                  ))}
-                </Menu.Dropdown>
-              </Menu>
-            )}
+          <Group gap="xs" ml="auto" wrap="nowrap">
+            <AutoTranslateHint preview={preview} myLang={me.data?.language} />
+            <Group gap={0} wrap="nowrap">
+              <Tooltip label={sendHint} openDelay={350}>
+                <Button
+                  color={note ? "yellow" : undefined}
+                  disabled={!canSubmit}
+                  loading={send.isPending || preview.pending}
+                  onClick={() => void submit({ kind: "none" })}
+                  style={note ? undefined : { borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+                >
+                  {mainLabel}
+                </Button>
+              </Tooltip>
+              {!note && (
+                <Menu position="top-end" withinPortal>
+                  <Menu.Target>
+                    <Button px={7} disabled={!canSubmit} className="inbox-send-menu" aria-label={t("inbox.send_options")}>
+                      <IconChevronDown size={14} />
+                    </Button>
+                  </Menu.Target>
+                  <Menu.Dropdown>
+                    <Menu.Item onClick={() => void submit({ kind: "none" })}>{t("inbox.send")}</Menu.Item>
+                    {willAutoTranslateReply && (
+                      <Menu.Item onClick={() => void submit({ kind: "none" }, { skipTranslation: true })}>{t("inbox.send_original")}</Menu.Item>
+                    )}
+                    <Menu.Item onClick={() => void submit({ kind: "close" })}>{t("inbox.send_close")}</Menu.Item>
+                    <Menu.Label>{t("inbox.send_snooze")}</Menu.Label>
+                    {snoozeOptions(zone).map((o) => (
+                      <Menu.Item key={o.key} onClick={() => void submit({ kind: "snooze", until: o.until })}>
+                        {t(`inbox.snooze_${o.key}` as const)}
+                      </Menu.Item>
+                    ))}
+                  </Menu.Dropdown>
+                </Menu>
+              )}
+            </Group>
           </Group>
         </Group>
       </Box>

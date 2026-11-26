@@ -63,6 +63,7 @@ import {
 } from "../inbox/Attachments"
 import { useConversationChannel } from "../inbox/channel"
 import {
+  AutoTranslateHint,
   defaultPeerLanguage,
   InlineTranslationPane,
   TranslationToggleButton,
@@ -78,17 +79,28 @@ import { languageName } from "../languages"
 import { NARROW_QUERY } from "../layout"
 import { chatDisplayName, useChat } from "./data"
 import { GroupDetails } from "./GroupDetails"
+import { PeerDetails } from "./PeerDetails"
 
 /** LINK 匹配消息中的网址。 */
 const LINK = /https?:\/\/[^\s<>\x22]+[^\s<>\x22\x27.,;:!?)\]}。，；：！？）】」』]/g
 
 /**
  * ChatView 是单条内部聊天（单聊或群聊）的主对话区：
- * 顶栏展示对方资料/群成员数与群详情右侧栏开关；
+ * 顶栏展示对方资料/群成员数与右侧详情栏开关（单聊展示同事资料与共同群聊，群聊展示群设置与成员）；
  * 中间消息流支持跨语言自动互译（按阅读者语言默认展示译文并支持单条切换原文）、附件灯箱、@高亮和正在输入提示；
  * 底部输入框支持 @ 提及、拖拽/粘贴附件、统一译文校对展开栏及快捷键发送。
  */
-export function ChatView({ id, tenantId, back }: { id: string; tenantId: string; back: () => void }): ReactNode {
+export function ChatView({
+  id,
+  tenantId,
+  back,
+  onOpenChat,
+}: {
+  id: string
+  tenantId: string
+  back: () => void
+  onOpenChat: (chatId: string) => void
+}): ReactNode {
   const t = useT()
   const narrow = useNarrow(NARROW_QUERY)
   const queryClient = useQueryClient()
@@ -97,7 +109,7 @@ export function ChatView({ id, tenantId, back }: { id: string; tenantId: string;
   const timeline = useTimeline(id)
   const { typing, notifyTyping, clearTyping } = useConversationChannel(tenantId, id, me.data?.id)
 
-  const details = useAsidePaneState("chat-group-details", { compactQuery: NARROW_QUERY })
+  const details = useAsidePaneState("chat-details", { compactQuery: NARROW_QUERY })
 
   const chat = chatQuery.data
   const last = timeline.data?.at(-1)
@@ -165,21 +177,19 @@ export function ChatView({ id, tenantId, back }: { id: string; tenantId: string;
             </Box>
           </Group>
 
-          {chat.mode === "group" && (
-            <Group gap={6} wrap="nowrap" style={{ flex: "none" }} data-tn-density="dense">
-              <Tooltip label={t("chat.group_settings")}>
-                <ActionIcon
-                  variant={details.opened ? "light" : "subtle"}
-                  color={details.opened ? undefined : "gray"}
-                  size="input-sm"
-                  aria-label={t("chat.group_settings")}
-                  onClick={details.toggle}
-                >
-                  <IconLayoutSidebarRight size={16} />
-                </ActionIcon>
-              </Tooltip>
-            </Group>
-          )}
+          <Group gap={6} wrap="nowrap" style={{ flex: "none" }} data-tn-density="dense">
+            <Tooltip label={t(chat.mode === "group" ? "chat.group_settings" : "chat.peer_details")}>
+              <ActionIcon
+                variant={details.opened ? "light" : "subtle"}
+                color={details.opened ? undefined : "gray"}
+                size="input-sm"
+                aria-label={t(chat.mode === "group" ? "chat.group_settings" : "chat.peer_details")}
+                onClick={details.toggle}
+              >
+                <IconLayoutSidebarRight size={16} />
+              </ActionIcon>
+            </Tooltip>
+          </Group>
         </PaneHeader>
 
         <ChatTimeline chat={chat} typingNames={typing.map((x) => x.name ?? "").filter(Boolean)} />
@@ -187,16 +197,18 @@ export function ChatView({ id, tenantId, back }: { id: string; tenantId: string;
         <ChatComposer key={chat.id} chat={chat} onTyping={notifyTyping} />
       </Box>
 
-      {chat.mode === "group" && (
-        <AsidePane
-          opened={details.opened}
-          onClose={details.close}
-          compactQuery={NARROW_QUERY}
-          resizable={{ storageKey: "chat-group-details", defaultWidth: 320, min: 280, max: 400 }}
-        >
+      <AsidePane
+        opened={details.opened}
+        onClose={details.close}
+        compactQuery={NARROW_QUERY}
+        resizable={{ storageKey: "chat-details", defaultWidth: 320, min: 280, max: 400 }}
+      >
+        {chat.mode === "group" ? (
           <GroupDetails chat={chat} onClose={details.close} onLeft={back} />
-        </AsidePane>
-      )}
+        ) : (
+          <PeerDetails chat={chat} onClose={details.close} onOpenChat={onOpenChat} />
+        )}
+      </AsidePane>
     </Group>
   )
 }
@@ -745,17 +757,19 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
             </Text>
           )}
 
-          <Tooltip label={sendHint} openDelay={350}>
-            <Button
-              ml="auto"
-              leftSection={<IconSend size={14} />}
-              disabled={!canSubmit}
-              loading={send.isPending || preview.pending}
-              onClick={() => void submit()}
-            >
-              {mainLabel}
-            </Button>
-          </Tooltip>
+          <Group gap="xs" ml="auto" wrap="nowrap">
+            <AutoTranslateHint preview={preview} myLang={me.data?.language} />
+            <Tooltip label={sendHint} openDelay={350}>
+              <Button
+                leftSection={<IconSend size={14} />}
+                disabled={!canSubmit}
+                loading={send.isPending || preview.pending}
+                onClick={() => void submit()}
+              >
+                {mainLabel}
+              </Button>
+            </Tooltip>
+          </Group>
         </Group>
       </Box>
     </Box>
