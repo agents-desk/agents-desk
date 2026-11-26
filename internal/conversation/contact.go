@@ -38,15 +38,16 @@ type ContactAuthor struct {
 
 // ContactItemDTO 是联系人看到的时间线中的一项：对所有人可见的消息。
 type ContactItemDTO struct {
-	ID          string           `json:"id"`
-	Seq         int64            `json:"seq"`
-	Kind        ItemKind         `json:"kind"`
-	Author      ContactAuthor    `json:"author"`
-	Channel     *channel.Summary `json:"channel,omitempty" doc:"该消息来自或发往的渠道"`
-	Text        string           `json:"text"`
-	Attachments []AttachmentDTO  `json:"attachments,omitempty" doc:"附带的图片和文件"`
-	Prompt      *Prompt          `json:"prompt,omitempty" doc:"系统发出的结构化提示或交互卡片"`
-	CreatedAt   time.Time        `json:"created_at"`
+	ID             string           `json:"id"`
+	ConversationID string           `json:"conversation_id,omitempty" doc:"该消息所属的服务型会话 ID"`
+	Seq            int64            `json:"seq"`
+	Kind           ItemKind         `json:"kind"`
+	Author         ContactAuthor    `json:"author"`
+	Channel        *channel.Summary `json:"channel,omitempty" doc:"该消息来自或发往的渠道"`
+	Text           string           `json:"text"`
+	Attachments    []AttachmentDTO  `json:"attachments,omitempty" doc:"附带的图片和文件"`
+	Prompt         *Prompt          `json:"prompt,omitempty" doc:"系统发出的结构化提示或交互卡片"`
+	CreatedAt      time.Time        `json:"created_at"`
 }
 
 // findForContact 读取联系人 sub 在渠道 channelID 中可见的会话 id。
@@ -189,7 +190,7 @@ func toContactItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Ite
 	}
 	for i, it := range items {
 		out[i] = ContactItemDTO{
-			ID: it.ID, Seq: it.Seq, Kind: it.Kind, Author: ContactAuthor{Type: it.ActorType, Name: names[it.ActorID]},
+			ID: it.ID, ConversationID: it.ConversationID, Seq: it.Seq, Kind: it.Kind, Author: ContactAuthor{Type: it.ActorType, Name: names[it.ActorID]},
 			Text: it.Content.Text, Attachments: attachments[it.ID], Prompt: it.Content.Prompt, CreatedAt: it.CreatedAt,
 		}
 		if it.ChannelID != nil {

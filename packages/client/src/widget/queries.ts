@@ -100,6 +100,16 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
           invalidate(context, "file"),
       }),
     },
+    message: {
+      /** message 分组全部查询的 key 前缀。 */
+      key: () => key("message"),
+      /** POST /messages */
+      send: () => ({
+        mutationFn: (variables: Parameters<Client["message"]["send"]>[0]) => client.message.send(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "message"),
+      }),
+    },
     ticket: {
       /** ticket 分组全部查询的 key 前缀。 */
       key: () => key("ticket"),
@@ -112,6 +122,27 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       list: (...args: Parameters<Client["ticket"]["list"]>) => ({
         queryKey: key("ticket", "list", ...args),
         queryFn: () => client.ticket.list(...args),
+      }),
+    },
+    timeline: {
+      /** timeline 分组全部查询的 key 前缀。 */
+      key: () => key("timeline"),
+      /** GET /timeline */
+      get: (...args: Parameters<Client["timeline"]["get"]>) => ({
+        queryKey: key("timeline", "get", ...args),
+        queryFn: () => client.timeline.get(...args),
+      }),
+      /** POST /read */
+      read: () => ({
+        mutationFn: (variables: Parameters<Client["timeline"]["read"]>[0]) => client.timeline.read(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "timeline"),
+      }),
+      /** POST /typing */
+      typing: () => ({
+        mutationFn: () => client.timeline.typing(),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "timeline"),
       }),
     },
     widget: {

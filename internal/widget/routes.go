@@ -106,6 +106,25 @@ type ItemsOutput struct {
 	Body []conversation.ContactItemDTO
 }
 
+// TimelineInput 是客户读取跨会话连续时间线的请求：支持向上翻历史（before）和收到推送后增量拉取（after）。
+type TimelineInput struct {
+	Before string `query:"before" format:"uuid" doc:"只读取早于该消息 ID 的更早历史消息，用于向上滚动分页"`
+	After  string `query:"after" format:"uuid" doc:"只读取晚于该消息 ID 的新消息，用于收到实时推送后增量刷新"`
+	Limit  int    `query:"limit" minimum:"1" maximum:"100" default:"50"`
+}
+
+// TimelineOutput 是客户跨会话连续时间线的一页响应。
+type TimelineOutput struct {
+	Body conversation.ContactTimelineDTO
+}
+
+// StreamReadInput 是客户在连续时间线中标记已读的请求。
+type StreamReadInput struct {
+	Body struct {
+		UpToItemID string `json:"up_to_item_id,omitempty" format:"uuid" doc:"可选：截至已读的消息 ID；不填时将全部未读客服消息标为已读"`
+	}
+}
+
 // RateInput 是客户评价已关闭的会话。
 type RateInput struct {
 	ID   string `path:"id" format:"uuid"`
@@ -143,9 +162,18 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 	typingOp := route(requireContact, "conversation-typing", http.MethodPost, "/conversations/{id}/typing", "正在输入")
 	typingOp.DefaultStatus = http.StatusNoContent
 	contactEmailOp := route(requireContact, "contact-email", http.MethodPost, "/contact/email", "线索留下邮箱")
+	streamSendOp := route(requireContact, "message-send", http.MethodPost, "/messages", "发送消息")
+	streamSendOp.DefaultStatus = http.StatusCreated
+	streamReadOp := route(requireContact, "timeline-read", http.MethodPost, "/read", "标记连续时间线已读")
+	streamReadOp.DefaultStatus = http.StatusNoContent
+	streamTypingOp := route(requireContact, "timeline-typing", http.MethodPost, "/typing", "在当前活跃会话中正在输入")
+	streamTypingOp.DefaultStatus = http.StatusNoContent
 
 	sendMessage := NewSendMessage(db, receive)
 	leaveEmail := NewLeaveEmail(db, down)
+	stream := conversation.NewContactStream(db, down.Media)
+	markAllRead := conversation.NewMarkAllReadByContact(db, down)
+	typingActive := conversation.NewTypingOnActiveByContact(db, down)
 	list, get, items := conversation.NewListForContact(db), conversation.NewGetForContact(db), conversation.NewTimelineForContact(db, down.Media)
 	listTickets, getTicket := conversation.NewListTicketsForContact(db), conversation.NewGetTicketForContact(db, down.Media)
 	markRead := conversation.NewMarkReadByContact(db, down)
@@ -156,6 +184,42 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 
 	rest.Register(api, route(public, "widget-config", http.MethodGet, "/config", "聊天插件的公开设置"), NewGetConfig().HTTP)
 	rest.Register(api, route(public, "widget-session", http.MethodPost, "/session", "建立会话"), NewStartSession(db, c, tokens, down).HTTP)
+
+	// 连续时间线核心接口：跨历史会话无缝读取、统一发消息、标记已读与正在输入
+	rest.Register(api, route(requireContact, "timeline-get", http.MethodGet, "/timeline", "读取客户跨会话连续时间线"),
+		func(ctx context.Context, in *TimelineInput) (*TimelineOutput, error) {
+			sub, ch, err := visitor(ctx)
+			if err != nil {
+				return nil, err
+			}
+			out, err := stream.Handle(ctx, sub, ch, in.Before, in.After, in.Limit)
+			if err != nil {
+				return nil, err
+			}
+			return &TimelineOutput{Body: *out}, nil
+		})
+	rest.Register(api, streamSendOp, func(ctx context.Context, in *NewConversationInput) (*SentOutput, error) {
+		sub, _ := identity.FromContext(ctx)
+		out, err := sendMessage.Handle(ctx, sub, "", in.Body)
+		if err != nil {
+			return nil, err
+		}
+		return &SentOutput{Body: *out}, nil
+	})
+	rest.Register(api, streamReadOp, func(ctx context.Context, in *StreamReadInput) (*struct{}, error) {
+		sub, ch, err := visitor(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return nil, markAllRead.Handle(ctx, sub, ch, in.Body.UpToItemID)
+	})
+	rest.Register(api, streamTypingOp, func(ctx context.Context, _ *struct{}) (*struct{}, error) {
+		sub, ch, err := visitor(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return nil, typingActive.Handle(ctx, sub, ch)
+	})
 
 	// 以下是联系人的接口：只做输入转换，渠道是本次请求的聊天插件，归属由业务动作检查
 	rest.Register(api, route(requireContact, "conversation-list", http.MethodGet, "/conversations", "我的会话"),

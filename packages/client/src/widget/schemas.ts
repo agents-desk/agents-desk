@@ -53,6 +53,42 @@ export const schemas = {
       },
     },
   },
+  message: {
+    send: {
+      body: {
+        "$ref": "#/components/schemas/WidgetMessageBody"
+      },
+    },
+  },
+  timeline: {
+    get: {
+      query: {
+        "properties": {
+          "after": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "before": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "limit": {
+            "default": 50,
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+    },
+    read: {
+      body: {
+        "$ref": "#/components/schemas/WidgetStreamReadInputBody"
+      },
+    },
+  },
   widget: {
     session: {
       body: {
@@ -137,6 +173,10 @@ export const components = {
       "text": {
         "maxLength": 10000,
         "type": "string"
+      },
+      "ticket_id": {
+        "format": "uuid",
+        "type": "string"
       }
     },
     "type": "object"
@@ -191,6 +231,16 @@ export const components = {
       },
       "visitor_id": {
         "maxLength": 64,
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  WidgetStreamReadInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "up_to_item_id": {
+        "format": "uuid",
         "type": "string"
       }
     },
