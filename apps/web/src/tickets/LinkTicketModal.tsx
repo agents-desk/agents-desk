@@ -36,7 +36,7 @@ export function LinkTicketModal({ opened, conversationId, linkedTicketIds, onClo
   })
 
   const link = useMutation({
-    mutationFn: (ticketId: string) => tenantApi.ticket.linkAdd(ticketId, { conversation_id: conversationId }),
+    mutationFn: (ticketId: string) => tenantApi.ticket.contactAdd(ticketId, { conversation_id: conversationId }),
     onSuccess: (updated) => {
       notifySuccess(t("tickets.link_ticket_done", { number: updated.number }))
       void queryClient.invalidateQueries({ queryKey: kit.queries.ticket.key() })
@@ -93,12 +93,16 @@ export function LinkTicketModal({ opened, conversationId, linkedTicketIds, onClo
                     <IconLink size={14} color="var(--tn-muted)" style={{ flex: "none" }} />
                   </Group>
                   <Group gap={6} mt={3} wrap="nowrap">
-                    <Text size="xs" c="dimmed" truncate>
-                      {tk.type_name}
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      ·
-                    </Text>
+                    {tk.type_name && (
+                      <>
+                        <Text size="xs" c="dimmed" truncate>
+                          {tk.type_name}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          ·
+                        </Text>
+                      </>
+                    )}
                     <Text size="xs" c="dimmed">
                       {t("tickets.linked_count", { n: tk.linked_count })}
                     </Text>

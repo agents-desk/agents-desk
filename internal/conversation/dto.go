@@ -276,9 +276,9 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 			MentionedAt: c.MentionedAt, Rating: c.rating(), Tags: tags, Attributes: attrs, CreatedAt: c.CreatedAt,
 		}
 		if p := previews[c.ID]; p != nil {
-			d.Preview, d.PreviewActor = previewText(p, language), &Actor{Type: p.ActorType, ID: p.ActorID}
+			d.Preview, d.PreviewActor = previewText(p, sub.ID, language), &Actor{Type: p.ActorType, ID: p.ActorID}
 			d.PreviewAttachment = previewAttachments[p.ID]
-			if untranslated(p, language) {
+			if untranslated(p, sub.ID, language) {
 				d.PreviewItemID, d.PreviewUntranslated = p.ID, true
 			}
 		}
@@ -329,19 +329,16 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 	return out, nil
 }
 
-// previewText 返回会话列表中最后一条消息 it 给语言是 language 的成员看的文字：对方的消息有这种语言的译文时是译文，
-// 成员翻译后发出的回复是成员写的原文，其他情况是消息的文字。
-func previewText(it *Item, language string) string {
-	if it.ActorType == ContactActor {
+// previewText 返回会话列表中最后一条消息 it 给成员 viewerID（语言 language）看的文字：
+// 非本人发出的可译消息若有对应语言的译文则显示译文，其余回退到 SourceText（成员翻译发出的回复显示原文）。
+func previewText(it *Item, viewerID, language string) string {
+	isOwn := it.ActorType == MemberActor && viewerID != "" && it.ActorID == viewerID
+	if !isOwn && language != "" && it.Translatable() {
 		if translations, _ := it.Derived["translations"].(map[string]any); translations != nil {
 			if t, _ := translations[language].(string); t != "" {
 				return t
 			}
 		}
-		return it.Content.Text
 	}
-	if it.Content.Original != "" {
-		return it.Content.Original
-	}
-	return it.Content.Text
+	return it.SourceText()
 }

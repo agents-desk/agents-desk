@@ -1,7 +1,7 @@
 import type { ConversationDTO, ConversationTicketDTO, TicketTypeVisibility } from "@agents-desk/client/tenant"
-import { Alert, Button, Group, Modal, Paper, SegmentedControl, Select, Stack, Text, Textarea, TextInput } from "@mantine/core"
+import { Button, Group, Modal, Paper, SegmentedControl, Select, Stack, Text, Textarea, TextInput } from "@mantine/core"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { IconAlertCircle, IconTicket } from "@tabler/icons-react"
+import { IconChevronDown, IconChevronRight, IconTicket } from "@tabler/icons-react"
 import { notifyError, notifySuccess, useCan, useT } from "@go-tenon/ui"
 import { type FormEvent, type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../api"
@@ -14,13 +14,14 @@ import { useTicketAttributes, useTicketTypes } from "./meta"
 interface CreateTicketModalProps {
   opened: boolean
   onClose: () => void
-  sourceConversation?: ConversationDTO // 传入时将作为来源会话建立关联
+  sourceConversation?: ConversationDTO // 传入时将作为来源会话建立受影响客户关联
   onCreated?: (ticket: ConversationTicketDTO) => void
 }
 
 /**
  * CreateTicketModal 是新建工单 / 由服务型会话转成工单的弹窗：
- * 选择未停用的工单类型后自动带出默认团队收件箱与默认可见范围，并按类型动态渲染专属自定义字段。
+ * 默认只呈现标题与描述，实现零配置极速建单；展开更多选项后可按需选择工单类型（带出默认团队、可见范围与专属字段）、
+ * 团队收件箱、负责人、优先级和可见范围。
  */
 export function CreateTicketModal({ opened, onClose, sourceConversation, onCreated }: CreateTicketModalProps): ReactNode {
   const t = useT()
@@ -31,7 +32,7 @@ export function CreateTicketModal({ opened, onClose, sourceConversation, onCreat
   const teams = useTeams().filter((x) => x.status === "active")
   const types = useTicketTypes(true)
 
-  const [typeId, setTypeId] = useState<string>("")
+  const [typeId, setTypeId] = useState<string | null>(null)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [visibility, setVisibility] = useState<TicketTypeVisibility>("all")
@@ -39,29 +40,30 @@ export function CreateTicketModal({ opened, onClose, sourceConversation, onCreat
   const [teamId, setTeamId] = useState<string | null>(null)
   const [assigneeId, setAssigneeId] = useState<string | null>(null)
   const [attributes, setAttributes] = useState<Record<string, unknown>>({})
+  const [moreOpen, setMoreOpen] = useState(false)
   const [titleError, setTitleError] = useState<string | null>(null)
 
-  const typeAttrs = useTicketAttributes(typeId || undefined)
+  const typeAttrs = useTicketAttributes(typeId ?? undefined)
 
-  // 打开弹窗或工单类型初次加载完成时重置表单并套用首个可用类型的默认设置
+  // 每次打开弹窗重置为空白通用工单表单
   useEffect(() => {
     if (!opened) return
-    const first = types[0]
-    setTypeId(first?.id ?? "")
-    setVisibility(first?.default_visibility ?? "all")
-    setTeamId(first?.default_team_id ?? null)
+    setTypeId(null)
+    setVisibility("all")
+    setTeamId(null)
     setAssigneeId(null)
     setPriority(sourceConversation?.priority ?? "normal")
     setTitle("")
     setDescription("")
     setAttributes({})
+    setMoreOpen(false)
     setTitleError(null)
-  }, [opened, types, sourceConversation?.priority])
+  }, [opened, sourceConversation?.priority])
 
   const handleTypeChange = (nextId: string | null) => {
-    if (!nextId) return
     setTypeId(nextId)
     setAttributes({})
+    if (!nextId) return
     const found = types.find((x) => x.id === nextId)
     if (found) {
       setVisibility(found.default_visibility)
@@ -72,11 +74,13 @@ export function CreateTicketModal({ opened, onClose, sourceConversation, onCreat
   const create = useMutation({
     mutationFn: () => {
       const cleanedAttrs: Record<string, unknown> = {}
-      for (const [k, v] of Object.entries(attributes)) {
-        if (v !== null && v !== undefined && v !== "") cleanedAttrs[k] = v
+      if (typeId) {
+        for (const [k, v] of Object.entries(attributes)) {
+          if (v !== null && v !== undefined && v !== "") cleanedAttrs[k] = v
+        }
       }
       return tenantApi.ticket.create({
-        type_id: typeId,
+        type_id: typeId || undefined,
         title: title.trim(),
         description: description.trim() || undefined,
         visibility,
@@ -105,7 +109,6 @@ export function CreateTicketModal({ opened, onClose, sourceConversation, onCreat
       setTitleError(t("tickets.title_required"))
       return
     }
-    if (!typeId) return
     setTitleError(null)
     create.mutate()
   }
@@ -130,46 +133,56 @@ export function CreateTicketModal({ opened, onClose, sourceConversation, onCreat
             </Paper>
           )}
 
-          {types.length === 0 ? (
-            <Alert color="yellow" icon={<IconAlertCircle size={16} />}>
-              {t("tickets.type_empty")}
-            </Alert>
-          ) : (
-            <>
-              <Select
-                label={t("tickets.type")}
-                placeholder={t("tickets.type_placeholder")}
-                value={typeId || null}
-                onChange={handleTypeChange}
-                data={types.map((x) => ({ value: x.id, label: x.name }))}
-                allowDeselect={false}
-                required
-              />
+          <TextInput
+            label={t("tickets.title")}
+            placeholder={t("tickets.title_placeholder")}
+            value={title}
+            onChange={(e) => {
+              setTitle(e.currentTarget.value)
+              if (titleError) setTitleError(null)
+            }}
+            error={titleError ?? undefined}
+            maxLength={120}
+            required
+            data-autofocus
+          />
 
-              <TextInput
-                label={t("tickets.title")}
-                placeholder={t("tickets.title_placeholder")}
-                value={title}
-                onChange={(e) => {
-                  setTitle(e.currentTarget.value)
-                  if (titleError) setTitleError(null)
-                }}
-                error={titleError ?? undefined}
-                maxLength={120}
-                required
-                data-autofocus
-              />
+          <Textarea
+            label={t("tickets.description")}
+            placeholder={t("tickets.description_placeholder")}
+            value={description}
+            onChange={(e) => setDescription(e.currentTarget.value)}
+            minRows={3}
+            maxRows={6}
+            autosize
+            maxLength={5000}
+          />
 
-              <Textarea
-                label={t("tickets.description")}
-                placeholder={t("tickets.description_placeholder")}
-                value={description}
-                onChange={(e) => setDescription(e.currentTarget.value)}
-                minRows={3}
-                maxRows={6}
-                autosize
-                maxLength={5000}
-              />
+          <Group justify="space-between">
+            <Button
+              type="button"
+              variant="subtle"
+              color="gray"
+              size="compact-xs"
+              leftSection={moreOpen ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
+              onClick={() => setMoreOpen((v) => !v)}
+            >
+              {t("tickets.more_options")}
+            </Button>
+          </Group>
+
+          {moreOpen && (
+            <Stack gap="sm" pt={4} style={{ borderTop: "1px solid var(--tn-border)" }}>
+              {types.length > 0 && (
+                <Select
+                  label={t("tickets.type")}
+                  placeholder={t("tickets.type_generic")}
+                  value={typeId}
+                  onChange={handleTypeChange}
+                  data={types.map((x) => ({ value: x.id, label: x.name }))}
+                  clearable
+                />
+              )}
 
               <Stack gap={4}>
                 <Text size="sm" fw={500}>
@@ -219,7 +232,7 @@ export function CreateTicketModal({ opened, onClose, sourceConversation, onCreat
                 />
               </Group>
 
-              {typeAttrs.length > 0 && (
+              {typeId && typeAttrs.length > 0 && (
                 <Stack gap="xs" pt="xs" style={{ borderTop: "1px solid var(--tn-border)" }}>
                   <Text size="xs" fw={600} c="dimmed">
                     {t("tickets.details_fields")}
@@ -239,19 +252,14 @@ export function CreateTicketModal({ opened, onClose, sourceConversation, onCreat
                   ))}
                 </Stack>
               )}
-            </>
+            </Stack>
           )}
 
           <Group justify="flex-end" mt="xs">
             <Button variant="default" onClick={onClose} disabled={create.isPending}>
               {t("common.cancel")}
             </Button>
-            <Button
-              type="submit"
-              leftSection={<IconTicket size={15} />}
-              loading={create.isPending}
-              disabled={types.length === 0 || !typeId}
-            >
+            <Button type="submit" leftSection={<IconTicket size={15} />} loading={create.isPending}>
               {t("tickets.submit")}
             </Button>
           </Group>

@@ -24,13 +24,13 @@ import { ChannelIcon } from "../inbox/channel-badge"
 import { useMe, useMembers, useTags, useTeams } from "../inbox/data"
 import { AttributeInput, TagsEditor } from "../inbox/fields"
 import { activity } from "../inbox/format"
-import { LinkConversationModal } from "./LinkConversationModal"
-import { TICKET_STATUSES, ticketStatusLabel, useTicketAttributes } from "./meta"
+import { LinkContactModal } from "./LinkContactModal"
+import { TICKET_STATUSES, ticketStatusLabel, useTicketAttributes, useTicketTypes } from "./meta"
 
 /**
  * TicketDetails 是工单详情页的右侧栏：
- * 展示并就地编辑工单状态、可见范围、描述、团队收件箱、负责人、优先级、标签、工单类型专属字段，
- * 以及当前成员有权限看到的关联客户会话列表（支持新增关联和取消关联）。
+ * 展示并就地编辑工单状态、可选工单类型、可见范围、描述、团队收件箱、负责人、优先级、标签、类型专属字段，
+ * 以及当前成员有权限看到的受影响客户列表（支持新增关联和取消关联）。
  */
 export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketDTO; onClose: () => void }): ReactNode {
   const t = useT()
@@ -43,6 +43,7 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
   const { list: members } = useMembers()
   const teams = useTeams()
   const allTags = useTags()
+  const ticketTypes = useTicketTypes(true)
   const ticketAttrs = useTicketAttributes(ticket.type_id)
 
   const [editingDesc, setEditingDesc] = useState(false)
@@ -65,7 +66,7 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
     onError: (err) => notifyError(err),
   })
   const updateMeta = useMutation({
-    mutationFn: (body: { description?: string; visibility?: TicketTypeVisibility }) => tenantApi.ticket.update(ticket.id, body),
+    mutationFn: (body: { type_id?: string; description?: string; visibility?: TicketTypeVisibility }) => tenantApi.ticket.update(ticket.id, body),
     onSuccess: () => {
       setEditingDesc(false)
       invalidate()
@@ -98,7 +99,7 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
     onError: (err) => notifyError(err),
   })
   const unlink = useMutation({
-    mutationFn: (conversationId: string) => tenantApi.ticket.linkRemove(ticket.id, conversationId),
+    mutationFn: (contactId: string) => tenantApi.ticket.contactRemove(ticket.id, contactId),
     onSuccess: () => {
       notifySuccess(t("tickets.unlink_done"))
       invalidate()
@@ -106,20 +107,24 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
     onError: (err) => notifyError(err),
   })
 
-  const handleUnlink = async (conversationId: string) => {
+  const handleUnlink = async (contactId: string) => {
     const ok = await confirm({
       title: t("tickets.unlink_confirm"),
       message: t("tickets.unlink_message"),
       danger: true,
       confirmLabel: t("tickets.unlink"),
     })
-    if (ok) unlink.mutate(conversationId)
+    if (ok) unlink.mutate(contactId)
   }
 
   const assignees = can("conversations:assign") ? members : members.filter((m) => m.id === me.data?.id)
-  const linked = ticket.linked_conversations ?? []
-  const linkedIds = new Set(linked.map((x) => x.id))
+  const linked = ticket.linked_contacts ?? []
+  const linkedIds = new Set(linked.map((x) => x.contact.id))
   const hasHiddenLinks = ticket.linked_count > linked.length
+  const typeOptions = ticketTypes.map((x) => ({ value: x.id, label: x.name }))
+  if (ticket.type_id && ticket.type_name && !typeOptions.some((x) => x.value === ticket.type_id)) {
+    typeOptions.unshift({ value: ticket.type_id, label: ticket.type_name })
+  }
 
   return (
     <Stack gap={0} h="100%" className="inbox-details">
@@ -143,9 +148,18 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
                 onChange={(v) => v && setStatus.mutate(v as TicketStatus)}
               />
             </InspectorField>
-            <InspectorField label={t("tickets.type")}>
-              <Text size="sm">{ticket.type_name}</Text>
-            </InspectorField>
+            {(typeOptions.length > 0 || ticket.type_id) && (
+              <InspectorField label={t("tickets.type")}>
+                <Select
+                  placeholder={t("tickets.type_generic")}
+                  value={ticket.type_id ?? null}
+                  data={typeOptions}
+                  clearable
+                  disabled={!canEdit || updateMeta.isPending}
+                  onChange={(v) => updateMeta.mutate({ type_id: v ?? "" })}
+                />
+              </InspectorField>
+            )}
             <InspectorField label={t("tickets.visibility")} align="start">
               <SegmentedControl
                 size="xs"
@@ -262,13 +276,9 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
             </InspectorField>
           </InspectorSection>
 
-          <InspectorSection title={t("tickets.details_fields")} collapsible storeKey="ticket-details-fields">
-            {ticketAttrs.length === 0 ? (
-              <Text size="xs" c="dimmed">
-                {t("tickets.details_no_fields")}
-              </Text>
-            ) : (
-              ticketAttrs.map((def) => (
+          {ticket.type_id && ticketAttrs.length > 0 && (
+            <InspectorSection title={t("tickets.details_fields")} collapsible storeKey="ticket-details-fields">
+              {ticketAttrs.map((def) => (
                 <InspectorField key={def.id} label={def.name}>
                   <AttributeInput
                     key={`${ticket.id}:${def.key}`}
@@ -278,9 +288,9 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
                     onSave={(val) => patchAttr.mutate({ [def.key]: val })}
                   />
                 </InspectorField>
-              ))
-            )}
-          </InspectorSection>
+              ))}
+            </InspectorSection>
+          )}
 
           <InspectorSection
             title={t("tickets.linked_section")}
@@ -294,12 +304,12 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
                     : ticket.linked_count}
                 </Text>
                 {canEdit && (
-                  <Tooltip label={t("tickets.link_conversation")} openDelay={250}>
+                  <Tooltip label={t("tickets.link_contact")} openDelay={250}>
                     <ActionIcon
                       size={22}
                       variant="subtle"
                       color="gray"
-                      aria-label={t("tickets.link_conversation")}
+                      aria-label={t("tickets.link_contact")}
                       onClick={(e) => {
                         e.stopPropagation()
                         setLinkOpen(true)
@@ -318,61 +328,86 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
               </Text>
             ) : (
               <Stack gap={6}>
-                {linked.map((lc) => (
-                  <Group key={lc.id} gap={4} wrap="nowrap" align="flex-start">
-                    <Link
-                      to="/t/$slug/inbox/$id"
-                      params={{ slug, id: lc.id }}
-                      search={{ box: "all", status: lc.status, sort: "waiting" }}
-                      className="inbox-history"
-                      style={{ flex: 1, minWidth: 0, textDecoration: "none", color: "inherit" }}
-                    >
-                      <Box px={6} py={5}>
-                        <Group gap={5} wrap="nowrap">
-                          <Text size="sm" fw={500} truncate style={{ flex: 1, minWidth: 0 }}>
-                            {contactDisplayName(lc.contact, t)}
-                          </Text>
-                          <Badge size="xs" variant="light" color={lc.relation === "source" ? "brand" : "gray"} style={{ flex: "none" }}>
-                            {t(lc.relation === "source" ? "tickets.relation_source" : "tickets.relation_linked")}
-                          </Badge>
-                        </Group>
-                        <Text size="xs" c="dimmed" truncate mt={2}>
-                          {lc.preview || "—"}
+                {linked.map((lc) => {
+                  const content = (
+                    <Box px={6} py={5}>
+                      <Group gap={5} wrap="nowrap">
+                        <Text size="sm" fw={500} truncate style={{ flex: 1, minWidth: 0 }}>
+                          {contactDisplayName(lc.contact, t)}
                         </Text>
+                        {lc.is_source && (
+                          <Badge size="xs" variant="light" color="brand" style={{ flex: "none" }}>
+                            {t("tickets.relation_source")}
+                          </Badge>
+                        )}
+                      </Group>
+                      <Text size="xs" c="dimmed" truncate mt={2}>
+                        {lc.preview || lc.contact.email || "—"}
+                      </Text>
+                      {(lc.channel || lc.conversation_status || lc.last_message_at) && (
                         <Group gap={5} wrap="nowrap" mt={2}>
                           {lc.channel && <ChannelIcon kind={lc.channel.kind} size={11} />}
                           <Text size="xs" c="dimmed" truncate>
-                            {[lc.channel?.name, t(`inbox.status_${lc.status}` as const), activity(lc.last_message_at, ui, t, zone)]
+                            {[
+                              lc.channel?.name,
+                              lc.conversation_status ? t(`inbox.status_${lc.conversation_status}` as const) : undefined,
+                              lc.last_message_at ? activity(lc.last_message_at, ui, t, zone) : undefined,
+                            ]
                               .filter(Boolean)
                               .join(" · ")}
                           </Text>
                         </Group>
-                      </Box>
-                    </Link>
-                    {canEdit && (
-                      <Tooltip label={t("tickets.unlink")} openDelay={250}>
-                        <ActionIcon
-                          size={24}
-                          variant="subtle"
-                          color="gray"
-                          aria-label={t("tickets.unlink")}
-                          disabled={unlink.isPending}
-                          onClick={() => void handleUnlink(lc.id)}
-                          mt={4}
+                      )}
+                    </Box>
+                  )
+                  return (
+                    <Group key={lc.contact.id} gap={4} wrap="nowrap" align="flex-start">
+                      {lc.conversation_id ? (
+                        <Link
+                          to="/t/$slug/inbox/$id"
+                          params={{ slug, id: lc.conversation_id }}
+                          search={{ box: "all", status: lc.conversation_status || "open", sort: "waiting" }}
+                          className="inbox-history"
+                          style={{ flex: 1, minWidth: 0, textDecoration: "none", color: "inherit" }}
                         >
-                          <IconLinkOff size={13} />
-                        </ActionIcon>
-                      </Tooltip>
-                    )}
-                  </Group>
-                ))}
+                          {content}
+                        </Link>
+                      ) : (
+                        <Link
+                          to="/t/$slug/contacts/$id"
+                          params={{ slug, id: lc.contact.id }}
+                          search={{ sort: "recent" }}
+                          className="inbox-history"
+                          style={{ flex: 1, minWidth: 0, textDecoration: "none", color: "inherit" }}
+                        >
+                          {content}
+                        </Link>
+                      )}
+                      {canEdit && (
+                        <Tooltip label={t("tickets.unlink")} openDelay={250}>
+                          <ActionIcon
+                            size={24}
+                            variant="subtle"
+                            color="gray"
+                            aria-label={t("tickets.unlink")}
+                            disabled={unlink.isPending}
+                            onClick={() => void handleUnlink(lc.contact.id)}
+                            mt={4}
+                          >
+                            <IconLinkOff size={13} />
+                          </ActionIcon>
+                        </Tooltip>
+                      )}
+                    </Group>
+                  )
+                })}
               </Stack>
             )}
           </InspectorSection>
         </Inspector>
       </PaneBody>
 
-      <LinkConversationModal opened={linkOpen} ticketId={ticket.id} linkedConversationIds={linkedIds} onClose={() => setLinkOpen(false)} />
+      <LinkContactModal opened={linkOpen} ticketId={ticket.id} linkedContactIds={linkedIds} onClose={() => setLinkOpen(false)} />
     </Stack>
   )
 }

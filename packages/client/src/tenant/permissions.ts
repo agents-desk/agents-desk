@@ -152,11 +152,11 @@ export const required = {
     rename: ["tenant-settings:manage"],
   },
   ticket: {
+    contactAdd: ["conversations:reply"],
+    contactRemove: ["conversations:reply"],
     create: ["conversations:reply"],
     get: ["conversations:read"],
     getByNumber: ["conversations:read"],
-    linkAdd: ["conversations:reply"],
-    linkRemove: ["conversations:reply"],
     list: ["conversations:read"],
     publishUpdate: ["conversations:reply"],
     status: ["conversations:reply"],

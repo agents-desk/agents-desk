@@ -228,29 +228,43 @@ func MissingTranslations(derived map[string]any, targets []string) []string {
 	return missing
 }
 
-// Translatable 报告时间线的一项是不是要识别和翻译的文本：
-//   - 对方发来、对所有人可见、有文字的消息；
-//   - 成员写的有文字内部备注（支持不同语言成员在会话与工单中跨语言协作）。
+// SourceText 返回用于自动翻译与跨语言阅读的源文本：翻译后发出的回复取成员写的原文，其余取消息正文。
+func (it *Item) SourceText() string {
+	if it.Content.Original != "" {
+		return it.Content.Original
+	}
+	return it.Content.Text
+}
+
+// Translatable 报告时间线的一项是不是需要识别与跨语言翻译的人类文本：
+// 联系人或成员发出的有文字消息与内部备注均可按阅读者语言互译，系统事件、系统提示卡片与纯附件不翻译。
 func (it *Item) Translatable() bool {
-	if it.Content.Text == "" {
+	if it.SourceText() == "" || it.Content.Prompt != nil {
 		return false
 	}
-	if it.Kind == Message && it.ActorType == ContactActor && it.Visibility == Everyone {
-		return true
+	if it.Kind != Message && it.Kind != Note {
+		return false
 	}
-	return it.Kind == Note && it.ActorType == MemberActor
+	return it.ActorType == ContactActor || it.ActorType == MemberActor
 }
 
-// untranslated 报告时间线的一项对语言是 language 的成员来说是不是还缺译文：要翻译的消息、还没有这种语言的译文、也不是这种语言。
-func untranslated(it *Item, language string) bool {
-	return language != "" && it.Translatable() && len(MissingTranslations(it.Derived, []string{language})) > 0
+// untranslated 报告时间线的一项对成员 viewerID（语言为 language）来说是不是还缺译文：
+// 成员自己发出的内容不需要译文；其余可译项还没有这种语言的译文且不是这种语言时返回 true。
+func untranslated(it *Item, viewerID, language string) bool {
+	if language == "" || !it.Translatable() {
+		return false
+	}
+	if it.ActorType == MemberActor && viewerID != "" && it.ActorID == viewerID {
+		return false
+	}
+	return len(MissingTranslations(it.Derived, []string{language})) > 0
 }
 
-// markUntranslated 把 items 中对语言是 language 的成员来说还缺译文的消息标为 Untranslated。
-func markUntranslated(items []ItemDTO, language string) {
+// markUntranslated 把 items 中对成员 viewerID（语言为 language）来说还缺译文的项标为 Untranslated。
+func markUntranslated(items []ItemDTO, viewerID, language string) {
 	for i := range items {
 		d := &items[i]
-		d.Untranslated = untranslated(&Item{Kind: d.Kind, ActorType: d.Actor.Type, Visibility: d.Visibility, Content: d.Content, Derived: d.Derived}, language)
+		d.Untranslated = untranslated(&Item{Kind: d.Kind, ActorType: d.Actor.Type, ActorID: d.Actor.ID, Visibility: d.Visibility, Content: d.Content, Derived: d.Derived}, viewerID, language)
 	}
 }
 

@@ -125,7 +125,7 @@ func TestTicketCoreLifecycleAndIsolation(t *testing.T) {
 	// 1. 代理 A 把自己的客户会话转成工单（默认进入技术支持团队收件箱）
 	createTicket := conversation.NewCreateTicket(env.DB, down)
 	tk1, err := createTicket.Handle(ctx, subPartnerA, conversation.CreateTicketParams{
-		TypeID:               billingType.ID,
+		TypeID:               &billingType.ID,
 		Title:                "UPI 通道掉单故障",
 		Description:          "多客户充值扣款未到账",
 		SourceConversationID: &convA.ConversationID,
@@ -144,7 +144,7 @@ func TestTicketCoreLifecycleAndIsolation(t *testing.T) {
 		t.Fatalf("工单初始字段异常：%+v", tk1.Attributes)
 	}
 
-	// 代理 A 作为创建人和关联会话所属成员，即使工单在“技术支持”团队也仍然可见；代理 B 此时不可见
+	// 代理 A 作为创建人和关联客户会话所属成员，即使工单在“技术支持”团队也仍然可见；代理 B 此时不可见
 	getTicket := conversation.NewGetTicket(env.DB)
 	if _, err := getTicket.Handle(ctx, subPartnerA, tk1.ID); err != nil {
 		t.Fatalf("创建人代理A应可见工单：%v", err)
@@ -156,26 +156,27 @@ func TestTicketCoreLifecycleAndIsolation(t *testing.T) {
 		t.Fatalf("跨工作区不应可见工单：%v", err)
 	}
 
-	// 2. 管理员将代理 B 的客户会话也关联到同一张聚合故障工单 #1
-	linkConv := conversation.NewLinkConversation(env.DB, down)
-	tk1, err = linkConv.Handle(ctx, subOwner, tk1.ID, convB.ConversationID)
-	if err != nil || tk1.LinkedCount != 2 || len(tk1.LinkedConversations) != 2 {
-		t.Fatalf("管理员关联第二个会话失败：%v %+v", err, tk1)
+	// 2. 管理员将代理 B 的客户也关联到同一张聚合故障工单 #1
+	linkContact := conversation.NewLinkTicketContact(env.DB, down)
+	tk1, err = linkContact.Handle(ctx, subOwner, tk1.ID, conversation.LinkTicketContactBody{ConversationID: &convB.ConversationID})
+	if err != nil || tk1.LinkedCount != 2 || len(tk1.LinkedContacts) != 2 {
+		t.Fatalf("管理员关联第二个客户失败：%v %+v", err, tk1)
 	}
 	// 重复关联应报 ErrLinkAlreadyExists
-	if _, err := linkConv.Handle(ctx, subOwner, tk1.ID, convB.ConversationID); !errors.Is(err, conversation.ErrLinkAlreadyExists) {
+	if _, err := linkContact.Handle(ctx, subOwner, tk1.ID, conversation.LinkTicketContactBody{ConversationID: &convB.ConversationID}); !errors.Is(err, conversation.ErrLinkAlreadyExists) {
 		t.Fatalf("重复关联应报错：%v", err)
 	}
 
-	// 关键隔离验证：代理 A 与代理 B 现在都能看到共享故障单 #1，但各自只能看到自己权限内的 1 条关联会话！
+	// 关键隔离验证：代理 A 与代理 B 现在都能看到共享故障单 #1，但各自只能看到自己权限内的 1 位关联客户！
 	viewA, err := getTicket.Handle(ctx, subPartnerA, tk1.ID)
-	if err != nil || viewA.LinkedCount != 2 || len(viewA.LinkedConversations) != 1 || viewA.LinkedConversations[0].ID != convA.ConversationID {
-		t.Fatalf("代理A关联会话隔离失败：%v %+v", err, viewA)
+	if err != nil || viewA.LinkedCount != 2 || len(viewA.LinkedContacts) != 1 || viewA.LinkedContacts[0].ConversationID == nil || *viewA.LinkedContacts[0].ConversationID != convA.ConversationID {
+		t.Fatalf("代理A关联客户隔离失败：%v %+v", err, viewA)
 	}
 	viewB, err := getTicket.Handle(ctx, subPartnerB, tk1.ID)
-	if err != nil || viewB.LinkedCount != 2 || len(viewB.LinkedConversations) != 1 || viewB.LinkedConversations[0].ID != convB.ConversationID {
-		t.Fatalf("代理B关联会话隔离失败：%v %+v", err, viewB)
+	if err != nil || viewB.LinkedCount != 2 || len(viewB.LinkedContacts) != 1 || viewB.LinkedContacts[0].ConversationID == nil || *viewB.LinkedContacts[0].ConversationID != convB.ConversationID {
+		t.Fatalf("代理B关联客户隔离失败：%v %+v", err, viewB)
 	}
+	contactBID := viewB.LinkedContacts[0].Contact.ID
 
 	// 按编号查询与列表查询
 	byNum, err := conversation.NewGetTicketByNumber(env.DB).Handle(ctx, subPartnerA, 1)
@@ -245,7 +246,7 @@ func TestTicketCoreLifecycleAndIsolation(t *testing.T) {
 		t.Fatalf("客户可见工单发布公开进度失败：%v", err)
 	}
 	tkPrivate, err := createTicket.Handle(ctx, subOwner, conversation.CreateTicketParams{
-		TypeID: privateType.ID, Title: "内部退款复核",
+		TypeID: &privateType.ID, Title: "内部退款复核",
 	})
 	if err != nil || tkPrivate.Number != 2 || tkPrivate.Visibility != tickettype.VisibilityMembers {
 		t.Fatalf("新建内部工单失败：%v %+v", err, tkPrivate)
@@ -254,15 +255,36 @@ func TestTicketCoreLifecycleAndIsolation(t *testing.T) {
 		t.Fatalf("仅成员可见工单应拒绝公开进度：%v", err)
 	}
 
+	// 5b. 零配置通用工单（不选工单类型），支持后续随时补充或清空工单类型
+	tkGeneric, err := createTicket.Handle(ctx, subOwner, conversation.CreateTicketParams{
+		Title: "临时跟进事项",
+	})
+	if err != nil || tkGeneric.TypeID != nil || tkGeneric.TypeName != "" || tkGeneric.Visibility != tickettype.VisibilityAll {
+		t.Fatalf("新建通用工单失败：%v %+v", err, tkGeneric)
+	}
+	if _, err := conversation.NewPatchAttributes(env.DB, down).Handle(ctx, subOwner, tkGeneric.ID, map[string]any{"upi_ref": "x"}); !errors.Is(err, attribute.ErrUnknownKey) {
+		t.Fatalf("通用工单不应接受未定义字段：%v", err)
+	}
+	updateTicket := conversation.NewUpdateTicket(env.DB, down)
+	tkTyped, err := updateTicket.Handle(ctx, subOwner, tkGeneric.ID, conversation.UpdateTicketParams{TypeID: &billingType.ID})
+	if err != nil || tkTyped.TypeID == nil || *tkTyped.TypeID != billingType.ID || tkTyped.TypeName != billingType.Name {
+		t.Fatalf("为通用工单补充类型失败：%v %+v", err, tkTyped)
+	}
+	emptyType := ""
+	tkCleared, err := updateTicket.Handle(ctx, subOwner, tkGeneric.ID, conversation.UpdateTicketParams{TypeID: &emptyType})
+	if err != nil || tkCleared.TypeID != nil || tkCleared.TypeName != "" {
+		t.Fatalf("清空工单类型失败：%v %+v", err, tkCleared)
+	}
+
 	// 6. 已被工单引用的工单类型不能删除
 	if err := tickettype.NewDelete(env.DB).Handle(ctx, sysA, billingType.ID); !errors.Is(err, tickettype.ErrInUse) {
 		t.Fatalf("被工单引用的工单类型应返回 ErrInUse：%v", err)
 	}
 
-	// 7. 取消关联会话
-	afterUnlink, err := conversation.NewUnlinkConversation(env.DB, down).Handle(ctx, subOwner, tk1.ID, convB.ConversationID)
+	// 7. 取消关联受影响客户
+	afterUnlink, err := conversation.NewUnlinkTicketContact(env.DB, down).Handle(ctx, subOwner, tk1.ID, contactBID)
 	if err != nil || afterUnlink.LinkedCount != 1 {
-		t.Fatalf("取消关联失败：%v %+v", err, afterUnlink)
+		t.Fatalf("取消关联客户失败：%v %+v", err, afterUnlink)
 	}
 	if _, err := getTicket.Handle(ctx, subPartnerB, tk1.ID); !errors.Is(err, conversation.ErrNotFound) {
 		t.Fatalf("取消关联后代理B应不再可见工单：%v", err)

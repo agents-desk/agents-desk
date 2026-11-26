@@ -344,7 +344,7 @@ func TestTicketNotifyTargetRoutingAndCrossConversationWakeup(t *testing.T) {
 		t.Fatal(err)
 	}
 	tk, err := createTicket.Handle(ctx, sys, conversation.CreateTicketParams{
-		TypeID: tt.ID, Title: "充值掉单", SourceConversationID: &c1.ConversationID,
+		TypeID: &tt.ID, Title: "充值掉单", SourceConversationID: &c1.ConversationID,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -379,7 +379,8 @@ func TestTicketNotifyTargetRoutingAndCrossConversationWakeup(t *testing.T) {
 		t.Fatalf("有活跃会话 C2 时工单通知应路由到 C2 且按客户去重：%+v err=%v", targets2, err)
 	}
 
-	// 3. 把工单再次切回 waiting_on_customer 并显式传 TicketID 回复：应自动把 C2 也关联到 T1 并唤醒 T1，且通知依然按客户去重为 1 条
+	// 3. 把工单再次切回 waiting_on_customer 并显式传 TicketID 回复：工单按客户去重关联，LinkedCount 仍为 1，
+	//    在 C2 侧栏查询工单可直接命中 T1，且通知依然路由到当前活跃会话 C2
 	if _, err := setStatus.Handle(ctx, agent, tk.ID, conversation.TicketWaiting); err != nil {
 		t.Fatal(err)
 	}
@@ -389,11 +390,15 @@ func TestTicketNotifyTargetRoutingAndCrossConversationWakeup(t *testing.T) {
 		t.Fatal(err)
 	}
 	gotTk2, err := conversation.NewGetTicket(env.DB).Handle(ctx, agent, tk.ID)
-	if err != nil || gotTk2.Status != conversation.TicketInProgress || gotTk2.LinkedCount != 2 {
-		t.Fatalf("显式指定 TicketID 后应关联 C2 并唤醒工单：status=%s links=%d err=%v", gotTk2.Status, gotTk2.LinkedCount, err)
+	if err != nil || gotTk2.Status != conversation.TicketInProgress || gotTk2.LinkedCount != 1 {
+		t.Fatalf("显式指定 TicketID 后应唤醒工单且按客户去重：status=%s links=%d err=%v", gotTk2.Status, gotTk2.LinkedCount, err)
+	}
+	c2Tickets, err := conversation.NewListTickets(env.DB).Handle(ctx, agent, &conversation.ListTicketsInput{ConversationID: c2.ConversationID})
+	if err != nil || len(c2Tickets.Items) != 1 || c2Tickets.Items[0].ID != tk.ID {
+		t.Fatalf("新会话 C2 应自动关联到同客户的工单 T1：%+v err=%v", c2Tickets, err)
 	}
 	targets3, err := conversation.ResolveTicketNotifyTargets(ctx, env.DB, tenantID, tk.ID)
 	if err != nil || len(targets3) != 1 || targets3[0].ConversationID != c2.ConversationID {
-		t.Fatalf("同客户两条会话都关联同一工单时，通知仍应去重为 1 条且指向活跃会话 C2：%+v err=%v", targets3, err)
+		t.Fatalf("工单通知应去重为 1 条且指向活跃会话 C2：%+v err=%v", targets3, err)
 	}
 }

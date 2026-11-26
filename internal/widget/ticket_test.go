@@ -102,7 +102,7 @@ func TestContactTicketsVisibilityAndCrossChannel(t *testing.T) {
 	// 由该跨渠道会话创建客户可见工单，写入内部备注 + 公开进度 + 改状态为等待客户
 	createTicket := conversation.NewCreateTicket(env.DB, down)
 	publicTk, err := createTicket.Handle(ctx, f.agent, conversation.CreateTicketParams{
-		TypeID:               tt.ID,
+		TypeID:               &tt.ID,
 		Title:                "UPI 支付延迟排查",
 		Description:          "正在核对银行流水",
 		Visibility:           tickettype.VisibilityAll,
@@ -125,7 +125,7 @@ func TestContactTicketsVisibilityAndCrossChannel(t *testing.T) {
 
 	// 另建一张仅成员可见的内部工单关联同一会话
 	privateTk, err := createTicket.Handle(ctx, f.agent, conversation.CreateTicketParams{
-		TypeID:               tt.ID,
+		TypeID:               &tt.ID,
 		Title:                "内部风控复核",
 		Visibility:           tickettype.VisibilityMembers,
 		SourceConversationID: &otherRecv.ConversationID,

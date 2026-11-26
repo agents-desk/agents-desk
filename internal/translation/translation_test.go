@@ -266,14 +266,21 @@ func TestIncoming(t *testing.T) {
 		t.Fatalf("英文消息的译文：%+v", tr)
 	}
 
-	// 成员的回复不翻译
+	// 成员的回复按统一翻译公理也会为其他语言的同事生成译文，但绝不改变客户的语言
+	f.model.language = "zh-Hans"
 	reply, err := conversation.NewReply(f.env.DB, f.down).Handle(ctx, f.agent, p.ConversationID, conversation.ReplyBody{Text: "您好"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	before = f.model.count()
-	if err := job.Job(ctx, conversation.Appended{TenantID: f.system.Tenant, ConversationID: p.ConversationID, ItemID: reply.ID}); err != nil || f.model.count() != before {
-		t.Fatalf("成员的回复：%v", err)
+	if err := job.Job(ctx, conversation.Appended{TenantID: f.system.Tenant, ConversationID: p.ConversationID, ItemID: reply.ID}); err != nil {
+		t.Fatalf("成员的回复翻译失败：%v", err)
+	}
+	tr, _ = f.item(t, reply.ID).Derived["translations"].(map[string]any)
+	if tr["en"] == nil || tr["zh-CN"] != nil {
+		t.Fatalf("成员回复的跨语言译文：%+v", tr)
+	}
+	if c, err := conversation.NewGet(f.env.DB).Handle(ctx, f.agent, p.ConversationID); err != nil || c.Language != "hi-Latn" {
+		t.Fatalf("成员回复不应改变客户语言：%+v %v", c, err)
 	}
 }
 

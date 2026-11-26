@@ -111,12 +111,17 @@ export function describeEvent(it: ConversationItemDTO, members: Map<string, Memb
       const count = Number(d.moved_items ?? 0)
       return ch ? t("event.merged", { who, channel: ch, count }) : t("event.merged_unknown", { who, count })
     }
-    case "ticket.created":
+    case "ticket.created": {
+      const typeName = String(d.type_name ?? "")
+      if (!typeName) {
+        return t("event.ticket_created_generic", { who, number: Number(d.number ?? 0) })
+      }
       return t("event.ticket_created", {
         who,
         number: Number(d.number ?? 0),
-        type: String(d.type_name ?? ""),
+        type: typeName,
       })
+    }
     case "ticket.updated":
       return t("event.ticket_updated", { who })
     case "ticket.status_changed": {
@@ -139,10 +144,14 @@ export function describeEvent(it: ConversationItemDTO, members: Map<string, Memb
       }
       return t("event.ticket_status_changed", { who, from: statusText(d.from), to: statusText(d.to) })
     }
-    case "ticket.conversation_linked":
-      return t("event.ticket_conversation_linked", { who })
-    case "ticket.conversation_unlinked":
-      return t("event.ticket_conversation_unlinked", { who })
+    case "ticket.contact_linked": {
+      const contactName = String(d.contact_name ?? "").trim()
+      return contactName ? t("event.ticket_contact_linked_name", { who, name: contactName }) : t("event.ticket_contact_linked", { who })
+    }
+    case "ticket.contact_unlinked": {
+      const contactName = String(d.contact_name ?? "").trim()
+      return contactName ? t("event.ticket_contact_unlinked_name", { who, name: contactName }) : t("event.ticket_contact_unlinked", { who })
+    }
     case "conversation.ticket_created":
       return t("event.conv_ticket_created", { who, number: Number(d.number ?? 0), title: String(d.title ?? "") })
     case "conversation.ticket_linked":

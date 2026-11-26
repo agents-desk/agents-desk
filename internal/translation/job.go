@@ -107,9 +107,9 @@ func (a *Incoming) Ensure(ctx context.Context, tenant, itemID string, targets []
 		translated.Translations = translations
 	} else {
 		var usual string
-		if it.Kind == conversation.Note && it.ActorType == conversation.MemberActor && it.ActorID != "" {
+		if it.ActorType == conversation.MemberActor && it.ActorID != "" {
 			if err := a.db.NewSelect().Table("members").Column("language").Where("id = ?", it.ActorID).Scan(ctx, &usual); err != nil && !errors.Is(err, sql.ErrNoRows) {
-				return errors.Wrap(err, "load note author language")
+				return errors.Wrap(err, "load author language")
 			}
 		} else {
 			err := a.db.NewRaw(`SELECT COALESCE(NULLIF(ct.language, ''), c.language) FROM conversations c

@@ -507,21 +507,21 @@ export interface ConversationCreateTicketParams {
   assignee_id?: string
   /** 工单类型对应的自定义字段初始值 */
   attributes?: Record<string, unknown>
-  /** 可选：创建时一并关联的其他服务型会话 ID */
-  conversation_ids?: string[]
+  /** 可选：创建时一并关联的受影响联系人 ID */
+  contact_ids?: string[]
   /** 工单详细描述 */
   description?: string
   /** 优先级；不填默认为 normal */
   priority?: ConversationPriority
-  /** 可选：由哪条服务型会话转成工单 */
+  /** 可选：由哪条服务型会话转成工单，自动关联该会话联系人 */
   source_conversation_id?: string
   /** 归属团队收件箱 ID；不填取工单类型默认团队 */
   team_id?: string
   /** 工单标题 */
   title: string
-  /** 工单类型 ID */
-  type_id: string
-  /** 工单可见范围（all 或 members）；不填取工单类型默认值 */
+  /** 可选：工单类型 ID；不选则为通用工单 */
+  type_id?: string
+  /** 工单可见范围（all 或 members）；不填取工单类型默认值或 all */
   visibility?: TicketTypeVisibility
 }
 
@@ -634,22 +634,24 @@ export interface ConversationLanguageInputBody {
   language: string
 }
 
-export interface ConversationLinkConversationInputBody {
-  /** 要关联的服务型会话 ID */
-  conversation_id: string
+export interface ConversationLinkTicketContactBody {
+  /** 要关联的受影响联系人 ID */
+  contact_id?: string
+  /** 可选：按服务型会话 ID 自动关联其联系人 */
+  conversation_id?: string
 }
 
-export interface ConversationLinkedConversationDTO {
-  assignee?: ConversationActor
+export interface ConversationLinkedContactDTO {
   channel?: ChannelSummary
-  contact?: ContactSummary
-  id: string
-  last_message_at: string
+  contact: ContactSummary
+  /** 当前成员可见的该客户活跃或最近一条服务型会话 ID */
+  conversation_id?: string
+  conversation_status?: ConversationStatus
+  /** 是否由该客户的服务型会话转成此工单 */
+  is_source: boolean
+  last_message_at?: string
   linked_at: string
   preview: string
-  relation: TicketLinkRelation
-  status: ConversationStatus
-  team_id?: string
 }
 
 export interface ConversationNoteBody {
@@ -839,9 +841,9 @@ export interface ConversationTicketDTO {
   id: string
   last_message_at: string
   last_seq: number
-  /** 当前成员有权限看到的关联服务型会话列表（详情接口返回） */
-  linked_conversations?: ConversationLinkedConversationDTO[]
-  /** 工单关联的服务型会话总数 */
+  /** 当前成员有权限看到的受影响客户列表（详情接口返回） */
+  linked_contacts?: ConversationLinkedContactDTO[]
+  /** 工单关联的受影响客户总数 */
   linked_count: number
   /** 工作区内递增编号，例如 1024 */
   number: number
@@ -852,8 +854,9 @@ export interface ConversationTicketDTO {
   tags: TagSummary[]
   team_id?: string
   title: string
-  type_id: string
-  type_name: string
+  /** 工单类型 ID；为空表示通用工单 */
+  type_id?: string
+  type_name?: string
   unread: boolean
   updated_at: string
   /** all（客户可见）或 members（仅成员可见） */
@@ -886,6 +889,8 @@ export interface ConversationUpdateTicketParams {
   description?: string
   /** 新的工单标题 */
   title?: string
+  /** 新的工单类型 ID；传空字符串表示改为通用工单 */
+  type_id?: string
   /** 新的可见范围（all 或 members） */
   visibility?: TicketTypeVisibility
 }
@@ -1789,8 +1794,6 @@ export interface TenantGeneralSettings {
   /** 会话关闭后的重开窗口（小时），不传保持原样，0 表示关闭后直接新建会话 */
   reopen_window_hours?: number
 }
-
-export type TicketLinkRelation = "source" | "linked"
 
 export type TicketStatus = "submitted" | "in_progress" | "waiting_on_customer" | "resolved"
 
@@ -3045,6 +3048,20 @@ export function createClient(options: ClientOptions) {
     /** operationId 以 ticket- 开头的接口。 */
     ticket: {
       /**
+       * 关联受影响客户到工单
+       *
+       * POST /tickets/{id}/contacts
+       */
+      contactAdd: (id: string, body: ConversationLinkTicketContactBody): Promise<ConversationTicketDTO> =>
+        rt.request<ConversationTicketDTO>({ method: "POST", path: `/tickets/${encodeURIComponent(id)}/contacts`, body }),
+      /**
+       * 取消工单与客户的关联
+       *
+       * DELETE /tickets/{id}/contacts/{contact_id}
+       */
+      contactRemove: (id: string, contactID: string): Promise<ConversationTicketDTO> =>
+        rt.request<ConversationTicketDTO>({ method: "DELETE", path: `/tickets/${encodeURIComponent(id)}/contacts/${encodeURIComponent(contactID)}` }),
+      /**
        * 新建工单
        *
        * POST /tickets
@@ -3065,20 +3082,6 @@ export function createClient(options: ClientOptions) {
        */
       getByNumber: (number: number): Promise<ConversationTicketDTO> =>
         rt.request<ConversationTicketDTO>({ method: "GET", path: `/tickets/number/${encodeURIComponent(number)}` }),
-      /**
-       * 关联服务型会话到工单
-       *
-       * POST /tickets/{id}/links
-       */
-      linkAdd: (id: string, body: ConversationLinkConversationInputBody): Promise<ConversationTicketDTO> =>
-        rt.request<ConversationTicketDTO>({ method: "POST", path: `/tickets/${encodeURIComponent(id)}/links`, body }),
-      /**
-       * 取消工单与会话的关联
-       *
-       * DELETE /tickets/{id}/links/{conversation_id}
-       */
-      linkRemove: (id: string, conversationID: string): Promise<ConversationTicketDTO> =>
-        rt.request<ConversationTicketDTO>({ method: "DELETE", path: `/tickets/${encodeURIComponent(id)}/links/${encodeURIComponent(conversationID)}` }),
       /**
        * 工单列表
        *

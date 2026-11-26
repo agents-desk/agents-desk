@@ -6,35 +6,17 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/danielgtaylor/huma/v2"
 	"github.com/uptrace/bun"
 
-	"github.com/go-tenon/tenon/contract"
 	"github.com/go-tenon/tenon/database"
-	"github.com/go-tenon/tenon/enum"
 	"github.com/go-tenon/tenon/identity"
 
+	"agents-desk/internal/auth"
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/tag"
 	"agents-desk/internal/tickettype"
 )
-
-// LinkRelation 是工单与服务型会话的关联来源。
-type LinkRelation string
-
-const (
-	LinkSource LinkRelation = "source" // 由该会话转成工单
-	LinkLinked LinkRelation = "linked" // 手动关联到已有工单
-)
-
-// LinkRelations 是全部关联来源类型。
-var LinkRelations = enum.New("ticket.link_relation", enum.Item(LinkSource), enum.Item(LinkLinked))
-
-// Schema 让 OpenAPI 中的 LinkRelation 只接受目录中的取值。
-func (LinkRelation) Schema(r huma.Registry) *huma.Schema {
-	return contract.EnumSchema(r, LinkRelations)
-}
 
 // TicketMeta 是 tickets 扩展表的数据库模型，与 conversations（kind=ticket）一对一关联。
 type TicketMeta struct {
@@ -44,7 +26,7 @@ type TicketMeta struct {
 	database.Timestamps
 	TenantID    string                `bun:"tenant_id,notnull"`
 	Number      int64                 `bun:"number,notnull"`
-	TypeID      string                `bun:"type_id,notnull"`
+	TypeID      *string               `bun:"type_id"`
 	Title       string                `bun:"title,notnull"`
 	Description string                `bun:"description,notnull"`
 	Visibility  tickettype.Visibility `bun:"visibility,notnull"`
@@ -52,58 +34,56 @@ type TicketMeta struct {
 	ResolvedAt  *time.Time            `bun:"resolved_at"`
 }
 
-// ConversationLink 是 conversation_links 关联表的数据库模型，多对多连接工单与服务型会话。
-type ConversationLink struct {
-	bun.BaseModel `bun:"table:conversation_links"`
+// TicketContact 是 ticket_contacts 关联表的数据库模型，多对多连接工单与受影响联系人。
+type TicketContact struct {
+	bun.BaseModel `bun:"table:ticket_contacts"`
 
 	ID string `bun:"id,pk"`
 	database.Timestamps
-	TenantID       string       `bun:"tenant_id,notnull"`
-	TicketID       string       `bun:"ticket_id,notnull"`
-	ConversationID string       `bun:"conversation_id,notnull"`
-	Relation       LinkRelation `bun:"relation,notnull"`
-	CreatedBy      *string      `bun:"created_by"`
+	TenantID             string  `bun:"tenant_id,notnull"`
+	TicketID             string  `bun:"ticket_id,notnull"`
+	ContactID            string  `bun:"contact_id,notnull"`
+	SourceConversationID *string `bun:"source_conversation_id"`
+	CreatedBy            *string `bun:"created_by"`
 }
 
-// LinkedConversationDTO 是工单详情中展示的一条已关联服务型会话摘要（仅返回当前成员有权限看到的会话）。
-type LinkedConversationDTO struct {
-	ID            string           `json:"id"`
-	Relation      LinkRelation     `json:"relation"`
-	Status        Status           `json:"status"`
-	Channel       *channel.Summary `json:"channel,omitempty"`
-	Contact       *contact.Summary `json:"contact,omitempty"`
-	TeamID        *string          `json:"team_id,omitempty"`
-	Assignee      *Actor           `json:"assignee,omitempty"`
-	Preview       string           `json:"preview"`
-	LastMessageAt time.Time        `json:"last_message_at"`
-	LinkedAt      time.Time        `json:"linked_at"`
+// LinkedContactDTO 是工单详情中展示的一位已关联受影响客户摘要（仅返回当前成员有权限看到的客户）。
+type LinkedContactDTO struct {
+	Contact            contact.Summary  `json:"contact"`
+	ConversationID     *string          `json:"conversation_id,omitempty" doc:"当前成员可见的该客户活跃或最近一条服务型会话 ID"`
+	ConversationStatus Status           `json:"conversation_status,omitempty"`
+	Channel            *channel.Summary `json:"channel,omitempty"`
+	Preview            string           `json:"preview"`
+	LastMessageAt      *time.Time       `json:"last_message_at,omitempty"`
+	IsSource           bool             `json:"is_source" doc:"是否由该客户的服务型会话转成此工单"`
+	LinkedAt           time.Time        `json:"linked_at"`
 }
 
 // TicketDTO 是接口中的工单视图，聚合了会话内核字段与工单扩展字段。
 type TicketDTO struct {
-	ID                  string                  `json:"id"`
-	Number              int64                   `json:"number" doc:"工作区内递增编号，例如 1024"`
-	TypeID              string                  `json:"type_id"`
-	TypeName            string                  `json:"type_name"`
-	Title               string                  `json:"title"`
-	Description         string                  `json:"description"`
-	Status              TicketStatus            `json:"status"`
-	Visibility          tickettype.Visibility   `json:"visibility" doc:"all（客户可见）或 members（仅成员可见）"`
-	TeamID              *string                 `json:"team_id,omitempty"`
-	Assignee            *Actor                  `json:"assignee,omitempty"`
-	Priority            Priority                `json:"priority"`
-	CreatedBy           *string                 `json:"created_by,omitempty"`
-	ResolvedAt          *time.Time              `json:"resolved_at,omitempty"`
-	LastMessageAt       time.Time               `json:"last_message_at"`
-	LastSeq             int64                   `json:"last_seq"`
-	Unread              bool                    `json:"unread"`
-	ReadSeq             int64                   `json:"read_seq"`
-	Tags                []tag.Summary           `json:"tags"`
-	Attributes          map[string]any          `json:"attributes"`
-	LinkedCount         int                     `json:"linked_count" doc:"工单关联的服务型会话总数"`
-	LinkedConversations []LinkedConversationDTO `json:"linked_conversations,omitempty" doc:"当前成员有权限看到的关联服务型会话列表（详情接口返回）"`
-	CreatedAt           time.Time               `json:"created_at"`
-	UpdatedAt           time.Time               `json:"updated_at"`
+	ID             string                `json:"id"`
+	Number         int64                 `json:"number" doc:"工作区内递增编号，例如 1024"`
+	TypeID         *string               `json:"type_id,omitempty" doc:"工单类型 ID；为空表示通用工单"`
+	TypeName       string                `json:"type_name,omitempty"`
+	Title          string                `json:"title"`
+	Description    string                `json:"description"`
+	Status         TicketStatus          `json:"status"`
+	Visibility     tickettype.Visibility `json:"visibility" doc:"all（客户可见）或 members（仅成员可见）"`
+	TeamID         *string               `json:"team_id,omitempty"`
+	Assignee       *Actor                `json:"assignee,omitempty"`
+	Priority       Priority              `json:"priority"`
+	CreatedBy      *string               `json:"created_by,omitempty"`
+	ResolvedAt     *time.Time            `json:"resolved_at,omitempty"`
+	LastMessageAt  time.Time             `json:"last_message_at"`
+	LastSeq        int64                 `json:"last_seq"`
+	Unread         bool                  `json:"unread"`
+	ReadSeq        int64                 `json:"read_seq"`
+	Tags           []tag.Summary         `json:"tags"`
+	Attributes     map[string]any        `json:"attributes"`
+	LinkedCount    int                   `json:"linked_count" doc:"工单关联的受影响客户总数"`
+	LinkedContacts []LinkedContactDTO    `json:"linked_contacts,omitempty" doc:"当前成员有权限看到的受影响客户列表（详情接口返回）"`
+	CreatedAt      time.Time             `json:"created_at"`
+	UpdatedAt      time.Time             `json:"updated_at"`
 }
 
 // TicketOutput 是返回单个工单的响应。
@@ -133,7 +113,7 @@ func findVisibleTicket(ctx context.Context, db bun.IDB, sub identity.Subject, id
 	return c, tk, errors.Wrap(err, "load ticket meta")
 }
 
-// toTicketDTOs 批量把工单会话转为 TicketDTO；includeLinks 为 true 时附带当前成员可见的关联服务型会话列表。
+// toTicketDTOs 批量把工单会话转为 TicketDTO；includeLinks 为 true 时附带当前成员可见的关联受影响客户列表。
 func toTicketDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conversation, includeLinks bool) ([]TicketDTO, error) {
 	out := make([]TicketDTO, len(convs))
 	if len(convs) == 0 {
@@ -149,10 +129,16 @@ func toTicketDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs [
 		return nil, errors.Wrap(err, "load ticket metas")
 	}
 	metaByID := make(map[string]TicketMeta, len(metas))
+	typeIDSet := map[string]struct{}{}
 	typeIDs := make([]string, 0, len(metas))
 	for _, m := range metas {
 		metaByID[m.ConversationID] = m
-		typeIDs = append(typeIDs, m.TypeID)
+		if m.TypeID != nil && *m.TypeID != "" {
+			if _, ok := typeIDSet[*m.TypeID]; !ok {
+				typeIDSet[*m.TypeID] = struct{}{}
+				typeIDs = append(typeIDs, *m.TypeID)
+			}
+		}
 	}
 
 	typeNames := map[string]string{}
@@ -174,11 +160,11 @@ func toTicketDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs [
 		TicketID string `bun:"ticket_id"`
 		Count    int    `bun:"cnt"`
 	}
-	if err := db.NewSelect().Table("conversation_links").
+	if err := db.NewSelect().Table("ticket_contacts").
 		ColumnExpr("ticket_id, count(*) AS cnt").
 		Where("tenant_id = ? AND ticket_id IN (?)", sub.Tenant, bun.In(ids)).
 		GroupExpr("ticket_id").Scan(ctx, &countRows); err != nil {
-		return nil, errors.Wrap(err, "count linked conversations")
+		return nil, errors.Wrap(err, "count ticket contacts")
 	}
 	linkedCounts := make(map[string]int, len(countRows))
 	for _, r := range countRows {
@@ -198,9 +184,9 @@ func toTicketDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs [
 		return nil, err
 	}
 
-	var linksByTicket map[string][]LinkedConversationDTO
+	var linksByTicket map[string][]LinkedContactDTO
 	if includeLinks {
-		linksByTicket, err = loadVisibleLinkedConversations(ctx, db, sub, ids)
+		linksByTicket, err = loadVisibleLinkedContacts(ctx, db, sub, ids)
 		if err != nil {
 			return nil, err
 		}
@@ -216,11 +202,15 @@ func toTicketDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs [
 		if attrs == nil {
 			attrs = map[string]any{}
 		}
+		var typeName string
+		if m.TypeID != nil {
+			typeName = typeNames[*m.TypeID]
+		}
 		dto := TicketDTO{
 			ID:            c.ID,
 			Number:        m.Number,
 			TypeID:        m.TypeID,
-			TypeName:      typeNames[m.TypeID],
+			TypeName:      typeName,
 			Title:         m.Title,
 			Description:   m.Description,
 			Status:        TicketStatus(c.Status),
@@ -245,125 +235,146 @@ func toTicketDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs [
 		if includeLinks {
 			list := linksByTicket[c.ID]
 			if list == nil {
-				list = []LinkedConversationDTO{}
+				list = []LinkedContactDTO{}
 			}
-			dto.LinkedConversations = list
+			dto.LinkedContacts = list
 		}
 		out[i] = dto
 	}
 	return out, nil
 }
 
-// loadVisibleLinkedConversations 批量加载工单 ticketIDs 下当前成员 sub 有权限查看的关联服务型会话摘要。
-// 严格套用 visible() 权限过滤，防止不同团队或代理之间泄露权限之外的客户会话。
-func loadVisibleLinkedConversations(ctx context.Context, db bun.IDB, sub identity.Subject, ticketIDs []string) (map[string][]LinkedConversationDTO, error) {
-	result := make(map[string][]LinkedConversationDTO, len(ticketIDs))
+// loadVisibleLinkedContacts 批量加载工单 ticketIDs 下当前成员 sub 有权限查看的受影响客户摘要。
+// 对受限成员（ScopeTeam/ScopeAssigned）严格校验是否可见该客户的服务型会话，防止不同团队或代理之间泄露权限之外的客户。
+func loadVisibleLinkedContacts(ctx context.Context, db bun.IDB, sub identity.Subject, ticketIDs []string) (map[string][]LinkedContactDTO, error) {
+	result := make(map[string][]LinkedContactDTO, len(ticketIDs))
 	if len(ticketIDs) == 0 {
 		return result, nil
 	}
-	var links []ConversationLink
+	var links []TicketContact
 	if err := db.NewSelect().Model(&links).
 		Where("tenant_id = ? AND ticket_id IN (?)", sub.Tenant, bun.In(ticketIDs)).
-		OrderExpr("created_at ASC, id ASC").Scan(ctx); err != nil {
-		return nil, errors.Wrap(err, "load conversation links")
+		OrderExpr("(source_conversation_id IS NOT NULL) DESC, created_at ASC, id ASC").Scan(ctx); err != nil {
+		return nil, errors.Wrap(err, "load ticket contacts")
 	}
 	if len(links) == 0 {
 		return result, nil
 	}
-	convIDSet := make(map[string]struct{}, len(links))
-	convIDs := make([]string, 0, len(links))
+
+	contactIDSet := make(map[string]struct{}, len(links))
+	contactIDs := make([]string, 0, len(links))
 	for _, l := range links {
-		if _, dup := convIDSet[l.ConversationID]; !dup {
-			convIDSet[l.ConversationID] = struct{}{}
-			convIDs = append(convIDs, l.ConversationID)
+		if _, dup := contactIDSet[l.ContactID]; !dup {
+			contactIDSet[l.ContactID] = struct{}{}
+			contactIDs = append(contactIDs, l.ContactID)
 		}
 	}
 
+	// 加载这些联系人在当前成员权限内可见的全部服务型会话，按活跃优先、最近消息倒序排列
 	var convs []Conversation
 	q := db.NewSelect().Model(&convs).
-		Where("conversation.tenant_id = ? AND conversation.kind = ? AND conversation.id IN (?)", sub.Tenant, Service, bun.In(convIDs))
+		Where("conversation.tenant_id = ? AND conversation.kind = ? AND conversation.contact_id IN (?)", sub.Tenant, Service, bun.In(contactIDs)).
+		OrderExpr("(conversation.status IN ('open', 'snoozed')) DESC, conversation.last_message_at DESC, conversation.id DESC")
 	q = visible(q, sub)
 	if err := q.Scan(ctx); err != nil {
-		return nil, errors.Wrap(err, "load visible linked conversations")
+		return nil, errors.Wrap(err, "load visible service conversations for ticket contacts")
 	}
-	if len(convs) == 0 {
+
+	// 按每个联系人挑出最佳可见会话（优先活跃会话，其次按最近消息）及按 ID 索引
+	convsByContact := map[string][]Conversation{}
+	convByID := map[string]Conversation{}
+	for _, c := range convs {
+		if c.ContactID == nil {
+			continue
+		}
+		convsByContact[*c.ContactID] = append(convsByContact[*c.ContactID], c)
+		convByID[c.ID] = c
+	}
+
+	// 受限成员只保留名下有可见服务型会话的联系人；ScopeAll 和系统主体可见全部关联联系人
+	seeAll := sub.Type == identity.System || auth.ScopeOf(sub) == auth.ScopeAll
+	visibleContactIDs := make([]string, 0, len(contactIDs))
+	chosenConvs := make([]Conversation, 0, len(contactIDs))
+	chosenByContact := map[string]string{}
+	for _, cid := range contactIDs {
+		list := convsByContact[cid]
+		if !seeAll && len(list) == 0 {
+			continue
+		}
+		visibleContactIDs = append(visibleContactIDs, cid)
+		if len(list) > 0 {
+			chosenByContact[cid] = list[0].ID
+			chosenConvs = append(chosenConvs, list[0])
+		}
+	}
+	if len(visibleContactIDs) == 0 {
 		return result, nil
 	}
-	dtos, err := toDTOs(ctx, db, sub, convs)
-	if err != nil {
-		return nil, err
+
+	var contactRows []contact.Contact
+	if err := db.NewSelect().Model(&contactRows).Where("tenant_id = ? AND id IN (?)", sub.Tenant, bun.In(visibleContactIDs)).Scan(ctx); err != nil {
+		return nil, errors.Wrap(err, "load contacts for ticket links")
 	}
-	byID := make(map[string]ConversationDTO, len(dtos))
-	for _, d := range dtos {
-		byID[d.ID] = d
+	contactByID := make(map[string]contact.Summary, len(contactRows))
+	for i := range contactRows {
+		contactByID[contactRows[i].ID] = contactRows[i].Summary()
 	}
+
+	convDTOByID := map[string]ConversationDTO{}
+	if len(chosenConvs) > 0 {
+		dtos, err := toDTOs(ctx, db, sub, chosenConvs)
+		if err != nil {
+			return nil, err
+		}
+		for _, d := range dtos {
+			convDTOByID[d.ID] = d
+		}
+	}
+
 	for _, l := range links {
-		d, ok := byID[l.ConversationID]
+		ct, ok := contactByID[l.ContactID]
 		if !ok {
 			continue
 		}
-		result[l.TicketID] = append(result[l.TicketID], LinkedConversationDTO{
-			ID:            d.ID,
-			Relation:      l.Relation,
-			Status:        d.Status,
-			Channel:       d.Channel,
-			Contact:       d.Contact,
-			TeamID:        d.TeamID,
-			Assignee:      d.Assignee,
-			Preview:       d.Preview,
-			LastMessageAt: d.LastMessageAt,
-			LinkedAt:      l.CreatedAt,
-		})
+		item := LinkedContactDTO{
+			Contact:  ct,
+			IsSource: l.SourceConversationID != nil && *l.SourceConversationID != "",
+			LinkedAt: l.CreatedAt,
+		}
+		if convID := chosenByContact[l.ContactID]; convID != "" {
+			if d, ok := convDTOByID[convID]; ok {
+				id := d.ID
+				ts := d.LastMessageAt
+				item.ConversationID = &id
+				item.ConversationStatus = d.Status
+				item.Channel = d.Channel
+				item.Preview = d.Preview
+				item.LastMessageAt = &ts
+			}
+		} else if l.SourceConversationID != nil {
+			if _, ok := convByID[*l.SourceConversationID]; ok {
+				id := *l.SourceConversationID
+				item.ConversationID = &id
+			}
+		}
+		result[l.TicketID] = append(result[l.TicketID], item)
 	}
 	return result, nil
 }
 
-// resumeWaitingTickets 在客户往服务型会话 c 发来新消息的同一事务中：
-//   - 若显式指定了 explicitTicketID 且该工单关联于该客户，则将其关联到当前会话 c（幂等），方便坐席在当前会话侧栏直接看到对应工单；
-//   - 将关联到此会话或该客户历史服务型会话、且正处于 waiting_on_customer 状态的工单自动切回 in_progress 并记系统事件。
-func resumeWaitingTickets(ctx context.Context, tx database.Tx, down Downstream, tenantID string, c *Conversation, explicitTicketID string, at time.Time) error {
-	if explicitTicketID != "" && c.ContactID != nil && *c.ContactID != "" {
-		// 仅允许关联该客户已通过会话接触过的客户可见工单，防止越权挂载其他客户的工单
-		var belongs bool
-		err := tx.NewRaw(`SELECT EXISTS (
-			SELECT 1 FROM conversation_links cl
-			JOIN conversations sc ON sc.id = cl.conversation_id
-			JOIN tickets tk ON tk.conversation_id = cl.ticket_id
-			WHERE cl.tenant_id = ? AND cl.ticket_id = ? AND tk.visibility = ?
-			  AND sc.tenant_id = ? AND sc.kind = ? AND sc.contact_id = ?
-		)`, tenantID, explicitTicketID, tickettype.VisibilityAll, tenantID, Service, *c.ContactID).Scan(ctx, &belongs)
-		if err != nil {
-			return errors.Wrap(err, "verify explicit ticket ownership")
-		}
-		if belongs {
-			link := &ConversationLink{
-				ID:             newID(),
-				TenantID:       tenantID,
-				TicketID:       explicitTicketID,
-				ConversationID: c.ID,
-				Relation:       LinkLinked,
-			}
-			link.CreatedAt, link.UpdatedAt = at, at
-			if _, err := tx.NewInsert().Model(link).On("CONFLICT DO NOTHING").Exec(ctx); err != nil {
-				return errors.Wrap(err, "link active conversation to explicit ticket")
-			}
-		}
+// resumeWaitingTickets 在客户往服务型会话 c 发来新消息的同一事务中，
+// 将关联到此客户、且正处于 waiting_on_customer 状态的工单自动切回 in_progress 并记系统事件。
+func resumeWaitingTickets(ctx context.Context, tx database.Tx, down Downstream, tenantID string, c *Conversation, _ string, at time.Time) error {
+	if c.ContactID == nil || *c.ContactID == "" {
+		return nil
 	}
-
 	var ticketIDs []string
-	q := tx.NewSelect().TableExpr("conversation_links cl").
-		Join("JOIN conversations tc ON tc.id = cl.ticket_id").
-		Join("JOIN conversations sc ON sc.id = cl.conversation_id").
-		ColumnExpr("DISTINCT tc.id").
-		Where("cl.tenant_id = ? AND tc.tenant_id = ? AND tc.kind = ? AND tc.status = ?",
-			tenantID, tenantID, Ticket, TicketWaiting).
-		Where("sc.tenant_id = ? AND sc.kind = ?", tenantID, Service)
-	if c.ContactID != nil && *c.ContactID != "" {
-		q = q.Where("(sc.id = ? OR sc.contact_id = ?)", c.ID, *c.ContactID)
-	} else {
-		q = q.Where("sc.id = ?", c.ID)
-	}
-	err := q.OrderExpr("tc.id ASC").Scan(ctx, &ticketIDs)
+	err := tx.NewSelect().TableExpr("ticket_contacts tc").
+		Join("JOIN conversations conv ON conv.id = tc.ticket_id").
+		ColumnExpr("DISTINCT conv.id").
+		Where("tc.tenant_id = ? AND tc.contact_id = ? AND conv.tenant_id = ? AND conv.kind = ? AND conv.status = ?",
+			tenantID, *c.ContactID, tenantID, Ticket, TicketWaiting).
+		OrderExpr("conv.id ASC").Scan(ctx, &ticketIDs)
 	if err != nil {
 		return errors.Wrap(err, "find waiting tickets for customer reply")
 	}

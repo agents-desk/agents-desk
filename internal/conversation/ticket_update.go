@@ -14,8 +14,9 @@ import (
 	"agents-desk/internal/tickettype"
 )
 
-// UpdateTicketParams 是修改工单标题、描述和可见范围的请求体；不传的字段保持不变。
+// UpdateTicketParams 是修改工单标题、描述、工单类型和可见范围的请求体；不传的字段保持不变。
 type UpdateTicketParams struct {
+	TypeID      *string                `json:"type_id,omitempty" doc:"新的工单类型 ID；传空字符串表示改为通用工单"`
 	Title       *string                `json:"title,omitempty" minLength:"1" maxLength:"120" doc:"新的工单标题"`
 	Description *string                `json:"description,omitempty" maxLength:"5000" doc:"新的工单描述"`
 	Visibility  *tickettype.Visibility `json:"visibility,omitempty" doc:"新的可见范围（all 或 members）"`
@@ -49,7 +50,30 @@ func (a *UpdateTicket) Handle(ctx context.Context, sub identity.Subject, id stri
 			return err
 		}
 		changed := map[string]any{}
-		cols := make([]string, 0, 4)
+		cols := make([]string, 0, 5)
+		if p.TypeID != nil {
+			curID := ""
+			if tk.TypeID != nil {
+				curID = *tk.TypeID
+			}
+			nextID := strings.TrimSpace(*p.TypeID)
+			if nextID != curID {
+				if nextID == "" {
+					tk.TypeID = nil
+					changed["type_id"] = map[string]any{"from": curID, "to": ""}
+				} else {
+					tt, err := tickettype.FindActive(ctx, tx, sub.Tenant, nextID)
+					if err != nil {
+						return err
+					}
+					id := tt.ID
+					tk.TypeID = &id
+					changed["type_id"] = map[string]any{"from": curID, "to": tt.ID}
+				}
+				c.Attributes = map[string]any{}
+				cols = append(cols, "type_id")
+			}
+		}
 		if p.Title != nil {
 			v := strings.TrimSpace(*p.Title)
 			if v != tk.Title {

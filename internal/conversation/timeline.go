@@ -62,7 +62,7 @@ func (a *Timeline) Handle(ctx context.Context, sub identity.Subject, id string, 
 	if err != nil {
 		return nil, err
 	}
-	markUntranslated(dtos, language)
+	markUntranslated(dtos, sub.ID, language)
 	return dtos, nil
 }
 

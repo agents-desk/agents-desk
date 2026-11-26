@@ -196,7 +196,7 @@ func mergePair(ctx context.Context, tx database.Tx, down Downstream, sub identit
 	}
 	target.LastSeq = int64(len(allItems))
 
-	// 3. 合并参与者、会话标签与工单关联（conversation_links）
+	// 3. 合并参与者、会话标签与工单来源会话引用（ticket_contacts）
 	if _, err := tx.NewRaw(
 		`INSERT INTO conversation_participants (conversation_id, participant_type, participant_id, created_at)
 		 SELECT ?, participant_type, participant_id, created_at
@@ -217,22 +217,13 @@ func mergePair(ctx context.Context, tx database.Tx, down Downstream, sub identit
 	).Exec(ctx); err != nil {
 		return nil, errors.Wrap(err, "merge conversation tags")
 	}
-	// 迁移工单关联：先删去源会话与目标会话共同关联同一工单的重复记录，再将其余工单关联直接改挂到目标会话
+	// 更新工单来源会话引用，指向合并后的目标服务型会话
 	if _, err := tx.NewRaw(
-		`DELETE FROM conversation_links s
-		 USING conversation_links t
-		 WHERE s.tenant_id = ? AND s.conversation_id = ?
-		   AND t.tenant_id = s.tenant_id AND t.conversation_id = ? AND t.ticket_id = s.ticket_id`,
-		sub.Tenant, source.ID, target.ID,
-	).Exec(ctx); err != nil {
-		return nil, errors.Wrap(err, "dedupe merged conversation ticket links")
-	}
-	if _, err := tx.NewRaw(
-		`UPDATE conversation_links SET conversation_id = ?, updated_at = ?
-		 WHERE tenant_id = ? AND conversation_id = ?`,
+		`UPDATE ticket_contacts SET source_conversation_id = ?, updated_at = ?
+		 WHERE tenant_id = ? AND source_conversation_id = ?`,
 		target.ID, now(), sub.Tenant, source.ID,
 	).Exec(ctx); err != nil {
-		return nil, errors.Wrap(err, "migrate merged conversation ticket links")
+		return nil, errors.Wrap(err, "migrate merged ticket source conversations")
 	}
 
 	// 4. 合并已读进度：只有成员在合并前已读完源和目标两个会话全部内容时，合并后才视为已读到最新，否则保留未读提醒

@@ -294,14 +294,6 @@ export const enums = {
       "zh-CN": { active: "正常", disabled: "已停用" },
     },
   },
-  TicketLinkRelation: {
-    prefix: "ticket.link_relation",
-    values: ["source", "linked"],
-    labels: {
-      "en": { source: "Source conversation", linked: "Linked conversation" },
-      "zh-CN": { source: "来源会话", linked: "关联会话" },
-    },
-  },
   TicketStatus: {
     prefix: "ticket.status",
     values: ["submitted", "in_progress", "waiting_on_customer", "resolved"],

@@ -275,9 +275,11 @@ function TicketRow({ tk, active, onClick }: { tk: ConversationTicketDTO; active:
           )}
           {ownerText && (
             <>
-              <Text size="xs" c="dimmed" style={{ flex: "none" }}>
-                ·
-              </Text>
+              {tk.type_name && (
+                <Text size="xs" c="dimmed" style={{ flex: "none" }}>
+                  ·
+                </Text>
+              )}
               <Text size="xs" c="dimmed" truncate style={{ minWidth: 0 }}>
                 {ownerText}
               </Text>
