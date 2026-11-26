@@ -11,12 +11,13 @@ interface HeaderProps {
   greeting?: string // 首页的问候语；会话页没有
   status?: string // 会话页标题旁的状态
   onBack?: () => void // 会话页的返回首页
+  extra?: ReactNode // 标题栏右侧的附加按钮（如单会话模式下的工单入口）
   close?: "collapse" | "close" // 右上角的按钮：电脑上收起，手机全屏和 App 中关闭；没有时不显示
   onClose?: () => void
 }
 
 /** Header 是聊天窗口的顶部：主题色的底，首页是名称和问候语，会话页是返回、名称和会话的状态。顶部留出刘海的安全区域。 */
-export function Header({ color, title, greeting, status, onBack, close, onClose }: HeaderProps): ReactNode {
+export function Header({ color, title, greeting, status, onBack, extra, close, onClose }: HeaderProps): ReactNode {
   const t = useT()
   const fg = useBrandForeground()
   const closeButton = close && (
@@ -42,6 +43,7 @@ export function Header({ color, title, greeting, status, onBack, close, onClose 
               </Text>
             )}
           </Text>
+          {extra}
           {closeButton}
         </Group>
       ) : (
@@ -49,9 +51,10 @@ export function Header({ color, title, greeting, status, onBack, close, onClose 
           <Text fw={600} size="sm">
             {title}
           </Text>
-          <Box pos="absolute" top={10} right={8}>
+          <Group gap={4} pos="absolute" top={10} right={8} wrap="nowrap">
+            {extra}
             {closeButton}
-          </Box>
+          </Group>
           <Title order={2} size="h3" mt="sm" c={fg}>
             {greeting}
           </Title>

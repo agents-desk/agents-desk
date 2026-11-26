@@ -44,6 +44,28 @@ export function promptText(prompt: ConversationPrompt | undefined, fallback: str
     }
     case "collect_contact":
       return t("prompt.collect_contact")
+    case "ticket_update": {
+      const num = Number(params.ticket_number ?? 0)
+      if (num > 0 && fallback) return t("prompt.ticket_update", { number: num, text: fallback })
+      return fallback
+    }
+    case "ticket_status_changed": {
+      const num = Number(params.ticket_number ?? 0)
+      const title = typeof params.ticket_title === "string" ? params.ticket_title : ""
+      const to = typeof params.to === "string" ? params.to : ""
+      const statusLabel =
+        to === "submitted"
+          ? t("tickets.status_submitted")
+          : to === "in_progress"
+            ? t("tickets.status_in_progress")
+            : to === "waiting_on_customer"
+              ? t("tickets.status_waiting_on_customer")
+              : to === "resolved"
+                ? t("tickets.status_resolved")
+                : to
+      if (num > 0 && statusLabel) return t("prompt.ticket_status_changed", { number: num, title, status: statusLabel })
+      return fallback
+    }
     default:
       return fallback
   }

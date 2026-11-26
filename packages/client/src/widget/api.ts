@@ -128,6 +128,46 @@ export interface ConversationContactItemDTO {
   text: string
 }
 
+export interface ConversationContactTicketDTO {
+  /** 优先匹配当前渠道的关联服务型会话 ID，供客户跳转补充信息 */
+  conversation_id: string
+  created_at: string
+  description: string
+  id: string
+  last_message_at: string
+  /** 最近一条公开进度的文字摘要 */
+  latest_update: string
+  /** 工单编号 */
+  number: number
+  /** submitted、in_progress、waiting_on_customer 或 resolved */
+  status: TicketStatus
+  title: string
+  /** 工单类型名称 */
+  type_name: string
+  updated_at: string
+}
+
+export interface ConversationContactTicketDetailDTO {
+  /** 优先匹配当前渠道的关联服务型会话 ID，供客户跳转补充信息 */
+  conversation_id: string
+  created_at: string
+  description: string
+  id: string
+  last_message_at: string
+  /** 最近一条公开进度的文字摘要 */
+  latest_update: string
+  /** 工单编号 */
+  number: number
+  /** submitted、in_progress、waiting_on_customer 或 resolved */
+  status: TicketStatus
+  title: string
+  /** 工单类型名称 */
+  type_name: string
+  updated_at: string
+  /** 工单的公开进度记录，按时间顺序排列 */
+  updates: ConversationContactItemDTO[]
+}
+
 export type ConversationFetchStatus = "ready" | "remote" | "pending" | "fetching" | "unavailable"
 
 export type ConversationItemKind = "message" | "note" | "event"
@@ -218,6 +258,8 @@ export interface TagSummary {
   id: string
   name: string
 }
+
+export type TicketStatus = "submitted" | "in_progress" | "waiting_on_customer" | "resolved"
 
 export interface WidgetAppearance {
   /** 聊天窗口的主题色（#rrggbb 十六进制颜色值），缺省为 #0063ff */
@@ -386,6 +428,23 @@ export function createClient(options: ClientOptions) {
        */
       upload: (form: FileUploadForm): Promise<File> =>
         rt.request<File>({ method: "POST", path: `/files`, form }),
+    },
+    /** operationId 以 ticket- 开头的接口。 */
+    ticket: {
+      /**
+       * 读取工单详情
+       *
+       * GET /tickets/{id}
+       */
+      get: (id: string): Promise<ConversationContactTicketDetailDTO> =>
+        rt.request<ConversationContactTicketDetailDTO>({ method: "GET", path: `/tickets/${encodeURIComponent(id)}` }),
+      /**
+       * 我的工单
+       *
+       * GET /tickets
+       */
+      list: (): Promise<ConversationContactTicketDTO[]> =>
+        rt.request<ConversationContactTicketDTO[]>({ method: "GET", path: `/tickets` }),
     },
     /** operationId 以 widget- 开头的接口。 */
     widget: {

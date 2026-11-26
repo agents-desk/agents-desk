@@ -1,4 +1,5 @@
-import { Box, Center, Loader, Text } from "@mantine/core"
+import { Box, Button, Center, Loader, Paper, Text } from "@mantine/core"
+import { IconTicket } from "@tabler/icons-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useRef, useState } from "react"
@@ -6,11 +7,13 @@ import { channel, embedded, hasCloseButton, type Init, inline, listen, tell, wai
 import { identity } from "../identity"
 import { useIdentity, useRealtime } from "../realtime"
 import { DEFAULT_WIDGET_COLOR, useSetWidgetBrand } from "../theme"
+import { useBrandForeground } from "./contrast"
 import { ConversationView } from "./Conversation"
 import { Header } from "./Header"
-import { FirstMessage, Home } from "./Home"
+import { FirstMessage, Home, type HomeTab } from "./Home"
 import { Launcher } from "./Launcher"
-import { useConfig, useConversations, useConversation } from "./queries"
+import { useConfig, useConversation, useConversations, useTicket, useTickets } from "./queries"
+import { TicketDetailView, TicketListItems } from "./TicketDetail"
 import { useViewportHeight } from "./viewport"
 
 /** started 是页面的初始化：整个页面只做一次（开发时 React 的 StrictMode 会把 effect 执行两遍）。 */
@@ -29,8 +32,13 @@ function initOnce(): Promise<Init> {
   return started
 }
 
-/** View 是聊天窗口当前显示的页面：首页、某个会话，或者还没有发出第一条的新会话。 */
-type View = { kind: "home" } | { kind: "conversation"; id: string } | { kind: "new" }
+/** View 是聊天窗口当前显示的页面：首页、会话、新会话、单会话工单列表或工单详情。 */
+type View =
+  | { kind: "home" }
+  | { kind: "conversation"; id: string }
+  | { kind: "new" }
+  | { kind: "tickets" }
+  | { kind: "ticket"; id: string }
 
 /**
  * Widget 是整个聊天窗口。四种运行方式：
@@ -42,6 +50,7 @@ type View = { kind: "home" } | { kind: "conversation"; id: string } | { kind: "n
  */
 export function Widget(): ReactNode {
   const t = useT()
+  const fg = useBrandForeground()
   const queryClient = useQueryClient()
   const [ready, setReady] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -51,11 +60,13 @@ export function Widget(): ReactNode {
   const openRef = useRef(open)
   openRef.current = open
   const [view, setView] = useState<View>({ kind: "home" })
+  const [homeTab, setHomeTab] = useState<HomeTab>("conversations")
   const [visible, setVisible] = useState(() => typeof document === "undefined" || document.visibilityState === "visible")
   const height = useViewportHeight()
   const { contact } = useIdentity()
   const config = useConfig()
   const conversations = useConversations()
+  const tickets = useTickets()
   useRealtime()
 
   // toggle 展开或收起，并告诉 loader.js 调整 iframe 的大小；展开时确保已激活身份（全新访客此时才建立线索）
@@ -97,12 +108,14 @@ export function Widget(): ReactNode {
               .then((switched) => {
                 if (!switched) return
                 setView({ kind: "home" })
+                setHomeTab("conversations")
                 void queryClient.invalidateQueries({ queryKey: ["widget"] })
               })
               .catch(() => setFailed(true))
             return
           }
           setView({ kind: "home" })
+          setHomeTab("conversations")
           void identity
             .logout(openRef.current)
             .then(() => queryClient.invalidateQueries({ queryKey: ["widget"] }))
@@ -153,7 +166,22 @@ export function Widget(): ReactNode {
   const close = floating ? (full ? "close" : "collapse") : hasCloseButton() ? "close" : undefined
   const onClose = () => (floating ? toggle(false) : tell("close"))
   const single = config.data?.behavior.conversation_mode === "single"
+  const ticketList = tickets.data ?? []
   const latestConversationId = conversations.data?.[0]?.id
+
+  const singleTicketAction =
+    single && ticketList.length > 0 ? (
+      <Button
+        size="compact-xs"
+        variant="subtle"
+        c={fg}
+        leftSection={<IconTicket size={14} />}
+        onClick={() => setView({ kind: "tickets" })}
+      >
+        {t("tickets.single_entry", { n: ticketList.length })}
+      </Button>
+    ) : undefined
+
   const panel = (
     <Box
       className="w-panel"
@@ -164,24 +192,66 @@ export function Widget(): ReactNode {
         <Center style={{ flex: 1 }}>
           <Loader color={color} />
         </Center>
+      ) : view.kind === "ticket" ? (
+        <Box key={`ticket:${view.id}`} className="w-view">
+          <TicketPage
+            id={view.id}
+            color={color}
+            name={name}
+            close={close}
+            onClose={onClose}
+            onBack={() => {
+              if (single) {
+                setView({ kind: "tickets" })
+              } else {
+                setHomeTab("tickets")
+                setView({ kind: "home" })
+              }
+            }}
+            onOpenConversation={(convId) => setView({ kind: "conversation", id: convId })}
+          />
+        </Box>
+      ) : view.kind === "tickets" ? (
+        <Box key="tickets" className="w-view">
+          <Header
+            color={color}
+            title={t("tickets.my_tickets")}
+            onBack={() => setView({ kind: "home" })}
+            close={close}
+            onClose={onClose}
+          />
+          <Box className="w-scroll" p="md">
+            <Paper withBorder radius="lg" style={{ overflow: "hidden" }}>
+              <TicketListItems tickets={ticketList} color={color} onOpen={(id) => setView({ kind: "ticket", id })} />
+            </Paper>
+          </Box>
+        </Box>
       ) : single ? (
         latestConversationId ? (
           <Box key={latestConversationId} className="w-view">
             <ConversationPage
-              id={latestConversationId}
+              id={view.kind === "conversation" ? view.id : latestConversationId}
               color={color}
               name={name}
               full={full}
               visible={open && visible}
               close={close}
               onClose={onClose}
+              extra={singleTicketAction}
               single
               onView={setView}
             />
           </Box>
         ) : (
           <Box key="single-new" className="w-view">
-            <Header color={color} title={name} greeting={config.data.appearance.greeting || t("home.default_greeting")} close={close} onClose={onClose} />
+            <Header
+              color={color}
+              title={name}
+              greeting={config.data.appearance.greeting || t("home.default_greeting")}
+              extra={singleTicketAction}
+              close={close}
+              onClose={onClose}
+            />
             <ConversationView
               intro={<FirstMessage />}
               color={color}
@@ -195,12 +265,16 @@ export function Widget(): ReactNode {
       ) : view.kind === "home" ? (
         <Box key="home" className="w-view">
           <Header color={color} title={name} greeting={config.data.appearance.greeting || t("home.default_greeting")} close={close} onClose={onClose} />
-          {conversations.data.length > 0 ? (
+          {conversations.data.length > 0 || ticketList.length > 0 ? (
             <Home
               color={color}
               name={name}
               conversations={conversations.data}
+              tickets={ticketList}
+              tab={conversations.data.length === 0 && ticketList.length > 0 ? "tickets" : homeTab}
+              onTabChange={setHomeTab}
               onOpen={(id) => setView({ kind: "conversation", id })}
+              onOpenTicket={(id) => setView({ kind: "ticket", id })}
               onNew={() => setView({ kind: "new" })}
             />
           ) : (
@@ -240,6 +314,35 @@ export function Widget(): ReactNode {
   )
 }
 
+/** TicketPage 是单张工单的页面壳：顶栏显示工单编号与返回按钮，下方展示工单进度和去会话补充信息入口。 */
+function TicketPage({
+  id,
+  color,
+  name,
+  close,
+  onClose,
+  onBack,
+  onOpenConversation,
+}: {
+  id: string
+  color: string
+  name: string
+  close?: "collapse" | "close"
+  onClose: () => void
+  onBack: () => void
+  onOpenConversation: (conversationId: string) => void
+}): ReactNode {
+  const t = useT()
+  const ticket = useTicket(id)
+  const title = ticket.data ? t("tickets.title", { number: ticket.data.number }) : t("tickets.my_tickets")
+  return (
+    <>
+      <Header color={color} title={title} onBack={onBack} close={close} onClose={onClose} />
+      <TicketDetailView id={id} color={color} name={name} onOpenConversation={onOpenConversation} />
+    </>
+  )
+}
+
 /** ConversationPage 是会话页：顶部显示标题与会话状态（多会话模式附带返回首页），下面是会话。 */
 function ConversationPage({
   id,
@@ -249,6 +352,7 @@ function ConversationPage({
   visible,
   close,
   onClose,
+  extra,
   single = false,
   onView,
 }: {
@@ -259,6 +363,7 @@ function ConversationPage({
   visible: boolean
   close?: "collapse" | "close"
   onClose: () => void
+  extra?: ReactNode
   single?: boolean
   onView: (v: View) => void
 }): ReactNode {
@@ -268,7 +373,7 @@ function ConversationPage({
   const onBack = single ? undefined : () => onView({ kind: "home" })
   return (
     <>
-      <Header color={color} title={name} status={status} onBack={onBack} close={close} onClose={onClose} />
+      <Header color={color} title={name} status={status} onBack={onBack} extra={extra} close={close} onClose={onClose} />
       <ConversationView
         id={id}
         intro={<FirstMessage />}

@@ -1,4 +1,9 @@
-import type { ConversationContactConversationDTO, ConversationContactItemDTO } from "@agents-desk/client/widget"
+import type {
+  ConversationContactConversationDTO,
+  ConversationContactItemDTO,
+  ConversationContactTicketDetailDTO,
+  ConversationContactTicketDTO,
+} from "@agents-desk/client/widget"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { authed, widgetApi } from "../api"
 import { useIdentity } from "../realtime"
@@ -46,6 +51,26 @@ export function useItems(id: string) {
       const next = await authed(() => widgetApi.conversation.items(id, { after, limit: 500 }))
       return next.length === 0 ? before : [...before, ...next]
     },
+    enabled: !!contact && !!id,
+  })
+}
+
+/** useTickets 读取客户在工作区中关联到的客户可见工单列表。 */
+export function useTickets() {
+  const { contact } = useIdentity()
+  return useQuery<ConversationContactTicketDTO[]>({
+    queryKey: ["widget", contact?.id, "tickets"],
+    queryFn: () => authed(() => widgetApi.ticket.list()),
+    enabled: !!contact,
+  })
+}
+
+/** useTicket 读取客户可见的单张工单详情及其公开进度列表。 */
+export function useTicket(id: string) {
+  const { contact } = useIdentity()
+  return useQuery<ConversationContactTicketDetailDTO>({
+    queryKey: ["widget", contact?.id, "ticket", id],
+    queryFn: () => authed(() => widgetApi.ticket.get(id)),
     enabled: !!contact && !!id,
   })
 }
