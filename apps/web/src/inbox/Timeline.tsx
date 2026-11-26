@@ -7,6 +7,7 @@ import { Fragment, type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { languageName, sameLanguage } from "../languages"
 import { type LightboxImage, MessageAttachments } from "./Attachments"
+import { ChannelChip } from "./channel-badge"
 import type { TypingNow } from "./channel"
 import { useMe, useMembers, useTeams, useTimeline } from "./data"
 import { type FillWatcher, useFillVisible } from "./fill"
@@ -20,11 +21,12 @@ import type { MatchField } from "./search"
 /** GROUP_WINDOW_MS 是同一发送者连续消息合并为同一组的间隔上限（3 分钟）。 */
 const GROUP_WINDOW_MS = 3 * 60 * 1000
 
-/** canGroup 判断相邻两条时间线项是否可合并为同人连续消息组。 */
+/** canGroup 判断相邻两条时间线项是否可合并为同人同渠道连续消息组。 */
 function canGroup(prev: ConversationItemDTO | undefined, cur: ConversationItemDTO, firstNew: ConversationItemDTO | undefined): boolean {
   if (!prev || prev.kind !== "message" || cur.kind !== "message") return false
   if (cur === firstNew) return false
   if (prev.actor.type !== cur.actor.type || prev.actor.id !== cur.actor.id) return false
+  if (prev.channel?.id !== cur.channel?.id) return false
   if (!sameDay(prev.created_at, cur.created_at)) return false
   return Math.abs(new Date(cur.created_at).getTime() - new Date(prev.created_at).getTime()) <= GROUP_WINDOW_MS
 }
@@ -407,6 +409,9 @@ function Message({ it, c, mine, author, time, fullTime, first, last, mt, lang, o
     </>
   )
 
+  // 跨渠道会话（或该条消息的渠道与会话来源渠道不同）在消息头部展示渠道胶囊，便于识别每条消息的来去管道
+  const showChannelChip = Boolean(it.channel && ((c.channels?.length ?? 0) > 1 || (c.channel && it.channel.id !== c.channel.id)))
+
   return (
     <Box
       mt={mt}
@@ -416,10 +421,11 @@ function Message({ it, c, mine, author, time, fullTime, first, last, mt, lang, o
       ref={!mine && translating && it.untranslated ? watch(it.id) : undefined}
     >
       {first && (
-        <Group gap={4} mb={3} px={4} justify={mine ? "flex-end" : "flex-start"} wrap="nowrap">
+        <Group gap={5} mb={3} px={4} justify={mine ? "flex-end" : "flex-start"} wrap="nowrap">
           <Text size="xs" c="dimmed">
             {author}
           </Text>
+          {showChannelChip && it.channel && <ChannelChip channel={it.channel} />}
           <Text size="xs" c="dimmed">
             ·
           </Text>

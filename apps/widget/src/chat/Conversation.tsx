@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { ImageLightbox, useLanguage, useT } from "@go-tenon/ui"
 import { Fragment, type ReactNode, useEffect, useRef, useState } from "react"
 import { authed, widgetApi } from "../api"
+import { channel as currentChannelId } from "../host"
 import { useIdentity } from "../realtime"
 import { type LightboxImage, WidgetMessageAttachments } from "./Attachments"
 import { Composer } from "./Composer"
@@ -18,10 +19,11 @@ import { RatingCard } from "./Rating"
 /** GROUP_WINDOW_MS 是同一发送者连续消息合并为同一组的间隔上限（3 分钟）。 */
 const GROUP_WINDOW_MS = 3 * 60 * 1000
 
-/** canGroup 判断相邻两条时间线消息是否属于同人连续发送的同一组。 */
+/** canGroup 判断相邻两条时间线消息是否属于同人同渠道连续发送的同一组。 */
 function canGroup(prev: ConversationContactItemDTO | undefined, cur: ConversationContactItemDTO): boolean {
   if (!prev || prev.prompt?.kind === "collect_contact" || cur.prompt?.kind === "collect_contact") return false
   if (prev.author.type !== cur.author.type || prev.author.name !== cur.author.name) return false
+  if (prev.channel?.id !== cur.channel?.id) return false
   if (!sameDay(prev.created_at, cur.created_at)) return false
   return Math.abs(new Date(cur.created_at).getTime() - new Date(prev.created_at).getTime()) <= GROUP_WINDOW_MS
 }
@@ -230,7 +232,16 @@ export function ConversationView({ id, intro, color, name, touch, visible, onSta
                       author={!groupedWithPrev ? (it.author.type === "member" ? it.author.name : it.author.type === "system" ? name : undefined) : undefined}
                       text={promptText(it.prompt, it.text, language, t)}
                       attachments={it.attachments}
-                      meta={!groupedWithNext ? clock(it.created_at, language) : undefined}
+                      meta={
+                        !groupedWithNext
+                          ? [
+                              it.channel && it.channel.id !== currentChannelId ? t("chat.via_channel", { channel: it.channel.name }) : "",
+                              clock(it.created_at, language),
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")
+                          : undefined
+                      }
                       color={color}
                       first={!groupedWithPrev}
                       last={!groupedWithNext}

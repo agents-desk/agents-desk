@@ -210,6 +210,13 @@ export interface ContactIdentityDTO {
 
 export type ContactKind = "user" | "lead"
 
+export interface ContactMergeBody {
+  /** 合并联系人时是否同时把两者正在进行中的服务型会话合并为同一条会话 */
+  merge_active_conversations?: boolean
+  /** 要被合并进来的来源联系人 ID（合并后删除） */
+  source_id: string
+}
+
 export type ContactSort = "recent" | "created"
 
 export interface ContactSummary {
@@ -525,8 +532,12 @@ export interface ConversationDTO {
   assignee?: ConversationActor
   /** 会话的自定义属性 */
   attributes: Record<string, unknown>
-  /** 会话来自的渠道 */
+  /** 该联系人当前已绑定且已启用的可回复渠道列表 */
+  available_channels?: ChannelSummary[]
+  /** 会话最初发起的来源渠道 */
   channel?: ChannelSummary
+  /** 会话中出现过的全部渠道（来源渠道优先，去重） */
+  channels?: ChannelSummary[]
   closed_at?: string
   /** 对方：联系人 */
   contact?: ContactSummary
@@ -556,6 +567,8 @@ export interface ConversationDTO {
   rating?: ConversationRating
   /** 我读到的位置：序号不大于它的项已读；会话页在它之后显示“新消息”分隔线 */
   read_seq: number
+  /** 会话当前的默认回复渠道 */
+  reply_channel?: ChannelSummary
   snoozed_until?: string
   status: ConversationStatus
   /** 会话上的标签 */
@@ -598,6 +611,8 @@ export interface ConversationItemDTO {
   actor: ConversationActor
   /** 附带的图片和文件 */
   attachments?: ConversationAttachmentDTO[]
+  /** 该消息来自或发往的渠道 */
+  channel?: ChannelSummary
   content: ConversationContent
   created_at: string
   /** 发给对方的消息的送达状态 */
@@ -637,6 +652,11 @@ export interface ConversationLinkedConversationDTO {
   relation: TicketLinkRelation
   status: ConversationStatus
   team_id?: string
+}
+
+export interface ConversationMergeBody {
+  /** 要被合并进来的来源会话 ID（合并后删除） */
+  source_id: string
 }
 
 export interface ConversationNoteBody {
@@ -698,6 +718,8 @@ export interface ConversationReplyBody {
   actions?: ConversationActions
   /** 通过 /files 上传的媒体附件列表（可附带封面图与音视频元数据） */
   attachments?: ConversationAttachmentInput[]
+  /** 发往的渠道 ID；为空时发往会话当前的默认回复渠道 */
+  channel_id?: string
   /** 成员写的文字 */
   text?: string
   /** 发给对方的译文，由翻译的预览给出、成员确认；不带时按原文发出 */
@@ -2396,6 +2418,13 @@ export function createClient(options: ClientOptions) {
       list: (input: ContactListInput = {}): Promise<CursorContactDTO> =>
         rt.request<CursorContactDTO>({ method: "GET", path: `/contacts`, query: { "channel_id": input["channel_id"], "cursor": input["cursor"], "kind": input["kind"], "language": input["language"], "per_page": input["per_page"], "q": input["q"], "sort": input["sort"], "tag_id": input["tag_id"], "view_id": input["view_id"] } }),
       /**
+       * 合并联系人
+       *
+       * POST /contacts/{id}/merge
+       */
+      merge: (id: string, body: ContactMergeBody): Promise<ContactDetailDTO> =>
+        rt.request<ContactDetailDTO>({ method: "POST", path: `/contacts/${encodeURIComponent(id)}/merge`, body }),
+      /**
        * 联系人的数量、渠道和视图列表
        *
        * GET /contacts/summary
@@ -2552,6 +2581,13 @@ export function createClient(options: ClientOptions) {
        */
       list: (input: ConversationListInput = {}): Promise<CursorConversationDTO> =>
         rt.request<CursorConversationDTO>({ method: "GET", path: `/conversations`, query: { "assignee_id": input["assignee_id"], "channel_id": input["channel_id"], "contact_id": input["contact_id"], "cursor": input["cursor"], "filter": input["filter"], "inbox": input["inbox"], "per_page": input["per_page"], "priority": input["priority"], "sort": input["sort"], "status": input["status"], "tag_id": input["tag_id"], "team_id": input["team_id"], "view_id": input["view_id"] } }),
+      /**
+       * 合并另一个会话到当前会话
+       *
+       * POST /conversations/{id}/merge
+       */
+      merge: (id: string, body: ConversationMergeBody): Promise<ConversationDTO> =>
+        rt.request<ConversationDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/merge`, body }),
       /**
        * 写内部备注
        *

@@ -39,6 +39,10 @@ var (
 	ErrForbidden = errorx.Define(errorx.PermissionDenied, "contact.forbidden")
 	// ErrNotLead 是已登录用户的邮箱由产品后端签名提供，不能通过访客表单修改。
 	ErrNotLead = errorx.Define(errorx.PermissionDenied, "contact.not_lead")
+	// ErrMergeSelf 是不能把联系人合并到他自己。
+	ErrMergeSelf = errorx.Define(errorx.InvalidArgument, "contact.merge_self")
+	// ErrMergeConflict 是两个联系人绑定了不同的业务用户编号，不能直接合并。
+	ErrMergeConflict = errorx.Define(errorx.Conflict, "contact.merge_conflict")
 )
 
 // Kind 是联系人的类型。

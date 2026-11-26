@@ -48,6 +48,7 @@ import { notifyError, notifySuccess, PaneBody, PaneHeader, PaneToolbar, useCan, 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { ContactAvatar, contactDisplayName } from "../contacts/display"
+import { MultiChannelBadge } from "./channel-badge"
 import { flatten, flattenSearchHits, useConversationList, useConversationSearch, useMe, useMembers, useTeams, useThresholds } from "./data"
 import { useDraft } from "./drafts"
 import { type FillWatcher, useFillVisible } from "./fill"
@@ -787,6 +788,7 @@ function Row({
             <Text size="sm" fw={c.unread ? 700 : 600} truncate lh={1.3}>
               {name}
             </Text>
+            {c.channels && c.channels.length > 1 && <MultiChannelBadge channels={c.channels} />}
             {c.priority === "high" && (
               <Tooltip label={t("inbox.priority_high")} openDelay={300}>
                 <span className="inbox-priority-icon" aria-label={t("inbox.priority_high")}>

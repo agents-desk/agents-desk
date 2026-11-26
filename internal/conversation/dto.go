@@ -25,7 +25,10 @@ type ConversationDTO struct {
 	ID                string             `json:"id"`
 	Kind              Kind               `json:"kind"`
 	Status            Status             `json:"status"`
-	Channel           *channel.Summary   `json:"channel,omitempty" doc:"会话来自的渠道"`
+	Channel           *channel.Summary   `json:"channel,omitempty" doc:"会话最初发起的来源渠道"`
+	ReplyChannel      *channel.Summary   `json:"reply_channel,omitempty" doc:"会话当前的默认回复渠道"`
+	Channels          []channel.Summary  `json:"channels,omitempty" doc:"会话中出现过的全部渠道（来源渠道优先，去重）"`
+	AvailableChannels []channel.Summary  `json:"available_channels,omitempty" doc:"该联系人当前已绑定且已启用的可回复渠道列表"`
 	Contact           *contact.Summary   `json:"contact,omitempty" doc:"对方：联系人"`
 	TeamID            *string            `json:"team_id,omitempty" doc:"团队收件箱的 ID；为空表示未指派到团队"`
 	Assignee          *Actor             `json:"assignee,omitempty" doc:"负责人；为空表示没有负责人"`
@@ -59,16 +62,17 @@ type ConversationOutput struct {
 
 // ItemDTO 是接口中时间线的一项。
 type ItemDTO struct {
-	ID          string          `json:"id"`
-	Seq         int64           `json:"seq"`
-	Kind        ItemKind        `json:"kind"`
-	Actor       Actor           `json:"actor" doc:"发起者"`
-	Visibility  Visibility      `json:"visibility"`
-	Content     Content         `json:"content"`
-	Attachments []AttachmentDTO `json:"attachments,omitempty" doc:"附带的图片和文件"`
-	Derived     map[string]any  `json:"derived" doc:"派生内容，例如按语言的译文，由后台补上"`
-	Delivery    *DeliveryStatus `json:"delivery,omitempty" doc:"发给对方的消息的送达状态"`
-	CreatedAt   time.Time       `json:"created_at"`
+	ID          string           `json:"id"`
+	Seq         int64            `json:"seq"`
+	Kind        ItemKind         `json:"kind"`
+	Actor       Actor            `json:"actor" doc:"发起者"`
+	Visibility  Visibility       `json:"visibility"`
+	Channel     *channel.Summary `json:"channel,omitempty" doc:"该消息来自或发往的渠道"`
+	Content     Content          `json:"content"`
+	Attachments []AttachmentDTO  `json:"attachments,omitempty" doc:"附带的图片和文件"`
+	Derived     map[string]any   `json:"derived" doc:"派生内容，例如按语言的译文，由后台补上"`
+	Delivery    *DeliveryStatus  `json:"delivery,omitempty" doc:"发给对方的消息的送达状态"`
+	CreatedAt   time.Time        `json:"created_at"`
 	// Untranslated 只在读取时间线时给出，按读取的成员的语言
 	Untranslated bool `json:"untranslated,omitempty" doc:"对方发来、还没有我的语言的译文、也不是我的语言的消息：翻译可用时页面显示“翻译中”，并请求补译"`
 }
@@ -78,15 +82,21 @@ type ItemOutput struct {
 	Body ItemDTO
 }
 
-// toItemDTOs 把时间线的各项转换为接口中的形式，一次读出它们的送达状态和附件。
+// toItemDTOs 把时间线的各项转换为接口中的形式，一次读出它们的送达状态、所属渠道和附件。
 func toItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Item) ([]ItemDTO, error) {
 	out := make([]ItemDTO, len(items))
 	if len(items) == 0 {
 		return out, nil
 	}
 	ids := make([]string, len(items))
+	var chIDs []string
+	seenCh := map[string]bool{}
 	for i := range items {
 		ids[i] = items[i].ID
+		if items[i].ChannelID != nil && !seenCh[*items[i].ChannelID] {
+			seenCh[*items[i].ChannelID] = true
+			chIDs = append(chIDs, *items[i].ChannelID)
+		}
 	}
 	var deliveries []Delivery
 	if err := db.NewSelect().Model(&deliveries).Where("item_id IN (?)", bun.In(ids)).Scan(ctx); err != nil {
@@ -96,6 +106,16 @@ func toItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Item) ([]I
 	for _, d := range deliveries {
 		status[d.ItemID] = d.Status
 	}
+	channels := map[string]channel.Summary{}
+	if len(chIDs) > 0 {
+		var rows []channel.Channel
+		if err := db.NewSelect().Model(&rows).Where("id IN (?)", bun.In(chIDs)).Scan(ctx); err != nil {
+			return nil, errors.Wrap(err, "load item channels")
+		}
+		for i := range rows {
+			channels[rows[i].ID] = rows[i].Summary()
+		}
+	}
 	attachments, err := loadAttachments(ctx, db, media, ids)
 	if err != nil {
 		return nil, err
@@ -104,6 +124,11 @@ func toItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Item) ([]I
 		out[i] = ItemDTO{
 			ID: it.ID, Seq: it.Seq, Kind: it.Kind, Actor: Actor{Type: it.ActorType, ID: it.ActorID},
 			Visibility: it.Visibility, Content: it.Content, Attachments: attachments[it.ID], Derived: it.Derived, CreatedAt: it.CreatedAt,
+		}
+		if it.ChannelID != nil {
+			if s, ok := channels[*it.ChannelID]; ok {
+				out[i].Channel = &s
+			}
 		}
 		if s, ok := status[it.ID]; ok {
 			out[i].Delivery = &s
@@ -119,13 +144,59 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 		return out, nil
 	}
 	var ids, channelIDs, contactIDs []string
+	seenCh := map[string]bool{}
+	addChID := func(id string) {
+		if id != "" && !seenCh[id] {
+			seenCh[id] = true
+			channelIDs = append(channelIDs, id)
+		}
+	}
 	for _, c := range convs {
 		ids = append(ids, c.ID)
 		if c.ChannelID != nil {
-			channelIDs = append(channelIDs, *c.ChannelID)
+			addChID(*c.ChannelID)
+		}
+		if c.ReplyChannelID != nil {
+			addChID(*c.ReplyChannelID)
 		}
 		if c.ContactID != nil {
 			contactIDs = append(contactIDs, *c.ContactID)
+		}
+	}
+	// 查出各会话时间线中出现过的渠道（按首次出现顺序）
+	var itemChRows []struct {
+		ConversationID string `bun:"conversation_id"`
+		ChannelID      string `bun:"channel_id"`
+	}
+	if err := db.NewRaw(`SELECT conversation_id, channel_id FROM timeline_items
+		WHERE conversation_id IN (?) AND channel_id IS NOT NULL
+		GROUP BY conversation_id, channel_id
+		ORDER BY conversation_id, min(seq) ASC`, bun.In(ids)).Scan(ctx, &itemChRows); err != nil {
+		return nil, errors.Wrap(err, "load conversation item channels")
+	}
+	convChannelIDs := map[string][]string{}
+	for _, r := range itemChRows {
+		convChannelIDs[r.ConversationID] = append(convChannelIDs[r.ConversationID], r.ChannelID)
+		addChID(r.ChannelID)
+	}
+	// 查出关联联系人当前已绑定且已启用的渠道，作为可回复渠道列表
+	availableByContact := map[string][]string{}
+	if len(contactIDs) > 0 {
+		var identRows []struct {
+			ContactID string `bun:"contact_id"`
+			ChannelID string `bun:"channel_id"`
+		}
+		if err := db.NewRaw(`SELECT ci.contact_id, ci.channel_id
+			FROM contact_identities ci
+			JOIN channels ch ON ch.id = ci.channel_id
+			WHERE ci.tenant_id = ? AND ci.contact_id IN (?) AND ch.enabled = true
+			GROUP BY ci.contact_id, ci.channel_id
+			ORDER BY ci.contact_id, min(ci.created_at) ASC`, sub.Tenant, bun.In(contactIDs)).Scan(ctx, &identRows); err != nil {
+			return nil, errors.Wrap(err, "load contact available channels")
+		}
+		for _, r := range identRows {
+			availableByContact[r.ContactID] = append(availableByContact[r.ContactID], r.ChannelID)
+			addChID(r.ChannelID)
 		}
 	}
 	channels := map[string]channel.Summary{}
@@ -215,11 +286,40 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 			s := channels[*c.ChannelID]
 			d.Channel = &s
 		}
+		if replyID := c.DeliveryChannelID(); replyID != nil {
+			s := channels[*replyID]
+			d.ReplyChannel = &s
+		}
+		// 组装会话涉及的全部渠道（来源渠道优先，随后按消息出现顺序去重）
+		seenConvCh := map[string]bool{}
+		appendConvCh := func(chID string) {
+			if chID == "" || seenConvCh[chID] {
+				return
+			}
+			if s, ok := channels[chID]; ok {
+				seenConvCh[chID] = true
+				d.Channels = append(d.Channels, s)
+			}
+		}
+		if c.ChannelID != nil {
+			appendConvCh(*c.ChannelID)
+		}
+		for _, chID := range convChannelIDs[c.ID] {
+			appendConvCh(chID)
+		}
+		if c.ReplyChannelID != nil {
+			appendConvCh(*c.ReplyChannelID)
+		}
 		if c.ContactID != nil {
 			s := contacts[*c.ContactID]
 			d.Contact = &s
 			// 有联系人时，客户的语言以联系人为准，同一联系人的多个会话始终一致
 			d.Language = s.Language
+			for _, chID := range availableByContact[*c.ContactID] {
+				if chSummary, ok := channels[chID]; ok {
+					d.AvailableChannels = append(d.AvailableChannels, chSummary)
+				}
+			}
 		}
 		if c.AssigneeType != "" {
 			d.Assignee = &Actor{Type: c.AssigneeType, ID: c.AssigneeID}

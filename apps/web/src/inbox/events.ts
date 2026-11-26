@@ -106,6 +106,11 @@ export function describeEvent(it: ConversationItemDTO, members: Map<string, Memb
       return t("event.rating_requested")
     case "contact.email_provided":
       return t("event.contact_email_provided", { email: String(d.email ?? "") })
+    case "conversation.merged": {
+      const ch = String(d.source_channel_name ?? "").trim()
+      const count = Number(d.moved_items ?? 0)
+      return ch ? t("event.merged", { who, channel: ch, count }) : t("event.merged_unknown", { who, count })
+    }
     default:
       return it.content.event ?? ""
   }

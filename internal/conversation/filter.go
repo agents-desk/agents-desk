@@ -522,8 +522,8 @@ func buildFilterPredicate(sub identity.Subject, f Filter, attrDefs map[string]at
 	}
 
 	if len(f.ChannelIDs) > 0 {
-		parts = append(parts, "conversation.channel_id IN (?)")
-		args = append(args, bun.In(f.ChannelIDs))
+		parts = append(parts, "(conversation.channel_id IN (?) OR conversation.reply_channel_id IN (?) OR EXISTS (SELECT 1 FROM timeline_items AS ti WHERE ti.conversation_id = conversation.id AND ti.channel_id IN (?)))")
+		args = append(args, bun.In(f.ChannelIDs), bun.In(f.ChannelIDs), bun.In(f.ChannelIDs))
 	}
 
 	if len(f.TagIDs) > 0 {

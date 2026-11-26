@@ -158,8 +158,12 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
   const assignee = c.assignee?.type === "member" ? (c.assignee.id === me.data?.id ? t("inbox.you") : byId.get(c.assignee.id)?.name) : undefined
   const teamRow = c.team_id ? teams.find((x) => x.id === c.team_id) : undefined
   const team = teamRow ? (teamRow.status === "disabled" ? t("inbox.team_disabled_suffix", { name: teamRow.name }) : teamRow.name) : undefined
-  // 顶栏副标题只保留渠道、团队和负责人三项高频上下文，语言与所在地等完整资料在右侧详情栏查看
-  const meta = [c.channel?.name, team, assignee ? t("inbox.assigned_to", { who: assignee }) : t("inbox.no_assignee")]
+  // 顶栏副标题保留渠道（跨渠道时展示全部参与渠道）、团队和负责人三项高频上下文，语言与所在地等完整资料在右侧详情栏查看
+  const channelText =
+    c.channels && c.channels.length > 1
+      ? c.channels.map((ch) => ch.name).join(" + ")
+      : (c.reply_channel?.name ?? c.channel?.name)
+  const meta = [channelText, team, assignee ? t("inbox.assigned_to", { who: assignee }) : t("inbox.no_assignee")]
     .filter(Boolean)
     .join(" · ")
   const showTranslateToggle = hasTranslation(timeline.data, me.data?.language)

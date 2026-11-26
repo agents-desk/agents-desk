@@ -67,6 +67,10 @@ export const ContactErrors = {
   Forbidden: "contact.forbidden",
   /** ErrNotLead 是已登录用户的邮箱由产品后端签名提供，不能通过访客表单修改。 */
   NotLead: "contact.not_lead",
+  /** ErrMergeSelf 是不能把联系人合并到他自己。 */
+  MergeSelf: "contact.merge_self",
+  /** ErrMergeConflict 是两个联系人绑定了不同的业务用户编号，不能直接合并。 */
+  MergeConflict: "contact.merge_conflict",
 } as const
 
 /** agents-desk/internal/conversation 的错误码。 */
@@ -105,6 +109,12 @@ export const ConversationErrors = {
   LinkNotFound: "ticket.link_not_found",
   /** ErrPrivateTicket 是仅成员可见的工单不能向客户发布公开进度。 */
   PrivateTicket: "ticket.private",
+  /** ErrChannelUnavailable 是目标回复渠道不可用、已停用，或者该联系人未绑定该渠道身份。 */
+  ChannelUnavailable: "conversation.channel_unavailable",
+  /** ErrMergeSelf 是不能把会话合并到它自己。 */
+  MergeSelf: "conversation.merge_self",
+  /** ErrMergeDifferentContact 是只能合并同一个联系人的服务型会话。 */
+  MergeDifferentContact: "conversation.merge_different_contact",
   /** ErrInvalidFilter 是视图或列表传入的筛选条件不合法。 */
   InvalidFilter: "conversation.invalid_filter",
   /** ErrInvalidLanguage 是设置的对方语言不是合法的 BCP 47 标签。 */

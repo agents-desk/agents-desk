@@ -155,6 +155,16 @@ export const messages = {
     "contacts.local_time": "Local {{.time}}",
     "contacts.location": "Location",
     "contacts.location_placeholder": "e.g. Shanghai, Mumbai",
+    "contacts.merge": "Merge contact",
+    "contacts.merge_active_conversations": "Also merge their open conversations",
+    "contacts.merge_active_conversations_hint": "When checked, open service conversations from both contacts will be merged chronologically into one window.",
+    "contacts.merge_confirm_btn": "Merge contacts",
+    "contacts.merge_desc": "Select a duplicate contact to merge into “{{.name}}”. Their channel identities, conversations, tags, and notes will be moved here, and the source contact will be permanently deleted.",
+    "contacts.merge_done": "Contacts merged",
+    "contacts.merge_empty": "No other contacts found",
+    "contacts.merge_search": "Search contact to merge in (name, email, or #number)…",
+    "contacts.merge_selected": "All channel identities and {{.count}} conversations from {{.source}} will move into {{.target}}",
+    "contacts.merge_title": "Merge contact",
     "contacts.name": "Name",
     "contacts.name_placeholder": "Enter contact name",
     "contacts.nav_all": "All",
@@ -202,6 +212,8 @@ export const messages = {
     "event.customer": "The customer",
     "event.language_auto": "{{.who}} set the customer's language back to automatic detection",
     "event.language_set": "{{.who}} set the customer's language to {{.lang}}",
+    "event.merged": "{{.who}} merged a conversation from {{.channel}} ({{.count}} items)",
+    "event.merged_unknown": "{{.who}} merged a conversation ({{.count}} items)",
     "event.moved_team": "{{.who}} moved the conversation to {{.team}}",
     "event.priority_high": "{{.who}} set the priority to high",
     "event.priority_normal": "{{.who}} set the priority to normal",
@@ -303,7 +315,13 @@ export const messages = {
     "inbox.bulk_failed": "{{.n}} conversations failed: {{.reason}}",
     "inbox.cancel": "Cancel",
     "inbox.channel": "Channel",
+    "inbox.channel_multi_tip": "Multi-channel conversation: {{.channels}}",
+    "inbox.channel_origin": "Origin channel",
+    "inbox.channel_reply": "Reply channel",
+    "inbox.channel_send_via": "Send via {{.channel}}",
+    "inbox.channel_via": "via {{.channel}}",
     "inbox.choose_language": "Choose the language to send in",
+    "inbox.choose_reply_channel": "Choose reply channel",
     "inbox.clear_filters": "Clear filters",
     "inbox.close": "Close",
     "inbox.close_details": "Close details",
@@ -372,6 +390,12 @@ export const messages = {
     "inbox.media_too_large": "Exceeds channel download size limit",
     "inbox.media_unavailable": "Media unavailable",
     "inbox.media_voice": "Voice message",
+    "inbox.merge_conversation": "Merge into current",
+    "inbox.merge_conversation_confirm": "Merge the conversation from {{.channel}} into the current one?",
+    "inbox.merge_conversation_desc": "Both timelines will be combined chronologically in one window with each message keeping its channel. The source conversation will be deleted and cannot be undone.",
+    "inbox.merge_conversation_done": "Conversations merged",
+    "inbox.merge_conversation_submit": "Merge",
+    "inbox.merge_conversation_title": "Merge conversation",
     "inbox.mode_note": "Internal note",
     "inbox.mode_reply": "Reply",
     "inbox.new_message_jump": "New messages ({{.n}})",
@@ -1221,6 +1245,16 @@ export const messages = {
     "contacts.local_time": "当地 {{.time}}",
     "contacts.location": "所在地",
     "contacts.location_placeholder": "例如 上海、Mumbai",
+    "contacts.merge": "合并联系人",
+    "contacts.merge_active_conversations": "同时合并两者正在进行中的会话",
+    "contacts.merge_active_conversations_hint": "勾选后，两个联系人名下未关闭的服务型会话将按时间合流到同一聊天窗口，方便继续跨渠道接待。",
+    "contacts.merge_confirm_btn": "确认合并",
+    "contacts.merge_desc": "选择一个重复联系人合并进“{{.name}}”。其渠道身份、历史会话、标签与备注都会迁入当前联系人，原联系人将被删除且不可撤销。",
+    "contacts.merge_done": "已合并联系人",
+    "contacts.merge_empty": "没有找到其他可合并的联系人",
+    "contacts.merge_search": "搜索要合并进来的联系人（名字、邮箱或 #编号）…",
+    "contacts.merge_selected": "将把 {{.source}} 的全部渠道身份和 {{.count}} 个会话并入 {{.target}}",
+    "contacts.merge_title": "合并联系人",
     "contacts.name": "名字",
     "contacts.name_placeholder": "填写联系人名字",
     "contacts.nav_all": "全部",
@@ -1268,6 +1302,8 @@ export const messages = {
     "event.customer": "客户",
     "event.language_auto": "{{.who}} 把对方的语言改回自动识别",
     "event.language_set": "{{.who}} 把对方的语言改为 {{.lang}}",
+    "event.merged": "{{.who}} 合并了来自 {{.channel}} 的会话（{{.count}} 条记录）",
+    "event.merged_unknown": "{{.who}} 合并了一个会话（{{.count}} 条记录）",
     "event.moved_team": "{{.who}} 把会话转到 {{.team}}",
     "event.priority_high": "{{.who}} 把优先级改为高",
     "event.priority_normal": "{{.who}} 把优先级改为普通",
@@ -1369,7 +1405,13 @@ export const messages = {
     "inbox.bulk_failed": "{{.n}} 个会话没有成功：{{.reason}}",
     "inbox.cancel": "取消",
     "inbox.channel": "渠道",
+    "inbox.channel_multi_tip": "跨渠道会话：{{.channels}}",
+    "inbox.channel_origin": "来源渠道",
+    "inbox.channel_reply": "回复渠道",
+    "inbox.channel_send_via": "经由 {{.channel}} 发送",
+    "inbox.channel_via": "经由 {{.channel}}",
     "inbox.choose_language": "选择译文的语言",
+    "inbox.choose_reply_channel": "选择回复渠道",
     "inbox.clear_filters": "清除筛选",
     "inbox.close": "关闭",
     "inbox.close_details": "关闭详情",
@@ -1438,6 +1480,12 @@ export const messages = {
     "inbox.media_too_large": "超出渠道下载大小限制",
     "inbox.media_unavailable": "媒体不可用",
     "inbox.media_voice": "语音消息",
+    "inbox.merge_conversation": "合并到当前会话",
+    "inbox.merge_conversation_confirm": "把来自 {{.channel}} 的会话合并到当前会话？",
+    "inbox.merge_conversation_desc": "两条会话的时间线将按时间顺序合并到同一窗口，每条消息保留各自的渠道来源，来源会话合并后将被删除且无法撤销。",
+    "inbox.merge_conversation_done": "已合并会话",
+    "inbox.merge_conversation_submit": "确认合并",
+    "inbox.merge_conversation_title": "合并会话",
     "inbox.mode_note": "内部备注",
     "inbox.mode_reply": "回复",
     "inbox.new_message_jump": "{{.n}} 条新消息",
@@ -2290,6 +2338,16 @@ export type MessageId =
   | "contacts.local_time"
   | "contacts.location"
   | "contacts.location_placeholder"
+  | "contacts.merge"
+  | "contacts.merge_active_conversations"
+  | "contacts.merge_active_conversations_hint"
+  | "contacts.merge_confirm_btn"
+  | "contacts.merge_desc"
+  | "contacts.merge_done"
+  | "contacts.merge_empty"
+  | "contacts.merge_search"
+  | "contacts.merge_selected"
+  | "contacts.merge_title"
   | "contacts.name"
   | "contacts.name_placeholder"
   | "contacts.nav_all"
@@ -2337,6 +2395,8 @@ export type MessageId =
   | "event.customer"
   | "event.language_auto"
   | "event.language_set"
+  | "event.merged"
+  | "event.merged_unknown"
   | "event.moved_team"
   | "event.priority_high"
   | "event.priority_normal"
@@ -2438,7 +2498,13 @@ export type MessageId =
   | "inbox.bulk_failed"
   | "inbox.cancel"
   | "inbox.channel"
+  | "inbox.channel_multi_tip"
+  | "inbox.channel_origin"
+  | "inbox.channel_reply"
+  | "inbox.channel_send_via"
+  | "inbox.channel_via"
   | "inbox.choose_language"
+  | "inbox.choose_reply_channel"
   | "inbox.clear_filters"
   | "inbox.close"
   | "inbox.close_details"
@@ -2507,6 +2573,12 @@ export type MessageId =
   | "inbox.media_too_large"
   | "inbox.media_unavailable"
   | "inbox.media_voice"
+  | "inbox.merge_conversation"
+  | "inbox.merge_conversation_confirm"
+  | "inbox.merge_conversation_desc"
+  | "inbox.merge_conversation_done"
+  | "inbox.merge_conversation_submit"
+  | "inbox.merge_conversation_title"
   | "inbox.mode_note"
   | "inbox.mode_reply"
   | "inbox.new_message_jump"

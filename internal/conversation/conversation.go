@@ -25,6 +25,8 @@ import (
 	"github.com/go-tenon/tenon/queue"
 
 	"agents-desk/internal/auth"
+	"agents-desk/internal/channel"
+	"agents-desk/internal/contact"
 	"agents-desk/internal/member"
 	"agents-desk/internal/push"
 )
@@ -48,6 +50,12 @@ var (
 	ErrLinkNotFound = errorx.Define(errorx.NotFound, "ticket.link_not_found")
 	// ErrPrivateTicket 是仅成员可见的工单不能向客户发布公开进度。
 	ErrPrivateTicket = errorx.Define(errorx.Conflict, "ticket.private")
+	// ErrChannelUnavailable 是目标回复渠道不可用、已停用，或者该联系人未绑定该渠道身份。
+	ErrChannelUnavailable = errorx.Define(errorx.Conflict, "conversation.channel_unavailable")
+	// ErrMergeSelf 是不能把会话合并到它自己。
+	ErrMergeSelf = errorx.Define(errorx.InvalidArgument, "conversation.merge_self")
+	// ErrMergeDifferentContact 是只能合并同一个联系人的服务型会话。
+	ErrMergeDifferentContact = errorx.Define(errorx.Conflict, "conversation.merge_different_contact")
 )
 
 // Kind 是会话的种类。
@@ -182,7 +190,8 @@ type Conversation struct {
 	database.Timestamps
 	TenantID          string         `bun:"tenant_id,notnull"`
 	Kind              Kind           `bun:"kind,notnull"`
-	ChannelID         *string        `bun:"channel_id"`
+	ChannelID         *string        `bun:"channel_id"`       // 来源渠道 ID（会话最初发起的渠道）
+	ReplyChannelID    *string        `bun:"reply_channel_id"` // 当前默认回复渠道 ID（随对方最新消息或坐席显式切换更新）
 	ContactID         *string        `bun:"contact_id"`
 	TeamID            *string        `bun:"team_id"`                 // 团队收件箱；为空表示未指派到团队
 	AssigneeType      ActorType      `bun:"assignee_type,notnull"`   // 负责人的类型；为空表示没有负责人
@@ -205,10 +214,15 @@ type Conversation struct {
 	MentionedAt       *time.Time     `bun:"mentioned_at,scanonly"`  // 只在“@我”的列表中读出：最近一次被 @ 的时间
 }
 
-// DeliveryChannelID 返回向该会话的对方发送消息时使用的活跃出站渠道 ID。
-// 当前直接返回 ChannelID；后续全渠道跨渠道合并引入 reply_channel_id 后统一在此优先返回它。
+// DeliveryChannelID 返回会话 c 当前默认的出站回复渠道 ID：优先使用 ReplyChannelID，为空时回退到来源渠道 ChannelID。
 func (c *Conversation) DeliveryChannelID() *string {
-	return c.ChannelID
+	if c.ReplyChannelID != nil && *c.ReplyChannelID != "" {
+		return c.ReplyChannelID
+	}
+	if c.ChannelID != nil && *c.ChannelID != "" {
+		return c.ChannelID
+	}
+	return nil
 }
 
 // isFinished 报告会话 c 是否已处于结束状态（服务型会话已关闭或工单已解决）。
@@ -422,7 +436,7 @@ func commit(ctx context.Context, tx database.Tx, down Downstream, c *Conversatio
 			return err
 		}
 	}
-	toContact, err := contactSees(ctx, tx, down, c, items)
+	contactChannels, err := contactPushChannels(ctx, tx, down, c, items)
 	if err != nil {
 		return err
 	}
@@ -463,10 +477,16 @@ func commit(ctx context.Context, tx database.Tx, down Downstream, c *Conversatio
 			return errors.Wrap(push.SendWithAlerts(ctx, hub, tenant, audience, ev, alerts), "push conversation changed")
 		})
 	}
-	if toContact {
-		notify, channelID, contactID := down.ContactPush, *c.DeliveryChannelID(), *c.ContactID
+	if len(contactChannels) > 0 && c.ContactID != nil {
+		notify, contactID := down.ContactPush, *c.ContactID
 		tx.AfterCommit(func(ctx context.Context) error {
-			return errors.Wrap(notify(ctx, channelID, contactID, ev), "push conversation changed to contact")
+			var errs []error
+			for _, chID := range contactChannels {
+				if err := notify(ctx, chID, contactID, ev); err != nil {
+					errs = append(errs, errors.Wrap(err, "push conversation changed to contact"))
+				}
+			}
+			return errors.Join(errs...)
 		})
 	}
 	return nil
@@ -480,25 +500,75 @@ func pushType(kind Kind) string {
 	return push.Conversation
 }
 
-// contactSees 报告这次修改要不要推送给会话 c 的对方（联系人）：会话来自渠道、有联系人、设置了 ContactPush，
-// 并且状态变了、发出了评价邀请，或者 items 中有联系人自己发的消息。要在保存 c 之前调用，修改前的状态从数据库中读取。
-func contactSees(ctx context.Context, db bun.IDB, down Downstream, c *Conversation, items []*Item) (bool, error) {
-	if down.ContactPush == nil || c.Kind != Service || c.DeliveryChannelID() == nil || c.ContactID == nil {
-		return false, nil
+// contactPushChannels 返回本次会话变更提交后需要向联系人实时推送的渠道 ID 列表。
+// 当服务型会话状态改变、发出评价邀请、联系人发了消息、或成员/系统通过其他外部渠道发出所有人可见消息时：
+//   - 已登录用户（user）推送到他在本工作区所有已启用的网页聊天插件渠道，实现跨渠道实时同步；
+//   - 访客线索（lead）只推送到会话来源渠道。
+//
+// 要在保存 c 之前调用，以便读取变更前的状态。
+func contactPushChannels(ctx context.Context, db bun.IDB, down Downstream, c *Conversation, items []*Item) ([]string, error) {
+	if down.ContactPush == nil || c.Kind != Service || c.ContactID == nil {
+		return nil, nil
 	}
+	needPush := false
+	sentChannels := map[string]bool{}
 	for _, it := range items {
-		if it.Kind == Message && it.ActorType == ContactActor {
-			return true, nil
+		if it.Kind != Message || it.Visibility != Everyone {
+			continue
+		}
+		if it.ActorType == ContactActor {
+			needPush = true
+			break
+		}
+		// 成员或系统消息发往某个外部渠道时，跨渠道已登录用户的网页插件也应同步刷新
+		if it.ChannelID != nil {
+			sentChannels[*it.ChannelID] = true
 		}
 	}
-	var before struct {
-		Status            Status     `bun:"status"`
-		RatingRequestedAt *time.Time `bun:"rating_requested_at"`
+	if !needPush {
+		var before struct {
+			Status            Status     `bun:"status"`
+			RatingRequestedAt *time.Time `bun:"rating_requested_at"`
+		}
+		if err := db.NewSelect().Table("conversations").Column("status", "rating_requested_at").Where("id = ?", c.ID).Scan(ctx, &before); err != nil {
+			return nil, errors.Wrap(err, "load status before change")
+		}
+		needPush = before.Status != c.Status || !sameTime(before.RatingRequestedAt, c.RatingRequestedAt)
 	}
-	if err := db.NewSelect().Table("conversations").Column("status", "rating_requested_at").Where("id = ?", c.ID).Scan(ctx, &before); err != nil {
-		return false, errors.Wrap(err, "load status before change")
+	if !needPush && len(sentChannels) == 0 {
+		return nil, nil
 	}
-	return before.Status != c.Status || !sameTime(before.RatingRequestedAt, c.RatingRequestedAt), nil
+	var kind contact.Kind
+	if err := db.NewSelect().Table("contacts").Column("kind").Where("id = ? AND tenant_id = ?", *c.ContactID, c.TenantID).Scan(ctx, &kind); err != nil {
+		return nil, errors.Wrap(err, "load contact kind for push")
+	}
+	if kind != contact.User {
+		if !needPush || c.ChannelID == nil {
+			return nil, nil
+		}
+		return []string{*c.ChannelID}, nil
+	}
+	// 已登录用户：推送到该用户在工作区内已绑定的全部已启用网页聊天插件频道
+	var widgetIDs []string
+	err := db.NewSelect().TableExpr("contact_identities AS ci").
+		ColumnExpr("DISTINCT ci.channel_id").
+		Join("JOIN channels AS ch ON ch.id = ci.channel_id").
+		Where("ci.tenant_id = ? AND ci.contact_id = ? AND ch.kind = ? AND ch.enabled = true", c.TenantID, *c.ContactID, channel.Widget).
+		Scan(ctx, &widgetIDs)
+	if err != nil {
+		return nil, errors.Wrap(err, "load contact widget channels for push")
+	}
+	if !needPush {
+		// 仅由成员/系统消息触发：排除本次消息直接发往的 widget 渠道（由 widget.Connector.Send 负责推送）
+		out := make([]string, 0, len(widgetIDs))
+		for _, id := range widgetIDs {
+			if !sentChannels[id] {
+				out = append(out, id)
+			}
+		}
+		return out, nil
+	}
+	return widgetIDs, nil
 }
 
 // sameTime 报告两个可选时间是否相等。

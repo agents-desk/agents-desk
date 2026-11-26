@@ -158,6 +158,9 @@ func seed(ctx context.Context, out io.Writer, db *bun.DB, roles *authz.Store, ad
 	if err := seedWidget(ctx, out, db, keys, inDemo); err != nil {
 		return err
 	}
+	if err := seedOmnichannelDemo(ctx, out, db, roles, memberLogins, inDemo, channels, down); err != nil {
+		return err
+	}
 	return seedReportHistory(ctx, out, db, memberLogins, inDemo)
 }
 
@@ -453,6 +456,133 @@ func seedWidget(ctx context.Context, out io.Writer, db *bun.DB, keys *crypt.Cryp
 		return err
 	}
 	fmt.Fprintln(out, "已在示例工作区中创建聊天插件 官网：", w.ID)
+	return nil
+}
+
+// seedOmnichannelDemo 在示例工作区中写入全渠道跨渠道会话演示数据（幂等）：
+//   - 已跨渠道合流的 VIP 用户“陈晓明”：同时绑定“官网”聊天插件与“测试渠道”，同一条会话内先后经两个渠道收发消息；
+//   - 一对待手动合并的跨渠道重复线索“林小雨（官网）”与“林小雨（外部渠道）”，各自有一条打开中的会话，方便演示一键合人与合窗。
+func seedOmnichannelDemo(ctx context.Context, out io.Writer, db *bun.DB, roles *authz.Store, memberLogins *login.Realm, inDemo identity.Subject, channels channel.Registry, down conversation.Downstream) error {
+	exists, err := db.NewSelect().Model((*contact.Contact)(nil)).
+		Where("tenant_id = ? AND external_user_id = ?", inDemo.Tenant, "u-omni-1").Exists(ctx)
+	if err != nil {
+		return errors.Wrap(err, "check omnichannel demo contact")
+	}
+	if exists {
+		fmt.Fprintln(out, "示例工作区已有跨渠道演示会话，跳过")
+		return nil
+	}
+	var widgetCh, testCh channel.Channel
+	if err := db.NewSelect().Model(&widgetCh).Where("tenant_id = ? AND kind = ?", inDemo.Tenant, channel.Widget).OrderExpr("created_at ASC").Limit(1).Scan(ctx); err != nil {
+		return errors.Wrap(err, "find demo widget channel")
+	}
+	if err := db.NewSelect().Model(&testCh).Where("tenant_id = ? AND kind = ?", inDemo.Tenant, channel.Test).OrderExpr("created_at ASC").Limit(1).Scan(ctx); err != nil {
+		return errors.Wrap(err, "find demo test channel")
+	}
+	ref, err := memberLogins.Lookup(ctx, login.Email("agent@example.com"))
+	if err != nil {
+		return err
+	}
+	agent, err := member.Resolve(db, roles)(identity.WithTenant(ctx, inDemo.Tenant), identity.Subject{Type: member.Type, ID: ref.ID})
+	if err != nil {
+		return err
+	}
+	receive, reply := conversation.NewReceive(db, channels, down), conversation.NewReply(db, down)
+
+	// 1. 已认证跨渠道用户“陈晓明”：绑定官网插件 + 测试渠道，两条渠道的消息自动合流到同一条会话
+	var alex *contact.Contact
+	if err := db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		var err error
+		alex, err = contact.ResolveUser(ctx, tx, inDemo.Tenant, widgetCh.ID, "widget-alex", "u-omni-1", contact.Profile{
+			Name: "陈晓明", Email: "chen.xiaoming@example.com", TimeZone: "Asia/Shanghai", Referrer: "https://shop.example.com/orders/888",
+		})
+		if err != nil {
+			return err
+		}
+		if _, err := contact.ResolveUser(ctx, tx, inDemo.Tenant, testCh.ID, "omni-alex", "u-omni-1", contact.Profile{
+			Name: "陈晓明", Email: "chen.xiaoming@example.com",
+		}); err != nil {
+			return err
+		}
+		_, err = tx.NewUpdate().Model((*contact.Contact)(nil)).
+			Set("location = ?", "上海").
+			Set("notes = ?", "跨渠道 VIP 客户：同时在官网和外部渠道咨询订单进度").
+			Where("id = ?", alex.ID).Exec(ctx)
+		return err
+	}); err != nil {
+		return errors.Wrap(err, "seed omnichannel user")
+	}
+
+	r1, err := receive.Handle(ctx, inDemo, conversation.ReceiveParams{
+		ChannelID: widgetCh.ID, From: "widget-alex", FromName: "陈晓明",
+		Text: "你好，我刚在官网下的订单 ORD-20261126-888 支付成功了，但页面一直卡在确认中",
+	})
+	if err != nil {
+		return err
+	}
+	if _, err := reply.Handle(ctx, agent, r1.ConversationID, conversation.ReplyBody{
+		Text: "您好陈先生，我查到订单已入账，正在为您刷新物流单号，请稍等片刻。",
+	}); err != nil {
+		return err
+	}
+	// 同一用户切换到测试渠道继续追问：按第一性原理自动合流进入同一条会话
+	if _, err := receive.Handle(ctx, inDemo, conversation.ReceiveParams{
+		ChannelID: testCh.ID, From: "omni-alex", FromName: "陈晓明",
+		Text: "我换手机过来了，刚在网页问的那个订单 888 现在出单号了吗？",
+	}); err != nil {
+		return err
+	}
+	if _, err := reply.Handle(ctx, agent, r1.ConversationID, conversation.ReplyBody{
+		ChannelID: testCh.ID,
+		Text:      "已经出单号啦，单号 SF1029384756，预计今天下午寄出。",
+	}); err != nil {
+		return err
+	}
+	if _, err := receive.Handle(ctx, inDemo, conversation.ReceiveParams{
+		ChannelID: testCh.ID, From: "omni-alex", FromName: "陈晓明",
+		Text: "太好了，顺便问下能帮我改成顺丰加急吗？",
+	}); err != nil {
+		return err
+	}
+
+	// 给跨渠道示范会话补上标签和属性，便于一眼识别
+	var vipTagID string
+	_ = db.NewRaw("SELECT id FROM tags WHERE tenant_id = ? AND name = 'VIP'", inDemo.Tenant).Scan(ctx, &vipTagID)
+	if vipTagID != "" {
+		_, _ = conversation.NewAddContactTag(db, down).Handle(ctx, inDemo, r1.ConversationID, vipTagID)
+	}
+	_, _ = conversation.NewPatchAttributes(db, down).Handle(ctx, inDemo, r1.ConversationID, map[string]any{
+		"issue_type": "物流", "order_no": "ORD-20261126-888",
+	})
+
+	// 2. 待手动合并的跨渠道重复线索：林小雨在官网和测试渠道各有 1 条打开会话，方便演示一键合并联系人+会话
+	if _, err := receive.Handle(ctx, inDemo, conversation.ReceiveParams{
+		ChannelID: widgetCh.ID, From: "widget-linxiaoyu", FromName: "林小雨（官网访客）",
+		Text: "你好，我刚才在外面问过会员升级的事，这里能帮我核对下账户吗？",
+	}); err != nil {
+		return err
+	}
+	if _, err := receive.Handle(ctx, inDemo, conversation.ReceiveParams{
+		ChannelID: testCh.ID, From: "ext-linxiaoyu", FromName: "林小雨（外部渠道）",
+		Text: "你好，我是林小雨，邮箱 lxy@example.com，请问升级专业版后发票怎么开？",
+	}); err != nil {
+		return err
+	}
+
+	// 刷新新增示例消息的全文搜索索引
+	var itemIDs []string
+	if err := db.NewSelect().Model((*conversation.Item)(nil)).ColumnExpr("id::text").
+		Where("tenant_id = ? AND kind IN (?) AND actor_type <> ?",
+			inDemo.Tenant, bun.List([]conversation.ItemKind{conversation.Message, conversation.Note}), conversation.SystemActor).
+		OrderExpr("id").Scan(ctx, &itemIDs); err != nil {
+		return errors.Wrap(err, "list seed searchable items for omnichannel")
+	}
+	if len(itemIDs) > 0 {
+		if err := conversation.SearchIndex.Refresh(ctx, db, conversation.LoadSearchDocs, itemIDs...); err != nil {
+			return err
+		}
+	}
+	fmt.Fprintln(out, "已在示例工作区中创建跨渠道合并演示会话与待合并重复联系人")
 	return nil
 }
 

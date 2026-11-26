@@ -20,6 +20,7 @@ chat.scroll_to_bottom: "Jump to latest"
 chat.sending: "Sending…"
 chat.status_closed: "Ended"
 chat.status_open: "In progress"
+chat.via_channel: "via {{.channel}}"
 chat.view_image: "View image"
 
 composer.attach: "Attach files"
