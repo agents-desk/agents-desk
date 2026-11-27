@@ -9,14 +9,14 @@ import { StatusMark } from "./components/status-mark"
 
 const statuses: MemberStatus[] = ["online", "away"]
 
-// statusColor 是在线状态的颜色：在线是 green，离开是 gray（没有状态）。
-const statusColor: Record<MemberStatus, string> = { online: "green", away: "gray" }
+/** memberStatusColor 是在线状态的颜色：在线是 green，离开是 gray。 */
+export const memberStatusColor: Record<MemberStatus, string> = { online: "green", away: "gray" }
 
 /** StatusBadge 显示一位成员的在线状态，成员页和团队收件箱的成员表格用它。 */
 export function StatusBadge({ status }: { status: MemberStatus }): ReactNode {
   useLanguage() // 枚举的显示文字按当前语言，切换语言时重新渲染
   return (
-    <Badge variant="dot" color={statusColor[status]}>
+    <Badge variant="dot" color={memberStatusColor[status]}>
       {kit.label("MemberStatus", status)}
     </Badge>
   )
@@ -27,7 +27,7 @@ function StatusLabel({ status }: { status: MemberStatus }): ReactNode {
   useLanguage() // 枚举的显示文字按当前语言，切换语言时重新渲染
   return (
     <Group gap={6} wrap="nowrap" justify="center">
-      <StatusMark color={statusColor[status]} />
+      <StatusMark color={memberStatusColor[status]} />
       {kit.label("MemberStatus", status)}
     </Group>
   )

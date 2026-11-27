@@ -13,7 +13,6 @@ import {
   Text,
   Textarea,
   TextInput,
-  Title,
 } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { IconAlertCircle, IconRefresh } from "@tabler/icons-react"
@@ -26,23 +25,7 @@ import { AiReceptionCard } from "../../components/ai-placeholders"
 import { useUnsavedGuard } from "../../components/unsaved-guard"
 import { fullDateTime } from "../../inbox/format"
 import { teams } from "../../resources"
-
-/** SectionCard 是企业微信机器人工作台的分组卡片。 */
-function SectionCard({ title, description, children }: { title: string; description: string; children: ReactNode }): ReactNode {
-  return (
-    <Paper withBorder p="md" radius="md">
-      <Stack gap="sm">
-        <Box>
-          <Title order={5}>{title}</Title>
-          <Text size="xs" c="dimmed" mt={2}>
-            {description}
-          </Text>
-        </Box>
-        {children}
-      </Stack>
-    </Paper>
-  )
-}
+import { FormSection } from "../../components/form-section"
 
 /** wecomStatusColor 返回企微机器人长连接状态对应的语义色。 */
 export function wecomStatusColor(status: WecomBotDTO["status"]): string {
@@ -229,7 +212,7 @@ export function WeComStudio({ slug, id }: { slug: string; id: string }): ReactNo
                 </Paper>
               )}
 
-              <SectionCard title={t("wecom_studio.section_basic")} description={t("wecom_studio.section_basic_desc")}>
+              <FormSection title={t("wecom_studio.section_basic")} description={t("wecom_studio.section_basic_desc")}>
                 <Group gap="xs">
                   <Text size="xs" c="dimmed">
                     {t("channels.audience")}
@@ -244,9 +227,9 @@ export function WeComStudio({ slug, id }: { slug: string; id: string }): ReactNo
                   description={t("wecom_studio.enabled_hint")}
                   {...form.getInputProps("enabled", { type: "checkbox" })}
                 />
-              </SectionCard>
+              </FormSection>
 
-              <SectionCard title={t("wecom_studio.section_conn")} description={t("wecom_studio.section_conn_desc")}>
+              <FormSection title={t("wecom_studio.section_conn")} description={t("wecom_studio.section_conn_desc")}>
                 <TextInput label={t("wecom.bot_id")} required maxLength={128} {...form.getInputProps("bot_id")} />
                 <PasswordInput
                   label={t("wecom.secret")}
@@ -260,11 +243,11 @@ export function WeComStudio({ slug, id }: { slug: string; id: string }): ReactNo
                   placeholder="wss://openws.work.weixin.qq.com"
                   {...form.getInputProps("ws_url")}
                 />
-              </SectionCard>
+              </FormSection>
 
               <AiReceptionCard scene="internal" />
 
-              <SectionCard title={t("wecom_studio.section_routing")} description={t("wecom_studio.section_routing_desc")}>
+              <FormSection title={t("wecom_studio.section_routing")} description={t("wecom_studio.section_routing_desc")}>
                 <ResourceSelect
                   model={teams}
                   label={t("wecom.team_hint")}
@@ -291,7 +274,7 @@ export function WeComStudio({ slug, id }: { slug: string; id: string }): ReactNo
                   maxLength={1000}
                   {...form.getInputProps("welcome_text")}
                 />
-              </SectionCard>
+              </FormSection>
             </Stack>
           </form>
         )}

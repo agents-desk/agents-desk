@@ -1,7 +1,7 @@
 // 会话报表：顶部实时积压状态条（直达收件箱）、周期核心指标带与趋势融合面板，以及支持聚焦筛选与下钻的多维拆解。
 
 import { AreaChart } from "@mantine/charts"
-import { Badge, Center, Group, Progress, SimpleGrid, Skeleton, Stack, Text, Tooltip } from "@mantine/core"
+import { Badge, Group, Progress, SimpleGrid, Skeleton, Stack, Text, Tooltip } from "@mantine/core"
 import { IconArrowUpRight } from "@tabler/icons-react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link, useParams } from "@tanstack/react-router"
@@ -22,7 +22,7 @@ import { type MetricItem, MetricStrip } from "./MetricStrip"
 import { GranularityControl } from "./PeriodButton"
 import { ReportShell } from "./ReportShell"
 import { useReportFilters } from "./search"
-import { SectionCard } from "./SectionCard"
+import { ReportEmpty, SectionCard } from "./SectionCard"
 
 /** 会话报表页面组件（同时服务对外客服、合作方服务与内部服务场景）。 */
 export function ConversationsPage({
@@ -214,11 +214,7 @@ export function ConversationsPage({
             {loading ? (
               <Skeleton height={240} radius="sm" />
             ) : !chartState.data?.length ? (
-              <Center mih={240}>
-                <Text size="sm" c="dimmed">
-                  {t("reports.empty")}
-                </Text>
-              </Center>
+              <ReportEmpty minHeight={240} />
             ) : (
               <AreaChart
                 h={240}

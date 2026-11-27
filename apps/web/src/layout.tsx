@@ -5,7 +5,7 @@ export const NARROW_QUERY = "(max-width: 899px)"
 
 /**
  * isTypingTarget 报告键盘事件是否落在输入框、下拉选择、富文本或弹窗中：
- * 为真时工作台单键快捷键（如 J/K/I/R/E）不触发，避免打断正常输入。
+ * 为真时工作台单键快捷键（如 J/K/I/R/E）暂停，按键交给输入框。
  */
 export function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false

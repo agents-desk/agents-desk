@@ -113,7 +113,7 @@ export function verifiedTranslationOf(it: ConversationItemDTO): { language: stri
 
 /**
  * resolveInternalTargetLanguage 是全产品所有内部协作通道（内部单聊/群聊、收件箱备注、商务备注、工单内部讨论）
- * 统一的目标语言推导纯函数：严格按真实接收者分层，永不扫描全工作区无关成员：
+ * 的目标语言推导纯函数，按真实接收者分层，候选范围只包括这条消息的接收者：
  *  1. 输入框中 @ 提及的同事（排除自己）；
  *  2. 当前会话的直接协作方（单聊对方、群聊参与者、工单发起人/负责人/参与者、收件箱负责人/参与者）；
  *  3. 没有异语直接接收者时返回空字符串。
@@ -156,7 +156,7 @@ export function resolveInternalTargetLanguage({
 
 /**
  * useComposerTranslation 管理统一的输入框翻译校对状态：
- * 默认折叠（输入零打扰，不触发击键防抖请求）；展开后与客服回复一致，停止输入 600ms 后实时预览目标译文与盲回译，
+ * 默认折叠，折叠时输入只更新文字；展开后与客服回复一致，停止输入 600ms 后实时预览目标译文与盲回译，
  * 支持切换目标语言、单次覆盖语气、点击译文轻量微调、恢复自动译文与重新翻译。
  */
 export function useComposerTranslation({
@@ -270,7 +270,7 @@ export function useComposerTranslation({
         if (sameAsMe) {
           return { send: true }
         }
-        // 客服回复与商务对外回复在折叠态零等待秒发：交由后端投递队列异步翻译并发出，不阻塞输入框
+        // 客服回复与商务对外回复在折叠态立即发出：后端投递队列异步翻译并发送，输入框随即可用
         clearTimeout(timer.current)
         return {
           send: true,

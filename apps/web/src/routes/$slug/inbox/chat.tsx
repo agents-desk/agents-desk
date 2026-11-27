@@ -4,23 +4,21 @@ import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, Outlet, useNavigate, useParams } from "@tanstack/react-router"
 import { Pane, preloadQueries, useCan, useNarrow } from "@go-tenon/ui"
 import { useCallback, useMemo, useState } from "react"
-import "../../inbox/inbox.css"
-import { kit } from "../../api"
-import { type ChatModeFilter, chatListQuery } from "../../chat/data"
-import { ChatList } from "../../chat/List"
-import { ChatNav, type ChatNavTarget } from "../../chat/Nav"
-import { NewChatModal } from "../../chat/NewChatModal"
-import { NARROW_QUERY } from "../../layout"
+import { kit } from "../../../api"
+import { type ChatModeFilter, chatListQuery } from "../../../chat/data"
+import { ChatList } from "../../../chat/List"
+import { NewChatModal } from "../../../chat/NewChatModal"
+import { NARROW_QUERY } from "../../../layout"
 
-/** ChatSearch 是聊天模块的路由查询参数，决定二级导航栏高亮与列表筛选模式（内部聊天或商务沟通）。 */
+/** ChatSearch 是聊天页的路由查询参数，决定二级导航中高亮的聊天分组与列表筛选模式（内部聊天或商务沟通）。 */
 export interface ChatSearch {
   scope?: ChatScope
   filter?: Exclude<ChatModeFilter, "all">
   channel?: string
 }
 
-// 聊天模块：一级图标栏独立入口，二级导航提供内部聊天（全部/单聊/群聊）与商务沟通（全部/个人渠道），主区为列表与对话区。
-export const Route = createFileRoute("/$slug/chat")({
+// 收件箱的内部聊天和商务沟通分组：/inbox/chat，二级导航在上级的收件箱模块中；这里是聊天列表和聊天窗口（子路由 $id）。
+export const Route = createFileRoute("/$slug/inbox/chat")({
   validateSearch: (raw: Record<string, unknown>): ChatSearch => {
     const scope: ChatScope | undefined = raw.scope === "external" || raw.scope === "internal" ? raw.scope : undefined
     const filter: Exclude<ChatModeFilter, "all"> | undefined = raw.filter === "direct" || raw.filter === "group" ? raw.filter : undefined
@@ -31,7 +29,6 @@ export const Route = createFileRoute("/$slug/chat")({
       channel: scope === "external" ? channel : undefined,
     }
   },
-  staticData: { title: "nav.chat", icon: "chat", order: 2, permission: "conversations:read", fullBleed: true },
   // 切换分组和渠道时预取聊天列表，最多等一小会儿：数据很快到时新列表一次完整出现，不先闪成骨架
   loaderDeps: ({ search }) => search,
   loader: ({ context, deps }) => {
@@ -65,25 +62,10 @@ function ChatLayout() {
     return tgAccounts.data?.accounts.find((x) => x.id === channelId)?.name
   }, [businessLinks.data, channelId, tgAccounts.data?.accounts])
 
-  const selectNav = useCallback(
-    (next: ChatNavTarget) => {
-      void navigate({
-        to: id ? "/$slug/chat/$id" : "/$slug/chat",
-        params: id ? { slug, id } : { slug },
-        search: {
-          scope: next.scope === "external" ? "external" : undefined,
-          filter: next.scope === "internal" ? next.filter : undefined,
-          channel: next.scope === "external" ? next.channel : undefined,
-        },
-      })
-    },
-    [id, navigate, slug],
-  )
-
   const open = useCallback(
     (nextId: string) =>
       void navigate({
-        to: "/$slug/chat/$id",
+        to: "/$slug/inbox/chat/$id",
         params: { slug, id: nextId },
         search: {
           scope: search.scope,
@@ -100,7 +82,6 @@ function ChatLayout() {
 
   return (
     <Box style={{ display: "flex", height: "100%" }}>
-      <ChatNav scope={scope} filter={filter} channelId={channelId} onSelect={selectNav} />
       {(!narrow || !id) && (
         <Pane
           width={narrow ? "100%" : undefined}

@@ -1,7 +1,7 @@
 // 报表概览：顶部固定展示此刻全工作区实时健康状态，下方展示客服、工单、商务沟通与 AI 翻译的周期核心指标及融合趋势。
 
 import { AreaChart } from "@mantine/charts"
-import { Badge, Center, Group, SimpleGrid, Skeleton, Stack, Text, Tooltip } from "@mantine/core"
+import { Badge, Group, SimpleGrid, Skeleton, Stack, Text, Tooltip } from "@mantine/core"
 import { IconArrowUpRight } from "@tabler/icons-react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link, useParams } from "@tanstack/react-router"
@@ -24,7 +24,7 @@ import { csatColor, formatInt, formatPercent, formatUSD, pctDelta } from "./form
 import { DeltaBadge } from "./MetricStrip"
 import { GranularityControl } from "./PeriodButton"
 import { ReportShell } from "./ReportShell"
-import { SectionCard } from "./SectionCard"
+import { ReportEmpty, SectionCard } from "./SectionCard"
 
 /** 报表概览页面组件。 */
 export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
@@ -60,7 +60,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
     tip: string
     value: string
     warn?: boolean
-    to?: "/$slug/inbox" | "/$slug/tickets" | "/$slug/chat" | "/$slug/reports/members"
+    to?: "/$slug/inbox" | "/$slug/inbox/tickets" | "/$slug/inbox/chat" | "/$slug/reports/members"
     search?: Record<string, unknown>
   }> = [
     {
@@ -104,7 +104,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
       tip: t("reports.ov_live_ticket_open_tip"),
       value: formatInt(live?.ticket_open, uiLang),
       warn: Boolean(live && live.ticket_unassigned > 0),
-      to: canConv ? "/$slug/tickets" : undefined,
+      to: canConv ? "/$slug/inbox/tickets" : undefined,
       search: { box: "all", status: "unresolved" },
     },
     {
@@ -113,7 +113,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
       tip: t("reports.ov_live_business_waiting_tip"),
       value: formatInt(live?.business_waiting, uiLang),
       warn: Boolean(live && live.business_waiting > 0),
-      to: canConv ? "/$slug/chat" : undefined,
+      to: canConv ? "/$slug/inbox/chat" : undefined,
     },
     {
       key: "online",
@@ -304,11 +304,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
       >
         <LoadingStage loading={chartState.busy && !pageState.busy}>
           {!chartState.data?.length ? (
-            <Center mih={240}>
-              <Text size="sm" c="dimmed">
-                {t("reports.empty")}
-              </Text>
-            </Center>
+            <ReportEmpty minHeight={240} />
           ) : (
             <AreaChart
               h={260}

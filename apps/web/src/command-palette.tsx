@@ -33,7 +33,7 @@ import { kit, tenantApi } from "./api"
 import { chatDisplayName } from "./chat/data"
 import { contactDisplayName, contactSubline } from "./contacts/display"
 import { useMe, useMembers, useTeams } from "./inbox/data"
-import { activity } from "./inbox/format"
+import { activity, conversationStatusColor } from "./inbox/format"
 import { HighlightedSnippet, HighlightQuery } from "./inbox/Highlight"
 import { snoozeOptions } from "./inbox/menus"
 import type { MatchField } from "./inbox/search"
@@ -58,8 +58,6 @@ function firstLeaf(item: MenuItem): MenuItem {
   return item.children?.length ? firstLeaf(item.children[0]) : item
 }
 
-/** statusColor 是会话状态的语义徽标颜色。 */
-const statusColor = { open: "bright-blue", snoozed: "yellow", closed: "gray" } as const
 
 /** CommandSearchButton 是放在图标栏顶部的全局搜索入口，点击或按 Cmd/Ctrl + K 打开命令面板。 */
 export function CommandSearchButton(): ReactNode {
@@ -86,7 +84,7 @@ interface NavAction {
 
 /**
  * CommandPalette 是工作台的全局命令面板（Cmd/Ctrl + K）：
- * 固定舒适高度避免输入筛选时尺寸跳动；处于会话页时顶部提供当前会话的指派、关闭、稍后处理与优先级快捷操作；
+ * 高度固定，输入筛选时尺寸保持稳定；处于会话页时顶部提供当前会话的指派、关闭、稍后处理与优先级快捷操作；
  * 未输入时展示精简的收件箱与一级模块快捷入口，输入关键词后实时全文搜索会话消息（含高亮摘要）、联系人、收件箱、全部页面与改派动作。
  */
 export function CommandPalette({
@@ -115,7 +113,7 @@ export function CommandPalette({
   const canAssignOthers = can("conversations:assign")
   const canReadContacts = can("contacts:read")
   const inbox = useQuery({ ...kit.queries.conversation.inbox(), enabled: canReadInbox })
-  const convMatch = useMatch({ from: "/$slug/inbox/$id", shouldThrow: false })
+  const convMatch = useMatch({ from: "/$slug/inbox/_conversations/$id", shouldThrow: false })
   const currentConvId = convMatch?.params.id
   const currentConv = useQuery({
     ...kit.queries.conversation.get(currentConvId ?? ""),
@@ -303,21 +301,21 @@ export function CommandPalette({
           label: t("tickets.command_mine"),
           description: t("tickets.nav_section"),
           icon: <IconTicket size={16} stroke={1.6} />,
-          onClick: () => void navigate({ to: "/$slug/tickets", params: { slug }, search: { box: "mine", status: "unresolved" } }),
+          onClick: () => void navigate({ to: "/$slug/inbox/tickets", params: { slug }, search: { box: "mine", status: "unresolved" } }),
         },
         {
           id: "tickets:unassigned",
           label: t("tickets.command_unassigned"),
           description: t("tickets.nav_section"),
           icon: <IconTicket size={16} stroke={1.6} />,
-          onClick: () => void navigate({ to: "/$slug/tickets", params: { slug }, search: { box: "unassigned", status: "unresolved" } }),
+          onClick: () => void navigate({ to: "/$slug/inbox/tickets", params: { slug }, search: { box: "unassigned", status: "unresolved" } }),
         },
         {
           id: "tickets:all",
           label: t("tickets.command_all"),
           description: t("tickets.nav_section"),
           icon: <IconTicket size={16} stroke={1.6} />,
-          onClick: () => void navigate({ to: "/$slug/tickets", params: { slug }, search: { box: "all", status: "unresolved" } }),
+          onClick: () => void navigate({ to: "/$slug/inbox/tickets", params: { slug }, search: { box: "all", status: "unresolved" } }),
         },
         ...(inbox.data?.teams ?? []).map((team) => ({
           id: `inbox:team:${team.id}`,
@@ -488,7 +486,7 @@ export function CommandPalette({
             {chatHits.map((ch) => (
               <Spotlight.Action
                 key={`chat:${ch.id}`}
-                onClick={() => void navigate({ to: "/$slug/chat/$id", params: { slug, id: ch.id } })}
+                onClick={() => void navigate({ to: "/$slug/inbox/chat/$id", params: { slug, id: ch.id } })}
               >
                 <Group gap="sm" wrap="nowrap" w="100%">
                   <Box className="cmd-palette-icon">
@@ -522,7 +520,7 @@ export function CommandPalette({
                 key={`ticket:${tk.id}`}
                 onClick={() =>
                   void navigate({
-                    to: "/$slug/tickets/$id",
+                    to: "/$slug/inbox/tickets/$id",
                     params: { slug, id: tk.id },
                     search: { box: "all", status: "unresolved" },
                   })
@@ -594,7 +592,7 @@ export function CommandPalette({
                             {c.channel.name}
                           </Badge>
                         )}
-                        <Badge size="xs" variant="light" color={statusColor[c.status]} style={{ flex: "none" }}>
+                        <Badge size="xs" variant="light" color={conversationStatusColor[c.status]} style={{ flex: "none" }}>
                           {t(`inbox.status_${c.status}` as const)}
                         </Badge>
                         {hit.match_count > 1 && (

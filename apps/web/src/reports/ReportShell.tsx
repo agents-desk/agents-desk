@@ -1,4 +1,4 @@
-// 报表工作台统一外壳：与收件箱、联系人一致的 Pane + 52px PaneHeader + 吸顶紧凑 PaneToolbar + 独立滚动 PaneBody。
+// 报表工作台外壳：Pane + 52px PaneHeader + 吸顶紧凑 PaneToolbar + 独立滚动 PaneBody。
 
 import type { ReportPeriodMeta } from "@agents-desk/client/tenant"
 import { Alert, Stack, Text } from "@mantine/core"

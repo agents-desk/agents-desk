@@ -328,7 +328,7 @@ export interface MessageBubbleProps {
 /**
  * MessageBubble 是会话、聊天与工单三处共用的聊天气泡组件：
  * 头像与气泡本体同行并顶边齐平（连续后续条占位 32px 保持边线笔直），
- * 作者与时间行、底部译文与状态行水平跳过 42px 头像列，与气泡外边缘严格对齐。
+ * 作者与时间行、底部译文与状态行水平跳过 42px 头像列，与气泡外边缘对齐。
  */
 export function MessageBubble({
   conversationId,

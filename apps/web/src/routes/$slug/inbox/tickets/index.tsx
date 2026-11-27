@@ -3,13 +3,13 @@ import { createFileRoute, getRouteApi, useNavigate } from "@tanstack/react-route
 import { IconPlus, IconTicket } from "@tabler/icons-react"
 import { useCan, useT } from "@go-tenon/ui"
 import { useState } from "react"
-import { CreateTicketModal } from "../../../tickets/CreateTicketModal"
-import { EmptyState } from "../../../components/empty-state"
+import { CreateTicketModal } from "../../../../tickets/CreateTicketModal"
+import { EmptyState } from "../../../../components/empty-state"
 
 // 还没有打开工单时的空态引导页。
-export const Route = createFileRoute("/$slug/tickets/")({ component: NoTicket })
+export const Route = createFileRoute("/$slug/inbox/tickets/")({ component: NoTicket })
 
-const ticketsRoute = getRouteApi("/$slug/tickets")
+const ticketsRoute = getRouteApi("/$slug/inbox/tickets")
 
 function NoTicket() {
   const t = useT()
@@ -38,7 +38,7 @@ function NoTicket() {
         opened={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreated={(created) =>
-          void navigate({ to: "/$slug/tickets/$id", params: { slug, id: created.id }, search })
+          void navigate({ to: "/$slug/inbox/tickets/$id", params: { slug, id: created.id }, search })
         }
       />
     </>

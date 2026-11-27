@@ -36,7 +36,7 @@ import { kit, tenantApi } from "../../../../../api"
 import { RowActions } from "../../../../../components/row-actions"
 import { SyncedPeersModal, TelegramLoginModal } from "../../../../../features/business/telegram-modals"
 
-// 我的商务渠道列表：采用与其他设置页一致的 Page 页内标签 + 标准表格布局，
+// 我的商务渠道列表：Page 页内标签 + 表格，
 // 分为「网页商务链接」与「Telegram 个人号」两个标签；点击链接或个人号进入各自的可视化配置工作台。
 export const Route = createFileRoute("/$slug/settings/_personal/business-channels/")({
   loader: ({ context }) => preloadQueries(context.app.queryClient, [kit.queries.business.linkList(), kit.queries.tgaccount.list(), kit.queries.business.policyGet()]),
@@ -127,6 +127,22 @@ function BusinessLinksTab({ slug }: { slug: string }): ReactNode {
     },
     onError: (err) => notifyError(err),
   })
+
+  // 停用前确认，启用直接执行。
+  async function toggleLink(item: WidgetBusinessLinkDTO): Promise<void> {
+    if (
+      item.enabled &&
+      !(await confirm({
+        title: t("business_channels.link_disable_confirm", { name: item.name }),
+        message: t("business_channels.link_disable_message"),
+        danger: true,
+        confirmLabel: t("common.disable"),
+      }))
+    ) {
+      return
+    }
+    toggleEnabled.mutate(item)
+  }
 
   const remove = useMutation({
     mutationFn: (id: string) => tenantApi.business.linkDelete(id),
@@ -276,7 +292,7 @@ function BusinessLinksTab({ slug }: { slug: string }): ReactNode {
                     label: t(item.enabled ? "common.disable" : "common.enable"),
                     icon: item.enabled ? <IconPlayerPause size={14} /> : <IconPlayerPlay size={14} />,
                     disabled: toggleEnabled.isPending,
-                    onClick: () => toggleEnabled.mutate(item),
+                    onClick: () => void toggleLink(item),
                   },
                   {
                     label: t("common.delete"),
@@ -322,7 +338,7 @@ function BusinessLinksTab({ slug }: { slug: string }): ReactNode {
   )
 }
 
-/** TelegramAccountsTab 以与其他渠道设置页一致的标准表格管理当前成员绑定的 Telegram 个人号，点击进入个人号工作台。 */
+/** TelegramAccountsTab 是当前成员绑定的 Telegram 个人号表格，点击进入个人号工作台。 */
 function TelegramAccountsTab({ slug }: { slug: string }): ReactNode {
   const t = useT()
   const can = useCan()
@@ -355,6 +371,22 @@ function TelegramAccountsTab({ slug }: { slug: string }): ReactNode {
     },
     onError: (err) => notifyError(err),
   })
+
+  // 停用前确认，启用直接执行。
+  async function toggleAccount(acc: TgaccountAccountDTO): Promise<void> {
+    if (
+      acc.enabled &&
+      !(await confirm({
+        title: t("business_channels.tg_disable_confirm", { name: acc.name }),
+        message: t("business_channels.tg_disable_message"),
+        danger: true,
+        confirmLabel: t("common.disable"),
+      }))
+    ) {
+      return
+    }
+    toggleEnabled.mutate(acc)
+  }
 
   const disconnect = useMutation({
     mutationFn: (id: string) => tenantApi.tgaccount.disconnect(id),
@@ -540,7 +572,7 @@ function TelegramAccountsTab({ slug }: { slug: string }): ReactNode {
                     label: t(acc.enabled ? "common.disable" : "common.enable"),
                     icon: acc.enabled ? <IconPlayerPause size={14} /> : <IconPlayerPlay size={14} />,
                     disabled: toggleEnabled.isPending,
-                    onClick: () => toggleEnabled.mutate(acc),
+                    onClick: () => void toggleAccount(acc),
                   },
                   {
                     label: t("business_channels.tg_disconnect"),

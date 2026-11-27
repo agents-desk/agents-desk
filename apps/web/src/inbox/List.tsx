@@ -55,7 +55,7 @@ import { flatten, flattenSearchHits, prefetchConversation, useConversationList, 
 import { useDraft } from "./drafts"
 import { type FillWatcher, useFillVisible } from "./fill"
 import { FilterFields, FilterSummaryChips } from "./FilterFields"
-import { activity, duration, waitLevel } from "./format"
+import { activity, conversationStatusColor, duration, waitLevel } from "./format"
 import { HighlightedSnippet } from "./Highlight"
 import { useNow } from "./Nav"
 import {
@@ -293,7 +293,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
         />
       ) : (
         <>
-          {/* 52px 基准顶栏：与二级导航头、会话头、详情头严格齐平 */}
+          {/* 52px 顶栏，与二级导航头、会话头、详情头齐平 */}
           <PaneHeader
             showNavToggle
             title={
@@ -352,7 +352,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                 leftSection={<IconSearch size={14} stroke={1.6} />}
                 rightSection={
                   draftQ ? (
-                    <CloseButton size="xs" aria-label={t("inbox.search_clear")} onClick={clearSearch} />
+                    <CloseButton size="xs" aria-label={t("common.clear_search")} onClick={clearSearch} />
                   ) : undefined
                 }
               />
@@ -561,7 +561,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
             {[0, 1, 2, 3, 4, 5].map((i) => (
               <Box key={i} px="sm" className="inbox-row">
                 <Group gap={10} wrap="nowrap" align="center" w="100%">
-                  <Skeleton circle h={30} w={30} style={{ flex: "none" }} />
+                  <Skeleton circle h={36} w={36} style={{ flex: "none" }} />
                   <Box style={{ flex: 1, minWidth: 0 }}>
                     <Group justify="space-between" mb={8}>
                       <Skeleton h={12} w="46%" radius="sm" />
@@ -628,8 +628,6 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
   )
 }
 
-/** statusColor 是会话状态的语义徽标颜色。 */
-const statusColor = { open: "bright-blue", snoozed: "yellow", closed: "gray" } as const
 
 /** SearchRow 是全文搜索结果中的一行会话：联系人、非默认状态、命中时间、高亮摘要以及同会话命中条数。 */
 function SearchRow({ hit, active, onClick }: { hit: ConversationSearchHitDTO; active: boolean; onClick: () => void }): ReactNode {
@@ -661,7 +659,7 @@ function SearchRow({ hit, active, onClick }: { hit: ConversationSearchHitDTO; ac
             {contactName(c, t)}
           </Text>
           {c.status !== "open" && (
-            <Badge size="xs" variant="light" color={statusColor[c.status]} style={{ flex: "none" }}>
+            <Badge size="xs" variant="light" color={conversationStatusColor[c.status]} style={{ flex: "none" }}>
               {t(`inbox.status_${c.status}` as const)}
             </Badge>
           )}
@@ -768,7 +766,7 @@ function Row({
           <Checkbox checked={selected} readOnly size="xs" tabIndex={-1} style={{ flex: "none" }} />
         ) : (
           <Indicator disabled={!c.unread} color="red" size={9} offset={2} withBorder style={{ flex: "none" }}>
-            <ConversationPeerAvatar c={c} size={30} />
+            <ConversationPeerAvatar c={c} size={36} />
           </Indicator>
         )}
         <Box style={{ flex: 1, minWidth: 0 }}>

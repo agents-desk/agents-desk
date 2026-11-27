@@ -4,7 +4,6 @@ import type { ReportRatingItem } from "@agents-desk/client/tenant"
 import { AreaChart } from "@mantine/charts"
 import {
   Badge,
-  Center,
   CloseButton,
   Group,
   Progress,
@@ -40,11 +39,11 @@ import { type MetricItem, MetricStrip } from "./MetricStrip"
 import { GranularityControl } from "./PeriodButton"
 import { ReportShell } from "./ReportShell"
 import { type SatisfactionSearchParams, useReportFilters } from "./search"
-import { DetailSection, SectionCard } from "./SectionCard"
+import { DetailSection, ReportEmpty, SectionCard } from "./SectionCard"
 
 type RatingBucketFilter = "all" | "positive" | "neutral" | "negative"
 
-/** 根据 min_score / max_score 映射到快捷星级档位；单星筛选（1/2/4/5）时返回空串避免误高亮档位。 */
+/** 根据 min_score / max_score 映射到快捷星级档位；单星筛选（1/2/4/5）时返回空串，档位都不高亮。 */
 function activeRatingFilter(min?: number, max?: number): RatingBucketFilter | "" {
   if (!min && !max) return "all"
   if (min === 4 && (!max || max === 5)) return "positive"
@@ -351,11 +350,7 @@ export function SatisfactionPage({
               {loading ? (
                 <Skeleton height={220} radius="sm" />
               ) : !chartState.data?.length || !s?.rated_count ? (
-                <Center mih={220}>
-                  <Text size="sm" c="dimmed">
-                    {t("reports.empty")}
-                  </Text>
-                </Center>
+                <ReportEmpty minHeight={220} />
               ) : (
                 <AreaChart
                   h={220}
@@ -388,11 +383,7 @@ export function SatisfactionPage({
             {loading ? (
               <Skeleton height={220} radius="sm" />
             ) : !s?.rated_count ? (
-              <Center mih={220}>
-                <Text size="sm" c="dimmed">
-                  {t("reports.empty")}
-                </Text>
-              </Center>
+              <ReportEmpty minHeight={220} />
             ) : (
               <Stack gap={4} justify="center" mih={210}>
                 {(data?.distribution ?? []).map((row) => {
