@@ -105,6 +105,15 @@ func (a *QueueExport) Handle(ctx context.Context, subject identity.Subject, form
 	return exp, err
 }
 
+// formatExportProgress 在导出完成且结果存于私有盘时补充平台管理员端鉴权下载地址。
+func formatExportProgress(ctx context.Context, exp *exports.Export) ExportProgress {
+	out := *exp
+	if out.Status == operation.StatusCompleted && out.FileID != uuid.Nil && out.URL == "" {
+		out.URL = "/admin/api/tenants/exports/" + out.ID.String() + "/download"
+	}
+	return ExportProgress{Export: &out, ErrorMessage: out.ErrorMessage(ctx)}
+}
+
 // HTTP 处理 POST /tenants/exports：发起异步导出并返回操作 ID。
 func (a *QueueExport) HTTP(ctx context.Context, in *ExportStartInput) (*ExportOutput, error) {
 	subject, _ := identity.FromContext(ctx)
@@ -112,7 +121,7 @@ func (a *QueueExport) HTTP(ctx context.Context, in *ExportStartInput) (*ExportOu
 	if err != nil {
 		return nil, err
 	}
-	return &ExportOutput{Body: ExportProgress{Export: exp, ErrorMessage: exp.ErrorMessage(ctx)}}, nil
+	return &ExportOutput{Body: formatExportProgress(ctx, exp)}, nil
 }
 
 // Progress 处理 GET /tenants/exports/{id}/progress：推送导出进度 SSE 事件直到完成或失败。
@@ -132,7 +141,7 @@ func (a *QueueExport) Progress(ctx context.Context, in *ExportProgressInput) (*h
 			if err != nil {
 				return err
 			}
-			p := ExportProgress{Export: exp, ErrorMessage: exp.ErrorMessage(s.Context())}
+			p := formatExportProgress(s.Context(), exp)
 			if err := s.SendJSON(httpx.Event{Name: "progress"}, p); err != nil || exp.Finished() {
 				return nil
 			}

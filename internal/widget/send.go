@@ -6,6 +6,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/crypt"
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/conversation"
@@ -34,11 +35,16 @@ type SentOutput struct {
 type SendMessage struct {
 	db      *bun.DB
 	receive *conversation.Receive
+	signer  *crypt.Crypt
 }
 
-// NewSendMessage 返回客户发消息的动作；receive 是写入渠道收到的消息的动作，消息经它归入会话、指派、通知下游。
-func NewSendMessage(db *bun.DB, receive *conversation.Receive) *SendMessage {
-	return &SendMessage{db: db, receive: receive}
+// NewSendMessage 返回客户发消息的动作；receive 是写入渠道收到的消息的动作，signer 用于为私有附件生成短期签名地址。
+func NewSendMessage(db *bun.DB, receive *conversation.Receive, signer ...*crypt.Crypt) *SendMessage {
+	var c *crypt.Crypt
+	if len(signer) > 0 {
+		c = signer[0]
+	}
+	return &SendMessage{db: db, receive: receive, signer: c}
 }
 
 // Handle 以联系人 sub 的身份在本次请求的聊天插件中发消息 b：归入该联系人的当前活跃会话，或按重开窗口重开/新建会话。
@@ -70,5 +76,6 @@ func (a *SendMessage) Handle(ctx context.Context, sub identity.Subject, b Messag
 	}
 	item := res.Item.ForContact()
 	item.ConversationID = res.ConversationID
+	item.Attachments = conversation.SignContactAttachments(item.Attachments, ch.ID, a.signer)
 	return &Sent{ConversationID: res.ConversationID, Item: item}, nil
 }

@@ -342,6 +342,7 @@ func materializeStream(
 		size = filesystem.UnknownSize
 	}
 	uploaded, err := files.Upload(ctx, owner, filesystem.FileInput{
+		Disk:        files.PrivateDisk(),
 		Filename:    filename,
 		ContentType: contentType,
 		Size:        size,

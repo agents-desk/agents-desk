@@ -131,7 +131,7 @@ func (a *GetTicketForContact) Handle(ctx context.Context, sub identity.Subject, 
 		Scan(ctx); err != nil {
 		return nil, errors.Wrap(err, "load contact ticket updates")
 	}
-	updates, err := toContactItemDTOs(ctx, a.db, a.media, items)
+	updates, err := toContactItemDTOs(ctx, a.db, a.media, channelID, items)
 	if err != nil {
 		return nil, err
 	}

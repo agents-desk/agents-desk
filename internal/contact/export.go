@@ -3,10 +3,12 @@ package contact
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
@@ -15,6 +17,7 @@ import (
 	"github.com/go-tenon/tenon/httpx"
 	"github.com/go-tenon/tenon/httpx/rest"
 	"github.com/go-tenon/tenon/identity"
+	"github.com/go-tenon/tenon/operation"
 	"github.com/go-tenon/tenon/queue"
 	"github.com/go-tenon/tenon/sheet"
 	"github.com/go-tenon/tenon/sheet/exports"
@@ -108,6 +111,17 @@ func (a *QueueExport) Handle(ctx context.Context, sub identity.Subject, format s
 	return exp, err
 }
 
+// formatContactExportProgress 在导出完成且结果存于私有盘时补充工作区成员鉴权下载地址。
+func formatContactExportProgress(ctx context.Context, exp *exports.Export) ExportProgress {
+	out := *exp
+	if out.Status == operation.StatusCompleted && out.FileID != uuid.Nil && out.URL == "" {
+		if slug := chi.URLParamFromCtx(ctx, "slug"); slug != "" {
+			out.URL = "/t/" + url.PathEscape(slug) + "/api/contacts/exports/" + out.ID.String() + "/download"
+		}
+	}
+	return ExportProgress{Export: &out, ErrorMessage: out.ErrorMessage(ctx)}
+}
+
 // HTTP 处理 POST /t/{slug}/api/contacts/exports。
 func (a *QueueExport) HTTP(ctx context.Context, in *ExportStartInput) (*ExportOutput, error) {
 	sub, _ := identity.FromContext(ctx)
@@ -122,7 +136,7 @@ func (a *QueueExport) HTTP(ctx context.Context, in *ExportStartInput) (*ExportOu
 	if err != nil {
 		return nil, err
 	}
-	return &ExportOutput{Body: ExportProgress{Export: exp, ErrorMessage: exp.ErrorMessage(ctx)}}, nil
+	return &ExportOutput{Body: formatContactExportProgress(ctx, exp)}, nil
 }
 
 // Progress 处理 GET /t/{slug}/api/contacts/exports/{id}/progress：推送导出进度 SSE 事件直到完成或失败。
@@ -142,7 +156,7 @@ func (a *QueueExport) Progress(ctx context.Context, in *ExportProgressInput) (*h
 			if err != nil {
 				return err
 			}
-			p := ExportProgress{Export: exp, ErrorMessage: exp.ErrorMessage(s.Context())}
+			p := formatContactExportProgress(s.Context(), exp)
 			if err := s.SendJSON(httpx.Event{Name: "progress"}, p); err != nil || exp.Finished() {
 				return nil
 			}

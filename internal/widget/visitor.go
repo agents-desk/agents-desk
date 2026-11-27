@@ -45,6 +45,9 @@ func Middleware(db bun.IDB) func(http.Handler) http.Handler {
 	}
 }
 
+// ChannelFrom 返回 Middleware 放进 ctx 的聊天插件；不存在、停用或者所在的工作区停用时返回 channel.ErrNotFound。
+func ChannelFrom(ctx context.Context) (*channel.Channel, error) { return channelFrom(ctx) }
+
 // channelFrom 返回 Middleware 放进 ctx 的聊天插件；不存在、停用或者所在的工作区停用时返回 channel.ErrNotFound。
 func channelFrom(ctx context.Context) (*channel.Channel, error) {
 	ch, _ := ctx.Value(requestKey{}).(*channel.Channel)

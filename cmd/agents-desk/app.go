@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"log/slog"
-	"net/http"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -128,7 +127,7 @@ func (a *App) downstream() conversation.Downstream {
 		Hub:      a.hub,
 		Roles:    a.roles,
 		Registry: a.channels,
-		Media:    conversation.Media{Files: a.files, Images: a.images},
+		Media:    conversation.Media{Files: a.files, Images: a.images, Crypt: a.crypt},
 	}
 	if a.hub != nil {
 		down.ContactPush = widget.Push(a.hub)
@@ -223,6 +222,26 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		}
 		disks["s3"] = s3Disk
 	}
+	// 私有磁盘仅用于会话附件和导出文件，严格禁止挂载到公开 /storage/*。
+	if cfg.Filesystem.Disks.LocalPrivate.Root != "" {
+		privCfg := cfg.Filesystem.Disks.LocalPrivate
+		privCfg.Private = true
+		privDisk, err := local.Open(privCfg)
+		if err != nil {
+			return nil, err
+		}
+		stack.MustAdd("files:local_private", func(context.Context) error { return privDisk.Close() })
+		disks["local_private"] = privDisk
+	}
+	if cfg.Filesystem.Disks.S3Private.Bucket != "" {
+		privCfg := cfg.Filesystem.Disks.S3Private
+		privCfg.Private = true
+		s3Priv, err := s3.Open(ctx, privCfg)
+		if err != nil {
+			return nil, err
+		}
+		disks["s3_private"] = s3Priv
+	}
 	files, err := filesystem.New(db, cfg.Filesystem, disks)
 	if err != nil {
 		return nil, err
@@ -236,7 +255,7 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	llmSettings, translationSettings, businessPolicy := llm.NewGroup(db, keys), translation.NewGroup(db), business.NewPolicyGroup(db)
 	featureStore := flags.NewStore(db)
 	ops := operation.New(db)
-	exporter := exports.New(db, ops, files)
+	exporter := exports.New(db, ops, files, exports.WithDisk(files.PrivateDisk()))
 
 	locker := lock.New(pglock.New(db))
 	tgClient := telegram.NewClient(outbound.New(outbound.Options{Timeout: 30 * time.Second}))
@@ -245,7 +264,7 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	bizGuard := business.NewPolicyGuard(db, businessPolicy, featureStore, tgCredentials)
 	tgMgr.SetPolicyChecker(bizGuard.CheckConnectTelegram)
 	wecomMgr := wecom.NewManager(db, keys, files, locker, nc)
-	tr := translation.NewTranslator(db, llm.NewClient(db, llmSettings, &http.Client{}), translationSettings)
+	tr := translation.NewTranslator(db, llm.NewClient(db, llmSettings, outbound.New(outbound.Options{Timeout: -1, AnyPort: true})), translationSettings)
 	tr.SetBusinessPolicy(businessPolicy)
 	app := &App{
 		cfg: cfg, db: db, opsDB: opsDB, nc: nc, tel: tel, hub: hub, creds: creds, presence: presence, roles: roles,

@@ -27,6 +27,7 @@ func RegisterRoutes(api *rest.API, requireMember func(*huma.Operation), db *bun.
 
 	op = huma.Operation{OperationID: "auth-logout", Method: http.MethodPost, Path: "/auth/logout", Summary: "退出登录", DefaultStatus: http.StatusNoContent}
 	requireMember(&op)
+	rest.AllowReadOnly()(&op)
 	rest.Register(api, op, s.Logout)
 
 	op = huma.Operation{OperationID: "auth-me", Method: http.MethodGet, Path: "/me", Summary: "当前登录的成员"}

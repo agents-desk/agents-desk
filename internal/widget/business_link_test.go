@@ -266,6 +266,17 @@ func TestBusinessLinkEndToEnd(t *testing.T) {
 		t.Fatalf("链接过期后已有访客调用 StartSession 应返回 ErrBusinessLinkExpired：%v", err)
 	}
 
+	// 跨渠道/非联系人防护：普通 widget 不能提交商务留资，非联系人主体不能提交留资或修改访客语言
+	if _, err := intakeAct.Handle(f.in(t, f.widget.ID), subPartner, ContactIntakeBody{Name: "Hacked"}); !errors.Is(err, channel.ErrNotFound) {
+		t.Fatalf("普通网页插件提交商务留资应返回 channel.ErrNotFound：%v", err)
+	}
+	if _, err := intakeAct.Handle(linkCtx, f.agent, ContactIntakeBody{Name: "Hacked"}); !errors.Is(err, conversation.ErrForbidden) {
+		t.Fatalf("非联系人主体提交商务留资应返回 ErrForbidden：%v", err)
+	}
+	if _, err := NewUpdateLanguage(env.DB).Handle(ctx, f.agent, ContactLanguageBody{Language: "en"}); !errors.Is(err, conversation.ErrForbidden) {
+		t.Fatalf("非联系人主体更新访客语言应返回 ErrForbidden：%v", err)
+	}
+
 	// 3. 停用后外部不可再访问；已有沟通记录的链接拒绝删除（请停用），未使用的链接可删除
 	updated, err := update.Handle(ctx, f.agent, link.ID, UpdateBusinessLinkBody{
 		Name:       "Owner 商务专线（暂停）",

@@ -587,7 +587,7 @@ func TestLeadMergeOnLogin(t *testing.T) {
 	// 成员在线索上写了备注和所在地
 	note := "潜在大客户"
 	loc := "上海"
-	if _, err := contact.NewUpdate(env.DB).Handle(ctx, f.agent, lead.ID, contact.UpdateBody{Notes: &note, Location: &loc}); err != nil {
+	if _, err := contact.NewUpdate(env.DB, env.Roles).Handle(ctx, f.agent, lead.ID, contact.UpdateBody{Notes: &note, Location: &loc}); err != nil {
 		t.Fatal(err)
 	}
 

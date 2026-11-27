@@ -90,8 +90,8 @@ func contactChannelScope(ctx context.Context, db bun.IDB, tenantID, channelID st
 	return Service, ck != contact.User, nil
 }
 
-// toContactItemDTOs 把时间线的各项转换为联系人看到的形式，一次读出成员的名字、所属渠道和附件。
-func toContactItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Item) ([]ContactItemDTO, error) {
+// toContactItemDTOs 把时间线的各项转换为联系人看到的形式，一次读出成员的名字、所属渠道和签过名的附件地址。
+func toContactItemDTOs(ctx context.Context, db bun.IDB, media Media, channelID string, items []Item) ([]ContactItemDTO, error) {
 	out := make([]ContactItemDTO, len(items))
 	var memberIDs, chIDs []string
 	seenCh := map[string]bool{}
@@ -140,7 +140,7 @@ func toContactItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Ite
 	for i, it := range items {
 		out[i] = ContactItemDTO{
 			ID: it.ID, ConversationID: it.ConversationID, Seq: it.Seq, Kind: it.Kind, Author: ContactAuthor{Type: it.ActorType, Name: names[it.ActorID]},
-			Text: it.Content.Text, Attachments: attachments[it.ID], Prompt: it.Content.Prompt, CreatedAt: it.CreatedAt,
+			Text: it.Content.Text, Attachments: SignContactAttachments(attachments[it.ID], channelID, media.Crypt), Prompt: it.Content.Prompt, CreatedAt: it.CreatedAt,
 		}
 		if it.ChannelID != nil {
 			if s, ok := channels[*it.ChannelID]; ok {

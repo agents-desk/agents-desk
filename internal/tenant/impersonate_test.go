@@ -124,6 +124,7 @@ func TestImpersonateEndToEnd(t *testing.T) {
 			return rest.RequireToken(api, memberTokens.Validate, names...)
 		}
 		tenant.RegisterTenantRoutes(api, require, env.DB, env.Files)
+		member.RegisterTenantRoutes(api, require, env.DB, env.Roles, env.MemberLogins, env.Files, member.Hooks{})
 	})
 
 	do := func(method, path, body, bearer string, cookies ...*http.Cookie) *httptest.ResponseRecorder {
@@ -218,6 +219,12 @@ func TestImpersonateEndToEnd(t *testing.T) {
 	}
 	if w := do(http.MethodPut, "/t/acme/api/tenant", `{"name":"Hacked"}`, "", impCookie); w.Code != http.StatusForbidden {
 		t.Fatalf("read-only rename expected 403, got %d %s", w.Code, w.Body.String())
+	}
+	if w := do(http.MethodPut, "/t/acme/api/me/status", `{"status":"online"}`, "", impCookie); w.Code != http.StatusForbidden || !strings.Contains(w.Body.String(), `"code":"auth.read_only"`) {
+		t.Fatalf("read-only set status expected 403 auth.read_only, got %d %s", w.Code, w.Body.String())
+	}
+	if w := do(http.MethodPost, "/api/files", ``, "", impCookie); w.Code != http.StatusForbidden || !strings.Contains(w.Body.String(), `"code":"auth.read_only"`) {
+		t.Fatalf("read-only file upload expected 403 auth.read_only, got %d %s", w.Code, w.Body.String())
 	}
 
 	// 6. 敏感路由（DirectOnly）直接返回 403 auth.impersonation_forbidden。

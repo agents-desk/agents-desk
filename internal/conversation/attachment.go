@@ -2,8 +2,12 @@ package conversation
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"net/url"
+	"slices"
 	"strings"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/danielgtaylor/huma/v2"
@@ -11,6 +15,7 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/contract"
+	"github.com/go-tenon/tenon/crypt"
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/enum"
 	"github.com/go-tenon/tenon/errorx"
@@ -153,10 +158,18 @@ type PreviewAttachment struct {
 	Count int            `json:"count"`
 }
 
-// Media 是会话读写附件用到的文件服务和图片缩略图服务。测试中不涉及附件时可以为零值。
+// Media 是会话读写附件用到的文件服务、图片缩略图服务与签名器。测试中不涉及附件时可以为零值。
 type Media struct {
 	Files  *filesystem.Service
 	Images *imgproxy.Proxy
+	Crypt  *crypt.Crypt
+}
+
+// AttachmentAccept 返回消息与内部备注允许上传及确认的媒体白名单副本。
+func AttachmentAccept() *filesystem.Accept {
+	cp := attachmentAccept
+	cp.Types = slices.Clone(attachmentAccept.Types)
+	return &cp
 }
 
 // attachmentAccept 是消息和内部备注允许确认的附件白名单：图片（排除 SVG）、主流视频与音频/语音以及常用办公/文本/压缩文件。
@@ -514,7 +527,11 @@ func buildAttachmentDTOs(ctx context.Context, db bun.IDB, media Media, rows []At
 		if r.FileID != nil {
 			dto.FileID = r.FileID.String()
 			if f, ok := filesByID[*r.FileID]; ok {
-				dto.URL = f.URL
+				if f.URL != "" {
+					dto.URL = f.URL
+				} else {
+					dto.URL = "/api/attachments/" + r.ID + "/file"
+				}
 				if dto.Filename == "" {
 					dto.Filename = f.Filename
 				}
@@ -531,18 +548,116 @@ func buildAttachmentDTOs(ctx context.Context, db bun.IDB, media Media, rows []At
 					dto.Height = f.Meta.Height
 				}
 				if r.Kind == AttachmentImage && r.ThumbFileID == nil {
-					dto.ThumbURL = media.Images.URL(f.URL, ImageThumb)
+					if f.URL != "" {
+						dto.ThumbURL = media.Images.URL(f.URL, ImageThumb)
+					} else {
+						dto.ThumbURL = dto.URL
+					}
 				}
 			}
 		}
 		if r.ThumbFileID != nil {
 			if tf, ok := filesByID[*r.ThumbFileID]; ok {
-				dto.ThumbURL = media.Images.URL(tf.URL, ImageThumb)
+				if tf.URL != "" {
+					dto.ThumbURL = media.Images.URL(tf.URL, ImageThumb)
+				} else {
+					dto.ThumbURL = "/api/attachments/" + r.ID + "/file?variant=thumb"
+				}
 			}
 		}
 		out[i] = dto
 	}
 	return out, nil
+}
+
+// contactAttachmentTTL 是发给聊天窗口访客的私有附件签名有效期。
+const contactAttachmentTTL = 15 * time.Minute
+
+// SignContactAttachments 把成员端私有附件地址转换为聊天插件渠道下带短期 HMAC 签名的地址。
+func SignContactAttachments(atts []AttachmentDTO, channelID string, signer *crypt.Crypt) []AttachmentDTO {
+	if len(atts) == 0 || channelID == "" {
+		return atts
+	}
+	rewrite := func(raw string) string {
+		if !strings.HasPrefix(raw, "/api/attachments/") {
+			return raw
+		}
+		target := "/w/" + url.PathEscape(channelID) + raw
+		if signer != nil {
+			return signer.SignURL(target, contactAttachmentTTL)
+		}
+		return target
+	}
+	out := make([]AttachmentDTO, len(atts))
+	for i, att := range atts {
+		att.URL = rewrite(att.URL)
+		att.ThumbURL = rewrite(att.ThumbURL)
+		out[i] = att
+	}
+	return out
+}
+
+// AttachmentMeta 是附件下载鉴权时需要的租户、所属会话和底层文件指针。
+type AttachmentMeta struct {
+	ID             string
+	TenantID       string
+	ConversationID string
+	Kind           AttachmentKind
+	FileID         *uuid.UUID
+	ThumbFileID    *uuid.UUID
+}
+
+// LoadAttachment 读取成员端待下载的附件元数据；附件不存在时返回 ErrAttachmentNotFound。
+func LoadAttachment(ctx context.Context, db bun.IDB, id string) (*AttachmentMeta, error) {
+	var row struct {
+		ID             string         `bun:"id"`
+		TenantID       string         `bun:"tenant_id"`
+		ConversationID string         `bun:"conversation_id"`
+		Kind           AttachmentKind `bun:"kind"`
+		FileID         *uuid.UUID     `bun:"file_id"`
+		ThumbFileID    *uuid.UUID     `bun:"thumb_file_id"`
+	}
+	err := db.NewSelect().TableExpr("timeline_attachments AS ta").
+		Join("JOIN timeline_items AS ti ON ti.id = ta.item_id").
+		Column("ta.id", "ta.tenant_id", "ti.conversation_id", "ta.kind", "ta.file_id", "ta.thumb_file_id").
+		Where("ta.id = ?", id).Scan(ctx, &row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrAttachmentNotFound.New()
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, "load attachment meta")
+	}
+	return &AttachmentMeta{
+		ID: row.ID, TenantID: row.TenantID, ConversationID: row.ConversationID,
+		Kind: row.Kind, FileID: row.FileID, ThumbFileID: row.ThumbFileID,
+	}, nil
+}
+
+// LoadAttachmentForContact 读取聊天插件访客端经签名地址下载的附件元数据，限定同工作区且原消息对所有人可见。
+func LoadAttachmentForContact(ctx context.Context, db bun.IDB, tenantID, id string) (*AttachmentMeta, error) {
+	var row struct {
+		ID             string         `bun:"id"`
+		TenantID       string         `bun:"tenant_id"`
+		ConversationID string         `bun:"conversation_id"`
+		Kind           AttachmentKind `bun:"kind"`
+		FileID         *uuid.UUID     `bun:"file_id"`
+		ThumbFileID    *uuid.UUID     `bun:"thumb_file_id"`
+	}
+	err := db.NewSelect().TableExpr("timeline_attachments AS ta").
+		Join("JOIN timeline_items AS ti ON ti.id = ta.item_id").
+		Column("ta.id", "ta.tenant_id", "ti.conversation_id", "ta.kind", "ta.file_id", "ta.thumb_file_id").
+		Where("ta.id = ? AND ta.tenant_id = ? AND ti.tenant_id = ? AND ti.visibility = ?", id, tenantID, tenantID, Everyone).
+		Scan(ctx, &row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrAttachmentNotFound.New()
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, "load contact attachment meta")
+	}
+	return &AttachmentMeta{
+		ID: row.ID, TenantID: row.TenantID, ConversationID: row.ConversationID,
+		Kind: row.Kind, FileID: row.FileID, ThumbFileID: row.ThumbFileID,
+	}, nil
 }
 
 // loadPreviewAttachments 批量查询每个时间线项（会话列表最后一条消息）的附件摘要：首附件类型和附件总数。

@@ -58,11 +58,15 @@ contact_token:
 # 改用 S3：配置 disks.s3，并把 default_disk 改为 s3，见 Tenon 文档的 libraries/filesystem.md。
 filesystem:
   default_disk: ${FILES_DISK:-local}
+  private_disk: ${FILES_PRIVATE_DISK:-local_private}
   max_upload_size: 50MiB
   disks:
     local:
       root: ${FILES_ROOT:-storage/files}
       public_url: /storage
+    local_private:
+      root: ${FILES_PRIVATE_ROOT:-storage/private}
+      private: true
 
 # 图片缩略图服务（imgproxy）：未配置 url 时（开发环境）缩略图原样返回原图地址；生产环境建议配合 key 和 salt 签名访问。
 imgproxy:

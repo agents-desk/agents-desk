@@ -54,8 +54,16 @@ func New(t testing.TB) *Env {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = disk.Close() })
-	cfg := filesystem.Config{DefaultDisk: "local", MaxUploadSize: 20 * filesystem.MiB, TempTTL: time.Hour}
-	files, err := filesystem.New(db, cfg, map[string]filesystem.Disk{"local": disk})
+	privateDisk, err := local.Open(filesystem.LocalConfig{Root: t.TempDir(), Private: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = privateDisk.Close() })
+	cfg := filesystem.Config{DefaultDisk: "local", PrivateDisk: "local_private", MaxUploadSize: 20 * filesystem.MiB, TempTTL: time.Hour}
+	files, err := filesystem.New(db, cfg, map[string]filesystem.Disk{
+		"local":         disk,
+		"local_private": privateDisk,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 	"golang.org/x/net/proxy"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
+	"github.com/go-tenon/tenon/outbound"
 	"github.com/go-tenon/tenon/settings"
 )
 
@@ -196,6 +198,9 @@ func (a *TestConnection) Handle(ctx context.Context, sub identity.Subject, proxy
 	conn, err := DialTelegram(dialCtx, proxyURL, "tcp", telegramDC2)
 	latency := time.Since(start).Milliseconds()
 	if err != nil {
+		if errors.Is(err, outbound.ErrForbidden) {
+			return nil, ErrInvalidProxyURL.New(errorx.Field("proxy_url"))
+		}
 		return &ConnectionTestResult{OK: false, LatencyMS: latency, Error: err.Error()}, nil
 	}
 	_ = conn.Close()
@@ -212,9 +217,9 @@ func (a *TestConnection) HTTP(ctx context.Context, in *ConnectionTestInput) (*Co
 	return &ConnectionTestOutput{Body: *res}, nil
 }
 
-// DialTelegram 按可选 SOCKS5 代理配置拨号到目标地址，供工作区连通性测试与 MTProto 客户端复用。
+// DialTelegram 按可选 SOCKS5 代理配置经 SSRF 防护拨号器连接到目标地址，供工作区连通性测试与 MTProto 客户端复用。
 func DialTelegram(ctx context.Context, proxyURL, network, addr string) (net.Conn, error) {
-	base := &net.Dialer{Timeout: 10 * time.Second}
+	base := outbound.Dialer(outbound.Options{Timeout: 10 * time.Second, AnyPort: true})
 	if strings.TrimSpace(proxyURL) == "" {
 		return base.DialContext(ctx, network, addr)
 	}

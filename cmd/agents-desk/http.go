@@ -2,14 +2,18 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 
+	"github.com/go-tenon/tenon/apitoken"
 	"github.com/go-tenon/tenon/command"
 	"github.com/go-tenon/tenon/command/httpcmd"
 	"github.com/go-tenon/tenon/config"
@@ -286,6 +290,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		adminnotify.RegisterRoutes(api, require(), a.db, a.hub)
 		tenant.RegisterRoutes(api, require(auth.TenantsRead), require(auth.TenantsManage), require(auth.TenantsImpersonate), a.db, a.roles, a.memberLogins, a.memberTokens, addr, memberHooks, a.creds)
 		tenant.RegisterExportRoutes(api, require(auth.TenantsRead), a.db, a.memberLogins, addr, a.exporter, a.hub)
+		r.Get("/tenants/exports/{id}/download", a.downloadTenantExport)
 		platformsettings.RegisterPublicRoutes(api, a.generalSettings, a.files)
 		platformsettings.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.generalSettings, a.mailSettings, a.files)
 		llm.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.llmSettings)
@@ -328,13 +333,16 @@ func (a *App) routes(pages http.Handler) chi.Router {
 			Instructions: "agents-desk 线上只读排障工具集：可查看自检、数据库表结构与只读 SQL、队列、定时任务及 NATS JetStream 状态。",
 		}, opsOpts...)
 		regOpts := opsmcp.Options{
-			Permissions:   []string{string(auth.OpsRead)},
-			Doctor:        a.doctor,
-			DB:            opsDB,
-			RedactColumns: []string{"session", "ciphertext", "encrypted"},
-			QueueDB:       opsDB,
-			Schedule:      pgschedule.New(opsDB),
-			NATS:          a.nc,
+			Permissions: []string{string(auth.OpsRead)},
+			Doctor:      a.doctor,
+			DB:          opsDB,
+			RedactColumns: []string{
+				"session", "ciphertext", "encrypted",
+				"settings", "value", "passcode", "secret", "token", "password", "credential", "hash",
+			},
+			QueueDB:  opsDB,
+			Schedule: pgschedule.New(opsDB),
+			NATS:     a.nc,
 		}
 		if a.nc != nil {
 			regOpts.QueueAdmin = queue.NewAdmin(a.nc, a.cfg.Queue)
@@ -364,6 +372,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		platformsettings.RegisterPublicRoutes(api, a.generalSettings, a.files)
 		member.RegisterRoutes(api, requireMember, a.db, a.memberLogins, a.memberTokens, a.files, a.cfg.Filesystem.MaxUploadSize, a.cfg.MemberToken.Lifetime)
 		tenant.RegisterMemberRoutes(api, requireMember, a.db, a.roles, a.files, addr)
+		r.Get("/attachments/{id}/file", a.serveMemberAttachment)
 	})
 
 	// 工作区的接口：tenant.Middleware 按路径中的 slug 查出工作区，业务代码只见到它的 ID（sub.Tenant）。
@@ -398,13 +407,17 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		contactHooks.OnNotesUpdated = translation.OnContactNotesUpdated
 		contactHooks.Tokens = a.contactTokens
 		contact.RegisterRoutes(api, require, a.db, a.hub, a.roles, a.exporter, contactHooks)
+		r.Get("/contacts/exports/{id}/download", a.downloadContactExport)
 		tag.RegisterRoutes(api, require, a.db)
 		attribute.RegisterRoutes(api, require, a.db)
 		tickettype.RegisterRoutes(api, require, a.db)
 		macro.RegisterRoutes(api, require, a.db, a.roles)
 		conversation.RegisterRoutes(api, require, a.db, a.channels, down)
 		agent.RegisterRoutes(api, require, a.db, a.hub)
-		file.RegisterRoutes(api, require(auth.ConversationsReply), a.files, a.cfg.Filesystem.MaxUploadSize)
+		file.RegisterRoutes(api, require(auth.ConversationsReply), a.files, a.cfg.Filesystem.MaxUploadSize, file.UploadOptions{
+			Private: true,
+			Accept:  conversation.AttachmentAccept(),
+		})
 		var copyTranslator widget.CopyTranslator
 		if a.translator != nil {
 			copyTranslator = a.translator.TranslateFields
@@ -459,6 +472,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 				}
 				return p.DefaultCompanyName
 			})
+		r.Get("/attachments/{id}/file", a.serveWidgetAttachment)
 	})
 
 	// 网页商务沟通短链：/c/{code} 302 跳转至对应启用中的商务链接聊天页。
@@ -482,4 +496,145 @@ func (a *App) routes(pages http.Handler) chi.Router {
 // docRouter 用默认配置和没有打开任何资源的 App 构造路由，openapi、routes、client 命令用它。
 func docRouter() chi.Routes {
 	return (&App{cfg: config.Default[Config]()}).routes(nil)
+}
+
+// bearerOrCookieAuth 从请求头 Bearer 或会话 cookie 中提取令牌并交给 tokens 校验，供文件/导出下载接口复用。
+func bearerOrCookieAuth(r *http.Request, tokens *apitoken.Store, cookie httpx.SessionCookie) identity.Authenticator {
+	return func(ctx context.Context) (identity.Subject, error) {
+		token := httpx.BearerToken(r.Header.Get("Authorization"))
+		if token == "" {
+			token = cookie.Token(r.Header.Get("Cookie"))
+		}
+		if token == "" || tokens == nil {
+			return identity.Subject{}, nil
+		}
+		return tokens.Validate(ctx, token)
+	}
+}
+
+// writeHTTPProblem 使用 rest.FromError 将业务或认证错误写成 Huma Problem Details JSON 响应。
+func (a *App) writeHTTPProblem(w http.ResponseWriter, _ *http.Request, err error) {
+	se := rest.FromError(err)
+	if he, ok := se.(interface{ GetHeaders() http.Header }); ok {
+		for k, vals := range he.GetHeaders() {
+			for _, v := range vals {
+				w.Header().Add(k, v)
+			}
+		}
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(se.GetStatus())
+	_ = json.NewEncoder(w).Encode(se)
+}
+
+// serveAttachmentFile 按 variant=thumb 与 download=1 查询参数安全输出附件主文件或封面缩略图。
+func (a *App) serveAttachmentFile(w http.ResponseWriter, r *http.Request, meta *conversation.AttachmentMeta) {
+	isThumb := r.URL.Query().Get("variant") == "thumb"
+	fid := meta.FileID
+	if isThumb {
+		fid = meta.ThumbFileID
+	}
+	if fid == nil {
+		a.writeHTTPProblem(w, r, conversation.ErrAttachmentNotFound.New())
+		return
+	}
+	opts := []filesystem.ServeOption{filesystem.ServeRedirectSigned(15 * time.Minute)}
+	if r.URL.Query().Get("download") == "1" || (!isThumb && meta.Kind == conversation.AttachmentFile) {
+		opts = append(opts, filesystem.ServeAttachment())
+	}
+	if err := filesystem.Serve(w, r, a.files, *fid, opts...); err != nil {
+		a.writeHTTPProblem(w, r, err)
+	}
+}
+
+// downloadTenantExport 为拥有 tenants:read 权限的平台管理员下发私有盘中的工作区导出表格。
+func (a *App) downloadTenantExport(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpx.WriteProblem(w, http.StatusNotFound, http.StatusText(http.StatusNotFound))
+		return
+	}
+	sub, err := identity.Establish(r.Context(), bearerOrCookieAuth(r, a.adminTokens, platformadmin.SessionCookie), identity.Policy{
+		Accounts: identity.Accounts{platformadmin.Type: platformadmin.Resolve(a.db, a.roles)},
+	}, string(auth.TenantsRead))
+	if err != nil {
+		a.writeHTTPProblem(w, r, err)
+		return
+	}
+	if err := a.exporter.Serve(w, r, sub, id, filesystem.ServeRedirectSigned(15*time.Minute)); err != nil {
+		a.writeHTTPProblem(w, r, err)
+	}
+}
+
+// downloadContactExport 为当前工作区拥有 contacts:export 权限的成员下发私有盘中的联系人导出表格。
+func (a *App) downloadContactExport(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpx.WriteProblem(w, http.StatusNotFound, http.StatusText(http.StatusNotFound))
+		return
+	}
+	ctx := identity.WithTenant(r.Context(), tenant.IDFrom(r.Context()))
+	sub, err := identity.Establish(ctx, bearerOrCookieAuth(r, a.memberTokens, member.SessionCookie), identity.Policy{
+		Accounts:      identity.Accounts{member.Type: tenant.Resolve(member.Resolve(a.db, a.roles))},
+		Impersonation: a.memberImpersonation(),
+	}, string(auth.ContactsExport))
+	if err != nil {
+		a.writeHTTPProblem(w, r, err)
+		return
+	}
+	if err := a.exporter.Serve(w, r, sub, id, filesystem.ServeRedirectSigned(15*time.Minute)); err != nil {
+		a.writeHTTPProblem(w, r, err)
+	}
+}
+
+// serveMemberAttachment 校验成员凭据、目标工作区启用状态及单会话可见范围后输出私有附件。
+func (a *App) serveMemberAttachment(w http.ResponseWriter, r *http.Request) {
+	authn := bearerOrCookieAuth(r, a.memberTokens, member.SessionCookie)
+	if _, err := identity.Establish(r.Context(), authn, identity.Policy{
+		Accounts:      identity.Accounts{member.Type: member.Resolve(a.db, a.roles)},
+		Impersonation: a.memberImpersonation(),
+		AccountScope:  true,
+	}); err != nil {
+		a.writeHTTPProblem(w, r, err)
+		return
+	}
+	meta, err := conversation.LoadAttachment(r.Context(), a.db, chi.URLParam(r, "id"))
+	if err != nil {
+		a.writeHTTPProblem(w, r, err)
+		return
+	}
+	tenantCtx := identity.WithTenant(r.Context(), meta.TenantID)
+	sub, err := identity.Establish(tenantCtx, authn, identity.Policy{
+		Accounts:      identity.Accounts{member.Type: member.Resolve(a.db, a.roles)},
+		Impersonation: a.memberImpersonation(),
+		CheckTenant:   tenant.CheckEnabled(a.db),
+	}, string(auth.ConversationsRead))
+	if err != nil {
+		a.writeHTTPProblem(w, r, err)
+		return
+	}
+	if err := conversation.CanAccess(tenantCtx, a.db, sub, meta.ConversationID); err != nil {
+		a.writeHTTPProblem(w, r, err)
+		return
+	}
+	a.serveAttachmentFile(w, r, meta)
+}
+
+// serveWidgetAttachment 校验 HMAC URL 签名与客户可见性后输出聊天插件私有附件，绝不返回内部备注附件。
+func (a *App) serveWidgetAttachment(w http.ResponseWriter, r *http.Request) {
+	if a.crypt == nil || a.crypt.VerifyURL(r.URL) != nil {
+		httpx.WriteProblem(w, http.StatusForbidden, http.StatusText(http.StatusForbidden))
+		return
+	}
+	ch, err := widget.ChannelFrom(r.Context())
+	if err != nil {
+		a.writeHTTPProblem(w, r, err)
+		return
+	}
+	meta, err := conversation.LoadAttachmentForContact(r.Context(), a.db, ch.TenantID, chi.URLParam(r, "id"))
+	if err != nil {
+		a.writeHTTPProblem(w, r, err)
+		return
+	}
+	a.serveAttachmentFile(w, r, meta)
 }

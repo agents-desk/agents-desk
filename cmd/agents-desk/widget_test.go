@@ -23,11 +23,18 @@ import (
 	"github.com/go-tenon/tenon/config"
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/identity"
+	"github.com/go-tenon/tenon/operation"
+	"github.com/go-tenon/tenon/sheet"
+	"github.com/go-tenon/tenon/sheet/exports"
 
 	"agents-desk/internal/apptest"
+	"agents-desk/internal/auth"
 	"agents-desk/internal/automation"
+	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/llm"
+	"agents-desk/internal/member"
+	"agents-desk/internal/platformadmin"
 	"agents-desk/internal/tenant"
 	"agents-desk/internal/widget"
 )
@@ -426,7 +433,74 @@ func TestAttachmentsHTTP(t *testing.T) {
 		t.Fatalf("成员回复附件：%+v", reply.Attachments)
 	}
 
-	// 访客读取连续时间线包含双方附件信息，且校验 limit=100 通过、limit=200 返回 422
+	// 上传文件均落在私有磁盘，URL 为空且不能通过 /storage 匿名读取；活跃 XSS 内容在三套 /files 入口均被拦截
+	if vFile.URL != "" || aFile.URL != "" {
+		t.Fatalf("会话附件应落在私有磁盘且公开 URL 为空，实际 visitor=%q member=%q", vFile.URL, aFile.URL)
+	}
+	for _, endpoint := range []string{"/api/files", "/t/alpha/api/files", base + "/files"} {
+		ck := owner
+		bearer := ""
+		if endpoint == base+"/files" {
+			ck, bearer = nil, visitor.Token
+		}
+		for _, sample := range []struct {
+			name, mime string
+			body       []byte
+		}{
+			{"evil.html", "text/html", []byte("<html><script>alert(1)</script></html>")},
+			{"evil.svg", "image/svg+xml", []byte(`<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>`)},
+			{"spoof.png", "image/png", []byte("<!DOCTYPE html><script>alert(1)</script>")},
+		} {
+			bad := uploadMultipart(t, h, endpoint, sample.name, sample.mime, sample.body, ck, bearer)
+			if bad.status < 400 || bad.status >= 500 || bad.code != filesystem.ErrNotAccepted.Code() {
+				t.Fatalf("活跃内容上传 %s 到 %s 应返回 filesystem.not_accepted，实际 %d %s", sample.name, endpoint, bad.status, bad.body)
+			}
+		}
+	}
+
+	// 成员读取私有附件（/api/attachments/{id}/file）：本人工作区 200 且带 nosniff，未登录 401，跨工作区 404/403
+	if _, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+		Name: "beta", Slug: "beta", OwnerEmail: "owner@beta.com", OwnerName: "beta", OwnerPassword: "password",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	betaLogin := call(h, "POST", "/api/auth/login", `{"email":"owner@beta.com","password":"password"}`, nil)
+	if betaLogin.status != http.StatusNoContent {
+		t.Fatalf("beta 登录失败：%d %s", betaLogin.status, betaLogin.body)
+	}
+	var memberItems []conversation.ItemDTO
+	if r := call(h, "GET", "/t/alpha/api/conversations/"+sent.ConversationID+"/items", "", owner); r.status != http.StatusOK || json.Unmarshal([]byte(r.body), &memberItems) != nil {
+		t.Fatalf("读取成员侧会话时间线失败：%d %s", r.status, r.body)
+	}
+	var memberImgURL, memberCSVURL string
+	for _, it := range memberItems {
+		for _, att := range it.Attachments {
+			if att.Filename == "shot.png" {
+				memberImgURL = att.URL
+			}
+			if att.Filename == "report.csv" {
+				memberCSVURL = att.URL
+			}
+		}
+	}
+	if !strings.HasPrefix(memberImgURL, "/api/attachments/") || !strings.HasPrefix(memberCSVURL, "/api/attachments/") {
+		t.Fatalf("成员私有附件下载地址异常：img=%q csv=%q", memberImgURL, memberCSVURL)
+	}
+	if r := call(h, "GET", memberImgURL, "", nil); r.status != http.StatusUnauthorized {
+		t.Fatalf("未登录下载成员附件应返回 401，实际 %d", r.status)
+	}
+	if r := call(h, "GET", memberImgURL, "", betaLogin.cookie); r.status != http.StatusNotFound && r.status != http.StatusForbidden {
+		t.Fatalf("跨工作区下载附件应返回 404/403，实际 %d %s", r.status, r.body)
+	}
+	authGetReq := httptest.NewRequest(http.MethodGet, memberImgURL, nil)
+	authGetReq.AddCookie(owner)
+	authGetRec := httptest.NewRecorder()
+	h.ServeHTTP(authGetRec, authGetReq)
+	if authGetRec.Code != http.StatusOK || authGetRec.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Fatalf("成员下载附件响应异常：%d headers=%v", authGetRec.Code, authGetRec.Header())
+	}
+
+	// 访客读取连续时间线包含双方附件信息，且校验 limit=100 通过、limit=200 返回 422 与签名附件下载/防越权
 	var cStream conversation.ContactTimelineDTO
 	if r := callBearer(h, "GET", base+"/timeline?limit=100", "", visitor.Token); r.status != http.StatusOK || json.Unmarshal([]byte(r.body), &cStream) != nil {
 		t.Fatalf("访客读取连续时间线：%d %s", r.status, r.body)
@@ -436,5 +510,152 @@ func TestAttachmentsHTTP(t *testing.T) {
 	}
 	if len(cStream.Items) != 2 || len(cStream.Items[0].Attachments) != 1 || len(cStream.Items[1].Attachments) != 1 {
 		t.Fatalf("访客时间线附件：%+v", cStream.Items)
+	}
+	signedURL := cStream.Items[0].Attachments[0].URL
+	if !strings.HasPrefix(signedURL, base+"/attachments/") || !strings.Contains(signedURL, "signature=") {
+		t.Fatalf("访客附件地址应带签名：%q", signedURL)
+	}
+	if r := callBearer(h, "GET", signedURL, "", ""); r.status != http.StatusOK {
+		t.Fatalf("合法签名附件下载应返回 200，实际 %d %s", r.status, r.body)
+	}
+	if r := callBearer(h, "GET", strings.Split(signedURL, "?")[0], "", ""); r.status != http.StatusForbidden {
+		t.Fatalf("无签名下载应返回 403，实际 %d", r.status)
+	}
+	if r := callBearer(h, "GET", signedURL+"tampered", "", ""); r.status != http.StatusForbidden {
+		t.Fatalf("篡改签名下载应返回 403，实际 %d", r.status)
+	}
+	// 内部备注附件即使拿到了合法签名的访客路径也必须被 LoadAttachmentForContact 拒绝（404）
+	var noteFile filesystem.File
+	nUp := uploadMultipart(t, h, "/t/alpha/api/files", "internal.csv", "text/csv", []byte("secret\n"), owner, "")
+	if nUp.status != http.StatusCreated || json.Unmarshal([]byte(nUp.body), &noteFile) != nil {
+		t.Fatalf("备注文件上传失败：%d %s", nUp.status, nUp.body)
+	}
+	var noteItem conversation.ItemDTO
+	nRes := call(h, "POST", "/t/alpha/api/conversations/"+sent.ConversationID+"/notes", `{"text":"内部材料","attachments":[{"file_id":"`+noteFile.ID.String()+`"}]}`, owner)
+	if nRes.status != http.StatusCreated || json.Unmarshal([]byte(nRes.body), &noteItem) != nil || len(noteItem.Attachments) != 1 {
+		t.Fatalf("创建带附件内部备注失败：%d %s", nRes.status, nRes.body)
+	}
+	noteSignedURL := env.Crypt.SignURL(base+"/attachments/"+noteItem.Attachments[0].ID+"/file", 15*time.Minute)
+	if r := callBearer(h, "GET", noteSignedURL, "", ""); r.status != http.StatusNotFound {
+		t.Fatalf("访客通道不应能读取内部备注附件，实际 %d %s", r.status, r.body)
+	}
+}
+
+// TestPrivateExportsAndReadOnlyHTTP 验证导出文件落在私有盘且需鉴权下载，并验证完整路由下只读代登的写拦截。
+func TestPrivateExportsAndReadOnlyHTTP(t *testing.T) {
+	t.Parallel()
+	env := apptest.New(t)
+	ctx := context.Background()
+	tokens := apitoken.Config{Lifetime: time.Hour, IdleTimeout: time.Hour}
+	hub := broadcast.New(broadcasttest.NewBackend())
+	t.Cleanup(func() { _ = hub.Close() })
+	ops := operation.New(env.DB)
+	exporter := exports.New(env.DB, ops, env.Files, exports.WithDisk(env.Files.PrivateDisk()))
+	a := &App{
+		cfg: config.Default[Config](), db: env.DB, hub: hub, roles: env.Roles,
+		adminLogins: env.AdminLogins, adminTokens: apitoken.NewStore(env.DB, tokens),
+		memberLogins: env.MemberLogins, memberTokens: apitoken.NewStore(env.DB, tokens),
+		contactTokens: apitoken.NewStore(env.DB, tokens), crypt: env.Crypt,
+		llmSettings: llm.NewGroup(env.DB, env.Crypt), files: env.Files, localDisk: env.Disk,
+		ops: ops, exporter: exporter,
+		channels: registry(hub, env.Crypt, env.Files, nil, nil, nil),
+	}
+	h := a.routes(nil)
+
+	alphaTenant, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+		Name: "alpha", Slug: "alpha", OwnerEmail: "owner@alpha.com", OwnerName: "owner", OwnerPassword: "password",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+		Name: "beta", Slug: "beta", OwnerEmail: "owner@beta.com", OwnerName: "beta", OwnerPassword: "password",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	alphaLogin := call(h, "POST", "/api/auth/login", `{"email":"owner@alpha.com","password":"password"}`, nil)
+	betaLogin := call(h, "POST", "/api/auth/login", `{"email":"owner@beta.com","password":"password"}`, nil)
+	if alphaLogin.status != http.StatusNoContent || betaLogin.status != http.StatusNoContent {
+		t.Fatalf("登录失败：alpha=%d beta=%d", alphaLogin.status, betaLogin.status)
+	}
+
+	// 1. 联系人私有导出：未登录/跨租户拒绝，发起人可鉴权下载
+	cExp := contact.NewQueueExport(env.DB, hub, exporter)
+	cStart := call(h, "POST", "/t/alpha/api/contacts/exports", `{"format":"csv"}`, alphaLogin.cookie)
+	if cStart.status != http.StatusAccepted {
+		t.Fatalf("发起联系人导出失败：%d %s", cStart.status, cStart.body)
+	}
+	var cProg contact.ExportProgress
+	if err := json.Unmarshal([]byte(cStart.body), &cProg); err != nil {
+		t.Fatal(err)
+	}
+	alphaSub := identity.Subject{
+		Type: member.Type, ID: alphaTenant.OwnerID, Tenant: alphaTenant.ID,
+		Permissions: auth.WithBase(auth.RolePermissions(auth.ScopeAll, auth.TenantPermissions.Values())),
+	}
+	if err := cExp.Job(ctx, contact.ExportRequest{ID: cProg.ID, Subject: alphaSub}); err != nil {
+		t.Fatal(err)
+	}
+	dlPath := "/t/alpha/api/contacts/exports/" + cProg.ID.String() + "/download"
+	if r := call(h, "GET", dlPath, "", nil); r.status != http.StatusUnauthorized {
+		t.Fatalf("未登录下载导出应返回 401，实际 %d", r.status)
+	}
+	if r := call(h, "GET", dlPath, "", betaLogin.cookie); r.status != http.StatusNotFound && r.status != http.StatusForbidden {
+		t.Fatalf("跨工作区下载导出应返回 404/403，实际 %d", r.status)
+	}
+	dlReq := httptest.NewRequest(http.MethodGet, dlPath, nil)
+	dlReq.AddCookie(alphaLogin.cookie)
+	dlRec := httptest.NewRecorder()
+	h.ServeHTTP(dlRec, dlReq)
+	if dlRec.Code != http.StatusOK || !strings.Contains(dlRec.Header().Get("Content-Disposition"), "attachment") {
+		t.Fatalf("发起人下载联系人导出异常：%d headers=%v", dlRec.Code, dlRec.Header())
+	}
+
+	// 2. 平台租户私有导出：管理员可鉴权下载，普通成员/未登录拒绝
+	realAdmin, err := platformadmin.NewCreate(env.DB, env.Roles, env.AdminLogins).Handle(ctx, identity.Subject{Type: identity.System, ID: "test"}, "平台管理员", "admin@example.com", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	adminSub := identity.Subject{Type: platformadmin.Type, ID: realAdmin.ID, Permissions: auth.PlatformAdmin.Permissions}
+	adminTok, err := a.adminTokens.Login(ctx, adminSub, apitoken.Device{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tExp := tenant.NewQueueExport(env.DB, env.MemberLogins, tenant.Addresses{}, hub, exporter)
+	tRec, err := tExp.Handle(ctx, adminSub, sheet.CSV, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tExp.Job(ctx, tenant.ExportRequest{ID: tRec.ID, Subject: adminSub}); err != nil {
+		t.Fatal(err)
+	}
+	tDlPath := "/admin/api/tenants/exports/" + tRec.ID.String() + "/download"
+	if r := callBearer(h, "GET", tDlPath, "", ""); r.status != http.StatusUnauthorized {
+		t.Fatalf("未登录下载平台导出应返回 401，实际 %d", r.status)
+	}
+	if r := callBearer(h, "GET", tDlPath, "", adminTok); r.status != http.StatusOK {
+		t.Fatalf("管理员下载平台导出应返回 200，实际 %d %s", r.status, r.body)
+	}
+
+	// 3. 完整路由下的只读代登拦截：仅需 conversations:read 的写接口 POST /t/alpha/api/chats/direct 同样返回 403 auth.read_only
+	impReq := httptest.NewRequest(http.MethodPost, "/admin/api/tenants/"+alphaTenant.ID+"/impersonate", strings.NewReader(`{"reason":"只读测试","read_only":true}`))
+	impReq.Header.Set("Content-Type", "application/json")
+	impReq.Header.Set("Authorization", "Bearer "+adminTok)
+	impRec := httptest.NewRecorder()
+	h.ServeHTTP(impRec, impReq)
+	if impRec.Code != http.StatusOK {
+		t.Fatalf("发起只读代登失败：%d %s", impRec.Code, impRec.Body.String())
+	}
+	var impCookie *http.Cookie
+	for _, ck := range impRec.Result().Cookies() {
+		if ck.Name == "__Host-impersonation" {
+			impCookie = ck
+		}
+	}
+	if impCookie == nil {
+		t.Fatalf("期望返回 __Host-impersonation cookie")
+	}
+	if r := call(h, "POST", "/t/alpha/api/chats/direct", `{"member_id":"`+alphaTenant.OwnerID+`"}`, impCookie); r.status != http.StatusForbidden || r.code != "auth.read_only" {
+		t.Fatalf("完整路由只读代登发起会话应返回 403 auth.read_only，实际 %d %s", r.status, r.body)
 	}
 }

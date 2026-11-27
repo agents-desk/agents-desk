@@ -9,11 +9,13 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/activity"
+	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/lang"
+	"agents-desk/internal/member"
 )
 
 // UpdateBody 是修改联系人资料的请求体：只更新传入的非 nil 字段，支持资料页完整保存和侧栏单独保存备注。
@@ -40,16 +42,17 @@ type NotesUpdatedHook func(ctx context.Context, tx database.Tx, tenantID, contac
 // Update 修改工作区中联系人的资料和备注。
 type Update struct {
 	db             *bun.DB
+	roles          *authz.Store
 	onNotesUpdated NotesUpdatedHook
 }
 
-// NewUpdate 返回修改联系人的动作；可选传入 onNotesUpdated 钩子在备注变更后触发异步翻译。
-func NewUpdate(db *bun.DB, onNotesUpdated ...NotesUpdatedHook) *Update {
+// NewUpdate 返回修改联系人的动作；roles 用于校验绑定的内部成员归属当前工作区，onNotesUpdated 可选。
+func NewUpdate(db *bun.DB, roles *authz.Store, onNotesUpdated ...NotesUpdatedHook) *Update {
 	var h NotesUpdatedHook
 	if len(onNotesUpdated) > 0 {
 		h = onNotesUpdated[0]
 	}
-	return &Update{db: db, onNotesUpdated: h}
+	return &Update{db: db, roles: roles, onNotesUpdated: h}
 }
 
 // Handle 由 sub 修改他所在工作区中联系人 id 的资料并记录操作日志，返回修改后的完整资料。
@@ -114,6 +117,13 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 					c.MemberID, cols, props["member_id"] = nil, append(cols, "member_id"), ""
 				}
 			} else if c.MemberID == nil || *c.MemberID != mid {
+				_, isMember, err := a.roles.Permissions(ctx, identity.Ref{Type: member.Type, ID: mid}, sub.Tenant)
+				if err != nil {
+					return errors.Wrap(err, "check member tenant role for contact binding")
+				}
+				if !isMember {
+					return ErrNotFound.New(errorx.Field("member_id"))
+				}
 				exists, err := tx.NewSelect().Table("members").Where("id = ?", mid).Exists(ctx)
 				if err != nil {
 					return errors.Wrap(err, "check member for contact binding")
