@@ -6,9 +6,12 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json"
+	"fmt"
 	"image/png"
 	"io"
 	"log/slog"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -18,13 +21,24 @@ import (
 	gotd "github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/auth"
 	"github.com/gotd/td/telegram/auth/qrlogin"
+	"github.com/gotd/td/telegram/dcs"
+	"github.com/gotd/td/telegram/downloader"
 	"github.com/gotd/td/telegram/uploader"
 	"github.com/gotd/td/tg"
 	"github.com/gotd/td/tgerr"
 	"rsc.io/qr"
 
 	"agents-desk/internal/channel"
+	"agents-desk/internal/conversation"
+	"agents-desk/internal/platformsettings"
 )
+
+// MTProtoConfig 是建立 MTProto 连接所需的应用凭据与可选 SOCKS5 代理配置。
+type MTProtoConfig struct {
+	APIID    int
+	APIHash  string
+	ProxyURL string
+}
 
 // TelegramProfile 是成功登录后的 Telegram 个人号基础资料。
 type TelegramProfile struct {
@@ -45,6 +59,20 @@ type LoginState struct {
 	SessionData  []byte
 }
 
+// IncomingMedia 是从 MTProto 消息中提取的一个入站媒体附件元数据与下载引用。
+type IncomingMedia struct {
+	Kind        conversation.AttachmentKind
+	Filename    string
+	ContentType string
+	Size        int64
+	Width       int
+	Height      int
+	DurationMs  int
+	IsVoice     bool
+	SourceRef   string
+	AutoFetch   bool
+}
+
 // IncomingMessage 是从 MTProto 实时更新或历史拉取中解析出的一条 Telegram 消息。
 type IncomingMessage struct {
 	ExternalChatID string
@@ -53,6 +81,8 @@ type IncomingMessage struct {
 	SenderName     string
 	Text           string
 	FromOwner      bool
+	Mentioned      bool // 群聊中是否 @ 提及或回复了当前账号
+	Media          []IncomingMedia
 	CreatedAt      time.Time
 }
 
@@ -64,21 +94,23 @@ type LoginDriver interface {
 	Close()
 }
 
-// LiveClient 封装单个已连接 Telegram 个人号的 MTProto 操作，供拉取对话列表、历史回填与发送消息使用。
+// LiveClient 封装单个已连接 Telegram 个人号的 MTProto 操作，供拉取对话列表、文件夹、历史回填、媒体下载与发送消息使用。
 type LiveClient interface {
 	ListDialogs(ctx context.Context, limit int) ([]DialogDTO, error)
+	ListFolders(ctx context.Context) ([]FolderDTO, error)
 	FetchHistory(ctx context.Context, peer SyncedPeer, limit int) ([]IncomingMessage, error)
+	DownloadMedia(ctx context.Context, ref string, maxBytes int64) (*channel.FetchedMedia, error)
 	SendText(ctx context.Context, peer SyncedPeer, text string) (int, error)
 	SendMedia(ctx context.Context, peer SyncedPeer, att channel.Attachment, data io.Reader, caption string) (int, error)
 }
 
 // Backend 抽象底层 MTProto 运行时，默认使用纯 Go 的 GotdBackend（github.com/gotd/td）。
 type Backend interface {
-	StartPhoneLogin(ctx context.Context, appID int, appHash, phone string) (LoginDriver, error)
-	StartQRLogin(ctx context.Context, appID int, appHash string) (LoginDriver, error)
-	RunAccount(ctx context.Context, appID int, appHash string, storage session.Storage,
+	StartPhoneLogin(ctx context.Context, cfg MTProtoConfig, phone string) (LoginDriver, error)
+	StartQRLogin(ctx context.Context, cfg MTProtoConfig) (LoginDriver, error)
+	RunAccount(ctx context.Context, cfg MTProtoConfig, storage session.Storage,
 		onMessage func(context.Context, IncomingMessage) error, onReady func(LiveClient)) error
-	RunOneShot(ctx context.Context, appID int, appHash string, storage session.Storage, fn func(context.Context, LiveClient) error) error
+	RunOneShot(ctx context.Context, cfg MTProtoConfig, storage session.Storage, fn func(context.Context, LiveClient) error) error
 }
 
 // GotdBackend 是基于纯 Go github.com/gotd/td 的默认 MTProto 实现。
@@ -87,9 +119,26 @@ type GotdBackend struct{}
 // NewGotdBackend 返回纯 Go MTProto 后端。
 func NewGotdBackend() Backend { return GotdBackend{} }
 
+// gotdOptions 按 MTProtoConfig 构造 gotd.Options；配置了 SOCKS5 代理时通过 platformsettings.DialTelegram 拨号。
+func gotdOptions(cfg MTProtoConfig, storage session.Storage, handler gotd.UpdateHandler, noUpdates bool) gotd.Options {
+	opts := gotd.Options{
+		SessionStorage: storage,
+		UpdateHandler:  handler,
+		NoUpdates:      noUpdates,
+	}
+	if proxyURL := strings.TrimSpace(cfg.ProxyURL); proxyURL != "" {
+		opts.Resolver = dcs.Plain(dcs.PlainOptions{
+			Dial: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return platformsettings.DialTelegram(ctx, proxyURL, network, addr)
+			},
+		})
+	}
+	return opts
+}
+
 // StartPhoneLogin 启动后台 MTProto 客户端并向手机号 phone 发送登录验证码。
-func (GotdBackend) StartPhoneLogin(ctx context.Context, appID int, appHash, phone string) (LoginDriver, error) {
-	d := newGotdLoginDriver(appID, appHash, LoginModePhone, phone)
+func (GotdBackend) StartPhoneLogin(ctx context.Context, cfg MTProtoConfig, phone string) (LoginDriver, error) {
+	d := newGotdLoginDriver(cfg, LoginModePhone, phone)
 	if err := d.waitInitial(ctx); err != nil {
 		d.Close()
 		return nil, err
@@ -98,8 +147,8 @@ func (GotdBackend) StartPhoneLogin(ctx context.Context, appID int, appHash, phon
 }
 
 // StartQRLogin 启动后台 MTProto 客户端并生成首个扫码登录二维码。
-func (GotdBackend) StartQRLogin(ctx context.Context, appID int, appHash string) (LoginDriver, error) {
-	d := newGotdLoginDriver(appID, appHash, LoginModeQR, "")
+func (GotdBackend) StartQRLogin(ctx context.Context, cfg MTProtoConfig) (LoginDriver, error) {
+	d := newGotdLoginDriver(cfg, LoginModeQR, "")
 	if err := d.waitInitial(ctx); err != nil {
 		d.Close()
 		return nil, err
@@ -108,7 +157,7 @@ func (GotdBackend) StartQRLogin(ctx context.Context, appID int, appHash string) 
 }
 
 // RunAccount 为已授权的 Telegram 个人号建立长连接，监听 1:1 单聊与群聊新消息并保持 LiveClient 可用。
-func (GotdBackend) RunAccount(ctx context.Context, appID int, appHash string, storage session.Storage,
+func (GotdBackend) RunAccount(ctx context.Context, cfg MTProtoConfig, storage session.Storage,
 	onMessage func(context.Context, IncomingMessage) error, onReady func(LiveClient)) error {
 	dispatcher := tg.NewUpdateDispatcher()
 	dispatcher.OnNewMessage(func(ctx context.Context, e tg.Entities, u *tg.UpdateNewMessage) error {
@@ -126,10 +175,7 @@ func (GotdBackend) RunAccount(ctx context.Context, appID int, appHash string, st
 		return onMessage(ctx, msg)
 	})
 
-	client := gotd.NewClient(appID, appHash, gotd.Options{
-		SessionStorage: storage,
-		UpdateHandler:  dispatcher,
-	})
+	client := gotd.NewClient(cfg.APIID, cfg.APIHash, gotdOptions(cfg, storage, dispatcher, false))
 	return client.Run(ctx, func(ctx context.Context) error {
 		status, err := client.Auth().Status(ctx)
 		if err != nil {
@@ -146,12 +192,9 @@ func (GotdBackend) RunAccount(ctx context.Context, appID int, appHash string, st
 	})
 }
 
-// RunOneShot 用已保存的会话临时连接 Telegram 执行一次操作（用于独立 worker 进程投递消息时复用）。
-func (GotdBackend) RunOneShot(ctx context.Context, appID int, appHash string, storage session.Storage, fn func(context.Context, LiveClient) error) error {
-	client := gotd.NewClient(appID, appHash, gotd.Options{
-		SessionStorage: storage,
-		NoUpdates:      true,
-	})
+// RunOneShot 用已保存的会话临时连接 Telegram 执行一次操作（用于独立 worker 进程投递消息或拉取媒体时复用）。
+func (GotdBackend) RunOneShot(ctx context.Context, cfg MTProtoConfig, storage session.Storage, fn func(context.Context, LiveClient) error) error {
+	client := gotd.NewClient(cfg.APIID, cfg.APIHash, gotdOptions(cfg, storage, nil, true))
 	return client.Run(ctx, func(ctx context.Context) error {
 		status, err := client.Auth().Status(ctx)
 		if err != nil {
@@ -191,7 +234,7 @@ type submitResult struct {
 	err   error
 }
 
-func newGotdLoginDriver(appID int, appHash string, mode LoginMode, phone string) *gotdLoginDriver {
+func newGotdLoginDriver(cfg MTProtoConfig, mode LoginMode, phone string) *gotdLoginDriver {
 	runCtx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	d := &gotdLoginDriver{
 		cancel:     cancel,
@@ -200,7 +243,7 @@ func newGotdLoginDriver(appID int, appHash string, mode LoginMode, phone string)
 		codeCh:     make(chan codeSubmission, 1),
 		passwordCh: make(chan passwordSubmission, 1),
 	}
-	go d.run(runCtx, appID, appHash, mode, phone)
+	go d.run(runCtx, cfg, mode, phone)
 	return d
 }
 
@@ -265,16 +308,13 @@ func (d *gotdLoginDriver) SubmitPassword(ctx context.Context, password string) (
 	}
 }
 
-func (d *gotdLoginDriver) run(ctx context.Context, appID int, appHash string, mode LoginMode, phone string) {
+func (d *gotdLoginDriver) run(ctx context.Context, cfg MTProtoConfig, mode LoginMode, phone string) {
 	dispatcher := tg.NewUpdateDispatcher()
 	loggedIn := qrlogin.OnLoginToken(dispatcher)
-	client := gotd.NewClient(appID, appHash, gotd.Options{
-		SessionStorage: d.storage,
-		UpdateHandler:  dispatcher,
-	})
+	client := gotd.NewClient(cfg.APIID, cfg.APIHash, gotdOptions(cfg, d.storage, dispatcher, false))
 	err := client.Run(ctx, func(ctx context.Context) error {
 		if mode == LoginModeQR {
-			return d.runQR(ctx, client, appID, appHash, loggedIn)
+			return d.runQR(ctx, client, cfg.APIID, cfg.APIHash, loggedIn)
 		}
 		return d.runPhone(ctx, client, phone)
 	})
@@ -430,102 +470,282 @@ func encodeQRDataURL(token qrlogin.Token) (string, error) {
 	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(buf.Bytes()), nil
 }
 
-// gotdLiveClient 实现 LiveClient，直接通过 MTProto tg.Client 读取对话、拉取历史与发送文字/媒体消息。
+// dialogEntry 是带联系人标记的内部对话项，供 ListDialogs 与 ListFolders 共享解析逻辑。
+type dialogEntry struct {
+	dto       DialogDTO
+	isContact bool
+}
+
+// gotdLiveClient 实现 LiveClient，直接通过 MTProto tg.Client 读取对话、文件夹、拉取历史、下载媒体与发送文字/媒体消息。
 type gotdLiveClient struct {
 	api *tg.Client
 }
 
+// listDialogsWithMeta 按分页拉取最多 limit 条 1:1 单聊与超级群/普通群对话。
+func (c *gotdLiveClient) listDialogsWithMeta(ctx context.Context, limit int) ([]dialogEntry, error) {
+	if limit <= 0 {
+		limit = 300
+	}
+	if limit > 300 {
+		limit = 300
+	}
+	const pageSize = 100
+
+	var offsetPeer tg.InputPeerClass = &tg.InputPeerEmpty{}
+	var offsetDate, offsetID int
+	seen := map[string]bool{}
+	out := make([]dialogEntry, 0, min(limit, pageSize))
+
+	for len(out) < limit {
+		batch := min(pageSize, limit-len(out))
+		res, err := c.api.MessagesGetDialogs(ctx, &tg.MessagesGetDialogsRequest{
+			OffsetDate: offsetDate,
+			OffsetID:   offsetID,
+			OffsetPeer: offsetPeer,
+			Limit:      batch,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "telegram get dialogs")
+		}
+		var dialogs []tg.DialogClass
+		var messages []tg.MessageClass
+		var users []tg.UserClass
+		var chats []tg.ChatClass
+		switch d := res.(type) {
+		case *tg.MessagesDialogs:
+			dialogs, messages, users, chats = d.Dialogs, d.Messages, d.Users, d.Chats
+		case *tg.MessagesDialogsSlice:
+			dialogs, messages, users, chats = d.Dialogs, d.Messages, d.Users, d.Chats
+		default:
+			return out, nil
+		}
+		if len(dialogs) == 0 {
+			break
+		}
+
+		msgDates := map[int]int{}
+		for _, mc := range messages {
+			switch m := mc.(type) {
+			case *tg.Message:
+				msgDates[m.ID] = m.Date
+			case *tg.MessageService:
+				msgDates[m.ID] = m.Date
+			}
+		}
+		userMap := map[int64]*tg.User{}
+		for _, uc := range users {
+			if u, ok := uc.(*tg.User); ok {
+				userMap[u.ID] = u
+			}
+		}
+		chatMap := map[int64]*tg.Chat{}
+		chanMap := map[int64]*tg.Channel{}
+		for _, cc := range chats {
+			switch ch := cc.(type) {
+			case *tg.Chat:
+				chatMap[ch.ID] = ch
+			case *tg.Channel:
+				chanMap[ch.ID] = ch
+			}
+		}
+
+		var lastPeer tg.InputPeerClass
+		var lastMsgID, lastDate int
+		for _, dc := range dialogs {
+			dlg, ok := dc.(*tg.Dialog)
+			if !ok {
+				continue
+			}
+			lastMsgID = dlg.TopMessage
+			if dt, ok := msgDates[dlg.TopMessage]; ok {
+				lastDate = dt
+			}
+			switch p := dlg.Peer.(type) {
+			case *tg.PeerUser:
+				u, ok := userMap[p.UserID]
+				if !ok {
+					continue
+				}
+				lastPeer = &tg.InputPeerUser{UserID: u.ID, AccessHash: u.AccessHash}
+				if u.Self || u.Bot || u.Deleted {
+					continue
+				}
+				key := formatPeerKey("user", u.ID)
+				if seen[key] {
+					continue
+				}
+				seen[key] = true
+				out = append(out, dialogEntry{
+					dto: DialogDTO{SyncedPeer: SyncedPeer{
+						ExternalChatID: key,
+						PeerType:       "user",
+						PeerID:         u.ID,
+						AccessHash:     u.AccessHash,
+						Title:          formatUserName(u),
+						Username:       u.Username,
+						IsGroup:        false,
+					}},
+					isContact: u.Contact,
+				})
+			case *tg.PeerChat:
+				ch, ok := chatMap[p.ChatID]
+				if !ok {
+					continue
+				}
+				lastPeer = &tg.InputPeerChat{ChatID: ch.ID}
+				if ch.Deactivated || ch.Left {
+					continue
+				}
+				key := formatPeerKey("chat", ch.ID)
+				if seen[key] {
+					continue
+				}
+				seen[key] = true
+				out = append(out, dialogEntry{
+					dto: DialogDTO{SyncedPeer: SyncedPeer{
+						ExternalChatID: key,
+						PeerType:       "chat",
+						PeerID:         ch.ID,
+						Title:          ch.Title,
+						IsGroup:        true,
+					}},
+				})
+			case *tg.PeerChannel:
+				ch, ok := chanMap[p.ChannelID]
+				if !ok {
+					continue
+				}
+				lastPeer = &tg.InputPeerChannel{ChannelID: ch.ID, AccessHash: ch.AccessHash}
+				// 仅同步群聊（Megagroup），忽略单向广播频道
+				if !ch.Megagroup || ch.Left {
+					continue
+				}
+				key := formatPeerKey("channel", ch.ID)
+				if seen[key] {
+					continue
+				}
+				seen[key] = true
+				out = append(out, dialogEntry{
+					dto: DialogDTO{SyncedPeer: SyncedPeer{
+						ExternalChatID: key,
+						PeerType:       "channel",
+						PeerID:         ch.ID,
+						AccessHash:     ch.AccessHash,
+						Title:          ch.Title,
+						Username:       ch.Username,
+						IsGroup:        true,
+					}},
+				})
+			}
+		}
+		if len(dialogs) < batch || lastPeer == nil || (lastDate == offsetDate && lastMsgID == offsetID) {
+			break
+		}
+		offsetPeer = lastPeer
+		offsetID = lastMsgID
+		offsetDate = lastDate
+	}
+	return out, nil
+}
+
 func (c *gotdLiveClient) ListDialogs(ctx context.Context, limit int) ([]DialogDTO, error) {
-	if limit <= 0 || limit > 100 {
-		limit = 100
-	}
-	res, err := c.api.MessagesGetDialogs(ctx, &tg.MessagesGetDialogsRequest{
-		OffsetPeer: &tg.InputPeerEmpty{},
-		Limit:      limit,
-	})
+	entries, err := c.listDialogsWithMeta(ctx, limit)
 	if err != nil {
-		return nil, errors.Wrap(err, "telegram get dialogs")
+		return nil, err
 	}
-	var dialogs []tg.DialogClass
-	var users []tg.UserClass
-	var chats []tg.ChatClass
-	switch d := res.(type) {
-	case *tg.MessagesDialogs:
-		dialogs, users, chats = d.Dialogs, d.Users, d.Chats
-	case *tg.MessagesDialogsSlice:
-		dialogs, users, chats = d.Dialogs, d.Users, d.Chats
-	default:
-		return []DialogDTO{}, nil
+	out := make([]DialogDTO, len(entries))
+	for i := range entries {
+		out[i] = entries[i].dto
+	}
+	return out, nil
+}
+
+// ListFolders 读取成员在 Telegram 客户端中创建的文件夹（Dialog Filter），并解析每个文件夹匹配的可同步单聊与群聊。
+func (c *gotdLiveClient) ListFolders(ctx context.Context) ([]FolderDTO, error) {
+	filtersRes, err := c.api.MessagesGetDialogFilters(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "telegram get dialog filters")
+	}
+	entries, err := c.listDialogsWithMeta(ctx, 300)
+	if err != nil {
+		return nil, err
+	}
+	byKey := make(map[string]SyncedPeer, len(entries))
+	for _, e := range entries {
+		byKey[e.dto.ExternalChatID] = e.dto.SyncedPeer
 	}
 
-	userMap := map[int64]*tg.User{}
-	for _, uc := range users {
-		if u, ok := uc.(*tg.User); ok {
-			userMap[u.ID] = u
-		}
-	}
-	chatMap := map[int64]*tg.Chat{}
-	chanMap := map[int64]*tg.Channel{}
-	for _, cc := range chats {
-		switch ch := cc.(type) {
-		case *tg.Chat:
-			chatMap[ch.ID] = ch
-		case *tg.Channel:
-			chanMap[ch.ID] = ch
-		}
-	}
-
-	out := make([]DialogDTO, 0, len(dialogs))
-	for _, dc := range dialogs {
-		dlg, ok := dc.(*tg.Dialog)
-		if !ok {
-			continue
-		}
-		switch p := dlg.Peer.(type) {
-		case *tg.PeerUser:
-			u, ok := userMap[p.UserID]
-			if !ok || u.Self || u.Bot || u.Deleted {
+	out := make([]FolderDTO, 0, len(filtersRes.Filters))
+	for _, fc := range filtersRes.Filters {
+		switch f := fc.(type) {
+		case *tg.DialogFilter:
+			title := strings.TrimSpace(f.Title.Text)
+			if f.ID <= 0 || title == "" {
 				continue
 			}
-			out = append(out, DialogDTO{SyncedPeer: SyncedPeer{
-				ExternalChatID: formatPeerKey("user", u.ID),
-				PeerType:       "user",
-				PeerID:         u.ID,
-				AccessHash:     u.AccessHash,
-				Title:          formatUserName(u),
-				Username:       u.Username,
-				IsGroup:        false,
-			}})
-		case *tg.PeerChat:
-			ch, ok := chatMap[p.ChatID]
-			if !ok || ch.Deactivated || ch.Left {
+			includeSet := inputPeerKeys(f.IncludePeers, f.PinnedPeers)
+			excludeSet := inputPeerKeys(f.ExcludePeers)
+			peers := make([]SyncedPeer, 0)
+			added := map[string]bool{}
+			for _, e := range entries {
+				k := e.dto.ExternalChatID
+				if excludeSet[k] || added[k] {
+					continue
+				}
+				matched := includeSet[k] ||
+					(!e.dto.IsGroup && e.isContact && f.Contacts) ||
+					(!e.dto.IsGroup && !e.isContact && f.NonContacts) ||
+					(e.dto.IsGroup && f.Groups)
+				if matched {
+					added[k] = true
+					peers = append(peers, e.dto.SyncedPeer)
+				}
+			}
+			out = append(out, FolderDTO{
+				ID:        f.ID,
+				Title:     title,
+				PeerCount: len(peers),
+				Peers:     peers,
+			})
+		case *tg.DialogFilterChatlist:
+			title := strings.TrimSpace(f.Title.Text)
+			if f.ID <= 0 || title == "" {
 				continue
 			}
-			out = append(out, DialogDTO{SyncedPeer: SyncedPeer{
-				ExternalChatID: formatPeerKey("chat", ch.ID),
-				PeerType:       "chat",
-				PeerID:         ch.ID,
-				Title:          ch.Title,
-				IsGroup:        true,
-			}})
-		case *tg.PeerChannel:
-			ch, ok := chanMap[p.ChannelID]
-			// 仅同步群聊（Megagroup），忽略单向广播频道
-			if !ok || !ch.Megagroup || ch.Left {
-				continue
+			includeSet := inputPeerKeys(f.IncludePeers, f.PinnedPeers)
+			peers := make([]SyncedPeer, 0, len(includeSet))
+			for k := range includeSet {
+				if p, ok := byKey[k]; ok {
+					peers = append(peers, p)
+				}
 			}
-			out = append(out, DialogDTO{SyncedPeer: SyncedPeer{
-				ExternalChatID: formatPeerKey("channel", ch.ID),
-				PeerType:       "channel",
-				PeerID:         ch.ID,
-				AccessHash:     ch.AccessHash,
-				Title:          ch.Title,
-				Username:       ch.Username,
-				IsGroup:        true,
-			}})
+			out = append(out, FolderDTO{
+				ID:        f.ID,
+				Title:     title,
+				PeerCount: len(peers),
+				Peers:     peers,
+			})
 		}
 	}
 	return out, nil
+}
+
+// inputPeerKeys 提取 InputPeerClass 切片中的外部会话键集合。
+func inputPeerKeys(lists ...[]tg.InputPeerClass) map[string]bool {
+	set := map[string]bool{}
+	for _, list := range lists {
+		for _, ip := range list {
+			switch p := ip.(type) {
+			case *tg.InputPeerUser:
+				set[formatPeerKey("user", p.UserID)] = true
+			case *tg.InputPeerChat:
+				set[formatPeerKey("chat", p.ChatID)] = true
+			case *tg.InputPeerChannel:
+				set[formatPeerKey("channel", p.ChannelID)] = true
+			}
+		}
+	}
+	return set
 }
 
 func (c *gotdLiveClient) FetchHistory(ctx context.Context, peer SyncedPeer, limit int) ([]IncomingMessage, error) {
@@ -589,6 +809,109 @@ func (c *gotdLiveClient) FetchHistory(ctx context.Context, peer SyncedPeer, limi
 	return out, nil
 }
 
+// mediaRef 是保存在 IncomingAttachment.SourceRef 中的 MTProto 文件下载定位信息。
+type mediaRef struct {
+	Kind        string `json:"k"`
+	ID          int64  `json:"id"`
+	AccessHash  int64  `json:"ah"`
+	FileRef     []byte `json:"fr,omitempty"`
+	ThumbSize   string `json:"ts,omitempty"`
+	Filename    string `json:"fn,omitempty"`
+	ContentType string `json:"ct,omitempty"`
+	Size        int64  `json:"sz,omitempty"`
+}
+
+func encodeMediaRef(r mediaRef) string {
+	b, err := json.Marshal(r)
+	if err != nil {
+		return ""
+	}
+	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+func decodeMediaRef(raw string) (mediaRef, error) {
+	var r mediaRef
+	b, err := base64.RawURLEncoding.DecodeString(strings.TrimSpace(raw))
+	if err != nil {
+		return r, channel.ErrMediaUnavailable.New()
+	}
+	if err := json.Unmarshal(b, &r); err != nil || r.ID == 0 {
+		return r, channel.ErrMediaUnavailable.New()
+	}
+	return r, nil
+}
+
+// limitedWriter 限制单次媒体流写入的字节上限，超过 maxBytes 时立刻终止下载并返回 channel.ErrMediaTooLarge。
+type limitedWriter struct {
+	w        io.Writer
+	written  int64
+	maxBytes int64
+}
+
+func (l *limitedWriter) Write(p []byte) (int, error) {
+	if l.maxBytes > 0 && l.written+int64(len(p)) > l.maxBytes {
+		return 0, channel.ErrMediaTooLarge.New()
+	}
+	n, err := l.w.Write(p)
+	l.written += int64(n)
+	return n, err
+}
+
+// DownloadMedia 根据编码的 MTProto mediaRef 流式下载图片或文档附件正文。
+func (c *gotdLiveClient) DownloadMedia(ctx context.Context, ref string, maxBytes int64) (*channel.FetchedMedia, error) {
+	mr, err := decodeMediaRef(ref)
+	if err != nil {
+		return nil, err
+	}
+	if maxBytes > 0 && mr.Size > maxBytes {
+		return nil, channel.ErrMediaTooLarge.New()
+	}
+	var loc tg.InputFileLocationClass
+	switch mr.Kind {
+	case "photo":
+		loc = &tg.InputPhotoFileLocation{
+			ID:            mr.ID,
+			AccessHash:    mr.AccessHash,
+			FileReference: mr.FileRef,
+			ThumbSize:     mr.ThumbSize,
+		}
+	case "doc":
+		loc = &tg.InputDocumentFileLocation{
+			ID:            mr.ID,
+			AccessHash:    mr.AccessHash,
+			FileReference: mr.FileRef,
+			ThumbSize:     mr.ThumbSize,
+		}
+	default:
+		return nil, channel.ErrMediaUnavailable.New()
+	}
+
+	pr, pw := io.Pipe()
+	go func() {
+		lw := &limitedWriter{w: pw, maxBytes: maxBytes}
+		_, dlErr := downloader.NewDownloader().Download(c.api, loc).Stream(ctx, lw)
+		if dlErr != nil {
+			if tgerr.Is(dlErr, "FILE_REFERENCE_EXPIRED", "FILE_ID_INVALID", "LOCATION_INVALID") {
+				dlErr = channel.ErrMediaUnavailable.Wrap(dlErr)
+			}
+			_ = pw.CloseWithError(dlErr)
+			return
+		}
+		_ = pw.Close()
+	}()
+
+	size := mr.Size
+	if size <= 0 {
+		size = -1
+	}
+	return &channel.FetchedMedia{
+		Body:        pr,
+		Filename:    mr.Filename,
+		ContentType: mr.ContentType,
+		Size:        size,
+	}, nil
+}
+
 func (c *gotdLiveClient) SendText(ctx context.Context, peer SyncedPeer, text string) (int, error) {
 	inputPeer, err := peer.toInputPeer()
 	if err != nil {
@@ -644,14 +967,15 @@ func (c *gotdLiveClient) SendMedia(ctx context.Context, peer SyncedPeer, att cha
 	return extractMessageID(upd), nil
 }
 
-// parseTGMessage 将 MTProto 消息对象解析为统一的 IncomingMessage，过滤空文本与系统服务消息。
+// parseTGMessage 将 MTProto 消息对象解析为统一的 IncomingMessage，同时提取正文文本与图片/文档/音视频媒体元数据。
 func parseTGMessage(mc tg.MessageClass, e tg.Entities) (IncomingMessage, bool) {
 	m, ok := mc.(*tg.Message)
 	if !ok {
 		return IncomingMessage{}, false
 	}
 	text := strings.TrimSpace(m.Message)
-	if text == "" {
+	media := extractTGMedia(m.Media)
+	if text == "" && len(media) == 0 {
 		return IncomingMessage{}, false
 	}
 	extChatID, peerType, peerID, ok := peerKeyFromTG(m.PeerID)
@@ -676,8 +1000,135 @@ func parseTGMessage(mc tg.MessageClass, e tg.Entities) (IncomingMessage, bool) {
 		SenderName:     senderName,
 		Text:           text,
 		FromOwner:      m.Out,
+		Mentioned:      m.Mentioned,
+		Media:          media,
 		CreatedAt:      time.Unix(int64(m.Date), 0).UTC(),
 	}, true
+}
+
+// extractTGMedia 从 MTProto MessageMediaClass 中解析照片或文档附件的元数据与下载引用。
+func extractTGMedia(mc tg.MessageMediaClass) []IncomingMedia {
+	if mc == nil {
+		return nil
+	}
+	switch m := mc.(type) {
+	case *tg.MessageMediaPhoto:
+		p, ok := m.Photo.(*tg.Photo)
+		if !ok || p == nil {
+			return nil
+		}
+		var bestType string
+		var bestW, bestH int
+		var bestSize int64
+		for _, sz := range p.Sizes {
+			switch s := sz.(type) {
+			case *tg.PhotoSize:
+				if s.W*s.H >= bestW*bestH {
+					bestType, bestW, bestH, bestSize = s.Type, s.W, s.H, int64(s.Size)
+				}
+			case *tg.PhotoSizeProgressive:
+				if s.W*s.H >= bestW*bestH {
+					bestType, bestW, bestH = s.Type, s.W, s.H
+					if len(s.Sizes) > 0 {
+						bestSize = int64(s.Sizes[len(s.Sizes)-1])
+					}
+				}
+			}
+		}
+		if bestType == "" {
+			return nil
+		}
+		filename := fmt.Sprintf("photo_%d.jpg", p.ID)
+		ref := encodeMediaRef(mediaRef{
+			Kind:        "photo",
+			ID:          p.ID,
+			AccessHash:  p.AccessHash,
+			FileRef:     p.FileReference,
+			ThumbSize:   bestType,
+			Filename:    filename,
+			ContentType: "image/jpeg",
+			Size:        bestSize,
+		})
+		return []IncomingMedia{{
+			Kind:        conversation.AttachmentImage,
+			Filename:    filename,
+			ContentType: "image/jpeg",
+			Size:        bestSize,
+			Width:       bestW,
+			Height:      bestH,
+			SourceRef:   ref,
+			AutoFetch:   true,
+		}}
+	case *tg.MessageMediaDocument:
+		doc, ok := m.Document.(*tg.Document)
+		if !ok || doc == nil {
+			return nil
+		}
+		mime := strings.TrimSpace(doc.MimeType)
+		if mime == "" {
+			mime = "application/octet-stream"
+		}
+		var filename string
+		var width, height, durationMs int
+		var isVoice bool
+		kind := conversation.AttachmentFile
+		if strings.HasPrefix(mime, "image/") {
+			kind = conversation.AttachmentImage
+		} else if strings.HasPrefix(mime, "video/") || m.Video {
+			kind = conversation.AttachmentVideo
+		} else if strings.HasPrefix(mime, "audio/") || m.Voice {
+			kind = conversation.AttachmentAudio
+			isVoice = m.Voice
+		}
+		for _, attr := range doc.Attributes {
+			switch a := attr.(type) {
+			case *tg.DocumentAttributeFilename:
+				filename = strings.TrimSpace(a.FileName)
+			case *tg.DocumentAttributeImageSize:
+				width, height = a.W, a.H
+			case *tg.DocumentAttributeVideo:
+				kind = conversation.AttachmentVideo
+				width, height = a.W, a.H
+				durationMs = int(a.Duration * 1000)
+			case *tg.DocumentAttributeAudio:
+				kind = conversation.AttachmentAudio
+				durationMs = a.Duration * 1000
+				if a.Voice {
+					isVoice = true
+				}
+			}
+		}
+		if filename == "" {
+			filename = fmt.Sprintf("document_%d", doc.ID)
+		}
+		ref := encodeMediaRef(mediaRef{
+			Kind:        "doc",
+			ID:          doc.ID,
+			AccessHash:  doc.AccessHash,
+			FileRef:     doc.FileReference,
+			Filename:    filename,
+			ContentType: mime,
+			Size:        doc.Size,
+		})
+		// 图片、语音与 5 MiB 以内小文件自动拉取；视频与大文件保持 remote 按需点击拉取
+		autoFetch := kind == conversation.AttachmentImage ||
+			(kind == conversation.AttachmentAudio && doc.Size <= int64(conversation.MaxAudioSize)) ||
+			(kind == conversation.AttachmentFile && doc.Size > 0 && doc.Size <= 5*1024*1024)
+		return []IncomingMedia{{
+			Kind:        kind,
+			Filename:    filename,
+			ContentType: mime,
+			Size:        doc.Size,
+			Width:       width,
+			Height:      height,
+			DurationMs:  durationMs,
+			IsVoice:     isVoice,
+			SourceRef:   ref,
+			AutoFetch:   autoFetch,
+		}}
+	default:
+		return nil
+	}
 }
 
 func resolveEntityName(peerType string, id int64, e tg.Entities) string {

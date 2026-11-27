@@ -25,6 +25,7 @@ func RegisterRoutes(api *rest.API, requireManage func(*huma.Operation), db *bun.
 	rest.Register(api, route("mail-settings-update", http.MethodPut, "/settings/mail", "保存邮件服务设置"), NewSaveMail(db, mailGroup).HTTP)
 	rest.Register(api, route("telegram-settings-get", http.MethodGet, "/settings/telegram", "读取 Telegram API 凭据设置"), NewGetTelegram(tgGroup).HTTP)
 	rest.Register(api, route("telegram-settings-update", http.MethodPut, "/settings/telegram", "保存 Telegram API 凭据设置"), NewSaveTelegram(db, tgGroup).HTTP)
+	rest.Register(api, route("telegram-settings-test", http.MethodPost, "/settings/telegram/test", "测试 Telegram MTProto 网络连通性"), NewTestTelegram(tgGroup).HTTP)
 
 	api.Settings(rest.Settings{
 		Name:   "general",

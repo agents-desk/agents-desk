@@ -1,5 +1,5 @@
-import { Avatar, Button, FileButton, Group, Stack, Text } from "@mantine/core"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { Avatar, Button, FileButton, Group, Stack, Text, TextInput } from "@mantine/core"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { type FieldInput, notifyError, SecretInput, SettingsPage, useT } from "@go-tenon/ui"
 import { useEffect, useState } from "react"
@@ -37,6 +37,53 @@ const APIHashField: FieldInput = ({ field, label, value, onChange, error, disabl
     onChange={(e) => onChange?.(e.currentTarget.value)}
   />
 )
+
+// ProxyURLField 允许输入 SOCKS5 代理地址，并在保存前直接发起到 Telegram DC 的连通性测试。
+const ProxyURLField: FieldInput = ({ field, label, value, onChange, error, disabled }) => {
+  const t = useT()
+  const [result, setResult] = useState<{ ok: boolean; latency_ms: number; error?: string } | null>(null)
+  const strValue = typeof value === "string" ? value : ""
+
+  const testConn = useMutation({
+    mutationFn: () => api.telegram.settingsTest({ proxy_url: strValue.trim() || undefined }),
+    onSuccess: (res) => setResult(res),
+    onError: (err) => {
+      setResult(null)
+      notifyError(err)
+    },
+  })
+
+  return (
+    <Stack gap={6}>
+      <Group align="flex-end" gap="xs" wrap="nowrap">
+        <TextInput
+          style={{ flex: 1 }}
+          label={label}
+          description={field.description}
+          placeholder={t("settings.telegram_proxy_placeholder")}
+          required={field.required}
+          error={error}
+          disabled={disabled}
+          value={strValue}
+          onChange={(e) => {
+            setResult(null)
+            onChange?.(e.currentTarget.value)
+          }}
+        />
+        <Button variant="default" size="sm" loading={testConn.isPending} disabled={disabled} onClick={() => testConn.mutate()}>
+          {t("settings.telegram_test")}
+        </Button>
+      </Group>
+      {result && (
+        <Text size="xs" c={result.ok ? "green" : "red"}>
+          {result.ok
+            ? t("settings.telegram_test_ok", { ms: result.latency_ms })
+            : t("settings.telegram_test_failed", { error: result.error ?? "" })}
+        </Text>
+      )}
+    </Stack>
+  )
+}
 
 // LogoField 上传平台 Logo 为临时文件并回填 logo_file_id，保存表单后服务端正式确认并同步至公开站点信息。
 const LogoField: FieldInput = ({ label, value, onChange, error, disabled }) => {
@@ -116,7 +163,11 @@ function GeneralSettingsPage() {
       groups={[
         { model: generalSettings, description: t("settings.general_description"), inputs: { logo_file_id: LogoField } },
         { model: mailSettings, description: t("settings.mail_description"), inputs: { api_key: APIKeyField } },
-        { model: telegramApiSettings, description: t("settings.telegram_description"), inputs: { api_hash: APIHashField } },
+        {
+          model: telegramApiSettings,
+          description: t("settings.telegram_description"),
+          inputs: { api_hash: APIHashField, proxy_url: ProxyURLField },
+        },
       ]}
     />
   )

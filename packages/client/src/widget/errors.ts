@@ -229,6 +229,8 @@ export const PlatformsettingsErrors = {
   RequiredField: "platform_settings.required_field",
   /** ErrTelegramCredentialsIncomplete 表示配置 Telegram API 凭据时 API ID 与 API Hash 必须同时填写。 */
   TelegramCredentialsIncomplete: "platform_settings.telegram_incomplete",
+  /** ErrInvalidProxyURL 表示填写的 Telegram 出口代理地址格式无效（仅支持 socks5:// 或 socks5h://）。 */
+  InvalidProxyURL: "platform_settings.invalid_proxy_url",
 } as const
 
 /** agents-desk/internal/role 的错误码。 */

@@ -2331,18 +2331,34 @@ export interface TgaccountAccountDTO {
   id: string
   /** 最近一次连接错误信息 */
   last_error?: string
+  /** 最近一次收到或同步消息的时间 */
+  last_synced_at?: string
   /** 账号显示名称，便于在商务沟通列表中区分多个个人号 */
   name: string
   /** 绑定的手机号（已脱敏展示） */
   phone?: string
   /** 连接状态：connected、disconnected 或 auth_expired */
   status: TgaccountStatus
+  /** 同步策略与行为偏好 */
+  sync: TgaccountSyncConfig
   /** 已勾选同步的 1:1 单聊与群聊列表 */
   synced_peers: TgaccountSyncedPeer[]
   telegram_user_id?: number
   updated_at: string
   /** Telegram 用户名 */
   username?: string
+}
+
+export interface TgaccountBackfillPeerInputBody {
+  /** 已同步会话的外部标识 */
+  external_chat_id: string
+  /** 拉取最近历史消息条数（1-50，默认 20） */
+  limit?: number
+}
+
+export interface TgaccountBackfillPeerOutputBody {
+  /** 本次实际新增导入的消息条数 */
+  imported: number
 }
 
 export interface TgaccountDialogDTO {
@@ -2352,6 +2368,8 @@ export interface TgaccountDialogDTO {
   external_chat_id: string
   /** 是否为 Telegram 群聊或超级群 */
   is_group: boolean
+  /** 是否暂时暂停同步该会话（保留在列表中，恢复后继续同步） */
+  paused?: boolean
   /** Telegram 数字 ID */
   peer_id: number
   /** Telegram 对端类型：user、chat 或 channel */
@@ -2362,6 +2380,19 @@ export interface TgaccountDialogDTO {
   title: string
   /** 对方或群聊的 @username */
   username?: string
+}
+
+export interface TgaccountFolderDTO {
+  /** Telegram 文件夹 ID */
+  id: number
+  /** 当前匹配到的单聊/群聊数量 */
+  peer_count: number
+  /** 该文件夹包含的可同步单聊与群聊 */
+  peers: TgaccountSyncedPeer[]
+  /** 当前是否已被勾选为同步文件夹 */
+  synced: boolean
+  /** 文件夹名称 */
+  title: string
 }
 
 export interface TgaccountListAccountsOutputBody {
@@ -2391,6 +2422,8 @@ export interface TgaccountLoginSessionDTO {
 export type TgaccountLoginStep = "awaiting_qr" | "awaiting_code" | "awaiting_password" | "connected" | "failed"
 
 export interface TgaccountStartLoginInputBody {
+  /** 可选：原地重新授权已有 Telegram 个人号时传入其渠道 ID */
+  account_id?: string
   /** 登录方式：qr（默认扫码）或 phone（手机号验证码） */
   mode?: TgaccountLoginMode
   /** 可选：自定义该账号在工作区中的显示名称 */
@@ -2411,6 +2444,21 @@ export interface TgaccountSubmitPasswordInputBody {
   password: string
 }
 
+export interface TgaccountSyncConfig {
+  /** 新加入同步的会话默认拉取的历史消息条数（0-50） */
+  backfill_limit: number
+  /** 文件夹模式下选中的 Telegram 文件夹 ID 列表 */
+  folder_ids?: number[]
+  /** 群聊消息同步策略：all 或 mentions_only */
+  group_mode: "all" | "mentions_only"
+  /** 同步范围模式：whitelist（精细白名单）或 folders（按 Telegram 文件夹） */
+  mode: "whitelist" | "folders"
+  /** 是否同步合作方发来的图片与文档附件 */
+  sync_media: boolean
+  /** 是否同步自己在手机/桌面 Telegram 客户端发出的消息 */
+  sync_outgoing: boolean
+}
+
 export interface TgaccountSyncedPeer {
   /** MTProto 访问所需的 access_hash */
   access_hash?: number
@@ -2418,6 +2466,8 @@ export interface TgaccountSyncedPeer {
   external_chat_id: string
   /** 是否为 Telegram 群聊或超级群 */
   is_group: boolean
+  /** 是否暂时暂停同步该会话（保留在列表中，恢复后继续同步） */
+  paused?: boolean
   /** Telegram 数字 ID */
   peer_id: number
   /** Telegram 对端类型：user、chat 或 channel */
@@ -2429,8 +2479,10 @@ export interface TgaccountSyncedPeer {
 }
 
 export interface TgaccountUpdateAccountInputBody {
+  business?: ChannelBusinessPolicy
   enabled: boolean
   name: string
+  sync?: TgaccountSyncConfig
 }
 
 export interface TgaccountUpdateSyncedPeersInputBody {
@@ -4069,6 +4121,20 @@ export function createClient(options: ClientOptions) {
       disconnect: (id: string): Promise<void> =>
         rt.request<void>({ method: "DELETE", path: `/my/telegram-accounts/${encodeURIComponent(id)}` }),
       /**
+       * 读取 Telegram 客户端文件夹列表
+       *
+       * GET /my/telegram-accounts/{id}/folders
+       */
+      folders: (id: string): Promise<TgaccountFolderDTO[]> =>
+        rt.request<TgaccountFolderDTO[]>({ method: "GET", path: `/my/telegram-accounts/${encodeURIComponent(id)}/folders` }),
+      /**
+       * 读取单个 Telegram 个人号详情
+       *
+       * GET /my/telegram-accounts/{id}
+       */
+      get: (id: string): Promise<TgaccountAccountDTO> =>
+        rt.request<TgaccountAccountDTO>({ method: "GET", path: `/my/telegram-accounts/${encodeURIComponent(id)}` }),
+      /**
        * 我的 Telegram 个人号列表
        *
        * GET /my/telegram-accounts
@@ -4103,6 +4169,20 @@ export function createClient(options: ClientOptions) {
        */
       loginStart: (body: TgaccountStartLoginInputBody): Promise<TgaccountLoginSessionDTO> =>
         rt.request<TgaccountLoginSessionDTO>({ method: "POST", path: `/my/telegram-accounts/login/start`, body }),
+      /**
+       * 手动回填单个会话的最近历史消息
+       *
+       * POST /my/telegram-accounts/{id}/peers/backfill
+       */
+      peerBackfill: (id: string, body: TgaccountBackfillPeerInputBody): Promise<TgaccountBackfillPeerOutputBody> =>
+        rt.request<TgaccountBackfillPeerOutputBody>({ method: "POST", path: `/my/telegram-accounts/${encodeURIComponent(id)}/peers/backfill`, body }),
+      /**
+       * 手动重连 Telegram 个人号
+       *
+       * POST /my/telegram-accounts/{id}/reconnect
+       */
+      reconnect: (id: string): Promise<TgaccountAccountDTO> =>
+        rt.request<TgaccountAccountDTO>({ method: "POST", path: `/my/telegram-accounts/${encodeURIComponent(id)}/reconnect` }),
       /**
        * 更新同步的 Telegram 单聊与群聊白名单
        *

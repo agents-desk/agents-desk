@@ -10,6 +10,7 @@ import (
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/auth"
+	"agents-desk/internal/channel"
 )
 
 // ListAccountsOutput 是当前成员 Telegram 个人号列表及平台配置状态响应。
@@ -23,9 +24,10 @@ type ListAccountsOutput struct {
 // StartLoginInput 是启动交互式登录的请求。
 type StartLoginInput struct {
 	Body struct {
-		Mode  LoginMode `json:"mode,omitempty" doc:"登录方式：qr（默认扫码）或 phone（手机号验证码）"`
-		Name  string    `json:"name,omitempty" maxLength:"60" doc:"可选：自定义该账号在工作区中的显示名称"`
-		Phone string    `json:"phone,omitempty" maxLength:"32" doc:"手机号登录时必填，带国际区号，例如 +8613800138000"`
+		Mode      LoginMode `json:"mode,omitempty" doc:"登录方式：qr（默认扫码）或 phone（手机号验证码）"`
+		Name      string    `json:"name,omitempty" maxLength:"60" doc:"可选：自定义该账号在工作区中的显示名称"`
+		Phone     string    `json:"phone,omitempty" maxLength:"32" doc:"手机号登录时必填，带国际区号，例如 +8613800138000"`
+		AccountID string    `json:"account_id,omitempty" format:"uuid" doc:"可选：原地重新授权已有 Telegram 个人号时传入其渠道 ID"`
 	}
 }
 
@@ -60,12 +62,14 @@ type AccountIDInput struct {
 	ID string `path:"id" format:"uuid"`
 }
 
-// UpdateAccountInput 是修改个人 Telegram 账号名称与启停状态的请求。
+// UpdateAccountInput 是修改个人 Telegram 账号名称、启停、同步策略与商务策略的请求。
 type UpdateAccountInput struct {
 	ID   string `path:"id" format:"uuid"`
 	Body struct {
-		Name    string `json:"name" minLength:"1" maxLength:"60"`
-		Enabled bool   `json:"enabled"`
+		Name     string                  `json:"name" minLength:"1" maxLength:"60"`
+		Enabled  bool                    `json:"enabled"`
+		Sync     *SyncConfig             `json:"sync,omitempty"`
+		Business *channel.BusinessPolicy `json:"business,omitempty"`
 	}
 }
 
@@ -79,12 +83,33 @@ type DialogListOutput struct {
 	Body []DialogDTO
 }
 
+// FolderListOutput 是 Telegram 文件夹列表响应。
+type FolderListOutput struct {
+	Body []FolderDTO
+}
+
 // UpdateSyncedPeersInput 是保存同步白名单并可选回填历史消息的请求。
 type UpdateSyncedPeersInput struct {
 	ID   string `path:"id" format:"uuid"`
 	Body struct {
 		Peers         []SyncedPeer `json:"peers" maxItems:"200" doc:"需要同步到商务沟通的 1:1 单聊与群聊列表"`
 		BackfillLimit int          `json:"backfill_limit,omitempty" minimum:"0" maximum:"50" doc:"可选：为新增同步的会话拉取最近 N 条历史消息（默认 0 不拉取）"`
+	}
+}
+
+// BackfillPeerInput 是为单个已同步会话手动回填最近历史消息的请求。
+type BackfillPeerInput struct {
+	ID   string `path:"id" format:"uuid"`
+	Body struct {
+		ExternalChatID string `json:"external_chat_id" minLength:"1" maxLength:"64" doc:"已同步会话的外部标识"`
+		Limit          int    `json:"limit,omitempty" minimum:"1" maximum:"50" doc:"拉取最近历史消息条数（1-50，默认 20）"`
+	}
+}
+
+// BackfillPeerOutput 是手动回填历史消息的结果响应。
+type BackfillPeerOutput struct {
+	Body struct {
+		Imported int `json:"imported" doc:"本次实际新增导入的消息条数"`
 	}
 }
 
@@ -116,10 +141,20 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 			return out, nil
 		})
 
+	rest.Register(api, route("tgaccount-get", http.MethodGet, "/my/telegram-accounts/{id}", "读取单个 Telegram 个人号详情"),
+		func(ctx context.Context, in *AccountIDInput) (*AccountOutput, error) {
+			sub, _ := identity.FromContext(ctx)
+			dto, err := mgr.GetAccount(ctx, sub, in.ID)
+			if err != nil {
+				return nil, err
+			}
+			return &AccountOutput{Body: *dto}, nil
+		})
+
 	rest.Register(api, route("tgaccount-login-start", http.MethodPost, "/my/telegram-accounts/login/start", "发起 Telegram 个人号登录"),
 		func(ctx context.Context, in *StartLoginInput) (*LoginSessionOutput, error) {
 			sub, _ := identity.FromContext(ctx)
-			dto, err := mgr.StartLogin(ctx, sub, in.Body.Mode, in.Body.Name, in.Body.Phone)
+			dto, err := mgr.StartLogin(ctx, sub, in.Body.Mode, in.Body.Name, in.Body.Phone, in.Body.AccountID)
 			if err != nil {
 				return nil, err
 			}
@@ -159,7 +194,22 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	rest.Register(api, route("tgaccount-update", http.MethodPut, "/my/telegram-accounts/{id}", "修改 Telegram 个人号设置"),
 		func(ctx context.Context, in *UpdateAccountInput) (*AccountOutput, error) {
 			sub, _ := identity.FromContext(ctx)
-			dto, err := mgr.UpdateAccount(ctx, sub, in.ID, in.Body.Name, in.Body.Enabled)
+			dto, err := mgr.UpdateAccount(ctx, sub, in.ID, UpdateAccountParams{
+				Name:     in.Body.Name,
+				Enabled:  in.Body.Enabled,
+				Sync:     in.Body.Sync,
+				Business: in.Body.Business,
+			})
+			if err != nil {
+				return nil, err
+			}
+			return &AccountOutput{Body: *dto}, nil
+		})
+
+	rest.Register(api, route("tgaccount-reconnect", http.MethodPost, "/my/telegram-accounts/{id}/reconnect", "手动重连 Telegram 个人号"),
+		func(ctx context.Context, in *AccountIDInput) (*AccountOutput, error) {
+			sub, _ := identity.FromContext(ctx)
+			dto, err := mgr.ReconnectAccount(ctx, sub, in.ID)
 			if err != nil {
 				return nil, err
 			}
@@ -176,6 +226,16 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 			return &DialogListOutput{Body: items}, nil
 		})
 
+	rest.Register(api, route("tgaccount-folders", http.MethodGet, "/my/telegram-accounts/{id}/folders", "读取 Telegram 客户端文件夹列表"),
+		func(ctx context.Context, in *AccountIDInput) (*FolderListOutput, error) {
+			sub, _ := identity.FromContext(ctx)
+			items, err := mgr.ListFolders(ctx, sub, in.ID)
+			if err != nil {
+				return nil, err
+			}
+			return &FolderListOutput{Body: items}, nil
+		})
+
 	rest.Register(api, route("tgaccount-synced-peers", http.MethodPut, "/my/telegram-accounts/{id}/synced-peers", "更新同步的 Telegram 单聊与群聊白名单"),
 		func(ctx context.Context, in *UpdateSyncedPeersInput) (*AccountOutput, error) {
 			sub, _ := identity.FromContext(ctx)
@@ -184,6 +244,18 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 				return nil, err
 			}
 			return &AccountOutput{Body: *dto}, nil
+		})
+
+	rest.Register(api, route("tgaccount-peer-backfill", http.MethodPost, "/my/telegram-accounts/{id}/peers/backfill", "手动回填单个会话的最近历史消息"),
+		func(ctx context.Context, in *BackfillPeerInput) (*BackfillPeerOutput, error) {
+			sub, _ := identity.FromContext(ctx)
+			imported, err := mgr.BackfillPeer(ctx, sub, in.ID, in.Body.ExternalChatID, in.Body.Limit)
+			if err != nil {
+				return nil, err
+			}
+			out := &BackfillPeerOutput{}
+			out.Body.Imported = imported
+			return out, nil
 		})
 
 	rest.Register(api, disconnectOp,

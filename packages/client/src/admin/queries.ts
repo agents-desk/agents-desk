@@ -318,6 +318,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         queryKey: key("telegram", "settingsGet", ...args),
         queryFn: () => client.telegram.settingsGet(...args),
       }),
+      /** POST /settings/telegram/test */
+      settingsTest: () => ({
+        mutationFn: (variables: Parameters<Client["telegram"]["settingsTest"]>[0]) => client.telegram.settingsTest(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "telegram"),
+      }),
       /** PUT /settings/telegram */
       settingsUpdate: () => ({
         mutationFn: (variables: Parameters<Client["telegram"]["settingsUpdate"]>[0]) => client.telegram.settingsUpdate(variables),

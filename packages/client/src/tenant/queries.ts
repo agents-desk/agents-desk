@@ -819,6 +819,16 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "tgaccount"),
       }),
+      /** GET /my/telegram-accounts/{id}/folders */
+      folders: (...args: Parameters<Client["tgaccount"]["folders"]>) => ({
+        queryKey: key("tgaccount", "folders", ...args),
+        queryFn: () => client.tgaccount.folders(...args),
+      }),
+      /** GET /my/telegram-accounts/{id} */
+      get: (...args: Parameters<Client["tgaccount"]["get"]>) => ({
+        queryKey: key("tgaccount", "get", ...args),
+        queryFn: () => client.tgaccount.get(...args),
+      }),
       /** GET /my/telegram-accounts */
       list: (...args: Parameters<Client["tgaccount"]["list"]>) => ({
         queryKey: key("tgaccount", "list", ...args),
@@ -844,6 +854,18 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       /** POST /my/telegram-accounts/login/start */
       loginStart: () => ({
         mutationFn: (variables: Parameters<Client["tgaccount"]["loginStart"]>[0]) => client.tgaccount.loginStart(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "tgaccount"),
+      }),
+      /** POST /my/telegram-accounts/{id}/peers/backfill */
+      peerBackfill: () => ({
+        mutationFn: (variables: Parameters<Client["tgaccount"]["peerBackfill"]>) => client.tgaccount.peerBackfill(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "tgaccount"),
+      }),
+      /** POST /my/telegram-accounts/{id}/reconnect */
+      reconnect: () => ({
+        mutationFn: (variables: Parameters<Client["tgaccount"]["reconnect"]>[0]) => client.tgaccount.reconnect(variables),
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "tgaccount"),
       }),

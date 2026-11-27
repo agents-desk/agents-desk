@@ -248,6 +248,11 @@ export const schemas = {
     },
   },
   telegram: {
+    settingsTest: {
+      body: {
+        "$ref": "#/components/schemas/PlatformsettingsTelegramTestInputBody"
+      },
+    },
     settingsUpdate: {
       body: {
         "$ref": "#/components/schemas/PlatformsettingsTelegram"
@@ -594,12 +599,27 @@ export const components = {
         "format": "int64",
         "minimum": 0,
         "type": "integer"
+      },
+      "proxy_url": {
+        "maxLength": 256,
+        "type": "string"
       }
     },
     "required": [
       "api_id",
-      "api_hash"
+      "api_hash",
+      "proxy_url"
     ],
+    "type": "object"
+  },
+  PlatformsettingsTelegramTestInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "proxy_url": {
+        "maxLength": 256,
+        "type": "string"
+      }
+    },
     "type": "object"
   },
   TenantCreateParams: {

@@ -94,6 +94,80 @@ var LoginSteps = enum.New("tgaccount.login_step",
 // Schema 让 OpenAPI 中的 LoginStep 只接受目录取值。
 func (LoginStep) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, LoginSteps) }
 
+// SyncMode 是 Telegram 个人号的会话同步范围策略：whitelist（精细白名单）或 folders（按 Telegram 文件夹自动同步）。
+type SyncMode string
+
+const (
+	SyncModeWhitelist SyncMode = "whitelist" // 手动勾选同步的单聊与群聊白名单
+	SyncModeFolders   SyncMode = "folders"   // 按 Telegram 客户端文件夹自动纳入同步
+)
+
+// GroupSyncMode 是 Telegram 外部群聊的入站过滤策略。
+type GroupSyncMode string
+
+const (
+	GroupSyncAll          GroupSyncMode = "all"           // 同步选定群聊中的全部消息
+	GroupSyncMentionsOnly GroupSyncMode = "mentions_only" // 仅同步群聊中提及或回复自己的消息
+)
+
+// SyncConfig 是单个 Telegram 个人号的同步策略与行为偏好，保存在 channels.settings.sync 中。
+type SyncConfig struct {
+	Mode          SyncMode      `json:"mode" enum:"whitelist,folders" doc:"同步范围模式：whitelist（精细白名单）或 folders（按 Telegram 文件夹）"`
+	FolderIDs     []int         `json:"folder_ids,omitempty" maxItems:"20" doc:"文件夹模式下选中的 Telegram 文件夹 ID 列表"`
+	BackfillLimit int           `json:"backfill_limit" minimum:"0" maximum:"50" doc:"新加入同步的会话默认拉取的历史消息条数（0-50）"`
+	SyncOutgoing  bool          `json:"sync_outgoing" doc:"是否同步自己在手机/桌面 Telegram 客户端发出的消息"`
+	SyncMedia     bool          `json:"sync_media" doc:"是否同步合作方发来的图片与文档附件"`
+	GroupMode     GroupSyncMode `json:"group_mode" enum:"all,mentions_only" doc:"群聊消息同步策略：all 或 mentions_only"`
+}
+
+// DefaultSyncConfig 返回 Telegram 个人号的默认同步策略。
+func DefaultSyncConfig() SyncConfig {
+	return SyncConfig{
+		Mode:          SyncModeWhitelist,
+		FolderIDs:     []int{},
+		BackfillLimit: 20,
+		SyncOutgoing:  true,
+		SyncMedia:     true,
+		GroupMode:     GroupSyncAll,
+	}
+}
+
+// NormalizeSyncConfig 规范化同步策略取值并填充缺省项。
+func NormalizeSyncConfig(in SyncConfig) SyncConfig {
+	out := in
+	if out.Mode != SyncModeFolders {
+		out.Mode = SyncModeWhitelist
+	}
+	if out.BackfillLimit < 0 {
+		out.BackfillLimit = 0
+	}
+	if out.BackfillLimit > 50 {
+		out.BackfillLimit = 50
+	}
+	if out.GroupMode != GroupSyncMentionsOnly {
+		out.GroupMode = GroupSyncAll
+	}
+	seen := map[int]bool{}
+	cleanFolders := make([]int, 0, len(out.FolderIDs))
+	for _, id := range out.FolderIDs {
+		if id > 0 && !seen[id] {
+			seen[id] = true
+			cleanFolders = append(cleanFolders, id)
+		}
+	}
+	out.FolderIDs = cleanFolders
+	return out
+}
+
+// FolderDTO 是从成员 Telegram 账号读取到的一个文件夹（Dialog Filter），供文件夹模式勾选同步。
+type FolderDTO struct {
+	ID        int          `json:"id" doc:"Telegram 文件夹 ID"`
+	Title     string       `json:"title" doc:"文件夹名称"`
+	PeerCount int          `json:"peer_count" doc:"当前匹配到的单聊/群聊数量"`
+	Peers     []SyncedPeer `json:"peers" nullable:"false" doc:"该文件夹包含的可同步单聊与群聊"`
+	Synced    bool         `json:"synced" doc:"当前是否已被勾选为同步文件夹"`
+}
+
 // SyncedPeer 是成员显式勾选同步的一个 Telegram 单聊或群聊白名单项。
 type SyncedPeer struct {
 	ExternalChatID string `json:"external_chat_id" doc:"外部会话唯一标识（tg:user:<id>、tg:chat:<id> 或 tg:channel:<id>）"`
@@ -103,6 +177,7 @@ type SyncedPeer struct {
 	Title          string `json:"title" doc:"对方姓名或群聊标题"`
 	Username       string `json:"username,omitempty" doc:"对方或群聊的 @username"`
 	IsGroup        bool   `json:"is_group" doc:"是否为 Telegram 群聊或超级群"`
+	Paused         bool   `json:"paused,omitempty" doc:"是否暂时暂停同步该会话（保留在列表中，恢复后继续同步）"`
 }
 
 // Settings 是 Telegram 个人号渠道保存在 channels.settings 中的数据结构。
@@ -114,8 +189,18 @@ type Settings struct {
 	SessionCipher  string                 `json:"session_cipher,omitempty"` // crypt 加密的 gotd/td MTProto Session JSON
 	Status         AccountStatus          `json:"status"`
 	LastError      string                 `json:"last_error,omitempty"`
+	LastSyncedAt   *time.Time             `json:"last_synced_at,omitempty"`
 	SyncedPeers    []SyncedPeer           `json:"synced_peers,omitempty"`
+	Sync           *SyncConfig            `json:"sync,omitempty"`
 	Business       channel.BusinessPolicy `json:"business,omitempty"`
+}
+
+// resolvedSync 返回归一化后的同步配置，兼容历史数据缺失 sync 字段的情况。
+func (s Settings) resolvedSync() SyncConfig {
+	if s.Sync == nil {
+		return DefaultSyncConfig()
+	}
+	return NormalizeSyncConfig(*s.Sync)
 }
 
 // AccountDTO 是接口中展示给成员的 Telegram 个人号商务渠道视图（不含加密会话密文）。
@@ -128,7 +213,9 @@ type AccountDTO struct {
 	DisplayName    string                 `json:"display_name,omitempty" doc:"Telegram 昵称"`
 	Status         AccountStatus          `json:"status" doc:"连接状态：connected、disconnected 或 auth_expired"`
 	LastError      string                 `json:"last_error,omitempty" doc:"最近一次连接错误信息"`
+	LastSyncedAt   *time.Time             `json:"last_synced_at,omitempty" doc:"最近一次收到或同步消息的时间"`
 	SyncedPeers    []SyncedPeer           `json:"synced_peers" nullable:"false" doc:"已勾选同步的 1:1 单聊与群聊列表"`
+	Sync           SyncConfig             `json:"sync" doc:"同步策略与行为偏好"`
 	Business       channel.BusinessPolicy `json:"business" doc:"通用商务策略（默认协作成员、自动标签与翻译覆写）"`
 	Enabled        bool                   `json:"enabled"`
 	CreatedAt      time.Time              `json:"created_at"`
@@ -202,7 +289,9 @@ func toAccountDTO(ch *channel.Channel) (AccountDTO, error) {
 		DisplayName:    s.DisplayName,
 		Status:         s.Status,
 		LastError:      s.LastError,
+		LastSyncedAt:   s.LastSyncedAt,
 		SyncedPeers:    peers,
+		Sync:           s.resolvedSync(),
 		Business:       channel.BusinessPolicyOf(ch.Settings),
 		Enabled:        ch.Enabled,
 		CreatedAt:      ch.CreatedAt,

@@ -89,6 +89,7 @@ export const required = {
   },
   telegram: {
     settingsGet: ["platform-settings:manage"],
+    settingsTest: ["platform-settings:manage"],
     settingsUpdate: ["platform-settings:manage"],
   },
   tenant: {

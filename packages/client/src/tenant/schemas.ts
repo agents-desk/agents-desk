@@ -1077,6 +1077,11 @@ export const schemas = {
         "$ref": "#/components/schemas/TgaccountStartLoginInputBody"
       },
     },
+    peerBackfill: {
+      body: {
+        "$ref": "#/components/schemas/TgaccountBackfillPeerInputBody"
+      },
+    },
     syncedPeers: {
       body: {
         "$ref": "#/components/schemas/TgaccountUpdateSyncedPeersInputBody"
@@ -3182,6 +3187,26 @@ export const components = {
     ],
     "type": "object"
   },
+  TgaccountBackfillPeerInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "external_chat_id": {
+        "maxLength": 64,
+        "minLength": 1,
+        "type": "string"
+      },
+      "limit": {
+        "format": "int64",
+        "maximum": 50,
+        "minimum": 1,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "external_chat_id"
+    ],
+    "type": "object"
+  },
   TgaccountLoginMode: {
     "enum": [
       "qr",
@@ -3192,6 +3217,10 @@ export const components = {
   TgaccountStartLoginInputBody: {
     "additionalProperties": false,
     "properties": {
+      "account_id": {
+        "format": "uuid",
+        "type": "string"
+      },
       "mode": {
         "$ref": "#/components/schemas/TgaccountLoginMode"
       },
@@ -3234,6 +3263,53 @@ export const components = {
     ],
     "type": "object"
   },
+  TgaccountSyncConfig: {
+    "additionalProperties": false,
+    "properties": {
+      "backfill_limit": {
+        "format": "int64",
+        "maximum": 50,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "folder_ids": {
+        "items": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "maxItems": 20,
+        "type": "array"
+      },
+      "group_mode": {
+        "enum": [
+          "all",
+          "mentions_only"
+        ],
+        "type": "string"
+      },
+      "mode": {
+        "enum": [
+          "whitelist",
+          "folders"
+        ],
+        "type": "string"
+      },
+      "sync_media": {
+        "type": "boolean"
+      },
+      "sync_outgoing": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "mode",
+      "backfill_limit",
+      "sync_outgoing",
+      "sync_media",
+      "group_mode"
+    ],
+    "type": "object"
+  },
   TgaccountSyncedPeer: {
     "additionalProperties": false,
     "properties": {
@@ -3245,6 +3321,9 @@ export const components = {
         "type": "string"
       },
       "is_group": {
+        "type": "boolean"
+      },
+      "paused": {
         "type": "boolean"
       },
       "peer_id": {
@@ -3273,6 +3352,9 @@ export const components = {
   TgaccountUpdateAccountInputBody: {
     "additionalProperties": false,
     "properties": {
+      "business": {
+        "$ref": "#/components/schemas/ChannelBusinessPolicy"
+      },
       "enabled": {
         "type": "boolean"
       },
@@ -3280,6 +3362,9 @@ export const components = {
         "maxLength": 60,
         "minLength": 1,
         "type": "string"
+      },
+      "sync": {
+        "$ref": "#/components/schemas/TgaccountSyncConfig"
       }
     },
     "required": [
