@@ -86,8 +86,11 @@ export function languageEndonym(tag: string): string {
   return canon
 }
 
-/** localeLoaders 按语种文件名注册 Vite 懒加载 chunk；en.json 已静态内联。 */
-const localeLoaders = import.meta.glob<{ default: Record<string, string> }>("./locales/*.json")
+/** localeLoaders 按语种文件名注册 Vite 懒加载 chunk；en.json 已静态内联，非 Vite 测试环境回退空映射。 */
+const localeLoaders: Record<string, () => Promise<{ default: Record<string, string> }>> =
+  typeof import.meta.glob === "function"
+    ? import.meta.glob<{ default: Record<string, string> }>("./locales/*.json")
+    : {}
 
 /** loaded 保存已加载完成的语种词条表，初始包含静态内联的 en。 */
 const loaded = new Map<string, MessageTable>([["en", en]])
