@@ -6,11 +6,12 @@ import { Pane, useNarrow } from "@go-tenon/ui"
 import { useCallback, useMemo, useState } from "react"
 import "../../../inbox/inbox.css"
 import { kit } from "../../../api"
-import type { ChatModeFilter } from "../../../chat/data"
+import { type ChatModeFilter, chatListQuery } from "../../../chat/data"
 import { ChatList } from "../../../chat/List"
 import { ChatNav, type ChatNavTarget } from "../../../chat/Nav"
 import { NewChatModal } from "../../../chat/NewChatModal"
 import { NARROW_QUERY } from "../../../layout"
+import { warmRoute } from "../../../preload"
 
 /** ChatSearch 是聊天模块的路由查询参数，决定二级导航栏高亮与列表筛选模式（内部聊天或商务沟通）。 */
 export interface ChatSearch {
@@ -32,6 +33,13 @@ export const Route = createFileRoute("/t/$slug/chat")({
     }
   },
   staticData: { title: "nav.chat", icon: "chat", order: 2, permission: "conversations:read", fullBleed: true },
+  // 切换分组和渠道时预取聊天列表，最多等一小会儿：数据很快到时新列表一次完整出现，不先闪成骨架
+  loaderDeps: ({ search }) => search,
+  loader: ({ context, deps }) => {
+    const scope = deps.scope ?? "internal"
+    const mode = scope === "external" ? "all" : (deps.filter ?? "all")
+    return warmRoute(context.app.queryClient, [chatListQuery("", mode, scope, scope === "external" ? deps.channel : undefined)])
+  },
   component: ChatLayout,
 })
 

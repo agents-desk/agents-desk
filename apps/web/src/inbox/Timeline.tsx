@@ -1,5 +1,5 @@
 import type { ConversationDTO, ConversationItemDTO } from "@agents-desk/client/tenant"
-import { ActionIcon, Anchor, Box, CopyButton, Divider, Group, Loader, Paper, Skeleton, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
+import { ActionIcon, Anchor, Box, CopyButton, Divider, Group, Loader, Paper, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { IconCheck, IconCopy, IconLanguage, IconLock } from "@tabler/icons-react"
 import { ImageLightbox, notifyError, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
@@ -19,6 +19,7 @@ import { contactName } from "./List"
 import { promptText } from "./prompts"
 import type { MatchField } from "./search"
 import { firstUnread, NewMessagesDivider, ScrollToBottomButton, useStickToBottom } from "./stick-to-bottom"
+import { TimelineSkeleton } from "../components/detail-skeleton"
 
 /** GROUP_WINDOW_MS 是同一发送者连续消息合并为同一组的间隔上限（3 分钟）。 */
 const GROUP_WINDOW_MS = 3 * 60 * 1000
@@ -110,24 +111,7 @@ export function Timeline({
   if (items.isPending) {
     return (
       <Box className="inbox-timeline" px="var(--tn-pane-px)" py="md">
-        <Stack gap="md">
-          <Box style={{ alignSelf: "flex-start", width: "54%", maxWidth: 360 }}>
-            <Skeleton h={10} w={88} mb={6} radius="sm" />
-            <Skeleton h={52} radius="md" />
-          </Box>
-          <Box style={{ alignSelf: "flex-end", width: "46%", maxWidth: 320 }}>
-            <Skeleton h={10} w={72} ml="auto" mb={6} radius="sm" />
-            <Skeleton h={42} radius="md" />
-          </Box>
-          <Box style={{ alignSelf: "flex-start", width: "60%", maxWidth: 400 }}>
-            <Skeleton h={10} w={96} mb={6} radius="sm" />
-            <Skeleton h={64} radius="md" />
-          </Box>
-          <Box style={{ alignSelf: "flex-end", width: "38%", maxWidth: 260 }}>
-            <Skeleton h={10} w={64} ml="auto" mb={6} radius="sm" />
-            <Skeleton h={38} radius="md" />
-          </Box>
-        </Stack>
+        <TimelineSkeleton />
       </Box>
     )
   }

@@ -18,14 +18,14 @@ import {
   UnstyledButton,
 } from "@mantine/core"
 import { useDebouncedValue } from "@mantine/hooks"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { IconFlame, IconLink, IconLock, IconPlus, IconSearch } from "@tabler/icons-react"
 import { PaneBody, PaneHeader, PaneToolbar, useCan, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react"
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { kit } from "../api"
 import { useMe, useMembers, useTeams } from "../inbox/data"
 import { activity } from "../inbox/format"
-import { flattenTickets, TICKET_STATUSES, ticketStatusColor, ticketStatusLabel, useTicketList, useTicketTypes } from "./meta"
+import { flattenTickets, prefetchTicket, TICKET_STATUSES, ticketStatusColor, ticketStatusLabel, useTicketList, useTicketTypes } from "./meta"
 import type { TicketSearch, TicketStatusFilter } from "./search"
 import { EmptyState } from "../components/empty-state"
 import { useListKeys } from "../layout"
@@ -54,7 +54,9 @@ export function TicketList({ search, openId, go, open, onCreate }: TicketListPro
   // 列表的顺序按 ID 串比较，数据刷新但顺序不变时不重新登记快捷键
   const idsKey = items.map((x) => x.id).join("\n")
   const ids = useMemo(() => (idsKey ? idsKey.split("\n") : []), [idsKey])
-  useListKeys(ids, openId, open)
+  const queryClient = useQueryClient()
+  const warm = useCallback((id: string) => void prefetchTicket(queryClient, id), [queryClient])
+  useListKeys(ids, openId, open, warm)
 
   const [draftQ, setDraftQ] = useState(search.q ?? "")
   const [debouncedQ] = useDebouncedValue(draftQ, 250)
@@ -230,10 +232,17 @@ function TicketRow({ tk, active, onClick }: { tk: ConversationTicketDTO; active:
     tk.assignee?.type === "member" ? (tk.assignee.id === me.data?.id ? t("inbox.you") : byId.get(tk.assignee.id)?.name) : undefined
   const teamName = tk.team_id ? teams.find((x) => x.id === tk.team_id)?.name : undefined
   const ownerText = assigneeName ?? teamName
+  const queryClient = useQueryClient()
+  // 悬停时预取工单和时间线，点下去时直接显示
+  const warm = () => {
+    if (!active) void prefetchTicket(queryClient, tk.id)
+  }
 
   return (
     <UnstyledButton
       onClick={onClick}
+      onMouseEnter={warm}
+      onFocus={warm}
       className="inbox-row"
       data-search=""
       data-active={active || undefined}

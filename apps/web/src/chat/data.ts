@@ -1,7 +1,9 @@
 import type { ChatMode, ChatScope, ConversationChatDTO } from "@agents-desk/client/tenant"
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
+import { infiniteQueryOptions, type QueryClient, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { useT } from "@go-tenon/ui"
 import { kit, tenantApi } from "../api"
+import { timelineQuery } from "../inbox/data"
+import { findInLists, prefetch, type Warmable } from "../preload"
 
 type T = ReturnType<typeof useT>
 
@@ -10,8 +12,13 @@ export type ChatModeFilter = "all" | ChatMode
 
 /** useChatList 按范围（内部聊天/商务沟通）、模式、渠道与搜索词拉取当前成员参与的聊天列表（游标无限滚动）。 */
 export function useChatList(q: string, mode: ChatModeFilter, scope: ChatScope, channelId?: string) {
+  return useInfiniteQuery(chatListQuery(q, mode, scope, channelId))
+}
+
+/** chatListQuery 是聊天列表的查询，游标分页（useChatList 与路由 loader 共用）。 */
+export function chatListQuery(q: string, mode: ChatModeFilter, scope: ChatScope, channelId?: string) {
   const trimmed = q.trim()
-  return useInfiniteQuery({
+  return infiniteQueryOptions({
     queryKey: [...kit.queries.chat.key(), "list", scope, mode, channelId ?? "", trimmed],
     queryFn: ({ pageParam }) =>
       tenantApi.chat.list({
@@ -27,12 +34,24 @@ export function useChatList(q: string, mode: ChatModeFilter, scope: ChatScope, c
   })
 }
 
-/** useChat 读取单条聊天的详情及完整参与者列表。 */
+/** useChat 读取单条聊天的详情及完整参与者列表；还没读到时用聊天列表中已有的那一项占位。 */
 export function useChat(id: string) {
+  const queryClient = useQueryClient()
   return useQuery({
     ...kit.queries.chat.get(id),
     enabled: Boolean(id),
+    placeholderData: () => findInLists<ConversationChatDTO>(queryClient, [...kit.queries.chat.key(), "list"], id),
   })
+}
+
+/** chatQueries 是打开聊天 id 要用的查询：聊天和时间线（路由 loader 与预取共用）。 */
+export function chatQueries(queryClient: QueryClient, id: string): Warmable[] {
+  return [kit.queries.chat.get(id), timelineQuery(queryClient, id)]
+}
+
+/** prefetchChat 预取聊天 id 及其时间线：列表行悬停、J/K 切换用。 */
+export function prefetchChat(queryClient: QueryClient, id: string): Promise<void> {
+  return prefetch(queryClient, chatQueries(queryClient, id))
 }
 
 /** flattenChats 把游标分页的聊天结果展平并按 ID 去重。 */

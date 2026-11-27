@@ -1,8 +1,11 @@
 import { createFileRoute, getRouteApi, useNavigate } from "@tanstack/react-router"
-import { ContactDetailPanel } from "../../../../contacts/Detail"
+import { ContactDetailPanel, contactQueries } from "../../../../contacts/Detail"
+import { warmRoute } from "../../../../preload"
 
 // 右侧分栏中打开的联系人档案：/t/{slug}/contacts/{id}，列表的筛选和页码保留在地址参数中。
+// loader 预取档案和会话，最多等一小会儿：数据很快到时新档案一次完整出现，不先闪成加载状态。
 export const Route = createFileRoute("/t/$slug/contacts/$id")({
+  loader: ({ context, params }) => warmRoute(context.app.queryClient, contactQueries(params.id)),
   component: OpenContact,
 })
 

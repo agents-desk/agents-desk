@@ -1,8 +1,9 @@
 import type { AttributeTarget, ConversationDTO, ConversationItemDTO, ConversationSearchHitDTO, MemberTenantMember } from "@agents-desk/client/tenant"
 import { fetchAllPages } from "@go-tenon/client"
-import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query"
+import { infiniteQueryOptions, type QueryClient, queryOptions, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query"
 import { kit, tenantApi } from "../api"
 import { me } from "../auth"
+import { findInLists, prefetch, type Warmable } from "../preload"
 import { consumeRefreshFrom } from "../realtime"
 import type { InboxSearch } from "./search"
 
@@ -77,9 +78,9 @@ const listKey = (s: InboxSearch) => [
   s.sort,
 ]
 
-/** useConversationList 读取当前列表或视图的会话，游标分页，滚到底时加载下一页。 */
-export function useConversationList(s: InboxSearch) {
-  return useInfiniteQuery({
+/** conversationListQuery 是当前列表或视图的会话查询，游标分页（useConversationList 与路由 loader 共用）。 */
+export function conversationListQuery(s: InboxSearch) {
+  return infiniteQueryOptions({
     queryKey: listKey(s),
     queryFn: ({ pageParam }) =>
       tenantApi.conversation.list({
@@ -95,8 +96,12 @@ export function useConversationList(s: InboxSearch) {
       }),
     initialPageParam: "",
     getNextPageParam: (last) => last.next_cursor,
-    enabled: !s.q?.trim(),
   })
+}
+
+/** useConversationList 读取当前列表或视图的会话，游标分页，滚到底时加载下一页；搜索时不读。 */
+export function useConversationList(s: InboxSearch) {
+  return useInfiniteQuery({ ...conversationListQuery(s), enabled: !s.q?.trim() })
 }
 
 /** useConversationSearch 按关键词全文搜索会话，支持全部可见会话与当前列表/视图两种范围，滚到底时加载下一页。 */
@@ -135,8 +140,24 @@ export function useConversationSearch(s: InboxSearch) {
 /** flattenSearchHits 把分页的搜索结果展开成一个数组。 */
 export const flattenSearchHits = (pages: { items: ConversationSearchHitDTO[] }[] | undefined) => (pages ?? []).flatMap((p) => p.items)
 
-/** useConversation 读取会话 id。 */
-export const useConversation = (id: string) => useQuery(kit.queries.conversation.get(id))
+/** useConversation 读取会话 id；还没读到时用会话列表中已有的那一项占位，顶栏和回复框不用等请求。 */
+export function useConversation(id: string) {
+  const queryClient = useQueryClient()
+  return useQuery({
+    ...kit.queries.conversation.get(id),
+    placeholderData: () => findInLists<ConversationDTO>(queryClient, [...kit.queries.conversation.key(), "inbox-list"], id),
+  })
+}
+
+/** conversationQueries 是打开会话 id 要用的查询：会话和时间线（路由 loader 与预取共用）。 */
+export function conversationQueries(queryClient: QueryClient, id: string, focusSeq?: number): Warmable[] {
+  return [kit.queries.conversation.get(id), timelineQuery(queryClient, id, focusSeq)]
+}
+
+/** prefetchConversation 预取会话 id 及其时间线：列表行悬停、J/K 切换用。 */
+export function prefetchConversation(queryClient: QueryClient, id: string, focusSeq?: number): Promise<void> {
+  return prefetch(queryClient, conversationQueries(queryClient, id, focusSeq))
+}
 
 /**
  * useTimeline 读取会话 id 的时间线。第一次读取全部（最多 500 项）；之后推送让它失效时，从已有最后一项往前 50 个序号开始读：
@@ -145,8 +166,13 @@ export const useConversation = (id: string) => useQuery(kit.queries.conversation
  */
 export function useTimeline(id: string, focusSeq?: number) {
   const queryClient = useQueryClient()
+  return useQuery(timelineQuery(queryClient, id, focusSeq))
+}
+
+/** timelineQuery 是会话 id 时间线的查询（useTimeline 与路由 loader、悬停预取共用），见 useTimeline。 */
+export function timelineQuery(queryClient: QueryClient, id: string, focusSeq?: number) {
   const key = [...kit.queries.conversation.key(), "timeline", id]
-  return useQuery<ConversationItemDTO[]>({
+  return queryOptions<ConversationItemDTO[]>({
     queryKey: [...key, focusSeq ?? 0],
     queryFn: async () => {
       const before = queryClient.getQueryData<ConversationItemDTO[]>(key) ?? []

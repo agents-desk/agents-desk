@@ -18,8 +18,15 @@ export function isTypingTarget(target: EventTarget | null): boolean {
 /**
  * useListKeys 让列表支持非输入态按 J/K 打开下一条/上一条（聊天、工单列表用；收件箱另外处理搜索结果）。
  * ids 是列表当前的顺序，openId 是打开着的一条，没打开时 J/K 都打开第一条。
+ * warm 预取一条的数据：打开一条后预取它的上一条和下一条，按 J/K 时直接显示。
  */
-export function useListKeys(ids: string[], openId: string | undefined, open: (id: string) => void): void {
+export function useListKeys(ids: string[], openId: string | undefined, open: (id: string) => void, warm?: (id: string) => void): void {
+  useEffect(() => {
+    if (!warm || !openId) return
+    const at = ids.indexOf(openId)
+    if (at < 0) return
+    for (const id of [ids[at + 1], ids[at - 1]]) if (id) warm(id)
+  }, [ids, openId, warm])
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || isTypingTarget(e.target)) return

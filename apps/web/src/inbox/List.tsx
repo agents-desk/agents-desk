@@ -50,7 +50,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import { kit, tenantApi } from "../api"
 import { ContactAvatar, contactDisplayName } from "../contacts/display"
 import { MultiChannelBadge } from "./channel-badge"
-import { flatten, flattenSearchHits, useConversationList, useConversationSearch, useMe, useMembers, useTeams, useThresholds } from "./data"
+import { flatten, flattenSearchHits, prefetchConversation, useConversationList, useConversationSearch, useMe, useMembers, useTeams, useThresholds } from "./data"
 import { useDraft } from "./drafts"
 import { type FillWatcher, useFillVisible } from "./fill"
 import { FilterFields, FilterSummaryChips } from "./FilterFields"
@@ -662,10 +662,25 @@ function SearchRow({ hit, active, onClick }: { hit: ConversationSearchHitDTO; ac
   const t = useT()
   const language = useLanguage()
   const zone = useTimeZone()
+  const queryClient = useQueryClient()
   const c = hit.conversation
   const m = hit.match
+  // 悬停时预取会话和命中位置附近的时间线，点下去时直接显示
+  const warm = () => {
+    if (!active) void prefetchConversation(queryClient, c.id, m.seq)
+  }
   return (
-    <UnstyledButton onClick={onClick} className="inbox-row" data-search="" data-active={active || undefined} w="100%" px="sm" py={9}>
+    <UnstyledButton
+      onClick={onClick}
+      onMouseEnter={warm}
+      onFocus={warm}
+      className="inbox-row"
+      data-search=""
+      data-active={active || undefined}
+      w="100%"
+      px="sm"
+      py={9}
+    >
       <Box style={{ minWidth: 0 }}>
         <Group gap={5} wrap="nowrap">
           <Text size="sm" fw={600} truncate>
@@ -753,9 +768,16 @@ function Row({
       : ""
   const name = contactName(c, t)
   const firstTag = c.tags[0]
+  const queryClient = useQueryClient()
+  // 悬停时预取会话和时间线，点下去时直接显示
+  const warm = () => {
+    if (!active && !selecting) void prefetchConversation(queryClient, c.id)
+  }
   return (
     <UnstyledButton
       onClick={onClick}
+      onMouseEnter={warm}
+      onFocus={warm}
       ref={c.preview_untranslated && c.preview_item_id ? watch(c.preview_item_id) : undefined}
       className="inbox-row"
       data-active={active || undefined}

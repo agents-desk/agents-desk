@@ -1,8 +1,14 @@
 import { createFileRoute, getRouteApi, useNavigate } from "@tanstack/react-router"
 import { TicketView } from "../../../../tickets/TicketView"
+import { warmRoute } from "../../../../preload"
+import { ticketQueries } from "../../../../tickets/meta"
 
 // 打开的单张工单：/t/{slug}/tickets/{id}，列表的分组、状态和类型筛选保存在地址参数中。
-export const Route = createFileRoute("/t/$slug/tickets/$id")({ component: OpenTicket })
+// loader 预取工单和时间线，最多等一小会儿：数据很快到时新工单一次完整出现，不先闪成加载状态。
+export const Route = createFileRoute("/t/$slug/tickets/$id")({
+  loader: ({ context, params }) => warmRoute(context.app.queryClient, ticketQueries(context.app.queryClient, params.id)),
+  component: OpenTicket,
+})
 
 const ticketsRoute = getRouteApi("/t/$slug/tickets")
 const tenantRoute = getRouteApi("/t/$slug")
