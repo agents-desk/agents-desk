@@ -34,6 +34,7 @@ import (
 
 	"agents-desk/apps"
 	"agents-desk/internal/adminnotify"
+	"agents-desk/internal/agent"
 	"agents-desk/internal/attribute"
 	"agents-desk/internal/audit"
 	"agents-desk/internal/auth"
@@ -180,6 +181,7 @@ func (a *App) newRealtime() (*realtime.Realtime, error) {
 	}
 	push.Register(rt)
 	conversation.RegisterRealtime(rt, a.db)
+	agent.RegisterRealtime(rt, a.db)
 	return rt, nil
 }
 
@@ -271,6 +273,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 				translation.FillTopic.Meta("queue.topic.translation.fill.label", "queue.topic.translation.fill.description"),
 				translation.TicketBroadcastTopic.Meta("queue.topic.ticket.broadcast.label", "queue.topic.ticket.broadcast.description"),
 				automation.Topic.Meta("queue.topic.conversation.automate.label", "queue.topic.conversation.automate.description"),
+				agent.Topic.Meta("queue.topic.agent.generate.label", "queue.topic.agent.generate.description"),
 				conversation.SearchIndex.SyncTopic().Meta("queue.topic.search.sync.conversation_items.label", "queue.topic.search.sync.conversation_items.description"),
 				conversation.SearchIndex.ReindexTopic().Meta("queue.topic.search.reindex.conversation_items.label", "queue.topic.search.reindex.conversation_items.description"),
 				tenant.ExportJob.Meta("queue.topic.tenants.export.label", "queue.topic.tenants.export.description"),
@@ -374,6 +377,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		tickettype.RegisterRoutes(api, require, a.db)
 		macro.RegisterRoutes(api, require, a.db, a.roles)
 		conversation.RegisterRoutes(api, require, a.db, a.channels, down)
+		agent.RegisterRoutes(api, require, a.db, a.hub)
 		file.RegisterRoutes(api, require(auth.ConversationsReply), a.files, a.cfg.Filesystem.MaxUploadSize)
 		var copyTranslator widget.CopyTranslator
 		if a.translator != nil {

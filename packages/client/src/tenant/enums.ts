@@ -6,6 +6,14 @@
  * 缺少时先用默认语言，再用取值本身。
  */
 export const enums = {
+  AgentGenerationState: {
+    prefix: "agent.generation_state",
+    values: ["pending", "streaming", "waiting_approval", "completed", "failed", "canceled"],
+    labels: {
+      "en": { pending: "Pending", streaming: "Generating", waiting_approval: "Awaiting approval", completed: "Completed", failed: "Failed", canceled: "Canceled" },
+      "zh-CN": { pending: "等待中", streaming: "生成中", waiting_approval: "等待确认", completed: "已完成", failed: "失败", canceled: "已取消" },
+    },
+  },
   AttributeTarget: {
     prefix: "attribute.target",
     values: ["conversation", "contact", "ticket"],

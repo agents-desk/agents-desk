@@ -126,6 +126,10 @@ export const required = {
   file: {
     upload: ["conversations:reply"],
   },
+  generation: {
+    cancel: ["conversations:read"],
+    list: ["conversations:read"],
+  },
   hours: {
     replyTimeSave: ["tenant-settings:manage"],
     scheduleSave: ["tenant-settings:manage"],
