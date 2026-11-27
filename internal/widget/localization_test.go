@@ -23,9 +23,7 @@ func TestLocalizationNormalizeAndResolve(t *testing.T) {
 	t.Parallel()
 
 	loc, err := normalizeLocalization(Localization{
-		DefaultLanguage:  "zh_cn",
-		EnabledLanguages: []string{"en", "zh_CN", "hi_latn", "en"},
-		AllowSwitch:      true,
+		DefaultLanguage: "zh_cn",
 		Translations: map[string]LocalizedCopy{
 			"zh_CN": {Title: " 在线客服 ", Greeting: "你好", OwnerTitle: "仅商务保留"},
 			"hi_latn": {
@@ -37,7 +35,7 @@ func TestLocalizationNormalizeAndResolve(t *testing.T) {
 	if err != nil {
 		t.Fatalf("normalizeLocalization: %v", err)
 	}
-	if loc.DefaultLanguage != "zh-CN" || !slices.Equal(loc.EnabledLanguages, []string{"en", "zh-CN", "hi-Latn"}) {
+	if loc.DefaultLanguage != "zh-CN" {
 		t.Fatalf("规范化结果异常：%+v", loc)
 	}
 	if _, exists := loc.Translations["en"]; exists {
@@ -61,9 +59,6 @@ func TestLocalizationNormalizeAndResolve(t *testing.T) {
 	// 非法语言标签返回 ErrInvalidLanguage
 	if _, err := normalizeLocalization(Localization{DefaultLanguage: "not a tag"}, false); !errors.Is(err, ErrInvalidLanguage) {
 		t.Errorf("非法 default_language：%v", err)
-	}
-	if _, err := normalizeLocalization(Localization{EnabledLanguages: []string{"bad_!"}}, false); !errors.Is(err, ErrInvalidLanguage) {
-		t.Errorf("非法 enabled_languages：%v", err)
 	}
 	if _, err := normalizeLocalization(Localization{Translations: map[string]LocalizedCopy{"123": {Title: "x"}}}, false); !errors.Is(err, ErrInvalidLanguage) {
 		t.Errorf("非法 translations key：%v", err)

@@ -103,7 +103,7 @@ func TestWidgetAPI(t *testing.T) {
 
 	// 管理：主管理员新建两个聊天插件，读取嵌入代码；坐席没有 channels:manage
 	var w, other widget.WidgetDTO
-	decode(call(h, "POST", "/t/alpha/api/widgets", `{"name":"官网","localization":{"default_language":"zh-CN","allow_switch":true,"translations":{"zh-CN":{"greeting":"你好"},"en":{"title":"Official Support","greeting":"Hello"}}}}`, owner), http.StatusCreated, &w)
+	decode(call(h, "POST", "/t/alpha/api/widgets", `{"name":"官网","localization":{"default_language":"zh-CN","translations":{"zh-CN":{"greeting":"你好"},"en":{"title":"Official Support","greeting":"Hello"}}}}`, owner), http.StatusCreated, &w)
 	decode(call(h, "POST", "/t/alpha/api/widgets", `{"name":"App"}`, owner), http.StatusCreated, &other)
 	var inst widget.InstallationDTO
 	decode(call(h, "GET", "/t/alpha/api/widgets/"+w.ID+"/installation", "", owner), http.StatusOK, &inst)

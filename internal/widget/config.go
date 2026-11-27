@@ -37,15 +37,13 @@ type PublicBusinessConfig struct {
 
 // ConfigDTO 是聊天窗口打开之前读取的公开设置（服务端已按访客请求语言解析好对外展示文案）。
 type ConfigDTO struct {
-	Kind               channel.Kind          `json:"kind" doc:"渠道种类：widget 或 business_link"`
-	Name               string                `json:"name" doc:"已按语言解析的对外窗口标题"`
-	Greeting           string                `json:"greeting,omitempty" doc:"已按语言解析的欢迎问候语；为空时显示界面默认问候语"`
-	Appearance         Appearance            `json:"appearance" doc:"聊天窗口的视觉外观配置"`
-	Language           string                `json:"language" doc:"本次配置解析使用的语言（BCP 47）"`
-	DefaultLanguage    string                `json:"default_language" doc:"渠道配置的默认语言（BCP 47）"`
-	AllowSwitch        bool                  `json:"allow_switch" doc:"是否允许访客在聊天窗口顶部切换语言"`
-	AvailableLanguages []string              `json:"available_languages" nullable:"false" doc:"访客可选语言列表（BCP 47）"`
-	Business           *PublicBusinessConfig `json:"business,omitempty" doc:"网页商务沟通链接的公开名片、留资与访问配置"`
+	Kind            channel.Kind          `json:"kind" doc:"渠道种类：widget 或 business_link"`
+	Name            string                `json:"name" doc:"已按语言解析的对外窗口标题"`
+	Greeting        string                `json:"greeting,omitempty" doc:"已按语言解析的欢迎问候语；为空时显示界面默认问候语"`
+	Appearance      Appearance            `json:"appearance" doc:"聊天窗口的视觉外观配置"`
+	Language        string                `json:"language" doc:"本次配置解析使用的语言（BCP 47）"`
+	DefaultLanguage string                `json:"default_language" doc:"渠道配置的默认语言（BCP 47）"`
+	Business        *PublicBusinessConfig `json:"business,omitempty" doc:"网页商务沟通链接的公开名片、留资与访问配置"`
 }
 
 // ConfigInput 是读取公开设置的 HTTP 请求：显式 query lang 优先于 Accept-Language 请求头。
@@ -99,14 +97,12 @@ func (a *GetConfig) Handle(ctx context.Context, requestedLang ...string) (*Confi
 		title = ch.Name
 	}
 	dto := &ConfigDTO{
-		Kind:               ch.Kind,
-		Name:               title,
-		Greeting:           copy.Greeting,
-		Appearance:         s.appearance(),
-		Language:           resolvedLang,
-		DefaultLanguage:    loc.DefaultLanguage,
-		AllowSwitch:        loc.AllowSwitch,
-		AvailableLanguages: availableLanguages(loc),
+		Kind:            ch.Kind,
+		Name:            title,
+		Greeting:        copy.Greeting,
+		Appearance:      s.appearance(),
+		Language:        resolvedLang,
+		DefaultLanguage: loc.DefaultLanguage,
 	}
 	if ch.Kind != channel.BusinessLink {
 		return dto, nil

@@ -48,8 +48,6 @@ export interface PreviewMessage {
   greeting?: string
   appearance: WidgetAppearance
   language: string
-  allow_switch?: boolean
-  available_languages?: string[]
   scene: PreviewScene
   viewport: PreviewViewport
   business?: PreviewBusinessPayload
@@ -81,11 +79,8 @@ export function resolvePreviewCopy(loc: WidgetLocalization, requestedLang: strin
   }
 }
 
-/** computeAvailableLanguages 计算访客语言切换器中的可选语种列表（与后端 availableLanguages 一致）。 */
-export function computeAvailableLanguages(loc: WidgetLocalization): string[] {
-  if (loc.enabled_languages && loc.enabled_languages.length > 0) {
-    return loc.enabled_languages
-  }
+/** computePreviewLanguages 返回工作台预览与定向短链可选的语言列表（内置语种 + 已配置翻译的额外语种）。 */
+export function computePreviewLanguages(loc: WidgetLocalization): string[] {
   const seen = new Set<string>()
   const out: string[] = []
   const add = (tag: string) => {

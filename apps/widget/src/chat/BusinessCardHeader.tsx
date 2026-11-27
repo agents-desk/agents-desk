@@ -13,7 +13,6 @@ interface BusinessCardHeaderProps {
   greeting?: string
   awayMessage?: string
   compact?: boolean
-  extra?: ReactNode
   close?: "collapse" | "close"
   onClose?: () => void
 }
@@ -30,7 +29,6 @@ export function BusinessCardHeader({
   greeting,
   awayMessage,
   compact,
-  extra,
   close,
   onClose,
 }: BusinessCardHeaderProps): ReactNode {
@@ -38,25 +36,28 @@ export function BusinessCardHeader({
   const fg = useBrandForeground()
   const online = owner?.status === "online"
   const subtitle = [owner?.title, owner?.company].filter(Boolean).join(" · ")
-  const hasTopActions = Boolean(extra || (close && onClose))
 
   return (
     <Box style={{ flex: "none" }}>
       <Box bg={`var(--mantine-color-${color}-filled)`} c={fg} className="w-safe-top" px={compact ? "md" : "lg"} py={compact ? "sm" : "md"} pos="relative">
-        {hasTopActions && (
-          <Group gap={4} pos="absolute" top={8} style={{ insetInlineEnd: 8, zIndex: 1 }} wrap="nowrap">
-            {extra}
-            {close && onClose && (
-              <ActionIcon variant="transparent" c={fg} size="md" onClick={onClose} aria-label={t("panel.close")}>
-                <IconX size={18} />
-              </ActionIcon>
-            )}
-          </Group>
+        {close && onClose && (
+          <ActionIcon
+            variant="transparent"
+            c={fg}
+            size="md"
+            pos="absolute"
+            top={8}
+            style={{ insetInlineEnd: 8 }}
+            onClick={onClose}
+            aria-label={t("panel.close")}
+          >
+            <IconX size={18} />
+          </ActionIcon>
         )}
 
         {owner ? (
           <Stack gap={compact ? 4 : "xs"}>
-            <Group gap="sm" wrap="nowrap" align="center" style={{ paddingInlineEnd: hasTopActions ? 60 : 0 }}>
+            <Group gap="sm" wrap="nowrap" align="center" style={{ paddingInlineEnd: close ? 28 : 0 }}>
               <Indicator size={10} offset={3} position="bottom-end" color={online ? "green" : "gray"} withBorder>
                 <Avatar size={compact ? 36 : 46} radius="xl" src={owner.avatar_url || undefined} color="dark" variant="filled">
                   {owner.name.slice(0, 1)}
@@ -90,7 +91,7 @@ export function BusinessCardHeader({
             )}
           </Stack>
         ) : (
-          <Stack gap={4} style={{ paddingInlineEnd: hasTopActions ? 60 : 0 }}>
+          <Stack gap={4} style={{ paddingInlineEnd: close ? 28 : 0 }}>
             <Text fw={600} size="sm">
               {title}
             </Text>

@@ -581,7 +581,6 @@ func seedBusinessDemo(ctx context.Context, out io.Writer, db *bun.DB, memberLogi
 	// 2. 链接一：公开短链 /c/owner-bd（带多语言名片、开场留资、快捷话题、自动协作成员与自动 VIP 标签）
 	link1Loc := widget.Localization{
 		DefaultLanguage: "zh-CN",
-		AllowSwitch:     true,
 		Translations: map[string]widget.LocalizedCopy{
 			"zh-CN": {
 				Title:       "全球渠道合作专线",
@@ -650,7 +649,6 @@ func seedBusinessDemo(ctx context.Context, out io.Writer, db *bun.DB, memberLogi
 	// 3. 链接二：口令保护专线 /c/vip-partner（口令 202688），方便直接演示口令门禁
 	link2Loc := widget.Localization{
 		DefaultLanguage: "zh-CN",
-		AllowSwitch:     true,
 		Translations: map[string]widget.LocalizedCopy{
 			"zh-CN": {
 				Title:       "VIP 战略合作加密专线",
@@ -785,7 +783,6 @@ func seedWidget(ctx context.Context, out io.Writer, db *bun.DB, keys *crypt.Cryp
 	}
 	widgetLoc := widget.Localization{
 		DefaultLanguage: "zh-CN",
-		AllowSwitch:     true,
 		Translations: map[string]widget.LocalizedCopy{
 			"zh-CN":   {Title: "在线客服", Greeting: "你好！有什么可以帮你？"},
 			"en":      {Title: "Support", Greeting: "Hi there! How can we help?"},

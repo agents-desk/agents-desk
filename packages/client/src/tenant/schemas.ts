@@ -3765,19 +3765,9 @@ export const components = {
   WidgetLocalization: {
     "additionalProperties": false,
     "properties": {
-      "allow_switch": {
-        "type": "boolean"
-      },
       "default_language": {
         "maxLength": 35,
         "type": "string"
-      },
-      "enabled_languages": {
-        "items": {
-          "type": "string"
-        },
-        "maxItems": 30,
-        "type": "array"
       },
       "translations": {
         "additionalProperties": {
@@ -3788,7 +3778,6 @@ export const components = {
     },
     "required": [
       "default_language",
-      "allow_switch",
       "translations"
     ],
     "type": "object"

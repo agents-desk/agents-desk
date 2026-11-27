@@ -2740,12 +2740,8 @@ export interface WidgetInstallationDTO {
 }
 
 export interface WidgetLocalization {
-  /** 是否在聊天窗口顶栏展示访客语言切换器 */
-  allow_switch: boolean
   /** 渠道主语言（BCP 47），作为缺省回退与 AI 翻译源语言 */
   default_language: string
-  /** 访客可选语言白名单；为空表示开放全部内置界面语言 */
-  enabled_languages?: string[]
   /** 按规范 BCP 47 语言标签索引的自定义文案 */
   translations: Record<string, WidgetLocalizedCopy>
 }

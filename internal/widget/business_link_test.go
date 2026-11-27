@@ -52,7 +52,6 @@ func TestBusinessLinkEndToEnd(t *testing.T) {
 	// 1. 成员创建个人网页商务沟通链接，自动生成独立短链与二维码
 	initLoc := Localization{
 		DefaultLanguage: "zh-CN",
-		AllowSwitch:     true,
 		Translations: map[string]LocalizedCopy{
 			"zh-CN": {Greeting: "欢迎洽谈合作"},
 		},
@@ -89,7 +88,6 @@ func TestBusinessLinkEndToEnd(t *testing.T) {
 	cardCfg := BusinessCardConfig{ShowOwner: true}
 	fullLoc := Localization{
 		DefaultLanguage: "zh-CN",
-		AllowSwitch:     true,
 		Translations: map[string]LocalizedCopy{
 			"zh-CN": {
 				Greeting:     "欢迎洽谈合作",

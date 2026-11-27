@@ -320,7 +320,6 @@ func TestManage(t *testing.T) {
 	}
 	loc := Localization{
 		DefaultLanguage: "zh-CN",
-		AllowSwitch:     true,
 		Translations: map[string]LocalizedCopy{
 			"zh-CN": {Greeting: "你好"},
 			"en":    {Title: "Support", Greeting: "Hello"},

@@ -13,22 +13,20 @@ interface WidgetPreviewStageProps {
   greeting: string
   appearance: WidgetAppearance
   language: string
-  allowSwitch: boolean
-  availableLanguages: string[]
+  previewLanguages: string[]
   onLanguageChange: (lang: string) => void
 }
 
 /**
  * WidgetPreviewStage 是聊天插件的右侧实时预览舞台：
- * 通过同源 iframe 嵌入真实的 /widget/preview，双向同步草稿配置、预览语言与用户点击切换的场景，支持桌面浮窗与手机全屏视图。
+ * 通过同源 iframe 嵌入真实的 /widget/preview，实时同步草稿配置、预览语言与用户点击切换的场景，支持桌面浮窗与手机全屏视图。
  */
 export function WidgetPreviewStage({
   name,
   greeting,
   appearance,
   language,
-  allowSwitch,
-  availableLanguages,
+  previewLanguages,
   onLanguageChange,
 }: WidgetPreviewStageProps): ReactNode {
   const t = useT()
@@ -48,21 +46,17 @@ export function WidgetPreviewStage({
         greeting,
         appearance,
         language,
-        allow_switch: allowSwitch,
-        available_languages: availableLanguages,
         scene: nextScene,
         viewport: nextViewport,
       }
       target.postMessage(payload, window.location.origin)
     },
-    [allowSwitch, appearance, availableLanguages, greeting, language, name],
+    [appearance, greeting, language, name],
   )
   const latestPostRef = useRef<() => void>(() => {})
   latestPostRef.current = () => postPreview(scene, viewport)
-  const onLangRef = useRef(onLanguageChange)
-  onLangRef.current = onLanguageChange
 
-  // 监听预览窗口上报的就绪信号、场景切换与预览窗内语言切换事件。
+  // 监听预览窗口上报的就绪信号与用户直接点击预览内容触发的场景切换。
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (e.origin !== window.location.origin || e.source !== iframeRef.current?.contentWindow) return
@@ -78,10 +72,6 @@ export function WidgetPreviewStage({
         if (next === "conversation" || next === "launcher") {
           setScene(next)
         }
-        return
-      }
-      if (kind === "preview_language" && typeof e.data.language === "string" && e.data.language) {
-        onLangRef.current(e.data.language)
       }
     }
     window.addEventListener("message", onMessage)
@@ -103,12 +93,12 @@ export function WidgetPreviewStage({
   }
 
   const languageOptions = useMemo(() => {
-    const tags = new Set<string>([...availableLanguages, language])
+    const tags = new Set<string>([...previewLanguages, language])
     return [...tags].filter(Boolean).map((code) => ({
       value: code,
       label: `${languageName(code, uiLang)} (${code})`,
     }))
-  }, [availableLanguages, language, uiLang])
+  }, [language, previewLanguages, uiLang])
 
   const sceneOptions = [
     {

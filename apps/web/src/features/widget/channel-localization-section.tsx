@@ -7,9 +7,7 @@ import {
   Divider,
   Group,
   Menu,
-  MultiSelect,
   Stack,
-  Switch,
   TagsInput,
   Text,
   Textarea,
@@ -114,14 +112,6 @@ export function ChannelLocalizationSection({
   const isEditingDefault = sameLanguage(editingLang, defaultLang)
   const defaultCopy = translations[defaultLang] ?? emptyCopy()
   const currentCopy = translations[editingLang] ?? emptyCopy()
-
-  const enabledOptions = useMemo(() => {
-    const tags = new Set<string>([...WIDGET_BUILTIN_LANGUAGES, ...configuredLanguages, ...(value.enabled_languages ?? [])])
-    return [...tags].map((code) => ({
-      value: code,
-      label: `${languageName(code, uiLang)} (${code})`,
-    }))
-  }, [configuredLanguages, uiLang, value.enabled_languages])
 
   const addableBuiltins = useMemo(
     () => WIDGET_BUILTIN_LANGUAGES.filter((code) => !configuredLanguages.some((x) => sameLanguage(x, code))),
@@ -236,26 +226,6 @@ export function ChannelLocalizationSection({
         onChange={handleDefaultLangChange}
         allowDeselect={false}
       />
-
-      <Switch
-        label={t("widget_i18n.allow_switch")}
-        description={t("widget_i18n.allow_switch_hint")}
-        checked={value.allow_switch}
-        onChange={(e) => onChange({ ...value, allow_switch: e.currentTarget.checked })}
-      />
-
-      {value.allow_switch && (
-        <MultiSelect
-          label={t("widget_i18n.enabled_languages")}
-          description={t("widget_i18n.enabled_languages_hint")}
-          placeholder={t("widget_i18n.enabled_languages_placeholder")}
-          data={enabledOptions}
-          value={value.enabled_languages ?? []}
-          onChange={(next) => onChange({ ...value, enabled_languages: next })}
-          clearable
-          searchable
-        />
-      )}
 
       <Divider my={4} />
 

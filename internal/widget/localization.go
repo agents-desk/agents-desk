@@ -24,25 +24,21 @@ type LocalizedCopy struct {
 	Starters     []string `json:"starters,omitempty" maxItems:"5" doc:"商务链接快捷开场话题（最多 5 条）"`
 }
 
-// Localization 是网页渠道的语言策略与多语言自定义文案目录。
+// Localization 是网页渠道的主语言与多语言自定义文案目录。
 type Localization struct {
-	DefaultLanguage  string                   `json:"default_language" maxLength:"35" doc:"渠道主语言（BCP 47），作为缺省回退与 AI 翻译源语言"`
-	EnabledLanguages []string                 `json:"enabled_languages,omitempty" maxItems:"30" doc:"访客可选语言白名单；为空表示开放全部内置界面语言"`
-	AllowSwitch      bool                     `json:"allow_switch" doc:"是否在聊天窗口顶栏展示访客语言切换器"`
-	Translations     map[string]LocalizedCopy `json:"translations" doc:"按规范 BCP 47 语言标签索引的自定义文案"`
+	DefaultLanguage string                   `json:"default_language" maxLength:"35" doc:"渠道主语言（BCP 47），作为缺省回退与 AI 翻译源语言"`
+	Translations    map[string]LocalizedCopy `json:"translations" doc:"按规范 BCP 47 语言标签索引的自定义文案"`
 }
 
-// defaultLocalization 返回新建网页渠道时的默认多语言策略：默认语言优先取 defaultLang（空或非法时取 en），允许访客切换语言。
+// defaultLocalization 返回新建网页渠道时的默认多语言配置：主语言优先取 defaultLang（空或非法时取 en）。
 func defaultLocalization(defaultLang string) Localization {
 	dl := lang.En
 	if canon, ok := lang.Canonical(defaultLang); ok {
 		dl = canon
 	}
 	return Localization{
-		DefaultLanguage:  dl,
-		EnabledLanguages: []string{},
-		AllowSwitch:      true,
-		Translations:     map[string]LocalizedCopy{},
+		DefaultLanguage: dl,
+		Translations:    map[string]LocalizedCopy{},
 	}
 }
 
@@ -89,7 +85,6 @@ func (c LocalizedCopy) equal(other LocalizedCopy) bool {
 
 // normalizeLocalization 校验并规范化渠道多语言配置：
 //   - DefaultLanguage 为空时回退为 "en"，非合法 BCP 47 标签返回 ErrInvalidLanguage；
-//   - EnabledLanguages 规范化并去重，含非法标签返回 ErrInvalidLanguage；
 //   - Translations 键规范化为标准 BCP 47 标签，空文案条目自动省略。
 func normalizeLocalization(in Localization, isBusiness bool) (Localization, error) {
 	defaultLang := strings.TrimSpace(in.DefaultLanguage)
@@ -101,23 +96,6 @@ func normalizeLocalization(in Localization, isBusiness bool) (Localization, erro
 			return Localization{}, ErrInvalidLanguage.New(errorx.Field("localization.default_language"), errorx.Public("language", in.DefaultLanguage))
 		}
 		defaultLang = canon
-	}
-
-	enabled := make([]string, 0, len(in.EnabledLanguages))
-	seen := map[string]bool{}
-	for _, raw := range in.EnabledLanguages {
-		trimmed := strings.TrimSpace(raw)
-		if trimmed == "" {
-			continue
-		}
-		canon, ok := lang.Canonical(trimmed)
-		if !ok {
-			return Localization{}, ErrInvalidLanguage.New(errorx.Field("localization.enabled_languages"), errorx.Public("language", raw))
-		}
-		if !seen[canon] {
-			seen[canon] = true
-			enabled = append(enabled, canon)
-		}
 	}
 
 	translations := make(map[string]LocalizedCopy, len(in.Translations))
@@ -134,19 +112,14 @@ func normalizeLocalization(in Localization, isBusiness bool) (Localization, erro
 	}
 
 	return Localization{
-		DefaultLanguage:  defaultLang,
-		EnabledLanguages: enabled,
-		AllowSwitch:      in.AllowSwitch,
-		Translations:     translations,
+		DefaultLanguage: defaultLang,
+		Translations:    translations,
 	}, nil
 }
 
 // localizationEqual 报告两份渠道多语言配置是否完全相等，用于变更审计。
 func localizationEqual(a, b Localization) bool {
-	if a.DefaultLanguage != b.DefaultLanguage || a.AllowSwitch != b.AllowSwitch {
-		return false
-	}
-	if !slices.Equal(a.EnabledLanguages, b.EnabledLanguages) {
+	if a.DefaultLanguage != b.DefaultLanguage {
 		return false
 	}
 	if len(a.Translations) != len(b.Translations) {
@@ -167,37 +140,10 @@ func (s Settings) localization() Localization {
 	if loc.DefaultLanguage == "" {
 		return defaultLocalization(lang.En)
 	}
-	if loc.EnabledLanguages == nil {
-		loc.EnabledLanguages = []string{}
-	}
 	if loc.Translations == nil {
 		loc.Translations = map[string]LocalizedCopy{}
 	}
 	return loc
-}
-
-// availableLanguages 返回供访客语言切换器展示的可选语言列表：
-// 若配置了 EnabledLanguages 白名单则按白名单顺序返回；否则返回内置语种列表并追加已配置翻译的额外语言。
-func availableLanguages(loc Localization) []string {
-	if len(loc.EnabledLanguages) > 0 {
-		return slices.Clone(loc.EnabledLanguages)
-	}
-	out := make([]string, 0, len(SupportedLanguages)+len(loc.Translations))
-	seen := map[string]bool{}
-	add := func(tag string) {
-		if tag == "" || seen[tag] {
-			return
-		}
-		seen[tag] = true
-		out = append(out, tag)
-	}
-	for _, l := range SupportedLanguages {
-		add(l)
-	}
-	for _, k := range slices.Sorted(maps.Keys(loc.Translations)) {
-		add(k)
-	}
-	return out
 }
 
 // lookupTranslation 在 translations 中按精确标签或 lang.Same 规则查找最接近的条目。

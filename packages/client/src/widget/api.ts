@@ -278,12 +278,8 @@ export interface WidgetBusinessIntakeConfig {
 }
 
 export interface WidgetConfigDTO {
-  /** 是否允许访客在聊天窗口顶部切换语言 */
-  allow_switch: boolean
   /** 聊天窗口的视觉外观配置 */
   appearance: WidgetAppearance
-  /** 访客可选语言列表（BCP 47） */
-  available_languages: string[]
   /** 网页商务沟通链接的公开名片、留资与访问配置 */
   business?: WidgetPublicBusinessConfig
   /** 渠道配置的默认语言（BCP 47） */

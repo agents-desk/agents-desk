@@ -9,7 +9,7 @@ import { tenantApi } from "../../api"
 import { useUnsavedGuard } from "../../components/unsaved-guard"
 import { teams } from "../../resources"
 import { ChannelLocalizationSection } from "./channel-localization-section"
-import { computeAvailableLanguages, resolvePreviewCopy } from "./preview-protocol"
+import { computePreviewLanguages, resolvePreviewCopy } from "./preview-protocol"
 import { WidgetInstallPanel } from "./widget-install-panel"
 import { WidgetPreviewStage } from "./widget-preview-stage"
 import classes from "./widget-studio.module.css"
@@ -32,12 +32,10 @@ interface StudioFormValues {
   allowed_origins: string[]
 }
 
-/** emptyLocalization 返回新建/初始化时的默认多语言策略。 */
+/** emptyLocalization 返回新建/初始化时的默认多语言配置。 */
 function emptyLocalization(): WidgetLocalization {
   return {
     default_language: "en",
-    enabled_languages: [],
-    allow_switch: true,
     translations: {},
   }
 }
@@ -53,8 +51,6 @@ function toFormValues(w: WidgetDTO): StudioFormValues {
     },
     localization: {
       default_language: w.localization?.default_language || "en",
-      enabled_languages: w.localization?.enabled_languages ?? [],
-      allow_switch: w.localization?.allow_switch ?? true,
       translations: w.localization?.translations ?? {},
     },
     allowed_origins: w.allowed_origins ?? [],
@@ -163,8 +159,8 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
     () => resolvePreviewCopy(form.values.localization, previewLang),
     [form.values.localization, previewLang],
   )
-  const availableLanguages = useMemo(
-    () => computeAvailableLanguages(form.values.localization),
+  const previewLanguages = useMemo(
+    () => computePreviewLanguages(form.values.localization),
     [form.values.localization],
   )
 
@@ -292,8 +288,7 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
                       greeting={resolvedPreview.greeting || ""}
                       appearance={form.values.appearance}
                       language={previewLang}
-                      allowSwitch={form.values.localization.allow_switch}
-                      availableLanguages={availableLanguages}
+                      previewLanguages={previewLanguages}
                       onLanguageChange={setPreviewLang}
                     />
                   </Box>

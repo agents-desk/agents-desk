@@ -1605,17 +1605,12 @@ export const messages = {
     "widget_i18n.ai_translate_all": "AI translate all languages",
     "widget_i18n.ai_translate_current": "AI translate this language",
     "widget_i18n.ai_translated": "Generated drafts for {{.count}} language(s). Review and save when ready.",
-    "widget_i18n.allow_switch": "Allow visitors to switch language",
-    "widget_i18n.allow_switch_hint": "Show a language switcher in the chat header so visitors can pick their preferred language",
     "widget_i18n.default_badge": "Primary",
     "widget_i18n.default_language": "Primary language (fallback)",
     "widget_i18n.default_language_hint": "Fallback when a visitor's browser doesn't match a configured language, and the source language for AI translation",
     "widget_i18n.display_title": "Public window title",
     "widget_i18n.display_title_hint": "Title shown to visitors in the chat header; leave empty to fall back to the primary language or internal channel name",
     "widget_i18n.editing_language": "Editing language",
-    "widget_i18n.enabled_languages": "Visitor selectable languages",
-    "widget_i18n.enabled_languages_hint": "Leave empty to allow all built-in UI languages (English, Simplified Chinese, Traditional Chinese, Hindi, Hinglish)",
-    "widget_i18n.enabled_languages_placeholder": "All built-in languages by default",
     "widget_i18n.fallback_placeholder": "Falls back to primary: {{.value}}",
     "widget_i18n.lang_count_badge": "{{.count}} languages",
     "widget_i18n.preview_language": "Preview language",
@@ -3304,17 +3299,12 @@ export const messages = {
     "widget_i18n.ai_translate_all": "AI 一键翻译全部语言",
     "widget_i18n.ai_translate_current": "AI 翻译当前语言",
     "widget_i18n.ai_translated": "已生成 {{.count}} 种语言的草稿，可微调后保存",
-    "widget_i18n.allow_switch": "允许访客切换语言",
-    "widget_i18n.allow_switch_hint": "在聊天窗口顶部显示语言切换器，访客可自行选择母语界面",
     "widget_i18n.default_badge": "主语言",
     "widget_i18n.default_language": "主语言（默认回退）",
     "widget_i18n.default_language_hint": "访客浏览器未命中已配语言时的兜底语言，也是 AI 翻译的源语言",
     "widget_i18n.display_title": "对外窗口标题",
     "widget_i18n.display_title_hint": "访客打开聊天窗口时看到的顶部标题；留空回退主语言或渠道内部名称",
     "widget_i18n.editing_language": "正在编辑语言",
-    "widget_i18n.enabled_languages": "访客可选语言",
-    "widget_i18n.enabled_languages_hint": "留空时开放全部内置界面语言（英文、简体中文、繁體中文、हिन्दी、Hinglish）",
-    "widget_i18n.enabled_languages_placeholder": "默认全部内置语言",
     "widget_i18n.fallback_placeholder": "留空回退主语言：{{.value}}",
     "widget_i18n.lang_count_badge": "{{.count}} 种语言",
     "widget_i18n.preview_language": "预览语言",
@@ -5006,17 +4996,12 @@ export type MessageId =
   | "widget_i18n.ai_translate_all"
   | "widget_i18n.ai_translate_current"
   | "widget_i18n.ai_translated"
-  | "widget_i18n.allow_switch"
-  | "widget_i18n.allow_switch_hint"
   | "widget_i18n.default_badge"
   | "widget_i18n.default_language"
   | "widget_i18n.default_language_hint"
   | "widget_i18n.display_title"
   | "widget_i18n.display_title_hint"
   | "widget_i18n.editing_language"
-  | "widget_i18n.enabled_languages"
-  | "widget_i18n.enabled_languages_hint"
-  | "widget_i18n.enabled_languages_placeholder"
   | "widget_i18n.fallback_placeholder"
   | "widget_i18n.lang_count_badge"
   | "widget_i18n.preview_language"

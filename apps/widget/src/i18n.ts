@@ -107,15 +107,13 @@ function browserLanguages(): string[] {
 
 /** LanguageSources 保存按优先级参与语言协商的各类来源信号。 */
 interface LanguageSources {
-  userChoice: string // 1. 访客手动选择（持久化）
-  hostCommand: string // 2. 宿主运行期 setLanguage 命令
-  explicitParam: string // 3. URL ?lang= 或 window.agentsDesk.lang
-  hostDocLang: string // 4. 宿主页面 <html lang>
-  channelDefault: string // 6. 渠道配置的默认语言
+  hostCommand: string // 1. 宿主运行期 setLanguage 命令
+  explicitParam: string // 2. URL ?lang= 或 window.agentsDesk.lang
+  hostDocLang: string // 3. 宿主页面 <html lang>
+  channelDefault: string // 5. 渠道配置的默认语言
 }
 
 const sources: LanguageSources = {
-  userChoice: "",
   hostCommand: "",
   explicitParam: "",
   hostDocLang: "",
@@ -152,7 +150,6 @@ export function ensureLanguage(lang: string): Promise<void> {
 /** recompute 按单一优先级链重算 requestedLanguage 与 uiLanguage，并触发所需语种包加载。 */
 function recompute(): Promise<void> {
   const candidates = [
-    sources.userChoice,
     sources.hostCommand,
     sources.explicitParam,
     sources.hostDocLang,
@@ -174,33 +171,8 @@ function recompute(): Promise<void> {
   return ensureLanguage(nextUI)
 }
 
-/** storageKey 生成按渠道隔离的访客手动语言偏好键。 */
-function storageKey(channelId: string): string {
-  return `agents-desk.widget.${channelId || "default"}.lang`
-}
-
-/** readStoredLanguage 读取访客此前手动选择的语言。 */
-export function readStoredLanguage(channelId: string): string {
-  try {
-    return normalizeLang(localStorage.getItem(storageKey(channelId)))
-  } catch {
-    return ""
-  }
-}
-
-/** writeStoredLanguage 持久化访客手动选择的语言；空值清除记录。 */
-function writeStoredLanguage(channelId: string, lang: string): void {
-  try {
-    if (!lang) localStorage.removeItem(storageKey(channelId))
-    else localStorage.setItem(storageKey(channelId), lang)
-  } catch {
-    // 隐私模式禁用 localStorage 时仅保留在内存中
-  }
-}
-
-/** initWidgetLanguage 在应用初始化时注入 URL/配置显式语言与本地访客偏好，并立即启动对应语种包加载。 */
-export function initWidgetLanguage(opts: { channelId: string; urlLang?: string; configLang?: string }): Promise<void> {
-  sources.userChoice = readStoredLanguage(opts.channelId)
+/** initWidgetLanguage 在应用初始化时注入 URL/配置显式语言，并立即启动对应语种包加载。 */
+export function initWidgetLanguage(opts: { urlLang?: string; configLang?: string }): Promise<void> {
   sources.explicitParam = normalizeLang(opts.urlLang) || normalizeLang(opts.configLang)
   return recompute()
 }
@@ -219,22 +191,10 @@ export function applyChannelDefaultLanguage(defaultLang?: string): Promise<void>
 }
 
 /** applyHostCommandLanguage 响应宿主页面运行期调用的 setLanguage 命令。 */
-export function applyHostCommandLanguage(channelId: string, lang: string): Promise<void> {
+export function applyHostCommandLanguage(lang: string): Promise<void> {
   const norm = normalizeLang(lang)
   if (!norm) return Promise.resolve()
   sources.hostCommand = norm
-  // 宿主显式下发运行期切换指令时清除旧的访客本地覆盖，确保 SPA 宿主切语种生效
-  sources.userChoice = ""
-  writeStoredLanguage(channelId, "")
-  return recompute()
-}
-
-/** chooseUserLanguage 响应访客在聊天窗口顶部手动切换语言，并持久化偏好。 */
-export function chooseUserLanguage(channelId: string, lang: string): Promise<void> {
-  const norm = normalizeLang(lang)
-  if (!norm) return Promise.resolve()
-  sources.userChoice = norm
-  writeStoredLanguage(channelId, norm)
   return recompute()
 }
 
@@ -265,7 +225,6 @@ export const i18n: WidgetI18n = {
   setLanguage(language) {
     const norm = normalizeLang(language)
     sources.hostCommand = norm
-    sources.userChoice = ""
     void recompute()
   },
   languages: () => [...WIDGET_LANGUAGES],
@@ -293,7 +252,6 @@ export const i18n: WidgetI18n = {
 if (typeof window !== "undefined") {
   const params = new URLSearchParams(window.location.search)
   void initWidgetLanguage({
-    channelId: params.get("channel") ?? "",
     urlLang: params.get("lang") ?? undefined,
     configLang: window.agentsDesk?.lang,
   })

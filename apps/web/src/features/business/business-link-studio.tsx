@@ -52,7 +52,7 @@ import { useMe, useMembers } from "../../inbox/data"
 import { languageName } from "../../languages"
 import { ChannelLocalizationSection } from "../widget/channel-localization-section"
 import {
-  computeAvailableLanguages,
+  computePreviewLanguages,
   PREVIEW_PREFIX,
   type PreviewBusinessPayload,
   type PreviewMessage,
@@ -99,12 +99,10 @@ interface BusinessLinkFormValues {
   }
 }
 
-/** emptyLocalization 返回默认多语言策略。 */
+/** emptyLocalization 返回默认多语言配置。 */
 function emptyLocalization(): WidgetLocalization {
   return {
     default_language: "en",
-    enabled_languages: [],
-    allow_switch: true,
     translations: {},
   }
 }
@@ -139,8 +137,6 @@ function toFormValues(link: WidgetBusinessLinkDTO): BusinessLinkFormValues {
     },
     localization: {
       default_language: link.localization?.default_language || "en",
-      enabled_languages: link.localization?.enabled_languages ?? [],
-      allow_switch: link.localization?.allow_switch ?? true,
       translations: link.localization?.translations ?? {},
     },
     card: {
@@ -221,8 +217,7 @@ function BusinessLinkPreviewStage({
   greeting,
   appearance,
   language,
-  allowSwitch,
-  availableLanguages,
+  previewLanguages,
   onLanguageChange,
   business,
 }: {
@@ -230,8 +225,7 @@ function BusinessLinkPreviewStage({
   greeting: string
   appearance: { color: string }
   language: string
-  allowSwitch: boolean
-  availableLanguages: string[]
+  previewLanguages: string[]
   onLanguageChange: (lang: string) => void
   business: PreviewBusinessPayload
 }): ReactNode {
@@ -253,20 +247,16 @@ function BusinessLinkPreviewStage({
         greeting,
         appearance,
         language,
-        allow_switch: allowSwitch,
-        available_languages: availableLanguages,
         scene: nextScene,
         viewport: nextViewport,
         business,
       }
       target.postMessage(payload, window.location.origin)
     },
-    [allowSwitch, appearance, availableLanguages, business, greeting, language, name],
+    [appearance, business, greeting, language, name],
   )
   const latestPostRef = useRef<() => void>(() => {})
   latestPostRef.current = () => postPreview(scene, viewport)
-  const onLangRef = useRef(onLanguageChange)
-  onLangRef.current = onLanguageChange
 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
@@ -283,10 +273,6 @@ function BusinessLinkPreviewStage({
         if (next === "intake" || next === "conversation" || next === "passcode") {
           setScene(next)
         }
-        return
-      }
-      if (kind === "preview_language" && typeof e.data.language === "string" && e.data.language) {
-        onLangRef.current(e.data.language)
       }
     }
     window.addEventListener("message", onMessage)
@@ -299,12 +285,12 @@ function BusinessLinkPreviewStage({
   }, [postPreview, ready, scene, viewport])
 
   const languageOptions = useMemo(() => {
-    const tags = new Set<string>([...availableLanguages, language])
+    const tags = new Set<string>([...previewLanguages, language])
     return [...tags].filter(Boolean).map((code) => ({
       value: code,
       label: `${languageName(code, uiLang)} (${code})`,
     }))
-  }, [availableLanguages, language, uiLang])
+  }, [language, previewLanguages, uiLang])
 
   return (
     <Stack gap="sm" className={classes.previewColumn}>
@@ -674,8 +660,8 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
     () => resolvePreviewCopy(form.values.localization, previewLang),
     [form.values.localization, previewLang],
   )
-  const availableLanguages = useMemo(
-    () => computeAvailableLanguages(form.values.localization),
+  const previewLanguages = useMemo(
+    () => computePreviewLanguages(form.values.localization),
     [form.values.localization],
   )
 
@@ -968,8 +954,7 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
                       greeting={resolvedPreview.greeting || ""}
                       appearance={form.values.appearance}
                       language={previewLang}
-                      allowSwitch={form.values.localization.allow_switch}
-                      availableLanguages={availableLanguages}
+                      previewLanguages={previewLanguages}
                       onLanguageChange={setPreviewLang}
                       business={previewBusiness}
                     />
@@ -990,7 +975,7 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
                   ownerName={ownerName}
                   ownerSubtitle={[effectiveTitle, effectiveCompany].filter(Boolean).join(" · ")}
                   ownerAvatar={me.data?.avatar_url}
-                  availableLanguages={availableLanguages}
+                  availableLanguages={previewLanguages}
                   onRotated={(updated) => {
                     queryClient.setQueryData(kit.queries.business.linkGet(id).queryKey, updated)
                     void queryClient.invalidateQueries({ queryKey: kit.queries.business.key() })
