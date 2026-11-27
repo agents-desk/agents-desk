@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query"
 import { Centrifuge } from "centrifuge"
-import { createContext, useContext, useEffect, useRef, useState } from "react"
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react"
 import { kit } from "./api"
 import type { PushAlert } from "./inbox/alerts"
 
@@ -64,6 +64,7 @@ export function useRealtime(
       chats: false,
       views: false,
       contacts: false,
+      memberStatus: false,
       conversations: new Set<string>(),
     }
     const flush = () => {
@@ -74,12 +75,14 @@ export function useRealtime(
         pending.chats = false
         pending.views = false
         pending.contacts = false
+        pending.memberStatus = false
         pending.conversations.clear()
         void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
         void queryClient.invalidateQueries({ queryKey: kit.queries.ticket.key() })
         void queryClient.invalidateQueries({ queryKey: kit.queries.chat.key() })
         void queryClient.invalidateQueries({ queryKey: kit.queries.view.key() })
         void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
+        void queryClient.invalidateQueries({ queryKey: ["me", "status"] })
         return
       }
       if (pending.inbox) {
@@ -113,6 +116,10 @@ export function useRealtime(
       if (pending.contacts) {
         pending.contacts = false
         void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
+      }
+      if (pending.memberStatus) {
+        pending.memberStatus = false
+        void queryClient.invalidateQueries({ queryKey: ["me", "status"] })
       }
     }
     const schedule = () => {
@@ -159,6 +166,9 @@ export function useRealtime(
           pending.views = true
           pending.inbox = true
           break
+        case "member_status":
+          pending.memberStatus = true
+          break
         default:
           pending.all = true
       }
@@ -179,4 +189,66 @@ export function useRealtime(
     }
   }, [slug, tenantId, memberId, queryClient])
   return client
+}
+
+/** RealtimeStatus 是工作区实时连接的当前状态。 */
+export type RealtimeStatus = "connected" | "connecting" | "disconnected"
+
+/**
+ * useRealtimeState 跟踪 Centrifuge 连接状态与浏览器离线状态，
+ * 在首次连接成功之后再出现断线/重连时给出状态信号与手动重连方法。
+ */
+export function useRealtimeState(centrifuge: Centrifuge | null): {
+  status: RealtimeStatus
+  everConnected: boolean
+  offline: boolean
+  reconnect: () => void
+} {
+  const [status, setStatus] = useState<RealtimeStatus>("connecting")
+  const [everConnected, setEverConnected] = useState(false)
+  const [offline, setOffline] = useState(() => (typeof navigator !== "undefined" ? !navigator.onLine : false))
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const onOnline = () => setOffline(false)
+    const onOffline = () => setOffline(true)
+    window.addEventListener("online", onOnline)
+    window.addEventListener("offline", onOffline)
+    return () => {
+      window.removeEventListener("online", onOnline)
+      window.removeEventListener("offline", onOffline)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!centrifuge) {
+      setStatus("disconnected")
+      setEverConnected(false)
+      return
+    }
+    setStatus(centrifuge.state as RealtimeStatus)
+    if (centrifuge.state === "connected") setEverConnected(true)
+    const onConnecting = () => setStatus("connecting")
+    const onConnected = () => {
+      setStatus("connected")
+      setEverConnected(true)
+    }
+    const onDisconnected = () => setStatus("disconnected")
+    centrifuge.on("connecting", onConnecting)
+    centrifuge.on("connected", onConnected)
+    centrifuge.on("disconnected", onDisconnected)
+    return () => {
+      centrifuge.off("connecting", onConnecting)
+      centrifuge.off("connected", onConnected)
+      centrifuge.off("disconnected", onDisconnected)
+    }
+  }, [centrifuge])
+
+  const reconnect = useCallback(() => {
+    if (!centrifuge) return
+    centrifuge.disconnect()
+    centrifuge.connect()
+  }, [centrifuge])
+
+  return { status, everConnected, offline, reconnect }
 }

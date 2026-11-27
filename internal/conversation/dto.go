@@ -43,6 +43,7 @@ type ConversationDTO struct {
 	SnoozedUntil      *time.Time         `json:"snoozed_until,omitempty"`
 	FirstReplyAt      *time.Time         `json:"first_reply_at,omitempty"`
 	ClosedAt          *time.Time         `json:"closed_at,omitempty"`
+	SpamAt            *time.Time         `json:"spam_at,omitempty" doc:"标记为垃圾会话的时间"`
 	LastMessageAt     time.Time          `json:"last_message_at"`
 	LastSeq           int64              `json:"last_seq" doc:"时间线中最新一项的序号，用来增量读取时间线"`
 	Preview           string             `json:"preview" doc:"最后一条消息的文字：对方的消息是我的语言的译文（还没有时是原文），成员翻译后发出的回复是成员写的原文"`
@@ -459,7 +460,7 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 		}
 		d := ConversationDTO{
 			ID: c.ID, Kind: c.Kind, Audience: c.Audience, Status: c.Status, TeamID: c.TeamID, Priority: c.Priority, Language: c.Language,
-			WaitingSince: c.WaitingSince, SnoozedUntil: c.SnoozedUntil, FirstReplyAt: c.FirstReplyAt, ClosedAt: c.ClosedAt,
+			WaitingSince: c.WaitingSince, SnoozedUntil: c.SnoozedUntil, FirstReplyAt: c.FirstReplyAt, ClosedAt: c.ClosedAt, SpamAt: c.SpamAt,
 			LastMessageAt: c.LastMessageAt, LastSeq: c.LastSeq, Unread: unread[c.ID], ReadSeq: readSeq[c.ID],
 			MentionedAt: c.MentionedAt, Rating: c.rating(), Tags: tags, Attributes: attrs, CreatedAt: c.CreatedAt,
 		}

@@ -115,8 +115,9 @@ func NewTickets(db *bun.DB, roles *authz.Store, files *filesystem.Service) *Tick
 	return &Tickets{db: db, roles: roles, files: files}
 }
 
-// applyTicketFilters 在包含 conversations c 与 tickets t 的查询上叠加团队、类型与可见范围筛选。
+// applyTicketFilters 在包含 conversations c 与 tickets t 的查询上叠加未标垃圾条件及团队、类型与可见范围筛选。
 func applyTicketFilters(q *bun.SelectQuery, f TicketFilterParams) {
+	q.Where("c.spam_at IS NULL")
 	if f.TeamID != "" {
 		q.Where("c.team_id = ?", f.TeamID)
 	}

@@ -160,10 +160,10 @@ export const enums = {
   },
   ConversationInbox: {
     prefix: "conversation.inbox",
-    values: ["mine", "mentions", "unassigned", "all"],
+    values: ["mine", "mentions", "unassigned", "all", "spam"],
     labels: {
-      "en": { mine: "Mine", mentions: "Mentions", unassigned: "Unassigned", all: "All" },
-      "zh-CN": { mine: "我的", mentions: "@我", unassigned: "未指派", all: "全部" },
+      "en": { mine: "Mine", mentions: "Mentions", unassigned: "Unassigned", all: "All", spam: "Spam" },
+      "zh-CN": { mine: "我的", mentions: "@我", unassigned: "未指派", all: "全部", spam: "垃圾会话" },
     },
   },
   ConversationItemKind: {

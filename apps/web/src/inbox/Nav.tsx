@@ -3,6 +3,7 @@ import { ActionIcon, Badge, Menu, NavLink, Text, Tooltip } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useMatch, useNavigate, useParams } from "@tanstack/react-router"
 import {
+  IconAlertOctagon,
   IconArrowForwardUp,
   IconAt,
   IconClockCheck,
@@ -202,6 +203,14 @@ export function InboxNav(): ReactNode {
         {item("mentions", t("inbox.box_mentions"), <IconAt size={16} stroke={1.6} />, d?.mentions)}
         {item("unassigned", t("inbox.box_unassigned"), <IconUserQuestion size={16} stroke={1.6} />, d?.unassigned)}
         {item("all", t("inbox.box_all"), <IconListDetails size={16} stroke={1.6} />, d?.all)}
+        <NavLink
+          key="spam"
+          label={t("inbox.box_spam")}
+          leftSection={<IconAlertOctagon size={16} stroke={1.6} />}
+          rightSection={<NavCount n={d?.spam} />}
+          active={Boolean(search && search.box === "spam" && !search.team && !search.view)}
+          onClick={() => navigateInbox({ box: "spam", team: undefined, view: undefined, filter: undefined })}
+        />
 
         {aiEnabled && (
           <RailSection

@@ -49,6 +49,11 @@ export const required = {
     list: ["tenant-settings:manage"],
     update: ["tenant-settings:manage"],
   },
+  blocked: {
+    ipCreate: ["tenant-settings:manage"],
+    ipDelete: ["tenant-settings:manage"],
+    ipList: ["tenant-settings:manage"],
+  },
   business: {
     channelAddCollaborators: ["business-channels:manage"],
     channelList: ["business-channels:manage"],
@@ -78,12 +83,14 @@ export const required = {
     update: ["conversations:read"],
   },
   contact: {
+    block: ["contacts:update"],
     exportProgress: ["contacts:export"],
     exportStart: ["contacts:export"],
     get: ["contacts:read"],
     list: ["contacts:read"],
     merge: ["contacts:update"],
     summary: ["contacts:read"],
+    unblock: ["contacts:update"],
     update: ["contacts:update"],
     viewCreate: ["contacts:read"],
     viewDelete: ["contacts:read"],
@@ -109,6 +116,7 @@ export const required = {
     items: ["conversations:read"],
     language: ["conversations:reply"],
     list: ["conversations:read"],
+    markSpam: ["conversations:reply"],
     note: ["conversations:reply"],
     priority: ["conversations:reply"],
     read: ["conversations:read"],
@@ -120,6 +128,7 @@ export const required = {
     snooze: ["conversations:reply"],
     tagAdd: ["conversations:reply"],
     tagRemove: ["conversations:reply"],
+    unmarkSpam: ["conversations:reply"],
   },
   external: {
     groupList: ["channels:read"],

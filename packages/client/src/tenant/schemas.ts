@@ -50,6 +50,13 @@ export const schemas = {
       },
     },
   },
+  blocked: {
+    ipCreate: {
+      body: {
+        "$ref": "#/components/schemas/BlockipCreateBody"
+      },
+    },
+  },
   business: {
     channelAddCollaborators: {
       body: {
@@ -169,6 +176,11 @@ export const schemas = {
     },
   },
   contact: {
+    block: {
+      body: {
+        "$ref": "#/components/schemas/ContactBlockBody"
+      },
+    },
     exportStart: {
       body: {
         "$ref": "#/components/schemas/ContactExportStartInputBody"
@@ -378,6 +390,11 @@ export const schemas = {
           }
         },
         "type": "object"
+      },
+    },
+    markSpam: {
+      body: {
+        "$ref": "#/components/schemas/ConversationMarkSpamBody"
       },
     },
     note: {
@@ -1533,6 +1550,23 @@ export const components = {
     ],
     "type": "object"
   },
+  BlockipCreateBody: {
+    "additionalProperties": false,
+    "properties": {
+      "cidr": {
+        "maxLength": 64,
+        "type": "string"
+      },
+      "reason": {
+        "maxLength": 500,
+        "type": "string"
+      }
+    },
+    "required": [
+      "cidr"
+    ],
+    "type": "object"
+  },
   BusinessAddCollaboratorsBody: {
     "additionalProperties": false,
     "properties": {
@@ -1691,6 +1725,16 @@ export const components = {
       "external"
     ],
     "type": "string"
+  },
+  ContactBlockBody: {
+    "additionalProperties": false,
+    "properties": {
+      "reason": {
+        "maxLength": 500,
+        "type": "string"
+      }
+    },
+    "type": "object"
   },
   ContactExportStartInputBody: {
     "additionalProperties": false,
@@ -2311,7 +2355,8 @@ export const components = {
       "mine",
       "mentions",
       "unassigned",
-      "all"
+      "all",
+      "spam"
     ],
     "type": "string"
   },
@@ -2341,6 +2386,19 @@ export const components = {
       },
       "external_group_id": {
         "format": "uuid",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  ConversationMarkSpamBody: {
+    "additionalProperties": false,
+    "properties": {
+      "block_contact": {
+        "type": "boolean"
+      },
+      "reason": {
+        "maxLength": 500,
         "type": "string"
       }
     },

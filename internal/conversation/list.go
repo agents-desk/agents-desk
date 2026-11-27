@@ -26,10 +26,11 @@ const (
 	InboxMentions   Inbox = "mentions"   // @我：我在内部备注中被 @ 过，最近被 @ 的在前，不按状态筛选
 	InboxUnassigned Inbox = "unassigned" // 未指派：没有团队收件箱，也没有负责人
 	InboxAll        Inbox = "all"        // 全部：我能看到的全部会话
+	InboxSpam       Inbox = "spam"       // 垃圾会话：已标记为垃圾的会话，不按状态筛选
 )
 
 // Inboxes 是收件箱的全部列表，显示文字是翻译文件中 conversation.inbox.<列表> 的消息。
-var Inboxes = enum.New("conversation.inbox", enum.Item(InboxMine), enum.Item(InboxMentions), enum.Item(InboxUnassigned), enum.Item(InboxAll))
+var Inboxes = enum.New("conversation.inbox", enum.Item(InboxMine), enum.Item(InboxMentions), enum.Item(InboxUnassigned), enum.Item(InboxAll), enum.Item(InboxSpam))
 
 // Schema 让 OpenAPI 中的 Inbox 只接受上面的取值，并带有显示文字。
 func (Inbox) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Inboxes) }
@@ -133,6 +134,14 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) 
 	var rows []Conversation
 	q := a.db.NewSelect().Model(&rows).Where("conversation.tenant_id = ? AND conversation.kind = ?", sub.Tenant, Service).Limit(in.Limit())
 	q = visible(q, sub)
+	if activeFilter == nil && in.Inbox == InboxSpam {
+		q = q.Where("conversation.spam_at IS NOT NULL")
+		if in.Sort == "" {
+			sortMode = ByRecent
+		}
+	} else {
+		q = q.Where("conversation.spam_at IS NULL")
+	}
 
 	if activeFilter != nil {
 		var attrDefs map[string]attribute.Definition
@@ -168,7 +177,7 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) 
 		case InboxUnassigned:
 			q = q.Where("conversation.team_id IS NULL AND conversation.assignee_type = ''")
 		}
-		if in.Inbox != InboxMentions && in.ContactID == "" && in.ExternalGroupID == "" {
+		if in.Inbox != InboxMentions && in.Inbox != InboxSpam && in.ContactID == "" && in.ExternalGroupID == "" {
 			q = q.Where("conversation.status = ?", status)
 		}
 		if in.ContactID != "" {

@@ -225,6 +225,22 @@ export const messages = {
     "biz_studio.title_override_placeholder": "Leave blank to use your profile title: {{.fallback}}",
     "biz_studio.tone_inherit": "Use the workspace business default",
     "biz_studio.translation_tone": "Translation tone",
+    "blocked_ips.add": "Add rule",
+    "blocked_ips.added": "Blocked IP added",
+    "blocked_ips.cidr": "IP address or CIDR block",
+    "blocked_ips.cidr_hint": "Supports a single IPv4/IPv6 (e.g. 1.2.3.4) or CIDR subnet (e.g. 10.20.30.0/24)",
+    "blocked_ips.cidr_placeholder": "1.2.3.4 or 10.20.30.0/24",
+    "blocked_ips.col_cidr": "IP / CIDR",
+    "blocked_ips.col_created_at": "Added",
+    "blocked_ips.col_reason": "Reason",
+    "blocked_ips.delete": "Remove",
+    "blocked_ips.delete_confirm": "Remove rule {{.cidr}}?",
+    "blocked_ips.delete_message": "Visitors from this address range will regain access to website chat widgets.",
+    "blocked_ips.deleted": "Blocked IP rule removed",
+    "blocked_ips.description": "Visitors matching these IP addresses or CIDR ranges are blocked at website chat widget endpoints.",
+    "blocked_ips.empty": "No blocked IP rules yet",
+    "blocked_ips.reason": "Reason (optional)",
+    "blocked_ips.reason_placeholder": "e.g. Abusive traffic or automated spam",
     "business_channels.col_synced": "Synced chats",
     "business_channels.col_url": "Link URL",
     "business_channels.copy_url": "Copy URL",
@@ -517,6 +533,16 @@ export const messages = {
     "common.unsaved": "Unsaved changes",
     "common.unsaved_message": "Your changes will be lost if you leave.",
     "common.unsaved_title": "Leave without saving?",
+    "contacts.block": "Block contact",
+    "contacts.block_confirm_title": "Block this contact?",
+    "contacts.block_desc": "Blocking revokes active web chat tokens and drops future incoming messages from this contact. Past conversations remain visible.",
+    "contacts.block_reason_label": "Reason (optional)",
+    "contacts.block_reason_placeholder": "e.g. Spam advertising or abuse",
+    "contacts.blocked_badge": "Blocked",
+    "contacts.blocked_banner": "This contact is blocked and cannot send new messages",
+    "contacts.blocked_banner_reason": "This contact is blocked: {{.reason}}",
+    "contacts.blocked_done": "Contact blocked",
+    "contacts.blocked_reason": "Block reason",
     "contacts.channel_identities": "Channel identities",
     "contacts.clear_filters": "Clear filters",
     "contacts.close_detail": "Close details",
@@ -588,6 +614,10 @@ export const messages = {
     "contacts.sort": "Sort",
     "contacts.time_zone": "Time zone",
     "contacts.time_zone_placeholder": "Choose or search a time zone",
+    "contacts.unblock": "Unblock contact",
+    "contacts.unblock_confirm": "Unblock “{{.name}}”?",
+    "contacts.unblock_message": "This contact will be able to message your workspace again through linked channels.",
+    "contacts.unblocked_done": "Contact unblocked",
     "contacts.view_create": "New saved filter",
     "contacts.view_created": "Filter saved",
     "contacts.view_delete_confirm": "Delete filter “{{.name}}”?",
@@ -625,6 +655,8 @@ export const messages = {
     "event.customer": "The customer",
     "event.language_auto": "{{.who}} set the customer's language back to automatic detection",
     "event.language_set": "{{.who}} set the customer's language to {{.lang}}",
+    "event.marked_spam": "{{.who}} marked this conversation as spam",
+    "event.marked_spam_blocked": "{{.who}} marked this conversation as spam and blocked the contact",
     "event.merged": "{{.who}} merged a conversation from {{.channel}} ({{.count}} items)",
     "event.merged_unknown": "{{.who}} merged a conversation ({{.count}} items)",
     "event.moved_team": "{{.who}} moved the conversation to {{.team}}",
@@ -648,6 +680,7 @@ export const messages = {
     "event.ticket_status_changed": "{{.who}} changed status from {{.from}} to {{.to}}",
     "event.ticket_updated": "{{.who}} updated ticket details",
     "event.unassigned": "{{.who}} removed the assignee",
+    "event.unmarked_spam": "{{.who}} removed this conversation from spam",
     "event.unsnoozed": "The conversation is open again",
     "event.via_default": " (default assignment)",
     "event.via_reply": " (claimed by replying)",
@@ -761,6 +794,7 @@ export const messages = {
     "inbox.box_all": "All",
     "inbox.box_mentions": "Mentions",
     "inbox.box_mine": "Mine",
+    "inbox.box_spam": "Spam",
     "inbox.box_unassigned": "Unassigned",
     "inbox.bulk_assigned": "Assigned {{.n}} conversations",
     "inbox.bulk_closed": "Closed {{.n}} conversations",
@@ -780,6 +814,8 @@ export const messages = {
     "inbox.close_details": "Close details",
     "inbox.collapse_short": "Hide",
     "inbox.collapse_translation": "Hide translation review",
+    "inbox.colleague_noting_hint": "{{.who}} is writing an internal note…",
+    "inbox.colleague_replying_warning": "Heads up: {{.who}} is typing a reply to this customer. Coordinate to avoid duplicate replies.",
     "inbox.confirm_send": "Confirm \u0026 send",
     "inbox.contact_email": "Email",
     "inbox.contact_language": "Language",
@@ -849,6 +885,11 @@ export const messages = {
     "inbox.macro_warn_tag_missing": "Some tags were deleted and skipped",
     "inbox.macro_warn_team_disabled": "Team inbox “{{.name}}” is disabled; assignment skipped",
     "inbox.macro_warn_team_missing": "Target team inbox was deleted; assignment skipped",
+    "inbox.mark_spam": "Mark spam",
+    "inbox.mark_spam_also_block": "Also block this contact from sending future messages",
+    "inbox.mark_spam_confirm": "Mark conversation as spam?",
+    "inbox.mark_spam_desc": "The conversation will close and be excluded from regular inboxes, search, and reports.",
+    "inbox.marked_spam": "Marked as spam",
     "inbox.media_load_file": "Click to fetch attachment",
     "inbox.media_load_video": "Click to load video",
     "inbox.media_loading": "Fetching media…",
@@ -949,6 +990,8 @@ export const messages = {
     "inbox.sort": "Sort",
     "inbox.sort_recent": "Recent activity",
     "inbox.sort_waiting": "Waiting time",
+    "inbox.spam_badge": "Spam",
+    "inbox.spam_banner": "This conversation is marked as spam and excluded from regular inboxes and reports.",
     "inbox.status": "Status",
     "inbox.status_all": "All",
     "inbox.status_closed": "Closed",
@@ -976,6 +1019,8 @@ export const messages = {
     "inbox.translation_tone_default": "Default tone",
     "inbox.typing": "{{.who}} is typing…",
     "inbox.unassign": "Remove assignee",
+    "inbox.unmark_spam": "Not spam",
+    "inbox.unmarked_spam": "Removed from spam",
     "inbox.view_correction": "View correction",
     "inbox.view_image": "View image",
     "inbox.view_original": "View original",
@@ -985,6 +1030,10 @@ export const messages = {
     "inbox.visitor_numbered": "Visitor #{{.n}}",
     "inbox.you": "You",
     "internal_channels.description": "Manage internal employee service bots (WeCom, internal Telegram bots, etc.) and employee groups; bots connect to AI Agents first and escalate unhandled requests to team inboxes for human participation.",
+    "layout.realtime_disconnected": "Realtime connection lost. New messages and teammate presence may be delayed.",
+    "layout.realtime_offline": "You appear to be offline. Check your network connection.",
+    "layout.realtime_reconnect": "Reconnect",
+    "layout.realtime_reconnecting": "Reconnecting to realtime channel…",
     "login.aside_footer": "Unified Team Service Platform",
     "login.aside_headline": "AI-first unified service workspace for your team",
     "login.aside_subline": "Unite customer support, internal collaboration, and business conversations in one calm workspace.",
@@ -1081,6 +1130,7 @@ export const messages = {
     "nav.assignment": "Assignment",
     "nav.assignment_rules": "Assignment \u0026 automations",
     "nav.attributes": "Attributes",
+    "nav.blocked_ips": "Blocked IPs",
     "nav.business_channels": "My business channels",
     "nav.business_governance": "Business channels",
     "nav.chat": "Chat",
@@ -1133,6 +1183,9 @@ export const messages = {
     "notifications_page.permission_unsupported": "This browser does not support desktop notifications. Sound alerts still work.",
     "notifications_page.request_permission": "Enable browser notifications",
     "notifications_page.test_sound": "Test sound",
+    "notifications_prompt.allow": "Enable notifications",
+    "notifications_prompt.dismiss": "Not now",
+    "notifications_prompt.text": "Enable browser desktop notifications to get alerted when conversations are assigned or customers reply.",
     "preferences.follow_browser": "Follow the browser (currently {{.zone}})",
     "preferences.language": "Working \u0026 translation language",
     "preferences.language_hint": "Messages, tickets, and notes in other languages are translated into this language, and back-translations use it",
@@ -2198,6 +2251,22 @@ export const messages = {
     "biz_studio.title_override_placeholder": "留空时使用个人资料中的头衔：{{.fallback}}",
     "biz_studio.tone_inherit": "使用工作区的商务沟通默认语气",
     "biz_studio.translation_tone": "翻译语气",
+    "blocked_ips.add": "添加封禁规则",
+    "blocked_ips.added": "已添加 IP 黑名单",
+    "blocked_ips.cidr": "IP 地址或 CIDR 网段",
+    "blocked_ips.cidr_hint": "支持单个 IPv4/IPv6（例如 1.2.3.4）或网段（例如 10.20.30.0/24）",
+    "blocked_ips.cidr_placeholder": "1.2.3.4 或 10.20.30.0/24",
+    "blocked_ips.col_cidr": "IP / 网段",
+    "blocked_ips.col_created_at": "添加时间",
+    "blocked_ips.col_reason": "原因说明",
+    "blocked_ips.delete": "移除",
+    "blocked_ips.delete_confirm": "移除封禁规则 {{.cidr}}？",
+    "blocked_ips.delete_message": "移除后来自该地址段的访客将恢复访问网页聊天插件。",
+    "blocked_ips.deleted": "已移除封禁规则",
+    "blocked_ips.description": "命中以下 IP 地址或网段的访客将在网页聊天插件入口被拦截，适用于阻止恶意刷单或骚扰流量。",
+    "blocked_ips.empty": "还没有配置 IP 黑名单",
+    "blocked_ips.reason": "原因（可选）",
+    "blocked_ips.reason_placeholder": "例如：恶意爬虫或频繁骚扰",
     "business_channels.col_synced": "同步对话",
     "business_channels.col_url": "链接地址",
     "business_channels.copy_url": "复制链接",
@@ -2490,6 +2559,16 @@ export const messages = {
     "common.unsaved": "有未保存的修改",
     "common.unsaved_message": "离开后这些修改会丢失。",
     "common.unsaved_title": "有未保存的修改，确定离开吗？",
+    "contacts.block": "拉黑联系人",
+    "contacts.block_confirm_title": "拉黑该联系人？",
+    "contacts.block_desc": "拉黑后将吊销其网页聊天令牌并拦截来自该联系人的新消息，历史会话仍保留可读。",
+    "contacts.block_reason_label": "拉黑原因（可选）",
+    "contacts.block_reason_placeholder": "例如：恶意发送广告、辱骂客服",
+    "contacts.blocked_badge": "已拉黑",
+    "contacts.blocked_banner": "该联系人已被加入黑名单，无法再发起消息",
+    "contacts.blocked_banner_reason": "该联系人已被拉黑：{{.reason}}",
+    "contacts.blocked_done": "已拉黑联系人",
+    "contacts.blocked_reason": "拉黑原因",
     "contacts.channel_identities": "渠道身份",
     "contacts.clear_filters": "清除筛选",
     "contacts.close_detail": "关闭详情",
@@ -2561,6 +2640,10 @@ export const messages = {
     "contacts.sort": "排序",
     "contacts.time_zone": "时区",
     "contacts.time_zone_placeholder": "选择或搜索时区",
+    "contacts.unblock": "解除拉黑",
+    "contacts.unblock_confirm": "解除“{{.name}}”的拉黑状态？",
+    "contacts.unblock_message": "解除后该联系人可重新通过已绑定渠道联系客服。",
+    "contacts.unblocked_done": "已解除拉黑",
     "contacts.view_create": "新建保存的筛选",
     "contacts.view_created": "已保存筛选",
     "contacts.view_delete_confirm": "删除筛选“{{.name}}”？",
@@ -2598,6 +2681,8 @@ export const messages = {
     "event.customer": "客户",
     "event.language_auto": "{{.who}} 把对方的语言改回自动识别",
     "event.language_set": "{{.who}} 把对方的语言改为 {{.lang}}",
+    "event.marked_spam": "{{.who}} 将会话标记为垃圾",
+    "event.marked_spam_blocked": "{{.who}} 将会话标记为垃圾并拉黑了联系人",
     "event.merged": "{{.who}} 合并了来自 {{.channel}} 的会话（{{.count}} 条记录）",
     "event.merged_unknown": "{{.who}} 合并了一个会话（{{.count}} 条记录）",
     "event.moved_team": "{{.who}} 把会话转到 {{.team}}",
@@ -2621,6 +2706,7 @@ export const messages = {
     "event.ticket_status_changed": "{{.who}} 将状态从“{{.from}}”改为“{{.to}}”",
     "event.ticket_updated": "{{.who}} 更新了工单信息",
     "event.unassigned": "{{.who}} 取消了负责人",
+    "event.unmarked_spam": "{{.who}} 将会话移出了垃圾箱",
     "event.unsnoozed": "会话回到打开",
     "event.via_default": "（默认指派）",
     "event.via_reply": "（回复即领取）",
@@ -2734,6 +2820,7 @@ export const messages = {
     "inbox.box_all": "全部",
     "inbox.box_mentions": "@我",
     "inbox.box_mine": "我的",
+    "inbox.box_spam": "垃圾会话",
     "inbox.box_unassigned": "未指派",
     "inbox.bulk_assigned": "已指派 {{.n}} 个会话",
     "inbox.bulk_closed": "已关闭 {{.n}} 个会话",
@@ -2753,6 +2840,8 @@ export const messages = {
     "inbox.close_details": "关闭详情",
     "inbox.collapse_short": "收起",
     "inbox.collapse_translation": "收起译文校对",
+    "inbox.colleague_noting_hint": "{{.who}} 正在写内部备注…",
+    "inbox.colleague_replying_warning": "注意：{{.who}} 正在编辑给客户的回复，请注意避免重复回复",
     "inbox.confirm_send": "确认发送",
     "inbox.contact_email": "邮箱",
     "inbox.contact_language": "语言",
@@ -2822,6 +2911,11 @@ export const messages = {
     "inbox.macro_warn_tag_missing": "部分标签已删除，已跳过",
     "inbox.macro_warn_team_disabled": "团队收件箱“{{.name}}”已停用，已跳过指派",
     "inbox.macro_warn_team_missing": "目标团队收件箱已删除，已跳过指派",
+    "inbox.mark_spam": "标记垃圾",
+    "inbox.mark_spam_also_block": "同时拉黑该联系人，不再接收其消息",
+    "inbox.mark_spam_confirm": "标记为垃圾会话？",
+    "inbox.mark_spam_desc": "标记后会话将自动关闭，从常规收件箱、搜索与统计报表中排除。",
+    "inbox.marked_spam": "已标记为垃圾会话",
     "inbox.media_load_file": "点击下载附件",
     "inbox.media_load_video": "点击加载视频",
     "inbox.media_loading": "正在拉取媒体…",
@@ -2922,6 +3016,8 @@ export const messages = {
     "inbox.sort": "排序",
     "inbox.sort_recent": "最近活动",
     "inbox.sort_waiting": "等待时长",
+    "inbox.spam_badge": "垃圾会话",
+    "inbox.spam_banner": "此会话已标记为垃圾并自动关闭，不计入收件箱与报表统计。",
     "inbox.status": "状态",
     "inbox.status_all": "全部",
     "inbox.status_closed": "已关闭",
@@ -2949,6 +3045,8 @@ export const messages = {
     "inbox.translation_tone_default": "默认语气",
     "inbox.typing": "{{.who}} 正在输入…",
     "inbox.unassign": "取消负责人",
+    "inbox.unmark_spam": "移出垃圾箱",
+    "inbox.unmarked_spam": "已移出垃圾箱",
     "inbox.view_correction": "查看更正",
     "inbox.view_image": "查看大图",
     "inbox.view_original": "查看原文",
@@ -2958,6 +3056,10 @@ export const messages = {
     "inbox.visitor_numbered": "访客 #{{.n}}",
     "inbox.you": "你",
     "internal_channels.description": "管理面向内部员工的机器人渠道（企业微信、Telegram 内部机器人等）与员工群；机器人关联的 AI Agent 先应答，需要人工时转入团队收件箱。",
+    "layout.realtime_disconnected": "实时连接已断开，新消息与同事协作状态暂无法同步",
+    "layout.realtime_offline": "当前网络已离线，请检查网络连接",
+    "layout.realtime_reconnect": "重新连接",
+    "layout.realtime_reconnecting": "正在重新连接实时通道…",
     "login.aside_footer": "团队综合服务平台",
     "login.aside_headline": "AI 驱动的团队统一服务工作台",
     "login.aside_subline": "在一个空间里连接客户咨询、内部协作与商务沟通，让团队响应更快、更从容。",
@@ -3054,6 +3156,7 @@ export const messages = {
     "nav.assignment": "指派",
     "nav.assignment_rules": "指派与自动化",
     "nav.attributes": "属性",
+    "nav.blocked_ips": "IP 黑名单",
     "nav.business_channels": "我的商务渠道",
     "nav.business_governance": "商务渠道",
     "nav.chat": "聊天",
@@ -3106,6 +3209,9 @@ export const messages = {
     "notifications_page.permission_unsupported": "当前浏览器只能使用提示音提醒。",
     "notifications_page.request_permission": "开启浏览器通知",
     "notifications_page.test_sound": "试听提示音",
+    "notifications_prompt.allow": "立即开启",
+    "notifications_prompt.dismiss": "暂不提示",
+    "notifications_prompt.text": "允许浏览器桌面通知后，有新会话指派或客户来信时可第一时间提醒你。",
     "preferences.follow_browser": "跟随浏览器（当前是 {{.zone}}）",
     "preferences.language": "沟通与译文语言",
     "preferences.language_hint": "跨语言消息、工单和备注默认翻译成这种语言呈现，回复校对时的回译也使用这种语言",
@@ -4174,6 +4280,22 @@ export type MessageId =
   | "biz_studio.title_override_placeholder"
   | "biz_studio.tone_inherit"
   | "biz_studio.translation_tone"
+  | "blocked_ips.add"
+  | "blocked_ips.added"
+  | "blocked_ips.cidr"
+  | "blocked_ips.cidr_hint"
+  | "blocked_ips.cidr_placeholder"
+  | "blocked_ips.col_cidr"
+  | "blocked_ips.col_created_at"
+  | "blocked_ips.col_reason"
+  | "blocked_ips.delete"
+  | "blocked_ips.delete_confirm"
+  | "blocked_ips.delete_message"
+  | "blocked_ips.deleted"
+  | "blocked_ips.description"
+  | "blocked_ips.empty"
+  | "blocked_ips.reason"
+  | "blocked_ips.reason_placeholder"
   | "business_channels.col_synced"
   | "business_channels.col_url"
   | "business_channels.copy_url"
@@ -4466,6 +4588,16 @@ export type MessageId =
   | "common.unsaved"
   | "common.unsaved_message"
   | "common.unsaved_title"
+  | "contacts.block"
+  | "contacts.block_confirm_title"
+  | "contacts.block_desc"
+  | "contacts.block_reason_label"
+  | "contacts.block_reason_placeholder"
+  | "contacts.blocked_badge"
+  | "contacts.blocked_banner"
+  | "contacts.blocked_banner_reason"
+  | "contacts.blocked_done"
+  | "contacts.blocked_reason"
   | "contacts.channel_identities"
   | "contacts.clear_filters"
   | "contacts.close_detail"
@@ -4537,6 +4669,10 @@ export type MessageId =
   | "contacts.sort"
   | "contacts.time_zone"
   | "contacts.time_zone_placeholder"
+  | "contacts.unblock"
+  | "contacts.unblock_confirm"
+  | "contacts.unblock_message"
+  | "contacts.unblocked_done"
   | "contacts.view_create"
   | "contacts.view_created"
   | "contacts.view_delete_confirm"
@@ -4574,6 +4710,8 @@ export type MessageId =
   | "event.customer"
   | "event.language_auto"
   | "event.language_set"
+  | "event.marked_spam"
+  | "event.marked_spam_blocked"
   | "event.merged"
   | "event.merged_unknown"
   | "event.moved_team"
@@ -4597,6 +4735,7 @@ export type MessageId =
   | "event.ticket_status_changed"
   | "event.ticket_updated"
   | "event.unassigned"
+  | "event.unmarked_spam"
   | "event.unsnoozed"
   | "event.via_default"
   | "event.via_reply"
@@ -4710,6 +4849,7 @@ export type MessageId =
   | "inbox.box_all"
   | "inbox.box_mentions"
   | "inbox.box_mine"
+  | "inbox.box_spam"
   | "inbox.box_unassigned"
   | "inbox.bulk_assigned"
   | "inbox.bulk_closed"
@@ -4729,6 +4869,8 @@ export type MessageId =
   | "inbox.close_details"
   | "inbox.collapse_short"
   | "inbox.collapse_translation"
+  | "inbox.colleague_noting_hint"
+  | "inbox.colleague_replying_warning"
   | "inbox.confirm_send"
   | "inbox.contact_email"
   | "inbox.contact_language"
@@ -4798,6 +4940,11 @@ export type MessageId =
   | "inbox.macro_warn_tag_missing"
   | "inbox.macro_warn_team_disabled"
   | "inbox.macro_warn_team_missing"
+  | "inbox.mark_spam"
+  | "inbox.mark_spam_also_block"
+  | "inbox.mark_spam_confirm"
+  | "inbox.mark_spam_desc"
+  | "inbox.marked_spam"
   | "inbox.media_load_file"
   | "inbox.media_load_video"
   | "inbox.media_loading"
@@ -4898,6 +5045,8 @@ export type MessageId =
   | "inbox.sort"
   | "inbox.sort_recent"
   | "inbox.sort_waiting"
+  | "inbox.spam_badge"
+  | "inbox.spam_banner"
   | "inbox.status"
   | "inbox.status_all"
   | "inbox.status_closed"
@@ -4925,6 +5074,8 @@ export type MessageId =
   | "inbox.translation_tone_default"
   | "inbox.typing"
   | "inbox.unassign"
+  | "inbox.unmark_spam"
+  | "inbox.unmarked_spam"
   | "inbox.view_correction"
   | "inbox.view_image"
   | "inbox.view_original"
@@ -4934,6 +5085,10 @@ export type MessageId =
   | "inbox.visitor_numbered"
   | "inbox.you"
   | "internal_channels.description"
+  | "layout.realtime_disconnected"
+  | "layout.realtime_offline"
+  | "layout.realtime_reconnect"
+  | "layout.realtime_reconnecting"
   | "login.aside_footer"
   | "login.aside_headline"
   | "login.aside_subline"
@@ -5030,6 +5185,7 @@ export type MessageId =
   | "nav.assignment"
   | "nav.assignment_rules"
   | "nav.attributes"
+  | "nav.blocked_ips"
   | "nav.business_channels"
   | "nav.business_governance"
   | "nav.chat"
@@ -5082,6 +5238,9 @@ export type MessageId =
   | "notifications_page.permission_unsupported"
   | "notifications_page.request_permission"
   | "notifications_page.test_sound"
+  | "notifications_prompt.allow"
+  | "notifications_prompt.dismiss"
+  | "notifications_prompt.text"
   | "preferences.follow_browser"
   | "preferences.language"
   | "preferences.language_hint"

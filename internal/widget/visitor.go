@@ -15,7 +15,9 @@ import (
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/realtime"
 
+	"agents-desk/internal/blockip"
 	"agents-desk/internal/channel"
+	"agents-desk/internal/clientip"
 	"agents-desk/internal/contact"
 )
 
@@ -38,6 +40,18 @@ func Middleware(db bun.IDB) func(http.Handler) http.Handler {
 					slog.ErrorContext(r.Context(), "load widget by id", "error", err)
 					httpx.WriteProblem(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 					return
+				}
+				if ch != nil {
+					blocked, err := blockip.IsBlocked(r.Context(), db, ch.TenantID, clientip.FromContext(r.Context()))
+					if err != nil {
+						slog.ErrorContext(r.Context(), "check widget blocked ip", "error", err)
+						httpx.WriteProblem(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
+						return
+					}
+					if blocked {
+						httpx.WriteProblem(w, http.StatusForbidden, "visitor ip is blocked")
+						return
+					}
 				}
 			}
 			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), requestKey{}, ch)))
@@ -90,8 +104,9 @@ func Resolve(db bun.IDB) identity.Resolver {
 			return identity.Subject{}, identity.ErrUnauthenticated.New()
 		}
 		ok, err := db.NewSelect().TableExpr("contact_identities AS ci").
+			Join("JOIN contacts AS c ON c.id = ci.contact_id AND c.tenant_id = ci.tenant_id").
 			Join("JOIN channels AS ch ON ch.id = ci.channel_id AND ch.tenant_id = ci.tenant_id").
-			Where("ci.tenant_id = ? AND ci.contact_id = ? AND ch.kind IN (?) AND ch.enabled = TRUE",
+			Where("ci.tenant_id = ? AND ci.contact_id = ? AND c.blocked_at IS NULL AND ch.kind IN (?) AND ch.enabled = TRUE",
 				sub.Tenant, sub.ID, bun.In([]channel.Kind{channel.Widget, channel.BusinessLink})).
 			Exists(ctx)
 		if err != nil {
@@ -109,8 +124,10 @@ func hasIdentity(ctx context.Context, db bun.IDB, sub identity.Subject, channelI
 	if sub.Type != contact.Type {
 		return false, nil
 	}
-	ok, err := db.NewSelect().Table("contact_identities").
-		Where("tenant_id = ? AND channel_id = ? AND contact_id = ?", sub.Tenant, channelID, sub.ID).Exists(ctx)
+	ok, err := db.NewSelect().TableExpr("contact_identities AS ci").
+		Join("JOIN contacts AS c ON c.id = ci.contact_id AND c.tenant_id = ci.tenant_id").
+		Where("ci.tenant_id = ? AND ci.channel_id = ? AND ci.contact_id = ? AND c.blocked_at IS NULL",
+			sub.Tenant, channelID, sub.ID).Exists(ctx)
 	return ok, errors.Wrap(err, "check contact identity")
 }
 

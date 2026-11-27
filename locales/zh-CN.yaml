@@ -176,6 +176,11 @@ contact.not_lead: 已登录用户的邮箱由产品自动同步，不能在这�
 contact.merge_self: 不能把联系人合并到他自己
 contact.merge_conflict: 这两个联系人绑定了不同的业务用户编号，不能直接合并
 contact.member_taken: 这位成员已经绑定了另一个内部联系人
+contact.blocked: 该联系人已被加入黑名单
+blockip.blocked: 你的 IP 地址已被禁止访问
+blockip.invalid_cidr: IP 地址或 CIDR 网段格式无效
+blockip.not_found: IP 黑名单规则不存在
+blockip.duplicate: 该 IP 地址或网段已在黑名单中
 contact.kind.user: 用户
 contact.kind.lead: 线索
 contact.kind.internal: 内部联系人
@@ -328,6 +333,7 @@ conversation.inbox.mine: 我的
 conversation.inbox.mentions: "@我"
 conversation.inbox.unassigned: 未指派
 conversation.inbox.all: 全部
+conversation.inbox.spam: 垃圾会话
 conversation.sort.waiting: 等待时长
 conversation.sort.recent: 最近活动
 conversation.priority.normal: 普通
@@ -418,6 +424,10 @@ activity.platform_settings.mail_updated: "更新了邮件服务设置（{{.chang
 activity.tgaccount.credentials_updated: "更新了工作区 Telegram 个人号 API 凭据设置（{{.changed}}）"
 activity.feature.changed: "更新了功能开关「{{.name}}」（{{.scope}}：{{.mode}}）"
 activity.feature.cleared: "清除了功能开关「{{.name}}」的设置（{{.scope}}）"
+activity.contact.blocked: "拉黑了联系人"
+activity.contact.unblocked: "取消了联系人拉黑"
+activity.blockip.created: "添加了 IP 黑名单 {{.cidr}}"
+activity.blockip.deleted: "移除了 IP 黑名单 {{.cidr}}"
 
 platform_settings.invalid_email: 请输入有效的邮箱地址
 platform_settings.required_field: 启用 Resend 发信时此项不能为空
@@ -543,6 +553,8 @@ schedule.task.conversations_unsnooze.label: 唤醒到期稍后处理会话
 schedule.task.conversations_unsnooze.description: 重新打开稍后处理到期的会话
 schedule.task.generations_expire.label: 清理超时的 AI 生成
 schedule.task.generations_expire.description: 把超过有效期仍未结束的 AI 生成标记为失败
+schedule.task.members_auto_away.label: 自动将离线坐席设为离开
+schedule.task.members_auto_away.description: 将超过 5 分钟未上报在线心跳的在线成员自动切换为离开状态
 
 conversation.invalid_actions: 附带操作的参数无效
 conversation.invalid_filter: 筛选条件配置无效

@@ -46,6 +46,8 @@ var (
 	ErrMergeConflict = errorx.Define(errorx.Conflict, "contact.merge_conflict")
 	// ErrMemberTaken 是目标工作区成员已经绑定了另一个内部联系人。
 	ErrMemberTaken = errorx.Define(errorx.Conflict, "contact.member_taken")
+	// ErrBlocked 是该联系人已被拉黑，禁止再接入会话。
+	ErrBlocked = errorx.Define(errorx.PermissionDenied, "contact.blocked")
 )
 
 // Kind 是联系人的类型。
@@ -86,6 +88,8 @@ type Contact struct {
 	TimeZone       string         `bun:"time_zone,notnull"`                // IANA 时区名，例如 Asia/Shanghai，用于显示对方当地时间
 	Referrer       string         `bun:"referrer,notnull"`                 // 首次访问的来源页面地址
 	LastSeenAt     *time.Time     `bun:"last_seen_at"`                     // 最近活跃或联系的时间
+	BlockedAt      *time.Time     `bun:"blocked_at"`                       // 拉黑时间，非空表示已拉黑
+	BlockedReason  string         `bun:"blocked_reason,notnull"`           // 拉黑原因说明
 }
 
 // Summary 是接口中联系人的概要，显示在会话中和聊天插件的会话响应里，包含可向客户展示的字段。
@@ -101,6 +105,8 @@ type Summary struct {
 	LanguageManual bool           `json:"language_manual" doc:"对方的语言是成员手动设置的：收到的消息不再改它"`
 	Location       string         `json:"location,omitempty" doc:"所在地"`
 	TimeZone       string         `json:"time_zone,omitempty" doc:"IANA 时区名，用于显示对方的当地时间"`
+	BlockedAt      *time.Time     `json:"blocked_at,omitempty" doc:"拉黑时间；非空表示已拉黑"`
+	BlockedReason  string         `json:"blocked_reason,omitempty" doc:"拉黑原因说明"`
 	Tags           []tag.Summary  `json:"tags" doc:"联系人上的标签"`
 	Attributes     map[string]any `json:"attributes" doc:"联系人的自定义属性"`
 }
@@ -115,6 +121,7 @@ func (c *Contact) Summary() Summary {
 		ID: c.ID, Number: c.Number, Kind: c.Kind, MemberID: c.MemberID, Name: c.Name, Company: c.Company, Email: c.Email,
 		Language: c.Language, LanguageManual: c.LanguageManual,
 		Location: c.Location, TimeZone: c.TimeZone,
+		BlockedAt: c.BlockedAt, BlockedReason: c.BlockedReason,
 		Tags: []tag.Summary{}, Attributes: attrs,
 	}
 }

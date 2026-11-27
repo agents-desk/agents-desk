@@ -55,6 +55,18 @@ export const AutomationErrors = {
   Forbidden: "automation.forbidden",
 } as const
 
+/** agents-desk/internal/blockip 的错误码。 */
+export const BlockipErrors = {
+  /** ErrBlocked 是客户端 IP 位于当前工作区的黑名单中，拒绝接入网页聊天插件。 */
+  Blocked: "blockip.blocked",
+  /** ErrInvalidCIDR 是填写的 IP 地址或 CIDR 网段格式无效。 */
+  InvalidCIDR: "blockip.invalid_cidr",
+  /** ErrNotFound 是黑名单规则不存在或属于别的工作区。 */
+  NotFound: "blockip.not_found",
+  /** ErrDuplicate 是同一个 IP 地址或网段已在当前工作区黑名单中。 */
+  Duplicate: "blockip.duplicate",
+} as const
+
 /** agents-desk/internal/business 的错误码。 */
 export const BusinessErrors = {
   /** ErrFeatureDisabled 表示该商务渠道功能在平台或工作区层面已关闭。 */
@@ -105,6 +117,8 @@ export const ContactErrors = {
   MergeConflict: "contact.merge_conflict",
   /** ErrMemberTaken 是目标工作区成员已经绑定了另一个内部联系人。 */
   MemberTaken: "contact.member_taken",
+  /** ErrBlocked 是该联系人已被拉黑，禁止再接入会话。 */
+  Blocked: "contact.blocked",
 } as const
 
 /** agents-desk/internal/conversation 的错误码。 */

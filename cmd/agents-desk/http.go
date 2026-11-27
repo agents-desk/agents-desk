@@ -45,6 +45,7 @@ import (
 	"agents-desk/internal/audit"
 	"agents-desk/internal/auth"
 	"agents-desk/internal/automation"
+	"agents-desk/internal/blockip"
 	"agents-desk/internal/business"
 	"agents-desk/internal/channel"
 	"agents-desk/internal/clientip"
@@ -505,13 +506,18 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		business.RegisterRoutes(api, require, a.db, a.roles, a.files, a.businessPolicy, a.features, a.tgCredentials, down, a.cfg.HTTP.PublicURL, onTGChanged)
 		translation.RegisterRoutes(api, require, a.db, a.translator, translation.NewIncoming(a.db, a.locker, a.translator, a.downstream()), a.translationSettings)
 		automation.RegisterRoutes(api, require, a.db)
+		blockip.RegisterRoutes(api, require, a.db)
 		report.RegisterRoutes(api, require, a.db, a.roles, a.files)
 	})
 
 	// 聊天窗口的接口：widget.Middleware 按路径中的渠道 ID 查出聊天插件和它所在的工作区。只接受联系人的令牌，
 	// 客户的接口不需要登录，所以整组按客户端地址限流。
 	router.Route("/w/{channel}/api", func(r chi.Router) {
-		r.Use(a.apiTimeout(), httpx.RateLimit(ratelimit.NewMemory(a.cfg.HTTP.RateLimit), httpx.KeyByIP), widget.Middleware(a.db))
+		var widgetLimiter ratelimit.Limiter = ratelimit.NewMemory(a.cfg.HTTP.RateLimit)
+		if a.db != nil {
+			widgetLimiter = pglimit.New(a.db, "http:widget", a.cfg.HTTP.RateLimit)
+		}
+		r.Use(a.apiTimeout(), httpx.RateLimit(widgetLimiter, httpx.KeyByIP), widget.Middleware(a.db))
 		var passcodeLimiter ratelimit.Limiter
 		if a.db != nil {
 			passcodeLimiter = pglimit.New(a.db, "widget:passcode:attempts", ratelimit.Config{Rate: 10, Interval: 15 * time.Minute, Burst: 10})

@@ -33,7 +33,7 @@ export interface InboxSearch {
   matchField?: MatchField // 命中来源：original 时目标消息自动展开原文
 }
 
-const boxes: ConversationInbox[] = ["mine", "mentions", "unassigned", "all"]
+const boxes: ConversationInbox[] = ["mine", "mentions", "unassigned", "all", "spam"]
 const statuses: ConversationStatus[] = ["open", "snoozed", "closed"]
 const sorts: ConversationSort[] = ["waiting", "recent"]
 const scopes: SearchScope[] = ["all", "current"]

@@ -75,6 +75,10 @@ export function describeEvent(it: ConversationItemDTO, members: Map<string, Memb
     }
     case "conversation.closed":
       return t("event.closed", { who })
+    case "conversation.marked_spam":
+      return t(d.block_contact ? "event.marked_spam_blocked" : "event.marked_spam", { who })
+    case "conversation.unmarked_spam":
+      return t("event.unmarked_spam", { who })
     case "conversation.reopened":
       return t("event.reopened", { who })
     case "conversation.snoozed":

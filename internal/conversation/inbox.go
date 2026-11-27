@@ -44,6 +44,7 @@ type InboxDTO struct {
 	Teams      []TeamSummary      `json:"teams" nullable:"false" doc:"团队收件箱：我所在的；可见范围是全部会话的成员是全部团队收件箱，按名称排列"`
 	Views      []ViewSummary      `json:"views" nullable:"false" doc:"已保存视图：共享在前、个人在后，各带实时会话数量与积压情况"`
 	Tickets    TicketInboxSummary `json:"tickets" doc:"工单分组的未解决数量"`
+	Spam       int                `json:"spam" doc:"垃圾会话数量（排除在常规统计之外）"`
 }
 
 // InboxOutput 是收件箱列表的响应。
@@ -169,7 +170,7 @@ func (a *GetInbox) Handle(ctx context.Context, sub identity.Subject) (*InboxDTO,
 			return nil
 		}
 		agg := a.db.NewSelect().TableExpr("conversations AS conversation").
-			Where("conversation.tenant_id = ? AND conversation.kind = ?", sub.Tenant, Service)
+			Where("conversation.tenant_id = ? AND conversation.kind = ? AND conversation.spam_at IS NULL", sub.Tenant, Service)
 		if len(statuses) == 1 {
 			agg = agg.Where("conversation.status = ?", statuses[0])
 		} else if len(statuses) > 1 {
@@ -241,7 +242,7 @@ func (a *GetInbox) Handle(ctx context.Context, sub identity.Subject) (*InboxDTO,
 
 	// @我 的数量是还有未读的 @ 的服务型会话，不论状态
 	err = a.db.NewRaw(`SELECT count(DISTINCT m.conversation_id) FROM conversation_mentions m
-		JOIN conversations c ON c.id = m.conversation_id AND c.kind = ?
+		JOIN conversations c ON c.id = m.conversation_id AND c.kind = ? AND c.spam_at IS NULL
 		LEFT JOIN conversation_reads r ON r.conversation_id = m.conversation_id AND r.member_id = m.member_id
 		WHERE m.tenant_id = ? AND m.member_id = ? AND m.seq > coalesce(r.last_read_seq, 0)`, Service, sub.Tenant, sub.ID).Scan(ctx, &out.Mentions.Count)
 	if err != nil {
@@ -276,7 +277,7 @@ func (a *GetInbox) Handle(ctx context.Context, sub identity.Subject) (*InboxDTO,
 		ColumnExpr("count(*) AS count").
 		ColumnExpr("count(*) FILTER (WHERE conversation.waiting_since IS NOT NULL) AS waiting").
 		ColumnExpr("min(conversation.waiting_since) AS oldest").
-		Where("conversation.tenant_id = ? AND conversation.kind = ? AND conversation.status = ? AND conversation.team_id IS NOT NULL", sub.Tenant, Service, Open).
+		Where("conversation.tenant_id = ? AND conversation.kind = ? AND conversation.status = ? AND conversation.spam_at IS NULL AND conversation.team_id IS NOT NULL", sub.Tenant, Service, Open).
 		GroupExpr("conversation.team_id")
 	teamStatsQ = visible(teamStatsQ, sub)
 	if err := teamStatsQ.Scan(ctx, &byTeam); err != nil {
@@ -291,6 +292,14 @@ func (a *GetInbox) Handle(ctx context.Context, sub identity.Subject) (*InboxDTO,
 	}
 	for i := range out.Teams {
 		out.Teams[i].Summary = stats[out.Teams[i].ID]
+	}
+
+	spamQ := a.db.NewSelect().TableExpr("conversations AS conversation").
+		ColumnExpr("count(*)").
+		Where("conversation.tenant_id = ? AND conversation.kind = ? AND conversation.spam_at IS NOT NULL", sub.Tenant, Service)
+	spamQ = visible(spamQ, sub)
+	if err := spamQ.Scan(ctx, &out.Spam); err != nil {
+		return nil, errors.Wrap(err, "count spam inbox")
 	}
 	return &out, nil
 }

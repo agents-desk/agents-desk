@@ -21,6 +21,10 @@ export type ContactKind = "user" | "lead" | "internal"
 export interface ContactSummary {
   /** 联系人的自定义属性 */
   attributes: Record<string, unknown>
+  /** 拉黑时间；非空表示已拉黑 */
+  blocked_at?: string
+  /** 拉黑原因说明 */
+  blocked_reason?: string
   /** 所属公司或组织名称 */
   company?: string
   email: string

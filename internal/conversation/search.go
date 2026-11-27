@@ -236,6 +236,11 @@ func (a *Search) Handle(ctx context.Context, sub identity.Subject, in *SearchInp
 	allowed := a.db.NewSelect().Model((*Conversation)(nil)).ColumnExpr("conversation.id::text").
 		Where("conversation.tenant_id = ? AND conversation.kind = ?", sub.Tenant, Service)
 	allowed = visible(allowed, sub)
+	if activeFilter == nil && in.Inbox == InboxSpam {
+		allowed = allowed.Where("conversation.spam_at IS NOT NULL")
+	} else {
+		allowed = allowed.Where("conversation.spam_at IS NULL")
+	}
 	if activeFilter != nil {
 		var attrDefs map[string]attribute.Definition
 		if len(activeFilter.Attributes) > 0 {

@@ -99,6 +99,27 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
           invalidate(context, "automation"),
       }),
     },
+    blocked: {
+      /** blocked 分组全部查询的 key 前缀。 */
+      key: () => key("blocked"),
+      /** POST /blocked-ips */
+      ipCreate: () => ({
+        mutationFn: (variables: Parameters<Client["blocked"]["ipCreate"]>[0]) => client.blocked.ipCreate(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "blocked"),
+      }),
+      /** DELETE /blocked-ips/{id} */
+      ipDelete: () => ({
+        mutationFn: (variables: Parameters<Client["blocked"]["ipDelete"]>[0]) => client.blocked.ipDelete(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "blocked"),
+      }),
+      /** GET /blocked-ips */
+      ipList: (...args: Parameters<Client["blocked"]["ipList"]>) => ({
+        queryKey: key("blocked", "ipList", ...args),
+        queryFn: () => client.blocked.ipList(...args),
+      }),
+    },
     business: {
       /** business 分组全部查询的 key 前缀。 */
       key: () => key("business"),
@@ -238,6 +259,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
     contact: {
       /** contact 分组全部查询的 key 前缀。 */
       key: () => key("contact"),
+      /** POST /contacts/{id}/block */
+      block: () => ({
+        mutationFn: (variables: Parameters<Client["contact"]["block"]>) => client.contact.block(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "contact"),
+      }),
       /** POST /contacts/exports */
       exportStart: () => ({
         mutationFn: (variables: Parameters<Client["contact"]["exportStart"]>[0]) => client.contact.exportStart(variables),
@@ -264,6 +291,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       summary: (...args: Parameters<Client["contact"]["summary"]>) => ({
         queryKey: key("contact", "summary", ...args),
         queryFn: () => client.contact.summary(...args),
+      }),
+      /** POST /contacts/{id}/unblock */
+      unblock: () => ({
+        mutationFn: (variables: Parameters<Client["contact"]["unblock"]>[0]) => client.contact.unblock(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "contact"),
       }),
       /** PUT /contacts/{id} */
       update: () => ({
@@ -402,6 +435,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         queryKey: key("conversation", "list", ...args),
         queryFn: () => client.conversation.list(...args),
       }),
+      /** POST /conversations/{id}/spam */
+      markSpam: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["markSpam"]>) => client.conversation.markSpam(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
       /** POST /conversations/{id}/notes */
       note: () => ({
         mutationFn: (variables: Parameters<Client["conversation"]["note"]>) => client.conversation.note(...variables),
@@ -463,6 +502,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       /** DELETE /conversations/{id}/tags/{tag_id} */
       tagRemove: () => ({
         mutationFn: (variables: Parameters<Client["conversation"]["tagRemove"]>) => client.conversation.tagRemove(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
+      /** POST /conversations/{id}/unspam */
+      unmarkSpam: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["unmarkSpam"]>[0]) => client.conversation.unmarkSpam(variables),
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "conversation"),
       }),
@@ -579,6 +624,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       get: (...args: Parameters<Client["member"]["get"]>) => ({
         queryKey: key("member", "get", ...args),
         queryFn: () => client.member.get(...args),
+      }),
+      /** POST /me/heartbeat */
+      heartbeat: () => ({
+        mutationFn: () => client.member.heartbeat(),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "member"),
       }),
       /** GET /members */
       list: (...args: Parameters<Client["member"]["list"]>) => ({

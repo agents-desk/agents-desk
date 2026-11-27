@@ -1,14 +1,17 @@
 import type { ContactDetailDTO, ContactIdentityDTO, ContactUpdateBody } from "@agents-desk/client/tenant"
 import {
   ActionIcon,
+  Alert,
   Anchor,
   Badge,
   Box,
+  Button,
   Center,
   Code,
   CopyButton,
   Group,
   Loader,
+  Modal,
   Select,
   Stack,
   Text,
@@ -17,8 +20,8 @@ import {
 } from "@mantine/core"
 import { type QueryClient, queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { IconArrowUpRight, IconCheck, IconCopy, IconExternalLink, IconGitMerge, IconPencil, IconX } from "@tabler/icons-react"
-import { Inspector, InspectorField, InspectorSection, notifyError, notifySuccess, PaneBody, PaneHeader, prefetchQueries, type PreloadQuery, useCan, useLanguage, useNarrow, useT, useTimeZone } from "@go-tenon/ui"
+import { IconArrowUpRight, IconBan, IconCheck, IconCopy, IconExternalLink, IconGitMerge, IconInfoCircle, IconPencil, IconShieldCheck, IconX } from "@tabler/icons-react"
+import { confirm, Inspector, InspectorField, InspectorSection, notifyError, notifySuccess, PaneBody, PaneHeader, prefetchQueries, type PreloadQuery, useCan, useLanguage, useNarrow, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { previewSummary } from "../inbox/Attachments"
@@ -49,6 +52,8 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
   const can = useCan()
   const queryClient = useQueryClient()
   const [mergeOpen, setMergeOpen] = useState(false)
+  const [blockModalOpen, setBlockModalOpen] = useState(false)
+  const [blockReason, setBlockReason] = useState("")
 
   const detail = useQuery(kit.queries.contact.get(id))
   const translation = useQuery(kit.queries.translation.settings())
@@ -63,6 +68,27 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
       void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
       void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
       notifySuccess(t("common.saved"))
+    },
+    onError: (err) => notifyError(err),
+  })
+  const block = useMutation({
+    mutationFn: () => tenantApi.contact.block(id, { reason: blockReason.trim() || undefined }),
+    onSuccess: (saved) => {
+      setBlockModalOpen(false)
+      queryClient.setQueryData(kit.queries.contact.get(id).queryKey, saved)
+      void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
+      void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
+      notifySuccess(t("contacts.blocked_done"))
+    },
+    onError: (err) => notifyError(err),
+  })
+  const unblock = useMutation({
+    mutationFn: () => tenantApi.contact.unblock(id),
+    onSuccess: (saved) => {
+      queryClient.setQueryData(kit.queries.contact.get(id).queryKey, saved)
+      void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
+      void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
+      notifySuccess(t("contacts.unblocked_done"))
     },
     onError: (err) => notifyError(err),
   })
@@ -120,11 +146,52 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
             >
               {kit.label("ContactKind", c.kind)}
             </Badge>
+            {c.blocked_at && (
+              <Badge size="xs" variant="light" color="red" style={{ flex: "none" }}>
+                {t("contacts.blocked_badge")}
+              </Badge>
+            )}
           </Group>
         }
         subtitle={subtitle || undefined}
         actions={
           <Group gap={4} wrap="nowrap">
+            {editable &&
+              (c.blocked_at ? (
+                <Tooltip label={t("contacts.unblock")} openDelay={250}>
+                  <ActionIcon
+                    variant="subtle"
+                    color="green"
+                    loading={unblock.isPending}
+                    onClick={() =>
+                      void confirm({
+                        title: t("contacts.unblock_confirm", { name: displayName }),
+                        message: t("contacts.unblock_message"),
+                        confirmLabel: t("contacts.unblock"),
+                      }).then((ok) => {
+                        if (ok) unblock.mutate()
+                      })
+                    }
+                    aria-label={t("contacts.unblock")}
+                  >
+                    <IconShieldCheck size={16} />
+                  </ActionIcon>
+                </Tooltip>
+              ) : (
+                <Tooltip label={t("contacts.block")} openDelay={250}>
+                  <ActionIcon
+                    variant="subtle"
+                    color="red"
+                    onClick={() => {
+                      setBlockReason("")
+                      setBlockModalOpen(true)
+                    }}
+                    aria-label={t("contacts.block")}
+                  >
+                    <IconBan size={16} />
+                  </ActionIcon>
+                </Tooltip>
+              ))}
             {editable && (
               <Tooltip label={t("contacts.merge")} openDelay={250}>
                 <ActionIcon variant="subtle" color="gray" onClick={() => setMergeOpen(true)} aria-label={t("contacts.merge")}>
@@ -139,6 +206,13 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
 
       {/* 独立滚动的档案正文 */}
       <PaneBody>
+        {c.blocked_at && (
+          <Alert variant="light" color="red" radius={0} py={8} px="var(--tn-pane-px)" icon={<IconInfoCircle size={16} />}>
+            <Text size="xs">
+              {c.blocked_reason ? t("contacts.blocked_banner_reason", { reason: c.blocked_reason }) : t("contacts.blocked_banner")}
+            </Text>
+          </Alert>
+        )}
         <Inspector>
           {/* 1. 置顶内部备注便签 */}
           <Box px="var(--tn-pane-px)" pt="md" pb="xs">
@@ -306,6 +380,28 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
         </Inspector>
       </PaneBody>
       <MergeContactModal opened={mergeOpen} target={c} onClose={() => setMergeOpen(false)} />
+      <Modal opened={blockModalOpen} onClose={() => setBlockModalOpen(false)} title={t("contacts.block_confirm_title")} centered>
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            {t("contacts.block_desc")}
+          </Text>
+          <TextInput
+            label={t("contacts.block_reason_label")}
+            placeholder={t("contacts.block_reason_placeholder")}
+            maxLength={500}
+            value={blockReason}
+            onChange={(e) => setBlockReason(e.currentTarget.value)}
+          />
+          <Group justify="flex-end" gap="xs">
+            <Button variant="default" onClick={() => setBlockModalOpen(false)}>
+              {t("inbox.cancel")}
+            </Button>
+            <Button color="red" loading={block.isPending} onClick={() => block.mutate()}>
+              {t("contacts.block")}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Stack>
   )
 }

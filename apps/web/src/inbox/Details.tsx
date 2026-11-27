@@ -1,9 +1,10 @@
 import type { ConversationDTO } from "@agents-desk/client/tenant"
-import { ActionIcon, Anchor, Badge, Box, Button, CopyButton, Group, Rating, Select, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
+import { ActionIcon, Anchor, Badge, Box, Button, CopyButton, Group, Modal, Rating, Select, Stack, Text, TextInput, Tooltip, UnstyledButton } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate, useParams } from "@tanstack/react-router"
-import { IconCheck, IconCopy, IconExternalLink, IconGitMerge, IconLink, IconPlus, IconSettings, IconX } from "@tabler/icons-react"
+import { IconBan, IconCheck, IconCopy, IconExternalLink, IconGitMerge, IconLink, IconPlus, IconSettings, IconShieldCheck, IconX } from "@tabler/icons-react"
 import {
+  confirm,
   Inspector,
   InspectorField,
   InspectorSection,
@@ -137,6 +138,36 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
     onError: (err) => notifyError(err),
   })
   const [mergeContactOpen, setMergeContactOpen] = useState(false)
+  const [blockModalOpen, setBlockModalOpen] = useState(false)
+  const [blockReason, setBlockReason] = useState("")
+  const blockContact = useMutation({
+    mutationFn: () => tenantApi.contact.block(c.contact!.id, { reason: blockReason.trim() || undefined }),
+    onSuccess: () => {
+      setBlockModalOpen(false)
+      void invalidate()
+      void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
+      notifySuccess(t("contacts.blocked_done"))
+    },
+    onError: (err) => notifyError(err),
+  })
+  const unblockContact = useMutation({
+    mutationFn: () => tenantApi.contact.unblock(c.contact!.id),
+    onSuccess: () => {
+      void invalidate()
+      void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
+      notifySuccess(t("contacts.unblocked_done"))
+    },
+    onError: (err) => notifyError(err),
+  })
+  const handleUnblockContact = async () => {
+    if (!c.contact) return
+    const ok = await confirm({
+      title: t("contacts.unblock_confirm", { name: contactDisplayName(c.contact, t) }),
+      message: t("contacts.unblock_message"),
+      confirmLabel: t("contacts.unblock"),
+    })
+    if (ok) unblockContact.mutate()
+  }
   // 对方的语言：手动设置的显示那种语言，否则显示“自动识别”（带上识别出的语言）
   const manual = c.external_group ? c.external_group.language_manual : (c.contact?.language_manual ?? false)
   const detected = c.language ? languageName(c.language, language) : ""
@@ -478,20 +509,55 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
               storeKey="inbox-details-contact"
               extra={
                 c.contact && can("contacts:update") ? (
-                  <Tooltip label={t("contacts.merge")} openDelay={250}>
-                    <ActionIcon
-                      size={22}
-                      variant="subtle"
-                      color="gray"
-                      aria-label={t("contacts.merge")}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setMergeContactOpen(true)
-                      }}
-                    >
-                      <IconGitMerge size={14} />
-                    </ActionIcon>
-                  </Tooltip>
+                  <Group gap={4} wrap="nowrap">
+                    {c.contact.blocked_at ? (
+                      <Tooltip label={t("contacts.unblock")} openDelay={250}>
+                        <ActionIcon
+                          size={22}
+                          variant="subtle"
+                          color="green"
+                          loading={unblockContact.isPending}
+                          aria-label={t("contacts.unblock")}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            void handleUnblockContact()
+                          }}
+                        >
+                          <IconShieldCheck size={14} />
+                        </ActionIcon>
+                      </Tooltip>
+                    ) : (
+                      <Tooltip label={t("contacts.block")} openDelay={250}>
+                        <ActionIcon
+                          size={22}
+                          variant="subtle"
+                          color="red"
+                          aria-label={t("contacts.block")}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setBlockReason("")
+                            setBlockModalOpen(true)
+                          }}
+                        >
+                          <IconBan size={14} />
+                        </ActionIcon>
+                      </Tooltip>
+                    )}
+                    <Tooltip label={t("contacts.merge")} openDelay={250}>
+                      <ActionIcon
+                        size={22}
+                        variant="subtle"
+                        color="gray"
+                        aria-label={t("contacts.merge")}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setMergeContactOpen(true)
+                        }}
+                      >
+                        <IconGitMerge size={14} />
+                      </ActionIcon>
+                    </Tooltip>
+                  </Group>
                 ) : undefined
               }
             >
@@ -511,11 +577,23 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                     <Badge size="xs" variant="light" color={c.contact.kind === "internal" ? "green" : "gray"} style={{ flex: "none" }}>
                       {kit.label("ContactKind", c.contact.kind)}
                     </Badge>
+                    {c.contact.blocked_at && (
+                      <Badge size="xs" variant="light" color="red" style={{ flex: "none" }}>
+                        {t("contacts.blocked_badge")}
+                      </Badge>
+                    )}
                   </Group>
                 ) : (
                   <Text size="sm">{t("inbox.visitor")}</Text>
                 )}
               </InspectorField>
+              {c.contact?.blocked_at && c.contact.blocked_reason && (
+                <InspectorField label={t("contacts.blocked_reason")} align="start">
+                  <Text size="xs" c="red">
+                    {c.contact.blocked_reason}
+                  </Text>
+                </InspectorField>
+              )}
               <InspectorField label={t("inbox.contact_email")}>
                 <Group gap={4} wrap="nowrap" justify="space-between">
                   <Text size="sm" c={c.contact?.email ? undefined : "dimmed"} truncate style={{ flex: 1, minWidth: 0 }}>
@@ -699,6 +777,28 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
         linkedTicketIds={new Set((convTickets.data?.items ?? []).map((x) => x.id))}
         onClose={() => setLinkTicketOpen(false)}
       />
+      <Modal opened={blockModalOpen} onClose={() => setBlockModalOpen(false)} title={t("contacts.block_confirm_title")} centered>
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            {t("contacts.block_desc")}
+          </Text>
+          <TextInput
+            label={t("contacts.block_reason_label")}
+            placeholder={t("contacts.block_reason_placeholder")}
+            maxLength={500}
+            value={blockReason}
+            onChange={(e) => setBlockReason(e.currentTarget.value)}
+          />
+          <Group justify="flex-end" gap="xs">
+            <Button variant="default" onClick={() => setBlockModalOpen(false)}>
+              {t("inbox.cancel")}
+            </Button>
+            <Button color="red" loading={blockContact.isPending} onClick={() => blockContact.mutate()}>
+              {t("contacts.block")}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Stack>
   )
 }

@@ -53,4 +53,6 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	rest.Register(api, route(read, "contact-get", http.MethodGet, "/contacts/{id}", "读取联系人"), NewGet(db).HTTP)
 	rest.Register(api, route(update, "contact-update", http.MethodPut, "/contacts/{id}", "修改联系人资料"), NewUpdate(db, roles, h.OnNotesUpdated).HTTP)
 	rest.Register(api, route(update, "contact-merge", http.MethodPost, "/contacts/{id}/merge", "合并联系人"), NewMerge(db, h).HTTP)
+	rest.Register(api, route(update, "contact-block", http.MethodPost, "/contacts/{id}/block", "拉黑联系人"), NewBlock(db, h.Tokens).HTTP)
+	rest.Register(api, route(update, "contact-unblock", http.MethodPost, "/contacts/{id}/unblock", "解除拉黑联系人"), NewUnblock(db).HTTP)
 }
