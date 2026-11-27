@@ -145,16 +145,16 @@ export function ContactDirectory({
       <PaneHeader
         showNavToggle
         title={
-          <Group gap="xs" wrap="nowrap">
-            <Text fw={600} size="sm" truncate>
-              {title}
+          <Text fw={600} size="sm" truncate lh={1.25}>
+            {title}
+          </Text>
+        }
+        subtitle={
+          badgeCount !== undefined ? (
+            <Text size="xs" c="dimmed" truncate lh={1.25} style={{ fontVariantNumeric: "tabular-nums" }}>
+              {t("contacts.count", { n: badgeCount })}
             </Text>
-            {badgeCount !== undefined && (
-              <Badge size="xs" variant="light" color="gray" radius="sm" style={{ flex: "none" }}>
-                {badgeCount}
-              </Badge>
-            )}
-          </Group>
+          ) : undefined
         }
         actions={
           <Group gap={6} wrap="nowrap" style={{ flex: "none" }} data-tn-density="dense">

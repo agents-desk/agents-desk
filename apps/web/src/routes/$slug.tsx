@@ -25,7 +25,7 @@ import { dispatchPushAlert } from "../inbox/alerts"
 import { NARROW_QUERY } from "../layout"
 import { RealtimeContext, useRealtime } from "../realtime"
 import { ShortcutsModal } from "../shortcuts-modal"
-import { StatusControl } from "../status"
+import { memberStatusColor, StatusControl } from "../status"
 import { writeLastWorkspace } from "../workspace"
 import { WorkspaceSwitcher } from "../workspace-switcher"
 
@@ -109,7 +109,7 @@ function TenantLayout() {
   // 左上角由 WorkspaceSwitcher 管理工作区切换与工作区入口，左下角个人菜单聚焦个人设置、在线状态与退出登录。
   const settings = `/${tenant.slug}/settings`
   const items = [{ label: t("nav.settings"), icon: <IconSettings size={16} />, to: settings }]
-  const statusColor = myStatus.data ? (myStatus.data.status === "online" ? "green" : "gray") : undefined
+  const statusColor = myStatus.data ? memberStatusColor[myStatus.data.status] : undefined
 
   return (
     <TimeZoneProvider zone={user.data?.time_zone}>

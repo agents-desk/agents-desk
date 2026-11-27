@@ -128,6 +128,22 @@ function BusinessLinksTab({ slug }: { slug: string }): ReactNode {
     onError: (err) => notifyError(err),
   })
 
+  // 停用前确认，启用直接执行。
+  async function toggleLink(item: WidgetBusinessLinkDTO): Promise<void> {
+    if (
+      item.enabled &&
+      !(await confirm({
+        title: t("business_channels.link_disable_confirm", { name: item.name }),
+        message: t("business_channels.link_disable_message"),
+        danger: true,
+        confirmLabel: t("common.disable"),
+      }))
+    ) {
+      return
+    }
+    toggleEnabled.mutate(item)
+  }
+
   const remove = useMutation({
     mutationFn: (id: string) => tenantApi.business.linkDelete(id),
     onSuccess: () => {
@@ -276,7 +292,7 @@ function BusinessLinksTab({ slug }: { slug: string }): ReactNode {
                     label: t(item.enabled ? "common.disable" : "common.enable"),
                     icon: item.enabled ? <IconPlayerPause size={14} /> : <IconPlayerPlay size={14} />,
                     disabled: toggleEnabled.isPending,
-                    onClick: () => toggleEnabled.mutate(item),
+                    onClick: () => void toggleLink(item),
                   },
                   {
                     label: t("common.delete"),
@@ -355,6 +371,22 @@ function TelegramAccountsTab({ slug }: { slug: string }): ReactNode {
     },
     onError: (err) => notifyError(err),
   })
+
+  // 停用前确认，启用直接执行。
+  async function toggleAccount(acc: TgaccountAccountDTO): Promise<void> {
+    if (
+      acc.enabled &&
+      !(await confirm({
+        title: t("business_channels.tg_disable_confirm", { name: acc.name }),
+        message: t("business_channels.tg_disable_message"),
+        danger: true,
+        confirmLabel: t("common.disable"),
+      }))
+    ) {
+      return
+    }
+    toggleEnabled.mutate(acc)
+  }
 
   const disconnect = useMutation({
     mutationFn: (id: string) => tenantApi.tgaccount.disconnect(id),
@@ -540,7 +572,7 @@ function TelegramAccountsTab({ slug }: { slug: string }): ReactNode {
                     label: t(acc.enabled ? "common.disable" : "common.enable"),
                     icon: acc.enabled ? <IconPlayerPause size={14} /> : <IconPlayerPlay size={14} />,
                     disabled: toggleEnabled.isPending,
-                    onClick: () => toggleEnabled.mutate(acc),
+                    onClick: () => void toggleAccount(acc),
                   },
                   {
                     label: t("business_channels.tg_disconnect"),

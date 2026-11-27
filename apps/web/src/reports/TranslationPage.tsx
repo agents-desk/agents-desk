@@ -1,7 +1,7 @@
 // 翻译报表：指标带直接驱动趋势曲线切换、按场景/模型拆解，以及支持下钻收件箱的识别语言分布。
 
 import { AreaChart } from "@mantine/charts"
-import { Badge, Button, Center, Group, Progress, SegmentedControl, SimpleGrid, Skeleton, Stack, Text, ThemeIcon, Tooltip } from "@mantine/core"
+import { Badge, Button, Group, Progress, SegmentedControl, SimpleGrid, Skeleton, Stack, Text, ThemeIcon, Tooltip } from "@mantine/core"
 import { IconArrowUpRight, IconRobot, IconSparkles } from "@tabler/icons-react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link, useNavigate, useParams } from "@tanstack/react-router"
@@ -25,7 +25,7 @@ import { type MetricItem, MetricStrip } from "./MetricStrip"
 import { GranularityControl } from "./PeriodButton"
 import { ReportShell } from "./ReportShell"
 import type { TranslationReportSearchParams } from "./search"
-import { SectionCard } from "./SectionCard"
+import { ReportEmpty, SectionCard } from "./SectionCard"
 
 type TrendMetric = "calls" | "tokens" | "cost"
 type AiReportTab = "translation" | "agent"
@@ -325,11 +325,7 @@ export function TranslationPage({ route }: { route: PeriodRoute }): ReactNode {
             {loading ? (
               <Skeleton height={240} radius="sm" />
             ) : !chartState.data.series?.length ? (
-              <Center mih={240}>
-                <Text size="sm" c="dimmed">
-                  {t("reports.empty")}
-                </Text>
-              </Center>
+              <ReportEmpty minHeight={240} />
             ) : (
               <AreaChart
                 h={240}

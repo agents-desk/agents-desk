@@ -234,6 +234,8 @@ export const messages = {
     "business_channels.link_delete_confirm": "Delete web business link “{{.name}}”?",
     "business_channels.link_delete_message": "Only links without conversations can be deleted; links with conversations can be disabled.",
     "business_channels.link_deleted": "Web business link deleted",
+    "business_channels.link_disable_confirm": "Disable web business link “{{.name}}”?",
+    "business_channels.link_disable_message": "Partners can no longer open the link or send messages. Chat history is kept, and you can enable it again anytime.",
     "business_channels.link_edit_title": "Edit web business link",
     "business_channels.link_greeting": "Greeting (optional)",
     "business_channels.link_greeting_placeholder": "e.g. Hi, happy to talk about partnerships here.",
@@ -261,6 +263,8 @@ export const messages = {
     "business_channels.tg_dialogs_empty": "No matching Telegram DMs or groups found",
     "business_channels.tg_dialogs_failed": "Failed to load Telegram dialogs. Make sure the account is connected and retry.",
     "business_channels.tg_dialogs_search": "Search contact name, group title, or @username…",
+    "business_channels.tg_disable_confirm": "Disable Telegram personal account “{{.name}}”?",
+    "business_channels.tg_disable_message": "The account disconnects and stops sending and receiving messages. Chat history is kept, and syncing resumes when you enable it again.",
     "business_channels.tg_disabled_desc": "Telegram personal accounts are turned off for the platform or workspace. Contact an administrator.",
     "business_channels.tg_disabled_title": "Telegram personal accounts are disabled",
     "business_channels.tg_disconnect": "Disconnect",
@@ -509,7 +513,7 @@ export const messages = {
     "common.saved": "Saved",
     "common.status": "Status",
     "common.team_inbox": "Team inbox",
-    "common.unsaved": "Unsaved",
+    "common.unsaved": "Unsaved changes",
     "common.unsaved_message": "Your changes will be lost if you leave.",
     "common.unsaved_title": "Leave without saving?",
     "contacts.channel_identities": "Channel identities",
@@ -533,6 +537,7 @@ export const messages = {
     "contacts.conversations": "Conversations",
     "contacts.copied": "Copied",
     "contacts.copy": "Copy",
+    "contacts.count": "{{.n}} contacts",
     "contacts.created_at": "Created",
     "contacts.edit": "Edit",
     "contacts.email": "Email",
@@ -888,7 +893,6 @@ export const messages = {
     "inbox.retry": "Resend",
     "inbox.said": "{{.who}}: ",
     "inbox.scroll_to_bottom": "Jump to latest",
-    "inbox.search_clear": "Clear search",
     "inbox.search_empty": "No conversations matching “{{.q}}”",
     "inbox.search_match_count": "{{.n}} matches",
     "inbox.search_note_tag": "Note",
@@ -1489,10 +1493,8 @@ export const messages = {
     "telegram_install.webhook": "Webhook setup",
     "telegram_install.webhook_secret": "Webhook secret",
     "telegram_install.webhook_url": "Webhook URL",
-    "telegram_studio.discard": "Discard",
     "telegram_studio.enabled": "Enable channel",
     "telegram_studio.enabled_hint": "When disabled, messages are no longer received or sent",
-    "telegram_studio.save": "Save \u0026 publish",
     "telegram_studio.saved": "Telegram bot settings saved",
     "telegram_studio.section_basic": "Basics",
     "telegram_studio.section_basic_desc": "Set the channel name and availability",
@@ -1502,7 +1504,6 @@ export const messages = {
     "telegram_studio.section_routing_desc": "Choose the destination team inbox for new conversations",
     "telegram_studio.tab_config": "Configure",
     "telegram_studio.tab_install": "Install \u0026 webhook",
-    "telegram_studio.unsaved": "Unsaved changes",
     "telegrams.bot_token": "Bot Token",
     "telegrams.bot_token_hint": "Bot token obtained from @BotFather",
     "telegrams.bot_token_update_hint": "Leave empty to keep the current token; entering a new token re-verifies the bot",
@@ -1888,7 +1889,6 @@ export const messages = {
     "widget_studio.allowed_origins_placeholder": "Type https://example.com and press Enter",
     "widget_studio.color": "Theme color",
     "widget_studio.color_hint": "Pick a swatch or enter any #rrggbb brand color; text contrast adapts automatically",
-    "widget_studio.discard": "Discard",
     "widget_studio.enabled": "Enable widget",
     "widget_studio.enabled_hint": "When disabled, the chat window is hidden and customers can no longer send messages",
     "widget_studio.greeting": "Greeting",
@@ -1896,9 +1896,8 @@ export const messages = {
     "widget_studio.greeting_placeholder": "Hi there! How can we help?",
     "widget_studio.name": "Widget name",
     "widget_studio.name_hint": "Shown in the chat window header",
-    "widget_studio.preview_hint": "Interactive preview — click around to test; click Save \u0026 publish to apply",
+    "widget_studio.preview_hint": "Interactive preview — click around to test; click Save to apply",
     "widget_studio.preview_title": "Live preview",
-    "widget_studio.save": "Save \u0026 publish",
     "widget_studio.saved": "Chat widget settings saved",
     "widget_studio.scene_conversation": "Chat",
     "widget_studio.scene_launcher": "Launcher",
@@ -1910,7 +1909,6 @@ export const messages = {
     "widget_studio.section_routing_desc": "Choose the destination team inbox and allowed embed origins",
     "widget_studio.tab_config": "Configure \u0026 preview",
     "widget_studio.tab_install": "Install \u0026 verify",
-    "widget_studio.unsaved": "Unsaved changes",
     "widget_studio.viewport_desktop": "Desktop",
     "widget_studio.viewport_mobile": "Mobile",
     "widgets.configure": "Configure",
@@ -2168,6 +2166,8 @@ export const messages = {
     "business_channels.link_delete_confirm": "删除网页商务链接“{{.name}}”？",
     "business_channels.link_delete_message": "删除只适用于还没有对话的链接，有对话的链接可以停用。",
     "business_channels.link_deleted": "已删除网页商务链接",
+    "business_channels.link_disable_confirm": "停用网页商务链接“{{.name}}”？",
+    "business_channels.link_disable_message": "停用后链接关闭，外部合作方的访问和消息随之停止；历史对话保留，可以随时重新启用。",
     "business_channels.link_edit_title": "编辑网页商务链接",
     "business_channels.link_greeting": "顶部问候语（可选）",
     "business_channels.link_greeting_placeholder": "例如：你好，欢迎和我沟通商务合作。",
@@ -2195,6 +2195,8 @@ export const messages = {
     "business_channels.tg_dialogs_empty": "没有找到匹配的 Telegram 单聊或群组",
     "business_channels.tg_dialogs_failed": "读取 Telegram 对话列表失败，请确认账号在线后重试。",
     "business_channels.tg_dialogs_search": "搜索联系人姓名、群聊标题或 @username…",
+    "business_channels.tg_disable_confirm": "停用 Telegram 个人号“{{.name}}”？",
+    "business_channels.tg_disable_message": "停用后断开连接、暂停收发消息；历史对话保留，重新启用后恢复同步。",
     "business_channels.tg_disabled_desc": "平台或工作区已关闭 Telegram 个人号绑定，请联系管理员开启。",
     "business_channels.tg_disabled_title": "Telegram 个人号同步未开启",
     "business_channels.tg_disconnect": "解绑账号",
@@ -2443,7 +2445,7 @@ export const messages = {
     "common.saved": "已保存",
     "common.status": "状态",
     "common.team_inbox": "团队收件箱",
-    "common.unsaved": "未保存",
+    "common.unsaved": "有未保存的修改",
     "common.unsaved_message": "离开后这些修改会丢失。",
     "common.unsaved_title": "有未保存的修改，确定离开吗？",
     "contacts.channel_identities": "渠道身份",
@@ -2467,6 +2469,7 @@ export const messages = {
     "contacts.conversations": "历史会话",
     "contacts.copied": "已复制",
     "contacts.copy": "复制",
+    "contacts.count": "共 {{.n}} 位联系人",
     "contacts.created_at": "创建时间",
     "contacts.edit": "编辑",
     "contacts.email": "邮箱",
@@ -2822,7 +2825,6 @@ export const messages = {
     "inbox.retry": "重发",
     "inbox.said": "{{.who}}：",
     "inbox.scroll_to_bottom": "回到底部",
-    "inbox.search_clear": "清除搜索",
     "inbox.search_empty": "没有找到包含“{{.q}}”的会话",
     "inbox.search_match_count": "{{.n}} 条命中",
     "inbox.search_note_tag": "备注",
@@ -3423,10 +3425,8 @@ export const messages = {
     "telegram_install.webhook": "Webhook 接入",
     "telegram_install.webhook_secret": "Webhook 密钥",
     "telegram_install.webhook_url": "Webhook 地址",
-    "telegram_studio.discard": "还原",
     "telegram_studio.enabled": "启用渠道",
     "telegram_studio.enabled_hint": "停用后暂停收发 Telegram 消息",
-    "telegram_studio.save": "保存并发布",
     "telegram_studio.saved": "已保存 Telegram 机器人配置",
     "telegram_studio.section_basic": "基础信息",
     "telegram_studio.section_basic_desc": "设置渠道名称与启用状态",
@@ -3436,7 +3436,6 @@ export const messages = {
     "telegram_studio.section_routing_desc": "配置新会话进入的团队收件箱",
     "telegram_studio.tab_config": "基本配置",
     "telegram_studio.tab_install": "安装与接入",
-    "telegram_studio.unsaved": "有未保存的修改",
     "telegrams.bot_token": "Bot Token",
     "telegrams.bot_token_hint": "从 @BotFather 获取的机器人 Token",
     "telegrams.bot_token_update_hint": "留空时保持原 Token；更换 Token 后系统重新校验机器人身份",
@@ -3822,7 +3821,6 @@ export const messages = {
     "widget_studio.allowed_origins_placeholder": "输入 https://example.com 后回车",
     "widget_studio.color": "主题色",
     "widget_studio.color_hint": "点选预设色块或输入自定义 #rrggbb 品牌色，顶栏与气泡文字颜色会自动适配对比度",
-    "widget_studio.discard": "还原",
     "widget_studio.enabled": "启用聊天插件",
     "widget_studio.enabled_hint": "停用后聊天窗口对客户隐藏，客户的消息入口随之关闭",
     "widget_studio.greeting": "顶部问候语",
@@ -3830,9 +3828,8 @@ export const messages = {
     "widget_studio.greeting_placeholder": "你好！有什么可以帮你？",
     "widget_studio.name": "插件名称",
     "widget_studio.name_hint": "显示在聊天窗口标题栏中",
-    "widget_studio.preview_hint": "预览可以直接点击体验，修改后点击“保存并发布”生效",
+    "widget_studio.preview_hint": "预览可以直接点击体验，修改后点击“保存”生效",
     "widget_studio.preview_title": "实时预览",
-    "widget_studio.save": "保存并发布",
     "widget_studio.saved": "已保存聊天插件配置",
     "widget_studio.scene_conversation": "对话中",
     "widget_studio.scene_launcher": "启动气泡",
@@ -3844,7 +3841,6 @@ export const messages = {
     "widget_studio.section_routing_desc": "配置新会话进入的团队收件箱与允许嵌入的域名",
     "widget_studio.tab_config": "配置与预览",
     "widget_studio.tab_install": "安装与接入",
-    "widget_studio.unsaved": "有未保存的修改",
     "widget_studio.viewport_desktop": "桌面浮窗",
     "widget_studio.viewport_mobile": "手机全屏",
     "widgets.configure": "配置",
@@ -4105,6 +4101,8 @@ export type MessageId =
   | "business_channels.link_delete_confirm"
   | "business_channels.link_delete_message"
   | "business_channels.link_deleted"
+  | "business_channels.link_disable_confirm"
+  | "business_channels.link_disable_message"
   | "business_channels.link_edit_title"
   | "business_channels.link_greeting"
   | "business_channels.link_greeting_placeholder"
@@ -4132,6 +4130,8 @@ export type MessageId =
   | "business_channels.tg_dialogs_empty"
   | "business_channels.tg_dialogs_failed"
   | "business_channels.tg_dialogs_search"
+  | "business_channels.tg_disable_confirm"
+  | "business_channels.tg_disable_message"
   | "business_channels.tg_disabled_desc"
   | "business_channels.tg_disabled_title"
   | "business_channels.tg_disconnect"
@@ -4404,6 +4404,7 @@ export type MessageId =
   | "contacts.conversations"
   | "contacts.copied"
   | "contacts.copy"
+  | "contacts.count"
   | "contacts.created_at"
   | "contacts.edit"
   | "contacts.email"
@@ -4759,7 +4760,6 @@ export type MessageId =
   | "inbox.retry"
   | "inbox.said"
   | "inbox.scroll_to_bottom"
-  | "inbox.search_clear"
   | "inbox.search_empty"
   | "inbox.search_match_count"
   | "inbox.search_note_tag"
@@ -5360,10 +5360,8 @@ export type MessageId =
   | "telegram_install.webhook"
   | "telegram_install.webhook_secret"
   | "telegram_install.webhook_url"
-  | "telegram_studio.discard"
   | "telegram_studio.enabled"
   | "telegram_studio.enabled_hint"
-  | "telegram_studio.save"
   | "telegram_studio.saved"
   | "telegram_studio.section_basic"
   | "telegram_studio.section_basic_desc"
@@ -5373,7 +5371,6 @@ export type MessageId =
   | "telegram_studio.section_routing_desc"
   | "telegram_studio.tab_config"
   | "telegram_studio.tab_install"
-  | "telegram_studio.unsaved"
   | "telegrams.bot_token"
   | "telegrams.bot_token_hint"
   | "telegrams.bot_token_update_hint"
@@ -5759,7 +5756,6 @@ export type MessageId =
   | "widget_studio.allowed_origins_placeholder"
   | "widget_studio.color"
   | "widget_studio.color_hint"
-  | "widget_studio.discard"
   | "widget_studio.enabled"
   | "widget_studio.enabled_hint"
   | "widget_studio.greeting"
@@ -5769,7 +5765,6 @@ export type MessageId =
   | "widget_studio.name_hint"
   | "widget_studio.preview_hint"
   | "widget_studio.preview_title"
-  | "widget_studio.save"
   | "widget_studio.saved"
   | "widget_studio.scene_conversation"
   | "widget_studio.scene_launcher"
@@ -5781,7 +5776,6 @@ export type MessageId =
   | "widget_studio.section_routing_desc"
   | "widget_studio.tab_config"
   | "widget_studio.tab_install"
-  | "widget_studio.unsaved"
   | "widget_studio.viewport_desktop"
   | "widget_studio.viewport_mobile"
   | "widgets.configure"

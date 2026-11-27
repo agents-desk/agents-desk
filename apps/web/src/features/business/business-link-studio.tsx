@@ -25,7 +25,6 @@ import {
   Switch,
   Text,
   TextInput,
-  Title,
   Tooltip,
 } from "@mantine/core"
 import { useForm } from "@mantine/form"
@@ -60,6 +59,7 @@ import {
   resolvePreviewCopy,
 } from "../widget/preview-protocol"
 import classes from "../widget/widget-studio.module.css"
+import { FormSection } from "../../components/form-section"
 
 const presetSwatches = Object.values(primaryColors)
 const defaultColorHex = primaryColors["bright-blue"]
@@ -161,23 +161,6 @@ function toFormValues(link: WidgetBusinessLinkDTO): BusinessLinkFormValues {
       auto_translate: autoTranslate,
     },
   }
-}
-
-/** SectionCard 是配置页左栏的分组卡片：标题、说明和一组输入项。 */
-function SectionCard({ title, description, children }: { title: string; description: string; children: ReactNode }): ReactNode {
-  return (
-    <Paper withBorder p="md" radius="md">
-      <Stack gap="sm">
-        <Box>
-          <Title order={5}>{title}</Title>
-          <Text size="xs" c="dimmed" mt={2}>
-            {description}
-          </Text>
-        </Box>
-        {children}
-      </Stack>
-    </Paper>
-  )
 }
 
 /** IntakeFieldRow 渲染单个开场留资字段的 隐藏/选填/必填 切换条。 */
@@ -435,7 +418,7 @@ function ShareAndQRPanel({
 
   return (
     <Stack gap="lg">
-      <SectionCard title={t("biz_studio.share_link_title")} description={t("biz_studio.share_link_desc")}>
+      <FormSection title={t("biz_studio.share_link_title")} description={t("biz_studio.share_link_desc")}>
         <Select
           label={t("widget_i18n.share_lang_label")}
           value={shareLang}
@@ -473,9 +456,9 @@ function ShareAndQRPanel({
             </ActionIcon>
           </Tooltip>
         </Group>
-      </SectionCard>
+      </FormSection>
 
-      <SectionCard title={t("biz_studio.qr_title")} description={t("biz_studio.qr_desc")}>
+      <FormSection title={t("biz_studio.qr_title")} description={t("biz_studio.qr_desc")}>
         <Group align="center" gap="lg" wrap="wrap">
           {link.qr_data_url && (
             <Paper withBorder p="sm" radius="md" bg="white" style={{ flex: "none" }}>
@@ -524,9 +507,9 @@ function ShareAndQRPanel({
             )}
           </Stack>
         </Group>
-      </SectionCard>
+      </FormSection>
 
-      <SectionCard title={t("biz_studio.security_title")} description={t("biz_studio.security_desc")}>
+      <FormSection title={t("biz_studio.security_title")} description={t("biz_studio.security_desc")}>
         <Group justify="flex-end">
           <Button
             variant="light"
@@ -539,7 +522,7 @@ function ShareAndQRPanel({
             {t("biz_studio.rotate_code")}
           </Button>
         </Group>
-      </SectionCard>
+      </FormSection>
     </Stack>
   )
 }
@@ -736,14 +719,14 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
           >
             {dirty && (
               <Badge variant="light" color="yellow">
-                {t("widget_studio.unsaved")}
+                {t("common.unsaved")}
               </Badge>
             )}
             <Button variant="default" size="sm" disabled={!dirty || save.isPending} onClick={handleDiscard}>
-              {t("widget_studio.discard")}
+              {t("common.discard")}
             </Button>
             <Button size="sm" disabled={!dirty} loading={save.isPending} onClick={() => void form.onSubmit((v) => save.mutate(v))()}>
-              {t("widget_studio.save")}
+              {t("common.save")}
             </Button>
           </Group>
         ) : undefined
@@ -769,7 +752,7 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
                     <Stack gap="md">
                       <FormError error={serverError} />
 
-                      <SectionCard title={t("biz_studio.section_basic")} description={t("biz_studio.section_basic_desc")}>
+                      <FormSection title={t("biz_studio.section_basic")} description={t("biz_studio.section_basic_desc")}>
                         <TextInput
                           label={t("business_channels.link_name")}
                           placeholder={t("business_channels.link_name_placeholder")}
@@ -794,9 +777,9 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
                           description={t("biz_studio.enabled_hint")}
                           {...form.getInputProps("enabled", { type: "checkbox" })}
                         />
-                      </SectionCard>
+                      </FormSection>
 
-                      <SectionCard title={t("biz_studio.section_appearance")} description={t("biz_studio.section_appearance_desc")}>
+                      <FormSection title={t("biz_studio.section_appearance")} description={t("biz_studio.section_appearance_desc")}>
                         <ColorInput
                           label={t("business_channels.link_color")}
                           format="hex"
@@ -809,9 +792,9 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
                           label={t("biz_studio.show_owner")}
                           {...form.getInputProps("card.show_owner", { type: "checkbox" })}
                         />
-                      </SectionCard>
+                      </FormSection>
 
-                      <SectionCard title={t("widget_i18n.section_title")} description={t("widget_i18n.section_desc")}>
+                      <FormSection title={t("widget_i18n.section_title")} description={t("widget_i18n.section_desc")}>
                         <ChannelLocalizationSection
                           mode="business_link"
                           channelId={id}
@@ -828,9 +811,9 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
                           fallbackOwnerCompany={fallbackCompany}
                           fallbackOwnerBio={fallbackBio}
                         />
-                      </SectionCard>
+                      </FormSection>
 
-                      <SectionCard title={t("biz_studio.section_intake")} description={t("biz_studio.section_intake_desc")}>
+                      <FormSection title={t("biz_studio.section_intake")} description={t("biz_studio.section_intake_desc")}>
                         <Switch
                           label={t("biz_studio.intake_enabled")}
                           {...form.getInputProps("intake.enabled", { type: "checkbox" })}
@@ -859,9 +842,9 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
                             />
                           </Stack>
                         )}
-                      </SectionCard>
+                      </FormSection>
 
-                      <SectionCard title={t("biz_studio.section_access")} description={t("biz_studio.section_access_desc")}>
+                      <FormSection title={t("biz_studio.section_access")} description={t("biz_studio.section_access_desc")}>
                         <Stack gap={4}>
                           <Text size="sm" fw={500}>
                             {t("biz_studio.access_mode")}
@@ -906,9 +889,9 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
                             </Button>
                           )}
                         </Group>
-                      </SectionCard>
+                      </FormSection>
 
-                      <SectionCard title={t("biz_studio.section_policy")} description={t("biz_studio.section_policy_desc")}>
+                      <FormSection title={t("biz_studio.section_policy")} description={t("biz_studio.section_policy_desc")}>
                         <MultiSelect
                           label={t("biz_studio.collaborators")}
                           description={t("biz_studio.collaborators_hint")}
@@ -951,7 +934,7 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
                           value={form.values.business.auto_translate}
                           onChange={(v) => form.setFieldValue("business.auto_translate", (v ?? "inherit") as "inherit" | "on" | "off")}
                         />
-                      </SectionCard>
+                      </FormSection>
                     </Stack>
 
                     <BusinessLinkPreviewStage

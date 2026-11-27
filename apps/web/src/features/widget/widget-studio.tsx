@@ -1,5 +1,5 @@
 import type { WidgetDTO, WidgetLocalization } from "@agents-desk/client/tenant"
-import { Badge, Box, Button, ColorInput, Group, Paper, Skeleton, Stack, Switch, TagsInput, Text, TextInput, Title } from "@mantine/core"
+import { Badge, Box, Button, ColorInput, Group, Skeleton, Stack, Switch, TagsInput, TextInput } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useSearch } from "@tanstack/react-router"
@@ -14,6 +14,7 @@ import { computePreviewLanguages, resolvePreviewCopy } from "./preview-protocol"
 import { WidgetInstallPanel } from "./widget-install-panel"
 import { WidgetPreviewStage } from "./widget-preview-stage"
 import classes from "./widget-studio.module.css"
+import { FormSection } from "../../components/form-section"
 
 /** presetSwatches 是 26 种主题预设色的十六进制色块，供颜色选择器快捷点选。 */
 const presetSwatches = Object.values(primaryColors)
@@ -56,23 +57,6 @@ function toFormValues(w: WidgetDTO): StudioFormValues {
     },
     allowed_origins: w.allowed_origins ?? [],
   }
-}
-
-/** SectionCard 是配置页左栏的分组卡片：标题、说明和一组输入项。 */
-function SectionCard({ title, description, children }: { title: string; description: string; children: ReactNode }): ReactNode {
-  return (
-    <Paper withBorder p="md" radius="md">
-      <Stack gap="sm">
-        <Box>
-          <Title order={5}>{title}</Title>
-          <Text size="xs" c="dimmed" mt={2}>
-            {description}
-          </Text>
-        </Box>
-        {children}
-      </Stack>
-    </Paper>
-  )
 }
 
 /**
@@ -180,14 +164,14 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
           >
             {dirty && (
               <Badge variant="light" color="yellow">
-                {t("widget_studio.unsaved")}
+                {t("common.unsaved")}
               </Badge>
             )}
             <Button variant="default" size="sm" disabled={!dirty || save.isPending} onClick={handleDiscard}>
-              {t("widget_studio.discard")}
+              {t("common.discard")}
             </Button>
             <Button size="sm" disabled={!dirty} loading={save.isPending} onClick={() => void form.onSubmit((v) => save.mutate(v))()}>
-              {t("widget_studio.save")}
+              {t("common.save")}
             </Button>
           </Group>
         ) : undefined
@@ -214,7 +198,7 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
                     <Stack gap="md">
                       <FormError error={serverError} />
 
-                      <SectionCard title={t("widget_studio.section_basic")} description={t("widget_studio.section_basic_desc")}>
+                      <FormSection title={t("widget_studio.section_basic")} description={t("widget_studio.section_basic_desc")}>
                         <TextInput
                           label={t("widget_studio.name")}
                           description={t("widget_studio.name_hint")}
@@ -227,9 +211,9 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
                           description={t("widget_studio.enabled_hint")}
                           {...form.getInputProps("enabled", { type: "checkbox" })}
                         />
-                      </SectionCard>
+                      </FormSection>
 
-                      <SectionCard title={t("widget_studio.section_appearance")} description={t("widget_studio.section_appearance_desc")}>
+                      <FormSection title={t("widget_studio.section_appearance")} description={t("widget_studio.section_appearance_desc")}>
                         <ColorInput
                           label={t("widget_studio.color")}
                           description={t("widget_studio.color_hint")}
@@ -239,9 +223,9 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
                           fixOnBlur={false}
                           {...form.getInputProps("appearance.color")}
                         />
-                      </SectionCard>
+                      </FormSection>
 
-                      <SectionCard title={t("widget_i18n.section_title")} description={t("widget_i18n.section_desc")}>
+                      <FormSection title={t("widget_i18n.section_title")} description={t("widget_i18n.section_desc")}>
                         <ChannelLocalizationSection
                           mode="widget"
                           channelId={id}
@@ -254,11 +238,11 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
                             setPreviewLang(lang)
                           }}
                         />
-                      </SectionCard>
+                      </FormSection>
 
                       <AiReceptionCard scene="customer" />
 
-                      <SectionCard title={t("widget_studio.section_routing")} description={t("widget_studio.section_routing_desc")}>
+                      <FormSection title={t("widget_studio.section_routing")} description={t("widget_studio.section_routing_desc")}>
                         <ResourceSelect
                           model={teams}
                           label={t("widgets.team_hint")}
@@ -283,7 +267,7 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
                           clearable
                           {...form.getInputProps("allowed_origins")}
                         />
-                      </SectionCard>
+                      </FormSection>
                     </Stack>
 
                     <WidgetPreviewStage

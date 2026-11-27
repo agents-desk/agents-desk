@@ -186,33 +186,9 @@ export function InboxNav({
             </Badge>
           }
         >
-          <NavLink
-            label={
-              <Text size="sm" c="dimmed" truncate>
-                {t("inbox.ai_handling")}
-              </Text>
-            }
-            leftSection={<IconRobot size={16} stroke={1.6} style={{ color: "var(--tn-muted)" }} />}
-            onClick={() => void navigate({ to: "/$slug/ai", params: { slug } })}
-          />
-          <NavLink
-            label={
-              <Text size="sm" c="dimmed" truncate>
-                {t("inbox.ai_pending_approval")}
-              </Text>
-            }
-            leftSection={<IconClockCheck size={16} stroke={1.6} style={{ color: "var(--tn-muted)" }} />}
-            onClick={() => void navigate({ to: "/$slug/ai", params: { slug } })}
-          />
-          <NavLink
-            label={
-              <Text size="sm" c="dimmed" truncate>
-                {t("inbox.ai_escalated")}
-              </Text>
-            }
-            leftSection={<IconArrowForwardUp size={16} stroke={1.6} style={{ color: "var(--tn-muted)" }} />}
-            onClick={() => void navigate({ to: "/$slug/ai", params: { slug } })}
-          />
+          <NavLink disabled label={t("inbox.ai_handling")} leftSection={<IconRobot size={16} stroke={1.6} />} />
+          <NavLink disabled label={t("inbox.ai_pending_approval")} leftSection={<IconClockCheck size={16} stroke={1.6} />} />
+          <NavLink disabled label={t("inbox.ai_escalated")} leftSection={<IconArrowForwardUp size={16} stroke={1.6} />} />
         </RailSection>
 
         {(d?.teams.length ?? 0) > 0 && (

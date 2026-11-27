@@ -2,7 +2,7 @@
 
 import type { MemberStatus } from "@agents-desk/client/tenant"
 import { AreaChart } from "@mantine/charts"
-import { Avatar, Badge, Button, Center, Group, Progress, Select, SimpleGrid, Skeleton, Stack, Text } from "@mantine/core"
+import { Avatar, Badge, Button, Group, Progress, Select, SimpleGrid, Skeleton, Stack, Text } from "@mantine/core"
 import { IconX } from "@tabler/icons-react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
@@ -17,7 +17,7 @@ import { type MetricItem, MetricStrip } from "./MetricStrip"
 import { GranularityControl } from "./PeriodButton"
 import { ReportShell } from "./ReportShell"
 import type { BusinessReportSearchParams } from "./search"
-import { SectionCard } from "./SectionCard"
+import { ReportEmpty, SectionCard } from "./SectionCard"
 
 /** 商务沟通报表页面组件。 */
 export function BusinessPage({ route }: { route: PeriodRoute }): ReactNode {
@@ -182,11 +182,7 @@ export function BusinessPage({ route }: { route: PeriodRoute }): ReactNode {
             {loading ? (
               <Skeleton height={240} radius="sm" />
             ) : !chartState.data?.length ? (
-              <Center mih={240}>
-                <Text size="sm" c="dimmed">
-                  {t("reports.empty")}
-                </Text>
-              </Center>
+              <ReportEmpty minHeight={240} />
             ) : (
               <AreaChart
                 h={240}

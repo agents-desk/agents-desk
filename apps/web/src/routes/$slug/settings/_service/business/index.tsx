@@ -10,14 +10,12 @@ import {
   Modal,
   MultiSelect,
   NumberInput,
-  Paper,
   SegmentedControl,
   Select,
   Stack,
   Switch,
   Text,
   TextInput,
-  Title,
 } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { IconInfoCircle, IconPlayerPause, IconPlayerPlay, IconPlugConnected, IconSearch, IconUserPlus } from "@tabler/icons-react"
@@ -25,6 +23,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import {
   applyServerErrors,
+  confirm,
   DataTable,
   FormError,
   notifyError,
@@ -41,6 +40,7 @@ import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../../../../../api"
 import { RowActions } from "../../../../../components/row-actions"
 import { useUnsavedGuard } from "../../../../../components/unsaved-guard"
+import { FormSection } from "../../../../../components/form-section"
 import { ExternalGroupsPanel, TelegramsPanel } from "../../../../../features/channels/shared-panels"
 import { ChannelIcon } from "../../../../../inbox/channel-badge"
 import { useMembers } from "../../../../../inbox/data"
@@ -143,6 +143,23 @@ function MemberChannelsTab(): ReactNode {
     },
     onError: (err) => notifyError(err),
   })
+
+  // 停用前确认，启用直接执行。
+  async function toggle(item: BusinessChannelItemDTO): Promise<void> {
+    const link = item.kind === "business_link"
+    if (
+      item.enabled &&
+      !(await confirm({
+        title: t(link ? "business_channels.link_disable_confirm" : "business_channels.tg_disable_confirm", { name: item.name }),
+        message: t(link ? "business_channels.link_disable_message" : "business_channels.tg_disable_message"),
+        danger: true,
+        confirmLabel: t("common.disable"),
+      }))
+    ) {
+      return
+    }
+    toggleEnabled.mutate(item)
+  }
 
   return (
     <Stack gap="md">
@@ -307,7 +324,7 @@ function MemberChannelsTab(): ReactNode {
                     label: t(item.enabled ? "common.disable" : "common.enable"),
                     icon: item.enabled ? <IconPlayerPause size={14} /> : <IconPlayerPlay size={14} />,
                     disabled: toggleEnabled.isPending,
-                    onClick: () => toggleEnabled.mutate(item),
+                    onClick: () => void toggle(item),
                   },
                 ]}
               />
@@ -501,14 +518,7 @@ function BusinessPolicyTab(): ReactNode {
           </Alert>
         )}
 
-        <Paper withBorder p="md" radius="md">
-          <Stack gap="md">
-            <Box>
-              <Title order={5}>{t("business_gov.policy_section_access")}</Title>
-              <Text size="xs" c="dimmed" mt={2}>
-                {t("business_gov.policy_section_access_desc")}
-              </Text>
-            </Box>
+        <FormSection title={t("business_gov.policy_section_access")} description={t("business_gov.policy_section_access_desc")}>
             <Switch
               label={t("business_gov.policy_links_enabled")}
               description={t("business_gov.policy_links_enabled_hint")}
@@ -537,17 +547,9 @@ function BusinessPolicyTab(): ReactNode {
               allowNegative={false}
               {...form.getInputProps("max_telegram_accounts_per_member")}
             />
-          </Stack>
-        </Paper>
+        </FormSection>
 
-        <Paper withBorder p="md" radius="md">
-          <Stack gap="md">
-            <Box>
-              <Title order={5}>{t("business_gov.policy_section_defaults")}</Title>
-              <Text size="xs" c="dimmed" mt={2}>
-                {t("business_gov.policy_section_defaults_desc")}
-              </Text>
-            </Box>
+        <FormSection title={t("business_gov.policy_section_defaults")} description={t("business_gov.policy_section_defaults_desc")}>
             <TextInput
               label={t("business_gov.policy_company_name")}
               placeholder={t("business_gov.policy_company_name_placeholder")}
@@ -571,8 +573,7 @@ function BusinessPolicyTab(): ReactNode {
               value={form.values.default_translation_tone}
               onChange={(v) => form.setFieldValue("default_translation_tone", (v ?? "") as BusinessPolicy["default_translation_tone"])}
             />
-          </Stack>
-        </Paper>
+        </FormSection>
 
         <Group justify="flex-end">
           <Button type="submit" disabled={!form.isDirty() || !data} loading={save.isPending}>
@@ -671,21 +672,17 @@ function TelegramCredentialsTab(): ReactNode {
           <Text size="sm">{t("business_gov.tg_isolation_desc")}</Text>
         </Alert>
 
-        <Paper withBorder p="md" radius="md">
-          <Stack gap="md">
-            <Group justify="space-between" align="flex-start" wrap="wrap" gap="xs">
-              <Box>
-                <Title order={5}>{t("business_gov.tg_section_credentials")}</Title>
-                <Text size="xs" c="dimmed" mt={2}>
-                  {t("business_gov.tg_section_credentials_desc")}
-                </Text>
-              </Box>
-              {data && (
-                <StatusDot color={configured ? "green" : "gray"}>
-                  {t(configured ? "business_gov.tg_status_configured" : "business_gov.tg_status_unconfigured")}
-                </StatusDot>
-              )}
-            </Group>
+        <FormSection
+          title={t("business_gov.tg_section_credentials")}
+          description={t("business_gov.tg_section_credentials_desc")}
+          actions={
+            data && (
+              <StatusDot color={configured ? "green" : "gray"}>
+                {t(configured ? "business_gov.tg_status_configured" : "business_gov.tg_status_unconfigured")}
+              </StatusDot>
+            )
+          }
+        >
 
             <NumberInput
               label={t("business_gov.tg_api_id")}
@@ -728,8 +725,7 @@ function TelegramCredentialsTab(): ReactNode {
                 </Text>
               </Group>
             </Stack>
-          </Stack>
-        </Paper>
+        </FormSection>
 
         <Group justify="flex-end">
           <Button type="submit" disabled={!form.isDirty() || !data} loading={save.isPending}>

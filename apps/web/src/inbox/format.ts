@@ -29,6 +29,9 @@ export function waitLevel(since: string, now: number, th: Thresholds | undefined
 /** waitColor 是等待时长的颜色：等待处理 yellow，需要注意 deep-orange（状态色的约定）。 */
 export const waitColor: Record<WaitLevel, string | undefined> = { ok: undefined, warn: "yellow", alert: "deep-orange" }
 
+/** conversationStatusColor 是会话状态徽标的颜色：打开 bright-blue，稍后处理 yellow，已关闭 gray。 */
+export const conversationStatusColor = { open: "bright-blue", snoozed: "yellow", closed: "gray" } as const
+
 /** startOfDay 返回 d 所在那天的零点（浏览器的时区）。 */
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
 

@@ -1,7 +1,7 @@
 // 响应时间报表：首响与解决时长指标带与趋势融合面板、时长分布直方图，以及支持聚焦筛选与下钻的团队/渠道对比。
 
 import { AreaChart, BarChart } from "@mantine/charts"
-import { Badge, Center, Group, SimpleGrid, Skeleton, Text } from "@mantine/core"
+import { Badge, Group, SimpleGrid, Skeleton, Text } from "@mantine/core"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { useParams } from "@tanstack/react-router"
 import { LoadingStage, type PeriodRoute, useCan, useFormatDuration, useLanguage, useSmoothTransition, useT } from "@go-tenon/ui"
@@ -14,7 +14,7 @@ import { type MetricItem, MetricStrip } from "./MetricStrip"
 import { GranularityControl } from "./PeriodButton"
 import { ReportShell } from "./ReportShell"
 import { useReportFilters } from "./search"
-import { SectionCard } from "./SectionCard"
+import { ReportEmpty, SectionCard } from "./SectionCard"
 
 /** 响应时间报表页面组件（同时服务对外客服、合作方服务与内部服务场景）。 */
 export function ResponseTimePage({
@@ -166,11 +166,7 @@ export function ResponseTimePage({
             {loading ? (
               <Skeleton height={240} radius="sm" />
             ) : seriesEmpty ? (
-              <Center mih={240}>
-                <Text size="sm" c="dimmed">
-                  {t("reports.empty")}
-                </Text>
-              </Center>
+              <ReportEmpty minHeight={240} />
             ) : (
               <AreaChart
                 h={240}
