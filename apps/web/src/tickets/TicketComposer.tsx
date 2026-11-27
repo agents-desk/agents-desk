@@ -20,7 +20,6 @@ import {
   defaultPeerLanguage,
   InlineTranslationPane,
   ComposerSendArea,
-  TranslationToggleButton,
   useComposerTranslation,
 } from "../inbox/ComposerTranslation"
 import { useMe, useMembers } from "../inbox/data"
@@ -346,8 +345,6 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
               </Tooltip>
             )}
           </FileButton>
-
-          <TranslationToggleButton preview={preview} myLang={me.data?.language} note={note} />
 
           {preview.confirming && (
             <Text size="xs" c="brand" ml={4}>
