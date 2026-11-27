@@ -19,7 +19,7 @@ import (
 // CreateBody 是新建 Telegram 机器人渠道的请求体。
 type CreateBody struct {
 	Name           string           `json:"name" minLength:"1" maxLength:"60"`
-	Audience       channel.Audience `json:"audience,omitempty" doc:"服务对象类型：customer（外部客户，默认）或 internal（内部员工）"`
+	Audience       channel.Audience `json:"audience,omitempty" doc:"服务对象类型：customer（外部客户，默认）、partner（合作商家）或 internal（内部员工）"`
 	TeamID         *string          `json:"team_id,omitempty" format:"uuid" doc:"新会话进入的团队收件箱；不填时进入未指派"`
 	BotToken       string           `json:"bot_token" minLength:"10" maxLength:"256" format:"password" doc:"从 @BotFather 获取的 Bot Token"`
 	GatewayManaged bool             `json:"gateway_managed,omitempty" doc:"开启后由外部业务网关转发 Webhook，系统不自动调用 setWebhook"`

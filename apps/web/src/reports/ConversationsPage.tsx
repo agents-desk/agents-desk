@@ -24,7 +24,7 @@ import { ReportShell } from "./ReportShell"
 import { useReportFilters } from "./search"
 import { SectionCard } from "./SectionCard"
 
-/** 会话报表页面组件（同时服务对外客服与内部服务场景）。 */
+/** 会话报表页面组件（同时服务对外客服、合作方服务与内部服务场景）。 */
 export function ConversationsPage({
   route,
   audience,
@@ -32,7 +32,7 @@ export function ConversationsPage({
   toolbarRight,
 }: {
   route: PeriodRoute
-  audience?: "customer" | "internal"
+  audience?: "customer" | "partner" | "internal"
   title?: ReactNode
   toolbarRight?: ReactNode
 }): ReactNode {
@@ -55,6 +55,7 @@ export function ConversationsPage({
   const canInbox = can("conversations:read")
   const scope = { audience, teamId: filters.teamId, channelId: filters.channelId }
   const isInternal = audience === "internal"
+  const isPartner = audience === "partner"
 
   const maxChannel = Math.max(1, ...(data?.by_channel ?? []).map((x) => x.created))
   const maxTeam = Math.max(1, ...(data?.by_team ?? []).map((x) => x.created))
@@ -89,15 +90,26 @@ export function ConversationsPage({
   const metrics: MetricItem[] = [
     {
       key: "created",
-      label: isInternal ? t("reports.internal_created") : t("reports.conv_created"),
-      description: isInternal ? t("reports.internal_created_desc") : t("reports.conv_created_desc"),
+      label: isInternal ? t("reports.internal_created") : isPartner ? t("reports.partner_created") : t("reports.conv_created"),
+      description: isInternal
+        ? t("reports.internal_created_desc")
+        : isPartner
+          ? t("reports.partner_created_desc")
+          : t("reports.conv_created_desc"),
       value: formatInt(s?.created, uiLang),
       delta: pctDelta(s?.created, s?.prev_created),
       secondary: s
-        ? t(isInternal ? "reports.conv_target_sub_internal" : "reports.conv_target_sub", {
-            direct: formatInt(s.direct_created, uiLang),
-            group: formatInt(s.group_created, uiLang),
-          })
+        ? t(
+            isInternal
+              ? "reports.conv_target_sub_internal"
+              : isPartner
+                ? "reports.conv_target_sub_partner"
+                : "reports.conv_target_sub",
+            {
+              direct: formatInt(s.direct_created, uiLang),
+              group: formatInt(s.group_created, uiLang),
+            },
+          )
         : undefined,
     },
     {

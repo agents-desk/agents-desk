@@ -27,7 +27,7 @@ type PeriodMeta period.Meta
 // FilterParams 是支持按服务对象、团队收件箱与渠道筛选的报表通用输入参数。
 type FilterParams struct {
 	period.Params
-	Audience  channel.Audience `query:"audience" doc:"按服务对象筛选（customer 或 internal）"`
+	Audience  channel.Audience `query:"audience" doc:"按服务对象筛选（customer、partner 或 internal）"`
 	TeamID    string           `query:"team_id" format:"uuid" doc:"按团队收件箱筛选（含已停用团队）"`
 	ChannelID string           `query:"channel_id" format:"uuid" doc:"按渠道筛选（含已停用渠道）"`
 }

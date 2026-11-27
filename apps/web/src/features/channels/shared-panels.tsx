@@ -27,12 +27,19 @@ import { activity } from "../../inbox/format"
 import { LanguageSelect } from "../../LanguageSelect"
 import { teams } from "../../resources"
 
-/** BotAudience 是公共服务机器人的两个业务场景域：对外客户服务或内部员工服务。 */
-export type BotAudience = "customer" | "internal"
+/** BotAudience 是公共服务机器人的三个业务场景域：对外客户服务、合作方服务或内部员工服务。 */
+export type BotAudience = "customer" | "partner" | "internal"
 
 /** telegramDetailPath 返回指定场景下 Telegram 机器人配置工作台的路由路径。 */
-function telegramDetailPath(audience: BotAudience): "/$slug/settings/channels/telegrams/$id" | "/$slug/settings/internal-channels/telegrams/$id" {
-  return audience === "internal" ? "/$slug/settings/internal-channels/telegrams/$id" : "/$slug/settings/channels/telegrams/$id"
+function telegramDetailPath(
+  audience: BotAudience,
+):
+  | "/$slug/settings/channels/telegrams/$id"
+  | "/$slug/settings/business/telegrams/$id"
+  | "/$slug/settings/internal-channels/telegrams/$id" {
+  if (audience === "internal") return "/$slug/settings/internal-channels/telegrams/$id"
+  if (audience === "partner") return "/$slug/settings/business/telegrams/$id"
+  return "/$slug/settings/channels/telegrams/$id"
 }
 
 /** TelegramsPanel 按业务场景（对外客服 / 内部员工服务）管理对应的 Telegram 机器人渠道列表与新建弹窗。 */
@@ -94,7 +101,13 @@ export function TelegramsPanel({ slug, audience }: { slug: string; audience: Bot
         </Button>
       </PageActions>
       <Text size="sm" c="dimmed">
-        {t(audience === "internal" ? "telegrams.description_internal" : "telegrams.description")}
+        {t(
+          audience === "internal"
+            ? "telegrams.description_internal"
+            : audience === "partner"
+              ? "telegrams.description_partner"
+              : "telegrams.description",
+        )}
       </Text>
 
       <DataTable
@@ -274,7 +287,13 @@ export function ExternalGroupsPanel({ audience }: { audience: BotAudience }): Re
   return (
     <Stack gap="sm">
       <Text size="sm" c="dimmed">
-        {t(audience === "internal" ? "extgroups.description_internal" : "extgroups.description_customer")}
+        {t(
+          audience === "internal"
+            ? "extgroups.description_internal"
+            : audience === "partner"
+              ? "extgroups.description_partner"
+              : "extgroups.description_customer",
+        )}
       </Text>
       <SegmentedControl
         w="fit-content"
@@ -291,7 +310,13 @@ export function ExternalGroupsPanel({ audience }: { audience: BotAudience }): Re
       <DataTable
         records={list.data ?? []}
         loading={list.isPending}
-        empty={t(audience === "internal" ? "extgroups.empty_internal" : "extgroups.empty_customer")}
+        empty={t(
+          audience === "internal"
+            ? "extgroups.empty_internal"
+            : audience === "partner"
+              ? "extgroups.empty_partner"
+              : "extgroups.empty_customer",
+        )}
         columns={[
           {
             accessor: "name",
@@ -349,7 +374,13 @@ export function ExternalGroupsPanel({ audience }: { audience: BotAudience }): Re
       <Modal
         opened={Boolean(editing)}
         onClose={() => setEditing(null)}
-        title={t(audience === "internal" ? "extgroups.edit_title_internal" : "extgroups.edit_title_customer")}
+        title={t(
+          audience === "internal"
+            ? "extgroups.edit_title_internal"
+            : audience === "partner"
+              ? "extgroups.edit_title_partner"
+              : "extgroups.edit_title_customer",
+        )}
         size="md"
       >
         <form onSubmit={form.onSubmit((v) => save.mutate(v))}>

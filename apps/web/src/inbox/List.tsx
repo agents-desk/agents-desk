@@ -791,6 +791,11 @@ function Row({
                 {t("inbox.audience_internal_badge")}
               </Badge>
             )}
+            {c.audience === "partner" && !c.external_group && (
+              <Badge size="xs" variant="light" color="brand" style={{ flex: "none" }}>
+                {t("inbox.audience_partner_badge")}
+              </Badge>
+            )}
             {c.channels && c.channels.length > 1 && <MultiChannelBadge channels={c.channels} />}
             {c.priority === "high" && (
               <Tooltip label={t("inbox.priority_high")} openDelay={300}>
@@ -878,7 +883,13 @@ export function contactName(c: ConversationDTO, t: ReturnType<typeof useT>): str
     return (
       c.external_group.name ||
       c.external_group.external_id ||
-      t(c.audience === "internal" ? "inbox.internal_group" : "inbox.customer_group")
+      t(
+        c.audience === "internal"
+          ? "inbox.internal_group"
+          : c.audience === "partner"
+            ? "inbox.partner_group"
+            : "inbox.customer_group",
+      )
     )
   }
   return contactDisplayName(c.contact, t)

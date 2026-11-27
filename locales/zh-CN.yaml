@@ -199,7 +199,7 @@ channel.kind.wecom: 企业微信机器人
 channel.kind.business_link: 商务沟通链接
 channel.kind.telegram_account: Telegram 个人号
 channel.audience.customer: 外部客户
-channel.audience.partner: 商务伙伴
+channel.audience.partner: 合作方
 channel.audience.internal: 内部员工
 extgroup.not_found: 外部群不存在
 extgroup.removed: 机器人已被移出该群，无法继续回复

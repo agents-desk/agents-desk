@@ -268,7 +268,7 @@ func SyncRemoved(ctx context.Context, db *bun.DB, tenant, channelID, externalID 
 // ListInput 是外部群列表的查询条件。
 type ListInput struct {
 	ChannelID string           `query:"channel_id" format:"uuid" doc:"可选：按渠道筛选"`
-	Audience  channel.Audience `query:"audience" doc:"可选：按所属渠道服务对象筛选（customer 或 internal）"`
+	Audience  channel.Audience `query:"audience" doc:"可选：按所属渠道服务对象筛选（customer、partner 或 internal）"`
 	Status    Status           `query:"status" doc:"可选：按状态筛选（pending_setup、active、removed）"`
 }
 

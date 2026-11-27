@@ -47,6 +47,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
   const loading = query.isPending && !data
   const live = data?.live
   const svc = data?.service
+  const partnerSvc = data?.partner
   const internalSvc = data?.internal
   const tk = data?.tickets
   const biz = data?.business
@@ -78,6 +79,15 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
       value: formatInt(live?.service_unassigned, uiLang),
       to: canConv ? "/$slug/inbox" : undefined,
       search: liveBacklogInboxSearch("unassigned", { audience: "customer" }) as unknown as Record<string, unknown>,
+    },
+    {
+      key: "ptr_waiting",
+      label: t("reports.ov_live_partner_waiting"),
+      tip: t("reports.ov_live_partner_waiting_tip"),
+      value: formatInt(live?.partner_waiting, uiLang),
+      warn: Boolean(live && live.partner_waiting > 0),
+      to: canConv ? "/$slug/inbox" : undefined,
+      search: liveBacklogInboxSearch("waiting", { audience: "partner" }) as unknown as Record<string, unknown>,
     },
     {
       key: "int_waiting",
@@ -176,7 +186,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
         </div>
       </div>
 
-      {/* 五大业务域周期汇总卡片：点击卡片直达对应专题报表 */}
+      {/* 六大业务域周期汇总卡片：点击卡片直达对应专题报表 */}
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
         <OverviewDomainCard
           title={t("nav.reports_service")}
@@ -200,6 +210,22 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
                 "—"
               ),
             },
+          ]}
+        />
+
+        <OverviewDomainCard
+          title={t("nav.reports_partner")}
+          to="/$slug/reports/partner"
+          slug={slug}
+          search={periodSearchParams}
+          loading={loading}
+          primaryLabel={t("reports.partner_created")}
+          primaryValue={formatInt(partnerSvc?.created, uiLang)}
+          delta={pctDelta(partnerSvc?.created, partnerSvc?.prev_created)}
+          rows={[
+            { label: t("reports.closed_rounds"), value: formatInt(partnerSvc?.closed, uiLang) },
+            { label: t("reports.frt_median"), value: formatDuration(partnerSvc?.first_reply_median_seconds) },
+            { label: t("reports.partner_group_created"), value: formatInt(partnerSvc?.group_created, uiLang) },
           ]}
         />
 
@@ -290,6 +316,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
               dataKey="date"
               series={[
                 { name: "service_created", label: t("reports.ov_series_service"), color: "brand.6" },
+                { name: "partner_created", label: t("reports.ov_series_partner"), color: "green.6" },
                 { name: "internal_created", label: t("reports.ov_series_internal"), color: "violet.6" },
                 { name: "ticket_created", label: t("reports.ov_series_tickets"), color: "deep-orange.6" },
                 { name: "business_messages", label: t("reports.ov_series_business"), color: "bright-blue.6" },
@@ -314,6 +341,7 @@ interface OverviewDomainCardProps {
   title: string
   to:
     | "/$slug/reports/service"
+    | "/$slug/reports/partner"
     | "/$slug/reports/internal"
     | "/$slug/reports/tickets"
     | "/$slug/reports/business"

@@ -60,7 +60,7 @@ type ListInput struct {
 	ChannelID       string           `query:"channel_id" format:"uuid" doc:"只列出来自这个渠道的会话"`
 	ContactID       string           `query:"contact_id" format:"uuid" doc:"只列出这个联系人的会话，不按状态筛选，例如详情中的“最近的会话”"`
 	ExternalGroupID string           `query:"external_group_id" format:"uuid" doc:"只列出这个外部群的会话，不按状态筛选"`
-	Audience        channel.Audience `query:"audience" doc:"只列出该服务对象类型的会话（customer/internal）"`
+	Audience        channel.Audience `query:"audience" doc:"只列出该服务对象类型的会话（customer/partner/internal）"`
 	Priority        Priority         `query:"priority" doc:"只列出这个优先级的会话"`
 	TagID           string           `query:"tag_id" format:"uuid" doc:"只列出带有这个标签的会话"`
 	Sort            Sort             `query:"sort" doc:"排序：默认按视图排序或 waiting；@我 的列表总是最近被 @ 的在前"`

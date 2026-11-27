@@ -380,7 +380,13 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
 
           {c.external_group ? (
             <InspectorSection
-              title={t(c.audience === "internal" ? "inbox.details_internal_group" : "inbox.details_customer_group")}
+              title={t(
+                c.audience === "internal"
+                  ? "inbox.details_internal_group"
+                  : c.audience === "partner"
+                    ? "inbox.details_partner_group"
+                    : "inbox.details_customer_group",
+              )}
               collapsible
               storeKey="inbox-details-group"
               extra={
@@ -394,7 +400,12 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                       onClick={(e) => {
                         e.stopPropagation()
                         void navigate({
-                          to: c.audience === "internal" ? "/$slug/settings/internal-channels" : "/$slug/settings/channels",
+                          to:
+                            c.audience === "internal"
+                              ? "/$slug/settings/internal-channels"
+                              : c.audience === "partner"
+                                ? "/$slug/settings/business"
+                                : "/$slug/settings/channels",
                           params: { slug },
                           search: { tab: "groups" },
                         })

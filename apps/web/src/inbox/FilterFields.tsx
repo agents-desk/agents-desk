@@ -146,6 +146,7 @@ export function FilterFields({ value, onChange, compact }: FilterFieldsProps): R
           data={[
             { value: "any", label: t("views.any") },
             { value: "customer", label: t("channels.audience_customer") },
+            { value: "partner", label: t("channels.audience_partner") },
             { value: "internal", label: t("channels.audience_internal") },
           ]}
         />
@@ -533,10 +534,17 @@ export function FilterSummaryChips({
     })
   }
   if (filter.audience) {
+    const audienceLabel =
+      filter.audience === "internal"
+        ? "channels.audience_internal"
+        : filter.audience === "partner"
+          ? "channels.audience_partner"
+          : "channels.audience_customer"
+    const audienceColor = filter.audience === "internal" ? "green" : filter.audience === "partner" ? "brand" : "bright-blue"
     chips.push({
       key: "audience",
-      label: `${t("views.audience")}: ${t(filter.audience === "internal" ? "channels.audience_internal" : "channels.audience_customer")}`,
-      color: filter.audience === "internal" ? "green" : "bright-blue",
+      label: `${t("views.audience")}: ${t(audienceLabel)}`,
+      color: audienceColor,
       remove: () => onChange({ ...filter, audience: undefined }),
     })
   }

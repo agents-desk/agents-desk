@@ -72,7 +72,7 @@ const gatewayHeaders = [
 /** TelegramFormValues 是 Telegram 渠道配置工作台的表单草稿结构。 */
 interface TelegramFormValues {
   name: string
-  audience: "customer" | "internal"
+  audience: "customer" | "partner" | "internal"
   bot_token: string
   team_id: string | null
   gateway_managed: boolean
@@ -84,7 +84,7 @@ interface TelegramFormValues {
 function toFormValues(tg: TelegramDTO): TelegramFormValues {
   return {
     name: tg.name,
-    audience: tg.audience === "internal" ? "internal" : "customer",
+    audience: tg.audience === "internal" ? "internal" : tg.audience === "partner" ? "partner" : "customer",
     bot_token: "",
     team_id: tg.team_id ?? null,
     gateway_managed: tg.gateway_managed,
@@ -198,7 +198,7 @@ export function TelegramStudio({
 }: {
   slug: string
   id: string
-  backRoute?: "/$slug/settings/channels" | "/$slug/settings/internal-channels"
+  backRoute?: "/$slug/settings/channels" | "/$slug/settings/business" | "/$slug/settings/internal-channels"
 }): ReactNode {
   const t = useT()
   const navigate = useNavigate()
@@ -271,7 +271,13 @@ export function TelegramStudio({
   return (
     <Page
       title={tg.data ? tg.data.name : t("telegram_install.title")}
-      back={() => void navigate({ to: backRoute, params: { slug }, search: { tab: "telegram" } })}
+      back={() =>
+        void navigate({
+          to: backRoute,
+          params: { slug },
+          search: { tab: backRoute === "/$slug/settings/business" ? "telegram_bots" : "telegram" },
+        })
+      }
       actions={
         tg.data ? (
           <Group
@@ -317,7 +323,11 @@ export function TelegramStudio({
                         <Text size="xs" c="dimmed">
                           {t("channels.audience")}
                         </Text>
-                        <Badge size="xs" variant="light" color={form.values.audience === "internal" ? "green" : "bright-blue"}>
+                        <Badge
+                          size="xs"
+                          variant="light"
+                          color={form.values.audience === "internal" ? "green" : form.values.audience === "partner" ? "brand" : "bright-blue"}
+                        >
                           {kit.label("ChannelAudience", form.values.audience)}
                         </Badge>
                       </Group>
@@ -360,7 +370,7 @@ export function TelegramStudio({
                       </Stack>
                     </SectionCard>
 
-                    <AiReceptionCard scene={form.values.audience === "internal" ? "internal" : "customer"} />
+                    <AiReceptionCard scene={form.values.audience} />
 
                     <SectionCard title={t("telegram_studio.section_routing")} description={t("telegram_studio.section_routing_desc")}>
                       <ResourceSelect

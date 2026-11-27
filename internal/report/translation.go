@@ -188,13 +188,14 @@ func (a *Translation) Handle(ctx context.Context, sub identity.Subject, p period
 		Join("LEFT JOIN conversations c ON lc.target_type = 'conversation' AND c.id::text = lc.target_id AND c.tenant_id = lc.tenant_id").
 		Join("LEFT JOIN chats ch ON ch.conversation_id = c.id").
 		ColumnExpr(`CASE
+			WHEN c.kind = ? AND c.audience = ? THEN 'partner_service'
 			WHEN c.kind = ? AND c.audience = ? THEN 'internal_service'
 			WHEN c.kind = ? THEN 'service'
 			WHEN c.kind = ? THEN 'ticket'
 			WHEN c.kind = ? AND ch.scope = ? THEN 'business'
 			WHEN c.kind = ? AND ch.scope = ? THEN 'internal_chat'
 			ELSE 'other'
-		END AS scene`, conversation.Service, channel.AudienceInternal, conversation.Service, conversation.Ticket, conversation.Chat, conversation.ChatExternal, conversation.Chat, conversation.ChatInternal).
+		END AS scene`, conversation.Service, channel.AudiencePartner, conversation.Service, channel.AudienceInternal, conversation.Service, conversation.Ticket, conversation.Chat, conversation.ChatExternal, conversation.Chat, conversation.ChatInternal).
 		ColumnExpr("count(*) AS calls, count(*) FILTER (WHERE lc.error <> '') AS failed").
 		ColumnExpr("COALESCE(sum(lc.prompt_tokens + lc.completion_tokens), 0) AS tokens, COALESCE(sum(lc.cost), 0)::float8 AS cost, avg(lc.duration_ms) AS avg_ms").
 		Where("lc.tenant_id = ? AND lc.call_type = ? AND lc.created_at >= ? AND lc.created_at < ?", sub.Tenant, llm.Translation, w.Start, w.End).

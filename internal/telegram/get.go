@@ -16,7 +16,7 @@ import (
 type TelegramDTO struct {
 	ID             string           `json:"id"`
 	Name           string           `json:"name"`
-	Audience       channel.Audience `json:"audience" doc:"服务对象类型：customer（外部客户）或 internal（内部员工）"`
+	Audience       channel.Audience `json:"audience" doc:"服务对象类型：customer（外部客户）、partner（合作商家）或 internal（内部员工）"`
 	TeamID         *string          `json:"team_id,omitempty" doc:"新会话进入的团队收件箱；为空时进入未指派"`
 	TeamName       string           `json:"team_name" doc:"新会话进入的团队收件箱的名称；未指派时为空"`
 	BotUsername    string           `json:"bot_username" doc:"Telegram 机器人的用户名（不含 @）"`

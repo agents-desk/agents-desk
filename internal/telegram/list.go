@@ -15,7 +15,7 @@ import (
 // ListInput 是 Telegram 机器人列表的查询条件。
 type ListInput struct {
 	page.OffsetParams
-	Audience channel.Audience `query:"audience" doc:"可选：按服务对象筛选（customer 或 internal）"`
+	Audience channel.Audience `query:"audience" doc:"可选：按服务对象筛选（customer、partner 或 internal）"`
 }
 
 // ListOutput 是一页 Telegram 机器人渠道。

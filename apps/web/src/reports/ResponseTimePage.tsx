@@ -16,7 +16,7 @@ import { ReportShell } from "./ReportShell"
 import { useReportFilters } from "./search"
 import { SectionCard } from "./SectionCard"
 
-/** 响应时间报表页面组件（同时服务对外客服与内部服务场景）。 */
+/** 响应时间报表页面组件（同时服务对外客服、合作方服务与内部服务场景）。 */
 export function ResponseTimePage({
   route,
   audience,
@@ -24,7 +24,7 @@ export function ResponseTimePage({
   toolbarRight,
 }: {
   route: PeriodRoute
-  audience?: "customer" | "internal"
+  audience?: "customer" | "partner" | "internal"
   title?: ReactNode
   toolbarRight?: ReactNode
 }): ReactNode {

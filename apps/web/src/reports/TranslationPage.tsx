@@ -101,6 +101,8 @@ export function TranslationPage({ route }: { route: PeriodRoute }): ReactNode {
     switch (scene) {
       case "service":
         return t("reports.scene_service")
+      case "partner_service":
+        return t("reports.scene_partner_service")
       case "internal_service":
         return t("reports.scene_internal_service")
       case "ticket":

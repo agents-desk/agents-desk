@@ -42,8 +42,8 @@ export const enums = {
     prefix: "channel.audience",
     values: ["customer", "partner", "internal"],
     labels: {
-      "en": { customer: "Customer", partner: "Business partner", internal: "Internal employee" },
-      "zh-CN": { customer: "外部客户", partner: "商务伙伴", internal: "内部员工" },
+      "en": { customer: "Customer", partner: "Partner", internal: "Internal employee" },
+      "zh-CN": { customer: "外部客户", partner: "合作方", internal: "内部员工" },
     },
   },
   ChannelKind: {

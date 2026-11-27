@@ -219,6 +219,11 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
                     {t("inbox.audience_internal_badge")}
                   </Badge>
                 )}
+                {c.audience === "partner" && (
+                  <Badge size="xs" variant="light" color="brand" style={{ flex: "none" }}>
+                    {t("inbox.audience_partner_badge")}
+                  </Badge>
+                )}
                 {c.status !== "open" && (
                   <Badge size="xs" variant="light" color={c.status === "snoozed" ? "yellow" : "gray"} style={{ flex: "none" }}>
                     {t(`inbox.status_${c.status}` as const)}

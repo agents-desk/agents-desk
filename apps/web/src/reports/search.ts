@@ -21,7 +21,7 @@ export interface ReportFilterSearchParams extends PeriodSearchParams {
 
 /** 传给支持团队与渠道筛选的后端报表接口的查询参数。 */
 export interface ReportFilterQueryParams extends PeriodQueryParams {
-  audience?: "customer" | "internal"
+  audience?: "customer" | "partner" | "internal"
   team_id?: string
   channel_id?: string
 }
@@ -37,6 +37,11 @@ export interface SatisfactionSearchParams extends ReportFilterSearchParams {
 
 /** 客服报表的 URL search 参数（统一承接会话量、响应时效、满意度 3 个 Tab）。 */
 export type ServiceReportSearchParams = SatisfactionSearchParams
+
+/** 合作方服务报表的 URL search 参数（统一承接请求量、响应时效 2 个 Tab）。 */
+export interface PartnerServiceReportSearchParams extends ReportFilterSearchParams {
+  tab?: "volume" | "response"
+}
 
 /** 内部服务报表的 URL search 参数（统一承接请求量、响应时效 2 个 Tab）。 */
 export interface InternalServiceReportSearchParams extends ReportFilterSearchParams {
@@ -102,6 +107,20 @@ export function serviceReportSearch(
   }
 }
 
+/** 校验并解析合作方服务报表的查询参数（Tab + 通用筛选）。 */
+export function partnerServiceReportSearch(
+  options: PeriodSearchOptions = { defaultPreset: "7d" },
+): (search: Record<string, unknown>) => PartnerServiceReportSearchParams {
+  const parseBase = reportFilterSearch(options)
+  return (search: Record<string, unknown>): PartnerServiceReportSearchParams => {
+    const out: PartnerServiceReportSearchParams = parseBase(search)
+    if (search.tab === "volume" || search.tab === "response") {
+      out.tab = search.tab
+    }
+    return out
+  }
+}
+
 /** 校验并解析内部服务报表的查询参数（Tab + 通用筛选）。 */
 export function internalServiceReportSearch(
   options: PeriodSearchOptions = { defaultPreset: "7d" },
@@ -162,7 +181,7 @@ export function businessReportSearch(
 /** useReportFilters 返回的报表筛选状态与操作。 */
 export interface ReportFiltersState {
   period: PeriodState
-  audience?: "customer" | "internal"
+  audience?: "customer" | "partner" | "internal"
   teamId: string | undefined
   channelId: string | undefined
   setTeamId(id: string | undefined): void
@@ -177,7 +196,7 @@ export function useReportFilters(
   route: PeriodRoute,
   options: {
     defaultPreset?: "today" | "7d" | "30d" | "this_month" | "last_month"
-    audience?: "customer" | "internal"
+    audience?: "customer" | "partner" | "internal"
   } = { defaultPreset: "7d" },
 ): ReportFiltersState {
   const period = usePeriod(route, options)

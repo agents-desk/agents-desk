@@ -49,8 +49,8 @@ export function DetailsAsideTabs({
   )
 }
 
-/** AiReceptionCard 在各渠道与外部群配置页展示「AI Agent 优先接待 + 团队收件箱兜底」的预留配置区块。 */
-export function AiReceptionCard({ scene }: { scene: "customer" | "internal" | "group" }): ReactNode {
+/** AiReceptionCard 在各渠道与外部群配置页展示「AI Agent 优先接待 + 人工团队兜底」的预留配置区块。 */
+export function AiReceptionCard({ scene }: { scene: "customer" | "partner" | "internal" | "group" }): ReactNode {
   const t = useT()
   const { slug } = useParams({ from: "/$slug" })
   const navigate = useNavigate()
@@ -58,9 +58,11 @@ export function AiReceptionCard({ scene }: { scene: "customer" | "internal" | "g
   const descKey =
     scene === "internal"
       ? "ai_placeholder.reception_desc_internal"
-      : scene === "group"
-        ? "ai_placeholder.reception_desc_group"
-        : "ai_placeholder.reception_desc_customer"
+      : scene === "partner"
+        ? "ai_placeholder.reception_desc_partner"
+        : scene === "group"
+          ? "ai_placeholder.reception_desc_group"
+          : "ai_placeholder.reception_desc_customer"
 
   return (
     <Paper withBorder p="md" radius="md" style={{ borderStyle: "dashed" }}>

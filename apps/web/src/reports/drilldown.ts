@@ -5,7 +5,7 @@ import { type ConversationFilter, type InboxSearch, serializeFilter } from "../i
 
 /** 当前报表已选的公共维度上下文，下钻到收件箱时自动继承。 */
 export interface ReportScopeContext {
-  audience?: "customer" | "internal"
+  audience?: "customer" | "partner" | "internal"
   teamId?: string
   channelId?: string
 }

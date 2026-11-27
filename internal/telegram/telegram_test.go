@@ -714,3 +714,95 @@ func TestTelegramDualAudienceAndGroupMention(t *testing.T) {
 		t.Fatalf("离群后状态应为 removed: %+v %v", gAfter, err)
 	}
 }
+
+// TestTelegramPartnerAudienceAndGroupMention 验证合作方（audience=partner）Telegram 机器人可独立创建、
+// 拉入合作群响应群内 @ 机器人并进入独立的 partner 服务会话与合作群列表。
+func TestTelegramPartnerAudienceAndGroupMention(t *testing.T) {
+	t.Parallel()
+	env := apptest.New(t)
+	ctx := context.Background()
+
+	tn, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+		Name: "Partner Co", Slug: "partner-co", OwnerEmail: "owner@partner.test", OwnerName: "Owner", OwnerPassword: "password",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner := identity.Subject{Type: member.Type, ID: tn.OwnerID, Tenant: tn.ID, Permissions: auth.WithBase(auth.RolePermissions(auth.ScopeAll, nil))}
+	fake, _, client := newFakeTelegramAPI(t, "777:PARTNER_BOT_TOKEN", "partner_assist_bot")
+
+	enableGroups := true
+	bot, err := NewCreate(env.DB, env.Crypt, client, "https://desk.example.com").Handle(ctx, owner, CreateBody{
+		Name:         "合作方支持机器人",
+		Audience:     channel.AudiencePartner,
+		BotToken:     "777:PARTNER_BOT_TOKEN",
+		EnableGroups: &enableGroups,
+	})
+	if err != nil {
+		t.Fatalf("create partner telegram bot: %v", err)
+	}
+	if bot.Audience != channel.AudiencePartner || !bot.EnableGroups {
+		t.Fatalf("partner bot 属性不对: %+v", bot)
+	}
+
+	listed, err := NewList(env.DB).Handle(ctx, owner, &ListInput{Audience: channel.AudiencePartner})
+	if err != nil || len(listed.Items) != 1 || listed.Items[0].ID != bot.ID {
+		t.Fatalf("按 partner 筛选机器人列表失败: %+v %v", listed, err)
+	}
+	custListed, err := NewList(env.DB).Handle(ctx, owner, &ListInput{Audience: channel.AudienceCustomer})
+	if err != nil || len(custListed.Items) != 0 {
+		t.Fatalf("partner 机器人不应出现在 customer 列表中: %+v %v", custListed, err)
+	}
+
+	install, err := NewGetInstallation(env.DB, env.Crypt, "https://desk.example.com").Handle(ctx, owner, bot.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reg := channel.DefaultRegistry()
+	reg[channel.Telegram] = NewConnector(env.Crypt, env.Files, client)
+	down := conversation.Downstream{Roles: env.Roles, Registry: reg}
+	webhookHandler := NewWebhook(env.DB, env.Crypt, conversation.NewReceive(env.DB, reg, down), down)
+	r := chi.NewRouter()
+	r.Post("/webhooks/telegram/{channel}", webhookHandler.ServeHTTP)
+
+	postUpdate := func(payload map[string]any) int {
+		t.Helper()
+		raw, _ := json.Marshal(payload)
+		req := httptest.NewRequest(http.MethodPost, "/webhooks/telegram/"+bot.ID, bytes.NewReader(raw))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set(SecretHeader, install.WebhookSecret)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		return rec.Code
+	}
+
+	// 1. 机器人加入合作群并收到 @ 提问
+	if code := postUpdate(map[string]any{
+		"update_id": 101,
+		"message": map[string]any{
+			"message_id": 31,
+			"from":       map[string]any{"id": 88001, "first_name": "商户对接人"},
+			"chat":       map[string]any{"id": -100777666, "type": "supergroup", "title": "华东渠道合作群"},
+			"text":       "@partner_assist_bot 查一下订单 #PO-2026 的发货状态",
+		},
+	}); code != http.StatusOK {
+		t.Fatalf("合作群 @bot 状态码 = %d", code)
+	}
+
+	// 2. 合作群只出现在 audience=partner 的外部群列表中，不混入 customer/internal
+	partnerGroups, err := extgroup.NewList(env.DB).Handle(ctx, owner, &extgroup.ListInput{Audience: channel.AudiencePartner})
+	if err != nil || len(partnerGroups) != 1 || partnerGroups[0].Name != "华东渠道合作群" {
+		t.Fatalf("partner 外部群列表不对: %+v %v", partnerGroups, err)
+	}
+	custGroups, err := extgroup.NewList(env.DB).Handle(ctx, owner, &extgroup.ListInput{Audience: channel.AudienceCustomer})
+	if err != nil || len(custGroups) != 0 {
+		t.Fatalf("合作群不应混入客户群列表: %+v %v", custGroups, err)
+	}
+
+	// 3. 会话归属 audience=partner，且人工可接管回复
+	partnerConvs, err := conversation.NewList(env.DB).Handle(ctx, owner, &conversation.ListInput{Audience: channel.AudiencePartner})
+	if err != nil || len(partnerConvs.Items) != 1 || partnerConvs.Items[0].ExternalGroup == nil {
+		t.Fatalf("按 partner 筛选会话失败: %+v %v", partnerConvs, err)
+	}
+	_ = fake
+}

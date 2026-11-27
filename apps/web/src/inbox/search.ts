@@ -79,7 +79,7 @@ export function normalizeFilter(f: ConversationFilter | undefined): Conversation
     const uniq = statuses.filter((st) => f.statuses?.includes(st))
     if (uniq.length > 0) out.statuses = uniq
   }
-  if (f.audience === "customer" || f.audience === "internal") out.audience = f.audience
+  if (f.audience === "customer" || f.audience === "partner" || f.audience === "internal") out.audience = f.audience
   if (f.team) {
     if (f.team.mode === "ids") {
       const ids = [...new Set((f.team.ids ?? []).filter(Boolean))].sort()

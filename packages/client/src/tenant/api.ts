@@ -1946,6 +1946,12 @@ export interface ReportOverviewLive {
   internal_waiting: number
   /** 当前在线的工作区成员数 */
   online_members: number
+  /** 当前打开的合作方服务会话数 */
+  partner_open: number
+  /** 当前未关闭且无负责人的合作方服务会话数 */
+  partner_unassigned: number
+  /** 当前等待回复的合作方服务会话数 */
+  partner_waiting: number
   /** 当前打开的对外客服会话数 */
   service_open: number
   /** 当前稍后处理的对外客服会话数 */
@@ -1968,10 +1974,21 @@ export interface ReportOverviewLive {
   total_members: number
 }
 
+export interface ReportOverviewPartner {
+  closed: number
+  created: number
+  first_reply_median_seconds?: number
+  group_created: number
+  prev_closed: number
+  prev_created: number
+  prev_first_reply_median_seconds?: number
+}
+
 export interface ReportOverviewPoint {
   business_messages: number
   date: string
   internal_created: number
+  partner_created: number
   service_created: number
   ticket_created: number
 }
@@ -1981,6 +1998,7 @@ export interface ReportOverviewReport {
   business: ReportOverviewBusiness
   internal: ReportOverviewInternal
   live: ReportOverviewLive
+  partner: ReportOverviewPartner
   period: ReportPeriodMeta
   series: ReportOverviewPoint[]
   service: ReportOverviewService
@@ -2383,7 +2401,7 @@ export interface TeamMember {
 export type TeamStatus = "active" | "disabled"
 
 export interface TelegramCreateBody {
-  /** 服务对象类型：customer（外部客户，默认）或 internal（内部员工） */
+  /** 服务对象类型：customer（外部客户，默认）、partner（合作商家）或 internal（内部员工） */
   audience?: ChannelAudience
   /** 从 @BotFather 获取的 Bot Token */
   bot_token: string
@@ -2397,7 +2415,7 @@ export interface TelegramCreateBody {
 }
 
 export interface TelegramDTO {
-  /** 服务对象类型：customer（外部客户）或 internal（内部员工） */
+  /** 服务对象类型：customer（外部客户）、partner（合作商家）或 internal（内部员工） */
   audience: ChannelAudience
   /** Telegram 机器人的用户名（不含 @） */
   bot_username: string
@@ -2430,7 +2448,7 @@ export interface TelegramInstallationDTO {
 }
 
 export interface TelegramUpdateBody {
-  /** 服务对象类型：customer（外部客户）或 internal（内部员工） */
+  /** 服务对象类型：customer（外部客户）、partner（合作商家）或 internal（内部员工） */
   audience?: ChannelAudience
   /** 新的 Bot Token；留空则保持原 Token 不变 */
   bot_token?: string
@@ -3089,7 +3107,7 @@ export interface ConversationListInput {
   contact_id?: string
   /** 只列出这个外部群的会话，不按状态筛选 */
   external_group_id?: string
-  /** 只列出该服务对象类型的会话（customer/internal） */
+  /** 只列出该服务对象类型的会话（customer/partner/internal） */
   audience?: ChannelAudience
   /** 只列出这个优先级的会话 */
   priority?: ConversationPriority
@@ -3131,7 +3149,7 @@ export interface ConversationSearchInput {
 export interface ExternalGroupListInput {
   /** 可选：按渠道筛选 */
   channel_id?: string
-  /** 可选：按所属渠道服务对象筛选（customer 或 internal） */
+  /** 可选：按所属渠道服务对象筛选（customer、partner 或 internal） */
   audience?: ChannelAudience
   /** 可选：按状态筛选（pending_setup、active、removed） */
   status?: ExtgroupStatus
@@ -3192,7 +3210,7 @@ export interface ReportConversationsInput {
   tz?: string
   /** Time bucket granularity. */
   granularity?: "hour" | "day" | "week" | "month"
-  /** 按服务对象筛选（customer 或 internal） */
+  /** 按服务对象筛选（customer、partner 或 internal） */
   audience?: ChannelAudience
   /** 按团队收件箱筛选（含已停用团队） */
   team_id?: string
@@ -3210,7 +3228,7 @@ export interface ReportMembersInput {
   tz?: string
   /** Time bucket granularity. */
   granularity?: "hour" | "day" | "week" | "month"
-  /** 按服务对象筛选（customer 或 internal） */
+  /** 按服务对象筛选（customer、partner 或 internal） */
   audience?: ChannelAudience
   /** 按团队收件箱筛选（含已停用团队） */
   team_id?: string
@@ -3240,7 +3258,7 @@ export interface ReportResponseTimeInput {
   tz?: string
   /** Time bucket granularity. */
   granularity?: "hour" | "day" | "week" | "month"
-  /** 按服务对象筛选（customer 或 internal） */
+  /** 按服务对象筛选（customer、partner 或 internal） */
   audience?: ChannelAudience
   /** 按团队收件箱筛选（含已停用团队） */
   team_id?: string
@@ -3258,7 +3276,7 @@ export interface ReportSatisfactionInput {
   tz?: string
   /** Time bucket granularity. */
   granularity?: "hour" | "day" | "week" | "month"
-  /** 按服务对象筛选（customer 或 internal） */
+  /** 按服务对象筛选（customer、partner 或 internal） */
   audience?: ChannelAudience
   /** 按团队收件箱筛选（含已停用团队） */
   team_id?: string
@@ -3276,7 +3294,7 @@ export interface ReportSatisfactionRatingsInput {
   tz?: string
   /** Time bucket granularity. */
   granularity?: "hour" | "day" | "week" | "month"
-  /** 按服务对象筛选（customer 或 internal） */
+  /** 按服务对象筛选（customer、partner 或 internal） */
   audience?: ChannelAudience
   /** 按团队收件箱筛选（含已停用团队） */
   team_id?: string
@@ -3362,7 +3380,7 @@ export interface TelegramListInput {
   page?: number
   /** Items per page. */
   per_page?: number
-  /** 可选：按服务对象筛选（customer 或 internal） */
+  /** 可选：按服务对象筛选（customer、partner 或 internal） */
   audience?: ChannelAudience
 }
 
