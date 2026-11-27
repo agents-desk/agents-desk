@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/danielgtaylor/huma/v2"
@@ -206,70 +207,95 @@ func (a *QueueExport) Job(ctx context.Context, req ExportRequest) error {
 			return err
 		}
 
-		var rows []Contact
-		q := baseQuery()
-		if req.Sort == ByCreated {
-			q = q.OrderExpr("contact.created_at DESC, contact.id DESC")
-		} else {
-			q = q.OrderExpr("COALESCE(contact.last_seen_at, contact.created_at) DESC, contact.id DESC")
-		}
-		if err := q.Scan(ctx, &rows); err != nil {
-			return errors.Wrap(err, "load contacts for export")
-		}
-		if len(rows) == 0 {
-			return nil
-		}
+		const exportBatchSize = 500
+		var hasCursor bool
+		var cursorAt time.Time
+		var cursorID string
 
-		// 批量查出所有待导出联系人的标签名称
-		contactIDs := make([]string, len(rows))
-		for i := range rows {
-			contactIDs[i] = rows[i].ID
-		}
-		var tagRows []struct {
-			ContactID string `bun:"contact_id"`
-			TagName   string `bun:"tag_name"`
-		}
-		if err := a.db.NewSelect().
-			TableExpr("contact_tags AS ct").
-			Join("JOIN tags AS t ON t.id = ct.tag_id AND t.tenant_id = ct.tenant_id").
-			Column("ct.contact_id").
-			ColumnExpr("t.name AS tag_name").
-			Where("ct.tenant_id = ? AND ct.contact_id IN (?)", req.Subject.Tenant, bun.In(contactIDs)).
-			OrderExpr("t.name ASC").
-			Scan(ctx, &tagRows); err != nil {
-			return errors.Wrap(err, "load contact tags for export")
-		}
-		tagsByContact := make(map[string][]string)
-		for _, tr := range tagRows {
-			tagsByContact[tr.ContactID] = append(tagsByContact[tr.ContactID], tr.TagName)
-		}
+		for {
+			var rows []Contact
+			q := baseQuery()
+			if req.Sort == ByCreated {
+				if hasCursor {
+					q = q.Where("(contact.created_at, contact.id) < (?, ?)", cursorAt, cursorID)
+				}
+				q = q.OrderExpr("contact.created_at DESC, contact.id DESC")
+			} else {
+				if hasCursor {
+					q = q.Where("(COALESCE(contact.last_seen_at, contact.created_at), contact.id) < (?, ?)", cursorAt, cursorID)
+				}
+				q = q.OrderExpr("COALESCE(contact.last_seen_at, contact.created_at) DESC, contact.id DESC")
+			}
+			if err := q.Limit(exportBatchSize).Scan(ctx, &rows); err != nil {
+				return errors.Wrap(err, "load contacts for export")
+			}
+			if len(rows) == 0 {
+				break
+			}
 
-		for i := range rows {
-			c := &rows[i]
-			var lastSeen any = ""
-			if c.LastSeenAt != nil {
-				lastSeen = *c.LastSeenAt
+			// 按页批量查出当前批联系人的标签，规避全量进内存 OOM 与 PostgreSQL 参数数量上限。
+			contactIDs := make([]string, len(rows))
+			for i := range rows {
+				contactIDs[i] = rows[i].ID
 			}
-			line := []any{
-				c.Number,
-				c.Name,
-				string(c.Kind),
-				c.Email,
-				c.ExternalUserID,
-				c.Language,
-				c.Location,
-				c.TimeZone,
-				c.Referrer,
-				strings.Join(tagsByContact[c.ID], ", "),
-				c.Notes,
-				lastSeen,
-				c.CreatedAt,
+			var tagRows []struct {
+				ContactID string `bun:"contact_id"`
+				TagName   string `bun:"tag_name"`
 			}
-			for _, def := range attrDefs {
-				line = append(line, formatExportAttr(c.Attributes[def.Key]))
+			if err := a.db.NewSelect().
+				TableExpr("contact_tags AS ct").
+				Join("JOIN tags AS t ON t.id = ct.tag_id AND t.tenant_id = ct.tenant_id").
+				Column("ct.contact_id").
+				ColumnExpr("t.name AS tag_name").
+				Where("ct.tenant_id = ? AND ct.contact_id IN (?)", req.Subject.Tenant, bun.In(contactIDs)).
+				OrderExpr("t.name ASC").
+				Scan(ctx, &tagRows); err != nil {
+				return errors.Wrap(err, "load contact tags for export")
 			}
-			if err := w.Write(line...); err != nil {
-				return err
+			tagsByContact := make(map[string][]string, len(rows))
+			for _, tr := range tagRows {
+				tagsByContact[tr.ContactID] = append(tagsByContact[tr.ContactID], tr.TagName)
+			}
+
+			for i := range rows {
+				c := &rows[i]
+				var lastSeen any = ""
+				if c.LastSeenAt != nil {
+					lastSeen = *c.LastSeenAt
+				}
+				line := []any{
+					c.Number,
+					c.Name,
+					string(c.Kind),
+					c.Email,
+					c.ExternalUserID,
+					c.Language,
+					c.Location,
+					c.TimeZone,
+					c.Referrer,
+					strings.Join(tagsByContact[c.ID], ", "),
+					c.Notes,
+					lastSeen,
+					c.CreatedAt,
+				}
+				for _, def := range attrDefs {
+					line = append(line, formatExportAttr(c.Attributes[def.Key]))
+				}
+				if err := w.Write(line...); err != nil {
+					return err
+				}
+			}
+
+			if len(rows) < exportBatchSize {
+				break
+			}
+			last := rows[len(rows)-1]
+			hasCursor = true
+			cursorID = last.ID
+			if req.Sort != ByCreated && last.LastSeenAt != nil {
+				cursorAt = *last.LastSeenAt
+			} else {
+				cursorAt = last.CreatedAt
 			}
 		}
 		return nil

@@ -42,6 +42,28 @@ type MergeInput struct {
 	Body MergeBody
 }
 
+// LockPair 在事务 tx 中按 ID 升序加行锁锁定两个联系人，与会话模块共同遵守 contacts -> conversations 的全局锁序。
+func LockPair(ctx context.Context, tx bun.IDB, tenant, idA, idB string) error {
+	if idA == "" && idB == "" {
+		return nil
+	}
+	ids := make([]string, 0, 2)
+	if idA != "" {
+		ids = append(ids, idA)
+	}
+	if idB != "" && idB != idA {
+		ids = append(ids, idB)
+	}
+	if len(ids) == 2 && ids[0] > ids[1] {
+		ids[0], ids[1] = ids[1], ids[0]
+	}
+	var dummy []string
+	err := tx.NewSelect().Table("contacts").Column("id").
+		Where("tenant_id = ? AND id IN (?)", tenant, bun.In(ids)).
+		OrderExpr("id ASC").For("UPDATE").Scan(ctx, &dummy)
+	return errors.Wrap(err, "lock contacts in canonical order")
+}
+
 // Merge 由成员手动把同工作区的来源联系人合并到目标联系人名下，合并资料、标签、渠道身份和全部会话。
 type Merge struct {
 	db    *bun.DB

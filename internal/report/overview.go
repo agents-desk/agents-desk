@@ -171,6 +171,13 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.status = ?) AS tk_wait", conversation.Ticket, conversation.Status(conversation.TicketWaiting)).
 		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.status <> ? AND c.assignee_id = '') AS tk_unassigned", conversation.Ticket, conversation.Status(conversation.TicketResolved)).
 		Where("c.tenant_id = ?", sub.Tenant).
+		Where("((c.kind = ? AND c.status IN (?)) OR (c.kind = ? AND c.status IN (?)))",
+			conversation.Service, bun.In([]conversation.Status{conversation.Open, conversation.Snoozed}),
+			conversation.Ticket, bun.In([]conversation.Status{
+				conversation.Status(conversation.TicketSubmitted),
+				conversation.Status(conversation.TicketInProgress),
+				conversation.Status(conversation.TicketWaiting),
+			})).
 		Scan(ctx,
 			&live.ServiceOpen, &live.ServiceWaiting, &live.ServiceUnassigned, &live.ServiceSnoozed,
 			&live.PartnerOpen, &live.PartnerWaiting, &live.PartnerUnassigned,

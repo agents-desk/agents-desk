@@ -16,6 +16,7 @@ require (
 	github.com/nats-io/nats.go v1.55.0
 	github.com/spf13/cobra v1.10.2
 	github.com/uptrace/bun v1.3.0
+	github.com/uptrace/bun/dialect/pgdialect v1.3.0
 	go.yaml.in/yaml/v4 v4.0.0
 	golang.org/x/net v0.62.0
 	golang.org/x/sync v0.25.0
@@ -128,7 +129,6 @@ require (
 	github.com/tidwall/sjson v1.2.9 // indirect
 	github.com/tiendc/go-deepcopy v1.7.2 // indirect
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
-	github.com/uptrace/bun/dialect/pgdialect v1.3.0 // indirect
 	github.com/vcaesar/cedar v0.50.1 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect

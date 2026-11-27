@@ -159,6 +159,11 @@ func (a *Receive) receiveDirectService(ctx context.Context, tx database.Tx, sub 
 	if sub.Type == contact.Type && person.ID != sub.ID {
 		return nil, ErrForbidden.New()
 	}
+	at := inboundTime(p.CreatedAt)
+	// 先于会话锁定联系人行，统一遵守 contacts -> conversations 全局锁序。
+	if err := contact.TouchSeen(ctx, tx, sub.Tenant, person.ID, at); err != nil {
+		return nil, err
+	}
 	confirmed, err := confirmAttachmentInputs(ctx, tx, a.down.Media.Files, sub, p.Attachments)
 	if err != nil {
 		return nil, err
@@ -166,7 +171,6 @@ func (a *Receive) receiveDirectService(ctx context.Context, tx database.Tx, sub 
 	incomingAtts, needsIngest := buildIncomingAttachments(ch.ID, p.IncomingAttachments)
 	allAttachments := append(confirmed, incomingAtts...)
 
-	at := inboundTime(p.CreatedAt)
 	c, created, opened, defaultMemberID, err := a.conversationForContact(ctx, tx, ch, person, at)
 	if err != nil {
 		return nil, err
@@ -191,9 +195,6 @@ func (a *Receive) receiveDirectService(ctx context.Context, tx database.Tx, sub 
 	if p.ExternalID != "" {
 		ext := p.ExternalID
 		msg.ExternalID = &ext
-	}
-	if err := contact.TouchSeen(ctx, tx, sub.Tenant, person.ID, at); err != nil {
-		return nil, err
 	}
 	return a.finalizeServiceInbound(ctx, tx, c, ch, msg, created, opened, defaultMemberID, allAttachments, needsIngest, p.TicketID, at)
 }
@@ -549,13 +550,19 @@ func (a *Receive) receiveExternalChat(ctx context.Context, tx database.Tx, sub i
 		}
 	}
 
+	at := inboundTime(p.CreatedAt)
+	if person != nil && !p.FromOwner {
+		// 先于会话锁定联系人行，统一遵守 contacts -> conversations 全局锁序。
+		if err := contact.TouchSeen(ctx, tx, sub.Tenant, person.ID, at); err != nil {
+			return nil, err
+		}
+	}
 	confirmed, err := confirmAttachmentInputs(ctx, tx, a.down.Media.Files, sub, p.Attachments)
 	if err != nil {
 		return nil, err
 	}
 	incomingAtts, needsIngest := buildIncomingAttachments(ch.ID, p.IncomingAttachments)
 	allAttachments := append(confirmed, incomingAtts...)
-	at := inboundTime(p.CreatedAt)
 	extChatID := strings.TrimSpace(p.ExternalChatID)
 
 	var c *Conversation
@@ -714,9 +721,6 @@ func (a *Receive) receiveExternalChat(ctx context.Context, tx database.Tx, sub i
 		msg.ExternalID = &ext
 	}
 	if person != nil && !p.FromOwner {
-		if err := contact.TouchSeen(ctx, tx, sub.Tenant, person.ID, at); err != nil {
-			return nil, err
-		}
 		if (contactCreated || created) && len(bp.DefaultTagIDs) > 0 {
 			for _, tagID := range bp.DefaultTagIDs {
 				if tagID == "" {

@@ -174,6 +174,38 @@ func s3MediaOrigin(cfg filesystem.S3Config) string {
 	return ""
 }
 
+// apiTimeout 为普通接口应用配置超时，并为大文件上传/拉取与导出下载接口放宽请求上下文超时。
+func (a *App) apiTimeout() func(http.Handler) http.Handler {
+	normal := httpx.Timeout(a.cfg.HTTP.Timeout)
+	longDur := max(a.cfg.HTTP.Timeout.Duration, 120*time.Second)
+	long := httpx.Timeout(httpx.TimeoutConfig{Duration: longDur})
+	return func(next http.Handler) http.Handler {
+		nHandler := normal(next)
+		lHandler := long(next)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if isLongMediaOrExportRequest(r) {
+				lHandler.ServeHTTP(w, r)
+				return
+			}
+			nHandler.ServeHTTP(w, r)
+		})
+	}
+}
+
+func isLongMediaOrExportRequest(r *http.Request) bool {
+	p := r.URL.Path
+	switch r.Method {
+	case http.MethodPost:
+		return strings.HasSuffix(p, "/files") ||
+			(strings.Contains(p, "/attachments/") && strings.HasSuffix(p, "/fetch"))
+	case http.MethodGet:
+		return (strings.Contains(p, "/attachments/") && strings.HasSuffix(p, "/file")) ||
+			(strings.Contains(p, "/exports/") && strings.HasSuffix(p, "/download"))
+	default:
+		return false
+	}
+}
+
 // bodyLimitFor 为文件上传接口（POST .../files）放宽请求体上限至 MaxUploadSize + 512 KiB，其余接口沿用默认 1 MiB 上限。
 func (a *App) bodyLimitFor(r *http.Request) int64 {
 	if r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/files") {
@@ -272,7 +304,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 
 	// 管理员端：只接受平台管理员，会话 cookie 是 __Host-admin，权限按平台的域加载；未配置 Impersonation，默认拒绝所有代为登录凭据。
 	router.Route("/admin/api", func(r chi.Router) {
-		r.Use(httpx.Timeout(a.cfg.HTTP.Timeout))
+		r.Use(a.apiTimeout())
 		if a.db != nil {
 			r.Use(authIPRateLimit(pglimit.New(a.db, "http:admin:auth", ratelimit.Config{Rate: 30, Interval: 15 * time.Minute, Burst: 30})))
 		}
@@ -344,12 +376,13 @@ func (a *App) routes(pages http.Handler) chi.Router {
 			Instructions: "agents-desk 线上只读排障工具集：可查看自检、数据库表结构与只读 SQL、队列、定时任务及 NATS JetStream 状态。",
 		}, opsOpts...)
 		regOpts := opsmcp.Options{
-			Permissions: []string{string(auth.OpsRead)},
-			Doctor:      a.doctor,
-			DB:          opsDB,
+			Permissions:         []string{string(auth.OpsRead)},
+			Doctor:              a.doctor,
+			DB:                  opsDB,
+			RequireReadOnlyRole: a.cfg.OpsDSN != "",
 			RedactColumns: []string{
 				"session", "ciphertext", "encrypted",
-				"settings", "value", "passcode", "secret", "token", "password", "credential", "hash",
+				"settings", "payload", "value", "passcode", "secret", "token", "password", "credential", "hash",
 			},
 			QueueDB:  opsDB,
 			Schedule: pgschedule.New(opsDB),
@@ -369,7 +402,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 	// 工作区端的账号级接口：成员的登录、退出、当前账号和所属的工作区。只接受成员，会话 cookie 是 __Host-session（代登时优先读 __Host-impersonation），
 	// AccountScope 放行锁定在单个工作区的代登凭据并保留 Subject.BoundTenant；修改个人资料与密码等敏感路由标有 rest.DirectOnly。
 	router.Route("/api", func(r chi.Router) {
-		r.Use(httpx.Timeout(a.cfg.HTTP.Timeout))
+		r.Use(a.apiTimeout())
 		if a.db != nil {
 			r.Use(authIPRateLimit(pglimit.New(a.db, "http:member:auth", ratelimit.Config{Rate: 30, Interval: 15 * time.Minute, Burst: 30})))
 		}
@@ -392,7 +425,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 	// 工作区的接口：tenant.Middleware 按路径中的 slug 查出工作区，业务代码只见到它的 ID（sub.Tenant）。
 	// 不是成员（包括 slug 不存在）时 404，工作区停用时 403；权限按这个工作区的域加载。
 	router.Route("/t/{slug}/api", func(r chi.Router) {
-		r.Use(httpx.Timeout(a.cfg.HTTP.Timeout), tenant.Middleware(a.db))
+		r.Use(a.apiTimeout(), tenant.Middleware(a.db))
 		api := rest.New(r, rest.Options{
 			Title: "agents-desk 工作区", Version: "0.1.0", BasePath: "/t/{slug}/api",
 			Validate:      a.memberTokens.Validate,
@@ -477,7 +510,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 	// 聊天窗口的接口：widget.Middleware 按路径中的渠道 ID 查出聊天插件和它所在的工作区。只接受联系人的令牌，
 	// 客户的接口不需要登录，所以整组按客户端地址限流。
 	router.Route("/w/{channel}/api", func(r chi.Router) {
-		r.Use(httpx.Timeout(a.cfg.HTTP.Timeout), httpx.RateLimit(ratelimit.NewMemory(a.cfg.HTTP.RateLimit), httpx.KeyByIP), widget.Middleware(a.db))
+		r.Use(a.apiTimeout(), httpx.RateLimit(ratelimit.NewMemory(a.cfg.HTTP.RateLimit), httpx.KeyByIP), widget.Middleware(a.db))
 		var passcodeLimiter ratelimit.Limiter
 		if a.db != nil {
 			passcodeLimiter = pglimit.New(a.db, "widget:passcode:attempts", ratelimit.Config{Rate: 10, Interval: 15 * time.Minute, Burst: 10})

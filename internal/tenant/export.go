@@ -3,6 +3,7 @@ package tenant
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/danielgtaylor/huma/v2"
@@ -22,6 +23,7 @@ import (
 	"github.com/go-tenon/tenon/sheet/exports"
 
 	"agents-desk/internal/adminnotify"
+	"agents-desk/internal/member"
 )
 
 // ExportRequest 是后台导出工作区的队列任务载荷。
@@ -189,18 +191,56 @@ func (a *QueueExport) Job(ctx context.Context, req ExportRequest) error {
 		if err := w.Write(exportColumns.Header()...); err != nil {
 			return err
 		}
-		var rows []Tenant
-		if err := baseQuery().Relation("Owner").OrderExpr("tenant.created_at DESC, tenant.id DESC").Scan(ctx, &rows); err != nil {
-			return errors.Wrap(err, "load tenants for export")
-		}
-		for i := range rows {
-			dto, err := toDTO(ctx, a.logins, a.addr, &rows[i])
+		const exportBatchSize = 500
+		var hasCursor bool
+		var cursorAt time.Time
+		var cursorID string
+
+		for {
+			var rows []Tenant
+			q := baseQuery().Relation("Owner").OrderExpr("tenant.created_at DESC, tenant.id DESC").Limit(exportBatchSize)
+			if hasCursor {
+				q = q.Where("(tenant.created_at, tenant.id) < (?, ?)", cursorAt, cursorID)
+			}
+			if err := q.Scan(ctx, &rows); err != nil {
+				return errors.Wrap(err, "load tenants for export")
+			}
+			if len(rows) == 0 {
+				break
+			}
+
+			ownerIDs := make([]string, 0, len(rows))
+			for i := range rows {
+				if rows[i].OwnerID != "" {
+					ownerIDs = append(ownerIDs, rows[i].OwnerID)
+				}
+			}
+			emails, err := member.Emails(ctx, a.db, ownerIDs)
 			if err != nil {
 				return err
 			}
-			if err := w.Write(exportColumns.Row(dto)...); err != nil {
-				return err
+
+			for i := range rows {
+				t := &rows[i]
+				var ownerName string
+				if t.Owner != nil {
+					ownerName = t.Owner.Name
+				}
+				dto := TenantDTO{
+					ID: t.ID, Name: t.Name, Slug: t.Slug, URL: a.addr.URL(t), Status: t.Status(),
+					OwnerID: t.OwnerID, OwnerName: ownerName, OwnerEmail: emails[t.OwnerID], CreatedAt: t.CreatedAt,
+				}
+				if err := w.Write(exportColumns.Row(dto)...); err != nil {
+					return err
+				}
 			}
+
+			if len(rows) < exportBatchSize {
+				break
+			}
+			last := rows[len(rows)-1]
+			hasCursor = true
+			cursorAt, cursorID = last.CreatedAt, last.ID
 		}
 		return nil
 	}, a.saved)

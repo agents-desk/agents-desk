@@ -317,6 +317,10 @@ func LinkUser(ctx context.Context, tx database.Tx, tenant, channelID, externalID
 			return nil, nil, errors.Wrap(err, "update user profile")
 		}
 	}
+	// 先按固定锁序锁住两个联系人，再归并双活服务型会话，避免与会话模块形成 AB-BA 死锁。
+	if err := LockPair(ctx, tx, tenant, u.ID, existing.ID); err != nil {
+		return nil, nil, err
+	}
 	if len(beforeMerge) > 0 && beforeMerge[0] != nil {
 		if err := beforeMerge[0](ctx, tx, u.ID, existing.ID); err != nil {
 			return nil, nil, err

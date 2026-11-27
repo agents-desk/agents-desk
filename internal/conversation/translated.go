@@ -32,6 +32,44 @@ type Translated struct {
 	Translations map[string]string // 按成员的语言（zh-CN、en……）给出的译文；与原文同语言的没有
 }
 
+var errLockOrderRetry = errors.New("conversation: lock order target changed")
+
+// sameOptString 比较两个可选字符串指针的值是否一致。
+func sameOptString(a, b *string) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
+}
+
+// lockPeerInOrder 在事务内先于会话锁定预读到的对端实体（联系人或外部群），用于遵守 contacts -> external_groups -> conversations 全局锁序。
+// 若预读实体因并发合并已被删除，返回 errLockOrderRetry 通知调用方刷新重读。
+func lockPeerInOrder(ctx context.Context, tx bun.IDB, tenant string, contactID, groupID *string) error {
+	if contactID != nil && *contactID != "" {
+		var dummy string
+		err := tx.NewSelect().Table("contacts").Column("id").
+			Where("id = ? AND tenant_id = ?", *contactID, tenant).For("UPDATE").Scan(ctx, &dummy)
+		if errors.Is(err, sql.ErrNoRows) {
+			return errLockOrderRetry
+		}
+		if err != nil {
+			return errors.Wrap(err, "lock contact before conversation")
+		}
+	}
+	if groupID != nil && *groupID != "" {
+		var dummy string
+		err := tx.NewSelect().Table("external_groups").Column("id").
+			Where("id = ? AND tenant_id = ?", *groupID, tenant).For("UPDATE").Scan(ctx, &dummy)
+		if errors.Is(err, sql.ErrNoRows) {
+			return errLockOrderRetry
+		}
+		if err != nil {
+			return errors.Wrap(err, "lock external group before conversation")
+		}
+	}
+	return nil
+}
+
 // SaveTranslation 把工作区 tenant 中消息 itemID 的识别和翻译结果 t 写进它的派生内容：derived.language 是这条消息的语言，
 // 已经识别过的保持不变；derived.translations 中已有的译文保留，同一种语言的换成新的。
 // 然后按 CustomerLanguage 更新会话和联系人的语言（成员手动设置了联系人的语言时不改）。
@@ -39,96 +77,138 @@ type Translated struct {
 // 只是补译某些语言时只推送给使用这些语言的成员，避免影响其他语言的成员。事件带上消息的序号（ItemSeq），
 // 方便页面把历史消息的补译刷新出来。消息不存在时什么也不做。
 func SaveTranslation(ctx context.Context, db *bun.DB, down Downstream, tenant, itemID string, t Translated) error {
-	var convID string
-	err := db.NewSelect().Table("timeline_items").Column("conversation_id").
-		Where("id = ? AND tenant_id = ?", itemID, tenant).Scan(ctx, &convID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil
-	}
-	if err != nil {
-		return errors.Wrap(err, "load conversation id for translation")
-	}
-	return database.RunInTx(ctx, db, nil, func(ctx context.Context, tx database.Tx) error {
-		// 按 conversations -> timeline_items 固定顺序加锁，避免与 Deliver/Retry 并发更新 derived 发生覆盖或死锁
-		c, err := find(ctx, tx, tenant, convID, true)
-		if err != nil {
-			return err
+	for attempt := range 3 {
+		var meta struct {
+			ConversationID string    `bun:"conversation_id"`
+			ActorType      ActorType `bun:"actor_type"`
 		}
-		var it Item
-		err = tx.NewSelect().Model(&it).Where("id = ? AND tenant_id = ?", itemID, tenant).For("UPDATE").Scan(ctx)
+		err := db.NewSelect().Table("timeline_items").Column("conversation_id", "actor_type").
+			Where("id = ? AND tenant_id = ?", itemID, tenant).Scan(ctx, &meta)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil
 		}
 		if err != nil {
-			return errors.Wrap(err, "load timeline item")
-		}
-		if it.Derived == nil {
-			it.Derived = map[string]any{}
+			return errors.Wrap(err, "load conversation id for translation")
 		}
 
-		// 消息的语言和译文
-		detectedNow := false
-		if source, _ := it.Derived["language"].(string); source == "" && t.Language != "" {
-			it.Derived["language"] = t.Language
-			detectedNow = true
-		}
-		translations, _ := it.Derived["translations"].(map[string]any)
-		if translations == nil {
-			translations = map[string]any{}
-		}
-		verified, _ := it.Derived["verified_language"].(string)
-		added := make([]string, 0, len(t.Translations))
-		for target, text := range t.Translations {
-			// 保留发送者发送前已人工校对过的目标语言译文，避免后台自动翻译覆盖
-			if verified != "" && lang.Same(verified, target) && hasTranslationFor(translations, target) {
-				continue
+		var preContactID, preGroupID *string
+		if meta.ActorType.IsExternal() {
+			var peer struct {
+				ContactID       *string `bun:"contact_id"`
+				ExternalGroupID *string `bun:"external_group_id"`
 			}
-			if prev, _ := translations[target].(string); prev != text {
-				added = append(added, target)
+			err := db.NewSelect().Table("conversations").Column("contact_id", "external_group_id").
+				Where("id = ? AND tenant_id = ?", meta.ConversationID, tenant).Scan(ctx, &peer)
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil
 			}
-			translations[target] = text
+			if err != nil {
+				return errors.Wrap(err, "load conversation peers for translation")
+			}
+			preContactID, preGroupID = peer.ContactID, peer.ExternalGroupID
 		}
-		it.Derived["translations"] = translations
-		if _, err := tx.NewUpdate().Model(&it).Column("derived").WherePK().Exec(ctx); err != nil {
-			return errors.Wrap(err, "save translation")
-		}
-		if len(added) > 0 && it.Searchable() {
-			if err := SearchIndex.Sync(ctx, tx, it.ID); err != nil {
+
+		err = database.RunInTx(ctx, db, nil, func(ctx context.Context, tx database.Tx) error {
+			// 按 contacts/external_groups -> conversations -> timeline_items 固定锁序加锁，避免 AB-BA 死锁与竞态覆盖。
+			if meta.ActorType.IsExternal() {
+				if err := lockPeerInOrder(ctx, tx, tenant, preContactID, preGroupID); err != nil {
+					return err
+				}
+			}
+			c, err := find(ctx, tx, tenant, meta.ConversationID, true)
+			if err != nil {
+				if errors.Is(err, ErrNotFound) {
+					if attempt < 2 {
+						return errLockOrderRetry
+					}
+					return nil
+				}
 				return err
 			}
-		}
+			if meta.ActorType.IsExternal() && (!sameOptString(c.ContactID, preContactID) || !sameOptString(c.ExternalGroupID, preGroupID)) {
+				return errLockOrderRetry
+			}
+			var it Item
+			err = tx.NewSelect().Model(&it).Where("id = ? AND tenant_id = ?", itemID, tenant).For("UPDATE").Scan(ctx)
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil
+			}
+			if err != nil {
+				return errors.Wrap(err, "load timeline item")
+			}
+			if it.Derived == nil {
+				it.Derived = map[string]any{}
+			}
 
-		// 对端语言：仅外部入站消息（联系人或外部群发言人）参与更新，成员回复与内部备注不改变对端语言
-		langChanged := false
-		if it.ActorType.IsExternal() {
-			langChanged, err = updateCustomerLanguage(ctx, tx, c, false)
+			// 消息的语言和译文
+			detectedNow := false
+			if source, _ := it.Derived["language"].(string); source == "" && t.Language != "" {
+				it.Derived["language"] = t.Language
+				detectedNow = true
+			}
+			translations, _ := it.Derived["translations"].(map[string]any)
+			if translations == nil {
+				translations = map[string]any{}
+			}
+			verified, _ := it.Derived["verified_language"].(string)
+			added := make([]string, 0, len(t.Translations))
+			for target, text := range t.Translations {
+				// 保留发送者发送前已人工校对过的目标语言译文，避免后台自动翻译覆盖
+				if verified != "" && lang.Same(verified, target) && hasTranslationFor(translations, target) {
+					continue
+				}
+				if prev, _ := translations[target].(string); prev != text {
+					added = append(added, target)
+				}
+				translations[target] = text
+			}
+			it.Derived["translations"] = translations
+			if _, err := tx.NewUpdate().Model(&it).Column("derived").WherePK().Exec(ctx); err != nil {
+				return errors.Wrap(err, "save translation")
+			}
+			if len(added) > 0 && it.Searchable() {
+				if err := SearchIndex.Sync(ctx, tx, it.ID); err != nil {
+					return err
+				}
+			}
+
+			// 对端语言：仅外部入站消息（联系人或外部群发言人）参与更新，成员回复与内部备注不改变对端语言
+			langChanged := false
+			if it.ActorType.IsExternal() {
+				langChanged, err = updateCustomerLanguage(ctx, tx, c, false)
+				if err != nil {
+					return err
+				}
+			}
+
+			if down.Hub == nil || (!detectedNow && !langChanged && len(added) == 0) {
+				return nil
+			}
+			audience, err := audienceOf(ctx, tx, down.Roles, c, nil)
 			if err != nil {
 				return err
 			}
-		}
-
-		if down.Hub == nil || (!detectedNow && !langChanged && len(added) == 0) {
-			return nil
-		}
-		audience, err := audienceOf(ctx, tx, down.Roles, c, nil)
-		if err != nil {
-			return err
-		}
-		if !detectedNow && !langChanged {
-			audience, err = membersWithLanguages(ctx, tx, audience, added)
-			if err != nil {
-				return err
+			if !detectedNow && !langChanged {
+				audience, err = membersWithLanguages(ctx, tx, audience, added)
+				if err != nil {
+					return err
+				}
 			}
-		}
-		if len(audience) == 0 {
+			if len(audience) == 0 {
+				return nil
+			}
+			hub, ev := down.Hub, push.Event{Type: pushType(c.Kind), ID: c.ID, Seq: c.LastSeq, ItemSeq: it.Seq}
+			tx.AfterCommit(func(ctx context.Context) error {
+				return errors.Wrap(push.Send(ctx, hub, tenant, audience, ev), "push translation")
+			})
 			return nil
-		}
-		hub, ev := down.Hub, push.Event{Type: pushType(c.Kind), ID: c.ID, Seq: c.LastSeq, ItemSeq: it.Seq}
-		tx.AfterCommit(func(ctx context.Context) error {
-			return errors.Wrap(push.Send(ctx, hub, tenant, audience, ev), "push translation")
 		})
-		return nil
-	})
+		if errors.Is(err, errLockOrderRetry) && attempt < 2 {
+			continue
+		}
+		return err
+	}
+	return nil
 }
 
 // membersWithLanguages 从 memberIDs 中筛出语言与 targets 中任意一种相同的成员，用于补译时只推送给看得到这些译文的成员。

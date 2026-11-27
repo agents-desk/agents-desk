@@ -514,6 +514,9 @@ func (a *App) tasks() *schedule.Scheduler {
 	sched.Add("operations:cleanup", "@daily", schedule.Cleanup(operation.Cleanup(a.db, 30*24*time.Hour), 1000),
 		schedule.Label("schedule.task.operations_cleanup.label"),
 		schedule.Describe("schedule.task.operations_cleanup.description"))
+	sched.Add("llm:prune-calls", "30 3 * * *", schedule.Cleanup(llm.CleanupCalls(a.db, 90*24*time.Hour), 500),
+		schedule.Label("schedule.task.llm_prune_calls.label"),
+		schedule.Describe("schedule.task.llm_prune_calls.description"))
 	expire := conversation.NewExpireSnoozes(a.db, a.downstream())
 	sched.Add("conversations:unsnooze", "* * * * *", func(ctx context.Context) error {
 		_, err := expire.Handle(ctx, time.Now())
