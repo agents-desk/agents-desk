@@ -43,7 +43,7 @@ interface TicketListProps {
 /**
  * TicketList 是收件箱二级导航“工单”分组对应的工单列表栏：
  * 顶部展示当前分组名称、未解决计数和“新建工单”入口；工具条支持按 #编号/标题搜索、状态筛选与工单类型筛选；
- * 列表采用游标无限滚动，每行清晰呈现 #编号、状态、高优标记、标题、类型、关联会话数和最近活动时间。
+ * 列表按游标无限滚动，每行显示 #编号、状态、高优标记、标题、类型、关联会话数和最近活动时间。
  */
 export function TicketList({ search, openId, go, open, onCreate }: TicketListProps): ReactNode {
   const t = useT()

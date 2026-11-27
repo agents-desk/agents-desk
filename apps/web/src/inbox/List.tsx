@@ -293,7 +293,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
         />
       ) : (
         <>
-          {/* 52px 基准顶栏：与二级导航头、会话头、详情头严格齐平 */}
+          {/* 52px 顶栏，与二级导航头、会话头、详情头齐平 */}
           <PaneHeader
             showNavToggle
             title={

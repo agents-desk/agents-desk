@@ -9,7 +9,7 @@ import { sameLanguage } from "../../languages"
 /** PREVIEW_PREFIX 是配置工作台与 /widget/preview 之间 postMessage 的消息前缀。 */
 export const PREVIEW_PREFIX = "agents-desk:"
 
-/** WIDGET_BUILTIN_LANGUAGES 是网页聊天窗口内置的 5 种界面语种，与后端 widget.SupportedLanguages 严格一致。 */
+/** WIDGET_BUILTIN_LANGUAGES 是网页聊天窗口内置的 5 种界面语种，与后端 widget.SupportedLanguages 相同。 */
 export const WIDGET_BUILTIN_LANGUAGES = ["en", "zh-CN", "zh-TW", "hi", "hi-Latn"] as const
 
 /** PreviewMode 区分公共网页聊天插件与个人网页商务沟通链接。 */

@@ -23,7 +23,7 @@ export function NotificationsForm(): ReactNode {
 }
 
 /**
- * Form 是通知偏好：每个开关切换后立即保存（与内置自动化等独立开关一致），失败时恢复原值并提示错误。
+ * Form 是通知偏好：每个开关切换后立即保存，失败时恢复原值并提示错误。
  */
 function Form({ initial }: { initial: MemberNotificationSettings }): ReactNode {
   const queryClient = useQueryClient()

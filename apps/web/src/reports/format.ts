@@ -20,7 +20,7 @@ export function formatScore(value: number | null | undefined): string {
   return value.toFixed(1)
 }
 
-/** 格式化美元费用：小额保留 4 位小数避免显示为 $0.00，较大金额保留 2 位小数。 */
+/** 格式化美元费用：小额保留 4 位小数以显示出非零金额，较大金额保留 2 位小数。 */
 export function formatUSD(value: number | null | undefined): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—"
   if (value === 0) return "$0"
@@ -30,7 +30,7 @@ export function formatUSD(value: number | null | undefined): string {
 }
 
 /**
- * 计算当前值相对上一对比期的百分比环比；上期为 0 或空值时返回 undefined，避免误导性的无穷大涨幅。
+ * 计算当前值相对上一对比期的百分比环比；上期为 0 或空值时返回 undefined，界面显示为无对比。
  */
 export function pctDelta(
   current: number | null | undefined,

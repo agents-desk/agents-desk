@@ -129,7 +129,7 @@ export function contactTicketsQuery(contactId: string) {
 
 /**
  * invalidateTicket 精准失效指定工单的详情、时间线、工单列表及收件箱数量，
- * 避免全量失效所有会话与工单配置查询；relate 为 true 时一并失效按会话/联系人维度关联的工单列表。
+ * 只失效工单相关的查询；relate 为 true 时一并失效按会话/联系人维度关联的工单列表。
  */
 export function invalidateTicket(queryClient: QueryClient, ticketId: string, options?: { relate?: boolean }) {
   void queryClient.invalidateQueries({ queryKey: kit.queries.ticket.get(ticketId).queryKey })

@@ -98,7 +98,7 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
 
   return (
     <Stack gap={0} h="100%" w="100%">
-      {/* 顶部人物头：与左侧 52px 基准顶栏严格齐平 */}
+      {/* 顶部人物头：高 52px，与左侧顶栏齐平 */}
       <PaneHeader
         back={narrow ? onClose : undefined}
         left={<ContactAvatar contact={c} size={32} />}

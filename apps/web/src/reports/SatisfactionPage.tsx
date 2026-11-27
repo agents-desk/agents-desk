@@ -44,7 +44,7 @@ import { DetailSection, SectionCard } from "./SectionCard"
 
 type RatingBucketFilter = "all" | "positive" | "neutral" | "negative"
 
-/** 根据 min_score / max_score 映射到快捷星级档位；单星筛选（1/2/4/5）时返回空串避免误高亮档位。 */
+/** 根据 min_score / max_score 映射到快捷星级档位；单星筛选（1/2/4/5）时返回空串，档位都不高亮。 */
 function activeRatingFilter(min?: number, max?: number): RatingBucketFilter | "" {
   if (!min && !max) return "all"
   if (min === 4 && (!max || max === 5)) return "positive"

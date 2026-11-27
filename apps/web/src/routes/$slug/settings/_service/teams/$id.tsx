@@ -102,7 +102,7 @@ function TeamMembers(): ReactNode {
     <Page
       title={team.data ? t("team_members.heading", { name: team.data.name }) : t("team_members.title")}
       description={team.data?.description || undefined}
-      // 标题左边的返回回到团队收件箱列表，而不是离开设置
+      // 标题左边的返回回到团队收件箱列表
       back={() => void navigate({ to: "/$slug/settings/teams", params: { slug } })}
       actions={
         can("teams:manage") && team.data ? (

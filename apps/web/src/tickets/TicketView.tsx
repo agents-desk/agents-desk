@@ -87,7 +87,7 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
   useEffect(() => {
     setShowOriginalTitle(false)
   }, [tk?.id])
-  // 打开时读到的位置：“新消息”分隔线画在它之后，仅在拿到真实详情数据后锁定，避免被列表占位数据锁死旧位置
+  // 打开时读到的位置：“新消息”分隔线画在它之后，拿到真实详情数据后才锁定，列表占位数据只用于显示
   const readAtOpen = useRef<number | null>(null)
   if (tk && !ticketQuery.isPlaceholderData && readAtOpen.current === null) readAtOpen.current = tk.read_seq
   const last = timeline.data?.at(-1)

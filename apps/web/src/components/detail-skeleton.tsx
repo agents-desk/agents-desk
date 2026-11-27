@@ -4,7 +4,7 @@ import { PaneBody, PaneHeader, useT } from "@go-tenon/ui"
 import type { ReactNode } from "react"
 
 // 打开会话、聊天、工单、联系人档案时，数据还没到（直接打开链接或网络较慢）就先显示与真实页面同样布局的骨架：
-// 顶栏、时间线、输入框、详情栏都在原位，数据到达后只替换内容，不再整块闪成一个加载圈。
+// 顶栏、时间线、输入框、详情栏都在原位，数据到达后只替换内容。
 
 /** ConversationSkeleton 是会话、聊天、工单主栏的骨架：52px 顶栏、消息气泡和底部输入框。 */
 export function ConversationSkeleton({ back, composer = true }: { back?: () => void; composer?: boolean }): ReactNode {

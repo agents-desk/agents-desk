@@ -81,7 +81,7 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
   const hasContent = Boolean(value) || attachmentInputs.length > 0
   const note = mode === "note"
 
-  // 内部讨论：严格按真实接收者推导（@ 提及同事 → 工单发起人、负责人、时间线参与成员），不扫描全工作区无关成员
+  // 内部讨论：按真实接收者推导（@ 提及同事 → 工单发起人、负责人、时间线参与成员）
   const noteDefaultTarget = useMemo(() => {
     const directIds: (string | undefined)[] = [
       ticket.created_by,
@@ -97,7 +97,7 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
     })
   }, [ticket.created_by, ticket.assignee, timeline.data, mentionIds, membersById, me.data?.id, me.data?.language])
 
-  // 公开进度：严格按关联受影响客户语言去重，不回退内部成员语言
+  // 公开进度：按关联受影响客户的语言去重，候选只包括这些客户
   const publicPeerLanguages = useMemo(() => {
     const seen: string[] = []
     for (const lc of ticket.linked_contacts ?? []) {
