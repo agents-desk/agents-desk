@@ -13,6 +13,7 @@ import (
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
 
+	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/lang"
@@ -88,11 +89,17 @@ func NewSubmitIntake(db *bun.DB, down conversation.Downstream) *SubmitIntake {
 	return &SubmitIntake{db: db, down: down}
 }
 
-// Handle 按当前商务链接的开场留资规则校验并保存联系人资料。
+// Handle 按当前商务链接的开场留资规则校验并保存联系人资料；仅联系人主体可在个人商务链接提交。
 func (a *SubmitIntake) Handle(ctx context.Context, sub identity.Subject, b ContactIntakeBody) (*contact.Summary, error) {
+	if sub.Type != contact.Type {
+		return nil, conversation.ErrForbidden.New()
+	}
 	ch, err := channelFrom(ctx)
 	if err != nil {
 		return nil, err
+	}
+	if ch.Kind != channel.BusinessLink {
+		return nil, channel.ErrNotFound.New()
 	}
 	s, err := settingsOf(ch)
 	if err != nil {
@@ -192,8 +199,11 @@ type UpdateLanguage struct {
 // NewUpdateLanguage 返回更新访客冷启动语言先验的动作。
 func NewUpdateLanguage(db *bun.DB) *UpdateLanguage { return &UpdateLanguage{db: db} }
 
-// Handle 校验语言标签，仅在联系人尚未发送过消息时更新其 contacts.language，并返回最新联系人概要。
+// Handle 校验联系人身份和语言标签，仅在联系人尚未发送过消息时更新其 contacts.language，并返回最新联系人概要。
 func (a *UpdateLanguage) Handle(ctx context.Context, sub identity.Subject, b ContactLanguageBody) (*contact.Summary, error) {
+	if sub.Type != contact.Type {
+		return nil, conversation.ErrForbidden.New()
+	}
 	canon, ok := lang.Canonical(b.Language)
 	if !ok {
 		return nil, ErrInvalidLanguage.New(errorx.Field("language"), errorx.Public("language", b.Language))

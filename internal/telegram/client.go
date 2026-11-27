@@ -17,6 +17,7 @@ import (
 
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/filesystem"
+	"github.com/go-tenon/tenon/outbound"
 
 	"agents-desk/internal/channel"
 )
@@ -37,11 +38,11 @@ type Client struct {
 	baseURL string // 默认 https://api.telegram.org，测试时可替换为 httptest 地址
 }
 
-// NewClient 返回 Telegram Bot API 客户端；httpClient 为空时使用 30 秒超时的默认客户端。
+// NewClient 返回 Telegram Bot API 客户端；httpClient 为空时使用带 SSRF 防护的 30 秒超时客户端。
 func NewClient(httpClient *http.Client, baseURL ...string) *Client {
 	hc := httpClient
 	if hc == nil {
-		hc = &http.Client{Timeout: 30 * time.Second}
+		hc = outbound.New(outbound.Options{Timeout: 30 * time.Second})
 	}
 	base := defaultAPIBaseURL
 	if len(baseURL) > 0 && strings.TrimSpace(baseURL[0]) != "" {

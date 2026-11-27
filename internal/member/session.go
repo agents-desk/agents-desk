@@ -160,7 +160,7 @@ func loadProfile(ctx context.Context, db bun.IDB, logins *login.Realm, files *fi
 		p.Impersonation = &ImpersonationInfo{
 			ActorID:   sub.Impersonator.ID,
 			ActorName: actorName,
-			ReadOnly:  isReadOnlyScopes(sub.Scopes),
+			ReadOnly:  sub.ReadOnly || isReadOnlyScopes(sub.Scopes),
 		}
 	}
 	return p, nil

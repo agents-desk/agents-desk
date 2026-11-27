@@ -80,6 +80,12 @@ func visible(q *bun.SelectQuery, sub identity.Subject) *bun.SelectQuery {
 	})
 }
 
+// CanAccess 检查成员 sub 是否有权访问会话 conversationID；无权或不存在时返回 ErrNotFound。
+func CanAccess(ctx context.Context, db bun.IDB, sub identity.Subject, conversationID string) error {
+	_, err := findVisible(ctx, db, sub, conversationID, false)
+	return err
+}
+
 // findVisible 读取 sub 所在工作区中 sub 能看到的会话 id；不存在、属于别的工作区或者看不到时都返回 ErrNotFound，
 // 不暴露会话是否存在。lock 为 true 时锁住这一行，同一个会话的写入因此依次进行。
 func findVisible(ctx context.Context, db bun.IDB, sub identity.Subject, id string, lock bool) (*Conversation, error) {

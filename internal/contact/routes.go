@@ -51,6 +51,6 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	rest.RegisterSSE(api, exportProgressOp, map[string]any{"progress": ExportProgress{}}, exp.Progress)
 	rest.Register(api, route(read, "contact-list", http.MethodGet, "/contacts", "联系人列表"), NewList(db).HTTP)
 	rest.Register(api, route(read, "contact-get", http.MethodGet, "/contacts/{id}", "读取联系人"), NewGet(db).HTTP)
-	rest.Register(api, route(update, "contact-update", http.MethodPut, "/contacts/{id}", "修改联系人资料"), NewUpdate(db, h.OnNotesUpdated).HTTP)
+	rest.Register(api, route(update, "contact-update", http.MethodPut, "/contacts/{id}", "修改联系人资料"), NewUpdate(db, roles, h.OnNotesUpdated).HTTP)
 	rest.Register(api, route(update, "contact-merge", http.MethodPost, "/contacts/{id}/merge", "合并联系人"), NewMerge(db, h).HTTP)
 }

@@ -125,7 +125,7 @@ func TestInternalContactsAndExternalGroupConversations(t *testing.T) {
 		t.Fatalf("联系人统计不对: %+v %v", contactSum, err)
 	}
 	// 绑定工作区成员 ID
-	updContact, err := contact.NewUpdate(env.DB).Handle(ctx, owner, dmConv.Contact.ID, contact.UpdateBody{MemberID: &owner.ID})
+	updContact, err := contact.NewUpdate(env.DB, env.Roles).Handle(ctx, owner, dmConv.Contact.ID, contact.UpdateBody{MemberID: &owner.ID})
 	if err != nil || updContact.MemberID == nil || *updContact.MemberID != owner.ID {
 		t.Fatalf("绑定成员失败: %+v %v", updContact, err)
 	}

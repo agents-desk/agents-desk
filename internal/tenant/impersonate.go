@@ -197,13 +197,14 @@ func (a *Impersonate) Handle(ctx context.Context, actor identity.Subject, tenant
 	}
 	var token string
 	err = database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
-		txTokens := apitoken.NewStore(tx, apitoken.Config{Lifetime: apitoken.DefaultImpersonationLifetime})
+		txTokens := a.memberTokens.WithDB(tx)
 		var issueErr error
 		token, issueErr = txTokens.Impersonate(ctx, actor, targetRef, apitoken.Impersonation{
-			Tenant: t.ID,
-			Scopes: scopes,
-			Reason: reason,
-			Device: device,
+			Tenant:   t.ID,
+			Scopes:   scopes,
+			Reason:   reason,
+			ReadOnly: req.ReadOnly,
+			Device:   device,
 		})
 		if issueErr != nil {
 			return issueErr

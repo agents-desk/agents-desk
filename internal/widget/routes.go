@@ -134,7 +134,7 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 	contactIntakeOp := route(requireContact, "contact-intake", http.MethodPost, "/contact/intake", "提交商务沟通开场留资资料")
 	contactLangOp := route(requireContact, "contact-language", http.MethodPut, "/contact/language", "更新访客冷启动语言偏好")
 
-	sendMessage := NewSendMessage(db, receive)
+	sendMessage := NewSendMessage(db, receive, down.Media.Crypt)
 	leaveEmail := NewLeaveEmail(db, down)
 	submitIntake := NewSubmitIntake(db, down)
 	updateLang := NewUpdateLanguage(db)
@@ -144,7 +144,10 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 	rate := conversation.NewRateByContact(db, down)
 	listTickets, getTicket := conversation.NewListTicketsForContact(db), conversation.NewGetTicketForContact(db, down.Media)
 
-	file.RegisterRoutes(api, requireContact, down.Media.Files, maxUpload)
+	file.RegisterRoutes(api, requireContact, down.Media.Files, maxUpload, file.UploadOptions{
+		Private: true,
+		Accept:  conversation.AttachmentAccept(),
+	})
 
 	rest.Register(api, route(public, "widget-config", http.MethodGet, "/config", "聊天插件的公开设置"), NewGetConfig(db, down.Media.Files, defaultCompany...).HTTP)
 	rest.Register(api, route(public, "widget-session", http.MethodPost, "/session", "建立会话"), NewStartSession(db, c, tokens, down).HTTP)

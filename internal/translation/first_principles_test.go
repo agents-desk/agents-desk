@@ -261,7 +261,7 @@ func TestContactNotesTranslationAndFill(t *testing.T) {
 	cid := convDTO.Contact.ID
 
 	noteText := "Cliente VIP do Brasil, prefere atendimento rapido"
-	upd := contact.NewUpdate(f.env.DB)
+	upd := contact.NewUpdate(f.env.DB, f.env.Roles)
 	ct, err := upd.Handle(ctx, f.agent, cid, contact.UpdateBody{Notes: &noteText})
 	if err != nil {
 		t.Fatal(err)

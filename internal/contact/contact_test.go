@@ -80,7 +80,7 @@ func TestListAndSummary(t *testing.T) {
 		t.Fatal(err)
 	}
 	// 设置语言并给 userA 造一个会话
-	if _, err := contact.NewUpdate(env.DB).Handle(ctx, alpha.agent, userA.ID, contact.UpdateBody{Language: strPtr("hi-Latn")}); err != nil {
+	if _, err := contact.NewUpdate(env.DB, env.Roles).Handle(ctx, alpha.agent, userA.ID, contact.UpdateBody{Language: strPtr("hi-Latn")}); err != nil {
 		t.Fatal(err)
 	}
 	receive := conversation.NewReceive(env.DB, channel.DefaultRegistry(), conversation.Downstream{})
@@ -171,12 +171,16 @@ func TestGetAndUpdate(t *testing.T) {
 	if _, err := contact.NewGet(env.DB).Handle(ctx, beta.agent, cid); !errors.Is(err, contact.ErrNotFound) {
 		t.Errorf("跨工作区读取：%v", err)
 	}
-	if _, err := contact.NewUpdate(env.DB).Handle(ctx, beta.agent, cid, contact.UpdateBody{Notes: strPtr("hack")}); !errors.Is(err, contact.ErrNotFound) {
+	if _, err := contact.NewUpdate(env.DB, env.Roles).Handle(ctx, beta.agent, cid, contact.UpdateBody{Notes: strPtr("hack")}); !errors.Is(err, contact.ErrNotFound) {
 		t.Errorf("跨工作区修改：%v", err)
 	}
 
 	// 字段校验
-	upd := contact.NewUpdate(env.DB)
+	upd := contact.NewUpdate(env.DB, env.Roles)
+	// 跨工作区绑定其他租户成员 ID 应返回 ErrNotFound
+	if _, err := upd.Handle(ctx, alpha.agent, cid, contact.UpdateBody{MemberID: &beta.agent.ID}); !errors.Is(err, contact.ErrNotFound) {
+		t.Errorf("跨工作区绑定 member_id 应返回 ErrNotFound：%v", err)
+	}
 	if _, err := upd.Handle(ctx, alpha.agent, cid, contact.UpdateBody{Email: strPtr("not-an-email")}); !errors.Is(err, contact.ErrInvalidEmail) {
 		t.Errorf("无效邮箱：%v", err)
 	}
@@ -252,10 +256,10 @@ func TestMergeLead(t *testing.T) {
 		t.Fatal(err)
 	}
 	// 给线索和用户分别写备注
-	if _, err := contact.NewUpdate(env.DB).Handle(ctx, w.agent, lead.ID, contact.UpdateBody{Notes: strPtr("线索备注"), Language: strPtr("en")}); err != nil {
+	if _, err := contact.NewUpdate(env.DB, env.Roles).Handle(ctx, w.agent, lead.ID, contact.UpdateBody{Notes: strPtr("线索备注"), Language: strPtr("en")}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := contact.NewUpdate(env.DB).Handle(ctx, w.agent, user.ID, contact.UpdateBody{Notes: strPtr("用户备注")}); err != nil {
+	if _, err := contact.NewUpdate(env.DB, env.Roles).Handle(ctx, w.agent, user.ID, contact.UpdateBody{Notes: strPtr("用户备注")}); err != nil {
 		t.Fatal(err)
 	}
 	// 给线索发一条消息建会话，并签一个联系人令牌
@@ -424,7 +428,7 @@ func TestVisibilityScope(t *testing.T) {
 	list := contact.NewList(env.DB)
 	summary := contact.NewGetSummary(env.DB)
 	get := contact.NewGet(env.DB)
-	upd := contact.NewUpdate(env.DB)
+	upd := contact.NewUpdate(env.DB, env.Roles)
 	idsOf := func(sub identity.Subject, in *contact.ListInput) map[string]int {
 		t.Helper()
 		if in == nil {

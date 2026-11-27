@@ -15,6 +15,7 @@ import (
 	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/broadcast/broadcasttest"
 	"github.com/go-tenon/tenon/identity"
+	"github.com/go-tenon/tenon/outbound"
 	"github.com/go-tenon/tenon/page"
 
 	"agents-desk/internal/apptest"
@@ -762,5 +763,13 @@ func TestTenantCredentialsIsolationAndValidation(t *testing.T) {
 	}
 	if _, err := mgr.StartLogin(ctx, subBeta, LoginModePhone, "Beta 号", "+8613800138000", ""); !errors.Is(err, ErrNotConfigured) {
 		t.Fatalf("beta 未配置凭据时应返回 ErrNotConfigured：%v", err)
+	}
+
+	// 3. SSRF 防护：内网 SOCKS5 代理地址被 outbound 拦截，不探测内网端口
+	if _, err := DialTelegram(ctx, "socks5://127.0.0.1:1080", "tcp", "149.154.167.50:443"); !errors.Is(err, outbound.ErrForbidden) {
+		t.Fatalf("内网代理应被 outbound.ErrForbidden 拦截，实际：%v", err)
+	}
+	if _, err := testConn.Handle(ctx, subAlpha, "socks5://127.0.0.1:1080"); !errors.Is(err, ErrInvalidProxyURL) {
+		t.Fatalf("连通性测试遇到内网代理应返回 ErrInvalidProxyURL，实际：%v", err)
 	}
 }

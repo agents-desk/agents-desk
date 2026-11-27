@@ -154,7 +154,7 @@ func (a *ContactStream) Handle(ctx context.Context, sub identity.Subject, channe
 		slices.Reverse(rawItems)
 	}
 
-	items, err := toContactItemDTOs(ctx, a.db, a.media, rawItems)
+	items, err := toContactItemDTOs(ctx, a.db, a.media, channelID, rawItems)
 	if err != nil {
 		return nil, err
 	}
