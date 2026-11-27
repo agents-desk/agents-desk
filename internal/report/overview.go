@@ -180,12 +180,12 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 		return nil, errors.Wrap(err, "report overview live backlog")
 	}
 
-	// 2. 实时快照：商务沟通近 24 小时活跃数与待跟进数（最新消息来自外部联系人）
+	// 2. 实时快照：商务沟通近 24 小时活跃数与待跟进数（最新消息来自外部联系人或外部群发言人）
 	since24h := now().Add(-24 * time.Hour)
 	if err := a.db.NewRaw(`
 		SELECT
 			count(*) FILTER (WHERE c.last_message_at >= ?) AS active_24h,
-			count(*) FILTER (WHERE last_msg.actor_type = ?) AS waiting
+			count(*) FILTER (WHERE last_msg.actor_type IN (?, ?)) AS waiting
 		FROM conversations c
 		JOIN chats ch ON ch.conversation_id = c.id
 		LEFT JOIN LATERAL (
@@ -196,7 +196,7 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 			LIMIT 1
 		) last_msg ON true
 		WHERE c.tenant_id = ? AND c.kind = ? AND ch.scope = ?`,
-		since24h, conversation.ContactActor, conversation.Message, sub.Tenant, conversation.Chat, conversation.ChatExternal,
+		since24h, conversation.ContactActor, conversation.ExternalUserActor, conversation.Message, sub.Tenant, conversation.Chat, conversation.ChatExternal,
 	).Scan(ctx, &live.BusinessActive24h, &live.BusinessWaiting); err != nil {
 		return nil, errors.Wrap(err, "report overview live business")
 	}

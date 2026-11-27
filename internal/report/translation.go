@@ -174,7 +174,7 @@ func (a *Translation) Handle(ctx context.Context, sub identity.Subject, p period
 		func(b string) TranslationPoint { return TranslationPoint{Date: b} },
 	)
 
-	// 按业务场景拆解（通过 target_type='conversation' 关联 conversations 与 chats）
+	// 按业务场景拆解（兼容 conversation、timeline_item 与 ticket 三类翻译目标并映射回会话域）
 	type sceneRow struct {
 		Scene  string   `bun:"scene"`
 		Calls  int64    `bun:"calls"`
@@ -185,13 +185,14 @@ func (a *Translation) Handle(ctx context.Context, sub identity.Subject, p period
 	}
 	var sceneRows []sceneRow
 	err = a.db.NewSelect().TableExpr("llm_calls lc").
-		Join("LEFT JOIN conversations c ON lc.target_type = 'conversation' AND c.id::text = lc.target_id AND c.tenant_id = lc.tenant_id").
+		Join("LEFT JOIN timeline_items ti ON lc.target_type = 'timeline_item' AND ti.id::text = lc.target_id AND ti.tenant_id = lc.tenant_id").
+		Join("LEFT JOIN conversations c ON c.tenant_id = lc.tenant_id AND ((lc.target_type IN ('conversation', 'ticket') AND c.id::text = lc.target_id) OR (lc.target_type = 'timeline_item' AND c.id = ti.conversation_id))").
 		Join("LEFT JOIN chats ch ON ch.conversation_id = c.id").
 		ColumnExpr(`CASE
 			WHEN c.kind = ? AND c.audience = ? THEN 'partner_service'
 			WHEN c.kind = ? AND c.audience = ? THEN 'internal_service'
 			WHEN c.kind = ? THEN 'service'
-			WHEN c.kind = ? THEN 'ticket'
+			WHEN c.kind = ? OR lc.target_type = 'ticket' THEN 'ticket'
 			WHEN c.kind = ? AND ch.scope = ? THEN 'business'
 			WHEN c.kind = ? AND ch.scope = ? THEN 'internal_chat'
 			ELSE 'other'
@@ -289,12 +290,12 @@ func (a *Translation) Handle(ctx context.Context, sub identity.Subject, p period
 		}
 	}
 
-	// 客户消息识别语言分布（timeline_items.derived->>'language'）
+	// 客户消息识别语言分布（timeline_items.derived->>'language'，含单聊联系人与外部群发言人）
 	detected := []LanguageCount{}
 	err = a.db.NewSelect().TableExpr("timeline_items it").
 		ColumnExpr("COALESCE(NULLIF(it.derived->>'language', ''), 'und') AS language, count(*) AS count").
-		Where("it.tenant_id = ? AND it.kind = ? AND it.actor_type = ? AND it.visibility = ? AND it.created_at >= ? AND it.created_at < ?",
-			sub.Tenant, conversation.Message, conversation.ContactActor, conversation.Everyone, w.Start, w.End).
+		Where("it.tenant_id = ? AND it.kind = ? AND it.actor_type IN (?, ?) AND it.visibility = ? AND it.created_at >= ? AND it.created_at < ?",
+			sub.Tenant, conversation.Message, conversation.ContactActor, conversation.ExternalUserActor, conversation.Everyone, w.Start, w.End).
 		Where("it.derived ? 'language'").
 		GroupExpr("1").
 		OrderExpr("count DESC, 1 ASC").

@@ -12,6 +12,7 @@ import (
 	"agents-desk/internal/apptest"
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
+	"agents-desk/internal/conversation"
 	"agents-desk/internal/member"
 )
 
@@ -72,10 +73,30 @@ func TestManualMergeContacts(t *testing.T) {
 		t.Fatalf("不同 external_user_id 应返回 ErrMergeConflict，实际 %v", err)
 	}
 
+	// 构造工单关联（双方共同关联 sharedTk，来源独占关联 sourceOnlyTk），验证合并时无 ticket_targets 主键冲突
+	tkCreate := conversation.NewCreateTicket(env.DB, conversation.Downstream{})
+	sharedTk, err := tkCreate.Handle(ctx, sys, conversation.CreateTicketParams{Title: "共同工单", ContactIDs: []string{leadTarget.ID, userSource.ID}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sourceOnlyTk, err := tkCreate.Handle(ctx, sys, conversation.CreateTicketParams{Title: "来源独占工单", ContactIDs: []string{userSource.ID}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// 2. 目标为线索、来源为已登录用户：合并后目标升级为 user 并继承 external_user_id、邮箱、拼接备注与双渠道身份
 	res, err := merge.Handle(ctx, agent, leadTarget.ID, contact.MergeBody{SourceID: userSource.ID})
 	if err != nil {
 		t.Fatal(err)
+	}
+	var migratedTargets []string
+	if err := env.DB.NewSelect().Table("ticket_targets").Column("ticket_id").
+		Where("tenant_id = ? AND contact_id = ?", tenantID, leadTarget.ID).
+		OrderExpr("ticket_id ASC").Scan(ctx, &migratedTargets); err != nil {
+		t.Fatal(err)
+	}
+	if len(migratedTargets) != 2 || !((migratedTargets[0] == sharedTk.ID && migratedTargets[1] == sourceOnlyTk.ID) || (migratedTargets[0] == sourceOnlyTk.ID && migratedTargets[1] == sharedTk.ID)) {
+		t.Fatalf("合并后 ticket_targets 异常：%v", migratedTargets)
 	}
 	if res.ID != leadTarget.ID || res.Kind != contact.User || res.ExternalUserID != "ext-u-1" {
 		t.Fatalf("目标联系人应升级为 user 并继承 external_user_id，实际 %+v", res)

@@ -28,6 +28,7 @@ type MergeHooks struct {
 	BeforeMigrate  func(ctx context.Context, tx database.Tx, sub identity.Subject, targetContactID, sourceContactID string) error
 	AfterMigrate   func(ctx context.Context, tx database.Tx, sub identity.Subject, targetContactID string, affectedConvIDs []string) error
 	OnNotesUpdated NotesUpdatedHook
+	Tokens         *apitoken.Store
 }
 
 // MergeBody 是手动合并联系人的请求体：把 source_id 指定的联系人合并进路径指定的目标联系人。
@@ -232,29 +233,15 @@ func (a *Merge) Handle(ctx context.Context, sub identity.Subject, targetID strin
 		).Exec(ctx); err != nil {
 			return errors.Wrap(err, "delete source contact tags")
 		}
-		if _, err := tx.NewRaw(
-			`INSERT INTO ticket_targets (id, tenant_id, ticket_id, contact_id, source_conversation_id, created_by, created_at, updated_at)
-			 SELECT id, tenant_id, ticket_id, ?, source_conversation_id, created_by, created_at, ?
-			 FROM ticket_targets
-			 WHERE tenant_id = ? AND contact_id = ?
-			 ON CONFLICT (tenant_id, ticket_id, contact_id) WHERE contact_id IS NOT NULL DO NOTHING`,
-			target.ID, at, sub.Tenant, source.ID,
-		).Exec(ctx); err != nil {
-			return errors.Wrap(err, "migrate merged ticket targets")
-		}
-		if _, err := tx.NewRaw(
-			`DELETE FROM ticket_targets WHERE tenant_id = ? AND contact_id = ?`,
-			sub.Tenant, source.ID,
-		).Exec(ctx); err != nil {
-			return errors.Wrap(err, "delete source ticket targets")
+		if err := migrateTicketTargets(ctx, tx, sub.Tenant, source.ID, target.ID, at); err != nil {
+			return err
 		}
 		if _, err := tx.NewUpdate().Model((*Identity)(nil)).
 			Set("contact_id = ?", target.ID).
 			Where("tenant_id = ? AND contact_id = ?", sub.Tenant, source.ID).Exec(ctx); err != nil {
 			return errors.Wrap(err, "migrate merged contact identities")
 		}
-		if _, err := apitoken.NewStore(tx, apitoken.Config{Lifetime: time.Minute, IdleTimeout: time.Minute}).
-			RevokeSubject(ctx, identity.Ref{Type: Type, ID: source.ID}); err != nil {
+		if err := revokeContactTokens(ctx, tx, source.ID, a.hooks.Tokens); err != nil {
 			return errors.Wrap(err, "revoke source contact tokens")
 		}
 		if _, err := tx.NewDelete().Model((*Contact)(nil)).Where("id = ? AND tenant_id = ?", source.ID, sub.Tenant).Exec(ctx); err != nil {
@@ -296,7 +283,7 @@ func (a *Merge) HTTP(ctx context.Context, in *MergeInput) (*ContactDetailOutput,
 //   - 吊销线索的联系人令牌并删除原线索记录。
 //
 // 返回合并后的用户，以及受影响（contact_id 发生变化）的会话编号列表，供调用方在事务提交后推送刷新。
-func MergeLead(ctx context.Context, tx bun.IDB, tenant, leadID, userID, consumeChannelID, consumeExternalID string) (*Contact, []string, error) {
+func MergeLead(ctx context.Context, tx bun.IDB, tenant, leadID, userID, consumeChannelID, consumeExternalID string, tokens ...*apitoken.Store) (*Contact, []string, error) {
 	if leadID == "" || userID == "" || leadID == userID {
 		u, err := Find(ctx, tx, tenant, userID)
 		return u, nil, err
@@ -442,21 +429,8 @@ func MergeLead(ctx context.Context, tx bun.IDB, tenant, leadID, userID, consumeC
 	).Exec(ctx); err != nil {
 		return nil, nil, errors.Wrap(err, "delete lead contact tags")
 	}
-	if _, err := tx.NewRaw(
-		`INSERT INTO ticket_targets (id, tenant_id, ticket_id, contact_id, source_conversation_id, created_by, created_at, updated_at)
-		 SELECT id, tenant_id, ticket_id, ?, source_conversation_id, created_by, created_at, ?
-		 FROM ticket_targets
-		 WHERE tenant_id = ? AND contact_id = ?
-		 ON CONFLICT (tenant_id, ticket_id, contact_id) WHERE contact_id IS NOT NULL DO NOTHING`,
-		user.ID, at, tenant, lead.ID,
-	).Exec(ctx); err != nil {
-		return nil, nil, errors.Wrap(err, "migrate lead ticket targets")
-	}
-	if _, err := tx.NewRaw(
-		`DELETE FROM ticket_targets WHERE tenant_id = ? AND contact_id = ?`,
-		tenant, lead.ID,
-	).Exec(ctx); err != nil {
-		return nil, nil, errors.Wrap(err, "delete lead ticket targets")
+	if err := migrateTicketTargets(ctx, tx, tenant, lead.ID, user.ID, at); err != nil {
+		return nil, nil, err
 	}
 
 	// 5. 渠道身份：删除已消费的访客编号，其余渠道身份迁到用户名下
@@ -473,13 +447,49 @@ func MergeLead(ctx context.Context, tx bun.IDB, tenant, leadID, userID, consumeC
 		return nil, nil, errors.Wrap(err, "migrate contact identities")
 	}
 
-	// 6. 吊销原线索的联系人令牌，并删除原线索记录（Config 只在 Login 签发时使用，这里仅吊销）
-	if _, err := apitoken.NewStore(tx, apitoken.Config{Lifetime: time.Minute, IdleTimeout: time.Minute}).
-		RevokeSubject(ctx, identity.Ref{Type: Type, ID: lead.ID}); err != nil {
+	// 6. 吊销原线索的联系人令牌，并删除原线索记录
+	var tokenStore *apitoken.Store
+	if len(tokens) > 0 {
+		tokenStore = tokens[0]
+	}
+	if err := revokeContactTokens(ctx, tx, lead.ID, tokenStore); err != nil {
 		return nil, nil, errors.Wrap(err, "revoke lead tokens")
 	}
 	if _, err := tx.NewDelete().Model((*Contact)(nil)).Where("id = ? AND tenant_id = ?", lead.ID, tenant).Exec(ctx); err != nil {
 		return nil, nil, errors.Wrap(err, "delete merged lead")
 	}
 	return user, convIDs, nil
+}
+
+// migrateTicketTargets 在合并事务内将 sourceID 关联的工单去重后原位迁移到 targetID，避免复用 id 触发主键冲突。
+func migrateTicketTargets(ctx context.Context, tx bun.IDB, tenantID, sourceID, targetID string, at time.Time) error {
+	if _, err := tx.NewRaw(
+		`DELETE FROM ticket_targets s
+		 WHERE s.tenant_id = ? AND s.contact_id = ?
+		   AND EXISTS (
+		     SELECT 1 FROM ticket_targets t
+		     WHERE t.tenant_id = s.tenant_id AND t.ticket_id = s.ticket_id AND t.contact_id = ?
+		   )`,
+		tenantID, sourceID, targetID,
+	).Exec(ctx); err != nil {
+		return errors.Wrap(err, "delete duplicate ticket targets")
+	}
+	if _, err := tx.NewRaw(
+		`UPDATE ticket_targets SET contact_id = ?, updated_at = ? WHERE tenant_id = ? AND contact_id = ?`,
+		targetID, at, tenantID, sourceID,
+	).Exec(ctx); err != nil {
+		return errors.Wrap(err, "migrate ticket targets")
+	}
+	return nil
+}
+
+// revokeContactTokens 在事务 tx 内吊销被合并联系人的全部令牌；传入 store 时复用其配置与凭据复查。
+func revokeContactTokens(ctx context.Context, tx bun.IDB, contactID string, store *apitoken.Store) error {
+	if store != nil {
+		_, err := store.WithDB(tx).RevokeSubject(ctx, identity.Ref{Type: Type, ID: contactID})
+		return err
+	}
+	_, err := apitoken.NewStore(tx, apitoken.Config{Lifetime: time.Minute, IdleTimeout: time.Minute}).
+		RevokeSubject(ctx, identity.Ref{Type: Type, ID: contactID})
+	return err
 }

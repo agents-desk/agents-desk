@@ -54,10 +54,10 @@ export function liveBacklogInboxSearch(
     return buildInboxSearch(mergeScope({ statuses: ["snoozed"] }, scope), { status: "snoozed" })
   }
   if (kind === "waiting") {
-    return buildInboxSearch(mergeScope({ statuses: ["open"], waiting: true }, scope))
+    return buildInboxSearch(mergeScope({ statuses: ["open", "snoozed"], waiting: true }, scope))
   }
   // unassigned_now 统计所有未关闭且无负责人的会话
-  return buildInboxSearch(mergeScope({ statuses: ["open"], assignee: { mode: "unassigned" } }, scope))
+  return buildInboxSearch(mergeScope({ statuses: ["open", "snoozed"], assignee: { mode: "unassigned" } }, scope))
 }
 
 /** 构造按团队收件箱跳转收件箱的参数（teamId 为空时定位未归属团队的打开会话）。 */

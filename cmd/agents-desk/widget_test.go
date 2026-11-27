@@ -426,10 +426,13 @@ func TestAttachmentsHTTP(t *testing.T) {
 		t.Fatalf("成员回复附件：%+v", reply.Attachments)
 	}
 
-	// 访客读取连续时间线包含双方附件信息
+	// 访客读取连续时间线包含双方附件信息，且校验 limit=100 通过、limit=200 返回 422
 	var cStream conversation.ContactTimelineDTO
-	if r := callBearer(h, "GET", base+"/timeline", "", visitor.Token); r.status != http.StatusOK || json.Unmarshal([]byte(r.body), &cStream) != nil {
+	if r := callBearer(h, "GET", base+"/timeline?limit=100", "", visitor.Token); r.status != http.StatusOK || json.Unmarshal([]byte(r.body), &cStream) != nil {
 		t.Fatalf("访客读取连续时间线：%d %s", r.status, r.body)
+	}
+	if r := callBearer(h, "GET", base+"/timeline?limit=200", "", visitor.Token); r.status != http.StatusUnprocessableEntity {
+		t.Fatalf("超出上限 limit=200 应返回 422，得到 %d %s", r.status, r.body)
 	}
 	if len(cStream.Items) != 2 || len(cStream.Items[0].Attachments) != 1 || len(cStream.Items[1].Attachments) != 1 {
 		t.Fatalf("访客时间线附件：%+v", cStream.Items)

@@ -256,10 +256,14 @@ export function createIdentity(options: IdentityOptions = {}) {
       if (current && current.user === wanted) return
       await switchTo(userToken)
     },
-    /** unlockWithPasscode 提交访问口令并建立受保护的商务链接会话。 */
+    /** unlockWithPasscode 提交访问口令并建立受保护的商务链接会话，同时唤醒 ready 等待者。 */
     async unlockWithPasscode(code: string) {
       passcode = code.trim()
-      await switchTo(userToken)
+      try {
+        await switchTo(userToken)
+      } finally {
+        started()
+      }
     },
     /** hasStoredSession 报告本地是否已有访客身份记录。 */
     hasStoredSession: (): boolean => hasStoredIdentity(),

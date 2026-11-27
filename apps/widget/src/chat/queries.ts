@@ -15,8 +15,11 @@ import { useIdentity } from "../realtime"
 /** TIMELINE_PAGE_SIZE 是首次加载和向上翻页时每页读取的消息数。 */
 const TIMELINE_PAGE_SIZE = 50
 
-/** TIMELINE_INCREMENTAL_LIMIT 是收到实时推送后增量拉取新消息的上限。 */
-const TIMELINE_INCREMENTAL_LIMIT = 200
+/** TIMELINE_INCREMENTAL_LIMIT 是收到实时推送后单次增量拉取新消息的上限，与服务端 timeline 接口的 maximum=100 对齐。 */
+const TIMELINE_INCREMENTAL_LIMIT = 100
+
+/** MAX_INCREMENTAL_PAGES 是单次刷新时连续翻页追赶新消息的最多轮次，避免异常循环。 */
+const MAX_INCREMENTAL_PAGES = 10
 
 /** mergeItems 按消息 ID 去重合并前后两段有序消息，保持先后顺序，并把新增更正消息的更正状态同步到已缓存的原消息上。 */
 function mergeItems<T extends { id: string; created_at?: string; corrects_item_id?: string; corrected_by?: string; corrected_at?: string }>(
@@ -69,16 +72,29 @@ export function useTimeline() {
     queryKey: key,
     queryFn: async () => {
       const prev = queryClient.getQueryData<ConversationContactTimelineDTO>(key)
-      const after = prev?.items.at(-1)?.id
+      let after = prev?.items.at(-1)?.id
       if (!prev || !after) {
         return authed(() => widgetApi.timeline.get({ limit: TIMELINE_PAGE_SIZE }))
       }
-      const next = await authed(() => widgetApi.timeline.get({ after, limit: TIMELINE_INCREMENTAL_LIMIT }))
+      let items = prev.items
+      let conversations = { ...prev.conversations }
+      let latest = prev.latest_conversation
+      let unread = prev.unread
+      for (let page = 0; page < MAX_INCREMENTAL_PAGES; page++) {
+        const next = await authed(() => widgetApi.timeline.get({ after, limit: TIMELINE_INCREMENTAL_LIMIT }))
+        items = mergeItems(items, next.items)
+        conversations = { ...conversations, ...next.conversations }
+        latest = next.latest_conversation
+        unread = next.unread
+        const last = next.items.at(-1)
+        if (!next.has_more || !last || last.id === after) break
+        after = last.id
+      }
       return {
-        items: mergeItems(prev.items, next.items),
-        conversations: { ...prev.conversations, ...next.conversations },
-        latest_conversation: next.latest_conversation,
-        unread: next.unread,
+        items,
+        conversations,
+        latest_conversation: latest,
+        unread,
         has_more: prev.has_more,
       }
     },

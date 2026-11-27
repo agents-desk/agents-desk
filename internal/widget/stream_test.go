@@ -209,7 +209,57 @@ func TestContactStreamPaginationReadTypingAndTicketWakeup(t *testing.T) {
 		t.Fatal("未收到正在输入广播")
 	}
 
-	// 6. 权限与隔离：非联系人主体返回 ErrForbidden；另一个访客线索看不到用户消息
+	// 6. Failed 投递与待翻译回复不泄漏到连续时间线也不计入 Unread；after 超出 limit 时 HasMore=true 可继续追赶
+	failedReply, err := reply.Handle(ctx, f.agent, s2.ConversationID, conversation.ReplyBody{Text: "投递失败的消息"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.DB.NewRaw("UPDATE message_deliveries SET status = 'failed', error = 'blocked' WHERE item_id = ?", failedReply.ID).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	pendingReply, err := reply.Handle(ctx, f.agent, s2.ConversationID, conversation.ReplyBody{Text: "尚未翻译的原文"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.DB.NewRaw("UPDATE timeline_items SET derived = jsonb_set(derived, '{pending_translation}', '{\"language\":\"en\"}'::jsonb) WHERE id = ?", pendingReply.ID).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	filtered, err := stream.Handle(ctx, userSub, f.widget.ID, "", "", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filtered.Unread != 0 {
+		t.Fatalf("Failed 与 pending_translation 不应计入未读，实际 %d", filtered.Unread)
+	}
+	for _, it := range filtered.Items {
+		if it.ID == failedReply.ID || it.ID == pendingReply.ID {
+			t.Fatalf("Failed 或 pending_translation 消息泄漏到客户时间线：%+v", it)
+		}
+	}
+	extra1, err := send.Handle(in, userSub, MessageBody{Text: "增量1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	extra2, err := send.Handle(in, userSub, MessageBody{Text: "增量2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	delta1, err := stream.Handle(ctx, userSub, f.widget.ID, "", s3.Item.ID, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(delta1.Items) != 1 || delta1.Items[0].ID != extra1.Item.ID || !delta1.HasMore {
+		t.Fatalf("after 达到 limit 时应标记 HasMore=true：items=%+v hasMore=%v", delta1.Items, delta1.HasMore)
+	}
+	delta2, err := stream.Handle(ctx, userSub, f.widget.ID, "", delta1.Items[0].ID, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(delta2.Items) != 1 || delta2.Items[0].ID != extra2.Item.ID || delta2.HasMore {
+		t.Fatalf("after 续页应返回最后一条且 HasMore=false：items=%+v hasMore=%v", delta2.Items, delta2.HasMore)
+	}
+
+	// 7. 权限与隔离：非联系人主体返回 ErrForbidden；另一个访客线索看不到用户消息
 	if _, err := stream.Handle(ctx, f.agent, f.widget.ID, "", "", 10); !errors.Is(err, conversation.ErrForbidden) {
 		t.Fatalf("非联系人主体读取连续时间线应返回 ErrForbidden，实际 %v", err)
 	}

@@ -87,25 +87,23 @@ export function Widget(): ReactNode {
     if (defaultLanguage) void applyChannelDefaultLanguage(defaultLanguage)
   }, [defaultLanguage])
 
-  // 等到公开配置到达后再按需启动会话：过期或需口令的新访客直接停在门禁页，不盲发 /session 报 403/409
+  // 等到公开配置到达后再按需启动会话：过期链接一律停在过期页，需口令的新访客直接停在口令页，不盲发 /session
   useEffect(() => {
     if (!config.data || initStartedRef.current) return
     initStartedRef.current = true
     const biz = config.data.kind === "business_link" ? config.data.business : undefined
     const hasStored = identity.hasStoredSession()
-    if (biz && !hasStored) {
-      if (biz.expired) {
-        setGate("expired")
-        setReady(true)
-        if (!embedded) tell("ready")
-        return
-      }
-      if (biz.requires_passcode) {
-        setGate("passcode")
-        setReady(true)
-        if (!embedded) tell("ready")
-        return
-      }
+    if (biz?.expired) {
+      setGate("expired")
+      setReady(true)
+      if (!embedded) tell("ready")
+      return
+    }
+    if (biz && !hasStored && biz.requires_passcode) {
+      setGate("passcode")
+      setReady(true)
+      if (!embedded) tell("ready")
+      return
     }
     void waitInit()
       .then(async (init: Init) => {

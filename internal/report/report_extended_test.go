@@ -440,6 +440,65 @@ func TestReportAudienceIsolationAndGroupCSAT(t *testing.T) {
 	if scenes["service"] != 1 || scenes["partner_service"] != 1 || scenes["internal_service"] != 1 {
 		t.Fatalf("unexpected translation scenes: %+v", tr.ByScene)
 	}
+
+	// 6. 商务外部群（external_user）来信/待跟进、ByLanguage 在期末之后仍有新消息时保留，以及 timeline_item/ticket 翻译场景归类
+	bizGroupConvID := uuid.Must(uuid.NewV7()).String()
+	later := time.Date(2026, 11, 15, 10, 0, 0, 0, time.UTC)
+	mustExec(t, env.DB, `INSERT INTO conversations (id, tenant_id, kind, channel_id, status, priority, language, opened_at, last_message_at, last_seq, attributes, rating_comment, created_at, updated_at)
+		VALUES (?, ?, 'chat', NULL, 'open', 'normal', 'ja', ?, ?, 2, '{}'::jsonb, '', ?, ?)`,
+		bizGroupConvID, tn.ID, day1, later, day1, later)
+	mustExec(t, env.DB, `INSERT INTO chats (conversation_id, tenant_id, mode, scope, name, external_chat_id, created_at, updated_at)
+		VALUES (?, ?, 'group', 'external', 'Partner Group', 'pg-chat-1', ?, ?)`,
+		bizGroupConvID, tn.ID, day1, later)
+	extMsgID := uuid.Must(uuid.NewV7()).String()
+	laterMsgID := uuid.Must(uuid.NewV7()).String()
+	mustExec(t, env.DB, `INSERT INTO timeline_items (id, tenant_id, conversation_id, seq, kind, actor_type, actor_id, visibility, content, derived, created_at, updated_at)
+		VALUES (?, ?, ?, 1, 'message', 'external_user', 'tg-u-9', 'all', '{"text":"こんにちは"}'::jsonb, '{"language":"ja"}'::jsonb, ?, ?),
+		       (?, ?, ?, 2, 'message', 'external_user', 'tg-u-9', 'all', '{"text":"追加"}'::jsonb, '{"language":"ja"}'::jsonb, ?, ?)`,
+		extMsgID, tn.ID, bizGroupConvID, day1, day1,
+		laterMsgID, tn.ID, bizGroupConvID, later, later)
+	for _, rec := range []*llm.Call{
+		{ID: uuid.Must(uuid.NewV7()).String(), CreatedAt: day1, UpdatedAt: day1, TenantID: &tn.ID, CallType: llm.Translation, Operation: "incoming", TargetType: "timeline_item", TargetID: extMsgID, Meta: map[string]any{}, Endpoint: "https://openrouter.ai/api/v1", Model: "m1", Request: map[string]any{}, Response: "{}", PromptTokens: 10, CompletionTokens: 5, Cost: &cost, DurationMS: 50},
+		{ID: uuid.Must(uuid.NewV7()).String(), CreatedAt: day1, UpdatedAt: day1, TenantID: &tn.ID, CallType: llm.Translation, Operation: "ticket_meta", TargetType: "ticket", TargetID: uuid.Must(uuid.NewV7()).String(), Meta: map[string]any{}, Endpoint: "https://openrouter.ai/api/v1", Model: "m1", Request: map[string]any{}, Response: "{}", PromptTokens: 10, CompletionTokens: 5, Cost: &cost, DurationMS: 50},
+	} {
+		if _, err := env.DB.NewInsert().Model(rec).Exec(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	bizGroupRep, err := report.NewBusiness(env.DB, env.Roles, env.Files).Handle(ctx, sys, report.BusinessFilterParams{Params: p})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bizGroupRep.Summary.WaitingNow != 1 || bizGroupRep.Summary.MessagesInbound != 1 || len(bizGroupRep.ByLanguage) != 1 || bizGroupRep.ByLanguage[0].Language != "ja" {
+		t.Fatalf("external_user business metrics mismatch: sum=%+v by_lang=%+v", bizGroupRep.Summary, bizGroupRep.ByLanguage)
+	}
+	ovAfter, err := report.NewOverview(env.DB, env.Roles).Handle(ctx, sys, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ovAfter.Live.BusinessWaiting != 1 {
+		t.Fatalf("expected overview BusinessWaiting=1 for external_user, got %d", ovAfter.Live.BusinessWaiting)
+	}
+	trAfter, err := report.NewTranslation(env.DB).Handle(ctx, sys, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scenesAfter := map[string]int64{}
+	for _, sc := range trAfter.ByScene {
+		scenesAfter[sc.Scene] = sc.Calls
+	}
+	if scenesAfter["business"] != 1 || scenesAfter["ticket"] != 1 {
+		t.Fatalf("unexpected translation scenes with timeline_item/ticket: %+v", trAfter.ByScene)
+	}
+	foundJa := false
+	for _, lc := range trAfter.DetectedLanguages {
+		if lc.Language == "ja" && lc.Count == 1 {
+			foundJa = true
+		}
+	}
+	if !foundJa {
+		t.Fatalf("expected ja detected language from external_user: %+v", trAfter.DetectedLanguages)
+	}
 }
 
 func ptrTime(t time.Time) *time.Time { return &t }

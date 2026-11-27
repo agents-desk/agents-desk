@@ -105,8 +105,10 @@ func (a *Members) Handle(ctx context.Context, sub identity.Subject, f FilterPara
 	baseIDs := map[string]bool{}
 	if f.TeamID != "" {
 		var ids []string
-		if err := a.db.NewSelect().Table("team_members").ColumnExpr("member_id::text").
-			Where("tenant_id = ? AND team_id = ?", sub.Tenant, f.TeamID).Scan(ctx, &ids); err != nil {
+		if err := a.db.NewSelect().TableExpr("team_members tm").
+			Join("JOIN teams t ON t.id = tm.team_id").
+			ColumnExpr("tm.member_id::text").
+			Where("t.tenant_id = ? AND tm.team_id = ?", sub.Tenant, f.TeamID).Scan(ctx, &ids); err != nil {
 			return nil, errors.Wrap(err, "list team members for report")
 		}
 		for _, id := range ids {
