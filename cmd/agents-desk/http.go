@@ -341,6 +341,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		queueOpts := queueapi.Options{
 			Topics: []queue.TopicMeta{
 				conversation.DeliverTopic.Meta("queue.topic.conversation.deliver.label", "queue.topic.conversation.deliver.description"),
+				conversation.MediaIngestTopic.Meta("queue.topic.conversation.media_ingest.label", "queue.topic.conversation.media_ingest.description"),
 				translation.Topic.Meta("queue.topic.conversation.translate.label", "queue.topic.conversation.translate.description"),
 				translation.FillTopic.Meta("queue.topic.translation.fill.label", "queue.topic.translation.fill.description"),
 				translation.TicketBroadcastTopic.Meta("queue.topic.ticket.broadcast.label", "queue.topic.ticket.broadcast.description"),

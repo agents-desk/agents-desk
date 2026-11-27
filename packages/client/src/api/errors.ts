@@ -334,6 +334,8 @@ export const TgaccountErrors = {
   LoginFailed: "tgaccount.login_failed",
   /** ErrNotConnected 是该 Telegram 个人号当前未连接或授权已失效，需要重新登录。 */
   NotConnected: "tgaccount.not_connected",
+  /** ErrTemporarilyUnavailable 表示 Telegram 个人号长连接正在跨实例切换或重连中，队列任务应稍后重试。 */
+  TemporarilyUnavailable: "tgaccount.temporarily_unavailable",
   /** ErrPeerNotFound 是目标 Telegram 单聊或群聊不在已同步列表中或缺少访问凭据。 */
   PeerNotFound: "tgaccount.peer_not_found",
   /** ErrPhoneRequired 是选择手机号登录时未填写带国际区号的手机号。 */

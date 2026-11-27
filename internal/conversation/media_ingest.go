@@ -29,6 +29,9 @@ type MediaIngestJob struct {
 // MediaIngestTopic 是异步拉取外部渠道媒体的队列主题，在 Receive 写入远端附件的同一事务中发布。
 var MediaIngestTopic = queue.Topic[MediaIngestJob]("conversation.media_ingest")
 
+// staleFetchTimeout 是按需拉取停留在 fetching 状态的超时阈值，超时后允许抢占重试或由定时任务回收。
+const staleFetchTimeout = 5 * time.Minute
+
 // MediaIngestor 处理 MediaIngestTopic 任务：异步拉取外部渠道的封面图以及标记为 pending 的主文件（如图片、语音、小文件），
 // 不下载标记为 remote 的大视频/大文件，完成后推送会话更新通知前端。
 type MediaIngestor struct {
@@ -141,6 +144,31 @@ func (m *MediaIngestor) Job(ctx context.Context, job MediaIngestJob) error {
 	return retryErr
 }
 
+// OnDead 在媒体拉取任务进入失败队列前执行一次：将仍处于 pending 的附件标为 unavailable 并推送给成员。
+func (m *MediaIngestor) OnDead(ctx context.Context, job MediaIngestJob, cause error) error {
+	code := mediaErrorCode(cause)
+	if cause == nil {
+		code = channel.ErrMediaUnavailable.Code()
+	}
+	return database.RunInTx(ctx, m.db, nil, func(ctx context.Context, tx database.Tx) error {
+		res, err := tx.NewUpdate().Model((*Attachment)(nil)).
+			Set("fetch_status = ?", FetchUnavailable).Set("fetch_error = ?", code).
+			Where("tenant_id = ? AND item_id = ? AND fetch_status = ?", job.TenantID, job.ItemID, FetchPending).
+			Exec(ctx)
+		if err != nil {
+			return errors.Wrap(err, "mark pending attachments unavailable on dead job")
+		}
+		affected, err := res.RowsAffected()
+		if err != nil {
+			return errors.Wrap(err, "mark pending attachments unavailable on dead job")
+		}
+		if affected == 0 {
+			return nil
+		}
+		return NotifyUpdated(ctx, tx, m.down, job.TenantID, []string{job.ConversationID})
+	})
+}
+
 // FetchAttachmentInput 是按需拉取远端附件的 HTTP 请求。
 type FetchAttachmentInput struct {
 	ID           string `path:"id" format:"uuid"`
@@ -188,7 +216,7 @@ func (a *FetchAttachment) Handle(ctx context.Context, sub identity.Subject, conv
 		if att.FetchStatus == FetchReady && att.FileID != nil {
 			return nil
 		}
-		if att.FetchStatus == FetchFetching {
+		if att.FetchStatus == FetchFetching && now().Sub(att.UpdatedAt) < staleFetchTimeout {
 			return nil
 		}
 		if att.SourceChannelID == nil || *att.SourceChannelID == "" || att.SourceRef == "" {
@@ -302,6 +330,37 @@ func EvictCachedMedia(ctx context.Context, db *bun.DB, files *filesystem.Service
 		evicted++
 	}
 	return evicted, nil
+}
+
+// RecoverStaleMediaFetches 将停留在 fetching 超过 staleAfter 的卡死附件状态回退为 remote，以便坐席重新按需拉取。
+func RecoverStaleMediaFetches(ctx context.Context, db *bun.DB, staleAfter time.Duration, limit int) (int, error) {
+	if limit <= 0 {
+		return 0, nil
+	}
+	if staleAfter <= 0 {
+		staleAfter = staleFetchTimeout
+	}
+	cutoff := now().Add(-staleAfter)
+	var ids []string
+	if err := db.NewSelect().Model((*Attachment)(nil)).Column("id").
+		Where("fetch_status = ? AND updated_at < ?", FetchFetching, cutoff).
+		OrderExpr("updated_at ASC").Limit(int64(limit)).Scan(ctx, &ids); err != nil {
+		return 0, errors.Wrap(err, "select stale fetching attachments")
+	}
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	res, err := db.NewUpdate().Model((*Attachment)(nil)).
+		Set("fetch_status = ?", FetchRemote).Set("fetch_error = ''").
+		Where("id IN (?) AND fetch_status = ?", bun.In(ids), FetchFetching).Exec(ctx)
+	if err != nil {
+		return 0, errors.Wrap(err, "recover stale fetching attachments")
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return 0, errors.Wrap(err, "recover stale fetching attachments")
+	}
+	return int(affected), nil
 }
 
 // resolveMediaFetcher 加载渠道并确认其连接器实现了 channel.MediaFetcher。
@@ -496,6 +555,8 @@ func extForMIME(ct string) string {
 		return ".aac"
 	case "audio/flac", "audio/x-flac":
 		return ".flac"
+	case "audio/amr":
+		return ".amr"
 	case "application/pdf":
 		return ".pdf"
 	case "application/zip":

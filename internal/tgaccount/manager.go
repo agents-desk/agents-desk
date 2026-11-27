@@ -6,10 +6,12 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/google/uuid"
+	"github.com/nats-io/nats.go"
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/crypt"
@@ -36,7 +38,22 @@ type loginEntry struct {
 	createdAt       time.Time
 	accountDTO      *AccountDTO
 	persisted       bool
+	sub             *nats.Subscription
 	mu              sync.Mutex
+}
+
+func (e *loginEntry) close() {
+	e.mu.Lock()
+	sub := e.sub
+	e.sub = nil
+	drv := e.driver
+	e.mu.Unlock()
+	if sub != nil {
+		_ = sub.Unsubscribe()
+	}
+	if drv != nil {
+		drv.Close()
+	}
 }
 
 // accountRunner 管理单个已绑定 Telegram 个人号的长连接协程、内存同步白名单与同步策略。
@@ -122,6 +139,7 @@ type Manager struct {
 	crypt      *crypt.Crypt
 	files      *filesystem.Service
 	locker     *lock.Locker
+	nc         *nats.Conn
 	tgCreds    *settings.Group[Credentials]
 	receive    *conversation.Receive
 	backend    Backend
@@ -160,6 +178,9 @@ func (*Manager) Name() string { return "tgaccount" }
 // SetLocker 绑定分布式锁，多实例部署时保证每个 Telegram 个人号只由单个实例持有 MTProto 长连接。
 func (m *Manager) SetLocker(l *lock.Locker) { m.locker = l }
 
+// SetNATS 绑定 NATS 连接，用于跨实例转发个人号 RPC、控制信号与交互式登录请求。
+func (m *Manager) SetNATS(nc *nats.Conn) { m.nc = nc }
+
 // SetReceive 绑定消息入库动作（因 channel.Registry 与 conversation.Receive 存在初始化顺序依赖，由入口装配完成后注入）。
 func (m *Manager) SetReceive(r *conversation.Receive) { m.receive = r }
 
@@ -179,7 +200,7 @@ func (m *Manager) wake() {
 	}
 }
 
-// ReconnectTenant 断开指定工作区当前全部个人号长连接并触发重连，供该工作区更新 API 凭据或代理后调用，不影响其他工作区。
+// ReconnectTenant 断开指定工作区当前全部个人号长连接并触发重连（含跨实例广播），供该工作区更新 API 凭据或代理后调用，不影响其他工作区。
 func (m *Manager) ReconnectTenant(tenantID string) {
 	m.runnersMu.Lock()
 	for id, r := range m.runners {
@@ -189,6 +210,20 @@ func (m *Manager) ReconnectTenant(tenantID string) {
 		}
 	}
 	m.runnersMu.Unlock()
+	if m.nc != nil && m.db != nil && strings.TrimSpace(tenantID) != "" {
+		qCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		var ids []string
+		err := m.db.NewSelect().Model((*channel.Channel)(nil)).Column("id").
+			Where("tenant_id = ? AND kind = ?", tenantID, channel.TelegramAccount).Scan(qCtx, &ids)
+		cancel()
+		if err != nil {
+			slog.Warn("list tenant telegram accounts for reconnect broadcast failed", "tenant_id", tenantID, "error", err)
+		} else {
+			for _, id := range ids {
+				m.publishAccountCtrl(id, ctrlRestart)
+			}
+		}
+	}
 	m.wake()
 }
 
@@ -280,6 +315,17 @@ func (m *Manager) StartLogin(ctx context.Context, sub identity.Subject, mode Log
 		driver:          drv,
 		createdAt:       time.Now().UTC(),
 	}
+	if m.nc != nil {
+		subNATS, err := m.nc.Subscribe(natsLoginPrefix+entry.id, func(msg *nats.Msg) {
+			go m.handleLoginRPC(entry, msg)
+		})
+		if err != nil {
+			drv.Close()
+			return nil, errors.Wrap(err, "subscribe tgaccount login nats subject")
+		}
+		entry.sub = subNATS
+		_ = m.nc.Flush()
+	}
 	m.loginsMu.Lock()
 	m.logins[entry.id] = entry
 	m.loginsMu.Unlock()
@@ -290,6 +336,9 @@ func (m *Manager) StartLogin(ctx context.Context, sub identity.Subject, mode Log
 // GetLogin 查询进行中登录会话的当前状态；若扫码已完成则自动落库并启动长连接。
 func (m *Manager) GetLogin(ctx context.Context, sub identity.Subject, loginID string) (*LoginSessionDTO, error) {
 	entry, err := m.findLogin(sub, loginID)
+	if errors.Is(err, ErrLoginNotFound) && m.nc != nil {
+		return m.forwardLoginRPC(ctx, sub, loginID, loginRPCRequest{Op: "get"})
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -299,6 +348,9 @@ func (m *Manager) GetLogin(ctx context.Context, sub identity.Subject, loginID st
 // SubmitCode 向手机号登录会话提交短信或 Telegram App 验证码。
 func (m *Manager) SubmitCode(ctx context.Context, sub identity.Subject, loginID, code string) (*LoginSessionDTO, error) {
 	entry, err := m.findLogin(sub, loginID)
+	if errors.Is(err, ErrLoginNotFound) && m.nc != nil {
+		return m.forwardLoginRPC(ctx, sub, loginID, loginRPCRequest{Op: "code", Code: code})
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -311,6 +363,9 @@ func (m *Manager) SubmitCode(ctx context.Context, sub identity.Subject, loginID,
 // SubmitPassword 向需要两步验证的登录会话提交 2FA 云密码。
 func (m *Manager) SubmitPassword(ctx context.Context, sub identity.Subject, loginID, password string) (*LoginSessionDTO, error) {
 	entry, err := m.findLogin(sub, loginID)
+	if errors.Is(err, ErrLoginNotFound) && m.nc != nil {
+		return m.forwardLoginRPC(ctx, sub, loginID, loginRPCRequest{Op: "password", Password: password})
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -337,9 +392,18 @@ func (m *Manager) pruneExpiredLogins() {
 	defer m.loginsMu.Unlock()
 	for id, e := range m.logins {
 		if e.createdAt.Before(cutoff) {
-			e.driver.Close()
+			e.close()
 			delete(m.logins, id)
 		}
+	}
+}
+
+func (m *Manager) closeAllLogins() {
+	m.loginsMu.Lock()
+	defer m.loginsMu.Unlock()
+	for id, e := range m.logins {
+		e.close()
+		delete(m.logins, id)
 	}
 }
 
@@ -366,6 +430,7 @@ func (m *Manager) buildLoginDTO(ctx context.Context, entry *loginEntry) (*LoginS
 			entry.persisted = true
 			entry.driver.Close()
 			m.stopRunner(acct.ID)
+			m.publishAccountCtrl(acct.ID, ctrlRestart)
 			m.wake()
 		}
 		dto.Account = entry.accountDTO
@@ -585,7 +650,7 @@ func (m *Manager) UpdateAccount(ctx context.Context, sub identity.Subject, id st
 		return nil, err
 	}
 
-	// 立即更新内存中的同步策略
+	// 立即更新内存中的同步策略并广播控制信号给长连接持有实例
 	m.runnersMu.RLock()
 	if r := m.runners[id]; r != nil {
 		r.setSync(resolvedSync)
@@ -601,6 +666,11 @@ func (m *Manager) UpdateAccount(ctx context.Context, sub identity.Subject, id st
 		}
 	}
 
+	if updated.Enabled {
+		m.publishAccountCtrl(id, ctrlReload)
+	} else {
+		m.publishAccountCtrl(id, ctrlDisconnect)
+	}
 	m.wake()
 	dto, err := toAccountDTO(updated)
 	if err != nil {
@@ -615,12 +685,8 @@ func (m *Manager) syncFolderPeers(ctx context.Context, ch *channel.Channel, sync
 	if err != nil || cfg.SessionCipher == "" {
 		return nil, err
 	}
-	var folders []FolderDTO
-	if err := m.withClient(ctx, ch, func(ctx context.Context, cli LiveClient) error {
-		var err error
-		folders, err = cli.ListFolders(ctx)
-		return err
-	}); err != nil {
+	folders, err := m.fetchFolders(ctx, ch)
+	if err != nil {
 		return nil, err
 	}
 	wanted := make(map[int]bool, len(syncCfg.FolderIDs))
@@ -676,6 +742,7 @@ func (m *Manager) syncFolderPeers(ctx context.Context, ch *channel.Channel, sync
 		r.setPeers(merged)
 	}
 	m.runnersMu.RUnlock()
+	m.publishAccountCtrl(ch.ID, ctrlReload)
 	return saved, nil
 }
 
@@ -715,6 +782,7 @@ func (m *Manager) ReconnectAccount(ctx context.Context, sub identity.Subject, id
 		return nil, err
 	}
 	m.stopRunner(id)
+	m.publishAccountCtrl(id, ctrlRestart)
 	m.wake()
 	slog.InfoContext(ctx, "telegram personal account manual reconnect requested", "channel_id", id)
 	dto, err := toAccountDTO(updated)
@@ -771,6 +839,7 @@ func (m *Manager) DisconnectAccount(ctx context.Context, sub identity.Subject, i
 		return err
 	}
 	m.stopRunner(id)
+	m.publishAccountCtrl(id, ctrlDisconnect)
 	m.wake()
 	return nil
 }
@@ -796,12 +865,8 @@ func (m *Manager) ListDialogs(ctx context.Context, sub identity.Subject, id stri
 		syncedSet[p.ExternalChatID] = true
 	}
 
-	var dialogs []DialogDTO
-	if err := m.withClient(ctx, ch, func(ctx context.Context, cli LiveClient) error {
-		var err error
-		dialogs, err = cli.ListDialogs(ctx, 300)
-		return err
-	}); err != nil {
+	dialogs, err := m.fetchDialogs(ctx, ch, 300)
+	if err != nil {
 		return nil, err
 	}
 	for i := range dialogs {
@@ -830,12 +895,8 @@ func (m *Manager) ListFolders(ctx context.Context, sub identity.Subject, id stri
 	for _, fid := range cfg.resolvedSync().FolderIDs {
 		selected[fid] = true
 	}
-	var folders []FolderDTO
-	if err := m.withClient(ctx, ch, func(ctx context.Context, cli LiveClient) error {
-		var err error
-		folders, err = cli.ListFolders(ctx)
-		return err
-	}); err != nil {
+	folders, err := m.fetchFolders(ctx, ch)
+	if err != nil {
 		return nil, err
 	}
 	for i := range folders {
@@ -913,12 +974,13 @@ func (m *Manager) UpdateSyncedPeers(ctx context.Context, sub identity.Subject, i
 		return nil, err
 	}
 
-	// 立即更新内存中的同步白名单
+	// 立即更新内存中的同步白名单并广播到持有长连接的实例
 	m.runnersMu.RLock()
 	if r := m.runners[id]; r != nil {
 		r.setPeers(clean)
 	}
 	m.runnersMu.RUnlock()
+	m.publishAccountCtrl(id, ctrlReload)
 
 	// 对新勾选的会话按需拉取最近历史消息（单条失败记警告日志，不阻塞配置保存）
 	if backfillLimit > 0 && len(added) > 0 && m.receive != nil {
@@ -970,55 +1032,52 @@ func (m *Manager) BackfillPeer(ctx context.Context, sub identity.Subject, id, ex
 		return 0, nil
 	}
 	syncCfg := cfg.resolvedSync()
+	msgs, err := m.fetchHistory(ctx, ch, *target, limit)
+	if err != nil {
+		return 0, err
+	}
 	imported := 0
-	err = m.withClient(ctx, ch, func(ctx context.Context, cli LiveClient) error {
-		msgs, err := cli.FetchHistory(ctx, *target, limit)
+	for _, msg := range msgs {
+		added, err := m.ingestMessage(ctx, ch, syncCfg, nil, *target, msg, true)
 		if err != nil {
-			return err
+			slog.WarnContext(ctx, "manual backfill telegram message failed", "channel_id", ch.ID, "peer", target.ExternalChatID, "error", err)
+			continue
 		}
-		for _, msg := range msgs {
-			added, err := m.ingestMessage(ctx, ch, syncCfg, nil, *target, msg, true)
-			if err != nil {
-				slog.WarnContext(ctx, "manual backfill telegram message failed", "channel_id", ch.ID, "peer", target.ExternalChatID, "error", err)
-				continue
-			}
-			if added {
-				imported++
-			}
+		if added {
+			imported++
 		}
-		return nil
-	})
-	return imported, err
+	}
+	return imported, nil
 }
 
 func (m *Manager) backfillPeers(ctx context.Context, ch *channel.Channel, syncCfg SyncConfig, peers []SyncedPeer, limit int) error {
-	return m.withClient(ctx, ch, func(ctx context.Context, cli LiveClient) error {
-		for _, peer := range peers {
-			msgs, err := cli.FetchHistory(ctx, peer, limit)
-			if err != nil {
-				slog.WarnContext(ctx, "fetch telegram peer history failed", "channel_id", ch.ID, "peer", peer.ExternalChatID, "error", err)
-				continue
-			}
-			for _, msg := range msgs {
-				if _, err := m.ingestMessage(ctx, ch, syncCfg, nil, peer, msg, true); err != nil {
-					slog.WarnContext(ctx, "ingest telegram history message failed", "channel_id", ch.ID, "peer", peer.ExternalChatID, "error", err)
-				}
-			}
+	for _, peer := range peers {
+		msgs, err := m.fetchHistory(ctx, ch, peer, limit)
+		if err != nil {
+			slog.WarnContext(ctx, "fetch telegram peer history failed", "channel_id", ch.ID, "peer", peer.ExternalChatID, "error", err)
+			continue
 		}
-		return nil
-	})
-}
-
-// withClient 优先复用已在线的 LiveClient；若长连接不在本进程（例如独立 worker 进程），则以加密会话临时建立一次连接执行。
-func (m *Manager) withClient(ctx context.Context, ch *channel.Channel, fn func(context.Context, LiveClient) error) error {
-	m.runnersMu.RLock()
-	r := m.runners[ch.ID]
-	m.runnersMu.RUnlock()
-	if r != nil {
-		if cli := r.getClient(); cli != nil {
-			return fn(ctx, cli)
+		for _, msg := range msgs {
+			if _, err := m.ingestMessage(ctx, ch, syncCfg, nil, peer, msg, true); err != nil {
+				slog.WarnContext(ctx, "ingest telegram history message failed", "channel_id", ch.ID, "peer", peer.ExternalChatID, "error", err)
+			}
 		}
 	}
+	return nil
+}
+
+func (m *Manager) localClient(channelID string) LiveClient {
+	m.runnersMu.RLock()
+	r := m.runners[channelID]
+	m.runnersMu.RUnlock()
+	if r == nil {
+		return nil
+	}
+	return r.getClient()
+}
+
+// withOneShotClient 仅在无 NATS 的单进程场景下使用已加密会话临时连接 Telegram。
+func (m *Manager) withOneShotClient(ctx context.Context, ch *channel.Channel, fn func(context.Context, LiveClient) error) error {
 	creds, err := m.credentials(ctx, ch.TenantID)
 	if err != nil {
 		return err
@@ -1027,11 +1086,72 @@ func (m *Manager) withClient(ctx context.Context, ch *channel.Channel, fn func(c
 	return m.backend.RunOneShot(ctx, mtprotoConfig(creds), storage, fn)
 }
 
+func (m *Manager) fetchDialogs(ctx context.Context, ch *channel.Channel, limit int) ([]DialogDTO, error) {
+	if cli := m.localClient(ch.ID); cli != nil {
+		return cli.ListDialogs(ctx, limit)
+	}
+	if m.nc != nil {
+		resp, err := m.requestAccountRPC(ctx, ch.ID, accountRPCRequest{Op: "list_dialogs", Limit: limit}, rpcCallTimeout)
+		if err != nil {
+			return nil, err
+		}
+		return resp.Dialogs, nil
+	}
+	var out []DialogDTO
+	err := m.withOneShotClient(ctx, ch, func(ctx context.Context, cli LiveClient) error {
+		var err error
+		out, err = cli.ListDialogs(ctx, limit)
+		return err
+	})
+	return out, err
+}
+
+func (m *Manager) fetchFolders(ctx context.Context, ch *channel.Channel) ([]FolderDTO, error) {
+	if cli := m.localClient(ch.ID); cli != nil {
+		return cli.ListFolders(ctx)
+	}
+	if m.nc != nil {
+		resp, err := m.requestAccountRPC(ctx, ch.ID, accountRPCRequest{Op: "list_folders"}, rpcCallTimeout)
+		if err != nil {
+			return nil, err
+		}
+		return resp.Folders, nil
+	}
+	var out []FolderDTO
+	err := m.withOneShotClient(ctx, ch, func(ctx context.Context, cli LiveClient) error {
+		var err error
+		out, err = cli.ListFolders(ctx)
+		return err
+	})
+	return out, err
+}
+
+func (m *Manager) fetchHistory(ctx context.Context, ch *channel.Channel, peer SyncedPeer, limit int) ([]IncomingMessage, error) {
+	if cli := m.localClient(ch.ID); cli != nil {
+		return cli.FetchHistory(ctx, peer, limit)
+	}
+	if m.nc != nil {
+		resp, err := m.requestAccountRPC(ctx, ch.ID, accountRPCRequest{Op: "fetch_history", Peer: peer, Limit: limit}, rpcCallTimeout)
+		if err != nil {
+			return nil, err
+		}
+		return resp.History, nil
+	}
+	var out []IncomingMessage
+	err := m.withOneShotClient(ctx, ch, func(ctx context.Context, cli LiveClient) error {
+		var err error
+		out, err = cli.FetchHistory(ctx, peer, limit)
+		return err
+	})
+	return out, err
+}
+
 // Run 常驻同步循环：按周期或变更通知自动为每个启用且已授权的 Telegram 个人号维护 MTProto 长连接。
 func (m *Manager) Run(ctx context.Context) error {
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 	defer m.stopAllRunners()
+	defer m.closeAllLogins()
 
 	m.reconcile(ctx)
 	for {
@@ -1121,7 +1241,24 @@ func (m *Manager) runLoop(ctx context.Context, mc MTProtoConfig, ch *channel.Cha
 			return
 		}
 		runOnce := func(runCtx context.Context) error {
-			return m.backend.RunAccount(runCtx, mc, storage,
+			runCtx, cancelRun := context.WithCancel(runCtx)
+			defer cancelRun()
+
+			var restartRequested atomic.Bool
+			var subsMu sync.Mutex
+			var subs []*nats.Subscription
+			cleanupSubs := func() {
+				subsMu.Lock()
+				list := subs
+				subs = nil
+				subsMu.Unlock()
+				for _, s := range list {
+					_ = s.Unsubscribe()
+				}
+			}
+			defer cleanupSubs()
+
+			runErr := m.backend.RunAccount(runCtx, mc, storage,
 				func(msgCtx context.Context, msg IncomingMessage) error {
 					peer, ok := runner.lookupPeer(msg.ExternalChatID)
 					if !ok {
@@ -1134,10 +1271,35 @@ func (m *Manager) runLoop(ctx context.Context, mc MTProtoConfig, ch *channel.Cha
 				func(cli LiveClient) {
 					runner.setClient(cli)
 					backoff = 3 * time.Second
+					if m.nc != nil {
+						if rpcSub, subErr := m.nc.Subscribe(natsRPCPrefix+ch.ID, func(msg *nats.Msg) {
+							go m.handleAccountRPC(runCtx, ch, cli, msg)
+						}); subErr != nil {
+							slog.WarnContext(runCtx, "subscribe tgaccount nats rpc failed", "channel_id", ch.ID, "error", subErr)
+						} else {
+							subsMu.Lock()
+							subs = append(subs, rpcSub)
+							subsMu.Unlock()
+						}
+						if ctrlSub, subErr := m.nc.Subscribe(natsCtrlPrefix+ch.ID, func(msg *nats.Msg) {
+							m.handleAccountCtrl(runCtx, ch.TenantID, ch.ID, runner, &restartRequested, cancelRun, msg.Data)
+						}); subErr != nil {
+							slog.WarnContext(runCtx, "subscribe tgaccount nats ctrl failed", "channel_id", ch.ID, "error", subErr)
+						} else {
+							subsMu.Lock()
+							subs = append(subs, ctrlSub)
+							subsMu.Unlock()
+						}
+						_ = m.nc.Flush()
+					}
 					m.recordStatus(runCtx, ch.TenantID, ch.ID, StatusConnected, "")
 					slog.InfoContext(runCtx, "telegram personal account connected", "channel_id", ch.ID)
 				},
 			)
+			if restartRequested.Load() && ctx.Err() == nil {
+				return errRestartRequested
+			}
+			return runErr
 		}
 		var err error
 		if m.locker != nil {
@@ -1149,14 +1311,34 @@ func (m *Manager) runLoop(ctx context.Context, mc MTProtoConfig, ch *channel.Cha
 		if ctx.Err() != nil {
 			return
 		}
-		if errors.Is(err, lock.ErrNotHeld) {
-			// 其他实例持有该账号的连接租约，静默退避后重试抢占
+		if errors.Is(err, lock.ErrNotAcquired) {
+			// 其他实例持有该账号的连接租约，静默退避后重试抢占，不覆盖在线状态
 			select {
 			case <-ctx.Done():
 				return
 			case <-time.After(10 * time.Second):
 			}
 			continue
+		}
+		if errors.Is(err, lock.ErrNotHeld) {
+			// 本实例持有的连接租约过期丢失，不再写回 disconnected 以免覆盖新接管实例状态
+			slog.WarnContext(ctx, "telegram personal account lease lost", "channel_id", ch.ID, "error", err)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(2 * time.Second):
+			}
+			continue
+		}
+		if errors.Is(err, errRestartRequested) {
+			slog.InfoContext(ctx, "telegram personal account restart requested", "channel_id", ch.ID)
+			m.runnersMu.Lock()
+			if m.runners[ch.ID] == runner {
+				delete(m.runners, ch.ID)
+			}
+			m.runnersMu.Unlock()
+			m.wake()
+			return
 		}
 		if errors.Is(err, ErrNotConnected) {
 			m.recordStatus(context.Background(), ch.TenantID, ch.ID, StatusAuthExpired, err.Error())
@@ -1330,7 +1512,7 @@ func (connector) Capabilities() channel.Capabilities {
 	}
 }
 
-// FetchMedia 实现 channel.MediaFetcher：通过已在线的 MTProto 会话或临时连接流式下载 Telegram 个人号收到的媒体附件。
+// FetchMedia 实现 channel.MediaFetcher：优先通过本地或跨实例 NATS RPC 拉取媒体；无 NATS 时在连接保持到流关闭的前提下临时拉取。
 func (c connector) FetchMedia(ctx context.Context, ch *channel.Channel, ref string, maxBytes int64) (*channel.FetchedMedia, error) {
 	if strings.TrimSpace(ref) == "" {
 		return nil, channel.ErrMediaUnavailable.New()
@@ -1342,15 +1524,67 @@ func (c connector) FetchMedia(ctx context.Context, ch *channel.Channel, ref stri
 	if cfg.SessionCipher == "" {
 		return nil, ErrNotConnected.New()
 	}
-	var fetched *channel.FetchedMedia
-	if err := c.mgr.withClient(ctx, ch, func(ctx context.Context, cli LiveClient) error {
-		var err error
-		fetched, err = cli.DownloadMedia(ctx, ref, maxBytes)
-		return err
-	}); err != nil {
-		return nil, err
+	if cli := c.mgr.localClient(ch.ID); cli != nil {
+		return cli.DownloadMedia(ctx, ref, maxBytes)
 	}
-	return fetched, nil
+	if c.mgr.nc != nil {
+		return c.mgr.rpcFetchMedia(ctx, ch, ref, maxBytes)
+	}
+	return c.fetchMediaOneShot(ctx, ch, ref, maxBytes)
+}
+
+func (c connector) fetchMediaOneShot(ctx context.Context, ch *channel.Channel, ref string, maxBytes int64) (*channel.FetchedMedia, error) {
+	runCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	readyCh := make(chan *channel.FetchedMedia, 1)
+	errCh := make(chan error, 1)
+	doneCh := make(chan struct{})
+	var finishOnce sync.Once
+	finish := func() {
+		finishOnce.Do(func() {
+			close(doneCh)
+			cancel()
+		})
+	}
+
+	go func() {
+		err := c.mgr.withOneShotClient(runCtx, ch, func(fnCtx context.Context, cli LiveClient) error {
+			fetched, err := cli.DownloadMedia(fnCtx, ref, maxBytes)
+			if err != nil {
+				return err
+			}
+			origBody := fetched.Body
+			fetched.Body = &cleanupReadCloser{
+				ReadCloser: origBody,
+				onClose:    finish,
+			}
+			select {
+			case readyCh <- fetched:
+			case <-fnCtx.Done():
+				_ = origBody.Close()
+				return fnCtx.Err()
+			}
+			select {
+			case <-doneCh:
+				return nil
+			case <-runCtx.Done():
+				return runCtx.Err()
+			}
+		})
+		if err != nil {
+			errCh <- err
+		}
+	}()
+
+	select {
+	case fetched := <-readyCh:
+		return fetched, nil
+	case err := <-errCh:
+		finish()
+		return nil, err
+	case <-ctx.Done():
+		finish()
+		return nil, ctx.Err()
+	}
 }
 
 // Send 将时间线中的商务回复（文字及可选附件）经成员绑定的 Telegram 个人号发往目标 1:1 单聊或外部群聊。
@@ -1377,37 +1611,18 @@ func (c connector) Send(ctx context.Context, m channel.Outgoing) (string, bool, 
 	}
 
 	var lastMsgID int
-	err = c.mgr.withClient(ctx, m.Channel, func(ctx context.Context, cli LiveClient) error {
-		if len(m.Attachments) == 0 {
-			var err error
-			lastMsgID, err = cli.SendText(ctx, *target, m.Text)
-			return err
-		}
-		if c.mgr.files == nil {
-			return errors.New("tgaccount: filesystem service is required to send attachments")
-		}
-		for i, att := range m.Attachments {
-			fileUUID, err := uuid.Parse(att.FileID)
-			if err != nil {
-				return errors.Wrap(err, "parse attachment file id")
-			}
-			rc, _, err := c.mgr.files.Open(ctx, fileUUID)
-			if err != nil {
-				return errors.Wrap(err, "open attachment file")
-			}
-			caption := ""
-			if i == 0 {
-				caption = m.Text
-			}
-			msgID, sendErr := cli.SendMedia(ctx, *target, att, rc, caption)
-			_ = rc.Close()
-			if sendErr != nil {
-				return sendErr
-			}
-			lastMsgID = msgID
-		}
-		return nil
-	})
+	switch {
+	case c.mgr.localClient(m.Channel.ID) != nil:
+		lastMsgID, err = c.sendWithClient(ctx, c.mgr.localClient(m.Channel.ID), *target, m)
+	case c.mgr.nc != nil:
+		lastMsgID, err = c.sendViaRPC(ctx, m.Channel.ID, *target, m)
+	default:
+		err = c.mgr.withOneShotClient(ctx, m.Channel, func(ctx context.Context, cli LiveClient) error {
+			var sendErr error
+			lastMsgID, sendErr = c.sendWithClient(ctx, cli, *target, m)
+			return sendErr
+		})
+	}
 	if err != nil {
 		return "", false, err
 	}
@@ -1415,4 +1630,73 @@ func (c connector) Send(ctx context.Context, m channel.Outgoing) (string, bool, 
 		return fmt.Sprintf("%s:%s", target.ExternalChatID, m.ItemID), true, nil
 	}
 	return formatExternalMessageID(target.ExternalChatID, lastMsgID), true, nil
+}
+
+func (c connector) sendWithClient(ctx context.Context, cli LiveClient, target SyncedPeer, m channel.Outgoing) (int, error) {
+	if len(m.Attachments) == 0 {
+		return cli.SendText(ctx, target, m.Text, deterministicRandomID(m.ItemID, 0))
+	}
+	if c.mgr.files == nil {
+		return 0, errors.New("tgaccount: filesystem service is required to send attachments")
+	}
+	var lastMsgID int
+	for i, att := range m.Attachments {
+		fileUUID, err := uuid.Parse(att.FileID)
+		if err != nil {
+			return 0, errors.Wrap(err, "parse attachment file id")
+		}
+		rc, _, err := c.mgr.files.Open(ctx, fileUUID)
+		if err != nil {
+			return 0, errors.Wrap(err, "open attachment file")
+		}
+		caption := ""
+		if i == 0 {
+			caption = m.Text
+		}
+		msgID, sendErr := cli.SendMedia(ctx, target, att, rc, caption, deterministicRandomID(m.ItemID, i))
+		_ = rc.Close()
+		if sendErr != nil {
+			return 0, sendErr
+		}
+		lastMsgID = msgID
+	}
+	return lastMsgID, nil
+}
+
+func (c connector) sendViaRPC(ctx context.Context, channelID string, target SyncedPeer, m channel.Outgoing) (int, error) {
+	if len(m.Attachments) == 0 {
+		resp, err := c.mgr.requestAccountRPC(ctx, channelID, accountRPCRequest{
+			Op:       "send_text",
+			Peer:     target,
+			Text:     m.Text,
+			RandomID: deterministicRandomID(m.ItemID, 0),
+		}, rpcCallTimeout)
+		if err != nil {
+			return 0, err
+		}
+		return resp.MessageID, nil
+	}
+	if c.mgr.files == nil {
+		return 0, errors.New("tgaccount: filesystem service is required to send attachments")
+	}
+	var lastMsgID int
+	for i, att := range m.Attachments {
+		attCopy := att
+		caption := ""
+		if i == 0 {
+			caption = m.Text
+		}
+		resp, err := c.mgr.requestAccountRPC(ctx, channelID, accountRPCRequest{
+			Op:         "send_media",
+			Peer:       target,
+			Attachment: &attCopy,
+			Caption:    caption,
+			RandomID:   deterministicRandomID(m.ItemID, i),
+		}, mediaRPCTimeout)
+		if err != nil {
+			return 0, err
+		}
+		lastMsgID = resp.MessageID
+	}
+	return lastMsgID, nil
 }

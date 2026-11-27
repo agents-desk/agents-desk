@@ -442,6 +442,7 @@ tgaccount.invalid_proxy_url: 代理地址格式无效，请使用 socks5://host:
 tgaccount.login_not_found: 登录会话不存在或已过期，请重新发起登录
 tgaccount.login_failed: Telegram 登录验证失败，请核对验证码或两步验证密码后重试
 tgaccount.not_connected: 该 Telegram 个人号尚未连接或授权已失效，请重新登录
+tgaccount.temporarily_unavailable: 该 Telegram 个人号正在连接切换中，请稍后重试
 tgaccount.peer_not_found: 目标 Telegram 对话不在同步列表中，请先将其加入同步白名单
 tgaccount.phone_required: 请输入带国际区号的手机号（例如 +8613800138000）
 tgaccount.status.connected: 已连接
@@ -470,6 +471,8 @@ notification.tenants.export_failed.body: 后台导出工作区时发生错误，
 
 queue.topic.conversation.deliver.label: 会话消息投递
 queue.topic.conversation.deliver.description: 将客服回复和系统消息投递至外部渠道或网页聊天插件
+queue.topic.conversation.media_ingest.label: 外部渠道媒体拉取
+queue.topic.conversation.media_ingest.description: 异步下载外部渠道消息附带的缩略图、语音与小文件并保存到存储
 queue.topic.conversation.translate.label: 会话消息翻译
 queue.topic.conversation.translate.description: 自动识别客户语言并翻译新收到的会话消息
 queue.topic.translation.fill.label: 历史消息补译
@@ -514,6 +517,8 @@ schedule.task.files_cleanup.label: 清理过期文件
 schedule.task.files_cleanup.description: 删除过期的临时文件和已删除的文件
 schedule.task.media_evict_cache.label: 回收冷视频缓存
 schedule.task.media_evict_cache.description: 回收超过 30 天的外部渠道视频本地缓存，保留封面和远端引用以便按需重拉
+schedule.task.media_recover_fetching.label: 恢复超时未完成的媒体拉取
+schedule.task.media_recover_fetching.description: 将超过 5 分钟仍停留在拉取中的远端附件回退为未下载状态，以便坐席重新触发拉取
 schedule.task.locks_cleanup.label: 清理过期锁
 schedule.task.locks_cleanup.description: 删除过期的分布式锁记录
 schedule.task.apitoken_cleanup.label: 清理过期令牌

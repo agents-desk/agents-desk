@@ -65,11 +65,60 @@ func (a *Deliver) Job(ctx context.Context, p Appended) error {
 	}
 	var d Delivery
 	err = a.db.NewSelect().Model(&d).Where("item_id = ?", it.ID).Scan(ctx)
-	if errors.Is(err, sql.ErrNoRows) || (err == nil && d.Status != Sending) {
+	if errors.Is(err, sql.ErrNoRows) || (err == nil && d.Status == Delivered) {
 		return nil
 	}
 	if err != nil {
 		return errors.Wrap(err, "load delivery")
+	}
+	if d.Status == Failed {
+		// 失败任务被人工重新入队时，按统一锁序恢复为发送中并清除失败标志。
+		reclaimed := false
+		if err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
+			if _, err := find(ctx, tx, p.TenantID, p.ConversationID, true); err != nil {
+				return err
+			}
+			var lockedItem Item
+			err := tx.NewSelect().Model(&lockedItem).Where("id = ? AND tenant_id = ?", it.ID, p.TenantID).For("UPDATE").Scan(ctx)
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil
+			}
+			if err != nil {
+				return errors.Wrap(err, "lock item for dead delivery retry")
+			}
+			res, err := tx.NewUpdate().Model((*Delivery)(nil)).
+				Set("status = ?", Sending).Set("error = ''").Set("updated_at = ?", now()).
+				Where("item_id = ? AND status = ?", it.ID, Failed).Exec(ctx)
+			if err != nil {
+				return errors.Wrap(err, "reclaim failed delivery")
+			}
+			affected, err := res.RowsAffected()
+			if err != nil {
+				return errors.Wrap(err, "reclaim failed delivery")
+			}
+			if affected == 0 {
+				return nil
+			}
+			if lockedItem.Derived != nil {
+				if _, hasFail := lockedItem.Derived["translation_failed"]; hasFail {
+					delete(lockedItem.Derived, "translation_failed")
+					if _, err := tx.NewUpdate().Model((*Item)(nil)).Set("derived = ?", lockedItem.Derived).
+						Where("id = ? AND tenant_id = ?", it.ID, p.TenantID).Exec(ctx); err != nil {
+						return errors.Wrap(err, "clear translation failed on delivery retry")
+					}
+				}
+			}
+			it.Derived = lockedItem.Derived
+			reclaimed = true
+			return NotifyUpdated(ctx, tx, a.down, p.TenantID, []string{p.ConversationID})
+		}); err != nil {
+			return err
+		}
+		if !reclaimed {
+			return nil
+		}
+	} else if d.Status != Sending {
+		return nil
 	}
 	c, err := find(ctx, a.db, p.TenantID, p.ConversationID, false)
 	if err != nil {

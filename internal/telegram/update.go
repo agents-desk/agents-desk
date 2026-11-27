@@ -51,7 +51,7 @@ func NewUpdate(db *bun.DB, c *crypt.Crypt, client *Client, publicURL string) *Up
 }
 
 // Handle 修改 sub 所在工作区中的 Telegram 渠道 id 并记录操作日志。
-// 若提供了新 BotToken 会先经 getMe 校验；直连模式下按启用状态自动同步 setWebhook 或 deleteWebhook，外部网关转发模式不触碰 Telegram Webhook。
+// 若提供了新 BotToken 会先经 getMe 校验；直连模式下先同步调用 setWebhook 或 deleteWebhook 成功后再提交数据库更新，确保状态一致。
 func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b UpdateBody) (*TelegramDTO, error) {
 	newToken := strings.TrimSpace(b.BotToken)
 	var newBot BotInfo
@@ -61,10 +61,46 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 			return nil, err
 		}
 	}
-	var syncAction string // "set" | "delete" | ""
-	var syncToken, syncSecret string
 
-	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
+	cur, err := find(ctx, a.db, sub.Tenant, id, false)
+	if err != nil {
+		return nil, err
+	}
+	if !sameTeam(cur.TeamID, b.TeamID) {
+		if err := checkTeam(ctx, a.db, sub.Tenant, b.TeamID); err != nil {
+			return nil, err
+		}
+	}
+	curSettings, err := settingsOf(cur)
+	if err != nil {
+		return nil, err
+	}
+	enabledChanged := cur.Enabled != b.Enabled
+	modeChanged := curSettings.GatewayManaged != b.GatewayManaged
+	if !b.GatewayManaged && (enabledChanged || modeChanged || newToken != "") {
+		syncToken := newToken
+		if syncToken == "" {
+			syncToken, err = a.crypt.Decrypt(curSettings.BotToken)
+			if err != nil {
+				return nil, errors.Wrap(err, "decrypt telegram bot token")
+			}
+		}
+		if b.Enabled {
+			syncSecret, err := a.crypt.Decrypt(curSettings.WebhookSecret)
+			if err != nil {
+				return nil, errors.Wrap(err, "decrypt telegram webhook secret")
+			}
+			if err := a.client.SetWebhook(ctx, syncToken, webhookURL(a.publicURL, id), syncSecret); err != nil {
+				slog.WarnContext(ctx, "telegram setWebhook failed on update", "channel_id", id, "error", err)
+				return nil, err
+			}
+		} else if err := a.client.DeleteWebhook(ctx, syncToken); err != nil {
+			slog.WarnContext(ctx, "telegram deleteWebhook failed on disable", "channel_id", id, "error", err)
+			return nil, err
+		}
+	}
+
+	err = database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		ch, err := find(ctx, tx, sub.Tenant, id, true)
 		if err != nil {
 			return err
@@ -89,13 +125,10 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 		if !sameTeam(ch.TeamID, b.TeamID) {
 			changed = append(changed, "team_id")
 		}
-		enabledChanged := ch.Enabled != b.Enabled
-		if enabledChanged {
+		if ch.Enabled != b.Enabled {
 			changed = append(changed, "enabled")
 		}
-		modeChanged := s.GatewayManaged != b.GatewayManaged
-		groupsChanged := b.EnableGroups != nil && s.GroupsEnabled() != *b.EnableGroups
-		if modeChanged || groupsChanged || newToken != "" {
+		if s.GatewayManaged != b.GatewayManaged || (b.EnableGroups != nil && s.GroupsEnabled() != *b.EnableGroups) || newToken != "" {
 			changed = append(changed, "settings")
 		}
 		if len(changed) == 0 {
@@ -120,42 +153,12 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 		if _, err := tx.NewUpdate().Model(ch).Column("name", "audience", "team_id", "enabled", "settings", "updated_at").WherePK().Exec(ctx); err != nil {
 			return errors.Wrap(err, "update telegram channel")
 		}
-		// 直连模式下：启用态且（首次切直连、重新启用或换 Token）时同步 setWebhook；停用时清理 Webhook。
-		if !s.GatewayManaged && (enabledChanged || modeChanged || newToken != "") {
-			plainToken, err := a.crypt.Decrypt(s.BotToken)
-			if err != nil {
-				return errors.Wrap(err, "decrypt telegram bot token")
-			}
-			syncToken = plainToken
-			if b.Enabled {
-				plainSecret, err := a.crypt.Decrypt(s.WebhookSecret)
-				if err != nil {
-					return errors.Wrap(err, "decrypt telegram webhook secret")
-				}
-				syncSecret = plainSecret
-				syncAction = "set"
-			} else {
-				syncAction = "delete"
-			}
-		}
 		return activity.Record(ctx, tx, sub, activity.Activity{
 			Event: "channel.updated", TargetType: "channel", TargetID: id, Properties: map[string]any{"changed": changed},
 		})
 	})
 	if err != nil {
 		return nil, err
-	}
-	switch syncAction {
-	case "set":
-		if err := a.client.SetWebhook(ctx, syncToken, webhookURL(a.publicURL, id), syncSecret); err != nil {
-			slog.WarnContext(ctx, "telegram setWebhook failed on update", "channel_id", id, "error", err)
-			return nil, err
-		}
-	case "delete":
-		if err := a.client.DeleteWebhook(ctx, syncToken); err != nil {
-			slog.WarnContext(ctx, "telegram deleteWebhook failed on disable", "channel_id", id, "error", err)
-			return nil, err
-		}
 	}
 	return NewGet(a.db).Handle(ctx, sub, id)
 }
