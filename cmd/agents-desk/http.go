@@ -21,12 +21,15 @@ import (
 	"github.com/go-tenon/tenon/httpx/rest"
 	"github.com/go-tenon/tenon/i18n"
 	"github.com/go-tenon/tenon/identity"
+	"github.com/go-tenon/tenon/mcpx"
+	"github.com/go-tenon/tenon/mcpx/opsmcp"
 	"github.com/go-tenon/tenon/natsx"
 	"github.com/go-tenon/tenon/queue"
 	"github.com/go-tenon/tenon/queue/queueapi"
 	"github.com/go-tenon/tenon/ratelimit"
 	"github.com/go-tenon/tenon/realtime"
 	"github.com/go-tenon/tenon/savedview"
+	"github.com/go-tenon/tenon/schedule/pgschedule"
 	"github.com/go-tenon/tenon/schedule/scheduleapi"
 
 	"agents-desk/apps"
@@ -279,6 +282,40 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		scheduleapi.Register(api, require(auth.SchedulesManage), a.db, a.tasks)
 		doctorapi.Register(api, require(auth.SystemRead), a.doctor)
 	})
+
+	// 只读运维排障 MCP：仅接受带 ops:read 权限的平台管理员 Bearer 令牌，供 AI 助手排查线上状态，不暴露任何写操作。
+	if a.adminTokens != nil && a.db != nil {
+		opsDB := a.opsDB
+		if opsDB == nil {
+			opsDB = a.db
+		}
+		var opsOpts []mcpx.ServerOption
+		if a.tel != nil {
+			opsOpts = append(opsOpts, mcpx.WithTelemetry(a.tel.Meters, a.tel.Tracers))
+		}
+		opsSrv := mcpx.New(mcpx.Options{
+			Name:         "agents-desk-ops",
+			Instructions: "agents-desk 线上只读排障工具集：可查看自检、数据库表结构与只读 SQL、队列、定时任务及 NATS JetStream 状态。",
+		}, opsOpts...)
+		regOpts := opsmcp.Options{
+			Permissions:   []string{string(auth.OpsRead)},
+			Doctor:        a.doctor,
+			DB:            opsDB,
+			RedactColumns: []string{"session", "ciphertext", "encrypted"},
+			QueueDB:       opsDB,
+			Schedule:      pgschedule.New(opsDB),
+			NATS:          a.nc,
+		}
+		if a.nc != nil {
+			regOpts.QueueAdmin = queue.NewAdmin(a.nc, a.cfg.Queue)
+		}
+		opsmcp.Register(opsSrv, regOpts)
+		router.Handle("/ops/mcp", mcpx.Handler(opsSrv, mcpx.HandlerOptions{
+			Validate:    a.adminTokens.Validate,
+			Accounts:    identity.Accounts{platformadmin.Type: platformadmin.Resolve(a.db, a.roles)},
+			Permissions: []string{string(auth.OpsRead)},
+		}))
+	}
 
 	// 工作区端的账号级接口：成员的登录、退出、当前账号和所属的工作区。只接受成员，会话 cookie 是 __Host-session（代登时优先读 __Host-impersonation），
 	// AccountScope 放行锁定在单个工作区的代登凭据并保留 Subject.BoundTenant；修改个人资料与密码等敏感路由标有 rest.DirectOnly。

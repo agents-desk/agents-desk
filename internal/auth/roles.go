@@ -15,8 +15,13 @@ var (
 		Name: "platform-admin", Description: "平台管理员",
 		Permissions: []string{
 			string(TenantsRead), string(TenantsManage), string(TenantsImpersonate), string(PlatformAdminsManage), string(PlatformSettingsManage),
-			string(FeaturesManage), string(QueueManage), string(SchedulesManage), string(SystemRead), string(AuditRead),
+			string(FeaturesManage), string(QueueManage), string(SchedulesManage), string(SystemRead), string(OpsRead), string(AuditRead),
 		},
+	}
+	// OpsObserver 是平台只读排障角色，仅包含 ops:read 权限，专供 AI 助手经 /ops/mcp 排查线上状态。
+	OpsObserver = authz.Role{
+		Name: "ops-observer", Description: "只读排障观察者",
+		Permissions: []string{string(OpsRead)},
 	}
 	// Owner 是工作区的主管理员，分配在工作区的域中：每个工作区只有一个，只在管理员端更换。
 	// 他拥有工作区的全部权限，可以看到全部会话；以后加入的操作权限也自动属于他。
@@ -31,7 +36,7 @@ func IsOwner(r authz.Role) bool { return r.Tenant == "" && r.Name == Owner.Name 
 
 // EnsureRoles 确保预置的角色存在且与声明一致，在入口的 open 中调用：重复调用、多个实例同时启动都是安全的。
 func EnsureRoles(ctx context.Context, roles *authz.Store) error {
-	for _, r := range []authz.Role{PlatformAdmin, Owner} {
+	for _, r := range []authz.Role{PlatformAdmin, OpsObserver, Owner} {
 		if _, err := roles.EnsureRole(ctx, r); err != nil {
 			return err
 		}

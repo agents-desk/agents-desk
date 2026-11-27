@@ -1,0 +1,11 @@
+# 部署目标示例：复制整个目录到 deploy/targets/<目标名>/ 并按实际环境修改（deploy/targets/ 不进仓库）。
+instance: helmdesk
+user: ubuntu
+observe_user: observe
+service_user: helmdesk
+dir: /opt/helmdesk
+env_file: /etc/helmdesk/env
+config_files:
+  - ../../../config/prod.yaml
+hosts:
+  - 203.0.113.10

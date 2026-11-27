@@ -8,5 +8,6 @@ bin/
 .idea/
 config/local.yaml
 config/prod.yaml
+deploy/targets/
 # 本地磁盘中上传的文件
 storage/

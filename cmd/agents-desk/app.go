@@ -31,6 +31,7 @@ import (
 	"github.com/go-tenon/tenon/lock/pglock"
 	"github.com/go-tenon/tenon/logging"
 	"github.com/go-tenon/tenon/login"
+	"github.com/go-tenon/tenon/mcpx/opsmcp"
 	"github.com/go-tenon/tenon/natsx"
 	"github.com/go-tenon/tenon/notification"
 	"github.com/go-tenon/tenon/operation"
@@ -70,6 +71,7 @@ import (
 type App struct {
 	cfg   Config
 	db    *bun.DB
+	opsDB *bun.DB // 只读运维排障数据库连接池；未配置 ops_dsn 时与 db 相同
 	nc    *nats.Conn
 	tel   *telemetry.Providers   // OpenTelemetry 指标、链路和日志提供方；离线构造路由时为 nil
 	hub   *broadcast.Hub         // 经 NATS 把消息送到每个实例：实时推送
@@ -138,6 +140,16 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		return nil, err
 	}
 	stack.MustAdd("database", func(context.Context) error { return db.Close() })
+
+	opsDB := db
+	if cfg.OpsDSN != "" {
+		opsDB, err = database.Open(ctx, database.Config{DSN: cfg.OpsDSN, MaxConns: 2},
+			database.ReadOnly(), database.Name("ops"), database.WithTelemetry(tel.Meters, tel.Tracers))
+		if err != nil {
+			return nil, err
+		}
+		stack.MustAdd("ops_database", func(context.Context) error { return opsDB.Close() })
+	}
 
 	nc, err := natsx.Connect(cfg.NATS, "agents-desk")
 	if err != nil {
@@ -219,7 +231,7 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	bizGuard := business.NewPolicyGuard(db, businessPolicy, featureStore, telegramSettings)
 	tgMgr.SetPolicyChecker(bizGuard.CheckConnectTelegram)
 	app := &App{
-		cfg: cfg, db: db, nc: nc, tel: tel, hub: hub, creds: creds, presence: presence, roles: roles,
+		cfg: cfg, db: db, opsDB: opsDB, nc: nc, tel: tel, hub: hub, creds: creds, presence: presence, roles: roles,
 		adminLogins:     adminLogins,
 		adminTokens:     apitoken.NewStore(db, cfg.AdminToken, apitoken.Credentials(creds)),
 		memberLogins:    memberLogins,
@@ -355,6 +367,13 @@ func (a *App) doctor() []doctor.Group {
 	}
 	if a.defaultDisk != nil {
 		groups = append(groups, filesystem.Doctor(a.defaultDisk))
+	}
+	opsDB := a.opsDB
+	if opsDB == nil {
+		opsDB = a.db
+	}
+	if opsDB != nil {
+		groups = append(groups, opsmcp.Doctor(opsDB))
 	}
 	return groups
 }

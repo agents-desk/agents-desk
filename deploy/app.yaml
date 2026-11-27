@@ -1,0 +1,8 @@
+# 应用级部署声明（随仓库提交，仅声明产物信息与公共默认参数）：
+# 各独立实例目录位于 deploy/targets/<name>/（由 .gitignore 忽略），新增实例可复制 deploy/example/。
+app: agents-desk
+keep_releases: 5
+
+defaults:
+  user: ubuntu
+  observe_user: observe

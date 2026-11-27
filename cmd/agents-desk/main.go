@@ -58,6 +58,7 @@ type Config struct {
 	Logs         logging.Config    `yaml:"logs"`
 	Telemetry    telemetry.Config  `yaml:"telemetry"`
 	Database     database.Config   `yaml:"database"`
+	OpsDSN       string            `yaml:"ops_dsn"` // 可选：只读排障数据库连接串（建议使用 pg_read_all_data 角色）；留空时复用主库并在只读事务中执行
 	NATS         natsx.Config      `yaml:"nats"`
 	Queue        queue.Config      `yaml:"queue"`
 	Crypt        crypt.Config      `yaml:"crypt"`
@@ -102,7 +103,7 @@ func main() {
 			queuecmd.New(a.db, queuecmd.WithJetStream(a.nc, a.cfg.Queue)),
 			schedulecmd.New(a.tasks),
 			searchcmd.New(a.db, conversation.SearchIndex),
-			platformadmin.Commands(a.db, a.roles, a.adminLogins),
+			platformadmin.Commands(a.db, a.roles, a.adminLogins, a.adminTokens),
 			seedCommand(a.db, a.roles, a.adminLogins, a.memberLogins, a.files, a.crypt, tenant.Addresses{PublicURL: a.cfg.HTTP.PublicURL}, a.channels, a.downstream()),
 			devCommands(a),
 		}

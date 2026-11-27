@@ -25,6 +25,7 @@ const (
 	QueueManage            Permission = "queue:manage"             // 平台：查看队列状态、重试/删除失败任务、暂停/恢复 topic
 	SchedulesManage        Permission = "schedules:manage"         // 平台：查看定时任务与执行记录、立即执行任务
 	SystemRead             Permission = "system:read"              // 平台：查看运行环境自检报告
+	OpsRead                Permission = "ops:read"                 // 平台：只读线上排障诊断（MCP）
 	AuditRead              Permission = "audit:read"               // 平台：查看平台操作日志
 
 	MembersRead            Permission = "members:read"             // 工作区：查看成员
@@ -52,7 +53,7 @@ const (
 
 // Permissions 是全部权限，显示文字是翻译文件中 permission.<权限> 的消息。
 var Permissions = enum.New("permission", enum.Item(TenantsRead), enum.Item(TenantsManage), enum.Item(TenantsImpersonate), enum.Item(PlatformAdminsManage), enum.Item(PlatformSettingsManage),
-	enum.Item(FeaturesManage), enum.Item(QueueManage), enum.Item(SchedulesManage), enum.Item(SystemRead), enum.Item(AuditRead),
+	enum.Item(FeaturesManage), enum.Item(QueueManage), enum.Item(SchedulesManage), enum.Item(SystemRead), enum.Item(OpsRead), enum.Item(AuditRead),
 	enum.Item(MembersRead), enum.Item(MembersManage), enum.Item(TenantSettingsManage), enum.Item(TeamsRead), enum.Item(TeamsManage), enum.Item(ChannelsRead), enum.Item(ChannelsManage), enum.Item(BusinessChannelsUse), enum.Item(BusinessChannelsManage), enum.Item(MacrosManage), enum.Item(ViewsManage), enum.Item(ReportsRead),
 	enum.Item(ConversationsRead), enum.Item(ConversationsReply), enum.Item(ConversationsAssign), enum.Item(ConversationsReadAll), enum.Item(ConversationsReadTeam),
 	enum.Item(ContactsRead), enum.Item(ContactsUpdate), enum.Item(ContactsExport), enum.Item(TicketTypesManage))
@@ -71,6 +72,7 @@ var Catalog = authz.Catalog{
 	{Name: string(QueueManage), Description: "管理队列"},
 	{Name: string(SchedulesManage), Description: "管理定时任务"},
 	{Name: string(SystemRead), Description: "查看系统自检"},
+	{Name: string(OpsRead), Description: "只读线上排障诊断"},
 	{Name: string(AuditRead), Description: "查看操作日志"},
 	{Name: string(MembersRead), Description: "查看成员"},
 	{Name: string(MembersManage), Description: "管理成员和角色"},

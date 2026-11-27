@@ -93,6 +93,7 @@ tenant.status.disabled: 已停用
 "permission.queue:manage": 管理队列
 "permission.schedules:manage": 管理定时任务
 "permission.system:read": 查看系统自检
+"permission.ops:read": 只读线上排障诊断
 "permission.audit:read": 查看操作日志
 "permission.members:read": 查看成员
 "permission.members:manage": 管理成员和角色

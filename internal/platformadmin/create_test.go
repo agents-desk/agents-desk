@@ -74,7 +74,7 @@ func TestCreateCommandReadsPasswordFromStdin(t *testing.T) {
 	t.Parallel()
 	env := apptest.New(t)
 
-	cmd := platformadmin.Commands(env.DB, env.Roles, env.AdminLogins)
+	cmd := platformadmin.Commands(env.DB, env.Roles, env.AdminLogins, nil)
 	var out bytes.Buffer
 	cmd.SetIn(strings.NewReader("secret-pass-123\n"))
 	cmd.SetOut(&out)

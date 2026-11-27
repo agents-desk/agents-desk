@@ -19,6 +19,7 @@ export const permissions = {
   "macros:manage": "管理共享的快捷回复",
   "members:manage": "管理成员和角色",
   "members:read": "查看成员",
+  "ops:read": "只读线上排障诊断",
   "platform-admins:manage": "管理平台管理员",
   "platform-settings:manage": "修改平台设置",
   "queue:manage": "管理队列",

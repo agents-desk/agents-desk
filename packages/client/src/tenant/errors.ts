@@ -147,6 +147,14 @@ export const LoginErrors = {
   TwoFactorDisabled: "login.two_factor_disabled",
 } as const
 
+/** github.com/go-tenon/tenon/mcpx/opsmcp 的错误码。 */
+export const OpsmcpErrors = {
+  /** ErrQueryRejected 表示查询在执行前被护栏拒绝（例如空语句、多语句、非只读语句或未满足只读角色约束）。 */
+  QueryRejected: "ops.query_rejected",
+  /** ErrQueryFailed 表示数据库或外部依赖执行只读查询时返回错误。 */
+  QueryFailed: "ops.query_failed",
+} as const
+
 /** github.com/go-tenon/tenon/notification 的错误码。 */
 export const NotificationErrors = {
   /** ErrNotFound 表示通知不存在或不属于该收件人。 */
