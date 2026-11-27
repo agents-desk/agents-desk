@@ -1,8 +1,9 @@
 import type { MemberNotificationSettings } from "@agents-desk/client/api"
 import type { useT } from "@go-tenon/ui"
 import { tenantApi } from "../api"
-import { contactDisplayName } from "../contacts/display"
+import { chatDisplayName } from "../chat/data"
 import { previewSummary } from "./Attachments"
+import { contactName } from "./List"
 
 type Translate = ReturnType<typeof useT>
 
@@ -68,6 +69,7 @@ function isViewingConversation(slug: string, conversationId: string): boolean {
  */
 export function dispatchPushAlert({
   slug,
+  kind = "conversation",
   conversationId,
   alert,
   settings,
@@ -75,6 +77,7 @@ export function dispatchPushAlert({
   onOpen,
 }: {
   slug: string
+  kind?: string
   conversationId: string
   alert: PushAlert
   settings?: MemberNotificationSettings
@@ -98,28 +101,42 @@ export function dispatchPushAlert({
     return
   }
 
-  void showBrowserNotification(conversationId, alert, t, onOpen)
+  void showBrowserNotification(kind, conversationId, alert, t, onOpen)
 }
 
 async function showBrowserNotification(
+  kind: string,
   conversationId: string,
   alert: PushAlert,
   t: Translate,
   onOpen: (conversationId: string) => void,
 ): Promise<void> {
-  let contact = t("inbox.visitor")
+  let targetName = t("inbox.visitor")
   let body = t(`alerts.${alert}_body` as const)
   try {
-    const conv = await tenantApi.conversation.get(conversationId)
-    contact = contactDisplayName(conv.contact, t)
-    const snippet = previewSummary(conv.preview, conv.preview_attachment, t)
-    if (snippet) {
-      body = snippet
+    if (kind === "chat") {
+      const chat = await tenantApi.chat.get(conversationId)
+      targetName = chatDisplayName(chat, t as Parameters<typeof chatDisplayName>[1])
+      const snippet = previewSummary(chat.preview, chat.preview_attachment, t, chat.preview_recalled)
+      if (snippet) {
+        body = snippet
+      }
+    } else if (kind === "ticket") {
+      const ticket = await tenantApi.ticket.get(conversationId)
+      targetName = ticket.title || `#${ticket.number}`
+    } else {
+      const conv = await tenantApi.conversation.get(conversationId)
+      targetName = contactName(conv, t)
+      const snippet = previewSummary(conv.preview, conv.preview_attachment, t, conv.preview_recalled)
+      if (snippet) {
+        body = snippet
+      }
     }
   } catch (err) {
     console.warn("load conversation for desktop notification failed", err)
   }
-  const title = t(`alerts.${alert}_title` as const, { contact })
+  const titleKey = kind === "chat" ? "alerts.chat_title" : kind === "ticket" ? "alerts.ticket_title" : (`alerts.${alert}_title` as const)
+  const title = t(titleKey, { contact: targetName })
   const notif = new Notification(title, { body, tag: `agents-desk:${conversationId}` })
   notif.onclick = () => {
     window.focus()

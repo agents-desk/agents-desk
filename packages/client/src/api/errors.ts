@@ -161,6 +161,8 @@ export const ConversationErrors = {
   ChatOwnerProtected: "chat.owner_protected",
   /** ErrChatContactProtected 是不能移出外部联系人参与者。 */
   ChatContactProtected: "chat.contact_protected",
+  /** ErrAutoTranslateFailed 表示发出前的后台自动翻译失败，本次未向外部渠道投递原文。 */
+  AutoTranslateFailed: "conversation.auto_translate_failed",
   /** ErrInvalidFilter 是视图或列表传入的筛选条件不合法。 */
   InvalidFilter: "conversation.invalid_filter",
   /** ErrInvalidLanguage 是设置的对方语言不是合法的 BCP 47 标签。 */

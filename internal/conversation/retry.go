@@ -18,10 +18,16 @@ import (
 // ErrNotFailed 是要重发的消息没有发送失败：还在发送中，或者已经送达。
 var ErrNotFailed = errorx.Define(errorx.Conflict, "conversation.not_failed")
 
-// ItemInput 是指定会话中一项的请求：路径中的会话 ID 和项的 ID。
-type ItemInput struct {
+// RetryBody 是重发消息的可选参数，用于决定是否跳过自动翻译直接按原文发出。
+type RetryBody struct {
+	SkipTranslation bool `json:"skip_translation,omitempty" doc:"为 true 时清除待自动翻译标记并直接按原文重新投递"`
+}
+
+// RetryInput 是指定会话中一项的重发请求：路径中的会话 ID、项 ID 与可选的重发策略。
+type RetryInput struct {
 	ID     string `path:"id" format:"uuid"`
 	ItemID string `path:"item_id" format:"uuid"`
+	Body   *RetryBody
 }
 
 // Retry 重发发送失败的消息：送达状态回到发送中，再交给连接器发出。
@@ -33,12 +39,16 @@ type Retry struct {
 // NewRetry 返回重发消息的动作；down 中的 DeliverTopic 发出消息，Hub 把送达状态的变化推送给能看到会话的成员。
 func NewRetry(db *bun.DB, down Downstream) *Retry { return &Retry{db: db, down: down} }
 
-// Handle 由 sub 重发他所在工作区中会话 id 里发送失败的消息 itemID：送达状态改为发送中，在同一个事务中发布发出消息的任务，
-// 提交后推送给能看到会话的成员。会话不存在或 sub 看不到、消息不在这个会话中时返回 ErrNotFound；消息没有发送失败时返回
-// ErrNotFailed；没有回复的权限时返回 ErrForbidden。
-func (a *Retry) Handle(ctx context.Context, sub identity.Subject, id, itemID string) (*ItemDTO, error) {
+// Handle 由 sub 重发他所在工作区中会话 id 里发送失败的消息 itemID：送达状态改为发送中，
+// 当 opts[0].SkipTranslation 为 true 时清除待自动翻译标记按原文发送，否则保留待翻译标记重试翻译并投递。
+// 在同一个事务中发布发出消息的任务，提交后推送给能看到会话的成员。
+func (a *Retry) Handle(ctx context.Context, sub identity.Subject, id, itemID string, opts ...RetryBody) (*ItemDTO, error) {
 	if err := authorize(sub, auth.ConversationsReply); err != nil {
 		return nil, err
+	}
+	var opt RetryBody
+	if len(opts) > 0 {
+		opt = opts[0]
 	}
 	var item Item
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
@@ -46,12 +56,31 @@ func (a *Retry) Handle(ctx context.Context, sub identity.Subject, id, itemID str
 		if err != nil {
 			return err
 		}
-		err = tx.NewSelect().Model(&item).Where("id = ? AND conversation_id = ?", itemID, c.ID).Scan(ctx)
+		err = tx.NewSelect().Model(&item).Where("id = ? AND conversation_id = ?", itemID, c.ID).For("UPDATE").Scan(ctx)
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrNotFound.New()
 		}
 		if err != nil {
 			return errors.Wrap(err, "load timeline item")
+		}
+		if item.Derived != nil {
+			derivedChanged := false
+			if _, hasFailed := item.Derived["translation_failed"]; hasFailed {
+				delete(item.Derived, "translation_failed")
+				derivedChanged = true
+			}
+			if opt.SkipTranslation {
+				if _, hasPending := item.Derived["pending_translation"]; hasPending {
+					delete(item.Derived, "pending_translation")
+					derivedChanged = true
+				}
+			}
+			if derivedChanged {
+				if _, err := tx.NewUpdate().Model((*Item)(nil)).Set("derived = ?", item.Derived).
+					Where("id = ? AND tenant_id = ?", item.ID, c.TenantID).Exec(ctx); err != nil {
+					return errors.Wrap(err, "update retry derived flags")
+				}
+			}
 		}
 		res, err := tx.NewUpdate().Model((*Delivery)(nil)).Set("status = ?", Sending).Set("error = ''").Set("updated_at = ?", now()).
 			Where("item_id = ? AND status = ?", item.ID, Failed).Exec(ctx)
@@ -92,9 +121,13 @@ func (a *Retry) Handle(ctx context.Context, sub identity.Subject, id, itemID str
 }
 
 // HTTP 处理 POST /t/{slug}/api/conversations/{id}/items/{item_id}/retry。
-func (a *Retry) HTTP(ctx context.Context, in *ItemInput) (*ItemOutput, error) {
+func (a *Retry) HTTP(ctx context.Context, in *RetryInput) (*ItemOutput, error) {
 	sub, _ := identity.FromContext(ctx)
-	item, err := a.Handle(ctx, sub, in.ID, in.ItemID)
+	var opt RetryBody
+	if in.Body != nil {
+		opt = *in.Body
+	}
+	item, err := a.Handle(ctx, sub, in.ID, in.ItemID, opt)
 	if err != nil {
 		return nil, err
 	}

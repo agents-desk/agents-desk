@@ -536,7 +536,8 @@ function ChatBubble({
   })
 
   const retry = useMutation({
-    mutationFn: () => tenantApi.conversation.retry(chat.id, it.id),
+    mutationFn: ({ skipTranslation }: { skipTranslation?: boolean } = {}) =>
+      tenantApi.conversation.retry(chat.id, it.id, skipTranslation ? { skip_translation: true } : {}),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: kit.queries.chat.key() })
       void queryClient.invalidateQueries({ queryKey: [...kit.queries.conversation.key(), "timeline", chat.id] })
@@ -578,24 +579,51 @@ function ChatBubble({
   ) : undefined
 
   const pendingAutoTranslate = Boolean(it.delivery === "sending" && it.derived?.pending_translation)
+  const translationFailed = Boolean(it.delivery === "failed" && it.derived?.translation_failed)
   const showDelivery = Boolean(isExternal && mine && it.delivery && (last || it.delivery === "failed" || it.delivery === "sending"))
+  const failedLabel = (
+    <Text span size="xs" c={it.delivery ? deliveryColor[it.delivery] : undefined}>
+      {translationFailed ? t("inbox.delivery_translation_failed") : it.delivery ? t(`inbox.delivery_${it.delivery}` as const) : ""}
+    </Text>
+  )
   const deliveryNode =
     showDelivery && it.delivery ? (
       <>
         {pendingAutoTranslate && <Loader size={10} />}
-        <Text span size="xs" c={deliveryColor[it.delivery]}>
-          {pendingAutoTranslate ? t("inbox.delivery_translating") : t(`inbox.delivery_${it.delivery}` as const)}
-        </Text>
-        {it.delivery === "failed" && (
+        {it.delivery === "failed" && it.delivery_error ? (
+          <Tooltip label={it.delivery_error} multiline maw={280} openDelay={200}>
+            {failedLabel}
+          </Tooltip>
+        ) : (
+          <Text span size="xs" c={deliveryColor[it.delivery]}>
+            {pendingAutoTranslate ? t("inbox.delivery_translating") : t(`inbox.delivery_${it.delivery}` as const)}
+          </Text>
+        )}
+        {it.delivery === "failed" && translationFailed ? (
           <>
             <Text span size="xs" c="dimmed">
               ·
             </Text>
-            <UnstyledButton fz="xs" c="red" td="underline" onClick={() => retry.mutate()} disabled={retry.isPending}>
+            <UnstyledButton fz="xs" c="red" td="underline" onClick={() => retry.mutate({})} disabled={retry.isPending}>
+              {t("inbox.retry_translate")}
+            </UnstyledButton>
+            <Text span size="xs" c="dimmed">
+              ·
+            </Text>
+            <UnstyledButton fz="xs" c="red" td="underline" onClick={() => retry.mutate({ skipTranslation: true })} disabled={retry.isPending}>
+              {t("inbox.retry_original")}
+            </UnstyledButton>
+          </>
+        ) : it.delivery === "failed" ? (
+          <>
+            <Text span size="xs" c="dimmed">
+              ·
+            </Text>
+            <UnstyledButton fz="xs" c="red" td="underline" onClick={() => retry.mutate({})} disabled={retry.isPending}>
               {t("inbox.retry")}
             </UnstyledButton>
           </>
-        )}
+        ) : null}
       </>
     ) : undefined
 

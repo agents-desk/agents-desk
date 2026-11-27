@@ -128,7 +128,7 @@ func (a *App) downstream() conversation.Downstream {
 	down := conversation.Downstream{
 		Sinks: []conversation.Sink{
 			{Topic: conversation.DeliverTopic, Accept: conversation.Delivers},
-			{Topic: translation.Topic, Accept: translation.Accepts},
+			{Topic: translation.Topic, Accept: translation.Accepts, OnEdit: true},
 			{Topic: translation.TicketBroadcastTopic, Accept: translation.Broadcasts},
 			{Topic: automation.Topic, Accept: automation.Accepts},
 			{Topic: agent.Topic, Accept: agent.Triggers},

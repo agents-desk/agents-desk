@@ -39,18 +39,31 @@ type Translated struct {
 // 只是补译某些语言时只推送给使用这些语言的成员，避免影响其他语言的成员。事件带上消息的序号（ItemSeq），
 // 方便页面把历史消息的补译刷新出来。消息不存在时什么也不做。
 func SaveTranslation(ctx context.Context, db *bun.DB, down Downstream, tenant, itemID string, t Translated) error {
+	var convID string
+	err := db.NewSelect().Table("timeline_items").Column("conversation_id").
+		Where("id = ? AND tenant_id = ?", itemID, tenant).Scan(ctx, &convID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return errors.Wrap(err, "load conversation id for translation")
+	}
 	return database.RunInTx(ctx, db, nil, func(ctx context.Context, tx database.Tx) error {
+		// 按 conversations -> timeline_items 固定顺序加锁，避免与 Deliver/Retry 并发更新 derived 发生覆盖或死锁
+		c, err := find(ctx, tx, tenant, convID, true)
+		if err != nil {
+			return err
+		}
 		var it Item
-		err := tx.NewSelect().Model(&it).Where("id = ? AND tenant_id = ?", itemID, tenant).Scan(ctx)
+		err = tx.NewSelect().Model(&it).Where("id = ? AND tenant_id = ?", itemID, tenant).For("UPDATE").Scan(ctx)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil
 		}
 		if err != nil {
 			return errors.Wrap(err, "load timeline item")
 		}
-		c, err := find(ctx, tx, tenant, it.ConversationID, true)
-		if err != nil {
-			return err
+		if it.Derived == nil {
+			it.Derived = map[string]any{}
 		}
 
 		// 消息的语言和译文

@@ -11,11 +11,15 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/database"
+	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/queue"
 
 	"agents-desk/internal/channel"
 	"agents-desk/internal/extgroup"
 )
+
+// ErrAutoTranslateFailed 表示发出前的后台自动翻译失败，本次未向外部渠道投递原文。
+var ErrAutoTranslateFailed = errorx.Define(errorx.Unavailable, "conversation.auto_translate_failed")
 
 // DeliverTopic 是把发给对方的消息交给连接器发出的下游，在入口中加入 Downstream。
 var DeliverTopic = queue.Topic[Appended]("conversation.deliver")
@@ -238,10 +242,8 @@ func pendingTranslationOf(derived map[string]any) *AutoTranslateRequest {
 	return &AutoTranslateRequest{Language: lang, Tone: tone}
 }
 
-// applyPendingTranslation 调用注入的 AutoTranslator 为待投递消息生成目标译文，并原位更新 timeline_items.content
-// 同时从 derived 中移除 pending_translation（用 JSONB 减法避免覆盖并发写入的语言/译文派生字段）。
-// 翻译失败或超时时按成员原文发出并留下 translation_failed 标记：投递的可用性不依赖翻译服务。
-// 只有进程被取消（例如退出）时返回错误，交给队列重试。
+// applyPendingTranslation 调用注入的 AutoTranslator 为待投递消息生成目标译文，并按 conversations -> timeline_items 固定锁序
+// 更新正文与 derived；翻译失败时不发送原文也不清除 pending_translation，返回 ErrAutoTranslateFailed 交由队列重试。
 func (a *Deliver) applyPendingTranslation(ctx context.Context, it *Item, c *Conversation, req *AutoTranslateRequest) error {
 	if a.down.AutoTranslate == nil || strings.TrimSpace(it.Content.Text) == "" {
 		return a.clearPendingTranslation(ctx, it, c)
@@ -257,12 +259,9 @@ func (a *Deliver) applyPendingTranslation(ctx context.Context, it *Item, c *Conv
 		Tone:           req.Tone,
 	})
 	if err != nil {
-		if ctx.Err() != nil {
-			return err
-		}
-		slog.WarnContext(ctx, "auto translate failed; sending original text",
+		slog.WarnContext(ctx, "auto translate failed; withholding original text for retry",
 			"tenant_id", c.TenantID, "conversation_id", c.ID, "item_id", it.ID, "error", err)
-		return a.markTranslationFailed(ctx, it, c)
+		return ErrAutoTranslateFailed.Wrap(err)
 	}
 	if needed && strings.TrimSpace(translated) != "" {
 		it.Content = Content{
@@ -273,9 +272,22 @@ func (a *Deliver) applyPendingTranslation(ctx context.Context, it *Item, c *Conv
 			ExternalMentions: it.Content.ExternalMentions,
 		}
 		return database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
+			if _, err := find(ctx, tx, c.TenantID, c.ID, true); err != nil {
+				return err
+			}
+			var latest Item
+			if err := tx.NewSelect().Model(&latest).Where("id = ? AND tenant_id = ?", it.ID, c.TenantID).For("UPDATE").Scan(ctx); err != nil {
+				return errors.Wrap(err, "lock item for auto-translated content")
+			}
+			if latest.Derived == nil {
+				latest.Derived = map[string]any{}
+			}
+			delete(latest.Derived, "pending_translation")
+			delete(latest.Derived, "translation_failed")
+			it.Derived = latest.Derived
 			if _, err := tx.NewUpdate().Model((*Item)(nil)).
 				Set("content = ?", it.Content).
-				Set("derived = derived - 'pending_translation'").
+				Set("derived = ?", latest.Derived).
 				Where("id = ? AND tenant_id = ?", it.ID, c.TenantID).Exec(ctx); err != nil {
 				return errors.Wrap(err, "save auto-translated reply content")
 			}
@@ -285,24 +297,34 @@ func (a *Deliver) applyPendingTranslation(ctx context.Context, it *Item, c *Conv
 	return a.clearPendingTranslation(ctx, it, c)
 }
 
-// clearPendingTranslation 从 derived 中移除待翻译标记。
+// clearPendingTranslation 按 conversations -> timeline_items 锁序从 derived 中移除待翻译与失败标记。
 func (a *Deliver) clearPendingTranslation(ctx context.Context, it *Item, c *Conversation) error {
-	_, err := a.db.NewUpdate().Table("timeline_items").
-		Set("derived = derived - 'pending_translation'").
-		Where("id = ? AND tenant_id = ?", it.ID, c.TenantID).Exec(ctx)
-	return errors.Wrap(err, "clear pending translation flag")
-}
-
-// markTranslationFailed 移除待翻译标记并记下这次自动翻译没有成功，消息按原文发出。
-func (a *Deliver) markTranslationFailed(ctx context.Context, it *Item, c *Conversation) error {
-	_, err := a.db.NewRaw(`UPDATE timeline_items
-		SET derived = (derived - 'pending_translation') || jsonb_build_object('translation_failed', true)
-		WHERE id = ? AND tenant_id = ?`, it.ID, c.TenantID).Exec(ctx)
-	return errors.Wrap(err, "mark translation failed")
+	return database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
+		if _, err := find(ctx, tx, c.TenantID, c.ID, true); err != nil {
+			return err
+		}
+		var latest Item
+		err := tx.NewSelect().Model(&latest).Where("id = ? AND tenant_id = ?", it.ID, c.TenantID).For("UPDATE").Scan(ctx)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return errors.Wrap(err, "lock item to clear pending translation")
+		}
+		if latest.Derived == nil {
+			return nil
+		}
+		delete(latest.Derived, "pending_translation")
+		delete(latest.Derived, "translation_failed")
+		it.Derived = latest.Derived
+		_, err = tx.NewUpdate().Model((*Item)(nil)).Set("derived = ?", latest.Derived).
+			Where("id = ? AND tenant_id = ?", it.ID, c.TenantID).Exec(ctx)
+		return errors.Wrap(err, "clear pending translation flag")
+	})
 }
 
 // OnDead 在消息投递任务因永久错误、业务错误或重试次数耗尽而进入失败任务表前执行一次：
-// 将仍处于发送中状态的送达记录标记为失败并写入原因，同时推送给能看到会话的成员。
+// 将仍处于发送中状态的送达记录标记为失败并写入原因；若此时仍存在待自动翻译标记，则补充 translation_failed 状态并推送给成员。
 func (a *Deliver) OnDead(ctx context.Context, p Appended, cause error) error {
 	reason := ""
 	if cause != nil {
@@ -314,6 +336,19 @@ func (a *Deliver) OnDead(ctx context.Context, p Appended, cause error) error {
 // markAndNotify 在事务中更新消息 itemID 的送达状态，需要时在提交后向能看到会话的成员推送变更事件。
 func (a *Deliver) markAndNotify(ctx context.Context, tenantID, conversationID, itemID string, status DeliveryStatus, externalID, reason string, notify bool) error {
 	return database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
+		var lockedItem *Item
+		if status == Failed {
+			if _, err := find(ctx, tx, tenantID, conversationID, true); err != nil {
+				return err
+			}
+			var it Item
+			err := tx.NewSelect().Model(&it).Where("id = ? AND tenant_id = ?", itemID, tenantID).For("UPDATE").Scan(ctx)
+			if err == nil {
+				lockedItem = &it
+			} else if !errors.Is(err, sql.ErrNoRows) {
+				return errors.Wrap(err, "lock item for dead delivery")
+			}
+		}
 		q := tx.NewUpdate().Model((*Delivery)(nil)).
 			Set("status = ?", status).Set("external_id = ?", externalID).Set("error = ?", reason).Set("updated_at = ?", now()).
 			Where("item_id = ?", itemID)
@@ -330,6 +365,16 @@ func (a *Deliver) markAndNotify(ctx context.Context, tenantID, conversationID, i
 		}
 		if affected == 0 {
 			return nil
+		}
+		if status == Failed && lockedItem != nil && pendingTranslationOf(lockedItem.Derived) != nil {
+			if lockedItem.Derived == nil {
+				lockedItem.Derived = map[string]any{}
+			}
+			lockedItem.Derived["translation_failed"] = true
+			if _, err := tx.NewUpdate().Model((*Item)(nil)).Set("derived = ?", lockedItem.Derived).
+				Where("id = ? AND tenant_id = ?", lockedItem.ID, tenantID).Exec(ctx); err != nil {
+				return errors.Wrap(err, "mark translation failed on dead delivery")
+			}
 		}
 		if status == Delivered && a.down.NotifyOfflineReply != nil {
 			if err := a.down.NotifyOfflineReply(ctx, tx, tenantID, conversationID, itemID); err != nil {

@@ -708,6 +708,8 @@ export interface ConversationChatDTO {
   preview_actor?: ConversationActor
   preview_attachment?: ConversationPreviewAttachment
   preview_item_id?: string
+  /** 最后一条消息是否已撤回 */
+  preview_recalled?: boolean
   preview_untranslated?: boolean
   read_seq: number
   /** internal（内部聊天）或 external（商务沟通） */
@@ -838,6 +840,8 @@ export interface ConversationDTO {
   preview_attachment?: ConversationPreviewAttachment
   /** 最后一条消息的 ID，只在它还缺我的语言的译文时给出 */
   preview_item_id?: string
+  /** 最后一条消息是否已撤回 */
+  preview_recalled?: boolean
   /** 最后一条消息是对方发来、还缺我的语言的译文的：preview 是原文，页面看到这一行时请求补译 */
   preview_untranslated?: boolean
   priority: ConversationPriority
@@ -906,6 +910,8 @@ export interface ConversationItemDTO {
   created_at: string
   /** 发给对方的消息的送达状态 */
   delivery?: ConversationDelivery
+  /** 发给对方的消息送达失败时的原因 */
+  delivery_error?: string
   /** 派生内容，例如按语言的译文，由后台补上 */
   derived: Record<string, unknown>
   /** 最近一次编辑的时间 */
@@ -1047,6 +1053,11 @@ export interface ConversationReplyBody {
   text?: string
   /** 发给对方的译文，由翻译的预览给出、成员确认；不带时按原文或 auto_translate 发出 */
   translation?: ConversationTranslation
+}
+
+export interface ConversationRetryBody {
+  /** 为 true 时清除待自动翻译标记并直接按原文重新投递 */
+  skip_translation?: boolean
 }
 
 export interface ConversationRoundDTO {
@@ -4025,8 +4036,8 @@ export function createClient(options: ClientOptions) {
        *
        * POST /conversations/{id}/items/{item_id}/retry
        */
-      retry: (id: string, itemID: string): Promise<ConversationItemDTO> =>
-        rt.request<ConversationItemDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/items/${encodeURIComponent(itemID)}/retry` }),
+      retry: (id: string, itemID: string, body?: ConversationRetryBody): Promise<ConversationItemDTO> =>
+        rt.request<ConversationItemDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/items/${encodeURIComponent(itemID)}/retry`, body }),
       /**
        * 读取服务轮次记录
        *

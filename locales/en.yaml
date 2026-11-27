@@ -295,6 +295,7 @@ conversation.not_closed: "The conversation is still open; it can be rated after 
 conversation.rating_not_requested: "Rating isn't requested for this closed conversation"
 conversation.already_rated: "You have already rated this conversation"
 conversation.not_failed: "This message didn't fail, so there's nothing to resend"
+conversation.auto_translate_failed: "Auto-translation failed and the message was not sent. Retry translation or send the original text"
 conversation.closed: "The conversation is closed. Reopen it first"
 conversation.already_assigned: "Someone else has already claimed this conversation"
 conversation.invalid_language: "Not a valid language. Choose one from the list or type a language tag, for example hi-Latn"

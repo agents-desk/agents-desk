@@ -7,6 +7,8 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/go-tenon/tenon/identity"
+	"github.com/go-tenon/tenon/queue"
+	"github.com/go-tenon/tenon/queue/queuetest"
 
 	"agents-desk/internal/apptest"
 	"agents-desk/internal/auth"
@@ -124,5 +126,110 @@ func TestEditMessage(t *testing.T) {
 	}
 	if _, err := edit.Handle(ctx, subAlice, chat.ID, msg.ID, "太晚了"); !errors.Is(err, conversation.ErrMessageEditWindow) {
 		t.Fatalf("超过时间窗应被拒绝：%v", err)
+	}
+}
+
+func TestEditPreviewSyncOnEditSinkAndChatExternalNotes(t *testing.T) {
+	t.Parallel()
+	env := apptest.New(t)
+	ctx := context.Background()
+
+	tn, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+		Name: "edit-ext", Slug: "edit-ext", OwnerEmail: "owner@editext.com", OwnerName: "Owner", OwnerPassword: "password",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sys := identity.Subject{Type: identity.System, ID: "test", Tenant: tn.ID}
+	agentRole, err := env.Roles.RoleByName(ctx, "坐席", tn.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	alice, err := member.NewAdd(env.DB, env.Roles, env.MemberLogins, env.Files).Handle(ctx, sys, member.AddParams{
+		Email: "alice@editext.com", Name: "Alice", Password: "password", RoleID: agentRole.ID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	aliceID := alice.ID
+	subOwner := identity.Subject{Type: member.Type, ID: tn.OwnerID, Tenant: tn.ID, Permissions: auth.WithBase(auth.Owner.Permissions)}
+	subAlice := identity.Subject{Type: member.Type, ID: alice.ID, Tenant: tn.ID, Permissions: auth.WithBase(auth.RolePermissions(auth.ScopeAll, nil))}
+
+	onEditTopic := queue.Topic[conversation.Appended]("test.conversation.on_edit")
+	down := conversation.Downstream{
+		Sinks: []conversation.Sink{{Topic: onEditTopic, OnEdit: true}},
+		Roles: env.Roles,
+	}
+	edit := conversation.NewEditMessage(env.DB, down)
+
+	// 1. 内部单聊发送消息后写入译文缓存，随后编辑：列表 Preview 更新为最新正文、旧译文清除、OnEdit Sink 入队
+	chat, err := conversation.NewCreateDirectChat(env.DB, down).Handle(ctx, subOwner, conversation.CreateDirectChatParams{ParticipantID: alice.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	chatMsg, err := conversation.NewSendChatMessage(env.DB, down).Handle(ctx, subAlice, chat.ID, conversation.SendChatMessageBody{Text: "旧消息正文"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := conversation.SaveTranslation(ctx, env.DB, down, tn.ID, chatMsg.ID, conversation.Translated{
+		Language: "zh-CN", Translations: map[string]string{"en": "Old message text"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	beforeJobs := len(queuetest.Pending(t, env.DB, onEditTopic))
+	if _, err := edit.Handle(ctx, subAlice, chat.ID, chatMsg.ID, "更新后的列表预览正文"); err != nil {
+		t.Fatal(err)
+	}
+	afterJobs := queuetest.Pending(t, env.DB, onEditTopic)
+	if len(afterJobs) != beforeJobs+1 {
+		t.Fatalf("编辑消息后 OnEdit Sink 应入队重译任务，before=%d after=%d", beforeJobs, len(afterJobs))
+	}
+	var updatedItem conversation.Item
+	if err := env.DB.NewSelect().Model(&updatedItem).Where("id = ?", chatMsg.ID).Scan(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if updatedItem.Derived["language"] != nil || updatedItem.Derived["translations"] != nil || updatedItem.Derived["verified_language"] != nil {
+		t.Fatalf("编辑后应清理旧的语言与译文缓存：%+v", updatedItem.Derived)
+	}
+	chats, err := conversation.NewListChats(env.DB).Handle(ctx, subOwner, &conversation.ListChatsInput{})
+	if err != nil || len(chats.Items) != 1 || chats.Items[0].Preview != "更新后的列表预览正文" {
+		t.Fatalf("聊天列表预览应同步最新编辑正文：%+v %v", chats.Items, err)
+	}
+
+	// 2. 外部商务聊天（ChatExternal）中的内部备注允许作者编辑，对外消息禁止直接编辑
+	bizCh := &channel.Channel{
+		ID: "019a0000-0000-7000-8000-000000000201", TenantID: tn.ID, Kind: channel.BusinessLink,
+		Name: "Alice 商务链接", Settings: map[string]any{}, OwnerMemberID: &aliceID, Enabled: true,
+	}
+	if _, err := env.DB.NewInsert().Model(bizCh).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	reg := channel.DefaultRegistry()
+	reg[channel.BusinessLink] = channel.TestConnector{}
+	recBiz, err := conversation.NewReceive(env.DB, reg, down).Handle(ctx, sys, conversation.ReceiveParams{
+		ChannelID: bizCh.ID, From: "visitor:p-edit", FromName: "Partner", Text: "Need B2B quote",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	extMsg, err := conversation.NewSendChatMessage(env.DB, down).Handle(ctx, subAlice, recBiz.ConversationID, conversation.SendChatMessageBody{
+		Text: "Sent to partner",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := edit.Handle(ctx, subAlice, recBiz.ConversationID, extMsg.ID, "不能改"); !errors.Is(err, conversation.ErrMessageNotEditable) {
+		t.Fatalf("外部商务聊天发给客户的消息不能直接编辑：%v", err)
+	}
+	bizNote, err := conversation.NewSendChatMessage(env.DB, down).Handle(ctx, subAlice, recBiz.ConversationID, conversation.SendChatMessageBody{
+		Text: "商务内部备注初稿",
+		Note: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	editedBizNote, err := edit.Handle(ctx, subAlice, recBiz.ConversationID, bizNote.ID, "商务内部备注定稿")
+	if err != nil || editedBizNote.Content.Text != "商务内部备注定稿" || editedBizNote.Revision != 1 {
+		t.Fatalf("外部商务聊天中的内部备注应允许作者编辑：%v %+v", err, editedBizNote)
 	}
 }
