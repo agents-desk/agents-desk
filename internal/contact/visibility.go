@@ -51,7 +51,7 @@ func visible(q *bun.SelectQuery, sub identity.Subject) *bun.SelectQuery {
 							))
 							OR (conv.kind = 'chat' AND EXISTS (
 								SELECT 1 FROM conversation_participants cp
-								WHERE cp.conversation_id = conv.id AND cp.participant_type = ? AND cp.participant_id = ?
+								WHERE cp.conversation_id = conv.id AND cp.participant_type = ? AND cp.participant_id = ? AND cp.left_at IS NULL
 							))
 						)
 				)`,
@@ -69,7 +69,7 @@ func visible(q *bun.SelectQuery, sub identity.Subject) *bun.SelectQuery {
 						))
 						OR (conv.kind = 'chat' AND EXISTS (
 							SELECT 1 FROM conversation_participants cp
-							WHERE cp.conversation_id = conv.id AND cp.participant_type = ? AND cp.participant_id = ?
+							WHERE cp.conversation_id = conv.id AND cp.participant_type = ? AND cp.participant_id = ? AND cp.left_at IS NULL
 						))
 					)
 			)`,

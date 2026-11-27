@@ -298,6 +298,9 @@ conversation.already_assigned: 这个会话已经被别人领取了
 conversation.invalid_language: 不是有效的语言，请从列表中选择，或者输入语言标签，例如 hi-Latn
 conversation.snooze_in_past: 稍后处理的时间要晚于现在
 conversation.empty_message: 请输入内容或添加附件
+conversation.message_not_author: 只能编辑自己发出的消息
+conversation.message_not_editable: 这条消息不能编辑：发给客户的消息请发送更正
+conversation.message_edit_window: 超过可编辑的时间了，请发送一条更正
 conversation.attachment_not_found: 附件不存在
 conversation.channel_unavailable: 目标回复渠道不可用、已停用，或该联系人未绑定该渠道
 conversation.active_exists: 该联系人当前已有一条进行中的会话，请直接在当前会话中沟通

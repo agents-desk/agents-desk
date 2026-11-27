@@ -216,10 +216,10 @@ func mergePair(ctx context.Context, tx database.Tx, down Downstream, sub identit
 
 	// 3. 合并参与者、会话标签与工单来源会话引用（ticket_targets）
 	if _, err := tx.NewRaw(
-		`INSERT INTO conversation_participants (conversation_id, participant_type, participant_id, created_at)
-		 SELECT ?, participant_type, participant_id, created_at
+		`INSERT INTO conversation_participants (id, created_at, updated_at, conversation_id, participant_type, participant_id)
+		 SELECT gen_random_uuid(), created_at, updated_at, ?, participant_type, participant_id
 		 FROM conversation_participants
-		 WHERE conversation_id = ?
+		 WHERE conversation_id = ? AND left_at IS NULL
 		 ON CONFLICT DO NOTHING`,
 		target.ID, source.ID,
 	).Exec(ctx); err != nil {

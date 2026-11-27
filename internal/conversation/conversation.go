@@ -281,10 +281,12 @@ func (c *Conversation) ratingRequestedSinceClosed() bool {
 type Participant struct {
 	bun.BaseModel `bun:"table:conversation_participants"`
 
-	ConversationID string    `bun:"conversation_id,pk"`
-	Type           ActorType `bun:"participant_type,pk"`
-	ID             string    `bun:"participant_id,pk"`
-	CreatedAt      time.Time `bun:"created_at,notnull"`
+	ID string `bun:"id,pk"`
+	database.Timestamps
+	ConversationID string     `bun:"conversation_id,notnull"`
+	Type           ActorType  `bun:"participant_type,notnull"`
+	ParticipantID  string     `bun:"participant_id,notnull"`
+	LeftAt         *time.Time `bun:"left_at"` // 离开会话的时间；为空表示仍在会话中
 }
 
 // Prompt 是系统发出的结构化提示或交互卡片（例如告知回复时间、请线索留联系方式）：
@@ -760,7 +762,8 @@ func sameTime(a, b *time.Time) bool {
 
 // join 在事务 tx 中把参与者加入会话 conversationID，已经在其中时保持原样。
 func join(ctx context.Context, tx bun.IDB, conversationID string, typ ActorType, id string) error {
-	p := &Participant{ConversationID: conversationID, Type: typ, ID: id, CreatedAt: now()}
+	p := &Participant{ID: newID(), ConversationID: conversationID, Type: typ, ParticipantID: id}
+	p.CreatedAt, p.UpdatedAt = now(), now()
 	_, err := tx.NewInsert().Model(p).On("CONFLICT DO NOTHING").Exec(ctx)
 	return errors.Wrap(err, "add participant")
 }

@@ -56,6 +56,19 @@ func LoadSearchDocs(ctx context.Context, tx bun.IDB, key string) ([]ItemSearchDo
 		return nil, nil
 	}
 
+	// 编辑过的消息按最新一版正文索引
+	var revision struct {
+		Text string `bun:"text"`
+	}
+	if err := tx.NewSelect().Table("message_revisions").Column("text").
+		Where("item_id = ?", it.ID).OrderExpr("revision DESC").Limit(1).Scan(ctx, &revision); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, errors.Wrap(err, "load message revision for search")
+	}
+	if revision.Text != "" {
+		it.Content.Text = revision.Text
+		it.Content.Original = ""
+	}
+
 	doc := ItemSearchDoc{
 		Tenant:         it.TenantID,
 		ConversationID: it.ConversationID,

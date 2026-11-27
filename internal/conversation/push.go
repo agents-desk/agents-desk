@@ -33,7 +33,7 @@ func audienceAndAlertsOf(ctx context.Context, db bun.IDB, roles *authz.Store, be
 	if c.Kind == Chat {
 		var out []string
 		err := db.NewSelect().Table("conversation_participants").Column("participant_id").
-			Where("conversation_id = ? AND participant_type = ?", c.ID, MemberActor).
+			Where("conversation_id = ? AND participant_type = ? AND left_at IS NULL", c.ID, MemberActor).
 			Scan(ctx, &out)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "load chat participants for push")

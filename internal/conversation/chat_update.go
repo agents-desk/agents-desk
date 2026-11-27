@@ -130,8 +130,8 @@ func (a *AddChatParticipants) Handle(ctx context.Context, sub identity.Subject, 
 				}
 				return err
 			}
-			res, err := tx.NewRaw(`INSERT INTO conversation_participants (conversation_id, participant_type, participant_id, created_at)
-				VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING`, c.ID, MemberActor, mid, now()).Exec(ctx)
+			res, err := tx.NewRaw(`INSERT INTO conversation_participants (id, created_at, updated_at, conversation_id, participant_type, participant_id)
+				VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`, newID(), now(), now(), c.ID, MemberActor, mid).Exec(ctx)
 			if err != nil {
 				return errors.Wrap(err, "add chat participant")
 			}
@@ -206,9 +206,9 @@ func (a *RemoveChatParticipant) Handle(ctx context.Context, sub identity.Subject
 				return ErrChatOwnerProtected.New()
 			}
 		}
-		res, err := tx.NewDelete().Model((*Participant)(nil)).
-			Where("conversation_id = ? AND participant_type = ? AND participant_id = ?", c.ID, participantType, participantID).
-			Exec(ctx)
+		res, err := tx.NewRaw(`UPDATE conversation_participants SET left_at = ?
+			WHERE conversation_id = ? AND participant_type = ? AND participant_id = ? AND left_at IS NULL`,
+			now(), c.ID, participantType, participantID).Exec(ctx)
 		if err != nil {
 			return errors.Wrap(err, "remove chat participant")
 		}

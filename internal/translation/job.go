@@ -166,7 +166,7 @@ func conversationMemberLanguages(ctx context.Context, db bun.IDB, tenant, conver
 	}
 	var partIDs []string
 	if err := db.NewSelect().Table("conversation_participants").Column("participant_id").
-		Where("conversation_id = ? AND participant_type = ?", conversationID, conversation.MemberActor).
+		Where("conversation_id = ? AND participant_type = ? AND left_at IS NULL", conversationID, conversation.MemberActor).
 		Scan(ctx, &partIDs); err != nil {
 		return nil, errors.Wrap(err, "load participants for audience languages")
 	}

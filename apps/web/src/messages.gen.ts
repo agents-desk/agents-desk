@@ -854,6 +854,10 @@ export const messages = {
     "inbox.media_unavailable": "Media unavailable",
     "inbox.media_voice": "Voice message",
     "inbox.mention_speaker": "Mention speaker",
+    "inbox.message_edit": "Edit",
+    "inbox.message_edit_save": "Save",
+    "inbox.message_edit_title": "Edit message",
+    "inbox.message_edited": "Edited",
     "inbox.mode_note": "Internal note",
     "inbox.mode_reply": "Reply",
     "inbox.new_message_jump": "New messages ({{.n}})",
@@ -2785,6 +2789,10 @@ export const messages = {
     "inbox.media_unavailable": "媒体不可用",
     "inbox.media_voice": "语音消息",
     "inbox.mention_speaker": "@ 群发言人",
+    "inbox.message_edit": "编辑",
+    "inbox.message_edit_save": "保存",
+    "inbox.message_edit_title": "编辑消息",
+    "inbox.message_edited": "已编辑",
     "inbox.mode_note": "内部备注",
     "inbox.mode_reply": "回复",
     "inbox.new_message_jump": "{{.n}} 条新消息",
@@ -4719,6 +4727,10 @@ export type MessageId =
   | "inbox.media_unavailable"
   | "inbox.media_voice"
   | "inbox.mention_speaker"
+  | "inbox.message_edit"
+  | "inbox.message_edit_save"
+  | "inbox.message_edit_title"
+  | "inbox.message_edited"
   | "inbox.mode_note"
   | "inbox.mode_reply"
   | "inbox.new_message_jump"

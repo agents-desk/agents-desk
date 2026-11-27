@@ -193,8 +193,8 @@ func (a *Merge) Handle(ctx context.Context, sub identity.Subject, targetID strin
 			}
 		}
 		if _, err := tx.NewRaw(
-			`INSERT INTO conversation_participants (conversation_id, participant_type, participant_id, created_at)
-			 SELECT cp.conversation_id, cp.participant_type, ?, cp.created_at
+			`INSERT INTO conversation_participants (id, created_at, updated_at, conversation_id, participant_type, participant_id)
+			 SELECT gen_random_uuid(), cp.created_at, cp.updated_at, cp.conversation_id, cp.participant_type, ?
 			 FROM conversation_participants cp
 			 JOIN conversations c ON c.id = cp.conversation_id
 			 WHERE c.tenant_id = ? AND cp.participant_type = ? AND cp.participant_id = ?
@@ -399,8 +399,8 @@ func MergeLead(ctx context.Context, tx bun.IDB, tenant, leadID, userID, consumeC
 
 	// 2. 迁移会话参与者：避免主键冲突，先插入再删除旧记录
 	if _, err := tx.NewRaw(
-		`INSERT INTO conversation_participants (conversation_id, participant_type, participant_id, created_at)
-		 SELECT cp.conversation_id, cp.participant_type, ?, cp.created_at
+		`INSERT INTO conversation_participants (id, created_at, updated_at, conversation_id, participant_type, participant_id)
+		 SELECT gen_random_uuid(), cp.created_at, cp.updated_at, cp.conversation_id, cp.participant_type, ?
 		 FROM conversation_participants cp
 		 JOIN conversations c ON c.id = cp.conversation_id
 		 WHERE c.tenant_id = ? AND cp.participant_type = ? AND cp.participant_id = ?

@@ -273,8 +273,8 @@ func (g *Governance) AddCollaborators(ctx context.Context, sub identity.Subject,
 			for _, cid := range chatIDs {
 				addedAny := false
 				for _, mid := range memberIDs {
-					r, err := tx.NewRaw(`INSERT INTO conversation_participants (conversation_id, participant_type, participant_id, created_at)
-						VALUES (?, 'member', ?, ?) ON CONFLICT DO NOTHING`, cid, mid, now).Exec(ctx)
+					r, err := tx.NewRaw(`INSERT INTO conversation_participants (id, created_at, updated_at, conversation_id, participant_type, participant_id)
+						VALUES (gen_random_uuid(), ?, ?, ?, 'member', ?) ON CONFLICT DO NOTHING`, now, now, cid, mid).Exec(ctx)
 					if err != nil {
 						return errors.Wrap(err, "add emergency collaborator to chat")
 					}

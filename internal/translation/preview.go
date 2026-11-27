@@ -247,7 +247,7 @@ func (a *Preview) detectInternalLanguage(ctx context.Context, tenant string, c *
 
 	var partIDs []string
 	if err := a.db.NewSelect().Table("conversation_participants").Column("participant_id").
-		Where("conversation_id = ? AND participant_type = ?", c.ID, conversation.MemberActor).
+		Where("conversation_id = ? AND participant_type = ? AND left_at IS NULL", c.ID, conversation.MemberActor).
 		OrderExpr("created_at ASC, participant_id ASC").Scan(ctx, &partIDs); err != nil {
 		return "", errors.Wrap(err, "load participant ids")
 	}

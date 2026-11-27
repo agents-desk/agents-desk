@@ -27,12 +27,12 @@ func visible(q *bun.SelectQuery, sub identity.Subject) *bun.SelectQuery {
 	if scope == auth.ScopeAll {
 		return q.WhereGroup(" AND ", func(q *bun.SelectQuery) *bun.SelectQuery {
 			return q.Where("conversation.kind <> ?", Chat).
-				WhereOr("conversation.kind = ? AND EXISTS (SELECT 1 FROM conversation_participants cp WHERE cp.conversation_id = conversation.id AND cp.participant_type = ? AND cp.participant_id = ?)",
+				WhereOr("conversation.kind = ? AND EXISTS (SELECT 1 FROM conversation_participants cp WHERE cp.conversation_id = conversation.id AND cp.participant_type = ? AND cp.participant_id = ? AND cp.left_at IS NULL)",
 					Chat, MemberActor, sub.ID)
 		})
 	}
 	return q.WhereGroup(" AND ", func(q *bun.SelectQuery) *bun.SelectQuery {
-		q = q.Where("conversation.kind = ? AND EXISTS (SELECT 1 FROM conversation_participants cp WHERE cp.conversation_id = conversation.id AND cp.participant_type = ? AND cp.participant_id = ?)",
+		q = q.Where("conversation.kind = ? AND EXISTS (SELECT 1 FROM conversation_participants cp WHERE cp.conversation_id = conversation.id AND cp.participant_type = ? AND cp.participant_id = ? AND cp.left_at IS NULL)",
 			Chat, MemberActor, sub.ID)
 		q = q.WhereGroup(" OR ", func(q *bun.SelectQuery) *bun.SelectQuery {
 			q = q.Where("conversation.kind <> ?", Chat)
