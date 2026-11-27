@@ -8,18 +8,17 @@ import { useForm } from "@mantine/form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { IconGripVertical, IconPlus, IconTrash } from "@tabler/icons-react"
-import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, useT } from "@go-tenon/ui"
+import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, preloadQueries, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../../../../../api"
 import { EmptyState } from "../../../../../components/empty-state"
 import { RowActions } from "../../../../../components/row-actions"
-import { warmRoute } from "../../../../../preload"
 
 // 属性：管理会话和联系人的自定义属性定义，按对象分组切换，支持拖动调整展示顺序。key 和 type 创建后锁定。
 export const Route = createFileRoute("/t/$slug/settings/_workspace/attributes")({
   staticData: { title: "nav.attributes", icon: "list", order: 4, permission: "tenant-settings:manage" },
   // 预取页面的数据，最多等一小会儿：切换到这一页时内容一次完整出现，不先空白再出现
-  loader: ({ context }) => warmRoute(context.app.queryClient, [kit.queries.attribute.list({ target: "conversation" })]),
+  loader: ({ context }) => preloadQueries(context.app.queryClient, [kit.queries.attribute.list({ target: "conversation" })]),
   component: Attributes,
 })
 

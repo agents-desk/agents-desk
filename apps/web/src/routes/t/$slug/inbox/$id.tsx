@@ -1,13 +1,13 @@
 import { createFileRoute, getRouteApi, useNavigate } from "@tanstack/react-router"
 import { ConversationView } from "../../../../inbox/Conversation"
 import { flatten, conversationQueries, useConversationList } from "../../../../inbox/data"
-import { warmRoute } from "../../../../preload"
+import { preloadQueries } from "@go-tenon/ui"
 
 // 打开的会话：/t/{slug}/inbox/{id}，收件箱的列表、状态和排序在地址参数中保留。
 // loader 预取会话和时间线，最多等一小会儿：数据很快到时新会话一次完整出现，不先闪成加载状态。
 export const Route = createFileRoute("/t/$slug/inbox/$id")({
   loaderDeps: ({ search }) => ({ seq: search.seq }),
-  loader: ({ context, params, deps }) => warmRoute(context.app.queryClient, conversationQueries(context.app.queryClient, params.id, deps.seq)),
+  loader: ({ context, params, deps }) => preloadQueries(context.app.queryClient, conversationQueries(context.app.queryClient, params.id, deps.seq)),
   component: OpenConversation,
 })
 

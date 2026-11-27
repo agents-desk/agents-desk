@@ -1,6 +1,6 @@
 import { Checkbox, Radio, Stack } from "@mantine/core"
 import { createFileRoute } from "@tanstack/react-router"
-import { type FieldInput, ResourcePage, useT } from "@go-tenon/ui"
+import { type FieldInput, preloadResourceList, ResourcePage, useT } from "@go-tenon/ui"
 import { roles } from "../../../../../resources"
 
 // 角色：有“管理成员和角色”权限的成员新建、修改、删除角色。角色包括会话的可见范围和可以做的操作；
@@ -8,6 +8,9 @@ import { roles } from "../../../../../resources"
 export const Route = createFileRoute("/t/$slug/settings/_workspace/roles")({
   staticData: { title: "nav.roles", icon: "shield", order: 2, permission: "members:manage" },
   validateSearch: roles.listSearch,
+  // 预取当前条件下的列表：进入页面时表格直接显示数据
+  loaderDeps: ({ search }) => search,
+  loader: ({ context, deps }) => preloadResourceList(context.app.queryClient, roles, deps),
   component: Roles,
 })
 

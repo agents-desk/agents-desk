@@ -1,12 +1,15 @@
 import { Badge, ColorSwatch, Group, Select, Text } from "@mantine/core"
 import { createFileRoute } from "@tanstack/react-router"
-import { type FieldInput, ResourcePage, useT } from "@go-tenon/ui"
+import { type FieldInput, preloadResourceList, ResourcePage, useT } from "@go-tenon/ui"
 import { tags } from "../../../../../resources"
 
 // 标签：有 tenant-settings:manage 权限的成员新建、修改、删除标签；会话和联系人共用同一套标签定义。
 export const Route = createFileRoute("/t/$slug/settings/_workspace/tags")({
   staticData: { title: "nav.tags", icon: "tags", order: 3, permission: "tenant-settings:manage" },
   validateSearch: tags.listSearch,
+  // 预取当前条件下的列表：进入页面时表格直接显示数据
+  loaderDeps: ({ search }) => search,
+  loader: ({ context, deps }) => preloadResourceList(context.app.queryClient, tags, deps),
   component: Tags,
 })
 

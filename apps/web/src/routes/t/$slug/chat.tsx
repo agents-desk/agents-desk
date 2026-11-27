@@ -2,7 +2,7 @@ import type { ChatScope } from "@agents-desk/client/tenant"
 import { Box } from "@mantine/core"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, Outlet, useNavigate, useParams } from "@tanstack/react-router"
-import { Pane, useNarrow } from "@go-tenon/ui"
+import { Pane, preloadQueries, useNarrow } from "@go-tenon/ui"
 import { useCallback, useMemo, useState } from "react"
 import "../../../inbox/inbox.css"
 import { kit } from "../../../api"
@@ -11,7 +11,6 @@ import { ChatList } from "../../../chat/List"
 import { ChatNav, type ChatNavTarget } from "../../../chat/Nav"
 import { NewChatModal } from "../../../chat/NewChatModal"
 import { NARROW_QUERY } from "../../../layout"
-import { warmRoute } from "../../../preload"
 
 /** ChatSearch 是聊天模块的路由查询参数，决定二级导航栏高亮与列表筛选模式（内部聊天或商务沟通）。 */
 export interface ChatSearch {
@@ -38,7 +37,7 @@ export const Route = createFileRoute("/t/$slug/chat")({
   loader: ({ context, deps }) => {
     const scope = deps.scope ?? "internal"
     const mode = scope === "external" ? "all" : (deps.filter ?? "all")
-    return warmRoute(context.app.queryClient, [chatListQuery("", mode, scope, scope === "external" ? deps.channel : undefined)])
+    return preloadQueries(context.app.queryClient, [chatListQuery("", mode, scope, scope === "external" ? deps.channel : undefined)])
   },
   component: ChatLayout,
 })

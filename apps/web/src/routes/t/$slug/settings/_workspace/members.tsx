@@ -1,6 +1,6 @@
 import { PasswordInput } from "@mantine/core"
 import { createFileRoute } from "@tanstack/react-router"
-import { type FieldInput, ResourcePage, useT } from "@go-tenon/ui"
+import { type FieldInput, preloadResourceList, ResourcePage, useT } from "@go-tenon/ui"
 import { members } from "../../../../../resources"
 import { StatusBadge } from "../../../../../status"
 import type { MemberStatus } from "@agents-desk/client/tenant"
@@ -9,6 +9,9 @@ import type { MemberStatus } from "@agents-desk/client/tenant"
 export const Route = createFileRoute("/t/$slug/settings/_workspace/members")({
   staticData: { title: "nav.members", icon: "users", order: 1, permission: "members:manage" },
   validateSearch: members.listSearch,
+  // 预取当前条件下的列表：进入页面时表格直接显示数据
+  loaderDeps: ({ search }) => search,
+  loader: ({ context, deps }) => preloadResourceList(context.app.queryClient, members, deps),
   component: Members,
 })
 

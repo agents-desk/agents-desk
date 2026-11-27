@@ -1,7 +1,7 @@
 import type { MacroActions, MacroDTO } from "@agents-desk/client/tenant"
 import { Badge, Code, Group, Text } from "@mantine/core"
 import { createFileRoute } from "@tanstack/react-router"
-import { ResourcePage, TruncatedText, useT } from "@go-tenon/ui"
+import { preloadResourceList, ResourcePage, TruncatedText, useT } from "@go-tenon/ui"
 import type { ReactNode } from "react"
 import { MacroForm } from "../../../../../macros/MacroForm"
 import { macros } from "../../../../../resources"
@@ -11,6 +11,9 @@ import { macros } from "../../../../../resources"
 export const Route = createFileRoute("/t/$slug/settings/_inbox/macros")({
   staticData: { title: "nav.macros", icon: "macro", order: 3 },
   validateSearch: macros.listSearch,
+  // 预取当前条件下的列表：进入页面时表格直接显示数据
+  loaderDeps: ({ search }) => search,
+  loader: ({ context, deps }) => preloadResourceList(context.app.queryClient, macros, deps),
   component: MacrosPage,
 })
 
