@@ -24,13 +24,15 @@ import { ReportShell } from "./ReportShell"
 import { useReportFilters } from "./search"
 import { SectionCard } from "./SectionCard"
 
-/** 会话报表页面组件。 */
+/** 会话报表页面组件（同时服务对外客服与内部服务场景）。 */
 export function ConversationsPage({
   route,
+  audience,
   title,
   toolbarRight,
 }: {
   route: PeriodRoute
+  audience?: "customer" | "internal"
   title?: ReactNode
   toolbarRight?: ReactNode
 }): ReactNode {
@@ -38,12 +40,12 @@ export function ConversationsPage({
   const can = useCan()
   const uiLang = useLanguage()
   const { slug } = useParams({ from: "/$slug" })
-  const filters = useReportFilters(route)
+  const filters = useReportFilters(route, { defaultPreset: "7d", audience })
   const query = useQuery({
     ...kit.queries.report.conversations(filters.queryParams),
     placeholderData: keepPreviousData,
   })
-  const scopeKey = `${filters.queryParams.from}|${filters.queryParams.to}|${filters.queryParams.tz ?? ""}|${filters.teamId ?? ""}|${filters.channelId ?? ""}`
+  const scopeKey = `${filters.queryParams.from}|${filters.queryParams.to}|${filters.queryParams.tz ?? ""}|${audience ?? ""}|${filters.teamId ?? ""}|${filters.channelId ?? ""}`
   const granKey = `${scopeKey}|${filters.queryParams.granularity ?? ""}`
   const pageState = useSmoothTransition(query.data, scopeKey, query.isFetching)
   const chartState = useSmoothTransition(query.data?.series, granKey, query.isFetching)
@@ -51,7 +53,8 @@ export function ConversationsPage({
   const loading = query.isPending && !data
   const s = data?.summary
   const canInbox = can("conversations:read")
-  const scope = { teamId: filters.teamId, channelId: filters.channelId }
+  const scope = { audience, teamId: filters.teamId, channelId: filters.channelId }
+  const isInternal = audience === "internal"
 
   const maxChannel = Math.max(1, ...(data?.by_channel ?? []).map((x) => x.created))
   const maxTeam = Math.max(1, ...(data?.by_team ?? []).map((x) => x.created))
@@ -86,10 +89,16 @@ export function ConversationsPage({
   const metrics: MetricItem[] = [
     {
       key: "created",
-      label: t("reports.conv_created"),
-      description: t("reports.conv_created_desc"),
+      label: isInternal ? t("reports.internal_created") : t("reports.conv_created"),
+      description: isInternal ? t("reports.internal_created_desc") : t("reports.conv_created_desc"),
       value: formatInt(s?.created, uiLang),
       delta: pctDelta(s?.created, s?.prev_created),
+      secondary: s
+        ? t("reports.conv_target_sub", {
+            direct: formatInt(s.direct_created, uiLang),
+            group: formatInt(s.group_created, uiLang),
+          })
+        : undefined,
     },
     {
       key: "rounds_opened",

@@ -632,6 +632,9 @@ export const schemas = {
     conversations: {
       query: {
         "properties": {
+          "audience": {
+            "$ref": "#/components/schemas/ChannelAudience"
+          },
           "channel_id": {
             "format": "uuid",
             "type": "string"
@@ -668,6 +671,9 @@ export const schemas = {
     members: {
       query: {
         "properties": {
+          "audience": {
+            "$ref": "#/components/schemas/ChannelAudience"
+          },
           "channel_id": {
             "format": "uuid",
             "type": "string"
@@ -732,6 +738,9 @@ export const schemas = {
     responseTime: {
       query: {
         "properties": {
+          "audience": {
+            "$ref": "#/components/schemas/ChannelAudience"
+          },
           "channel_id": {
             "format": "uuid",
             "type": "string"
@@ -768,6 +777,9 @@ export const schemas = {
     satisfaction: {
       query: {
         "properties": {
+          "audience": {
+            "$ref": "#/components/schemas/ChannelAudience"
+          },
           "channel_id": {
             "format": "uuid",
             "type": "string"
@@ -804,6 +816,9 @@ export const schemas = {
     satisfactionRatings: {
       query: {
         "properties": {
+          "audience": {
+            "$ref": "#/components/schemas/ChannelAudience"
+          },
           "channel_id": {
             "format": "uuid",
             "type": "string"

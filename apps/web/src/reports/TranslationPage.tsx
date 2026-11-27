@@ -1,10 +1,10 @@
 // 翻译报表：指标带直接驱动趋势曲线切换、按场景/模型拆解，以及支持下钻收件箱的识别语言分布。
 
 import { AreaChart } from "@mantine/charts"
-import { Badge, Center, Group, Progress, SimpleGrid, Skeleton, Stack, Text, Tooltip } from "@mantine/core"
-import { IconArrowUpRight } from "@tabler/icons-react"
+import { Badge, Button, Center, Group, Progress, SegmentedControl, SimpleGrid, Skeleton, Stack, Text, ThemeIcon, Tooltip } from "@mantine/core"
+import { IconArrowUpRight, IconRobot, IconSparkles } from "@tabler/icons-react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
-import { Link, useParams } from "@tanstack/react-router"
+import { Link, useNavigate, useParams } from "@tanstack/react-router"
 import {
   LoadingStage,
   type PeriodRoute,
@@ -24,22 +24,53 @@ import { formatInt, formatPercent, formatUSD, pctDelta } from "./format"
 import { type MetricItem, MetricStrip } from "./MetricStrip"
 import { GranularityControl } from "./PeriodButton"
 import { ReportShell } from "./ReportShell"
+import type { TranslationReportSearchParams } from "./search"
 import { SectionCard } from "./SectionCard"
 
 type TrendMetric = "calls" | "tokens" | "cost"
+type AiReportTab = "translation" | "agent"
 
-/** 翻译报表页面组件。 */
+/** 翻译与 AI 效能报表页面组件。 */
 export function TranslationPage({ route }: { route: PeriodRoute }): ReactNode {
   const t = useT()
   const can = useCan()
   const uiLang = useLanguage()
   const formatDuration = useFormatDuration()
+  const navigate = useNavigate()
   const { slug } = useParams({ from: "/$slug" })
   const period = usePeriod(route, { defaultPreset: "7d" })
+  const search = route.useSearch() as TranslationReportSearchParams
+  const tab: AiReportTab = search.tab === "agent" ? "agent" : "translation"
   const query = useQuery({
     ...kit.queries.report.translation(period.params),
     placeholderData: keepPreviousData,
+    enabled: tab === "translation",
   })
+
+  const setTab = (next: string) => {
+    void navigate({
+      to: ".",
+      search: ((prev: Record<string, unknown>) => {
+        const out: Record<string, unknown> = { ...prev }
+        if (next === "translation") delete out.tab
+        else out.tab = next
+        return out
+      }) as never,
+      replace: true,
+    })
+  }
+
+  const tabSwitcher = (
+    <SegmentedControl
+      size="xs"
+      value={tab}
+      onChange={setTab}
+      data={[
+        { value: "translation", label: t("reports.ai_tab_translation") },
+        { value: "agent", label: t("reports.ai_tab_agent") },
+      ]}
+    />
+  )
   const [metric, setMetric] = useState<TrendMetric>("calls")
   const scopeKey = `${period.params.from}|${period.params.to}|${period.params.tz ?? ""}`
   const chartKey = `${scopeKey}|${period.params.granularity ?? ""}|${metric}`
@@ -70,6 +101,8 @@ export function TranslationPage({ route }: { route: PeriodRoute }): ReactNode {
     switch (scene) {
       case "service":
         return t("reports.scene_service")
+      case "internal_service":
+        return t("reports.scene_internal_service")
       case "ticket":
         return t("reports.scene_ticket")
       case "business":
@@ -149,6 +182,119 @@ export function TranslationPage({ route }: { route: PeriodRoute }): ReactNode {
     },
   ]
 
+  if (tab === "agent") {
+    const agentMetrics: MetricItem[] = [
+      {
+        key: "auto_resolve",
+        label: t("reports.ai_agent_auto_resolve"),
+        description: t("reports.ai_agent_auto_resolve_desc"),
+        value: "—",
+      },
+      {
+        key: "handoff_rate",
+        label: t("reports.ai_agent_handoff_rate"),
+        description: t("reports.ai_agent_handoff_rate_desc"),
+        value: "—",
+      },
+      {
+        key: "approvals",
+        label: t("reports.ai_agent_approvals"),
+        description: t("reports.ai_agent_approvals_desc"),
+        value: "—",
+      },
+      {
+        key: "active_agents",
+        label: t("reports.ai_agent_active"),
+        description: t("reports.ai_agent_active_desc"),
+        value: "—",
+      },
+    ]
+    const plannedRows = [
+      {
+        key: "customer_qa",
+        title: t("reports.ai_agent_scope_customer"),
+        desc: t("reports.ai_agent_scope_customer_desc"),
+      },
+      {
+        key: "internal_it",
+        title: t("reports.ai_agent_scope_internal"),
+        desc: t("reports.ai_agent_scope_internal_desc"),
+      },
+      {
+        key: "ticket_draft",
+        title: t("reports.ai_agent_scope_ticket"),
+        desc: t("reports.ai_agent_scope_ticket_desc"),
+      },
+    ]
+    return (
+      <ReportShell title={t("nav.reports_ai")} period={period} toolbarRight={tabSwitcher}>
+        <section className="rp-panel">
+          <MetricStrip items={agentMetrics} loading={false} />
+          <div className="rp-panel-body">
+            <Group justify="space-between" align="flex-start" gap="md" wrap="wrap">
+              <Group gap="sm" align="flex-start" wrap="nowrap">
+                <ThemeIcon size="lg" radius="md" variant="light" color="brand">
+                  <IconRobot size={18} stroke={1.6} />
+                </ThemeIcon>
+                <Stack gap={4}>
+                  <Group gap="xs">
+                    <Text size="sm" fw={600}>
+                      {t("reports.ai_agent_placeholder_title")}
+                    </Text>
+                    <Badge size="xs" variant="light" color="bright-blue" leftSection={<IconSparkles size={11} />}>
+                      {t("reports.ai_agent_planned_badge")}
+                    </Badge>
+                  </Group>
+                  <Text size="xs" c="dimmed" maw={640}>
+                    {t("reports.ai_agent_placeholder_desc")}
+                  </Text>
+                </Stack>
+              </Group>
+              <Button
+                size="xs"
+                variant="light"
+                rightSection={<IconArrowUpRight size={14} stroke={1.6} />}
+                onClick={() => void navigate({ to: "/$slug/ai", params: { slug } })}
+              >
+                {t("reports.ai_agent_open_hub")}
+              </Button>
+            </Group>
+          </div>
+        </section>
+
+        <SectionCard title={t("reports.ai_agent_breakdown_title")} loading={false} empty={false} flush>
+          <table className="rp-table">
+            <thead>
+              <tr>
+                <th>{t("reports.col_scene")}</th>
+                <th data-align="right">{t("reports.ai_agent_auto_resolve")}</th>
+                <th data-align="right">{t("reports.ai_agent_handoff_rate")}</th>
+                <th data-align="right">{t("reports.ai_agent_approvals")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {plannedRows.map((row) => (
+                <tr key={row.key} className="rp-row">
+                  <td>
+                    <Text size="sm" fw={500}>
+                      {row.title}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      {row.desc}
+                    </Text>
+                  </td>
+                  <td data-align="right">—</td>
+                  <td data-align="right">—</td>
+                  <td data-align="right">—</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </SectionCard>
+      </ReportShell>
+    )
+  }
+
   return (
     <ReportShell
       title={t("nav.reports_ai")}
@@ -156,6 +302,7 @@ export function TranslationPage({ route }: { route: PeriodRoute }): ReactNode {
       meta={data?.period}
       error={query.error}
       updating={pageState.busy}
+      toolbarRight={tabSwitcher}
     >
       {/* 主分析面板：点击调用量 / Token / 费用指标格直接切换下方趋势图 */}
       <section className="rp-panel">

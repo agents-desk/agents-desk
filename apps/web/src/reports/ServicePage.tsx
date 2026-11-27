@@ -47,10 +47,10 @@ export function ServicePage({ route }: { route: PeriodRoute }): ReactNode {
 
   const title = t("nav.reports_service")
   if (tab === "response") {
-    return <ResponseTimePage route={route} title={title} toolbarRight={switcher} />
+    return <ResponseTimePage route={route} audience="customer" title={title} toolbarRight={switcher} />
   }
   if (tab === "satisfaction") {
-    return <SatisfactionPage route={route} title={title} toolbarRight={switcher} />
+    return <SatisfactionPage route={route} audience="customer" title={title} toolbarRight={switcher} />
   }
-  return <ConversationsPage route={route} title={title} toolbarRight={switcher} />
+  return <ConversationsPage route={route} audience="customer" title={title} toolbarRight={switcher} />
 }

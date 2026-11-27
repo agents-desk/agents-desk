@@ -1,7 +1,7 @@
 import type { WidgetAppearance } from "@agents-desk/client/tenant"
 import { Box, Center, Group, SegmentedControl, Stack, Text } from "@mantine/core"
 import { IconDeviceDesktop, IconDeviceMobile, IconMessage, IconMessageCircle } from "@tabler/icons-react"
-import { useT } from "@go-tenon/ui"
+import { useLanguage, useT } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { PREVIEW_PREFIX, type PreviewMessage, type PreviewScene, type PreviewViewport } from "./preview-protocol"
 import classes from "./widget-studio.module.css"
@@ -18,6 +18,7 @@ interface WidgetPreviewStageProps {
  */
 export function WidgetPreviewStage({ name, appearance }: WidgetPreviewStageProps): ReactNode {
   const t = useT()
+  const lang = useLanguage()
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [ready, setReady] = useState(false)
   const [scene, setScene] = useState<PreviewScene>("conversation")
@@ -29,6 +30,7 @@ export function WidgetPreviewStage({ name, appearance }: WidgetPreviewStageProps
       if (!target) return
       const payload: PreviewMessage = {
         type: `${PREVIEW_PREFIX}preview`,
+        lang,
         name,
         appearance,
         scene: nextScene,
@@ -36,7 +38,7 @@ export function WidgetPreviewStage({ name, appearance }: WidgetPreviewStageProps
       }
       target.postMessage(payload, window.location.origin)
     },
-    [appearance, name],
+    [appearance, lang, name],
   )
   const latestPostRef = useRef<() => void>(() => {})
   latestPostRef.current = () => postPreview(scene, viewport)
@@ -137,6 +139,10 @@ export function WidgetPreviewStage({ name, appearance }: WidgetPreviewStageProps
             src="/widget/preview"
             title={t("widget_studio.preview_title")}
             className={classes.frame}
+            onLoad={() => {
+              setReady(true)
+              latestPostRef.current()
+            }}
           />
         </Box>
       </Box>

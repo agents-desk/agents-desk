@@ -376,8 +376,11 @@ func (a *ResponseTime) byChannel(ctx context.Context, tenantID string, f FilterP
 	var channels []channel.Channel
 	qCh := a.db.NewSelect().Model(&channels).
 		Column("id", "name", "kind", "enabled").
-		Where("tenant_id = ?", tenantID).
+		Where("tenant_id = ? AND owner_member_id IS NULL", tenantID).
 		OrderExpr("created_at ASC, id ASC")
+	if f.Audience != "" {
+		qCh.Where("audience = ?", f.Audience)
+	}
 	if f.ChannelID != "" {
 		qCh.Where("id = ?", f.ChannelID)
 	}

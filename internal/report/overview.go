@@ -11,6 +11,7 @@ import (
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/period"
 
+	"agents-desk/internal/channel"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/llm"
 	"agents-desk/internal/member"
@@ -18,22 +19,25 @@ import (
 
 // OverviewLive 是工作区此刻的实时运营快照（不受时间窗口筛选影响）。
 type OverviewLive struct {
-	ServiceOpen       int64 `json:"service_open" doc:"当前打开的服务型会话数"`
-	ServiceWaiting    int64 `json:"service_waiting" doc:"当前等待客服回复的服务型会话数"`
-	ServiceUnassigned int64 `json:"service_unassigned" doc:"当前未关闭且无负责人的服务型会话数"`
-	ServiceSnoozed    int64 `json:"service_snoozed" doc:"当前稍后处理的服务型会话数"`
-	TicketOpen        int64 `json:"ticket_open" doc:"当前未解决的工单总数"`
-	TicketSubmitted   int64 `json:"ticket_submitted" doc:"当前已提交状态的工单数"`
-	TicketInProgress  int64 `json:"ticket_in_progress" doc:"当前处理中状态的工单数"`
-	TicketWaiting     int64 `json:"ticket_waiting" doc:"当前等待客户状态的工单数"`
-	TicketUnassigned  int64 `json:"ticket_unassigned" doc:"当前未解决且无负责人的工单数"`
-	BusinessActive24h int64 `json:"business_active_24h" doc:"近 24 小时有消息往来的商务沟通会话数"`
-	BusinessWaiting   int64 `json:"business_waiting" doc:"最新一条消息来自外部联系人的商务沟通会话数"`
-	OnlineMembers     int64 `json:"online_members" doc:"当前在线的工作区成员数"`
-	TotalMembers      int64 `json:"total_members" doc:"工作区在职成员总数"`
+	ServiceOpen        int64 `json:"service_open" doc:"当前打开的对外客服会话数"`
+	ServiceWaiting     int64 `json:"service_waiting" doc:"当前等待回复的对外客服会话数"`
+	ServiceUnassigned  int64 `json:"service_unassigned" doc:"当前未关闭且无负责人的对外客服会话数"`
+	ServiceSnoozed     int64 `json:"service_snoozed" doc:"当前稍后处理的对外客服会话数"`
+	InternalOpen       int64 `json:"internal_open" doc:"当前打开的内部服务会话数"`
+	InternalWaiting    int64 `json:"internal_waiting" doc:"当前等待回复的内部服务会话数"`
+	InternalUnassigned int64 `json:"internal_unassigned" doc:"当前未关闭且无负责人的内部服务会话数"`
+	TicketOpen         int64 `json:"ticket_open" doc:"当前未解决的工单总数"`
+	TicketSubmitted    int64 `json:"ticket_submitted" doc:"当前已提交状态的工单数"`
+	TicketInProgress   int64 `json:"ticket_in_progress" doc:"当前处理中状态的工单数"`
+	TicketWaiting      int64 `json:"ticket_waiting" doc:"当前等待客户状态的工单数"`
+	TicketUnassigned   int64 `json:"ticket_unassigned" doc:"当前未解决且无负责人的工单数"`
+	BusinessActive24h  int64 `json:"business_active_24h" doc:"近 24 小时有消息往来的商务沟通会话数"`
+	BusinessWaiting    int64 `json:"business_waiting" doc:"最新一条消息来自外部联系人的商务沟通会话数"`
+	OnlineMembers      int64 `json:"online_members" doc:"当前在线的工作区成员数"`
+	TotalMembers       int64 `json:"total_members" doc:"工作区在职成员总数"`
 }
 
-// OverviewService 是统计期内客服业务线的核心汇总。
+// OverviewService 是统计期内对外客服业务线的核心汇总。
 type OverviewService struct {
 	Created             int64    `json:"created"`
 	PrevCreated         int64    `json:"prev_created"`
@@ -44,6 +48,17 @@ type OverviewService struct {
 	CSAT                *float64 `json:"csat,omitempty"`
 	PrevCSAT            *float64 `json:"prev_csat,omitempty"`
 	RatedCount          int64    `json:"rated_count"`
+}
+
+// OverviewInternal 是统计期内内部员工服务业务线的核心汇总。
+type OverviewInternal struct {
+	Created             int64    `json:"created"`
+	PrevCreated         int64    `json:"prev_created"`
+	Closed              int64    `json:"closed"`
+	PrevClosed          int64    `json:"prev_closed"`
+	FirstReplyMedianSec *float64 `json:"first_reply_median_seconds,omitempty"`
+	PrevFirstReplySec   *float64 `json:"prev_first_reply_median_seconds,omitempty"`
+	GroupCreated        int64    `json:"group_created"`
 }
 
 // OverviewTickets 是统计期内工单业务线的核心汇总。
@@ -76,10 +91,11 @@ type OverviewAI struct {
 	PrevTotalCostUSD float64  `json:"prev_total_cost_usd"`
 }
 
-// OverviewPoint 是全局趋势图中的一个时间桶，合并展示客服、工单与商务沟通的业务量走势。
+// OverviewPoint 是全局趋势图中的一个时间桶，合并展示对外客服、内部服务、工单与商务沟通的业务量走势。
 type OverviewPoint struct {
 	Date             string `json:"date"`
 	ServiceCreated   int64  `json:"service_created"`
+	InternalCreated  int64  `json:"internal_created"`
 	TicketCreated    int64  `json:"ticket_created"`
 	BusinessMessages int64  `json:"business_messages"`
 }
@@ -89,6 +105,7 @@ type OverviewReport struct {
 	Period   PeriodMeta       `json:"period"`
 	Live     OverviewLive     `json:"live"`
 	Service  OverviewService  `json:"service"`
+	Internal OverviewInternal `json:"internal"`
 	Tickets  OverviewTickets  `json:"tickets"`
 	Business OverviewBusiness `json:"business"`
 	AI       OverviewAI       `json:"ai"`
@@ -120,12 +137,15 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 
 	var live OverviewLive
 
-	// 1. 实时快照：客服积压与工单积压
+	// 1. 实时快照：对外客服、内部服务与工单积压
 	if err := a.db.NewSelect().TableExpr("conversations c").
-		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.status = ?) AS svc_open", conversation.Service, conversation.Open).
-		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.status <> ? AND c.waiting_since IS NOT NULL) AS svc_waiting", conversation.Service, conversation.Closed).
-		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.status <> ? AND c.assignee_id = '') AS svc_unassigned", conversation.Service, conversation.Closed).
-		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.status = ?) AS svc_snoozed", conversation.Service, conversation.Snoozed).
+		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.audience = ? AND c.status = ?) AS svc_open", conversation.Service, channel.AudienceCustomer, conversation.Open).
+		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.audience = ? AND c.status <> ? AND c.waiting_since IS NOT NULL) AS svc_waiting", conversation.Service, channel.AudienceCustomer, conversation.Closed).
+		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.audience = ? AND c.status <> ? AND c.assignee_id = '') AS svc_unassigned", conversation.Service, channel.AudienceCustomer, conversation.Closed).
+		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.audience = ? AND c.status = ?) AS svc_snoozed", conversation.Service, channel.AudienceCustomer, conversation.Snoozed).
+		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.audience = ? AND c.status = ?) AS int_open", conversation.Service, channel.AudienceInternal, conversation.Open).
+		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.audience = ? AND c.status <> ? AND c.waiting_since IS NOT NULL) AS int_waiting", conversation.Service, channel.AudienceInternal, conversation.Closed).
+		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.audience = ? AND c.status <> ? AND c.assignee_id = '') AS int_unassigned", conversation.Service, channel.AudienceInternal, conversation.Closed).
 		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.status <> ?) AS tk_open", conversation.Ticket, conversation.Status(conversation.TicketResolved)).
 		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.status = ?) AS tk_sub", conversation.Ticket, conversation.Status(conversation.TicketSubmitted)).
 		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.status = ?) AS tk_prog", conversation.Ticket, conversation.Status(conversation.TicketInProgress)).
@@ -134,6 +154,7 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 		Where("c.tenant_id = ?", sub.Tenant).
 		Scan(ctx,
 			&live.ServiceOpen, &live.ServiceWaiting, &live.ServiceUnassigned, &live.ServiceSnoozed,
+			&live.InternalOpen, &live.InternalWaiting, &live.InternalUnassigned,
 			&live.TicketOpen, &live.TicketSubmitted, &live.TicketInProgress, &live.TicketWaiting, &live.TicketUnassigned,
 		); err != nil {
 		return nil, errors.Wrap(err, "report overview live backlog")
@@ -186,37 +207,50 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 		}
 	}
 
-	// 4. 客服周期汇总
+	// 4. 对外客服与内部服务周期汇总
 	var svc OverviewService
+	var internalSvc OverviewInternal
 	if err := a.db.NewSelect().TableExpr("conversations c").
-		ColumnExpr("count(*) FILTER (WHERE c.created_at >= ? AND c.created_at < ?) AS created", w.Start, w.End).
-		ColumnExpr("count(*) FILTER (WHERE c.created_at >= ? AND c.created_at < ?) AS prev_created", w.PrevStart, w.PrevEnd).
+		ColumnExpr("count(*) FILTER (WHERE c.audience = ? AND c.created_at >= ? AND c.created_at < ?) AS svc_created", channel.AudienceCustomer, w.Start, w.End).
+		ColumnExpr("count(*) FILTER (WHERE c.audience = ? AND c.created_at >= ? AND c.created_at < ?) AS svc_prev_created", channel.AudienceCustomer, w.PrevStart, w.PrevEnd).
+		ColumnExpr("count(*) FILTER (WHERE c.audience = ? AND c.created_at >= ? AND c.created_at < ?) AS int_created", channel.AudienceInternal, w.Start, w.End).
+		ColumnExpr("count(*) FILTER (WHERE c.audience = ? AND c.created_at >= ? AND c.created_at < ?) AS int_prev_created", channel.AudienceInternal, w.PrevStart, w.PrevEnd).
+		ColumnExpr("count(*) FILTER (WHERE c.audience = ? AND c.external_group_id IS NOT NULL AND c.created_at >= ? AND c.created_at < ?) AS int_group_created", channel.AudienceInternal, w.Start, w.End).
 		Where("c.tenant_id = ? AND c.kind = ? AND c.created_at >= ? AND c.created_at < ?", sub.Tenant, conversation.Service, w.PrevStart, w.End).
-		Scan(ctx, &svc.Created, &svc.PrevCreated); err != nil {
+		Scan(ctx, &svc.Created, &svc.PrevCreated, &internalSvc.Created, &internalSvc.PrevCreated, &internalSvc.GroupCreated); err != nil {
 		return nil, errors.Wrap(err, "report overview service created")
 	}
 	frtExpr := "GREATEST(EXTRACT(EPOCH FROM (r.first_reply_at - r.opened_at)), 0)"
 	var svcPos, svcPrevRated, svcPrevPos int64
 	if err := a.db.NewSelect().TableExpr("conversation_rounds r").
 		Join("JOIN conversations c ON c.id = r.conversation_id").
-		ColumnExpr("count(*) FILTER (WHERE r.closed_at >= ? AND r.closed_at < ?) AS closed", w.Start, w.End).
-		ColumnExpr("count(*) FILTER (WHERE r.closed_at >= ? AND r.closed_at < ?) AS prev_closed", w.PrevStart, w.PrevEnd).
-		ColumnExpr("percentile_cont(0.5) WITHIN GROUP (ORDER BY "+frtExpr+") FILTER (WHERE r.first_reply_at >= ? AND r.first_reply_at < ?) AS frt_med", w.Start, w.End).
-		ColumnExpr("percentile_cont(0.5) WITHIN GROUP (ORDER BY "+frtExpr+") FILTER (WHERE r.first_reply_at >= ? AND r.first_reply_at < ?) AS prev_frt_med", w.PrevStart, w.PrevEnd).
-		ColumnExpr("count(*) FILTER (WHERE r.rated_at >= ? AND r.rated_at < ? AND r.rating IS NOT NULL) AS rated", w.Start, w.End).
-		ColumnExpr("count(*) FILTER (WHERE r.rated_at >= ? AND r.rated_at < ? AND r.rating >= 4) AS pos", w.Start, w.End).
-		ColumnExpr("count(*) FILTER (WHERE r.rated_at >= ? AND r.rated_at < ? AND r.rating IS NOT NULL) AS prev_rated", w.PrevStart, w.PrevEnd).
-		ColumnExpr("count(*) FILTER (WHERE r.rated_at >= ? AND r.rated_at < ? AND r.rating >= 4) AS prev_pos", w.PrevStart, w.PrevEnd).
+		ColumnExpr("count(*) FILTER (WHERE c.audience = ? AND r.closed_at >= ? AND r.closed_at < ?) AS closed", channel.AudienceCustomer, w.Start, w.End).
+		ColumnExpr("count(*) FILTER (WHERE c.audience = ? AND r.closed_at >= ? AND r.closed_at < ?) AS prev_closed", channel.AudienceCustomer, w.PrevStart, w.PrevEnd).
+		ColumnExpr("percentile_cont(0.5) WITHIN GROUP (ORDER BY "+frtExpr+") FILTER (WHERE c.audience = ? AND r.first_reply_at >= ? AND r.first_reply_at < ?) AS frt_med", channel.AudienceCustomer, w.Start, w.End).
+		ColumnExpr("percentile_cont(0.5) WITHIN GROUP (ORDER BY "+frtExpr+") FILTER (WHERE c.audience = ? AND r.first_reply_at >= ? AND r.first_reply_at < ?) AS prev_frt_med", channel.AudienceCustomer, w.PrevStart, w.PrevEnd).
+		ColumnExpr("count(*) FILTER (WHERE c.audience = ? AND r.rated_at >= ? AND r.rated_at < ? AND r.rating IS NOT NULL) AS rated", channel.AudienceCustomer, w.Start, w.End).
+		ColumnExpr("count(*) FILTER (WHERE c.audience = ? AND r.rated_at >= ? AND r.rated_at < ? AND r.rating >= 4) AS pos", channel.AudienceCustomer, w.Start, w.End).
+		ColumnExpr("count(*) FILTER (WHERE c.audience = ? AND r.rated_at >= ? AND r.rated_at < ? AND r.rating IS NOT NULL) AS prev_rated", channel.AudienceCustomer, w.PrevStart, w.PrevEnd).
+		ColumnExpr("count(*) FILTER (WHERE c.audience = ? AND r.rated_at >= ? AND r.rated_at < ? AND r.rating >= 4) AS prev_pos", channel.AudienceCustomer, w.PrevStart, w.PrevEnd).
+		ColumnExpr("count(*) FILTER (WHERE c.audience = ? AND r.closed_at >= ? AND r.closed_at < ?) AS int_closed", channel.AudienceInternal, w.Start, w.End).
+		ColumnExpr("count(*) FILTER (WHERE c.audience = ? AND r.closed_at >= ? AND r.closed_at < ?) AS int_prev_closed", channel.AudienceInternal, w.PrevStart, w.PrevEnd).
+		ColumnExpr("percentile_cont(0.5) WITHIN GROUP (ORDER BY "+frtExpr+") FILTER (WHERE c.audience = ? AND r.first_reply_at >= ? AND r.first_reply_at < ?) AS int_frt_med", channel.AudienceInternal, w.Start, w.End).
+		ColumnExpr("percentile_cont(0.5) WITHIN GROUP (ORDER BY "+frtExpr+") FILTER (WHERE c.audience = ? AND r.first_reply_at >= ? AND r.first_reply_at < ?) AS int_prev_frt_med", channel.AudienceInternal, w.PrevStart, w.PrevEnd).
 		Where("r.tenant_id = ? AND c.kind = ?", sub.Tenant, conversation.Service).
 		Where("(r.closed_at >= ? AND r.closed_at < ?) OR (r.first_reply_at >= ? AND r.first_reply_at < ?) OR (r.rated_at >= ? AND r.rated_at < ?)",
 			w.PrevStart, w.End, w.PrevStart, w.End, w.PrevStart, w.End).
-		Scan(ctx, &svc.Closed, &svc.PrevClosed, &svc.FirstReplyMedianSec, &svc.PrevFirstReplySec, &svc.RatedCount, &svcPos, &svcPrevRated, &svcPrevPos); err != nil {
+		Scan(ctx,
+			&svc.Closed, &svc.PrevClosed, &svc.FirstReplyMedianSec, &svc.PrevFirstReplySec, &svc.RatedCount, &svcPos, &svcPrevRated, &svcPrevPos,
+			&internalSvc.Closed, &internalSvc.PrevClosed, &internalSvc.FirstReplyMedianSec, &internalSvc.PrevFirstReplySec,
+		); err != nil {
 		return nil, errors.Wrap(err, "report overview service rounds")
 	}
 	svc.FirstReplyMedianSec = roundPtr(svc.FirstReplyMedianSec)
 	svc.PrevFirstReplySec = roundPtr(svc.PrevFirstReplySec)
 	svc.CSAT = pct(svcPos, svc.RatedCount)
 	svc.PrevCSAT = pct(svcPrevPos, svcPrevRated)
+	internalSvc.FirstReplyMedianSec = roundPtr(internalSvc.FirstReplyMedianSec)
+	internalSvc.PrevFirstReplySec = roundPtr(internalSvc.PrevFirstReplySec)
 
 	// 5. 工单周期汇总
 	var tk OverviewTickets
@@ -279,7 +313,7 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 	ai.TotalCostUSD = round6(ai.TotalCostUSD)
 	ai.PrevTotalCostUSD = round6(ai.PrevTotalCostUSD)
 
-	// 8. 合并全局趋势序列（客服新建、工单新建、商务消息量）
+	// 8. 合并全局趋势序列（对外客服新建、内部服务新建、工单新建、商务消息量）
 	pointMap := map[string]*OverviewPoint{}
 	ensurePt := func(b string) *OverviewPoint {
 		pt, ok := pointMap[b]
@@ -290,14 +324,16 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 		return pt
 	}
 	type convSeriesRow struct {
-		Bucket  string `bun:"bucket"`
-		Service int64  `bun:"svc"`
-		Ticket  int64  `bun:"tk"`
+		Bucket   string `bun:"bucket"`
+		Service  int64  `bun:"svc"`
+		Internal int64  `bun:"internal"`
+		Ticket   int64  `bun:"tk"`
 	}
 	var convRows []convSeriesRow
 	if err := a.db.NewSelect().TableExpr("conversations c").
 		ColumnExpr(bucketExpr("c.created_at", w.Granularity)+" AS bucket", w.TimeZone).
-		ColumnExpr("count(*) FILTER (WHERE c.kind = ?) AS svc", conversation.Service).
+		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.audience = ?) AS svc", conversation.Service, channel.AudienceCustomer).
+		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.audience = ?) AS internal", conversation.Service, channel.AudienceInternal).
 		ColumnExpr("count(*) FILTER (WHERE c.kind = ?) AS tk", conversation.Ticket).
 		Where("c.tenant_id = ? AND c.kind IN (?, ?) AND c.created_at >= ? AND c.created_at < ?",
 			sub.Tenant, conversation.Service, conversation.Ticket, w.Start, w.End).
@@ -308,6 +344,7 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 	for _, r := range convRows {
 		pt := ensurePt(r.Bucket)
 		pt.ServiceCreated = r.Service
+		pt.InternalCreated = r.Internal
 		pt.TicketCreated = r.Ticket
 	}
 
@@ -344,6 +381,7 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 		Period:   PeriodMeta(w.Meta()),
 		Live:     live,
 		Service:  svc,
+		Internal: internalSvc,
 		Tickets:  tk,
 		Business: biz,
 		AI:       ai,

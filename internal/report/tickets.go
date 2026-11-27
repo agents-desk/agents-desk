@@ -37,7 +37,7 @@ type TicketsSummary struct {
 	ResolutionMedianSec *float64 `json:"resolution_median_seconds,omitempty" doc:"解决时长中位数（秒）"`
 	PrevResolutionSec   *float64 `json:"prev_resolution_median_seconds,omitempty" doc:"上一对比期解决时长中位数（秒）"`
 	ResolutionAvgSec    *float64 `json:"resolution_avg_seconds,omitempty" doc:"解决时长均值（秒）"`
-	LinkedContacts      int64    `json:"linked_contacts" doc:"统计期内新建工单关联的受影响客户总数"`
+	LinkedContacts      int64    `json:"linked_contacts" doc:"统计期内新建工单关联的受影响对象总数"`
 	SubmittedNow        int64    `json:"submitted_now" doc:"当前已提交状态的工单数（实时快照）"`
 	InProgressNow       int64    `json:"in_progress_now" doc:"当前处理中状态的工单数（实时快照）"`
 	WaitingNow          int64    `json:"waiting_now" doc:"当前等待客户状态的工单数（实时快照）"`

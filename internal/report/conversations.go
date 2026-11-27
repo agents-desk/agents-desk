@@ -17,6 +17,8 @@ import (
 type ConversationsSummary struct {
 	Created          int64 `json:"created" doc:"统计期内新建的服务型会话数"`
 	PrevCreated      int64 `json:"prev_created" doc:"上一对比期新建的服务型会话数"`
+	DirectCreated    int64 `json:"direct_created" doc:"统计期内新建的单聊会话数"`
+	GroupCreated     int64 `json:"group_created" doc:"统计期内新建的外部群会话数"`
 	RoundsOpened     int64 `json:"rounds_opened" doc:"统计期内开启的服务轮次数（新建 + 重开）"`
 	PrevRoundsOpened int64 `json:"prev_rounds_opened" doc:"上一对比期开启的服务轮次数"`
 	Reopened         int64 `json:"reopened" doc:"统计期内重新打开的轮次数（round > 1）"`
@@ -97,13 +99,15 @@ func (a *Conversations) Handle(ctx context.Context, sub identity.Subject, f Filt
 
 	var sum ConversationsSummary
 
-	// 1. 新建会话数（主周期 + 上一对比期）
+	// 1. 新建会话数（主周期 + 上一对比期 + 单聊/外部群拆解）
 	qCreated := a.db.NewSelect().TableExpr("conversations c").
 		ColumnExpr("count(*) FILTER (WHERE c.created_at >= ? AND c.created_at < ?) AS created", w.Start, w.End).
 		ColumnExpr("count(*) FILTER (WHERE c.created_at >= ? AND c.created_at < ?) AS prev_created", w.PrevStart, w.PrevEnd).
+		ColumnExpr("count(*) FILTER (WHERE c.created_at >= ? AND c.created_at < ? AND c.external_group_id IS NULL) AS direct_created", w.Start, w.End).
+		ColumnExpr("count(*) FILTER (WHERE c.created_at >= ? AND c.created_at < ? AND c.external_group_id IS NOT NULL) AS group_created", w.Start, w.End).
 		Where("c.tenant_id = ? AND c.kind = ? AND c.created_at >= ? AND c.created_at < ?", sub.Tenant, conversation.Service, w.PrevStart, w.End)
 	applyConvFilters(qCreated, f)
-	if err := qCreated.Scan(ctx, &sum.Created, &sum.PrevCreated); err != nil {
+	if err := qCreated.Scan(ctx, &sum.Created, &sum.PrevCreated, &sum.DirectCreated, &sum.GroupCreated); err != nil {
 		return nil, errors.Wrap(err, "report conversations created summary")
 	}
 
@@ -267,6 +271,9 @@ func (a *Conversations) channelVolumes(ctx context.Context, tenantID string, w p
 		Column("id", "name", "kind", "enabled").
 		Where("tenant_id = ? AND owner_member_id IS NULL", tenantID).
 		OrderExpr("created_at ASC, id ASC")
+	if f.Audience != "" {
+		qCh.Where("audience = ?", f.Audience)
+	}
 	if f.ChannelID != "" {
 		qCh.Where("id = ?", f.ChannelID)
 	}
@@ -404,8 +411,11 @@ func (a *Conversations) teamVolumes(ctx context.Context, tenantID string, w peri
 	return out, nil
 }
 
-// applyConvFilters 向以 conversations c 为主表的查询附加团队与渠道条件。
+// applyConvFilters 向以 conversations c 为主表的查询附加服务对象、团队与渠道条件。
 func applyConvFilters(q *bun.SelectQuery, f FilterParams) {
+	if f.Audience != "" {
+		q.Where("c.audience = ?", f.Audience)
+	}
 	if f.TeamID != "" {
 		q.Where("c.team_id = ?", f.TeamID)
 	}
@@ -414,8 +424,11 @@ func applyConvFilters(q *bun.SelectQuery, f FilterParams) {
 	}
 }
 
-// applyRoundFilters 向以 conversation_rounds r JOIN conversations c 为主表的查询附加团队与渠道条件。
+// applyRoundFilters 向以 conversation_rounds r JOIN conversations c 为主表的查询附加服务对象、团队与渠道条件。
 func applyRoundFilters(q *bun.SelectQuery, f FilterParams) {
+	if f.Audience != "" {
+		q.Where("c.audience = ?", f.Audience)
+	}
 	if f.TeamID != "" {
 		q.Where("r.team_id = ?", f.TeamID)
 	}

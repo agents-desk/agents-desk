@@ -5,6 +5,7 @@ import { type ConversationFilter, type InboxSearch, serializeFilter } from "../i
 
 /** 当前报表已选的公共维度上下文，下钻到收件箱时自动继承。 */
 export interface ReportScopeContext {
+  audience?: "customer" | "internal"
   teamId?: string
   channelId?: string
 }
@@ -23,9 +24,12 @@ function buildInboxSearch(
   }
 }
 
-/** 将报表当前已选的团队/渠道维度并入目标收件箱筛选条件（显式指定时优先生效）。 */
+/** 将报表当前已选的服务对象/团队/渠道维度并入目标收件箱筛选条件（显式指定时优先生效）。 */
 function mergeScope(base: ConversationFilter, scope?: ReportScopeContext): ConversationFilter {
   const next: ConversationFilter = { ...base }
+  if (!next.audience && scope?.audience) {
+    next.audience = scope.audience
+  }
   if (!next.team && scope?.teamId) {
     next.team = { mode: "ids", ids: [scope.teamId] }
   }
@@ -40,7 +44,7 @@ export function liveBacklogInboxSearch(
   kind: "open" | "waiting" | "unassigned" | "snoozed",
   scope?: ReportScopeContext,
 ): InboxSearch {
-  const hasScope = Boolean(scope?.teamId || scope?.channelId)
+  const hasScope = Boolean(scope?.audience || scope?.teamId || scope?.channelId)
   if (kind === "open") {
     if (!hasScope) return { box: "all", status: "open", sort: "waiting" }
     return buildInboxSearch(mergeScope({ statuses: ["open"] }, scope))
@@ -62,6 +66,7 @@ export function teamInboxSearch(teamId: string | undefined, scope?: ReportScopeC
     statuses: ["open"],
     team: teamId ? { mode: "ids", ids: [teamId] } : { mode: "unassigned" },
   }
+  if (scope?.audience) filter.audience = scope.audience
   if (scope?.channelId) filter.channel_ids = [scope.channelId]
   return buildInboxSearch(filter)
 }
@@ -72,6 +77,7 @@ export function channelInboxSearch(channelId: string, scope?: ReportScopeContext
     statuses: ["open"],
     channel_ids: [channelId],
   }
+  if (scope?.audience) filter.audience = scope.audience
   if (scope?.teamId) filter.team = { mode: "ids", ids: [scope.teamId] }
   return buildInboxSearch(filter)
 }

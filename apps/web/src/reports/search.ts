@@ -21,6 +21,7 @@ export interface ReportFilterSearchParams extends PeriodSearchParams {
 
 /** 传给支持团队与渠道筛选的后端报表接口的查询参数。 */
 export interface ReportFilterQueryParams extends PeriodQueryParams {
+  audience?: "customer" | "internal"
   team_id?: string
   channel_id?: string
 }
@@ -36,6 +37,16 @@ export interface SatisfactionSearchParams extends ReportFilterSearchParams {
 
 /** 客服报表的 URL search 参数（统一承接会话量、响应时效、满意度 3 个 Tab）。 */
 export type ServiceReportSearchParams = SatisfactionSearchParams
+
+/** 内部服务报表的 URL search 参数（统一承接请求量、响应时效 2 个 Tab）。 */
+export interface InternalServiceReportSearchParams extends ReportFilterSearchParams {
+  tab?: "volume" | "response"
+}
+
+/** AI 与翻译报表的 URL search 参数（统一承接翻译用量、AI Agent 效能 2 个 Tab）。 */
+export interface TranslationReportSearchParams extends PeriodSearchParams {
+  tab?: "translation" | "agent"
+}
 
 /** 工单报表的 URL search 参数。 */
 export interface TicketsReportSearchParams extends PeriodSearchParams {
@@ -91,6 +102,34 @@ export function serviceReportSearch(
   }
 }
 
+/** 校验并解析内部服务报表的查询参数（Tab + 通用筛选）。 */
+export function internalServiceReportSearch(
+  options: PeriodSearchOptions = { defaultPreset: "7d" },
+): (search: Record<string, unknown>) => InternalServiceReportSearchParams {
+  const parseBase = reportFilterSearch(options)
+  return (search: Record<string, unknown>): InternalServiceReportSearchParams => {
+    const out: InternalServiceReportSearchParams = parseBase(search)
+    if (search.tab === "volume" || search.tab === "response") {
+      out.tab = search.tab
+    }
+    return out
+  }
+}
+
+/** 校验并解析 AI 与翻译报表的查询参数（时间窗口 + Tab）。 */
+export function translationReportSearch(
+  options: PeriodSearchOptions = { defaultPreset: "7d" },
+): (search: Record<string, unknown>) => TranslationReportSearchParams {
+  const parsePeriod = periodSearch(options)
+  return (search: Record<string, unknown>): TranslationReportSearchParams => {
+    const out: TranslationReportSearchParams = parsePeriod(search)
+    if (search.tab === "translation" || search.tab === "agent") {
+      out.tab = search.tab
+    }
+    return out
+  }
+}
+
 /** 校验并解析工单报表的查询参数。 */
 export function ticketsReportSearch(
   options: PeriodSearchOptions = { defaultPreset: "7d" },
@@ -123,23 +162,28 @@ export function businessReportSearch(
 /** useReportFilters 返回的报表筛选状态与操作。 */
 export interface ReportFiltersState {
   period: PeriodState
+  audience?: "customer" | "internal"
   teamId: string | undefined
   channelId: string | undefined
   setTeamId(id: string | undefined): void
   setChannelId(id: string | undefined): void
   clearDimensions(): void
-  /** 直接传给支持 team_id / channel_id 的报表接口的参数对象。 */
+  /** 直接传给支持 audience / team_id / channel_id 的报表接口的参数对象。 */
   queryParams: ReportFilterQueryParams
 }
 
 /** 读取并同步地址中的时间窗口、团队收件箱与渠道筛选条件；改变维度时自动把明细分页归回第 1 页。 */
 export function useReportFilters(
   route: PeriodRoute,
-  options: { defaultPreset?: "today" | "7d" | "30d" | "this_month" | "last_month" } = { defaultPreset: "7d" },
+  options: {
+    defaultPreset?: "today" | "7d" | "30d" | "this_month" | "last_month"
+    audience?: "customer" | "internal"
+  } = { defaultPreset: "7d" },
 ): ReportFiltersState {
   const period = usePeriod(route, options)
   const search = route.useSearch() as ReportFilterSearchParams
   const navigate = useNavigate()
+  const audience = options.audience
 
   const teamId = typeof search.team_id === "string" && search.team_id ? search.team_id : undefined
   const channelId = typeof search.channel_id === "string" && search.channel_id ? search.channel_id : undefined
@@ -169,10 +213,11 @@ export function useReportFilters(
 
   const queryParams = useMemo<ReportFilterQueryParams>(() => {
     const out: ReportFilterQueryParams = { ...period.params }
+    if (audience) out.audience = audience
     if (teamId) out.team_id = teamId
     if (channelId) out.channel_id = channelId
     return out
-  }, [period.params, teamId, channelId])
+  }, [period.params, audience, teamId, channelId])
 
-  return { period, teamId, channelId, setTeamId, setChannelId, clearDimensions, queryParams }
+  return { period, audience, teamId, channelId, setTeamId, setChannelId, clearDimensions, queryParams }
 }

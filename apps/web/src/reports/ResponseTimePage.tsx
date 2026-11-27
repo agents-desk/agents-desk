@@ -16,13 +16,15 @@ import { ReportShell } from "./ReportShell"
 import { useReportFilters } from "./search"
 import { SectionCard } from "./SectionCard"
 
-/** 响应时间报表页面组件。 */
+/** 响应时间报表页面组件（同时服务对外客服与内部服务场景）。 */
 export function ResponseTimePage({
   route,
+  audience,
   title,
   toolbarRight,
 }: {
   route: PeriodRoute
+  audience?: "customer" | "internal"
   title?: ReactNode
   toolbarRight?: ReactNode
 }): ReactNode {
@@ -31,19 +33,19 @@ export function ResponseTimePage({
   const uiLang = useLanguage()
   const formatDuration = useFormatDuration()
   const { slug } = useParams({ from: "/$slug" })
-  const filters = useReportFilters(route)
+  const filters = useReportFilters(route, { defaultPreset: "7d", audience })
   const query = useQuery({
     ...kit.queries.report.responseTime(filters.queryParams),
     placeholderData: keepPreviousData,
   })
-  const scopeKey = `${filters.queryParams.from}|${filters.queryParams.to}|${filters.queryParams.tz ?? ""}|${filters.teamId ?? ""}|${filters.channelId ?? ""}`
+  const scopeKey = `${filters.queryParams.from}|${filters.queryParams.to}|${filters.queryParams.tz ?? ""}|${audience ?? ""}|${filters.teamId ?? ""}|${filters.channelId ?? ""}`
   const granKey = `${scopeKey}|${filters.queryParams.granularity ?? ""}`
   const pageState = useSmoothTransition(query.data, scopeKey, query.isFetching)
   const chartState = useSmoothTransition(query.data?.series, granKey, query.isFetching)
   const data = pageState.data
   const loading = query.isPending && !data
   const canInbox = can("conversations:read")
-  const scope = { teamId: filters.teamId, channelId: filters.channelId }
+  const scope = { audience, teamId: filters.teamId, channelId: filters.channelId }
 
   const frt = data?.first_reply
   const res = data?.resolution

@@ -24,11 +24,12 @@ var now = func() time.Time { return time.Now().UTC() }
 // PeriodMeta 是报表响应中携带的时间窗口元信息；独立命名以避免与 filesystem.Meta 在 OpenAPI schema 中重名。
 type PeriodMeta period.Meta
 
-// FilterParams 是支持按团队收件箱与渠道筛选的报表通用输入参数。
+// FilterParams 是支持按服务对象、团队收件箱与渠道筛选的报表通用输入参数。
 type FilterParams struct {
 	period.Params
-	TeamID    string `query:"team_id" format:"uuid" doc:"按团队收件箱筛选（含已停用团队）"`
-	ChannelID string `query:"channel_id" format:"uuid" doc:"按渠道筛选（含已停用渠道）"`
+	Audience  channel.Audience `query:"audience" doc:"按服务对象筛选（customer 或 internal）"`
+	TeamID    string           `query:"team_id" format:"uuid" doc:"按团队收件箱筛选（含已停用团队）"`
+	ChannelID string           `query:"channel_id" format:"uuid" doc:"按渠道筛选（含已停用渠道）"`
 }
 
 // LanguageCount 是按语言聚合的计数项。

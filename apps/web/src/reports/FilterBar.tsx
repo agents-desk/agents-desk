@@ -38,7 +38,11 @@ export function ReportFilterBar({ period, filters, extra, right }: ReportFilterB
     label: tm.status === "disabled" ? t("reports.team_disabled", { name: tm.name }) : tm.name,
   }))
   const channelOptions = (channels.data ?? [])
-    .filter((ch) => ch.kind !== "business_link" && ch.kind !== "telegram_account")
+    .filter((ch) => {
+      if (ch.kind === "business_link" || ch.kind === "telegram_account") return false
+      if (filters?.audience) return ch.audience === filters.audience
+      return true
+    })
     .map((ch) => ({
       value: ch.id,
       label: ch.enabled ? ch.name : t("reports.channel_disabled", { name: ch.name }),

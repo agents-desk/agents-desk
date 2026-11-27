@@ -19,6 +19,7 @@ import {
 import type { ReactNode } from "react"
 import { kit } from "../api"
 import { REPORT_AREA_PROPS } from "./Breakdown"
+import { liveBacklogInboxSearch } from "./drilldown"
 import { csatColor, formatInt, formatPercent, formatUSD, pctDelta } from "./format"
 import { DeltaBadge } from "./MetricStrip"
 import { GranularityControl } from "./PeriodButton"
@@ -46,6 +47,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
   const loading = query.isPending && !data
   const live = data?.live
   const svc = data?.service
+  const internalSvc = data?.internal
   const tk = data?.tickets
   const biz = data?.business
   const ai = data?.ai
@@ -67,7 +69,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
       value: formatInt(live?.service_waiting, uiLang),
       warn: Boolean(live && live.service_waiting > 0),
       to: canConv ? "/$slug/inbox" : undefined,
-      search: { box: "all", status: "open", sort: "waiting" },
+      search: liveBacklogInboxSearch("waiting", { audience: "customer" }) as unknown as Record<string, unknown>,
     },
     {
       key: "svc_unassigned",
@@ -75,7 +77,16 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
       tip: t("reports.ov_live_service_unassigned_tip"),
       value: formatInt(live?.service_unassigned, uiLang),
       to: canConv ? "/$slug/inbox" : undefined,
-      search: { box: "unassigned", status: "open", sort: "waiting" },
+      search: liveBacklogInboxSearch("unassigned", { audience: "customer" }) as unknown as Record<string, unknown>,
+    },
+    {
+      key: "int_waiting",
+      label: t("reports.ov_live_internal_waiting"),
+      tip: t("reports.ov_live_internal_waiting_tip"),
+      value: formatInt(live?.internal_waiting, uiLang),
+      warn: Boolean(live && live.internal_waiting > 0),
+      to: canConv ? "/$slug/inbox" : undefined,
+      search: liveBacklogInboxSearch("waiting", { audience: "internal" }) as unknown as Record<string, unknown>,
     },
     {
       key: "tk_open",
@@ -165,8 +176,8 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
         </div>
       </div>
 
-      {/* 四大业务域周期汇总卡片：点击卡片直达对应专题报表 */}
-      <SimpleGrid cols={{ base: 1, sm: 2, xl: 4 }} spacing="md">
+      {/* 五大业务域周期汇总卡片：点击卡片直达对应专题报表 */}
+      <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
         <OverviewDomainCard
           title={t("nav.reports_service")}
           to="/$slug/reports/service"
@@ -189,6 +200,22 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
                 "—"
               ),
             },
+          ]}
+        />
+
+        <OverviewDomainCard
+          title={t("nav.reports_internal")}
+          to="/$slug/reports/internal"
+          slug={slug}
+          search={periodSearchParams}
+          loading={loading}
+          primaryLabel={t("reports.internal_created")}
+          primaryValue={formatInt(internalSvc?.created, uiLang)}
+          delta={pctDelta(internalSvc?.created, internalSvc?.prev_created)}
+          rows={[
+            { label: t("reports.closed_rounds"), value: formatInt(internalSvc?.closed, uiLang) },
+            { label: t("reports.frt_median"), value: formatDuration(internalSvc?.first_reply_median_seconds) },
+            { label: t("reports.internal_group_created"), value: formatInt(internalSvc?.group_created, uiLang) },
           ]}
         />
 
@@ -263,6 +290,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
               dataKey="date"
               series={[
                 { name: "service_created", label: t("reports.ov_series_service"), color: "brand.6" },
+                { name: "internal_created", label: t("reports.ov_series_internal"), color: "violet.6" },
                 { name: "ticket_created", label: t("reports.ov_series_tickets"), color: "deep-orange.6" },
                 { name: "business_messages", label: t("reports.ov_series_business"), color: "bright-blue.6" },
               ]}
@@ -284,7 +312,12 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
 
 interface OverviewDomainCardProps {
   title: string
-  to: "/$slug/reports/service" | "/$slug/reports/tickets" | "/$slug/reports/business" | "/$slug/reports/translation"
+  to:
+    | "/$slug/reports/service"
+    | "/$slug/reports/internal"
+    | "/$slug/reports/tickets"
+    | "/$slug/reports/business"
+    | "/$slug/reports/translation"
   slug: string
   search: Record<string, unknown>
   loading: boolean

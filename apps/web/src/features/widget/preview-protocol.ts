@@ -35,6 +35,7 @@ export interface PreviewBusinessPayload {
 export interface PreviewMessage {
   type: `${typeof PREVIEW_PREFIX}preview`
   mode?: PreviewMode
+  lang?: string
   name: string
   appearance: WidgetAppearance
   scene: PreviewScene

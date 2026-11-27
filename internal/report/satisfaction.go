@@ -24,8 +24,8 @@ type SatisfactionSummary struct {
 	PrevCSAT       *float64 `json:"prev_csat,omitempty" doc:"上一对比期满意度百分比"`
 	AvgScore       *float64 `json:"avg_score,omitempty" doc:"平均评分（1–5）"`
 	PrevAvgScore   *float64 `json:"prev_avg_score,omitempty" doc:"上一对比期平均评分"`
-	ClosedCount    int64    `json:"closed_count" doc:"统计期内关闭的服务轮次数"`
-	ResponseRate   *float64 `json:"response_rate,omitempty" doc:"参评率百分比（评价数 / 关闭轮次数 × 100）"`
+	ClosedCount    int64    `json:"closed_count" doc:"统计期内关闭的可评价服务轮次数（外部客户单聊）"`
+	ResponseRate   *float64 `json:"response_rate,omitempty" doc:"参评率百分比（评价数 / 可评价关闭轮次数 × 100）"`
 }
 
 // ScoreCount 是某一星级的评价数量。
@@ -89,8 +89,11 @@ type Satisfaction struct {
 // NewSatisfaction 返回满意度报表动作。
 func NewSatisfaction(db *bun.DB) *Satisfaction { return &Satisfaction{db: db} }
 
-// Handle 返回 sub 所在工作区按筛选条件 f 统计的满意度报表。
+// Handle 返回 sub 所在工作区按筛选条件 f 统计的满意度报表（默认仅统计对外客户服务，参评率分母排除外部群）。
 func (a *Satisfaction) Handle(ctx context.Context, sub identity.Subject, f FilterParams) (*SatisfactionReport, error) {
+	if f.Audience == "" {
+		f.Audience = channel.AudienceCustomer
+	}
 	w, err := resolveWindow(ctx, a.db, sub, f)
 	if err != nil {
 		return nil, err
@@ -106,7 +109,7 @@ func (a *Satisfaction) Handle(ctx context.Context, sub identity.Subject, f Filte
 		ColumnExpr("count(*) FILTER (WHERE r.rated_at >= ? AND r.rated_at < ? AND r.rating IS NOT NULL) AS prev_rated", w.PrevStart, w.PrevEnd).
 		ColumnExpr("count(*) FILTER (WHERE r.rated_at >= ? AND r.rated_at < ? AND r.rating >= 4) AS prev_pos", w.PrevStart, w.PrevEnd).
 		ColumnExpr("avg(r.rating) FILTER (WHERE r.rated_at >= ? AND r.rated_at < ? AND r.rating IS NOT NULL) AS prev_avg_score", w.PrevStart, w.PrevEnd).
-		ColumnExpr("count(*) FILTER (WHERE r.closed_at >= ? AND r.closed_at < ?) AS closed", w.Start, w.End).
+		ColumnExpr("count(*) FILTER (WHERE r.closed_at >= ? AND r.closed_at < ? AND c.external_group_id IS NULL) AS closed", w.Start, w.End).
 		Where("r.tenant_id = ? AND c.kind = ?", sub.Tenant, conversation.Service).
 		Where("(r.rated_at >= ? AND r.rated_at < ?) OR (r.closed_at >= ? AND r.closed_at < ?)", w.PrevStart, w.End, w.Start, w.End)
 	applyRoundFilters(qSum, f)
@@ -325,6 +328,9 @@ func NewListRatings(db *bun.DB) *ListRatings { return &ListRatings{db: db} }
 
 // Handle 返回 sub 所在工作区符合条件的评价明细分页结果。
 func (a *ListRatings) Handle(ctx context.Context, sub identity.Subject, in RatingsInput) (page.Offset[RatingItem], error) {
+	if in.Audience == "" {
+		in.Audience = channel.AudienceCustomer
+	}
 	w, err := resolveWindow(ctx, a.db, sub, in.FilterParams)
 	if err != nil {
 		return page.Offset[RatingItem]{}, err

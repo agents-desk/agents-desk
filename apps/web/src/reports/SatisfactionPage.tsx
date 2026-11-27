@@ -53,13 +53,15 @@ function activeRatingFilter(min?: number, max?: number): RatingBucketFilter | ""
   return ""
 }
 
-/** 满意度报表页面组件。 */
+/** 满意度报表页面组件（仅统计对外客户服务）。 */
 export function SatisfactionPage({
   route,
+  audience = "customer",
   title,
   toolbarRight,
 }: {
   route: PeriodRoute
+  audience?: "customer" | "internal"
   title?: ReactNode
   toolbarRight?: ReactNode
 }): ReactNode {
@@ -71,7 +73,7 @@ export function SatisfactionPage({
   const { slug } = useParams({ from: "/$slug" })
   const ratingsSectionRef = useRef<HTMLDivElement>(null)
 
-  const filters = useReportFilters(route)
+  const filters = useReportFilters(route, { defaultPreset: "7d", audience })
   const search = route.useSearch() as SatisfactionSearchParams
   const page = search.page ?? 1
   const perPage = search.per_page ?? 20
@@ -80,7 +82,7 @@ export function SatisfactionPage({
   const singleStar = minScore !== undefined && minScore === maxScore ? minScore : undefined
   const canInbox = can("conversations:read")
   const canContacts = can("contacts:read")
-  const scope = { teamId: filters.teamId, channelId: filters.channelId }
+  const scope = { audience, teamId: filters.teamId, channelId: filters.channelId }
 
   const reportQuery = useQuery({
     ...kit.queries.report.satisfaction(filters.queryParams),
@@ -191,6 +193,7 @@ export function SatisfactionPage({
     {
       key: "response_rate",
       label: t("reports.response_rate"),
+      description: t("reports.response_rate_desc"),
       value: formatPercent(s?.response_rate),
       secondary: s ? t("reports.response_rate_sub", { closed: formatInt(s.closed_count, uiLang) }) : undefined,
     },

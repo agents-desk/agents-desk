@@ -1791,6 +1791,10 @@ export interface ReportConversationsSummary {
   closed: number
   /** 统计期内新建的服务型会话数 */
   created: number
+  /** 统计期内新建的单聊会话数 */
+  direct_created: number
+  /** 统计期内新建的外部群会话数 */
+  group_created: number
   /** 当前处于打开状态的会话数（实时快照） */
   open_now: number
   /** 上一对比期关闭的服务轮次数 */
@@ -1919,20 +1923,36 @@ export interface ReportOverviewBusiness {
   prev_new_chats: number
 }
 
+export interface ReportOverviewInternal {
+  closed: number
+  created: number
+  first_reply_median_seconds?: number
+  group_created: number
+  prev_closed: number
+  prev_created: number
+  prev_first_reply_median_seconds?: number
+}
+
 export interface ReportOverviewLive {
   /** 近 24 小时有消息往来的商务沟通会话数 */
   business_active_24h: number
   /** 最新一条消息来自外部联系人的商务沟通会话数 */
   business_waiting: number
+  /** 当前打开的内部服务会话数 */
+  internal_open: number
+  /** 当前未关闭且无负责人的内部服务会话数 */
+  internal_unassigned: number
+  /** 当前等待回复的内部服务会话数 */
+  internal_waiting: number
   /** 当前在线的工作区成员数 */
   online_members: number
-  /** 当前打开的服务型会话数 */
+  /** 当前打开的对外客服会话数 */
   service_open: number
-  /** 当前稍后处理的服务型会话数 */
+  /** 当前稍后处理的对外客服会话数 */
   service_snoozed: number
-  /** 当前未关闭且无负责人的服务型会话数 */
+  /** 当前未关闭且无负责人的对外客服会话数 */
   service_unassigned: number
-  /** 当前等待客服回复的服务型会话数 */
+  /** 当前等待回复的对外客服会话数 */
   service_waiting: number
   /** 当前处理中状态的工单数 */
   ticket_in_progress: number
@@ -1951,6 +1971,7 @@ export interface ReportOverviewLive {
 export interface ReportOverviewPoint {
   business_messages: number
   date: string
+  internal_created: number
   service_created: number
   ticket_created: number
 }
@@ -1958,6 +1979,7 @@ export interface ReportOverviewPoint {
 export interface ReportOverviewReport {
   ai: ReportOverviewAI
   business: ReportOverviewBusiness
+  internal: ReportOverviewInternal
   live: ReportOverviewLive
   period: ReportPeriodMeta
   series: ReportOverviewPoint[]
@@ -2052,7 +2074,7 @@ export interface ReportSatisfactionReport {
 export interface ReportSatisfactionSummary {
   /** 平均评分（1–5） */
   avg_score?: number
-  /** 统计期内关闭的服务轮次数 */
+  /** 统计期内关闭的可评价服务轮次数（外部客户单聊） */
   closed_count: number
   /** 满意度百分比（4–5 星占比，0–100） */
   csat?: number
@@ -2066,7 +2088,7 @@ export interface ReportSatisfactionSummary {
   prev_rated_count: number
   /** 统计期内收到的客户评价数 */
   rated_count: number
-  /** 参评率百分比（评价数 / 关闭轮次数 × 100） */
+  /** 参评率百分比（评价数 / 可评价关闭轮次数 × 100） */
   response_rate?: number
 }
 
@@ -2166,7 +2188,7 @@ export interface ReportTicketsSummary {
   created: number
   /** 当前处理中状态的工单数（实时快照） */
   in_progress_now: number
-  /** 统计期内新建工单关联的受影响客户总数 */
+  /** 统计期内新建工单关联的受影响对象总数 */
   linked_contacts: number
   /** 上一对比期新建的工单数 */
   prev_created: number
@@ -2233,7 +2255,7 @@ export interface ReportTranslationSceneBreakdown {
   calls: number
   cost_usd: number
   failed_calls: number
-  /** 业务场景：service（客服）、ticket（工单）、business（商务沟通）、internal_chat（内部聊天）、other（其他） */
+  /** 业务场景：service（客服）、internal_service（内部服务）、ticket（工单）、business（商务沟通）、internal_chat（内部聊天）、other（其他） */
   scene: string
   success_rate?: number
   total_tokens: number
@@ -3150,6 +3172,8 @@ export interface ReportConversationsInput {
   tz?: string
   /** Time bucket granularity. */
   granularity?: "hour" | "day" | "week" | "month"
+  /** 按服务对象筛选（customer 或 internal） */
+  audience?: ChannelAudience
   /** 按团队收件箱筛选（含已停用团队） */
   team_id?: string
   /** 按渠道筛选（含已停用渠道） */
@@ -3166,6 +3190,8 @@ export interface ReportMembersInput {
   tz?: string
   /** Time bucket granularity. */
   granularity?: "hour" | "day" | "week" | "month"
+  /** 按服务对象筛选（customer 或 internal） */
+  audience?: ChannelAudience
   /** 按团队收件箱筛选（含已停用团队） */
   team_id?: string
   /** 按渠道筛选（含已停用渠道） */
@@ -3194,6 +3220,8 @@ export interface ReportResponseTimeInput {
   tz?: string
   /** Time bucket granularity. */
   granularity?: "hour" | "day" | "week" | "month"
+  /** 按服务对象筛选（customer 或 internal） */
+  audience?: ChannelAudience
   /** 按团队收件箱筛选（含已停用团队） */
   team_id?: string
   /** 按渠道筛选（含已停用渠道） */
@@ -3210,6 +3238,8 @@ export interface ReportSatisfactionInput {
   tz?: string
   /** Time bucket granularity. */
   granularity?: "hour" | "day" | "week" | "month"
+  /** 按服务对象筛选（customer 或 internal） */
+  audience?: ChannelAudience
   /** 按团队收件箱筛选（含已停用团队） */
   team_id?: string
   /** 按渠道筛选（含已停用渠道） */
@@ -3226,6 +3256,8 @@ export interface ReportSatisfactionRatingsInput {
   tz?: string
   /** Time bucket granularity. */
   granularity?: "hour" | "day" | "week" | "month"
+  /** 按服务对象筛选（customer 或 internal） */
+  audience?: ChannelAudience
   /** 按团队收件箱筛选（含已停用团队） */
   team_id?: string
   /** 按渠道筛选（含已停用渠道） */
@@ -4058,14 +4090,14 @@ export function createClient(options: ClientOptions) {
        * GET /reports/conversations
        */
       conversations: (input: ReportConversationsInput = {}): Promise<ReportConversationsReport> =>
-        rt.request<ReportConversationsReport>({ method: "GET", path: `/reports/conversations`, query: { "channel_id": input["channel_id"], "from": input["from"], "granularity": input["granularity"], "team_id": input["team_id"], "to": input["to"], "tz": input["tz"] } }),
+        rt.request<ReportConversationsReport>({ method: "GET", path: `/reports/conversations`, query: { "audience": input["audience"], "channel_id": input["channel_id"], "from": input["from"], "granularity": input["granularity"], "team_id": input["team_id"], "to": input["to"], "tz": input["tz"] } }),
       /**
        * 成员绩效报表
        *
        * GET /reports/members
        */
       members: (input: ReportMembersInput = {}): Promise<ReportMembersReport> =>
-        rt.request<ReportMembersReport>({ method: "GET", path: `/reports/members`, query: { "channel_id": input["channel_id"], "from": input["from"], "granularity": input["granularity"], "team_id": input["team_id"], "to": input["to"], "tz": input["tz"] } }),
+        rt.request<ReportMembersReport>({ method: "GET", path: `/reports/members`, query: { "audience": input["audience"], "channel_id": input["channel_id"], "from": input["from"], "granularity": input["granularity"], "team_id": input["team_id"], "to": input["to"], "tz": input["tz"] } }),
       /**
        * 报表概览
        *
@@ -4079,21 +4111,21 @@ export function createClient(options: ClientOptions) {
        * GET /reports/response-time
        */
       responseTime: (input: ReportResponseTimeInput = {}): Promise<ReportResponseTimeReport> =>
-        rt.request<ReportResponseTimeReport>({ method: "GET", path: `/reports/response-time`, query: { "channel_id": input["channel_id"], "from": input["from"], "granularity": input["granularity"], "team_id": input["team_id"], "to": input["to"], "tz": input["tz"] } }),
+        rt.request<ReportResponseTimeReport>({ method: "GET", path: `/reports/response-time`, query: { "audience": input["audience"], "channel_id": input["channel_id"], "from": input["from"], "granularity": input["granularity"], "team_id": input["team_id"], "to": input["to"], "tz": input["tz"] } }),
       /**
        * 满意度报表
        *
        * GET /reports/satisfaction
        */
       satisfaction: (input: ReportSatisfactionInput = {}): Promise<ReportSatisfactionReport> =>
-        rt.request<ReportSatisfactionReport>({ method: "GET", path: `/reports/satisfaction`, query: { "channel_id": input["channel_id"], "from": input["from"], "granularity": input["granularity"], "team_id": input["team_id"], "to": input["to"], "tz": input["tz"] } }),
+        rt.request<ReportSatisfactionReport>({ method: "GET", path: `/reports/satisfaction`, query: { "audience": input["audience"], "channel_id": input["channel_id"], "from": input["from"], "granularity": input["granularity"], "team_id": input["team_id"], "to": input["to"], "tz": input["tz"] } }),
       /**
        * 满意度评价明细
        *
        * GET /reports/satisfaction/ratings
        */
       satisfactionRatings: (input: ReportSatisfactionRatingsInput = {}): Promise<OffsetReportRatingItem> =>
-        rt.request<OffsetReportRatingItem>({ method: "GET", path: `/reports/satisfaction/ratings`, query: { "channel_id": input["channel_id"], "from": input["from"], "granularity": input["granularity"], "max_score": input["max_score"], "min_score": input["min_score"], "page": input["page"], "per_page": input["per_page"], "team_id": input["team_id"], "to": input["to"], "tz": input["tz"] } }),
+        rt.request<OffsetReportRatingItem>({ method: "GET", path: `/reports/satisfaction/ratings`, query: { "audience": input["audience"], "channel_id": input["channel_id"], "from": input["from"], "granularity": input["granularity"], "max_score": input["max_score"], "min_score": input["min_score"], "page": input["page"], "per_page": input["per_page"], "team_id": input["team_id"], "to": input["to"], "tz": input["tz"] } }),
       /**
        * 工单报表
        *

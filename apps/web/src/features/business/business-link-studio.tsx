@@ -44,7 +44,7 @@ import {
 } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useSearch } from "@tanstack/react-router"
-import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, primaryColors, useT } from "@go-tenon/ui"
+import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, primaryColors, useLanguage, useT } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { kit, tenantApi } from "../../api"
 import { useUnsavedGuard } from "../../components/unsaved-guard"
@@ -212,6 +212,7 @@ function BusinessLinkPreviewStage({
   business: PreviewBusinessPayload
 }): ReactNode {
   const t = useT()
+  const lang = useLanguage()
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [ready, setReady] = useState(false)
   const [scene, setScene] = useState<BizPreviewScene>("conversation")
@@ -224,6 +225,7 @@ function BusinessLinkPreviewStage({
       const payload: PreviewMessage = {
         type: `${PREVIEW_PREFIX}preview`,
         mode: "business_link",
+        lang,
         name,
         appearance,
         scene: nextScene,
@@ -232,7 +234,7 @@ function BusinessLinkPreviewStage({
       }
       target.postMessage(payload, window.location.origin)
     },
-    [appearance, business, name],
+    [appearance, business, lang, name],
   )
   const latestPostRef = useRef<() => void>(() => {})
   latestPostRef.current = () => postPreview(scene, viewport)
@@ -334,6 +336,10 @@ function BusinessLinkPreviewStage({
             src="/widget/preview"
             title={t("biz_studio.title")}
             className={classes.frame}
+            onLoad={() => {
+              setReady(true)
+              latestPostRef.current()
+            }}
           />
         </Box>
       </Box>

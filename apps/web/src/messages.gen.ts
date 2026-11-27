@@ -1015,6 +1015,7 @@ export const messages = {
     "nav.reports": "Reports",
     "nav.reports_ai": "AI \u0026 Translation",
     "nav.reports_business": "Business",
+    "nav.reports_internal": "Internal service",
     "nav.reports_members": "Members",
     "nav.reports_overview": "Overview",
     "nav.reports_service": "Service",
@@ -1089,6 +1090,27 @@ export const messages = {
     "prompt.reply_time_minutes": "We've got your message and typically reply in a few minutes.",
     "prompt.ticket_status_changed": "Ticket #{{.number}} ({{.title}}) status changed to {{.status}}",
     "prompt.ticket_update": "Ticket #{{.number}} update: {{.text}}",
+    "reports.ai_agent_active": "Active agents",
+    "reports.ai_agent_active_desc": "AI Agents actively handling customer or internal channels during the period.",
+    "reports.ai_agent_approvals": "Human approvals",
+    "reports.ai_agent_approvals_desc": "Count of high-risk AI actions or outbound replies reviewed by members.",
+    "reports.ai_agent_auto_resolve": "Auto-resolution rate",
+    "reports.ai_agent_auto_resolve_desc": "Share of conversations resolved by AI Agents without human handoff.",
+    "reports.ai_agent_breakdown_title": "Planned analytics scopes",
+    "reports.ai_agent_handoff_rate": "Human handoff rate",
+    "reports.ai_agent_handoff_rate_desc": "Share of AI-handled conversations handed off to human agents.",
+    "reports.ai_agent_open_hub": "Open AI Hub",
+    "reports.ai_agent_placeholder_desc": "Once LLM Agent reception is enabled, this view will track auto-resolution rates, handoff reasons, knowledge hit rates, and human approvals across customer, internal, and ticket workflows.",
+    "reports.ai_agent_placeholder_title": "AI Agent analytics coming soon",
+    "reports.ai_agent_planned_badge": "Coming soon",
+    "reports.ai_agent_scope_customer": "Customer service reception",
+    "reports.ai_agent_scope_customer_desc": "Automated answers and handoff rates across website widgets, Telegram support bots, and customer groups",
+    "reports.ai_agent_scope_internal": "Internal employee service",
+    "reports.ai_agent_scope_internal_desc": "Self-service resolution across WeCom and Telegram internal bots in DMs and internal groups",
+    "reports.ai_agent_scope_ticket": "Ticket drafting \u0026 collaboration",
+    "reports.ai_agent_scope_ticket_desc": "AI summaries, ticket draft generation, classification suggestions, and approval tracking",
+    "reports.ai_tab_agent": "AI Agent",
+    "reports.ai_tab_translation": "Translation",
     "reports.all_biz_channels": "All business channels",
     "reports.all_channels": "All channels",
     "reports.all_owners": "All business owners",
@@ -1175,6 +1197,7 @@ export const messages = {
     "reports.conv_rounds_opened": "Rounds opened",
     "reports.conv_rounds_opened_desc": "Total service rounds opened during the period (new plus reopened).",
     "reports.conv_series_title": "Conversation trend",
+    "reports.conv_target_sub": "{{.direct}} direct · {{.group}} group",
     "reports.cost_and_latency": "Translation cost",
     "reports.cost_sub": "Avg {{.ms}} · {{.n}} billed calls",
     "reports.created_and_open": "{{.created}} created · {{.open}} open",
@@ -1207,6 +1230,10 @@ export const messages = {
     "reports.gran_day": "Day",
     "reports.gran_month": "Month",
     "reports.gran_week": "Week",
+    "reports.internal_created": "Internal requests",
+    "reports.internal_created_desc": "Internal service requests created via WeCom, Telegram, and internal channels during the period.",
+    "reports.internal_group_created": "Group requests",
+    "reports.internal_tab_volume": "Requests",
     "reports.lang_unknown": "Unknown",
     "reports.live_label": "Live",
     "reports.live_open": "Open",
@@ -1243,15 +1270,18 @@ export const messages = {
     "reports.ov_live_business_24h": "Active (24h)",
     "reports.ov_live_business_waiting": "Business waiting",
     "reports.ov_live_business_waiting_tip": "Business chats waiting for a member reply",
+    "reports.ov_live_internal_waiting": "Internal waiting",
+    "reports.ov_live_internal_waiting_tip": "Open internal employee service requests waiting for a reply",
     "reports.ov_live_online": "Online members",
     "reports.ov_live_online_tip": "Online members out of total workspace members",
     "reports.ov_live_service_unassigned": "Unassigned service",
-    "reports.ov_live_service_unassigned_tip": "Open service conversations with no assignee",
+    "reports.ov_live_service_unassigned_tip": "Open customer service conversations with no assignee",
     "reports.ov_live_service_waiting": "Service waiting",
-    "reports.ov_live_service_waiting_tip": "Open service conversations waiting for a reply",
+    "reports.ov_live_service_waiting_tip": "Open customer service conversations waiting for a reply",
     "reports.ov_live_ticket_open": "Unresolved tickets",
     "reports.ov_live_ticket_open_tip": "Tickets currently submitted, in progress, or waiting on customer",
     "reports.ov_series_business": "Business messages",
+    "reports.ov_series_internal": "Internal created",
     "reports.ov_series_service": "Service created",
     "reports.ov_series_tickets": "Tickets created",
     "reports.ov_series_title": "Workspace activity trend",
@@ -1272,6 +1302,7 @@ export const messages = {
     "reports.res_median": "Resolution median",
     "reports.res_p90": "Resolution P90",
     "reports.response_rate": "Response rate",
+    "reports.response_rate_desc": "Share of rateable closed customer 1:1 rounds (excluding external groups) that received a rating.",
     "reports.response_rate_sub": "{{.closed}} closed rounds",
     "reports.response_time_series": "Median response time trend",
     "reports.round_badge": "Round {{.n}}",
@@ -1280,6 +1311,7 @@ export const messages = {
     "reports.samples_short": "{{.n}} samples",
     "reports.scene_business": "Business chat",
     "reports.scene_internal_chat": "Internal chat",
+    "reports.scene_internal_service": "Internal service",
     "reports.scene_service": "Customer service",
     "reports.scene_ticket": "Tickets",
     "reports.score_distribution": "Rating distribution",
@@ -1304,8 +1336,8 @@ export const messages = {
     "reports.ticket_by_priority_visibility": "Priority \u0026 visibility",
     "reports.ticket_by_type": "By ticket type",
     "reports.ticket_created": "Tickets created",
-    "reports.ticket_linked_contacts": "Affected contacts",
-    "reports.ticket_linked_contacts_desc": "Total affected contacts linked to tickets created in this period.",
+    "reports.ticket_linked_contacts": "Affected targets",
+    "reports.ticket_linked_contacts_desc": "Total affected contacts and external groups linked to tickets created in this period.",
     "reports.ticket_live_in_progress": "In progress",
     "reports.ticket_live_submitted": "Submitted",
     "reports.ticket_live_unassigned": "Unassigned",
@@ -2844,6 +2876,7 @@ export const messages = {
     "nav.reports": "报表",
     "nav.reports_ai": "AI 与翻译",
     "nav.reports_business": "商务",
+    "nav.reports_internal": "内部服务",
     "nav.reports_members": "成员",
     "nav.reports_overview": "概览",
     "nav.reports_service": "客服",
@@ -2918,6 +2951,27 @@ export const messages = {
     "prompt.reply_time_minutes": "我们已收到你的消息，通常会在几分钟内回复。",
     "prompt.ticket_status_changed": "工单 #{{.number}}（{{.title}}）状态已更新为「{{.status}}」",
     "prompt.ticket_update": "工单 #{{.number}} 进度更新：{{.text}}",
+    "reports.ai_agent_active": "活跃 Agent",
+    "reports.ai_agent_active_desc": "统计期内在对外客服或内部服务渠道中参与接待的 Agent 数。",
+    "reports.ai_agent_approvals": "人工审批次数",
+    "reports.ai_agent_approvals_desc": "AI 发起高风险动作或外发回复并经成员审批的次数。",
+    "reports.ai_agent_auto_resolve": "自动解决率",
+    "reports.ai_agent_auto_resolve_desc": "由 AI Agent 独立完成解答且无需人工介入的会话占比。",
+    "reports.ai_agent_breakdown_title": "规划统计场景",
+    "reports.ai_agent_handoff_rate": "转人工率",
+    "reports.ai_agent_handoff_rate_desc": "AI 接待过程中触发转交人工坐席处理的会话占比。",
+    "reports.ai_agent_open_hub": "前往 AI 中心",
+    "reports.ai_agent_placeholder_desc": "接入大模型 Agent 接待后，此处将按客服、内部服务与工单场景自动汇总自动解决率、转人工原因、知识库命中率与人工审批记录。",
+    "reports.ai_agent_placeholder_title": "AI Agent 效能分析即将上线",
+    "reports.ai_agent_planned_badge": "即将接入",
+    "reports.ai_agent_scope_customer": "对外客服接待",
+    "reports.ai_agent_scope_customer_desc": "网页聊天插件、Telegram 客服机器人与客户外部群的自动答疑与转人工转化",
+    "reports.ai_agent_scope_internal": "内部员工服务",
+    "reports.ai_agent_scope_internal_desc": "企业微信与 Telegram 内部机器人在单聊和内部群中的 IT / 行政自助解决效率",
+    "reports.ai_agent_scope_ticket": "工单起草与协同",
+    "reports.ai_agent_scope_ticket_desc": "AI 自动摘要、生成工单草稿、推荐分类与审批执行统计",
+    "reports.ai_tab_agent": "AI Agent 效能",
+    "reports.ai_tab_translation": "翻译用量",
     "reports.all_biz_channels": "全部商务渠道",
     "reports.all_channels": "全部渠道",
     "reports.all_owners": "全部商务成员",
@@ -3004,6 +3058,7 @@ export const messages = {
     "reports.conv_rounds_opened": "开启轮次",
     "reports.conv_rounds_opened_desc": "统计期内新开启的服务轮次总数（新建与重开之和）。",
     "reports.conv_series_title": "会话趋势",
+    "reports.conv_target_sub": "单聊 {{.direct}} · 外部群 {{.group}}",
     "reports.cost_and_latency": "翻译费用",
     "reports.cost_sub": "平均耗时 {{.ms}} · {{.n}} 次含计费",
     "reports.created_and_open": "新建 {{.created}} · 积压 {{.open}}",
@@ -3036,6 +3091,10 @@ export const messages = {
     "reports.gran_day": "按天",
     "reports.gran_month": "按月",
     "reports.gran_week": "按周",
+    "reports.internal_created": "内部请求",
+    "reports.internal_created_desc": "统计期内来自企微、Telegram 等内部服务渠道的新建请求总数。",
+    "reports.internal_group_created": "外部群请求",
+    "reports.internal_tab_volume": "请求量",
     "reports.lang_unknown": "未识别",
     "reports.live_label": "实时",
     "reports.live_open": "打开中",
@@ -3072,15 +3131,18 @@ export const messages = {
     "reports.ov_live_business_24h": "近 24 小时活跃",
     "reports.ov_live_business_waiting": "待跟进商务",
     "reports.ov_live_business_waiting_tip": "最新消息来自外部联系人的商务会话",
+    "reports.ov_live_internal_waiting": "待回复内部服务",
+    "reports.ov_live_internal_waiting_tip": "当前等待处理的内部员工服务请求",
     "reports.ov_live_online": "在线成员",
     "reports.ov_live_online_tip": "当前在线的工作区成员与在职总人数",
-    "reports.ov_live_service_unassigned": "未指派会话",
-    "reports.ov_live_service_unassigned_tip": "当前未关闭且无负责人的服务型会话",
-    "reports.ov_live_service_waiting": "待回复会话",
-    "reports.ov_live_service_waiting_tip": "当前等待客服回复的服务型会话",
+    "reports.ov_live_service_unassigned": "未指派客服",
+    "reports.ov_live_service_unassigned_tip": "当前未关闭且无负责人的对外客户会话",
+    "reports.ov_live_service_waiting": "待回复客服",
+    "reports.ov_live_service_waiting_tip": "当前等待客服回复的对外客户会话",
     "reports.ov_live_ticket_open": "未解决工单",
     "reports.ov_live_ticket_open_tip": "当前处于已提交、处理中或等待客户的工单",
     "reports.ov_series_business": "商务消息",
+    "reports.ov_series_internal": "新建内部请求",
     "reports.ov_series_service": "新建客服会话",
     "reports.ov_series_tickets": "新建工单",
     "reports.ov_series_title": "全工作区业务趋势",
@@ -3101,6 +3163,7 @@ export const messages = {
     "reports.res_median": "解决时长中位数",
     "reports.res_p90": "解决时长 P90",
     "reports.response_rate": "参评率",
+    "reports.response_rate_desc": "收到评价数占可评价关闭轮次（对外客户单聊，不含外部群）的比例。",
     "reports.response_rate_sub": "关闭 {{.closed}} 轮",
     "reports.response_time_series": "响应时长中位数趋势",
     "reports.round_badge": "第 {{.n}} 轮",
@@ -3109,6 +3172,7 @@ export const messages = {
     "reports.samples_short": "{{.n}} 样本",
     "reports.scene_business": "商务沟通",
     "reports.scene_internal_chat": "内部聊天",
+    "reports.scene_internal_service": "内部服务",
     "reports.scene_service": "客服会话",
     "reports.scene_ticket": "工单协作",
     "reports.score_distribution": "星级分布",
@@ -3133,8 +3197,8 @@ export const messages = {
     "reports.ticket_by_priority_visibility": "优先级与可见范围",
     "reports.ticket_by_type": "按工单类型分布",
     "reports.ticket_created": "新建工单",
-    "reports.ticket_linked_contacts": "受影响客户",
-    "reports.ticket_linked_contacts_desc": "统计期内新建工单关联的受影响客户总数。",
+    "reports.ticket_linked_contacts": "受影响对象",
+    "reports.ticket_linked_contacts_desc": "统计期内新建工单关联的受影响联系人与外部群总数。",
     "reports.ticket_live_in_progress": "处理中",
     "reports.ticket_live_submitted": "已提交",
     "reports.ticket_live_unassigned": "未指派",
@@ -4676,6 +4740,7 @@ export type MessageId =
   | "nav.reports"
   | "nav.reports_ai"
   | "nav.reports_business"
+  | "nav.reports_internal"
   | "nav.reports_members"
   | "nav.reports_overview"
   | "nav.reports_service"
@@ -4750,6 +4815,27 @@ export type MessageId =
   | "prompt.reply_time_minutes"
   | "prompt.ticket_status_changed"
   | "prompt.ticket_update"
+  | "reports.ai_agent_active"
+  | "reports.ai_agent_active_desc"
+  | "reports.ai_agent_approvals"
+  | "reports.ai_agent_approvals_desc"
+  | "reports.ai_agent_auto_resolve"
+  | "reports.ai_agent_auto_resolve_desc"
+  | "reports.ai_agent_breakdown_title"
+  | "reports.ai_agent_handoff_rate"
+  | "reports.ai_agent_handoff_rate_desc"
+  | "reports.ai_agent_open_hub"
+  | "reports.ai_agent_placeholder_desc"
+  | "reports.ai_agent_placeholder_title"
+  | "reports.ai_agent_planned_badge"
+  | "reports.ai_agent_scope_customer"
+  | "reports.ai_agent_scope_customer_desc"
+  | "reports.ai_agent_scope_internal"
+  | "reports.ai_agent_scope_internal_desc"
+  | "reports.ai_agent_scope_ticket"
+  | "reports.ai_agent_scope_ticket_desc"
+  | "reports.ai_tab_agent"
+  | "reports.ai_tab_translation"
   | "reports.all_biz_channels"
   | "reports.all_channels"
   | "reports.all_owners"
@@ -4836,6 +4922,7 @@ export type MessageId =
   | "reports.conv_rounds_opened"
   | "reports.conv_rounds_opened_desc"
   | "reports.conv_series_title"
+  | "reports.conv_target_sub"
   | "reports.cost_and_latency"
   | "reports.cost_sub"
   | "reports.created_and_open"
@@ -4868,6 +4955,10 @@ export type MessageId =
   | "reports.gran_day"
   | "reports.gran_month"
   | "reports.gran_week"
+  | "reports.internal_created"
+  | "reports.internal_created_desc"
+  | "reports.internal_group_created"
+  | "reports.internal_tab_volume"
   | "reports.lang_unknown"
   | "reports.live_label"
   | "reports.live_open"
@@ -4904,6 +4995,8 @@ export type MessageId =
   | "reports.ov_live_business_24h"
   | "reports.ov_live_business_waiting"
   | "reports.ov_live_business_waiting_tip"
+  | "reports.ov_live_internal_waiting"
+  | "reports.ov_live_internal_waiting_tip"
   | "reports.ov_live_online"
   | "reports.ov_live_online_tip"
   | "reports.ov_live_service_unassigned"
@@ -4913,6 +5006,7 @@ export type MessageId =
   | "reports.ov_live_ticket_open"
   | "reports.ov_live_ticket_open_tip"
   | "reports.ov_series_business"
+  | "reports.ov_series_internal"
   | "reports.ov_series_service"
   | "reports.ov_series_tickets"
   | "reports.ov_series_title"
@@ -4933,6 +5027,7 @@ export type MessageId =
   | "reports.res_median"
   | "reports.res_p90"
   | "reports.response_rate"
+  | "reports.response_rate_desc"
   | "reports.response_rate_sub"
   | "reports.response_time_series"
   | "reports.round_badge"
@@ -4941,6 +5036,7 @@ export type MessageId =
   | "reports.samples_short"
   | "reports.scene_business"
   | "reports.scene_internal_chat"
+  | "reports.scene_internal_service"
   | "reports.scene_service"
   | "reports.scene_ticket"
   | "reports.score_distribution"

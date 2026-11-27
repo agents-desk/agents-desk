@@ -249,3 +249,165 @@ func TestExtendedReportsAggregationAndIsolation(t *testing.T) {
 		t.Fatalf("unexpected translation by_scene: %+v", trRep.ByScene)
 	}
 }
+
+// TestReportAudienceIsolationAndGroupCSAT 验证对外客服与内部服务在报表中的隔离、单聊/外部群拆分、
+// 满意度参评率分母排除外部群与内部服务，以及翻译报表按 service / internal_service 拆分。
+func TestReportAudienceIsolationAndGroupCSAT(t *testing.T) {
+	t.Parallel()
+	env := apptest.New(t)
+	ctx := context.Background()
+
+	tn, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+		Name: "iso", Slug: "iso", OwnerEmail: "owner@iso.com", OwnerName: "Owner", OwnerPassword: "password",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sys := identity.Subject{Type: identity.System, ID: "test", Tenant: tn.ID}
+
+	custChan, err := channel.NewCreate(env.DB).Handle(ctx, sys, channel.CreateParams{Kind: channel.Test, Audience: channel.AudienceCustomer, Name: "官网客服"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	intChan, err := channel.NewCreate(env.DB).Handle(ctx, sys, channel.CreateParams{Kind: channel.WeCom, Audience: channel.AudienceInternal, Name: "IT 企微机器人"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	day1 := time.Date(2026, 11, 10, 10, 0, 0, 0, time.UTC)
+
+	// 外部客户单聊（已关闭且已评价 5 星）+ 外部客户外部群（已关闭、不可评价，不应稀释参评率）
+	custContactID := uuid.Must(uuid.NewV7()).String()
+	intContactID := uuid.Must(uuid.NewV7()).String()
+	custDirectID := uuid.Must(uuid.NewV7()).String()
+	custGroupRefID := uuid.Must(uuid.NewV7()).String()
+	custGroupConvID := uuid.Must(uuid.NewV7()).String()
+	intDirectID := uuid.Must(uuid.NewV7()).String()
+	intGroupRefID := uuid.Must(uuid.NewV7()).String()
+	intGroupConvID := uuid.Must(uuid.NewV7()).String()
+
+	mustExec(t, env.DB, `INSERT INTO contacts (id, tenant_id, number, kind, name, email, attributes, created_at, updated_at)
+		VALUES (?, ?, 1, 'customer', '客户甲', '', '{}'::jsonb, ?, ?),
+		       (?, ?, 2, 'internal', '内部员工乙', '', '{}'::jsonb, ?, ?)`,
+		custContactID, tn.ID, day1, day1,
+		intContactID, tn.ID, day1, day1)
+
+	mustExec(t, env.DB, `INSERT INTO external_groups (id, tenant_id, channel_id, external_id, name, status, created_at, updated_at)
+		VALUES (?, ?, ?, 'cg-1', 'VIP客户群', 'active', ?, ?),
+		       (?, ?, ?, 'ig-1', '研发IT应急群', 'active', ?, ?)`,
+		custGroupRefID, tn.ID, custChan.ID, day1, day1,
+		intGroupRefID, tn.ID, intChan.ID, day1, day1)
+
+	mustExec(t, env.DB, `INSERT INTO conversations (id, tenant_id, kind, audience, channel_id, contact_id, external_group_id, status, priority, language, opened_at, last_message_at, waiting_since, last_seq, attributes, rating_comment, created_at, updated_at)
+		VALUES (?, ?, 'service', 'customer', ?, ?, NULL, 'closed', 'normal', 'zh-CN', ?, ?, NULL, 1, '{}'::jsonb, '', ?, ?),
+		       (?, ?, 'service', 'customer', ?, NULL, ?, 'closed', 'normal', 'zh-CN', ?, ?, NULL, 1, '{}'::jsonb, '', ?, ?),
+		       (?, ?, 'service', 'internal', ?, ?, NULL, 'open', 'normal', 'zh-CN', ?, ?, ?, 1, '{}'::jsonb, '', ?, ?),
+		       (?, ?, 'service', 'internal', ?, NULL, ?, 'closed', 'normal', 'zh-CN', ?, ?, NULL, 1, '{}'::jsonb, '', ?, ?)`,
+		custDirectID, tn.ID, custChan.ID, custContactID, day1, day1, day1, day1,
+		custGroupConvID, tn.ID, custChan.ID, custGroupRefID, day1, day1, day1, day1,
+		intDirectID, tn.ID, intChan.ID, intContactID, day1, day1, day1, day1, day1,
+		intGroupConvID, tn.ID, intChan.ID, intGroupRefID, day1, day1, day1, day1)
+
+	// 写入轮次：
+	// - custDirect: 首响 60s，关闭 300s，5 星评价
+	// - custGroup: 首响 120s，关闭 400s，无评价（外部群不计入参评率分母）
+	// - intGroup: 首响 30s，关闭 180s，无评价（内部服务不计入客服报表与参评率）
+	score5 := 5
+	for _, r := range []*conversation.Round{
+		{
+			ID: uuid.Must(uuid.NewV7()).String(), TenantID: tn.ID, ConversationID: custDirectID, Round: 1,
+			OpenedAt: day1, FirstReplyAt: ptrTime(day1.Add(60 * time.Second)), ClosedAt: ptrTime(day1.Add(300 * time.Second)),
+			Rating: &score5, RatedAt: ptrTime(day1.Add(360 * time.Second)),
+		},
+		{
+			ID: uuid.Must(uuid.NewV7()).String(), TenantID: tn.ID, ConversationID: custGroupConvID, Round: 1,
+			OpenedAt: day1, FirstReplyAt: ptrTime(day1.Add(120 * time.Second)), ClosedAt: ptrTime(day1.Add(400 * time.Second)),
+		},
+		{
+			ID: uuid.Must(uuid.NewV7()).String(), TenantID: tn.ID, ConversationID: intGroupConvID, Round: 1,
+			OpenedAt: day1, FirstReplyAt: ptrTime(day1.Add(30 * time.Second)), ClosedAt: ptrTime(day1.Add(180 * time.Second)),
+		},
+	} {
+		if _, err := env.DB.NewInsert().Model(r).Exec(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// 翻译调用：1 条对外客服 + 1 条内部服务
+	cost := 0.001
+	for _, rec := range []*llm.Call{
+		{ID: uuid.Must(uuid.NewV7()).String(), CreatedAt: day1, UpdatedAt: day1, TenantID: &tn.ID, CallType: llm.Translation, Operation: "incoming", TargetType: "conversation", TargetID: custDirectID, Meta: map[string]any{}, Endpoint: "https://openrouter.ai/api/v1", Model: "m1", Request: map[string]any{}, Response: "{}", PromptTokens: 50, CompletionTokens: 20, Cost: &cost, DurationMS: 100},
+		{ID: uuid.Must(uuid.NewV7()).String(), CreatedAt: day1, UpdatedAt: day1, TenantID: &tn.ID, CallType: llm.Translation, Operation: "incoming", TargetType: "conversation", TargetID: intDirectID, Meta: map[string]any{}, Endpoint: "https://openrouter.ai/api/v1", Model: "m1", Request: map[string]any{}, Response: "{}", PromptTokens: 50, CompletionTokens: 20, Cost: &cost, DurationMS: 100},
+	} {
+		if _, err := env.DB.NewInsert().Model(rec).Exec(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	p := period.Params{From: "2026-11-10", To: "2026-11-10", Granularity: period.Day, TimeZone: "UTC"}
+
+	// 1. 会话报表按 audience 隔离与单聊/外部群拆分
+	custConv, err := report.NewConversations(env.DB).Handle(ctx, sys, report.FilterParams{Params: p, Audience: channel.AudienceCustomer})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if custConv.Summary.Created != 2 || custConv.Summary.DirectCreated != 1 || custConv.Summary.GroupCreated != 1 || len(custConv.ByChannel) != 1 || custConv.ByChannel[0].ID != custChan.ID {
+		t.Fatalf("unexpected customer conversations: sum=%+v by_channel=%+v", custConv.Summary, custConv.ByChannel)
+	}
+
+	intConv, err := report.NewConversations(env.DB).Handle(ctx, sys, report.FilterParams{Params: p, Audience: channel.AudienceInternal})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if intConv.Summary.Created != 2 || intConv.Summary.DirectCreated != 1 || intConv.Summary.GroupCreated != 1 || intConv.Summary.OpenNow != 1 || len(intConv.ByChannel) != 1 || intConv.ByChannel[0].ID != intChan.ID {
+		t.Fatalf("unexpected internal conversations: sum=%+v by_channel=%+v", intConv.Summary, intConv.ByChannel)
+	}
+
+	// 2. 响应时间按 audience=internal 隔离
+	intRT, err := report.NewResponseTime(env.DB).Handle(ctx, sys, report.FilterParams{Params: p, Audience: channel.AudienceInternal})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if intRT.FirstReply.Samples != 1 || intRT.FirstReply.MedianSeconds == nil || *intRT.FirstReply.MedianSeconds != 30 || len(intRT.ByChannel) != 1 || intRT.ByChannel[0].ID != intChan.ID {
+		t.Fatalf("unexpected internal response time: frt=%+v by_channel=%+v", intRT.FirstReply, intRT.ByChannel)
+	}
+
+	// 3. 满意度参评率：仅 1 个可评价的外部客户单聊关闭轮次且已评 5 星 → ClosedCount=1, ResponseRate=100%
+	sat, err := report.NewSatisfaction(env.DB).Handle(ctx, sys, report.FilterParams{Params: p})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sat.Summary.RatedCount != 1 || sat.Summary.ClosedCount != 1 || sat.Summary.ResponseRate == nil || *sat.Summary.ResponseRate != 100 {
+		t.Fatalf("unexpected satisfaction summary: %+v", sat.Summary)
+	}
+
+	// 4. 概览报表隔离客服与内部服务
+	ov, err := report.NewOverview(env.DB, env.Roles).Handle(ctx, sys, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ov.Live.ServiceOpen != 0 || ov.Live.InternalOpen != 1 || ov.Live.InternalWaiting != 1 {
+		t.Fatalf("unexpected overview live: %+v", ov.Live)
+	}
+	if ov.Service.Created != 2 || ov.Internal.Created != 2 || ov.Internal.GroupCreated != 1 || ov.Internal.Closed != 1 {
+		t.Fatalf("unexpected overview service=%+v internal=%+v", ov.Service, ov.Internal)
+	}
+	if len(ov.Series) != 1 || ov.Series[0].ServiceCreated != 2 || ov.Series[0].InternalCreated != 2 {
+		t.Fatalf("unexpected overview series: %+v", ov.Series)
+	}
+
+	// 5. 翻译报表区分 service 与 internal_service
+	tr, err := report.NewTranslation(env.DB).Handle(ctx, sys, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scenes := map[string]int64{}
+	for _, sc := range tr.ByScene {
+		scenes[sc.Scene] = sc.Calls
+	}
+	if scenes["service"] != 1 || scenes["internal_service"] != 1 {
+		t.Fatalf("unexpected translation scenes: %+v", tr.ByScene)
+	}
+}
+
+func ptrTime(t time.Time) *time.Time { return &t }

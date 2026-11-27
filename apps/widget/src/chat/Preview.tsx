@@ -2,6 +2,7 @@ import type { WidgetAppearance, WidgetBusinessIntakeConfig, WidgetPublicOwnerCar
 import { Box, Button, Stack, Text } from "@mantine/core"
 import { useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react"
+import { i18n } from "../i18n"
 import { DEFAULT_WIDGET_COLOR, isValidHexColor, useSetWidgetBrand } from "../theme"
 import { BusinessCardHeader } from "./BusinessCardHeader"
 import { IntakeForm, PasscodeGate } from "./BusinessGates"
@@ -79,6 +80,9 @@ export function Preview(): ReactNode {
       if (e.origin !== window.location.origin || e.source !== window.parent) return
       if (!e.data || e.data.type !== `${PREFIX}preview`) return
       const nextMode: PreviewMode = e.data.mode === "business_link" ? "business_link" : "widget"
+      if (typeof e.data.lang === "string" && e.data.lang) {
+        i18n.setLanguage(e.data.lang)
+      }
       const nextColor = typeof e.data.appearance?.color === "string" ? e.data.appearance.color : DEFAULT_WIDGET_COLOR
       const nextGreeting = typeof e.data.appearance?.greeting === "string" ? e.data.appearance.greeting : ""
       const rawScene = e.data.scene

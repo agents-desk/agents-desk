@@ -29,6 +29,7 @@ import { Route as SlugInboxIndexRouteImport } from './routes/$slug/inbox/index'
 import { Route as SlugInboxIdRouteImport } from './routes/$slug/inbox/$id'
 import { Route as SlugReportsIndexRouteImport } from './routes/$slug/reports/index'
 import { Route as SlugReportsBusinessRouteImport } from './routes/$slug/reports/business'
+import { Route as SlugReportsInternalRouteImport } from './routes/$slug/reports/internal'
 import { Route as SlugReportsMembersRouteImport } from './routes/$slug/reports/members'
 import { Route as SlugReportsOverviewRouteImport } from './routes/$slug/reports/overview'
 import { Route as SlugReportsServiceRouteImport } from './routes/$slug/reports/service'
@@ -166,6 +167,11 @@ const SlugReportsIndexRoute = SlugReportsIndexRouteImport.update({
 const SlugReportsBusinessRoute = SlugReportsBusinessRouteImport.update({
   id: '/business',
   path: '/business',
+  getParentRoute: () => SlugReportsRoute,
+} as any)
+const SlugReportsInternalRoute = SlugReportsInternalRouteImport.update({
+  id: '/internal',
+  path: '/internal',
   getParentRoute: () => SlugReportsRoute,
 } as any)
 const SlugReportsMembersRoute = SlugReportsMembersRouteImport.update({
@@ -400,6 +406,7 @@ export interface FileRoutesByFullPath {
   '/$slug/contacts/$id': typeof SlugContactsIdRoute
   '/$slug/inbox/$id': typeof SlugInboxIdRoute
   '/$slug/reports/business': typeof SlugReportsBusinessRoute
+  '/$slug/reports/internal': typeof SlugReportsInternalRoute
   '/$slug/reports/members': typeof SlugReportsMembersRoute
   '/$slug/reports/overview': typeof SlugReportsOverviewRoute
   '/$slug/reports/service': typeof SlugReportsServiceRoute
@@ -450,6 +457,7 @@ export interface FileRoutesByTo {
   '/$slug/contacts/$id': typeof SlugContactsIdRoute
   '/$slug/inbox/$id': typeof SlugInboxIdRoute
   '/$slug/reports/business': typeof SlugReportsBusinessRoute
+  '/$slug/reports/internal': typeof SlugReportsInternalRoute
   '/$slug/reports/members': typeof SlugReportsMembersRoute
   '/$slug/reports/overview': typeof SlugReportsOverviewRoute
   '/$slug/reports/service': typeof SlugReportsServiceRoute
@@ -503,6 +511,7 @@ export interface FileRoutesById {
   '/$slug/contacts/$id': typeof SlugContactsIdRoute
   '/$slug/inbox/$id': typeof SlugInboxIdRoute
   '/$slug/reports/business': typeof SlugReportsBusinessRoute
+  '/$slug/reports/internal': typeof SlugReportsInternalRoute
   '/$slug/reports/members': typeof SlugReportsMembersRoute
   '/$slug/reports/overview': typeof SlugReportsOverviewRoute
   '/$slug/reports/service': typeof SlugReportsServiceRoute
@@ -565,6 +574,7 @@ export interface FileRouteTypes {
     | '/$slug/contacts/$id'
     | '/$slug/inbox/$id'
     | '/$slug/reports/business'
+    | '/$slug/reports/internal'
     | '/$slug/reports/members'
     | '/$slug/reports/overview'
     | '/$slug/reports/service'
@@ -615,6 +625,7 @@ export interface FileRouteTypes {
     | '/$slug/contacts/$id'
     | '/$slug/inbox/$id'
     | '/$slug/reports/business'
+    | '/$slug/reports/internal'
     | '/$slug/reports/members'
     | '/$slug/reports/overview'
     | '/$slug/reports/service'
@@ -667,6 +678,7 @@ export interface FileRouteTypes {
     | '/$slug/contacts/$id'
     | '/$slug/inbox/$id'
     | '/$slug/reports/business'
+    | '/$slug/reports/internal'
     | '/$slug/reports/members'
     | '/$slug/reports/overview'
     | '/$slug/reports/service'
@@ -858,6 +870,13 @@ declare module '@tanstack/react-router' {
       path: '/business'
       fullPath: '/$slug/reports/business'
       preLoaderRoute: typeof SlugReportsBusinessRouteImport
+      parentRoute: typeof SlugReportsRoute
+    }
+    '/$slug/reports/internal': {
+      id: '/$slug/reports/internal'
+      path: '/internal'
+      fullPath: '/$slug/reports/internal'
+      preLoaderRoute: typeof SlugReportsInternalRouteImport
       parentRoute: typeof SlugReportsRoute
     }
     '/$slug/reports/members': {
@@ -1173,6 +1192,7 @@ const SlugInboxRouteWithChildren = SlugInboxRoute._addFileChildren(
 
 interface SlugReportsRouteChildren {
   SlugReportsBusinessRoute: typeof SlugReportsBusinessRoute
+  SlugReportsInternalRoute: typeof SlugReportsInternalRoute
   SlugReportsMembersRoute: typeof SlugReportsMembersRoute
   SlugReportsOverviewRoute: typeof SlugReportsOverviewRoute
   SlugReportsServiceRoute: typeof SlugReportsServiceRoute
@@ -1183,6 +1203,7 @@ interface SlugReportsRouteChildren {
 
 const SlugReportsRouteChildren: SlugReportsRouteChildren = {
   SlugReportsBusinessRoute: SlugReportsBusinessRoute,
+  SlugReportsInternalRoute: SlugReportsInternalRoute,
   SlugReportsMembersRoute: SlugReportsMembersRoute,
   SlugReportsOverviewRoute: SlugReportsOverviewRoute,
   SlugReportsServiceRoute: SlugReportsServiceRoute,
