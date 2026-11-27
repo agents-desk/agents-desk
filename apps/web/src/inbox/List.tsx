@@ -875,7 +875,11 @@ export function ConversationPeerAvatar({ c, size }: { c: ConversationDTO; size: 
 /** contactName 返回会话对方的展示名：外部群显示群名，1:1 会话优先显示联系人姓名、其次邮箱或访客编号。 */
 export function contactName(c: ConversationDTO, t: ReturnType<typeof useT>): string {
   if (c.external_group) {
-    return c.external_group.name || c.external_group.external_id || t("inbox.external_group")
+    return (
+      c.external_group.name ||
+      c.external_group.external_id ||
+      t(c.audience === "internal" ? "inbox.internal_group" : "inbox.customer_group")
+    )
   }
   return contactDisplayName(c.contact, t)
 }

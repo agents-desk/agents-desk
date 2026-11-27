@@ -291,7 +291,7 @@ export function ExternalGroupsPanel({ audience }: { audience: BotAudience }): Re
       <DataTable
         records={list.data ?? []}
         loading={list.isPending}
-        empty={t("extgroups.empty")}
+        empty={t(audience === "internal" ? "extgroups.empty_internal" : "extgroups.empty_customer")}
         columns={[
           {
             accessor: "name",
@@ -346,7 +346,12 @@ export function ExternalGroupsPanel({ audience }: { audience: BotAudience }): Re
         ]}
       />
 
-      <Modal opened={Boolean(editing)} onClose={() => setEditing(null)} title={t("extgroups.edit_title")} size="md">
+      <Modal
+        opened={Boolean(editing)}
+        onClose={() => setEditing(null)}
+        title={t(audience === "internal" ? "extgroups.edit_title_internal" : "extgroups.edit_title_customer")}
+        size="md"
+      >
         <form onSubmit={form.onSubmit((v) => save.mutate(v))}>
           <Stack gap="md">
             <TextInput label={t("extgroups.name")} maxLength={120} {...form.getInputProps("name")} />

@@ -73,7 +73,7 @@ function ServiceChannelsPage(): ReactNode {
         },
         {
           value: "groups",
-          label: t("nav.external_groups"),
+          label: t("nav.customer_groups"),
           count: pendingGroups || (groupsQuery.data?.length || undefined),
           content: <ExternalGroupsPanel audience="customer" />,
         },

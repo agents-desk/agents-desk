@@ -380,7 +380,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
 
           {c.external_group ? (
             <InspectorSection
-              title={t("inbox.details_external_group")}
+              title={t(c.audience === "internal" ? "inbox.details_internal_group" : "inbox.details_customer_group")}
               collapsible
               storeKey="inbox-details-group"
               extra={

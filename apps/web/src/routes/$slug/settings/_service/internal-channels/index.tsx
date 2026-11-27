@@ -74,7 +74,7 @@ function InternalChannelsPage(): ReactNode {
         },
         {
           value: "groups",
-          label: t("nav.external_groups"),
+          label: t("nav.internal_groups"),
           count: pendingGroups || (groupsQuery.data?.length || undefined),
           content: <ExternalGroupsPanel audience="internal" />,
         },

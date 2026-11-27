@@ -94,7 +94,7 @@ export function ConversationsPage({
       value: formatInt(s?.created, uiLang),
       delta: pctDelta(s?.created, s?.prev_created),
       secondary: s
-        ? t("reports.conv_target_sub", {
+        ? t(isInternal ? "reports.conv_target_sub_internal" : "reports.conv_target_sub", {
             direct: formatInt(s.direct_created, uiLang),
             group: formatInt(s.group_created, uiLang),
           })

@@ -625,10 +625,14 @@ export const messages = {
     "extgroups.channel": "Channel",
     "extgroups.configure": "Configure",
     "extgroups.description": "Manage WeCom and Telegram groups joined by bots, including display names, default team routing, and status.",
-    "extgroups.description_customer": "Manage external groups joined by customer-facing bots, including display names, default team inboxes, and status.",
-    "extgroups.description_internal": "Manage internal WeCom and Telegram groups joined by internal service bots, including fallback team inboxes (e.g. IT Helpdesk) and status.",
-    "extgroups.edit_title": "Configure external group",
-    "extgroups.empty": "No external groups yet. Add a bot to a group to sync it here.",
+    "extgroups.description_customer": "Manage customer groups joined by support bots (such as VIP support or delivery groups), including display names, default team inboxes, and status.",
+    "extgroups.description_internal": "Manage WeCom and Telegram employee groups joined by internal service bots, including fallback team inboxes (e.g. IT Helpdesk) and status.",
+    "extgroups.edit_title": "Configure group",
+    "extgroups.edit_title_customer": "Configure customer group",
+    "extgroups.edit_title_internal": "Configure employee group",
+    "extgroups.empty": "No groups yet. Add a bot to a group to sync it here.",
+    "extgroups.empty_customer": "No customer groups yet. Add a support bot to a customer group to sync it here.",
+    "extgroups.empty_internal": "No employee groups yet. Add an internal bot to a WeCom or Telegram group to sync it here.",
     "extgroups.filter_active": "Active",
     "extgroups.filter_all": "All",
     "extgroups.filter_pending": "Pending setup",
@@ -755,6 +759,7 @@ export const messages = {
     "inbox.copy_message": "Copy message",
     "inbox.ctrl_enter_again": "Translation updated. Check it, then press {{.key}} again to send",
     "inbox.ctrl_enter_hint": "{{.key}} to send, Enter for a new line",
+    "inbox.customer_group": "Customer group",
     "inbox.delivery_delivered": "Delivered",
     "inbox.delivery_failed": "Not sent",
     "inbox.delivery_read": "Read",
@@ -763,8 +768,10 @@ export const messages = {
     "inbox.details": "Details",
     "inbox.details_contact": "Contact",
     "inbox.details_conversation": "Conversation",
-    "inbox.details_external_group": "External group",
+    "inbox.details_customer_group": "Customer group",
+    "inbox.details_external_group": "Group",
     "inbox.details_history": "Recent conversations",
+    "inbox.details_internal_group": "Employee group",
     "inbox.download_file": "Download file",
     "inbox.draft_prefix": "Draft: ",
     "inbox.edit_translation": "Edit translation",
@@ -772,10 +779,11 @@ export const messages = {
     "inbox.empty_filtered": "No conversations match the current filter",
     "inbox.enter_again": "Translation updated. Check it, then press Enter again to send",
     "inbox.enter_hint": "Enter to send, Shift + Enter for a new line",
-    "inbox.external_group": "External group",
+    "inbox.external_group": "Group",
     "inbox.go_to_active_conversation": "Go to active conversation",
     "inbox.group_removed_notice": "The bot was removed from this group. Outbound replies are disabled, while internal notes remain available.",
     "inbox.hide_translation": "Hide translation",
+    "inbox.internal_group": "Employee group",
     "inbox.language_auto": "Detect automatically",
     "inbox.language_auto_detected": "Detected: {{.lang}}",
     "inbox.language_manual_hint": "Set manually. Incoming messages won't change it",
@@ -921,7 +929,7 @@ export const messages = {
     "inbox.visitor": "Visitor",
     "inbox.visitor_numbered": "Visitor #{{.n}}",
     "inbox.you": "You",
-    "internal_channels.description": "Manage internal employee service bots (WeCom, internal Telegram bots, etc.) and internal groups. AI Agents handle requests first and escalate unhandled cases to team inboxes.",
+    "internal_channels.description": "Manage internal employee service bots (WeCom, internal Telegram bots, etc.) and employee groups. AI Agents handle requests first and escalate unhandled cases to team inboxes.",
     "login.aside_footer": "Unified Team Service Platform",
     "login.aside_headline": "AI-first unified service workspace for your team",
     "login.aside_subline": "Unite customer support, internal collaboration, and partner conversations in one calm workspace.",
@@ -1003,10 +1011,12 @@ export const messages = {
     "nav.business_governance": "Business channels",
     "nav.chat": "Chat",
     "nav.contacts": "Contacts",
-    "nav.external_groups": "External groups",
+    "nav.customer_groups": "Customer groups",
+    "nav.external_groups": "Customer groups",
     "nav.general": "General",
     "nav.inbox": "Inbox",
     "nav.internal_channels": "Internal channels",
+    "nav.internal_groups": "Employee groups",
     "nav.macros": "Quick replies",
     "nav.members": "Members",
     "nav.members_roles": "Members \u0026 roles",
@@ -1106,7 +1116,7 @@ export const messages = {
     "reports.ai_agent_scope_customer": "Customer service reception",
     "reports.ai_agent_scope_customer_desc": "Automated answers and handoff rates across website widgets, Telegram support bots, and customer groups",
     "reports.ai_agent_scope_internal": "Internal employee service",
-    "reports.ai_agent_scope_internal_desc": "Self-service resolution across WeCom and Telegram internal bots in DMs and internal groups",
+    "reports.ai_agent_scope_internal_desc": "Self-service resolution across WeCom and Telegram internal bots in DMs and employee groups",
     "reports.ai_agent_scope_ticket": "Ticket drafting \u0026 collaboration",
     "reports.ai_agent_scope_ticket_desc": "AI summaries, ticket draft generation, classification suggestions, and approval tracking",
     "reports.ai_tab_agent": "AI Agent",
@@ -1197,7 +1207,8 @@ export const messages = {
     "reports.conv_rounds_opened": "Rounds opened",
     "reports.conv_rounds_opened_desc": "Total service rounds opened during the period (new plus reopened).",
     "reports.conv_series_title": "Conversation trend",
-    "reports.conv_target_sub": "{{.direct}} direct · {{.group}} group",
+    "reports.conv_target_sub": "{{.direct}} direct · {{.group}} customer groups",
+    "reports.conv_target_sub_internal": "{{.direct}} direct · {{.group}} employee groups",
     "reports.cost_and_latency": "Translation cost",
     "reports.cost_sub": "Avg {{.ms}} · {{.n}} billed calls",
     "reports.created_and_open": "{{.created}} created · {{.open}} open",
@@ -1232,7 +1243,7 @@ export const messages = {
     "reports.gran_week": "Week",
     "reports.internal_created": "Internal requests",
     "reports.internal_created_desc": "Internal service requests created via WeCom, Telegram, and internal channels during the period.",
-    "reports.internal_group_created": "Group requests",
+    "reports.internal_group_created": "Employee group requests",
     "reports.internal_tab_volume": "Requests",
     "reports.lang_unknown": "Unknown",
     "reports.live_label": "Live",
@@ -1302,7 +1313,7 @@ export const messages = {
     "reports.res_median": "Resolution median",
     "reports.res_p90": "Resolution P90",
     "reports.response_rate": "Response rate",
-    "reports.response_rate_desc": "Share of rateable closed customer 1:1 rounds (excluding external groups) that received a rating.",
+    "reports.response_rate_desc": "Share of rateable closed customer 1:1 rounds (excluding customer groups) that received a rating.",
     "reports.response_rate_sub": "{{.closed}} closed rounds",
     "reports.response_time_series": "Median response time trend",
     "reports.round_badge": "Round {{.n}}",
@@ -1337,7 +1348,7 @@ export const messages = {
     "reports.ticket_by_type": "By ticket type",
     "reports.ticket_created": "Tickets created",
     "reports.ticket_linked_contacts": "Affected targets",
-    "reports.ticket_linked_contacts_desc": "Total affected contacts and external groups linked to tickets created in this period.",
+    "reports.ticket_linked_contacts_desc": "Total affected contacts and groups linked to tickets created in this period.",
     "reports.ticket_live_in_progress": "In progress",
     "reports.ticket_live_submitted": "Submitted",
     "reports.ticket_live_unassigned": "Unassigned",
@@ -1359,7 +1370,7 @@ export const messages = {
     "reports.vis_members": "Members only",
     "roles.description": "The owner has every permission and is set by a platform admin. A role that members still use stays until you give those members another role.",
     "roles.permissions_hint": "Every role can view members and team inboxes, and view and reply to the conversations it can see",
-    "service_channels.description": "Manage external customer support channels, including website chat widgets, Telegram support bots, and customer external groups.",
+    "service_channels.description": "Manage external customer support channels, including website chat widgets, Telegram support bots, and customer groups.",
     "settings.group_personal": "Personal",
     "settings.group_service": "Channels \u0026 service",
     "settings.group_workspace": "Workspace",
@@ -1459,7 +1470,7 @@ export const messages = {
     "telegrams.create_submit": "Create \u0026 configure",
     "telegrams.create_title": "New Telegram bot",
     "telegrams.description": "Connect Telegram bots to receive and reply to customer direct messages via direct webhook or external gateway mode.",
-    "telegrams.description_internal": "Connect Telegram bots for internal employee support, supporting direct chats and group @bot mentions as AI Agent entry points.",
+    "telegrams.description_internal": "Connect Telegram bots for internal employee support, supporting direct chats and employee group @bot mentions as AI Agent entry points.",
     "telegrams.empty": "No Telegram bot channels yet. Create one to receive private messages.",
     "telegrams.enable_groups": "Enable group @bot support",
     "telegrams.enable_groups_desc": "When enabled, @mentions, /commands, and replies to the bot in groups enter the inbox",
@@ -1929,7 +1940,7 @@ export const messages = {
     "ai_placeholder.coming_soon": "即将上线",
     "ai_placeholder.open_ai_hub": "前往 AI Agent 工作台",
     "ai_placeholder.reception_desc_customer": "接入对外客服 AI Agent 后，客户消息由 AI 自动应答并调用业务工具；答不了或客户要求转人工时，自动进入下方团队收件箱。",
-    "ai_placeholder.reception_desc_group": "可为该外部群单独绑定 AI Agent 用途；当前保持人工接待，激活并接入 AI 后自动开启群内智能应答。",
+    "ai_placeholder.reception_desc_group": "可为该群单独绑定 AI Agent 用途；当前保持人工接待，激活并接入 AI 后自动开启群内智能应答。",
     "ai_placeholder.reception_desc_internal": "接入内部服务 AI Agent 后，员工在企业微信或 Telegram 中提出的问题优先由 AI 解答；无法处理或需审批时，自动进入下方团队收件箱。",
     "ai_placeholder.reception_switch_hint": "AI Agent 模块上线后可在此绑定对应场景的 Agent 与转人工规则",
     "ai_placeholder.reception_switch_label": "启用 AI Agent 优先接待（当前为人工兜底模式）",
@@ -2485,11 +2496,15 @@ export const messages = {
     "event.via_round_robin": "（轮流分配）",
     "extgroups.channel": "所属渠道",
     "extgroups.configure": "配置",
-    "extgroups.description": "管理机器人加入的企业微信与 Telegram 外部群，配置群名称、专属团队收件箱与启用状态。",
-    "extgroups.description_customer": "管理对外客服机器人加入的外部群，配置群名称、默认团队收件箱与启用状态。",
-    "extgroups.description_internal": "管理内部服务机器人加入的企业微信与 Telegram 内部群，配置群名称、兜底团队收件箱（如 IT 服务台）与启用状态。",
-    "extgroups.edit_title": "配置外部群",
-    "extgroups.empty": "还没有外部群记录，将机器人拉入群聊后会自动同步到此列表。",
+    "extgroups.description": "管理机器人加入的企业微信与 Telegram 群聊，配置群名称、专属团队收件箱与启用状态。",
+    "extgroups.description_customer": "管理对外客服机器人加入的客户群（如 VIP 支持群、项目交付群），配置群名称、默认团队收件箱与启用状态。",
+    "extgroups.description_internal": "管理内部服务机器人加入的企业微信与 Telegram 员工群，配置群名称、兜底团队收件箱（如 IT 服务台）与启用状态。",
+    "extgroups.edit_title": "配置群聊",
+    "extgroups.edit_title_customer": "配置客户群",
+    "extgroups.edit_title_internal": "配置员工群",
+    "extgroups.empty": "还没有群聊记录，将机器人拉入群聊后会自动同步到此列表。",
+    "extgroups.empty_customer": "还没有客户群记录，将客服机器人拉入客户群后会自动同步到此列表。",
+    "extgroups.empty_internal": "还没有员工群记录，将内部机器人拉入企业微信或 Telegram 员工群后会自动同步到此列表。",
     "extgroups.filter_active": "已启用",
     "extgroups.filter_all": "全部",
     "extgroups.filter_pending": "待配置",
@@ -2616,6 +2631,7 @@ export const messages = {
     "inbox.copy_message": "复制消息",
     "inbox.ctrl_enter_again": "译文已更新，确认后再按一次 {{.key}} 发送",
     "inbox.ctrl_enter_hint": "{{.key}} 发送，回车换行",
+    "inbox.customer_group": "客户群",
     "inbox.delivery_delivered": "已送达",
     "inbox.delivery_failed": "发送失败",
     "inbox.delivery_read": "已读",
@@ -2624,8 +2640,10 @@ export const messages = {
     "inbox.details": "详情",
     "inbox.details_contact": "联系人",
     "inbox.details_conversation": "会话",
-    "inbox.details_external_group": "外部群",
+    "inbox.details_customer_group": "客户群",
+    "inbox.details_external_group": "群聊",
     "inbox.details_history": "最近的会话",
+    "inbox.details_internal_group": "员工群",
     "inbox.download_file": "下载文件",
     "inbox.draft_prefix": "草稿：",
     "inbox.edit_translation": "编辑译文",
@@ -2633,10 +2651,11 @@ export const messages = {
     "inbox.empty_filtered": "没有符合当前筛选条件的会话",
     "inbox.enter_again": "译文已更新，确认后再按一次回车发送",
     "inbox.enter_hint": "回车发送，Shift + 回车换行",
-    "inbox.external_group": "外部群",
+    "inbox.external_group": "群聊",
     "inbox.go_to_active_conversation": "前往当前会话",
     "inbox.group_removed_notice": "机器人已被移出该群，无法继续向外发送回复，你仍可记录内部备注。",
     "inbox.hide_translation": "收起译文",
+    "inbox.internal_group": "员工群",
     "inbox.language_auto": "自动识别",
     "inbox.language_auto_detected": "自动识别：{{.lang}}",
     "inbox.language_manual_hint": "手动设置，收到的消息不再改它",
@@ -2782,7 +2801,7 @@ export const messages = {
     "inbox.visitor": "访客",
     "inbox.visitor_numbered": "访客 #{{.n}}",
     "inbox.you": "你",
-    "internal_channels.description": "管理面向内部员工的机器人接入渠道（企业微信、Telegram 内部机器人等）与内部外部群，后续优先由 AI Agent 接待、无法处理时转入团队收件箱。",
+    "internal_channels.description": "管理面向内部员工的机器人接入渠道（企业微信、Telegram 内部机器人等）与员工群，后续优先由 AI Agent 接待、无法处理时转入团队收件箱。",
     "login.aside_footer": "团队综合服务平台",
     "login.aside_headline": "AI 驱动的团队统一服务工作台",
     "login.aside_subline": "在一个空间里连接客户咨询、内部协作与商务沟通，让团队响应更快、更从容。",
@@ -2864,10 +2883,12 @@ export const messages = {
     "nav.business_governance": "商务渠道",
     "nav.chat": "聊天",
     "nav.contacts": "联系人",
-    "nav.external_groups": "外部群",
+    "nav.customer_groups": "客户群",
+    "nav.external_groups": "客户群",
     "nav.general": "常规",
     "nav.inbox": "收件箱",
     "nav.internal_channels": "内部服务渠道",
+    "nav.internal_groups": "员工群",
     "nav.macros": "快捷回复",
     "nav.members": "成员",
     "nav.members_roles": "成员与角色",
@@ -2965,9 +2986,9 @@ export const messages = {
     "reports.ai_agent_placeholder_title": "AI Agent 效能分析即将上线",
     "reports.ai_agent_planned_badge": "即将接入",
     "reports.ai_agent_scope_customer": "对外客服接待",
-    "reports.ai_agent_scope_customer_desc": "网页聊天插件、Telegram 客服机器人与客户外部群的自动答疑与转人工转化",
+    "reports.ai_agent_scope_customer_desc": "网页聊天插件、Telegram 客服机器人与客户群的自动答疑与转人工转化",
     "reports.ai_agent_scope_internal": "内部员工服务",
-    "reports.ai_agent_scope_internal_desc": "企业微信与 Telegram 内部机器人在单聊和内部群中的 IT / 行政自助解决效率",
+    "reports.ai_agent_scope_internal_desc": "企业微信与 Telegram 内部机器人在单聊和员工群中的 IT / 行政自助解决效率",
     "reports.ai_agent_scope_ticket": "工单起草与协同",
     "reports.ai_agent_scope_ticket_desc": "AI 自动摘要、生成工单草稿、推荐分类与审批执行统计",
     "reports.ai_tab_agent": "AI Agent 效能",
@@ -3058,7 +3079,8 @@ export const messages = {
     "reports.conv_rounds_opened": "开启轮次",
     "reports.conv_rounds_opened_desc": "统计期内新开启的服务轮次总数（新建与重开之和）。",
     "reports.conv_series_title": "会话趋势",
-    "reports.conv_target_sub": "单聊 {{.direct}} · 外部群 {{.group}}",
+    "reports.conv_target_sub": "单聊 {{.direct}} · 客户群 {{.group}}",
+    "reports.conv_target_sub_internal": "单聊 {{.direct}} · 员工群 {{.group}}",
     "reports.cost_and_latency": "翻译费用",
     "reports.cost_sub": "平均耗时 {{.ms}} · {{.n}} 次含计费",
     "reports.created_and_open": "新建 {{.created}} · 积压 {{.open}}",
@@ -3093,7 +3115,7 @@ export const messages = {
     "reports.gran_week": "按周",
     "reports.internal_created": "内部请求",
     "reports.internal_created_desc": "统计期内来自企微、Telegram 等内部服务渠道的新建请求总数。",
-    "reports.internal_group_created": "外部群请求",
+    "reports.internal_group_created": "员工群请求",
     "reports.internal_tab_volume": "请求量",
     "reports.lang_unknown": "未识别",
     "reports.live_label": "实时",
@@ -3163,7 +3185,7 @@ export const messages = {
     "reports.res_median": "解决时长中位数",
     "reports.res_p90": "解决时长 P90",
     "reports.response_rate": "参评率",
-    "reports.response_rate_desc": "收到评价数占可评价关闭轮次（对外客户单聊，不含外部群）的比例。",
+    "reports.response_rate_desc": "收到评价数占可评价关闭轮次（对外客户单聊，不含客户群）的比例。",
     "reports.response_rate_sub": "关闭 {{.closed}} 轮",
     "reports.response_time_series": "响应时长中位数趋势",
     "reports.round_badge": "第 {{.n}} 轮",
@@ -3198,7 +3220,7 @@ export const messages = {
     "reports.ticket_by_type": "按工单类型分布",
     "reports.ticket_created": "新建工单",
     "reports.ticket_linked_contacts": "受影响对象",
-    "reports.ticket_linked_contacts_desc": "统计期内新建工单关联的受影响联系人与外部群总数。",
+    "reports.ticket_linked_contacts_desc": "统计期内新建工单关联的受影响联系人与群聊总数。",
     "reports.ticket_live_in_progress": "处理中",
     "reports.ticket_live_submitted": "已提交",
     "reports.ticket_live_unassigned": "未指派",
@@ -3220,7 +3242,7 @@ export const messages = {
     "reports.vis_members": "仅成员可见",
     "roles.description": "主管理员拥有全部权限，由平台管理员指定。还有成员使用的角色不能删除，先把他们改成别的角色。",
     "roles.permissions_hint": "每个角色都能查看成员和团队收件箱、查看和回复看得到的会话",
-    "service_channels.description": "管理面向外部客户的客服接入渠道，包括网页聊天插件、Telegram 客服机器人与客户外部群。",
+    "service_channels.description": "管理面向外部客户的客服接入渠道，包括网页聊天插件、Telegram 客服机器人与客户群。",
     "settings.group_personal": "个人",
     "settings.group_service": "渠道与服务",
     "settings.group_workspace": "工作区",
@@ -3320,7 +3342,7 @@ export const messages = {
     "telegrams.create_submit": "创建并配置",
     "telegrams.create_title": "新建 Telegram 机器人",
     "telegrams.description": "接入 Telegram 机器人接收并回复客户私聊消息，支持直连 Webhook 与外部网关转发两种模式。",
-    "telegrams.description_internal": "接入面向内部员工服务的 Telegram 机器人，支持单聊与内部群 @机器人 请求，并作为 AI Agent 的接入入口。",
+    "telegrams.description_internal": "接入面向内部员工服务的 Telegram 机器人，支持单聊与员工群 @机器人 请求，并作为 AI Agent 的接入入口。",
     "telegrams.empty": "还没有 Telegram 机器人渠道，新建一个接入客户私聊消息。",
     "telegrams.enable_groups": "启用群聊 @机器人 服务",
     "telegrams.enable_groups_desc": "开启后，机器人在群内被 @ 提及、收到 /命令 或回复其消息时自动进入收件箱",
@@ -4353,7 +4375,11 @@ export type MessageId =
   | "extgroups.description_customer"
   | "extgroups.description_internal"
   | "extgroups.edit_title"
+  | "extgroups.edit_title_customer"
+  | "extgroups.edit_title_internal"
   | "extgroups.empty"
+  | "extgroups.empty_customer"
+  | "extgroups.empty_internal"
   | "extgroups.filter_active"
   | "extgroups.filter_all"
   | "extgroups.filter_pending"
@@ -4480,6 +4506,7 @@ export type MessageId =
   | "inbox.copy_message"
   | "inbox.ctrl_enter_again"
   | "inbox.ctrl_enter_hint"
+  | "inbox.customer_group"
   | "inbox.delivery_delivered"
   | "inbox.delivery_failed"
   | "inbox.delivery_read"
@@ -4488,8 +4515,10 @@ export type MessageId =
   | "inbox.details"
   | "inbox.details_contact"
   | "inbox.details_conversation"
+  | "inbox.details_customer_group"
   | "inbox.details_external_group"
   | "inbox.details_history"
+  | "inbox.details_internal_group"
   | "inbox.download_file"
   | "inbox.draft_prefix"
   | "inbox.edit_translation"
@@ -4501,6 +4530,7 @@ export type MessageId =
   | "inbox.go_to_active_conversation"
   | "inbox.group_removed_notice"
   | "inbox.hide_translation"
+  | "inbox.internal_group"
   | "inbox.language_auto"
   | "inbox.language_auto_detected"
   | "inbox.language_manual_hint"
@@ -4728,10 +4758,12 @@ export type MessageId =
   | "nav.business_governance"
   | "nav.chat"
   | "nav.contacts"
+  | "nav.customer_groups"
   | "nav.external_groups"
   | "nav.general"
   | "nav.inbox"
   | "nav.internal_channels"
+  | "nav.internal_groups"
   | "nav.macros"
   | "nav.members"
   | "nav.members_roles"
@@ -4923,6 +4955,7 @@ export type MessageId =
   | "reports.conv_rounds_opened_desc"
   | "reports.conv_series_title"
   | "reports.conv_target_sub"
+  | "reports.conv_target_sub_internal"
   | "reports.cost_and_latency"
   | "reports.cost_sub"
   | "reports.created_and_open"
