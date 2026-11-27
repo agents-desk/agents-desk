@@ -262,8 +262,6 @@ export type TicketStatus = "submitted" | "in_progress" | "waiting_on_customer" |
 export interface WidgetAppearance {
   /** 聊天窗口的主题色（#rrggbb 十六进制颜色值），缺省为 #0063ff */
   color?: string
-  /** 聊天窗口顶部的问候语；为空时显示默认问候语 */
-  greeting?: string
 }
 
 export interface WidgetBusinessIntakeConfig {
@@ -280,13 +278,23 @@ export interface WidgetBusinessIntakeConfig {
 }
 
 export interface WidgetConfigDTO {
-  /** 聊天窗口的外观配置 */
+  /** 是否允许访客在聊天窗口顶部切换语言 */
+  allow_switch: boolean
+  /** 聊天窗口的视觉外观配置 */
   appearance: WidgetAppearance
+  /** 访客可选语言列表（BCP 47） */
+  available_languages: string[]
   /** 网页商务沟通链接的公开名片、留资与访问配置 */
   business?: WidgetPublicBusinessConfig
+  /** 渠道配置的默认语言（BCP 47） */
+  default_language: string
+  /** 已按语言解析的欢迎问候语；为空时显示界面默认问候语 */
+  greeting?: string
   /** 渠道种类：widget 或 business_link */
   kind: ChannelKind
-  /** 聊天插件或商务链接的名称，显示在聊天窗口的标题中 */
+  /** 本次配置解析使用的语言（BCP 47） */
+  language: string
+  /** 已按语言解析的对外窗口标题 */
   name: string
 }
 
@@ -306,6 +314,11 @@ export interface WidgetContactIntakeBody {
   name?: string
   /** 合作意向或需求简述 */
   note?: string
+}
+
+export interface WidgetContactLanguageBody {
+  /** 访客选择的语言（BCP 47），如 zh-CN、en、hi-Latn */
+  language: string
 }
 
 export interface WidgetMessageBody {
@@ -404,6 +417,13 @@ export interface TimelineGetInput {
   limit?: number
 }
 
+/** widget-config 的参数。 */
+export interface WidgetConfigInput {
+  /** 可选：显式指定配置解析语言（BCP 47），优先于 Accept-Language */
+  lang?: string
+  acceptLanguage?: string
+}
+
 /** 创建客户端。 */
 export function createClient(options: ClientOptions) {
   const rt = new Runtime(options)
@@ -424,6 +444,13 @@ export function createClient(options: ClientOptions) {
        */
       intake: (body: WidgetContactIntakeBody): Promise<ContactSummary> =>
         rt.request<ContactSummary>({ method: "POST", path: `/contact/intake`, body }),
+      /**
+       * 更新访客冷启动语言偏好
+       *
+       * PUT /contact/language
+       */
+      language: (body: WidgetContactLanguageBody): Promise<ContactSummary> =>
+        rt.request<ContactSummary>({ method: "PUT", path: `/contact/language`, body }),
     },
     /** operationId 以 conversation- 开头的接口。 */
     conversation: {
@@ -503,8 +530,8 @@ export function createClient(options: ClientOptions) {
        *
        * GET /config
        */
-      config: (): Promise<WidgetConfigDTO> =>
-        rt.request<WidgetConfigDTO>({ method: "GET", path: `/config`, public: true }),
+      config: (input: WidgetConfigInput = {}): Promise<{ body: WidgetConfigDTO; headers: { vary?: string } }> =>
+        rt.withHeaders<WidgetConfigDTO>({ method: "GET", path: `/config`, public: true, query: { "lang": input["lang"] }, headers: { "Accept-Language": input.acceptLanguage } }, { vary: "Vary" }),
       /**
        * 建立会话
        *

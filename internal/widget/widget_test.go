@@ -318,11 +318,19 @@ func TestManage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	loc := Localization{
+		DefaultLanguage: "zh-CN",
+		AllowSwitch:     true,
+		Translations: map[string]LocalizedCopy{
+			"zh-CN": {Greeting: "你好"},
+			"en":    {Title: "Support", Greeting: "Hello"},
+		},
+	}
 	w, err := NewUpdate(env.DB).Handle(ctx, alpha.system, alpha.widget.ID, UpdateBody{
-		Changes: Changes{Name: "官网", Appearance: Appearance{Greeting: "你好", Color: "#2BDD66"}},
+		Changes: Changes{Name: "官网", Appearance: Appearance{Color: "#2BDD66"}, Localization: &loc},
 		Enabled: true,
 	})
-	if err != nil || w.Appearance.Greeting != "你好" || w.Appearance.Color != "#2bdd66" {
+	if err != nil || w.Localization.Translations["zh-CN"].Greeting != "你好" || w.Appearance.Color != "#2bdd66" {
 		t.Fatalf("修改后：%+v %v", w, err)
 	}
 	after, err := NewGetInstallation(env.DB, env.Crypt, "https://desk.example.com/").Handle(ctx, alpha.system, alpha.widget.ID)
@@ -330,13 +338,17 @@ func TestManage(t *testing.T) {
 		t.Fatalf("修改后的密钥：%q %q %v", before.IdentitySecret, after.IdentitySecret, err)
 	}
 	cfg, err := NewGetConfig(env.DB, env.Files).Handle(alpha.in(t, alpha.widget.ID))
-	if err != nil || cfg.Appearance.Greeting != "你好" || cfg.Appearance.Color != "#2bdd66" || cfg.Name != "官网" {
+	if err != nil || cfg.Greeting != "你好" || cfg.Appearance.Color != "#2bdd66" || cfg.Name != "官网" {
 		t.Fatalf("公开设置：%+v %v", cfg, err)
+	}
+	enCfg, err := NewGetConfig(env.DB, env.Files).Handle(alpha.in(t, alpha.widget.ID), "en-US")
+	if err != nil || enCfg.Name != "Support" || enCfg.Greeting != "Hello" {
+		t.Fatalf("英文公开设置：%+v %v", enCfg, err)
 	}
 
 	// 支持自定义 #rrggbb 十六进制颜色并标准化为小写，非法格式返回 ErrInvalidColor
 	w, err = NewUpdate(env.DB).Handle(ctx, alpha.system, alpha.widget.ID, UpdateBody{
-		Changes: Changes{Name: "官网", Appearance: Appearance{Greeting: "你好", Color: "#FEDC20"}},
+		Changes: Changes{Name: "官网", Appearance: Appearance{Color: "#FEDC20"}},
 		Enabled: true,
 	})
 	if err != nil || w.Appearance.Color != "#fedc20" {

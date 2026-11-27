@@ -373,7 +373,11 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		macro.RegisterRoutes(api, require, a.db, a.roles)
 		conversation.RegisterRoutes(api, require, a.db, a.channels, down)
 		file.RegisterRoutes(api, require(auth.ConversationsReply), a.files, a.cfg.Filesystem.MaxUploadSize)
-		widget.RegisterRoutes(api, require, a.db, a.crypt, a.cfg.HTTP.PublicURL)
+		var copyTranslator widget.CopyTranslator
+		if a.translator != nil {
+			copyTranslator = a.translator.TranslateFields
+		}
+		widget.RegisterRoutes(api, require, a.db, a.crypt, a.cfg.HTTP.PublicURL, copyTranslator)
 		bizGuard := business.NewPolicyGuard(a.db, a.businessPolicy, a.features, a.telegramSettings)
 		widget.RegisterBusinessLinkRoutes(api, require, a.db, a.cfg.HTTP.PublicURL, widget.BusinessLinkHooks{
 			CheckCreate: bizGuard.CheckCreateLink,

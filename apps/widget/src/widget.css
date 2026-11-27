@@ -137,8 +137,17 @@ body {
   color: var(--mantine-color-gray-5);
   transition: transform 140ms ease, color 140ms ease;
 }
+[dir="rtl"] .w-rtl-flip,
+[dir="rtl"] .w-conversation-arrow {
+  transform: scaleX(-1);
+}
+@media (hover: hover) {
+  [dir="rtl"] .w-conversation:hover .w-conversation-arrow {
+    transform: scaleX(-1) translateX(2px);
+  }
+}
 
-/* 消息气泡：客服白底配轻边框与微阴影，与 gray-0 画布拉开清晰层次；连续消息圆角自然衔接 */
+/* 消息气泡：客服白底配轻边框与微阴影，与 gray-0 画布拉开清晰层次；逻辑圆角天然兼容 LTR/RTL */
 .w-bubble {
   padding: 8px 12px;
   border-radius: 16px;
@@ -148,29 +157,29 @@ body {
   animation: w-bubble-in 160ms ease;
 }
 .w-bubble[data-mine] {
-  border-bottom-right-radius: 4px;
+  border-end-end-radius: 4px;
 }
 .w-bubble[data-mine]:not([data-first]):not([data-last]) {
-  border-top-right-radius: 6px;
-  border-bottom-right-radius: 6px;
+  border-start-end-radius: 6px;
+  border-end-end-radius: 6px;
 }
 .w-bubble[data-mine]:not([data-first])[data-last] {
-  border-top-right-radius: 6px;
-  border-bottom-right-radius: 16px;
+  border-start-end-radius: 6px;
+  border-end-end-radius: 16px;
 }
 .w-bubble:not([data-mine]) {
   background: var(--mantine-color-body);
   border: 1px solid var(--mantine-color-gray-2);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--mantine-color-black) 4%, transparent);
-  border-bottom-left-radius: 4px;
+  border-end-start-radius: 4px;
 }
 .w-bubble:not([data-mine]):not([data-first]):not([data-last]) {
-  border-top-left-radius: 6px;
-  border-bottom-left-radius: 6px;
+  border-start-start-radius: 6px;
+  border-end-start-radius: 6px;
 }
 .w-bubble:not([data-mine]):not([data-first])[data-last] {
-  border-top-left-radius: 6px;
-  border-bottom-left-radius: 16px;
+  border-start-start-radius: 6px;
+  border-end-start-radius: 16px;
 }
 .w-bubble[data-state="sending"] {
   opacity: 0.6;
@@ -269,7 +278,7 @@ body {
 .w-attach-remove {
   position: absolute;
   top: 2px;
-  right: 2px;
+  inset-inline-end: 2px;
   z-index: 2;
 }
 .w-attach-file {
@@ -389,7 +398,7 @@ body {
 }
 .w-msg-video-meta {
   position: absolute;
-  left: 6px;
+  inset-inline-start: 6px;
   bottom: 6px;
   padding: 1px 6px;
   border-radius: var(--mantine-radius-xs);

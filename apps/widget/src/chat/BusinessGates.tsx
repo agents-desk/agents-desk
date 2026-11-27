@@ -1,4 +1,4 @@
-import type { ContactSummary, WidgetBusinessIntakeConfig } from "@agents-desk/client/widget"
+import { type ContactSummary, isApiError, type WidgetBusinessIntakeConfig } from "@agents-desk/client/widget"
 import { Box, Button, Center, Paper, PasswordInput, Stack, Text, Textarea, TextInput, ThemeIcon } from "@mantine/core"
 import { IconClockOff, IconLock } from "@tabler/icons-react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
@@ -77,7 +77,11 @@ export function PasscodeGate({
     try {
       await onUnlock(trimmed)
     } catch (err) {
-      setError(describeError(err).message ?? t("business.passcode_invalid"))
+      if (isApiError(err) && err.code === "widget.invalid_passcode") {
+        setError(t("business.passcode_invalid"))
+      } else {
+        setError(describeError(err).message ?? t("business.passcode_invalid"))
+      }
     } finally {
       setBusy(false)
     }
@@ -165,7 +169,19 @@ export function IntakeForm({
       void queryClient.invalidateQueries({ queryKey: ["widget", contact?.id] })
       onDone()
     },
-    onError: (err) => setSubmitError(describeError(err).message ?? t("chat.failed")),
+    onError: (err) => {
+      if (isApiError(err)) {
+        if (err.code === "widget.intake_required") {
+          setSubmitError(t("business.intake_required"))
+          return
+        }
+        if (err.code === "contact.invalid_email") {
+          setSubmitError(t("business.intake_invalid_email"))
+          return
+        }
+      }
+      setSubmitError(describeError(err).message ?? t("chat.failed"))
+    },
   })
 
   const handleSubmit = (e: FormEvent) => {

@@ -1,10 +1,17 @@
 import { isApiError } from "@agents-desk/client/widget"
-import { Box, Button, Center, Indicator, Loader, Paper, Text } from "@mantine/core"
+import { Box, Button, Center, Group, Indicator, Loader, Paper, Text } from "@mantine/core"
 import { IconTicket } from "@tabler/icons-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useT } from "@go-tenon/ui"
-import { type ReactNode, useEffect, useRef, useState } from "react"
+import { type ReactNode, useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { channel, embedded, hasCloseButton, type Init, inline, listen, tell, waitInit } from "../host"
+import {
+  applyChannelDefaultLanguage,
+  applyHostCommandLanguage,
+  applyHostInitLanguage,
+  chooseUserLanguage,
+  i18n,
+} from "../i18n"
 import { identity } from "../identity"
 import { useIdentity, useRealtime } from "../realtime"
 import { DEFAULT_WIDGET_COLOR, useSetWidgetBrand } from "../theme"
@@ -13,6 +20,7 @@ import { ExpiredView, IntakeForm, needsIntake, PasscodeGate } from "./BusinessGa
 import { useBrandForeground } from "./contrast"
 import { ConversationView } from "./Conversation"
 import { Header } from "./Header"
+import { LanguageMenu } from "./LanguageMenu"
 import { Launcher } from "./Launcher"
 import { useConfig, useTicket, useTickets, useTimeline } from "./queries"
 import { type ReplyTicketContext, TicketDetailView, TicketListItems } from "./TicketDetail"
@@ -32,6 +40,7 @@ export function Widget(): ReactNode {
   const t = useT()
   const fg = useBrandForeground()
   const queryClient = useQueryClient()
+  const requestedLang = useSyncExternalStore(i18n.subscribe, i18n.requestedLanguage, i18n.requestedLanguage)
   const [ready, setReady] = useState(false)
   const [failed, setFailed] = useState(false)
   const [gate, setGate] = useState<"none" | "passcode" | "expired">("none")
@@ -75,6 +84,12 @@ export function Widget(): ReactNode {
     if (next) void identity.ensure().catch(handleSessionError)
   }
 
+  // 公开配置到达后应用渠道默认语言（仅作为无显式/浏览器命中时的回退）
+  const defaultLanguage = config.data?.default_language
+  useEffect(() => {
+    if (defaultLanguage) void applyChannelDefaultLanguage(defaultLanguage)
+  }, [defaultLanguage])
+
   // 等到公开配置到达后再按需启动会话：过期或需口令的新访客直接停在门禁页，不盲发 /session 报 403/409
   useEffect(() => {
     if (!config.data || initStartedRef.current) return
@@ -98,6 +113,7 @@ export function Widget(): ReactNode {
     void waitInit()
       .then(async (init: Init) => {
         if (floating) setMobile(init.mobile)
+        await applyHostInitLanguage({ lang: init.lang, hostLang: init.hostLang })
         await identity.start(init.userToken, init.referrer, !embedded || inline)
         if (!embedded) tell("ready")
         setReady(true)
@@ -111,7 +127,7 @@ export function Widget(): ReactNode {
       })
   }, [config.data, floating])
 
-  // 外面的命令：展开、收起、登录、退出
+  // 外面的命令：展开、收起、登录、退出、切换语言
   useEffect(
     () =>
       listen({
@@ -121,6 +137,10 @@ export function Widget(): ReactNode {
         command: (c) => {
           if (c.command === "open" || c.command === "close") {
             if (floating) toggle(c.command === "open")
+            return
+          }
+          if (c.command === "setLanguage") {
+            void applyHostCommandLanguage(channel, c.lang).then(() => identity.syncLanguage(i18n.requestedLanguage()))
             return
           }
           if (c.command === "login") {
@@ -166,6 +186,13 @@ export function Widget(): ReactNode {
 
   const color = "brand"
   const name = config.data?.name ?? t("app.widget")
+
+  // 同步文档标题与宿主 iframe.title，保证无障碍与浏览器标签页随语言即时更新
+  useEffect(() => {
+    if (typeof document !== "undefined") document.title = name
+    if (ready) tell("meta", { title: name })
+  }, [name, ready])
+
   if (!channel || config.isError || failed) {
     return floating ? null : (
       <Center h="100dvh" p="xl">
@@ -204,6 +231,19 @@ export function Widget(): ReactNode {
     !intakeCompleted &&
     needsIntake(contact ?? null, biz?.intake, intakeSkipped, hasMessages)
 
+  const handleUserSwitchLanguage = (nextLang: string) => {
+    void chooseUserLanguage(channel, nextLang).then(() => identity.syncLanguage(i18n.requestedLanguage()))
+  }
+
+  const languageSwitch =
+    config.data?.allow_switch && (config.data.available_languages?.length ?? 0) > 1 ? (
+      <LanguageMenu
+        value={requestedLang}
+        languages={config.data.available_languages}
+        onChange={handleUserSwitchLanguage}
+      />
+    ) : undefined
+
   const ticketAction =
     !isBusinessLink && ticketList.length > 0 ? (
       <Button
@@ -221,6 +261,14 @@ export function Widget(): ReactNode {
       </Button>
     ) : undefined
 
+  const headerExtra =
+    ticketAction || languageSwitch ? (
+      <Group gap={2} wrap="nowrap">
+        {ticketAction}
+        {languageSwitch}
+      </Group>
+    ) : undefined
+
   const renderMainHeader = () => {
     if (isBusinessLink) {
       return (
@@ -228,9 +276,10 @@ export function Widget(): ReactNode {
           color={color}
           title={name}
           owner={biz?.owner}
-          greeting={hasMessages ? undefined : config.data?.appearance.greeting || t("home.default_greeting")}
+          greeting={hasMessages ? undefined : config.data?.greeting || t("home.default_greeting")}
           awayMessage={biz?.away_message}
           compact={hasMessages && !showIntake}
+          extra={languageSwitch}
           close={close}
           onClose={onClose}
         />
@@ -240,9 +289,9 @@ export function Widget(): ReactNode {
       <Header
         color={color}
         title={name}
-        greeting={latestConversation ? undefined : config.data?.appearance.greeting || t("home.default_greeting")}
+        greeting={latestConversation ? undefined : config.data?.greeting || t("home.default_greeting")}
         status={chatStatus}
-        extra={ticketAction}
+        extra={headerExtra}
         close={close}
         onClose={onClose}
       />
@@ -285,6 +334,7 @@ export function Widget(): ReactNode {
             id={view.id}
             color={color}
             name={name}
+            extra={languageSwitch}
             close={close}
             onClose={onClose}
             onBack={() => setView(view.from === "tickets" ? { kind: "tickets" } : { kind: "chat" })}
@@ -299,6 +349,7 @@ export function Widget(): ReactNode {
           <Header
             color={color}
             title={t("tickets.my_tickets")}
+            extra={languageSwitch}
             onBack={() => setView({ kind: "chat" })}
             close={close}
             onClose={onClose}
@@ -350,6 +401,7 @@ function TicketPage({
   id,
   color,
   name,
+  extra,
   close,
   onClose,
   onBack,
@@ -358,6 +410,7 @@ function TicketPage({
   id: string
   color: string
   name: string
+  extra?: ReactNode
   close?: "collapse" | "close"
   onClose: () => void
   onBack: () => void
@@ -368,7 +421,7 @@ function TicketPage({
   const title = ticket.data ? t("tickets.title", { number: ticket.data.number }) : t("tickets.my_tickets")
   return (
     <>
-      <Header color={color} title={title} onBack={onBack} close={close} onClose={onClose} />
+      <Header color={color} title={title} extra={extra} onBack={onBack} close={close} onClose={onClose} />
       <TicketDetailView id={id} color={color} name={name} onReplyInChat={onReplyInChat} />
     </>
   )

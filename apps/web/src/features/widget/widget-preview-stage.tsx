@@ -1,23 +1,38 @@
 import type { WidgetAppearance } from "@agents-desk/client/tenant"
-import { Box, Center, Group, SegmentedControl, Stack, Text } from "@mantine/core"
-import { IconDeviceDesktop, IconDeviceMobile, IconMessage, IconMessageCircle } from "@tabler/icons-react"
-import { useT } from "@go-tenon/ui"
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
+import { Box, Center, Group, SegmentedControl, Select, Stack, Text } from "@mantine/core"
+import { IconDeviceDesktop, IconDeviceMobile, IconMessage, IconMessageCircle, IconWorld } from "@tabler/icons-react"
+import { useLanguage, useT } from "@go-tenon/ui"
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { languageName } from "../../languages"
 import { PREVIEW_PREFIX, type PreviewMessage, type PreviewScene, type PreviewViewport } from "./preview-protocol"
 import classes from "./widget-studio.module.css"
 
 /** WidgetPreviewStageProps 是右侧实时预览画布的输入。 */
 interface WidgetPreviewStageProps {
   name: string
+  greeting: string
   appearance: WidgetAppearance
+  language: string
+  allowSwitch: boolean
+  availableLanguages: string[]
+  onLanguageChange: (lang: string) => void
 }
 
 /**
  * WidgetPreviewStage 是聊天插件的右侧实时预览舞台：
- * 通过同源 iframe 嵌入真实的 /widget/preview，双向同步草稿配置与用户点击切换的场景，支持桌面浮窗与手机全屏视图。
+ * 通过同源 iframe 嵌入真实的 /widget/preview，双向同步草稿配置、预览语言与用户点击切换的场景，支持桌面浮窗与手机全屏视图。
  */
-export function WidgetPreviewStage({ name, appearance }: WidgetPreviewStageProps): ReactNode {
+export function WidgetPreviewStage({
+  name,
+  greeting,
+  appearance,
+  language,
+  allowSwitch,
+  availableLanguages,
+  onLanguageChange,
+}: WidgetPreviewStageProps): ReactNode {
   const t = useT()
+  const uiLang = useLanguage()
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [ready, setReady] = useState(false)
   const [scene, setScene] = useState<PreviewScene>("conversation")
@@ -30,18 +45,24 @@ export function WidgetPreviewStage({ name, appearance }: WidgetPreviewStageProps
       const payload: PreviewMessage = {
         type: `${PREVIEW_PREFIX}preview`,
         name,
+        greeting,
         appearance,
+        language,
+        allow_switch: allowSwitch,
+        available_languages: availableLanguages,
         scene: nextScene,
         viewport: nextViewport,
       }
       target.postMessage(payload, window.location.origin)
     },
-    [appearance, name],
+    [allowSwitch, appearance, availableLanguages, greeting, language, name],
   )
   const latestPostRef = useRef<() => void>(() => {})
   latestPostRef.current = () => postPreview(scene, viewport)
+  const onLangRef = useRef(onLanguageChange)
+  onLangRef.current = onLanguageChange
 
-  // 监听预览窗口上报的就绪信号与用户直接点击预览内容触发的场景切换。
+  // 监听预览窗口上报的就绪信号、场景切换与预览窗内语言切换事件。
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (e.origin !== window.location.origin || e.source !== iframeRef.current?.contentWindow) return
@@ -57,13 +78,17 @@ export function WidgetPreviewStage({ name, appearance }: WidgetPreviewStageProps
         if (next === "conversation" || next === "launcher") {
           setScene(next)
         }
+        return
+      }
+      if (kind === "preview_language" && typeof e.data.language === "string" && e.data.language) {
+        onLangRef.current(e.data.language)
       }
     }
     window.addEventListener("message", onMessage)
     return () => window.removeEventListener("message", onMessage)
   }, [])
 
-  // 草稿、场景或视口变化后立即推送到预览 iframe。
+  // 草稿、语言、场景或视口变化后立即推送到预览 iframe。
   useEffect(() => {
     if (!ready) return
     postPreview(scene, viewport)
@@ -76,6 +101,14 @@ export function WidgetPreviewStage({ name, appearance }: WidgetPreviewStageProps
       setScene("conversation")
     }
   }
+
+  const languageOptions = useMemo(() => {
+    const tags = new Set<string>([...availableLanguages, language])
+    return [...tags].filter(Boolean).map((code) => ({
+      value: code,
+      label: `${languageName(code, uiLang)} (${code})`,
+    }))
+  }, [availableLanguages, language, uiLang])
 
   const sceneOptions = [
     {
@@ -127,7 +160,19 @@ export function WidgetPreviewStage({ name, appearance }: WidgetPreviewStageProps
     <Stack gap="sm" className={classes.previewColumn}>
       <Group justify="space-between" gap="xs" wrap="wrap">
         <SegmentedControl size="xs" value={scene} onChange={(v) => setScene(v as PreviewScene)} data={sceneOptions} />
-        <SegmentedControl size="xs" value={viewport} onChange={handleViewportChange} data={viewportOptions} />
+        <Group gap="xs" wrap="nowrap">
+          <Select
+            size="xs"
+            w={160}
+            aria-label={t("widget_i18n.preview_language")}
+            leftSection={<IconWorld size={13} />}
+            value={language}
+            onChange={(v) => v && onLanguageChange(v)}
+            data={languageOptions}
+            allowDeselect={false}
+          />
+          <SegmentedControl size="xs" value={viewport} onChange={handleViewportChange} data={viewportOptions} />
+        </Group>
       </Group>
 
       <Box className={classes.stage}>

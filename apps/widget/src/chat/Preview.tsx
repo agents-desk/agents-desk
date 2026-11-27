@@ -2,12 +2,14 @@ import type { WidgetAppearance, WidgetBusinessIntakeConfig, WidgetPublicOwnerCar
 import { Box, Button, Stack, Text } from "@mantine/core"
 import { useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react"
+import { i18n, WIDGET_LANGUAGES } from "../i18n"
 import { DEFAULT_WIDGET_COLOR, isValidHexColor, useSetWidgetBrand } from "../theme"
 import { BusinessCardHeader } from "./BusinessCardHeader"
 import { IntakeForm, PasscodeGate } from "./BusinessGates"
 import { Composer } from "./Composer"
 import { Bubble } from "./Conversation"
 import { Header } from "./Header"
+import { LanguageMenu } from "./LanguageMenu"
 import { Launcher } from "./Launcher"
 
 /** PREFIX 是工作区配置工作台与预览窗口之间 postMessage 的消息前缀。 */
@@ -35,7 +37,11 @@ interface PreviewBusinessPayload {
 interface PreviewState {
   mode: PreviewMode
   name: string
+  greeting: string
   appearance: WidgetAppearance
+  language: string
+  allowSwitch: boolean
+  availableLanguages: string[]
   scene: PreviewScene
   viewport: PreviewViewport
   business?: PreviewBusinessPayload
@@ -50,15 +56,15 @@ interface PreviewMessage {
   time: string
 }
 
-/** notifyParent 向同源父窗口发送预览事件（就绪、用户点击切换场景）。 */
-function notifyParent(type: "preview_ready" | "preview_scene", data: Record<string, unknown> = {}): void {
+/** notifyParent 向同源父窗口发送预览事件（就绪、用户点击切换场景或语言）。 */
+function notifyParent(type: "preview_ready" | "preview_scene" | "preview_language", data: Record<string, unknown> = {}): void {
   if (typeof window === "undefined" || window.parent === window) return
   window.parent.postMessage({ type: PREFIX + type, ...data }, window.location.origin)
 }
 
 /**
  * Preview 是网页聊天插件与商务沟通链接共用的纯客户端可交互预览壳（挂载于 /widget/preview）。
- * 复用真实的 Header、BusinessCardHeader、IntakeForm、PasscodeGate、Bubble、Composer 与 Launcher，零后端写入。
+ * 复用真实的 Header、BusinessCardHeader、LanguageMenu、IntakeForm、PasscodeGate、Bubble、Composer 与 Launcher，零后端写入。
  */
 export function Preview(): ReactNode {
   const t = useT()
@@ -66,29 +72,43 @@ export function Preview(): ReactNode {
   const [state, setState] = useState<PreviewState>({
     mode: "widget",
     name: "",
-    appearance: { color: DEFAULT_WIDGET_COLOR, greeting: "" },
+    greeting: "",
+    appearance: { color: DEFAULT_WIDGET_COLOR },
+    language: "en",
+    allowSwitch: true,
+    availableLanguages: [...WIDGET_LANGUAGES],
     scene: "conversation",
     viewport: "desktop",
   })
   const [extraMessages, setExtraMessages] = useState<PreviewMessage[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  // 监听同源父窗口推送的实时草稿与场景切换指令，挂载时上报 preview_ready。
+  // 监听同源父窗口推送的实时草稿、语言与场景切换指令，挂载时上报 preview_ready。
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (e.origin !== window.location.origin || e.source !== window.parent) return
       if (!e.data || e.data.type !== `${PREFIX}preview`) return
       const nextMode: PreviewMode = e.data.mode === "business_link" ? "business_link" : "widget"
       const nextColor = typeof e.data.appearance?.color === "string" ? e.data.appearance.color : DEFAULT_WIDGET_COLOR
-      const nextGreeting = typeof e.data.appearance?.greeting === "string" ? e.data.appearance.greeting : ""
+      const nextGreeting = typeof e.data.greeting === "string" ? e.data.greeting : ""
+      const nextLanguage = typeof e.data.language === "string" && e.data.language ? e.data.language : "en"
+      const nextAllowSwitch = e.data.allow_switch !== false
+      const nextAvailable = Array.isArray(e.data.available_languages)
+        ? (e.data.available_languages.filter((x: unknown): x is string => typeof x === "string" && x.length > 0))
+        : [...WIDGET_LANGUAGES]
       const rawScene = e.data.scene
       const nextScene: PreviewScene =
         rawScene === "launcher" || rawScene === "intake" || rawScene === "passcode" ? rawScene : "conversation"
       const nextViewport: PreviewViewport = e.data.viewport === "mobile" ? "mobile" : "desktop"
+      i18n.setLanguage(nextLanguage)
       setState({
         mode: nextMode,
         name: typeof e.data.name === "string" ? e.data.name : "",
-        appearance: { color: nextColor, greeting: nextGreeting },
+        greeting: nextGreeting,
+        appearance: { color: nextColor },
+        language: nextLanguage,
+        allowSwitch: nextAllowSwitch,
+        availableLanguages: nextAvailable.length > 0 ? nextAvailable : [...WIDGET_LANGUAGES],
         scene: nextMode === "widget" && nextViewport === "mobile" && nextScene === "launcher" ? "conversation" : nextScene,
         viewport: nextViewport,
         business: nextMode === "business_link" && e.data.business ? (e.data.business as PreviewBusinessPayload) : undefined,
@@ -151,6 +171,12 @@ export function Preview(): ReactNode {
     notifyParent("preview_scene", { scene: next })
   }
 
+  const switchLanguage = (nextLang: string) => {
+    i18n.setLanguage(nextLang)
+    setState((prev) => ({ ...prev, language: nextLang }))
+    notifyParent("preview_language", { language: nextLang })
+  }
+
   const handleSend = (text: string) => {
     setExtraMessages((prev) => [
       ...prev,
@@ -160,8 +186,12 @@ export function Preview(): ReactNode {
 
   const color = "brand"
   const title = state.name.trim() || t("app.widget")
-  const greeting = state.appearance.greeting?.trim() || t("home.default_greeting")
+  const greeting = state.greeting.trim() || t("home.default_greeting")
   const full = isBiz || state.viewport === "mobile"
+  const languageSwitch =
+    state.allowSwitch && state.availableLanguages.length > 1 ? (
+      <LanguageMenu value={state.language} languages={state.availableLanguages} onChange={switchLanguage} />
+    ) : undefined
 
   if (isBiz) {
     const biz = state.business
@@ -183,6 +213,7 @@ export function Preview(): ReactNode {
             greeting={state.scene === "conversation" ? undefined : greeting}
             awayMessage={biz?.away_message}
             compact={state.scene === "conversation"}
+            extra={languageSwitch}
           />
           {state.scene === "passcode" ? (
             <PasscodeGate
@@ -271,6 +302,7 @@ export function Preview(): ReactNode {
           color={color}
           title={title}
           greeting={greeting}
+          extra={languageSwitch}
           close={closeMode}
           onClose={onClose}
         />

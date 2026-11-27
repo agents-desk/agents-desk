@@ -50,9 +50,16 @@ func TestBusinessLinkEndToEnd(t *testing.T) {
 	del := NewDeleteBusinessLink(env.DB)
 
 	// 1. 成员创建个人网页商务沟通链接，自动生成独立短链与二维码
+	initLoc := Localization{
+		DefaultLanguage: "zh-CN",
+		AllowSwitch:     true,
+		Translations: map[string]LocalizedCopy{
+			"zh-CN": {Greeting: "欢迎洽谈合作"},
+		},
+	}
 	link, err := create.Handle(ctx, f.agent, CreateBusinessLinkBody{
-		Name:       "Owner 商务专线",
-		Appearance: Appearance{Greeting: "欢迎洽谈合作"},
+		Name:         "Owner 商务专线",
+		Localization: &initLoc,
 	})
 	if err != nil {
 		t.Fatalf("创建个人商务沟通链接失败：%v", err)
@@ -60,7 +67,7 @@ func TestBusinessLinkEndToEnd(t *testing.T) {
 	if !link.Enabled || link.PublicCode == "" || !strings.HasSuffix(link.ChatURL, "/c/"+link.PublicCode) || !strings.HasPrefix(link.QRDataURL, "data:image/png;base64,") {
 		t.Fatalf("商务沟通链接返回异常：%+v", link)
 	}
-	// 短链重定向 /c/{code} -> /widget/?channel={id}
+	// 短链重定向 /c/{code} -> /widget/?channel={id}，并透传合法的 lang 查询参数
 	shortRouter := chi.NewRouter()
 	shortRouter.Get("/c/{code}", ShortLinkHandler(env.DB))
 	rec := httptest.NewRecorder()
@@ -68,25 +75,50 @@ func TestBusinessLinkEndToEnd(t *testing.T) {
 	if rec.Code != http.StatusFound || rec.Header().Get("Location") != "/widget/?channel="+link.ID {
 		t.Fatalf("短链重定向异常：%d %s", rec.Code, rec.Header().Get("Location"))
 	}
+	recLang := httptest.NewRecorder()
+	shortRouter.ServeHTTP(recLang, httptest.NewRequest(http.MethodGet, "/c/"+link.PublicCode+"?lang=hi_latn", nil))
+	if recLang.Code != http.StatusFound || recLang.Header().Get("Location") != "/widget/?channel="+link.ID+"&lang=hi-Latn" {
+		t.Fatalf("短链透传语言异常：%d %s", recLang.Code, recLang.Header().Get("Location"))
+	}
 	// 重置短码后旧短码失效、新短码可用
 	rotated, err := NewRotateBusinessLinkCode(env.DB, "https://desk.example.com").Handle(ctx, f.agent, link.ID)
 	if err != nil || rotated.PublicCode == "" || rotated.PublicCode == link.PublicCode {
 		t.Fatalf("重置短码失败：%v %+v", err, rotated)
 	}
-	// 自定义短码、名片、开场留资、快捷话题与口令校验
-	cardCfg := BusinessCardConfig{ShowOwner: true, TitleOverride: "大客户总监", CompanyOverride: "Acme Cloud", BioOverride: "亚太区渠道合作", AwayMessage: "会议中，留言后尽快回复"}
+	// 自定义短码、名片、多语言文案、开场留资、快捷话题与口令校验
+	cardCfg := BusinessCardConfig{ShowOwner: true}
+	fullLoc := Localization{
+		DefaultLanguage: "zh-CN",
+		AllowSwitch:     true,
+		Translations: map[string]LocalizedCopy{
+			"zh-CN": {
+				Greeting:     "欢迎洽谈合作",
+				OwnerTitle:   "大客户总监",
+				OwnerCompany: "Acme Cloud",
+				OwnerBio:     "亚太区渠道合作",
+				AwayMessage:  "会议中，留言后尽快回复",
+				Starters:     []string{"渠道代理合作", "定制报价咨询"},
+			},
+			"en": {
+				Title:       "Owner Partnership Line",
+				Greeting:    "Welcome to partner chat",
+				OwnerTitle:  "Key Account Director",
+				AwayMessage: "In a meeting, will reply soon",
+				Starters:    []string{"Distribution partnership", "Custom pricing"},
+			},
+		},
+	}
 	intakeCfg := BusinessIntakeConfig{Enabled: true, Name: IntakeRequired, Company: IntakeRequired, Email: IntakeOptional, Note: IntakeOptional}
 	configured, err := update.Handle(ctx, f.agent, link.ID, UpdateBusinessLinkBody{
-		Name:       "Owner 商务专线",
-		PublicCode: "owner-bd",
-		Appearance: Appearance{Greeting: "欢迎洽谈合作"},
-		Card:       &cardCfg,
-		Intake:     &intakeCfg,
-		Access:     &BusinessAccessInput{Mode: "passcode", Passcode: "888666"},
-		Starters:   []string{"渠道代理合作", "定制报价咨询"},
-		Enabled:    true,
+		Name:         "Owner 商务专线",
+		PublicCode:   "owner-bd",
+		Localization: &fullLoc,
+		Card:         &cardCfg,
+		Intake:       &intakeCfg,
+		Access:       &BusinessAccessInput{Mode: "passcode", Passcode: "888666"},
+		Enabled:      true,
 	})
-	if err != nil || configured.PublicCode != "owner-bd" || !configured.Access.HasPasscode || len(configured.Starters) != 2 {
+	if err != nil || configured.PublicCode != "owner-bd" || !configured.Access.HasPasscode || len(configured.Localization.Translations["zh-CN"].Starters) != 2 {
 		t.Fatalf("更新商务链接工作台配置失败：%v %+v", err, configured)
 	}
 	pubCfg, err := NewGetConfig(env.DB, env.Files).Handle(f.in(t, link.ID))
@@ -94,29 +126,35 @@ func TestBusinessLinkEndToEnd(t *testing.T) {
 		pubCfg.Business.Owner.Title != "大客户总监" || pubCfg.Business.Owner.Company != "Acme Cloud" || !pubCfg.Business.RequiresPasscode {
 		t.Fatalf("公开名片配置异常：%v %+v", err, pubCfg)
 	}
+	// 英文请求：命中英文标题/头衔/话题，未填的 OwnerCompany 字段自动回退主语言 "Acme Cloud"
+	enPubCfg, err := NewGetConfig(env.DB, env.Files).Handle(f.in(t, link.ID), "en")
+	if err != nil || enPubCfg.Name != "Owner Partnership Line" || enPubCfg.Greeting != "Welcome to partner chat" ||
+		enPubCfg.Business == nil || enPubCfg.Business.Owner == nil ||
+		enPubCfg.Business.Owner.Title != "Key Account Director" || enPubCfg.Business.Owner.Company != "Acme Cloud" ||
+		len(enPubCfg.Business.Starters) != 2 || enPubCfg.Business.Starters[0] != "Distribution partnership" {
+		t.Fatalf("英文公开名片配置异常：%v %+v", err, enPubCfg)
+	}
 	// 恢复为公开模式供后续匿名访客测试，并先验证口令错误被拒绝
 	startSess := NewStartSession(env.DB, env.Crypt, f.tokens, conversation.Downstream{})
 	if _, err := startSess.Handle(f.in(t, link.ID), SessionBody{Passcode: "wrong"}, apitoken.Device{}); !errors.Is(err, ErrInvalidPasscode) {
 		t.Fatalf("口令错误应返回 ErrInvalidPasscode：%v", err)
 	}
 	if _, err := update.Handle(ctx, f.agent, link.ID, UpdateBusinessLinkBody{
-		Name:       "Owner 商务专线",
-		Appearance: Appearance{Greeting: "欢迎洽谈合作"},
-		Card:       &cardCfg,
-		Intake:     &intakeCfg,
-		Access:     &BusinessAccessInput{Mode: "public", ClearPasscode: true},
-		Starters:   []string{"渠道代理合作", "定制报价咨询"},
-		Enabled:    true,
+		Name:         "Owner 商务专线",
+		Localization: &fullLoc,
+		Card:         &cardCfg,
+		Intake:       &intakeCfg,
+		Access:       &BusinessAccessInput{Mode: "public", ClearPasscode: true},
+		Enabled:      true,
 	}); err != nil {
 		t.Fatalf("切回公开模式失败：%v", err)
 	}
 	// 验证已过期链接拒绝新访客
 	past := time.Now().UTC().Add(-time.Hour)
 	if _, err := update.Handle(ctx, f.agent, link.ID, UpdateBusinessLinkBody{
-		Name:       "Owner 商务专线",
-		Appearance: Appearance{Greeting: "欢迎洽谈合作"},
-		Access:     &BusinessAccessInput{Mode: "public", ExpiresAt: &past},
-		Enabled:    true,
+		Name:    "Owner 商务专线",
+		Access:  &BusinessAccessInput{Mode: "public", ExpiresAt: &past},
+		Enabled: true,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -124,10 +162,9 @@ func TestBusinessLinkEndToEnd(t *testing.T) {
 		t.Fatalf("过期链接应返回 ErrBusinessLinkExpired：%v", err)
 	}
 	if _, err := update.Handle(ctx, f.agent, link.ID, UpdateBusinessLinkBody{
-		Name:       "Owner 商务专线",
-		Appearance: Appearance{Greeting: "欢迎洽谈合作"},
-		Access:     &BusinessAccessInput{Mode: "public", ExpiresAt: nil},
-		Enabled:    true,
+		Name:    "Owner 商务专线",
+		Access:  &BusinessAccessInput{Mode: "public", ExpiresAt: nil},
+		Enabled: true,
 	}); err != nil {
 		t.Fatal(err)
 	}

@@ -578,40 +578,64 @@ func seedBusinessDemo(ctx context.Context, out io.Writer, db *bun.DB, memberLogi
 	createLink := widget.NewCreateBusinessLink(db, addr.PublicURL)
 	updateLink := widget.NewUpdateBusinessLink(db, addr.PublicURL)
 
-	// 2. 链接一：公开短链 /c/owner-bd（带商务名片、开场留资、快捷话题、自动协作成员与自动 VIP 标签）
-	link1, err := createLink.Handle(ctx, subOwner, widget.CreateBusinessLinkBody{
-		Name: "全球渠道合作专线",
-		Appearance: widget.Appearance{
-			Color:    "#228be6",
-			Greeting: "您好！欢迎直接联系我沟通区域代理、阶梯批发报价或企业 API 对接事宜。",
+	// 2. 链接一：公开短链 /c/owner-bd（带多语言名片、开场留资、快捷话题、自动协作成员与自动 VIP 标签）
+	link1Loc := widget.Localization{
+		DefaultLanguage: "zh-CN",
+		AllowSwitch:     true,
+		Translations: map[string]widget.LocalizedCopy{
+			"zh-CN": {
+				Title:       "全球渠道合作专线",
+				Greeting:    "您好！欢迎直接联系我沟通区域代理、阶梯批发报价或企业 API 对接事宜。",
+				AwayMessage: "当前正在会议中，请留言您的公司名称与合作意向，我将在 2 小时内回复。",
+				Starters: []string{
+					"区域代理合作政策咨询",
+					"500+ 台阶梯批发报价",
+					"企业 API 集成对接支持",
+				},
+			},
+			"en": {
+				Title:       "Global Partnership Desk",
+				Greeting:    "Hi! Reach out directly for regional distribution, volume wholesale pricing, or enterprise API integration.",
+				AwayMessage: "Currently in a meeting. Please leave your company and inquiry — I'll reply within 2 hours.",
+				Starters: []string{
+					"Regional distributor policy",
+					"Wholesale pricing for 500+ units",
+					"Enterprise API integration support",
+				},
+			},
+			"hi-Latn": {
+				Title:       "Global Partnership Desk",
+				Greeting:    "Namaste! Regional distribution, bulk wholesale pricing ya enterprise API integration ke liye seedha message karein.",
+				AwayMessage: "Abhi meeting mein hoon. Apni company ka naam aur requirement chhod dein, main 2 ghante mein reply karunga.",
+				Starters: []string{
+					"Regional distributor policy",
+					"500+ units ke liye wholesale pricing",
+					"Enterprise API integration support",
+				},
+			},
 		},
+	}
+	link1, err := createLink.Handle(ctx, subOwner, widget.CreateBusinessLinkBody{
+		Name:         "全球渠道合作专线",
+		Appearance:   widget.Appearance{Color: "#228be6"},
+		Localization: &link1Loc,
 	})
 	if err != nil {
 		return err
 	}
 	link1, err = updateLink.Handle(ctx, subOwner, link1.ID, widget.UpdateBusinessLinkBody{
-		Name:       "全球渠道合作专线",
-		PublicCode: "owner-bd",
-		Enabled:    true,
-		Appearance: widget.Appearance{
-			Color:    "#228be6",
-			Greeting: "您好！欢迎直接联系我沟通区域代理、阶梯批发报价或企业 API 对接事宜。",
-		},
-		Card: &widget.BusinessCardConfig{
-			ShowOwner:   true,
-			AwayMessage: "当前正在会议中，请留言您的公司名称与合作意向，我将在 2 小时内回复。",
-		},
+		Name:         "全球渠道合作专线",
+		PublicCode:   "owner-bd",
+		Enabled:      true,
+		Appearance:   widget.Appearance{Color: "#228be6"},
+		Localization: &link1Loc,
+		Card:         &widget.BusinessCardConfig{ShowOwner: true},
 		Intake: &widget.BusinessIntakeConfig{
 			Enabled: true,
 			Name:    widget.IntakeRequired,
 			Company: widget.IntakeOptional,
 			Email:   widget.IntakeOptional,
 			Note:    widget.IntakeOptional,
-		},
-		Starters: []string{
-			"区域代理合作政策咨询",
-			"500+ 台阶梯批发报价",
-			"企业 API 集成对接支持",
 		},
 		Business: &channel.BusinessPolicy{
 			DefaultCollaboratorIDs: []string{managerRef.ID},
@@ -624,29 +648,47 @@ func seedBusinessDemo(ctx context.Context, out io.Writer, db *bun.DB, memberLogi
 	}
 
 	// 3. 链接二：口令保护专线 /c/vip-partner（口令 202688），方便直接演示口令门禁
-	link2, err := createLink.Handle(ctx, subOwner, widget.CreateBusinessLinkBody{
-		Name: "VIP 战略合作加密专线",
-		Appearance: widget.Appearance{
-			Color:    "#7950f2",
-			Greeting: "欢迎进入 VIP 战略合作专属通道，已为您接入优先响应团队。",
+	link2Loc := widget.Localization{
+		DefaultLanguage: "zh-CN",
+		AllowSwitch:     true,
+		Translations: map[string]widget.LocalizedCopy{
+			"zh-CN": {
+				Title:       "VIP 战略合作加密专线",
+				Greeting:    "欢迎进入 VIP 战略合作专属通道，已为您接入优先响应团队。",
+				OwnerTitle:  "战略大客户总监",
+				AwayMessage: "专属顾问暂离，您的消息已标记最高优先级，稍后第一时间回复。",
+				Starters: []string{
+					"年度框架协议与定制 SLA",
+					"专属大客户结算通道申请",
+				},
+			},
+			"en": {
+				Title:       "VIP Strategic Partner Line",
+				Greeting:    "Welcome to our private VIP partner channel. You are connected to our priority response team.",
+				OwnerTitle:  "Strategic Key Account Director",
+				AwayMessage: "Your dedicated advisor is briefly away. Your message is marked highest priority.",
+				Starters: []string{
+					"Annual framework agreement & custom SLA",
+					"Dedicated key account billing setup",
+				},
+			},
 		},
+	}
+	link2, err := createLink.Handle(ctx, subOwner, widget.CreateBusinessLinkBody{
+		Name:         "VIP 战略合作加密专线",
+		Appearance:   widget.Appearance{Color: "#7950f2"},
+		Localization: &link2Loc,
 	})
 	if err != nil {
 		return err
 	}
 	link2, err = updateLink.Handle(ctx, subOwner, link2.ID, widget.UpdateBusinessLinkBody{
-		Name:       "VIP 战略合作加密专线",
-		PublicCode: "vip-partner",
-		Enabled:    true,
-		Appearance: widget.Appearance{
-			Color:    "#7950f2",
-			Greeting: "欢迎进入 VIP 战略合作专属通道，已为您接入优先响应团队。",
-		},
-		Card: &widget.BusinessCardConfig{
-			ShowOwner:     true,
-			TitleOverride: "战略大客户总监",
-			AwayMessage:   "专属顾问暂离，您的消息已标记最高优先级，稍后第一时间回复。",
-		},
+		Name:         "VIP 战略合作加密专线",
+		PublicCode:   "vip-partner",
+		Enabled:      true,
+		Appearance:   widget.Appearance{Color: "#7950f2"},
+		Localization: &link2Loc,
+		Card:         &widget.BusinessCardConfig{ShowOwner: true},
 		Intake: &widget.BusinessIntakeConfig{
 			Enabled: true,
 			Name:    widget.IntakeRequired,
@@ -657,10 +699,6 @@ func seedBusinessDemo(ctx context.Context, out io.Writer, db *bun.DB, memberLogi
 		Access: &widget.BusinessAccessInput{
 			Mode:     "passcode",
 			Passcode: "202688",
-		},
-		Starters: []string{
-			"年度框架协议与定制 SLA",
-			"专属大客户结算通道申请",
 		},
 		Business: &channel.BusinessPolicy{
 			DefaultCollaboratorIDs: []string{managerRef.ID},
@@ -745,10 +783,19 @@ func seedWidget(ctx context.Context, out io.Writer, db *bun.DB, keys *crypt.Cryp
 	if err := db.NewRaw("SELECT id FROM teams WHERE tenant_id = ? AND name = '一线客服'", inDemo.Tenant).Scan(ctx, &teamID); err != nil {
 		return errors.Wrap(err, "find demo team")
 	}
+	widgetLoc := widget.Localization{
+		DefaultLanguage: "zh-CN",
+		AllowSwitch:     true,
+		Translations: map[string]widget.LocalizedCopy{
+			"zh-CN":   {Title: "在线客服", Greeting: "你好！有什么可以帮你？"},
+			"en":      {Title: "Support", Greeting: "Hi there! How can we help?"},
+			"hi-Latn": {Title: "Support", Greeting: "Namaste! Hum aapki kya madad kar sakte hain?"},
+		},
+	}
 	w, err := widget.NewCreate(db, keys).Handle(ctx, inDemo, widget.Changes{
-		Name:       "官网",
-		TeamID:     &teamID,
-		Appearance: widget.Appearance{Greeting: "你好！有什么可以帮你？"},
+		Name:         "官网",
+		TeamID:       &teamID,
+		Localization: &widgetLoc,
 	})
 	if err != nil {
 		return err

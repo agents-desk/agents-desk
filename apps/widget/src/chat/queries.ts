@@ -4,8 +4,9 @@ import type {
   ConversationContactTimelineDTO,
 } from "@agents-desk/client/widget"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useRef, useState, useSyncExternalStore } from "react"
 import { authed, widgetApi } from "../api"
+import { i18n } from "../i18n"
 import { useIdentity } from "../realtime"
 
 // 聊天窗口的查询。键都以 ["widget", 联系人] 开头：实时推送让 ["widget", contact.id] 整组失效；
@@ -26,9 +27,15 @@ function mergeItems<T extends { id: string }>(head: T[], tail: T[]): T[] {
   return appended.length === 0 ? head : [...head, ...appended]
 }
 
-/** useConfig 读取聊天插件的公开设置：名称、问候语、主题色。 */
+/** useConfig 读取聊天插件按当前访客语言解析后的公开设置：对外标题、问候语、主题色、可选语言与商务配置。 */
 export function useConfig() {
-  return useQuery({ queryKey: ["widget", "config"], queryFn: () => widgetApi.widget.config(), staleTime: 5 * 60_000 })
+  const requestedLang = useSyncExternalStore(i18n.subscribe, i18n.requestedLanguage, i18n.requestedLanguage)
+  return useQuery({
+    queryKey: ["widget", "config", requestedLang],
+    queryFn: () => widgetApi.widget.config({ lang: requestedLang }).then((r) => r.body),
+    staleTime: 5 * 60_000,
+    placeholderData: (prev) => prev,
+  })
 }
 
 /**
