@@ -3,7 +3,6 @@ package translation
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"log/slog"
 	"sort"
 	"strings"
@@ -30,6 +29,7 @@ type TicketBroadcast struct {
 	db         *bun.DB
 	locker     *lock.Locker
 	translator *Translator
+	down       conversation.Downstream
 	sendMsg    *conversation.SendSystemMessage
 }
 
@@ -39,6 +39,7 @@ func NewTicketBroadcast(db *bun.DB, locker *lock.Locker, translator *Translator,
 		db:         db,
 		locker:     locker,
 		translator: translator,
+		down:       down,
 		sendMsg:    conversation.NewSendSystemMessage(db, down),
 	}
 }
@@ -98,7 +99,7 @@ func (b *TicketBroadcast) Handle(ctx context.Context, p conversation.Appended) e
 		return err
 	}
 	if len(targets) == 0 {
-		return nil
+		return conversation.SaveTicketBroadcastCount(ctx, b.db, b.down, p.TenantID, it.ID, 0)
 	}
 
 	// 跳过已投递过该条公开进度的关联客户或会话，保证队列重试幂等且不重复打扰同一客户
@@ -130,14 +131,19 @@ func (b *TicketBroadcast) Handle(ctx context.Context, p conversation.Appended) e
 		pending = append(pending, tc)
 	}
 	if len(pending) == 0 {
+		return conversation.SaveTicketBroadcastCount(ctx, b.db, b.down, p.TenantID, it.ID, len(sentConv))
+	}
+
+	attachments, err := conversation.LoadItemAttachments(ctx, b.db, p.TenantID, it.ID)
+	if err != nil {
+		return err
+	}
+	rawText := strings.TrimSpace(it.Content.Text)
+	if rawText == "" && len(attachments) == 0 {
 		return nil
 	}
 
 	// 汇总待投递会话的去重客户语言，按语言一次批量翻译
-	rawText := strings.TrimSpace(it.Content.Text)
-	if rawText == "" {
-		rawText = fmt.Sprintf("工单 #%d 有新的公开进度，请在工单详情中查看。", tk.Number)
-	}
 	langSet := map[string]struct{}{}
 	for _, tc := range pending {
 		if l := strings.TrimSpace(tc.Language); l != "" {
@@ -181,7 +187,7 @@ func (b *TicketBroadcast) Handle(ctx context.Context, p conversation.Appended) e
 			needLangs = append(needLangs, targetLang)
 		}
 	}
-	if b.translator != nil && len(needLangs) > 0 && strings.TrimSpace(it.Content.Text) != "" {
+	if b.translator != nil && len(needLangs) > 0 && rawText != "" {
 		if sourceLang != "" {
 			translatedMap, err := b.translator.Translate(ctx, p.TenantID, &it, sourceLang, needLangs)
 			if errors.Is(err, llm.ErrNotConfigured) {
@@ -227,21 +233,27 @@ func (b *TicketBroadcast) Handle(ctx context.Context, p conversation.Appended) e
 		outText := rawText
 		original := ""
 		outLang := ""
-		if targetLang := strings.TrimSpace(tc.Language); targetLang != "" && len(translations) > 0 {
-			for k, v := range translations {
-				if lang.Same(k, targetLang) && strings.TrimSpace(v) != "" && !lang.Same(sourceLang, targetLang) {
-					outText = v
-					original = rawText
-					outLang = targetLang
-					break
+		if rawText != "" {
+			if targetLang := strings.TrimSpace(tc.Language); targetLang != "" && len(translations) > 0 {
+				for k, v := range translations {
+					if lang.Same(k, targetLang) && strings.TrimSpace(v) != "" && !lang.Same(sourceLang, targetLang) {
+						outText = v
+						original = rawText
+						outLang = targetLang
+						break
+					}
 				}
 			}
 		}
-		if _, err := b.sendMsg.HandleTranslated(ctx, sys, tc.ConversationID, outText, original, outLang, prompt); err != nil {
+		if _, err := b.sendMsg.HandleTranslated(ctx, sys, tc.ConversationID, outText, original, outLang, prompt, attachments...); err != nil {
 			return errors.Wrapf(err, "broadcast ticket update to conversation %s", tc.ConversationID)
 		}
 	}
+	totalSent := len(sentConv) + len(pending)
+	if err := conversation.SaveTicketBroadcastCount(ctx, b.db, b.down, p.TenantID, it.ID, totalSent); err != nil {
+		return err
+	}
 	slog.InfoContext(ctx, "ticket public update broadcasted",
-		"ticket_id", it.ConversationID, "item_id", it.ID, "recipients", len(pending), "translated_languages", len(translations))
+		"ticket_id", it.ConversationID, "item_id", it.ID, "recipients", len(pending), "attachments", len(attachments), "translated_languages", len(translations))
 	return nil
 }

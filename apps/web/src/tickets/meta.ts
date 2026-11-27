@@ -1,4 +1,4 @@
-import type { ConversationTicketDTO, TicketStatus, TicketTypeVisibility } from "@agents-desk/client/tenant"
+import type { ConversationItemDTO, ConversationTicketDTO, TicketStatus, TicketTypeVisibility } from "@agents-desk/client/tenant"
 import { infiniteQueryOptions, type QueryClient, queryOptions, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { useT } from "@go-tenon/ui"
 import { kit, tenantApi } from "../api"
@@ -125,4 +125,35 @@ export function contactTicketsQuery(contactId: string) {
     queryKey: [...kit.queries.ticket.key(), "by-contact", contactId],
     queryFn: () => tenantApi.ticket.list({ contact_id: contactId, per_page: 30 }),
   })
+}
+
+/**
+ * invalidateTicket 精准失效指定工单的详情、时间线、工单列表及收件箱数量，
+ * 避免全量失效所有会话与工单配置查询；relate 为 true 时一并失效按会话/联系人维度关联的工单列表。
+ */
+export function invalidateTicket(queryClient: QueryClient, ticketId: string, options?: { relate?: boolean }) {
+  void queryClient.invalidateQueries({ queryKey: kit.queries.ticket.get(ticketId).queryKey })
+  void queryClient.invalidateQueries({ queryKey: [...kit.queries.ticket.key(), "list"] })
+  void queryClient.invalidateQueries({ queryKey: [...kit.queries.conversation.key(), "timeline", ticketId] })
+  void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.inbox().queryKey })
+  if (options?.relate) {
+    void queryClient.invalidateQueries({ queryKey: [...kit.queries.ticket.key(), "by-conversation"] })
+    void queryClient.invalidateQueries({ queryKey: [...kit.queries.ticket.key(), "by-contact"] })
+  }
+}
+
+/**
+ * mergeTimelineItem 把刚发送成功的单条时间线项立即合并进本地缓存，
+ * 让工单内部讨论或公开进度发送后零延迟上屏，等待后续增量刷新补齐译文与同步人数。
+ */
+export function mergeTimelineItem(queryClient: QueryClient, ticketId: string, item: ConversationItemDTO) {
+  const baseKey = [...kit.queries.conversation.key(), "timeline", ticketId]
+  const merge = (prev: ConversationItemDTO[] | undefined): ConversationItemDTO[] => {
+    const map = new Map<string, ConversationItemDTO>()
+    for (const it of prev ?? []) map.set(it.id, it)
+    map.set(item.id, item)
+    return [...map.values()].sort((a, b) => a.seq - b.seq)
+  }
+  queryClient.setQueryData<ConversationItemDTO[]>(baseKey, merge)
+  queryClient.setQueryData<ConversationItemDTO[]>([...baseKey, 0], merge)
 }

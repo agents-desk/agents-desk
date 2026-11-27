@@ -2,13 +2,16 @@ package conversation
 
 import (
 	"context"
+	"database/sql"
 
+	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/auth"
+	"agents-desk/internal/push"
 	"agents-desk/internal/tickettype"
 )
 
@@ -96,4 +99,45 @@ func (a *PublishTicketUpdate) HTTP(ctx context.Context, in *PublishTicketUpdateI
 		return nil, err
 	}
 	return &ItemOutput{Body: *item}, nil
+}
+
+// SaveTicketBroadcastCount 将工单公开进度实际同步到的关联客户数写入该时间线项的 derived.broadcast_count，
+// 并向能看到该工单的成员推送 ItemSeq 刷新事件。
+func SaveTicketBroadcastCount(ctx context.Context, db *bun.DB, down Downstream, tenantID, itemID string, count int) error {
+	return database.RunInTx(ctx, db, nil, func(ctx context.Context, tx database.Tx) error {
+		var it Item
+		err := tx.NewSelect().Model(&it).Where("id = ? AND tenant_id = ?", itemID, tenantID).Scan(ctx)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return errors.Wrap(err, "load ticket update item for broadcast count")
+		}
+		if it.Derived == nil {
+			it.Derived = map[string]any{}
+		}
+		if prev, ok := it.Derived["broadcast_count"].(float64); ok && int(prev) == count {
+			return nil
+		}
+		it.Derived["broadcast_count"] = count
+		if _, err := tx.NewUpdate().Model(&it).Column("derived").WherePK().Exec(ctx); err != nil {
+			return errors.Wrap(err, "save ticket broadcast count")
+		}
+		if down.Hub == nil {
+			return nil
+		}
+		c, err := find(ctx, tx, tenantID, it.ConversationID, false)
+		if err != nil {
+			return err
+		}
+		audience, err := audienceOf(ctx, tx, down.Roles, c, nil)
+		if err != nil || len(audience) == 0 {
+			return err
+		}
+		hub, ev := down.Hub, push.Event{Type: push.Ticket, ID: c.ID, Seq: c.LastSeq, ItemSeq: it.Seq}
+		tx.AfterCommit(func(ctx context.Context) error {
+			return errors.Wrap(push.Send(ctx, hub, tenantID, audience, ev), "push ticket broadcast count")
+		})
+		return nil
+	})
 }

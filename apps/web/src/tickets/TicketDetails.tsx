@@ -25,7 +25,7 @@ import { useMe, useMembers, useTags, useTeams } from "../inbox/data"
 import { AttributeInput, TagsEditor } from "../inbox/fields"
 import { activity } from "../inbox/format"
 import { LinkContactModal } from "./LinkContactModal"
-import { TICKET_STATUSES, ticketStatusLabel, useTicketAttributes, useTicketTypes } from "./meta"
+import { invalidateTicket, TICKET_STATUSES, ticketStatusLabel, useTicketAttributes, useTicketTypes } from "./meta"
 
 /**
  * TicketDetails 是工单详情页的右侧栏：
@@ -55,10 +55,7 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
   }, [ticket.description, ticket.id])
 
   const canEdit = can("conversations:reply")
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: kit.queries.ticket.key() })
-    void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
-  }
+  const invalidate = () => invalidateTicket(queryClient, ticket.id)
 
   const setStatus = useMutation({
     mutationFn: (status: TicketStatus) => tenantApi.ticket.status(ticket.id, { status }),
@@ -102,7 +99,7 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
     mutationFn: (contactId: string) => tenantApi.ticket.contactRemove(ticket.id, contactId),
     onSuccess: () => {
       notifySuccess(t("tickets.unlink_done"))
-      invalidate()
+      invalidateTicket(queryClient, ticket.id, { relate: true })
     },
     onError: (err) => notifyError(err),
   })

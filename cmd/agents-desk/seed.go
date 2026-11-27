@@ -366,7 +366,7 @@ func seedTickets(ctx context.Context, out io.Writer, db *bun.DB, memberLogins *l
 
 	create := conversation.NewCreateTicket(db, down)
 	setStatus := conversation.NewSetTicketStatus(db, down)
-	addNote := conversation.NewAddNote(db, down)
+	addNote := conversation.NewAddTicketNote(db, down)
 	publish := conversation.NewPublishTicketUpdate(db, down)
 	typePtr := func(name string) *string {
 		id := typeIDByName[name]

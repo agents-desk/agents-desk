@@ -1,11 +1,16 @@
 package translation
 
 import (
+	"bytes"
 	"context"
+	"image"
+	"image/color"
+	"image/png"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/lock"
 	"github.com/go-tenon/tenon/lock/pglock"
@@ -162,8 +167,8 @@ func TestTicketBroadcastDedupAndNoteTranslation(t *testing.T) {
 		t.Fatalf("重试广播不应重复调用模型，实际 %d 次", got)
 	}
 
-	// 工单内部备注跨语言协作：中文成员写备注，英文成员（印度大代理）可按需补译成英文
-	note, err := conversation.NewAddNote(env.DB, down).Handle(ctx, subOwner, tk.ID, "财务已核对完成，可以通知客户", nil)
+	// 工单内部讨论跨语言协作：中文成员写内部讨论，英文成员（印度大代理）可按需补译成英文
+	note, err := conversation.NewAddTicketNote(env.DB, down).Handle(ctx, subOwner, tk.ID, "财务已核对完成，可以通知客户", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,5 +232,76 @@ func TestTicketBroadcastDedupAndNoteTranslation(t *testing.T) {
 	}
 	if gotHi != "Refund wapas bhej diya gaya hai, kripya check karein." {
 		t.Fatalf("印地语客户应直接收到人工校对译文，实际：%q", gotHi)
+	}
+
+	// 验证广播完成后将实际触达人数写回工单公开进度项的 derived.broadcast_count
+	tkItemsAfter, err := tl.Handle(ctx, subOwner, tk.ID, 0, 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pubAfter *conversation.ItemDTO
+	for i := range tkItemsAfter {
+		if tkItemsAfter[i].ID == pub.ID {
+			pubAfter = &tkItemsAfter[i]
+		}
+	}
+	if pubAfter == nil {
+		t.Fatalf("未找到工单公开进度 %s", pub.ID)
+	}
+	if got, _ := pubAfter.Derived["broadcast_count"].(float64); int(got) != 3 {
+		t.Fatalf("derived.broadcast_count 应记录实际同步人数 3，实际：%v", pubAfter.Derived["broadcast_count"])
+	}
+
+	// 纯附件公开进度（不写文字）：向 3 位不同语言客户同步附件本身，不调用翻译模型也不塞硬编码中文
+	img := image.NewRGBA(image.Rect(0, 0, 2, 2))
+	img.Set(0, 0, color.RGBA{R: 10, G: 20, B: 30, A: 255})
+	var pngBuf bytes.Buffer
+	if err := png.Encode(&pngBuf, img); err != nil {
+		t.Fatal(err)
+	}
+	uploaded, err := env.Files.Upload(ctx, subOwner, filesystem.FileInput{
+		Filename:    "proof.png",
+		ContentType: "image/png",
+		Size:        int64(pngBuf.Len()),
+	}, bytes.NewReader(pngBuf.Bytes()))
+	if err != nil {
+		t.Fatalf("上传测试图片失败：%v", err)
+	}
+	mediaDown := conversation.Downstream{Media: conversation.Media{Files: env.Files}}
+	pubMedia, err := conversation.NewPublishTicketUpdate(env.DB, mediaDown).Handle(ctx, subOwner, tk.ID, conversation.PublishTicketUpdateBody{
+		Attachments: []conversation.AttachmentInput{{FileID: uploaded.ID.String()}},
+	})
+	if err != nil {
+		t.Fatalf("发布纯附件公开进度失败：%v", err)
+	}
+	beforeMediaCalls := len(model.requests)
+	mediaBroadcaster := NewTicketBroadcast(env.DB, locker, translator, mediaDown)
+	if err := mediaBroadcaster.Handle(ctx, conversation.Appended{TenantID: tn.ID, ConversationID: tk.ID, ItemID: pubMedia.ID, Seq: pubMedia.Seq}); err != nil {
+		t.Fatalf("广播纯附件公开进度失败：%v", err)
+	}
+	if got := len(model.requests) - beforeMediaCalls; got != 0 {
+		t.Fatalf("纯附件公开进度不应调用翻译模型，实际调用 %d 次", got)
+	}
+	tlWithMedia := conversation.NewTimeline(env.DB, mediaDown.Media)
+	for _, convID := range []string{c1.ConversationID, c2.ConversationID, c3.ConversationID} {
+		items, err := tlWithMedia.Handle(ctx, subOwner, convID, 0, 50)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var found *conversation.ItemDTO
+		for i := range items {
+			if items[i].Content.Prompt != nil && items[i].Content.Prompt.Params["item_id"] == pubMedia.ID {
+				found = &items[i]
+			}
+		}
+		if found == nil {
+			t.Fatalf("会话 %s 未收到纯附件公开进度", convID)
+		}
+		if found.Content.Text != "" {
+			t.Fatalf("纯附件公开进度不应附加硬编码文字，实际：%q", found.Content.Text)
+		}
+		if len(found.Attachments) != 1 || found.Attachments[0].Filename != "proof.png" {
+			t.Fatalf("会话 %s 应收到同步的图片附件，实际：%+v", convID, found.Attachments)
+		}
 	}
 }

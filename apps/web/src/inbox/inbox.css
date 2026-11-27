@@ -192,6 +192,29 @@
   color: var(--mantine-color-yellow-light-color);
 }
 
+/* 工单公开进度模式：整张输入卡片切换为品牌浅底与品牌描边，明确提示发送后将同步至关联客户 */
+.inbox-composer-box[data-public] {
+  background: color-mix(in srgb, var(--mantine-primary-color-light) 70%, var(--tn-surface));
+  border-color: color-mix(in srgb, var(--mantine-primary-color-filled) 45%, var(--tn-border));
+}
+
+.inbox-composer-box[data-public]:focus-within {
+  border-color: var(--mantine-primary-color-filled);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mantine-primary-color-filled) 16%, transparent);
+}
+
+.inbox-composer-box[data-public] .mantine-SegmentedControl-label[data-active] {
+  color: var(--mantine-primary-color-light-color);
+}
+
+.inbox-composer-box[data-public] .inbox-composer-head {
+  border-bottom-color: color-mix(in srgb, var(--mantine-primary-color-filled) 22%, transparent);
+}
+
+.inbox-composer-box[data-public] .inbox-composer-foot {
+  border-top-color: color-mix(in srgb, var(--mantine-primary-color-filled) 18%, transparent);
+}
+
 /* 拖入文件到回复框时卡片浮现品牌色虚线边框提示 */
 .inbox-composer-box[data-dragging] {
   border-style: dashed;
@@ -495,6 +518,19 @@
 /* 内部备注的文字色随明暗主题保持清晰对比度 */
 .inbox-note-accent {
   color: var(--mantine-color-yellow-light-color);
+}
+
+/* 工单内部讨论卡片：中性表面底色加细边框，适合高频长篇协作阅读 */
+.ticket-note-card {
+  background: var(--tn-surface);
+  border: 1px solid var(--tn-border);
+}
+
+/* 工单公开进度卡片：品牌浅底加品牌细边框与左侧 3px 品牌强调条，突出对外同步给客户的记录 */
+.ticket-public-card {
+  background: var(--mantine-primary-color-light);
+  border: 1px solid color-mix(in srgb, var(--mantine-primary-color-filled) 28%, transparent);
+  border-left: 3px solid var(--mantine-primary-color-filled);
 }
 
 /* 正在输入胶囊与三点呼吸动画 */
