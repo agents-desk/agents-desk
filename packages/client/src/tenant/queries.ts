@@ -537,6 +537,11 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
     report: {
       /** report 分组全部查询的 key 前缀。 */
       key: () => key("report"),
+      /** GET /reports/business */
+      business: (...args: Parameters<Client["report"]["business"]>) => ({
+        queryKey: key("report", "business", ...args),
+        queryFn: () => client.report.business(...args),
+      }),
       /** GET /reports/conversations */
       conversations: (...args: Parameters<Client["report"]["conversations"]>) => ({
         queryKey: key("report", "conversations", ...args),
@@ -546,6 +551,11 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       members: (...args: Parameters<Client["report"]["members"]>) => ({
         queryKey: key("report", "members", ...args),
         queryFn: () => client.report.members(...args),
+      }),
+      /** GET /reports/overview */
+      overview: (...args: Parameters<Client["report"]["overview"]>) => ({
+        queryKey: key("report", "overview", ...args),
+        queryFn: () => client.report.overview(...args),
       }),
       /** GET /reports/response-time */
       responseTime: (...args: Parameters<Client["report"]["responseTime"]>) => ({
@@ -561,6 +571,11 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       satisfactionRatings: (...args: Parameters<Client["report"]["satisfactionRatings"]>) => ({
         queryKey: key("report", "satisfactionRatings", ...args),
         queryFn: () => client.report.satisfactionRatings(...args),
+      }),
+      /** GET /reports/tickets */
+      tickets: (...args: Parameters<Client["report"]["tickets"]>) => ({
+        queryKey: key("report", "tickets", ...args),
+        queryFn: () => client.report.tickets(...args),
       }),
       /** GET /reports/translation */
       translation: (...args: Parameters<Client["report"]["translation"]>) => ({

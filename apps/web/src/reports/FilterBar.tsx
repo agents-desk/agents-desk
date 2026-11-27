@@ -14,12 +14,14 @@ export interface ReportFilterBarProps {
   period: PeriodState
   /** 支持团队/渠道筛选的报表传入 filters。 */
   filters?: ReportFiltersState
+  /** 时间选择器右侧的自定义维度筛选控件（用于工单、商务等专属筛选）。 */
+  extra?: ReactNode
   /** 工具条右侧扩展区。 */
   right?: ReactNode
 }
 
 /** 报表工具条控件组，配合 PaneToolbar（dense 密度）使用。 */
-export function ReportFilterBar({ period, filters, right }: ReportFilterBarProps): ReactNode {
+export function ReportFilterBar({ period, filters, extra, right }: ReportFilterBarProps): ReactNode {
   const t = useT()
   const showDimensions = Boolean(filters)
   const teams = useQuery({
@@ -35,10 +37,12 @@ export function ReportFilterBar({ period, filters, right }: ReportFilterBarProps
     value: tm.id,
     label: tm.status === "disabled" ? t("reports.team_disabled", { name: tm.name }) : tm.name,
   }))
-  const channelOptions = (channels.data ?? []).map((ch) => ({
-    value: ch.id,
-    label: ch.enabled ? ch.name : t("reports.channel_disabled", { name: ch.name }),
-  }))
+  const channelOptions = (channels.data ?? [])
+    .filter((ch) => ch.kind !== "business_link" && ch.kind !== "telegram_account")
+    .map((ch) => ({
+      value: ch.id,
+      label: ch.enabled ? ch.name : t("reports.channel_disabled", { name: ch.name }),
+    }))
 
   const hasDimensionFilter = Boolean(filters?.teamId || filters?.channelId)
 
@@ -46,6 +50,7 @@ export function ReportFilterBar({ period, filters, right }: ReportFilterBarProps
     <Group justify="space-between" align="center" gap="xs" wrap="wrap">
       <Group gap="xs" wrap="wrap">
         <PeriodButton period={period} />
+        {extra}
         {filters && (
           <>
             <Select

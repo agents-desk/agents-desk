@@ -26,10 +26,11 @@ import { Route as TSlugContactsIdRouteImport } from './routes/t/$slug/contacts/$
 import { Route as TSlugInboxIndexRouteImport } from './routes/t/$slug/inbox/index'
 import { Route as TSlugInboxIdRouteImport } from './routes/t/$slug/inbox/$id'
 import { Route as TSlugReportsIndexRouteImport } from './routes/t/$slug/reports/index'
-import { Route as TSlugReportsConversationsRouteImport } from './routes/t/$slug/reports/conversations'
+import { Route as TSlugReportsBusinessRouteImport } from './routes/t/$slug/reports/business'
 import { Route as TSlugReportsMembersRouteImport } from './routes/t/$slug/reports/members'
-import { Route as TSlugReportsResponseTimeRouteImport } from './routes/t/$slug/reports/response-time'
-import { Route as TSlugReportsSatisfactionRouteImport } from './routes/t/$slug/reports/satisfaction'
+import { Route as TSlugReportsOverviewRouteImport } from './routes/t/$slug/reports/overview'
+import { Route as TSlugReportsServiceRouteImport } from './routes/t/$slug/reports/service'
+import { Route as TSlugReportsTicketsRouteImport } from './routes/t/$slug/reports/tickets'
 import { Route as TSlugReportsTranslationRouteImport } from './routes/t/$slug/reports/translation'
 import { Route as TSlugSettingsIndexRouteImport } from './routes/t/$slug/settings/index'
 import { Route as TSlugSettingsChannelsRouteImport } from './routes/t/$slug/settings/_channels'
@@ -153,29 +154,31 @@ const TSlugReportsIndexRoute = TSlugReportsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => TSlugReportsRoute,
 } as any)
-const TSlugReportsConversationsRoute =
-  TSlugReportsConversationsRouteImport.update({
-    id: '/conversations',
-    path: '/conversations',
-    getParentRoute: () => TSlugReportsRoute,
-  } as any)
+const TSlugReportsBusinessRoute = TSlugReportsBusinessRouteImport.update({
+  id: '/business',
+  path: '/business',
+  getParentRoute: () => TSlugReportsRoute,
+} as any)
 const TSlugReportsMembersRoute = TSlugReportsMembersRouteImport.update({
   id: '/members',
   path: '/members',
   getParentRoute: () => TSlugReportsRoute,
 } as any)
-const TSlugReportsResponseTimeRoute =
-  TSlugReportsResponseTimeRouteImport.update({
-    id: '/response-time',
-    path: '/response-time',
-    getParentRoute: () => TSlugReportsRoute,
-  } as any)
-const TSlugReportsSatisfactionRoute =
-  TSlugReportsSatisfactionRouteImport.update({
-    id: '/satisfaction',
-    path: '/satisfaction',
-    getParentRoute: () => TSlugReportsRoute,
-  } as any)
+const TSlugReportsOverviewRoute = TSlugReportsOverviewRouteImport.update({
+  id: '/overview',
+  path: '/overview',
+  getParentRoute: () => TSlugReportsRoute,
+} as any)
+const TSlugReportsServiceRoute = TSlugReportsServiceRouteImport.update({
+  id: '/service',
+  path: '/service',
+  getParentRoute: () => TSlugReportsRoute,
+} as any)
+const TSlugReportsTicketsRoute = TSlugReportsTicketsRouteImport.update({
+  id: '/tickets',
+  path: '/tickets',
+  getParentRoute: () => TSlugReportsRoute,
+} as any)
 const TSlugReportsTranslationRoute = TSlugReportsTranslationRouteImport.update({
   id: '/translation',
   path: '/translation',
@@ -396,10 +399,11 @@ export interface FileRoutesByFullPath {
   '/t/$slug/chat/$id': typeof TSlugChatIdRoute
   '/t/$slug/contacts/$id': typeof TSlugContactsIdRoute
   '/t/$slug/inbox/$id': typeof TSlugInboxIdRoute
-  '/t/$slug/reports/conversations': typeof TSlugReportsConversationsRoute
+  '/t/$slug/reports/business': typeof TSlugReportsBusinessRoute
   '/t/$slug/reports/members': typeof TSlugReportsMembersRoute
-  '/t/$slug/reports/response-time': typeof TSlugReportsResponseTimeRoute
-  '/t/$slug/reports/satisfaction': typeof TSlugReportsSatisfactionRoute
+  '/t/$slug/reports/overview': typeof TSlugReportsOverviewRoute
+  '/t/$slug/reports/service': typeof TSlugReportsServiceRoute
+  '/t/$slug/reports/tickets': typeof TSlugReportsTicketsRoute
   '/t/$slug/reports/translation': typeof TSlugReportsTranslationRoute
   '/t/$slug/tickets/$id': typeof TSlugTicketsIdRoute
   '/t/$slug/chat/': typeof TSlugChatIndexRoute
@@ -443,10 +447,11 @@ export interface FileRoutesByTo {
   '/t/$slug/chat/$id': typeof TSlugChatIdRoute
   '/t/$slug/contacts/$id': typeof TSlugContactsIdRoute
   '/t/$slug/inbox/$id': typeof TSlugInboxIdRoute
-  '/t/$slug/reports/conversations': typeof TSlugReportsConversationsRoute
+  '/t/$slug/reports/business': typeof TSlugReportsBusinessRoute
   '/t/$slug/reports/members': typeof TSlugReportsMembersRoute
-  '/t/$slug/reports/response-time': typeof TSlugReportsResponseTimeRoute
-  '/t/$slug/reports/satisfaction': typeof TSlugReportsSatisfactionRoute
+  '/t/$slug/reports/overview': typeof TSlugReportsOverviewRoute
+  '/t/$slug/reports/service': typeof TSlugReportsServiceRoute
+  '/t/$slug/reports/tickets': typeof TSlugReportsTicketsRoute
   '/t/$slug/reports/translation': typeof TSlugReportsTranslationRoute
   '/t/$slug/settings': typeof TSlugSettingsIndexRoute
   '/t/$slug/tickets/$id': typeof TSlugTicketsIdRoute
@@ -494,10 +499,11 @@ export interface FileRoutesById {
   '/t/$slug/chat/$id': typeof TSlugChatIdRoute
   '/t/$slug/contacts/$id': typeof TSlugContactsIdRoute
   '/t/$slug/inbox/$id': typeof TSlugInboxIdRoute
-  '/t/$slug/reports/conversations': typeof TSlugReportsConversationsRoute
+  '/t/$slug/reports/business': typeof TSlugReportsBusinessRoute
   '/t/$slug/reports/members': typeof TSlugReportsMembersRoute
-  '/t/$slug/reports/response-time': typeof TSlugReportsResponseTimeRoute
-  '/t/$slug/reports/satisfaction': typeof TSlugReportsSatisfactionRoute
+  '/t/$slug/reports/overview': typeof TSlugReportsOverviewRoute
+  '/t/$slug/reports/service': typeof TSlugReportsServiceRoute
+  '/t/$slug/reports/tickets': typeof TSlugReportsTicketsRoute
   '/t/$slug/reports/translation': typeof TSlugReportsTranslationRoute
   '/t/$slug/settings/_channels': typeof TSlugSettingsChannelsRouteWithChildren
   '/t/$slug/settings/_inbox': typeof TSlugSettingsInboxRouteWithChildren
@@ -556,10 +562,11 @@ export interface FileRouteTypes {
     | '/t/$slug/chat/$id'
     | '/t/$slug/contacts/$id'
     | '/t/$slug/inbox/$id'
-    | '/t/$slug/reports/conversations'
+    | '/t/$slug/reports/business'
     | '/t/$slug/reports/members'
-    | '/t/$slug/reports/response-time'
-    | '/t/$slug/reports/satisfaction'
+    | '/t/$slug/reports/overview'
+    | '/t/$slug/reports/service'
+    | '/t/$slug/reports/tickets'
     | '/t/$slug/reports/translation'
     | '/t/$slug/tickets/$id'
     | '/t/$slug/chat/'
@@ -603,10 +610,11 @@ export interface FileRouteTypes {
     | '/t/$slug/chat/$id'
     | '/t/$slug/contacts/$id'
     | '/t/$slug/inbox/$id'
-    | '/t/$slug/reports/conversations'
+    | '/t/$slug/reports/business'
     | '/t/$slug/reports/members'
-    | '/t/$slug/reports/response-time'
-    | '/t/$slug/reports/satisfaction'
+    | '/t/$slug/reports/overview'
+    | '/t/$slug/reports/service'
+    | '/t/$slug/reports/tickets'
     | '/t/$slug/reports/translation'
     | '/t/$slug/settings'
     | '/t/$slug/tickets/$id'
@@ -653,10 +661,11 @@ export interface FileRouteTypes {
     | '/t/$slug/chat/$id'
     | '/t/$slug/contacts/$id'
     | '/t/$slug/inbox/$id'
-    | '/t/$slug/reports/conversations'
+    | '/t/$slug/reports/business'
     | '/t/$slug/reports/members'
-    | '/t/$slug/reports/response-time'
-    | '/t/$slug/reports/satisfaction'
+    | '/t/$slug/reports/overview'
+    | '/t/$slug/reports/service'
+    | '/t/$slug/reports/tickets'
     | '/t/$slug/reports/translation'
     | '/t/$slug/settings/_channels'
     | '/t/$slug/settings/_inbox'
@@ -827,11 +836,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugReportsIndexRouteImport
       parentRoute: typeof TSlugReportsRoute
     }
-    '/t/$slug/reports/conversations': {
-      id: '/t/$slug/reports/conversations'
-      path: '/conversations'
-      fullPath: '/t/$slug/reports/conversations'
-      preLoaderRoute: typeof TSlugReportsConversationsRouteImport
+    '/t/$slug/reports/business': {
+      id: '/t/$slug/reports/business'
+      path: '/business'
+      fullPath: '/t/$slug/reports/business'
+      preLoaderRoute: typeof TSlugReportsBusinessRouteImport
       parentRoute: typeof TSlugReportsRoute
     }
     '/t/$slug/reports/members': {
@@ -841,18 +850,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TSlugReportsMembersRouteImport
       parentRoute: typeof TSlugReportsRoute
     }
-    '/t/$slug/reports/response-time': {
-      id: '/t/$slug/reports/response-time'
-      path: '/response-time'
-      fullPath: '/t/$slug/reports/response-time'
-      preLoaderRoute: typeof TSlugReportsResponseTimeRouteImport
+    '/t/$slug/reports/overview': {
+      id: '/t/$slug/reports/overview'
+      path: '/overview'
+      fullPath: '/t/$slug/reports/overview'
+      preLoaderRoute: typeof TSlugReportsOverviewRouteImport
       parentRoute: typeof TSlugReportsRoute
     }
-    '/t/$slug/reports/satisfaction': {
-      id: '/t/$slug/reports/satisfaction'
-      path: '/satisfaction'
-      fullPath: '/t/$slug/reports/satisfaction'
-      preLoaderRoute: typeof TSlugReportsSatisfactionRouteImport
+    '/t/$slug/reports/service': {
+      id: '/t/$slug/reports/service'
+      path: '/service'
+      fullPath: '/t/$slug/reports/service'
+      preLoaderRoute: typeof TSlugReportsServiceRouteImport
+      parentRoute: typeof TSlugReportsRoute
+    }
+    '/t/$slug/reports/tickets': {
+      id: '/t/$slug/reports/tickets'
+      path: '/tickets'
+      fullPath: '/t/$slug/reports/tickets'
+      preLoaderRoute: typeof TSlugReportsTicketsRouteImport
       parentRoute: typeof TSlugReportsRoute
     }
     '/t/$slug/reports/translation': {
@@ -1160,19 +1176,21 @@ const TSlugInboxRouteWithChildren = TSlugInboxRoute._addFileChildren(
 )
 
 interface TSlugReportsRouteChildren {
-  TSlugReportsConversationsRoute: typeof TSlugReportsConversationsRoute
+  TSlugReportsBusinessRoute: typeof TSlugReportsBusinessRoute
   TSlugReportsMembersRoute: typeof TSlugReportsMembersRoute
-  TSlugReportsResponseTimeRoute: typeof TSlugReportsResponseTimeRoute
-  TSlugReportsSatisfactionRoute: typeof TSlugReportsSatisfactionRoute
+  TSlugReportsOverviewRoute: typeof TSlugReportsOverviewRoute
+  TSlugReportsServiceRoute: typeof TSlugReportsServiceRoute
+  TSlugReportsTicketsRoute: typeof TSlugReportsTicketsRoute
   TSlugReportsTranslationRoute: typeof TSlugReportsTranslationRoute
   TSlugReportsIndexRoute: typeof TSlugReportsIndexRoute
 }
 
 const TSlugReportsRouteChildren: TSlugReportsRouteChildren = {
-  TSlugReportsConversationsRoute: TSlugReportsConversationsRoute,
+  TSlugReportsBusinessRoute: TSlugReportsBusinessRoute,
   TSlugReportsMembersRoute: TSlugReportsMembersRoute,
-  TSlugReportsResponseTimeRoute: TSlugReportsResponseTimeRoute,
-  TSlugReportsSatisfactionRoute: TSlugReportsSatisfactionRoute,
+  TSlugReportsOverviewRoute: TSlugReportsOverviewRoute,
+  TSlugReportsServiceRoute: TSlugReportsServiceRoute,
+  TSlugReportsTicketsRoute: TSlugReportsTicketsRoute,
   TSlugReportsTranslationRoute: TSlugReportsTranslationRoute,
   TSlugReportsIndexRoute: TSlugReportsIndexRoute,
 }

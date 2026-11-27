@@ -65,11 +65,23 @@ type TranslationModelBreakdown struct {
 	AvgDurationMS *float64 `json:"avg_duration_ms,omitempty"`
 }
 
+// TranslationSceneBreakdown 是按业务场景（service / ticket / business / internal_chat / other）拆分的翻译调用统计。
+type TranslationSceneBreakdown struct {
+	Scene         string   `json:"scene" doc:"业务场景：service（客服）、ticket（工单）、business（商务沟通）、internal_chat（内部聊天）、other（其他）"`
+	Calls         int64    `json:"calls"`
+	FailedCalls   int64    `json:"failed_calls"`
+	SuccessRate   *float64 `json:"success_rate,omitempty"`
+	TotalTokens   int64    `json:"total_tokens"`
+	CostUSD       float64  `json:"cost_usd"`
+	AvgDurationMS *float64 `json:"avg_duration_ms,omitempty"`
+}
+
 // TranslationReport 是翻译报表的完整响应。
 type TranslationReport struct {
 	Period            PeriodMeta                      `json:"period"`
 	Summary           TranslationSummary              `json:"summary"`
 	Series            []TranslationPoint              `json:"series" nullable:"false"`
+	ByScene           []TranslationSceneBreakdown     `json:"by_scene" nullable:"false"`
 	ByOperation       []TranslationOperationBreakdown `json:"by_operation" nullable:"false"`
 	ByModel           []TranslationModelBreakdown     `json:"by_model" nullable:"false"`
 	DetectedLanguages []LanguageCount                 `json:"detected_languages" nullable:"false"`
@@ -160,6 +172,48 @@ func (a *Translation) Handle(ctx context.Context, sub identity.Subject, p period
 		func(pt TranslationPoint) string { return pt.Date },
 		func(b string) TranslationPoint { return TranslationPoint{Date: b} },
 	)
+
+	// 按业务场景拆解（通过 target_type='conversation' 关联 conversations 与 chats）
+	type sceneRow struct {
+		Scene  string   `bun:"scene"`
+		Calls  int64    `bun:"calls"`
+		Failed int64    `bun:"failed"`
+		Tokens int64    `bun:"tokens"`
+		Cost   float64  `bun:"cost"`
+		AvgMS  *float64 `bun:"avg_ms"`
+	}
+	var sceneRows []sceneRow
+	err = a.db.NewSelect().TableExpr("llm_calls lc").
+		Join("LEFT JOIN conversations c ON lc.target_type = 'conversation' AND c.id::text = lc.target_id AND c.tenant_id = lc.tenant_id").
+		Join("LEFT JOIN chats ch ON ch.conversation_id = c.id").
+		ColumnExpr(`CASE
+			WHEN c.kind = ? THEN 'service'
+			WHEN c.kind = ? THEN 'ticket'
+			WHEN c.kind = ? AND ch.scope = ? THEN 'business'
+			WHEN c.kind = ? AND ch.scope = ? THEN 'internal_chat'
+			ELSE 'other'
+		END AS scene`, conversation.Service, conversation.Ticket, conversation.Chat, conversation.ChatExternal, conversation.Chat, conversation.ChatInternal).
+		ColumnExpr("count(*) AS calls, count(*) FILTER (WHERE lc.error <> '') AS failed").
+		ColumnExpr("COALESCE(sum(lc.prompt_tokens + lc.completion_tokens), 0) AS tokens, COALESCE(sum(lc.cost), 0)::float8 AS cost, avg(lc.duration_ms) AS avg_ms").
+		Where("lc.tenant_id = ? AND lc.call_type = ? AND lc.created_at >= ? AND lc.created_at < ?", sub.Tenant, llm.Translation, w.Start, w.End).
+		GroupExpr("1").
+		OrderExpr("calls DESC, 1 ASC").
+		Scan(ctx, &sceneRows)
+	if err != nil {
+		return nil, errors.Wrap(err, "report translation by scene")
+	}
+	byScene := make([]TranslationSceneBreakdown, len(sceneRows))
+	for i, r := range sceneRows {
+		byScene[i] = TranslationSceneBreakdown{
+			Scene:         r.Scene,
+			Calls:         r.Calls,
+			FailedCalls:   r.Failed,
+			SuccessRate:   pct(r.Calls-r.Failed, r.Calls),
+			TotalTokens:   r.Tokens,
+			CostUSD:       round6(r.Cost),
+			AvgDurationMS: roundPtr(r.AvgMS),
+		}
+	}
 
 	// 按业务调用场景拆解（直接使用一等字段 operation）
 	type opRow struct {
@@ -272,6 +326,7 @@ func (a *Translation) Handle(ctx context.Context, sub identity.Subject, p period
 		Period:            PeriodMeta(w.Meta()),
 		Summary:           sum,
 		Series:            series,
+		ByScene:           byScene,
 		ByOperation:       byOp,
 		ByModel:           byModel,
 		DetectedLanguages: detected,

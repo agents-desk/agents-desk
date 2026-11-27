@@ -15,6 +15,8 @@ export interface ReportShellProps {
   period: PeriodState
   /** 支持团队与渠道筛选的报表传入 filters。 */
   filters?: ReportFiltersState
+  /** 时间选择器右侧的自定义维度筛选控件。 */
+  toolbarExtra?: ReactNode
   /** 后端返回的生效统计周期元信息，展示在顶栏右侧。 */
   meta?: ReportPeriodMeta
   /** 报表接口报错时在正文顶部提示。 */
@@ -31,6 +33,7 @@ export function ReportShell({
   title,
   period,
   filters,
+  toolbarExtra,
   meta,
   error,
   updating,
@@ -52,7 +55,7 @@ export function ReportShell({
         }
       />
       <PaneToolbar>
-        <ReportFilterBar period={period} filters={filters} right={toolbarRight} />
+        <ReportFilterBar period={period} filters={filters} extra={toolbarExtra} right={toolbarRight} />
       </PaneToolbar>
       <PaneBody loading={Boolean(updating)}>
         <div className="rp-body">

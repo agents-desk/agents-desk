@@ -1419,6 +1419,73 @@ export interface Part {
   text: string
 }
 
+export interface ReportBusinessChannelKindVolume {
+  active_chats: number
+  kind: ChannelKind
+  messages_inbound: number
+  messages_outbound: number
+  messages_total: number
+  new_chats: number
+}
+
+export interface ReportBusinessOwnerMetrics {
+  active_chats: number
+  avatar_url: string
+  channels_count: number
+  member_id: string
+  messages_inbound: number
+  messages_outbound: number
+  name: string
+  new_chats: number
+  online_status: string
+  removed: boolean
+}
+
+export interface ReportBusinessPoint {
+  date: string
+  inbound: number
+  new_chats: number
+  outbound: number
+}
+
+export interface ReportBusinessReport {
+  by_channel_kind: ReportBusinessChannelKindVolume[]
+  by_language: ReportLanguageCount[]
+  by_owner: ReportBusinessOwnerMetrics[]
+  period: ReportPeriodMeta
+  series: ReportBusinessPoint[]
+  summary: ReportBusinessSummary
+}
+
+export interface ReportBusinessSummary {
+  /** 当前启用中的个人商务渠道数（实时快照） */
+  active_channels_now: number
+  /** 统计期内有消息往来的商务会话数 */
+  active_chats: number
+  /** 统计期内活跃的单聊商务会话数 */
+  direct_chats: number
+  /** 统计期内活跃的群聊商务会话数 */
+  group_chats: number
+  /** 外部联系人发来的消息数 */
+  messages_inbound: number
+  /** 工作区成员发出的消息数 */
+  messages_outbound: number
+  /** 统计期内商务沟通消息总数 */
+  messages_total: number
+  /** 统计期内新建的商务会话数 */
+  new_chats: number
+  /** 上一对比期活跃的商务会话数 */
+  prev_active_chats: number
+  /** 上一对比期商务沟通消息总数 */
+  prev_messages_total: number
+  /** 上一对比期新建的商务会话数 */
+  prev_new_chats: number
+  /** 累计商务沟通会话总数（实时快照） */
+  total_chats_now: number
+  /** 最新消息来自外部联系人的待跟进会话数（实时快照） */
+  waiting_now: number
+}
+
 export interface ReportChannelResponseTime {
   enabled: boolean
   first_reply_avg?: number
@@ -1521,6 +1588,10 @@ export interface ReportMemberMetrics {
   avatar_url: string
   /** 平均评分（1–5） */
   avg_score?: number
+  /** 统计期内活跃的商务沟通会话数 */
+  business_chats: number
+  /** 统计期内在商务沟通中发出的消息数 */
+  business_messages: number
   /** 统计期内负责并关闭的服务轮次数 */
   closed_count: number
   /** 满意度百分比（0–100） */
@@ -1535,7 +1606,7 @@ export interface ReportMemberMetrics {
   name: string
   /** 当前在线状态：online、away；已移出工作区时为空 */
   online_status: string
-  /** 当前负责且未关闭的会话数（实时快照） */
+  /** 当前负责且未关闭的服务型会话数（实时快照） */
   open_assigned: number
   /** 好评数（4–5 星） */
   positive_count: number
@@ -1543,7 +1614,7 @@ export interface ReportMemberMetrics {
   rated_count: number
   /** 成员是否已移出工作区（仍保留统计期内的历史数据） */
   removed: boolean
-  /** 统计期内发出的客户可见回复数 */
+  /** 统计期内发出的客服回复数 */
   replies_sent: number
   /** 解决时长均值（秒） */
   resolution_avg?: number
@@ -1551,6 +1622,10 @@ export interface ReportMemberMetrics {
   resolution_median?: number
   /** 统计期内关闭轮次数 */
   resolution_samples: number
+  /** 当前负责且未解决的工单数（实时快照） */
+  tickets_open: number
+  /** 统计期内负责并解决的工单数 */
+  tickets_resolved: number
 }
 
 export interface ReportMembersReport {
@@ -1560,16 +1635,105 @@ export interface ReportMembersReport {
 }
 
 export interface ReportMembersSummary {
-  /** 统计期内有首响、关闭或发送回复的成员人数 */
+  /** 统计期内有客服、工单或商务产出的成员人数 */
   active_members: number
+  /** 成员发出的商务沟通消息总数 */
+  business_messages: number
   /** 成员关闭的服务轮次总数 */
   closed_count: number
   /** 成员负责会话的满意度百分比（4–5 星占比） */
   csat?: number
   /** 成员首次回复时长中位数（秒） */
   first_reply_median?: number
-  /** 成员发出的客户可见回复总数 */
+  /** 成员发出的客服回复总数 */
   replies_sent: number
+  /** 成员解决的工单总数 */
+  tickets_resolved: number
+}
+
+export interface ReportOverviewAI {
+  calls: number
+  failed_calls: number
+  prev_calls: number
+  prev_total_cost_usd: number
+  success_rate?: number
+  total_cost_usd: number
+}
+
+export interface ReportOverviewBusiness {
+  active_chats: number
+  messages_total: number
+  new_chats: number
+  prev_active_chats: number
+  prev_messages_total: number
+  prev_new_chats: number
+}
+
+export interface ReportOverviewLive {
+  /** 近 24 小时有消息往来的商务沟通会话数 */
+  business_active_24h: number
+  /** 最新一条消息来自外部联系人的商务沟通会话数 */
+  business_waiting: number
+  /** 当前在线的工作区成员数 */
+  online_members: number
+  /** 当前打开的服务型会话数 */
+  service_open: number
+  /** 当前稍后处理的服务型会话数 */
+  service_snoozed: number
+  /** 当前未关闭且无负责人的服务型会话数 */
+  service_unassigned: number
+  /** 当前等待客服回复的服务型会话数 */
+  service_waiting: number
+  /** 当前处理中状态的工单数 */
+  ticket_in_progress: number
+  /** 当前未解决的工单总数 */
+  ticket_open: number
+  /** 当前已提交状态的工单数 */
+  ticket_submitted: number
+  /** 当前未解决且无负责人的工单数 */
+  ticket_unassigned: number
+  /** 当前等待客户状态的工单数 */
+  ticket_waiting: number
+  /** 工作区在职成员总数 */
+  total_members: number
+}
+
+export interface ReportOverviewPoint {
+  business_messages: number
+  date: string
+  service_created: number
+  ticket_created: number
+}
+
+export interface ReportOverviewReport {
+  ai: ReportOverviewAI
+  business: ReportOverviewBusiness
+  live: ReportOverviewLive
+  period: ReportPeriodMeta
+  series: ReportOverviewPoint[]
+  service: ReportOverviewService
+  tickets: ReportOverviewTickets
+}
+
+export interface ReportOverviewService {
+  closed: number
+  created: number
+  csat?: number
+  first_reply_median_seconds?: number
+  prev_closed: number
+  prev_created: number
+  prev_csat?: number
+  prev_first_reply_median_seconds?: number
+  rated_count: number
+}
+
+export interface ReportOverviewTickets {
+  created: number
+  prev_created: number
+  prev_resolution_median_seconds?: number
+  prev_resolved: number
+  resolution_median_seconds?: number
+  resolved: number
 }
 
 export interface ReportPeriodMeta {
@@ -1699,6 +1863,81 @@ export interface ReportTeamVolume {
   name: string
 }
 
+export interface ReportTicketAssigneeMetrics {
+  avatar_url: string
+  member_id: string
+  name: string
+  open_now: number
+  removed: boolean
+  resolution_median_seconds?: number
+  resolved: number
+}
+
+export interface ReportTicketPriorityVolume {
+  created: number
+  open_now: number
+  priority: ConversationPriority
+}
+
+export interface ReportTicketTypeVolume {
+  created: number
+  disabled: boolean
+  id?: string
+  name: string
+  open_now: number
+  resolved: number
+}
+
+export interface ReportTicketVisibilityVolume {
+  created: number
+  open_now: number
+  visibility: TicketTypeVisibility
+}
+
+export interface ReportTicketsPoint {
+  created: number
+  date: string
+  resolved: number
+}
+
+export interface ReportTicketsReport {
+  by_assignee: ReportTicketAssigneeMetrics[]
+  by_priority: ReportTicketPriorityVolume[]
+  by_team: ReportTeamVolume[]
+  by_type: ReportTicketTypeVolume[]
+  by_visibility: ReportTicketVisibilityVolume[]
+  period: ReportPeriodMeta
+  series: ReportTicketsPoint[]
+  summary: ReportTicketsSummary
+}
+
+export interface ReportTicketsSummary {
+  /** 统计期内新建的工单数 */
+  created: number
+  /** 当前处理中状态的工单数（实时快照） */
+  in_progress_now: number
+  /** 统计期内新建工单关联的受影响客户总数 */
+  linked_contacts: number
+  /** 上一对比期新建的工单数 */
+  prev_created: number
+  /** 上一对比期解决时长中位数（秒） */
+  prev_resolution_median_seconds?: number
+  /** 上一对比期已解决的工单数 */
+  prev_resolved: number
+  /** 解决时长均值（秒） */
+  resolution_avg_seconds?: number
+  /** 解决时长中位数（秒） */
+  resolution_median_seconds?: number
+  /** 统计期内已解决的工单数 */
+  resolved: number
+  /** 当前已提交状态的工单数（实时快照） */
+  submitted_now: number
+  /** 当前未解决且无负责人的工单数（实时快照） */
+  unassigned_now: number
+  /** 当前等待客户状态的工单数（实时快照） */
+  waiting_now: number
+}
+
 export interface ReportTranslationModelBreakdown {
   avg_duration_ms?: number
   calls: number
@@ -1731,11 +1970,23 @@ export interface ReportTranslationPoint {
 export interface ReportTranslationReport {
   by_model: ReportTranslationModelBreakdown[]
   by_operation: ReportTranslationOperationBreakdown[]
+  by_scene: ReportTranslationSceneBreakdown[]
   detected_languages: ReportLanguageCount[]
   period: ReportPeriodMeta
   reply_languages: ReportLanguageCount[]
   series: ReportTranslationPoint[]
   summary: ReportTranslationSummary
+}
+
+export interface ReportTranslationSceneBreakdown {
+  avg_duration_ms?: number
+  calls: number
+  cost_usd: number
+  failed_calls: number
+  /** 业务场景：service（客服）、ticket（工单）、business（商务沟通）、internal_chat（内部聊天）、other（其他） */
+  scene: string
+  success_rate?: number
+  total_tokens: number
 }
 
 export interface ReportTranslationSummary {
@@ -2392,6 +2643,22 @@ export interface MemberListInput {
   role_id?: string
 }
 
+/** report-business 的参数。 */
+export interface ReportBusinessInput {
+  /** Start date (inclusive), YYYY-MM-DD. */
+  from?: string
+  /** End date (inclusive), YYYY-MM-DD. */
+  to?: string
+  /** IANA time zone, e.g. Asia/Shanghai. */
+  tz?: string
+  /** Time bucket granularity. */
+  granularity?: "hour" | "day" | "week" | "month"
+  /** 按商务渠道类型筛选 */
+  channel_kind?: "business_link" | "telegram_account"
+  /** 按渠道归属成员筛选 */
+  owner_id?: string
+}
+
 /** report-conversations 的参数。 */
 export interface ReportConversationsInput {
   /** Start date (inclusive), YYYY-MM-DD. */
@@ -2422,6 +2689,18 @@ export interface ReportMembersInput {
   team_id?: string
   /** 按渠道筛选（含已停用渠道） */
   channel_id?: string
+}
+
+/** report-overview 的参数。 */
+export interface ReportOverviewInput {
+  /** Start date (inclusive), YYYY-MM-DD. */
+  from?: string
+  /** End date (inclusive), YYYY-MM-DD. */
+  to?: string
+  /** IANA time zone, e.g. Asia/Shanghai. */
+  tz?: string
+  /** Time bucket granularity. */
+  granularity?: "hour" | "day" | "week" | "month"
 }
 
 /** report-response-time 的参数。 */
@@ -2478,6 +2757,24 @@ export interface ReportSatisfactionRatingsInput {
   min_score?: number
   /** 最高星级（含） */
   max_score?: number
+}
+
+/** report-tickets 的参数。 */
+export interface ReportTicketsInput {
+  /** Start date (inclusive), YYYY-MM-DD. */
+  from?: string
+  /** End date (inclusive), YYYY-MM-DD. */
+  to?: string
+  /** IANA time zone, e.g. Asia/Shanghai. */
+  tz?: string
+  /** Time bucket granularity. */
+  granularity?: "hour" | "day" | "week" | "month"
+  /** 按团队收件箱筛选（含已停用团队） */
+  team_id?: string
+  /** 按工单类型筛选（含已停用类型） */
+  type_id?: string
+  /** 按可见范围筛选：all（客户可见）或 members（仅成员可见） */
+  visibility?: "all" | "members"
 }
 
 /** report-translation 的参数。 */
@@ -3192,6 +3489,13 @@ export function createClient(options: ClientOptions) {
     /** operationId 以 report- 开头的接口。 */
     report: {
       /**
+       * 商务沟通报表
+       *
+       * GET /reports/business
+       */
+      business: (input: ReportBusinessInput = {}): Promise<ReportBusinessReport> =>
+        rt.request<ReportBusinessReport>({ method: "GET", path: `/reports/business`, query: { "channel_kind": input["channel_kind"], "from": input["from"], "granularity": input["granularity"], "owner_id": input["owner_id"], "to": input["to"], "tz": input["tz"] } }),
+      /**
        * 会话报表
        *
        * GET /reports/conversations
@@ -3205,6 +3509,13 @@ export function createClient(options: ClientOptions) {
        */
       members: (input: ReportMembersInput = {}): Promise<ReportMembersReport> =>
         rt.request<ReportMembersReport>({ method: "GET", path: `/reports/members`, query: { "channel_id": input["channel_id"], "from": input["from"], "granularity": input["granularity"], "team_id": input["team_id"], "to": input["to"], "tz": input["tz"] } }),
+      /**
+       * 报表概览
+       *
+       * GET /reports/overview
+       */
+      overview: (input: ReportOverviewInput = {}): Promise<ReportOverviewReport> =>
+        rt.request<ReportOverviewReport>({ method: "GET", path: `/reports/overview`, query: { "from": input["from"], "granularity": input["granularity"], "to": input["to"], "tz": input["tz"] } }),
       /**
        * 响应时间报表
        *
@@ -3227,7 +3538,14 @@ export function createClient(options: ClientOptions) {
       satisfactionRatings: (input: ReportSatisfactionRatingsInput = {}): Promise<OffsetReportRatingItem> =>
         rt.request<OffsetReportRatingItem>({ method: "GET", path: `/reports/satisfaction/ratings`, query: { "channel_id": input["channel_id"], "from": input["from"], "granularity": input["granularity"], "max_score": input["max_score"], "min_score": input["min_score"], "page": input["page"], "per_page": input["per_page"], "team_id": input["team_id"], "to": input["to"], "tz": input["tz"] } }),
       /**
-       * 翻译报表
+       * 工单报表
+       *
+       * GET /reports/tickets
+       */
+      tickets: (input: ReportTicketsInput = {}): Promise<ReportTicketsReport> =>
+        rt.request<ReportTicketsReport>({ method: "GET", path: `/reports/tickets`, query: { "from": input["from"], "granularity": input["granularity"], "team_id": input["team_id"], "to": input["to"], "type_id": input["type_id"], "tz": input["tz"], "visibility": input["visibility"] } }),
+      /**
+       * AI 与翻译报表
        *
        * GET /reports/translation
        */
