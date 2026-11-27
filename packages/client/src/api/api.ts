@@ -10,12 +10,6 @@ export interface AccountPasswordChange {
   new_password: string
 }
 
-export interface AccountProfileChanges {
-  /** 头像的文件 ID：刚上传的图片或当前的头像；不传表示去掉头像 */
-  avatar_file_id?: string
-  name: string
-}
-
 export interface ErrorDetail {
   /** Validation rule, e.g. validation.min_length, or the business error code. Absent when the rule is not recognized. */
   code?: string
@@ -116,6 +110,8 @@ export interface MemberProfile {
   avatar_file_id?: string
   /** 头像的地址；没有头像时为空 */
   avatar_url: string
+  /** 对外展示的简短介绍，用于商务沟通名片 */
+  bio: string
   email: string
   id: string
   /** 代为登录状态；本人登录时为空 */
@@ -131,8 +127,20 @@ export interface MemberProfile {
   send_shortcut?: MemberSendShortcut
   /** IANA 时区名，例如 Asia/Shanghai；不传表示跟随浏览器 */
   time_zone?: string
+  /** 对外展示的头衔或职位，用于商务沟通名片 */
+  title: string
   /** 界面显示语言（zh-CN 或 en）；不传时按 language 自动匹配 */
   ui_language?: MemberUiLanguage
+}
+
+export interface MemberProfileChanges {
+  /** 头像的文件 ID：刚上传的图片或当前的头像；不传表示去掉头像 */
+  avatar_file_id?: string
+  /** 对外展示的简短介绍，用于商务沟通名片 */
+  bio?: string
+  name: string
+  /** 对外展示的头衔或职位，用于商务沟通名片 */
+  title?: string
 }
 
 export type MemberSendShortcut = "enter" | "ctrl_enter"
@@ -219,7 +227,7 @@ export function createClient(options: ClientOptions) {
        *
        * PUT /me
        */
-      profileUpdate: (body: AccountProfileChanges): Promise<MemberProfile> =>
+      profileUpdate: (body: MemberProfileChanges): Promise<MemberProfile> =>
         rt.request<MemberProfile>({ method: "PUT", path: `/me`, body }),
     },
     /** operationId 以 file- 开头的接口。 */

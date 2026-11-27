@@ -102,6 +102,23 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
     business: {
       /** business 分组全部查询的 key 前缀。 */
       key: () => key("business"),
+      /** POST /business-channels/{id}/collaborators */
+      channelAddCollaborators: () => ({
+        mutationFn: (variables: Parameters<Client["business"]["channelAddCollaborators"]>) => client.business.channelAddCollaborators(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "business"),
+      }),
+      /** GET /business-channels */
+      channelList: (...args: Parameters<Client["business"]["channelList"]>) => ({
+        queryKey: key("business", "channelList", ...args),
+        queryFn: () => client.business.channelList(...args),
+      }),
+      /** PUT /business-channels/{id}/enabled */
+      channelSetEnabled: () => ({
+        mutationFn: (variables: Parameters<Client["business"]["channelSetEnabled"]>) => client.business.channelSetEnabled(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "business"),
+      }),
       /** POST /my/business-links */
       linkCreate: () => ({
         mutationFn: (variables: Parameters<Client["business"]["linkCreate"]>[0]) => client.business.linkCreate(variables),
@@ -122,6 +139,17 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       /** PUT /my/business-links/{id} */
       linkUpdate: () => ({
         mutationFn: (variables: Parameters<Client["business"]["linkUpdate"]>) => client.business.linkUpdate(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "business"),
+      }),
+      /** GET /settings/business-policy */
+      policyGet: (...args: Parameters<Client["business"]["policyGet"]>) => ({
+        queryKey: key("business", "policyGet", ...args),
+        queryFn: () => client.business.policyGet(...args),
+      }),
+      /** PUT /settings/business-policy */
+      policySave: () => ({
+        mutationFn: (variables: Parameters<Client["business"]["policySave"]>[0]) => client.business.policySave(variables),
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "business"),
       }),

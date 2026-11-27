@@ -49,6 +49,7 @@ import (
 
 	"agents-desk/internal/auth"
 	"agents-desk/internal/automation"
+	"agents-desk/internal/business"
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
@@ -89,6 +90,7 @@ type App struct {
 	telegramSettings    *settings.Group[platformsettings.Telegram] // 平台 Telegram MTProto API 凭据设置
 	llmSettings         *settings.Group[llm.Settings]              // 模型接口的平台设置
 	translationSettings *settings.Group[translation.Settings]      // 各工作区的翻译设置：语气、术语表
+	businessPolicy      *settings.Group[business.Policy]           // 各工作区的商务沟通默认策略与配额
 	features            *feature.Store                             // 平台功能开关与灰度规则
 	translator          *translation.Translator                    // 调用模型识别语言和翻译
 
@@ -207,13 +209,15 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		return nil, err
 	}
 	generalSettings, mailSettings, telegramSettings := platformsettings.NewGeneralGroup(db), platformsettings.NewMailGroup(db, keys), platformsettings.NewTelegramGroup(db, keys)
-	llmSettings, translationSettings := llm.NewGroup(db, keys), translation.NewGroup(db)
+	llmSettings, translationSettings, businessPolicy := llm.NewGroup(db, keys), translation.NewGroup(db), business.NewPolicyGroup(db)
 	featureStore := flags.NewStore(db)
 	ops := operation.New(db)
 	exporter := exports.New(db, ops, files)
 
 	tgClient := telegram.NewClient(outbound.New(outbound.Options{Timeout: 30 * time.Second}))
 	tgMgr := tgaccount.NewManager(db, keys, files, telegramSettings, nil)
+	bizGuard := business.NewPolicyGuard(db, businessPolicy, featureStore, telegramSettings)
+	tgMgr.SetPolicyChecker(bizGuard.CheckConnectTelegram)
 	app := &App{
 		cfg: cfg, db: db, nc: nc, tel: tel, hub: hub, creds: creds, presence: presence, roles: roles,
 		adminLogins:     adminLogins,
@@ -223,7 +227,7 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		contactTokens:   apitoken.NewStore(db, cfg.ContactToken, apitoken.Credentials(creds)),
 		crypt:           keys,
 		generalSettings: generalSettings, mailSettings: mailSettings, telegramSettings: telegramSettings,
-		llmSettings: llmSettings, translationSettings: translationSettings, features: featureStore,
+		llmSettings: llmSettings, translationSettings: translationSettings, businessPolicy: businessPolicy, features: featureStore,
 		ops: ops, exporter: exporter,
 		// 模型网关不设固定整请求超时（由调用上下文控制），以便兼容流式 SSE 长响应及自托管网关地址。
 		translator: translation.NewTranslator(db, llm.NewClient(db, llmSettings, &http.Client{}), translationSettings),

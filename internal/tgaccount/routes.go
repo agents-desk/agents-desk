@@ -90,10 +90,10 @@ type UpdateSyncedPeersInput struct {
 
 // RegisterRoutes 在工作区 API（/t/{slug}/api）中注册成员自助绑定和管理 Telegram 个人号的全部接口。
 func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.Operation), mgr *Manager) {
-	read := require(auth.ConversationsRead)
+	use := require(auth.BusinessChannelsUse)
 	route := func(id, method, path, summary string) huma.Operation {
 		op := huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary}
-		read(&op)
+		use(&op)
 		return op
 	}
 	disconnectOp := route("tgaccount-disconnect", http.MethodDelete, "/my/telegram-accounts/{id}", "解绑并断开 Telegram 个人号")

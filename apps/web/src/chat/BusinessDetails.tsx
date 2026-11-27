@@ -195,6 +195,17 @@ export function BusinessDetails({ chat, onClose, onLeft }: BusinessDetailsProps)
 
             {chat.contact && (
               <>
+                <InspectorField label={t("contacts.company")}>
+                  {chat.contact.company ? (
+                    <Text size="sm" truncate>
+                      {chat.contact.company}
+                    </Text>
+                  ) : (
+                    <Text size="sm" c="dimmed">
+                      —
+                    </Text>
+                  )}
+                </InspectorField>
                 <InspectorField label={t("inbox.contact_email")}>
                   {chat.contact.email ? (
                     <Group gap={4} wrap="nowrap" style={{ minWidth: 0 }}>

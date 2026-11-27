@@ -42,6 +42,8 @@ type Member struct {
 
 	ID                      string                  `bun:"id,pk"`
 	Name                    string                  `bun:"name,notnull"`
+	Title                   string                  `bun:"title,notnull"`                               // 对外展示的头衔或职位，用于商务沟通名片
+	Bio                     string                  `bun:"bio,notnull"`                                 // 对外展示的简短介绍，用于商务沟通名片
 	AvatarFileID            *uuid.UUID              `bun:"avatar_file_id,type:uuid"`                    // 头像，files 中的文件；没有头像时为空
 	UILanguage              UILanguage              `bun:"ui_language,notnull"`                         // 界面显示语言，见 Preferences
 	Language                Language                `bun:"language,notnull"`                            // 沟通与译文偏好语言（任意合法 BCP 47），见 Preferences

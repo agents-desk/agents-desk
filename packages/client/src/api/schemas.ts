@@ -28,7 +28,7 @@ export const schemas = {
     },
     profileUpdate: {
       body: {
-        "$ref": "#/components/schemas/AccountProfileChanges"
+        "$ref": "#/components/schemas/MemberProfileChanges"
       },
     },
   },
@@ -53,24 +53,6 @@ export const components = {
     "required": [
       "current_password",
       "new_password"
-    ],
-    "type": "object"
-  },
-  AccountProfileChanges: {
-    "additionalProperties": false,
-    "properties": {
-      "avatar_file_id": {
-        "format": "uuid",
-        "type": "string"
-      },
-      "name": {
-        "maxLength": 60,
-        "minLength": 1,
-        "type": "string"
-      }
-    },
-    "required": [
-      "name"
     ],
     "type": "object"
   },
@@ -154,6 +136,32 @@ export const components = {
     },
     "required": [
       "language"
+    ],
+    "type": "object"
+  },
+  MemberProfileChanges: {
+    "additionalProperties": false,
+    "properties": {
+      "avatar_file_id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "bio": {
+        "maxLength": 240,
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 60,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": {
+        "maxLength": 60,
+        "type": "string"
+      }
+    },
+    "required": [
+      "name"
     ],
     "type": "object"
   },

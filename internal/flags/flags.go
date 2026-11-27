@@ -46,6 +46,20 @@ var (
 		Description: "网页聊天插件访客附件上传（实验功能）",
 		ByTenant:    true,
 	}
+	// BusinessLinks 控制成员个人网页商务沟通链接功能，支持按工作区灰度或关闭。
+	BusinessLinks = feature.Flag{
+		Name:        "business.links",
+		Description: "个人网页商务沟通链接",
+		ByTenant:    true,
+		Default:     func(context.Context, identity.Subject) bool { return true },
+	}
+	// BusinessTelegramAccount 控制成员 Telegram 个人号商务同步功能，支持按工作区灰度或关闭。
+	BusinessTelegramAccount = feature.Flag{
+		Name:        "business.telegram_account",
+		Description: "成员 Telegram 个人号商务同步",
+		ByTenant:    true,
+		Default:     func(context.Context, identity.Subject) bool { return true },
+	}
 )
 
 // Catalog 是应用注册的全部功能开关。
@@ -53,6 +67,8 @@ var Catalog = feature.Catalog{
 	AITranslation,
 	AutoAutomation,
 	WidgetVisitorUploads,
+	BusinessLinks,
+	BusinessTelegramAccount,
 }
 
 // NewStore 创建绑定到 db 的功能开关存储。

@@ -64,9 +64,9 @@ const defaultLinkColor = primaryColors["bright-blue"]
 // 我的商务渠道：采用与其他设置页一致的 Page 页内标签 + 标准表格布局，
 // 分为「网页商务链接」与「Telegram 个人号」两个标签，各自独立管理与配置。
 export const Route = createFileRoute("/t/$slug/settings/_personal/business-channels")({
-  staticData: { title: "nav.business_channels", icon: "link", order: 5, permission: "conversations:read" },
+  staticData: { title: "nav.business_channels", icon: "link", order: 5, permission: "business-channels:use" },
   // 预取页面的数据，最多等一小会儿：切换到这一页时内容一次完整出现，不先空白再出现
-  loader: ({ context }) => preloadQueries(context.app.queryClient, [kit.queries.business.linkList(), kit.queries.tgaccount.list()]),
+  loader: ({ context }) => preloadQueries(context.app.queryClient, [kit.queries.business.linkList(), kit.queries.tgaccount.list(), kit.queries.business.policyGet()]),
   component: BusinessChannelsPage,
 })
 
@@ -104,7 +104,11 @@ function BusinessLinksTab(): ReactNode {
   const t = useT()
   const queryClient = useQueryClient()
   const list = useQuery(kit.queries.business.linkList())
+  const policy = useQuery(kit.queries.business.policyGet()).data
   const items = list.data ?? []
+  const linksAllowed = policy ? policy.platform_links_enabled && policy.links_enabled : true
+  const maxLinks = policy?.max_links_per_member ?? 0
+  const quotaReached = maxLinks > 0 && items.length >= maxLinks
 
   const [editing, setEditing] = useState<WidgetBusinessLinkDTO | "new" | null>(null)
   const [formError, setFormError] = useState<ReturnType<typeof applyServerErrors>>()
@@ -190,13 +194,31 @@ function BusinessLinksTab(): ReactNode {
   return (
     <Stack gap="md">
       <Group justify="space-between" align="center" wrap="wrap" gap="sm">
-        <Text size="sm" c="dimmed">
-          {t("business_channels.links_desc")}
-        </Text>
-        <Button leftSection={<IconPlus size={16} />} onClick={openCreate}>
-          {t("business_channels.link_new")}
-        </Button>
+        <Group gap="xs" wrap="wrap">
+          <Text size="sm" c="dimmed">
+            {t("business_channels.links_desc")}
+          </Text>
+          {maxLinks > 0 && (
+            <Badge size="xs" variant="light" color={quotaReached ? "deep-orange" : "gray"}>
+              {t("business_channels.quota_badge", { used: items.length, limit: maxLinks })}
+            </Badge>
+          )}
+        </Group>
+        <Tooltip
+          label={!linksAllowed ? t("business_channels.links_disabled_title") : t("business_channels.quota_reached", { limit: maxLinks })}
+          disabled={linksAllowed && !quotaReached}
+        >
+          <Button leftSection={<IconPlus size={16} />} disabled={!linksAllowed || quotaReached} onClick={openCreate}>
+            {t("business_channels.link_new")}
+          </Button>
+        </Tooltip>
       </Group>
+
+      {policy && !linksAllowed && (
+        <Alert icon={<IconInfoCircle size={16} />} color="yellow" variant="light" title={t("business_channels.links_disabled_title")}>
+          <Text size="sm">{t("business_channels.links_disabled_desc")}</Text>
+        </Alert>
+      )}
 
       <DataTable
         records={items}
@@ -341,8 +363,12 @@ function TelegramAccountsTab(): ReactNode {
   const t = useT()
   const queryClient = useQueryClient()
   const list = useQuery(kit.queries.tgaccount.list())
+  const policy = useQuery(kit.queries.business.policyGet()).data
   const configured = list.data?.configured ?? false
   const accounts = list.data?.accounts ?? []
+  const tgAllowed = policy ? policy.platform_telegram_enabled && policy.telegram_accounts_enabled : true
+  const maxTG = policy?.max_telegram_accounts_per_member ?? 0
+  const quotaReached = maxTG > 0 && accounts.length >= maxTG
 
   const [loginOpen, setLoginOpen] = useState(false)
   const [peersTarget, setPeersTarget] = useState<TgaccountAccountDTO | null>(null)
@@ -399,17 +425,39 @@ function TelegramAccountsTab(): ReactNode {
   return (
     <Stack gap="md">
       <Group justify="space-between" align="center" wrap="wrap" gap="sm">
-        <Text size="sm" c="dimmed">
-          {t("business_channels.tg_desc")}
-        </Text>
-        <Tooltip label={t("business_channels.tg_not_configured_short")} disabled={configured || list.isPending}>
-          <Button leftSection={<IconPlus size={16} />} disabled={!configured} onClick={() => setLoginOpen(true)}>
+        <Group gap="xs" wrap="wrap">
+          <Text size="sm" c="dimmed">
+            {t("business_channels.tg_desc")}
+          </Text>
+          {maxTG > 0 && (
+            <Badge size="xs" variant="light" color={quotaReached ? "deep-orange" : "gray"}>
+              {t("business_channels.quota_badge", { used: accounts.length, limit: maxTG })}
+            </Badge>
+          )}
+        </Group>
+        <Tooltip
+          label={
+            !tgAllowed
+              ? t("business_channels.tg_disabled_title")
+              : !configured
+                ? t("business_channels.tg_not_configured_short")
+                : t("business_channels.quota_reached", { limit: maxTG })
+          }
+          disabled={(tgAllowed && configured && !quotaReached) || list.isPending}
+        >
+          <Button leftSection={<IconPlus size={16} />} disabled={!tgAllowed || !configured || quotaReached} onClick={() => setLoginOpen(true)}>
             {t("business_channels.tg_connect")}
           </Button>
         </Tooltip>
       </Group>
 
-      {!list.isPending && !configured && (
+      {policy && !tgAllowed && (
+        <Alert icon={<IconInfoCircle size={16} />} color="yellow" variant="light" title={t("business_channels.tg_disabled_title")}>
+          <Text size="sm">{t("business_channels.tg_disabled_desc")}</Text>
+        </Alert>
+      )}
+
+      {!list.isPending && tgAllowed && !configured && (
         <Alert icon={<IconInfoCircle size={16} />} color="bright-blue" variant="light" title={t("business_channels.tg_not_configured_title")}>
           <Text size="sm">{t("business_channels.tg_not_configured_desc")}</Text>
         </Alert>

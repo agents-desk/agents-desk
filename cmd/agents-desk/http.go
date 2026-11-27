@@ -35,6 +35,7 @@ import (
 	"agents-desk/internal/audit"
 	"agents-desk/internal/auth"
 	"agents-desk/internal/automation"
+	"agents-desk/internal/business"
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
@@ -336,9 +337,15 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		conversation.RegisterRoutes(api, require, a.db, a.channels, down)
 		file.RegisterRoutes(api, require(auth.ConversationsReply), a.files, a.cfg.Filesystem.MaxUploadSize)
 		widget.RegisterRoutes(api, require, a.db, a.crypt, a.cfg.HTTP.PublicURL)
-		widget.RegisterBusinessLinkRoutes(api, require, a.db, a.cfg.HTTP.PublicURL)
+		bizGuard := business.NewPolicyGuard(a.db, a.businessPolicy, a.features, a.telegramSettings)
+		widget.RegisterBusinessLinkRoutes(api, require, a.db, a.cfg.HTTP.PublicURL, bizGuard.CheckCreateLink)
 		telegram.RegisterRoutes(api, require, a.db, a.crypt, a.telegram, a.cfg.HTTP.PublicURL)
 		tgaccount.RegisterRoutes(api, require, a.tgAccounts)
+		var onTGChanged func()
+		if a.tgAccounts != nil {
+			onTGChanged = a.tgAccounts.Wake
+		}
+		business.RegisterRoutes(api, require, a.db, a.roles, a.files, a.businessPolicy, a.features, a.telegramSettings, down, a.cfg.HTTP.PublicURL, onTGChanged)
 		translation.RegisterRoutes(api, require, a.db, a.translator, translation.NewIncoming(a.db, a.locker, a.translator, a.downstream()), a.translationSettings)
 		automation.RegisterRoutes(api, require, a.db)
 		report.RegisterRoutes(api, require, a.db, a.roles, a.files)

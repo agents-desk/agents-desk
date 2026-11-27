@@ -101,6 +101,8 @@ tenant.status.disabled: 已停用
 "permission.teams:manage": 管理团队收件箱
 "permission.channels:read": 查看渠道
 "permission.channels:manage": 管理渠道
+"permission.business-channels:use": 使用个人商务渠道
+"permission.business-channels:manage": 管理工作区商务渠道
 "permission.macros:manage": 管理共享的快捷回复
 "permission.views:manage": 管理共享视图
 "permission.reports:read": 查看报表
@@ -128,6 +130,8 @@ conversation_scope.assigned: 只有指派给自己的会话
 "role_permission.members:manage": 管理成员和角色
 "role_permission.teams:manage": 管理团队收件箱
 "role_permission.channels:manage": 管理渠道
+"role_permission.business-channels:use": 使用个人商务渠道
+"role_permission.business-channels:manage": 管理工作区商务渠道
 "role_permission.tenant-settings:manage": 管理工作区设置
 
 team_assignment.manual: 手动：成员自己领取
@@ -176,6 +180,13 @@ contact.sort.created: 创建时间
 
 channel.not_found: 渠道不存在
 channel.disabled: 这个渠道已停用
+channel.invalid_public_code: 短码需为 3 到 40 位小写字母、数字或连字符，且首尾不能是连字符
+channel.public_code_taken: 这个短码已被使用，请换一个
+channel.invalid_translation_tone: 翻译语气无效，请选择亲切、中性、正式或留空继承
+business.feature_disabled: 当前工作区或平台暂未开启该商务渠道功能
+business.quota_exceeded: "已达到工作区单成员数量上限（最多 {{.limit}} 个）"
+business.invalid_tone: 商务默认翻译语气无效，请选择亲切、中性、正式或留空继承
+business.invalid_member: 所选协作成员不存在或不属于当前工作区
 channel.media_too_large: 媒体文件超出该渠道允许下载的大小上限
 channel.media_unavailable: 外部渠道上的媒体已失效或无法拉取
 channel.kind.test: 测试渠道

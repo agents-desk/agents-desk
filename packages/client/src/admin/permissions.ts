@@ -3,6 +3,8 @@
 /** 权限目录：权限名和说明，来自 rest.Options.Permissions，以及接口要求的权限。 */
 export const permissions = {
   "audit:read": "查看操作日志",
+  "business-channels:manage": "管理工作区商务渠道",
+  "business-channels:use": "使用个人商务渠道",
   "channels:manage": "管理渠道",
   "channels:read": "查看渠道",
   "contacts:export": "导出联系人",

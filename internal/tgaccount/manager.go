@@ -86,6 +86,7 @@ type Manager struct {
 	tgSettings *settings.Group[platformsettings.Telegram]
 	receive    *conversation.Receive
 	backend    Backend
+	checkQuota func(ctx context.Context, sub identity.Subject, isReconnect bool) error
 
 	loginsMu sync.Mutex
 	logins   map[string]*loginEntry
@@ -114,6 +115,14 @@ func NewManager(db *bun.DB, c *crypt.Crypt, files *filesystem.Service, tgSetting
 
 // SetReceive 绑定消息入库动作（因 channel.Registry 与 conversation.Receive 存在初始化顺序依赖，由入口装配完成后注入）。
 func (m *Manager) SetReceive(r *conversation.Receive) { m.receive = r }
+
+// SetPolicyChecker 绑定工作区商务策略与配额校验函数。
+func (m *Manager) SetPolicyChecker(fn func(ctx context.Context, sub identity.Subject, isReconnect bool) error) {
+	m.checkQuota = fn
+}
+
+// Wake 通知后台常驻循环立即重新对齐已启用的个人号连接列表（供管理员启停渠道后触发）。
+func (m *Manager) Wake() { m.wake() }
 
 // wake 通知后台常驻循环立即重新对齐已启用的个人号连接列表。
 func (m *Manager) wake() {
@@ -154,6 +163,11 @@ func (m *Manager) Configured(ctx context.Context) (bool, error) {
 func (m *Manager) StartLogin(ctx context.Context, sub identity.Subject, mode LoginMode, name, phone string) (*LoginSessionDTO, error) {
 	if sub.Type != member.Type {
 		return nil, channel.ErrNotFound.New()
+	}
+	if m.checkQuota != nil {
+		if err := m.checkQuota(ctx, sub, false); err != nil {
+			return nil, err
+		}
 	}
 	creds, err := m.credentials(ctx)
 	if err != nil {

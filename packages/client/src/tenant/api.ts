@@ -80,6 +80,114 @@ export interface AutomationUpdateBody {
   enabled: boolean
 }
 
+export interface BusinessAddCollaboratorsBody {
+  /** 是否同时写入渠道默认协作成员，后续新商务会话自动拉入 */
+  add_to_default: boolean
+  /** 是否同时将成员加入该渠道已有的全部外部商务会话 */
+  apply_to_existing: boolean
+  /** 要加入协作的工作区成员 ID 列表 */
+  member_ids: string[]
+}
+
+export interface BusinessAddCollaboratorsResult {
+  /** 更新后的渠道默认协作成员 ID 列表 */
+  default_collaborator_ids: string[]
+  /** 实际同步加入的现有外部商务会话数 */
+  updated_chats: number
+}
+
+export interface BusinessChannelItemDTO {
+  /** 渠道级通用商务策略（默认协作成员、自动标签、翻译覆写） */
+  business: ChannelBusinessPolicy
+  /** 网页商务链接访问地址 */
+  chat_url?: string
+  /** 该商务渠道累计产生的外部商务会话数 */
+  conversation_count: number
+  created_at: string
+  enabled: boolean
+  id: string
+  /** Telegram 个人号对外身份摘要（昵称/@username） */
+  identity_label?: string
+  kind: ChannelKind
+  /** Telegram 个人号最近连接错误 */
+  last_error?: string
+  name: string
+  owner: BusinessOwnerSummary
+  /** 网页商务链接的公开短码 */
+  public_code?: string
+  /** Telegram 个人号连接状态（connected/disconnected/auth_expired） */
+  status?: string
+  /** Telegram 个人号已同步白名单会话数 */
+  synced_peer_count: number
+  updated_at: string
+}
+
+export interface BusinessOwnerSummary {
+  avatar_url?: string
+  id: string
+  name: string
+  title?: string
+}
+
+export interface BusinessPolicy {
+  /** 商务名片对外展示的公司或品牌名称；留空时默认取工作区名称 */
+  default_company_name: string
+  /** 新建网页商务链接时是否默认开启开场留资表单 */
+  default_require_intake: boolean
+  /** 商务沟通默认翻译语气；留空表示继承工作区通用翻译语气 */
+  default_translation_tone: "" | "friendly" | "neutral" | "formal"
+  /** 是否允许成员创建个人网页商务沟通链接 */
+  links_enabled: boolean
+  /** 每位成员最多可创建的商务链接数，0 表示不限制 */
+  max_links_per_member: number
+  /** 每位成员最多可绑定的 Telegram 个人号数，0 表示不限制 */
+  max_telegram_accounts_per_member: number
+  /** 是否允许成员绑定 Telegram 个人号开展商务沟通 */
+  telegram_accounts_enabled: boolean
+}
+
+export interface BusinessPolicyViewDTO {
+  /** 商务名片对外展示的公司或品牌名称；留空时默认取工作区名称 */
+  default_company_name: string
+  /** 新建网页商务链接时是否默认开启开场留资表单 */
+  default_require_intake: boolean
+  /** 商务沟通默认翻译语气；留空表示继承工作区通用翻译语气 */
+  default_translation_tone: "" | "friendly" | "neutral" | "formal"
+  /** 是否允许成员创建个人网页商务沟通链接 */
+  links_enabled: boolean
+  /** 每位成员最多可创建的商务链接数，0 表示不限制 */
+  max_links_per_member: number
+  /** 每位成员最多可绑定的 Telegram 个人号数，0 表示不限制 */
+  max_telegram_accounts_per_member: number
+  /** 当前成员已创建的网页商务链接数量 */
+  my_links_count: number
+  /** 当前成员已绑定的 Telegram 个人号数量 */
+  my_telegram_count: number
+  /** 平台级功能开关是否开启网页商务链接 */
+  platform_links_enabled: boolean
+  /** 平台级功能开关是否开启 Telegram 个人号 */
+  platform_telegram_enabled: boolean
+  /** 是否允许成员绑定 Telegram 个人号开展商务沟通 */
+  telegram_accounts_enabled: boolean
+  /** 平台管理员是否已配置 Telegram MTProto API 凭据 */
+  telegram_api_configured: boolean
+}
+
+export interface BusinessSetEnabledInputBody {
+  enabled: boolean
+}
+
+export interface ChannelBusinessPolicy {
+  /** 渠道级自动翻译开关覆写；为空表示继承工作区设置 */
+  auto_translate?: boolean
+  /** 新商务会话建立时自动拉入协作的成员 ID 列表 */
+  default_collaborator_ids?: string[]
+  /** 经该渠道进入的新联系人自动添加的标签 ID 列表 */
+  default_tag_ids?: string[]
+  /** 渠道级翻译语气覆写；留空表示继承工作区商务默认语气 */
+  translation_tone?: "" | "friendly" | "neutral" | "formal"
+}
+
 export type ChannelKind = "test" | "widget" | "telegram" | "business_link" | "telegram_account"
 
 export interface ChannelListItem {
@@ -107,6 +215,8 @@ export type ChatScope = "internal" | "external"
 export interface ContactDTO {
   /** 自定义属性 */
   attributes: Record<string, unknown>
+  /** 联系人所属公司或组织名称 */
+  company: string
   /** 当前成员可见的该联系人会话数 */
   conversation_count: number
   created_at: string
@@ -144,6 +254,8 @@ export interface ContactDTO {
 export interface ContactDetailDTO {
   /** 自定义属性 */
   attributes: Record<string, unknown>
+  /** 联系人所属公司或组织名称 */
+  company: string
   /** 当前成员可见的该联系人会话数 */
   conversation_count: number
   created_at: string
@@ -238,6 +350,8 @@ export type ContactSort = "recent" | "created"
 export interface ContactSummary {
   /** 联系人的自定义属性 */
   attributes: Record<string, unknown>
+  /** 所属公司或组织名称 */
+  company?: string
   email: string
   id: string
   kind: ContactKind
@@ -272,6 +386,8 @@ export interface ContactSummaryDTO {
 }
 
 export interface ContactUpdateBody {
+  /** 所属公司或组织名称 */
+  company?: string
   /** 邮箱 */
   email?: string
   /** 对方的语言（BCP 47）；传空字符串恢复自动识别 */
@@ -2058,7 +2174,7 @@ export interface RoleParams {
   permissions?: RolePermission[]
 }
 
-export type RolePermission = "conversations:assign" | "macros:manage" | "views:manage" | "reports:read" | "contacts:export" | "ticket-types:manage" | "members:manage" | "teams:manage" | "channels:manage" | "tenant-settings:manage"
+export type RolePermission = "conversations:assign" | "macros:manage" | "views:manage" | "reports:read" | "contacts:export" | "ticket-types:manage" | "members:manage" | "teams:manage" | "channels:manage" | "business-channels:use" | "business-channels:manage" | "tenant-settings:manage"
 
 export type SavedviewScope = "shared" | "personal"
 
@@ -2206,6 +2322,8 @@ export interface TenantGeneralSettings {
 }
 
 export interface TgaccountAccountDTO {
+  /** 通用商务策略（默认协作成员、自动标签与翻译覆写） */
+  business: ChannelBusinessPolicy
   created_at: string
   /** Telegram 昵称 */
   display_name?: string
@@ -2456,6 +2574,8 @@ export interface WidgetAppearance {
 export interface WidgetBusinessLinkDTO {
   /** 聊天窗口外观配置（主题色与问候语） */
   appearance: WidgetAppearance
+  /** 通用商务策略（默认协作成员、自动标签与翻译覆写） */
+  business: ChannelBusinessPolicy
   /** 发给外部商户直接打开的网页沟通地址 */
   chat_url: string
   created_at: string
@@ -2464,6 +2584,8 @@ export interface WidgetBusinessLinkDTO {
   id: string
   /** 商务沟通链接名称，显示在对方打开的聊天窗口顶部 */
   name: string
+  /** 网页商务链接的公开短码，用于 /c/{code} 访问 */
+  public_code: string
   updated_at: string
 }
 
@@ -2480,6 +2602,8 @@ export interface WidgetChanges {
 export interface WidgetCreateBusinessLinkBody {
   /** 聊天窗口外观配置 */
   appearance?: WidgetAppearance
+  /** 可选：通用商务策略 */
+  business?: ChannelBusinessPolicy
   /** 链接名称，例如：Alex 商务合作专线 */
   name: string
 }
@@ -2523,6 +2647,7 @@ export interface WidgetUpdateBody {
 
 export interface WidgetUpdateBusinessLinkBody {
   appearance?: WidgetAppearance
+  business?: ChannelBusinessPolicy
   enabled: boolean
   name: string
 }
@@ -2533,6 +2658,18 @@ export interface AttributeListInput {
   target?: AttributeTarget
   /** 按工单类型筛选（配合 target=ticket 使用） */
   ticket_type_id?: string
+}
+
+/** business-channel-list 的参数。 */
+export interface BusinessChannelListInput {
+  /** 按渠道类型筛选 */
+  kind?: "" | "business_link" | "telegram_account"
+  /** 按归属成员 ID 筛选 */
+  owner_member_id?: string
+  /** 按启用状态筛选 */
+  enabled?: "" | "true" | "false"
+  /** 按渠道名称或成员姓名模糊搜索 */
+  q?: string
 }
 
 /** chat-list 的参数。 */
@@ -2997,6 +3134,27 @@ export function createClient(options: ClientOptions) {
     /** operationId 以 business- 开头的接口。 */
     business: {
       /**
+       * 应急添加商务渠道协作成员
+       *
+       * POST /business-channels/{id}/collaborators
+       */
+      channelAddCollaborators: (id: string, body: BusinessAddCollaboratorsBody): Promise<BusinessAddCollaboratorsResult> =>
+        rt.request<BusinessAddCollaboratorsResult>({ method: "POST", path: `/business-channels/${encodeURIComponent(id)}/collaborators`, body }),
+      /**
+       * 工作区全员商务渠道治理列表
+       *
+       * GET /business-channels
+       */
+      channelList: (input: BusinessChannelListInput = {}): Promise<BusinessChannelItemDTO[]> =>
+        rt.request<BusinessChannelItemDTO[]>({ method: "GET", path: `/business-channels`, query: { "enabled": input["enabled"], "kind": input["kind"], "owner_member_id": input["owner_member_id"], "q": input["q"] } }),
+      /**
+       * 启用或停用成员商务渠道
+       *
+       * PUT /business-channels/{id}/enabled
+       */
+      channelSetEnabled: (id: string, body: BusinessSetEnabledInputBody): Promise<BusinessChannelItemDTO> =>
+        rt.request<BusinessChannelItemDTO>({ method: "PUT", path: `/business-channels/${encodeURIComponent(id)}/enabled`, body }),
+      /**
        * 新建我的商务沟通链接
        *
        * POST /my/business-links
@@ -3024,6 +3182,20 @@ export function createClient(options: ClientOptions) {
        */
       linkUpdate: (id: string, body: WidgetUpdateBusinessLinkBody): Promise<WidgetBusinessLinkDTO> =>
         rt.request<WidgetBusinessLinkDTO>({ method: "PUT", path: `/my/business-links/${encodeURIComponent(id)}`, body }),
+      /**
+       * 读取工作区商务沟通策略
+       *
+       * GET /settings/business-policy
+       */
+      policyGet: (): Promise<BusinessPolicyViewDTO> =>
+        rt.request<BusinessPolicyViewDTO>({ method: "GET", path: `/settings/business-policy` }),
+      /**
+       * 保存工作区商务沟通策略
+       *
+       * PUT /settings/business-policy
+       */
+      policySave: (body: BusinessPolicy): Promise<BusinessPolicyViewDTO> =>
+        rt.request<BusinessPolicyViewDTO>({ method: "PUT", path: `/settings/business-policy`, body }),
     },
     /** operationId 以 channel- 开头的接口。 */
     channel: {

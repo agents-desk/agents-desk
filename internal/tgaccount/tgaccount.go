@@ -107,30 +107,32 @@ type SyncedPeer struct {
 
 // Settings 是 Telegram 个人号渠道保存在 channels.settings 中的数据结构。
 type Settings struct {
-	Phone          string        `json:"phone,omitempty"`
-	TelegramUserID int64         `json:"telegram_user_id,omitempty"`
-	Username       string        `json:"username,omitempty"`
-	DisplayName    string        `json:"display_name,omitempty"`
-	SessionCipher  string        `json:"session_cipher,omitempty"` // crypt 加密的 gotd/td MTProto Session JSON
-	Status         AccountStatus `json:"status"`
-	LastError      string        `json:"last_error,omitempty"`
-	SyncedPeers    []SyncedPeer  `json:"synced_peers,omitempty"`
+	Phone          string                 `json:"phone,omitempty"`
+	TelegramUserID int64                  `json:"telegram_user_id,omitempty"`
+	Username       string                 `json:"username,omitempty"`
+	DisplayName    string                 `json:"display_name,omitempty"`
+	SessionCipher  string                 `json:"session_cipher,omitempty"` // crypt 加密的 gotd/td MTProto Session JSON
+	Status         AccountStatus          `json:"status"`
+	LastError      string                 `json:"last_error,omitempty"`
+	SyncedPeers    []SyncedPeer           `json:"synced_peers,omitempty"`
+	Business       channel.BusinessPolicy `json:"business,omitempty"`
 }
 
 // AccountDTO 是接口中展示给成员的 Telegram 个人号商务渠道视图（不含加密会话密文）。
 type AccountDTO struct {
-	ID             string        `json:"id"`
-	Name           string        `json:"name" doc:"账号显示名称，便于在商务沟通列表中区分多个个人号"`
-	Phone          string        `json:"phone,omitempty" doc:"绑定的手机号（已脱敏展示）"`
-	TelegramUserID int64         `json:"telegram_user_id,omitempty"`
-	Username       string        `json:"username,omitempty" doc:"Telegram 用户名"`
-	DisplayName    string        `json:"display_name,omitempty" doc:"Telegram 昵称"`
-	Status         AccountStatus `json:"status" doc:"连接状态：connected、disconnected 或 auth_expired"`
-	LastError      string        `json:"last_error,omitempty" doc:"最近一次连接错误信息"`
-	SyncedPeers    []SyncedPeer  `json:"synced_peers" nullable:"false" doc:"已勾选同步的 1:1 单聊与群聊列表"`
-	Enabled        bool          `json:"enabled"`
-	CreatedAt      time.Time     `json:"created_at"`
-	UpdatedAt      time.Time     `json:"updated_at"`
+	ID             string                 `json:"id"`
+	Name           string                 `json:"name" doc:"账号显示名称，便于在商务沟通列表中区分多个个人号"`
+	Phone          string                 `json:"phone,omitempty" doc:"绑定的手机号（已脱敏展示）"`
+	TelegramUserID int64                  `json:"telegram_user_id,omitempty"`
+	Username       string                 `json:"username,omitempty" doc:"Telegram 用户名"`
+	DisplayName    string                 `json:"display_name,omitempty" doc:"Telegram 昵称"`
+	Status         AccountStatus          `json:"status" doc:"连接状态：connected、disconnected 或 auth_expired"`
+	LastError      string                 `json:"last_error,omitempty" doc:"最近一次连接错误信息"`
+	SyncedPeers    []SyncedPeer           `json:"synced_peers" nullable:"false" doc:"已勾选同步的 1:1 单聊与群聊列表"`
+	Business       channel.BusinessPolicy `json:"business" doc:"通用商务策略（默认协作成员、自动标签与翻译覆写）"`
+	Enabled        bool                   `json:"enabled"`
+	CreatedAt      time.Time              `json:"created_at"`
+	UpdatedAt      time.Time              `json:"updated_at"`
 }
 
 // DialogDTO 是从已连接 Telegram 账号读取到的一个候选单聊或群聊，供成员勾选同步。
@@ -201,6 +203,7 @@ func toAccountDTO(ch *channel.Channel) (AccountDTO, error) {
 		Status:         s.Status,
 		LastError:      s.LastError,
 		SyncedPeers:    peers,
+		Business:       channel.BusinessPolicyOf(ch.Settings),
 		Enabled:        ch.Enabled,
 		CreatedAt:      ch.CreatedAt,
 		UpdatedAt:      ch.UpdatedAt,

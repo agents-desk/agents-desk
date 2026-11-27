@@ -45,7 +45,7 @@ interface ChatListProps {
   openId?: string
   open: (id: string) => void
   onNewChat: () => void
-  onManageBusinessChannels: () => void
+  onManageBusinessChannels?: () => void
 }
 
 /**
@@ -114,9 +114,11 @@ export function ChatList({
         }
         actions={
           isExternal ? (
-            <Button size="compact-xs" variant="subtle" color="gray" onClick={onManageBusinessChannels}>
-              {t("chat.business_manage")}
-            </Button>
+            onManageBusinessChannels ? (
+              <Button size="compact-xs" variant="subtle" color="gray" onClick={onManageBusinessChannels}>
+                {t("chat.business_manage")}
+              </Button>
+            ) : undefined
           ) : (
             <Tooltip label={t("chat.new")} openDelay={300}>
               <ActionIcon variant="light" size="sm" aria-label={t("chat.new")} onClick={onNewChat}>
@@ -165,6 +167,7 @@ export function ChatList({
             title={t(hasFilters ? "chat.empty_filtered" : isExternal ? "chat.business_empty" : "chat.empty")}
             action={
               isExternal &&
+              onManageBusinessChannels &&
               !debouncedQ.trim() && (
                 <Button size="xs" variant="light" onClick={onManageBusinessChannels}>
                   {t("chat.business_manage")}
