@@ -359,14 +359,14 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
             value: "config",
             label: t("tg_studio.tab_config"),
             content: accountQuery.isPending ? (
-              <Stack gap="md" maw={760}>
+              <Stack gap="md">
                 <Skeleton height={130} radius="md" />
                 <Skeleton height={220} radius="md" />
                 <Skeleton height={200} radius="md" />
               </Stack>
             ) : account ? (
               <form onSubmit={form.onSubmit((v) => save.mutate(v))}>
-                <Stack gap="md" maw={760}>
+                <Stack gap="md">
                   <FormError error={serverError} />
 
                   <SectionCard

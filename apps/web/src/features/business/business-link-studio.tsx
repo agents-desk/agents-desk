@@ -380,7 +380,7 @@ function ShareAndQRPanel({
   }
 
   return (
-    <Stack gap="lg" maw={680}>
+    <Stack gap="lg">
       <SectionCard title={t("biz_studio.share_link_title")} description={t("biz_studio.share_link_desc")}>
         <Group align="flex-end" gap="xs">
           <TextInput label={t("business_channels.col_url")} value={link.chat_url} readOnly style={{ flex: 1 }} />
@@ -412,8 +412,14 @@ function ShareAndQRPanel({
       <SectionCard title={t("biz_studio.qr_title")} description={t("biz_studio.qr_desc")}>
         <Group align="center" gap="lg" wrap="wrap">
           {link.qr_data_url && (
-            <Paper withBorder p="md" radius="md" bg="white">
-              <img src={link.qr_data_url} alt={link.name} width={180} height={180} style={{ display: "block" }} />
+            <Paper withBorder p="sm" radius="md" bg="white" style={{ flex: "none" }}>
+              <img
+                src={link.qr_data_url}
+                alt={link.name}
+                width={200}
+                height={200}
+                style={{ display: "block", imageRendering: "pixelated" }}
+              />
             </Paper>
           )}
           <Stack gap="xs" style={{ flex: 1, minWidth: 200 }}>

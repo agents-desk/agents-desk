@@ -1,7 +1,10 @@
 package widget
 
 import (
+	"bytes"
+	"encoding/base64"
 	"errors"
+	"image/png"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -237,5 +240,39 @@ func TestBusinessLinkEndToEnd(t *testing.T) {
 	remaining, err := list.Handle(ctx, f.agent)
 	if err != nil || len(remaining) != 1 || remaining[0].ID != link.ID {
 		t.Fatalf("删除未使用链接后列表异常：%v %+v", err, remaining)
+	}
+}
+
+func TestEncodeQRDataURLFullScale(t *testing.T) {
+	t.Parallel()
+	dataURL := encodeQRDataURL("http://localhost:18088/c/owner-bd")
+	const prefix = "data:image/png;base64,"
+	if !strings.HasPrefix(dataURL, prefix) {
+		t.Fatalf("二维码应返回 PNG data URL：%q", dataURL)
+	}
+	raw, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(dataURL, prefix))
+	if err != nil {
+		t.Fatalf("base64 解码失败：%v", err)
+	}
+	img, err := png.Decode(bytes.NewReader(raw))
+	if err != nil {
+		t.Fatalf("PNG 解码失败：%v", err)
+	}
+	b := img.Bounds()
+	if b.Dx() < 200 || b.Dy() < 200 || b.Dx() != b.Dy() {
+		t.Fatalf("二维码应为高分辨率正方形 PNG，实际 %dx%d", b.Dx(), b.Dy())
+	}
+	// 验证右下象限存在黑色像素（覆盖整个画布，排除 rsc.io/qr Code.Image 仅在左上角绘制 1x 像素的缺陷）
+	darkInBottomRight := 0
+	for y := b.Dy() / 2; y < b.Dy(); y++ {
+		for x := b.Dx() / 2; x < b.Dx(); x++ {
+			r, g, bl, _ := img.At(x, y).RGBA()
+			if r < 0x8000 && g < 0x8000 && bl < 0x8000 {
+				darkInBottomRight++
+			}
+		}
+	}
+	if darkInBottomRight == 0 {
+		t.Fatalf("二维码右下象限未包含黑色模块，尺寸=%dx%d", b.Dx(), b.Dy())
 	}
 }

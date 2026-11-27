@@ -1,14 +1,12 @@
 package tgaccount
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"image/png"
 	"io"
 	"log/slog"
 	"net"
@@ -459,15 +457,11 @@ func loadPasswordHint(ctx context.Context, api *tg.Client) string {
 }
 
 func encodeQRDataURL(token qrlogin.Token) (string, error) {
-	img, err := token.Image(qr.M)
+	code, err := qr.Encode(token.URL(), qr.M)
 	if err != nil {
 		return "", errors.Wrap(err, "render telegram qr image")
 	}
-	var buf bytes.Buffer
-	if err := png.Encode(&buf, img); err != nil {
-		return "", errors.Wrap(err, "encode telegram qr png")
-	}
-	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(buf.Bytes()), nil
+	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(code.PNG()), nil
 }
 
 // dialogEntry 是带联系人标记的内部对话项，供 ListDialogs 与 ListFolders 共享解析逻辑。
