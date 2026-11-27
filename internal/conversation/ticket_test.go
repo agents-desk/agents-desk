@@ -293,3 +293,148 @@ func TestTicketCoreLifecycleAndIsolation(t *testing.T) {
 	// 8. 仅拥有 ScopeAssigned 的成员不依赖任何其他权限校验
 	_ = role.Defaults
 }
+
+// TestCreateTicketMultipleSourceConversations 验证一次建单同时关联多条来源服务型会话：
+// 每条来源会话的受影响客户均被关联并标记为来源、每条来源会话时间线均写入建单事件，
+// 且严格校验成员可见范围、会话类型与跨工作区隔离。
+func TestCreateTicketMultipleSourceConversations(t *testing.T) {
+	t.Parallel()
+	env := apptest.New(t)
+	ctx := context.Background()
+
+	createTenant := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{})
+	alpha, err := createTenant.Handle(ctx, apptest.Admin, tenant.CreateParams{
+		Name: "alpha", Slug: "alpha", OwnerEmail: "owner@alpha.com", OwnerName: "主管理员", OwnerPassword: "password",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	beta, err := createTenant.Handle(ctx, apptest.Admin, tenant.CreateParams{
+		Name: "beta", Slug: "beta", OwnerEmail: "owner@beta.com", OwnerName: "B主管理员", OwnerPassword: "password",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sysA := identity.Subject{Type: identity.System, ID: "test", Tenant: alpha.ID}
+	sysB := identity.Subject{Type: identity.System, ID: "test", Tenant: beta.ID}
+
+	teamA, err := team.NewCreate(env.DB).Handle(ctx, sysA, team.Changes{Name: "A组", Assignment: team.Manual})
+	if err != nil {
+		t.Fatal(err)
+	}
+	teamB, err := team.NewCreate(env.DB).Handle(ctx, sysA, team.Changes{Name: "B组", Assignment: team.Manual})
+	if err != nil {
+		t.Fatal(err)
+	}
+	agentRole, err := env.Roles.RoleByName(ctx, "坐席", alpha.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	agentA, err := member.NewAdd(env.DB, env.Roles, env.MemberLogins, env.Files).Handle(ctx, sysA, member.AddParams{
+		Email: "a@alpha.com", Name: "坐席A", Password: "password", RoleID: agentRole.ID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := team.NewPutMember(env.DB, env.Roles, env.MemberLogins, env.Files).Handle(ctx, sysA, teamA.ID, agentA.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	subOwner := identity.Subject{Type: member.Type, ID: alpha.OwnerID, Tenant: alpha.ID, Permissions: auth.WithBase(auth.Owner.Permissions)}
+	subAgentA := identity.Subject{Type: member.Type, ID: agentA.ID, Tenant: alpha.ID, Permissions: auth.WithBase(agentRole.Permissions)}
+
+	chA, err := channel.NewCreate(env.DB).Handle(ctx, sysA, channel.CreateParams{Kind: channel.Test, Name: "渠道A", TeamID: &teamA.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	chB, err := channel.NewCreate(env.DB).Handle(ctx, sysA, channel.CreateParams{Kind: channel.Test, Name: "渠道B", TeamID: &teamB.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	chBeta, err := channel.NewCreate(env.DB).Handle(ctx, sysB, channel.CreateParams{Kind: channel.Test, Name: "Beta渠道"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	down := conversation.Downstream{}
+	recv := conversation.NewReceive(env.DB, channel.DefaultRegistry(), down)
+	conv1, err := recv.Handle(ctx, sysA, conversation.ReceiveParams{ChannelID: chA.ID, From: "c1", FromName: "客户1", Text: "登录报错"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	conv2, err := recv.Handle(ctx, sysA, conversation.ReceiveParams{ChannelID: chB.ID, From: "c2", FromName: "客户2", Text: "我也登录报错"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	convBeta, err := recv.Handle(ctx, sysB, conversation.ReceiveParams{ChannelID: chBeta.ID, From: "cb", FromName: "Beta客户", Text: "hello"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	createTicket := conversation.NewCreateTicket(env.DB, down)
+
+	// 权限校验：坐席 A 看不到 B 组会话，合并建单必须整体拒绝
+	if _, err := createTicket.Handle(ctx, subAgentA, conversation.CreateTicketParams{
+		Title:                 "跨组越权建单",
+		SourceConversationID:  &conv1.ConversationID,
+		SourceConversationIDs: []string{conv2.ConversationID},
+	}); !errors.Is(err, conversation.ErrNotFound) {
+		t.Fatalf("不可见的额外来源会话应返回 ErrNotFound：%v", err)
+	}
+
+	// 跨工作区校验：传入其他工作区的会话必须拒绝
+	if _, err := createTicket.Handle(ctx, subOwner, conversation.CreateTicketParams{
+		Title:                 "跨工作区建单",
+		SourceConversationID:  &conv1.ConversationID,
+		SourceConversationIDs: []string{convBeta.ConversationID},
+	}); !errors.Is(err, conversation.ErrNotFound) {
+		t.Fatalf("跨工作区来源会话应返回 ErrNotFound：%v", err)
+	}
+
+	// 正常多会话一起转成同一张工单（重复传入主来源会话应自动去重）
+	tk, err := createTicket.Handle(ctx, subOwner, conversation.CreateTicketParams{
+		Title:                 "批量登录故障",
+		SourceConversationID:  &conv1.ConversationID,
+		SourceConversationIDs: []string{conv1.ConversationID, conv2.ConversationID},
+	})
+	if err != nil {
+		t.Fatalf("多会话一起转工单失败：%v", err)
+	}
+	if tk.LinkedCount != 2 || len(tk.LinkedContacts) != 2 {
+		t.Fatalf("应关联 2 位受影响客户：count=%d len=%d", tk.LinkedCount, len(tk.LinkedContacts))
+	}
+	for _, lc := range tk.LinkedContacts {
+		if !lc.IsSource {
+			t.Fatalf("多会话一起转工单时每位客户均应标记为来源：%+v", lc)
+		}
+	}
+
+	// 校验两条来源会话的时间线均记录了 conversation.ticket_created 系统事件
+	timeline := conversation.NewTimeline(env.DB, conversation.Media{})
+	for _, cid := range []string{conv1.ConversationID, conv2.ConversationID} {
+		items, err := timeline.Handle(ctx, subOwner, cid, 0, 20)
+		if err != nil {
+			t.Fatalf("读取会话 %s 时间线失败：%v", cid, err)
+		}
+		found := false
+		for _, it := range items {
+			if it.Kind == conversation.Event && it.Content.Event == "conversation.ticket_created" {
+				if id, _ := it.Content.Data["ticket_id"].(string); id == tk.ID {
+					found = true
+					break
+				}
+			}
+		}
+		if !found {
+			t.Fatalf("会话 %s 时间线缺少 conversation.ticket_created 事件", cid)
+		}
+	}
+
+	// 类型校验：把工单本身当成额外来源会话应返回 ErrWrongKind
+	if _, err := createTicket.Handle(ctx, subOwner, conversation.CreateTicketParams{
+		Title:                 "错误来源类型",
+		SourceConversationIDs: []string{tk.ID},
+	}); !errors.Is(err, conversation.ErrWrongKind) {
+		t.Fatalf("非服务型来源会话应返回 ErrWrongKind：%v", err)
+	}
+}

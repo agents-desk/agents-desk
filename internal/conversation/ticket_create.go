@@ -25,16 +25,17 @@ import (
 
 // CreateTicketParams 是新建工单（直接创建或由服务型会话转成）的请求体。
 type CreateTicketParams struct {
-	TypeID               *string               `json:"type_id,omitempty" format:"uuid" doc:"可选：工单类型 ID；不选则为通用工单"`
-	Title                string                `json:"title" minLength:"1" maxLength:"120" doc:"工单标题"`
-	Description          string                `json:"description,omitempty" maxLength:"5000" doc:"工单详细描述"`
-	Visibility           tickettype.Visibility `json:"visibility,omitempty" doc:"工单可见范围（all 或 members）；不填取工单类型默认值或 all"`
-	Priority             Priority              `json:"priority,omitempty" doc:"优先级；不填默认为 normal"`
-	TeamID               *string               `json:"team_id,omitempty" format:"uuid" doc:"归属团队收件箱 ID；不填取工单类型默认团队"`
-	AssigneeID           *string               `json:"assignee_id,omitempty" format:"uuid" doc:"负责人成员 ID；可为空"`
-	SourceConversationID *string               `json:"source_conversation_id,omitempty" format:"uuid" doc:"可选：由哪条服务型会话转成工单，自动关联该会话联系人"`
-	ContactIDs           []string              `json:"contact_ids,omitempty" maxItems:"50" uniqueItems:"true" doc:"可选：创建时一并关联的受影响联系人 ID"`
-	Attributes           map[string]any        `json:"attributes,omitempty" doc:"工单类型对应的自定义字段初始值"`
+	TypeID                *string               `json:"type_id,omitempty" format:"uuid" doc:"可选：工单类型 ID；不选则为通用工单"`
+	Title                 string                `json:"title" minLength:"1" maxLength:"120" doc:"工单标题"`
+	Description           string                `json:"description,omitempty" maxLength:"5000" doc:"工单详细描述"`
+	Visibility            tickettype.Visibility `json:"visibility,omitempty" doc:"工单可见范围（all 或 members）；不填取工单类型默认值或 all"`
+	Priority              Priority              `json:"priority,omitempty" doc:"优先级；不填默认为 normal"`
+	TeamID                *string               `json:"team_id,omitempty" format:"uuid" doc:"归属团队收件箱 ID；不填取工单类型默认团队"`
+	AssigneeID            *string               `json:"assignee_id,omitempty" format:"uuid" doc:"负责人成员 ID；可为空"`
+	SourceConversationID  *string               `json:"source_conversation_id,omitempty" format:"uuid" doc:"可选：由哪条服务型会话转成工单，自动关联该会话联系人"`
+	SourceConversationIDs []string              `json:"source_conversation_ids,omitempty" maxItems:"50" uniqueItems:"true" doc:"可选：同时由多条服务型会话一起转成此工单，自动关联各会话联系人并在会话时间线留痕"`
+	ContactIDs            []string              `json:"contact_ids,omitempty" maxItems:"50" uniqueItems:"true" doc:"可选：创建时一并关联的受影响联系人 ID"`
+	Attributes            map[string]any        `json:"attributes,omitempty" doc:"工单类型对应的自定义字段初始值"`
 }
 
 // CreateTicketInput 是新建工单的 HTTP 请求。
@@ -150,24 +151,47 @@ func (a *CreateTicket) Handle(ctx context.Context, sub identity.Subject, p Creat
 			return attribute.ErrUnknownKey.New(errorx.Field("attributes."+keys[0]), errorx.Public("key", keys[0]))
 		}
 
-		// 解析并校验来源服务型会话与受影响联系人列表
+		// 解析并校验来源服务型会话（单条或多条）与受影响联系人列表
 		type contactLink struct {
 			contactID string
 			sourceID  *string
 		}
-		seenContacts := map[string]bool{}
-		var links []contactLink
-		var sourceConv *Conversation
+		sourceIDSet := map[string]bool{}
+		var sourceIDs []string
 		if p.SourceConversationID != nil && *p.SourceConversationID != "" {
-			sc, err := findVisible(ctx, tx, sub, *p.SourceConversationID, true)
+			sourceIDSet[*p.SourceConversationID] = true
+			sourceIDs = append(sourceIDs, *p.SourceConversationID)
+		}
+		for _, id := range p.SourceConversationIDs {
+			if id == "" || sourceIDSet[id] {
+				continue
+			}
+			sourceIDSet[id] = true
+			sourceIDs = append(sourceIDs, id)
+		}
+
+		// 按确定顺序锁所有来源会话行，避免并发建单或关联时双向加锁死锁
+		sortedSourceIDs := append([]string(nil), sourceIDs...)
+		sort.Strings(sortedSourceIDs)
+		lockedSources := make(map[string]*Conversation, len(sortedSourceIDs))
+		for _, id := range sortedSourceIDs {
+			sc, err := findVisible(ctx, tx, sub, id, true)
 			if err != nil {
 				return err
 			}
 			if sc.Kind != Service {
 				return ErrWrongKind.New()
 			}
-			sourceConv = sc
-			if sc.ContactID != nil && *sc.ContactID != "" {
+			lockedSources[id] = sc
+		}
+
+		seenContacts := map[string]bool{}
+		var links []contactLink
+		sourceConvs := make([]*Conversation, 0, len(sourceIDs))
+		for _, id := range sourceIDs {
+			sc := lockedSources[id]
+			sourceConvs = append(sourceConvs, sc)
+			if sc.ContactID != nil && *sc.ContactID != "" && !seenContacts[*sc.ContactID] {
 				seenContacts[*sc.ContactID] = true
 				sid := sc.ID
 				links = append(links, contactLink{contactID: *sc.ContactID, sourceID: &sid})
@@ -235,7 +259,7 @@ func (a *CreateTicket) Handle(ctx context.Context, sub identity.Subject, p Creat
 			return errors.Wrap(err, "insert ticket meta")
 		}
 
-		// 写入受影响联系人关联，并在来源服务型会话记系统事件
+		// 写入受影响联系人关联，并在每条来源服务型会话记系统事件
 		for _, l := range links {
 			rec := &TicketContact{
 				ID:                   newID(),
@@ -249,13 +273,13 @@ func (a *CreateTicket) Handle(ctx context.Context, sub identity.Subject, p Creat
 				return errors.Wrap(err, "insert ticket contact")
 			}
 		}
-		if sourceConv != nil {
+		for _, sc := range sourceConvs {
 			scEv := event(sub, "conversation.ticket_created", map[string]any{
 				"ticket_id": c.ID,
 				"number":    num,
 				"title":     title,
 			})
-			if err := commit(ctx, tx, a.down, sourceConv, scEv); err != nil {
+			if err := commit(ctx, tx, a.down, sc, scEv); err != nil {
 				return err
 			}
 		}

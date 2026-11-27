@@ -1,9 +1,27 @@
 import type { ConversationDTO, ConversationTicketDTO, TicketTypeVisibility } from "@agents-desk/client/tenant"
-import { Button, Group, Modal, Paper, SegmentedControl, Select, Stack, Text, Textarea, TextInput } from "@mantine/core"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { IconChevronDown, IconChevronRight, IconTicket } from "@tabler/icons-react"
+import {
+  Badge,
+  Button,
+  Center,
+  Group,
+  Loader,
+  Modal,
+  Paper,
+  Pill,
+  ScrollArea,
+  SegmentedControl,
+  Select,
+  Stack,
+  Text,
+  Textarea,
+  TextInput,
+  UnstyledButton,
+} from "@mantine/core"
+import { useDebouncedValue } from "@mantine/hooks"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { IconChevronDown, IconChevronRight, IconPlus, IconSearch, IconTicket } from "@tabler/icons-react"
 import { notifyError, notifySuccess, useCan, useT } from "@go-tenon/ui"
-import { type FormEvent, type ReactNode, useEffect, useState } from "react"
+import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { contactDisplayName } from "../contacts/display"
 import { useMe, useMembers, useTeams } from "../inbox/data"
@@ -42,6 +60,10 @@ export function CreateTicketModal({ opened, onClose, sourceConversation, onCreat
   const [attributes, setAttributes] = useState<Record<string, unknown>>({})
   const [moreOpen, setMoreOpen] = useState(false)
   const [titleError, setTitleError] = useState<string | null>(null)
+  const [extraConversations, setExtraConversations] = useState<ConversationDTO[]>([])
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [convQuery, setConvQuery] = useState("")
+  const [debouncedConvQuery] = useDebouncedValue(convQuery.trim(), 200)
 
   const typeAttrs = useTicketAttributes(typeId ?? undefined)
 
@@ -58,7 +80,69 @@ export function CreateTicketModal({ opened, onClose, sourceConversation, onCreat
     setAttributes({})
     setMoreOpen(false)
     setTitleError(null)
+    setExtraConversations([])
+    setPickerOpen(false)
+    setConvQuery("")
   }, [opened, sourceConversation?.priority])
+
+  // 展开“添加其他会话”面板时加载当前可见的活跃服务型会话，输入关键词时同时走全文搜索
+  const recentConvs = useQuery({
+    queryKey: [...kit.queries.conversation.key(), "ticket-create-picker-recent"],
+    queryFn: () => tenantApi.conversation.list({ inbox: "all", status: "open", sort: "recent", per_page: 25 }),
+    enabled: opened && pickerOpen,
+  })
+  const searchedConvs = useQuery({
+    queryKey: [...kit.queries.conversation.key(), "ticket-create-picker-search", debouncedConvQuery],
+    queryFn: () => tenantApi.conversation.search({ q: debouncedConvQuery, per_page: 20 }),
+    enabled: opened && pickerOpen && debouncedConvQuery.length > 0,
+  })
+
+  // 合并候选会话并排除主来源会话、已选会话以及同一联系人的其他会话
+  const candidateConversations = useMemo(() => {
+    const excludedConvIds = new Set<string>()
+    const excludedContactIds = new Set<string>()
+    if (sourceConversation) {
+      excludedConvIds.add(sourceConversation.id)
+      if (sourceConversation.contact?.id) excludedContactIds.add(sourceConversation.contact.id)
+    }
+    for (const conv of extraConversations) {
+      excludedConvIds.add(conv.id)
+      if (conv.contact?.id) excludedContactIds.add(conv.contact.id)
+    }
+
+    const recent = recentConvs.data?.items ?? []
+    const needle = debouncedConvQuery.toLowerCase()
+    const merged: ConversationDTO[] = []
+    const seen = new Set<string>()
+    const pushIfAllowed = (conv: ConversationDTO) => {
+      if (seen.has(conv.id) || excludedConvIds.has(conv.id)) return
+      if (conv.contact?.id && excludedContactIds.has(conv.contact.id)) return
+      seen.add(conv.id)
+      merged.push(conv)
+    }
+
+    if (!needle) {
+      for (const conv of recent) pushIfAllowed(conv)
+      return merged
+    }
+
+    // 先匹配本地活跃会话中的客户名称、邮箱、渠道名或摘要，再补充全文搜索命中的会话
+    for (const conv of recent) {
+      const name = contactDisplayName(conv.contact, t).toLowerCase()
+      const email = conv.contact?.email?.toLowerCase() ?? ""
+      const channel = conv.channel?.name?.toLowerCase() ?? ""
+      const preview = conv.preview?.toLowerCase() ?? ""
+      if (name.includes(needle) || email.includes(needle) || channel.includes(needle) || preview.includes(needle)) {
+        pushIfAllowed(conv)
+      }
+    }
+    for (const hit of searchedConvs.data?.items ?? []) {
+      pushIfAllowed(hit.conversation)
+    }
+    return merged
+  }, [sourceConversation, extraConversations, recentConvs.data?.items, searchedConvs.data?.items, debouncedConvQuery, t])
+
+  const pickerLoading = recentConvs.isPending || (debouncedConvQuery.length > 0 && searchedConvs.isPending)
 
   const handleTypeChange = (nextId: string | null) => {
     setTypeId(nextId)
@@ -88,6 +172,7 @@ export function CreateTicketModal({ opened, onClose, sourceConversation, onCreat
         team_id: teamId ?? undefined,
         assignee_id: assigneeId ?? undefined,
         source_conversation_id: sourceConversation?.id,
+        source_conversation_ids: extraConversations.length > 0 ? extraConversations.map((x) => x.id) : undefined,
         attributes: Object.keys(cleanedAttrs).length > 0 ? cleanedAttrs : undefined,
       })
     },
@@ -122,14 +207,116 @@ export function CreateTicketModal({ opened, onClose, sourceConversation, onCreat
     >
       <form onSubmit={onSubmit}>
         <Stack gap="sm">
-          {sourceConversation && (
+          {(sourceConversation || extraConversations.length > 0 || pickerOpen) && (
             <Paper withBorder radius="md" px="sm" py="xs" bg="var(--tn-canvas)">
-              <Text size="xs" c="dimmed">
-                {t("tickets.source_conversation_hint", {
-                  contact: contactDisplayName(sourceConversation.contact, t),
-                  channel: sourceConversation.channel?.name ?? "—",
-                })}
-              </Text>
+              <Stack gap={8}>
+                {sourceConversation ? (
+                  <Group justify="space-between" gap="xs" wrap="nowrap">
+                    <Text size="xs" c="dimmed" truncate>
+                      {t("tickets.source_conversation_hint", {
+                        contact: contactDisplayName(sourceConversation.contact, t),
+                        channel: sourceConversation.channel?.name ?? "—",
+                      })}
+                    </Text>
+                    <Button
+                      type="button"
+                      variant="subtle"
+                      size="compact-xs"
+                      leftSection={<IconPlus size={12} />}
+                      onClick={() => setPickerOpen((v) => !v)}
+                      style={{ flex: "none" }}
+                    >
+                      {t("tickets.add_more_conversations")}
+                    </Button>
+                  </Group>
+                ) : (
+                  <Group justify="space-between" gap="xs" wrap="nowrap">
+                    <Text size="xs" c="dimmed">
+                      {t("tickets.extra_conversations_count", { n: extraConversations.length })}
+                    </Text>
+                    <Button
+                      type="button"
+                      variant="subtle"
+                      size="compact-xs"
+                      leftSection={<IconPlus size={12} />}
+                      onClick={() => setPickerOpen((v) => !v)}
+                      style={{ flex: "none" }}
+                    >
+                      {t("tickets.add_conversations")}
+                    </Button>
+                  </Group>
+                )}
+
+                {extraConversations.length > 0 && (
+                  <Group gap={6} wrap="wrap">
+                    {extraConversations.map((conv) => (
+                      <Pill
+                        key={conv.id}
+                        size="sm"
+                        withRemoveButton
+                        onRemove={() => setExtraConversations((prev) => prev.filter((x) => x.id !== conv.id))}
+                      >
+                        {contactDisplayName(conv.contact, t)}
+                        {conv.channel?.name ? ` · ${conv.channel.name}` : ""}
+                      </Pill>
+                    ))}
+                  </Group>
+                )}
+
+                {pickerOpen && (
+                  <Stack gap={6} pt={4} style={{ borderTop: "1px solid var(--tn-border)" }}>
+                    <TextInput
+                      size="xs"
+                      value={convQuery}
+                      onChange={(e) => setConvQuery(e.currentTarget.value)}
+                      placeholder={t("tickets.pick_conversations_placeholder")}
+                      leftSection={<IconSearch size={14} />}
+                    />
+                    <ScrollArea.Autosize mah={180}>
+                      {pickerLoading ? (
+                        <Center py="sm">
+                          <Loader size="xs" />
+                        </Center>
+                      ) : candidateConversations.length === 0 ? (
+                        <Text size="xs" c="dimmed" ta="center" py="sm">
+                          {t("tickets.pick_conversations_empty")}
+                        </Text>
+                      ) : (
+                        <Stack gap={4}>
+                          {candidateConversations.map((conv) => (
+                            <UnstyledButton
+                              key={conv.id}
+                              type="button"
+                              onClick={() => setExtraConversations((prev) => [...prev, conv])}
+                              className="inbox-history"
+                              px="xs"
+                              py={6}
+                              style={{ borderRadius: "var(--mantine-radius-sm)", border: "1px solid var(--tn-border)" }}
+                            >
+                              <Group gap={6} wrap="nowrap">
+                                <Text size="xs" fw={500} truncate style={{ flex: 1, minWidth: 0 }}>
+                                  {contactDisplayName(conv.contact, t)}
+                                </Text>
+                                {conv.channel?.name && (
+                                  <Badge size="xs" variant="light" color="gray" style={{ flex: "none" }}>
+                                    {conv.channel.name}
+                                  </Badge>
+                                )}
+                                <IconPlus size={13} color="var(--tn-muted)" style={{ flex: "none" }} />
+                              </Group>
+                              {conv.preview && (
+                                <Text size="xs" c="dimmed" truncate mt={2}>
+                                  {conv.preview}
+                                </Text>
+                              )}
+                            </UnstyledButton>
+                          ))}
+                        </Stack>
+                      )}
+                    </ScrollArea.Autosize>
+                  </Stack>
+                )}
+              </Stack>
             </Paper>
           )}
 
@@ -169,6 +356,18 @@ export function CreateTicketModal({ opened, onClose, sourceConversation, onCreat
             >
               {t("tickets.more_options")}
             </Button>
+            {!sourceConversation && !pickerOpen && extraConversations.length === 0 && (
+              <Button
+                type="button"
+                variant="subtle"
+                color="gray"
+                size="compact-xs"
+                leftSection={<IconPlus size={12} />}
+                onClick={() => setPickerOpen(true)}
+              >
+                {t("tickets.add_conversations")}
+              </Button>
+            )}
           </Group>
 
           {moreOpen && (
