@@ -19,10 +19,10 @@ import {
   UnstyledButton,
 } from "@mantine/core"
 import { useDebouncedValue } from "@mantine/hooks"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { IconPlus, IconSearch, IconUsersGroup } from "@tabler/icons-react"
 import { PaneBody, PaneHeader, PaneToolbar, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react"
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { kit } from "../api"
 import { previewSummary } from "../inbox/Attachments"
 import { channelColor, ChannelIcon } from "../inbox/channel-badge"
@@ -30,7 +30,7 @@ import { useMe, useMembers } from "../inbox/data"
 import { type FillWatcher, useFillVisible } from "../inbox/fill"
 import { activity } from "../inbox/format"
 import { HighlightedSnippet } from "../inbox/Highlight"
-import { chatDisplayName, type ChatModeFilter, flattenChats, useChatList } from "./data"
+import { chatDisplayName, type ChatModeFilter, flattenChats, prefetchChat, useChatList } from "./data"
 import { EmptyState } from "../components/empty-state"
 import { useListKeys } from "../layout"
 
@@ -73,7 +73,9 @@ export function ChatList({
   // 列表的顺序按 ID 串比较，数据刷新但顺序不变时不重新登记快捷键
   const idsKey = items.map((x) => x.id).join("\n")
   const ids = useMemo(() => (idsKey ? idsKey.split("\n") : []), [idsKey])
-  useListKeys(ids, openId, open)
+  const queryClient = useQueryClient()
+  const warm = useCallback((id: string) => void prefetchChat(queryClient, id), [queryClient])
+  useListKeys(ids, openId, open, warm)
 
   // 滚到底时加载下一页
   const end = useRef<HTMLDivElement>(null)
@@ -218,11 +220,18 @@ function ChatRow({
   const matchSnippet = chat.match?.snippet
   const matchCount = chat.match_count ?? 0
   const chColor = chat.channel ? channelColor(chat.channel.kind) : "brand"
+  const queryClient = useQueryClient()
+  // 悬停时预取聊天和时间线，点下去时直接显示
+  const warm = () => {
+    if (!active) void prefetchChat(queryClient, chat.id)
+  }
 
   return (
     <UnstyledButton
       ref={chat.preview_untranslated && chat.preview_item_id ? watch(chat.preview_item_id) : undefined}
       onClick={onClick}
+      onMouseEnter={warm}
+      onFocus={warm}
       className="inbox-row"
       data-active={active || undefined}
       w="100%"

@@ -13,10 +13,17 @@ import { RowActions } from "../../../../../../components/row-actions"
 import { useUnsavedGuard } from "../../../../../../components/unsaved-guard"
 import { members as memberResource } from "../../../../../../resources"
 import { StatusBadge } from "../../../../../../status"
+import { warmRoute } from "../../../../../../preload"
 
 // 一个团队收件箱：成员（从工作区的成员中选人加入，移出团队收件箱）和工作时间（使用工作区的，或者单独设置），两个标签各自保存。权限来自上级的 teams 布局，菜单中“团队收件箱”保持选中。
 export const Route = createFileRoute("/t/$slug/settings/_inbox/teams/$id")({
   staticData: { title: "team_members.title" },
+  // 预取页面的数据，最多等一小会儿：切换到这一页时内容一次完整出现，不先空白再出现
+  loader: ({ context, params }) =>
+    warmRoute(context.app.queryClient, [
+      { queryKey: ["team", params.id], queryFn: () => tenantApi.team.get(params.id) },
+      { queryKey: ["team", params.id, "members"], queryFn: () => tenantApi.team.members(params.id) },
+    ]),
   component: TeamMembers,
 })
 

@@ -3,11 +3,13 @@ import { createFileRoute, Outlet, useNavigate, useParams } from "@tanstack/react
 import { Pane, useNarrow } from "@go-tenon/ui"
 import { useCallback, useEffect } from "react"
 import "../../../inbox/inbox.css"
-import { flatten, flattenSearchHits, useConversationList, useConversationSearch } from "../../../inbox/data"
+import { conversationListQuery, flatten, flattenSearchHits, prefetchConversation, useConversationList, useConversationSearch } from "../../../inbox/data"
 import { ConversationList, type OpenFocus } from "../../../inbox/List"
 import { InboxNav } from "../../../inbox/Nav"
 import { type InboxSearch, type MatchField, validateInboxSearch } from "../../../inbox/search"
 import { isTypingTarget, NARROW_QUERY } from "../../../layout"
+import { useQueryClient } from "@tanstack/react-query"
+import { warmRoute } from "../../../preload"
 
 // 收件箱：坐席接待会话的地方，铺满内容区（fullBleed），见产品设计的 13.2。二级导航是带数量的收件箱列表（nav 插槽），
 // 右侧是会话列表和会话（子路由 inbox/$id）；当前的列表、状态和排序在地址参数中，切换会话时保留。
@@ -15,6 +17,18 @@ import { isTypingTarget, NARROW_QUERY } from "../../../layout"
 export const Route = createFileRoute("/t/$slug/inbox")({
   staticData: { title: "nav.inbox", icon: "inbox", order: 1, permission: "conversations:read", fullBleed: true },
   validateSearch: validateInboxSearch,
+  // 切换列表、状态和排序时预取会话列表，最多等一小会儿：数据很快到时新列表一次完整出现，不先闪成骨架
+  loaderDeps: ({ search }) => ({
+    box: search.box,
+    team: search.team,
+    view: search.view,
+    filter: search.filter,
+    tag: search.tag,
+    status: search.status,
+    sort: search.sort,
+    q: search.q,
+  }),
+  loader: ({ context, deps }) => (deps.q?.trim() ? undefined : warmRoute(context.app.queryClient, [conversationListQuery(deps)])),
   component: Inbox,
 })
 
@@ -43,6 +57,16 @@ function Inbox() {
       }),
     [navigate, search, slug],
   )
+
+  // 打开一条会话后预取列表中它的上一条和下一条：按 J/K 时直接显示
+  const queryClient = useQueryClient()
+  useEffect(() => {
+    if (!id || searching) return
+    const items = flatten(list.data?.pages)
+    const at = items.findIndex((c) => c.id === id)
+    if (at < 0) return
+    for (const c of [items[at + 1], items[at - 1]]) if (c) void prefetchConversation(queryClient, c.id)
+  }, [id, list.data?.pages, queryClient, searching])
 
   // 非输入态按 J/K 切换当前列表或搜索结果中的下一条/上一条会话
   useEffect(() => {

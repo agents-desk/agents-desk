@@ -1,8 +1,14 @@
 import { createFileRoute, getRouteApi, useNavigate } from "@tanstack/react-router"
 import { ChatView } from "../../../../chat/ChatView"
+import { chatQueries } from "../../../../chat/data"
+import { warmRoute } from "../../../../preload"
 
 // 打开的单条聊天（内部聊天或商务沟通）：/t/{slug}/chat/{id}。
-export const Route = createFileRoute("/t/$slug/chat/$id")({ component: OpenChat })
+// loader 预取聊天和时间线，最多等一小会儿：数据很快到时新聊天一次完整出现，不先闪成加载状态。
+export const Route = createFileRoute("/t/$slug/chat/$id")({
+  loader: ({ context, params }) => warmRoute(context.app.queryClient, chatQueries(context.app.queryClient, params.id)),
+  component: OpenChat,
+})
 
 const tenantRoute = getRouteApi("/t/$slug")
 const chatRoute = getRouteApi("/t/$slug/chat")

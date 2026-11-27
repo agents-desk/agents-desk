@@ -20,7 +20,6 @@ import {
   Loader,
   Paper,
   SegmentedControl,
-  Skeleton,
   Stack,
   Text,
   Textarea,
@@ -92,6 +91,8 @@ import { GroupDetails } from "./GroupDetails"
 import { PeerDetails } from "./PeerDetails"
 import { firstUnread, NewMessagesDivider, ScrollToBottomButton, useStickToBottom } from "../inbox/stick-to-bottom"
 import { clearDraft, type DraftMode, getDraft, saveDraft } from "../inbox/drafts"
+import { ConversationSkeleton, InspectorSkeleton, TimelineSkeleton } from "../components/detail-skeleton"
+import { EmptyState } from "../components/empty-state"
 
 /** LINK 匹配消息中的网址。 */
 const LINK = /https?:\/\/[^\s<>\x22]+[^\s<>\x22\x27.,;:!?)\]}。，；：！？）】」』]/g
@@ -162,11 +163,21 @@ export function ChatView({
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [details.toggle])
 
+  // 还没有数据（直接打开链接或网络较慢）时显示与页面同样布局的骨架，详情栏保持原来的开合，数据到达后只替换内容
   if (!chat) {
+    if (chatQuery.isError) return <EmptyState fill title={t("chat.not_found")} />
     return (
-      <Center style={{ flex: 1 }}>
-        {chatQuery.isError ? <Text c="dimmed">{t("chat.not_found")}</Text> : <Loader size="sm" />}
-      </Center>
+      <Group gap={0} h="100%" wrap="nowrap" align="stretch" style={{ flex: 1, minWidth: 0 }}>
+        <ConversationSkeleton back={narrow ? back : undefined} />
+        <AsidePane
+          opened={details.opened}
+          onClose={details.close}
+          compactQuery={NARROW_QUERY}
+          resizable={{ storageKey: "chat-details", defaultWidth: 320, min: 260, max: 420 }}
+        >
+          <InspectorSkeleton onClose={details.close} />
+        </AsidePane>
+      </Group>
     )
   }
 
@@ -312,11 +323,7 @@ function ChatTimeline({
   if (items.isPending) {
     return (
       <Box className="inbox-timeline" px="var(--tn-pane-px)" py="md">
-        <Stack gap="md">
-          <Skeleton h={48} w="52%" radius="md" />
-          <Skeleton h={44} w="44%" ml="auto" radius="md" />
-          <Skeleton h={56} w="60%" radius="md" />
-        </Stack>
+        <TimelineSkeleton />
       </Box>
     )
   }

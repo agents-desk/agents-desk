@@ -1,4 +1,4 @@
-import { ActionIcon, Alert, Avatar, Badge, Box, Button, Center, Divider, Group, Loader, Text, Tooltip } from "@mantine/core"
+import { ActionIcon, Alert, Avatar, Badge, Box, Button, Divider, Group, Text, Tooltip } from "@mantine/core"
 import { useElementSize } from "@mantine/hooks"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate, useParams } from "@tanstack/react-router"
@@ -16,6 +16,8 @@ import { contactName } from "./List"
 import { AssignMenu, SnoozeMenu } from "./menus"
 import type { MatchField } from "./search"
 import { Timeline } from "./Timeline"
+import { ConversationSkeleton, InspectorSkeleton } from "../components/detail-skeleton"
+import { EmptyState } from "../components/empty-state"
 
 /** ConversationProps 是会话页的设置。 */
 interface ConversationProps {
@@ -118,11 +120,21 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [close, next, status, details.toggle])
 
+  // 还没有数据（直接打开链接或网络较慢）时显示与页面同样布局的骨架，详情栏保持原来的开合，数据到达后只替换内容
   if (!c) {
+    if (conversation.isError) return <EmptyState fill title={t("inbox.not_found")} />
     return (
-      <Center style={{ flex: 1 }}>
-        {conversation.isError ? <Text c="dimmed">{t("inbox.not_found")}</Text> : <Loader size="sm" />}
-      </Center>
+      <Group gap={0} h="100%" wrap="nowrap" align="stretch" style={{ flex: 1, minWidth: 0 }}>
+        <ConversationSkeleton back={narrow ? back : undefined} />
+        <AsidePane
+          opened={details.opened}
+          onClose={details.close}
+          compactQuery={NARROW_QUERY}
+          resizable={{ storageKey: "inbox-details", defaultWidth: 320, min: 260, max: 420 }}
+        >
+          <InspectorSkeleton onClose={details.close} />
+        </AsidePane>
+      </Group>
     )
   }
   const assignee = c.assignee?.type === "member" ? (c.assignee.id === me.data?.id ? t("inbox.you") : byId.get(c.assignee.id)?.name) : undefined

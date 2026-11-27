@@ -5,14 +5,12 @@ import {
   Badge,
   Box,
   Button,
-  Center,
   CopyButton,
   Divider,
   Group,
   Loader,
   Menu,
   Paper,
-  Skeleton,
   Stack,
   Text,
   TextInput,
@@ -61,6 +59,8 @@ import { TicketComposer } from "./TicketComposer"
 import { TicketDetails } from "./TicketDetails"
 import { StatusMark } from "../components/status-mark"
 import { firstUnread, NewMessagesDivider, ScrollToBottomButton, useStickToBottom } from "../inbox/stick-to-bottom"
+import { ConversationSkeleton, InspectorSkeleton, TimelineSkeleton } from "../components/detail-skeleton"
+import { EmptyState } from "../components/empty-state"
 
 /**
  * TicketView 是单张工单的协作主工作区：
@@ -144,11 +144,21 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [details.toggle])
 
+  // 还没有数据（直接打开链接或网络较慢）时显示与页面同样布局的骨架，详情栏保持原来的开合，数据到达后只替换内容
   if (!tk) {
+    if (ticketQuery.isError) return <EmptyState fill title={t("tickets.not_found")} />
     return (
-      <Center style={{ flex: 1 }}>
-        {ticketQuery.isError ? <Text c="dimmed">{t("tickets.not_found")}</Text> : <Loader size="sm" />}
-      </Center>
+      <Group gap={0} h="100%" wrap="nowrap" align="stretch" style={{ flex: 1, minWidth: 0 }}>
+        <ConversationSkeleton back={narrow ? back : undefined} />
+        <AsidePane
+          opened={details.opened}
+          onClose={details.close}
+          compactQuery={NARROW_QUERY}
+          resizable={{ storageKey: "ticket-details", defaultWidth: 320, min: 260, max: 420 }}
+        >
+          <InspectorSkeleton onClose={details.close} />
+        </AsidePane>
+      </Group>
     )
   }
 
@@ -419,11 +429,7 @@ function TicketTimeline({
   if (items.isPending) {
     return (
       <Box className="inbox-timeline" px="var(--tn-pane-px)" py="md">
-        <Stack gap="md">
-          <Skeleton h={56} radius="md" />
-          <Skeleton h={64} radius="md" />
-          <Skeleton h={48} radius="md" />
-        </Stack>
+        <TimelineSkeleton />
       </Box>
     )
   }

@@ -1,7 +1,7 @@
 import type { ContactSort } from "@agents-desk/client/tenant"
 import { Badge, Box, Button, Center, CloseButton, Group, Loader, Select, Skeleton, Stack, Text, TextInput } from "@mantine/core"
 import { useDebouncedValue } from "@mantine/hooks"
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
+import { infiniteQueryOptions, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
 import { IconBookmarkPlus, IconMessageCircle, IconSearch } from "@tabler/icons-react"
 import { ExportButton, PaneBody, PaneHeader, PaneToolbar, useCan, useLanguage, useNarrow, useT, useTimeZone } from "@go-tenon/ui"
@@ -16,6 +16,7 @@ import { ContactAvatar, contactDisplayName, contactSubline } from "./display"
 import type { ContactsSearch } from "./search"
 import { ContactViewModal } from "./ViewModal"
 import { EmptyState } from "../components/empty-state"
+import { prefetchContact } from "./Detail"
 
 /**
  * ContactDirectory 是左侧的联系人名录：顶部一个整体标题与筛选块（第一行是分类标题和数量，第二行是搜索、语言、渠道和排序，
@@ -55,35 +56,10 @@ export function ContactDirectory({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debounced])
 
+  const queryClient = useQueryClient()
   const summary = useQuery(kit.queries.contact.summary())
   const activeView = search.view ? (summary.data?.views ?? []).find((v) => v.id === search.view) : undefined
-  const list = useInfiniteQuery({
-    queryKey: [
-      ...kit.queries.contact.key(),
-      "cursor-list",
-      search.view ?? "",
-      search.kind ?? "",
-      search.q ?? "",
-      search.language ?? "",
-      search.channel ?? "",
-      search.tag ?? "",
-      search.sort,
-    ],
-    queryFn: ({ pageParam }) =>
-      tenantApi.contact.list({
-        view_id: search.view,
-        kind: search.kind,
-        q: search.q,
-        language: search.language,
-        channel_id: search.channel,
-        tag_id: search.tag,
-        sort: search.sort,
-        cursor: pageParam || undefined,
-        per_page: 50,
-      }),
-    initialPageParam: "",
-    getNextPageParam: (last) => last.next_cursor || undefined,
-  })
+  const list = useInfiniteQuery(contactListQuery(search))
 
   // 滚到底时自动加载下一页（与收件箱列表一致）
   const end = useRef<HTMLDivElement>(null)
@@ -366,6 +342,9 @@ export function ContactDirectory({
                   className="ct-row"
                   data-active={active || undefined}
                   onClick={() => openContact(c.id)}
+                  onMouseEnter={() => {
+                    if (!active) void prefetchContact(queryClient, c.id)
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault()
@@ -467,4 +446,35 @@ export function ContactDirectory({
       />
     </Box>
   )
+}
+
+/** contactListQuery 是联系人名录的查询，游标分页（名录与路由 loader 共用）。 */
+export function contactListQuery(search: ContactsSearch) {
+  return infiniteQueryOptions({
+    queryKey: [
+      ...kit.queries.contact.key(),
+      "cursor-list",
+      search.view ?? "",
+      search.kind ?? "",
+      search.q ?? "",
+      search.language ?? "",
+      search.channel ?? "",
+      search.tag ?? "",
+      search.sort,
+    ],
+    queryFn: ({ pageParam }) =>
+      tenantApi.contact.list({
+        view_id: search.view,
+        kind: search.kind,
+        q: search.q,
+        language: search.language,
+        channel_id: search.channel,
+        tag_id: search.tag,
+        sort: search.sort,
+        cursor: pageParam || undefined,
+        per_page: 50,
+      }),
+    initialPageParam: "",
+    getNextPageParam: (last) => last.next_cursor || undefined,
+  })
 }

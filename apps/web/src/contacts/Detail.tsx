@@ -15,7 +15,7 @@ import {
   TextInput,
   Tooltip,
 } from "@mantine/core"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { type QueryClient, queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { IconArrowUpRight, IconCheck, IconCopy, IconExternalLink, IconGitMerge, IconPencil, IconX } from "@tabler/icons-react"
 import {
@@ -40,10 +40,12 @@ import { LanguageSelect } from "../LanguageSelect"
 import { languageName } from "../languages"
 import { NARROW_QUERY } from "../layout"
 import { allZones, formatLocalTime, offsetOf } from "../timezone"
-import { ticketStatusColor, ticketStatusLabel, useContactTickets } from "../tickets/meta"
+import { contactTicketsQuery, ticketStatusColor, ticketStatusLabel, useContactTickets } from "../tickets/meta"
 import { ContactNotesCard } from "./ContactNotesCard"
 import { ContactAvatar, contactDisplayName } from "./display"
 import { MergeContactModal } from "./MergeContactModal"
+import { prefetch, type Warmable } from "../preload"
+import { InspectorSkeleton } from "../components/detail-skeleton"
 
 /** AUTO 是语言选择器中的“自动识别”。 */
 const AUTO = "auto"
@@ -62,10 +64,7 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
   const [mergeOpen, setMergeOpen] = useState(false)
 
   const detail = useQuery(kit.queries.contact.get(id))
-  const conversations = useQuery({
-    queryKey: [...kit.queries.conversation.key(), "contact-detail", id],
-    queryFn: () => tenantApi.conversation.list({ contact_id: id, per_page: 30, sort: "recent" }),
-  })
+  const conversations = useQuery(contactConversationsQuery(id))
   const contactTickets = useContactTickets(can("conversations:read") ? id : undefined)
 
   const update = useMutation({
@@ -85,16 +84,8 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
     </ActionIcon>
   )
 
-  if (detail.isPending) {
-    return (
-      <Stack gap={0} h="100%" w="100%">
-        <PaneHeader title={t("nav.contacts")} back={narrow ? onClose : undefined} actions={closeAction} />
-        <Center style={{ flex: 1 }}>
-          <Loader size="sm" />
-        </Center>
-      </Stack>
-    )
-  }
+  // 还没有数据时显示档案同样布局的骨架，数据到达后只替换内容
+  if (detail.isPending) return <InspectorSkeleton back={narrow ? onClose : undefined} onClose={onClose} />
 
   if (!detail.data) {
     return (
@@ -655,4 +646,22 @@ function IdentitiesSection({ identities }: { identities: ContactIdentityDTO[] })
       )}
     </InspectorSection>
   )
+}
+
+/** contactConversationsQuery 是联系人档案中“会话”一栏的查询（档案与预取共用）。 */
+function contactConversationsQuery(id: string) {
+  return queryOptions({
+    queryKey: [...kit.queries.conversation.key(), "contact-detail", id],
+    queryFn: () => tenantApi.conversation.list({ contact_id: id, per_page: 30, sort: "recent" }),
+  })
+}
+
+/** contactQueries 是打开联系人 id 的档案要用的查询：档案、会话和关联工单（路由 loader 与预取共用）。 */
+export function contactQueries(id: string): Warmable[] {
+  return [kit.queries.contact.get(id), contactConversationsQuery(id), contactTicketsQuery(id)]
+}
+
+/** prefetchContact 预取联系人 id 的档案：列表行悬停时用。 */
+export function prefetchContact(queryClient: QueryClient, id: string): Promise<void> {
+  return prefetch(queryClient, contactQueries(id))
 }

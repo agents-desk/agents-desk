@@ -8,9 +8,12 @@ import { type ReactNode, useState } from "react"
 import { tenantApi } from "../../../../../../api"
 import { RowActions } from "../../../../../../components/row-actions"
 import { teams } from "../../../../../../resources"
+import { warmRoute } from "../../../../../../preload"
 
 // 网页聊天插件列表：浏览工作区中的聊天插件，新建后直接进入实时预览配置工作台。
 export const Route = createFileRoute("/t/$slug/settings/_channels/widgets/")({
+  // 预取页面的数据，最多等一小会儿：切换到这一页时内容一次完整出现，不先空白再出现
+  loader: ({ context }) => warmRoute(context.app.queryClient, [{ queryKey: ["resource", "widget", "list"], queryFn: () => tenantApi.widget.list() }]),
   component: Widgets,
 })
 

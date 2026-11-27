@@ -8,9 +8,12 @@ import { type ReactNode, useState } from "react"
 import { tenantApi } from "../../../../../../api"
 import { RowActions } from "../../../../../../components/row-actions"
 import { teams } from "../../../../../../resources"
+import { warmRoute } from "../../../../../../preload"
 
 // Telegram 机器人渠道列表：浏览工作区中的 Telegram 机器人，新建后直接进入渠道配置工作台。
 export const Route = createFileRoute("/t/$slug/settings/_channels/telegrams/")({
+  // 预取页面的数据，最多等一小会儿：切换到这一页时内容一次完整出现，不先空白再出现
+  loader: ({ context }) => warmRoute(context.app.queryClient, [{ queryKey: ["resource", "telegram", "list"], queryFn: () => tenantApi.telegram.list() }]),
   component: Telegrams,
 })
 
