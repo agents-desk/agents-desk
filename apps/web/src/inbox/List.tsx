@@ -754,6 +754,7 @@ function Row({
       className="inbox-row"
       data-active={active || undefined}
       data-flash={flash || undefined}
+      data-unread={c.unread || undefined}
       data-read={!c.unread || undefined}
       w="100%"
       px="var(--tn-pane-px)"
@@ -762,13 +763,13 @@ function Row({
         {selecting ? (
           <Checkbox checked={selected} readOnly size="xs" tabIndex={-1} style={{ flex: "none" }} />
         ) : (
-          <Indicator disabled={!c.unread} color="brand" size={8} offset={2} withBorder style={{ flex: "none" }}>
+          <Indicator disabled={!c.unread} color="red" size={9} offset={2} withBorder style={{ flex: "none" }}>
             <ContactAvatar contact={c.contact} size={30} />
           </Indicator>
         )}
         <Box style={{ flex: 1, minWidth: 0 }}>
           <Group gap={5} wrap="nowrap" h={20}>
-            <Text size="sm" fw={c.unread ? 700 : 600} truncate lh={1.3}>
+            <Text size="sm" fw={c.unread ? 700 : 400} className="inbox-row-title" truncate lh={1.3}>
               {name}
             </Text>
             {c.channels && c.channels.length > 1 && <MultiChannelBadge channels={c.channels} />}
@@ -786,14 +787,21 @@ function Row({
               className="inbox-wait"
               data-level={alertWait ? level : undefined}
               style={{ flex: "none" }}
-              c={alertWait ? undefined : "dimmed"}
-              fw={alertWait ? 600 : undefined}
+              c={alertWait || c.unread ? undefined : "dimmed"}
+              fw={alertWait || c.unread ? 600 : undefined}
             >
               {c.waiting_since ? duration(c.waiting_since, now, t) : activity(c.last_message_at, language, t, zone)}
             </Text>
           </Group>
           <Group gap={6} wrap="nowrap" align="center" mt={8} h={18}>
-            <Text size="xs" c={draftText || c.unread ? undefined : "dimmed"} truncate lh={1.35} style={{ flex: 1, minWidth: 0 }}>
+            <Text
+              size="xs"
+              c={draftText || c.unread ? undefined : "dimmed"}
+              fw={!draftText && c.unread ? 500 : undefined}
+              truncate
+              lh={1.35}
+              style={{ flex: 1, minWidth: 0 }}
+            >
               {draftText ? (
                 <>
                   <Text span size="xs" fw={600} c="deep-orange">

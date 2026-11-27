@@ -7,7 +7,6 @@ import {
   Center,
   CloseButton,
   Group,
-  Indicator,
   Loader,
   Select,
   Skeleton,
@@ -29,6 +28,7 @@ import { activity } from "../inbox/format"
 import { flattenTickets, prefetchTicket, TICKET_STATUSES, ticketStatusColor, ticketStatusLabel, useTicketList, useTicketTypes } from "./meta"
 import type { TicketSearch, TicketStatusFilter } from "./search"
 import { EmptyState } from "../components/empty-state"
+import { StatusMark } from "../components/status-mark"
 import { useListKeys } from "../layout"
 
 /** TicketListProps 是工单列表栏的设置。 */
@@ -249,18 +249,19 @@ function TicketRow({ tk, active, onClick }: { tk: ConversationTicketDTO; active:
       className="inbox-row"
       data-search=""
       data-active={active || undefined}
+      data-unread={tk.unread || undefined}
+      data-read={!tk.unread || undefined}
       w="100%"
       px="var(--tn-pane-px)"
       py={10}
     >
       <Stack gap={5} style={{ minWidth: 0 }}>
         <Group gap={5} wrap="nowrap">
-          <Indicator disabled={!tk.unread} color="brand" size={7} position="middle-start" offset={-6} style={{ flex: "none" }}>
-            <Text size="xs" fw={600} c="dimmed" style={{ fontVariantNumeric: "tabular-nums" }}>
-              #{tk.number}
-            </Text>
-          </Indicator>
-          <Text size="sm" fw={tk.unread ? 700 : 600} truncate style={{ flex: 1, minWidth: 0 }}>
+          {tk.unread && <StatusMark color="red" />}
+          <Text size="xs" fw={tk.unread ? 600 : 400} c={tk.unread ? undefined : "dimmed"} style={{ fontVariantNumeric: "tabular-nums" }}>
+            #{tk.number}
+          </Text>
+          <Text size="sm" fw={tk.unread ? 700 : 400} className="inbox-row-title" truncate style={{ flex: 1, minWidth: 0 }}>
             {tk.title_translated || tk.title}
           </Text>
           {tk.visibility === "members" && (
@@ -275,7 +276,12 @@ function TicketRow({ tk, active, onClick }: { tk: ConversationTicketDTO; active:
               </span>
             </Tooltip>
           )}
-          <Text size="xs" c="dimmed" style={{ flex: "none", fontVariantNumeric: "tabular-nums" }}>
+          <Text
+            size="xs"
+            c={tk.unread ? undefined : "dimmed"}
+            fw={tk.unread ? 600 : undefined}
+            style={{ flex: "none", fontVariantNumeric: "tabular-nums" }}
+          >
             {activity(tk.last_message_at, ui, t, zone)}
           </Text>
         </Group>

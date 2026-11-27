@@ -1,5 +1,5 @@
 import type { ChatScope } from "@agents-desk/client/tenant"
-import { NavLink, Text } from "@mantine/core"
+import { Group, NavLink, Text } from "@mantine/core"
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
 import { IconBriefcase, IconMessageCircle, IconMessages, IconPlus, IconUsersGroup } from "@tabler/icons-react"
@@ -135,9 +135,12 @@ export function ChatNav({
       </RailSection>
 
       {unread.data && unread.data.unread_chats > 0 && (
-        <Text size="xs" c="dimmed" px={12} pt={8}>
-          {t("chat.unread_chats_hint", { n: unread.data.unread_chats })}
-        </Text>
+        <Group gap={6} px={12} pt={8} wrap="nowrap">
+          <StatusMark color="red" />
+          <Text size="xs" c="dimmed">
+            {t("chat.unread_chats_hint", { n: unread.data.unread_chats })}
+          </Text>
+        </Group>
       )}
     </Fill>
   )
