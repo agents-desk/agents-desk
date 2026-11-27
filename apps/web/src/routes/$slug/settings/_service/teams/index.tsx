@@ -1,6 +1,6 @@
-import { Anchor, Badge, Radio, Stack } from "@mantine/core"
+import { Anchor, Radio, Stack } from "@mantine/core"
 import { createFileRoute, Link } from "@tanstack/react-router"
-import { type FieldInput, preloadResourceList, ResourcePage } from "@go-tenon/ui"
+import { type FieldInput, preloadResourceList, ResourcePage, StatusDot } from "@go-tenon/ui"
 import { teams } from "../../../../../resources"
 
 // 团队收件箱：有 teams:manage 权限的成员新建、修改、停用/启用和删除空的团队收件箱；点名称进入团队收件箱，管理它的成员和工作时间。
@@ -40,9 +40,7 @@ function Teams() {
           </Anchor>
         ),
         status: (v) => (
-          <Badge variant="light" color={v === "active" ? "green" : "gray"}>
-            {String(teams.display("status", v))}
-          </Badge>
+          <StatusDot color={v === "active" ? "green" : "gray"}>{String(teams.display("status", v))}</StatusDot>
         ),
       }}
     />

@@ -33,7 +33,7 @@ import { kit, tenantApi } from "./api"
 import { chatDisplayName } from "./chat/data"
 import { contactDisplayName, contactSubline } from "./contacts/display"
 import { useMe, useMembers, useTeams } from "./inbox/data"
-import { activity } from "./inbox/format"
+import { activity, conversationStatusColor } from "./inbox/format"
 import { HighlightedSnippet, HighlightQuery } from "./inbox/Highlight"
 import { snoozeOptions } from "./inbox/menus"
 import type { MatchField } from "./inbox/search"
@@ -58,8 +58,6 @@ function firstLeaf(item: MenuItem): MenuItem {
   return item.children?.length ? firstLeaf(item.children[0]) : item
 }
 
-/** statusColor 是会话状态的语义徽标颜色。 */
-const statusColor = { open: "bright-blue", snoozed: "yellow", closed: "gray" } as const
 
 /** CommandSearchButton 是放在图标栏顶部的全局搜索入口，点击或按 Cmd/Ctrl + K 打开命令面板。 */
 export function CommandSearchButton(): ReactNode {
@@ -594,7 +592,7 @@ export function CommandPalette({
                             {c.channel.name}
                           </Badge>
                         )}
-                        <Badge size="xs" variant="light" color={statusColor[c.status]} style={{ flex: "none" }}>
+                        <Badge size="xs" variant="light" color={conversationStatusColor[c.status]} style={{ flex: "none" }}>
                           {t(`inbox.status_${c.status}` as const)}
                         </Badge>
                         {hit.match_count > 1 && (

@@ -3,6 +3,7 @@
 import { Center, Skeleton, Text } from "@mantine/core"
 import { useT } from "@go-tenon/ui"
 import type { ReactNode } from "react"
+import { EmptyState } from "../components/empty-state"
 
 export interface SectionCardProps {
   title: ReactNode
@@ -17,6 +18,16 @@ export interface SectionCardProps {
   children: ReactNode
 }
 
+/** ReportEmpty 是报表图表和分区的空状态：在 minHeight 高的区域中居中显示 EmptyState，默认文字是“所选时间范围内暂无数据”。 */
+export function ReportEmpty({ minHeight = 240, children }: { minHeight?: number; children?: ReactNode }): ReactNode {
+  const t = useT()
+  return (
+    <Center mih={minHeight}>
+      <EmptyState title={children ?? t("reports.empty")} />
+    </Center>
+  )
+}
+
 /** 报表拆解图表或表格分区。 */
 export function SectionCard({
   title,
@@ -29,7 +40,6 @@ export function SectionCard({
   flush = false,
   children,
 }: SectionCardProps): ReactNode {
-  const t = useT()
   return (
     <section className="rp-section">
       <div className="rp-section-header">
@@ -50,11 +60,7 @@ export function SectionCard({
         {loading ? (
           <Skeleton height={minHeight} radius="sm" />
         ) : empty ? (
-          <Center mih={minHeight}>
-            <Text size="sm" c="dimmed">
-              {emptyText ?? t("reports.empty")}
-            </Text>
-          </Center>
+          <ReportEmpty minHeight={minHeight}>{emptyText}</ReportEmpty>
         ) : (
           children
         )}

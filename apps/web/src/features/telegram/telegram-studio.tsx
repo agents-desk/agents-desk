@@ -7,7 +7,6 @@ import {
   Code,
   CopyButton,
   Group,
-  Paper,
   PasswordInput,
   SegmentedControl,
   Skeleton,
@@ -29,6 +28,7 @@ import { kit, tenantApi } from "../../api"
 import { AiReceptionCard } from "../../components/ai-placeholders"
 import { useUnsavedGuard } from "../../components/unsaved-guard"
 import { teams } from "../../resources"
+import { FormSection } from "../../components/form-section"
 
 /** Copy 复制 value 并在按钮上短暂显示对勾；默认尺寸与 sm 输入框等高。 */
 function Copy({ value }: { value: string }): ReactNode {
@@ -43,23 +43,6 @@ function Copy({ value }: { value: string }): ReactNode {
         </Tooltip>
       )}
     </CopyButton>
-  )
-}
-
-/** SectionCard 是渠道配置工作台的分组卡片，与网页聊天插件工作台保持统一风格。 */
-function SectionCard({ title, description, children }: { title: string; description: string; children: ReactNode }): ReactNode {
-  return (
-    <Paper withBorder p="md" radius="md">
-      <Stack gap="sm">
-        <Box>
-          <Title order={5}>{title}</Title>
-          <Text size="xs" c="dimmed" mt={2}>
-            {description}
-          </Text>
-        </Box>
-        {children}
-      </Stack>
-    </Paper>
   )
 }
 
@@ -289,14 +272,14 @@ export function TelegramStudio({
           >
             {dirty && (
               <Badge variant="light" color="yellow">
-                {t("telegram_studio.unsaved")}
+                {t("common.unsaved")}
               </Badge>
             )}
             <Button variant="default" size="sm" disabled={!dirty || save.isPending} onClick={handleDiscard}>
-              {t("telegram_studio.discard")}
+              {t("common.discard")}
             </Button>
             <Button size="sm" disabled={!dirty} loading={save.isPending} onClick={() => void form.onSubmit((v) => save.mutate(v))()}>
-              {t("telegram_studio.save")}
+              {t("common.save")}
             </Button>
           </Group>
         ) : undefined
@@ -318,7 +301,7 @@ export function TelegramStudio({
                   <Stack gap="md">
                     <FormError error={serverError} />
 
-                    <SectionCard title={t("telegram_studio.section_basic")} description={t("telegram_studio.section_basic_desc")}>
+                    <FormSection title={t("telegram_studio.section_basic")} description={t("telegram_studio.section_basic_desc")}>
                       <Group gap="xs">
                         <Text size="xs" c="dimmed">
                           {t("channels.audience")}
@@ -342,9 +325,9 @@ export function TelegramStudio({
                         description={t("telegram_studio.enabled_hint")}
                         {...form.getInputProps("enabled", { type: "checkbox" })}
                       />
-                    </SectionCard>
+                    </FormSection>
 
-                    <SectionCard title={t("telegram_studio.section_bot")} description={t("telegram_studio.section_bot_desc")}>
+                    <FormSection title={t("telegram_studio.section_bot")} description={t("telegram_studio.section_bot_desc")}>
                       <PasswordInput
                         label={t("telegrams.bot_token")}
                         description={t("telegrams.bot_token_update_hint")}
@@ -368,11 +351,11 @@ export function TelegramStudio({
                           {t(form.values.gateway_managed ? "telegrams.mode_gateway_desc" : "telegrams.mode_direct_desc")}
                         </Text>
                       </Stack>
-                    </SectionCard>
+                    </FormSection>
 
                     <AiReceptionCard scene={form.values.audience} />
 
-                    <SectionCard title={t("telegram_studio.section_routing")} description={t("telegram_studio.section_routing_desc")}>
+                    <FormSection title={t("telegram_studio.section_routing")} description={t("telegram_studio.section_routing_desc")}>
                       <ResourceSelect
                         model={teams}
                         label={t("telegrams.team_hint")}
@@ -390,7 +373,7 @@ export function TelegramStudio({
                         error={form.errors.team_id}
                         clearable
                       />
-                    </SectionCard>
+                    </FormSection>
                   </Stack>
                 </form>
               )}

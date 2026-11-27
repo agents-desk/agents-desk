@@ -1,7 +1,7 @@
 // 工单报表：顶部工单实时积压条、周期新建与解决趋势、解决效率及按类型/团队/优先级/可见范围/负责人拆解。
 
 import { AreaChart } from "@mantine/charts"
-import { Avatar, Badge, Button, Center, Group, Progress, Select, SimpleGrid, Skeleton, Stack, Text, Tooltip } from "@mantine/core"
+import { Avatar, Badge, Button, Group, Progress, Select, SimpleGrid, Skeleton, Stack, Text, Tooltip } from "@mantine/core"
 import { IconArrowUpRight, IconX } from "@tabler/icons-react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link, useNavigate, useParams } from "@tanstack/react-router"
@@ -23,7 +23,7 @@ import { type MetricItem, MetricStrip } from "./MetricStrip"
 import { GranularityControl } from "./PeriodButton"
 import { ReportShell } from "./ReportShell"
 import type { TicketsReportSearchParams } from "./search"
-import { SectionCard } from "./SectionCard"
+import { ReportEmpty, SectionCard } from "./SectionCard"
 
 /** 工单报表页面组件。 */
 export function TicketsPage({ route }: { route: PeriodRoute }): ReactNode {
@@ -268,11 +268,7 @@ export function TicketsPage({ route }: { route: PeriodRoute }): ReactNode {
             {loading ? (
               <Skeleton height={240} radius="sm" />
             ) : !chartState.data?.length ? (
-              <Center mih={240}>
-                <Text size="sm" c="dimmed">
-                  {t("reports.empty")}
-                </Text>
-              </Center>
+              <ReportEmpty minHeight={240} />
             ) : (
               <AreaChart
                 h={240}

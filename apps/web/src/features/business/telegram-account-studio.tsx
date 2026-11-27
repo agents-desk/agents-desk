@@ -22,7 +22,6 @@ import {
   Text,
   TextInput,
   ThemeIcon,
-  Title,
 } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import {
@@ -56,6 +55,7 @@ import { RowActions } from "../../components/row-actions"
 import { useUnsavedGuard } from "../../components/unsaved-guard"
 import { useMe, useMembers } from "../../inbox/data"
 import { SyncedPeersModal, TelegramLoginModal } from "./telegram-modals"
+import { FormSection } from "../../components/form-section"
 
 interface TelegramAccountFormValues {
   name: string
@@ -98,25 +98,6 @@ function toFormValues(acc: TgaccountAccountDTO): TelegramAccountFormValues {
       auto_translate: autoTranslate,
     },
   }
-}
-
-function SectionCard({ title, description, actions, children }: { title: string; description: string; actions?: ReactNode; children: ReactNode }): ReactNode {
-  return (
-    <Paper withBorder p="md" radius="md">
-      <Stack gap="sm">
-        <Group justify="space-between" align="flex-start" gap="sm" wrap="wrap">
-          <Box style={{ flex: 1, minWidth: 200 }}>
-            <Title order={5}>{title}</Title>
-            <Text size="xs" c="dimmed" mt={2}>
-              {description}
-            </Text>
-          </Box>
-          {actions}
-        </Group>
-        {children}
-      </Stack>
-    </Paper>
-  )
 }
 
 /**
@@ -342,14 +323,14 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
             >
               {dirty && (
                 <Badge variant="light" color="yellow">
-                  {t("widget_studio.unsaved")}
+                  {t("common.unsaved")}
                 </Badge>
               )}
               <Button variant="default" size="sm" disabled={!dirty || save.isPending} onClick={handleDiscard}>
-                {t("widget_studio.discard")}
+                {t("common.discard")}
               </Button>
               <Button size="sm" disabled={!dirty} loading={save.isPending} onClick={() => void form.onSubmit((v) => save.mutate(v))()}>
-                {t("widget_studio.save")}
+                {t("common.save")}
               </Button>
             </Group>
           ) : undefined
@@ -369,7 +350,7 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
                 <Stack gap="md">
                   <FormError error={serverError} />
 
-                  <SectionCard
+                  <FormSection
                     title={t("tg_studio.health_title")}
                     description={t("tg_studio.health_desc")}
                     actions={
@@ -420,9 +401,9 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
                         <Text size="xs">{account.last_error}</Text>
                       </Alert>
                     )}
-                  </SectionCard>
+                  </FormSection>
 
-                  <SectionCard title={t("tg_studio.section_basic")} description={t("tg_studio.section_basic_desc")}>
+                  <FormSection title={t("tg_studio.section_basic")} description={t("tg_studio.section_basic_desc")}>
                     <TextInput
                       label={t("business_channels.tg_account_name")}
                       placeholder={t("business_channels.tg_account_name_placeholder")}
@@ -435,9 +416,9 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
                       description={t("tg_studio.enabled_hint")}
                       {...form.getInputProps("enabled", { type: "checkbox" })}
                     />
-                  </SectionCard>
+                  </FormSection>
 
-                  <SectionCard title={t("tg_studio.section_sync")} description={t("tg_studio.section_sync_desc")}>
+                  <FormSection title={t("tg_studio.section_sync")} description={t("tg_studio.section_sync_desc")}>
                     <Stack gap={4}>
                       <Text size="sm" fw={500}>
                         {t("tg_studio.sync_mode")}
@@ -552,9 +533,9 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
                         ]}
                       />
                     </Stack>
-                  </SectionCard>
+                  </FormSection>
 
-                  <SectionCard title={t("biz_studio.section_policy")} description={t("biz_studio.section_policy_desc")}>
+                  <FormSection title={t("biz_studio.section_policy")} description={t("biz_studio.section_policy_desc")}>
                     <MultiSelect
                       label={t("biz_studio.collaborators")}
                       description={t("biz_studio.collaborators_hint")}
@@ -597,7 +578,7 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
                       value={form.values.business.auto_translate}
                       onChange={(v) => form.setFieldValue("business.auto_translate", (v ?? "inherit") as "inherit" | "on" | "off")}
                     />
-                  </SectionCard>
+                  </FormSection>
                 </Stack>
               </form>
             ) : null,
