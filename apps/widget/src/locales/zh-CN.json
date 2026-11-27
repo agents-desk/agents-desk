@@ -52,7 +52,6 @@
   "composer.attach_drop": "松开以上传",
   "composer.attach_remove": "移除",
   "composer.attach_retry": "重试",
-  "composer.hint": "回车发送，Shift + 回车换行",
   "composer.placeholder": "输入消息…",
   "composer.send": "发送",
   "demo.channel": "聊天插件的 ID",

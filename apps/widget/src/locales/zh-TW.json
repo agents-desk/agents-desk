@@ -52,7 +52,6 @@
   "composer.attach_drop": "放開以上傳",
   "composer.attach_remove": "移除",
   "composer.attach_retry": "重試",
-  "composer.hint": "按 Enter 傳送，Shift + Enter 換行",
   "composer.placeholder": "輸入訊息…",
   "composer.send": "傳送",
   "demo.channel": "聊天外掛 ID",

@@ -47,15 +47,15 @@ export function Header({ color, title, greeting, status, onBack, extra, close, o
           {closeButton}
         </Group>
       ) : (
-        <Box px="lg" pt="lg" pb={34} pos="relative">
-          <Text fw={600} size="sm" style={{ paddingInlineEnd: 64 }}>
-            {title}
-          </Text>
-          <Group gap={4} pos="absolute" top={10} style={{ insetInlineEnd: 8 }} wrap="nowrap">
+        <Box pt={8} pb="md" style={{ paddingInlineStart: "var(--mantine-spacing-md)", paddingInlineEnd: 8 }}>
+          <Group gap={4} wrap="nowrap" align="center" mih={34}>
+            <Text fw={600} size="sm" style={{ flex: 1, minWidth: 0 }} truncate>
+              {title}
+            </Text>
             {extra}
             {closeButton}
           </Group>
-          <Title order={2} size="h3" mt="sm" c={fg}>
+          <Title order={2} size="h3" mt={4} style={{ paddingInlineEnd: "var(--mantine-spacing-xs)" }} c={fg}>
             {greeting}
           </Title>
         </Box>

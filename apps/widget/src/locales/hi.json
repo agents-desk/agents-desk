@@ -52,7 +52,6 @@
   "composer.attach_drop": "अपलोड करने के लिए छोड़ें",
   "composer.attach_remove": "हटाएं",
   "composer.attach_retry": "पुनः प्रयास करें",
-  "composer.hint": "भेजने के लिए Enter, नई पंक्ति के लिए Shift + Enter दबाएं",
   "composer.placeholder": "संदेश लिखें…",
   "composer.send": "भेजें",
   "demo.channel": "चैट विजेट ID",

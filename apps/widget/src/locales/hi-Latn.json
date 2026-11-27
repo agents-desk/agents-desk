@@ -52,7 +52,6 @@
   "composer.attach_drop": "Upload karne ke liye chhodein",
   "composer.attach_remove": "Hatayein",
   "composer.attach_retry": "Dobara try karein",
-  "composer.hint": "Bhejne ke liye Enter, nayi line ke liye Shift + Enter",
   "composer.placeholder": "Message likhein…",
   "composer.send": "Bhejein",
   "demo.channel": "Chat widget ID",

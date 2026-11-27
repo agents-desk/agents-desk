@@ -48,7 +48,7 @@ interface Pending {
 /** newClientId 返回一条消息的编号，服务端用它去重。 */
 const newClientId = () => crypto.randomUUID().replace(/-/g, "")
 
-/** FirstMessage 是客户还没有历史消息时，时间线底部贴近输入框的引导文案，支持商务链接快捷开场话题。 */
+/** FirstMessage 是客户还没有历史消息时，在空白对话区垂直居中展示的引导文案，支持商务链接快捷开场话题。 */
 function FirstMessage({ color, starters, onPickStarter }: { color: string; starters?: string[]; onPickStarter?: (text: string) => void }): ReactNode {
   const t = useT()
   return (
@@ -286,7 +286,7 @@ export function ConversationView({
     <>
       <Box className="w-scroll-wrap">
         <Box ref={scroller} className="w-scroll" onScroll={onScroll}>
-          <Stack gap={0} p="md" justify={list.length === 0 && pending.length === 0 ? "flex-end" : undefined} mih="100%">
+          <Stack gap={0} p="md" justify={list.length === 0 && pending.length === 0 ? "center" : undefined} mih="100%">
             {hasMore && (
               <Center mb="sm">
                 <Button

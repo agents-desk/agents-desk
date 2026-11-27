@@ -103,13 +103,48 @@ body {
   background: var(--mantine-color-body);
 }
 
-/* 输入框单行高度精确对齐左右 42px 圆形按钮（9px + 22px + 9px + 2px 边框 = 42px），文字严格垂直居中 */
+/* 一体化输入框容器：行首内嵌附件按钮，单行高度精确对齐发送按钮 */
+.w-composer-field {
+  flex: 1;
+  min-width: 0;
+  min-height: 42px;
+  display: flex;
+  align-items: flex-end;
+  border-radius: 21px;
+  border: 1px solid var(--tn-border-strong, var(--mantine-color-gray-4));
+  background: var(--tn-surface, var(--mantine-color-body));
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+  cursor: text;
+}
+.w-composer-field:focus-within {
+  border-color: var(--mantine-primary-color-filled);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mantine-primary-color-filled) 12%, transparent);
+}
+.w-composer-textarea {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 输入框单行内高 40px（9px + 22px + 9px），配外层 2px 边框后与 42px 发送按钮严格对齐 */
 .w-composer-input {
+  display: block;
+  width: 100%;
   font-size: 16px;
   line-height: 22px;
   padding-block: 9px;
   padding-inline: 14px;
-  min-height: 42px;
+  min-height: 40px;
+}
+.w-composer-field[data-attach] .w-composer-input {
+  padding-inline-start: 4px;
+}
+
+/* 行首内嵌附件按钮：34px 圆形配 3px 边距，外圆角 21px 与内圆角 17px 保持同心，多行时贴底对齐 */
+.w-composer-attach {
+  flex: none;
+  margin-block: 3px;
+  margin-inline-start: 3px;
+  margin-inline-end: 0;
 }
 
 /* 工单列表的一行：点击区域至少 44px，悬停与按压有清晰反馈 */
@@ -222,6 +257,7 @@ body {
     animation: none;
   }
   .w-launcher,
+  .w-composer-field,
   .w-conversation,
   .w-conversation-arrow {
     transition: none;

@@ -52,7 +52,6 @@
   "composer.attach_drop": "Drop to upload",
   "composer.attach_remove": "Remove",
   "composer.attach_retry": "Retry",
-  "composer.hint": "Enter to send, Shift + Enter for a new line",
   "composer.placeholder": "Type a message…",
   "composer.send": "Send",
   "demo.channel": "Chat widget ID",

@@ -1,5 +1,5 @@
 import type { ConversationAttachmentDTO, ConversationAttachmentInput } from "@agents-desk/client/widget"
-import { ActionIcon, Box, FileButton, Group, Text, Textarea } from "@mantine/core"
+import { ActionIcon, Box, FileButton, Group, Text, Textarea, Tooltip } from "@mantine/core"
 import { IconPaperclip, IconSend, IconX } from "@tabler/icons-react"
 import { useT, useUploadQueue } from "@go-tenon/ui"
 import { type ReactNode, useRef, useState } from "react"
@@ -33,6 +33,7 @@ export function Composer({ color, touch, placeholder, allowAttachments = true, o
   const [dragging, setDragging] = useState(false)
   const dragDepth = useRef(0)
   const resetFile = useRef<() => void>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const queue = useUploadQueue<WidgetUploadedMedia>({
     upload: (file) => uploadWidgetMediaFile(file, (f) => authed(() => widgetApi.file.upload({ file: f }))),
     accept: ATTACHMENT_ACCEPT,
@@ -99,61 +100,74 @@ export function Composer({ color, touch, placeholder, allowAttachments = true, o
       )}
       {allowAttachments && <WidgetAttachmentStrip items={queue.items} onRemove={queue.remove} onRetry={queue.retry} />}
       <Group gap="xs" align="flex-end" wrap="nowrap" p="xs">
-        {allowAttachments && (
-          <FileButton
-            resetRef={resetFile}
-            multiple
-            accept={ATTACHMENT_ACCEPT}
-            onChange={(files) => {
-              if (files.length > 0) {
-                setUploadError(null)
-                queue.add(files)
-              }
-              resetFile.current?.()
+        <Box
+          className="w-composer-field"
+          data-attach={allowAttachments || undefined}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) textareaRef.current?.focus()
+          }}
+        >
+          {allowAttachments && (
+            <FileButton
+              resetRef={resetFile}
+              multiple
+              accept={ATTACHMENT_ACCEPT}
+              onChange={(files) => {
+                if (files.length > 0) {
+                  setUploadError(null)
+                  queue.add(files)
+                }
+                resetFile.current?.()
+              }}
+            >
+              {(props) => (
+                <Tooltip label={t("composer.attach")} disabled={touch} openDelay={400}>
+                  <ActionIcon
+                    {...props}
+                    size={34}
+                    radius="xl"
+                    variant="subtle"
+                    color="gray"
+                    className="w-composer-attach"
+                    aria-label={t("composer.attach")}
+                  >
+                    <IconPaperclip size={18} />
+                  </ActionIcon>
+                </Tooltip>
+              )}
+            </FileButton>
+          )}
+          <Textarea
+            ref={textareaRef}
+            value={text}
+            onChange={(e) => {
+              setText(e.currentTarget.value)
+              if (e.currentTarget.value.trim()) onTyping?.()
             }}
-          >
-            {(props) => (
-              <ActionIcon {...props} size={42} radius="xl" variant="subtle" color="gray" aria-label={t("composer.attach")}>
-                <IconPaperclip size={18} />
-              </ActionIcon>
-            )}
-          </FileButton>
-        )}
-        <Textarea
-          value={text}
-          onChange={(e) => {
-            setText(e.currentTarget.value)
-            if (e.currentTarget.value.trim()) onTyping?.()
-          }}
-          onPaste={(e) => {
-            if (allowAttachments && queue.handlePaste(e)) setUploadError(null)
-          }}
-          onKeyDown={(e) => {
-            if (!touch && e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-              e.preventDefault()
-              send()
-            }
-          }}
-          placeholder={placeholder}
-          autosize
-          minRows={1}
-          maxRows={5}
-          radius="xl"
-          size="md"
-          maxLength={10000}
-          classNames={{ input: "w-composer-input" }}
-          style={{ flex: 1 }}
-          aria-label={placeholder}
-        />
+            onPaste={(e) => {
+              if (allowAttachments && queue.handlePaste(e)) setUploadError(null)
+            }}
+            onKeyDown={(e) => {
+              if (!touch && e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault()
+                send()
+              }
+            }}
+            placeholder={placeholder}
+            variant="unstyled"
+            autosize
+            minRows={1}
+            maxRows={5}
+            size="md"
+            maxLength={10000}
+            classNames={{ root: "w-composer-textarea", input: "w-composer-input" }}
+            aria-label={placeholder}
+          />
+        </Box>
         <ActionIcon size={42} radius="xl" color={color} variant="filled" disabled={!canSend} onClick={send} aria-label={t("composer.send")}>
           <IconSend size={18} />
         </ActionIcon>
       </Group>
-      {!touch && (
-        <Text size="xs" c="dimmed" ta="center" pb={6}>
-          {t("composer.hint")}
-        </Text>
-      )}
     </Box>
   )
 }
