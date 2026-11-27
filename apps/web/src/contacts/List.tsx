@@ -21,7 +21,7 @@ import { prefetchContact } from "./Detail"
 
 /**
  * ContactDirectory 是左侧的联系人名录：顶部一个整体标题与筛选块（第一行是分类标题和数量，第二行是搜索、语言、渠道和排序，
- * 中间不加多余横线，风格与收件箱列表顶栏一致）；下方游标分页、滚到底自动加载下一页；点击整行在右侧分栏展开或切换档案。
+ * 两者之间没有分隔线）；下方游标分页、滚到底自动加载下一页；点击整行在右侧分栏展开或切换档案。
  */
 export function ContactDirectory({
   search,
@@ -62,7 +62,7 @@ export function ContactDirectory({
   const activeView = search.view ? (summary.data?.views ?? []).find((v) => v.id === search.view) : undefined
   const list = useInfiniteQuery(contactListQuery(search))
 
-  // 滚到底时自动加载下一页（与收件箱列表一致）
+  // 滚到底时自动加载下一页
   const end = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const el = end.current
@@ -141,7 +141,7 @@ export function ContactDirectory({
 
   return (
     <Box style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {/* 52px 基准顶栏：与二级导航头和右侧档案顶栏严格齐平 */}
+      {/* 52px 顶栏，与二级导航头和右侧档案顶栏齐平 */}
       <PaneHeader
         showNavToggle
         title={

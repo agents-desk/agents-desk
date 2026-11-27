@@ -7,7 +7,7 @@ import { ContactsNav } from "../../contacts/Nav"
 import { type ContactsSearch, validateContactsSearch } from "../../contacts/search"
 import { NARROW_QUERY } from "../../layout"
 
-// 联系人模块：与收件箱一致的分栏工作台布局（fullBleed）。二级导航是全部/用户/线索（nav 插槽），
+// 联系人模块：分栏工作台布局（fullBleed）。二级导航是全部/用户/线索（nav 插槽），
 // 左侧常驻联系人名录，选中某位联系人后由框架 AsidePane 响应式展示档案分栏（子路由 contacts/$id）。
 export const Route = createFileRoute("/$slug/contacts")({
   staticData: { title: "nav.contacts", icon: "contacts", order: 3, permission: "contacts:read", fullBleed: true },

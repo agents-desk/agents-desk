@@ -187,7 +187,7 @@ function TelegramInstallPanel({ id }: { id: string }): ReactNode {
 }
 
 /**
- * TelegramStudio 是 Telegram 机器人渠道的统一配置工作台，与网页聊天插件工作台保持一致的交互范式：
+ * TelegramStudio 是 Telegram 机器人渠道的配置页：
  *   - 基本配置：按分组卡片编辑基础信息、Bot Token / 接入模式与团队路由；
  *   - 安装与接入：查看渠道 ID、Webhook 地址、密钥与外部网关透传头说明。
  */

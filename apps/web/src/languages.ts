@@ -43,7 +43,7 @@ export const allLanguages = [
 ] as const
 
 /**
- * sameLanguage 判断两个 BCP 47 标签是否指向同一种语言与书写/地区变体（与后端 internal/lang.Same 严格一致）：
+ * sameLanguage 判断两个 BCP 47 标签是否指向同一种语言与书写/地区变体（规则与后端 internal/lang.Same 相同）：
  * - 先比较主语言（language）与书写方式（经 maximize 推断默认脚本，如 zh-CN == zh-Hans，hi != hi-Latn）；
  * - 双方都显式指定了不同地区且主语言不是中文时（如 pt-BR vs pt-PT、es-MX vs es-ES）视为不同变体；
  * - 一方未显式指定地区时（如 pt vs pt-BR、en vs en-US）视为兼容相同。

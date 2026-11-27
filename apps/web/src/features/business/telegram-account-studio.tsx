@@ -276,7 +276,7 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
     if (!account) return
     const ok = await confirm({
       title: t("tg_studio.peer_remove_confirm", { name: peer.title }),
-      message: t("tg_studio.peer_remove_msg"),
+      message: t("tg_studio.peer_remove_message"),
       danger: true,
       confirmLabel: t("tg_studio.peer_remove"),
     })

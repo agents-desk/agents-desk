@@ -58,7 +58,7 @@ function toFormValues(w: WidgetDTO): StudioFormValues {
   }
 }
 
-/** SectionCard 是工作台左栏的分组配置卡片，便于后续按能力分组扩展新配置项。 */
+/** SectionCard 是配置页左栏的分组卡片：标题、说明和一组输入项。 */
 function SectionCard({ title, description, children }: { title: string; description: string; children: ReactNode }): ReactNode {
   return (
     <Paper withBorder p="md" radius="md">

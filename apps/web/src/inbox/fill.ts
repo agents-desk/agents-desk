@@ -9,7 +9,7 @@ import { tenantApi } from "../api"
 const FILL_BATCH = 100
 const FILL_DELAY = 300
 
-/** FILL_COOLDOWN 是同一语言下同一条消息两次补译请求的最小间隔（毫秒）：避免重复请求，同时允许后台重试彻底失败后再次看到时重新补译。 */
+/** FILL_COOLDOWN 是同一语言下同一条消息两次补译请求的最小间隔（毫秒）：间隔内的重复请求合并为一次；后台重试全部失败后，消息再次出现在视口中时重新补译。 */
 const FILL_COOLDOWN = 60_000
 
 /** requested 记录“语言:消息ID”最近一次请求补译的时间；请求失败时立刻移除。 */

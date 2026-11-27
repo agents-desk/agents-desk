@@ -177,7 +177,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
     .filter(Boolean)
     .join(" · ")
 
-  // 当聊天列实际宽度小于 640px（例如中屏四栏并排）或移动端窄屏时，操作按钮降级为图标 + Tooltip，避免挤压联系人名字
+  // 当聊天列实际宽度小于 640px（例如中屏四栏并排）或移动端窄屏时，操作按钮改为图标 + Tooltip，给联系人名字留出宽度
   const compactActions = narrow || (mainWidth > 0 && mainWidth < 640)
   return (
     <Group gap={0} h="100%" wrap="nowrap" align="stretch" style={{ flex: 1, minWidth: 0 }}>

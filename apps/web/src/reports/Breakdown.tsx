@@ -21,7 +21,7 @@ export const REPORT_BAR_PROPS = {
   animationEasing: "ease-out" as const,
 }
 
-/** 行尾悬停露出的轻量“在收件箱查看”链接按钮，点击时阻止冒泡避免触发整行报表聚焦。 */
+/** 行尾悬停露出的轻量“在收件箱查看”链接按钮，点击事件在按钮处停止冒泡，整行的报表聚焦保持原样。 */
 export function InboxDrillButton({
   slug,
   search,

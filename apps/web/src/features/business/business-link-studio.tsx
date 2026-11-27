@@ -163,7 +163,7 @@ function toFormValues(link: WidgetBusinessLinkDTO): BusinessLinkFormValues {
   }
 }
 
-/** SectionCard 是工作台左栏的分组配置卡片，与 WidgetStudio 视觉范式一致。 */
+/** SectionCard 是配置页左栏的分组卡片：标题、说明和一组输入项。 */
 function SectionCard({ title, description, children }: { title: string; description: string; children: ReactNode }): ReactNode {
   return (
     <Paper withBorder p="md" radius="md">
@@ -421,8 +421,8 @@ function ShareAndQRPanel({
 
   const handleRotate = async () => {
     const ok = await confirm({
-      title: t("biz_studio.rotate_confirm_title"),
-      message: t("biz_studio.rotate_confirm_msg"),
+      title: t("biz_studio.rotate_confirm"),
+      message: t("biz_studio.rotate_message"),
       danger: true,
       confirmLabel: t("biz_studio.rotate_code"),
     })

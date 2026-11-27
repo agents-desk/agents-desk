@@ -13,7 +13,7 @@ export interface ConversationDraft {
 /** STORAGE_KEY 是草稿在 sessionStorage 中的键名。 */
 const STORAGE_KEY = "agents-desk:inbox-drafts"
 
-/** MAX_DRAFTS 是最多保留的草稿条数，避免存储无限增长。 */
+/** MAX_DRAFTS 是最多保留的草稿条数，超出时丢弃最旧的草稿。 */
 const MAX_DRAFTS = 50
 
 const listeners = new Set<() => void>()

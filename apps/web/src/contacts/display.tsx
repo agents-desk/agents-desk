@@ -11,7 +11,7 @@ export interface ContactLabel {
   email?: string
 }
 
-/** AVATAR_COLORS 是主题预设的彩色色板：按联系人编号或 ID 稳定映射，避免匿名访客千篇一律同色。 */
+/** AVATAR_COLORS 是主题预设的彩色色板：按联系人编号或 ID 稳定映射，每位匿名访客有自己的颜色。 */
 const AVATAR_COLORS = [
   "brand",
   "bright-blue",
@@ -74,7 +74,7 @@ export function contactSubline(c: { name?: string; email?: string; external_user
 /**
  * ContactAvatar 渲染联系人头像：
  *   - 有真实姓名或邮箱时按稳定色板显示首字母/首字；
- *   - 纯匿名访客显示带稳定主题色的访客图标，避免整屏都是同一个颜色的“访”字。
+ *   - 纯匿名访客显示带稳定主题色的访客图标。
  */
 export function ContactAvatar({ contact, size }: { contact: ContactLabel | null | undefined; size: number }): ReactNode {
   const color = contactAvatarColor(contact)

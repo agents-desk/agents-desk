@@ -198,7 +198,7 @@ export function Composer({
   }, [isExternalGroup, timeline.data])
   const hasPending = !note && hasPendingActions(pendingActions)
   const translatableText = !value.startsWith("/") ? value : ""
-  // 内部备注模式严格按真实接收者推导（@ 提及同事 → 会话负责人与时间线参与成员）；回复模式默认跟随客户语言
+  // 内部备注模式按真实接收者推导（@ 提及同事 → 会话负责人与时间线参与成员）；回复模式默认跟随客户语言
   const noteDefaultTarget = useMemo(() => {
     const directIds: (string | undefined)[] = [
       c.assignee?.type === "member" ? c.assignee.id : undefined,
