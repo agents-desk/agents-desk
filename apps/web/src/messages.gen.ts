@@ -501,6 +501,7 @@ export const messages = {
     "inbox.clear_filters": "Clear filters",
     "inbox.close": "Close",
     "inbox.close_details": "Close details",
+    "inbox.collapse_short": "Hide",
     "inbox.collapse_translation": "Hide translation review",
     "inbox.confirm_send": "Confirm \u0026 send",
     "inbox.contact_email": "Email",
@@ -1934,6 +1935,7 @@ export const messages = {
     "inbox.clear_filters": "清除筛选",
     "inbox.close": "关闭",
     "inbox.close_details": "关闭详情",
+    "inbox.collapse_short": "收起",
     "inbox.collapse_translation": "收起译文校对",
     "inbox.confirm_send": "确认发送",
     "inbox.contact_email": "邮箱",
@@ -3370,6 +3372,7 @@ export type MessageId =
   | "inbox.clear_filters"
   | "inbox.close"
   | "inbox.close_details"
+  | "inbox.collapse_short"
   | "inbox.collapse_translation"
   | "inbox.confirm_send"
   | "inbox.contact_email"

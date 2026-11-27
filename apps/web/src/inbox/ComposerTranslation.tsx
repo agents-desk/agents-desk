@@ -22,7 +22,7 @@ import {
   useCombobox,
 } from "@mantine/core"
 import { useQuery } from "@tanstack/react-query"
-import { IconCheck, IconChevronDown, IconLanguage, IconPencil, IconRefresh, IconX } from "@tabler/icons-react"
+import { IconCheck, IconChevronDown, IconLanguage, IconPencil, IconRefresh } from "@tabler/icons-react"
 import { describeError } from "@go-tenon/client"
 import { errorMessage, useLanguage, useT } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
@@ -292,7 +292,7 @@ export function useComposerTranslation({
 /**
  * AutoTranslateHint 是发送按钮旁的自动翻译状态，也是打开译文校对栏的唯一入口：
  * 对外回复显示“自动译为 {{.lang}}”（关闭时显示“按原文发送”），跨语言内部聊天显示“自动互译”，
- * 其余情况显示“译文校对”；点击展开译文校对栏，展开后隐藏，由校对栏右上角的 × 收起。
+ * 其余情况显示“译文校对”；点击展开译文校对栏，展开后隐藏，由校对栏右上角的“收起”收起。
  */
 export function AutoTranslateHint({
   preview,
@@ -575,16 +575,11 @@ export function InlineTranslationPane({
               )}
             </>
           )}
+          {/* 用文字“收起”：只收起校对栏，自动翻译照常生效；× 容易被看成关闭翻译 */}
           <Tooltip label={t("inbox.collapse_translation")} openDelay={300}>
-            <ActionIcon
-              size={22}
-              variant="subtle"
-              color="gray"
-              aria-label={t("inbox.collapse_translation")}
-              onClick={() => preview.setExpanded(false)}
-            >
-              <IconX size={14} />
-            </ActionIcon>
+            <Button size="compact-xs" variant="subtle" color="gray" ml={2} onClick={() => preview.setExpanded(false)}>
+              {t("inbox.collapse_short")}
+            </Button>
           </Tooltip>
         </Group>
       </Group>
