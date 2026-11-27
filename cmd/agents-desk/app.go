@@ -230,6 +230,8 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	tgMgr := tgaccount.NewManager(db, keys, files, telegramSettings, nil)
 	bizGuard := business.NewPolicyGuard(db, businessPolicy, featureStore, telegramSettings)
 	tgMgr.SetPolicyChecker(bizGuard.CheckConnectTelegram)
+	tr := translation.NewTranslator(db, llm.NewClient(db, llmSettings, &http.Client{}), translationSettings)
+	tr.SetBusinessPolicy(businessPolicy)
 	app := &App{
 		cfg: cfg, db: db, opsDB: opsDB, nc: nc, tel: tel, hub: hub, creds: creds, presence: presence, roles: roles,
 		adminLogins:     adminLogins,
@@ -242,7 +244,7 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		llmSettings: llmSettings, translationSettings: translationSettings, businessPolicy: businessPolicy, features: featureStore,
 		ops: ops, exporter: exporter,
 		// 模型网关不设固定整请求超时（由调用上下文控制），以便兼容流式 SSE 长响应及自托管网关地址。
-		translator: translation.NewTranslator(db, llm.NewClient(db, llmSettings, &http.Client{}), translationSettings),
+		translator: tr,
 		files:      files, images: images, defaultDisk: disks[cfg.Filesystem.DefaultDisk], localDisk: localDisk, locker: lock.New(pglock.New(db)),
 		channels:   registry(hub, keys, files, tgClient, tgMgr),
 		telegram:   tgClient,

@@ -2,6 +2,7 @@ package translation
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -12,21 +13,58 @@ import (
 
 	"github.com/go-tenon/tenon/settings"
 
+	"agents-desk/internal/business"
+	"agents-desk/internal/channel"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/lang"
 	"agents-desk/internal/llm"
 )
 
-// Translator 调用模型识别语言和翻译，按工作区的语气和术语表写提示。
+// Translator 调用模型识别语言和翻译，按工作区与商务渠道的语气、自动翻译覆写和术语表写提示。
 type Translator struct {
-	db       bun.IDB
-	llm      *llm.Client
-	settings *settings.Group[Settings]
+	db             bun.IDB
+	llm            *llm.Client
+	settings       *settings.Group[Settings]
+	businessPolicy *settings.Group[business.Policy]
 }
 
 // NewTranslator 返回翻译器；client 调用平台设置中“翻译”调用类型的模型接口，s 是工作区的翻译设置。
 func NewTranslator(db bun.IDB, client *llm.Client, s *settings.Group[Settings]) *Translator {
-	return &Translator{db: db, llm: client, settings: s}
+	return &Translator{db: db, llm: client, settings: s, businessPolicy: business.NewPolicyGroup(db)}
+}
+
+// SetBusinessPolicy 绑定共享的工作区商务策略存储组（复用缓存实例）。
+func (tr *Translator) SetBusinessPolicy(g *settings.Group[business.Policy]) {
+	if g != nil {
+		tr.businessPolicy = g
+	}
+}
+
+// businessPolicyFor 查询会话 conversationID 归属个人商务渠道的通用商务策略；非个人商务渠道时返回 isBusiness=false。
+func (tr *Translator) businessPolicyFor(ctx context.Context, tenant, conversationID string) (channel.BusinessPolicy, bool, error) {
+	if conversationID == "" {
+		return channel.BusinessPolicy{}, false, nil
+	}
+	var channelID string
+	err := tr.db.NewRaw(`SELECT COALESCE(reply_channel_id, channel_id)::text FROM conversations WHERE id = ? AND tenant_id = ?`,
+		conversationID, tenant).Scan(ctx, &channelID)
+	if errors.Is(err, sql.ErrNoRows) || channelID == "" {
+		return channel.BusinessPolicy{}, false, nil
+	}
+	if err != nil {
+		return channel.BusinessPolicy{}, false, errors.Wrap(err, "load conversation channel for business policy")
+	}
+	ch, err := channel.Find(ctx, tr.db, tenant, channelID)
+	if errors.Is(err, channel.ErrNotFound) {
+		return channel.BusinessPolicy{}, false, nil
+	}
+	if err != nil {
+		return channel.BusinessPolicy{}, false, err
+	}
+	if !ch.IsPersonal() {
+		return channel.BusinessPolicy{}, false, nil
+	}
+	return channel.BusinessPolicyOf(ch.Settings), true, nil
 }
 
 // Enabled 返回翻译是否可用：平台设置中配置了“翻译”调用类型的模型接口。
@@ -462,6 +500,25 @@ func (tr *Translator) ReplyText(ctx context.Context, tenant, conversationID, tex
 	chosenTone := s.Tone
 	if len(toneOverride) > 0 && toneOverride[0] != "" {
 		chosenTone = toneOverride[0]
+	} else {
+		// 个人商务渠道按「渠道覆写 -> 工作区商务默认语气 -> 工作区通用语气」逐级回退
+		bp, isBiz, err := tr.businessPolicyFor(ctx, tenant, conversationID)
+		if err != nil {
+			return "", false, err
+		}
+		if isBiz {
+			if bp.TranslationTone != "" {
+				chosenTone = Tone(bp.TranslationTone)
+			} else if tr.businessPolicy != nil {
+				pol, err := tr.businessPolicy.Tenant(tenant).Get(ctx)
+				if err != nil {
+					return "", false, errors.Wrap(err, "load business policy for tone")
+				}
+				if pol.DefaultTranslationTone != "" {
+					chosenTone = Tone(pol.DefaultTranslationTone)
+				}
+			}
+		}
 	}
 	tone := toneHint[chosenTone]
 	if tone == "" {

@@ -77,4 +77,16 @@ func TestSeed(t *testing.T) {
 	if res, err := conversation.NewSearch(env.DB).Handle(ctx, sysDemo, &conversation.SearchInput{Q: "withdrawal"}); err != nil || res.Total != 1 {
 		t.Fatalf("示例会话搜索 withdrawal：total=%d err=%v", res.Total, err)
 	}
+	// 示例商务沟通：2 条个人商务链接 + 2 位带公司名与自动 VIP 标签的外部合作方
+	var bizLinks, bizChats, taggedPartners int
+	if err := env.DB.NewRaw("SELECT count(*) FROM channels WHERE tenant_id = ? AND kind = ?", demo, channel.BusinessLink).Scan(ctx, &bizLinks); err != nil || bizLinks != 2 {
+		t.Fatalf("示例商务链接应为 2 条：got=%d err=%v", bizLinks, err)
+	}
+	if err := env.DB.NewRaw("SELECT count(*) FROM chats WHERE tenant_id = ? AND scope = 'external'", demo).Scan(ctx, &bizChats); err != nil || bizChats != 2 {
+		t.Fatalf("示例外部商务对话应为 2 条：got=%d err=%v", bizChats, err)
+	}
+	if err := env.DB.NewRaw(`SELECT count(DISTINCT ct.contact_id) FROM contact_tags ct
+		JOIN contacts c ON c.id = ct.contact_id WHERE ct.tenant_id = ? AND c.company <> ''`, demo).Scan(ctx, &taggedPartners); err != nil || taggedPartners != 2 {
+		t.Fatalf("2 位演示商务合作方均应自动打上默认标签并带有公司名：got=%d err=%v", taggedPartners, err)
+	}
 }

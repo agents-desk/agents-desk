@@ -21,6 +21,7 @@ import (
 
 	"agents-desk/internal/attribute"
 	"agents-desk/internal/auth"
+	"agents-desk/internal/business"
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
@@ -525,8 +526,8 @@ func seedInternalChats(ctx context.Context, out io.Writer, db *bun.DB, memberLog
 	return nil
 }
 
-// seedBusinessDemo 为主管理员创建示例网页商务沟通链接与一条跨语言外部商务对话（幂等），
-// 方便开箱预览“聊天 → 商务沟通”的外部单聊、内部协作备注与个人商务链接设置。
+// seedBusinessDemo 为示例工作区配置商务策略、主管理员商务名片资料、两条完整配置的网页商务链接（公开短链 + VIP 口令专线）
+// 与两条跨语言外部商务对话（幂等），开箱演示商务沟通工作台、访客留资/口令门禁、自动拉协作成员与自动打标签。
 func seedBusinessDemo(ctx context.Context, out io.Writer, db *bun.DB, memberLogins *login.Realm, inDemo identity.Subject, addr tenant.Addresses, channels channel.Registry, down conversation.Downstream) error {
 	exists, err := db.NewSelect().Model((*channel.Channel)(nil)).
 		Where("tenant_id = ? AND kind = ?", inDemo.Tenant, channel.BusinessLink).Exists(ctx)
@@ -547,10 +548,124 @@ func seedBusinessDemo(ctx context.Context, out io.Writer, db *bun.DB, memberLogi
 	}
 	subOwner := identity.Subject{Type: member.Type, ID: ownerRef.ID, Tenant: inDemo.Tenant, Permissions: auth.WithBase(auth.Owner.Permissions)}
 
-	link, err := widget.NewCreateBusinessLink(db, addr.PublicURL).Handle(ctx, subOwner, widget.CreateBusinessLinkBody{
-		Name: "主管理员商务专线",
+	// 1. 设置工作区商务默认策略与主管理员商务名片资料
+	policyGroup := business.NewPolicyGroup(db)
+	if _, err := business.NewPolicyActions(db, policyGroup, nil, nil).Save(ctx, subOwner, business.Policy{
+		LinksEnabled:                 true,
+		TelegramAccountsEnabled:      true,
+		MaxLinksPerMember:            10,
+		MaxTelegramAccountsPerMember: 5,
+		DefaultRequireIntake:         true,
+		DefaultCompanyName:           "agents-desk Global",
+		DefaultTranslationTone:       "formal",
+	}); err != nil {
+		return err
+	}
+	if _, err := db.NewUpdate().Table("members").
+		Set("title = ?", "联合创始人 · 全球渠道合作").
+		Set("bio = ?", "专注跨境支付与全球渠道代理合作，支持中英双语实时沟通，欢迎直接联系。").
+		Where("id = ?", ownerRef.ID).Exec(ctx); err != nil {
+		return errors.Wrap(err, "set seed owner business profile")
+	}
+
+	var vipTagID string
+	_ = db.NewRaw("SELECT id FROM tags WHERE tenant_id = ? AND name = 'VIP'", inDemo.Tenant).Scan(ctx, &vipTagID)
+	var defaultTagIDs []string
+	if vipTagID != "" {
+		defaultTagIDs = []string{vipTagID}
+	}
+
+	createLink := widget.NewCreateBusinessLink(db, addr.PublicURL)
+	updateLink := widget.NewUpdateBusinessLink(db, addr.PublicURL)
+
+	// 2. 链接一：公开短链 /c/owner-bd（带商务名片、开场留资、快捷话题、自动协作成员与自动 VIP 标签）
+	link1, err := createLink.Handle(ctx, subOwner, widget.CreateBusinessLinkBody{
+		Name: "全球渠道合作专线",
 		Appearance: widget.Appearance{
-			Greeting: "您好，欢迎直接联系我沟通代理与商务合作事宜！",
+			Color:    "#228be6",
+			Greeting: "您好！欢迎直接联系我沟通区域代理、阶梯批发报价或企业 API 对接事宜。",
+		},
+	})
+	if err != nil {
+		return err
+	}
+	link1, err = updateLink.Handle(ctx, subOwner, link1.ID, widget.UpdateBusinessLinkBody{
+		Name:       "全球渠道合作专线",
+		PublicCode: "owner-bd",
+		Enabled:    true,
+		Appearance: widget.Appearance{
+			Color:    "#228be6",
+			Greeting: "您好！欢迎直接联系我沟通区域代理、阶梯批发报价或企业 API 对接事宜。",
+		},
+		Card: &widget.BusinessCardConfig{
+			ShowOwner:   true,
+			AwayMessage: "当前正在会议中，请留言您的公司名称与合作意向，我将在 2 小时内回复。",
+		},
+		Intake: &widget.BusinessIntakeConfig{
+			Enabled: true,
+			Name:    widget.IntakeRequired,
+			Company: widget.IntakeOptional,
+			Email:   widget.IntakeOptional,
+			Note:    widget.IntakeOptional,
+		},
+		Starters: []string{
+			"区域代理合作政策咨询",
+			"500+ 台阶梯批发报价",
+			"企业 API 集成对接支持",
+		},
+		Business: &channel.BusinessPolicy{
+			DefaultCollaboratorIDs: []string{managerRef.ID},
+			DefaultTagIDs:          defaultTagIDs,
+			TranslationTone:        "formal",
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	// 3. 链接二：口令保护专线 /c/vip-partner（口令 202688），方便直接演示口令门禁
+	link2, err := createLink.Handle(ctx, subOwner, widget.CreateBusinessLinkBody{
+		Name: "VIP 战略合作加密专线",
+		Appearance: widget.Appearance{
+			Color:    "#7950f2",
+			Greeting: "欢迎进入 VIP 战略合作专属通道，已为您接入优先响应团队。",
+		},
+	})
+	if err != nil {
+		return err
+	}
+	link2, err = updateLink.Handle(ctx, subOwner, link2.ID, widget.UpdateBusinessLinkBody{
+		Name:       "VIP 战略合作加密专线",
+		PublicCode: "vip-partner",
+		Enabled:    true,
+		Appearance: widget.Appearance{
+			Color:    "#7950f2",
+			Greeting: "欢迎进入 VIP 战略合作专属通道，已为您接入优先响应团队。",
+		},
+		Card: &widget.BusinessCardConfig{
+			ShowOwner:     true,
+			TitleOverride: "战略大客户总监",
+			AwayMessage:   "专属顾问暂离，您的消息已标记最高优先级，稍后第一时间回复。",
+		},
+		Intake: &widget.BusinessIntakeConfig{
+			Enabled: true,
+			Name:    widget.IntakeRequired,
+			Company: widget.IntakeRequired,
+			Email:   widget.IntakeOptional,
+			Note:    widget.IntakeOff,
+		},
+		Access: &widget.BusinessAccessInput{
+			Mode:     "passcode",
+			Passcode: "202688",
+		},
+		Starters: []string{
+			"年度框架协议与定制 SLA",
+			"专属大客户结算通道申请",
+		},
+		Business: &channel.BusinessPolicy{
+			DefaultCollaboratorIDs: []string{managerRef.ID},
+			DefaultTagIDs:          defaultTagIDs,
+			TranslationTone:        "formal",
 		},
 	})
 	if err != nil {
@@ -560,9 +675,9 @@ func seedBusinessDemo(ctx context.Context, out io.Writer, db *bun.DB, memberLogi
 	receive := conversation.NewReceive(db, channels, down)
 	sendMsg := conversation.NewSendChatMessage(db, down)
 
-	// 外部合作伙伴经网页商务链接发来第一条英文合作咨询
-	res, err := receive.Handle(ctx, inDemo, conversation.ReceiveParams{
-		ChannelID: link.ID,
+	// 4. 外部合作伙伴一：经公开短链发来英文批发询价（自动拉入管理员协作 + 自动打 VIP 标签）
+	res1, err := receive.Handle(ctx, inDemo, conversation.ReceiveParams{
+		ChannelID: link1.ID,
 		From:      "b2b-vikram-1",
 		FromName:  "Vikram Mehta",
 		Text:      "Hi! We distribute mobile accessories across Mumbai and Pune. Could you share wholesale pricing for 500 units?",
@@ -570,27 +685,49 @@ func seedBusinessDemo(ctx context.Context, out io.Writer, db *bun.DB, memberLogi
 	if err != nil {
 		return err
 	}
-	if _, err := db.NewUpdate().Table("conversations").Set("language = ?", "en").Where("id = ?", res.ConversationID).Exec(ctx); err != nil {
+	if _, err := db.NewUpdate().Table("conversations").Set("language = ?", "en").Where("id = ?", res1.ConversationID).Exec(ctx); err != nil {
 		return errors.Wrap(err, "set seed business chat language")
 	}
-	if _, err := db.NewUpdate().Table("contacts").Set("email = ?", "vikram@indusparts.in").
-		Where("id = (SELECT contact_id FROM conversations WHERE id = ?)", res.ConversationID).Exec(ctx); err != nil {
-		return errors.Wrap(err, "set seed business contact email")
+	if _, err := db.NewUpdate().Table("contacts").
+		Set("email = ?", "vikram@indusparts.in").
+		Set("company = ?", "IndusParts Retail Pvt. Ltd.").
+		Where("id = (SELECT contact_id FROM conversations WHERE id = ?)", res1.ConversationID).Exec(ctx); err != nil {
+		return errors.Wrap(err, "set seed business contact profile")
 	}
-	if _, err := sendMsg.Handle(ctx, subOwner, res.ConversationID, conversation.SendChatMessageBody{
+	if _, err := sendMsg.Handle(ctx, subOwner, res1.ConversationID, conversation.SendChatMessageBody{
 		Text: "你好 Vikram，欢迎合作！500 台的阶梯批发报价表我马上整理发给你，请问预计首单什么时候出货？",
 	}); err != nil {
 		return err
 	}
-	if _, err := sendMsg.Handle(ctx, subOwner, res.ConversationID, conversation.SendChatMessageBody{
-		Text:     "@管理员 这家印度渠道商体量不错，帮忙确认一下华南仓现货库存。",
+	if _, err := sendMsg.Handle(ctx, subOwner, res1.ConversationID, conversation.SendChatMessageBody{
+		Text:     "@管理员 这家印度渠道商体量不错，已自动拉你进聊，帮忙确认一下华南仓现货库存。",
 		Note:     true,
 		Mentions: []string{managerRef.ID},
 	}); err != nil {
 		return err
 	}
 
-	fmt.Fprintln(out, "已在示例工作区中创建示例商务沟通链接与商务对话：", link.ChatURL)
+	// 5. 外部合作伙伴二：经 VIP 加密专线发来欧洲企业定制咨询
+	res2, err := receive.Handle(ctx, inDemo, conversation.ReceiveParams{
+		ChannelID: link2.ID,
+		From:      "b2b-elena-1",
+		FromName:  "Elena Rostova",
+		Text:      "Hello! We are evaluating an enterprise annual contract with dedicated EU settlement SLA. Can we schedule a call this week?",
+	})
+	if err != nil {
+		return err
+	}
+	if _, err := db.NewUpdate().Table("conversations").Set("language = ?", "en").Where("id = ?", res2.ConversationID).Exec(ctx); err != nil {
+		return errors.Wrap(err, "set seed vip business chat language")
+	}
+	if _, err := db.NewUpdate().Table("contacts").
+		Set("email = ?", "elena@nordic-commerce.de").
+		Set("company = ?", "Nordic Commerce GmbH").
+		Where("id = (SELECT contact_id FROM conversations WHERE id = ?)", res2.ConversationID).Exec(ctx); err != nil {
+		return errors.Wrap(err, "set seed vip business contact profile")
+	}
+
+	fmt.Fprintln(out, "已在示例工作区中创建 2 条示例商务沟通链接与商务对话：", link1.ChatURL, "、", link2.ChatURL)
 	return nil
 }
 
