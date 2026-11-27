@@ -17,6 +17,7 @@ import (
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/member"
+	"agents-desk/internal/tag"
 )
 
 // ReceiveParams 是渠道收到的一条消息。
@@ -356,10 +357,12 @@ func start(ctx context.Context, tx bun.IDB, ch *channel.Channel, person *contact
 // 当 FromOwner 为 true 时，消息发起者记为渠道归属成员且不写入 Delivery（已在外部客户端发出），并自动推进归属成员的已读位置。
 func (a *Receive) receiveExternalChat(ctx context.Context, tx database.Tx, sub identity.Subject, ch *channel.Channel, p ReceiveParams) (*Received, error) {
 	ownerID := *ch.OwnerMemberID
+	bp := channel.BusinessPolicyOf(ch.Settings)
 	var person *contact.Contact
+	var contactCreated bool
 	var err error
 	if !p.FromOwner || (!p.IsGroup && strings.TrimSpace(p.From) != "") {
-		person, _, err = contact.ResolveIdentity(ctx, tx, sub.Tenant, ch.ID, p.From, contact.Profile{Name: p.FromName})
+		person, contactCreated, err = contact.ResolveIdentity(ctx, tx, sub.Tenant, ch.ID, p.From, contact.Profile{Name: p.FromName})
 		if err != nil {
 			return nil, err
 		}
@@ -447,6 +450,24 @@ func (a *Receive) receiveExternalChat(ctx context.Context, tx database.Tx, sub i
 				return nil, err
 			}
 		}
+		// 渠道策略：新建外部商务聊天时自动拉入默认协作成员（已移除工作区的成员自动跳过）
+		if len(bp.DefaultCollaboratorIDs) > 0 {
+			roles := authz.NewStore(tx, auth.Catalog)
+			for _, mid := range bp.DefaultCollaboratorIDs {
+				if mid == "" || mid == ownerID {
+					continue
+				}
+				if _, rerr := member.RoleOf(ctx, roles, identity.Ref{Type: member.Type, ID: mid}, ch.TenantID); rerr != nil {
+					if errors.Is(rerr, member.ErrNotFound) {
+						continue
+					}
+					return nil, rerr
+				}
+				if err := join(ctx, tx, c.ID, MemberActor, mid); err != nil {
+					return nil, err
+				}
+			}
+		}
 		created = true
 	case err != nil:
 		return nil, errors.Wrap(err, "load external chat meta")
@@ -495,6 +516,17 @@ func (a *Receive) receiveExternalChat(ctx context.Context, tx database.Tx, sub i
 	if person != nil && !p.FromOwner {
 		if err := contact.TouchSeen(ctx, tx, sub.Tenant, person.ID, at); err != nil {
 			return nil, err
+		}
+		// 渠道策略：首次建立联系人或首次经此商务渠道建聊时自动打上默认标签（已删除标签自动跳过）
+		if (contactCreated || created) && len(bp.DefaultTagIDs) > 0 {
+			for _, tagID := range bp.DefaultTagIDs {
+				if tagID == "" {
+					continue
+				}
+				if _, _, terr := contact.AddTag(ctx, tx, ch.TenantID, person.ID, tagID); terr != nil && !errors.Is(terr, tag.ErrNotFound) {
+					return nil, terr
+				}
+			}
 		}
 	}
 	if at.After(c.LastMessageAt) || created {

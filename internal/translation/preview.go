@@ -77,6 +77,13 @@ func NewPreview(db *bun.DB, translator *Translator, incoming *Incoming) *Preview
 func AutoTranslateFunc(db *bun.DB, translator *Translator, incoming *Incoming) conversation.AutoTranslator {
 	preview := NewPreview(db, translator, incoming)
 	return func(ctx context.Context, req conversation.AutoTranslateJob) (string, string, bool, error) {
+		bp, isBiz, err := translator.businessPolicyFor(ctx, req.TenantID, req.ConversationID)
+		if err != nil {
+			return "", "", false, err
+		}
+		if isBiz && bp.AutoTranslate != nil && !*bp.AutoTranslate {
+			return req.Text, "", false, nil
+		}
 		var from string
 		if req.MemberID != "" {
 			m, err := member.Find(ctx, db, req.MemberID)

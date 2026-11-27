@@ -81,6 +81,14 @@ func (a *Incoming) Job(ctx context.Context, p conversation.Appended) error {
 	if !it.Translatable() {
 		return nil
 	}
+	// 个人商务渠道显式关闭自动翻译时跳过入站预译（成员仍可在界面按需补译）
+	bp, isBiz, err := a.translator.businessPolicyFor(ctx, p.TenantID, it.ConversationID)
+	if err != nil {
+		return err
+	}
+	if isBiz && bp.AutoTranslate != nil && !*bp.AutoTranslate {
+		return nil
+	}
 	targets, err := a.itemPretranslateLanguages(ctx, p.TenantID, &it)
 	if err != nil {
 		return err

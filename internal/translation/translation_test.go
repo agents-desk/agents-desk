@@ -23,6 +23,7 @@ import (
 
 	"agents-desk/internal/apptest"
 	"agents-desk/internal/auth"
+	"agents-desk/internal/business"
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
@@ -939,5 +940,97 @@ func TestUnifiedComposerTranslation(t *testing.T) {
 	}
 	if f.model.count() != before {
 		t.Fatalf("已校对内部备注不应重复调模型，实际 %d 次", f.model.count()-before)
+	}
+}
+
+func TestBusinessPolicyTranslationOverrides(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	f := setup(t, true)
+	f.model.language = "en"
+
+	// 1. 工作区通用语气设为 friendly，工作区商务默认语气设为 formal
+	if err := NewGroup(f.env.DB).Tenant(f.system.Tenant).Save(ctx, Settings{Tone: Friendly}); err != nil {
+		t.Fatal(err)
+	}
+	bizPolicyGroup := business.NewPolicyGroup(f.env.DB)
+	f.translator.SetBusinessPolicy(bizPolicyGroup)
+	if _, err := business.NewPolicyActions(f.env.DB, bizPolicyGroup, nil, nil).Save(ctx, f.agent, business.Policy{
+		LinksEnabled:                 true,
+		TelegramAccountsEnabled:      true,
+		MaxLinksPerMember:            10,
+		MaxTelegramAccountsPerMember: 5,
+		DefaultTranslationTone:       "formal",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// 创建 3 条个人商务链接：A 继承工作区商务语气；B 显式覆写为 friendly；C 显式关闭自动翻译
+	ownerID := f.agent.ID
+	autoOff := false
+	settingsB := map[string]any{}
+	channel.SetBusinessPolicy(settingsB, channel.BusinessPolicy{TranslationTone: "friendly"})
+	settingsC := map[string]any{}
+	channel.SetBusinessPolicy(settingsC, channel.BusinessPolicy{AutoTranslate: &autoOff})
+
+	chA := &channel.Channel{ID: "019a0000-0000-7000-8000-000000000101", TenantID: f.system.Tenant, Kind: channel.BusinessLink, Name: "Link A", Settings: map[string]any{}, OwnerMemberID: &ownerID, Enabled: true}
+	chB := &channel.Channel{ID: "019a0000-0000-7000-8000-000000000102", TenantID: f.system.Tenant, Kind: channel.BusinessLink, Name: "Link B", Settings: settingsB, OwnerMemberID: &ownerID, Enabled: true}
+	chC := &channel.Channel{ID: "019a0000-0000-7000-8000-000000000103", TenantID: f.system.Tenant, Kind: channel.BusinessLink, Name: "Link C", Settings: settingsC, OwnerMemberID: &ownerID, Enabled: true}
+	for _, ch := range []*channel.Channel{chA, chB, chC} {
+		if _, err := f.env.DB.NewInsert().Model(ch).Exec(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	reg := channel.DefaultRegistry()
+	reg[channel.BusinessLink] = channel.TestConnector{}
+	receive := conversation.NewReceive(f.env.DB, reg, f.down)
+	recA, err := receive.Handle(ctx, f.system, conversation.ReceiveParams{ChannelID: chA.ID, From: "p-a", FromName: "Partner A", Text: "Need wholesale quote"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	recB, err := receive.Handle(ctx, f.system, conversation.ReceiveParams{ChannelID: chB.ID, From: "p-b", FromName: "Partner B", Text: "Need friendly chat"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	recC, err := receive.Handle(ctx, f.system, conversation.ReceiveParams{ChannelID: chC.ID, From: "p-c", FromName: "Partner C", Text: "Do not auto translate"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 2. Link A 未覆写语气 -> 继承工作区商务默认语气 formal（而非工作区通用语气 friendly）
+	if _, _, err := f.translator.ReplyText(ctx, f.system.Tenant, recA.ConversationID, "您好，报价已整理好", "zh-CN", "en"); err != nil {
+		t.Fatal(err)
+	}
+	if sys, _ := f.model.last("reply_translation"); !strings.Contains(sys, toneHint[Formal]) {
+		t.Fatalf("Link A 应继承工作区商务默认语气 formal，实际 prompt：%s", sys)
+	}
+
+	// 3. Link B 渠道覆写语气为 friendly -> 覆盖工作区商务默认语气
+	if _, _, err := f.translator.ReplyText(ctx, f.system.Tenant, recB.ConversationID, "您好，欢迎交流", "zh-CN", "en"); err != nil {
+		t.Fatal(err)
+	}
+	if sys, _ := f.model.last("reply_translation"); !strings.Contains(sys, toneHint[Friendly]) {
+		t.Fatalf("Link B 应使用渠道覆写语气 friendly，实际 prompt：%s", sys)
+	}
+
+	// 4. Link C 显式关闭自动翻译 -> 入站预译与出站自动翻译均跳过模型调用
+	incoming := NewIncoming(f.env.DB, f.locker, f.translator, f.down)
+	before := f.model.count()
+	if err := incoming.Job(ctx, conversation.Appended{TenantID: f.system.Tenant, ConversationID: recC.ConversationID, ItemID: recC.Item.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if f.model.count() != before {
+		t.Fatalf("Link C 关闭自动翻译时不应触发入站预译，模型调用增加了 %d 次", f.model.count()-before)
+	}
+	autoFn := AutoTranslateFunc(f.env.DB, f.translator, incoming)
+	outText, _, needed, err := autoFn(ctx, conversation.AutoTranslateJob{
+		TenantID:       f.system.Tenant,
+		ConversationID: recC.ConversationID,
+		MemberID:       f.agent.ID,
+		Text:           "按原文直接发出",
+		Language:       "en",
+	})
+	if err != nil || needed || outText != "按原文直接发出" || f.model.count() != before {
+		t.Fatalf("Link C 关闭自动翻译时出站自动翻译应跳过并保留原文：text=%q needed=%v calls=%d err=%v", outText, needed, f.model.count()-before, err)
 	}
 }

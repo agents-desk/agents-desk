@@ -17,6 +17,7 @@ import (
 	"agents-desk/internal/channel"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/member"
+	"agents-desk/internal/tag"
 	"agents-desk/internal/tenant"
 )
 
@@ -286,5 +287,80 @@ func TestExternalBusinessChatLifecycle(t *testing.T) {
 	unread, err := getUnread.Handle(ctx, subAlice)
 	if err != nil || unread.InternalUnreadMessages != 1 || unread.ExternalUnreadMessages != 1 || unread.UnreadMessages != 2 {
 		t.Fatalf("内部/外部聊天未读分组统计异常：%v %+v", err, unread)
+	}
+}
+
+func TestBusinessPolicyEnforcementOnInbound(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	env := apptest.New(t)
+	createTenant := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{})
+	alpha, err := createTenant.Handle(ctx, apptest.Admin, tenant.CreateParams{
+		Name: "Alpha", Slug: "alpha", OwnerEmail: "owner@alpha.test", OwnerName: "Owner", OwnerPassword: "password",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sysAlpha := identity.Subject{Type: identity.System, ID: "sync", Tenant: alpha.ID}
+	agentRole, err := env.Roles.RoleByName(ctx, "坐席", alpha.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	addMember := member.NewAdd(env.DB, env.Roles, env.MemberLogins, env.Files)
+	alice, err := addMember.Handle(ctx, sysAlpha, member.AddParams{Email: "alice@alpha.test", Name: "Alice", Password: "password", RoleID: agentRole.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bob, err := addMember.Handle(ctx, sysAlpha, member.AddParams{Email: "bob@alpha.test", Name: "Bob", Password: "password", RoleID: agentRole.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	vipTag, err := tag.NewCreate(env.DB).Handle(ctx, sysAlpha, tag.Changes{Name: "VIP Partner", Color: tag.Yellow})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 在个人商务链接中配置默认协作成员（含有效同事 Bob 与一个已不存在的成员 ID）与默认标签（含有效标签与已删除标签 ID）
+	aliceID := alice.ID
+	settings := map[string]any{}
+	channel.SetBusinessPolicy(settings, channel.BusinessPolicy{
+		DefaultCollaboratorIDs: []string{bob.ID, "019a0000-0000-7000-8000-00000000dead"},
+		DefaultTagIDs:          []string{vipTag.ID, "019a0000-0000-7000-8000-00000000beef"},
+	})
+	bizLink := &channel.Channel{
+		ID: "019a0000-0000-7000-8000-000000000099", TenantID: alpha.ID, Kind: channel.BusinessLink,
+		Name: "VIP 合作专线", Settings: settings, OwnerMemberID: &aliceID, Enabled: true,
+	}
+	if _, err := env.DB.NewInsert().Model(bizLink).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	reg := channel.DefaultRegistry()
+	reg[channel.BusinessLink] = &b2bRecordingConnector{}
+	hub := broadcast.New(broadcasttest.NewBackend())
+	t.Cleanup(func() { _ = hub.Close() })
+	down := conversation.Downstream{Hub: hub, Roles: env.Roles}
+
+	rec, err := conversation.NewReceive(env.DB, reg, down).Handle(ctx, sysAlpha, conversation.ReceiveParams{
+		ChannelID:  bizLink.ID,
+		From:       "visitor:partner-policy-1",
+		FromName:   "Carlos Partner",
+		ExternalID: "msg-policy-1",
+		Text:       "Hi Alice, let's discuss LATAM distribution",
+	})
+	if err != nil || !rec.Created {
+		t.Fatalf("入站消息应成功创建商务对话且忽略失效的协作成员与标签：%v %+v", err, rec)
+	}
+
+	// Bob 已被自动拉入协作，可以直接读取该商务聊天；联系人已被自动打上 VIP Partner 标签
+	subBob := identity.Subject{Type: member.Type, ID: bob.ID, Tenant: alpha.ID, Permissions: auth.WithBase(nil)}
+	got, err := conversation.NewGetChat(env.DB).Handle(ctx, subBob, rec.ConversationID)
+	if err != nil || got.ParticipantCount != 3 || got.Contact == nil {
+		t.Fatalf("默认协作成员 Bob 应自动加入商务聊天：err=%v got=%+v", err, got)
+	}
+	var tagged bool
+	if err := env.DB.NewRaw(`SELECT EXISTS (SELECT 1 FROM contact_tags WHERE tenant_id = ? AND contact_id = ? AND tag_id = ?)`,
+		alpha.ID, got.Contact.ID, vipTag.ID).Scan(ctx, &tagged); err != nil || !tagged {
+		t.Fatalf("新联系人应自动打上渠道默认标签：tagged=%v err=%v", tagged, err)
 	}
 }
