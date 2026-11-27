@@ -76,6 +76,7 @@ func (f *fakeWeComServer) serve(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
+	conn.SetReadLimit(4 << 20)
 	defer func() { _ = conn.CloseNow() }()
 
 	f.mu.Lock()
@@ -119,6 +120,10 @@ func (f *fakeWeComServer) serve(w http.ResponseWriter, r *http.Request) {
 				ack.ErrCode = 84009
 				ack.ErrMsg = "req_id expired"
 			}
+		case CmdUploadInit:
+			ack.Body = json.RawMessage(`{"upload_id":"up-test-1"}`)
+		case CmdUploadFinish:
+			ack.Body = json.RawMessage(`{"media_id":"media-test-1"}`)
 		}
 		rawAck, _ := json.Marshal(ack)
 		if err := conn.Write(ctx, websocket.MessageText, rawAck); err != nil {

@@ -3,6 +3,7 @@ package tgaccount
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
@@ -21,10 +22,13 @@ import (
 	"github.com/gotd/td/telegram/auth/qrlogin"
 	"github.com/gotd/td/telegram/dcs"
 	"github.com/gotd/td/telegram/downloader"
+	"github.com/gotd/td/telegram/updates"
 	"github.com/gotd/td/telegram/uploader"
 	"github.com/gotd/td/tg"
 	"github.com/gotd/td/tgerr"
 	"rsc.io/qr"
+
+	"github.com/go-tenon/tenon/queue"
 
 	"agents-desk/internal/channel"
 	"agents-desk/internal/conversation"
@@ -97,8 +101,8 @@ type LiveClient interface {
 	ListFolders(ctx context.Context) ([]FolderDTO, error)
 	FetchHistory(ctx context.Context, peer SyncedPeer, limit int) ([]IncomingMessage, error)
 	DownloadMedia(ctx context.Context, ref string, maxBytes int64) (*channel.FetchedMedia, error)
-	SendText(ctx context.Context, peer SyncedPeer, text string) (int, error)
-	SendMedia(ctx context.Context, peer SyncedPeer, att channel.Attachment, data io.Reader, caption string) (int, error)
+	SendText(ctx context.Context, peer SyncedPeer, text string, randomID int64) (int, error)
+	SendMedia(ctx context.Context, peer SyncedPeer, att channel.Attachment, data io.Reader, caption string, randomID int64) (int, error)
 }
 
 // Backend 抽象底层 MTProto 运行时，默认使用纯 Go 的 GotdBackend（github.com/gotd/td）。
@@ -154,6 +158,7 @@ func (GotdBackend) StartQRLogin(ctx context.Context, cfg MTProtoConfig) (LoginDr
 }
 
 // RunAccount 为已授权的 Telegram 个人号建立长连接，监听 1:1 单聊与群聊新消息并保持 LiveClient 可用。
+// 通过 updates.Manager 维护 pts/qts/channel pts，重连时从服务端补齐离线期间遗漏的更新。
 func (GotdBackend) RunAccount(ctx context.Context, cfg MTProtoConfig, storage session.Storage,
 	onMessage func(context.Context, IncomingMessage) error, onReady func(LiveClient)) error {
 	dispatcher := tg.NewUpdateDispatcher()
@@ -172,8 +177,11 @@ func (GotdBackend) RunAccount(ctx context.Context, cfg MTProtoConfig, storage se
 		return onMessage(ctx, msg)
 	})
 
-	client := gotd.NewClient(cfg.APIID, cfg.APIHash, gotdOptions(cfg, storage, dispatcher, false))
-	return client.Run(ctx, func(ctx context.Context) error {
+	gaps := updates.New(updates.Config{
+		Handler: dispatcher,
+	})
+	client := gotd.NewClient(cfg.APIID, cfg.APIHash, gotdOptions(cfg, storage, gaps, false))
+	err := client.Run(ctx, func(ctx context.Context) error {
 		status, err := client.Auth().Status(ctx)
 		if err != nil {
 			return errors.Wrap(err, "check telegram auth status")
@@ -181,18 +189,27 @@ func (GotdBackend) RunAccount(ctx context.Context, cfg MTProtoConfig, storage se
 		if !status.Authorized {
 			return ErrNotConnected.New()
 		}
+		self, err := client.Self(ctx)
+		if err != nil {
+			return errors.Wrap(err, "get telegram self")
+		}
 		if onReady != nil {
 			onReady(&gotdLiveClient{api: client.API()})
 		}
-		<-ctx.Done()
-		return ctx.Err()
+		return gaps.Run(ctx, client.API(), self.ID, updates.AuthOptions{
+			Forget: false,
+		})
 	})
+	if isAuthRevokedError(err) {
+		return ErrNotConnected.Wrap(err)
+	}
+	return err
 }
 
-// RunOneShot 用已保存的会话临时连接 Telegram 执行一次操作（用于独立 worker 进程投递消息或拉取媒体时复用）。
+// RunOneShot 用已保存的会话临时连接 Telegram 执行一次操作（用于无 NATS 的单进程模式复用）。
 func (GotdBackend) RunOneShot(ctx context.Context, cfg MTProtoConfig, storage session.Storage, fn func(context.Context, LiveClient) error) error {
 	client := gotd.NewClient(cfg.APIID, cfg.APIHash, gotdOptions(cfg, storage, nil, true))
-	return client.Run(ctx, func(ctx context.Context) error {
+	err := client.Run(ctx, func(ctx context.Context) error {
 		status, err := client.Auth().Status(ctx)
 		if err != nil {
 			return errors.Wrap(err, "check telegram auth status")
@@ -202,6 +219,10 @@ func (GotdBackend) RunOneShot(ctx context.Context, cfg MTProtoConfig, storage se
 		}
 		return fn(ctx, &gotdLiveClient{api: client.API()})
 	})
+	if isAuthRevokedError(err) {
+		return ErrNotConnected.Wrap(err)
+	}
+	return err
 }
 
 // gotdLoginDriver 在单个长生命周期 MTProto 连接中驱动扫码或手机号登录（含 2FA），保证 DC 迁移与会话一致性。
@@ -498,7 +519,7 @@ func (c *gotdLiveClient) listDialogsWithMeta(ctx context.Context, limit int) ([]
 			Limit:      batch,
 		})
 		if err != nil {
-			return nil, errors.Wrap(err, "telegram get dialogs")
+			return nil, wrapTGError(err, "telegram get dialogs")
 		}
 		var dialogs []tg.DialogClass
 		var messages []tg.MessageClass
@@ -657,7 +678,7 @@ func (c *gotdLiveClient) ListDialogs(ctx context.Context, limit int) ([]DialogDT
 func (c *gotdLiveClient) ListFolders(ctx context.Context) ([]FolderDTO, error) {
 	filtersRes, err := c.api.MessagesGetDialogFilters(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "telegram get dialog filters")
+		return nil, wrapTGError(err, "telegram get dialog filters")
 	}
 	entries, err := c.listDialogsWithMeta(ctx, 300)
 	if err != nil {
@@ -754,7 +775,7 @@ func (c *gotdLiveClient) FetchHistory(ctx context.Context, peer SyncedPeer, limi
 		Limit: limit,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "telegram get history")
+		return nil, wrapTGError(err, "telegram get history")
 	}
 	var msgs []tg.MessageClass
 	var users []tg.UserClass
@@ -905,23 +926,26 @@ func (c *gotdLiveClient) DownloadMedia(ctx context.Context, ref string, maxBytes
 	}, nil
 }
 
-func (c *gotdLiveClient) SendText(ctx context.Context, peer SyncedPeer, text string) (int, error) {
+func (c *gotdLiveClient) SendText(ctx context.Context, peer SyncedPeer, text string, randomID int64) (int, error) {
 	inputPeer, err := peer.toInputPeer()
 	if err != nil {
 		return 0, err
 	}
+	if randomID == 0 {
+		randomID = randomInt64()
+	}
 	upd, err := c.api.MessagesSendMessage(ctx, &tg.MessagesSendMessageRequest{
 		Peer:     inputPeer,
 		Message:  text,
-		RandomID: randomInt64(),
+		RandomID: randomID,
 	})
 	if err != nil {
-		return 0, errors.Wrap(err, "telegram send message")
+		return 0, wrapTGError(err, "telegram send message")
 	}
 	return extractMessageID(upd), nil
 }
 
-func (c *gotdLiveClient) SendMedia(ctx context.Context, peer SyncedPeer, att channel.Attachment, data io.Reader, caption string) (int, error) {
+func (c *gotdLiveClient) SendMedia(ctx context.Context, peer SyncedPeer, att channel.Attachment, data io.Reader, caption string, randomID int64) (int, error) {
 	inputPeer, err := peer.toInputPeer()
 	if err != nil {
 		return 0, err
@@ -932,7 +956,7 @@ func (c *gotdLiveClient) SendMedia(ctx context.Context, peer SyncedPeer, att cha
 	}
 	uploaded, err := uploader.NewUploader(c.api).FromReader(ctx, filename, data)
 	if err != nil {
-		return 0, errors.Wrap(err, "telegram upload media")
+		return 0, wrapTGError(err, "telegram upload media")
 	}
 	var media tg.InputMediaClass
 	if att.Kind == "image" {
@@ -948,14 +972,17 @@ func (c *gotdLiveClient) SendMedia(ctx context.Context, peer SyncedPeer, att cha
 			Attributes: []tg.DocumentAttributeClass{&tg.DocumentAttributeFilename{FileName: filename}},
 		}
 	}
+	if randomID == 0 {
+		randomID = randomInt64()
+	}
 	upd, err := c.api.MessagesSendMedia(ctx, &tg.MessagesSendMediaRequest{
 		Peer:     inputPeer,
 		Media:    media,
 		Message:  caption,
-		RandomID: randomInt64(),
+		RandomID: randomID,
 	})
 	if err != nil {
-		return 0, errors.Wrap(err, "telegram send media")
+		return 0, wrapTGError(err, "telegram send media")
 	}
 	return extractMessageID(upd), nil
 }
@@ -1157,4 +1184,64 @@ func randomInt64() int64 {
 	var b [8]byte
 	_, _ = rand.Read(b[:])
 	return int64(binary.LittleEndian.Uint64(b[:]))
+}
+
+// deterministicRandomID 为同一个时间线消息片段生成确定的 MTProto random_id，确保跨重试发送幂等去重。
+func deterministicRandomID(itemID string, partIdx int) int64 {
+	if strings.TrimSpace(itemID) == "" {
+		return randomInt64()
+	}
+	sum := sha256.Sum256([]byte(fmt.Sprintf("%s:%d", itemID, partIdx)))
+	v := int64(binary.LittleEndian.Uint64(sum[:8]))
+	if v == 0 {
+		return 1
+	}
+	return v
+}
+
+// isAuthRevokedError 判断 MTProto 错误是否属于会话撤销、注销或封号，无法通过重连恢复。
+func isAuthRevokedError(err error) bool {
+	return tgerr.Is(err,
+		"AUTH_KEY_UNREGISTERED",
+		"AUTH_KEY_INVALID",
+		"USER_DEACTIVATED",
+		"USER_DEACTIVATED_BAN",
+		"SESSION_REVOKED",
+		"SESSION_EXPIRED",
+		"UNAUTHORIZED",
+	)
+}
+
+// wrapTGError 将 MTProto RPC 错误按语义分类为鉴权失效、限流等待、永久业务拒绝或可退避重试的临时错误。
+func wrapTGError(err error, msg string) error {
+	if err == nil {
+		return nil
+	}
+	wrapped := errors.Wrap(err, msg)
+	if isAuthRevokedError(err) {
+		return ErrNotConnected.Wrap(wrapped)
+	}
+	if rpcErr, ok := tgerr.As(err); ok {
+		switch rpcErr.Type {
+		case "FLOOD_WAIT", "FLOOD_PREMIUM_WAIT", "SLOWMODE_WAIT":
+			wait := time.Duration(rpcErr.Argument) * time.Second
+			if wait <= 0 {
+				wait = 5 * time.Second
+			}
+			return queue.RetryAfter(wrapped, wait)
+		case "PEER_ID_INVALID",
+			"USER_IS_BLOCKED",
+			"INPUT_USER_DEACTIVATED",
+			"CHAT_WRITE_FORBIDDEN",
+			"CHANNEL_PRIVATE",
+			"USER_BANNED_IN_CHANNEL",
+			"PEER_FLOOD",
+			"CHAT_RESTRICTED",
+			"MESSAGE_TOO_LONG",
+			"USER_PRIVACY_RESTRICTED",
+			"CHAT_ADMIN_REQUIRED":
+			return queue.Permanent(wrapped)
+		}
+	}
+	return wrapped
 }

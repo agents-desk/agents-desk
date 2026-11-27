@@ -18,6 +18,7 @@ import (
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/outbound"
+	"github.com/go-tenon/tenon/queue"
 
 	"agents-desk/internal/channel"
 )
@@ -51,10 +52,16 @@ func NewClient(httpClient *http.Client, baseURL ...string) *Client {
 	return &Client{http: hc, baseURL: base}
 }
 
+type apiParameters struct {
+	RetryAfter      int   `json:"retry_after,omitempty"`
+	MigrateToChatID int64 `json:"migrate_to_chat_id,omitempty"`
+}
+
 type apiResponse struct {
 	OK          bool            `json:"ok"`
 	ErrorCode   int             `json:"error_code"`
 	Description string          `json:"description"`
+	Parameters  *apiParameters  `json:"parameters,omitempty"`
 	Result      json.RawMessage `json:"result"`
 }
 
@@ -78,30 +85,47 @@ func (c *Client) callJSON(ctx context.Context, botToken, method string, payload 
 	return c.do(req, botToken)
 }
 
-// callMultipart 以 multipart/form-data 方式上传媒体文件给 Telegram Bot API。
+// callMultipart 以流式 multipart/form-data 方式上传媒体文件给 Telegram Bot API，避免将大文件整份缓冲到内存。
 func (c *Client) callMultipart(ctx context.Context, botToken, method string, fields map[string]string, fileField, filename string, content io.Reader) (json.RawMessage, int, string, error) {
-	var buf bytes.Buffer
-	mw := multipart.NewWriter(&buf)
-	for k, v := range fields {
-		if err := mw.WriteField(k, v); err != nil {
-			return nil, 0, "", errors.Wrap(err, "write multipart field")
+	pr, pw := io.Pipe()
+	mw := multipart.NewWriter(pw)
+	contentType := mw.FormDataContentType()
+
+	go func() {
+		var writeErr error
+		defer func() {
+			if writeErr != nil {
+				_ = pw.CloseWithError(writeErr)
+				return
+			}
+			_ = pw.Close()
+		}()
+		for k, v := range fields {
+			if err := mw.WriteField(k, v); err != nil {
+				writeErr = errors.Wrap(err, "write multipart field")
+				return
+			}
 		}
-	}
-	part, err := mw.CreateFormFile(fileField, filename)
-	if err != nil {
-		return nil, 0, "", errors.Wrap(err, "create multipart file")
-	}
-	if _, err := io.Copy(part, content); err != nil {
-		return nil, 0, "", errors.Wrap(err, "copy multipart file")
-	}
-	if err := mw.Close(); err != nil {
-		return nil, 0, "", errors.Wrap(err, "close multipart writer")
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/bot%s/%s", c.baseURL, botToken, method), &buf)
+		part, err := mw.CreateFormFile(fileField, filename)
+		if err != nil {
+			writeErr = errors.Wrap(err, "create multipart file")
+			return
+		}
+		if _, err := io.Copy(part, content); err != nil {
+			writeErr = errors.Wrap(err, "copy multipart file")
+			return
+		}
+		if err := mw.Close(); err != nil {
+			writeErr = errors.Wrap(err, "close multipart writer")
+		}
+	}()
+	defer func() { _ = pr.Close() }()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/bot%s/%s", c.baseURL, botToken, method), pr)
 	if err != nil {
 		return nil, 0, "", errors.Wrap(err, "build telegram multipart request")
 	}
-	req.Header.Set("Content-Type", mw.FormDataContentType())
+	req.Header.Set("Content-Type", contentType)
 	return c.do(req, botToken)
 }
 
@@ -124,9 +148,43 @@ func (c *Client) do(req *http.Request, botToken string) (json.RawMessage, int, s
 		if code == 0 {
 			code = resp.StatusCode
 		}
-		return nil, code, out.Description, errors.Newf("telegram api error %d: %s", code, out.Description)
+		apiErr := errors.Newf("telegram api error %d: %s", code, out.Description)
+		if code == http.StatusTooManyRequests && out.Parameters != nil && out.Parameters.RetryAfter > 0 {
+			apiErr = queue.RetryAfter(apiErr, time.Duration(out.Parameters.RetryAfter)*time.Second)
+		}
+		return nil, code, out.Description, apiErr
 	}
 	return out.Result, resp.StatusCode, "", nil
+}
+
+// classifySendError 区分限流重试、永久客户侧拒绝（如拉黑或会话不存在）以及服务端临时故障。
+func classifySendError(code int, desc string, err error) error {
+	if err == nil || code == http.StatusTooManyRequests {
+		return err
+	}
+	if code == http.StatusUnauthorized || code == http.StatusForbidden {
+		return queue.Permanent(err)
+	}
+	if code == http.StatusBadRequest {
+		lower := strings.ToLower(desc)
+		for _, marker := range []string{
+			"chat not found",
+			"user not found",
+			"peer_id_invalid",
+			"message is too long",
+			"have no rights to send",
+			"group chat was upgraded",
+			"can't parse entities",
+			"wrong file identifier",
+			"chat_write_forbidden",
+			"bot can't initiate",
+		} {
+			if strings.Contains(lower, marker) {
+				return queue.Permanent(err)
+			}
+		}
+	}
+	return err
 }
 
 // BotInfo 是 Telegram getMe 返回的机器人身份信息。
@@ -197,9 +255,9 @@ func (c *Client) SendMessage(ctx context.Context, botToken, chatID, text string,
 			}
 		}
 	}
-	res, _, _, err := c.callJSON(ctx, botToken, "sendMessage", payload)
+	res, code, desc, err := c.callJSON(ctx, botToken, "sendMessage", payload)
 	if err != nil {
-		return 0, errors.Wrap(err, "telegram sendMessage")
+		return 0, classifySendError(code, desc, errors.Wrap(err, "telegram sendMessage"))
 	}
 	return decodeMessageID(res)
 }
@@ -228,9 +286,9 @@ func (c *Client) SendPhoto(ctx context.Context, botToken, chatID, filename strin
 		fields["caption"] = caption
 	}
 	applyMultipartSendOptions(fields, opts)
-	res, _, _, err := c.callMultipart(ctx, botToken, "sendPhoto", fields, "photo", fallbackFilename(filename, "photo.jpg"), content)
+	res, code, desc, err := c.callMultipart(ctx, botToken, "sendPhoto", fields, "photo", fallbackFilename(filename, "photo.jpg"), content)
 	if err != nil {
-		return 0, errors.Wrap(err, "telegram sendPhoto")
+		return 0, classifySendError(code, desc, errors.Wrap(err, "telegram sendPhoto"))
 	}
 	return decodeMessageID(res)
 }
@@ -242,9 +300,9 @@ func (c *Client) SendDocument(ctx context.Context, botToken, chatID, filename st
 		fields["caption"] = caption
 	}
 	applyMultipartSendOptions(fields, opts)
-	res, _, _, err := c.callMultipart(ctx, botToken, "sendDocument", fields, "document", fallbackFilename(filename, "file"), content)
+	res, code, desc, err := c.callMultipart(ctx, botToken, "sendDocument", fields, "document", fallbackFilename(filename, "file"), content)
 	if err != nil {
-		return 0, errors.Wrap(err, "telegram sendDocument")
+		return 0, classifySendError(code, desc, errors.Wrap(err, "telegram sendDocument"))
 	}
 	return decodeMessageID(res)
 }
@@ -265,9 +323,9 @@ func (c *Client) SendVideo(ctx context.Context, botToken, chatID, filename strin
 		fields["height"] = fmt.Sprintf("%d", height)
 	}
 	applyMultipartSendOptions(fields, opts)
-	res, _, _, err := c.callMultipart(ctx, botToken, "sendVideo", fields, "video", fallbackFilename(filename, "video.mp4"), content)
+	res, code, desc, err := c.callMultipart(ctx, botToken, "sendVideo", fields, "video", fallbackFilename(filename, "video.mp4"), content)
 	if err != nil {
-		return 0, errors.Wrap(err, "telegram sendVideo")
+		return 0, classifySendError(code, desc, errors.Wrap(err, "telegram sendVideo"))
 	}
 	return decodeMessageID(res)
 }
@@ -282,9 +340,9 @@ func (c *Client) SendVoice(ctx context.Context, botToken, chatID, filename strin
 		fields["duration"] = fmt.Sprintf("%d", durationSec)
 	}
 	applyMultipartSendOptions(fields, opts)
-	res, _, _, err := c.callMultipart(ctx, botToken, "sendVoice", fields, "voice", fallbackFilename(filename, "voice.ogg"), content)
+	res, code, desc, err := c.callMultipart(ctx, botToken, "sendVoice", fields, "voice", fallbackFilename(filename, "voice.ogg"), content)
 	if err != nil {
-		return 0, errors.Wrap(err, "telegram sendVoice")
+		return 0, classifySendError(code, desc, errors.Wrap(err, "telegram sendVoice"))
 	}
 	return decodeMessageID(res)
 }
@@ -299,9 +357,9 @@ func (c *Client) SendAudio(ctx context.Context, botToken, chatID, filename strin
 		fields["duration"] = fmt.Sprintf("%d", durationSec)
 	}
 	applyMultipartSendOptions(fields, opts)
-	res, _, _, err := c.callMultipart(ctx, botToken, "sendAudio", fields, "audio", fallbackFilename(filename, "audio.mp3"), content)
+	res, code, desc, err := c.callMultipart(ctx, botToken, "sendAudio", fields, "audio", fallbackFilename(filename, "audio.mp3"), content)
 	if err != nil {
-		return 0, errors.Wrap(err, "telegram sendAudio")
+		return 0, classifySendError(code, desc, errors.Wrap(err, "telegram sendAudio"))
 	}
 	return decodeMessageID(res)
 }

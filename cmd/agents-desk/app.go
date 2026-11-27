@@ -376,9 +376,10 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	exporter := exports.New(db, ops, files, exports.WithDisk(files.PrivateDisk()))
 
 	locker := lock.New(pglock.New(db))
-	tgClient := telegram.NewClient(outbound.New(outbound.Options{Timeout: 30 * time.Second}))
+	tgClient := telegram.NewClient(outbound.New(outbound.Options{Timeout: 2 * time.Minute}))
 	tgMgr := tgaccount.NewManager(db, keys, files, tgCredentials, nil)
 	tgMgr.SetLocker(locker)
+	tgMgr.SetNATS(nc)
 	bizGuard := business.NewPolicyGuard(db, businessPolicy, featureStore, tgCredentials)
 	tgMgr.SetPolicyChecker(bizGuard.CheckConnectTelegram)
 	wecomMgr := wecom.NewManager(db, keys, files, locker, nc)
@@ -529,6 +530,11 @@ func (a *App) tasks() *schedule.Scheduler {
 	}, 500),
 		schedule.Label("schedule.task.generations_expire.label"),
 		schedule.Describe("schedule.task.generations_expire.description"))
+	sched.Add("media:recover-fetching", "*/5 * * * *", schedule.Cleanup(func(ctx context.Context, limit int) (int, error) {
+		return conversation.RecoverStaleMediaFetches(ctx, a.db, 5*time.Minute, limit)
+	}, 500),
+		schedule.Label("schedule.task.media_recover_fetching.label"),
+		schedule.Describe("schedule.task.media_recover_fetching.description"))
 	return sched
 }
 

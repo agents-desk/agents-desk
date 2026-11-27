@@ -189,6 +189,7 @@ var attachmentAccept = filesystem.Accept{
 		"audio/wav",
 		"audio/aac",
 		"audio/flac",
+		"audio/amr",
 		"application/pdf",
 		"application/zip",
 		"application/vnd.openxmlformats-officedocument.wordprocessingml.document",

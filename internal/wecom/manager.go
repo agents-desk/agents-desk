@@ -5,10 +5,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -28,10 +30,14 @@ import (
 
 const (
 	natsSendPrefix   = "wecom.send."
+	natsCtrlPrefix   = "wecom.ctrl."
 	heartbeatPeriod  = 30 * time.Second
 	frameAckTimeout  = 15 * time.Second
 	uploadChunkBytes = 512 * 1024
 )
+
+// errRestartRequested 表示外部控制广播触发了企业微信长连接主动重启。
+var errRestartRequested = errors.New("wecom: restart requested")
 
 // sendRPCRequest 是经 NATS 在多实例间转发给持有长连接实例的出站发送请求。
 type sendRPCRequest struct {
@@ -56,17 +62,19 @@ type sendRPCResponse struct {
 	Error      string `json:"error,omitempty"`
 }
 
-// botRunner 管理单个企业微信机器人的 WebSocket 长连接、请求-回执配对和并发写序列化。
+// botRunner 管理单个企业微信机器人的 WebSocket 长连接、请求-回执配对、req_id 幂等认领与并发写序列化。
 type botRunner struct {
 	channelID string
 	tenantID  string
 	cancel    context.CancelFunc
 
-	mu          sync.RWMutex
-	conn        *websocket.Conn
-	writeMu     sync.Mutex
-	pending     map[string]chan Frame
-	welcomeText string
+	mu             sync.RWMutex
+	conn           *websocket.Conn
+	writeMu        sync.Mutex
+	pending        map[string][]chan Frame
+	welcomeText    string
+	usedReplyReqMu sync.Mutex
+	usedReplyReq   map[string]struct{}
 }
 
 func (r *botRunner) setConn(c *websocket.Conn) {
@@ -91,6 +99,26 @@ func (r *botRunner) getWelcomeText() string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.welcomeText
+}
+
+// tryClaimReplyReqID 保证每个入站被动回复 req_id 至多被 CmdRespondMsg 使用一次，其余并发回复改走 CmdSendMsg。
+func (r *botRunner) tryClaimReplyReqID(reqID string) bool {
+	if reqID == "" {
+		return false
+	}
+	r.usedReplyReqMu.Lock()
+	defer r.usedReplyReqMu.Unlock()
+	if r.usedReplyReq == nil {
+		r.usedReplyReq = make(map[string]struct{})
+	}
+	if _, used := r.usedReplyReq[reqID]; used {
+		return false
+	}
+	if len(r.usedReplyReq) >= 1000 {
+		clear(r.usedReplyReq)
+	}
+	r.usedReplyReq[reqID] = struct{}{}
+	return true
 }
 
 // sendAndWait 向长连接发送一个命令帧并等待同 req_id 的回执帧。
@@ -123,13 +151,24 @@ func (r *botRunner) sendAndWait(ctx context.Context, cmd, reqID string, body any
 	ackCh := make(chan Frame, 1)
 	r.mu.Lock()
 	if r.pending == nil {
-		r.pending = map[string]chan Frame{}
+		r.pending = map[string][]chan Frame{}
 	}
-	r.pending[reqID] = ackCh
+	r.pending[reqID] = append(r.pending[reqID], ackCh)
 	r.mu.Unlock()
 	defer func() {
 		r.mu.Lock()
-		delete(r.pending, reqID)
+		waiters := r.pending[reqID]
+		for i, ch := range waiters {
+			if ch == ackCh {
+				waiters = append(waiters[:i], waiters[i+1:]...)
+				break
+			}
+		}
+		if len(waiters) == 0 {
+			delete(r.pending, reqID)
+		} else {
+			r.pending[reqID] = waiters
+		}
 		r.mu.Unlock()
 	}()
 
@@ -159,9 +198,18 @@ func (r *botRunner) resolveAck(f Frame) bool {
 	if f.Headers.ReqID == "" {
 		return false
 	}
-	r.mu.RLock()
-	ch := r.pending[f.Headers.ReqID]
-	r.mu.RUnlock()
+	r.mu.Lock()
+	waiters := r.pending[f.Headers.ReqID]
+	var ch chan Frame
+	if len(waiters) > 0 {
+		ch = waiters[0]
+		if len(waiters) == 1 {
+			delete(r.pending, f.Headers.ReqID)
+		} else {
+			r.pending[f.Headers.ReqID] = waiters[1:]
+		}
+	}
+	r.mu.Unlock()
 	if ch == nil {
 		return false
 	}
@@ -229,9 +277,12 @@ func (m *Manager) Wake() {
 	}
 }
 
-// Restart 主动断开指定机器人的现有长连接并触发立即重连。
+// Restart 主动断开指定机器人的现有长连接（含跨实例广播）并触发立即重连。
 func (m *Manager) Restart(channelID string) {
 	m.stopRunner(channelID)
+	if m.nc != nil {
+		_ = m.nc.Publish(natsCtrlPrefix+channelID, []byte("restart"))
+	}
 	m.Wake()
 }
 
@@ -291,7 +342,7 @@ func (m *Manager) reconcile(ctx context.Context) {
 			channelID:   id,
 			tenantID:    ch.TenantID,
 			cancel:      cancel,
-			pending:     map[string]chan Frame{},
+			pending:     map[string][]chan Frame{},
 			welcomeText: s.WelcomeText,
 		}
 		m.runners[id] = runner
@@ -320,13 +371,27 @@ func (m *Manager) runLoop(ctx context.Context, ch *channel.Channel, runner *botR
 		if ctx.Err() != nil {
 			return
 		}
-		if errors.Is(err, lock.ErrNotHeld) {
-			// 其他实例持有该机器人连接租约，静默退避等待
+		if errors.Is(err, lock.ErrNotAcquired) {
+			// 其他实例正在持有该机器人连接租约，静默退避等待抢占，不覆盖在线状态。
 			select {
 			case <-ctx.Done():
 				return
 			case <-time.After(10 * time.Second):
 			}
+			continue
+		}
+		if errors.Is(err, lock.ErrNotHeld) {
+			// 本实例持有的连接租约过期丢失，不再写回 disconnected 以免覆盖新接管实例状态。
+			slog.WarnContext(ctx, "wecom bot lease lost", "channel_id", ch.ID, "error", err)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(2 * time.Second):
+			}
+			continue
+		}
+		if errors.Is(err, errRestartRequested) {
+			slog.InfoContext(ctx, "wecom bot restart requested, reconnecting", "channel_id", ch.ID)
 			continue
 		}
 		var authErr *authError
@@ -390,6 +455,7 @@ func (m *Manager) connectAndServe(ctx context.Context, ch *channel.Channel, runn
 	readErrCh := make(chan error, 1)
 	serveCtx, cancelServe := context.WithCancel(ctx)
 	defer cancelServe()
+	var restartRequested atomic.Bool
 	go func() {
 		readErrCh <- m.readLoop(serveCtx, fresh, runner, conn)
 	}()
@@ -405,14 +471,8 @@ func (m *Manager) connectAndServe(ctx context.Context, ch *channel.Channel, runn
 		}
 		return err
 	}
-	if onConnected != nil {
-		onConnected()
-	}
-	m.recordStatus(serveCtx, fresh.TenantID, fresh.ID, StatusConnected, "", true)
-	slog.InfoContext(serveCtx, "wecom bot websocket connected", "channel_id", fresh.ID, "bot_id", s.BotID)
-
-	// 2. 订阅 NATS 跨实例出站投递主题，使任意 worker 实例均可经本连接发送回复
-	var sub *nats.Subscription
+	// 2. 先订阅 NATS 跨实例出站投递主题与重启控制主题并刷新到服务端，再更新在线状态，确保状态可读即可接收广播
+	var sub, ctrlSub *nats.Subscription
 	if m.nc != nil {
 		sub, err = m.nc.Subscribe(natsSendPrefix+fresh.ID, func(msg *nats.Msg) {
 			var req sendRPCRequest
@@ -433,7 +493,23 @@ func (m *Manager) connectAndServe(ctx context.Context, ch *channel.Channel, runn
 			return errors.Wrap(err, "subscribe wecom nats send subject")
 		}
 		defer func() { _ = sub.Unsubscribe() }()
+
+		ctrlSub, err = m.nc.Subscribe(natsCtrlPrefix+fresh.ID, func(_ *nats.Msg) {
+			restartRequested.Store(true)
+			cancelServe()
+		})
+		if err != nil {
+			return errors.Wrap(err, "subscribe wecom nats control subject")
+		}
+		defer func() { _ = ctrlSub.Unsubscribe() }()
+		_ = m.nc.Flush()
 	}
+
+	if onConnected != nil {
+		onConnected()
+	}
+	m.recordStatus(serveCtx, fresh.TenantID, fresh.ID, StatusConnected, "", true)
+	slog.InfoContext(serveCtx, "wecom bot websocket connected", "channel_id", fresh.ID, "bot_id", s.BotID)
 
 	// 3. 心跳循环：每 30 秒发送 ping 帧，连续失败即断开重连
 	ticker := time.NewTicker(heartbeatPeriod)
@@ -443,10 +519,22 @@ func (m *Manager) connectAndServe(ctx context.Context, ch *channel.Channel, runn
 		case <-ctx.Done():
 			_ = conn.Close(websocket.StatusNormalClosure, "shutdown")
 			return nil
+		case <-serveCtx.Done():
+			_ = conn.Close(websocket.StatusNormalClosure, "restart")
+			if restartRequested.Load() {
+				return errRestartRequested
+			}
+			return serveCtx.Err()
 		case err := <-readErrCh:
+			if restartRequested.Load() && ctx.Err() == nil {
+				return errRestartRequested
+			}
 			return err
 		case <-ticker.C:
 			if _, err := runner.sendAndWait(serveCtx, CmdPing, newID(), nil); err != nil {
+				if restartRequested.Load() && ctx.Err() == nil {
+					return errRestartRequested
+				}
 				return errors.Wrap(err, "wecom heartbeat failed")
 			}
 		}
@@ -660,10 +748,10 @@ func (m *Manager) executeSend(ctx context.Context, runner *botRunner, req sendRP
 		chatType = 2
 	}
 
-	// 1. 发送文字内容
+	// 1. 发送文字内容（同一个入站 req_id 至多首次走被动回复，其余并发或后续回复走主动发送）
 	var lastReqID string
 	if strings.TrimSpace(req.Text) != "" {
-		if req.ReplyReqID != "" && len(req.Attachments) == 0 {
+		if req.ReplyReqID != "" && len(req.Attachments) == 0 && runner.tryClaimReplyReqID(req.ReplyReqID) {
 			_, err := runner.sendAndWait(ctx, CmdRespondMsg, req.ReplyReqID, map[string]any{
 				"msgtype": "markdown",
 				"markdown": map[string]any{
@@ -674,7 +762,7 @@ func (m *Manager) executeSend(ctx context.Context, runner *botRunner, req sendRP
 			if err == nil {
 				return fmt.Sprintf("wecom:%s", req.ItemID), nil
 			}
-			// 若被动回复窗口过期或 req_id 已用完，自动降级为 aibot_send_msg 主动发送
+			// 若被动回复窗口过期，自动降级为 aibot_send_msg 主动发送
 			slog.InfoContext(ctx, "wecom respond_msg failed, falling back to send_msg", "channel_id", runner.channelID, "error", err)
 		}
 		lastReqID = newID()
@@ -734,14 +822,14 @@ func (m *Manager) uploadMedia(ctx context.Context, runner *botRunner, att rpcAtt
 	if size <= 0 && info.Size > 0 {
 		size = info.Size
 	}
+	if size <= 0 {
+		return "", errors.New("wecom: attachment size must be positive")
+	}
 	filename := strings.TrimSpace(att.Filename)
 	if filename == "" {
 		filename = "file"
 	}
 	totalChunks := int((size + uploadChunkBytes - 1) / uploadChunkBytes)
-	if totalChunks < 1 {
-		totalChunks = 1
-	}
 
 	initResp, err := runner.sendAndWait(ctx, CmdUploadInit, newID(), map[string]any{
 		"type":         mediaType,
@@ -760,8 +848,12 @@ func (m *Manager) uploadMedia(ctx context.Context, runner *botRunner, att rpcAtt
 	}
 
 	buf := make([]byte, uploadChunkBytes)
+	uploadedChunks := 0
 	for idx := 0; ; idx++ {
-		n, readErr := rc.Read(buf)
+		n, readErr := io.ReadFull(rc, buf)
+		if readErr != nil && !errors.Is(readErr, io.EOF) && !errors.Is(readErr, io.ErrUnexpectedEOF) {
+			return "", errors.Wrapf(readErr, "read wecom attachment chunk %d", idx)
+		}
 		if n > 0 {
 			if _, err := runner.sendAndWait(ctx, CmdUploadChunk, newID(), map[string]any{
 				"upload_id":   initBody.UploadID,
@@ -770,13 +862,14 @@ func (m *Manager) uploadMedia(ctx context.Context, runner *botRunner, att rpcAtt
 			}); err != nil {
 				return "", errors.Wrapf(err, "wecom upload chunk %d", idx)
 			}
+			uploadedChunks++
 		}
-		if readErr != nil {
-			if errors.Is(readErr, context.Canceled) || errors.Is(readErr, context.DeadlineExceeded) {
-				return "", readErr
-			}
+		if errors.Is(readErr, io.EOF) || errors.Is(readErr, io.ErrUnexpectedEOF) || n == 0 {
 			break
 		}
+	}
+	if uploadedChunks == 0 {
+		return "", errors.New("wecom: attachment content is empty")
 	}
 
 	finishResp, err := runner.sendAndWait(ctx, CmdUploadFinish, newID(), map[string]any{
@@ -814,13 +907,13 @@ func (m *Manager) recordStatus(ctx context.Context, tenantID, channelID string, 
 		_, err = m.db.NewRaw(`UPDATE channels
 			SET settings = jsonb_set(jsonb_set(jsonb_set(settings, '{status}', to_jsonb(?::text), true), '{last_error}', to_jsonb(?::text), true), '{last_connected_at}', to_jsonb(?::text), true),
 			    updated_at = ?
-			WHERE id = ? AND tenant_id = ?`,
+			WHERE id = ? AND tenant_id = ? AND enabled = TRUE`,
 			string(status), lastErr, nowUTC.Format(time.RFC3339Nano), nowUTC, channelID, tenantID).Exec(ctx)
 	} else {
 		_, err = m.db.NewRaw(`UPDATE channels
 			SET settings = jsonb_set(jsonb_set(settings, '{status}', to_jsonb(?::text), true), '{last_error}', to_jsonb(?::text), true),
 			    updated_at = ?
-			WHERE id = ? AND tenant_id = ?`,
+			WHERE id = ? AND tenant_id = ? AND enabled = TRUE`,
 			string(status), lastErr, nowUTC, channelID, tenantID).Exec(ctx)
 	}
 	if err != nil {

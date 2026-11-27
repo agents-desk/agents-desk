@@ -88,8 +88,9 @@ type fakeLiveClient struct {
 }
 
 type sentRecord struct {
-	Peer SyncedPeer
-	Text string
+	Peer     SyncedPeer
+	Text     string
+	RandomID int64
 }
 
 func (c *fakeLiveClient) ListDialogs(_ context.Context, _ int) ([]DialogDTO, error) {
@@ -129,16 +130,16 @@ func (c *fakeLiveClient) DownloadMedia(_ context.Context, ref string, _ int64) (
 	}, nil
 }
 
-func (c *fakeLiveClient) SendText(_ context.Context, peer SyncedPeer, text string) (int, error) {
+func (c *fakeLiveClient) SendText(_ context.Context, peer SyncedPeer, text string, randomID int64) (int, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.nextID++
-	c.sent = append(c.sent, sentRecord{Peer: peer, Text: text})
+	c.sent = append(c.sent, sentRecord{Peer: peer, Text: text, RandomID: randomID})
 	return 500 + c.nextID, nil
 }
 
-func (c *fakeLiveClient) SendMedia(_ context.Context, peer SyncedPeer, _ channel.Attachment, _ io.Reader, caption string) (int, error) {
-	return c.SendText(context.Background(), peer, caption)
+func (c *fakeLiveClient) SendMedia(_ context.Context, peer SyncedPeer, _ channel.Attachment, _ io.Reader, caption string, randomID int64) (int, error) {
+	return c.SendText(context.Background(), peer, caption, randomID)
 }
 
 // fakeBackend 模拟 MTProto 后端：可在测试中按会话标识精确注入实时更新并校验会话密文与代理配置传递。

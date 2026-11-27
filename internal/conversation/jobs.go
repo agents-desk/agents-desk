@@ -18,6 +18,6 @@ func RegisterJobs(w *queue.Worker, db *bun.DB, registry channel.Registry, down .
 	deliver := NewDeliver(db, registry, d)
 	DeliverTopic.Handle(w, deliver.Job, queue.OnDead(deliver.OnDead))
 	ingestor := NewMediaIngestor(db, registry, d)
-	MediaIngestTopic.Handle(w, ingestor.Job)
+	MediaIngestTopic.Handle(w, ingestor.Job, queue.OnDead(ingestor.OnDead))
 	SearchIndex.Handle(w, db, LoadSearchDocs, ScanSearchKeys)
 }

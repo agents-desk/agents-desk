@@ -31,26 +31,33 @@ func NewRotateSecret(db *bun.DB, c *crypt.Crypt, client *Client, publicURL strin
 	return &RotateSecret{db: db, crypt: c, client: client, publicURL: publicURL}
 }
 
-// Handle 为 sub 所在工作区的 Telegram 渠道 id 生成新的 Webhook 密钥并记录操作日志，返回更新后的接入参数。
+// Handle 为 sub 所在工作区的 Telegram 渠道 id 生成新的 Webhook 密钥并记录操作日志；直连且启用时先刷新 Telegram Webhook 后再落库提交。
 func (a *RotateSecret) Handle(ctx context.Context, sub identity.Subject, id string) (*InstallationDTO, error) {
-	var ch *channel.Channel
-	var syncToken string
 	nextSecret := newSecret()
+	cur, err := find(ctx, a.db, sub.Tenant, id, false)
+	if err != nil {
+		return nil, err
+	}
+	curSettings, err := settingsOf(cur)
+	if err != nil {
+		return nil, err
+	}
+	if !curSettings.GatewayManaged && cur.Enabled {
+		syncToken, err := a.crypt.Decrypt(curSettings.BotToken)
+		if err != nil {
+			return nil, errors.Wrap(err, "decrypt telegram bot token")
+		}
+		if err := a.client.SetWebhook(ctx, syncToken, webhookURL(a.publicURL, id), nextSecret); err != nil {
+			slog.WarnContext(ctx, "telegram setWebhook failed before secret rotation", "channel_id", id, "error", err)
+			return nil, err
+		}
+	}
 
-	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
+	var ch *channel.Channel
+	err = database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		var err error
 		if ch, err = find(ctx, tx, sub.Tenant, id, true); err != nil {
 			return err
-		}
-		s, err := settingsOf(ch)
-		if err != nil {
-			return err
-		}
-		if !s.GatewayManaged && ch.Enabled {
-			syncToken, err = a.crypt.Decrypt(s.BotToken)
-			if err != nil {
-				return errors.Wrap(err, "decrypt telegram bot token")
-			}
 		}
 		ch.Settings["webhook_secret"] = a.crypt.Encrypt(nextSecret)
 		if _, err := tx.NewUpdate().Model(ch).Column("settings", "updated_at").WherePK().Exec(ctx); err != nil {
@@ -62,12 +69,6 @@ func (a *RotateSecret) Handle(ctx context.Context, sub identity.Subject, id stri
 	})
 	if err != nil {
 		return nil, err
-	}
-	if syncToken != "" {
-		if err := a.client.SetWebhook(ctx, syncToken, webhookURL(a.publicURL, id), nextSecret); err != nil {
-			slog.WarnContext(ctx, "telegram setWebhook failed after secret rotation", "channel_id", id, "error", err)
-			return nil, err
-		}
 	}
 	return installation(ch, a.crypt, a.publicURL)
 }

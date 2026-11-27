@@ -6,6 +6,8 @@ import (
 	"html"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf16"
 	"unicode/utf8"
 
 	"github.com/cockroachdb/errors"
@@ -17,8 +19,12 @@ import (
 	"agents-desk/internal/channel"
 )
 
-// maxCaptionRunes 是 Telegram 媒体消息 caption 的最大字符数。
-const maxCaptionRunes = 1024
+const (
+	// maxCaptionRunes 是 Telegram 媒体消息 caption 的最大 UTF-16 单元数。
+	maxCaptionRunes = 1024
+	// maxMessageRunes 是 Telegram 单条文本消息的最大 UTF-16 单元数。
+	maxMessageRunes = 4096
+)
 
 // Connector 是 Telegram 机器人私聊渠道的连接器：把坐席或系统的回复经 Telegram Bot API 发给对方，
 // 并实现 channel.MediaFetcher 供会话层异步或按需流式拉取 Telegram 媒体。
@@ -86,12 +92,13 @@ func (c Connector) Send(ctx context.Context, m channel.Outgoing) (string, bool, 
 		return "", false, errors.Wrap(err, "decrypt telegram bot token")
 	}
 	outText, parseMode := formatTelegramText(m.Text, m.Mentions)
+	visText := visibleTelegramText(m.Text, m.Mentions)
 	sendOpt := SendOptions{
 		ReplyToMessageID: parseTelegramReplyID(m.ReplyToExternalID),
 		ParseMode:        parseMode,
 	}
 	if len(m.Attachments) == 0 {
-		msgID, err := c.client.SendMessage(ctx, botToken, chatID, outText, sendOpt)
+		msgID, err := c.sendTextParts(ctx, botToken, chatID, m.Text, m.Mentions, outText, visText, sendOpt)
 		if err != nil {
 			return "", false, err
 		}
@@ -100,12 +107,12 @@ func (c Connector) Send(ctx context.Context, m channel.Outgoing) (string, bool, 
 	if c.files == nil {
 		return "", false, errors.New("telegram: filesystem service is required to send attachments")
 	}
-	// 文字超过 Telegram caption 上限时先单独发送文字消息，再逐个发送附件
+	// 可见文字超过 Telegram caption 上限时先分片单独发送文字消息，再逐个发送附件
 	caption := outText
 	captionParseMode := parseMode
 	var lastMsgID int64
-	if caption != "" && utf8.RuneCountInString(m.Text) > maxCaptionRunes {
-		lastMsgID, err = c.client.SendMessage(ctx, botToken, chatID, caption, sendOpt)
+	if visText != "" && utf16Len(visText) > maxCaptionRunes {
+		lastMsgID, err = c.sendTextParts(ctx, botToken, chatID, m.Text, m.Mentions, outText, visText, sendOpt)
 		if err != nil {
 			return "", false, err
 		}
@@ -197,4 +204,123 @@ func formatTelegramText(text string, mentions []channel.ExternalMention) (string
 		return prefix, "HTML"
 	}
 	return prefix + " " + escaped, "HTML"
+}
+
+// utf16Len 计算字符串在 Telegram 消息长度规则下占用的 UTF-16 code unit 数量。
+func utf16Len(s string) int {
+	n := 0
+	for _, r := range s {
+		n += utf16.RuneLen(r)
+	}
+	return n
+}
+
+// visibleTelegramText 计算附带 @ 提及前缀后实际计入 Telegram 长度校验的可见纯文本。
+func visibleTelegramText(text string, mentions []channel.ExternalMention) string {
+	var parts []string
+	for _, m := range mentions {
+		extID := strings.TrimSpace(m.ExternalID)
+		if extID == "" {
+			continue
+		}
+		name := strings.TrimSpace(m.Name)
+		if name == "" {
+			name = extID
+		}
+		parts = append(parts, "@"+name)
+	}
+	if len(parts) == 0 {
+		return text
+	}
+	prefix := strings.Join(parts, " ")
+	if text == "" {
+		return prefix
+	}
+	return prefix + " " + text
+}
+
+// sendTextParts 将文本按 maxMessageRunes (4096) UTF-16 单元拆分成多条消息发出，仅首段保留引用回复与 HTML @ 提及标签。
+func (c Connector) sendTextParts(ctx context.Context, botToken, chatID, rawText string, mentions []channel.ExternalMention, formattedText, visibleText string, opt SendOptions) (int64, error) {
+	if utf16Len(visibleText) <= maxMessageRunes {
+		return c.client.SendMessage(ctx, botToken, chatID, formattedText, opt)
+	}
+	mentionPrefix := ""
+	if formattedText != "" && opt.ParseMode == "HTML" {
+		mentionPrefix, _ = formatTelegramText("", mentions)
+	}
+	prefixUnits := utf16Len(visibleTelegramText("", mentions))
+	firstCap := maxMessageRunes
+	if mentionPrefix != "" && prefixUnits+1 < maxMessageRunes {
+		firstCap = maxMessageRunes - prefixUnits - 1
+	}
+	chunks := splitTelegramText(rawText, firstCap, maxMessageRunes)
+	var lastMsgID int64
+	for i, chunk := range chunks {
+		if i == 0 {
+			out := chunk
+			firstOpt := opt
+			if mentionPrefix != "" {
+				if out == "" {
+					out = mentionPrefix
+				} else {
+					out = mentionPrefix + " " + html.EscapeString(out)
+				}
+			}
+			id, err := c.client.SendMessage(ctx, botToken, chatID, out, firstOpt)
+			if err != nil {
+				return 0, err
+			}
+			lastMsgID = id
+			continue
+		}
+		id, err := c.client.SendMessage(ctx, botToken, chatID, chunk)
+		if err != nil {
+			return 0, err
+		}
+		lastMsgID = id
+	}
+	return lastMsgID, nil
+}
+
+// splitTelegramText 按 maxUnits 拆片，首片使用 firstMax，尽量在换行或空白字符处断开，避免截断 UTF-8 或代理对。
+func splitTelegramText(text string, firstMax, nextMax int) []string {
+	if text == "" {
+		return []string{""}
+	}
+	var out []string
+	limit := firstMax
+	for len(text) > 0 {
+		if utf16Len(text) <= limit {
+			out = append(out, text)
+			break
+		}
+		units := 0
+		cutByte := 0
+		lastSpaceByte := -1
+		for idx, r := range text {
+			ru := utf16.RuneLen(r)
+			if units+ru > limit {
+				break
+			}
+			units += ru
+			cutByte = idx + len(string(r))
+			if unicode.IsSpace(r) {
+				lastSpaceByte = cutByte
+			}
+		}
+		if lastSpaceByte > 0 {
+			cutByte = lastSpaceByte
+		} else if cutByte == 0 {
+			// 单个字符超过 limit 时至少推进一个 rune
+			_, cutByte = utf8.DecodeRuneInString(text)
+		}
+		part := strings.TrimRightFunc(text[:cutByte], unicode.IsSpace)
+		if part == "" {
+			part = text[:cutByte]
+		}
+		out = append(out, part)
+		text = strings.TrimLeftFunc(text[cutByte:], unicode.IsSpace)
+		limit = nextMax
+	}
+	return out
 }
