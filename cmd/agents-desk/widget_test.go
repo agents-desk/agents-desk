@@ -103,7 +103,7 @@ func TestWidgetAPI(t *testing.T) {
 
 	// 管理：主管理员新建两个聊天插件，读取嵌入代码；坐席没有 channels:manage
 	var w, other widget.WidgetDTO
-	decode(call(h, "POST", "/t/alpha/api/widgets", `{"name":"官网","appearance":{"greeting":"你好"}}`, owner), http.StatusCreated, &w)
+	decode(call(h, "POST", "/t/alpha/api/widgets", `{"name":"官网","localization":{"default_language":"zh-CN","translations":{"zh-CN":{"greeting":"你好"},"en":{"title":"Official Support","greeting":"Hello"}}}}`, owner), http.StatusCreated, &w)
 	decode(call(h, "POST", "/t/alpha/api/widgets", `{"name":"App"}`, owner), http.StatusCreated, &other)
 	var inst widget.InstallationDTO
 	decode(call(h, "GET", "/t/alpha/api/widgets/"+w.ID+"/installation", "", owner), http.StatusOK, &inst)
@@ -119,12 +119,17 @@ func TestWidgetAPI(t *testing.T) {
 		t.Errorf("坐席读取聊天插件：%d", r.status)
 	}
 
-	// 客户：公开设置、建立会话、发起会话、发消息、读取
+	// 客户：公开设置（含多语言解析）、建立会话、发起会话、发消息、读取
 	base := "/w/" + w.ID + "/api"
 	var cfg widget.ConfigDTO
 	decode(callBearer(h, "GET", base+"/config", "", ""), http.StatusOK, &cfg)
-	if cfg.Name != "官网" || cfg.Appearance.Greeting != "你好" {
+	if cfg.Name != "官网" || cfg.Greeting != "你好" {
 		t.Fatalf("公开设置：%+v", cfg)
+	}
+	var enCfg widget.ConfigDTO
+	decode(callBearer(h, "GET", base+"/config?lang=en", "", ""), http.StatusOK, &enCfg)
+	if enCfg.Name != "Official Support" || enCfg.Greeting != "Hello" || enCfg.Language != "en" {
+		t.Fatalf("英文公开设置：%+v", enCfg)
 	}
 	if r := callBearer(h, "GET", "/w/00000000-0000-7000-8000-000000000000/api/config", "", ""); r.status != http.StatusNotFound || r.code != "channel.not_found" {
 		t.Errorf("不存在的聊天插件：%d %s", r.status, r.code)

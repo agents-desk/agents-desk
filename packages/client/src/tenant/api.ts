@@ -2619,8 +2619,6 @@ export interface TranslationToneInputBody {
 export interface WidgetAppearance {
   /** 聊天窗口的主题色（#rrggbb 十六进制颜色值），缺省为 #0063ff */
   color?: string
-  /** 聊天窗口顶部的问候语；为空时显示默认问候语 */
-  greeting?: string
 }
 
 export interface WidgetBusinessAccessDTO {
@@ -2644,16 +2642,8 @@ export interface WidgetBusinessAccessInput {
 }
 
 export interface WidgetBusinessCardConfig {
-  /** 成员处于离开状态时在商务沟通窗口展示的提示语 */
-  away_message?: string
-  /** 可选：覆盖成员个人资料中的对外简介 */
-  bio_override?: string
-  /** 可选：覆盖工作区默认展示的公司或品牌名 */
-  company_override?: string
   /** 是否在聊天窗口顶部展示归属成员的头像、姓名、头衔与简介 */
   show_owner: boolean
-  /** 可选：覆盖成员个人资料中的头衔 */
-  title_override?: string
 }
 
 export interface WidgetBusinessIntakeConfig {
@@ -2672,11 +2662,11 @@ export interface WidgetBusinessIntakeConfig {
 export interface WidgetBusinessLinkDTO {
   /** 访问控制（口令保护与有效期） */
   access: WidgetBusinessAccessDTO
-  /** 聊天窗口外观配置（主题色与问候语） */
+  /** 聊天窗口视觉外观配置（主题色） */
   appearance: WidgetAppearance
   /** 通用商务策略（默认协作成员、自动标签与翻译覆写） */
   business: ChannelBusinessPolicy
-  /** 对外商务名片展示与离开提示配置 */
+  /** 对外商务名片展示开关 */
   card: WidgetBusinessCardConfig
   /** 发给外部合作方直接打开的短链地址（/c/{code}） */
   chat_url: string
@@ -2686,14 +2676,14 @@ export interface WidgetBusinessLinkDTO {
   id: string
   /** 开场留资表单配置 */
   intake: WidgetBusinessIntakeConfig
-  /** 商务沟通链接名称，显示在对方打开的聊天窗口顶部 */
+  /** 链接语言策略与多语言自定义文案（标题、问候语、名片、离开提示与快捷话题） */
+  localization: WidgetLocalization
+  /** 商务沟通链接内部管理名称；对外未设置多语言标题时也作为默认标题 */
   name: string
   /** 网页商务链接的公开短码，用于 /c/{code} 访问 */
   public_code: string
   /** 短链对应的 PNG 二维码（data:image/png;base64,...） */
   qr_data_url?: string
-  /** 快捷开场话题列表 */
-  starters: string[]
   updated_at: string
   /** 底层聊天窗口直连地址（/widget/?channel={id}） */
   widget_url: string
@@ -2702,18 +2692,22 @@ export interface WidgetBusinessLinkDTO {
 export interface WidgetChanges {
   /** 允许嵌入聊天窗口的网站，形如 https://shop.example.com；不填时所有网站都可以嵌入 */
   allowed_origins?: string[]
-  /** 聊天窗口的外观配置 */
+  /** 聊天窗口的视觉外观配置 */
   appearance?: WidgetAppearance
+  /** 渠道语言策略与多语言自定义文案；不填时使用默认语言策略 */
+  localization?: WidgetLocalization
   name: string
   /** 新会话进入的团队收件箱；不填时进入未指派 */
   team_id?: string
 }
 
 export interface WidgetCreateBusinessLinkBody {
-  /** 聊天窗口外观配置 */
+  /** 聊天窗口视觉外观配置 */
   appearance?: WidgetAppearance
   /** 可选：通用商务策略 */
   business?: ChannelBusinessPolicy
+  /** 可选：语言策略与多语言文案 */
+  localization?: WidgetLocalization
   /** 链接名称，例如：Alex 商务合作专线 */
   name: string
 }
@@ -2721,12 +2715,14 @@ export interface WidgetCreateBusinessLinkBody {
 export interface WidgetDTO {
   /** 允许嵌入聊天窗口的网站；为空表示所有网站 */
   allowed_origins: string[]
-  /** 聊天窗口的外观配置 */
+  /** 聊天窗口的视觉外观配置 */
   appearance: WidgetAppearance
   created_at: string
   /** 停用后聊天窗口不再显示，客户不能再发消息 */
   enabled: boolean
   id: string
+  /** 渠道语言策略与多语言自定义文案 */
+  localization: WidgetLocalization
   name: string
   /** 新会话进入的团队收件箱；为空时进入未指派 */
   team_id?: string
@@ -2743,13 +2739,55 @@ export interface WidgetInstallationDTO {
   identity_secret: string
 }
 
+export interface WidgetLocalization {
+  /** 渠道主语言（BCP 47），作为缺省回退与 AI 翻译源语言 */
+  default_language: string
+  /** 按规范 BCP 47 语言标签索引的自定义文案 */
+  translations: Record<string, WidgetLocalizedCopy>
+}
+
+export interface WidgetLocalizedCopy {
+  /** 商务链接成员处于离开状态时的提示语 */
+  away_message?: string
+  /** 聊天窗口顶部的欢迎问候语；为空时显示界面默认问候语 */
+  greeting?: string
+  /** 商务链接对外简介覆写 */
+  owner_bio?: string
+  /** 商务链接对外公司或品牌名覆写 */
+  owner_company?: string
+  /** 商务链接对外名片头衔覆写 */
+  owner_title?: string
+  /** 商务链接快捷开场话题（最多 5 条） */
+  starters?: string[]
+  /** 对外窗口标题；为空时回退渠道内部名称 */
+  title?: string
+}
+
+export interface WidgetTranslateCopyBody {
+  /** 可选：所属渠道 ID，用于记录模型调用关联目标 */
+  channel_id?: string
+  /** 待翻译的源语言自定义文案 */
+  copy: WidgetLocalizedCopy
+  /** 源语言（BCP 47），如 zh-CN 或 en */
+  source_language: string
+  /** 要生成的目标语言列表（BCP 47） */
+  target_languages: string[]
+}
+
+export interface WidgetTranslateCopyDTO {
+  /** 按规范 BCP 47 语言标签索引的译文 */
+  translations: Record<string, WidgetLocalizedCopy>
+}
+
 export interface WidgetUpdateBody {
   /** 允许嵌入聊天窗口的网站，形如 https://shop.example.com；不填时所有网站都可以嵌入 */
   allowed_origins?: string[]
-  /** 聊天窗口的外观配置 */
+  /** 聊天窗口的视觉外观配置 */
   appearance?: WidgetAppearance
   /** 停用后聊天窗口不再显示，客户不能再发消息 */
   enabled: boolean
+  /** 渠道语言策略与多语言自定义文案；不填时使用默认语言策略 */
+  localization?: WidgetLocalization
   name: string
   /** 新会话进入的团队收件箱；不填时进入未指派 */
   team_id?: string
@@ -2762,10 +2800,10 @@ export interface WidgetUpdateBusinessLinkBody {
   card?: WidgetBusinessCardConfig
   enabled: boolean
   intake?: WidgetBusinessIntakeConfig
+  localization?: WidgetLocalization
   name: string
   /** 可选：自定义短码（3-40 位小写字母、数字或连字符） */
   public_code?: string
-  starters?: string[]
 }
 
 /** attribute-list 的参数。 */
@@ -4447,6 +4485,13 @@ export function createClient(options: ClientOptions) {
        */
       rotateSecret: (id: string): Promise<WidgetInstallationDTO> =>
         rt.request<WidgetInstallationDTO>({ method: "POST", path: `/widgets/${encodeURIComponent(id)}/identity-secret` }),
+      /**
+       * AI 翻译渠道多语言文案
+       *
+       * POST /widgets/translate-copy
+       */
+      translateCopy: (body: WidgetTranslateCopyBody): Promise<WidgetTranslateCopyDTO> =>
+        rt.request<WidgetTranslateCopyDTO>({ method: "POST", path: `/widgets/translate-copy`, body }),
       /**
        * 修改聊天插件
        *

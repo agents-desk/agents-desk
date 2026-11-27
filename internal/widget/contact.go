@@ -15,6 +15,7 @@ import (
 
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
+	"agents-desk/internal/lang"
 )
 
 // ContactEmailBody 是线索在聊天窗口中留下邮箱的请求体。
@@ -160,6 +161,60 @@ func (a *SubmitIntake) Handle(ctx context.Context, sub identity.Subject, b Conta
 				if err := conversation.NotifyUpdated(ctx, tx, a.down, sub.Tenant, convIDs); err != nil {
 					return err
 				}
+			}
+		}
+		updated = c
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	summary := updated.Summary()
+	return &summary, nil
+}
+
+// ContactLanguageBody 是访客在聊天窗口手动切换语言时上报的语言偏好。
+type ContactLanguageBody struct {
+	Language string `json:"language" minLength:"2" maxLength:"35" doc:"访客选择的语言（BCP 47），如 zh-CN、en、hi-Latn"`
+}
+
+// ContactLanguageInput 是访客更新语言偏好的 HTTP 请求。
+type ContactLanguageInput struct {
+	Body ContactLanguageBody
+}
+
+// UpdateLanguage 在访客手动切换聊天窗口语言时更新联系人的冷启动语言先验：
+// 若该联系人尚未发过任何真实消息，则将 contacts.language 同步为所选语言；若已有真实消息识别出的语言则保持不变。
+type UpdateLanguage struct {
+	db *bun.DB
+}
+
+// NewUpdateLanguage 返回更新访客冷启动语言先验的动作。
+func NewUpdateLanguage(db *bun.DB) *UpdateLanguage { return &UpdateLanguage{db: db} }
+
+// Handle 校验语言标签，仅在联系人尚未发送过消息时更新其 contacts.language，并返回最新联系人概要。
+func (a *UpdateLanguage) Handle(ctx context.Context, sub identity.Subject, b ContactLanguageBody) (*contact.Summary, error) {
+	canon, ok := lang.Canonical(b.Language)
+	if !ok {
+		return nil, ErrInvalidLanguage.New(errorx.Field("language"), errorx.Public("language", b.Language))
+	}
+	var updated *contact.Contact
+	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
+		c, err := contact.Find(ctx, tx, sub.Tenant, sub.ID)
+		if err != nil {
+			return err
+		}
+		hasMessage, err := tx.NewSelect().Table("timeline_items").
+			Where("tenant_id = ? AND kind = ? AND actor_type = ? AND actor_id = ?", sub.Tenant, conversation.Message, conversation.ContactActor, sub.ID).
+			Exists(ctx)
+		if err != nil {
+			return errors.Wrap(err, "check contact messages for language update")
+		}
+		if !hasMessage && c.Language != canon {
+			c.Language = canon
+			c.UpdatedAt = time.Now().UTC().Truncate(time.Microsecond)
+			if _, err := tx.NewUpdate().Model(c).Column("language", "updated_at").WherePK().Exec(ctx); err != nil {
+				return errors.Wrap(err, "update contact language")
 			}
 		}
 		updated = c

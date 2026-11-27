@@ -2,6 +2,7 @@ import type {
   ChannelBusinessPolicy,
   WidgetBusinessIntakeConfig,
   WidgetBusinessLinkDTO,
+  WidgetLocalization,
 } from "@agents-desk/client/tenant"
 import {
   ActionIcon,
@@ -22,9 +23,7 @@ import {
   Skeleton,
   Stack,
   Switch,
-  TagsInput,
   Text,
-  Textarea,
   TextInput,
   Title,
   Tooltip,
@@ -41,15 +40,25 @@ import {
   IconLock,
   IconMessage,
   IconRefresh,
+  IconWorld,
 } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useSearch } from "@tanstack/react-router"
-import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, primaryColors, useT } from "@go-tenon/ui"
+import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, primaryColors, useLanguage, useT } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { kit, tenantApi } from "../../api"
 import { useUnsavedGuard } from "../../components/unsaved-guard"
 import { useMe, useMembers } from "../../inbox/data"
-import { PREVIEW_PREFIX, type PreviewBusinessPayload, type PreviewMessage, type PreviewViewport } from "../widget/preview-protocol"
+import { languageName } from "../../languages"
+import { ChannelLocalizationSection } from "../widget/channel-localization-section"
+import {
+  computePreviewLanguages,
+  PREVIEW_PREFIX,
+  type PreviewBusinessPayload,
+  type PreviewMessage,
+  type PreviewViewport,
+  resolvePreviewCopy,
+} from "../widget/preview-protocol"
 import classes from "../widget/widget-studio.module.css"
 
 const presetSwatches = Object.values(primaryColors)
@@ -65,14 +74,10 @@ interface BusinessLinkFormValues {
   enabled: boolean
   appearance: {
     color: string
-    greeting: string
   }
+  localization: WidgetLocalization
   card: {
     show_owner: boolean
-    title_override: string
-    company_override: string
-    bio_override: string
-    away_message: string
   }
   intake: {
     enabled: boolean
@@ -86,12 +91,19 @@ interface BusinessLinkFormValues {
     passcode: string
     expires_at_local: string
   }
-  starters: string[]
   business: {
     default_collaborator_ids: string[]
     default_tag_ids: string[]
     translation_tone: "" | "friendly" | "neutral" | "formal"
     auto_translate: "inherit" | "on" | "off"
+  }
+}
+
+/** emptyLocalization 返回默认多语言配置。 */
+function emptyLocalization(): WidgetLocalization {
+  return {
+    default_language: "en",
+    translations: {},
   }
 }
 
@@ -122,14 +134,13 @@ function toFormValues(link: WidgetBusinessLinkDTO): BusinessLinkFormValues {
     enabled: link.enabled,
     appearance: {
       color: link.appearance.color || defaultColorHex,
-      greeting: link.appearance.greeting ?? "",
+    },
+    localization: {
+      default_language: link.localization?.default_language || "en",
+      translations: link.localization?.translations ?? {},
     },
     card: {
       show_owner: link.card.show_owner,
-      title_override: link.card.title_override ?? "",
-      company_override: link.card.company_override ?? "",
-      bio_override: link.card.bio_override ?? "",
-      away_message: link.card.away_message ?? "",
     },
     intake: {
       enabled: link.intake.enabled,
@@ -143,7 +154,6 @@ function toFormValues(link: WidgetBusinessLinkDTO): BusinessLinkFormValues {
       passcode: "",
       expires_at_local: toLocalDatetimeValue(link.access.expires_at),
     },
-    starters: link.starters ?? [],
     business: {
       default_collaborator_ids: link.business.default_collaborator_ids ?? [],
       default_tag_ids: link.business.default_tag_ids ?? [],
@@ -200,18 +210,27 @@ function IntakeFieldRow({
 
 /**
  * BusinessLinkPreviewStage 是商务沟通链接的右侧同源实时预览舞台：
- * 通过 postMessage 将表单草稿推送至 /widget/preview，支持切换开场留资、对话中与口令门禁场景及桌面/手机视口，绝不产生真实访客会话。
+ * 通过 postMessage 将表单草稿与当前预览语言推送至 /widget/preview，支持切换开场留资、对话中与口令门禁场景、语言及桌面/手机视口。
  */
 function BusinessLinkPreviewStage({
   name,
+  greeting,
   appearance,
+  language,
+  previewLanguages,
+  onLanguageChange,
   business,
 }: {
   name: string
-  appearance: { color: string; greeting: string }
+  greeting: string
+  appearance: { color: string }
+  language: string
+  previewLanguages: string[]
+  onLanguageChange: (lang: string) => void
   business: PreviewBusinessPayload
 }): ReactNode {
   const t = useT()
+  const uiLang = useLanguage()
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [ready, setReady] = useState(false)
   const [scene, setScene] = useState<BizPreviewScene>("conversation")
@@ -225,14 +244,16 @@ function BusinessLinkPreviewStage({
         type: `${PREVIEW_PREFIX}preview`,
         mode: "business_link",
         name,
+        greeting,
         appearance,
+        language,
         scene: nextScene,
         viewport: nextViewport,
         business,
       }
       target.postMessage(payload, window.location.origin)
     },
-    [appearance, business, name],
+    [appearance, business, greeting, language, name],
   )
   const latestPostRef = useRef<() => void>(() => {})
   latestPostRef.current = () => postPreview(scene, viewport)
@@ -262,6 +283,14 @@ function BusinessLinkPreviewStage({
     if (!ready) return
     postPreview(scene, viewport)
   }, [postPreview, ready, scene, viewport])
+
+  const languageOptions = useMemo(() => {
+    const tags = new Set<string>([...previewLanguages, language])
+    return [...tags].filter(Boolean).map((code) => ({
+      value: code,
+      label: `${languageName(code, uiLang)} (${code})`,
+    }))
+  }, [language, previewLanguages, uiLang])
 
   return (
     <Stack gap="sm" className={classes.previewColumn}>
@@ -300,31 +329,43 @@ function BusinessLinkPreviewStage({
             },
           ]}
         />
-        <SegmentedControl
-          size="xs"
-          value={viewport}
-          onChange={(v) => setViewport(v === "desktop" ? "desktop" : "mobile")}
-          data={[
-            {
-              value: "mobile",
-              label: (
-                <Center style={{ gap: 4 }}>
-                  <IconDeviceMobile size={13} />
-                  <span>{t("widget_studio.viewport_mobile")}</span>
-                </Center>
-              ),
-            },
-            {
-              value: "desktop",
-              label: (
-                <Center style={{ gap: 4 }}>
-                  <IconDeviceDesktop size={13} />
-                  <span>{t("widget_studio.viewport_desktop")}</span>
-                </Center>
-              ),
-            },
-          ]}
-        />
+        <Group gap="xs" wrap="nowrap">
+          <Select
+            size="xs"
+            w={150}
+            aria-label={t("widget_i18n.preview_language")}
+            leftSection={<IconWorld size={13} />}
+            value={language}
+            onChange={(v) => v && onLanguageChange(v)}
+            data={languageOptions}
+            allowDeselect={false}
+          />
+          <SegmentedControl
+            size="xs"
+            value={viewport}
+            onChange={(v) => setViewport(v === "desktop" ? "desktop" : "mobile")}
+            data={[
+              {
+                value: "mobile",
+                label: (
+                  <Center style={{ gap: 4 }}>
+                    <IconDeviceMobile size={13} />
+                    <span>{t("widget_studio.viewport_mobile")}</span>
+                  </Center>
+                ),
+              },
+              {
+                value: "desktop",
+                label: (
+                  <Center style={{ gap: 4 }}>
+                    <IconDeviceDesktop size={13} />
+                    <span>{t("widget_studio.viewport_desktop")}</span>
+                  </Center>
+                ),
+              },
+            ]}
+          />
+        </Group>
       </Group>
 
       <Box className={classes.stage}>
@@ -345,21 +386,25 @@ function BusinessLinkPreviewStage({
   )
 }
 
-/** ShareAndQRPanel 展示独立短链、商务名片二维码卡片下载与一键重置短码操作。 */
+/** ShareAndQRPanel 展示独立短链（支持附带预设打开语言参数）、商务名片二维码卡片下载与一键重置短码操作。 */
 function ShareAndQRPanel({
   link,
   ownerName,
   ownerSubtitle,
   ownerAvatar,
+  availableLanguages,
   onRotated,
 }: {
   link: WidgetBusinessLinkDTO
   ownerName: string
   ownerSubtitle: string
   ownerAvatar?: string
+  availableLanguages: string[]
   onRotated: (updated: WidgetBusinessLinkDTO) => void
 }): ReactNode {
   const t = useT()
+  const uiLang = useLanguage()
+  const [shareLang, setShareLang] = useState("")
   const rotate = useMutation({
     mutationFn: () => tenantApi.business.linkRotateCode(link.id),
     onSuccess: (updated) => {
@@ -379,12 +424,28 @@ function ShareAndQRPanel({
     if (ok) rotate.mutate()
   }
 
+  const shareURL = shareLang
+    ? `${link.chat_url}${link.chat_url.includes("?") ? "&" : "?"}lang=${encodeURIComponent(shareLang)}`
+    : link.chat_url
+
   return (
     <Stack gap="lg">
       <SectionCard title={t("biz_studio.share_link_title")} description={t("biz_studio.share_link_desc")}>
+        <Select
+          label={t("widget_i18n.share_lang_label")}
+          value={shareLang}
+          onChange={(v) => setShareLang(v ?? "")}
+          data={[
+            { value: "", label: t("widget_i18n.share_lang_auto") },
+            ...availableLanguages.map((code) => ({
+              value: code,
+              label: `${languageName(code, uiLang)} (${code})`,
+            })),
+          ]}
+        />
         <Group align="flex-end" gap="xs">
-          <TextInput label={t("business_channels.col_url")} value={link.chat_url} readOnly style={{ flex: 1 }} />
-          <CopyButton value={link.chat_url} timeout={1500}>
+          <TextInput label={t("business_channels.col_url")} value={shareURL} readOnly style={{ flex: 1 }} />
+          <CopyButton value={shareURL} timeout={1500}>
             {({ copied, copy }) => (
               <Tooltip label={t(copied ? "common.copied" : "business_channels.copy_url")} withArrow>
                 <ActionIcon variant="default" size="input-sm" color={copied ? "green" : undefined} onClick={copy} aria-label={t("business_channels.copy_url")}>
@@ -396,7 +457,7 @@ function ShareAndQRPanel({
           <Tooltip label={t("business_channels.open_preview")} withArrow>
             <ActionIcon
               component="a"
-              href={link.chat_url}
+              href={shareURL}
               target="_blank"
               rel="noopener noreferrer"
               variant="default"
@@ -480,8 +541,8 @@ function ShareAndQRPanel({
 
 /**
  * BusinessLinkStudio 是个人网页商务沟通链接的可视化配置工作台：
- *   - 配置与预览：左栏 5 组配置卡片（基础与短链、对外名片、外观与快捷话题、开场留资、访问控制与接待协作）+ 右栏同源安全预览舞台；
- *   - 分享与二维码：独立短链、商务名片二维码下载与一键重置短码。
+ *   - 配置与预览：左栏分组配置卡片（基础与短链、外观与名片开关、多语言文案与 AI 翻译、开场留资、访问控制与接待协作）+ 右栏同源多语言安全预览舞台；
+ *   - 分享与二维码：独立短链（支持预设打开语言）、商务名片二维码下载与一键重置短码。
  */
 export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): ReactNode {
   const t = useT()
@@ -489,6 +550,8 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
   const queryClient = useQueryClient()
   const tab = (useSearch({ strict: false }) as { tab?: string }).tab ?? "config"
   const [serverError, setServerError] = useState<ReturnType<typeof applyServerErrors>>()
+  const [activeLang, setActiveLang] = useState("en")
+  const [previewLang, setPreviewLang] = useState("en")
 
   const linkQuery = useQuery(kit.queries.business.linkGet(id))
   const policyQuery = useQuery(kit.queries.business.policyGet())
@@ -502,18 +565,21 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
       name: "",
       public_code: "",
       enabled: true,
-      appearance: { color: defaultColorHex, greeting: "" },
-      card: { show_owner: true, title_override: "", company_override: "", bio_override: "", away_message: "" },
+      appearance: { color: defaultColorHex },
+      localization: emptyLocalization(),
+      card: { show_owner: true },
       intake: { enabled: false, name: "required", company: "optional", email: "optional", note: "off" },
       access: { mode: "public", passcode: "", expires_at_local: "" },
-      starters: [],
       business: { default_collaborator_ids: [], default_tag_ids: [], translation_tone: "", auto_translate: "inherit" },
     },
   })
 
   useEffect(() => {
     if (!linkQuery.data) return
-    form.initialize(toFormValues(linkQuery.data))
+    const init = toFormValues(linkQuery.data)
+    form.initialize(init)
+    setActiveLang(init.localization.default_language)
+    setPreviewLang(init.localization.default_language)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅在加载或切换链接时重置表单基准
   }, [linkQuery.data?.id])
 
@@ -543,14 +609,10 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
         enabled: values.enabled,
         appearance: {
           color: values.appearance.color.trim(),
-          greeting: values.appearance.greeting,
         },
+        localization: values.localization,
         card: {
           show_owner: values.card.show_owner,
-          title_override: values.card.title_override.trim() || undefined,
-          company_override: values.card.company_override.trim() || undefined,
-          bio_override: values.card.bio_override.trim() || undefined,
-          away_message: values.card.away_message.trim() || undefined,
         },
         intake,
         access: {
@@ -559,7 +621,6 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
           clear_passcode: values.access.mode === "public",
           expires_at: fromLocalDatetimeValue(values.access.expires_at_local),
         },
-        starters: values.starters,
         business,
       })
     },
@@ -586,15 +647,28 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
     const base = toFormValues(linkQuery.data)
     form.setValues(base)
     form.resetDirty(base)
+    setActiveLang(base.localization.default_language)
+    setPreviewLang(base.localization.default_language)
   }
 
   const fallbackCompany = policyQuery.data?.default_company_name || tenantQuery.data?.name || ""
   const fallbackTitle = me.data?.title || ""
   const fallbackBio = me.data?.bio || ""
   const ownerName = me.data?.name || ""
-  const effectiveTitle = form.values.card.title_override.trim() || fallbackTitle
-  const effectiveCompany = form.values.card.company_override.trim() || fallbackCompany
-  const effectiveBio = form.values.card.bio_override.trim() || fallbackBio
+
+  const resolvedPreview = useMemo(
+    () => resolvePreviewCopy(form.values.localization, previewLang),
+    [form.values.localization, previewLang],
+  )
+  const previewLanguages = useMemo(
+    () => computePreviewLanguages(form.values.localization),
+    [form.values.localization],
+  )
+
+  const effectiveTitle = resolvedPreview.owner_title || fallbackTitle
+  const effectiveCompany = resolvedPreview.owner_company || fallbackCompany
+  const effectiveBio = resolvedPreview.owner_bio || fallbackBio
+  const effectiveAway = resolvedPreview.away_message || ""
 
   const previewBusiness = useMemo<PreviewBusinessPayload>(
     () => ({
@@ -605,10 +679,10 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
             company: effectiveCompany || undefined,
             bio: effectiveBio || undefined,
             avatar_url: me.data?.avatar_url || undefined,
-            status: form.values.card.away_message.trim() ? "away" : "online",
+            status: effectiveAway ? "away" : "online",
           }
         : undefined,
-      away_message: form.values.card.away_message.trim() || undefined,
+      away_message: effectiveAway || undefined,
       intake: {
         enabled: form.values.intake.enabled,
         name: form.values.intake.name,
@@ -616,20 +690,20 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
         email: form.values.intake.email,
         note: form.values.intake.note,
       },
-      starters: form.values.starters,
+      starters: resolvedPreview.starters ?? [],
       requires_passcode: form.values.access.mode === "passcode",
     }),
     [
+      effectiveAway,
       effectiveBio,
       effectiveCompany,
       effectiveTitle,
       form.values.access.mode,
-      form.values.card.away_message,
       form.values.card.show_owner,
       form.values.intake,
-      form.values.starters,
       me.data?.avatar_url,
       ownerName,
+      resolvedPreview.starters,
     ],
   )
 
@@ -680,7 +754,7 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
                   <Stack gap="md">
                     <Skeleton height={180} radius="md" />
                     <Skeleton height={240} radius="md" />
-                    <Skeleton height={200} radius="md" />
+                    <Skeleton height={300} radius="md" />
                   </Stack>
                   <Skeleton height={680} radius="md" />
                 </Box>
@@ -717,51 +791,6 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
                         />
                       </SectionCard>
 
-                      <SectionCard title={t("biz_studio.section_card")} description={t("biz_studio.section_card_desc")}>
-                        <Switch
-                          label={t("biz_studio.show_owner")}
-                          {...form.getInputProps("card.show_owner", { type: "checkbox" })}
-                        />
-                        {form.values.card.show_owner && (
-                          <>
-                            <TextInput
-                              label={t("biz_studio.title_override")}
-                              placeholder={
-                                fallbackTitle
-                                  ? t("biz_studio.title_override_placeholder", { fallback: fallbackTitle })
-                                  : t("biz_studio.title_override_empty")
-                              }
-                              maxLength={60}
-                              {...form.getInputProps("card.title_override")}
-                            />
-                            <TextInput
-                              label={t("biz_studio.company_override")}
-                              placeholder={t("biz_studio.company_override_placeholder", { fallback: fallbackCompany })}
-                              maxLength={80}
-                              {...form.getInputProps("card.company_override")}
-                            />
-                            <Textarea
-                              label={t("biz_studio.bio_override")}
-                              placeholder={fallbackBio || t("biz_studio.bio_override_placeholder")}
-                              autosize
-                              minRows={2}
-                              maxRows={4}
-                              maxLength={240}
-                              {...form.getInputProps("card.bio_override")}
-                            />
-                          </>
-                        )}
-                        <Textarea
-                          label={t("biz_studio.away_message")}
-                          placeholder={t("biz_studio.away_message_placeholder")}
-                          autosize
-                          minRows={2}
-                          maxRows={3}
-                          maxLength={300}
-                          {...form.getInputProps("card.away_message")}
-                        />
-                      </SectionCard>
-
                       <SectionCard title={t("biz_studio.section_appearance")} description={t("biz_studio.section_appearance_desc")}>
                         <ColorInput
                           label={t("business_channels.link_color")}
@@ -771,22 +800,28 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
                           fixOnBlur={false}
                           {...form.getInputProps("appearance.color")}
                         />
-                        <Textarea
-                          label={t("business_channels.link_greeting")}
-                          placeholder={t("business_channels.link_greeting_placeholder")}
-                          autosize
-                          minRows={2}
-                          maxRows={4}
-                          maxLength={500}
-                          {...form.getInputProps("appearance.greeting")}
+                        <Switch
+                          label={t("biz_studio.show_owner")}
+                          {...form.getInputProps("card.show_owner", { type: "checkbox" })}
                         />
-                        <TagsInput
-                          label={t("biz_studio.starters")}
-                          description={t("biz_studio.starters_hint")}
-                          placeholder={t("biz_studio.starters_placeholder")}
-                          maxTags={5}
-                          clearable
-                          {...form.getInputProps("starters")}
+                      </SectionCard>
+
+                      <SectionCard title={t("widget_i18n.section_title")} description={t("widget_i18n.section_desc")}>
+                        <ChannelLocalizationSection
+                          mode="business_link"
+                          channelId={id}
+                          internalName={form.values.name}
+                          value={form.values.localization}
+                          onChange={(next) => form.setFieldValue("localization", next)}
+                          activeLanguage={activeLang}
+                          onActiveLanguageChange={(lang) => {
+                            setActiveLang(lang)
+                            setPreviewLang(lang)
+                          }}
+                          showOwner={form.values.card.show_owner}
+                          fallbackOwnerTitle={fallbackTitle}
+                          fallbackOwnerCompany={fallbackCompany}
+                          fallbackOwnerBio={fallbackBio}
                         />
                       </SectionCard>
 
@@ -915,8 +950,12 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
                     </Stack>
 
                     <BusinessLinkPreviewStage
-                      name={form.values.name}
+                      name={resolvedPreview.title || form.values.name}
+                      greeting={resolvedPreview.greeting || ""}
                       appearance={form.values.appearance}
+                      language={previewLang}
+                      previewLanguages={previewLanguages}
+                      onLanguageChange={setPreviewLang}
                       business={previewBusiness}
                     />
                   </Box>
@@ -936,6 +975,7 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
                   ownerName={ownerName}
                   ownerSubtitle={[effectiveTitle, effectiveCompany].filter(Boolean).join(" · ")}
                   ownerAvatar={me.data?.avatar_url}
+                  availableLanguages={previewLanguages}
                   onRotated={(updated) => {
                     queryClient.setQueryData(kit.queries.business.linkGet(id).queryKey, updated)
                     void queryClient.invalidateQueries({ queryKey: kit.queries.business.key() })

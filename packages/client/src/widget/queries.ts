@@ -46,6 +46,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "contact"),
       }),
+      /** PUT /contact/language */
+      language: () => ({
+        mutationFn: (variables: Parameters<Client["contact"]["language"]>[0]) => client.contact.language(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "contact"),
+      }),
     },
     conversation: {
       /** conversation 分组全部查询的 key 前缀。 */

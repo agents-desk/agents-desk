@@ -16,6 +16,11 @@ export const schemas = {
         "$ref": "#/components/schemas/WidgetContactIntakeBody"
       },
     },
+    language: {
+      body: {
+        "$ref": "#/components/schemas/WidgetContactLanguageBody"
+      },
+    },
   },
   conversation: {
     rate: {
@@ -61,6 +66,17 @@ export const schemas = {
     },
   },
   widget: {
+    config: {
+      query: {
+        "properties": {
+          "lang": {
+            "maxLength": 35,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+    },
     session: {
       body: {
         "$ref": "#/components/schemas/WidgetSessionBody"
@@ -147,6 +163,20 @@ export const components = {
         "type": "string"
       }
     },
+    "type": "object"
+  },
+  WidgetContactLanguageBody: {
+    "additionalProperties": false,
+    "properties": {
+      "language": {
+        "maxLength": 35,
+        "minLength": 2,
+        "type": "string"
+      }
+    },
+    "required": [
+      "language"
+    ],
     "type": "object"
   },
   WidgetMessageBody: {

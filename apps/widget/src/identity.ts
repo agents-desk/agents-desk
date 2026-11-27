@@ -5,6 +5,7 @@
 // 浏览器禁止存储时（隐私模式、Safari 清除了第三方存储）只保存在内存中，关闭页面后是新的线索。
 import { type Client, type ContactSummary, isApiError } from "@agents-desk/client/widget"
 import { channel, tell } from "./host"
+import { i18n } from "./i18n"
 
 /** DEFAULT_TOKEN_TIMEOUT_MS 是向宿主请求新 user_token 的默认超时时间（5 秒）。 */
 const DEFAULT_TOKEN_TIMEOUT_MS = 5000
@@ -150,12 +151,12 @@ export function createIdentity(options: IdentityOptions = {}) {
         return undefined
       }
     })()
-    const browserLang = typeof navigator !== "undefined" ? navigator.language || undefined : undefined
+    const requestedLang = i18n.requestedLanguage() || undefined
     const res = await api.widget.session({
       visitor_id: load("visitor") ?? undefined,
       user_token: token,
       passcode,
-      language: browserLang,
+      language: requestedLang,
       time_zone: timeZone,
       referrer,
     })
@@ -303,6 +304,19 @@ export function createIdentity(options: IdentityOptions = {}) {
       current = { ...current, contact }
       save("session", JSON.stringify(current))
       changed()
+    },
+    /** syncLanguage 在访客手动切换语言时尽力同步冷启动语言先验给服务端（不影响已有真实消息识别出的语言）。 */
+    async syncLanguage(language: string) {
+      if (!api || !current?.token || !language) return
+      try {
+        const updated = await api.contact.language({ language })
+        if (!current) return
+        current = { ...current, contact: updated }
+        save("session", JSON.stringify(current))
+        changed()
+      } catch {
+        // 冷启动语言同步失败不影响聊天窗口正常切换显示语言
+      }
     },
     token: () => current?.token,
     contact: () => current?.contact,

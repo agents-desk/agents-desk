@@ -1278,6 +1278,11 @@ export const schemas = {
         "type": "object"
       },
     },
+    translateCopy: {
+      body: {
+        "$ref": "#/components/schemas/WidgetTranslateCopyBody"
+      },
+    },
     update: {
       body: {
         "$ref": "#/components/schemas/WidgetUpdateBody"
@@ -3619,10 +3624,6 @@ export const components = {
     "properties": {
       "color": {
         "type": "string"
-      },
-      "greeting": {
-        "maxLength": 500,
-        "type": "string"
       }
     },
     "type": "object"
@@ -3654,24 +3655,8 @@ export const components = {
   WidgetBusinessCardConfig: {
     "additionalProperties": false,
     "properties": {
-      "away_message": {
-        "maxLength": 300,
-        "type": "string"
-      },
-      "bio_override": {
-        "maxLength": 240,
-        "type": "string"
-      },
-      "company_override": {
-        "maxLength": 80,
-        "type": "string"
-      },
       "show_owner": {
         "type": "boolean"
-      },
-      "title_override": {
-        "maxLength": 60,
-        "type": "string"
       }
     },
     "required": [
@@ -3736,6 +3721,9 @@ export const components = {
       "appearance": {
         "$ref": "#/components/schemas/WidgetAppearance"
       },
+      "localization": {
+        "$ref": "#/components/schemas/WidgetLocalization"
+      },
       "name": {
         "maxLength": 60,
         "minLength": 1,
@@ -3760,6 +3748,9 @@ export const components = {
       "business": {
         "$ref": "#/components/schemas/ChannelBusinessPolicy"
       },
+      "localization": {
+        "$ref": "#/components/schemas/WidgetLocalization"
+      },
       "name": {
         "maxLength": 60,
         "minLength": 1,
@@ -3768,6 +3759,94 @@ export const components = {
     },
     "required": [
       "name"
+    ],
+    "type": "object"
+  },
+  WidgetLocalization: {
+    "additionalProperties": false,
+    "properties": {
+      "default_language": {
+        "maxLength": 35,
+        "type": "string"
+      },
+      "translations": {
+        "additionalProperties": {
+          "$ref": "#/components/schemas/WidgetLocalizedCopy"
+        },
+        "type": "object"
+      }
+    },
+    "required": [
+      "default_language",
+      "translations"
+    ],
+    "type": "object"
+  },
+  WidgetLocalizedCopy: {
+    "additionalProperties": false,
+    "properties": {
+      "away_message": {
+        "maxLength": 300,
+        "type": "string"
+      },
+      "greeting": {
+        "maxLength": 500,
+        "type": "string"
+      },
+      "owner_bio": {
+        "maxLength": 240,
+        "type": "string"
+      },
+      "owner_company": {
+        "maxLength": 80,
+        "type": "string"
+      },
+      "owner_title": {
+        "maxLength": 60,
+        "type": "string"
+      },
+      "starters": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 5,
+        "type": "array"
+      },
+      "title": {
+        "maxLength": 60,
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  WidgetTranslateCopyBody: {
+    "additionalProperties": false,
+    "properties": {
+      "channel_id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "copy": {
+        "$ref": "#/components/schemas/WidgetLocalizedCopy"
+      },
+      "source_language": {
+        "maxLength": 35,
+        "minLength": 2,
+        "type": "string"
+      },
+      "target_languages": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 20,
+        "minItems": 1,
+        "type": "array"
+      }
+    },
+    "required": [
+      "source_language",
+      "target_languages",
+      "copy"
     ],
     "type": "object"
   },
@@ -3786,6 +3865,9 @@ export const components = {
       },
       "enabled": {
         "type": "boolean"
+      },
+      "localization": {
+        "$ref": "#/components/schemas/WidgetLocalization"
       },
       "name": {
         "maxLength": 60,
@@ -3824,6 +3906,9 @@ export const components = {
       "intake": {
         "$ref": "#/components/schemas/WidgetBusinessIntakeConfig"
       },
+      "localization": {
+        "$ref": "#/components/schemas/WidgetLocalization"
+      },
       "name": {
         "maxLength": 60,
         "minLength": 1,
@@ -3832,13 +3917,6 @@ export const components = {
       "public_code": {
         "maxLength": 40,
         "type": "string"
-      },
-      "starters": {
-        "items": {
-          "type": "string"
-        },
-        "maxItems": 5,
-        "type": "array"
       }
     },
     "required": [

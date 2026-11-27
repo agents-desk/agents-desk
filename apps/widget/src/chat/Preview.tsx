@@ -2,6 +2,7 @@ import type { WidgetAppearance, WidgetBusinessIntakeConfig, WidgetPublicOwnerCar
 import { Box, Button, Stack, Text } from "@mantine/core"
 import { useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react"
+import { i18n } from "../i18n"
 import { DEFAULT_WIDGET_COLOR, isValidHexColor, useSetWidgetBrand } from "../theme"
 import { BusinessCardHeader } from "./BusinessCardHeader"
 import { IntakeForm, PasscodeGate } from "./BusinessGates"
@@ -35,6 +36,7 @@ interface PreviewBusinessPayload {
 interface PreviewState {
   mode: PreviewMode
   name: string
+  greeting: string
   appearance: WidgetAppearance
   scene: PreviewScene
   viewport: PreviewViewport
@@ -66,29 +68,33 @@ export function Preview(): ReactNode {
   const [state, setState] = useState<PreviewState>({
     mode: "widget",
     name: "",
-    appearance: { color: DEFAULT_WIDGET_COLOR, greeting: "" },
+    greeting: "",
+    appearance: { color: DEFAULT_WIDGET_COLOR },
     scene: "conversation",
     viewport: "desktop",
   })
   const [extraMessages, setExtraMessages] = useState<PreviewMessage[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  // 监听同源父窗口推送的实时草稿与场景切换指令，挂载时上报 preview_ready。
+  // 监听同源父窗口推送的实时草稿、语言与场景切换指令，挂载时上报 preview_ready。
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (e.origin !== window.location.origin || e.source !== window.parent) return
       if (!e.data || e.data.type !== `${PREFIX}preview`) return
       const nextMode: PreviewMode = e.data.mode === "business_link" ? "business_link" : "widget"
       const nextColor = typeof e.data.appearance?.color === "string" ? e.data.appearance.color : DEFAULT_WIDGET_COLOR
-      const nextGreeting = typeof e.data.appearance?.greeting === "string" ? e.data.appearance.greeting : ""
+      const nextGreeting = typeof e.data.greeting === "string" ? e.data.greeting : ""
+      const nextLanguage = typeof e.data.language === "string" && e.data.language ? e.data.language : "en"
       const rawScene = e.data.scene
       const nextScene: PreviewScene =
         rawScene === "launcher" || rawScene === "intake" || rawScene === "passcode" ? rawScene : "conversation"
       const nextViewport: PreviewViewport = e.data.viewport === "mobile" ? "mobile" : "desktop"
+      i18n.setLanguage(nextLanguage)
       setState({
         mode: nextMode,
         name: typeof e.data.name === "string" ? e.data.name : "",
-        appearance: { color: nextColor, greeting: nextGreeting },
+        greeting: nextGreeting,
+        appearance: { color: nextColor },
         scene: nextMode === "widget" && nextViewport === "mobile" && nextScene === "launcher" ? "conversation" : nextScene,
         viewport: nextViewport,
         business: nextMode === "business_link" && e.data.business ? (e.data.business as PreviewBusinessPayload) : undefined,
@@ -160,7 +166,7 @@ export function Preview(): ReactNode {
 
   const color = "brand"
   const title = state.name.trim() || t("app.widget")
-  const greeting = state.appearance.greeting?.trim() || t("home.default_greeting")
+  const greeting = state.greeting.trim() || t("home.default_greeting")
   const full = isBiz || state.viewport === "mobile"
 
   if (isBiz) {

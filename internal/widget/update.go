@@ -25,7 +25,7 @@ type UpdateInput struct {
 	Body UpdateBody
 }
 
-// Update 修改当前工作区中一个聊天插件的名称、团队收件箱、外观配置与允许嵌入的网站，启用或停用它。
+// Update 修改当前工作区中一个聊天插件的名称、团队收件箱、外观配置、多语言配置与允许嵌入的网站，启用或停用它。
 type Update struct {
 	db *bun.DB
 }
@@ -35,7 +35,7 @@ func NewUpdate(db *bun.DB) *Update { return &Update{db: db} }
 
 // Handle 修改 sub 所在工作区中的聊天插件 id 并记录操作日志，身份验证密钥保持不变。聊天插件不存在时返回
 // channel.ErrNotFound，团队收件箱不属于这个工作区时返回 ErrTeamNotFound，主题色格式不对时返回 ErrInvalidColor，
-// 允许嵌入的网站写得不对时返回 ErrInvalidOrigin。
+// 语言标签非法时返回 ErrInvalidLanguage，允许嵌入的网站写得不对时返回 ErrInvalidOrigin。
 func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b UpdateBody) (*WidgetDTO, error) {
 	appearance, err := normalizeAppearance(b.Appearance)
 	if err != nil {
@@ -44,6 +44,14 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 	origins, err := normalizeOrigins(b.AllowedOrigins)
 	if err != nil {
 		return nil, err
+	}
+	var nextLoc *Localization
+	if b.Localization != nil {
+		normalized, err := normalizeLocalization(*b.Localization, false)
+		if err != nil {
+			return nil, err
+		}
+		nextLoc = &normalized
 	}
 	err = database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		ch, err := find(ctx, tx, sub.Tenant, id, true)
@@ -59,6 +67,11 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 		if err != nil {
 			return err
 		}
+		curLoc := s.localization()
+		targetLoc := curLoc
+		if nextLoc != nil {
+			targetLoc = *nextLoc
+		}
 		var changed []string
 		if ch.Name != b.Name {
 			changed = append(changed, "name")
@@ -69,18 +82,20 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 		if ch.Enabled != b.Enabled {
 			changed = append(changed, "enabled")
 		}
-		if s.appearance() != appearance || !slices.Equal(s.AllowedOrigins, origins) {
+		if s.appearance() != appearance || !localizationEqual(curLoc, targetLoc) || !slices.Equal(s.AllowedOrigins, origins) {
 			changed = append(changed, "settings")
 		}
 		if len(changed) == 0 {
 			return nil
 		}
-		s.Appearance, s.AllowedOrigins = appearance, origins
+		s.Appearance = appearance
+		s.Localization = targetLoc
+		s.AllowedOrigins = origins
 		settings, err := s.toMap()
 		if err != nil {
 			return err
 		}
-		delete(ch.Settings, "behavior")
+		ch.Settings = map[string]any{}
 		maps.Copy(ch.Settings, settings)
 		ch.Name, ch.TeamID, ch.Enabled = b.Name, b.TeamID, b.Enabled
 		if _, err := tx.NewUpdate().Model(ch).Column("name", "team_id", "enabled", "settings", "updated_at").WherePK().Exec(ctx); err != nil {

@@ -18,10 +18,10 @@ import (
 	"agents-desk/internal/file"
 )
 
-// RegisterRoutes 在工作区的 API（/t/{slug}/api）中注册聊天插件的管理：列表、新建、修改、嵌入代码和身份验证密钥，
+// RegisterRoutes 在工作区的 API（/t/{slug}/api）中注册聊天插件的管理：列表、新建、修改、嵌入代码、身份验证密钥和 AI 翻译文案，
 // 并把聊天插件声明为资源。require 返回要求成员登录凭据和给定权限的访问策略；crypt 加密保存身份验证密钥，
-// publicURL 是嵌入代码中加载聊天窗口的地址。
-func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.Operation), db *bun.DB, c *crypt.Crypt, publicURL string) {
+// publicURL 是嵌入代码中加载聊天窗口的地址；copyTranslator 可选注入渠道文案 AI 翻译器。
+func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.Operation), db *bun.DB, c *crypt.Crypt, publicURL string, copyTranslator ...CopyTranslator) {
 	manage := require(auth.ChannelsManage)
 	route := func(id, method, path, summary string) huma.Operation {
 		op := huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary}
@@ -31,6 +31,13 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	create := route("widget-create", http.MethodPost, "/widgets", "新建聊天插件")
 	create.DefaultStatus = http.StatusCreated
 
+	var tr CopyTranslator
+	if len(copyTranslator) > 0 {
+		tr = copyTranslator[0]
+	}
+	translateOp := huma.Operation{OperationID: "widget-translate-copy", Method: http.MethodPost, Path: "/widgets/translate-copy", Summary: "AI 翻译渠道多语言文案"}
+	require()(&translateOp)
+
 	rest.Register(api, route("widget-list", http.MethodGet, "/widgets", "聊天插件列表"), NewList(db).HTTP)
 	rest.Register(api, route("widget-get", http.MethodGet, "/widgets/{id}", "读取聊天插件"), NewGet(db).HTTP)
 	rest.Register(api, create, NewCreate(db, c).HTTP)
@@ -39,6 +46,7 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 		NewGetInstallation(db, c, publicURL).HTTP)
 	rest.Register(api, route("widget-rotate-secret", http.MethodPost, "/widgets/{id}/identity-secret", "更换身份验证密钥"),
 		NewRotateSecret(db, c, publicURL).HTTP)
+	rest.Register(api, translateOp, NewTranslateCopy(tr).HTTP)
 
 	api.Resource(rest.Resource{
 		Name:       "widget",
@@ -124,10 +132,12 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 	rateOp := route(requireContact, "conversation-rate", http.MethodPost, "/conversations/{id}/rating", "评价已关闭的会话")
 	contactEmailOp := route(requireContact, "contact-email", http.MethodPost, "/contact/email", "线索留下邮箱")
 	contactIntakeOp := route(requireContact, "contact-intake", http.MethodPost, "/contact/intake", "提交商务沟通开场留资资料")
+	contactLangOp := route(requireContact, "contact-language", http.MethodPut, "/contact/language", "更新访客冷启动语言偏好")
 
 	sendMessage := NewSendMessage(db, receive)
 	leaveEmail := NewLeaveEmail(db, down)
 	submitIntake := NewSubmitIntake(db, down)
+	updateLang := NewUpdateLanguage(db)
 	stream := conversation.NewContactStream(db, down.Media)
 	markAllRead := conversation.NewMarkAllReadByContact(db, down)
 	typingActive := conversation.NewTypingOnActiveByContact(db, down)
@@ -202,6 +212,17 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 			return nil, err
 		}
 		out, err := submitIntake.Handle(ctx, sub, in.Body)
+		if err != nil {
+			return nil, err
+		}
+		return &ContactOutput{Body: *out}, nil
+	})
+	rest.Register(api, contactLangOp, func(ctx context.Context, in *ContactLanguageInput) (*ContactOutput, error) {
+		sub, _, err := visitor(ctx)
+		if err != nil {
+			return nil, err
+		}
+		out, err := updateLang.Handle(ctx, sub, in.Body)
 		if err != nil {
 			return nil, err
 		}

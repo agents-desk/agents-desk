@@ -5,6 +5,12 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { channel, embedded, hasCloseButton, type Init, inline, listen, tell, waitInit } from "../host"
+import {
+  applyChannelDefaultLanguage,
+  applyHostCommandLanguage,
+  applyHostInitLanguage,
+  i18n,
+} from "../i18n"
 import { identity } from "../identity"
 import { useIdentity, useRealtime } from "../realtime"
 import { DEFAULT_WIDGET_COLOR, useSetWidgetBrand } from "../theme"
@@ -75,6 +81,12 @@ export function Widget(): ReactNode {
     if (next) void identity.ensure().catch(handleSessionError)
   }
 
+  // 公开配置到达后应用渠道默认语言（仅作为无显式/浏览器命中时的回退）
+  const defaultLanguage = config.data?.default_language
+  useEffect(() => {
+    if (defaultLanguage) void applyChannelDefaultLanguage(defaultLanguage)
+  }, [defaultLanguage])
+
   // 等到公开配置到达后再按需启动会话：过期或需口令的新访客直接停在门禁页，不盲发 /session 报 403/409
   useEffect(() => {
     if (!config.data || initStartedRef.current) return
@@ -98,6 +110,7 @@ export function Widget(): ReactNode {
     void waitInit()
       .then(async (init: Init) => {
         if (floating) setMobile(init.mobile)
+        await applyHostInitLanguage({ lang: init.lang, hostLang: init.hostLang })
         await identity.start(init.userToken, init.referrer, !embedded || inline)
         if (!embedded) tell("ready")
         setReady(true)
@@ -111,7 +124,7 @@ export function Widget(): ReactNode {
       })
   }, [config.data, floating])
 
-  // 外面的命令：展开、收起、登录、退出
+  // 外面的命令：展开、收起、登录、退出、切换语言
   useEffect(
     () =>
       listen({
@@ -121,6 +134,10 @@ export function Widget(): ReactNode {
         command: (c) => {
           if (c.command === "open" || c.command === "close") {
             if (floating) toggle(c.command === "open")
+            return
+          }
+          if (c.command === "setLanguage") {
+            void applyHostCommandLanguage(c.lang).then(() => identity.syncLanguage(i18n.requestedLanguage()))
             return
           }
           if (c.command === "login") {
@@ -166,6 +183,13 @@ export function Widget(): ReactNode {
 
   const color = "brand"
   const name = config.data?.name ?? t("app.widget")
+
+  // 同步文档标题与宿主 iframe.title，保证无障碍与浏览器标签页随语言即时更新
+  useEffect(() => {
+    if (typeof document !== "undefined") document.title = name
+    if (ready) tell("meta", { title: name })
+  }, [name, ready])
+
   if (!channel || config.isError || failed) {
     return floating ? null : (
       <Center h="100dvh" p="xl">
@@ -228,7 +252,7 @@ export function Widget(): ReactNode {
           color={color}
           title={name}
           owner={biz?.owner}
-          greeting={hasMessages ? undefined : config.data?.appearance.greeting || t("home.default_greeting")}
+          greeting={hasMessages ? undefined : config.data?.greeting || t("home.default_greeting")}
           awayMessage={biz?.away_message}
           compact={hasMessages && !showIntake}
           close={close}
@@ -240,7 +264,7 @@ export function Widget(): ReactNode {
       <Header
         color={color}
         title={name}
-        greeting={latestConversation ? undefined : config.data?.appearance.greeting || t("home.default_greeting")}
+        greeting={latestConversation ? undefined : config.data?.greeting || t("home.default_greeting")}
         status={chatStatus}
         extra={ticketAction}
         close={close}

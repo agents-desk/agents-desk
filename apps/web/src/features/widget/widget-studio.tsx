@@ -1,13 +1,15 @@
-import type { WidgetDTO } from "@agents-desk/client/tenant"
-import { Badge, Box, Button, ColorInput, Group, Paper, Skeleton, Stack, Switch, TagsInput, Text, Textarea, TextInput, Title } from "@mantine/core"
+import type { WidgetDTO, WidgetLocalization } from "@agents-desk/client/tenant"
+import { Badge, Box, Button, ColorInput, Group, Paper, Skeleton, Stack, Switch, TagsInput, Text, TextInput, Title } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useSearch } from "@tanstack/react-router"
 import { applyServerErrors, FormError, notifySuccess, Page, primaryColors, ResourceSelect, useT } from "@go-tenon/ui"
-import { type ReactNode, useEffect, useState } from "react"
+import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { tenantApi } from "../../api"
 import { useUnsavedGuard } from "../../components/unsaved-guard"
 import { teams } from "../../resources"
+import { ChannelLocalizationSection } from "./channel-localization-section"
+import { computePreviewLanguages, resolvePreviewCopy } from "./preview-protocol"
 import { WidgetInstallPanel } from "./widget-install-panel"
 import { WidgetPreviewStage } from "./widget-preview-stage"
 import classes from "./widget-studio.module.css"
@@ -25,9 +27,17 @@ interface StudioFormValues {
   enabled: boolean
   appearance: {
     color: string
-    greeting: string
   }
+  localization: WidgetLocalization
   allowed_origins: string[]
+}
+
+/** emptyLocalization 返回新建/初始化时的默认多语言配置。 */
+function emptyLocalization(): WidgetLocalization {
+  return {
+    default_language: "en",
+    translations: {},
+  }
 }
 
 /** toFormValues 将服务端返回的 WidgetDTO 转换为工作台表单初始值。 */
@@ -38,7 +48,10 @@ function toFormValues(w: WidgetDTO): StudioFormValues {
     enabled: w.enabled,
     appearance: {
       color: w.appearance.color || defaultColorHex,
-      greeting: w.appearance.greeting ?? "",
+    },
+    localization: {
+      default_language: w.localization?.default_language || "en",
+      translations: w.localization?.translations ?? {},
     },
     allowed_origins: w.allowed_origins ?? [],
   }
@@ -63,7 +76,7 @@ function SectionCard({ title, description, children }: { title: string; descript
 
 /**
  * WidgetStudio 是网页聊天插件的统一配置工作台：
- *   - 配置与预览：左栏分组表单 + 右栏同源实时可交互预览舞台，支持未保存检测与一键发布；
+ *   - 配置与预览：左栏分组表单（含多语言策略、文案编辑与 AI 一键翻译）+ 右栏同源实时多语言预览舞台，支持未保存检测与一键发布；
  *   - 安装与接入：网页嵌入代码、App WebView 桥接示例与身份验证密钥管理。
  */
 export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactNode {
@@ -71,8 +84,10 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   // 当前标签记在地址的 ?tab= 中（Page 的 tabs），只有“配置”标签显示保存按钮
-  const tab = ((useSearch({ strict: false }) as { tab?: string }).tab ?? "config")
+  const tab = (useSearch({ strict: false }) as { tab?: string }).tab ?? "config"
   const [serverError, setServerError] = useState<ReturnType<typeof applyServerErrors>>()
+  const [activeLang, setActiveLang] = useState("en")
+  const [previewLang, setPreviewLang] = useState("en")
 
   const widget = useQuery({
     queryKey: ["widget", id],
@@ -84,15 +99,19 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
       name: "",
       team_id: null,
       enabled: true,
-      appearance: { color: defaultColorHex, greeting: "" },
+      appearance: { color: defaultColorHex },
+      localization: emptyLocalization(),
       allowed_origins: [],
     },
   })
 
-  // 首次加载到插件数据时同步为表单基准值。
+  // 首次加载到插件数据时同步为表单基准值并定位到主语言。
   useEffect(() => {
     if (!widget.data) return
-    form.initialize(toFormValues(widget.data))
+    const init = toFormValues(widget.data)
+    form.initialize(init)
+    setActiveLang(init.localization.default_language)
+    setPreviewLang(init.localization.default_language)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅在服务端数据到达或切换插件时重置基准
   }, [widget.data?.id])
 
@@ -104,8 +123,8 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
         enabled: values.enabled,
         appearance: {
           color: values.appearance.color.trim(),
-          greeting: values.appearance.greeting,
         },
+        localization: values.localization,
         allowed_origins: values.allowed_origins,
       }),
     onSuccess: (updated) => {
@@ -132,7 +151,18 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
     const base = toFormValues(widget.data)
     form.setValues(base)
     form.resetDirty(base)
+    setActiveLang(base.localization.default_language)
+    setPreviewLang(base.localization.default_language)
   }
+
+  const resolvedPreview = useMemo(
+    () => resolvePreviewCopy(form.values.localization, previewLang),
+    [form.values.localization, previewLang],
+  )
+  const previewLanguages = useMemo(
+    () => computePreviewLanguages(form.values.localization),
+    [form.values.localization],
+  )
 
   return (
     <Page
@@ -172,8 +202,8 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
                   <Stack gap="md">
                     <Skeleton height={160} radius="md" />
                     <Skeleton height={220} radius="md" />
-                    <Skeleton height={150} radius="md" />
-                    <Skeleton height={200} radius="md" />
+                    <Skeleton height={260} radius="md" />
+                    <Skeleton height={180} radius="md" />
                   </Stack>
                   <Skeleton height={680} radius="md" />
                 </Box>
@@ -208,15 +238,20 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
                           fixOnBlur={false}
                           {...form.getInputProps("appearance.color")}
                         />
-                        <Textarea
-                          label={t("widget_studio.greeting")}
-                          description={t("widget_studio.greeting_hint")}
-                          placeholder={t("widget_studio.greeting_placeholder")}
-                          autosize
-                          minRows={2}
-                          maxRows={5}
-                          maxLength={500}
-                          {...form.getInputProps("appearance.greeting")}
+                      </SectionCard>
+
+                      <SectionCard title={t("widget_i18n.section_title")} description={t("widget_i18n.section_desc")}>
+                        <ChannelLocalizationSection
+                          mode="widget"
+                          channelId={id}
+                          internalName={form.values.name}
+                          value={form.values.localization}
+                          onChange={(next) => form.setFieldValue("localization", next)}
+                          activeLanguage={activeLang}
+                          onActiveLanguageChange={(lang) => {
+                            setActiveLang(lang)
+                            setPreviewLang(lang)
+                          }}
                         />
                       </SectionCard>
 
@@ -249,8 +284,12 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
                     </Stack>
 
                     <WidgetPreviewStage
-                      name={form.values.name}
+                      name={resolvedPreview.title || form.values.name}
+                      greeting={resolvedPreview.greeting || ""}
                       appearance={form.values.appearance}
+                      language={previewLang}
+                      previewLanguages={previewLanguages}
+                      onLanguageChange={setPreviewLang}
                     />
                   </Box>
                 </form>

@@ -600,6 +600,97 @@ func (tr *Translator) Reply(ctx context.Context, tenant, conversationID, text, f
 	return translatedText, backOut.Translation, true, nil
 }
 
+// TranslateFields 将工作区 tenant 的一组命名短文本字段（如渠道标题、问候语、名片简介、快捷话题）从 source 一次翻译为 targets 中的每一种语言。
+// 复用工作区的翻译语气与术语表；模型未配置时返回 llm.ErrNotConfigured。
+func (tr *Translator) TranslateFields(ctx context.Context, tenant, targetType, targetID, source string, targets []string, fields map[string]string) (map[string]map[string]string, error) {
+	if len(targets) == 0 || len(fields) == 0 {
+		return map[string]map[string]string{}, nil
+	}
+	s, err := tr.settings.Tenant(tenant).Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+	keys := make([]string, 0, len(fields))
+	var combinedParts []string
+	for k, v := range fields {
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			continue
+		}
+		keys = append(keys, k)
+		combinedParts = append(combinedParts, trimmed)
+	}
+	if len(keys) == 0 {
+		return map[string]map[string]string{}, nil
+	}
+	slices.Sort(keys)
+
+	fieldProps := map[string]any{}
+	for _, k := range keys {
+		fieldProps[k] = map[string]any{"type": "string"}
+	}
+	langProps := map[string]any{}
+	for _, target := range targets {
+		langProps[target] = map[string]any{
+			"type":                 "object",
+			"description":          "all fields translated into " + target,
+			"properties":           fieldProps,
+			"required":             keys,
+			"additionalProperties": false,
+		}
+	}
+	schema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"translations": map[string]any{
+				"type":                 "object",
+				"properties":           langProps,
+				"required":             targets,
+				"additionalProperties": false,
+			},
+		},
+		"required":             []string{"translations"},
+		"additionalProperties": false,
+	}
+	system := strings.Join(nonEmpty(
+		fmt.Sprintf("You localize customer-facing chat widget copy (window titles, greetings, away messages, bio and quick starter prompts) written in %s into each of these target languages: %s. Respect every script or region subtag (such as \"hi-Latn\" for Hinglish written in Latin script, \"hi\" for Hindi in Devanagari, \"zh-TW\" for Traditional Chinese, \"zh-CN\" for Simplified Chinese).", source, strings.Join(targets, ", ")),
+		rules,
+		toneHint[s.Tone],
+		glossaryHint(s.Glossary, strings.Join(combinedParts, "\n"), targets),
+		"Keep each translation natural, concise, and appropriate for a customer-facing chat widget. Reply with JSON only.",
+	), "\n\n")
+	payloadFields := make(map[string]string, len(keys))
+	for _, k := range keys {
+		payloadFields[k] = strings.TrimSpace(fields[k])
+	}
+	userPayload, _ := json.Marshal(payloadFields)
+	var out struct {
+		Translations map[string]map[string]string `json:"translations"`
+	}
+	err = tr.llm.JSON(ctx, llm.Translation, llm.Target{
+		Tenant: tenant, Type: targetType, ID: targetID, Operation: "translate_fields",
+		Meta: map[string]any{"source": source, "targets": targets, "fields": keys},
+	}, llm.JSONRequest{
+		Messages:    []llm.Message{{Role: "system", Content: system}, {Role: "user", Content: string(userPayload)}},
+		SchemaName:  "channel_copy_translation",
+		Schema:      schema,
+		NoReasoning: true,
+	}, &out)
+	if err != nil {
+		return nil, err
+	}
+	res := make(map[string]map[string]string, len(targets))
+	for _, target := range targets {
+		if lang.Same(source, target) {
+			continue
+		}
+		if m := out.Translations[target]; len(m) > 0 {
+			res[target] = m
+		}
+	}
+	return res, nil
+}
+
 // nonEmpty 返回 parts 中不为空的那些。
 func nonEmpty(parts ...string) []string {
 	out := parts[:0]
