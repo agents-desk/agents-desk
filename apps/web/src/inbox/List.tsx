@@ -792,7 +792,7 @@ function Row({
               {c.waiting_since ? duration(c.waiting_since, now, t) : activity(c.last_message_at, language, t, zone)}
             </Text>
           </Group>
-          <Group gap={6} wrap="nowrap" align="center" mt={4} h={18}>
+          <Group gap={6} wrap="nowrap" align="center" mt={7} h={18}>
             <Text size="xs" c={draftText || c.unread ? undefined : "dimmed"} truncate lh={1.35} style={{ flex: 1, minWidth: 0 }}>
               {draftText ? (
                 <>
