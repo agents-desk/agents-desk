@@ -45,7 +45,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
   const can = useCan()
   const language = useLanguage()
   const zone = useTimeZone()
-  const { slug } = useParams({ from: "/t/$slug" })
+  const { slug } = useParams({ from: "/$slug" })
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const me = useMe()
@@ -340,7 +340,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                 {convTickets.data?.items.map((tk) => (
                   <Link
                     key={tk.id}
-                    to="/t/$slug/tickets/$id"
+                    to="/$slug/tickets/$id"
                     params={{ slug, id: tk.id }}
                     search={{ box: "all", status: "unresolved" }}
                     className="inbox-history"
@@ -397,7 +397,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
               {c.contact ? (
                 <Group gap={6} wrap="nowrap">
                   <Link
-                    to="/t/$slug/contacts/$id"
+                    to="/$slug/contacts/$id"
                     params={{ slug, id: c.contact.id }}
                     search={{ sort: "recent" }}
                     className="inbox-contact-link"
@@ -583,7 +583,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
         sourceConversation={c}
         onCreated={(created) =>
           void navigate({
-            to: "/t/$slug/tickets/$id",
+            to: "/$slug/tickets/$id",
             params: { slug, id: created.id },
             search: { box: "all", status: "unresolved" },
           })

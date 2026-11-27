@@ -34,7 +34,7 @@ export function InboxDrillButton({
   return (
     <Tooltip label={label} openDelay={250} withArrow>
       <Link
-        to="/t/$slug/inbox"
+        to="/$slug/inbox"
         params={{ slug }}
         search={search}
         className="rp-row-action rp-row-action-btn"

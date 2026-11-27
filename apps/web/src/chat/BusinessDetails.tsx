@@ -54,7 +54,7 @@ interface BusinessDetailsProps {
 export function BusinessDetails({ chat, onClose, onLeft }: BusinessDetailsProps): ReactNode {
   const t = useT()
   const ui = useLanguage()
-  const { slug } = useParams({ from: "/t/$slug" })
+  const { slug } = useParams({ from: "/$slug" })
   const queryClient = useQueryClient()
   const me = useMe()
   const { list: allMembers } = useMembers()
@@ -230,7 +230,7 @@ export function BusinessDetails({ chat, onClose, onLeft }: BusinessDetailsProps)
                 </InspectorField>
                 <InspectorField label={t("contacts.profile")}>
                   <Link
-                    to="/t/$slug/contacts/$id"
+                    to="/$slug/contacts/$id"
                     params={{ slug, id: chat.contact.id }}
                     search={{ sort: "recent" }}
                     className="inbox-contact-link"
@@ -345,7 +345,7 @@ export function BusinessDetails({ chat, onClose, onLeft }: BusinessDetailsProps)
                   <Group key={p.id} gap="sm" wrap="nowrap">
                     <Avatar size={28} radius="xl" name={p.name || t("inbox.visitor")} color="initials" />
                     <Link
-                      to="/t/$slug/contacts/$id"
+                      to="/$slug/contacts/$id"
                       params={{ slug, id: p.id }}
                       search={{ sort: "recent" }}
                       className="inbox-contact-link"

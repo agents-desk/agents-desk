@@ -252,7 +252,7 @@ func TestPageCSP(t *testing.T) {
 		"/widget/preview":                "frame-ancestors 'self'",
 		"/widget/preview/":               "frame-ancestors 'self'",
 		"/widget/demo":                   "frame-ancestors 'none'",
-		"/t/alpha/inbox":                 "frame-ancestors 'none'",
+		"/app/alpha/inbox":               "frame-ancestors 'none'",
 		"/widgets?channel=" + open.ID:    "frame-ancestors 'none'",
 	} {
 		csp := a.pageCSP(httptest.NewRequest(http.MethodGet, target, nil), "n0nce")

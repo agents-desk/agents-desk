@@ -16,6 +16,7 @@ import {
   IconMessageCircle,
   IconRefresh,
   IconSearch,
+  IconSwitchHorizontal,
   IconTicket,
   IconUser,
   IconUserOff,
@@ -26,7 +27,7 @@ import {
 } from "@tabler/icons-react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useMatch, useNavigate } from "@tanstack/react-router"
-import { Icon, type MenuItem, notifyError, notifySuccess, useCan, useLanguage, useNavigation, useT, useTimeZone } from "@go-tenon/ui"
+import { Icon, type MenuItem, notifyError, notifySuccess, useCan, useLanguage, useNavigation, useT, useTenant, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useMemo, useState } from "react"
 import { kit, tenantApi } from "./api"
 import { chatDisplayName } from "./chat/data"
@@ -37,6 +38,7 @@ import { HighlightedSnippet, HighlightQuery } from "./inbox/Highlight"
 import { snoozeOptions } from "./inbox/menus"
 import type { MatchField } from "./inbox/search"
 import { ticketStatusColor, ticketStatusLabel } from "./tickets/meta"
+import { useWorkspaces } from "./workspace"
 
 /** flattenPages 将菜单树拍平为叶子页面列表，保留上级分组名称和最近图标。 */
 function flattenPages(
@@ -87,12 +89,22 @@ interface NavAction {
  * 固定舒适高度避免输入筛选时尺寸跳动；处于会话页时顶部提供当前会话的指派、关闭、稍后处理与优先级快捷操作；
  * 未输入时展示精简的收件箱与一级模块快捷入口，输入关键词后实时全文搜索会话消息（含高亮摘要）、联系人、收件箱、全部页面与改派动作。
  */
-export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShowShortcuts: () => void }): ReactNode {
+export function CommandPalette({
+  slug,
+  impersonation,
+  onShowShortcuts,
+}: {
+  slug: string
+  impersonation: boolean
+  onShowShortcuts: () => void
+}): ReactNode {
   const t = useT()
   const can = useCan()
   const language = useLanguage()
   const zone = useTimeZone()
   const { menu } = useNavigation()
+  const { switchTo } = useTenant()
+  const { active: activeWorkspaces } = useWorkspaces()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [query, setQuery] = useState("")
@@ -103,7 +115,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
   const canAssignOthers = can("conversations:assign")
   const canReadContacts = can("contacts:read")
   const inbox = useQuery({ ...kit.queries.conversation.inbox(), enabled: canReadInbox })
-  const convMatch = useMatch({ from: "/t/$slug/inbox/$id", shouldThrow: false })
+  const convMatch = useMatch({ from: "/$slug/inbox/$id", shouldThrow: false })
   const currentConvId = convMatch?.params.id
   const currentConv = useQuery({
     ...kit.queries.conversation.get(currentConvId ?? ""),
@@ -263,49 +275,49 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
           label: t("inbox.box_mine"),
           description: t("nav.inbox"),
           icon: <IconInbox size={16} stroke={1.6} />,
-          onClick: () => void navigate({ to: "/t/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "mine" } }),
+          onClick: () => void navigate({ to: "/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "mine" } }),
         },
         {
           id: "inbox:mentions",
           label: t("inbox.box_mentions"),
           description: t("nav.inbox"),
           icon: <IconAt size={16} stroke={1.6} />,
-          onClick: () => void navigate({ to: "/t/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "mentions" } }),
+          onClick: () => void navigate({ to: "/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "mentions" } }),
         },
         {
           id: "inbox:unassigned",
           label: t("inbox.box_unassigned"),
           description: t("nav.inbox"),
           icon: <IconUserQuestion size={16} stroke={1.6} />,
-          onClick: () => void navigate({ to: "/t/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "unassigned" } }),
+          onClick: () => void navigate({ to: "/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "unassigned" } }),
         },
         {
           id: "inbox:all",
           label: t("inbox.box_all"),
           description: t("nav.inbox"),
           icon: <IconListDetails size={16} stroke={1.6} />,
-          onClick: () => void navigate({ to: "/t/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "all" } }),
+          onClick: () => void navigate({ to: "/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "all" } }),
         },
         {
           id: "tickets:mine",
           label: t("tickets.command_mine"),
           description: t("tickets.nav_section"),
           icon: <IconTicket size={16} stroke={1.6} />,
-          onClick: () => void navigate({ to: "/t/$slug/tickets", params: { slug }, search: { box: "mine", status: "unresolved" } }),
+          onClick: () => void navigate({ to: "/$slug/tickets", params: { slug }, search: { box: "mine", status: "unresolved" } }),
         },
         {
           id: "tickets:unassigned",
           label: t("tickets.command_unassigned"),
           description: t("tickets.nav_section"),
           icon: <IconTicket size={16} stroke={1.6} />,
-          onClick: () => void navigate({ to: "/t/$slug/tickets", params: { slug }, search: { box: "unassigned", status: "unresolved" } }),
+          onClick: () => void navigate({ to: "/$slug/tickets", params: { slug }, search: { box: "unassigned", status: "unresolved" } }),
         },
         {
           id: "tickets:all",
           label: t("tickets.command_all"),
           description: t("tickets.nav_section"),
           icon: <IconTicket size={16} stroke={1.6} />,
-          onClick: () => void navigate({ to: "/t/$slug/tickets", params: { slug }, search: { box: "all", status: "unresolved" } }),
+          onClick: () => void navigate({ to: "/$slug/tickets", params: { slug }, search: { box: "all", status: "unresolved" } }),
         },
         ...(inbox.data?.teams ?? []).map((team) => ({
           id: `inbox:team:${team.id}`,
@@ -313,7 +325,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
           description: t("inbox.teams"),
           icon: <IconUsersGroup size={16} stroke={1.6} />,
           onClick: () =>
-            void navigate({ to: "/t/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "all", team: team.id } }),
+            void navigate({ to: "/$slug/inbox", params: { slug }, search: { ...boxSearch, box: "all", team: team.id } }),
         })),
         ...(inbox.data?.views ?? []).map((v) => ({
           id: `inbox:view:${v.id}`,
@@ -322,7 +334,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
           icon: v.scope === "shared" ? <IconUsers size={16} stroke={1.6} /> : <IconFilter size={16} stroke={1.6} />,
           onClick: () =>
             void navigate({
-              to: "/t/$slug/inbox",
+              to: "/$slug/inbox",
               params: { slug },
               search: { ...boxSearch, box: "all", view: v.id, sort: v.config.sort ?? "waiting" },
             }),
@@ -339,7 +351,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
     }
 
     // 初始空查询只放一级模块（排除已在上方展开的收件箱）和快捷键帮助入口，保持默认面板精简克制
-    const inboxPath = `/t/${slug}/inbox`
+    const inboxPath = `/${slug}/inbox`
     const quickPages: NavAction[] = [
       ...menu
         .filter((item) => !(canReadInbox && item.path === inboxPath))
@@ -370,12 +382,26 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
     return { inboxActions: inboxList, quickPageActions: quickPages, allPageActions: allPages }
   }, [canReadInbox, inbox.data?.teams, inbox.data?.views, menu, navigate, onShowShortcuts, slug, t])
 
+  const workspaceActions = useMemo<NavAction[]>(() => {
+    if (impersonation) return []
+    return activeWorkspaces
+      .filter((ws) => ws.slug !== slug)
+      .map((ws) => ({
+        id: `workspace:${ws.slug}`,
+        label: ws.name,
+        description: `/app/${ws.slug}/`,
+        icon: <IconSwitchHorizontal size={16} stroke={1.6} />,
+        onClick: () => void switchTo(ws.slug),
+      }))
+  }, [activeWorkspaces, impersonation, slug, switchTo])
+
   const kw = trimmed.toLowerCase()
   const matchesLocal = (a: NavAction) =>
     !kw || a.label.toLowerCase().includes(kw) || (a.description?.toLowerCase().includes(kw) ?? false)
   const filteredConvActions = kw ? conversationActions.filter(matchesLocal) : conversationActions.filter((a) => a.quick)
   const filteredInbox = kw ? inboxActions.filter(matchesLocal) : inboxActions
   const filteredPages = kw ? allPageActions.filter(matchesLocal) : quickPageActions
+  const filteredWorkspaces = kw ? workspaceActions.filter(matchesLocal) : workspaceActions
   const convHits = debounced ? (convSearch.data?.items ?? []) : []
   const convTotal = debounced ? (convSearch.data?.total ?? 0) : 0
   const contactHits = debounced ? (contactSearch.data?.items ?? []) : []
@@ -403,7 +429,8 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
     convHits.length > 0 ||
     contactHits.length > 0 ||
     filteredInbox.length > 0 ||
-    filteredPages.length > 0
+    filteredPages.length > 0 ||
+    filteredWorkspaces.length > 0
 
   return (
     <Spotlight.Root
@@ -461,7 +488,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
             {chatHits.map((ch) => (
               <Spotlight.Action
                 key={`chat:${ch.id}`}
-                onClick={() => void navigate({ to: "/t/$slug/chat/$id", params: { slug, id: ch.id } })}
+                onClick={() => void navigate({ to: "/$slug/chat/$id", params: { slug, id: ch.id } })}
               >
                 <Group gap="sm" wrap="nowrap" w="100%">
                   <Box className="cmd-palette-icon">
@@ -495,7 +522,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
                 key={`ticket:${tk.id}`}
                 onClick={() =>
                   void navigate({
-                    to: "/t/$slug/tickets/$id",
+                    to: "/$slug/tickets/$id",
                     params: { slug, id: tk.id },
                     search: { box: "all", status: "unresolved" },
                   })
@@ -539,7 +566,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
                   key={`conv:${c.id}:${m.item_id}`}
                   onClick={() =>
                     void navigate({
-                      to: "/t/$slug/inbox/$id",
+                      to: "/$slug/inbox/$id",
                       params: { slug, id: c.id },
                       search: {
                         box: "all",
@@ -591,7 +618,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
               <Spotlight.Action
                 onClick={() =>
                   void navigate({
-                    to: "/t/$slug/inbox",
+                    to: "/$slug/inbox",
                     params: { slug },
                     search: { box: "all", status: "open", sort: "waiting", q: debounced, scope: "all" },
                   })
@@ -618,7 +645,7 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
                   key={`contact:${ct.id}`}
                   onClick={() =>
                     void navigate({
-                      to: "/t/$slug/contacts/$id",
+                      to: "/$slug/contacts/$id",
                       params: { slug, id: ct.id },
                       search: { sort: "recent" },
                     })
@@ -673,6 +700,26 @@ export function CommandPalette({ slug, onShowShortcuts }: { slug: string; onShow
         {filteredPages.length > 0 && (
           <Spotlight.ActionsGroup label={t("command.pages_group")}>
             {filteredPages.map((a) => (
+              <Spotlight.Action key={a.id} onClick={a.onClick}>
+                <Group gap="sm" wrap="nowrap" w="100%">
+                  <Box className="cmd-palette-icon">{a.icon}</Box>
+                  <Text size="sm" fw={500} truncate style={{ flex: 1, minWidth: 0 }}>
+                    <HighlightQuery text={a.label} query={query} />
+                  </Text>
+                  {a.description && (
+                    <Text size="xs" c="dimmed" truncate maw={220} style={{ flex: "none" }}>
+                      {a.description}
+                    </Text>
+                  )}
+                </Group>
+              </Spotlight.Action>
+            ))}
+          </Spotlight.ActionsGroup>
+        )}
+
+        {filteredWorkspaces.length > 0 && (
+          <Spotlight.ActionsGroup label={t("command.workspaces_group")}>
+            {filteredWorkspaces.map((a) => (
               <Spotlight.Action key={a.id} onClick={a.onClick}>
                 <Group gap="sm" wrap="nowrap" w="100%">
                   <Box className="cmd-palette-icon">{a.icon}</Box>

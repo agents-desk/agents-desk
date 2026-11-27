@@ -37,7 +37,7 @@ export function ChatNav({
   const t = useT()
   const can = useCan()
   const canUseBusiness = can("business-channels:use")
-  const { slug } = useParams({ from: "/t/$slug" })
+  const { slug } = useParams({ from: "/$slug" })
   const navigate = useNavigate()
   const unread = useQuery(kit.queries.chat.unread())
   const businessLinks = useQuery({ ...kit.queries.business.linkList(), enabled: canUseBusiness })
@@ -50,7 +50,7 @@ export function ChatNav({
   const hasPersonalChannels = links.length > 0 || accounts.length > 0
 
   const goBusinessSettings = () => {
-    void navigate({ to: "/t/$slug/settings/business-channels", params: { slug } })
+    void navigate({ to: "/$slug/settings/business-channels", params: { slug } })
   }
 
   return (

@@ -284,7 +284,7 @@ function RecentTenantsCard({ items }: { items: PlatformoverviewRecentTenant[] })
                         {tn.name}
                       </Anchor>
                       <Text size="xs" c="dimmed">
-                        /t/{tn.slug}/
+                        /app/{tn.slug}/
                       </Text>
                     </div>
                   </Group>

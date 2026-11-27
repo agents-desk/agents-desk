@@ -1,84 +1,26 @@
-import { Avatar, Badge, Button, Group, Paper, Stack, Text } from "@mantine/core"
-import { useQuery } from "@tanstack/react-query"
-import { createFileRoute, Link, redirect } from "@tanstack/react-router"
-import { IconChevronRight } from "@tabler/icons-react"
-import { CenteredAuthLayout, requireAuth, useApp, useFavicon, useT } from "@go-tenon/ui"
-import { api, apiKit } from "../api"
-import { logout } from "../auth"
-import { brandLogo } from "../brand-logo"
+import { createFileRoute, redirect } from "@tanstack/react-router"
+import { requireAuth } from "@go-tenon/ui"
+import { api } from "../api"
+import { readLastWorkspace } from "../workspace"
 
-// 登录后的去处：只属于一个可以进入的工作区时直接进入；属于多个时在这里选择；一个都没有时提示联系管理员。
+// 工作台智能入口 /app/：
+// 1. 优先进入上次访问且仍处于活跃状态的工作区；
+// 2. 否则若当前账号仅有一个活跃工作区，直接进入；
+// 3. 其余情况（多个活跃工作区且无记录，或暂无活跃工作区）进入工作区总览选择页 /app/workspaces。
 export const Route = createFileRoute("/")({
   beforeLoad: requireAuth,
-  loader: async () => {
+  loader: async ({ context }) => {
     const mine = await api.tenant.mine()
-    const active = mine.filter((t) => t.status === "active")
-    if (active.length === 1 && mine.length === 1) throw redirect({ to: "/t/$slug", params: { slug: active[0].slug } })
-    return mine
-  },
-  component: ChooseTenant,
-})
-
-function ChooseTenant() {
-  const mine = Route.useLoaderData()
-  const app = useApp()
-  const t = useT()
-  const site = useQuery(apiKit.queries.site.get())
-  useFavicon(site.data?.logo_url || undefined)
-  const signOut = async () => {
-    try {
-      await logout()
-    } finally {
-      app.session.signOut()
+    const active = mine.filter((tn) => tn.status === "active")
+    const accountId = context.app.session.identity()?.account
+    const lastSlug = readLastWorkspace(context.app, accountId)
+    if (lastSlug && active.some((tn) => tn.slug === lastSlug)) {
+      throw redirect({ to: "/$slug", params: { slug: lastSlug } })
     }
-  }
-  return (
-    <CenteredAuthLayout
-      logo={brandLogo(site.data?.logo_url, site.data?.site_name, 32)}
-      brand={site.data?.site_name ?? ""}
-      title={t("choose_tenant.title")}
-    >
-      <Stack gap="sm">
-        {mine.length === 0 && <Text c="dimmed">{t("choose_tenant.none")}</Text>}
-        {mine.map((tn) =>
-          tn.status === "active" ? (
-            <Link key={tn.slug} to="/t/$slug" params={{ slug: tn.slug }} className="desk-tenant-card">
-              <Paper withBorder p="md" className="desk-tenant-paper">
-                <Group justify="space-between" wrap="nowrap">
-                  <Group gap="sm" wrap="nowrap">
-                    <Avatar src={tn.logo_url || null} size={36} radius="sm" color="brand">
-                      {tn.name.slice(0, 1)}
-                    </Avatar>
-                    <Text fw={500}>{tn.name}</Text>
-                  </Group>
-                  <IconChevronRight size={16} className="desk-tenant-arrow" style={{ flex: "none" }} />
-                </Group>
-              </Paper>
-            </Link>
-          ) : (
-            <Paper key={tn.slug} withBorder p="md">
-              <Group justify="space-between">
-                <Group gap="sm" wrap="nowrap">
-                  <Avatar src={tn.logo_url || null} size={36} radius="sm" color="gray">
-                    {tn.name.slice(0, 1)}
-                  </Avatar>
-                  <Text fw={500} c="dimmed">
-                    {tn.name}
-                  </Text>
-                </Group>
-                <Badge variant="light" color="gray">
-                  {t("choose_tenant.disabled")}
-                </Badge>
-              </Group>
-            </Paper>
-          ),
-        )}
-        <Group justify="flex-end">
-          <Button variant="subtle" color="gray" onClick={() => void signOut()}>
-            {t("choose_tenant.sign_out")}
-          </Button>
-        </Group>
-      </Stack>
-    </CenteredAuthLayout>
-  )
-}
+    if (active.length === 1) {
+      throw redirect({ to: "/$slug", params: { slug: active[0].slug } })
+    }
+    throw redirect({ to: "/workspaces" })
+  },
+  component: () => null,
+})

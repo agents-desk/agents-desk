@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "tenon": {
-    "base": "/",
+    "base": "/app/",
     "ssr": false
   },
   "scripts": {

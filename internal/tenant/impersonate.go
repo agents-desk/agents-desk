@@ -228,7 +228,7 @@ func (a *Impersonate) Handle(ctx context.Context, actor identity.Subject, tenant
 		"admin_id", actor.ID, "tenant_id", t.ID, "tenant_slug", t.Slug, "member_id", m.ID, "read_only", req.ReadOnly)
 	return ImpersonateResult{
 		Token:      token,
-		URL:        "/t/" + t.Slug + "/",
+		URL:        "/app/" + t.Slug + "/",
 		MemberID:   m.ID,
 		MemberName: m.Name,
 		TenantSlug: t.Slug,

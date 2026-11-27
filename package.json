@@ -4,14 +4,15 @@
   "type": "module",
   "packageManager": "bun@1.4.4",
   "workspaces": [
+    "apps/admin",
+    "apps/site",
+    "apps/web",
+    "apps/widget",
+    "packages/client",
     "tenon/js/client",
     "tenon/js/host",
     "tenon/js/start",
-    "tenon/js/ui",
-    "apps/admin",
-    "apps/web",
-    "apps/widget",
-    "packages/client"
+    "tenon/js/ui"
   ],
   "intent": {
     "skills": ["@tanstack/react-router", "@tanstack/router-core"]

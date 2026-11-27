@@ -73,7 +73,7 @@ func TestCreateMakesOwnerAccountAndRole(t *testing.T) {
 	if !slices.Equal(initial, []string{"坐席", "管理员"}) {
 		t.Fatalf("初始角色：%v", initial)
 	}
-	if addr.URL(ten) != "https://desk.example.com/t/acme/" {
+	if addr.URL(ten) != "https://desk.example.com/app/acme/" {
 		t.Fatalf("地址：%s", addr.URL(ten))
 	}
 	if n := count(t, env, "SELECT count(*) FROM activity_log WHERE event = 'tenant.created' AND target_id = ?", ten.ID); n != 1 {
@@ -127,6 +127,7 @@ func TestCreateRejectsAndRollsBack(t *testing.T) {
 	}{
 		{"slug 已被使用", tenant.CreateParams{Name: "x", Slug: "acme", OwnerEmail: "carol@example.com", OwnerName: "Carol", OwnerPassword: "carol-pass-123"}, tenant.ErrSlugTaken},
 		{"slug 是保留词", tenant.CreateParams{Name: "x", Slug: "admin", OwnerEmail: "alice@acme.com"}, tenant.ErrSlugReserved},
+		{"slug 是工作台保留路由", tenant.CreateParams{Name: "x", Slug: "workspaces", OwnerEmail: "alice@acme.com"}, tenant.ErrSlugReserved},
 		{"新邮箱缺少密码", tenant.CreateParams{Name: "x", Slug: "dave", OwnerEmail: "dave@example.com", OwnerName: "Dave"}, member.ErrDetailsMissing},
 		{"初始密码太短", tenant.CreateParams{Name: "x", Slug: "erin", OwnerEmail: "erin@example.com", OwnerName: "Erin", OwnerPassword: "short"}, login.ErrWeakPassword},
 		{"主管理员的账号已停用", tenant.CreateParams{Name: "x", Slug: "frank", OwnerEmail: "bob@example.com"}, member.ErrDisabled},

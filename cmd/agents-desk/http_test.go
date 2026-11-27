@@ -113,7 +113,7 @@ func TestMemberAPIs(t *testing.T) {
 	if err := json.Unmarshal([]byte(r.body), &mine); err != nil || r.status != http.StatusOK {
 		t.Fatalf("/api/tenants：%d %s", r.status, r.body)
 	}
-	if len(mine) != 2 || mine[0].Slug != "off" || mine[0].Status != tenant.Disabled || mine[1].Slug != "demo" || mine[1].URL != "http://localhost:8081/t/demo/" {
+	if len(mine) != 2 || mine[0].Slug != "off" || mine[0].Status != tenant.Disabled || mine[1].Slug != "demo" || mine[1].URL != "http://localhost:8081/app/demo/" {
 		t.Fatalf("/api/tenants：%+v", mine)
 	}
 

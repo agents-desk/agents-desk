@@ -31,7 +31,7 @@ export function TicketsPage({ route }: { route: PeriodRoute }): ReactNode {
   const can = useCan()
   const uiLang = useLanguage()
   const formatDuration = useFormatDuration()
-  const { slug } = useParams({ from: "/t/$slug" })
+  const { slug } = useParams({ from: "/$slug" })
   const navigate = useNavigate()
   const period = usePeriod(route, { defaultPreset: "7d" })
   const search = route.useSearch() as TicketsReportSearchParams
@@ -240,7 +240,7 @@ export function TicketsPage({ route }: { route: PeriodRoute }): ReactNode {
             return (
               <Tooltip key={item.key} label={t("reports.drill_tickets")} openDelay={250} withArrow>
                 <Link
-                  to="/t/$slug/tickets"
+                  to="/$slug/tickets"
                   params={{ slug }}
                   search={item.search as never}
                   className="rp-live-item"

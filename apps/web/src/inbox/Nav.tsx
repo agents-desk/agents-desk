@@ -66,7 +66,7 @@ export function InboxNav({
   const can = useCan()
   const now = useNow()
   const th = useThresholds()
-  const { slug } = useParams({ from: "/t/$slug" })
+  const { slug } = useParams({ from: "/$slug" })
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const inbox = useQuery(kit.queries.conversation.inbox())
@@ -82,7 +82,7 @@ export function InboxNav({
       return
     }
     void navigate({
-      to: "/t/$slug/inbox",
+      to: "/$slug/inbox",
       params: { slug },
       search: {
         box: patch.box ?? "mine",
@@ -102,7 +102,7 @@ export function InboxNav({
       return
     }
     void navigate({
-      to: "/t/$slug/tickets",
+      to: "/$slug/tickets",
       params: { slug },
       search: { box, status: "unresolved" },
     })
@@ -313,7 +313,7 @@ export function InboxNav({
           onClose={() => setCreateTicketOpen(false)}
           onCreated={(created) =>
             void navigate({
-              to: "/t/$slug/tickets/$id",
+              to: "/$slug/tickets/$id",
               params: { slug, id: created.id },
               search: { box: "all", status: "unresolved" },
             })

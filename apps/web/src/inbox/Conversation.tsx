@@ -43,7 +43,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
   const can = useCan()
   const navigate = useNavigate()
   const narrow = useNarrow(NARROW_QUERY)
-  const { slug } = useParams({ from: "/t/$slug" })
+  const { slug } = useParams({ from: "/$slug" })
   const queryClient = useQueryClient()
   const me = useMe()
   const { byId } = useMembers()
@@ -165,7 +165,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
               <Group gap={6} wrap="nowrap">
                 {c.contact ? (
                   <Link
-                    to="/t/$slug/contacts/$id"
+                    to="/$slug/contacts/$id"
                     params={{ slug, id: c.contact.id }}
                     search={{ sort: "recent" }}
                     className="inbox-contact-link"
@@ -316,7 +316,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
         sourceConversation={c}
         onCreated={(created) =>
           void navigate({
-            to: "/t/$slug/tickets/$id",
+            to: "/$slug/tickets/$id",
             params: { slug, id: created.id },
             search: { box: "all", status: "unresolved" },
           })

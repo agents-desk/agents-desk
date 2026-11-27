@@ -37,7 +37,7 @@ export function ConversationsPage({
   const t = useT()
   const can = useCan()
   const uiLang = useLanguage()
-  const { slug } = useParams({ from: "/t/$slug" })
+  const { slug } = useParams({ from: "/$slug" })
   const filters = useReportFilters(route)
   const query = useQuery({
     ...kit.queries.report.conversations(filters.queryParams),
@@ -165,7 +165,7 @@ export function ConversationsPage({
             return (
               <Tooltip key={item.key} label={item.tip} openDelay={250} withArrow>
                 <Link
-                  to="/t/$slug/inbox"
+                  to="/$slug/inbox"
                   params={{ slug }}
                   search={liveBacklogInboxSearch(item.key, scope)}
                   className="rp-live-item"
@@ -389,7 +389,7 @@ export function ConversationsPage({
               return (
                 <Tooltip key={tag.id} label={t("reports.drill_tag_inbox")} openDelay={300} withArrow>
                   <Link
-                    to="/t/$slug/inbox"
+                    to="/$slug/inbox"
                     params={{ slug }}
                     search={tagInboxSearch(tag.id, scope)}
                     className="rp-bar-row"
@@ -446,7 +446,7 @@ export function ConversationsPage({
               return (
                 <Tooltip key={item.language} label={t("reports.drill_language_inbox")} openDelay={300} withArrow>
                   <Link
-                    to="/t/$slug/inbox"
+                    to="/$slug/inbox"
                     params={{ slug }}
                     search={languageInboxSearch(item.language, scope)}
                     className="rp-bar-row"

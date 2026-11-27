@@ -30,7 +30,7 @@ export function ResponseTimePage({
   const can = useCan()
   const uiLang = useLanguage()
   const formatDuration = useFormatDuration()
-  const { slug } = useParams({ from: "/t/$slug" })
+  const { slug } = useParams({ from: "/$slug" })
   const filters = useReportFilters(route)
   const query = useQuery({
     ...kit.queries.report.responseTime(filters.queryParams),

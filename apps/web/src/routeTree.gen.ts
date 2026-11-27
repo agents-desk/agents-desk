@@ -10,72 +10,78 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SlugRouteImport } from './routes/$slug'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as TSlugRouteImport } from './routes/t/$slug'
-import { Route as TSlugIndexRouteImport } from './routes/t/$slug/index'
-import { Route as TSlugChatRouteImport } from './routes/t/$slug/chat'
-import { Route as TSlugContactsRouteImport } from './routes/t/$slug/contacts'
-import { Route as TSlugInboxRouteImport } from './routes/t/$slug/inbox'
-import { Route as TSlugReportsRouteImport } from './routes/t/$slug/reports'
-import { Route as TSlugSettingsRouteImport } from './routes/t/$slug/settings'
-import { Route as TSlugTicketsRouteImport } from './routes/t/$slug/tickets'
-import { Route as TSlugChatIndexRouteImport } from './routes/t/$slug/chat/index'
-import { Route as TSlugChatIdRouteImport } from './routes/t/$slug/chat/$id'
-import { Route as TSlugContactsIndexRouteImport } from './routes/t/$slug/contacts/index'
-import { Route as TSlugContactsIdRouteImport } from './routes/t/$slug/contacts/$id'
-import { Route as TSlugInboxIndexRouteImport } from './routes/t/$slug/inbox/index'
-import { Route as TSlugInboxIdRouteImport } from './routes/t/$slug/inbox/$id'
-import { Route as TSlugReportsIndexRouteImport } from './routes/t/$slug/reports/index'
-import { Route as TSlugReportsBusinessRouteImport } from './routes/t/$slug/reports/business'
-import { Route as TSlugReportsMembersRouteImport } from './routes/t/$slug/reports/members'
-import { Route as TSlugReportsOverviewRouteImport } from './routes/t/$slug/reports/overview'
-import { Route as TSlugReportsServiceRouteImport } from './routes/t/$slug/reports/service'
-import { Route as TSlugReportsTicketsRouteImport } from './routes/t/$slug/reports/tickets'
-import { Route as TSlugReportsTranslationRouteImport } from './routes/t/$slug/reports/translation'
-import { Route as TSlugSettingsIndexRouteImport } from './routes/t/$slug/settings/index'
-import { Route as TSlugSettingsChannelsRouteImport } from './routes/t/$slug/settings/_channels'
-import { Route as TSlugSettingsInboxRouteImport } from './routes/t/$slug/settings/_inbox'
-import { Route as TSlugSettingsPersonalRouteImport } from './routes/t/$slug/settings/_personal'
-import { Route as TSlugSettingsTicketsRouteImport } from './routes/t/$slug/settings/_tickets'
-import { Route as TSlugSettingsTranslationRouteImport } from './routes/t/$slug/settings/_translation'
-import { Route as TSlugSettingsWorkspaceRouteImport } from './routes/t/$slug/settings/_workspace'
-import { Route as TSlugTicketsIndexRouteImport } from './routes/t/$slug/tickets/index'
-import { Route as TSlugTicketsIdRouteImport } from './routes/t/$slug/tickets/$id'
-import { Route as TSlugSettingsChannelsBusinessRouteImport } from './routes/t/$slug/settings/_channels/business'
-import { Route as TSlugSettingsChannelsTelegramsRouteImport } from './routes/t/$slug/settings/_channels/telegrams'
-import { Route as TSlugSettingsChannelsWidgetsRouteImport } from './routes/t/$slug/settings/_channels/widgets'
-import { Route as TSlugSettingsInboxAssignmentRouteImport } from './routes/t/$slug/settings/_inbox/assignment'
-import { Route as TSlugSettingsInboxBusinessHoursRouteImport } from './routes/t/$slug/settings/_inbox/business-hours'
-import { Route as TSlugSettingsInboxMacrosRouteImport } from './routes/t/$slug/settings/_inbox/macros'
-import { Route as TSlugSettingsInboxRulesRouteImport } from './routes/t/$slug/settings/_inbox/rules'
-import { Route as TSlugSettingsInboxTeamsRouteImport } from './routes/t/$slug/settings/_inbox/teams'
-import { Route as TSlugSettingsPersonalBusinessChannelsRouteImport } from './routes/t/$slug/settings/_personal/business-channels'
-import { Route as TSlugSettingsPersonalNotificationsRouteImport } from './routes/t/$slug/settings/_personal/notifications'
-import { Route as TSlugSettingsPersonalPreferencesRouteImport } from './routes/t/$slug/settings/_personal/preferences'
-import { Route as TSlugSettingsPersonalProfileRouteImport } from './routes/t/$slug/settings/_personal/profile'
-import { Route as TSlugSettingsTicketsTicketTypesRouteImport } from './routes/t/$slug/settings/_tickets/ticket-types'
-import { Route as TSlugSettingsTranslationGlossaryRouteImport } from './routes/t/$slug/settings/_translation/glossary'
-import { Route as TSlugSettingsTranslationToneRouteImport } from './routes/t/$slug/settings/_translation/tone'
-import { Route as TSlugSettingsWorkspaceAttributesRouteImport } from './routes/t/$slug/settings/_workspace/attributes'
-import { Route as TSlugSettingsWorkspaceGeneralRouteImport } from './routes/t/$slug/settings/_workspace/general'
-import { Route as TSlugSettingsWorkspaceMembersRouteImport } from './routes/t/$slug/settings/_workspace/members'
-import { Route as TSlugSettingsWorkspaceRolesRouteImport } from './routes/t/$slug/settings/_workspace/roles'
-import { Route as TSlugSettingsWorkspaceTagsRouteImport } from './routes/t/$slug/settings/_workspace/tags'
-import { Route as TSlugSettingsChannelsTelegramsIndexRouteImport } from './routes/t/$slug/settings/_channels/telegrams/index'
-import { Route as TSlugSettingsChannelsTelegramsIdRouteImport } from './routes/t/$slug/settings/_channels/telegrams/$id'
-import { Route as TSlugSettingsChannelsWidgetsIndexRouteImport } from './routes/t/$slug/settings/_channels/widgets/index'
-import { Route as TSlugSettingsChannelsWidgetsIdRouteImport } from './routes/t/$slug/settings/_channels/widgets/$id'
-import { Route as TSlugSettingsInboxTeamsIndexRouteImport } from './routes/t/$slug/settings/_inbox/teams/index'
-import { Route as TSlugSettingsInboxTeamsIdRouteImport } from './routes/t/$slug/settings/_inbox/teams/$id'
-import { Route as TSlugSettingsPersonalBusinessChannelsIndexRouteImport } from './routes/t/$slug/settings/_personal/business-channels/index'
-import { Route as TSlugSettingsTicketsTicketTypesIndexRouteImport } from './routes/t/$slug/settings/_tickets/ticket-types/index'
-import { Route as TSlugSettingsTicketsTicketTypesIdRouteImport } from './routes/t/$slug/settings/_tickets/ticket-types/$id'
-import { Route as TSlugSettingsPersonalBusinessChannelsLinksIdRouteImport } from './routes/t/$slug/settings/_personal/business-channels/links/$id'
-import { Route as TSlugSettingsPersonalBusinessChannelsTelegramIdRouteImport } from './routes/t/$slug/settings/_personal/business-channels/telegram/$id'
+import { Route as WorkspacesRouteImport } from './routes/workspaces'
+import { Route as SlugIndexRouteImport } from './routes/$slug/index'
+import { Route as SlugChatRouteImport } from './routes/$slug/chat'
+import { Route as SlugContactsRouteImport } from './routes/$slug/contacts'
+import { Route as SlugInboxRouteImport } from './routes/$slug/inbox'
+import { Route as SlugReportsRouteImport } from './routes/$slug/reports'
+import { Route as SlugSettingsRouteImport } from './routes/$slug/settings'
+import { Route as SlugTicketsRouteImport } from './routes/$slug/tickets'
+import { Route as SlugChatIndexRouteImport } from './routes/$slug/chat/index'
+import { Route as SlugChatIdRouteImport } from './routes/$slug/chat/$id'
+import { Route as SlugContactsIndexRouteImport } from './routes/$slug/contacts/index'
+import { Route as SlugContactsIdRouteImport } from './routes/$slug/contacts/$id'
+import { Route as SlugInboxIndexRouteImport } from './routes/$slug/inbox/index'
+import { Route as SlugInboxIdRouteImport } from './routes/$slug/inbox/$id'
+import { Route as SlugReportsIndexRouteImport } from './routes/$slug/reports/index'
+import { Route as SlugReportsBusinessRouteImport } from './routes/$slug/reports/business'
+import { Route as SlugReportsMembersRouteImport } from './routes/$slug/reports/members'
+import { Route as SlugReportsOverviewRouteImport } from './routes/$slug/reports/overview'
+import { Route as SlugReportsServiceRouteImport } from './routes/$slug/reports/service'
+import { Route as SlugReportsTicketsRouteImport } from './routes/$slug/reports/tickets'
+import { Route as SlugReportsTranslationRouteImport } from './routes/$slug/reports/translation'
+import { Route as SlugSettingsIndexRouteImport } from './routes/$slug/settings/index'
+import { Route as SlugSettingsChannelsRouteImport } from './routes/$slug/settings/_channels'
+import { Route as SlugSettingsInboxRouteImport } from './routes/$slug/settings/_inbox'
+import { Route as SlugSettingsPersonalRouteImport } from './routes/$slug/settings/_personal'
+import { Route as SlugSettingsTicketsRouteImport } from './routes/$slug/settings/_tickets'
+import { Route as SlugSettingsTranslationRouteImport } from './routes/$slug/settings/_translation'
+import { Route as SlugSettingsWorkspaceRouteImport } from './routes/$slug/settings/_workspace'
+import { Route as SlugTicketsIndexRouteImport } from './routes/$slug/tickets/index'
+import { Route as SlugTicketsIdRouteImport } from './routes/$slug/tickets/$id'
+import { Route as SlugSettingsChannelsBusinessRouteImport } from './routes/$slug/settings/_channels/business'
+import { Route as SlugSettingsChannelsTelegramsRouteImport } from './routes/$slug/settings/_channels/telegrams'
+import { Route as SlugSettingsChannelsWidgetsRouteImport } from './routes/$slug/settings/_channels/widgets'
+import { Route as SlugSettingsInboxAssignmentRouteImport } from './routes/$slug/settings/_inbox/assignment'
+import { Route as SlugSettingsInboxBusinessHoursRouteImport } from './routes/$slug/settings/_inbox/business-hours'
+import { Route as SlugSettingsInboxMacrosRouteImport } from './routes/$slug/settings/_inbox/macros'
+import { Route as SlugSettingsInboxRulesRouteImport } from './routes/$slug/settings/_inbox/rules'
+import { Route as SlugSettingsInboxTeamsRouteImport } from './routes/$slug/settings/_inbox/teams'
+import { Route as SlugSettingsPersonalBusinessChannelsRouteImport } from './routes/$slug/settings/_personal/business-channels'
+import { Route as SlugSettingsPersonalNotificationsRouteImport } from './routes/$slug/settings/_personal/notifications'
+import { Route as SlugSettingsPersonalPreferencesRouteImport } from './routes/$slug/settings/_personal/preferences'
+import { Route as SlugSettingsPersonalProfileRouteImport } from './routes/$slug/settings/_personal/profile'
+import { Route as SlugSettingsTicketsTicketTypesRouteImport } from './routes/$slug/settings/_tickets/ticket-types'
+import { Route as SlugSettingsTranslationGlossaryRouteImport } from './routes/$slug/settings/_translation/glossary'
+import { Route as SlugSettingsTranslationToneRouteImport } from './routes/$slug/settings/_translation/tone'
+import { Route as SlugSettingsWorkspaceAttributesRouteImport } from './routes/$slug/settings/_workspace/attributes'
+import { Route as SlugSettingsWorkspaceGeneralRouteImport } from './routes/$slug/settings/_workspace/general'
+import { Route as SlugSettingsWorkspaceMembersRouteImport } from './routes/$slug/settings/_workspace/members'
+import { Route as SlugSettingsWorkspaceRolesRouteImport } from './routes/$slug/settings/_workspace/roles'
+import { Route as SlugSettingsWorkspaceTagsRouteImport } from './routes/$slug/settings/_workspace/tags'
+import { Route as SlugSettingsChannelsTelegramsIndexRouteImport } from './routes/$slug/settings/_channels/telegrams/index'
+import { Route as SlugSettingsChannelsTelegramsIdRouteImport } from './routes/$slug/settings/_channels/telegrams/$id'
+import { Route as SlugSettingsChannelsWidgetsIndexRouteImport } from './routes/$slug/settings/_channels/widgets/index'
+import { Route as SlugSettingsChannelsWidgetsIdRouteImport } from './routes/$slug/settings/_channels/widgets/$id'
+import { Route as SlugSettingsInboxTeamsIndexRouteImport } from './routes/$slug/settings/_inbox/teams/index'
+import { Route as SlugSettingsInboxTeamsIdRouteImport } from './routes/$slug/settings/_inbox/teams/$id'
+import { Route as SlugSettingsPersonalBusinessChannelsIndexRouteImport } from './routes/$slug/settings/_personal/business-channels/index'
+import { Route as SlugSettingsTicketsTicketTypesIndexRouteImport } from './routes/$slug/settings/_tickets/ticket-types/index'
+import { Route as SlugSettingsTicketsTicketTypesIdRouteImport } from './routes/$slug/settings/_tickets/ticket-types/$id'
+import { Route as SlugSettingsPersonalBusinessChannelsLinksIdRouteImport } from './routes/$slug/settings/_personal/business-channels/links/$id'
+import { Route as SlugSettingsPersonalBusinessChannelsTelegramIdRouteImport } from './routes/$slug/settings/_personal/business-channels/telegram/$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SlugRoute = SlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -83,686 +89,691 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TSlugRoute = TSlugRouteImport.update({
-  id: '/t/$slug',
-  path: '/t/$slug',
+const WorkspacesRoute = WorkspacesRouteImport.update({
+  id: '/workspaces',
+  path: '/workspaces',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TSlugIndexRoute = TSlugIndexRouteImport.update({
+const SlugIndexRoute = SlugIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => TSlugRoute,
+  getParentRoute: () => SlugRoute,
 } as any)
-const TSlugChatRoute = TSlugChatRouteImport.update({
+const SlugChatRoute = SlugChatRouteImport.update({
   id: '/chat',
   path: '/chat',
-  getParentRoute: () => TSlugRoute,
+  getParentRoute: () => SlugRoute,
 } as any)
-const TSlugContactsRoute = TSlugContactsRouteImport.update({
+const SlugContactsRoute = SlugContactsRouteImport.update({
   id: '/contacts',
   path: '/contacts',
-  getParentRoute: () => TSlugRoute,
+  getParentRoute: () => SlugRoute,
 } as any)
-const TSlugInboxRoute = TSlugInboxRouteImport.update({
+const SlugInboxRoute = SlugInboxRouteImport.update({
   id: '/inbox',
   path: '/inbox',
-  getParentRoute: () => TSlugRoute,
+  getParentRoute: () => SlugRoute,
 } as any)
-const TSlugReportsRoute = TSlugReportsRouteImport.update({
+const SlugReportsRoute = SlugReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
-  getParentRoute: () => TSlugRoute,
+  getParentRoute: () => SlugRoute,
 } as any)
-const TSlugSettingsRoute = TSlugSettingsRouteImport.update({
+const SlugSettingsRoute = SlugSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => TSlugRoute,
+  getParentRoute: () => SlugRoute,
 } as any)
-const TSlugTicketsRoute = TSlugTicketsRouteImport.update({
+const SlugTicketsRoute = SlugTicketsRouteImport.update({
   id: '/tickets',
   path: '/tickets',
-  getParentRoute: () => TSlugRoute,
+  getParentRoute: () => SlugRoute,
 } as any)
-const TSlugChatIndexRoute = TSlugChatIndexRouteImport.update({
+const SlugChatIndexRoute = SlugChatIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => TSlugChatRoute,
+  getParentRoute: () => SlugChatRoute,
 } as any)
-const TSlugChatIdRoute = TSlugChatIdRouteImport.update({
+const SlugChatIdRoute = SlugChatIdRouteImport.update({
   id: '/$id',
   path: '/$id',
-  getParentRoute: () => TSlugChatRoute,
+  getParentRoute: () => SlugChatRoute,
 } as any)
-const TSlugContactsIndexRoute = TSlugContactsIndexRouteImport.update({
+const SlugContactsIndexRoute = SlugContactsIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => TSlugContactsRoute,
+  getParentRoute: () => SlugContactsRoute,
 } as any)
-const TSlugContactsIdRoute = TSlugContactsIdRouteImport.update({
+const SlugContactsIdRoute = SlugContactsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
-  getParentRoute: () => TSlugContactsRoute,
+  getParentRoute: () => SlugContactsRoute,
 } as any)
-const TSlugInboxIndexRoute = TSlugInboxIndexRouteImport.update({
+const SlugInboxIndexRoute = SlugInboxIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => TSlugInboxRoute,
+  getParentRoute: () => SlugInboxRoute,
 } as any)
-const TSlugInboxIdRoute = TSlugInboxIdRouteImport.update({
+const SlugInboxIdRoute = SlugInboxIdRouteImport.update({
   id: '/$id',
   path: '/$id',
-  getParentRoute: () => TSlugInboxRoute,
+  getParentRoute: () => SlugInboxRoute,
 } as any)
-const TSlugReportsIndexRoute = TSlugReportsIndexRouteImport.update({
+const SlugReportsIndexRoute = SlugReportsIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => TSlugReportsRoute,
+  getParentRoute: () => SlugReportsRoute,
 } as any)
-const TSlugReportsBusinessRoute = TSlugReportsBusinessRouteImport.update({
+const SlugReportsBusinessRoute = SlugReportsBusinessRouteImport.update({
   id: '/business',
   path: '/business',
-  getParentRoute: () => TSlugReportsRoute,
+  getParentRoute: () => SlugReportsRoute,
 } as any)
-const TSlugReportsMembersRoute = TSlugReportsMembersRouteImport.update({
+const SlugReportsMembersRoute = SlugReportsMembersRouteImport.update({
   id: '/members',
   path: '/members',
-  getParentRoute: () => TSlugReportsRoute,
+  getParentRoute: () => SlugReportsRoute,
 } as any)
-const TSlugReportsOverviewRoute = TSlugReportsOverviewRouteImport.update({
+const SlugReportsOverviewRoute = SlugReportsOverviewRouteImport.update({
   id: '/overview',
   path: '/overview',
-  getParentRoute: () => TSlugReportsRoute,
+  getParentRoute: () => SlugReportsRoute,
 } as any)
-const TSlugReportsServiceRoute = TSlugReportsServiceRouteImport.update({
+const SlugReportsServiceRoute = SlugReportsServiceRouteImport.update({
   id: '/service',
   path: '/service',
-  getParentRoute: () => TSlugReportsRoute,
+  getParentRoute: () => SlugReportsRoute,
 } as any)
-const TSlugReportsTicketsRoute = TSlugReportsTicketsRouteImport.update({
+const SlugReportsTicketsRoute = SlugReportsTicketsRouteImport.update({
   id: '/tickets',
   path: '/tickets',
-  getParentRoute: () => TSlugReportsRoute,
+  getParentRoute: () => SlugReportsRoute,
 } as any)
-const TSlugReportsTranslationRoute = TSlugReportsTranslationRouteImport.update({
+const SlugReportsTranslationRoute = SlugReportsTranslationRouteImport.update({
   id: '/translation',
   path: '/translation',
-  getParentRoute: () => TSlugReportsRoute,
+  getParentRoute: () => SlugReportsRoute,
 } as any)
-const TSlugSettingsIndexRoute = TSlugSettingsIndexRouteImport.update({
+const SlugSettingsIndexRoute = SlugSettingsIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => TSlugSettingsRoute,
+  getParentRoute: () => SlugSettingsRoute,
 } as any)
-const TSlugSettingsChannelsRoute = TSlugSettingsChannelsRouteImport.update({
+const SlugSettingsChannelsRoute = SlugSettingsChannelsRouteImport.update({
   id: '/_channels',
-  getParentRoute: () => TSlugSettingsRoute,
+  getParentRoute: () => SlugSettingsRoute,
 } as any)
-const TSlugSettingsInboxRoute = TSlugSettingsInboxRouteImport.update({
+const SlugSettingsInboxRoute = SlugSettingsInboxRouteImport.update({
   id: '/_inbox',
-  getParentRoute: () => TSlugSettingsRoute,
+  getParentRoute: () => SlugSettingsRoute,
 } as any)
-const TSlugSettingsPersonalRoute = TSlugSettingsPersonalRouteImport.update({
+const SlugSettingsPersonalRoute = SlugSettingsPersonalRouteImport.update({
   id: '/_personal',
-  getParentRoute: () => TSlugSettingsRoute,
+  getParentRoute: () => SlugSettingsRoute,
 } as any)
-const TSlugSettingsTicketsRoute = TSlugSettingsTicketsRouteImport.update({
+const SlugSettingsTicketsRoute = SlugSettingsTicketsRouteImport.update({
   id: '/_tickets',
-  getParentRoute: () => TSlugSettingsRoute,
+  getParentRoute: () => SlugSettingsRoute,
 } as any)
-const TSlugSettingsTranslationRoute =
-  TSlugSettingsTranslationRouteImport.update({
-    id: '/_translation',
-    getParentRoute: () => TSlugSettingsRoute,
-  } as any)
-const TSlugSettingsWorkspaceRoute = TSlugSettingsWorkspaceRouteImport.update({
+const SlugSettingsTranslationRoute = SlugSettingsTranslationRouteImport.update({
+  id: '/_translation',
+  getParentRoute: () => SlugSettingsRoute,
+} as any)
+const SlugSettingsWorkspaceRoute = SlugSettingsWorkspaceRouteImport.update({
   id: '/_workspace',
-  getParentRoute: () => TSlugSettingsRoute,
+  getParentRoute: () => SlugSettingsRoute,
 } as any)
-const TSlugTicketsIndexRoute = TSlugTicketsIndexRouteImport.update({
+const SlugTicketsIndexRoute = SlugTicketsIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => TSlugTicketsRoute,
+  getParentRoute: () => SlugTicketsRoute,
 } as any)
-const TSlugTicketsIdRoute = TSlugTicketsIdRouteImport.update({
+const SlugTicketsIdRoute = SlugTicketsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
-  getParentRoute: () => TSlugTicketsRoute,
+  getParentRoute: () => SlugTicketsRoute,
 } as any)
-const TSlugSettingsChannelsBusinessRoute =
-  TSlugSettingsChannelsBusinessRouteImport.update({
+const SlugSettingsChannelsBusinessRoute =
+  SlugSettingsChannelsBusinessRouteImport.update({
     id: '/business',
     path: '/business',
-    getParentRoute: () => TSlugSettingsChannelsRoute,
+    getParentRoute: () => SlugSettingsChannelsRoute,
   } as any)
-const TSlugSettingsChannelsTelegramsRoute =
-  TSlugSettingsChannelsTelegramsRouteImport.update({
+const SlugSettingsChannelsTelegramsRoute =
+  SlugSettingsChannelsTelegramsRouteImport.update({
     id: '/telegrams',
     path: '/telegrams',
-    getParentRoute: () => TSlugSettingsChannelsRoute,
+    getParentRoute: () => SlugSettingsChannelsRoute,
   } as any)
-const TSlugSettingsChannelsWidgetsRoute =
-  TSlugSettingsChannelsWidgetsRouteImport.update({
+const SlugSettingsChannelsWidgetsRoute =
+  SlugSettingsChannelsWidgetsRouteImport.update({
     id: '/widgets',
     path: '/widgets',
-    getParentRoute: () => TSlugSettingsChannelsRoute,
+    getParentRoute: () => SlugSettingsChannelsRoute,
   } as any)
-const TSlugSettingsInboxAssignmentRoute =
-  TSlugSettingsInboxAssignmentRouteImport.update({
+const SlugSettingsInboxAssignmentRoute =
+  SlugSettingsInboxAssignmentRouteImport.update({
     id: '/assignment',
     path: '/assignment',
-    getParentRoute: () => TSlugSettingsInboxRoute,
+    getParentRoute: () => SlugSettingsInboxRoute,
   } as any)
-const TSlugSettingsInboxBusinessHoursRoute =
-  TSlugSettingsInboxBusinessHoursRouteImport.update({
+const SlugSettingsInboxBusinessHoursRoute =
+  SlugSettingsInboxBusinessHoursRouteImport.update({
     id: '/business-hours',
     path: '/business-hours',
-    getParentRoute: () => TSlugSettingsInboxRoute,
+    getParentRoute: () => SlugSettingsInboxRoute,
   } as any)
-const TSlugSettingsInboxMacrosRoute =
-  TSlugSettingsInboxMacrosRouteImport.update({
-    id: '/macros',
-    path: '/macros',
-    getParentRoute: () => TSlugSettingsInboxRoute,
-  } as any)
-const TSlugSettingsInboxRulesRoute = TSlugSettingsInboxRulesRouteImport.update({
+const SlugSettingsInboxMacrosRoute = SlugSettingsInboxMacrosRouteImport.update({
+  id: '/macros',
+  path: '/macros',
+  getParentRoute: () => SlugSettingsInboxRoute,
+} as any)
+const SlugSettingsInboxRulesRoute = SlugSettingsInboxRulesRouteImport.update({
   id: '/rules',
   path: '/rules',
-  getParentRoute: () => TSlugSettingsInboxRoute,
+  getParentRoute: () => SlugSettingsInboxRoute,
 } as any)
-const TSlugSettingsInboxTeamsRoute = TSlugSettingsInboxTeamsRouteImport.update({
+const SlugSettingsInboxTeamsRoute = SlugSettingsInboxTeamsRouteImport.update({
   id: '/teams',
   path: '/teams',
-  getParentRoute: () => TSlugSettingsInboxRoute,
+  getParentRoute: () => SlugSettingsInboxRoute,
 } as any)
-const TSlugSettingsPersonalBusinessChannelsRoute =
-  TSlugSettingsPersonalBusinessChannelsRouteImport.update({
+const SlugSettingsPersonalBusinessChannelsRoute =
+  SlugSettingsPersonalBusinessChannelsRouteImport.update({
     id: '/business-channels',
     path: '/business-channels',
-    getParentRoute: () => TSlugSettingsPersonalRoute,
+    getParentRoute: () => SlugSettingsPersonalRoute,
   } as any)
-const TSlugSettingsPersonalNotificationsRoute =
-  TSlugSettingsPersonalNotificationsRouteImport.update({
+const SlugSettingsPersonalNotificationsRoute =
+  SlugSettingsPersonalNotificationsRouteImport.update({
     id: '/notifications',
     path: '/notifications',
-    getParentRoute: () => TSlugSettingsPersonalRoute,
+    getParentRoute: () => SlugSettingsPersonalRoute,
   } as any)
-const TSlugSettingsPersonalPreferencesRoute =
-  TSlugSettingsPersonalPreferencesRouteImport.update({
+const SlugSettingsPersonalPreferencesRoute =
+  SlugSettingsPersonalPreferencesRouteImport.update({
     id: '/preferences',
     path: '/preferences',
-    getParentRoute: () => TSlugSettingsPersonalRoute,
+    getParentRoute: () => SlugSettingsPersonalRoute,
   } as any)
-const TSlugSettingsPersonalProfileRoute =
-  TSlugSettingsPersonalProfileRouteImport.update({
+const SlugSettingsPersonalProfileRoute =
+  SlugSettingsPersonalProfileRouteImport.update({
     id: '/profile',
     path: '/profile',
-    getParentRoute: () => TSlugSettingsPersonalRoute,
+    getParentRoute: () => SlugSettingsPersonalRoute,
   } as any)
-const TSlugSettingsTicketsTicketTypesRoute =
-  TSlugSettingsTicketsTicketTypesRouteImport.update({
+const SlugSettingsTicketsTicketTypesRoute =
+  SlugSettingsTicketsTicketTypesRouteImport.update({
     id: '/ticket-types',
     path: '/ticket-types',
-    getParentRoute: () => TSlugSettingsTicketsRoute,
+    getParentRoute: () => SlugSettingsTicketsRoute,
   } as any)
-const TSlugSettingsTranslationGlossaryRoute =
-  TSlugSettingsTranslationGlossaryRouteImport.update({
+const SlugSettingsTranslationGlossaryRoute =
+  SlugSettingsTranslationGlossaryRouteImport.update({
     id: '/glossary',
     path: '/glossary',
-    getParentRoute: () => TSlugSettingsTranslationRoute,
+    getParentRoute: () => SlugSettingsTranslationRoute,
   } as any)
-const TSlugSettingsTranslationToneRoute =
-  TSlugSettingsTranslationToneRouteImport.update({
+const SlugSettingsTranslationToneRoute =
+  SlugSettingsTranslationToneRouteImport.update({
     id: '/tone',
     path: '/tone',
-    getParentRoute: () => TSlugSettingsTranslationRoute,
+    getParentRoute: () => SlugSettingsTranslationRoute,
   } as any)
-const TSlugSettingsWorkspaceAttributesRoute =
-  TSlugSettingsWorkspaceAttributesRouteImport.update({
+const SlugSettingsWorkspaceAttributesRoute =
+  SlugSettingsWorkspaceAttributesRouteImport.update({
     id: '/attributes',
     path: '/attributes',
-    getParentRoute: () => TSlugSettingsWorkspaceRoute,
+    getParentRoute: () => SlugSettingsWorkspaceRoute,
   } as any)
-const TSlugSettingsWorkspaceGeneralRoute =
-  TSlugSettingsWorkspaceGeneralRouteImport.update({
+const SlugSettingsWorkspaceGeneralRoute =
+  SlugSettingsWorkspaceGeneralRouteImport.update({
     id: '/general',
     path: '/general',
-    getParentRoute: () => TSlugSettingsWorkspaceRoute,
+    getParentRoute: () => SlugSettingsWorkspaceRoute,
   } as any)
-const TSlugSettingsWorkspaceMembersRoute =
-  TSlugSettingsWorkspaceMembersRouteImport.update({
+const SlugSettingsWorkspaceMembersRoute =
+  SlugSettingsWorkspaceMembersRouteImport.update({
     id: '/members',
     path: '/members',
-    getParentRoute: () => TSlugSettingsWorkspaceRoute,
+    getParentRoute: () => SlugSettingsWorkspaceRoute,
   } as any)
-const TSlugSettingsWorkspaceRolesRoute =
-  TSlugSettingsWorkspaceRolesRouteImport.update({
+const SlugSettingsWorkspaceRolesRoute =
+  SlugSettingsWorkspaceRolesRouteImport.update({
     id: '/roles',
     path: '/roles',
-    getParentRoute: () => TSlugSettingsWorkspaceRoute,
+    getParentRoute: () => SlugSettingsWorkspaceRoute,
   } as any)
-const TSlugSettingsWorkspaceTagsRoute =
-  TSlugSettingsWorkspaceTagsRouteImport.update({
+const SlugSettingsWorkspaceTagsRoute =
+  SlugSettingsWorkspaceTagsRouteImport.update({
     id: '/tags',
     path: '/tags',
-    getParentRoute: () => TSlugSettingsWorkspaceRoute,
+    getParentRoute: () => SlugSettingsWorkspaceRoute,
   } as any)
-const TSlugSettingsChannelsTelegramsIndexRoute =
-  TSlugSettingsChannelsTelegramsIndexRouteImport.update({
+const SlugSettingsChannelsTelegramsIndexRoute =
+  SlugSettingsChannelsTelegramsIndexRouteImport.update({
     id: '/',
     path: '/',
-    getParentRoute: () => TSlugSettingsChannelsTelegramsRoute,
+    getParentRoute: () => SlugSettingsChannelsTelegramsRoute,
   } as any)
-const TSlugSettingsChannelsTelegramsIdRoute =
-  TSlugSettingsChannelsTelegramsIdRouteImport.update({
+const SlugSettingsChannelsTelegramsIdRoute =
+  SlugSettingsChannelsTelegramsIdRouteImport.update({
     id: '/$id',
     path: '/$id',
-    getParentRoute: () => TSlugSettingsChannelsTelegramsRoute,
+    getParentRoute: () => SlugSettingsChannelsTelegramsRoute,
   } as any)
-const TSlugSettingsChannelsWidgetsIndexRoute =
-  TSlugSettingsChannelsWidgetsIndexRouteImport.update({
+const SlugSettingsChannelsWidgetsIndexRoute =
+  SlugSettingsChannelsWidgetsIndexRouteImport.update({
     id: '/',
     path: '/',
-    getParentRoute: () => TSlugSettingsChannelsWidgetsRoute,
+    getParentRoute: () => SlugSettingsChannelsWidgetsRoute,
   } as any)
-const TSlugSettingsChannelsWidgetsIdRoute =
-  TSlugSettingsChannelsWidgetsIdRouteImport.update({
+const SlugSettingsChannelsWidgetsIdRoute =
+  SlugSettingsChannelsWidgetsIdRouteImport.update({
     id: '/$id',
     path: '/$id',
-    getParentRoute: () => TSlugSettingsChannelsWidgetsRoute,
+    getParentRoute: () => SlugSettingsChannelsWidgetsRoute,
   } as any)
-const TSlugSettingsInboxTeamsIndexRoute =
-  TSlugSettingsInboxTeamsIndexRouteImport.update({
+const SlugSettingsInboxTeamsIndexRoute =
+  SlugSettingsInboxTeamsIndexRouteImport.update({
     id: '/',
     path: '/',
-    getParentRoute: () => TSlugSettingsInboxTeamsRoute,
+    getParentRoute: () => SlugSettingsInboxTeamsRoute,
   } as any)
-const TSlugSettingsInboxTeamsIdRoute =
-  TSlugSettingsInboxTeamsIdRouteImport.update({
+const SlugSettingsInboxTeamsIdRoute =
+  SlugSettingsInboxTeamsIdRouteImport.update({
     id: '/$id',
     path: '/$id',
-    getParentRoute: () => TSlugSettingsInboxTeamsRoute,
+    getParentRoute: () => SlugSettingsInboxTeamsRoute,
   } as any)
-const TSlugSettingsPersonalBusinessChannelsIndexRoute =
-  TSlugSettingsPersonalBusinessChannelsIndexRouteImport.update({
+const SlugSettingsPersonalBusinessChannelsIndexRoute =
+  SlugSettingsPersonalBusinessChannelsIndexRouteImport.update({
     id: '/',
     path: '/',
-    getParentRoute: () => TSlugSettingsPersonalBusinessChannelsRoute,
+    getParentRoute: () => SlugSettingsPersonalBusinessChannelsRoute,
   } as any)
-const TSlugSettingsTicketsTicketTypesIndexRoute =
-  TSlugSettingsTicketsTicketTypesIndexRouteImport.update({
+const SlugSettingsTicketsTicketTypesIndexRoute =
+  SlugSettingsTicketsTicketTypesIndexRouteImport.update({
     id: '/',
     path: '/',
-    getParentRoute: () => TSlugSettingsTicketsTicketTypesRoute,
+    getParentRoute: () => SlugSettingsTicketsTicketTypesRoute,
   } as any)
-const TSlugSettingsTicketsTicketTypesIdRoute =
-  TSlugSettingsTicketsTicketTypesIdRouteImport.update({
+const SlugSettingsTicketsTicketTypesIdRoute =
+  SlugSettingsTicketsTicketTypesIdRouteImport.update({
     id: '/$id',
     path: '/$id',
-    getParentRoute: () => TSlugSettingsTicketsTicketTypesRoute,
+    getParentRoute: () => SlugSettingsTicketsTicketTypesRoute,
   } as any)
-const TSlugSettingsPersonalBusinessChannelsLinksIdRoute =
-  TSlugSettingsPersonalBusinessChannelsLinksIdRouteImport.update({
+const SlugSettingsPersonalBusinessChannelsLinksIdRoute =
+  SlugSettingsPersonalBusinessChannelsLinksIdRouteImport.update({
     id: '/links/$id',
     path: '/links/$id',
-    getParentRoute: () => TSlugSettingsPersonalBusinessChannelsRoute,
+    getParentRoute: () => SlugSettingsPersonalBusinessChannelsRoute,
   } as any)
-const TSlugSettingsPersonalBusinessChannelsTelegramIdRoute =
-  TSlugSettingsPersonalBusinessChannelsTelegramIdRouteImport.update({
+const SlugSettingsPersonalBusinessChannelsTelegramIdRoute =
+  SlugSettingsPersonalBusinessChannelsTelegramIdRouteImport.update({
     id: '/telegram/$id',
     path: '/telegram/$id',
-    getParentRoute: () => TSlugSettingsPersonalBusinessChannelsRoute,
+    getParentRoute: () => SlugSettingsPersonalBusinessChannelsRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/$slug': typeof SlugRouteWithChildren
   '/login': typeof LoginRoute
-  '/t/$slug': typeof TSlugRouteWithChildren
-  '/t/$slug/chat': typeof TSlugChatRouteWithChildren
-  '/t/$slug/contacts': typeof TSlugContactsRouteWithChildren
-  '/t/$slug/inbox': typeof TSlugInboxRouteWithChildren
-  '/t/$slug/reports': typeof TSlugReportsRouteWithChildren
-  '/t/$slug/settings': typeof TSlugSettingsRouteWithChildren
-  '/t/$slug/tickets': typeof TSlugTicketsRouteWithChildren
-  '/t/$slug/': typeof TSlugIndexRoute
-  '/t/$slug/chat/$id': typeof TSlugChatIdRoute
-  '/t/$slug/contacts/$id': typeof TSlugContactsIdRoute
-  '/t/$slug/inbox/$id': typeof TSlugInboxIdRoute
-  '/t/$slug/reports/business': typeof TSlugReportsBusinessRoute
-  '/t/$slug/reports/members': typeof TSlugReportsMembersRoute
-  '/t/$slug/reports/overview': typeof TSlugReportsOverviewRoute
-  '/t/$slug/reports/service': typeof TSlugReportsServiceRoute
-  '/t/$slug/reports/tickets': typeof TSlugReportsTicketsRoute
-  '/t/$slug/reports/translation': typeof TSlugReportsTranslationRoute
-  '/t/$slug/tickets/$id': typeof TSlugTicketsIdRoute
-  '/t/$slug/chat/': typeof TSlugChatIndexRoute
-  '/t/$slug/contacts/': typeof TSlugContactsIndexRoute
-  '/t/$slug/inbox/': typeof TSlugInboxIndexRoute
-  '/t/$slug/reports/': typeof TSlugReportsIndexRoute
-  '/t/$slug/settings/': typeof TSlugSettingsIndexRoute
-  '/t/$slug/tickets/': typeof TSlugTicketsIndexRoute
-  '/t/$slug/settings/business': typeof TSlugSettingsChannelsBusinessRoute
-  '/t/$slug/settings/telegrams': typeof TSlugSettingsChannelsTelegramsRouteWithChildren
-  '/t/$slug/settings/widgets': typeof TSlugSettingsChannelsWidgetsRouteWithChildren
-  '/t/$slug/settings/assignment': typeof TSlugSettingsInboxAssignmentRoute
-  '/t/$slug/settings/business-hours': typeof TSlugSettingsInboxBusinessHoursRoute
-  '/t/$slug/settings/macros': typeof TSlugSettingsInboxMacrosRoute
-  '/t/$slug/settings/rules': typeof TSlugSettingsInboxRulesRoute
-  '/t/$slug/settings/teams': typeof TSlugSettingsInboxTeamsRouteWithChildren
-  '/t/$slug/settings/business-channels': typeof TSlugSettingsPersonalBusinessChannelsRouteWithChildren
-  '/t/$slug/settings/notifications': typeof TSlugSettingsPersonalNotificationsRoute
-  '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
-  '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
-  '/t/$slug/settings/ticket-types': typeof TSlugSettingsTicketsTicketTypesRouteWithChildren
-  '/t/$slug/settings/glossary': typeof TSlugSettingsTranslationGlossaryRoute
-  '/t/$slug/settings/tone': typeof TSlugSettingsTranslationToneRoute
-  '/t/$slug/settings/attributes': typeof TSlugSettingsWorkspaceAttributesRoute
-  '/t/$slug/settings/general': typeof TSlugSettingsWorkspaceGeneralRoute
-  '/t/$slug/settings/members': typeof TSlugSettingsWorkspaceMembersRoute
-  '/t/$slug/settings/roles': typeof TSlugSettingsWorkspaceRolesRoute
-  '/t/$slug/settings/tags': typeof TSlugSettingsWorkspaceTagsRoute
-  '/t/$slug/settings/telegrams/$id': typeof TSlugSettingsChannelsTelegramsIdRoute
-  '/t/$slug/settings/widgets/$id': typeof TSlugSettingsChannelsWidgetsIdRoute
-  '/t/$slug/settings/teams/$id': typeof TSlugSettingsInboxTeamsIdRoute
-  '/t/$slug/settings/ticket-types/$id': typeof TSlugSettingsTicketsTicketTypesIdRoute
-  '/t/$slug/settings/telegrams/': typeof TSlugSettingsChannelsTelegramsIndexRoute
-  '/t/$slug/settings/widgets/': typeof TSlugSettingsChannelsWidgetsIndexRoute
-  '/t/$slug/settings/teams/': typeof TSlugSettingsInboxTeamsIndexRoute
-  '/t/$slug/settings/business-channels/': typeof TSlugSettingsPersonalBusinessChannelsIndexRoute
-  '/t/$slug/settings/ticket-types/': typeof TSlugSettingsTicketsTicketTypesIndexRoute
-  '/t/$slug/settings/business-channels/links/$id': typeof TSlugSettingsPersonalBusinessChannelsLinksIdRoute
-  '/t/$slug/settings/business-channels/telegram/$id': typeof TSlugSettingsPersonalBusinessChannelsTelegramIdRoute
+  '/workspaces': typeof WorkspacesRoute
+  '/$slug/chat': typeof SlugChatRouteWithChildren
+  '/$slug/contacts': typeof SlugContactsRouteWithChildren
+  '/$slug/inbox': typeof SlugInboxRouteWithChildren
+  '/$slug/reports': typeof SlugReportsRouteWithChildren
+  '/$slug/settings': typeof SlugSettingsRouteWithChildren
+  '/$slug/tickets': typeof SlugTicketsRouteWithChildren
+  '/$slug/': typeof SlugIndexRoute
+  '/$slug/chat/$id': typeof SlugChatIdRoute
+  '/$slug/contacts/$id': typeof SlugContactsIdRoute
+  '/$slug/inbox/$id': typeof SlugInboxIdRoute
+  '/$slug/reports/business': typeof SlugReportsBusinessRoute
+  '/$slug/reports/members': typeof SlugReportsMembersRoute
+  '/$slug/reports/overview': typeof SlugReportsOverviewRoute
+  '/$slug/reports/service': typeof SlugReportsServiceRoute
+  '/$slug/reports/tickets': typeof SlugReportsTicketsRoute
+  '/$slug/reports/translation': typeof SlugReportsTranslationRoute
+  '/$slug/tickets/$id': typeof SlugTicketsIdRoute
+  '/$slug/chat/': typeof SlugChatIndexRoute
+  '/$slug/contacts/': typeof SlugContactsIndexRoute
+  '/$slug/inbox/': typeof SlugInboxIndexRoute
+  '/$slug/reports/': typeof SlugReportsIndexRoute
+  '/$slug/settings/': typeof SlugSettingsIndexRoute
+  '/$slug/tickets/': typeof SlugTicketsIndexRoute
+  '/$slug/settings/business': typeof SlugSettingsChannelsBusinessRoute
+  '/$slug/settings/telegrams': typeof SlugSettingsChannelsTelegramsRouteWithChildren
+  '/$slug/settings/widgets': typeof SlugSettingsChannelsWidgetsRouteWithChildren
+  '/$slug/settings/assignment': typeof SlugSettingsInboxAssignmentRoute
+  '/$slug/settings/business-hours': typeof SlugSettingsInboxBusinessHoursRoute
+  '/$slug/settings/macros': typeof SlugSettingsInboxMacrosRoute
+  '/$slug/settings/rules': typeof SlugSettingsInboxRulesRoute
+  '/$slug/settings/teams': typeof SlugSettingsInboxTeamsRouteWithChildren
+  '/$slug/settings/business-channels': typeof SlugSettingsPersonalBusinessChannelsRouteWithChildren
+  '/$slug/settings/notifications': typeof SlugSettingsPersonalNotificationsRoute
+  '/$slug/settings/preferences': typeof SlugSettingsPersonalPreferencesRoute
+  '/$slug/settings/profile': typeof SlugSettingsPersonalProfileRoute
+  '/$slug/settings/ticket-types': typeof SlugSettingsTicketsTicketTypesRouteWithChildren
+  '/$slug/settings/glossary': typeof SlugSettingsTranslationGlossaryRoute
+  '/$slug/settings/tone': typeof SlugSettingsTranslationToneRoute
+  '/$slug/settings/attributes': typeof SlugSettingsWorkspaceAttributesRoute
+  '/$slug/settings/general': typeof SlugSettingsWorkspaceGeneralRoute
+  '/$slug/settings/members': typeof SlugSettingsWorkspaceMembersRoute
+  '/$slug/settings/roles': typeof SlugSettingsWorkspaceRolesRoute
+  '/$slug/settings/tags': typeof SlugSettingsWorkspaceTagsRoute
+  '/$slug/settings/telegrams/$id': typeof SlugSettingsChannelsTelegramsIdRoute
+  '/$slug/settings/widgets/$id': typeof SlugSettingsChannelsWidgetsIdRoute
+  '/$slug/settings/teams/$id': typeof SlugSettingsInboxTeamsIdRoute
+  '/$slug/settings/ticket-types/$id': typeof SlugSettingsTicketsTicketTypesIdRoute
+  '/$slug/settings/telegrams/': typeof SlugSettingsChannelsTelegramsIndexRoute
+  '/$slug/settings/widgets/': typeof SlugSettingsChannelsWidgetsIndexRoute
+  '/$slug/settings/teams/': typeof SlugSettingsInboxTeamsIndexRoute
+  '/$slug/settings/business-channels/': typeof SlugSettingsPersonalBusinessChannelsIndexRoute
+  '/$slug/settings/ticket-types/': typeof SlugSettingsTicketsTicketTypesIndexRoute
+  '/$slug/settings/business-channels/links/$id': typeof SlugSettingsPersonalBusinessChannelsLinksIdRoute
+  '/$slug/settings/business-channels/telegram/$id': typeof SlugSettingsPersonalBusinessChannelsTelegramIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/t/$slug': typeof TSlugIndexRoute
-  '/t/$slug/chat/$id': typeof TSlugChatIdRoute
-  '/t/$slug/contacts/$id': typeof TSlugContactsIdRoute
-  '/t/$slug/inbox/$id': typeof TSlugInboxIdRoute
-  '/t/$slug/reports/business': typeof TSlugReportsBusinessRoute
-  '/t/$slug/reports/members': typeof TSlugReportsMembersRoute
-  '/t/$slug/reports/overview': typeof TSlugReportsOverviewRoute
-  '/t/$slug/reports/service': typeof TSlugReportsServiceRoute
-  '/t/$slug/reports/tickets': typeof TSlugReportsTicketsRoute
-  '/t/$slug/reports/translation': typeof TSlugReportsTranslationRoute
-  '/t/$slug/settings': typeof TSlugSettingsIndexRoute
-  '/t/$slug/tickets/$id': typeof TSlugTicketsIdRoute
-  '/t/$slug/chat': typeof TSlugChatIndexRoute
-  '/t/$slug/contacts': typeof TSlugContactsIndexRoute
-  '/t/$slug/inbox': typeof TSlugInboxIndexRoute
-  '/t/$slug/reports': typeof TSlugReportsIndexRoute
-  '/t/$slug/tickets': typeof TSlugTicketsIndexRoute
-  '/t/$slug/settings/business': typeof TSlugSettingsChannelsBusinessRoute
-  '/t/$slug/settings/assignment': typeof TSlugSettingsInboxAssignmentRoute
-  '/t/$slug/settings/business-hours': typeof TSlugSettingsInboxBusinessHoursRoute
-  '/t/$slug/settings/macros': typeof TSlugSettingsInboxMacrosRoute
-  '/t/$slug/settings/rules': typeof TSlugSettingsInboxRulesRoute
-  '/t/$slug/settings/notifications': typeof TSlugSettingsPersonalNotificationsRoute
-  '/t/$slug/settings/preferences': typeof TSlugSettingsPersonalPreferencesRoute
-  '/t/$slug/settings/profile': typeof TSlugSettingsPersonalProfileRoute
-  '/t/$slug/settings/glossary': typeof TSlugSettingsTranslationGlossaryRoute
-  '/t/$slug/settings/tone': typeof TSlugSettingsTranslationToneRoute
-  '/t/$slug/settings/attributes': typeof TSlugSettingsWorkspaceAttributesRoute
-  '/t/$slug/settings/general': typeof TSlugSettingsWorkspaceGeneralRoute
-  '/t/$slug/settings/members': typeof TSlugSettingsWorkspaceMembersRoute
-  '/t/$slug/settings/roles': typeof TSlugSettingsWorkspaceRolesRoute
-  '/t/$slug/settings/tags': typeof TSlugSettingsWorkspaceTagsRoute
-  '/t/$slug/settings/telegrams/$id': typeof TSlugSettingsChannelsTelegramsIdRoute
-  '/t/$slug/settings/widgets/$id': typeof TSlugSettingsChannelsWidgetsIdRoute
-  '/t/$slug/settings/teams/$id': typeof TSlugSettingsInboxTeamsIdRoute
-  '/t/$slug/settings/ticket-types/$id': typeof TSlugSettingsTicketsTicketTypesIdRoute
-  '/t/$slug/settings/telegrams': typeof TSlugSettingsChannelsTelegramsIndexRoute
-  '/t/$slug/settings/widgets': typeof TSlugSettingsChannelsWidgetsIndexRoute
-  '/t/$slug/settings/teams': typeof TSlugSettingsInboxTeamsIndexRoute
-  '/t/$slug/settings/business-channels': typeof TSlugSettingsPersonalBusinessChannelsIndexRoute
-  '/t/$slug/settings/ticket-types': typeof TSlugSettingsTicketsTicketTypesIndexRoute
-  '/t/$slug/settings/business-channels/links/$id': typeof TSlugSettingsPersonalBusinessChannelsLinksIdRoute
-  '/t/$slug/settings/business-channels/telegram/$id': typeof TSlugSettingsPersonalBusinessChannelsTelegramIdRoute
+  '/workspaces': typeof WorkspacesRoute
+  '/$slug': typeof SlugIndexRoute
+  '/$slug/chat/$id': typeof SlugChatIdRoute
+  '/$slug/contacts/$id': typeof SlugContactsIdRoute
+  '/$slug/inbox/$id': typeof SlugInboxIdRoute
+  '/$slug/reports/business': typeof SlugReportsBusinessRoute
+  '/$slug/reports/members': typeof SlugReportsMembersRoute
+  '/$slug/reports/overview': typeof SlugReportsOverviewRoute
+  '/$slug/reports/service': typeof SlugReportsServiceRoute
+  '/$slug/reports/tickets': typeof SlugReportsTicketsRoute
+  '/$slug/reports/translation': typeof SlugReportsTranslationRoute
+  '/$slug/settings': typeof SlugSettingsIndexRoute
+  '/$slug/tickets/$id': typeof SlugTicketsIdRoute
+  '/$slug/chat': typeof SlugChatIndexRoute
+  '/$slug/contacts': typeof SlugContactsIndexRoute
+  '/$slug/inbox': typeof SlugInboxIndexRoute
+  '/$slug/reports': typeof SlugReportsIndexRoute
+  '/$slug/tickets': typeof SlugTicketsIndexRoute
+  '/$slug/settings/business': typeof SlugSettingsChannelsBusinessRoute
+  '/$slug/settings/assignment': typeof SlugSettingsInboxAssignmentRoute
+  '/$slug/settings/business-hours': typeof SlugSettingsInboxBusinessHoursRoute
+  '/$slug/settings/macros': typeof SlugSettingsInboxMacrosRoute
+  '/$slug/settings/rules': typeof SlugSettingsInboxRulesRoute
+  '/$slug/settings/notifications': typeof SlugSettingsPersonalNotificationsRoute
+  '/$slug/settings/preferences': typeof SlugSettingsPersonalPreferencesRoute
+  '/$slug/settings/profile': typeof SlugSettingsPersonalProfileRoute
+  '/$slug/settings/glossary': typeof SlugSettingsTranslationGlossaryRoute
+  '/$slug/settings/tone': typeof SlugSettingsTranslationToneRoute
+  '/$slug/settings/attributes': typeof SlugSettingsWorkspaceAttributesRoute
+  '/$slug/settings/general': typeof SlugSettingsWorkspaceGeneralRoute
+  '/$slug/settings/members': typeof SlugSettingsWorkspaceMembersRoute
+  '/$slug/settings/roles': typeof SlugSettingsWorkspaceRolesRoute
+  '/$slug/settings/tags': typeof SlugSettingsWorkspaceTagsRoute
+  '/$slug/settings/telegrams/$id': typeof SlugSettingsChannelsTelegramsIdRoute
+  '/$slug/settings/widgets/$id': typeof SlugSettingsChannelsWidgetsIdRoute
+  '/$slug/settings/teams/$id': typeof SlugSettingsInboxTeamsIdRoute
+  '/$slug/settings/ticket-types/$id': typeof SlugSettingsTicketsTicketTypesIdRoute
+  '/$slug/settings/telegrams': typeof SlugSettingsChannelsTelegramsIndexRoute
+  '/$slug/settings/widgets': typeof SlugSettingsChannelsWidgetsIndexRoute
+  '/$slug/settings/teams': typeof SlugSettingsInboxTeamsIndexRoute
+  '/$slug/settings/business-channels': typeof SlugSettingsPersonalBusinessChannelsIndexRoute
+  '/$slug/settings/ticket-types': typeof SlugSettingsTicketsTicketTypesIndexRoute
+  '/$slug/settings/business-channels/links/$id': typeof SlugSettingsPersonalBusinessChannelsLinksIdRoute
+  '/$slug/settings/business-channels/telegram/$id': typeof SlugSettingsPersonalBusinessChannelsTelegramIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/$slug': typeof SlugRouteWithChildren
   '/login': typeof LoginRoute
-  '/t/$slug': typeof TSlugRouteWithChildren
-  '/t/$slug/chat': typeof TSlugChatRouteWithChildren
-  '/t/$slug/contacts': typeof TSlugContactsRouteWithChildren
-  '/t/$slug/inbox': typeof TSlugInboxRouteWithChildren
-  '/t/$slug/reports': typeof TSlugReportsRouteWithChildren
-  '/t/$slug/settings': typeof TSlugSettingsRouteWithChildren
-  '/t/$slug/tickets': typeof TSlugTicketsRouteWithChildren
-  '/t/$slug/': typeof TSlugIndexRoute
-  '/t/$slug/chat/$id': typeof TSlugChatIdRoute
-  '/t/$slug/contacts/$id': typeof TSlugContactsIdRoute
-  '/t/$slug/inbox/$id': typeof TSlugInboxIdRoute
-  '/t/$slug/reports/business': typeof TSlugReportsBusinessRoute
-  '/t/$slug/reports/members': typeof TSlugReportsMembersRoute
-  '/t/$slug/reports/overview': typeof TSlugReportsOverviewRoute
-  '/t/$slug/reports/service': typeof TSlugReportsServiceRoute
-  '/t/$slug/reports/tickets': typeof TSlugReportsTicketsRoute
-  '/t/$slug/reports/translation': typeof TSlugReportsTranslationRoute
-  '/t/$slug/settings/_channels': typeof TSlugSettingsChannelsRouteWithChildren
-  '/t/$slug/settings/_inbox': typeof TSlugSettingsInboxRouteWithChildren
-  '/t/$slug/settings/_personal': typeof TSlugSettingsPersonalRouteWithChildren
-  '/t/$slug/settings/_tickets': typeof TSlugSettingsTicketsRouteWithChildren
-  '/t/$slug/settings/_translation': typeof TSlugSettingsTranslationRouteWithChildren
-  '/t/$slug/settings/_workspace': typeof TSlugSettingsWorkspaceRouteWithChildren
-  '/t/$slug/tickets/$id': typeof TSlugTicketsIdRoute
-  '/t/$slug/chat/': typeof TSlugChatIndexRoute
-  '/t/$slug/contacts/': typeof TSlugContactsIndexRoute
-  '/t/$slug/inbox/': typeof TSlugInboxIndexRoute
-  '/t/$slug/reports/': typeof TSlugReportsIndexRoute
-  '/t/$slug/settings/': typeof TSlugSettingsIndexRoute
-  '/t/$slug/tickets/': typeof TSlugTicketsIndexRoute
-  '/t/$slug/settings/_channels/business': typeof TSlugSettingsChannelsBusinessRoute
-  '/t/$slug/settings/_channels/telegrams': typeof TSlugSettingsChannelsTelegramsRouteWithChildren
-  '/t/$slug/settings/_channels/widgets': typeof TSlugSettingsChannelsWidgetsRouteWithChildren
-  '/t/$slug/settings/_inbox/assignment': typeof TSlugSettingsInboxAssignmentRoute
-  '/t/$slug/settings/_inbox/business-hours': typeof TSlugSettingsInboxBusinessHoursRoute
-  '/t/$slug/settings/_inbox/macros': typeof TSlugSettingsInboxMacrosRoute
-  '/t/$slug/settings/_inbox/rules': typeof TSlugSettingsInboxRulesRoute
-  '/t/$slug/settings/_inbox/teams': typeof TSlugSettingsInboxTeamsRouteWithChildren
-  '/t/$slug/settings/_personal/business-channels': typeof TSlugSettingsPersonalBusinessChannelsRouteWithChildren
-  '/t/$slug/settings/_personal/notifications': typeof TSlugSettingsPersonalNotificationsRoute
-  '/t/$slug/settings/_personal/preferences': typeof TSlugSettingsPersonalPreferencesRoute
-  '/t/$slug/settings/_personal/profile': typeof TSlugSettingsPersonalProfileRoute
-  '/t/$slug/settings/_tickets/ticket-types': typeof TSlugSettingsTicketsTicketTypesRouteWithChildren
-  '/t/$slug/settings/_translation/glossary': typeof TSlugSettingsTranslationGlossaryRoute
-  '/t/$slug/settings/_translation/tone': typeof TSlugSettingsTranslationToneRoute
-  '/t/$slug/settings/_workspace/attributes': typeof TSlugSettingsWorkspaceAttributesRoute
-  '/t/$slug/settings/_workspace/general': typeof TSlugSettingsWorkspaceGeneralRoute
-  '/t/$slug/settings/_workspace/members': typeof TSlugSettingsWorkspaceMembersRoute
-  '/t/$slug/settings/_workspace/roles': typeof TSlugSettingsWorkspaceRolesRoute
-  '/t/$slug/settings/_workspace/tags': typeof TSlugSettingsWorkspaceTagsRoute
-  '/t/$slug/settings/_channels/telegrams/$id': typeof TSlugSettingsChannelsTelegramsIdRoute
-  '/t/$slug/settings/_channels/widgets/$id': typeof TSlugSettingsChannelsWidgetsIdRoute
-  '/t/$slug/settings/_inbox/teams/$id': typeof TSlugSettingsInboxTeamsIdRoute
-  '/t/$slug/settings/_tickets/ticket-types/$id': typeof TSlugSettingsTicketsTicketTypesIdRoute
-  '/t/$slug/settings/_channels/telegrams/': typeof TSlugSettingsChannelsTelegramsIndexRoute
-  '/t/$slug/settings/_channels/widgets/': typeof TSlugSettingsChannelsWidgetsIndexRoute
-  '/t/$slug/settings/_inbox/teams/': typeof TSlugSettingsInboxTeamsIndexRoute
-  '/t/$slug/settings/_personal/business-channels/': typeof TSlugSettingsPersonalBusinessChannelsIndexRoute
-  '/t/$slug/settings/_tickets/ticket-types/': typeof TSlugSettingsTicketsTicketTypesIndexRoute
-  '/t/$slug/settings/_personal/business-channels/links/$id': typeof TSlugSettingsPersonalBusinessChannelsLinksIdRoute
-  '/t/$slug/settings/_personal/business-channels/telegram/$id': typeof TSlugSettingsPersonalBusinessChannelsTelegramIdRoute
+  '/workspaces': typeof WorkspacesRoute
+  '/$slug/chat': typeof SlugChatRouteWithChildren
+  '/$slug/contacts': typeof SlugContactsRouteWithChildren
+  '/$slug/inbox': typeof SlugInboxRouteWithChildren
+  '/$slug/reports': typeof SlugReportsRouteWithChildren
+  '/$slug/settings': typeof SlugSettingsRouteWithChildren
+  '/$slug/tickets': typeof SlugTicketsRouteWithChildren
+  '/$slug/': typeof SlugIndexRoute
+  '/$slug/chat/$id': typeof SlugChatIdRoute
+  '/$slug/contacts/$id': typeof SlugContactsIdRoute
+  '/$slug/inbox/$id': typeof SlugInboxIdRoute
+  '/$slug/reports/business': typeof SlugReportsBusinessRoute
+  '/$slug/reports/members': typeof SlugReportsMembersRoute
+  '/$slug/reports/overview': typeof SlugReportsOverviewRoute
+  '/$slug/reports/service': typeof SlugReportsServiceRoute
+  '/$slug/reports/tickets': typeof SlugReportsTicketsRoute
+  '/$slug/reports/translation': typeof SlugReportsTranslationRoute
+  '/$slug/settings/_channels': typeof SlugSettingsChannelsRouteWithChildren
+  '/$slug/settings/_inbox': typeof SlugSettingsInboxRouteWithChildren
+  '/$slug/settings/_personal': typeof SlugSettingsPersonalRouteWithChildren
+  '/$slug/settings/_tickets': typeof SlugSettingsTicketsRouteWithChildren
+  '/$slug/settings/_translation': typeof SlugSettingsTranslationRouteWithChildren
+  '/$slug/settings/_workspace': typeof SlugSettingsWorkspaceRouteWithChildren
+  '/$slug/tickets/$id': typeof SlugTicketsIdRoute
+  '/$slug/chat/': typeof SlugChatIndexRoute
+  '/$slug/contacts/': typeof SlugContactsIndexRoute
+  '/$slug/inbox/': typeof SlugInboxIndexRoute
+  '/$slug/reports/': typeof SlugReportsIndexRoute
+  '/$slug/settings/': typeof SlugSettingsIndexRoute
+  '/$slug/tickets/': typeof SlugTicketsIndexRoute
+  '/$slug/settings/_channels/business': typeof SlugSettingsChannelsBusinessRoute
+  '/$slug/settings/_channels/telegrams': typeof SlugSettingsChannelsTelegramsRouteWithChildren
+  '/$slug/settings/_channels/widgets': typeof SlugSettingsChannelsWidgetsRouteWithChildren
+  '/$slug/settings/_inbox/assignment': typeof SlugSettingsInboxAssignmentRoute
+  '/$slug/settings/_inbox/business-hours': typeof SlugSettingsInboxBusinessHoursRoute
+  '/$slug/settings/_inbox/macros': typeof SlugSettingsInboxMacrosRoute
+  '/$slug/settings/_inbox/rules': typeof SlugSettingsInboxRulesRoute
+  '/$slug/settings/_inbox/teams': typeof SlugSettingsInboxTeamsRouteWithChildren
+  '/$slug/settings/_personal/business-channels': typeof SlugSettingsPersonalBusinessChannelsRouteWithChildren
+  '/$slug/settings/_personal/notifications': typeof SlugSettingsPersonalNotificationsRoute
+  '/$slug/settings/_personal/preferences': typeof SlugSettingsPersonalPreferencesRoute
+  '/$slug/settings/_personal/profile': typeof SlugSettingsPersonalProfileRoute
+  '/$slug/settings/_tickets/ticket-types': typeof SlugSettingsTicketsTicketTypesRouteWithChildren
+  '/$slug/settings/_translation/glossary': typeof SlugSettingsTranslationGlossaryRoute
+  '/$slug/settings/_translation/tone': typeof SlugSettingsTranslationToneRoute
+  '/$slug/settings/_workspace/attributes': typeof SlugSettingsWorkspaceAttributesRoute
+  '/$slug/settings/_workspace/general': typeof SlugSettingsWorkspaceGeneralRoute
+  '/$slug/settings/_workspace/members': typeof SlugSettingsWorkspaceMembersRoute
+  '/$slug/settings/_workspace/roles': typeof SlugSettingsWorkspaceRolesRoute
+  '/$slug/settings/_workspace/tags': typeof SlugSettingsWorkspaceTagsRoute
+  '/$slug/settings/_channels/telegrams/$id': typeof SlugSettingsChannelsTelegramsIdRoute
+  '/$slug/settings/_channels/widgets/$id': typeof SlugSettingsChannelsWidgetsIdRoute
+  '/$slug/settings/_inbox/teams/$id': typeof SlugSettingsInboxTeamsIdRoute
+  '/$slug/settings/_tickets/ticket-types/$id': typeof SlugSettingsTicketsTicketTypesIdRoute
+  '/$slug/settings/_channels/telegrams/': typeof SlugSettingsChannelsTelegramsIndexRoute
+  '/$slug/settings/_channels/widgets/': typeof SlugSettingsChannelsWidgetsIndexRoute
+  '/$slug/settings/_inbox/teams/': typeof SlugSettingsInboxTeamsIndexRoute
+  '/$slug/settings/_personal/business-channels/': typeof SlugSettingsPersonalBusinessChannelsIndexRoute
+  '/$slug/settings/_tickets/ticket-types/': typeof SlugSettingsTicketsTicketTypesIndexRoute
+  '/$slug/settings/_personal/business-channels/links/$id': typeof SlugSettingsPersonalBusinessChannelsLinksIdRoute
+  '/$slug/settings/_personal/business-channels/telegram/$id': typeof SlugSettingsPersonalBusinessChannelsTelegramIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/$slug'
     | '/login'
-    | '/t/$slug'
-    | '/t/$slug/chat'
-    | '/t/$slug/contacts'
-    | '/t/$slug/inbox'
-    | '/t/$slug/reports'
-    | '/t/$slug/settings'
-    | '/t/$slug/tickets'
-    | '/t/$slug/'
-    | '/t/$slug/chat/$id'
-    | '/t/$slug/contacts/$id'
-    | '/t/$slug/inbox/$id'
-    | '/t/$slug/reports/business'
-    | '/t/$slug/reports/members'
-    | '/t/$slug/reports/overview'
-    | '/t/$slug/reports/service'
-    | '/t/$slug/reports/tickets'
-    | '/t/$slug/reports/translation'
-    | '/t/$slug/tickets/$id'
-    | '/t/$slug/chat/'
-    | '/t/$slug/contacts/'
-    | '/t/$slug/inbox/'
-    | '/t/$slug/reports/'
-    | '/t/$slug/settings/'
-    | '/t/$slug/tickets/'
-    | '/t/$slug/settings/business'
-    | '/t/$slug/settings/telegrams'
-    | '/t/$slug/settings/widgets'
-    | '/t/$slug/settings/assignment'
-    | '/t/$slug/settings/business-hours'
-    | '/t/$slug/settings/macros'
-    | '/t/$slug/settings/rules'
-    | '/t/$slug/settings/teams'
-    | '/t/$slug/settings/business-channels'
-    | '/t/$slug/settings/notifications'
-    | '/t/$slug/settings/preferences'
-    | '/t/$slug/settings/profile'
-    | '/t/$slug/settings/ticket-types'
-    | '/t/$slug/settings/glossary'
-    | '/t/$slug/settings/tone'
-    | '/t/$slug/settings/attributes'
-    | '/t/$slug/settings/general'
-    | '/t/$slug/settings/members'
-    | '/t/$slug/settings/roles'
-    | '/t/$slug/settings/tags'
-    | '/t/$slug/settings/telegrams/$id'
-    | '/t/$slug/settings/widgets/$id'
-    | '/t/$slug/settings/teams/$id'
-    | '/t/$slug/settings/ticket-types/$id'
-    | '/t/$slug/settings/telegrams/'
-    | '/t/$slug/settings/widgets/'
-    | '/t/$slug/settings/teams/'
-    | '/t/$slug/settings/business-channels/'
-    | '/t/$slug/settings/ticket-types/'
-    | '/t/$slug/settings/business-channels/links/$id'
-    | '/t/$slug/settings/business-channels/telegram/$id'
+    | '/workspaces'
+    | '/$slug/chat'
+    | '/$slug/contacts'
+    | '/$slug/inbox'
+    | '/$slug/reports'
+    | '/$slug/settings'
+    | '/$slug/tickets'
+    | '/$slug/'
+    | '/$slug/chat/$id'
+    | '/$slug/contacts/$id'
+    | '/$slug/inbox/$id'
+    | '/$slug/reports/business'
+    | '/$slug/reports/members'
+    | '/$slug/reports/overview'
+    | '/$slug/reports/service'
+    | '/$slug/reports/tickets'
+    | '/$slug/reports/translation'
+    | '/$slug/tickets/$id'
+    | '/$slug/chat/'
+    | '/$slug/contacts/'
+    | '/$slug/inbox/'
+    | '/$slug/reports/'
+    | '/$slug/settings/'
+    | '/$slug/tickets/'
+    | '/$slug/settings/business'
+    | '/$slug/settings/telegrams'
+    | '/$slug/settings/widgets'
+    | '/$slug/settings/assignment'
+    | '/$slug/settings/business-hours'
+    | '/$slug/settings/macros'
+    | '/$slug/settings/rules'
+    | '/$slug/settings/teams'
+    | '/$slug/settings/business-channels'
+    | '/$slug/settings/notifications'
+    | '/$slug/settings/preferences'
+    | '/$slug/settings/profile'
+    | '/$slug/settings/ticket-types'
+    | '/$slug/settings/glossary'
+    | '/$slug/settings/tone'
+    | '/$slug/settings/attributes'
+    | '/$slug/settings/general'
+    | '/$slug/settings/members'
+    | '/$slug/settings/roles'
+    | '/$slug/settings/tags'
+    | '/$slug/settings/telegrams/$id'
+    | '/$slug/settings/widgets/$id'
+    | '/$slug/settings/teams/$id'
+    | '/$slug/settings/ticket-types/$id'
+    | '/$slug/settings/telegrams/'
+    | '/$slug/settings/widgets/'
+    | '/$slug/settings/teams/'
+    | '/$slug/settings/business-channels/'
+    | '/$slug/settings/ticket-types/'
+    | '/$slug/settings/business-channels/links/$id'
+    | '/$slug/settings/business-channels/telegram/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
-    | '/t/$slug'
-    | '/t/$slug/chat/$id'
-    | '/t/$slug/contacts/$id'
-    | '/t/$slug/inbox/$id'
-    | '/t/$slug/reports/business'
-    | '/t/$slug/reports/members'
-    | '/t/$slug/reports/overview'
-    | '/t/$slug/reports/service'
-    | '/t/$slug/reports/tickets'
-    | '/t/$slug/reports/translation'
-    | '/t/$slug/settings'
-    | '/t/$slug/tickets/$id'
-    | '/t/$slug/chat'
-    | '/t/$slug/contacts'
-    | '/t/$slug/inbox'
-    | '/t/$slug/reports'
-    | '/t/$slug/tickets'
-    | '/t/$slug/settings/business'
-    | '/t/$slug/settings/assignment'
-    | '/t/$slug/settings/business-hours'
-    | '/t/$slug/settings/macros'
-    | '/t/$slug/settings/rules'
-    | '/t/$slug/settings/notifications'
-    | '/t/$slug/settings/preferences'
-    | '/t/$slug/settings/profile'
-    | '/t/$slug/settings/glossary'
-    | '/t/$slug/settings/tone'
-    | '/t/$slug/settings/attributes'
-    | '/t/$slug/settings/general'
-    | '/t/$slug/settings/members'
-    | '/t/$slug/settings/roles'
-    | '/t/$slug/settings/tags'
-    | '/t/$slug/settings/telegrams/$id'
-    | '/t/$slug/settings/widgets/$id'
-    | '/t/$slug/settings/teams/$id'
-    | '/t/$slug/settings/ticket-types/$id'
-    | '/t/$slug/settings/telegrams'
-    | '/t/$slug/settings/widgets'
-    | '/t/$slug/settings/teams'
-    | '/t/$slug/settings/business-channels'
-    | '/t/$slug/settings/ticket-types'
-    | '/t/$slug/settings/business-channels/links/$id'
-    | '/t/$slug/settings/business-channels/telegram/$id'
+    | '/workspaces'
+    | '/$slug'
+    | '/$slug/chat/$id'
+    | '/$slug/contacts/$id'
+    | '/$slug/inbox/$id'
+    | '/$slug/reports/business'
+    | '/$slug/reports/members'
+    | '/$slug/reports/overview'
+    | '/$slug/reports/service'
+    | '/$slug/reports/tickets'
+    | '/$slug/reports/translation'
+    | '/$slug/settings'
+    | '/$slug/tickets/$id'
+    | '/$slug/chat'
+    | '/$slug/contacts'
+    | '/$slug/inbox'
+    | '/$slug/reports'
+    | '/$slug/tickets'
+    | '/$slug/settings/business'
+    | '/$slug/settings/assignment'
+    | '/$slug/settings/business-hours'
+    | '/$slug/settings/macros'
+    | '/$slug/settings/rules'
+    | '/$slug/settings/notifications'
+    | '/$slug/settings/preferences'
+    | '/$slug/settings/profile'
+    | '/$slug/settings/glossary'
+    | '/$slug/settings/tone'
+    | '/$slug/settings/attributes'
+    | '/$slug/settings/general'
+    | '/$slug/settings/members'
+    | '/$slug/settings/roles'
+    | '/$slug/settings/tags'
+    | '/$slug/settings/telegrams/$id'
+    | '/$slug/settings/widgets/$id'
+    | '/$slug/settings/teams/$id'
+    | '/$slug/settings/ticket-types/$id'
+    | '/$slug/settings/telegrams'
+    | '/$slug/settings/widgets'
+    | '/$slug/settings/teams'
+    | '/$slug/settings/business-channels'
+    | '/$slug/settings/ticket-types'
+    | '/$slug/settings/business-channels/links/$id'
+    | '/$slug/settings/business-channels/telegram/$id'
   id:
     | '__root__'
     | '/'
+    | '/$slug'
     | '/login'
-    | '/t/$slug'
-    | '/t/$slug/chat'
-    | '/t/$slug/contacts'
-    | '/t/$slug/inbox'
-    | '/t/$slug/reports'
-    | '/t/$slug/settings'
-    | '/t/$slug/tickets'
-    | '/t/$slug/'
-    | '/t/$slug/chat/$id'
-    | '/t/$slug/contacts/$id'
-    | '/t/$slug/inbox/$id'
-    | '/t/$slug/reports/business'
-    | '/t/$slug/reports/members'
-    | '/t/$slug/reports/overview'
-    | '/t/$slug/reports/service'
-    | '/t/$slug/reports/tickets'
-    | '/t/$slug/reports/translation'
-    | '/t/$slug/settings/_channels'
-    | '/t/$slug/settings/_inbox'
-    | '/t/$slug/settings/_personal'
-    | '/t/$slug/settings/_tickets'
-    | '/t/$slug/settings/_translation'
-    | '/t/$slug/settings/_workspace'
-    | '/t/$slug/tickets/$id'
-    | '/t/$slug/chat/'
-    | '/t/$slug/contacts/'
-    | '/t/$slug/inbox/'
-    | '/t/$slug/reports/'
-    | '/t/$slug/settings/'
-    | '/t/$slug/tickets/'
-    | '/t/$slug/settings/_channels/business'
-    | '/t/$slug/settings/_channels/telegrams'
-    | '/t/$slug/settings/_channels/widgets'
-    | '/t/$slug/settings/_inbox/assignment'
-    | '/t/$slug/settings/_inbox/business-hours'
-    | '/t/$slug/settings/_inbox/macros'
-    | '/t/$slug/settings/_inbox/rules'
-    | '/t/$slug/settings/_inbox/teams'
-    | '/t/$slug/settings/_personal/business-channels'
-    | '/t/$slug/settings/_personal/notifications'
-    | '/t/$slug/settings/_personal/preferences'
-    | '/t/$slug/settings/_personal/profile'
-    | '/t/$slug/settings/_tickets/ticket-types'
-    | '/t/$slug/settings/_translation/glossary'
-    | '/t/$slug/settings/_translation/tone'
-    | '/t/$slug/settings/_workspace/attributes'
-    | '/t/$slug/settings/_workspace/general'
-    | '/t/$slug/settings/_workspace/members'
-    | '/t/$slug/settings/_workspace/roles'
-    | '/t/$slug/settings/_workspace/tags'
-    | '/t/$slug/settings/_channels/telegrams/$id'
-    | '/t/$slug/settings/_channels/widgets/$id'
-    | '/t/$slug/settings/_inbox/teams/$id'
-    | '/t/$slug/settings/_tickets/ticket-types/$id'
-    | '/t/$slug/settings/_channels/telegrams/'
-    | '/t/$slug/settings/_channels/widgets/'
-    | '/t/$slug/settings/_inbox/teams/'
-    | '/t/$slug/settings/_personal/business-channels/'
-    | '/t/$slug/settings/_tickets/ticket-types/'
-    | '/t/$slug/settings/_personal/business-channels/links/$id'
-    | '/t/$slug/settings/_personal/business-channels/telegram/$id'
+    | '/workspaces'
+    | '/$slug/chat'
+    | '/$slug/contacts'
+    | '/$slug/inbox'
+    | '/$slug/reports'
+    | '/$slug/settings'
+    | '/$slug/tickets'
+    | '/$slug/'
+    | '/$slug/chat/$id'
+    | '/$slug/contacts/$id'
+    | '/$slug/inbox/$id'
+    | '/$slug/reports/business'
+    | '/$slug/reports/members'
+    | '/$slug/reports/overview'
+    | '/$slug/reports/service'
+    | '/$slug/reports/tickets'
+    | '/$slug/reports/translation'
+    | '/$slug/settings/_channels'
+    | '/$slug/settings/_inbox'
+    | '/$slug/settings/_personal'
+    | '/$slug/settings/_tickets'
+    | '/$slug/settings/_translation'
+    | '/$slug/settings/_workspace'
+    | '/$slug/tickets/$id'
+    | '/$slug/chat/'
+    | '/$slug/contacts/'
+    | '/$slug/inbox/'
+    | '/$slug/reports/'
+    | '/$slug/settings/'
+    | '/$slug/tickets/'
+    | '/$slug/settings/_channels/business'
+    | '/$slug/settings/_channels/telegrams'
+    | '/$slug/settings/_channels/widgets'
+    | '/$slug/settings/_inbox/assignment'
+    | '/$slug/settings/_inbox/business-hours'
+    | '/$slug/settings/_inbox/macros'
+    | '/$slug/settings/_inbox/rules'
+    | '/$slug/settings/_inbox/teams'
+    | '/$slug/settings/_personal/business-channels'
+    | '/$slug/settings/_personal/notifications'
+    | '/$slug/settings/_personal/preferences'
+    | '/$slug/settings/_personal/profile'
+    | '/$slug/settings/_tickets/ticket-types'
+    | '/$slug/settings/_translation/glossary'
+    | '/$slug/settings/_translation/tone'
+    | '/$slug/settings/_workspace/attributes'
+    | '/$slug/settings/_workspace/general'
+    | '/$slug/settings/_workspace/members'
+    | '/$slug/settings/_workspace/roles'
+    | '/$slug/settings/_workspace/tags'
+    | '/$slug/settings/_channels/telegrams/$id'
+    | '/$slug/settings/_channels/widgets/$id'
+    | '/$slug/settings/_inbox/teams/$id'
+    | '/$slug/settings/_tickets/ticket-types/$id'
+    | '/$slug/settings/_channels/telegrams/'
+    | '/$slug/settings/_channels/widgets/'
+    | '/$slug/settings/_inbox/teams/'
+    | '/$slug/settings/_personal/business-channels/'
+    | '/$slug/settings/_tickets/ticket-types/'
+    | '/$slug/settings/_personal/business-channels/links/$id'
+    | '/$slug/settings/_personal/business-channels/telegram/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SlugRoute: typeof SlugRouteWithChildren
   LoginRoute: typeof LoginRoute
-  TSlugRoute: typeof TSlugRouteWithChildren
+  WorkspacesRoute: typeof WorkspacesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -774,6 +785,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/$slug': {
+      id: '/$slug'
+      path: '/$slug'
+      fullPath: '/$slug'
+      preLoaderRoute: typeof SlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -781,767 +799,760 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/t/$slug': {
-      id: '/t/$slug'
-      path: '/t/$slug'
-      fullPath: '/t/$slug'
-      preLoaderRoute: typeof TSlugRouteImport
+    '/workspaces': {
+      id: '/workspaces'
+      path: '/workspaces'
+      fullPath: '/workspaces'
+      preLoaderRoute: typeof WorkspacesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/t/$slug/': {
-      id: '/t/$slug/'
+    '/$slug/': {
+      id: '/$slug/'
       path: '/'
-      fullPath: '/t/$slug/'
-      preLoaderRoute: typeof TSlugIndexRouteImport
-      parentRoute: typeof TSlugRoute
+      fullPath: '/$slug/'
+      preLoaderRoute: typeof SlugIndexRouteImport
+      parentRoute: typeof SlugRoute
     }
-    '/t/$slug/chat': {
-      id: '/t/$slug/chat'
+    '/$slug/chat': {
+      id: '/$slug/chat'
       path: '/chat'
-      fullPath: '/t/$slug/chat'
-      preLoaderRoute: typeof TSlugChatRouteImport
-      parentRoute: typeof TSlugRoute
+      fullPath: '/$slug/chat'
+      preLoaderRoute: typeof SlugChatRouteImport
+      parentRoute: typeof SlugRoute
     }
-    '/t/$slug/contacts': {
-      id: '/t/$slug/contacts'
+    '/$slug/contacts': {
+      id: '/$slug/contacts'
       path: '/contacts'
-      fullPath: '/t/$slug/contacts'
-      preLoaderRoute: typeof TSlugContactsRouteImport
-      parentRoute: typeof TSlugRoute
+      fullPath: '/$slug/contacts'
+      preLoaderRoute: typeof SlugContactsRouteImport
+      parentRoute: typeof SlugRoute
     }
-    '/t/$slug/inbox': {
-      id: '/t/$slug/inbox'
+    '/$slug/inbox': {
+      id: '/$slug/inbox'
       path: '/inbox'
-      fullPath: '/t/$slug/inbox'
-      preLoaderRoute: typeof TSlugInboxRouteImport
-      parentRoute: typeof TSlugRoute
+      fullPath: '/$slug/inbox'
+      preLoaderRoute: typeof SlugInboxRouteImport
+      parentRoute: typeof SlugRoute
     }
-    '/t/$slug/reports': {
-      id: '/t/$slug/reports'
+    '/$slug/reports': {
+      id: '/$slug/reports'
       path: '/reports'
-      fullPath: '/t/$slug/reports'
-      preLoaderRoute: typeof TSlugReportsRouteImport
-      parentRoute: typeof TSlugRoute
+      fullPath: '/$slug/reports'
+      preLoaderRoute: typeof SlugReportsRouteImport
+      parentRoute: typeof SlugRoute
     }
-    '/t/$slug/settings': {
-      id: '/t/$slug/settings'
+    '/$slug/settings': {
+      id: '/$slug/settings'
       path: '/settings'
-      fullPath: '/t/$slug/settings'
-      preLoaderRoute: typeof TSlugSettingsRouteImport
-      parentRoute: typeof TSlugRoute
+      fullPath: '/$slug/settings'
+      preLoaderRoute: typeof SlugSettingsRouteImport
+      parentRoute: typeof SlugRoute
     }
-    '/t/$slug/tickets': {
-      id: '/t/$slug/tickets'
+    '/$slug/tickets': {
+      id: '/$slug/tickets'
       path: '/tickets'
-      fullPath: '/t/$slug/tickets'
-      preLoaderRoute: typeof TSlugTicketsRouteImport
-      parentRoute: typeof TSlugRoute
+      fullPath: '/$slug/tickets'
+      preLoaderRoute: typeof SlugTicketsRouteImport
+      parentRoute: typeof SlugRoute
     }
-    '/t/$slug/chat/': {
-      id: '/t/$slug/chat/'
+    '/$slug/chat/': {
+      id: '/$slug/chat/'
       path: '/'
-      fullPath: '/t/$slug/chat/'
-      preLoaderRoute: typeof TSlugChatIndexRouteImport
-      parentRoute: typeof TSlugChatRoute
+      fullPath: '/$slug/chat/'
+      preLoaderRoute: typeof SlugChatIndexRouteImport
+      parentRoute: typeof SlugChatRoute
     }
-    '/t/$slug/chat/$id': {
-      id: '/t/$slug/chat/$id'
+    '/$slug/chat/$id': {
+      id: '/$slug/chat/$id'
       path: '/$id'
-      fullPath: '/t/$slug/chat/$id'
-      preLoaderRoute: typeof TSlugChatIdRouteImport
-      parentRoute: typeof TSlugChatRoute
+      fullPath: '/$slug/chat/$id'
+      preLoaderRoute: typeof SlugChatIdRouteImport
+      parentRoute: typeof SlugChatRoute
     }
-    '/t/$slug/contacts/': {
-      id: '/t/$slug/contacts/'
+    '/$slug/contacts/': {
+      id: '/$slug/contacts/'
       path: '/'
-      fullPath: '/t/$slug/contacts/'
-      preLoaderRoute: typeof TSlugContactsIndexRouteImport
-      parentRoute: typeof TSlugContactsRoute
+      fullPath: '/$slug/contacts/'
+      preLoaderRoute: typeof SlugContactsIndexRouteImport
+      parentRoute: typeof SlugContactsRoute
     }
-    '/t/$slug/contacts/$id': {
-      id: '/t/$slug/contacts/$id'
+    '/$slug/contacts/$id': {
+      id: '/$slug/contacts/$id'
       path: '/$id'
-      fullPath: '/t/$slug/contacts/$id'
-      preLoaderRoute: typeof TSlugContactsIdRouteImport
-      parentRoute: typeof TSlugContactsRoute
+      fullPath: '/$slug/contacts/$id'
+      preLoaderRoute: typeof SlugContactsIdRouteImport
+      parentRoute: typeof SlugContactsRoute
     }
-    '/t/$slug/inbox/': {
-      id: '/t/$slug/inbox/'
+    '/$slug/inbox/': {
+      id: '/$slug/inbox/'
       path: '/'
-      fullPath: '/t/$slug/inbox/'
-      preLoaderRoute: typeof TSlugInboxIndexRouteImport
-      parentRoute: typeof TSlugInboxRoute
+      fullPath: '/$slug/inbox/'
+      preLoaderRoute: typeof SlugInboxIndexRouteImport
+      parentRoute: typeof SlugInboxRoute
     }
-    '/t/$slug/inbox/$id': {
-      id: '/t/$slug/inbox/$id'
+    '/$slug/inbox/$id': {
+      id: '/$slug/inbox/$id'
       path: '/$id'
-      fullPath: '/t/$slug/inbox/$id'
-      preLoaderRoute: typeof TSlugInboxIdRouteImport
-      parentRoute: typeof TSlugInboxRoute
+      fullPath: '/$slug/inbox/$id'
+      preLoaderRoute: typeof SlugInboxIdRouteImport
+      parentRoute: typeof SlugInboxRoute
     }
-    '/t/$slug/reports/': {
-      id: '/t/$slug/reports/'
+    '/$slug/reports/': {
+      id: '/$slug/reports/'
       path: '/'
-      fullPath: '/t/$slug/reports/'
-      preLoaderRoute: typeof TSlugReportsIndexRouteImport
-      parentRoute: typeof TSlugReportsRoute
+      fullPath: '/$slug/reports/'
+      preLoaderRoute: typeof SlugReportsIndexRouteImport
+      parentRoute: typeof SlugReportsRoute
     }
-    '/t/$slug/reports/business': {
-      id: '/t/$slug/reports/business'
+    '/$slug/reports/business': {
+      id: '/$slug/reports/business'
       path: '/business'
-      fullPath: '/t/$slug/reports/business'
-      preLoaderRoute: typeof TSlugReportsBusinessRouteImport
-      parentRoute: typeof TSlugReportsRoute
+      fullPath: '/$slug/reports/business'
+      preLoaderRoute: typeof SlugReportsBusinessRouteImport
+      parentRoute: typeof SlugReportsRoute
     }
-    '/t/$slug/reports/members': {
-      id: '/t/$slug/reports/members'
+    '/$slug/reports/members': {
+      id: '/$slug/reports/members'
       path: '/members'
-      fullPath: '/t/$slug/reports/members'
-      preLoaderRoute: typeof TSlugReportsMembersRouteImport
-      parentRoute: typeof TSlugReportsRoute
+      fullPath: '/$slug/reports/members'
+      preLoaderRoute: typeof SlugReportsMembersRouteImport
+      parentRoute: typeof SlugReportsRoute
     }
-    '/t/$slug/reports/overview': {
-      id: '/t/$slug/reports/overview'
+    '/$slug/reports/overview': {
+      id: '/$slug/reports/overview'
       path: '/overview'
-      fullPath: '/t/$slug/reports/overview'
-      preLoaderRoute: typeof TSlugReportsOverviewRouteImport
-      parentRoute: typeof TSlugReportsRoute
+      fullPath: '/$slug/reports/overview'
+      preLoaderRoute: typeof SlugReportsOverviewRouteImport
+      parentRoute: typeof SlugReportsRoute
     }
-    '/t/$slug/reports/service': {
-      id: '/t/$slug/reports/service'
+    '/$slug/reports/service': {
+      id: '/$slug/reports/service'
       path: '/service'
-      fullPath: '/t/$slug/reports/service'
-      preLoaderRoute: typeof TSlugReportsServiceRouteImport
-      parentRoute: typeof TSlugReportsRoute
+      fullPath: '/$slug/reports/service'
+      preLoaderRoute: typeof SlugReportsServiceRouteImport
+      parentRoute: typeof SlugReportsRoute
     }
-    '/t/$slug/reports/tickets': {
-      id: '/t/$slug/reports/tickets'
+    '/$slug/reports/tickets': {
+      id: '/$slug/reports/tickets'
       path: '/tickets'
-      fullPath: '/t/$slug/reports/tickets'
-      preLoaderRoute: typeof TSlugReportsTicketsRouteImport
-      parentRoute: typeof TSlugReportsRoute
+      fullPath: '/$slug/reports/tickets'
+      preLoaderRoute: typeof SlugReportsTicketsRouteImport
+      parentRoute: typeof SlugReportsRoute
     }
-    '/t/$slug/reports/translation': {
-      id: '/t/$slug/reports/translation'
+    '/$slug/reports/translation': {
+      id: '/$slug/reports/translation'
       path: '/translation'
-      fullPath: '/t/$slug/reports/translation'
-      preLoaderRoute: typeof TSlugReportsTranslationRouteImport
-      parentRoute: typeof TSlugReportsRoute
+      fullPath: '/$slug/reports/translation'
+      preLoaderRoute: typeof SlugReportsTranslationRouteImport
+      parentRoute: typeof SlugReportsRoute
     }
-    '/t/$slug/settings/': {
-      id: '/t/$slug/settings/'
+    '/$slug/settings/': {
+      id: '/$slug/settings/'
       path: '/'
-      fullPath: '/t/$slug/settings/'
-      preLoaderRoute: typeof TSlugSettingsIndexRouteImport
-      parentRoute: typeof TSlugSettingsRoute
+      fullPath: '/$slug/settings/'
+      preLoaderRoute: typeof SlugSettingsIndexRouteImport
+      parentRoute: typeof SlugSettingsRoute
     }
-    '/t/$slug/settings/_channels': {
-      id: '/t/$slug/settings/_channels'
+    '/$slug/settings/_channels': {
+      id: '/$slug/settings/_channels'
       path: ''
-      fullPath: '/t/$slug/settings'
-      preLoaderRoute: typeof TSlugSettingsChannelsRouteImport
-      parentRoute: typeof TSlugSettingsRoute
+      fullPath: '/$slug/settings'
+      preLoaderRoute: typeof SlugSettingsChannelsRouteImport
+      parentRoute: typeof SlugSettingsRoute
     }
-    '/t/$slug/settings/_inbox': {
-      id: '/t/$slug/settings/_inbox'
+    '/$slug/settings/_inbox': {
+      id: '/$slug/settings/_inbox'
       path: ''
-      fullPath: '/t/$slug/settings'
-      preLoaderRoute: typeof TSlugSettingsInboxRouteImport
-      parentRoute: typeof TSlugSettingsRoute
+      fullPath: '/$slug/settings'
+      preLoaderRoute: typeof SlugSettingsInboxRouteImport
+      parentRoute: typeof SlugSettingsRoute
     }
-    '/t/$slug/settings/_personal': {
-      id: '/t/$slug/settings/_personal'
+    '/$slug/settings/_personal': {
+      id: '/$slug/settings/_personal'
       path: ''
-      fullPath: '/t/$slug/settings'
-      preLoaderRoute: typeof TSlugSettingsPersonalRouteImport
-      parentRoute: typeof TSlugSettingsRoute
+      fullPath: '/$slug/settings'
+      preLoaderRoute: typeof SlugSettingsPersonalRouteImport
+      parentRoute: typeof SlugSettingsRoute
     }
-    '/t/$slug/settings/_tickets': {
-      id: '/t/$slug/settings/_tickets'
+    '/$slug/settings/_tickets': {
+      id: '/$slug/settings/_tickets'
       path: ''
-      fullPath: '/t/$slug/settings'
-      preLoaderRoute: typeof TSlugSettingsTicketsRouteImport
-      parentRoute: typeof TSlugSettingsRoute
+      fullPath: '/$slug/settings'
+      preLoaderRoute: typeof SlugSettingsTicketsRouteImport
+      parentRoute: typeof SlugSettingsRoute
     }
-    '/t/$slug/settings/_translation': {
-      id: '/t/$slug/settings/_translation'
+    '/$slug/settings/_translation': {
+      id: '/$slug/settings/_translation'
       path: ''
-      fullPath: '/t/$slug/settings'
-      preLoaderRoute: typeof TSlugSettingsTranslationRouteImport
-      parentRoute: typeof TSlugSettingsRoute
+      fullPath: '/$slug/settings'
+      preLoaderRoute: typeof SlugSettingsTranslationRouteImport
+      parentRoute: typeof SlugSettingsRoute
     }
-    '/t/$slug/settings/_workspace': {
-      id: '/t/$slug/settings/_workspace'
+    '/$slug/settings/_workspace': {
+      id: '/$slug/settings/_workspace'
       path: ''
-      fullPath: '/t/$slug/settings'
-      preLoaderRoute: typeof TSlugSettingsWorkspaceRouteImport
-      parentRoute: typeof TSlugSettingsRoute
+      fullPath: '/$slug/settings'
+      preLoaderRoute: typeof SlugSettingsWorkspaceRouteImport
+      parentRoute: typeof SlugSettingsRoute
     }
-    '/t/$slug/tickets/': {
-      id: '/t/$slug/tickets/'
+    '/$slug/tickets/': {
+      id: '/$slug/tickets/'
       path: '/'
-      fullPath: '/t/$slug/tickets/'
-      preLoaderRoute: typeof TSlugTicketsIndexRouteImport
-      parentRoute: typeof TSlugTicketsRoute
+      fullPath: '/$slug/tickets/'
+      preLoaderRoute: typeof SlugTicketsIndexRouteImport
+      parentRoute: typeof SlugTicketsRoute
     }
-    '/t/$slug/tickets/$id': {
-      id: '/t/$slug/tickets/$id'
+    '/$slug/tickets/$id': {
+      id: '/$slug/tickets/$id'
       path: '/$id'
-      fullPath: '/t/$slug/tickets/$id'
-      preLoaderRoute: typeof TSlugTicketsIdRouteImport
-      parentRoute: typeof TSlugTicketsRoute
+      fullPath: '/$slug/tickets/$id'
+      preLoaderRoute: typeof SlugTicketsIdRouteImport
+      parentRoute: typeof SlugTicketsRoute
     }
-    '/t/$slug/settings/_channels/business': {
-      id: '/t/$slug/settings/_channels/business'
+    '/$slug/settings/_channels/business': {
+      id: '/$slug/settings/_channels/business'
       path: '/business'
-      fullPath: '/t/$slug/settings/business'
-      preLoaderRoute: typeof TSlugSettingsChannelsBusinessRouteImport
-      parentRoute: typeof TSlugSettingsChannelsRoute
+      fullPath: '/$slug/settings/business'
+      preLoaderRoute: typeof SlugSettingsChannelsBusinessRouteImport
+      parentRoute: typeof SlugSettingsChannelsRoute
     }
-    '/t/$slug/settings/_channels/telegrams': {
-      id: '/t/$slug/settings/_channels/telegrams'
+    '/$slug/settings/_channels/telegrams': {
+      id: '/$slug/settings/_channels/telegrams'
       path: '/telegrams'
-      fullPath: '/t/$slug/settings/telegrams'
-      preLoaderRoute: typeof TSlugSettingsChannelsTelegramsRouteImport
-      parentRoute: typeof TSlugSettingsChannelsRoute
+      fullPath: '/$slug/settings/telegrams'
+      preLoaderRoute: typeof SlugSettingsChannelsTelegramsRouteImport
+      parentRoute: typeof SlugSettingsChannelsRoute
     }
-    '/t/$slug/settings/_channels/widgets': {
-      id: '/t/$slug/settings/_channels/widgets'
+    '/$slug/settings/_channels/widgets': {
+      id: '/$slug/settings/_channels/widgets'
       path: '/widgets'
-      fullPath: '/t/$slug/settings/widgets'
-      preLoaderRoute: typeof TSlugSettingsChannelsWidgetsRouteImport
-      parentRoute: typeof TSlugSettingsChannelsRoute
+      fullPath: '/$slug/settings/widgets'
+      preLoaderRoute: typeof SlugSettingsChannelsWidgetsRouteImport
+      parentRoute: typeof SlugSettingsChannelsRoute
     }
-    '/t/$slug/settings/_inbox/assignment': {
-      id: '/t/$slug/settings/_inbox/assignment'
+    '/$slug/settings/_inbox/assignment': {
+      id: '/$slug/settings/_inbox/assignment'
       path: '/assignment'
-      fullPath: '/t/$slug/settings/assignment'
-      preLoaderRoute: typeof TSlugSettingsInboxAssignmentRouteImport
-      parentRoute: typeof TSlugSettingsInboxRoute
+      fullPath: '/$slug/settings/assignment'
+      preLoaderRoute: typeof SlugSettingsInboxAssignmentRouteImport
+      parentRoute: typeof SlugSettingsInboxRoute
     }
-    '/t/$slug/settings/_inbox/business-hours': {
-      id: '/t/$slug/settings/_inbox/business-hours'
+    '/$slug/settings/_inbox/business-hours': {
+      id: '/$slug/settings/_inbox/business-hours'
       path: '/business-hours'
-      fullPath: '/t/$slug/settings/business-hours'
-      preLoaderRoute: typeof TSlugSettingsInboxBusinessHoursRouteImport
-      parentRoute: typeof TSlugSettingsInboxRoute
+      fullPath: '/$slug/settings/business-hours'
+      preLoaderRoute: typeof SlugSettingsInboxBusinessHoursRouteImport
+      parentRoute: typeof SlugSettingsInboxRoute
     }
-    '/t/$slug/settings/_inbox/macros': {
-      id: '/t/$slug/settings/_inbox/macros'
+    '/$slug/settings/_inbox/macros': {
+      id: '/$slug/settings/_inbox/macros'
       path: '/macros'
-      fullPath: '/t/$slug/settings/macros'
-      preLoaderRoute: typeof TSlugSettingsInboxMacrosRouteImport
-      parentRoute: typeof TSlugSettingsInboxRoute
+      fullPath: '/$slug/settings/macros'
+      preLoaderRoute: typeof SlugSettingsInboxMacrosRouteImport
+      parentRoute: typeof SlugSettingsInboxRoute
     }
-    '/t/$slug/settings/_inbox/rules': {
-      id: '/t/$slug/settings/_inbox/rules'
+    '/$slug/settings/_inbox/rules': {
+      id: '/$slug/settings/_inbox/rules'
       path: '/rules'
-      fullPath: '/t/$slug/settings/rules'
-      preLoaderRoute: typeof TSlugSettingsInboxRulesRouteImport
-      parentRoute: typeof TSlugSettingsInboxRoute
+      fullPath: '/$slug/settings/rules'
+      preLoaderRoute: typeof SlugSettingsInboxRulesRouteImport
+      parentRoute: typeof SlugSettingsInboxRoute
     }
-    '/t/$slug/settings/_inbox/teams': {
-      id: '/t/$slug/settings/_inbox/teams'
+    '/$slug/settings/_inbox/teams': {
+      id: '/$slug/settings/_inbox/teams'
       path: '/teams'
-      fullPath: '/t/$slug/settings/teams'
-      preLoaderRoute: typeof TSlugSettingsInboxTeamsRouteImport
-      parentRoute: typeof TSlugSettingsInboxRoute
+      fullPath: '/$slug/settings/teams'
+      preLoaderRoute: typeof SlugSettingsInboxTeamsRouteImport
+      parentRoute: typeof SlugSettingsInboxRoute
     }
-    '/t/$slug/settings/_personal/business-channels': {
-      id: '/t/$slug/settings/_personal/business-channels'
+    '/$slug/settings/_personal/business-channels': {
+      id: '/$slug/settings/_personal/business-channels'
       path: '/business-channels'
-      fullPath: '/t/$slug/settings/business-channels'
-      preLoaderRoute: typeof TSlugSettingsPersonalBusinessChannelsRouteImport
-      parentRoute: typeof TSlugSettingsPersonalRoute
+      fullPath: '/$slug/settings/business-channels'
+      preLoaderRoute: typeof SlugSettingsPersonalBusinessChannelsRouteImport
+      parentRoute: typeof SlugSettingsPersonalRoute
     }
-    '/t/$slug/settings/_personal/notifications': {
-      id: '/t/$slug/settings/_personal/notifications'
+    '/$slug/settings/_personal/notifications': {
+      id: '/$slug/settings/_personal/notifications'
       path: '/notifications'
-      fullPath: '/t/$slug/settings/notifications'
-      preLoaderRoute: typeof TSlugSettingsPersonalNotificationsRouteImport
-      parentRoute: typeof TSlugSettingsPersonalRoute
+      fullPath: '/$slug/settings/notifications'
+      preLoaderRoute: typeof SlugSettingsPersonalNotificationsRouteImport
+      parentRoute: typeof SlugSettingsPersonalRoute
     }
-    '/t/$slug/settings/_personal/preferences': {
-      id: '/t/$slug/settings/_personal/preferences'
+    '/$slug/settings/_personal/preferences': {
+      id: '/$slug/settings/_personal/preferences'
       path: '/preferences'
-      fullPath: '/t/$slug/settings/preferences'
-      preLoaderRoute: typeof TSlugSettingsPersonalPreferencesRouteImport
-      parentRoute: typeof TSlugSettingsPersonalRoute
+      fullPath: '/$slug/settings/preferences'
+      preLoaderRoute: typeof SlugSettingsPersonalPreferencesRouteImport
+      parentRoute: typeof SlugSettingsPersonalRoute
     }
-    '/t/$slug/settings/_personal/profile': {
-      id: '/t/$slug/settings/_personal/profile'
+    '/$slug/settings/_personal/profile': {
+      id: '/$slug/settings/_personal/profile'
       path: '/profile'
-      fullPath: '/t/$slug/settings/profile'
-      preLoaderRoute: typeof TSlugSettingsPersonalProfileRouteImport
-      parentRoute: typeof TSlugSettingsPersonalRoute
+      fullPath: '/$slug/settings/profile'
+      preLoaderRoute: typeof SlugSettingsPersonalProfileRouteImport
+      parentRoute: typeof SlugSettingsPersonalRoute
     }
-    '/t/$slug/settings/_tickets/ticket-types': {
-      id: '/t/$slug/settings/_tickets/ticket-types'
+    '/$slug/settings/_tickets/ticket-types': {
+      id: '/$slug/settings/_tickets/ticket-types'
       path: '/ticket-types'
-      fullPath: '/t/$slug/settings/ticket-types'
-      preLoaderRoute: typeof TSlugSettingsTicketsTicketTypesRouteImport
-      parentRoute: typeof TSlugSettingsTicketsRoute
+      fullPath: '/$slug/settings/ticket-types'
+      preLoaderRoute: typeof SlugSettingsTicketsTicketTypesRouteImport
+      parentRoute: typeof SlugSettingsTicketsRoute
     }
-    '/t/$slug/settings/_translation/glossary': {
-      id: '/t/$slug/settings/_translation/glossary'
+    '/$slug/settings/_translation/glossary': {
+      id: '/$slug/settings/_translation/glossary'
       path: '/glossary'
-      fullPath: '/t/$slug/settings/glossary'
-      preLoaderRoute: typeof TSlugSettingsTranslationGlossaryRouteImport
-      parentRoute: typeof TSlugSettingsTranslationRoute
+      fullPath: '/$slug/settings/glossary'
+      preLoaderRoute: typeof SlugSettingsTranslationGlossaryRouteImport
+      parentRoute: typeof SlugSettingsTranslationRoute
     }
-    '/t/$slug/settings/_translation/tone': {
-      id: '/t/$slug/settings/_translation/tone'
+    '/$slug/settings/_translation/tone': {
+      id: '/$slug/settings/_translation/tone'
       path: '/tone'
-      fullPath: '/t/$slug/settings/tone'
-      preLoaderRoute: typeof TSlugSettingsTranslationToneRouteImport
-      parentRoute: typeof TSlugSettingsTranslationRoute
+      fullPath: '/$slug/settings/tone'
+      preLoaderRoute: typeof SlugSettingsTranslationToneRouteImport
+      parentRoute: typeof SlugSettingsTranslationRoute
     }
-    '/t/$slug/settings/_workspace/attributes': {
-      id: '/t/$slug/settings/_workspace/attributes'
+    '/$slug/settings/_workspace/attributes': {
+      id: '/$slug/settings/_workspace/attributes'
       path: '/attributes'
-      fullPath: '/t/$slug/settings/attributes'
-      preLoaderRoute: typeof TSlugSettingsWorkspaceAttributesRouteImport
-      parentRoute: typeof TSlugSettingsWorkspaceRoute
+      fullPath: '/$slug/settings/attributes'
+      preLoaderRoute: typeof SlugSettingsWorkspaceAttributesRouteImport
+      parentRoute: typeof SlugSettingsWorkspaceRoute
     }
-    '/t/$slug/settings/_workspace/general': {
-      id: '/t/$slug/settings/_workspace/general'
+    '/$slug/settings/_workspace/general': {
+      id: '/$slug/settings/_workspace/general'
       path: '/general'
-      fullPath: '/t/$slug/settings/general'
-      preLoaderRoute: typeof TSlugSettingsWorkspaceGeneralRouteImport
-      parentRoute: typeof TSlugSettingsWorkspaceRoute
+      fullPath: '/$slug/settings/general'
+      preLoaderRoute: typeof SlugSettingsWorkspaceGeneralRouteImport
+      parentRoute: typeof SlugSettingsWorkspaceRoute
     }
-    '/t/$slug/settings/_workspace/members': {
-      id: '/t/$slug/settings/_workspace/members'
+    '/$slug/settings/_workspace/members': {
+      id: '/$slug/settings/_workspace/members'
       path: '/members'
-      fullPath: '/t/$slug/settings/members'
-      preLoaderRoute: typeof TSlugSettingsWorkspaceMembersRouteImport
-      parentRoute: typeof TSlugSettingsWorkspaceRoute
+      fullPath: '/$slug/settings/members'
+      preLoaderRoute: typeof SlugSettingsWorkspaceMembersRouteImport
+      parentRoute: typeof SlugSettingsWorkspaceRoute
     }
-    '/t/$slug/settings/_workspace/roles': {
-      id: '/t/$slug/settings/_workspace/roles'
+    '/$slug/settings/_workspace/roles': {
+      id: '/$slug/settings/_workspace/roles'
       path: '/roles'
-      fullPath: '/t/$slug/settings/roles'
-      preLoaderRoute: typeof TSlugSettingsWorkspaceRolesRouteImport
-      parentRoute: typeof TSlugSettingsWorkspaceRoute
+      fullPath: '/$slug/settings/roles'
+      preLoaderRoute: typeof SlugSettingsWorkspaceRolesRouteImport
+      parentRoute: typeof SlugSettingsWorkspaceRoute
     }
-    '/t/$slug/settings/_workspace/tags': {
-      id: '/t/$slug/settings/_workspace/tags'
+    '/$slug/settings/_workspace/tags': {
+      id: '/$slug/settings/_workspace/tags'
       path: '/tags'
-      fullPath: '/t/$slug/settings/tags'
-      preLoaderRoute: typeof TSlugSettingsWorkspaceTagsRouteImport
-      parentRoute: typeof TSlugSettingsWorkspaceRoute
+      fullPath: '/$slug/settings/tags'
+      preLoaderRoute: typeof SlugSettingsWorkspaceTagsRouteImport
+      parentRoute: typeof SlugSettingsWorkspaceRoute
     }
-    '/t/$slug/settings/_channels/telegrams/': {
-      id: '/t/$slug/settings/_channels/telegrams/'
+    '/$slug/settings/_channels/telegrams/': {
+      id: '/$slug/settings/_channels/telegrams/'
       path: '/'
-      fullPath: '/t/$slug/settings/telegrams/'
-      preLoaderRoute: typeof TSlugSettingsChannelsTelegramsIndexRouteImport
-      parentRoute: typeof TSlugSettingsChannelsTelegramsRoute
+      fullPath: '/$slug/settings/telegrams/'
+      preLoaderRoute: typeof SlugSettingsChannelsTelegramsIndexRouteImport
+      parentRoute: typeof SlugSettingsChannelsTelegramsRoute
     }
-    '/t/$slug/settings/_channels/telegrams/$id': {
-      id: '/t/$slug/settings/_channels/telegrams/$id'
+    '/$slug/settings/_channels/telegrams/$id': {
+      id: '/$slug/settings/_channels/telegrams/$id'
       path: '/$id'
-      fullPath: '/t/$slug/settings/telegrams/$id'
-      preLoaderRoute: typeof TSlugSettingsChannelsTelegramsIdRouteImport
-      parentRoute: typeof TSlugSettingsChannelsTelegramsRoute
+      fullPath: '/$slug/settings/telegrams/$id'
+      preLoaderRoute: typeof SlugSettingsChannelsTelegramsIdRouteImport
+      parentRoute: typeof SlugSettingsChannelsTelegramsRoute
     }
-    '/t/$slug/settings/_channels/widgets/': {
-      id: '/t/$slug/settings/_channels/widgets/'
+    '/$slug/settings/_channels/widgets/': {
+      id: '/$slug/settings/_channels/widgets/'
       path: '/'
-      fullPath: '/t/$slug/settings/widgets/'
-      preLoaderRoute: typeof TSlugSettingsChannelsWidgetsIndexRouteImport
-      parentRoute: typeof TSlugSettingsChannelsWidgetsRoute
+      fullPath: '/$slug/settings/widgets/'
+      preLoaderRoute: typeof SlugSettingsChannelsWidgetsIndexRouteImport
+      parentRoute: typeof SlugSettingsChannelsWidgetsRoute
     }
-    '/t/$slug/settings/_channels/widgets/$id': {
-      id: '/t/$slug/settings/_channels/widgets/$id'
+    '/$slug/settings/_channels/widgets/$id': {
+      id: '/$slug/settings/_channels/widgets/$id'
       path: '/$id'
-      fullPath: '/t/$slug/settings/widgets/$id'
-      preLoaderRoute: typeof TSlugSettingsChannelsWidgetsIdRouteImport
-      parentRoute: typeof TSlugSettingsChannelsWidgetsRoute
+      fullPath: '/$slug/settings/widgets/$id'
+      preLoaderRoute: typeof SlugSettingsChannelsWidgetsIdRouteImport
+      parentRoute: typeof SlugSettingsChannelsWidgetsRoute
     }
-    '/t/$slug/settings/_inbox/teams/': {
-      id: '/t/$slug/settings/_inbox/teams/'
+    '/$slug/settings/_inbox/teams/': {
+      id: '/$slug/settings/_inbox/teams/'
       path: '/'
-      fullPath: '/t/$slug/settings/teams/'
-      preLoaderRoute: typeof TSlugSettingsInboxTeamsIndexRouteImport
-      parentRoute: typeof TSlugSettingsInboxTeamsRoute
+      fullPath: '/$slug/settings/teams/'
+      preLoaderRoute: typeof SlugSettingsInboxTeamsIndexRouteImport
+      parentRoute: typeof SlugSettingsInboxTeamsRoute
     }
-    '/t/$slug/settings/_inbox/teams/$id': {
-      id: '/t/$slug/settings/_inbox/teams/$id'
+    '/$slug/settings/_inbox/teams/$id': {
+      id: '/$slug/settings/_inbox/teams/$id'
       path: '/$id'
-      fullPath: '/t/$slug/settings/teams/$id'
-      preLoaderRoute: typeof TSlugSettingsInboxTeamsIdRouteImport
-      parentRoute: typeof TSlugSettingsInboxTeamsRoute
+      fullPath: '/$slug/settings/teams/$id'
+      preLoaderRoute: typeof SlugSettingsInboxTeamsIdRouteImport
+      parentRoute: typeof SlugSettingsInboxTeamsRoute
     }
-    '/t/$slug/settings/_personal/business-channels/': {
-      id: '/t/$slug/settings/_personal/business-channels/'
+    '/$slug/settings/_personal/business-channels/': {
+      id: '/$slug/settings/_personal/business-channels/'
       path: '/'
-      fullPath: '/t/$slug/settings/business-channels/'
-      preLoaderRoute: typeof TSlugSettingsPersonalBusinessChannelsIndexRouteImport
-      parentRoute: typeof TSlugSettingsPersonalBusinessChannelsRoute
+      fullPath: '/$slug/settings/business-channels/'
+      preLoaderRoute: typeof SlugSettingsPersonalBusinessChannelsIndexRouteImport
+      parentRoute: typeof SlugSettingsPersonalBusinessChannelsRoute
     }
-    '/t/$slug/settings/_tickets/ticket-types/': {
-      id: '/t/$slug/settings/_tickets/ticket-types/'
+    '/$slug/settings/_tickets/ticket-types/': {
+      id: '/$slug/settings/_tickets/ticket-types/'
       path: '/'
-      fullPath: '/t/$slug/settings/ticket-types/'
-      preLoaderRoute: typeof TSlugSettingsTicketsTicketTypesIndexRouteImport
-      parentRoute: typeof TSlugSettingsTicketsTicketTypesRoute
+      fullPath: '/$slug/settings/ticket-types/'
+      preLoaderRoute: typeof SlugSettingsTicketsTicketTypesIndexRouteImport
+      parentRoute: typeof SlugSettingsTicketsTicketTypesRoute
     }
-    '/t/$slug/settings/_tickets/ticket-types/$id': {
-      id: '/t/$slug/settings/_tickets/ticket-types/$id'
+    '/$slug/settings/_tickets/ticket-types/$id': {
+      id: '/$slug/settings/_tickets/ticket-types/$id'
       path: '/$id'
-      fullPath: '/t/$slug/settings/ticket-types/$id'
-      preLoaderRoute: typeof TSlugSettingsTicketsTicketTypesIdRouteImport
-      parentRoute: typeof TSlugSettingsTicketsTicketTypesRoute
+      fullPath: '/$slug/settings/ticket-types/$id'
+      preLoaderRoute: typeof SlugSettingsTicketsTicketTypesIdRouteImport
+      parentRoute: typeof SlugSettingsTicketsTicketTypesRoute
     }
-    '/t/$slug/settings/_personal/business-channels/links/$id': {
-      id: '/t/$slug/settings/_personal/business-channels/links/$id'
+    '/$slug/settings/_personal/business-channels/links/$id': {
+      id: '/$slug/settings/_personal/business-channels/links/$id'
       path: '/links/$id'
-      fullPath: '/t/$slug/settings/business-channels/links/$id'
-      preLoaderRoute: typeof TSlugSettingsPersonalBusinessChannelsLinksIdRouteImport
-      parentRoute: typeof TSlugSettingsPersonalBusinessChannelsRoute
+      fullPath: '/$slug/settings/business-channels/links/$id'
+      preLoaderRoute: typeof SlugSettingsPersonalBusinessChannelsLinksIdRouteImport
+      parentRoute: typeof SlugSettingsPersonalBusinessChannelsRoute
     }
-    '/t/$slug/settings/_personal/business-channels/telegram/$id': {
-      id: '/t/$slug/settings/_personal/business-channels/telegram/$id'
+    '/$slug/settings/_personal/business-channels/telegram/$id': {
+      id: '/$slug/settings/_personal/business-channels/telegram/$id'
       path: '/telegram/$id'
-      fullPath: '/t/$slug/settings/business-channels/telegram/$id'
-      preLoaderRoute: typeof TSlugSettingsPersonalBusinessChannelsTelegramIdRouteImport
-      parentRoute: typeof TSlugSettingsPersonalBusinessChannelsRoute
+      fullPath: '/$slug/settings/business-channels/telegram/$id'
+      preLoaderRoute: typeof SlugSettingsPersonalBusinessChannelsTelegramIdRouteImport
+      parentRoute: typeof SlugSettingsPersonalBusinessChannelsRoute
     }
   }
 }
 
-interface TSlugChatRouteChildren {
-  TSlugChatIdRoute: typeof TSlugChatIdRoute
-  TSlugChatIndexRoute: typeof TSlugChatIndexRoute
+interface SlugChatRouteChildren {
+  SlugChatIdRoute: typeof SlugChatIdRoute
+  SlugChatIndexRoute: typeof SlugChatIndexRoute
 }
 
-const TSlugChatRouteChildren: TSlugChatRouteChildren = {
-  TSlugChatIdRoute: TSlugChatIdRoute,
-  TSlugChatIndexRoute: TSlugChatIndexRoute,
+const SlugChatRouteChildren: SlugChatRouteChildren = {
+  SlugChatIdRoute: SlugChatIdRoute,
+  SlugChatIndexRoute: SlugChatIndexRoute,
 }
 
-const TSlugChatRouteWithChildren = TSlugChatRoute._addFileChildren(
-  TSlugChatRouteChildren,
+const SlugChatRouteWithChildren = SlugChatRoute._addFileChildren(
+  SlugChatRouteChildren,
 )
 
-interface TSlugContactsRouteChildren {
-  TSlugContactsIdRoute: typeof TSlugContactsIdRoute
-  TSlugContactsIndexRoute: typeof TSlugContactsIndexRoute
+interface SlugContactsRouteChildren {
+  SlugContactsIdRoute: typeof SlugContactsIdRoute
+  SlugContactsIndexRoute: typeof SlugContactsIndexRoute
 }
 
-const TSlugContactsRouteChildren: TSlugContactsRouteChildren = {
-  TSlugContactsIdRoute: TSlugContactsIdRoute,
-  TSlugContactsIndexRoute: TSlugContactsIndexRoute,
+const SlugContactsRouteChildren: SlugContactsRouteChildren = {
+  SlugContactsIdRoute: SlugContactsIdRoute,
+  SlugContactsIndexRoute: SlugContactsIndexRoute,
 }
 
-const TSlugContactsRouteWithChildren = TSlugContactsRoute._addFileChildren(
-  TSlugContactsRouteChildren,
+const SlugContactsRouteWithChildren = SlugContactsRoute._addFileChildren(
+  SlugContactsRouteChildren,
 )
 
-interface TSlugInboxRouteChildren {
-  TSlugInboxIdRoute: typeof TSlugInboxIdRoute
-  TSlugInboxIndexRoute: typeof TSlugInboxIndexRoute
+interface SlugInboxRouteChildren {
+  SlugInboxIdRoute: typeof SlugInboxIdRoute
+  SlugInboxIndexRoute: typeof SlugInboxIndexRoute
 }
 
-const TSlugInboxRouteChildren: TSlugInboxRouteChildren = {
-  TSlugInboxIdRoute: TSlugInboxIdRoute,
-  TSlugInboxIndexRoute: TSlugInboxIndexRoute,
+const SlugInboxRouteChildren: SlugInboxRouteChildren = {
+  SlugInboxIdRoute: SlugInboxIdRoute,
+  SlugInboxIndexRoute: SlugInboxIndexRoute,
 }
 
-const TSlugInboxRouteWithChildren = TSlugInboxRoute._addFileChildren(
-  TSlugInboxRouteChildren,
+const SlugInboxRouteWithChildren = SlugInboxRoute._addFileChildren(
+  SlugInboxRouteChildren,
 )
 
-interface TSlugReportsRouteChildren {
-  TSlugReportsBusinessRoute: typeof TSlugReportsBusinessRoute
-  TSlugReportsMembersRoute: typeof TSlugReportsMembersRoute
-  TSlugReportsOverviewRoute: typeof TSlugReportsOverviewRoute
-  TSlugReportsServiceRoute: typeof TSlugReportsServiceRoute
-  TSlugReportsTicketsRoute: typeof TSlugReportsTicketsRoute
-  TSlugReportsTranslationRoute: typeof TSlugReportsTranslationRoute
-  TSlugReportsIndexRoute: typeof TSlugReportsIndexRoute
+interface SlugReportsRouteChildren {
+  SlugReportsBusinessRoute: typeof SlugReportsBusinessRoute
+  SlugReportsMembersRoute: typeof SlugReportsMembersRoute
+  SlugReportsOverviewRoute: typeof SlugReportsOverviewRoute
+  SlugReportsServiceRoute: typeof SlugReportsServiceRoute
+  SlugReportsTicketsRoute: typeof SlugReportsTicketsRoute
+  SlugReportsTranslationRoute: typeof SlugReportsTranslationRoute
+  SlugReportsIndexRoute: typeof SlugReportsIndexRoute
 }
 
-const TSlugReportsRouteChildren: TSlugReportsRouteChildren = {
-  TSlugReportsBusinessRoute: TSlugReportsBusinessRoute,
-  TSlugReportsMembersRoute: TSlugReportsMembersRoute,
-  TSlugReportsOverviewRoute: TSlugReportsOverviewRoute,
-  TSlugReportsServiceRoute: TSlugReportsServiceRoute,
-  TSlugReportsTicketsRoute: TSlugReportsTicketsRoute,
-  TSlugReportsTranslationRoute: TSlugReportsTranslationRoute,
-  TSlugReportsIndexRoute: TSlugReportsIndexRoute,
+const SlugReportsRouteChildren: SlugReportsRouteChildren = {
+  SlugReportsBusinessRoute: SlugReportsBusinessRoute,
+  SlugReportsMembersRoute: SlugReportsMembersRoute,
+  SlugReportsOverviewRoute: SlugReportsOverviewRoute,
+  SlugReportsServiceRoute: SlugReportsServiceRoute,
+  SlugReportsTicketsRoute: SlugReportsTicketsRoute,
+  SlugReportsTranslationRoute: SlugReportsTranslationRoute,
+  SlugReportsIndexRoute: SlugReportsIndexRoute,
 }
 
-const TSlugReportsRouteWithChildren = TSlugReportsRoute._addFileChildren(
-  TSlugReportsRouteChildren,
+const SlugReportsRouteWithChildren = SlugReportsRoute._addFileChildren(
+  SlugReportsRouteChildren,
 )
 
-interface TSlugSettingsChannelsTelegramsRouteChildren {
-  TSlugSettingsChannelsTelegramsIdRoute: typeof TSlugSettingsChannelsTelegramsIdRoute
-  TSlugSettingsChannelsTelegramsIndexRoute: typeof TSlugSettingsChannelsTelegramsIndexRoute
+interface SlugSettingsChannelsTelegramsRouteChildren {
+  SlugSettingsChannelsTelegramsIdRoute: typeof SlugSettingsChannelsTelegramsIdRoute
+  SlugSettingsChannelsTelegramsIndexRoute: typeof SlugSettingsChannelsTelegramsIndexRoute
 }
 
-const TSlugSettingsChannelsTelegramsRouteChildren: TSlugSettingsChannelsTelegramsRouteChildren =
+const SlugSettingsChannelsTelegramsRouteChildren: SlugSettingsChannelsTelegramsRouteChildren =
   {
-    TSlugSettingsChannelsTelegramsIdRoute:
-      TSlugSettingsChannelsTelegramsIdRoute,
-    TSlugSettingsChannelsTelegramsIndexRoute:
-      TSlugSettingsChannelsTelegramsIndexRoute,
+    SlugSettingsChannelsTelegramsIdRoute: SlugSettingsChannelsTelegramsIdRoute,
+    SlugSettingsChannelsTelegramsIndexRoute:
+      SlugSettingsChannelsTelegramsIndexRoute,
   }
 
-const TSlugSettingsChannelsTelegramsRouteWithChildren =
-  TSlugSettingsChannelsTelegramsRoute._addFileChildren(
-    TSlugSettingsChannelsTelegramsRouteChildren,
+const SlugSettingsChannelsTelegramsRouteWithChildren =
+  SlugSettingsChannelsTelegramsRoute._addFileChildren(
+    SlugSettingsChannelsTelegramsRouteChildren,
   )
 
-interface TSlugSettingsChannelsWidgetsRouteChildren {
-  TSlugSettingsChannelsWidgetsIdRoute: typeof TSlugSettingsChannelsWidgetsIdRoute
-  TSlugSettingsChannelsWidgetsIndexRoute: typeof TSlugSettingsChannelsWidgetsIndexRoute
+interface SlugSettingsChannelsWidgetsRouteChildren {
+  SlugSettingsChannelsWidgetsIdRoute: typeof SlugSettingsChannelsWidgetsIdRoute
+  SlugSettingsChannelsWidgetsIndexRoute: typeof SlugSettingsChannelsWidgetsIndexRoute
 }
 
-const TSlugSettingsChannelsWidgetsRouteChildren: TSlugSettingsChannelsWidgetsRouteChildren =
+const SlugSettingsChannelsWidgetsRouteChildren: SlugSettingsChannelsWidgetsRouteChildren =
   {
-    TSlugSettingsChannelsWidgetsIdRoute: TSlugSettingsChannelsWidgetsIdRoute,
-    TSlugSettingsChannelsWidgetsIndexRoute:
-      TSlugSettingsChannelsWidgetsIndexRoute,
+    SlugSettingsChannelsWidgetsIdRoute: SlugSettingsChannelsWidgetsIdRoute,
+    SlugSettingsChannelsWidgetsIndexRoute:
+      SlugSettingsChannelsWidgetsIndexRoute,
   }
 
-const TSlugSettingsChannelsWidgetsRouteWithChildren =
-  TSlugSettingsChannelsWidgetsRoute._addFileChildren(
-    TSlugSettingsChannelsWidgetsRouteChildren,
+const SlugSettingsChannelsWidgetsRouteWithChildren =
+  SlugSettingsChannelsWidgetsRoute._addFileChildren(
+    SlugSettingsChannelsWidgetsRouteChildren,
   )
 
-interface TSlugSettingsChannelsRouteChildren {
-  TSlugSettingsChannelsBusinessRoute: typeof TSlugSettingsChannelsBusinessRoute
-  TSlugSettingsChannelsTelegramsRoute: typeof TSlugSettingsChannelsTelegramsRouteWithChildren
-  TSlugSettingsChannelsWidgetsRoute: typeof TSlugSettingsChannelsWidgetsRouteWithChildren
+interface SlugSettingsChannelsRouteChildren {
+  SlugSettingsChannelsBusinessRoute: typeof SlugSettingsChannelsBusinessRoute
+  SlugSettingsChannelsTelegramsRoute: typeof SlugSettingsChannelsTelegramsRouteWithChildren
+  SlugSettingsChannelsWidgetsRoute: typeof SlugSettingsChannelsWidgetsRouteWithChildren
 }
 
-const TSlugSettingsChannelsRouteChildren: TSlugSettingsChannelsRouteChildren = {
-  TSlugSettingsChannelsBusinessRoute: TSlugSettingsChannelsBusinessRoute,
-  TSlugSettingsChannelsTelegramsRoute:
-    TSlugSettingsChannelsTelegramsRouteWithChildren,
-  TSlugSettingsChannelsWidgetsRoute:
-    TSlugSettingsChannelsWidgetsRouteWithChildren,
+const SlugSettingsChannelsRouteChildren: SlugSettingsChannelsRouteChildren = {
+  SlugSettingsChannelsBusinessRoute: SlugSettingsChannelsBusinessRoute,
+  SlugSettingsChannelsTelegramsRoute:
+    SlugSettingsChannelsTelegramsRouteWithChildren,
+  SlugSettingsChannelsWidgetsRoute:
+    SlugSettingsChannelsWidgetsRouteWithChildren,
 }
 
-const TSlugSettingsChannelsRouteWithChildren =
-  TSlugSettingsChannelsRoute._addFileChildren(
-    TSlugSettingsChannelsRouteChildren,
-  )
+const SlugSettingsChannelsRouteWithChildren =
+  SlugSettingsChannelsRoute._addFileChildren(SlugSettingsChannelsRouteChildren)
 
-interface TSlugSettingsInboxTeamsRouteChildren {
-  TSlugSettingsInboxTeamsIdRoute: typeof TSlugSettingsInboxTeamsIdRoute
-  TSlugSettingsInboxTeamsIndexRoute: typeof TSlugSettingsInboxTeamsIndexRoute
+interface SlugSettingsInboxTeamsRouteChildren {
+  SlugSettingsInboxTeamsIdRoute: typeof SlugSettingsInboxTeamsIdRoute
+  SlugSettingsInboxTeamsIndexRoute: typeof SlugSettingsInboxTeamsIndexRoute
 }
 
-const TSlugSettingsInboxTeamsRouteChildren: TSlugSettingsInboxTeamsRouteChildren =
+const SlugSettingsInboxTeamsRouteChildren: SlugSettingsInboxTeamsRouteChildren =
   {
-    TSlugSettingsInboxTeamsIdRoute: TSlugSettingsInboxTeamsIdRoute,
-    TSlugSettingsInboxTeamsIndexRoute: TSlugSettingsInboxTeamsIndexRoute,
+    SlugSettingsInboxTeamsIdRoute: SlugSettingsInboxTeamsIdRoute,
+    SlugSettingsInboxTeamsIndexRoute: SlugSettingsInboxTeamsIndexRoute,
   }
 
-const TSlugSettingsInboxTeamsRouteWithChildren =
-  TSlugSettingsInboxTeamsRoute._addFileChildren(
-    TSlugSettingsInboxTeamsRouteChildren,
+const SlugSettingsInboxTeamsRouteWithChildren =
+  SlugSettingsInboxTeamsRoute._addFileChildren(
+    SlugSettingsInboxTeamsRouteChildren,
   )
 
-interface TSlugSettingsInboxRouteChildren {
-  TSlugSettingsInboxAssignmentRoute: typeof TSlugSettingsInboxAssignmentRoute
-  TSlugSettingsInboxBusinessHoursRoute: typeof TSlugSettingsInboxBusinessHoursRoute
-  TSlugSettingsInboxMacrosRoute: typeof TSlugSettingsInboxMacrosRoute
-  TSlugSettingsInboxRulesRoute: typeof TSlugSettingsInboxRulesRoute
-  TSlugSettingsInboxTeamsRoute: typeof TSlugSettingsInboxTeamsRouteWithChildren
+interface SlugSettingsInboxRouteChildren {
+  SlugSettingsInboxAssignmentRoute: typeof SlugSettingsInboxAssignmentRoute
+  SlugSettingsInboxBusinessHoursRoute: typeof SlugSettingsInboxBusinessHoursRoute
+  SlugSettingsInboxMacrosRoute: typeof SlugSettingsInboxMacrosRoute
+  SlugSettingsInboxRulesRoute: typeof SlugSettingsInboxRulesRoute
+  SlugSettingsInboxTeamsRoute: typeof SlugSettingsInboxTeamsRouteWithChildren
 }
 
-const TSlugSettingsInboxRouteChildren: TSlugSettingsInboxRouteChildren = {
-  TSlugSettingsInboxAssignmentRoute: TSlugSettingsInboxAssignmentRoute,
-  TSlugSettingsInboxBusinessHoursRoute: TSlugSettingsInboxBusinessHoursRoute,
-  TSlugSettingsInboxMacrosRoute: TSlugSettingsInboxMacrosRoute,
-  TSlugSettingsInboxRulesRoute: TSlugSettingsInboxRulesRoute,
-  TSlugSettingsInboxTeamsRoute: TSlugSettingsInboxTeamsRouteWithChildren,
+const SlugSettingsInboxRouteChildren: SlugSettingsInboxRouteChildren = {
+  SlugSettingsInboxAssignmentRoute: SlugSettingsInboxAssignmentRoute,
+  SlugSettingsInboxBusinessHoursRoute: SlugSettingsInboxBusinessHoursRoute,
+  SlugSettingsInboxMacrosRoute: SlugSettingsInboxMacrosRoute,
+  SlugSettingsInboxRulesRoute: SlugSettingsInboxRulesRoute,
+  SlugSettingsInboxTeamsRoute: SlugSettingsInboxTeamsRouteWithChildren,
 }
 
-const TSlugSettingsInboxRouteWithChildren =
-  TSlugSettingsInboxRoute._addFileChildren(TSlugSettingsInboxRouteChildren)
+const SlugSettingsInboxRouteWithChildren =
+  SlugSettingsInboxRoute._addFileChildren(SlugSettingsInboxRouteChildren)
 
-interface TSlugSettingsPersonalBusinessChannelsRouteChildren {
-  TSlugSettingsPersonalBusinessChannelsIndexRoute: typeof TSlugSettingsPersonalBusinessChannelsIndexRoute
-  TSlugSettingsPersonalBusinessChannelsLinksIdRoute: typeof TSlugSettingsPersonalBusinessChannelsLinksIdRoute
-  TSlugSettingsPersonalBusinessChannelsTelegramIdRoute: typeof TSlugSettingsPersonalBusinessChannelsTelegramIdRoute
+interface SlugSettingsPersonalBusinessChannelsRouteChildren {
+  SlugSettingsPersonalBusinessChannelsIndexRoute: typeof SlugSettingsPersonalBusinessChannelsIndexRoute
+  SlugSettingsPersonalBusinessChannelsLinksIdRoute: typeof SlugSettingsPersonalBusinessChannelsLinksIdRoute
+  SlugSettingsPersonalBusinessChannelsTelegramIdRoute: typeof SlugSettingsPersonalBusinessChannelsTelegramIdRoute
 }
 
-const TSlugSettingsPersonalBusinessChannelsRouteChildren: TSlugSettingsPersonalBusinessChannelsRouteChildren =
+const SlugSettingsPersonalBusinessChannelsRouteChildren: SlugSettingsPersonalBusinessChannelsRouteChildren =
   {
-    TSlugSettingsPersonalBusinessChannelsIndexRoute:
-      TSlugSettingsPersonalBusinessChannelsIndexRoute,
-    TSlugSettingsPersonalBusinessChannelsLinksIdRoute:
-      TSlugSettingsPersonalBusinessChannelsLinksIdRoute,
-    TSlugSettingsPersonalBusinessChannelsTelegramIdRoute:
-      TSlugSettingsPersonalBusinessChannelsTelegramIdRoute,
+    SlugSettingsPersonalBusinessChannelsIndexRoute:
+      SlugSettingsPersonalBusinessChannelsIndexRoute,
+    SlugSettingsPersonalBusinessChannelsLinksIdRoute:
+      SlugSettingsPersonalBusinessChannelsLinksIdRoute,
+    SlugSettingsPersonalBusinessChannelsTelegramIdRoute:
+      SlugSettingsPersonalBusinessChannelsTelegramIdRoute,
   }
 
-const TSlugSettingsPersonalBusinessChannelsRouteWithChildren =
-  TSlugSettingsPersonalBusinessChannelsRoute._addFileChildren(
-    TSlugSettingsPersonalBusinessChannelsRouteChildren,
+const SlugSettingsPersonalBusinessChannelsRouteWithChildren =
+  SlugSettingsPersonalBusinessChannelsRoute._addFileChildren(
+    SlugSettingsPersonalBusinessChannelsRouteChildren,
   )
 
-interface TSlugSettingsPersonalRouteChildren {
-  TSlugSettingsPersonalBusinessChannelsRoute: typeof TSlugSettingsPersonalBusinessChannelsRouteWithChildren
-  TSlugSettingsPersonalNotificationsRoute: typeof TSlugSettingsPersonalNotificationsRoute
-  TSlugSettingsPersonalPreferencesRoute: typeof TSlugSettingsPersonalPreferencesRoute
-  TSlugSettingsPersonalProfileRoute: typeof TSlugSettingsPersonalProfileRoute
+interface SlugSettingsPersonalRouteChildren {
+  SlugSettingsPersonalBusinessChannelsRoute: typeof SlugSettingsPersonalBusinessChannelsRouteWithChildren
+  SlugSettingsPersonalNotificationsRoute: typeof SlugSettingsPersonalNotificationsRoute
+  SlugSettingsPersonalPreferencesRoute: typeof SlugSettingsPersonalPreferencesRoute
+  SlugSettingsPersonalProfileRoute: typeof SlugSettingsPersonalProfileRoute
 }
 
-const TSlugSettingsPersonalRouteChildren: TSlugSettingsPersonalRouteChildren = {
-  TSlugSettingsPersonalBusinessChannelsRoute:
-    TSlugSettingsPersonalBusinessChannelsRouteWithChildren,
-  TSlugSettingsPersonalNotificationsRoute:
-    TSlugSettingsPersonalNotificationsRoute,
-  TSlugSettingsPersonalPreferencesRoute: TSlugSettingsPersonalPreferencesRoute,
-  TSlugSettingsPersonalProfileRoute: TSlugSettingsPersonalProfileRoute,
+const SlugSettingsPersonalRouteChildren: SlugSettingsPersonalRouteChildren = {
+  SlugSettingsPersonalBusinessChannelsRoute:
+    SlugSettingsPersonalBusinessChannelsRouteWithChildren,
+  SlugSettingsPersonalNotificationsRoute:
+    SlugSettingsPersonalNotificationsRoute,
+  SlugSettingsPersonalPreferencesRoute: SlugSettingsPersonalPreferencesRoute,
+  SlugSettingsPersonalProfileRoute: SlugSettingsPersonalProfileRoute,
 }
 
-const TSlugSettingsPersonalRouteWithChildren =
-  TSlugSettingsPersonalRoute._addFileChildren(
-    TSlugSettingsPersonalRouteChildren,
-  )
+const SlugSettingsPersonalRouteWithChildren =
+  SlugSettingsPersonalRoute._addFileChildren(SlugSettingsPersonalRouteChildren)
 
-interface TSlugSettingsTicketsTicketTypesRouteChildren {
-  TSlugSettingsTicketsTicketTypesIdRoute: typeof TSlugSettingsTicketsTicketTypesIdRoute
-  TSlugSettingsTicketsTicketTypesIndexRoute: typeof TSlugSettingsTicketsTicketTypesIndexRoute
+interface SlugSettingsTicketsTicketTypesRouteChildren {
+  SlugSettingsTicketsTicketTypesIdRoute: typeof SlugSettingsTicketsTicketTypesIdRoute
+  SlugSettingsTicketsTicketTypesIndexRoute: typeof SlugSettingsTicketsTicketTypesIndexRoute
 }
 
-const TSlugSettingsTicketsTicketTypesRouteChildren: TSlugSettingsTicketsTicketTypesRouteChildren =
+const SlugSettingsTicketsTicketTypesRouteChildren: SlugSettingsTicketsTicketTypesRouteChildren =
   {
-    TSlugSettingsTicketsTicketTypesIdRoute:
-      TSlugSettingsTicketsTicketTypesIdRoute,
-    TSlugSettingsTicketsTicketTypesIndexRoute:
-      TSlugSettingsTicketsTicketTypesIndexRoute,
+    SlugSettingsTicketsTicketTypesIdRoute:
+      SlugSettingsTicketsTicketTypesIdRoute,
+    SlugSettingsTicketsTicketTypesIndexRoute:
+      SlugSettingsTicketsTicketTypesIndexRoute,
   }
 
-const TSlugSettingsTicketsTicketTypesRouteWithChildren =
-  TSlugSettingsTicketsTicketTypesRoute._addFileChildren(
-    TSlugSettingsTicketsTicketTypesRouteChildren,
+const SlugSettingsTicketsTicketTypesRouteWithChildren =
+  SlugSettingsTicketsTicketTypesRoute._addFileChildren(
+    SlugSettingsTicketsTicketTypesRouteChildren,
   )
 
-interface TSlugSettingsTicketsRouteChildren {
-  TSlugSettingsTicketsTicketTypesRoute: typeof TSlugSettingsTicketsTicketTypesRouteWithChildren
+interface SlugSettingsTicketsRouteChildren {
+  SlugSettingsTicketsTicketTypesRoute: typeof SlugSettingsTicketsTicketTypesRouteWithChildren
 }
 
-const TSlugSettingsTicketsRouteChildren: TSlugSettingsTicketsRouteChildren = {
-  TSlugSettingsTicketsTicketTypesRoute:
-    TSlugSettingsTicketsTicketTypesRouteWithChildren,
+const SlugSettingsTicketsRouteChildren: SlugSettingsTicketsRouteChildren = {
+  SlugSettingsTicketsTicketTypesRoute:
+    SlugSettingsTicketsTicketTypesRouteWithChildren,
 }
 
-const TSlugSettingsTicketsRouteWithChildren =
-  TSlugSettingsTicketsRoute._addFileChildren(TSlugSettingsTicketsRouteChildren)
+const SlugSettingsTicketsRouteWithChildren =
+  SlugSettingsTicketsRoute._addFileChildren(SlugSettingsTicketsRouteChildren)
 
-interface TSlugSettingsTranslationRouteChildren {
-  TSlugSettingsTranslationGlossaryRoute: typeof TSlugSettingsTranslationGlossaryRoute
-  TSlugSettingsTranslationToneRoute: typeof TSlugSettingsTranslationToneRoute
+interface SlugSettingsTranslationRouteChildren {
+  SlugSettingsTranslationGlossaryRoute: typeof SlugSettingsTranslationGlossaryRoute
+  SlugSettingsTranslationToneRoute: typeof SlugSettingsTranslationToneRoute
 }
 
-const TSlugSettingsTranslationRouteChildren: TSlugSettingsTranslationRouteChildren =
+const SlugSettingsTranslationRouteChildren: SlugSettingsTranslationRouteChildren =
   {
-    TSlugSettingsTranslationGlossaryRoute:
-      TSlugSettingsTranslationGlossaryRoute,
-    TSlugSettingsTranslationToneRoute: TSlugSettingsTranslationToneRoute,
+    SlugSettingsTranslationGlossaryRoute: SlugSettingsTranslationGlossaryRoute,
+    SlugSettingsTranslationToneRoute: SlugSettingsTranslationToneRoute,
   }
 
-const TSlugSettingsTranslationRouteWithChildren =
-  TSlugSettingsTranslationRoute._addFileChildren(
-    TSlugSettingsTranslationRouteChildren,
+const SlugSettingsTranslationRouteWithChildren =
+  SlugSettingsTranslationRoute._addFileChildren(
+    SlugSettingsTranslationRouteChildren,
   )
 
-interface TSlugSettingsWorkspaceRouteChildren {
-  TSlugSettingsWorkspaceAttributesRoute: typeof TSlugSettingsWorkspaceAttributesRoute
-  TSlugSettingsWorkspaceGeneralRoute: typeof TSlugSettingsWorkspaceGeneralRoute
-  TSlugSettingsWorkspaceMembersRoute: typeof TSlugSettingsWorkspaceMembersRoute
-  TSlugSettingsWorkspaceRolesRoute: typeof TSlugSettingsWorkspaceRolesRoute
-  TSlugSettingsWorkspaceTagsRoute: typeof TSlugSettingsWorkspaceTagsRoute
+interface SlugSettingsWorkspaceRouteChildren {
+  SlugSettingsWorkspaceAttributesRoute: typeof SlugSettingsWorkspaceAttributesRoute
+  SlugSettingsWorkspaceGeneralRoute: typeof SlugSettingsWorkspaceGeneralRoute
+  SlugSettingsWorkspaceMembersRoute: typeof SlugSettingsWorkspaceMembersRoute
+  SlugSettingsWorkspaceRolesRoute: typeof SlugSettingsWorkspaceRolesRoute
+  SlugSettingsWorkspaceTagsRoute: typeof SlugSettingsWorkspaceTagsRoute
 }
 
-const TSlugSettingsWorkspaceRouteChildren: TSlugSettingsWorkspaceRouteChildren =
-  {
-    TSlugSettingsWorkspaceAttributesRoute:
-      TSlugSettingsWorkspaceAttributesRoute,
-    TSlugSettingsWorkspaceGeneralRoute: TSlugSettingsWorkspaceGeneralRoute,
-    TSlugSettingsWorkspaceMembersRoute: TSlugSettingsWorkspaceMembersRoute,
-    TSlugSettingsWorkspaceRolesRoute: TSlugSettingsWorkspaceRolesRoute,
-    TSlugSettingsWorkspaceTagsRoute: TSlugSettingsWorkspaceTagsRoute,
-  }
+const SlugSettingsWorkspaceRouteChildren: SlugSettingsWorkspaceRouteChildren = {
+  SlugSettingsWorkspaceAttributesRoute: SlugSettingsWorkspaceAttributesRoute,
+  SlugSettingsWorkspaceGeneralRoute: SlugSettingsWorkspaceGeneralRoute,
+  SlugSettingsWorkspaceMembersRoute: SlugSettingsWorkspaceMembersRoute,
+  SlugSettingsWorkspaceRolesRoute: SlugSettingsWorkspaceRolesRoute,
+  SlugSettingsWorkspaceTagsRoute: SlugSettingsWorkspaceTagsRoute,
+}
 
-const TSlugSettingsWorkspaceRouteWithChildren =
-  TSlugSettingsWorkspaceRoute._addFileChildren(
-    TSlugSettingsWorkspaceRouteChildren,
+const SlugSettingsWorkspaceRouteWithChildren =
+  SlugSettingsWorkspaceRoute._addFileChildren(
+    SlugSettingsWorkspaceRouteChildren,
   )
 
-interface TSlugSettingsRouteChildren {
-  TSlugSettingsChannelsRoute: typeof TSlugSettingsChannelsRouteWithChildren
-  TSlugSettingsInboxRoute: typeof TSlugSettingsInboxRouteWithChildren
-  TSlugSettingsPersonalRoute: typeof TSlugSettingsPersonalRouteWithChildren
-  TSlugSettingsTicketsRoute: typeof TSlugSettingsTicketsRouteWithChildren
-  TSlugSettingsTranslationRoute: typeof TSlugSettingsTranslationRouteWithChildren
-  TSlugSettingsWorkspaceRoute: typeof TSlugSettingsWorkspaceRouteWithChildren
-  TSlugSettingsIndexRoute: typeof TSlugSettingsIndexRoute
+interface SlugSettingsRouteChildren {
+  SlugSettingsChannelsRoute: typeof SlugSettingsChannelsRouteWithChildren
+  SlugSettingsInboxRoute: typeof SlugSettingsInboxRouteWithChildren
+  SlugSettingsPersonalRoute: typeof SlugSettingsPersonalRouteWithChildren
+  SlugSettingsTicketsRoute: typeof SlugSettingsTicketsRouteWithChildren
+  SlugSettingsTranslationRoute: typeof SlugSettingsTranslationRouteWithChildren
+  SlugSettingsWorkspaceRoute: typeof SlugSettingsWorkspaceRouteWithChildren
+  SlugSettingsIndexRoute: typeof SlugSettingsIndexRoute
 }
 
-const TSlugSettingsRouteChildren: TSlugSettingsRouteChildren = {
-  TSlugSettingsChannelsRoute: TSlugSettingsChannelsRouteWithChildren,
-  TSlugSettingsInboxRoute: TSlugSettingsInboxRouteWithChildren,
-  TSlugSettingsPersonalRoute: TSlugSettingsPersonalRouteWithChildren,
-  TSlugSettingsTicketsRoute: TSlugSettingsTicketsRouteWithChildren,
-  TSlugSettingsTranslationRoute: TSlugSettingsTranslationRouteWithChildren,
-  TSlugSettingsWorkspaceRoute: TSlugSettingsWorkspaceRouteWithChildren,
-  TSlugSettingsIndexRoute: TSlugSettingsIndexRoute,
+const SlugSettingsRouteChildren: SlugSettingsRouteChildren = {
+  SlugSettingsChannelsRoute: SlugSettingsChannelsRouteWithChildren,
+  SlugSettingsInboxRoute: SlugSettingsInboxRouteWithChildren,
+  SlugSettingsPersonalRoute: SlugSettingsPersonalRouteWithChildren,
+  SlugSettingsTicketsRoute: SlugSettingsTicketsRouteWithChildren,
+  SlugSettingsTranslationRoute: SlugSettingsTranslationRouteWithChildren,
+  SlugSettingsWorkspaceRoute: SlugSettingsWorkspaceRouteWithChildren,
+  SlugSettingsIndexRoute: SlugSettingsIndexRoute,
 }
 
-const TSlugSettingsRouteWithChildren = TSlugSettingsRoute._addFileChildren(
-  TSlugSettingsRouteChildren,
+const SlugSettingsRouteWithChildren = SlugSettingsRoute._addFileChildren(
+  SlugSettingsRouteChildren,
 )
 
-interface TSlugTicketsRouteChildren {
-  TSlugTicketsIdRoute: typeof TSlugTicketsIdRoute
-  TSlugTicketsIndexRoute: typeof TSlugTicketsIndexRoute
+interface SlugTicketsRouteChildren {
+  SlugTicketsIdRoute: typeof SlugTicketsIdRoute
+  SlugTicketsIndexRoute: typeof SlugTicketsIndexRoute
 }
 
-const TSlugTicketsRouteChildren: TSlugTicketsRouteChildren = {
-  TSlugTicketsIdRoute: TSlugTicketsIdRoute,
-  TSlugTicketsIndexRoute: TSlugTicketsIndexRoute,
+const SlugTicketsRouteChildren: SlugTicketsRouteChildren = {
+  SlugTicketsIdRoute: SlugTicketsIdRoute,
+  SlugTicketsIndexRoute: SlugTicketsIndexRoute,
 }
 
-const TSlugTicketsRouteWithChildren = TSlugTicketsRoute._addFileChildren(
-  TSlugTicketsRouteChildren,
+const SlugTicketsRouteWithChildren = SlugTicketsRoute._addFileChildren(
+  SlugTicketsRouteChildren,
 )
 
-interface TSlugRouteChildren {
-  TSlugChatRoute: typeof TSlugChatRouteWithChildren
-  TSlugContactsRoute: typeof TSlugContactsRouteWithChildren
-  TSlugInboxRoute: typeof TSlugInboxRouteWithChildren
-  TSlugReportsRoute: typeof TSlugReportsRouteWithChildren
-  TSlugSettingsRoute: typeof TSlugSettingsRouteWithChildren
-  TSlugTicketsRoute: typeof TSlugTicketsRouteWithChildren
-  TSlugIndexRoute: typeof TSlugIndexRoute
+interface SlugRouteChildren {
+  SlugChatRoute: typeof SlugChatRouteWithChildren
+  SlugContactsRoute: typeof SlugContactsRouteWithChildren
+  SlugInboxRoute: typeof SlugInboxRouteWithChildren
+  SlugReportsRoute: typeof SlugReportsRouteWithChildren
+  SlugSettingsRoute: typeof SlugSettingsRouteWithChildren
+  SlugTicketsRoute: typeof SlugTicketsRouteWithChildren
+  SlugIndexRoute: typeof SlugIndexRoute
 }
 
-const TSlugRouteChildren: TSlugRouteChildren = {
-  TSlugChatRoute: TSlugChatRouteWithChildren,
-  TSlugContactsRoute: TSlugContactsRouteWithChildren,
-  TSlugInboxRoute: TSlugInboxRouteWithChildren,
-  TSlugReportsRoute: TSlugReportsRouteWithChildren,
-  TSlugSettingsRoute: TSlugSettingsRouteWithChildren,
-  TSlugTicketsRoute: TSlugTicketsRouteWithChildren,
-  TSlugIndexRoute: TSlugIndexRoute,
+const SlugRouteChildren: SlugRouteChildren = {
+  SlugChatRoute: SlugChatRouteWithChildren,
+  SlugContactsRoute: SlugContactsRouteWithChildren,
+  SlugInboxRoute: SlugInboxRouteWithChildren,
+  SlugReportsRoute: SlugReportsRouteWithChildren,
+  SlugSettingsRoute: SlugSettingsRouteWithChildren,
+  SlugTicketsRoute: SlugTicketsRouteWithChildren,
+  SlugIndexRoute: SlugIndexRoute,
 }
 
-const TSlugRouteWithChildren = TSlugRoute._addFileChildren(TSlugRouteChildren)
+const SlugRouteWithChildren = SlugRoute._addFileChildren(SlugRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SlugRoute: SlugRouteWithChildren,
   LoginRoute: LoginRoute,
-  TSlugRoute: TSlugRouteWithChildren,
+  WorkspacesRoute: WorkspacesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -330,7 +330,7 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
     <>
       <Page
         title={account ? account.name : t("tg_studio.title")}
-        back={() => void navigate({ to: "/t/$slug/settings/business-channels", params: { slug }, search: { tab: "telegram" } })}
+        back={() => void navigate({ to: "/$slug/settings/business-channels", params: { slug }, search: { tab: "telegram" } })}
         actions={
           account ? (
             <Group
