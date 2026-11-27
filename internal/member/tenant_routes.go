@@ -54,8 +54,11 @@ func RegisterTenantRoutes(api *rest.API, require func(...auth.Permission) func(*
 	rest.Register(api, route(manage, "member-reset-password", http.MethodPost, "/members/{id}/reset-password", "重置成员密码"), NewResetMemberPassword(db, roles, logins, o.Tokens).HTTP)
 	rest.Register(api, remove, NewRemove(db, roles, hooks).HTTP)
 	rest.Register(api, away, NewSetAway(db, roles).HTTP)
+	heartbeat := route(require(), "member-heartbeat", http.MethodPost, "/me/heartbeat", "刷新我在这个工作区的在线心跳")
+	heartbeat.DefaultStatus = http.StatusNoContent
 	rest.Register(api, route(require(), "member-my-status", http.MethodGet, "/me/status", "我在这个工作区的在线状态"), NewGetMyStatus(db).HTTP)
 	rest.Register(api, route(require(), "member-my-status-update", http.MethodPut, "/me/status", "修改我在这个工作区的在线状态"), NewSetMyStatus(db).HTTP)
+	rest.Register(api, heartbeat, NewHeartbeat(db).HTTP)
 
 	api.Resource(rest.Resource{
 		Name:       "member",

@@ -233,6 +233,7 @@ type Conversation struct {
 	RatingComment     string           `bun:"rating_comment,notnull"` // 评价时附的一句意见
 	RatedAt           *time.Time       `bun:"rated_at"`               // 最近一次评价的时间
 	RatingRequestedAt *time.Time       `bun:"rating_requested_at"`    // 最近一次关闭后向客户发出评价邀请的时间
+	SpamAt            *time.Time       `bun:"spam_at"`                // 标记为垃圾会话的时间；非空时从常规收件箱与报表统计中排除
 	MentionedAt       *time.Time       `bun:"mentioned_at,scanonly"`  // 只在“@我”的列表中读出：最近一次被 @ 的时间
 }
 
@@ -451,6 +452,8 @@ type Downstream struct {
 	ContactPush func(ctx context.Context, channelID, contactID string, ev push.Event) error
 	// NotifyOfflineReply 在对外回复成功投递后同事务调用，用于在访客离线时按冷却策略发送邮件提醒。
 	NotifyOfflineReply func(ctx context.Context, tx database.Tx, tenantID, conversationID, itemID string) error
+	// RevokeContactTokens 在同事务中吊销联系人的全部网页聊天插件访问令牌。
+	RevokeContactTokens func(ctx context.Context, tx database.Tx, tenantID, contactID string) error
 	// Registry 可选：供内核读取连接器能力（如哪些渠道使用浏览器实时频道），未设置时默认回退到内置实时渠道集。
 	Registry channel.Registry
 }

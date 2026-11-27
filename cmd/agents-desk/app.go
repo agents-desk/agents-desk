@@ -28,6 +28,7 @@ import (
 	"github.com/go-tenon/tenon/filesystem/local"
 	"github.com/go-tenon/tenon/filesystem/s3"
 	"github.com/go-tenon/tenon/hashing"
+	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/imgproxy"
 	"github.com/go-tenon/tenon/lock"
 	"github.com/go-tenon/tenon/lock/pglock"
@@ -65,6 +66,7 @@ import (
 	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
 	"agents-desk/internal/platformsettings"
+	"agents-desk/internal/push"
 	"agents-desk/internal/telegram"
 	"agents-desk/internal/tenant"
 	"agents-desk/internal/tgaccount"
@@ -143,6 +145,13 @@ func (a *App) downstream() conversation.Downstream {
 	}
 	if a.db != nil && a.mailer != nil && a.emailTemplates != nil {
 		down.NotifyOfflineReply = a.notifyOfflineReply
+	}
+	if a.contactTokens != nil {
+		tokens := a.contactTokens
+		down.RevokeContactTokens = func(ctx context.Context, tx database.Tx, _ string, contactID string) error {
+			_, err := tokens.WithDB(tx).RevokeSubject(ctx, identity.Ref{Type: contact.Type, ID: contactID})
+			return errors.Wrap(err, "revoke contact tokens")
+		}
 	}
 	return down
 }
@@ -535,6 +544,18 @@ func (a *App) tasks() *schedule.Scheduler {
 	}, 500),
 		schedule.Label("schedule.task.media_recover_fetching.label"),
 		schedule.Describe("schedule.task.media_recover_fetching.description"))
+	sched.Add("members:auto-away", "* * * * *", schedule.Cleanup(func(ctx context.Context, limit int) (int, error) {
+		var notify func(context.Context, string, string) error
+		if a.hub != nil {
+			hub := a.hub
+			notify = func(ctx context.Context, tenantID, memberID string) error {
+				return push.Send(ctx, hub, tenantID, []string{memberID}, push.Event{Type: push.MemberStatus})
+			}
+		}
+		return member.ExpireIdleOnline(ctx, a.db, 5*time.Minute, limit, notify)
+	}, 500),
+		schedule.Label("schedule.task.members_auto_away.label"),
+		schedule.Describe("schedule.task.members_auto_away.description"))
 	return sched
 }
 

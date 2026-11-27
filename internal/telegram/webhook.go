@@ -335,6 +335,13 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		params.ChatTitle = msg.Chat.Title
 	}
 	_, err = h.receive.Handle(ctx, sys, params)
+	if errors.Is(err, contact.ErrBlocked) {
+		slog.InfoContext(ctx, "drop inbound telegram message from blocked contact", "channel_id", id, "from", fromID)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+		return
+	}
 	if err != nil {
 		slog.ErrorContext(ctx, "receive telegram message failed", "channel_id", id, "message_id", msg.MessageID, "error", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)

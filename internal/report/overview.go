@@ -170,7 +170,7 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.status = ?) AS tk_prog", conversation.Ticket, conversation.Status(conversation.TicketInProgress)).
 		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.status = ?) AS tk_wait", conversation.Ticket, conversation.Status(conversation.TicketWaiting)).
 		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.status <> ? AND c.assignee_id = '') AS tk_unassigned", conversation.Ticket, conversation.Status(conversation.TicketResolved)).
-		Where("c.tenant_id = ?", sub.Tenant).
+		Where("c.tenant_id = ? AND c.spam_at IS NULL", sub.Tenant).
 		Where("((c.kind = ? AND c.status IN (?)) OR (c.kind = ? AND c.status IN (?)))",
 			conversation.Service, bun.In([]conversation.Status{conversation.Open, conversation.Snoozed}),
 			conversation.Ticket, bun.In([]conversation.Status{
@@ -202,7 +202,7 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 			ORDER BY it.seq DESC
 			LIMIT 1
 		) last_msg ON true
-		WHERE c.tenant_id = ? AND c.kind = ? AND ch.scope = ?`,
+		WHERE c.tenant_id = ? AND c.kind = ? AND ch.scope = ? AND c.spam_at IS NULL`,
 		since24h, conversation.ContactActor, conversation.ExternalUserActor, conversation.Message, sub.Tenant, conversation.Chat, conversation.ChatExternal,
 	).Scan(ctx, &live.BusinessActive24h, &live.BusinessWaiting); err != nil {
 		return nil, errors.Wrap(err, "report overview live business")
@@ -247,7 +247,7 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 		ColumnExpr("count(*) FILTER (WHERE c.audience = ? AND c.created_at >= ? AND c.created_at < ?) AS int_created", channel.AudienceInternal, w.Start, w.End).
 		ColumnExpr("count(*) FILTER (WHERE c.audience = ? AND c.created_at >= ? AND c.created_at < ?) AS int_prev_created", channel.AudienceInternal, w.PrevStart, w.PrevEnd).
 		ColumnExpr("count(*) FILTER (WHERE c.audience = ? AND c.external_group_id IS NOT NULL AND c.created_at >= ? AND c.created_at < ?) AS int_group_created", channel.AudienceInternal, w.Start, w.End).
-		Where("c.tenant_id = ? AND c.kind = ? AND c.created_at >= ? AND c.created_at < ?", sub.Tenant, conversation.Service, w.PrevStart, w.End).
+		Where("c.tenant_id = ? AND c.kind = ? AND c.spam_at IS NULL AND c.created_at >= ? AND c.created_at < ?", sub.Tenant, conversation.Service, w.PrevStart, w.End).
 		Scan(ctx,
 			&svc.Created, &svc.PrevCreated,
 			&partnerSvc.Created, &partnerSvc.PrevCreated, &partnerSvc.GroupCreated,
@@ -275,7 +275,7 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 		ColumnExpr("count(*) FILTER (WHERE c.audience = ? AND r.closed_at >= ? AND r.closed_at < ?) AS int_prev_closed", channel.AudienceInternal, w.PrevStart, w.PrevEnd).
 		ColumnExpr("percentile_cont(0.5) WITHIN GROUP (ORDER BY "+frtExpr+") FILTER (WHERE c.audience = ? AND r.first_reply_at >= ? AND r.first_reply_at < ?) AS int_frt_med", channel.AudienceInternal, w.Start, w.End).
 		ColumnExpr("percentile_cont(0.5) WITHIN GROUP (ORDER BY "+frtExpr+") FILTER (WHERE c.audience = ? AND r.first_reply_at >= ? AND r.first_reply_at < ?) AS int_prev_frt_med", channel.AudienceInternal, w.PrevStart, w.PrevEnd).
-		Where("r.tenant_id = ? AND c.kind = ?", sub.Tenant, conversation.Service).
+		Where("r.tenant_id = ? AND c.kind = ? AND c.spam_at IS NULL", sub.Tenant, conversation.Service).
 		Where("(r.closed_at >= ? AND r.closed_at < ?) OR (r.first_reply_at >= ? AND r.first_reply_at < ?) OR (r.rated_at >= ? AND r.rated_at < ?)",
 			w.PrevStart, w.End, w.PrevStart, w.End, w.PrevStart, w.End).
 		Scan(ctx,
@@ -305,7 +305,7 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 		ColumnExpr("count(*) FILTER (WHERE t.resolved_at >= ? AND t.resolved_at < ?) AS prev_resolved", w.PrevStart, w.PrevEnd).
 		ColumnExpr("percentile_cont(0.5) WITHIN GROUP (ORDER BY "+tkResExpr+") FILTER (WHERE t.resolved_at >= ? AND t.resolved_at < ?) AS res_med", w.Start, w.End).
 		ColumnExpr("percentile_cont(0.5) WITHIN GROUP (ORDER BY "+tkResExpr+") FILTER (WHERE t.resolved_at >= ? AND t.resolved_at < ?) AS prev_res_med", w.PrevStart, w.PrevEnd).
-		Where("c.tenant_id = ? AND c.kind = ?", sub.Tenant, conversation.Ticket).
+		Where("c.tenant_id = ? AND c.kind = ? AND c.spam_at IS NULL", sub.Tenant, conversation.Ticket).
 		Where("(c.created_at >= ? AND c.created_at < ?) OR (t.resolved_at >= ? AND t.resolved_at < ?)", w.PrevStart, w.End, w.PrevStart, w.End).
 		Scan(ctx, &tk.Created, &tk.PrevCreated, &tk.Resolved, &tk.PrevResolved, &tk.ResolutionMedianSec, &tk.PrevResolutionSec); err != nil {
 		return nil, errors.Wrap(err, "report overview tickets")
@@ -319,7 +319,7 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 		Join("JOIN chats ch ON ch.conversation_id = c.id").
 		ColumnExpr("count(*) FILTER (WHERE c.created_at >= ? AND c.created_at < ?) AS new_chats", w.Start, w.End).
 		ColumnExpr("count(*) FILTER (WHERE c.created_at >= ? AND c.created_at < ?) AS prev_new_chats", w.PrevStart, w.PrevEnd).
-		Where("c.tenant_id = ? AND c.kind = ? AND ch.scope = ? AND c.created_at >= ? AND c.created_at < ?",
+		Where("c.tenant_id = ? AND c.kind = ? AND ch.scope = ? AND c.spam_at IS NULL AND c.created_at >= ? AND c.created_at < ?",
 			sub.Tenant, conversation.Chat, conversation.ChatExternal, w.PrevStart, w.End).
 		Scan(ctx, &biz.NewChats, &biz.PrevNewChats); err != nil {
 		return nil, errors.Wrap(err, "report overview business chats")
@@ -331,7 +331,7 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 		ColumnExpr("count(DISTINCT it.conversation_id) FILTER (WHERE it.created_at >= ? AND it.created_at < ?) AS prev_active_chats", w.PrevStart, w.PrevEnd).
 		ColumnExpr("count(*) FILTER (WHERE it.created_at >= ? AND it.created_at < ?) AS msgs", w.Start, w.End).
 		ColumnExpr("count(*) FILTER (WHERE it.created_at >= ? AND it.created_at < ?) AS prev_msgs", w.PrevStart, w.PrevEnd).
-		Where("it.tenant_id = ? AND c.kind = ? AND ch.scope = ? AND it.kind = ? AND it.created_at >= ? AND it.created_at < ?",
+		Where("it.tenant_id = ? AND c.kind = ? AND ch.scope = ? AND c.spam_at IS NULL AND it.kind = ? AND it.created_at >= ? AND it.created_at < ?",
 			sub.Tenant, conversation.Chat, conversation.ChatExternal, conversation.Message, w.PrevStart, w.End).
 		Scan(ctx, &biz.ActiveChats, &biz.PrevActiveChats, &biz.MessagesTotal, &biz.PrevMessages); err != nil {
 		return nil, errors.Wrap(err, "report overview business messages")
@@ -379,7 +379,7 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.audience = ?) AS partner", conversation.Service, channel.AudiencePartner).
 		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.audience = ?) AS internal", conversation.Service, channel.AudienceInternal).
 		ColumnExpr("count(*) FILTER (WHERE c.kind = ?) AS tk", conversation.Ticket).
-		Where("c.tenant_id = ? AND c.kind IN (?, ?) AND c.created_at >= ? AND c.created_at < ?",
+		Where("c.tenant_id = ? AND c.kind IN (?, ?) AND c.spam_at IS NULL AND c.created_at >= ? AND c.created_at < ?",
 			sub.Tenant, conversation.Service, conversation.Ticket, w.Start, w.End).
 		GroupExpr("1").
 		Scan(ctx, &convRows); err != nil {
@@ -403,7 +403,7 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 		Join("JOIN chats ch ON ch.conversation_id = c.id").
 		ColumnExpr(bucketExpr("it.created_at", w.Granularity)+" AS bucket", w.TimeZone).
 		ColumnExpr("count(*) AS cnt").
-		Where("it.tenant_id = ? AND c.kind = ? AND ch.scope = ? AND it.kind = ? AND it.created_at >= ? AND it.created_at < ?",
+		Where("it.tenant_id = ? AND c.kind = ? AND ch.scope = ? AND c.spam_at IS NULL AND it.kind = ? AND it.created_at >= ? AND it.created_at < ?",
 			sub.Tenant, conversation.Chat, conversation.ChatExternal, conversation.Message, w.Start, w.End).
 		GroupExpr("1").
 		Scan(ctx, &bizRows); err != nil {

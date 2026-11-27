@@ -22,6 +22,7 @@ import (
 	"github.com/go-tenon/tenon/settings"
 
 	"agents-desk/internal/channel"
+	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/member"
 )
@@ -1484,6 +1485,10 @@ func (m *Manager) ingestMessage(ctx context.Context, ch *channel.Channel, syncCf
 		Text:                msg.Text,
 		IncomingAttachments: incomingAtts,
 	})
+	if errors.Is(err, contact.ErrBlocked) {
+		slog.InfoContext(ctx, "drop inbound tgaccount message from blocked contact", "channel_id", ch.ID, "from", from)
+		return false, nil
+	}
 	if err != nil {
 		return false, err
 	}

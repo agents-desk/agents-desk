@@ -1,10 +1,10 @@
 import type { ChannelExternalMention, ConversationItemDTO } from "@agents-desk/client/tenant"
-import { ActionIcon, Alert, Avatar, Badge, Box, Button, Divider, Group, Text, Tooltip } from "@mantine/core"
+import { ActionIcon, Alert, Avatar, Badge, Box, Button, Checkbox, Divider, Group, Modal, Stack, Text, TextInput, Tooltip } from "@mantine/core"
 import { useElementSize } from "@mantine/hooks"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate, useParams } from "@tanstack/react-router"
-import { IconArrowRight, IconCheck, IconInfoCircle, IconLayoutSidebarRight, IconRefresh, IconTicket } from "@tabler/icons-react"
-import { AsidePane, notifyError, PaneHeader, useAsidePaneState, useCan, useNarrow, useT } from "@go-tenon/ui"
+import { IconAlertOctagon, IconArrowRight, IconCheck, IconInfoCircle, IconLayoutSidebarRight, IconRefresh, IconTicket } from "@tabler/icons-react"
+import { AsidePane, notifyError, notifySuccess, PaneHeader, useAsidePaneState, useCan, useNarrow, useT } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { isTypingTarget, NARROW_QUERY } from "../layout"
@@ -53,6 +53,9 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
   const { viewers, typing, notifyTyping, clearTyping } = useConversationChannel(tenantId, id, me.data?.id)
   const details = useAsidePaneState("inbox-details", { compactQuery: NARROW_QUERY })
   const [createTicketOpen, setCreateTicketOpen] = useState(false)
+  const [spamModalOpen, setSpamModalOpen] = useState(false)
+  const [spamBlockContact, setSpamBlockContact] = useState(false)
+  const [spamReason, setSpamReason] = useState("")
   const [replyToItem, setReplyToItem] = useState<ConversationItemDTO | null>(null)
   const [correctingItem, setCorrectingItem] = useState<ConversationItemDTO | null>(null)
   const [extMentions, setExtMentions] = useState<ChannelExternalMention[]>([])
@@ -120,6 +123,28 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
       notifyError(err)
       void invalidate()
     },
+  })
+  const markSpam = useMutation({
+    mutationFn: () =>
+      tenantApi.conversation.markSpam(id, {
+        block_contact: spamBlockContact,
+        reason: spamBlockContact ? spamReason.trim() || undefined : undefined,
+      }),
+    onSuccess: () => {
+      setSpamModalOpen(false)
+      void invalidate()
+      void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
+      notifySuccess(t("inbox.marked_spam"))
+    },
+    onError: (err) => notifyError(err),
+  })
+  const unmarkSpam = useMutation({
+    mutationFn: () => tenantApi.conversation.unmarkSpam(id),
+    onSuccess: () => {
+      void invalidate()
+      notifySuccess(t("inbox.unmarked_spam"))
+    },
+    onError: (err) => notifyError(err),
   })
   const contactHistory = useContactHistory(c?.status === "closed" ? c.contact?.id : undefined)
   const groupHistory = useGroupHistory(c?.status === "closed" ? c.external_group?.id : undefined)
@@ -238,13 +263,23 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
                     {t(`inbox.status_${c.status}` as const)}
                   </Badge>
                 )}
+                {c.spam_at && (
+                  <Badge size="xs" variant="light" color="red" style={{ flex: "none" }}>
+                    {t("inbox.spam_badge")}
+                  </Badge>
+                )}
+                {c.contact?.blocked_at && (
+                  <Badge size="xs" variant="light" color="red" style={{ flex: "none" }}>
+                    {t("contacts.blocked_badge")}
+                  </Badge>
+                )}
               </Group>
               <Text size="xs" c="dimmed" truncate lh={1.3}>
                 {meta}
               </Text>
             </Box>
           </Group>
-          {viewers.length > 0 && !compactActions && (
+          {viewers.length > 0 && (
             <Tooltip label={t("inbox.viewing", { who: viewers.map((v) => v.name).join(", ") })}>
               <Avatar.Group spacing="xs" style={{ flex: "none" }}>
                 {viewers.slice(0, 3).map((v) => (
@@ -321,6 +356,23 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
                 {t("inbox.close")}
               </Button>
             )}
+            {can("conversations:reply") && !c.spam_at && (
+              <Tooltip label={t("inbox.mark_spam")}>
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  size="input-sm"
+                  onClick={() => {
+                    setSpamBlockContact(false)
+                    setSpamReason("")
+                    setSpamModalOpen(true)
+                  }}
+                  aria-label={t("inbox.mark_spam")}
+                >
+                  <IconAlertOctagon size={16} />
+                </ActionIcon>
+              </Tooltip>
+            )}
             <Divider orientation="vertical" h={16} mx={2} style={{ alignSelf: "center" }} />
             <Tooltip label={t("inbox.details")}>
               <ActionIcon
@@ -335,6 +387,27 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
             </Tooltip>
           </Group>
         </PaneHeader>
+        {c.spam_at && (
+          <Alert variant="light" color="deep-orange" radius={0} py={8} px="md" icon={<IconAlertOctagon size={16} />}>
+            <Group justify="space-between" gap="sm" wrap="wrap">
+              <Text size="xs">{t("inbox.spam_banner")}</Text>
+              {can("conversations:reply") && (
+                <Button size="compact-xs" variant="light" color="deep-orange" loading={unmarkSpam.isPending} onClick={() => unmarkSpam.mutate()}>
+                  {t("inbox.unmark_spam")}
+                </Button>
+              )}
+            </Group>
+          </Alert>
+        )}
+        {c.contact?.blocked_at && (
+          <Alert variant="light" color="red" radius={0} py={8} px="md" icon={<IconInfoCircle size={16} />}>
+            <Text size="xs">
+              {c.contact.blocked_reason
+                ? t("contacts.blocked_banner_reason", { reason: c.contact.blocked_reason })
+                : t("contacts.blocked_banner")}
+            </Text>
+          </Alert>
+        )}
         {activeSibling && (
           <Alert variant="light" color="bright-blue" radius={0} py={8} px="md" icon={<IconInfoCircle size={16} />}>
             <Text size="xs">{t("inbox.active_conversation_banner")}</Text>
@@ -360,10 +433,44 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
           extMentions={extMentions}
           onChangeExtMentions={setExtMentions}
           onTyping={notifyTyping}
+          colleaguesTyping={typing.filter((x) => !x.contact)}
           onReplied={me.data?.open_next_after_reply && next ? next : undefined}
           handleRef={composerRef}
         />
       </Box>
+      <Modal opened={spamModalOpen} onClose={() => setSpamModalOpen(false)} title={t("inbox.mark_spam_confirm")} centered>
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            {t("inbox.mark_spam_desc")}
+          </Text>
+          {c.contact && can("contacts:update") && !c.contact.blocked_at && (
+            <Stack gap="xs">
+              <Checkbox
+                label={t("inbox.mark_spam_also_block")}
+                checked={spamBlockContact}
+                onChange={(e) => setSpamBlockContact(e.currentTarget.checked)}
+              />
+              {spamBlockContact && (
+                <TextInput
+                  label={t("contacts.block_reason_label")}
+                  placeholder={t("contacts.block_reason_placeholder")}
+                  maxLength={500}
+                  value={spamReason}
+                  onChange={(e) => setSpamReason(e.currentTarget.value)}
+                />
+              )}
+            </Stack>
+          )}
+          <Group justify="flex-end" gap="xs">
+            <Button variant="default" onClick={() => setSpamModalOpen(false)}>
+              {t("inbox.cancel")}
+            </Button>
+            <Button color="red" loading={markSpam.isPending} onClick={() => markSpam.mutate()}>
+              {t("inbox.mark_spam")}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
       <AsidePane
         opened={details.opened}
         onClose={details.close}

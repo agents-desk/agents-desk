@@ -369,8 +369,8 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                 />
               ) : (
                 <Group gap={4} wrap="nowrap">
-                  {/* 状态：普通收件箱切换地址中的状态；视图和高级筛选中改筛选条件里的状态（多了“全部”）。@我 不按状态筛选。 */}
-                  {(filterMode || search.box !== "mentions") && (
+                  {/* 状态：普通收件箱切换地址中的状态；视图和高级筛选中改筛选条件里的状态（多了“全部”）。@我 与垃圾箱不按状态筛选。 */}
+                  {(filterMode || (search.box !== "mentions" && search.box !== "spam")) && (
                     <SegmentedControl
                       style={{ flex: 1, minWidth: 0 }}
                       value={filterMode ? (activeFilter.statuses?.length === 1 ? activeFilter.statuses[0] : activeFilter.statuses?.length ? "" : "all") : search.status}
@@ -390,7 +390,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
 
                   <Popover opened={filterOpen} onChange={setFilterOpen} position="bottom-end" width={312} shadow="md" withinPortal>
                     <Popover.Target>
-                      {!filterMode && search.box === "mentions" ? (
+                      {!filterMode && (search.box === "mentions" || search.box === "spam") ? (
                         <Button
                           variant="subtle"
                           color="gray"
@@ -431,7 +431,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                     </Popover.Dropdown>
                   </Popover>
 
-                  {(search.view || search.box !== "mentions") && (
+                  {(search.view || (search.box !== "mentions" && search.box !== "spam")) && (
                     <Menu position="bottom-end" withinPortal>
                       <Menu.Target>
                         <Tooltip label={`${t("inbox.sort")} · ${sortLabel}`} openDelay={300}>

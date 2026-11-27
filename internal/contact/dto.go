@@ -37,6 +37,8 @@ type ContactDTO struct {
 	Attributes        map[string]any `json:"attributes" doc:"自定义属性"`
 	ConversationCount int            `json:"conversation_count" doc:"当前成员可见的该联系人会话数"`
 	LastSeenAt        *time.Time     `json:"last_seen_at,omitempty" doc:"最近活跃或联系的时间"`
+	BlockedAt         *time.Time     `json:"blocked_at,omitempty" doc:"拉黑时间；非空表示已拉黑"`
+	BlockedReason     string         `json:"blocked_reason,omitempty" doc:"拉黑原因说明"`
 	CreatedAt         time.Time      `json:"created_at"`
 	UpdatedAt         time.Time      `json:"updated_at"`
 }
@@ -76,7 +78,7 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, rows []Contac
 	err := visibleConversations(
 		db.NewSelect().TableExpr("conversations AS conv").
 			Column("conv.contact_id").ColumnExpr("count(*) AS count").
-			Where("conv.tenant_id = ? AND conv.kind = 'service' AND conv.contact_id IN (?)", sub.Tenant, bun.In(ids)),
+			Where("conv.tenant_id = ? AND conv.kind = 'service' AND conv.spam_at IS NULL AND conv.contact_id IN (?)", sub.Tenant, bun.In(ids)),
 		sub,
 	).Group("conv.contact_id").Scan(ctx, &counts)
 	if err != nil {
@@ -103,7 +105,8 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, rows []Contac
 			Location: c.Location, TimeZone: c.TimeZone, Referrer: c.Referrer, Notes: c.Notes,
 			NotesLanguage: notesLang, NotesTranslated: notesTr, NotesUntranslated: notesUntranslated,
 			Attributes: attrs, ConversationCount: byID[c.ID],
-			LastSeenAt: c.LastSeenAt, CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
+			LastSeenAt: c.LastSeenAt, BlockedAt: c.BlockedAt, BlockedReason: c.BlockedReason,
+			CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
 		}
 	}
 	return out, nil

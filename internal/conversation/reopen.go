@@ -52,7 +52,7 @@ func reopen(sub identity.Subject) changeFunc {
 				return nil, err
 			}
 		}
-		c.Status, c.SnoozedUntil = Open, nil
+		c.Status, c.SnoozedUntil, c.SpamAt = Open, nil, nil
 		return []*Item{event(sub, name, map[string]any{"from": string(from)})}, nil
 	}
 }

@@ -81,6 +81,7 @@ import {
   uploadMediaFile,
 } from "./Attachments"
 import { ChannelIcon } from "./channel-badge"
+import type { TypingNow } from "./channel"
 import {
   ComposerSendArea,
   InlineTranslationPane,
@@ -118,6 +119,7 @@ export function Composer({
   extMentions,
   onChangeExtMentions,
   onTyping,
+  colleaguesTyping,
   onReplied,
   handleRef,
 }: {
@@ -128,7 +130,8 @@ export function Composer({
   onClearCorrecting?: () => void
   extMentions?: ChannelExternalMention[]
   onChangeExtMentions?: (next: ChannelExternalMention[]) => void
-  onTyping: () => void
+  onTyping: (mode: Mode) => void
+  colleaguesTyping?: TypingNow[]
   onReplied?: () => void
   handleRef?: RefObject<ComposerHandle | null>
 }): ReactNode {
@@ -436,9 +439,9 @@ export function Composer({
   const handleTextChange = useCallback(
     (next: string) => {
       setText(next)
-      if (next.trim()) onTyping()
+      if (next.trim()) onTyping(mode)
     },
-    [onTyping],
+    [onTyping, mode],
   )
 
   const trigger = useTextTrigger({
@@ -454,6 +457,7 @@ export function Composer({
     preview.setTarget("")
     preview.reset()
     trigger.close()
+    if (text.trim()) onTyping(nextMode)
   }
 
   const toggleMode = () => {
@@ -515,6 +519,11 @@ export function Composer({
           ? t("inbox.send_translation")
           : t("inbox.send")
 
+  const colleaguesReplying = (colleaguesTyping ?? []).filter((x) => x.mode !== "note")
+  const colleaguesNoting = (colleaguesTyping ?? []).filter((x) => x.mode === "note")
+  const formatTypers = (list: TypingNow[]) =>
+    list.map((x) => x.name || memberById.get(x.memberId ?? "")?.name || t("event.someone")).join(", ")
+
   return (
     <Box
       className="inbox-composer"
@@ -539,6 +548,15 @@ export function Composer({
         queue.handleDrop(e)
       }}
     >
+      {colleaguesReplying.length > 0 ? (
+        <Alert variant="light" color="deep-orange" radius="md" py={6} px="sm" mb={8} icon={<IconAlertTriangle size={15} />}>
+          <Text size="xs">{t("inbox.colleague_replying_warning", { who: formatTypers(colleaguesReplying) })}</Text>
+        </Alert>
+      ) : colleaguesNoting.length > 0 ? (
+        <Text size="xs" c="dimmed" mb={6}>
+          {t("inbox.colleague_noting_hint", { who: formatTypers(colleaguesNoting) })}
+        </Text>
+      ) : null}
       {!note && groupRemoved && (
         <Alert variant="light" color="red" radius="md" py={6} px="sm" mb={8} icon={<IconAlertTriangle size={15} />}>
           <Text size="xs">{t("inbox.group_removed_notice")}</Text>

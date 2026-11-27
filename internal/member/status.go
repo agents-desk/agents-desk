@@ -10,6 +10,7 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/contract"
+	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/enum"
 )
 
@@ -42,11 +43,12 @@ type StatusSettingOutput struct {
 type memberStatus struct {
 	bun.BaseModel `bun:"table:member_statuses"`
 
-	TenantID  string    `bun:"tenant_id,pk"`
-	MemberID  string    `bun:"member_id,pk"`
-	Status    Status    `bun:"status,notnull"`
-	Reassign  bool      `bun:"reassign,notnull"`
-	UpdatedAt time.Time `bun:"updated_at,notnull"`
+	TenantID   string     `bun:"tenant_id,pk"`
+	MemberID   string     `bun:"member_id,pk"`
+	Status     Status     `bun:"status,notnull"`
+	Reassign   bool       `bun:"reassign,notnull"`
+	LastSeenAt *time.Time `bun:"last_seen_at"`
+	UpdatedAt  time.Time  `bun:"updated_at,notnull"`
 }
 
 // statusOf 返回成员 memberID 在工作区 tenant 中的在线状态，没有设置过时是离开、不重新分配。lock 为 true 时锁住这一行。
@@ -85,12 +87,85 @@ func StatusesOf(ctx context.Context, db bun.IDB, tenant string, ids []string) (m
 	return out, nil
 }
 
-// saveStatus 在事务 tx 中把成员 memberID 在工作区 tenant 中的在线状态保存为 s。
+// saveStatus 在事务 tx 中把成员 memberID 在工作区 tenant 中的在线状态保存为 s；切到在线时同步写入最近心跳时间。
 func saveStatus(ctx context.Context, tx bun.IDB, tenant, memberID string, s StatusSetting) error {
-	row := &memberStatus{TenantID: tenant, MemberID: memberID, Status: s.Status, Reassign: s.Reassign,
-		UpdatedAt: time.Now().UTC().Truncate(time.Microsecond)}
+	nowUTC := time.Now().UTC().Truncate(time.Microsecond)
+	row := &memberStatus{
+		TenantID:  tenant,
+		MemberID:  memberID,
+		Status:    s.Status,
+		Reassign:  s.Reassign,
+		UpdatedAt: nowUTC,
+	}
+	if s.Status == Online {
+		row.LastSeenAt = &nowUTC
+	}
 	_, err := tx.NewInsert().Model(row).
 		On("CONFLICT (tenant_id, member_id) DO UPDATE").
-		Set("status = EXCLUDED.status, reassign = EXCLUDED.reassign, updated_at = EXCLUDED.updated_at").Exec(ctx)
+		Set("status = EXCLUDED.status, reassign = EXCLUDED.reassign, last_seen_at = EXCLUDED.last_seen_at, updated_at = EXCLUDED.updated_at").Exec(ctx)
 	return errors.Wrap(err, "save member status")
+}
+
+// ExpireIdleOnline 将超过 idleAfter 未上报心跳的在线成员自动置为离开（保留 reassign 设置），并在提交后调用 notify 通知实时连接。
+func ExpireIdleOnline(ctx context.Context, db *bun.DB, idleAfter time.Duration, limit int, notify func(ctx context.Context, tenantID, memberID string) error) (int, error) {
+	if limit <= 0 {
+		return 0, nil
+	}
+	if idleAfter <= 0 {
+		idleAfter = 5 * time.Minute
+	}
+	nowUTC := time.Now().UTC().Truncate(time.Microsecond)
+	cutoff := nowUTC.Add(-idleAfter)
+	var stale []struct {
+		TenantID string `bun:"tenant_id"`
+		MemberID string `bun:"member_id"`
+	}
+	if err := db.NewSelect().Table("member_statuses").
+		Column("tenant_id", "member_id").
+		Where("status = ? AND COALESCE(last_seen_at, updated_at) < ?", Online, cutoff).
+		OrderExpr("COALESCE(last_seen_at, updated_at) ASC").
+		Limit(int64(limit)).
+		Scan(ctx, &stale); err != nil {
+		return 0, errors.Wrap(err, "select idle online members")
+	}
+	if len(stale) == 0 {
+		return 0, nil
+	}
+
+	expired := 0
+	for _, target := range stale {
+		var updated bool
+		if err := database.RunInTx(ctx, db, nil, func(ctx context.Context, tx database.Tx) error {
+			res, err := tx.NewUpdate().Model((*memberStatus)(nil)).
+				Set("status = ?", Away).
+				Set("updated_at = ?", nowUTC).
+				Where("tenant_id = ? AND member_id = ? AND status = ? AND COALESCE(last_seen_at, updated_at) < ?",
+					target.TenantID, target.MemberID, Online, cutoff).
+				Exec(ctx)
+			if err != nil {
+				return errors.Wrap(err, "expire idle member status")
+			}
+			n, err := res.RowsAffected()
+			if err != nil {
+				return errors.Wrap(err, "expire idle member status")
+			}
+			if n == 0 {
+				return nil
+			}
+			updated = true
+			if notify != nil {
+				tenantID, memberID := target.TenantID, target.MemberID
+				tx.AfterCommit(func(ctx context.Context) error {
+					return notify(ctx, tenantID, memberID)
+				})
+			}
+			return nil
+		}); err != nil {
+			return expired, err
+		}
+		if updated {
+			expired++
+		}
+	}
+	return expired, nil
 }

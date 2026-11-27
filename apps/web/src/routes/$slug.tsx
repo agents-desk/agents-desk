@@ -1,7 +1,8 @@
+import { Alert, Button, Group, Stack, Text } from "@mantine/core"
 import { useDisclosure } from "@mantine/hooks"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { IconSettings } from "@tabler/icons-react"
+import { IconAlertTriangle, IconBell, IconSettings, IconWifiOff } from "@tabler/icons-react"
 import {
   enterTenant,
   Fill,
@@ -23,7 +24,7 @@ import { logout, me } from "../auth"
 import { CommandPalette, CommandSearchButton } from "../command-palette"
 import { dispatchPushAlert } from "../inbox/alerts"
 import { NARROW_QUERY } from "../layout"
-import { RealtimeContext, useRealtime } from "../realtime"
+import { RealtimeContext, useRealtime, useRealtimeState } from "../realtime"
 import { ShortcutsModal } from "../shortcuts-modal"
 import { memberStatusColor, StatusControl } from "../status"
 import { writeLastWorkspace } from "../workspace"
@@ -52,6 +53,12 @@ function TenantLayout() {
   const t = useT()
   const [shortcutsOpened, shortcutsHandlers] = useDisclosure(false)
   const [exitingImpersonation, setExitingImpersonation] = useState(false)
+  const [notifDismissed, setNotifDismissed] = useState(
+    () => typeof window !== "undefined" && localStorage.getItem("agents-desk:notif-prompt-dismissed") === "1",
+  )
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">(() =>
+    typeof Notification === "undefined" ? "unsupported" : Notification.permission,
+  )
   const impersonation = user.data?.impersonation
 
   // 普通成员进入工作区后记录为上次访问的工作区，供下次打开 /app/ 直接进入；代为登录不覆写该记录。
@@ -59,6 +66,27 @@ function TenantLayout() {
     if (!user.data || impersonation) return
     writeLastWorkspace(app, user.data.id, tenant.slug)
   }, [app, impersonation, tenant.slug, user.data])
+
+  // 在线心跳：成员处于在线状态且页签可见时每 60 秒保活一次，切回前台立即同步一次。
+  const isOnline = myStatus.data?.status === "online"
+  useEffect(() => {
+    if (impersonation || !isOnline) return
+    const ping = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return
+      void tenantApi.member.heartbeat().catch(() => {
+        // 心跳为尽力而为的保活请求，失败后等待下个周期
+      })
+    }
+    const timer = setInterval(ping, 60_000)
+    const onVisible = () => {
+      if (document.visibilityState === "visible") ping()
+    }
+    document.addEventListener("visibilitychange", onVisible)
+    return () => {
+      clearInterval(timer)
+      document.removeEventListener("visibilitychange", onVisible)
+    }
+  }, [impersonation, isOnline])
 
   // 退出代为登录：撤销当前代登令牌并清除独立的 __Host-impersonation cookie，然后回到管理员端。
   const exitImpersonation = async () => {
@@ -107,6 +135,96 @@ function TenantLayout() {
   const waitingOnMe = inbox.data && chatUnread.data ? inbox.data.mine.waiting + chatUnread.data.unread_chats : undefined
   useMenuBadge("/$slug/inbox", waitingOnMe)
 
+  // 浏览器标签页标题同步显示等待自己处理的待办数量
+  useEffect(() => {
+    if (typeof document === "undefined") return
+    document.title = waitingOnMe && waitingOnMe > 0 ? `(${waitingOnMe}) ${tenant.name}` : tenant.name
+    return () => {
+      document.title = tenant.name
+    }
+  }, [waitingOnMe, tenant.name])
+
+  const realtimeState = useRealtimeState(centrifuge)
+  const showRealtimeBanner =
+    realtimeState.offline || (Boolean(user.data?.id) && realtimeState.everConnected && realtimeState.status !== "connected")
+
+  const notifPref = user.data?.notifications
+  const browserNotifWanted = Boolean(notifPref?.assigned.browser || notifPref?.new_message.browser || notifPref?.mention.browser)
+  const showNotifPrompt = !impersonation && browserNotifWanted && notifPermission === "default" && !notifDismissed
+
+  const requestDesktopNotif = async () => {
+    if (typeof Notification === "undefined") return
+    const result = await Notification.requestPermission()
+    setNotifPermission(result)
+  }
+  const dismissNotifPrompt = () => {
+    setNotifDismissed(true)
+    if (typeof window !== "undefined") {
+      localStorage.setItem("agents-desk:notif-prompt-dismissed", "1")
+    }
+  }
+
+  const banners: React.ReactNode[] = []
+  if (impersonation && user.data) {
+    banners.push(
+      <ImpersonationBanner
+        key="impersonation"
+        target={user.data.name}
+        actor={impersonation.actor_name || undefined}
+        tenant={tenant.name}
+        readOnly={impersonation.read_only}
+        exiting={exitingImpersonation}
+        onExit={exitImpersonation}
+      />,
+    )
+  }
+  if (showRealtimeBanner) {
+    const severe = realtimeState.offline || realtimeState.status === "disconnected"
+    banners.push(
+      <Alert
+        key="realtime"
+        variant="light"
+        color={severe ? "red" : "yellow"}
+        radius={0}
+        py={6}
+        px="md"
+        icon={severe ? <IconWifiOff size={16} /> : <IconAlertTriangle size={16} />}
+      >
+        <Group justify="space-between" gap="sm" wrap="wrap">
+          <Text size="xs">
+            {realtimeState.offline
+              ? t("layout.realtime_offline")
+              : realtimeState.status === "connecting"
+                ? t("layout.realtime_reconnecting")
+                : t("layout.realtime_disconnected")}
+          </Text>
+          {!realtimeState.offline && realtimeState.status === "disconnected" && (
+            <Button size="compact-xs" variant="light" color="red" onClick={realtimeState.reconnect}>
+              {t("layout.realtime_reconnect")}
+            </Button>
+          )}
+        </Group>
+      </Alert>,
+    )
+  }
+  if (showNotifPrompt) {
+    banners.push(
+      <Alert key="notif-prompt" variant="light" color="bright-blue" radius={0} py={6} px="md" icon={<IconBell size={16} />}>
+        <Group justify="space-between" gap="sm" wrap="wrap">
+          <Text size="xs">{t("notifications_prompt.text")}</Text>
+          <Group gap={6} wrap="nowrap">
+            <Button size="compact-xs" variant="light" color="bright-blue" onClick={() => void requestDesktopNotif()}>
+              {t("notifications_prompt.allow")}
+            </Button>
+            <Button size="compact-xs" variant="subtle" color="gray" onClick={dismissNotifPrompt}>
+              {t("notifications_prompt.dismiss")}
+            </Button>
+          </Group>
+        </Group>
+      </Alert>,
+    )
+  }
+
   // 左上角由 WorkspaceSwitcher 管理工作区切换与工作区入口，左下角个人菜单聚焦个人设置、在线状态与退出登录。
   const settings = `/${tenant.slug}/settings`
   const items = [{ label: t("nav.settings"), icon: <IconSettings size={16} />, to: settings }]
@@ -123,18 +241,7 @@ function TenantLayout() {
           compactQuery={NARROW_QUERY}
           railTop={<CommandSearchButton />}
           railBottom={<OperationsMenu />}
-          banner={
-            impersonation && user.data ? (
-              <ImpersonationBanner
-                target={user.data.name}
-                actor={impersonation.actor_name || undefined}
-                tenant={tenant.name}
-                readOnly={impersonation.read_only}
-                exiting={exitingImpersonation}
-                onExit={exitImpersonation}
-              />
-            ) : undefined
-          }
+          banner={banners.length > 0 ? <Stack gap={0}>{banners}</Stack> : undefined}
           user={
             <UserMenu
               name={user.data?.name}

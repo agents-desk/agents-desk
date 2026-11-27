@@ -52,6 +52,7 @@ import { Route as SlugSettingsServiceMacrosRouteImport } from './routes/$slug/se
 import { Route as SlugSettingsServiceRulesRouteImport } from './routes/$slug/settings/_service/rules'
 import { Route as SlugSettingsServiceTeamsRouteImport } from './routes/$slug/settings/_service/teams'
 import { Route as SlugSettingsServiceTicketTypesRouteImport } from './routes/$slug/settings/_service/ticket-types'
+import { Route as SlugSettingsWorkspaceBlockedIpsRouteImport } from './routes/$slug/settings/_workspace/blocked-ips'
 import { Route as SlugSettingsWorkspaceGeneralRouteImport } from './routes/$slug/settings/_workspace/general'
 import { Route as SlugSettingsWorkspaceMembersRouteImport } from './routes/$slug/settings/_workspace/members'
 import { Route as SlugSettingsWorkspaceTagsRouteImport } from './routes/$slug/settings/_workspace/tags'
@@ -295,6 +296,12 @@ const SlugSettingsServiceTicketTypesRoute =
     path: '/ticket-types',
     getParentRoute: () => SlugSettingsServiceRoute,
   } as any)
+const SlugSettingsWorkspaceBlockedIpsRoute =
+  SlugSettingsWorkspaceBlockedIpsRouteImport.update({
+    id: '/blocked-ips',
+    path: '/blocked-ips',
+    getParentRoute: () => SlugSettingsWorkspaceRoute,
+  } as any)
 const SlugSettingsWorkspaceGeneralRoute =
   SlugSettingsWorkspaceGeneralRouteImport.update({
     id: '/general',
@@ -447,6 +454,7 @@ export interface FileRoutesByFullPath {
   '/$slug/settings/rules': typeof SlugSettingsServiceRulesRoute
   '/$slug/settings/teams': typeof SlugSettingsServiceTeamsRouteWithChildren
   '/$slug/settings/ticket-types': typeof SlugSettingsServiceTicketTypesRouteWithChildren
+  '/$slug/settings/blocked-ips': typeof SlugSettingsWorkspaceBlockedIpsRoute
   '/$slug/settings/general': typeof SlugSettingsWorkspaceGeneralRoute
   '/$slug/settings/members': typeof SlugSettingsWorkspaceMembersRoute
   '/$slug/settings/tags': typeof SlugSettingsWorkspaceTagsRoute
@@ -495,6 +503,7 @@ export interface FileRoutesByTo {
   '/$slug/settings/business-hours': typeof SlugSettingsServiceBusinessHoursRoute
   '/$slug/settings/macros': typeof SlugSettingsServiceMacrosRoute
   '/$slug/settings/rules': typeof SlugSettingsServiceRulesRoute
+  '/$slug/settings/blocked-ips': typeof SlugSettingsWorkspaceBlockedIpsRoute
   '/$slug/settings/general': typeof SlugSettingsWorkspaceGeneralRoute
   '/$slug/settings/members': typeof SlugSettingsWorkspaceMembersRoute
   '/$slug/settings/tags': typeof SlugSettingsWorkspaceTagsRoute
@@ -559,6 +568,7 @@ export interface FileRoutesById {
   '/$slug/settings/_service/rules': typeof SlugSettingsServiceRulesRoute
   '/$slug/settings/_service/teams': typeof SlugSettingsServiceTeamsRouteWithChildren
   '/$slug/settings/_service/ticket-types': typeof SlugSettingsServiceTicketTypesRouteWithChildren
+  '/$slug/settings/_workspace/blocked-ips': typeof SlugSettingsWorkspaceBlockedIpsRoute
   '/$slug/settings/_workspace/general': typeof SlugSettingsWorkspaceGeneralRoute
   '/$slug/settings/_workspace/members': typeof SlugSettingsWorkspaceMembersRoute
   '/$slug/settings/_workspace/tags': typeof SlugSettingsWorkspaceTagsRoute
@@ -621,6 +631,7 @@ export interface FileRouteTypes {
     | '/$slug/settings/rules'
     | '/$slug/settings/teams'
     | '/$slug/settings/ticket-types'
+    | '/$slug/settings/blocked-ips'
     | '/$slug/settings/general'
     | '/$slug/settings/members'
     | '/$slug/settings/tags'
@@ -669,6 +680,7 @@ export interface FileRouteTypes {
     | '/$slug/settings/business-hours'
     | '/$slug/settings/macros'
     | '/$slug/settings/rules'
+    | '/$slug/settings/blocked-ips'
     | '/$slug/settings/general'
     | '/$slug/settings/members'
     | '/$slug/settings/tags'
@@ -732,6 +744,7 @@ export interface FileRouteTypes {
     | '/$slug/settings/_service/rules'
     | '/$slug/settings/_service/teams'
     | '/$slug/settings/_service/ticket-types'
+    | '/$slug/settings/_workspace/blocked-ips'
     | '/$slug/settings/_workspace/general'
     | '/$slug/settings/_workspace/members'
     | '/$slug/settings/_workspace/tags'
@@ -1065,6 +1078,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/$slug/settings/ticket-types'
       preLoaderRoute: typeof SlugSettingsServiceTicketTypesRouteImport
       parentRoute: typeof SlugSettingsServiceRoute
+    }
+    '/$slug/settings/_workspace/blocked-ips': {
+      id: '/$slug/settings/_workspace/blocked-ips'
+      path: '/blocked-ips'
+      fullPath: '/$slug/settings/blocked-ips'
+      preLoaderRoute: typeof SlugSettingsWorkspaceBlockedIpsRouteImport
+      parentRoute: typeof SlugSettingsWorkspaceRoute
     }
     '/$slug/settings/_workspace/general': {
       id: '/$slug/settings/_workspace/general'
@@ -1460,6 +1480,7 @@ const SlugSettingsServiceRouteWithChildren =
   SlugSettingsServiceRoute._addFileChildren(SlugSettingsServiceRouteChildren)
 
 interface SlugSettingsWorkspaceRouteChildren {
+  SlugSettingsWorkspaceBlockedIpsRoute: typeof SlugSettingsWorkspaceBlockedIpsRoute
   SlugSettingsWorkspaceGeneralRoute: typeof SlugSettingsWorkspaceGeneralRoute
   SlugSettingsWorkspaceMembersRoute: typeof SlugSettingsWorkspaceMembersRoute
   SlugSettingsWorkspaceTagsRoute: typeof SlugSettingsWorkspaceTagsRoute
@@ -1467,6 +1488,7 @@ interface SlugSettingsWorkspaceRouteChildren {
 }
 
 const SlugSettingsWorkspaceRouteChildren: SlugSettingsWorkspaceRouteChildren = {
+  SlugSettingsWorkspaceBlockedIpsRoute: SlugSettingsWorkspaceBlockedIpsRoute,
   SlugSettingsWorkspaceGeneralRoute: SlugSettingsWorkspaceGeneralRoute,
   SlugSettingsWorkspaceMembersRoute: SlugSettingsWorkspaceMembersRoute,
   SlugSettingsWorkspaceTagsRoute: SlugSettingsWorkspaceTagsRoute,

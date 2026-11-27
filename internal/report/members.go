@@ -259,7 +259,7 @@ func (a *Members) Handle(ctx context.Context, sub identity.Subject, f FilterPara
 			ColumnExpr("c.assignee_id AS member_id").
 			ColumnExpr("count(*) FILTER (WHERE t.resolved_at >= ? AND t.resolved_at < ?) AS resolved", w.Start, w.End).
 			ColumnExpr("count(*) FILTER (WHERE c.status <> ?) AS open_now", conversation.Status(conversation.TicketResolved)).
-			Where("c.tenant_id = ? AND c.kind = ? AND c.assignee_type = ? AND c.assignee_id <> ''",
+			Where("c.tenant_id = ? AND c.kind = ? AND c.spam_at IS NULL AND c.assignee_type = ? AND c.assignee_id <> ''",
 				sub.Tenant, conversation.Ticket, conversation.MemberActor).
 			Where("(t.resolved_at >= ? AND t.resolved_at < ?) OR c.status <> ?",
 				w.Start, w.End, conversation.Status(conversation.TicketResolved)).
@@ -288,7 +288,7 @@ func (a *Members) Handle(ctx context.Context, sub identity.Subject, f FilterPara
 				Join("JOIN conversations c ON c.id = it.conversation_id").
 				Join("JOIN chats ch ON ch.conversation_id = c.id").
 				ColumnExpr("it.actor_id AS member_id, count(DISTINCT it.conversation_id) AS chats, count(*) AS msgs").
-				Where("it.tenant_id = ? AND c.kind = ? AND ch.scope = ? AND it.kind = ? AND it.actor_type = ? AND it.actor_id <> '' AND it.created_at >= ? AND it.created_at < ?",
+				Where("it.tenant_id = ? AND c.kind = ? AND ch.scope = ? AND c.spam_at IS NULL AND it.kind = ? AND it.actor_type = ? AND it.actor_id <> '' AND it.created_at >= ? AND it.created_at < ?",
 					sub.Tenant, conversation.Chat, conversation.ChatExternal, conversation.Message, conversation.MemberActor, w.Start, w.End).
 				GroupExpr("it.actor_id").
 				Scan(ctx, &bizRows); err != nil {

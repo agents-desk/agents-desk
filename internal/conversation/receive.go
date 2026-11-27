@@ -156,6 +156,9 @@ func (a *Receive) receiveDirectService(ctx context.Context, tx database.Tx, sub 
 	if err != nil {
 		return nil, err
 	}
+	if person.BlockedAt != nil {
+		return nil, contact.ErrBlocked.New()
+	}
 	if sub.Type == contact.Type && person.ID != sub.ID {
 		return nil, ErrForbidden.New()
 	}
@@ -361,7 +364,7 @@ func (a *Receive) conversationForContact(ctx context.Context, tx bun.IDB, ch *ch
 	aud := ch.EffectiveAudience()
 	c = new(Conversation)
 	q := tx.NewSelect().Model(c).
-		Where("tenant_id = ? AND kind = ? AND audience = ? AND contact_id = ?", ch.TenantID, Service, aud, person.ID)
+		Where("tenant_id = ? AND kind = ? AND audience = ? AND contact_id = ? AND spam_at IS NULL", ch.TenantID, Service, aud, person.ID)
 	if person.Kind == contact.Lead {
 		q = q.Where("channel_id = ?", ch.ID)
 	}
@@ -386,7 +389,7 @@ func (a *Receive) conversationForContact(ctx context.Context, tx bun.IDB, ch *ch
 func (a *Receive) conversationForGroup(ctx context.Context, tx bun.IDB, ch *channel.Channel, group *extgroup.Group, at time.Time) (c *Conversation, created bool, opened string, defaultMemberID string, err error) {
 	c = new(Conversation)
 	err = tx.NewSelect().Model(c).
-		Where("tenant_id = ? AND kind = ? AND external_group_id = ?", ch.TenantID, Service, group.ID).
+		Where("tenant_id = ? AND kind = ? AND external_group_id = ? AND spam_at IS NULL", ch.TenantID, Service, group.ID).
 		OrderExpr("last_message_at DESC, id DESC").Limit(1).For("UPDATE").Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
 		c = nil

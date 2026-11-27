@@ -67,6 +67,8 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	rest.Register(api, act("conversation-close", http.MethodPost, "/conversations/{id}/close", "关闭"), NewClose(db, down).HTTP)
 	rest.Register(api, act("conversation-reopen", http.MethodPost, "/conversations/{id}/reopen", "重新打开"), NewReopen(db, down).HTTP)
 	rest.Register(api, act("conversation-snooze", http.MethodPost, "/conversations/{id}/snooze", "稍后处理"), NewSnooze(db, down).HTTP)
+	rest.Register(api, act("conversation-mark-spam", http.MethodPost, "/conversations/{id}/spam", "标记为垃圾会话"), NewMarkSpam(db, down).HTTP)
+	rest.Register(api, act("conversation-unmark-spam", http.MethodPost, "/conversations/{id}/unspam", "取消垃圾会话标记"), NewUnmarkSpam(db, down).HTTP)
 	rest.Register(api, act("conversation-priority", http.MethodPut, "/conversations/{id}/priority", "修改优先级"), NewSetPriority(db, down).HTTP)
 	rest.Register(api, act("conversation-language", http.MethodPut, "/conversations/{id}/language", "设置对方的语言"), NewSetLanguage(db, down).HTTP)
 	rest.Register(api, act("conversation-tag-add", http.MethodPost, "/conversations/{id}/tags", "给会话添加标签"), NewAddTag(db, down).HTTP)

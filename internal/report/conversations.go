@@ -411,8 +411,9 @@ func (a *Conversations) teamVolumes(ctx context.Context, tenantID string, w peri
 	return out, nil
 }
 
-// applyConvFilters 向以 conversations c 为主表的查询附加服务对象、团队与渠道条件。
+// applyConvFilters 向以 conversations c 为主表的查询附加未标垃圾条件以及服务对象、团队与渠道条件。
 func applyConvFilters(q *bun.SelectQuery, f FilterParams) {
+	q.Where("c.spam_at IS NULL")
 	if f.Audience != "" {
 		q.Where("c.audience = ?", f.Audience)
 	}
@@ -424,8 +425,9 @@ func applyConvFilters(q *bun.SelectQuery, f FilterParams) {
 	}
 }
 
-// applyRoundFilters 向以 conversation_rounds r JOIN conversations c 为主表的查询附加服务对象、团队与渠道条件。
+// applyRoundFilters 向以 conversation_rounds r JOIN conversations c 为主表的查询附加未标垃圾条件以及服务对象、团队与渠道条件。
 func applyRoundFilters(q *bun.SelectQuery, f FilterParams) {
+	q.Where("c.spam_at IS NULL")
 	if f.Audience != "" {
 		q.Where("c.audience = ?", f.Audience)
 	}

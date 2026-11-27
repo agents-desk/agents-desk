@@ -96,6 +96,24 @@ export interface AutomationUpdateBody {
   enabled: boolean
 }
 
+export interface BlockipBlockedIPDTO {
+  /** 规范化后的单 IP（/32 或 /128）或 CIDR 网段 */
+  cidr: string
+  created_at: string
+  /** 添加规则的成员 ID */
+  created_by?: string
+  id: string
+  /** 封禁原因说明 */
+  reason?: string
+}
+
+export interface BlockipCreateBody {
+  /** 要封禁的单 IP 或 CIDR 网段（如 1.2.3.4 或 1.2.3.0/24） */
+  cidr: string
+  /** 封禁原因说明 */
+  reason?: string
+}
+
 export interface BusinessAddCollaboratorsBody {
   /** 是否同时写入渠道默认协作成员，后续新商务会话自动拉入 */
   add_to_default: boolean
@@ -242,9 +260,18 @@ export type ChatMode = "direct" | "group"
 
 export type ChatScope = "internal" | "external"
 
+export interface ContactBlockBody {
+  /** 拉黑原因说明 */
+  reason?: string
+}
+
 export interface ContactDTO {
   /** 自定义属性 */
   attributes: Record<string, unknown>
+  /** 拉黑时间；非空表示已拉黑 */
+  blocked_at?: string
+  /** 拉黑原因说明 */
+  blocked_reason?: string
   /** 联系人所属公司或组织名称 */
   company: string
   /** 当前成员可见的该联系人会话数 */
@@ -286,6 +313,10 @@ export interface ContactDTO {
 export interface ContactDetailDTO {
   /** 自定义属性 */
   attributes: Record<string, unknown>
+  /** 拉黑时间；非空表示已拉黑 */
+  blocked_at?: string
+  /** 拉黑原因说明 */
+  blocked_reason?: string
   /** 联系人所属公司或组织名称 */
   company: string
   /** 当前成员可见的该联系人会话数 */
@@ -384,6 +415,10 @@ export type ContactSort = "recent" | "created"
 export interface ContactSummary {
   /** 联系人的自定义属性 */
   attributes: Record<string, unknown>
+  /** 拉黑时间；非空表示已拉黑 */
+  blocked_at?: string
+  /** 拉黑原因说明 */
+  blocked_reason?: string
   /** 所属公司或组织名称 */
   company?: string
   email: string
@@ -852,6 +887,8 @@ export interface ConversationDTO {
   /** 会话当前的默认回复渠道 */
   reply_channel?: ChannelSummary
   snoozed_until?: string
+  /** 标记为垃圾会话的时间 */
+  spam_at?: string
   status: ConversationStatus
   /** 会话上的标签 */
   tags: TagSummary[]
@@ -874,7 +911,7 @@ export interface ConversationEditMessageBody {
 
 export type ConversationFetchStatus = "ready" | "remote" | "pending" | "fetching" | "unavailable"
 
-export type ConversationInbox = "mine" | "mentions" | "unassigned" | "all"
+export type ConversationInbox = "mine" | "mentions" | "unassigned" | "all" | "spam"
 
 export interface ConversationInboxDTO {
   /** 全部 */
@@ -883,6 +920,8 @@ export interface ConversationInboxDTO {
   mentions: ConversationSummary
   /** 我的 */
   mine: ConversationSummary
+  /** 垃圾会话数量（排除在常规统计之外） */
+  spam: number
   /** 团队收件箱：我所在的；可见范围是全部会话的成员是全部团队收件箱，按名称排列 */
   teams: ConversationTeamSummary[]
   /** 工单分组的未解决数量 */
@@ -974,6 +1013,13 @@ export interface ConversationLinkedGroupDTO {
   last_message_at?: string
   linked_at: string
   preview: string
+}
+
+export interface ConversationMarkSpamBody {
+  /** 是否同时拉黑会话所属联系人 */
+  block_contact?: boolean
+  /** 同时拉黑联系人时的原因说明 */
+  reason?: string
 }
 
 export interface ConversationNoteBody {
@@ -3625,6 +3671,30 @@ export function createClient(options: ClientOptions) {
       update: (id: string, body: AutomationUpdateBody): Promise<AutomationRuleDTO> =>
         rt.request<AutomationRuleDTO>({ method: "PUT", path: `/automations/${encodeURIComponent(id)}`, body }),
     },
+    /** operationId 以 blocked- 开头的接口。 */
+    blocked: {
+      /**
+       * 添加 IP 黑名单
+       *
+       * POST /blocked-ips
+       */
+      ipCreate: (body: BlockipCreateBody): Promise<BlockipBlockedIPDTO> =>
+        rt.request<BlockipBlockedIPDTO>({ method: "POST", path: `/blocked-ips`, body }),
+      /**
+       * 移除 IP 黑名单
+       *
+       * DELETE /blocked-ips/{id}
+       */
+      ipDelete: (id: string): Promise<void> =>
+        rt.request<void>({ method: "DELETE", path: `/blocked-ips/${encodeURIComponent(id)}` }),
+      /**
+       * IP 黑名单列表
+       *
+       * GET /blocked-ips
+       */
+      ipList: (): Promise<BlockipBlockedIPDTO[]> =>
+        rt.request<BlockipBlockedIPDTO[]>({ method: "GET", path: `/blocked-ips` }),
+    },
     /** operationId 以 business- 开头的接口。 */
     business: {
       /**
@@ -3791,6 +3861,13 @@ export function createClient(options: ClientOptions) {
     /** operationId 以 contact- 开头的接口。 */
     contact: {
       /**
+       * 拉黑联系人
+       *
+       * POST /contacts/{id}/block
+       */
+      block: (id: string, body: ContactBlockBody): Promise<ContactDetailDTO> =>
+        rt.request<ContactDetailDTO>({ method: "POST", path: `/contacts/${encodeURIComponent(id)}/block`, body }),
+      /**
        * 联系人导出进度
        *
        * GET /contacts/exports/{id}/progress
@@ -3832,6 +3909,13 @@ export function createClient(options: ClientOptions) {
        */
       summary: (): Promise<ContactSummaryDTO> =>
         rt.request<ContactSummaryDTO>({ method: "GET", path: `/contacts/summary` }),
+      /**
+       * 解除拉黑联系人
+       *
+       * POST /contacts/{id}/unblock
+       */
+      unblock: (id: string): Promise<ContactDetailDTO> =>
+        rt.request<ContactDetailDTO>({ method: "POST", path: `/contacts/${encodeURIComponent(id)}/unblock` }),
       /**
        * 修改联系人资料
        *
@@ -3997,6 +4081,13 @@ export function createClient(options: ClientOptions) {
       list: (input: ConversationListInput = {}): Promise<CursorConversationDTO> =>
         rt.request<CursorConversationDTO>({ method: "GET", path: `/conversations`, query: { "assignee_id": input["assignee_id"], "audience": input["audience"], "channel_id": input["channel_id"], "contact_id": input["contact_id"], "cursor": input["cursor"], "external_group_id": input["external_group_id"], "filter": input["filter"], "inbox": input["inbox"], "per_page": input["per_page"], "priority": input["priority"], "sort": input["sort"], "status": input["status"], "tag_id": input["tag_id"], "team_id": input["team_id"], "view_id": input["view_id"] } }),
       /**
+       * 标记为垃圾会话
+       *
+       * POST /conversations/{id}/spam
+       */
+      markSpam: (id: string, body: ConversationMarkSpamBody): Promise<ConversationDTO> =>
+        rt.request<ConversationDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/spam`, body }),
+      /**
        * 写内部备注
        *
        * POST /conversations/{id}/notes
@@ -4073,6 +4164,13 @@ export function createClient(options: ClientOptions) {
        */
       tagRemove: (id: string, tagID: string): Promise<ConversationDTO> =>
         rt.request<ConversationDTO>({ method: "DELETE", path: `/conversations/${encodeURIComponent(id)}/tags/${encodeURIComponent(tagID)}` }),
+      /**
+       * 取消垃圾会话标记
+       *
+       * POST /conversations/{id}/unspam
+       */
+      unmarkSpam: (id: string): Promise<ConversationDTO> =>
+        rt.request<ConversationDTO>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/unspam` }),
     },
     /** operationId 以 external- 开头的接口。 */
     external: {
@@ -4203,6 +4301,13 @@ export function createClient(options: ClientOptions) {
        */
       get: (id: string): Promise<MemberTenantMember> =>
         rt.request<MemberTenantMember>({ method: "GET", path: `/members/${encodeURIComponent(id)}` }),
+      /**
+       * 刷新我在这个工作区的在线心跳
+       *
+       * POST /me/heartbeat
+       */
+      heartbeat: (): Promise<void> =>
+        rt.request<void>({ method: "POST", path: `/me/heartbeat` }),
       /**
        * 成员列表
        *

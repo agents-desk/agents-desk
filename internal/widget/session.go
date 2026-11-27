@@ -201,6 +201,9 @@ func (a *StartSession) Handle(ctx context.Context, b SessionBody, device apitoke
 	if err != nil {
 		return nil, err
 	}
+	if person.BlockedAt != nil {
+		return nil, contact.ErrBlocked.New()
+	}
 	res.Contact = person.Summary()
 	res.Token, err = a.tokens.Login(ctx, identity.Subject{Type: contact.Type, ID: person.ID, Tenant: ch.TenantID}, device)
 	if err != nil {

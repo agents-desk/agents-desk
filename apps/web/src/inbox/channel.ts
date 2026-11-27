@@ -11,12 +11,13 @@ export interface Viewer {
   name: string
 }
 
-/** TypingNow 是正在输入的人：成员（带 ID 和名字）或者客户。 */
+/** TypingNow 是正在输入的人：成员（带 ID、名字与模式）或者客户。 */
 export interface TypingNow {
   key: string
   memberId?: string
   name?: string
   contact: boolean
+  mode?: "reply" | "note"
 }
 
 /** TYPING_MS 是“正在输入”显示的时长：页面每隔 3 秒发一次，超过它没有新的就消失。 */
@@ -35,6 +36,7 @@ export function useConversationChannel(tenantId: string, id: string, selfId: str
   const [typing, setTyping] = useState<TypingNow[]>([])
   const sub = useRef<Subscription | null>(null)
   const lastSent = useRef(0)
+  const lastMode = useRef<"reply" | "note">("reply")
 
   useEffect(() => {
     if (!centrifuge || !selfId) return
@@ -56,14 +58,14 @@ export function useConversationChannel(tenantId: string, id: string, selfId: str
       setViewers([...seen.values()])
     }
     const onPublication = (ctx: { data: unknown; info?: { user?: string; chanInfo?: unknown } }) => {
-      const data = ctx.data as { type?: string; actor?: { type?: string } }
+      const data = ctx.data as { type?: string; mode?: "reply" | "note"; actor?: { type?: string } }
       if (data?.type !== "typing") return
       const memberId = memberIdOf(ctx.info?.user)
       if (memberId === selfId) return
       const contact = data.actor?.type === "contact"
       const key = contact ? "contact" : (memberId ?? "")
       const name = (ctx.info?.chanInfo as { name?: string } | undefined)?.name
-      setTyping((all) => [...all.filter((x) => x.key !== key), { key, memberId, name, contact }])
+      setTyping((all) => [...all.filter((x) => x.key !== key), { key, memberId, name, contact, mode: data.mode }])
       clearTimeout(timers.get(key))
       timers.set(key, setTimeout(() => setTyping((all) => all.filter((x) => x.key !== key)), TYPING_MS))
     }
@@ -86,14 +88,17 @@ export function useConversationChannel(tenantId: string, id: string, selfId: str
     }
   }, [centrifuge, tenantId, id, selfId])
 
-  // notifyTyping 告诉别人自己正在输入，每 3 秒最多一次
-  const notifyTyping = () => {
-    if (!sub.current || Date.now() - lastSent.current < 3000) return
-    lastSent.current = Date.now()
-    void sub.current.publish({ type: "typing" }).catch(() => {
+  // notifyTyping 告诉别人自己正在输入，每 3 秒最多一次；切换回复与备注模式时立即通知一次
+  const notifyTyping = useCallback((mode: "reply" | "note" = "reply") => {
+    if (!sub.current) return
+    const now = Date.now()
+    if (now - lastSent.current < 3000 && lastMode.current === mode) return
+    lastSent.current = now
+    lastMode.current = mode
+    void sub.current.publish({ type: "typing", mode }).catch(() => {
       // “正在输入”是尽力而为的提示：发不出去时什么也不做
     })
-  }
+  }, [])
   // clearTyping 在 key（contact 或成员 ID）的消息到达时清掉他的“正在输入”，不用等到超时
   const clearTyping = useCallback((key: string) => setTyping((all) => all.filter((x) => x.key !== key)), [])
   return { viewers, typing, notifyTyping, clearTyping }

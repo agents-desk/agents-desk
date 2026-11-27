@@ -25,6 +25,7 @@ import (
 	"github.com/go-tenon/tenon/outbound"
 
 	"agents-desk/internal/channel"
+	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
 )
 
@@ -669,7 +670,9 @@ func (m *Manager) handleMessage(ctx context.Context, ch *channel.Channel, reqID 
 		}
 	}
 	sys := identity.Subject{Type: identity.System, ID: "wecom:" + ch.ID, Tenant: ch.TenantID}
-	if _, err := m.receive.Handle(handleCtx, sys, params); err != nil {
+	if _, err := m.receive.Handle(handleCtx, sys, params); errors.Is(err, contact.ErrBlocked) {
+		slog.InfoContext(handleCtx, "drop inbound wecom message from blocked contact", "channel_id", ch.ID, "from", fromID)
+	} else if err != nil {
 		slog.ErrorContext(handleCtx, "receive wecom message failed", "channel_id", ch.ID, "msgid", body.MsgID, "error", err)
 	}
 }
