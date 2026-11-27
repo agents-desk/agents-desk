@@ -202,7 +202,13 @@ export function TelegramLoginModal({
         <Stack gap="md" align="center">
           {session.qr_data_url ? (
             <Paper withBorder p="sm" radius="md" bg="white">
-              <img src={session.qr_data_url} alt={t("business_channels.tg_mode_qr")} width={220} height={220} style={{ display: "block" }} />
+              <img
+                src={session.qr_data_url}
+                alt={t("business_channels.tg_mode_qr")}
+                width={220}
+                height={220}
+                style={{ display: "block", imageRendering: "pixelated" }}
+              />
             </Paper>
           ) : (
             <Center h={220}>

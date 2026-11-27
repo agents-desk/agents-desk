@@ -1,14 +1,12 @@
 package widget
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
 	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
-	"image/png"
 	"net/http"
 	"strings"
 	"time"
@@ -215,7 +213,7 @@ func businessLinkWidgetURL(publicURL, channelID string) string {
 	return base + "/widget/?channel=" + channelID
 }
 
-// encodeQRDataURL 将目标链接编码为 PNG data URL（用于工作台二维码展示与下载）。
+// encodeQRDataURL 将目标链接编码为按比例缩放、带白边的清晰 PNG data URL（用于工作台二维码展示与下载）。
 func encodeQRDataURL(targetURL string) string {
 	if strings.TrimSpace(targetURL) == "" {
 		return ""
@@ -224,11 +222,7 @@ func encodeQRDataURL(targetURL string) string {
 	if err != nil {
 		return ""
 	}
-	var buf bytes.Buffer
-	if err := png.Encode(&buf, code.Image()); err != nil {
-		return ""
-	}
-	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(buf.Bytes())
+	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(code.PNG())
 }
 
 // resolvedCard 读取 Settings 中的名片配置，兼容旧数据未设置 card 字段时默认展示归属成员名片。
