@@ -2,6 +2,8 @@ package telegram
 
 import (
 	"context"
+	"fmt"
+	"html"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -36,11 +38,16 @@ func NewConnector(c *crypt.Crypt, files *filesystem.Service, client *Client) Con
 	return Connector{crypt: c, files: files, client: client}
 }
 
-// Capabilities 返回 Telegram 私聊的能力：支持文字、图片、视频、音频和文件；不支持已读回执。
+// Capabilities 返回 Telegram 机器人的能力：Webhook 传输，支持 1:1 私聊、群内 @ 机器人、引用回复和 @ 发言人，支持文字与多媒体附件。
 func (Connector) Capabilities() channel.Capabilities {
 	return channel.Capabilities{
-		MessageTypes: []string{"text", "image", "video", "audio", "file"},
-		ReadReceipts: false,
+		Transport:       channel.TransportWebhook,
+		MessageTypes:    []string{"text", "image", "video", "audio", "file"},
+		SupportsDirect:  true,
+		SupportsGroup:   true,
+		SupportsMention: true,
+		SupportsReplyTo: true,
+		ReadReceipts:    false,
 	}
 }
 
@@ -60,9 +67,14 @@ func (c Connector) FetchMedia(ctx context.Context, ch *channel.Channel, ref stri
 	return c.client.OpenFile(ctx, botToken, ref, maxBytes)
 }
 
-// Send 把时间线中的回复 m 发给 Telegram 用户（m.ExternalTo 为 chat_id），返回 Telegram 生成的消息编号并报告已送达。
+// Send 把时间线中的回复 m 发给 Telegram 用户或群聊（m.ExternalTo 为 chat_id），支持引用回复与群内 @ 提及，
+// 返回 <chat_id>:<message_id> 格式的外部编号并报告已送达。
 func (c Connector) Send(ctx context.Context, m channel.Outgoing) (string, bool, error) {
-	if m.ExternalTo == "" {
+	chatID := strings.TrimSpace(m.Target.ExternalTo)
+	if chatID == "" {
+		chatID = strings.TrimSpace(m.ExternalTo)
+	}
+	if chatID == "" {
 		return "", false, errors.New("telegram: empty recipient chat id")
 	}
 	s, err := settingsOf(m.Channel)
@@ -73,25 +85,33 @@ func (c Connector) Send(ctx context.Context, m channel.Outgoing) (string, bool, 
 	if err != nil {
 		return "", false, errors.Wrap(err, "decrypt telegram bot token")
 	}
+	outText, parseMode := formatTelegramText(m.Text, m.Mentions)
+	sendOpt := SendOptions{
+		ReplyToMessageID: parseTelegramReplyID(m.ReplyToExternalID),
+		ParseMode:        parseMode,
+	}
 	if len(m.Attachments) == 0 {
-		msgID, err := c.client.SendMessage(ctx, botToken, m.ExternalTo, m.Text)
+		msgID, err := c.client.SendMessage(ctx, botToken, chatID, outText, sendOpt)
 		if err != nil {
 			return "", false, err
 		}
-		return strconv.FormatInt(msgID, 10), true, nil
+		return fmt.Sprintf("%s:%d", chatID, msgID), true, nil
 	}
 	if c.files == nil {
 		return "", false, errors.New("telegram: filesystem service is required to send attachments")
 	}
 	// 文字超过 Telegram caption 上限时先单独发送文字消息，再逐个发送附件
-	caption := m.Text
+	caption := outText
+	captionParseMode := parseMode
 	var lastMsgID int64
-	if caption != "" && utf8.RuneCountInString(caption) > maxCaptionRunes {
-		lastMsgID, err = c.client.SendMessage(ctx, botToken, m.ExternalTo, caption)
+	if caption != "" && utf8.RuneCountInString(m.Text) > maxCaptionRunes {
+		lastMsgID, err = c.client.SendMessage(ctx, botToken, chatID, caption, sendOpt)
 		if err != nil {
 			return "", false, err
 		}
 		caption = ""
+		captionParseMode = ""
+		sendOpt.ReplyToMessageID = 0
 	}
 	for i, att := range m.Attachments {
 		fileUUID, err := uuid.Parse(att.FileID)
@@ -103,28 +123,78 @@ func (c Connector) Send(ctx context.Context, m channel.Outgoing) (string, bool, 
 			return "", false, errors.Wrap(err, "open attachment file")
 		}
 		attCaption := ""
+		attOpt := SendOptions{}
 		if i == 0 {
 			attCaption = caption
+			attOpt = SendOptions{ReplyToMessageID: sendOpt.ReplyToMessageID, ParseMode: captionParseMode}
 		}
 		durSec := att.DurationMs / 1000
 		switch att.Kind {
 		case "image":
-			lastMsgID, err = c.client.SendPhoto(ctx, botToken, m.ExternalTo, att.Filename, rc, attCaption)
+			lastMsgID, err = c.client.SendPhoto(ctx, botToken, chatID, att.Filename, rc, attCaption, attOpt)
 		case "video":
-			lastMsgID, err = c.client.SendVideo(ctx, botToken, m.ExternalTo, att.Filename, rc, attCaption, durSec, att.Width, att.Height)
+			lastMsgID, err = c.client.SendVideo(ctx, botToken, chatID, att.Filename, rc, attCaption, durSec, att.Width, att.Height, attOpt)
 		case "audio":
 			if att.IsVoice && strings.HasPrefix(strings.ToLower(att.ContentType), "audio/ogg") {
-				lastMsgID, err = c.client.SendVoice(ctx, botToken, m.ExternalTo, att.Filename, rc, attCaption, durSec)
+				lastMsgID, err = c.client.SendVoice(ctx, botToken, chatID, att.Filename, rc, attCaption, durSec, attOpt)
 			} else {
-				lastMsgID, err = c.client.SendAudio(ctx, botToken, m.ExternalTo, att.Filename, rc, attCaption, durSec)
+				lastMsgID, err = c.client.SendAudio(ctx, botToken, chatID, att.Filename, rc, attCaption, durSec, attOpt)
 			}
 		default:
-			lastMsgID, err = c.client.SendDocument(ctx, botToken, m.ExternalTo, att.Filename, rc, attCaption)
+			lastMsgID, err = c.client.SendDocument(ctx, botToken, chatID, att.Filename, rc, attCaption, attOpt)
 		}
 		_ = rc.Close()
 		if err != nil {
 			return "", false, err
 		}
 	}
-	return strconv.FormatInt(lastMsgID, 10), true, nil
+	return fmt.Sprintf("%s:%d", chatID, lastMsgID), true, nil
+}
+
+// parseTelegramReplyID 从 "<chat_id>:<msg_id>" 或纯数字 "<msg_id>" 中解析 Telegram message_id。
+func parseTelegramReplyID(extID string) int64 {
+	extID = strings.TrimSpace(extID)
+	if extID == "" {
+		return 0
+	}
+	if _, rawID, ok := strings.Cut(extID, ":"); ok {
+		extID = rawID
+	}
+	id, err := strconv.ParseInt(extID, 10, 64)
+	if err != nil || id <= 0 {
+		return 0
+	}
+	return id
+}
+
+// formatTelegramText 在携带外部 @ 提及列表时生成 Telegram HTML 文本（tg://user?id=... 触发真实群提醒），否则保持纯文本。
+func formatTelegramText(text string, mentions []channel.ExternalMention) (string, string) {
+	if len(mentions) == 0 {
+		return text, ""
+	}
+	var parts []string
+	for _, m := range mentions {
+		extID := strings.TrimSpace(m.ExternalID)
+		if extID == "" {
+			continue
+		}
+		name := strings.TrimSpace(m.Name)
+		if name == "" {
+			name = extID
+		}
+		if _, err := strconv.ParseInt(extID, 10, 64); err == nil {
+			parts = append(parts, fmt.Sprintf(`<a href="tg://user?id=%s">@%s</a>`, html.EscapeString(extID), html.EscapeString(name)))
+		} else {
+			parts = append(parts, "@"+html.EscapeString(name))
+		}
+	}
+	if len(parts) == 0 {
+		return text, ""
+	}
+	prefix := strings.Join(parts, " ")
+	escaped := html.EscapeString(text)
+	if escaped == "" {
+		return prefix, "HTML"
+	}
+	return prefix + " " + escaped, "HTML"
 }

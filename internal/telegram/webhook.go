@@ -23,6 +23,7 @@ import (
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
+	"agents-desk/internal/extgroup"
 )
 
 // Webhook 处理 POST /webhooks/telegram/{channel}：接收 Telegram 官方直连或外部业务网关转发的 Update，
@@ -41,24 +42,46 @@ func NewWebhook(db *bun.DB, c *crypt.Crypt, receive *conversation.Receive, down 
 }
 
 type updatePayload struct {
-	UpdateID int64        `json:"update_id"`
-	Message  *incomingMsg `json:"message"`
+	UpdateID     int64              `json:"update_id"`
+	Message      *incomingMsg       `json:"message"`
+	MyChatMember *chatMemberUpdated `json:"my_chat_member"`
+}
+
+type chatMemberUpdated struct {
+	Chat          telegramChat `json:"chat"`
+	NewChatMember struct {
+		Status string `json:"status"`
+	} `json:"new_chat_member"`
+}
+
+type msgEntity struct {
+	Type   string `json:"type"`
+	Offset int    `json:"offset"`
+	Length int    `json:"length"`
+}
+
+type repliedMsg struct {
+	MessageID int64         `json:"message_id"`
+	From      *telegramUser `json:"from"`
 }
 
 type incomingMsg struct {
-	MessageID int64          `json:"message_id"`
-	From      *telegramUser  `json:"from"`
-	Chat      telegramChat   `json:"chat"`
-	Text      string         `json:"text"`
-	Caption   string         `json:"caption"`
-	Photo     []photoSize    `json:"photo"`
-	Video     *videoFile     `json:"video"`
-	VideoNote *videoNoteFile `json:"video_note"`
-	Animation *videoFile     `json:"animation"`
-	Voice     *voiceFile     `json:"voice"`
-	Audio     *audioFile     `json:"audio"`
-	Sticker   *stickerFile   `json:"sticker"`
-	Document  *docFile       `json:"document"`
+	MessageID       int64          `json:"message_id"`
+	From            *telegramUser  `json:"from"`
+	Chat            telegramChat   `json:"chat"`
+	Text            string         `json:"text"`
+	Caption         string         `json:"caption"`
+	Entities        []msgEntity    `json:"entities"`
+	CaptionEntities []msgEntity    `json:"caption_entities"`
+	ReplyToMessage  *repliedMsg    `json:"reply_to_message"`
+	Photo           []photoSize    `json:"photo"`
+	Video           *videoFile     `json:"video"`
+	VideoNote       *videoNoteFile `json:"video_note"`
+	Animation       *videoFile     `json:"animation"`
+	Voice           *voiceFile     `json:"voice"`
+	Audio           *audioFile     `json:"audio"`
+	Sticker         *stickerFile   `json:"sticker"`
+	Document        *docFile       `json:"document"`
 }
 
 type telegramUser struct {
@@ -70,8 +93,9 @@ type telegramUser struct {
 }
 
 type telegramChat struct {
-	ID   int64  `json:"id"`
-	Type string `json:"type"`
+	ID    int64  `json:"id"`
+	Type  string `json:"type"`
+	Title string `json:"title"`
 }
 
 type photoSize struct {
@@ -178,7 +202,32 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
 	}
-	if upd.Message == nil || upd.Message.Chat.Type != "private" || upd.Message.Chat.ID == 0 {
+	// 处理机器人进群/被移出群事件，同步外部群注册表生命周期
+	if upd.MyChatMember != nil && upd.MyChatMember.Chat.ID != 0 &&
+		(upd.MyChatMember.Chat.Type == "group" || upd.MyChatMember.Chat.Type == "supergroup") {
+		chatID := strconv.FormatInt(upd.MyChatMember.Chat.ID, 10)
+		switch upd.MyChatMember.NewChatMember.Status {
+		case "member", "administrator":
+			if _, err := extgroup.SyncJoined(ctx, h.db, ch.TenantID, ch.ID, chatID, upd.MyChatMember.Chat.Title); err != nil {
+				slog.ErrorContext(ctx, "sync telegram bot joined group", "channel_id", id, "chat_id", chatID, "error", err)
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+			slog.InfoContext(ctx, "telegram bot joined group", "channel_id", id, "chat_id", chatID, "title", upd.MyChatMember.Chat.Title)
+		case "left", "kicked":
+			if err := extgroup.SyncRemoved(ctx, h.db, ch.TenantID, ch.ID, chatID); err != nil {
+				slog.ErrorContext(ctx, "sync telegram bot removed from group", "channel_id", id, "chat_id", chatID, "error", err)
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+			slog.InfoContext(ctx, "telegram bot removed from group", "channel_id", id, "chat_id", chatID)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+		return
+	}
+	if upd.Message == nil || upd.Message.Chat.ID == 0 {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
@@ -188,38 +237,67 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	isGroup := msg.Chat.Type == "group" || msg.Chat.Type == "supergroup"
+	if !isGroup && msg.Chat.Type != "private" {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
 	chatID := strconv.FormatInt(msg.Chat.ID, 10)
-	fromName := displayNameOf(msg.From, chatID)
-	extUserID := strings.TrimSpace(r.Header.Get(ExternalIDHeader))
-	extEmail := strings.TrimSpace(r.Header.Get(ExternalEmailHeader))
-	extName := strings.TrimSpace(r.Header.Get(ExternalNameHeader))
-	if len(extUserID) > 200 {
-		extUserID = extUserID[:200]
+	rawText := firstNonEmpty(msg.Text, msg.Caption)
+	if isGroup {
+		if !s.GroupsEnabled() {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if !isGroupMessageForBot(msg, s.BotID, s.BotUsername) {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		rawText = stripBotMention(rawText, s.BotUsername)
 	}
 
 	sys := identity.Subject{Type: identity.System, ID: "telegram:" + ch.ID, Tenant: ch.TenantID}
-
-	// 可信外部网关附带了产品用户编号时，先关联或合并联系人，打通网页端与 Telegram 同一客户档案。
-	if extUserID != "" {
-		profileName := firstNonEmpty(extName, fromName)
-		err = database.RunInTx(ctx, h.db, nil, func(ctx context.Context, tx database.Tx) error {
-			_, convIDs, err := contact.LinkUser(ctx, tx, ch.TenantID, ch.ID, chatID, extUserID, contact.Profile{
-				Name:  profileName,
-				Email: extEmail,
-			}, conversation.BeforeContactMerge(h.down, sys))
-			if err != nil {
-				return err
-			}
-			return conversation.NotifyUpdated(ctx, tx, h.down, ch.TenantID, convIDs)
-		})
-		if err != nil {
-			slog.ErrorContext(ctx, "link telegram contact to external user", "channel_id", id, "external_user_id", extUserID, "error", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
+	var fromID, fromName string
+	if isGroup {
+		if msg.From != nil && msg.From.ID != 0 {
+			fromID = strconv.FormatInt(msg.From.ID, 10)
+		} else {
+			fromID = chatID + ":unknown"
 		}
+		fromName = displayNameOf(msg.From, fromID)
+	} else {
+		fromID = chatID
+		fromName = displayNameOf(msg.From, chatID)
+		extUserID := strings.TrimSpace(r.Header.Get(ExternalIDHeader))
+		extEmail := strings.TrimSpace(r.Header.Get(ExternalEmailHeader))
+		extName := strings.TrimSpace(r.Header.Get(ExternalNameHeader))
+		if len(extUserID) > 200 {
+			extUserID = extUserID[:200]
+		}
+		// 可信外部网关附带了产品用户编号时，先关联或合并联系人，打通网页端与 Telegram 同一客户档案（仅外部客户渠道）。
+		if extUserID != "" && ch.EffectiveAudience() == channel.AudienceCustomer {
+			profileName := firstNonEmpty(extName, fromName)
+			err = database.RunInTx(ctx, h.db, nil, func(ctx context.Context, tx database.Tx) error {
+				_, convIDs, err := contact.LinkUser(ctx, tx, ch.TenantID, ch.ID, chatID, extUserID, contact.Profile{
+					Name:  profileName,
+					Email: extEmail,
+				}, conversation.BeforeContactMerge(h.down, sys))
+				if err != nil {
+					return err
+				}
+				return conversation.NotifyUpdated(ctx, tx, h.down, ch.TenantID, convIDs)
+			})
+			if err != nil {
+				slog.ErrorContext(ctx, "link telegram contact to external user", "channel_id", id, "external_user_id", extUserID, "error", err)
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+		}
+		fromName = firstNonEmpty(extName, fromName)
 	}
 
-	text := strings.TrimSpace(firstNonEmpty(msg.Text, msg.Caption))
+	text := strings.TrimSpace(rawText)
 	incoming, fallbackText := extractIncomingAttachments(msg)
 	if text == "" && len(incoming) == 0 {
 		text = fallbackText
@@ -230,15 +308,26 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var replyToExtID string
+	if msg.ReplyToMessage != nil && msg.ReplyToMessage.MessageID > 0 {
+		replyToExtID = fmt.Sprintf("%d:%d", msg.Chat.ID, msg.ReplyToMessage.MessageID)
+	}
 	extMsgID := fmt.Sprintf("%d:%d", msg.Chat.ID, msg.MessageID)
-	_, err = h.receive.Handle(ctx, sys, conversation.ReceiveParams{
+	params := conversation.ReceiveParams{
 		ChannelID:           ch.ID,
-		From:                chatID,
-		FromName:            firstNonEmpty(extName, fromName),
+		From:                fromID,
+		FromName:            fromName,
 		ExternalID:          extMsgID,
+		ReplyToExternalID:   replyToExtID,
 		Text:                text,
 		IncomingAttachments: incoming,
-	})
+	}
+	if isGroup {
+		params.IsGroup = true
+		params.ExternalChatID = chatID
+		params.ChatTitle = msg.Chat.Title
+	}
+	_, err = h.receive.Handle(ctx, sys, params)
 	if err != nil {
 		slog.ErrorContext(ctx, "receive telegram message failed", "channel_id", id, "message_id", msg.MessageID, "error", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -247,6 +336,70 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(`{"ok":true}`))
+}
+
+// isGroupMessageForBot 判断群消息是否显式触发了当前机器人：@机器人、以 /command 发起命令，或直接回复机器人的消息。
+func isGroupMessageForBot(msg *incomingMsg, botID int64, botUsername string) bool {
+	if msg.ReplyToMessage != nil && msg.ReplyToMessage.From != nil {
+		rf := msg.ReplyToMessage.From
+		if (botID > 0 && rf.ID == botID) || (botUsername != "" && strings.EqualFold(rf.Username, botUsername)) {
+			return true
+		}
+	}
+	text := firstNonEmpty(msg.Text, msg.Caption)
+	if text == "" {
+		return false
+	}
+	if botUsername != "" && strings.Contains(strings.ToLower(text), "@"+strings.ToLower(botUsername)) {
+		return true
+	}
+	trimmed := strings.TrimSpace(text)
+	if strings.HasPrefix(trimmed, "/") {
+		cmdToken := strings.Fields(trimmed)[0]
+		if _, target, hasAt := strings.Cut(cmdToken, "@"); hasAt {
+			return botUsername != "" && strings.EqualFold(target, botUsername)
+		}
+		return true
+	}
+	entities := msg.Entities
+	if len(entities) == 0 {
+		entities = msg.CaptionEntities
+	}
+	for _, ent := range entities {
+		if ent.Type == "bot_command" && ent.Offset == 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// stripBotMention 去除群内触发机器人的 @bot_username 前缀或独立标记，保留用户实际提问正文。
+func stripBotMention(text, botUsername string) string {
+	if botUsername == "" || strings.TrimSpace(text) == "" {
+		return text
+	}
+	target := "@" + strings.ToLower(botUsername)
+	lower := strings.ToLower(text)
+	var b strings.Builder
+	i := 0
+	for i < len(text) {
+		idx := strings.Index(lower[i:], target)
+		if idx < 0 {
+			b.WriteString(text[i:])
+			break
+		}
+		pos := i + idx
+		end := pos + len(target)
+		// 仅匹配完整用户名边界，避免误删 @bot_other 的前缀
+		if end < len(text) && (text[end] == '_' || (text[end] >= 'a' && text[end] <= 'z') || (text[end] >= 'A' && text[end] <= 'Z') || (text[end] >= '0' && text[end] <= '9')) {
+			b.WriteString(text[i:end])
+			i = end
+			continue
+		}
+		b.WriteString(text[i:pos])
+		i = end
+	}
+	return strings.TrimSpace(b.String())
 }
 
 // extractIncomingAttachments 将 Telegram 消息体中的各类媒体转换为会话层的 IncomingAttachment 元数据。

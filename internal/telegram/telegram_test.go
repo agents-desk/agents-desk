@@ -28,6 +28,7 @@ import (
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
+	"agents-desk/internal/extgroup"
 	"agents-desk/internal/member"
 	"agents-desk/internal/tenant"
 )
@@ -546,5 +547,170 @@ func TestClientRedactsBotTokenInErrors(t *testing.T) {
 	}
 	if strings.Contains(err.Error(), secretToken) {
 		t.Fatalf("error leaked bot token: %v", err)
+	}
+}
+
+// TestTelegramDualAudienceAndGroupMention 验证 Telegram 机器人的双场景能力（internal 员工单聊 + 群内 @bot / my_chat_member + 群引用与 @ 回复）。
+func TestTelegramDualAudienceAndGroupMention(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	env := apptest.New(t)
+	fake, _, client := newFakeTelegramAPI(t, "555:INTERNAL_BOT_TOKEN", "ops_helper_bot")
+
+	tn, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+		Name: "Ops", Slug: "ops", OwnerEmail: "owner@ops.test", OwnerName: "Owner", OwnerPassword: "password",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner := identity.Subject{Type: member.Type, ID: tn.OwnerID, Tenant: tn.ID, Permissions: auth.WithBase(auth.RolePermissions(auth.ScopeAll, nil))}
+
+	bot, err := NewCreate(env.DB, env.Crypt, client, "https://desk.example.com").Handle(ctx, owner, CreateBody{
+		Name:     "IT 内部 Telegram 机器人",
+		Audience: channel.AudienceInternal,
+		BotToken: "555:INTERNAL_BOT_TOKEN",
+	})
+	if err != nil {
+		t.Fatalf("创建内部 TG 机器人失败: %v", err)
+	}
+	if bot.Audience != channel.AudienceInternal || !bot.EnableGroups {
+		t.Fatalf("DTO 字段不对: %+v", bot)
+	}
+	// setWebhook 应包含 my_chat_member
+	if len(fake.setWebhooks) != 1 {
+		t.Fatalf("期望 1 次 setWebhook，实际 %d", len(fake.setWebhooks))
+	}
+	inst, err := NewGetInstallation(env.DB, env.Crypt, "https://desk.example.com").Handle(ctx, owner, bot.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	reg := channel.DefaultRegistry()
+	reg[channel.Telegram] = NewConnector(env.Crypt, env.Files, client)
+	down := conversation.Downstream{Roles: env.Roles, Registry: reg}
+	wh := NewWebhook(env.DB, env.Crypt, conversation.NewReceive(env.DB, reg, down), down)
+	r := chi.NewRouter()
+	r.Post("/webhooks/telegram/{channel}", wh.ServeHTTP)
+
+	postUpdate := func(payload map[string]any) int {
+		t.Helper()
+		raw, _ := json.Marshal(payload)
+		req := httptest.NewRequest(http.MethodPost, "/webhooks/telegram/"+bot.ID, bytes.NewReader(raw))
+		req.Header.Set(SecretHeader, inst.WebhookSecret)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		return rec.Code
+	}
+
+	// 1. 内部员工 1:1 私聊 -> 创建 internal 联系人
+	if code := postUpdate(map[string]any{
+		"update_id": 1,
+		"message": map[string]any{
+			"message_id": 10,
+			"from":       map[string]any{"id": 88001, "first_name": "员工张三"},
+			"chat":       map[string]any{"id": 88001, "type": "private"},
+			"text":       "帮我开通测试库权限",
+		},
+	}); code != http.StatusOK {
+		t.Fatalf("私聊 webhook 状态码 = %d", code)
+	}
+	internalList, err := contact.NewList(env.DB).Handle(ctx, owner, &contact.ListInput{Kind: contact.Internal})
+	if err != nil || len(internalList.Items) != 1 || internalList.Items[0].Name != "员工张三" {
+		t.Fatalf("内部机器人私聊应建 internal 联系人: %+v %v", internalList, err)
+	}
+
+	// 2. my_chat_member 机器人入群 -> 自动在 external_groups 注册 pending_setup
+	if code := postUpdate(map[string]any{
+		"update_id": 2,
+		"my_chat_member": map[string]any{
+			"chat":            map[string]any{"id": -100999888, "type": "supergroup", "title": "SRE 告警群"},
+			"new_chat_member": map[string]any{"status": "member"},
+		},
+	}); code != http.StatusOK {
+		t.Fatalf("my_chat_member 入群状态码 = %d", code)
+	}
+	groups, err := extgroup.NewList(env.DB).Handle(ctx, owner, &extgroup.ListInput{})
+	if err != nil || len(groups) != 1 || groups[0].Name != "SRE 告警群" || groups[0].Status != extgroup.StatusPendingSetup {
+		t.Fatalf("入群后应登记 pending_setup 外部群: %+v %v", groups, err)
+	}
+
+	// 3. 群内普通闲聊（未 @ 机器人）-> 204 忽略，不建会话
+	if code := postUpdate(map[string]any{
+		"update_id": 3,
+		"message": map[string]any{
+			"message_id": 20,
+			"from":       map[string]any{"id": 77001, "first_name": "李四"},
+			"chat":       map[string]any{"id": -100999888, "type": "supergroup", "title": "SRE 告警群"},
+			"text":       "中午吃什么？",
+		},
+	}); code != http.StatusNoContent {
+		t.Fatalf("普通群聊应返回 204，实际 %d", code)
+	}
+
+	// 4. 群内 @ops_helper_bot -> 剥离 @ 前缀进入外部群会话
+	if code := postUpdate(map[string]any{
+		"update_id": 4,
+		"message": map[string]any{
+			"message_id": 21,
+			"from":       map[string]any{"id": 77001, "first_name": "李四"},
+			"chat":       map[string]any{"id": -100999888, "type": "supergroup", "title": "SRE 告警群"},
+			"text":       "@ops_helper_bot 线上网关 502 了",
+		},
+	}); code != http.StatusOK {
+		t.Fatalf("群 @bot 状态码 = %d", code)
+	}
+	grpConvs, err := conversation.NewList(env.DB).Handle(ctx, owner, &conversation.ListInput{ExternalGroupID: groups[0].ID})
+	if err != nil || len(grpConvs.Items) != 1 {
+		t.Fatalf("应查到 1 条外部群会话: %+v %v", grpConvs, err)
+	}
+	grpConvID := grpConvs.Items[0].ID
+	items, err := conversation.NewTimeline(env.DB).Handle(ctx, owner, grpConvID, 0, 20)
+	if err != nil || len(items) != 1 || items[0].Content.Text != "线上网关 502 了" || items[0].Actor.Name != "李四" {
+		t.Fatalf("群消息内容或发言人不对: %+v %v", items, err)
+	}
+
+	// 5. 坐席在群会话中引用并 @ 李四回复 -> 投递携带 reply_parameters 与 HTML tg://user?id=77001
+	replyItem, err := conversation.NewReply(env.DB, down).Handle(ctx, owner, grpConvID, conversation.ReplyBody{
+		Text:          "正在查看网关日志",
+		ReplyToItemID: items[0].ID,
+		ExternalMentions: []channel.ExternalMention{
+			{ExternalID: "77001", Name: "李四"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("群回复失败: %v", err)
+	}
+	if err := conversation.NewDeliver(env.DB, reg, down).Job(ctx, conversation.Appended{
+		TenantID: tn.ID, ConversationID: grpConvID, ItemID: replyItem.ID,
+	}); err != nil {
+		t.Fatalf("群回复投递失败: %v", err)
+	}
+	if len(fake.sentMessages) != 1 {
+		t.Fatalf("应发送 1 条群消息，实际 %d", len(fake.sentMessages))
+	}
+	sent := fake.sentMessages[0]
+	if sent["chat_id"] != "-100999888" || sent["parse_mode"] != "HTML" {
+		t.Fatalf("群发送参数不对: %+v", sent)
+	}
+	if txt, _ := sent["text"].(string); !strings.Contains(txt, `tg://user?id=77001`) || !strings.Contains(txt, "正在查看网关日志") {
+		t.Fatalf("群 @ 文本不对: %q", txt)
+	}
+	if rp, _ := sent["reply_parameters"].(map[string]any); rp == nil || rp["message_id"] != float64(21) {
+		t.Fatalf("reply_parameters 不对: %+v", sent["reply_parameters"])
+	}
+
+	// 6. my_chat_member 机器人被移出群 -> 状态变为 removed
+	if code := postUpdate(map[string]any{
+		"update_id": 5,
+		"my_chat_member": map[string]any{
+			"chat":            map[string]any{"id": -100999888, "type": "supergroup", "title": "SRE 告警群"},
+			"new_chat_member": map[string]any{"status": "kicked"},
+		},
+	}); code != http.StatusOK {
+		t.Fatalf("my_chat_member 离群状态码 = %d", code)
+	}
+	gAfter, err := extgroup.Find(ctx, env.DB, tn.ID, groups[0].ID)
+	if err != nil || gAfter.Status != extgroup.StatusRemoved {
+		t.Fatalf("离群后状态应为 removed: %+v %v", gAfter, err)
 	}
 }

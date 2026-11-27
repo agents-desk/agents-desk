@@ -13,15 +13,19 @@ import (
 	"github.com/go-tenon/tenon/crypt"
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/identity"
+
+	"agents-desk/internal/channel"
 )
 
 // UpdateBody 是修改 Telegram 机器人渠道的请求体；BotToken 留空表示保持原有 Token 不变。
 type UpdateBody struct {
-	Name           string  `json:"name" minLength:"1" maxLength:"60"`
-	TeamID         *string `json:"team_id,omitempty" format:"uuid" doc:"新会话进入的团队收件箱；不填时进入未指派"`
-	BotToken       string  `json:"bot_token,omitempty" maxLength:"256" format:"password" doc:"新的 Bot Token；留空则保持原 Token 不变"`
-	GatewayManaged bool    `json:"gateway_managed" doc:"开启后由外部业务网关转发 Webhook，系统不自动调用 setWebhook"`
-	Enabled        bool    `json:"enabled" doc:"停用后不再接收或发送消息"`
+	Name           string           `json:"name" minLength:"1" maxLength:"60"`
+	Audience       channel.Audience `json:"audience,omitempty" doc:"服务对象类型：customer（外部客户）或 internal（内部员工）"`
+	TeamID         *string          `json:"team_id,omitempty" format:"uuid" doc:"新会话进入的团队收件箱；不填时进入未指派"`
+	BotToken       string           `json:"bot_token,omitempty" maxLength:"256" format:"password" doc:"新的 Bot Token；留空则保持原 Token 不变"`
+	GatewayManaged bool             `json:"gateway_managed" doc:"开启后由外部业务网关转发 Webhook，系统不自动调用 setWebhook"`
+	EnableGroups   *bool            `json:"enable_groups,omitempty" doc:"是否接收群内 @ 机器人与命令消息"`
+	Enabled        bool             `json:"enabled" doc:"停用后不再接收或发送消息"`
 }
 
 // UpdateInput 是修改 Telegram 渠道的 HTTP 请求。
@@ -50,10 +54,10 @@ func NewUpdate(db *bun.DB, c *crypt.Crypt, client *Client, publicURL string) *Up
 // 若提供了新 BotToken 会先经 getMe 校验；直连模式下按启用状态自动同步 setWebhook 或 deleteWebhook，外部网关转发模式不触碰 Telegram Webhook。
 func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b UpdateBody) (*TelegramDTO, error) {
 	newToken := strings.TrimSpace(b.BotToken)
-	var newUsername string
+	var newBot BotInfo
 	if newToken != "" {
 		var err error
-		if newUsername, err = a.client.GetMe(ctx, newToken); err != nil {
+		if newBot, err = a.client.GetMe(ctx, newToken); err != nil {
 			return nil, err
 		}
 	}
@@ -74,9 +78,13 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 		if err != nil {
 			return err
 		}
+		targetAudience := normalizeBotAudience(b.Audience, ch.EffectiveAudience())
 		var changed []string
 		if ch.Name != b.Name {
 			changed = append(changed, "name")
+		}
+		if ch.EffectiveAudience() != targetAudience {
+			changed = append(changed, "audience")
 		}
 		if !sameTeam(ch.TeamID, b.TeamID) {
 			changed = append(changed, "team_id")
@@ -86,24 +94,30 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 			changed = append(changed, "enabled")
 		}
 		modeChanged := s.GatewayManaged != b.GatewayManaged
-		if modeChanged || newToken != "" {
+		groupsChanged := b.EnableGroups != nil && s.GroupsEnabled() != *b.EnableGroups
+		if modeChanged || groupsChanged || newToken != "" {
 			changed = append(changed, "settings")
 		}
 		if len(changed) == 0 {
 			return nil
 		}
 		if newToken != "" {
+			s.BotID = newBot.ID
 			s.BotToken = a.crypt.Encrypt(newToken)
-			s.BotUsername = newUsername
+			s.BotUsername = newBot.Username
 		}
 		s.GatewayManaged = b.GatewayManaged
+		if b.EnableGroups != nil {
+			eg := *b.EnableGroups
+			s.EnableGroups = &eg
+		}
 		settings, err := s.toMap()
 		if err != nil {
 			return err
 		}
 		maps.Copy(ch.Settings, settings)
-		ch.Name, ch.TeamID, ch.Enabled = b.Name, b.TeamID, b.Enabled
-		if _, err := tx.NewUpdate().Model(ch).Column("name", "team_id", "enabled", "settings", "updated_at").WherePK().Exec(ctx); err != nil {
+		ch.Name, ch.Audience, ch.TeamID, ch.Enabled = b.Name, targetAudience, b.TeamID, b.Enabled
+		if _, err := tx.NewUpdate().Model(ch).Column("name", "audience", "team_id", "enabled", "settings", "updated_at").WherePK().Exec(ctx); err != nil {
 			return errors.Wrap(err, "update telegram channel")
 		}
 		// 直连模式下：启用态且（首次切直连、重新启用或换 Token）时同步 setWebhook；停用时清理 Webhook。

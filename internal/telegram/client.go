@@ -128,30 +128,40 @@ func (c *Client) do(req *http.Request, botToken string) (json.RawMessage, int, s
 	return out.Result, resp.StatusCode, "", nil
 }
 
-// GetMe 校验 Bot Token 并返回 Bot 的用户名（不含 @）。Token 无效时返回 ErrInvalidBotToken。
-func (c *Client) GetMe(ctx context.Context, botToken string) (string, error) {
+// BotInfo 是 Telegram getMe 返回的机器人身份信息。
+type BotInfo struct {
+	ID       int64  `json:"id"`
+	Username string `json:"username"`
+}
+
+// SendOptions 是发送 Telegram 消息或媒体时的可选协议参数（引用回复与格式模式）。
+type SendOptions struct {
+	ReplyToMessageID int64
+	ParseMode        string
+}
+
+// GetMe 校验 Bot Token 并返回 Bot 的数字 ID 与用户名（不含 @）。Token 无效时返回 ErrInvalidBotToken。
+func (c *Client) GetMe(ctx context.Context, botToken string) (BotInfo, error) {
 	res, status, _, err := c.callJSON(ctx, botToken, "getMe", nil)
 	if err != nil {
 		if status == http.StatusUnauthorized || status == http.StatusNotFound {
-			return "", ErrInvalidBotToken.New(errorx.Field("bot_token"))
+			return BotInfo{}, ErrInvalidBotToken.New(errorx.Field("bot_token"))
 		}
-		return "", errors.Wrap(err, "telegram getMe")
+		return BotInfo{}, errors.Wrap(err, "telegram getMe")
 	}
-	var me struct {
-		Username string `json:"username"`
-	}
+	var me BotInfo
 	if err := json.Unmarshal(res, &me); err != nil {
-		return "", errors.Wrap(err, "decode telegram getMe")
+		return BotInfo{}, errors.Wrap(err, "decode telegram getMe")
 	}
-	return me.Username, nil
+	return me, nil
 }
 
-// SetWebhook 把 Bot 的 Webhook 设为 targetURL，带上 secretToken 鉴权头，仅订阅 message 事件。
+// SetWebhook 把 Bot 的 Webhook 设为 targetURL，带上 secretToken 鉴权头，订阅 message 与 my_chat_member 事件。
 func (c *Client) SetWebhook(ctx context.Context, botToken, targetURL, secretToken string) error {
 	_, _, desc, err := c.callJSON(ctx, botToken, "setWebhook", map[string]any{
 		"url":             targetURL,
 		"secret_token":    secretToken,
-		"allowed_updates": []string{"message"},
+		"allowed_updates": []string{"message", "my_chat_member"},
 	})
 	if err != nil {
 		return ErrWebhookFailed.New(errorx.Public("reason", firstNonEmpty(desc, err.Error())))
@@ -168,24 +178,55 @@ func (c *Client) DeleteWebhook(ctx context.Context, botToken string) error {
 	return nil
 }
 
-// SendMessage 向 chatID 发送纯文本消息，返回 Telegram 生成的消息编号。
-func (c *Client) SendMessage(ctx context.Context, botToken, chatID, text string) (int64, error) {
-	res, _, _, err := c.callJSON(ctx, botToken, "sendMessage", map[string]any{
+// SendMessage 向 chatID 发送文本消息（支持可选引用回复与 HTML 格式），返回 Telegram 生成的消息编号。
+func (c *Client) SendMessage(ctx context.Context, botToken, chatID, text string, opts ...SendOptions) (int64, error) {
+	payload := map[string]any{
 		"chat_id": chatID,
 		"text":    text,
-	})
+	}
+	if len(opts) > 0 {
+		opt := opts[0]
+		if opt.ParseMode != "" {
+			payload["parse_mode"] = opt.ParseMode
+		}
+		if opt.ReplyToMessageID > 0 {
+			payload["reply_parameters"] = map[string]any{
+				"message_id":                  opt.ReplyToMessageID,
+				"allow_sending_without_reply": true,
+			}
+		}
+	}
+	res, _, _, err := c.callJSON(ctx, botToken, "sendMessage", payload)
 	if err != nil {
 		return 0, errors.Wrap(err, "telegram sendMessage")
 	}
 	return decodeMessageID(res)
 }
 
+func applyMultipartSendOptions(fields map[string]string, opts []SendOptions) {
+	if len(opts) == 0 {
+		return
+	}
+	opt := opts[0]
+	if opt.ParseMode != "" {
+		fields["parse_mode"] = opt.ParseMode
+	}
+	if opt.ReplyToMessageID > 0 {
+		raw, _ := json.Marshal(map[string]any{
+			"message_id":                  opt.ReplyToMessageID,
+			"allow_sending_without_reply": true,
+		})
+		fields["reply_parameters"] = string(raw)
+	}
+}
+
 // SendPhoto 向 chatID 发送图片附件及可选说明文字，返回 Telegram 生成的消息编号。
-func (c *Client) SendPhoto(ctx context.Context, botToken, chatID, filename string, content io.Reader, caption string) (int64, error) {
+func (c *Client) SendPhoto(ctx context.Context, botToken, chatID, filename string, content io.Reader, caption string, opts ...SendOptions) (int64, error) {
 	fields := map[string]string{"chat_id": chatID}
 	if caption != "" {
 		fields["caption"] = caption
 	}
+	applyMultipartSendOptions(fields, opts)
 	res, _, _, err := c.callMultipart(ctx, botToken, "sendPhoto", fields, "photo", fallbackFilename(filename, "photo.jpg"), content)
 	if err != nil {
 		return 0, errors.Wrap(err, "telegram sendPhoto")
@@ -194,11 +235,12 @@ func (c *Client) SendPhoto(ctx context.Context, botToken, chatID, filename strin
 }
 
 // SendDocument 向 chatID 发送文件附件及可选说明文字，返回 Telegram 生成的消息编号。
-func (c *Client) SendDocument(ctx context.Context, botToken, chatID, filename string, content io.Reader, caption string) (int64, error) {
+func (c *Client) SendDocument(ctx context.Context, botToken, chatID, filename string, content io.Reader, caption string, opts ...SendOptions) (int64, error) {
 	fields := map[string]string{"chat_id": chatID}
 	if caption != "" {
 		fields["caption"] = caption
 	}
+	applyMultipartSendOptions(fields, opts)
 	res, _, _, err := c.callMultipart(ctx, botToken, "sendDocument", fields, "document", fallbackFilename(filename, "file"), content)
 	if err != nil {
 		return 0, errors.Wrap(err, "telegram sendDocument")
@@ -207,7 +249,7 @@ func (c *Client) SendDocument(ctx context.Context, botToken, chatID, filename st
 }
 
 // SendVideo 向 chatID 发送视频附件及可选说明文字和元数据，返回 Telegram 生成的消息编号。
-func (c *Client) SendVideo(ctx context.Context, botToken, chatID, filename string, content io.Reader, caption string, durationSec, width, height int) (int64, error) {
+func (c *Client) SendVideo(ctx context.Context, botToken, chatID, filename string, content io.Reader, caption string, durationSec, width, height int, opts ...SendOptions) (int64, error) {
 	fields := map[string]string{"chat_id": chatID, "supports_streaming": "true"}
 	if caption != "" {
 		fields["caption"] = caption
@@ -221,6 +263,7 @@ func (c *Client) SendVideo(ctx context.Context, botToken, chatID, filename strin
 	if height > 0 {
 		fields["height"] = fmt.Sprintf("%d", height)
 	}
+	applyMultipartSendOptions(fields, opts)
 	res, _, _, err := c.callMultipart(ctx, botToken, "sendVideo", fields, "video", fallbackFilename(filename, "video.mp4"), content)
 	if err != nil {
 		return 0, errors.Wrap(err, "telegram sendVideo")
@@ -229,7 +272,7 @@ func (c *Client) SendVideo(ctx context.Context, botToken, chatID, filename strin
 }
 
 // SendVoice 向 chatID 发送 OGG Opus 语音消息，返回 Telegram 生成的消息编号。
-func (c *Client) SendVoice(ctx context.Context, botToken, chatID, filename string, content io.Reader, caption string, durationSec int) (int64, error) {
+func (c *Client) SendVoice(ctx context.Context, botToken, chatID, filename string, content io.Reader, caption string, durationSec int, opts ...SendOptions) (int64, error) {
 	fields := map[string]string{"chat_id": chatID}
 	if caption != "" {
 		fields["caption"] = caption
@@ -237,6 +280,7 @@ func (c *Client) SendVoice(ctx context.Context, botToken, chatID, filename strin
 	if durationSec > 0 {
 		fields["duration"] = fmt.Sprintf("%d", durationSec)
 	}
+	applyMultipartSendOptions(fields, opts)
 	res, _, _, err := c.callMultipart(ctx, botToken, "sendVoice", fields, "voice", fallbackFilename(filename, "voice.ogg"), content)
 	if err != nil {
 		return 0, errors.Wrap(err, "telegram sendVoice")
@@ -245,7 +289,7 @@ func (c *Client) SendVoice(ctx context.Context, botToken, chatID, filename strin
 }
 
 // SendAudio 向 chatID 发送音频文件及可选说明文字，返回 Telegram 生成的消息编号。
-func (c *Client) SendAudio(ctx context.Context, botToken, chatID, filename string, content io.Reader, caption string, durationSec int) (int64, error) {
+func (c *Client) SendAudio(ctx context.Context, botToken, chatID, filename string, content io.Reader, caption string, durationSec int, opts ...SendOptions) (int64, error) {
 	fields := map[string]string{"chat_id": chatID}
 	if caption != "" {
 		fields["caption"] = caption
@@ -253,6 +297,7 @@ func (c *Client) SendAudio(ctx context.Context, botToken, chatID, filename strin
 	if durationSec > 0 {
 		fields["duration"] = fmt.Sprintf("%d", durationSec)
 	}
+	applyMultipartSendOptions(fields, opts)
 	res, _, _, err := c.callMultipart(ctx, botToken, "sendAudio", fields, "audio", fallbackFilename(filename, "audio.mp3"), content)
 	if err != nil {
 		return 0, errors.Wrap(err, "telegram sendAudio")

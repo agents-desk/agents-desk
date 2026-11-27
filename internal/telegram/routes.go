@@ -38,9 +38,9 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 		Get:        "telegram-get",
 		Create:     "telegram-create",
 		Update:     "telegram-update",
-		Columns:    []string{"name", "bot_username", "team_name", "gateway_managed", "enabled"},
-		CreateForm: []string{"name", "team_id", "bot_token", "gateway_managed"},
-		UpdateForm: []string{"name", "team_id", "bot_token", "gateway_managed", "enabled"},
+		Columns:    []string{"name", "audience", "bot_username", "team_name", "enable_groups", "gateway_managed", "enabled"},
+		CreateForm: []string{"name", "audience", "team_id", "bot_token", "enable_groups", "gateway_managed"},
+		UpdateForm: []string{"name", "audience", "team_id", "bot_token", "enable_groups", "gateway_managed", "enabled"},
 		Refs:       map[string]string{"team_id": "team"},
 	})
 }
