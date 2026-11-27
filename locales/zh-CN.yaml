@@ -263,6 +263,8 @@ widget.invalid_user_token: 用户身份的签名无效或已过期
 widget.team_not_found: 团队收件箱不存在
 widget.invalid_origin: "“{{.origin}}”要写成 https:// 或 http:// 开头、只有域名的地址，例如 https://shop.example.com"
 widget.invalid_color: "“{{.color}}”不是有效的颜色，请填写 #rrggbb 十六进制颜色值"
+widget.invalid_language: "“{{.language}}”不是有效的语言标签（BCP 47），例如 zh-CN、en、hi-Latn"
+widget.forbidden: "没有权限执行此网页渠道操作"
 widget.business_link_in_use: "该商务沟通链接已有聊天或联系人记录，不能删除，可以改为停用"
 widget.invalid_passcode: "访问口令不正确，请核对后重试"
 widget.business_link_expired: "该商务沟通链接已过期，请联系对方获取新链接"

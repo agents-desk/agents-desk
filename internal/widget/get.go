@@ -33,16 +33,13 @@ func normalizeColor(raw Color) (Color, error) {
 	return "", ErrInvalidColor.New(errorx.Field("appearance.color"), errorx.Public("color", s))
 }
 
-// normalizeAppearance 校验并标准化聊天窗口的外观配置。
+// normalizeAppearance 校验并标准化聊天窗口的视觉外观配置。
 func normalizeAppearance(in Appearance) (Appearance, error) {
 	color, err := normalizeColor(in.Color)
 	if err != nil {
 		return Appearance{}, err
 	}
-	return Appearance{
-		Color:    color,
-		Greeting: in.Greeting,
-	}, nil
+	return Appearance{Color: color}, nil
 }
 
 // isHexColor 报告 s 是否为 #rrggbb 形式的 6 位十六进制颜色值。
@@ -83,11 +80,12 @@ func (Color) Schema(huma.Registry) *huma.Schema {
 
 // WidgetDTO 是接口中的聊天插件。
 type WidgetDTO struct {
-	ID         string     `json:"id"`
-	Name       string     `json:"name"`
-	TeamID     *string    `json:"team_id,omitempty" doc:"新会话进入的团队收件箱；为空时进入未指派"`
-	TeamName   string     `json:"team_name" doc:"新会话进入的团队收件箱的名称；未指派时为空"`
-	Appearance Appearance `json:"appearance" doc:"聊天窗口的外观配置"`
+	ID           string       `json:"id"`
+	Name         string       `json:"name"`
+	TeamID       *string      `json:"team_id,omitempty" doc:"新会话进入的团队收件箱；为空时进入未指派"`
+	TeamName     string       `json:"team_name" doc:"新会话进入的团队收件箱的名称；未指派时为空"`
+	Appearance   Appearance   `json:"appearance" doc:"聊天窗口的视觉外观配置"`
+	Localization Localization `json:"localization" doc:"渠道语言策略与多语言自定义文案"`
 	// AllowedOrigins 是允许嵌入聊天窗口的网站
 	AllowedOrigins []string  `json:"allowed_origins" doc:"允许嵌入聊天窗口的网站；为空表示所有网站"`
 	Enabled        bool      `json:"enabled" doc:"停用后聊天窗口不再显示，客户不能再发消息"`
@@ -164,8 +162,14 @@ func toDTOs(ctx context.Context, db bun.IDB, chs []channel.Channel) ([]WidgetDTO
 			return nil, err
 		}
 		out[i] = WidgetDTO{
-			ID: ch.ID, Name: ch.Name, TeamID: ch.TeamID, Appearance: s.appearance(), AllowedOrigins: s.origins(),
-			Enabled: ch.Enabled, CreatedAt: ch.CreatedAt,
+			ID:             ch.ID,
+			Name:           ch.Name,
+			TeamID:         ch.TeamID,
+			Appearance:     s.appearance(),
+			Localization:   s.localization(),
+			AllowedOrigins: s.origins(),
+			Enabled:        ch.Enabled,
+			CreatedAt:      ch.CreatedAt,
 		}
 		if ch.TeamID != nil {
 			out[i].TeamName = teams[*ch.TeamID]

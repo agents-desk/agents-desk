@@ -1154,6 +1154,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "widget"),
       }),
+      /** POST /widgets/translate-copy */
+      translateCopy: () => ({
+        mutationFn: (variables: Parameters<Client["widget"]["translateCopy"]>[0]) => client.widget.translateCopy(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "widget"),
+      }),
       /** PUT /widgets/{id} */
       update: () => ({
         mutationFn: (variables: Parameters<Client["widget"]["update"]>) => client.widget.update(...variables),

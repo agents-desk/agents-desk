@@ -1,18 +1,21 @@
 // 聊天窗口和外面的通信。聊天窗口有三种运行方式：
 //   - 浮窗嵌入：产品网站的 loader.js 把它放在右下角 iframe 中（embed=1），通过 postMessage 和 loader.js 通信；
 //   - 容器内联：H5 或单页应用在自己的页面容器中放 iframe（embed=1&inline=1），通过 postMessage 通信，默认直接展开铺满容器；
-//   - 独立：App 用 WebView 整页打开，或者直接在浏览器中打开。App 在页面加载前设置 window.agentsDesk = { user_token }，
-//     之后调用 window.AgentsDesk(命令) 切换身份；聊天窗口通过 App 提供的桥通知 App。
-// 发给外面的消息只有窗口的开合、未读数、需要刷新身份令牌、要打开的链接，不带会话的内容。
+//   - 独立：App 用 WebView 整页打开，或者直接在浏览器中打开。App 在页面加载前设置 window.agentsDesk = { user_token, lang }，
+//     之后调用 window.AgentsDesk(命令) 切换身份或语言；聊天窗口通过 App 提供的桥通知 App。
+// 发给外面的消息只有窗口的开合、标题元数据、未读数、需要刷新身份令牌、要打开的链接，不带会话的内容。
 
 /** PREFIX 是聊天窗口和父页面之间每条消息的类型前缀。 */
 const PREFIX = "agents-desk:"
 
-/** search 是聊天窗口页面的查询参数：channel 是聊天插件，embed=1 表示在 iframe 中，inline=1 表示内联铺满容器，hide_close=1 表示宿主自己有关闭按钮。 */
+/** search 是聊天窗口页面的查询参数：channel 是聊天插件，lang 是显式语言，embed=1 表示在 iframe 中，inline=1 表示内联铺满容器，hide_close=1 表示宿主自己有关闭按钮。 */
 const search = new URLSearchParams(typeof location === "undefined" ? "" : location.search)
 
 /** channel 是这个聊天窗口的聊天插件 ID。 */
 export const channel = search.get("channel") ?? ""
+
+/** urlLang 是页面地址中显式传入的语言参数（?lang=）。 */
+export const urlLang = search.get("lang") ?? ""
 
 /** embedded 报告聊天窗口是不是被父页面放在 iframe 中（带 embed=1）。 */
 export const embedded = search.get("embed") === "1" && typeof window !== "undefined" && window.parent !== window
@@ -35,6 +38,7 @@ export type Command =
   | { command: "close" }
   | { command: "login"; user_token: string }
   | { command: "logout" }
+  | { command: "setLanguage"; lang: string }
 
 /** Bridge 是 App 在 WebView 中提供的桥：iOS 的 messageHandlers.agentsDesk，Android 和 Flutter 的 AgentsDeskBridge，React Native 的 ReactNativeWebView。 */
 interface Bridge {
@@ -43,8 +47,8 @@ interface Bridge {
 
 declare global {
   interface Window {
-    agentsDesk?: { channel?: string; user_token?: string }
-    AgentsDesk?: (command: string, arg?: { user_token?: string }) => void
+    agentsDesk?: { channel?: string; user_token?: string; lang?: string }
+    AgentsDesk?: (command: string, arg?: { user_token?: string; lang?: string }) => void
     AgentsDeskBridge?: Bridge
     ReactNativeWebView?: Bridge
     webkit?: { messageHandlers?: { agentsDesk?: Bridge } }
@@ -77,7 +81,7 @@ export function delegatesOpenLink(): boolean {
 
 /** tell 把消息发给外面：嵌入时发给父页面，独立时发给 App 的桥；直接在浏览器中打开时什么也不做。 */
 export function tell(
-  type: "ready" | "open" | "close" | "unread" | "open_url" | "need_token",
+  type: "ready" | "open" | "close" | "unread" | "open_url" | "need_token" | "meta",
   data: Record<string, unknown> = {},
 ): void {
   if (embedded) {
@@ -99,6 +103,8 @@ export function openLink(url: string): void {
 /** Init 是 loader.js 在聊天窗口准备好后发来的初始状态。 */
 export interface Init {
   userToken?: string // 已登录用户的身份
+  lang?: string // 宿主显式指定的语言（window.agentsDesk.lang）
+  hostLang?: string // 宿主页面的 <html lang>
   mobile: boolean // 产品页面是不是手机的宽度，展开后占满屏幕
   referrer?: string // 嵌入聊天窗口的产品页面地址
 }
@@ -121,6 +127,7 @@ export function listen(handlers: { command: (c: Command) => void; layout: (mobil
   }
   window.AgentsDesk = (command, arg) => {
     if (command === "login" && arg?.user_token) handlers.command({ command: "login", user_token: arg.user_token })
+    if (command === "setLanguage" && arg?.lang) handlers.command({ command: "setLanguage", lang: arg.lang })
     if (command === "logout" || command === "open" || command === "close") handlers.command({ command })
   }
   return () => {
@@ -135,7 +142,12 @@ export function listen(handlers: { command: (c: Command) => void; layout: (mobil
 export function waitInit(): Promise<Init> {
   if (!embedded) {
     const referrer = typeof document !== "undefined" && document.referrer ? document.referrer : undefined
-    return Promise.resolve({ userToken: window.agentsDesk?.user_token, mobile: true, referrer })
+    return Promise.resolve({
+      userToken: window.agentsDesk?.user_token,
+      lang: window.agentsDesk?.lang,
+      mobile: true,
+      referrer,
+    })
   }
   return new Promise((resolve) => {
     const timer = setTimeout(() => done({ mobile: inline }), 1500)
@@ -145,6 +157,8 @@ export function waitInit(): Promise<Init> {
       hostHandlesOpenURL = Boolean(e.data.open_url)
       done({
         userToken: e.data.user_token || undefined,
+        lang: typeof e.data.lang === "string" && e.data.lang ? e.data.lang : undefined,
+        hostLang: typeof e.data.host_lang === "string" && e.data.host_lang ? e.data.host_lang : undefined,
         mobile: inline || Boolean(e.data.mobile),
         referrer: typeof e.data.referrer === "string" && e.data.referrer ? e.data.referrer : undefined,
       })

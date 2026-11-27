@@ -1,10 +1,11 @@
-import { Anchor, Box, Button, Code, Container, Group, Paper, Skeleton, Stack, Text, Textarea, TextInput, Title } from "@mantine/core"
+import { Anchor, Box, Button, Code, Container, Group, Paper, Select, Skeleton, Stack, Text, Textarea, TextInput, Title } from "@mantine/core"
 import { createFileRoute } from "@tanstack/react-router"
 import { NotFoundPage, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
+import { languageEndonym, WIDGET_LANGUAGES } from "../i18n"
 
 // 演示页：/widget/demo?channel=<聊天插件>，只在开发环境中有。它模拟产品网站：照嵌入代码那样设置 window.agentsDesk、
-// 加载 loader.js，右下角出现聊天窗口；可以用 dev user-token 签出的身份以用户登录、退出，也可以用独立模式（App 的方式）打开。
+// 加载 loader.js，右下角出现聊天窗口；可以用 dev user-token 签出的身份以用户登录、退出，也可以切换宿主语言或独立模式打开。
 export const Route = createFileRoute("/demo")({
   validateSearch: (s: Record<string, unknown>) => ({ channel: typeof s.channel === "string" ? s.channel : "" }),
   component: import.meta.env.DEV ? Demo : NotFoundPage,
@@ -16,18 +17,21 @@ function Demo(): ReactNode {
   const navigate = Route.useNavigate()
   const [draft, setDraft] = useState(channel)
   const [userToken, setUserToken] = useState("")
+  const [lang, setLang] = useState("")
 
   // 像产品网站一样嵌入：声明渠道，加载 loader.js
   useEffect(() => {
     if (!channel) return
-    window.agentsDesk = { channel }
+    window.agentsDesk = { channel, ...(lang ? { lang } : {}) }
     const script = document.createElement("script")
     script.async = true
     script.src = "/widget/loader.js"
     document.body.appendChild(script)
   }, [channel])
 
-  const command = (name: string, arg?: { user_token?: string }) => window.AgentsDesk?.(name, arg)
+  const command = (name: string, arg?: { user_token?: string; lang?: string }) => window.AgentsDesk?.(name, arg)
+  const standaloneHref = `/widget/?channel=${encodeURIComponent(channel)}${lang ? `&lang=${encodeURIComponent(lang)}` : ""}`
+
   return (
     <Box mih="100vh" bg="var(--mantine-color-gray-0)">
       <Group px="xl" h={56} bg="var(--mantine-color-body)" style={{ borderBottom: "1px solid var(--mantine-color-gray-3)" }}>
@@ -53,14 +57,29 @@ function Demo(): ReactNode {
           {channel && (
             <Paper withBorder p="lg" radius="md">
               <Stack gap="sm">
-                <Group gap="xs">
+                <Group gap="xs" align="flex-end" wrap="wrap">
                   <Button variant="default" onClick={() => command("open")}>
                     {t("demo.open")}
                   </Button>
                   <Button variant="default" onClick={() => command("close")}>
                     {t("demo.close")}
                   </Button>
-                  <Anchor href={`/widget/?channel=${encodeURIComponent(channel)}`} target="_blank" ml="auto" size="sm">
+                  <Select
+                    size="sm"
+                    w={180}
+                    aria-label={t("demo.lang")}
+                    value={lang}
+                    onChange={(next) => {
+                      const val = next ?? ""
+                      setLang(val)
+                      if (val) command("setLanguage", { lang: val })
+                    }}
+                    data={[
+                      { value: "", label: t("demo.lang_auto") },
+                      ...WIDGET_LANGUAGES.map((code) => ({ value: code, label: `${languageEndonym(code)} (${code})` })),
+                    ]}
+                  />
+                  <Anchor href={standaloneHref} target="_blank" ml="auto" size="sm">
                     {t("demo.standalone")}
                   </Anchor>
                 </Group>

@@ -350,6 +350,10 @@ export const WidgetErrors = {
   InvalidOrigin: "widget.invalid_origin",
   /** ErrInvalidColor 是主题色格式无效：应为 #rrggbb 十六进制颜色值。 */
   InvalidColor: "widget.invalid_color",
+  /** ErrInvalidLanguage 是语言标签不是合法的 BCP 47 写法。 */
+  InvalidLanguage: "widget.invalid_language",
+  /** ErrForbidden 是调用者无权执行该网页渠道操作。 */
+  Forbidden: "widget.forbidden",
   /** ErrBusinessLinkInUse 是个人商务沟通链接已有聊天或联系人记录，不能删除，只能停用。 */
   BusinessLinkInUse: "widget.business_link_in_use",
   /** ErrInvalidPasscode 是打开受口令保护的商务沟通链接时输入的访问口令不正确。 */

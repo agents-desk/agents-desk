@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 
 	"agents-desk/internal/auth"
 	"agents-desk/internal/channel"
+	"agents-desk/internal/lang"
 	"agents-desk/internal/member"
 )
 
@@ -44,21 +46,21 @@ type BusinessAccessInput struct {
 
 // BusinessLinkDTO 是成员个人网页商务沟通链接的完整接口视图。
 type BusinessLinkDTO struct {
-	ID         string                 `json:"id"`
-	Name       string                 `json:"name" doc:"商务沟通链接名称，显示在对方打开的聊天窗口顶部"`
-	PublicCode string                 `json:"public_code" doc:"网页商务链接的公开短码，用于 /c/{code} 访问"`
-	Appearance Appearance             `json:"appearance" doc:"聊天窗口外观配置（主题色与问候语）"`
-	Card       BusinessCardConfig     `json:"card" doc:"对外商务名片展示与离开提示配置"`
-	Intake     BusinessIntakeConfig   `json:"intake" doc:"开场留资表单配置"`
-	Access     BusinessAccessDTO      `json:"access" doc:"访问控制（口令保护与有效期）"`
-	Starters   []string               `json:"starters" nullable:"false" doc:"快捷开场话题列表"`
-	Business   channel.BusinessPolicy `json:"business" doc:"通用商务策略（默认协作成员、自动标签与翻译覆写）"`
-	ChatURL    string                 `json:"chat_url" doc:"发给外部合作方直接打开的短链地址（/c/{code}）"`
-	WidgetURL  string                 `json:"widget_url" doc:"底层聊天窗口直连地址（/widget/?channel={id}）"`
-	QRDataURL  string                 `json:"qr_data_url,omitempty" doc:"短链对应的 PNG 二维码（data:image/png;base64,...）"`
-	Enabled    bool                   `json:"enabled" doc:"是否启用；停用后对方无法继续打开或发消息"`
-	CreatedAt  time.Time              `json:"created_at"`
-	UpdatedAt  time.Time              `json:"updated_at"`
+	ID           string                 `json:"id"`
+	Name         string                 `json:"name" doc:"商务沟通链接内部管理名称；对外未设置多语言标题时也作为默认标题"`
+	PublicCode   string                 `json:"public_code" doc:"网页商务链接的公开短码，用于 /c/{code} 访问"`
+	Appearance   Appearance             `json:"appearance" doc:"聊天窗口视觉外观配置（主题色）"`
+	Localization Localization           `json:"localization" doc:"链接语言策略与多语言自定义文案（标题、问候语、名片、离开提示与快捷话题）"`
+	Card         BusinessCardConfig     `json:"card" doc:"对外商务名片展示开关"`
+	Intake       BusinessIntakeConfig   `json:"intake" doc:"开场留资表单配置"`
+	Access       BusinessAccessDTO      `json:"access" doc:"访问控制（口令保护与有效期）"`
+	Business     channel.BusinessPolicy `json:"business" doc:"通用商务策略（默认协作成员、自动标签与翻译覆写）"`
+	ChatURL      string                 `json:"chat_url" doc:"发给外部合作方直接打开的短链地址（/c/{code}）"`
+	WidgetURL    string                 `json:"widget_url" doc:"底层聊天窗口直连地址（/widget/?channel={id}）"`
+	QRDataURL    string                 `json:"qr_data_url,omitempty" doc:"短链对应的 PNG 二维码（data:image/png;base64,...）"`
+	Enabled      bool                   `json:"enabled" doc:"是否启用；停用后对方无法继续打开或发消息"`
+	CreatedAt    time.Time              `json:"created_at"`
+	UpdatedAt    time.Time              `json:"updated_at"`
 }
 
 // BusinessLinkOutput 是返回单个商务沟通链接的响应。
@@ -73,9 +75,10 @@ type BusinessLinkListOutput struct {
 
 // CreateBusinessLinkBody 是新建个人商务沟通链接的请求体（保持极简，建完即可进入工作台精调）。
 type CreateBusinessLinkBody struct {
-	Name       string                  `json:"name" minLength:"1" maxLength:"60" doc:"链接名称，例如：Alex 商务合作专线"`
-	Appearance Appearance              `json:"appearance,omitempty" doc:"聊天窗口外观配置"`
-	Business   *channel.BusinessPolicy `json:"business,omitempty" doc:"可选：通用商务策略"`
+	Name         string                  `json:"name" minLength:"1" maxLength:"60" doc:"链接名称，例如：Alex 商务合作专线"`
+	Appearance   Appearance              `json:"appearance,omitempty" doc:"聊天窗口视觉外观配置"`
+	Localization *Localization           `json:"localization,omitempty" doc:"可选：语言策略与多语言文案"`
+	Business     *channel.BusinessPolicy `json:"business,omitempty" doc:"可选：通用商务策略"`
 }
 
 // CreateBusinessLinkInput 是新建个人商务沟通链接的 HTTP 请求。
@@ -85,15 +88,15 @@ type CreateBusinessLinkInput struct {
 
 // UpdateBusinessLinkBody 是修改个人商务沟通链接的请求体。
 type UpdateBusinessLinkBody struct {
-	Name       string                  `json:"name" minLength:"1" maxLength:"60"`
-	PublicCode string                  `json:"public_code,omitempty" maxLength:"40" doc:"可选：自定义短码（3-40 位小写字母、数字或连字符）"`
-	Appearance Appearance              `json:"appearance,omitempty"`
-	Card       *BusinessCardConfig     `json:"card,omitempty"`
-	Intake     *BusinessIntakeConfig   `json:"intake,omitempty"`
-	Access     *BusinessAccessInput    `json:"access,omitempty"`
-	Starters   []string                `json:"starters,omitempty" maxItems:"5"`
-	Business   *channel.BusinessPolicy `json:"business,omitempty"`
-	Enabled    bool                    `json:"enabled"`
+	Name         string                  `json:"name" minLength:"1" maxLength:"60"`
+	PublicCode   string                  `json:"public_code,omitempty" maxLength:"40" doc:"可选：自定义短码（3-40 位小写字母、数字或连字符）"`
+	Appearance   Appearance              `json:"appearance,omitempty"`
+	Localization *Localization           `json:"localization,omitempty"`
+	Card         *BusinessCardConfig     `json:"card,omitempty"`
+	Intake       *BusinessIntakeConfig   `json:"intake,omitempty"`
+	Access       *BusinessAccessInput    `json:"access,omitempty"`
+	Business     *channel.BusinessPolicy `json:"business,omitempty"`
+	Enabled      bool                    `json:"enabled"`
 }
 
 // UpdateBusinessLinkInput 是修改个人商务沟通链接的 HTTP 请求。
@@ -148,15 +151,9 @@ func normalizeIntake(in BusinessIntakeConfig) BusinessIntakeConfig {
 	}
 }
 
-// normalizeCard 规范化名片配置文本。
+// normalizeCard 规范化名片展示开关。
 func normalizeCard(in BusinessCardConfig) BusinessCardConfig {
-	return BusinessCardConfig{
-		ShowOwner:       in.ShowOwner,
-		TitleOverride:   strings.TrimSpace(in.TitleOverride),
-		CompanyOverride: strings.TrimSpace(in.CompanyOverride),
-		BioOverride:     strings.TrimSpace(in.BioOverride),
-		AwayMessage:     strings.TrimSpace(in.AwayMessage),
-	}
+	return BusinessCardConfig{ShowOwner: in.ShowOwner}
 }
 
 // normalizeStarters 去重、截断空白并限制快捷开场话题最多 5 条。
@@ -269,23 +266,19 @@ func toBusinessLinkDTO(ch *channel.Channel, publicURL string, withQR bool) (Busi
 	}
 	chatURL := businessLinkShortURL(publicURL, ch.ID, code)
 	access := s.resolvedAccess()
-	starters := s.Starters
-	if starters == nil {
-		starters = []string{}
-	}
 	dto := BusinessLinkDTO{
-		ID:         ch.ID,
-		Name:       ch.Name,
-		PublicCode: code,
-		Appearance: s.appearance(),
-		Card:       s.resolvedCard(),
-		Intake:     s.resolvedIntake(),
+		ID:           ch.ID,
+		Name:         ch.Name,
+		PublicCode:   code,
+		Appearance:   s.appearance(),
+		Localization: s.localization(),
+		Card:         s.resolvedCard(),
+		Intake:       s.resolvedIntake(),
 		Access: BusinessAccessDTO{
 			Mode:        access.Mode,
 			HasPasscode: access.PasscodeHash != "",
 			ExpiresAt:   access.ExpiresAt,
 		},
-		Starters:  starters,
 		Business:  channel.BusinessPolicyOf(ch.Settings),
 		ChatURL:   chatURL,
 		WidgetURL: businessLinkWidgetURL(publicURL, ch.ID),
@@ -314,7 +307,7 @@ func findOwnedBusinessLink(ctx context.Context, db bun.IDB, tenant, memberID, id
 	return ch, errors.Wrap(err, "load business link")
 }
 
-// ShortLinkHandler 处理公开短链 GET /c/{code}，将短码解析为启用中的商务沟通链接并 302 跳转至聊天窗口。
+// ShortLinkHandler 处理公开短链 GET /c/{code}，将短码解析为启用中的商务沟通链接并 302 跳转至聊天窗口，透传合法的 lang 查询参数。
 func ShortLinkHandler(db bun.IDB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		code := strings.ToLower(strings.TrimSpace(chi.URLParam(r, "code")))
@@ -331,7 +324,11 @@ func ShortLinkHandler(db bun.IDB) http.HandlerFunc {
 			http.Redirect(w, r, "/widget/?channel=unavailable", http.StatusFound)
 			return
 		}
-		http.Redirect(w, r, "/widget/?channel="+chID, http.StatusFound)
+		target := "/widget/?channel=" + url.QueryEscape(chID)
+		if canon, ok := lang.Canonical(r.URL.Query().Get("lang")); ok {
+			target += "&lang=" + url.QueryEscape(canon)
+		}
+		http.Redirect(w, r, target, http.StatusFound)
 	}
 }
 
@@ -451,6 +448,13 @@ func (a *CreateBusinessLink) Handle(ctx context.Context, sub identity.Subject, b
 	if err != nil {
 		return nil, err
 	}
+	loc := defaultLocalization(lang.En)
+	if b.Localization != nil {
+		loc, err = normalizeLocalization(*b.Localization, true)
+		if err != nil {
+			return nil, err
+		}
+	}
 	requireIntake := false
 	if a.hooks.DefaultIntake != nil {
 		requireIntake = a.hooks.DefaultIntake(ctx, sub.Tenant)
@@ -460,11 +464,11 @@ func (a *CreateBusinessLink) Handle(ctx context.Context, sub identity.Subject, b
 	access := BusinessAccessStored{Mode: "public"}
 	s := Settings{
 		Appearance:     appearance,
+		Localization:   loc,
 		AllowedOrigins: []string{},
 		Card:           &card,
 		Intake:         &intake,
 		Access:         &access,
-		Starters:       []string{},
 	}
 	if b.Business != nil {
 		bp, err := channel.NormalizeBusinessPolicy(*b.Business)
@@ -530,6 +534,14 @@ func (a *UpdateBusinessLink) Handle(ctx context.Context, sub identity.Subject, i
 	if err != nil {
 		return nil, err
 	}
+	var nextLoc *Localization
+	if b.Localization != nil {
+		normalized, err := normalizeLocalization(*b.Localization, true)
+		if err != nil {
+			return nil, err
+		}
+		nextLoc = &normalized
+	}
 	var nextCode *string
 	if strings.TrimSpace(b.PublicCode) != "" {
 		normalized, err := channel.NormalizePublicCode(b.PublicCode)
@@ -549,6 +561,9 @@ func (a *UpdateBusinessLink) Handle(ctx context.Context, sub identity.Subject, i
 			return err
 		}
 		s.Appearance = appearance
+		if nextLoc != nil {
+			s.Localization = *nextLoc
+		}
 		if b.Card != nil {
 			card := normalizeCard(*b.Card)
 			s.Card = &card
@@ -556,9 +571,6 @@ func (a *UpdateBusinessLink) Handle(ctx context.Context, sub identity.Subject, i
 		if b.Intake != nil {
 			intake := normalizeIntake(*b.Intake)
 			s.Intake = &intake
-		}
-		if b.Starters != nil {
-			s.Starters = normalizeStarters(b.Starters)
 		}
 		if b.Access != nil {
 			cur := s.resolvedAccess()

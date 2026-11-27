@@ -12,13 +12,15 @@ import (
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/channel"
+	"agents-desk/internal/lang"
 )
 
 // Changes 是新建或修改聊天插件的请求。
 type Changes struct {
-	Name       string     `json:"name" minLength:"1" maxLength:"60"`
-	TeamID     *string    `json:"team_id,omitempty" format:"uuid" doc:"新会话进入的团队收件箱；不填时进入未指派"`
-	Appearance Appearance `json:"appearance,omitempty" doc:"聊天窗口的外观配置"`
+	Name         string        `json:"name" minLength:"1" maxLength:"60"`
+	TeamID       *string       `json:"team_id,omitempty" format:"uuid" doc:"新会话进入的团队收件箱；不填时进入未指派"`
+	Appearance   Appearance    `json:"appearance,omitempty" doc:"聊天窗口的视觉外观配置"`
+	Localization *Localization `json:"localization,omitempty" doc:"渠道语言策略与多语言自定义文案；不填时使用默认语言策略"`
 	// AllowedOrigins 是允许嵌入聊天窗口的网站；App 的 WebView 不受它限制
 	AllowedOrigins []string `json:"allowed_origins,omitempty" maxItems:"20" doc:"允许嵌入聊天窗口的网站，形如 https://shop.example.com；不填时所有网站都可以嵌入"`
 }
@@ -38,18 +40,28 @@ type Create struct {
 func NewCreate(db *bun.DB, c *crypt.Crypt) *Create { return &Create{db: db, crypt: c} }
 
 // Handle 在 sub 所在的工作区中新建一个启用的聊天插件并记录操作日志。团队收件箱不属于这个工作区时返回 ErrTeamNotFound，
-// 主题色格式不对时返回 ErrInvalidColor，允许嵌入的网站写得不对时返回 ErrInvalidOrigin。
+// 主题色格式不对时返回 ErrInvalidColor，语言标签非法时返回 ErrInvalidLanguage，允许嵌入的网站写得不对时返回 ErrInvalidOrigin。
 func (a *Create) Handle(ctx context.Context, sub identity.Subject, c Changes) (*WidgetDTO, error) {
 	appearance, err := normalizeAppearance(c.Appearance)
 	if err != nil {
 		return nil, err
+	}
+	loc := defaultLocalization(lang.En)
+	if c.Localization != nil {
+		loc, err = normalizeLocalization(*c.Localization, false)
+		if err != nil {
+			return nil, err
+		}
 	}
 	origins, err := normalizeOrigins(c.AllowedOrigins)
 	if err != nil {
 		return nil, err
 	}
 	settings, err := Settings{
-		Appearance: appearance, AllowedOrigins: origins, IdentitySecret: a.crypt.Encrypt(newSecret()),
+		Appearance:     appearance,
+		Localization:   loc,
+		AllowedOrigins: origins,
+		IdentitySecret: a.crypt.Encrypt(newSecret()),
 	}.toMap()
 	if err != nil {
 		return nil, err

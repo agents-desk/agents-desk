@@ -1839,6 +1839,26 @@ export const messages = {
     "wecom_studio.section_routing_desc": "Choose the default team inbox and direct-chat welcome copy",
     "wecom_studio.title": "WeCom bot",
     "wecom_studio.transport_ws": "WebSocket",
+    "widget_i18n.add_language": "Add language",
+    "widget_i18n.ai_not_configured": "No translation model is configured on the platform; you can still fill in translations manually",
+    "widget_i18n.ai_source_empty": "Fill in at least one copy field in the primary language before running AI translation",
+    "widget_i18n.ai_translate_all": "AI translate all languages",
+    "widget_i18n.ai_translate_current": "AI translate this language",
+    "widget_i18n.ai_translated": "Generated drafts for {{.count}} language(s). Review and save when ready.",
+    "widget_i18n.default_badge": "Primary",
+    "widget_i18n.default_language": "Primary language (fallback)",
+    "widget_i18n.default_language_hint": "Fallback when a visitor's browser doesn't match a configured language, and the source language for AI translation",
+    "widget_i18n.display_title": "Public window title",
+    "widget_i18n.display_title_hint": "Title shown to visitors in the chat header; leave empty to fall back to the primary language or internal channel name",
+    "widget_i18n.editing_language": "Editing language",
+    "widget_i18n.fallback_placeholder": "Falls back to primary: {{.value}}",
+    "widget_i18n.lang_count_badge": "{{.count}} languages",
+    "widget_i18n.preview_language": "Preview language",
+    "widget_i18n.remove_language": "Remove language",
+    "widget_i18n.section_desc": "Configure visitor language options and localized titles, greetings, and copy. Empty fields fall back to the primary language, and AI can generate translations in one click.",
+    "widget_i18n.section_title": "Localization \u0026 customer copy",
+    "widget_i18n.share_lang_auto": "Follow visitor's browser",
+    "widget_i18n.share_lang_label": "Preset opening language (optional)",
     "widget_install.app": "Apps",
     "widget_install.app_hint": "Your app opens the address below full screen in a WebView. For a signed-in user, pass the identity before the page loads (window.agentsDesk.user_token); after signing in or out, run AgentsDesk('login', { user_token }) or AgentsDesk('logout'). If your app has its own navigation bar, add \u0026hide_close=1 to the address to hide the chat window's close button. On Android, enable JavaScript and DOM storage, and set windowSoftInputMode to adjustResize.",
     "widget_install.app_msg": "Message",
@@ -3753,6 +3773,26 @@ export const messages = {
     "wecom_studio.section_routing_desc": "配置默认团队收件箱和首次进入单聊时的自动欢迎语",
     "wecom_studio.title": "企业微信机器人",
     "wecom_studio.transport_ws": "WebSocket 长连接",
+    "widget_i18n.add_language": "添加语言",
+    "widget_i18n.ai_not_configured": "平台尚未配置翻译模型，可先手动填写各语言文案",
+    "widget_i18n.ai_source_empty": "请先在主语言中填写至少一项对外文案，再使用 AI 翻译",
+    "widget_i18n.ai_translate_all": "AI 一键翻译全部语言",
+    "widget_i18n.ai_translate_current": "AI 翻译当前语言",
+    "widget_i18n.ai_translated": "已生成 {{.count}} 种语言的草稿，可微调后保存",
+    "widget_i18n.default_badge": "主语言",
+    "widget_i18n.default_language": "主语言（默认回退）",
+    "widget_i18n.default_language_hint": "访客浏览器未命中已配语言时的兜底语言，也是 AI 翻译的源语言",
+    "widget_i18n.display_title": "对外窗口标题",
+    "widget_i18n.display_title_hint": "访客打开聊天窗口时看到的顶部标题；留空回退主语言或渠道内部名称",
+    "widget_i18n.editing_language": "正在编辑语言",
+    "widget_i18n.fallback_placeholder": "留空回退主语言：{{.value}}",
+    "widget_i18n.lang_count_badge": "{{.count}} 种语言",
+    "widget_i18n.preview_language": "预览语言",
+    "widget_i18n.remove_language": "移除语言",
+    "widget_i18n.section_desc": "配置访客可见语言策略与各语言的对外标题、问候语等文案；留空字段自动回退主语言，支持 AI 一键生成多语言草稿。",
+    "widget_i18n.section_title": "多语言与对外文案",
+    "widget_i18n.share_lang_auto": "自动跟随对方浏览器",
+    "widget_i18n.share_lang_label": "预设打开语言（可选）",
     "widget_install.app": "App 接入",
     "widget_install.app_hint": "App 用 WebView 全屏打开下面的地址。已登录的用户在页面加载前传入身份（window.agentsDesk.user_token）；登录、退出后执行 AgentsDesk('login', { user_token }) 或 AgentsDesk('logout')。App 自己有导航栏时，在地址后加上 \u0026hide_close=1 隐藏聊天窗口的关闭按钮。Android 要开启 JavaScript 和 DOM storage，并把 windowSoftInputMode 设为 adjustResize。",
     "widget_install.app_msg": "消息",
@@ -5670,6 +5710,26 @@ export type MessageId =
   | "wecom_studio.section_routing_desc"
   | "wecom_studio.title"
   | "wecom_studio.transport_ws"
+  | "widget_i18n.add_language"
+  | "widget_i18n.ai_not_configured"
+  | "widget_i18n.ai_source_empty"
+  | "widget_i18n.ai_translate_all"
+  | "widget_i18n.ai_translate_current"
+  | "widget_i18n.ai_translated"
+  | "widget_i18n.default_badge"
+  | "widget_i18n.default_language"
+  | "widget_i18n.default_language_hint"
+  | "widget_i18n.display_title"
+  | "widget_i18n.display_title_hint"
+  | "widget_i18n.editing_language"
+  | "widget_i18n.fallback_placeholder"
+  | "widget_i18n.lang_count_badge"
+  | "widget_i18n.preview_language"
+  | "widget_i18n.remove_language"
+  | "widget_i18n.section_desc"
+  | "widget_i18n.section_title"
+  | "widget_i18n.share_lang_auto"
+  | "widget_i18n.share_lang_label"
   | "widget_install.app"
   | "widget_install.app_hint"
   | "widget_install.app_msg"

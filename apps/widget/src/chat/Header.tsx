@@ -31,7 +31,7 @@ export function Header({ color, title, greeting, status, onBack, extra, close, o
         <Group gap={4} px={6} py={8} wrap="nowrap">
           {onBack && (
             <ActionIcon variant="transparent" c={fg} size="lg" onClick={onBack} aria-label={t("panel.back")}>
-              <IconChevronLeft size={22} />
+              <IconChevronLeft size={22} className="w-rtl-flip" />
             </ActionIcon>
           )}
           <Text fw={600} size="sm" style={{ flex: 1, minWidth: 0 }} truncate>
@@ -48,10 +48,10 @@ export function Header({ color, title, greeting, status, onBack, extra, close, o
         </Group>
       ) : (
         <Box px="lg" pt="lg" pb={34} pos="relative">
-          <Text fw={600} size="sm">
+          <Text fw={600} size="sm" style={{ paddingInlineEnd: 64 }}>
             {title}
           </Text>
-          <Group gap={4} pos="absolute" top={10} right={8} wrap="nowrap">
+          <Group gap={4} pos="absolute" top={10} style={{ insetInlineEnd: 8 }} wrap="nowrap">
             {extra}
             {closeButton}
           </Group>

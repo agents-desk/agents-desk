@@ -47,7 +47,7 @@ export function BusinessCardHeader({
             size="md"
             pos="absolute"
             top={8}
-            right={8}
+            style={{ insetInlineEnd: 8 }}
             onClick={onClose}
             aria-label={t("panel.close")}
           >
@@ -57,7 +57,7 @@ export function BusinessCardHeader({
 
         {owner ? (
           <Stack gap={compact ? 4 : "xs"}>
-            <Group gap="sm" wrap="nowrap" align="center" pr={close ? 28 : 0}>
+            <Group gap="sm" wrap="nowrap" align="center" style={{ paddingInlineEnd: close ? 28 : 0 }}>
               <Indicator size={10} offset={3} position="bottom-end" color={online ? "green" : "gray"} withBorder>
                 <Avatar size={compact ? 36 : 46} radius="xl" src={owner.avatar_url || undefined} color="dark" variant="filled">
                   {owner.name.slice(0, 1)}
@@ -91,7 +91,7 @@ export function BusinessCardHeader({
             )}
           </Stack>
         ) : (
-          <Stack gap={4} pr={close ? 28 : 0}>
+          <Stack gap={4} style={{ paddingInlineEnd: close ? 28 : 0 }}>
             <Text fw={600} size="sm">
               {title}
             </Text>

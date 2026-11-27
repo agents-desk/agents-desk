@@ -212,10 +212,15 @@ function BusinessLinksTab({ slug }: { slug: string }): ReactNode {
                         {t("biz_studio.scene_intake")}
                       </Badge>
                     )}
+                    {Object.keys(item.localization?.translations ?? {}).length > 1 && (
+                      <Badge size="xs" variant="light" color="gray" style={{ flex: "none" }}>
+                        {t("widget_i18n.lang_count_badge", { count: Object.keys(item.localization.translations).length })}
+                      </Badge>
+                    )}
                   </Group>
-                  {item.appearance.greeting && (
+                  {item.localization?.translations?.[item.localization.default_language]?.greeting && (
                     <Text size="xs" c="dimmed" truncate maw={280}>
-                      {item.appearance.greeting}
+                      {item.localization.translations[item.localization.default_language].greeting}
                     </Text>
                   )}
                 </Box>
