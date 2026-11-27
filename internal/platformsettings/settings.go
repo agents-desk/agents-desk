@@ -33,6 +33,8 @@ var (
 	ErrInvalidEmail = errorx.Define(errorx.InvalidArgument, "platform_settings.invalid_email")
 	// ErrRequiredField 表示启用 Resend 时必填项未填写。
 	ErrRequiredField = errorx.Define(errorx.InvalidArgument, "platform_settings.required_field")
+	// ErrMailNotConfigured 表示平台尚未完成 Resend API Key 与发件人邮箱配置。
+	ErrMailNotConfigured = errorx.Define(errorx.Conflict, "platform_settings.mail_not_configured")
 )
 
 // Language 是平台默认界面语言。
@@ -89,6 +91,41 @@ func BuildMailer(m Mail) (mail.Mailer, error) {
 		From:   mail.Address{Name: m.FromName, Email: m.FromEmail},
 		APIKey: m.APIKey,
 	})
+}
+
+// DynamicMailer 根据平台实时的 Resend 设置动态构建并发送邮件，使管理后台改完配置无需重启立即生效。
+type DynamicMailer struct {
+	group *settings.Group[Mail]
+}
+
+// NewDynamicMailer 返回动态读取 mailSettings 的邮件发送器。
+func NewDynamicMailer(group *settings.Group[Mail]) *DynamicMailer {
+	return &DynamicMailer{group: group}
+}
+
+// Configured 报告平台是否已配置有效的 Resend API Key 与发件人邮箱。
+func (m *DynamicMailer) Configured(ctx context.Context) (bool, error) {
+	if m == nil || m.group == nil {
+		return false, nil
+	}
+	cfg, err := m.group.Get(ctx)
+	if err != nil {
+		return false, err
+	}
+	return strings.TrimSpace(cfg.APIKey) != "" && strings.TrimSpace(cfg.FromEmail) != "", nil
+}
+
+// Send 读取最新平台邮件配置并发送邮件 msg。
+func (m *DynamicMailer) Send(ctx context.Context, msg mail.Message) error {
+	cfg, err := m.group.Get(ctx)
+	if err != nil {
+		return err
+	}
+	sender, err := BuildMailer(cfg)
+	if err != nil {
+		return err
+	}
+	return sender.Send(ctx, msg)
 }
 
 // NewGeneralGroup 返回平台常规设置的存储组。

@@ -16,6 +16,7 @@ import (
 	"github.com/go-tenon/tenon/login"
 
 	"agents-desk/internal/account"
+	"agents-desk/internal/clientip"
 	"agents-desk/internal/lang"
 )
 
@@ -80,7 +81,10 @@ func (s *Session) Login(ctx context.Context, in *LoginInput) (*SessionOutput, er
 	if err != nil {
 		return nil, err
 	}
-	token, err := s.tokens.Login(ctx, out.Subject, apitoken.Device{UserAgent: in.UserAgent})
+	token, err := s.tokens.Login(ctx, out.Subject, apitoken.Device{
+		IP:        clientip.FromContext(ctx),
+		UserAgent: in.UserAgent,
+	})
 	if err != nil {
 		return nil, err
 	}

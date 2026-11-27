@@ -32,6 +32,7 @@ import (
 	"github.com/go-tenon/tenon/queue"
 	"github.com/go-tenon/tenon/queue/queueapi"
 	"github.com/go-tenon/tenon/ratelimit"
+	"github.com/go-tenon/tenon/ratelimit/pglimit"
 	"github.com/go-tenon/tenon/realtime"
 	"github.com/go-tenon/tenon/savedview"
 	"github.com/go-tenon/tenon/schedule/pgschedule"
@@ -46,8 +47,10 @@ import (
 	"agents-desk/internal/automation"
 	"agents-desk/internal/business"
 	"agents-desk/internal/channel"
+	"agents-desk/internal/clientip"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
+	"agents-desk/internal/emails"
 	"agents-desk/internal/extgroup"
 	"agents-desk/internal/file"
 	"agents-desk/internal/flags"
@@ -248,6 +251,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		httpx.BodyLimitFor(a.bodyLimitFor),
 		httpx.WithContext(database.TrackPrimary),
 	)...)
+	router.Use(clientip.Middleware)
 	router.Get("/livez", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
 	router.Handle("/readyz", httpx.Ready(httpx.ReadyOptions{
 		Checks: []health.Check{
@@ -269,6 +273,9 @@ func (a *App) routes(pages http.Handler) chi.Router {
 	// 管理员端：只接受平台管理员，会话 cookie 是 __Host-admin，权限按平台的域加载；未配置 Impersonation，默认拒绝所有代为登录凭据。
 	router.Route("/admin/api", func(r chi.Router) {
 		r.Use(httpx.Timeout(a.cfg.HTTP.Timeout))
+		if a.db != nil {
+			r.Use(authIPRateLimit(pglimit.New(a.db, "http:admin:auth", ratelimit.Config{Rate: 30, Interval: 15 * time.Minute, Burst: 30})))
+		}
 		api := rest.New(r, rest.Options{
 			Title: "agents-desk 管理员端", Version: "0.1.0", BasePath: "/admin/api",
 			Validate:      a.adminTokens.Validate,
@@ -292,7 +299,10 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		tenant.RegisterExportRoutes(api, require(auth.TenantsRead), a.db, a.memberLogins, addr, a.exporter, a.hub)
 		r.Get("/tenants/exports/{id}/download", a.downloadTenantExport)
 		platformsettings.RegisterPublicRoutes(api, a.generalSettings, a.files)
-		platformsettings.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.generalSettings, a.mailSettings, a.files)
+		platformsettings.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.generalSettings, a.mailSettings, a.files, platformsettings.TestMailDeps{
+			Logins:    a.adminLogins,
+			Templates: a.emailTemplates,
+		})
 		llm.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.llmSettings)
 		flags.RegisterRoutes(api, require(auth.FeaturesManage), a.db, a.features)
 		audit.RegisterRoutes(api, require(auth.AuditRead), a.db)
@@ -308,6 +318,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 				conversation.SearchIndex.ReindexTopic().Meta("queue.topic.search.reindex.conversation_items.label", "queue.topic.search.reindex.conversation_items.description"),
 				tenant.ExportJob.Meta("queue.topic.tenants.export.label", "queue.topic.tenants.export.description"),
 				contact.ExportJob.Meta("queue.topic.contacts.export.label", "queue.topic.contacts.export.description"),
+				emails.SendTopic.Meta("queue.topic.mail.send.label", "queue.topic.mail.send.description"),
 			},
 		}
 		if a.nc != nil { // docRouter 离线构造路由时没有 NATS 连接
@@ -359,6 +370,9 @@ func (a *App) routes(pages http.Handler) chi.Router {
 	// AccountScope 放行锁定在单个工作区的代登凭据并保留 Subject.BoundTenant；修改个人资料与密码等敏感路由标有 rest.DirectOnly。
 	router.Route("/api", func(r chi.Router) {
 		r.Use(httpx.Timeout(a.cfg.HTTP.Timeout))
+		if a.db != nil {
+			r.Use(authIPRateLimit(pglimit.New(a.db, "http:member:auth", ratelimit.Config{Rate: 30, Interval: 15 * time.Minute, Burst: 30})))
+		}
 		api := rest.New(r, rest.Options{
 			Title: "agents-desk", Version: "0.1.0", BasePath: "/api",
 			Validate:      a.memberTokens.Validate,
@@ -396,8 +410,20 @@ func (a *App) routes(pages http.Handler) chi.Router {
 			}
 			return api.RequireToken(names...)
 		}
-		tenant.RegisterTenantRoutes(api, require, a.db, a.files)
-		member.RegisterTenantRoutes(api, require, a.db, a.roles, a.memberLogins, a.files, memberHooks)
+		tenant.RegisterTenantRoutes(api, require, a.db, a.files, a.features)
+		member.RegisterTenantRoutes(api, require, a.db, a.roles, a.memberLogins, a.files, memberHooks, member.TenantRouteOptions{
+			Tokens: a.memberTokens,
+			Add: member.AddOptions{
+				MailConfigured: func(ctx context.Context) (bool, error) {
+					if a.mailer == nil {
+						return false, nil
+					}
+					return a.mailer.Configured(ctx)
+				},
+				Templates: a.emailTemplates,
+				PublicURL: a.cfg.HTTP.PublicURL,
+			},
+		})
 		role.RegisterRoutes(api, require, a.db, a.roles)
 		hours.RegisterRoutes(api, require, a.db)
 		team.RegisterRoutes(api, require, a.db, a.roles, a.memberLogins, a.files)
@@ -452,6 +478,20 @@ func (a *App) routes(pages http.Handler) chi.Router {
 	// 客户的接口不需要登录，所以整组按客户端地址限流。
 	router.Route("/w/{channel}/api", func(r chi.Router) {
 		r.Use(httpx.Timeout(a.cfg.HTTP.Timeout), httpx.RateLimit(ratelimit.NewMemory(a.cfg.HTTP.RateLimit), httpx.KeyByIP), widget.Middleware(a.db))
+		var passcodeLimiter ratelimit.Limiter
+		if a.db != nil {
+			passcodeLimiter = pglimit.New(a.db, "widget:passcode:attempts", ratelimit.Config{Rate: 10, Interval: 15 * time.Minute, Burst: 10})
+			uploadLimit := httpx.RateLimit(pglimit.New(a.db, "widget:visitor:uploads", ratelimit.Config{Rate: 30, Interval: time.Hour, Burst: 10}), httpx.KeyByIP)
+			r.Use(func(next http.Handler) http.Handler {
+				return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+					if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/files") {
+						uploadLimit(next).ServeHTTP(w, req)
+						return
+					}
+					next.ServeHTTP(w, req)
+				})
+			})
+		}
 		api := rest.New(r, rest.Options{
 			Title: "agents-desk 聊天插件", Version: "0.1.0", BasePath: "/w/{channel}/api",
 			Validate:    a.contactTokens.Validate,
@@ -462,15 +502,19 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		down := a.downstream()
 		widget.RegisterVisitorRoutes(api, api.RequireToken(), a.db, a.crypt, a.contactTokens,
 			conversation.NewReceive(a.db, a.channels, down), down, a.cfg.Filesystem.MaxUploadSize,
-			func(ctx context.Context, tenantID string) string {
-				if a.businessPolicy == nil {
-					return ""
-				}
-				p, err := a.businessPolicy.Tenant(tenantID).Get(ctx)
-				if err != nil {
-					return ""
-				}
-				return p.DefaultCompanyName
+			widget.VisitorOptions{
+				Features:        a.features,
+				PasscodeLimiter: passcodeLimiter,
+				DefaultCompany: func(ctx context.Context, tenantID string) string {
+					if a.businessPolicy == nil {
+						return ""
+					}
+					p, err := a.businessPolicy.Tenant(tenantID).Get(ctx)
+					if err != nil {
+						return ""
+					}
+					return p.DefaultCompanyName
+				},
 			})
 		r.Get("/attachments/{id}/file", a.serveWidgetAttachment)
 	})
@@ -496,6 +540,22 @@ func (a *App) routes(pages http.Handler) chi.Router {
 // docRouter 用默认配置和没有打开任何资源的 App 构造路由，openapi、routes、client 命令用它。
 func docRouter() chi.Routes {
 	return (&App{cfg: config.Default[Config]()}).routes(nil)
+}
+
+// authIPRateLimit 为登录、忘记密码与重设密码接口按客户端 IP 施加防撞库和防短信/邮件轰炸限流。
+func authIPRateLimit(limiter ratelimit.Limiter) func(http.Handler) http.Handler {
+	limited := httpx.RateLimit(limiter, httpx.KeyByIP)
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost && (strings.HasSuffix(r.URL.Path, "/auth/login") ||
+				strings.HasSuffix(r.URL.Path, "/auth/password/forgot") ||
+				strings.HasSuffix(r.URL.Path, "/auth/password/reset")) {
+				limited(next).ServeHTTP(w, r)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // bearerOrCookieAuth 从请求头 Bearer 或会话 cookie 中提取令牌并交给 tokens 校验，供文件/导出下载接口复用。

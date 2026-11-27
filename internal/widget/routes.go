@@ -9,13 +9,16 @@ import (
 
 	"github.com/go-tenon/tenon/apitoken"
 	"github.com/go-tenon/tenon/crypt"
+	"github.com/go-tenon/tenon/feature"
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/httpx/rest"
 	"github.com/go-tenon/tenon/identity"
+	"github.com/go-tenon/tenon/ratelimit"
 
 	"agents-desk/internal/auth"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/file"
+	"agents-desk/internal/flags"
 )
 
 // RegisterRoutes 在工作区的 API（/t/{slug}/api）中注册聊天插件的管理：列表、新建、修改、嵌入代码、身份验证密钥和 AI 翻译文案，
@@ -114,9 +117,20 @@ type RatedConversationOutput struct {
 	Body conversation.ContactConversationMeta
 }
 
+// VisitorOptions 配置访客端路由的功能开关与防爆破限流。
+type VisitorOptions struct {
+	Features        *feature.Store    // 平台功能开关存储，用于控制访客上传开关
+	PasscodeLimiter ratelimit.Limiter // 商务链接口令试错限流器
+	DefaultCompany  func(ctx context.Context, tenantID string) string
+}
+
 // RegisterVisitorRoutes 在聊天插件的 API（/w/{channel}/api，前面是 Middleware）中注册客户用的接口：
 // 公开设置、建立会话、上传附件、连续跨会话时间线、统一发消息、标记已读、正在输入、轮次评价、线索留邮箱、商务留资与客户工单视图。
-func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), db *bun.DB, c *crypt.Crypt, tokens *apitoken.Store, receive *conversation.Receive, down conversation.Downstream, maxUpload filesystem.ByteSize, defaultCompany ...func(ctx context.Context, tenantID string) string) {
+func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), db *bun.DB, c *crypt.Crypt, tokens *apitoken.Store, receive *conversation.Receive, down conversation.Downstream, maxUpload filesystem.ByteSize, opts ...VisitorOptions) {
+	var vopts VisitorOptions
+	if len(opts) > 0 {
+		vopts = opts[0]
+	}
 	route := func(access func(*huma.Operation), id, method, path, summary string) huma.Operation {
 		op := huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary}
 		access(&op)
@@ -144,13 +158,29 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 	rate := conversation.NewRateByContact(db, down)
 	listTickets, getTicket := conversation.NewListTicketsForContact(db), conversation.NewGetTicketForContact(db, down.Media)
 
-	file.RegisterRoutes(api, requireContact, down.Media.Files, maxUpload, file.UploadOptions{
+	visitorMaxUpload := maxUpload
+	if visitorMaxUpload > 20*filesystem.MiB {
+		visitorMaxUpload = 20 * filesystem.MiB
+	}
+	file.RegisterRoutes(api, requireContact, down.Media.Files, visitorMaxUpload, file.UploadOptions{
 		Private: true,
 		Accept:  conversation.AttachmentAccept(),
+		Allow: func(ctx context.Context) error {
+			ch, err := channelFrom(ctx)
+			if err != nil {
+				return err
+			}
+			if vopts.Features != nil && !vopts.Features.Active(ctx, identity.Subject{Tenant: ch.TenantID}, flags.WidgetVisitorUploads) {
+				return ErrUploadsDisabled.New()
+			}
+			return nil
+		},
 	})
 
-	rest.Register(api, route(public, "widget-config", http.MethodGet, "/config", "聊天插件的公开设置"), NewGetConfig(db, down.Media.Files, defaultCompany...).HTTP)
-	rest.Register(api, route(public, "widget-session", http.MethodPost, "/session", "建立会话"), NewStartSession(db, c, tokens, down).HTTP)
+	getCfg := NewGetConfig(db, down.Media.Files, vopts.DefaultCompany)
+	getCfg.SetFeatures(vopts.Features)
+	rest.Register(api, route(public, "widget-config", http.MethodGet, "/config", "聊天插件的公开设置"), getCfg.HTTP)
+	rest.Register(api, route(public, "widget-session", http.MethodPost, "/session", "建立会话"), NewStartSession(db, c, tokens, down, vopts.PasscodeLimiter).HTTP)
 
 	// 客户连续时间线与工单接口：渠道来自本次请求的聊天插件，归属由业务动作检查
 	rest.Register(api, route(requireContact, "timeline-get", http.MethodGet, "/timeline", "读取客户跨会话连续时间线"),

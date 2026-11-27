@@ -54,6 +54,12 @@ func NewIncoming(db *bun.DB, locker *lock.Locker, translator *Translator, down c
 //   - 当新项是工单创建、标题/描述修改或关联受影响客户事件时，异步识别并翻译工单标题与描述；
 //   - 当新项是可译消息或内部备注时，按「会话当前参与成员语言 ∪ @提及成员语言 ∪ 工作区主要语言」一次批量预译。
 func (a *Incoming) Job(ctx context.Context, p conversation.Appended) error {
+	if a.translator != nil {
+		enabled, err := a.translator.EnabledFor(ctx, p.TenantID)
+		if err != nil || !enabled {
+			return err
+		}
+	}
 	var it conversation.Item
 	err := a.db.NewSelect().Model(&it).Where("id = ? AND tenant_id = ?", p.ItemID, p.TenantID).Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -98,6 +104,12 @@ func (a *Incoming) Job(ctx context.Context, p conversation.Appended) error {
 
 // Fill 处理 FillTopic 的任务：按任务中指定的对象类型补译成目标语言。
 func (a *Incoming) Fill(ctx context.Context, p FillJob) error {
+	if a.translator != nil {
+		enabled, err := a.translator.EnabledFor(ctx, p.TenantID)
+		if err != nil || !enabled {
+			return err
+		}
+	}
 	switch {
 	case p.TicketID != "":
 		return a.EnsureTicketMeta(ctx, p.TenantID, p.TicketID, []string{p.Language})
@@ -220,6 +232,12 @@ const (
 // 已经有译文、和原文同一种语言、或者判断不出语言的不再翻译；什么都不缺时不调用模型。识别时把发言者常用的语言给模型作参考。
 // 按消息加锁：同一条消息的任务（收到时的、补译的、重复的）依次执行，后执行的看到已经翻译好就直接结束。
 func (a *Incoming) Ensure(ctx context.Context, tenant, itemID string, targets []string) error {
+	if a.translator != nil {
+		enabled, err := a.translator.EnabledFor(ctx, tenant)
+		if err != nil || !enabled {
+			return err
+		}
+	}
 	lk, err := a.locker.Wait(ctx, "translation:"+itemID, lockTTL, lockWait)
 	if err != nil {
 		return errors.Wrap(err, "lock item for translation")

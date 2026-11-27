@@ -14,8 +14,10 @@ import (
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
+	"github.com/go-tenon/tenon/ratelimit"
 
 	"agents-desk/internal/channel"
+	"agents-desk/internal/clientip"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
 )
@@ -66,15 +68,20 @@ type userClaims struct {
 
 // StartSession 是客户打开聊天窗口时建立会话：识别客户是谁，签发联系人的令牌。
 type StartSession struct {
-	db     *bun.DB
-	crypt  *crypt.Crypt
-	tokens *apitoken.Store
-	down   conversation.Downstream
+	db              *bun.DB
+	crypt           *crypt.Crypt
+	tokens          *apitoken.Store
+	down            conversation.Downstream
+	passcodeLimiter ratelimit.Limiter
 }
 
 // NewStartSession 返回建立会话的动作；crypt 解开身份验证密钥，tokens 签发联系人的令牌，down 在线索合并到用户时通知成员刷新会话。
-func NewStartSession(db *bun.DB, c *crypt.Crypt, tokens *apitoken.Store, down conversation.Downstream) *StartSession {
-	return &StartSession{db: db, crypt: c, tokens: tokens, down: down}
+func NewStartSession(db *bun.DB, c *crypt.Crypt, tokens *apitoken.Store, down conversation.Downstream, passcodeLimiter ...ratelimit.Limiter) *StartSession {
+	var l ratelimit.Limiter
+	if len(passcodeLimiter) > 0 {
+		l = passcodeLimiter[0]
+	}
+	return &StartSession{db: db, crypt: c, tokens: tokens, down: down, passcodeLimiter: l}
 }
 
 // Handle 为本次请求的聊天插件（Middleware 查出的）建立会话：
@@ -105,6 +112,35 @@ func (a *StartSession) Handle(ctx context.Context, b SessionBody, device apitoke
 	if b.UserToken != "" {
 		if claims, err = a.verify(ch, b.UserToken); err != nil {
 			return nil, err
+		}
+	} else if bizAccess != nil && bizAccess.Mode == "passcode" && bizAccess.PasscodeHash != "" {
+		// 网页商务沟通链接对全新访客在事务外校验访问口令，避免 Argon2id 耗时或暴力试错占用数据库连接；
+		// 已有访客身份且链接未过期时可继续历史对话。
+		existingVisitor := false
+		if b.VisitorID != "" {
+			var existing contact.Identity
+			err := a.db.NewSelect().Model(&existing).Where("channel_id = ? AND external_id = ?", ch.ID, visitorPrefix+b.VisitorID).Scan(ctx)
+			if err == nil {
+				existingVisitor = true
+			} else if !errors.Is(err, sql.ErrNoRows) {
+				return nil, errors.Wrap(err, "load visitor")
+			}
+		}
+		if !existingVisitor {
+			limitKey := ch.ID + ":" + device.IP
+			if a.passcodeLimiter != nil {
+				if err := a.passcodeLimiter.Allow(ctx, limitKey); err != nil {
+					return nil, err
+				}
+			}
+			if !verifyPasscode(ch.ID, b.Passcode, bizAccess.PasscodeHash) {
+				return nil, ErrInvalidPasscode.New(errorx.Field("passcode"))
+			}
+			if a.passcodeLimiter != nil {
+				if err := a.passcodeLimiter.Reset(ctx, limitKey); err != nil {
+					return nil, err
+				}
+			}
 		}
 	}
 	res := SessionDTO{}
@@ -154,12 +190,6 @@ func (a *StartSession) Handle(ctx context.Context, b SessionBody, device apitoke
 				return errors.Wrap(err, "load visitor")
 			}
 		}
-		// 网页商务沟通链接对全新访客校验访问口令（已有访客身份且链接未过期时可继续历史对话）
-		if bizAccess != nil {
-			if bizAccess.Mode == "passcode" && bizAccess.PasscodeHash != "" && !verifyPasscode(ch.ID, b.Passcode, bizAccess.PasscodeHash) {
-				return ErrInvalidPasscode.New(errorx.Field("passcode"))
-			}
-		}
 		res.VisitorID = newVisitorID()
 		person, _, err = contact.ResolveIdentity(ctx, tx, ch.TenantID, ch.ID, visitorPrefix+res.VisitorID, profile)
 		return err
@@ -177,7 +207,10 @@ func (a *StartSession) Handle(ctx context.Context, b SessionBody, device apitoke
 
 // HTTP 处理 POST /w/{channel}/api/session。
 func (a *StartSession) HTTP(ctx context.Context, in *SessionInput) (*SessionOutput, error) {
-	dto, err := a.Handle(ctx, in.Body, apitoken.Device{UserAgent: in.UserAgent})
+	dto, err := a.Handle(ctx, in.Body, apitoken.Device{
+		IP:        clientip.FromContext(ctx),
+		UserAgent: in.UserAgent,
+	})
 	if err != nil {
 		return nil, err
 	}

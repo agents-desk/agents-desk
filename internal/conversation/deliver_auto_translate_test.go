@@ -7,6 +7,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/broadcast/broadcasttest"
+	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/apptest"
@@ -144,5 +145,67 @@ func TestDeliverAutoTranslate(t *testing.T) {
 	}
 	if delivery.Status != conversation.Delivered {
 		t.Fatalf("按原文发出后应记为已送达：%s", delivery.Status)
+	}
+}
+
+func TestDeliverNotifyOfflineReply(t *testing.T) {
+	t.Parallel()
+	env := apptest.New(t)
+	ctx := context.Background()
+
+	alpha, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+		Name: "offline", Slug: "offline", OwnerEmail: "owner@offline.test", OwnerName: "Owner", OwnerPassword: "password",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sys := identity.Subject{Type: identity.System, ID: "test", Tenant: alpha.ID}
+	subOwner := identity.Subject{Type: member.Type, ID: alpha.OwnerID, Tenant: alpha.ID, Permissions: auth.WithBase(auth.Owner.Permissions)}
+	ch, err := channel.NewCreate(env.DB).Handle(ctx, sys, channel.CreateParams{Kind: channel.Test, Name: "测试渠道"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn := &captureConnector{}
+	reg := channel.Registry{channel.Test: conn}
+	hub := broadcast.New(broadcasttest.NewBackend())
+	t.Cleanup(func() { _ = hub.Close() })
+
+	var notified []string
+	down := conversation.Downstream{
+		Hub:   hub,
+		Roles: env.Roles,
+		NotifyOfflineReply: func(_ context.Context, _ database.Tx, tenantID, convID, itemID string) error {
+			notified = append(notified, tenantID+":"+convID+":"+itemID)
+			return nil
+		},
+	}
+
+	rec, err := conversation.NewReceive(env.DB, reg, down).Handle(ctx, sys, conversation.ReceiveParams{
+		ChannelID: ch.ID, From: "cust-off-1", FromName: "Visitor", Text: "Anyone there?",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reply, err := conversation.NewReply(env.DB, down).Handle(ctx, subOwner, rec.ConversationID, conversation.ReplyBody{
+		Text: "We have replied.",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	deliver := conversation.NewDeliver(env.DB, reg, down)
+	job := conversation.Appended{TenantID: alpha.ID, ConversationID: rec.ConversationID, ItemID: reply.ID, Seq: reply.Seq}
+	if err := deliver.Job(ctx, job); err != nil {
+		t.Fatal(err)
+	}
+	if len(notified) != 1 || notified[0] != alpha.ID+":"+rec.ConversationID+":"+reply.ID {
+		t.Fatalf("送达后应触发一次 NotifyOfflineReply，实际 %v", notified)
+	}
+	// 幂等重放不再重复发送邮件提醒
+	if err := deliver.Job(ctx, job); err != nil {
+		t.Fatal(err)
+	}
+	if len(notified) != 1 {
+		t.Fatalf("重复投递同一消息不应重复触发 NotifyOfflineReply，实际 %v", notified)
 	}
 }

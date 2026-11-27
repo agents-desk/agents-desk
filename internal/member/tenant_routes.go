@@ -6,6 +6,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/apitoken"
 	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/httpx/rest"
@@ -20,9 +21,19 @@ var notOwnerOrSelf = map[string][]string{
 	"self":  {"false"},
 }
 
+// TenantRouteOptions 配置工作区成员管理路由的可选依赖（token 存储与邀请邮件）。
+type TenantRouteOptions struct {
+	Tokens *apitoken.Store
+	Add    AddOptions
+}
+
 // RegisterTenantRoutes 在工作区的 API（/t/{slug}/api）中注册成员管理，并把成员声明为资源。
 // require 返回要求成员登录凭据和给定权限的访问策略；hooks 是移出成员之后其他模块跟着做的事。
-func RegisterTenantRoutes(api *rest.API, require func(...auth.Permission) func(*huma.Operation), db *bun.DB, roles *authz.Store, logins *login.Realm, files *filesystem.Service, hooks Hooks) {
+func RegisterTenantRoutes(api *rest.API, require func(...auth.Permission) func(*huma.Operation), db *bun.DB, roles *authz.Store, logins *login.Realm, files *filesystem.Service, hooks Hooks, opts ...TenantRouteOptions) {
+	var o TenantRouteOptions
+	if len(opts) > 0 {
+		o = opts[0]
+	}
 	route := func(access func(*huma.Operation), id, method, path, summary string) huma.Operation {
 		op := huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary}
 		access(&op)
@@ -38,8 +49,9 @@ func RegisterTenantRoutes(api *rest.API, require func(...auth.Permission) func(*
 
 	rest.Register(api, route(read, "member-list", http.MethodGet, "/members", "成员列表"), NewList(db, roles, logins, files).HTTP)
 	rest.Register(api, route(read, "member-get", http.MethodGet, "/members/{id}", "读取成员"), NewGet(db, roles, logins, files).HTTP)
-	rest.Register(api, add, NewAdd(db, roles, logins, files).HTTP)
+	rest.Register(api, add, NewAdd(db, roles, logins, files, o.Add).HTTP)
 	rest.Register(api, route(manage, "member-update", http.MethodPut, "/members/{id}", "修改成员的角色"), NewChangeRole(db, roles, logins, files).HTTP)
+	rest.Register(api, route(manage, "member-reset-password", http.MethodPost, "/members/{id}/reset-password", "重置成员密码"), NewResetMemberPassword(db, roles, logins, o.Tokens).HTTP)
 	rest.Register(api, remove, NewRemove(db, roles, hooks).HTTP)
 	rest.Register(api, away, NewSetAway(db, roles).HTTP)
 	rest.Register(api, route(require(), "member-my-status", http.MethodGet, "/me/status", "我在这个工作区的在线状态"), NewGetMyStatus(db).HTTP)

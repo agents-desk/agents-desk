@@ -806,3 +806,100 @@ func TestTelegramPartnerAudienceAndGroupMention(t *testing.T) {
 	}
 	_ = fake
 }
+
+func TestTelegramDirectWebhookIgnoresExternalIdentityHeaders(t *testing.T) {
+	t.Parallel()
+	env := apptest.New(t)
+	ctx := context.Background()
+	tenantID, sys, _ := setupTenant(t, env, "tg-hdr")
+
+	fake, _, client := newFakeTelegramAPI(t, "123456:valid-bot-token", "header_guard_bot")
+	direct, err := NewCreate(env.DB, env.Crypt, client, "https://desk.example.com").Handle(ctx, sys, CreateBody{
+		Name: "直连模式机器人", BotToken: "123456:valid-bot-token", GatewayManaged: false,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	directInst, err := NewGetInstallation(env.DB, env.Crypt, "https://desk.example.com").Handle(ctx, sys, direct.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	gw, err := NewCreate(env.DB, env.Crypt, client, "https://desk.example.com").Handle(ctx, sys, CreateBody{
+		Name: "网关模式机器人", BotToken: "123456:valid-bot-token", GatewayManaged: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	gwInst, err := NewGetInstallation(env.DB, env.Crypt, "https://desk.example.com").Handle(ctx, sys, gw.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	reg := channel.DefaultRegistry()
+	reg[channel.Telegram] = NewConnector(env.Crypt, env.Files, client)
+	down := conversation.Downstream{Roles: env.Roles, Media: conversation.Media{Files: env.Files}}
+	wh := NewWebhook(env.DB, env.Crypt, conversation.NewReceive(env.DB, reg, down), down)
+	r := chi.NewRouter()
+	r.Post("/webhooks/telegram/{channel}", wh.ServeHTTP)
+
+	post := func(chID, secret string, updateID int, chatID int64, firstName string, hdrs map[string]string) int {
+		payload, _ := json.Marshal(map[string]any{
+			"update_id": updateID,
+			"message": map[string]any{
+				"message_id": updateID,
+				"from":       map[string]any{"id": chatID, "first_name": firstName},
+				"chat":       map[string]any{"id": chatID, "type": "private"},
+				"text":       "hello",
+			},
+		})
+		req := httptest.NewRequest(http.MethodPost, "/webhooks/telegram/"+chID, bytes.NewReader(payload))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set(SecretHeader, secret)
+		for k, v := range hdrs {
+			req.Header.Set(k, v)
+		}
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		return rec.Code
+	}
+
+	spoofHeaders := map[string]string{
+		ExternalIDHeader:    "ext-spoof-99001",
+		ExternalEmailHeader: "spoof@example.com",
+		ExternalNameHeader:  "Spoofed Name",
+	}
+	if code := post(direct.ID, directInst.WebhookSecret, 201, 99001, "Direct Visitor", spoofHeaders); code != http.StatusOK {
+		t.Fatalf("直连模式 webhook 失败：%d", code)
+	}
+
+	var directContact contact.Contact
+	if err := env.DB.NewSelect().Model(&directContact).
+		Join("JOIN contact_identities ci ON ci.contact_id = contact.id").
+		Where("contact.tenant_id = ? AND ci.channel_id = ? AND ci.external_id = ?", tenantID, direct.ID, "99001").
+		Scan(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if directContact.Kind != contact.Lead || directContact.ExternalUserID != "" || directContact.Email != "" || directContact.Name != "Direct Visitor" {
+		t.Fatalf("直连模式不应信任外部身份请求头，实际联系人：%+v", directContact)
+	}
+
+	if code := post(gw.ID, gwInst.WebhookSecret, 202, 99002, "GW Visitor", map[string]string{
+		ExternalIDHeader:    "ext-trusted-99002",
+		ExternalEmailHeader: "trusted@example.com",
+		ExternalNameHeader:  "Trusted User",
+	}); code != http.StatusOK {
+		t.Fatalf("网关模式 webhook 失败：%d", code)
+	}
+
+	var gwContact contact.Contact
+	if err := env.DB.NewSelect().Model(&gwContact).
+		Where("tenant_id = ? AND external_user_id = ?", tenantID, "ext-trusted-99002").
+		Scan(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if gwContact.Kind != contact.User || gwContact.Email != "trusted@example.com" || gwContact.Name != "Trusted User" {
+		t.Fatalf("网关模式应正常关联外部身份，实际联系人：%+v", gwContact)
+	}
+	_ = fake
+}

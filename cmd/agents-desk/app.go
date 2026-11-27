@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"log/slog"
+	"strings"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/nats-io/nats.go"
 	"github.com/uptrace/bun"
 	"golang.org/x/sync/errgroup"
@@ -30,6 +33,7 @@ import (
 	"github.com/go-tenon/tenon/lock/pglock"
 	"github.com/go-tenon/tenon/logging"
 	"github.com/go-tenon/tenon/login"
+	"github.com/go-tenon/tenon/mail"
 	"github.com/go-tenon/tenon/mcpx/opsmcp"
 	"github.com/go-tenon/tenon/natsx"
 	"github.com/go-tenon/tenon/notification"
@@ -54,7 +58,9 @@ import (
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
+	"agents-desk/internal/emails"
 	"agents-desk/internal/flags"
+	"agents-desk/internal/lang"
 	"agents-desk/internal/llm"
 	"agents-desk/internal/member"
 	"agents-desk/internal/platformadmin"
@@ -96,6 +102,9 @@ type App struct {
 	businessPolicy      *settings.Group[business.Policy]          // 各工作区的商务沟通默认策略与配额
 	features            *feature.Store                            // 平台功能开关与灰度规则
 	translator          *translation.Translator                   // 调用模型识别语言和翻译
+	emailTemplates      *mail.Templates                           // 嵌入的双语邮件模板
+	mailer              *platformsettings.DynamicMailer           // 动态读取 Resend 设置的邮件发送器
+	offlineMailLimiter  ratelimit.Limiter                         // 离线访客回复邮件提醒冷却限流器
 
 	files       *filesystem.Service // 上传的文件：头像、会话附件与导出文件等
 	images      *imgproxy.Proxy     // 图片缩略图地址生成；未配置 url 时返回原图地址
@@ -132,7 +141,108 @@ func (a *App) downstream() conversation.Downstream {
 	if a.hub != nil {
 		down.ContactPush = widget.Push(a.hub)
 	}
+	if a.db != nil && a.mailer != nil && a.emailTemplates != nil {
+		down.NotifyOfflineReply = a.notifyOfflineReply
+	}
 	return down
+}
+
+// notifyOfflineReply 在客服向网页聊天插件或商务链接客户成功发出回复后检查条件并在同事务中异步发布离线邮件提醒。
+func (a *App) notifyOfflineReply(ctx context.Context, tx database.Tx, tenantID, conversationID, itemID string) error {
+	configured, err := a.mailer.Configured(ctx)
+	if err != nil || !configured {
+		return err
+	}
+	var row struct {
+		ChannelKind  channel.Kind `bun:"channel_kind"`
+		ChannelID    string       `bun:"channel_id"`
+		ChannelName  string       `bun:"channel_name"`
+		ContactID    string       `bun:"contact_id"`
+		ContactEmail string       `bun:"contact_email"`
+		ContactName  string       `bun:"contact_name"`
+		ContactLang  string       `bun:"contact_lang"`
+		Preview      string       `bun:"preview"`
+	}
+	err = tx.NewRaw(`SELECT ch.kind AS channel_kind, ch.id AS channel_id, ch.name AS channel_name,
+			ct.id AS contact_id, ct.email AS contact_email, ct.name AS contact_name, ct.language AS contact_lang,
+			ti.content->>'text' AS preview
+		FROM timeline_items ti
+		JOIN conversations c ON c.id = ti.conversation_id AND c.tenant_id = ti.tenant_id
+		JOIN channels ch ON ch.id = ti.channel_id AND ch.tenant_id = ti.tenant_id
+		JOIN contacts ct ON ct.id = c.contact_id AND ct.tenant_id = c.tenant_id
+		WHERE ti.id = ? AND ti.tenant_id = ? AND ti.conversation_id = ?`,
+		itemID, tenantID, conversationID).Scan(ctx, &row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if row.ChannelKind != channel.Widget && row.ChannelKind != channel.BusinessLink {
+		return nil
+	}
+	emailAddr := strings.TrimSpace(row.ContactEmail)
+	if emailAddr == "" {
+		return nil
+	}
+	if a.offlineMailLimiter != nil {
+		if err := a.offlineMailLimiter.Allow(ctx, "offline_reply:"+conversationID); err != nil {
+			if errors.Is(err, ratelimit.ErrExceeded) {
+				return nil
+			}
+			return err
+		}
+	}
+	gen, err := a.generalSettings.Get(ctx)
+	if err != nil {
+		return err
+	}
+	targetLocale := lang.MatchUI(row.ContactLang)
+	renderCtx := emails.WithLocale(ctx, targetLocale)
+	returnURL := ""
+	if base := strings.TrimRight(strings.TrimSpace(a.cfg.HTTP.PublicURL), "/"); base != "" {
+		returnURL = base + "/widget/?channel=" + row.ChannelID
+	}
+	preview := strings.TrimSpace(row.Preview)
+	if r := []rune(preview); len(r) > 200 {
+		preview = string(r[:200]) + "…"
+	}
+	msg, err := a.emailTemplates.Render(renderCtx, "offline_reply", map[string]any{
+		"SiteName":    gen.SiteName,
+		"ChannelName": row.ChannelName,
+		"ContactName": row.ContactName,
+		"Preview":     preview,
+		"ReturnURL":   returnURL,
+	})
+	if err != nil {
+		return err
+	}
+	msg.To = []mail.Address{{Name: row.ContactName, Email: emailAddr}}
+	return emails.SendTopic.Publish(ctx, tx, msg)
+}
+
+// sendResetCode 生成用于 login.Realm 的密码重置验证码邮件发送回调。
+func sendResetCode(general *settings.Group[platformsettings.General], templates *mail.Templates, mailer mail.Mailer) func(context.Context, login.Code) error {
+	return func(ctx context.Context, c login.Code) error {
+		if c.To.Kind != login.KindEmail {
+			return nil
+		}
+		gen, err := general.Get(ctx)
+		if err != nil {
+			return err
+		}
+		renderCtx := emails.EnsureLocale(ctx, string(gen.DefaultLanguage))
+		msg, err := templates.Render(renderCtx, "code_reset", map[string]any{
+			"SiteName":       gen.SiteName,
+			"Code":           c.Code,
+			"ExpiresMinutes": 15,
+		})
+		if err != nil {
+			return err
+		}
+		msg.To = []mail.Address{{Email: c.To.Value}}
+		return mailer.Send(ctx, msg)
+	}
 }
 
 // open 安装可观测性与日志器，连接 PostgreSQL 和 NATS，确保预置的角色存在，创建账号、权限和设置的存储。serve 和需要资源的命令执行时调用它，
@@ -184,13 +294,21 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	if err := auth.EnsureRoles(ctx, roles); err != nil {
 		return nil, err
 	}
+	emailTemplates, err := emails.NewTemplates()
+	if err != nil {
+		return nil, err
+	}
+	generalSettings, mailSettings := platformsettings.NewGeneralGroup(db), platformsettings.NewMailGroup(db, keys)
+	mailer := platformsettings.NewDynamicMailer(mailSettings)
 	// 每个邮箱 15 分钟内最多输错 5 次密码，计数保存在数据库中，所有实例共享。两套账号各自计数。
 	every15 := ratelimit.Config{Rate: 5, Interval: 15 * time.Minute, Burst: 5}
+	sendCode := sendResetCode(generalSettings, emailTemplates, mailer)
 	adminLogins := login.New(db, login.Options{
 		Type:     platformadmin.Type,
 		Hasher:   hasher,
 		Crypt:    keys,
 		Policy:   login.Policy{PasswordKinds: []string{login.KindEmail}},
+		Send:     sendCode,
 		Resolve:  platformadmin.Resolve(db, roles), // 登录成功、签发 token 之前检查停用
 		Attempts: pglimit.New(db, "login:platform_admin:attempts", every15),
 		Sends:    pglimit.New(db, "login:platform_admin:sends", every15),
@@ -200,6 +318,7 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		Hasher:   hasher,
 		Crypt:    keys,
 		Policy:   login.Policy{PasswordKinds: []string{login.KindEmail}},
+		Send:     sendCode,
 		Resolve:  member.Resolve(db, roles), // 登录成功、签发 token 之前检查停用
 		Attempts: pglimit.New(db, "login:member:attempts", every15),
 		Sends:    pglimit.New(db, "login:member:sends", every15),
@@ -250,7 +369,6 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	generalSettings, mailSettings := platformsettings.NewGeneralGroup(db), platformsettings.NewMailGroup(db, keys)
 	tgCredentials := tgaccount.NewCredentialsGroup(db, keys)
 	llmSettings, translationSettings, businessPolicy := llm.NewGroup(db, keys), translation.NewGroup(db), business.NewPolicyGroup(db)
 	featureStore := flags.NewStore(db)
@@ -266,6 +384,7 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	wecomMgr := wecom.NewManager(db, keys, files, locker, nc)
 	tr := translation.NewTranslator(db, llm.NewClient(db, llmSettings, outbound.New(outbound.Options{Timeout: -1, AnyPort: true})), translationSettings)
 	tr.SetBusinessPolicy(businessPolicy)
+	tr.SetFeatures(featureStore)
 	app := &App{
 		cfg: cfg, db: db, opsDB: opsDB, nc: nc, tel: tel, hub: hub, creds: creds, presence: presence, roles: roles,
 		adminLogins:     adminLogins,
@@ -276,7 +395,10 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		crypt:           keys,
 		generalSettings: generalSettings, mailSettings: mailSettings, tgCredentials: tgCredentials,
 		llmSettings: llmSettings, translationSettings: translationSettings, businessPolicy: businessPolicy, features: featureStore,
-		ops: ops, exporter: exporter,
+		emailTemplates:     emailTemplates,
+		mailer:             mailer,
+		offlineMailLimiter: pglimit.New(db, "mail:offline_reply", ratelimit.Config{Rate: 1, Interval: 15 * time.Minute, Burst: 1}),
+		ops:                ops, exporter: exporter,
 		// 模型网关不设固定整请求超时（由调用上下文控制），以便兼容流式 SSE 长响应及自托管网关地址。
 		translator: tr,
 		files:      files, images: images, defaultDisk: disks[cfg.Filesystem.DefaultDisk], localDisk: localDisk, locker: locker,
@@ -328,7 +450,8 @@ func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
 	down.AutoTranslate = translation.AutoTranslateFunc(a.db, a.translator, translation.NewIncoming(a.db, a.locker, a.translator, down))
 	conversation.RegisterJobs(w, a.db, a.channels, down)
 	translation.RegisterJobs(w, a.db, a.locker, a.translator, down)
-	automation.RegisterJobs(w, a.db, a.locker, down)
+	automation.RegisterJobs(w, a.db, a.locker, down, a.features)
+	emails.RegisterJobs(w, a.mailer)
 	// 模型实现还没有接入：执行器只在会话中有启用的机器人且 Generator 不为 nil 时生成，当前什么也不做
 	agent.RegisterJobs(w, agent.NewRunner(a.db, down, a.hub, nil))
 	tenant.RegisterJobs(w, a.db, a.memberLogins, tenant.Addresses{PublicURL: a.cfg.HTTP.PublicURL}, a.hub, a.exporter)

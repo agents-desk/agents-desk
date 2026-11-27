@@ -29,7 +29,7 @@ import {
 import { confirm, Inspector, InspectorField, InspectorSection, notifyError, notifySuccess, PaneBody, PaneHeader, useLanguage, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { AiAssistantPanel, type DetailsAsideTab, DetailsAsideTabs } from "../components/ai-placeholders"
+import { AiAssistantPanel, type DetailsAsideTab, DetailsAsideTabs, useAiWorkspaceEnabled } from "../components/ai-placeholders"
 import { ContactAvatar } from "../contacts/display"
 import { channelColor, ChannelChip } from "../inbox/channel-badge"
 import { useMe, useMembers } from "../inbox/data"
@@ -155,7 +155,7 @@ export function BusinessDetails({ chat, onClose, onLeft }: BusinessDetailsProps)
       <DetailsAsideTabs value={asideTab} onChange={setAsideTab} />
 
       <PaneBody>
-        {asideTab === "ai" ? (
+        {useAiWorkspaceEnabled() && asideTab === "ai" ? (
           <AiAssistantPanel scene="chat" />
         ) : (
         <>

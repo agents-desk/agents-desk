@@ -11,11 +11,14 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/feature"
+	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/settings"
 
 	"agents-desk/internal/business"
 	"agents-desk/internal/channel"
 	"agents-desk/internal/conversation"
+	"agents-desk/internal/flags"
 	"agents-desk/internal/lang"
 	"agents-desk/internal/llm"
 )
@@ -26,6 +29,7 @@ type Translator struct {
 	llm            *llm.Client
 	settings       *settings.Group[Settings]
 	businessPolicy *settings.Group[business.Policy]
+	features       *feature.Store
 }
 
 // NewTranslator 返回翻译器；client 调用平台设置中“翻译”调用类型的模型接口，s 是工作区的翻译设置。
@@ -38,6 +42,11 @@ func (tr *Translator) SetBusinessPolicy(g *settings.Group[business.Policy]) {
 	if g != nil {
 		tr.businessPolicy = g
 	}
+}
+
+// SetFeatures 绑定平台功能开关存储，按工作区检查 AI 翻译功能开关。
+func (tr *Translator) SetFeatures(f *feature.Store) {
+	tr.features = f
 }
 
 // businessPolicyFor 查询会话 conversationID 归属个人商务渠道的通用商务策略；非个人商务渠道时返回 isBusiness=false。
@@ -70,6 +79,14 @@ func (tr *Translator) businessPolicyFor(ctx context.Context, tenant, conversatio
 // Enabled 返回翻译是否可用：平台设置中配置了“翻译”调用类型的模型接口。
 func (tr *Translator) Enabled(ctx context.Context) (bool, error) {
 	return tr.llm.Configured(ctx, llm.Translation)
+}
+
+// EnabledFor 报告工作区 tenantID 是否允许且配置了 AI 翻译能力：先检查平台功能开关，再检查模型配置。
+func (tr *Translator) EnabledFor(ctx context.Context, tenantID string) (bool, error) {
+	if tr.features != nil && tenantID != "" && !tr.features.Active(ctx, identity.Subject{Tenant: tenantID}, flags.AITranslation) {
+		return false, nil
+	}
+	return tr.Enabled(ctx)
 }
 
 // rules 是各种翻译都遵守的规则。
@@ -603,6 +620,13 @@ func (tr *Translator) Reply(ctx context.Context, tenant, conversationID, text, f
 // TranslateFields 将工作区 tenant 的一组命名短文本字段（如渠道标题、问候语、名片简介、快捷话题）从 source 一次翻译为 targets 中的每一种语言。
 // 复用工作区的翻译语气与术语表；模型未配置时返回 llm.ErrNotConfigured。
 func (tr *Translator) TranslateFields(ctx context.Context, tenant, targetType, targetID, source string, targets []string, fields map[string]string) (map[string]map[string]string, error) {
+	enabled, err := tr.EnabledFor(ctx, tenant)
+	if err != nil {
+		return nil, err
+	}
+	if !enabled {
+		return nil, llm.ErrNotConfigured.New()
+	}
 	if len(targets) == 0 || len(fields) == 0 {
 		return map[string]map[string]string{}, nil
 	}

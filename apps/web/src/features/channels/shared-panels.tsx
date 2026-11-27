@@ -20,7 +20,7 @@ import {
 } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../../api"
-import { AiReceptionCard } from "../../components/ai-placeholders"
+import { AiReceptionCard, useAiWorkspaceEnabled } from "../../components/ai-placeholders"
 import { RowActions } from "../../components/row-actions"
 import { ChannelIcon } from "../../inbox/channel-badge"
 import { activity } from "../../inbox/format"
@@ -439,9 +439,10 @@ export function ExternalGroupsPanel({ audience }: { audience: BotAudience }): Re
   )
 }
 
-/** UpcomingChannelsBanner 展示当前业务场景下规划中的后续渠道接入占位。 */
+/** UpcomingChannelsBanner 展示当前业务场景下规划中的后续渠道接入占位；功能开关关闭时不渲染。 */
 export function UpcomingChannelsBanner({ audience }: { audience: BotAudience }): ReactNode {
   const t = useT()
+  if (!useAiWorkspaceEnabled()) return null
   const items =
     audience === "internal"
       ? [t("channels.upcoming_dingtalk"), t("channels.upcoming_feishu"), t("channels.upcoming_slack")]

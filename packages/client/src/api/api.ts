@@ -69,6 +69,14 @@ export interface MemberAlertChannel {
   sound: boolean
 }
 
+export interface MemberForgotPasswordDTO {
+  request_id: string
+}
+
+export interface MemberForgotPasswordInputBody {
+  email: string
+}
+
 export interface MemberImpersonationInfo {
   /** 发起代为登录的平台管理员 ID */
   actor_id: string
@@ -143,6 +151,12 @@ export interface MemberProfileChanges {
   title?: string
 }
 
+export interface MemberResetPasswordInputBody {
+  code: string
+  password: string
+  request_id: string
+}
+
 export type MemberSendShortcut = "enter" | "ctrl_enter"
 
 export type MemberUiLanguage = "zh-CN" | "en"
@@ -215,6 +229,20 @@ export function createClient(options: ClientOptions) {
        */
       passwordChange: (body: AccountPasswordChange): Promise<void> =>
         rt.request<void>({ method: "PUT", path: `/me/password`, body }),
+      /**
+       * 发送重置密码验证码邮件
+       *
+       * POST /auth/password/forgot
+       */
+      passwordForgot: (body: MemberForgotPasswordInputBody): Promise<MemberForgotPasswordDTO> =>
+        rt.request<MemberForgotPasswordDTO>({ method: "POST", path: `/auth/password/forgot`, public: true, body }),
+      /**
+       * 凭邮箱验证码重设密码
+       *
+       * POST /auth/password/reset
+       */
+      passwordReset: (body: MemberResetPasswordInputBody): Promise<void> =>
+        rt.request<void>({ method: "POST", path: `/auth/password/reset`, public: true, body }),
       /**
        * 修改偏好设置
        *

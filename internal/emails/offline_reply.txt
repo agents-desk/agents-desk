@@ -1,0 +1,8 @@
+{{t "mail.offline_reply.title" .}}
+
+{{t "mail.offline_reply.intro" .}}
+{{if .Preview}}
+{{.Preview}}
+{{end}}{{if .ReturnURL}}
+{{.ReturnURL}}
+{{end}}

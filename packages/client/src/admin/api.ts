@@ -224,6 +224,14 @@ export interface PlatformadminCreateInputBody {
   password: string
 }
 
+export interface PlatformadminForgotPasswordDTO {
+  request_id: string
+}
+
+export interface PlatformadminForgotPasswordInputBody {
+  email: string
+}
+
 export interface PlatformadminLoginInputBody {
   email: string
   password: string
@@ -238,6 +246,12 @@ export interface PlatformadminProfile {
   id: string
   name: string
   permissions: string[]
+}
+
+export interface PlatformadminResetPasswordInputBody {
+  code: string
+  password: string
+  request_id: string
 }
 
 export interface PlatformadminUpdateInputBody {
@@ -310,6 +324,15 @@ export interface PlatformsettingsMail {
 export interface PlatformsettingsPublicSite {
   logo_url: string
   site_name: string
+}
+
+export interface PlatformsettingsTestMailDTO {
+  to: string
+}
+
+export interface PlatformsettingsTestMailInputBody {
+  /** 收件箱地址；留空时发送给当前管理员登录邮箱 */
+  to?: string
 }
 
 export interface QueueBulkResult {
@@ -693,6 +716,20 @@ export function createClient(options: ClientOptions) {
       list: (input: AdminListInput = {}): Promise<OffsetPlatformadminAdminDTO> =>
         rt.request<OffsetPlatformadminAdminDTO>({ method: "GET", path: `/admins`, query: { "name": input["name"], "page": input["page"], "per_page": input["per_page"], "status": input["status"] } }),
       /**
+       * 发送重置密码验证码邮件
+       *
+       * POST /auth/password/forgot
+       */
+      passwordForgot: (body: PlatformadminForgotPasswordInputBody): Promise<PlatformadminForgotPasswordDTO> =>
+        rt.request<PlatformadminForgotPasswordDTO>({ method: "POST", path: `/auth/password/forgot`, public: true, body }),
+      /**
+       * 凭邮箱验证码重设密码
+       *
+       * POST /auth/password/reset
+       */
+      passwordReset: (body: PlatformadminResetPasswordInputBody): Promise<void> =>
+        rt.request<void>({ method: "POST", path: `/auth/password/reset`, public: true, body }),
+      /**
        * 修改平台管理员
        *
        * PUT /admins/{id}
@@ -825,6 +862,13 @@ export function createClient(options: ClientOptions) {
        */
       settingsGet: (): Promise<PlatformsettingsMail> =>
         rt.request<PlatformsettingsMail>({ method: "GET", path: `/settings/mail` }),
+      /**
+       * 发送测试邮件
+       *
+       * POST /settings/mail/test
+       */
+      settingsTest: (body: PlatformsettingsTestMailInputBody): Promise<PlatformsettingsTestMailDTO> =>
+        rt.request<PlatformsettingsTestMailDTO>({ method: "POST", path: `/settings/mail/test`, body }),
       /**
        * 保存邮件服务设置
        *

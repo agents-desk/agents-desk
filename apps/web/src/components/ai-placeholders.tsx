@@ -9,14 +9,20 @@ import {
   IconTicket,
   IconTool,
 } from "@tabler/icons-react"
-import { useNavigate, useParams } from "@tanstack/react-router"
+import { useMatch, useNavigate, useParams } from "@tanstack/react-router"
 import { useT } from "@go-tenon/ui"
 import type { ReactNode } from "react"
+
+/** useAiWorkspaceEnabled 返回当前工作区是否开启了 AI 模块预览开关（ai.workspace）。 */
+export function useAiWorkspaceEnabled(): boolean {
+  const tenant = useMatch({ from: "/$slug", shouldThrow: false })?.loaderData
+  return Boolean(tenant?.features?.["ai.workspace"])
+}
 
 /** DetailsAsideTab 是会话、工单与聊天右侧栏的页签：详情或 AI 助手。 */
 export type DetailsAsideTab = "details" | "ai"
 
-/** DetailsAsideTabs 渲染右侧详情栏顶部的「详情 | AI 助手」切换条。 */
+/** DetailsAsideTabs 渲染右侧详情栏顶部的「详情 | AI 助手」切换条；功能开关关闭时不渲染。 */
 export function DetailsAsideTabs({
   value,
   onChange,
@@ -25,6 +31,7 @@ export function DetailsAsideTabs({
   onChange: (next: DetailsAsideTab) => void
 }): ReactNode {
   const t = useT()
+  if (!useAiWorkspaceEnabled()) return null
   return (
     <Box px="var(--tn-pane-px)" py={8} style={{ borderBottom: "1px solid var(--tn-border)" }}>
       <SegmentedControl
@@ -49,11 +56,12 @@ export function DetailsAsideTabs({
   )
 }
 
-/** AiReceptionCard 在各渠道与外部群配置页展示「AI Agent 优先接待 + 人工团队兜底」的预留配置区块。 */
+/** AiReceptionCard 在各渠道与外部群配置页展示「AI Agent 优先接待 + 人工团队兜底」的预留配置区块；功能开关关闭时不渲染。 */
 export function AiReceptionCard({ scene }: { scene: "customer" | "partner" | "internal" | "group" }): ReactNode {
   const t = useT()
   const { slug } = useParams({ from: "/$slug" })
   const navigate = useNavigate()
+  if (!useAiWorkspaceEnabled()) return null
 
   const descKey =
     scene === "internal"

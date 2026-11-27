@@ -62,6 +62,18 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         queryKey: key("admin", "list", ...args),
         queryFn: () => client.admin.list(...args),
       }),
+      /** POST /auth/password/forgot */
+      passwordForgot: () => ({
+        mutationFn: (variables: Parameters<Client["admin"]["passwordForgot"]>[0]) => client.admin.passwordForgot(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "admin"),
+      }),
+      /** POST /auth/password/reset */
+      passwordReset: () => ({
+        mutationFn: (variables: Parameters<Client["admin"]["passwordReset"]>[0]) => client.admin.passwordReset(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "admin"),
+      }),
       /** PUT /admins/{id} */
       update: () => ({
         mutationFn: (variables: Parameters<Client["admin"]["update"]>) => client.admin.update(...variables),
@@ -179,6 +191,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       settingsGet: (...args: Parameters<Client["mail"]["settingsGet"]>) => ({
         queryKey: key("mail", "settingsGet", ...args),
         queryFn: () => client.mail.settingsGet(...args),
+      }),
+      /** POST /settings/mail/test */
+      settingsTest: () => ({
+        mutationFn: (variables: Parameters<Client["mail"]["settingsTest"]>[0]) => client.mail.settingsTest(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "mail"),
       }),
       /** PUT /settings/mail */
       settingsUpdate: () => ({

@@ -195,6 +195,15 @@ func (b *TicketBroadcast) Handle(ctx context.Context, p conversation.Appended) e
 		}
 	}
 	if b.translator != nil && len(needLangs) > 0 && rawText != "" {
+		enabled, err := b.translator.EnabledFor(ctx, p.TenantID)
+		if err != nil {
+			return err
+		}
+		if !enabled {
+			needLangs = nil
+		}
+	}
+	if b.translator != nil && len(needLangs) > 0 && rawText != "" {
 		newTranslations := map[string]string{}
 		if sourceLang != "" {
 			translatedMap, err := b.translator.Translate(ctx, p.TenantID, &it, sourceLang, needLangs)

@@ -328,7 +328,15 @@ func (a *Deliver) markAndNotify(ctx context.Context, tenantID, conversationID, i
 		if err != nil {
 			return errors.Wrap(err, "update delivery")
 		}
-		if !notify || affected == 0 {
+		if affected == 0 {
+			return nil
+		}
+		if status == Delivered && a.down.NotifyOfflineReply != nil {
+			if err := a.down.NotifyOfflineReply(ctx, tx, tenantID, conversationID, itemID); err != nil {
+				slog.WarnContext(ctx, "notify offline reply failed", "tenant_id", tenantID, "conversation_id", conversationID, "item_id", itemID, "error", err)
+			}
+		}
+		if !notify {
 			return nil
 		}
 		return NotifyUpdated(ctx, tx, a.down, tenantID, []string{conversationID})

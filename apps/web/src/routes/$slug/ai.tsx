@@ -20,7 +20,7 @@ import { tenantApi } from "../../api"
 
 // AI Agent 模块占位页：展示面向对外客服、内部员工服务与商务沟通的 AI Agent 规划、知识库、工具接入与评测分析。
 export const Route = createFileRoute("/$slug/ai")({
-  staticData: { title: "nav.ai", icon: "ai", order: 4, permission: "conversations:read" },
+  staticData: { title: "nav.ai", icon: "ai", order: 4, menu: false, permission: "conversations:read" },
   component: AiHubPage,
 })
 

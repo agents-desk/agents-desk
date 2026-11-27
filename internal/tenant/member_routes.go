@@ -7,6 +7,7 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/authz"
+	"github.com/go-tenon/tenon/feature"
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/httpx/rest"
 
@@ -22,10 +23,10 @@ func RegisterMemberRoutes(api *rest.API, requireMember func(*huma.Operation), db
 
 // RegisterTenantRoutes 在工作区的 API（/t/{slug}/api）中注册“当前工作区”和修改它的常规设置。require 返回要求成员
 // 登录凭据和给定权限的访问策略；工作区由 Middleware 和 FromRequest 确定，成员身份和停用由 Resolve 检查。
-func RegisterTenantRoutes(api *rest.API, require func(...auth.Permission) func(*huma.Operation), db *bun.DB, files *filesystem.Service) {
+func RegisterTenantRoutes(api *rest.API, require func(...auth.Permission) func(*huma.Operation), db *bun.DB, files *filesystem.Service, features ...*feature.Store) {
 	op := huma.Operation{OperationID: "tenant-current", Method: http.MethodGet, Path: "/tenant", Summary: "当前工作区和我的权限"}
 	require()(&op)
-	rest.Register(api, op, NewCurrent(db, files).HTTP)
+	rest.Register(api, op, NewCurrent(db, files, features...).HTTP)
 
 	op = huma.Operation{OperationID: "tenant-rename", Method: http.MethodPut, Path: "/tenant", Summary: "修改工作区的常规设置"}
 	require(auth.TenantSettingsManage)(&op)

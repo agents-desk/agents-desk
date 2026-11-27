@@ -1,0 +1,7 @@
+{{t "mail.code_reset.title" .}}
+
+{{t "mail.code_reset.intro" .}}
+
+{{.Code}}
+
+{{t "mail.code_reset.hint" .}}

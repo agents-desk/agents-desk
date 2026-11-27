@@ -29,10 +29,11 @@ type Output struct {
 	Body filesystem.File
 }
 
-// UploadOptions 配置单组上传入口的目标磁盘与即时校验规则。
+// UploadOptions 配置单组上传入口的目标磁盘、权限开关检查与即时校验规则。
 type UploadOptions struct {
-	Private bool               // 为 true 时写入 files.PrivateDisk()，不暴露匿名公开 URL
-	Accept  *filesystem.Accept // 非 nil 时在上传落盘前即时校验 MIME 与大小
+	Private bool                        // 为 true 时写入 files.PrivateDisk()，不暴露匿名公开 URL
+	Accept  *filesystem.Accept          // 非 nil 时在上传落盘前即时校验 MIME 与大小
+	Allow   func(context.Context) error // 非 nil 时在读取表单前执行前置许可检查
 }
 
 // Upload 把请求中的文件保存为调用者的临时文件。
@@ -50,8 +51,13 @@ func NewUpload(files *filesystem.Service, opts ...UploadOptions) *Upload {
 	return &Upload{files: files, opts: o}
 }
 
-// HTTP 处理 POST /files：拦截可直接在浏览器执行的 HTML/SVG/XML/JS 活跃内容，超限时返回 filesystem.ErrTooLarge。
+// HTTP 处理 POST /files：检查上传前置许可并拦截可直接在浏览器执行的 HTML/SVG/XML/JS 活跃内容，超限时返回 filesystem.ErrTooLarge。
 func (a *Upload) HTTP(ctx context.Context, in *UploadInput) (*Output, error) {
+	if a.opts.Allow != nil {
+		if err := a.opts.Allow(ctx); err != nil {
+			return nil, err
+		}
+	}
 	owner, _ := identity.FromContext(ctx)
 	f := in.RawBody.Data().File
 

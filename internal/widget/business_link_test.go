@@ -2,9 +2,14 @@ package widget
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"image"
 	"image/png"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -15,13 +20,18 @@ import (
 	"github.com/go-tenon/tenon/apitoken"
 	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/broadcast/broadcasttest"
+	"github.com/go-tenon/tenon/filesystem"
+	"github.com/go-tenon/tenon/httpx/rest"
 	"github.com/go-tenon/tenon/identity"
+	"github.com/go-tenon/tenon/ratelimit"
+	"github.com/go-tenon/tenon/ratelimit/pglimit"
 
 	"agents-desk/internal/apptest"
 	"agents-desk/internal/auth"
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
+	"agents-desk/internal/flags"
 	"agents-desk/internal/member"
 )
 
@@ -336,5 +346,158 @@ func TestEncodeQRDataURLFullScale(t *testing.T) {
 	}
 	if darkInBottomRight == 0 {
 		t.Fatalf("二维码右下象限未包含黑色模块，尺寸=%dx%d", b.Dx(), b.Dy())
+	}
+}
+
+func TestPasscodeArgon2idLegacyCompatAndRateLimit(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	env := apptest.New(t)
+	f := setup(t, env, "pass-rl")
+
+	// 1. Argon2id 哈希与旧版 SHA-256 哈希兼容验证
+	hashed, err := hashPasscode("secret-888")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(hashed, "$argon2id$") {
+		t.Fatalf("口令哈希应使用 Argon2id，实际 %q", hashed)
+	}
+	if !verifyPasscode("ch-any", "secret-888", hashed) || verifyPasscode("ch-any", "wrong", hashed) {
+		t.Fatal("Argon2id verifyPasscode 结果不符合预期")
+	}
+	legacySum := sha256.Sum256([]byte("ch-legacy:old-pass"))
+	legacyHash := hex.EncodeToString(legacySum[:])
+	if !verifyPasscode("ch-legacy", "old-pass", legacyHash) || verifyPasscode("ch-legacy", "bad", legacyHash) {
+		t.Fatal("历史 SHA-256 兼容 verifyPasscode 结果不符合预期")
+	}
+
+	// 2. StartSession 对同一渠道 + IP 进行口令暴力试错限流，正确口令通过后重置计数
+	link, err := NewCreateBusinessLink(env.DB, "https://desk.example.com").Handle(ctx, f.agent, CreateBusinessLinkBody{
+		Name: "限流验证专线",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewUpdateBusinessLink(env.DB, "https://desk.example.com").Handle(ctx, f.agent, link.ID, UpdateBusinessLinkBody{
+		Name:    "限流验证专线",
+		Access:  &BusinessAccessInput{Mode: "passcode", Passcode: "888666"},
+		Enabled: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	limiter := pglimit.New(env.DB, "test:widget:passcode", ratelimit.Config{Rate: 2, Interval: time.Minute, Burst: 2})
+	start := NewStartSession(env.DB, env.Crypt, f.tokens, conversation.Downstream{}, limiter)
+	linkCtx := f.in(t, link.ID)
+	ipA := apitoken.Device{IP: "198.51.100.10"}
+	for i := range 2 {
+		if _, err := start.Handle(linkCtx, SessionBody{Passcode: "wrong"}, ipA); !errors.Is(err, ErrInvalidPasscode) {
+			t.Fatalf("第 %d 次错误口令应返回 ErrInvalidPasscode，实际 %v", i+1, err)
+		}
+	}
+	if _, err := start.Handle(linkCtx, SessionBody{Passcode: "wrong"}, ipA); !errors.Is(err, ratelimit.ErrExceeded) {
+		t.Fatalf("第 3 次试错应触发 ratelimit.ErrExceeded，实际 %v", err)
+	}
+
+	// 另一 IP 先输错 1 次、随后输入正确口令可正常进入并重置限流计数
+	ipB := apitoken.Device{IP: "198.51.100.20"}
+	if _, err := start.Handle(linkCtx, SessionBody{Passcode: "wrong"}, ipB); !errors.Is(err, ErrInvalidPasscode) {
+		t.Fatalf("IP B 首次错误口令应返回 ErrInvalidPasscode，实际 %v", err)
+	}
+	if _, err := start.Handle(linkCtx, SessionBody{Passcode: "888666"}, ipB); err != nil {
+		t.Fatalf("IP B 正确口令应通过，实际 %v", err)
+	}
+	if _, err := start.Handle(linkCtx, SessionBody{Passcode: "wrong"}, ipB); !errors.Is(err, ErrInvalidPasscode) {
+		t.Fatalf("IP B 重置计数后再次输错应允许尝试而不是直接超限，实际 %v", err)
+	}
+}
+
+func TestWidgetVisitorUploadsFeatureFlag(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	env := apptest.New(t)
+	f := setup(t, env, "flag-upload")
+	store := flags.NewStore(env.DB)
+
+	r := chi.NewRouter()
+	down := conversation.Downstream{Media: conversation.Media{Files: env.Files}}
+	r.Route("/w/{channel}/api", func(cr chi.Router) {
+		cr.Use(Middleware(env.DB))
+		api := rest.New(cr, rest.Options{
+			Validate: f.tokens.Validate,
+			Accounts: identity.Accounts{contact.Type: Resolve(env.DB)},
+			Tenant:   TenantFromRequest,
+		})
+		RegisterVisitorRoutes(api, api.RequireToken(), env.DB, env.Crypt, f.tokens, conversation.NewReceive(env.DB, channel.DefaultRegistry(), down), down, 50*filesystem.MiB, VisitorOptions{
+			Features: store,
+		})
+	})
+
+	sess, _ := f.session(t, SessionBody{})
+	var pngBuf bytes.Buffer
+	if err := png.Encode(&pngBuf, image.NewRGBA(image.Rect(0, 0, 2, 2))); err != nil {
+		t.Fatal(err)
+	}
+	uploadFile := func() *httptest.ResponseRecorder {
+		var body bytes.Buffer
+		mw := multipart.NewWriter(&body)
+		part, err := mw.CreateFormFile("file", "dot.png")
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _ = part.Write(pngBuf.Bytes())
+		_ = mw.Close()
+		req := httptest.NewRequest(http.MethodPost, "/w/"+f.widget.ID+"/api/files", &body)
+		req.Header.Set("Content-Type", mw.FormDataContentType())
+		req.Header.Set("Authorization", "Bearer "+sess.Token)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		return rec
+	}
+
+	// 关闭 widget.visitor_uploads 后，config 返回 visitor_uploads=false 且上传返回 403
+	offIn := flags.SetInput{Name: flags.WidgetVisitorUploads.Name}
+	offIn.Body.Scope = flags.ScopeTenant
+	offIn.Body.TenantID = f.system.Tenant
+	offIn.Body.Mode = flags.ModeOff
+	if _, err := flags.NewSet(env.DB, store).Handle(ctx, apptest.Admin, offIn); err != nil {
+		t.Fatal(err)
+	}
+
+	cfgRec := httptest.NewRecorder()
+	r.ServeHTTP(cfgRec, httptest.NewRequest(http.MethodGet, "/w/"+f.widget.ID+"/api/config", nil))
+	if cfgRec.Code != http.StatusOK {
+		t.Fatalf("读取公开配置失败：%d %s", cfgRec.Code, cfgRec.Body.String())
+	}
+	var cfg ConfigDTO
+	if err := json.Unmarshal(cfgRec.Body.Bytes(), &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.VisitorUploads {
+		t.Fatalf("关闭访客上传开关后 visitor_uploads 应为 false")
+	}
+	if rec := uploadFile(); rec.Code != http.StatusForbidden {
+		t.Fatalf("关闭访客上传开关后 POST /files 应返回 403，实际 %d %s", rec.Code, rec.Body.String())
+	}
+
+	// 重新开启后 config 返回 visitor_uploads=true 且上传成功
+	onIn := flags.SetInput{Name: flags.WidgetVisitorUploads.Name}
+	onIn.Body.Scope = flags.ScopeTenant
+	onIn.Body.TenantID = f.system.Tenant
+	onIn.Body.Mode = flags.ModeOn
+	if _, err := flags.NewSet(env.DB, store).Handle(ctx, apptest.Admin, onIn); err != nil {
+		t.Fatal(err)
+	}
+	cfgRec2 := httptest.NewRecorder()
+	r.ServeHTTP(cfgRec2, httptest.NewRequest(http.MethodGet, "/w/"+f.widget.ID+"/api/config", nil))
+	if err := json.Unmarshal(cfgRec2.Body.Bytes(), &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.VisitorUploads {
+		t.Fatalf("开启访客上传开关后 visitor_uploads 应为 true")
+	}
+	if rec := uploadFile(); rec.Code != http.StatusCreated {
+		t.Fatalf("开启访客上传开关后 POST /files 应成功，实际 %d %s", rec.Code, rec.Body.String())
 	}
 }

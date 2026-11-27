@@ -1,0 +1,5 @@
+{{t "mail.mail_test.title" .}}
+
+{{t "mail.mail_test.intro" .}}
+
+{{t "mail.mail_test.from" .}}

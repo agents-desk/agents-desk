@@ -18,7 +18,7 @@ import { IconCheck, IconCopy, IconUsersGroup, IconX } from "@tabler/icons-react"
 import { Inspector, InspectorField, InspectorSection, PaneBody, PaneHeader, useLanguage, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { AiAssistantPanel, type DetailsAsideTab, DetailsAsideTabs } from "../components/ai-placeholders"
+import { AiAssistantPanel, type DetailsAsideTab, DetailsAsideTabs, useAiWorkspaceEnabled } from "../components/ai-placeholders"
 import { useMembers } from "../inbox/data"
 import { languageName } from "../languages"
 
@@ -66,7 +66,7 @@ export function PeerDetails({ chat, onClose, onOpenChat }: PeerDetailsProps): Re
       <DetailsAsideTabs value={asideTab} onChange={setAsideTab} />
 
       <PaneBody>
-        {asideTab === "ai" ? (
+        {useAiWorkspaceEnabled() && asideTab === "ai" ? (
           <AiAssistantPanel scene="chat" />
         ) : (
         <>

@@ -62,6 +62,7 @@ member.ui_language.zh-CN: 简体中文
 member.ui_language.en: English
 member.send_shortcut.enter: 回车发送（Shift + 回车换行）
 member.send_shortcut.ctrl_enter: Ctrl / ⌘ + 回车发送（回车换行）
+member.reset_password_invalid: 请填写新密码或选择发送重置密码邮件
 
 tenant.not_found: 工作区不存在
 tenant.disabled: 这个工作区已停用
@@ -269,6 +270,7 @@ widget.business_link_in_use: "该商务沟通链接已有聊天或联系人记�
 widget.invalid_passcode: "访问口令不正确，请核对后重试"
 widget.business_link_expired: "该商务沟通链接已过期，请联系对方获取新链接"
 widget.intake_required: "请填写此必填项"
+widget.uploads_disabled: "当前工作区已暂停访客上传附件"
 widget.title: 网页聊天插件
 widget.fields.id: ID
 widget.fields.name: 名称
@@ -400,6 +402,7 @@ activity.platform_admin.disabled: "停用了平台管理员「{{.name}}」"
 activity.platform_admin.enabled: "启用了平台管理员「{{.name}}」"
 activity.platform_admin.profile_updated: "更新了个人资料（{{.changed}}）"
 activity.platform_admin.password_changed: "修改了登录密码"
+activity.member.password_reset: "管理员重置了成员登录密码"
 activity.tenant.created: "创建了工作区「{{.name}}」（{{.slug}}）"
 activity.tenant.renamed: "将工作区名称从「{{.from}}」修改为「{{.to}}」"
 activity.tenant.logo_updated: "更新了工作区 Logo"
@@ -417,6 +420,7 @@ activity.feature.cleared: "清除了功能开关「{{.name}}」的设置（{{.sc
 
 platform_settings.invalid_email: 请输入有效的邮箱地址
 platform_settings.required_field: 启用 Resend 发信时此项不能为空
+platform_settings.mail_not_configured: 请先填写并保存有效的 Resend 发件邮箱与 API Key
 platform_settings.language.zh-CN: 简体中文
 platform_settings.language.en: English
 
@@ -483,6 +487,27 @@ queue.topic.tenants.export.label: 工作区列表导出
 queue.topic.tenants.export.description: 后台生成工作区列表表格文件并推送完成通知
 queue.topic.contacts.export.label: 联系人列表导出
 queue.topic.contacts.export.description: 后台按筛选条件与可见范围生成联系人表格文件
+queue.topic.mail.send.label: 邮件异步发送
+queue.topic.mail.send.description: 异步发送成员加入工作区邀请与离线客户回复提醒邮件
+
+mail.code_reset.subject: "重置你的 {{.SiteName}} 登录密码"
+mail.code_reset.title: "重置登录密码"
+mail.code_reset.intro: "你正在申请重置 {{.SiteName}} 账号的登录密码，请使用以下 6 位验证码完成验证："
+mail.code_reset.hint: "验证码有效期为 {{.ExpiresMinutes}} 分钟，请勿泄露给他人。如非本人操作，请忽略此邮件。"
+mail.member_invite.subject: "你已受邀加入工作区「{{.TenantName}}」"
+mail.member_invite.title: "欢迎加入「{{.TenantName}}」"
+mail.member_invite.intro: "管理员已将你加入工作区「{{.TenantName}}」。"
+mail.member_invite.role: "分配角色：{{.RoleName}}"
+mail.member_invite.cta: "立即登录工作区"
+mail.member_invite.password_hint: "如尚无密码或忘记初始密码，可在登录页点击“忘记密码”通过邮箱验证码设置新密码。"
+mail.offline_reply.subject: "[{{.ChannelName}}] 你有一条来自 {{.SiteName}} 的新回复"
+mail.offline_reply.title: "你收到了来自客服团队的新回复"
+mail.offline_reply.intro: "你在 {{.ChannelName}} 中的咨询收到了新的客服回复："
+mail.offline_reply.cta: "返回查看完整对话"
+mail.mail_test.subject: "{{.SiteName}} 邮件服务连通性测试"
+mail.mail_test.title: "Resend 邮件配置测试成功"
+mail.mail_test.intro: "这是一封由 {{.SiteName}} 管理后台发出的测试邮件，说明当前的 Resend 配置已可正常发送外发邮件。"
+mail.mail_test.from: "发件邮箱：{{.FromEmail}}"
 
 schedule.task.files_cleanup.label: 清理过期文件
 schedule.task.files_cleanup.description: 删除过期的临时文件和已删除的文件

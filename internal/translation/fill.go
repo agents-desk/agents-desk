@@ -56,7 +56,7 @@ func (a *FillMissing) Handle(ctx context.Context, sub identity.Subject, itemIDs 
 
 // HandleBody 校验可见性后，为缺失当前成员语言译文的消息、工单标题/描述与联系人备注发布补译任务。
 func (a *FillMissing) HandleBody(ctx context.Context, sub identity.Subject, b FillBody) (int, error) {
-	enabled, err := a.translator.Enabled(ctx)
+	enabled, err := a.translator.EnabledFor(ctx, sub.Tenant)
 	if err != nil || !enabled {
 		return 0, err
 	}

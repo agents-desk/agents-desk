@@ -1579,10 +1579,22 @@ export interface MemberAddParams {
   language?: string
   /** 这个邮箱还没有账号时必填 */
   name?: string
-  /** 新账号的初始密码，由你告诉本人；这个邮箱还没有账号时必填 */
+  /** 新账号的初始密码；平台已配置邮件服务时可留空并由成员通过邮件重设密码 */
   password?: string
   /** 角色：这个工作区自己的角色 */
   role_id: string
+}
+
+export interface MemberResetPasswordBody {
+  /** 直接为成员设置的新密码；与 send_reset_email 二选一 */
+  password?: string
+  /** 为 true 时发送重置密码验证码邮件给成员并强制下线 */
+  send_reset_email?: boolean
+}
+
+export interface MemberResetPasswordOutputBody {
+  email?: string
+  mode: "password" | "email"
 }
 
 export interface MemberRoleChange {
@@ -2503,6 +2515,8 @@ export interface TelegramUpdateBody {
 }
 
 export interface TenantCurrentDTO {
+  /** 当前工作区已开启的平台功能开关 */
+  features: Record<string, boolean>
   id: string
   /** 工作区 Logo 文件 ID，未设置时为空 */
   logo_file_id?: string
@@ -4206,6 +4220,13 @@ export function createClient(options: ClientOptions) {
        */
       remove: (id: string): Promise<void> =>
         rt.request<void>({ method: "POST", path: `/members/${encodeURIComponent(id)}/remove` }),
+      /**
+       * 重置成员密码
+       *
+       * POST /members/{id}/reset-password
+       */
+      resetPassword: (id: string, body: MemberResetPasswordBody): Promise<MemberResetPasswordOutputBody> =>
+        rt.request<MemberResetPasswordOutputBody>({ method: "POST", path: `/members/${encodeURIComponent(id)}/reset-password`, body }),
       /**
        * 把成员设为离开
        *

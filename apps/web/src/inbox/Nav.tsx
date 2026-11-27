@@ -25,6 +25,7 @@ import { kit, tenantApi } from "../api"
 import { useChat } from "../chat/data"
 import { ChatSections, type ChatNavTarget } from "../chat/Nav"
 import { NewChatModal } from "../chat/NewChatModal"
+import { useAiWorkspaceEnabled } from "../components/ai-placeholders"
 import { CreateTicketModal } from "../tickets/CreateTicketModal"
 import type { TicketBox } from "../tickets/search"
 import { type Thresholds, useThresholds } from "./data"
@@ -192,6 +193,7 @@ export function InboxNav(): ReactNode {
   )
 
   const views = d?.views ?? []
+  const aiEnabled = useAiWorkspaceEnabled()
 
   return (
     <>
@@ -201,20 +203,22 @@ export function InboxNav(): ReactNode {
         {item("unassigned", t("inbox.box_unassigned"), <IconUserQuestion size={16} stroke={1.6} />, d?.unassigned)}
         {item("all", t("inbox.box_all"), <IconListDetails size={16} stroke={1.6} />, d?.all)}
 
-        <RailSection
-          title={t("inbox.ai_section")}
-          collapsible
-          storeKey="inbox-ai-reception"
-          action={
-            <Badge size="xs" variant="light" color="gray" style={{ textTransform: "none", lineHeight: 1.2 }}>
-              {t("ai_placeholder.coming_soon")}
-            </Badge>
-          }
-        >
-          <NavLink disabled label={t("inbox.ai_handling")} leftSection={<IconRobot size={16} stroke={1.6} />} />
-          <NavLink disabled label={t("inbox.ai_pending_approval")} leftSection={<IconClockCheck size={16} stroke={1.6} />} />
-          <NavLink disabled label={t("inbox.ai_escalated")} leftSection={<IconArrowForwardUp size={16} stroke={1.6} />} />
-        </RailSection>
+        {aiEnabled && (
+          <RailSection
+            title={t("inbox.ai_section")}
+            collapsible
+            storeKey="inbox-ai-reception"
+            action={
+              <Badge size="xs" variant="light" color="gray" style={{ textTransform: "none", lineHeight: 1.2 }}>
+                {t("ai_placeholder.coming_soon")}
+              </Badge>
+            }
+          >
+            <NavLink disabled label={t("inbox.ai_handling")} leftSection={<IconRobot size={16} stroke={1.6} />} />
+            <NavLink disabled label={t("inbox.ai_pending_approval")} leftSection={<IconClockCheck size={16} stroke={1.6} />} />
+            <NavLink disabled label={t("inbox.ai_escalated")} leftSection={<IconArrowForwardUp size={16} stroke={1.6} />} />
+          </RailSection>
+        )}
 
         {(d?.teams.length ?? 0) > 0 && (
           <RailSection title={t("inbox.teams")} collapsible storeKey="inbox-teams">
