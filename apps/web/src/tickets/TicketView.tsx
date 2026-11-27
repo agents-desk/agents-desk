@@ -1,35 +1,8 @@
 import type { ConversationItemDTO, ConversationTicketDTO, TicketStatus } from "@agents-desk/client/tenant"
-import {
-  ActionIcon,
-  Avatar,
-  Badge,
-  Box,
-  Button,
-  CopyButton,
-  Divider,
-  Group,
-  Loader,
-  Menu,
-  Paper,
-  Stack,
-  Text,
-  TextInput,
-  Tooltip,
-  UnstyledButton,
-} from "@mantine/core"
+import { ActionIcon, Avatar, Badge, Box, Button, Divider, Group, Menu, Stack, Text, TextInput, Tooltip } from "@mantine/core"
 import { useElementSize } from "@mantine/hooks"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import {
-  IconCheck,
-  IconChevronDown,
-  IconCopy,
-  IconLanguage,
-  IconLayoutSidebarRight,
-  IconLock,
-  IconPencil,
-  IconUserPlus,
-  IconWorld,
-} from "@tabler/icons-react"
+import { IconCheck, IconChevronDown, IconLayoutSidebarRight, IconLock, IconPencil, IconWorld } from "@tabler/icons-react"
 import {
   AsidePane,
   ImageLightbox,
@@ -44,16 +17,24 @@ import {
 } from "@go-tenon/ui"
 import { Fragment, type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { languageName } from "../languages"
 import { isTypingTarget, NARROW_QUERY } from "../layout"
-import { type LightboxImage, MessageAttachments } from "../inbox/Attachments"
+import type { LightboxImage } from "../inbox/Attachments"
 import { useConversationChannel } from "../inbox/channel"
 import { verifiedTranslationOf } from "../inbox/ComposerTranslation"
 import { useMe, useMembers, useTeams, useTimeline } from "../inbox/data"
 import { describeEvent } from "../inbox/events"
 import { type FillWatcher, useFillVisible } from "../inbox/fill"
 import { clock, dayLabel, fullDateTime, sameDay } from "../inbox/format"
-import { translationOf } from "../inbox/Timeline"
+import { AssignMenu } from "../inbox/menus"
+import {
+  ActorAvatar,
+  canGroupItems,
+  MessageBubble,
+  TranslationCaption,
+  translationOf,
+  TypingIndicator,
+  useSyncRead,
+} from "../inbox/MessagePrimitives"
 import { invalidateTicket, TICKET_STATUSES, ticketStatusColor, ticketStatusLabel, ticketVisibilityLabel, useTicket } from "./meta"
 import { TicketComposer } from "./TicketComposer"
 import { TicketDetails } from "./TicketDetails"
@@ -62,10 +43,15 @@ import { firstUnread, NewMessagesDivider, ScrollToBottomButton, useStickToBottom
 import { ConversationSkeleton, InspectorSkeleton, TimelineSkeleton } from "../components/detail-skeleton"
 import { EmptyState } from "../components/empty-state"
 
+/** isPublicUpdate 判断工单时间线项是否为对外同步的公开进度消息。 */
+function isPublicUpdate(it: ConversationItemDTO): boolean {
+  return it.kind === "message" && it.visibility === "all"
+}
+
 /**
  * TicketView 是单张工单的协作主工作区：
  * 顶栏展示 #编号、可就地编辑标题、类型与可见范围、4 状态下拉、指派菜单和详情栏开关；
- * 中间时间线展示系统事件、跨语言自动互译的内部讨论备注和对外同步的公开进度消息；
+ * 中间时间线以聊天气泡流展示系统事件、跨语言自动互译的内部讨论和对外同步的公开进度消息；
  * 底部是双模式输入卡片（内部讨论 / 公开进度），右侧由框架 AsidePane 承载工单字段与受影响客户详情栏。
  */
 export function TicketView({ id, tenantId, back }: { id: string; tenantId: string; back: () => void }): ReactNode {
@@ -74,7 +60,7 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
   const narrow = useNarrow(NARROW_QUERY)
   const queryClient = useQueryClient()
   const me = useMe()
-  const { list: members, byId } = useMembers()
+  const { byId } = useMembers()
   const teams = useTeams()
   const ticketQuery = useTicket(id)
   const timeline = useTimeline(id)
@@ -96,23 +82,19 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
     }
   }, [last, clearTyping])
 
-  // 页面在前台且出现更新的时间线项时标记已读；标签页从后台切回前台时同样补标已读
-  const lastSeq = last?.seq ?? 0
-  const marked = useRef(0)
-  useEffect(() => {
-    const syncRead = () => {
-      if (!tk || lastSeq <= Math.max(tk.read_seq, marked.current) || document.visibilityState !== "visible") return
-      marked.current = lastSeq
-      void tenantApi.conversation.read(id, { seq: lastSeq }).then(() => {
+  // 页面在前台且出现更新的时间线项时标记已读；标签页从后台切回前台时同步补标已读
+  useSyncRead({
+    ready: Boolean(tk),
+    readSeq: tk?.read_seq ?? 0,
+    lastSeq: last?.seq ?? 0,
+    onMark: (seq) => {
+      void tenantApi.conversation.read(id, { seq }).then(() => {
         void queryClient.invalidateQueries({ queryKey: kit.queries.ticket.get(id).queryKey })
         void queryClient.invalidateQueries({ queryKey: [...kit.queries.ticket.key(), "list"] })
         void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.inbox().queryKey })
       })
-    }
-    syncRead()
-    document.addEventListener("visibilitychange", syncRead)
-    return () => document.removeEventListener("visibilitychange", syncRead)
-  }, [tk, id, lastSeq, queryClient])
+    },
+  })
 
   const invalidate = () => invalidateTicket(queryClient, id)
   const setStatus = useMutation({
@@ -126,11 +108,6 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
       setEditingTitle(false)
       invalidate()
     },
-    onError: (err) => notifyError(err),
-  })
-  const assign = useMutation({
-    mutationFn: (body: { assignee_id?: string; team_id?: string }) => tenantApi.conversation.assign(id, body),
-    onSuccess: invalidate,
     onError: (err) => notifyError(err),
   })
 
@@ -179,9 +156,6 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
 
   const compactActions = narrow || (mainWidth > 0 && mainWidth < 680)
   const canEdit = can("conversations:reply")
-  const canAssignOthers = can("conversations:assign")
-  const activeTeams = teams.filter((x) => x.status === "active")
-  const assignedToMe = tk.assignee?.type === "member" && tk.assignee.id === myId
 
   const commitTitle = () => {
     const trimmed = titleDraft.trim()
@@ -310,63 +284,7 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
               </Menu.Dropdown>
             </Menu>
 
-            {canEdit && (
-              <Menu position="bottom-end" withinPortal>
-                <Menu.Target>
-                  {compactActions ? (
-                    <Tooltip label={t("inbox.assign")}>
-                      <ActionIcon variant="subtle" color="gray" size="input-sm" loading={assign.isPending} aria-label={t("inbox.assign")}>
-                        <IconUserPlus size={16} />
-                      </ActionIcon>
-                    </Tooltip>
-                  ) : (
-                    <Button
-                      variant="subtle"
-                      color="gray"
-                      leftSection={<IconUserPlus size={14} />}
-                      rightSection={<IconChevronDown size={12} />}
-                      loading={assign.isPending}
-                    >
-                      {t("inbox.assign")}
-                    </Button>
-                  )}
-                </Menu.Target>
-                <Menu.Dropdown mah={420} style={{ overflowY: "auto" }}>
-                  {me.data && !assignedToMe && (
-                    <Menu.Item onClick={() => assign.mutate({ assignee_id: me.data.id })}>{t("inbox.assign_me")}</Menu.Item>
-                  )}
-                  {canAssignOthers && (
-                    <>
-                      <Menu.Label>{t("inbox.assign_members")}</Menu.Label>
-                      {members
-                        .filter((m) => m.id !== myId)
-                        .map((m) => (
-                          <Menu.Item
-                            key={m.id}
-                            disabled={tk.assignee?.id === m.id}
-                            rightSection={m.status === "online" ? undefined : t("inbox.away")}
-                            onClick={() => assign.mutate({ assignee_id: m.id })}
-                          >
-                            {m.name}
-                          </Menu.Item>
-                        ))}
-                      <Menu.Label>{t("inbox.assign_teams")}</Menu.Label>
-                      {activeTeams.map((team) => (
-                        <Menu.Item key={team.id} disabled={tk.team_id === team.id} onClick={() => assign.mutate({ team_id: team.id })}>
-                          {team.name}
-                        </Menu.Item>
-                      ))}
-                      {tk.assignee && (
-                        <>
-                          <Menu.Divider />
-                          <Menu.Item onClick={() => assign.mutate({ assignee_id: "" })}>{t("inbox.unassign")}</Menu.Item>
-                        </>
-                      )}
-                    </>
-                  )}
-                </Menu.Dropdown>
-              </Menu>
-            )}
+            {canEdit && <AssignMenu c={tk} compact={compactActions} onSuccess={invalidate} />}
 
             <Divider orientation="vertical" h={16} mx={2} style={{ alignSelf: "center" }} />
             <Tooltip label={t("inbox.details")}>
@@ -400,7 +318,7 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
   )
 }
 
-/** TicketTimeline 渲染工单的协作时间线：系统事件、跨语言内部讨论备注和同步至客户的公开进度消息。 */
+/** TicketTimeline 渲染工单的聊天式协作时间线：系统事件、连续分组的内部讨论气泡和对外同步的公开进度气泡。 */
 function TicketTimeline({
   ticket,
   readSeq,
@@ -438,31 +356,41 @@ function TicketTimeline({
   }
 
   const firstNew = firstUnread(list, readSeq, me.data?.id)
+  const sameKind = (a: ConversationItemDTO, b: ConversationItemDTO) => isPublicUpdate(a) === isPublicUpdate(b)
+  const memberOf = (memberId: string) => byId.get(memberId) ?? (memberId === me.data?.id ? me.data : undefined)
+
   return (
     <Box className="inbox-timeline-wrap">
       <Box ref={stick.scroller} className="inbox-timeline" onScroll={stick.onScroll}>
         <Stack gap={0} px="var(--tn-pane-px)" py="md">
           {list.map((it, i) => {
             const prev = list[i - 1]
+            const next = list[i + 1]
             const showDay = i === 0 || !sameDay(prev.created_at, it.created_at)
-            const gapTop = i === 0 ? 0 : 12
+            const showNew = it === firstNew
+            const groupedWithPrev = !showDay && !showNew && canGroupItems(prev, it, firstNew, sameKind)
+            const groupedWithNext = Boolean(next) && canGroupItems(it, next, firstNew, sameKind)
+            const gapTop = i === 0 ? 0 : groupedWithPrev ? 4 : 16
+            const author = names.member(it.actor.id)
             return (
               <Fragment key={it.id}>
                 {showDay && <Divider my={i === 0 ? 4 : 12} label={dayLabel(it.created_at, ui, t, zone)} labelPosition="center" />}
-                {it === firstNew && <NewMessagesDivider />}
+                {showNew && <NewMessagesDivider />}
                 {it.kind === "event" ? (
                   <Text size="xs" c="dimmed" ta="center" mt={gapTop} className="inbox-event">
                     {describeEvent(it, byId, names, t, ui)} · {clock(it.created_at, ui, zone)}
                   </Text>
                 ) : (
-                  <TicketTimelineCard
+                  <TicketBubble
                     ticket={ticket}
                     it={it}
-                    author={names.member(it.actor.id)}
-                    avatarUrl={byId.get(it.actor.id)?.avatar_url || undefined}
+                    author={author}
+                    avatar={<ActorAvatar actor={it.actor} size={32} member={memberOf(it.actor.id)} fallbackName={author} />}
                     isOwn={it.actor.type === "member" && it.actor.id === me.data?.id}
                     time={clock(it.created_at, ui, zone)}
                     fullTime={fullDateTime(it.created_at, ui, zone)}
+                    first={!groupedWithPrev}
+                    last={!groupedWithNext}
                     lang={me.data?.language}
                     translating={translating}
                     watch={watch}
@@ -473,18 +401,7 @@ function TicketTimeline({
               </Fragment>
             )
           })}
-          {typingNames.length > 0 && (
-            <Box mt={10} className="inbox-typing">
-              <span className="inbox-typing-dots" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-              </span>
-              <Text size="xs" c="dimmed">
-                {t("inbox.typing", { who: typingNames.join(", ") })}
-              </Text>
-            </Box>
-          )}
+          <TypingIndicator names={typingNames} />
         </Stack>
       </Box>
       <ScrollToBottomButton stick={stick} />
@@ -493,15 +410,17 @@ function TicketTimeline({
   )
 }
 
-/** TicketTimelineCard 渲染工单中的单条内部讨论或公开进度消息，仅对公开进度做特殊视觉标记。 */
-function TicketTimelineCard({
+/** TicketBubble 渲染工单中的单条聊天气泡：当前成员居右、其他同事居左，两侧均带 32px 头像，公开进度附带品牌标记与客户同步计数。 */
+function TicketBubble({
   ticket,
   it,
   author,
-  avatarUrl,
+  avatar,
   isOwn,
   time,
   fullTime,
+  first,
+  last,
   lang,
   translating,
   watch,
@@ -511,10 +430,12 @@ function TicketTimelineCard({
   ticket: ConversationTicketDTO
   it: ConversationItemDTO
   author: string
-  avatarUrl: string | undefined
+  avatar: ReactNode
   isOwn: boolean
   time: string
   fullTime: string
+  first: boolean
+  last: boolean
   lang: string | undefined
   translating: boolean
   watch: FillWatcher
@@ -522,11 +443,10 @@ function TicketTimelineCard({
   onPreview: (img: LightboxImage) => void
 }): ReactNode {
   const t = useT()
-  const ui = useLanguage()
   const [showOriginal, setShowOriginal] = useState(false)
   const [showVerified, setShowVerified] = useState(false)
 
-  const isPublic = it.kind === "message" && it.visibility === "all"
+  const isPublic = isPublicUpdate(it)
   const broadcastCount = typeof it.derived.broadcast_count === "number" ? it.derived.broadcast_count : undefined
   const showBroadcastHint = isPublic && (broadcastCount !== undefined ? broadcastCount > 0 : ticket.linked_count > 0)
   const raw = it.content.text ?? ""
@@ -536,123 +456,55 @@ function TicketTimelineCard({
   const fromLang = it.derived.language as string | undefined
   const needFill = !isOwn && translating && it.untranslated
 
+  const hasCaption = Boolean(translated || needFill || verified)
+  const caption = hasCaption ? (
+    <TranslationCaption
+      translated={translated}
+      needFill={needFill}
+      fromLang={fromLang}
+      showOriginal={showOriginal}
+      onToggleOriginal={() => setShowOriginal((v) => !v)}
+      verifiedLang={verified?.language}
+      showVerified={showVerified}
+      onToggleVerified={() => setShowVerified((v) => !v)}
+    />
+  ) : undefined
+
+  const broadcastNode = showBroadcastHint ? (
+    <Text size="xs" c="dimmed">
+      {broadcastCount !== undefined ? t("tickets.public_synced_hint", { n: broadcastCount }) : t("tickets.public_syncing")}
+    </Text>
+  ) : undefined
+
+  const publicBadge = isPublic ? (
+    <Badge size="xs" variant="light" color="brand" leftSection={<IconWorld size={10} />} style={{ flex: "none" }}>
+      {t("tickets.public_badge")}
+    </Badge>
+  ) : undefined
+
   return (
-    <Paper
-      ref={needFill ? watch(it.id) : undefined}
+    <MessageBubble
+      conversationId={ticket.id}
+      attachments={it.attachments}
+      seq={it.seq}
+      watchRef={needFill ? watch(it.id) : undefined}
+      mine={isOwn}
+      first={first}
+      last={last}
       mt={mt}
-      px="sm"
-      py={10}
-      radius="md"
-      className={isPublic ? "ticket-public-card" : "ticket-note-card"}
-    >
-      <Group gap={6} mb={4} wrap="nowrap">
-        {isPublic ? (
-          <IconWorld size={14} color="var(--mantine-primary-color-filled)" style={{ flex: "none" }} />
-        ) : (
-          <Avatar src={avatarUrl} size={18} name={author} color="initials" style={{ flex: "none" }} />
-        )}
-        <Text size="xs" fw={600} c={isPublic ? "brand" : undefined}>
-          {isPublic ? `${t("tickets.public_badge")} · ${author}` : author}
-        </Text>
-        <Text size="xs" c="dimmed">
-          ·
-        </Text>
-        <Tooltip label={fullTime} openDelay={300}>
-          <Text size="xs" c="dimmed" style={{ fontVariantNumeric: "tabular-nums" }}>
-            {time}
-          </Text>
-        </Tooltip>
-        {shown && (
-          <Box ml="auto">
-            <CopyButton value={shown} timeout={1500}>
-              {({ copied, copy }) => (
-                <Tooltip label={t(copied ? "inbox.copied" : "inbox.copy_message")} openDelay={250}>
-                  <ActionIcon variant="subtle" color={copied ? "green" : "gray"} size={22} onClick={copy} aria-label={t("inbox.copy_message")}>
-                    {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
-                  </ActionIcon>
-                </Tooltip>
-              )}
-            </CopyButton>
-          </Box>
-        )}
-      </Group>
-
-      {shown && (
-        <Text size="md" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-          {shown.split(/(@\S+)/).map((part, i) =>
-            !isPublic && part.startsWith("@") ? (
-              // biome-ignore lint/suspicious/noArrayIndexKey: 拆分出的文本片段顺序固定
-              <Text key={i} span fw={600} c="brand">
-                {part}
-              </Text>
-            ) : (
-              // biome-ignore lint/suspicious/noArrayIndexKey: 拆分出的文本片段顺序固定
-              <Fragment key={i}>{part}</Fragment>
-            ),
-          )}
-        </Text>
-      )}
-
-      <MessageAttachments conversationId={ticket.id} attachments={it.attachments} hasText={Boolean(shown)} onPreview={onPreview} />
-
-      {verified && showVerified && (
-        <Box mt={6} pt={6} className="inbox-sent-translation">
-          <Text size="xs" c="dimmed">
-            {t("inbox.sent_translation", { lang: languageName(verified.language, ui) })}
-          </Text>
-          <Text size="md" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-            {verified.text}
-          </Text>
-        </Box>
-      )}
-
-      {(translated || needFill || verified || showBroadcastHint) && (
-        <Group gap={6} mt={6} wrap="wrap">
-          {translated ? (
-            <>
-              <IconLanguage size={12} className="inbox-caption-icon" />
-              {fromLang && (
-                <>
-                  <Text size="xs" c="dimmed">
-                    {languageName(fromLang, ui)}
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    ·
-                  </Text>
-                </>
-              )}
-              <UnstyledButton className="inbox-caption-btn" onClick={() => setShowOriginal((v) => !v)}>
-                {t(showOriginal ? "inbox.view_translation" : "inbox.view_original")}
-              </UnstyledButton>
-            </>
-          ) : needFill ? (
-            <>
-              <Loader size={10} />
-              <Text size="xs" c="dimmed">
-                {t("inbox.translating")}
-              </Text>
-            </>
-          ) : verified ? (
-            <>
-              <IconLanguage size={12} className="inbox-caption-icon" />
-              <Text size="xs" c="dimmed">
-                {t("inbox.sent_as", { lang: languageName(verified.language, ui) })}
-              </Text>
-              <Text size="xs" c="dimmed">
-                ·
-              </Text>
-              <UnstyledButton className="inbox-caption-btn" onClick={() => setShowVerified((v) => !v)}>
-                {t(showVerified ? "inbox.hide_translation" : "inbox.view_translation")}
-              </UnstyledButton>
-            </>
-          ) : null}
-          {showBroadcastHint && (
-            <Text size="xs" c="dimmed" ml={translated || needFill || verified ? "auto" : undefined}>
-              {broadcastCount !== undefined ? t("tickets.public_synced_hint", { n: broadcastCount }) : t("tickets.public_syncing")}
-            </Text>
-          )}
-        </Group>
-      )}
-    </Paper>
+      author={author}
+      avatar={avatar}
+      headerExtra={publicBadge}
+      time={time}
+      fullTime={fullTime}
+      text={shown || undefined}
+      mentions={!isPublic}
+      original={Boolean(translated && showOriginal)}
+      publicUpdate={isPublic}
+      expandedTranslation={verified && showVerified ? verified : undefined}
+      caption={caption}
+      footerExtra={broadcastNode}
+      onPreview={onPreview}
+    />
   )
 }

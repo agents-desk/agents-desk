@@ -24,9 +24,11 @@ import { IconPlus, IconSearch, IconUsersGroup } from "@tabler/icons-react"
 import { PaneBody, PaneHeader, PaneToolbar, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { kit } from "../api"
+import { ContactAvatar } from "../contacts/display"
 import { previewSummary } from "../inbox/Attachments"
 import { channelColor, ChannelIcon } from "../inbox/channel-badge"
 import { useMe, useMembers } from "../inbox/data"
+import { useDraft } from "../inbox/drafts"
 import { type FillWatcher, useFillVisible } from "../inbox/fill"
 import { activity } from "../inbox/format"
 import { HighlightedSnippet } from "../inbox/Highlight"
@@ -149,7 +151,7 @@ export function ChatList({
             {[0, 1, 2, 3, 4].map((i) => (
               <Box key={i} px="sm" py={10} className="inbox-row">
                 <Group gap="sm" wrap="nowrap">
-                  <Skeleton circle h={34} w={34} />
+                  <Skeleton circle h={36} w={36} />
                   <Stack gap={6} style={{ flex: 1 }}>
                     <Skeleton h={12} w="54%" radius="sm" />
                     <Skeleton h={10} w="78%" radius="sm" />
@@ -204,6 +206,8 @@ function ChatRow({
 
   const isExternal = chat.scope === "external"
   const title = chatDisplayName(chat, t)
+  const draft = useDraft(chat.id)
+  const draftText = !active && draft?.text.trim() ? draft.text.trim() : ""
   const rawPreview = previewSummary(chat.preview, chat.preview_attachment, t)
 
   let senderPrefix = ""
@@ -244,7 +248,7 @@ function ChatRow({
             <IconUsersGroup size={18} stroke={1.6} />
           </ThemeIcon>
         ) : isExternal ? (
-          <Avatar size={36} radius="xl" name={title} color="initials" style={{ flex: "none" }} />
+          <ContactAvatar contact={chat.contact} size={36} />
         ) : (
           <Indicator
             size={9}
@@ -283,6 +287,13 @@ function ChatRow({
             {matchSnippet && matchSnippet.length > 0 ? (
               <Text size="xs" c="dimmed" truncate style={{ flex: 1, minWidth: 0 }}>
                 <HighlightedSnippet parts={matchSnippet} />
+              </Text>
+            ) : draftText ? (
+              <Text size="xs" truncate style={{ flex: 1, minWidth: 0 }}>
+                <Text span size="xs" fw={600} c="deep-orange">
+                  {t("inbox.draft_prefix")}
+                </Text>
+                {draftText}
               </Text>
             ) : (
               <Text size="xs" c={chat.unread ? undefined : "dimmed"} fw={chat.unread ? 500 : undefined} truncate style={{ flex: 1, minWidth: 0 }}>

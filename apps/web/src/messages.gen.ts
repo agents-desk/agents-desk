@@ -478,9 +478,6 @@ export const messages = {
     "inbox.back": "Back to conversations",
     "inbox.back_translation": "Back-translation check",
     "inbox.back_translation_hint": "Independently translates the text above back to your language so you can verify meaning",
-    "inbox.backlog_oldest": "oldest",
-    "inbox.backlog_open": "{{.n}} open",
-    "inbox.backlog_waiting": "Waiting",
     "inbox.box_all": "All",
     "inbox.box_mentions": "Mentions",
     "inbox.box_mine": "Mine",
@@ -1269,6 +1266,7 @@ export const messages = {
     "tickets.status_unresolved": "Unresolved",
     "tickets.status_waiting_on_customer": "Waiting on customer",
     "tickets.submit": "Create ticket",
+    "tickets.switch_mode_hint": "Press {{.key}} to switch between internal note and public update",
     "tickets.title": "Title",
     "tickets.title_placeholder": "Briefly summarize the issue",
     "tickets.title_required": "Please enter a ticket title",
@@ -1914,9 +1912,6 @@ export const messages = {
     "inbox.back": "返回会话列表",
     "inbox.back_translation": "回译校验",
     "inbox.back_translation_hint": "将上方译文独立译回你的语言（不参考原文），用于核对意思是否准确",
-    "inbox.backlog_oldest": "最久",
-    "inbox.backlog_open": "打开 {{.n}}",
-    "inbox.backlog_waiting": "待回复",
     "inbox.box_all": "全部",
     "inbox.box_mentions": "@我",
     "inbox.box_mine": "我的",
@@ -2705,6 +2700,7 @@ export const messages = {
     "tickets.status_unresolved": "未解决",
     "tickets.status_waiting_on_customer": "等待客户",
     "tickets.submit": "创建工单",
+    "tickets.switch_mode_hint": "按 {{.key}} 切换内部讨论或公开进度",
     "tickets.title": "标题",
     "tickets.title_placeholder": "简要概括需要处理的问题",
     "tickets.title_required": "请填写工单标题",
@@ -3353,9 +3349,6 @@ export type MessageId =
   | "inbox.back"
   | "inbox.back_translation"
   | "inbox.back_translation_hint"
-  | "inbox.backlog_oldest"
-  | "inbox.backlog_open"
-  | "inbox.backlog_waiting"
   | "inbox.box_all"
   | "inbox.box_mentions"
   | "inbox.box_mine"
@@ -4144,6 +4137,7 @@ export type MessageId =
   | "tickets.status_unresolved"
   | "tickets.status_waiting_on_customer"
   | "tickets.submit"
+  | "tickets.switch_mode_hint"
   | "tickets.title"
   | "tickets.title_placeholder"
   | "tickets.title_required"

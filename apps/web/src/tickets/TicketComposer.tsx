@@ -41,6 +41,7 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
   const can = useCan()
   const os = useOs()
   const isMac = os === "macos" || os === "ios"
+  const modeKey = isMac ? "⌘I" : "Ctrl+I"
   const sendModKey = isMac ? "⌘ + ↵" : "Ctrl + Enter"
   const queryClient = useQueryClient()
   const me = useMe()
@@ -60,25 +61,6 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
   useEffect(() => {
     saveDraft(ticket.id, { text, mode: mode === "public" ? "reply" : "note", mentionIds })
   }, [ticket.id, text, mode, mentionIds])
-
-  // 非输入态按 N 聚焦内部讨论，可公开时按 R 切到公开进度并聚焦
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || isTypingTarget(e.target)) return
-      const key = e.key.toLowerCase()
-      if (key === "n" || (key === "r" && !canPublish)) {
-        e.preventDefault()
-        setMode("note")
-        area.current?.focus()
-      } else if (key === "r") {
-        e.preventDefault()
-        setMode("public")
-        area.current?.focus()
-      }
-    }
-    window.addEventListener("keydown", onKeyDown)
-    return () => window.removeEventListener("keydown", onKeyDown)
-  }, [canPublish])
 
   // 工单被切回仅成员可见时自动切回内部讨论模式
   useEffect(() => {
@@ -217,6 +199,46 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
     rules: triggerRules,
   })
 
+  const switchMode = useCallback(
+    (nextMode: TicketComposerMode) => {
+      if (nextMode === mode || (nextMode === "public" && !canPublish)) return
+      setMode(nextMode)
+      preview.setTarget("")
+      preview.reset()
+      trigger.close()
+    },
+    [canPublish, mode, preview, trigger],
+  )
+
+  const focusEnd = useCallback(() => {
+    requestAnimationFrame(() => {
+      const el = area.current
+      if (!el) return
+      el.focus()
+      const end = el.value.length
+      el.setSelectionRange(end, end)
+    })
+  }, [])
+
+  // 非输入态按 N 聚焦内部讨论，可公开时按 R 切到公开进度并聚焦到末尾
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || isTypingTarget(e.target)) return
+      const key = e.key.toLowerCase()
+      if (key === "n" || (key === "r" && !canPublish)) {
+        e.preventDefault()
+        switchMode("note")
+        focusEnd()
+      } else if (key === "r") {
+        e.preventDefault()
+        switchMode("public")
+        focusEnd()
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [canPublish, focusEnd, switchMode])
+
   if (!can("conversations:reply")) return null
 
   const canSubmit = hasContent && !queue.uploading && !queue.hasError && !send.isPending && !preview.pending
@@ -250,19 +272,16 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
       <Box className="inbox-composer-box" data-public={!note || undefined} data-dragging={dragging || undefined}>
         <TriggerMenu trigger={trigger} position="top" width="min(100%, 280px)" maxHeight={240} />
         <Group gap="xs" className="inbox-composer-head" data-tn-density="inspector" wrap="wrap">
-          <SegmentedControl
-            value={mode}
-            onChange={(v) => {
-              setMode(v as TicketComposerMode)
-              preview.setTarget("")
-              preview.reset()
-              trigger.close()
-            }}
-            data={[
-              { value: "note", label: t("tickets.mode_note") },
-              { value: "public", label: t("tickets.mode_public"), disabled: !canPublish },
-            ]}
-          />
+          <Tooltip label={t("tickets.switch_mode_hint", { key: modeKey })} disabled={!canPublish} openDelay={350}>
+            <SegmentedControl
+              value={mode}
+              onChange={(v) => switchMode(v as TicketComposerMode)}
+              data={[
+                { value: "note", label: t("tickets.mode_note") },
+                { value: "public", label: t("tickets.mode_public"), disabled: !canPublish },
+              ]}
+            />
+          </Tooltip>
           {note ? (
             <Group gap={4} wrap="nowrap">
               <IconLock size={12} color="var(--mantine-color-dimmed)" style={{ flex: "none" }} />
@@ -306,6 +325,11 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
               onPaste={(e) => queue.handlePaste(e)}
               onKeyDown={(e) => {
                 if (e.nativeEvent.isComposing) return
+                if (canPublish && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "i") {
+                  e.preventDefault()
+                  switchMode(mode === "note" ? "public" : "note")
+                  return
+                }
                 if (trigger.handleKeyDown(e)) return
                 const hitSend = ctrlEnterSend
                   ? e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey

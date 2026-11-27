@@ -1,47 +1,31 @@
 import type { ConversationDTO, ConversationItemDTO } from "@agents-desk/client/tenant"
-import { ActionIcon, Anchor, Box, CopyButton, Divider, Group, Loader, Paper, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
+import { Box, Divider, Loader, Stack, Text, UnstyledButton } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { IconCheck, IconCopy, IconLanguage, IconLock } from "@tabler/icons-react"
 import { ImageLightbox, notifyError, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
 import { Fragment, type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { languageName, sameLanguage } from "../languages"
-import { type LightboxImage, MessageAttachments } from "./Attachments"
+import type { LightboxImage } from "./Attachments"
 import { ChannelChip } from "./channel-badge"
 import type { TypingNow } from "./channel"
-import { verifiedTranslationOf } from "./ComposerTranslation"
 import { useMe, useMembers, useTeams, useTimeline } from "./data"
-import { type FillWatcher, useFillVisible } from "./fill"
 import { describeEvent, whoDid } from "./events"
+import { type FillWatcher, useFillVisible } from "./fill"
 import { clock, dayLabel, fullDateTime, sameDay } from "./format"
-import { HighlightQuery } from "./Highlight"
 import { contactName } from "./List"
+import {
+  ActorAvatar,
+  canGroupItems,
+  deliveryColor,
+  MessageBubble,
+  TimelineNote,
+  TranslationCaption,
+  translationOf,
+  TypingIndicator,
+} from "./MessagePrimitives"
 import { promptText } from "./prompts"
 import type { MatchField } from "./search"
 import { firstUnread, NewMessagesDivider, ScrollToBottomButton, useStickToBottom } from "./stick-to-bottom"
 import { TimelineSkeleton } from "../components/detail-skeleton"
-
-/** GROUP_WINDOW_MS 是同一发送者连续消息合并为同一组的间隔上限（3 分钟）。 */
-const GROUP_WINDOW_MS = 3 * 60 * 1000
-
-/** canGroup 判断相邻两条时间线项是否可合并为同人同渠道连续消息组。 */
-function canGroup(prev: ConversationItemDTO | undefined, cur: ConversationItemDTO, firstNew: ConversationItemDTO | undefined): boolean {
-  if (!prev || prev.kind !== "message" || cur.kind !== "message") return false
-  if (cur === firstNew) return false
-  if (prev.actor.type !== cur.actor.type || prev.actor.id !== cur.actor.id) return false
-  if (prev.channel?.id !== cur.channel?.id) return false
-  if (!sameDay(prev.created_at, cur.created_at)) return false
-  return Math.abs(new Date(cur.created_at).getTime() - new Date(prev.created_at).getTime()) <= GROUP_WINDOW_MS
-}
-
-/** deliveryColor 是送达状态的颜色：已读是进行中的颜色，失败是红色，其余是灰色。 */
-const deliveryColor = { sending: "dimmed", delivered: "dimmed", read: "bright-blue", failed: "red" } as const
-
-/** translationOf 返回对方的消息在成员的语言 lang 中的译文；没有（还没翻译好，或者和成员是同一种语言）时为空。 */
-export function translationOf(it: ConversationItemDTO, lang: string | undefined): string | undefined {
-  const all = it.derived.translations as Record<string, string> | undefined
-  return lang ? all?.[lang] : undefined
-}
 
 /**
  * Timeline 是会话的时间线：按天分隔；对方的消息在左侧，成员和系统发的在右侧并显示送达状态（失败时可以重发）；
@@ -115,7 +99,12 @@ export function Timeline({
       </Box>
     )
   }
+
   const firstNew = firstUnread(list, readSeq, me.data?.id)
+  const sameChannelMsg = (a: ConversationItemDTO, b: ConversationItemDTO) =>
+    a.kind === "message" && b.kind === "message" && a.channel?.id === b.channel?.id
+  const memberOf = (memberId: string) => byId.get(memberId) ?? (memberId === me.data?.id ? me.data : undefined)
+
   return (
     <Box className="inbox-timeline-wrap">
       <Box ref={scroller} className="inbox-timeline" onScroll={stick.onScroll}>
@@ -125,9 +114,11 @@ export function Timeline({
             const next = list[i + 1]
             const showDay = i === 0 || !sameDay(prev.created_at, it.created_at)
             const showNew = it === firstNew
-            const groupedWithPrev = !showDay && !showNew && canGroup(prev, it, firstNew)
-            const groupedWithNext = Boolean(next) && canGroup(it, next, firstNew)
+            const groupedWithPrev = !showDay && !showNew && canGroupItems(prev, it, firstNew, sameChannelMsg)
+            const groupedWithNext = Boolean(next) && canGroupItems(it, next, firstNew, sameChannelMsg)
             const gapTop = i === 0 ? 0 : groupedWithPrev ? 4 : 16
+            const msgAuthor =
+              it.actor.type === "contact" ? contactName(c, t) : it.actor.type === "member" ? names.member(it.actor.id) : whoDid(it, byId, t)
             return (
               <Fragment key={it.id}>
                 {showDay && <Divider my={i === 0 ? 4 : 12} label={dayLabel(it.created_at, language, t, zone)} labelPosition="center" />}
@@ -137,10 +128,11 @@ export function Timeline({
                     {describeEvent(it, byId, names, t, language)} · {clock(it.created_at, language, zone)}
                   </Text>
                 ) : it.kind === "note" ? (
-                  <Note
+                  <TimelineNote
                     conversationId={c.id}
                     it={it}
                     author={names.member(it.actor.id)}
+                    avatar={<ActorAvatar actor={it.actor} size={18} member={memberOf(it.actor.id)} fallbackName={names.member(it.actor.id)} />}
                     isOwn={it.actor.type === "member" && it.actor.id === me.data?.id}
                     time={clock(it.created_at, language, zone)}
                     fullTime={fullDateTime(it.created_at, language, zone)}
@@ -158,7 +150,16 @@ export function Timeline({
                     c={c}
                     mine={it.actor.type !== "contact"}
                     isOwn={it.actor.type === "member" && it.actor.id === me.data?.id}
-                    author={it.actor.type === "contact" ? contactName(c, t) : it.actor.type === "member" ? names.member(it.actor.id) : whoDid(it, byId, t)}
+                    author={msgAuthor}
+                    avatar={
+                      <ActorAvatar
+                        actor={it.actor}
+                        size={32}
+                        member={it.actor.type === "member" ? memberOf(it.actor.id) : undefined}
+                        contact={c.contact}
+                        fallbackName={msgAuthor}
+                      />
+                    }
                     time={clock(it.created_at, language, zone)}
                     fullTime={fullDateTime(it.created_at, language, zone)}
                     first={!groupedWithPrev}
@@ -176,18 +177,7 @@ export function Timeline({
               </Fragment>
             )
           })}
-          {typing.length > 0 && (
-            <Box mt={10} className="inbox-typing">
-              <span className="inbox-typing-dots" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-              </span>
-              <Text size="xs" c="dimmed">
-                {t("inbox.typing", { who: typing.map((x) => (x.contact ? contactName(c, t) : (x.name ?? ""))).join(", ") })}
-              </Text>
-            </Box>
-          )}
+          <TypingIndicator names={typing.map((x) => (x.contact ? contactName(c, t) : (x.name ?? ""))).filter(Boolean)} />
         </Stack>
       </Box>
       <ScrollToBottomButton stick={stick} />
@@ -196,13 +186,14 @@ export function Timeline({
   )
 }
 
-/** MessageProps 是一条消息的显示设置。 */
+/** MessageProps 是一条服务型会话消息的显示设置。 */
 interface MessageProps {
   it: ConversationItemDTO
   c: ConversationDTO
   mine: boolean // 成员和系统发的，在右侧
   isOwn: boolean // 当前登录成员自己发出的消息
   author: string
+  avatar: ReactNode
   time: string
   fullTime: string // 完整日期时间，悬停提示用
   first: boolean // 连续同人消息组的第一条：显示作者和时间头部
@@ -218,10 +209,28 @@ interface MessageProps {
 }
 
 /**
- * Message 是一条消息：对方的在左侧，成员和系统发的在右侧，旁边是悬浮复制按钮，底部是译文切换与送达状态（失败时可以重发）。
- * 连续同人消息合并为组：组首显示作者与时间，组内消息省略重复头部并用方向圆角自然衔接。
+ * Message 渲染服务型会话中的单条消息气泡，支持跨渠道标识、译文切换、已发送译文展开以及送达状态与失败重发。
  */
-function Message({ it, c, mine, isOwn, author, time, fullTime, first, last, mt, lang, translating, watch, highlight, focused, preferOriginal, onPreview }: MessageProps): ReactNode {
+function Message({
+  it,
+  c,
+  mine,
+  isOwn,
+  author,
+  avatar,
+  time,
+  fullTime,
+  first,
+  last,
+  mt,
+  lang,
+  translating,
+  watch,
+  highlight,
+  focused,
+  preferOriginal,
+  onPreview,
+}: MessageProps): ReactNode {
   const t = useT()
   const ui = useLanguage()
   const zone = useTimeZone()
@@ -231,7 +240,7 @@ function Message({ it, c, mine, isOwn, author, time, fullTime, first, last, mt, 
     setPrevPrefer(preferOriginal)
     if (preferOriginal) setShowOriginal(true)
   }
-  const [sent, setSent] = useState(false) // 展开发给对方的译文
+  const [sent, setSent] = useState(false)
   const queryClient = useQueryClient()
   const retry = useMutation({
     mutationFn: () => tenantApi.conversation.retry(c.id, it.id),
@@ -248,358 +257,70 @@ function Message({ it, c, mine, isOwn, author, time, fullTime, first, last, mt, 
   const shown = translated && !showOriginal ? translated : sentAs ? (it.content.original ?? "") : text
   const from = it.derived.language as string | undefined
   const needFill = translatableForViewer && translating && it.untranslated
-  let caption: ReactNode = null
-  if (translated) {
-    // 始终只保留单个译文/原文切换按钮；单条消息语言与会话主语言不同时附带语言名。
-    const showFromLang = Boolean(from && (!sameLanguage(from, c.language) || mine))
-    caption = (
-      <>
-        <IconLanguage size={12} className="inbox-caption-icon" />
-        {showFromLang && from && (
-          <>
-            <Text size="xs" c="dimmed">
-              {languageName(from, ui)}
-            </Text>
-            <Text size="xs" c="dimmed">
-              ·
-            </Text>
-          </>
-        )}
-        <CaptionToggle label={t(showOriginal ? "inbox.view_translation" : "inbox.view_original")} onClick={() => setShowOriginal((v) => !v)} />
-      </>
-    )
-  } else if (needFill) {
-    caption = (
-      <>
-        <Loader size={10} />
-        <Text size="xs" c="dimmed">
-          {t("inbox.translating")}
-        </Text>
-      </>
-    )
-  } else if (sentAs) {
-    const showTargetLang = !sameLanguage(sentAs, c.language)
-    caption = (
-      <>
-        {showTargetLang && (
-          <>
-            <Text size="xs" c="dimmed">
-              {t("inbox.sent_as", { lang: languageName(sentAs, ui) })}
-            </Text>
-            <Text size="xs" c="dimmed">
-              ·
-            </Text>
-          </>
-        )}
-        <CaptionToggle label={t(sent ? "inbox.hide_translation" : "inbox.view_translation")} onClick={() => setSent((v) => !v)} />
-      </>
-    )
-  }
+
+  const hasCaption = Boolean(translated || needFill || sentAs)
+  const caption = hasCaption ? (
+    <TranslationCaption
+      translated={translated}
+      needFill={needFill}
+      fromLang={from}
+      showOriginal={showOriginal}
+      onToggleOriginal={() => setShowOriginal((v) => !v)}
+      sentAs={sentAs}
+      showSent={sent}
+      onToggleSent={() => setSent((v) => !v)}
+    />
+  ) : undefined
 
   // 己方消息在组尾展示送达状态；发送中或发送失败时无论是否组尾都立即展示
   const pendingAutoTranslate = Boolean(it.delivery === "sending" && it.derived?.pending_translation)
   const showDelivery = Boolean(mine && it.delivery && (last || it.delivery === "failed" || it.delivery === "sending"))
-  const deliveryNode = showDelivery && it.delivery && (
-    <>
-      {pendingAutoTranslate && <Loader size={10} />}
-      <Text span size="xs" c={deliveryColor[it.delivery]}>
-        {pendingAutoTranslate ? t("inbox.delivery_translating") : t(`inbox.delivery_${it.delivery}` as const)}
-      </Text>
-      {it.delivery === "failed" && (
-        <>
-          <Text span size="xs" c="dimmed">
-            ·
-          </Text>
-          <UnstyledButton fz="xs" c="red" td="underline" onClick={() => retry.mutate()} disabled={retry.isPending}>
-            {t("inbox.retry")}
-          </UnstyledButton>
-        </>
-      )}
-    </>
-  )
+  const deliveryNode =
+    showDelivery && it.delivery ? (
+      <>
+        {pendingAutoTranslate && <Loader size={10} />}
+        <Text span size="xs" c={deliveryColor[it.delivery]}>
+          {pendingAutoTranslate ? t("inbox.delivery_translating") : t(`inbox.delivery_${it.delivery}` as const)}
+        </Text>
+        {it.delivery === "failed" && (
+          <>
+            <Text span size="xs" c="dimmed">
+              ·
+            </Text>
+            <UnstyledButton fz="xs" c="red" td="underline" onClick={() => retry.mutate()} disabled={retry.isPending}>
+              {t("inbox.retry")}
+            </UnstyledButton>
+          </>
+        )}
+      </>
+    ) : undefined
 
   // 跨渠道会话（或该条消息的渠道与会话来源渠道不同）在消息头部展示渠道胶囊，便于识别每条消息的来去管道
   const showChannelChip = Boolean(it.channel && ((c.channels?.length ?? 0) > 1 || (c.channel && it.channel.id !== c.channel.id)))
 
   return (
-    <Box
+    <MessageBubble
+      conversationId={c.id}
+      attachments={it.attachments}
+      seq={it.seq}
+      watchRef={needFill ? watch(it.id) : undefined}
+      mine={mine}
+      first={first}
+      last={last}
       mt={mt}
-      data-seq={it.seq}
-      className="inbox-msg"
-      style={{ alignSelf: mine ? "flex-end" : "flex-start", maxWidth: "min(72%, 620px)" }}
-      ref={needFill ? watch(it.id) : undefined}
-    >
-      {first && (
-        <Group gap={5} mb={3} px={4} justify={mine ? "flex-end" : "flex-start"} wrap="nowrap">
-          <Text size="xs" c="dimmed">
-            {author}
-          </Text>
-          {showChannelChip && it.channel && <ChannelChip channel={it.channel} />}
-          <Text size="xs" c="dimmed">
-            ·
-          </Text>
-          <Tooltip label={fullTime} openDelay={300}>
-            <Text size="xs" c="dimmed" style={{ fontVariantNumeric: "tabular-nums" }}>
-              {time}
-            </Text>
-          </Tooltip>
-        </Group>
-      )}
-      <Group gap={6} wrap="nowrap" align="center" style={{ flexDirection: mine ? "row-reverse" : "row" }}>
-        <Paper
-          px={shown || sent ? 12 : 6}
-          py={shown || sent ? 9 : 6}
-          withBorder={!mine}
-          bg={mine ? "var(--mantine-primary-color-light)" : undefined}
-          className={focused ? "inbox-bubble inbox-focus-pulse" : "inbox-bubble"}
-          data-mine={mine || undefined}
-          data-incoming={!mine || undefined}
-          data-first={first || undefined}
-          data-last={last || undefined}
-          data-original={(translated && showOriginal) || undefined}
-          style={{ minWidth: 0 }}
-        >
-          {shown && <Linkified text={shown} highlight={highlight} />}
-          <MessageAttachments conversationId={c.id} attachments={it.attachments} hasText={Boolean(shown)} onPreview={onPreview} />
-          {sentAs && sent && (
-            <Box mt={6} pt={6} className="inbox-sent-translation">
-              <Text size="xs" c="dimmed">
-                {t("inbox.sent_translation", { lang: languageName(sentAs, ui) })}
-              </Text>
-              <Linkified text={it.content.text ?? ""} highlight={highlight} />
-            </Box>
-          )}
-        </Paper>
-        <Group gap={4} wrap="nowrap" className="inbox-msg-actions" style={{ flex: "none" }}>
-          {!first && (
-            <Tooltip label={fullTime} openDelay={300}>
-              <Text size="xs" c="dimmed" style={{ fontVariantNumeric: "tabular-nums" }}>
-                {time}
-              </Text>
-            </Tooltip>
-          )}
-          {shown && <CopyAction value={shown} />}
-        </Group>
-      </Group>
-      {(caption || deliveryNode) && (
-        <Group gap={4} mt={3} px={6} justify={mine ? "flex-end" : "flex-start"} wrap="wrap">
-          {caption}
-          {caption && deliveryNode && (
-            <Text size="xs" c="dimmed">
-              ·
-            </Text>
-          )}
-          {deliveryNode}
-        </Group>
-      )}
-    </Box>
-  )
-}
-
-/** CopyAction 是消息或备注旁的轻量一键复制按钮，复制后短暂显示绿色对勾。 */
-function CopyAction({ value }: { value: string }): ReactNode {
-  const t = useT()
-  return (
-    <CopyButton value={value} timeout={1500}>
-      {({ copied, copy }) => (
-        <Tooltip label={t(copied ? "inbox.copied" : "inbox.copy_message")} openDelay={250}>
-          <ActionIcon
-            variant="subtle"
-            color={copied ? "green" : "gray"}
-            size={22}
-            onClick={copy}
-            aria-label={t("inbox.copy_message")}
-          >
-            {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
-          </ActionIcon>
-        </Tooltip>
-      )}
-    </CopyButton>
-  )
-}
-
-/** CaptionToggle 是消息下方的轻量译文切换按钮，默认柔和灰字，悬停时浮现品牌色。 */
-function CaptionToggle({ label, onClick }: { label: string; onClick: () => void }): ReactNode {
-  return (
-    <UnstyledButton className="inbox-caption-btn" onClick={onClick}>
-      {label}
-    </UnstyledButton>
-  )
-}
-
-/** Note 是内部备注：占满一行、黄色底加左侧强调条与锁图标，@ 到的同事加粗。只有成员可见，支持跨语言译文与原文切换。 */
-function Note({
-  conversationId,
-  it,
-  author,
-  isOwn,
-  time,
-  fullTime,
-  mt,
-  lang,
-  translating,
-  watch,
-  highlight,
-  focused,
-  onPreview,
-}: {
-  conversationId: string
-  it: ConversationItemDTO
-  author: string
-  isOwn: boolean
-  time: string
-  fullTime: string
-  mt: number
-  lang: string | undefined
-  translating: boolean
-  watch: FillWatcher
-  highlight?: string
-  focused?: boolean
-  onPreview: (image: LightboxImage) => void
-}): ReactNode {
-  const t = useT()
-  const ui = useLanguage()
-  const [showOriginal, setShowOriginal] = useState(false)
-  const [showVerified, setShowVerified] = useState(false)
-  const raw = it.content.text ?? ""
-  const translated = isOwn ? undefined : translationOf(it, lang)
-  const verified = isOwn ? verifiedTranslationOf(it) : undefined
-  const shown = translated && !showOriginal ? translated : raw
-  const from = it.derived.language as string | undefined
-  const needFill = !isOwn && translating && it.untranslated
-  return (
-    <Paper
-      ref={needFill ? watch(it.id) : undefined}
-      mt={mt}
-      px="sm"
-      py={8}
-      radius="md"
-      bg="var(--mantine-color-yellow-light)"
-      data-seq={it.seq}
-      className={focused ? "inbox-note inbox-focus-pulse" : "inbox-note"}
-    >
-      <Group gap={6} mb={3} wrap="nowrap">
-        <IconLock size={12} className="inbox-note-accent" style={{ flex: "none" }} />
-        <Text size="xs" fw={600} className="inbox-note-accent">
-          {t("inbox.note_by", { who: author })}
-        </Text>
-        <Text size="xs" className="inbox-note-accent" opacity={0.75}>
-          ·
-        </Text>
-        <Tooltip label={fullTime} openDelay={300}>
-          <Text size="xs" className="inbox-note-accent" opacity={0.85} style={{ fontVariantNumeric: "tabular-nums" }}>
-            {time}
-          </Text>
-        </Tooltip>
-        {shown && (
-          <Box ml="auto" className="inbox-msg-actions">
-            <CopyAction value={shown} />
-          </Box>
-        )}
-      </Group>
-      {shown && (
-        <Text size="md" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-          {shown.split(/(@\S+)/).map((part, i) =>
-            part.startsWith("@") ? (
-              // biome-ignore lint/suspicious/noArrayIndexKey: 拆分出的片段没有别的标识，顺序固定
-              <Text key={i} span fw={700} className="inbox-note-accent">
-                <HighlightQuery text={part} query={highlight} />
-              </Text>
-            ) : (
-              // biome-ignore lint/suspicious/noArrayIndexKey: 拆分出的片段没有别的标识，顺序固定
-              <Fragment key={i}>
-                <HighlightQuery text={part} query={highlight} />
-              </Fragment>
-            ),
-          )}
-        </Text>
-      )}
-      <MessageAttachments conversationId={conversationId} attachments={it.attachments} hasText={Boolean(shown)} onPreview={onPreview} />
-      {verified && showVerified && (
-        <Box mt={6} pt={6} className="inbox-sent-translation">
-          <Text size="xs" c="dimmed">
-            {t("inbox.sent_translation", { lang: languageName(verified.language, ui) })}
-          </Text>
-          <Text size="md" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-            {verified.text}
-          </Text>
-        </Box>
-      )}
-      {(translated || needFill || verified) && (
-        <Group gap={4} mt={4} wrap="wrap">
-          {translated ? (
-            <>
-              <IconLanguage size={12} className="inbox-caption-icon" />
-              {from && (
-                <>
-                  <Text size="xs" c="dimmed">
-                    {languageName(from, ui)}
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    ·
-                  </Text>
-                </>
-              )}
-              <CaptionToggle label={t(showOriginal ? "inbox.view_translation" : "inbox.view_original")} onClick={() => setShowOriginal((v) => !v)} />
-            </>
-          ) : needFill ? (
-            <>
-              <Loader size={10} />
-              <Text size="xs" c="dimmed">
-                {t("inbox.translating")}
-              </Text>
-            </>
-          ) : verified ? (
-            <>
-              <IconLanguage size={12} className="inbox-caption-icon" />
-              <Text size="xs" c="dimmed">
-                {t("inbox.sent_as", { lang: languageName(verified.language, ui) })}
-              </Text>
-              <Text size="xs" c="dimmed">
-                ·
-              </Text>
-              <CaptionToggle label={t(showVerified ? "inbox.hide_translation" : "inbox.view_translation")} onClick={() => setShowVerified((v) => !v)} />
-            </>
-          ) : null}
-        </Group>
-      )}
-    </Paper>
-  )
-}
-
-/** LINK 匹配消息中的网址：http:// 或 https:// 开头，到空白为止，去掉结尾的标点。 */
-const LINK = /https?:\/\/[^\s<>\x22]+[^\s<>\x22\x27.,;:!?)\]}。，；：！？）】」』]/g
-
-/** Linkified 显示消息文字，其中的网址是在新标签页中打开的链接，同时保留搜索词高亮。 */
-function Linkified({ text, highlight }: { text: string; highlight?: string }): ReactNode {
-  const parts: ReactNode[] = []
-  let last = 0
-  for (const m of text.matchAll(LINK)) {
-    const at = m.index ?? 0
-    if (at > last) {
-      parts.push(
-        <Fragment key={`t:${last}`}>
-          <HighlightQuery text={text.slice(last, at)} query={highlight} />
-        </Fragment>,
-      )
-    }
-    parts.push(
-      <Anchor key={`a:${at}`} href={m[0]} target="_blank" rel="noopener noreferrer" size="md">
-        <HighlightQuery text={m[0]} query={highlight} />
-      </Anchor>,
-    )
-    last = at + m[0].length
-  }
-  if (last < text.length) {
-    parts.push(
-      <Fragment key={`t:${last}`}>
-        <HighlightQuery text={text.slice(last)} query={highlight} />
-      </Fragment>,
-    )
-  }
-  return (
-    <Text size="md" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-      {parts}
-    </Text>
+      author={author}
+      avatar={avatar}
+      headerExtra={showChannelChip && it.channel ? <ChannelChip channel={it.channel} /> : undefined}
+      time={time}
+      fullTime={fullTime}
+      text={shown || undefined}
+      highlight={highlight}
+      focused={focused}
+      original={Boolean(translated && showOriginal)}
+      expandedTranslation={sentAs && sent ? { language: sentAs, text: it.content.text ?? "" } : undefined}
+      caption={caption}
+      footerExtra={deliveryNode}
+      onPreview={onPreview}
+    />
   )
 }

@@ -148,7 +148,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
       <PaneHeader
         title={t("inbox.details")}
         actions={
-          <ActionIcon variant="subtle" color="gray" onClick={onClose} aria-label={t("inbox.close_details")}>
+          <ActionIcon variant="subtle" color="gray" size="sm" onClick={onClose} aria-label={t("inbox.close_details")}>
             <IconX size={16} />
           </ActionIcon>
         }

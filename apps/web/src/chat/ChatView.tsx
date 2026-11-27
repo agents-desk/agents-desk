@@ -7,18 +7,15 @@ import type {
 } from "@agents-desk/client/tenant"
 import {
   ActionIcon,
-  Anchor,
   Avatar,
   Box,
-  Menu,
   Center,
-  CopyButton,
   Divider,
   FileButton,
   Group,
   Indicator,
   Loader,
-  Paper,
+  Menu,
   SegmentedControl,
   Stack,
   Text,
@@ -30,15 +27,7 @@ import {
 import { useOs } from "@mantine/hooks"
 import { notifications } from "@mantine/notifications"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import {
-  IconCheck,
-  IconCopy,
-  IconLanguage,
-  IconLayoutSidebarRight,
-  IconLock,
-  IconPaperclip,
-  IconUsersGroup,
-} from "@tabler/icons-react"
+import { IconLayoutSidebarRight, IconLock, IconPaperclip, IconUsersGroup } from "@tabler/icons-react"
 import {
   AsidePane,
   ImageLightbox,
@@ -56,13 +45,13 @@ import {
 } from "@go-tenon/ui"
 import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
+import { ContactAvatar } from "../contacts/display"
 import {
   ATTACHMENT_ACCEPT,
   AttachmentStrip,
   attachmentMaxSize,
   type LightboxImage,
   MAX_ATTACHMENTS,
-  MessageAttachments,
   toAttachmentInput,
   type UploadedMedia,
   uploadMediaFile,
@@ -80,7 +69,17 @@ import { useMe, useMembers, useTeams, useTimeline } from "../inbox/data"
 import { describeEvent } from "../inbox/events"
 import { type FillWatcher, useFillVisible } from "../inbox/fill"
 import { clock, dayLabel, fullDateTime, sameDay } from "../inbox/format"
-import { translationOf } from "../inbox/Timeline"
+import {
+  ActorAvatar,
+  canGroupItems,
+  deliveryColor,
+  MessageBubble,
+  TimelineNote,
+  TranslationCaption,
+  translationOf,
+  TypingIndicator,
+  useSyncRead,
+} from "../inbox/MessagePrimitives"
 import { languageName, sameLanguage } from "../languages"
 import { isTypingTarget, NARROW_QUERY } from "../layout"
 import { BusinessDetails } from "./BusinessDetails"
@@ -92,16 +91,10 @@ import { clearDraft, type DraftMode, getDraft, saveDraft } from "../inbox/drafts
 import { ConversationSkeleton, InspectorSkeleton, TimelineSkeleton } from "../components/detail-skeleton"
 import { EmptyState } from "../components/empty-state"
 
-/** LINK 匹配消息中的网址。 */
-const LINK = /https?:\/\/[^\s<>\x22]+[^\s<>\x22\x27.,;:!?)\]}。，；：！？）】」』]/g
-
-/** deliveryColor 是外部渠道送达状态的颜色：已读是进行中的颜色，失败是红色，其余是灰色。 */
-const deliveryColor = { sending: "dimmed", delivered: "dimmed", read: "bright-blue", failed: "red" } as const
-
 /**
  * ChatView 是单条聊天（内部单聊/群聊 或 商务沟通 1:1/外部群聊）的主对话区：
  * 顶栏展示对方资料/渠道徽章/群成员数与右侧详情栏开关；
- * 中间消息流支持跨语言自动互译（按阅读者语言默认展示译文并支持单条切换原文）、商务沟通内部备注、外部渠道送达状态与重发、附件灯箱、@高亮和正在输入提示；
+ * 中间消息流支持连续消息分组、跨语言自动互译（按阅读者语言默认展示译文并支持单条切换原文）、商务沟通内部备注、外部渠道送达状态与重发、附件灯箱、@高亮和正在输入提示；
  * 底部输入框支持商务沟通“回复 / 内部备注”切换、@ 提及、拖拽/粘贴附件、统一译文校对展开栏及快捷键发送。
  */
 export function ChatView({
@@ -132,21 +125,22 @@ export function ChatView({
   if (chat && readAtOpen.current === null) readAtOpen.current = chat.read_seq
   const last = timeline.data?.at(-1)
   useEffect(() => {
-    if (last?.kind === "message") {
-      clearTyping(last.actor.id)
+    if (last?.kind === "message" || last?.kind === "note") {
+      clearTyping(last.actor.type === "contact" ? "contact" : last.actor.id)
     }
   }, [last, clearTyping])
 
-  // 页面在前台且出现更新的消息时自动推进已读位置
-  const lastSeq = last?.seq ?? 0
-  const marked = useRef(0)
-  useEffect(() => {
-    if (!chat || lastSeq <= Math.max(chat.read_seq, marked.current) || document.visibilityState !== "visible") return
-    marked.current = lastSeq
-    void tenantApi.conversation.read(id, { seq: lastSeq }).then(() => {
-      void queryClient.invalidateQueries({ queryKey: kit.queries.chat.key() })
-    })
-  }, [chat, id, lastSeq, queryClient])
+  // 页面在前台且出现更新的消息时推进已读位置，从后台切回前台时同步补标已读
+  useSyncRead({
+    ready: Boolean(chat),
+    readSeq: chat?.read_seq ?? 0,
+    lastSeq: last?.seq ?? 0,
+    onMark: (seq) => {
+      void tenantApi.conversation.read(id, { seq }).then(() => {
+        void queryClient.invalidateQueries({ queryKey: kit.queries.chat.key() })
+      })
+    },
+  })
 
   // 聊天的快捷键（非输入态生效）：I 切换详情栏；R、N 由输入框处理
   useEffect(() => {
@@ -212,7 +206,7 @@ export function ChatView({
                 <IconUsersGroup size={16} stroke={1.6} />
               </ThemeIcon>
             ) : isExternal ? (
-              <Avatar size={32} radius="xl" name={title} color="initials" style={{ flex: "none" }} />
+              <ContactAvatar contact={chat.contact} size={32} />
             ) : (
               <Indicator
                 size={8}
@@ -278,7 +272,7 @@ export function ChatView({
   )
 }
 
-/** ChatTimeline 渲染聊天的消息流，支持按天分组、内部备注、跨语言译文与单条原文切换、送达状态、附件灯箱与正在输入提示。 */
+/** ChatTimeline 渲染聊天的消息流，支持按天分组、3 分钟同人连续消息合并、内部备注、跨语言译文与单条原文切换、送达状态、附件灯箱与正在输入提示。 */
 function ChatTimeline({
   chat,
   readSeq,
@@ -327,6 +321,12 @@ function ChatTimeline({
   }
 
   const firstNew = firstUnread(list, readSeq, me.data?.id)
+  const bothMessages = (a: ConversationItemDTO, b: ConversationItemDTO) => a.kind === "message" && b.kind === "message"
+  const memberOf = (memberId: string) =>
+    byId.get(memberId) ??
+    (memberId === me.data?.id ? me.data : undefined) ??
+    chat.participants?.find((p) => p.type === "member" && p.id === memberId)
+
   return (
     <Box className="inbox-timeline-wrap">
       <Box ref={stick.scroller} className="inbox-timeline" onScroll={stick.onScroll}>
@@ -340,23 +340,29 @@ function ChatTimeline({
           )}
           {list.map((it, i) => {
             const prev = list[i - 1]
+            const next = list[i + 1]
             const showDay = i === 0 || !sameDay(prev.created_at, it.created_at)
-            const gapTop = i === 0 ? 0 : 12
+            const showNew = it === firstNew
+            const groupedWithPrev = !showDay && !showNew && canGroupItems(prev, it, firstNew, bothMessages)
+            const groupedWithNext = Boolean(next) && canGroupItems(it, next, firstNew, bothMessages)
+            const gapTop = i === 0 ? 0 : groupedWithPrev ? 4 : 16
             const isOwn = it.actor.type === "member" && it.actor.id === me.data?.id
             const mine = isExternal ? it.actor.type !== "contact" : isOwn
+            const author = authorOf(it)
             return (
               <Fragment key={it.id}>
                 {showDay && <Divider my={i === 0 ? 4 : 12} label={dayLabel(it.created_at, ui, t, zone)} labelPosition="center" />}
-                {it === firstNew && <NewMessagesDivider />}
+                {showNew && <NewMessagesDivider />}
                 {it.kind === "event" ? (
                   <Text size="xs" c="dimmed" ta="center" mt={gapTop} className="inbox-event">
                     {describeEvent(it, byId, names, t, ui)} · {clock(it.created_at, ui, zone)}
                   </Text>
                 ) : it.kind === "note" ? (
-                  <ChatNote
-                    chatId={chat.id}
+                  <TimelineNote
+                    conversationId={chat.id}
                     it={it}
-                    author={authorOf(it)}
+                    author={author}
+                    avatar={<ActorAvatar actor={it.actor} size={18} member={memberOf(it.actor.id)} fallbackName={author} />}
                     isOwn={isOwn}
                     time={clock(it.created_at, ui, zone)}
                     fullTime={fullDateTime(it.created_at, ui, zone)}
@@ -372,10 +378,20 @@ function ChatTimeline({
                     it={it}
                     mine={mine}
                     isOwn={isOwn}
-                    author={authorOf(it)}
-                    avatarUrl={it.actor.type === "member" ? byId.get(it.actor.id)?.avatar_url || undefined : undefined}
+                    author={author}
+                    avatar={
+                      <ActorAvatar
+                        actor={it.actor}
+                        size={32}
+                        member={it.actor.type === "member" ? memberOf(it.actor.id) : undefined}
+                        contact={chat.contact}
+                        fallbackName={author}
+                      />
+                    }
                     time={clock(it.created_at, ui, zone)}
                     fullTime={fullDateTime(it.created_at, ui, zone)}
+                    first={!groupedWithPrev}
+                    last={!groupedWithNext}
                     lang={me.data?.language}
                     translating={translating}
                     watch={watch}
@@ -386,18 +402,7 @@ function ChatTimeline({
               </Fragment>
             )
           })}
-          {typingNames.length > 0 && (
-            <Box mt={10} className="inbox-typing">
-              <span className="inbox-typing-dots" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-              </span>
-              <Text size="xs" c="dimmed">
-                {t("inbox.typing", { who: typingNames.join(", ") })}
-              </Text>
-            </Box>
-          )}
+          <TypingIndicator names={typingNames} />
         </Stack>
       </Box>
       <ScrollToBottomButton stick={stick} />
@@ -413,9 +418,11 @@ function ChatBubble({
   mine,
   isOwn,
   author,
-  avatarUrl,
+  avatar,
   time,
   fullTime,
+  first,
+  last,
   lang,
   translating,
   watch,
@@ -427,9 +434,11 @@ function ChatBubble({
   mine: boolean
   isOwn: boolean
   author: string
-  avatarUrl?: string
+  avatar: ReactNode
   time: string
   fullTime: string
+  first: boolean
+  last: boolean
   lang: string | undefined
   translating: boolean
   watch: FillWatcher
@@ -437,7 +446,6 @@ function ChatBubble({
   onPreview: (img: LightboxImage) => void
 }): ReactNode {
   const t = useT()
-  const ui = useLanguage()
   const queryClient = useQueryClient()
   const [showOriginal, setShowOriginal] = useState(false)
   const [showSentTranslation, setShowSentTranslation] = useState(false)
@@ -461,339 +469,81 @@ function ChatBubble({
   const shown = translated && !showOriginal ? translated : sentAs ? (it.content.original ?? "") : raw
   const fromLang = it.derived.language as string | undefined
   const needFill = translatableForViewer && translating && it.untranslated
-  const showDelivery = Boolean(isExternal && mine && it.delivery)
 
-  return (
-    <Box
-      ref={needFill ? watch(it.id) : undefined}
-      mt={mt}
-      className="inbox-msg"
-      style={{ alignSelf: mine ? "flex-end" : "flex-start", maxWidth: "min(74%, 640px)" }}
-    >
-      <Group gap={6} mb={3} px={4} justify={mine ? "flex-end" : "flex-start"} wrap="nowrap">
-        {!mine && <Avatar size={18} radius="xl" name={author} color="initials" src={avatarUrl} />}
-        <Text size="xs" c="dimmed">
-          {author}
-        </Text>
-        <Text size="xs" c="dimmed">
-          ·
-        </Text>
-        <Tooltip label={fullTime} openDelay={300}>
-          <Text size="xs" c="dimmed" style={{ fontVariantNumeric: "tabular-nums" }}>
-            {time}
-          </Text>
-        </Tooltip>
-      </Group>
+  const hasCaption = Boolean(translated || needFill || sentAs || verified)
+  const caption = hasCaption ? (
+    <TranslationCaption
+      translated={translated}
+      needFill={needFill}
+      fromLang={fromLang}
+      showOriginal={showOriginal}
+      onToggleOriginal={() => setShowOriginal((v) => !v)}
+      sentAs={sentAs}
+      showSent={showSentTranslation}
+      onToggleSent={() => setShowSentTranslation((v) => !v)}
+      verifiedLang={verified?.language}
+      showVerified={showVerified}
+      onToggleVerified={() => setShowVerified((v) => !v)}
+    />
+  ) : undefined
 
-      <Group gap={6} wrap="nowrap" align="center" style={{ flexDirection: mine ? "row-reverse" : "row" }}>
-        <Paper
-          px={shown || showVerified || showSentTranslation ? 12 : 6}
-          py={shown || showVerified || showSentTranslation ? 9 : 6}
-          withBorder={!mine}
-          bg={mine ? "var(--mantine-primary-color-light)" : undefined}
-          className="inbox-bubble"
-          data-mine={mine || undefined}
-          data-incoming={!mine || undefined}
-          data-first
-          data-last
-          data-original={(translated && showOriginal) || undefined}
-          style={{ minWidth: 0 }}
-        >
-          {shown && <ChatText text={shown} />}
-          <MessageAttachments conversationId={chat.id} attachments={it.attachments} hasText={Boolean(shown)} onPreview={onPreview} />
-          {sentAs && showSentTranslation && (
-            <Box mt={6} pt={6} className="inbox-sent-translation">
-              <Text size="xs" c="dimmed">
-                {t("inbox.sent_translation", { lang: languageName(sentAs, ui) })}
-              </Text>
-              <ChatText text={raw} />
-            </Box>
-          )}
-          {verified && showVerified && (
-            <Box mt={6} pt={6} className="inbox-sent-translation">
-              <Text size="xs" c="dimmed">
-                {t("inbox.sent_translation", { lang: languageName(verified.language, ui) })}
-              </Text>
-              <ChatText text={verified.text} />
-            </Box>
-          )}
-        </Paper>
-        {shown && (
-          <Box className="inbox-msg-actions" style={{ flex: "none" }}>
-            <CopyButton value={shown} timeout={1500}>
-              {({ copied, copy }) => (
-                <Tooltip label={t(copied ? "inbox.copied" : "inbox.copy_message")} openDelay={250}>
-                  <ActionIcon variant="subtle" color={copied ? "green" : "gray"} size={22} onClick={copy} aria-label={t("inbox.copy_message")}>
-                    {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
-                  </ActionIcon>
-                </Tooltip>
-              )}
-            </CopyButton>
-          </Box>
+  const pendingAutoTranslate = Boolean(it.delivery === "sending" && it.derived?.pending_translation)
+  const showDelivery = Boolean(isExternal && mine && it.delivery && (last || it.delivery === "failed" || it.delivery === "sending"))
+  const deliveryNode =
+    showDelivery && it.delivery ? (
+      <>
+        {pendingAutoTranslate && <Loader size={10} />}
+        <Text span size="xs" c={deliveryColor[it.delivery]}>
+          {pendingAutoTranslate ? t("inbox.delivery_translating") : t(`inbox.delivery_${it.delivery}` as const)}
+        </Text>
+        {it.delivery === "failed" && (
+          <>
+            <Text span size="xs" c="dimmed">
+              ·
+            </Text>
+            <UnstyledButton fz="xs" c="red" td="underline" onClick={() => retry.mutate()} disabled={retry.isPending}>
+              {t("inbox.retry")}
+            </UnstyledButton>
+          </>
         )}
-      </Group>
+      </>
+    ) : undefined
 
-      {(translated || needFill || sentAs || verified || showDelivery) && (
-        <Group gap={4} mt={3} px={6} justify={mine ? "flex-end" : "flex-start"} wrap="wrap">
-          {translated ? (
-            <>
-              <IconLanguage size={12} className="inbox-caption-icon" />
-              {fromLang && (
-                <>
-                  <Text size="xs" c="dimmed">
-                    {languageName(fromLang, ui)}
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    ·
-                  </Text>
-                </>
-              )}
-              <UnstyledButton className="inbox-caption-btn" onClick={() => setShowOriginal((v) => !v)}>
-                {t(showOriginal ? "inbox.view_translation" : "inbox.view_original")}
-              </UnstyledButton>
-            </>
-          ) : needFill ? (
-            <>
-              <Loader size={10} />
-              <Text size="xs" c="dimmed">
-                {t("inbox.translating")}
-              </Text>
-            </>
-          ) : sentAs ? (
-            <>
-              <IconLanguage size={12} className="inbox-caption-icon" />
-              <Text size="xs" c="dimmed">
-                {t("inbox.sent_as", { lang: languageName(sentAs, ui) })}
-              </Text>
-              <Text size="xs" c="dimmed">
-                ·
-              </Text>
-              <UnstyledButton className="inbox-caption-btn" onClick={() => setShowSentTranslation((v) => !v)}>
-                {t(showSentTranslation ? "inbox.hide_translation" : "inbox.view_translation")}
-              </UnstyledButton>
-            </>
-          ) : verified ? (
-            <>
-              <IconLanguage size={12} className="inbox-caption-icon" />
-              <Text size="xs" c="dimmed">
-                {t("inbox.sent_as", { lang: languageName(verified.language, ui) })}
-              </Text>
-              <Text size="xs" c="dimmed">
-                ·
-              </Text>
-              <UnstyledButton className="inbox-caption-btn" onClick={() => setShowVerified((v) => !v)}>
-                {t(showVerified ? "inbox.hide_translation" : "inbox.view_translation")}
-              </UnstyledButton>
-            </>
-          ) : null}
-
-          {showDelivery && it.delivery && (
-            <>
-              {(translated || needFill || sentAs || verified) && (
-                <Text size="xs" c="dimmed">
-                  ·
-                </Text>
-              )}
-              {it.delivery === "sending" && Boolean(it.derived?.pending_translation) && <Loader size={10} />}
-              <Text span size="xs" c={deliveryColor[it.delivery]}>
-                {it.delivery === "sending" && Boolean(it.derived?.pending_translation)
-                  ? t("inbox.delivery_translating")
-                  : t(`inbox.delivery_${it.delivery}` as const)}
-              </Text>
-              {it.delivery === "failed" && (
-                <UnstyledButton className="inbox-caption-btn" onClick={() => retry.mutate()} disabled={retry.isPending}>
-                  {t("inbox.retry")}
-                </UnstyledButton>
-              )}
-            </>
-          )}
-        </Group>
-      )}
-    </Box>
-  )
-}
-
-/** ChatNote 渲染商务沟通中的内部备注卡片：淡黄底加锁图标，仅团队成员可见，支持跨语言译文与原文切换。 */
-function ChatNote({
-  chatId,
-  it,
-  author,
-  isOwn,
-  time,
-  fullTime,
-  lang,
-  translating,
-  watch,
-  mt,
-  onPreview,
-}: {
-  chatId: string
-  it: ConversationItemDTO
-  author: string
-  isOwn: boolean
-  time: string
-  fullTime: string
-  lang: string | undefined
-  translating: boolean
-  watch: FillWatcher
-  mt: number
-  onPreview: (img: LightboxImage) => void
-}): ReactNode {
-  const t = useT()
-  const ui = useLanguage()
-  const [showOriginal, setShowOriginal] = useState(false)
-  const [showVerified, setShowVerified] = useState(false)
-
-  const raw = it.content.text ?? ""
-  const translated = isOwn ? undefined : translationOf(it, lang)
-  const verified = isOwn ? verifiedTranslationOf(it) : undefined
-  const shown = translated && !showOriginal ? translated : raw
-  const fromLang = it.derived.language as string | undefined
-  const needFill = !isOwn && translating && it.untranslated
+  const expandedTranslation =
+    sentAs && showSentTranslation ? { language: sentAs, text: raw } : verified && showVerified ? verified : undefined
 
   return (
-    <Paper
-      ref={needFill ? watch(it.id) : undefined}
+    <MessageBubble
+      conversationId={chat.id}
+      attachments={it.attachments}
+      seq={it.seq}
+      watchRef={needFill ? watch(it.id) : undefined}
+      mine={mine}
+      first={first}
+      last={last}
       mt={mt}
-      px="sm"
-      py={8}
-      radius="md"
-      bg="var(--mantine-color-yellow-light)"
-      className="inbox-note"
-    >
-      <Group gap={6} mb={3} wrap="nowrap">
-        <IconLock size={12} className="inbox-note-accent" style={{ flex: "none" }} />
-        <Text size="xs" fw={600} className="inbox-note-accent">
-          {t("inbox.note_by", { who: author })}
-        </Text>
-        <Text size="xs" className="inbox-note-accent" opacity={0.75}>
-          ·
-        </Text>
-        <Tooltip label={fullTime} openDelay={300}>
-          <Text size="xs" className="inbox-note-accent" opacity={0.85} style={{ fontVariantNumeric: "tabular-nums" }}>
-            {time}
-          </Text>
-        </Tooltip>
-        {shown && (
-          <Box ml="auto" className="inbox-msg-actions">
-            <CopyButton value={shown} timeout={1500}>
-              {({ copied, copy }) => (
-                <Tooltip label={t(copied ? "inbox.copied" : "inbox.copy_message")} openDelay={250}>
-                  <ActionIcon variant="subtle" color={copied ? "green" : "gray"} size={22} onClick={copy} aria-label={t("inbox.copy_message")}>
-                    {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
-                  </ActionIcon>
-                </Tooltip>
-              )}
-            </CopyButton>
-          </Box>
-        )}
-      </Group>
-
-      {shown && <ChatText text={shown} />}
-      <MessageAttachments conversationId={chatId} attachments={it.attachments} hasText={Boolean(shown)} onPreview={onPreview} />
-
-      {verified && showVerified && (
-        <Box mt={6} pt={6} className="inbox-sent-translation">
-          <Text size="xs" c="dimmed">
-            {t("inbox.sent_translation", { lang: languageName(verified.language, ui) })}
-          </Text>
-          <ChatText text={verified.text} />
-        </Box>
-      )}
-
-      {(translated || needFill || verified) && (
-        <Group gap={4} mt={4} wrap="wrap">
-          {translated ? (
-            <>
-              <IconLanguage size={12} className="inbox-caption-icon" />
-              {fromLang && (
-                <>
-                  <Text size="xs" c="dimmed">
-                    {languageName(fromLang, ui)}
-                  </Text>
-                  <Text size="xs" c="dimmed">
-                    ·
-                  </Text>
-                </>
-              )}
-              <UnstyledButton className="inbox-caption-btn" onClick={() => setShowOriginal((v) => !v)}>
-                {t(showOriginal ? "inbox.view_translation" : "inbox.view_original")}
-              </UnstyledButton>
-            </>
-          ) : needFill ? (
-            <>
-              <Loader size={10} />
-              <Text size="xs" c="dimmed">
-                {t("inbox.translating")}
-              </Text>
-            </>
-          ) : verified ? (
-            <>
-              <IconLanguage size={12} className="inbox-caption-icon" />
-              <Text size="xs" c="dimmed">
-                {t("inbox.sent_as", { lang: languageName(verified.language, ui) })}
-              </Text>
-              <Text size="xs" c="dimmed">
-                ·
-              </Text>
-              <UnstyledButton className="inbox-caption-btn" onClick={() => setShowVerified((v) => !v)}>
-                {t(showVerified ? "inbox.hide_translation" : "inbox.view_translation")}
-              </UnstyledButton>
-            </>
-          ) : null}
-        </Group>
-      )}
-    </Paper>
+      author={author}
+      avatar={avatar}
+      time={time}
+      fullTime={fullTime}
+      text={shown || undefined}
+      mentions
+      original={Boolean(translated && showOriginal)}
+      expandedTranslation={expandedTranslation}
+      caption={caption}
+      footerExtra={deliveryNode}
+      onPreview={onPreview}
+    />
   )
 }
 
-/** ChatText 渲染聊天正文，自动识别链接并加粗 @ 提及。 */
-function ChatText({ text }: { text: string }): ReactNode {
-  const parts: ReactNode[] = []
-  let last = 0
-  for (const m of text.matchAll(LINK)) {
-    const at = m.index ?? 0
-    if (at > last) parts.push(<MentionText key={`t:${last}`} text={text.slice(last, at)} />)
-    parts.push(
-      <Anchor key={`a:${at}`} href={m[0]} target="_blank" rel="noopener noreferrer" size="md">
-        {m[0]}
-      </Anchor>,
-    )
-    last = at + m[0].length
-  }
-  if (last < text.length) parts.push(<MentionText key={`t:${last}`} text={text.slice(last)} />)
-  return (
-    <Text size="md" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-      {parts}
-    </Text>
-  )
-}
-
-/** MentionText 高亮片段中的 @同事。 */
-function MentionText({ text }: { text: string }): ReactNode {
-  return (
-    <>
-      {text.split(/(@\S+)/).map((part, i) =>
-        part.startsWith("@") ? (
-          // biome-ignore lint/suspicious/noArrayIndexKey: 顺序固定
-          <Text key={i} span fw={700} c="brand">
-            {part}
-          </Text>
-        ) : (
-          // biome-ignore lint/suspicious/noArrayIndexKey: 顺序固定
-          <Fragment key={i}>{part}</Fragment>
-        ),
-      )}
-    </>
-  )
-}
-
-/** ChatComposer 是聊天底部的轻量化输入区：商务沟通支持“回复 / 内部备注”切换与对外自动翻译，支持 @ 提及、拖拽/粘贴附件及快捷键发送。 */
+/** ChatComposer 是聊天底部的统一输入卡片：商务沟通支持“回复 / 内部备注”切换与对外自动翻译，支持 @ 提及、拖拽/粘贴附件、译文校对及快捷键发送。 */
 function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping: () => void }): ReactNode {
   const t = useT()
   const ui = useLanguage()
   const os = useOs()
   const isMac = os === "macos" || os === "ios"
+  const modeKey = isMac ? "⌘I" : "Ctrl+I"
   const sendModKey = isMac ? "⌘ + ↵" : "Ctrl + Enter"
   const queryClient = useQueryClient()
   const me = useMe()
@@ -815,25 +565,6 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
   useEffect(() => {
     saveDraft(chat.id, { text, mode: replyMode, mentionIds })
   }, [chat.id, text, replyMode, mentionIds])
-
-  // 非输入态按 R 聚焦回复，商务沟通中按 N 切到内部备注并聚焦
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || isTypingTarget(e.target)) return
-      const key = e.key.toLowerCase()
-      if (key === "r") {
-        e.preventDefault()
-        setReplyMode("reply")
-        area.current?.focus()
-      } else if (key === "n" && isExternal) {
-        e.preventDefault()
-        setReplyMode("note")
-        area.current?.focus()
-      }
-    }
-    window.addEventListener("keydown", onKeyDown)
-    return () => window.removeEventListener("keydown", onKeyDown)
-  }, [isExternal])
 
   const queue = useUploadQueue<UploadedMedia>({
     upload: (file) => uploadMediaFile(file, (f) => tenantApi.file.upload({ file: f })),
@@ -962,6 +693,46 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
     rules: triggerRules,
   })
 
+  const switchMode = useCallback(
+    (nextMode: DraftMode) => {
+      if (nextMode === replyMode) return
+      setReplyMode(nextMode)
+      preview.setTarget("")
+      preview.reset()
+      trigger.close()
+    },
+    [preview, replyMode, trigger],
+  )
+
+  const focusEnd = useCallback(() => {
+    requestAnimationFrame(() => {
+      const el = area.current
+      if (!el) return
+      el.focus()
+      const end = el.value.length
+      el.setSelectionRange(end, end)
+    })
+  }, [])
+
+  // 非输入态按 R 聚焦回复，商务沟通中按 N 切到内部备注并聚焦到末尾
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || isTypingTarget(e.target)) return
+      const key = e.key.toLowerCase()
+      if (key === "r") {
+        e.preventDefault()
+        switchMode("reply")
+        focusEnd()
+      } else if (key === "n" && isExternal) {
+        e.preventDefault()
+        switchMode("note")
+        focusEnd()
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [focusEnd, isExternal, switchMode])
+
   const canSubmit = hasContent && !queue.uploading && !queue.hasError && !send.isPending && !preview.pending
   const sendHint = ctrlEnterSend ? t("inbox.ctrl_enter_hint", { key: sendModKey }) : t("inbox.enter_hint")
   const mainLabel = preview.confirming ? t("inbox.confirm_send") : note ? t("inbox.add_note") : t("inbox.send")
@@ -1008,37 +779,32 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
       <Box className="inbox-composer-box" data-note={note || undefined} data-dragging={dragging || undefined}>
         <TriggerMenu trigger={trigger} position="top" width="min(100%, 280px)" maxHeight={240} />
         {(isExternal || dragging) && (
-          <Group className="inbox-composer-head" justify="space-between" gap="xs" wrap="nowrap">
-            {isExternal ? (
-              <SegmentedControl
-                size="xs"
-                value={replyMode}
-                onChange={(v) => setReplyMode(v as DraftMode)}
-                data={[
-                  { value: "reply", label: t("inbox.mode_reply") },
-                  {
-                    value: "note",
-                    label: (
-                      <Group gap={4} wrap="nowrap">
-                        <IconLock size={12} />
-                        <span>{t("inbox.mode_note")}</span>
-                      </Group>
-                    ),
-                  },
-                ]}
-              />
-            ) : (
-              <Box />
+          <Group gap="xs" className="inbox-composer-head" data-tn-density="inspector" wrap="wrap">
+            {isExternal && (
+              <Tooltip label={t("inbox.switch_mode_hint", { key: modeKey })} openDelay={350}>
+                <SegmentedControl
+                  value={replyMode}
+                  onChange={(v) => switchMode(v as DraftMode)}
+                  data={[
+                    { value: "reply", label: t("inbox.mode_reply") },
+                    { value: "note", label: t("inbox.mode_note") },
+                  ]}
+                />
+              </Tooltip>
             )}
-            {dragging ? (
-              <Text size="xs" c="brand" fw={500}>
+            {isExternal && note && (
+              <Group gap={4} wrap="nowrap">
+                <IconLock size={12} className="inbox-note-accent" style={{ flex: "none" }} />
+                <Text size="xs" className="inbox-note-accent">
+                  {t("chat.business_note_hint")}
+                </Text>
+              </Group>
+            )}
+            {dragging && (
+              <Text size="xs" c="brand" fw={500} ml="auto">
                 {t("inbox.attach_drop")}
               </Text>
-            ) : isExternal && note ? (
-              <Text size="xs" c="dimmed" truncate>
-                {t("chat.business_note_hint")}
-              </Text>
-            ) : null}
+            )}
           </Group>
         )}
 
@@ -1061,6 +827,11 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
               onPaste={(e) => queue.handlePaste(e)}
               onKeyDown={(e) => {
                 if (e.nativeEvent.isComposing) return
+                if (isExternal && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "i") {
+                  e.preventDefault()
+                  switchMode(replyMode === "reply" ? "note" : "reply")
+                  return
+                }
                 if (trigger.handleKeyDown(e)) return
                 const hitSend = ctrlEnterSend
                   ? e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey
@@ -1072,8 +843,8 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
               }}
               placeholder={placeholder}
               autosize
-              minRows={2}
-              maxRows={8}
+              minRows={3}
+              maxRows={10}
               maxLength={10000}
               aria-label={placeholder}
             />

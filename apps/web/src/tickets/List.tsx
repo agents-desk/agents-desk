@@ -24,6 +24,7 @@ import { PaneBody, PaneHeader, PaneToolbar, useCan, useLanguage, useT, useTimeZo
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { kit } from "../api"
 import { useMe, useMembers, useTeams } from "../inbox/data"
+import { useDraft } from "../inbox/drafts"
 import { activity } from "../inbox/format"
 import { flattenTickets, prefetchTicket, TICKET_STATUSES, ticketStatusColor, ticketStatusLabel, useTicketList, useTicketTypes } from "./meta"
 import type { TicketSearch, TicketStatusFilter } from "./search"
@@ -232,6 +233,8 @@ function TicketRow({ tk, active, onClick }: { tk: ConversationTicketDTO; active:
     tk.assignee?.type === "member" ? (tk.assignee.id === me.data?.id ? t("inbox.you") : byId.get(tk.assignee.id)?.name) : undefined
   const teamName = tk.team_id ? teams.find((x) => x.id === tk.team_id)?.name : undefined
   const ownerText = assigneeName ?? teamName
+  const draft = useDraft(tk.id)
+  const draftText = !active && draft?.text.trim() ? draft.text.trim() : ""
   const queryClient = useQueryClient()
   // 悬停时预取工单和时间线，点下去时直接显示
   const warm = () => {
@@ -281,21 +284,32 @@ function TicketRow({ tk, active, onClick }: { tk: ConversationTicketDTO; active:
           <Badge size="xs" variant="light" color={ticketStatusColor[tk.status]} style={{ flex: "none" }}>
             {ticketStatusLabel(tk.status, t)}
           </Badge>
-          {tk.type_name && (
-            <Text size="xs" c="dimmed" truncate style={{ minWidth: 0 }}>
-              {tk.type_name}
+          {draftText ? (
+            <Text size="xs" truncate style={{ flex: 1, minWidth: 0 }}>
+              <Text span size="xs" fw={600} c="deep-orange">
+                {t("inbox.draft_prefix")}
+              </Text>
+              {draftText}
             </Text>
-          )}
-          {ownerText && (
+          ) : (
             <>
               {tk.type_name && (
-                <Text size="xs" c="dimmed" style={{ flex: "none" }}>
-                  ·
+                <Text size="xs" c="dimmed" truncate style={{ minWidth: 0 }}>
+                  {tk.type_name}
                 </Text>
               )}
-              <Text size="xs" c="dimmed" truncate style={{ minWidth: 0 }}>
-                {ownerText}
-              </Text>
+              {ownerText && (
+                <>
+                  {tk.type_name && (
+                    <Text size="xs" c="dimmed" style={{ flex: "none" }}>
+                      ·
+                    </Text>
+                  )}
+                  <Text size="xs" c="dimmed" truncate style={{ minWidth: 0 }}>
+                    {ownerText}
+                  </Text>
+                </>
+              )}
             </>
           )}
           {tk.linked_count > 0 && (

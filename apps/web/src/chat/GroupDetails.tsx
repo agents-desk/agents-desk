@@ -125,7 +125,7 @@ export function GroupDetails({ chat, onClose, onLeft }: GroupDetailsProps): Reac
       <PaneHeader
         title={t("chat.group_settings")}
         actions={
-          <ActionIcon size="sm" aria-label={t("inbox.close_details")} onClick={onClose}>
+          <ActionIcon variant="subtle" color="gray" size="sm" aria-label={t("inbox.close_details")} onClick={onClose}>
             <IconX size={16} />
           </ActionIcon>
         }
