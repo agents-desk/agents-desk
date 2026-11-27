@@ -1,5 +1,6 @@
-// Package channel 是渠道：工作区中一个具体的接入点，例如某个网站上的聊天插件、某个 Telegram 机器人。
-// 每种渠道由一个连接器收发消息，连接器实现 Connector，在入口中登记到 Registry。
+// Package channel 是渠道：工作区中一个具体的接入点，例如某个网站上的聊天插件、某个 Telegram 机器人、某个企业微信机器人。
+// 渠道的传输协议（Kind）与服务对象（Audience）相互正交：每一种协议由一个连接器实现，登记到 Registry；
+// 需要后台常驻连接（WebSocket、MTProto 等）的渠道管理器实现 Runner，由入口统一托管生命周期。
 package channel
 
 import (
@@ -25,24 +26,57 @@ var (
 	ErrDisabled = errorx.Define(errorx.Conflict, "channel.disabled")
 )
 
-// Kind 是渠道的种类，决定由哪个连接器收发消息。
+// Kind 是渠道的传输协议种类，决定由哪个连接器收发消息。
 type Kind string
 
 const (
 	Test            Kind = "test"             // 测试渠道：开发、演示和测试用，发出的消息直接记为已送达
-	Widget          Kind = "widget"           // 网页聊天插件：嵌入产品网站的公共客服窗口，见 internal/widget
-	Telegram        Kind = "telegram"         // Telegram 机器人公共客服私聊渠道，见 internal/telegram
-	BusinessLink    Kind = "business_link"    // 成员个人网页商务沟通链接：外部商户打开即与该成员进入长期商务沟通
+	Widget          Kind = "widget"           // 网页聊天插件：嵌入产品网站的公共服务窗口，见 internal/widget
+	Telegram        Kind = "telegram"         // Telegram 机器人（HTTP Webhook，支持单聊与群内 @）
+	WeCom           Kind = "wecom"            // 企业微信智能机器人（WebSocket 长连接，支持单聊与群内 @）
+	BusinessLink    Kind = "business_link"    // 成员个人网页商务沟通链接：外部合作方打开即与该成员进入长期商务沟通
 	TelegramAccount Kind = "telegram_account" // 成员个人 Telegram 账号（纯 Go MTProto，支持 1:1 单聊与群聊）
 )
 
 // Kinds 是全部渠道种类，显示文字是翻译文件中 channel.kind.<种类> 的消息。
-var Kinds = enum.New("channel.kind", enum.Item(Test), enum.Item(Widget), enum.Item(Telegram), enum.Item(BusinessLink), enum.Item(TelegramAccount))
+var Kinds = enum.New("channel.kind",
+	enum.Item(Test), enum.Item(Widget), enum.Item(Telegram), enum.Item(WeCom),
+	enum.Item(BusinessLink), enum.Item(TelegramAccount))
 
 // Schema 让 OpenAPI 中的 Kind 只接受上面的取值，并带有显示文字。
 func (Kind) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Kinds) }
 
-// Channel 是一个渠道，属于一个工作区。OwnerMemberID 为空时为工作区公共客服渠道，非空时为某位成员的个人商务渠道。
+// Audience 是渠道的服务对象域，与传输协议 Kind 正交：决定单聊联系人归类、跨渠道会话隔离边界与默认自动化策略。
+type Audience string
+
+const (
+	AudienceCustomer Audience = "customer" // 外部客户服务
+	AudiencePartner  Audience = "partner"  // 合作商家与个人商务沟通
+	AudienceInternal Audience = "internal" // 内部员工服务（IT、人事、行政等）
+)
+
+// Audiences 是全部渠道服务对象域，显示文字是翻译文件中 channel.audience.<域> 的消息。
+var Audiences = enum.New("channel.audience",
+	enum.Item(AudienceCustomer), enum.Item(AudiencePartner), enum.Item(AudienceInternal))
+
+// Schema 让 OpenAPI 中的 Audience 只接受上面的取值，并带有显示文字。
+func (Audience) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Audiences) }
+
+// EffectiveAudience 返回规范化后的服务对象域；空值时按是否个人渠道回退为 partner 或 customer。
+func (c *Channel) EffectiveAudience() Audience {
+	if c == nil {
+		return AudienceCustomer
+	}
+	if c.Audience != "" {
+		return c.Audience
+	}
+	if c.IsPersonal() {
+		return AudiencePartner
+	}
+	return AudienceCustomer
+}
+
+// Channel 是一个渠道，属于一个工作区。OwnerMemberID 为空时为工作区公共服务渠道，非空时为某位成员的个人商务渠道。
 type Channel struct {
 	bun.BaseModel `bun:"table:channels"`
 
@@ -50,10 +84,11 @@ type Channel struct {
 	database.Timestamps
 	TenantID      string         `bun:"tenant_id,notnull"`
 	Kind          Kind           `bun:"kind,notnull"`
+	Audience      Audience       `bun:"audience,notnull,default:'customer'"`
 	Name          string         `bun:"name,notnull"`
 	Settings      map[string]any `bun:"settings,type:jsonb,notnull"` // 连接器的设置，内容由连接器决定
-	TeamID        *string        `bun:"team_id"`                     // 公共渠道新会话进入的团队收件箱；为空时进入未指派
-	OwnerMemberID *string        `bun:"owner_member_id"`             // 个人商务渠道所属的成员 ID；公共客服渠道为空
+	TeamID        *string        `bun:"team_id"`                     // 公共渠道新会话默认进入的团队收件箱；为空时进入未指派
+	OwnerMemberID *string        `bun:"owner_member_id"`             // 个人商务渠道所属的成员 ID；公共渠道为空
 	PublicCode    *string        `bun:"public_code"`                 // 网页商务链接的公开短码，用于 /c/{code} 访问；非商务链接为空
 	Enabled       bool           `bun:"enabled,notnull"`
 }
@@ -75,13 +110,16 @@ func OnMemberRemoved(ctx context.Context, tx database.Tx, tenantID, memberID str
 
 // Summary 是接口中渠道的概要，显示在会话中。
 type Summary struct {
-	ID   string `json:"id"`
-	Kind Kind   `json:"kind"`
-	Name string `json:"name"`
+	ID       string   `json:"id"`
+	Kind     Kind     `json:"kind"`
+	Audience Audience `json:"audience"`
+	Name     string   `json:"name"`
 }
 
 // Summary 返回渠道 c 的概要。
-func (c *Channel) Summary() Summary { return Summary{ID: c.ID, Kind: c.Kind, Name: c.Name} }
+func (c *Channel) Summary() Summary {
+	return Summary{ID: c.ID, Kind: c.Kind, Audience: c.EffectiveAudience(), Name: c.Name}
+}
 
 // Find 读取工作区 tenant 中的渠道 id，不存在或属于别的工作区时返回 ErrNotFound。
 func Find(ctx context.Context, db bun.IDB, tenant, id string) (*Channel, error) {

@@ -39,9 +39,9 @@ func BeforeContactMerge(down Downstream, sub identity.Subject) contact.BeforeMer
 	}
 }
 
-// MergeActiveBetweenContacts 在同一事务中检查 targetContactID 与 sourceContactID 是否各自拥有未关闭（open/snoozed）的
-// 服务型会话：当双方都存在活跃会话时，将来源联系人的活跃会话归并进目标联系人的活跃会话并删除来源活跃会话，
-// 保证后续迁移来源联系人的其余历史会话时不触发“同一联系人最多一条活跃服务型会话”唯一约束冲突。
+// MergeActiveBetweenContacts 在同一事务中按服务对象类型（audience）检查 targetContactID 与 sourceContactID 是否各自拥有未关闭（open/snoozed）的
+// 服务型会话：同一 audience 下双方都存在活跃会话时，将来源联系人的活跃会话归并进目标联系人的活跃会话并删除来源活跃会话，
+// 保证后续迁移来源联系人的其余历史会话时不触发“同一联系人同服务对象最多一条活跃服务型会话”唯一约束冲突。
 func MergeActiveBetweenContacts(ctx context.Context, tx database.Tx, down Downstream, sub identity.Subject, targetContactID, sourceContactID string) error {
 	if targetContactID == "" || sourceContactID == "" || targetContactID == sourceContactID {
 		return nil
@@ -54,27 +54,45 @@ func MergeActiveBetweenContacts(ctx context.Context, tx database.Tx, down Downst
 	if err != nil {
 		return errors.Wrap(err, "load active conversations for contact merge")
 	}
-	var targetActiveID, sourceActiveID string
+	type pair struct {
+		targetID string
+		sourceID string
+	}
+	byAudience := map[channel.Audience]*pair{}
+	var audiences []channel.Audience
 	for i := range active {
 		if active[i].ContactID == nil {
 			continue
 		}
+		aud := active[i].Audience
+		p := byAudience[aud]
+		if p == nil {
+			p = &pair{}
+			byAudience[aud] = p
+			audiences = append(audiences, aud)
+		}
 		switch *active[i].ContactID {
 		case targetContactID:
-			if targetActiveID == "" {
-				targetActiveID = active[i].ID
+			if p.targetID == "" {
+				p.targetID = active[i].ID
 			}
 		case sourceContactID:
-			if sourceActiveID == "" {
-				sourceActiveID = active[i].ID
+			if p.sourceID == "" {
+				p.sourceID = active[i].ID
 			}
 		}
 	}
-	if targetActiveID == "" || sourceActiveID == "" {
-		return nil
+	slices.Sort(audiences)
+	for _, aud := range audiences {
+		p := byAudience[aud]
+		if p.targetID == "" || p.sourceID == "" {
+			continue
+		}
+		if _, err := mergePair(ctx, tx, down, sub, p.targetID, p.sourceID, targetContactID, sourceContactID); err != nil {
+			return err
+		}
 	}
-	_, err = mergePair(ctx, tx, down, sub, targetActiveID, sourceActiveID, targetContactID, sourceContactID)
-	return err
+	return nil
 }
 
 // mergePair 在事务 tx 中把 sourceID 合并到 targetID 中：
@@ -189,14 +207,14 @@ func mergePair(ctx context.Context, tx database.Tx, down Downstream, sub identit
 		if it.Searchable() {
 			syncIDs = append(syncIDs, it.ID)
 		}
-		if it.Kind == Message && it.ActorType == ContactActor && it.ChannelID != nil {
+		if it.Kind == Message && it.ActorType.IsExternal() && it.ChannelID != nil {
 			chID := *it.ChannelID
 			latestContactChannelID = &chID
 		}
 	}
 	target.LastSeq = int64(len(allItems))
 
-	// 3. 合并参与者、会话标签与工单来源会话引用（ticket_contacts）
+	// 3. 合并参与者、会话标签与工单来源会话引用（ticket_targets）
 	if _, err := tx.NewRaw(
 		`INSERT INTO conversation_participants (conversation_id, participant_type, participant_id, created_at)
 		 SELECT ?, participant_type, participant_id, created_at
@@ -219,7 +237,7 @@ func mergePair(ctx context.Context, tx database.Tx, down Downstream, sub identit
 	}
 	// 更新工单来源会话引用，指向合并后的目标服务型会话
 	if _, err := tx.NewRaw(
-		`UPDATE ticket_contacts SET source_conversation_id = ?, updated_at = ?
+		`UPDATE ticket_targets SET source_conversation_id = ?, updated_at = ?
 		 WHERE tenant_id = ? AND source_conversation_id = ?`,
 		target.ID, now(), sub.Tenant, source.ID,
 	).Exec(ctx); err != nil {
@@ -385,7 +403,7 @@ func mergePair(ctx context.Context, tx database.Tx, down Downstream, sub identit
 		err := tx.NewSelect().TableExpr("contact_identities AS ci").
 			ColumnExpr("DISTINCT ci.channel_id").
 			Join("JOIN channels AS ch ON ch.id = ci.channel_id").
-			Where("ci.tenant_id = ? AND ci.contact_id IN (?) AND ch.kind = ? AND ch.enabled = true", target.TenantID, bun.In(contactIDs), channel.Widget).
+			Where("ci.tenant_id = ? AND ci.contact_id IN (?) AND ch.kind IN (?) AND ch.enabled = true", target.TenantID, bun.In(contactIDs), bun.In(realtimeHubKinds(down))).
 			Scan(ctx, &widgetIDs)
 		if err != nil {
 			return nil, errors.Wrap(err, "load contact widget channels after merge")

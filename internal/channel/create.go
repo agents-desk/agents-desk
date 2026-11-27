@@ -14,6 +14,7 @@ import (
 // CreateParams 是新建渠道的参数。
 type CreateParams struct {
 	Kind     Kind
+	Audience Audience // 服务对象域；留空默认为 customer
 	Name     string
 	TeamID   *string        // 新会话进入的团队收件箱；为空时进入未指派
 	Settings map[string]any // 连接器的设置
@@ -33,7 +34,11 @@ func (a *Create) Handle(ctx context.Context, sub identity.Subject, p CreateParam
 	if settings == nil {
 		settings = map[string]any{}
 	}
-	c := &Channel{ID: newID(), TenantID: sub.Tenant, Kind: p.Kind, Name: p.Name, Settings: settings, TeamID: p.TeamID, Enabled: true}
+	aud := p.Audience
+	if aud == "" {
+		aud = AudienceCustomer
+	}
+	c := &Channel{ID: newID(), TenantID: sub.Tenant, Kind: p.Kind, Audience: aud, Name: p.Name, Settings: settings, TeamID: p.TeamID, Enabled: true}
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		if _, err := tx.NewInsert().Model(c).Exec(ctx); err != nil {
 			return errors.Wrap(err, "insert channel")

@@ -16,25 +16,31 @@ import (
 	"agents-desk/internal/auth"
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
+	"agents-desk/internal/extgroup"
 	"agents-desk/internal/member"
 	"agents-desk/internal/tag"
 )
 
 // ReceiveParams 是渠道收到的一条消息。
+// 公共渠道支持 1:1 单聊（IsGroup=false）与群内 @ 机器人（IsGroup=true，ExternalChatID 为群 ID）；
+// 个人商务渠道（ch.IsPersonal）归入外部商务聊天（kind=chat, scope=external）。
 type ReceiveParams struct {
 	ChannelID           string
-	From                string     // 对方在渠道中的外部编号（外部群聊中为发言人在该渠道中的外部编号）
-	FromName            string     // 对方在渠道中显示的名字，新建联系人时使用
+	From                string     // 发言人在渠道中的外部编号
+	FromName            string     // 发言人在渠道中显示的名字
+	FromAvatarURL       string     // 可选：发言人头像地址
 	ExternalID          string     // 消息在渠道中的编号，用来去重；渠道没有编号时为空
-	ExternalChatID      string     // 可选：个人商务渠道中的外部会话或群聊唯一标识（如 Telegram peer/group ID）
-	IsGroup             bool       // 可选：个人商务渠道中该会话是否为外部群聊（如 Telegram 群）
-	ChatTitle           string     // 可选：外部群聊的标题，收到消息时同步更新
-	FromOwner           bool       // 可选：由个人渠道归属成员在外部客户端（如官方 Telegram App）发出的同步消息
+	ExternalChatID      string     // 群聊或个人号会话在外部渠道中的唯一标识（如 Telegram chat_id、企微 chatid）
+	IsGroup             bool       // 是否为群聊消息（公共渠道走外部群路由；个人商务渠道走外部商务群）
+	ChatTitle           string     // 可选：外部群的名称，收到消息时同步更新
+	FromOwner           bool       // 可选：由个人渠道归属成员在外部客户端发出的同步消息
 	CreatedAt           *time.Time // 可选：外部消息原始时间（用于历史消息同步）；为空时取当前时间
 	Text                string
 	Attachments         []AttachmentInput    // 客户端通过 /files 上传的已就绪媒体附件（在写入事务中确认）
-	IncomingAttachments []IncomingAttachment // 外部渠道收到的媒体元数据（不阻塞 Webhook，由队列自动拉取或点击按需拉取）
-	TicketID            string               // 可选：客户从工单详情发起补充沟通时附带的工单 ID，用于关联当前会话并唤醒等待工单
+	IncomingAttachments []IncomingAttachment // 外部渠道收到的媒体元数据（不阻塞入站，由队列自动拉取或按需拉取）
+	ReplyToExternalID   string               // 可选：外部消息引用的同会话目标外部消息编号
+	ReplyContext        map[string]any       // 可选：入站事件携带的短期回复协议上下文（如企微长连接 req_id、钉钉 sessionWebhook）
+	TicketID            string               // 可选：客户从工单详情发起补充沟通时附带的工单 ID
 }
 
 // Received 是写入收到的消息的结果。
@@ -46,8 +52,8 @@ type Received struct {
 	Duplicate      bool // 这条消息之前已经收到过，这次没有写入
 }
 
-// Receive 写入渠道收到的一条消息：找到或创建联系人，把消息归入会话，追加到时间线。由连接器以系统的身份调用；
-// 客户直接调用接口的渠道（网页聊天插件）以联系人的身份调用，只能以自己的身份发消息。
+// Receive 写入渠道收到的一条消息：根据渠道归属与是否群聊归入对应会话并追加时间线。
+// 由连接器以系统主体调用；网页聊天插件与商务链接以联系人主体调用，只能以自己的身份发消息。
 type Receive struct {
 	db       *bun.DB
 	registry channel.Registry
@@ -60,14 +66,12 @@ func NewReceive(db *bun.DB, registry channel.Registry, down Downstream) *Receive
 }
 
 // Handle 在 sub 所在的工作区中写入渠道 p.ChannelID 收到的消息。
-// 所有实时聊天渠道统一采用“同一联系人最多一条活跃服务型会话”规则：
-//   - 已存在未关闭会话（open/snoozed）时直接归入该会话（稍后处理自动恢复为打开）；
+// 公共渠道按“单聊按 (audience, contact) 最多一条活跃会话 / 群内 @ 按 external_group 最多一条活跃会话”归并：
+//   - 已存在未关闭会话（open/snoozed）时直接归入（稍后处理自动恢复为打开）；
 //   - 最近一条会话已关闭且处于工作区重开窗口（reopen_window_hours）内时重新打开；
 //   - 超出重开窗口或尚无会话时新建下一轮服务型会话。
 //
-// 随后执行自动指派、刷新回复渠道、触发等待中工单唤醒与下游分发。同一个 p.ExternalID 重复收到时返回之前写入的项，Duplicate 为 true。
-// 系统主体可以以任何人的身份写入；联系人主体只能写入自己的消息（p.From 是他在这个渠道中的身份），否则返回 ErrForbidden。
-// 渠道不存在时返回 channel.ErrNotFound，已停用时返回 channel.ErrDisabled。
+// 同一个 p.ExternalID 重复收到时幂等返回之前写入的项，Duplicate 为 true。
 func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceiveParams) (*Received, error) {
 	if sub.Type != contact.Type {
 		if err := authorize(sub, ""); err != nil {
@@ -82,7 +86,7 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 	}
 	var res Received
 	var err error
-	// 同一客户并发首条消息触发唯一活跃会话索引冲突时重试一次，第二次事务即可读到先创建的活跃会话。
+	// 并发首条消息触发唯一活跃会话或外部聊天约束冲突时重试一次，第二次事务即可读到先创建的会话。
 	for attempt := range 2 {
 		err = database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 			ch, err := channel.Find(ctx, tx, sub.Tenant, p.ChannelID)
@@ -95,7 +99,7 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 			if _, err := a.registry.Connector(ch.Kind); err != nil {
 				return err
 			}
-			// 成员个人商务渠道（owner_member_id 非空）：归入外部商务聊天（kind=chat, scope=external），不进入客服收件箱
+			// 1. 成员个人商务渠道（owner_member_id 非空）：归入外部商务聊天（kind=chat, scope=external）
 			if ch.IsPersonal() {
 				out, err := a.receiveExternalChat(ctx, tx, sub, ch, p)
 				if err != nil {
@@ -104,111 +108,32 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 				res = *out
 				return nil
 			}
-			person, _, err := contact.ResolveIdentity(ctx, tx, sub.Tenant, ch.ID, p.From, contact.Profile{Name: p.FromName})
-			if err != nil {
-				return err
-			}
-			if sub.Type == contact.Type && person.ID != sub.ID {
-				return ErrForbidden.New()
-			}
-			confirmed, err := confirmAttachmentInputs(ctx, tx, a.down.Media.Files, sub, p.Attachments)
-			if err != nil {
-				return err
-			}
-			incomingAtts, needsIngest := buildIncomingAttachments(ch.ID, p.IncomingAttachments)
-			allAttachments := append(confirmed, incomingAtts...)
-			at := now()
-			c, created, opened, defaultMemberID, err := a.conversationFor(ctx, tx, ch, person, at)
-			if err != nil {
-				return err
-			}
-			items := make([]*Item, 0, 3)
-			reopened := false
-			if opened != "" {
-				items = append(items, &Item{
-					Kind: Event, ActorType: SystemActor, Visibility: MembersOnly,
-					Content: Content{Event: opened, Data: map[string]any{"from": string(c.Status)}},
-				})
-				if c.Status == Closed {
-					reopened = true
-					c.OpenedAt, c.FirstReplyAt = at, nil
-				}
-				c.Status, c.SnoozedUntil = Open, nil
-			}
-			msg := &Item{
-				Kind: Message, ActorType: ContactActor, ActorID: person.ID, Visibility: Everyone,
-				Content: Content{Text: p.Text}, ChannelID: &ch.ID,
-			}
-			if p.ExternalID != "" {
-				msg.ExternalID = &p.ExternalID
-			}
-			items = append(items, msg)
-			// 自动指派：新会话命中工作区默认成员时直接指派并记录系统事件；否则按离开重分配与团队轮流分配规则处理
-			if defaultMemberID != "" {
-				c.AssigneeType, c.AssigneeID = MemberActor, defaultMemberID
-				items = append(items, assignedEvent(system(c.TenantID), c, c.TeamID, "", "", ReasonDefault))
-			} else {
-				auto, err := releaseIfAway(ctx, tx, c)
+			// 2. 公共服务渠道群内 @ 机器人：归入外部群路由实体（external_groups），发言人记为 external_user，不污染联系人表
+			if p.IsGroup {
+				out, err := a.receiveExternalGroup(ctx, tx, sub, ch, p)
 				if err != nil {
 					return err
 				}
-				if len(auto) == 0 {
-					next, err := roundRobin(ctx, tx, c)
-					if err != nil {
-						return err
-					}
-					if next != nil {
-						auto = append(auto, next)
-					}
-				}
-				items = append(items, auto...)
+				res = *out
+				return nil
 			}
-			if created || reopened {
-				if err := openRound(ctx, tx, c, at); err != nil {
-					return err
-				}
-			}
-			if err := contact.TouchSeen(ctx, tx, sub.Tenant, person.ID, at); err != nil {
-				return err
-			}
-			replyChID := ch.ID
-			c.ReplyChannelID = &replyChID
-			c.LastMessageAt = at
-			if c.WaitingSince == nil {
-				c.WaitingSince = &at
-			}
-			if err := commit(ctx, tx, a.down, c, items...); err != nil {
-				return err
-			}
-			if err := insertAttachments(ctx, tx, c.TenantID, msg.ID, allAttachments); err != nil {
-				return err
-			}
-			if needsIngest {
-				if err := MediaIngestTopic.Publish(ctx, tx, MediaIngestJob{
-					TenantID: c.TenantID, ConversationID: c.ID, ItemID: msg.ID,
-				}); err != nil {
-					return errors.Wrap(err, "publish media ingest job")
-				}
-			}
-			// 客户回复时，将客户名下关联且处于“等待客户”状态的工单自动切回“处理中”；显式指定工单时同时关联到当前会话
-			if err := resumeWaitingTickets(ctx, tx, a.down, c.TenantID, c, p.TicketID, at); err != nil {
-				return err
-			}
-			dtos, err := toItemDTOs(ctx, tx, a.down.Media, []Item{*msg})
+			// 3. 公共服务渠道 1:1 单聊：按渠道服务对象域归入客户联系人或内部联系人
+			out, err := a.receiveDirectService(ctx, tx, sub, ch, p)
 			if err != nil {
 				return err
 			}
-			res = Received{ConversationID: c.ID, Item: dtos[0], Created: created, Reopened: opened == "conversation.reopened"}
+			res = *out
 			return nil
 		})
 		if attempt == 0 && (database.IsUniqueViolation(err, "conversations_one_active_service_per_contact") ||
+			database.IsUniqueViolation(err, "conversations_one_active_service_per_group") ||
+			database.IsUniqueViolation(err, "conversations_external_chat_contact_unique") ||
 			database.IsUniqueViolation(err, "chats_tenant_channel_external")) {
 			continue
 		}
 		break
 	}
 	if database.IsUniqueViolation(err, "timeline_items_external") {
-		// 同一条消息同时到达两次，另一次先写入了
 		return a.previous(ctx, sub, p)
 	}
 	if err != nil {
@@ -217,8 +142,191 @@ func (a *Receive) Handle(ctx context.Context, sub identity.Subject, p ReceivePar
 	return &res, nil
 }
 
-// previous 返回之前已经写入的同一条消息（按渠道和外部编号）；没有时返回 nil。sub 是联系人而那条消息不是他发的时
-// 返回 ErrForbidden。
+// receiveDirectService 在事务 tx 中写入公共服务渠道的 1:1 单聊消息。
+func (a *Receive) receiveDirectService(ctx context.Context, tx database.Tx, sub identity.Subject, ch *channel.Channel, p ReceiveParams) (*Received, error) {
+	defaultKind := contact.Lead
+	if ch.EffectiveAudience() == channel.AudienceInternal {
+		defaultKind = contact.Internal
+	}
+	person, _, err := contact.ResolveIdentityWithKind(ctx, tx, sub.Tenant, ch.ID, p.From, defaultKind, contact.Profile{Name: p.FromName})
+	if err != nil {
+		return nil, err
+	}
+	if sub.Type == contact.Type && person.ID != sub.ID {
+		return nil, ErrForbidden.New()
+	}
+	confirmed, err := confirmAttachmentInputs(ctx, tx, a.down.Media.Files, sub, p.Attachments)
+	if err != nil {
+		return nil, err
+	}
+	incomingAtts, needsIngest := buildIncomingAttachments(ch.ID, p.IncomingAttachments)
+	allAttachments := append(confirmed, incomingAtts...)
+
+	at := inboundTime(p.CreatedAt)
+	c, created, opened, defaultMemberID, err := a.conversationForContact(ctx, tx, ch, person, at)
+	if err != nil {
+		return nil, err
+	}
+	replyToID, err := resolveReplyToItemID(ctx, tx, c.TenantID, c.ID, ch.ID, p.ReplyToExternalID)
+	if err != nil {
+		return nil, err
+	}
+	msg := &Item{
+		Kind:          Message,
+		ActorType:     ContactActor,
+		ActorID:       person.ID,
+		Visibility:    Everyone,
+		Content:       Content{Text: p.Text},
+		Derived:       inboundDerived(p.ReplyContext),
+		ChannelID:     &ch.ID,
+		ReplyToItemID: replyToID,
+	}
+	if p.CreatedAt != nil && !p.CreatedAt.IsZero() {
+		msg.CreatedAt = at
+	}
+	if p.ExternalID != "" {
+		ext := p.ExternalID
+		msg.ExternalID = &ext
+	}
+	if err := contact.TouchSeen(ctx, tx, sub.Tenant, person.ID, at); err != nil {
+		return nil, err
+	}
+	return a.finalizeServiceInbound(ctx, tx, c, ch, msg, created, opened, defaultMemberID, allAttachments, needsIngest, p.TicketID, at)
+}
+
+// receiveExternalGroup 在事务 tx 中写入公共机器人渠道在第三方群内收到的 @ 机器人或命令消息。
+// 群归入 external_groups 路由配置实体，发言人记为 external_users（actor_type=external_user），不创建客户联系人。
+func (a *Receive) receiveExternalGroup(ctx context.Context, tx database.Tx, sub identity.Subject, ch *channel.Channel, p ReceiveParams) (*Received, error) {
+	if sub.Type == contact.Type {
+		return nil, ErrForbidden.New()
+	}
+	extGroupID := strings.TrimSpace(p.ExternalChatID)
+	if extGroupID == "" {
+		return nil, errors.New("conversation: external_chat_id is required for external group message")
+	}
+	at := inboundTime(p.CreatedAt)
+	group, _, err := extgroup.EnsureGroup(ctx, tx, ch.TenantID, ch.ID, extGroupID, p.ChatTitle, at)
+	if err != nil {
+		return nil, err
+	}
+	senderExtID := strings.TrimSpace(p.From)
+	if senderExtID == "" {
+		senderExtID = extGroupID + ":unknown"
+	}
+	sender, err := extgroup.EnsureUser(ctx, tx, ch.TenantID, ch.ID, senderExtID, p.FromName, p.FromAvatarURL)
+	if err != nil {
+		return nil, err
+	}
+	confirmed, err := confirmAttachmentInputs(ctx, tx, a.down.Media.Files, sub, p.Attachments)
+	if err != nil {
+		return nil, err
+	}
+	incomingAtts, needsIngest := buildIncomingAttachments(ch.ID, p.IncomingAttachments)
+	allAttachments := append(confirmed, incomingAtts...)
+
+	c, created, opened, defaultMemberID, err := a.conversationForGroup(ctx, tx, ch, group, at)
+	if err != nil {
+		return nil, err
+	}
+	replyToID, err := resolveReplyToItemID(ctx, tx, c.TenantID, c.ID, ch.ID, p.ReplyToExternalID)
+	if err != nil {
+		return nil, err
+	}
+	msg := &Item{
+		Kind:          Message,
+		ActorType:     ExternalUserActor,
+		ActorID:       sender.ID,
+		Visibility:    Everyone,
+		Content:       Content{Text: p.Text},
+		Derived:       inboundDerived(p.ReplyContext),
+		ChannelID:     &ch.ID,
+		ReplyToItemID: replyToID,
+	}
+	if p.CreatedAt != nil && !p.CreatedAt.IsZero() {
+		msg.CreatedAt = at
+	}
+	if p.ExternalID != "" {
+		ext := p.ExternalID
+		msg.ExternalID = &ext
+	}
+	return a.finalizeServiceInbound(ctx, tx, c, ch, msg, created, opened, defaultMemberID, allAttachments, needsIngest, p.TicketID, at)
+}
+
+// finalizeServiceInbound 完成服务型会话（单聊或外部群）入站的公共状态流转、自动指派、轮次、附件、提交与等待工单唤醒。
+func (a *Receive) finalizeServiceInbound(
+	ctx context.Context, tx database.Tx, c *Conversation, ch *channel.Channel, msg *Item,
+	created bool, opened, defaultMemberID string, allAttachments []*Attachment, needsIngest bool, ticketID string, at time.Time,
+) (*Received, error) {
+	items := make([]*Item, 0, 3)
+	reopened := false
+	if opened != "" {
+		items = append(items, &Item{
+			Kind: Event, ActorType: SystemActor, Visibility: MembersOnly,
+			Content: Content{Event: opened, Data: map[string]any{"from": string(c.Status)}},
+		})
+		if c.Status == Closed {
+			reopened = true
+			c.OpenedAt, c.FirstReplyAt = at, nil
+		}
+		c.Status, c.SnoozedUntil = Open, nil
+	}
+	items = append(items, msg)
+
+	// 自动指派：新会话命中工作区默认成员时直接指派并记录系统事件；否则按离开重分配与团队轮流分配规则处理
+	if defaultMemberID != "" {
+		c.AssigneeType, c.AssigneeID = MemberActor, defaultMemberID
+		items = append(items, assignedEvent(system(c.TenantID), c, c.TeamID, "", "", ReasonDefault))
+	} else {
+		auto, err := releaseIfAway(ctx, tx, c)
+		if err != nil {
+			return nil, err
+		}
+		if len(auto) == 0 {
+			next, err := roundRobin(ctx, tx, c)
+			if err != nil {
+				return nil, err
+			}
+			if next != nil {
+				auto = append(auto, next)
+			}
+		}
+		items = append(items, auto...)
+	}
+	if created || reopened {
+		if err := openRound(ctx, tx, c, at); err != nil {
+			return nil, err
+		}
+	}
+	replyChID := ch.ID
+	c.ReplyChannelID = &replyChID
+	c.LastMessageAt = at
+	if c.WaitingSince == nil {
+		c.WaitingSince = &at
+	}
+	if err := commit(ctx, tx, a.down, c, items...); err != nil {
+		return nil, err
+	}
+	if err := insertAttachments(ctx, tx, c.TenantID, msg.ID, allAttachments); err != nil {
+		return nil, err
+	}
+	if needsIngest {
+		if err := MediaIngestTopic.Publish(ctx, tx, MediaIngestJob{
+			TenantID: c.TenantID, ConversationID: c.ID, ItemID: msg.ID,
+		}); err != nil {
+			return nil, errors.Wrap(err, "publish media ingest job")
+		}
+	}
+	if err := resumeWaitingTickets(ctx, tx, a.down, c.TenantID, c, ticketID, at); err != nil {
+		return nil, err
+	}
+	dtos, err := toItemDTOs(ctx, tx, a.down.Media, []Item{*msg})
+	if err != nil {
+		return nil, err
+	}
+	return &Received{ConversationID: c.ID, Item: dtos[0], Created: created, Reopened: opened == "conversation.reopened"}, nil
+}
+
+// previous 返回之前已经写入的同一条消息（按渠道和外部编号）；没有时返回 nil。
 func (a *Receive) previous(ctx context.Context, sub identity.Subject, p ReceiveParams) (*Received, error) {
 	if p.ExternalID == "" {
 		return nil, nil
@@ -242,126 +350,192 @@ func (a *Receive) previous(ctx context.Context, sub identity.Subject, p ReceiveP
 	return &Received{ConversationID: it.ConversationID, Item: dtos[0], Duplicate: true}, nil
 }
 
-// conversationFor 在事务 tx 中为联系人 person 找到消息要归入的服务型会话并加行锁，没有可用会话时新建：
-//   - 已登录用户（contact.User）跨所有渠道查找该联系人在本工作区最近一条服务型会话；
-//   - 访客线索（contact.Lead）按本渠道查找最近一条服务型会话；
-//   - 若存在进行中/稍后处理的会话直接复用；若最近会话已关闭且在工作区重开窗口（reopen_window_hours）内则重开；
-//   - 超出重开窗口或尚无会话时新建一条服务型会话。
-//
-// 会话原来是已关闭或稍后处理时，opened 返回要追加的系统事件名称（conversation.reopened 或 conversation.unsnoozed）。
-// 若新建会话命中工作区级默认成员指派，defaultMemberID 返回该成员 ID。
-func (a *Receive) conversationFor(ctx context.Context, tx bun.IDB, ch *channel.Channel, person *contact.Contact, at time.Time) (c *Conversation, created bool, opened string, defaultMemberID string, err error) {
+// conversationForContact 在事务 tx 中为联系人 person 找到当前服务对象域下要归入的服务型会话并加行锁。
+// 已认证用户（contact.User）与内部联系人（contact.Internal）在同服务域内跨渠道合并；访客线索（contact.Lead）按本渠道归入。
+func (a *Receive) conversationForContact(ctx context.Context, tx bun.IDB, ch *channel.Channel, person *contact.Contact, at time.Time) (c *Conversation, created bool, opened string, defaultMemberID string, err error) {
+	aud := ch.EffectiveAudience()
 	c = new(Conversation)
-	q := tx.NewSelect().Model(c).Where("tenant_id = ? AND kind = ? AND contact_id = ?", ch.TenantID, Service, person.ID)
-	if person.Kind != contact.User {
+	q := tx.NewSelect().Model(c).
+		Where("tenant_id = ? AND kind = ? AND audience = ? AND contact_id = ?", ch.TenantID, Service, aud, person.ID)
+	if person.Kind == contact.Lead {
 		q = q.Where("channel_id = ?", ch.ID)
 	}
 	err = q.OrderExpr("last_message_at DESC, id DESC").Limit(1).For("UPDATE").Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
 		c = nil
 	} else if err != nil {
-		return nil, false, "", "", errors.Wrap(err, "load latest conversation")
+		return nil, false, "", "", errors.Wrap(err, "load latest contact conversation")
 	}
-	if c != nil && c.Status == Closed {
-		var hours int
-		if err := tx.NewSelect().Table("tenants").Column("reopen_window_hours").Where("id = ?", ch.TenantID).Scan(ctx, &hours); err != nil {
-			return nil, false, "", "", errors.Wrap(err, "load tenant reopen window")
-		}
-		window := time.Duration(hours) * time.Hour
-		if window <= 0 || c.ClosedAt == nil || at.Sub(*c.ClosedAt) > window {
-			c = nil
-		}
+	c, err = applyReopenWindow(ctx, tx, ch.TenantID, c, at)
+	if err != nil {
+		return nil, false, "", "", err
 	}
 	if c == nil {
-		c, defaultMemberID, err = start(ctx, tx, ch, person, at)
+		c, defaultMemberID, err = startContactConversation(ctx, tx, ch, person, at)
 		return c, err == nil, "", defaultMemberID, err
 	}
-	switch c.Status {
-	case Closed:
-		return c, false, "conversation.reopened", "", nil
-	case Snoozed:
-		return c, false, "conversation.unsnoozed", "", nil
-	}
-	return c, false, "", "", nil
+	return c, false, reopenEventName(c.Status), "", nil
 }
 
-// start 在事务 tx 中为联系人 person 在渠道 ch 上新建一个打开的服务型会话，联系人是参与者。
-// 默认归属优先级：渠道单独配置的未停用默认团队收件箱 > 工作区默认指派（团队收件箱或指定成员） > 未指派。
-func start(ctx context.Context, tx bun.IDB, ch *channel.Channel, person *contact.Contact, at time.Time) (*Conversation, string, error) {
-	teamID := ch.TeamID
-	if teamID != nil {
-		active, err := tx.NewSelect().Table("teams").
-			Where("id = ? AND tenant_id = ? AND disabled_at IS NULL", *teamID, ch.TenantID).Exists(ctx)
-		if err != nil {
-			return nil, "", errors.Wrap(err, "check default team")
+// conversationForGroup 在事务 tx 中为外部群 group 找到当前服务型会话并加行锁，超出重开窗口或尚无会话时新建。
+func (a *Receive) conversationForGroup(ctx context.Context, tx bun.IDB, ch *channel.Channel, group *extgroup.Group, at time.Time) (c *Conversation, created bool, opened string, defaultMemberID string, err error) {
+	c = new(Conversation)
+	err = tx.NewSelect().Model(c).
+		Where("tenant_id = ? AND kind = ? AND external_group_id = ?", ch.TenantID, Service, group.ID).
+		OrderExpr("last_message_at DESC, id DESC").Limit(1).For("UPDATE").Scan(ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		c = nil
+	} else if err != nil {
+		return nil, false, "", "", errors.Wrap(err, "load latest external group conversation")
+	}
+	c, err = applyReopenWindow(ctx, tx, ch.TenantID, c, at)
+	if err != nil {
+		return nil, false, "", "", err
+	}
+	if c == nil {
+		c, defaultMemberID, err = startGroupConversation(ctx, tx, ch, group, at)
+		return c, err == nil, "", defaultMemberID, err
+	}
+	return c, false, reopenEventName(c.Status), "", nil
+}
+
+func applyReopenWindow(ctx context.Context, tx bun.IDB, tenantID string, c *Conversation, at time.Time) (*Conversation, error) {
+	if c == nil || c.Status != Closed {
+		return c, nil
+	}
+	var hours int
+	if err := tx.NewSelect().Table("tenants").Column("reopen_window_hours").Where("id = ?", tenantID).Scan(ctx, &hours); err != nil {
+		return nil, errors.Wrap(err, "load tenant reopen window")
+	}
+	window := time.Duration(hours) * time.Hour
+	if window <= 0 || c.ClosedAt == nil || at.Sub(*c.ClosedAt) > window {
+		return nil, nil
+	}
+	return c, nil
+}
+
+func reopenEventName(status Status) string {
+	switch status {
+	case Closed:
+		return "conversation.reopened"
+	case Snoozed:
+		return "conversation.unsnoozed"
+	default:
+		return ""
+	}
+}
+
+// resolveDefaultRouting 解析新建服务型会话的默认归属：优先团队（群级 > 渠道级）> 工作区默认指派（团队或成员）> 未指派。
+func resolveDefaultRouting(ctx context.Context, tx bun.IDB, tenantID string, preferredTeams ...*string) (teamID *string, defaultMemberID string, err error) {
+	for _, cand := range preferredTeams {
+		if cand == nil || *cand == "" {
+			continue
 		}
-		if !active {
-			teamID = nil
+		active, err := tx.NewSelect().Table("teams").
+			Where("id = ? AND tenant_id = ? AND disabled_at IS NULL", *cand, tenantID).Exists(ctx)
+		if err != nil {
+			return nil, "", errors.Wrap(err, "check preferred default team")
+		}
+		if active {
+			id := *cand
+			return &id, "", nil
 		}
 	}
-	var defaultMemberID string
-	if teamID == nil {
-		cfg, err := NewAssignmentSettingsGroup(tx).Tenant(ch.TenantID).Get(ctx)
-		if err != nil {
-			return nil, "", errors.Wrap(err, "load default assignment settings")
+	cfg, err := NewAssignmentSettingsGroup(tx).Tenant(tenantID).Get(ctx)
+	if err != nil {
+		return nil, "", errors.Wrap(err, "load default assignment settings")
+	}
+	switch cfg.DefaultTarget {
+	case DefaultTeam:
+		if cfg.DefaultTeamID != "" {
+			active, err := tx.NewSelect().Table("teams").
+				Where("id = ? AND tenant_id = ? AND disabled_at IS NULL", cfg.DefaultTeamID, tenantID).Exists(ctx)
+			if err != nil {
+				return nil, "", errors.Wrap(err, "check workspace default team")
+			}
+			if active {
+				id := cfg.DefaultTeamID
+				return &id, "", nil
+			}
 		}
-		switch cfg.DefaultTarget {
-		case DefaultTeam:
-			if cfg.DefaultTeamID != "" {
-				active, err := tx.NewSelect().Table("teams").
-					Where("id = ? AND tenant_id = ? AND disabled_at IS NULL", cfg.DefaultTeamID, ch.TenantID).Exists(ctx)
+	case DefaultMember:
+		if cfg.DefaultMemberID != "" {
+			ref := identity.Ref{Type: member.Type, ID: cfg.DefaultMemberID}
+			if _, err := member.RoleOf(ctx, authz.NewStore(tx, auth.Catalog), ref, tenantID); err == nil {
+				active, err := tx.NewSelect().Table("members").
+					Where("id = ? AND disabled_at IS NULL", cfg.DefaultMemberID).Exists(ctx)
 				if err != nil {
-					return nil, "", errors.Wrap(err, "check workspace default team")
+					return nil, "", errors.Wrap(err, "check workspace default member")
 				}
 				if active {
-					id := cfg.DefaultTeamID
-					teamID = &id
+					return nil, cfg.DefaultMemberID, nil
 				}
-			}
-		case DefaultMember:
-			if cfg.DefaultMemberID != "" {
-				ref := identity.Ref{Type: member.Type, ID: cfg.DefaultMemberID}
-				if _, err := member.RoleOf(ctx, authz.NewStore(tx, auth.Catalog), ref, ch.TenantID); err == nil {
-					active, err := tx.NewSelect().Table("members").
-						Where("id = ? AND disabled_at IS NULL", cfg.DefaultMemberID).Exists(ctx)
-					if err != nil {
-						return nil, "", errors.Wrap(err, "check workspace default member")
-					}
-					if active {
-						defaultMemberID = cfg.DefaultMemberID
-					}
-				} else if !errors.Is(err, member.ErrNotFound) {
-					return nil, "", err
-				}
+			} else if !errors.Is(err, member.ErrNotFound) {
+				return nil, "", err
 			}
 		}
 	}
-	chID := ch.ID
-	replyChID := ch.ID
+	return nil, "", nil
+}
+
+func startContactConversation(ctx context.Context, tx bun.IDB, ch *channel.Channel, person *contact.Contact, at time.Time) (*Conversation, string, error) {
+	teamID, defaultMemberID, err := resolveDefaultRouting(ctx, tx, ch.TenantID, ch.TeamID)
+	if err != nil {
+		return nil, "", err
+	}
+	chID, replyChID := ch.ID, ch.ID
 	c := &Conversation{
-		ID: newID(), TenantID: ch.TenantID, Kind: Service, ChannelID: &chID, ReplyChannelID: &replyChID, ContactID: &person.ID, TeamID: teamID,
+		ID: newID(), TenantID: ch.TenantID, Kind: Service, Audience: ch.EffectiveAudience(),
+		ChannelID: &chID, ReplyChannelID: &replyChID, ContactID: &person.ID, TeamID: teamID,
 		Status: Open, Priority: Normal, Language: person.Language, OpenedAt: at, LastMessageAt: at, Attributes: map[string]any{},
 	}
 	if _, err := tx.NewInsert().Model(c).Exec(ctx); err != nil {
-		return nil, "", errors.Wrap(err, "insert conversation")
+		return nil, "", errors.Wrap(err, "insert contact conversation")
 	}
 	return c, defaultMemberID, join(ctx, tx, c.ID, ContactActor, person.ID)
 }
 
+func startGroupConversation(ctx context.Context, tx bun.IDB, ch *channel.Channel, group *extgroup.Group, at time.Time) (*Conversation, string, error) {
+	teamID, defaultMemberID, err := resolveDefaultRouting(ctx, tx, ch.TenantID, group.TeamID, ch.TeamID)
+	if err != nil {
+		return nil, "", err
+	}
+	chID, replyChID := ch.ID, ch.ID
+	c := &Conversation{
+		ID: newID(), TenantID: ch.TenantID, Kind: Service, Audience: ch.EffectiveAudience(),
+		ChannelID: &chID, ReplyChannelID: &replyChID, ExternalGroupID: &group.ID, TeamID: teamID,
+		Status: Open, Priority: Normal, Language: group.Language, OpenedAt: at, LastMessageAt: at, Attributes: map[string]any{},
+	}
+	if _, err := tx.NewInsert().Model(c).Exec(ctx); err != nil {
+		return nil, "", errors.Wrap(err, "insert external group conversation")
+	}
+	return c, defaultMemberID, nil
+}
+
 // receiveExternalChat 在事务 tx 中将个人商务渠道 ch 收到（或由归属成员在外部客户端同步发出）的消息写入外部商务聊天：
-//   - 1:1 外部商务聊天（IsGroup=false）：解析对方联系人，按 (tenant_id, channel_id, external_chat_id) 复用或创建外部单聊，
-//     归属成员与联系人为参与者；
-//   - 外部群聊（IsGroup=true，如 Telegram 群）：按 (tenant_id, channel_id, external_chat_id) 复用或创建外部群聊并同步群标题，
-//     归属成员为参与者，每条群消息按发言人的渠道外部编号解析为对应联系人以便准确展示发言人姓名。
-//
-// 当 FromOwner 为 true 时，消息发起者记为渠道归属成员且不写入 Delivery（已在外部客户端发出），并自动推进归属成员的已读位置。
+//   - 1:1 外部商务聊天（IsGroup=false）：解析对方联系人，网页商务链接按 (tenant_id, channel_id, contact_id) 复用或创建，
+//     带 ExternalChatID 的个人号按 (tenant_id, channel_id, external_chat_id) 复用或创建；
+//   - 外部商务群聊（IsGroup=true，如 Telegram 个人号群）：按 (tenant_id, channel_id, external_chat_id) 复用或创建，
+//     群内发言人记为 external_users（actor_type=external_user），不再写入客户联系人表。
 func (a *Receive) receiveExternalChat(ctx context.Context, tx database.Tx, sub identity.Subject, ch *channel.Channel, p ReceiveParams) (*Received, error) {
 	ownerID := *ch.OwnerMemberID
 	bp := channel.BusinessPolicyOf(ch.Settings)
 	var person *contact.Contact
 	var contactCreated bool
+	var groupSender *extgroup.User
 	var err error
-	if !p.FromOwner || (!p.IsGroup && strings.TrimSpace(p.From) != "") {
+	if p.IsGroup {
+		if !p.FromOwner {
+			senderExtID := strings.TrimSpace(p.From)
+			if senderExtID == "" {
+				senderExtID = strings.TrimSpace(p.ExternalChatID) + ":unknown"
+			}
+			groupSender, err = extgroup.EnsureUser(ctx, tx, ch.TenantID, ch.ID, senderExtID, p.FromName, p.FromAvatarURL)
+			if err != nil {
+				return nil, err
+			}
+		}
+	} else if !p.FromOwner || strings.TrimSpace(p.From) != "" {
 		person, contactCreated, err = contact.ResolveIdentity(ctx, tx, sub.Tenant, ch.ID, p.From, contact.Profile{Name: p.FromName})
 		if err != nil {
 			return nil, err
@@ -370,34 +544,55 @@ func (a *Receive) receiveExternalChat(ctx context.Context, tx database.Tx, sub i
 			return nil, ErrForbidden.New()
 		}
 	}
+
 	confirmed, err := confirmAttachmentInputs(ctx, tx, a.down.Media.Files, sub, p.Attachments)
 	if err != nil {
 		return nil, err
 	}
 	incomingAtts, needsIngest := buildIncomingAttachments(ch.ID, p.IncomingAttachments)
 	allAttachments := append(confirmed, incomingAtts...)
-
-	at := now()
-	if p.CreatedAt != nil && !p.CreatedAt.IsZero() {
-		at = p.CreatedAt.UTC().Truncate(time.Microsecond)
-	}
+	at := inboundTime(p.CreatedAt)
 	extChatID := strings.TrimSpace(p.ExternalChatID)
-	if extChatID == "" {
+
+	var c *Conversation
+	var cm *ChatMeta
+	created := false
+
+	// 查找已存在的外部商务聊天：带真实 external_chat_id 时按 chats 索引查，网页商务单聊按 conversations(channel_id, contact_id) 查
+	if extChatID != "" {
+		cm = new(ChatMeta)
+		err = tx.NewSelect().Model(cm).
+			Where("tenant_id = ? AND channel_id = ? AND external_chat_id = ?", ch.TenantID, ch.ID, extChatID).
+			For("UPDATE").Scan(ctx)
+		if errors.Is(err, sql.ErrNoRows) {
+			cm = nil
+			err = nil
+		} else if err != nil {
+			return nil, errors.Wrap(err, "load external chat meta")
+		}
+	} else {
 		if person == nil {
 			return nil, errors.New("conversation: external_chat_id or contact is required for external chat")
 		}
-		extChatID = "contact:" + person.ID
+		c = new(Conversation)
+		err = tx.NewSelect().Model(c).
+			Where("tenant_id = ? AND kind = ? AND channel_id = ? AND contact_id = ?", ch.TenantID, Chat, ch.ID, person.ID).
+			For("UPDATE").Scan(ctx)
+		if errors.Is(err, sql.ErrNoRows) {
+			c = nil
+			err = nil
+		} else if err != nil {
+			return nil, errors.Wrap(err, "load direct external chat conversation")
+		}
+		if c != nil {
+			cm = new(ChatMeta)
+			if err := tx.NewSelect().Model(cm).Where("conversation_id = ? AND tenant_id = ?", c.ID, ch.TenantID).For("UPDATE").Scan(ctx); err != nil {
+				return nil, errors.Wrap(err, "load direct external chat meta")
+			}
+		}
 	}
 
-	// 按 (tenant_id, channel_id, external_chat_id) 查找或创建外部商务聊天
-	cm := new(ChatMeta)
-	err = tx.NewSelect().Model(cm).
-		Where("tenant_id = ? AND channel_id = ? AND external_chat_id = ?", ch.TenantID, ch.ID, extChatID).
-		For("UPDATE").Scan(ctx)
-	var c *Conversation
-	created := false
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
+	if cm == nil {
 		mode := ChatDirect
 		title := ""
 		var contactID *string
@@ -410,12 +605,12 @@ func (a *Receive) receiveExternalChat(ctx context.Context, tx database.Tx, sub i
 			contactID = &cid
 			lang = person.Language
 		}
-		chID := ch.ID
-		replyChID := ch.ID
+		chID, replyChID := ch.ID, ch.ID
 		c = &Conversation{
 			ID:             newID(),
 			TenantID:       ch.TenantID,
 			Kind:           Chat,
+			Audience:       ch.EffectiveAudience(),
 			ChannelID:      &chID,
 			ReplyChannelID: &replyChID,
 			ContactID:      contactID,
@@ -440,7 +635,7 @@ func (a *Receive) receiveExternalChat(ctx context.Context, tx database.Tx, sub i
 			CreatedBy:      &ownerID,
 		}
 		if _, err := tx.NewInsert().Model(cm).Exec(ctx); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "insert external chat meta")
 		}
 		if err := join(ctx, tx, c.ID, MemberActor, ownerID); err != nil {
 			return nil, err
@@ -450,31 +645,27 @@ func (a *Receive) receiveExternalChat(ctx context.Context, tx database.Tx, sub i
 				return nil, err
 			}
 		}
-		// 渠道策略：新建外部商务聊天时自动拉入默认协作成员（已移除工作区的成员自动跳过）
+		// 应用个人商务渠道策略：自动拉入默认协作成员
 		if len(bp.DefaultCollaboratorIDs) > 0 {
 			roles := authz.NewStore(tx, auth.Catalog)
 			for _, mid := range bp.DefaultCollaboratorIDs {
 				if mid == "" || mid == ownerID {
 					continue
 				}
-				if _, rerr := member.RoleOf(ctx, roles, identity.Ref{Type: member.Type, ID: mid}, ch.TenantID); rerr != nil {
-					if errors.Is(rerr, member.ErrNotFound) {
-						continue
+				if _, err := member.RoleOf(ctx, roles, identity.Ref{Type: member.Type, ID: mid}, ch.TenantID); err == nil {
+					if err := join(ctx, tx, c.ID, MemberActor, mid); err != nil {
+						return nil, err
 					}
-					return nil, rerr
-				}
-				if err := join(ctx, tx, c.ID, MemberActor, mid); err != nil {
-					return nil, err
 				}
 			}
 		}
 		created = true
-	case err != nil:
-		return nil, errors.Wrap(err, "load external chat meta")
-	default:
-		c, err = find(ctx, tx, ch.TenantID, cm.ConversationID, true)
-		if err != nil {
-			return nil, err
+	} else {
+		if c == nil {
+			c, err = find(ctx, tx, ch.TenantID, cm.ConversationID, true)
+			if err != nil {
+				return nil, err
+			}
 		}
 		if err := join(ctx, tx, c.ID, MemberActor, ownerID); err != nil {
 			return nil, err
@@ -491,10 +682,14 @@ func (a *Receive) receiveExternalChat(ctx context.Context, tx database.Tx, sub i
 
 	actorType := ContactActor
 	actorID := ""
-	if p.FromOwner {
+	switch {
+	case p.FromOwner:
 		actorType = MemberActor
 		actorID = ownerID
-	} else if person != nil {
+	case groupSender != nil:
+		actorType = ExternalUserActor
+		actorID = groupSender.ID
+	case person != nil:
 		actorID = person.ID
 	}
 	chID := ch.ID
@@ -505,6 +700,7 @@ func (a *Receive) receiveExternalChat(ctx context.Context, tx database.Tx, sub i
 		Visibility: Everyone,
 		ChannelID:  &chID,
 		Content:    Content{Text: p.Text},
+		Derived:    inboundDerived(p.ReplyContext),
 	}
 	if p.CreatedAt != nil && !p.CreatedAt.IsZero() {
 		msg.CreatedAt = at
@@ -517,7 +713,6 @@ func (a *Receive) receiveExternalChat(ctx context.Context, tx database.Tx, sub i
 		if err := contact.TouchSeen(ctx, tx, sub.Tenant, person.ID, at); err != nil {
 			return nil, err
 		}
-		// 渠道策略：首次建立联系人或首次经此商务渠道建聊时自动打上默认标签（已删除标签自动跳过）
 		if (contactCreated || created) && len(bp.DefaultTagIDs) > 0 {
 			for _, tagID := range bp.DefaultTagIDs {
 				if tagID == "" {
@@ -558,4 +753,48 @@ func (a *Receive) receiveExternalChat(ctx context.Context, tx database.Tx, sub i
 		return nil, err
 	}
 	return &Received{ConversationID: c.ID, Item: dtos[0], Created: created}, nil
+}
+
+func inboundTime(t *time.Time) time.Time {
+	if t != nil && !t.IsZero() {
+		return t.UTC().Truncate(time.Microsecond)
+	}
+	return now()
+}
+
+func inboundDerived(replyContext map[string]any) map[string]any {
+	if len(replyContext) == 0 {
+		return nil
+	}
+	return map[string]any{"reply_context": replyContext}
+}
+
+// resolveReplyToItemID 根据外部引用消息编号，在同会话中查找对应的本地 timeline_items.id（兼容入站与出站消息）。
+func resolveReplyToItemID(ctx context.Context, tx bun.IDB, tenantID, conversationID, channelID, extID string) (*string, error) {
+	extID = strings.TrimSpace(extID)
+	if extID == "" {
+		return nil, nil
+	}
+	var itemID string
+	err := tx.NewSelect().Table("timeline_items").Column("id").
+		Where("tenant_id = ? AND conversation_id = ? AND channel_id = ? AND external_id = ?", tenantID, conversationID, channelID, extID).
+		Limit(1).Scan(ctx, &itemID)
+	if err == nil && itemID != "" {
+		return &itemID, nil
+	}
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, errors.Wrap(err, "resolve inbound reply_to item by timeline external_id")
+	}
+	err = tx.NewSelect().TableExpr("message_deliveries AS d").
+		Join("JOIN timeline_items AS ti ON ti.id = d.item_id").
+		ColumnExpr("ti.id").
+		Where("ti.tenant_id = ? AND ti.conversation_id = ? AND ti.channel_id = ? AND d.external_id = ?", tenantID, conversationID, channelID, extID).
+		Limit(1).Scan(ctx, &itemID)
+	if err == nil && itemID != "" {
+		return &itemID, nil
+	}
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, errors.Wrap(err, "resolve inbound reply_to item by delivery external_id")
+	}
+	return nil, nil
 }

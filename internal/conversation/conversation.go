@@ -165,14 +165,21 @@ func (Visibility) Schema(r huma.Registry) *huma.Schema { return contract.EnumSch
 type ActorType string
 
 const (
-	ContactActor ActorType = "contact" // 联系人
-	MemberActor  ActorType = "member"  // 成员
-	BotActor     ActorType = "bot"     // 机器人 / AI Agent
-	SystemActor  ActorType = "system"  // 系统
+	ContactActor      ActorType = "contact"       // 1:1 单聊联系人（外部客户、访客线索或内部联系人）
+	ExternalUserActor ActorType = "external_user" // 外部群发言人（仅记录姓名与平台账号，不写入联系人表）
+	MemberActor       ActorType = "member"        // 工作区成员
+	BotActor          ActorType = "bot"           // 机器人 / AI Agent
+	SystemActor       ActorType = "system"        // 系统
 )
 
+// IsExternal 报告该发起者是否属于对端入站人员（1:1 联系人或外部群发言人）。
+func (a ActorType) IsExternal() bool {
+	return a == ContactActor || a == ExternalUserActor
+}
+
 // ActorTypes 是参与者的全部类型，显示文字是翻译文件中 conversation.actor_type.<类型> 的消息。
-var ActorTypes = enum.New("conversation.actor_type", enum.Item(ContactActor), enum.Item(MemberActor), enum.Item(BotActor), enum.Item(SystemActor))
+var ActorTypes = enum.New("conversation.actor_type",
+	enum.Item(ContactActor), enum.Item(ExternalUserActor), enum.Item(MemberActor), enum.Item(BotActor), enum.Item(SystemActor))
 
 // Schema 让 OpenAPI 中的 ActorType 只接受上面的取值，并带有显示文字。
 func (ActorType) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, ActorTypes) }
@@ -201,30 +208,32 @@ type Conversation struct {
 
 	ID string `bun:"id,pk"`
 	database.Timestamps
-	TenantID          string         `bun:"tenant_id,notnull"`
-	Kind              Kind           `bun:"kind,notnull"`
-	ChannelID         *string        `bun:"channel_id"`       // 来源渠道 ID（会话最初发起的渠道）
-	ReplyChannelID    *string        `bun:"reply_channel_id"` // 当前默认回复渠道 ID（随对方最新消息或坐席显式切换更新）
-	ContactID         *string        `bun:"contact_id"`
-	TeamID            *string        `bun:"team_id"`                 // 团队收件箱；为空表示未指派到团队
-	AssigneeType      ActorType      `bun:"assignee_type,notnull"`   // 负责人的类型；为空表示没有负责人
-	AssigneeID        string         `bun:"assignee_id,notnull"`     // 负责人的编号
-	Status            Status         `bun:"status,notnull"`          // 服务型会话的状态
-	SnoozedUntil      *time.Time     `bun:"snoozed_until"`           // 稍后处理的到期时间
-	Priority          Priority       `bun:"priority,notnull"`        // 优先级
-	Language          string         `bun:"language,notnull"`        // 客户的语言，见 CustomerLanguage
-	WaitingSince      *time.Time     `bun:"waiting_since"`           // 对方的消息开始等待回复的时间；已回复时为空
-	OpenedAt          time.Time      `bun:"opened_at,notnull"`       // 当前这一轮（新建或重新打开）的开始时间
-	FirstReplyAt      *time.Time     `bun:"first_reply_at"`          // 当前这一轮第一次回复的时间；重开后清空
-	ClosedAt          *time.Time     `bun:"closed_at"`               // 最近一次关闭的时间
-	LastMessageAt     time.Time      `bun:"last_message_at,notnull"` // 最近一条消息的时间
-	LastSeq           int64          `bun:"last_seq,notnull"`        // 时间线中最新一项的序号
-	Attributes        map[string]any `bun:"attributes,type:jsonb,notnull"`
-	Rating            *int           `bun:"rating"`                 // 客户最近一次评价的星数，1 到 5；没有评价过时为空
-	RatingComment     string         `bun:"rating_comment,notnull"` // 评价时附的一句意见
-	RatedAt           *time.Time     `bun:"rated_at"`               // 最近一次评价的时间
-	RatingRequestedAt *time.Time     `bun:"rating_requested_at"`    // 最近一次关闭后向客户发出评价邀请的时间
-	MentionedAt       *time.Time     `bun:"mentioned_at,scanonly"`  // 只在“@我”的列表中读出：最近一次被 @ 的时间
+	TenantID          string           `bun:"tenant_id,notnull"`
+	Kind              Kind             `bun:"kind,notnull"`
+	Audience          channel.Audience `bun:"audience,notnull,default:'customer'"` // 服务对象域：customer、partner 或 internal
+	ChannelID         *string          `bun:"channel_id"`                          // 来源渠道 ID（会话最初发起的渠道）
+	ReplyChannelID    *string          `bun:"reply_channel_id"`                    // 当前默认回复渠道 ID（随对方最新消息或坐席显式切换更新）
+	ContactID         *string          `bun:"contact_id"`                          // 单聊对端联系人 ID（与 ExternalGroupID 互斥）
+	ExternalGroupID   *string          `bun:"external_group_id"`                   // 群内 @ 机器人对端外部群 ID（与 ContactID 互斥）
+	TeamID            *string          `bun:"team_id"`                             // 团队收件箱；为空表示未指派到团队
+	AssigneeType      ActorType        `bun:"assignee_type,notnull"`               // 负责人的类型；为空表示没有负责人
+	AssigneeID        string           `bun:"assignee_id,notnull"`                 // 负责人的编号
+	Status            Status           `bun:"status,notnull"`                      // 服务型会话的状态
+	SnoozedUntil      *time.Time       `bun:"snoozed_until"`                       // 稍后处理的到期时间
+	Priority          Priority         `bun:"priority,notnull"`                    // 优先级
+	Language          string           `bun:"language,notnull"`                    // 客户的语言，见 CustomerLanguage
+	WaitingSince      *time.Time       `bun:"waiting_since"`                       // 对方的消息开始等待回复的时间；已回复时为空
+	OpenedAt          time.Time        `bun:"opened_at,notnull"`                   // 当前这一轮（新建或重新打开）的开始时间
+	FirstReplyAt      *time.Time       `bun:"first_reply_at"`                      // 当前这一轮第一次回复的时间；重开后清空
+	ClosedAt          *time.Time       `bun:"closed_at"`                           // 最近一次关闭的时间
+	LastMessageAt     time.Time        `bun:"last_message_at,notnull"`             // 最近一条消息的时间
+	LastSeq           int64            `bun:"last_seq,notnull"`                    // 时间线中最新一项的序号
+	Attributes        map[string]any   `bun:"attributes,type:jsonb,notnull"`
+	Rating            *int             `bun:"rating"`                 // 客户最近一次评价的星数，1 到 5；没有评价过时为空
+	RatingComment     string           `bun:"rating_comment,notnull"` // 评价时附的一句意见
+	RatedAt           *time.Time       `bun:"rated_at"`               // 最近一次评价的时间
+	RatingRequestedAt *time.Time       `bun:"rating_requested_at"`    // 最近一次关闭后向客户发出评价邀请的时间
+	MentionedAt       *time.Time       `bun:"mentioned_at,scanonly"`  // 只在“@我”的列表中读出：最近一次被 @ 的时间
 }
 
 // DeliveryChannelID 返回会话 c 当前默认的出站回复渠道 ID：优先使用 ReplyChannelID，为空时回退到来源渠道 ChannelID。
@@ -287,13 +296,14 @@ type Prompt struct {
 
 // Content 是时间线中一项的内容：消息和备注的文字，或者系统事件的名称和数据。
 type Content struct {
-	Text     string         `json:"text,omitempty" doc:"文字；翻译后发出的回复是发给对方的译文"`
-	Original string         `json:"original,omitempty" doc:"成员写的原文；只有翻译后发出的回复有"`
-	Language string         `json:"language,omitempty" doc:"text 的语言（BCP 47），只有翻译后发出的回复有"`
-	Mentions []string       `json:"mentions,omitempty" doc:"内部备注中 @ 到的成员 ID"`
-	Event    string         `json:"event,omitempty" doc:"系统事件的名称，例如 conversation.reopened"`
-	Data     map[string]any `json:"data,omitempty" doc:"系统事件的数据"`
-	Prompt   *Prompt        `json:"prompt,omitempty" doc:"系统发出的结构化提示或交互卡片"`
+	Text             string                    `json:"text,omitempty" doc:"文字；翻译后发出的回复是发给对方的译文"`
+	Original         string                    `json:"original,omitempty" doc:"成员写的原文；只有翻译后发出的回复有"`
+	Language         string                    `json:"language,omitempty" doc:"text 的语言（BCP 47），只有翻译后发出的回复有"`
+	Mentions         []string                  `json:"mentions,omitempty" doc:"内部备注或内部聊天中 @ 到的成员 ID"`
+	ExternalMentions []channel.ExternalMention `json:"external_mentions,omitempty" doc:"外部群回复中 @ 到的外部发言人"`
+	Event            string                    `json:"event,omitempty" doc:"系统事件的名称，例如 conversation.reopened"`
+	Data             map[string]any            `json:"data,omitempty" doc:"系统事件的数据"`
+	Prompt           *Prompt                   `json:"prompt,omitempty" doc:"系统发出的结构化提示或交互卡片"`
 }
 
 // Item 是时间线中的一项，写入后保持原样。
@@ -311,9 +321,10 @@ type Item struct {
 	ActorID        string         `bun:"actor_id,notnull"`
 	Visibility     Visibility     `bun:"visibility,notnull"`
 	Content        Content        `bun:"content,type:jsonb,notnull"`
-	Derived        map[string]any `bun:"derived,type:jsonb,notnull"` // 派生内容，例如按语言的译文，由下游补上
+	Derived        map[string]any `bun:"derived,type:jsonb,notnull"` // 派生内容，例如按语言的译文、短期回复协议上下文
 	ChannelID      *string        `bun:"channel_id"`                 // 来自或发往的渠道
 	ExternalID     *string        `bun:"external_id"`                // 渠道中的消息编号，用来去重
+	ReplyToItemID  *string        `bun:"reply_to_item_id"`           // 可选：引用回复的同会话时间线项 ID
 }
 
 // Delivery 是一条消息的送达状态。
@@ -424,6 +435,16 @@ type Downstream struct {
 	// ContactPush 在提交后把会话的变化推送给对方（联系人）打开着的聊天窗口，参数是会话的渠道和联系人；为 nil 时不推送。
 	// 会话的状态变了，或者联系人自己发了消息（他的其他页面随之更新）时推送；成员的回复由连接器发出时推送。
 	ContactPush func(ctx context.Context, channelID, contactID string, ev push.Event) error
+	// Registry 可选：供内核读取连接器能力（如哪些渠道使用浏览器实时频道），未设置时默认回退到内置实时渠道集。
+	Registry channel.Registry
+}
+
+// realtimeHubKinds 返回使用浏览器实时频道（TransportRealtimeHub）的渠道种类集合，解耦会话内核与具体渠道实现。
+func realtimeHubKinds(down Downstream) []channel.Kind {
+	if len(down.Registry) > 0 {
+		return down.Registry.KindsWithTransport(channel.TransportRealtimeHub)
+	}
+	return []channel.Kind{channel.Widget}
 }
 
 // authorize 是会话动作统一的权限检查：成员按权限检查；系统主体（连接器、命令、种子数据）可以执行全部会话动作。
@@ -571,28 +592,32 @@ func ticketContactPushTargets(ctx context.Context, db bun.IDB, down Downstream, 
 	if !relevant {
 		return nil, nil
 	}
-	// 查出关联联系人可推送的启用网页聊天插件频道：
-	// 已登录用户推送到其全部已启用 widget 渠道，访客线索推送到其服务型会话所在的启用 widget 渠道。
+	// 查出关联联系人可推送的启用实时网页渠道（由连接器 TransportRealtimeHub 决定，不在内核硬编码具体渠道种类）：
+	// 已登录用户推送到其全部已启用实时网页渠道，访客线索推送到其服务型会话所在的实时网页渠道。
+	rtKinds := realtimeHubKinds(down)
+	if len(rtKinds) == 0 {
+		return nil, nil
+	}
 	var targets []contactPushTarget
 	err := db.NewRaw(`
 		SELECT DISTINCT ci.channel_id, tc.contact_id
-		FROM ticket_contacts tc
+		FROM ticket_targets tc
 		JOIN contacts ct ON ct.id = tc.contact_id AND ct.tenant_id = tc.tenant_id
 		JOIN contact_identities ci ON ci.tenant_id = tc.tenant_id AND ci.contact_id = tc.contact_id
 		JOIN channels ch ON ch.id = ci.channel_id
-		WHERE tc.tenant_id = ? AND tc.ticket_id = ?
-			AND ct.kind = ? AND ch.kind = ? AND ch.enabled = true
+		WHERE tc.tenant_id = ? AND tc.ticket_id = ? AND tc.contact_id IS NOT NULL
+			AND ct.kind = ? AND ch.owner_member_id IS NULL AND ch.kind IN (?) AND ch.enabled = true
 		UNION
 		SELECT DISTINCT sc.channel_id, tc.contact_id
-		FROM ticket_contacts tc
+		FROM ticket_targets tc
 		JOIN contacts ct ON ct.id = tc.contact_id AND ct.tenant_id = tc.tenant_id
 		JOIN conversations sc ON sc.tenant_id = tc.tenant_id AND sc.kind = ? AND sc.contact_id = tc.contact_id
 		JOIN channels ch ON ch.id = sc.channel_id
-		WHERE tc.tenant_id = ? AND tc.ticket_id = ?
+		WHERE tc.tenant_id = ? AND tc.ticket_id = ? AND tc.contact_id IS NOT NULL
 			AND sc.channel_id IS NOT NULL
-			AND ct.kind <> ? AND ch.kind = ? AND ch.enabled = true`,
-		c.TenantID, c.ID, contact.User, channel.Widget,
-		Service, c.TenantID, c.ID, contact.User, channel.Widget,
+			AND ct.kind <> ? AND ch.owner_member_id IS NULL AND ch.kind IN (?) AND ch.enabled = true`,
+		c.TenantID, c.ID, contact.User, bun.In(rtKinds),
+		Service, c.TenantID, c.ID, contact.User, bun.In(rtKinds),
 	).Scan(ctx, &targets)
 	if err != nil {
 		return nil, errors.Wrap(err, "load ticket contact push targets")
@@ -674,12 +699,17 @@ func contactPushChannels(ctx context.Context, db bun.IDB, down Downstream, c *Co
 		}
 		return []string{*c.ChannelID}, nil
 	}
-	// 已登录用户：推送到该用户在工作区内已绑定的全部已启用网页聊天插件频道
+	// 已登录用户：推送到该用户在工作区内已绑定的全部已启用公共实时网页频道
+	rtKinds := realtimeHubKinds(down)
+	if len(rtKinds) == 0 {
+		return nil, nil
+	}
 	var widgetIDs []string
 	err := db.NewSelect().TableExpr("contact_identities AS ci").
 		ColumnExpr("DISTINCT ci.channel_id").
 		Join("JOIN channels AS ch ON ch.id = ci.channel_id").
-		Where("ci.tenant_id = ? AND ci.contact_id = ? AND ch.kind = ? AND ch.enabled = true", c.TenantID, *c.ContactID, channel.Widget).
+		Where("ci.tenant_id = ? AND ci.contact_id = ? AND ch.owner_member_id IS NULL AND ch.kind IN (?) AND ch.enabled = true",
+			c.TenantID, *c.ContactID, bun.In(rtKinds)).
 		Scan(ctx, &widgetIDs)
 	if err != nil {
 		return nil, errors.Wrap(err, "load contact widget channels for push")

@@ -16,11 +16,28 @@ var (
 	ErrMediaUnavailable = errorx.Define(errorx.NotFound, "channel.media_unavailable")
 )
 
-// Capabilities 是连接器的能力声明。
+// TransportMode 是渠道连接器的底层接入模式，由各连接器自行封装，核心业务层按 Capabilities 驱动而非按传输模式分支。
+type TransportMode string
+
+const (
+	TransportWebhook        TransportMode = "webhook"         // 第三方平台经 HTTP Webhook 回调推送（如 Telegram Bot）
+	TransportLongConnection TransportMode = "long_connection" // 主程序常驻后台长连接（如企微智能机器人 WS、Telegram 个人号 MTProto）
+	TransportRealtimeHub    TransportMode = "realtime_hub"    // 浏览器经应用内实时频道收发（如网页聊天插件、商务沟通链接）
+	TransportVirtual        TransportMode = "virtual"         // 进程内虚拟测试渠道
+)
+
+// Capabilities 是连接器的能力声明，用于驱动自动化、收件箱回复交互、实时推送和媒体处理。
 type Capabilities struct {
-	MessageTypes []string // 支持的消息类型，例如 text、image、video、audio、file
-	ReadReceipts bool     // 能不能报告对方已读
-	GroupChat    bool     // 是不是群聊类渠道
+	Transport         TransportMode // 底层传输方式
+	MessageTypes      []string      // 支持的消息类型，例如 text、image、video、audio、file
+	ReadReceipts      bool          // 是否支持报告对方已读回执
+	SupportsDirect    bool          // 是否支持 1:1 单聊
+	SupportsGroup     bool          // 是否支持群内 @ 机器人或外部群聊
+	SupportsMention   bool          // 出站消息是否支持 @ 外部群发言人
+	SupportsReplyTo   bool          // 出站消息是否支持引用回复指定消息
+	SupportsRating    bool          // 是否支持会话关闭后向客户展示评价邀请
+	SupportsLeadForm  bool          // 是否支持向访客线索展示留资引导
+	SupportsStreaming bool          // 是否支持流式消息更新（企微智能机器人及未来 AI 流式回复）
 }
 
 // Attachment 是发到外部渠道的一条消息附带的媒体附件。
@@ -40,16 +57,43 @@ type Attachment struct {
 	ThumbURL    string // 缩略图或视频封面地址
 }
 
+// ExternalMention 描述出站群聊回复中需要 @ 的一位外部发言人。
+type ExternalMention struct {
+	ExternalUserID string `json:"external_user_id,omitempty" doc:"系统内部 external_users.id（可选）"`
+	ExternalID     string `json:"external_id" doc:"第三方平台中的用户编号（如企微 userid、Telegram user_id）"`
+	Name           string `json:"name" doc:"发言人显示名称"`
+}
+
+// DeliveryTargetKind 是出站投递目标的种类。
+type DeliveryTargetKind string
+
+const (
+	TargetContact DeliveryTargetKind = "contact" // 1:1 单聊联系人
+	TargetGroup   DeliveryTargetKind = "group"   // 外部群（群内 @ 机器人或商务外部群）
+)
+
+// DeliveryTarget 描述出站消息的投递目标与平台地址。
+type DeliveryTarget struct {
+	Kind            DeliveryTargetKind // contact 或 group
+	ContactID       string             // TargetContact 时为联系人 ID
+	ExternalGroupID string             // TargetGroup 时为外部群 ID（服务型外部群非空）
+	ExternalTo      string             // 对方或群在渠道中的外部地址（如 userid、chat_id、peer key）
+}
+
 // Outgoing 是要发到外部渠道的一条消息。
 type Outgoing struct {
-	Channel        *Channel
-	ConversationID string       // 消息所在的会话
-	ItemID         string       // 时间线中这条消息的 ID，连接器可以用它去重
-	Seq            int64        // 这条消息在时间线中的序号
-	ContactID      string       // 对方：联系人的 ID
-	ExternalTo     string       // 对方在渠道中的外部编号
-	Text           string       // 发给对方的文字
-	Attachments    []Attachment // 附带的媒体附件
+	Channel           *Channel
+	ConversationID    string            // 消息所在的会话
+	ItemID            string            // 时间线中这条消息的 ID，连接器可以用它去重
+	Seq               int64             // 这条消息在时间线中的序号
+	Target            DeliveryTarget    // 结构化投递目标（单聊或外部群）
+	ContactID         string            // 冗余兼容：Target.ContactID
+	ExternalTo        string            // 冗余兼容：Target.ExternalTo
+	ReplyToExternalID string            // 可选：需要引用回复的外部消息编号
+	Mentions          []ExternalMention // 可选：群聊回复时要 @ 的外部发言人列表
+	ReplyContext      map[string]any    // 可选：来自入站消息的短期协议回复上下文（如企微 req_id、钉钉 sessionWebhook）
+	Text              string            // 发给对方的文字
+	Attachments       []Attachment      // 附带的媒体附件
 }
 
 // FetchedMedia 是连接器按外部引用流式拉取到的媒体正文与提示信息。调用方负责关闭 Body。
@@ -74,6 +118,17 @@ type Connector interface {
 	Send(ctx context.Context, m Outgoing) (externalID string, delivered bool, err error)
 }
 
+// Runner 是需要后台常驻连接（如企微智能机器人 WebSocket、Telegram 个人号 MTProto）的渠道管理器统一生命周期接口。
+// 入口在 worker 中统一拉起所有 Runner 并在停止时平滑退出，无需为每种长连接协议单独硬编码启动逻辑。
+type Runner interface {
+	// Name 返回管理器名称，用于日志与排障识别。
+	Name() string
+	// Run 阻塞运行直到 ctx 取消或遇到不可恢复的系统错误。
+	Run(ctx context.Context) error
+	// Wake 通知管理器立即重新对齐数据库中的已启用渠道配置。
+	Wake()
+}
+
 // Registry 按渠道的种类找到连接器，在入口中装配。
 type Registry map[Kind]Connector
 
@@ -86,12 +141,32 @@ func (r Registry) Connector(kind Kind) (Connector, error) {
 	return c, nil
 }
 
+// KindsWithTransport 返回已登记的连接器中使用指定传输模式的渠道种类列表。
+func (r Registry) KindsWithTransport(mode TransportMode) []Kind {
+	var out []Kind
+	for kind, conn := range r {
+		if conn != nil && conn.Capabilities().Transport == mode {
+			out = append(out, kind)
+		}
+	}
+	return out
+}
+
 // TestConnector 是测试渠道的连接器：消息不发往任何地方，直接记为已送达。开发、演示和测试用。
 type TestConnector struct{}
 
-// Capabilities 返回测试渠道的能力：文字、图片、视频、音频和文件，没有已读回执。
+// Capabilities 返回测试渠道的能力：支持单聊、群内 @、引用与提及、评价与留资，没有已读回执。
 func (TestConnector) Capabilities() Capabilities {
-	return Capabilities{MessageTypes: []string{"text", "image", "video", "audio", "file"}}
+	return Capabilities{
+		Transport:        TransportVirtual,
+		MessageTypes:     []string{"text", "image", "video", "audio", "file"},
+		SupportsDirect:   true,
+		SupportsGroup:    true,
+		SupportsMention:  true,
+		SupportsReplyTo:  true,
+		SupportsRating:   true,
+		SupportsLeadForm: true,
+	}
 }
 
 // Send 不发送，用时间线中的消息 ID 作为外部编号，并报告已送达。
@@ -99,5 +174,5 @@ func (TestConnector) Send(_ context.Context, m Outgoing) (string, bool, error) {
 	return "test-" + m.ItemID, true, nil
 }
 
-// DefaultRegistry 返回不依赖其他资源的内置连接器：测试渠道。需要资源的连接器（网页聊天插件、Telegram）由入口加入。
+// DefaultRegistry 返回不依赖其他资源的内置连接器：测试渠道。需要资源的连接器（网页聊天插件、Telegram、企微等）由入口加入。
 func DefaultRegistry() Registry { return Registry{Test: TestConnector{}} }

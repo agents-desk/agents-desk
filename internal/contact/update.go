@@ -21,6 +21,7 @@ type UpdateBody struct {
 	Name     *string `json:"name,omitempty" maxLength:"120" doc:"名字"`
 	Company  *string `json:"company,omitempty" maxLength:"120" doc:"所属公司或组织名称"`
 	Email    *string `json:"email,omitempty" maxLength:"254" doc:"邮箱"`
+	MemberID *string `json:"member_id,omitempty" doc:"可选：将内部联系人绑定到工作区成员 ID；传空字符串解除绑定"`
 	Language *string `json:"language,omitempty" maxLength:"35" doc:"对方的语言（BCP 47）；传空字符串恢复自动识别"`
 	Location *string `json:"location,omitempty" maxLength:"120" doc:"所在地"`
 	TimeZone *string `json:"time_zone,omitempty" maxLength:"64" doc:"IANA 时区名，例如 Asia/Shanghai；传空字符串清除"`
@@ -106,6 +107,24 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 		if b.Email != nil && email != c.Email {
 			c.Email, cols, props["email"] = email, append(cols, "email"), email
 		}
+		if b.MemberID != nil {
+			mid := strings.TrimSpace(*b.MemberID)
+			if mid == "" {
+				if c.MemberID != nil {
+					c.MemberID, cols, props["member_id"] = nil, append(cols, "member_id"), ""
+				}
+			} else if c.MemberID == nil || *c.MemberID != mid {
+				exists, err := tx.NewSelect().Table("members").Where("id = ?", mid).Exists(ctx)
+				if err != nil {
+					return errors.Wrap(err, "check member for contact binding")
+				}
+				if !exists {
+					return ErrNotFound.New(errorx.Field("member_id"))
+				}
+				idCopy := mid
+				c.MemberID, cols, props["member_id"] = &idCopy, append(cols, "member_id"), mid
+			}
+		}
 		if b.Location != nil {
 			v := strings.TrimSpace(*b.Location)
 			if v != c.Location {
@@ -149,6 +168,9 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 		at := now()
 		c.UpdatedAt = at
 		if _, err := tx.NewUpdate().Model(c).Column(append(cols, "updated_at")...).WherePK().Exec(ctx); err != nil {
+			if database.IsUniqueViolation(err, "contacts_tenant_member") {
+				return ErrMemberTaken.New(errorx.Field("member_id"))
+			}
 			return errors.Wrap(err, "update contact")
 		}
 		if syncConvLang {

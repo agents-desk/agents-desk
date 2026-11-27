@@ -280,9 +280,33 @@ func toChatDTOs(ctx context.Context, db bun.IDB, files *filesystem.Service, sub 
 	}
 	previews := make(map[string]*Item, len(lasts))
 	lastIDs := make([]string, 0, len(lasts))
+	var previewExtUserIDs []string
+	seenPreviewEU := map[string]bool{}
 	for i := range lasts {
 		previews[lasts[i].ConversationID] = &lasts[i]
 		lastIDs = append(lastIDs, lasts[i].ID)
+		if lasts[i].ActorType == ExternalUserActor && lasts[i].ActorID != "" && !seenPreviewEU[lasts[i].ActorID] {
+			seenPreviewEU[lasts[i].ActorID] = true
+			previewExtUserIDs = append(previewExtUserIDs, lasts[i].ActorID)
+		}
+	}
+	type chatPreviewEU struct {
+		Name       string
+		ExternalID string
+	}
+	previewExtUsers := map[string]chatPreviewEU{}
+	if len(previewExtUserIDs) > 0 {
+		var rows []struct {
+			ID         string `bun:"id"`
+			Name       string `bun:"name"`
+			ExternalID string `bun:"external_id"`
+		}
+		if err := db.NewSelect().Table("external_users").Column("id", "name", "external_id").Where("id IN (?)", bun.In(previewExtUserIDs)).Scan(ctx, &rows); err != nil {
+			return nil, errors.Wrap(err, "load chat preview external users")
+		}
+		for _, r := range rows {
+			previewExtUsers[r.ID] = chatPreviewEU{Name: r.Name, ExternalID: r.ExternalID}
+		}
 	}
 	previewAttachments, err := loadPreviewAttachments(ctx, db, lastIDs)
 	if err != nil {
@@ -390,9 +414,15 @@ func toChatDTOs(ctx context.Context, db bun.IDB, files *filesystem.Service, sub 
 		if p := previews[c.ID]; p != nil {
 			dto.Preview = previewText(p, sub.ID, language)
 			actor := Actor{Type: p.ActorType, ID: p.ActorID}
-			if p.ActorType == ContactActor {
+			switch p.ActorType {
+			case ContactActor:
 				if ct, ok := contactSummary[p.ActorID]; ok {
 					actor.Name = ct.Name
+				}
+			case ExternalUserActor:
+				if info, ok := previewExtUsers[p.ActorID]; ok {
+					actor.Name = info.Name
+					actor.ExternalID = info.ExternalID
 				}
 			}
 			dto.PreviewActor = &actor

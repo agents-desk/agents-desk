@@ -20,6 +20,7 @@ type ContactDTO struct {
 	ID                string         `json:"id"`
 	Number            int64          `json:"number" doc:"联系人在工作区内的递增编号，从 1 开始"`
 	Kind              Kind           `json:"kind"`
+	MemberID          *string        `json:"member_id,omitempty" doc:"内部联系人关联的工作区成员 ID"`
 	Name              string         `json:"name"`
 	Company           string         `json:"company" doc:"联系人所属公司或组织名称"`
 	Email             string         `json:"email"`
@@ -97,7 +98,7 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, rows []Contac
 		}
 		notesLang, notesTr, notesUntranslated := resolveNotesTranslation(c.Notes, c.NotesDerived, viewerLang)
 		out[i] = ContactDTO{
-			ID: c.ID, Number: c.Number, Kind: c.Kind, Name: c.Name, Company: c.Company, Email: c.Email, ExternalUserID: c.ExternalUserID,
+			ID: c.ID, Number: c.Number, Kind: c.Kind, MemberID: c.MemberID, Name: c.Name, Company: c.Company, Email: c.Email, ExternalUserID: c.ExternalUserID,
 			Language: c.Language, LanguageManual: c.LanguageManual,
 			Location: c.Location, TimeZone: c.TimeZone, Referrer: c.Referrer, Notes: c.Notes,
 			NotesLanguage: notesLang, NotesTranslated: notesTr, NotesUntranslated: notesUntranslated,

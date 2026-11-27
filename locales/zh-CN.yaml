@@ -174,8 +174,10 @@ contact.forbidden: 你没有权限修改这位联系人
 contact.not_lead: 已登录用户的邮箱由产品自动同步，不能在这里修改
 contact.merge_self: 不能把联系人合并到他自己
 contact.merge_conflict: 这两个联系人绑定了不同的业务用户编号，不能直接合并
+contact.member_taken: 这位成员已经绑定了另一个内部联系人
 contact.kind.user: 用户
 contact.kind.lead: 线索
+contact.kind.internal: 内部联系人
 contact.sort.recent: 最近活跃
 contact.sort.created: 创建时间
 
@@ -193,8 +195,18 @@ channel.media_unavailable: 外部渠道上的媒体已失效或无法拉取
 channel.kind.test: 测试渠道
 channel.kind.widget: 网页聊天插件
 channel.kind.telegram: Telegram 机器人
+channel.kind.wecom: 企业微信机器人
 channel.kind.business_link: 商务沟通链接
 channel.kind.telegram_account: Telegram 个人号
+channel.audience.customer: 外部客户
+channel.audience.partner: 商务伙伴
+channel.audience.internal: 内部员工
+extgroup.not_found: 外部群不存在
+extgroup.removed: 机器人已被移出该群，无法继续回复
+extgroup.invalid_language: 不是有效的语言，请从列表中选择，或者输入语言标签，例如 hi-Latn
+extgroup.status.pending_setup: 待配置
+extgroup.status.active: 已启用
+extgroup.status.removed: 已移出
 telegram.team_not_found: 团队收件箱不存在
 telegram.invalid_bot_token: Telegram Bot Token 无效，请核对后重试
 telegram.webhook_failed: "设置 Telegram Webhook 失败：{{.reason}}"
@@ -282,6 +294,7 @@ conversation.item_kind.event: 系统事件
 conversation.visibility.all: 所有人
 conversation.visibility.members: 仅成员
 conversation.actor_type.contact: 联系人
+conversation.actor_type.external_user: 群发言人
 conversation.actor_type.member: 成员
 conversation.actor_type.bot: 机器人
 conversation.actor_type.system: 系统

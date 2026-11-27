@@ -20,9 +20,12 @@ type Filter struct {
 }
 
 // applyFilter 把筛选条件 f 叠加到联系人查询 q 上，q 中联系人表的别名是 contact。
+// 未显式指定 Kind 时默认返回外部客户（user + lead），与内部联系人（internal）分组隔离。
 func applyFilter(q *bun.SelectQuery, f Filter) *bun.SelectQuery {
 	if f.Kind != "" {
 		q = q.Where("contact.kind = ?", f.Kind)
+	} else {
+		q = q.Where("contact.kind <> ?", Internal)
 	}
 	if kw := strings.TrimSpace(f.Q); kw != "" {
 		like := "%" + database.EscapeLike(kw) + "%"

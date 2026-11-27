@@ -233,20 +233,20 @@ func (a *Merge) Handle(ctx context.Context, sub identity.Subject, targetID strin
 			return errors.Wrap(err, "delete source contact tags")
 		}
 		if _, err := tx.NewRaw(
-			`INSERT INTO ticket_contacts (id, tenant_id, ticket_id, contact_id, source_conversation_id, created_by, created_at, updated_at)
+			`INSERT INTO ticket_targets (id, tenant_id, ticket_id, contact_id, source_conversation_id, created_by, created_at, updated_at)
 			 SELECT id, tenant_id, ticket_id, ?, source_conversation_id, created_by, created_at, ?
-			 FROM ticket_contacts
+			 FROM ticket_targets
 			 WHERE tenant_id = ? AND contact_id = ?
-			 ON CONFLICT (tenant_id, ticket_id, contact_id) DO NOTHING`,
+			 ON CONFLICT (tenant_id, ticket_id, contact_id) WHERE contact_id IS NOT NULL DO NOTHING`,
 			target.ID, at, sub.Tenant, source.ID,
 		).Exec(ctx); err != nil {
-			return errors.Wrap(err, "migrate merged ticket contacts")
+			return errors.Wrap(err, "migrate merged ticket targets")
 		}
 		if _, err := tx.NewRaw(
-			`DELETE FROM ticket_contacts WHERE tenant_id = ? AND contact_id = ?`,
+			`DELETE FROM ticket_targets WHERE tenant_id = ? AND contact_id = ?`,
 			sub.Tenant, source.ID,
 		).Exec(ctx); err != nil {
-			return errors.Wrap(err, "delete source ticket contacts")
+			return errors.Wrap(err, "delete source ticket targets")
 		}
 		if _, err := tx.NewUpdate().Model((*Identity)(nil)).
 			Set("contact_id = ?", target.ID).
@@ -443,20 +443,20 @@ func MergeLead(ctx context.Context, tx bun.IDB, tenant, leadID, userID, consumeC
 		return nil, nil, errors.Wrap(err, "delete lead contact tags")
 	}
 	if _, err := tx.NewRaw(
-		`INSERT INTO ticket_contacts (id, tenant_id, ticket_id, contact_id, source_conversation_id, created_by, created_at, updated_at)
+		`INSERT INTO ticket_targets (id, tenant_id, ticket_id, contact_id, source_conversation_id, created_by, created_at, updated_at)
 		 SELECT id, tenant_id, ticket_id, ?, source_conversation_id, created_by, created_at, ?
-		 FROM ticket_contacts
+		 FROM ticket_targets
 		 WHERE tenant_id = ? AND contact_id = ?
-		 ON CONFLICT (tenant_id, ticket_id, contact_id) DO NOTHING`,
+		 ON CONFLICT (tenant_id, ticket_id, contact_id) WHERE contact_id IS NOT NULL DO NOTHING`,
 		user.ID, at, tenant, lead.ID,
 	).Exec(ctx); err != nil {
-		return nil, nil, errors.Wrap(err, "migrate lead ticket contacts")
+		return nil, nil, errors.Wrap(err, "migrate lead ticket targets")
 	}
 	if _, err := tx.NewRaw(
-		`DELETE FROM ticket_contacts WHERE tenant_id = ? AND contact_id = ?`,
+		`DELETE FROM ticket_targets WHERE tenant_id = ? AND contact_id = ?`,
 		tenant, lead.ID,
 	).Exec(ctx); err != nil {
-		return nil, nil, errors.Wrap(err, "delete lead ticket contacts")
+		return nil, nil, errors.Wrap(err, "delete lead ticket targets")
 	}
 
 	// 5. 渠道身份：删除已消费的访客编号，其余渠道身份迁到用户名下

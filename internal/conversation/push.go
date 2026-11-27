@@ -75,7 +75,7 @@ func audienceAndAlertsOf(ctx context.Context, db bun.IDB, roles *authz.Store, c 
 		direct[id] = true
 	}
 
-	// 工单：创建人以及关联联系人名下服务型会话的负责人、被 @ 成员、所在团队成员也纳入可见推送范围
+	// 工单：创建人以及关联对象名下服务型会话的负责人、被 @ 成员、所在团队成员也纳入可见推送范围
 	if c.Kind == Ticket {
 		var createdBy *string
 		if err := db.NewSelect().Table("tickets").Column("created_by").Where("conversation_id = ?", c.ID).Scan(ctx, &createdBy); err == nil && createdBy != nil && *createdBy != "" {
@@ -86,12 +86,12 @@ func audienceAndAlertsOf(ctx context.Context, db bun.IDB, roles *authz.Store, c 
 			AssigneeType ActorType `bun:"assignee_type"`
 			AssigneeID   string    `bun:"assignee_id"`
 		}
-		if err := db.NewSelect().TableExpr("ticket_contacts tc").
-			Join("JOIN conversations sc ON sc.tenant_id = tc.tenant_id AND sc.kind = ? AND sc.contact_id = tc.contact_id", Service).
+		if err := db.NewSelect().TableExpr("ticket_targets tc").
+			Join("JOIN conversations sc ON sc.tenant_id = tc.tenant_id AND sc.kind = ? AND ((tc.contact_id IS NOT NULL AND sc.contact_id = tc.contact_id) OR (tc.external_group_id IS NOT NULL AND sc.external_group_id = tc.external_group_id))", Service).
 			ColumnExpr("sc.team_id, sc.assignee_type, sc.assignee_id").
 			Where("tc.tenant_id = ? AND tc.ticket_id = ?", c.TenantID, c.ID).
 			Scan(ctx, &linked); err != nil {
-			return nil, nil, errors.Wrap(err, "load linked contact conversations for ticket push")
+			return nil, nil, errors.Wrap(err, "load linked target conversations for ticket push")
 		}
 		for _, sc := range linked {
 			if sc.AssigneeType == MemberActor && sc.AssigneeID != "" {
@@ -102,8 +102,8 @@ func audienceAndAlertsOf(ctx context.Context, db bun.IDB, roles *authz.Store, c 
 			}
 		}
 		var linkedMentioned []string
-		if err := db.NewSelect().TableExpr("ticket_contacts tc").
-			Join("JOIN conversations sc ON sc.tenant_id = tc.tenant_id AND sc.kind = ? AND sc.contact_id = tc.contact_id", Service).
+		if err := db.NewSelect().TableExpr("ticket_targets tc").
+			Join("JOIN conversations sc ON sc.tenant_id = tc.tenant_id AND sc.kind = ? AND ((tc.contact_id IS NOT NULL AND sc.contact_id = tc.contact_id) OR (tc.external_group_id IS NOT NULL AND sc.external_group_id = tc.external_group_id))", Service).
 			Join("JOIN conversation_mentions cm ON cm.conversation_id = sc.id AND cm.tenant_id = tc.tenant_id").
 			ColumnExpr("DISTINCT cm.member_id").
 			Where("tc.tenant_id = ? AND tc.ticket_id = ?", c.TenantID, c.ID).
@@ -167,10 +167,10 @@ func computeAlerts(before, after *Conversation, items []*Item, visible map[strin
 		}
 	}
 
-	// 1. 客户发来新消息：提醒会话当前负责人
+	// 1. 外部用户发来新消息：提醒会话当前负责人
 	hasCustomerMsg := false
 	for _, it := range items {
-		if it.Kind == Message && it.ActorType == ContactActor {
+		if it.Kind == Message && it.ActorType.IsExternal() {
 			hasCustomerMsg = true
 			break
 		}
@@ -214,22 +214,24 @@ func computeAlerts(before, after *Conversation, items []*Item, visible map[strin
 	return alerts
 }
 
-// computeChatAlerts 计算内部聊天本次追加的 items 应触发的实时提醒：
-// 发消息时提醒除发送者外的其他参与者（new_message），被 @ 到的参与者升级为 mention。
+// computeChatAlerts 计算聊天本次追加的 items 应触发的实时提醒：
+// 发消息时提醒除发送者外的其他参与者（new_message），消息或内部备注中被 @ 到的参与者升级为 mention。
 func computeChatAlerts(items []*Item, visible map[string]bool) map[string]string {
 	if len(items) == 0 {
 		return nil
 	}
 	alerts := map[string]string{}
 	for _, it := range items {
-		if it.Kind != Message {
+		if it.Kind != Message && it.Kind != Note {
 			continue
 		}
-		for memberID := range visible {
-			if it.ActorType == MemberActor && it.ActorID == memberID {
-				continue
+		if it.Kind == Message {
+			for memberID := range visible {
+				if it.ActorType == MemberActor && it.ActorID == memberID {
+					continue
+				}
+				alerts[memberID] = push.AlertNewMessage
 			}
-			alerts[memberID] = push.AlertNewMessage
 		}
 		for _, mid := range it.Content.Mentions {
 			if !visible[mid] || (it.ActorType == MemberActor && it.ActorID == mid) {

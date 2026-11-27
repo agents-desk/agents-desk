@@ -12,6 +12,7 @@ import (
 
 	"agents-desk/internal/auth"
 	"agents-desk/internal/channel"
+	"agents-desk/internal/extgroup"
 )
 
 // Translation 是成员确认过的发给对方的译文。
@@ -39,15 +40,38 @@ func pendingTranslationDerived(req *AutoTranslateRequest) map[string]any {
 	}
 }
 
-// ReplyBody 是回复的请求体：成员写的文字、可选的媒体附件列表、可选的发送渠道，以及可选的译文、后台自动翻译指示和随回复原子执行的会话操作。
-// 文字和附件不能同时为空；带译文时发给对方的是译文，带 auto_translate 时先快速落库并由投递任务在后台翻译后发出，时间线中均保存原文。
+// buildOutboundMessageItem 统一构造服务型会话回复与外部商务聊天对外回复的时间线消息项，保证译文、自动翻译与外部 @ 一致。
+func buildOutboundMessageItem(actor ActorType, actorID string, channelID *string, replyToItemID *string, text string, extMentions []channel.ExternalMention, tr *Translation, auto *AutoTranslateRequest) Item {
+	content := Content{Text: text, ExternalMentions: extMentions}
+	var derived map[string]any
+	if tr != nil && strings.TrimSpace(text) != "" {
+		content = Content{Text: tr.Text, Original: text, Language: tr.Language, ExternalMentions: extMentions}
+	} else if auto != nil && strings.TrimSpace(text) != "" {
+		derived = pendingTranslationDerived(auto)
+	}
+	return Item{
+		Kind:          Message,
+		ActorType:     actor,
+		ActorID:       actorID,
+		Visibility:    Everyone,
+		Content:       content,
+		Derived:       derived,
+		ChannelID:     channelID,
+		ReplyToItemID: replyToItemID,
+	}
+}
+
+// ReplyBody 是回复的请求体：成员写的文字、可选的媒体附件列表、可选的发送渠道、可选引用消息与外部群 @ 提及，
+// 以及可选的译文、后台自动翻译指示和随回复原子执行的会话操作。
 type ReplyBody struct {
-	Text          string                `json:"text,omitempty" maxLength:"10000" doc:"成员写的文字"`
-	Attachments   []AttachmentInput     `json:"attachments,omitempty" maxItems:"10" doc:"通过 /files 上传的媒体附件列表（可附带封面图与音视频元数据）"`
-	ChannelID     string                `json:"channel_id,omitempty" format:"uuid" doc:"发往的渠道 ID；为空时发往会话当前的默认回复渠道"`
-	Translation   *Translation          `json:"translation,omitempty" doc:"发给对方的译文，由翻译的预览给出、成员确认；不带时按原文或 auto_translate 发出"`
-	AutoTranslate *AutoTranslateRequest `json:"auto_translate,omitempty" doc:"后台自动翻译参数：不携带 translation 时，先立刻落库并由投递任务异步翻译后发给对方"`
-	Actions       *Actions              `json:"actions,omitempty" doc:"随回复在同一个事务中原子执行的会话操作（如指派、改优先级、加标签、改属性、关闭或稍后处理）"`
+	Text             string                    `json:"text,omitempty" maxLength:"10000" doc:"成员写的文字"`
+	Attachments      []AttachmentInput         `json:"attachments,omitempty" maxItems:"10" doc:"通过 /files 上传的媒体附件列表（可附带封面图与音视频元数据）"`
+	ChannelID        string                    `json:"channel_id,omitempty" format:"uuid" doc:"发往的渠道 ID；为空时发往会话当前的默认回复渠道"`
+	ReplyToItemID    string                    `json:"reply_to_item_id,omitempty" format:"uuid" doc:"可选：引用回复同会话内的指定消息 ID"`
+	ExternalMentions []channel.ExternalMention `json:"external_mentions,omitempty" maxItems:"20" doc:"可选：外部群回复时要 @ 的发言人列表"`
+	Translation      *Translation              `json:"translation,omitempty" doc:"发给对方的译文，由翻译的预览给出、成员确认；不带时按原文或 auto_translate 发出"`
+	AutoTranslate    *AutoTranslateRequest     `json:"auto_translate,omitempty" doc:"后台自动翻译参数：不携带 translation 时，先立刻落库并由投递任务异步翻译后发给对方"`
+	Actions          *Actions                  `json:"actions,omitempty" doc:"随回复在同一个事务中原子执行的会话操作（如指派、改优先级、加标签、改属性、关闭或稍后处理）"`
 }
 
 // ReplyInput 是回复会话的 HTTP 请求。
@@ -65,9 +89,8 @@ type Reply struct {
 // NewReply 返回回复会话的动作；down 是时间线有新内容时通知的下游，其中包括把消息发到外部渠道。
 func NewReply(db *bun.DB, down Downstream) *Reply { return &Reply{db: db, down: down} }
 
-// Handle 由 sub 回复 sub 所在工作区中的会话 id：追加一条发给对方的消息（带译文时发出译文，时间线中同时保存原文），记为发送中；会话不再等待回复，
-// 第一次回复时记下时间；sub 成为会话的参与者。会话没有负责人时由 sub 领取（回复即领取），时间线中先追加领取的系统事件。
-// 会话不存在或 sub 看不到时返回 ErrNotFound，没有权限时返回 ErrForbidden。
+// Handle 由 sub 回复 sub 所在工作区中的会话 id：追加一条发给对方的消息，记为发送中；会话不再等待回复，
+// 第一次回复时记下时间；sub 成为会话的参与者。会话没有负责人时由 sub 领取（回复即领取）。
 func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, body ReplyBody) (*ItemDTO, error) {
 	if err := authorize(sub, auth.ConversationsReply); err != nil {
 		return nil, err
@@ -92,22 +115,33 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 			chID := *targetChannelID
 			c.ReplyChannelID = &chID
 		}
+		var replyToID *string
+		if body.ReplyToItemID != "" {
+			exists, err := tx.NewSelect().Table("timeline_items").
+				Where("id = ? AND tenant_id = ? AND conversation_id = ?", body.ReplyToItemID, c.TenantID, c.ID).
+				Exists(ctx)
+			if err != nil {
+				return errors.Wrap(err, "verify reply_to_item_id")
+			}
+			if !exists {
+				return ErrNotFound.New()
+			}
+			rid := body.ReplyToItemID
+			replyToID = &rid
+		}
+		extMentions, err := normalizeExternalMentions(ctx, tx, c, body.ExternalMentions)
+		if err != nil {
+			return err
+		}
 		confirmed, err := confirmAttachmentInputs(ctx, tx, a.down.Media.Files, sub, body.Attachments)
 		if err != nil {
 			return err
 		}
 		at := now()
 		actor := actorOf(sub)
-		content := Content{Text: body.Text}
-		var derived map[string]any
-		if body.Translation != nil && strings.TrimSpace(body.Text) != "" {
-			content = Content{Text: body.Translation.Text, Original: body.Text, Language: body.Translation.Language}
-		} else if body.AutoTranslate != nil && strings.TrimSpace(body.Text) != "" {
-			derived = pendingTranslationDerived(body.AutoTranslate)
-		}
-		item = Item{Kind: Message, ActorType: actor, ActorID: sub.ID, Visibility: Everyone, Content: content, Derived: derived, ChannelID: targetChannelID}
+		item = buildOutboundMessageItem(actor, sub.ID, targetChannelID, replyToID, body.Text, extMentions, body.Translation, body.AutoTranslate)
 		items := make([]*Item, 0, 3)
-		// 回复已关闭或稍后处理的会话时自动恢复打开，保证轮次与状态机自洽；若联系人已有其他活跃会话则拒绝重开
+		// 回复已关闭或稍后处理的会话时自动恢复打开，保证轮次与状态机自洽
 		switch c.Status {
 		case Closed:
 			if err := ensureNoOtherActive(ctx, tx, c); err != nil {
@@ -122,8 +156,6 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 			items = append(items, event(sub, "conversation.unsnoozed", map[string]any{"from": string(Snoozed)}))
 			c.Status, c.SnoozedUntil = Open, nil
 		}
-		// 回复即领取：成员回复没有负责人的会话时，会话归他，团队收件箱不变；
-		// 若随回复显式携带指派操作，则跳过自动领取，直接按附带指派执行，避免产生两条指派事件。
 		explicitAssign := body.Actions != nil && body.Actions.HasAssignment()
 		if actor == MemberActor && c.AssigneeType == "" && !explicitAssign {
 			c.AssigneeType, c.AssigneeID = MemberActor, sub.ID
@@ -170,9 +202,23 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 }
 
 // resolveReplyChannel 解析回复要发往的渠道 ID：
-//   - requested 为空时返回会话当前默认出站渠道（c.DeliveryChannelID()）；
-//   - requested 非空时校验该渠道属于本工作区且处于启用状态，并且当会话关联联系人时该联系人拥有该渠道的身份，否则返回 ErrChannelUnavailable。
+//   - 外部群会话（ExternalGroupID 非空）只能发回原外部群所属渠道，且群不能处于已移出状态；
+//   - 单聊会话在 requested 非空时校验目标渠道启用、同服务对象域且联系人已绑定该渠道身份。
 func resolveReplyChannel(ctx context.Context, tx bun.IDB, c *Conversation, requested string) (*string, error) {
+	if c.ExternalGroupID != nil && *c.ExternalGroupID != "" {
+		g, err := extgroup.Find(ctx, tx, c.TenantID, *c.ExternalGroupID)
+		if err != nil {
+			return nil, err
+		}
+		if g.Status == extgroup.StatusRemoved {
+			return nil, extgroup.ErrRemoved.New()
+		}
+		if requested != "" && requested != g.ChannelID {
+			return nil, ErrChannelUnavailable.New()
+		}
+		id := g.ChannelID
+		return &id, nil
+	}
 	if requested == "" {
 		return c.DeliveryChannelID(), nil
 	}
@@ -182,6 +228,9 @@ func resolveReplyChannel(ctx context.Context, tx bun.IDB, c *Conversation, reque
 	}
 	if err != nil {
 		return nil, err
+	}
+	if c.Audience != "" && ch.EffectiveAudience() != c.Audience {
+		return nil, ErrChannelUnavailable.New()
 	}
 	if c.ContactID != nil {
 		exists, err := tx.NewSelect().Table("contact_identities").
@@ -195,6 +244,57 @@ func resolveReplyChannel(ctx context.Context, tx bun.IDB, c *Conversation, reque
 	}
 	id := ch.ID
 	return &id, nil
+}
+
+// normalizeExternalMentions 规范化并补全外部群 @ 提及：允许仅传 external_user_id（自动反查平台 external_id 和姓名）或直接传 external_id + name。
+func normalizeExternalMentions(ctx context.Context, tx bun.IDB, c *Conversation, in []channel.ExternalMention) ([]channel.ExternalMention, error) {
+	if len(in) == 0 {
+		return nil, nil
+	}
+	var lookupIDs []string
+	for _, m := range in {
+		if m.ExternalUserID != "" && (m.ExternalID == "" || m.Name == "") {
+			lookupIDs = append(lookupIDs, m.ExternalUserID)
+		}
+	}
+	byUserID := map[string]extgroup.User{}
+	if len(lookupIDs) > 0 {
+		var users []extgroup.User
+		if err := tx.NewSelect().Model(&users).
+			Where("tenant_id = ? AND id IN (?)", c.TenantID, bun.In(lookupIDs)).Scan(ctx); err != nil {
+			return nil, errors.Wrap(err, "load external users for mentions")
+		}
+		for _, u := range users {
+			byUserID[u.ID] = u
+		}
+	}
+	seen := map[string]bool{}
+	out := make([]channel.ExternalMention, 0, len(in))
+	for _, m := range in {
+		extID := strings.TrimSpace(m.ExternalID)
+		name := strings.TrimSpace(m.Name)
+		if u, ok := byUserID[m.ExternalUserID]; ok {
+			if extID == "" {
+				extID = u.ExternalID
+			}
+			if name == "" {
+				name = u.Name
+			}
+		}
+		if extID == "" || seen[extID] {
+			continue
+		}
+		seen[extID] = true
+		if name == "" {
+			name = extID
+		}
+		out = append(out, channel.ExternalMention{
+			ExternalUserID: m.ExternalUserID,
+			ExternalID:     extID,
+			Name:           name,
+		})
+	}
+	return out, nil
 }
 
 // HTTP 处理 POST /t/{slug}/api/conversations/{id}/replies。

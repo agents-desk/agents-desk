@@ -3,7 +3,6 @@ package conversation
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
@@ -18,14 +17,16 @@ import (
 	"agents-desk/internal/member"
 )
 
-// SendChatMessageBody 是发送聊天消息的请求体：文字、@ 提及的成员、媒体附件、可选内部备注标记、可选译文与后台自动翻译参数（文字与附件不能同时为空）。
+// SendChatMessageBody 是发送聊天消息的请求体：文字、@ 提及的成员、外部群 @ 提及、引用消息、媒体附件、可选内部备注标记、可选译文与后台自动翻译参数（文字与附件不能同时为空）。
 type SendChatMessageBody struct {
-	Text          string                `json:"text,omitempty" maxLength:"10000" doc:"消息正文"`
-	Mentions      []string              `json:"mentions,omitempty" maxItems:"20" uniqueItems:"true" doc:"@ 到的成员 ID"`
-	Attachments   []AttachmentInput     `json:"attachments,omitempty" maxItems:"10" doc:"通过 /files 上传的媒体附件列表"`
-	Note          bool                  `json:"note,omitempty" doc:"仅商务外部聊天可用：为 true 时写为仅成员可见的内部备注，不发往外部渠道"`
-	Translation   *Translation          `json:"translation,omitempty" doc:"发送译文：外部商务聊天对外回复时替换发出并保留原文；内部聊天与内部备注时写入派生译文供该语言成员查看"`
-	AutoTranslate *AutoTranslateRequest `json:"auto_translate,omitempty" doc:"仅外部商务聊天对外回复可用：不携带 translation 时，先立刻落库并由投递任务异步翻译后发往外部渠道"`
+	Text             string                    `json:"text,omitempty" maxLength:"10000" doc:"消息正文"`
+	Mentions         []string                  `json:"mentions,omitempty" maxItems:"20" uniqueItems:"true" doc:"@ 到的工作区成员 ID（仅内部聊天或内部备注使用）"`
+	ExternalMentions []channel.ExternalMention `json:"external_mentions,omitempty" maxItems:"20" doc:"外部群对外回复时要 @ 的发言人列表"`
+	ReplyToItemID    string                    `json:"reply_to_item_id,omitempty" format:"uuid" doc:"可选：引用回复同聊天内的指定消息 ID"`
+	Attachments      []AttachmentInput         `json:"attachments,omitempty" maxItems:"10" doc:"通过 /files 上传的媒体附件列表"`
+	Note             bool                      `json:"note,omitempty" doc:"仅商务外部聊天可用：为 true 时写为仅成员可见的内部备注，不发往外部渠道"`
+	Translation      *Translation              `json:"translation,omitempty" doc:"发送译文：外部商务聊天对外回复时替换发出并保留原文；内部聊天与内部备注时写入派生译文供该语言成员查看"`
+	AutoTranslate    *AutoTranslateRequest     `json:"auto_translate,omitempty" doc:"仅外部商务聊天对外回复可用：不携带 translation 时，先立刻落库并由投递任务异步翻译后发往外部渠道"`
 }
 
 // SendChatMessageInput 是发送聊天消息的 HTTP 请求。
@@ -66,19 +67,37 @@ func (a *SendChatMessage) Handle(ctx context.Context, sub identity.Subject, id s
 		if err != nil {
 			return err
 		}
-		roles := authz.NewStore(tx, auth.Catalog)
-		for i, m := range body.Mentions {
-			if _, err := member.RoleOf(ctx, roles, identity.Ref{Type: member.Type, ID: m}, sub.Tenant); err != nil {
-				if errors.Is(err, member.ErrNotFound) {
-					return member.ErrNotFound.New(errorx.Field(fmt.Sprintf("mentions[%d]", i)))
-				}
-				return err
-			}
-		}
-
 		at := now()
 		actor := actorOf(sub)
 		isExternalReply := cm.Scope == ChatExternal && !body.Note
+		var replyToID *string
+		if body.ReplyToItemID != "" {
+			exists, err := tx.NewSelect().Table("timeline_items").
+				Where("id = ? AND tenant_id = ? AND conversation_id = ?", body.ReplyToItemID, c.TenantID, c.ID).
+				Exists(ctx)
+			if err != nil {
+				return errors.Wrap(err, "verify chat reply_to_item_id")
+			}
+			if !exists {
+				return ErrNotFound.New()
+			}
+			rid := body.ReplyToItemID
+			replyToID = &rid
+		}
+		var mentions []string
+		if !isExternalReply {
+			roles := authz.NewStore(tx, auth.Catalog)
+			for i, m := range body.Mentions {
+				if _, err := member.RoleOf(ctx, roles, identity.Ref{Type: member.Type, ID: m}, sub.Tenant); err != nil {
+					if errors.Is(err, member.ErrNotFound) {
+						return member.ErrNotFound.New(errorx.Field(fmt.Sprintf("mentions[%d]", i)))
+					}
+					return err
+				}
+			}
+			mentions = body.Mentions
+		}
+
 		var targetChannelID *string
 		if isExternalReply {
 			targetChannelID = c.DeliveryChannelID()
@@ -101,22 +120,11 @@ func (a *SendChatMessage) Handle(ctx context.Context, sub identity.Subject, id s
 		}
 
 		if isExternalReply {
-			content := Content{Text: body.Text, Mentions: body.Mentions}
-			var derived map[string]any
-			if body.Translation != nil && strings.TrimSpace(body.Text) != "" {
-				content = Content{Text: body.Translation.Text, Original: body.Text, Language: body.Translation.Language, Mentions: body.Mentions}
-			} else if body.AutoTranslate != nil && strings.TrimSpace(body.Text) != "" {
-				derived = pendingTranslationDerived(body.AutoTranslate)
+			extMentions, err := normalizeExternalMentions(ctx, tx, c, body.ExternalMentions)
+			if err != nil {
+				return err
 			}
-			item = Item{
-				Kind:       Message,
-				ActorType:  actor,
-				ActorID:    sub.ID,
-				Visibility: Everyone,
-				ChannelID:  targetChannelID,
-				Content:    content,
-				Derived:    derived,
-			}
+			item = buildOutboundMessageItem(actor, sub.ID, targetChannelID, replyToID, body.Text, extMentions, body.Translation, body.AutoTranslate)
 		} else {
 			kind := Message
 			vis := Everyone
@@ -125,11 +133,12 @@ func (a *SendChatMessage) Handle(ctx context.Context, sub identity.Subject, id s
 				vis = MembersOnly
 			}
 			item = Item{
-				Kind:       kind,
-				ActorType:  actor,
-				ActorID:    sub.ID,
-				Visibility: vis,
-				Content:    Content{Text: body.Text, Mentions: body.Mentions},
+				Kind:          kind,
+				ActorType:     actor,
+				ActorID:       sub.ID,
+				Visibility:    vis,
+				ReplyToItemID: replyToID,
+				Content:       Content{Text: body.Text, Mentions: mentions},
 			}
 			if err := applyVerifiedTranslation(ctx, tx, sub, &item, body.Translation); err != nil {
 				return err
@@ -148,7 +157,7 @@ func (a *SendChatMessage) Handle(ctx context.Context, sub identity.Subject, id s
 				return errors.Wrap(err, "insert external chat delivery")
 			}
 		}
-		for _, m := range body.Mentions {
+		for _, m := range mentions {
 			if _, err := tx.NewRaw(`INSERT INTO conversation_mentions (tenant_id, member_id, conversation_id, item_id, seq, created_at)
 				VALUES (?, ?, ?, ?, ?, ?)`, sub.Tenant, m, c.ID, item.ID, item.Seq, item.CreatedAt).Exec(ctx); err != nil {
 				return errors.Wrap(err, "insert chat mention")

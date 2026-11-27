@@ -18,6 +18,7 @@ import (
 	"agents-desk/internal/attribute"
 	"agents-desk/internal/auth"
 	"agents-desk/internal/contact"
+	"agents-desk/internal/extgroup"
 	"agents-desk/internal/member"
 	"agents-desk/internal/team"
 	"agents-desk/internal/tickettype"
@@ -32,9 +33,10 @@ type CreateTicketParams struct {
 	Priority              Priority              `json:"priority,omitempty" doc:"优先级；不填默认为 normal"`
 	TeamID                *string               `json:"team_id,omitempty" format:"uuid" doc:"归属团队收件箱 ID；不填取工单类型默认团队"`
 	AssigneeID            *string               `json:"assignee_id,omitempty" format:"uuid" doc:"负责人成员 ID；可为空"`
-	SourceConversationID  *string               `json:"source_conversation_id,omitempty" format:"uuid" doc:"可选：由哪条服务型会话转成工单，自动关联该会话联系人"`
-	SourceConversationIDs []string              `json:"source_conversation_ids,omitempty" maxItems:"50" uniqueItems:"true" doc:"可选：同时由多条服务型会话一起转成此工单，自动关联各会话联系人并在会话时间线留痕"`
+	SourceConversationID  *string               `json:"source_conversation_id,omitempty" format:"uuid" doc:"可选：由哪条服务型会话转成工单，自动关联该会话的联系人或外部群"`
+	SourceConversationIDs []string              `json:"source_conversation_ids,omitempty" maxItems:"50" uniqueItems:"true" doc:"可选：同时由多条服务型会话一起转成此工单，自动关联各会话对象并在会话时间线留痕"`
 	ContactIDs            []string              `json:"contact_ids,omitempty" maxItems:"50" uniqueItems:"true" doc:"可选：创建时一并关联的受影响联系人 ID"`
+	ExternalGroupIDs      []string              `json:"external_group_ids,omitempty" maxItems:"50" uniqueItems:"true" doc:"可选：创建时一并关联的受影响外部群 ID"`
 	Attributes            map[string]any        `json:"attributes,omitempty" doc:"工单类型对应的自定义字段初始值"`
 }
 
@@ -55,7 +57,7 @@ func NewCreateTicket(db *bun.DB, down Downstream) *CreateTicket {
 }
 
 // Handle 在 sub 所在的工作区中创建工单：校验可选工单类型未停用、自定义字段合法、来源会话与受影响联系人可见，
-// 在单个事务内分配递增编号、写入 conversations(kind=ticket)、tickets、ticket_contacts 及系统事件。
+// 在单个事务内分配递增编号、写入 conversations(kind=ticket)、tickets、ticket_targets 及系统事件。
 func (a *CreateTicket) Handle(ctx context.Context, sub identity.Subject, p CreateTicketParams) (*TicketDTO, error) {
 	if err := authorize(sub, auth.ConversationsReply); err != nil {
 		return nil, err
@@ -151,10 +153,11 @@ func (a *CreateTicket) Handle(ctx context.Context, sub identity.Subject, p Creat
 			return attribute.ErrUnknownKey.New(errorx.Field("attributes."+keys[0]), errorx.Public("key", keys[0]))
 		}
 
-		// 解析并校验来源服务型会话（单条或多条）与受影响联系人列表
-		type contactLink struct {
-			contactID string
-			sourceID  *string
+		// 解析并校验来源服务型会话（单条或多条）与受影响联系人/外部群列表
+		type targetLink struct {
+			contactID       *string
+			externalGroupID *string
+			sourceID        *string
 		}
 		sourceIDSet := map[string]bool{}
 		var sourceIDs []string
@@ -186,15 +189,20 @@ func (a *CreateTicket) Handle(ctx context.Context, sub identity.Subject, p Creat
 		}
 
 		seenContacts := map[string]bool{}
-		var links []contactLink
+		seenGroups := map[string]bool{}
+		var links []targetLink
 		sourceConvs := make([]*Conversation, 0, len(sourceIDs))
 		for _, id := range sourceIDs {
 			sc := lockedSources[id]
 			sourceConvs = append(sourceConvs, sc)
 			if sc.ContactID != nil && *sc.ContactID != "" && !seenContacts[*sc.ContactID] {
 				seenContacts[*sc.ContactID] = true
-				sid := sc.ID
-				links = append(links, contactLink{contactID: *sc.ContactID, sourceID: &sid})
+				cid, sid := *sc.ContactID, sc.ID
+				links = append(links, targetLink{contactID: &cid, sourceID: &sid})
+			} else if sc.ExternalGroupID != nil && *sc.ExternalGroupID != "" && !seenGroups[*sc.ExternalGroupID] {
+				seenGroups[*sc.ExternalGroupID] = true
+				gid, sid := *sc.ExternalGroupID, sc.ID
+				links = append(links, targetLink{externalGroupID: &gid, sourceID: &sid})
 			}
 		}
 		for _, cid := range p.ContactIDs {
@@ -205,7 +213,19 @@ func (a *CreateTicket) Handle(ctx context.Context, sub identity.Subject, p Creat
 				return err
 			}
 			seenContacts[cid] = true
-			links = append(links, contactLink{contactID: cid})
+			cCopy := cid
+			links = append(links, targetLink{contactID: &cCopy})
+		}
+		for _, gid := range p.ExternalGroupIDs {
+			if gid == "" || seenGroups[gid] {
+				continue
+			}
+			if err := ensureVisibleGroup(ctx, tx, sub, gid); err != nil {
+				return err
+			}
+			seenGroups[gid] = true
+			gCopy := gid
+			links = append(links, targetLink{externalGroupID: &gCopy})
 		}
 
 		// 在写入末段分配递增编号，缩短对 tenants 行的锁持有时间
@@ -260,18 +280,19 @@ func (a *CreateTicket) Handle(ctx context.Context, sub identity.Subject, p Creat
 			return errors.Wrap(err, "insert ticket meta")
 		}
 
-		// 写入受影响联系人关联，并在每条来源服务型会话记系统事件
+		// 写入受影响对象关联，并在每条来源服务型会话记系统事件
 		for _, l := range links {
-			rec := &TicketContact{
+			rec := &TicketTarget{
 				ID:                   newID(),
 				TenantID:             sub.Tenant,
 				TicketID:             c.ID,
 				ContactID:            l.contactID,
+				ExternalGroupID:      l.externalGroupID,
 				SourceConversationID: l.sourceID,
 				CreatedBy:            createdBy,
 			}
 			if _, err := tx.NewInsert().Model(rec).Exec(ctx); err != nil {
-				return errors.Wrap(err, "insert ticket contact")
+				return errors.Wrap(err, "insert ticket target")
 			}
 		}
 		for _, sc := range sourceConvs {
@@ -336,6 +357,31 @@ func ensureVisibleContact(ctx context.Context, db bun.IDB, sub identity.Subject,
 	}
 	if !canSee {
 		return contact.ErrNotFound.New()
+	}
+	return nil
+}
+
+// ensureVisibleGroup 校验外部群 groupID 属于 sub 所在工作区；若 sub 属于受限可见范围，还校验其能看到该外部群的至少一条服务型会话。
+func ensureVisibleGroup(ctx context.Context, db bun.IDB, sub identity.Subject, groupID string) error {
+	exists, err := db.NewSelect().Table("external_groups").Where("id = ? AND tenant_id = ?", groupID, sub.Tenant).Exists(ctx)
+	if err != nil {
+		return errors.Wrap(err, "check external group exists")
+	}
+	if !exists {
+		return extgroup.ErrNotFound.New()
+	}
+	if sub.Type == identity.System || auth.ScopeOf(sub) == auth.ScopeAll {
+		return nil
+	}
+	q := db.NewSelect().Model((*Conversation)(nil)).
+		Where("conversation.tenant_id = ? AND conversation.kind = ? AND conversation.external_group_id = ?", sub.Tenant, Service, groupID)
+	q = visible(q, sub)
+	canSee, err := q.Exists(ctx)
+	if err != nil {
+		return errors.Wrap(err, "check visible group conversation")
+	}
+	if !canSee {
+		return extgroup.ErrNotFound.New()
 	}
 	return nil
 }

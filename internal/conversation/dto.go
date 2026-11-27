@@ -11,26 +11,30 @@ import (
 
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
+	"agents-desk/internal/extgroup"
 	"agents-desk/internal/tag"
 )
 
-// Actor 是接口中的参与者或发起者：类型、编号与可选显示名称（外部联系人消息携带姓名，便于外部群聊直接展示）。
+// Actor 是接口中的参与者或发起者：类型、编号、可选显示名称与外部平台标识（外部联系人或群发言人携带姓名，便于群聊展示与 @ 提及）。
 type Actor struct {
-	Type ActorType `json:"type"`
-	ID   string    `json:"id"`
-	Name string    `json:"name,omitempty"`
+	Type       ActorType `json:"type"`
+	ID         string    `json:"id"`
+	Name       string    `json:"name,omitempty"`
+	ExternalID string    `json:"external_id,omitempty"`
 }
 
 // ConversationDTO 是接口中的会话。
 type ConversationDTO struct {
 	ID                string             `json:"id"`
 	Kind              Kind               `json:"kind"`
+	Audience          channel.Audience   `json:"audience,omitempty" doc:"服务对象类型：customer（外部客户）、partner（外部商务伙伴）或 internal（内部员工）"`
 	Status            Status             `json:"status"`
 	Channel           *channel.Summary   `json:"channel,omitempty" doc:"会话最初发起的来源渠道"`
 	ReplyChannel      *channel.Summary   `json:"reply_channel,omitempty" doc:"会话当前的默认回复渠道"`
 	Channels          []channel.Summary  `json:"channels,omitempty" doc:"会话中出现过的全部渠道（来源渠道优先，去重）"`
-	AvailableChannels []channel.Summary  `json:"available_channels,omitempty" doc:"该联系人当前已绑定且已启用的可回复渠道列表"`
-	Contact           *contact.Summary   `json:"contact,omitempty" doc:"对方：联系人"`
+	AvailableChannels []channel.Summary  `json:"available_channels,omitempty" doc:"该联系人当前已绑定且已启用的同服务对象可回复渠道列表"`
+	Contact           *contact.Summary   `json:"contact,omitempty" doc:"对方：联系人（1:1 会话）"`
+	ExternalGroup     *extgroup.Summary  `json:"external_group,omitempty" doc:"对方：外部群（群聊机器人会话）"`
 	TeamID            *string            `json:"team_id,omitempty" doc:"团队收件箱的 ID；为空表示未指派到团队"`
 	Assignee          *Actor             `json:"assignee,omitempty" doc:"负责人；为空表示没有负责人"`
 	Priority          Priority           `json:"priority"`
@@ -63,17 +67,18 @@ type ConversationOutput struct {
 
 // ItemDTO 是接口中时间线的一项。
 type ItemDTO struct {
-	ID          string           `json:"id"`
-	Seq         int64            `json:"seq"`
-	Kind        ItemKind         `json:"kind"`
-	Actor       Actor            `json:"actor" doc:"发起者"`
-	Visibility  Visibility       `json:"visibility"`
-	Channel     *channel.Summary `json:"channel,omitempty" doc:"该消息来自或发往的渠道"`
-	Content     Content          `json:"content"`
-	Attachments []AttachmentDTO  `json:"attachments,omitempty" doc:"附带的图片和文件"`
-	Derived     map[string]any   `json:"derived" doc:"派生内容，例如按语言的译文，由后台补上"`
-	Delivery    *DeliveryStatus  `json:"delivery,omitempty" doc:"发给对方的消息的送达状态"`
-	CreatedAt   time.Time        `json:"created_at"`
+	ID            string           `json:"id"`
+	Seq           int64            `json:"seq"`
+	Kind          ItemKind         `json:"kind"`
+	Actor         Actor            `json:"actor" doc:"发起者"`
+	Visibility    Visibility       `json:"visibility"`
+	Channel       *channel.Summary `json:"channel,omitempty" doc:"该消息来自或发往的渠道"`
+	ReplyToItemID *string          `json:"reply_to_item_id,omitempty" doc:"引用回复的时间线项 ID"`
+	Content       Content          `json:"content"`
+	Attachments   []AttachmentDTO  `json:"attachments,omitempty" doc:"附带的图片和文件"`
+	Derived       map[string]any   `json:"derived" doc:"派生内容，例如按语言的译文，由后台补上"`
+	Delivery      *DeliveryStatus  `json:"delivery,omitempty" doc:"发给对方的消息的送达状态"`
+	CreatedAt     time.Time        `json:"created_at"`
 	// Untranslated 只在读取时间线时给出，按读取的成员的语言
 	Untranslated bool `json:"untranslated,omitempty" doc:"对方发来、还没有我的语言的译文、也不是我的语言的消息：翻译可用时页面显示“翻译中”，并请求补译"`
 }
@@ -83,16 +88,17 @@ type ItemOutput struct {
 	Body ItemDTO
 }
 
-// toItemDTOs 把时间线的各项转换为接口中的形式，一次读出它们的送达状态、所属渠道和附件。
+// toItemDTOs 把时间线的各项转换为接口中的形式，一次读出它们的送达状态、所属渠道、发起者名称和附件。
 func toItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Item) ([]ItemDTO, error) {
 	out := make([]ItemDTO, len(items))
 	if len(items) == 0 {
 		return out, nil
 	}
 	ids := make([]string, len(items))
-	var chIDs, contactActorIDs []string
+	var chIDs, contactActorIDs, extUserActorIDs []string
 	seenCh := map[string]bool{}
 	seenCt := map[string]bool{}
+	seenEU := map[string]bool{}
 	for i := range items {
 		ids[i] = items[i].ID
 		if items[i].ChannelID != nil && !seenCh[*items[i].ChannelID] {
@@ -102,6 +108,10 @@ func toItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Item) ([]I
 		if items[i].ActorType == ContactActor && items[i].ActorID != "" && !seenCt[items[i].ActorID] {
 			seenCt[items[i].ActorID] = true
 			contactActorIDs = append(contactActorIDs, items[i].ActorID)
+		}
+		if items[i].ActorType == ExternalUserActor && items[i].ActorID != "" && !seenEU[items[i].ActorID] {
+			seenEU[items[i].ActorID] = true
+			extUserActorIDs = append(extUserActorIDs, items[i].ActorID)
 		}
 	}
 	var deliveries []Delivery
@@ -137,18 +147,43 @@ func toItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Item) ([]I
 			}
 		}
 	}
+	type extUserInfo struct {
+		Name       string
+		ExternalID string
+	}
+	extUsers := map[string]extUserInfo{}
+	if len(extUserActorIDs) > 0 {
+		var rows []struct {
+			ID         string `bun:"id"`
+			Name       string `bun:"name"`
+			ExternalID string `bun:"external_id"`
+		}
+		if err := db.NewSelect().Table("external_users").Column("id", "name", "external_id").Where("id IN (?)", bun.In(extUserActorIDs)).Scan(ctx, &rows); err != nil {
+			return nil, errors.Wrap(err, "load item external users")
+		}
+		for _, r := range rows {
+			extUsers[r.ID] = extUserInfo{Name: r.Name, ExternalID: r.ExternalID}
+		}
+	}
 	attachments, err := loadAttachments(ctx, db, media, ids)
 	if err != nil {
 		return nil, err
 	}
 	for i, it := range items {
 		actor := Actor{Type: it.ActorType, ID: it.ActorID}
-		if it.ActorType == ContactActor {
+		switch it.ActorType {
+		case ContactActor:
 			actor.Name = contactNames[it.ActorID]
+		case ExternalUserActor:
+			if info, ok := extUsers[it.ActorID]; ok {
+				actor.Name = info.Name
+				actor.ExternalID = info.ExternalID
+			}
 		}
 		out[i] = ItemDTO{
 			ID: it.ID, Seq: it.Seq, Kind: it.Kind, Actor: actor,
-			Visibility: it.Visibility, Content: it.Content, Attachments: attachments[it.ID], Derived: it.Derived, CreatedAt: it.CreatedAt,
+			Visibility: it.Visibility, ReplyToItemID: it.ReplyToItemID,
+			Content: it.Content, Attachments: attachments[it.ID], Derived: it.Derived, CreatedAt: it.CreatedAt,
 		}
 		if it.ChannelID != nil {
 			if s, ok := channels[*it.ChannelID]; ok {
@@ -168,8 +203,9 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 	if len(convs) == 0 {
 		return out, nil
 	}
-	var ids, channelIDs, contactIDs []string
+	var ids, channelIDs, contactIDs, extGroupIDs []string
 	seenCh := map[string]bool{}
+	seenGroup := map[string]bool{}
 	addChID := func(id string) {
 		if id != "" && !seenCh[id] {
 			seenCh[id] = true
@@ -186,6 +222,10 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 		}
 		if c.ContactID != nil {
 			contactIDs = append(contactIDs, *c.ContactID)
+		}
+		if c.ExternalGroupID != nil && *c.ExternalGroupID != "" && !seenGroup[*c.ExternalGroupID] {
+			seenGroup[*c.ExternalGroupID] = true
+			extGroupIDs = append(extGroupIDs, *c.ExternalGroupID)
 		}
 	}
 	// 查出各会话时间线中出现过的渠道（按首次出现顺序）
@@ -204,7 +244,7 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 		convChannelIDs[r.ConversationID] = append(convChannelIDs[r.ConversationID], r.ChannelID)
 		addChID(r.ChannelID)
 	}
-	// 查出关联联系人当前已绑定且已启用的渠道，作为可回复渠道列表
+	// 查出关联联系人当前已绑定且已启用的公共服务渠道，作为可回复渠道列表
 	availableByContact := map[string][]string{}
 	if len(contactIDs) > 0 {
 		var identRows []struct {
@@ -214,7 +254,7 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 		if err := db.NewRaw(`SELECT ci.contact_id, ci.channel_id
 			FROM contact_identities ci
 			JOIN channels ch ON ch.id = ci.channel_id
-			WHERE ci.tenant_id = ? AND ci.contact_id IN (?) AND ch.enabled = true
+			WHERE ci.tenant_id = ? AND ci.contact_id IN (?) AND ch.enabled = true AND ch.owner_member_id IS NULL
 			GROUP BY ci.contact_id, ci.channel_id
 			ORDER BY ci.contact_id, min(ci.created_at) ASC`, sub.Tenant, bun.In(contactIDs)).Scan(ctx, &identRows); err != nil {
 			return nil, errors.Wrap(err, "load contact available channels")
@@ -252,6 +292,16 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 			contacts[rows[i].ID] = s
 		}
 	}
+	extGroups := map[string]extgroup.Summary{}
+	if len(extGroupIDs) > 0 {
+		var rows []extgroup.Group
+		if err := db.NewSelect().Model(&rows).Where("id IN (?)", bun.In(extGroupIDs)).Scan(ctx); err != nil {
+			return nil, errors.Wrap(err, "load external groups")
+		}
+		for i := range rows {
+			extGroups[rows[i].ID] = rows[i].Summary()
+		}
+	}
 	convTags, err := tag.ForConversations(ctx, db, ids)
 	if err != nil {
 		return nil, err
@@ -269,9 +319,33 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 	}
 	previews := make(map[string]*Item, len(lasts))
 	lastIDs := make([]string, 0, len(lasts))
+	var previewExtUserIDs []string
+	seenPreviewEU := map[string]bool{}
 	for i := range lasts {
 		previews[lasts[i].ConversationID] = &lasts[i]
 		lastIDs = append(lastIDs, lasts[i].ID)
+		if lasts[i].ActorType == ExternalUserActor && lasts[i].ActorID != "" && !seenPreviewEU[lasts[i].ActorID] {
+			seenPreviewEU[lasts[i].ActorID] = true
+			previewExtUserIDs = append(previewExtUserIDs, lasts[i].ActorID)
+		}
+	}
+	type previewEUInfo struct {
+		Name       string
+		ExternalID string
+	}
+	previewExtUsers := map[string]previewEUInfo{}
+	if len(previewExtUserIDs) > 0 {
+		var rows []struct {
+			ID         string `bun:"id"`
+			Name       string `bun:"name"`
+			ExternalID string `bun:"external_id"`
+		}
+		if err := db.NewSelect().Table("external_users").Column("id", "name", "external_id").Where("id IN (?)", bun.In(previewExtUserIDs)).Scan(ctx, &rows); err != nil {
+			return nil, errors.Wrap(err, "load preview external users")
+		}
+		for _, r := range rows {
+			previewExtUsers[r.ID] = previewEUInfo{Name: r.Name, ExternalID: r.ExternalID}
+		}
 	}
 	previewAttachments, err := loadPreviewAttachments(ctx, db, lastIDs)
 	if err != nil {
@@ -295,13 +369,25 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 			attrs = map[string]any{}
 		}
 		d := ConversationDTO{
-			ID: c.ID, Kind: c.Kind, Status: c.Status, TeamID: c.TeamID, Priority: c.Priority, Language: c.Language,
+			ID: c.ID, Kind: c.Kind, Audience: c.Audience, Status: c.Status, TeamID: c.TeamID, Priority: c.Priority, Language: c.Language,
 			WaitingSince: c.WaitingSince, SnoozedUntil: c.SnoozedUntil, FirstReplyAt: c.FirstReplyAt, ClosedAt: c.ClosedAt,
 			LastMessageAt: c.LastMessageAt, LastSeq: c.LastSeq, Unread: unread[c.ID], ReadSeq: readSeq[c.ID],
 			MentionedAt: c.MentionedAt, Rating: c.rating(), Tags: tags, Attributes: attrs, CreatedAt: c.CreatedAt,
 		}
 		if p := previews[c.ID]; p != nil {
-			d.Preview, d.PreviewActor = previewText(p, sub.ID, language), &Actor{Type: p.ActorType, ID: p.ActorID}
+			actor := Actor{Type: p.ActorType, ID: p.ActorID}
+			switch p.ActorType {
+			case ContactActor:
+				if ct, ok := contacts[p.ActorID]; ok {
+					actor.Name = ct.Name
+				}
+			case ExternalUserActor:
+				if info, ok := previewExtUsers[p.ActorID]; ok {
+					actor.Name = info.Name
+					actor.ExternalID = info.ExternalID
+				}
+			}
+			d.Preview, d.PreviewActor = previewText(p, sub.ID, language), &actor
 			d.PreviewAttachment = previewAttachments[p.ID]
 			if untranslated(p, sub.ID, language) {
 				d.PreviewItemID, d.PreviewUntranslated = p.ID, true
@@ -335,13 +421,24 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 		if c.ReplyChannelID != nil {
 			appendConvCh(*c.ReplyChannelID)
 		}
-		if c.ContactID != nil {
+		if c.ExternalGroupID != nil {
+			if s, ok := extGroups[*c.ExternalGroupID]; ok {
+				d.ExternalGroup = &s
+				if s.Language != "" {
+					d.Language = s.Language
+				}
+			}
+		} else if c.ContactID != nil {
 			s := contacts[*c.ContactID]
 			d.Contact = &s
 			// 有联系人时，客户的语言以联系人为准，同一联系人的多个会话始终一致
 			d.Language = s.Language
+			targetAudience := c.Audience
+			if targetAudience == "" {
+				targetAudience = channel.AudienceCustomer
+			}
 			for _, chID := range availableByContact[*c.ContactID] {
-				if chSummary, ok := channels[chID]; ok {
+				if chSummary, ok := channels[chID]; ok && chSummary.Audience == targetAudience {
 					d.AvailableChannels = append(d.AvailableChannels, chSummary)
 				}
 			}

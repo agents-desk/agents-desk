@@ -183,8 +183,8 @@ func (a *Tickets) Handle(ctx context.Context, sub identity.Subject, f TicketFilt
 	sum.PrevResolutionSec = roundPtr(sum.PrevResolutionSec)
 	sum.ResolutionAvgSec = roundPtr(sum.ResolutionAvgSec)
 
-	// 2. 统计期内新建工单关联的受影响客户总数
-	qLinked := a.db.NewSelect().TableExpr("ticket_contacts tc").
+	// 2. 统计期内新建工单关联的受影响对象总数
+	qLinked := a.db.NewSelect().TableExpr("ticket_targets tc").
 		Join("JOIN conversations c ON c.id = tc.ticket_id").
 		Join("JOIN tickets t ON t.conversation_id = c.id").
 		ColumnExpr("count(*)").

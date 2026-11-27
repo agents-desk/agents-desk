@@ -27,7 +27,7 @@ type b2bRecordingConnector struct {
 }
 
 func (r *b2bRecordingConnector) Capabilities() channel.Capabilities {
-	return channel.Capabilities{MessageTypes: []string{"text", "image", "file"}, GroupChat: true}
+	return channel.Capabilities{MessageTypes: []string{"text", "image", "file"}, SupportsDirect: true, SupportsGroup: true}
 }
 
 func (r *b2bRecordingConnector) Send(_ context.Context, m channel.Outgoing) (string, bool, error) {

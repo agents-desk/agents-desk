@@ -66,7 +66,7 @@ func (a *ListTicketsForContact) Handle(ctx context.Context, sub identity.Subject
 	q := a.db.NewSelect().Model(&convs).
 		Join("JOIN tickets tk ON tk.conversation_id = conversation.id").
 		Where("conversation.tenant_id = ? AND conversation.kind = ? AND tk.visibility = ?", sub.Tenant, Ticket, tickettype.VisibilityAll).
-		Where("EXISTS (SELECT 1 FROM ticket_contacts tc WHERE tc.tenant_id = ? AND tc.ticket_id = conversation.id AND tc.contact_id = ?)", sub.Tenant, sub.ID)
+		Where("EXISTS (SELECT 1 FROM ticket_targets tc WHERE tc.tenant_id = ? AND tc.ticket_id = conversation.id AND tc.contact_id = ?)", sub.Tenant, sub.ID)
 	if kind != contact.User {
 		q = q.Where("EXISTS (SELECT 1 FROM conversations sc WHERE sc.tenant_id = ? AND sc.kind = ? AND sc.contact_id = ? AND sc.channel_id = ?)",
 			sub.Tenant, Service, sub.ID, channelID)
@@ -106,7 +106,7 @@ func (a *GetTicketForContact) Handle(ctx context.Context, sub identity.Subject, 
 	q := a.db.NewSelect().Model(&conv).
 		Join("JOIN tickets tk ON tk.conversation_id = conversation.id").
 		Where("conversation.id = ? AND conversation.tenant_id = ? AND conversation.kind = ? AND tk.visibility = ?", id, sub.Tenant, Ticket, tickettype.VisibilityAll).
-		Where("EXISTS (SELECT 1 FROM ticket_contacts tc WHERE tc.tenant_id = ? AND tc.ticket_id = conversation.id AND tc.contact_id = ?)", sub.Tenant, sub.ID)
+		Where("EXISTS (SELECT 1 FROM ticket_targets tc WHERE tc.tenant_id = ? AND tc.ticket_id = conversation.id AND tc.contact_id = ?)", sub.Tenant, sub.ID)
 	if kind != contact.User {
 		q = q.Where("EXISTS (SELECT 1 FROM conversations sc WHERE sc.tenant_id = ? AND sc.kind = ? AND sc.contact_id = ? AND sc.channel_id = ?)",
 			sub.Tenant, Service, sub.ID, channelID)

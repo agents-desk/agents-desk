@@ -44,18 +44,21 @@ var (
 	ErrMergeSelf = errorx.Define(errorx.InvalidArgument, "contact.merge_self")
 	// ErrMergeConflict 是两个联系人绑定了不同的业务用户编号，不能直接合并。
 	ErrMergeConflict = errorx.Define(errorx.Conflict, "contact.merge_conflict")
+	// ErrMemberTaken 是目标工作区成员已经绑定了另一个内部联系人。
+	ErrMemberTaken = errorx.Define(errorx.Conflict, "contact.member_taken")
 )
 
 // Kind 是联系人的类型。
 type Kind string
 
 const (
-	User Kind = "user" // 产品传来了身份的已登录客户
-	Lead Kind = "lead" // 以访客身份发起会话的人
+	User     Kind = "user"     // 产品传来了身份的已登录外部客户
+	Lead     Kind = "lead"     // 以访客身份发起会话的外部客户
+	Internal Kind = "internal" // 经内部服务机器人单聊发起请求的内部联系人（员工），可关联工作区成员
 )
 
 // Kinds 是联系人的全部类型，显示文字是翻译文件中 contact.kind.<类型> 的消息。
-var Kinds = enum.New("contact.kind", enum.Item(User), enum.Item(Lead))
+var Kinds = enum.New("contact.kind", enum.Item(User), enum.Item(Lead), enum.Item(Internal))
 
 // Schema 让 OpenAPI 中的 Kind 只接受上面的取值，并带有显示文字。
 func (Kind) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Kinds) }
@@ -69,11 +72,12 @@ type Contact struct {
 	TenantID       string         `bun:"tenant_id,notnull"`
 	Number         int64          `bun:"number,notnull"` // 联系人在工作区内的递增编号，从 1 开始，创建后不变
 	Kind           Kind           `bun:"kind,notnull"`
+	MemberID       *string        `bun:"member_id"` // 可选：内部联系人关联的工作区成员 ID
 	Name           string         `bun:"name,notnull"`
 	Company        string         `bun:"company,notnull"` // 联系人所属公司或组织名称
 	Email          string         `bun:"email,notnull"`
 	ExternalUserID string         `bun:"external_user_id,notnull"` // 产品后端传来的用户编号；线索为空
-	Language       string         `bun:"language,notnull"`         // 客户的语言：按最近几条消息判断（conversation.CustomerLanguage），或者成员手动设置的
+	Language       string         `bun:"language,notnull"`         // 客户的语言：按最近几条消息判断（conversation.PeerLanguage），或者成员手动设置的
 	LanguageManual bool           `bun:"language_manual,notnull"`  // 成员手动设置了 Language：收到的消息不再改它
 	Attributes     map[string]any `bun:"attributes,type:jsonb,notnull"`
 	Notes          string         `bun:"notes,notnull"`                    // 成员填写的联系人备注，跨会话持久可见
@@ -89,10 +93,11 @@ type Summary struct {
 	ID             string         `json:"id"`
 	Number         int64          `json:"number" doc:"联系人在工作区内的递增编号，从 1 开始"`
 	Kind           Kind           `json:"kind"`
+	MemberID       *string        `json:"member_id,omitempty" doc:"内部联系人关联的工作区成员 ID"`
 	Name           string         `json:"name"`
 	Company        string         `json:"company,omitempty" doc:"所属公司或组织名称"`
 	Email          string         `json:"email"`
-	Language       string         `json:"language" doc:"客户的语言：按最近几条确定了语言的消息判断，或者成员手动设置的；还没有时为空"`
+	Language       string         `json:"language" doc:"对方的语言：按最近几条确定了语言的消息判断，或者成员手动设置的；还没有时为空"`
 	LanguageManual bool           `json:"language_manual" doc:"对方的语言是成员手动设置的：收到的消息不再改它"`
 	Location       string         `json:"location,omitempty" doc:"所在地"`
 	TimeZone       string         `json:"time_zone,omitempty" doc:"IANA 时区名，用于显示对方的当地时间"`
@@ -107,7 +112,7 @@ func (c *Contact) Summary() Summary {
 		attrs = map[string]any{}
 	}
 	return Summary{
-		ID: c.ID, Number: c.Number, Kind: c.Kind, Name: c.Name, Company: c.Company, Email: c.Email,
+		ID: c.ID, Number: c.Number, Kind: c.Kind, MemberID: c.MemberID, Name: c.Name, Company: c.Company, Email: c.Email,
 		Language: c.Language, LanguageManual: c.LanguageManual,
 		Location: c.Location, TimeZone: c.TimeZone,
 		Tags: []tag.Summary{}, Attributes: attrs,
@@ -138,6 +143,15 @@ type Profile struct {
 // ResolveIdentity 在事务 tx 中按渠道 channelID 和外部编号 externalID 找到联系人；还没有时新建一个线索和他的渠道身份。
 // 新建时 created 为 true；已存在时按 p 补全时区和来源页面，并刷新最近活跃时间。
 func ResolveIdentity(ctx context.Context, tx bun.IDB, tenant, channelID, externalID string, p Profile) (c *Contact, created bool, err error) {
+	return ResolveIdentityWithKind(ctx, tx, tenant, channelID, externalID, Lead, p)
+}
+
+// ResolveIdentityWithKind 在事务 tx 中按渠道 channelID 和外部编号 externalID 找到联系人；
+// 还没有时按 defaultKind（如 Lead 或 Internal）新建联系人和他的渠道身份。
+func ResolveIdentityWithKind(ctx context.Context, tx bun.IDB, tenant, channelID, externalID string, defaultKind Kind, p Profile) (c *Contact, created bool, err error) {
+	if defaultKind == "" {
+		defaultKind = Lead
+	}
 	at := now()
 	var id Identity
 	err = tx.NewSelect().Model(&id).Where("channel_id = ? AND external_id = ?", channelID, externalID).Scan(ctx)
@@ -159,7 +173,7 @@ func ResolveIdentity(ctx context.Context, tx bun.IDB, tenant, channelID, externa
 		return nil, false, err
 	}
 	c = &Contact{
-		ID: newID(), TenantID: tenant, Number: num, Kind: Lead,
+		ID: newID(), TenantID: tenant, Number: num, Kind: defaultKind,
 		Name: strings.TrimSpace(p.Name), Company: strings.TrimSpace(p.Company), Email: strings.TrimSpace(p.Email),
 		Language: sanitizeLanguage(p.Language),
 		TimeZone: sanitizeTimeZone(p.TimeZone), Referrer: sanitizeReferrer(p.Referrer),

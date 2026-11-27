@@ -13,9 +13,10 @@ import (
 
 // SummaryDTO 是联系人模块的概览：当前成员可见的各类联系人数量、可见的渠道列表、活跃语言列表，以及已保存的联系人筛选视图和计数。
 type SummaryDTO struct {
-	All       int64             `json:"all" doc:"全部联系人数量"`
-	Users     int64             `json:"users" doc:"用户数量"`
-	Leads     int64             `json:"leads" doc:"线索数量"`
+	All       int64             `json:"all" doc:"全部外部客户联系人数量（用户 + 线索，不含内部联系人）"`
+	Users     int64             `json:"users" doc:"已认证客户数量"`
+	Leads     int64             `json:"leads" doc:"访客线索数量"`
+	Internal  int64             `json:"internal" doc:"内部联系人数量（员工）"`
 	Channels  []channel.Summary `json:"channels" doc:"当前成员可见的渠道，供联系人列表按渠道筛选"`
 	Languages []string          `json:"languages" nullable:"false" doc:"当前成员可见联系人中实际出现过的语言标签（BCP 47），按使用人数降序排列"`
 	Views     []ViewSummary     `json:"views" doc:"当前成员可见的联系人已保存筛选视图及实时数量"`
@@ -51,12 +52,15 @@ func (a *GetSummary) Handle(ctx context.Context, sub identity.Subject) (*Summary
 	}
 	out := SummaryDTO{Channels: []channel.Summary{}, Languages: []string{}, Views: []ViewSummary{}}
 	for _, r := range counts {
-		out.All += r.Count
 		switch r.Kind {
 		case User:
 			out.Users = r.Count
+			out.All += r.Count
 		case Lead:
 			out.Leads = r.Count
+			out.All += r.Count
+		case Internal:
+			out.Internal = r.Count
 		}
 	}
 	var chRows []channel.Channel

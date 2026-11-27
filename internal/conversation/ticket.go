@@ -14,6 +14,7 @@ import (
 	"agents-desk/internal/auth"
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
+	"agents-desk/internal/extgroup"
 	"agents-desk/internal/lang"
 	"agents-desk/internal/push"
 	"agents-desk/internal/tag"
@@ -37,15 +38,16 @@ type TicketMeta struct {
 	Derived     map[string]any        `bun:"derived,type:jsonb,notnull"`
 }
 
-// TicketContact 是 ticket_contacts 关联表的数据库模型，多对多连接工单与受影响联系人。
-type TicketContact struct {
-	bun.BaseModel `bun:"table:ticket_contacts"`
+// TicketTarget 是 ticket_targets 关联表的数据库模型，多对多连接工单与受影响联系人或外部群。
+type TicketTarget struct {
+	bun.BaseModel `bun:"table:ticket_targets"`
 
 	ID string `bun:"id,pk"`
 	database.Timestamps
 	TenantID             string  `bun:"tenant_id,notnull"`
 	TicketID             string  `bun:"ticket_id,notnull"`
-	ContactID            string  `bun:"contact_id,notnull"`
+	ContactID            *string `bun:"contact_id"`
+	ExternalGroupID      *string `bun:"external_group_id"`
 	SourceConversationID *string `bun:"source_conversation_id"`
 	CreatedBy            *string `bun:"created_by"`
 }
@@ -59,6 +61,18 @@ type LinkedContactDTO struct {
 	Preview            string           `json:"preview"`
 	LastMessageAt      *time.Time       `json:"last_message_at,omitempty"`
 	IsSource           bool             `json:"is_source" doc:"是否由该客户的服务型会话转成此工单"`
+	LinkedAt           time.Time        `json:"linked_at"`
+}
+
+// LinkedGroupDTO 是工单详情中展示的一个已关联外部群摘要（仅返回当前成员有权限看到的外部群）。
+type LinkedGroupDTO struct {
+	Group              extgroup.Summary `json:"group"`
+	ConversationID     *string          `json:"conversation_id,omitempty" doc:"当前成员可见的该外部群活跃或最近一条服务型会话 ID"`
+	ConversationStatus Status           `json:"conversation_status,omitempty"`
+	Channel            *channel.Summary `json:"channel,omitempty"`
+	Preview            string           `json:"preview"`
+	LastMessageAt      *time.Time       `json:"last_message_at,omitempty"`
+	IsSource           bool             `json:"is_source" doc:"是否由该外部群的服务型会话转成此工单"`
 	LinkedAt           time.Time        `json:"linked_at"`
 }
 
@@ -87,8 +101,9 @@ type TicketDTO struct {
 	ReadSeq               int64                 `json:"read_seq"`
 	Tags                  []tag.Summary         `json:"tags"`
 	Attributes            map[string]any        `json:"attributes"`
-	LinkedCount           int                   `json:"linked_count" doc:"工单关联的受影响客户总数"`
-	LinkedContacts        []LinkedContactDTO    `json:"linked_contacts,omitempty" doc:"当前成员有权限看到的受影响客户列表（详情接口返回）"`
+	LinkedCount           int                   `json:"linked_count" doc:"工单关联的受影响对象总数（联系人与外部群之和）"`
+	LinkedContacts        []LinkedContactDTO    `json:"linked_contacts,omitempty" doc:"当前成员有权限看到的受影响联系人列表（详情接口返回）"`
+	LinkedGroups          []LinkedGroupDTO      `json:"linked_groups,omitempty" doc:"当前成员有权限看到的受影响外部群列表（详情接口返回）"`
 	CreatedAt             time.Time             `json:"created_at"`
 	UpdatedAt             time.Time             `json:"updated_at"`
 }
@@ -167,11 +182,11 @@ func toTicketDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs [
 		TicketID string `bun:"ticket_id"`
 		Count    int    `bun:"cnt"`
 	}
-	if err := db.NewSelect().Table("ticket_contacts").
+	if err := db.NewSelect().Table("ticket_targets").
 		ColumnExpr("ticket_id, count(*) AS cnt").
 		Where("tenant_id = ? AND ticket_id IN (?)", sub.Tenant, bun.In(ids)).
 		GroupExpr("ticket_id").Scan(ctx, &countRows); err != nil {
-		return nil, errors.Wrap(err, "count ticket contacts")
+		return nil, errors.Wrap(err, "count ticket targets")
 	}
 	linkedCounts := make(map[string]int, len(countRows))
 	for _, r := range countRows {
@@ -196,8 +211,9 @@ func toTicketDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs [
 	}
 
 	var linksByTicket map[string][]LinkedContactDTO
+	var groupsByTicket map[string][]LinkedGroupDTO
 	if includeLinks {
-		linksByTicket, err = loadVisibleLinkedContacts(ctx, db, sub, ids)
+		linksByTicket, groupsByTicket, err = loadVisibleLinkedTargets(ctx, db, sub, ids)
 		if err != nil {
 			return nil, err
 		}
@@ -260,93 +276,149 @@ func toTicketDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs [
 				list = []LinkedContactDTO{}
 			}
 			dto.LinkedContacts = list
+			gList := groupsByTicket[c.ID]
+			if gList == nil {
+				gList = []LinkedGroupDTO{}
+			}
+			dto.LinkedGroups = gList
 		}
 		out[i] = dto
 	}
 	return out, nil
 }
 
-// loadVisibleLinkedContacts 批量加载工单 ticketIDs 下当前成员 sub 有权限查看的受影响客户摘要。
-// 对受限成员（ScopeTeam/ScopeAssigned）严格校验是否可见该客户的服务型会话，防止不同团队或代理之间泄露权限之外的客户。
-func loadVisibleLinkedContacts(ctx context.Context, db bun.IDB, sub identity.Subject, ticketIDs []string) (map[string][]LinkedContactDTO, error) {
-	result := make(map[string][]LinkedContactDTO, len(ticketIDs))
+// loadVisibleLinkedTargets 批量加载工单 ticketIDs 下当前成员 sub 有权限查看的受影响联系人与外部群摘要。
+// 对受限成员（ScopeTeam/ScopeAssigned）严格校验是否可见该对象的服务型会话，防止不同团队或代理之间泄露权限之外的对象。
+func loadVisibleLinkedTargets(ctx context.Context, db bun.IDB, sub identity.Subject, ticketIDs []string) (map[string][]LinkedContactDTO, map[string][]LinkedGroupDTO, error) {
+	contactRes := make(map[string][]LinkedContactDTO, len(ticketIDs))
+	groupRes := make(map[string][]LinkedGroupDTO, len(ticketIDs))
 	if len(ticketIDs) == 0 {
-		return result, nil
+		return contactRes, groupRes, nil
 	}
-	var links []TicketContact
+	var links []TicketTarget
 	if err := db.NewSelect().Model(&links).
 		Where("tenant_id = ? AND ticket_id IN (?)", sub.Tenant, bun.In(ticketIDs)).
 		OrderExpr("(source_conversation_id IS NOT NULL) DESC, created_at ASC, id ASC").Scan(ctx); err != nil {
-		return nil, errors.Wrap(err, "load ticket contacts")
+		return nil, nil, errors.Wrap(err, "load ticket targets")
 	}
 	if len(links) == 0 {
-		return result, nil
+		return contactRes, groupRes, nil
 	}
 
-	contactIDSet := make(map[string]struct{}, len(links))
-	contactIDs := make([]string, 0, len(links))
+	contactIDSet := map[string]struct{}{}
+	var contactIDs []string
+	groupIDSet := map[string]struct{}{}
+	var groupIDs []string
 	for _, l := range links {
-		if _, dup := contactIDSet[l.ContactID]; !dup {
-			contactIDSet[l.ContactID] = struct{}{}
-			contactIDs = append(contactIDs, l.ContactID)
+		if l.ContactID != nil && *l.ContactID != "" {
+			if _, dup := contactIDSet[*l.ContactID]; !dup {
+				contactIDSet[*l.ContactID] = struct{}{}
+				contactIDs = append(contactIDs, *l.ContactID)
+			}
+		}
+		if l.ExternalGroupID != nil && *l.ExternalGroupID != "" {
+			if _, dup := groupIDSet[*l.ExternalGroupID]; !dup {
+				groupIDSet[*l.ExternalGroupID] = struct{}{}
+				groupIDs = append(groupIDs, *l.ExternalGroupID)
+			}
 		}
 	}
 
-	// 加载这些联系人在当前成员权限内可见的全部服务型会话，按活跃优先、最近消息倒序排列
-	var convs []Conversation
-	q := db.NewSelect().Model(&convs).
-		Where("conversation.tenant_id = ? AND conversation.kind = ? AND conversation.contact_id IN (?)", sub.Tenant, Service, bun.In(contactIDs)).
-		OrderExpr("(conversation.status IN ('open', 'snoozed')) DESC, conversation.last_message_at DESC, conversation.id DESC")
-	q = visible(q, sub)
-	if err := q.Scan(ctx); err != nil {
-		return nil, errors.Wrap(err, "load visible service conversations for ticket contacts")
-	}
-
-	// 按每个联系人挑出最佳可见会话（优先活跃会话，其次按最近消息）及按 ID 索引
-	convsByContact := map[string][]Conversation{}
-	convByID := map[string]Conversation{}
-	for _, c := range convs {
-		if c.ContactID == nil {
-			continue
-		}
-		convsByContact[*c.ContactID] = append(convsByContact[*c.ContactID], c)
-		convByID[c.ID] = c
-	}
-
-	// 受限成员只保留名下有可见服务型会话的联系人；ScopeAll 和系统主体可见全部关联联系人
 	seeAll := sub.Type == identity.System || auth.ScopeOf(sub) == auth.ScopeAll
-	visibleContactIDs := make([]string, 0, len(contactIDs))
-	chosenConvs := make([]Conversation, 0, len(contactIDs))
+	var chosenConvs []Conversation
+	convByID := map[string]Conversation{}
+
+	// 1. 解析受影响联系人的可见服务型会话
 	chosenByContact := map[string]string{}
-	for _, cid := range contactIDs {
-		list := convsByContact[cid]
-		if !seeAll && len(list) == 0 {
-			continue
+	contactByID := map[string]contact.Summary{}
+	if len(contactIDs) > 0 {
+		var convs []Conversation
+		q := db.NewSelect().Model(&convs).
+			Where("conversation.tenant_id = ? AND conversation.kind = ? AND conversation.contact_id IN (?)", sub.Tenant, Service, bun.In(contactIDs)).
+			OrderExpr("(conversation.status IN ('open', 'snoozed')) DESC, conversation.last_message_at DESC, conversation.id DESC")
+		q = visible(q, sub)
+		if err := q.Scan(ctx); err != nil {
+			return nil, nil, errors.Wrap(err, "load visible service conversations for ticket contacts")
 		}
-		visibleContactIDs = append(visibleContactIDs, cid)
-		if len(list) > 0 {
-			chosenByContact[cid] = list[0].ID
-			chosenConvs = append(chosenConvs, list[0])
+		convsByContact := map[string][]Conversation{}
+		for _, c := range convs {
+			if c.ContactID == nil {
+				continue
+			}
+			convsByContact[*c.ContactID] = append(convsByContact[*c.ContactID], c)
+			convByID[c.ID] = c
 		}
-	}
-	if len(visibleContactIDs) == 0 {
-		return result, nil
+		var visibleContactIDs []string
+		for _, cid := range contactIDs {
+			list := convsByContact[cid]
+			if !seeAll && len(list) == 0 {
+				continue
+			}
+			visibleContactIDs = append(visibleContactIDs, cid)
+			if len(list) > 0 {
+				chosenByContact[cid] = list[0].ID
+				chosenConvs = append(chosenConvs, list[0])
+			}
+		}
+		if len(visibleContactIDs) > 0 {
+			var contactRows []contact.Contact
+			if err := db.NewSelect().Model(&contactRows).Where("tenant_id = ? AND id IN (?)", sub.Tenant, bun.In(visibleContactIDs)).Scan(ctx); err != nil {
+				return nil, nil, errors.Wrap(err, "load contacts for ticket links")
+			}
+			for i := range contactRows {
+				contactByID[contactRows[i].ID] = contactRows[i].Summary()
+			}
+		}
 	}
 
-	var contactRows []contact.Contact
-	if err := db.NewSelect().Model(&contactRows).Where("tenant_id = ? AND id IN (?)", sub.Tenant, bun.In(visibleContactIDs)).Scan(ctx); err != nil {
-		return nil, errors.Wrap(err, "load contacts for ticket links")
-	}
-	contactByID := make(map[string]contact.Summary, len(contactRows))
-	for i := range contactRows {
-		contactByID[contactRows[i].ID] = contactRows[i].Summary()
+	// 2. 解析受影响外部群的可见服务型会话
+	chosenByGroup := map[string]string{}
+	groupByID := map[string]extgroup.Summary{}
+	if len(groupIDs) > 0 {
+		var convs []Conversation
+		q := db.NewSelect().Model(&convs).
+			Where("conversation.tenant_id = ? AND conversation.kind = ? AND conversation.external_group_id IN (?)", sub.Tenant, Service, bun.In(groupIDs)).
+			OrderExpr("(conversation.status IN ('open', 'snoozed')) DESC, conversation.last_message_at DESC, conversation.id DESC")
+		q = visible(q, sub)
+		if err := q.Scan(ctx); err != nil {
+			return nil, nil, errors.Wrap(err, "load visible service conversations for ticket groups")
+		}
+		convsByGroup := map[string][]Conversation{}
+		for _, c := range convs {
+			if c.ExternalGroupID == nil {
+				continue
+			}
+			convsByGroup[*c.ExternalGroupID] = append(convsByGroup[*c.ExternalGroupID], c)
+			convByID[c.ID] = c
+		}
+		var visibleGroupIDs []string
+		for _, gid := range groupIDs {
+			list := convsByGroup[gid]
+			if !seeAll && len(list) == 0 {
+				continue
+			}
+			visibleGroupIDs = append(visibleGroupIDs, gid)
+			if len(list) > 0 {
+				chosenByGroup[gid] = list[0].ID
+				chosenConvs = append(chosenConvs, list[0])
+			}
+		}
+		if len(visibleGroupIDs) > 0 {
+			var groupRows []extgroup.Group
+			if err := db.NewSelect().Model(&groupRows).Where("tenant_id = ? AND id IN (?)", sub.Tenant, bun.In(visibleGroupIDs)).Scan(ctx); err != nil {
+				return nil, nil, errors.Wrap(err, "load external groups for ticket links")
+			}
+			for i := range groupRows {
+				groupByID[groupRows[i].ID] = groupRows[i].Summary()
+			}
+		}
 	}
 
 	convDTOByID := map[string]ConversationDTO{}
 	if len(chosenConvs) > 0 {
 		dtos, err := toDTOs(ctx, db, sub, chosenConvs)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		for _, d := range dtos {
 			convDTOByID[d.ID] = d
@@ -354,50 +426,83 @@ func loadVisibleLinkedContacts(ctx context.Context, db bun.IDB, sub identity.Sub
 	}
 
 	for _, l := range links {
-		ct, ok := contactByID[l.ContactID]
-		if !ok {
-			continue
-		}
-		item := LinkedContactDTO{
-			Contact:  ct,
-			IsSource: l.SourceConversationID != nil && *l.SourceConversationID != "",
-			LinkedAt: l.CreatedAt,
-		}
-		if convID := chosenByContact[l.ContactID]; convID != "" {
-			if d, ok := convDTOByID[convID]; ok {
-				id := d.ID
-				ts := d.LastMessageAt
-				item.ConversationID = &id
-				item.ConversationStatus = d.Status
-				item.Channel = d.Channel
-				item.Preview = d.Preview
-				item.LastMessageAt = &ts
+		if l.ContactID != nil && *l.ContactID != "" {
+			ct, ok := contactByID[*l.ContactID]
+			if !ok {
+				continue
 			}
-		} else if l.SourceConversationID != nil {
-			if _, ok := convByID[*l.SourceConversationID]; ok {
-				id := *l.SourceConversationID
-				item.ConversationID = &id
+			item := LinkedContactDTO{
+				Contact:  ct,
+				IsSource: l.SourceConversationID != nil && *l.SourceConversationID != "",
+				LinkedAt: l.CreatedAt,
 			}
+			if convID := chosenByContact[*l.ContactID]; convID != "" {
+				if d, ok := convDTOByID[convID]; ok {
+					id := d.ID
+					ts := d.LastMessageAt
+					item.ConversationID = &id
+					item.ConversationStatus = d.Status
+					item.Channel = d.Channel
+					item.Preview = d.Preview
+					item.LastMessageAt = &ts
+				}
+			} else if l.SourceConversationID != nil {
+				if _, ok := convByID[*l.SourceConversationID]; ok {
+					id := *l.SourceConversationID
+					item.ConversationID = &id
+				}
+			}
+			contactRes[l.TicketID] = append(contactRes[l.TicketID], item)
+		} else if l.ExternalGroupID != nil && *l.ExternalGroupID != "" {
+			g, ok := groupByID[*l.ExternalGroupID]
+			if !ok {
+				continue
+			}
+			item := LinkedGroupDTO{
+				Group:    g,
+				IsSource: l.SourceConversationID != nil && *l.SourceConversationID != "",
+				LinkedAt: l.CreatedAt,
+			}
+			if convID := chosenByGroup[*l.ExternalGroupID]; convID != "" {
+				if d, ok := convDTOByID[convID]; ok {
+					id := d.ID
+					ts := d.LastMessageAt
+					item.ConversationID = &id
+					item.ConversationStatus = d.Status
+					item.Channel = d.Channel
+					item.Preview = d.Preview
+					item.LastMessageAt = &ts
+				}
+			} else if l.SourceConversationID != nil {
+				if _, ok := convByID[*l.SourceConversationID]; ok {
+					id := *l.SourceConversationID
+					item.ConversationID = &id
+				}
+			}
+			groupRes[l.TicketID] = append(groupRes[l.TicketID], item)
 		}
-		result[l.TicketID] = append(result[l.TicketID], item)
 	}
-	return result, nil
+	return contactRes, groupRes, nil
 }
 
-// resumeWaitingTickets 在客户往服务型会话 c 发来新消息的同一事务中，
-// 将关联到此客户、且正处于 waiting_on_customer 状态的工单自动切回 in_progress 并记系统事件。
+// resumeWaitingTickets 在外部方往服务型会话 c 发来新消息的同一事务中，
+// 将关联到此联系人或外部群、且正处于 waiting_on_customer 状态的工单自动切回 in_progress 并记系统事件。
 func resumeWaitingTickets(ctx context.Context, tx database.Tx, down Downstream, tenantID string, c *Conversation, _ string, at time.Time) error {
-	if c.ContactID == nil || *c.ContactID == "" {
-		return nil
-	}
 	var ticketIDs []string
-	err := tx.NewSelect().TableExpr("ticket_contacts tc").
+	q := tx.NewSelect().TableExpr("ticket_targets tc").
 		Join("JOIN conversations conv ON conv.id = tc.ticket_id").
 		ColumnExpr("DISTINCT conv.id").
-		Where("tc.tenant_id = ? AND tc.contact_id = ? AND conv.tenant_id = ? AND conv.kind = ? AND conv.status = ?",
-			tenantID, *c.ContactID, tenantID, Ticket, TicketWaiting).
-		OrderExpr("conv.id ASC").Scan(ctx, &ticketIDs)
-	if err != nil {
+		Where("tc.tenant_id = ? AND conv.tenant_id = ? AND conv.kind = ? AND conv.status = ?",
+			tenantID, tenantID, Ticket, TicketWaiting)
+	switch {
+	case c.ContactID != nil && *c.ContactID != "":
+		q = q.Where("tc.contact_id = ?", *c.ContactID)
+	case c.ExternalGroupID != nil && *c.ExternalGroupID != "":
+		q = q.Where("tc.external_group_id = ?", *c.ExternalGroupID)
+	default:
+		return nil
+	}
+	if err := q.OrderExpr("conv.id ASC").Scan(ctx, &ticketIDs); err != nil {
 		return errors.Wrap(err, "find waiting tickets for customer reply")
 	}
 	if len(ticketIDs) == 0 {

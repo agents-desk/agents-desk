@@ -15,6 +15,7 @@ import (
 
 	"agents-desk/internal/attribute"
 	"agents-desk/internal/auth"
+	"agents-desk/internal/channel"
 )
 
 // Inbox 是收件箱中的一个列表。团队收件箱的列表是“全部”加上团队收件箱的筛选。
@@ -50,17 +51,19 @@ func (Sort) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r,
 // ListInput 是会话列表的查询条件：哪个列表、视图、筛选和排序。
 type ListInput struct {
 	page.CursorParams
-	Inbox      Inbox    `query:"inbox" default:"all" doc:"收件箱中的哪个列表"`
-	ViewID     string   `query:"view_id" format:"uuid" doc:"可选：按已保存视图的筛选条件与默认排序列出"`
-	Filter     string   `query:"filter" maxLength:"4096" doc:"可选：JSON 编码的统一筛选条件（Filter），用于高级筛选或在视图内临时微调预览"`
-	TeamID     string   `query:"team_id" format:"uuid" doc:"只列出这个团队收件箱的会话；团队收件箱的列表是 inbox=all 加上它"`
-	Status     Status   `query:"status" default:"open" doc:"只列出这个状态的会话；@我 的列表和视图不按它筛选"`
-	AssigneeID string   `query:"assignee_id" format:"uuid" doc:"只列出负责人是这位成员的会话"`
-	ChannelID  string   `query:"channel_id" format:"uuid" doc:"只列出来自这个渠道的会话"`
-	ContactID  string   `query:"contact_id" format:"uuid" doc:"只列出这个联系人的会话，不按状态筛选，例如详情中的“最近的会话”"`
-	Priority   Priority `query:"priority" doc:"只列出这个优先级的会话"`
-	TagID      string   `query:"tag_id" format:"uuid" doc:"只列出带有这个标签的会话"`
-	Sort       Sort     `query:"sort" doc:"排序：默认按视图排序或 waiting；@我 的列表总是最近被 @ 的在前"`
+	Inbox           Inbox            `query:"inbox" default:"all" doc:"收件箱中的哪个列表"`
+	ViewID          string           `query:"view_id" format:"uuid" doc:"可选：按已保存视图的筛选条件与默认排序列出"`
+	Filter          string           `query:"filter" maxLength:"4096" doc:"可选：JSON 编码的统一筛选条件（Filter），用于高级筛选或在视图内临时微调预览"`
+	TeamID          string           `query:"team_id" format:"uuid" doc:"只列出这个团队收件箱的会话；团队收件箱的列表是 inbox=all 加上它"`
+	Status          Status           `query:"status" default:"open" doc:"只列出这个状态的会话；@我 的列表和视图不按它筛选"`
+	AssigneeID      string           `query:"assignee_id" format:"uuid" doc:"只列出负责人是这位成员的会话"`
+	ChannelID       string           `query:"channel_id" format:"uuid" doc:"只列出来自这个渠道的会话"`
+	ContactID       string           `query:"contact_id" format:"uuid" doc:"只列出这个联系人的会话，不按状态筛选，例如详情中的“最近的会话”"`
+	ExternalGroupID string           `query:"external_group_id" format:"uuid" doc:"只列出这个外部群的会话，不按状态筛选"`
+	Audience        channel.Audience `query:"audience" doc:"只列出该服务对象类型的会话（customer/internal）"`
+	Priority        Priority         `query:"priority" doc:"只列出这个优先级的会话"`
+	TagID           string           `query:"tag_id" format:"uuid" doc:"只列出带有这个标签的会话"`
+	Sort            Sort             `query:"sort" doc:"排序：默认按视图排序或 waiting；@我 的列表总是最近被 @ 的在前"`
 }
 
 // ListOutput 是一页会话。
@@ -145,6 +148,12 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) 
 		if in.ContactID != "" {
 			q = q.Where("conversation.contact_id = ?", in.ContactID)
 		}
+		if in.ExternalGroupID != "" {
+			q = q.Where("conversation.external_group_id = ?", in.ExternalGroupID)
+		}
+		if in.Audience != "" {
+			q = q.Where("conversation.audience = ?", in.Audience)
+		}
 		if in.TagID != "" {
 			q = q.Where("EXISTS (SELECT 1 FROM conversation_tags AS ct WHERE ct.tenant_id = ? AND ct.tag_id = ? AND ct.conversation_id = conversation.id)", sub.Tenant, in.TagID)
 		}
@@ -159,11 +168,17 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) 
 		case InboxUnassigned:
 			q = q.Where("conversation.team_id IS NULL AND conversation.assignee_type = ''")
 		}
-		if in.Inbox != InboxMentions && in.ContactID == "" {
+		if in.Inbox != InboxMentions && in.ContactID == "" && in.ExternalGroupID == "" {
 			q = q.Where("conversation.status = ?", status)
 		}
 		if in.ContactID != "" {
 			q = q.Where("conversation.contact_id = ?", in.ContactID)
+		}
+		if in.ExternalGroupID != "" {
+			q = q.Where("conversation.external_group_id = ?", in.ExternalGroupID)
+		}
+		if in.Audience != "" {
+			q = q.Where("conversation.audience = ?", in.Audience)
 		}
 		if in.TeamID != "" {
 			q = q.Where("conversation.team_id = ?", in.TeamID)

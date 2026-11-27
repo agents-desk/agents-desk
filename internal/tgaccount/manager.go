@@ -16,6 +16,7 @@ import (
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/identity"
+	"github.com/go-tenon/tenon/lock"
 	"github.com/go-tenon/tenon/settings"
 
 	"agents-desk/internal/channel"
@@ -120,6 +121,7 @@ type Manager struct {
 	db         *bun.DB
 	crypt      *crypt.Crypt
 	files      *filesystem.Service
+	locker     *lock.Locker
 	tgSettings *settings.Group[platformsettings.Telegram]
 	receive    *conversation.Receive
 	backend    Backend
@@ -149,6 +151,14 @@ func NewManager(db *bun.DB, c *crypt.Crypt, files *filesystem.Service, tgSetting
 		wakeCh:     make(chan struct{}, 1),
 	}
 }
+
+var _ channel.Runner = (*Manager)(nil)
+
+// Name 返回后台长连接运行器名称，实现 channel.Runner。
+func (*Manager) Name() string { return "tgaccount" }
+
+// SetLocker 绑定分布式锁，多实例部署时保证每个 Telegram 个人号只由单个实例持有 MTProto 长连接。
+func (m *Manager) SetLocker(l *lock.Locker) { m.locker = l }
 
 // SetReceive 绑定消息入库动作（因 channel.Registry 与 conversation.Receive 存在初始化顺序依赖，由入口装配完成后注入）。
 func (m *Manager) SetReceive(r *conversation.Receive) { m.receive = r }
@@ -448,6 +458,7 @@ func (m *Manager) persistConnectedAccount(ctx context.Context, entry *loginEntry
 			ID:            newID(),
 			TenantID:      entry.tenantID,
 			Kind:          channel.TelegramAccount,
+			Audience:      channel.AudiencePartner,
 			Name:          name,
 			Settings:      sm,
 			OwnerMemberID: &ownerID,
@@ -1081,26 +1092,43 @@ func (m *Manager) runLoop(ctx context.Context, creds platformsettings.Telegram, 
 		if ctx.Err() != nil {
 			return
 		}
-		err := m.backend.RunAccount(ctx, mc, storage,
-			func(msgCtx context.Context, msg IncomingMessage) error {
-				peer, ok := runner.lookupPeer(msg.ExternalChatID)
-				if !ok {
-					// 未在同步白名单中的个人隐私聊天直接忽略
-					return nil
-				}
-				_, ingestErr := m.ingestMessage(msgCtx, ch, runner.getSync(), runner, peer, msg, false)
-				return ingestErr
-			},
-			func(cli LiveClient) {
-				runner.setClient(cli)
-				backoff = 3 * time.Second
-				m.recordStatus(ctx, ch.TenantID, ch.ID, StatusConnected, "")
-				slog.InfoContext(ctx, "telegram personal account connected", "channel_id", ch.ID)
-			},
-		)
+		runOnce := func(runCtx context.Context) error {
+			return m.backend.RunAccount(runCtx, mc, storage,
+				func(msgCtx context.Context, msg IncomingMessage) error {
+					peer, ok := runner.lookupPeer(msg.ExternalChatID)
+					if !ok {
+						// 未在同步白名单中的个人隐私聊天直接忽略
+						return nil
+					}
+					_, ingestErr := m.ingestMessage(msgCtx, ch, runner.getSync(), runner, peer, msg, false)
+					return ingestErr
+				},
+				func(cli LiveClient) {
+					runner.setClient(cli)
+					backoff = 3 * time.Second
+					m.recordStatus(runCtx, ch.TenantID, ch.ID, StatusConnected, "")
+					slog.InfoContext(runCtx, "telegram personal account connected", "channel_id", ch.ID)
+				},
+			)
+		}
+		var err error
+		if m.locker != nil {
+			err = m.locker.Hold(ctx, "tgaccount:conn:"+ch.ID, 45*time.Second, runOnce)
+		} else {
+			err = runOnce(ctx)
+		}
 		runner.setClient(nil)
 		if ctx.Err() != nil {
 			return
+		}
+		if errors.Is(err, lock.ErrNotHeld) {
+			// 其他实例持有该账号的连接租约，静默退避后重试抢占
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(10 * time.Second):
+			}
+			continue
 		}
 		if errors.Is(err, ErrNotConnected) {
 			m.recordStatus(context.Background(), ch.TenantID, ch.ID, StatusAuthExpired, err.Error())
@@ -1266,9 +1294,11 @@ var _ channel.MediaFetcher = connector{}
 
 func (connector) Capabilities() channel.Capabilities {
 	return channel.Capabilities{
-		MessageTypes: []string{"text", "image", "video", "audio", "file"},
-		ReadReceipts: false,
-		GroupChat:    true,
+		Transport:      channel.TransportLongConnection,
+		MessageTypes:   []string{"text", "image", "video", "audio", "file"},
+		SupportsDirect: true,
+		SupportsGroup:  true,
+		ReadReceipts:   false,
 	}
 }
 

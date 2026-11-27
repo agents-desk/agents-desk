@@ -12,6 +12,7 @@ import (
 	"github.com/go-tenon/tenon/queue"
 
 	"agents-desk/internal/channel"
+	"agents-desk/internal/extgroup"
 )
 
 // DeliverTopic 是把发给对方的消息交给连接器发出的下游，在入口中加入 Downstream。
@@ -33,10 +34,8 @@ func NewDeliver(db *bun.DB, registry channel.Registry, down ...Downstream) *Deli
 	return &Deliver{db: db, registry: registry, down: d}
 }
 
-// Job 处理 DeliverTopic 的任务：时间线的新一项是成员或 AI 发给对方的消息、送达状态还是发送中时，
-// 交给连接器发出，发出即送达的记为已送达并实时推送给能看到会话的成员。其他的项不处理。
-// 重复的任务不会重复发出已送达的消息。渠道已停用时返回永久错误；临时失败时返回错误等待重试，
-// 最终放弃（永久错误、业务错误或重试次数耗尽）由 queue.OnDead 统一回调 OnDead 记为失败并推送。
+// Job 处理 DeliverTopic 的任务：时间线的新一项是成员或系统/AI 发给对方的消息、送达状态还是发送中时，
+// 解析投递目标与回复协议上下文，按需完成后台自动翻译后交给连接器发出。
 func (a *Deliver) Job(ctx context.Context, p Appended) error {
 	var it Item
 	err := a.db.NewSelect().Model(&it).Where("id = ? AND tenant_id = ?", p.ItemID, p.TenantID).Scan(ctx)
@@ -46,7 +45,7 @@ func (a *Deliver) Job(ctx context.Context, p Appended) error {
 	if err != nil {
 		return errors.Wrap(err, "load timeline item")
 	}
-	if it.Kind != Message || it.Visibility != Everyone || it.ActorType == ContactActor || it.ChannelID == nil {
+	if it.Kind != Message || it.Visibility != Everyone || it.ActorType.IsExternal() || it.ChannelID == nil {
 		return nil
 	}
 	var d Delivery
@@ -72,28 +71,11 @@ func (a *Deliver) Job(ctx context.Context, p Appended) error {
 	if err != nil {
 		return err
 	}
-	var to, contactID string
-	if c.ContactID != nil {
-		contactID = *c.ContactID
-		err = a.db.NewSelect().Table("contact_identities").Column("external_id").
-			Where("channel_id = ? AND contact_id = ?", ch.ID, *c.ContactID).Limit(1).Scan(ctx, &to)
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return errors.Wrap(err, "load contact identity")
-		}
+	target, replyToExtID, replyCtx, err := resolveDeliveryTarget(ctx, a.db, c, ch, &it)
+	if err != nil {
+		return err
 	}
-	// 外部商务聊天（含 1:1 与外部群聊）：优先使用 chats.external_chat_id 作为目标会话地址
-	if c.Kind == Chat {
-		var extChatID string
-		err = a.db.NewSelect().Table("chats").Column("external_chat_id").Where("conversation_id = ?", c.ID).Scan(ctx, &extChatID)
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return errors.Wrap(err, "load chat external id")
-		}
-		if extChatID != "" && (to == "" || ch.Kind == channel.TelegramAccount) {
-			to = extChatID
-		}
-	}
-	// 若消息带有后台自动翻译标记，在真正调用连接器发出前先完成翻译并原子更新正文与语言；
-	// 翻译失败返回错误自动走队列重试，最终耗尽时由 OnDead 标记为失败并允许坐席一键重试。
+	// 若消息带有后台自动翻译标记，在真正调用连接器发出前先完成翻译并原子更新正文与语言
 	if pending := pendingTranslationOf(it.Derived); pending != nil {
 		if err := a.applyPendingTranslation(ctx, &it, c, pending); err != nil {
 			return err
@@ -104,8 +86,18 @@ func (a *Deliver) Job(ctx context.Context, p Appended) error {
 		return err
 	}
 	externalID, delivered, err := connector.Send(ctx, channel.Outgoing{
-		Channel: ch, ConversationID: c.ID, ItemID: it.ID, Seq: it.Seq, ContactID: contactID, ExternalTo: to,
-		Text: it.Content.Text, Attachments: toChannelAttachments(attachmentsByItem[it.ID]),
+		Channel:           ch,
+		ConversationID:    c.ID,
+		ItemID:            it.ID,
+		Seq:               it.Seq,
+		Target:            target,
+		ContactID:         target.ContactID,
+		ExternalTo:        target.ExternalTo,
+		ReplyToExternalID: replyToExtID,
+		Mentions:          it.Content.ExternalMentions,
+		ReplyContext:      replyCtx,
+		Text:              it.Content.Text,
+		Attachments:       toChannelAttachments(attachmentsByItem[it.ID]),
 	})
 	if err != nil {
 		return err
@@ -115,6 +107,97 @@ func (a *Deliver) Job(ctx context.Context, p Appended) error {
 		status = Delivered
 	}
 	return a.markAndNotify(ctx, p.TenantID, c.ID, it.ID, status, externalID, "", delivered)
+}
+
+// resolveDeliveryTarget 按统一模型解析出站目标地址、引用外部消息 ID 与短期回复协议上下文，不针对具体渠道种类特判。
+func resolveDeliveryTarget(ctx context.Context, db bun.IDB, c *Conversation, ch *channel.Channel, it *Item) (channel.DeliveryTarget, string, map[string]any, error) {
+	var target channel.DeliveryTarget
+
+	switch {
+	case c.ExternalGroupID != nil && *c.ExternalGroupID != "":
+		g, err := extgroup.Find(ctx, db, c.TenantID, *c.ExternalGroupID)
+		if err != nil {
+			return target, "", nil, err
+		}
+		if g.Status == extgroup.StatusRemoved {
+			return target, "", nil, queue.Permanent(extgroup.ErrRemoved.New())
+		}
+		target = channel.DeliveryTarget{
+			Kind:            channel.TargetGroup,
+			ExternalGroupID: g.ID,
+			ExternalTo:      g.ExternalID,
+		}
+	case c.Kind == Chat:
+		var row struct {
+			Mode           ChatMode `bun:"mode"`
+			ExternalChatID string   `bun:"external_chat_id"`
+		}
+		err := db.NewSelect().Table("chats").Column("mode", "external_chat_id").Where("conversation_id = ?", c.ID).Scan(ctx, &row)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return target, "", nil, errors.Wrap(err, "load chat delivery target")
+		}
+		if row.Mode == ChatGroup {
+			target = channel.DeliveryTarget{Kind: channel.TargetGroup, ExternalTo: row.ExternalChatID}
+		} else {
+			target = channel.DeliveryTarget{Kind: channel.TargetContact, ExternalTo: row.ExternalChatID}
+			if c.ContactID != nil {
+				target.ContactID = *c.ContactID
+				if target.ExternalTo == "" {
+					if err := db.NewSelect().Table("contact_identities").Column("external_id").
+						Where("channel_id = ? AND contact_id = ?", ch.ID, *c.ContactID).Limit(1).Scan(ctx, &target.ExternalTo); err != nil && !errors.Is(err, sql.ErrNoRows) {
+						return target, "", nil, errors.Wrap(err, "load chat contact identity")
+					}
+				}
+			}
+		}
+	case c.ContactID != nil && *c.ContactID != "":
+		target = channel.DeliveryTarget{Kind: channel.TargetContact, ContactID: *c.ContactID}
+		if err := db.NewSelect().Table("contact_identities").Column("external_id").
+			Where("channel_id = ? AND contact_id = ?", ch.ID, *c.ContactID).Limit(1).Scan(ctx, &target.ExternalTo); err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return target, "", nil, errors.Wrap(err, "load contact identity")
+		}
+	}
+
+	// 解析引用回复的外部消息 ID 与对应的短期协议回复上下文（如企微长连接 req_id）
+	var replyToExtID string
+	var replyCtx map[string]any
+	if it.ReplyToItemID != nil && *it.ReplyToItemID != "" {
+		var ref Item
+		err := db.NewSelect().Model(&ref).Where("id = ? AND tenant_id = ?", *it.ReplyToItemID, c.TenantID).Scan(ctx)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return target, "", nil, errors.Wrap(err, "load reply_to item")
+		}
+		if err == nil {
+			if ref.ExternalID != nil && *ref.ExternalID != "" {
+				replyToExtID = *ref.ExternalID
+			} else {
+				var delExt string
+				if derr := db.NewSelect().Table("message_deliveries").Column("external_id").
+					Where("item_id = ?", ref.ID).Scan(ctx, &delExt); derr == nil {
+					replyToExtID = delExt
+				}
+			}
+			if rc, ok := ref.Derived["reply_context"].(map[string]any); ok && len(rc) > 0 {
+				replyCtx = rc
+			}
+		}
+	}
+	if len(replyCtx) == 0 {
+		var latest Item
+		err := db.NewSelect().Model(&latest).
+			Where("tenant_id = ? AND conversation_id = ? AND channel_id = ? AND kind = ? AND actor_type IN (?) AND seq < ?",
+				c.TenantID, c.ID, ch.ID, Message, bun.In([]ActorType{ContactActor, ExternalUserActor}), it.Seq).
+			OrderExpr("seq DESC").Limit(1).Scan(ctx)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return target, "", nil, errors.Wrap(err, "load latest inbound reply context")
+		}
+		if err == nil {
+			if rc, ok := latest.Derived["reply_context"].(map[string]any); ok && len(rc) > 0 {
+				replyCtx = rc
+			}
+		}
+	}
+	return target, replyToExtID, replyCtx, nil
 }
 
 // pendingTranslationOf 从 timeline_items.derived 中读取待异步翻译参数；不存在时返回 nil。
@@ -153,10 +236,11 @@ func (a *Deliver) applyPendingTranslation(ctx context.Context, it *Item, c *Conv
 	}
 	if needed && strings.TrimSpace(translated) != "" {
 		it.Content = Content{
-			Text:     translated,
-			Original: it.Content.Text,
-			Language: resolvedLang,
-			Mentions: it.Content.Mentions,
+			Text:             translated,
+			Original:         it.Content.Text,
+			Language:         resolvedLang,
+			Mentions:         it.Content.Mentions,
+			ExternalMentions: it.Content.ExternalMentions,
 		}
 		_, err = a.db.NewUpdate().Model((*Item)(nil)).
 			Set("content = ?", it.Content).

@@ -13,6 +13,7 @@ import (
 
 	"agents-desk/internal/auth"
 	"agents-desk/internal/contact"
+	"agents-desk/internal/extgroup"
 	"agents-desk/internal/lang"
 	"agents-desk/internal/member"
 	"agents-desk/internal/push"
@@ -84,9 +85,9 @@ func SaveTranslation(ctx context.Context, db *bun.DB, down Downstream, tenant, i
 			}
 		}
 
-		// 客户的语言：仅联系人消息参与更新，成员内部备注不改变客户语言
+		// 对端语言：仅外部入站消息（联系人或外部群发言人）参与更新，成员回复与内部备注不改变对端语言
 		langChanged := false
-		if it.ActorType == ContactActor {
+		if it.ActorType.IsExternal() {
 			langChanged, err = updateCustomerLanguage(ctx, tx, c, false)
 			if err != nil {
 				return err
@@ -141,17 +142,19 @@ func membersWithLanguages(ctx context.Context, db bun.IDB, memberIDs, targets []
 	return out, nil
 }
 
-// CustomerLanguage 返回会话 c 的客户的语言：客户（有联系人时是这个联系人的全部会话，否则是这个会话）最近 customerLanguageWindow 条
-// 判断得出语言的消息中出现最多的语言，一样多时取最近的。一句 ok、一段粘贴的英文报错不会改变客户的语言，连续换了语言才会。
-// 还没有判断得出语言的消息时返回空字符串。
+// CustomerLanguage 返回会话 c 的对端语言：对端（联系人查该联系人全部会话，外部群查该群全部会话，否则查当前会话）
+// 最近 customerLanguageWindow 条判断得出语言的消息中出现最多的语言，一样多时取最近的。
 func CustomerLanguage(ctx context.Context, db bun.IDB, c *Conversation) (string, error) {
 	q := db.NewSelect().TableExpr("timeline_items AS t").ColumnExpr("t.derived->>'language'").
-		Where("t.tenant_id = ? AND t.kind = ? AND t.actor_type = ?", c.TenantID, Message, ContactActor).
+		Where("t.tenant_id = ? AND t.kind = ? AND t.actor_type IN (?)", c.TenantID, Message, bun.In([]ActorType{ContactActor, ExternalUserActor})).
 		Where("COALESCE(t.derived->>'language', '') NOT IN ('', ?)", Undetermined).
 		OrderExpr("t.created_at DESC, t.seq DESC").Limit(customerLanguageWindow)
-	if c.ContactID != nil {
+	switch {
+	case c.ContactID != nil:
 		q = q.Where("t.conversation_id IN (SELECT id FROM conversations WHERE tenant_id = ? AND contact_id = ?)", c.TenantID, *c.ContactID)
-	} else {
+	case c.ExternalGroupID != nil:
+		q = q.Where("t.conversation_id IN (SELECT id FROM conversations WHERE tenant_id = ? AND external_group_id = ?)", c.TenantID, *c.ExternalGroupID)
+	default:
 		q = q.Where("t.conversation_id = ?", c.ID)
 	}
 	var recent []string
@@ -168,10 +171,7 @@ func CustomerLanguage(ctx context.Context, db bun.IDB, c *Conversation) (string,
 	return best, nil
 }
 
-// updateCustomerLanguage 在事务 tx 中按 CustomerLanguage 更新已锁住的会话 c 和它的联系人的语言，返回客户的语言是否发生了变化。
-// 有联系人时锁住联系人行（锁顺序恒为 conversation -> contact，与 SetLanguage 一致，避免多会话并发覆写手动设置）：
-// 联系人标记为手动设置时不改联系人语言，但顺手把当前会话同步到联系人的语言。
-// clearIfUnknown 为 true 时（恢复自动识别），若没有任何确定了语言的消息，也把会话和联系人的语言清空，避免残留旧的手动值。
+// updateCustomerLanguage 在事务 tx 中按 CustomerLanguage 更新已锁住的会话 c 及其对端实体（联系人或外部群）的语言。
 func updateCustomerLanguage(ctx context.Context, tx bun.IDB, c *Conversation, clearIfUnknown bool) (bool, error) {
 	var ct *contact.Contact
 	if c.ContactID != nil {
@@ -184,6 +184,22 @@ func updateCustomerLanguage(ctx context.Context, tx bun.IDB, c *Conversation, cl
 				c.Language = ct.Language
 				if _, err := tx.NewUpdate().Model(c).Column("language", "updated_at").WherePK().Exec(ctx); err != nil {
 					return false, errors.Wrap(err, "sync conversation language")
+				}
+			}
+			return false, nil
+		}
+	}
+	var grp *extgroup.Group
+	if c.ExternalGroupID != nil {
+		grp = new(extgroup.Group)
+		if err := tx.NewSelect().Model(grp).Where("id = ? AND tenant_id = ?", *c.ExternalGroupID, c.TenantID).For("UPDATE").Scan(ctx); err != nil {
+			return false, errors.Wrap(err, "load external group")
+		}
+		if grp.LanguageManual {
+			if c.Language != grp.Language {
+				c.Language = grp.Language
+				if _, err := tx.NewUpdate().Model(c).Column("language", "updated_at").WherePK().Exec(ctx); err != nil {
+					return false, errors.Wrap(err, "sync group conversation language")
 				}
 			}
 			return false, nil
@@ -208,6 +224,13 @@ func updateCustomerLanguage(ctx context.Context, tx bun.IDB, c *Conversation, cl
 		ct.Language = language
 		if _, err := tx.NewUpdate().Model(ct).Column("language", "updated_at").WherePK().Exec(ctx); err != nil {
 			return false, errors.Wrap(err, "update contact language")
+		}
+		changed = true
+	}
+	if grp != nil && grp.Language != language {
+		grp.Language = language
+		if _, err := tx.NewUpdate().Model(grp).Column("language", "updated_at").WherePK().Exec(ctx); err != nil {
+			return false, errors.Wrap(err, "update external group language")
 		}
 		changed = true
 	}
@@ -301,7 +324,7 @@ func (it *Item) Translatable() bool {
 	if it.Kind != Message && it.Kind != Note {
 		return false
 	}
-	return it.ActorType == ContactActor || it.ActorType == MemberActor
+	return it.ActorType.IsExternal() || it.ActorType == MemberActor
 }
 
 // untranslated 报告时间线的一项对成员 viewerID（语言为 language）来说是不是还缺译文：

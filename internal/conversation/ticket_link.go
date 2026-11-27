@@ -15,10 +15,11 @@ import (
 	"agents-desk/internal/member"
 )
 
-// LinkTicketContactBody 是关联受影响客户到已有工单的请求体：传 contact_id 或 conversation_id（自动取该会话联系人）。
+// LinkTicketContactBody 是关联受影响联系人或外部群到已有工单的请求体：传 contact_id、external_group_id 或 conversation_id（自动取该会话对象）。
 type LinkTicketContactBody struct {
-	ContactID      *string `json:"contact_id,omitempty" format:"uuid" doc:"要关联的受影响联系人 ID"`
-	ConversationID *string `json:"conversation_id,omitempty" format:"uuid" doc:"可选：按服务型会话 ID 自动关联其联系人"`
+	ContactID       *string `json:"contact_id,omitempty" format:"uuid" doc:"要关联的受影响联系人 ID"`
+	ExternalGroupID *string `json:"external_group_id,omitempty" format:"uuid" doc:"要关联的受影响外部群 ID"`
+	ConversationID  *string `json:"conversation_id,omitempty" format:"uuid" doc:"可选：按服务型会话 ID 自动关联其联系人或外部群"`
 }
 
 // LinkTicketContactInput 是关联受影响客户到工单的 HTTP 请求。
@@ -38,24 +39,26 @@ func NewLinkTicketContact(db *bun.DB, down Downstream) *LinkTicketContact {
 	return &LinkTicketContact{db: db, down: down}
 }
 
-// Handle 将联系人或服务型会话对应的联系人关联到工单 ticketID，并在工单及对应会话时间线记录系统事件；
-// 任一侧不存在或对 sub 不可见返回 ErrNotFound / contact.ErrNotFound；已关联返回 ErrLinkAlreadyExists。
+// Handle 将联系人、外部群或服务型会话对应的对象关联到工单 ticketID，并在工单及对应会话时间线记录系统事件；
+// 任一侧不存在或对 sub 不可见返回 ErrNotFound / contact.ErrNotFound / extgroup.ErrNotFound；已关联返回 ErrLinkAlreadyExists。
 func (a *LinkTicketContact) Handle(ctx context.Context, sub identity.Subject, ticketID string, body LinkTicketContactBody) (*TicketDTO, error) {
 	if err := authorize(sub, auth.ConversationsReply); err != nil {
 		return nil, err
 	}
 	hasContact := body.ContactID != nil && *body.ContactID != ""
+	hasGroup := body.ExternalGroupID != nil && *body.ExternalGroupID != ""
 	hasConv := body.ConversationID != nil && *body.ConversationID != ""
-	if !hasContact && !hasConv {
+	if !hasContact && !hasGroup && !hasConv {
 		return nil, contact.ErrNotFound.New()
 	}
 
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		var (
-			tc        *Conversation
-			tk        *TicketMeta
-			sc        *Conversation
-			contactID string
+			tc              *Conversation
+			tk              *TicketMeta
+			sc              *Conversation
+			contactID       string
+			externalGroupID string
 		)
 		if hasConv {
 			// 按确定顺序锁两行 conversations，避免并发双向加锁死锁
@@ -84,10 +87,35 @@ func (a *LinkTicketContact) Handle(ctx context.Context, sub identity.Subject, ti
 			if sc.Kind != Service {
 				return ErrWrongKind.New()
 			}
-			if sc.ContactID == nil || *sc.ContactID == "" {
+			switch {
+			case sc.ContactID != nil && *sc.ContactID != "":
+				contactID = *sc.ContactID
+			case sc.ExternalGroupID != nil && *sc.ExternalGroupID != "":
+				externalGroupID = *sc.ExternalGroupID
+			default:
 				return contact.ErrNotFound.New()
 			}
-			contactID = *sc.ContactID
+		} else if hasGroup {
+			var err error
+			tc, tk, err = findVisibleTicket(ctx, tx, sub, ticketID, true)
+			if err != nil {
+				return err
+			}
+			externalGroupID = *body.ExternalGroupID
+			if err := ensureVisibleGroup(ctx, tx, sub, externalGroupID); err != nil {
+				return err
+			}
+			active := new(Conversation)
+			q := tx.NewSelect().Model(active).
+				Where("conversation.tenant_id = ? AND conversation.kind = ? AND conversation.external_group_id = ? AND conversation.status IN (?)",
+					sub.Tenant, Service, externalGroupID, bun.In([]Status{Open, Snoozed})).
+				OrderExpr("conversation.last_message_at DESC, conversation.id DESC").Limit(1)
+			q = visible(q, sub)
+			if err := q.For("UPDATE OF conversation").Scan(ctx); err == nil {
+				sc = active
+			} else if !errors.Is(err, sql.ErrNoRows) {
+				return errors.Wrap(err, "find active conversation for group ticket link")
+			}
 		} else {
 			var err error
 			tc, tk, err = findVisibleTicket(ctx, tx, sub, ticketID, true)
@@ -112,35 +140,44 @@ func (a *LinkTicketContact) Handle(ctx context.Context, sub identity.Subject, ti
 			}
 		}
 
-		var contactName string
-		if err := tx.NewSelect().Table("contacts").Column("name").Where("id = ? AND tenant_id = ?", contactID, sub.Tenant).Scan(ctx, &contactName); err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return errors.Wrap(err, "load contact name for link event")
-		}
-
 		var createdBy *string
 		if sub.Type == member.Type {
 			id := sub.ID
 			createdBy = &id
 		}
-		link := &TicketContact{
+		link := &TicketTarget{
 			ID:        newID(),
 			TenantID:  sub.Tenant,
 			TicketID:  tc.ID,
-			ContactID: contactID,
 			CreatedBy: createdBy,
 		}
+		var evData map[string]any
+		if contactID != "" {
+			cid := contactID
+			link.ContactID = &cid
+			var contactName string
+			if err := tx.NewSelect().Table("contacts").Column("name").Where("id = ? AND tenant_id = ?", contactID, sub.Tenant).Scan(ctx, &contactName); err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return errors.Wrap(err, "load contact name for link event")
+			}
+			evData = map[string]any{"contact_id": contactID, "contact_name": contactName}
+		} else {
+			gid := externalGroupID
+			link.ExternalGroupID = &gid
+			var groupName string
+			if err := tx.NewSelect().Table("external_groups").Column("name").Where("id = ? AND tenant_id = ?", externalGroupID, sub.Tenant).Scan(ctx, &groupName); err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return errors.Wrap(err, "load external group name for link event")
+			}
+			evData = map[string]any{"external_group_id": externalGroupID, "group_name": groupName}
+		}
 		if _, err := tx.NewInsert().Model(link).Exec(ctx); err != nil {
-			if database.IsUniqueViolation(err, "ticket_contacts_unique") {
+			if database.IsUniqueViolation(err, "ticket_targets_ticket_contact_unique") || database.IsUniqueViolation(err, "ticket_targets_ticket_group_unique") {
 				return ErrLinkAlreadyExists.New()
 			}
-			return errors.Wrap(err, "insert ticket contact")
+			return errors.Wrap(err, "insert ticket target")
 		}
 
 		tc.LastMessageAt = now()
-		tcEv := event(sub, "ticket.contact_linked", map[string]any{
-			"contact_id":   contactID,
-			"contact_name": contactName,
-		})
+		tcEv := event(sub, "ticket.contact_linked", evData)
 		if err := commit(ctx, tx, a.down, tc, tcEv); err != nil {
 			return err
 		}
@@ -202,7 +239,7 @@ func (a *UnlinkTicketContact) Handle(ctx context.Context, sub identity.Subject, 
 			return err
 		}
 
-		res, err := tx.NewDelete().Model((*TicketContact)(nil)).
+		res, err := tx.NewDelete().Model((*TicketTarget)(nil)).
 			Where("tenant_id = ? AND ticket_id = ? AND contact_id = ?", sub.Tenant, tc.ID, contactID).
 			Exec(ctx)
 		if err != nil {

@@ -483,6 +483,7 @@ func (a *CreateBusinessLink) Handle(ctx context.Context, sub identity.Subject, b
 		ID:            newID(),
 		TenantID:      sub.Tenant,
 		Kind:          channel.BusinessLink,
+		Audience:      channel.AudiencePartner,
 		Name:          strings.TrimSpace(b.Name),
 		Settings:      settings,
 		OwnerMemberID: &ownerID,

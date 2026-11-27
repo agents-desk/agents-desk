@@ -42,12 +42,15 @@ func visible(q *bun.SelectQuery, sub identity.Subject) *bun.SelectQuery {
 				if scope == auth.ScopeTeam {
 					q = q.WhereOr("conversation.team_id IN (SELECT team_id FROM team_members WHERE member_id = ?)", sub.ID)
 				}
-				// 工单额外规则：创建人始终可见；能看到该工单下任意受影响联系人的服务型会话的成员可见
+				// 工单额外规则：创建人始终可见；能看到该工单下任意受影响联系人或外部群的服务型会话的成员可见
 				q = q.WhereOr("conversation.kind = ? AND EXISTS (SELECT 1 FROM tickets tk WHERE tk.conversation_id = conversation.id AND tk.created_by = ?)", Ticket, sub.ID)
 				if scope == auth.ScopeTeam {
 					q = q.WhereOr(`conversation.kind = ? AND EXISTS (
-						SELECT 1 FROM ticket_contacts tc
-						JOIN conversations sc ON sc.tenant_id = tc.tenant_id AND sc.kind = ? AND sc.contact_id = tc.contact_id
+						SELECT 1 FROM ticket_targets tc
+						JOIN conversations sc ON sc.tenant_id = tc.tenant_id AND sc.kind = ? AND (
+							(tc.contact_id IS NOT NULL AND sc.contact_id = tc.contact_id)
+							OR (tc.external_group_id IS NOT NULL AND sc.external_group_id = tc.external_group_id)
+						)
 						WHERE tc.tenant_id = ? AND tc.ticket_id = conversation.id
 						AND (
 							(sc.assignee_type = ? AND sc.assignee_id = ?)
@@ -57,8 +60,11 @@ func visible(q *bun.SelectQuery, sub identity.Subject) *bun.SelectQuery {
 					)`, Ticket, Service, sub.Tenant, MemberActor, sub.ID, sub.ID, sub.Tenant, sub.ID)
 				} else {
 					q = q.WhereOr(`conversation.kind = ? AND EXISTS (
-						SELECT 1 FROM ticket_contacts tc
-						JOIN conversations sc ON sc.tenant_id = tc.tenant_id AND sc.kind = ? AND sc.contact_id = tc.contact_id
+						SELECT 1 FROM ticket_targets tc
+						JOIN conversations sc ON sc.tenant_id = tc.tenant_id AND sc.kind = ? AND (
+							(tc.contact_id IS NOT NULL AND sc.contact_id = tc.contact_id)
+							OR (tc.external_group_id IS NOT NULL AND sc.external_group_id = tc.external_group_id)
+						)
 						WHERE tc.tenant_id = ? AND tc.ticket_id = conversation.id
 						AND (
 							(sc.assignee_type = ? AND sc.assignee_id = ?)

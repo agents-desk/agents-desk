@@ -129,6 +129,7 @@ type AttributeFilter struct {
 // Filter 是服务型会话的统一筛选条件：收件箱列表、全文搜索与已保存视图共享同一套条件模型。
 type Filter struct {
 	Statuses   []Status          `json:"statuses,omitempty" maxItems:"3" doc:"会话状态（多选）；为空表示不限状态"`
+	Audience   channel.Audience  `json:"audience,omitempty" doc:"服务对象类型筛选（customer/internal）"`
 	Team       *TeamFilter       `json:"team,omitempty" doc:"团队收件箱筛选"`
 	Assignee   *AssigneeFilter   `json:"assignee,omitempty" doc:"负责人筛选"`
 	Waiting    *bool             `json:"waiting,omitempty" doc:"是否等待回复：true 等待回复，false 已回复，为空不限"`
@@ -188,6 +189,14 @@ func validateFilter(ctx context.Context, db bun.IDB, tenantID string, in Filter,
 				out.Statuses = append(out.Statuses, s)
 			}
 		}
+	}
+
+	// 服务对象类型
+	if in.Audience != "" {
+		if !slices.Contains(channel.Audiences.Values(), in.Audience) {
+			return Filter{}, ErrInvalidFilter.New(errorx.Field("config.audience"))
+		}
+		out.Audience = in.Audience
 	}
 
 	// 团队筛选
@@ -468,6 +477,11 @@ func buildFilterPredicate(sub identity.Subject, f Filter, attrDefs map[string]at
 	if len(f.Statuses) > 0 {
 		parts = append(parts, "conversation.status IN (?)")
 		args = append(args, bun.In(f.Statuses))
+	}
+
+	if f.Audience != "" {
+		parts = append(parts, "conversation.audience = ?")
+		args = append(args, f.Audience)
 	}
 
 	if f.Team != nil {

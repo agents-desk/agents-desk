@@ -44,12 +44,18 @@ func visible(q *bun.SelectQuery, sub identity.Subject) *bun.SelectQuery {
 					SELECT 1 FROM conversations conv
 					WHERE conv.tenant_id = contact.tenant_id AND conv.contact_id = contact.id
 						AND (
-							(conv.assignee_type = ? AND conv.assignee_id = ?)
-							OR conv.id IN (SELECT conversation_id FROM conversation_mentions WHERE tenant_id = ? AND member_id = ?)
-							OR conv.team_id IN (SELECT team_id FROM team_members WHERE member_id = ?)
+							(conv.kind = 'service' AND (
+								(conv.assignee_type = ? AND conv.assignee_id = ?)
+								OR conv.id IN (SELECT conversation_id FROM conversation_mentions WHERE tenant_id = ? AND member_id = ?)
+								OR conv.team_id IN (SELECT team_id FROM team_members WHERE member_id = ?)
+							))
+							OR (conv.kind = 'chat' AND EXISTS (
+								SELECT 1 FROM conversation_participants cp
+								WHERE cp.conversation_id = conv.id AND cp.participant_type = ? AND cp.participant_id = ?
+							))
 						)
 				)`,
-				memberActor, sub.ID, sub.Tenant, sub.ID, sub.ID,
+				memberActor, sub.ID, sub.Tenant, sub.ID, sub.ID, memberActor, sub.ID,
 			)
 		}
 		return q.Where(
@@ -57,11 +63,17 @@ func visible(q *bun.SelectQuery, sub identity.Subject) *bun.SelectQuery {
 				SELECT 1 FROM conversations conv
 				WHERE conv.tenant_id = contact.tenant_id AND conv.contact_id = contact.id
 					AND (
-						(conv.assignee_type = ? AND conv.assignee_id = ?)
-						OR conv.id IN (SELECT conversation_id FROM conversation_mentions WHERE tenant_id = ? AND member_id = ?)
+						(conv.kind = 'service' AND (
+							(conv.assignee_type = ? AND conv.assignee_id = ?)
+							OR conv.id IN (SELECT conversation_id FROM conversation_mentions WHERE tenant_id = ? AND member_id = ?)
+						))
+						OR (conv.kind = 'chat' AND EXISTS (
+							SELECT 1 FROM conversation_participants cp
+							WHERE cp.conversation_id = conv.id AND cp.participant_type = ? AND cp.participant_id = ?
+						))
 					)
 			)`,
-			memberActor, sub.ID, sub.Tenant, sub.ID,
+			memberActor, sub.ID, sub.Tenant, sub.ID, memberActor, sub.ID,
 		)
 	})
 }

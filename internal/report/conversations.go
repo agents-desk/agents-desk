@@ -265,7 +265,7 @@ func (a *Conversations) channelVolumes(ctx context.Context, tenantID string, w p
 	var channels []channel.Channel
 	qCh := a.db.NewSelect().Model(&channels).
 		Column("id", "name", "kind", "enabled").
-		Where("tenant_id = ?", tenantID).
+		Where("tenant_id = ? AND owner_member_id IS NULL", tenantID).
 		OrderExpr("created_at ASC, id ASC")
 	if f.ChannelID != "" {
 		qCh.Where("id = ?", f.ChannelID)

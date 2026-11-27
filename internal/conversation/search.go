@@ -70,7 +70,7 @@ func LoadSearchDocs(ctx context.Context, tx bun.IDB, key string) ([]ItemSearchDo
 	case it.Kind == Note:
 		doc.Note = strings.TrimSpace(it.Content.Text)
 		doc.Translated = derivedTrans
-	case it.ActorType == ContactActor:
+	case it.ActorType.IsExternal():
 		doc.Original = strings.TrimSpace(it.Content.Text)
 		doc.Translated = derivedTrans
 	default:
@@ -330,7 +330,7 @@ func pickSearchSnippet(hit search.Hit[ItemSearchDoc]) (field string, snippet sea
 	switch {
 	case hit.Doc.Kind == Note:
 		order = []string{"note", "translated"}
-	case hit.Doc.ActorType == ContactActor:
+	case hit.Doc.ActorType.IsExternal():
 		order = []string{"translated", "original"}
 	default:
 		order = []string{"original", "translated"}

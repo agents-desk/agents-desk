@@ -57,17 +57,25 @@ func reopen(sub identity.Subject) changeFunc {
 	}
 }
 
-// ensureNoOtherActive 检查联系人名下是否已存在其他未关闭（open/snoozed）的服务型会话；
+// ensureNoOtherActive 检查对端（联系人同服务域或外部群）下是否已存在其他未关闭（open/snoozed）的服务型会话；
 // 存在时返回 ErrActiveConversationExists 并携带当前活跃会话 ID，防止破坏单一活跃会话不变量。
 func ensureNoOtherActive(ctx context.Context, tx bun.IDB, c *Conversation) error {
-	if c.ContactID == nil || *c.ContactID == "" {
+	var activeID string
+	var err error
+	switch {
+	case c.ExternalGroupID != nil && *c.ExternalGroupID != "":
+		err = tx.NewSelect().Table("conversations").Column("id").
+			Where("tenant_id = ? AND kind = ? AND external_group_id = ? AND id <> ? AND status IN (?)",
+				c.TenantID, Service, *c.ExternalGroupID, c.ID, bun.In([]Status{Open, Snoozed})).
+			Limit(1).Scan(ctx, &activeID)
+	case c.ContactID != nil && *c.ContactID != "":
+		err = tx.NewSelect().Table("conversations").Column("id").
+			Where("tenant_id = ? AND kind = ? AND audience = ? AND contact_id = ? AND id <> ? AND status IN (?)",
+				c.TenantID, Service, c.Audience, *c.ContactID, c.ID, bun.In([]Status{Open, Snoozed})).
+			Limit(1).Scan(ctx, &activeID)
+	default:
 		return nil
 	}
-	var activeID string
-	err := tx.NewSelect().Table("conversations").Column("id").
-		Where("tenant_id = ? AND kind = ? AND contact_id = ? AND id <> ? AND status IN (?)",
-			c.TenantID, Service, *c.ContactID, c.ID, bun.In([]Status{Open, Snoozed})).
-		Limit(1).Scan(ctx, &activeID)
 	if err == nil && activeID != "" {
 		return ErrActiveConversationExists.New(errorx.Public("active_conversation_id", activeID))
 	}
