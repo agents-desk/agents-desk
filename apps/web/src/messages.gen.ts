@@ -1111,6 +1111,8 @@ export const messages = {
     "ticket_types.name_required": "Please enter a ticket type name",
     "ticket_types.status": "Status",
     "ticket_types.title": "Ticket types",
+    "tickets.add_conversations": "Link conversations",
+    "tickets.add_more_conversations": "Add more conversations",
     "tickets.back": "Back to tickets",
     "tickets.box_all": "All tickets",
     "tickets.box_mine": "My tickets",
@@ -1139,6 +1141,7 @@ export const messages = {
     "tickets.edit_title": "Edit title",
     "tickets.empty": "No tickets in this list",
     "tickets.empty_filtered": "No tickets match the current filters",
+    "tickets.extra_conversations_count": "{{.n}} additional conversation(s) selected",
     "tickets.filter_type_all": "All types",
     "tickets.link_contact": "Link customer",
     "tickets.link_contact_done": "Customer linked",
@@ -1163,6 +1166,8 @@ export const messages = {
     "tickets.note_placeholder": "Write an internal note, @ mention teammates — cross-language notes auto-translate…",
     "tickets.open_ticket": "Open",
     "tickets.pick": "Select a ticket from the list",
+    "tickets.pick_conversations_empty": "No other conversations available",
+    "tickets.pick_conversations_placeholder": "Search customer name or message…",
     "tickets.pick_hint": "Or click “New ticket” above to group customer issues",
     "tickets.public_badge": "Public update",
     "tickets.public_composer_hint": "Will be translated per customer language and sent to {{.n}} affected customer(s)",
@@ -2461,6 +2466,8 @@ export const messages = {
     "ticket_types.name_required": "请填写工单类型名称",
     "ticket_types.status": "状态",
     "ticket_types.title": "工单类型",
+    "tickets.add_conversations": "关联会话",
+    "tickets.add_more_conversations": "添加其他会话",
     "tickets.back": "返回工单列表",
     "tickets.box_all": "全部工单",
     "tickets.box_mine": "我的工单",
@@ -2489,6 +2496,7 @@ export const messages = {
     "tickets.edit_title": "编辑标题",
     "tickets.empty": "这个列表中没有工单",
     "tickets.empty_filtered": "没有符合当前筛选条件的工单",
+    "tickets.extra_conversations_count": "已额外选择 {{.n}} 条会话",
     "tickets.filter_type_all": "全部类型",
     "tickets.link_contact": "关联客户",
     "tickets.link_contact_done": "已关联客户",
@@ -2513,6 +2521,8 @@ export const messages = {
     "tickets.note_placeholder": "写内部讨论，支持 @ 同事，跨语言成员将自动互译…",
     "tickets.open_ticket": "查看",
     "tickets.pick": "从左边选一张工单",
+    "tickets.pick_conversations_empty": "没有可添加的其他会话",
+    "tickets.pick_conversations_placeholder": "搜索客户名称或消息内容…",
     "tickets.pick_hint": "或点击上方“新建工单”创建并归集客户问题",
     "tickets.public_badge": "公开进度",
     "tickets.public_composer_hint": "将按各客户语言自动翻译并同步至关联的 {{.n}} 位客户",
@@ -3814,6 +3824,8 @@ export type MessageId =
   | "ticket_types.name_required"
   | "ticket_types.status"
   | "ticket_types.title"
+  | "tickets.add_conversations"
+  | "tickets.add_more_conversations"
   | "tickets.back"
   | "tickets.box_all"
   | "tickets.box_mine"
@@ -3842,6 +3854,7 @@ export type MessageId =
   | "tickets.edit_title"
   | "tickets.empty"
   | "tickets.empty_filtered"
+  | "tickets.extra_conversations_count"
   | "tickets.filter_type_all"
   | "tickets.link_contact"
   | "tickets.link_contact_done"
@@ -3866,6 +3879,8 @@ export type MessageId =
   | "tickets.note_placeholder"
   | "tickets.open_ticket"
   | "tickets.pick"
+  | "tickets.pick_conversations_empty"
+  | "tickets.pick_conversations_placeholder"
   | "tickets.pick_hint"
   | "tickets.public_badge"
   | "tickets.public_composer_hint"

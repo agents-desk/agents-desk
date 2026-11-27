@@ -1819,6 +1819,14 @@ export const components = {
         "format": "uuid",
         "type": "string"
       },
+      "source_conversation_ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 50,
+        "type": "array",
+        "uniqueItems": true
+      },
       "team_id": {
         "format": "uuid",
         "type": "string"

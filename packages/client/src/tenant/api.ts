@@ -614,6 +614,8 @@ export interface ConversationCreateTicketParams {
   priority?: ConversationPriority
   /** 可选：由哪条服务型会话转成工单，自动关联该会话联系人 */
   source_conversation_id?: string
+  /** 可选：同时由多条服务型会话一起转成此工单，自动关联各会话联系人并在会话时间线留痕 */
+  source_conversation_ids?: string[]
   /** 归属团队收件箱 ID；不填取工单类型默认团队 */
   team_id?: string
   /** 工单标题 */
