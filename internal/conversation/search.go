@@ -55,6 +55,13 @@ func LoadSearchDocs(ctx context.Context, tx bun.IDB, key string) ([]ItemSearchDo
 	if !it.Searchable() {
 		return nil, nil
 	}
+	recalled, err := tx.NewSelect().Table("message_recalls").Where("item_id = ?", it.ID).Exists(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "check message recall for search")
+	}
+	if recalled {
+		return nil, nil
+	}
 
 	// 编辑过的消息按最新一版正文索引
 	var revision struct {

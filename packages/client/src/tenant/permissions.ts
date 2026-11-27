@@ -105,6 +105,7 @@ export const required = {
     get: ["conversations:read"],
     inbox: ["conversations:read"],
     itemEdit: ["conversations:reply"],
+    itemRecall: ["conversations:reply"],
     items: ["conversations:read"],
     language: ["conversations:reply"],
     list: ["conversations:read"],

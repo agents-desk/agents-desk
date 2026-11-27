@@ -858,6 +858,10 @@ export const messages = {
     "inbox.message_edit_save": "Save",
     "inbox.message_edit_title": "Edit message",
     "inbox.message_edited": "Edited",
+    "inbox.message_recall": "Recall",
+    "inbox.message_recall_confirm": "After recalling, no member can see the content of this message.",
+    "inbox.message_recall_title": "Recall message",
+    "inbox.message_recalled": "Message recalled",
     "inbox.mode_note": "Internal note",
     "inbox.mode_reply": "Reply",
     "inbox.new_message_jump": "New messages ({{.n}})",
@@ -2793,6 +2797,10 @@ export const messages = {
     "inbox.message_edit_save": "保存",
     "inbox.message_edit_title": "编辑消息",
     "inbox.message_edited": "已编辑",
+    "inbox.message_recall": "撤回",
+    "inbox.message_recall_confirm": "撤回后，所有成员都看不到这条消息的内容。",
+    "inbox.message_recall_title": "撤回消息",
+    "inbox.message_recalled": "消息已撤回",
     "inbox.mode_note": "内部备注",
     "inbox.mode_reply": "回复",
     "inbox.new_message_jump": "{{.n}} 条新消息",
@@ -4731,6 +4739,10 @@ export type MessageId =
   | "inbox.message_edit_save"
   | "inbox.message_edit_title"
   | "inbox.message_edited"
+  | "inbox.message_recall"
+  | "inbox.message_recall_confirm"
+  | "inbox.message_recall_title"
+  | "inbox.message_recalled"
   | "inbox.mode_note"
   | "inbox.mode_reply"
   | "inbox.new_message_jump"

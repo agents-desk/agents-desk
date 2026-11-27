@@ -380,6 +380,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "conversation"),
       }),
+      /** POST /conversations/{id}/items/{item_id}/recall */
+      itemRecall: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["itemRecall"]>) => client.conversation.itemRecall(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
       /** GET /conversations/{id}/items */
       items: (...args: Parameters<Client["conversation"]["items"]>) => ({
         queryKey: key("conversation", "items", ...args),

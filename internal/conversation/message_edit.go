@@ -100,6 +100,13 @@ func (a *EditMessage) Handle(ctx context.Context, sub identity.Subject, conversa
 		default:
 			return ErrMessageNotEditable.New()
 		}
+		recalled, err := tx.NewSelect().Table("message_recalls").Where("item_id = ?", item.ID).Exists(ctx)
+		if err != nil {
+			return errors.Wrap(err, "check message recall before edit")
+		}
+		if recalled {
+			return ErrMessageNotEditable.New()
+		}
 		if item.Kind == Message && now().Sub(item.CreatedAt) > editWindow {
 			return ErrMessageEditWindow.New()
 		}

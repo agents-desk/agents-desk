@@ -906,6 +906,10 @@ export interface ConversationItemDTO {
   edited_at?: string
   id: string
   kind: ConversationItemKind
+  /** 消息已撤回；正文和附件不再返回 */
+  recalled?: boolean
+  /** 撤回时间 */
+  recalled_at?: string
   /** 引用回复的时间线项 ID */
   reply_to_item_id?: string
   /** 编辑次数；0 表示没有编辑过 */
@@ -3929,6 +3933,13 @@ export function createClient(options: ClientOptions) {
        */
       itemEdit: (id: string, itemID: string, body: ConversationEditMessageBody): Promise<ConversationItemDTO> =>
         rt.request<ConversationItemDTO>({ method: "PATCH", path: `/conversations/${encodeURIComponent(id)}/items/${encodeURIComponent(itemID)}`, body }),
+      /**
+       * 撤回消息
+       *
+       * POST /conversations/{id}/items/{item_id}/recall
+       */
+      itemRecall: (id: string, itemID: string): Promise<void> =>
+        rt.request<void>({ method: "POST", path: `/conversations/${encodeURIComponent(id)}/items/${encodeURIComponent(itemID)}/recall` }),
       /**
        * 读取时间线
        *

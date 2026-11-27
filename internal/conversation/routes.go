@@ -57,6 +57,9 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	editOp := route(reply, "conversation-item-edit", http.MethodPatch, "/conversations/{id}/items/{item_id}", "编辑消息")
 	rest.Register(api, replyOp, NewReply(db, down).HTTP)
 	rest.Register(api, editOp, NewEditMessage(db, down).HTTP)
+	recallOp := route(reply, "conversation-item-recall", http.MethodPost, "/conversations/{id}/items/{item_id}/recall", "撤回消息")
+	recallOp.DefaultStatus = http.StatusNoContent
+	rest.Register(api, recallOp, NewRecallMessage(db, down).HTTP)
 	rest.Register(api, noteOp, NewAddNote(db, down).HTTP)
 	rest.Register(api, retryOp, NewRetry(db, down).HTTP)
 	rest.Register(api, readOp, NewMarkRead(db, down.Hub).HTTP)
