@@ -113,7 +113,7 @@ export function CommandPalette({
   const canAssignOthers = can("conversations:assign")
   const canReadContacts = can("contacts:read")
   const inbox = useQuery({ ...kit.queries.conversation.inbox(), enabled: canReadInbox })
-  const convMatch = useMatch({ from: "/$slug/inbox/$id", shouldThrow: false })
+  const convMatch = useMatch({ from: "/$slug/inbox/_conversations/$id", shouldThrow: false })
   const currentConvId = convMatch?.params.id
   const currentConv = useQuery({
     ...kit.queries.conversation.get(currentConvId ?? ""),
@@ -301,21 +301,21 @@ export function CommandPalette({
           label: t("tickets.command_mine"),
           description: t("tickets.nav_section"),
           icon: <IconTicket size={16} stroke={1.6} />,
-          onClick: () => void navigate({ to: "/$slug/tickets", params: { slug }, search: { box: "mine", status: "unresolved" } }),
+          onClick: () => void navigate({ to: "/$slug/inbox/tickets", params: { slug }, search: { box: "mine", status: "unresolved" } }),
         },
         {
           id: "tickets:unassigned",
           label: t("tickets.command_unassigned"),
           description: t("tickets.nav_section"),
           icon: <IconTicket size={16} stroke={1.6} />,
-          onClick: () => void navigate({ to: "/$slug/tickets", params: { slug }, search: { box: "unassigned", status: "unresolved" } }),
+          onClick: () => void navigate({ to: "/$slug/inbox/tickets", params: { slug }, search: { box: "unassigned", status: "unresolved" } }),
         },
         {
           id: "tickets:all",
           label: t("tickets.command_all"),
           description: t("tickets.nav_section"),
           icon: <IconTicket size={16} stroke={1.6} />,
-          onClick: () => void navigate({ to: "/$slug/tickets", params: { slug }, search: { box: "all", status: "unresolved" } }),
+          onClick: () => void navigate({ to: "/$slug/inbox/tickets", params: { slug }, search: { box: "all", status: "unresolved" } }),
         },
         ...(inbox.data?.teams ?? []).map((team) => ({
           id: `inbox:team:${team.id}`,
@@ -486,7 +486,7 @@ export function CommandPalette({
             {chatHits.map((ch) => (
               <Spotlight.Action
                 key={`chat:${ch.id}`}
-                onClick={() => void navigate({ to: "/$slug/chat/$id", params: { slug, id: ch.id } })}
+                onClick={() => void navigate({ to: "/$slug/inbox/chat/$id", params: { slug, id: ch.id } })}
               >
                 <Group gap="sm" wrap="nowrap" w="100%">
                   <Box className="cmd-palette-icon">
@@ -520,7 +520,7 @@ export function CommandPalette({
                 key={`ticket:${tk.id}`}
                 onClick={() =>
                   void navigate({
-                    to: "/$slug/tickets/$id",
+                    to: "/$slug/inbox/tickets/$id",
                     params: { slug, id: tk.id },
                     search: { box: "all", status: "unresolved" },
                   })

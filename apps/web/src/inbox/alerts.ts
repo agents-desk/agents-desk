@@ -50,11 +50,16 @@ export function playAlertSound(): void {
   }
 }
 
-/** isViewingConversation 判断当前标签页是否处于前台且正在查看指定会话。 */
+/**
+ * isViewingConversation 判断当前标签页是否处于前台且正在查看指定的会话、工单或聊天：
+ * 它们在收件箱模块中的地址是 /{slug}/inbox/{id}、/{slug}/inbox/tickets/{id}、/{slug}/inbox/chat/{id}，前面还有前端的挂载路径。
+ */
 function isViewingConversation(slug: string, conversationId: string): boolean {
   if (typeof document === "undefined" || typeof window === "undefined") return false
   if (document.visibilityState !== "visible") return false
-  return window.location.pathname === `/${slug}/inbox/${conversationId}`
+  const path = window.location.pathname
+  const inbox = `/${slug}/inbox/`
+  return [inbox, `${inbox}tickets/`, `${inbox}chat/`].some((prefix) => path.endsWith(prefix + conversationId))
 }
 
 /**

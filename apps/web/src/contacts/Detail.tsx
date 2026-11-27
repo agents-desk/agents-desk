@@ -260,7 +260,7 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
                   {contactTickets.data?.items.map((tk) => (
                     <Link
                       key={tk.id}
-                      to="/$slug/tickets/$id"
+                      to="/$slug/inbox/tickets/$id"
                       params={{ slug, id: tk.id }}
                       search={{ box: "all", status: "unresolved" }}
                       className="ct-conv"

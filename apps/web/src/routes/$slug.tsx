@@ -82,12 +82,12 @@ function TenantLayout() {
       t,
       onOpen: (convId) => {
         if (type === "chat") {
-          void navigate({ to: "/$slug/chat/$id", params: { slug: tenant.slug, id: convId } })
+          void navigate({ to: "/$slug/inbox/chat/$id", params: { slug: tenant.slug, id: convId } })
           return
         }
         if (type === "ticket") {
           void navigate({
-            to: "/$slug/tickets/$id",
+            to: "/$slug/inbox/tickets/$id",
             params: { slug: tenant.slug, id: convId },
             search: { box: "all", status: "unresolved" },
           })

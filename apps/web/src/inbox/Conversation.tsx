@@ -366,7 +366,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
         sourceConversation={c}
         onCreated={(created) =>
           void navigate({
-            to: "/$slug/tickets/$id",
+            to: "/$slug/inbox/tickets/$id",
             params: { slug, id: created.id },
             search: { box: "all", status: "unresolved" },
           })
