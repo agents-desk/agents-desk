@@ -1,8 +1,8 @@
-import { Alert, Button, Card, Group, Stack, Text, TextInput, Title } from "@mantine/core"
+import { Button, Card, Group, Stack, Text, TextInput, Title } from "@mantine/core"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import type { ErrorInfo } from "@go-tenon/client"
-import { applyServerErrors, FormError, Page, SecretInput, useSchemaForm, useT } from "@go-tenon/ui"
+import { applyServerErrors, FormError, notifySuccess, Page, SecretInput, useSchemaForm, useT } from "@go-tenon/ui"
 import type { LlmSettings } from "@agents-desk/client/admin"
 import { useEffect, useState } from "react"
 import { api, kit } from "../../../api"
@@ -30,7 +30,6 @@ function ModelSettings() {
     initialValues: emptySettings,
   })
   const [error, setError] = useState<ErrorInfo>()
-  const [done, setDone] = useState(false)
 
   const load = (s: LlmSettings) => {
     form.setInitialValues(s)
@@ -45,13 +44,12 @@ function ModelSettings() {
     <Page title={t("nav.model")} description={t("model.description")}>
       <form
         onSubmit={form.onSubmit(async (values) => {
-          setDone(false)
           setError(undefined)
           try {
             const saved = await api.llm.settingsSave(values)
             queryClient.setQueryData<LlmSettings>(queryKey, saved)
             load(saved)
-            setDone(true)
+            notifySuccess(t("common.saved"))
           } catch (err) {
             setError(applyServerErrors(form, err))
           }
@@ -59,11 +57,6 @@ function ModelSettings() {
       >
         <Stack gap="md">
           <FormError error={error} />
-          {done && (
-            <Alert color="green" withCloseButton onClose={() => setDone(false)}>
-              {t("common.saved")}
-            </Alert>
-          )}
           <Card withBorder>
             <Stack gap="sm">
               <Title order={4}>{t("model.gateway_title")}</Title>
