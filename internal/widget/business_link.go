@@ -55,7 +55,7 @@ type BusinessLinkDTO struct {
 	Intake       BusinessIntakeConfig   `json:"intake" doc:"开场留资表单配置"`
 	Access       BusinessAccessDTO      `json:"access" doc:"访问控制（口令保护与有效期）"`
 	Business     channel.BusinessPolicy `json:"business" doc:"通用商务策略（默认协作成员、自动标签与翻译覆写）"`
-	ChatURL      string                 `json:"chat_url" doc:"发给外部合作方直接打开的短链地址（/c/{code}）"`
+	ChatURL      string                 `json:"chat_url" doc:"发给外部联系人直接打开的短链地址（/c/{code}）"`
 	WidgetURL    string                 `json:"widget_url" doc:"底层聊天窗口直连地址（/widget/?channel={id}）"`
 	QRDataURL    string                 `json:"qr_data_url,omitempty" doc:"短链对应的 PNG 二维码（data:image/png;base64,...）"`
 	Enabled      bool                   `json:"enabled" doc:"是否启用；停用后对方无法继续打开或发消息"`

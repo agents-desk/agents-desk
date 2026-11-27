@@ -199,7 +199,7 @@ channel.kind.wecom: 企业微信机器人
 channel.kind.business_link: 商务沟通链接
 channel.kind.telegram_account: Telegram 个人号
 channel.audience.customer: 外部客户
-channel.audience.partner: 合作方
+channel.audience.partner: 商务
 channel.audience.internal: 内部员工
 extgroup.not_found: 外部群不存在
 extgroup.removed: 机器人已被移出该群，无法继续回复
@@ -223,7 +223,7 @@ telegram.fields.gateway_managed: 外部网关转发
 telegram.fields.enabled: 启用
 telegram.fields.created_at: 创建时间
 telegram.descriptions.name: 用于在工作区中区分这个 Telegram 机器人
-telegram.descriptions.audience: 选择服务外部客户还是内部员工，内部员工单聊会归入内部联系人
+telegram.descriptions.audience: 选择服务外部客户、商务或内部员工，内部员工单聊会归入内部联系人
 telegram.descriptions.team_id: 新会话进入的团队收件箱；不选时进入未指派
 telegram.descriptions.bot_token: 从 @BotFather 获取的 Bot Token；修改时留空保持不变
 telegram.descriptions.enable_groups: 开启后在群聊中被 @ 机器人、发送命令或回复机器人消息时进入收件箱

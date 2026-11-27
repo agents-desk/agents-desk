@@ -116,7 +116,7 @@ type SyncConfig struct {
 	FolderIDs     []int         `json:"folder_ids,omitempty" maxItems:"20" doc:"文件夹模式下选中的 Telegram 文件夹 ID 列表"`
 	BackfillLimit int           `json:"backfill_limit" minimum:"0" maximum:"50" doc:"新加入同步的会话默认拉取的历史消息条数（0-50）"`
 	SyncOutgoing  bool          `json:"sync_outgoing" doc:"是否同步自己在手机/桌面 Telegram 客户端发出的消息"`
-	SyncMedia     bool          `json:"sync_media" doc:"是否同步合作方发来的图片与文档附件"`
+	SyncMedia     bool          `json:"sync_media" doc:"是否同步对方发来的图片与文档附件"`
 	GroupMode     GroupSyncMode `json:"group_mode" enum:"all,mentions_only" doc:"群聊消息同步策略：all 或 mentions_only"`
 }
 

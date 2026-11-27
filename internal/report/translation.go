@@ -66,9 +66,9 @@ type TranslationModelBreakdown struct {
 	AvgDurationMS *float64 `json:"avg_duration_ms,omitempty"`
 }
 
-// TranslationSceneBreakdown 是按业务场景（service / internal_service / ticket / business / internal_chat / other）拆分的翻译调用统计。
+// TranslationSceneBreakdown 是按业务场景（service / partner_service / internal_service / ticket / business / internal_chat / other）拆分的翻译调用统计。
 type TranslationSceneBreakdown struct {
-	Scene         string   `json:"scene" doc:"业务场景：service（客服）、internal_service（内部服务）、ticket（工单）、business（商务沟通）、internal_chat（内部聊天）、other（其他）"`
+	Scene         string   `json:"scene" doc:"业务场景：service（客服）、partner_service（商务服务）、internal_service（内部服务）、ticket（工单）、business（商务沟通）、internal_chat（内部聊天）、other（其他）"`
 	Calls         int64    `json:"calls"`
 	FailedCalls   int64    `json:"failed_calls"`
 	SuccessRate   *float64 `json:"success_rate,omitempty"`

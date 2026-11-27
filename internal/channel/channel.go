@@ -34,7 +34,7 @@ const (
 	Widget          Kind = "widget"           // 网页聊天插件：嵌入产品网站的公共服务窗口，见 internal/widget
 	Telegram        Kind = "telegram"         // Telegram 机器人（HTTP Webhook，支持单聊与群内 @）
 	WeCom           Kind = "wecom"            // 企业微信智能机器人（WebSocket 长连接，支持单聊与群内 @）
-	BusinessLink    Kind = "business_link"    // 成员个人网页商务沟通链接：外部合作方打开即与该成员进入长期商务沟通
+	BusinessLink    Kind = "business_link"    // 成员个人网页商务沟通链接：外部联系人打开即与该成员进入长期商务沟通
 	TelegramAccount Kind = "telegram_account" // 成员个人 Telegram 账号（纯 Go MTProto，支持 1:1 单聊与群聊）
 )
 
@@ -51,7 +51,7 @@ type Audience string
 
 const (
 	AudienceCustomer Audience = "customer" // 外部客户服务
-	AudiencePartner  Audience = "partner"  // 合作商家与个人商务沟通
+	AudiencePartner  Audience = "partner"  // 商务服务与个人商务沟通
 	AudienceInternal Audience = "internal" // 内部员工服务（IT、人事、行政等）
 )
 

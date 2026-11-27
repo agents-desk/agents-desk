@@ -45,7 +45,7 @@ import { ExternalGroupsPanel, TelegramsPanel } from "../../../../../features/cha
 import { ChannelIcon } from "../../../../../inbox/channel-badge"
 import { useMembers } from "../../../../../inbox/data"
 
-// 工作区商务渠道治理页：管理员总览全员个人商务渠道、配置面向合作方的 Telegram 机器人与合作群（AI Agent + 人工协作）、管理策略配额与 Telegram 个人号 API 凭据。
+// 工作区商务渠道治理页：管理员总览全员个人商务渠道、配置商务 Telegram 机器人与商务群（AI Agent + 人工协作）、管理策略配额与 Telegram 个人号 API 凭据。
 export const Route = createFileRoute("/$slug/settings/_service/business/")({
   validateSearch: (search: Record<string, unknown>): { tab?: string } => ({
     tab: typeof search.tab === "string" ? search.tab : undefined,

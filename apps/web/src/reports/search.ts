@@ -38,11 +38,6 @@ export interface SatisfactionSearchParams extends ReportFilterSearchParams {
 /** 客服报表的 URL search 参数（统一承接会话量、响应时效、满意度 3 个 Tab）。 */
 export type ServiceReportSearchParams = SatisfactionSearchParams
 
-/** 合作方服务报表的 URL search 参数（统一承接请求量、响应时效 2 个 Tab）。 */
-export interface PartnerServiceReportSearchParams extends ReportFilterSearchParams {
-  tab?: "volume" | "response"
-}
-
 /** 内部服务报表的 URL search 参数（统一承接请求量、响应时效 2 个 Tab）。 */
 export interface InternalServiceReportSearchParams extends ReportFilterSearchParams {
   tab?: "volume" | "response"
@@ -60,8 +55,9 @@ export interface TicketsReportSearchParams extends PeriodSearchParams {
   visibility?: "all" | "members"
 }
 
-/** 商务沟通报表的 URL search 参数。 */
-export interface BusinessReportSearchParams extends PeriodSearchParams {
+/** 商务报表的 URL search 参数（统一承接商务沟通、服务请求、服务响应 3 个 Tab）。 */
+export interface BusinessReportSearchParams extends ReportFilterSearchParams {
+  tab?: "chat" | "volume" | "response"
   channel_kind?: "business_link" | "telegram_account"
   owner_id?: string
 }
@@ -103,20 +99,6 @@ export function serviceReportSearch(
     if (Number.isInteger(minScore) && minScore >= 1 && minScore <= 5) out.min_score = minScore
     const maxScore = Number(search.max_score)
     if (Number.isInteger(maxScore) && maxScore >= 1 && maxScore <= 5) out.max_score = maxScore
-    return out
-  }
-}
-
-/** 校验并解析合作方服务报表的查询参数（Tab + 通用筛选）。 */
-export function partnerServiceReportSearch(
-  options: PeriodSearchOptions = { defaultPreset: "7d" },
-): (search: Record<string, unknown>) => PartnerServiceReportSearchParams {
-  const parseBase = reportFilterSearch(options)
-  return (search: Record<string, unknown>): PartnerServiceReportSearchParams => {
-    const out: PartnerServiceReportSearchParams = parseBase(search)
-    if (search.tab === "volume" || search.tab === "response") {
-      out.tab = search.tab
-    }
     return out
   }
 }
@@ -163,13 +145,16 @@ export function ticketsReportSearch(
   }
 }
 
-/** 校验并解析商务沟通报表的查询参数。 */
+/** 校验并解析商务报表的查询参数（Tab + 通用筛选 + 商务渠道与成员筛选）。 */
 export function businessReportSearch(
   options: PeriodSearchOptions = { defaultPreset: "7d" },
 ): (search: Record<string, unknown>) => BusinessReportSearchParams {
-  const parsePeriod = periodSearch(options)
+  const parseBase = reportFilterSearch(options)
   return (search: Record<string, unknown>): BusinessReportSearchParams => {
-    const out: BusinessReportSearchParams = parsePeriod(search)
+    const out: BusinessReportSearchParams = parseBase(search)
+    if (search.tab === "chat" || search.tab === "volume" || search.tab === "response") {
+      out.tab = search.tab
+    }
     if (search.channel_kind === "business_link" || search.channel_kind === "telegram_account") {
       out.channel_kind = search.channel_kind
     }

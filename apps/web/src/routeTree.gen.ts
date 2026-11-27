@@ -29,7 +29,6 @@ import { Route as SlugReportsBusinessRouteImport } from './routes/$slug/reports/
 import { Route as SlugReportsInternalRouteImport } from './routes/$slug/reports/internal'
 import { Route as SlugReportsMembersRouteImport } from './routes/$slug/reports/members'
 import { Route as SlugReportsOverviewRouteImport } from './routes/$slug/reports/overview'
-import { Route as SlugReportsPartnerRouteImport } from './routes/$slug/reports/partner'
 import { Route as SlugReportsServiceRouteImport } from './routes/$slug/reports/service'
 import { Route as SlugReportsTicketsRouteImport } from './routes/$slug/reports/tickets'
 import { Route as SlugReportsTranslationRouteImport } from './routes/$slug/reports/translation'
@@ -170,11 +169,6 @@ const SlugReportsMembersRoute = SlugReportsMembersRouteImport.update({
 const SlugReportsOverviewRoute = SlugReportsOverviewRouteImport.update({
   id: '/overview',
   path: '/overview',
-  getParentRoute: () => SlugReportsRoute,
-} as any)
-const SlugReportsPartnerRoute = SlugReportsPartnerRouteImport.update({
-  id: '/partner',
-  path: '/partner',
   getParentRoute: () => SlugReportsRoute,
 } as any)
 const SlugReportsServiceRoute = SlugReportsServiceRouteImport.update({
@@ -434,7 +428,6 @@ export interface FileRoutesByFullPath {
   '/$slug/reports/internal': typeof SlugReportsInternalRoute
   '/$slug/reports/members': typeof SlugReportsMembersRoute
   '/$slug/reports/overview': typeof SlugReportsOverviewRoute
-  '/$slug/reports/partner': typeof SlugReportsPartnerRoute
   '/$slug/reports/service': typeof SlugReportsServiceRoute
   '/$slug/reports/tickets': typeof SlugReportsTicketsRoute
   '/$slug/reports/translation': typeof SlugReportsTranslationRoute
@@ -489,7 +482,6 @@ export interface FileRoutesByTo {
   '/$slug/reports/internal': typeof SlugReportsInternalRoute
   '/$slug/reports/members': typeof SlugReportsMembersRoute
   '/$slug/reports/overview': typeof SlugReportsOverviewRoute
-  '/$slug/reports/partner': typeof SlugReportsPartnerRoute
   '/$slug/reports/service': typeof SlugReportsServiceRoute
   '/$slug/reports/tickets': typeof SlugReportsTicketsRoute
   '/$slug/reports/translation': typeof SlugReportsTranslationRoute
@@ -545,7 +537,6 @@ export interface FileRoutesById {
   '/$slug/reports/internal': typeof SlugReportsInternalRoute
   '/$slug/reports/members': typeof SlugReportsMembersRoute
   '/$slug/reports/overview': typeof SlugReportsOverviewRoute
-  '/$slug/reports/partner': typeof SlugReportsPartnerRoute
   '/$slug/reports/service': typeof SlugReportsServiceRoute
   '/$slug/reports/tickets': typeof SlugReportsTicketsRoute
   '/$slug/reports/translation': typeof SlugReportsTranslationRoute
@@ -611,7 +602,6 @@ export interface FileRouteTypes {
     | '/$slug/reports/internal'
     | '/$slug/reports/members'
     | '/$slug/reports/overview'
-    | '/$slug/reports/partner'
     | '/$slug/reports/service'
     | '/$slug/reports/tickets'
     | '/$slug/reports/translation'
@@ -666,7 +656,6 @@ export interface FileRouteTypes {
     | '/$slug/reports/internal'
     | '/$slug/reports/members'
     | '/$slug/reports/overview'
-    | '/$slug/reports/partner'
     | '/$slug/reports/service'
     | '/$slug/reports/tickets'
     | '/$slug/reports/translation'
@@ -721,7 +710,6 @@ export interface FileRouteTypes {
     | '/$slug/reports/internal'
     | '/$slug/reports/members'
     | '/$slug/reports/overview'
-    | '/$slug/reports/partner'
     | '/$slug/reports/service'
     | '/$slug/reports/tickets'
     | '/$slug/reports/translation'
@@ -915,13 +903,6 @@ declare module '@tanstack/react-router' {
       path: '/overview'
       fullPath: '/$slug/reports/overview'
       preLoaderRoute: typeof SlugReportsOverviewRouteImport
-      parentRoute: typeof SlugReportsRoute
-    }
-    '/$slug/reports/partner': {
-      id: '/$slug/reports/partner'
-      path: '/partner'
-      fullPath: '/$slug/reports/partner'
-      preLoaderRoute: typeof SlugReportsPartnerRouteImport
       parentRoute: typeof SlugReportsRoute
     }
     '/$slug/reports/service': {
@@ -1299,7 +1280,6 @@ interface SlugReportsRouteChildren {
   SlugReportsInternalRoute: typeof SlugReportsInternalRoute
   SlugReportsMembersRoute: typeof SlugReportsMembersRoute
   SlugReportsOverviewRoute: typeof SlugReportsOverviewRoute
-  SlugReportsPartnerRoute: typeof SlugReportsPartnerRoute
   SlugReportsServiceRoute: typeof SlugReportsServiceRoute
   SlugReportsTicketsRoute: typeof SlugReportsTicketsRoute
   SlugReportsTranslationRoute: typeof SlugReportsTranslationRoute
@@ -1311,7 +1291,6 @@ const SlugReportsRouteChildren: SlugReportsRouteChildren = {
   SlugReportsInternalRoute: SlugReportsInternalRoute,
   SlugReportsMembersRoute: SlugReportsMembersRoute,
   SlugReportsOverviewRoute: SlugReportsOverviewRoute,
-  SlugReportsPartnerRoute: SlugReportsPartnerRoute,
   SlugReportsServiceRoute: SlugReportsServiceRoute,
   SlugReportsTicketsRoute: SlugReportsTicketsRoute,
   SlugReportsTranslationRoute: SlugReportsTranslationRoute,

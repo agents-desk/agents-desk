@@ -29,7 +29,7 @@ type ContactEmailInput struct {
 	Body ContactEmailBody
 }
 
-// ContactIntakeBody 是外部合作方在商务沟通链接开场留资表单提交的身份资料。
+// ContactIntakeBody 是商务联系人在商务沟通链接开场留资表单提交的身份资料。
 type ContactIntakeBody struct {
 	Name    string `json:"name,omitempty" maxLength:"120" doc:"对方称呼或姓名"`
 	Company string `json:"company,omitempty" maxLength:"120" doc:"对方所属公司或组织名称"`

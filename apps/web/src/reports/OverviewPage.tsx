@@ -1,4 +1,4 @@
-// 报表概览：顶部固定展示此刻全工作区实时健康状态，下方展示客服、工单、商务沟通与 AI 翻译的周期核心指标及融合趋势。
+// 报表概览：顶部固定展示此刻全工作区实时健康状态，下方展示客服、商务服务、内部服务、工单、商务沟通与 AI 翻译的周期核心指标及融合趋势。
 
 import { AreaChart } from "@mantine/charts"
 import { Badge, Group, SimpleGrid, Skeleton, Stack, Text, Tooltip } from "@mantine/core"
@@ -214,10 +214,10 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
         />
 
         <OverviewDomainCard
-          title={t("nav.reports_partner")}
-          to="/$slug/reports/partner"
+          title={t("reports.scene_partner_service")}
+          to="/$slug/reports/business"
           slug={slug}
-          search={periodSearchParams}
+          search={{ ...periodSearchParams, tab: "volume" }}
           loading={loading}
           primaryLabel={t("reports.partner_created")}
           primaryValue={formatInt(partnerSvc?.created, uiLang)}
@@ -262,7 +262,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
         />
 
         <OverviewDomainCard
-          title={t("nav.reports_business")}
+          title={t("reports.biz_tab_chats")}
           to="/$slug/reports/business"
           slug={slug}
           search={periodSearchParams}
@@ -337,7 +337,6 @@ interface OverviewDomainCardProps {
   title: string
   to:
     | "/$slug/reports/service"
-    | "/$slug/reports/partner"
     | "/$slug/reports/internal"
     | "/$slug/reports/tickets"
     | "/$slug/reports/business"

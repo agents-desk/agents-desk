@@ -23,9 +23,9 @@ type OverviewLive struct {
 	ServiceWaiting     int64 `json:"service_waiting" doc:"当前等待回复的对外客服会话数"`
 	ServiceUnassigned  int64 `json:"service_unassigned" doc:"当前未关闭且无负责人的对外客服会话数"`
 	ServiceSnoozed     int64 `json:"service_snoozed" doc:"当前稍后处理的对外客服会话数"`
-	PartnerOpen        int64 `json:"partner_open" doc:"当前打开的合作方服务会话数"`
-	PartnerWaiting     int64 `json:"partner_waiting" doc:"当前等待回复的合作方服务会话数"`
-	PartnerUnassigned  int64 `json:"partner_unassigned" doc:"当前未关闭且无负责人的合作方服务会话数"`
+	PartnerOpen        int64 `json:"partner_open" doc:"当前打开的商务服务会话数"`
+	PartnerWaiting     int64 `json:"partner_waiting" doc:"当前等待回复的商务服务会话数"`
+	PartnerUnassigned  int64 `json:"partner_unassigned" doc:"当前未关闭且无负责人的商务服务会话数"`
 	InternalOpen       int64 `json:"internal_open" doc:"当前打开的内部服务会话数"`
 	InternalWaiting    int64 `json:"internal_waiting" doc:"当前等待回复的内部服务会话数"`
 	InternalUnassigned int64 `json:"internal_unassigned" doc:"当前未关闭且无负责人的内部服务会话数"`
@@ -53,7 +53,7 @@ type OverviewService struct {
 	RatedCount          int64    `json:"rated_count"`
 }
 
-// OverviewPartner 是统计期内合作方服务（合作群与合作方机器人）业务线的核心汇总。
+// OverviewPartner 是统计期内商务服务（商务群与商务机器人）业务线的核心汇总。
 type OverviewPartner struct {
 	Created             int64    `json:"created"`
 	PrevCreated         int64    `json:"prev_created"`
@@ -105,7 +105,7 @@ type OverviewAI struct {
 	PrevTotalCostUSD float64  `json:"prev_total_cost_usd"`
 }
 
-// OverviewPoint 是全局趋势图中的一个时间桶，合并展示对外客服、合作方服务、内部服务、工单与商务沟通的业务量走势。
+// OverviewPoint 是全局趋势图中的一个时间桶，合并展示对外客服、商务服务、内部服务、工单与商务沟通的业务量走势。
 type OverviewPoint struct {
 	Date             string `json:"date"`
 	ServiceCreated   int64  `json:"service_created"`
@@ -153,7 +153,7 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 
 	var live OverviewLive
 
-	// 1. 实时快照：对外客服、合作方服务、内部服务与工单积压
+	// 1. 实时快照：对外客服、商务服务、内部服务与工单积压
 	if err := a.db.NewSelect().TableExpr("conversations c").
 		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.audience = ? AND c.status = ?) AS svc_open", conversation.Service, channel.AudienceCustomer, conversation.Open).
 		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.audience = ? AND c.status <> ? AND c.waiting_since IS NOT NULL) AS svc_waiting", conversation.Service, channel.AudienceCustomer, conversation.Closed).
@@ -227,7 +227,7 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 		}
 	}
 
-	// 4. 对外客服、合作方服务与内部服务周期汇总
+	// 4. 对外客服、商务服务与内部服务周期汇总
 	var svc OverviewService
 	var partnerSvc OverviewPartner
 	var internalSvc OverviewInternal
@@ -348,7 +348,7 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 	ai.TotalCostUSD = round6(ai.TotalCostUSD)
 	ai.PrevTotalCostUSD = round6(ai.PrevTotalCostUSD)
 
-	// 8. 合并全局趋势序列（对外客服新建、合作方服务新建、内部服务新建、工单新建、商务消息量）
+	// 8. 合并全局趋势序列（对外客服新建、商务服务新建、内部服务新建、工单新建、商务消息量）
 	pointMap := map[string]*OverviewPoint{}
 	ensurePt := func(b string) *OverviewPoint {
 		pt, ok := pointMap[b]
