@@ -117,7 +117,12 @@ type App struct {
 // 没有广播时（只构造路由的命令）两种推送都不做。
 func (a *App) downstream() conversation.Downstream {
 	down := conversation.Downstream{
-		Topics:   []queue.Topic[conversation.Appended]{conversation.DeliverTopic, translation.Topic, translation.TicketBroadcastTopic, automation.Topic},
+		Sinks: []conversation.Sink{
+			{Topic: conversation.DeliverTopic, Accept: conversation.Delivers},
+			{Topic: translation.Topic, Accept: translation.Accepts},
+			{Topic: translation.TicketBroadcastTopic, Accept: translation.Broadcasts},
+			{Topic: automation.Topic, Accept: automation.Accepts},
+		},
 		Hub:      a.hub,
 		Roles:    a.roles,
 		Registry: a.channels,

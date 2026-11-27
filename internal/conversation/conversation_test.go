@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/go-tenon/tenon/identity"
-	"github.com/go-tenon/tenon/queue"
 	"github.com/go-tenon/tenon/queue/queuetest"
 
 	"agents-desk/internal/apptest"
@@ -44,7 +43,7 @@ func setup(t *testing.T, env *apptest.Env, slug string) fixture {
 		t.Fatal(err)
 	}
 	agent := identity.Subject{Type: member.Type, ID: "01900000-0000-7000-8000-0000000000a1", Tenant: tn.ID, Permissions: auth.WithBase(auth.RolePermissions(auth.ScopeAll, nil))}
-	return fixture{env: env, system: system, agent: agent, ch: ch, down: conversation.Downstream{Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic}}}
+	return fixture{env: env, system: system, agent: agent, ch: ch, down: conversation.Downstream{Sinks: []conversation.Sink{{Topic: conversation.DeliverTopic, Accept: conversation.Delivers}}}}
 }
 
 // receive 以系统的身份写入客户 from 发来的消息。
@@ -99,14 +98,14 @@ func TestReceiveReplyDeliver(t *testing.T) {
 		reply.Delivery == nil || *reply.Delivery != conversation.Sending {
 		t.Fatalf("回复后：%+v，回复：%+v", c, reply)
 	}
-	// 每写入一项发布一个任务，重复的消息不发布
+	// 只有发给对方的消息才交给投递任务：客户的消息和系统事件不产生任务，重复的消息也不发布
 	jobs := queuetest.Pending(t, env.DB, conversation.DeliverTopic)
-	if len(jobs) != 4 || jobs[3].ItemID != reply.ID {
+	if len(jobs) != 1 || jobs[0].ItemID != reply.ID {
 		t.Fatalf("发布的任务：%+v", jobs)
 	}
-	// 发出：客户的消息和系统事件跳过，回复记为已送达；重复的任务不再发出
+	// 发出：回复记为已送达；重复的任务不再发出
 	deliver := conversation.NewDeliver(env.DB, channel.DefaultRegistry())
-	for _, job := range append(jobs, jobs[3]) {
+	for _, job := range append(jobs, jobs[0]) {
 		if err := deliver.Job(ctx, job); err != nil {
 			t.Fatal(err)
 		}

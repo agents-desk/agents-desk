@@ -12,6 +12,7 @@ import (
 	"github.com/go-tenon/tenon/broadcast/broadcasttest"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/page"
+	"github.com/go-tenon/tenon/queue/queuetest"
 
 	"agents-desk/internal/apptest"
 	"agents-desk/internal/auth"
@@ -35,7 +36,11 @@ func TestInternalChatLifecycleIsolationAndPush(t *testing.T) {
 
 	hub := broadcast.New(broadcasttest.NewBackend())
 	t.Cleanup(func() { _ = hub.Close() })
-	down := conversation.Downstream{Hub: hub, Roles: env.Roles}
+	down := conversation.Downstream{
+		Sinks: []conversation.Sink{{Topic: conversation.DeliverTopic, Accept: conversation.Delivers}},
+		Hub:   hub,
+		Roles: env.Roles,
+	}
 
 	createTenant := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{})
 	alpha, err := createTenant.Handle(ctx, apptest.Admin, tenant.CreateParams{
@@ -129,6 +134,9 @@ func TestInternalChatLifecycleIsolationAndPush(t *testing.T) {
 	msg, err := sendMsg.Handle(ctx, subAlice, dm1.ID, conversation.SendChatMessageBody{Text: "印度通道恢复了吗？", Mentions: []string{bob.ID}})
 	if err != nil || msg.Kind != conversation.Message {
 		t.Fatalf("发送单聊消息失败：%v %+v", err, msg)
+	}
+	if jobs := queuetest.Pending(t, env.DB, conversation.DeliverTopic); len(jobs) != 0 {
+		t.Fatalf("内部聊天消息不应产生投递任务：%+v", jobs)
 	}
 	select {
 	case raw := <-bobSub.C():

@@ -11,7 +11,6 @@ import (
 
 	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/broadcast/broadcasttest"
-	"github.com/go-tenon/tenon/queue"
 
 	"agents-desk/internal/apptest"
 	"agents-desk/internal/channel"
@@ -42,7 +41,7 @@ func TestContactStreamPaginationReadTypingAndTicketWakeup(t *testing.T) {
 	t.Cleanup(func() { _ = hub.Close() })
 	registry := channel.Registry{channel.Widget: NewConnector(hub), channel.Test: channel.TestConnector{}}
 	down := conversation.Downstream{
-		Topics:      []queue.Topic[conversation.Appended]{conversation.DeliverTopic},
+		Sinks:       []conversation.Sink{{Topic: conversation.DeliverTopic}},
 		Hub:         hub,
 		Roles:       env.Roles,
 		ContactPush: Push(hub),

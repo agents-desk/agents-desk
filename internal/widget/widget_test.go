@@ -16,7 +16,6 @@ import (
 	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/broadcast/broadcasttest"
 	"github.com/go-tenon/tenon/identity"
-	"github.com/go-tenon/tenon/queue"
 	"github.com/go-tenon/tenon/queue/queuetest"
 
 	"agents-desk/internal/apptest"
@@ -195,7 +194,7 @@ func TestConversation(t *testing.T) {
 	hub := broadcast.New(broadcasttest.NewBackend())
 	t.Cleanup(func() { _ = hub.Close() })
 	registry := channel.Registry{channel.Widget: NewConnector(hub)}
-	down := conversation.Downstream{Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic}, Hub: hub, Roles: env.Roles}
+	down := conversation.Downstream{Sinks: []conversation.Sink{{Topic: conversation.DeliverTopic}}, Hub: hub, Roles: env.Roles}
 	send := NewSendMessage(env.DB, conversation.NewReceive(env.DB, registry, down))
 
 	_, visitor := f.session(t, SessionBody{})

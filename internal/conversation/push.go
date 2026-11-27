@@ -20,14 +20,15 @@ import (
 // @ 到的（它们的记录在追加之后才写入）。看得到修改前的会话的人也要收到推送，他的列表和数量随之变化。
 // c 是修改后的会话，修改前的团队收件箱和负责人从数据库中读取，所以要在保存 c 之前调用。
 func audienceOf(ctx context.Context, db bun.IDB, roles *authz.Store, c *Conversation, items []*Item) ([]string, error) {
-	audience, _, err := audienceAndAlertsOf(ctx, db, roles, c, items)
+	audience, _, err := audienceAndAlertsOf(ctx, db, roles, nil, c, items)
 	return audience, err
 }
 
 // audienceAndAlertsOf 在计算可见推送对象（audienceOf）的同时，计算每个成员本次应触发的实时提醒类型：
 // 有人在内部备注中 @ 我（mention）、新会话指派给我（assigned）、我负责的会话收到客户新消息（new_message）。
 // 成员自己发起的操作不提醒本人；同一事务命中多种提醒时按 mention > assigned > new_message 选主提醒。
-func audienceAndAlertsOf(ctx context.Context, db bun.IDB, roles *authz.Store, c *Conversation, items []*Item) ([]string, map[string]string, error) {
+// before 是修改前的会话状态（由 commit 一次读出），为 nil 时只按修改后的状态计算。
+func audienceAndAlertsOf(ctx context.Context, db bun.IDB, roles *authz.Store, before *Conversation, c *Conversation, items []*Item) ([]string, map[string]string, error) {
 	// 内部聊天严格按参与者推送：只推给当前参与者成员，并按新消息与 @提及 生成实时提醒
 	if c.Kind == Chat {
 		var out []string
@@ -45,10 +46,11 @@ func audienceAndAlertsOf(ctx context.Context, db bun.IDB, roles *authz.Store, c 
 		return out, alerts, nil
 	}
 
-	before := new(Conversation)
-	err := db.NewSelect().Model(before).Column("team_id", "assignee_type", "assignee_id").Where("id = ?", c.ID).Scan(ctx)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "load conversation before change")
+	if before == nil {
+		before = new(Conversation)
+		if err := db.NewSelect().Model(before).Column("team_id", "assignee_type", "assignee_id").Where("id = ?", c.ID).Scan(ctx); err != nil {
+			return nil, nil, errors.Wrap(err, "load conversation before change")
+		}
 	}
 
 	// 负责人和被 @ 的成员：不论可见范围都能看到
@@ -63,9 +65,8 @@ func audienceAndAlertsOf(ctx context.Context, db bun.IDB, roles *authz.Store, c 
 		}
 	}
 	var mentioned []string
-	err = db.NewSelect().Table("conversation_mentions").Column("member_id").
-		Where("tenant_id = ? AND conversation_id = ?", c.TenantID, c.ID).Scan(ctx, &mentioned)
-	if err != nil {
+	if err := db.NewSelect().Table("conversation_mentions").Column("member_id").
+		Where("tenant_id = ? AND conversation_id = ?", c.TenantID, c.ID).Scan(ctx, &mentioned); err != nil {
 		return nil, nil, errors.Wrap(err, "load mentioned members")
 	}
 	for _, it := range items {
