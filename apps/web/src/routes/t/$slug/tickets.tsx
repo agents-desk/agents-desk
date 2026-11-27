@@ -1,6 +1,6 @@
 import { Box } from "@mantine/core"
 import { createFileRoute, Outlet, useNavigate, useParams } from "@tanstack/react-router"
-import { Pane, useNarrow } from "@go-tenon/ui"
+import { Pane, preloadQueries, useNarrow } from "@go-tenon/ui"
 import { useCallback, useState } from "react"
 import "../../../inbox/inbox.css"
 import { InboxNav } from "../../../inbox/Nav"
@@ -8,7 +8,6 @@ import { NARROW_QUERY } from "../../../layout"
 import { CreateTicketModal } from "../../../tickets/CreateTicketModal"
 import { TicketList } from "../../../tickets/List"
 import { type TicketSearch, validateTicketSearch } from "../../../tickets/search"
-import { warmRoute } from "../../../preload"
 import { ticketListQuery } from "../../../tickets/meta"
 
 // 工单工作台：与收件箱共享同一套左侧二级导航（<InboxNav>）和全宽分栏骨架，不单独占一级图标栏。
@@ -17,7 +16,7 @@ export const Route = createFileRoute("/t/$slug/tickets")({
   validateSearch: validateTicketSearch,
   // 切换分组和筛选时预取工单列表，最多等一小会儿：数据很快到时新列表一次完整出现，不先闪成骨架
   loaderDeps: ({ search }) => search,
-  loader: ({ context, deps }) => warmRoute(context.app.queryClient, [ticketListQuery(deps)]),
+  loader: ({ context, deps }) => preloadQueries(context.app.queryClient, [ticketListQuery(deps)]),
   component: TicketsLayout,
 })
 

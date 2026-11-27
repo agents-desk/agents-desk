@@ -8,20 +8,19 @@ import { useForm } from "@mantine/form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { IconGripVertical, IconPencil, IconPlus, IconTrash } from "@tabler/icons-react"
-import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, useT } from "@go-tenon/ui"
+import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, preloadQueries, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../../../../../../api"
 import { EmptyState } from "../../../../../../components/empty-state"
 import { RowActions } from "../../../../../../components/row-actions"
 import { TicketTypeForm } from "./index"
-import { warmRoute } from "../../../../../../preload"
 
 // 工单类型详情页：管理该类型的基本信息及专属自定义字段（增删改与拖拽排序）。
 export const Route = createFileRoute("/t/$slug/settings/_tickets/ticket-types/$id")({
   staticData: { title: "ticket_types.detail_title" },
   // 预取页面的数据，最多等一小会儿：切换到这一页时内容一次完整出现，不先空白再出现
   loader: ({ context, params }) =>
-    warmRoute(context.app.queryClient, [kit.queries.ticket.typeGet(params.id), kit.queries.attribute.list({ target: "ticket", ticket_type_id: params.id })]),
+    preloadQueries(context.app.queryClient, [kit.queries.ticket.typeGet(params.id), kit.queries.attribute.list({ target: "ticket", ticket_type_id: params.id })]),
   component: TicketTypeDetailPage,
 })
 

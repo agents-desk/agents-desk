@@ -50,22 +50,10 @@ import {
   IconUser,
   IconUsersGroup,
 } from "@tabler/icons-react"
-import {
-  applyServerErrors,
-  confirm,
-  DataTable,
-  FormError,
-  notifyError,
-  notifySuccess,
-  Page,
-  primaryColors,
-  StatusDot,
-  useT,
-} from "@go-tenon/ui"
+import { applyServerErrors, confirm, DataTable, FormError, notifyError, notifySuccess, Page, preloadQueries, primaryColors, StatusDot, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { kit, tenantApi } from "../../../../../api"
 import { RowActions } from "../../../../../components/row-actions"
-import { warmRoute } from "../../../../../preload"
 
 /** presetSwatches 是主题预设色的十六进制色块，供商务沟通链接外观配色点选。 */
 const presetSwatches = Object.values(primaryColors)
@@ -78,7 +66,7 @@ const defaultLinkColor = primaryColors["bright-blue"]
 export const Route = createFileRoute("/t/$slug/settings/_personal/business-channels")({
   staticData: { title: "nav.business_channels", icon: "link", order: 5, permission: "conversations:read" },
   // 预取页面的数据，最多等一小会儿：切换到这一页时内容一次完整出现，不先空白再出现
-  loader: ({ context }) => warmRoute(context.app.queryClient, [kit.queries.business.linkList(), kit.queries.tgaccount.list()]),
+  loader: ({ context }) => preloadQueries(context.app.queryClient, [kit.queries.business.linkList(), kit.queries.tgaccount.list()]),
   component: BusinessChannelsPage,
 })
 

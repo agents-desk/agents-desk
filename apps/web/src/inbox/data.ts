@@ -3,9 +3,10 @@ import { fetchAllPages } from "@go-tenon/client"
 import { infiniteQueryOptions, type QueryClient, queryOptions, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query"
 import { kit, tenantApi } from "../api"
 import { me } from "../auth"
-import { findInLists, prefetch, type Warmable } from "../preload"
+import { findInLists } from "../preload"
 import { consumeRefreshFrom } from "../realtime"
 import type { InboxSearch } from "./search"
+import { prefetchQueries, type PreloadQuery } from "@go-tenon/ui"
 
 // 收件箱的查询。键都在 kit.queries.conversation.key() 之下：实时推送让这一组失效，列表、会话和时间线随之重新读取。
 
@@ -150,13 +151,13 @@ export function useConversation(id: string) {
 }
 
 /** conversationQueries 是打开会话 id 要用的查询：会话和时间线（路由 loader 与预取共用）。 */
-export function conversationQueries(queryClient: QueryClient, id: string, focusSeq?: number): Warmable[] {
+export function conversationQueries(queryClient: QueryClient, id: string, focusSeq?: number): PreloadQuery[] {
   return [kit.queries.conversation.get(id), timelineQuery(queryClient, id, focusSeq)]
 }
 
 /** prefetchConversation 预取会话 id 及其时间线：列表行悬停、J/K 切换用。 */
 export function prefetchConversation(queryClient: QueryClient, id: string, focusSeq?: number): Promise<void> {
-  return prefetch(queryClient, conversationQueries(queryClient, id, focusSeq))
+  return prefetchQueries(queryClient, conversationQueries(queryClient, id, focusSeq))
 }
 
 /**

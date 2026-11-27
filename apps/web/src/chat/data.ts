@@ -3,7 +3,8 @@ import { infiniteQueryOptions, type QueryClient, useInfiniteQuery, useQuery, use
 import type { useT } from "@go-tenon/ui"
 import { kit, tenantApi } from "../api"
 import { timelineQuery } from "../inbox/data"
-import { findInLists, prefetch, type Warmable } from "../preload"
+import { findInLists } from "../preload"
+import { prefetchQueries, type PreloadQuery } from "@go-tenon/ui"
 
 type T = ReturnType<typeof useT>
 
@@ -45,13 +46,13 @@ export function useChat(id: string) {
 }
 
 /** chatQueries 是打开聊天 id 要用的查询：聊天和时间线（路由 loader 与预取共用）。 */
-export function chatQueries(queryClient: QueryClient, id: string): Warmable[] {
+export function chatQueries(queryClient: QueryClient, id: string): PreloadQuery[] {
   return [kit.queries.chat.get(id), timelineQuery(queryClient, id)]
 }
 
 /** prefetchChat 预取聊天 id 及其时间线：列表行悬停、J/K 切换用。 */
 export function prefetchChat(queryClient: QueryClient, id: string): Promise<void> {
-  return prefetch(queryClient, chatQueries(queryClient, id))
+  return prefetchQueries(queryClient, chatQueries(queryClient, id))
 }
 
 /** flattenChats 把游标分页的聊天结果展平并按 ID 去重。 */

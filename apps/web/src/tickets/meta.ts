@@ -3,8 +3,9 @@ import { infiniteQueryOptions, type QueryClient, queryOptions, useInfiniteQuery,
 import type { useT } from "@go-tenon/ui"
 import { kit, tenantApi } from "../api"
 import { timelineQuery } from "../inbox/data"
-import { findInLists, prefetch, type Warmable } from "../preload"
+import { findInLists } from "../preload"
 import type { TicketSearch } from "./search"
+import { prefetchQueries, type PreloadQuery } from "@go-tenon/ui"
 
 type T = ReturnType<typeof useT>
 
@@ -95,13 +96,13 @@ export function useTicket(id: string) {
 }
 
 /** ticketQueries 是打开工单 id 要用的查询：工单和时间线（路由 loader 与预取共用）。 */
-export function ticketQueries(queryClient: QueryClient, id: string): Warmable[] {
+export function ticketQueries(queryClient: QueryClient, id: string): PreloadQuery[] {
   return [kit.queries.ticket.get(id), timelineQuery(queryClient, id)]
 }
 
 /** prefetchTicket 预取工单 id 及其时间线：列表行悬停、J/K 切换用。 */
 export function prefetchTicket(queryClient: QueryClient, id: string): Promise<void> {
-  return prefetch(queryClient, ticketQueries(queryClient, id))
+  return prefetchQueries(queryClient, ticketQueries(queryClient, id))
 }
 
 /** useConversationTickets 读取指定服务型会话关联的全部可见工单。 */

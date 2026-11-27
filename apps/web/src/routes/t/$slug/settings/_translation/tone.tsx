@@ -3,17 +3,16 @@ import { Button, Group, Radio, Stack, Text } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { applyServerErrors, FormError, notifySuccess, Page, useT } from "@go-tenon/ui"
+import { applyServerErrors, FormError, notifySuccess, Page, preloadQueries, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../../../../../api"
 import { useUnsavedGuard } from "../../../../../components/unsaved-guard"
-import { warmRoute } from "../../../../../preload"
 
 // 语气：系统把成员的回复翻译给客户时用的语气。收到的消息照原意翻译，不受语气影响。
 export const Route = createFileRoute("/t/$slug/settings/_translation/tone")({
   staticData: { title: "tone.title", icon: "ai", order: 0, permission: "tenant-settings:manage" },
   // 预取页面的数据，最多等一小会儿：切换到这一页时内容一次完整出现，不先空白再出现
-  loader: ({ context }) => warmRoute(context.app.queryClient, [kit.queries.translation.settings()]),
+  loader: ({ context }) => preloadQueries(context.app.queryClient, [kit.queries.translation.settings()]),
   component: Tone,
 })
 

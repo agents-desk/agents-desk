@@ -4,20 +4,19 @@ import { useForm } from "@mantine/form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { IconPlus, IconTrash } from "@tabler/icons-react"
-import { applyServerErrors, confirm, DataTable, FormError, notifyError, notifySuccess, Page, useLanguage, useT } from "@go-tenon/ui"
+import { applyServerErrors, confirm, DataTable, FormError, notifyError, notifySuccess, Page, preloadQueries, useLanguage, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../../../../../api"
 import { RowActions } from "../../../../../components/row-actions"
 import { LanguageSelect } from "../../../../../LanguageSelect"
 import { languageName } from "../../../../../languages"
-import { warmRoute } from "../../../../../preload"
 
 // 术语表：产品名、品牌名按固定的写法翻译。每条是保持原样（任何语言中都不翻译），或者按语言给出固定译法。
 // 只在消息中出现这个词时生效；订单号、金额、链接总是原样保留，不用加。添加、编辑、删除后保存整张表。
 export const Route = createFileRoute("/t/$slug/settings/_translation/glossary")({
   staticData: { title: "glossary.title", icon: "book", order: 1, permission: "tenant-settings:manage" },
   // 预取页面的数据，最多等一小会儿：切换到这一页时内容一次完整出现，不先空白再出现
-  loader: ({ context }) => warmRoute(context.app.queryClient, [kit.queries.translation.settings()]),
+  loader: ({ context }) => preloadQueries(context.app.queryClient, [kit.queries.translation.settings()]),
   component: Glossary,
 })
 

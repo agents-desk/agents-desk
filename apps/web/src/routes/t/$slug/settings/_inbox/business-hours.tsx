@@ -5,20 +5,19 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { IconPlus, IconTrash } from "@tabler/icons-react"
 import type { ErrorInfo } from "@go-tenon/client"
-import { applyServerErrors, FormError, notifySuccess, Page, useT } from "@go-tenon/ui"
+import { applyServerErrors, FormError, notifySuccess, Page, preloadQueries, useT } from "@go-tenon/ui"
 import type { HoursReplyTime, HoursSchedule, HoursSettingsDTO, HoursSpecialDate } from "@agents-desk/client/tenant"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../../../../../api"
 import { emptySchedule, Intervals, ScheduleFields } from "../../../../../business-hours"
 import { useUnsavedGuard } from "../../../../../components/unsaved-guard"
-import { warmRoute } from "../../../../../preload"
 
 // 工作时间：时区和每周的工作时间、特殊日期（节假日、调休）、通常的回复时间。三个标签各自独立保存。
 // 聊天插件和自动化用它们告诉客户什么时候能得到回复，收件箱按回复时间给等待时长变色。
 export const Route = createFileRoute("/t/$slug/settings/_inbox/business-hours")({
   staticData: { title: "business_hours.title", icon: "calendar", order: 1, permission: "tenant-settings:manage" },
   // 预取页面的数据，最多等一小会儿：切换到这一页时内容一次完整出现，不先空白再出现
-  loader: ({ context }) => warmRoute(context.app.queryClient, [{ queryKey: ["business-hours"], queryFn: () => tenantApi.hours.get() }]),
+  loader: ({ context }) => preloadQueries(context.app.queryClient, [{ queryKey: ["business-hours"], queryFn: () => tenantApi.hours.get() }]),
   component: BusinessHours,
 })
 

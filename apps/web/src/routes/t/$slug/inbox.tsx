@@ -1,6 +1,6 @@
 import { Box } from "@mantine/core"
 import { createFileRoute, Outlet, useNavigate, useParams } from "@tanstack/react-router"
-import { Pane, useNarrow } from "@go-tenon/ui"
+import { Pane, preloadQueries, useNarrow } from "@go-tenon/ui"
 import { useCallback, useEffect } from "react"
 import "../../../inbox/inbox.css"
 import { conversationListQuery, flatten, flattenSearchHits, prefetchConversation, useConversationList, useConversationSearch } from "../../../inbox/data"
@@ -9,7 +9,6 @@ import { InboxNav } from "../../../inbox/Nav"
 import { type InboxSearch, type MatchField, validateInboxSearch } from "../../../inbox/search"
 import { isTypingTarget, NARROW_QUERY } from "../../../layout"
 import { useQueryClient } from "@tanstack/react-query"
-import { warmRoute } from "../../../preload"
 
 // 收件箱：坐席接待会话的地方，铺满内容区（fullBleed），见产品设计的 13.2。二级导航是带数量的收件箱列表（nav 插槽），
 // 右侧是会话列表和会话（子路由 inbox/$id）；当前的列表、状态和排序在地址参数中，切换会话时保留。
@@ -28,7 +27,7 @@ export const Route = createFileRoute("/t/$slug/inbox")({
     sort: search.sort,
     q: search.q,
   }),
-  loader: ({ context, deps }) => (deps.q?.trim() ? undefined : warmRoute(context.app.queryClient, [conversationListQuery(deps)])),
+  loader: ({ context, deps }) => (deps.q?.trim() ? undefined : preloadQueries(context.app.queryClient, [conversationListQuery(deps)])),
   component: Inbox,
 })
 

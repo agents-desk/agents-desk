@@ -2,16 +2,15 @@ import type { AutomationBuiltin, AutomationRuleDTO } from "@agents-desk/client/t
 import { Anchor, Badge, Group, Loader, Paper, Stack, Switch, Text } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, Link, useParams } from "@tanstack/react-router"
-import { notifyError, notifySuccess, Page, useT } from "@go-tenon/ui"
+import { notifyError, notifySuccess, Page, preloadQueries, useT } from "@go-tenon/ui"
 import type { ReactNode } from "react"
 import { kit, tenantApi } from "../../../../../api"
-import { warmRoute } from "../../../../../preload"
 
 // 内置自动化：管理员可以逐条开关。触发、条件和动作由服务端引擎按规则执行。
 export const Route = createFileRoute("/t/$slug/settings/_inbox/rules")({
   staticData: { title: "automations.title", icon: "bolt", order: 4, permission: "tenant-settings:manage" },
   // 预取页面的数据，最多等一小会儿：切换到这一页时内容一次完整出现，不先空白再出现
-  loader: ({ context }) => warmRoute(context.app.queryClient, [kit.queries.automation.list()]),
+  loader: ({ context }) => preloadQueries(context.app.queryClient, [kit.queries.automation.list()]),
   component: Automations,
 })
 

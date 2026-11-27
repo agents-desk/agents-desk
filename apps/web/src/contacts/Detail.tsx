@@ -18,20 +18,7 @@ import {
 import { type QueryClient, queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { IconArrowUpRight, IconCheck, IconCopy, IconExternalLink, IconGitMerge, IconPencil, IconX } from "@tabler/icons-react"
-import {
-  Inspector,
-  InspectorField,
-  InspectorSection,
-  notifyError,
-  notifySuccess,
-  PaneBody,
-  PaneHeader,
-  useCan,
-  useLanguage,
-  useNarrow,
-  useT,
-  useTimeZone,
-} from "@go-tenon/ui"
+import { Inspector, InspectorField, InspectorSection, notifyError, notifySuccess, PaneBody, PaneHeader, prefetchQueries, type PreloadQuery, useCan, useLanguage, useNarrow, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { previewSummary } from "../inbox/Attachments"
@@ -44,7 +31,6 @@ import { contactTicketsQuery, ticketStatusColor, ticketStatusLabel, useContactTi
 import { ContactNotesCard } from "./ContactNotesCard"
 import { ContactAvatar, contactDisplayName } from "./display"
 import { MergeContactModal } from "./MergeContactModal"
-import { prefetch, type Warmable } from "../preload"
 import { InspectorSkeleton } from "../components/detail-skeleton"
 
 /** AUTO 是语言选择器中的“自动识别”。 */
@@ -657,11 +643,11 @@ function contactConversationsQuery(id: string) {
 }
 
 /** contactQueries 是打开联系人 id 的档案要用的查询：档案、会话和关联工单（路由 loader 与预取共用）。 */
-export function contactQueries(id: string): Warmable[] {
+export function contactQueries(id: string): PreloadQuery[] {
   return [kit.queries.contact.get(id), contactConversationsQuery(id), contactTicketsQuery(id)]
 }
 
 /** prefetchContact 预取联系人 id 的档案：列表行悬停时用。 */
 export function prefetchContact(queryClient: QueryClient, id: string): Promise<void> {
-  return prefetch(queryClient, contactQueries(id))
+  return prefetchQueries(queryClient, contactQueries(id))
 }
