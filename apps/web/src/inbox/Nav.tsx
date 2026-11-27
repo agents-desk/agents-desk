@@ -1,4 +1,4 @@
-import type { ConversationSummary, ConversationViewSummary } from "@agents-desk/client/tenant"
+import type { ConversationChatDTO, ConversationSummary, ConversationViewSummary } from "@agents-desk/client/tenant"
 import { ActionIcon, Badge, Menu, NavLink, Text, Tooltip } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useMatch, useNavigate, useParams } from "@tanstack/react-router"
@@ -22,6 +22,7 @@ import {
 import { confirm, Fill, notifyError, notifySuccess, RailSection, useCan, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../api"
+import { useChat } from "../chat/data"
 import { ChatSections, type ChatNavTarget } from "../chat/Nav"
 import { NewChatModal } from "../chat/NewChatModal"
 import { CreateTicketModal } from "../tickets/CreateTicketModal"
@@ -42,6 +43,13 @@ export function useNow(): number {
   return now
 }
 
+/** inChatGroup 报告聊天是否属于二级导航中的一个聊天分组：范围相同，内部聊天再看单聊或群聊，商务沟通再看所属的个人商务渠道。 */
+function inChatGroup(chat: ConversationChatDTO, group: ChatNavTarget): boolean {
+  if (chat.scope !== group.scope) return false
+  if (group.scope === "internal") return !group.filter || chat.mode === group.filter
+  return !group.channel || chat.channel?.id === group.channel
+}
+
 /** Count 是收件箱列表中一项的数量：等得最久的会话超过时限时，数字用等待时长的颜色。 */
 function Count({ s, now, th }: { s?: ConversationSummary; now: number; th?: Thresholds }): ReactNode {
   if (!s) return null
@@ -53,7 +61,7 @@ function Count({ s, now, th }: { s?: ConversationSummary; now: number; th?: Thre
  * InboxNav 是收件箱模块的二级导航（nav 插槽），成员在这一个模块中处理所有的沟通：
  * 会话列表（我的、@我、未指派、全部）、团队收件箱、工单分组（我的、未指派、全部）、内部聊天和商务沟通分组、已保存视图。
  * 它在收件箱模块的布局路由中渲染一次，从匹配到的子路由（会话、工单、聊天）读出当前的分组和地址参数来高亮；
- * 在同一类分组之间切换时保留打开着的会话或聊天，换到另一类时进入它的列表。
+ * 在会话分组之间切换时保留打开着的会话；在聊天分组之间切换时，打开着的聊天属于目标分组才保持打开；换到另一类分组时进入它的列表。
  */
 export function InboxNav(): ReactNode {
   const t = useT()
@@ -73,6 +81,7 @@ export function InboxNav(): ReactNode {
   const chats = useMatch({ from: "/$slug/inbox/chat", shouldThrow: false })
   const search = conversations?.search
   const activeTicketBox = tickets?.search.box
+  const openChat = useChat(chats && id ? id : "")
   const activeChat: ChatNavTarget | undefined = chats
     ? { scope: chats.search.scope ?? "internal", filter: chats.search.filter, channel: chats.search.channel }
     : undefined
@@ -115,14 +124,14 @@ export function InboxNav(): ReactNode {
     })
   }
 
-  // navigateChat 切换聊天分组：已经在聊天分组中时保留打开着的聊天
+  // navigateChat 切换聊天分组：打开着的聊天属于目标分组时保持打开，否则回到目标分组的列表
   const navigateChat = (next: ChatNavTarget) => {
     const chatSearch = {
       scope: next.scope === "external" ? ("external" as const) : undefined,
       filter: next.scope === "internal" ? next.filter : undefined,
       channel: next.scope === "external" ? next.channel : undefined,
     }
-    void (chats && id
+    void (id && openChat.data && inChatGroup(openChat.data, next)
       ? navigate({ to: "/$slug/inbox/chat/$id", params: { slug, id }, search: chatSearch })
       : navigate({ to: "/$slug/inbox/chat", params: { slug }, search: chatSearch }))
   }
