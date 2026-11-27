@@ -6,6 +6,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router"
 import { applyServerErrors, FormError, notifySuccess, Page, primaryColors, ResourceSelect, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { tenantApi } from "../../api"
+import { AiReceptionCard } from "../../components/ai-placeholders"
 import { useUnsavedGuard } from "../../components/unsaved-guard"
 import { teams } from "../../resources"
 import { WidgetInstallPanel } from "./widget-install-panel"
@@ -219,6 +220,8 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
                           {...form.getInputProps("appearance.greeting")}
                         />
                       </SectionCard>
+
+                      <AiReceptionCard scene="customer" />
 
                       <SectionCard title={t("widget_studio.section_routing")} description={t("widget_studio.section_routing_desc")}>
                         <ResourceSelect

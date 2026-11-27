@@ -12,7 +12,7 @@ import { useMembers, useTeams } from "../../../../inbox/data"
 
 // 指派与自动化：合并新会话默认指派设置和内置自动化规则开关两个页内标签，共用 tenant-settings:manage 权限。
 export const Route = createFileRoute("/$slug/settings/_service/rules")({
-  staticData: { title: "nav.assignment_rules", icon: "bolt", order: 4, permission: "tenant-settings:manage" },
+  staticData: { title: "nav.assignment_rules", icon: "bolt", order: 5, permission: "tenant-settings:manage" },
   loader: ({ context }) =>
     preloadQueries(context.app.queryClient, [kit.queries.assignment.settingsGet(), kit.queries.automation.list()]),
   component: AssignmentAndRulesPage,

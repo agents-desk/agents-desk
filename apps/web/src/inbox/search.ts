@@ -79,6 +79,7 @@ export function normalizeFilter(f: ConversationFilter | undefined): Conversation
     const uniq = statuses.filter((st) => f.statuses?.includes(st))
     if (uniq.length > 0) out.statuses = uniq
   }
+  if (f.audience === "customer" || f.audience === "internal") out.audience = f.audience
   if (f.team) {
     if (f.team.mode === "ids") {
       const ids = [...new Set((f.team.ids ?? []).filter(Boolean))].sort()
@@ -158,6 +159,7 @@ export function countFilterCriteria(f: ConversationFilter | undefined): number {
   const n = normalizeFilter(f)
   let count = 0
   if (n.statuses && n.statuses.length > 0) count++
+  if (n.audience) count++
   if (n.team) count++
   if (n.assignee) count++
   if (typeof n.waiting === "boolean") count++

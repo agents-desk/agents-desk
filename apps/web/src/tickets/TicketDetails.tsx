@@ -19,6 +19,7 @@ import {
 } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../api"
+import { AiAssistantPanel, type DetailsAsideTab, DetailsAsideTabs } from "../components/ai-placeholders"
 import { contactDisplayName } from "../contacts/display"
 import { ChannelIcon } from "../inbox/channel-badge"
 import { useMe, useMembers, useTags, useTeams } from "../inbox/data"
@@ -51,6 +52,7 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
   const [descDraft, setDescDraft] = useState(ticket.description)
   const [showOriginalDesc, setShowOriginalDesc] = useState(false)
   const [linkOpen, setLinkOpen] = useState(false)
+  const [asideTab, setAsideTab] = useState<DetailsAsideTab>("details")
 
   useEffect(() => {
     setDescDraft(ticket.description)
@@ -136,7 +138,11 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
           </ActionIcon>
         }
       />
+      <DetailsAsideTabs value={asideTab} onChange={setAsideTab} />
       <PaneBody>
+        {asideTab === "ai" ? (
+          <AiAssistantPanel scene="ticket" />
+        ) : (
         <Inspector>
           <InspectorSection title={t("tickets.details_basic")} collapsible storeKey="ticket-details-basic">
             <InspectorField label={t("tickets.status")}>
@@ -426,6 +432,7 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
             )}
           </InspectorSection>
         </Inspector>
+        )}
       </PaneBody>
 
       <LinkContactModal opened={linkOpen} ticketId={ticket.id} linkedContactIds={linkedIds} onClose={() => setLinkOpen(false)} />

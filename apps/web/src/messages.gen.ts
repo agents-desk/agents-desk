@@ -3,6 +3,79 @@
 /** 前端 web 的界面文字，来自 locales/web.<语言>.yaml。交给 @go-tenon/client 的 createI18n。 */
 export const messages = {
   "en": {
+    "ai_hub.banner_desc": "Every conversation, team assignment, tag, and ticket handled across customer and internal bot channels builds the dataset for future AI evaluation.",
+    "ai_hub.banner_title": "AI Agent runtime coming soon — data collection is already active",
+    "ai_hub.connected_channels": "{{.n}} connected channels",
+    "ai_hub.description": "Configure AI Agents, knowledge bases, and business tools for customer support, internal employee service, and partner communication — with seamless handoff to Inbox and Tickets.",
+    "ai_hub.eval_metrics_desc": "Track autonomous resolution rates, escalation reasons, and satisfaction by Agent profile and channel.",
+    "ai_hub.eval_metrics_title": "Resolution \u0026 escalation analytics",
+    "ai_hub.eval_replay_desc": "Evaluate new prompts and knowledge updates against real historical conversations before rollout.",
+    "ai_hub.eval_replay_title": "Batch replay on historical threads",
+    "ai_hub.flow_step_1": "1. Channels \u0026 bots",
+    "ai_hub.flow_step_2": "2. AI Agent replies \u0026 runs tools",
+    "ai_hub.flow_step_3": "3. Escalations / approvals → Inbox team",
+    "ai_hub.flow_step_4": "4. Complex issues → Tickets",
+    "ai_hub.flow_title": "End-to-end service loop",
+    "ai_hub.kb_history_desc": "Promote frequent inbox resolutions into reusable snippets to close knowledge gaps.",
+    "ai_hub.kb_history_title": "Resolved threads \u0026 QA snippets",
+    "ai_hub.kb_internal_desc": "Strictly isolated from external customers; available only to internal service Agents and member AI Assistants.",
+    "ai_hub.kb_internal_title": "Internal policies \u0026 runbooks",
+    "ai_hub.kb_public_desc": "Markdown, PDF, and synced web docs chunked by heading for customer support Agents and Help Center.",
+    "ai_hub.kb_public_title": "Public articles \u0026 product docs",
+    "ai_hub.manage_business_channels": "Manage business channels",
+    "ai_hub.manage_customer_channels": "Manage customer channels",
+    "ai_hub.manage_internal_channels": "Manage internal channels",
+    "ai_hub.profile_customer_channels": "Covers web widgets, customer Telegram bots, and more",
+    "ai_hub.profile_customer_desc": "Answers customer inquiries using public docs and order tools, escalating edge cases or human requests to support teams.",
+    "ai_hub.profile_customer_fallback": "Fallback: Inbox (e.g. Frontline Support)",
+    "ai_hub.profile_customer_title": "Customer Support Agent",
+    "ai_hub.profile_internal_channels": "Covers WeCom bots, internal Telegram bots, and more",
+    "ai_hub.profile_internal_desc": "Connects to WeCom and internal Telegram bots to resolve IT/HR/ops questions using internal docs and tools, escalating when human action is needed.",
+    "ai_hub.profile_internal_fallback": "Fallback: Inbox (e.g. IT Helpdesk)",
+    "ai_hub.profile_internal_title": "Internal Employee Service Agent",
+    "ai_hub.profile_partner_channels": "Covers personal business links, Telegram accounts, and partner groups",
+    "ai_hub.profile_partner_desc": "Assists account managers with chat summaries and multilingual drafts, and enables org-scoped lookups in partner groups.",
+    "ai_hub.profile_partner_fallback": "Mode: Chat AI Assistant + org-scoped group lookups",
+    "ai_hub.profile_partner_title": "Partner \u0026 Business Agent",
+    "ai_hub.tab_agents": "AI Agents",
+    "ai_hub.tab_eval": "Evaluation \u0026 insights",
+    "ai_hub.tab_knowledge": "Knowledge base",
+    "ai_hub.tab_tools": "Tools \u0026 approvals",
+    "ai_hub.title": "AI Agent",
+    "ai_hub.tools_approval_desc": "Mark high-risk actions (refunds, permission changes) as requiring approval via member-only cards in the Inbox.",
+    "ai_hub.tools_approval_title": "Human-in-the-loop approvals",
+    "ai_hub.tools_mcp_desc": "Expose order lookup, logistics checks, account resets, and internal workflows to scoped AI Agents via API or MCP.",
+    "ai_hub.tools_mcp_title": "API \u0026 MCP tool integrations",
+    "ai_hub.tools_scope_desc": "System-injected contact, employee, or organization context prevents unauthorized cross-account queries.",
+    "ai_hub.tools_scope_title": "Strict identity \u0026 org scoping",
+    "ai_placeholder.assistant_desc": "Helps agents work faster across conversations, tickets, and chats. Outputs stay private until you choose to send them.",
+    "ai_placeholder.assistant_private_hint": "AI Assistant outputs are visible only to you and are never sent automatically.",
+    "ai_placeholder.assistant_title": "AI Assistant",
+    "ai_placeholder.cap_chat_summary": "Extract key decisions",
+    "ai_placeholder.cap_chat_summary_desc": "Summarize commitments, pricing quotes, and action items from internal or partner chats.",
+    "ai_placeholder.cap_conv_summary": "Summarize conversation",
+    "ai_placeholder.cap_conv_summary_desc": "Distill long threads into key customer intent, troubleshooting steps, and next actions.",
+    "ai_placeholder.cap_draft_reply": "Draft \u0026 refine replies",
+    "ai_placeholder.cap_draft_reply_desc": "Generate contextual drafts ready to insert into the composer and translate on send.",
+    "ai_placeholder.cap_fill_ticket": "Auto-fill ticket creation",
+    "ai_placeholder.cap_fill_ticket_desc": "Extract title, problem summary, and custom fields automatically when escalating to a ticket.",
+    "ai_placeholder.cap_kb_search": "Search knowledge \u0026 past cases",
+    "ai_placeholder.cap_kb_search_desc": "Retrieve help articles, internal policies, and resolved cases across languages with citations.",
+    "ai_placeholder.cap_ticket_summary": "Summarize ticket progress",
+    "ai_placeholder.cap_ticket_summary_desc": "Consolidate cross-team notes and linked threads into an up-to-date status brief.",
+    "ai_placeholder.cap_ticket_update": "Draft public status update",
+    "ai_placeholder.cap_ticket_update_desc": "Turn internal engineering notes into clear customer- or group-facing progress updates.",
+    "ai_placeholder.coming_soon": "Coming soon",
+    "ai_placeholder.open_ai_hub": "Open AI Agent workspace",
+    "ai_placeholder.reception_desc_customer": "When enabled, a customer support AI Agent answers first and calls tools; unhandled questions or escalations route to the team inbox below.",
+    "ai_placeholder.reception_desc_group": "Bind a dedicated AI Agent profile for this group; currently handled by human agents until AI reception is activated.",
+    "ai_placeholder.reception_desc_internal": "When enabled, an internal service AI Agent handles employee requests in WeCom or Telegram first; escalations and approvals route to the team inbox below.",
+    "ai_placeholder.reception_switch_hint": "Bind an AI Agent profile and escalation rules here once the AI Agent module launches",
+    "ai_placeholder.reception_switch_label": "Enable AI Agent first-line reception (currently human fallback)",
+    "ai_placeholder.reception_title": "AI Agent reception",
+    "ai_placeholder.tab_assistant": "AI Assistant",
+    "ai_placeholder.tab_details": "Details",
+    "ai_placeholder.view_roadmap": "View roadmap",
     "alerts.assigned_body": "A conversation was assigned to you. Click to open",
     "alerts.assigned_title": "Assigned to you: {{.contact}}",
     "alerts.mention_body": "Someone mentioned you in an internal note. Click to open",
@@ -290,6 +363,13 @@ export const messages = {
     "channels.audience_customer_desc": "Serves external customers, creates external contacts, and runs customer-facing automations",
     "channels.audience_internal": "Internal employees",
     "channels.audience_internal_desc": "Serves internal staff requests, creates internal contacts, and skips customer rating and lead-capture rules",
+    "channels.upcoming_dingtalk": "DingTalk Bot",
+    "channels.upcoming_email": "Support Email",
+    "channels.upcoming_feishu": "Feishu / Lark Bot",
+    "channels.upcoming_prefix": "Coming next:",
+    "channels.upcoming_slack": "Slack Bot",
+    "channels.upcoming_wechat_mp": "WeChat Official Account",
+    "channels.upcoming_whatsapp": "WhatsApp",
     "chat.add_members": "Add members",
     "chat.add_members_submit": "Add to group",
     "chat.business_all": "All business chats",
@@ -545,6 +625,8 @@ export const messages = {
     "extgroups.channel": "Channel",
     "extgroups.configure": "Configure",
     "extgroups.description": "Manage WeCom and Telegram groups joined by bots, including display names, default team routing, and status.",
+    "extgroups.description_customer": "Manage external groups joined by customer-facing bots, including display names, default team inboxes, and status.",
+    "extgroups.description_internal": "Manage internal WeCom and Telegram groups joined by internal service bots, including fallback team inboxes (e.g. IT Helpdesk) and status.",
     "extgroups.edit_title": "Configure external group",
     "extgroups.empty": "No external groups yet. Add a bot to a group to sync it here.",
     "extgroups.filter_active": "Active",
@@ -606,6 +688,10 @@ export const messages = {
     "inbox.active_conversation_banner": "This contact already has an active conversation. Historical conversations are read-only for customer replies; continue in the active thread.",
     "inbox.add_note": "Add note",
     "inbox.add_tag": "Add tag",
+    "inbox.ai_escalated": "Escalated to team",
+    "inbox.ai_handling": "Handled by AI",
+    "inbox.ai_pending_approval": "Needs approval",
+    "inbox.ai_section": "AI reception",
     "inbox.all_tags": "All tags",
     "inbox.apply_actions": "Apply actions",
     "inbox.assign": "Assign",
@@ -835,6 +921,7 @@ export const messages = {
     "inbox.visitor": "Visitor",
     "inbox.visitor_numbered": "Visitor #{{.n}}",
     "inbox.you": "You",
+    "internal_channels.description": "Manage internal employee service bots (WeCom, internal Telegram bots, etc.) and internal groups. AI Agents handle requests first and escalate unhandled cases to team inboxes.",
     "login.aside_footer": "Unified Team Service Platform",
     "login.aside_headline": "AI-first unified service workspace for your team",
     "login.aside_subline": "Unite customer support, internal collaboration, and partner conversations in one calm workspace.",
@@ -908,6 +995,7 @@ export const messages = {
     "members.language_hint": "Working and translation language for this member (e.g. zh-CN, en, hi-Latn, pt-BR). They can change it later in Preferences",
     "members.password_hint": "Required when this email has no account yet. Share it with the person yourself",
     "nav.account": "Account",
+    "nav.ai": "AI Agent",
     "nav.assignment": "Assignment",
     "nav.assignment_rules": "Assignment \u0026 automations",
     "nav.attributes": "Attributes",
@@ -918,6 +1006,7 @@ export const messages = {
     "nav.external_groups": "External groups",
     "nav.general": "General",
     "nav.inbox": "Inbox",
+    "nav.internal_channels": "Internal channels",
     "nav.macros": "Quick replies",
     "nav.members": "Members",
     "nav.members_roles": "Members \u0026 roles",
@@ -1238,9 +1327,9 @@ export const messages = {
     "reports.vis_members": "Members only",
     "roles.description": "The owner has every permission and is set by a platform admin. A role that members still use stays until you give those members another role.",
     "roles.permissions_hint": "Every role can view members and team inboxes, and view and reply to the conversations it can see",
-    "service_channels.description": "Manage customer support channels for this workspace, including website chat widgets and Telegram bots.",
+    "service_channels.description": "Manage external customer support channels, including website chat widgets, Telegram support bots, and customer external groups.",
     "settings.group_personal": "Personal",
-    "settings.group_service": "Service \u0026 channels",
+    "settings.group_service": "Channels \u0026 service",
     "settings.group_workspace": "Workspace",
     "shortcuts.composer_group": "Composer",
     "shortcuts.composer_macro": "Insert quick reply",
@@ -1338,6 +1427,7 @@ export const messages = {
     "telegrams.create_submit": "Create \u0026 configure",
     "telegrams.create_title": "New Telegram bot",
     "telegrams.description": "Connect Telegram bots to receive and reply to customer direct messages via direct webhook or external gateway mode.",
+    "telegrams.description_internal": "Connect Telegram bots for internal employee support, supporting direct chats and group @bot mentions as AI Agent entry points.",
     "telegrams.empty": "No Telegram bot channels yet. Create one to receive private messages.",
     "telegrams.enable_groups": "Enable group @bot support",
     "telegrams.enable_groups_desc": "When enabled, @mentions, /commands, and replies to the bot in groups enter the inbox",
@@ -1580,6 +1670,7 @@ export const messages = {
     "views.attr_true": "Yes",
     "views.attr_value": "Value",
     "views.attributes": "Custom attributes",
+    "views.audience": "Service scope",
     "views.back_to_mine": "Back to Mine",
     "views.channels": "Channels",
     "views.channels_placeholder": "All channels",
@@ -1656,7 +1747,7 @@ export const messages = {
     "wecom_studio.reconnecting": "Reconnect triggered",
     "wecom_studio.saved": "WeCom bot settings saved",
     "wecom_studio.section_basic": "Basics",
-    "wecom_studio.section_basic_desc": "Configure channel name, audience, and availability",
+    "wecom_studio.section_basic_desc": "Configure WeCom bot name and availability",
     "wecom_studio.section_conn": "Long-connection credentials",
     "wecom_studio.section_conn_desc": "Manage Bot ID, secret, and WebSocket endpoint",
     "wecom_studio.section_routing": "Routing \u0026 welcome",
@@ -1741,6 +1832,79 @@ export const messages = {
     "workspace.switch_tooltip": "Click to switch workspace",
   },
   "zh-CN": {
+    "ai_hub.banner_desc": "你现在通过客服渠道、企业微信与内部机器人接待的每一条会话、团队分流、标签与工单记录，都会自动沉淀为后续 AI Agent 的知识依据与评测集。",
+    "ai_hub.banner_title": "AI Agent 引擎即将接入 — 当前已进入数据沉淀阶段",
+    "ai_hub.connected_channels": "已配置 {{.n}} 个接入渠道",
+    "ai_hub.description": "按对外客服、内部员工服务与商务沟通三大场景编排 AI Agent、知识库与业务工具；AI 优先接待，无法处理的问题无缝转入收件箱与工单。",
+    "ai_hub.eval_metrics_desc": "按 AI 用途、渠道与问题类别追踪自动解决率、转人工原因与满意度趋势。",
+    "ai_hub.eval_metrics_title": "解决率与转人工分析",
+    "ai_hub.eval_replay_desc": "上线新提示词或知识库前，使用真实历史会话批量回放对比回答质量与引用命中率。",
+    "ai_hub.eval_replay_title": "历史会话批量回测",
+    "ai_hub.flow_step_1": "1. 渠道与机器人接入",
+    "ai_hub.flow_step_2": "2. AI Agent 优先应答与调工具",
+    "ai_hub.flow_step_3": "3. 答不了 / 需审批 → 转入收件箱团队",
+    "ai_hub.flow_step_4": "4. 复杂问题 → 转工单跨团队推进",
+    "ai_hub.flow_title": "端到端协作闭环",
+    "ai_hub.kb_history_desc": "从收件箱高频问题与优质回复中提炼标准问答，持续补齐知识缺口。",
+    "ai_hub.kb_history_title": "历史会话与 QA 片段沉淀",
+    "ai_hub.kb_internal_desc": "严格隔离于外部客户，仅面向内部员工服务 Agent 与工作区成员的 AI 助手开放。",
+    "ai_hub.kb_internal_title": "内部制度与运维手册",
+    "ai_hub.kb_public_desc": "支持 Markdown、PDF、网页同步与标题切分，供对外客服 Agent 与帮助中心使用。",
+    "ai_hub.kb_public_title": "公开帮助文章与产品文档",
+    "ai_hub.manage_business_channels": "管理商务渠道",
+    "ai_hub.manage_customer_channels": "管理客服渠道",
+    "ai_hub.manage_internal_channels": "管理内部服务渠道",
+    "ai_hub.profile_customer_channels": "承接官网插件、Telegram 客服机器人等",
+    "ai_hub.profile_customer_desc": "使用公开帮助中心与订单查询工具自动接待客户咨询，超出能力边界或高风险请求自动转人工客服。",
+    "ai_hub.profile_customer_fallback": "兜底去向：收件箱（如 一线客服）",
+    "ai_hub.profile_customer_title": "对外客服 Agent",
+    "ai_hub.profile_internal_channels": "承接企业微信机器人、内部 Telegram 机器人等",
+    "ai_hub.profile_internal_desc": "接入企业微信、Telegram 等内部机器人，基于内部制度与运维工具自助答疑；需要人工操作或审批时转入对应内部服务台。",
+    "ai_hub.profile_internal_fallback": "兜底去向：收件箱（如 IT 服务台）",
+    "ai_hub.profile_internal_title": "内部员工服务 Agent",
+    "ai_hub.profile_partner_channels": "承接个人商务链接、Telegram 个人号与商家群",
+    "ai_hub.profile_partner_desc": "在商务沟通侧栏辅助成员总结历史、起草多语言回复，并在合作商家群内提供受组织隔离的订单/结算查询。",
+    "ai_hub.profile_partner_fallback": "协作方式：聊天侧栏 AI 助手 + 群内受控问答",
+    "ai_hub.profile_partner_title": "商务沟通与商家服务 Agent",
+    "ai_hub.tab_agents": "AI 用途（Agent）",
+    "ai_hub.tab_eval": "评测与分析",
+    "ai_hub.tab_knowledge": "知识库",
+    "ai_hub.tab_tools": "业务工具与审批",
+    "ai_hub.title": "AI Agent",
+    "ai_hub.tools_approval_desc": "退款、改单、提权等高风险工具支持配置人工审批；AI 调用时在收件箱生成仅成员可见的审批卡片。",
+    "ai_hub.tools_approval_title": "敏感操作人工审批流",
+    "ai_hub.tools_mcp_desc": "将查订单、查物流、重置权限、查账单等内部系统能力通过标准 API 或 MCP 暴露给指定 AI Agent。",
+    "ai_hub.tools_mcp_title": "API 与 MCP 业务工具接入",
+    "ai_hub.tools_scope_desc": "工具查询参数由系统按当前会话的联系人、内部成员或外部群所属组织注入，杜绝越权查询。",
+    "ai_hub.tools_scope_title": "严格身份与组织数据隔离",
+    "ai_placeholder.assistant_desc": "协助成员高效处理对话与工单，生成结果仅当前成员可见，确认后再发送给对方。",
+    "ai_placeholder.assistant_private_hint": "AI 助手输出仅你自己可见，不会自动发送给客户、员工或群成员。",
+    "ai_placeholder.assistant_title": "AI 助手",
+    "ai_placeholder.cap_chat_summary": "聊天重点提炼",
+    "ai_placeholder.cap_chat_summary_desc": "快速总结内部群聊或商务沟通中的关键承诺、报价与后续行动项。",
+    "ai_placeholder.cap_conv_summary": "一键总结会话",
+    "ai_placeholder.cap_conv_summary_desc": "提炼多轮消息的核心诉求、已排查步骤与待办事项，快速交接上下文。",
+    "ai_placeholder.cap_draft_reply": "智能起草与润色回复",
+    "ai_placeholder.cap_draft_reply_desc": "结合当前上下文生成回复草稿，支持一键填入回复框并自动翻译发出。",
+    "ai_placeholder.cap_fill_ticket": "转工单自动填表",
+    "ai_placeholder.cap_fill_ticket_desc": "自动提炼工单标题、问题描述与关键业务字段，减少人工复制整理。",
+    "ai_placeholder.cap_kb_search": "检索知识库与历史案例",
+    "ai_placeholder.cap_kb_search_desc": "跨语言检索帮助文档、内部制度与相似已关闭会话，并附带引用出处。",
+    "ai_placeholder.cap_ticket_summary": "工单进展摘要",
+    "ai_placeholder.cap_ticket_summary_desc": "汇总跨团队内部讨论与关联会话动态，一键生成阶段性结论。",
+    "ai_placeholder.cap_ticket_update": "起草对外公开进度",
+    "ai_placeholder.cap_ticket_update_desc": "将内部技术排查记录转化为面向客户/群的清晰进度播报。",
+    "ai_placeholder.coming_soon": "即将上线",
+    "ai_placeholder.open_ai_hub": "前往 AI Agent 工作台",
+    "ai_placeholder.reception_desc_customer": "接入对外客服 AI Agent 后，客户消息由 AI 自动应答并调用业务工具；答不了或客户要求转人工时，自动进入下方团队收件箱。",
+    "ai_placeholder.reception_desc_group": "可为该外部群单独绑定 AI Agent 用途；当前保持人工接待，激活并接入 AI 后自动开启群内智能应答。",
+    "ai_placeholder.reception_desc_internal": "接入内部服务 AI Agent 后，员工在企业微信或 Telegram 中提出的问题优先由 AI 解答；无法处理或需审批时，自动进入下方团队收件箱。",
+    "ai_placeholder.reception_switch_hint": "AI Agent 模块上线后可在此绑定对应场景的 Agent 与转人工规则",
+    "ai_placeholder.reception_switch_label": "启用 AI Agent 优先接待（当前为人工兜底模式）",
+    "ai_placeholder.reception_title": "AI Agent 优先接待",
+    "ai_placeholder.tab_assistant": "AI 助手",
+    "ai_placeholder.tab_details": "详情",
+    "ai_placeholder.view_roadmap": "查看规划",
     "alerts.assigned_body": "会话已指派给你，点击查看",
     "alerts.assigned_title": "新会话指派：{{.contact}}",
     "alerts.mention_body": "有人在内部备注中 @ 了你，点击查看",
@@ -2028,6 +2192,13 @@ export const messages = {
     "channels.audience_customer_desc": "面向外部客户咨询，创建外部联系人并触发客户侧自动化规则",
     "channels.audience_internal": "内部员工",
     "channels.audience_internal_desc": "面向内部员工自助与协作，创建内部联系人并跳过面向客户的评价与留资规则",
+    "channels.upcoming_dingtalk": "钉钉机器人",
+    "channels.upcoming_email": "客服邮件",
+    "channels.upcoming_feishu": "飞书机器人",
+    "channels.upcoming_prefix": "即将支持接入：",
+    "channels.upcoming_slack": "Slack 机器人",
+    "channels.upcoming_wechat_mp": "微信公众号",
+    "channels.upcoming_whatsapp": "WhatsApp",
     "chat.add_members": "邀请成员",
     "chat.add_members_submit": "添加到群聊",
     "chat.business_all": "全部商务沟通",
@@ -2283,6 +2454,8 @@ export const messages = {
     "extgroups.channel": "所属渠道",
     "extgroups.configure": "配置",
     "extgroups.description": "管理机器人加入的企业微信与 Telegram 外部群，配置群名称、专属团队收件箱与启用状态。",
+    "extgroups.description_customer": "管理对外客服机器人加入的外部群，配置群名称、默认团队收件箱与启用状态。",
+    "extgroups.description_internal": "管理内部服务机器人加入的企业微信与 Telegram 内部群，配置群名称、兜底团队收件箱（如 IT 服务台）与启用状态。",
     "extgroups.edit_title": "配置外部群",
     "extgroups.empty": "还没有外部群记录，将机器人拉入群聊后会自动同步到此列表。",
     "extgroups.filter_active": "已启用",
@@ -2344,6 +2517,10 @@ export const messages = {
     "inbox.active_conversation_banner": "该客户当前已有一条进行中的会话，历史会话仅可查阅或写内部备注，请直接在当前会话中沟通。",
     "inbox.add_note": "添加备注",
     "inbox.add_tag": "添加标签",
+    "inbox.ai_escalated": "已转人工",
+    "inbox.ai_handling": "AI 处理中",
+    "inbox.ai_pending_approval": "待人工审批",
+    "inbox.ai_section": "AI 接待",
     "inbox.all_tags": "全部标签",
     "inbox.apply_actions": "应用操作",
     "inbox.assign": "指派",
@@ -2573,6 +2750,7 @@ export const messages = {
     "inbox.visitor": "访客",
     "inbox.visitor_numbered": "访客 #{{.n}}",
     "inbox.you": "你",
+    "internal_channels.description": "管理面向内部员工的机器人接入渠道（企业微信、Telegram 内部机器人等）与内部外部群，后续优先由 AI Agent 接待、无法处理时转入团队收件箱。",
     "login.aside_footer": "团队综合服务平台",
     "login.aside_headline": "AI 驱动的团队统一服务工作台",
     "login.aside_subline": "在一个空间里连接客户咨询、内部协作与商务沟通，让团队响应更快、更从容。",
@@ -2646,6 +2824,7 @@ export const messages = {
     "members.language_hint": "成员的沟通与译文偏好语言（例如中文、英语、印地语、巴西葡萄牙语）；成员本人之后可在偏好设置中修改",
     "members.password_hint": "这个邮箱还没有账号时必填，由你告诉本人",
     "nav.account": "个人设置",
+    "nav.ai": "AI Agent",
     "nav.assignment": "指派",
     "nav.assignment_rules": "指派与自动化",
     "nav.attributes": "属性",
@@ -2656,6 +2835,7 @@ export const messages = {
     "nav.external_groups": "外部群",
     "nav.general": "常规",
     "nav.inbox": "收件箱",
+    "nav.internal_channels": "内部服务渠道",
     "nav.macros": "快捷回复",
     "nav.members": "成员",
     "nav.members_roles": "成员与角色",
@@ -2976,9 +3156,9 @@ export const messages = {
     "reports.vis_members": "仅成员可见",
     "roles.description": "主管理员拥有全部权限，由平台管理员指定。还有成员使用的角色不能删除，先把他们改成别的角色。",
     "roles.permissions_hint": "每个角色都能查看成员和团队收件箱、查看和回复看得到的会话",
-    "service_channels.description": "管理工作区的客户接入渠道，包括网页聊天插件和 Telegram 机器人。",
+    "service_channels.description": "管理面向外部客户的客服接入渠道，包括网页聊天插件、Telegram 客服机器人与客户外部群。",
     "settings.group_personal": "个人",
-    "settings.group_service": "客服与渠道",
+    "settings.group_service": "渠道与服务",
     "settings.group_workspace": "工作区",
     "shortcuts.composer_group": "回复框",
     "shortcuts.composer_macro": "插入快捷回复",
@@ -3076,6 +3256,7 @@ export const messages = {
     "telegrams.create_submit": "创建并配置",
     "telegrams.create_title": "新建 Telegram 机器人",
     "telegrams.description": "接入 Telegram 机器人接收并回复客户私聊消息，支持直连 Webhook 与外部网关转发两种模式。",
+    "telegrams.description_internal": "接入面向内部员工服务的 Telegram 机器人，支持单聊与内部群 @机器人 请求，并作为 AI Agent 的接入入口。",
     "telegrams.empty": "还没有 Telegram 机器人渠道，新建一个接入客户私聊消息。",
     "telegrams.enable_groups": "启用群聊 @机器人 服务",
     "telegrams.enable_groups_desc": "开启后，机器人在群内被 @ 提及、收到 /命令 或回复其消息时自动进入收件箱",
@@ -3318,6 +3499,7 @@ export const messages = {
     "views.attr_true": "是",
     "views.attr_value": "值",
     "views.attributes": "自定义属性",
+    "views.audience": "服务场景",
     "views.back_to_mine": "返回我的会话",
     "views.channels": "渠道",
     "views.channels_placeholder": "全部渠道",
@@ -3394,7 +3576,7 @@ export const messages = {
     "wecom_studio.reconnecting": "已触发重连",
     "wecom_studio.saved": "已保存企业微信机器人配置",
     "wecom_studio.section_basic": "基础信息",
-    "wecom_studio.section_basic_desc": "设置渠道名称、服务对象与启用状态",
+    "wecom_studio.section_basic_desc": "设置企业微信机器人名称与启用状态",
     "wecom_studio.section_conn": "长连接凭据",
     "wecom_studio.section_conn_desc": "管理企业微信智能机器人的 Bot ID、Secret 与 WebSocket 地址",
     "wecom_studio.section_routing": "路由与欢迎语",
@@ -3482,6 +3664,79 @@ export const messages = {
 
 /** 界面文字的消息 ID。 */
 export type MessageId =
+  | "ai_hub.banner_desc"
+  | "ai_hub.banner_title"
+  | "ai_hub.connected_channels"
+  | "ai_hub.description"
+  | "ai_hub.eval_metrics_desc"
+  | "ai_hub.eval_metrics_title"
+  | "ai_hub.eval_replay_desc"
+  | "ai_hub.eval_replay_title"
+  | "ai_hub.flow_step_1"
+  | "ai_hub.flow_step_2"
+  | "ai_hub.flow_step_3"
+  | "ai_hub.flow_step_4"
+  | "ai_hub.flow_title"
+  | "ai_hub.kb_history_desc"
+  | "ai_hub.kb_history_title"
+  | "ai_hub.kb_internal_desc"
+  | "ai_hub.kb_internal_title"
+  | "ai_hub.kb_public_desc"
+  | "ai_hub.kb_public_title"
+  | "ai_hub.manage_business_channels"
+  | "ai_hub.manage_customer_channels"
+  | "ai_hub.manage_internal_channels"
+  | "ai_hub.profile_customer_channels"
+  | "ai_hub.profile_customer_desc"
+  | "ai_hub.profile_customer_fallback"
+  | "ai_hub.profile_customer_title"
+  | "ai_hub.profile_internal_channels"
+  | "ai_hub.profile_internal_desc"
+  | "ai_hub.profile_internal_fallback"
+  | "ai_hub.profile_internal_title"
+  | "ai_hub.profile_partner_channels"
+  | "ai_hub.profile_partner_desc"
+  | "ai_hub.profile_partner_fallback"
+  | "ai_hub.profile_partner_title"
+  | "ai_hub.tab_agents"
+  | "ai_hub.tab_eval"
+  | "ai_hub.tab_knowledge"
+  | "ai_hub.tab_tools"
+  | "ai_hub.title"
+  | "ai_hub.tools_approval_desc"
+  | "ai_hub.tools_approval_title"
+  | "ai_hub.tools_mcp_desc"
+  | "ai_hub.tools_mcp_title"
+  | "ai_hub.tools_scope_desc"
+  | "ai_hub.tools_scope_title"
+  | "ai_placeholder.assistant_desc"
+  | "ai_placeholder.assistant_private_hint"
+  | "ai_placeholder.assistant_title"
+  | "ai_placeholder.cap_chat_summary"
+  | "ai_placeholder.cap_chat_summary_desc"
+  | "ai_placeholder.cap_conv_summary"
+  | "ai_placeholder.cap_conv_summary_desc"
+  | "ai_placeholder.cap_draft_reply"
+  | "ai_placeholder.cap_draft_reply_desc"
+  | "ai_placeholder.cap_fill_ticket"
+  | "ai_placeholder.cap_fill_ticket_desc"
+  | "ai_placeholder.cap_kb_search"
+  | "ai_placeholder.cap_kb_search_desc"
+  | "ai_placeholder.cap_ticket_summary"
+  | "ai_placeholder.cap_ticket_summary_desc"
+  | "ai_placeholder.cap_ticket_update"
+  | "ai_placeholder.cap_ticket_update_desc"
+  | "ai_placeholder.coming_soon"
+  | "ai_placeholder.open_ai_hub"
+  | "ai_placeholder.reception_desc_customer"
+  | "ai_placeholder.reception_desc_group"
+  | "ai_placeholder.reception_desc_internal"
+  | "ai_placeholder.reception_switch_hint"
+  | "ai_placeholder.reception_switch_label"
+  | "ai_placeholder.reception_title"
+  | "ai_placeholder.tab_assistant"
+  | "ai_placeholder.tab_details"
+  | "ai_placeholder.view_roadmap"
   | "alerts.assigned_body"
   | "alerts.assigned_title"
   | "alerts.mention_body"
@@ -3769,6 +4024,13 @@ export type MessageId =
   | "channels.audience_customer_desc"
   | "channels.audience_internal"
   | "channels.audience_internal_desc"
+  | "channels.upcoming_dingtalk"
+  | "channels.upcoming_email"
+  | "channels.upcoming_feishu"
+  | "channels.upcoming_prefix"
+  | "channels.upcoming_slack"
+  | "channels.upcoming_wechat_mp"
+  | "channels.upcoming_whatsapp"
   | "chat.add_members"
   | "chat.add_members_submit"
   | "chat.business_all"
@@ -4024,6 +4286,8 @@ export type MessageId =
   | "extgroups.channel"
   | "extgroups.configure"
   | "extgroups.description"
+  | "extgroups.description_customer"
+  | "extgroups.description_internal"
   | "extgroups.edit_title"
   | "extgroups.empty"
   | "extgroups.filter_active"
@@ -4085,6 +4349,10 @@ export type MessageId =
   | "inbox.active_conversation_banner"
   | "inbox.add_note"
   | "inbox.add_tag"
+  | "inbox.ai_escalated"
+  | "inbox.ai_handling"
+  | "inbox.ai_pending_approval"
+  | "inbox.ai_section"
   | "inbox.all_tags"
   | "inbox.apply_actions"
   | "inbox.assign"
@@ -4314,6 +4582,7 @@ export type MessageId =
   | "inbox.visitor"
   | "inbox.visitor_numbered"
   | "inbox.you"
+  | "internal_channels.description"
   | "login.aside_footer"
   | "login.aside_headline"
   | "login.aside_subline"
@@ -4387,6 +4656,7 @@ export type MessageId =
   | "members.language_hint"
   | "members.password_hint"
   | "nav.account"
+  | "nav.ai"
   | "nav.assignment"
   | "nav.assignment_rules"
   | "nav.attributes"
@@ -4397,6 +4667,7 @@ export type MessageId =
   | "nav.external_groups"
   | "nav.general"
   | "nav.inbox"
+  | "nav.internal_channels"
   | "nav.macros"
   | "nav.members"
   | "nav.members_roles"
@@ -4817,6 +5088,7 @@ export type MessageId =
   | "telegrams.create_submit"
   | "telegrams.create_title"
   | "telegrams.description"
+  | "telegrams.description_internal"
   | "telegrams.empty"
   | "telegrams.enable_groups"
   | "telegrams.enable_groups_desc"
@@ -5059,6 +5331,7 @@ export type MessageId =
   | "views.attr_true"
   | "views.attr_value"
   | "views.attributes"
+  | "views.audience"
   | "views.back_to_mine"
   | "views.channels"
   | "views.channels_placeholder"

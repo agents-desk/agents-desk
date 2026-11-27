@@ -41,9 +41,9 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 		Get:        "wecom-get",
 		Create:     "wecom-create",
 		Update:     "wecom-update",
-		Columns:    []string{"name", "audience", "bot_id", "team_name", "status", "enabled"},
-		CreateForm: []string{"name", "audience", "team_id", "bot_id", "secret", "ws_url", "welcome_text"},
-		UpdateForm: []string{"name", "audience", "team_id", "bot_id", "secret", "ws_url", "welcome_text", "enabled"},
+		Columns:    []string{"name", "bot_id", "team_name", "status", "enabled"},
+		CreateForm: []string{"name", "team_id", "bot_id", "secret", "ws_url", "welcome_text"},
+		UpdateForm: []string{"name", "team_id", "bot_id", "secret", "ws_url", "welcome_text", "enabled"},
 		Refs:       map[string]string{"team_id": "team"},
 	})
 }

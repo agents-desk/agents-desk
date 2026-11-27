@@ -16,8 +16,9 @@ import {
 import { useQuery } from "@tanstack/react-query"
 import { IconCheck, IconCopy, IconUsersGroup, IconX } from "@tabler/icons-react"
 import { Inspector, InspectorField, InspectorSection, PaneBody, PaneHeader, useLanguage, useT } from "@go-tenon/ui"
-import type { ReactNode } from "react"
+import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../api"
+import { AiAssistantPanel, type DetailsAsideTab, DetailsAsideTabs } from "../components/ai-placeholders"
 import { useMembers } from "../inbox/data"
 import { languageName } from "../languages"
 
@@ -36,6 +37,7 @@ export function PeerDetails({ chat, onClose, onOpenChat }: PeerDetailsProps): Re
   const t = useT()
   const ui = useLanguage()
   const { byId } = useMembers()
+  const [asideTab, setAsideTab] = useState<DetailsAsideTab>("details")
 
   const peerId = chat.peer?.id ?? ""
   const member = peerId ? byId.get(peerId) : undefined
@@ -61,8 +63,13 @@ export function PeerDetails({ chat, onClose, onOpenChat }: PeerDetailsProps): Re
           </ActionIcon>
         }
       />
+      <DetailsAsideTabs value={asideTab} onChange={setAsideTab} />
 
       <PaneBody>
+        {asideTab === "ai" ? (
+          <AiAssistantPanel scene="chat" />
+        ) : (
+        <>
         <Stack gap="sm" px="var(--tn-pane-px)" pt="md" pb="sm" align="center">
           <Indicator size={11} offset={4} position="bottom-end" color={online ? "green" : "gray"} withBorder>
             <Avatar size={56} radius="xl" name={name} color="initials" src={avatarUrl} />
@@ -165,6 +172,8 @@ export function PeerDetails({ chat, onClose, onOpenChat }: PeerDetailsProps): Re
             )}
           </InspectorSection>
         </Inspector>
+        </>
+        )}
       </PaneBody>
     </Stack>
   )

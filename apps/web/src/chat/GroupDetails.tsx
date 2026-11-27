@@ -18,6 +18,7 @@ import { IconLogout, IconUserMinus, IconUserPlus, IconX } from "@tabler/icons-re
 import { confirm, Inspector, InspectorSection, notifyError, notifySuccess, PaneBody, PaneHeader, useT } from "@go-tenon/ui"
 import { type FormEvent, type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../api"
+import { AiAssistantPanel, type DetailsAsideTab, DetailsAsideTabs } from "../components/ai-placeholders"
 import { useMe, useMembers } from "../inbox/data"
 
 /** GroupDetailsProps 是群聊右侧详情栏的设置。 */
@@ -38,6 +39,7 @@ export function GroupDetails({ chat, onClose, onLeft }: GroupDetailsProps): Reac
 
   const [name, setName] = useState(chat.name)
   const [toAdd, setToAdd] = useState<string[]>([])
+  const [asideTab, setAsideTab] = useState<DetailsAsideTab>("details")
 
   useEffect(() => {
     setName(chat.name)
@@ -130,8 +132,12 @@ export function GroupDetails({ chat, onClose, onLeft }: GroupDetailsProps): Reac
           </ActionIcon>
         }
       />
+      <DetailsAsideTabs value={asideTab} onChange={setAsideTab} />
 
       <PaneBody>
+        {asideTab === "ai" ? (
+          <AiAssistantPanel scene="chat" />
+        ) : (
         <Inspector>
           <InspectorSection title={t("chat.group_info")} collapsible storeKey="chat-group-info">
             <form onSubmit={onSaveName}>
@@ -235,6 +241,7 @@ export function GroupDetails({ chat, onClose, onLeft }: GroupDetailsProps): Reac
             </Button>
           </Box>
         </Inspector>
+        )}
       </PaneBody>
     </Stack>
   )

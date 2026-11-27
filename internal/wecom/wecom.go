@@ -108,11 +108,11 @@ func (s Settings) toMap() (map[string]any, error) {
 	return m, errors.Wrap(json.Unmarshal(raw, &m), "decode wecom settings")
 }
 
-// BotDTO 是工作区设置中展示的企业微信智能机器人视图（不暴露加密 Secret 明文）。
+// BotDTO 是工作区内部服务设置中展示的企业微信智能机器人视图（不暴露加密 Secret 明文）。
 type BotDTO struct {
 	ID              string           `json:"id"`
 	Name            string           `json:"name"`
-	Audience        channel.Audience `json:"audience" doc:"服务对象类型：internal（内部员工，默认）或 customer（外部客户）"`
+	Audience        channel.Audience `json:"audience" doc:"服务对象类型，企业微信智能机器人固定为 internal（内部员工）"`
 	TeamID          *string          `json:"team_id,omitempty" doc:"新会话进入的团队收件箱；为空时进入未指派"`
 	TeamName        string           `json:"team_name" doc:"新会话进入的团队收件箱名称；未指派时为空"`
 	BotID           string           `json:"bot_id" doc:"企业微信智能机器人 BotID"`
@@ -147,13 +147,12 @@ type IDInput struct {
 
 // CreateBody 是新建企业微信智能机器人的请求体。
 type CreateBody struct {
-	Name        string           `json:"name" minLength:"1" maxLength:"60"`
-	Audience    channel.Audience `json:"audience,omitempty" doc:"服务对象类型：internal（内部员工，默认）或 customer（外部客户）"`
-	TeamID      *string          `json:"team_id,omitempty" format:"uuid" doc:"新会话进入的团队收件箱；不填时进入未指派"`
-	BotID       string           `json:"bot_id" minLength:"1" maxLength:"128" doc:"企业微信管理后台生成的智能机器人 BotID"`
-	Secret      string           `json:"secret" minLength:"6" maxLength:"256" format:"password" doc:"企业微信管理后台生成的长连接 Secret"`
-	WSURL       string           `json:"ws_url,omitempty" maxLength:"256" doc:"可选：私有化部署时的自定义 WebSocket 地址"`
-	WelcomeText string           `json:"welcome_text,omitempty" maxLength:"1000" doc:"可选：员工或客户首次进入单聊时的自动欢迎语"`
+	Name        string  `json:"name" minLength:"1" maxLength:"60"`
+	TeamID      *string `json:"team_id,omitempty" format:"uuid" doc:"新会话进入的团队收件箱；不填时进入未指派"`
+	BotID       string  `json:"bot_id" minLength:"1" maxLength:"128" doc:"企业微信管理后台生成的智能机器人 BotID"`
+	Secret      string  `json:"secret" minLength:"6" maxLength:"256" format:"password" doc:"企业微信管理后台生成的长连接 Secret"`
+	WSURL       string  `json:"ws_url,omitempty" maxLength:"256" doc:"可选：私有化部署时的自定义 WebSocket 地址"`
+	WelcomeText string  `json:"welcome_text,omitempty" maxLength:"1000" doc:"可选：员工首次进入单聊时的自动欢迎语"`
 }
 
 // CreateInput 是新建企业微信机器人的 HTTP 请求。
@@ -163,14 +162,13 @@ type CreateInput struct {
 
 // UpdateBody 是修改企业微信智能机器人的请求体；Secret 留空表示保持原有密钥不变。
 type UpdateBody struct {
-	Name        string           `json:"name" minLength:"1" maxLength:"60"`
-	Audience    channel.Audience `json:"audience,omitempty" doc:"服务对象类型：internal（内部员工）或 customer（外部客户）"`
-	TeamID      *string          `json:"team_id,omitempty" format:"uuid" doc:"新会话进入的团队收件箱；不填时进入未指派"`
-	BotID       string           `json:"bot_id" minLength:"1" maxLength:"128" doc:"企业微信智能机器人 BotID"`
-	Secret      string           `json:"secret,omitempty" maxLength:"256" format:"password" doc:"新的长连接 Secret；留空则保持原密钥不变"`
-	WSURL       string           `json:"ws_url,omitempty" maxLength:"256" doc:"可选：私有化自定义 WebSocket 地址"`
-	WelcomeText string           `json:"welcome_text,omitempty" maxLength:"1000" doc:"可选：进入会话时的自动欢迎语"`
-	Enabled     bool             `json:"enabled" doc:"启用后自动维持长连接；停用后断开连接"`
+	Name        string  `json:"name" minLength:"1" maxLength:"60"`
+	TeamID      *string `json:"team_id,omitempty" format:"uuid" doc:"新会话进入的团队收件箱；不填时进入未指派"`
+	BotID       string  `json:"bot_id" minLength:"1" maxLength:"128" doc:"企业微信智能机器人 BotID"`
+	Secret      string  `json:"secret,omitempty" maxLength:"256" format:"password" doc:"新的长连接 Secret；留空则保持原密钥不变"`
+	WSURL       string  `json:"ws_url,omitempty" maxLength:"256" doc:"可选：私有化自定义 WebSocket 地址"`
+	WelcomeText string  `json:"welcome_text,omitempty" maxLength:"1000" doc:"可选：进入会话时的自动欢迎语"`
+	Enabled     bool    `json:"enabled" doc:"启用后自动维持长连接；停用后断开连接"`
 }
 
 // UpdateInput 是修改企业微信机器人的 HTTP 请求。
@@ -259,13 +257,12 @@ func NewCreate(db *bun.DB, c *crypt.Crypt, wake func()) *Create {
 	return &Create{db: db, crypt: c, wake: wake}
 }
 
-// Handle 校验配置并持久化新建的企业微信机器人，提交后唤醒后台长连接管理器立即连接。
+// Handle 校验配置并持久化新建的企业微信机器人（固定归属内部员工服务），提交后唤醒后台长连接管理器立即连接。
 func (a *Create) Handle(ctx context.Context, sub identity.Subject, b CreateBody) (*BotDTO, error) {
 	wsURL, err := normalizeWSURL(b.WSURL)
 	if err != nil {
 		return nil, err
 	}
-	audience := normalizeAudience(b.Audience, channel.AudienceInternal)
 	settings, err := Settings{
 		BotID:       strings.TrimSpace(b.BotID),
 		Secret:      a.crypt.Encrypt(strings.TrimSpace(b.Secret)),
@@ -285,7 +282,7 @@ func (a *Create) Handle(ctx context.Context, sub identity.Subject, b CreateBody)
 			ID:       id,
 			TenantID: sub.Tenant,
 			Kind:     channel.WeCom,
-			Audience: audience,
+			Audience: channel.AudienceInternal,
 			Name:     strings.TrimSpace(b.Name),
 			Settings: settings,
 			TeamID:   b.TeamID,
@@ -296,7 +293,7 @@ func (a *Create) Handle(ctx context.Context, sub identity.Subject, b CreateBody)
 		}
 		return activity.Record(ctx, tx, sub, activity.Activity{
 			Event: "channel.created", TargetType: "channel", TargetID: id,
-			Properties: map[string]any{"kind": string(channel.WeCom), "audience": string(audience)},
+			Properties: map[string]any{"kind": string(channel.WeCom), "audience": string(channel.AudienceInternal)},
 		})
 	})
 	if err != nil {
@@ -305,7 +302,7 @@ func (a *Create) Handle(ctx context.Context, sub identity.Subject, b CreateBody)
 	if a.wake != nil {
 		a.wake()
 	}
-	slog.InfoContext(ctx, "wecom bot channel created", "channel_id", id, "bot_id", strings.TrimSpace(b.BotID), "audience", audience)
+	slog.InfoContext(ctx, "wecom bot channel created", "channel_id", id, "bot_id", strings.TrimSpace(b.BotID))
 	return NewGet(a.db).Handle(ctx, sub, id)
 }
 
@@ -352,7 +349,6 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 		if err != nil {
 			return err
 		}
-		targetAudience := normalizeAudience(b.Audience, ch.EffectiveAudience())
 		name := strings.TrimSpace(b.Name)
 		botID := strings.TrimSpace(b.BotID)
 		newSecret := strings.TrimSpace(b.Secret)
@@ -361,9 +357,6 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 		var changed []string
 		if ch.Name != name {
 			changed = append(changed, "name")
-		}
-		if ch.EffectiveAudience() != targetAudience {
-			changed = append(changed, "audience")
 		}
 		if !sameTeam(ch.TeamID, b.TeamID) {
 			changed = append(changed, "team_id")
@@ -399,7 +392,7 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 			return err
 		}
 		maps.Copy(ch.Settings, sm)
-		ch.Name, ch.Audience, ch.TeamID, ch.Enabled = name, targetAudience, b.TeamID, b.Enabled
+		ch.Name, ch.Audience, ch.TeamID, ch.Enabled = name, channel.AudienceInternal, b.TeamID, b.Enabled
 		if _, err := tx.NewUpdate().Model(ch).Column("name", "audience", "team_id", "enabled", "settings", "updated_at").WherePK().Exec(ctx); err != nil {
 			return errors.Wrap(err, "update wecom channel")
 		}
@@ -510,18 +503,6 @@ func checkTeam(ctx context.Context, db bun.IDB, tenant string, id *string) error
 		return team.ErrDisabled.New(errorx.Field("team_id"))
 	}
 	return nil
-}
-
-func normalizeAudience(in, fallback channel.Audience) channel.Audience {
-	switch in {
-	case channel.AudienceCustomer, channel.AudienceInternal:
-		return in
-	default:
-		if fallback == channel.AudienceCustomer {
-			return channel.AudienceCustomer
-		}
-		return channel.AudienceInternal
-	}
 }
 
 func normalizeWSURL(raw string) (string, error) {

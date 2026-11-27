@@ -468,6 +468,9 @@ export const schemas = {
     groupList: {
       query: {
         "properties": {
+          "audience": {
+            "$ref": "#/components/schemas/ChannelAudience"
+          },
           "channel_id": {
             "format": "uuid",
             "type": "string"
@@ -1059,6 +1062,9 @@ export const schemas = {
     list: {
       query: {
         "properties": {
+          "audience": {
+            "$ref": "#/components/schemas/ChannelAudience"
+          },
           "page": {
             "default": 1,
             "format": "int64",
@@ -3789,9 +3795,6 @@ export const components = {
   WecomCreateBody: {
     "additionalProperties": false,
     "properties": {
-      "audience": {
-        "$ref": "#/components/schemas/ChannelAudience"
-      },
       "bot_id": {
         "maxLength": 128,
         "minLength": 1,
@@ -3831,9 +3834,6 @@ export const components = {
   WecomUpdateBody: {
     "additionalProperties": false,
     "properties": {
-      "audience": {
-        "$ref": "#/components/schemas/ChannelAudience"
-      },
       "bot_id": {
         "maxLength": 128,
         "minLength": 1,

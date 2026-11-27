@@ -267,8 +267,9 @@ func SyncRemoved(ctx context.Context, db *bun.DB, tenant, channelID, externalID 
 
 // ListInput 是外部群列表的查询条件。
 type ListInput struct {
-	ChannelID string `query:"channel_id" format:"uuid" doc:"可选：按渠道筛选"`
-	Status    Status `query:"status" doc:"可选：按状态筛选（pending_setup、active、removed）"`
+	ChannelID string           `query:"channel_id" format:"uuid" doc:"可选：按渠道筛选"`
+	Audience  channel.Audience `query:"audience" doc:"可选：按所属渠道服务对象筛选（customer 或 internal）"`
+	Status    Status           `query:"status" doc:"可选：按状态筛选（pending_setup、active、removed）"`
 }
 
 // ListOutput 是外部群列表的响应。
@@ -287,14 +288,17 @@ func NewList(db *bun.DB) *List { return &List{db: db} }
 // Handle 返回 sub 所在工作区符合筛选条件的外部群列表（待设置的排在最前，便于管理员及时配置）。
 func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) ([]GroupDTO, error) {
 	var rows []Group
-	q := a.db.NewSelect().Model(&rows).Where("tenant_id = ?", sub.Tenant)
+	q := a.db.NewSelect().Model(&rows).Where("\"group\".tenant_id = ?", sub.Tenant)
 	if in != nil && in.ChannelID != "" {
-		q = q.Where("channel_id = ?", in.ChannelID)
+		q = q.Where("\"group\".channel_id = ?", in.ChannelID)
+	}
+	if in != nil && in.Audience != "" {
+		q = q.Where("EXISTS (SELECT 1 FROM channels ch WHERE ch.id = \"group\".channel_id AND ch.tenant_id = \"group\".tenant_id AND ch.audience = ?)", in.Audience)
 	}
 	if in != nil && in.Status != "" {
-		q = q.Where("status = ?", in.Status)
+		q = q.Where("\"group\".status = ?", in.Status)
 	}
-	q = q.OrderExpr("(status = 'pending_setup') DESC, COALESCE(last_active_at, updated_at) DESC, id DESC")
+	q = q.OrderExpr("(\"group\".status = 'pending_setup') DESC, COALESCE(\"group\".last_active_at, \"group\".updated_at) DESC, \"group\".id DESC")
 	if err := q.Scan(ctx); err != nil {
 		return nil, errors.Wrap(err, "list external groups")
 	}

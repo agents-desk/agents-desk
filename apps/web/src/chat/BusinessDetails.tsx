@@ -29,6 +29,7 @@ import {
 import { confirm, Inspector, InspectorField, InspectorSection, notifyError, notifySuccess, PaneBody, PaneHeader, useLanguage, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../api"
+import { AiAssistantPanel, type DetailsAsideTab, DetailsAsideTabs } from "../components/ai-placeholders"
 import { ContactAvatar } from "../contacts/display"
 import { channelColor, ChannelChip } from "../inbox/channel-badge"
 import { useMe, useMembers } from "../inbox/data"
@@ -60,6 +61,7 @@ export function BusinessDetails({ chat, onClose, onLeft }: BusinessDetailsProps)
   const { list: allMembers } = useMembers()
 
   const [toAdd, setToAdd] = useState<string[]>([])
+  const [asideTab, setAsideTab] = useState<DetailsAsideTab>("details")
   useEffect(() => {
     setToAdd([])
   }, [chat.id])
@@ -150,8 +152,13 @@ export function BusinessDetails({ chat, onClose, onLeft }: BusinessDetailsProps)
           </ActionIcon>
         }
       />
+      <DetailsAsideTabs value={asideTab} onChange={setAsideTab} />
 
       <PaneBody>
+        {asideTab === "ai" ? (
+          <AiAssistantPanel scene="chat" />
+        ) : (
+        <>
         <Stack gap="sm" px="var(--tn-pane-px)" pt="md" pb="sm" align="center">
           {chat.mode === "group" ? (
             <ThemeIcon size={52} radius="xl" variant="light" color={chColor}>
@@ -361,6 +368,8 @@ export function BusinessDetails({ chat, onClose, onLeft }: BusinessDetailsProps)
             </InspectorSection>
           )}
         </Inspector>
+        </>
+        )}
       </PaneBody>
     </Stack>
   )

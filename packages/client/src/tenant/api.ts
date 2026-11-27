@@ -2741,7 +2741,7 @@ export interface TranslationToneInputBody {
 }
 
 export interface WecomBotDTO {
-  /** 服务对象类型：internal（内部员工，默认）或 customer（外部客户） */
+  /** 服务对象类型，企业微信智能机器人固定为 internal（内部员工） */
   audience: ChannelAudience
   /** 企业微信智能机器人 BotID */
   bot_id: string
@@ -2767,8 +2767,6 @@ export interface WecomBotDTO {
 }
 
 export interface WecomCreateBody {
-  /** 服务对象类型：internal（内部员工，默认）或 customer（外部客户） */
-  audience?: ChannelAudience
   /** 企业微信管理后台生成的智能机器人 BotID */
   bot_id: string
   name: string
@@ -2776,7 +2774,7 @@ export interface WecomCreateBody {
   secret: string
   /** 新会话进入的团队收件箱；不填时进入未指派 */
   team_id?: string
-  /** 可选：员工或客户首次进入单聊时的自动欢迎语 */
+  /** 可选：员工首次进入单聊时的自动欢迎语 */
   welcome_text?: string
   /** 可选：私有化部署时的自定义 WebSocket 地址 */
   ws_url?: string
@@ -2785,8 +2783,6 @@ export interface WecomCreateBody {
 export type WecomStatus = "connected" | "connecting" | "disconnected" | "auth_failed"
 
 export interface WecomUpdateBody {
-  /** 服务对象类型：internal（内部员工）或 customer（外部客户） */
-  audience?: ChannelAudience
   /** 企业微信智能机器人 BotID */
   bot_id: string
   /** 启用后自动维持长连接；停用后断开连接 */
@@ -3093,6 +3089,8 @@ export interface ConversationSearchInput {
 export interface ExternalGroupListInput {
   /** 可选：按渠道筛选 */
   channel_id?: string
+  /** 可选：按所属渠道服务对象筛选（customer 或 internal） */
+  audience?: ChannelAudience
   /** 可选：按状态筛选（pending_setup、active、removed） */
   status?: ExtgroupStatus
 }
@@ -3312,6 +3310,8 @@ export interface TelegramListInput {
   page?: number
   /** Items per page. */
   per_page?: number
+  /** 可选：按服务对象筛选（customer 或 internal） */
+  audience?: ChannelAudience
 }
 
 /** ticket-list 的参数。 */
@@ -3896,7 +3896,7 @@ export function createClient(options: ClientOptions) {
        * GET /external-groups
        */
       groupList: (input: ExternalGroupListInput = {}): Promise<ExtgroupGroupDTO[]> =>
-        rt.request<ExtgroupGroupDTO[]>({ method: "GET", path: `/external-groups`, query: { "channel_id": input["channel_id"], "status": input["status"] } }),
+        rt.request<ExtgroupGroupDTO[]>({ method: "GET", path: `/external-groups`, query: { "audience": input["audience"], "channel_id": input["channel_id"], "status": input["status"] } }),
       /**
        * 更新外部群路由配置
        *
@@ -4294,7 +4294,7 @@ export function createClient(options: ClientOptions) {
        * GET /telegrams
        */
       list: (input: TelegramListInput = {}): Promise<OffsetTelegramDTO> =>
-        rt.request<OffsetTelegramDTO>({ method: "GET", path: `/telegrams`, query: { "page": input["page"], "per_page": input["per_page"] } }),
+        rt.request<OffsetTelegramDTO>({ method: "GET", path: `/telegrams`, query: { "audience": input["audience"], "page": input["page"], "per_page": input["per_page"] } }),
       /**
        * 更换 Webhook 密钥
        *

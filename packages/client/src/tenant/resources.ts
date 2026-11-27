@@ -405,7 +405,6 @@ export const resources = {
     },
     columns: [
       { name: "name", type: "string", required: true },
-      { name: "audience", type: "string", enum: "ChannelAudience", required: true },
       { name: "bot_id", type: "string", required: true },
       { name: "team_name", type: "string", required: true },
       { name: "status", type: "string", enum: "WecomStatus", required: true },
@@ -415,7 +414,6 @@ export const resources = {
     ],
     createForm: [
       { name: "name", type: "string", required: true },
-      { name: "audience", type: "string", enum: "ChannelAudience" },
       { name: "team_id", type: "string", format: "uuid", ref: "team" },
       { name: "bot_id", type: "string", required: true },
       { name: "secret", type: "string", format: "password", required: true },
@@ -424,7 +422,6 @@ export const resources = {
     ],
     updateForm: [
       { name: "name", type: "string", required: true },
-      { name: "audience", type: "string", enum: "ChannelAudience" },
       { name: "team_id", type: "string", format: "uuid", ref: "team" },
       { name: "bot_id", type: "string", required: true },
       { name: "secret", type: "string", format: "password" },
@@ -437,14 +434,14 @@ export const resources = {
     labels: {
       "en": {
         title: "WeCom bots",
-        fields: { name: "Name", audience: "Audience", bot_id: "Bot ID", team_name: "Team inbox", status: "Connection status", enabled: "Enabled", team_id: "Team inbox", secret: "Long-connection secret", ws_url: "Custom WebSocket URL", welcome_text: "Welcome message" },
-        descriptions: { name: "Identifies this WeCom bot in the workspace", audience: "Choose whether this bot serves internal employees or external customers", bot_id: "Bot ID generated in the WeCom Smart Bot admin console", enabled: "When enabled, maintains an active WebSocket connection; when disabled, disconnects", team_id: "The team inbox new conversations go to; leave empty to keep them unassigned", secret: "Secret for WebSocket long connection; leave empty when updating to keep the existing secret", ws_url: "Optional custom WebSocket endpoint for private deployment; leave empty for the official endpoint", welcome_text: "Optional automatic welcome reply when someone opens a direct chat with the bot" },
+        fields: { name: "Name", bot_id: "Bot ID", team_name: "Team inbox", status: "Connection status", enabled: "Enabled", team_id: "Team inbox", secret: "Long-connection secret", ws_url: "Custom WebSocket URL", welcome_text: "Welcome message" },
+        descriptions: { name: "Identifies this WeCom bot in the workspace", bot_id: "Bot ID generated in the WeCom Smart Bot admin console", enabled: "When enabled, maintains an active WebSocket connection; when disabled, disconnects", team_id: "The team inbox new conversations go to; leave empty to keep them unassigned", secret: "Secret for WebSocket long connection; leave empty when updating to keep the existing secret", ws_url: "Optional custom WebSocket endpoint for private deployment; leave empty for the official endpoint", welcome_text: "Optional automatic welcome reply when someone opens a direct chat with the bot" },
         actions: {  },
       },
       "zh-CN": {
         title: "企业微信机器人",
-        fields: { name: "名称", audience: "服务对象", bot_id: "Bot ID", team_name: "团队收件箱", status: "连接状态", enabled: "启用", team_id: "团队收件箱", secret: "长连接 Secret", ws_url: "自定义 WebSocket 地址", welcome_text: "进入会话欢迎语" },
-        descriptions: { name: "用于在工作区中区分这个企业微信机器人", audience: "选择服务内部员工还是外部客户，内部员工单聊会归入内部联系人", bot_id: "在企业微信管理后台智能机器人页面生成的 Bot ID", enabled: "启用后自动维持 WebSocket 长连接，停用后断开连接", team_id: "新会话进入的团队收件箱；不选时进入未指派", secret: "长连接模式对应的 Secret；修改时留空保持不变", ws_url: "私有化部署时可覆盖默认接入地址；留空使用企业微信官方长连接地址", welcome_text: "成员或客户首次进入机器人单聊时自动回复的欢迎语，留空不发送" },
+        fields: { name: "名称", bot_id: "Bot ID", team_name: "团队收件箱", status: "连接状态", enabled: "启用", team_id: "团队收件箱", secret: "长连接 Secret", ws_url: "自定义 WebSocket 地址", welcome_text: "进入会话欢迎语" },
+        descriptions: { name: "用于在工作区中区分这个企业微信机器人", bot_id: "在企业微信管理后台智能机器人页面生成的 Bot ID", enabled: "启用后自动维持 WebSocket 长连接，停用后断开连接", team_id: "新会话进入的团队收件箱；不选时进入未指派", secret: "长连接模式对应的 Secret；修改时留空保持不变", ws_url: "私有化部署时可覆盖默认接入地址；留空使用企业微信官方长连接地址", welcome_text: "成员或客户首次进入机器人单聊时自动回复的欢迎语，留空不发送" },
         actions: {  },
       },
     },

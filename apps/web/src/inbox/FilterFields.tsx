@@ -1,5 +1,6 @@
 import type {
   AttributeDTO,
+  ChannelAudience,
   ConversationAssigneeFilterMode,
   ConversationAttributeFilter,
   ConversationAttributeOp,
@@ -90,6 +91,7 @@ export function FilterFields({ value, onChange, compact }: FilterFieldsProps): R
   const assigneeMode = value.assignee?.mode ?? "any"
   const waitingValue = value.waiting === true ? "true" : value.waiting === false ? "false" : "any"
   const priorityValue = value.priority || "any"
+  const audienceValue = value.audience || "any"
   const attributes = value.attributes ?? []
 
   const addAttribute = () => {
@@ -131,6 +133,23 @@ export function FilterFields({ value, onChange, compact }: FilterFieldsProps): R
         clearable
         comboboxProps={{ withinPortal: true }}
       />
+
+      <Stack gap={4}>
+        <Text size={size} fw={500}>
+          {t("views.audience")}
+        </Text>
+        <SegmentedControl
+          size={compact ? "xs" : "sm"}
+          fullWidth
+          value={audienceValue}
+          onChange={(v) => patch({ audience: v === "any" ? undefined : (v as ChannelAudience) })}
+          data={[
+            { value: "any", label: t("views.any") },
+            { value: "customer", label: t("channels.audience_customer") },
+            { value: "internal", label: t("channels.audience_internal") },
+          ]}
+        />
+      </Stack>
 
       <Stack gap={4}>
         <Text size={size} fw={500}>
@@ -511,6 +530,14 @@ export function FilterSummaryChips({
       key: "statuses",
       label: filter.statuses.map((s) => t(`inbox.status_${s}` as const)).join(" / "),
       remove: () => onChange({ ...filter, statuses: undefined }),
+    })
+  }
+  if (filter.audience) {
+    chips.push({
+      key: "audience",
+      label: `${t("views.audience")}: ${t(filter.audience === "internal" ? "channels.audience_internal" : "channels.audience_customer")}`,
+      color: filter.audience === "internal" ? "green" : "bright-blue",
+      remove: () => onChange({ ...filter, audience: undefined }),
     })
   }
   if (typeof filter.waiting === "boolean") {

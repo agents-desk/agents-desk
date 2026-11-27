@@ -9,7 +9,7 @@ import { macros } from "../../../../resources"
 // 快捷回复设置页：所有成员均可浏览共享快捷回复并管理自己的个人快捷回复；有 macros:manage 权限的成员可管理共享快捷回复。
 // 表单使用框架的抽屉模式（form="drawer"）与自定义 renderForm。
 export const Route = createFileRoute("/$slug/settings/_service/macros")({
-  staticData: { title: "nav.macros", icon: "macro", order: 5 },
+  staticData: { title: "nav.macros", icon: "macro", order: 6 },
   validateSearch: macros.listSearch,
   // 预取当前条件下的列表：进入页面时表格直接显示数据
   loaderDeps: ({ search }) => search,

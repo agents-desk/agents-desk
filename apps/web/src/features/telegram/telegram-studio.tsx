@@ -25,7 +25,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useSearch } from "@tanstack/react-router"
 import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, ResourceSelect, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
-import { tenantApi } from "../../api"
+import { kit, tenantApi } from "../../api"
+import { AiReceptionCard } from "../../components/ai-placeholders"
 import { useUnsavedGuard } from "../../components/unsaved-guard"
 import { teams } from "../../resources"
 
@@ -190,7 +191,15 @@ function TelegramInstallPanel({ id }: { id: string }): ReactNode {
  *   - 基本配置：按分组卡片编辑基础信息、Bot Token / 接入模式与团队路由；
  *   - 安装与接入：查看渠道 ID、Webhook 地址、密钥与外部网关透传头说明。
  */
-export function TelegramStudio({ slug, id }: { slug: string; id: string }): ReactNode {
+export function TelegramStudio({
+  slug,
+  id,
+  backRoute = "/$slug/settings/channels",
+}: {
+  slug: string
+  id: string
+  backRoute?: "/$slug/settings/channels" | "/$slug/settings/internal-channels"
+}): ReactNode {
   const t = useT()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -262,7 +271,7 @@ export function TelegramStudio({ slug, id }: { slug: string; id: string }): Reac
   return (
     <Page
       title={tg.data ? tg.data.name : t("telegram_install.title")}
-      back={() => void navigate({ to: "/$slug/settings/channels", params: { slug }, search: { tab: "telegram" } })}
+      back={() => void navigate({ to: backRoute, params: { slug }, search: { tab: "telegram" } })}
       actions={
         tg.data ? (
           <Group
@@ -304,24 +313,15 @@ export function TelegramStudio({ slug, id }: { slug: string; id: string }): Reac
                     <FormError error={serverError} />
 
                     <SectionCard title={t("telegram_studio.section_basic")} description={t("telegram_studio.section_basic_desc")}>
-                      <TextInput label={t("telegrams.name")} required maxLength={60} {...form.getInputProps("name")} />
-                      <Stack gap={6}>
-                        <Text size="sm" fw={500}>
+                      <Group gap="xs">
+                        <Text size="xs" c="dimmed">
                           {t("channels.audience")}
                         </Text>
-                        <SegmentedControl
-                          fullWidth
-                          value={form.values.audience}
-                          onChange={(v) => form.setFieldValue("audience", v === "internal" ? "internal" : "customer")}
-                          data={[
-                            { value: "customer", label: t("channels.audience_customer") },
-                            { value: "internal", label: t("channels.audience_internal") },
-                          ]}
-                        />
-                        <Text size="xs" c="dimmed">
-                          {t(form.values.audience === "internal" ? "channels.audience_internal_desc" : "channels.audience_customer_desc")}
-                        </Text>
-                      </Stack>
+                        <Badge size="xs" variant="light" color={form.values.audience === "internal" ? "green" : "bright-blue"}>
+                          {kit.label("ChannelAudience", form.values.audience)}
+                        </Badge>
+                      </Group>
+                      <TextInput label={t("telegrams.name")} required maxLength={60} {...form.getInputProps("name")} />
                       <Switch
                         label={t("telegrams.enable_groups")}
                         description={t("telegrams.enable_groups_desc")}
@@ -359,6 +359,8 @@ export function TelegramStudio({ slug, id }: { slug: string; id: string }): Reac
                         </Text>
                       </Stack>
                     </SectionCard>
+
+                    <AiReceptionCard scene={form.values.audience === "internal" ? "internal" : "customer"} />
 
                     <SectionCard title={t("telegram_studio.section_routing")} description={t("telegram_studio.section_routing_desc")}>
                       <ResourceSelect

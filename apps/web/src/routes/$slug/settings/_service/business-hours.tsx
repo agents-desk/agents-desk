@@ -15,7 +15,7 @@ import { useUnsavedGuard } from "../../../../components/unsaved-guard"
 // 工作时间：时区和每周的工作时间、特殊日期（节假日、调休）、通常的回复时间。三个标签各自独立保存。
 // 聊天插件和自动化用它们告诉客户什么时候能得到回复，收件箱按回复时间给等待时长变色。
 export const Route = createFileRoute("/$slug/settings/_service/business-hours")({
-  staticData: { title: "business_hours.title", icon: "calendar", order: 3, permission: "tenant-settings:manage" },
+  staticData: { title: "business_hours.title", icon: "calendar", order: 4, permission: "tenant-settings:manage" },
   // 预取页面的数据，最多等一小会儿：切换到这一页时内容一次完整出现，不先空白再出现
   loader: ({ context }) => preloadQueries(context.app.queryClient, [{ queryKey: ["business-hours"], queryFn: () => tenantApi.hours.get() }]),
   component: BusinessHours,

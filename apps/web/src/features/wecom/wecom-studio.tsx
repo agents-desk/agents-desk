@@ -7,7 +7,6 @@ import {
   Group,
   Paper,
   PasswordInput,
-  SegmentedControl,
   Skeleton,
   Stack,
   Switch,
@@ -23,6 +22,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { applyServerErrors, FormError, notifyError, notifySuccess, Page, ResourceSelect, StatusDot, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../../api"
+import { AiReceptionCard } from "../../components/ai-placeholders"
 import { useUnsavedGuard } from "../../components/unsaved-guard"
 import { fullDateTime } from "../../inbox/format"
 import { teams } from "../../resources"
@@ -60,7 +60,6 @@ export function wecomStatusColor(status: WecomBotDTO["status"]): string {
 
 interface WeComFormValues {
   name: string
-  audience: "internal" | "customer"
   bot_id: string
   secret: string
   ws_url: string
@@ -72,7 +71,6 @@ interface WeComFormValues {
 function toFormValues(bot: WecomBotDTO): WeComFormValues {
   return {
     name: bot.name,
-    audience: bot.audience === "customer" ? "customer" : "internal",
     bot_id: bot.bot_id,
     secret: "",
     ws_url: bot.ws_url ?? "",
@@ -103,7 +101,6 @@ export function WeComStudio({ slug, id }: { slug: string; id: string }): ReactNo
   const form = useForm<WeComFormValues>({
     initialValues: {
       name: "",
-      audience: "internal",
       bot_id: "",
       secret: "",
       ws_url: "",
@@ -123,7 +120,6 @@ export function WeComStudio({ slug, id }: { slug: string; id: string }): ReactNo
     mutationFn: (v: WeComFormValues) =>
       tenantApi.wecom.update(id, {
         name: v.name.trim(),
-        audience: v.audience,
         bot_id: v.bot_id.trim(),
         secret: v.secret.trim() || undefined,
         ws_url: v.ws_url.trim() || undefined,
@@ -168,7 +164,7 @@ export function WeComStudio({ slug, id }: { slug: string; id: string }): ReactNo
   return (
     <Page
       title={bot.data ? bot.data.name : t("wecom_studio.title")}
-      back={() => void navigate({ to: "/$slug/settings/channels", params: { slug }, search: { tab: "wecom" } })}
+      back={() => void navigate({ to: "/$slug/settings/internal-channels", params: { slug }, search: { tab: "wecom" } })}
       actions={
         bot.data ? (
           <Group gap="xs">
@@ -235,23 +231,6 @@ export function WeComStudio({ slug, id }: { slug: string; id: string }): ReactNo
 
               <SectionCard title={t("wecom_studio.section_basic")} description={t("wecom_studio.section_basic_desc")}>
                 <TextInput label={t("wecom.name")} required maxLength={60} {...form.getInputProps("name")} />
-                <Stack gap={6}>
-                  <Text size="sm" fw={500}>
-                    {t("channels.audience")}
-                  </Text>
-                  <SegmentedControl
-                    fullWidth
-                    value={form.values.audience}
-                    onChange={(v) => form.setFieldValue("audience", v === "customer" ? "customer" : "internal")}
-                    data={[
-                      { value: "internal", label: t("channels.audience_internal") },
-                      { value: "customer", label: t("channels.audience_customer") },
-                    ]}
-                  />
-                  <Text size="xs" c="dimmed">
-                    {t(form.values.audience === "internal" ? "channels.audience_internal_desc" : "channels.audience_customer_desc")}
-                  </Text>
-                </Stack>
                 <Switch
                   label={t("wecom_studio.enabled")}
                   description={t("wecom_studio.enabled_hint")}
@@ -274,6 +253,8 @@ export function WeComStudio({ slug, id }: { slug: string; id: string }): ReactNo
                   {...form.getInputProps("ws_url")}
                 />
               </SectionCard>
+
+              <AiReceptionCard scene="internal" />
 
               <SectionCard title={t("wecom_studio.section_routing")} description={t("wecom_studio.section_routing_desc")}>
                 <ResourceSelect

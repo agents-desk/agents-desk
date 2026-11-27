@@ -15,6 +15,7 @@ import (
 // ListInput 是 Telegram 机器人列表的查询条件。
 type ListInput struct {
 	page.OffsetParams
+	Audience channel.Audience `query:"audience" doc:"可选：按服务对象筛选（customer 或 internal）"`
 }
 
 // ListOutput 是一页 Telegram 机器人渠道。
@@ -30,11 +31,17 @@ type List struct {
 // NewList 返回 Telegram 渠道列表的动作。
 func NewList(db *bun.DB) *List { return &List{db: db} }
 
-// Handle 返回 sub 所在工作区的全部 Telegram 渠道（含停用）。
+// Handle 返回 sub 所在工作区的全部 Telegram 渠道（含停用），可按服务对象筛选。
 func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) (*page.Offset[TelegramDTO], error) {
+	if in == nil {
+		in = &ListInput{}
+	}
 	var rows []channel.Channel
-	total, err := a.db.NewSelect().Model(&rows).Where("tenant_id = ? AND kind = ?", sub.Tenant, channel.Telegram).
-		OrderExpr("created_at, id").Limit(in.Limit()).Offset(in.Offset()).ScanAndCount(ctx)
+	q := a.db.NewSelect().Model(&rows).Where("tenant_id = ? AND kind = ?", sub.Tenant, channel.Telegram)
+	if in.Audience != "" {
+		q = q.Where("audience = ?", in.Audience)
+	}
+	total, err := q.OrderExpr("created_at, id").Limit(in.Limit()).Offset(in.Offset()).ScanAndCount(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "list telegram channels")
 	}

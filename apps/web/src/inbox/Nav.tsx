@@ -1,15 +1,18 @@
 import type { ConversationSummary, ConversationViewSummary } from "@agents-desk/client/tenant"
-import { ActionIcon, Menu, NavLink, Text, Tooltip } from "@mantine/core"
+import { ActionIcon, Badge, Menu, NavLink, Text, Tooltip } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
 import {
+  IconArrowForwardUp,
   IconAt,
+  IconClockCheck,
   IconDots,
   IconFilter,
   IconInbox,
   IconListDetails,
   IconPencil,
   IconPlus,
+  IconRobot,
   IconTicket,
   IconTrash,
   IconUserQuestion,
@@ -172,6 +175,36 @@ export function InboxNav({
         {item("mentions", t("inbox.box_mentions"), <IconAt size={16} stroke={1.6} />, d?.mentions)}
         {item("unassigned", t("inbox.box_unassigned"), <IconUserQuestion size={16} stroke={1.6} />, d?.unassigned)}
         {item("all", t("inbox.box_all"), <IconListDetails size={16} stroke={1.6} />, d?.all)}
+
+        <RailSection
+          title={t("inbox.ai_section")}
+          collapsible
+          storeKey="inbox-ai-reception"
+          action={
+            <Badge size="xs" variant="light" color="gray" style={{ textTransform: "none" }}>
+              {t("ai_placeholder.coming_soon")}
+            </Badge>
+          }
+        >
+          <NavLink
+            label={t("inbox.ai_handling")}
+            leftSection={<IconRobot size={16} stroke={1.6} />}
+            rightSection={<NavCount n={0} />}
+            onClick={() => void navigate({ to: "/$slug/ai", params: { slug } })}
+          />
+          <NavLink
+            label={t("inbox.ai_pending_approval")}
+            leftSection={<IconClockCheck size={16} stroke={1.6} />}
+            rightSection={<NavCount n={0} />}
+            onClick={() => void navigate({ to: "/$slug/ai", params: { slug } })}
+          />
+          <NavLink
+            label={t("inbox.ai_escalated")}
+            leftSection={<IconArrowForwardUp size={16} stroke={1.6} />}
+            rightSection={<NavCount n={0} />}
+            onClick={() => void navigate({ to: "/$slug/ai", params: { slug } })}
+          />
+        </RailSection>
 
         {(d?.teams.length ?? 0) > 0 && (
           <RailSection title={t("inbox.teams")} collapsible storeKey="inbox-teams">

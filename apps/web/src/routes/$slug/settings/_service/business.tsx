@@ -33,7 +33,7 @@ import { useMembers } from "../../../../inbox/data"
 
 // 工作区商务渠道治理页：管理员总览全员网页商务链接与 Telegram 个人号、配置工作区策略与配额，并支持应急添加协作成员。
 export const Route = createFileRoute("/$slug/settings/_service/business")({
-  staticData: { title: "nav.business_governance", icon: "link", order: 1, permission: "business-channels:manage" },
+  staticData: { title: "nav.business_governance", icon: "link", order: 2, permission: "business-channels:manage" },
   loader: ({ context }) => preloadQueries(context.app.queryClient, [kit.queries.business.channelList({}), kit.queries.business.policyGet()]),
   component: BusinessGovernancePage,
 })

@@ -18,6 +18,7 @@ import {
 } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../api"
+import { AiAssistantPanel, type DetailsAsideTab, DetailsAsideTabs } from "../components/ai-placeholders"
 import { ContactNotesCard } from "../contacts/ContactNotesCard"
 import { contactDisplayName } from "../contacts/display"
 import { MergeContactModal } from "../contacts/MergeContactModal"
@@ -60,6 +61,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
   const convTickets = useConversationTickets(c.id)
   const [createTicketOpen, setCreateTicketOpen] = useState(false)
   const [linkTicketOpen, setLinkTicketOpen] = useState(false)
+  const [asideTab, setAsideTab] = useState<DetailsAsideTab>("details")
   const contactDetail = useQuery({
     ...kit.queries.contact.get(c.contact?.id ?? ""),
     enabled: !!c.contact?.id,
@@ -157,7 +159,11 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
           </ActionIcon>
         }
       />
+      <DetailsAsideTabs value={asideTab} onChange={setAsideTab} />
       <PaneBody>
+        {asideTab === "ai" ? (
+          <AiAssistantPanel scene="inbox" />
+        ) : (
         <Inspector>
           <InspectorSection title={t("inbox.details_conversation")} collapsible storeKey="inbox-details-conv">
             <InspectorField label={t("inbox.assignee")}>
@@ -387,7 +393,11 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                       aria-label={t("extgroups.configure")}
                       onClick={(e) => {
                         e.stopPropagation()
-                        void navigate({ to: "/$slug/settings/channels", params: { slug } })
+                        void navigate({
+                          to: c.audience === "internal" ? "/$slug/settings/internal-channels" : "/$slug/settings/channels",
+                          params: { slug },
+                          search: { tab: "groups" },
+                        })
                       }}
                     >
                       <IconSettings size={14} />
@@ -646,6 +656,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
             )}
           </InspectorSection>
         </Inspector>
+        )}
       </PaneBody>
       <MergeContactModal
         opened={mergeContactOpen}
