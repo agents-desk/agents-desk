@@ -1430,7 +1430,6 @@ chat.leave_message: "退出后该群聊从你的列表中移除，群内成员�
 chat.left_group: "已退出群聊"
 chat.status_online: "在线"
 chat.status_away: "离开"
-chat.unread_chats_hint: "{{.n}} 个聊天有未读消息"
 chat.peer_details: "同事资料"
 chat.peer_info: "成员信息"
 chat.peer_language: "偏好语言"

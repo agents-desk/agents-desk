@@ -1430,7 +1430,6 @@ chat.leave_message: "You will no longer see this group unless another member inv
 chat.left_group: "Left the group"
 chat.status_online: "Online"
 chat.status_away: "Away"
-chat.unread_chats_hint: "{{.n}} unread chat(s)"
 chat.peer_details: "Teammate profile"
 chat.peer_info: "Member info"
 chat.peer_language: "Preferred language"

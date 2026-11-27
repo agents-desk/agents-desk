@@ -60,7 +60,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
     tip: string
     value: string
     warn?: boolean
-    to?: "/$slug/inbox" | "/$slug/tickets" | "/$slug/chat" | "/$slug/reports/members"
+    to?: "/$slug/inbox" | "/$slug/inbox/tickets" | "/$slug/inbox/chat" | "/$slug/reports/members"
     search?: Record<string, unknown>
   }> = [
     {
@@ -104,7 +104,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
       tip: t("reports.ov_live_ticket_open_tip"),
       value: formatInt(live?.ticket_open, uiLang),
       warn: Boolean(live && live.ticket_unassigned > 0),
-      to: canConv ? "/$slug/tickets" : undefined,
+      to: canConv ? "/$slug/inbox/tickets" : undefined,
       search: { box: "all", status: "unresolved" },
     },
     {
@@ -113,7 +113,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
       tip: t("reports.ov_live_business_waiting_tip"),
       value: formatInt(live?.business_waiting, uiLang),
       warn: Boolean(live && live.business_waiting > 0),
-      to: canConv ? "/$slug/chat" : undefined,
+      to: canConv ? "/$slug/inbox/chat" : undefined,
     },
     {
       key: "online",

@@ -348,7 +348,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                 {convTickets.data?.items.map((tk) => (
                   <Link
                     key={tk.id}
-                    to="/$slug/tickets/$id"
+                    to="/$slug/inbox/tickets/$id"
                     params={{ slug, id: tk.id }}
                     search={{ box: "all", status: "unresolved" }}
                     className="inbox-history"
@@ -687,7 +687,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
         sourceConversation={c}
         onCreated={(created) =>
           void navigate({
-            to: "/$slug/tickets/$id",
+            to: "/$slug/inbox/tickets/$id",
             params: { slug, id: created.id },
             search: { box: "all", status: "unresolved" },
           })

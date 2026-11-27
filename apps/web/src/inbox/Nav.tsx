@@ -1,7 +1,7 @@
-import type { ConversationSummary, ConversationViewSummary } from "@agents-desk/client/tenant"
+import type { ConversationChatDTO, ConversationSummary, ConversationViewSummary } from "@agents-desk/client/tenant"
 import { ActionIcon, Badge, Menu, NavLink, Text, Tooltip } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useNavigate, useParams } from "@tanstack/react-router"
+import { useMatch, useNavigate, useParams } from "@tanstack/react-router"
 import {
   IconArrowForwardUp,
   IconAt,
@@ -22,6 +22,9 @@ import {
 import { confirm, Fill, notifyError, notifySuccess, RailSection, useCan, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../api"
+import { useChat } from "../chat/data"
+import { ChatSections, type ChatNavTarget } from "../chat/Nav"
+import { NewChatModal } from "../chat/NewChatModal"
 import { CreateTicketModal } from "../tickets/CreateTicketModal"
 import type { TicketBox } from "../tickets/search"
 import { type Thresholds, useThresholds } from "./data"
@@ -40,6 +43,13 @@ export function useNow(): number {
   return now
 }
 
+/** inChatGroup 报告聊天是否属于二级导航中的一个聊天分组：范围相同，内部聊天再看单聊或群聊，商务沟通再看所属的个人商务渠道。 */
+function inChatGroup(chat: ConversationChatDTO, group: ChatNavTarget): boolean {
+  if (chat.scope !== group.scope) return false
+  if (group.scope === "internal") return !group.filter || chat.mode === group.filter
+  return !group.channel || chat.channel?.id === group.channel
+}
+
 /** Count 是收件箱列表中一项的数量：等得最久的会话超过时限时，数字用等待时长的颜色。 */
 function Count({ s, now, th }: { s?: ConversationSummary; now: number; th?: Thresholds }): ReactNode {
   if (!s) return null
@@ -48,40 +58,46 @@ function Count({ s, now, th }: { s?: ConversationSummary; now: number; th?: Thre
 }
 
 /**
- * InboxNav 是放进二级导航（nav 插槽）的统一收件箱导航：
- * 包含会话列表（我的、@我、未指派、全部）、团队收件箱、已保存视图，以及工单分组（我的、未指派、全部）。
- * 在收件箱路由和工单路由中共用，点击任意分组平滑切换。
+ * InboxNav 是收件箱模块的二级导航（nav 插槽），成员在这一个模块中处理所有的沟通：
+ * 会话列表（我的、@我、未指派、全部）、团队收件箱、工单分组（我的、未指派、全部）、内部聊天和商务沟通分组、已保存视图。
+ * 它在收件箱模块的布局路由中渲染一次，从匹配到的子路由（会话、工单、聊天）读出当前的分组和地址参数来高亮；
+ * 在会话分组之间切换时保留打开着的会话；在聊天分组之间切换时，打开着的聊天属于目标分组才保持打开；换到另一类分组时进入它的列表。
  */
-export function InboxNav({
-  search,
-  go,
-  activeTicketBox,
-  onSelectTicketBox,
-  onCreateTicket,
-}: {
-  search?: InboxSearch
-  go?: (s: Partial<InboxSearch>) => void
-  activeTicketBox?: TicketBox
-  onSelectTicketBox?: (box: TicketBox) => void
-  onCreateTicket?: () => void
-}): ReactNode {
+export function InboxNav(): ReactNode {
   const t = useT()
   const can = useCan()
   const now = useNow()
   const th = useThresholds()
   const { slug } = useParams({ from: "/$slug" })
+  const { id } = useParams({ strict: false }) as { id?: string }
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const inbox = useQuery(kit.queries.conversation.inbox())
   const d = inbox.data
 
+  // 当前打开的是哪一类分组：匹配到的子路由给出它的地址参数，其余两类为空
+  const conversations = useMatch({ from: "/$slug/inbox/_conversations", shouldThrow: false })
+  const tickets = useMatch({ from: "/$slug/inbox/tickets", shouldThrow: false })
+  const chats = useMatch({ from: "/$slug/inbox/chat", shouldThrow: false })
+  const search = conversations?.search
+  const activeTicketBox = tickets?.search.box
+  const openChat = useChat(chats && id ? id : "")
+  const activeChat: ChatNavTarget | undefined = chats
+    ? { scope: chats.search.scope ?? "internal", filter: chats.search.filter, channel: chats.search.channel }
+    : undefined
+
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<ConversationViewSummary | undefined>()
   const [createTicketOpen, setCreateTicketOpen] = useState(false)
+  const [newChatOpen, setNewChatOpen] = useState(false)
 
+  // navigateInbox 切换会话列表：已经在会话分组中时保留其余地址参数和打开着的会话
   const navigateInbox = (patch: Partial<InboxSearch>) => {
-    if (go) {
-      go(patch)
+    if (search) {
+      const next = { ...search, ...patch }
+      void (id
+        ? navigate({ to: "/$slug/inbox/$id", params: { slug, id }, search: next })
+        : navigate({ to: "/$slug/inbox", params: { slug }, search: next }))
       return
     }
     void navigate({
@@ -99,16 +115,25 @@ export function InboxNav({
     })
   }
 
+  // navigateTicket 切换工单列表：已经在工单分组中时保留筛选条件
   const navigateTicket = (box: TicketBox) => {
-    if (onSelectTicketBox) {
-      onSelectTicketBox(box)
-      return
-    }
     void navigate({
-      to: "/$slug/tickets",
+      to: "/$slug/inbox/tickets",
       params: { slug },
-      search: { box, status: "unresolved" },
+      search: tickets ? { ...tickets.search, box } : { box, status: "unresolved" },
     })
+  }
+
+  // navigateChat 切换聊天分组：打开着的聊天属于目标分组时保持打开，否则回到目标分组的列表
+  const navigateChat = (next: ChatNavTarget) => {
+    const chatSearch = {
+      scope: next.scope === "external" ? ("external" as const) : undefined,
+      filter: next.scope === "internal" ? next.filter : undefined,
+      channel: next.scope === "external" ? next.channel : undefined,
+    }
+    void (id && openChat.data && inChatGroup(openChat.data, next)
+      ? navigate({ to: "/$slug/inbox/chat/$id", params: { slug, id }, search: chatSearch })
+      : navigate({ to: "/$slug/inbox/chat", params: { slug }, search: chatSearch }))
   }
 
   const remove = useMutation({
@@ -150,7 +175,7 @@ export function InboxNav({
       label={label}
       leftSection={icon}
       rightSection={<Count s={s} now={now} th={th} />}
-      active={Boolean(search && !activeTicketBox && search.box === box && !search.team && !search.view)}
+      active={Boolean(search && search.box === box && !search.team && !search.view)}
       onClick={() => navigateInbox({ box, team: undefined, view: undefined, filter: undefined })}
     />
   )
@@ -194,7 +219,7 @@ export function InboxNav({
         {(d?.teams.length ?? 0) > 0 && (
           <RailSection title={t("inbox.teams")} collapsible storeKey="inbox-teams">
             {d?.teams.map((team) => {
-              const active = Boolean(search && !activeTicketBox && search.team === team.id && !search.view)
+              const active = Boolean(search && search.team === team.id && !search.view)
               return (
                 <NavLink
                   key={team.id}
@@ -221,7 +246,7 @@ export function InboxNav({
                   variant="subtle"
                   color="gray"
                   aria-label={t("tickets.create")}
-                  onClick={() => (onCreateTicket ? onCreateTicket() : setCreateTicketOpen(true))}
+                  onClick={() => setCreateTicketOpen(true)}
                 >
                   <IconPlus size={14} stroke={1.6} />
                 </ActionIcon>
@@ -233,6 +258,8 @@ export function InboxNav({
           {ticketItem("unassigned", t("tickets.box_unassigned"), <IconUserQuestion size={16} stroke={1.6} />, d?.tickets.unassigned)}
           {ticketItem("all", t("tickets.box_all"), <IconListDetails size={16} stroke={1.6} />, d?.tickets.all)}
         </RailSection>
+
+        <ChatSections active={activeChat} onSelect={navigateChat} onNewChat={() => setNewChatOpen(true)} />
 
         <RailSection
           title={t("views.section")}
@@ -252,7 +279,7 @@ export function InboxNav({
             </Text>
           ) : (
             views.map((v) => {
-              const active = Boolean(search && !activeTicketBox && search.view === v.id)
+              const active = Boolean(search && search.view === v.id)
               return (
                 <div key={v.id} className="inbox-view-row" data-editable={v.editable || undefined}>
                   <NavLink
@@ -325,19 +352,23 @@ export function InboxNav({
         }
       />
 
-      {!onCreateTicket && (
-        <CreateTicketModal
-          opened={createTicketOpen}
-          onClose={() => setCreateTicketOpen(false)}
-          onCreated={(created) =>
-            void navigate({
-              to: "/$slug/tickets/$id",
-              params: { slug, id: created.id },
-              search: { box: "all", status: "unresolved" },
-            })
-          }
-        />
-      )}
+      <NewChatModal
+        opened={newChatOpen}
+        onClose={() => setNewChatOpen(false)}
+        onOpened={(chat) => void navigate({ to: "/$slug/inbox/chat/$id", params: { slug, id: chat.id }, search: chats?.search ?? {} })}
+      />
+
+      <CreateTicketModal
+        opened={createTicketOpen}
+        onClose={() => setCreateTicketOpen(false)}
+        onCreated={(created) =>
+          void navigate({
+            to: "/$slug/inbox/tickets/$id",
+            params: { slug, id: created.id },
+            search: tickets?.search ?? { box: "all", status: "unresolved" },
+          })
+        }
+      />
     </>
   )
 }

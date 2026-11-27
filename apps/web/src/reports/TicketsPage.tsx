@@ -240,7 +240,7 @@ export function TicketsPage({ route }: { route: PeriodRoute }): ReactNode {
             return (
               <Tooltip key={item.key} label={t("reports.drill_tickets")} openDelay={250} withArrow>
                 <Link
-                  to="/$slug/tickets"
+                  to="/$slug/inbox/tickets"
                   params={{ slug }}
                   search={item.search as never}
                   className="rp-live-item"

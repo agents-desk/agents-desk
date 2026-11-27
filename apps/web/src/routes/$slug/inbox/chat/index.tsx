@@ -3,11 +3,11 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { IconMessageCircle, IconPlus } from "@tabler/icons-react"
 import { useT } from "@go-tenon/ui"
 import { useState } from "react"
-import { NewChatModal } from "../../../chat/NewChatModal"
-import { EmptyState } from "../../../components/empty-state"
+import { NewChatModal } from "../../../../chat/NewChatModal"
+import { EmptyState } from "../../../../components/empty-state"
 
 // 尚未打开聊天时的空态引导页。
-export const Route = createFileRoute("/$slug/chat/")({ component: NoChat })
+export const Route = createFileRoute("/$slug/inbox/chat/")({ component: NoChat })
 
 function NoChat() {
   const t = useT()
@@ -31,7 +31,7 @@ function NoChat() {
       <NewChatModal
         opened={newOpen}
         onClose={() => setNewOpen(false)}
-        onOpened={(chat) => void navigate({ to: "/$slug/chat/$id", params: { slug, id: chat.id } })}
+        onOpened={(chat) => void navigate({ to: "/$slug/inbox/chat/$id", params: { slug, id: chat.id } })}
       />
     </>
   )
