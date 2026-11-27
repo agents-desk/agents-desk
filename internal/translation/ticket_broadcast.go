@@ -61,7 +61,7 @@ func (b *TicketBroadcast) Handle(ctx context.Context, p conversation.Appended) e
 	if err != nil {
 		return errors.Wrap(err, "load ticket update item")
 	}
-	if it.Kind != conversation.Message || it.Visibility != conversation.Everyone || it.ActorType == conversation.ContactActor {
+	if it.Kind != conversation.Message || it.Visibility != conversation.Everyone || it.ActorType.IsExternal() {
 		return nil
 	}
 
@@ -102,12 +102,13 @@ func (b *TicketBroadcast) Handle(ctx context.Context, p conversation.Appended) e
 		return conversation.SaveTicketBroadcastCount(ctx, b.db, b.down, p.TenantID, it.ID, 0)
 	}
 
-	// 跳过已投递过该条公开进度的关联客户或会话，保证队列重试幂等且不重复打扰同一客户
+	// 跳过已投递过该条公开进度的关联联系人、外部群或会话，保证队列重试幂等且不重复打扰
 	var sentRows []struct {
-		ConversationID string  `bun:"conversation_id"`
-		ContactID      *string `bun:"contact_id"`
+		ConversationID  string  `bun:"conversation_id"`
+		ContactID       *string `bun:"contact_id"`
+		ExternalGroupID *string `bun:"external_group_id"`
 	}
-	err = b.db.NewRaw(`SELECT DISTINCT ti.conversation_id, c.contact_id
+	err = b.db.NewRaw(`SELECT DISTINCT ti.conversation_id, c.contact_id, c.external_group_id
 		FROM timeline_items ti
 		JOIN conversations c ON c.id = ti.conversation_id
 		WHERE ti.tenant_id = ? AND ti.content->'prompt'->>'kind' = 'ticket_update'
@@ -117,15 +118,21 @@ func (b *TicketBroadcast) Handle(ctx context.Context, p conversation.Appended) e
 	}
 	sentConv := make(map[string]bool, len(sentRows))
 	sentContact := make(map[string]bool, len(sentRows))
+	sentGroup := make(map[string]bool, len(sentRows))
 	for _, r := range sentRows {
 		sentConv[r.ConversationID] = true
 		if r.ContactID != nil && *r.ContactID != "" {
 			sentContact[*r.ContactID] = true
 		}
+		if r.ExternalGroupID != nil && *r.ExternalGroupID != "" {
+			sentGroup[*r.ExternalGroupID] = true
+		}
 	}
 	pending := make([]conversation.TicketNotifyTarget, 0, len(targets))
 	for _, tc := range targets {
-		if sentConv[tc.ConversationID] || (tc.ContactID != "" && sentContact[tc.ContactID]) {
+		if sentConv[tc.ConversationID] ||
+			(tc.ContactID != "" && sentContact[tc.ContactID]) ||
+			(tc.ExternalGroupID != "" && sentGroup[tc.ExternalGroupID]) {
 			continue
 		}
 		pending = append(pending, tc)

@@ -261,8 +261,9 @@ func (a *Incoming) Ensure(ctx context.Context, tenant, itemID string, targets []
 				return errors.Wrap(err, "load author language")
 			}
 		} else {
-			err := a.db.NewRaw(`SELECT COALESCE(NULLIF(ct.language, ''), c.language) FROM conversations c
+			err := a.db.NewRaw(`SELECT COALESCE(NULLIF(ct.language, ''), NULLIF(eg.language, ''), c.language) FROM conversations c
 				LEFT JOIN contacts ct ON ct.id = c.contact_id AND ct.tenant_id = c.tenant_id
+				LEFT JOIN external_groups eg ON eg.id = c.external_group_id AND eg.tenant_id = c.tenant_id
 				WHERE c.id = ? AND c.tenant_id = ?`, it.ConversationID, tenant).Scan(ctx, &usual)
 			if err != nil {
 				return errors.Wrap(err, "load conversation language")

@@ -116,6 +116,8 @@ func TestEvaluateCondition(t *testing.T) {
 	f := setup(t, env, "eval")
 
 	// 发一条消息产生线索联系人与会话
+	f.reg[channel.WeCom] = channel.TestConnector{}
+	f.reg[channel.Telegram] = channel.TestConnector{}
 	recv := conversation.NewReceive(env.DB, f.reg, f.down)
 	got, err := recv.Handle(ctx, f.system, conversation.ReceiveParams{
 		ChannelID: f.widget.ID, From: "visitor:v1", Text: "hi",
@@ -182,6 +184,8 @@ func TestFirstMessageReplyTimeAndLeadContact(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	f.reg[channel.WeCom] = channel.TestConnector{}
+	f.reg[channel.Telegram] = channel.TestConnector{}
 	recv := conversation.NewReceive(env.DB, f.reg, f.down)
 	// 1. 线索发第一条消息
 	first, err := recv.Handle(ctx, f.system, conversation.ReceiveParams{
@@ -355,6 +359,8 @@ func TestCloseRequestRatingAndToggle(t *testing.T) {
 	env := apptest.New(t)
 	f := setup(t, env, "rating")
 
+	f.reg[channel.WeCom] = channel.TestConnector{}
+	f.reg[channel.Telegram] = channel.TestConnector{}
 	recv := conversation.NewReceive(env.DB, f.reg, f.down)
 	msg, err := recv.Handle(ctx, f.system, conversation.ReceiveParams{
 		ChannelID: f.widget.ID, From: "visitor:v-rate", Text: "帮我查一下",
@@ -452,6 +458,8 @@ func TestLeadLeaveEmail(t *testing.T) {
 	env := apptest.New(t)
 	f := setup(t, env, "email")
 
+	f.reg[channel.WeCom] = channel.TestConnector{}
+	f.reg[channel.Telegram] = channel.TestConnector{}
 	recv := conversation.NewReceive(env.DB, f.reg, f.down)
 	msg, err := recv.Handle(ctx, f.system, conversation.ReceiveParams{
 		ChannelID: f.widget.ID, From: "visitor:lead-mail", Text: "我想咨询报价",
@@ -599,5 +607,98 @@ func TestPermissionsAndTenantIsolation(t *testing.T) {
 	var updated automation.RuleDTO
 	if err := json.Unmarshal(rec.Body.Bytes(), &updated); err != nil || updated.Enabled {
 		t.Fatalf("修改结果：%+v %v", updated, err)
+	}
+}
+
+// TestBuiltinsSkipInternalAndExternalGroup 验证客户内置自动化规则（回复时间、线索留邮箱、关闭后评价）不会误触内部员工机器人或外部群会话。
+func TestBuiltinsSkipInternalAndExternalGroup(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	env := apptest.New(t)
+	f := setup(t, env, "internal-skip")
+
+	internalCh, err := channel.NewCreate(env.DB).Handle(ctx, f.owner, channel.CreateParams{
+		Kind: channel.WeCom, Audience: channel.AudienceInternal, Name: "IT 内部企微机器人",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	customerBotCh, err := channel.NewCreate(env.DB).Handle(ctx, f.owner, channel.CreateParams{
+		Kind: channel.Telegram, Audience: channel.AudienceCustomer, Name: "对外 TG 群机器人",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f.reg[channel.WeCom] = channel.TestConnector{}
+	f.reg[channel.Telegram] = channel.TestConnector{}
+	recv := conversation.NewReceive(env.DB, f.reg, f.down)
+	closeAct := conversation.NewClose(env.DB, f.down)
+	timeline := conversation.NewTimeline(env.DB)
+
+	// 1. 内部员工 1:1 私聊机器人：首条消息和关闭都不应生成系统提示/评价邀请
+	dm, err := recv.Handle(ctx, f.system, conversation.ReceiveParams{
+		ChannelID: internalCh.ID, From: "emp_1", FromName: "员工甲", Text: "报销系统打不开",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.runItem(t, dm.ConversationID, dm.Item.ID, dm.Item.Seq)
+	if _, err := closeAct.Handle(ctx, f.owner, dm.ConversationID); err != nil {
+		t.Fatal(err)
+	}
+	dmItems, err := timeline.Handle(ctx, f.owner, dm.ConversationID, 0, 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, it := range dmItems {
+		if it.Kind == conversation.Event && it.Content.Event == "conversation.closed" {
+			f.runItem(t, dm.ConversationID, it.ID, it.Seq)
+		}
+	}
+	dmItems, err = timeline.Handle(ctx, f.owner, dm.ConversationID, 0, 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, it := range dmItems {
+		if it.Kind == conversation.Message && it.Actor.Type == conversation.SystemActor {
+			t.Fatalf("内部员工会话不应收到客服内置系统消息: %+v", it)
+		}
+		if it.Kind == conversation.Event && it.Content.Event == "conversation.rating_requested" {
+			t.Fatalf("内部员工会话关闭不应触发满意度评价邀请")
+		}
+	}
+
+	// 2. 客户渠道外部群 @ 机器人：首条消息和关闭也不应触发留邮箱/回复时间/评价邀请
+	grp, err := recv.Handle(ctx, f.system, conversation.ReceiveParams{
+		ChannelID: customerBotCh.ID, From: "u_100", FromName: "客户甲", ExternalChatID: "-100123", IsGroup: true, ChatTitle: "VIP 服务群", Text: "求助",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.runItem(t, grp.ConversationID, grp.Item.ID, grp.Item.Seq)
+	if _, err := closeAct.Handle(ctx, f.owner, grp.ConversationID); err != nil {
+		t.Fatal(err)
+	}
+	grpItems, err := timeline.Handle(ctx, f.owner, grp.ConversationID, 0, 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, it := range grpItems {
+		if it.Kind == conversation.Event && it.Content.Event == "conversation.closed" {
+			f.runItem(t, grp.ConversationID, it.ID, it.Seq)
+		}
+	}
+	grpItems, err = timeline.Handle(ctx, f.owner, grp.ConversationID, 0, 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, it := range grpItems {
+		if it.Kind == conversation.Message && it.Actor.Type == conversation.SystemActor {
+			t.Fatalf("外部群会话不应收到客服内置系统消息: %+v", it)
+		}
+		if it.Kind == conversation.Event && it.Content.Event == "conversation.rating_requested" {
+			t.Fatalf("外部群会话关闭不应触发满意度评价邀请")
+		}
 	}
 }

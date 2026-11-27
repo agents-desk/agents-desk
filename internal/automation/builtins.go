@@ -6,6 +6,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
+	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
 )
 
@@ -27,12 +28,17 @@ type builtinDef struct {
 	Enabled    bool
 }
 
-// builtins 是第一版内置的三条自动化规则，全部默认开启，管理员可以在设置中逐条开关。
+// builtins 是内置自动化规则，全部默认开启，管理员可以在设置中逐条开关。
+// 客户服务类内置规则显式限定服务对象（customer）、会话目标（contact）与渠道能力，避免误触内部员工或外部群会话。
 // 同一触发时机按 Position 从小到大执行：先告知回复时间，再请线索留联系方式。
 var builtins = []builtinDef{
 	{
-		Key:      BuiltinReplyTime,
-		Trigger:  TriggerFirstMessage,
+		Key:     BuiltinReplyTime,
+		Trigger: TriggerFirstMessage,
+		Conditions: Condition{All: []Condition{
+			{Field: "channel.audience", Op: "eq", Value: string(channel.AudienceCustomer)},
+			{Field: "conversation.target_kind", Op: "eq", Value: "contact"},
+		}},
 		Actions:  []Action{{Type: ActionSendReplyTime}},
 		Position: 10,
 		Enabled:  true,
@@ -41,6 +47,9 @@ var builtins = []builtinDef{
 		Key:     BuiltinCollectLeadContact,
 		Trigger: TriggerFirstMessage,
 		Conditions: Condition{All: []Condition{
+			{Field: "channel.audience", Op: "eq", Value: string(channel.AudienceCustomer)},
+			{Field: "conversation.target_kind", Op: "eq", Value: "contact"},
+			{Field: "channel.supports_lead_form", Op: "eq", Value: true},
 			{Field: "contact.kind", Op: "eq", Value: string(contact.Lead)},
 			{Field: "contact.email", Op: "empty"},
 		}},
@@ -49,8 +58,13 @@ var builtins = []builtinDef{
 		Enabled:  true,
 	},
 	{
-		Key:      BuiltinRequestRating,
-		Trigger:  TriggerClosed,
+		Key:     BuiltinRequestRating,
+		Trigger: TriggerClosed,
+		Conditions: Condition{All: []Condition{
+			{Field: "channel.audience", Op: "eq", Value: string(channel.AudienceCustomer)},
+			{Field: "conversation.target_kind", Op: "eq", Value: "contact"},
+			{Field: "channel.supports_rating", Op: "eq", Value: true},
+		}},
 		Actions:  []Action{{Type: ActionRequestRating}},
 		Position: 10,
 		Enabled:  true,

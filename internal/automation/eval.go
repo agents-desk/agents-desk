@@ -18,6 +18,7 @@ import (
 // 保证队列重试时判断结果确定，也方便测试控制时间。
 type Fact struct {
 	db       bun.IDB
+	registry channel.Registry
 	TenantID string
 	Conv     *conversation.Conversation
 	At       time.Time
@@ -32,9 +33,13 @@ type Fact struct {
 	hoursSettings  hours.Settings
 }
 
-// NewFact 返回会话 conv 在时刻 at 的求值上下文。
-func NewFact(db bun.IDB, tenantID string, conv *conversation.Conversation, at time.Time) *Fact {
-	return &Fact{db: db, TenantID: tenantID, Conv: conv, At: at}
+// NewFact 返回会话 conv 在时刻 at 的求值上下文；可选传入连接器注册表以查询渠道能力。
+func NewFact(db bun.IDB, tenantID string, conv *conversation.Conversation, at time.Time, reg ...channel.Registry) *Fact {
+	var r channel.Registry
+	if len(reg) > 0 {
+		r = reg[0]
+	}
+	return &Fact{db: db, registry: r, TenantID: tenantID, Conv: conv, At: at}
 }
 
 // Contact 返回会话的联系人；会话没有联系人时返回 nil。
@@ -120,11 +125,50 @@ func (f *Fact) Field(ctx context.Context, name string) (any, error) {
 			return "", err
 		}
 		return string(ch.Kind), nil
+	case "channel.audience":
+		ch, err := f.Channel(ctx)
+		if err != nil {
+			return "", err
+		}
+		if ch != nil {
+			return string(ch.EffectiveAudience()), nil
+		}
+		if f.Conv.Audience != "" {
+			return string(f.Conv.Audience), nil
+		}
+		return string(channel.AudienceCustomer), nil
+	case "channel.supports_rating":
+		ch, err := f.Channel(ctx)
+		if err != nil || ch == nil {
+			return false, err
+		}
+		if f.registry != nil {
+			if conn, ok := f.registry[ch.Kind]; ok {
+				return conn.Capabilities().SupportsRating, nil
+			}
+		}
+		return ch.Kind == channel.Widget, nil
+	case "channel.supports_lead_form":
+		ch, err := f.Channel(ctx)
+		if err != nil || ch == nil {
+			return false, err
+		}
+		if f.registry != nil {
+			if conn, ok := f.registry[ch.Kind]; ok {
+				return conn.Capabilities().SupportsLeadForm, nil
+			}
+		}
+		return ch.Kind == channel.Widget, nil
 	case "channel.id":
 		if f.Conv.ChannelID == nil {
 			return "", nil
 		}
 		return *f.Conv.ChannelID, nil
+	case "conversation.target_kind":
+		if f.Conv.ExternalGroupID != nil && *f.Conv.ExternalGroupID != "" {
+			return "external_group", nil
+		}
+		return "contact", nil
 	case "conversation.language":
 		if c, err := f.Contact(ctx); err != nil {
 			return "", err

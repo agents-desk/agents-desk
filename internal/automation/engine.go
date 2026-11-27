@@ -14,6 +14,7 @@ import (
 	"github.com/go-tenon/tenon/lock"
 	"github.com/go-tenon/tenon/queue"
 
+	"agents-desk/internal/channel"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/hours"
 	"agents-desk/internal/tickettype"
@@ -32,6 +33,7 @@ const (
 type Runner struct {
 	db        *bun.DB
 	locker    *lock.Locker
+	registry  channel.Registry
 	sendMsg   *conversation.SendSystemMessage
 	reqRating *conversation.RequestRating
 }
@@ -41,6 +43,7 @@ func NewRunner(db *bun.DB, locker *lock.Locker, down conversation.Downstream) *R
 	return &Runner{
 		db:        db,
 		locker:    locker,
+		registry:  down.Registry,
 		sendMsg:   conversation.NewSendSystemMessage(db, down),
 		reqRating: conversation.NewRequestRating(db, down),
 	}
@@ -99,7 +102,7 @@ func (r *Runner) Handle(ctx context.Context, p conversation.Appended) error {
 		return errors.Wrap(err, "load conversation for automation")
 	}
 
-	fact := NewFact(r.db, p.TenantID, &conv, it.CreatedAt)
+	fact := NewFact(r.db, p.TenantID, &conv, it.CreatedAt, r.registry)
 	sys := identity.Subject{Type: identity.System, ID: "automation", Tenant: p.TenantID}
 	for _, rule := range rules {
 		done, err := r.alreadyExecuted(ctx, rule.ID, dedupKey)
@@ -134,12 +137,12 @@ func (r *Runner) Handle(ctx context.Context, p conversation.Appended) error {
 // 其他项（成员回复、内部备注、系统消息、其他事件）直接忽略，避免自触发循环。
 func classify(ctx context.Context, db bun.IDB, it *conversation.Item) (Trigger, string, bool, error) {
 	switch {
-	case it.Kind == conversation.Message && it.ActorType == conversation.ContactActor:
+	case it.Kind == conversation.Message && it.ActorType.IsExternal():
 		var hasEarlier bool
 		err := db.NewRaw(`SELECT EXISTS (
 			SELECT 1 FROM timeline_items
-			WHERE conversation_id = ? AND kind = ? AND actor_type = ? AND seq < ?
-		)`, it.ConversationID, conversation.Message, conversation.ContactActor, it.Seq).Scan(ctx, &hasEarlier)
+			WHERE conversation_id = ? AND kind = ? AND actor_type IN (?, ?) AND seq < ?
+		)`, it.ConversationID, conversation.Message, conversation.ContactActor, conversation.ExternalUserActor, it.Seq).Scan(ctx, &hasEarlier)
 		if err != nil {
 			return "", "", false, errors.Wrap(err, "check earlier contact message")
 		}
