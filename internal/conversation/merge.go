@@ -2,13 +2,16 @@ package conversation
 
 import (
 	"context"
+	"database/sql"
 	"log/slog"
 	"maps"
 	"slices"
 	"sort"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect/pgdialect"
 
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/identity"
@@ -181,6 +184,7 @@ func mergePair(ctx context.Context, tx database.Tx, down Downstream, sub identit
 
 	// 2. 先将现有条目的 seq 平移到大偏移段，避开 (conversation_id, seq) 唯一约束冲突，再按归并顺序写回 1..N
 	const seqOffset int64 = 1_000_000_000
+	const seqBatchSize = 2000
 	if _, err := tx.NewRaw(
 		`UPDATE timeline_items SET seq = seq + ? WHERE tenant_id = ? AND conversation_id IN (?)`,
 		seqOffset, sub.Tenant, bun.In([]string{target.ID, source.ID}),
@@ -189,21 +193,13 @@ func mergePair(ctx context.Context, tx database.Tx, down Downstream, sub identit
 	}
 	var syncIDs []string
 	var latestContactChannelID *string
+	itemIDs := make([]string, len(allItems))
+	newSeqs := make([]int64, len(allItems))
 	for i := range allItems {
 		newSeq := int64(i + 1)
 		it := &allItems[i]
-		if _, err := tx.NewRaw(
-			`UPDATE timeline_items SET conversation_id = ?, seq = ? WHERE id = ?`,
-			target.ID, newSeq, it.ID,
-		).Exec(ctx); err != nil {
-			return nil, errors.Wrap(err, "renumber merged timeline item")
-		}
-		if _, err := tx.NewRaw(
-			`UPDATE conversation_mentions SET conversation_id = ?, seq = ? WHERE item_id = ?`,
-			target.ID, newSeq, it.ID,
-		).Exec(ctx); err != nil {
-			return nil, errors.Wrap(err, "update merged mention seq")
-		}
+		itemIDs[i] = it.ID
+		newSeqs[i] = newSeq
 		if it.Searchable() {
 			syncIDs = append(syncIDs, it.ID)
 		}
@@ -212,9 +208,32 @@ func mergePair(ctx context.Context, tx database.Tx, down Downstream, sub identit
 			latestContactChannelID = &chID
 		}
 	}
+	for start := 0; start < len(itemIDs); start += seqBatchSize {
+		end := min(start+seqBatchSize, len(itemIDs))
+		batchIDs := itemIDs[start:end]
+		batchSeqs := newSeqs[start:end]
+		if _, err := tx.NewRaw(
+			`UPDATE timeline_items AS t
+			 SET conversation_id = ?, seq = m.new_seq
+			 FROM unnest(?::text[], ?::bigint[]) AS m(id, new_seq)
+			 WHERE t.id = m.id::uuid AND t.tenant_id = ?`,
+			target.ID, pgdialect.Array(batchIDs), pgdialect.Array(batchSeqs), sub.Tenant,
+		).Exec(ctx); err != nil {
+			return nil, errors.Wrap(err, "renumber merged timeline items")
+		}
+		if _, err := tx.NewRaw(
+			`UPDATE conversation_mentions AS cm
+			 SET conversation_id = ?, seq = m.new_seq
+			 FROM unnest(?::text[], ?::bigint[]) AS m(id, new_seq)
+			 WHERE cm.item_id = m.id::uuid AND cm.tenant_id = ?`,
+			target.ID, pgdialect.Array(batchIDs), pgdialect.Array(batchSeqs), sub.Tenant,
+		).Exec(ctx); err != nil {
+			return nil, errors.Wrap(err, "update merged mention seqs")
+		}
+	}
 	target.LastSeq = int64(len(allItems))
 
-	// 3. 合并参与者、会话标签与工单来源会话引用（ticket_targets）
+	// 3. 合并参与者、会话标签、工单关联、修订/撤回/更正记录、服务轮次与 AI/自动化记录
 	if _, err := tx.NewRaw(
 		`INSERT INTO conversation_participants (id, created_at, updated_at, conversation_id, participant_type, participant_id)
 		 SELECT gen_random_uuid(), created_at, updated_at, ?, participant_type, participant_id
@@ -235,11 +254,12 @@ func mergePair(ctx context.Context, tx database.Tx, down Downstream, sub identit
 	).Exec(ctx); err != nil {
 		return nil, errors.Wrap(err, "merge conversation tags")
 	}
-	// 更新工单来源会话引用，指向合并后的目标服务型会话
+	at := now()
+	// 更新工单来源会话引用，保留来源会话关联工单。
 	if _, err := tx.NewRaw(
 		`UPDATE ticket_targets SET source_conversation_id = ?, updated_at = ?
 		 WHERE tenant_id = ? AND source_conversation_id = ?`,
-		target.ID, now(), sub.Tenant, source.ID,
+		target.ID, at, sub.Tenant, source.ID,
 	).Exec(ctx); err != nil {
 		return nil, errors.Wrap(err, "migrate merged ticket source conversations")
 	}
@@ -248,6 +268,33 @@ func mergePair(ctx context.Context, tx database.Tx, down Downstream, sub identit
 		target.ID, sub.Tenant, source.ID,
 	).Exec(ctx); err != nil {
 		return nil, errors.Wrap(err, "migrate merged message corrections")
+	}
+	if _, err := tx.NewRaw(
+		`UPDATE message_revisions SET conversation_id = ? WHERE tenant_id = ? AND conversation_id = ?`,
+		target.ID, sub.Tenant, source.ID,
+	).Exec(ctx); err != nil {
+		return nil, errors.Wrap(err, "migrate merged message revisions")
+	}
+	if _, err := tx.NewRaw(
+		`UPDATE message_recalls SET conversation_id = ? WHERE tenant_id = ? AND conversation_id = ?`,
+		target.ID, sub.Tenant, source.ID,
+	).Exec(ctx); err != nil {
+		return nil, errors.Wrap(err, "migrate merged message recalls")
+	}
+	if err := mergeRounds(ctx, tx, sub.Tenant, target.ID, source.ID, at); err != nil {
+		return nil, err
+	}
+	if _, err := tx.NewRaw(
+		`UPDATE generations SET conversation_id = ? WHERE tenant_id = ? AND conversation_id = ?`,
+		target.ID, sub.Tenant, source.ID,
+	).Exec(ctx); err != nil {
+		return nil, errors.Wrap(err, "migrate merged generations")
+	}
+	if _, err := tx.NewRaw(
+		`UPDATE automation_runs SET conversation_id = ? WHERE tenant_id = ? AND conversation_id = ?`,
+		target.ID, sub.Tenant, source.ID,
+	).Exec(ctx); err != nil {
+		return nil, errors.Wrap(err, "migrate merged automation runs")
 	}
 
 	// 4. 合并已读进度：只有成员在合并前已读完源和目标两个会话全部内容时，合并后才视为已读到最新，否则保留未读提醒
@@ -269,7 +316,6 @@ func mergePair(ctx context.Context, tx database.Tx, down Downstream, sub identit
 		}
 		byMember[r.MemberID][r.ConversationID] = r.LastReadSeq
 	}
-	at := now()
 	for memberID, m := range byMember {
 		tRead := m[target.ID]
 		sRead := m[source.ID]
@@ -432,4 +478,49 @@ func mergePair(ctx context.Context, tx database.Tx, down Downstream, sub identit
 	slog.InfoContext(ctx, "merged conversations",
 		"tenant_id", target.TenantID, "target_id", target.ID, "source_id", source.ID, "moved_items", movedItems)
 	return target, nil
+}
+
+// mergeRounds 将源会话的服务轮次并入目标会话并重编号，避免删除源会话时丢失历史 FRT 与 CSAT 报表数据，同时保证最多一条未关闭轮次。
+func mergeRounds(ctx context.Context, tx database.Tx, tenantID, targetID, sourceID string, at time.Time) error {
+	var targetOpen, sourceOpen Round
+	errT := tx.NewSelect().Model(&targetOpen).
+		Where("tenant_id = ? AND conversation_id = ? AND closed_at IS NULL", tenantID, targetID).
+		OrderExpr("round DESC").Limit(1).Scan(ctx)
+	if errT != nil && !errors.Is(errT, sql.ErrNoRows) {
+		return errors.Wrap(errT, "load target open round for merge")
+	}
+	errS := tx.NewSelect().Model(&sourceOpen).
+		Where("tenant_id = ? AND conversation_id = ? AND closed_at IS NULL", tenantID, sourceID).
+		OrderExpr("round DESC").Limit(1).Scan(ctx)
+	if errS != nil && !errors.Is(errS, sql.ErrNoRows) {
+		return errors.Wrap(errS, "load source open round for merge")
+	}
+	if errT == nil && errS == nil {
+		if sourceOpen.OpenedAt.Before(targetOpen.OpenedAt) {
+			targetOpen.OpenedAt = sourceOpen.OpenedAt
+		}
+		if sourceOpen.FirstReplyAt != nil && (targetOpen.FirstReplyAt == nil || sourceOpen.FirstReplyAt.Before(*targetOpen.FirstReplyAt)) {
+			targetOpen.FirstReplyAt = sourceOpen.FirstReplyAt
+			targetOpen.FirstReplyByType = sourceOpen.FirstReplyByType
+			targetOpen.FirstReplyByID = sourceOpen.FirstReplyByID
+		}
+		targetOpen.UpdatedAt = at
+		if _, err := tx.NewUpdate().Model(&targetOpen).
+			Column("opened_at", "first_reply_at", "first_reply_by_type", "first_reply_by_id", "updated_at").
+			WherePK().Exec(ctx); err != nil {
+			return errors.Wrap(err, "merge open conversation round")
+		}
+		if _, err := tx.NewDelete().Model((*Round)(nil)).Where("id = ?", sourceOpen.ID).Exec(ctx); err != nil {
+			return errors.Wrap(err, "delete duplicate open source round")
+		}
+	}
+	var maxRound int
+	if err := tx.NewRaw("SELECT coalesce(max(round), 0) FROM conversation_rounds WHERE conversation_id = ?", targetID).Scan(ctx, &maxRound); err != nil {
+		return errors.Wrap(err, "query max target round")
+	}
+	_, err := tx.NewRaw(
+		`UPDATE conversation_rounds SET conversation_id = ?, round = round + ?, updated_at = ? WHERE tenant_id = ? AND conversation_id = ?`,
+		targetID, maxRound, at, tenantID, sourceID,
+	).Exec(ctx)
+	return errors.Wrap(err, "migrate merged conversation rounds")
 }

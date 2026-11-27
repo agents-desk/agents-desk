@@ -4,6 +4,9 @@ http:
   addr: ":8081"
   # 应用对外的地址：生成工作区的地址、聊天插件的嵌入代码等链接时使用。
   public_url: ${APP_URL:-http://localhost:8081}
+  drain_delay: ${HTTP_DRAIN_DELAY:-8s}
+  read_timeout: ${HTTP_READ_TIMEOUT:-120s}
+  write_timeout: ${HTTP_WRITE_TIMEOUT:-60s}
 
 # 日志级别默认 info；输出到终端时为文本格式，写入容器或文件时为 JSON。
 logs:
@@ -27,6 +30,11 @@ telemetry:
 # 本机开发复用共享常驻 PostgreSQL，通过 .env 中的 DATABASE_URL 指定项目或 worktree 的独立数据库。
 database:
   dsn: ${DATABASE_URL:-postgres://postgres:postgres@127.0.0.1:5432/agents_desk?sslmode=disable}
+  max_conns: ${DB_MAX_CONNS:-25}
+  slow_query: ${DB_SLOW_QUERY:-500ms}
+
+# 可选：只读排障数据库连接串（建议使用 pg_read_all_data 角色），供 /ops/mcp 只读排障查询。
+ops_dsn: ${OPS_DSN:-}
 
 # 本机开发复用共享常驻 NATS（开启 JetStream），通过 .env 中的 NATS_URL 覆盖。
 nats:
@@ -35,6 +43,7 @@ nats:
 # 队列 stream 区分共用一套 NATS 的应用与 worktree，可通过 .env 中的 QUEUE_STREAM 覆盖。
 queue:
   stream: ${QUEUE_STREAM:-agents_desk_jobs}
+  replicas: ${QUEUE_REPLICAS:-1}
 
 # 应用密钥：32 字节随机数的 base64（openssl rand -base64 32），必填：生产环境用环境变量 APP_KEY，本机写在 config/local.yaml。
 # 它派生登录验证码的密钥，加密保存聊天插件的身份验证密钥，以后也用于签名链接。

@@ -156,6 +156,10 @@ func (a *StartSession) Handle(ctx context.Context, b SessionBody, device apitoke
 				var id contact.Identity
 				err := tx.NewSelect().Model(&id).Where("channel_id = ? AND external_id = ?", ch.ID, visitorPrefix+b.VisitorID).Scan(ctx)
 				if err == nil && id.ContactID != person.ID {
+					// 按 contacts -> conversations 全局锁序先锁定双方联系人，再归并双活会话。
+					if err := contact.LockPair(ctx, tx, ch.TenantID, person.ID, id.ContactID); err != nil {
+						return err
+					}
 					sys := identity.Subject{Type: identity.System, ID: "widget:" + ch.ID, Tenant: ch.TenantID}
 					if err := conversation.MergeActiveBetweenContacts(ctx, tx, a.down, sys, person.ID, id.ContactID); err != nil {
 						return err

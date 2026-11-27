@@ -71,8 +71,22 @@ func (r summaryRow) summary() Summary {
 	return Summary{Count: r.Count, Waiting: r.Waiting, OldestWaitingSince: r.Oldest}
 }
 
+// viewOnlyOpen 报告已保存视图是否仅筛选处于 open 状态的会话。
+func viewOnlyOpen(f Filter) bool {
+	if len(f.Statuses) == 0 {
+		return false
+	}
+	for _, s := range f.Statuses {
+		if s != Open {
+			return false
+		}
+	}
+	return true
+}
+
 // Handle 返回 sub 在他所在工作区中的收件箱列表：我的、@我、未指派、全部、团队收件箱与已保存视图，各自的数量和积压情况。
-// 数量只算 sub 能看到的服务型会话（visible）；内置列表与全部可见视图合并在单条聚合 SQL 中一次扫描算出。
+// 数量只算 sub 能看到的服务型会话（visible）；内置列表与仅看 open 的视图合并在主聚合中走 open 索引，
+// 包含非 open 状态的视图按所需状态并集在扩展聚合中统计，避免默认扫描全量已关闭历史会话。
 func (a *GetInbox) Handle(ctx context.Context, sub identity.Subject) (*InboxDTO, error) {
 	if err := authorize(sub, auth.ConversationsRead); err != nil {
 		return nil, err
@@ -94,74 +108,122 @@ func (a *GetInbox) Handle(ctx context.Context, sub identity.Subject) (*InboxDTO,
 		}
 	}
 
-	// 单次聚合扫描：在 sub 可见的服务型会话子集上，通过 FILTER (WHERE ...) 一次算出 4 个内置列表与全部可见视图的计数。
 	type metric struct {
 		countExpr string
 		countArgs []any
 		openExpr  string
 		openArgs  []any
+		targetIdx int // 0..3 为内置列表，4+ 为对应 views[targetIdx-4]
 	}
-	metrics := make([]metric, 0, 4+len(views))
-	addOpen := func(cond string, args ...any) {
-		expr := "conversation.status = ?"
-		a := []any{Open}
-		if cond != "" {
-			expr = "(" + expr + " AND " + cond + ")"
-			a = append(a, args...)
-		}
-		metrics = append(metrics, metric{countExpr: expr, countArgs: a, openExpr: expr, openArgs: a})
-	}
-	addOpen("conversation.assignee_type = ? AND conversation.assignee_id = ?", MemberActor, sub.ID)
-	addOpen("conversation.id IN (SELECT conversation_id FROM conversation_mentions WHERE tenant_id = ? AND member_id = ?)", sub.Tenant, sub.ID)
-	addOpen("conversation.team_id IS NULL AND conversation.assignee_type = ''")
-	addOpen("")
 
+	openMetrics := make([]metric, 0, 4+len(views))
+	addOpenBuiltin := func(targetIdx int, cond string, args ...any) {
+		expr := "1=1"
+		if cond != "" {
+			expr = cond
+		}
+		openMetrics = append(openMetrics, metric{countExpr: expr, countArgs: args, openExpr: expr, openArgs: args, targetIdx: targetIdx})
+	}
+	addOpenBuiltin(0, "conversation.assignee_type = ? AND conversation.assignee_id = ?", MemberActor, sub.ID)
+	addOpenBuiltin(1, "conversation.id IN (SELECT conversation_id FROM conversation_mentions WHERE tenant_id = ? AND member_id = ?)", sub.Tenant, sub.ID)
+	addOpenBuiltin(2, "conversation.team_id IS NULL AND conversation.assignee_type = ''")
+	addOpenBuiltin(3, "")
+
+	extMetrics := make([]metric, 0, len(views))
+	extUnbounded := false
+	statusSeen := map[Status]bool{}
 	for i := range views {
 		pred, args := buildFilterPredicate(sub, views[i].Config.Filter, attrDefs)
+		if viewOnlyOpen(views[i].Config.Filter) {
+			openMetrics = append(openMetrics, metric{
+				countExpr: pred,
+				countArgs: args,
+				openExpr:  pred,
+				openArgs:  args,
+				targetIdx: 4 + i,
+			})
+			continue
+		}
 		openArgs := make([]any, 0, len(args)+1)
 		openArgs = append(openArgs, args...)
 		openArgs = append(openArgs, Open)
-		metrics = append(metrics, metric{
+		extMetrics = append(extMetrics, metric{
 			countExpr: pred,
 			countArgs: args,
 			openExpr:  "(" + pred + " AND conversation.status = ?)",
 			openArgs:  openArgs,
+			targetIdx: 4 + i,
 		})
-	}
-
-	agg := a.db.NewSelect().TableExpr("conversations AS conversation").
-		Where("conversation.tenant_id = ? AND conversation.kind = ?", sub.Tenant, Service)
-	agg = visible(agg, sub)
-
-	counts := make([]int, len(metrics))
-	waitings := make([]int, len(metrics))
-	oldests := make([]sql.NullTime, len(metrics))
-	dest := make([]any, 0, len(metrics)*3)
-	for i, m := range metrics {
-		agg = agg.
-			ColumnExpr("count(*) FILTER (WHERE "+m.countExpr+")", m.countArgs...).
-			ColumnExpr("count(*) FILTER (WHERE "+m.openExpr+" AND conversation.waiting_since IS NOT NULL)", m.openArgs...).
-			ColumnExpr("min(conversation.waiting_since) FILTER (WHERE "+m.openExpr+")", m.openArgs...)
-		dest = append(dest, &counts[i], &waitings[i], &oldests[i])
-	}
-	if err := agg.Scan(ctx, dest...); err != nil {
-		return nil, errors.Wrap(err, "count inbox")
-	}
-
-	summaryAt := func(i int) Summary {
-		var oldest *time.Time
-		if oldests[i].Valid {
-			t := oldests[i].Time
-			oldest = &t
+		if len(views[i].Config.Filter.Statuses) == 0 {
+			extUnbounded = true
+		} else {
+			for _, st := range views[i].Config.Filter.Statuses {
+				statusSeen[st] = true
+			}
 		}
-		return Summary{Count: counts[i], Waiting: waitings[i], OldestWaitingSince: oldest}
+	}
+
+	summaries := make([]Summary, 4+len(views))
+	runAgg := func(items []metric, statuses []Status) error {
+		if len(items) == 0 {
+			return nil
+		}
+		agg := a.db.NewSelect().TableExpr("conversations AS conversation").
+			Where("conversation.tenant_id = ? AND conversation.kind = ?", sub.Tenant, Service)
+		if len(statuses) == 1 {
+			agg = agg.Where("conversation.status = ?", statuses[0])
+		} else if len(statuses) > 1 {
+			agg = agg.Where("conversation.status IN (?)", bun.In(statuses))
+		}
+		agg = visible(agg, sub)
+
+		counts := make([]int, len(items))
+		waitings := make([]int, len(items))
+		oldests := make([]sql.NullTime, len(items))
+		dest := make([]any, 0, len(items)*3)
+		for idx, m := range items {
+			agg = agg.
+				ColumnExpr("count(*) FILTER (WHERE "+m.countExpr+")", m.countArgs...).
+				ColumnExpr("count(*) FILTER (WHERE "+m.openExpr+" AND conversation.waiting_since IS NOT NULL)", m.openArgs...).
+				ColumnExpr("min(conversation.waiting_since) FILTER (WHERE "+m.openExpr+")", m.openArgs...)
+			dest = append(dest, &counts[idx], &waitings[idx], &oldests[idx])
+		}
+		if err := agg.Scan(ctx, dest...); err != nil {
+			return errors.Wrap(err, "count inbox")
+		}
+		for idx, m := range items {
+			var oldest *time.Time
+			if oldests[idx].Valid {
+				t := oldests[idx].Time
+				oldest = &t
+			}
+			summaries[m.targetIdx] = Summary{Count: counts[idx], Waiting: waitings[idx], OldestWaitingSince: oldest}
+		}
+		return nil
+	}
+
+	// 1. 主聚合固定限定 status = open，仅扫描打开状态的服务型会话
+	if err := runAgg(openMetrics, []Status{Open}); err != nil {
+		return nil, err
+	}
+	// 2. 扩展聚合仅在存在不限于 open 的视图时运行，并尽量按状态并集缩小扫描范围
+	if len(extMetrics) > 0 {
+		var statusUnion []Status
+		if !extUnbounded {
+			for st := range statusSeen {
+				statusUnion = append(statusUnion, st)
+			}
+		}
+		if err := runAgg(extMetrics, statusUnion); err != nil {
+			return nil, err
+		}
 	}
 
 	var out InboxDTO
-	out.Mine = summaryAt(0)
-	out.Mentions = summaryAt(1)
-	out.Unassigned = summaryAt(2)
-	out.All = summaryAt(3)
+	out.Mine = summaries[0]
+	out.Mentions = summaries[1]
+	out.Unassigned = summaries[2]
+	out.All = summaries[3]
 
 	out.Views = make([]ViewSummary, len(views))
 	for i, v := range views {
@@ -173,7 +235,7 @@ func (a *GetInbox) Handle(ctx context.Context, sub identity.Subject) (*InboxDTO,
 			Config:   dto.Config,
 			Position: dto.Position,
 			Editable: dto.Editable,
-			Summary:  summaryAt(4 + i),
+			Summary:  summaries[4+i],
 		}
 	}
 

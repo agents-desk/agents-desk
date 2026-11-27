@@ -287,6 +287,14 @@ func EvictCachedMedia(ctx context.Context, db *bun.DB, files *filesystem.Service
 			if n, _ := res.RowsAffected(); n == 0 {
 				return nil
 			}
+			stillReferenced, err := tx.NewSelect().Model((*Attachment)(nil)).
+				Where("file_id = ? OR thumb_file_id = ?", fid, fid).Exists(ctx)
+			if err != nil {
+				return errors.Wrap(err, "check shared attachment file reference")
+			}
+			if stillReferenced {
+				return nil
+			}
 			return files.WithDB(tx).Delete(ctx, fid)
 		}); err != nil {
 			return evicted, err

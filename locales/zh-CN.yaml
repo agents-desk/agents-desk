@@ -532,6 +532,8 @@ schedule.task.notifications_cleanup.label: 清理历史站内通知
 schedule.task.notifications_cleanup.description: 删除 90 天前的站内通知
 schedule.task.operations_cleanup.label: 清理历史后台操作
 schedule.task.operations_cleanup.description: 删除 30 天前的后台操作与导出记录
+schedule.task.llm_prune_calls.label: 清理历史模型调用日志
+schedule.task.llm_prune_calls.description: 删除 90 天前的模型网关调用请求与用量记录
 schedule.task.conversations_unsnooze.label: 唤醒到期稍后处理会话
 schedule.task.conversations_unsnooze.description: 重新打开稍后处理到期的会话
 schedule.task.generations_expire.label: 清理超时的 AI 生成

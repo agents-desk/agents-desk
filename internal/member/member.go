@@ -102,6 +102,31 @@ func Email(ctx context.Context, logins *login.Realm, ref identity.Ref) (string, 
 	return "", nil
 }
 
+// Emails 按成员 ID 列表批量读取成员主邮箱（用于后台批量导出等场景，避免 N+1 查询）。
+func Emails(ctx context.Context, db bun.IDB, memberIDs []string) (map[string]string, error) {
+	out := make(map[string]string, len(memberIDs))
+	if len(memberIDs) == 0 {
+		return out, nil
+	}
+	var rows []struct {
+		SubjectID string `bun:"subject_id"`
+		Value     string `bun:"value"`
+	}
+	if err := db.NewSelect().Table("auth_identifiers").
+		Column("subject_id", "value").
+		Where("subject_type = ? AND kind = ? AND subject_id IN (?)", Type, login.KindEmail, bun.In(memberIDs)).
+		OrderExpr("created_at ASC, value ASC").
+		Scan(ctx, &rows); err != nil {
+		return nil, errors.Wrap(err, "batch load member emails")
+	}
+	for _, r := range rows {
+		if _, exists := out[r.SubjectID]; !exists {
+			out[r.SubjectID] = r.Value
+		}
+	}
+	return out, nil
+}
+
 // Account 是按邮箱指定的成员账号：邮箱已有账号时使用它，Name、Password 和语言参数不使用；没有时用它们创建新账号。
 type Account struct {
 	Email      string
