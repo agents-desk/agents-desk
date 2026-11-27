@@ -13,7 +13,7 @@ import (
 type ListItem struct {
 	ID            string   `json:"id"`
 	Kind          Kind     `json:"kind"`
-	Audience      Audience `json:"audience" doc:"渠道服务对象域：customer（外部客户）、partner（合作商家/商务）或 internal（内部员工）"`
+	Audience      Audience `json:"audience" doc:"渠道服务对象域：customer（外部客户）、partner（商务）或 internal（内部员工）"`
 	Name          string   `json:"name"`
 	TeamID        *string  `json:"team_id,omitempty" doc:"默认进入的团队收件箱 ID"`
 	OwnerMemberID *string  `json:"owner_member_id,omitempty" doc:"个人商务渠道所属的成员 ID；公共渠道为空"`

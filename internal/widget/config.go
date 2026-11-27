@@ -25,7 +25,7 @@ type PublicOwnerCard struct {
 	Status    member.Status `json:"status" doc:"对接人当前在线状态：online 或 away"`
 }
 
-// PublicBusinessConfig 是网页商务沟通链接暴露给外部合作方的公开配置（所有文本字段已按请求语言解析完毕）。
+// PublicBusinessConfig 是网页商务沟通链接暴露给外部联系人的公开配置（所有文本字段已按请求语言解析完毕）。
 type PublicBusinessConfig struct {
 	Owner            *PublicOwnerCard     `json:"owner,omitempty" doc:"开启名片展示时的对接人名片"`
 	AwayMessage      string               `json:"away_message,omitempty" doc:"对接人处于离开状态时的提示语"`
@@ -58,7 +58,7 @@ type ConfigOutput struct {
 	Body ConfigDTO
 }
 
-// GetConfig 读取客户或外部合作方在用的网页聊天渠道的公开设置，公开接口无需登录。
+// GetConfig 读取客户或商务联系人在用的网页聊天渠道的公开设置，公开接口无需登录。
 type GetConfig struct {
 	db             *bun.DB
 	files          *filesystem.Service

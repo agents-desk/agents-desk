@@ -1,8 +1,8 @@
-// 商务沟通报表：聚焦对外商务渠道（个人网页商务链接与 Telegram 个人号）的活跃度、收发消息量与商务成员拆解。
+// 商务报表：整合个人商务渠道沟通（网页链接与 Telegram 个人号）及商务 Telegram 机器人/商务群服务（请求量与响应时效）三个切面。
 
 import type { MemberStatus } from "@agents-desk/client/tenant"
 import { AreaChart } from "@mantine/charts"
-import { Avatar, Badge, Button, Group, Progress, Select, SimpleGrid, Skeleton, Stack, Text } from "@mantine/core"
+import { Avatar, Badge, Button, Group, Progress, SegmentedControl, Select, SimpleGrid, Skeleton, Stack, Text } from "@mantine/core"
 import { IconX } from "@tabler/icons-react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
@@ -12,15 +12,77 @@ import { kit } from "../api"
 import { languageName } from "../languages"
 import { StatusBadge } from "../status"
 import { InlineShareBar, REPORT_AREA_PROPS } from "./Breakdown"
+import { ConversationsPage } from "./ConversationsPage"
 import { formatInt, pctDelta } from "./format"
 import { type MetricItem, MetricStrip } from "./MetricStrip"
 import { GranularityControl } from "./PeriodButton"
 import { ReportShell } from "./ReportShell"
+import { ResponseTimePage } from "./ResponseTimePage"
 import type { BusinessReportSearchParams } from "./search"
 import { ReportEmpty, SectionCard } from "./SectionCard"
 
-/** 商务沟通报表页面组件。 */
+type BusinessTab = "chat" | "volume" | "response"
+
+/** 商务报表统一入口，按 Tab 切换商务沟通、商务服务请求量与服务响应时效。 */
 export function BusinessPage({ route }: { route: PeriodRoute }): ReactNode {
+  const t = useT()
+  const navigate = useNavigate()
+  const search = route.useSearch() as BusinessReportSearchParams
+  const tab: BusinessTab = search.tab ?? "chat"
+
+  const setTab = (next: string) => {
+    void navigate({
+      to: ".",
+      search: ((prev: Record<string, unknown>) => {
+        const out: Record<string, unknown> = { ...prev }
+        if (next === "chat") {
+          delete out.tab
+          delete out.team_id
+          delete out.channel_id
+        } else {
+          out.tab = next
+          delete out.channel_kind
+          delete out.owner_id
+        }
+        return out
+      }) as never,
+      replace: true,
+    })
+  }
+
+  const switcher = (
+    <SegmentedControl
+      size="xs"
+      value={tab}
+      onChange={setTab}
+      data={[
+        { value: "chat", label: t("reports.biz_tab_chats") },
+        { value: "volume", label: t("reports.biz_tab_requests") },
+        { value: "response", label: t("reports.biz_tab_response") },
+      ]}
+    />
+  )
+
+  const title = t("nav.reports_business")
+  if (tab === "volume") {
+    return <ConversationsPage route={route} audience="partner" title={title} toolbarRight={switcher} />
+  }
+  if (tab === "response") {
+    return <ResponseTimePage route={route} audience="partner" title={title} toolbarRight={switcher} />
+  }
+  return <BusinessChatsTab route={route} title={title} toolbarRight={switcher} />
+}
+
+/** 商务沟通切面，展示个人网页商务链接与 Telegram 个人号的活跃度、收发消息量与成员拆解。 */
+function BusinessChatsTab({
+  route,
+  title,
+  toolbarRight,
+}: {
+  route: PeriodRoute
+  title: ReactNode
+  toolbarRight: ReactNode
+}): ReactNode {
   const t = useT()
   const uiLang = useLanguage()
   const navigate = useNavigate()
@@ -162,9 +224,10 @@ export function BusinessPage({ route }: { route: PeriodRoute }): ReactNode {
 
   return (
     <ReportShell
-      title={t("nav.reports_business")}
+      title={title}
       period={period}
       toolbarExtra={toolbarExtra}
+      toolbarRight={toolbarRight}
       meta={data?.period}
       error={query.error}
       updating={pageState.busy}

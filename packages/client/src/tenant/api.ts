@@ -218,7 +218,7 @@ export interface ChannelExternalMention {
 export type ChannelKind = "test" | "widget" | "telegram" | "wecom" | "business_link" | "telegram_account"
 
 export interface ChannelListItem {
-  /** 渠道服务对象域：customer（外部客户）、partner（合作商家/商务）或 internal（内部员工） */
+  /** 渠道服务对象域：customer（外部客户）、partner（商务）或 internal（内部员工） */
   audience: ChannelAudience
   /** 渠道是否启用 */
   enabled: boolean
@@ -1985,11 +1985,11 @@ export interface ReportOverviewLive {
   internal_waiting: number
   /** 当前在线的工作区成员数 */
   online_members: number
-  /** 当前打开的合作方服务会话数 */
+  /** 当前打开的商务服务会话数 */
   partner_open: number
-  /** 当前未关闭且无负责人的合作方服务会话数 */
+  /** 当前未关闭且无负责人的商务服务会话数 */
   partner_unassigned: number
-  /** 当前等待回复的合作方服务会话数 */
+  /** 当前等待回复的商务服务会话数 */
   partner_waiting: number
   /** 当前打开的对外客服会话数 */
   service_open: number
@@ -2312,7 +2312,7 @@ export interface ReportTranslationSceneBreakdown {
   calls: number
   cost_usd: number
   failed_calls: number
-  /** 业务场景：service（客服）、internal_service（内部服务）、ticket（工单）、business（商务沟通）、internal_chat（内部聊天）、other（其他） */
+  /** 业务场景：service（客服）、partner_service（商务服务）、internal_service（内部服务）、ticket（工单）、business（商务沟通）、internal_chat（内部聊天）、other（其他） */
   scene: string
   success_rate?: number
   total_tokens: number
@@ -2440,7 +2440,7 @@ export interface TeamMember {
 export type TeamStatus = "active" | "disabled"
 
 export interface TelegramCreateBody {
-  /** 服务对象类型：customer（外部客户，默认）、partner（合作商家）或 internal（内部员工） */
+  /** 服务对象类型：customer（外部客户，默认）、partner（商务）或 internal（内部员工） */
   audience?: ChannelAudience
   /** 从 @BotFather 获取的 Bot Token */
   bot_token: string
@@ -2454,7 +2454,7 @@ export interface TelegramCreateBody {
 }
 
 export interface TelegramDTO {
-  /** 服务对象类型：customer（外部客户）、partner（合作商家）或 internal（内部员工） */
+  /** 服务对象类型：customer（外部客户）、partner（商务）或 internal（内部员工） */
   audience: ChannelAudience
   /** Telegram 机器人的用户名（不含 @） */
   bot_username: string
@@ -2487,7 +2487,7 @@ export interface TelegramInstallationDTO {
 }
 
 export interface TelegramUpdateBody {
-  /** 服务对象类型：customer（外部客户）、partner（合作商家）或 internal（内部员工） */
+  /** 服务对象类型：customer（外部客户）、partner（商务）或 internal（内部员工） */
   audience?: ChannelAudience
   /** 新的 Bot Token；留空则保持原 Token 不变 */
   bot_token?: string
@@ -2676,7 +2676,7 @@ export interface TgaccountSyncConfig {
   group_mode: "all" | "mentions_only"
   /** 同步范围模式：whitelist（精细白名单）或 folders（按 Telegram 文件夹） */
   mode: "whitelist" | "folders"
-  /** 是否同步合作方发来的图片与文档附件 */
+  /** 是否同步对方发来的图片与文档附件 */
   sync_media: boolean
   /** 是否同步自己在手机/桌面 Telegram 客户端发出的消息 */
   sync_outgoing: boolean
@@ -2949,7 +2949,7 @@ export interface WidgetBusinessLinkDTO {
   business: ChannelBusinessPolicy
   /** 对外商务名片展示开关 */
   card: WidgetBusinessCardConfig
-  /** 发给外部合作方直接打开的短链地址（/c/{code}） */
+  /** 发给外部联系人直接打开的短链地址（/c/{code}） */
   chat_url: string
   created_at: string
   /** 是否启用；停用后对方无法继续打开或发消息 */

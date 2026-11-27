@@ -1,5 +1,5 @@
 // Package telegram 是 Telegram 机器人渠道（HTTP Webhook 接入），渠道种类为 channel.Telegram。
-// 同时支持外部客户服务（audience=customer）、合作方服务（audience=partner）与内部员工服务（audience=internal），以及 1:1 私聊与群内 @ 机器人/命令。
+// 同时支持外部客户服务（audience=customer）、商务服务（audience=partner）与内部员工服务（audience=internal），以及 1:1 私聊与群内 @ 机器人/命令。
 //
 // 管理员在工作区设置中填入 Bot Token 创建渠道，支持两种接入模式：
 //   - 直连模式（默认）：创建、启用或轮换密钥时自动调用 Telegram setWebhook 指向本系统的 /webhooks/telegram/{id}，停用时调用 deleteWebhook；

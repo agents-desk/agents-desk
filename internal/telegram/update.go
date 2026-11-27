@@ -20,7 +20,7 @@ import (
 // UpdateBody 是修改 Telegram 机器人渠道的请求体；BotToken 留空表示保持原有 Token 不变。
 type UpdateBody struct {
 	Name           string           `json:"name" minLength:"1" maxLength:"60"`
-	Audience       channel.Audience `json:"audience,omitempty" doc:"服务对象类型：customer（外部客户）、partner（合作商家）或 internal（内部员工）"`
+	Audience       channel.Audience `json:"audience,omitempty" doc:"服务对象类型：customer（外部客户）、partner（商务）或 internal（内部员工）"`
 	TeamID         *string          `json:"team_id,omitempty" format:"uuid" doc:"新会话进入的团队收件箱；不填时进入未指派"`
 	BotToken       string           `json:"bot_token,omitempty" maxLength:"256" format:"password" doc:"新的 Bot Token；留空则保持原 Token 不变"`
 	GatewayManaged bool             `json:"gateway_managed" doc:"开启后由外部业务网关转发 Webhook，系统不自动调用 setWebhook"`

@@ -13,7 +13,7 @@ import (
 // SupportedLanguages 是网页聊天窗口内置的界面语种列表，与前端 apps/widget/src/i18n.ts 严格一致；第一项为全局回退语言。
 var SupportedLanguages = []string{"en", "zh-CN", "zh-TW", "hi", "hi-Latn"}
 
-// LocalizedCopy 是单一语言下渠道面向访客或外部合作方展示的全部自定义文案。
+// LocalizedCopy 是单一语言下渠道面向访客或商务联系人展示的全部自定义文案。
 type LocalizedCopy struct {
 	Title        string   `json:"title,omitempty" maxLength:"60" doc:"对外窗口标题；为空时回退渠道内部名称"`
 	Greeting     string   `json:"greeting,omitempty" maxLength:"500" doc:"聊天窗口顶部的欢迎问候语；为空时显示界面默认问候语"`

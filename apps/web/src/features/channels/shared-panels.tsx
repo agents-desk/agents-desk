@@ -27,7 +27,7 @@ import { activity } from "../../inbox/format"
 import { LanguageSelect } from "../../LanguageSelect"
 import { teams } from "../../resources"
 
-/** BotAudience 是公共服务机器人的三个业务场景域：对外客户服务、合作方服务或内部员工服务。 */
+/** BotAudience 是公共服务机器人的三个业务场景域：对外客户服务、商务服务或内部员工服务。 */
 export type BotAudience = "customer" | "partner" | "internal"
 
 /** telegramDetailPath 返回指定场景下 Telegram 机器人配置工作台的路由路径。 */
@@ -42,7 +42,7 @@ function telegramDetailPath(
   return "/$slug/settings/channels/telegrams/$id"
 }
 
-/** TelegramsPanel 按业务场景（对外客服 / 内部员工服务）管理对应的 Telegram 机器人渠道列表与新建弹窗。 */
+/** TelegramsPanel 按业务场景（对外客服 / 商务服务 / 内部员工服务）管理对应的 Telegram 机器人渠道列表与新建弹窗。 */
 export function TelegramsPanel({ slug, audience }: { slug: string; audience: BotAudience }): ReactNode {
   const navigate = useNavigate()
   const t = useT()
