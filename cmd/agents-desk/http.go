@@ -15,6 +15,7 @@ import (
 	"github.com/go-tenon/tenon/config"
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/doctor/doctorapi"
+	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/frontend"
 	"github.com/go-tenon/tenon/health"
 	"github.com/go-tenon/tenon/httpx"
@@ -111,15 +112,25 @@ func (a *App) serveHTTP(d *command.Daemon) (func(context.Context) error, error) 
 	}, nil
 }
 
-// pageCSP 是页面的内容安全策略：从框架默认策略出发，放行本地预览（blob:）及配置的 imgproxy / 文件存储域名作为图片来源；
+// pageCSP 是页面的内容安全策略：从框架默认策略出发，放行本地预览（blob:）及配置的 imgproxy / 文件存储域名作为图片和音视频媒体来源；
 // 聊天窗口的页面（/widget/?channel=<id>）按这个聊天插件允许嵌入的网站生成 frame-ancestors，其他页面都不能被嵌入。
 func (a *App) pageCSP(r *http.Request, nonce string) string {
 	p := frontend.DefaultPolicy(nonce)
+	s3Origin := s3MediaOrigin(a.cfg.Filesystem.Disks.S3)
+	s3PrivOrigin := s3MediaOrigin(a.cfg.Filesystem.Disks.S3Private)
 	p.AddImgSrc(
 		"blob:",
 		frontend.Origin(a.cfg.Imgproxy.URL),
-		frontend.Origin(a.cfg.Filesystem.Disks.S3.PublicURL),
 		frontend.Origin(a.cfg.Filesystem.Disks.Local.PublicURL),
+		s3Origin,
+		s3PrivOrigin,
+	)
+	p.AddMediaSrc(
+		"'self'",
+		"blob:",
+		frontend.Origin(a.cfg.Filesystem.Disks.Local.PublicURL),
+		s3Origin,
+		s3PrivOrigin,
 	)
 	if origin := a.cfg.Telemetry.Browser.Origin(); origin != "" {
 		p.AddConnectSrc(origin)
@@ -140,6 +151,20 @@ func (a *App) pageCSP(r *http.Request, nonce string) string {
 	}
 	p.FrameAncestors = strings.Fields(ancestors)
 	return p.String()
+}
+
+// s3MediaOrigin 提取 S3 磁盘配置的浏览器媒体允许来源，依次检查公开地址、自定义端点与 AWS 桶域名。
+func s3MediaOrigin(cfg filesystem.S3Config) string {
+	if origin := frontend.Origin(cfg.PublicURL); origin != "" {
+		return origin
+	}
+	if origin := frontend.Origin(cfg.Endpoint); origin != "" {
+		return origin
+	}
+	if cfg.Bucket != "" && cfg.Region != "" {
+		return "https://" + cfg.Bucket + ".s3." + cfg.Region + ".amazonaws.com"
+	}
+	return ""
 }
 
 // bodyLimitFor 为文件上传接口（POST .../files）放宽请求体上限至 MaxUploadSize + 512 KiB，其余接口沿用默认 1 MiB 上限。

@@ -177,3 +177,19 @@ func TestMemberAPIs(t *testing.T) {
 		t.Errorf("退出后：%d %s", r.status, r.body)
 	}
 }
+
+// TestPageCSPMediaSrc 验证页面 CSP 策略放行 media-src（含本地 blob: 与 S3 来源）。
+func TestPageCSPMediaSrc(t *testing.T) {
+	t.Parallel()
+	cfg := config.Default[Config]()
+	cfg.Filesystem.Disks.S3.Bucket = "media-bucket"
+	cfg.Filesystem.Disks.S3.PublicURL = "https://cdn.example.com/files"
+	a := &App{cfg: cfg}
+	req := httptest.NewRequest(http.MethodGet, "/app/demo", nil)
+	csp := a.pageCSP(req, "test-nonce")
+	for _, want := range []string{"media-src 'self' blob:", "https://cdn.example.com"} {
+		if !strings.Contains(csp, want) {
+			t.Fatalf("csp %q 缺少 %q", csp, want)
+		}
+	}
+}
