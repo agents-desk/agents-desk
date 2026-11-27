@@ -47,6 +47,8 @@ var (
 	ErrBusinessLinkExpired = errorx.Define(errorx.Conflict, "widget.business_link_expired")
 	// ErrIntakeRequired 是开场留资表单中有必填项尚未填写。
 	ErrIntakeRequired = errorx.Define(errorx.InvalidArgument, "widget.intake_required")
+	// ErrUploadsDisabled 是管理员已关闭当前工作区的访客附件上传能力。
+	ErrUploadsDisabled = errorx.Define(errorx.PermissionDenied, "widget.uploads_disabled")
 )
 
 // Appearance 是聊天窗口的纯视觉外观配置，持久化在渠道设置中并暴露给公开配置与预览协议。

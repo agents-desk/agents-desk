@@ -61,7 +61,20 @@ export const messages = {
     "impersonate.reason_placeholder": "e.g., Ticket #1024 investigating message delivery",
     "impersonate.submit": "Open workspace",
     "impersonate.title": "Impersonate in “{{.name}}”",
+    "login.back_to_login": "Back to sign in",
     "login.description": "For platform admins",
+    "login.email": "Email",
+    "login.email_invalid": "Enter a valid email address",
+    "login.forgot_description": "Enter your admin email address and we will send a 6-digit verification code to set a new password.",
+    "login.forgot_password": "Forgot password?",
+    "login.forgot_title": "Reset admin password",
+    "login.resend_code": "Resend code",
+    "login.reset_code": "Verification code",
+    "login.reset_code_required": "Enter the verification code sent to your email",
+    "login.reset_code_sent": "If this email is registered, a verification code has been sent to {{.email}}",
+    "login.reset_submit": "Reset password",
+    "login.reset_success": "Password has been reset. Sign in with your new password",
+    "login.send_reset_code": "Send verification code",
     "login.title": "Admin sign-in",
     "model.api_key": "Gateway API key",
     "model.base_url": "Gateway URL",
@@ -138,6 +151,12 @@ export const messages = {
     "settings.logo_upload": "Upload image",
     "settings.logo_upload_failed": "Upload failed",
     "settings.mail_description": "Configure Resend for outgoing email. The sender domain must be verified in Resend; leave the API key empty to log emails without sending.",
+    "settings.mail_test_description": "Save your mail settings above first, then send a test email to verify your Resend domain and API key.",
+    "settings.mail_test_sent": "Test email sent to {{.to}}",
+    "settings.mail_test_submit": "Send test email",
+    "settings.mail_test_title": "Send test email",
+    "settings.mail_test_to": "Recipient email",
+    "settings.mail_test_to_placeholder": "name@company.com",
     "tenants.change_owner": "Change owner",
     "tenants.export": "Export workspaces",
     "tenants.impersonate": "Impersonate",
@@ -203,7 +222,20 @@ export const messages = {
     "impersonate.reason_placeholder": "例如：工单 #1024 排查会话收发异常",
     "impersonate.submit": "进入工作区",
     "impersonate.title": "代为登录“{{.name}}”",
+    "login.back_to_login": "返回登录",
     "login.description": "平台管理员使用",
+    "login.email": "邮箱",
+    "login.email_invalid": "请输入有效的邮箱地址",
+    "login.forgot_description": "输入你的管理员邮箱，我们会发送一个 6 位验证码用于设置新密码。",
+    "login.forgot_password": "忘记密码？",
+    "login.forgot_title": "重置管理员密码",
+    "login.resend_code": "重新发送验证码",
+    "login.reset_code": "验证码",
+    "login.reset_code_required": "请输入邮箱收到的验证码",
+    "login.reset_code_sent": "如该邮箱已注册，验证码已发送至 {{.email}}",
+    "login.reset_submit": "确认重置密码",
+    "login.reset_success": "密码已重置，请使用新密码登录",
+    "login.send_reset_code": "发送验证码",
     "login.title": "管理员登录",
     "model.api_key": "网关密钥",
     "model.base_url": "网关地址",
@@ -280,6 +312,12 @@ export const messages = {
     "settings.logo_upload": "上传图片",
     "settings.logo_upload_failed": "上传失败",
     "settings.mail_description": "配置 Resend 发信服务，发件人邮箱所属域名需先在 Resend 完成验证；API Key 留空表示暂不外发（仅写入日志）。",
+    "settings.mail_test_description": "先保存上面的发信配置，再发送一封测试邮件确认 Resend 域名与 API Key 是否可用。",
+    "settings.mail_test_sent": "测试邮件已发送至 {{.to}}",
+    "settings.mail_test_submit": "发送测试邮件",
+    "settings.mail_test_title": "发送测试邮件",
+    "settings.mail_test_to": "收件邮箱",
+    "settings.mail_test_to_placeholder": "name@company.com",
     "tenants.change_owner": "更换主管理员",
     "tenants.export": "导出工作区",
     "tenants.impersonate": "代为登录",
@@ -348,7 +386,20 @@ export type MessageId =
   | "impersonate.reason_placeholder"
   | "impersonate.submit"
   | "impersonate.title"
+  | "login.back_to_login"
   | "login.description"
+  | "login.email"
+  | "login.email_invalid"
+  | "login.forgot_description"
+  | "login.forgot_password"
+  | "login.forgot_title"
+  | "login.resend_code"
+  | "login.reset_code"
+  | "login.reset_code_required"
+  | "login.reset_code_sent"
+  | "login.reset_submit"
+  | "login.reset_success"
+  | "login.send_reset_code"
   | "login.title"
   | "model.api_key"
   | "model.base_url"
@@ -425,6 +476,12 @@ export type MessageId =
   | "settings.logo_upload"
   | "settings.logo_upload_failed"
   | "settings.mail_description"
+  | "settings.mail_test_description"
+  | "settings.mail_test_sent"
+  | "settings.mail_test_submit"
+  | "settings.mail_test_title"
+  | "settings.mail_test_to"
+  | "settings.mail_test_to_placeholder"
   | "tenants.change_owner"
   | "tenants.export"
   | "tenants.impersonate"

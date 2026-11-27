@@ -20,6 +20,7 @@ import (
 
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/errorx"
+	"github.com/go-tenon/tenon/hashing"
 	"github.com/go-tenon/tenon/httpx/rest"
 	"github.com/go-tenon/tenon/identity"
 
@@ -180,18 +181,24 @@ func normalizeStarters(in []string) []string {
 	return out
 }
 
-// hashPasscode 使用 channelID 加盐计算访问口令的 SHA-256 十六进制摘要。
-func hashPasscode(channelID, passcode string) string {
-	sum := sha256.Sum256([]byte(channelID + ":" + strings.TrimSpace(passcode)))
-	return hex.EncodeToString(sum[:])
+var passcodeHasher = hashing.New(hashing.Config{})
+
+// hashPasscode 使用 Argon2id 对商务链接访问口令进行抗暴力破解单向哈希。
+func hashPasscode(passcode string) (string, error) {
+	return passcodeHasher.Make(strings.TrimSpace(passcode))
 }
 
-// verifyPasscode 以常量时间比对访客提交的口令与保存的摘要。
+// verifyPasscode 比对访客提交的口令与保存的摘要，支持 Argon2id 与历史 SHA-256 摘要只读兼容。
 func verifyPasscode(channelID, passcode, expectedHash string) bool {
 	if expectedHash == "" {
 		return true
 	}
-	got := hashPasscode(channelID, passcode)
+	trimmed := strings.TrimSpace(passcode)
+	if strings.HasPrefix(expectedHash, "$") {
+		return passcodeHasher.Check(trimmed, expectedHash)
+	}
+	sum := sha256.Sum256([]byte(channelID + ":" + trimmed))
+	got := hex.EncodeToString(sum[:])
 	return subtle.ConstantTimeCompare([]byte(got), []byte(expectedHash)) == 1
 }
 
@@ -587,7 +594,11 @@ func (a *UpdateBusinessLink) Handle(ctx context.Context, sub identity.Subject, i
 				cur.PasscodeHash = ""
 			}
 			if pass := strings.TrimSpace(b.Access.Passcode); pass != "" {
-				cur.PasscodeHash = hashPasscode(ch.ID, pass)
+				hash, err := hashPasscode(pass)
+				if err != nil {
+					return errors.Wrap(err, "hash business link passcode")
+				}
+				cur.PasscodeHash = hash
 				cur.Mode = "passcode"
 			}
 			if cur.Mode == "passcode" && cur.PasscodeHash == "" {

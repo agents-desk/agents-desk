@@ -270,31 +270,38 @@ func (h *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fromID = chatID
 		fromName = displayNameOf(msg.From, chatID)
 		extUserID := strings.TrimSpace(r.Header.Get(ExternalIDHeader))
-		extEmail := strings.TrimSpace(r.Header.Get(ExternalEmailHeader))
-		extName := strings.TrimSpace(r.Header.Get(ExternalNameHeader))
-		if len(extUserID) > 200 {
-			extUserID = extUserID[:200]
-		}
-		// 可信外部网关附带了产品用户编号时，先关联或合并联系人，打通网页端与 Telegram 同一客户档案（仅外部客户渠道）。
-		if extUserID != "" && ch.EffectiveAudience() == channel.AudienceCustomer {
-			profileName := firstNonEmpty(extName, fromName)
-			err = database.RunInTx(ctx, h.db, nil, func(ctx context.Context, tx database.Tx) error {
-				_, convIDs, err := contact.LinkUser(ctx, tx, ch.TenantID, ch.ID, chatID, extUserID, contact.Profile{
-					Name:  profileName,
-					Email: extEmail,
-				}, conversation.BeforeContactMerge(h.down, sys))
-				if err != nil {
-					return err
-				}
-				return conversation.NotifyUpdated(ctx, tx, h.down, ch.TenantID, convIDs)
-			})
-			if err != nil {
-				slog.ErrorContext(ctx, "link telegram contact to external user", "channel_id", id, "external_user_id", extUserID, "error", err)
-				http.Error(w, "internal error", http.StatusInternalServerError)
-				return
+		if !s.GatewayManaged {
+			// 直连官方 Telegram Webhook 时忽略所有外部身份头，防止伪造头跨联系人绑定或合并
+			if extUserID != "" {
+				slog.WarnContext(ctx, "ignore external identity header on direct telegram webhook", "channel_id", id)
 			}
+		} else {
+			extEmail := strings.TrimSpace(r.Header.Get(ExternalEmailHeader))
+			extName := strings.TrimSpace(r.Header.Get(ExternalNameHeader))
+			if len(extUserID) > 200 {
+				extUserID = extUserID[:200]
+			}
+			// 可信外部网关附带了产品用户编号时，先关联或合并联系人，打通网页端与 Telegram 同一客户档案（仅外部客户渠道）。
+			if extUserID != "" && ch.EffectiveAudience() == channel.AudienceCustomer {
+				profileName := firstNonEmpty(extName, fromName)
+				err = database.RunInTx(ctx, h.db, nil, func(ctx context.Context, tx database.Tx) error {
+					_, convIDs, err := contact.LinkUser(ctx, tx, ch.TenantID, ch.ID, chatID, extUserID, contact.Profile{
+						Name:  profileName,
+						Email: extEmail,
+					}, conversation.BeforeContactMerge(h.down, sys))
+					if err != nil {
+						return err
+					}
+					return conversation.NotifyUpdated(ctx, tx, h.down, ch.TenantID, convIDs)
+				})
+				if err != nil {
+					slog.ErrorContext(ctx, "link telegram contact to external user", "channel_id", id, "external_user_id", extUserID, "error", err)
+					http.Error(w, "internal error", http.StatusInternalServerError)
+					return
+				}
+			}
+			fromName = firstNonEmpty(extName, fromName)
 		}
-		fromName = firstNonEmpty(extName, fromName)
 	}
 
 	text := strings.TrimSpace(rawText)

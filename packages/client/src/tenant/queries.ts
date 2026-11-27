@@ -602,6 +602,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "member"),
       }),
+      /** POST /members/{id}/reset-password */
+      resetPassword: () => ({
+        mutationFn: (variables: Parameters<Client["member"]["resetPassword"]>) => client.member.resetPassword(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "member"),
+      }),
       /** POST /members/{id}/away */
       setAway: () => ({
         mutationFn: (variables: Parameters<Client["member"]["setAway"]>[0]) => client.member.setAway(variables),

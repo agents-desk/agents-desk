@@ -1,0 +1,7 @@
+{{define "content"}}
+<h2 style="margin-top: 0; font-size: 18px;">{{t "mail.code_reset.title" .}}</h2>
+<p>{{t "mail.code_reset.intro" .}}</p>
+<p style="font-size: 28px; font-weight: 700; letter-spacing: 6px; padding: 12px 16px; background-color: #f3f4f6; border-radius: 8px; text-align: center; margin: 20px 0;">{{.Code}}</p>
+<p style="color: #6b7280; font-size: 13px;">{{t "mail.code_reset.hint" .}}</p>
+{{end}}
+{{template "_layout.html" .}}

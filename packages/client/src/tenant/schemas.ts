@@ -588,6 +588,11 @@ export const schemas = {
         "$ref": "#/components/schemas/MemberStatusSetting"
       },
     },
+    resetPassword: {
+      body: {
+        "$ref": "#/components/schemas/MemberResetPasswordBody"
+      },
+    },
     update: {
       body: {
         "$ref": "#/components/schemas/MemberRoleChange"
@@ -3152,6 +3157,19 @@ export const components = {
       "email",
       "role_id"
     ],
+    "type": "object"
+  },
+  MemberResetPasswordBody: {
+    "additionalProperties": false,
+    "properties": {
+      "password": {
+        "maxLength": 128,
+        "type": "string"
+      },
+      "send_reset_email": {
+        "type": "boolean"
+      }
+    },
     "type": "object"
   },
   MemberRoleChange: {

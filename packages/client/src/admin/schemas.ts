@@ -38,6 +38,16 @@ export const schemas = {
         "type": "object"
       },
     },
+    passwordForgot: {
+      body: {
+        "$ref": "#/components/schemas/PlatformadminForgotPasswordInputBody"
+      },
+    },
+    passwordReset: {
+      body: {
+        "$ref": "#/components/schemas/PlatformadminResetPasswordInputBody"
+      },
+    },
     update: {
       body: {
         "$ref": "#/components/schemas/PlatformadminUpdateInputBody"
@@ -128,6 +138,11 @@ export const schemas = {
     },
   },
   mail: {
+    settingsTest: {
+      body: {
+        "$ref": "#/components/schemas/PlatformsettingsTestMailInputBody"
+      },
+    },
     settingsUpdate: {
       body: {
         "$ref": "#/components/schemas/PlatformsettingsMail"
@@ -489,6 +504,20 @@ export const components = {
     ],
     "type": "object"
   },
+  PlatformadminForgotPasswordInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "email": {
+        "format": "email",
+        "maxLength": 254,
+        "type": "string"
+      }
+    },
+    "required": [
+      "email"
+    ],
+    "type": "object"
+  },
   PlatformadminLoginInputBody: {
     "additionalProperties": false,
     "properties": {
@@ -505,6 +534,32 @@ export const components = {
     },
     "required": [
       "email",
+      "password"
+    ],
+    "type": "object"
+  },
+  PlatformadminResetPasswordInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "code": {
+        "maxLength": 16,
+        "minLength": 4,
+        "type": "string"
+      },
+      "password": {
+        "maxLength": 128,
+        "minLength": 8,
+        "type": "string"
+      },
+      "request_id": {
+        "maxLength": 64,
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "request_id",
+      "code",
       "password"
     ],
     "type": "object"
@@ -573,6 +628,17 @@ export const components = {
       "from_email",
       "api_key"
     ],
+    "type": "object"
+  },
+  PlatformsettingsTestMailInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "to": {
+        "format": "email",
+        "maxLength": 254,
+        "type": "string"
+      }
+    },
     "type": "object"
   },
   TenantCreateParams: {

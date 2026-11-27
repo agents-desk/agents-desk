@@ -61,7 +61,7 @@ func (a *SettingsActions) Get(ctx context.Context, sub identity.Subject) (*Setti
 	if err != nil {
 		return nil, err
 	}
-	enabled, err := a.translator.Enabled(ctx)
+	enabled, err := a.translator.EnabledFor(ctx, sub.Tenant)
 	if err != nil {
 		return nil, err
 	}

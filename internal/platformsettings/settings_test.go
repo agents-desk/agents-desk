@@ -13,6 +13,7 @@ import (
 	"github.com/go-tenon/tenon/filesystem"
 
 	"agents-desk/internal/apptest"
+	"agents-desk/internal/emails"
 	"agents-desk/internal/platformsettings"
 )
 
@@ -102,5 +103,70 @@ func TestGeneralAndMailSettings(t *testing.T) {
 	logs, err := activity.List(ctx, env.DB, activity.Query{Tenant: "", TargetType: "settings"})
 	if err != nil || len(logs.Items) != 3 {
 		t.Fatalf("期望 3 条设置日志，实际 %d err=%v", len(logs.Items), err)
+	}
+}
+
+func TestMailTestActionAndTemplates(t *testing.T) {
+	t.Parallel()
+	env := apptest.New(t)
+	ctx := context.Background()
+
+	generalGroup := platformsettings.NewGeneralGroup(env.DB)
+	mailGroup := platformsettings.NewMailGroup(env.DB, env.Crypt)
+	dyn := platformsettings.NewDynamicMailer(mailGroup)
+	templates, err := emails.NewTemplates()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ok, err := dyn.Configured(ctx)
+	if err != nil || ok {
+		t.Fatalf("未保存 Resend 配置时 Configured 应为 false：ok=%v err=%v", ok, err)
+	}
+
+	act := platformsettings.NewTestMail(env.DB, generalGroup, mailGroup, env.AdminLogins, templates)
+	if _, err := act.Handle(ctx, apptest.Admin, "bad-email"); !errors.Is(err, platformsettings.ErrInvalidEmail) {
+		t.Fatalf("非法收件邮箱应返回 ErrInvalidEmail，实际 %v", err)
+	}
+	if _, err := act.Handle(ctx, apptest.Admin, "ops@acme.example"); !errors.Is(err, platformsettings.ErrMailNotConfigured) {
+		t.Fatalf("未配置邮件服务时应返回 ErrMailNotConfigured，实际 %v", err)
+	}
+
+	if _, err := platformsettings.NewSaveMail(env.DB, mailGroup).Handle(ctx, apptest.Admin, platformsettings.Mail{
+		FromName: "Acme", FromEmail: "noreply@acme.example", APIKey: "re_test_123456",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	ok, err = dyn.Configured(ctx)
+	if err != nil || !ok {
+		t.Fatalf("保存完整 Resend 配置后 Configured 应为 true：ok=%v err=%v", ok, err)
+	}
+
+	// 验证全部邮件模板在中英文语言下均可正常渲染并产出主题与正文
+	dataByTemplate := map[string]map[string]any{
+		"mail_test": {
+			"SiteName": "Acme Desk", "FromEmail": "noreply@acme.example",
+		},
+		"code_reset": {
+			"SiteName": "Acme Desk", "Code": "123456", "ExpiresMinutes": 15,
+		},
+		"member_invite": {
+			"TenantName": "Acme Workspace", "RoleName": "坐席", "MemberName": "Alice", "LoginURL": "https://desk.example.com/app/acme/", "GeneratedPassword": true,
+		},
+		"offline_reply": {
+			"TenantName": "Acme Workspace", "ChannelName": "官网客服", "ContactName": "Visitor", "ReplyPreview": "您的包裹已发出", "ReturnURL": "https://desk.example.com/widget/?channel=1",
+		},
+	}
+	for _, locale := range []string{"zh-CN", "en"} {
+		rctx := emails.WithLocale(ctx, locale)
+		for name, data := range dataByTemplate {
+			msg, err := templates.Render(rctx, name, data)
+			if err != nil {
+				t.Fatalf("render %s (%s): %v", name, locale, err)
+			}
+			if msg.Subject == "" || (msg.Text == "" && msg.HTML == "") {
+				t.Fatalf("rendered %s (%s) missing content: %+v", name, locale, msg)
+			}
+		}
 	}
 }

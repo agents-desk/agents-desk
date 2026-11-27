@@ -980,6 +980,7 @@ export const messages = {
     "login.aside_headline": "AI-first unified service workspace for your team",
     "login.aside_subline": "Unite customer support, internal collaboration, and business conversations in one calm workspace.",
     "login.back_home": "Back to home",
+    "login.back_to_login": "Back to sign in",
     "login.description": "Sign in with your workspace account to continue",
     "login.email": "Email",
     "login.email_invalid": "Please enter a valid email address",
@@ -992,9 +993,19 @@ export const messages = {
     "login.feature_workspace_desc": "Use one account across multiple workspaces with isolated permissions, channels, and instant switching.",
     "login.feature_workspace_title": "Multi-workspace isolation",
     "login.footer_hint": "Don’t have an account yet? Ask your workspace admin to add you.",
+    "login.forgot_description": "Enter your workspace account email address and we will send a 6-digit verification code to set a new password.",
+    "login.forgot_password": "Forgot password?",
+    "login.forgot_title": "Reset password",
     "login.password": "Password",
     "login.password_placeholder": "Enter your password",
     "login.password_required": "Please enter your password",
+    "login.resend_code": "Resend code",
+    "login.reset_code": "Verification code",
+    "login.reset_code_required": "Enter the verification code sent to your email",
+    "login.reset_code_sent": "If this email is registered, a verification code has been sent to {{.email}}",
+    "login.reset_submit": "Reset password",
+    "login.reset_success": "Password has been reset. Sign in with your new password",
+    "login.send_reset_code": "Send verification code",
     "login.submit": "Sign in",
     "login.title": "Sign in to workspace",
     "macros.action_add_attr": "Add attribute",
@@ -1047,7 +1058,15 @@ export const messages = {
     "macros.var_member_name": "Current member name",
     "members.description": "Manage workspace members and their roles. Online members can receive automatically assigned conversations.",
     "members.language_hint": "Working and translation language for this member (e.g. zh-CN, en, hi-Latn, pt-BR). They can change it later in Preferences",
-    "members.password_hint": "Required when this email has no account yet. Share it with the person yourself",
+    "members.password_hint": "If platform email is configured and password is left blank for a new account, an invitation email is sent; otherwise password is required.",
+    "members.reset_password": "Reset password",
+    "members.reset_password_desc": "Reset the sign-in password for {{.email}}. Existing sessions for this member will be signed out immediately.",
+    "members.reset_password_done": "Password reset. Share the new password with the member",
+    "members.reset_password_emailed": "Password reset email sent to {{.email}}",
+    "members.reset_password_mode": "Reset method",
+    "members.reset_password_mode_direct": "Set a new password directly",
+    "members.reset_password_mode_email": "Send a reset verification code by email",
+    "members.reset_password_title": "Reset password for “{{.name}}”",
     "nav.account": "Account",
     "nav.ai": "AI Agent",
     "nav.assignment": "Assignment",
@@ -2925,6 +2944,7 @@ export const messages = {
     "login.aside_headline": "AI 驱动的团队统一服务工作台",
     "login.aside_subline": "在一个空间里连接客户咨询、内部协作与商务沟通，让团队响应更快、更从容。",
     "login.back_home": "返回首页",
+    "login.back_to_login": "返回登录",
     "login.description": "使用你的工作区账号继续",
     "login.email": "邮箱",
     "login.email_invalid": "请输入有效的邮箱地址",
@@ -2937,9 +2957,19 @@ export const messages = {
     "login.feature_workspace_desc": "一个账号加入多个业务工作区，权限、渠道与数据按工作区隔离，一键切换。",
     "login.feature_workspace_title": "多工作区隔离协作",
     "login.footer_hint": "还没有账号？请联系团队工作区管理员将你加入。",
+    "login.forgot_description": "输入你的工作区账号邮箱，我们会发送一个 6 位验证码用于设置新密码。",
+    "login.forgot_password": "忘记密码？",
+    "login.forgot_title": "重置登录密码",
     "login.password": "密码",
     "login.password_placeholder": "请输入密码",
     "login.password_required": "请输入密码",
+    "login.resend_code": "重新发送验证码",
+    "login.reset_code": "验证码",
+    "login.reset_code_required": "请输入邮箱收到的验证码",
+    "login.reset_code_sent": "如该邮箱已注册，验证码已发送至 {{.email}}",
+    "login.reset_submit": "确认重置密码",
+    "login.reset_success": "密码已重置，请使用新密码登录",
+    "login.send_reset_code": "发送验证码",
     "login.submit": "登录",
     "login.title": "登录工作台",
     "macros.action_add_attr": "添加属性",
@@ -2992,7 +3022,15 @@ export const messages = {
     "macros.var_member_name": "当前成员名字",
     "members.description": "管理工作区成员账号与所属角色，在线成员可接收自动分配的会话。",
     "members.language_hint": "成员的沟通与译文偏好语言（例如中文、英语、印地语、巴西葡萄牙语）；成员本人之后可在偏好设置中修改",
-    "members.password_hint": "邮箱第一次加入时必填，由你告诉本人",
+    "members.password_hint": "新账号未填密码且平台已配置邮件时会自动生成初始密码并发送邀请邮件；未配置邮件时必填。",
+    "members.reset_password": "重置密码",
+    "members.reset_password_desc": "重置工作区成员 {{.email}} 的登录密码。重置后该成员当前已登录会话会立即失效。",
+    "members.reset_password_done": "密码已重置，请将新密码转交成员",
+    "members.reset_password_emailed": "已向 {{.email}} 发送密码重置邮件",
+    "members.reset_password_mode": "重置方式",
+    "members.reset_password_mode_direct": "直接设置新密码（适用于未配置发信或现场交付）",
+    "members.reset_password_mode_email": "向成员邮箱发送重置验证码",
+    "members.reset_password_title": "为「{{.name}}」重置密码",
     "nav.account": "个人设置",
     "nav.ai": "AI Agent",
     "nav.assignment": "指派",
@@ -4873,6 +4911,7 @@ export type MessageId =
   | "login.aside_headline"
   | "login.aside_subline"
   | "login.back_home"
+  | "login.back_to_login"
   | "login.description"
   | "login.email"
   | "login.email_invalid"
@@ -4885,9 +4924,19 @@ export type MessageId =
   | "login.feature_workspace_desc"
   | "login.feature_workspace_title"
   | "login.footer_hint"
+  | "login.forgot_description"
+  | "login.forgot_password"
+  | "login.forgot_title"
   | "login.password"
   | "login.password_placeholder"
   | "login.password_required"
+  | "login.resend_code"
+  | "login.reset_code"
+  | "login.reset_code_required"
+  | "login.reset_code_sent"
+  | "login.reset_submit"
+  | "login.reset_success"
+  | "login.send_reset_code"
   | "login.submit"
   | "login.title"
   | "macros.action_add_attr"
@@ -4941,6 +4990,14 @@ export type MessageId =
   | "members.description"
   | "members.language_hint"
   | "members.password_hint"
+  | "members.reset_password"
+  | "members.reset_password_desc"
+  | "members.reset_password_done"
+  | "members.reset_password_emailed"
+  | "members.reset_password_mode"
+  | "members.reset_password_mode_direct"
+  | "members.reset_password_mode_email"
+  | "members.reset_password_title"
   | "nav.account"
   | "nav.ai"
   | "nav.assignment"

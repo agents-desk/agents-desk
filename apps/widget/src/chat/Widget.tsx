@@ -348,6 +348,7 @@ export function Widget(): ReactNode {
               name={name}
               touch={full}
               visible={open && visible}
+              allowAttachments={config.data?.visitor_uploads !== false}
               starters={isBusinessLink ? biz?.starters : undefined}
               replyTicket={replyTicket}
               onClearReplyTicket={() => setReplyTicket(null)}

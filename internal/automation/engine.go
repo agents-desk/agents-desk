@@ -10,12 +10,14 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/feature"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/lock"
 	"github.com/go-tenon/tenon/queue"
 
 	"agents-desk/internal/channel"
 	"agents-desk/internal/conversation"
+	"agents-desk/internal/flags"
 	"agents-desk/internal/hours"
 	"agents-desk/internal/tickettype"
 )
@@ -34,6 +36,7 @@ type Runner struct {
 	db        *bun.DB
 	locker    *lock.Locker
 	registry  channel.Registry
+	features  *feature.Store
 	sendMsg   *conversation.SendSystemMessage
 	reqRating *conversation.RequestRating
 }
@@ -49,6 +52,11 @@ func NewRunner(db *bun.DB, locker *lock.Locker, down conversation.Downstream) *R
 	}
 }
 
+// SetFeatures 绑定平台功能开关存储，用于按工作区检查自动自动化开关。
+func (r *Runner) SetFeatures(f *feature.Store) {
+	r.features = f
+}
+
 // Job 处理 Topic 的任务。
 func (r *Runner) Job(ctx context.Context, p conversation.Appended) error {
 	return r.Handle(ctx, p)
@@ -58,6 +66,9 @@ func (r *Runner) Job(ctx context.Context, p conversation.Appended) error {
 // 不是任何触发时机对应的项时直接返回；某条规则动作返回系统错误时记为 failed 并返回错误，队列随后重试，
 // 已经执行成功的规则按 (rule_id, dedup_key) 跳过，不会重复执行。
 func (r *Runner) Handle(ctx context.Context, p conversation.Appended) error {
+	if r.features != nil && !r.features.Active(ctx, identity.Subject{Tenant: p.TenantID}, flags.AutoAutomation) {
+		return nil
+	}
 	var it conversation.Item
 	err := r.db.NewSelect().Model(&it).Where("id = ? AND tenant_id = ?", p.ItemID, p.TenantID).Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {

@@ -1,0 +1,13 @@
+{{define "content"}}
+<h2 style="margin-top: 0; font-size: 18px;">{{t "mail.offline_reply.title" .}}</h2>
+<p>{{t "mail.offline_reply.intro" .}}</p>
+{{if .Preview}}
+<blockquote style="margin: 16px 0; padding: 12px 14px; border-left: 3px solid #d1d5db; background-color: #f9fafb; color: #374151; white-space: pre-wrap;">{{.Preview}}</blockquote>
+{{end}}
+{{if .ReturnURL}}
+<p style="margin: 22px 0;">
+  <a href="{{.ReturnURL}}" style="display: inline-block; padding: 10px 18px; background-color: #111827; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600;">{{t "mail.offline_reply.cta" .}}</a>
+</p>
+{{end}}
+{{end}}
+{{template "_layout.html" .}}

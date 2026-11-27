@@ -7,10 +7,13 @@ import (
 
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/feature"
 	"github.com/go-tenon/tenon/filesystem"
+	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/account"
 	"agents-desk/internal/channel"
+	"agents-desk/internal/flags"
 	"agents-desk/internal/lang"
 	"agents-desk/internal/member"
 )
@@ -43,6 +46,7 @@ type ConfigDTO struct {
 	Appearance      Appearance            `json:"appearance" doc:"聊天窗口的视觉外观配置"`
 	Language        string                `json:"language" doc:"本次配置解析使用的语言（BCP 47）"`
 	DefaultLanguage string                `json:"default_language" doc:"渠道配置的默认语言（BCP 47）"`
+	VisitorUploads  bool                  `json:"visitor_uploads" doc:"当前工作区是否允许访客在聊天窗口上传附件"`
 	Business        *PublicBusinessConfig `json:"business,omitempty" doc:"网页商务沟通链接的公开名片、留资与访问配置"`
 }
 
@@ -62,6 +66,7 @@ type ConfigOutput struct {
 type GetConfig struct {
 	db             *bun.DB
 	files          *filesystem.Service
+	features       *feature.Store
 	defaultCompany func(ctx context.Context, tenantID string) string
 }
 
@@ -72,6 +77,11 @@ func NewGetConfig(db *bun.DB, files *filesystem.Service, defaultCompany ...func(
 		fn = defaultCompany[0]
 	}
 	return &GetConfig{db: db, files: files, defaultCompany: fn}
+}
+
+// SetFeatures 绑定平台功能开关存储，用于读取访客上传开关等平台级灰度策略。
+func (a *GetConfig) SetFeatures(f *feature.Store) {
+	a.features = f
 }
 
 // Handle 返回本次请求的网页聊天渠道（Middleware 查出的）在 requestedLang 下的公开配置。
@@ -96,6 +106,10 @@ func (a *GetConfig) Handle(ctx context.Context, requestedLang ...string) (*Confi
 	if title == "" {
 		title = ch.Name
 	}
+	visitorUploads := true
+	if a.features != nil {
+		visitorUploads = a.features.Active(ctx, identity.Subject{Tenant: ch.TenantID}, flags.WidgetVisitorUploads)
+	}
 	dto := &ConfigDTO{
 		Kind:            ch.Kind,
 		Name:            title,
@@ -103,6 +117,7 @@ func (a *GetConfig) Handle(ctx context.Context, requestedLang ...string) (*Confi
 		Appearance:      s.appearance(),
 		Language:        resolvedLang,
 		DefaultLanguage: loc.DefaultLanguage,
+		VisitorUploads:  visitorUploads,
 	}
 	if ch.Kind != channel.BusinessLink {
 		return dto, nil

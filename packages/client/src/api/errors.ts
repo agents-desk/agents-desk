@@ -244,6 +244,8 @@ export const MemberErrors = {
   InvalidTimeZone: "member.invalid_time_zone",
   /** ErrInvalidLanguage 是成员的沟通与译文偏好语言不是合法的 BCP 47 标签（422）。 */
   InvalidLanguage: "member.invalid_language",
+  /** ErrResetPasswordParams 表示既未填写新密码也未选择发送重置邮件，或者成员没有绑定登录邮箱。 */
+  ResetPasswordParams: "member.reset_password_invalid",
   AlreadyMember: "member.already_member",
   OwnerProtected: "member.owner_protected",
   Self: "member.self",
@@ -263,6 +265,8 @@ export const PlatformsettingsErrors = {
   InvalidEmail: "platform_settings.invalid_email",
   /** ErrRequiredField 表示启用 Resend 时必填项未填写。 */
   RequiredField: "platform_settings.required_field",
+  /** ErrMailNotConfigured 表示平台尚未完成 Resend API Key 与发件人邮箱配置。 */
+  MailNotConfigured: "platform_settings.mail_not_configured",
 } as const
 
 /** agents-desk/internal/role 的错误码。 */
@@ -386,6 +390,8 @@ export const WidgetErrors = {
   BusinessLinkExpired: "widget.business_link_expired",
   /** ErrIntakeRequired 是开场留资表单中有必填项尚未填写。 */
   IntakeRequired: "widget.intake_required",
+  /** ErrUploadsDisabled 是管理员已关闭当前工作区的访客附件上传能力。 */
+  UploadsDisabled: "widget.uploads_disabled",
 } as const
 
 /** github.com/go-tenon/tenon/apitoken 的错误码。 */

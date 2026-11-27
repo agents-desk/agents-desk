@@ -40,10 +40,17 @@ var (
 		ByTenant:    true,
 		Default:     func(context.Context, identity.Subject) bool { return true },
 	}
-	// WidgetVisitorUploads 控制网页聊天插件的访客文件上传实验功能，默认关闭，可按工作区开启试用。
+	// WidgetVisitorUploads 控制网页聊天插件与商务链接的访客文件上传开关，默认开启，支持按工作区或全员紧急关闭。
 	WidgetVisitorUploads = feature.Flag{
 		Name:        "widget.visitor_uploads",
-		Description: "网页聊天插件访客附件上传（实验功能）",
+		Description: "网页聊天插件访客附件上传",
+		ByTenant:    true,
+		Default:     func(context.Context, identity.Subject) bool { return true },
+	}
+	// AIWorkspace 控制工作区端尚在建设中的 AI Agent 模块入口与占位视图，默认关闭。
+	AIWorkspace = feature.Flag{
+		Name:        "ai.workspace",
+		Description: "工作区 AI 中心与助手预览入口",
 		ByTenant:    true,
 	}
 	// BusinessLinks 控制成员个人网页商务沟通链接功能，支持按工作区灰度或关闭。
@@ -67,6 +74,7 @@ var Catalog = feature.Catalog{
 	AITranslation,
 	AutoAutomation,
 	WidgetVisitorUploads,
+	AIWorkspace,
 	BusinessLinks,
 	BusinessTelegramAccount,
 }

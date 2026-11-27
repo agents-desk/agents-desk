@@ -18,7 +18,7 @@ import {
 } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { AiAssistantPanel, type DetailsAsideTab, DetailsAsideTabs } from "../components/ai-placeholders"
+import { AiAssistantPanel, type DetailsAsideTab, DetailsAsideTabs, useAiWorkspaceEnabled } from "../components/ai-placeholders"
 import { ContactNotesCard } from "../contacts/ContactNotesCard"
 import { contactDisplayName } from "../contacts/display"
 import { MergeContactModal } from "../contacts/MergeContactModal"
@@ -161,7 +161,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
       />
       <DetailsAsideTabs value={asideTab} onChange={setAsideTab} />
       <PaneBody>
-        {asideTab === "ai" ? (
+        {useAiWorkspaceEnabled() && asideTab === "ai" ? (
           <AiAssistantPanel scene="inbox" />
         ) : (
         <Inspector>

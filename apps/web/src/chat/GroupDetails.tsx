@@ -18,7 +18,7 @@ import { IconLogout, IconUserMinus, IconUserPlus, IconX } from "@tabler/icons-re
 import { confirm, Inspector, InspectorSection, notifyError, notifySuccess, PaneBody, PaneHeader, useT } from "@go-tenon/ui"
 import { type FormEvent, type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { AiAssistantPanel, type DetailsAsideTab, DetailsAsideTabs } from "../components/ai-placeholders"
+import { AiAssistantPanel, type DetailsAsideTab, DetailsAsideTabs, useAiWorkspaceEnabled } from "../components/ai-placeholders"
 import { useMe, useMembers } from "../inbox/data"
 
 /** GroupDetailsProps 是群聊右侧详情栏的设置。 */
@@ -135,7 +135,7 @@ export function GroupDetails({ chat, onClose, onLeft }: GroupDetailsProps): Reac
       <DetailsAsideTabs value={asideTab} onChange={setAsideTab} />
 
       <PaneBody>
-        {asideTab === "ai" ? (
+        {useAiWorkspaceEnabled() && asideTab === "ai" ? (
           <AiAssistantPanel scene="chat" />
         ) : (
         <Inspector>

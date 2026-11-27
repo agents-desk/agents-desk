@@ -26,6 +26,7 @@ import (
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
+	"agents-desk/internal/flags"
 	"agents-desk/internal/llm"
 	"agents-desk/internal/member"
 	"agents-desk/internal/push"
@@ -1031,5 +1032,47 @@ func TestBusinessPolicyTranslationOverrides(t *testing.T) {
 	})
 	if err != nil || needed || outText != "按原文直接发出" || f.model.count() != before {
 		t.Fatalf("Link C 关闭自动翻译时出站自动翻译应跳过并保留原文：text=%q needed=%v calls=%d err=%v", outText, needed, f.model.count()-before, err)
+	}
+}
+
+func TestTranslationFeatureFlagOff(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	f := setup(t, true)
+	f.model.language = "en"
+
+	store := flags.NewStore(f.env.DB)
+	f.translator.SetFeatures(store)
+	setIn := flags.SetInput{Name: flags.AITranslation.Name}
+	setIn.Body.Scope = flags.ScopeTenant
+	setIn.Body.TenantID = f.system.Tenant
+	setIn.Body.Mode = flags.ModeOff
+	if _, err := flags.NewSet(f.env.DB, store).Handle(ctx, apptest.Admin, setIn); err != nil {
+		t.Fatal(err)
+	}
+
+	settingsDTO, err := NewSettingsActions(f.env.DB, NewGroup(f.env.DB), f.translator).Get(ctx, f.agent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settingsDTO.Enabled {
+		t.Fatalf("关闭 ai.translation 功能开关后 SettingsActions.Get 应返回 Enabled=false")
+	}
+
+	item := f.receive(t, "flag-cust", "Hello there")
+	incoming := NewIncoming(f.env.DB, f.locker, f.translator, f.down)
+	if err := incoming.Job(ctx, item); err != nil {
+		t.Fatal(err)
+	}
+	autoFn := AutoTranslateFunc(f.env.DB, f.translator, incoming)
+	outText, _, needed, err := autoFn(ctx, conversation.AutoTranslateJob{
+		TenantID:       f.system.Tenant,
+		ConversationID: item.ConversationID,
+		MemberID:       f.agent.ID,
+		Text:           "您好，有什么可以帮您？",
+		Language:       "en",
+	})
+	if err != nil || needed || outText != "您好，有什么可以帮您？" || f.model.count() != 0 {
+		t.Fatalf("关闭 ai.translation 后不应调用翻译模型：text=%q needed=%v calls=%d err=%v", outText, needed, f.model.count(), err)
 	}
 }

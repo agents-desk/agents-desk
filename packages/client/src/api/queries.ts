@@ -63,6 +63,18 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "auth"),
       }),
+      /** POST /auth/password/forgot */
+      passwordForgot: () => ({
+        mutationFn: (variables: Parameters<Client["auth"]["passwordForgot"]>[0]) => client.auth.passwordForgot(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "auth"),
+      }),
+      /** POST /auth/password/reset */
+      passwordReset: () => ({
+        mutationFn: (variables: Parameters<Client["auth"]["passwordReset"]>[0]) => client.auth.passwordReset(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "auth"),
+      }),
       /** PUT /me/preferences */
       preferencesUpdate: () => ({
         mutationFn: (variables: Parameters<Client["auth"]["preferencesUpdate"]>[0]) => client.auth.preferencesUpdate(variables),

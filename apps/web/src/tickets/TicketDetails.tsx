@@ -19,7 +19,7 @@ import {
 } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { AiAssistantPanel, type DetailsAsideTab, DetailsAsideTabs } from "../components/ai-placeholders"
+import { AiAssistantPanel, type DetailsAsideTab, DetailsAsideTabs, useAiWorkspaceEnabled } from "../components/ai-placeholders"
 import { contactDisplayName } from "../contacts/display"
 import { ChannelIcon } from "../inbox/channel-badge"
 import { useMe, useMembers, useTags, useTeams } from "../inbox/data"
@@ -140,7 +140,7 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
       />
       <DetailsAsideTabs value={asideTab} onChange={setAsideTab} />
       <PaneBody>
-        {asideTab === "ai" ? (
+        {useAiWorkspaceEnabled() && asideTab === "ai" ? (
           <AiAssistantPanel scene="ticket" />
         ) : (
         <Inspector>

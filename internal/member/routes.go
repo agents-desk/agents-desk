@@ -30,6 +30,17 @@ func RegisterRoutes(api *rest.API, requireMember func(*huma.Operation), db *bun.
 	rest.AllowReadOnly()(&op)
 	rest.Register(api, op, s.Logout)
 
+	pr := NewPasswordReset(logins, tokens)
+	op = huma.Operation{OperationID: "auth-password-forgot", Method: http.MethodPost, Path: "/auth/password/forgot", Summary: "发送重置密码验证码邮件"}
+	rest.Public()(&op)
+	rest.SameOrigin(api)(&op)
+	rest.Register(api, op, pr.ForgotHTTP)
+
+	op = huma.Operation{OperationID: "auth-password-reset", Method: http.MethodPost, Path: "/auth/password/reset", Summary: "凭邮箱验证码重设密码", DefaultStatus: http.StatusNoContent}
+	rest.Public()(&op)
+	rest.SameOrigin(api)(&op)
+	rest.Register(api, op, pr.ResetHTTP)
+
 	op = huma.Operation{OperationID: "auth-me", Method: http.MethodGet, Path: "/me", Summary: "当前登录的成员"}
 	requireMember(&op)
 	rest.Register(api, op, s.Me)

@@ -303,6 +303,8 @@ export interface WidgetConfigDTO {
   language: string
   /** 已按语言解析的对外窗口标题 */
   name: string
+  /** 当前工作区是否允许访客在聊天窗口上传附件 */
+  visitor_uploads: boolean
 }
 
 export interface WidgetContactEmailBody {

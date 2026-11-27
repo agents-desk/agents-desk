@@ -26,6 +26,7 @@ import (
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
+	"agents-desk/internal/flags"
 	"agents-desk/internal/hours"
 	"agents-desk/internal/member"
 	"agents-desk/internal/team"
@@ -700,5 +701,56 @@ func TestBuiltinsSkipInternalAndExternalGroup(t *testing.T) {
 		if it.Kind == conversation.Event && it.Content.Event == "conversation.rating_requested" {
 			t.Fatalf("外部群会话关闭不应触发满意度评价邀请")
 		}
+	}
+}
+
+func TestAutomationFeatureFlagOff(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	env := apptest.New(t)
+	f := setup(t, env, "auto-off")
+
+	allDay := []hours.Interval{{Start: "00:00", End: "24:00"}}
+	saveHours := hours.NewSave(env.DB)
+	if _, err := saveHours.SaveSchedule(ctx, f.owner, hours.Schedule{
+		TimeZone: "Asia/Shanghai",
+		Week: hours.Week{
+			Monday: allDay, Tuesday: allDay, Wednesday: allDay, Thursday: allDay,
+			Friday: allDay, Saturday: allDay, Sunday: allDay,
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := saveHours.SaveReplyTime(ctx, f.owner, hours.FewMinutes); err != nil {
+		t.Fatal(err)
+	}
+
+	store := flags.NewStore(env.DB)
+	f.runner.SetFeatures(store)
+	setIn := flags.SetInput{Name: flags.AutoAutomation.Name}
+	setIn.Body.Scope = flags.ScopeTenant
+	setIn.Body.TenantID = f.tenant.ID
+	setIn.Body.Mode = flags.ModeOff
+	if _, err := flags.NewSet(env.DB, store).Handle(ctx, apptest.Admin, setIn); err != nil {
+		t.Fatal(err)
+	}
+
+	f.reg[channel.WeCom] = channel.TestConnector{}
+	f.reg[channel.Telegram] = channel.TestConnector{}
+	recv := conversation.NewReceive(env.DB, f.reg, f.down)
+	first, err := recv.Handle(ctx, f.system, conversation.ReceiveParams{
+		ChannelID: f.widget.ID, From: "visitor:off-1", Text: "请问在吗？",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.runItem(t, first.ConversationID, first.Item.ID, first.Item.Seq)
+
+	items, err := conversation.NewTimeline(env.DB).Handle(ctx, f.owner, first.ConversationID, 0, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("关闭 automation.auto 后首条消息不应触发任何内置系统消息，实际时间线长度=%d", len(items))
 	}
 }

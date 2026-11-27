@@ -93,6 +93,7 @@ interface ConversationProps {
   name: string // 聊天插件的名称：系统发的消息显示它
   touch: boolean // 手机和 App
   visible: boolean // 聊天窗口展开着并且页面在前台：这时读到的消息记为已读
+  allowAttachments?: boolean // 当前工作区是否允许访客上传附件
   starters?: string[] // 可选：商务沟通链接的快捷开场话题
   replyTicket: ReplyTicketContext | null // 从工单详情带回的补充上下文
   onClearReplyTicket: () => void
@@ -111,6 +112,7 @@ export function ConversationView({
   name,
   touch,
   visible,
+  allowAttachments = true,
   starters,
   replyTicket,
   onClearReplyTicket,
@@ -470,6 +472,7 @@ export function ConversationView({
       <Composer
         color={color}
         touch={touch}
+        allowAttachments={allowAttachments}
         placeholder={t("composer.placeholder")}
         onSend={(text, inputs, attachments) =>
           void send({

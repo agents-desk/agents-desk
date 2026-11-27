@@ -448,6 +448,8 @@ type Downstream struct {
 	// ContactPush 在提交后把会话的变化推送给对方（联系人）打开着的聊天窗口，参数是会话的渠道和联系人；为 nil 时不推送。
 	// 会话的状态变了，或者联系人自己发了消息（他的其他页面随之更新）时推送；成员的回复由连接器发出时推送。
 	ContactPush func(ctx context.Context, channelID, contactID string, ev push.Event) error
+	// NotifyOfflineReply 在对外回复成功投递后同事务调用，用于在访客离线时按冷却策略发送邮件提醒。
+	NotifyOfflineReply func(ctx context.Context, tx database.Tx, tenantID, conversationID, itemID string) error
 	// Registry 可选：供内核读取连接器能力（如哪些渠道使用浏览器实时频道），未设置时默认回退到内置实时渠道集。
 	Registry channel.Registry
 }

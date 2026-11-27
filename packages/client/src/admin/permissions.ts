@@ -67,6 +67,7 @@ export const required = {
   },
   mail: {
     settingsGet: ["platform-settings:manage"],
+    settingsTest: ["platform-settings:manage"],
     settingsUpdate: ["platform-settings:manage"],
   },
   queue: {

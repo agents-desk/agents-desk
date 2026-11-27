@@ -1,8 +1,8 @@
-import { Avatar, Button, FileButton, Group, Stack, Text } from "@mantine/core"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { Avatar, Button, FileButton, Group, Paper, Stack, Text, TextInput, Title } from "@mantine/core"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { type FieldInput, notifyError, SecretInput, SettingsPage, useT } from "@go-tenon/ui"
-import { useEffect, useState } from "react"
+import { type FieldInput, notifyError, notifySuccess, Page, SecretInput, SettingsForm, useT } from "@go-tenon/ui"
+import { type FormEvent, useEffect, useState } from "react"
 import { api, kit } from "../../../api"
 import { generalSettings, mailSettings } from "../../../resources"
 
@@ -85,6 +85,47 @@ const LogoField: FieldInput = ({ label, value, onChange, error, disabled }) => {
   )
 }
 
+function MailTestCard() {
+  const t = useT()
+  const [to, setTo] = useState("")
+  const send = useMutation({
+    mutationFn: (recipient: string) => api.mail.settingsTest({ to: recipient || undefined }),
+    onSuccess: (res) => notifySuccess(t("settings.mail_test_sent", { to: res.to })),
+    onError: (err) => notifyError(err),
+  })
+  const onSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    send.mutate(to.trim())
+  }
+  return (
+    <Paper withBorder p="md" radius="md">
+      <form onSubmit={onSubmit} noValidate>
+        <Stack gap="sm">
+          <div>
+            <Title order={5}>{t("settings.mail_test_title")}</Title>
+            <Text size="xs" c="dimmed" mt={4}>
+              {t("settings.mail_test_description")}
+            </Text>
+          </div>
+          <Group align="flex-end" gap="sm" wrap="wrap">
+            <TextInput
+              type="email"
+              label={t("settings.mail_test_to")}
+              placeholder={t("settings.mail_test_to_placeholder")}
+              value={to}
+              onChange={(e) => setTo(e.currentTarget.value)}
+              style={{ flex: 1, minWidth: 240 }}
+            />
+            <Button type="submit" variant="default" loading={send.isPending}>
+              {t("settings.mail_test_submit")}
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+    </Paper>
+  )
+}
+
 function GeneralSettingsPage() {
   const t = useT()
   const queryClient = useQueryClient()
@@ -98,11 +139,36 @@ function GeneralSettingsPage() {
     }
   }, [siteName, logoFileId, queryClient])
   return (
-    <SettingsPage
+    <Page
       title={t("nav.general_settings")}
-      groups={[
-        { model: generalSettings, description: t("settings.general_description"), inputs: { logo_file_id: LogoField } },
-        { model: mailSettings, description: t("settings.mail_description"), inputs: { api_key: APIKeyField } },
+      tabs={[
+        {
+          value: generalSettings.name,
+          label: generalSettings.title,
+          content: (
+            <SettingsForm
+              model={generalSettings}
+              title={null}
+              description={t("settings.general_description")}
+              inputs={{ logo_file_id: LogoField }}
+            />
+          ),
+        },
+        {
+          value: mailSettings.name,
+          label: mailSettings.title,
+          content: (
+            <Stack gap="lg">
+              <SettingsForm
+                model={mailSettings}
+                title={null}
+                description={t("settings.mail_description")}
+                inputs={{ api_key: APIKeyField }}
+              />
+              <MailTestCard />
+            </Stack>
+          ),
+        },
       ]}
     />
   )

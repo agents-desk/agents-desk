@@ -142,6 +142,7 @@ export const required = {
     get: ["members:read"],
     list: ["members:read"],
     remove: ["members:manage"],
+    resetPassword: ["members:manage"],
     setAway: ["members:manage"],
     update: ["members:manage"],
   },

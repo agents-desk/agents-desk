@@ -1,0 +1,8 @@
+{{t "mail.member_invite.title" .}}
+
+{{t "mail.member_invite.intro" .}}
+{{if .RoleName}}{{t "mail.member_invite.role" .}}{{end}}
+
+{{.LoginURL}}
+
+{{t "mail.member_invite.password_hint" .}}

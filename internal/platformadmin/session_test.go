@@ -15,6 +15,8 @@ import (
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/httpx/rest"
 	"github.com/go-tenon/tenon/identity"
+	"github.com/go-tenon/tenon/login"
+	"github.com/go-tenon/tenon/login/logintest"
 
 	"agents-desk/internal/apptest"
 	"agents-desk/internal/auth"
@@ -107,5 +109,47 @@ func TestAdminAPIRejectsMemberTokensAndDisabledAdmins(t *testing.T) {
 	}
 	if code := me(adminToken); code != http.StatusUnauthorized {
 		t.Fatalf("停用后：status=%d", code)
+	}
+}
+
+func TestAdminPasswordResetRevokesTokens(t *testing.T) {
+	t.Parallel()
+	env := apptest.New(t)
+	ctx := context.Background()
+
+	var lastCode login.Code
+	logins := logintest.Realm(t, env.DB, login.Options{
+		Type:    platformadmin.Type,
+		Resolve: platformadmin.Resolve(env.DB, env.Roles),
+		Policy:  login.Policy{PasswordKinds: []string{login.KindEmail}},
+		Send:    func(_ context.Context, c login.Code) error { lastCode = c; return nil },
+	})
+	adm, err := platformadmin.NewCreate(env.DB, env.Roles, logins).Handle(ctx, system, "重置管理员", "reset-adm@example.com", "old-secret-123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokens := apitoken.NewStore(env.DB, apitoken.Config{Lifetime: time.Hour})
+	oldTok, err := tokens.Login(ctx, identity.Subject{Type: platformadmin.Type, ID: adm.ID}, apitoken.Device{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pr := platformadmin.NewPasswordReset(logins, tokens)
+	req, err := pr.Forgot(ctx, "reset-adm@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lastCode.Code == "" || lastCode.To.Value != "reset-adm@example.com" {
+		t.Fatalf("应发送重置验证码，实际 %+v", lastCode)
+	}
+	if err := pr.Reset(ctx, req.RequestID, lastCode.Code, "new-secret-456"); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := tokens.Validate(ctx, oldTok); err == nil {
+		t.Fatal("管理员重置密码后旧登录令牌应全部失效")
+	}
+	if _, err := logins.Password(ctx, login.Email("reset-adm@example.com"), "new-secret-456"); err != nil {
+		t.Fatalf("重设后应可用新密码登录：%v", err)
 	}
 }

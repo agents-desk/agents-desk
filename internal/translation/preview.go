@@ -77,6 +77,13 @@ func NewPreview(db *bun.DB, translator *Translator, incoming *Incoming) *Preview
 func AutoTranslateFunc(db *bun.DB, translator *Translator, incoming *Incoming) conversation.AutoTranslator {
 	preview := NewPreview(db, translator, incoming)
 	return func(ctx context.Context, req conversation.AutoTranslateJob) (string, string, bool, error) {
+		enabled, err := translator.EnabledFor(ctx, req.TenantID)
+		if err != nil {
+			return "", "", false, err
+		}
+		if !enabled {
+			return req.Text, "", false, nil
+		}
 		bp, isBiz, err := translator.businessPolicyFor(ctx, req.TenantID, req.ConversationID)
 		if err != nil {
 			return "", "", false, err
@@ -184,6 +191,13 @@ func (a *Preview) Handle(ctx context.Context, sub identity.Subject, id string, b
 	}
 	if to == "" || (from != "" && lang.Same(from, to)) {
 		return &PreviewDTO{From: from, Language: to, Translation: b.Text}, nil
+	}
+	enabled, err := a.translator.EnabledFor(ctx, sub.Tenant)
+	if err != nil {
+		return nil, err
+	}
+	if !enabled {
+		return &PreviewDTO{Needed: false, From: from, Language: to, Translation: b.Text}, nil
 	}
 	if b.SkipBackTranslation {
 		translation, needed, err := a.translator.ReplyText(ctx, sub.Tenant, id, b.Text, from, to, b.Tone)
