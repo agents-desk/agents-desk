@@ -122,16 +122,22 @@ func (a *ContactStream) Handle(ctx context.Context, sub identity.Subject, channe
 	q := a.db.NewSelect().Model(&rawItems).
 		Join("JOIN conversations AS c ON c.id = item.conversation_id").
 		Where("item.tenant_id = ? AND item.visibility = ? AND c.tenant_id = ? AND c.kind = ? AND c.contact_id = ?",
-			sub.Tenant, Everyone, sub.Tenant, targetKind, sub.ID)
+			sub.Tenant, Everyone, sub.Tenant, targetKind, sub.ID).
+		Where("NOT EXISTS (SELECT 1 FROM message_deliveries d WHERE d.item_id = item.id AND d.status = ?)", Failed).
+		Where("NOT (item.actor_type <> ? AND item.derived ? 'pending_translation')", ContactActor)
 	if restrictChannel {
 		q = q.Where("c.channel_id = ?", channelID)
 	}
 	if afterPt != nil {
 		q = q.Where("(item.created_at, item.id) > (?, ?)", afterPt.CreatedAt, afterPt.ID).
 			OrderExpr("item.created_at ASC, item.id ASC").
-			Limit(int64(limit))
+			Limit(int64(limit + 1))
 		if err := q.Scan(ctx); err != nil {
 			return nil, errors.Wrap(err, "list contact stream after cursor")
+		}
+		if len(rawItems) > limit {
+			hasMore = true
+			rawItems = rawItems[:limit]
 		}
 	} else {
 		if beforePt != nil {
@@ -177,7 +183,8 @@ func (a *ContactStream) Handle(ctx context.Context, sub identity.Subject, channe
 		ColumnExpr("count(*)").
 		Where("ti.tenant_id = ? AND c.tenant_id = ? AND c.kind = ? AND c.contact_id = ?",
 			sub.Tenant, sub.Tenant, targetKind, sub.ID).
-		Where("ti.actor_type <> ? AND d.status <> ?", ContactActor, Read)
+		Where("ti.actor_type <> ? AND d.status NOT IN (?)", ContactActor, bun.In([]DeliveryStatus{Read, Failed})).
+		Where("NOT (ti.derived ? 'pending_translation')")
 	if restrictChannel {
 		unreadQ = unreadQ.Where("c.channel_id = ?", channelID)
 	}

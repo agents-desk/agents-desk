@@ -396,6 +396,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		down := a.downstream()
 		contactHooks := conversation.OnContactMerge(down)
 		contactHooks.OnNotesUpdated = translation.OnContactNotesUpdated
+		contactHooks.Tokens = a.contactTokens
 		contact.RegisterRoutes(api, require, a.db, a.hub, a.roles, a.exporter, contactHooks)
 		tag.RegisterRoutes(api, require, a.db)
 		attribute.RegisterRoutes(api, require, a.db)

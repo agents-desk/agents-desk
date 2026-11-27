@@ -364,4 +364,15 @@ describe("widget identity lazy lead creation", () => {
     expect(id.contact()?.kind).toBe("lead")
     expect(calls.every((c) => c.user_token !== expired)).toBe(true)
   })
+
+  test("unlockWithPasscode resolves ready without calling start first", async () => {
+    const id = createIdentity()
+    id.connect(mockClient())
+
+    await id.unlockWithPasscode(" 888666 ")
+    await id.ready()
+    expect(calls.length).toBe(1)
+    expect(calls[0].passcode).toBe("888666")
+    expect(id.contact()?.kind).toBe("lead")
+  })
 })

@@ -114,6 +114,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
       value: formatInt(live?.business_waiting, uiLang),
       warn: Boolean(live && live.business_waiting > 0),
       to: canConv ? "/$slug/inbox/chat" : undefined,
+      search: canConv ? { scope: "external" } : undefined,
     },
     {
       key: "online",

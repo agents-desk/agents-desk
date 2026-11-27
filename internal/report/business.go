@@ -154,7 +154,7 @@ func (a *Business) Handle(ctx context.Context, sub identity.Subject, f BusinessF
 			ORDER BY it.seq DESC
 			LIMIT 1
 		) last_msg ON true`, conversation.Message).
-		ColumnExpr("count(*) FILTER (WHERE last_msg.actor_type = ?)", conversation.ContactActor).
+		ColumnExpr("count(*) FILTER (WHERE last_msg.actor_type IN (?, ?))", conversation.ContactActor, conversation.ExternalUserActor).
 		Where("c.tenant_id = ? AND c.kind = ? AND ch.scope = ?", sub.Tenant, conversation.Chat, conversation.ChatExternal)
 	applyBusinessFilters(qWait, f)
 	if err := qWait.Scan(ctx, &sum.WaitingNow); err != nil {
@@ -172,7 +172,7 @@ func (a *Business) Handle(ctx context.Context, sub identity.Subject, f BusinessF
 		ColumnExpr("count(DISTINCT it.conversation_id) FILTER (WHERE it.created_at >= ? AND it.created_at < ? AND ch.mode = ?) AS group_chats", w.Start, w.End, conversation.ChatGroup).
 		ColumnExpr("count(*) FILTER (WHERE it.created_at >= ? AND it.created_at < ?) AS msgs_total", w.Start, w.End).
 		ColumnExpr("count(*) FILTER (WHERE it.created_at >= ? AND it.created_at < ?) AS prev_msgs_total", w.PrevStart, w.PrevEnd).
-		ColumnExpr("count(*) FILTER (WHERE it.created_at >= ? AND it.created_at < ? AND it.actor_type = ?) AS msgs_in", w.Start, w.End, conversation.ContactActor).
+		ColumnExpr("count(*) FILTER (WHERE it.created_at >= ? AND it.created_at < ? AND it.actor_type IN (?, ?)) AS msgs_in", w.Start, w.End, conversation.ContactActor, conversation.ExternalUserActor).
 		ColumnExpr("count(*) FILTER (WHERE it.created_at >= ? AND it.created_at < ? AND it.actor_type = ?) AS msgs_out", w.Start, w.End, conversation.MemberActor).
 		Where("it.tenant_id = ? AND c.kind = ? AND ch.scope = ? AND it.kind = ? AND it.created_at >= ? AND it.created_at < ?",
 			sub.Tenant, conversation.Chat, conversation.ChatExternal, conversation.Message, w.PrevStart, w.End)
@@ -205,7 +205,7 @@ func (a *Business) Handle(ctx context.Context, sub identity.Subject, f BusinessF
 		Join("JOIN chats ch ON ch.conversation_id = c.id").
 		Join("LEFT JOIN channels chan_t ON chan_t.id = ch.channel_id").
 		ColumnExpr(bucketExpr("it.created_at", w.Granularity)+" AS bucket", w.TimeZone).
-		ColumnExpr("count(*) FILTER (WHERE it.actor_type = ?) AS inbound", conversation.ContactActor).
+		ColumnExpr("count(*) FILTER (WHERE it.actor_type IN (?, ?)) AS inbound", conversation.ContactActor, conversation.ExternalUserActor).
 		ColumnExpr("count(*) FILTER (WHERE it.actor_type = ?) AS outbound", conversation.MemberActor).
 		Where("it.tenant_id = ? AND c.kind = ? AND ch.scope = ? AND it.kind = ? AND it.created_at >= ? AND it.created_at < ?",
 			sub.Tenant, conversation.Chat, conversation.ChatExternal, conversation.Message, w.Start, w.End).
@@ -275,7 +275,7 @@ func (a *Business) Handle(ctx context.Context, sub identity.Subject, f BusinessF
 		ColumnExpr("chan_t.kind AS kind").
 		ColumnExpr("count(DISTINCT it.conversation_id) AS active_chats").
 		ColumnExpr("count(*) AS total").
-		ColumnExpr("count(*) FILTER (WHERE it.actor_type = ?) AS inbound", conversation.ContactActor).
+		ColumnExpr("count(*) FILTER (WHERE it.actor_type IN (?, ?)) AS inbound", conversation.ContactActor, conversation.ExternalUserActor).
 		ColumnExpr("count(*) FILTER (WHERE it.actor_type = ?) AS outbound", conversation.MemberActor).
 		Where("it.tenant_id = ? AND c.kind = ? AND ch.scope = ? AND it.kind = ? AND it.created_at >= ? AND it.created_at < ?",
 			sub.Tenant, conversation.Chat, conversation.ChatExternal, conversation.Message, w.Start, w.End).
@@ -386,7 +386,7 @@ func (a *Business) Handle(ctx context.Context, sub identity.Subject, f BusinessF
 		Join("JOIN channels chan_t ON chan_t.id = ch.channel_id").
 		ColumnExpr("chan_t.owner_member_id::text AS owner_id").
 		ColumnExpr("count(DISTINCT it.conversation_id) AS active_chats").
-		ColumnExpr("count(*) FILTER (WHERE it.actor_type = ?) AS inbound", conversation.ContactActor).
+		ColumnExpr("count(*) FILTER (WHERE it.actor_type IN (?, ?)) AS inbound", conversation.ContactActor, conversation.ExternalUserActor).
 		ColumnExpr("count(*) FILTER (WHERE it.actor_type = ?) AS outbound", conversation.MemberActor).
 		Where("it.tenant_id = ? AND c.kind = ? AND ch.scope = ? AND chan_t.owner_member_id IS NOT NULL AND it.kind = ? AND it.created_at >= ? AND it.created_at < ?",
 			sub.Tenant, conversation.Chat, conversation.ChatExternal, conversation.Message, w.Start, w.End).
@@ -485,14 +485,15 @@ func (a *Business) Handle(ctx context.Context, sub identity.Subject, f BusinessF
 		})
 	}
 
-	// 8. 商务沟通对方语言分布
+	// 8. 商务沟通对方语言分布（按统计期内有消息活动的会话聚合，避免期末之后的新消息导致历史区间漏算）
 	byLanguage := []LanguageCount{}
 	qByLang := a.db.NewSelect().TableExpr("conversations c").
 		Join("JOIN chats ch ON ch.conversation_id = c.id").
 		Join("LEFT JOIN channels chan_t ON chan_t.id = ch.channel_id").
 		ColumnExpr("COALESCE(NULLIF(c.language, ''), 'und') AS language, count(*) AS count").
-		Where("c.tenant_id = ? AND c.kind = ? AND ch.scope = ? AND c.last_message_at >= ? AND c.last_message_at < ?",
-			sub.Tenant, conversation.Chat, conversation.ChatExternal, w.Start, w.End).
+		Where("c.tenant_id = ? AND c.kind = ? AND ch.scope = ?", sub.Tenant, conversation.Chat, conversation.ChatExternal).
+		Where("EXISTS (SELECT 1 FROM timeline_items it WHERE it.conversation_id = c.id AND it.tenant_id = c.tenant_id AND it.kind = ? AND it.created_at >= ? AND it.created_at < ?)",
+			conversation.Message, w.Start, w.End).
 		GroupExpr("1").
 		OrderExpr("count DESC, 1 ASC").
 		Limit(12)

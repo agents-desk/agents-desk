@@ -250,6 +250,22 @@ func TestBusinessLinkEndToEnd(t *testing.T) {
 		t.Fatalf("标记已读后未读应清零：%v %+v", err, stream2)
 	}
 
+	// 已有访客会话在链接过期后同样不能通过 StartSession 绕过过期拦截
+	existingSess, err := startSess.Handle(f.in(t, link.ID), SessionBody{VisitorID: sess.VisitorID}, apitoken.Device{})
+	if err != nil || existingSess.VisitorID != sess.VisitorID {
+		t.Fatalf("未过期前已有访客应可恢复会话：%v %+v", err, existingSess)
+	}
+	if _, err := update.Handle(ctx, f.agent, link.ID, UpdateBusinessLinkBody{
+		Name:    "Owner 商务专线",
+		Access:  &BusinessAccessInput{Mode: "public", ExpiresAt: &past},
+		Enabled: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := startSess.Handle(f.in(t, link.ID), SessionBody{VisitorID: sess.VisitorID}, apitoken.Device{}); !errors.Is(err, ErrBusinessLinkExpired) {
+		t.Fatalf("链接过期后已有访客调用 StartSession 应返回 ErrBusinessLinkExpired：%v", err)
+	}
+
 	// 3. 停用后外部不可再访问；已有沟通记录的链接拒绝删除（请停用），未使用的链接可删除
 	updated, err := update.Handle(ctx, f.agent, link.ID, UpdateBusinessLinkBody{
 		Name:       "Owner 商务专线（暂停）",

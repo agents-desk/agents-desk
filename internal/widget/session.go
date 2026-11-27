@@ -89,6 +89,18 @@ func (a *StartSession) Handle(ctx context.Context, b SessionBody, device apitoke
 	if err != nil {
 		return nil, err
 	}
+	var bizAccess *BusinessAccessStored
+	if ch.Kind == channel.BusinessLink {
+		s, err := settingsOf(ch)
+		if err != nil {
+			return nil, err
+		}
+		access := s.resolvedAccess()
+		if access.ExpiresAt != nil && time.Now().UTC().After(*access.ExpiresAt) {
+			return nil, ErrBusinessLinkExpired.New()
+		}
+		bizAccess = &access
+	}
 	var claims *userClaims
 	if b.UserToken != "" {
 		if claims, err = a.verify(ch, b.UserToken); err != nil {
@@ -113,7 +125,7 @@ func (a *StartSession) Handle(ctx context.Context, b SessionBody, device apitoke
 						return err
 					}
 					var convIDs []string
-					person, convIDs, err = contact.MergeLead(ctx, tx, ch.TenantID, id.ContactID, person.ID, ch.ID, visitorPrefix+b.VisitorID)
+					person, convIDs, err = contact.MergeLead(ctx, tx, ch.TenantID, id.ContactID, person.ID, ch.ID, visitorPrefix+b.VisitorID, a.tokens)
 					if err != nil {
 						return err
 					}
@@ -142,17 +154,9 @@ func (a *StartSession) Handle(ctx context.Context, b SessionBody, device apitoke
 				return errors.Wrap(err, "load visitor")
 			}
 		}
-		// 网页商务沟通链接对全新访客校验有效期与访问口令（已有访客身份可继续历史对话）
-		if ch.Kind == channel.BusinessLink {
-			s, err := settingsOf(ch)
-			if err != nil {
-				return err
-			}
-			access := s.resolvedAccess()
-			if access.ExpiresAt != nil && time.Now().UTC().After(*access.ExpiresAt) {
-				return ErrBusinessLinkExpired.New()
-			}
-			if access.Mode == "passcode" && access.PasscodeHash != "" && !verifyPasscode(ch.ID, b.Passcode, access.PasscodeHash) {
+		// 网页商务沟通链接对全新访客校验访问口令（已有访客身份且链接未过期时可继续历史对话）
+		if bizAccess != nil {
+			if bizAccess.Mode == "passcode" && bizAccess.PasscodeHash != "" && !verifyPasscode(ch.ID, b.Passcode, bizAccess.PasscodeHash) {
 				return ErrInvalidPasscode.New(errorx.Field("passcode"))
 			}
 		}

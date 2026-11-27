@@ -290,6 +290,39 @@ func TestReportsAggregationAndIsolation(t *testing.T) {
 	if !okB || mB.Removed || mB.ClosedCount != 2 || mB.RepliesSent != 1 || mB.FirstReplySamples != 2 || *mB.FirstReplyMedian != 450 || mB.OpenAssigned != 1 {
 		t.Fatalf("agentB metrics=%+v (ok=%v)", mB, okB)
 	}
+	// 按 team_id 筛选成员报表不应报缺列错误
+	mustExec(t, env.DB, "INSERT INTO team_members (team_id, member_id, created_at, updated_at) VALUES (?, ?, ?, ?)", team1.ID, agentB.ID, day1, day1)
+	teamMemRep, err := report.NewMembers(env.DB, env.Roles, env.Files).Handle(ctx, alphaOwner, report.FilterParams{Params: p, TeamID: team1.ID})
+	if err != nil {
+		t.Fatalf("members filter by team failed: %v", err)
+	}
+	if len(teamMemRep.Items) == 0 {
+		t.Fatalf("expected members for team1")
+	}
+
+	// 上一对比期关闭的轮次在本期被评价时，参评率仍应按本期关闭轮次计算且不超过 100%
+	prevConv, err := recv.Handle(ctx, alphaSys, conversation.ReceiveParams{ChannelID: chAlpha.ID, From: "u-cross", FromName: "Cross", Text: "old"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustExec(t, env.DB, "UPDATE conversations SET created_at = ?, team_id = ?, status = 'closed', waiting_since = NULL WHERE id = ?", prevDay, team1.ID, prevConv.ConversationID)
+	mustExec(t, env.DB, "DELETE FROM conversation_rounds WHERE conversation_id = ?", prevConv.ConversationID)
+	score5 := 5
+	crossRound := &conversation.Round{
+		ID: uuid.Must(uuid.NewV7()).String(), TenantID: alpha.ID, ConversationID: prevConv.ConversationID, Round: 1,
+		TeamID: &team1.ID, OpenedAt: prevDay, ClosedAt: &prevDay, ClosedByType: conversation.MemberActor, ClosedByID: agentB.ID,
+		AssigneeType: conversation.MemberActor, AssigneeID: agentB.ID, Rating: &score5, RatedAt: &day2,
+	}
+	if _, err := env.DB.NewInsert().Model(crossRound).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	satCross, err := report.NewSatisfaction(env.DB).Handle(ctx, alphaOwner, f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if satCross.Summary.RatedCount != 3 || satCross.Summary.ClosedCount != 2 || satCross.Summary.ResponseRate == nil || *satCross.Summary.ResponseRate != 100 {
+		t.Fatalf("cross-period rating response rate should stay <= 100%%, got %+v", satCross.Summary)
+	}
 
 	// 5. 翻译报表：alpha 3 次调用（2 成功 1 失败），450 token，0.003 USD，不混入 beta 的 m-beta
 	trRep, err := report.NewTranslation(env.DB).Handle(ctx, alphaOwner, p)

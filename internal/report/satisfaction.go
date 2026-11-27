@@ -100,7 +100,7 @@ func (a *Satisfaction) Handle(ctx context.Context, sub identity.Subject, f Filte
 	}
 
 	var sum SatisfactionSummary
-	var prevPositive int64
+	var prevPositive, ratedOfClosed int64
 	qSum := a.db.NewSelect().TableExpr("conversation_rounds r").
 		Join("JOIN conversations c ON c.id = r.conversation_id").
 		ColumnExpr("count(*) FILTER (WHERE r.rated_at >= ? AND r.rated_at < ? AND r.rating IS NOT NULL) AS rated", w.Start, w.End).
@@ -110,17 +110,18 @@ func (a *Satisfaction) Handle(ctx context.Context, sub identity.Subject, f Filte
 		ColumnExpr("count(*) FILTER (WHERE r.rated_at >= ? AND r.rated_at < ? AND r.rating >= 4) AS prev_pos", w.PrevStart, w.PrevEnd).
 		ColumnExpr("avg(r.rating) FILTER (WHERE r.rated_at >= ? AND r.rated_at < ? AND r.rating IS NOT NULL) AS prev_avg_score", w.PrevStart, w.PrevEnd).
 		ColumnExpr("count(*) FILTER (WHERE r.closed_at >= ? AND r.closed_at < ? AND c.external_group_id IS NULL) AS closed", w.Start, w.End).
+		ColumnExpr("count(*) FILTER (WHERE r.closed_at >= ? AND r.closed_at < ? AND c.external_group_id IS NULL AND r.rating IS NOT NULL) AS rated_of_closed", w.Start, w.End).
 		Where("r.tenant_id = ? AND c.kind = ?", sub.Tenant, conversation.Service).
 		Where("(r.rated_at >= ? AND r.rated_at < ?) OR (r.closed_at >= ? AND r.closed_at < ?)", w.PrevStart, w.End, w.Start, w.End)
 	applyRoundFilters(qSum, f)
-	if err := qSum.Scan(ctx, &sum.RatedCount, &sum.PositiveCount, &sum.AvgScore, &sum.PrevRatedCount, &prevPositive, &sum.PrevAvgScore, &sum.ClosedCount); err != nil {
+	if err := qSum.Scan(ctx, &sum.RatedCount, &sum.PositiveCount, &sum.AvgScore, &sum.PrevRatedCount, &prevPositive, &sum.PrevAvgScore, &sum.ClosedCount, &ratedOfClosed); err != nil {
 		return nil, errors.Wrap(err, "report satisfaction summary")
 	}
 	sum.AvgScore = roundPtr(sum.AvgScore)
 	sum.PrevAvgScore = roundPtr(sum.PrevAvgScore)
 	sum.CSAT = pct(sum.PositiveCount, sum.RatedCount)
 	sum.PrevCSAT = pct(prevPositive, sum.PrevRatedCount)
-	sum.ResponseRate = pct(sum.RatedCount, sum.ClosedCount)
+	sum.ResponseRate = pct(ratedOfClosed, sum.ClosedCount)
 
 	// 1–5 星分布（按 5 到 1 固定输出）
 	type scoreRow struct {

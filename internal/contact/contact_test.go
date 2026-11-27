@@ -268,15 +268,27 @@ func TestMergeLead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// 双方均关联工单目标（含共同工单与线索独占工单），验证 MergeLead 无 ticket_targets 主键冲突
+	tkCreate := conversation.NewCreateTicket(env.DB, conversation.Downstream{})
+	if _, err := tkCreate.Handle(ctx, w.system, conversation.CreateTicketParams{Title: "共同工单", ContactIDs: []string{lead.ID, user.ID}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tkCreate.Handle(ctx, w.system, conversation.CreateTicketParams{Title: "线索独占工单", ContactIDs: []string{lead.ID}}); err != nil {
+		t.Fatal(err)
+	}
 
 	var convIDs []string
 	err = database.RunInTx(ctx, env.DB, nil, func(ctx context.Context, tx database.Tx) error {
 		var err error
-		_, convIDs, err = contact.MergeLead(ctx, tx, w.tenant, lead.ID, user.ID, w.channel.ID, "visitor:abc")
+		_, convIDs, err = contact.MergeLead(ctx, tx, w.tenant, lead.ID, user.ID, w.channel.ID, "visitor:abc", tokens)
 		return err
 	})
 	if err != nil || len(convIDs) != 1 || convIDs[0] != rec.ConversationID {
 		t.Fatalf("合并失败：convIDs=%v err=%v", convIDs, err)
+	}
+	targetCount, err := env.DB.NewSelect().Table("ticket_targets").Where("tenant_id = ? AND contact_id = ?", w.tenant, user.ID).Count(ctx)
+	if err != nil || targetCount != 2 {
+		t.Fatalf("MergeLead 后用户应保留 2 条工单关联：count=%d err=%v", targetCount, err)
 	}
 
 	// 线索令牌已吊销
