@@ -561,7 +561,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                 <Group gap={10} wrap="nowrap" align="center" w="100%">
                   <Skeleton circle h={30} w={30} style={{ flex: "none" }} />
                   <Box style={{ flex: 1, minWidth: 0 }}>
-                    <Group justify="space-between" mb={6}>
+                    <Group justify="space-between" mb={8}>
                       <Skeleton h={12} w="46%" radius="sm" />
                       <Skeleton h={10} w={36} radius="sm" />
                     </Group>
@@ -792,7 +792,7 @@ function Row({
               {c.waiting_since ? duration(c.waiting_since, now, t) : activity(c.last_message_at, language, t, zone)}
             </Text>
           </Group>
-          <Group gap={6} wrap="nowrap" align="center" mt={4} h={18}>
+          <Group gap={6} wrap="nowrap" align="center" mt={8} h={18}>
             <Text size="xs" c={draftText || c.unread ? undefined : "dimmed"} truncate lh={1.35} style={{ flex: 1, minWidth: 0 }}>
               {draftText ? (
                 <>
