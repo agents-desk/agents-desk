@@ -75,7 +75,7 @@ import {
 } from "./Attachments"
 import { ChannelIcon } from "./channel-badge"
 import {
-  AutoTranslateHint,
+  ComposerSendArea,
   defaultPeerLanguage,
   InlineTranslationPane,
   NO_TRANSLATION,
@@ -646,44 +646,33 @@ export function Composer({
               {ctrlEnterSend ? t("inbox.ctrl_enter_again", { key: sendModKey }) : t("inbox.enter_again")}
             </Text>
           )}
-          <Group gap="xs" ml="auto" wrap="nowrap">
-            <AutoTranslateHint preview={preview} myLang={me.data?.language} />
-            <Group gap={0} wrap="nowrap">
-              <Tooltip label={sendHint} openDelay={350}>
-                <Button
-                  color={note ? "yellow" : undefined}
-                  disabled={!canSubmit}
-                  loading={send.isPending || preview.pending}
-                  onClick={() => void submit({ kind: "none" })}
-                  style={note ? undefined : { borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
-                >
-                  {mainLabel}
-                </Button>
-              </Tooltip>
-              {!note && (
-                <Menu position="top-end" withinPortal>
-                  <Menu.Target>
-                    <Button px={7} disabled={!canSubmit} className="inbox-send-menu" aria-label={t("inbox.send_options")}>
-                      <IconChevronDown size={14} />
-                    </Button>
-                  </Menu.Target>
-                  <Menu.Dropdown>
-                    <Menu.Item onClick={() => void submit({ kind: "none" })}>{t("inbox.send")}</Menu.Item>
-                    {willAutoTranslateReply && (
-                      <Menu.Item onClick={() => void submit({ kind: "none" }, { skipTranslation: true })}>{t("inbox.send_original")}</Menu.Item>
-                    )}
-                    <Menu.Item onClick={() => void submit({ kind: "close" })}>{t("inbox.send_close")}</Menu.Item>
-                    <Menu.Label>{t("inbox.send_snooze")}</Menu.Label>
-                    {snoozeOptions(zone).map((o) => (
-                      <Menu.Item key={o.key} onClick={() => void submit({ kind: "snooze", until: o.until })}>
-                        {t(`inbox.snooze_${o.key}` as const)}
-                      </Menu.Item>
-                    ))}
-                  </Menu.Dropdown>
-                </Menu>
-              )}
-            </Group>
-          </Group>
+          <ComposerSendArea
+            preview={preview}
+            myLang={me.data?.language}
+            label={mainLabel}
+            sendHint={sendHint}
+            note={note}
+            disabled={!canSubmit}
+            loading={send.isPending || preview.pending}
+            onSend={() => void submit({ kind: "none" })}
+            menu={
+              !note && (
+                <>
+                  <Menu.Item onClick={() => void submit({ kind: "none" })}>{t("inbox.send")}</Menu.Item>
+                  {willAutoTranslateReply && (
+                    <Menu.Item onClick={() => void submit({ kind: "none" }, { skipTranslation: true })}>{t("inbox.send_original")}</Menu.Item>
+                  )}
+                  <Menu.Item onClick={() => void submit({ kind: "close" })}>{t("inbox.send_close")}</Menu.Item>
+                  <Menu.Label>{t("inbox.send_snooze")}</Menu.Label>
+                  {snoozeOptions(zone).map((o) => (
+                    <Menu.Item key={o.key} onClick={() => void submit({ kind: "snooze", until: o.until })}>
+                      {t(`inbox.snooze_${o.key}` as const)}
+                    </Menu.Item>
+                  ))}
+                </>
+              )
+            }
+          />
         </Group>
       </Box>
     </Box>

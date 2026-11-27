@@ -1,9 +1,9 @@
 import type { ConversationTicketDTO, ConversationTranslation, MemberTenantMember } from "@agents-desk/client/tenant"
-import { ActionIcon, Avatar, Box, Button, FileButton, Group, SegmentedControl, Text, Textarea, Tooltip } from "@mantine/core"
+import { ActionIcon, Avatar, Box, FileButton, Group, SegmentedControl, Text, Textarea, Tooltip } from "@mantine/core"
 import { useOs } from "@mantine/hooks"
 import { notifications } from "@mantine/notifications"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { IconLock, IconPaperclip, IconSend, IconWorld } from "@tabler/icons-react"
+import { IconLock, IconPaperclip, IconWorld } from "@tabler/icons-react"
 import { notifyError, notifySuccess, TriggerMenu, textTriggerRule, useCan, useT, useTextTrigger, useUploadQueue } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
@@ -19,6 +19,7 @@ import {
 import {
   defaultPeerLanguage,
   InlineTranslationPane,
+  ComposerSendArea,
   TranslationToggleButton,
   useComposerTranslation,
 } from "../inbox/ComposerTranslation"
@@ -354,18 +355,17 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
             </Text>
           )}
 
-          <Tooltip label={sendHint} openDelay={350}>
-            <Button
-              ml="auto"
-              color={note ? "yellow" : undefined}
-              leftSection={note ? <IconLock size={14} /> : <IconSend size={14} />}
-              disabled={!canSubmit}
-              loading={send.isPending || preview.pending}
-              onClick={() => void submit()}
-            >
-              {mainLabel}
-            </Button>
-          </Tooltip>
+          <ComposerSendArea
+            preview={preview}
+            myLang={me.data?.language}
+            hintLabel={note ? undefined : t("tickets.auto_translate_public")}
+            label={mainLabel}
+            sendHint={sendHint}
+            note={note}
+            disabled={!canSubmit}
+            loading={send.isPending || preview.pending}
+            onSend={() => void submit()}
+          />
         </Group>
       </Box>
     </Box>
