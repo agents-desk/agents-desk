@@ -254,7 +254,7 @@ export function TelegramStudio({ slug, id }: { slug: string; id: string }): Reac
   return (
     <Page
       title={tg.data ? tg.data.name : t("telegram_install.title")}
-      back={() => void navigate({ to: "/$slug/settings/telegrams", params: { slug } })}
+      back={() => void navigate({ to: "/$slug/settings/channels", params: { slug }, search: { tab: "telegram" } })}
       actions={
         tg.data ? (
           <Group

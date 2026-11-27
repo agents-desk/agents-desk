@@ -1,23 +1,24 @@
-import { PasswordInput } from "@mantine/core"
-import { createFileRoute } from "@tanstack/react-router"
-import { type FieldInput, preloadResourceList, ResourcePage, useLanguage, useT } from "@go-tenon/ui"
-import { LanguageSelect } from "../../../../LanguageSelect"
-import { languageName } from "../../../../languages"
-import { members } from "../../../../resources"
-import { StatusBadge } from "../../../../status"
 import type { MemberStatus } from "@agents-desk/client/tenant"
+import { Checkbox, PasswordInput, Radio, Stack } from "@mantine/core"
+import { createFileRoute } from "@tanstack/react-router"
+import { type FieldInput, Page, preloadResourceList, ResourcePage, tabbedListSearch, useT } from "@go-tenon/ui"
+import type { ReactNode } from "react"
+import { members, roles } from "../../../../resources"
+import { StatusBadge } from "../../../../status"
 
-// 成员：管理员和主管理员添加成员、修改角色、移出成员。坐席没有 members:manage，看不到这一页。
+// 成员与角色：合并工作区成员管理和角色权限配置两个页内标签，共用 members:manage 权限。
 export const Route = createFileRoute("/$slug/settings/_workspace/members")({
-  staticData: { title: "nav.members", icon: "users", order: 1, permission: "members:manage" },
-  validateSearch: members.listSearch,
-  // 预取当前条件下的列表：进入页面时表格直接显示数据
+  staticData: { title: "nav.members_roles", icon: "users", order: 1, permission: "members:manage" },
+  validateSearch: tabbedListSearch({ members: members.listSearch, roles: roles.listSearch }),
   loaderDeps: ({ search }) => search,
-  loader: ({ context, deps }) => preloadResourceList(context.app.queryClient, members, deps),
-  component: Members,
+  loader: ({ context, deps }) => {
+    const { tab, ...rest } = deps as Record<string, unknown>
+    return preloadResourceList(context.app.queryClient, tab === "roles" ? roles : members, rest)
+  },
+  component: MembersAndRolesPage,
 })
 
-// 新账号的初始密码用密码框输入。
+/** PasswordField 是新账号初始密码的输入框。 */
 const PasswordField: FieldInput = ({ field, label, value, onChange, error, disabled }) => {
   const t = useT()
   return (
@@ -33,36 +34,74 @@ const PasswordField: FieldInput = ({ field, label, value, onChange, error, disab
   )
 }
 
-// 新账号的沟通与译文语言用全球语言选择器输入，支持任意 BCP 47 标签。
-const LanguageField: FieldInput = ({ label, value, onChange, error, disabled }) => {
+/** ScopeInput 是会话可见范围单选组。 */
+const ScopeInput: FieldInput = ({ field, label, value, onChange, error, disabled }) => (
+  <Radio.Group label={label} required={field.required} error={error} value={(value as string) ?? ""} onChange={onChange}>
+    <Stack gap="xs" mt="xs">
+      {(field.options ?? []).map((o) => (
+        <Radio key={o.value} value={o.value} label={o.label} disabled={disabled} />
+      ))}
+    </Stack>
+  </Radio.Group>
+)
+
+/** PermissionsInput 是角色操作权限复选组。 */
+const PermissionsInput: FieldInput = ({ field, label, value, onChange, error, disabled }) => {
   const t = useT()
   return (
-    <LanguageSelect
+    <Checkbox.Group
       label={label}
-      description={t("members.language_hint")}
+      description={t("roles.permissions_hint")}
       error={error}
-      disabled={disabled}
-      clearable
-      value={typeof value === "string" && value ? value : null}
-      onChange={(v) => onChange?.(v ?? "")}
-    />
+      value={(value as string[]) ?? []}
+      onChange={onChange}
+    >
+      <Stack gap="xs" mt="xs">
+        {(field.options ?? []).map((o) => (
+          <Checkbox key={o.value} value={o.value} label={o.label} disabled={disabled} />
+        ))}
+      </Stack>
+    </Checkbox.Group>
   )
 }
 
-// 成员的列表、筛选、添加和修改角色按 Go 中的声明渲染（role_id 通过 Refs 自动渲染为角色下拉框）；
-// 主管理员那一行没有“修改”和“移出”，在线的人有“设为离开”。
-function Members() {
-  const ui = useLanguage()
+function MembersAndRolesPage(): ReactNode {
+  const t = useT()
+
   return (
-    <ResourcePage
-      model={members}
-      route={Route}
-      form="modal"
-      inputs={{ password: PasswordField, language: LanguageField }}
-      render={{
-        status: (v) => <StatusBadge status={v as MemberStatus} />,
-        language: (v) => (typeof v === "string" && v ? languageName(v, ui) : "—"),
-      }}
+    <Page
+      title={t("nav.members_roles")}
+      tabs={[
+        {
+          value: "members",
+          label: t("nav.members"),
+          content: (
+            <ResourcePage
+              title={null}
+              description={t("members.description")}
+              model={members}
+              route={Route}
+              form="modal"
+              inputs={{ password: PasswordField }}
+              render={{ status: (v) => <StatusBadge status={v as MemberStatus} /> }}
+            />
+          ),
+        },
+        {
+          value: "roles",
+          label: t("nav.roles"),
+          content: (
+            <ResourcePage
+              title={null}
+              description={t("roles.description")}
+              model={roles}
+              route={Route}
+              form="modal"
+              inputs={{ conversation_scope: ScopeInput, permissions: PermissionsInput }}
+            />
+          ),
+        },
+      ]}
     />
   )
 }

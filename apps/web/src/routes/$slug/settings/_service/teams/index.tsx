@@ -4,7 +4,7 @@ import { type FieldInput, preloadResourceList, ResourcePage } from "@go-tenon/ui
 import { teams } from "../../../../../resources"
 
 // 团队收件箱：有 teams:manage 权限的成员新建、修改、停用/启用和删除空的团队收件箱；点名称进入团队收件箱，管理它的成员和工作时间。
-export const Route = createFileRoute("/$slug/settings/_inbox/teams/")({
+export const Route = createFileRoute("/$slug/settings/_service/teams/")({
   validateSearch: teams.listSearch,
   // 预取当前条件下的列表：进入页面时表格直接显示数据
   loaderDeps: ({ search }) => search,

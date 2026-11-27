@@ -20,13 +20,14 @@ export const messages = {
     "assignment_page.default_team_hint": "New conversations enter this team inbox; if round-robin is enabled, they are routed to online members automatically",
     "assignment_page.default_team_placeholder": "Select a team inbox",
     "assignment_page.description": "Configure the workspace fallback assignment rule for new conversations and review how routing rules work together.",
+    "assignment_page.go_channels": "Manage service channels",
     "assignment_page.go_teams": "Manage team inboxes",
-    "assignment_page.go_widgets": "Manage chat widgets",
     "assignment_page.priority_notice": "Priority: A channel's own default team inbox always takes precedence; this workspace rule applies when a channel has none configured.",
     "assignment_page.rule_away": "Reassign when away: If a member sets status to away with reassignment enabled, subsequent customer messages return the conversation to its team inbox.",
     "assignment_page.rule_reply": "Claim on reply: Replying to an unassigned conversation (or one assigned only to a team inbox) automatically assigns it to you.",
     "assignment_page.rule_round_robin": "Round robin: Configure round-robin assignment on each team inbox to distribute incoming conversations among online members in turn.",
     "assignment_page.rules_title": "Other built-in assignment rules",
+    "assignment_rules.description": "Configure default conversation assignment and built-in automation rules.",
     "attributes.add": "New attribute",
     "attributes.delete": "Delete",
     "attributes.delete_confirm": "Delete attribute “{{.name}}”?",
@@ -875,9 +876,12 @@ export const messages = {
     "macros.var_contact_name": "Contact name",
     "macros.var_empty": "No matching variables",
     "macros.var_member_name": "Current member name",
+    "members.description": "Manage workspace members and their roles. Online members can receive automatically assigned conversations.",
     "members.language_hint": "Working and translation language for this member (e.g. zh-CN, en, hi-Latn, pt-BR). They can change it later in Preferences",
     "members.password_hint": "Required when this email has no account yet. Share it with the person yourself",
+    "nav.account": "Account",
     "nav.assignment": "Assignment",
+    "nav.assignment_rules": "Assignment \u0026 automations",
     "nav.attributes": "Attributes",
     "nav.business_channels": "My business channels",
     "nav.business_governance": "Business channels",
@@ -887,9 +891,9 @@ export const messages = {
     "nav.inbox": "Inbox",
     "nav.macros": "Quick replies",
     "nav.members": "Members",
+    "nav.members_roles": "Members \u0026 roles",
     "nav.notifications": "Notifications",
     "nav.preferences": "Preferences",
-    "nav.profile": "Profile",
     "nav.reports": "Reports",
     "nav.reports_ai": "AI \u0026 Translation",
     "nav.reports_business": "Business",
@@ -898,12 +902,15 @@ export const messages = {
     "nav.reports_service": "Service",
     "nav.reports_tickets": "Tickets",
     "nav.roles": "Roles",
+    "nav.service_channels": "Service channels",
     "nav.settings": "Settings",
     "nav.switch_tenant": "Switch workspace",
     "nav.tags": "Tags",
+    "nav.tags_attributes": "Tags \u0026 attributes",
     "nav.team_inboxes": "Team inboxes",
     "nav.telegrams": "Telegram bots",
     "nav.ticket_types": "Ticket types",
+    "nav.translation": "Translation",
     "nav.widgets": "Website chat widgets",
     "notifications_page.assigned_desc": "Notify when a teammate assigns a conversation to you or auto-assignment routes one to you",
     "notifications_page.assigned_title": "Conversation assigned to me",
@@ -1201,11 +1208,9 @@ export const messages = {
     "reports.vis_members": "Members only",
     "roles.description": "The owner has every permission and is set by a platform admin. A role that members still use stays until you give those members another role.",
     "roles.permissions_hint": "Every role can view members and team inboxes, and view and reply to the conversations it can see",
-    "settings.group_channels": "Channels",
-    "settings.group_inbox": "Inbox",
+    "service_channels.description": "Manage customer support channels for this workspace, including website chat widgets and Telegram bots.",
     "settings.group_personal": "Personal",
-    "settings.group_tickets": "Tickets",
-    "settings.group_translation": "Translation",
+    "settings.group_service": "Service \u0026 channels",
     "settings.group_workspace": "Workspace",
     "shortcuts.composer_group": "Composer",
     "shortcuts.composer_macro": "Insert quick reply",
@@ -1302,6 +1307,7 @@ export const messages = {
     "telegrams.configure": "Configure",
     "telegrams.create_submit": "Create \u0026 configure",
     "telegrams.create_title": "New Telegram bot",
+    "telegrams.description": "Connect Telegram bots to receive and reply to customer direct messages via direct webhook or external gateway mode.",
     "telegrams.empty": "No Telegram bot channels yet. Create one to receive private messages.",
     "telegrams.mode": "Connection mode",
     "telegrams.mode_direct": "Direct",
@@ -1517,6 +1523,7 @@ export const messages = {
     "tone.neutral_example": "Example: Hello, I have checked your order. It has been shipped.",
     "tone.neutral_hint": "Polite and plain.",
     "tone.title": "Tone",
+    "translation_settings.description": "Configure the default reply translation tone and glossary.",
     "views.add_attr": "Add attribute condition",
     "views.any": "Any",
     "views.assignee": "Assignee",
@@ -1649,6 +1656,7 @@ export const messages = {
     "widgets.configure": "Configure",
     "widgets.create_submit": "Create \u0026 configure",
     "widgets.create_title": "New website chat widget",
+    "widgets.description": "Embed a live chat widget into your website, web app, or mobile WebView with visitor leads and signed user authentication.",
     "widgets.empty": "No website chat widgets yet. Create one to embed in your website or app.",
     "widgets.new": "New chat widget",
     "widgets.team_disabled_suffix": "{{.name}} (disabled)",
@@ -1686,13 +1694,14 @@ export const messages = {
     "assignment_page.default_team_hint": "新会话进入该团队收件箱；如果该团队开启了轮流分配，将自动分给在线成员",
     "assignment_page.default_team_placeholder": "选择团队收件箱",
     "assignment_page.description": "设置工作区的新会话默认指派规则，并了解渠道、团队轮流分配和自动领取之间的优先级。",
+    "assignment_page.go_channels": "管理客服渠道",
     "assignment_page.go_teams": "管理团队收件箱",
-    "assignment_page.go_widgets": "管理网页聊天插件",
     "assignment_page.priority_notice": "优先级：渠道单独设置的默认团队收件箱优先于此处的工作区默认指派；未设置时才回退到这里的规则。",
     "assignment_page.rule_away": "离开时重新分配：成员设为离开并勾选重新分配后，客户再发来新消息时会话会回到团队收件箱重新分配。",
     "assignment_page.rule_reply": "回复即领取：成员回复未指派或仅指派到团队收件箱的会话时，会自动成为该会话的负责人。",
     "assignment_page.rule_round_robin": "团队轮流分配：在各团队收件箱的设置中选择“轮流”分配方式，新会话会按顺序分配给团队内在线成员。",
     "assignment_page.rules_title": "其他内置指派规则",
+    "assignment_rules.description": "设置工作区的新会话默认指派目标与内置自动化规则。",
     "attributes.add": "新建属性",
     "attributes.delete": "删除",
     "attributes.delete_confirm": "删除属性“{{.name}}”？",
@@ -2541,9 +2550,12 @@ export const messages = {
     "macros.var_contact_name": "联系人名字",
     "macros.var_empty": "没有匹配的变量",
     "macros.var_member_name": "当前成员名字",
+    "members.description": "管理工作区成员账号与所属角色，在线成员可接收自动分配的会话。",
     "members.language_hint": "成员的沟通与译文偏好语言（例如中文、英语、印地语、巴西葡萄牙语）；成员本人之后可在偏好设置中修改",
     "members.password_hint": "这个邮箱还没有账号时必填，由你告诉本人",
+    "nav.account": "个人设置",
     "nav.assignment": "指派",
+    "nav.assignment_rules": "指派与自动化",
     "nav.attributes": "属性",
     "nav.business_channels": "我的商务渠道",
     "nav.business_governance": "商务渠道",
@@ -2553,9 +2565,9 @@ export const messages = {
     "nav.inbox": "收件箱",
     "nav.macros": "快捷回复",
     "nav.members": "成员",
+    "nav.members_roles": "成员与角色",
     "nav.notifications": "通知",
     "nav.preferences": "偏好设置",
-    "nav.profile": "个人资料",
     "nav.reports": "报表",
     "nav.reports_ai": "AI 与翻译",
     "nav.reports_business": "商务",
@@ -2564,12 +2576,15 @@ export const messages = {
     "nav.reports_service": "客服",
     "nav.reports_tickets": "工单",
     "nav.roles": "角色",
+    "nav.service_channels": "客服渠道",
     "nav.settings": "设置",
     "nav.switch_tenant": "切换工作区",
     "nav.tags": "标签",
+    "nav.tags_attributes": "标签与属性",
     "nav.team_inboxes": "团队收件箱",
     "nav.telegrams": "Telegram 机器人",
     "nav.ticket_types": "工单类型",
+    "nav.translation": "翻译",
     "nav.widgets": "网页聊天插件",
     "notifications_page.assigned_desc": "同事把会话改派给你，或系统自动轮流分配给你时提醒",
     "notifications_page.assigned_title": "新会话指派给我",
@@ -2867,11 +2882,9 @@ export const messages = {
     "reports.vis_members": "仅成员可见",
     "roles.description": "主管理员拥有全部权限，由平台管理员指定。还有成员使用的角色不能删除，先把他们改成别的角色。",
     "roles.permissions_hint": "每个角色都能查看成员和团队收件箱、查看和回复看得到的会话",
-    "settings.group_channels": "渠道",
-    "settings.group_inbox": "收件箱",
+    "service_channels.description": "管理工作区的客户接入渠道，包括网页聊天插件和 Telegram 机器人。",
     "settings.group_personal": "个人",
-    "settings.group_tickets": "工单",
-    "settings.group_translation": "翻译",
+    "settings.group_service": "客服与渠道",
     "settings.group_workspace": "工作区",
     "shortcuts.composer_group": "回复框",
     "shortcuts.composer_macro": "插入快捷回复",
@@ -2968,6 +2981,7 @@ export const messages = {
     "telegrams.configure": "配置",
     "telegrams.create_submit": "创建并配置",
     "telegrams.create_title": "新建 Telegram 机器人",
+    "telegrams.description": "接入 Telegram 机器人接收并回复客户私聊消息，支持直连 Webhook 与外部网关转发两种模式。",
     "telegrams.empty": "还没有 Telegram 机器人渠道，新建一个接入客户私聊消息。",
     "telegrams.mode": "接入模式",
     "telegrams.mode_direct": "直连模式",
@@ -3183,6 +3197,7 @@ export const messages = {
     "tone.neutral_example": "例：Hello, I have checked your order. It has been shipped.",
     "tone.neutral_hint": "礼貌、平实。",
     "tone.title": "语气",
+    "translation_settings.description": "配置回复翻译的默认语气与固定术语表。",
     "views.add_attr": "添加属性条件",
     "views.any": "不限",
     "views.assignee": "负责人",
@@ -3315,6 +3330,7 @@ export const messages = {
     "widgets.configure": "配置",
     "widgets.create_submit": "创建并配置",
     "widgets.create_title": "新建网页聊天插件",
+    "widgets.description": "嵌入官网、Web 应用或 App WebView 的实时聊天窗口，支持访客线索与已登录用户身份签名接入。",
     "widgets.empty": "还没有网页聊天插件，新建一个嵌入到你的产品网站或 App 中。",
     "widgets.new": "新建聊天插件",
     "widgets.team_disabled_suffix": "{{.name}}（已停用）",
@@ -3355,13 +3371,14 @@ export type MessageId =
   | "assignment_page.default_team_hint"
   | "assignment_page.default_team_placeholder"
   | "assignment_page.description"
+  | "assignment_page.go_channels"
   | "assignment_page.go_teams"
-  | "assignment_page.go_widgets"
   | "assignment_page.priority_notice"
   | "assignment_page.rule_away"
   | "assignment_page.rule_reply"
   | "assignment_page.rule_round_robin"
   | "assignment_page.rules_title"
+  | "assignment_rules.description"
   | "attributes.add"
   | "attributes.delete"
   | "attributes.delete_confirm"
@@ -4210,9 +4227,12 @@ export type MessageId =
   | "macros.var_contact_name"
   | "macros.var_empty"
   | "macros.var_member_name"
+  | "members.description"
   | "members.language_hint"
   | "members.password_hint"
+  | "nav.account"
   | "nav.assignment"
+  | "nav.assignment_rules"
   | "nav.attributes"
   | "nav.business_channels"
   | "nav.business_governance"
@@ -4222,9 +4242,9 @@ export type MessageId =
   | "nav.inbox"
   | "nav.macros"
   | "nav.members"
+  | "nav.members_roles"
   | "nav.notifications"
   | "nav.preferences"
-  | "nav.profile"
   | "nav.reports"
   | "nav.reports_ai"
   | "nav.reports_business"
@@ -4233,12 +4253,15 @@ export type MessageId =
   | "nav.reports_service"
   | "nav.reports_tickets"
   | "nav.roles"
+  | "nav.service_channels"
   | "nav.settings"
   | "nav.switch_tenant"
   | "nav.tags"
+  | "nav.tags_attributes"
   | "nav.team_inboxes"
   | "nav.telegrams"
   | "nav.ticket_types"
+  | "nav.translation"
   | "nav.widgets"
   | "notifications_page.assigned_desc"
   | "notifications_page.assigned_title"
@@ -4536,11 +4559,9 @@ export type MessageId =
   | "reports.vis_members"
   | "roles.description"
   | "roles.permissions_hint"
-  | "settings.group_channels"
-  | "settings.group_inbox"
+  | "service_channels.description"
   | "settings.group_personal"
-  | "settings.group_tickets"
-  | "settings.group_translation"
+  | "settings.group_service"
   | "settings.group_workspace"
   | "shortcuts.composer_group"
   | "shortcuts.composer_macro"
@@ -4637,6 +4658,7 @@ export type MessageId =
   | "telegrams.configure"
   | "telegrams.create_submit"
   | "telegrams.create_title"
+  | "telegrams.description"
   | "telegrams.empty"
   | "telegrams.mode"
   | "telegrams.mode_direct"
@@ -4852,6 +4874,7 @@ export type MessageId =
   | "tone.neutral_example"
   | "tone.neutral_hint"
   | "tone.title"
+  | "translation_settings.description"
   | "views.add_attr"
   | "views.any"
   | "views.assignee"
@@ -4984,6 +5007,7 @@ export type MessageId =
   | "widgets.configure"
   | "widgets.create_submit"
   | "widgets.create_title"
+  | "widgets.description"
   | "widgets.empty"
   | "widgets.new"
   | "widgets.team_disabled_suffix"

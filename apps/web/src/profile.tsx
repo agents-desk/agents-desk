@@ -1,34 +1,19 @@
-import { Avatar, Button, FileButton, Group, PasswordInput, Stack, Tabs, Text, Textarea, TextInput } from "@mantine/core"
+import { Avatar, Button, FileButton, Group, PasswordInput, Stack, Text, Textarea, TextInput } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { applyServerErrors, FormError, LoadingStage, notifyError, notifySuccess, useSmoothTransition, useT } from "@go-tenon/ui"
+import { applyServerErrors, FormError, notifyError, notifySuccess, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { api } from "./api"
 import { me } from "./auth"
 import { useUnsavedGuard } from "./components/unsaved-guard"
 
-// 个人资料：基本资料（头像、名字）和修改密码两个标签页，各自提交。按表单的约定：宽度不限，一个输入框一行，保存按钮在右侧。
+// 个人资料表单组件：基本资料（头像、名字、职务、简介）与修改密码各自独立提交，嵌入个人设置页的标签中。
 
-/** 个人资料的两个标签页。 */
-export function ProfileTabs(): ReactNode {
+/** BasicProfileForm 是基本资料表单入口，读取当前账号资料后渲染表单。 */
+export function BasicProfileForm(): ReactNode {
   const profile = useQuery({ queryKey: ["me"], queryFn: me })
-  const t = useT()
-  const [tab, setTab] = useState<"basic" | "password">("basic")
-  const { data: shown, busy } = useSmoothTransition(tab, tab, false)
   if (!profile.data) return null
-  return (
-    <Tabs value={tab} onChange={(v) => v && setTab(v as "basic" | "password")}>
-      <Tabs.List>
-        <Tabs.Tab value="basic">{t("profile.tab_basic")}</Tabs.Tab>
-        <Tabs.Tab value="password">{t("profile.tab_password")}</Tabs.Tab>
-      </Tabs.List>
-      <LoadingStage loading={busy}>
-        <div role="tabpanel" style={{ paddingTop: "var(--mantine-spacing-md)" }}>
-          {shown === "basic" ? <BasicForm profile={profile.data} /> : <PasswordForm />}
-        </div>
-      </LoadingStage>
-    </Tabs>
-  )
+  return <BasicForm profile={profile.data} />
 }
 
 /** 头像、名字与商务名片：选择图片后立即上传为临时文件，点“保存”后才换上。 */
@@ -153,8 +138,8 @@ function BasicForm({ profile }: { profile: { name: string; title?: string; bio?:
   )
 }
 
-/** 修改密码：改完后其他设备上的登录失效，这次登录保留。 */
-function PasswordForm(): ReactNode {
+/** PasswordForm 是修改密码表单：改完后其他设备上的登录失效，当前登录保留。 */
+export function PasswordForm(): ReactNode {
   const t = useT()
   const form = useForm({
     initialValues: { current_password: "", new_password: "", confirm: "" },

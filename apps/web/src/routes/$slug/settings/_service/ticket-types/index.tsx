@@ -15,7 +15,7 @@ import { EmptyState } from "../../../../../components/empty-state"
 import { RowActions } from "../../../../../components/row-actions"
 
 // 工单类型列表：管理工单模板、默认团队收件箱、默认可见范围、拖拽排序及停用/启用；点击名称进入字段配置。
-export const Route = createFileRoute("/$slug/settings/_tickets/ticket-types/")({
+export const Route = createFileRoute("/$slug/settings/_service/ticket-types/")({
   // 预取页面的数据，最多等一小会儿：切换到这一页时内容一次完整出现，不先空白再出现
   loader: ({ context }) => preloadQueries(context.app.queryClient, [kit.queries.ticket.typeList({})]),
   component: TicketTypesPage,

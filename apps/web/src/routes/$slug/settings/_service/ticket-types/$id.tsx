@@ -1,86 +1,126 @@
-import type { AttributeDTO, AttributeTarget, AttributeType } from "@agents-desk/client/tenant"
+import type { AttributeDTO, AttributeType } from "@agents-desk/client/tenant"
 import { closestCenter, DndContext, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core"
 import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers"
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { ActionIcon, Badge, Button, Code, Group, Modal, SegmentedControl, Select, Stack, Table, TagsInput, Text, TextInput } from "@mantine/core"
+import { ActionIcon, Alert, Badge, Button, Code, Group, Modal, Select, Stack, Table, TagsInput, Text, TextInput } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { createFileRoute } from "@tanstack/react-router"
-import { IconGripVertical, IconPlus, IconTrash } from "@tabler/icons-react"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { IconGripVertical, IconPencil, IconPlus, IconTrash } from "@tabler/icons-react"
 import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, preloadQueries, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
-import { kit, tenantApi } from "../../../../api"
-import { EmptyState } from "../../../../components/empty-state"
-import { RowActions } from "../../../../components/row-actions"
+import { kit, tenantApi } from "../../../../../api"
+import { EmptyState } from "../../../../../components/empty-state"
+import { RowActions } from "../../../../../components/row-actions"
+import { TicketTypeForm } from "./index"
 
-// 属性：管理会话和联系人的自定义属性定义，按对象分组切换，支持拖动调整展示顺序。key 和 type 创建后锁定。
-export const Route = createFileRoute("/$slug/settings/_workspace/attributes")({
-  staticData: { title: "nav.attributes", icon: "list", order: 4, permission: "tenant-settings:manage" },
+// 工单类型详情页：管理该类型的基本信息及专属自定义字段（增删改与拖拽排序）。
+export const Route = createFileRoute("/$slug/settings/_service/ticket-types/$id")({
+  staticData: { title: "ticket_types.detail_title" },
   // 预取页面的数据，最多等一小会儿：切换到这一页时内容一次完整出现，不先空白再出现
-  loader: ({ context }) => preloadQueries(context.app.queryClient, [kit.queries.attribute.list({ target: "conversation" })]),
-  component: Attributes,
+  loader: ({ context, params }) =>
+    preloadQueries(context.app.queryClient, [kit.queries.ticket.typeGet(params.id), kit.queries.attribute.list({ target: "ticket", ticket_type_id: params.id })]),
+  component: TicketTypeDetailPage,
 })
 
-/** hasOptions 判断属性类型是否需要配置可选项。 */
 const hasOptions = (type: AttributeType): boolean => type === "select" || type === "multi_select"
 
-function Attributes(): ReactNode {
+function TicketTypeDetailPage(): ReactNode {
+  const { slug, id } = Route.useParams()
+  const navigate = useNavigate()
   const t = useT()
   const queryClient = useQueryClient()
-  const [target, setTarget] = useState<AttributeTarget>("conversation")
-  const [creating, setCreating] = useState(false)
-  const [editing, setEditing] = useState<AttributeDTO>()
-  // 本地拖动顺序与 DndContext 的结束状态在同一帧批量提交，避免放下瞬间出现一帧回弹
-  const [draftOrder, setDraftOrder] = useState<{ target: AttributeTarget; items: AttributeDTO[] } | null>(null)
-  const listQuery = kit.queries.attribute.list({ target })
-  const list = useQuery(listQuery)
-  const items = draftOrder?.target === target ? draftOrder.items : (list.data ?? [])
+
+  const typeQuery = useQuery(kit.queries.ticket.typeGet(id))
+  const fieldsQueryOpts = kit.queries.attribute.list({ target: "ticket", ticket_type_id: id })
+  const fieldsQuery = useQuery(fieldsQueryOpts)
+  const [editingType, setEditingType] = useState(false)
+  const [creatingField, setCreatingField] = useState(false)
+  const [editingField, setEditingField] = useState<AttributeDTO>()
+  const [draftOrder, setDraftOrder] = useState<AttributeDTO[] | null>(null)
+  const [toggling, setToggling] = useState(false)
+
+  const item = typeQuery.data
+  const fields = draftOrder ?? fieldsQuery.data ?? []
+  const isDisabled = item?.status === "disabled"
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: kit.queries.attribute.key() })
+  const invalidateAll = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: kit.queries.ticket.key() }),
+      queryClient.invalidateQueries({ queryKey: kit.queries.attribute.key() }),
+    ])
+  }
 
-  const remove = async (attr: AttributeDTO) => {
+  const toggleDisabled = async () => {
+    if (!item) return
+    if (!isDisabled) {
+      const ok = await confirm({
+        title: t("ticket_types.disable_confirm", { name: item.name }),
+        message: t("ticket_types.disable_message"),
+        danger: true,
+        confirmLabel: t("ticket_types.disable"),
+      })
+      if (!ok) return
+    }
+    setToggling(true)
+    try {
+      if (isDisabled) {
+        await tenantApi.ticket.typeEnable(item.id)
+        notifySuccess(t("ticket_types.enabled_done"))
+      } else {
+        await tenantApi.ticket.typeDisable(item.id)
+        notifySuccess(t("ticket_types.disabled_done"))
+      }
+      await invalidateAll()
+    } catch (err) {
+      notifyError(err)
+    } finally {
+      setToggling(false)
+    }
+  }
+
+  const removeField = async (attr: AttributeDTO) => {
     const ok = await confirm({
       title: t("attributes.delete_confirm", { name: attr.name }),
       message: t("attributes.delete_message"),
       danger: true,
-      confirmLabel: t("attributes.delete"),
+      confirmLabel: t("common.delete"),
     })
     if (!ok) return
     try {
       await tenantApi.attribute.delete(attr.id)
       setDraftOrder(null)
-      await invalidate()
+      await invalidateAll()
       notifySuccess(t("attributes.deleted"))
     } catch (err) {
       notifyError(err)
     }
   }
 
-  // onDragEnd 拖动结束后同步更新本地顺序，再批量持久化；失败时回滚并提示错误
   const onDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
     if (!over || active.id === over.id) return
-    const oldIndex = items.findIndex((x) => x.id === active.id)
-    const newIndex = items.findIndex((x) => x.id === over.id)
+    const oldIndex = fields.findIndex((x) => x.id === active.id)
+    const newIndex = fields.findIndex((x) => x.id === over.id)
     if (oldIndex < 0 || newIndex < 0) return
 
-    const previous = items
-    const next = arrayMove(items, oldIndex, newIndex).map((item, position) => ({ ...item, position }))
-    setDraftOrder({ target, items: next })
-    queryClient.setQueryData(listQuery.queryKey, next)
+    const previous = fields
+    const next = arrayMove(fields, oldIndex, newIndex).map((f, position) => ({ ...f, position }))
+    setDraftOrder(next)
+    queryClient.setQueryData(fieldsQueryOpts.queryKey, next)
     try {
-      const saved = await tenantApi.attribute.reorder({ target, ids: next.map((x) => x.id) })
-      queryClient.setQueryData(listQuery.queryKey, saved)
+      const saved = await tenantApi.attribute.reorder({ target: "ticket", ticket_type_id: id, ids: next.map((x) => x.id) })
+      queryClient.setQueryData(fieldsQueryOpts.queryKey, saved)
       setDraftOrder(null)
-      await invalidate()
+      await invalidateAll()
     } catch (err) {
-      queryClient.setQueryData(listQuery.queryKey, previous)
+      queryClient.setQueryData(fieldsQueryOpts.queryKey, previous)
       setDraftOrder(null)
       notifyError(err)
     }
@@ -88,27 +128,63 @@ function Attributes(): ReactNode {
 
   return (
     <Page
-      title={t("attributes.title")}
-      description={t("attributes.description")}
+      title={item?.name ?? t("ticket_types.detail_title")}
+      description={item?.description || undefined}
+      back={() => void navigate({ to: "/$slug/settings/ticket-types", params: { slug } })}
       actions={
-        <Button leftSection={<IconPlus size={16} />} onClick={() => setCreating(true)}>
-          {t("attributes.add")}
-        </Button>
+        item ? (
+          <Group gap="xs">
+            <Button variant="default" size="xs" leftSection={<IconPencil size={14} />} onClick={() => setEditingType(true)}>
+              {t("ticket_types.edit")}
+            </Button>
+            <Button
+              variant={isDisabled ? "filled" : "light"}
+              color={isDisabled ? undefined : "red"}
+              size="xs"
+              loading={toggling}
+              onClick={() => void toggleDisabled()}
+            >
+              {t(isDisabled ? "ticket_types.enable" : "ticket_types.disable")}
+            </Button>
+            <Button size="xs" leftSection={<IconPlus size={14} />} onClick={() => setCreatingField(true)}>
+              {t("ticket_types.add_field")}
+            </Button>
+          </Group>
+        ) : undefined
       }
     >
       <Stack gap="md">
-        <SegmentedControl
-          w="fit-content"
-          value={target}
-          onChange={(v) => setTarget(v as AttributeTarget)}
-          data={[
-            { value: "conversation", label: t("attributes.target_conversation") },
-            { value: "contact", label: t("attributes.target_contact") },
-          ]}
-        />
-        {items.length === 0 ? (
+        {isDisabled && (
+          <Alert color="gray" variant="light">
+            {t("ticket_types.disabled_notice")}
+          </Alert>
+        )}
+        {item && (
+          <Group gap="md">
+            <Group gap={6}>
+              <Text size="sm" c="dimmed">
+                {t("ticket_types.default_visibility")}:
+              </Text>
+              <Badge variant="light" color={item.default_visibility === "all" ? "bright-blue" : "gray"}>
+                {kit.label("TicketTypeVisibility", item.default_visibility)}
+              </Badge>
+            </Group>
+            <Group gap={6}>
+              <Text size="sm" c="dimmed">
+                {t("ticket_types.default_team")}:
+              </Text>
+              <Text size="sm">{item.default_team_name || "—"}</Text>
+            </Group>
+          </Group>
+        )}
+
+        <Text fw={500} size="sm" mt="xs">
+          {t("ticket_types.fields_heading")}
+        </Text>
+
+        {fields.length === 0 ? (
           <div className="desk-table-card">
-            <EmptyState title={t("attributes.empty")} />
+            <EmptyState title={t("ticket_types.fields_empty")} />
           </div>
         ) : (
           <DndContext
@@ -117,7 +193,7 @@ function Attributes(): ReactNode {
             modifiers={[restrictToVerticalAxis, restrictToParentElement]}
             onDragEnd={(e) => void onDragEnd(e)}
           >
-            <SortableContext items={items.map((x) => x.id)} strategy={verticalListSortingStrategy}>
+            <SortableContext items={fields.map((x) => x.id)} strategy={verticalListSortingStrategy}>
               <Table.ScrollContainer minWidth={720} className="desk-table-card" type="native">
                 <Table verticalSpacing="sm" horizontalSpacing="md">
                   <Table.Thead>
@@ -131,8 +207,13 @@ function Attributes(): ReactNode {
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
-                    {items.map((attr) => (
-                      <SortableRow key={attr.id} attr={attr} onEdit={() => setEditing(attr)} onRemove={() => void remove(attr)} />
+                    {fields.map((attr) => (
+                      <SortableFieldRow
+                        key={attr.id}
+                        attr={attr}
+                        onEdit={() => setEditingField(attr)}
+                        onRemove={() => void removeField(attr)}
+                      />
                     ))}
                   </Table.Tbody>
                 </Table>
@@ -142,27 +223,41 @@ function Attributes(): ReactNode {
         )}
       </Stack>
 
+      <Modal opened={editingType && !!item} onClose={() => setEditingType(false)} title={t("ticket_types.edit")} size="md">
+        {editingType && item && (
+          <TicketTypeForm
+            initial={item}
+            onCancel={() => setEditingType(false)}
+            onSaved={async () => {
+              await invalidateAll()
+              setEditingType(false)
+              notifySuccess(t("common.saved"))
+            }}
+          />
+        )}
+      </Modal>
+
       <Modal
-        opened={creating || !!editing}
+        opened={creatingField || !!editingField}
         onClose={() => {
-          setCreating(false)
-          setEditing(undefined)
+          setCreatingField(false)
+          setEditingField(undefined)
         }}
-        title={t(editing ? "attributes.edit" : "attributes.add")}
+        title={t(editingField ? "attributes.edit" : "ticket_types.add_field")}
         size="md"
       >
-        {(creating || editing) && (
-          <AttributeForm
-            target={editing?.target ?? target}
-            initial={editing}
+        {(creatingField || editingField) && (
+          <TicketFieldForm
+            ticketTypeId={id}
+            initial={editingField}
             onCancel={() => {
-              setCreating(false)
-              setEditing(undefined)
+              setCreatingField(false)
+              setEditingField(undefined)
             }}
             onSaved={async () => {
-              await invalidate()
-              setCreating(false)
-              setEditing(undefined)
+              await invalidateAll()
+              setCreatingField(false)
+              setEditingField(undefined)
               notifySuccess(t("common.saved"))
             }}
           />
@@ -172,8 +267,8 @@ function Attributes(): ReactNode {
   )
 }
 
-/** SortableRow 是可拖动排序的属性表格行，通过左侧手柄拖拽调整顺序。 */
-function SortableRow({ attr, onEdit, onRemove }: { attr: AttributeDTO; onEdit: () => void; onRemove: () => void }): ReactNode {
+/** SortableFieldRow 是可拖拽排序的工单自定义字段行。 */
+function SortableFieldRow({ attr, onEdit, onRemove }: { attr: AttributeDTO; onEdit: () => void; onRemove: () => void }): ReactNode {
   const t = useT()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging, isSorting } = useSortable({
     id: attr.id,
@@ -181,7 +276,6 @@ function SortableRow({ attr, onEdit, onRemove }: { attr: AttributeDTO; onEdit: (
   })
   const style = {
     transform: CSS.Translate.toString(transform),
-    // 只在拖动过程中播放让位动画，松手落位时保持静止
     transition: isSorting ? transition : undefined,
     position: isDragging ? ("relative" as const) : undefined,
     zIndex: isDragging ? 1 : undefined,
@@ -246,14 +340,14 @@ function SortableRow({ attr, onEdit, onRemove }: { attr: AttributeDTO; onEdit: (
   )
 }
 
-/** AttributeForm 是新建或编辑自定义属性定义的表单。编辑时锁定 key 和 type。 */
-function AttributeForm({
-  target,
+/** TicketFieldForm 是新建或编辑工单类型专属字段的表单。 */
+function TicketFieldForm({
+  ticketTypeId,
   initial,
   onSaved,
   onCancel,
 }: {
-  target: AttributeTarget
+  ticketTypeId: string
   initial?: AttributeDTO
   onSaved: () => Promise<void>
   onCancel: () => void
@@ -289,7 +383,8 @@ function AttributeForm({
         })
       } else {
         await tenantApi.attribute.create({
-          target,
+          target: "ticket",
+          ticket_type_id: ticketTypeId,
           key: values.key.trim(),
           name: values.name.trim(),
           description: values.description.trim(),
