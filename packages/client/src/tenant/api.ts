@@ -2571,22 +2571,80 @@ export interface WidgetAppearance {
   greeting?: string
 }
 
+export interface WidgetBusinessAccessDTO {
+  /** 可选：链接有效期，过期后不再接受新访客进入 */
+  expires_at?: string
+  /** 是否已设置访问口令 */
+  has_passcode: boolean
+  /** 访问模式：public（公开）或 passcode（口令保护） */
+  mode: "public" | "passcode"
+}
+
+export interface WidgetBusinessAccessInput {
+  /** 为 true 时清除已有访问口令 */
+  clear_passcode?: boolean
+  /** 可选：链接有效期，不传或传 null 表示永久有效 */
+  expires_at?: string
+  /** 访问模式：public 或 passcode */
+  mode?: "public" | "passcode"
+  /** 可选：设置或更换访问口令；留空保持原有口令不变 */
+  passcode?: string
+}
+
+export interface WidgetBusinessCardConfig {
+  /** 成员处于离开状态时在商务沟通窗口展示的提示语 */
+  away_message?: string
+  /** 可选：覆盖成员个人资料中的对外简介 */
+  bio_override?: string
+  /** 可选：覆盖工作区默认展示的公司或品牌名 */
+  company_override?: string
+  /** 是否在聊天窗口顶部展示归属成员的头像、姓名、头衔与简介 */
+  show_owner: boolean
+  /** 可选：覆盖成员个人资料中的头衔 */
+  title_override?: string
+}
+
+export interface WidgetBusinessIntakeConfig {
+  /** 公司/组织字段模式 */
+  company?: "off" | "optional" | "required"
+  /** 邮箱字段模式 */
+  email?: "off" | "optional" | "required"
+  /** 是否开启开场留资表单 */
+  enabled: boolean
+  /** 称呼/姓名字段模式 */
+  name?: "off" | "optional" | "required"
+  /** 合作意向/备注字段模式 */
+  note?: "off" | "optional" | "required"
+}
+
 export interface WidgetBusinessLinkDTO {
+  /** 访问控制（口令保护与有效期） */
+  access: WidgetBusinessAccessDTO
   /** 聊天窗口外观配置（主题色与问候语） */
   appearance: WidgetAppearance
   /** 通用商务策略（默认协作成员、自动标签与翻译覆写） */
   business: ChannelBusinessPolicy
-  /** 发给外部商户直接打开的网页沟通地址 */
+  /** 对外商务名片展示与离开提示配置 */
+  card: WidgetBusinessCardConfig
+  /** 发给外部合作方直接打开的短链地址（/c/{code}） */
   chat_url: string
   created_at: string
   /** 是否启用；停用后对方无法继续打开或发消息 */
   enabled: boolean
   id: string
+  /** 开场留资表单配置 */
+  intake: WidgetBusinessIntakeConfig
   /** 商务沟通链接名称，显示在对方打开的聊天窗口顶部 */
   name: string
   /** 网页商务链接的公开短码，用于 /c/{code} 访问 */
   public_code: string
+  /** 短链对应的 PNG 二维码（data:image/png;base64,...） */
+  qr_data_url?: string
+  /** 快捷开场话题列表 */
+  starters: string[]
   updated_at: string
+  /** 底层聊天窗口直连地址（/widget/?channel={id}） */
+  widget_url: string
 }
 
 export interface WidgetChanges {
@@ -2646,10 +2704,16 @@ export interface WidgetUpdateBody {
 }
 
 export interface WidgetUpdateBusinessLinkBody {
+  access?: WidgetBusinessAccessInput
   appearance?: WidgetAppearance
   business?: ChannelBusinessPolicy
+  card?: WidgetBusinessCardConfig
   enabled: boolean
+  intake?: WidgetBusinessIntakeConfig
   name: string
+  /** 可选：自定义短码（3-40 位小写字母、数字或连字符） */
+  public_code?: string
+  starters?: string[]
 }
 
 /** attribute-list 的参数。 */
@@ -3169,12 +3233,26 @@ export function createClient(options: ClientOptions) {
       linkDelete: (id: string): Promise<void> =>
         rt.request<void>({ method: "DELETE", path: `/my/business-links/${encodeURIComponent(id)}` }),
       /**
+       * 读取我的商务沟通链接详情
+       *
+       * GET /my/business-links/{id}
+       */
+      linkGet: (id: string): Promise<WidgetBusinessLinkDTO> =>
+        rt.request<WidgetBusinessLinkDTO>({ method: "GET", path: `/my/business-links/${encodeURIComponent(id)}` }),
+      /**
        * 我的商务沟通链接列表
        *
        * GET /my/business-links
        */
       linkList: (): Promise<WidgetBusinessLinkDTO[]> =>
         rt.request<WidgetBusinessLinkDTO[]>({ method: "GET", path: `/my/business-links` }),
+      /**
+       * 重置我的商务沟通链接短码
+       *
+       * POST /my/business-links/{id}/rotate-code
+       */
+      linkRotateCode: (id: string): Promise<WidgetBusinessLinkDTO> =>
+        rt.request<WidgetBusinessLinkDTO>({ method: "POST", path: `/my/business-links/${encodeURIComponent(id)}/rotate-code` }),
       /**
        * 修改我的商务沟通链接
        *

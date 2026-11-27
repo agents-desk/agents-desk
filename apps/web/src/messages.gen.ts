@@ -69,6 +69,85 @@ export const messages = {
     "automations.ticket_status_notify_desc": "Automatically notify customers in all linked service conversations when a customer-visible ticket changes status.",
     "automations.ticket_status_notify_title": "Notify linked customers on ticket status change",
     "automations.title": "Built-in automations",
+    "biz_studio.access_mode": "Access mode",
+    "biz_studio.access_passcode": "Passcode protected",
+    "biz_studio.access_public": "Public link",
+    "biz_studio.auto_translate": "Auto-translation override",
+    "biz_studio.auto_translate_inherit": "Inherit workspace setting",
+    "biz_studio.auto_translate_off": "Disable auto-translation",
+    "biz_studio.auto_translate_on": "Always on",
+    "biz_studio.away_message": "Away message (optional)",
+    "biz_studio.away_message_placeholder": "e.g. Currently in a meeting — leave a note and I'll reply within 2 hours.",
+    "biz_studio.bio_override": "Public bio override (optional)",
+    "biz_studio.bio_override_placeholder": "Leave blank to inherit your profile bio",
+    "biz_studio.clear_expires": "Clear expiration",
+    "biz_studio.collaborators": "Default collaborators",
+    "biz_studio.collaborators_hint": "Automatically invite these colleagues when a new business chat starts on this link",
+    "biz_studio.collaborators_placeholder": "Select workspace members",
+    "biz_studio.company_override": "Company / brand override (optional)",
+    "biz_studio.company_override_placeholder": "Leave blank to inherit workspace: {{.fallback}}",
+    "biz_studio.configure": "Configure",
+    "biz_studio.create_hint": "After creating, you will enter the visual studio to customize your business card, intake form, QR code, and passcode.",
+    "biz_studio.default_tags": "Auto-tag new contacts",
+    "biz_studio.default_tags_hint": "Automatically apply selected tags to new contacts entering through this link",
+    "biz_studio.default_tags_placeholder": "Select tags",
+    "biz_studio.enabled": "Enable this business link",
+    "biz_studio.enabled_hint": "When disabled, external partners can no longer open the link or send messages",
+    "biz_studio.expires_at": "Expiration time (optional)",
+    "biz_studio.expires_at_hint": "Leave blank for no expiration; expired links reject new visitors while preserving existing chats",
+    "biz_studio.intake_company": "Company / Organization",
+    "biz_studio.intake_email": "Email",
+    "biz_studio.intake_enabled": "Enable pre-chat intake form",
+    "biz_studio.intake_name": "Name",
+    "biz_studio.intake_note": "Inquiry summary",
+    "biz_studio.intake_off": "Hidden",
+    "biz_studio.intake_optional": "Optional",
+    "biz_studio.intake_required": "Required",
+    "biz_studio.passcode": "Passcode",
+    "biz_studio.passcode_placeholder_keep": "Passcode set; leave blank to keep current",
+    "biz_studio.passcode_placeholder_set": "Enter a passcode",
+    "biz_studio.preview_hint": "Safe live preview creates no real visitor or chat. Try filling forms or clicking starters.",
+    "biz_studio.public_code": "Custom short code",
+    "biz_studio.public_code_hint": "Accessible at /c/{code}; 3-40 lowercase letters, digits, or hyphens",
+    "biz_studio.qr_desc": "Great for printed business cards, pitch decks, and event booths — scan to chat immediately.",
+    "biz_studio.qr_download": "Download QR PNG",
+    "biz_studio.qr_title": "Business card QR code",
+    "biz_studio.rotate_code": "Rotate short code",
+    "biz_studio.rotate_confirm_msg": "The previous short link and QR code will stop working immediately. Existing conversations are preserved.",
+    "biz_studio.rotate_confirm_title": "Rotate short code for this link?",
+    "biz_studio.rotated": "Generated a new short code and QR code",
+    "biz_studio.saved": "Business chat link saved",
+    "biz_studio.scene_conversation": "Conversation",
+    "biz_studio.scene_intake": "Pre-chat intake",
+    "biz_studio.scene_passcode": "Passcode gate",
+    "biz_studio.section_access": "Access control",
+    "biz_studio.section_access_desc": "Optionally protect private invite or event links with a passcode and expiration time.",
+    "biz_studio.section_appearance": "Appearance \u0026 quick starters",
+    "biz_studio.section_appearance_desc": "Customize theme color, welcome greeting, and one-click conversation starters.",
+    "biz_studio.section_basic": "Basics \u0026 short link",
+    "biz_studio.section_basic_desc": "Configure the display name, status, and memorable short URL code.",
+    "biz_studio.section_card": "Public business card",
+    "biz_studio.section_card_desc": "Displayed at the top of the chat window so partners know exactly who they are talking to.",
+    "biz_studio.section_intake": "Pre-chat intake form",
+    "biz_studio.section_intake_desc": "Collect partner name, company, and email before chatting so you know who is reaching out.",
+    "biz_studio.section_policy": "Collaboration \u0026 translation",
+    "biz_studio.section_policy_desc": "Set default collaborators, auto-tags for new partners, and channel-level translation overrides.",
+    "biz_studio.security_desc": "If the link is leaked or spammed, rotate the short code to invalidate the old URL while keeping all chat history.",
+    "biz_studio.security_title": "Security reset",
+    "biz_studio.share_link_desc": "Share directly with partners, add to your email signature, or place on your social profile.",
+    "biz_studio.share_link_title": "Direct short link",
+    "biz_studio.show_owner": "Show my business card (avatar, name, title, and status)",
+    "biz_studio.starters": "Quick conversation starters (up to 5)",
+    "biz_studio.starters_hint": "Press Enter to add; partners can click a topic to start chatting immediately",
+    "biz_studio.starters_placeholder": "e.g. Reseller partnership inquiry",
+    "biz_studio.tab_config": "Configure \u0026 preview",
+    "biz_studio.tab_share": "Share \u0026 QR code",
+    "biz_studio.title": "Business link studio",
+    "biz_studio.title_override": "Title override (optional)",
+    "biz_studio.title_override_empty": "Leave blank to inherit your profile title",
+    "biz_studio.title_override_placeholder": "Leave blank to inherit profile: {{.fallback}}",
+    "biz_studio.tone_inherit": "Inherit workspace business default",
+    "biz_studio.translation_tone": "Translation tone override",
     "business_channels.col_synced": "Synced chats",
     "business_channels.col_url": "Chat URL",
     "business_channels.copy_url": "Copy URL",
@@ -1567,6 +1646,85 @@ export const messages = {
     "automations.ticket_status_notify_desc": "客户可见工单的状态发生变化时，自动通知该工单关联的所有服务型会话中的客户（聊天插件显示状态卡片，Telegram 等渠道按客户语言发送文本通知）。",
     "automations.ticket_status_notify_title": "工单状态变化时通知关联客户",
     "automations.title": "内置自动化",
+    "biz_studio.access_mode": "访问权限",
+    "biz_studio.access_passcode": "口令保护",
+    "biz_studio.access_public": "公开访问",
+    "biz_studio.auto_translate": "自动翻译覆写",
+    "biz_studio.auto_translate_inherit": "继承工作区设置",
+    "biz_studio.auto_translate_off": "关闭自动翻译",
+    "biz_studio.auto_translate_on": "强制开启",
+    "biz_studio.away_message": "离开状态提示语（可选）",
+    "biz_studio.away_message_placeholder": "例如：当前在会议中，请留言或留下邮箱，我将在 2 小时内回复。",
+    "biz_studio.bio_override": "对外简介覆写（可选）",
+    "biz_studio.bio_override_placeholder": "留空继承个人资料中的对外简介",
+    "biz_studio.clear_expires": "清除有效期",
+    "biz_studio.collaborators": "默认协作成员",
+    "biz_studio.collaborators_hint": "新合作方通过此链接建聊时，自动拉入这些同事共同跟进",
+    "biz_studio.collaborators_placeholder": "选择工作区成员",
+    "biz_studio.company_override": "公司 / 品牌名覆写（可选）",
+    "biz_studio.company_override_placeholder": "留空继承工作区默认：{{.fallback}}",
+    "biz_studio.configure": "配置",
+    "biz_studio.create_hint": "创建后将自动进入可视化工作台，可进一步配置商务名片、开场留资、二维码与口令保护。",
+    "biz_studio.default_tags": "新联系人自动标签",
+    "biz_studio.default_tags_hint": "通过此链接新进入的合作方自动打上所选标签，便于按投放场景归类",
+    "biz_studio.default_tags_placeholder": "选择标签",
+    "biz_studio.enabled": "启用该商务链接",
+    "biz_studio.enabled_hint": "停用后外部合作方将无法打开该链接或继续发消息",
+    "biz_studio.expires_at": "链接有效期（可选）",
+    "biz_studio.expires_at_hint": "留空表示永久有效；过期后拒绝新访客进入，历史对话不受影响",
+    "biz_studio.intake_company": "公司 / 组织",
+    "biz_studio.intake_email": "联系邮箱",
+    "biz_studio.intake_enabled": "开启开场留资表单",
+    "biz_studio.intake_name": "称呼 / 姓名",
+    "biz_studio.intake_note": "合作意向简述",
+    "biz_studio.intake_off": "隐藏",
+    "biz_studio.intake_optional": "选填",
+    "biz_studio.intake_required": "必填",
+    "biz_studio.passcode": "访问口令",
+    "biz_studio.passcode_placeholder_keep": "已设置口令，留空保持不变",
+    "biz_studio.passcode_placeholder_set": "输入 4-64 位口令",
+    "biz_studio.preview_hint": "实时安全预览不会创建真实访客或对话，支持点击话题与试填表单。",
+    "biz_studio.public_code": "自定义短码",
+    "biz_studio.public_code_hint": "访问地址为 /c/{短码}，支持 3-40 位小写字母、数字与连字符",
+    "biz_studio.qr_desc": "适用于纸质名片、PPT 封底或展会海报，扫码即可进入专属沟通页。",
+    "biz_studio.qr_download": "下载二维码 PNG",
+    "biz_studio.qr_title": "商务名片二维码",
+    "biz_studio.rotate_code": "重置访问短码",
+    "biz_studio.rotate_confirm_msg": "重置后旧短链与旧二维码将立即失效，请及时替换为新链接。已建立的历史商务对话不受影响。",
+    "biz_studio.rotate_confirm_title": "重置该商务链接的访问短码？",
+    "biz_studio.rotated": "已生成新的访问短码与二维码",
+    "biz_studio.saved": "商务沟通链接配置已保存",
+    "biz_studio.scene_conversation": "对话中",
+    "biz_studio.scene_intake": "开场留资",
+    "biz_studio.scene_passcode": "口令门禁",
+    "biz_studio.section_access": "访问控制",
+    "biz_studio.section_access_desc": "按需为定向邀约或展会活动链接设置访问口令与有效期。",
+    "biz_studio.section_appearance": "外观与快捷开场",
+    "biz_studio.section_appearance_desc": "自定义窗口主题色、欢迎问候语与一键发起的高频合作话题。",
+    "biz_studio.section_basic": "基础与短链",
+    "biz_studio.section_basic_desc": "设置链接名称、启停状态与便于传播的独立短码地址。",
+    "biz_studio.section_card": "对外商务名片",
+    "biz_studio.section_card_desc": "展示在聊天窗口顶部，向外部合作方建立真实可靠的对接人信任感。",
+    "biz_studio.section_intake": "开场留资表单",
+    "biz_studio.section_intake_desc": "邀请合作方在开聊前填写称呼、公司与邮箱，避免列表出现匿名访客。",
+    "biz_studio.section_policy": "接待协作与翻译",
+    "biz_studio.section_policy_desc": "配置该链接的默认协作成员、新联系人自动标签与跨语言翻译覆写。",
+    "biz_studio.security_desc": "若短链意外泄露或遭遇垃圾消息，可立即重置短码使旧链接失效，已有历史对话完好保留。",
+    "biz_studio.security_title": "安全重置",
+    "biz_studio.share_link_desc": "直接发给外部合作方、附在邮件签名或个人社交主页中即可一键建聊。",
+    "biz_studio.share_link_title": "独立商务短链",
+    "biz_studio.show_owner": "展示我的商务名片（头像、姓名、头衔与在线状态）",
+    "biz_studio.starters": "快捷开场话题（最多 5 条）",
+    "biz_studio.starters_hint": "输入后回车添加，合作方进入空白对话时可一键点击发送",
+    "biz_studio.starters_placeholder": "例如：渠道代理合作咨询",
+    "biz_studio.tab_config": "配置与预览",
+    "biz_studio.tab_share": "分享与二维码",
+    "biz_studio.title": "商务沟通链接配置",
+    "biz_studio.title_override": "头衔覆写（可选）",
+    "biz_studio.title_override_empty": "留空继承个人资料中的头衔",
+    "biz_studio.title_override_placeholder": "留空继承个人资料：{{.fallback}}",
+    "biz_studio.tone_inherit": "继承工作区商务默认语气",
+    "biz_studio.translation_tone": "翻译语气覆写",
     "business_channels.col_synced": "同步对话",
     "business_channels.col_url": "沟通地址",
     "business_channels.copy_url": "复制链接",
@@ -3068,6 +3226,85 @@ export type MessageId =
   | "automations.ticket_status_notify_desc"
   | "automations.ticket_status_notify_title"
   | "automations.title"
+  | "biz_studio.access_mode"
+  | "biz_studio.access_passcode"
+  | "biz_studio.access_public"
+  | "biz_studio.auto_translate"
+  | "biz_studio.auto_translate_inherit"
+  | "biz_studio.auto_translate_off"
+  | "biz_studio.auto_translate_on"
+  | "biz_studio.away_message"
+  | "biz_studio.away_message_placeholder"
+  | "biz_studio.bio_override"
+  | "biz_studio.bio_override_placeholder"
+  | "biz_studio.clear_expires"
+  | "biz_studio.collaborators"
+  | "biz_studio.collaborators_hint"
+  | "biz_studio.collaborators_placeholder"
+  | "biz_studio.company_override"
+  | "biz_studio.company_override_placeholder"
+  | "biz_studio.configure"
+  | "biz_studio.create_hint"
+  | "biz_studio.default_tags"
+  | "biz_studio.default_tags_hint"
+  | "biz_studio.default_tags_placeholder"
+  | "biz_studio.enabled"
+  | "biz_studio.enabled_hint"
+  | "biz_studio.expires_at"
+  | "biz_studio.expires_at_hint"
+  | "biz_studio.intake_company"
+  | "biz_studio.intake_email"
+  | "biz_studio.intake_enabled"
+  | "biz_studio.intake_name"
+  | "biz_studio.intake_note"
+  | "biz_studio.intake_off"
+  | "biz_studio.intake_optional"
+  | "biz_studio.intake_required"
+  | "biz_studio.passcode"
+  | "biz_studio.passcode_placeholder_keep"
+  | "biz_studio.passcode_placeholder_set"
+  | "biz_studio.preview_hint"
+  | "biz_studio.public_code"
+  | "biz_studio.public_code_hint"
+  | "biz_studio.qr_desc"
+  | "biz_studio.qr_download"
+  | "biz_studio.qr_title"
+  | "biz_studio.rotate_code"
+  | "biz_studio.rotate_confirm_msg"
+  | "biz_studio.rotate_confirm_title"
+  | "biz_studio.rotated"
+  | "biz_studio.saved"
+  | "biz_studio.scene_conversation"
+  | "biz_studio.scene_intake"
+  | "biz_studio.scene_passcode"
+  | "biz_studio.section_access"
+  | "biz_studio.section_access_desc"
+  | "biz_studio.section_appearance"
+  | "biz_studio.section_appearance_desc"
+  | "biz_studio.section_basic"
+  | "biz_studio.section_basic_desc"
+  | "biz_studio.section_card"
+  | "biz_studio.section_card_desc"
+  | "biz_studio.section_intake"
+  | "biz_studio.section_intake_desc"
+  | "biz_studio.section_policy"
+  | "biz_studio.section_policy_desc"
+  | "biz_studio.security_desc"
+  | "biz_studio.security_title"
+  | "biz_studio.share_link_desc"
+  | "biz_studio.share_link_title"
+  | "biz_studio.show_owner"
+  | "biz_studio.starters"
+  | "biz_studio.starters_hint"
+  | "biz_studio.starters_placeholder"
+  | "biz_studio.tab_config"
+  | "biz_studio.tab_share"
+  | "biz_studio.title"
+  | "biz_studio.title_override"
+  | "biz_studio.title_override_empty"
+  | "biz_studio.title_override_placeholder"
+  | "biz_studio.tone_inherit"
+  | "biz_studio.translation_tone"
   | "business_channels.col_synced"
   | "business_channels.col_url"
   | "business_channels.copy_url"

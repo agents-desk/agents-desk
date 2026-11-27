@@ -386,8 +386,10 @@ func (g *Governance) buildItems(ctx context.Context, tenantID string, rows []cha
 		case channel.BusinessLink:
 			if ch.PublicCode != nil && *ch.PublicCode != "" {
 				item.PublicCode = *ch.PublicCode
+				item.ChatURL = baseURL + "/c/" + *ch.PublicCode
+			} else {
+				item.ChatURL = baseURL + "/widget/?channel=" + ch.ID
 			}
-			item.ChatURL = baseURL + "/widget/?channel=" + ch.ID
 		case channel.TelegramAccount:
 			var tgMeta struct {
 				Status      string `json:"status"`

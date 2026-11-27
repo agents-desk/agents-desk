@@ -328,6 +328,12 @@ export const WidgetErrors = {
   InvalidColor: "widget.invalid_color",
   /** ErrBusinessLinkInUse 是个人商务沟通链接已有聊天或联系人记录，不能删除，只能停用。 */
   BusinessLinkInUse: "widget.business_link_in_use",
+  /** ErrInvalidPasscode 是打开受口令保护的商务沟通链接时输入的访问口令不正确。 */
+  InvalidPasscode: "widget.invalid_passcode",
+  /** ErrBusinessLinkExpired 是商务沟通链接已超过有效期，不再接受新访客进入。 */
+  BusinessLinkExpired: "widget.business_link_expired",
+  /** ErrIntakeRequired 是开场留资表单中有必填项尚未填写。 */
+  IntakeRequired: "widget.intake_required",
 } as const
 
 /** github.com/go-tenon/tenon/apitoken 的错误码。 */

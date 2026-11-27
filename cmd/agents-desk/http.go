@@ -338,7 +338,16 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		file.RegisterRoutes(api, require(auth.ConversationsReply), a.files, a.cfg.Filesystem.MaxUploadSize)
 		widget.RegisterRoutes(api, require, a.db, a.crypt, a.cfg.HTTP.PublicURL)
 		bizGuard := business.NewPolicyGuard(a.db, a.businessPolicy, a.features, a.telegramSettings)
-		widget.RegisterBusinessLinkRoutes(api, require, a.db, a.cfg.HTTP.PublicURL, bizGuard.CheckCreateLink)
+		widget.RegisterBusinessLinkRoutes(api, require, a.db, a.cfg.HTTP.PublicURL, widget.BusinessLinkHooks{
+			CheckCreate: bizGuard.CheckCreateLink,
+			DefaultIntake: func(ctx context.Context, tenantID string) bool {
+				if a.businessPolicy == nil {
+					return false
+				}
+				p, err := a.businessPolicy.Tenant(tenantID).Get(ctx)
+				return err == nil && p.DefaultRequireIntake
+			},
+		})
 		telegram.RegisterRoutes(api, require, a.db, a.crypt, a.telegram, a.cfg.HTTP.PublicURL)
 		tgaccount.RegisterRoutes(api, require, a.tgAccounts)
 		var onTGChanged func()
@@ -364,8 +373,21 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		})
 		down := a.downstream()
 		widget.RegisterVisitorRoutes(api, api.RequireToken(), a.db, a.crypt, a.contactTokens,
-			conversation.NewReceive(a.db, a.channels, down), down, a.cfg.Filesystem.MaxUploadSize)
+			conversation.NewReceive(a.db, a.channels, down), down, a.cfg.Filesystem.MaxUploadSize,
+			func(ctx context.Context, tenantID string) string {
+				if a.businessPolicy == nil {
+					return ""
+				}
+				p, err := a.businessPolicy.Tenant(tenantID).Get(ctx)
+				if err != nil {
+					return ""
+				}
+				return p.DefaultCompanyName
+			})
 	})
+
+	// 网页商务沟通短链：/c/{code} 302 跳转至对应启用中的商务链接聊天页。
+	router.With(httpx.Timeout(a.cfg.HTTP.Timeout)).Get("/c/{code}", widget.ShortLinkHandler(a.db))
 
 	// Telegram 机器人 Webhook：接收 Telegram 官方直连或外部业务网关转发的 Update，使用渠道自己的 secret_token 鉴权。
 	router.With(httpx.Timeout(a.cfg.HTTP.Timeout)).Post("/webhooks/telegram/{channel}",

@@ -107,8 +107,8 @@ type RatedConversationOutput struct {
 }
 
 // RegisterVisitorRoutes 在聊天插件的 API（/w/{channel}/api，前面是 Middleware）中注册客户用的接口：
-// 公开设置、建立会话、上传附件、连续跨会话时间线、统一发消息、标记已读、正在输入、轮次评价、线索留邮箱与客户工单视图。
-func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), db *bun.DB, c *crypt.Crypt, tokens *apitoken.Store, receive *conversation.Receive, down conversation.Downstream, maxUpload filesystem.ByteSize) {
+// 公开设置、建立会话、上传附件、连续跨会话时间线、统一发消息、标记已读、正在输入、轮次评价、线索留邮箱、商务留资与客户工单视图。
+func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), db *bun.DB, c *crypt.Crypt, tokens *apitoken.Store, receive *conversation.Receive, down conversation.Downstream, maxUpload filesystem.ByteSize, defaultCompany ...func(ctx context.Context, tenantID string) string) {
 	route := func(access func(*huma.Operation), id, method, path, summary string) huma.Operation {
 		op := huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary}
 		access(&op)
@@ -123,9 +123,11 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 	streamTypingOp.DefaultStatus = http.StatusNoContent
 	rateOp := route(requireContact, "conversation-rate", http.MethodPost, "/conversations/{id}/rating", "评价已关闭的会话")
 	contactEmailOp := route(requireContact, "contact-email", http.MethodPost, "/contact/email", "线索留下邮箱")
+	contactIntakeOp := route(requireContact, "contact-intake", http.MethodPost, "/contact/intake", "提交商务沟通开场留资资料")
 
 	sendMessage := NewSendMessage(db, receive)
 	leaveEmail := NewLeaveEmail(db, down)
+	submitIntake := NewSubmitIntake(db, down)
 	stream := conversation.NewContactStream(db, down.Media)
 	markAllRead := conversation.NewMarkAllReadByContact(db, down)
 	typingActive := conversation.NewTypingOnActiveByContact(db, down)
@@ -134,7 +136,7 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 
 	file.RegisterRoutes(api, requireContact, down.Media.Files, maxUpload)
 
-	rest.Register(api, route(public, "widget-config", http.MethodGet, "/config", "聊天插件的公开设置"), NewGetConfig().HTTP)
+	rest.Register(api, route(public, "widget-config", http.MethodGet, "/config", "聊天插件的公开设置"), NewGetConfig(db, down.Media.Files, defaultCompany...).HTTP)
 	rest.Register(api, route(public, "widget-session", http.MethodPost, "/session", "建立会话"), NewStartSession(db, c, tokens, down).HTTP)
 
 	// 客户连续时间线与工单接口：渠道来自本次请求的聊天插件，归属由业务动作检查
@@ -189,6 +191,17 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 			return nil, err
 		}
 		out, err := leaveEmail.Handle(ctx, sub, ch, in.Body)
+		if err != nil {
+			return nil, err
+		}
+		return &ContactOutput{Body: *out}, nil
+	})
+	rest.Register(api, contactIntakeOp, func(ctx context.Context, in *ContactIntakeInput) (*ContactOutput, error) {
+		sub, _, err := visitor(ctx)
+		if err != nil {
+			return nil, err
+		}
+		out, err := submitIntake.Handle(ctx, sub, in.Body)
 		if err != nil {
 			return nil, err
 		}

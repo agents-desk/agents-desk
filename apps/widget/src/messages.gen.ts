@@ -4,6 +4,30 @@
 export const messages = {
   "en": {
     "app.widget": "Support",
+    "business.expired_desc": "This link is past its expiration date. Please ask your contact for a new link.",
+    "business.expired_title": "This business link has expired",
+    "business.intake_company": "Company / Organization",
+    "business.intake_company_placeholder": "e.g. Acme Ventures",
+    "business.intake_desc": "Share your contact details so we can better assist your partnership inquiry.",
+    "business.intake_email": "Email",
+    "business.intake_email_placeholder": "name@company.com",
+    "business.intake_invalid_email": "Please enter a valid email address",
+    "business.intake_name": "Your name",
+    "business.intake_name_placeholder": "e.g. Alex Chen",
+    "business.intake_note": "How can we partner?",
+    "business.intake_note_placeholder": "Briefly describe what you'd like to discuss",
+    "business.intake_required": "This field is required",
+    "business.intake_skip": "Skip and chat directly",
+    "business.intake_submit": "Start chatting",
+    "business.intake_title": "Tell us a bit about yourself",
+    "business.passcode_desc": "Enter the passcode shared with you to start chatting.",
+    "business.passcode_invalid": "Incorrect passcode. Please try again.",
+    "business.passcode_placeholder": "Enter passcode",
+    "business.passcode_submit": "Continue to chat",
+    "business.passcode_title": "Passcode-protected business chat",
+    "business.starters_heading": "Quick topics",
+    "business.status_away": "Away",
+    "business.status_online": "Online",
     "chat.download_file": "Download file",
     "chat.ended": "This conversation has ended",
     "chat.failed": "Not sent",
@@ -56,6 +80,11 @@ export const messages = {
     "panel.collapse": "Collapse",
     "panel.unavailable": "Support chat is unavailable right now. Please try again later.",
     "preview.agent_name": "Support",
+    "preview.business_company": "Acme Corp",
+    "preview.business_owner_name": "Alex Chen",
+    "preview.business_owner_title": "Account Director",
+    "preview.business_sample_owner": "Hi there! Happy to discuss — could you share a bit about your team and goals?",
+    "preview.business_sample_partner": "Hi! We'd love to explore an APAC reseller partnership.",
     "preview.sample_agent_reply": "Hi! Could you share your order number? I'll check the status right away.",
     "preview.sample_customer_msg": "Hi, I'd like to check the status of my recent order.",
     "prompt.collect_contact": "Leave your email so we can get back to you.",
@@ -100,6 +129,30 @@ export const messages = {
   },
   "zh-CN": {
     "app.widget": "在线客服",
+    "business.expired_desc": "此链接已超过有效期，请联系对接人获取新的沟通链接。",
+    "business.expired_title": "该商务沟通链接已过期",
+    "business.intake_company": "公司 / 组织",
+    "business.intake_company_placeholder": "例如：星海科技有限公司",
+    "business.intake_desc": "填写您的联系信息，方便我为您提供更有针对性的合作支持。",
+    "business.intake_email": "联系邮箱",
+    "business.intake_email_placeholder": "name@company.com",
+    "business.intake_invalid_email": "请输入有效的邮箱地址",
+    "business.intake_name": "您的称呼 / 姓名",
+    "business.intake_name_placeholder": "例如：陈先生 / Alex",
+    "business.intake_note": "合作意向 / 简述",
+    "business.intake_note_placeholder": "简单说明您想沟通的合作方向或需求",
+    "business.intake_required": "请填写此必填项",
+    "business.intake_skip": "跳过，直接聊天",
+    "business.intake_submit": "开始沟通",
+    "business.intake_title": "请先简单介绍一下您自己",
+    "business.passcode_desc": "请输入对方提供的访问口令以开始对话。",
+    "business.passcode_invalid": "访问口令不正确，请重试",
+    "business.passcode_placeholder": "请输入访问口令",
+    "business.passcode_submit": "进入对话",
+    "business.passcode_title": "受口令保护的商务沟通",
+    "business.starters_heading": "快速发起话题",
+    "business.status_away": "离开",
+    "business.status_online": "在线",
     "chat.download_file": "下载文件",
     "chat.ended": "会话已结束",
     "chat.failed": "发送失败",
@@ -152,6 +205,11 @@ export const messages = {
     "panel.collapse": "收起",
     "panel.unavailable": "在线客服暂时不可用，请稍后再试。",
     "preview.agent_name": "在线客服",
+    "preview.business_company": "示例科技",
+    "preview.business_owner_name": "Alex Chen",
+    "preview.business_owner_title": "大客户总监",
+    "preview.business_sample_owner": "您好！非常欢迎，方便介绍一下贵司目前的业务规模与合作方向吗？",
+    "preview.business_sample_partner": "您好，我们正在寻找亚太区渠道合作方案，方便聊聊吗？",
     "preview.sample_agent_reply": "你好！可以发一下订单号吗，我马上帮你核实进度。",
     "preview.sample_customer_msg": "你好，我想查询一下刚才提交的订单状态。",
     "prompt.collect_contact": "请留下你的邮箱，方便我们后续联系你。",
@@ -199,6 +257,30 @@ export const messages = {
 /** 界面文字的消息 ID。 */
 export type MessageId =
   | "app.widget"
+  | "business.expired_desc"
+  | "business.expired_title"
+  | "business.intake_company"
+  | "business.intake_company_placeholder"
+  | "business.intake_desc"
+  | "business.intake_email"
+  | "business.intake_email_placeholder"
+  | "business.intake_invalid_email"
+  | "business.intake_name"
+  | "business.intake_name_placeholder"
+  | "business.intake_note"
+  | "business.intake_note_placeholder"
+  | "business.intake_required"
+  | "business.intake_skip"
+  | "business.intake_submit"
+  | "business.intake_title"
+  | "business.passcode_desc"
+  | "business.passcode_invalid"
+  | "business.passcode_placeholder"
+  | "business.passcode_submit"
+  | "business.passcode_title"
+  | "business.starters_heading"
+  | "business.status_away"
+  | "business.status_online"
   | "chat.download_file"
   | "chat.ended"
   | "chat.failed"
@@ -251,6 +333,11 @@ export type MessageId =
   | "panel.collapse"
   | "panel.unavailable"
   | "preview.agent_name"
+  | "preview.business_company"
+  | "preview.business_owner_name"
+  | "preview.business_owner_title"
+  | "preview.business_sample_owner"
+  | "preview.business_sample_partner"
   | "preview.sample_agent_reply"
   | "preview.sample_customer_msg"
   | "prompt.collect_contact"

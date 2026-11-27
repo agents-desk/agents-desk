@@ -48,11 +48,11 @@ interface Pending {
 /** newClientId 返回一条消息的编号，服务端用它去重。 */
 const newClientId = () => crypto.randomUUID().replace(/-/g, "")
 
-/** FirstMessage 是客户还没有历史消息时，时间线底部贴近输入框的引导文案。 */
-function FirstMessage({ color }: { color: string }): ReactNode {
+/** FirstMessage 是客户还没有历史消息时，时间线底部贴近输入框的引导文案，支持商务链接快捷开场话题。 */
+function FirstMessage({ color, starters, onPickStarter }: { color: string; starters?: string[]; onPickStarter?: (text: string) => void }): ReactNode {
   const t = useT()
   return (
-    <Stack gap={6} align="center" py="lg" px="md">
+    <Stack gap="sm" align="center" py="lg" px="md">
       <ThemeIcon size={44} radius="xl" variant="light" color={color}>
         <IconMessageCircle size={22} />
       </ThemeIcon>
@@ -62,6 +62,27 @@ function FirstMessage({ color }: { color: string }): ReactNode {
       <Text size="xs" c="dimmed" ta="center">
         {t("home.first_hint")}
       </Text>
+      {starters && starters.length > 0 && onPickStarter && (
+        <Stack gap={6} w="100%" maw={320} mt={4}>
+          <Text size="xs" c="dimmed" ta="center">
+            {t("business.starters_heading")}
+          </Text>
+          {starters.map((topic) => (
+            <Button
+              key={topic}
+              variant="light"
+              color={color}
+              size="xs"
+              radius="md"
+              justify="flex-start"
+              onClick={() => onPickStarter(topic)}
+              styles={{ label: { whiteSpace: "normal", textAlign: "left" } }}
+            >
+              {topic}
+            </Button>
+          ))}
+        </Stack>
+      )}
     </Stack>
   )
 }
@@ -72,6 +93,7 @@ interface ConversationProps {
   name: string // 聊天插件的名称：系统发的消息显示它
   touch: boolean // 手机和 App
   visible: boolean // 聊天窗口展开着并且页面在前台：这时读到的消息记为已读
+  starters?: string[] // 可选：商务沟通链接的快捷开场话题
   replyTicket: ReplyTicketContext | null // 从工单详情带回的补充上下文
   onClearReplyTicket: () => void
   onOpenTicket: (id: string) => void
@@ -89,6 +111,7 @@ export function ConversationView({
   name,
   touch,
   visible,
+  starters,
   replyTicket,
   onClearReplyTicket,
   onOpenTicket,
@@ -282,7 +305,22 @@ export function ConversationView({
                 <Loader color={color} size="sm" />
               </Center>
             ) : (
-              list.length === 0 && pending.length === 0 && <FirstMessage color={color} />
+              list.length === 0 &&
+              pending.length === 0 && (
+                <FirstMessage
+                  color={color}
+                  starters={starters}
+                  onPickStarter={(text) =>
+                    void send({
+                      clientId: newClientId(),
+                      text,
+                      inputs: [],
+                      attachments: [],
+                      failed: false,
+                    })
+                  }
+                />
+              )
             )}
             {list.map((it, i) => {
               const prev = list[i - 1]

@@ -2,9 +2,13 @@ package widget
 
 import (
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/go-tenon/tenon/apitoken"
 	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/broadcast/broadcasttest"
@@ -42,7 +46,7 @@ func TestBusinessLinkEndToEnd(t *testing.T) {
 	update := NewUpdateBusinessLink(env.DB, "https://desk.example.com")
 	del := NewDeleteBusinessLink(env.DB)
 
-	// 1. 成员创建个人网页商务沟通链接，自动生成独立打开链接
+	// 1. 成员创建个人网页商务沟通链接，自动生成独立短链与二维码
 	link, err := create.Handle(ctx, f.agent, CreateBusinessLinkBody{
 		Name:       "Owner 商务专线",
 		Appearance: Appearance{Greeting: "欢迎洽谈合作"},
@@ -50,8 +54,79 @@ func TestBusinessLinkEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("创建个人商务沟通链接失败：%v", err)
 	}
-	if !link.Enabled || !strings.HasSuffix(link.ChatURL, "/widget/?channel="+link.ID) {
+	if !link.Enabled || link.PublicCode == "" || !strings.HasSuffix(link.ChatURL, "/c/"+link.PublicCode) || !strings.HasPrefix(link.QRDataURL, "data:image/png;base64,") {
 		t.Fatalf("商务沟通链接返回异常：%+v", link)
+	}
+	// 短链重定向 /c/{code} -> /widget/?channel={id}
+	shortRouter := chi.NewRouter()
+	shortRouter.Get("/c/{code}", ShortLinkHandler(env.DB))
+	rec := httptest.NewRecorder()
+	shortRouter.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/c/"+link.PublicCode, nil))
+	if rec.Code != http.StatusFound || rec.Header().Get("Location") != "/widget/?channel="+link.ID {
+		t.Fatalf("短链重定向异常：%d %s", rec.Code, rec.Header().Get("Location"))
+	}
+	// 重置短码后旧短码失效、新短码可用
+	rotated, err := NewRotateBusinessLinkCode(env.DB, "https://desk.example.com").Handle(ctx, f.agent, link.ID)
+	if err != nil || rotated.PublicCode == "" || rotated.PublicCode == link.PublicCode {
+		t.Fatalf("重置短码失败：%v %+v", err, rotated)
+	}
+	// 自定义短码、名片、开场留资、快捷话题与口令校验
+	cardCfg := BusinessCardConfig{ShowOwner: true, TitleOverride: "大客户总监", CompanyOverride: "Acme Cloud", BioOverride: "亚太区渠道合作", AwayMessage: "会议中，留言后尽快回复"}
+	intakeCfg := BusinessIntakeConfig{Enabled: true, Name: IntakeRequired, Company: IntakeRequired, Email: IntakeOptional, Note: IntakeOptional}
+	configured, err := update.Handle(ctx, f.agent, link.ID, UpdateBusinessLinkBody{
+		Name:       "Owner 商务专线",
+		PublicCode: "owner-bd",
+		Appearance: Appearance{Greeting: "欢迎洽谈合作"},
+		Card:       &cardCfg,
+		Intake:     &intakeCfg,
+		Access:     &BusinessAccessInput{Mode: "passcode", Passcode: "888666"},
+		Starters:   []string{"渠道代理合作", "定制报价咨询"},
+		Enabled:    true,
+	})
+	if err != nil || configured.PublicCode != "owner-bd" || !configured.Access.HasPasscode || len(configured.Starters) != 2 {
+		t.Fatalf("更新商务链接工作台配置失败：%v %+v", err, configured)
+	}
+	pubCfg, err := NewGetConfig(env.DB, env.Files).Handle(f.in(t, link.ID))
+	if err != nil || pubCfg.Kind != channel.BusinessLink || pubCfg.Business == nil || pubCfg.Business.Owner == nil ||
+		pubCfg.Business.Owner.Title != "大客户总监" || pubCfg.Business.Owner.Company != "Acme Cloud" || !pubCfg.Business.RequiresPasscode {
+		t.Fatalf("公开名片配置异常：%v %+v", err, pubCfg)
+	}
+	// 恢复为公开模式供后续匿名访客测试，并先验证口令错误被拒绝
+	startSess := NewStartSession(env.DB, env.Crypt, f.tokens, conversation.Downstream{})
+	if _, err := startSess.Handle(f.in(t, link.ID), SessionBody{Passcode: "wrong"}, apitoken.Device{}); !errors.Is(err, ErrInvalidPasscode) {
+		t.Fatalf("口令错误应返回 ErrInvalidPasscode：%v", err)
+	}
+	if _, err := update.Handle(ctx, f.agent, link.ID, UpdateBusinessLinkBody{
+		Name:       "Owner 商务专线",
+		Appearance: Appearance{Greeting: "欢迎洽谈合作"},
+		Card:       &cardCfg,
+		Intake:     &intakeCfg,
+		Access:     &BusinessAccessInput{Mode: "public", ClearPasscode: true},
+		Starters:   []string{"渠道代理合作", "定制报价咨询"},
+		Enabled:    true,
+	}); err != nil {
+		t.Fatalf("切回公开模式失败：%v", err)
+	}
+	// 验证已过期链接拒绝新访客
+	past := time.Now().UTC().Add(-time.Hour)
+	if _, err := update.Handle(ctx, f.agent, link.ID, UpdateBusinessLinkBody{
+		Name:       "Owner 商务专线",
+		Appearance: Appearance{Greeting: "欢迎洽谈合作"},
+		Access:     &BusinessAccessInput{Mode: "public", ExpiresAt: &past},
+		Enabled:    true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := startSess.Handle(f.in(t, link.ID), SessionBody{}, apitoken.Device{}); !errors.Is(err, ErrBusinessLinkExpired) {
+		t.Fatalf("过期链接应返回 ErrBusinessLinkExpired：%v", err)
+	}
+	if _, err := update.Handle(ctx, f.agent, link.ID, UpdateBusinessLinkBody{
+		Name:       "Owner 商务专线",
+		Appearance: Appearance{Greeting: "欢迎洽谈合作"},
+		Access:     &BusinessAccessInput{Mode: "public", ExpiresAt: nil},
+		Enabled:    true,
+	}); err != nil {
+		t.Fatal(err)
 	}
 	// 同工作区其他成员看不到、不能修改也不能删除别人的链接
 	bobLinks, err := list.Handle(ctx, subBob)
@@ -84,6 +159,17 @@ func TestBusinessLinkEndToEnd(t *testing.T) {
 		t.Fatalf("外部商户资料未保存：%+v", sess.Contact)
 	}
 	subPartner := identity.Subject{Type: contact.Type, ID: sess.Contact.ID, Tenant: f.system.Tenant}
+	// 开场留资必填项校验与提交
+	intakeAct := NewSubmitIntake(env.DB, down)
+	if _, err := intakeAct.Handle(linkCtx, subPartner, ContactIntakeBody{Name: "Elena Partner"}); !errors.Is(err, ErrIntakeRequired) {
+		t.Fatalf("缺少必填公司字段应返回 ErrIntakeRequired：%v", err)
+	}
+	afterIntake, err := intakeAct.Handle(linkCtx, subPartner, ContactIntakeBody{
+		Name: "Elena Partner", Company: "Partner Ventures", Email: "elena@partner.io", Note: "Looking for APAC reseller terms",
+	})
+	if err != nil || afterIntake.Company != "Partner Ventures" {
+		t.Fatalf("提交开场留资失败：%v %+v", err, afterIntake)
+	}
 	if _, err := Resolve(env.DB)(linkCtx, subPartner); err != nil {
 		t.Fatalf("商务链接联系人 Resolve 失败：%v", err)
 	}

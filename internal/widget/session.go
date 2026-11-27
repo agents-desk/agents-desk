@@ -3,6 +3,7 @@ package widget
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/golang-jwt/jwt/v5"
@@ -11,6 +12,7 @@ import (
 	"github.com/go-tenon/tenon/apitoken"
 	"github.com/go-tenon/tenon/crypt"
 	"github.com/go-tenon/tenon/database"
+	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/channel"
@@ -29,7 +31,9 @@ type SessionBody struct {
 	VisitorID string `json:"visitor_id,omitempty" maxLength:"64" doc:"上次返回的访客编号，浏览器保存它；第一次打开或编号无效时不填，返回新的编号"`
 	UserToken string `json:"user_token,omitempty" maxLength:"4096" doc:"已登录的用户：产品后端用身份验证密钥签名的 JWT（HS256），sub 是用户编号，必须有 exp，可以带 name、email"`
 	Name      string `json:"name,omitempty" maxLength:"100" doc:"可选：访客或商务沟通对方自报的称呼"`
+	Company   string `json:"company,omitempty" maxLength:"120" doc:"可选：商务沟通对方自报的公司或组织"`
 	Email     string `json:"email,omitempty" maxLength:"254" doc:"可选：访客或商务沟通对方自报的邮箱"`
+	Passcode  string `json:"passcode,omitempty" maxLength:"64" doc:"可选：受口令保护的商务沟通链接所需的访问口令"`
 	Language  string `json:"language,omitempty" maxLength:"35" doc:"浏览器或 App 上报的语言（BCP 47），例如 pt-BR、hi-Latn；仅在客户尚未识别语言时作为冷启动先验"`
 	TimeZone  string `json:"time_zone,omitempty" maxLength:"64" doc:"浏览器上报的 IANA 时区名，例如 Asia/Shanghai"`
 	Referrer  string `json:"referrer,omitempty" maxLength:"2048" doc:"嵌入聊天窗口的产品页面地址"`
@@ -122,7 +126,7 @@ func (a *StartSession) Handle(ctx context.Context, b SessionBody, device apitoke
 			}
 			return nil
 		}
-		profile := contact.Profile{Name: b.Name, Email: b.Email, Language: b.Language, TimeZone: b.TimeZone, Referrer: b.Referrer}
+		profile := contact.Profile{Name: b.Name, Company: b.Company, Email: b.Email, Language: b.Language, TimeZone: b.TimeZone, Referrer: b.Referrer}
 		if b.VisitorID != "" {
 			var id contact.Identity
 			err := tx.NewSelect().Model(&id).Where("channel_id = ? AND external_id = ?", ch.ID, visitorPrefix+b.VisitorID).Scan(ctx)
@@ -136,6 +140,20 @@ func (a *StartSession) Handle(ctx context.Context, b SessionBody, device apitoke
 			}
 			if !errors.Is(err, sql.ErrNoRows) {
 				return errors.Wrap(err, "load visitor")
+			}
+		}
+		// 网页商务沟通链接对全新访客校验有效期与访问口令（已有访客身份可继续历史对话）
+		if ch.Kind == channel.BusinessLink {
+			s, err := settingsOf(ch)
+			if err != nil {
+				return err
+			}
+			access := s.resolvedAccess()
+			if access.ExpiresAt != nil && time.Now().UTC().After(*access.ExpiresAt) {
+				return ErrBusinessLinkExpired.New()
+			}
+			if access.Mode == "passcode" && access.PasscodeHash != "" && !verifyPasscode(ch.ID, b.Passcode, access.PasscodeHash) {
+				return ErrInvalidPasscode.New(errorx.Field("passcode"))
 			}
 		}
 		res.VisitorID = newVisitorID()
