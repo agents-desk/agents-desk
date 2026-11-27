@@ -308,6 +308,7 @@ export interface MessageBubbleProps {
   author: string
   avatar: ReactNode // 32px 外侧圆形头像，组首显示，连续后续条自动占位对齐
   headerExtra?: ReactNode // 组首头部附加标签（渠道胶囊、公开进度标记等）
+  edited?: boolean // 编辑过的消息在时间旁标注“已编辑”
   time: string
   fullTime: string
   text?: string
@@ -342,6 +343,7 @@ export function MessageBubble({
   author,
   avatar,
   headerExtra,
+  edited,
   time,
   fullTime,
   text,
@@ -397,6 +399,11 @@ export function MessageBubble({
               {time}
             </Text>
           </Tooltip>
+          {edited && (
+            <Text fz={11} c="dimmed" lh={1.2} style={{ flex: "none" }}>
+              {t("inbox.message_edited")}
+            </Text>
+          )}
         </Group>
       )}
 
@@ -465,6 +472,11 @@ export function MessageBubble({
                     {time}
                   </Text>
                 </Tooltip>
+              )}
+              {!first && edited && (
+                <Text fz={11} c="dimmed">
+                  {t("inbox.message_edited")}
+                </Text>
               )}
               {extraActions}
               {copyText && <CopyAction value={copyText} />}

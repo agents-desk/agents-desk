@@ -76,7 +76,7 @@ func (a *ListChats) Handle(ctx context.Context, sub identity.Subject, in *ListCh
 		q = q.Where(`EXISTS (
 			SELECT 1 FROM conversation_participants cp_member
 			WHERE cp_member.conversation_id = conversation.id
-				AND cp_member.participant_type = ? AND cp_member.participant_id = ?
+				AND cp_member.participant_type = ? AND cp_member.participant_id = ? AND cp_member.left_at IS NULL
 		)`, MemberActor, memberID)
 	}
 	var matchByChat map[string]SearchMatch
@@ -142,7 +142,7 @@ func (a *ListChats) Handle(ctx context.Context, sub identity.Subject, in *ListCh
 				OR EXISTS (
 					SELECT 1 FROM conversation_participants cp
 					JOIN members m ON m.id::text = cp.participant_id
-					WHERE cp.conversation_id = conversation.id AND cp.participant_type = ? AND cp.participant_id <> ?
+					WHERE cp.conversation_id = conversation.id AND cp.participant_type = ? AND cp.participant_id <> ? AND cp.left_at IS NULL
 						AND m.name ILIKE ?
 				)
 				OR EXISTS (
@@ -158,7 +158,7 @@ func (a *ListChats) Handle(ctx context.Context, sub identity.Subject, in *ListCh
 				OR EXISTS (
 					SELECT 1 FROM conversation_participants cp
 					JOIN members m ON m.id::text = cp.participant_id
-					WHERE cp.conversation_id = conversation.id AND cp.participant_type = ? AND cp.participant_id <> ?
+					WHERE cp.conversation_id = conversation.id AND cp.participant_type = ? AND cp.participant_id <> ? AND cp.left_at IS NULL
 						AND m.name ILIKE ?
 				)
 				OR EXISTS (
@@ -288,7 +288,7 @@ func (a *GetChatUnread) Handle(ctx context.Context, sub identity.Subject) (*Chat
 		FROM timeline_items t
 		JOIN conversations c ON c.id = t.conversation_id
 		JOIN chats ch ON ch.conversation_id = c.id
-		JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.participant_type = ? AND cp.participant_id = ?
+		JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.participant_type = ? AND cp.participant_id = ? AND cp.left_at IS NULL
 		LEFT JOIN conversation_reads r ON r.conversation_id = c.id AND r.member_id = ?
 		WHERE c.tenant_id = ? AND c.kind = ? AND t.kind IN (?, ?) AND t.actor_type <> ?
 			AND NOT (t.actor_type = ? AND t.actor_id = ?)

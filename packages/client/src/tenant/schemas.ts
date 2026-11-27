@@ -280,6 +280,11 @@ export const schemas = {
         "$ref": "#/components/schemas/ConversationAddTagInputBody"
       },
     },
+    itemEdit: {
+      body: {
+        "$ref": "#/components/schemas/ConversationEditMessageBody"
+      },
+    },
     items: {
       query: {
         "properties": {
@@ -2279,6 +2284,17 @@ export const components = {
       "member"
     ],
     "type": "string"
+  },
+  ConversationEditMessageBody: {
+    "additionalProperties": false,
+    "properties": {
+      "text": {
+        "maxLength": 10000,
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "type": "object"
   },
   ConversationInbox: {
     "enum": [

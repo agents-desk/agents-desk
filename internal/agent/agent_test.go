@@ -69,8 +69,8 @@ func setup(t *testing.T, env *apptest.Env, slug string) fixture {
 		VALUES (?, ?, ?, ?, ?, true, '{}')`, botID, at, at, tn.ID, "小助手").Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := env.DB.NewRaw(`INSERT INTO conversation_participants (conversation_id, participant_type, participant_id, created_at)
-		VALUES (?, ?, ?, ?)`, rec.ConversationID, conversation.BotActor, botID, at).Exec(ctx); err != nil {
+	if _, err := env.DB.NewRaw(`INSERT INTO conversation_participants (id, created_at, updated_at, conversation_id, participant_type, participant_id)
+		VALUES (gen_random_uuid(), ?, ?, ?, ?, ?)`, at, at, rec.ConversationID, conversation.BotActor, botID).Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
 	return fixture{env: env, hub: hub, down: down, sys: sys, owner: owner, convID: rec.ConversationID, itemID: rec.Item.ID, botID: botID}

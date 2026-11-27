@@ -863,6 +863,11 @@ export type ConversationDefaultTarget = "none" | "team" | "member"
 
 export type ConversationDelivery = "sending" | "delivered" | "read" | "failed"
 
+export interface ConversationEditMessageBody {
+  /** 新的正文 */
+  text?: string
+}
+
 export type ConversationFetchStatus = "ready" | "remote" | "pending" | "fetching" | "unavailable"
 
 export type ConversationInbox = "mine" | "mentions" | "unassigned" | "all"
@@ -897,10 +902,14 @@ export interface ConversationItemDTO {
   delivery?: ConversationDelivery
   /** 派生内容，例如按语言的译文，由后台补上 */
   derived: Record<string, unknown>
+  /** 最近一次编辑的时间 */
+  edited_at?: string
   id: string
   kind: ConversationItemKind
   /** 引用回复的时间线项 ID */
   reply_to_item_id?: string
+  /** 编辑次数；0 表示没有编辑过 */
+  revision?: number
   seq: number
   /** 对方发来、还没有我的语言的译文、也不是我的语言的消息：翻译可用时页面显示“翻译中”，并请求补译 */
   untranslated?: boolean
@@ -3913,6 +3922,13 @@ export function createClient(options: ClientOptions) {
        */
       inbox: (): Promise<ConversationInboxDTO> =>
         rt.request<ConversationInboxDTO>({ method: "GET", path: `/inbox` }),
+      /**
+       * 编辑消息
+       *
+       * PATCH /conversations/{id}/items/{item_id}
+       */
+      itemEdit: (id: string, itemID: string, body: ConversationEditMessageBody): Promise<ConversationItemDTO> =>
+        rt.request<ConversationItemDTO>({ method: "PATCH", path: `/conversations/${encodeURIComponent(id)}/items/${encodeURIComponent(itemID)}`, body }),
       /**
        * 读取时间线
        *

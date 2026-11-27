@@ -192,7 +192,7 @@ func toChatDTOs(ctx context.Context, db bun.IDB, files *filesystem.Service, sub 
 
 	var parts []Participant
 	if err := db.NewSelect().Model(&parts).
-		Where("conversation_id IN (?)", bun.In(ids)).
+		Where("conversation_id IN (?) AND left_at IS NULL", bun.In(ids)).
 		OrderExpr("created_at ASC, participant_id ASC").Scan(ctx); err != nil {
 		return nil, errors.Wrap(err, "load chat participants")
 	}
@@ -203,12 +203,12 @@ func toChatDTOs(ctx context.Context, db bun.IDB, files *filesystem.Service, sub 
 		partsByConv[p.ConversationID] = append(partsByConv[p.ConversationID], p)
 		switch p.Type {
 		case MemberActor:
-			if _, ok := memberIDSet[p.ID]; !ok {
-				memberIDSet[p.ID] = struct{}{}
-				memberIDs = append(memberIDs, p.ID)
+			if _, ok := memberIDSet[p.ParticipantID]; !ok {
+				memberIDSet[p.ParticipantID] = struct{}{}
+				memberIDs = append(memberIDs, p.ParticipantID)
 			}
 		case ContactActor:
-			addContact(p.ID)
+			addContact(p.ParticipantID)
 		}
 	}
 
@@ -324,12 +324,12 @@ func toChatDTOs(ctx context.Context, db bun.IDB, files *filesystem.Service, sub 
 	toPartDTO := func(p Participant) ChatParticipantDTO {
 		switch p.Type {
 		case MemberActor:
-			if prof, ok := memberProfile[p.ID]; ok {
+			if prof, ok := memberProfile[p.ParticipantID]; ok {
 				prof.JoinedAt = p.CreatedAt
 				return prof
 			}
 		case ContactActor:
-			if ct, ok := contactSummary[p.ID]; ok {
+			if ct, ok := contactSummary[p.ParticipantID]; ok {
 				return ChatParticipantDTO{
 					Type:     ContactActor,
 					ID:       ct.ID,
@@ -339,7 +339,7 @@ func toChatDTOs(ctx context.Context, db bun.IDB, files *filesystem.Service, sub 
 				}
 			}
 		}
-		return ChatParticipantDTO{Type: p.Type, ID: p.ID, JoinedAt: p.CreatedAt}
+		return ChatParticipantDTO{Type: p.Type, ID: p.ParticipantID, JoinedAt: p.CreatedAt}
 	}
 
 	for i, c := range convs {
@@ -392,7 +392,7 @@ func toChatDTOs(ctx context.Context, db bun.IDB, files *filesystem.Service, sub 
 					dto.Peer = &peer
 					break
 				}
-				if scope == ChatInternal && !(p.Type == MemberActor && p.ID == sub.ID) {
+				if scope == ChatInternal && !(p.Type == MemberActor && p.ParticipantID == sub.ID) {
 					peer := toPartDTO(p)
 					dto.Peer = &peer
 					break

@@ -9,6 +9,7 @@ import {
   ActionIcon,
   Avatar,
   Box,
+  Button,
   Center,
   Divider,
   FileButton,
@@ -16,6 +17,7 @@ import {
   Indicator,
   Loader,
   Menu,
+  Modal,
   SegmentedControl,
   Stack,
   Text,
@@ -27,7 +29,7 @@ import {
 import { useOs } from "@mantine/hooks"
 import { notifications } from "@mantine/notifications"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { IconLayoutSidebarRight, IconLock, IconPaperclip, IconUsersGroup } from "@tabler/icons-react"
+import { IconLayoutSidebarRight, IconLock, IconPaperclip, IconPencil, IconUsersGroup } from "@tabler/icons-react"
 import {
   AsidePane,
   ImageLightbox,
@@ -451,6 +453,20 @@ function ChatBubble({
   const [showSentTranslation, setShowSentTranslation] = useState(false)
   const [showVerified, setShowVerified] = useState(false)
 
+  const [editing, setEditing] = useState(false)
+  const [editText, setEditText] = useState("")
+  const edit = useMutation({
+    mutationFn: (text: string) => tenantApi.conversation.itemEdit(chat.id, it.id, { text }),
+    onSuccess: () => {
+      setEditing(false)
+      void queryClient.invalidateQueries({ queryKey: kit.queries.chat.key() })
+      void queryClient.invalidateQueries({ queryKey: [...kit.queries.conversation.key(), "timeline", chat.id] })
+    },
+    onError: (err) => notifyError(err),
+  })
+  // 只编辑不对客户发出的内容：内部聊天的消息和内部备注；发给客户的消息要等更正流程
+  const editable = isOwn && it.actor.type === "member" && (chat.scope === "internal" || it.kind === "note")
+
   const retry = useMutation({
     mutationFn: () => tenantApi.conversation.retry(chat.id, it.id),
     onSuccess: () => {
@@ -513,6 +529,7 @@ function ChatBubble({
     sentAs && showSentTranslation ? { language: sentAs, text: raw } : verified && showVerified ? verified : undefined
 
   return (
+    <>
     <MessageBubble
       conversationId={chat.id}
       attachments={it.attachments}
@@ -532,8 +549,46 @@ function ChatBubble({
       expandedTranslation={expandedTranslation}
       caption={caption}
       footerExtra={deliveryNode}
+      edited={Boolean(it.revision)}
+      extraActions={
+        editable ? (
+          <Tooltip label={t("inbox.message_edit")}>
+            <ActionIcon
+              size="xs"
+              variant="subtle"
+              color="gray"
+              aria-label={t("inbox.message_edit")}
+              onClick={() => {
+                setEditText(it.content.text ?? "")
+                setEditing(true)
+              }}
+            >
+              <IconPencil size={12} />
+            </ActionIcon>
+          </Tooltip>
+        ) : undefined
+      }
       onPreview={onPreview}
     />
+    <Modal opened={editing} onClose={() => setEditing(false)} title={t("inbox.message_edit_title")} centered>
+      <Textarea
+        value={editText}
+        onChange={(e) => setEditText(e.currentTarget.value)}
+        autosize
+        minRows={3}
+        maxRows={10}
+        data-autofocus
+      />
+      <Group justify="flex-end" mt="md">
+        <Button variant="default" onClick={() => setEditing(false)}>
+          {t("inbox.cancel")}
+        </Button>
+        <Button onClick={() => edit.mutate(editText.trim())} loading={edit.isPending} disabled={!editText.trim()}>
+          {t("inbox.message_edit_save")}
+        </Button>
+      </Group>
+    </Modal>
+    </>
   )
 }
 

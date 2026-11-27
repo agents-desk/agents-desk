@@ -81,6 +81,10 @@ type ItemDTO struct {
 	CreatedAt     time.Time        `json:"created_at"`
 	// Untranslated 只在读取时间线时给出，按读取的成员的语言
 	Untranslated bool `json:"untranslated,omitempty" doc:"对方发来、还没有我的语言的译文、也不是我的语言的消息：翻译可用时页面显示“翻译中”，并请求补译"`
+	// Revision 是编辑次数；0 表示没有编辑过。正文已经是最新一版
+	Revision int `json:"revision,omitempty" doc:"编辑次数；0 表示没有编辑过"`
+	// EditedAt 是最近一次编辑的时间
+	EditedAt *time.Time `json:"edited_at,omitempty" doc:"最近一次编辑的时间"`
 }
 
 // ItemOutput 是返回时间线一项的响应。
@@ -169,6 +173,23 @@ func toItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Item) ([]I
 	if err != nil {
 		return nil, err
 	}
+	// 编辑过的消息取最新一版正文；时间线项本身保持原样
+	type revisionRow struct {
+		ItemID    string    `bun:"item_id"`
+		Revision  int       `bun:"revision"`
+		Text      string    `bun:"text"`
+		CreatedAt time.Time `bun:"created_at"`
+	}
+	var revisions []revisionRow
+	if err := db.NewRaw(`SELECT DISTINCT ON (item_id) item_id, revision, text, created_at
+		FROM message_revisions WHERE item_id IN (?) ORDER BY item_id, revision DESC`, bun.In(ids)).
+		Scan(ctx, &revisions); err != nil {
+		return nil, errors.Wrap(err, "load message revisions")
+	}
+	latestRevision := make(map[string]revisionRow, len(revisions))
+	for _, r := range revisions {
+		latestRevision[r.ItemID] = r
+	}
 	for i, it := range items {
 		actor := Actor{Type: it.ActorType, ID: it.ActorID}
 		switch it.ActorType {
@@ -192,6 +213,12 @@ func toItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Item) ([]I
 		}
 		if s, ok := status[it.ID]; ok {
 			out[i].Delivery = &s
+		}
+		if rev, ok := latestRevision[it.ID]; ok {
+			out[i].Content.Text = rev.Text
+			out[i].Revision = rev.Revision
+			editedAt := rev.CreatedAt
+			out[i].EditedAt = &editedAt
 		}
 	}
 	return out, nil

@@ -374,6 +374,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         queryKey: key("conversation", "inbox", ...args),
         queryFn: () => client.conversation.inbox(...args),
       }),
+      /** PATCH /conversations/{id}/items/{item_id} */
+      itemEdit: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["itemEdit"]>) => client.conversation.itemEdit(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
       /** GET /conversations/{id}/items */
       items: (...args: Parameters<Client["conversation"]["items"]>) => ({
         queryKey: key("conversation", "items", ...args),
