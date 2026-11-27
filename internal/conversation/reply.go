@@ -68,6 +68,7 @@ type ReplyBody struct {
 	Attachments      []AttachmentInput         `json:"attachments,omitempty" maxItems:"10" doc:"通过 /files 上传的媒体附件列表（可附带封面图与音视频元数据）"`
 	ChannelID        string                    `json:"channel_id,omitempty" format:"uuid" doc:"发往的渠道 ID；为空时发往会话当前的默认回复渠道"`
 	ReplyToItemID    string                    `json:"reply_to_item_id,omitempty" format:"uuid" doc:"可选：引用回复同会话内的指定消息 ID"`
+	CorrectsItemID   string                    `json:"corrects_item_id,omitempty" format:"uuid" doc:"可选：作为更正发出的原消息 ID"`
 	ExternalMentions []channel.ExternalMention `json:"external_mentions,omitempty" maxItems:"20" doc:"可选：外部群回复时要 @ 的发言人列表"`
 	Translation      *Translation              `json:"translation,omitempty" doc:"发给对方的译文，由翻译的预览给出、成员确认；不带时按原文或 auto_translate 发出"`
 	AutoTranslate    *AutoTranslateRequest     `json:"auto_translate,omitempty" doc:"后台自动翻译参数：不携带 translation 时，先立刻落库并由投递任务异步翻译后发给对方"`
@@ -129,6 +130,11 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 			rid := body.ReplyToItemID
 			replyToID = &rid
 		}
+		if body.CorrectsItemID != "" {
+			if _, err := validateCorrectionTarget(ctx, tx, sub, c, "", body.CorrectsItemID); err != nil {
+				return err
+			}
+		}
 		extMentions, err := normalizeExternalMentions(ctx, tx, c, body.ExternalMentions)
 		if err != nil {
 			return err
@@ -181,6 +187,11 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 		}
 		if err := commit(ctx, tx, a.down, c, items...); err != nil {
 			return err
+		}
+		if body.CorrectsItemID != "" {
+			if err := recordCorrection(ctx, tx, c, body.CorrectsItemID, item.ID, at); err != nil {
+				return err
+			}
 		}
 		if err := insertAttachments(ctx, tx, c.TenantID, item.ID, confirmed); err != nil {
 			return err

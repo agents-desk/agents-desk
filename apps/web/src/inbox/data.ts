@@ -206,6 +206,15 @@ export function timelineQuery(queryClient: QueryClient, id: string, focusSeq?: n
       const merged = new Map<string, ConversationItemDTO>()
       for (const it of before) merged.set(it.id, it)
       for (const it of updates) merged.set(it.id, it)
+      // 增量拉取拿到新发出的更正消息时，同步更新已缓存原消息的更正状态（即使原消息早于最近 50 条）
+      for (const it of updates) {
+        if (it.corrects_item_id) {
+          const orig = merged.get(it.corrects_item_id)
+          if (orig && orig.corrected_by !== it.id) {
+            merged.set(orig.id, { ...orig, corrected_by: it.id, corrected_at: it.created_at })
+          }
+        }
+      }
       const result = [...merged.values()].sort((a, b) => a.seq - b.seq)
       queryClient.setQueryData(key, result)
       return result

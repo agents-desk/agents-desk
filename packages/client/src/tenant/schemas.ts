@@ -2458,6 +2458,10 @@ export const components = {
         "format": "uuid",
         "type": "string"
       },
+      "corrects_item_id": {
+        "format": "uuid",
+        "type": "string"
+      },
       "external_mentions": {
         "items": {
           "$ref": "#/components/schemas/ChannelExternalMention"
@@ -2499,6 +2503,10 @@ export const components = {
       },
       "auto_translate": {
         "$ref": "#/components/schemas/ConversationAutoTranslateRequest"
+      },
+      "corrects_item_id": {
+        "format": "uuid",
+        "type": "string"
       },
       "external_mentions": {
         "items": {

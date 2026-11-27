@@ -20,7 +20,7 @@ import (
 var (
 	// ErrMessageNotAuthor 是不是作者本人编辑这条消息。
 	ErrMessageNotAuthor = errorx.Define(errorx.PermissionDenied, "conversation.message_not_author")
-	// ErrMessageNotEditable 是这条消息不能编辑：发给客户的消息要等更正流程，其他种类的会话不开放编辑。
+	// ErrMessageNotEditable 是这条消息不能编辑：发给客户的消息请发送更正，其他种类的会话不开放编辑。
 	ErrMessageNotEditable = errorx.Define(errorx.Conflict, "conversation.message_not_editable")
 	// ErrMessageEditWindow 是超过了可以编辑已发出消息的时间。
 	ErrMessageEditWindow = errorx.Define(errorx.Conflict, "conversation.message_edit_window")
@@ -42,7 +42,7 @@ type EditMessageInput struct {
 }
 
 // EditMessage 编辑自己发出的一条消息或内部备注：时间线项保持原样，编辑作为新的修订追加。
-// 只有不对客户发出的内容可以编辑（内部聊天的消息和内部备注），发出的消息要等更正流程。
+// 只有不对客户发出的内容可以编辑（内部聊天的消息和内部备注），发出的消息请发送更正。
 type EditMessage struct {
 	db   *bun.DB
 	down Downstream
@@ -93,7 +93,7 @@ func (a *EditMessage) Handle(ctx context.Context, sub identity.Subject, conversa
 				return ErrMessageNotEditable.New()
 			}
 		case Service:
-			// 服务型会话只开放内部备注；发给客户的消息已经送达，改动要等更正流程
+			// 服务型会话只开放内部备注；发给客户的消息已经送达，改动请发送更正
 			if item.Kind != Note {
 				return ErrMessageNotEditable.New()
 			}

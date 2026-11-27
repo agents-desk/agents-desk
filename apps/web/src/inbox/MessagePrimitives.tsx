@@ -298,6 +298,7 @@ export function ActorAvatar({
 /** MessageBubbleProps 是统一聊天气泡的显示参数。 */
 export interface MessageBubbleProps {
   conversationId: string
+  itemId?: string
   attachments?: ConversationItemDTO["attachments"]
   seq?: number
   watchRef?: (el: HTMLElement | null) => void
@@ -309,6 +310,9 @@ export interface MessageBubbleProps {
   avatar: ReactNode // 32px 外侧圆形头像，组首显示，连续后续条自动占位对齐
   headerExtra?: ReactNode // 组首头部附加标签（渠道胶囊、公开进度标记等）
   edited?: boolean // 编辑过的消息在时间旁标注“已编辑”
+  corrected?: boolean // 已被更正的原消息：降权展示并标注“已更正”
+  onViewCorrection?: () => void // 点击“查看更正”跳转到最新更正消息
+  correction?: { text?: string; onJump?: () => void } // 作为更正发出的消息顶部引用原消息
   time: string
   fullTime: string
   text?: string
@@ -333,6 +337,7 @@ export interface MessageBubbleProps {
  */
 export function MessageBubble({
   conversationId,
+  itemId,
   attachments,
   seq,
   watchRef,
@@ -344,6 +349,9 @@ export function MessageBubble({
   avatar,
   headerExtra,
   edited,
+  corrected,
+  onViewCorrection,
+  correction,
   time,
   fullTime,
   text,
@@ -363,13 +371,29 @@ export function MessageBubble({
   const t = useT()
   const ui = useLanguage()
   const copyText = copyValue ?? text
-  const hasBodyText = Boolean(text) || Boolean(expandedTranslation) || Boolean(quote)
+  const hasBodyText = Boolean(text) || Boolean(expandedTranslation) || Boolean(quote) || Boolean(correction)
+  const correctedFooter = corrected ? (
+    <>
+      <Text span size="xs" c="deep-orange">
+        {t("inbox.message_corrected")}
+      </Text>
+      {onViewCorrection && (
+        <>
+          <Text span size="xs" c="dimmed">
+            ·
+          </Text>
+          <CaptionToggle label={t("inbox.view_correction")} onClick={onViewCorrection} />
+        </>
+      )}
+    </>
+  ) : undefined
 
   return (
     <Box
       ref={watchRef}
       mt={mt}
       data-seq={seq}
+      data-item-id={itemId}
       className="inbox-msg"
       style={{
         alignSelf: mine ? "flex-end" : "flex-start",
@@ -432,8 +456,33 @@ export function MessageBubble({
             data-last={last || undefined}
             data-original={original || undefined}
             data-public={publicUpdate || undefined}
+            data-corrected={corrected || undefined}
             style={{ minWidth: 0 }}
           >
+            {correction &&
+              (correction.onJump ? (
+                <UnstyledButton className="inbox-correction-ref" data-clickable onClick={correction.onJump}>
+                  <Text size="xs" fw={600} c="deep-orange">
+                    {t("inbox.correction_of")}
+                  </Text>
+                  {correction.text && (
+                    <Text size="xs" c="dimmed" lineClamp={2}>
+                      {correction.text}
+                    </Text>
+                  )}
+                </UnstyledButton>
+              ) : (
+                <Box className="inbox-correction-ref">
+                  <Text size="xs" fw={600} c="deep-orange">
+                    {t("inbox.correction_of")}
+                  </Text>
+                  {correction.text && (
+                    <Text size="xs" c="dimmed" lineClamp={2}>
+                      {correction.text}
+                    </Text>
+                  )}
+                </Box>
+              ))}
             {quote && (
               <Box
                 mb={6}
@@ -485,7 +534,7 @@ export function MessageBubble({
         </Box>
       </Group>
 
-      {(caption || footerExtra) && (
+      {(caption || correctedFooter || footerExtra) && (
         <Group
           gap={5}
           mt={4}
@@ -495,6 +544,12 @@ export function MessageBubble({
           wrap="wrap"
           style={{ maxWidth: "100%" }}
         >
+          {correctedFooter}
+          {correctedFooter && (caption || footerExtra) && (
+            <Text fz={11} c="dimmed">
+              ·
+            </Text>
+          )}
           {caption}
           {caption && footerExtra && (
             <Text fz={11} c="dimmed">

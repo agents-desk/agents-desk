@@ -42,6 +42,7 @@ import {
   IconLock,
   IconMessageBolt,
   IconPaperclip,
+  IconPencil,
   IconX,
 } from "@tabler/icons-react"
 import {
@@ -112,6 +113,8 @@ export function Composer({
   c,
   replyTo,
   onClearReplyTo,
+  correcting,
+  onClearCorrecting,
   extMentions,
   onChangeExtMentions,
   onTyping,
@@ -121,6 +124,8 @@ export function Composer({
   c: ConversationDTO
   replyTo?: ConversationItemDTO | null
   onClearReplyTo?: () => void
+  correcting?: ConversationItemDTO | null
+  onClearCorrecting?: () => void
   extMentions?: ChannelExternalMention[]
   onChangeExtMentions?: (next: ChannelExternalMention[]) => void
   onTyping: () => void
@@ -231,6 +236,16 @@ export function Composer({
   const attachmentInputs = queue.ready.map(toAttachmentInput)
   const hasContent = Boolean(value) || attachmentInputs.length > 0
 
+  // 选定更正目标且输入框为空时，自动带入原消息正文方便直接修改
+  const prevCorrectingRef = useRef<string | null>(null)
+  useEffect(() => {
+    const nextId = correcting?.id ?? null
+    if (nextId && nextId !== prevCorrectingRef.current) {
+      setText((cur) => (cur.trim() === "" ? (correcting?.content.original || correcting?.content.text || "") : cur))
+    }
+    prevCorrectingRef.current = nextId
+  }, [correcting])
+
   // 实时保存草稿，切换会话后再回来不丢失已输入内容与模式
   useEffect(() => {
     saveDraft(c.id, { text, mode, mentionIds })
@@ -273,6 +288,7 @@ export function Composer({
           text: value || undefined,
           channel_id,
           reply_to_item_id: replyTo?.id,
+          corrects_item_id: correcting?.id,
           external_mentions: activeExtMentions.length > 0 ? activeExtMentions : undefined,
           translation,
           auto_translate: autoTranslate,
@@ -290,6 +306,7 @@ export function Composer({
       setPendingActions(emptyPendingActions())
       setMacroWarnings([])
       onClearReplyTo?.()
+      onClearCorrecting?.()
       onChangeExtMentions?.([])
       queue.clear()
       preview.reset()
@@ -526,6 +543,21 @@ export function Composer({
         <Alert variant="light" color="red" radius="md" py={6} px="sm" mb={8} icon={<IconAlertTriangle size={15} />}>
           <Text size="xs">{t("inbox.group_removed_notice")}</Text>
         </Alert>
+      )}
+      {!note && correcting && (
+        <Paper withBorder radius="md" px="xs" py={6} mb={8} bg="var(--mantine-color-deep-orange-light)">
+          <Group gap={6} wrap="nowrap">
+            <IconPencil size={13} style={{ flex: "none", color: "var(--mantine-color-deep-orange-6)" }} />
+            <Text size="xs" c="deep-orange" truncate style={{ flex: 1, minWidth: 0 }}>
+              {t("inbox.correcting_message", {
+                text: (correcting.content.original || correcting.content.text || "…").slice(0, 60),
+              })}
+            </Text>
+            <ActionIcon size={18} variant="subtle" color="gray" onClick={onClearCorrecting} aria-label={t("inbox.cancel")}>
+              <IconX size={12} />
+            </ActionIcon>
+          </Group>
+        </Paper>
       )}
       {!note && isExternalGroup && (replyTo || activeExtMentions.length > 0) && (
         <Paper withBorder radius="md" px="xs" py={6} mb={8} bg="var(--tn-canvas)">

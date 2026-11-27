@@ -170,12 +170,24 @@ func resolveDeliveryTarget(ctx context.Context, db bun.IDB, c *Conversation, ch 
 		}
 	}
 
-	// 解析引用回复的外部消息 ID 与对应的短期协议回复上下文（如企微长连接 req_id）
+	// 解析引用回复（或更正原消息）的外部消息 ID 与对应的短期协议回复上下文（如企微长连接 req_id）
 	var replyToExtID string
 	var replyCtx map[string]any
+	refItemID := ""
 	if it.ReplyToItemID != nil && *it.ReplyToItemID != "" {
+		refItemID = *it.ReplyToItemID
+	} else {
+		var origID string
+		err := db.NewSelect().Table("message_corrections").Column("original_item_id").
+			Where("correction_item_id = ?", it.ID).Scan(ctx, &origID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return target, "", nil, errors.Wrap(err, "load correction original item")
+		}
+		refItemID = origID
+	}
+	if refItemID != "" {
 		var ref Item
-		err := db.NewSelect().Model(&ref).Where("id = ? AND tenant_id = ?", *it.ReplyToItemID, c.TenantID).Scan(ctx)
+		err := db.NewSelect().Model(&ref).Where("id = ? AND tenant_id = ?", refItemID, c.TenantID).Scan(ctx)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return target, "", nil, errors.Wrap(err, "load reply_to item")
 		}

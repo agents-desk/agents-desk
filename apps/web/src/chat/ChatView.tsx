@@ -18,6 +18,7 @@ import {
   Loader,
   Menu,
   Modal,
+  Paper,
   SegmentedControl,
   Stack,
   Text,
@@ -29,7 +30,7 @@ import {
 import { useOs } from "@mantine/hooks"
 import { notifications } from "@mantine/notifications"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { IconArrowBackUp, IconLayoutSidebarRight, IconLock, IconPaperclip, IconPencil, IconUsersGroup } from "@tabler/icons-react"
+import { IconArrowBackUp, IconLayoutSidebarRight, IconLock, IconPaperclip, IconPencil, IconUsersGroup, IconX } from "@tabler/icons-react"
 import {
   AsidePane,
   ImageLightbox,
@@ -120,6 +121,11 @@ export function ChatView({
   const { typing, notifyTyping, clearTyping } = useConversationChannel(tenantId, id, me.data?.id)
 
   const details = useAsidePaneState("chat-details", { compactQuery: NARROW_QUERY })
+  const [correctingItem, setCorrectingItem] = useState<ConversationItemDTO | null>(null)
+
+  useEffect(() => {
+    setCorrectingItem(null)
+  }, [id])
 
   const chat = chatQuery.data
   // 打开时读到的位置：“新消息”分隔线画在它之后，读过之后也保持在原处
@@ -251,9 +257,20 @@ export function ChatView({
           </Group>
         </PaneHeader>
 
-        <ChatTimeline chat={chat} readSeq={readAtOpen.current ?? 0} typingNames={typing.map((x) => (x.contact ? title : (x.name ?? ""))).filter(Boolean)} />
+        <ChatTimeline
+          chat={chat}
+          readSeq={readAtOpen.current ?? 0}
+          typingNames={typing.map((x) => (x.contact ? title : (x.name ?? ""))).filter(Boolean)}
+          onCorrect={setCorrectingItem}
+        />
 
-        <ChatComposer key={chat.id} chat={chat} onTyping={notifyTyping} />
+        <ChatComposer
+          key={chat.id}
+          chat={chat}
+          correcting={correctingItem}
+          onClearCorrecting={() => setCorrectingItem(null)}
+          onTyping={notifyTyping}
+        />
       </Box>
 
       <AsidePane
@@ -279,10 +296,12 @@ function ChatTimeline({
   chat,
   readSeq,
   typingNames,
+  onCorrect,
 }: {
   chat: ConversationChatDTO
   readSeq: number
   typingNames: string[]
+  onCorrect: (item: ConversationItemDTO) => void
 }): ReactNode {
   const t = useT()
   const ui = useLanguage()
@@ -295,6 +314,7 @@ function ChatTimeline({
   const translating = translation.data?.enabled ?? false
   const watch = useFillVisible(translating, me.data?.language)
   const [lightbox, setLightbox] = useState<LightboxImage | null>(null)
+  const [pulseSeq, setPulseSeq] = useState<number | undefined>(undefined)
   const list = items.data ?? []
   const isExternal = chat.scope === "external"
   const stick = useStickToBottom({ ready: !items.isPending, list, myId: me.data?.id, typingCount: typingNames.length })
@@ -323,6 +343,15 @@ function ChatTimeline({
   }
 
   const firstNew = firstUnread(list, readSeq, me.data?.id)
+  const byItemId = new Map(list.map((item) => [item.id, item]))
+  const jumpToItem = (targetId: string) => {
+    const target = byItemId.get(targetId)
+    const el = stick.scroller.current?.querySelector<HTMLElement>(`[data-item-id="${targetId}"]`)
+    if (!target || !el) return
+    el.scrollIntoView({ block: "center", behavior: "smooth" })
+    setPulseSeq(target.seq)
+    setTimeout(() => setPulseSeq((cur) => (cur === target.seq ? undefined : cur)), 2500)
+  }
   const bothMessages = (a: ConversationItemDTO, b: ConversationItemDTO) => a.kind === "message" && b.kind === "message"
   const memberOf = (memberId: string) =>
     byId.get(memberId) ??
@@ -351,6 +380,15 @@ function ChatTimeline({
             const isOwn = it.actor.type === "member" && it.actor.id === me.data?.id
             const mine = isExternal ? it.actor.type !== "contact" : isOwn
             const author = authorOf(it)
+            const correctedOrig = it.corrects_item_id ? byItemId.get(it.corrects_item_id) : undefined
+            const correction = it.corrects_item_id
+              ? {
+                  text: correctedOrig ? (correctedOrig.content.original || correctedOrig.content.text || "…") : undefined,
+                  onJump: correctedOrig ? () => jumpToItem(correctedOrig.id) : undefined,
+                }
+              : undefined
+            const onViewCorrection =
+              it.corrected_by && byItemId.has(it.corrected_by) ? () => jumpToItem(it.corrected_by!) : undefined
             return (
               <Fragment key={it.id}>
                 {showDay && <Divider my={i === 0 ? 4 : 12} label={dayLabel(it.created_at, ui, t, zone)} labelPosition="center" />}
@@ -398,6 +436,10 @@ function ChatTimeline({
                     translating={translating}
                     watch={watch}
                     mt={gapTop}
+                    focused={pulseSeq === it.seq}
+                    correction={correction}
+                    onViewCorrection={onViewCorrection}
+                    onCorrect={onCorrect}
                     onPreview={setLightbox}
                   />
                 )}
@@ -429,6 +471,10 @@ function ChatBubble({
   translating,
   watch,
   mt,
+  focused,
+  correction,
+  onViewCorrection,
+  onCorrect,
   onPreview,
 }: {
   chat: ConversationChatDTO
@@ -445,6 +491,10 @@ function ChatBubble({
   translating: boolean
   watch: FillWatcher
   mt: number
+  focused?: boolean
+  correction?: { text?: string; onJump?: () => void }
+  onViewCorrection?: () => void
+  onCorrect: (item: ConversationItemDTO) => void
   onPreview: (img: LightboxImage) => void
 }): ReactNode {
   const t = useT()
@@ -464,9 +514,16 @@ function ChatBubble({
     },
     onError: (err) => notifyError(err),
   })
-  // 只编辑、撤回不对客户发出的内容：内部聊天的消息和内部备注；发给客户的消息要等更正流程
-  const editable = isOwn && it.actor.type === "member" && (chat.scope === "internal" || it.kind === "note")
+  // 内部聊天的自己消息 15 分钟内可编辑、24 小时内可撤回，超过编辑时间窗可发送更正；外部商务聊天发出的消息直接发送更正
   const recalled = Boolean(it.recalled)
+  const isInternalOwn = isOwn && it.actor.type === "member" && chat.scope === "internal"
+  const withinEditWindow = Date.now() - new Date(it.created_at).getTime() <= 15 * 60 * 1000
+  const canEdit = isInternalOwn && withinEditWindow && !recalled
+  const canRecall = isInternalOwn && !recalled
+  const canCorrect =
+    !recalled &&
+    ((chat.scope === "external" && (it.actor.type === "member" || it.actor.type === "bot")) ||
+      (isInternalOwn && !withinEditWindow))
   const [recalling, setRecalling] = useState(false)
   const recall = useMutation({
     mutationFn: () => tenantApi.conversation.itemRecall(chat.id, it.id),
@@ -549,6 +606,7 @@ function ChatBubble({
     <>
     <MessageBubble
       conversationId={chat.id}
+      itemId={it.id}
       attachments={recalled ? undefined : it.attachments}
       seq={it.seq}
       watchRef={needFill ? watch(it.id) : undefined}
@@ -562,40 +620,61 @@ function ChatBubble({
       fullTime={fullTime}
       text={shown || undefined}
       mentions
+      focused={focused}
       original={Boolean(translated && showOriginal)}
       expandedTranslation={expandedTranslation}
       caption={recalled ? undefined : caption}
       footerExtra={recalled ? undefined : deliveryNode}
       copyValue={recalled ? "" : undefined}
       edited={Boolean(it.revision) && !recalled}
+      corrected={Boolean(it.corrected_by) && !recalled}
+      onViewCorrection={recalled ? undefined : onViewCorrection}
+      correction={recalled ? undefined : correction}
       extraActions={
-        editable && !recalled ? (
+        canEdit || canRecall || canCorrect ? (
           <Group gap={2} wrap="nowrap">
-            <Tooltip label={t("inbox.message_edit")}>
-              <ActionIcon
-                size="xs"
-                variant="subtle"
-                color="gray"
-                aria-label={t("inbox.message_edit")}
-                onClick={() => {
-                  setEditText(it.content.text ?? "")
-                  setEditing(true)
-                }}
-              >
-                <IconPencil size={12} />
-              </ActionIcon>
-            </Tooltip>
-            <Tooltip label={t("inbox.message_recall")}>
-              <ActionIcon
-                size="xs"
-                variant="subtle"
-                color="gray"
-                aria-label={t("inbox.message_recall")}
-                onClick={() => setRecalling(true)}
-              >
-                <IconArrowBackUp size={12} />
-              </ActionIcon>
-            </Tooltip>
+            {canEdit && (
+              <Tooltip label={t("inbox.message_edit")}>
+                <ActionIcon
+                  size="xs"
+                  variant="subtle"
+                  color="gray"
+                  aria-label={t("inbox.message_edit")}
+                  onClick={() => {
+                    setEditText(it.content.text ?? "")
+                    setEditing(true)
+                  }}
+                >
+                  <IconPencil size={12} />
+                </ActionIcon>
+              </Tooltip>
+            )}
+            {canCorrect && (
+              <Tooltip label={t("inbox.message_correct")}>
+                <ActionIcon
+                  size="xs"
+                  variant="subtle"
+                  color="gray"
+                  aria-label={t("inbox.message_correct")}
+                  onClick={() => onCorrect(it)}
+                >
+                  <IconPencil size={12} />
+                </ActionIcon>
+              </Tooltip>
+            )}
+            {canRecall && (
+              <Tooltip label={t("inbox.message_recall")}>
+                <ActionIcon
+                  size="xs"
+                  variant="subtle"
+                  color="gray"
+                  aria-label={t("inbox.message_recall")}
+                  onClick={() => setRecalling(true)}
+                >
+                  <IconArrowBackUp size={12} />
+                </ActionIcon>
+              </Tooltip>
+            )}
           </Group>
         ) : undefined
       }
@@ -635,7 +714,17 @@ function ChatBubble({
 }
 
 /** ChatComposer 是聊天底部的统一输入卡片：商务沟通支持“回复 / 内部备注”切换与对外自动翻译，支持 @ 提及、拖拽/粘贴附件、译文校对及快捷键发送。 */
-function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping: () => void }): ReactNode {
+function ChatComposer({
+  chat,
+  correcting,
+  onClearCorrecting,
+  onTyping,
+}: {
+  chat: ConversationChatDTO
+  correcting?: ConversationItemDTO | null
+  onClearCorrecting?: () => void
+  onTyping: () => void
+}): ReactNode {
   const t = useT()
   const ui = useLanguage()
   const os = useOs()
@@ -662,6 +751,24 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
   useEffect(() => {
     saveDraft(chat.id, { text, mode: replyMode, mentionIds })
   }, [chat.id, text, replyMode, mentionIds])
+
+  // 选定更正目标时切回回复模式、聚焦输入框，并在输入框为空时带入原消息正文
+  const prevCorrectingRef = useRef<string | null>(null)
+  useEffect(() => {
+    const nextId = correcting?.id ?? null
+    if (nextId && nextId !== prevCorrectingRef.current) {
+      setReplyMode("reply")
+      setText((cur) => (cur.trim() === "" ? (correcting?.content.original || correcting?.content.text || "") : cur))
+      requestAnimationFrame(() => {
+        const el = area.current
+        if (!el) return
+        el.focus()
+        const end = el.value.length
+        el.setSelectionRange(end, end)
+      })
+    }
+    prevCorrectingRef.current = nextId
+  }, [correcting])
 
   const queue = useUploadQueue<UploadedMedia>({
     upload: (file) => uploadMediaFile(file, (f) => tenantApi.file.upload({ file: f })),
@@ -730,6 +837,7 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
       return tenantApi.chat.messageSend(chat.id, {
         text: value || undefined,
         mentions: ids.length > 0 ? ids : undefined,
+        corrects_item_id: !note ? correcting?.id : undefined,
         attachments: attachmentInputs.length > 0 ? attachmentInputs : undefined,
         note: note || undefined,
         translation: vars.translation,
@@ -740,6 +848,7 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
       clearDraft(chat.id)
       setText("")
       setMentionIds([])
+      onClearCorrecting?.()
       queue.clear()
       preview.reset()
       void queryClient.invalidateQueries({ queryKey: kit.queries.chat.key() })
@@ -881,6 +990,21 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
         queue.handleDrop(e)
       }}
     >
+      {!note && correcting && (
+        <Paper withBorder radius="md" px="xs" py={6} mb={8} bg="var(--mantine-color-deep-orange-light)">
+          <Group gap={6} wrap="nowrap">
+            <IconPencil size={13} style={{ flex: "none", color: "var(--mantine-color-deep-orange-6)" }} />
+            <Text size="xs" c="deep-orange" truncate style={{ flex: 1, minWidth: 0 }}>
+              {t("inbox.correcting_message", {
+                text: (correcting.content.original || correcting.content.text || "…").slice(0, 60),
+              })}
+            </Text>
+            <ActionIcon size={18} variant="subtle" color="gray" onClick={onClearCorrecting} aria-label={t("inbox.cancel")}>
+              <IconX size={12} />
+            </ActionIcon>
+          </Group>
+        </Paper>
+      )}
       <Box className="inbox-composer-box" data-note={note || undefined} data-dragging={dragging || undefined}>
         <TriggerMenu trigger={trigger} position="top" width="min(100%, 280px)" maxHeight={240} />
         {(isExternal || dragging) && (

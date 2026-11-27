@@ -31,6 +31,9 @@ type ContactItemDTO struct {
 	Text           string           `json:"text"`
 	Attachments    []AttachmentDTO  `json:"attachments,omitempty" doc:"附带的图片和文件"`
 	Prompt         *Prompt          `json:"prompt,omitempty" doc:"系统发出的结构化提示或交互卡片"`
+	CorrectedBy    *string          `json:"corrected_by,omitempty" doc:"更正这条消息的新消息 ID；非空表示这条消息已被更正"`
+	CorrectedAt    *time.Time       `json:"corrected_at,omitempty" doc:"被更正的时间"`
+	CorrectsItemID *string          `json:"corrects_item_id,omitempty" doc:"这条消息更正的原消息 ID"`
 	CreatedAt      time.Time        `json:"created_at"`
 }
 
@@ -130,6 +133,10 @@ func toContactItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Ite
 	if err != nil {
 		return nil, err
 	}
+	correctedBy, correctsItem, err := loadCorrections(ctx, db, itemIDs)
+	if err != nil {
+		return nil, err
+	}
 	for i, it := range items {
 		out[i] = ContactItemDTO{
 			ID: it.ID, ConversationID: it.ConversationID, Seq: it.Seq, Kind: it.Kind, Author: ContactAuthor{Type: it.ActorType, Name: names[it.ActorID]},
@@ -140,6 +147,16 @@ func toContactItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Ite
 				out[i].Channel = &s
 			}
 		}
+		if corr, ok := correctedBy[it.ID]; ok {
+			by := corr.CorrectionItemID
+			at := corr.CreatedAt
+			out[i].CorrectedBy = &by
+			out[i].CorrectedAt = &at
+		}
+		if origID, ok := correctsItem[it.ID]; ok {
+			orig := origID
+			out[i].CorrectsItemID = &orig
+		}
 	}
 	return out, nil
 }
@@ -148,6 +165,8 @@ func toContactItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Ite
 func (d ItemDTO) ForContact() ContactItemDTO {
 	return ContactItemDTO{
 		ID: d.ID, Seq: d.Seq, Kind: d.Kind, Author: ContactAuthor{Type: d.Actor.Type}, Channel: d.Channel,
-		Text: d.Content.Text, Attachments: d.Attachments, Prompt: d.Content.Prompt, CreatedAt: d.CreatedAt,
+		Text: d.Content.Text, Attachments: d.Attachments, Prompt: d.Content.Prompt,
+		CorrectedBy: d.CorrectedBy, CorrectedAt: d.CorrectedAt, CorrectsItemID: d.CorrectsItemID,
+		CreatedAt: d.CreatedAt,
 	}
 }

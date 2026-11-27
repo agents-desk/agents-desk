@@ -558,6 +558,25 @@
   background: var(--tn-hover);
 }
 
+/* 已被更正的原消息：适度降权但保留原文供审计和核对 */
+.inbox-bubble[data-corrected] {
+  opacity: 0.72;
+}
+
+/* 更正消息顶部引用的原消息摘要 */
+.inbox-correction-ref {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border-left: 2px solid var(--mantine-color-deep-orange-6);
+  padding: 2px 0 2px 8px;
+  margin-bottom: 6px;
+}
+
+.inbox-correction-ref[data-clickable] {
+  cursor: pointer;
+}
+
 /* 气泡外侧悬浮快捷操作（组内时间、复制）：绝对定位在气泡外侧，内边距无缝衔接防止断 hover */
 .inbox-msg-actions {
   position: absolute;
