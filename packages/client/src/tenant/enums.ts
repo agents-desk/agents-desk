@@ -38,12 +38,20 @@ export const enums = {
       "zh-CN": { "conversation.first_message": "客户发来第一条消息时", "conversation.closed": "会话关闭时", "ticket.status_changed": "工单状态变化时" },
     },
   },
+  ChannelAudience: {
+    prefix: "channel.audience",
+    values: ["customer", "partner", "internal"],
+    labels: {
+      "en": { customer: "Customer", partner: "Business partner", internal: "Internal employee" },
+      "zh-CN": { customer: "外部客户", partner: "商务伙伴", internal: "内部员工" },
+    },
+  },
   ChannelKind: {
     prefix: "channel.kind",
-    values: ["test", "widget", "telegram", "business_link", "telegram_account"],
+    values: ["test", "widget", "telegram", "wecom", "business_link", "telegram_account"],
     labels: {
-      "en": { test: "Test channel", widget: "Website chat widget", telegram: "Telegram bot", business_link: "Business chat link", telegram_account: "Telegram account" },
-      "zh-CN": { test: "测试渠道", widget: "网页聊天插件", telegram: "Telegram 机器人", business_link: "商务沟通链接", telegram_account: "Telegram 个人号" },
+      "en": { test: "Test channel", widget: "Website chat widget", telegram: "Telegram bot", wecom: "WeCom bot", business_link: "Business chat link", telegram_account: "Telegram account" },
+      "zh-CN": { test: "测试渠道", widget: "网页聊天插件", telegram: "Telegram 机器人", wecom: "企业微信机器人", business_link: "商务沟通链接", telegram_account: "Telegram 个人号" },
     },
   },
   ChatMode: {
@@ -64,10 +72,10 @@ export const enums = {
   },
   ContactKind: {
     prefix: "contact.kind",
-    values: ["user", "lead"],
+    values: ["user", "lead", "internal"],
     labels: {
-      "en": { user: "User", lead: "Lead" },
-      "zh-CN": { user: "用户", lead: "线索" },
+      "en": { user: "User", lead: "Lead", internal: "Internal contact" },
+      "zh-CN": { user: "用户", lead: "线索", internal: "内部联系人" },
     },
   },
   ContactSort: {
@@ -80,10 +88,10 @@ export const enums = {
   },
   ConversationActorType: {
     prefix: "conversation.actor_type",
-    values: ["contact", "member", "bot", "system"],
+    values: ["contact", "external_user", "member", "bot", "system"],
     labels: {
-      "en": { contact: "Contact", member: "Member", bot: "Bot", system: "System" },
-      "zh-CN": { contact: "联系人", member: "成员", bot: "机器人", system: "系统" },
+      "en": { contact: "Contact", external_user: "Group speaker", member: "Member", bot: "Bot", system: "System" },
+      "zh-CN": { contact: "联系人", external_user: "群发言人", member: "成员", bot: "机器人", system: "系统" },
     },
   },
   ConversationAssigneeChangeMode: {
@@ -238,6 +246,14 @@ export const enums = {
       "zh-CN": { all: "所有人", members: "仅成员" },
     },
   },
+  ExtgroupStatus: {
+    prefix: "extgroup.status",
+    values: ["pending_setup", "active", "removed"],
+    labels: {
+      "en": { pending_setup: "Pending setup", active: "Active", removed: "Removed" },
+      "zh-CN": { pending_setup: "待配置", active: "已启用", removed: "已移出" },
+    },
+  },
   HoursReplyTime: {
     prefix: "hours.reply_time",
     values: ["minutes", "hour", "hours", "day"],
@@ -364,6 +380,14 @@ export const enums = {
     labels: {
       "en": { friendly: "Friendly", neutral: "Neutral", formal: "Formal" },
       "zh-CN": { friendly: "亲切", neutral: "中性", formal: "正式" },
+    },
+  },
+  WecomStatus: {
+    prefix: "wecom.status",
+    values: ["connected", "connecting", "disconnected", "auth_failed"],
+    labels: {
+      "en": { connected: "Connected", connecting: "Connecting", disconnected: "Disconnected", auth_failed: "Auth failed" },
+      "zh-CN": { connected: "已连接", connecting: "连接中", disconnected: "已断开", auth_failed: "鉴权失败" },
     },
   },
 } as const

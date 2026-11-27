@@ -316,6 +316,9 @@ export const schemas = {
             "format": "uuid",
             "type": "string"
           },
+          "audience": {
+            "$ref": "#/components/schemas/ChannelAudience"
+          },
           "channel_id": {
             "format": "uuid",
             "type": "string"
@@ -325,6 +328,10 @@ export const schemas = {
             "type": "string"
           },
           "cursor": {
+            "type": "string"
+          },
+          "external_group_id": {
+            "format": "uuid",
             "type": "string"
           },
           "filter": {
@@ -454,6 +461,27 @@ export const schemas = {
     tagAdd: {
       body: {
         "$ref": "#/components/schemas/ConversationAddTagInputBody"
+      },
+    },
+  },
+  external: {
+    groupList: {
+      query: {
+        "properties": {
+          "channel_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExtgroupStatus"
+          }
+        },
+        "type": "object"
+      },
+    },
+    groupUpdate: {
+      body: {
+        "$ref": "#/components/schemas/ExtgroupUpdateBody"
       },
     },
   },
@@ -1252,6 +1280,38 @@ export const schemas = {
       },
     },
   },
+  wecom: {
+    create: {
+      body: {
+        "$ref": "#/components/schemas/WecomCreateBody"
+      },
+    },
+    list: {
+      query: {
+        "properties": {
+          "page": {
+            "default": 1,
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "per_page": {
+            "default": 20,
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+    },
+    update: {
+      body: {
+        "$ref": "#/components/schemas/WecomUpdateBody"
+      },
+    },
+  },
   widget: {
     create: {
       body: {
@@ -1508,6 +1568,14 @@ export const components = {
     ],
     "type": "object"
   },
+  ChannelAudience: {
+    "enum": [
+      "customer",
+      "partner",
+      "internal"
+    ],
+    "type": "string"
+  },
   ChannelBusinessPolicy: {
     "additionalProperties": false,
     "properties": {
@@ -1538,6 +1606,25 @@ export const components = {
         "type": "string"
       }
     },
+    "type": "object"
+  },
+  ChannelExternalMention: {
+    "additionalProperties": false,
+    "properties": {
+      "external_id": {
+        "type": "string"
+      },
+      "external_user_id": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "external_id",
+      "name"
+    ],
     "type": "object"
   },
   ChatMode: {
@@ -1596,7 +1683,8 @@ export const components = {
   ContactKind: {
     "enum": [
       "user",
-      "lead"
+      "lead",
+      "internal"
     ],
     "type": "string"
   },
@@ -1637,6 +1725,9 @@ export const components = {
       },
       "location": {
         "maxLength": 120,
+        "type": "string"
+      },
+      "member_id": {
         "type": "string"
       },
       "name": {
@@ -1776,6 +1867,7 @@ export const components = {
   ConversationActorType: {
     "enum": [
       "contact",
+      "external_user",
       "member",
       "bot",
       "system"
@@ -2099,6 +2191,14 @@ export const components = {
         "maxLength": 5000,
         "type": "string"
       },
+      "external_group_ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 50,
+        "type": "array",
+        "uniqueItems": true
+      },
       "priority": {
         "$ref": "#/components/schemas/ConversationPriority"
       },
@@ -2174,6 +2274,10 @@ export const components = {
         "type": "string"
       },
       "conversation_id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "external_group_id": {
         "format": "uuid",
         "type": "string"
       }
@@ -2302,6 +2406,17 @@ export const components = {
         "format": "uuid",
         "type": "string"
       },
+      "external_mentions": {
+        "items": {
+          "$ref": "#/components/schemas/ChannelExternalMention"
+        },
+        "maxItems": 20,
+        "type": "array"
+      },
+      "reply_to_item_id": {
+        "format": "uuid",
+        "type": "string"
+      },
       "text": {
         "maxLength": 10000,
         "type": "string"
@@ -2333,6 +2448,13 @@ export const components = {
       "auto_translate": {
         "$ref": "#/components/schemas/ConversationAutoTranslateRequest"
       },
+      "external_mentions": {
+        "items": {
+          "$ref": "#/components/schemas/ChannelExternalMention"
+        },
+        "maxItems": 20,
+        "type": "array"
+      },
       "mentions": {
         "items": {
           "type": "string"
@@ -2343,6 +2465,10 @@ export const components = {
       },
       "note": {
         "type": "boolean"
+      },
+      "reply_to_item_id": {
+        "format": "uuid",
+        "type": "string"
       },
       "text": {
         "maxLength": 10000,
@@ -2542,6 +2668,9 @@ export const components = {
         "maxItems": 20,
         "type": "array"
       },
+      "audience": {
+        "$ref": "#/components/schemas/ChannelAudience"
+      },
       "channel_ids": {
         "items": {
           "type": "string"
@@ -2623,6 +2752,37 @@ export const components = {
       "name",
       "config"
     ],
+    "type": "object"
+  },
+  ExtgroupStatus: {
+    "enum": [
+      "pending_setup",
+      "active",
+      "removed"
+    ],
+    "type": "string"
+  },
+  ExtgroupUpdateBody: {
+    "additionalProperties": false,
+    "properties": {
+      "language": {
+        "maxLength": 35,
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 120,
+        "type": "string"
+      },
+      "organization_id": {
+        "type": "string"
+      },
+      "status": {
+        "$ref": "#/components/schemas/ExtgroupStatus"
+      },
+      "team_id": {
+        "type": "string"
+      }
+    },
     "type": "object"
   },
   HoursInterval: {
@@ -3107,11 +3267,17 @@ export const components = {
   TelegramCreateBody: {
     "additionalProperties": false,
     "properties": {
+      "audience": {
+        "$ref": "#/components/schemas/ChannelAudience"
+      },
       "bot_token": {
         "format": "password",
         "maxLength": 256,
         "minLength": 10,
         "type": "string"
+      },
+      "enable_groups": {
+        "type": "boolean"
       },
       "gateway_managed": {
         "type": "boolean"
@@ -3135,10 +3301,16 @@ export const components = {
   TelegramUpdateBody: {
     "additionalProperties": false,
     "properties": {
+      "audience": {
+        "$ref": "#/components/schemas/ChannelAudience"
+      },
       "bot_token": {
         "format": "password",
         "maxLength": 256,
         "type": "string"
+      },
+      "enable_groups": {
+        "type": "boolean"
       },
       "enabled": {
         "type": "boolean"
@@ -3611,6 +3783,92 @@ export const components = {
     },
     "required": [
       "tone"
+    ],
+    "type": "object"
+  },
+  WecomCreateBody: {
+    "additionalProperties": false,
+    "properties": {
+      "audience": {
+        "$ref": "#/components/schemas/ChannelAudience"
+      },
+      "bot_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 60,
+        "minLength": 1,
+        "type": "string"
+      },
+      "secret": {
+        "format": "password",
+        "maxLength": 256,
+        "minLength": 6,
+        "type": "string"
+      },
+      "team_id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "welcome_text": {
+        "maxLength": 1000,
+        "type": "string"
+      },
+      "ws_url": {
+        "maxLength": 256,
+        "type": "string"
+      }
+    },
+    "required": [
+      "name",
+      "bot_id",
+      "secret"
+    ],
+    "type": "object"
+  },
+  WecomUpdateBody: {
+    "additionalProperties": false,
+    "properties": {
+      "audience": {
+        "$ref": "#/components/schemas/ChannelAudience"
+      },
+      "bot_id": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "enabled": {
+        "type": "boolean"
+      },
+      "name": {
+        "maxLength": 60,
+        "minLength": 1,
+        "type": "string"
+      },
+      "secret": {
+        "format": "password",
+        "maxLength": 256,
+        "type": "string"
+      },
+      "team_id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "welcome_text": {
+        "maxLength": 1000,
+        "type": "string"
+      },
+      "ws_url": {
+        "maxLength": 256,
+        "type": "string"
+      }
+    },
+    "required": [
+      "name",
+      "bot_id",
+      "enabled"
     ],
     "type": "object"
   },

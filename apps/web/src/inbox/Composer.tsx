@@ -1,8 +1,10 @@
 import type {
   AttributeDTO,
+  ChannelExternalMention,
   ConversationActions,
   ConversationAutoTranslateRequest,
   ConversationDTO,
+  ConversationItemDTO,
   ConversationTranslation,
   MacroDTO,
   MemberTenantMember,
@@ -11,6 +13,7 @@ import type {
 } from "@agents-desk/client/tenant"
 import {
   ActionIcon,
+  Alert,
   Avatar,
   Badge,
   Box,
@@ -31,8 +34,11 @@ import { useOs } from "@mantine/hooks"
 import { notifications } from "@mantine/notifications"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import {
+  IconAlertTriangle,
+  IconAt,
   IconCheck,
   IconChevronDown,
+  IconCornerUpLeft,
   IconLock,
   IconMessageBolt,
   IconPaperclip,
@@ -104,11 +110,19 @@ type After = { kind: "none" } | { kind: "close" } | { kind: "snooze"; until: Dat
  */
 export function Composer({
   c,
+  replyTo,
+  onClearReplyTo,
+  extMentions,
+  onChangeExtMentions,
   onTyping,
   onReplied,
   handleRef,
 }: {
   c: ConversationDTO
+  replyTo?: ConversationItemDTO | null
+  onClearReplyTo?: () => void
+  extMentions?: ChannelExternalMention[]
+  onChangeExtMentions?: (next: ChannelExternalMention[]) => void
   onTyping: () => void
   onReplied?: () => void
   handleRef?: RefObject<ComposerHandle | null>
@@ -163,6 +177,25 @@ export function Composer({
   const area = useRef<HTMLTextAreaElement>(null)
   const value = text.trim()
   const note = mode === "note"
+  const isExternalGroup = Boolean(c.external_group)
+  const groupRemoved = c.external_group?.status === "removed"
+  const activeExtMentions = extMentions ?? []
+
+  // 汇总群会话时间线中出现过的外部发言人，供坐席快速选择 @提及
+  const groupSpeakers = useMemo<ChannelExternalMention[]>(() => {
+    if (!isExternalGroup) return []
+    const seen = new Map<string, ChannelExternalMention>()
+    for (const item of timeline.data ?? []) {
+      if (item.actor.type === "external_user" && item.actor.external_id) {
+        seen.set(item.actor.external_id, {
+          external_id: item.actor.external_id,
+          external_user_id: item.actor.id || undefined,
+          name: item.actor.name || item.actor.external_id,
+        })
+      }
+    }
+    return [...seen.values()]
+  }, [isExternalGroup, timeline.data])
   const hasPending = !note && hasPendingActions(pendingActions)
   const translatableText = !value.startsWith("/") ? value : ""
   // 内部备注模式严格按真实接收者推导（@ 提及同事 → 会话负责人与时间线参与成员）；回复模式默认跟随客户语言
@@ -239,6 +272,8 @@ export function Composer({
         await tenantApi.conversation.reply(c.id, {
           text: value || undefined,
           channel_id,
+          reply_to_item_id: replyTo?.id,
+          external_mentions: activeExtMentions.length > 0 ? activeExtMentions : undefined,
           translation,
           auto_translate: autoTranslate,
           attachments,
@@ -254,6 +289,8 @@ export function Composer({
       setMentionIds([])
       setPendingActions(emptyPendingActions())
       setMacroWarnings([])
+      onClearReplyTo?.()
+      onChangeExtMentions?.([])
       queue.clear()
       preview.reset()
       void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
@@ -268,6 +305,7 @@ export function Composer({
   // 发送：折叠态回复自动翻译发出、备注直发由后台互译；展开校对时发送核对/微调后的译文；skipTranslation 可单次跳过翻译。
   const submit = async (after: After, options?: { skipTranslation?: boolean }) => {
     if (queue.uploading || queue.hasError || send.isPending || preview.pending) return
+    if (!note && groupRemoved) return
     if (note) {
       if (!hasContent) return
       const prep = await preview.prepareSubmit({ skipTranslation: options?.skipTranslation })
@@ -429,7 +467,11 @@ export function Composer({
   )
 
   const canSubmit =
-    !queue.uploading && !queue.hasError && !send.isPending && !preview.pending && (note ? hasContent : hasContent || hasPending)
+    !queue.uploading &&
+    !queue.hasError &&
+    !send.isPending &&
+    !preview.pending &&
+    (note ? hasContent : !groupRemoved && (hasContent || hasPending))
   const sendHint = ctrlEnterSend ? t("inbox.ctrl_enter_hint", { key: sendModKey }) : t("inbox.enter_hint")
   const replyPlaceholder =
     c.status === "closed"
@@ -480,6 +522,57 @@ export function Composer({
         queue.handleDrop(e)
       }}
     >
+      {!note && groupRemoved && (
+        <Alert variant="light" color="red" radius="md" py={6} px="sm" mb={8} icon={<IconAlertTriangle size={15} />}>
+          <Text size="xs">{t("inbox.group_removed_notice")}</Text>
+        </Alert>
+      )}
+      {!note && isExternalGroup && (replyTo || activeExtMentions.length > 0) && (
+        <Paper withBorder radius="md" px="xs" py={6} mb={8} bg="var(--tn-canvas)">
+          <Stack gap={4}>
+            {replyTo && (
+              <Group gap={6} wrap="nowrap">
+                <IconCornerUpLeft size={13} style={{ flex: "none", color: "var(--tn-muted)" }} />
+                <Text size="xs" c="dimmed" truncate style={{ flex: 1, minWidth: 0 }}>
+                  {t("inbox.replying_to", {
+                    who: replyTo.actor.name || replyTo.actor.external_id || t("inbox.visitor"),
+                    text: (replyTo.content.text || replyTo.content.original || "…").slice(0, 60),
+                  })}
+                </Text>
+                <ActionIcon size={18} variant="subtle" color="gray" onClick={onClearReplyTo} aria-label={t("inbox.cancel")}>
+                  <IconX size={12} />
+                </ActionIcon>
+              </Group>
+            )}
+            {activeExtMentions.length > 0 && (
+              <Group gap={6} wrap="wrap">
+                {activeExtMentions.map((m) => (
+                  <Badge
+                    key={m.external_id}
+                    size="sm"
+                    variant="light"
+                    color="bright-blue"
+                    pr={4}
+                    rightSection={
+                      <ActionIcon
+                        size={14}
+                        variant="transparent"
+                        color="bright-blue"
+                        aria-label={t("inbox.cancel")}
+                        onClick={() => onChangeExtMentions?.(activeExtMentions.filter((x) => x.external_id !== m.external_id))}
+                      >
+                        <IconX size={10} />
+                      </ActionIcon>
+                    }
+                  >
+                    @{m.name}
+                  </Badge>
+                ))}
+              </Group>
+            )}
+          </Stack>
+        </Paper>
+      )}
       {/* 待执行快捷操作胶囊条在输入卡片上方 */}
       {!note && (hasPending || macroWarnings.length > 0) && (
         <PendingActionsBar
@@ -615,6 +708,38 @@ export function Composer({
           )}
         </Box>
         <Group gap={6} className="inbox-composer-foot" data-tn-density="dense">
+          {!note && isExternalGroup && groupSpeakers.length > 0 && onChangeExtMentions && (
+            <Menu position="top-start" withinPortal>
+              <Menu.Target>
+                <Tooltip label={t("inbox.mention_speaker")}>
+                  <ActionIcon variant="subtle" color="gray" size="input-sm" aria-label={t("inbox.mention_speaker")}>
+                    <IconAt size={16} />
+                  </ActionIcon>
+                </Tooltip>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Label>{t("inbox.mention_speaker")}</Menu.Label>
+                {groupSpeakers.map((sp) => {
+                  const picked = activeExtMentions.some((x) => x.external_id === sp.external_id)
+                  return (
+                    <Menu.Item
+                      key={sp.external_id}
+                      rightSection={picked ? <IconCheck size={14} /> : undefined}
+                      onClick={() => {
+                        if (picked) {
+                          onChangeExtMentions(activeExtMentions.filter((x) => x.external_id !== sp.external_id))
+                        } else {
+                          onChangeExtMentions([...activeExtMentions, sp])
+                        }
+                      }}
+                    >
+                      {sp.name}
+                    </Menu.Item>
+                  )
+                })}
+              </Menu.Dropdown>
+            </Menu>
+          )}
           {!note && (
             <Tooltip label={t("inbox.macro_button")}>
               <ActionIcon

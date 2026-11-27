@@ -119,6 +119,10 @@ export const required = {
     tagAdd: ["conversations:reply"],
     tagRemove: ["conversations:reply"],
   },
+  external: {
+    groupList: ["channels:read"],
+    groupUpdate: ["channels:manage"],
+  },
   file: {
     upload: ["conversations:reply"],
   },
@@ -228,6 +232,13 @@ export const required = {
     list: ["conversations:read"],
     reorder: ["conversations:read"],
     update: ["conversations:read"],
+  },
+  wecom: {
+    create: ["channels:manage"],
+    get: ["channels:manage"],
+    list: ["channels:manage"],
+    reconnect: ["channels:manage"],
+    update: ["channels:manage"],
   },
   widget: {
     create: ["channels:manage"],

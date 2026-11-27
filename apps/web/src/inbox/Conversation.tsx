@@ -1,19 +1,19 @@
+import type { ChannelExternalMention, ConversationItemDTO } from "@agents-desk/client/tenant"
 import { ActionIcon, Alert, Avatar, Badge, Box, Button, Divider, Group, Text, Tooltip } from "@mantine/core"
 import { useElementSize } from "@mantine/hooks"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate, useParams } from "@tanstack/react-router"
 import { IconArrowRight, IconCheck, IconInfoCircle, IconLayoutSidebarRight, IconRefresh, IconTicket } from "@tabler/icons-react"
 import { AsidePane, notifyError, PaneHeader, useAsidePaneState, useCan, useNarrow, useT } from "@go-tenon/ui"
-import { type ReactNode, useEffect, useRef, useState } from "react"
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { ContactAvatar } from "../contacts/display"
 import { isTypingTarget, NARROW_QUERY } from "../layout"
 import { CreateTicketModal } from "../tickets/CreateTicketModal"
 import { useConversationChannel } from "./channel"
 import { Composer, type ComposerHandle } from "./Composer"
-import { useContactHistory, useConversation, useMe, useMembers, useTeams, useTimeline } from "./data"
+import { useContactHistory, useConversation, useGroupHistory, useMe, useMembers, useTeams, useTimeline } from "./data"
 import { Details } from "./Details"
-import { contactName } from "./List"
+import { contactName, ConversationPeerAvatar } from "./List"
 import { AssignMenu, SnoozeMenu } from "./menus"
 import { useSyncRead } from "./MessagePrimitives"
 import type { MatchField } from "./search"
@@ -53,8 +53,29 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
   const { viewers, typing, notifyTyping, clearTyping } = useConversationChannel(tenantId, id, me.data?.id)
   const details = useAsidePaneState("inbox-details", { compactQuery: NARROW_QUERY })
   const [createTicketOpen, setCreateTicketOpen] = useState(false)
+  const [replyToItem, setReplyToItem] = useState<ConversationItemDTO | null>(null)
+  const [extMentions, setExtMentions] = useState<ChannelExternalMention[]>([])
   const { ref: mainRef, width: mainWidth } = useElementSize()
   const composerRef = useRef<ComposerHandle>(null)
+
+  // 切换会话时清空引用回复与群 @ 列表
+  useEffect(() => {
+    setReplyToItem(null)
+    setExtMentions([])
+  }, [id])
+
+  const handleReplyTo = useCallback((item: ConversationItemDTO) => {
+    setReplyToItem(item)
+    if (item.actor.type === "external_user" && item.actor.external_id) {
+      const target: ChannelExternalMention = {
+        external_id: item.actor.external_id,
+        external_user_id: item.actor.id || undefined,
+        name: item.actor.name || item.actor.external_id,
+      }
+      setExtMentions((prev) => (prev.some((m) => m.external_id === target.external_id) ? prev : [...prev, target]))
+    }
+    composerRef.current?.focus("reply")
+  }, [])
 
   // 打开时读到的位置：“新消息”分隔线画在它之后，读过之后也保持在原处
   const readAtOpen = useRef<number | null>(null)
@@ -64,7 +85,9 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
   // 最新一项是谁发的：他的“正在输入”随之消失
   const last = timeline.data?.at(-1)
   useEffect(() => {
-    if (last?.kind === "message" || last?.kind === "note") clearTyping(last.actor.type === "contact" ? "contact" : last.actor.id)
+    if (last?.kind === "message" || last?.kind === "note") {
+      clearTyping(last.actor.type === "contact" || last.actor.type === "external_user" ? "contact" : last.actor.id)
+    }
   }, [last, clearTyping])
 
   // 标记已读：页面在前台、时间线的最后一项比读到的位置新时推进，从后台切回前台时补标
@@ -90,7 +113,9 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
     },
   })
   const contactHistory = useContactHistory(c?.status === "closed" ? c.contact?.id : undefined)
-  const activeSibling = c?.status === "closed" ? contactHistory.data?.items.find((x) => x.id !== c.id && x.status !== "closed") : undefined
+  const groupHistory = useGroupHistory(c?.status === "closed" ? c.external_group?.id : undefined)
+  const siblingList = c?.external_group ? groupHistory.data?.items : contactHistory.data?.items
+  const activeSibling = c?.status === "closed" ? siblingList?.find((x) => x.id !== c.id && x.status !== "closed") : undefined
 
   // 会话级快捷键（非输入态生效）：Shift+J 下一个待回复、R 回复、N 内部备注、I 切换详情栏、E 关闭会话
   const status = c?.status
@@ -160,7 +185,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
         {/* 宽屏锁定 52px 基准顶栏与相邻各栏齐平；窄屏操作按钮换到第二行 */}
         <PaneHeader fixed={!narrow} back={narrow ? back : undefined} style={narrow ? { paddingBlock: 8 } : undefined}>
           <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-            <ContactAvatar contact={c.contact} size={32} />
+            <ConversationPeerAvatar c={c} size={32} />
             <Box style={{ minWidth: 0, flex: 1 }}>
               <Group gap={6} wrap="nowrap">
                 {c.contact ? (
@@ -178,6 +203,21 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
                   <Text size="md" fw={600} truncate lh={1.25}>
                     {contactName(c, t)}
                   </Text>
+                )}
+                {c.external_group?.status === "pending_setup" && (
+                  <Badge size="xs" variant="light" color="yellow" style={{ flex: "none" }}>
+                    {t("extgroups.filter_pending")}
+                  </Badge>
+                )}
+                {c.external_group?.status === "removed" && (
+                  <Badge size="xs" variant="light" color="red" style={{ flex: "none" }}>
+                    {t("extgroups.filter_removed")}
+                  </Badge>
+                )}
+                {c.audience === "internal" && (
+                  <Badge size="xs" variant="light" color="green" style={{ flex: "none" }}>
+                    {t("inbox.audience_internal_badge")}
+                  </Badge>
                 )}
                 {c.status !== "open" && (
                   <Badge size="xs" variant="light" color={c.status === "snoozed" ? "yellow" : "gray"} style={{ flex: "none" }}>
@@ -293,10 +333,15 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
           highlight={highlight}
           focusSeq={focusSeq}
           focusField={focusField}
+          onReplyTo={c.external_group ? handleReplyTo : undefined}
         />
         <Composer
           key={c.id}
           c={c}
+          replyTo={replyToItem}
+          onClearReplyTo={() => setReplyToItem(null)}
+          extMentions={extMentions}
+          onChangeExtMentions={setExtMentions}
           onTyping={notifyTyping}
           onReplied={me.data?.open_next_after_reply && next ? next : undefined}
           handleRef={composerRef}

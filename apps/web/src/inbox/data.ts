@@ -213,12 +213,21 @@ export function timelineQuery(queryClient: QueryClient, id: string, focusSeq?: n
   })
 }
 
-/** contactHistory 读取联系人的会话（详情中的“最近的会话”），包括已关闭的。 */
+/** useContactHistory 读取联系人的会话（详情中的“最近的会话”），包括已关闭的。 */
 export function useContactHistory(contactId: string | undefined) {
   return useQuery({
     queryKey: [...kit.queries.conversation.key(), "contact-history", contactId],
     queryFn: () => tenantApi.conversation.list({ contact_id: contactId, per_page: 10, sort: "recent" }),
     enabled: !!contactId,
+  })
+}
+
+/** useGroupHistory 读取外部群的历史会话，包括已关闭的。 */
+export function useGroupHistory(externalGroupId: string | undefined) {
+  return useQuery({
+    queryKey: [...kit.queries.conversation.key(), "group-history", externalGroupId],
+    queryFn: () => tenantApi.conversation.list({ external_group_id: externalGroupId, per_page: 10, sort: "recent" }),
+    enabled: !!externalGroupId,
   })
 }
 

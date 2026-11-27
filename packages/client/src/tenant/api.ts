@@ -177,6 +177,8 @@ export interface BusinessSetEnabledInputBody {
   enabled: boolean
 }
 
+export type ChannelAudience = "customer" | "partner" | "internal"
+
 export interface ChannelBusinessPolicy {
   /** 渠道级自动翻译开关覆写；为空表示继承工作区设置 */
   auto_translate?: boolean
@@ -188,21 +190,33 @@ export interface ChannelBusinessPolicy {
   translation_tone?: "" | "friendly" | "neutral" | "formal"
 }
 
-export type ChannelKind = "test" | "widget" | "telegram" | "business_link" | "telegram_account"
+export interface ChannelExternalMention {
+  /** 第三方平台中的用户编号（如企微 userid、Telegram user_id） */
+  external_id: string
+  /** 系统内部 external_users.id（可选） */
+  external_user_id?: string
+  /** 发言人显示名称 */
+  name: string
+}
+
+export type ChannelKind = "test" | "widget" | "telegram" | "wecom" | "business_link" | "telegram_account"
 
 export interface ChannelListItem {
+  /** 渠道服务对象域：customer（外部客户）、partner（合作商家/商务）或 internal（内部员工） */
+  audience: ChannelAudience
   /** 渠道是否启用 */
   enabled: boolean
   id: string
   kind: ChannelKind
   name: string
-  /** 个人商务渠道所属的成员 ID；公共客服渠道为空 */
+  /** 个人商务渠道所属的成员 ID；公共渠道为空 */
   owner_member_id?: string
   /** 默认进入的团队收件箱 ID */
   team_id?: string
 }
 
 export interface ChannelSummary {
+  audience: ChannelAudience
   id: string
   kind: ChannelKind
   name: string
@@ -233,6 +247,8 @@ export interface ContactDTO {
   last_seen_at?: string
   /** 所在地 */
   location: string
+  /** 内部联系人关联的工作区成员 ID */
+  member_id?: string
   name: string
   /** 成员填写的联系人备注，跨会话持久可见 */
   notes: string
@@ -274,6 +290,8 @@ export interface ContactDetailDTO {
   last_seen_at?: string
   /** 所在地 */
   location: string
+  /** 内部联系人关联的工作区成员 ID */
+  member_id?: string
   name: string
   /** 成员填写的联系人备注，跨会话持久可见 */
   notes: string
@@ -338,7 +356,7 @@ export interface ContactIdentityDTO {
   external_id: string
 }
 
-export type ContactKind = "user" | "lead"
+export type ContactKind = "user" | "lead" | "internal"
 
 export interface ContactMergeBody {
   /** 要被合并进来的来源联系人 ID（合并后删除） */
@@ -355,12 +373,14 @@ export interface ContactSummary {
   email: string
   id: string
   kind: ContactKind
-  /** 客户的语言：按最近几条确定了语言的消息判断，或者成员手动设置的；还没有时为空 */
+  /** 对方的语言：按最近几条确定了语言的消息判断，或者成员手动设置的；还没有时为空 */
   language: string
   /** 对方的语言是成员手动设置的：收到的消息不再改它 */
   language_manual: boolean
   /** 所在地 */
   location?: string
+  /** 内部联系人关联的工作区成员 ID */
+  member_id?: string
   name: string
   /** 联系人在工作区内的递增编号，从 1 开始 */
   number: number
@@ -371,15 +391,17 @@ export interface ContactSummary {
 }
 
 export interface ContactSummaryDTO {
-  /** 全部联系人数量 */
+  /** 全部外部客户联系人数量（用户 + 线索，不含内部联系人） */
   all: number
   /** 当前成员可见的渠道，供联系人列表按渠道筛选 */
   channels: ChannelSummary[]
+  /** 内部联系人数量（员工） */
+  internal: number
   /** 当前成员可见联系人中实际出现过的语言标签（BCP 47），按使用人数降序排列 */
   languages: string[]
-  /** 线索数量 */
+  /** 访客线索数量 */
   leads: number
-  /** 用户数量 */
+  /** 已认证客户数量 */
   users: number
   /** 当前成员可见的联系人已保存筛选视图及实时数量 */
   views: ContactViewSummary[]
@@ -394,6 +416,8 @@ export interface ContactUpdateBody {
   language?: string
   /** 所在地 */
   location?: string
+  /** 可选：将内部联系人绑定到工作区成员 ID；传空字符串解除绑定 */
+  member_id?: string
   /** 名字 */
   name?: string
   /** 成员填写的联系人备注，跨会话持久可见 */
@@ -485,12 +509,13 @@ export interface ConversationActions {
 }
 
 export interface ConversationActor {
+  external_id?: string
   id: string
   name?: string
   type: ConversationActorType
 }
 
-export type ConversationActorType = "contact" | "member" | "bot" | "system"
+export type ConversationActorType = "contact" | "external_user" | "member" | "bot" | "system"
 
 export interface ConversationAddChatParticipantsBody {
   /** 要加入群聊的工作区成员 ID */
@@ -705,9 +730,11 @@ export interface ConversationContent {
   data?: Record<string, unknown>
   /** 系统事件的名称，例如 conversation.reopened */
   event?: string
+  /** 外部群回复中 @ 到的外部发言人 */
+  external_mentions?: ChannelExternalMention[]
   /** text 的语言（BCP 47），只有翻译后发出的回复有 */
   language?: string
-  /** 内部备注中 @ 到的成员 ID */
+  /** 内部备注或内部聊天中 @ 到的成员 ID */
   mentions?: string[]
   /** 成员写的原文；只有翻译后发出的回复有 */
   original?: string
@@ -740,11 +767,13 @@ export interface ConversationCreateTicketParams {
   contact_ids?: string[]
   /** 工单详细描述 */
   description?: string
+  /** 可选：创建时一并关联的受影响外部群 ID */
+  external_group_ids?: string[]
   /** 优先级；不填默认为 normal */
   priority?: ConversationPriority
-  /** 可选：由哪条服务型会话转成工单，自动关联该会话联系人 */
+  /** 可选：由哪条服务型会话转成工单，自动关联该会话的联系人或外部群 */
   source_conversation_id?: string
-  /** 可选：同时由多条服务型会话一起转成此工单，自动关联各会话联系人并在会话时间线留痕 */
+  /** 可选：同时由多条服务型会话一起转成此工单，自动关联各会话对象并在会话时间线留痕 */
   source_conversation_ids?: string[]
   /** 归属团队收件箱 ID；不填取工单类型默认团队 */
   team_id?: string
@@ -761,16 +790,20 @@ export interface ConversationDTO {
   assignee?: ConversationActor
   /** 会话的自定义属性 */
   attributes: Record<string, unknown>
-  /** 该联系人当前已绑定且已启用的可回复渠道列表 */
+  /** 服务对象类型：customer（外部客户）、partner（外部商务伙伴）或 internal（内部员工） */
+  audience?: ChannelAudience
+  /** 该联系人当前已绑定且已启用的同服务对象可回复渠道列表 */
   available_channels?: ChannelSummary[]
   /** 会话最初发起的来源渠道 */
   channel?: ChannelSummary
   /** 会话中出现过的全部渠道（来源渠道优先，去重） */
   channels?: ChannelSummary[]
   closed_at?: string
-  /** 对方：联系人 */
+  /** 对方：联系人（1:1 会话） */
   contact?: ContactSummary
   created_at: string
+  /** 对方：外部群（群聊机器人会话） */
+  external_group?: ExtgroupSummary
   first_reply_at?: string
   id: string
   kind: ConversationKind
@@ -850,6 +883,8 @@ export interface ConversationItemDTO {
   derived: Record<string, unknown>
   id: string
   kind: ConversationItemKind
+  /** 引用回复的时间线项 ID */
+  reply_to_item_id?: string
   seq: number
   /** 对方发来、还没有我的语言的译文、也不是我的语言的消息：翻译可用时页面显示“翻译中”，并请求补译 */
   untranslated?: boolean
@@ -868,8 +903,10 @@ export interface ConversationLanguageInputBody {
 export interface ConversationLinkTicketContactBody {
   /** 要关联的受影响联系人 ID */
   contact_id?: string
-  /** 可选：按服务型会话 ID 自动关联其联系人 */
+  /** 可选：按服务型会话 ID 自动关联其联系人或外部群 */
   conversation_id?: string
+  /** 要关联的受影响外部群 ID */
+  external_group_id?: string
 }
 
 export interface ConversationLinkedContactDTO {
@@ -879,6 +916,19 @@ export interface ConversationLinkedContactDTO {
   conversation_id?: string
   conversation_status?: ConversationStatus
   /** 是否由该客户的服务型会话转成此工单 */
+  is_source: boolean
+  last_message_at?: string
+  linked_at: string
+  preview: string
+}
+
+export interface ConversationLinkedGroupDTO {
+  channel?: ChannelSummary
+  /** 当前成员可见的该外部群活跃或最近一条服务型会话 ID */
+  conversation_id?: string
+  conversation_status?: ConversationStatus
+  group: ExtgroupSummary
+  /** 是否由该外部群的服务型会话转成此工单 */
   is_source: boolean
   last_message_at?: string
   linked_at: string
@@ -952,6 +1002,10 @@ export interface ConversationReplyBody {
   auto_translate?: ConversationAutoTranslateRequest
   /** 发往的渠道 ID；为空时发往会话当前的默认回复渠道 */
   channel_id?: string
+  /** 可选：外部群回复时要 @ 的发言人列表 */
+  external_mentions?: ChannelExternalMention[]
+  /** 可选：引用回复同会话内的指定消息 ID */
+  reply_to_item_id?: string
   /** 成员写的文字 */
   text?: string
   /** 发给对方的译文，由翻译的预览给出、成员确认；不带时按原文或 auto_translate 发出 */
@@ -1016,10 +1070,14 @@ export interface ConversationSendChatMessageBody {
   attachments?: ConversationAttachmentInput[]
   /** 仅外部商务聊天对外回复可用：不携带 translation 时，先立刻落库并由投递任务异步翻译后发往外部渠道 */
   auto_translate?: ConversationAutoTranslateRequest
-  /** @ 到的成员 ID */
+  /** 外部群对外回复时要 @ 的发言人列表 */
+  external_mentions?: ChannelExternalMention[]
+  /** @ 到的工作区成员 ID（仅内部聊天或内部备注使用） */
   mentions?: string[]
   /** 仅商务外部聊天可用：为 true 时写为仅成员可见的内部备注，不发往外部渠道 */
   note?: boolean
+  /** 可选：引用回复同聊天内的指定消息 ID */
+  reply_to_item_id?: string
   /** 消息正文 */
   text?: string
   /** 发送译文：外部商务聊天对外回复时替换发出并保留原文；内部聊天与内部备注时写入派生译文供该语言成员查看 */
@@ -1097,10 +1155,12 @@ export interface ConversationTicketDTO {
   language?: string
   last_message_at: string
   last_seq: number
-  /** 当前成员有权限看到的受影响客户列表（详情接口返回） */
+  /** 当前成员有权限看到的受影响联系人列表（详情接口返回） */
   linked_contacts?: ConversationLinkedContactDTO[]
-  /** 工单关联的受影响客户总数 */
+  /** 工单关联的受影响对象总数（联系人与外部群之和） */
   linked_count: number
+  /** 当前成员有权限看到的受影响外部群列表（详情接口返回） */
+  linked_groups?: ConversationLinkedGroupDTO[]
   /** 工单标题或描述对当前查看成员是否还缺译文 */
   meta_untranslated?: boolean
   /** 工作区内递增编号，例如 1024 */
@@ -1165,6 +1225,8 @@ export interface ConversationViewConfig {
   assignee?: ConversationAssigneeFilter
   /** 会话自定义属性筛选条件（全部满足） */
   attributes?: ConversationAttributeFilter[]
+  /** 服务对象类型筛选（customer/internal） */
+  audience?: ChannelAudience
   /** 渠道 ID（匹配其中任一） */
   channel_ids?: string[]
   /** 客户语言（BCP 47，传主语言时同时匹配子标签） */
@@ -1285,6 +1347,48 @@ export interface ErrorModel {
   title?: string
   /** A URI reference to human-readable documentation for the error. */
   type?: string
+}
+
+export interface ExtgroupGroupDTO {
+  channel: ChannelSummary
+  created_at: string
+  external_id: string
+  id: string
+  language: string
+  language_manual: boolean
+  last_active_at?: string
+  name: string
+  organization_id?: string
+  status: ExtgroupStatus
+  team_id?: string
+  updated_at: string
+}
+
+export type ExtgroupStatus = "pending_setup" | "active" | "removed"
+
+export interface ExtgroupSummary {
+  channel_id: string
+  external_id: string
+  id: string
+  language: string
+  language_manual: boolean
+  name: string
+  organization_id?: string
+  status: ExtgroupStatus
+  team_id?: string
+}
+
+export interface ExtgroupUpdateBody {
+  /** 群沟通语言（BCP 47）；传空字符串恢复自动识别 */
+  language?: string
+  /** 群名称覆写 */
+  name?: string
+  /** 所属组织 ID；传空字符串表示内部群 */
+  organization_id?: string
+  /** 外部群状态：pending_setup 或 active */
+  status?: ExtgroupStatus
+  /** 默认团队收件箱 ID；传空字符串表示回退到渠道默认团队 */
+  team_id?: string
 }
 
 export interface File {
@@ -1538,6 +1642,14 @@ export interface OffsetTeamDTO {
 
 export interface OffsetTelegramDTO {
   items: TelegramDTO[]
+  page: number
+  per_page: number
+  /** Total number of items across all pages. */
+  total: number
+}
+
+export interface OffsetWecomBotDTO {
+  items: WecomBotDTO[]
   page: number
   per_page: number
   /** Total number of items across all pages. */
@@ -2249,8 +2361,12 @@ export interface TeamMember {
 export type TeamStatus = "active" | "disabled"
 
 export interface TelegramCreateBody {
+  /** 服务对象类型：customer（外部客户，默认）或 internal（内部员工） */
+  audience?: ChannelAudience
   /** 从 @BotFather 获取的 Bot Token */
   bot_token: string
+  /** 是否接收群内 @ 机器人与命令消息；不填默认启用 */
+  enable_groups?: boolean
   /** 开启后由外部业务网关转发 Webhook，系统不自动调用 setWebhook */
   gateway_managed?: boolean
   name: string
@@ -2259,9 +2375,13 @@ export interface TelegramCreateBody {
 }
 
 export interface TelegramDTO {
+  /** 服务对象类型：customer（外部客户）或 internal（内部员工） */
+  audience: ChannelAudience
   /** Telegram 机器人的用户名（不含 @） */
   bot_username: string
   created_at: string
+  /** 开启后接收群内 @ 机器人与命令消息 */
+  enable_groups: boolean
   /** 停用后不再接收或发送消息 */
   enabled: boolean
   /** 开启后由外部业务网关转发 Webhook，系统不调用 setWebhook */
@@ -2288,8 +2408,12 @@ export interface TelegramInstallationDTO {
 }
 
 export interface TelegramUpdateBody {
+  /** 服务对象类型：customer（外部客户）或 internal（内部员工） */
+  audience?: ChannelAudience
   /** 新的 Bot Token；留空则保持原 Token 不变 */
   bot_token?: string
+  /** 是否接收群内 @ 机器人与命令消息 */
+  enable_groups?: boolean
   /** 停用后不再接收或发送消息 */
   enabled: boolean
   /** 开启后由外部业务网关转发 Webhook，系统不自动调用 setWebhook */
@@ -2616,6 +2740,68 @@ export interface TranslationToneInputBody {
   tone: TranslationTone
 }
 
+export interface WecomBotDTO {
+  /** 服务对象类型：internal（内部员工，默认）或 customer（外部客户） */
+  audience: ChannelAudience
+  /** 企业微信智能机器人 BotID */
+  bot_id: string
+  created_at: string
+  /** 启用后自动建立并维持 WebSocket 长连接 */
+  enabled: boolean
+  id: string
+  /** 最近一次连接成功时间 */
+  last_connected_at?: string
+  /** 最近一次连接错误详情 */
+  last_error?: string
+  name: string
+  /** 长连接当前状态 */
+  status: WecomStatus
+  /** 新会话进入的团队收件箱；为空时进入未指派 */
+  team_id?: string
+  /** 新会话进入的团队收件箱名称；未指派时为空 */
+  team_name: string
+  /** 进入会话时的自动欢迎语 */
+  welcome_text?: string
+  /** 自定义 WebSocket 接入地址；留空表示使用官方地址 */
+  ws_url?: string
+}
+
+export interface WecomCreateBody {
+  /** 服务对象类型：internal（内部员工，默认）或 customer（外部客户） */
+  audience?: ChannelAudience
+  /** 企业微信管理后台生成的智能机器人 BotID */
+  bot_id: string
+  name: string
+  /** 企业微信管理后台生成的长连接 Secret */
+  secret: string
+  /** 新会话进入的团队收件箱；不填时进入未指派 */
+  team_id?: string
+  /** 可选：员工或客户首次进入单聊时的自动欢迎语 */
+  welcome_text?: string
+  /** 可选：私有化部署时的自定义 WebSocket 地址 */
+  ws_url?: string
+}
+
+export type WecomStatus = "connected" | "connecting" | "disconnected" | "auth_failed"
+
+export interface WecomUpdateBody {
+  /** 服务对象类型：internal（内部员工）或 customer（外部客户） */
+  audience?: ChannelAudience
+  /** 企业微信智能机器人 BotID */
+  bot_id: string
+  /** 启用后自动维持长连接；停用后断开连接 */
+  enabled: boolean
+  name: string
+  /** 新的长连接 Secret；留空则保持原密钥不变 */
+  secret?: string
+  /** 新会话进入的团队收件箱；不填时进入未指派 */
+  team_id?: string
+  /** 可选：进入会话时的自动欢迎语 */
+  welcome_text?: string
+  /** 可选：私有化自定义 WebSocket 地址 */
+  ws_url?: string
+}
+
 export interface WidgetAppearance {
   /** 聊天窗口的主题色（#rrggbb 十六进制颜色值），缺省为 #0063ff */
   color?: string
@@ -2863,6 +3049,10 @@ export interface ConversationListInput {
   channel_id?: string
   /** 只列出这个联系人的会话，不按状态筛选，例如详情中的“最近的会话” */
   contact_id?: string
+  /** 只列出这个外部群的会话，不按状态筛选 */
+  external_group_id?: string
+  /** 只列出该服务对象类型的会话（customer/internal） */
+  audience?: ChannelAudience
   /** 只列出这个优先级的会话 */
   priority?: ConversationPriority
   /** 只列出带有这个标签的会话 */
@@ -2897,6 +3087,14 @@ export interface ConversationSearchInput {
   priority?: ConversationPriority
   /** 可选：只搜索带有这个标签的会话 */
   tag_id?: string
+}
+
+/** external-group-list 的参数。 */
+export interface ExternalGroupListInput {
+  /** 可选：按渠道筛选 */
+  channel_id?: string
+  /** 可选：按状态筛选（pending_setup、active、removed） */
+  status?: ExtgroupStatus
 }
 
 /** file-upload 的表单。 */
@@ -3154,6 +3352,14 @@ export interface TicketTypeListInput {
 export interface ViewListInput {
   /** 可选：按作用域筛选（shared 或 personal） */
   scope?: SavedviewScope
+}
+
+/** wecom-list 的参数。 */
+export interface WecomListInput {
+  /** Page number, starting at 1. */
+  page?: number
+  /** Items per page. */
+  per_page?: number
 }
 
 /** widget-list 的参数。 */
@@ -3603,7 +3809,7 @@ export function createClient(options: ClientOptions) {
        * GET /conversations
        */
       list: (input: ConversationListInput = {}): Promise<CursorConversationDTO> =>
-        rt.request<CursorConversationDTO>({ method: "GET", path: `/conversations`, query: { "assignee_id": input["assignee_id"], "channel_id": input["channel_id"], "contact_id": input["contact_id"], "cursor": input["cursor"], "filter": input["filter"], "inbox": input["inbox"], "per_page": input["per_page"], "priority": input["priority"], "sort": input["sort"], "status": input["status"], "tag_id": input["tag_id"], "team_id": input["team_id"], "view_id": input["view_id"] } }),
+        rt.request<CursorConversationDTO>({ method: "GET", path: `/conversations`, query: { "assignee_id": input["assignee_id"], "audience": input["audience"], "channel_id": input["channel_id"], "contact_id": input["contact_id"], "cursor": input["cursor"], "external_group_id": input["external_group_id"], "filter": input["filter"], "inbox": input["inbox"], "per_page": input["per_page"], "priority": input["priority"], "sort": input["sort"], "status": input["status"], "tag_id": input["tag_id"], "team_id": input["team_id"], "view_id": input["view_id"] } }),
       /**
        * 写内部备注
        *
@@ -3681,6 +3887,23 @@ export function createClient(options: ClientOptions) {
        */
       tagRemove: (id: string, tagID: string): Promise<ConversationDTO> =>
         rt.request<ConversationDTO>({ method: "DELETE", path: `/conversations/${encodeURIComponent(id)}/tags/${encodeURIComponent(tagID)}` }),
+    },
+    /** operationId 以 external- 开头的接口。 */
+    external: {
+      /**
+       * 外部群列表
+       *
+       * GET /external-groups
+       */
+      groupList: (input: ExternalGroupListInput = {}): Promise<ExtgroupGroupDTO[]> =>
+        rt.request<ExtgroupGroupDTO[]>({ method: "GET", path: `/external-groups`, query: { "channel_id": input["channel_id"], "status": input["status"] } }),
+      /**
+       * 更新外部群路由配置
+       *
+       * PUT /external-groups/{id}
+       */
+      groupUpdate: (id: string, body: ExtgroupUpdateBody): Promise<ExtgroupGroupDTO> =>
+        rt.request<ExtgroupGroupDTO>({ method: "PUT", path: `/external-groups/${encodeURIComponent(id)}`, body }),
     },
     /** operationId 以 file- 开头的接口。 */
     file: {
@@ -4409,6 +4632,44 @@ export function createClient(options: ClientOptions) {
        */
       update: (id: string, body: ConversationViewUpdateParams): Promise<ConversationViewDTO> =>
         rt.request<ConversationViewDTO>({ method: "PUT", path: `/views/${encodeURIComponent(id)}`, body }),
+    },
+    /** operationId 以 wecom- 开头的接口。 */
+    wecom: {
+      /**
+       * 新建企业微信机器人
+       *
+       * POST /wecom-bots
+       */
+      create: (body: WecomCreateBody): Promise<WecomBotDTO> =>
+        rt.request<WecomBotDTO>({ method: "POST", path: `/wecom-bots`, body }),
+      /**
+       * 读取企业微信机器人
+       *
+       * GET /wecom-bots/{id}
+       */
+      get: (id: string): Promise<WecomBotDTO> =>
+        rt.request<WecomBotDTO>({ method: "GET", path: `/wecom-bots/${encodeURIComponent(id)}` }),
+      /**
+       * 企业微信机器人列表
+       *
+       * GET /wecom-bots
+       */
+      list: (input: WecomListInput = {}): Promise<OffsetWecomBotDTO> =>
+        rt.request<OffsetWecomBotDTO>({ method: "GET", path: `/wecom-bots`, query: { "page": input["page"], "per_page": input["per_page"] } }),
+      /**
+       * 重连企业微信机器人
+       *
+       * POST /wecom-bots/{id}/reconnect
+       */
+      reconnect: (id: string): Promise<WecomBotDTO> =>
+        rt.request<WecomBotDTO>({ method: "POST", path: `/wecom-bots/${encodeURIComponent(id)}/reconnect` }),
+      /**
+       * 修改企业微信机器人
+       *
+       * PUT /wecom-bots/{id}
+       */
+      update: (id: string, body: WecomUpdateBody): Promise<WecomBotDTO> =>
+        rt.request<WecomBotDTO>({ method: "PUT", path: `/wecom-bots/${encodeURIComponent(id)}`, body }),
     },
     /** operationId 以 widget- 开头的接口。 */
     widget: {

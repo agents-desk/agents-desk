@@ -1,6 +1,6 @@
 import type { ChannelSummary } from "@agents-desk/client/tenant"
 import { Badge, Group, Text, Tooltip } from "@mantine/core"
-import { IconBrandTelegram, IconFlask, IconLink, IconMessageCircle, IconWorld } from "@tabler/icons-react"
+import { IconBrandTelegram, IconBrandWechat, IconFlask, IconLink, IconMessageCircle, IconWorld } from "@tabler/icons-react"
 import { useT } from "@go-tenon/ui"
 import type { ReactNode } from "react"
 
@@ -14,6 +14,8 @@ export function ChannelIcon({ kind, size = 12 }: { kind: ChannelSummary["kind"] 
     case "telegram":
     case "telegram_account":
       return <IconBrandTelegram size={size} stroke={1.6} style={{ flex: "none" }} />
+    case "wecom":
+      return <IconBrandWechat size={size} stroke={1.6} style={{ flex: "none" }} />
     case "test":
       return <IconFlask size={size} stroke={1.6} style={{ flex: "none" }} />
     default:
@@ -27,6 +29,8 @@ export function channelColor(kind: ChannelSummary["kind"] | string): string {
     case "telegram":
     case "telegram_account":
       return "bright-blue"
+    case "wecom":
+      return "green"
     case "widget":
     case "business_link":
       return "brand"

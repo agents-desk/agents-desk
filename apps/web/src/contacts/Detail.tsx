@@ -22,6 +22,7 @@ import { Inspector, InspectorField, InspectorSection, notifyError, notifySuccess
 import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { previewSummary } from "../inbox/Attachments"
+import { useMembers } from "../inbox/data"
 import { activity } from "../inbox/format"
 import { LanguageSelect } from "../LanguageSelect"
 import { languageName } from "../languages"
@@ -111,7 +112,12 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
                 #{c.number}
               </Text>
             )}
-            <Badge size="xs" variant="light" color={c.kind === "user" ? "bright-blue" : "gray"} style={{ flex: "none" }}>
+            <Badge
+              size="xs"
+              variant="light"
+              color={c.kind === "user" ? "bright-blue" : c.kind === "internal" ? "green" : "gray"}
+              style={{ flex: "none" }}
+            >
               {kit.label("ContactKind", c.kind)}
             </Badge>
           </Group>
@@ -411,6 +417,7 @@ function PropertiesSection({
   const t = useT()
   const ui = useLanguage()
   const zone = useTimeZone()
+  const { list: members } = useMembers()
   const [editingZone, setEditingZone] = useState(false)
   const zones = useMemo(() => allZones().map((z) => ({ value: z, label: `${z} (${offsetOf(z)})` })), [])
   const detected = c.language ? languageName(c.language, ui) : ""
@@ -418,6 +425,20 @@ function PropertiesSection({
 
   return (
     <InspectorSection title={t("contacts.profile")} withDivider={false}>
+      {c.kind === "internal" && (
+        <InspectorField label={t("contacts.linked_member")} className="ct-field">
+          <Select
+            placeholder={t("contacts.linked_member_placeholder")}
+            value={c.member_id ?? null}
+            data={members.map((m) => ({ value: m.id, label: m.email ? `${m.name} (${m.email})` : m.name }))}
+            searchable
+            clearable
+            disabled={!editable || saving}
+            onChange={(v) => void onUpdate({ member_id: v ?? "" })}
+            aria-label={t("contacts.linked_member")}
+          />
+        </InspectorField>
+      )}
       <InspectorField label={t("contacts.name")} className="ct-field">
         <InlineTextField
           value={c.name}

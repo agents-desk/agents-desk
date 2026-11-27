@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   IconDots,
   IconFilter,
+  IconIdBadge2,
   IconPencil,
   IconPlus,
   IconTrash,
@@ -79,6 +80,13 @@ export function ContactsNav({ search, go }: { search: ContactsSearch; go: (patch
           rightSection={count(d?.leads)}
           active={!search.view && search.kind === "lead"}
           onClick={() => pick("lead")}
+        />
+        <NavLink
+          label={t("contacts.nav_internal")}
+          leftSection={<IconIdBadge2 size={16} stroke={1.6} />}
+          rightSection={count(d?.internal)}
+          active={!search.view && search.kind === "internal"}
+          onClick={() => pick("internal")}
         />
 
         <RailSection

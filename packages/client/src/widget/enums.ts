@@ -6,28 +6,36 @@
  * 缺少时先用默认语言，再用取值本身。
  */
 export const enums = {
+  ChannelAudience: {
+    prefix: "channel.audience",
+    values: ["customer", "partner", "internal"],
+    labels: {
+      "en": { customer: "Customer", partner: "Business partner", internal: "Internal employee" },
+      "zh-CN": { customer: "外部客户", partner: "商务伙伴", internal: "内部员工" },
+    },
+  },
   ChannelKind: {
     prefix: "channel.kind",
-    values: ["test", "widget", "telegram", "business_link", "telegram_account"],
+    values: ["test", "widget", "telegram", "wecom", "business_link", "telegram_account"],
     labels: {
-      "en": { test: "Test channel", widget: "Website chat widget", telegram: "Telegram bot", business_link: "Business chat link", telegram_account: "Telegram account" },
-      "zh-CN": { test: "测试渠道", widget: "网页聊天插件", telegram: "Telegram 机器人", business_link: "商务沟通链接", telegram_account: "Telegram 个人号" },
+      "en": { test: "Test channel", widget: "Website chat widget", telegram: "Telegram bot", wecom: "WeCom bot", business_link: "Business chat link", telegram_account: "Telegram account" },
+      "zh-CN": { test: "测试渠道", widget: "网页聊天插件", telegram: "Telegram 机器人", wecom: "企业微信机器人", business_link: "商务沟通链接", telegram_account: "Telegram 个人号" },
     },
   },
   ContactKind: {
     prefix: "contact.kind",
-    values: ["user", "lead"],
+    values: ["user", "lead", "internal"],
     labels: {
-      "en": { user: "User", lead: "Lead" },
-      "zh-CN": { user: "用户", lead: "线索" },
+      "en": { user: "User", lead: "Lead", internal: "Internal contact" },
+      "zh-CN": { user: "用户", lead: "线索", internal: "内部联系人" },
     },
   },
   ConversationActorType: {
     prefix: "conversation.actor_type",
-    values: ["contact", "member", "bot", "system"],
+    values: ["contact", "external_user", "member", "bot", "system"],
     labels: {
-      "en": { contact: "Contact", member: "Member", bot: "Bot", system: "System" },
-      "zh-CN": { contact: "联系人", member: "成员", bot: "机器人", system: "系统" },
+      "en": { contact: "Contact", external_user: "Group speaker", member: "Member", bot: "Bot", system: "System" },
+      "zh-CN": { contact: "联系人", external_user: "群发言人", member: "成员", bot: "机器人", system: "系统" },
     },
   },
   ConversationAttachmentKind: {

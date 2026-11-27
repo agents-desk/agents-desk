@@ -285,6 +285,11 @@ export const messages = {
     "business_hours.tab_schedule": "Business hours",
     "business_hours.tab_special": "Special dates",
     "business_hours.title": "Business hours",
+    "channels.audience": "Audience",
+    "channels.audience_customer": "External customers",
+    "channels.audience_customer_desc": "Serves external customers, creates external contacts, and runs customer-facing automations",
+    "channels.audience_internal": "Internal employees",
+    "channels.audience_internal_desc": "Serves internal staff requests, creates internal contacts, and skips customer rating and lead-capture rules",
     "chat.add_members": "Add members",
     "chat.add_members_submit": "Add to group",
     "chat.business_all": "All business chats",
@@ -441,6 +446,8 @@ export const messages = {
     "contacts.identities_empty": "No channel identities yet",
     "contacts.language": "Language",
     "contacts.last_seen_at": "Last active",
+    "contacts.linked_member": "Linked workspace member",
+    "contacts.linked_member_placeholder": "Not linked",
     "contacts.local_time": "Local {{.time}}",
     "contacts.location": "Location",
     "contacts.location_placeholder": "e.g. Shanghai, Mumbai",
@@ -455,6 +462,7 @@ export const messages = {
     "contacts.name": "Name",
     "contacts.name_placeholder": "Enter contact name",
     "contacts.nav_all": "All",
+    "contacts.nav_internal": "Internal",
     "contacts.nav_leads": "Leads",
     "contacts.nav_users": "Users",
     "contacts.no_conversations": "No conversations yet",
@@ -534,6 +542,19 @@ export const messages = {
     "event.via_default": " (default assignment)",
     "event.via_reply": " (claimed by replying)",
     "event.via_round_robin": " (round robin)",
+    "extgroups.channel": "Channel",
+    "extgroups.configure": "Configure",
+    "extgroups.description": "Manage WeCom and Telegram groups joined by bots, including display names, default team routing, and status.",
+    "extgroups.edit_title": "Configure external group",
+    "extgroups.empty": "No external groups yet. Add a bot to a group to sync it here.",
+    "extgroups.filter_active": "Active",
+    "extgroups.filter_all": "All",
+    "extgroups.filter_pending": "Pending setup",
+    "extgroups.filter_removed": "Removed",
+    "extgroups.last_active": "Last active",
+    "extgroups.name": "Group name",
+    "extgroups.team_inherit": "Inherit channel default team",
+    "extgroups.team_label": "Default team inbox",
     "general.address": "Address",
     "general.address_hint": "Fixed once the workspace is created",
     "general.logo": "Workspace logo",
@@ -604,6 +625,7 @@ export const messages = {
     "inbox.attr_select": "Select",
     "inbox.attr_text_placeholder": "Enter value",
     "inbox.attr_yes": "Yes",
+    "inbox.audience_internal_badge": "Internal",
     "inbox.auto_translate_click_hint": "Click to review translation or change target language",
     "inbox.auto_translate_mutual": "Auto-translate",
     "inbox.auto_translate_off": "Send original",
@@ -655,6 +677,7 @@ export const messages = {
     "inbox.details": "Details",
     "inbox.details_contact": "Contact",
     "inbox.details_conversation": "Conversation",
+    "inbox.details_external_group": "External group",
     "inbox.details_history": "Recent conversations",
     "inbox.download_file": "Download file",
     "inbox.draft_prefix": "Draft: ",
@@ -663,7 +686,9 @@ export const messages = {
     "inbox.empty_filtered": "No conversations match the current filter",
     "inbox.enter_again": "Translation updated. Check it, then press Enter again to send",
     "inbox.enter_hint": "Enter to send, Shift + Enter for a new line",
+    "inbox.external_group": "External group",
     "inbox.go_to_active_conversation": "Go to active conversation",
+    "inbox.group_removed_notice": "The bot was removed from this group. Outbound replies are disabled, while internal notes remain available.",
     "inbox.hide_translation": "Hide translation",
     "inbox.language_auto": "Detect automatically",
     "inbox.language_auto_detected": "Detected: {{.lang}}",
@@ -701,6 +726,7 @@ export const messages = {
     "inbox.media_too_large": "Exceeds channel download size limit",
     "inbox.media_unavailable": "Media unavailable",
     "inbox.media_voice": "Voice message",
+    "inbox.mention_speaker": "Mention speaker",
     "inbox.mode_note": "Internal note",
     "inbox.mode_reply": "Reply",
     "inbox.new_message_jump": "New messages ({{.n}})",
@@ -730,6 +756,8 @@ export const messages = {
     "inbox.reopen_reply_placeholder": "Sending a reply will reopen this conversation…",
     "inbox.reply_placeholder": "Type a reply, or press / for quick replies…",
     "inbox.reply_placeholder_auto_translate": "Type a reply (auto-translates to {{.lang}}), or press / for quick replies…",
+    "inbox.reply_to_message": "Quote \u0026 reply",
+    "inbox.replying_to": "Replying to {{.who}}: {{.text}}",
     "inbox.reset_translation": "Reset to auto",
     "inbox.retranslate": "Retranslate",
     "inbox.retranslating": "Text changed, translating again",
@@ -887,6 +915,7 @@ export const messages = {
     "nav.business_governance": "Business channels",
     "nav.chat": "Chat",
     "nav.contacts": "Contacts",
+    "nav.external_groups": "External groups",
     "nav.general": "General",
     "nav.inbox": "Inbox",
     "nav.macros": "Quick replies",
@@ -911,6 +940,7 @@ export const messages = {
     "nav.telegrams": "Telegram bots",
     "nav.ticket_types": "Ticket types",
     "nav.translation": "Translation",
+    "nav.wecom_bots": "WeCom bots",
     "nav.widgets": "Website chat widgets",
     "notifications_page.assigned_desc": "Notify when a teammate assigns a conversation to you or auto-assignment routes one to you",
     "notifications_page.assigned_title": "Conversation assigned to me",
@@ -1309,6 +1339,8 @@ export const messages = {
     "telegrams.create_title": "New Telegram bot",
     "telegrams.description": "Connect Telegram bots to receive and reply to customer direct messages via direct webhook or external gateway mode.",
     "telegrams.empty": "No Telegram bot channels yet. Create one to receive private messages.",
+    "telegrams.enable_groups": "Enable group @bot support",
+    "telegrams.enable_groups_desc": "When enabled, @mentions, /commands, and replies to the bot in groups enter the inbox",
     "telegrams.mode": "Connection mode",
     "telegrams.mode_direct": "Direct",
     "telegrams.mode_direct_desc": "This app calls Telegram setWebhook directly to receive and reply to private messages",
@@ -1599,6 +1631,38 @@ export const messages = {
     "views.waiting": "Reply status",
     "views.waiting_false": "Replied",
     "views.waiting_true": "Waiting for reply",
+    "wecom.bot_id": "Bot ID",
+    "wecom.bot_id_hint": "Bot ID issued in the WeCom Smart Bot admin console",
+    "wecom.configure": "Configure",
+    "wecom.create_submit": "Create \u0026 configure",
+    "wecom.create_title": "New WeCom bot",
+    "wecom.description": "Connect WeCom Smart Bots over WebSocket long connections for direct messages and group @mentions without exposing a public webhook.",
+    "wecom.empty": "No WeCom bot channels yet. Create one to handle WeCom direct messages and group mentions.",
+    "wecom.name": "Channel name",
+    "wecom.new": "New bot",
+    "wecom.secret": "Secret",
+    "wecom.secret_hint": "Long-connection authentication secret for this WeCom Smart Bot (stored encrypted)",
+    "wecom.secret_update_hint": "Leave empty to keep the current secret; updating it reconnects automatically",
+    "wecom.team_hint": "Default team inbox for new conversations",
+    "wecom.team_unassigned": "Unassigned",
+    "wecom.welcome_text": "Welcome message",
+    "wecom.welcome_text_hint": "Optional greeting sent automatically when a user opens a direct chat for the first time",
+    "wecom.ws_url": "WebSocket endpoint",
+    "wecom.ws_url_hint": "Leave empty to use the official endpoint wss://openws.work.weixin.qq.com",
+    "wecom_studio.enabled": "Enable channel",
+    "wecom_studio.enabled_hint": "When disabled, the WebSocket connection closes and messages stop flowing",
+    "wecom_studio.last_connected": "Last connected: {{.time}}",
+    "wecom_studio.reconnect": "Reconnect",
+    "wecom_studio.reconnecting": "Reconnect triggered",
+    "wecom_studio.saved": "WeCom bot settings saved",
+    "wecom_studio.section_basic": "Basics",
+    "wecom_studio.section_basic_desc": "Configure channel name, audience, and availability",
+    "wecom_studio.section_conn": "Long-connection credentials",
+    "wecom_studio.section_conn_desc": "Manage Bot ID, secret, and WebSocket endpoint",
+    "wecom_studio.section_routing": "Routing \u0026 welcome",
+    "wecom_studio.section_routing_desc": "Choose the default team inbox and direct-chat welcome copy",
+    "wecom_studio.title": "WeCom bot",
+    "wecom_studio.transport_ws": "WebSocket",
     "widget_install.app": "Apps",
     "widget_install.app_hint": "Your app opens the address below full screen in a WebView. For a signed-in user, pass the identity before the page loads (window.agentsDesk.user_token); after signing in or out, run AgentsDesk('login', { user_token }) or AgentsDesk('logout'). If your app has its own navigation bar, add \u0026hide_close=1 to the address to hide the chat window's close button. On Android, enable JavaScript and DOM storage, and set windowSoftInputMode to adjustResize.",
     "widget_install.app_msg": "Message",
@@ -1959,6 +2023,11 @@ export const messages = {
     "business_hours.tab_schedule": "工作时间",
     "business_hours.tab_special": "特殊日期",
     "business_hours.title": "工作时间",
+    "channels.audience": "服务对象",
+    "channels.audience_customer": "外部客户",
+    "channels.audience_customer_desc": "面向外部客户咨询，创建外部联系人并触发客户侧自动化规则",
+    "channels.audience_internal": "内部员工",
+    "channels.audience_internal_desc": "面向内部员工自助与协作，创建内部联系人并跳过面向客户的评价与留资规则",
     "chat.add_members": "邀请成员",
     "chat.add_members_submit": "添加到群聊",
     "chat.business_all": "全部商务沟通",
@@ -2115,6 +2184,8 @@ export const messages = {
     "contacts.identities_empty": "还没有渠道身份",
     "contacts.language": "语言",
     "contacts.last_seen_at": "最近活跃",
+    "contacts.linked_member": "关联工作区成员",
+    "contacts.linked_member_placeholder": "未关联成员",
     "contacts.local_time": "当地 {{.time}}",
     "contacts.location": "所在地",
     "contacts.location_placeholder": "例如 上海、Mumbai",
@@ -2129,6 +2200,7 @@ export const messages = {
     "contacts.name": "名字",
     "contacts.name_placeholder": "填写联系人名字",
     "contacts.nav_all": "全部",
+    "contacts.nav_internal": "内部联系人",
     "contacts.nav_leads": "线索",
     "contacts.nav_users": "用户",
     "contacts.no_conversations": "还没有会话",
@@ -2208,6 +2280,19 @@ export const messages = {
     "event.via_default": "（默认指派）",
     "event.via_reply": "（回复即领取）",
     "event.via_round_robin": "（轮流分配）",
+    "extgroups.channel": "所属渠道",
+    "extgroups.configure": "配置",
+    "extgroups.description": "管理机器人加入的企业微信与 Telegram 外部群，配置群名称、专属团队收件箱与启用状态。",
+    "extgroups.edit_title": "配置外部群",
+    "extgroups.empty": "还没有外部群记录，将机器人拉入群聊后会自动同步到此列表。",
+    "extgroups.filter_active": "已启用",
+    "extgroups.filter_all": "全部",
+    "extgroups.filter_pending": "待配置",
+    "extgroups.filter_removed": "已移出",
+    "extgroups.last_active": "最近活跃",
+    "extgroups.name": "群名称",
+    "extgroups.team_inherit": "继承渠道默认团队",
+    "extgroups.team_label": "默认团队收件箱",
     "general.address": "地址",
     "general.address_hint": "创建后不能修改",
     "general.logo": "工作区 Logo",
@@ -2278,6 +2363,7 @@ export const messages = {
     "inbox.attr_select": "请选择",
     "inbox.attr_text_placeholder": "输入内容",
     "inbox.attr_yes": "是",
+    "inbox.audience_internal_badge": "内部",
     "inbox.auto_translate_click_hint": "点击展开译文校对或切换目标语言",
     "inbox.auto_translate_mutual": "自动互译",
     "inbox.auto_translate_off": "按原文发送",
@@ -2329,6 +2415,7 @@ export const messages = {
     "inbox.details": "详情",
     "inbox.details_contact": "联系人",
     "inbox.details_conversation": "会话",
+    "inbox.details_external_group": "外部群",
     "inbox.details_history": "最近的会话",
     "inbox.download_file": "下载文件",
     "inbox.draft_prefix": "草稿：",
@@ -2337,7 +2424,9 @@ export const messages = {
     "inbox.empty_filtered": "没有符合当前筛选条件的会话",
     "inbox.enter_again": "译文已更新，确认后再按一次回车发送",
     "inbox.enter_hint": "回车发送，Shift + 回车换行",
+    "inbox.external_group": "外部群",
     "inbox.go_to_active_conversation": "前往当前会话",
+    "inbox.group_removed_notice": "机器人已被移出该群，无法继续向外发送回复，你仍可记录内部备注。",
     "inbox.hide_translation": "收起译文",
     "inbox.language_auto": "自动识别",
     "inbox.language_auto_detected": "自动识别：{{.lang}}",
@@ -2375,6 +2464,7 @@ export const messages = {
     "inbox.media_too_large": "超出渠道下载大小限制",
     "inbox.media_unavailable": "媒体不可用",
     "inbox.media_voice": "语音消息",
+    "inbox.mention_speaker": "@ 群发言人",
     "inbox.mode_note": "内部备注",
     "inbox.mode_reply": "回复",
     "inbox.new_message_jump": "{{.n}} 条新消息",
@@ -2404,6 +2494,8 @@ export const messages = {
     "inbox.reopen_reply_placeholder": "发送回复将重新打开此会话…",
     "inbox.reply_placeholder": "输入回复，或输入 / 使用快捷回复…",
     "inbox.reply_placeholder_auto_translate": "输入回复（发送时自动译为{{.lang}}），或输入 / 使用快捷回复…",
+    "inbox.reply_to_message": "引用回复",
+    "inbox.replying_to": "回复 {{.who}}：{{.text}}",
     "inbox.reset_translation": "恢复自动译文",
     "inbox.retranslate": "重新翻译",
     "inbox.retranslating": "原文改了，正在重新翻译",
@@ -2561,6 +2653,7 @@ export const messages = {
     "nav.business_governance": "商务渠道",
     "nav.chat": "聊天",
     "nav.contacts": "联系人",
+    "nav.external_groups": "外部群",
     "nav.general": "常规",
     "nav.inbox": "收件箱",
     "nav.macros": "快捷回复",
@@ -2585,6 +2678,7 @@ export const messages = {
     "nav.telegrams": "Telegram 机器人",
     "nav.ticket_types": "工单类型",
     "nav.translation": "翻译",
+    "nav.wecom_bots": "企业微信机器人",
     "nav.widgets": "网页聊天插件",
     "notifications_page.assigned_desc": "同事把会话改派给你，或系统自动轮流分配给你时提醒",
     "notifications_page.assigned_title": "新会话指派给我",
@@ -2983,6 +3077,8 @@ export const messages = {
     "telegrams.create_title": "新建 Telegram 机器人",
     "telegrams.description": "接入 Telegram 机器人接收并回复客户私聊消息，支持直连 Webhook 与外部网关转发两种模式。",
     "telegrams.empty": "还没有 Telegram 机器人渠道，新建一个接入客户私聊消息。",
+    "telegrams.enable_groups": "启用群聊 @机器人 服务",
+    "telegrams.enable_groups_desc": "开启后，机器人在群内被 @ 提及、收到 /命令 或回复其消息时自动进入收件箱",
     "telegrams.mode": "接入模式",
     "telegrams.mode_direct": "直连模式",
     "telegrams.mode_direct_desc": "系统自动调用 Telegram setWebhook 接管该机器人，接收并回复私聊消息",
@@ -3273,6 +3369,38 @@ export const messages = {
     "views.waiting": "回复状态",
     "views.waiting_false": "已回复",
     "views.waiting_true": "等待回复",
+    "wecom.bot_id": "Bot ID",
+    "wecom.bot_id_hint": "企业微信智能机器人管理后台中生成的 Bot ID",
+    "wecom.configure": "配置",
+    "wecom.create_submit": "创建并配置",
+    "wecom.create_title": "新建企业微信机器人",
+    "wecom.description": "通过企业微信智能机器人 WebSocket 长连接接入单聊与群聊 @机器人 服务，无需暴露公网回调地址。",
+    "wecom.empty": "还没有企业微信机器人渠道，新建一个接入企业微信单聊与群聊服务。",
+    "wecom.name": "渠道名称",
+    "wecom.new": "新建机器人",
+    "wecom.secret": "Secret",
+    "wecom.secret_hint": "企业微信智能机器人的长连接认证密钥，系统加密存储",
+    "wecom.secret_update_hint": "留空保持原密钥不变；更换后系统会自动重新建立长连接",
+    "wecom.team_hint": "新会话默认进入的团队收件箱",
+    "wecom.team_unassigned": "未指派",
+    "wecom.welcome_text": "进聊欢迎语",
+    "wecom.welcome_text_hint": "员工首次进入单聊窗口时机器人自动发送的欢迎消息（可选）",
+    "wecom.ws_url": "WebSocket 长连接地址",
+    "wecom.ws_url_hint": "留空使用官方默认地址 wss://openws.work.weixin.qq.com",
+    "wecom_studio.enabled": "启用渠道",
+    "wecom_studio.enabled_hint": "停用后断开长连接，不再接收或发送企业微信消息",
+    "wecom_studio.last_connected": "最近连接：{{.time}}",
+    "wecom_studio.reconnect": "立即重连",
+    "wecom_studio.reconnecting": "已触发重连",
+    "wecom_studio.saved": "已保存企业微信机器人配置",
+    "wecom_studio.section_basic": "基础信息",
+    "wecom_studio.section_basic_desc": "设置渠道名称、服务对象与启用状态",
+    "wecom_studio.section_conn": "长连接凭据",
+    "wecom_studio.section_conn_desc": "管理企业微信智能机器人的 Bot ID、Secret 与 WebSocket 地址",
+    "wecom_studio.section_routing": "路由与欢迎语",
+    "wecom_studio.section_routing_desc": "配置默认团队收件箱和首次进入单聊时的自动欢迎语",
+    "wecom_studio.title": "企业微信机器人",
+    "wecom_studio.transport_ws": "WebSocket 长连接",
     "widget_install.app": "App 接入",
     "widget_install.app_hint": "App 用 WebView 全屏打开下面的地址。已登录的用户在页面加载前传入身份（window.agentsDesk.user_token）；登录、退出后执行 AgentsDesk('login', { user_token }) 或 AgentsDesk('logout')。App 自己有导航栏时，在地址后加上 \u0026hide_close=1 隐藏聊天窗口的关闭按钮。Android 要开启 JavaScript 和 DOM storage，并把 windowSoftInputMode 设为 adjustResize。",
     "widget_install.app_msg": "消息",
@@ -3636,6 +3764,11 @@ export type MessageId =
   | "business_hours.tab_schedule"
   | "business_hours.tab_special"
   | "business_hours.title"
+  | "channels.audience"
+  | "channels.audience_customer"
+  | "channels.audience_customer_desc"
+  | "channels.audience_internal"
+  | "channels.audience_internal_desc"
   | "chat.add_members"
   | "chat.add_members_submit"
   | "chat.business_all"
@@ -3792,6 +3925,8 @@ export type MessageId =
   | "contacts.identities_empty"
   | "contacts.language"
   | "contacts.last_seen_at"
+  | "contacts.linked_member"
+  | "contacts.linked_member_placeholder"
   | "contacts.local_time"
   | "contacts.location"
   | "contacts.location_placeholder"
@@ -3806,6 +3941,7 @@ export type MessageId =
   | "contacts.name"
   | "contacts.name_placeholder"
   | "contacts.nav_all"
+  | "contacts.nav_internal"
   | "contacts.nav_leads"
   | "contacts.nav_users"
   | "contacts.no_conversations"
@@ -3885,6 +4021,19 @@ export type MessageId =
   | "event.via_default"
   | "event.via_reply"
   | "event.via_round_robin"
+  | "extgroups.channel"
+  | "extgroups.configure"
+  | "extgroups.description"
+  | "extgroups.edit_title"
+  | "extgroups.empty"
+  | "extgroups.filter_active"
+  | "extgroups.filter_all"
+  | "extgroups.filter_pending"
+  | "extgroups.filter_removed"
+  | "extgroups.last_active"
+  | "extgroups.name"
+  | "extgroups.team_inherit"
+  | "extgroups.team_label"
   | "general.address"
   | "general.address_hint"
   | "general.logo"
@@ -3955,6 +4104,7 @@ export type MessageId =
   | "inbox.attr_select"
   | "inbox.attr_text_placeholder"
   | "inbox.attr_yes"
+  | "inbox.audience_internal_badge"
   | "inbox.auto_translate_click_hint"
   | "inbox.auto_translate_mutual"
   | "inbox.auto_translate_off"
@@ -4006,6 +4156,7 @@ export type MessageId =
   | "inbox.details"
   | "inbox.details_contact"
   | "inbox.details_conversation"
+  | "inbox.details_external_group"
   | "inbox.details_history"
   | "inbox.download_file"
   | "inbox.draft_prefix"
@@ -4014,7 +4165,9 @@ export type MessageId =
   | "inbox.empty_filtered"
   | "inbox.enter_again"
   | "inbox.enter_hint"
+  | "inbox.external_group"
   | "inbox.go_to_active_conversation"
+  | "inbox.group_removed_notice"
   | "inbox.hide_translation"
   | "inbox.language_auto"
   | "inbox.language_auto_detected"
@@ -4052,6 +4205,7 @@ export type MessageId =
   | "inbox.media_too_large"
   | "inbox.media_unavailable"
   | "inbox.media_voice"
+  | "inbox.mention_speaker"
   | "inbox.mode_note"
   | "inbox.mode_reply"
   | "inbox.new_message_jump"
@@ -4081,6 +4235,8 @@ export type MessageId =
   | "inbox.reopen_reply_placeholder"
   | "inbox.reply_placeholder"
   | "inbox.reply_placeholder_auto_translate"
+  | "inbox.reply_to_message"
+  | "inbox.replying_to"
   | "inbox.reset_translation"
   | "inbox.retranslate"
   | "inbox.retranslating"
@@ -4238,6 +4394,7 @@ export type MessageId =
   | "nav.business_governance"
   | "nav.chat"
   | "nav.contacts"
+  | "nav.external_groups"
   | "nav.general"
   | "nav.inbox"
   | "nav.macros"
@@ -4262,6 +4419,7 @@ export type MessageId =
   | "nav.telegrams"
   | "nav.ticket_types"
   | "nav.translation"
+  | "nav.wecom_bots"
   | "nav.widgets"
   | "notifications_page.assigned_desc"
   | "notifications_page.assigned_title"
@@ -4660,6 +4818,8 @@ export type MessageId =
   | "telegrams.create_title"
   | "telegrams.description"
   | "telegrams.empty"
+  | "telegrams.enable_groups"
+  | "telegrams.enable_groups_desc"
   | "telegrams.mode"
   | "telegrams.mode_direct"
   | "telegrams.mode_direct_desc"
@@ -4950,6 +5110,38 @@ export type MessageId =
   | "views.waiting"
   | "views.waiting_false"
   | "views.waiting_true"
+  | "wecom.bot_id"
+  | "wecom.bot_id_hint"
+  | "wecom.configure"
+  | "wecom.create_submit"
+  | "wecom.create_title"
+  | "wecom.description"
+  | "wecom.empty"
+  | "wecom.name"
+  | "wecom.new"
+  | "wecom.secret"
+  | "wecom.secret_hint"
+  | "wecom.secret_update_hint"
+  | "wecom.team_hint"
+  | "wecom.team_unassigned"
+  | "wecom.welcome_text"
+  | "wecom.welcome_text_hint"
+  | "wecom.ws_url"
+  | "wecom.ws_url_hint"
+  | "wecom_studio.enabled"
+  | "wecom_studio.enabled_hint"
+  | "wecom_studio.last_connected"
+  | "wecom_studio.reconnect"
+  | "wecom_studio.reconnecting"
+  | "wecom_studio.saved"
+  | "wecom_studio.section_basic"
+  | "wecom_studio.section_basic_desc"
+  | "wecom_studio.section_conn"
+  | "wecom_studio.section_conn_desc"
+  | "wecom_studio.section_routing"
+  | "wecom_studio.section_routing_desc"
+  | "wecom_studio.title"
+  | "wecom_studio.transport_ws"
   | "widget_install.app"
   | "widget_install.app_hint"
   | "widget_install.app_msg"

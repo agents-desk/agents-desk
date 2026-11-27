@@ -20,9 +20,10 @@ function actorName(v: unknown, names: Names, t: T): string | undefined {
   return t("event.system")
 }
 
-/** whoDid 返回事件的发起者：成员的名字、客户，或者“系统”。 */
+/** whoDid 返回事件的发起者：成员的名字、外部发言人、客户或“系统”。 */
 export function whoDid(it: ConversationItemDTO, members: Map<string, MemberTenantMember>, t: T): string {
   if (it.actor.type === "member") return members.get(it.actor.id)?.name ?? t("event.someone")
+  if (it.actor.type === "external_user") return it.actor.name || it.actor.external_id || t("event.customer")
   if (it.actor.type === "contact") return t("event.customer")
   return t("event.system")
 }

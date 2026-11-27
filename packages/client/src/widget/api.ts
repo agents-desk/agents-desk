@@ -5,15 +5,18 @@ import { Runtime, type ClientOptions, type Download, type SessionLike, type Stre
 export * from "./errors"
 export { ApiError, isApiError, saveBlob, type ClientOptions, type Download, type SessionLike, type FieldError, type StreamOptions } from "./runtime"
 
-export type ChannelKind = "test" | "widget" | "telegram" | "business_link" | "telegram_account"
+export type ChannelAudience = "customer" | "partner" | "internal"
+
+export type ChannelKind = "test" | "widget" | "telegram" | "wecom" | "business_link" | "telegram_account"
 
 export interface ChannelSummary {
+  audience: ChannelAudience
   id: string
   kind: ChannelKind
   name: string
 }
 
-export type ContactKind = "user" | "lead"
+export type ContactKind = "user" | "lead" | "internal"
 
 export interface ContactSummary {
   /** 联系人的自定义属性 */
@@ -23,12 +26,14 @@ export interface ContactSummary {
   email: string
   id: string
   kind: ContactKind
-  /** 客户的语言：按最近几条确定了语言的消息判断，或者成员手动设置的；还没有时为空 */
+  /** 对方的语言：按最近几条确定了语言的消息判断，或者成员手动设置的；还没有时为空 */
   language: string
   /** 对方的语言是成员手动设置的：收到的消息不再改它 */
   language_manual: boolean
   /** 所在地 */
   location?: string
+  /** 内部联系人关联的工作区成员 ID */
+  member_id?: string
   name: string
   /** 联系人在工作区内的递增编号，从 1 开始 */
   number: number
@@ -38,7 +43,7 @@ export interface ContactSummary {
   time_zone?: string
 }
 
-export type ConversationActorType = "contact" | "member" | "bot" | "system"
+export type ConversationActorType = "contact" | "external_user" | "member" | "bot" | "system"
 
 export interface ConversationAttachmentDTO {
   content_type: string

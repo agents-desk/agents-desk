@@ -71,9 +71,11 @@ const gatewayHeaders = [
 /** TelegramFormValues 是 Telegram 渠道配置工作台的表单草稿结构。 */
 interface TelegramFormValues {
   name: string
+  audience: "customer" | "internal"
   bot_token: string
   team_id: string | null
   gateway_managed: boolean
+  enable_groups: boolean
   enabled: boolean
 }
 
@@ -81,9 +83,11 @@ interface TelegramFormValues {
 function toFormValues(tg: TelegramDTO): TelegramFormValues {
   return {
     name: tg.name,
+    audience: tg.audience === "internal" ? "internal" : "customer",
     bot_token: "",
     team_id: tg.team_id ?? null,
     gateway_managed: tg.gateway_managed,
+    enable_groups: tg.enable_groups,
     enabled: tg.enabled,
   }
 }
@@ -202,9 +206,11 @@ export function TelegramStudio({ slug, id }: { slug: string; id: string }): Reac
   const form = useForm<TelegramFormValues>({
     initialValues: {
       name: "",
+      audience: "customer",
       bot_token: "",
       team_id: null,
       gateway_managed: false,
+      enable_groups: true,
       enabled: true,
     },
   })
@@ -219,9 +225,11 @@ export function TelegramStudio({ slug, id }: { slug: string; id: string }): Reac
     mutationFn: (values: TelegramFormValues) =>
       tenantApi.telegram.update(id, {
         name: values.name.trim(),
+        audience: values.audience,
         bot_token: values.bot_token.trim() || undefined,
         team_id: values.team_id || undefined,
         gateway_managed: values.gateway_managed,
+        enable_groups: values.enable_groups,
         enabled: values.enabled,
       }),
     onSuccess: (updated) => {
@@ -297,6 +305,28 @@ export function TelegramStudio({ slug, id }: { slug: string; id: string }): Reac
 
                     <SectionCard title={t("telegram_studio.section_basic")} description={t("telegram_studio.section_basic_desc")}>
                       <TextInput label={t("telegrams.name")} required maxLength={60} {...form.getInputProps("name")} />
+                      <Stack gap={6}>
+                        <Text size="sm" fw={500}>
+                          {t("channels.audience")}
+                        </Text>
+                        <SegmentedControl
+                          fullWidth
+                          value={form.values.audience}
+                          onChange={(v) => form.setFieldValue("audience", v === "internal" ? "internal" : "customer")}
+                          data={[
+                            { value: "customer", label: t("channels.audience_customer") },
+                            { value: "internal", label: t("channels.audience_internal") },
+                          ]}
+                        />
+                        <Text size="xs" c="dimmed">
+                          {t(form.values.audience === "internal" ? "channels.audience_internal_desc" : "channels.audience_customer_desc")}
+                        </Text>
+                      </Stack>
+                      <Switch
+                        label={t("telegrams.enable_groups")}
+                        description={t("telegrams.enable_groups_desc")}
+                        {...form.getInputProps("enable_groups", { type: "checkbox" })}
+                      />
                       <Switch
                         label={t("telegram_studio.enabled")}
                         description={t("telegram_studio.enabled_hint")}

@@ -2,7 +2,7 @@ import type { ConversationDTO } from "@agents-desk/client/tenant"
 import { ActionIcon, Anchor, Badge, Box, Button, CopyButton, Group, Rating, Select, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate, useParams } from "@tanstack/react-router"
-import { IconCheck, IconCopy, IconExternalLink, IconGitMerge, IconLink, IconPlus, IconX } from "@tabler/icons-react"
+import { IconCheck, IconCopy, IconExternalLink, IconGitMerge, IconLink, IconPlus, IconSettings, IconX } from "@tabler/icons-react"
 import {
   Inspector,
   InspectorField,
@@ -29,7 +29,7 @@ import { ticketStatusColor, ticketStatusLabel, useConversationTickets } from "..
 import { formatLocalTime } from "../timezone"
 import { previewSummary } from "./Attachments"
 import { ChannelIcon } from "./channel-badge"
-import { useAttributes, useContactHistory, useMe, useMembers, useTags, useTeams } from "./data"
+import { useAttributes, useContactHistory, useGroupHistory, useMe, useMembers, useTags, useTeams } from "./data"
 import { AttributeInput, TagsEditor } from "./fields"
 import { activity } from "./format"
 
@@ -54,7 +54,9 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
   const allTags = useTags()
   const convAttrs = useAttributes("conversation")
   const contactAttrs = useAttributes("contact")
-  const history = useContactHistory(c.contact?.id)
+  const contactHistory = useContactHistory(c.contact?.id)
+  const groupHistory = useGroupHistory(c.external_group?.id)
+  const history = c.external_group ? groupHistory : contactHistory
   const convTickets = useConversationTickets(c.id)
   const [createTicketOpen, setCreateTicketOpen] = useState(false)
   const [linkTicketOpen, setLinkTicketOpen] = useState(false)
@@ -134,7 +136,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
   })
   const [mergeContactOpen, setMergeContactOpen] = useState(false)
   // 对方的语言：手动设置的显示那种语言，否则显示“自动识别”（带上识别出的语言）
-  const manual = c.contact?.language_manual ?? false
+  const manual = c.external_group ? c.external_group.language_manual : (c.contact?.language_manual ?? false)
   const detected = c.language ? languageName(c.language, language) : ""
   // 没有“改派给别人”的权限时，负责人只能选自己
   const assignees = can("conversations:assign") ? members : members.filter((m) => m.id === me.data?.id)
@@ -370,57 +372,57 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
             )}
           </InspectorSection>
 
-          <InspectorSection
-            title={t("inbox.details_contact")}
-            collapsible
-            storeKey="inbox-details-contact"
-            extra={
-              c.contact && can("contacts:update") ? (
-                <Tooltip label={t("contacts.merge")} openDelay={250}>
-                  <ActionIcon
-                    size={22}
-                    variant="subtle"
-                    color="gray"
-                    aria-label={t("contacts.merge")}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setMergeContactOpen(true)
-                    }}
-                  >
-                    <IconGitMerge size={14} />
-                  </ActionIcon>
-                </Tooltip>
-              ) : undefined
-            }
-          >
-            <InspectorField label={t("inbox.contact_name")}>
-              {c.contact ? (
+          {c.external_group ? (
+            <InspectorSection
+              title={t("inbox.details_external_group")}
+              collapsible
+              storeKey="inbox-details-group"
+              extra={
+                can("channels:manage") ? (
+                  <Tooltip label={t("extgroups.configure")} openDelay={250}>
+                    <ActionIcon
+                      size={22}
+                      variant="subtle"
+                      color="gray"
+                      aria-label={t("extgroups.configure")}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        void navigate({ to: "/$slug/settings/channels", params: { slug } })
+                      }}
+                    >
+                      <IconSettings size={14} />
+                    </ActionIcon>
+                  </Tooltip>
+                ) : undefined
+              }
+            >
+              <InspectorField label={t("extgroups.name")}>
                 <Group gap={6} wrap="nowrap">
-                  <Link
-                    to="/$slug/contacts/$id"
-                    params={{ slug, id: c.contact.id }}
-                    search={{ sort: "recent" }}
-                    className="inbox-contact-link"
+                  <Text size="sm" fw={500} truncate>
+                    {c.external_group.name || c.external_group.external_id}
+                  </Text>
+                  <Badge
+                    size="xs"
+                    variant="light"
+                    color={
+                      c.external_group.status === "active"
+                        ? "green"
+                        : c.external_group.status === "pending_setup"
+                          ? "yellow"
+                          : "red"
+                    }
+                    style={{ flex: "none" }}
                   >
-                    <Text size="sm" fw={500} c="brand" truncate>
-                      {contactDisplayName(c.contact, t)}
-                    </Text>
-                  </Link>
-                  <Badge size="xs" variant="light" color="gray" style={{ flex: "none" }}>
-                    {kit.label("ContactKind", c.contact.kind)}
+                    {kit.label("ExtgroupStatus", c.external_group.status)}
                   </Badge>
                 </Group>
-              ) : (
-                <Text size="sm">{t("inbox.visitor")}</Text>
-              )}
-            </InspectorField>
-            <InspectorField label={t("inbox.contact_email")}>
-              <Group gap={4} wrap="nowrap" justify="space-between">
-                <Text size="sm" c={c.contact?.email ? undefined : "dimmed"} truncate style={{ flex: 1, minWidth: 0 }}>
-                  {c.contact?.email || "—"}
-                </Text>
-                {c.contact?.email && (
-                  <CopyButton value={c.contact.email} timeout={1500}>
+              </InspectorField>
+              <InspectorField label={t("contacts.col_external_id")}>
+                <Group gap={4} wrap="nowrap" justify="space-between">
+                  <Text size="xs" c="dimmed" truncate style={{ flex: 1, minWidth: 0, fontFamily: "monospace" }}>
+                    {c.external_group.external_id}
+                  </Text>
+                  <CopyButton value={c.external_group.external_id} timeout={1500}>
                     {({ copied, copy }) => (
                       <Tooltip label={t(copied ? "contacts.copied" : "contacts.copy")} withArrow>
                         <ActionIcon variant="subtle" color={copied ? "green" : "gray"} size={22} onClick={copy} aria-label={t("contacts.copy")}>
@@ -429,103 +431,183 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                       </Tooltip>
                     )}
                   </CopyButton>
-                )}
-              </Group>
-            </InspectorField>
-            <InspectorField label={t("inbox.contact_language")} align={manual ? "start" : "center"}>
-              <LanguageSelect
-                before={[{ value: AUTO, label: !manual && detected ? t("inbox.language_auto_detected", { lang: detected }) : t("inbox.language_auto") }]}
-                first={c.language ? [c.language] : []}
-                value={manual ? c.language : AUTO}
-                onChange={(v) => v && setLanguage.mutate(v === AUTO ? "" : v)}
-                allowDeselect={false}
-                disabled={!can("conversations:reply") || setLanguage.isPending}
-                aria-label={t("inbox.contact_language")}
-              />
-              {manual && (
-                <Text size="xs" c="dimmed" mt={2}>
-                  {t("inbox.language_manual_hint")}
-                </Text>
-              )}
-            </InspectorField>
-            {locationText && (
-              <InspectorField label={t("inbox.contact_location")}>
-                <Text size="sm" truncate>
-                  {locationText}
-                </Text>
-              </InspectorField>
-            )}
-            {referrer && (
-              <InspectorField label={t("inbox.contact_referrer")}>
-                <Anchor href={referrer} target="_blank" rel="noopener noreferrer" size="sm" style={{ display: "inline-flex", alignItems: "center", gap: 4, maxWidth: "100%" }}>
-                  <Text span size="sm" truncate>
-                    {referrer}
-                  </Text>
-                  <IconExternalLink size={12} style={{ flex: "none" }} />
-                </Anchor>
-              </InspectorField>
-            )}
-            {c.available_channels && c.available_channels.length > 0 && (
-              <InspectorField label={t("contacts.channel_identities")} align="start">
-                <Group gap={4} wrap="wrap">
-                  {c.available_channels.map((ch) => (
-                    <Badge
-                      key={ch.id}
-                      size="xs"
-                      variant="light"
-                      color="gray"
-                      leftSection={<ChannelIcon kind={ch.kind} size={10} />}
-                      style={{ textTransform: "none" }}
-                    >
-                      {ch.name}
-                    </Badge>
-                  ))}
                 </Group>
               </InspectorField>
-            )}
-            {c.contact && (
-              <>
-                <InspectorField label={t("inbox.tags")} align="start">
-                  <TagsEditor
-                    tags={c.contact.tags}
-                    allTags={allTags}
-                    editable={canEdit}
-                    disabled={addContactTag.isPending || removeContactTag.isPending}
-                    onAdd={(tagId) => addContactTag.mutate(tagId)}
-                    onRemove={(tagId) => removeContactTag.mutate(tagId)}
-                  />
+              <InspectorField label={t("inbox.contact_language")} align={manual ? "start" : "center"}>
+                <LanguageSelect
+                  before={[{ value: AUTO, label: !manual && detected ? t("inbox.language_auto_detected", { lang: detected }) : t("inbox.language_auto") }]}
+                  first={c.language ? [c.language] : []}
+                  value={manual ? c.language : AUTO}
+                  onChange={(v) => v && setLanguage.mutate(v === AUTO ? "" : v)}
+                  allowDeselect={false}
+                  disabled={!can("conversations:reply") || setLanguage.isPending}
+                  aria-label={t("inbox.contact_language")}
+                />
+                {manual && (
+                  <Text size="xs" c="dimmed" mt={2}>
+                    {t("inbox.language_manual_hint")}
+                  </Text>
+                )}
+              </InspectorField>
+            </InspectorSection>
+          ) : (
+            <InspectorSection
+              title={t("inbox.details_contact")}
+              collapsible
+              storeKey="inbox-details-contact"
+              extra={
+                c.contact && can("contacts:update") ? (
+                  <Tooltip label={t("contacts.merge")} openDelay={250}>
+                    <ActionIcon
+                      size={22}
+                      variant="subtle"
+                      color="gray"
+                      aria-label={t("contacts.merge")}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setMergeContactOpen(true)
+                      }}
+                    >
+                      <IconGitMerge size={14} />
+                    </ActionIcon>
+                  </Tooltip>
+                ) : undefined
+              }
+            >
+              <InspectorField label={t("inbox.contact_name")}>
+                {c.contact ? (
+                  <Group gap={6} wrap="nowrap">
+                    <Link
+                      to="/$slug/contacts/$id"
+                      params={{ slug, id: c.contact.id }}
+                      search={{ sort: "recent" }}
+                      className="inbox-contact-link"
+                    >
+                      <Text size="sm" fw={500} c="brand" truncate>
+                        {contactDisplayName(c.contact, t)}
+                      </Text>
+                    </Link>
+                    <Badge size="xs" variant="light" color={c.contact.kind === "internal" ? "green" : "gray"} style={{ flex: "none" }}>
+                      {kit.label("ContactKind", c.contact.kind)}
+                    </Badge>
+                  </Group>
+                ) : (
+                  <Text size="sm">{t("inbox.visitor")}</Text>
+                )}
+              </InspectorField>
+              <InspectorField label={t("inbox.contact_email")}>
+                <Group gap={4} wrap="nowrap" justify="space-between">
+                  <Text size="sm" c={c.contact?.email ? undefined : "dimmed"} truncate style={{ flex: 1, minWidth: 0 }}>
+                    {c.contact?.email || "—"}
+                  </Text>
+                  {c.contact?.email && (
+                    <CopyButton value={c.contact.email} timeout={1500}>
+                      {({ copied, copy }) => (
+                        <Tooltip label={t(copied ? "contacts.copied" : "contacts.copy")} withArrow>
+                          <ActionIcon variant="subtle" color={copied ? "green" : "gray"} size={22} onClick={copy} aria-label={t("contacts.copy")}>
+                            {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                          </ActionIcon>
+                        </Tooltip>
+                      )}
+                    </CopyButton>
+                  )}
+                </Group>
+              </InspectorField>
+              <InspectorField label={t("inbox.contact_language")} align={manual ? "start" : "center"}>
+                <LanguageSelect
+                  before={[{ value: AUTO, label: !manual && detected ? t("inbox.language_auto_detected", { lang: detected }) : t("inbox.language_auto") }]}
+                  first={c.language ? [c.language] : []}
+                  value={manual ? c.language : AUTO}
+                  onChange={(v) => v && setLanguage.mutate(v === AUTO ? "" : v)}
+                  allowDeselect={false}
+                  disabled={!can("conversations:reply") || setLanguage.isPending}
+                  aria-label={t("inbox.contact_language")}
+                />
+                {manual && (
+                  <Text size="xs" c="dimmed" mt={2}>
+                    {t("inbox.language_manual_hint")}
+                  </Text>
+                )}
+              </InspectorField>
+              {locationText && (
+                <InspectorField label={t("inbox.contact_location")}>
+                  <Text size="sm" truncate>
+                    {locationText}
+                  </Text>
                 </InspectorField>
-                {contactAttrs.map((def) => (
-                  <InspectorField key={def.id} label={def.name}>
-                    <AttributeInput
-                      key={`${c.contact?.id}:${def.key}`}
-                      def={def}
-                      value={c.contact?.attributes[def.key]}
-                      disabled={!canEdit || patchContactAttr.isPending}
-                      onSave={(val) => patchContactAttr.mutate({ [def.key]: val })}
+              )}
+              {referrer && (
+                <InspectorField label={t("inbox.contact_referrer")}>
+                  <Anchor href={referrer} target="_blank" rel="noopener noreferrer" size="sm" style={{ display: "inline-flex", alignItems: "center", gap: 4, maxWidth: "100%" }}>
+                    <Text span size="sm" truncate>
+                      {referrer}
+                    </Text>
+                    <IconExternalLink size={12} style={{ flex: "none" }} />
+                  </Anchor>
+                </InspectorField>
+              )}
+              {c.available_channels && c.available_channels.length > 0 && (
+                <InspectorField label={t("contacts.channel_identities")} align="start">
+                  <Group gap={4} wrap="wrap">
+                    {c.available_channels.map((ch) => (
+                      <Badge
+                        key={ch.id}
+                        size="xs"
+                        variant="light"
+                        color="gray"
+                        leftSection={<ChannelIcon kind={ch.kind} size={10} />}
+                        style={{ textTransform: "none" }}
+                      >
+                        {ch.name}
+                      </Badge>
+                    ))}
+                  </Group>
+                </InspectorField>
+              )}
+              {c.contact && (
+                <>
+                  <InspectorField label={t("inbox.tags")} align="start">
+                    <TagsEditor
+                      tags={c.contact.tags}
+                      allTags={allTags}
+                      editable={canEdit}
+                      disabled={addContactTag.isPending || removeContactTag.isPending}
+                      onAdd={(tagId) => addContactTag.mutate(tagId)}
+                      onRemove={(tagId) => removeContactTag.mutate(tagId)}
                     />
                   </InspectorField>
-                ))}
-                <Box mt={4}>
-                  <ContactNotesCard
-                    contactId={c.contact.id}
-                    value={serverNotes}
-                    translatedValue={contactDetail.data?.notes_translated}
-                    sourceLanguage={contactDetail.data?.notes_language}
-                    untranslated={contactDetail.data?.notes_untranslated}
-                    translating={translating}
-                    title={t("inbox.contact_notes")}
-                    placeholder={t("inbox.contact_notes_placeholder")}
-                    editable={can("contacts:update")}
-                    disabled={contactDetail.isPending}
-                    saving={saveNotes.isPending}
-                    maxRows={5}
-                    onSave={(next) => saveNotes.mutate(next)}
-                  />
-                </Box>
-              </>
-            )}
-          </InspectorSection>
+                  {contactAttrs.map((def) => (
+                    <InspectorField key={def.id} label={def.name}>
+                      <AttributeInput
+                        key={`${c.contact?.id}:${def.key}`}
+                        def={def}
+                        value={c.contact?.attributes[def.key]}
+                        disabled={!canEdit || patchContactAttr.isPending}
+                        onSave={(val) => patchContactAttr.mutate({ [def.key]: val })}
+                      />
+                    </InspectorField>
+                  ))}
+                  <Box mt={4}>
+                    <ContactNotesCard
+                      contactId={c.contact.id}
+                      value={serverNotes}
+                      translatedValue={contactDetail.data?.notes_translated}
+                      sourceLanguage={contactDetail.data?.notes_language}
+                      untranslated={contactDetail.data?.notes_untranslated}
+                      translating={translating}
+                      title={t("inbox.contact_notes")}
+                      placeholder={t("inbox.contact_notes_placeholder")}
+                      editable={can("contacts:update")}
+                      disabled={contactDetail.isPending}
+                      saving={saveNotes.isPending}
+                      maxRows={5}
+                      onSave={(next) => saveNotes.mutate(next)}
+                    />
+                  </Box>
+                </>
+              )}
+            </InspectorSection>
+          )}
 
           <InspectorSection
             title={t("inbox.details_history")}

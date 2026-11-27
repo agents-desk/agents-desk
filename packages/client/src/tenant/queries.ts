@@ -455,6 +455,21 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
           invalidate(context, "conversation"),
       }),
     },
+    external: {
+      /** external 分组全部查询的 key 前缀。 */
+      key: () => key("external"),
+      /** GET /external-groups */
+      groupList: (...args: Parameters<Client["external"]["groupList"]>) => ({
+        queryKey: key("external", "groupList", ...args),
+        queryFn: () => client.external.groupList(...args),
+      }),
+      /** PUT /external-groups/{id} */
+      groupUpdate: () => ({
+        mutationFn: (variables: Parameters<Client["external"]["groupUpdate"]>) => client.external.groupUpdate(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "external"),
+      }),
+    },
     file: {
       /** file 分组全部查询的 key 前缀。 */
       key: () => key("file"),
@@ -1058,6 +1073,38 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         mutationFn: (variables: Parameters<Client["view"]["update"]>) => client.view.update(...variables),
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "view"),
+      }),
+    },
+    wecom: {
+      /** wecom 分组全部查询的 key 前缀。 */
+      key: () => key("wecom"),
+      /** POST /wecom-bots */
+      create: () => ({
+        mutationFn: (variables: Parameters<Client["wecom"]["create"]>[0]) => client.wecom.create(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "wecom"),
+      }),
+      /** GET /wecom-bots/{id} */
+      get: (...args: Parameters<Client["wecom"]["get"]>) => ({
+        queryKey: key("wecom", "get", ...args),
+        queryFn: () => client.wecom.get(...args),
+      }),
+      /** GET /wecom-bots */
+      list: (...args: Parameters<Client["wecom"]["list"]>) => ({
+        queryKey: key("wecom", "list", ...args),
+        queryFn: () => client.wecom.list(...args),
+      }),
+      /** POST /wecom-bots/{id}/reconnect */
+      reconnect: () => ({
+        mutationFn: (variables: Parameters<Client["wecom"]["reconnect"]>[0]) => client.wecom.reconnect(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "wecom"),
+      }),
+      /** PUT /wecom-bots/{id} */
+      update: () => ({
+        mutationFn: (variables: Parameters<Client["wecom"]["update"]>) => client.wecom.update(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "wecom"),
       }),
     },
     widget: {

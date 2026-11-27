@@ -61,6 +61,7 @@ import { Route as SlugSettingsServiceTicketTypesIdRouteImport } from './routes/$
 import { Route as SlugSettingsPersonalBusinessChannelsLinksIdRouteImport } from './routes/$slug/settings/_personal/business-channels/links/$id'
 import { Route as SlugSettingsPersonalBusinessChannelsTelegramIdRouteImport } from './routes/$slug/settings/_personal/business-channels/telegram/$id'
 import { Route as SlugSettingsServiceChannelsTelegramsIdRouteImport } from './routes/$slug/settings/_service/channels/telegrams/$id'
+import { Route as SlugSettingsServiceChannelsWecomIdRouteImport } from './routes/$slug/settings/_service/channels/wecom/$id'
 import { Route as SlugSettingsServiceChannelsWidgetsIdRouteImport } from './routes/$slug/settings/_service/channels/widgets/$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -342,6 +343,12 @@ const SlugSettingsServiceChannelsTelegramsIdRoute =
     path: '/telegrams/$id',
     getParentRoute: () => SlugSettingsServiceChannelsRoute,
   } as any)
+const SlugSettingsServiceChannelsWecomIdRoute =
+  SlugSettingsServiceChannelsWecomIdRouteImport.update({
+    id: '/wecom/$id',
+    path: '/wecom/$id',
+    getParentRoute: () => SlugSettingsServiceChannelsRoute,
+  } as any)
 const SlugSettingsServiceChannelsWidgetsIdRoute =
   SlugSettingsServiceChannelsWidgetsIdRouteImport.update({
     id: '/widgets/$id',
@@ -399,6 +406,7 @@ export interface FileRoutesByFullPath {
   '/$slug/settings/business-channels/links/$id': typeof SlugSettingsPersonalBusinessChannelsLinksIdRoute
   '/$slug/settings/business-channels/telegram/$id': typeof SlugSettingsPersonalBusinessChannelsTelegramIdRoute
   '/$slug/settings/channels/telegrams/$id': typeof SlugSettingsServiceChannelsTelegramsIdRoute
+  '/$slug/settings/channels/wecom/$id': typeof SlugSettingsServiceChannelsWecomIdRoute
   '/$slug/settings/channels/widgets/$id': typeof SlugSettingsServiceChannelsWidgetsIdRoute
 }
 export interface FileRoutesByTo {
@@ -440,6 +448,7 @@ export interface FileRoutesByTo {
   '/$slug/settings/business-channels/links/$id': typeof SlugSettingsPersonalBusinessChannelsLinksIdRoute
   '/$slug/settings/business-channels/telegram/$id': typeof SlugSettingsPersonalBusinessChannelsTelegramIdRoute
   '/$slug/settings/channels/telegrams/$id': typeof SlugSettingsServiceChannelsTelegramsIdRoute
+  '/$slug/settings/channels/wecom/$id': typeof SlugSettingsServiceChannelsWecomIdRoute
   '/$slug/settings/channels/widgets/$id': typeof SlugSettingsServiceChannelsWidgetsIdRoute
 }
 export interface FileRoutesById {
@@ -496,6 +505,7 @@ export interface FileRoutesById {
   '/$slug/settings/_personal/business-channels/links/$id': typeof SlugSettingsPersonalBusinessChannelsLinksIdRoute
   '/$slug/settings/_personal/business-channels/telegram/$id': typeof SlugSettingsPersonalBusinessChannelsTelegramIdRoute
   '/$slug/settings/_service/channels/telegrams/$id': typeof SlugSettingsServiceChannelsTelegramsIdRoute
+  '/$slug/settings/_service/channels/wecom/$id': typeof SlugSettingsServiceChannelsWecomIdRoute
   '/$slug/settings/_service/channels/widgets/$id': typeof SlugSettingsServiceChannelsWidgetsIdRoute
 }
 export interface FileRouteTypes {
@@ -550,6 +560,7 @@ export interface FileRouteTypes {
     | '/$slug/settings/business-channels/links/$id'
     | '/$slug/settings/business-channels/telegram/$id'
     | '/$slug/settings/channels/telegrams/$id'
+    | '/$slug/settings/channels/wecom/$id'
     | '/$slug/settings/channels/widgets/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -591,6 +602,7 @@ export interface FileRouteTypes {
     | '/$slug/settings/business-channels/links/$id'
     | '/$slug/settings/business-channels/telegram/$id'
     | '/$slug/settings/channels/telegrams/$id'
+    | '/$slug/settings/channels/wecom/$id'
     | '/$slug/settings/channels/widgets/$id'
   id:
     | '__root__'
@@ -646,6 +658,7 @@ export interface FileRouteTypes {
     | '/$slug/settings/_personal/business-channels/links/$id'
     | '/$slug/settings/_personal/business-channels/telegram/$id'
     | '/$slug/settings/_service/channels/telegrams/$id'
+    | '/$slug/settings/_service/channels/wecom/$id'
     | '/$slug/settings/_service/channels/widgets/$id'
   fileRoutesById: FileRoutesById
 }
@@ -1022,6 +1035,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SlugSettingsServiceChannelsTelegramsIdRouteImport
       parentRoute: typeof SlugSettingsServiceChannelsRoute
     }
+    '/$slug/settings/_service/channels/wecom/$id': {
+      id: '/$slug/settings/_service/channels/wecom/$id'
+      path: '/wecom/$id'
+      fullPath: '/$slug/settings/channels/wecom/$id'
+      preLoaderRoute: typeof SlugSettingsServiceChannelsWecomIdRouteImport
+      parentRoute: typeof SlugSettingsServiceChannelsRoute
+    }
     '/$slug/settings/_service/channels/widgets/$id': {
       id: '/$slug/settings/_service/channels/widgets/$id'
       path: '/widgets/$id'
@@ -1136,6 +1156,7 @@ const SlugSettingsPersonalRouteWithChildren =
 interface SlugSettingsServiceChannelsRouteChildren {
   SlugSettingsServiceChannelsIndexRoute: typeof SlugSettingsServiceChannelsIndexRoute
   SlugSettingsServiceChannelsTelegramsIdRoute: typeof SlugSettingsServiceChannelsTelegramsIdRoute
+  SlugSettingsServiceChannelsWecomIdRoute: typeof SlugSettingsServiceChannelsWecomIdRoute
   SlugSettingsServiceChannelsWidgetsIdRoute: typeof SlugSettingsServiceChannelsWidgetsIdRoute
 }
 
@@ -1145,6 +1166,8 @@ const SlugSettingsServiceChannelsRouteChildren: SlugSettingsServiceChannelsRoute
       SlugSettingsServiceChannelsIndexRoute,
     SlugSettingsServiceChannelsTelegramsIdRoute:
       SlugSettingsServiceChannelsTelegramsIdRoute,
+    SlugSettingsServiceChannelsWecomIdRoute:
+      SlugSettingsServiceChannelsWecomIdRoute,
     SlugSettingsServiceChannelsWidgetsIdRoute:
       SlugSettingsServiceChannelsWidgetsIdRoute,
   }

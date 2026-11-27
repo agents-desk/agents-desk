@@ -270,9 +270,9 @@ export function ActorAvatar({
   contact?: ContactLabel | null
   fallbackName?: string
 }): ReactNode {
-  if (actor.type === "contact") {
+  if (actor.type === "contact" || actor.type === "external_user") {
     const target: ContactLabel =
-      contact && (!contact.id || contact.id === actor.id)
+      actor.type === "contact" && contact && (!contact.id || contact.id === actor.id)
         ? contact
         : { id: actor.id, name: actor.name || fallbackName }
     return <ContactAvatar contact={target} size={size} />
@@ -318,6 +318,8 @@ export interface MessageBubbleProps {
   original?: boolean // 展示原文时启用略沉底色
   publicUpdate?: boolean // 工单公开进度气泡样式标记
   expandedTranslation?: { language: string; text: string }
+  quote?: { author: string; text: string } // 被引用回复的消息摘要
+  extraActions?: ReactNode // 气泡旁悬停附加按钮（如群聊引用回复）
   caption?: ReactNode
   footerExtra?: ReactNode
   onPreview: (img: LightboxImage) => void
@@ -350,6 +352,8 @@ export function MessageBubble({
   original,
   publicUpdate,
   expandedTranslation,
+  quote,
+  extraActions,
   caption,
   footerExtra,
   onPreview,
@@ -357,7 +361,7 @@ export function MessageBubble({
   const t = useT()
   const ui = useLanguage()
   const copyText = copyValue ?? text
-  const hasBodyText = Boolean(text) || Boolean(expandedTranslation)
+  const hasBodyText = Boolean(text) || Boolean(expandedTranslation) || Boolean(quote)
 
   return (
     <Box
@@ -423,6 +427,24 @@ export function MessageBubble({
             data-public={publicUpdate || undefined}
             style={{ minWidth: 0 }}
           >
+            {quote && (
+              <Box
+                mb={6}
+                pl={8}
+                py={2}
+                style={{
+                  borderLeft: "2px solid var(--mantine-color-bright-blue-6)",
+                  opacity: 0.85,
+                }}
+              >
+                <Text size="xs" fw={600} truncate>
+                  {quote.author}
+                </Text>
+                <Text size="xs" c="dimmed" lineClamp={2}>
+                  {quote.text}
+                </Text>
+              </Box>
+            )}
             {text && <MessageText text={text} highlight={highlight} mentions={mentions} />}
             <MessageAttachments conversationId={conversationId} attachments={attachments} hasText={Boolean(text)} onPreview={onPreview} />
             {expandedTranslation && (
@@ -435,7 +457,7 @@ export function MessageBubble({
             )}
           </Paper>
 
-          {(!first || copyText) && (
+          {(!first || copyText || extraActions) && (
             <Group gap={4} wrap="nowrap" className="inbox-msg-actions" data-mine={mine || undefined}>
               {!first && (
                 <Tooltip label={fullTime} openDelay={300}>
@@ -444,6 +466,7 @@ export function MessageBubble({
                   </Text>
                 </Tooltip>
               )}
+              {extraActions}
               {copyText && <CopyAction value={copyText} />}
             </Group>
           )}

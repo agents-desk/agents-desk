@@ -8,6 +8,7 @@ import type {
 } from "@agents-desk/client/tenant"
 import {
   ActionIcon,
+  Avatar,
   Badge,
   Box,
   Button,
@@ -42,6 +43,7 @@ import {
   IconSearch,
   IconUserPlus,
   IconUsers,
+  IconUsersGroup,
   IconX,
 } from "@tabler/icons-react"
 import { notifyError, notifySuccess, PaneBody, PaneHeader, PaneToolbar, useCan, useLanguage, useSavedView, useT, useTimeZone } from "@go-tenon/ui"
@@ -680,7 +682,7 @@ function SearchRow({ hit, active, onClick }: { hit: ConversationSearchHitDTO; ac
               {t("inbox.search_note_tag")}
             </Badge>
           )}
-          {m.kind === "message" && m.field === "original" && m.actor.type === "contact" && (
+          {m.kind === "message" && m.field === "original" && (m.actor.type === "contact" || m.actor.type === "external_user") && (
             <Badge size="xs" variant="light" color="gray" mr={5} style={{ verticalAlign: "middle" }}>
               {t("inbox.search_original_tag")}
             </Badge>
@@ -737,7 +739,9 @@ function Row({
       ? c.preview_actor.id === me.data?.id
         ? t("inbox.you")
         : (byId.get(c.preview_actor.id)?.name ?? "")
-      : ""
+      : c.preview_actor?.type === "external_user"
+        ? (c.preview_actor.name || c.preview_actor.external_id || "")
+        : ""
   const name = contactName(c, t)
   const firstTag = c.tags[0]
   const queryClient = useQueryClient()
@@ -764,7 +768,7 @@ function Row({
           <Checkbox checked={selected} readOnly size="xs" tabIndex={-1} style={{ flex: "none" }} />
         ) : (
           <Indicator disabled={!c.unread} color="red" size={9} offset={2} withBorder style={{ flex: "none" }}>
-            <ContactAvatar contact={c.contact} size={30} />
+            <ConversationPeerAvatar c={c} size={30} />
           </Indicator>
         )}
         <Box style={{ flex: 1, minWidth: 0 }}>
@@ -772,6 +776,21 @@ function Row({
             <Text size="sm" fw={c.unread ? 700 : 400} className="inbox-row-title" truncate lh={1.3}>
               {name}
             </Text>
+            {c.external_group?.status === "pending_setup" && (
+              <Badge size="xs" variant="light" color="yellow" style={{ flex: "none" }}>
+                {t("extgroups.filter_pending")}
+              </Badge>
+            )}
+            {c.external_group?.status === "removed" && (
+              <Badge size="xs" variant="light" color="red" style={{ flex: "none" }}>
+                {t("extgroups.filter_removed")}
+              </Badge>
+            )}
+            {c.audience === "internal" && !c.external_group && (
+              <Badge size="xs" variant="light" color="green" style={{ flex: "none" }}>
+                {t("inbox.audience_internal_badge")}
+              </Badge>
+            )}
             {c.channels && c.channels.length > 1 && <MultiChannelBadge channels={c.channels} />}
             {c.priority === "high" && (
               <Tooltip label={t("inbox.priority_high")} openDelay={300}>
@@ -841,8 +860,23 @@ function Row({
   )
 }
 
-/** contactName 返回会话对方的展示名：真实姓名优先，其次邮箱，匿名访客显示“访客 #编号”。 */
+/** ConversationPeerAvatar 渲染会话对方的头像：外部群显示群图标，1:1 会话显示联系人头像。 */
+export function ConversationPeerAvatar({ c, size }: { c: ConversationDTO; size: number }): ReactNode {
+  if (c.external_group) {
+    return (
+      <Avatar size={size} radius="xl" color="bright-blue" variant="light" style={{ flex: "none" }}>
+        <IconUsersGroup size={Math.round(size * 0.56)} stroke={1.6} />
+      </Avatar>
+    )
+  }
+  return <ContactAvatar contact={c.contact} size={size} />
+}
+
+/** contactName 返回会话对方的展示名：外部群显示群名，1:1 会话优先显示联系人姓名、其次邮箱或访客编号。 */
 export function contactName(c: ConversationDTO, t: ReturnType<typeof useT>): string {
+  if (c.external_group) {
+    return c.external_group.name || c.external_group.external_id || t("inbox.external_group")
+  }
   return contactDisplayName(c.contact, t)
 }
 

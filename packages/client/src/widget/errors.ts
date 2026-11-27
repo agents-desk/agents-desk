@@ -89,6 +89,8 @@ export const ContactErrors = {
   MergeSelf: "contact.merge_self",
   /** ErrMergeConflict 是两个联系人绑定了不同的业务用户编号，不能直接合并。 */
   MergeConflict: "contact.merge_conflict",
+  /** ErrMemberTaken 是目标工作区成员已经绑定了另一个内部联系人。 */
+  MemberTaken: "contact.member_taken",
 } as const
 
 /** agents-desk/internal/conversation 的错误码。 */
@@ -151,6 +153,16 @@ export const ConversationErrors = {
   InvalidLanguage: "conversation.invalid_language",
   /** ErrNotFailed 是要重发的消息没有发送失败：还在发送中，或者已经送达。 */
   NotFailed: "conversation.not_failed",
+} as const
+
+/** agents-desk/internal/extgroup 的错误码。 */
+export const ExtgroupErrors = {
+  /** ErrNotFound 是外部群不存在，或者属于别的工作区。 */
+  NotFound: "extgroup.not_found",
+  /** ErrRemoved 是机器人已被移出该外部群，无法继续向群发送消息。 */
+  Removed: "extgroup.removed",
+  /** ErrInvalidLanguage 是设置的群语言不是合法的 BCP 47 标签。 */
+  InvalidLanguage: "extgroup.invalid_language",
 } as const
 
 /** agents-desk/internal/flags 的错误码。 */
@@ -316,6 +328,16 @@ export const TranslationErrors = {
   Forbidden: "translation.forbidden",
   /** ErrDuplicateTerm 是术语表中有重复的词（不区分大小写）。 */
   DuplicateTerm: "translation.duplicate_term",
+} as const
+
+/** agents-desk/internal/wecom 的错误码。 */
+export const WecomErrors = {
+  /** ErrTeamNotFound 是新会话进入的团队收件箱不存在，或者属于别的工作区。 */
+  TeamNotFound: "wecom.team_not_found",
+  /** ErrInvalidWSURL 是自定义 WebSocket 接入地址格式不合法（必须为 wss:// 或 ws:// 开头）。 */
+  InvalidWSURL: "wecom.invalid_ws_url",
+  /** ErrNotConnected 是企业微信机器人长连接当前未在线，无法发送消息。 */
+  NotConnected: "wecom.not_connected",
 } as const
 
 /** agents-desk/internal/widget 的错误码。 */

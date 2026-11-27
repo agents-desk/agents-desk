@@ -1,6 +1,7 @@
 import type { ConversationDTO, ConversationItemDTO } from "@agents-desk/client/tenant"
-import { Box, Divider, Loader, Stack, Text, UnstyledButton } from "@mantine/core"
+import { ActionIcon, Box, Divider, Loader, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { IconCornerUpLeft } from "@tabler/icons-react"
 import { ImageLightbox, notifyError, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
 import { Fragment, type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
@@ -34,6 +35,9 @@ import { TimelineSkeleton } from "../components/detail-skeleton"
  * 非本人消息默认展示当前成员语言的译文，每条消息或备注可单独切换查看原文；
  * 成员翻译后发出的消息显示成员写的原文，可以展开发给对方的译文。
  */
+/** isExternalActor 判断时间线项是否由外部对方（联系人或外部群发言人）发出。 */
+const isExternalActor = (type: string) => type === "contact" || type === "external_user"
+
 export function Timeline({
   c,
   readSeq,
@@ -41,6 +45,7 @@ export function Timeline({
   highlight,
   focusSeq,
   focusField,
+  onReplyTo,
 }: {
   c: ConversationDTO
   readSeq: number
@@ -48,6 +53,7 @@ export function Timeline({
   highlight?: string
   focusSeq?: number
   focusField?: MatchField
+  onReplyTo?: (item: ConversationItemDTO) => void
 }): ReactNode {
   const t = useT()
   const language = useLanguage()
@@ -101,9 +107,16 @@ export function Timeline({
   }
 
   const firstNew = firstUnread(list, readSeq, me.data?.id)
+  const byItemId = new Map(list.map((item) => [item.id, item]))
   const sameChannelMsg = (a: ConversationItemDTO, b: ConversationItemDTO) =>
     a.kind === "message" && b.kind === "message" && a.channel?.id === b.channel?.id
   const memberOf = (memberId: string) => byId.get(memberId) ?? (memberId === me.data?.id ? me.data : undefined)
+  const authorOf = (item: ConversationItemDTO) => {
+    if (item.actor.type === "contact") return contactName(c, t)
+    if (item.actor.type === "external_user") return item.actor.name || item.actor.external_id || t("inbox.visitor")
+    if (item.actor.type === "member") return names.member(item.actor.id)
+    return whoDid(item, byId, t)
+  }
 
   return (
     <Box className="inbox-timeline-wrap">
@@ -117,8 +130,14 @@ export function Timeline({
             const groupedWithPrev = !showDay && !showNew && canGroupItems(prev, it, firstNew, sameChannelMsg)
             const groupedWithNext = Boolean(next) && canGroupItems(it, next, firstNew, sameChannelMsg)
             const gapTop = i === 0 ? 0 : groupedWithPrev ? 4 : 16
-            const msgAuthor =
-              it.actor.type === "contact" ? contactName(c, t) : it.actor.type === "member" ? names.member(it.actor.id) : whoDid(it, byId, t)
+            const msgAuthor = authorOf(it)
+            const quotedItem = it.reply_to_item_id ? byItemId.get(it.reply_to_item_id) : undefined
+            const quote = quotedItem
+              ? {
+                  author: authorOf(quotedItem),
+                  text: quotedItem.content.text || quotedItem.content.original || "…",
+                }
+              : undefined
             return (
               <Fragment key={it.id}>
                 {showDay && <Divider my={i === 0 ? 4 : 12} label={dayLabel(it.created_at, language, t, zone)} labelPosition="center" />}
@@ -148,7 +167,7 @@ export function Timeline({
                   <Message
                     it={it}
                     c={c}
-                    mine={it.actor.type !== "contact"}
+                    mine={!isExternalActor(it.actor.type)}
                     isOwn={it.actor.type === "member" && it.actor.id === me.data?.id}
                     author={msgAuthor}
                     avatar={
@@ -171,6 +190,8 @@ export function Timeline({
                     highlight={highlight}
                     focused={pulseSeq === it.seq}
                     preferOriginal={focusSeq === it.seq && focusField === "original"}
+                    quote={quote}
+                    onReplyTo={onReplyTo}
                     onPreview={setLightbox}
                   />
                 )}
@@ -205,6 +226,8 @@ interface MessageProps {
   highlight?: string // 当前搜索词：高亮气泡内命中的文本
   focused?: boolean // 从搜索结果跳转命中的当前消息，施加短暂脉冲高亮
   preferOriginal?: boolean // 命中客户消息原文时默认切到原文展示
+  quote?: { author: string; text: string }
+  onReplyTo?: (item: ConversationItemDTO) => void
   onPreview: (image: LightboxImage) => void // 点击图片缩略图打开原图灯箱
 }
 
@@ -229,6 +252,8 @@ function Message({
   highlight,
   focused,
   preferOriginal,
+  quote,
+  onReplyTo,
   onPreview,
 }: MessageProps): ReactNode {
   const t = useT()
@@ -251,7 +276,7 @@ function Message({
   // 对方或其他同事的消息：有当前成员语言的译文时显示译文；成员翻译后发出的消息：原文来自 content.original，content.text 是发给对方的译文；
   // 系统发出的结构化提示：按成员的界面语言和时区渲染
   const text = it.content.prompt ? promptText(it.content.prompt, it.content.text ?? "", ui, t, zone) : (it.content.text ?? "")
-  const translatableForViewer = it.actor.type === "contact" || (it.actor.type === "member" && !isOwn)
+  const translatableForViewer = isExternalActor(it.actor.type) || (it.actor.type === "member" && !isOwn)
   const translated = translatableForViewer ? translationOf(it, lang) : undefined
   const sentAs = mine && it.content.original ? it.content.language : undefined
   const shown = translated && !showOriginal ? translated : sentAs ? (it.content.original ?? "") : text
@@ -318,6 +343,22 @@ function Message({
       focused={focused}
       original={Boolean(translated && showOriginal)}
       expandedTranslation={sentAs && sent ? { language: sentAs, text: it.content.text ?? "" } : undefined}
+      quote={quote}
+      extraActions={
+        onReplyTo ? (
+          <Tooltip label={t("inbox.reply_to_message")} openDelay={250}>
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              size={22}
+              onClick={() => onReplyTo(it)}
+              aria-label={t("inbox.reply_to_message")}
+            >
+              <IconCornerUpLeft size={14} />
+            </ActionIcon>
+          </Tooltip>
+        ) : undefined
+      }
       caption={caption}
       footerExtra={deliveryNode}
       onPreview={onPreview}
