@@ -229,6 +229,36 @@ telegram.descriptions.bot_token: 从 @BotFather 获取的 Bot Token；修改时�
 telegram.descriptions.enable_groups: 开启后在群聊中被 @ 机器人、发送命令或回复机器人消息时进入收件箱
 telegram.descriptions.gateway_managed: 开启后由外部业务网关转发 Webhook，系统不自动调用 Telegram setWebhook
 telegram.descriptions.enabled: 停用后不再接收或发送消息
+wecom.team_not_found: 团队收件箱不存在
+wecom.invalid_ws_url: 自定义 WebSocket 地址必须以 wss:// 或 ws:// 开头
+wecom.not_connected: 企业微信机器人长连接当前未在线，稍后会自动重试
+wecom.status.connected: 已连接
+wecom.status.connecting: 连接中
+wecom.status.disconnected: 已断开
+wecom.status.auth_failed: 鉴权失败
+wecom.title: 企业微信机器人
+wecom.fields.id: ID
+wecom.fields.name: 名称
+wecom.fields.audience: 服务对象
+wecom.fields.team_id: 团队收件箱
+wecom.fields.team_name: 团队收件箱
+wecom.fields.bot_id: Bot ID
+wecom.fields.secret: 长连接 Secret
+wecom.fields.ws_url: 自定义 WebSocket 地址
+wecom.fields.welcome_text: 进入会话欢迎语
+wecom.fields.status: 连接状态
+wecom.fields.last_error: 最近错误
+wecom.fields.last_connected_at: 最近连接时间
+wecom.fields.enabled: 启用
+wecom.fields.created_at: 创建时间
+wecom.descriptions.name: 用于在工作区中区分这个企业微信机器人
+wecom.descriptions.audience: 选择服务内部员工还是外部客户，内部员工单聊会归入内部联系人
+wecom.descriptions.team_id: 新会话进入的团队收件箱；不选时进入未指派
+wecom.descriptions.bot_id: 在企业微信管理后台智能机器人页面生成的 Bot ID
+wecom.descriptions.secret: 长连接模式对应的 Secret；修改时留空保持不变
+wecom.descriptions.ws_url: 私有化部署时可覆盖默认接入地址；留空使用企业微信官方长连接地址
+wecom.descriptions.welcome_text: 成员或客户首次进入机器人单聊时自动回复的欢迎语，留空不发送
+wecom.descriptions.enabled: 启用后自动维持 WebSocket 长连接，停用后断开连接
 widget.invalid_user_token: 用户身份的签名无效或已过期
 widget.team_not_found: 团队收件箱不存在
 widget.invalid_origin: "“{{.origin}}”要写成 https:// 或 http:// 开头、只有域名的地址，例如 https://shop.example.com"

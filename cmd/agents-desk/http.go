@@ -42,6 +42,7 @@ import (
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
+	"agents-desk/internal/extgroup"
 	"agents-desk/internal/file"
 	"agents-desk/internal/flags"
 	"agents-desk/internal/hours"
@@ -61,6 +62,7 @@ import (
 	"agents-desk/internal/tgaccount"
 	"agents-desk/internal/tickettype"
 	"agents-desk/internal/translation"
+	"agents-desk/internal/wecom"
 	"agents-desk/internal/widget"
 	"agents-desk/locales"
 )
@@ -386,6 +388,8 @@ func (a *App) routes(pages http.Handler) chi.Router {
 			},
 		})
 		telegram.RegisterRoutes(api, require, a.db, a.crypt, a.telegram, a.cfg.HTTP.PublicURL)
+		wecom.RegisterRoutes(api, require, a.db, a.crypt, a.wecomBots)
+		extgroup.RegisterRoutes(api, require, a.db)
 		tgaccount.RegisterRoutes(api, require, a.tgAccounts)
 		var onTGChanged func()
 		if a.tgAccounts != nil {

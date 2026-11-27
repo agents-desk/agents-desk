@@ -46,7 +46,7 @@ func TestTelegramHTTPAndWebhook(t *testing.T) {
 		memberLogins: env.MemberLogins, memberTokens: apitoken.NewStore(env.DB, tokens),
 		contactTokens: apitoken.NewStore(env.DB, tokens), crypt: env.Crypt,
 		llmSettings: llm.NewGroup(env.DB, env.Crypt), files: env.Files, localDisk: env.Disk,
-		channels: registry(nil, env.Crypt, env.Files, tgClient, nil),
+		channels: registry(nil, env.Crypt, env.Files, tgClient, nil, nil),
 		telegram: tgClient,
 	}
 	h := a.routes(nil)

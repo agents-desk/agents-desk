@@ -63,6 +63,7 @@ import (
 	"agents-desk/internal/tenant"
 	"agents-desk/internal/tgaccount"
 	"agents-desk/internal/translation"
+	"agents-desk/internal/wecom"
 	"agents-desk/internal/widget"
 	"agents-desk/migrations"
 )
@@ -105,8 +106,10 @@ type App struct {
 	locker      *lock.Locker        // 多个实例之间的锁：协调翻译和自动化等任务的互斥执行
 
 	channels   channel.Registry   // 各种渠道的连接器
+	runners    []channel.Runner   // 长连接类渠道的后台运行器（如 Telegram 个人号、企业微信智能机器人）
 	telegram   *telegram.Client   // 调用 Telegram Bot API 的客户端
 	tgAccounts *tgaccount.Manager // 成员 Telegram 个人号（纯 Go MTProto）管理器
+	wecomBots  *wecom.Manager     // 企业微信智能机器人（WebSocket 长连接）管理器
 }
 
 // downstream 返回会话有变化时通知的下游：把发给对方的消息交给连接器发出，翻译收到的消息，提交后推送给能看到会话的成员，
@@ -114,10 +117,11 @@ type App struct {
 // 没有广播时（只构造路由的命令）两种推送都不做。
 func (a *App) downstream() conversation.Downstream {
 	down := conversation.Downstream{
-		Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic, translation.Topic, translation.TicketBroadcastTopic, automation.Topic},
-		Hub:    a.hub,
-		Roles:  a.roles,
-		Media:  conversation.Media{Files: a.files, Images: a.images},
+		Topics:   []queue.Topic[conversation.Appended]{conversation.DeliverTopic, translation.Topic, translation.TicketBroadcastTopic, automation.Topic},
+		Hub:      a.hub,
+		Roles:    a.roles,
+		Registry: a.channels,
+		Media:    conversation.Media{Files: a.files, Images: a.images},
 	}
 	if a.hub != nil {
 		down.ContactPush = widget.Push(a.hub)
@@ -226,10 +230,13 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	ops := operation.New(db)
 	exporter := exports.New(db, ops, files)
 
+	locker := lock.New(pglock.New(db))
 	tgClient := telegram.NewClient(outbound.New(outbound.Options{Timeout: 30 * time.Second}))
 	tgMgr := tgaccount.NewManager(db, keys, files, telegramSettings, nil)
+	tgMgr.SetLocker(locker)
 	bizGuard := business.NewPolicyGuard(db, businessPolicy, featureStore, telegramSettings)
 	tgMgr.SetPolicyChecker(bizGuard.CheckConnectTelegram)
+	wecomMgr := wecom.NewManager(db, keys, files, locker, nc)
 	tr := translation.NewTranslator(db, llm.NewClient(db, llmSettings, &http.Client{}), translationSettings)
 	tr.SetBusinessPolicy(businessPolicy)
 	app := &App{
@@ -245,17 +252,21 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		ops: ops, exporter: exporter,
 		// 模型网关不设固定整请求超时（由调用上下文控制），以便兼容流式 SSE 长响应及自托管网关地址。
 		translator: tr,
-		files:      files, images: images, defaultDisk: disks[cfg.Filesystem.DefaultDisk], localDisk: localDisk, locker: lock.New(pglock.New(db)),
-		channels:   registry(hub, keys, files, tgClient, tgMgr),
+		files:      files, images: images, defaultDisk: disks[cfg.Filesystem.DefaultDisk], localDisk: localDisk, locker: locker,
+		channels:   registry(hub, keys, files, tgClient, tgMgr, wecomMgr),
+		runners:    []channel.Runner{tgMgr, wecomMgr},
 		telegram:   tgClient,
 		tgAccounts: tgMgr,
+		wecomBots:  wecomMgr,
 	}
-	tgMgr.SetReceive(conversation.NewReceive(db, app.channels, app.downstream()))
+	recv := conversation.NewReceive(db, app.channels, app.downstream())
+	tgMgr.SetReceive(recv)
+	wecomMgr.SetReceive(recv)
 	return app, nil
 }
 
-// registry 返回各种渠道的连接器：内置测试渠道、网页聊天插件、个人网页商务沟通链接、Telegram 机器人和 Telegram 个人号。
-func registry(hub *broadcast.Hub, keys *crypt.Crypt, files *filesystem.Service, tgClient *telegram.Client, tgMgr *tgaccount.Manager) channel.Registry {
+// registry 返回各种渠道的连接器：内置测试渠道、网页聊天插件、个人网页商务沟通链接、Telegram 机器人、Telegram 个人号和企业微信智能机器人。
+func registry(hub *broadcast.Hub, keys *crypt.Crypt, files *filesystem.Service, tgClient *telegram.Client, tgMgr *tgaccount.Manager, wecomMgr *wecom.Manager) channel.Registry {
 	r := channel.DefaultRegistry()
 	widgetConn := widget.NewConnector(hub)
 	r[channel.Widget] = widgetConn
@@ -263,6 +274,9 @@ func registry(hub *broadcast.Hub, keys *crypt.Crypt, files *filesystem.Service, 
 	r[channel.Telegram] = telegram.NewConnector(keys, files, tgClient)
 	if tgMgr != nil {
 		r[channel.TelegramAccount] = tgMgr.Connector()
+	}
+	if wecomMgr != nil {
+		r[channel.WeCom] = wecomMgr.Connector()
 	}
 	return r
 }
@@ -294,8 +308,12 @@ func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
 	return func(ctx context.Context) error {
 		g, gctx := errgroup.WithContext(ctx)
 		g.Go(func() error { return w.Run(gctx) })
-		if a.tgAccounts != nil {
-			g.Go(func() error { return a.tgAccounts.Run(gctx) })
+		for _, runner := range a.runners {
+			if runner == nil {
+				continue
+			}
+			r := runner
+			g.Go(func() error { return r.Run(gctx) })
 		}
 		return g.Wait()
 	}, nil

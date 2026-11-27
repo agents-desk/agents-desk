@@ -65,7 +65,7 @@ func TestWidgetAPI(t *testing.T) {
 		memberLogins: env.MemberLogins, memberTokens: apitoken.NewStore(env.DB, tokens),
 		contactTokens: apitoken.NewStore(env.DB, tokens), crypt: env.Crypt,
 		llmSettings: llm.NewGroup(env.DB, env.Crypt), files: env.Files, localDisk: env.Disk,
-		channels: registry(hub, env.Crypt, env.Files, nil, nil),
+		channels: registry(hub, env.Crypt, env.Files, nil, nil, nil),
 	}
 	rt, err := a.newWidgetRealtime()
 	if err != nil {
@@ -339,7 +339,7 @@ func TestAttachmentsHTTP(t *testing.T) {
 		memberLogins: env.MemberLogins, memberTokens: apitoken.NewStore(env.DB, tokens),
 		contactTokens: apitoken.NewStore(env.DB, tokens), crypt: env.Crypt,
 		llmSettings: llm.NewGroup(env.DB, env.Crypt), files: env.Files, localDisk: env.Disk,
-		channels: registry(hub, env.Crypt, env.Files, nil, nil),
+		channels: registry(hub, env.Crypt, env.Files, nil, nil, nil),
 	}
 	h := a.routes(nil)
 
