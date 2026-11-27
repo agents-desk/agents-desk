@@ -907,13 +907,13 @@ func (m *Manager) recordStatus(ctx context.Context, tenantID, channelID string, 
 		_, err = m.db.NewRaw(`UPDATE channels
 			SET settings = jsonb_set(jsonb_set(jsonb_set(settings, '{status}', to_jsonb(?::text), true), '{last_error}', to_jsonb(?::text), true), '{last_connected_at}', to_jsonb(?::text), true),
 			    updated_at = ?
-			WHERE id = ? AND tenant_id = ?`,
+			WHERE id = ? AND tenant_id = ? AND enabled = TRUE`,
 			string(status), lastErr, nowUTC.Format(time.RFC3339Nano), nowUTC, channelID, tenantID).Exec(ctx)
 	} else {
 		_, err = m.db.NewRaw(`UPDATE channels
 			SET settings = jsonb_set(jsonb_set(settings, '{status}', to_jsonb(?::text), true), '{last_error}', to_jsonb(?::text), true),
 			    updated_at = ?
-			WHERE id = ? AND tenant_id = ?`,
+			WHERE id = ? AND tenant_id = ? AND enabled = TRUE`,
 			string(status), lastErr, nowUTC, channelID, tenantID).Exec(ctx)
 	}
 	if err != nil {

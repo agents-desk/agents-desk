@@ -1362,7 +1362,7 @@ func (m *Manager) recordStatus(ctx context.Context, tenantID, channelID string, 
 	_, err := m.db.NewRaw(`UPDATE channels
 		SET settings = jsonb_set(jsonb_set(settings, '{status}', to_jsonb(?::text), true), '{last_error}', to_jsonb(?::text), true),
 		    updated_at = ?
-		WHERE id = ? AND tenant_id = ?`,
+		WHERE id = ? AND tenant_id = ? AND enabled = TRUE AND COALESCE(settings->>'session_cipher', '') <> ''`,
 		string(status), lastErr, time.Now().UTC(), channelID, tenantID).Exec(ctx)
 	if err != nil {
 		slog.WarnContext(ctx, "update telegram account status", "channel_id", channelID, "error", err)
