@@ -22,13 +22,15 @@ import (
 
 // BusinessLinkDTO 是成员个人网页商务沟通链接的接口视图。
 type BusinessLinkDTO struct {
-	ID         string     `json:"id"`
-	Name       string     `json:"name" doc:"商务沟通链接名称，显示在对方打开的聊天窗口顶部"`
-	Appearance Appearance `json:"appearance" doc:"聊天窗口外观配置（主题色与问候语）"`
-	ChatURL    string     `json:"chat_url" doc:"发给外部商户直接打开的网页沟通地址"`
-	Enabled    bool       `json:"enabled" doc:"是否启用；停用后对方无法继续打开或发消息"`
-	CreatedAt  time.Time  `json:"created_at"`
-	UpdatedAt  time.Time  `json:"updated_at"`
+	ID         string                 `json:"id"`
+	Name       string                 `json:"name" doc:"商务沟通链接名称，显示在对方打开的聊天窗口顶部"`
+	PublicCode string                 `json:"public_code" doc:"网页商务链接的公开短码，用于 /c/{code} 访问"`
+	Appearance Appearance             `json:"appearance" doc:"聊天窗口外观配置（主题色与问候语）"`
+	Business   channel.BusinessPolicy `json:"business" doc:"通用商务策略（默认协作成员、自动标签与翻译覆写）"`
+	ChatURL    string                 `json:"chat_url" doc:"发给外部商户直接打开的网页沟通地址"`
+	Enabled    bool                   `json:"enabled" doc:"是否启用；停用后对方无法继续打开或发消息"`
+	CreatedAt  time.Time              `json:"created_at"`
+	UpdatedAt  time.Time              `json:"updated_at"`
 }
 
 // BusinessLinkOutput 是返回单个商务沟通链接的响应。
@@ -43,8 +45,9 @@ type BusinessLinkListOutput struct {
 
 // CreateBusinessLinkBody 是新建个人商务沟通链接的请求体。
 type CreateBusinessLinkBody struct {
-	Name       string     `json:"name" minLength:"1" maxLength:"60" doc:"链接名称，例如：Alex 商务合作专线"`
-	Appearance Appearance `json:"appearance,omitempty" doc:"聊天窗口外观配置"`
+	Name       string                  `json:"name" minLength:"1" maxLength:"60" doc:"链接名称，例如：Alex 商务合作专线"`
+	Appearance Appearance              `json:"appearance,omitempty" doc:"聊天窗口外观配置"`
+	Business   *channel.BusinessPolicy `json:"business,omitempty" doc:"可选：通用商务策略"`
 }
 
 // CreateBusinessLinkInput 是新建个人商务沟通链接的 HTTP 请求。
@@ -54,9 +57,10 @@ type CreateBusinessLinkInput struct {
 
 // UpdateBusinessLinkBody 是修改个人商务沟通链接的请求体。
 type UpdateBusinessLinkBody struct {
-	Name       string     `json:"name" minLength:"1" maxLength:"60"`
-	Appearance Appearance `json:"appearance,omitempty"`
-	Enabled    bool       `json:"enabled"`
+	Name       string                  `json:"name" minLength:"1" maxLength:"60"`
+	Appearance Appearance              `json:"appearance,omitempty"`
+	Business   *channel.BusinessPolicy `json:"business,omitempty"`
+	Enabled    bool                    `json:"enabled"`
 }
 
 // UpdateBusinessLinkInput 是修改个人商务沟通链接的 HTTP 请求。
@@ -82,10 +86,16 @@ func toBusinessLinkDTO(ch *channel.Channel, publicURL string) (BusinessLinkDTO, 
 	if err != nil {
 		return BusinessLinkDTO{}, err
 	}
+	code := ""
+	if ch.PublicCode != nil {
+		code = *ch.PublicCode
+	}
 	return BusinessLinkDTO{
 		ID:         ch.ID,
 		Name:       ch.Name,
+		PublicCode: code,
 		Appearance: s.appearance(),
+		Business:   channel.BusinessPolicyOf(ch.Settings),
 		ChatURL:    businessLinkURL(publicURL, ch.ID),
 		Enabled:    ch.Enabled,
 		CreatedAt:  ch.CreatedAt,
@@ -154,19 +164,29 @@ func (a *ListBusinessLinks) HTTP(ctx context.Context, _ *struct{}) (*BusinessLin
 
 // CreateBusinessLink 为当前成员新建一条个人网页商务沟通链接。
 type CreateBusinessLink struct {
-	db        *bun.DB
-	publicURL string
+	db         *bun.DB
+	publicURL  string
+	checkQuota func(ctx context.Context, sub identity.Subject) error
 }
 
-// NewCreateBusinessLink 返回新建个人商务沟通链接的动作。
-func NewCreateBusinessLink(db *bun.DB, publicURL string) *CreateBusinessLink {
-	return &CreateBusinessLink{db: db, publicURL: publicURL}
+// NewCreateBusinessLink 返回新建个人商务沟通链接的动作；可选传入配额与策略校验函数。
+func NewCreateBusinessLink(db *bun.DB, publicURL string, checkQuota ...func(ctx context.Context, sub identity.Subject) error) *CreateBusinessLink {
+	var fn func(ctx context.Context, sub identity.Subject) error
+	if len(checkQuota) > 0 {
+		fn = checkQuota[0]
+	}
+	return &CreateBusinessLink{db: db, publicURL: publicURL, checkQuota: fn}
 }
 
 // Handle 在 sub 所在工作区为 sub 新建一条启用中的个人网页商务沟通链接。
 func (a *CreateBusinessLink) Handle(ctx context.Context, sub identity.Subject, b CreateBusinessLinkBody) (*BusinessLinkDTO, error) {
 	if sub.Type != member.Type {
 		return nil, channel.ErrNotFound.New()
+	}
+	if a.checkQuota != nil {
+		if err := a.checkQuota(ctx, sub); err != nil {
+			return nil, err
+		}
 	}
 	appearance, err := normalizeAppearance(b.Appearance)
 	if err != nil {
@@ -176,7 +196,15 @@ func (a *CreateBusinessLink) Handle(ctx context.Context, sub identity.Subject, b
 	if err != nil {
 		return nil, err
 	}
+	if b.Business != nil {
+		bp, err := channel.NormalizeBusinessPolicy(*b.Business)
+		if err != nil {
+			return nil, err
+		}
+		settings = channel.SetBusinessPolicy(settings, bp)
+	}
 	ownerID := sub.ID
+	code := channel.GeneratePublicCode()
 	ch := &channel.Channel{
 		ID:            newID(),
 		TenantID:      sub.Tenant,
@@ -184,6 +212,7 @@ func (a *CreateBusinessLink) Handle(ctx context.Context, sub identity.Subject, b
 		Name:          strings.TrimSpace(b.Name),
 		Settings:      settings,
 		OwnerMemberID: &ownerID,
+		PublicCode:    &code,
 		Enabled:       true,
 	}
 	if _, err := a.db.NewInsert().Model(ch).Exec(ctx); err != nil {
@@ -240,6 +269,15 @@ func (a *UpdateBusinessLink) Handle(ctx context.Context, sub identity.Subject, i
 		settings, err := s.toMap()
 		if err != nil {
 			return err
+		}
+		if b.Business != nil {
+			bp, err := channel.NormalizeBusinessPolicy(*b.Business)
+			if err != nil {
+				return err
+			}
+			settings = channel.SetBusinessPolicy(settings, bp)
+		} else if existingBP := channel.BusinessPolicyOf(ch.Settings); len(existingBP.DefaultCollaboratorIDs) > 0 || len(existingBP.DefaultTagIDs) > 0 || existingBP.TranslationTone != "" || existingBP.AutoTranslate != nil {
+			settings = channel.SetBusinessPolicy(settings, existingBP)
 		}
 		ch.Name = strings.TrimSpace(b.Name)
 		ch.Enabled = b.Enabled
@@ -316,11 +354,11 @@ func (a *DeleteBusinessLink) HTTP(ctx context.Context, in *BusinessLinkIDInput) 
 }
 
 // RegisterBusinessLinkRoutes 在工作区 API（/t/{slug}/api）中注册成员个人网页商务沟通链接管理接口。
-func RegisterBusinessLinkRoutes(api *rest.API, require func(...auth.Permission) func(*huma.Operation), db *bun.DB, publicURL string) {
-	read := require(auth.ConversationsRead)
+func RegisterBusinessLinkRoutes(api *rest.API, require func(...auth.Permission) func(*huma.Operation), db *bun.DB, publicURL string, checkQuota ...func(ctx context.Context, sub identity.Subject) error) {
+	use := require(auth.BusinessChannelsUse)
 	route := func(id, method, path, summary string) huma.Operation {
 		op := huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary}
-		read(&op)
+		use(&op)
 		return op
 	}
 	createOp := route("business-link-create", http.MethodPost, "/my/business-links", "新建我的商务沟通链接")
@@ -329,7 +367,7 @@ func RegisterBusinessLinkRoutes(api *rest.API, require func(...auth.Permission) 
 	deleteOp.DefaultStatus = http.StatusNoContent
 
 	rest.Register(api, route("business-link-list", http.MethodGet, "/my/business-links", "我的商务沟通链接列表"), NewListBusinessLinks(db, publicURL).HTTP)
-	rest.Register(api, createOp, NewCreateBusinessLink(db, publicURL).HTTP)
+	rest.Register(api, createOp, NewCreateBusinessLink(db, publicURL, checkQuota...).HTTP)
 	rest.Register(api, route("business-link-update", http.MethodPut, "/my/business-links/{id}", "修改我的商务沟通链接"), NewUpdateBusinessLink(db, publicURL).HTTP)
 	rest.Register(api, deleteOp, NewDeleteBusinessLink(db).HTTP)
 }

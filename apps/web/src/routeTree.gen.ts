@@ -41,6 +41,7 @@ import { Route as TSlugSettingsTranslationRouteImport } from './routes/t/$slug/s
 import { Route as TSlugSettingsWorkspaceRouteImport } from './routes/t/$slug/settings/_workspace'
 import { Route as TSlugTicketsIndexRouteImport } from './routes/t/$slug/tickets/index'
 import { Route as TSlugTicketsIdRouteImport } from './routes/t/$slug/tickets/$id'
+import { Route as TSlugSettingsChannelsBusinessRouteImport } from './routes/t/$slug/settings/_channels/business'
 import { Route as TSlugSettingsChannelsTelegramsRouteImport } from './routes/t/$slug/settings/_channels/telegrams'
 import { Route as TSlugSettingsChannelsWidgetsRouteImport } from './routes/t/$slug/settings/_channels/widgets'
 import { Route as TSlugSettingsInboxAssignmentRouteImport } from './routes/t/$slug/settings/_inbox/assignment'
@@ -224,6 +225,12 @@ const TSlugTicketsIdRoute = TSlugTicketsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => TSlugTicketsRoute,
 } as any)
+const TSlugSettingsChannelsBusinessRoute =
+  TSlugSettingsChannelsBusinessRouteImport.update({
+    id: '/business',
+    path: '/business',
+    getParentRoute: () => TSlugSettingsChannelsRoute,
+  } as any)
 const TSlugSettingsChannelsTelegramsRoute =
   TSlugSettingsChannelsTelegramsRouteImport.update({
     id: '/telegrams',
@@ -412,6 +419,7 @@ export interface FileRoutesByFullPath {
   '/t/$slug/reports/': typeof TSlugReportsIndexRoute
   '/t/$slug/settings/': typeof TSlugSettingsIndexRoute
   '/t/$slug/tickets/': typeof TSlugTicketsIndexRoute
+  '/t/$slug/settings/business': typeof TSlugSettingsChannelsBusinessRoute
   '/t/$slug/settings/telegrams': typeof TSlugSettingsChannelsTelegramsRouteWithChildren
   '/t/$slug/settings/widgets': typeof TSlugSettingsChannelsWidgetsRouteWithChildren
   '/t/$slug/settings/assignment': typeof TSlugSettingsInboxAssignmentRoute
@@ -460,6 +468,7 @@ export interface FileRoutesByTo {
   '/t/$slug/inbox': typeof TSlugInboxIndexRoute
   '/t/$slug/reports': typeof TSlugReportsIndexRoute
   '/t/$slug/tickets': typeof TSlugTicketsIndexRoute
+  '/t/$slug/settings/business': typeof TSlugSettingsChannelsBusinessRoute
   '/t/$slug/settings/assignment': typeof TSlugSettingsInboxAssignmentRoute
   '/t/$slug/settings/business-hours': typeof TSlugSettingsInboxBusinessHoursRoute
   '/t/$slug/settings/macros': typeof TSlugSettingsInboxMacrosRoute
@@ -518,6 +527,7 @@ export interface FileRoutesById {
   '/t/$slug/reports/': typeof TSlugReportsIndexRoute
   '/t/$slug/settings/': typeof TSlugSettingsIndexRoute
   '/t/$slug/tickets/': typeof TSlugTicketsIndexRoute
+  '/t/$slug/settings/_channels/business': typeof TSlugSettingsChannelsBusinessRoute
   '/t/$slug/settings/_channels/telegrams': typeof TSlugSettingsChannelsTelegramsRouteWithChildren
   '/t/$slug/settings/_channels/widgets': typeof TSlugSettingsChannelsWidgetsRouteWithChildren
   '/t/$slug/settings/_inbox/assignment': typeof TSlugSettingsInboxAssignmentRoute
@@ -575,6 +585,7 @@ export interface FileRouteTypes {
     | '/t/$slug/reports/'
     | '/t/$slug/settings/'
     | '/t/$slug/tickets/'
+    | '/t/$slug/settings/business'
     | '/t/$slug/settings/telegrams'
     | '/t/$slug/settings/widgets'
     | '/t/$slug/settings/assignment'
@@ -623,6 +634,7 @@ export interface FileRouteTypes {
     | '/t/$slug/inbox'
     | '/t/$slug/reports'
     | '/t/$slug/tickets'
+    | '/t/$slug/settings/business'
     | '/t/$slug/settings/assignment'
     | '/t/$slug/settings/business-hours'
     | '/t/$slug/settings/macros'
@@ -680,6 +692,7 @@ export interface FileRouteTypes {
     | '/t/$slug/reports/'
     | '/t/$slug/settings/'
     | '/t/$slug/tickets/'
+    | '/t/$slug/settings/_channels/business'
     | '/t/$slug/settings/_channels/telegrams'
     | '/t/$slug/settings/_channels/widgets'
     | '/t/$slug/settings/_inbox/assignment'
@@ -940,6 +953,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/t/$slug/tickets/$id'
       preLoaderRoute: typeof TSlugTicketsIdRouteImport
       parentRoute: typeof TSlugTicketsRoute
+    }
+    '/t/$slug/settings/_channels/business': {
+      id: '/t/$slug/settings/_channels/business'
+      path: '/business'
+      fullPath: '/t/$slug/settings/business'
+      preLoaderRoute: typeof TSlugSettingsChannelsBusinessRouteImport
+      parentRoute: typeof TSlugSettingsChannelsRoute
     }
     '/t/$slug/settings/_channels/telegrams': {
       id: '/t/$slug/settings/_channels/telegrams'
@@ -1235,11 +1255,13 @@ const TSlugSettingsChannelsWidgetsRouteWithChildren =
   )
 
 interface TSlugSettingsChannelsRouteChildren {
+  TSlugSettingsChannelsBusinessRoute: typeof TSlugSettingsChannelsBusinessRoute
   TSlugSettingsChannelsTelegramsRoute: typeof TSlugSettingsChannelsTelegramsRouteWithChildren
   TSlugSettingsChannelsWidgetsRoute: typeof TSlugSettingsChannelsWidgetsRouteWithChildren
 }
 
 const TSlugSettingsChannelsRouteChildren: TSlugSettingsChannelsRouteChildren = {
+  TSlugSettingsChannelsBusinessRoute: TSlugSettingsChannelsBusinessRoute,
   TSlugSettingsChannelsTelegramsRoute:
     TSlugSettingsChannelsTelegramsRouteWithChildren,
   TSlugSettingsChannelsWidgetsRoute:

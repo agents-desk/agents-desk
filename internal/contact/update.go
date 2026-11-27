@@ -19,6 +19,7 @@ import (
 // UpdateBody 是修改联系人资料的请求体：只更新传入的非 nil 字段，支持资料页完整保存和侧栏单独保存备注。
 type UpdateBody struct {
 	Name     *string `json:"name,omitempty" maxLength:"120" doc:"名字"`
+	Company  *string `json:"company,omitempty" maxLength:"120" doc:"所属公司或组织名称"`
 	Email    *string `json:"email,omitempty" maxLength:"254" doc:"邮箱"`
 	Language *string `json:"language,omitempty" maxLength:"35" doc:"对方的语言（BCP 47）；传空字符串恢复自动识别"`
 	Location *string `json:"location,omitempty" maxLength:"120" doc:"所在地"`
@@ -94,6 +95,12 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 			v := strings.TrimSpace(*b.Name)
 			if v != c.Name {
 				c.Name, cols, props["name"] = v, append(cols, "name"), v
+			}
+		}
+		if b.Company != nil {
+			v := strings.TrimSpace(*b.Company)
+			if v != c.Company {
+				c.Company, cols, props["company"] = v, append(cols, "company"), v
 			}
 		}
 		if b.Email != nil && email != c.Email {

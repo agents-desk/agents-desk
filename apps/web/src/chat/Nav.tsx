@@ -3,7 +3,7 @@ import { NavLink, Text } from "@mantine/core"
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
 import { IconBriefcase, IconMessageCircle, IconMessages, IconPlus, IconUsersGroup } from "@tabler/icons-react"
-import { Fill, RailSection, useT } from "@go-tenon/ui"
+import { Fill, RailSection, useCan, useT } from "@go-tenon/ui"
 import type { ReactNode } from "react"
 import { kit } from "../api"
 import { NavCount } from "../components/nav-count"
@@ -35,11 +35,13 @@ export function ChatNav({
   onSelect: (next: ChatNavTarget) => void
 }): ReactNode {
   const t = useT()
+  const can = useCan()
+  const canUseBusiness = can("business-channels:use")
   const { slug } = useParams({ from: "/t/$slug" })
   const navigate = useNavigate()
   const unread = useQuery(kit.queries.chat.unread())
-  const businessLinks = useQuery(kit.queries.business.linkList())
-  const tgAccounts = useQuery(kit.queries.tgaccount.list())
+  const businessLinks = useQuery({ ...kit.queries.business.linkList(), enabled: canUseBusiness })
+  const tgAccounts = useQuery({ ...kit.queries.tgaccount.list(), enabled: canUseBusiness })
 
   const internalUnread = unread.data?.internal_unread_messages ?? 0
   const externalUnread = unread.data?.external_unread_messages ?? 0
@@ -119,7 +121,7 @@ export function ChatNav({
           )
         })}
 
-        {!businessLinks.isPending && !tgAccounts.isPending && !hasPersonalChannels && (
+        {canUseBusiness && !businessLinks.isPending && !tgAccounts.isPending && !hasPersonalChannels && (
           <NavLink
             label={
               <Text size="xs" c="dimmed">

@@ -47,9 +47,10 @@ type Appearance struct {
 
 // Settings 是聊天插件保存在渠道设置（channels.settings）中的内容。
 type Settings struct {
-	Appearance     Appearance `json:"appearance"`      // 聊天窗口的外观配置
-	AllowedOrigins []string   `json:"allowed_origins"` // 允许嵌入聊天窗口的网站，形如 https://shop.example.com；为空表示所有网站
-	IdentitySecret string     `json:"identity_secret"` // 身份验证密钥，用应用密钥加密保存；产品后端用明文签名用户身份
+	Appearance     Appearance             `json:"appearance"`         // 聊天窗口的外观配置
+	AllowedOrigins []string               `json:"allowed_origins"`    // 允许嵌入聊天窗口的网站，形如 https://shop.example.com；为空表示所有网站
+	IdentitySecret string                 `json:"identity_secret"`    // 身份验证密钥，用应用密钥加密保存；产品后端用明文签名用户身份
+	Business       channel.BusinessPolicy `json:"business,omitempty"` // 商务沟通链接通用的协作、标签与翻译策略
 }
 
 // settingsOf 读出渠道 ch 中聊天插件的设置。

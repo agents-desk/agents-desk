@@ -70,6 +70,7 @@ type Contact struct {
 	Number         int64          `bun:"number,notnull"` // 联系人在工作区内的递增编号，从 1 开始，创建后不变
 	Kind           Kind           `bun:"kind,notnull"`
 	Name           string         `bun:"name,notnull"`
+	Company        string         `bun:"company,notnull"` // 联系人所属公司或组织名称
 	Email          string         `bun:"email,notnull"`
 	ExternalUserID string         `bun:"external_user_id,notnull"` // 产品后端传来的用户编号；线索为空
 	Language       string         `bun:"language,notnull"`         // 客户的语言：按最近几条消息判断（conversation.CustomerLanguage），或者成员手动设置的
@@ -89,6 +90,7 @@ type Summary struct {
 	Number         int64          `json:"number" doc:"联系人在工作区内的递增编号，从 1 开始"`
 	Kind           Kind           `json:"kind"`
 	Name           string         `json:"name"`
+	Company        string         `json:"company,omitempty" doc:"所属公司或组织名称"`
 	Email          string         `json:"email"`
 	Language       string         `json:"language" doc:"客户的语言：按最近几条确定了语言的消息判断，或者成员手动设置的；还没有时为空"`
 	LanguageManual bool           `json:"language_manual" doc:"对方的语言是成员手动设置的：收到的消息不再改它"`
@@ -105,7 +107,7 @@ func (c *Contact) Summary() Summary {
 		attrs = map[string]any{}
 	}
 	return Summary{
-		ID: c.ID, Number: c.Number, Kind: c.Kind, Name: c.Name, Email: c.Email,
+		ID: c.ID, Number: c.Number, Kind: c.Kind, Name: c.Name, Company: c.Company, Email: c.Email,
 		Language: c.Language, LanguageManual: c.LanguageManual,
 		Location: c.Location, TimeZone: c.TimeZone,
 		Tags: []tag.Summary{}, Attributes: attrs,
@@ -126,6 +128,7 @@ type Identity struct {
 // Profile 是渠道告诉我们的联系人资料，新建或更新联系人时使用。Language、TimeZone 和 Referrer 由浏览器自动上报，不合法时忽略。
 type Profile struct {
 	Name     string
+	Company  string
 	Email    string
 	Language string
 	TimeZone string
@@ -157,7 +160,7 @@ func ResolveIdentity(ctx context.Context, tx bun.IDB, tenant, channelID, externa
 	}
 	c = &Contact{
 		ID: newID(), TenantID: tenant, Number: num, Kind: Lead,
-		Name: p.Name, Email: p.Email,
+		Name: strings.TrimSpace(p.Name), Company: strings.TrimSpace(p.Company), Email: strings.TrimSpace(p.Email),
 		Language: sanitizeLanguage(p.Language),
 		TimeZone: sanitizeTimeZone(p.TimeZone), Referrer: sanitizeReferrer(p.Referrer),
 		LastSeenAt: &at, Attributes: map[string]any{}, NotesDerived: map[string]any{},
@@ -308,9 +311,18 @@ func LinkUser(ctx context.Context, tx database.Tx, tenant, channelID, externalID
 	return MergeLead(ctx, tx, tenant, existing.ID, u.ID, "", "")
 }
 
-// applySessionMeta 把聊天插件上报的时区、来源页面写入已有联系人 c，并刷新最近活跃时间。
+// applySessionMeta 把聊天插件上报的时区、来源页面以及缺失的基础资料写入已有联系人 c，并刷新最近活跃时间。
 func applySessionMeta(ctx context.Context, tx bun.IDB, c *Contact, p Profile, at time.Time) error {
 	var changed []string
+	if name := strings.TrimSpace(p.Name); name != "" && c.Name == "" {
+		c.Name, changed = name, append(changed, "name")
+	}
+	if company := strings.TrimSpace(p.Company); company != "" && c.Company == "" {
+		c.Company, changed = company, append(changed, "company")
+	}
+	if email := strings.TrimSpace(p.Email); email != "" && c.Email == "" {
+		c.Email, changed = email, append(changed, "email")
+	}
 	if tz := sanitizeTimeZone(p.TimeZone); tz != "" && tz != c.TimeZone {
 		c.TimeZone, changed = tz, append(changed, "time_zone")
 	}

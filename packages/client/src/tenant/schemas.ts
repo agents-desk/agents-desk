@@ -51,6 +51,46 @@ export const schemas = {
     },
   },
   business: {
+    channelAddCollaborators: {
+      body: {
+        "$ref": "#/components/schemas/BusinessAddCollaboratorsBody"
+      },
+    },
+    channelList: {
+      query: {
+        "properties": {
+          "enabled": {
+            "enum": [
+              "",
+              "true",
+              "false"
+            ],
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "",
+              "business_link",
+              "telegram_account"
+            ],
+            "type": "string"
+          },
+          "owner_member_id": {
+            "type": "string"
+          },
+          "q": {
+            "maxLength": 100,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+    },
+    channelSetEnabled: {
+      body: {
+        "$ref": "#/components/schemas/BusinessSetEnabledInputBody"
+      },
+    },
     linkCreate: {
       body: {
         "$ref": "#/components/schemas/WidgetCreateBusinessLinkBody"
@@ -59,6 +99,11 @@ export const schemas = {
     linkUpdate: {
       body: {
         "$ref": "#/components/schemas/WidgetUpdateBusinessLinkBody"
+      },
+    },
+    policySave: {
+      body: {
+        "$ref": "#/components/schemas/BusinessPolicy"
       },
     },
   },
@@ -1372,6 +1417,124 @@ export const components = {
     ],
     "type": "object"
   },
+  BusinessAddCollaboratorsBody: {
+    "additionalProperties": false,
+    "properties": {
+      "add_to_default": {
+        "type": "boolean"
+      },
+      "apply_to_existing": {
+        "type": "boolean"
+      },
+      "member_ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 20,
+        "minItems": 1,
+        "type": "array"
+      }
+    },
+    "required": [
+      "member_ids",
+      "apply_to_existing",
+      "add_to_default"
+    ],
+    "type": "object"
+  },
+  BusinessPolicy: {
+    "additionalProperties": false,
+    "properties": {
+      "default_company_name": {
+        "maxLength": 80,
+        "type": "string"
+      },
+      "default_require_intake": {
+        "type": "boolean"
+      },
+      "default_translation_tone": {
+        "enum": [
+          "",
+          "friendly",
+          "neutral",
+          "formal"
+        ],
+        "type": "string"
+      },
+      "links_enabled": {
+        "type": "boolean"
+      },
+      "max_links_per_member": {
+        "format": "int64",
+        "maximum": 100,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "max_telegram_accounts_per_member": {
+        "format": "int64",
+        "maximum": 20,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "telegram_accounts_enabled": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "links_enabled",
+      "telegram_accounts_enabled",
+      "max_links_per_member",
+      "max_telegram_accounts_per_member",
+      "default_require_intake",
+      "default_company_name",
+      "default_translation_tone"
+    ],
+    "type": "object"
+  },
+  BusinessSetEnabledInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "enabled": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "enabled"
+    ],
+    "type": "object"
+  },
+  ChannelBusinessPolicy: {
+    "additionalProperties": false,
+    "properties": {
+      "auto_translate": {
+        "type": "boolean"
+      },
+      "default_collaborator_ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 20,
+        "type": "array"
+      },
+      "default_tag_ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 20,
+        "type": "array"
+      },
+      "translation_tone": {
+        "enum": [
+          "",
+          "friendly",
+          "neutral",
+          "formal"
+        ],
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
   ChatMode: {
     "enum": [
       "direct",
@@ -1455,6 +1618,10 @@ export const components = {
   ContactUpdateBody: {
     "additionalProperties": false,
     "properties": {
+      "company": {
+        "maxLength": 120,
+        "type": "string"
+      },
       "email": {
         "maxLength": 254,
         "type": "string"
@@ -2838,6 +3005,8 @@ export const components = {
       "members:manage",
       "teams:manage",
       "channels:manage",
+      "business-channels:use",
+      "business-channels:manage",
       "tenant-settings:manage"
     ],
     "type": "string"
@@ -3407,6 +3576,9 @@ export const components = {
       "appearance": {
         "$ref": "#/components/schemas/WidgetAppearance"
       },
+      "business": {
+        "$ref": "#/components/schemas/ChannelBusinessPolicy"
+      },
       "name": {
         "maxLength": 60,
         "minLength": 1,
@@ -3455,6 +3627,9 @@ export const components = {
     "properties": {
       "appearance": {
         "$ref": "#/components/schemas/WidgetAppearance"
+      },
+      "business": {
+        "$ref": "#/components/schemas/ChannelBusinessPolicy"
       },
       "enabled": {
         "type": "boolean"

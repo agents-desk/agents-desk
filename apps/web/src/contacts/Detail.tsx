@@ -428,6 +428,16 @@ function PropertiesSection({
         />
       </InspectorField>
 
+      <InspectorField label={t("contacts.company")} className="ct-field">
+        <InlineTextField
+          value={c.company}
+          placeholder={t("contacts.company_placeholder")}
+          maxLength={120}
+          editable={editable}
+          onSave={(company) => onUpdate({ company })}
+        />
+      </InspectorField>
+
       <InspectorField label={t("contacts.email")} className="ct-field">
         <InlineTextField
           value={c.email}

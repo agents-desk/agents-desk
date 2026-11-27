@@ -18,6 +18,8 @@ export type ContactKind = "user" | "lead"
 export interface ContactSummary {
   /** 联系人的自定义属性 */
   attributes: Record<string, unknown>
+  /** 所属公司或组织名称 */
+  company?: string
   email: string
   id: string
   kind: ContactKind

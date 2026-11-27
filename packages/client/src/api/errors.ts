@@ -41,8 +41,26 @@ export const AutomationErrors = {
   Forbidden: "automation.forbidden",
 } as const
 
+/** agents-desk/internal/business 的错误码。 */
+export const BusinessErrors = {
+  /** ErrFeatureDisabled 表示该商务渠道功能在平台或工作区层面已关闭。 */
+  FeatureDisabled: "business.feature_disabled",
+  /** ErrQuotaExceeded 表示当前成员的商务链接或 Telegram 个人号数量已达到工作区配额上限。 */
+  QuotaExceeded: "business.quota_exceeded",
+  /** ErrInvalidTone 表示商务默认翻译语气取值无效。 */
+  InvalidTone: "business.invalid_tone",
+  /** ErrInvalidMember 表示指定的协作成员不存在或不属于当前工作区。 */
+  InvalidMember: "business.invalid_member",
+} as const
+
 /** agents-desk/internal/channel 的错误码。 */
 export const ChannelErrors = {
+  /** ErrInvalidPublicCode 表示网页商务链接自定义短码格式无效。 */
+  InvalidPublicCode: "channel.invalid_public_code",
+  /** ErrPublicCodeTaken 表示网页商务链接短码已被其他渠道占用。 */
+  PublicCodeTaken: "channel.public_code_taken",
+  /** ErrInvalidTranslationTone 表示渠道翻译语气取值无效。 */
+  InvalidTranslationTone: "channel.invalid_translation_tone",
   /** ErrNotFound 是渠道不存在，或者属于别的工作区。 */
   NotFound: "channel.not_found",
   /** ErrDisabled 是渠道已停用，不再收发消息。 */

@@ -44,6 +44,8 @@ type ImpersonationInfo struct {
 type Profile struct {
 	ID            string               `json:"id"`
 	Name          string               `json:"name"`
+	Title         string               `json:"title" doc:"对外展示的头衔或职位，用于商务沟通名片"`
+	Bio           string               `json:"bio" doc:"对外展示的简短介绍，用于商务沟通名片"`
 	Email         string               `json:"email"`
 	AvatarFileID  string               `json:"avatar_file_id,omitempty" doc:"头像的文件 ID，修改个人资料时原样传回表示不换头像"`
 	AvatarURL     string               `json:"avatar_url" doc:"头像的地址；没有头像时为空"`
@@ -133,6 +135,8 @@ func loadProfile(ctx context.Context, db bun.IDB, logins *login.Realm, files *fi
 	p := &Profile{
 		ID:            m.ID,
 		Name:          m.Name,
+		Title:         m.Title,
+		Bio:           m.Bio,
 		Email:         email,
 		AvatarURL:     avatar,
 		Notifications: m.NotificationPreferences.Settings(),

@@ -27,31 +27,33 @@ const (
 	SystemRead             Permission = "system:read"              // 平台：查看运行环境自检报告
 	AuditRead              Permission = "audit:read"               // 平台：查看平台操作日志
 
-	MembersRead           Permission = "members:read"            // 工作区：查看成员
-	MembersManage         Permission = "members:manage"          // 工作区：添加成员、修改成员的角色、移出成员，新建、修改、删除角色
-	TenantSettingsManage  Permission = "tenant-settings:manage"  // 工作区：修改工作区的常规设置（名称）
-	TeamsRead             Permission = "teams:read"              // 工作区：查看团队收件箱和团队收件箱的成员
-	TeamsManage           Permission = "teams:manage"            // 工作区：新建、修改、删除团队收件箱，增减团队收件箱的成员
-	ChannelsRead          Permission = "channels:read"           // 工作区：查看工作区的渠道列表（名称与类型）
-	ChannelsManage        Permission = "channels:manage"         // 工作区：新建、修改、停用渠道，查看渠道的嵌入代码和身份验证密钥
-	MacrosManage          Permission = "macros:manage"           // 工作区：新建、修改、删除共享的快捷回复
-	ViewsManage           Permission = "views:manage"            // 工作区：新建、修改、删除和排序共享视图
-	ReportsRead           Permission = "reports:read"            // 工作区：查看工作区报表与统计数据
-	ConversationsRead     Permission = "conversations:read"      // 工作区：查看会话和时间线
-	ConversationsReply    Permission = "conversations:reply"     // 工作区：回复会话、写内部备注，处理看得到的会话（关闭、稍后处理、重新打开、优先级）
-	ConversationsAssign   Permission = "conversations:assign"    // 工作区：把会话改派给别人：指派别人负责的会话，或者把没有负责人的会话指派给别人、转到别的团队收件箱
-	ConversationsReadAll  Permission = "conversations:read-all"  // 工作区：会话的可见范围是全部会话
-	ConversationsReadTeam Permission = "conversations:read-team" // 工作区：会话的可见范围是所在团队收件箱的和指派给自己的
-	ContactsRead          Permission = "contacts:read"           // 工作区：查看联系人列表和资料
-	ContactsUpdate        Permission = "contacts:update"         // 工作区：修改联系人资料和备注
-	ContactsExport        Permission = "contacts:export"         // 工作区：导出联系人列表
-	TicketTypesManage     Permission = "ticket-types:manage"     // 工作区：新建、修改、排序、停用和删除工单类型及其自定义字段
+	MembersRead            Permission = "members:read"             // 工作区：查看成员
+	MembersManage          Permission = "members:manage"           // 工作区：添加成员、修改成员的角色、移出成员，新建、修改、删除角色
+	TenantSettingsManage   Permission = "tenant-settings:manage"   // 工作区：修改工作区的常规设置（名称）
+	TeamsRead              Permission = "teams:read"               // 工作区：查看团队收件箱和团队收件箱的成员
+	TeamsManage            Permission = "teams:manage"             // 工作区：新建、修改、删除团队收件箱，增减团队收件箱的成员
+	ChannelsRead           Permission = "channels:read"            // 工作区：查看工作区的渠道列表（名称与类型）
+	ChannelsManage         Permission = "channels:manage"          // 工作区：新建、修改、停用渠道，查看渠道的嵌入代码和身份验证密钥
+	BusinessChannelsUse    Permission = "business-channels:use"    // 工作区：创建并管理成员本人的个人商务渠道（商务沟通链接、Telegram 个人号）
+	BusinessChannelsManage Permission = "business-channels:manage" // 工作区：配置商务沟通策略、查看与治理全工作区成员的商务渠道
+	MacrosManage           Permission = "macros:manage"            // 工作区：新建、修改、删除共享的快捷回复
+	ViewsManage            Permission = "views:manage"             // 工作区：新建、修改、删除和排序共享视图
+	ReportsRead            Permission = "reports:read"             // 工作区：查看工作区报表与统计数据
+	ConversationsRead      Permission = "conversations:read"       // 工作区：查看会话和时间线
+	ConversationsReply     Permission = "conversations:reply"      // 工作区：回复会话、写内部备注，处理看得到的会话（关闭、稍后处理、重新打开、优先级）
+	ConversationsAssign    Permission = "conversations:assign"     // 工作区：把会话改派给别人：指派别人负责的会话，或者把没有负责人的会话指派给别人、转到别的团队收件箱
+	ConversationsReadAll   Permission = "conversations:read-all"   // 工作区：会话的可见范围是全部会话
+	ConversationsReadTeam  Permission = "conversations:read-team"  // 工作区：会话的可见范围是所在团队收件箱的和指派给自己的
+	ContactsRead           Permission = "contacts:read"            // 工作区：查看联系人列表和资料
+	ContactsUpdate         Permission = "contacts:update"          // 工作区：修改联系人资料和备注
+	ContactsExport         Permission = "contacts:export"          // 工作区：导出联系人列表
+	TicketTypesManage      Permission = "ticket-types:manage"      // 工作区：新建、修改、排序、停用和删除工单类型及其自定义字段
 )
 
 // Permissions 是全部权限，显示文字是翻译文件中 permission.<权限> 的消息。
 var Permissions = enum.New("permission", enum.Item(TenantsRead), enum.Item(TenantsManage), enum.Item(TenantsImpersonate), enum.Item(PlatformAdminsManage), enum.Item(PlatformSettingsManage),
 	enum.Item(FeaturesManage), enum.Item(QueueManage), enum.Item(SchedulesManage), enum.Item(SystemRead), enum.Item(AuditRead),
-	enum.Item(MembersRead), enum.Item(MembersManage), enum.Item(TenantSettingsManage), enum.Item(TeamsRead), enum.Item(TeamsManage), enum.Item(ChannelsRead), enum.Item(ChannelsManage), enum.Item(MacrosManage), enum.Item(ViewsManage), enum.Item(ReportsRead),
+	enum.Item(MembersRead), enum.Item(MembersManage), enum.Item(TenantSettingsManage), enum.Item(TeamsRead), enum.Item(TeamsManage), enum.Item(ChannelsRead), enum.Item(ChannelsManage), enum.Item(BusinessChannelsUse), enum.Item(BusinessChannelsManage), enum.Item(MacrosManage), enum.Item(ViewsManage), enum.Item(ReportsRead),
 	enum.Item(ConversationsRead), enum.Item(ConversationsReply), enum.Item(ConversationsAssign), enum.Item(ConversationsReadAll), enum.Item(ConversationsReadTeam),
 	enum.Item(ContactsRead), enum.Item(ContactsUpdate), enum.Item(ContactsExport), enum.Item(TicketTypesManage))
 
@@ -77,6 +79,8 @@ var Catalog = authz.Catalog{
 	{Name: string(TeamsManage), Description: "管理团队收件箱"},
 	{Name: string(ChannelsRead), Description: "查看渠道"},
 	{Name: string(ChannelsManage), Description: "管理渠道"},
+	{Name: string(BusinessChannelsUse), Description: "使用个人商务渠道"},
+	{Name: string(BusinessChannelsManage), Description: "管理工作区商务渠道"},
 	{Name: string(MacrosManage), Description: "管理共享的快捷回复"},
 	{Name: string(ViewsManage), Description: "管理共享视图"},
 	{Name: string(ReportsRead), Description: "查看报表"},
@@ -115,7 +119,7 @@ type TenantPermission string
 // TenantPermissions 是可以勾选的操作权限，显示文字是翻译文件中 role_permission.<权限> 的消息。前缀与 Permissions 不同：
 // 枚举在接口文档中按前缀命名，同一个前缀的两个枚举会被当成同一个类型，平台的权限就成了可以勾选的权限。
 var TenantPermissions = enum.New("role_permission",
-	enum.Item(TenantPermission(ConversationsAssign)), enum.Item(TenantPermission(MacrosManage)), enum.Item(TenantPermission(ViewsManage)), enum.Item(TenantPermission(ReportsRead)), enum.Item(TenantPermission(ContactsExport)), enum.Item(TenantPermission(TicketTypesManage)), enum.Item(TenantPermission(MembersManage)), enum.Item(TenantPermission(TeamsManage)), enum.Item(TenantPermission(ChannelsManage)), enum.Item(TenantPermission(TenantSettingsManage)))
+	enum.Item(TenantPermission(ConversationsAssign)), enum.Item(TenantPermission(MacrosManage)), enum.Item(TenantPermission(ViewsManage)), enum.Item(TenantPermission(ReportsRead)), enum.Item(TenantPermission(ContactsExport)), enum.Item(TenantPermission(TicketTypesManage)), enum.Item(TenantPermission(MembersManage)), enum.Item(TenantPermission(TeamsManage)), enum.Item(TenantPermission(ChannelsManage)), enum.Item(TenantPermission(BusinessChannelsUse)), enum.Item(TenantPermission(BusinessChannelsManage)), enum.Item(TenantPermission(TenantSettingsManage)))
 
 // Schema 让 OpenAPI 中的 TenantPermission 只接受上面的取值，并带有显示文字。
 func (TenantPermission) Schema(r huma.Registry) *huma.Schema {

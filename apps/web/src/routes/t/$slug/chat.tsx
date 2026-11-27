@@ -2,7 +2,7 @@ import type { ChatScope } from "@agents-desk/client/tenant"
 import { Box } from "@mantine/core"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, Outlet, useNavigate, useParams } from "@tanstack/react-router"
-import { Pane, preloadQueries, useNarrow } from "@go-tenon/ui"
+import { Pane, preloadQueries, useCan, useNarrow } from "@go-tenon/ui"
 import { useCallback, useMemo, useState } from "react"
 import "../../../inbox/inbox.css"
 import { kit } from "../../../api"
@@ -54,8 +54,10 @@ function ChatLayout() {
   const filter: ChatModeFilter = scope === "external" ? "all" : (search.filter ?? "all")
   const channelId = scope === "external" ? search.channel : undefined
 
-  const businessLinks = useQuery(kit.queries.business.linkList())
-  const tgAccounts = useQuery(kit.queries.tgaccount.list())
+  const can = useCan()
+  const canUseBusiness = can("business-channels:use")
+  const businessLinks = useQuery({ ...kit.queries.business.linkList(), enabled: canUseBusiness })
+  const tgAccounts = useQuery({ ...kit.queries.tgaccount.list(), enabled: canUseBusiness })
   const channelName = useMemo(() => {
     if (!channelId) return undefined
     const link = businessLinks.data?.find((x) => x.id === channelId)
@@ -113,7 +115,7 @@ function ChatLayout() {
             openId={id}
             open={open}
             onNewChat={() => setNewOpen(true)}
-            onManageBusinessChannels={goBusinessSettings}
+            onManageBusinessChannels={canUseBusiness ? goBusinessSettings : undefined}
           />
         </Pane>
       )}

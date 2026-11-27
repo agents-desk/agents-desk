@@ -54,6 +54,7 @@ type Channel struct {
 	Settings      map[string]any `bun:"settings,type:jsonb,notnull"` // 连接器的设置，内容由连接器决定
 	TeamID        *string        `bun:"team_id"`                     // 公共渠道新会话进入的团队收件箱；为空时进入未指派
 	OwnerMemberID *string        `bun:"owner_member_id"`             // 个人商务渠道所属的成员 ID；公共客服渠道为空
+	PublicCode    *string        `bun:"public_code"`                 // 网页商务链接的公开短码，用于 /c/{code} 访问；非商务链接为空
 	Enabled       bool           `bun:"enabled,notnull"`
 }
 

@@ -1,4 +1,4 @@
-import { Avatar, Button, FileButton, Group, PasswordInput, Stack, Tabs, Text, TextInput } from "@mantine/core"
+import { Avatar, Button, FileButton, Group, PasswordInput, Stack, Tabs, Text, Textarea, TextInput } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { applyServerErrors, FormError, LoadingStage, notifyError, notifySuccess, useSmoothTransition, useT } from "@go-tenon/ui"
@@ -31,11 +31,18 @@ export function ProfileTabs(): ReactNode {
   )
 }
 
-/** 头像和名字：选择图片后立即上传为临时文件，点“保存”后才换上。 */
-function BasicForm({ profile }: { profile: { name: string; avatar_file_id?: string; avatar_url: string } }): ReactNode {
+/** 头像、名字与商务名片：选择图片后立即上传为临时文件，点“保存”后才换上。 */
+function BasicForm({ profile }: { profile: { name: string; title?: string; bio?: string; avatar_file_id?: string; avatar_url: string } }): ReactNode {
   const queryClient = useQueryClient()
   const t = useT()
-  const form = useForm({ initialValues: { name: profile.name, avatar_file_id: profile.avatar_file_id ?? "" } })
+  const form = useForm({
+    initialValues: {
+      name: profile.name,
+      title: profile.title ?? "",
+      bio: profile.bio ?? "",
+      avatar_file_id: profile.avatar_file_id ?? "",
+    },
+  })
   const [preview, setPreview] = useState(profile.avatar_url)
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -59,7 +66,12 @@ function BasicForm({ profile }: { profile: { name: string; avatar_file_id?: stri
     setSaving(true)
     setError(undefined)
     try {
-      await api.auth.profileUpdate({ name: values.name, avatar_file_id: values.avatar_file_id || undefined })
+      await api.auth.profileUpdate({
+        name: values.name,
+        title: values.title,
+        bio: values.bio,
+        avatar_file_id: values.avatar_file_id || undefined,
+      })
       await queryClient.invalidateQueries({ queryKey: ["me"] })
       form.resetDirty()
       notifySuccess(t("common.saved"))
@@ -114,6 +126,23 @@ function BasicForm({ profile }: { profile: { name: string; avatar_file_id?: stri
           </Group>
         </Stack>
         <TextInput label={t("profile.name")} required maxLength={60} {...form.getInputProps("name")} />
+        <TextInput
+          label={t("profile.title")}
+          placeholder={t("profile.title_placeholder")}
+          description={t("profile.title_hint")}
+          maxLength={60}
+          {...form.getInputProps("title")}
+        />
+        <Textarea
+          label={t("profile.bio")}
+          placeholder={t("profile.bio_placeholder")}
+          description={t("profile.bio_hint")}
+          autosize
+          minRows={2}
+          maxRows={4}
+          maxLength={240}
+          {...form.getInputProps("bio")}
+        />
         <Group justify="flex-end">
           <Button type="submit" disabled={!dirty} loading={saving}>
             {t("common.save")}

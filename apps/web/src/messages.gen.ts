@@ -87,9 +87,13 @@ export const messages = {
     "business_channels.link_name_placeholder": "e.g. Alex Business Line",
     "business_channels.link_new": "New chat link",
     "business_channels.links_desc": "Share a dedicated web chat URL with external partners so they can message you directly without installing any app.",
+    "business_channels.links_disabled_desc": "Creating personal web business chat links is currently disabled at the workspace or platform level. Contact an administrator.",
+    "business_channels.links_disabled_title": "Web business links are disabled",
     "business_channels.links_empty": "No web business chat links yet",
     "business_channels.links_title": "Web business chat links",
     "business_channels.open_preview": "Open preview",
+    "business_channels.quota_badge": "Quota {{.used}} / {{.limit}}",
+    "business_channels.quota_reached": "Workspace limit per member reached (max {{.limit}})",
     "business_channels.tg_account_name": "Display name",
     "business_channels.tg_account_name_placeholder": "e.g. Sales TG #1 (defaults to Telegram profile name)",
     "business_channels.tg_back": "Back",
@@ -103,6 +107,8 @@ export const messages = {
     "business_channels.tg_dialogs_empty": "No matching Telegram DMs or groups found",
     "business_channels.tg_dialogs_failed": "Failed to load Telegram dialogs. Make sure the account is connected and retry.",
     "business_channels.tg_dialogs_search": "Search contact name, group title, or @username…",
+    "business_channels.tg_disabled_desc": "Connecting Telegram personal accounts is currently disabled at the workspace or platform level. Contact an administrator.",
+    "business_channels.tg_disabled_title": "Telegram personal accounts are disabled",
     "business_channels.tg_disconnect": "Disconnect",
     "business_channels.tg_disconnect_confirm": "Disconnect Telegram account “{{.name}}”?",
     "business_channels.tg_disconnect_message": "Message syncing will stop immediately and encrypted session credentials will be removed. Existing chat history stays in the workspace.",
@@ -139,6 +145,51 @@ export const messages = {
     "business_channels.tg_title": "Telegram personal accounts",
     "business_channels.tg_verify": "Verify",
     "business_channels.tg_waiting_scan": "Waiting for scan confirmation…",
+    "business_gov.action_collaborators": "Add collaborators",
+    "business_gov.col_channel": "Channel",
+    "business_gov.col_collaborators": "Default collaborators",
+    "business_gov.col_conversations": "Business chats",
+    "business_gov.col_detail": "Link / Connection",
+    "business_gov.col_owner": "Owner",
+    "business_gov.collab_add_default": "Also add to channel default collaborators for future chats",
+    "business_gov.collab_apply_existing": "Immediately add to all existing external business chats on this channel",
+    "business_gov.collab_members_label": "Collaborators",
+    "business_gov.collab_members_placeholder": "Search and select workspace members",
+    "business_gov.collab_modal_hint": "Useful for leave coverage, handover, or deal support. Selected colleagues will join business chats under this channel.",
+    "business_gov.collab_modal_title": "Add collaborators to “{{.name}}”",
+    "business_gov.collab_submit": "Add collaborators",
+    "business_gov.collab_success": "Added collaborators to {{.chats}} existing business chats",
+    "business_gov.collab_success_default_only": "Updated channel default collaborators",
+    "business_gov.collaborators_count": "{{.n}} members",
+    "business_gov.description": "Govern all members' web business links and Telegram personal accounts, configure workspace business defaults, quotas, and emergency collaborators.",
+    "business_gov.empty": "No members have created personal business channels yet",
+    "business_gov.filter_all_kinds": "All types",
+    "business_gov.filter_all_status": "All statuses",
+    "business_gov.peers_count": "{{.n}} synced chats",
+    "business_gov.platform_links_off": "Personal web business links are disabled by a platform feature flag for this workspace.",
+    "business_gov.platform_tg_off": "Telegram personal account sync is disabled by a platform feature flag for this workspace.",
+    "business_gov.policy_company_name": "Public company / brand name",
+    "business_gov.policy_company_name_placeholder": "Leave blank to use workspace name",
+    "business_gov.policy_links_enabled": "Allow personal web business links",
+    "business_gov.policy_links_enabled_hint": "When off, members cannot create new web business links; existing links stay intact",
+    "business_gov.policy_max_links": "Max web business links per member",
+    "business_gov.policy_max_links_hint": "Set 0 for unlimited",
+    "business_gov.policy_max_tg": "Max Telegram accounts per member",
+    "business_gov.policy_max_tg_hint": "Set 0 for unlimited",
+    "business_gov.policy_require_intake": "Enable pre-chat intake by default for new links",
+    "business_gov.policy_require_intake_hint": "New business links will prompt external partners for their name, company, or email",
+    "business_gov.policy_section_access": "Access \u0026 quotas",
+    "business_gov.policy_section_access_desc": "Control whether workspace members can create personal business channels and set per-member limits (requires the “Use personal business channels” role permission).",
+    "business_gov.policy_section_defaults": "Default card \u0026 reception baseline",
+    "business_gov.policy_section_defaults_desc": "Defaults inherited by new business channels and cross-language business replies.",
+    "business_gov.policy_tg_enabled": "Allow Telegram personal accounts",
+    "business_gov.policy_tg_enabled_hint": "When off, members cannot connect new Telegram personal accounts",
+    "business_gov.policy_translation_tone": "Default business translation tone",
+    "business_gov.policy_translation_tone_hint": "Default tone for outbound business replies; individual channels can override",
+    "business_gov.search_placeholder": "Search by channel name, member name, short code, or Telegram username…",
+    "business_gov.tab_overview": "Member channels",
+    "business_gov.tab_policy": "Policy \u0026 quotas",
+    "business_gov.tone_inherit": "Inherit workspace general translation tone",
     "business_hours.add_date": "Add date",
     "business_hours.closed": "Closed all day",
     "business_hours.date": "Date",
@@ -287,6 +338,8 @@ export const messages = {
     "contacts.col_location_lang": "Location \u0026 language",
     "contacts.col_preview": "Latest message",
     "contacts.col_status": "Status",
+    "contacts.company": "Company",
+    "contacts.company_placeholder": "Add company or organization",
     "contacts.conversations": "Conversations",
     "contacts.copied": "Copied",
     "contacts.copy": "Copy",
@@ -728,6 +781,7 @@ export const messages = {
     "nav.assignment": "Assignment",
     "nav.attributes": "Attributes",
     "nav.business_channels": "My business channels",
+    "nav.business_governance": "Business channels",
     "nav.chat": "Chat",
     "nav.contacts": "Contacts",
     "nav.general": "General",
@@ -782,6 +836,9 @@ export const messages = {
     "preferences.ui_language_hint": "Controls menus, buttons, and UI labels",
     "profile.avatar": "Avatar",
     "profile.avatar_hint": "PNG, JPEG or WebP, up to 2 MB",
+    "profile.bio": "Public bio",
+    "profile.bio_hint": "Short intro shown to external partners (up to 240 characters)",
+    "profile.bio_placeholder": "e.g. APAC partnerships and enterprise solutions. Usually replies within 2 hours on weekdays.",
     "profile.change_password": "Change password",
     "profile.confirm_password": "Confirm new password",
     "profile.current_password": "Current password",
@@ -793,6 +850,9 @@ export const messages = {
     "profile.remove": "Remove",
     "profile.tab_basic": "Basic info",
     "profile.tab_password": "Change password",
+    "profile.title": "Title / Role",
+    "profile.title_hint": "Shown on your public business card in personal business chat links",
+    "profile.title_placeholder": "e.g. Account Executive / BD Director",
     "profile.upload": "Upload image",
     "profile.upload_failed": "Upload failed",
     "prompt.collect_contact": "Leave your email so we can get back to you.",
@@ -1525,9 +1585,13 @@ export const messages = {
     "business_channels.link_name_placeholder": "例如：Alex 商务合作专线",
     "business_channels.link_new": "新建沟通链接",
     "business_channels.links_desc": "生成专属网页聊天地址发给外部合作伙伴，对方点击即可与你直接沟通，免安装应用。",
+    "business_channels.links_disabled_desc": "当前平台或工作区已关闭个人网页商务沟通链接创建权限，请联系管理员开启。",
+    "business_channels.links_disabled_title": "网页商务沟通链接暂未开启",
     "business_channels.links_empty": "还没有创建网页商务沟通链接",
     "business_channels.links_title": "网页商务沟通链接",
     "business_channels.open_preview": "打开测试",
+    "business_channels.quota_badge": "配额 {{.used}} / {{.limit}}",
+    "business_channels.quota_reached": "已达工作区单成员上限（{{.limit}} 个）",
     "business_channels.tg_account_name": "账号显示名称",
     "business_channels.tg_account_name_placeholder": "例如：商务一号（留空默认取 Telegram 昵称）",
     "business_channels.tg_back": "返回上一步",
@@ -1541,6 +1605,8 @@ export const messages = {
     "business_channels.tg_dialogs_empty": "没有找到匹配的 Telegram 单聊或群组",
     "business_channels.tg_dialogs_failed": "读取 Telegram 对话列表失败，请确认账号在线后重试。",
     "business_channels.tg_dialogs_search": "搜索联系人姓名、群聊标题或 @username…",
+    "business_channels.tg_disabled_desc": "当前平台或工作区已关闭 Telegram 个人号绑定权限，请联系管理员开启。",
+    "business_channels.tg_disabled_title": "Telegram 个人号同步暂未开启",
     "business_channels.tg_disconnect": "解绑账号",
     "business_channels.tg_disconnect_confirm": "解绑 Telegram 个人号“{{.name}}”？",
     "business_channels.tg_disconnect_message": "解绑后将立即停止收发消息并清除加密会话凭据，已有历史对话记录保留在工作台中。",
@@ -1577,6 +1643,51 @@ export const messages = {
     "business_channels.tg_title": "Telegram 个人号",
     "business_channels.tg_verify": "确认验证",
     "business_channels.tg_waiting_scan": "正在等待扫码确认…",
+    "business_gov.action_collaborators": "应急添加协作",
+    "business_gov.col_channel": "渠道",
+    "business_gov.col_collaborators": "默认协作",
+    "business_gov.col_conversations": "商务会话",
+    "business_gov.col_detail": "链接 / 连接状态",
+    "business_gov.col_owner": "归属成员",
+    "business_gov.collab_add_default": "同时写入渠道默认协作成员（后续新会话自动拉入）",
+    "business_gov.collab_apply_existing": "立即加入该渠道现有的全部外部商务会话",
+    "business_gov.collab_members_label": "选择协作成员",
+    "business_gov.collab_members_placeholder": "搜索并选择工作区成员",
+    "business_gov.collab_modal_hint": "用于成员请假、离职交接或重点项目支援，将同事加入该渠道的商务对话共同跟进。",
+    "business_gov.collab_modal_title": "为“{{.name}}”应急添加协作成员",
+    "business_gov.collab_submit": "确认添加",
+    "business_gov.collab_success": "已将协作成员加入 {{.chats}} 个现有商务会话",
+    "business_gov.collab_success_default_only": "已更新渠道默认协作成员",
+    "business_gov.collaborators_count": "{{.n}} 人",
+    "business_gov.description": "集中治理全工作区成员的网页商务链接与 Telegram 个人号，配置商务沟通默认策略、配额与应急协作。",
+    "business_gov.empty": "工作区中还没有成员创建个人商务渠道",
+    "business_gov.filter_all_kinds": "全部类型",
+    "business_gov.filter_all_status": "全部状态",
+    "business_gov.peers_count": "同步 {{.n}} 个对话",
+    "business_gov.platform_links_off": "平台管理员已关闭本工作区的「个人网页商务链接」功能开关，此处开启前需先由平台端放开。",
+    "business_gov.platform_tg_off": "平台管理员已关闭本工作区的「Telegram 个人号同步」功能开关。",
+    "business_gov.policy_company_name": "对外展示公司 / 品牌名",
+    "business_gov.policy_company_name_placeholder": "留空时默认展示工作区名称",
+    "business_gov.policy_links_enabled": "允许创建个人网页商务链接",
+    "business_gov.policy_links_enabled_hint": "关闭后成员无法新建网页商务链接，已有链接不受影响",
+    "business_gov.policy_max_links": "单成员网页商务链接上限",
+    "business_gov.policy_max_links_hint": "填 0 表示不限制数量",
+    "business_gov.policy_max_tg": "单成员 Telegram 个人号上限",
+    "business_gov.policy_max_tg_hint": "填 0 表示不限制数量",
+    "business_gov.policy_require_intake": "新建网页商务链接默认开启开场留资",
+    "business_gov.policy_require_intake_hint": "开启后，新建商务链接默认要求外部合作方开场填写称呼、公司或邮箱",
+    "business_gov.policy_section_access": "功能开关与配额",
+    "business_gov.policy_section_access_desc": "控制工作区成员能否创建个人商务渠道及单人数量上限（需同时在角色中勾选「使用个人商务渠道」权限）。",
+    "business_gov.policy_section_defaults": "默认名片与接待基线",
+    "business_gov.policy_section_defaults_desc": "成员新建商务链接或开展跨语言商务沟通时自动继承以下默认值。",
+    "business_gov.policy_tg_enabled": "允许绑定 Telegram 个人号",
+    "business_gov.policy_tg_enabled_hint": "关闭后成员无法新绑定 Telegram 个人号",
+    "business_gov.policy_translation_tone": "商务沟通默认翻译语气",
+    "business_gov.policy_translation_tone_hint": "对外商务沟通回复的默认译文语气，单个商务渠道可按需覆写",
+    "business_gov.search_placeholder": "搜索渠道名称、成员姓名、短码或 Telegram 用户名…",
+    "business_gov.tab_overview": "成员渠道总览",
+    "business_gov.tab_policy": "策略与配额",
+    "business_gov.tone_inherit": "继承工作区通用翻译语气",
     "business_hours.add_date": "添加日期",
     "business_hours.closed": "全天不上班",
     "business_hours.date": "日期",
@@ -1725,6 +1836,8 @@ export const messages = {
     "contacts.col_location_lang": "地区与语言",
     "contacts.col_preview": "最近消息",
     "contacts.col_status": "状态",
+    "contacts.company": "公司 / 组织",
+    "contacts.company_placeholder": "添加所属公司或组织",
     "contacts.conversations": "历史会话",
     "contacts.copied": "已复制",
     "contacts.copy": "复制",
@@ -2166,6 +2279,7 @@ export const messages = {
     "nav.assignment": "指派",
     "nav.attributes": "属性",
     "nav.business_channels": "我的商务渠道",
+    "nav.business_governance": "商务渠道",
     "nav.chat": "聊天",
     "nav.contacts": "联系人",
     "nav.general": "常规",
@@ -2220,6 +2334,9 @@ export const messages = {
     "preferences.ui_language_hint": "控制导航、按钮和提示文字的显示语言",
     "profile.avatar": "头像",
     "profile.avatar_hint": "PNG、JPEG 或 WebP，不超过 2 MB",
+    "profile.bio": "对外简介",
+    "profile.bio_hint": "向外部合作方简短介绍你的职责与沟通预期（最多 240 字）",
+    "profile.bio_placeholder": "例如：负责亚太区渠道合作与定制方案对接，工作日 2 小时内回复。",
     "profile.change_password": "修改密码",
     "profile.confirm_password": "再输入一次新密码",
     "profile.current_password": "当前密码",
@@ -2231,6 +2348,9 @@ export const messages = {
     "profile.remove": "移除",
     "profile.tab_basic": "基本资料",
     "profile.tab_password": "修改密码",
+    "profile.title": "头衔 / 职位",
+    "profile.title_hint": "展示在个人网页商务沟通链接的对外名片中",
+    "profile.title_placeholder": "例如：大客户经理 / 商务总监",
     "profile.upload": "上传图片",
     "profile.upload_failed": "上传失败",
     "prompt.collect_contact": "请留下你的邮箱，方便我们后续联系你。",
@@ -2966,9 +3086,13 @@ export type MessageId =
   | "business_channels.link_name_placeholder"
   | "business_channels.link_new"
   | "business_channels.links_desc"
+  | "business_channels.links_disabled_desc"
+  | "business_channels.links_disabled_title"
   | "business_channels.links_empty"
   | "business_channels.links_title"
   | "business_channels.open_preview"
+  | "business_channels.quota_badge"
+  | "business_channels.quota_reached"
   | "business_channels.tg_account_name"
   | "business_channels.tg_account_name_placeholder"
   | "business_channels.tg_back"
@@ -2982,6 +3106,8 @@ export type MessageId =
   | "business_channels.tg_dialogs_empty"
   | "business_channels.tg_dialogs_failed"
   | "business_channels.tg_dialogs_search"
+  | "business_channels.tg_disabled_desc"
+  | "business_channels.tg_disabled_title"
   | "business_channels.tg_disconnect"
   | "business_channels.tg_disconnect_confirm"
   | "business_channels.tg_disconnect_message"
@@ -3018,6 +3144,51 @@ export type MessageId =
   | "business_channels.tg_title"
   | "business_channels.tg_verify"
   | "business_channels.tg_waiting_scan"
+  | "business_gov.action_collaborators"
+  | "business_gov.col_channel"
+  | "business_gov.col_collaborators"
+  | "business_gov.col_conversations"
+  | "business_gov.col_detail"
+  | "business_gov.col_owner"
+  | "business_gov.collab_add_default"
+  | "business_gov.collab_apply_existing"
+  | "business_gov.collab_members_label"
+  | "business_gov.collab_members_placeholder"
+  | "business_gov.collab_modal_hint"
+  | "business_gov.collab_modal_title"
+  | "business_gov.collab_submit"
+  | "business_gov.collab_success"
+  | "business_gov.collab_success_default_only"
+  | "business_gov.collaborators_count"
+  | "business_gov.description"
+  | "business_gov.empty"
+  | "business_gov.filter_all_kinds"
+  | "business_gov.filter_all_status"
+  | "business_gov.peers_count"
+  | "business_gov.platform_links_off"
+  | "business_gov.platform_tg_off"
+  | "business_gov.policy_company_name"
+  | "business_gov.policy_company_name_placeholder"
+  | "business_gov.policy_links_enabled"
+  | "business_gov.policy_links_enabled_hint"
+  | "business_gov.policy_max_links"
+  | "business_gov.policy_max_links_hint"
+  | "business_gov.policy_max_tg"
+  | "business_gov.policy_max_tg_hint"
+  | "business_gov.policy_require_intake"
+  | "business_gov.policy_require_intake_hint"
+  | "business_gov.policy_section_access"
+  | "business_gov.policy_section_access_desc"
+  | "business_gov.policy_section_defaults"
+  | "business_gov.policy_section_defaults_desc"
+  | "business_gov.policy_tg_enabled"
+  | "business_gov.policy_tg_enabled_hint"
+  | "business_gov.policy_translation_tone"
+  | "business_gov.policy_translation_tone_hint"
+  | "business_gov.search_placeholder"
+  | "business_gov.tab_overview"
+  | "business_gov.tab_policy"
+  | "business_gov.tone_inherit"
   | "business_hours.add_date"
   | "business_hours.closed"
   | "business_hours.date"
@@ -3166,6 +3337,8 @@ export type MessageId =
   | "contacts.col_location_lang"
   | "contacts.col_preview"
   | "contacts.col_status"
+  | "contacts.company"
+  | "contacts.company_placeholder"
   | "contacts.conversations"
   | "contacts.copied"
   | "contacts.copy"
@@ -3607,6 +3780,7 @@ export type MessageId =
   | "nav.assignment"
   | "nav.attributes"
   | "nav.business_channels"
+  | "nav.business_governance"
   | "nav.chat"
   | "nav.contacts"
   | "nav.general"
@@ -3661,6 +3835,9 @@ export type MessageId =
   | "preferences.ui_language_hint"
   | "profile.avatar"
   | "profile.avatar_hint"
+  | "profile.bio"
+  | "profile.bio_hint"
+  | "profile.bio_placeholder"
   | "profile.change_password"
   | "profile.confirm_password"
   | "profile.current_password"
@@ -3672,6 +3849,9 @@ export type MessageId =
   | "profile.remove"
   | "profile.tab_basic"
   | "profile.tab_password"
+  | "profile.title"
+  | "profile.title_hint"
+  | "profile.title_placeholder"
   | "profile.upload"
   | "profile.upload_failed"
   | "prompt.collect_contact"
