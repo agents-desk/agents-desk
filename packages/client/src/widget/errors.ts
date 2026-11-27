@@ -171,6 +171,8 @@ export const ConversationErrors = {
   MessageNotEditable: "conversation.message_not_editable",
   /** ErrMessageEditWindow 是超过了可以编辑已发出消息的时间。 */
   MessageEditWindow: "conversation.message_edit_window",
+  /** ErrMessageRecallWindow 是超过了可以撤回已发出消息的时间。 */
+  MessageRecallWindow: "conversation.message_recall_window",
   /** ErrNotFailed 是要重发的消息没有发送失败：还在发送中，或者已经送达。 */
   NotFailed: "conversation.not_failed",
 } as const

@@ -85,6 +85,10 @@ type ItemDTO struct {
 	Revision int `json:"revision,omitempty" doc:"编辑次数；0 表示没有编辑过"`
 	// EditedAt 是最近一次编辑的时间
 	EditedAt *time.Time `json:"edited_at,omitempty" doc:"最近一次编辑的时间"`
+	// Recalled 表示消息已撤回：正文、附件和译文不再返回
+	Recalled bool `json:"recalled,omitempty" doc:"消息已撤回；正文和附件不再返回"`
+	// RecalledAt 是撤回的时间
+	RecalledAt *time.Time `json:"recalled_at,omitempty" doc:"撤回时间"`
 }
 
 // ItemOutput 是返回时间线一项的响应。
@@ -190,6 +194,20 @@ func toItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Item) ([]I
 	for _, r := range revisions {
 		latestRevision[r.ItemID] = r
 	}
+	// 撤回的消息只返回撤回状态，正文、附件和译文都不再给出
+	type recallRow struct {
+		ItemID    string    `bun:"item_id"`
+		CreatedAt time.Time `bun:"created_at"`
+	}
+	var recalls []recallRow
+	if err := db.NewRaw(`SELECT item_id, created_at FROM message_recalls WHERE item_id IN (?)`, bun.In(ids)).
+		Scan(ctx, &recalls); err != nil {
+		return nil, errors.Wrap(err, "load message recalls")
+	}
+	recalledAt := make(map[string]time.Time, len(recalls))
+	for _, r := range recalls {
+		recalledAt[r.ItemID] = r.CreatedAt
+	}
 	for i, it := range items {
 		actor := Actor{Type: it.ActorType, ID: it.ActorID}
 		switch it.ActorType {
@@ -219,6 +237,15 @@ func toItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Item) ([]I
 			out[i].Revision = rev.Revision
 			editedAt := rev.CreatedAt
 			out[i].EditedAt = &editedAt
+		}
+		if at, ok := recalledAt[it.ID]; ok {
+			out[i].Recalled = true
+			recalled := at
+			out[i].RecalledAt = &recalled
+			out[i].Content = Content{}
+			out[i].Attachments = nil
+			out[i].Derived = map[string]any{}
+			out[i].Delivery = nil
 		}
 	}
 	return out, nil

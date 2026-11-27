@@ -29,7 +29,7 @@ import {
 import { useOs } from "@mantine/hooks"
 import { notifications } from "@mantine/notifications"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { IconLayoutSidebarRight, IconLock, IconPaperclip, IconPencil, IconUsersGroup } from "@tabler/icons-react"
+import { IconArrowBackUp, IconLayoutSidebarRight, IconLock, IconPaperclip, IconPencil, IconUsersGroup } from "@tabler/icons-react"
 import {
   AsidePane,
   ImageLightbox,
@@ -464,8 +464,19 @@ function ChatBubble({
     },
     onError: (err) => notifyError(err),
   })
-  // 只编辑不对客户发出的内容：内部聊天的消息和内部备注；发给客户的消息要等更正流程
+  // 只编辑、撤回不对客户发出的内容：内部聊天的消息和内部备注；发给客户的消息要等更正流程
   const editable = isOwn && it.actor.type === "member" && (chat.scope === "internal" || it.kind === "note")
+  const recalled = Boolean(it.recalled)
+  const [recalling, setRecalling] = useState(false)
+  const recall = useMutation({
+    mutationFn: () => tenantApi.conversation.itemRecall(chat.id, it.id),
+    onSuccess: () => {
+      setRecalling(false)
+      void queryClient.invalidateQueries({ queryKey: kit.queries.chat.key() })
+      void queryClient.invalidateQueries({ queryKey: [...kit.queries.conversation.key(), "timeline", chat.id] })
+    },
+    onError: (err) => notifyError(err),
+  })
 
   const retry = useMutation({
     mutationFn: () => tenantApi.conversation.retry(chat.id, it.id),
@@ -482,7 +493,13 @@ function ChatBubble({
   const translated = translatableForViewer ? translationOf(it, lang) : undefined
   const sentAs = isExternal && mine && it.content.original ? it.content.language : undefined
   const verified = !sentAs && isOwn ? verifiedTranslationOf(it) : undefined
-  const shown = translated && !showOriginal ? translated : sentAs ? (it.content.original ?? "") : raw
+  const shown = recalled
+    ? t("inbox.message_recalled")
+    : translated && !showOriginal
+      ? translated
+      : sentAs
+        ? (it.content.original ?? "")
+        : raw
   const fromLang = it.derived.language as string | undefined
   const needFill = translatableForViewer && translating && it.untranslated
 
@@ -532,7 +549,7 @@ function ChatBubble({
     <>
     <MessageBubble
       conversationId={chat.id}
-      attachments={it.attachments}
+      attachments={recalled ? undefined : it.attachments}
       seq={it.seq}
       watchRef={needFill ? watch(it.id) : undefined}
       mine={mine}
@@ -547,25 +564,39 @@ function ChatBubble({
       mentions
       original={Boolean(translated && showOriginal)}
       expandedTranslation={expandedTranslation}
-      caption={caption}
-      footerExtra={deliveryNode}
-      edited={Boolean(it.revision)}
+      caption={recalled ? undefined : caption}
+      footerExtra={recalled ? undefined : deliveryNode}
+      copyValue={recalled ? "" : undefined}
+      edited={Boolean(it.revision) && !recalled}
       extraActions={
-        editable ? (
-          <Tooltip label={t("inbox.message_edit")}>
-            <ActionIcon
-              size="xs"
-              variant="subtle"
-              color="gray"
-              aria-label={t("inbox.message_edit")}
-              onClick={() => {
-                setEditText(it.content.text ?? "")
-                setEditing(true)
-              }}
-            >
-              <IconPencil size={12} />
-            </ActionIcon>
-          </Tooltip>
+        editable && !recalled ? (
+          <Group gap={2} wrap="nowrap">
+            <Tooltip label={t("inbox.message_edit")}>
+              <ActionIcon
+                size="xs"
+                variant="subtle"
+                color="gray"
+                aria-label={t("inbox.message_edit")}
+                onClick={() => {
+                  setEditText(it.content.text ?? "")
+                  setEditing(true)
+                }}
+              >
+                <IconPencil size={12} />
+              </ActionIcon>
+            </Tooltip>
+            <Tooltip label={t("inbox.message_recall")}>
+              <ActionIcon
+                size="xs"
+                variant="subtle"
+                color="gray"
+                aria-label={t("inbox.message_recall")}
+                onClick={() => setRecalling(true)}
+              >
+                <IconArrowBackUp size={12} />
+              </ActionIcon>
+            </Tooltip>
+          </Group>
         ) : undefined
       }
       onPreview={onPreview}
@@ -585,6 +616,17 @@ function ChatBubble({
         </Button>
         <Button onClick={() => edit.mutate(editText.trim())} loading={edit.isPending} disabled={!editText.trim()}>
           {t("inbox.message_edit_save")}
+        </Button>
+      </Group>
+    </Modal>
+    <Modal opened={recalling} onClose={() => setRecalling(false)} title={t("inbox.message_recall_title")} centered>
+      <Text size="sm">{t("inbox.message_recall_confirm")}</Text>
+      <Group justify="flex-end" mt="md">
+        <Button variant="default" onClick={() => setRecalling(false)}>
+          {t("inbox.cancel")}
+        </Button>
+        <Button color="red" onClick={() => recall.mutate()} loading={recall.isPending}>
+          {t("inbox.message_recall")}
         </Button>
       </Group>
     </Modal>
