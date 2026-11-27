@@ -30,7 +30,7 @@ type TenantMember struct {
 	Name      string   `json:"name"`
 	Email     string   `json:"email"`
 	AvatarURL string   `json:"avatar_url" doc:"头像的地址；没有头像时为空"`
-	Language  Language `json:"language" doc:"成员偏好的界面与翻译语言"`
+	Language  Language `json:"language" doc:"成员的沟通与译文偏好语言（BCP 47）"`
 	RoleID    string   `json:"role_id" format:"uuid" doc:"角色的 ID"`
 	RoleName  string   `json:"role_name" doc:"角色的名称"`
 	Owner     bool     `json:"owner" doc:"是不是主管理员：主管理员那一行不能修改角色、不能移出"`

@@ -26,6 +26,7 @@ export const resources = {
     columns: [
       { name: "name", type: "string", required: true },
       { name: "email", type: "string", required: true },
+      { name: "language", type: "string", required: true },
       { name: "role_name", type: "string", required: true },
       { name: "status", type: "string", enum: "MemberStatus", required: true },
     ],
@@ -37,6 +38,7 @@ export const resources = {
       { name: "email", type: "string", format: "email", required: true },
       { name: "name", type: "string" },
       { name: "password", type: "string" },
+      { name: "language", type: "string" },
       { name: "role_id", type: "string", format: "uuid", ref: "role", required: true },
     ],
     updateForm: [
@@ -50,12 +52,12 @@ export const resources = {
     labels: {
       "en": {
         title: "Members",
-        fields: { name: "Name", email: "Email", role_name: "Role", status: "Status", role_id: "Role", password: "Initial password" },
+        fields: { name: "Name", email: "Email", language: "Language", role_name: "Role", status: "Status", role_id: "Role", password: "Initial password" },
         actions: { away: "Set to away", remove: "Remove" },
       },
       "zh-CN": {
         title: "成员",
-        fields: { name: "名字", email: "邮箱", role_name: "角色", status: "在线状态", role_id: "角色", password: "初始密码" },
+        fields: { name: "名字", email: "邮箱", language: "沟通语言", role_name: "角色", status: "在线状态", role_id: "角色", password: "初始密码" },
         actions: { away: "设为离开", remove: "移出" },
       },
     },

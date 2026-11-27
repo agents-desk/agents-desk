@@ -2,6 +2,8 @@ package contact
 
 import (
 	"context"
+	"database/sql"
+	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -10,6 +12,7 @@ import (
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/channel"
+	"agents-desk/internal/lang"
 )
 
 // ContactDTO 是接口中的联系人概要信息，用于联系人列表和资料页。
@@ -26,6 +29,9 @@ type ContactDTO struct {
 	TimeZone          string         `json:"time_zone" doc:"IANA 时区名，用于显示对方的当地时间"`
 	Referrer          string         `json:"referrer" doc:"首次访问的来源页面"`
 	Notes             string         `json:"notes" doc:"成员填写的联系人备注，跨会话持久可见"`
+	NotesLanguage     string         `json:"notes_language,omitempty" doc:"联系人备注识别出的源语言（BCP 47）"`
+	NotesTranslated   string         `json:"notes_translated,omitempty" doc:"当前查看成员语言的联系人备注译文；同语言或暂无时为空"`
+	NotesUntranslated bool           `json:"notes_untranslated,omitempty" doc:"联系人备注对当前查看成员是否还缺译文"`
 	Attributes        map[string]any `json:"attributes" doc:"自定义属性"`
 	ConversationCount int            `json:"conversation_count" doc:"当前成员可见的该联系人会话数"`
 	LastSeenAt        *time.Time     `json:"last_seen_at,omitempty" doc:"最近活跃或联系的时间"`
@@ -78,21 +84,65 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, rows []Contac
 	for _, r := range counts {
 		byID[r.ContactID] = r.Count
 	}
+	viewerLang, err := memberLanguageOf(ctx, db, sub)
+	if err != nil {
+		return nil, err
+	}
 	for i := range rows {
 		c := &rows[i]
 		attrs := c.Attributes
 		if attrs == nil {
 			attrs = map[string]any{}
 		}
+		notesLang, notesTr, notesUntranslated := resolveNotesTranslation(c.Notes, c.NotesDerived, viewerLang)
 		out[i] = ContactDTO{
 			ID: c.ID, Number: c.Number, Kind: c.Kind, Name: c.Name, Email: c.Email, ExternalUserID: c.ExternalUserID,
 			Language: c.Language, LanguageManual: c.LanguageManual,
 			Location: c.Location, TimeZone: c.TimeZone, Referrer: c.Referrer, Notes: c.Notes,
+			NotesLanguage: notesLang, NotesTranslated: notesTr, NotesUntranslated: notesUntranslated,
 			Attributes: attrs, ConversationCount: byID[c.ID],
 			LastSeenAt: c.LastSeenAt, CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
 		}
 	}
 	return out, nil
+}
+
+// memberLanguageOf 返回成员 sub 的沟通语言；不是成员时返回空字符串。
+func memberLanguageOf(ctx context.Context, db bun.IDB, sub identity.Subject) (string, error) {
+	if sub.Type != "member" || sub.ID == "" {
+		return "", nil
+	}
+	var l string
+	err := db.NewSelect().Table("members").Column("language").Where("id = ?", sub.ID).Scan(ctx, &l)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return l, errors.Wrap(err, "load member language for contact dto")
+}
+
+// resolveNotesTranslation 从联系人备注派生字段中提取源语言、viewerLang 译文与是否缺译文标记。
+func resolveNotesTranslation(notes string, derived map[string]any, viewerLang string) (source, translated string, untranslated bool) {
+	if strings.TrimSpace(notes) == "" {
+		return "", "", false
+	}
+	source, _ = derived["language"].(string)
+	if viewerLang == "" || source == "und" {
+		return source, "", false
+	}
+	if source != "" && lang.Same(source, viewerLang) {
+		return source, "", false
+	}
+	if trMap, _ := derived["translations"].(map[string]any); len(trMap) > 0 {
+		if v, ok := trMap[viewerLang].(string); ok && v != "" {
+			return source, v, false
+		}
+		for k, raw := range trMap {
+			if v, ok := raw.(string); ok && v != "" && lang.Same(k, viewerLang) {
+				return source, v, false
+			}
+		}
+	}
+	return source, "", true
 }
 
 // loadDetail 读取 sub 所在工作区中联系人 c 的完整资料（含渠道身份和 sub 可见的会话数）。

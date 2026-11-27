@@ -723,6 +723,7 @@ export const messages = {
     "macros.var_contact_name": "Contact name",
     "macros.var_empty": "No matching variables",
     "macros.var_member_name": "Current member name",
+    "members.language_hint": "Working and translation language for this member (e.g. zh-CN, en, hi-Latn, pt-BR). They can change it later in Preferences",
     "members.password_hint": "Required when this email has no account yet. Share it with the person yourself",
     "nav.assignment": "Assignment",
     "nav.attributes": "Attributes",
@@ -768,8 +769,8 @@ export const messages = {
     "notifications_page.request_permission": "Enable browser notifications",
     "notifications_page.test_sound": "Test sound",
     "preferences.follow_browser": "Follow the browser (currently {{.zone}})",
-    "preferences.language": "Language",
-    "preferences.language_hint": "The interface language. Customer messages are also translated into this language",
+    "preferences.language": "Working \u0026 translation language",
+    "preferences.language_hint": "Messages, tickets, and notes in other languages are translated into this language, and back-translations use it",
     "preferences.no_time_zone": "No such time zone",
     "preferences.open_next_after_reply": "Open next waiting conversation after replying",
     "preferences.open_next_after_reply_hint": "Automatically jump to the next waiting conversation in the current list after sending a reply; internal notes stay on the current conversation",
@@ -777,6 +778,8 @@ export const messages = {
     "preferences.send_shortcut_hint": "Keyboard shortcut used to send messages from the inbox composer",
     "preferences.time_zone": "Time zone",
     "preferences.time_zone_hint": "Times on pages are shown in this time zone. It is now {{.now}}",
+    "preferences.ui_language": "Interface language",
+    "preferences.ui_language_hint": "Controls menus, buttons, and UI labels",
     "profile.avatar": "Avatar",
     "profile.avatar_hint": "PNG, JPEG or WebP, up to 2 MB",
     "profile.change_password": "Change password",
@@ -1189,6 +1192,7 @@ export const messages = {
     "tickets.add_conversations": "Link conversations",
     "tickets.add_more_conversations": "Add more conversations",
     "tickets.auto_translate_public": "Translated per customer",
+    "tickets.auto_translate_public_multi": "Translated into {{.n}} customer languages",
     "tickets.back": "Back to tickets",
     "tickets.box_all": "All tickets",
     "tickets.box_mine": "My tickets",
@@ -2157,6 +2161,7 @@ export const messages = {
     "macros.var_contact_name": "联系人名字",
     "macros.var_empty": "没有匹配的变量",
     "macros.var_member_name": "当前成员名字",
+    "members.language_hint": "成员的沟通与译文偏好语言（例如中文、英语、印地语、巴西葡萄牙语）；成员本人之后可在偏好设置中修改",
     "members.password_hint": "这个邮箱还没有账号时必填，由你告诉本人",
     "nav.assignment": "指派",
     "nav.attributes": "属性",
@@ -2202,8 +2207,8 @@ export const messages = {
     "notifications_page.request_permission": "开启浏览器通知",
     "notifications_page.test_sound": "试听提示音",
     "preferences.follow_browser": "跟随浏览器（当前是 {{.zone}}）",
-    "preferences.language": "语言",
-    "preferences.language_hint": "界面的语言，客户的消息也翻译成这种语言",
+    "preferences.language": "沟通与译文语言",
+    "preferences.language_hint": "跨语言消息、工单和备注默认翻译成这种语言呈现，回复校对时的回译也使用这种语言",
     "preferences.no_time_zone": "没有这个时区",
     "preferences.open_next_after_reply": "发送回复后自动打开下一个待回复会话",
     "preferences.open_next_after_reply_hint": "在收件箱发送回复后自动跳转到当前列表中下一个等待回复的会话；添加内部备注时不跳转",
@@ -2211,6 +2216,8 @@ export const messages = {
     "preferences.send_shortcut_hint": "在收件箱回复框中按下快捷键发送消息",
     "preferences.time_zone": "时区",
     "preferences.time_zone_hint": "页面中的时间按这个时区显示，现在是 {{.now}}",
+    "preferences.ui_language": "界面语言",
+    "preferences.ui_language_hint": "控制导航、按钮和提示文字的显示语言",
     "profile.avatar": "头像",
     "profile.avatar_hint": "PNG、JPEG 或 WebP，不超过 2 MB",
     "profile.change_password": "修改密码",
@@ -2623,6 +2630,7 @@ export const messages = {
     "tickets.add_conversations": "关联会话",
     "tickets.add_more_conversations": "添加其他会话",
     "tickets.auto_translate_public": "按客户语言翻译",
+    "tickets.auto_translate_public_multi": "按 {{.n}} 种客户语言翻译",
     "tickets.back": "返回工单列表",
     "tickets.box_all": "全部工单",
     "tickets.box_mine": "我的工单",
@@ -3594,6 +3602,7 @@ export type MessageId =
   | "macros.var_contact_name"
   | "macros.var_empty"
   | "macros.var_member_name"
+  | "members.language_hint"
   | "members.password_hint"
   | "nav.assignment"
   | "nav.attributes"
@@ -3648,6 +3657,8 @@ export type MessageId =
   | "preferences.send_shortcut_hint"
   | "preferences.time_zone"
   | "preferences.time_zone_hint"
+  | "preferences.ui_language"
+  | "preferences.ui_language_hint"
   | "profile.avatar"
   | "profile.avatar_hint"
   | "profile.change_password"
@@ -4060,6 +4071,7 @@ export type MessageId =
   | "tickets.add_conversations"
   | "tickets.add_more_conversations"
   | "tickets.auto_translate_public"
+  | "tickets.auto_translate_public_multi"
   | "tickets.back"
   | "tickets.box_all"
   | "tickets.box_mine"

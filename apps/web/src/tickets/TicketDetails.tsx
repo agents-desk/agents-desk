@@ -2,7 +2,7 @@ import type { ConversationTicketDTO, TicketStatus, TicketTypeVisibility } from "
 import { ActionIcon, Badge, Box, Button, Group, SegmentedControl, Select, Stack, Text, Textarea, Tooltip, UnstyledButton } from "@mantine/core"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Link, useParams } from "@tanstack/react-router"
-import { IconLinkOff, IconPlus, IconX } from "@tabler/icons-react"
+import { IconLanguage, IconLinkOff, IconPlus, IconX } from "@tabler/icons-react"
 import {
   confirm,
   Inspector,
@@ -24,6 +24,7 @@ import { ChannelIcon } from "../inbox/channel-badge"
 import { useMe, useMembers, useTags, useTeams } from "../inbox/data"
 import { AttributeInput, TagsEditor } from "../inbox/fields"
 import { activity } from "../inbox/format"
+import { languageName } from "../languages"
 import { LinkContactModal } from "./LinkContactModal"
 import { invalidateTicket, TICKET_STATUSES, ticketStatusLabel, useTicketAttributes, useTicketTypes } from "./meta"
 
@@ -48,10 +49,12 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
 
   const [editingDesc, setEditingDesc] = useState(false)
   const [descDraft, setDescDraft] = useState(ticket.description)
+  const [showOriginalDesc, setShowOriginalDesc] = useState(false)
   const [linkOpen, setLinkOpen] = useState(false)
 
   useEffect(() => {
     setDescDraft(ticket.description)
+    setShowOriginalDesc(false)
   }, [ticket.description, ticket.id])
 
   const canEdit = can("conversations:reply")
@@ -254,21 +257,42 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
                   </Group>
                 </Stack>
               ) : (
-                <UnstyledButton
-                  w="100%"
-                  disabled={!canEdit}
-                  onClick={() => canEdit && setEditingDesc(true)}
-                  style={{ textAlign: "left" }}
-                  aria-label={t("tickets.edit_description")}
-                >
-                  <Text
-                    size="sm"
-                    c={ticket.description ? undefined : "dimmed"}
-                    style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
+                <Stack gap={4} w="100%">
+                  <UnstyledButton
+                    w="100%"
+                    disabled={!canEdit}
+                    onClick={() => canEdit && setEditingDesc(true)}
+                    style={{ textAlign: "left" }}
+                    aria-label={t("tickets.edit_description")}
                   >
-                    {ticket.description || t("tickets.no_description")}
-                  </Text>
-                </UnstyledButton>
+                    <Text
+                      size="sm"
+                      c={ticket.description ? undefined : "dimmed"}
+                      style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
+                    >
+                      {(ticket.description_translated && !showOriginalDesc ? ticket.description_translated : ticket.description) ||
+                        t("tickets.no_description")}
+                    </Text>
+                  </UnstyledButton>
+                  {ticket.description_translated && (
+                    <Group gap={4} wrap="wrap">
+                      <IconLanguage size={12} className="inbox-caption-icon" />
+                      {ticket.language && (
+                        <>
+                          <Text size="xs" c="dimmed">
+                            {languageName(ticket.language, ui)}
+                          </Text>
+                          <Text size="xs" c="dimmed">
+                            ·
+                          </Text>
+                        </>
+                      )}
+                      <UnstyledButton className="inbox-caption-btn" onClick={() => setShowOriginalDesc((v) => !v)}>
+                        {t(showOriginalDesc ? "inbox.view_translation" : "inbox.view_original")}
+                      </UnstyledButton>
+                    </Group>
+                  )}
+                </Stack>
               )}
             </InspectorField>
           </InspectorSection>

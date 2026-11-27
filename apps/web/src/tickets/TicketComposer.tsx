@@ -4,7 +4,7 @@ import { useOs } from "@mantine/hooks"
 import { notifications } from "@mantine/notifications"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { IconLock, IconPaperclip, IconWorld } from "@tabler/icons-react"
-import { notifyError, notifySuccess, TriggerMenu, textTriggerRule, useCan, useT, useTextTrigger, useUploadQueue } from "@go-tenon/ui"
+import { notifyError, notifySuccess, TriggerMenu, textTriggerRule, useCan, useLanguage, useT, useTextTrigger, useUploadQueue } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { tenantApi } from "../api"
 import {
@@ -18,13 +18,13 @@ import {
 } from "../inbox/Attachments"
 import {
   ComposerSendArea,
-  defaultPeerLanguage,
   InlineTranslationPane,
+  resolveInternalTargetLanguage,
   useComposerTranslation,
 } from "../inbox/ComposerTranslation"
-import { useMe, useMembers } from "../inbox/data"
+import { useMe, useMembers, useTimeline } from "../inbox/data"
 import { clearDraft, getDraft, saveDraft } from "../inbox/drafts"
-import { sameLanguage } from "../languages"
+import { languageName, sameLanguage } from "../languages"
 import { isTypingTarget } from "../layout"
 import { invalidateTicket, mergeTimelineItem } from "./meta"
 
@@ -38,6 +38,7 @@ type TicketComposerMode = "note" | "public"
  */
 export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicketDTO; onTyping: () => void }): ReactNode {
   const t = useT()
+  const ui = useLanguage()
   const can = useCan()
   const os = useOs()
   const isMac = os === "macos" || os === "ios"
@@ -46,7 +47,8 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
   const queryClient = useQueryClient()
   const me = useMe()
   const ctrlEnterSend = me.data?.send_shortcut === "ctrl_enter"
-  const { list: members } = useMembers()
+  const { list: members, byId: membersById } = useMembers()
+  const timeline = useTimeline(ticket.id)
 
   const canPublish = ticket.visibility === "all"
   // 未发送的内容按工单保存为草稿（与收件箱共用：公开进度记为 reply，内部讨论记为 note）
@@ -79,17 +81,23 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
   const hasContent = Boolean(value) || attachmentInputs.length > 0
   const note = mode === "note"
 
+  // 内部讨论：严格按真实接收者推导（@ 提及同事 → 工单发起人、负责人、时间线参与成员），不扫描全工作区无关成员
   const noteDefaultTarget = useMemo(() => {
-    const mentioned = members.filter((m) => mentionIds.includes(m.id) && m.id !== me.data?.id).map((m) => m.language)
-    return (
-      defaultPeerLanguage(mentioned, me.data?.language) ||
-      defaultPeerLanguage(
-        members.filter((m) => m.id !== me.data?.id).map((m) => m.language),
-        me.data?.language,
-      )
-    )
-  }, [members, mentionIds, me.data?.id, me.data?.language])
+    const directIds: (string | undefined)[] = [
+      ticket.created_by,
+      ticket.assignee?.type === "member" ? ticket.assignee.id : undefined,
+      ...(timeline.data ?? []).filter((it) => it.actor.type === "member").map((it) => it.actor.id),
+    ]
+    return resolveInternalTargetLanguage({
+      mentionIds,
+      directMemberIds: directIds,
+      membersById,
+      myId: me.data?.id,
+      myLang: me.data?.language,
+    })
+  }, [ticket.created_by, ticket.assignee, timeline.data, mentionIds, membersById, me.data?.id, me.data?.language])
 
+  // 公开进度：严格按关联受影响客户语言去重，不回退内部成员语言
   const publicPeerLanguages = useMemo(() => {
     const seen: string[] = []
     for (const lc of ticket.linked_contacts ?? []) {
@@ -100,10 +108,7 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
     return seen
   }, [ticket.linked_contacts, me.data?.language])
 
-  const publicDefaultTarget = useMemo(
-    () => publicPeerLanguages[0] || noteDefaultTarget,
-    [publicPeerLanguages, noteDefaultTarget],
-  )
+  const publicDefaultTarget = publicPeerLanguages[0] || ""
 
   const preview = useComposerTranslation({
     conversationId: ticket.id,
@@ -111,6 +116,8 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
     defaultTarget: note ? noteDefaultTarget : publicDefaultTarget,
     myLang: me.data?.language,
     mode: "verified",
+    previewMode: note ? "internal" : "outbound",
+    mentions: note ? mentionIds : undefined,
   })
 
   const send = useMutation({
@@ -392,7 +399,15 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
           <ComposerSendArea
             preview={preview}
             myLang={me.data?.language}
-            hintLabel={note ? undefined : t("tickets.auto_translate_public")}
+            hintLabel={
+              note
+                ? undefined
+                : publicPeerLanguages.length > 1
+                  ? t("tickets.auto_translate_public_multi", { n: publicPeerLanguages.length })
+                  : publicPeerLanguages.length === 1
+                    ? t("inbox.auto_translate_to", { lang: languageName(publicPeerLanguages[0], ui) })
+                    : t("tickets.auto_translate_public")
+            }
             label={mainLabel}
             sendHint={sendHint}
             disabled={!canSubmit}

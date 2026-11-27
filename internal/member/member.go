@@ -43,7 +43,8 @@ type Member struct {
 	ID                      string                  `bun:"id,pk"`
 	Name                    string                  `bun:"name,notnull"`
 	AvatarFileID            *uuid.UUID              `bun:"avatar_file_id,type:uuid"`                    // 头像，files 中的文件；没有头像时为空
-	Language                Language                `bun:"language,notnull"`                            // 语言，见 Preferences
+	UILanguage              UILanguage              `bun:"ui_language,notnull"`                         // 界面显示语言，见 Preferences
+	Language                Language                `bun:"language,notnull"`                            // 沟通与译文偏好语言（任意合法 BCP 47），见 Preferences
 	TimeZone                string                  `bun:"time_zone,notnull"`                           // IANA 时区名，为空表示跟随浏览器
 	SendShortcut            SendShortcut            `bun:"send_shortcut,notnull"`                       // 回复框发送快捷键：enter 或 ctrl_enter
 	OpenNextAfterReply      bool                    `bun:"open_next_after_reply,notnull"`               // 发送回复后是否自动打开下一个待回复会话
@@ -99,15 +100,17 @@ func Email(ctx context.Context, logins *login.Realm, ref identity.Ref) (string, 
 	return "", nil
 }
 
-// Account 是按邮箱指定的成员账号：邮箱已有账号时使用它，Name 和 Password 不使用；没有时用它们创建新账号。
+// Account 是按邮箱指定的成员账号：邮箱已有账号时使用它，Name、Password 和语言参数不使用；没有时用它们创建新账号。
 type Account struct {
-	Email    string
-	Name     string
-	Password string // 新账号的初始密码，由管理员设置后告诉本人
+	Email      string
+	Name       string
+	Password   string     // 新账号的初始密码，由管理员设置后告诉本人
+	Language   string     // 可选：新账号的沟通与译文偏好语言（BCP 47）；为空默认 zh-CN
+	UILanguage UILanguage // 可选：新账号的界面显示语言；为空按 Language 自动匹配
 }
 
 // Ensure 返回邮箱为 acc.Email 的成员，没有时在 tx 中创建：写入 members、邮箱（标为已验证）和初始密码。
-// 已有的账号停用时返回 ErrDisabled；需要新建而缺少姓名或密码时返回 ErrDetailsMissing；密码不符合要求时返回 login.ErrWeakPassword。
+// 已有的账号停用时返回 ErrDisabled；需要新建而缺少姓名或密码时返回 ErrDetailsMissing；语言非法时返回 ErrInvalidLanguage；密码不符合要求时返回 login.ErrWeakPassword。
 // logins 是成员的 login.Realm。
 func Ensure(ctx context.Context, tx bun.IDB, logins *login.Realm, acc Account) (*Member, error) {
 	ref, err := logins.Lookup(ctx, login.Email(acc.Email))
@@ -128,11 +131,16 @@ func Ensure(ctx context.Context, tx bun.IDB, logins *login.Realm, acc Account) (
 	if acc.Name == "" || acc.Password == "" {
 		return nil, ErrDetailsMissing.New()
 	}
+	commLang, uiLang, err := resolveMemberLanguages(acc.Language, acc.UILanguage)
+	if err != nil {
+		return nil, err
+	}
 	now := time.Now().UTC()
 	m := &Member{
 		ID:                      uuid.Must(uuid.NewV7()).String(),
 		Name:                    acc.Name,
-		Language:                SimplifiedChinese,
+		UILanguage:              uiLang,
+		Language:                commLang,
 		SendShortcut:            SendEnter,
 		NotificationPreferences: DefaultNotificationPreferences(),
 		CreatedAt:               now,

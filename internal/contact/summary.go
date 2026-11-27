@@ -11,13 +11,14 @@ import (
 	"agents-desk/internal/channel"
 )
 
-// SummaryDTO 是联系人模块的概览：当前成员可见的各类联系人数量、可见的渠道列表，以及已保存的联系人筛选视图和计数。
+// SummaryDTO 是联系人模块的概览：当前成员可见的各类联系人数量、可见的渠道列表、活跃语言列表，以及已保存的联系人筛选视图和计数。
 type SummaryDTO struct {
-	All      int64             `json:"all" doc:"全部联系人数量"`
-	Users    int64             `json:"users" doc:"用户数量"`
-	Leads    int64             `json:"leads" doc:"线索数量"`
-	Channels []channel.Summary `json:"channels" doc:"当前成员可见的渠道，供联系人列表按渠道筛选"`
-	Views    []ViewSummary     `json:"views" doc:"当前成员可见的联系人已保存筛选视图及实时数量"`
+	All       int64             `json:"all" doc:"全部联系人数量"`
+	Users     int64             `json:"users" doc:"用户数量"`
+	Leads     int64             `json:"leads" doc:"线索数量"`
+	Channels  []channel.Summary `json:"channels" doc:"当前成员可见的渠道，供联系人列表按渠道筛选"`
+	Languages []string          `json:"languages" nullable:"false" doc:"当前成员可见联系人中实际出现过的语言标签（BCP 47），按使用人数降序排列"`
+	Views     []ViewSummary     `json:"views" doc:"当前成员可见的联系人已保存筛选视图及实时数量"`
 }
 
 // SummaryOutput 是联系人概览的响应。
@@ -48,7 +49,7 @@ func (a *GetSummary) Handle(ctx context.Context, sub identity.Subject) (*Summary
 	if err != nil {
 		return nil, errors.Wrap(err, "count contacts by kind")
 	}
-	out := SummaryDTO{Channels: []channel.Summary{}, Views: []ViewSummary{}}
+	out := SummaryDTO{Channels: []channel.Summary{}, Languages: []string{}, Views: []ViewSummary{}}
 	for _, r := range counts {
 		out.All += r.Count
 		switch r.Kind {
@@ -67,6 +68,22 @@ func (a *GetSummary) Handle(ctx context.Context, sub identity.Subject) (*Summary
 	}
 	for i := range chRows {
 		out.Channels = append(out.Channels, chRows[i].Summary())
+	}
+
+	var langRows []struct {
+		Language string `bun:"language"`
+		Count    int64  `bun:"cnt"`
+	}
+	if err := visible(
+		a.db.NewSelect().TableExpr("contacts AS contact").
+			Column("contact.language").ColumnExpr("count(*) AS cnt").
+			Where("contact.tenant_id = ? AND contact.language <> ''", sub.Tenant),
+		sub,
+	).Group("contact.language").OrderExpr("cnt DESC, contact.language ASC").Scan(ctx, &langRows); err != nil {
+		return nil, errors.Wrap(err, "list languages for contacts")
+	}
+	for _, r := range langRows {
+		out.Languages = append(out.Languages, r.Language)
 	}
 
 	viewGroup := NewViews(a.db)

@@ -2,6 +2,8 @@ import type {
   ConversationAutoTranslateRequest,
   ConversationItemDTO,
   ConversationTranslation,
+  MemberTenantMember,
+  TranslationPreviewBody,
   TranslationPreviewDTO,
   TranslationTone,
 } from "@agents-desk/client/tenant"
@@ -27,7 +29,7 @@ import { describeError } from "@go-tenon/client"
 import { errorMessage, useLanguage, useT } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { languageName, languageOptions, sameLanguage, validLanguage } from "../languages"
+import { languageName, languageOptions, languageSearchKeys, sameLanguage, useWorkspaceLanguages, validLanguage } from "../languages"
 
 /** NO_TRANSLATION 是目标语言中的“不翻译”：按原文发出。 */
 export const NO_TRANSLATION = "none"
@@ -110,6 +112,49 @@ export function verifiedTranslationOf(it: ConversationItemDTO): { language: stri
 }
 
 /**
+ * resolveInternalTargetLanguage 是全产品所有内部协作通道（内部单聊/群聊、收件箱备注、商务备注、工单内部讨论）
+ * 统一的目标语言推导纯函数：严格按真实接收者分层，永不扫描全工作区无关成员：
+ *  1. 输入框中 @ 提及的同事（排除自己）；
+ *  2. 当前会话的直接协作方（单聊对方、群聊参与者、工单发起人/负责人/参与者、收件箱负责人/参与者）；
+ *  3. 没有异语直接接收者时返回空字符串。
+ */
+export function resolveInternalTargetLanguage({
+  mentionIds = [],
+  directMemberIds = [],
+  directLanguages = [],
+  membersById,
+  myId,
+  myLang,
+}: {
+  mentionIds?: readonly string[]
+  directMemberIds?: readonly (string | undefined)[]
+  directLanguages?: readonly (string | undefined)[]
+  membersById: Map<string, MemberTenantMember>
+  myId?: string
+  myLang?: string
+}): string {
+  const mentionedOthers = mentionIds.filter((id) => id && id !== myId)
+  if (mentionedOthers.length > 0) {
+    return defaultPeerLanguage(
+      mentionedOthers.map((id) => membersById.get(id)?.language),
+      myLang,
+    )
+  }
+
+  const seen = new Set<string>()
+  const peerLangs: (string | undefined)[] = []
+  for (const id of directMemberIds) {
+    if (!id || id === myId || seen.has(id)) continue
+    seen.add(id)
+    peerLangs.push(membersById.get(id)?.language)
+  }
+  for (const l of directLanguages) {
+    if (l) peerLangs.push(l)
+  }
+  return defaultPeerLanguage(peerLangs, myLang)
+}
+
+/**
  * useComposerTranslation 管理统一的输入框翻译校对状态：
  * 默认折叠（输入零打扰，不触发击键防抖请求）；展开后与客服回复一致，停止输入 600ms 后实时预览目标译文与盲回译，
  * 支持切换目标语言、单次覆盖语气、点击译文轻量微调、恢复自动译文与重新翻译。
@@ -120,6 +165,8 @@ export function useComposerTranslation({
   defaultTarget = "",
   myLang,
   mode,
+  previewMode,
+  mentions,
   active = true,
 }: {
   conversationId: string
@@ -127,6 +174,8 @@ export function useComposerTranslation({
   defaultTarget?: string
   myLang?: string
   mode: ComposerTranslationMode
+  previewMode?: TranslationPreviewBody["mode"]
+  mentions?: string[]
   active?: boolean
 }): ComposerTranslation {
   const settings = useQuery(kit.queries.translation.settings())
@@ -162,6 +211,8 @@ export function useComposerTranslation({
         const result = await tenantApi.translation.preview(conversationId, {
           text: bodyText,
           language: to || undefined,
+          mode: previewMode,
+          mentions: mentions && mentions.length > 0 ? mentions : undefined,
           tone: chosenTone || undefined,
           skip_back_translation: skipBack || undefined,
         })
@@ -179,7 +230,7 @@ export function useComposerTranslation({
         if (n === seq.current) setPending(false)
       }
     },
-    [conversationId],
+    [conversationId, previewMode, mentions],
   )
 
   // 原文、目标语言或语气变化时清除二次确认态和手动译文编辑
@@ -376,7 +427,8 @@ function TranslationTargetPicker({
     label = t("inbox.choose_language")
   }
 
-  const baseOptions = languageOptions(ui, [effectiveLang, theirs].filter(Boolean))
+  const workspaceLanguages = useWorkspaceLanguages()
+  const baseOptions = languageOptions(ui, [effectiveLang, theirs, ...workspaceLanguages].filter(Boolean))
   const typed = validLanguage(search)
   const rawOptions = [
     ...(preview.allowOff ? [{ value: NO_TRANSLATION, label: t("inbox.no_translation") }] : []),
@@ -389,7 +441,12 @@ function TranslationTargetPicker({
     rawOptions.splice(preview.allowOff ? 1 : 0, 0, { value: typed, label: `${languageName(typed, ui)} (${typed})` })
   }
   const q = search.trim().toLowerCase()
-  const filtered = q ? rawOptions.filter((o) => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q)) : rawOptions
+  const filtered = q
+    ? rawOptions.filter((o) => {
+        if (o.value === NO_TRANSLATION) return o.label.toLowerCase().includes(q)
+        return `${o.label.toLowerCase()} ${languageSearchKeys(o.value, ui)}`.includes(q)
+      })
+    : rawOptions
 
   return (
     <Combobox
@@ -613,6 +670,10 @@ export function InlineTranslationPane({
       ) : empty ? (
         <Text size="md" c="dimmed" lh={1.55} className="inbox-translation-placeholder">
           {targetLang ? t("inbox.translation_placeholder", { lang: languageName(targetLang, ui) }) : t("inbox.choose_language")}
+        </Text>
+      ) : shown && !shown.needed && !preview.pending && !stale ? (
+        <Text size="xs" c="dimmed" lh={1.5} className="inbox-translation-placeholder">
+          {t("inbox.sends_original")}
         </Text>
       ) : !shown?.needed ? (
         <Group gap={6} wrap="nowrap">

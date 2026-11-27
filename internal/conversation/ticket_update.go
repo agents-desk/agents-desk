@@ -74,12 +74,14 @@ func (a *UpdateTicket) Handle(ctx context.Context, sub identity.Subject, id stri
 				cols = append(cols, "type_id")
 			}
 		}
+		resetDerived := false
 		if p.Title != nil {
 			v := strings.TrimSpace(*p.Title)
 			if v != tk.Title {
 				changed["title"] = map[string]any{"from": tk.Title, "to": v}
 				tk.Title = v
 				cols = append(cols, "title")
+				resetDerived = true
 			}
 		}
 		if p.Description != nil {
@@ -88,7 +90,12 @@ func (a *UpdateTicket) Handle(ctx context.Context, sub identity.Subject, id stri
 				changed["description"] = true
 				tk.Description = v
 				cols = append(cols, "description")
+				resetDerived = true
 			}
+		}
+		if resetDerived {
+			tk.Derived = map[string]any{}
+			cols = append(cols, "derived")
 		}
 		if p.Visibility != nil && *p.Visibility != tk.Visibility {
 			changed["visibility"] = map[string]any{"from": string(tk.Visibility), "to": string(*p.Visibility)}

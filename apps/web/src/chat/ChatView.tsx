@@ -60,8 +60,8 @@ import { useConversationChannel } from "../inbox/channel"
 import { channelColor, ChannelChip } from "../inbox/channel-badge"
 import {
   ComposerSendArea,
-  defaultPeerLanguage,
   InlineTranslationPane,
+  resolveInternalTargetLanguage,
   useComposerTranslation,
   verifiedTranslationOf,
 } from "../inbox/ComposerTranslation"
@@ -548,7 +548,7 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
   const queryClient = useQueryClient()
   const me = useMe()
   const ctrlEnterSend = me.data?.send_shortcut === "ctrl_enter"
-  const { list: allMembers } = useMembers()
+  const { list: allMembers, byId: membersById } = useMembers()
 
   const isExternal = chat.scope === "external"
   // 未发送的内容按聊天保存为草稿（与收件箱共用），切换聊天再回来不丢失
@@ -596,20 +596,26 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
     return allMembers.filter((m) => participantMemberIds.has(m.id))
   }, [allMembers, isExternal, me.data?.id, note, participantMemberIds])
 
+  // 外部商务对外回复走客户/外部群语言；内部聊天和商务备注走统一的内部接收者推导（@ 提及同事 → 会话直接参与成员）
   const defaultTarget = useMemo(() => {
     if (isExternal && !note) {
       return chat.language ?? ""
     }
+    const directLanguages: (string | undefined)[] = []
     if (!isExternal && chat.mode === "direct") {
-      return defaultPeerLanguage([chat.peer?.language], me.data?.language)
+      directLanguages.push(chat.peer?.language)
     }
-    return defaultPeerLanguage(
-      (chat.participants ?? [])
-        .filter((p) => p.type === "member" && p.id !== me.data?.id)
-        .map((p) => p.language),
-      me.data?.language,
-    )
-  }, [chat.language, chat.mode, chat.participants, chat.peer?.language, isExternal, me.data?.id, me.data?.language, note])
+    for (const p of chat.participants ?? []) {
+      if (p.type === "member" && p.id !== me.data?.id) directLanguages.push(p.language)
+    }
+    return resolveInternalTargetLanguage({
+      mentionIds,
+      directLanguages,
+      membersById,
+      myId: me.data?.id,
+      myLang: me.data?.language,
+    })
+  }, [chat.language, chat.mode, chat.participants, chat.peer?.language, isExternal, mentionIds, membersById, me.data?.id, me.data?.language, note])
 
   const preview = useComposerTranslation({
     conversationId: chat.id,
@@ -617,6 +623,8 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
     defaultTarget,
     myLang: me.data?.language,
     mode: isExternal && !note ? "replace" : "verified",
+    previewMode: isExternal && !note ? "outbound" : "internal",
+    mentions: !isExternal || note ? mentionIds : undefined,
   })
 
   const send = useMutation({

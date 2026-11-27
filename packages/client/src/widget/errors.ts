@@ -188,6 +188,8 @@ export const MemberErrors = {
   AccountDisabled: "member.account_disabled",
   /** ErrInvalidTimeZone 是不认识的时区名（422），提示显示在“时区”下面。 */
   InvalidTimeZone: "member.invalid_time_zone",
+  /** ErrInvalidLanguage 是成员的沟通与译文偏好语言不是合法的 BCP 47 标签（422）。 */
+  InvalidLanguage: "member.invalid_language",
   AlreadyMember: "member.already_member",
   OwnerProtected: "member.owner_protected",
   Self: "member.self",

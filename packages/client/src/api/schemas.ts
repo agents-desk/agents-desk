@@ -90,13 +90,6 @@ export const components = {
     ],
     "type": "object"
   },
-  MemberLanguage: {
-    "enum": [
-      "zh-CN",
-      "en"
-    ],
-    "type": "string"
-  },
   MemberLoginInputBody: {
     "additionalProperties": false,
     "properties": {
@@ -141,7 +134,9 @@ export const components = {
     "additionalProperties": false,
     "properties": {
       "language": {
-        "$ref": "#/components/schemas/MemberLanguage"
+        "maxLength": 35,
+        "minLength": 2,
+        "type": "string"
       },
       "open_next_after_reply": {
         "type": "boolean"
@@ -152,6 +147,9 @@ export const components = {
       "time_zone": {
         "maxLength": 64,
         "type": "string"
+      },
+      "ui_language": {
+        "$ref": "#/components/schemas/MemberUiLanguage"
       }
     },
     "required": [
@@ -163,6 +161,13 @@ export const components = {
     "enum": [
       "enter",
       "ctrl_enter"
+    ],
+    "type": "string"
+  },
+  MemberUiLanguage: {
+    "enum": [
+      "zh-CN",
+      "en"
     ],
     "type": "string"
   },

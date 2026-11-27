@@ -188,6 +188,7 @@ func (b *TicketBroadcast) Handle(ctx context.Context, p conversation.Appended) e
 		}
 	}
 	if b.translator != nil && len(needLangs) > 0 && rawText != "" {
+		newTranslations := map[string]string{}
 		if sourceLang != "" {
 			translatedMap, err := b.translator.Translate(ctx, p.TenantID, &it, sourceLang, needLangs)
 			if errors.Is(err, llm.ErrNotConfigured) {
@@ -197,6 +198,7 @@ func (b *TicketBroadcast) Handle(ctx context.Context, p conversation.Appended) e
 			} else {
 				for k, v := range translatedMap {
 					translations[k] = v
+					newTranslations[k] = v
 				}
 			}
 		} else {
@@ -213,7 +215,17 @@ func (b *TicketBroadcast) Handle(ctx context.Context, p conversation.Appended) e
 				sourceLang = detected
 				for k, v := range translatedMap {
 					translations[k] = v
+					newTranslations[k] = v
 				}
+			}
+		}
+		// 把广播生成的客户语言译文同步回写到工单时间线项，使客户在网页聊天插件的工单详情中也能直接看到对应译文
+		if sourceLang != "" || len(newTranslations) > 0 {
+			if err := conversation.SaveTranslation(ctx, b.db, b.down, p.TenantID, it.ID, conversation.Translated{
+				Language:     sourceLang,
+				Translations: newTranslations,
+			}); err != nil {
+				return err
 			}
 		}
 	}

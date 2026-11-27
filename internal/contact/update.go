@@ -32,13 +32,23 @@ type UpdateInput struct {
 	Body UpdateBody
 }
 
+// NotesUpdatedHook 在联系人长期备注被修改且非空时于同一事务中调用，供翻译模块异步预译备注。
+type NotesUpdatedHook func(ctx context.Context, tx database.Tx, tenantID, contactID string) error
+
 // Update 修改工作区中联系人的资料和备注。
 type Update struct {
-	db *bun.DB
+	db             *bun.DB
+	onNotesUpdated NotesUpdatedHook
 }
 
-// NewUpdate 返回修改联系人的动作。
-func NewUpdate(db *bun.DB) *Update { return &Update{db: db} }
+// NewUpdate 返回修改联系人的动作；可选传入 onNotesUpdated 钩子在备注变更后触发异步翻译。
+func NewUpdate(db *bun.DB, onNotesUpdated ...NotesUpdatedHook) *Update {
+	var h NotesUpdatedHook
+	if len(onNotesUpdated) > 0 {
+		h = onNotesUpdated[0]
+	}
+	return &Update{db: db, onNotesUpdated: h}
+}
 
 // Handle 由 sub 修改他所在工作区中联系人 id 的资料并记录操作日志，返回修改后的完整资料。
 // 修改语言时同步更新该联系人未关闭会话的语言：传合法 BCP 47 记为手动设置，传空字符串恢复按最近消息自动识别。
@@ -98,8 +108,12 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 		if b.TimeZone != nil && tz != c.TimeZone {
 			c.TimeZone, cols, props["time_zone"] = tz, append(cols, "time_zone"), tz
 		}
+		notesChanged := false
 		if b.Notes != nil && *b.Notes != c.Notes {
-			c.Notes, cols, props["notes"] = *b.Notes, append(cols, "notes"), true
+			c.Notes, c.NotesDerived = *b.Notes, map[string]any{}
+			cols = append(cols, "notes", "notes_derived")
+			props["notes"] = true
+			notesChanged = true
 		}
 		syncConvLang := false
 		if b.Language != nil {
@@ -141,6 +155,11 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 			Event: "contact.updated", TargetType: string(Type), TargetID: c.ID, Properties: props,
 		}); err != nil {
 			return err
+		}
+		if notesChanged && strings.TrimSpace(c.Notes) != "" && a.onNotesUpdated != nil {
+			if err := a.onNotesUpdated(ctx, tx, c.TenantID, c.ID); err != nil {
+				return err
+			}
 		}
 		updated = c
 		return nil

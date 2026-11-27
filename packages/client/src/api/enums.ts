@@ -6,20 +6,20 @@
  * 缺少时先用默认语言，再用取值本身。
  */
 export const enums = {
-  MemberLanguage: {
-    prefix: "member.language",
-    values: ["zh-CN", "en"],
-    labels: {
-      "en": { "zh-CN": "简体中文", en: "English" },
-      "zh-CN": { "zh-CN": "简体中文", en: "English" },
-    },
-  },
   MemberSendShortcut: {
     prefix: "member.send_shortcut",
     values: ["enter", "ctrl_enter"],
     labels: {
       "en": { enter: "Enter to send (Shift + Enter for a new line)", ctrl_enter: "Ctrl / ⌘ + Enter to send (Enter for a new line)" },
       "zh-CN": { enter: "回车发送（Shift + 回车换行）", ctrl_enter: "Ctrl / ⌘ + 回车发送（回车换行）" },
+    },
+  },
+  MemberUiLanguage: {
+    prefix: "member.ui_language",
+    values: ["zh-CN", "en"],
+    labels: {
+      "en": { "zh-CN": "简体中文", en: "English" },
+      "zh-CN": { "zh-CN": "简体中文", en: "English" },
     },
   },
   TenantStatus: {

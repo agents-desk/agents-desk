@@ -149,9 +149,11 @@ export function createIdentity(options: IdentityOptions = {}) {
         return undefined
       }
     })()
+    const browserLang = typeof navigator !== "undefined" ? navigator.language || undefined : undefined
     const res = await api.widget.session({
       visitor_id: load("visitor") ?? undefined,
       user_token: token,
+      language: browserLang,
       time_zone: timeZone,
       referrer,
     })

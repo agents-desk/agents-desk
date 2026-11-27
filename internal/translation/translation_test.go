@@ -34,10 +34,11 @@ import (
 
 // fakeModel 是 OpenAI 兼容的 /chat/completions 的替身：按 schema 的名字回答，记下收到的请求。
 type fakeModel struct {
-	mu       sync.Mutex
-	requests []map[string]any
-	status   int    // 不为 0 时按这个状态码失败
-	language string // 识别出的语言
+	mu          sync.Mutex
+	requests    []map[string]any
+	status      int    // 不为 0 时按这个状态码失败
+	language    string // 识别出的语言
+	replyNeeded *bool  // 为非 nil 时控制 reply_translation 返回的 needed 值
 }
 
 func (f *fakeModel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -46,7 +47,7 @@ func (f *fakeModel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_ = json.Unmarshal(data, &body)
 	f.mu.Lock()
 	f.requests = append(f.requests, body)
-	status, lang := f.status, f.language
+	status, lang, replyNeeded := f.status, f.language, f.replyNeeded
 	f.mu.Unlock()
 	if r.URL.Path != "/v1/chat/completions" || r.Header.Get("Authorization") != "Bearer test-key" {
 		http.Error(w, "bad request", http.StatusBadRequest)
@@ -82,9 +83,51 @@ func (f *fakeModel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		out, _ := json.Marshal(payload)
 		answer = string(out)
 	case "reply_translation":
-		answer = `{"translation":"Main aapka order check kar raha hoon"}`
+		needed := true
+		if replyNeeded != nil {
+			needed = *replyNeeded
+		}
+		if needed {
+			answer = `{"needed":true,"translation":"Main aapka order check kar raha hoon"}`
+		} else {
+			msgs := body["messages"].([]any)
+			orig := msgs[1].(map[string]any)["content"].(string)
+			out, _ := json.Marshal(map[string]any{"needed": false, "translation": orig})
+			answer = string(out)
+		}
 	case "back_translation":
 		answer = `{"translation":"我正在查您的订单"}`
+	case "ticket_meta_translation":
+		titleProps := map[string]any{}
+		if tr, ok := format["schema"].(map[string]any)["properties"].(map[string]any)["titles"].(map[string]any); ok {
+			titleProps = tr["properties"].(map[string]any)
+		}
+		titles, descs := map[string]string{}, map[string]string{}
+		for target := range titleProps {
+			titles[target] = "[" + target + "] ticket title"
+			descs[target] = "[" + target + "] ticket desc"
+		}
+		payload := map[string]any{"titles": titles, "descriptions": descs}
+		if _, hasLang := format["schema"].(map[string]any)["properties"].(map[string]any)["language"]; hasLang {
+			payload["language"] = lang
+		}
+		out, _ := json.Marshal(payload)
+		answer = string(out)
+	case "note_translation":
+		props := map[string]any{}
+		if tr, ok := format["schema"].(map[string]any)["properties"].(map[string]any)["translations"].(map[string]any); ok {
+			props = tr["properties"].(map[string]any)
+		}
+		translations := map[string]string{}
+		for target := range props {
+			translations[target] = "[" + target + "] contact note"
+		}
+		payload := map[string]any{"translations": translations}
+		if _, hasLang := format["schema"].(map[string]any)["properties"].(map[string]any)["language"]; hasLang {
+			payload["language"] = lang
+		}
+		out, _ := json.Marshal(payload)
+		answer = string(out)
 	}
 	resp := map[string]any{
 		"choices": []any{map[string]any{"message": map[string]any{"content": answer}}},
@@ -358,7 +401,7 @@ func TestPreviewAndReply(t *testing.T) {
 		t.Fatalf("预览：%+v %v", got, err)
 	}
 	system, _ := f.model.last("reply_translation")
-	for _, want := range []string{"from zh-CN into hi-Latn", toneHint[Friendly], `"AgentsPay": keep it exactly as written`, `"提现": in hi-Latn always translate it as "withdrawal"`,
+	for _, want := range []string{"translate it into hi-Latn", toneHint[Friendly], `"AgentsPay": keep it exactly as written`, `"提现": in hi-Latn always translate it as "withdrawal"`,
 		"<history>\nCustomer: mera order abhi tak nahi aaya\n</history>"} {
 		if !strings.Contains(system, want) {
 			t.Errorf("提示中没有 %q：\n%s", want, system)
@@ -644,7 +687,7 @@ func TestCustomerLanguage(t *testing.T) {
 	if it := f.item(t, ok.ItemID); it.Derived["language"] != "und" || len(it.Derived["translations"].(map[string]any)) != 0 {
 		t.Fatalf("ok 的派生内容：%+v", it.Derived)
 	}
-	if !strings.Contains(f.model.lastSystem(), "This customer has been writing in hi-Latn") {
+	if !strings.Contains(f.model.lastSystem(), "This speaker usually writes in hi-Latn") {
 		t.Errorf("识别时的参考语言：%s", f.model.lastSystem())
 	}
 	say("en", "Payment failed: insufficient balance")

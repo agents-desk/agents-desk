@@ -262,14 +262,6 @@ export const enums = {
       "zh-CN": { later: "今天晚些时候", tomorrow: "明天", monday: "下周一", week: "一周后", month: "一个月后" },
     },
   },
-  MemberLanguage: {
-    prefix: "member.language",
-    values: ["zh-CN", "en"],
-    labels: {
-      "en": { "zh-CN": "简体中文", en: "English" },
-      "zh-CN": { "zh-CN": "简体中文", en: "English" },
-    },
-  },
   MemberStatus: {
     prefix: "member.status",
     values: ["online", "away"],

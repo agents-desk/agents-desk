@@ -54,7 +54,7 @@ func (a *ListTicketsForContact) Handle(ctx context.Context, sub identity.Subject
 	if sub.Type != contact.Type {
 		return nil, ErrForbidden.New()
 	}
-	kind, exists, err := contactKindOf(ctx, a.db, sub)
+	kind, contactLang, exists, err := contactKindAndLangOf(ctx, a.db, sub)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func (a *ListTicketsForContact) Handle(ctx context.Context, sub identity.Subject
 	if err := q.OrderExpr("conversation.last_message_at DESC, conversation.id DESC").Limit(contactTicketLimit).Scan(ctx); err != nil {
 		return nil, errors.Wrap(err, "list contact tickets")
 	}
-	return toContactTicketDTOs(ctx, a.db, sub, convs)
+	return toContactTicketDTOs(ctx, a.db, sub, convs, contactLang)
 }
 
 // GetTicketForContact 返回客户在网页聊天插件中查看的单张工单详情与公开进度列表。
@@ -94,7 +94,7 @@ func (a *GetTicketForContact) Handle(ctx context.Context, sub identity.Subject, 
 	if sub.Type != contact.Type {
 		return nil, ErrForbidden.New()
 	}
-	kind, exists, err := contactKindOf(ctx, a.db, sub)
+	kind, contactLang, exists, err := contactKindAndLangOf(ctx, a.db, sub)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func (a *GetTicketForContact) Handle(ctx context.Context, sub identity.Subject, 
 		return nil, errors.Wrap(err, "load contact ticket")
 	}
 
-	summaries, err := toContactTicketDTOs(ctx, a.db, sub, []Conversation{conv})
+	summaries, err := toContactTicketDTOs(ctx, a.db, sub, []Conversation{conv}, contactLang)
 	if err != nil {
 		return nil, err
 	}
@@ -135,6 +135,13 @@ func (a *GetTicketForContact) Handle(ctx context.Context, sub identity.Subject, 
 	if err != nil {
 		return nil, err
 	}
+	if contactLang != "" {
+		for i := range updates {
+			if tr := translationInMap(derivedMap(items[i].Derived, "translations"), contactLang); tr != "" {
+				updates[i].Text = tr
+			}
+		}
+	}
 	return &ContactTicketDetailDTO{
 		ContactTicketDTO: summaries[0],
 		Updates:          updates,
@@ -143,19 +150,28 @@ func (a *GetTicketForContact) Handle(ctx context.Context, sub identity.Subject, 
 
 // contactKindOf 查询联系人 sub 的类型（user 或 lead）；联系人不存在时返回 exists=false。
 func contactKindOf(ctx context.Context, db bun.IDB, sub identity.Subject) (contact.Kind, bool, error) {
-	var kind contact.Kind
-	err := db.NewSelect().Table("contacts").Column("kind").Where("id = ? AND tenant_id = ?", sub.ID, sub.Tenant).Scan(ctx, &kind)
-	if errors.Is(err, sql.ErrNoRows) {
-		return "", false, nil
-	}
-	if err != nil {
-		return "", false, errors.Wrap(err, "load contact kind")
-	}
-	return kind, true, nil
+	kind, _, ok, err := contactKindAndLangOf(ctx, db, sub)
+	return kind, ok, err
 }
 
-// toContactTicketDTOs 批量组装客户侧工单摘要：读取工单元数据、类型名与最新公开进度。
-func toContactTicketDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conversation) ([]ContactTicketDTO, error) {
+// contactKindAndLangOf 查询联系人 sub 的类型（user 或 lead）与语言；联系人不存在时返回 exists=false。
+func contactKindAndLangOf(ctx context.Context, db bun.IDB, sub identity.Subject) (contact.Kind, string, bool, error) {
+	var row struct {
+		Kind     contact.Kind `bun:"kind"`
+		Language string       `bun:"language"`
+	}
+	err := db.NewSelect().Table("contacts").Column("kind", "language").Where("id = ? AND tenant_id = ?", sub.ID, sub.Tenant).Scan(ctx, &row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", "", false, nil
+	}
+	if err != nil {
+		return "", "", false, errors.Wrap(err, "load contact kind and language")
+	}
+	return row.Kind, row.Language, true, nil
+}
+
+// toContactTicketDTOs 批量组装客户侧工单摘要：读取工单元数据、类型名与最新公开进度，并优先按 contactLang 展示对应译文。
+func toContactTicketDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conversation, contactLang string) ([]ContactTicketDTO, error) {
 	out := make([]ContactTicketDTO, len(convs))
 	if len(convs) == 0 {
 		return out, nil
@@ -197,12 +213,13 @@ func toContactTicketDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, 
 		}
 	}
 
-	// 读取每张工单最近一条公开进度消息文字
+	// 读取每张工单最近一条公开进度消息文字及其派生译文
 	var latestRows []struct {
-		TicketID string `bun:"ticket_id"`
-		Text     string `bun:"text"`
+		TicketID string         `bun:"ticket_id"`
+		Text     string         `bun:"text"`
+		Derived  map[string]any `bun:"derived,type:jsonb"`
 	}
-	if err := db.NewRaw(`SELECT DISTINCT ON (conversation_id) conversation_id AS ticket_id, COALESCE(content->>'text', '') AS text
+	if err := db.NewRaw(`SELECT DISTINCT ON (conversation_id) conversation_id AS ticket_id, COALESCE(content->>'text', '') AS text, derived
 		FROM timeline_items
 		WHERE tenant_id = ? AND conversation_id IN (?) AND kind = ? AND visibility = ?
 		ORDER BY conversation_id, seq DESC`,
@@ -211,7 +228,11 @@ func toContactTicketDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, 
 	}
 	latestByID := make(map[string]string, len(latestRows))
 	for _, r := range latestRows {
-		latestByID[r.TicketID] = r.Text
+		text := r.Text
+		if tr := translationInMap(derivedMap(r.Derived, "translations"), contactLang); tr != "" {
+			text = tr
+		}
+		latestByID[r.TicketID] = text
 	}
 
 	for i, c := range convs {
@@ -220,12 +241,20 @@ func toContactTicketDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, 
 		if m.TypeID != nil {
 			typeName = typeNames[*m.TypeID]
 		}
+		title := m.Title
+		if tr := translationInMap(derivedMap(m.Derived, "title"), contactLang); tr != "" {
+			title = tr
+		}
+		desc := m.Description
+		if tr := translationInMap(derivedMap(m.Derived, "description"), contactLang); tr != "" {
+			desc = tr
+		}
 		out[i] = ContactTicketDTO{
 			ID:            c.ID,
 			Number:        m.Number,
 			TypeName:      typeName,
-			Title:         m.Title,
-			Description:   m.Description,
+			Title:         title,
+			Description:   desc,
 			Status:        TicketStatus(c.Status),
 			LatestUpdate:  latestByID[c.ID],
 			LastMessageAt: c.LastMessageAt,

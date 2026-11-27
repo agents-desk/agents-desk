@@ -2739,6 +2739,10 @@ export const components = {
         "maxLength": 254,
         "type": "string"
       },
+      "language": {
+        "maxLength": 35,
+        "type": "string"
+      },
       "name": {
         "maxLength": 60,
         "type": "string"
@@ -3233,18 +3237,28 @@ export const components = {
   TranslationFillBody: {
     "additionalProperties": false,
     "properties": {
+      "contact_ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 50,
+        "type": "array"
+      },
       "item_ids": {
         "items": {
           "type": "string"
         },
         "maxItems": 100,
-        "minItems": 1,
+        "type": "array"
+      },
+      "ticket_ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 100,
         "type": "array"
       }
     },
-    "required": [
-      "item_ids"
-    ],
     "type": "object"
   },
   TranslationGlossaryInputBody: {
@@ -3268,6 +3282,21 @@ export const components = {
     "properties": {
       "language": {
         "maxLength": 35,
+        "type": "string"
+      },
+      "mentions": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 20,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "mode": {
+        "enum": [
+          "outbound",
+          "internal"
+        ],
         "type": "string"
       },
       "skip_back_translation": {

@@ -62,6 +62,8 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
     ...kit.queries.contact.get(c.contact?.id ?? ""),
     enabled: !!c.contact?.id,
   })
+  const translation = useQuery(kit.queries.translation.settings())
+  const translating = translation.data?.enabled ?? false
   const serverNotes = contactDetail.data?.notes ?? ""
   const canEdit = can("conversations:reply")
   const invalidate = () => queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
@@ -350,7 +352,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                           #{tk.number}
                         </Text>
                         <Text size="sm" fw={500} truncate style={{ flex: 1, minWidth: 0 }}>
-                          {tk.title}
+                          {tk.title_translated || tk.title}
                         </Text>
                         <Badge size="xs" variant="light" color={ticketStatusColor[tk.status]} style={{ flex: "none" }}>
                           {ticketStatusLabel(tk.status, t)}
@@ -508,6 +510,10 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                   <ContactNotesCard
                     contactId={c.contact.id}
                     value={serverNotes}
+                    translatedValue={contactDetail.data?.notes_translated}
+                    sourceLanguage={contactDetail.data?.notes_language}
+                    untranslated={contactDetail.data?.notes_untranslated}
+                    translating={translating}
                     title={t("inbox.contact_notes")}
                     placeholder={t("inbox.contact_notes_placeholder")}
                     editable={can("contacts:update")}

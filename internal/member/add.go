@@ -17,11 +17,12 @@ import (
 	"agents-desk/internal/role"
 )
 
-// AddParams 是添加成员的请求。邮箱已有账号时（例如已在别的工作区）直接加入，名字和初始密码不使用。
+// AddParams 是添加成员的请求。邮箱已有账号时（例如已在别的工作区）直接加入，名字、初始密码和语言参数不使用。
 type AddParams struct {
 	Email    string `json:"email" format:"email" maxLength:"254"`
 	Name     string `json:"name,omitempty" maxLength:"60" doc:"这个邮箱还没有账号时必填"`
 	Password string `json:"password,omitempty" maxLength:"128" doc:"新账号的初始密码，由你告诉本人；这个邮箱还没有账号时必填"`
+	Language string `json:"language,omitempty" maxLength:"35" doc:"可选：新账号的沟通与译文偏好语言（BCP 47，如 zh-CN、en、hi-Latn、pt-BR）；为空默认 zh-CN"`
 	RoleID   string `json:"role_id" format:"uuid" doc:"角色：这个工作区自己的角色"`
 }
 
@@ -50,7 +51,7 @@ func (a *Add) Handle(ctx context.Context, sub identity.Subject, p AddParams) (*T
 	var added *Member
 	var assigned authz.Role
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
-		m, err := Ensure(ctx, tx, a.logins, Account{Email: p.Email, Name: p.Name, Password: p.Password})
+		m, err := Ensure(ctx, tx, a.logins, Account{Email: p.Email, Name: p.Name, Password: p.Password, Language: p.Language})
 		switch {
 		case errors.Is(err, ErrDisabled):
 			return ErrDisabled.New(errorx.Field("email"))

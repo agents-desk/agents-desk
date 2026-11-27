@@ -20,6 +20,7 @@ import (
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/attribute"
+	"agents-desk/internal/lang"
 	"agents-desk/internal/tag"
 )
 
@@ -74,11 +75,12 @@ type Contact struct {
 	Language       string         `bun:"language,notnull"`         // 客户的语言：按最近几条消息判断（conversation.CustomerLanguage），或者成员手动设置的
 	LanguageManual bool           `bun:"language_manual,notnull"`  // 成员手动设置了 Language：收到的消息不再改它
 	Attributes     map[string]any `bun:"attributes,type:jsonb,notnull"`
-	Notes          string         `bun:"notes,notnull"`     // 成员填写的联系人备注，跨会话持久可见
-	Location       string         `bun:"location,notnull"`  // 所在地，例如“上海”“Mumbai”
-	TimeZone       string         `bun:"time_zone,notnull"` // IANA 时区名，例如 Asia/Shanghai，用于显示对方当地时间
-	Referrer       string         `bun:"referrer,notnull"`  // 首次访问的来源页面地址
-	LastSeenAt     *time.Time     `bun:"last_seen_at"`      // 最近活跃或联系的时间
+	Notes          string         `bun:"notes,notnull"`                    // 成员填写的联系人备注，跨会话持久可见
+	NotesDerived   map[string]any `bun:"notes_derived,type:jsonb,notnull"` // 联系人备注的派生翻译数据（源语言与按目标语言缓存的译文）
+	Location       string         `bun:"location,notnull"`                 // 所在地，例如“上海”“Mumbai”
+	TimeZone       string         `bun:"time_zone,notnull"`                // IANA 时区名，例如 Asia/Shanghai，用于显示对方当地时间
+	Referrer       string         `bun:"referrer,notnull"`                 // 首次访问的来源页面地址
+	LastSeenAt     *time.Time     `bun:"last_seen_at"`                     // 最近活跃或联系的时间
 }
 
 // Summary 是接口中联系人的概要，显示在会话中和聊天插件的会话响应里，包含可向客户展示的字段。
@@ -121,10 +123,11 @@ type Identity struct {
 	CreatedAt  time.Time `bun:"created_at,notnull"`
 }
 
-// Profile 是渠道告诉我们的联系人资料，新建或更新联系人时使用。TimeZone 和 Referrer 由浏览器自动上报，不合法时忽略。
+// Profile 是渠道告诉我们的联系人资料，新建或更新联系人时使用。Language、TimeZone 和 Referrer 由浏览器自动上报，不合法时忽略。
 type Profile struct {
 	Name     string
 	Email    string
+	Language string
 	TimeZone string
 	Referrer string
 }
@@ -155,8 +158,9 @@ func ResolveIdentity(ctx context.Context, tx bun.IDB, tenant, channelID, externa
 	c = &Contact{
 		ID: newID(), TenantID: tenant, Number: num, Kind: Lead,
 		Name: p.Name, Email: p.Email,
+		Language: sanitizeLanguage(p.Language),
 		TimeZone: sanitizeTimeZone(p.TimeZone), Referrer: sanitizeReferrer(p.Referrer),
-		LastSeenAt: &at, Attributes: map[string]any{},
+		LastSeenAt: &at, Attributes: map[string]any{}, NotesDerived: map[string]any{},
 	}
 	if _, err := tx.NewInsert().Model(c).Exec(ctx); err != nil {
 		return nil, false, errors.Wrap(err, "insert contact")
@@ -192,8 +196,9 @@ func ResolveUser(ctx context.Context, tx bun.IDB, tenant, channelID, externalID,
 			}
 			c = &Contact{
 				ID: newID(), TenantID: tenant, Number: num, Kind: User, ExternalUserID: userID,
+				Language: sanitizeLanguage(p.Language),
 				TimeZone: sanitizeTimeZone(p.TimeZone), Referrer: sanitizeReferrer(p.Referrer),
-				LastSeenAt: &at, Attributes: map[string]any{},
+				LastSeenAt: &at, Attributes: map[string]any{}, NotesDerived: map[string]any{},
 			}
 			if _, err := tx.NewInsert().Model(c).On("CONFLICT DO NOTHING").Exec(ctx); err != nil {
 				return nil, errors.Wrap(err, "insert user")
@@ -220,6 +225,9 @@ func ResolveUser(ctx context.Context, tx bun.IDB, tenant, channelID, externalID,
 	}
 	if tz := sanitizeTimeZone(p.TimeZone); tz != "" && tz != c.TimeZone {
 		c.TimeZone, changed = tz, append(changed, "time_zone")
+	}
+	if l := sanitizeLanguage(p.Language); l != "" && !c.LanguageManual && c.Language == "" {
+		c.Language, changed = l, append(changed, "language")
 	}
 	if ref := sanitizeReferrer(p.Referrer); ref != "" && c.Referrer == "" {
 		c.Referrer, changed = ref, append(changed, "referrer")
@@ -267,8 +275,9 @@ func LinkUser(ctx context.Context, tx database.Tx, tenant, channelID, externalID
 		u = &Contact{
 			ID: newID(), TenantID: tenant, Number: num, Kind: User, ExternalUserID: userID,
 			Name: p.Name, Email: p.Email,
+			Language: sanitizeLanguage(p.Language),
 			TimeZone: sanitizeTimeZone(p.TimeZone), Referrer: sanitizeReferrer(p.Referrer),
-			LastSeenAt: &at, Attributes: map[string]any{},
+			LastSeenAt: &at, Attributes: map[string]any{}, NotesDerived: map[string]any{},
 		}
 		if _, err := tx.NewInsert().Model(u).On("CONFLICT DO NOTHING").Exec(ctx); err != nil {
 			return nil, nil, errors.Wrap(err, "insert user")
@@ -305,6 +314,9 @@ func applySessionMeta(ctx context.Context, tx bun.IDB, c *Contact, p Profile, at
 	if tz := sanitizeTimeZone(p.TimeZone); tz != "" && tz != c.TimeZone {
 		c.TimeZone, changed = tz, append(changed, "time_zone")
 	}
+	if l := sanitizeLanguage(p.Language); l != "" && !c.LanguageManual && c.Language == "" {
+		c.Language, changed = l, append(changed, "language")
+	}
 	if ref := sanitizeReferrer(p.Referrer); ref != "" && c.Referrer == "" {
 		c.Referrer, changed = ref, append(changed, "referrer")
 	}
@@ -332,6 +344,62 @@ func Find(ctx context.Context, db bun.IDB, tenant, id string) (*Contact, error) 
 	return c, errors.Wrap(err, "load contact")
 }
 
+// VisibleByIDs 返回 ids 中属于 sub 所在工作区且 sub 有权查看的联系人记录（供补译校验可见性）。
+func VisibleByIDs(ctx context.Context, db bun.IDB, sub identity.Subject, ids []string) ([]Contact, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var out []Contact
+	err := visible(
+		db.NewSelect().Model(&out).Where("contact.tenant_id = ? AND contact.id IN (?)", sub.Tenant, bun.In(ids)),
+		sub,
+	).Scan(ctx)
+	return out, errors.Wrap(err, "load visible contacts by ids")
+}
+
+// SaveNotesTranslation 合并保存联系人 contactID 长期备注的源语言与多语言译文到 contacts.notes_derived。
+func SaveNotesTranslation(ctx context.Context, db *bun.DB, tenantID, contactID, source string, translations map[string]string) error {
+	return database.RunInTx(ctx, db, nil, func(ctx context.Context, tx database.Tx) error {
+		c := new(Contact)
+		err := tx.NewSelect().Model(c).Where("id = ? AND tenant_id = ?", contactID, tenantID).For("UPDATE").Scan(ctx)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return errors.Wrap(err, "load contact for notes translation")
+		}
+		if strings.TrimSpace(c.Notes) == "" {
+			return nil
+		}
+		if c.NotesDerived == nil {
+			c.NotesDerived = map[string]any{}
+		}
+		changed := false
+		if cur, _ := c.NotesDerived["language"].(string); cur == "" && source != "" {
+			c.NotesDerived["language"] = source
+			changed = true
+		}
+		trMap, _ := c.NotesDerived["translations"].(map[string]any)
+		if trMap == nil {
+			trMap = map[string]any{}
+		}
+		for k, v := range translations {
+			if prev, _ := trMap[k].(string); prev != v {
+				trMap[k] = v
+				changed = true
+			}
+		}
+		if len(trMap) > 0 {
+			c.NotesDerived["translations"] = trMap
+		}
+		if !changed {
+			return nil
+		}
+		_, err = tx.NewUpdate().Model(c).Column("notes_derived").WherePK().Exec(ctx)
+		return errors.Wrap(err, "save contact notes translation")
+	})
+}
+
 // validTimeZone 检查 s 是否是有效的 IANA 时区名（不接受 Go 特有的 "Local"）。
 func validTimeZone(s string) bool {
 	if s == "" || s == "Local" || len(s) > 64 {
@@ -339,6 +407,15 @@ func validTimeZone(s string) bool {
 	}
 	_, err := time.LoadLocation(s)
 	return err == nil
+}
+
+// sanitizeLanguage 校验浏览器或渠道上报的冷启动语言标签，合法时返回规范 BCP 47 写法，否则返回空字符串。
+func sanitizeLanguage(s string) string {
+	c, ok := lang.Canonical(s)
+	if !ok {
+		return ""
+	}
+	return c
 }
 
 // sanitizeTimeZone 返回合法的 IANA 时区名，不合法时返回空字符串。
