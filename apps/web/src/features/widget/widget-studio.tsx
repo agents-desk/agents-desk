@@ -137,7 +137,7 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
   return (
     <Page
       title={widget.data ? widget.data.name : t("widget_install.title")}
-      back={() => void navigate({ to: "/$slug/settings/widgets", params: { slug } })}
+      back={() => void navigate({ to: "/$slug/settings/channels", params: { slug } })}
       actions={
         widget.data ? (
           <Group

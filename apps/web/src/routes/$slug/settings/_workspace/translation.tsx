@@ -1,32 +1,123 @@
-import type { TranslationSettingsDTO, TranslationTerm } from "@agents-desk/client/tenant"
-import { ActionIcon, Badge, Button, Group, Modal, SegmentedControl, Stack, Text, TextInput } from "@mantine/core"
+import type { TranslationSettingsDTO, TranslationTerm, TranslationTone } from "@agents-desk/client/tenant"
+import { ActionIcon, Badge, Button, Group, Modal, Radio, SegmentedControl, Stack, Text, TextInput } from "@mantine/core"
 import { useForm } from "@mantine/form"
+import { IconPlus, IconTrash } from "@tabler/icons-react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { IconPlus, IconTrash } from "@tabler/icons-react"
-import { applyServerErrors, confirm, DataTable, FormError, notifyError, notifySuccess, Page, preloadQueries, useLanguage, useT } from "@go-tenon/ui"
-import { type ReactNode, useState } from "react"
+import { applyServerErrors, confirm, DataTable, FormError, notifyError, notifySuccess, Page, PageActions, preloadQueries, useLanguage, useT } from "@go-tenon/ui"
+import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../../../../api"
 import { RowActions } from "../../../../components/row-actions"
+import { useUnsavedGuard } from "../../../../components/unsaved-guard"
 import { LanguageSelect } from "../../../../LanguageSelect"
 import { languageName } from "../../../../languages"
 
-// 术语表：产品名、品牌名按固定的写法翻译。每条是保持原样（任何语言中都不翻译），或者按语言给出固定译法。
-// 只在消息中出现这个词时生效；订单号、金额、链接总是原样保留，不用加。添加、编辑、删除后保存整张表。
-export const Route = createFileRoute("/$slug/settings/_translation/glossary")({
-  staticData: { title: "glossary.title", icon: "book", order: 1, permission: "tenant-settings:manage" },
-  // 预取页面的数据，最多等一小会儿：切换到这一页时内容一次完整出现，不先空白再出现
+// 翻译设置：合并回复语气与术语表两个页内标签，共用同一份工作区翻译设置。
+export const Route = createFileRoute("/$slug/settings/_workspace/translation")({
+  staticData: { title: "nav.translation", icon: "language", order: 3, permission: "tenant-settings:manage" },
   loader: ({ context }) => preloadQueries(context.app.queryClient, [kit.queries.translation.settings()]),
-  component: Glossary,
+  component: TranslationSettingsPage,
 })
 
-/** Editing 是正在编辑的术语：index 是它在表中的位置，新加的为空。 */
+/** tones 是全部语气选项，按从亲切到正式排列。 */
+const tones: TranslationTone[] = ["friendly", "neutral", "formal"]
+
+function TranslationSettingsPage(): ReactNode {
+  const t = useT()
+  const settings = useQuery(kit.queries.translation.settings())
+  const glossaryCount = settings.data?.glossary?.length ?? 0
+
+  return (
+    <Page
+      title={t("nav.translation")}
+      description={t("translation_settings.description")}
+      tabs={[
+        { value: "tone", label: t("tone.title"), content: <ToneTab /> },
+        { value: "glossary", label: t("glossary.title"), count: glossaryCount || undefined, content: <GlossaryTab /> },
+      ]}
+    />
+  )
+}
+
+/** ToneTab 配置成员回复译成客户语言时的默认语气。 */
+function ToneTab(): ReactNode {
+  const t = useT()
+  const queryClient = useQueryClient()
+  const settings = useQuery(kit.queries.translation.settings())
+  const form = useForm<{ tone: TranslationTone }>({ initialValues: { tone: "neutral" } })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<ReturnType<typeof applyServerErrors>>()
+
+  const saved = settings.data?.tone
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 只在读到的值变化时重置表单
+  useEffect(() => {
+    if (!saved) return
+    form.setInitialValues({ tone: saved })
+    form.setValues({ tone: saved })
+  }, [saved])
+
+  const submit = form.onSubmit(async (values) => {
+    setSaving(true)
+    setError(undefined)
+    try {
+      const next = await tenantApi.translation.toneSave(values)
+      queryClient.setQueryData(kit.queries.translation.settings().queryKey, next)
+      form.setInitialValues({ tone: next.tone })
+      form.resetDirty({ tone: next.tone })
+      notifySuccess(t("common.saved"))
+    } catch (err) {
+      setError(applyServerErrors(form, err))
+    } finally {
+      setSaving(false)
+    }
+  })
+
+  useUnsavedGuard(form.isDirty())
+  return (
+    <form noValidate onSubmit={submit}>
+      <Stack gap="md">
+        <Text size="sm" c="dimmed">
+          {t("tone.description")}
+        </Text>
+        <FormError error={error} />
+        <Radio.Group {...form.getInputProps("tone")} aria-label={t("tone.title")}>
+          <Stack gap="sm">
+            {tones.map((tone) => (
+              <Radio.Card key={tone} value={tone} radius="md" p="md">
+                <Group wrap="nowrap" align="flex-start">
+                  <Radio.Indicator />
+                  <div>
+                    <Text fw={600}>{kit.label("TranslationTone", tone)}</Text>
+                    <Text size="sm" c="dimmed">
+                      {t(`tone.${tone}_hint` as const)}
+                    </Text>
+                    <Text size="sm" mt={4}>
+                      {t(`tone.${tone}_example` as const)}
+                    </Text>
+                  </div>
+                </Group>
+              </Radio.Card>
+            ))}
+          </Stack>
+        </Radio.Group>
+        <Group justify="flex-end">
+          <Button type="submit" disabled={!form.isDirty() || !settings.data} loading={saving}>
+            {t("common.save")}
+          </Button>
+        </Group>
+      </Stack>
+    </form>
+  )
+}
+
+/** Editing 是正在编辑的术语：index 为其在表中的位置，新增时为空。 */
 interface Editing {
   index?: number
   term: TranslationTerm
 }
 
-function Glossary(): ReactNode {
+/** GlossaryTab 管理产品名和品牌名的固定译法或保留原样规则。 */
+function GlossaryTab(): ReactNode {
   const t = useT()
   const ui = useLanguage()
   const queryClient = useQueryClient()
@@ -34,7 +125,6 @@ function Glossary(): ReactNode {
   const [editing, setEditing] = useState<Editing>()
   const glossary = settings.data?.glossary ?? []
 
-  // save 保存整张表，成功后更新缓存
   const save = async (next: TranslationTerm[]): Promise<TranslationSettingsDTO> => {
     const saved = await tenantApi.translation.glossarySave({ glossary: next })
     queryClient.setQueryData(kit.queries.translation.settings().queryKey, saved)
@@ -52,15 +142,16 @@ function Glossary(): ReactNode {
   }
 
   return (
-    <Page
-      title={t("glossary.title")}
-      description={t("glossary.description")}
-      actions={
+    <Stack gap="sm">
+      <PageActions>
         <Button leftSection={<IconPlus size={16} />} onClick={() => setEditing({ term: { term: "", keep: false, translations: {} } })} disabled={!settings.data}>
           {t("glossary.add")}
         </Button>
-      }
-    >
+      </PageActions>
+      <Text size="sm" c="dimmed">
+        {t("glossary.description")}
+      </Text>
+
       <DataTable
         records={glossary.map((term, index) => ({ ...term, index }))}
         rowKey={(row) => row.term}
@@ -112,6 +203,7 @@ function Glossary(): ReactNode {
           },
         ]}
       />
+
       <Modal opened={!!editing} onClose={() => setEditing(undefined)} title={t(editing?.index === undefined ? "glossary.add" : "glossary.edit")} size="lg">
         {editing && (
           <TermForm
@@ -125,17 +217,17 @@ function Glossary(): ReactNode {
           />
         )}
       </Modal>
-    </Page>
+    </Stack>
   )
 }
 
-/** Pair 是表单中的一条译法：语言和译文。 */
+/** Pair 是术语表单中的一条语言译法。 */
 interface Pair {
   lang: string
   text: string
 }
 
-/** TermForm 是添加和编辑术语的表单：术语、处理方式，固定译法时按语言填写译法。保存失败时错误显示在表单中。 */
+/** TermForm 是新增或编辑术语的表单，支持原样保留与按语言指定固定译法。 */
 function TermForm({ initial, onSave, onCancel }: { initial: TranslationTerm; onSave: (term: TranslationTerm) => Promise<void>; onCancel: () => void }): ReactNode {
   const t = useT()
   const pairs = Object.entries(initial.translations ?? {}).map(([lang, text]) => ({ lang, text }))
@@ -195,18 +287,16 @@ function TermForm({ initial, onSave, onCancel }: { initial: TranslationTerm; onS
             <Text size="sm" fw={500}>
               {t("glossary.translations")}
             </Text>
-            {form.values.pairs.map((p, i) => {
-              return (
-                // biome-ignore lint/suspicious/noArrayIndexKey: 表单中的行没有别的标识
-                <Group key={i} gap="xs" wrap="nowrap" align="flex-start">
-                  <LanguageSelect w={220} placeholder={t("glossary.language")} aria-label={t("glossary.language")} {...form.getInputProps(`pairs.${i}.lang`)} />
-                  <TextInput style={{ flex: 1 }} maxLength={200} placeholder={t("glossary.translation")} aria-label={t("glossary.translation")} {...form.getInputProps(`pairs.${i}.text`)} />
-                  <ActionIcon variant="subtle" color="gray" mt={6} onClick={() => form.removeListItem("pairs", i)} aria-label={t("glossary.remove_translation")}>
-                    <IconTrash size={16} />
-                  </ActionIcon>
-                </Group>
-              )
-            })}
+            {form.values.pairs.map((_p, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: 表单中的行按位置维护
+              <Group key={i} gap="xs" wrap="nowrap" align="flex-start">
+                <LanguageSelect w={220} placeholder={t("glossary.language")} aria-label={t("glossary.language")} {...form.getInputProps(`pairs.${i}.lang`)} />
+                <TextInput style={{ flex: 1 }} maxLength={200} placeholder={t("glossary.translation")} aria-label={t("glossary.translation")} {...form.getInputProps(`pairs.${i}.text`)} />
+                <ActionIcon variant="subtle" color="gray" mt={6} onClick={() => form.removeListItem("pairs", i)} aria-label={t("glossary.remove_translation")}>
+                  <IconTrash size={16} />
+                </ActionIcon>
+              </Group>
+            ))}
             <Button variant="subtle" size="xs" w="fit-content" leftSection={<IconPlus size={14} />} onClick={() => form.insertListItem("pairs", { lang: "", text: "" })}>
               {t("glossary.add_translation")}
             </Button>

@@ -30,7 +30,7 @@ import {
   IconUser,
   IconUsersGroup,
 } from "@tabler/icons-react"
-import { AnchorLink, applyServerErrors, confirm, DataTable, FormError, notifyError, notifySuccess, Page, preloadQueries, StatusDot, useT } from "@go-tenon/ui"
+import { AnchorLink, applyServerErrors, confirm, DataTable, FormError, notifyError, notifySuccess, Page, PageActions, preloadQueries, StatusDot, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../../../../../api"
 import { RowActions } from "../../../../../components/row-actions"
@@ -148,18 +148,8 @@ function BusinessLinksTab({ slug }: { slug: string }): ReactNode {
   }
 
   return (
-    <Stack gap="md">
-      <Group justify="space-between" align="center" wrap="wrap" gap="sm">
-        <Group gap="xs" wrap="wrap">
-          <Text size="sm" c="dimmed">
-            {t("business_channels.links_desc")}
-          </Text>
-          {maxLinks > 0 && (
-            <Badge size="xs" variant="light" color={quotaReached ? "deep-orange" : "gray"}>
-              {t("business_channels.quota_badge", { used: items.length, limit: maxLinks })}
-            </Badge>
-          )}
-        </Group>
+    <Stack gap="sm">
+      <PageActions>
         <Tooltip
           label={!linksAllowed ? t("business_channels.links_disabled_title") : t("business_channels.quota_reached", { limit: maxLinks })}
           disabled={linksAllowed && !quotaReached}
@@ -168,6 +158,16 @@ function BusinessLinksTab({ slug }: { slug: string }): ReactNode {
             {t("business_channels.link_new")}
           </Button>
         </Tooltip>
+      </PageActions>
+      <Group gap="xs" wrap="wrap">
+        <Text size="sm" c="dimmed">
+          {t("business_channels.links_desc")}
+        </Text>
+        {maxLinks > 0 && (
+          <Badge size="xs" variant="light" color={quotaReached ? "deep-orange" : "gray"}>
+            {t("business_channels.quota_badge", { used: items.length, limit: maxLinks })}
+          </Badge>
+        )}
       </Group>
 
       {policy && !linksAllowed && (
@@ -379,18 +379,8 @@ function TelegramAccountsTab({ slug }: { slug: string }): ReactNode {
   }
 
   return (
-    <Stack gap="md">
-      <Group justify="space-between" align="center" wrap="wrap" gap="sm">
-        <Group gap="xs" wrap="wrap">
-          <Text size="sm" c="dimmed">
-            {t("business_channels.tg_desc")}
-          </Text>
-          {maxTG > 0 && (
-            <Badge size="xs" variant="light" color={quotaReached ? "deep-orange" : "gray"}>
-              {t("business_channels.quota_badge", { used: accounts.length, limit: maxTG })}
-            </Badge>
-          )}
-        </Group>
+    <Stack gap="sm">
+      <PageActions>
         <Tooltip
           label={
             !tgAllowed
@@ -405,6 +395,16 @@ function TelegramAccountsTab({ slug }: { slug: string }): ReactNode {
             {t("business_channels.tg_connect")}
           </Button>
         </Tooltip>
+      </PageActions>
+      <Group gap="xs" wrap="wrap">
+        <Text size="sm" c="dimmed">
+          {t("business_channels.tg_desc")}
+        </Text>
+        {maxTG > 0 && (
+          <Badge size="xs" variant="light" color={quotaReached ? "deep-orange" : "gray"}>
+            {t("business_channels.quota_badge", { used: accounts.length, limit: maxTG })}
+          </Badge>
+        )}
       </Group>
 
       {policy && !tgAllowed && (
