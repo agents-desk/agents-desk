@@ -1823,7 +1823,7 @@ inbox.reply_to_message: "引用回复"
 inbox.replying_to: "回复 {{.who}}：{{.text}}"
 
 nav.ai: "AI Agent"
-nav.internal_channels: "内部服务渠道"
+nav.internal_channels: "内部渠道"
 internal_channels.description: "管理面向内部员工的机器人接入渠道（企业微信、Telegram 内部机器人等）与员工群，后续优先由 AI Agent 接待、无法处理时转入团队收件箱。"
 telegrams.description_internal: "接入面向内部员工服务的 Telegram 机器人，支持单聊与员工群 @机器人 请求，并作为 AI Agent 的接入入口。"
 extgroups.description_customer: "管理对外客服机器人加入的客户群（如 VIP 支持群、项目交付群），配置群名称、默认团队收件箱与启用状态。"

@@ -2887,7 +2887,7 @@ export const messages = {
     "nav.external_groups": "客户群",
     "nav.general": "常规",
     "nav.inbox": "收件箱",
-    "nav.internal_channels": "内部服务渠道",
+    "nav.internal_channels": "内部渠道",
     "nav.internal_groups": "员工群",
     "nav.macros": "快捷回复",
     "nav.members": "成员",
