@@ -1,20 +1,21 @@
 import { Select, type SelectProps } from "@mantine/core"
 import { useLanguage, useT } from "@go-tenon/ui"
 import { type ReactNode, useMemo, useState } from "react"
-import { languageName, languageOptions, languageSearchKeys, useWorkspaceLanguages, validLanguage } from "./languages"
+import { allLanguages, commonLanguages, languageName, languageOptions, languageSearchKeys, useWorkspaceLanguages, validLanguage } from "./languages"
 
 /** LanguageSelectProps 是选择语言的设置。 */
 interface LanguageSelectProps extends Omit<SelectProps, "data" | "searchValue" | "onSearchChange"> {
-  first?: string[] // 排在工作区活跃语言与全球目录前面的语言，例如对方的语言
+  first?: string[] // 排在工作区活跃语言与默认核心语言前面的语言，例如对方的语言
   before?: { value: string; label: string }[] // 排在最前面的特殊选项，例如“不翻译”“自动识别”
   labels?: Record<string, string> // 替换某些语言的显示文字，例如在对方的语言后面注明“对方的语言”
-  languages?: readonly string[] // 候选的常用语言列表；不传时使用全局 commonLanguages
+  languages?: readonly string[] // 显式指定候选语言列表；省略时默认展开 commonLanguages，搜索时扩展到 allLanguages
   includeWorkspace?: boolean // 是否自动把当前工作区活跃语言置顶，默认 true
 }
 
 /**
- * LanguageSelect 是选择语言的下拉框：特殊选项、first 中的语言、当前工作区活跃语言、全球常用语言，名字按界面语言显示；
- * 支持按界面语言名、英文名、自称或 BCP 47 标签模糊搜索，输入任意合法 BCP 47 标签（如 pt-BR、hi-Latn）也可直接选用。
+ * LanguageSelect 是选择语言的下拉框：
+ * 默认展开只显示特殊选项、first 中的语言、当前工作区活跃语言和精简核心语言（commonLanguages）；
+ * 输入搜索词时自动扩展到全球语言目录（allLanguages），支持按界面名、英文名、自称或任意合法 BCP 47 标签检索。
  */
 export function LanguageSelect({
   first = [],
@@ -32,9 +33,17 @@ export function LanguageSelect({
   const special = new Set(before.map((o) => o.value))
   const current = typeof props.value === "string" && !special.has(props.value) ? props.value : ""
   const priority = [current, ...first.filter((x) => !special.has(x)), ...(includeWorkspace ? workspaceLanguages : [])]
-  const options = languageOptions(ui, priority, languages)
+  const defaultOptions = languageOptions(ui, priority, languages ?? commonLanguages)
     .filter((o) => !special.has(o.value))
     .map((o) => ({ ...o, label: labels[o.value] ?? o.label }))
+  const selectedLabel = [...before, ...defaultOptions].find((o) => o.value === props.value)?.label ?? ""
+  const isSearching = search.trim() !== "" && search !== selectedLabel
+  const options =
+    isSearching && !languages
+      ? languageOptions(ui, priority, allLanguages)
+          .filter((o) => !special.has(o.value))
+          .map((o) => ({ ...o, label: labels[o.value] ?? o.label }))
+      : defaultOptions
   const typed = validLanguage(search)
   if (typed && !special.has(typed) && !options.some((o) => o.value === typed)) {
     options.unshift({ value: typed, label: `${languageName(typed, ui)} (${typed})` })

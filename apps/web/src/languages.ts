@@ -3,16 +3,21 @@
 import { useQuery } from "@tanstack/react-query"
 import { kit } from "./api"
 
-/** commonLanguages 是覆盖全球主要市场的标准业务语言目录（BCP 47）；下拉框会自动将工作区实际活跃语言置顶。 */
+/** commonLanguages 是语言选择器默认展开的精简核心语言列表（BCP 47）；下拉框会自动将工作区实际活跃语言置顶。 */
 export const commonLanguages = [
   "zh-CN",
-  "zh-TW",
   "en",
   "hi-Latn",
   "hi",
   "pt-BR",
-  "pt-PT",
   "es",
+] as const
+
+/** allLanguages 是语言选择器在用户输入搜索词时参与匹配的全球主要业务语言目录（BCP 47）。 */
+export const allLanguages = [
+  ...commonLanguages,
+  "zh-TW",
+  "pt-PT",
   "es-419",
   "id",
   "vi",
