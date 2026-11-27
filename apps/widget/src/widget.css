@@ -219,6 +219,14 @@ body {
 .w-bubble[data-state="sending"] {
   opacity: 0.6;
 }
+.w-bubble[data-corrected] {
+  opacity: 0.68;
+}
+.w-correction-ref {
+  border-inline-start: 2px solid var(--mantine-color-deep-orange-6);
+  padding-inline-start: 8px;
+  margin-bottom: 6px;
+}
 @keyframes w-panel-in {
   from {
     opacity: 0;

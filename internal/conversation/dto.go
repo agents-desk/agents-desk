@@ -89,6 +89,12 @@ type ItemDTO struct {
 	Recalled bool `json:"recalled,omitempty" doc:"消息已撤回；正文和附件不再返回"`
 	// RecalledAt 是撤回的时间
 	RecalledAt *time.Time `json:"recalled_at,omitempty" doc:"撤回时间"`
+	// CorrectedBy 是更正这条消息的新消息 ID；非空表示这条消息已被更正
+	CorrectedBy *string `json:"corrected_by,omitempty" doc:"更正这条消息的新消息 ID；非空表示这条消息已被更正"`
+	// CorrectedAt 是被更正的时间
+	CorrectedAt *time.Time `json:"corrected_at,omitempty" doc:"被更正的时间"`
+	// CorrectsItemID 是这条消息更正的原消息 ID
+	CorrectsItemID *string `json:"corrects_item_id,omitempty" doc:"这条消息更正的原消息 ID"`
 }
 
 // ItemOutput 是返回时间线一项的响应。
@@ -208,6 +214,11 @@ func toItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Item) ([]I
 	for _, r := range recalls {
 		recalledAt[r.ItemID] = r.CreatedAt
 	}
+	// 更正关系：原消息标出被哪条新消息更正，更正消息标出更正的是哪条原消息
+	correctedBy, correctsItem, err := loadCorrections(ctx, db, ids)
+	if err != nil {
+		return nil, err
+	}
 	for i, it := range items {
 		actor := Actor{Type: it.ActorType, ID: it.ActorID}
 		switch it.ActorType {
@@ -246,6 +257,16 @@ func toItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Item) ([]I
 			out[i].Attachments = nil
 			out[i].Derived = map[string]any{}
 			out[i].Delivery = nil
+		}
+		if corr, ok := correctedBy[it.ID]; ok {
+			by := corr.CorrectionItemID
+			at := corr.CreatedAt
+			out[i].CorrectedBy = &by
+			out[i].CorrectedAt = &at
+		}
+		if origID, ok := correctsItem[it.ID]; ok {
+			orig := origID
+			out[i].CorrectsItemID = &orig
 		}
 	}
 	return out, nil

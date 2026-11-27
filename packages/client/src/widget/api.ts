@@ -116,6 +116,12 @@ export interface ConversationContactItemDTO {
   channel?: ChannelSummary
   /** 该消息所属的服务型会话 ID */
   conversation_id?: string
+  /** 被更正的时间 */
+  corrected_at?: string
+  /** 更正这条消息的新消息 ID；非空表示这条消息已被更正 */
+  corrected_by?: string
+  /** 这条消息更正的原消息 ID */
+  corrects_item_id?: string
   created_at: string
   id: string
   kind: ConversationItemKind

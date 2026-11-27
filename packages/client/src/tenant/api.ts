@@ -897,6 +897,12 @@ export interface ConversationItemDTO {
   /** 该消息来自或发往的渠道 */
   channel?: ChannelSummary
   content: ConversationContent
+  /** 被更正的时间 */
+  corrected_at?: string
+  /** 更正这条消息的新消息 ID；非空表示这条消息已被更正 */
+  corrected_by?: string
+  /** 这条消息更正的原消息 ID */
+  corrects_item_id?: string
   created_at: string
   /** 发给对方的消息的送达状态 */
   delivery?: ConversationDelivery
@@ -1031,6 +1037,8 @@ export interface ConversationReplyBody {
   auto_translate?: ConversationAutoTranslateRequest
   /** 发往的渠道 ID；为空时发往会话当前的默认回复渠道 */
   channel_id?: string
+  /** 可选：作为更正发出的原消息 ID */
+  corrects_item_id?: string
   /** 可选：外部群回复时要 @ 的发言人列表 */
   external_mentions?: ChannelExternalMention[]
   /** 可选：引用回复同会话内的指定消息 ID */
@@ -1099,6 +1107,8 @@ export interface ConversationSendChatMessageBody {
   attachments?: ConversationAttachmentInput[]
   /** 仅外部商务聊天对外回复可用：不携带 translation 时，先立刻落库并由投递任务异步翻译后发往外部渠道 */
   auto_translate?: ConversationAutoTranslateRequest
+  /** 可选：作为更正发出的原消息 ID */
+  corrects_item_id?: string
   /** 外部群对外回复时要 @ 的发言人列表 */
   external_mentions?: ChannelExternalMention[]
   /** @ 到的工作区成员 ID（仅内部聊天或内部备注使用） */

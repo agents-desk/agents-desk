@@ -789,6 +789,8 @@ export const messages = {
     "inbox.contact_view": "View contact profile",
     "inbox.copied": "Copied",
     "inbox.copy_message": "Copy message",
+    "inbox.correcting_message": "Correcting message: {{.text}}",
+    "inbox.correction_of": "Correction",
     "inbox.ctrl_enter_again": "Translation updated. Check it, then press {{.key}} again to send",
     "inbox.ctrl_enter_hint": "{{.key}} to send, Enter for a new line",
     "inbox.customer_group": "Customer group",
@@ -854,6 +856,8 @@ export const messages = {
     "inbox.media_unavailable": "Media unavailable",
     "inbox.media_voice": "Voice message",
     "inbox.mention_speaker": "Mention speaker",
+    "inbox.message_correct": "Send correction",
+    "inbox.message_corrected": "Corrected",
     "inbox.message_edit": "Edit",
     "inbox.message_edit_save": "Save",
     "inbox.message_edit_title": "Edit message",
@@ -963,6 +967,7 @@ export const messages = {
     "inbox.translation_tone_default": "Default tone",
     "inbox.typing": "{{.who}} is typing…",
     "inbox.unassign": "Remove assignee",
+    "inbox.view_correction": "View correction",
     "inbox.view_image": "View image",
     "inbox.view_original": "View original",
     "inbox.view_translation": "View translation",
@@ -2728,6 +2733,8 @@ export const messages = {
     "inbox.contact_view": "查看联系人资料",
     "inbox.copied": "已复制",
     "inbox.copy_message": "复制消息",
+    "inbox.correcting_message": "正在更正消息：{{.text}}",
+    "inbox.correction_of": "更正原消息",
     "inbox.ctrl_enter_again": "译文已更新，确认后再按一次 {{.key}} 发送",
     "inbox.ctrl_enter_hint": "{{.key}} 发送，回车换行",
     "inbox.customer_group": "客户群",
@@ -2793,6 +2800,8 @@ export const messages = {
     "inbox.media_unavailable": "媒体不可用",
     "inbox.media_voice": "语音消息",
     "inbox.mention_speaker": "@ 群发言人",
+    "inbox.message_correct": "发送更正",
+    "inbox.message_corrected": "已更正",
     "inbox.message_edit": "编辑",
     "inbox.message_edit_save": "保存",
     "inbox.message_edit_title": "编辑消息",
@@ -2902,6 +2911,7 @@ export const messages = {
     "inbox.translation_tone_default": "默认语气",
     "inbox.typing": "{{.who}} 正在输入…",
     "inbox.unassign": "取消负责人",
+    "inbox.view_correction": "查看更正",
     "inbox.view_image": "查看大图",
     "inbox.view_original": "查看原文",
     "inbox.view_translation": "查看译文",
@@ -4670,6 +4680,8 @@ export type MessageId =
   | "inbox.contact_view"
   | "inbox.copied"
   | "inbox.copy_message"
+  | "inbox.correcting_message"
+  | "inbox.correction_of"
   | "inbox.ctrl_enter_again"
   | "inbox.ctrl_enter_hint"
   | "inbox.customer_group"
@@ -4735,6 +4747,8 @@ export type MessageId =
   | "inbox.media_unavailable"
   | "inbox.media_voice"
   | "inbox.mention_speaker"
+  | "inbox.message_correct"
+  | "inbox.message_corrected"
   | "inbox.message_edit"
   | "inbox.message_edit_save"
   | "inbox.message_edit_title"
@@ -4844,6 +4858,7 @@ export type MessageId =
   | "inbox.translation_tone_default"
   | "inbox.typing"
   | "inbox.unassign"
+  | "inbox.view_correction"
   | "inbox.view_image"
   | "inbox.view_original"
   | "inbox.view_translation"

@@ -165,9 +165,11 @@ export const ConversationErrors = {
   InvalidFilter: "conversation.invalid_filter",
   /** ErrInvalidLanguage 是设置的对方语言不是合法的 BCP 47 标签。 */
   InvalidLanguage: "conversation.invalid_language",
+  /** ErrMessageNotCorrectable 是这条消息不能更正（例如对方发来的消息、内部备注、系统事件、已撤回的消息，或试图用内部备注作为更正）。 */
+  MessageNotCorrectable: "conversation.message_not_correctable",
   /** ErrMessageNotAuthor 是不是作者本人编辑这条消息。 */
   MessageNotAuthor: "conversation.message_not_author",
-  /** ErrMessageNotEditable 是这条消息不能编辑：发给客户的消息要等更正流程，其他种类的会话不开放编辑。 */
+  /** ErrMessageNotEditable 是这条消息不能编辑：发给客户的消息请发送更正，其他种类的会话不开放编辑。 */
   MessageNotEditable: "conversation.message_not_editable",
   /** ErrMessageEditWindow 是超过了可以编辑已发出消息的时间。 */
   MessageEditWindow: "conversation.message_edit_window",

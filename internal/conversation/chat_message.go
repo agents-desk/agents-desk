@@ -23,6 +23,7 @@ type SendChatMessageBody struct {
 	Mentions         []string                  `json:"mentions,omitempty" maxItems:"20" uniqueItems:"true" doc:"@ 到的工作区成员 ID（仅内部聊天或内部备注使用）"`
 	ExternalMentions []channel.ExternalMention `json:"external_mentions,omitempty" maxItems:"20" doc:"外部群对外回复时要 @ 的发言人列表"`
 	ReplyToItemID    string                    `json:"reply_to_item_id,omitempty" format:"uuid" doc:"可选：引用回复同聊天内的指定消息 ID"`
+	CorrectsItemID   string                    `json:"corrects_item_id,omitempty" format:"uuid" doc:"可选：作为更正发出的原消息 ID"`
 	Attachments      []AttachmentInput         `json:"attachments,omitempty" maxItems:"10" doc:"通过 /files 上传的媒体附件列表"`
 	Note             bool                      `json:"note,omitempty" doc:"仅商务外部聊天可用：为 true 时写为仅成员可见的内部备注，不发往外部渠道"`
 	Translation      *Translation              `json:"translation,omitempty" doc:"发送译文：外部商务聊天对外回复时替换发出并保留原文；内部聊天与内部备注时写入派生译文供该语言成员查看"`
@@ -83,6 +84,14 @@ func (a *SendChatMessage) Handle(ctx context.Context, sub identity.Subject, id s
 			}
 			rid := body.ReplyToItemID
 			replyToID = &rid
+		}
+		if body.CorrectsItemID != "" {
+			if body.Note {
+				return ErrMessageNotCorrectable.New()
+			}
+			if _, err := validateCorrectionTarget(ctx, tx, sub, c, cm.Scope, body.CorrectsItemID); err != nil {
+				return err
+			}
 		}
 		var mentions []string
 		if !isExternalReply {
@@ -148,6 +157,11 @@ func (a *SendChatMessage) Handle(ctx context.Context, sub identity.Subject, id s
 		c.LastMessageAt = at
 		if err := commit(ctx, tx, a.down, c, &item); err != nil {
 			return err
+		}
+		if body.CorrectsItemID != "" {
+			if err := recordCorrection(ctx, tx, c, body.CorrectsItemID, item.ID, at); err != nil {
+				return err
+			}
 		}
 		if err := insertAttachments(ctx, tx, c.TenantID, item.ID, confirmed); err != nil {
 			return err

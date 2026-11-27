@@ -134,6 +134,7 @@ export function ConversationView({
   const [lightbox, setLightbox] = useState<LightboxImage | null>(null)
 
   const list = data?.items ?? []
+  const byItemId = new Map(list.map((it) => [it.id, it]))
   const conversations = data?.conversations ?? {}
   const latest = data?.latest_conversation
   const unread = data?.unread ?? 0
@@ -335,6 +336,14 @@ export function ConversationView({
               const groupedWithNext = Boolean(next) && canGroup(it, next)
               const gapTop = i === 0 || roundChanged || showDay ? 0 : groupedWithPrev ? 4 : 10
               const ticketTarget = ticketPromptTarget(it.prompt)
+              const corrected = Boolean(it.corrected_by)
+              const correctedOrig = it.corrects_item_id ? byItemId.get(it.corrects_item_id) : undefined
+              const correction = it.corrects_item_id
+                ? {
+                    label: t("chat.correction_label"),
+                    text: correctedOrig ? promptText(correctedOrig.prompt, correctedOrig.text, language, t) : undefined,
+                  }
+                : undefined
               return (
                 <Fragment key={it.id}>
                   {roundChanged && <Divider label={roundLabel} labelPosition="center" my="sm" />}
@@ -353,6 +362,8 @@ export function ConversationView({
                       author={!groupedWithPrev ? (it.author.type === "member" ? it.author.name : it.author.type === "system" ? name : undefined) : undefined}
                       text={promptText(it.prompt, it.text, language, t)}
                       attachments={it.attachments}
+                      corrected={corrected}
+                      correction={correction}
                       action={
                         ticketTarget ? (
                           <Button
@@ -369,10 +380,11 @@ export function ConversationView({
                         ) : undefined
                       }
                       meta={
-                        !groupedWithNext
+                        !groupedWithNext || corrected
                           ? [
+                              corrected ? t("chat.message_corrected") : "",
                               it.channel && it.channel.id !== currentChannelId ? t("chat.via_channel", { channel: it.channel.name }) : "",
-                              clock(it.created_at, language),
+                              !groupedWithNext ? clock(it.created_at, language) : "",
                             ]
                               .filter(Boolean)
                               .join(" · ")
@@ -482,6 +494,8 @@ export function Bubble({
   author,
   text,
   attachments,
+  corrected,
+  correction,
   action,
   meta,
   color,
@@ -495,6 +509,8 @@ export function Bubble({
   author?: string
   text: string
   attachments?: ConversationAttachmentDTO[]
+  corrected?: boolean
+  correction?: { label: string; text?: string }
   action?: ReactNode
   meta?: ReactNode
   color: string
@@ -505,7 +521,7 @@ export function Bubble({
   onPreview: (image: LightboxImage) => void
 }): ReactNode {
   const fg = useBrandForeground()
-  const mediaOnly = !text && !action && Boolean(attachments?.length) && attachments!.every((a) => a.kind === "image")
+  const mediaOnly = !text && !action && !correction && Boolean(attachments?.length) && attachments!.every((a) => a.kind === "image")
   return (
     <Box
       mt={mt}
@@ -522,10 +538,23 @@ export function Bubble({
         data-first={first || undefined}
         data-last={last || undefined}
         data-state={state}
+        data-corrected={corrected || undefined}
         data-media-only={mediaOnly || undefined}
         bg={mine ? (state === "failed" ? "red.1" : `var(--mantine-color-${color}-filled)`) : undefined}
         c={mine ? (state === "failed" ? "red.8" : fg) : undefined}
       >
+        {correction && (
+          <Box className="w-correction-ref">
+            <Text size="xs" fw={600} c="deep-orange">
+              {correction.label}
+            </Text>
+            {correction.text && (
+              <Text size="xs" c="dimmed" lineClamp={2}>
+                {correction.text}
+              </Text>
+            )}
+          </Box>
+        )}
         {text && <Linkify text={text} />}
         <WidgetMessageAttachments attachments={attachments} hasText={Boolean(text)} mine={mine} onPreview={onPreview} />
         {action && <Box>{action}</Box>}

@@ -243,6 +243,12 @@ func mergePair(ctx context.Context, tx database.Tx, down Downstream, sub identit
 	).Exec(ctx); err != nil {
 		return nil, errors.Wrap(err, "migrate merged ticket source conversations")
 	}
+	if _, err := tx.NewRaw(
+		`UPDATE message_corrections SET conversation_id = ? WHERE tenant_id = ? AND conversation_id = ?`,
+		target.ID, sub.Tenant, source.ID,
+	).Exec(ctx); err != nil {
+		return nil, errors.Wrap(err, "migrate merged message corrections")
+	}
 
 	// 4. 合并已读进度：只有成员在合并前已读完源和目标两个会话全部内容时，合并后才视为已读到最新，否则保留未读提醒
 	var reads []struct {

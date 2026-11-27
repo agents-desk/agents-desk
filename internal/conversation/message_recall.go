@@ -29,7 +29,7 @@ type RecallMessageInput struct {
 }
 
 // RecallMessage 撤回自己发出的一条消息或内部备注：时间线项保持原样，撤回作为一条独立的记录追加。
-// 只有不对客户发出的内容可以撤回（内部聊天的消息和内部备注），发出的消息要等更正流程。
+// 只有不对客户发出的内容可以撤回（内部聊天的消息和内部备注），发出的消息请发送更正。
 type RecallMessage struct {
 	db   *bun.DB
 	down Downstream

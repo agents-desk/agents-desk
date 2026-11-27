@@ -1,7 +1,7 @@
 import type { ConversationDTO, ConversationItemDTO } from "@agents-desk/client/tenant"
-import { ActionIcon, Box, Divider, Loader, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
+import { ActionIcon, Box, Divider, Group, Loader, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { IconCornerUpLeft } from "@tabler/icons-react"
+import { IconCornerUpLeft, IconPencil } from "@tabler/icons-react"
 import { ImageLightbox, notifyError, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
 import { Fragment, type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
@@ -46,6 +46,7 @@ export function Timeline({
   focusSeq,
   focusField,
   onReplyTo,
+  onCorrect,
 }: {
   c: ConversationDTO
   readSeq: number
@@ -54,6 +55,7 @@ export function Timeline({
   focusSeq?: number
   focusField?: MatchField
   onReplyTo?: (item: ConversationItemDTO) => void
+  onCorrect?: (item: ConversationItemDTO) => void
 }): ReactNode {
   const t = useT()
   const language = useLanguage()
@@ -108,6 +110,14 @@ export function Timeline({
 
   const firstNew = firstUnread(list, readSeq, me.data?.id)
   const byItemId = new Map(list.map((item) => [item.id, item]))
+  const jumpToItem = (targetId: string) => {
+    const target = byItemId.get(targetId)
+    const el = scroller.current?.querySelector<HTMLElement>(`[data-item-id="${targetId}"]`)
+    if (!target || !el) return
+    el.scrollIntoView({ block: "center", behavior: "smooth" })
+    setPulseSeq(target.seq)
+    setTimeout(() => setPulseSeq((cur) => (cur === target.seq ? undefined : cur)), 2500)
+  }
   const sameChannelMsg = (a: ConversationItemDTO, b: ConversationItemDTO) =>
     a.kind === "message" && b.kind === "message" && a.channel?.id === b.channel?.id
   const memberOf = (memberId: string) => byId.get(memberId) ?? (memberId === me.data?.id ? me.data : undefined)
@@ -138,6 +148,15 @@ export function Timeline({
                   text: quotedItem.content.text || quotedItem.content.original || "…",
                 }
               : undefined
+            const correctedOrig = it.corrects_item_id ? byItemId.get(it.corrects_item_id) : undefined
+            const correction = it.corrects_item_id
+              ? {
+                  text: correctedOrig ? (correctedOrig.content.original || correctedOrig.content.text || "…") : undefined,
+                  onJump: correctedOrig ? () => jumpToItem(correctedOrig.id) : undefined,
+                }
+              : undefined
+            const onViewCorrection =
+              it.corrected_by && byItemId.has(it.corrected_by) ? () => jumpToItem(it.corrected_by!) : undefined
             return (
               <Fragment key={it.id}>
                 {showDay && <Divider my={i === 0 ? 4 : 12} label={dayLabel(it.created_at, language, t, zone)} labelPosition="center" />}
@@ -191,7 +210,10 @@ export function Timeline({
                     focused={pulseSeq === it.seq}
                     preferOriginal={focusSeq === it.seq && focusField === "original"}
                     quote={quote}
+                    correction={correction}
+                    onViewCorrection={onViewCorrection}
                     onReplyTo={onReplyTo}
+                    onCorrect={onCorrect}
                     onPreview={setLightbox}
                   />
                 )}
@@ -227,7 +249,10 @@ interface MessageProps {
   focused?: boolean // 从搜索结果跳转命中的当前消息，施加短暂脉冲高亮
   preferOriginal?: boolean // 命中客户消息原文时默认切到原文展示
   quote?: { author: string; text: string }
+  correction?: { text?: string; onJump?: () => void }
+  onViewCorrection?: () => void
   onReplyTo?: (item: ConversationItemDTO) => void
+  onCorrect?: (item: ConversationItemDTO) => void
   onPreview: (image: LightboxImage) => void // 点击图片缩略图打开原图灯箱
 }
 
@@ -253,7 +278,10 @@ function Message({
   focused,
   preferOriginal,
   quote,
+  correction,
+  onViewCorrection,
   onReplyTo,
+  onCorrect,
   onPreview,
 }: MessageProps): ReactNode {
   const t = useT()
@@ -323,9 +351,13 @@ function Message({
   // 跨渠道会话（或该条消息的渠道与会话来源渠道不同）在消息头部展示渠道胶囊，便于识别每条消息的来去管道
   const showChannelChip = Boolean(it.channel && ((c.channels?.length ?? 0) > 1 || (c.channel && it.channel.id !== c.channel.id)))
 
+  // 发给对方的成员或机器人消息支持发送更正，不修改原消息
+  const canCorrect = Boolean(onCorrect && (it.actor.type === "member" || it.actor.type === "bot"))
+
   return (
     <MessageBubble
       conversationId={c.id}
+      itemId={it.id}
       attachments={it.attachments}
       seq={it.seq}
       watchRef={needFill ? watch(it.id) : undefined}
@@ -336,6 +368,9 @@ function Message({
       author={author}
       avatar={avatar}
       headerExtra={showChannelChip && it.channel ? <ChannelChip channel={it.channel} /> : undefined}
+      corrected={Boolean(it.corrected_by)}
+      onViewCorrection={onViewCorrection}
+      correction={correction}
       time={time}
       fullTime={fullTime}
       text={shown || undefined}
@@ -345,18 +380,35 @@ function Message({
       expandedTranslation={sentAs && sent ? { language: sentAs, text: it.content.text ?? "" } : undefined}
       quote={quote}
       extraActions={
-        onReplyTo ? (
-          <Tooltip label={t("inbox.reply_to_message")} openDelay={250}>
-            <ActionIcon
-              variant="subtle"
-              color="gray"
-              size={22}
-              onClick={() => onReplyTo(it)}
-              aria-label={t("inbox.reply_to_message")}
-            >
-              <IconCornerUpLeft size={14} />
-            </ActionIcon>
-          </Tooltip>
+        onReplyTo || canCorrect ? (
+          <Group gap={2} wrap="nowrap">
+            {canCorrect && onCorrect && (
+              <Tooltip label={t("inbox.message_correct")} openDelay={250}>
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  size={22}
+                  onClick={() => onCorrect(it)}
+                  aria-label={t("inbox.message_correct")}
+                >
+                  <IconPencil size={14} />
+                </ActionIcon>
+              </Tooltip>
+            )}
+            {onReplyTo && (
+              <Tooltip label={t("inbox.reply_to_message")} openDelay={250}>
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  size={22}
+                  onClick={() => onReplyTo(it)}
+                  aria-label={t("inbox.reply_to_message")}
+                >
+                  <IconCornerUpLeft size={14} />
+                </ActionIcon>
+              </Tooltip>
+            )}
+          </Group>
         ) : undefined
       }
       caption={caption}

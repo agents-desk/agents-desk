@@ -54,17 +54,20 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
   const details = useAsidePaneState("inbox-details", { compactQuery: NARROW_QUERY })
   const [createTicketOpen, setCreateTicketOpen] = useState(false)
   const [replyToItem, setReplyToItem] = useState<ConversationItemDTO | null>(null)
+  const [correctingItem, setCorrectingItem] = useState<ConversationItemDTO | null>(null)
   const [extMentions, setExtMentions] = useState<ChannelExternalMention[]>([])
   const { ref: mainRef, width: mainWidth } = useElementSize()
   const composerRef = useRef<ComposerHandle>(null)
 
-  // 切换会话时清空引用回复与群 @ 列表
+  // 切换会话时清空引用回复、更正目标与群 @ 列表
   useEffect(() => {
     setReplyToItem(null)
+    setCorrectingItem(null)
     setExtMentions([])
   }, [id])
 
   const handleReplyTo = useCallback((item: ConversationItemDTO) => {
+    setCorrectingItem(null)
     setReplyToItem(item)
     if (item.actor.type === "external_user" && item.actor.external_id) {
       const target: ChannelExternalMention = {
@@ -74,6 +77,12 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
       }
       setExtMentions((prev) => (prev.some((m) => m.external_id === target.external_id) ? prev : [...prev, target]))
     }
+    composerRef.current?.focus("reply")
+  }, [])
+
+  const handleCorrect = useCallback((item: ConversationItemDTO) => {
+    setReplyToItem(null)
+    setCorrectingItem(item)
     composerRef.current?.focus("reply")
   }, [])
 
@@ -339,12 +348,15 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
           focusSeq={focusSeq}
           focusField={focusField}
           onReplyTo={c.external_group ? handleReplyTo : undefined}
+          onCorrect={can("conversations:reply") ? handleCorrect : undefined}
         />
         <Composer
           key={c.id}
           c={c}
           replyTo={replyToItem}
           onClearReplyTo={() => setReplyToItem(null)}
+          correcting={correctingItem}
+          onClearCorrecting={() => setCorrectingItem(null)}
           extMentions={extMentions}
           onChangeExtMentions={setExtMentions}
           onTyping={notifyTyping}

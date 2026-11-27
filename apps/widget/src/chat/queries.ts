@@ -18,13 +18,28 @@ const TIMELINE_PAGE_SIZE = 50
 /** TIMELINE_INCREMENTAL_LIMIT 是收到实时推送后增量拉取新消息的上限。 */
 const TIMELINE_INCREMENTAL_LIMIT = 200
 
-/** mergeItems 按消息 ID 去重合并前后两段有序消息，保持先后顺序。 */
-function mergeItems<T extends { id: string }>(head: T[], tail: T[]): T[] {
+/** mergeItems 按消息 ID 去重合并前后两段有序消息，保持先后顺序，并把新增更正消息的更正状态同步到已缓存的原消息上。 */
+function mergeItems<T extends { id: string; created_at?: string; corrects_item_id?: string; corrected_by?: string; corrected_at?: string }>(
+  head: T[],
+  tail: T[],
+): T[] {
   if (head.length === 0) return tail
   if (tail.length === 0) return head
   const seen = new Set(head.map((it) => it.id))
   const appended = tail.filter((it) => !seen.has(it.id))
-  return appended.length === 0 ? head : [...head, ...appended]
+  if (appended.length === 0) return head
+  const corrections = new Map<string, T>()
+  for (const it of appended) {
+    if (it.corrects_item_id) corrections.set(it.corrects_item_id, it)
+  }
+  const updatedHead =
+    corrections.size === 0
+      ? head
+      : head.map((it) => {
+          const corr = corrections.get(it.id)
+          return corr ? { ...it, corrected_by: corr.id, corrected_at: corr.created_at } : it
+        })
+  return [...updatedHead, ...appended]
 }
 
 /** useConfig 读取聊天插件按当前访客语言解析后的公开设置：对外标题、问候语、主题色、可选语言与商务配置。 */
