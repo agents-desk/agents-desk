@@ -72,7 +72,7 @@ function TenantLayout() {
   }
 
   // 实时推送：会话有变化时刷新收件箱的数量和会话，命中提醒时按通知偏好播放提示音或弹桌面通知；
-  // 图标栏中收件箱的角标是“我的”会话中等待回复的数量。
+  // 聊天和工单都在收件箱中，图标栏只有收件箱一个角标：“我的”中等待回复的会话数加上有未读消息的聊天数，即等着自己处理的事。
   const centrifuge = useRealtime(tenant.slug, tenant.id, user.data?.id, ({ type, id, alert }) => {
     dispatchPushAlert({
       slug: tenant.slug,
@@ -103,8 +103,8 @@ function TenantLayout() {
   })
   const inbox = useQuery({ ...kit.queries.conversation.inbox(), enabled: can("conversations:read") })
   const chatUnread = useQuery({ ...kit.queries.chat.unread(), enabled: can("conversations:read") })
-  useMenuBadge("/$slug/inbox", inbox.data?.mine.waiting)
-  useMenuBadge("/$slug/chat", chatUnread.data?.unread_messages)
+  const waitingOnMe = inbox.data && chatUnread.data ? inbox.data.mine.waiting + chatUnread.data.unread_chats : undefined
+  useMenuBadge("/$slug/inbox", waitingOnMe)
 
   // 左上角由 WorkspaceSwitcher 管理工作区切换与工作区入口，左下角个人菜单聚焦个人设置、在线状态与退出登录。
   const settings = `/${tenant.slug}/settings`

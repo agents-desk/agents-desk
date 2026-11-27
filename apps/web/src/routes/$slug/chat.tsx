@@ -8,18 +8,20 @@ import "../../inbox/inbox.css"
 import { kit } from "../../api"
 import { type ChatModeFilter, chatListQuery } from "../../chat/data"
 import { ChatList } from "../../chat/List"
-import { ChatNav, type ChatNavTarget } from "../../chat/Nav"
+import type { ChatNavTarget } from "../../chat/Nav"
 import { NewChatModal } from "../../chat/NewChatModal"
+import { InboxNav } from "../../inbox/Nav"
 import { NARROW_QUERY } from "../../layout"
 
-/** ChatSearch 是聊天模块的路由查询参数，决定二级导航栏高亮与列表筛选模式（内部聊天或商务沟通）。 */
+/** ChatSearch 是聊天页的路由查询参数，决定二级导航中高亮的聊天分组与列表筛选模式（内部聊天或商务沟通）。 */
 export interface ChatSearch {
   scope?: ChatScope
   filter?: Exclude<ChatModeFilter, "all">
   channel?: string
 }
 
-// 聊天模块：一级图标栏独立入口，二级导航提供内部聊天（全部/单聊/群聊）与商务沟通（全部/个人渠道），主区为列表与对话区。
+// 聊天页：属于收件箱，不单独占图标栏，和收件箱、工单共用左侧的二级导航（<InboxNav>）。
+// 二级导航中的内部聊天（全部/单聊/群聊）与商务沟通（全部/个人渠道）分组进入这里，主区为列表与对话区。
 export const Route = createFileRoute("/$slug/chat")({
   validateSearch: (raw: Record<string, unknown>): ChatSearch => {
     const scope: ChatScope | undefined = raw.scope === "external" || raw.scope === "internal" ? raw.scope : undefined
@@ -31,7 +33,7 @@ export const Route = createFileRoute("/$slug/chat")({
       channel: scope === "external" ? channel : undefined,
     }
   },
-  staticData: { title: "nav.chat", icon: "chat", order: 2, permission: "conversations:read", fullBleed: true },
+  staticData: { permission: "conversations:read", fullBleed: true },
   // 切换分组和渠道时预取聊天列表，最多等一小会儿：数据很快到时新列表一次完整出现，不先闪成骨架
   loaderDeps: ({ search }) => search,
   loader: ({ context, deps }) => {
@@ -100,7 +102,11 @@ function ChatLayout() {
 
   return (
     <Box style={{ display: "flex", height: "100%" }}>
-      <ChatNav scope={scope} filter={filter} channelId={channelId} onSelect={selectNav} />
+      <InboxNav
+        activeChat={{ scope, filter: filter === "all" ? undefined : filter, channel: channelId }}
+        onSelectChat={selectNav}
+        onNewChat={() => setNewOpen(true)}
+      />
       {(!narrow || !id) && (
         <Pane
           width={narrow ? "100%" : undefined}

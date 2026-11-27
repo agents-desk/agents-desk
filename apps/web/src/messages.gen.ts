@@ -465,7 +465,6 @@ export const messages = {
     "chat.status_online": "Online",
     "chat.unknown_peer": "Teammate",
     "chat.unnamed_member": "Unnamed member",
-    "chat.unread_chats_hint": "{{.n}} unread chat(s)",
     "chat.untitled_group": "Untitled group",
     "choose_tenant.disabled": "Disabled",
     "choose_tenant.none": "You aren’t in any workspace yet. Ask a workspace admin to add you.",
@@ -2397,7 +2396,6 @@ export const messages = {
     "chat.status_online": "在线",
     "chat.unknown_peer": "同事",
     "chat.unnamed_member": "未命名成员",
-    "chat.unread_chats_hint": "{{.n}} 个聊天有未读消息",
     "chat.untitled_group": "未命名群聊",
     "choose_tenant.disabled": "已停用",
     "choose_tenant.none": "你还不属于任何工作区，请联系工作区的管理员把你加入。",
@@ -4332,7 +4330,6 @@ export type MessageId =
   | "chat.status_online"
   | "chat.unknown_peer"
   | "chat.unnamed_member"
-  | "chat.unread_chats_hint"
   | "chat.untitled_group"
   | "choose_tenant.disabled"
   | "choose_tenant.none"

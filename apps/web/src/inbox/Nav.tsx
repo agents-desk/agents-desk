@@ -22,6 +22,8 @@ import {
 import { confirm, Fill, notifyError, notifySuccess, RailSection, useCan, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../api"
+import { ChatSections, type ChatNavTarget } from "../chat/Nav"
+import { NewChatModal } from "../chat/NewChatModal"
 import { CreateTicketModal } from "../tickets/CreateTicketModal"
 import type { TicketBox } from "../tickets/search"
 import { type Thresholds, useThresholds } from "./data"
@@ -48,9 +50,9 @@ function Count({ s, now, th }: { s?: ConversationSummary; now: number; th?: Thre
 }
 
 /**
- * InboxNav 是放进二级导航（nav 插槽）的统一收件箱导航：
- * 包含会话列表（我的、@我、未指派、全部）、团队收件箱、已保存视图，以及工单分组（我的、未指派、全部）。
- * 在收件箱路由和工单路由中共用，点击任意分组平滑切换。
+ * InboxNav 是放进二级导航（nav 插槽）的统一收件箱导航，成员在这一个页面中处理所有的沟通：
+ * 会话列表（我的、@我、未指派、全部）、团队收件箱、工单分组（我的、未指派、全部）、内部聊天和商务沟通分组、已保存视图。
+ * 在收件箱、工单和聊天三个路由中共用，点击任意分组平滑切换；activeTicketBox、activeChat 是工单页、聊天页当前的分组。
  */
 export function InboxNav({
   search,
@@ -58,12 +60,18 @@ export function InboxNav({
   activeTicketBox,
   onSelectTicketBox,
   onCreateTicket,
+  activeChat,
+  onSelectChat,
+  onNewChat,
 }: {
   search?: InboxSearch
   go?: (s: Partial<InboxSearch>) => void
   activeTicketBox?: TicketBox
   onSelectTicketBox?: (box: TicketBox) => void
   onCreateTicket?: () => void
+  activeChat?: ChatNavTarget
+  onSelectChat?: (next: ChatNavTarget) => void
+  onNewChat?: () => void
 }): ReactNode {
   const t = useT()
   const can = useCan()
@@ -78,6 +86,7 @@ export function InboxNav({
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<ConversationViewSummary | undefined>()
   const [createTicketOpen, setCreateTicketOpen] = useState(false)
+  const [newChatOpen, setNewChatOpen] = useState(false)
 
   const navigateInbox = (patch: Partial<InboxSearch>) => {
     if (go) {
@@ -108,6 +117,22 @@ export function InboxNav({
       to: "/$slug/tickets",
       params: { slug },
       search: { box, status: "unresolved" },
+    })
+  }
+
+  const navigateChat = (next: ChatNavTarget) => {
+    if (onSelectChat) {
+      onSelectChat(next)
+      return
+    }
+    void navigate({
+      to: "/$slug/chat",
+      params: { slug },
+      search: {
+        scope: next.scope === "external" ? "external" : undefined,
+        filter: next.scope === "internal" ? next.filter : undefined,
+        channel: next.scope === "external" ? next.channel : undefined,
+      },
     })
   }
 
@@ -234,6 +259,8 @@ export function InboxNav({
           {ticketItem("all", t("tickets.box_all"), <IconListDetails size={16} stroke={1.6} />, d?.tickets.all)}
         </RailSection>
 
+        <ChatSections active={activeChat} onSelect={navigateChat} onNewChat={() => (onNewChat ? onNewChat() : setNewChatOpen(true))} />
+
         <RailSection
           title={t("views.section")}
           collapsible
@@ -324,6 +351,14 @@ export function InboxNav({
           })
         }
       />
+
+      {!onNewChat && (
+        <NewChatModal
+          opened={newChatOpen}
+          onClose={() => setNewChatOpen(false)}
+          onOpened={(chat) => void navigate({ to: "/$slug/chat/$id", params: { slug, id: chat.id } })}
+        />
+      )}
 
       {!onCreateTicket && (
         <CreateTicketModal
