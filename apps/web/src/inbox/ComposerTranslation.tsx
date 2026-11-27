@@ -29,7 +29,7 @@ import { describeError } from "@go-tenon/client"
 import { errorMessage, useLanguage, useT } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { languageName, languageOptions, languageSearchKeys, sameLanguage, useWorkspaceLanguages, validLanguage } from "../languages"
+import { allLanguages, commonLanguages, languageName, languageOptions, languageSearchKeys, sameLanguage, useWorkspaceLanguages, validLanguage } from "../languages"
 
 /** NO_TRANSLATION 是目标语言中的“不翻译”：按原文发出。 */
 export const NO_TRANSLATION = "none"
@@ -428,7 +428,12 @@ function TranslationTargetPicker({
   }
 
   const workspaceLanguages = useWorkspaceLanguages()
-  const baseOptions = languageOptions(ui, [effectiveLang, theirs, ...workspaceLanguages].filter(Boolean))
+  const q = search.trim().toLowerCase()
+  const baseOptions = languageOptions(
+    ui,
+    [effectiveLang, theirs, ...workspaceLanguages].filter(Boolean),
+    q ? allLanguages : commonLanguages,
+  )
   const typed = validLanguage(search)
   const rawOptions = [
     ...(preview.allowOff ? [{ value: NO_TRANSLATION, label: t("inbox.no_translation") }] : []),
@@ -440,7 +445,6 @@ function TranslationTargetPicker({
   if (typed && !rawOptions.some((o) => o.value === typed)) {
     rawOptions.splice(preview.allowOff ? 1 : 0, 0, { value: typed, label: `${languageName(typed, ui)} (${typed})` })
   }
-  const q = search.trim().toLowerCase()
   const filtered = q
     ? rawOptions.filter((o) => {
         if (o.value === NO_TRANSLATION) return o.label.toLowerCase().includes(q)
