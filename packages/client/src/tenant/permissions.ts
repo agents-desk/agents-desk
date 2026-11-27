@@ -187,6 +187,9 @@ export const required = {
     rename: ["tenant-settings:manage"],
   },
   tgaccount: {
+    credentialsGet: ["business-channels:manage"],
+    credentialsTest: ["business-channels:manage"],
+    credentialsUpdate: ["business-channels:manage"],
     dialogs: ["business-channels:use"],
     disconnect: ["business-channels:use"],
     folders: ["business-channels:use"],

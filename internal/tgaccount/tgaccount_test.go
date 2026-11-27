@@ -22,7 +22,6 @@ import (
 	"agents-desk/internal/channel"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/member"
-	"agents-desk/internal/platformsettings"
 	"agents-desk/internal/tenant"
 )
 
@@ -246,7 +245,7 @@ func TestTelegramPersonalAccountFullFlow(t *testing.T) {
 	subAlice := identity.Subject{Type: member.Type, ID: alice.ID, Tenant: alpha.ID, Permissions: auth.WithBase(nil)}
 	subBob := identity.Subject{Type: member.Type, ID: bob.ID, Tenant: alpha.ID, Permissions: auth.WithBase(nil)}
 
-	tgSettings := platformsettings.NewTelegramGroup(env.DB, env.Crypt)
+	tgCreds := NewCredentialsGroup(env.DB, env.Crypt)
 	dmPeer := SyncedPeer{
 		ExternalChatID: "tg:user:2001", PeerType: "user", PeerID: 2001, AccessHash: 11111,
 		Title: "Rajesh Partner", Username: "rajesh_pay", IsGroup: false,
@@ -298,7 +297,7 @@ func TestTelegramPersonalAccountFullFlow(t *testing.T) {
 		startedCh:   make(chan string, 8),
 	}
 
-	mgr := NewManager(env.DB, env.Crypt, env.Files, tgSettings, backend)
+	mgr := NewManager(env.DB, env.Crypt, env.Files, tgCreds, backend)
 	hub := broadcast.New(broadcasttest.NewBackend())
 	t.Cleanup(func() { _ = hub.Close() })
 	reg := channel.DefaultRegistry()
@@ -306,14 +305,14 @@ func TestTelegramPersonalAccountFullFlow(t *testing.T) {
 	down := conversation.Downstream{Hub: hub, Roles: env.Roles}
 	mgr.SetReceive(conversation.NewReceive(env.DB, reg, down))
 
-	// 1. 平台未配置 Telegram API 凭据时，拒绝发起登录
+	// 1. 当前工作区未配置 Telegram API 凭据时，拒绝发起登录
 	if _, err := mgr.StartLogin(ctx, subAlice, LoginModePhone, "Alice 主号", "+8613800138000", ""); !errors.Is(err, ErrNotConfigured) {
 		t.Fatalf("未配置 API 凭据应返回 ErrNotConfigured：%v", err)
 	}
-	if _, err := platformsettings.NewSaveTelegram(env.DB, tgSettings).Handle(ctx, apptest.Admin, platformsettings.Telegram{
+	if _, err := NewSaveCredentials(env.DB, tgCreds, mgr.ReconnectTenant).Handle(ctx, sysAlpha, Credentials{
 		APIID: 123456, APIHash: "test-api-hash-0123456789abcdef", ProxyURL: "socks5://127.0.0.1:1080",
 	}); err != nil {
-		t.Fatalf("保存平台 Telegram 凭据失败：%v", err)
+		t.Fatalf("保存工作区 Telegram 凭据失败：%v", err)
 	}
 
 	// 2. 手机号 -> 验证码 -> 2FA 两步验证密码完整登录流程，并验证加密会话密文与代理传递
@@ -697,5 +696,71 @@ func TestTelegramPersonalAccountFullFlow(t *testing.T) {
 	cfgAfter, _ := settingsOf(rawAfter)
 	if cfgAfter.SessionCipher != "" {
 		t.Fatal("解绑后应清空加密会话密文")
+	}
+}
+
+// TestTenantCredentialsIsolationAndValidation 验证 Telegram API 凭据与代理按工作区严格隔离、校验规则及变更重连通知。
+func TestTenantCredentialsIsolationAndValidation(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	env := apptest.New(t)
+
+	createTenant := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{})
+	alpha, err := createTenant.Handle(ctx, apptest.Admin, tenant.CreateParams{
+		Name: "Alpha", Slug: "alpha", OwnerEmail: "owner@alpha.test", OwnerName: "Owner", OwnerPassword: "password",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	beta, err := createTenant.Handle(ctx, apptest.Admin, tenant.CreateParams{
+		Name: "Beta", Slug: "beta", OwnerEmail: "owner@beta.test", OwnerName: "Owner", OwnerPassword: "password",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	subAlpha := identity.Subject{Type: member.Type, ID: alpha.OwnerID, Tenant: alpha.ID}
+	subBeta := identity.Subject{Type: member.Type, ID: beta.OwnerID, Tenant: beta.ID}
+
+	tgCreds := NewCredentialsGroup(env.DB, env.Crypt)
+	var reconnected []string
+	save := NewSaveCredentials(env.DB, tgCreds, func(tenantID string) { reconnected = append(reconnected, tenantID) })
+	get := NewGetCredentials(tgCreds)
+	testConn := NewTestConnection(tgCreds)
+	mgr := NewManager(env.DB, env.Crypt, env.Files, tgCreds, &fakeBackend{})
+
+	// 1. 校验规则：API ID 与 API Hash 须同时填写，代理须为 socks5 / socks5h
+	if _, err := save.Handle(ctx, subAlpha, Credentials{APIID: 12345}); !errors.Is(err, ErrCredentialsIncomplete) {
+		t.Fatalf("仅填 API ID 应返回 ErrCredentialsIncomplete：%v", err)
+	}
+	if _, err := save.Handle(ctx, subAlpha, Credentials{APIID: 12345, APIHash: "abcdef", ProxyURL: "http://127.0.0.1:8080"}); !errors.Is(err, ErrInvalidProxyURL) {
+		t.Fatalf("HTTP 代理应返回 ErrInvalidProxyURL：%v", err)
+	}
+	if _, err := testConn.Handle(ctx, subAlpha, "http://127.0.0.1:8080"); !errors.Is(err, ErrInvalidProxyURL) {
+		t.Fatalf("连通性测试收到非法代理应返回 ErrInvalidProxyURL：%v", err)
+	}
+
+	// 2. 仅 alpha 配置凭据：alpha 可读写并触发重连回调，beta 仍未配置且拒绝发起登录
+	saved, err := save.Handle(ctx, subAlpha, Credentials{
+		APIID: 12345, APIHash: "alpha-secret-hash", ProxyURL: "socks5h://u:p@127.0.0.1:1080",
+	})
+	if err != nil || !saved.Configured() || len(reconnected) != 1 || reconnected[0] != alpha.ID {
+		t.Fatalf("保存 alpha 凭据异常：saved=%+v err=%v reconnected=%v", saved, err, reconnected)
+	}
+	loadedAlpha, err := get.Handle(ctx, subAlpha)
+	if err != nil || loadedAlpha.APIID != 12345 || loadedAlpha.APIHash != "alpha-secret-hash" || loadedAlpha.ProxyURL != "socks5h://u:p@127.0.0.1:1080" {
+		t.Fatalf("读取 alpha 凭据失败：%+v err=%v", loadedAlpha, err)
+	}
+	loadedBeta, err := get.Handle(ctx, subBeta)
+	if err != nil || loadedBeta.Configured() {
+		t.Fatalf("beta 不应读到 alpha 的凭据：%+v err=%v", loadedBeta, err)
+	}
+	if ok, err := mgr.Configured(ctx, alpha.ID); err != nil || !ok {
+		t.Fatalf("alpha 应为已配置：ok=%v err=%v", ok, err)
+	}
+	if ok, err := mgr.Configured(ctx, beta.ID); err != nil || ok {
+		t.Fatalf("beta 应为未配置：ok=%v err=%v", ok, err)
+	}
+	if _, err := mgr.StartLogin(ctx, subBeta, LoginModePhone, "Beta 号", "+8613800138000", ""); !errors.Is(err, ErrNotConfigured) {
+		t.Fatalf("beta 未配置凭据时应返回 ErrNotConfigured：%v", err)
 	}
 }

@@ -88,14 +88,14 @@ type App struct {
 	contactTokens *apitoken.Store // 客户（联系人）在聊天插件中的令牌
 	crypt         *crypt.Crypt    // 应用密钥：加密保存聊天插件的身份验证密钥
 
-	generalSettings     *settings.Group[platformsettings.General]  // 平台常规设置
-	mailSettings        *settings.Group[platformsettings.Mail]     // 平台邮件服务设置
-	telegramSettings    *settings.Group[platformsettings.Telegram] // 平台 Telegram MTProto API 凭据设置
-	llmSettings         *settings.Group[llm.Settings]              // 模型接口的平台设置
-	translationSettings *settings.Group[translation.Settings]      // 各工作区的翻译设置：语气、术语表
-	businessPolicy      *settings.Group[business.Policy]           // 各工作区的商务沟通默认策略与配额
-	features            *feature.Store                             // 平台功能开关与灰度规则
-	translator          *translation.Translator                    // 调用模型识别语言和翻译
+	generalSettings     *settings.Group[platformsettings.General] // 平台常规设置
+	mailSettings        *settings.Group[platformsettings.Mail]    // 平台邮件服务设置
+	tgCredentials       *settings.Group[tgaccount.Credentials]    // 各工作区独立的 Telegram MTProto 凭据与代理设置
+	llmSettings         *settings.Group[llm.Settings]             // 模型接口的平台设置
+	translationSettings *settings.Group[translation.Settings]     // 各工作区的翻译设置：语气、术语表
+	businessPolicy      *settings.Group[business.Policy]          // 各工作区的商务沟通默认策略与配额
+	features            *feature.Store                            // 平台功能开关与灰度规则
+	translator          *translation.Translator                   // 调用模型识别语言和翻译
 
 	files       *filesystem.Service // 上传的文件：头像、会话附件与导出文件等
 	images      *imgproxy.Proxy     // 图片缩略图地址生成；未配置 url 时返回原图地址
@@ -224,7 +224,8 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	generalSettings, mailSettings, telegramSettings := platformsettings.NewGeneralGroup(db), platformsettings.NewMailGroup(db, keys), platformsettings.NewTelegramGroup(db, keys)
+	generalSettings, mailSettings := platformsettings.NewGeneralGroup(db), platformsettings.NewMailGroup(db, keys)
+	tgCredentials := tgaccount.NewCredentialsGroup(db, keys)
 	llmSettings, translationSettings, businessPolicy := llm.NewGroup(db, keys), translation.NewGroup(db), business.NewPolicyGroup(db)
 	featureStore := flags.NewStore(db)
 	ops := operation.New(db)
@@ -232,9 +233,9 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 
 	locker := lock.New(pglock.New(db))
 	tgClient := telegram.NewClient(outbound.New(outbound.Options{Timeout: 30 * time.Second}))
-	tgMgr := tgaccount.NewManager(db, keys, files, telegramSettings, nil)
+	tgMgr := tgaccount.NewManager(db, keys, files, tgCredentials, nil)
 	tgMgr.SetLocker(locker)
-	bizGuard := business.NewPolicyGuard(db, businessPolicy, featureStore, telegramSettings)
+	bizGuard := business.NewPolicyGuard(db, businessPolicy, featureStore, tgCredentials)
 	tgMgr.SetPolicyChecker(bizGuard.CheckConnectTelegram)
 	wecomMgr := wecom.NewManager(db, keys, files, locker, nc)
 	tr := translation.NewTranslator(db, llm.NewClient(db, llmSettings, &http.Client{}), translationSettings)
@@ -247,7 +248,7 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		memberTokens:    apitoken.NewStore(db, cfg.MemberToken, apitoken.Credentials(creds)),
 		contactTokens:   apitoken.NewStore(db, cfg.ContactToken, apitoken.Credentials(creds)),
 		crypt:           keys,
-		generalSettings: generalSettings, mailSettings: mailSettings, telegramSettings: telegramSettings,
+		generalSettings: generalSettings, mailSettings: mailSettings, tgCredentials: tgCredentials,
 		llmSettings: llmSettings, translationSettings: translationSettings, businessPolicy: businessPolicy, features: featureStore,
 		ops: ops, exporter: exporter,
 		// 模型网关不设固定整请求超时（由调用上下文控制），以便兼容流式 SSE 长响应及自托管网关地址。

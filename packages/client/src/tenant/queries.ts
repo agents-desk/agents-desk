@@ -823,6 +823,23 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
     tgaccount: {
       /** tgaccount 分组全部查询的 key 前缀。 */
       key: () => key("tgaccount"),
+      /** GET /settings/telegram-api */
+      credentialsGet: (...args: Parameters<Client["tgaccount"]["credentialsGet"]>) => ({
+        queryKey: key("tgaccount", "credentialsGet", ...args),
+        queryFn: () => client.tgaccount.credentialsGet(...args),
+      }),
+      /** POST /settings/telegram-api/test */
+      credentialsTest: () => ({
+        mutationFn: (variables: Parameters<Client["tgaccount"]["credentialsTest"]>[0]) => client.tgaccount.credentialsTest(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "tgaccount"),
+      }),
+      /** PUT /settings/telegram-api */
+      credentialsUpdate: () => ({
+        mutationFn: (variables: Parameters<Client["tgaccount"]["credentialsUpdate"]>[0]) => client.tgaccount.credentialsUpdate(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "tgaccount"),
+      }),
       /** GET /my/telegram-accounts/{id}/dialogs */
       dialogs: (...args: Parameters<Client["tgaccount"]["dialogs"]>) => ({
         queryKey: key("tgaccount", "dialogs", ...args),

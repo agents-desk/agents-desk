@@ -30,7 +30,7 @@ import {
   IconUser,
   IconUsersGroup,
 } from "@tabler/icons-react"
-import { AnchorLink, applyServerErrors, confirm, DataTable, FormError, notifyError, notifySuccess, Page, PageActions, preloadQueries, StatusDot, useT } from "@go-tenon/ui"
+import { AnchorLink, applyServerErrors, confirm, DataTable, FormError, notifyError, notifySuccess, Page, PageActions, preloadQueries, StatusDot, useCan, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../../../../../api"
 import { RowActions } from "../../../../../components/row-actions"
@@ -320,6 +320,7 @@ function BusinessLinksTab({ slug }: { slug: string }): ReactNode {
 /** TelegramAccountsTab 以与其他渠道设置页一致的标准表格管理当前成员绑定的 Telegram 个人号，点击进入个人号工作台。 */
 function TelegramAccountsTab({ slug }: { slug: string }): ReactNode {
   const t = useT()
+  const can = useCan()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const list = useQuery(kit.queries.tgaccount.list())
@@ -329,6 +330,7 @@ function TelegramAccountsTab({ slug }: { slug: string }): ReactNode {
   const tgAllowed = policy ? policy.platform_telegram_enabled && policy.telegram_accounts_enabled : true
   const maxTG = policy?.max_telegram_accounts_per_member ?? 0
   const quotaReached = maxTG > 0 && accounts.length >= maxTG
+  const canManageBusiness = can("business-channels:manage")
 
   const [loginOpen, setLoginOpen] = useState(false)
   const [reconnectTarget, setReconnectTarget] = useState<TgaccountAccountDTO | null>(null)
@@ -415,7 +417,18 @@ function TelegramAccountsTab({ slug }: { slug: string }): ReactNode {
 
       {!list.isPending && tgAllowed && !configured && (
         <Alert icon={<IconInfoCircle size={16} />} color="bright-blue" variant="light" title={t("business_channels.tg_not_configured_title")}>
-          <Text size="sm">{t("business_channels.tg_not_configured_desc")}</Text>
+          <Stack gap="xs" align="flex-start">
+            <Text size="sm">{t("business_channels.tg_not_configured_desc")}</Text>
+            {canManageBusiness && (
+              <Button
+                size="xs"
+                variant="light"
+                onClick={() => void navigate({ to: "/$slug/settings/business", params: { slug }, search: { tab: "telegram" } })}
+              >
+                {t("business_channels.tg_go_configure")}
+              </Button>
+            )}
+          </Stack>
         </Alert>
       )}
 

@@ -14,7 +14,7 @@ import (
 
 	"agents-desk/internal/auth"
 	"agents-desk/internal/conversation"
-	"agents-desk/internal/platformsettings"
+	"agents-desk/internal/tgaccount"
 )
 
 // RegisterRoutes 在工作区 API（/t/{slug}/api）中注册商务沟通策略与管理员全员渠道治理接口。
@@ -26,7 +26,7 @@ func RegisterRoutes(
 	files *filesystem.Service,
 	policy *settings.Group[Policy],
 	features *feature.Store,
-	tgSettings *settings.Group[platformsettings.Telegram],
+	tgCreds *settings.Group[tgaccount.Credentials],
 	down conversation.Downstream,
 	publicURL string,
 	onTGChanged func(),
@@ -39,7 +39,7 @@ func RegisterRoutes(
 		return op
 	}
 
-	pa := NewPolicyActions(db, policy, features, tgSettings)
+	pa := NewPolicyActions(db, policy, features, tgCreds)
 	gov := NewGovernance(db, roles, files, down, publicURL, onTGChanged)
 
 	rest.Register(api, route(read, "business-policy-get", http.MethodGet, "/settings/business-policy", "读取工作区商务沟通策略"), pa.GetHTTP)

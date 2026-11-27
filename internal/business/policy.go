@@ -17,7 +17,7 @@ import (
 
 	"agents-desk/internal/channel"
 	"agents-desk/internal/flags"
-	"agents-desk/internal/platformsettings"
+	"agents-desk/internal/tgaccount"
 )
 
 var (
@@ -59,12 +59,12 @@ func NewPolicyGroup(db bun.IDB) *settings.Group[Policy] {
 	return settings.New(db, "business.policy", PolicyDefaults)
 }
 
-// PolicyViewDTO 是返回给工作区前端的商务策略视图，同时附带平台开关状态与当前成员的用量统计。
+// PolicyViewDTO 是返回给工作区前端的商务策略视图，同时附带平台开关状态、本工作区 Telegram API 配置状态与当前成员用量统计。
 type PolicyViewDTO struct {
 	Policy
 	PlatformLinksEnabled    bool `json:"platform_links_enabled" doc:"平台级功能开关是否开启网页商务链接"`
 	PlatformTelegramEnabled bool `json:"platform_telegram_enabled" doc:"平台级功能开关是否开启 Telegram 个人号"`
-	TelegramAPIConfigured   bool `json:"telegram_api_configured" doc:"平台管理员是否已配置 Telegram MTProto API 凭据"`
+	TelegramAPIConfigured   bool `json:"telegram_api_configured" doc:"当前工作区管理员是否已配置 Telegram MTProto API 凭据"`
 	MyLinksCount            int  `json:"my_links_count" doc:"当前成员已创建的网页商务链接数量"`
 	MyTelegramCount         int  `json:"my_telegram_count" doc:"当前成员已绑定的 Telegram 个人号数量"`
 }
@@ -81,15 +81,15 @@ type SavePolicyInput struct {
 
 // PolicyGuard 封装平台开关、工作区策略与单成员配额校验，供网页商务链接与 Telegram 个人号创建入口复用。
 type PolicyGuard struct {
-	db         *bun.DB
-	policy     *settings.Group[Policy]
-	features   *feature.Store
-	tgSettings *settings.Group[platformsettings.Telegram]
+	db       *bun.DB
+	policy   *settings.Group[Policy]
+	features *feature.Store
+	tgCreds  *settings.Group[tgaccount.Credentials]
 }
 
 // NewPolicyGuard 返回工作区商务策略校验器。
-func NewPolicyGuard(db *bun.DB, policy *settings.Group[Policy], features *feature.Store, tgSettings *settings.Group[platformsettings.Telegram]) *PolicyGuard {
-	return &PolicyGuard{db: db, policy: policy, features: features, tgSettings: tgSettings}
+func NewPolicyGuard(db *bun.DB, policy *settings.Group[Policy], features *feature.Store, tgCreds *settings.Group[tgaccount.Credentials]) *PolicyGuard {
+	return &PolicyGuard{db: db, policy: policy, features: features, tgCreds: tgCreds}
 }
 
 // CheckCreateLink 校验成员 sub 是否允许在当前工作区继续创建网页商务沟通链接。
@@ -158,15 +158,15 @@ func (g *PolicyGuard) CheckConnectTelegram(ctx context.Context, sub identity.Sub
 
 // PolicyActions 实现工作区商务策略的读取与保存。
 type PolicyActions struct {
-	db         *bun.DB
-	policy     *settings.Group[Policy]
-	features   *feature.Store
-	tgSettings *settings.Group[platformsettings.Telegram]
+	db       *bun.DB
+	policy   *settings.Group[Policy]
+	features *feature.Store
+	tgCreds  *settings.Group[tgaccount.Credentials]
 }
 
 // NewPolicyActions 返回工作区商务策略的读取与保存动作。
-func NewPolicyActions(db *bun.DB, policy *settings.Group[Policy], features *feature.Store, tgSettings *settings.Group[platformsettings.Telegram]) *PolicyActions {
-	return &PolicyActions{db: db, policy: policy, features: features, tgSettings: tgSettings}
+func NewPolicyActions(db *bun.DB, policy *settings.Group[Policy], features *feature.Store, tgCreds *settings.Group[tgaccount.Credentials]) *PolicyActions {
+	return &PolicyActions{db: db, policy: policy, features: features, tgCreds: tgCreds}
 }
 
 // Get 读取 sub 所在工作区的商务策略、平台功能开关状态与 sub 当前个人用量。
@@ -182,10 +182,10 @@ func (a *PolicyActions) Get(ctx context.Context, sub identity.Subject) (*PolicyV
 		platformTG = a.features.Active(ctx, sub, flags.BusinessTelegramAccount)
 	}
 	tgConfigured := false
-	if a.tgSettings != nil {
-		cfg, err := a.tgSettings.Get(ctx)
+	if a.tgCreds != nil {
+		cfg, err := a.tgCreds.Tenant(sub.Tenant).Get(ctx)
 		if err != nil {
-			return nil, errors.Wrap(err, "load platform telegram settings")
+			return nil, errors.Wrap(err, "load tenant telegram credentials")
 		}
 		tgConfigured = cfg.Configured()
 	}

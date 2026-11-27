@@ -239,10 +239,6 @@ export const PlatformsettingsErrors = {
   InvalidEmail: "platform_settings.invalid_email",
   /** ErrRequiredField 表示启用 Resend 时必填项未填写。 */
   RequiredField: "platform_settings.required_field",
-  /** ErrTelegramCredentialsIncomplete 表示配置 Telegram API 凭据时 API ID 与 API Hash 必须同时填写。 */
-  TelegramCredentialsIncomplete: "platform_settings.telegram_incomplete",
-  /** ErrInvalidProxyURL 表示填写的 Telegram 出口代理地址格式无效（仅支持 socks5:// 或 socks5h://）。 */
-  InvalidProxyURL: "platform_settings.invalid_proxy_url",
 } as const
 
 /** agents-desk/internal/role 的错误码。 */
@@ -296,7 +292,11 @@ export const TenantErrors = {
 
 /** agents-desk/internal/tgaccount 的错误码。 */
 export const TgaccountErrors = {
-  /** ErrNotConfigured 是平台管理员尚未在系统设置中配置 Telegram API ID 与 API Hash。 */
+  /** ErrCredentialsIncomplete 表示配置 Telegram API 凭据时 API ID 与 API Hash 必须同时填写。 */
+  CredentialsIncomplete: "tgaccount.credentials_incomplete",
+  /** ErrInvalidProxyURL 表示填写的 Telegram 出口代理地址格式无效（仅支持 socks5:// 或 socks5h://）。 */
+  InvalidProxyURL: "tgaccount.invalid_proxy_url",
+  /** ErrNotConfigured 是当前工作区管理员尚未配置 Telegram API ID 与 API Hash。 */
   NotConfigured: "tgaccount.not_configured",
   /** ErrLoginNotFound 是登录会话不存在、已过期或不属于当前成员。 */
   LoginNotFound: "tgaccount.login_not_found",

@@ -49,26 +49,4 @@ export const settings = {
       },
     },
   },
-  "telegram-api": {
-    name: "telegram-api",
-    operations: { get: ["telegram", "settingsGet"], update: ["telegram", "settingsUpdate"] },
-    permissions: { get: ["platform-settings:manage"], update: ["platform-settings:manage"] },
-    form: [
-      { name: "api_id", type: "integer", format: "int64", required: true },
-      { name: "api_hash", type: "string", format: "password", required: true },
-      { name: "proxy_url", type: "string", required: true },
-    ],
-    labels: {
-      "en": {
-        title: "Telegram Personal API",
-        fields: { api_id: "API ID", api_hash: "API Hash", proxy_url: "SOCKS5 Proxy (optional)" },
-        descriptions: { proxy_url: "Optional socks5://[user:pass@]host:port proxy when the server cannot reach Telegram directly" },
-      },
-      "zh-CN": {
-        title: "Telegram 个人号 API",
-        fields: { api_id: "API ID", api_hash: "API Hash", proxy_url: "SOCKS5 出口代理（可选）" },
-        descriptions: { proxy_url: "如服务器无法直连 Telegram，可填写 socks5://[user:pass@]host:port；留空直连" },
-      },
-    },
-  },
 } as const

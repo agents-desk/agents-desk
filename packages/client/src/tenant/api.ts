@@ -169,7 +169,7 @@ export interface BusinessPolicyViewDTO {
   platform_telegram_enabled: boolean
   /** 是否允许成员绑定 Telegram 个人号开展商务沟通 */
   telegram_accounts_enabled: boolean
-  /** 平台管理员是否已配置 Telegram MTProto API 凭据 */
+  /** 当前工作区管理员是否已配置 Telegram MTProto API 凭据 */
   telegram_api_configured: boolean
 }
 
@@ -2507,6 +2507,26 @@ export interface TgaccountBackfillPeerOutputBody {
   imported: number
 }
 
+export interface TgaccountConnectionTestInputBody {
+  /** 可选：待测试的 SOCKS5 代理地址；留空使用本工作区已保存的代理设置 */
+  proxy_url?: string
+}
+
+export interface TgaccountConnectionTestResult {
+  error?: string
+  latency_ms: number
+  ok: boolean
+}
+
+export interface TgaccountCredentials {
+  /** Telegram 应用 API Hash，落库时自动加密保存 */
+  api_hash: string
+  /** Telegram 应用 API ID（在 my.telegram.org 申请）；填 0 表示暂不启用个人号绑定 */
+  api_id: number
+  /** 可选：本工作区独立的 MTProto SOCKS5 代理地址，例如 socks5://user:pass@127.0.0.1:1080；留空直连 */
+  proxy_url: string
+}
+
 export interface TgaccountDialogDTO {
   /** MTProto 访问所需的 access_hash */
   access_hash?: number
@@ -2543,7 +2563,7 @@ export interface TgaccountFolderDTO {
 
 export interface TgaccountListAccountsOutputBody {
   accounts: TgaccountAccountDTO[]
-  /** 平台管理员是否已配置 Telegram API ID 与 API Hash */
+  /** 当前工作区管理员是否已配置 Telegram API ID 与 API Hash */
   configured: boolean
 }
 
@@ -4361,6 +4381,27 @@ export function createClient(options: ClientOptions) {
     },
     /** operationId 以 tgaccount- 开头的接口。 */
     tgaccount: {
+      /**
+       * 读取工作区 Telegram API 凭据设置
+       *
+       * GET /settings/telegram-api
+       */
+      credentialsGet: (): Promise<TgaccountCredentials> =>
+        rt.request<TgaccountCredentials>({ method: "GET", path: `/settings/telegram-api` }),
+      /**
+       * 测试工作区 Telegram MTProto 网络连通性
+       *
+       * POST /settings/telegram-api/test
+       */
+      credentialsTest: (body: TgaccountConnectionTestInputBody): Promise<TgaccountConnectionTestResult> =>
+        rt.request<TgaccountConnectionTestResult>({ method: "POST", path: `/settings/telegram-api/test`, body }),
+      /**
+       * 保存工作区 Telegram API 凭据设置
+       *
+       * PUT /settings/telegram-api
+       */
+      credentialsUpdate: (body: TgaccountCredentials): Promise<TgaccountCredentials> =>
+        rt.request<TgaccountCredentials>({ method: "PUT", path: `/settings/telegram-api`, body }),
       /**
        * 读取 Telegram 可同步的单聊与群聊
        *

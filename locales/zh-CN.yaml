@@ -404,14 +404,12 @@ activity.tenant.impersonated: "以「{{.member_name}}」的身份代为登录了
 activity.platform_settings.changed: "更新了平台设置（{{.changed}}）"
 activity.platform_settings.general_updated: "更新了平台常规设置（{{.changed}}）"
 activity.platform_settings.mail_updated: "更新了邮件服务设置（{{.changed}}）"
-activity.platform_settings.telegram_updated: "更新了 Telegram 应用凭据设置（{{.changed}}）"
+activity.tgaccount.credentials_updated: "更新了工作区 Telegram 个人号 API 凭据设置（{{.changed}}）"
 activity.feature.changed: "更新了功能开关「{{.name}}」（{{.scope}}：{{.mode}}）"
 activity.feature.cleared: "清除了功能开关「{{.name}}」的设置（{{.scope}}）"
 
 platform_settings.invalid_email: 请输入有效的邮箱地址
 platform_settings.required_field: 启用 Resend 发信时此项不能为空
-platform_settings.telegram_incomplete: Telegram API ID 与 API Hash 必须同时填写或同时留空
-platform_settings.invalid_proxy_url: 代理地址格式无效，请使用 socks5://host:port 格式
 platform_settings.language.zh-CN: 简体中文
 platform_settings.language.en: English
 
@@ -426,13 +424,9 @@ mail.fields.from_name: 发件人名称
 mail.fields.from_email: 发件人邮箱
 mail.fields.api_key: Resend API Key
 
-telegram-api.title: Telegram 个人号 API
-telegram-api.fields.api_id: API ID
-telegram-api.fields.api_hash: API Hash
-telegram-api.fields.proxy_url: SOCKS5 出口代理（可选）
-telegram-api.descriptions.proxy_url: 如服务器无法直连 Telegram，可填写 socks5://[user:pass@]host:port；留空直连
-
-tgaccount.not_configured: 平台尚未配置 Telegram API ID 与 API Hash，请联系平台管理员在系统设置中填写
+tgaccount.not_configured: 当前工作区尚未配置 Telegram API ID 与 API Hash，请联系工作区管理员在「设置 → 商务渠道」中填写
+tgaccount.credentials_incomplete: Telegram API ID 与 API Hash 必须同时填写或同时留空
+tgaccount.invalid_proxy_url: 代理地址格式无效，请使用 socks5://host:port 或 socks5h://host:port 格式
 tgaccount.login_not_found: 登录会话不存在或已过期，请重新发起登录
 tgaccount.login_failed: Telegram 登录验证失败，请核对验证码或两步验证密码后重试
 tgaccount.not_connected: 该 Telegram 个人号尚未连接或授权已失效，请重新登录

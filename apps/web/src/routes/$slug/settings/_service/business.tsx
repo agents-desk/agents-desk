@@ -1,4 +1,4 @@
-import type { BusinessChannelItemDTO, BusinessPolicy } from "@agents-desk/client/tenant"
+import type { BusinessChannelItemDTO, BusinessPolicy, TgaccountCredentials } from "@agents-desk/client/tenant"
 import {
   Alert,
   Avatar,
@@ -20,10 +20,10 @@ import {
   Title,
 } from "@mantine/core"
 import { useForm } from "@mantine/form"
-import { IconInfoCircle, IconPlayerPause, IconPlayerPlay, IconSearch, IconUserPlus } from "@tabler/icons-react"
+import { IconInfoCircle, IconPlayerPause, IconPlayerPlay, IconPlugConnected, IconSearch, IconUserPlus } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { applyServerErrors, DataTable, FormError, notifyError, notifySuccess, Page, preloadQueries, StatusDot, useT } from "@go-tenon/ui"
+import { applyServerErrors, DataTable, FormError, notifyError, notifySuccess, Page, preloadQueries, SecretInput, StatusDot, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../../../../api"
 import { RowActions } from "../../../../components/row-actions"
@@ -31,10 +31,18 @@ import { useUnsavedGuard } from "../../../../components/unsaved-guard"
 import { ChannelIcon } from "../../../../inbox/channel-badge"
 import { useMembers } from "../../../../inbox/data"
 
-// 工作区商务渠道治理页：管理员总览全员网页商务链接与 Telegram 个人号、配置工作区策略与配额，并支持应急添加协作成员。
+// 工作区商务渠道治理页：管理员总览全员网页商务链接与 Telegram 个人号、配置工作区策略与配额，并管理本工作区独立的 Telegram API 凭据与代理。
 export const Route = createFileRoute("/$slug/settings/_service/business")({
   staticData: { title: "nav.business_governance", icon: "link", order: 2, permission: "business-channels:manage" },
-  loader: ({ context }) => preloadQueries(context.app.queryClient, [kit.queries.business.channelList({}), kit.queries.business.policyGet()]),
+  validateSearch: (search: Record<string, unknown>): { tab?: string } => ({
+    tab: typeof search.tab === "string" ? search.tab : undefined,
+  }),
+  loader: ({ context }) =>
+    preloadQueries(context.app.queryClient, [
+      kit.queries.business.channelList({}),
+      kit.queries.business.policyGet(),
+      kit.queries.tgaccount.credentialsGet(),
+    ]),
   component: BusinessGovernancePage,
 })
 
@@ -58,6 +66,11 @@ function BusinessGovernancePage(): ReactNode {
           value: "policy",
           label: t("business_gov.tab_policy"),
           content: <BusinessPolicyTab />,
+        },
+        {
+          value: "telegram",
+          label: t("business_gov.tab_telegram"),
+          content: <TelegramCredentialsTab />,
         },
       ]}
     />
@@ -519,6 +532,163 @@ function BusinessPolicyTab(): ReactNode {
               value={form.values.default_translation_tone}
               onChange={(v) => form.setFieldValue("default_translation_tone", (v ?? "") as BusinessPolicy["default_translation_tone"])}
             />
+          </Stack>
+        </Paper>
+
+        <Group justify="flex-end">
+          <Button type="submit" disabled={!form.isDirty() || !data} loading={save.isPending}>
+            {t("common.save")}
+          </Button>
+        </Group>
+      </Stack>
+    </form>
+  )
+}
+
+/** TelegramCredentialsTab 管理本工作区独立的 Telegram MTProto 应用凭据（API ID、API Hash）与可选 SOCKS5 代理。 */
+function TelegramCredentialsTab(): ReactNode {
+  const t = useT()
+  const queryClient = useQueryClient()
+  const credsQuery = useQuery(kit.queries.tgaccount.credentialsGet())
+  const policyQuery = useQuery(kit.queries.business.policyGet())
+  const [serverError, setServerError] = useState<ReturnType<typeof applyServerErrors>>()
+
+  const form = useForm<{ api_id: number | string; api_hash: string; proxy_url: string }>({
+    initialValues: {
+      api_id: "",
+      api_hash: "",
+      proxy_url: "",
+    },
+  })
+
+  useEffect(() => {
+    const data = credsQuery.data
+    if (!data) return
+    const values = {
+      api_id: data.api_id > 0 ? data.api_id : "",
+      api_hash: data.api_hash,
+      proxy_url: data.proxy_url,
+    }
+    form.setInitialValues(values)
+    form.setValues(values)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅在服务端凭据加载后同步表单基准
+  }, [credsQuery.data])
+
+  const save = useMutation({
+    mutationFn: (values: { api_id: number | string; api_hash: string; proxy_url: string }) => {
+      const payload: TgaccountCredentials = {
+        api_id: Number(values.api_id) || 0,
+        api_hash: values.api_hash.trim(),
+        proxy_url: values.proxy_url.trim(),
+      }
+      return tenantApi.tgaccount.credentialsUpdate(payload)
+    },
+    onSuccess: (saved) => {
+      setServerError(undefined)
+      queryClient.setQueryData(kit.queries.tgaccount.credentialsGet().queryKey, saved)
+      void queryClient.invalidateQueries({ queryKey: kit.queries.tgaccount.key() })
+      void queryClient.invalidateQueries({ queryKey: kit.queries.business.policyGet().queryKey })
+      const next = {
+        api_id: saved.api_id > 0 ? saved.api_id : "",
+        api_hash: saved.api_hash,
+        proxy_url: saved.proxy_url,
+      }
+      form.setInitialValues(next)
+      form.resetDirty(next)
+      notifySuccess(t("common.saved"))
+    },
+    onError: (err) => setServerError(applyServerErrors(form, err)),
+  })
+
+  const testConn = useMutation({
+    mutationFn: () => tenantApi.tgaccount.credentialsTest({ proxy_url: form.values.proxy_url.trim() }),
+    onSuccess: (res) => {
+      if (res.ok) {
+        notifySuccess(t("business_gov.tg_test_ok", { ms: res.latency_ms }))
+      } else {
+        notifyError(undefined, t("business_gov.tg_test_failed", { error: res.error ?? "" }))
+      }
+    },
+    onError: (err) => notifyError(err),
+  })
+
+  useUnsavedGuard(form.isDirty())
+  const data = credsQuery.data
+  const configured = Boolean(data && data.api_id > 0 && data.api_hash.trim() !== "")
+  const platformOff = policyQuery.data ? !policyQuery.data.platform_telegram_enabled : false
+
+  return (
+    <form noValidate onSubmit={form.onSubmit((v) => save.mutate(v))}>
+      <Stack gap="md">
+        <FormError error={serverError} />
+
+        {platformOff && (
+          <Alert icon={<IconInfoCircle size={16} />} color="yellow" variant="light">
+            <Text size="sm">{t("business_gov.platform_tg_off")}</Text>
+          </Alert>
+        )}
+
+        <Alert icon={<IconInfoCircle size={16} />} color="bright-blue" variant="light" title={t("business_gov.tg_isolation_title")}>
+          <Text size="sm">{t("business_gov.tg_isolation_desc")}</Text>
+        </Alert>
+
+        <Paper withBorder p="md" radius="md">
+          <Stack gap="md">
+            <Group justify="space-between" align="flex-start" wrap="wrap" gap="xs">
+              <Box>
+                <Title order={5}>{t("business_gov.tg_section_credentials")}</Title>
+                <Text size="xs" c="dimmed" mt={2}>
+                  {t("business_gov.tg_section_credentials_desc")}
+                </Text>
+              </Box>
+              {data && (
+                <StatusDot color={configured ? "green" : "gray"}>
+                  {t(configured ? "business_gov.tg_status_configured" : "business_gov.tg_status_unconfigured")}
+                </StatusDot>
+              )}
+            </Group>
+
+            <NumberInput
+              label={t("business_gov.tg_api_id")}
+              description={t("business_gov.tg_api_id_hint")}
+              placeholder={t("business_gov.tg_api_id_placeholder")}
+              min={0}
+              allowDecimal={false}
+              allowNegative={false}
+              hideControls
+              {...form.getInputProps("api_id")}
+            />
+
+            <SecretInput
+              label={t("business_gov.tg_api_hash")}
+              description={t("business_gov.tg_api_hash_hint")}
+              placeholder={t("business_gov.tg_api_hash_placeholder")}
+              {...form.getInputProps("api_hash")}
+            />
+
+            <Stack gap="xs">
+              <TextInput
+                label={t("business_gov.tg_proxy_url")}
+                description={t("business_gov.tg_proxy_url_hint")}
+                placeholder={t("business_gov.tg_proxy_placeholder")}
+                {...form.getInputProps("proxy_url")}
+              />
+              <Group gap="xs">
+                <Button
+                  type="button"
+                  variant="default"
+                  size="xs"
+                  leftSection={<IconPlugConnected size={14} />}
+                  loading={testConn.isPending}
+                  onClick={() => testConn.mutate()}
+                >
+                  {t("business_gov.tg_test")}
+                </Button>
+                <Text size="xs" c="dimmed">
+                  {t("business_gov.tg_reconnect_hint")}
+                </Text>
+              </Group>
+            </Stack>
           </Stack>
         </Paper>
 

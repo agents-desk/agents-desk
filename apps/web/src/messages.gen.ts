@@ -268,13 +268,14 @@ export const messages = {
     "business_channels.tg_disconnected": "Telegram account disconnected",
     "business_channels.tg_empty": "No Telegram personal accounts connected yet",
     "business_channels.tg_generate_qr": "Generate QR code",
+    "business_channels.tg_go_configure": "Configure Telegram API",
     "business_channels.tg_login_failed": "Login failed",
     "business_channels.tg_mode_phone": "Phone \u0026 code",
     "business_channels.tg_mode_qr": "QR code",
     "business_channels.tg_no_synced_peers": "No synced chats selected yet — click “Select synced chats” to pick business DMs or groups",
-    "business_channels.tg_not_configured_desc": "Ask a platform admin to configure Telegram API ID and API Hash under Admin → Settings → Telegram Personal API before connecting accounts.",
-    "business_channels.tg_not_configured_short": "Ask platform admin to configure Telegram API first",
-    "business_channels.tg_not_configured_title": "Platform Telegram API not configured",
+    "business_channels.tg_not_configured_desc": "Ask a workspace admin to configure this workspace's own Telegram API ID and API Hash under Settings → Business channels → Telegram API before connecting accounts.",
+    "business_channels.tg_not_configured_short": "Ask a workspace admin to configure Telegram API credentials first",
+    "business_channels.tg_not_configured_title": "Workspace Telegram API credentials not configured",
     "business_channels.tg_password": "2FA Cloud Password",
     "business_channels.tg_password_hint": "Two-step verification is enabled on this account. Enter your cloud password.",
     "business_channels.tg_password_hint_with_tip": "Two-step verification is enabled (hint: {{.hint}}). Enter your cloud password.",
@@ -342,6 +343,26 @@ export const messages = {
     "business_gov.search_placeholder": "Search by channel name, member name, short code, or Telegram username…",
     "business_gov.tab_overview": "Member channels",
     "business_gov.tab_policy": "Policy \u0026 quotas",
+    "business_gov.tab_telegram": "Telegram API",
+    "business_gov.tg_api_hash": "API Hash",
+    "business_gov.tg_api_hash_hint": "32-character App api_hash paired with the API ID",
+    "business_gov.tg_api_hash_placeholder": "e.g. 0123456789abcdef0123456789abcdef",
+    "business_gov.tg_api_id": "API ID",
+    "business_gov.tg_api_id_hint": "Numeric App api_id created at my.telegram.org → API development tools",
+    "business_gov.tg_api_id_placeholder": "e.g. 12345678",
+    "business_gov.tg_isolation_desc": "Register a dedicated API ID and API Hash at my.telegram.org for this workspace and optionally configure a dedicated SOCKS5 proxy. Credentials and egress IPs stay isolated per workspace so anti-spam actions never spill over to other workspaces.",
+    "business_gov.tg_isolation_title": "Isolated per-workspace credentials",
+    "business_gov.tg_proxy_placeholder": "socks5://user:pass@127.0.0.1:1080",
+    "business_gov.tg_proxy_url": "SOCKS5 proxy URL (optional)",
+    "business_gov.tg_proxy_url_hint": "Dedicated egress proxy for this workspace's Telegram accounts; leave empty to connect directly",
+    "business_gov.tg_reconnect_hint": "Saving changes automatically reconnects this workspace's accounts with the new settings; switching API ID may require re-signing in.",
+    "business_gov.tg_section_credentials": "Telegram app credentials \u0026 proxy",
+    "business_gov.tg_section_credentials_desc": "API Hash and proxy URL are encrypted at rest. Leave both API ID and API Hash empty to disable Telegram personal account binding for this workspace.",
+    "business_gov.tg_status_configured": "Configured",
+    "business_gov.tg_status_unconfigured": "Not configured",
+    "business_gov.tg_test": "Test connection",
+    "business_gov.tg_test_failed": "Connection failed: {{.error}}",
+    "business_gov.tg_test_ok": "Connected to Telegram DC ({{.ms}} ms)",
     "business_gov.tone_inherit": "Inherit workspace general translation tone",
     "business_hours.add_date": "Add date",
     "business_hours.closed": "Closed all day",
@@ -2140,13 +2161,14 @@ export const messages = {
     "business_channels.tg_disconnected": "已解绑 Telegram 个人号",
     "business_channels.tg_empty": "还没有绑定 Telegram 个人号",
     "business_channels.tg_generate_qr": "生成登录二维码",
+    "business_channels.tg_go_configure": "前往配置 Telegram API",
     "business_channels.tg_login_failed": "登录失败",
     "business_channels.tg_mode_phone": "手机号验证码",
     "business_channels.tg_mode_qr": "扫码登录",
     "business_channels.tg_no_synced_peers": "尚未勾选任何同步对话，点击右侧“选择同步对话”开始挑选",
-    "business_channels.tg_not_configured_desc": "请联系平台管理员前往「管理员端 → 系统设置 → Telegram 个人号 API」填写 API ID 与 API Hash 后，即可在此扫码或用手机号绑定个人号。",
-    "business_channels.tg_not_configured_short": "需平台管理员先配置 Telegram API",
-    "business_channels.tg_not_configured_title": "尚未配置平台级 Telegram API 凭据",
+    "business_channels.tg_not_configured_desc": "请联系工作区管理员前往「设置 → 商务渠道 → Telegram 接入」填写本工作区独立的 API ID 与 API Hash 后，即可在此扫码或用手机号绑定个人号。",
+    "business_channels.tg_not_configured_short": "需工作区管理员先配置 Telegram API 凭据",
+    "business_channels.tg_not_configured_title": "当前工作区尚未配置 Telegram API 凭据",
     "business_channels.tg_password": "两步验证云密码",
     "business_channels.tg_password_hint": "该账号开启了两步验证，请输入云密码完成登录。",
     "business_channels.tg_password_hint_with_tip": "该账号开启了两步验证（密码提示：{{.hint}}），请输入云密码完成登录。",
@@ -2214,6 +2236,26 @@ export const messages = {
     "business_gov.search_placeholder": "搜索渠道名称、成员姓名、短码或 Telegram 用户名…",
     "business_gov.tab_overview": "成员渠道总览",
     "business_gov.tab_policy": "策略与配额",
+    "business_gov.tab_telegram": "Telegram 接入",
+    "business_gov.tg_api_hash": "API Hash",
+    "business_gov.tg_api_hash_hint": "与 API ID 配套的 32 位 App api_hash",
+    "business_gov.tg_api_hash_placeholder": "例如：0123456789abcdef0123456789abcdef",
+    "business_gov.tg_api_id": "API ID",
+    "business_gov.tg_api_id_hint": "在 my.telegram.org → API development tools 中申请的纯数字 App api_id",
+    "business_gov.tg_api_id_placeholder": "例如：12345678",
+    "business_gov.tg_isolation_desc": "请在 my.telegram.org 为本工作区单独申请 API ID 与 API Hash，并按需配置独立 SOCKS5 代理。不同工作区相互隔离，避免任一工作区的发信行为或出口 IP 影响其他工作区。",
+    "business_gov.tg_isolation_title": "工作区独立隔离配置",
+    "business_gov.tg_proxy_placeholder": "socks5://user:pass@127.0.0.1:1080",
+    "business_gov.tg_proxy_url": "SOCKS5 代理地址（可选）",
+    "business_gov.tg_proxy_url_hint": "供本工作区全部 Telegram 个人号专用的出口代理，留空表示服务器直连",
+    "business_gov.tg_reconnect_hint": "保存变更后，本工作区已绑定的个人号将自动按新配置重连；若更换了 API ID，部分个人号可能需要重新登录。",
+    "business_gov.tg_section_credentials": "Telegram 应用凭据与代理",
+    "business_gov.tg_section_credentials_desc": "API Hash 与代理地址均在服务端加密存储。将 API ID 与 API Hash 同时留空表示暂不启用本工作区的 Telegram 个人号绑定。",
+    "business_gov.tg_status_configured": "已配置",
+    "business_gov.tg_status_unconfigured": "未配置",
+    "business_gov.tg_test": "测试连通性",
+    "business_gov.tg_test_failed": "连通失败：{{.error}}",
+    "business_gov.tg_test_ok": "已连通 Telegram DC（延迟 {{.ms}} ms）",
     "business_gov.tone_inherit": "继承工作区通用翻译语气",
     "business_hours.add_date": "添加日期",
     "business_hours.closed": "全天不上班",
@@ -4015,6 +4057,7 @@ export type MessageId =
   | "business_channels.tg_disconnected"
   | "business_channels.tg_empty"
   | "business_channels.tg_generate_qr"
+  | "business_channels.tg_go_configure"
   | "business_channels.tg_login_failed"
   | "business_channels.tg_mode_phone"
   | "business_channels.tg_mode_qr"
@@ -4089,6 +4132,26 @@ export type MessageId =
   | "business_gov.search_placeholder"
   | "business_gov.tab_overview"
   | "business_gov.tab_policy"
+  | "business_gov.tab_telegram"
+  | "business_gov.tg_api_hash"
+  | "business_gov.tg_api_hash_hint"
+  | "business_gov.tg_api_hash_placeholder"
+  | "business_gov.tg_api_id"
+  | "business_gov.tg_api_id_hint"
+  | "business_gov.tg_api_id_placeholder"
+  | "business_gov.tg_isolation_desc"
+  | "business_gov.tg_isolation_title"
+  | "business_gov.tg_proxy_placeholder"
+  | "business_gov.tg_proxy_url"
+  | "business_gov.tg_proxy_url_hint"
+  | "business_gov.tg_reconnect_hint"
+  | "business_gov.tg_section_credentials"
+  | "business_gov.tg_section_credentials_desc"
+  | "business_gov.tg_status_configured"
+  | "business_gov.tg_status_unconfigured"
+  | "business_gov.tg_test"
+  | "business_gov.tg_test_failed"
+  | "business_gov.tg_test_ok"
   | "business_gov.tone_inherit"
   | "business_hours.add_date"
   | "business_hours.closed"

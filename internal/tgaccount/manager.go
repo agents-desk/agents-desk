@@ -22,7 +22,6 @@ import (
 	"agents-desk/internal/channel"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/member"
-	"agents-desk/internal/platformsettings"
 )
 
 // loginEntry 保存进行中的单次 Telegram 个人号交互式登录会话，归属隔离到 (tenantID, memberID)。
@@ -44,6 +43,7 @@ type loginEntry struct {
 type accountRunner struct {
 	channelID string
 	tenantID  string
+	creds     MTProtoConfig
 	cancel    context.CancelFunc
 
 	mu            sync.RWMutex
@@ -122,7 +122,7 @@ type Manager struct {
 	crypt      *crypt.Crypt
 	files      *filesystem.Service
 	locker     *lock.Locker
-	tgSettings *settings.Group[platformsettings.Telegram]
+	tgCreds    *settings.Group[Credentials]
 	receive    *conversation.Receive
 	backend    Backend
 	checkQuota func(ctx context.Context, sub identity.Subject, isReconnect bool) error
@@ -136,19 +136,19 @@ type Manager struct {
 }
 
 // NewManager 返回 Telegram 个人号管理器；backend 为空时使用纯 Go GotdBackend。
-func NewManager(db *bun.DB, c *crypt.Crypt, files *filesystem.Service, tgSettings *settings.Group[platformsettings.Telegram], backend Backend) *Manager {
+func NewManager(db *bun.DB, c *crypt.Crypt, files *filesystem.Service, tgCreds *settings.Group[Credentials], backend Backend) *Manager {
 	if backend == nil {
 		backend = NewGotdBackend()
 	}
 	return &Manager{
-		db:         db,
-		crypt:      c,
-		files:      files,
-		tgSettings: tgSettings,
-		backend:    backend,
-		logins:     map[string]*loginEntry{},
-		runners:    map[string]*accountRunner{},
-		wakeCh:     make(chan struct{}, 1),
+		db:      db,
+		crypt:   c,
+		files:   files,
+		tgCreds: tgCreds,
+		backend: backend,
+		logins:  map[string]*loginEntry{},
+		runners: map[string]*accountRunner{},
+		wakeCh:  make(chan struct{}, 1),
 	}
 }
 
@@ -179,33 +179,46 @@ func (m *Manager) wake() {
 	}
 }
 
-// credentials 读取平台配置的 Telegram API ID、API Hash 与代理地址，未配置时返回 ErrNotConfigured。
-func (m *Manager) credentials(ctx context.Context) (platformsettings.Telegram, error) {
-	if m.tgSettings == nil {
-		return platformsettings.Telegram{}, ErrNotConfigured.New()
+// ReconnectTenant 断开指定工作区当前全部个人号长连接并触发重连，供该工作区更新 API 凭据或代理后调用，不影响其他工作区。
+func (m *Manager) ReconnectTenant(tenantID string) {
+	m.runnersMu.Lock()
+	for id, r := range m.runners {
+		if r.tenantID == tenantID {
+			r.cancel()
+			delete(m.runners, id)
+		}
 	}
-	cfg, err := m.tgSettings.Get(ctx)
+	m.runnersMu.Unlock()
+	m.wake()
+}
+
+// credentials 读取工作区 tenantID 配置的 Telegram API ID、API Hash 与独立代理地址，未配置时返回 ErrNotConfigured。
+func (m *Manager) credentials(ctx context.Context, tenantID string) (Credentials, error) {
+	if m.tgCreds == nil || strings.TrimSpace(tenantID) == "" {
+		return Credentials{}, ErrNotConfigured.New()
+	}
+	cfg, err := m.tgCreds.Tenant(tenantID).Get(ctx)
 	if err != nil {
-		return platformsettings.Telegram{}, errors.Wrap(err, "load platform telegram settings")
+		return Credentials{}, errors.Wrap(err, "load tenant telegram credentials")
 	}
 	if !cfg.Configured() {
-		return platformsettings.Telegram{}, ErrNotConfigured.New()
+		return Credentials{}, ErrNotConfigured.New()
 	}
 	return cfg, nil
 }
 
-func mtprotoConfig(creds platformsettings.Telegram) MTProtoConfig {
+func mtprotoConfig(creds Credentials) MTProtoConfig {
 	return MTProtoConfig{APIID: creds.APIID, APIHash: creds.APIHash, ProxyURL: creds.ProxyURL}
 }
 
-// Configured 报告平台是否已配置 Telegram API 凭据。
-func (m *Manager) Configured(ctx context.Context) (bool, error) {
-	if m.tgSettings == nil {
+// Configured 报告工作区 tenantID 是否已配置 Telegram API 凭据。
+func (m *Manager) Configured(ctx context.Context, tenantID string) (bool, error) {
+	if m.tgCreds == nil || strings.TrimSpace(tenantID) == "" {
 		return false, nil
 	}
-	cfg, err := m.tgSettings.Get(ctx)
+	cfg, err := m.tgCreds.Tenant(tenantID).Get(ctx)
 	if err != nil {
-		return false, errors.Wrap(err, "load platform telegram settings")
+		return false, errors.Wrap(err, "load tenant telegram credentials")
 	}
 	return cfg.Configured(), nil
 }
@@ -233,7 +246,7 @@ func (m *Manager) StartLogin(ctx context.Context, sub identity.Subject, mode Log
 			return nil, err
 		}
 	}
-	creds, err := m.credentials(ctx)
+	creds, err := m.credentials(ctx, sub.Tenant)
 	if err != nil {
 		return nil, err
 	}
@@ -1006,7 +1019,7 @@ func (m *Manager) withClient(ctx context.Context, ch *channel.Channel, fn func(c
 			return fn(ctx, cli)
 		}
 	}
-	creds, err := m.credentials(ctx)
+	creds, err := m.credentials(ctx, ch.TenantID)
 	if err != nil {
 		return err
 	}
@@ -1034,13 +1047,12 @@ func (m *Manager) Run(ctx context.Context) error {
 }
 
 func (m *Manager) reconcile(ctx context.Context) {
-	creds, err := m.credentials(ctx)
-	if err != nil {
+	if m.tgCreds == nil {
 		m.stopAllRunners()
 		return
 	}
 	var rows []channel.Channel
-	err = m.db.NewSelect().Model(&rows).
+	err := m.db.NewSelect().Model(&rows).
 		Where("kind = ? AND enabled = TRUE AND owner_member_id IS NOT NULL", channel.TelegramAccount).
 		Where("EXISTS (SELECT 1 FROM tenants t WHERE t.id = channel.tenant_id AND t.disabled_at IS NULL)").
 		Scan(ctx)
@@ -1049,45 +1061,61 @@ func (m *Manager) reconcile(ctx context.Context) {
 		return
 	}
 
+	// 按工作区独立加载 MTProto 凭据与代理，单个工作区未配置或读取失败不影响其他工作区
+	tenantCreds := map[string]MTProtoConfig{}
+	tenantLoaded := map[string]bool{}
 	desired := map[string]channel.Channel{}
 	for _, ch := range rows {
 		cfg, err := settingsOf(&ch)
 		if err != nil || cfg.SessionCipher == "" || cfg.Status == StatusAuthExpired {
 			continue
 		}
+		if !tenantLoaded[ch.TenantID] {
+			tenantLoaded[ch.TenantID] = true
+			creds, err := m.credentials(ctx, ch.TenantID)
+			if err == nil {
+				tenantCreds[ch.TenantID] = mtprotoConfig(creds)
+			} else if !errors.Is(err, ErrNotConfigured) {
+				slog.WarnContext(ctx, "load tenant telegram credentials during reconcile", "tenant_id", ch.TenantID, "error", err)
+			}
+		}
+		if _, ok := tenantCreds[ch.TenantID]; !ok {
+			continue
+		}
 		desired[ch.ID] = ch
 	}
 
-	// 停止已停用、已删除或授权失效的连接
+	// 停止已停用、已删除、授权失效、凭据已清空或凭据/代理发生变更的连接
 	m.runnersMu.Lock()
 	for id, r := range m.runners {
-		if _, ok := desired[id]; !ok {
+		ch, ok := desired[id]
+		if !ok || r.creds != tenantCreds[ch.TenantID] {
 			r.cancel()
 			delete(m.runners, id)
 		}
 	}
 	for id, ch := range desired {
 		cfg, _ := settingsOf(&ch)
+		mc := tenantCreds[ch.TenantID]
 		if existing := m.runners[id]; existing != nil {
 			existing.setPeers(cfg.SyncedPeers)
 			existing.setSync(cfg.resolvedSync())
 			continue
 		}
 		rCtx, cancel := context.WithCancel(ctx)
-		runner := &accountRunner{channelID: id, tenantID: ch.TenantID, cancel: cancel}
+		runner := &accountRunner{channelID: id, tenantID: ch.TenantID, creds: mc, cancel: cancel}
 		runner.setPeers(cfg.SyncedPeers)
 		runner.setSync(cfg.resolvedSync())
 		m.runners[id] = runner
 		chCopy := ch
-		go m.runLoop(rCtx, creds, &chCopy, runner)
+		go m.runLoop(rCtx, mc, &chCopy, runner)
 	}
 	m.runnersMu.Unlock()
 }
 
-func (m *Manager) runLoop(ctx context.Context, creds platformsettings.Telegram, ch *channel.Channel, runner *accountRunner) {
+func (m *Manager) runLoop(ctx context.Context, mc MTProtoConfig, ch *channel.Channel, runner *accountRunner) {
 	backoff := 3 * time.Second
 	storage := &dbSessionStorage{db: m.db, crypt: m.crypt, tenantID: ch.TenantID, channelID: ch.ID}
-	mc := mtprotoConfig(creds)
 	for {
 		if ctx.Err() != nil {
 			return

@@ -16,8 +16,8 @@ import (
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/flags"
 	"agents-desk/internal/member"
-	"agents-desk/internal/platformsettings"
 	"agents-desk/internal/tenant"
+	"agents-desk/internal/tgaccount"
 	"agents-desk/internal/widget"
 )
 
@@ -58,9 +58,9 @@ func TestBusinessPolicyAndGovernance(t *testing.T) {
 
 	policyGroup := business.NewPolicyGroup(env.DB)
 	featureStore := flags.NewStore(env.DB)
-	tgSettings := platformsettings.NewTelegramGroup(env.DB, env.Crypt)
-	policyActions := business.NewPolicyActions(env.DB, policyGroup, featureStore, tgSettings)
-	guard := business.NewPolicyGuard(env.DB, policyGroup, featureStore, tgSettings)
+	tgCreds := tgaccount.NewCredentialsGroup(env.DB, env.Crypt)
+	policyActions := business.NewPolicyActions(env.DB, policyGroup, featureStore, tgCreds)
+	guard := business.NewPolicyGuard(env.DB, policyGroup, featureStore, tgCreds)
 
 	// 1. 默认策略读取与保存、非法语气校验
 	view, err := policyActions.Get(ctx, subAlphaOwner)

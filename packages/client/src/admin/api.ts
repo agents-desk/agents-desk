@@ -312,26 +312,6 @@ export interface PlatformsettingsPublicSite {
   site_name: string
 }
 
-export interface PlatformsettingsTelegram {
-  /** Telegram 应用 API Hash，落库时自动加密保存 */
-  api_hash: string
-  /** Telegram 应用 API ID（在 my.telegram.org 申请）；填 0 表示暂不启用个人号绑定 */
-  api_id: number
-  /** 可选：MTProto 出口代理地址，例如 socks5://user:pass@127.0.0.1:1080；留空直连 */
-  proxy_url: string
-}
-
-export interface PlatformsettingsTelegramTestInputBody {
-  /** 可选：待测试的 SOCKS5 代理地址；留空使用已保存的代理设置 */
-  proxy_url?: string
-}
-
-export interface PlatformsettingsTelegramTestResult {
-  error?: string
-  latency_ms: number
-  ok: boolean
-}
-
 export interface QueueBulkResult {
   /** 处理的条数 */
   count: number
@@ -1003,30 +983,6 @@ export function createClient(options: ClientOptions) {
        */
       doctor: (): Promise<DoctorReport> =>
         rt.request<DoctorReport>({ method: "GET", path: `/system/doctor` }),
-    },
-    /** operationId 以 telegram- 开头的接口。 */
-    telegram: {
-      /**
-       * 读取 Telegram API 凭据设置
-       *
-       * GET /settings/telegram
-       */
-      settingsGet: (): Promise<PlatformsettingsTelegram> =>
-        rt.request<PlatformsettingsTelegram>({ method: "GET", path: `/settings/telegram` }),
-      /**
-       * 测试 Telegram MTProto 网络连通性
-       *
-       * POST /settings/telegram/test
-       */
-      settingsTest: (body: PlatformsettingsTelegramTestInputBody): Promise<PlatformsettingsTelegramTestResult> =>
-        rt.request<PlatformsettingsTelegramTestResult>({ method: "POST", path: `/settings/telegram/test`, body }),
-      /**
-       * 保存 Telegram API 凭据设置
-       *
-       * PUT /settings/telegram
-       */
-      settingsUpdate: (body: PlatformsettingsTelegram): Promise<PlatformsettingsTelegram> =>
-        rt.request<PlatformsettingsTelegram>({ method: "PUT", path: `/settings/telegram`, body }),
     },
     /** operationId 以 tenant- 开头的接口。 */
     tenant: {

@@ -310,27 +310,6 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         queryFn: () => client.system.doctor(...args),
       }),
     },
-    telegram: {
-      /** telegram 分组全部查询的 key 前缀。 */
-      key: () => key("telegram"),
-      /** GET /settings/telegram */
-      settingsGet: (...args: Parameters<Client["telegram"]["settingsGet"]>) => ({
-        queryKey: key("telegram", "settingsGet", ...args),
-        queryFn: () => client.telegram.settingsGet(...args),
-      }),
-      /** POST /settings/telegram/test */
-      settingsTest: () => ({
-        mutationFn: (variables: Parameters<Client["telegram"]["settingsTest"]>[0]) => client.telegram.settingsTest(variables),
-        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
-          invalidate(context, "telegram"),
-      }),
-      /** PUT /settings/telegram */
-      settingsUpdate: () => ({
-        mutationFn: (variables: Parameters<Client["telegram"]["settingsUpdate"]>[0]) => client.telegram.settingsUpdate(variables),
-        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
-          invalidate(context, "telegram"),
-      }),
-    },
     tenant: {
       /** tenant 分组全部查询的 key 前缀。 */
       key: () => key("tenant"),

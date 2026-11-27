@@ -30,7 +30,7 @@ import (
 )
 
 var (
-	// ErrNotConfigured 是平台管理员尚未在系统设置中配置 Telegram API ID 与 API Hash。
+	// ErrNotConfigured 是当前工作区管理员尚未配置 Telegram API ID 与 API Hash。
 	ErrNotConfigured = errorx.Define(errorx.Conflict, "tgaccount.not_configured")
 	// ErrLoginNotFound 是登录会话不存在、已过期或不属于当前成员。
 	ErrLoginNotFound = errorx.Define(errorx.NotFound, "tgaccount.login_not_found")

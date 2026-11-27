@@ -260,7 +260,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		tenant.RegisterRoutes(api, require(auth.TenantsRead), require(auth.TenantsManage), require(auth.TenantsImpersonate), a.db, a.roles, a.memberLogins, a.memberTokens, addr, memberHooks, a.creds)
 		tenant.RegisterExportRoutes(api, require(auth.TenantsRead), a.db, a.memberLogins, addr, a.exporter, a.hub)
 		platformsettings.RegisterPublicRoutes(api, a.generalSettings, a.files)
-		platformsettings.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.generalSettings, a.mailSettings, a.telegramSettings, a.files)
+		platformsettings.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.generalSettings, a.mailSettings, a.files)
 		llm.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.llmSettings)
 		flags.RegisterRoutes(api, require(auth.FeaturesManage), a.db, a.features)
 		audit.RegisterRoutes(api, require(auth.AuditRead), a.db)
@@ -376,7 +376,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		conversation.RegisterRoutes(api, require, a.db, a.channels, down)
 		file.RegisterRoutes(api, require(auth.ConversationsReply), a.files, a.cfg.Filesystem.MaxUploadSize)
 		widget.RegisterRoutes(api, require, a.db, a.crypt, a.cfg.HTTP.PublicURL)
-		bizGuard := business.NewPolicyGuard(a.db, a.businessPolicy, a.features, a.telegramSettings)
+		bizGuard := business.NewPolicyGuard(a.db, a.businessPolicy, a.features, a.tgCredentials)
 		widget.RegisterBusinessLinkRoutes(api, require, a.db, a.cfg.HTTP.PublicURL, widget.BusinessLinkHooks{
 			CheckCreate: bizGuard.CheckCreateLink,
 			DefaultIntake: func(ctx context.Context, tenantID string) bool {
@@ -390,12 +390,12 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		telegram.RegisterRoutes(api, require, a.db, a.crypt, a.telegram, a.cfg.HTTP.PublicURL)
 		wecom.RegisterRoutes(api, require, a.db, a.crypt, a.wecomBots)
 		extgroup.RegisterRoutes(api, require, a.db)
-		tgaccount.RegisterRoutes(api, require, a.tgAccounts)
+		tgaccount.RegisterRoutes(api, require, a.db, a.tgCredentials, a.tgAccounts)
 		var onTGChanged func()
 		if a.tgAccounts != nil {
 			onTGChanged = a.tgAccounts.Wake
 		}
-		business.RegisterRoutes(api, require, a.db, a.roles, a.files, a.businessPolicy, a.features, a.telegramSettings, down, a.cfg.HTTP.PublicURL, onTGChanged)
+		business.RegisterRoutes(api, require, a.db, a.roles, a.files, a.businessPolicy, a.features, a.tgCredentials, down, a.cfg.HTTP.PublicURL, onTGChanged)
 		translation.RegisterRoutes(api, require, a.db, a.translator, translation.NewIncoming(a.db, a.locker, a.translator, a.downstream()), a.translationSettings)
 		automation.RegisterRoutes(api, require, a.db)
 		report.RegisterRoutes(api, require, a.db, a.roles, a.files)

@@ -5,18 +5,20 @@ import (
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/httpx/rest"
 	"github.com/go-tenon/tenon/identity"
+	"github.com/go-tenon/tenon/settings"
 
 	"agents-desk/internal/auth"
 	"agents-desk/internal/channel"
 )
 
-// ListAccountsOutput 是当前成员 Telegram 个人号列表及平台配置状态响应。
+// ListAccountsOutput 是当前成员 Telegram 个人号列表及工作区配置状态响应。
 type ListAccountsOutput struct {
 	Body struct {
-		Configured bool         `json:"configured" doc:"平台管理员是否已配置 Telegram API ID 与 API Hash"`
+		Configured bool         `json:"configured" doc:"当前工作区管理员是否已配置 Telegram API ID 与 API Hash"`
 		Accounts   []AccountDTO `json:"accounts" nullable:"false"`
 	}
 }
@@ -113,21 +115,35 @@ type BackfillPeerOutput struct {
 	}
 }
 
-// RegisterRoutes 在工作区 API（/t/{slug}/api）中注册成员自助绑定和管理 Telegram 个人号的全部接口。
-func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.Operation), mgr *Manager) {
+// RegisterRoutes 在工作区 API（/t/{slug}/api）中注册工作区 Telegram API 凭据设置及成员自助绑定和管理个人号的全部接口。
+func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.Operation), db *bun.DB, tgCreds *settings.Group[Credentials], mgr *Manager) {
 	use := require(auth.BusinessChannelsUse)
+	manage := require(auth.BusinessChannelsManage)
 	route := func(id, method, path, summary string) huma.Operation {
 		op := huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary}
 		use(&op)
 		return op
 	}
+	manageRoute := func(id, method, path, summary string) huma.Operation {
+		op := huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary}
+		manage(&op)
+		return op
+	}
+	var onCredsChanged func(string)
+	if mgr != nil {
+		onCredsChanged = mgr.ReconnectTenant
+	}
+	rest.Register(api, manageRoute("tgaccount-credentials-get", http.MethodGet, "/settings/telegram-api", "读取工作区 Telegram API 凭据设置"), NewGetCredentials(tgCreds).HTTP)
+	rest.Register(api, manageRoute("tgaccount-credentials-update", http.MethodPut, "/settings/telegram-api", "保存工作区 Telegram API 凭据设置"), NewSaveCredentials(db, tgCreds, onCredsChanged).HTTP)
+	rest.Register(api, manageRoute("tgaccount-credentials-test", http.MethodPost, "/settings/telegram-api/test", "测试工作区 Telegram MTProto 网络连通性"), NewTestConnection(tgCreds).HTTP)
+
 	disconnectOp := route("tgaccount-disconnect", http.MethodDelete, "/my/telegram-accounts/{id}", "解绑并断开 Telegram 个人号")
 	disconnectOp.DefaultStatus = http.StatusNoContent
 
 	rest.Register(api, route("tgaccount-list", http.MethodGet, "/my/telegram-accounts", "我的 Telegram 个人号列表"),
 		func(ctx context.Context, _ *struct{}) (*ListAccountsOutput, error) {
 			sub, _ := identity.FromContext(ctx)
-			configured, err := mgr.Configured(ctx)
+			configured, err := mgr.Configured(ctx, sub.Tenant)
 			if err != nil {
 				return nil, err
 			}

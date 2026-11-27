@@ -1111,6 +1111,16 @@ export const schemas = {
     },
   },
   tgaccount: {
+    credentialsTest: {
+      body: {
+        "$ref": "#/components/schemas/TgaccountConnectionTestInputBody"
+      },
+    },
+    credentialsUpdate: {
+      body: {
+        "$ref": "#/components/schemas/TgaccountCredentials"
+      },
+    },
     loginCode: {
       body: {
         "$ref": "#/components/schemas/TgaccountSubmitCodeInputBody"
@@ -3397,6 +3407,42 @@ export const components = {
     },
     "required": [
       "external_chat_id"
+    ],
+    "type": "object"
+  },
+  TgaccountConnectionTestInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "proxy_url": {
+        "maxLength": 256,
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  TgaccountCredentials: {
+    "additionalProperties": false,
+    "properties": {
+      "api_hash": {
+        "format": "password",
+        "maxLength": 128,
+        "type": "string"
+      },
+      "api_id": {
+        "format": "int64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "proxy_url": {
+        "format": "password",
+        "maxLength": 256,
+        "type": "string"
+      }
+    },
+    "required": [
+      "api_id",
+      "api_hash",
+      "proxy_url"
     ],
     "type": "object"
   },

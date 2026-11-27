@@ -28,7 +28,6 @@ import (
 
 	"agents-desk/internal/channel"
 	"agents-desk/internal/conversation"
-	"agents-desk/internal/platformsettings"
 )
 
 // MTProtoConfig 是建立 MTProto 连接所需的应用凭据与可选 SOCKS5 代理配置。
@@ -117,7 +116,7 @@ type GotdBackend struct{}
 // NewGotdBackend 返回纯 Go MTProto 后端。
 func NewGotdBackend() Backend { return GotdBackend{} }
 
-// gotdOptions 按 MTProtoConfig 构造 gotd.Options；配置了 SOCKS5 代理时通过 platformsettings.DialTelegram 拨号。
+// gotdOptions 按 MTProtoConfig 构造 gotd.Options；配置了 SOCKS5 代理时通过 DialTelegram 拨号。
 func gotdOptions(cfg MTProtoConfig, storage session.Storage, handler gotd.UpdateHandler, noUpdates bool) gotd.Options {
 	opts := gotd.Options{
 		SessionStorage: storage,
@@ -127,7 +126,7 @@ func gotdOptions(cfg MTProtoConfig, storage session.Storage, handler gotd.Update
 	if proxyURL := strings.TrimSpace(cfg.ProxyURL); proxyURL != "" {
 		opts.Resolver = dcs.Plain(dcs.PlainOptions{
 			Dial: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return platformsettings.DialTelegram(ctx, proxyURL, network, addr)
+				return DialTelegram(ctx, proxyURL, network, addr)
 			},
 		})
 	}
