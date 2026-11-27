@@ -19,7 +19,6 @@ import (
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/lock"
 	"github.com/go-tenon/tenon/lock/pglock"
-	"github.com/go-tenon/tenon/queue"
 
 	"agents-desk/internal/apptest"
 	"agents-desk/internal/auth"
@@ -234,7 +233,7 @@ func setup(t *testing.T, configured bool) fixture {
 	tr := NewTranslator(env.DB, llm.NewClient(env.DB, llmSettings, srv.Client()), NewGroup(env.DB))
 	return fixture{
 		env: env, system: system, agent: owner, ch: ch, model: model, translator: tr, locker: lock.New(pglock.New(env.DB)),
-		down: conversation.Downstream{Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic, Topic}},
+		down: conversation.Downstream{Sinks: []conversation.Sink{{Topic: conversation.DeliverTopic}, {Topic: Topic}}},
 	}
 }
 

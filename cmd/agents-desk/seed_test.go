@@ -9,7 +9,6 @@ import (
 
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/login"
-	"github.com/go-tenon/tenon/queue"
 
 	"agents-desk/internal/apptest"
 	"agents-desk/internal/channel"
@@ -30,7 +29,7 @@ func TestSeed(t *testing.T) {
 	// 第一次全部写入，第二次全部跳过
 	for i, skipped := range []bool{false, true} {
 		var out bytes.Buffer
-		if err := seed(ctx, &out, env.DB, env.Roles, env.AdminLogins, env.MemberLogins, env.Files, env.Crypt, addr, reg, conversation.Downstream{Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic}}); err != nil {
+		if err := seed(ctx, &out, env.DB, env.Roles, env.AdminLogins, env.MemberLogins, env.Files, env.Crypt, addr, reg, conversation.Downstream{Sinks: []conversation.Sink{{Topic: conversation.DeliverTopic}}}); err != nil {
 			t.Fatal(err)
 		}
 		lines := strings.Split(strings.TrimSpace(out.String()), "\n")

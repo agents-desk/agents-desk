@@ -276,3 +276,9 @@ func (b *TicketBroadcast) Handle(ctx context.Context, p conversation.Appended) e
 		"ticket_id", it.ConversationID, "item_id", it.ID, "recipients", len(pending), "attachments", len(attachments), "translated_languages", len(translations))
 	return nil
 }
+
+// Broadcasts 报告时间线项 it 是否需要交给工单公开进度的广播：只有发给客户看的消息才可能被转投给关联联系人。
+// commit 用它过滤下游，内部备注、事件和内部聊天因此不会产生空任务。
+func Broadcasts(it *conversation.Item) bool {
+	return it.Kind == conversation.Message && it.Visibility == conversation.Everyone && !it.ActorType.IsExternal()
+}

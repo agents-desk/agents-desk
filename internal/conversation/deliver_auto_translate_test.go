@@ -78,21 +78,7 @@ func TestDeliverAutoTranslate(t *testing.T) {
 		t.Fatalf("应写入 pending_translation 标记：%#v", replied.Derived)
 	}
 
-	// 2. 模拟翻译临时失败 -> Deliver.Job 返回错误且不调用连接器
-	failDown := down
-	failDown.AutoTranslate = func(_ context.Context, _ conversation.AutoTranslateJob) (string, string, bool, error) {
-		return "", "", false, errors.New("llm transient timeout")
-	}
-	if err := conversation.NewDeliver(env.DB, reg, failDown).Job(ctx, conversation.Appended{
-		TenantID: alpha.ID, ConversationID: rec.ConversationID, ItemID: replied.ID, Seq: replied.Seq,
-	}); err == nil {
-		t.Fatal("翻译失败时 Deliver.Job 应返回错误供重试")
-	}
-	if len(conn.sent) != 0 {
-		t.Fatalf("翻译失败时不应发送消息：%d", len(conn.sent))
-	}
-
-	// 3. 重试成功 -> 后台翻译并更新 content.text/original/language，清除 pending_translation 并投递译文
+	// 2. 翻译成功 -> 后台翻译并更新 content.text/original/language，清除 pending_translation 并投递译文
 	okDown := down
 	okDown.AutoTranslate = func(_ context.Context, req conversation.AutoTranslateJob) (string, string, bool, error) {
 		if req.Language != "en" || req.Tone != "friendly" || req.Text != "您的订单已经发货了" {
@@ -118,5 +104,45 @@ func TestDeliverAutoTranslate(t *testing.T) {
 	}
 	if _, stillPending := stored.Derived["pending_translation"]; stillPending {
 		t.Fatalf("完成后应清除 pending_translation：%+v", stored.Derived)
+	}
+
+	// 3. 翻译失败不阻断投递：按原文发出，清除待翻译标记并记下这次没有翻译成功，不返回错误让队列重试
+	second, err := conversation.NewReply(env.DB, down).Handle(ctx, subOwner, rec.ConversationID, conversation.ReplyBody{
+		Text:          "第二条原文",
+		AutoTranslate: &conversation.AutoTranslateRequest{Language: "en"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	failDown := down
+	failDown.AutoTranslate = func(_ context.Context, _ conversation.AutoTranslateJob) (string, string, bool, error) {
+		return "", "", false, errors.New("llm transient timeout")
+	}
+	if err := conversation.NewDeliver(env.DB, reg, failDown).Job(ctx, conversation.Appended{
+		TenantID: alpha.ID, ConversationID: rec.ConversationID, ItemID: second.ID, Seq: second.Seq,
+	}); err != nil {
+		t.Fatalf("翻译失败不应阻断投递：%v", err)
+	}
+	if len(conn.sent) != 2 || conn.sent[1].Text != "第二条原文" {
+		t.Fatalf("翻译失败时应按原文发出：%+v", conn.sent)
+	}
+
+	var storedFailed conversation.Item
+	if err := env.DB.NewSelect().Model(&storedFailed).Where("id = ?", second.ID).Scan(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, stillPending := storedFailed.Derived["pending_translation"]; stillPending {
+		t.Fatalf("失败后应清除 pending_translation：%+v", storedFailed.Derived)
+	}
+	if failed, _ := storedFailed.Derived["translation_failed"].(bool); !failed {
+		t.Fatalf("失败后应留下 translation_failed 标记：%+v", storedFailed.Derived)
+	}
+
+	var delivery conversation.Delivery
+	if err := env.DB.NewSelect().Model(&delivery).Where("item_id = ?", second.ID).Scan(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if delivery.Status != conversation.Delivered {
+		t.Fatalf("按原文发出后应记为已送达：%s", delivery.Status)
 	}
 }

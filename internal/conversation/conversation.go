@@ -424,12 +424,23 @@ type AutoTranslateJob struct {
 // AutoTranslator 在异步投递前将成员原文翻译成目标语言；needed 为 false 时按原文发出。
 type AutoTranslator func(ctx context.Context, req AutoTranslateJob) (text, language string, needed bool, err error)
 
+// Sink 是一个下游：交给 worker 的队列（每个队列各自重试），以及这一项要不要交给它。
+// Accept 为 nil 时每一项都交给它；否则只把它关心的项交给它，例如投递只看发给对方的消息，
+// 内部聊天的消息因此不会给每个下游都产生一个任务。
+type Sink struct {
+	Topic  queue.Topic[Appended]
+	Accept func(*Item) bool
+}
+
+// accepts 报告时间线项 it 是否应该交给这个下游。
+func (s Sink) accepts(it *Item) bool { return s.Accept == nil || s.Accept(it) }
+
 // Downstream 是会话有变化时要通知的下游，由入口装配。
 type Downstream struct {
-	Topics []queue.Topic[Appended] // 交给 worker 的下游，每个一个 topic，各自重试，例如把消息发到外部渠道（DeliverTopic），以后还有翻译
-	Hub    *broadcast.Hub          // 提交后把变化推送到能看到会话的成员的个人频道；为 nil 时不推送
-	Roles  *authz.Store            // 推送时按成员的角色判断可见范围，Hub 不为 nil 时必须设置
-	Media  Media                   // 文件与缩略图服务：消息和内部备注确认、读取附件时使用
+	Sinks []Sink         // 交给 worker 的下游，例如把消息发到外部渠道（DeliverTopic）、翻译、自动化
+	Hub   *broadcast.Hub // 提交后把变化推送到能看到会话的成员的个人频道；为 nil 时不推送
+	Roles *authz.Store   // 推送时按成员的角色判断可见范围，Hub 不为 nil 时必须设置
+	Media Media          // 文件与缩略图服务：消息和内部备注确认、读取附件时使用
 	// AutoTranslate 在后台投递前将折叠态发送的原文异步翻译成目标语言；为 nil 时跳过自动翻译直接发送原文。
 	AutoTranslate AutoTranslator
 	// ContactPush 在提交后把会话的变化推送给对方（联系人）打开着的聊天窗口，参数是会话的渠道和联系人；为 nil 时不推送。
@@ -474,18 +485,28 @@ func find(ctx context.Context, db bun.IDB, tenant, id string, lock bool) (*Conve
 	return c, errors.Wrap(err, "load conversation")
 }
 
-// commit 在事务 tx 中把 items 依次追加到会话 c 的时间线，保存 c 的修改，并为每一项向每个下游发布任务；
+// commit 在事务 tx 中把 items 依次追加到会话 c 的时间线，保存 c 的修改，并为每一项向关心它的下游发布任务；
 // 提交后把变化推送给修改前后能看到 c 的成员。调用前 c 已经被锁住（find 的 lock）；items 的序号、时间和工作区在这里填写。
 func commit(ctx context.Context, tx database.Tx, down Downstream, c *Conversation, items ...*Item) error {
+	// 推送和投递目标都要看变更前的状态，一次读出，避免每个下游各自回表
+	var before *Conversation
+	if down.Hub != nil || (down.ContactPush != nil && c.ContactID != nil) {
+		before = new(Conversation)
+		if err := tx.NewSelect().Model(before).
+			Column("team_id", "assignee_type", "assignee_id", "status", "rating_requested_at").
+			Where("id = ?", c.ID).Scan(ctx, before); err != nil {
+			return errors.Wrap(err, "load conversation before change")
+		}
+	}
 	var audience []string // 提交后推送给这些成员
 	var alerts map[string]string
 	if down.Hub != nil {
 		var err error
-		if audience, alerts, err = audienceAndAlertsOf(ctx, tx, down.Roles, c, items); err != nil {
+		if audience, alerts, err = audienceAndAlertsOf(ctx, tx, down.Roles, before, c, items); err != nil {
 			return err
 		}
 	}
-	contactChannels, err := contactPushChannels(ctx, tx, down, c, items)
+	contactChannels, err := contactPushChannels(ctx, tx, down, before, c, items)
 	if err != nil {
 		return err
 	}
@@ -494,7 +515,7 @@ func commit(ctx context.Context, tx database.Tx, down Downstream, c *Conversatio
 		return err
 	}
 	at := now()
-	tasks := make([]Appended, 0, len(items))
+	appended := make([]Appended, 0, len(items))
 	syncIDs := make([]string, 0, len(items))
 	for _, it := range items {
 		c.LastSeq++
@@ -509,7 +530,7 @@ func commit(ctx context.Context, tx database.Tx, down Downstream, c *Conversatio
 		if _, err := tx.NewInsert().Model(it).Exec(ctx); err != nil {
 			return errors.Wrap(err, "insert timeline item")
 		}
-		tasks = append(tasks, Appended{TenantID: c.TenantID, ConversationID: c.ID, ItemID: it.ID, Seq: it.Seq})
+		appended = append(appended, Appended{TenantID: c.TenantID, ConversationID: c.ID, ItemID: it.ID, Seq: it.Seq})
 		if it.Searchable() {
 			syncIDs = append(syncIDs, it.ID)
 		}
@@ -517,8 +538,17 @@ func commit(ctx context.Context, tx database.Tx, down Downstream, c *Conversatio
 	if _, err := tx.NewUpdate().Model(c).WherePK().Exec(ctx); err != nil {
 		return errors.Wrap(err, "save conversation")
 	}
-	for _, topic := range down.Topics {
-		if err := topic.PublishAll(ctx, tx, tasks); err != nil {
+	for _, sink := range down.Sinks {
+		var tasks []Appended
+		for i, it := range items {
+			if sink.accepts(it) {
+				tasks = append(tasks, appended[i])
+			}
+		}
+		if len(tasks) == 0 {
+			continue
+		}
+		if err := sink.Topic.PublishAll(ctx, tx, tasks); err != nil {
 			return err
 		}
 	}
@@ -642,8 +672,8 @@ func pushType(kind Kind) string {
 //   - 已登录用户（user）推送到他在本工作区所有已启用的网页聊天插件渠道，实现跨渠道实时同步；
 //   - 访客线索（lead）只推送到会话来源渠道。
 //
-// 要在保存 c 之前调用，以便读取变更前的状态。
-func contactPushChannels(ctx context.Context, db bun.IDB, down Downstream, c *Conversation, items []*Item) ([]string, error) {
+// before 是修改前的会话状态（由 commit 一次读出），用来判断状态和评价邀请有没有变化。
+func contactPushChannels(ctx context.Context, db bun.IDB, down Downstream, before, c *Conversation, items []*Item) ([]string, error) {
 	if down.ContactPush == nil || c.ContactID == nil {
 		return nil, nil
 	}
@@ -676,14 +706,7 @@ func contactPushChannels(ctx context.Context, db bun.IDB, down Downstream, c *Co
 			sentChannels[*it.ChannelID] = true
 		}
 	}
-	if !needPush {
-		var before struct {
-			Status            Status     `bun:"status"`
-			RatingRequestedAt *time.Time `bun:"rating_requested_at"`
-		}
-		if err := db.NewSelect().Table("conversations").Column("status", "rating_requested_at").Where("id = ?", c.ID).Scan(ctx, &before); err != nil {
-			return nil, errors.Wrap(err, "load status before change")
-		}
+	if !needPush && before != nil {
 		needPush = before.Status != c.Status || !sameTime(before.RatingRequestedAt, c.RatingRequestedAt)
 	}
 	if !needPush && len(sentChannels) == 0 {

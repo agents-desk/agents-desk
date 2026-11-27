@@ -24,6 +24,10 @@ import (
 // ReceiveParams 是渠道收到的一条消息。
 // 公共渠道支持 1:1 单聊（IsGroup=false）与群内 @ 机器人（IsGroup=true，ExternalChatID 为群 ID）；
 // 个人商务渠道（ch.IsPersonal）归入外部商务聊天（kind=chat, scope=external）。
+//
+// ExternalID 必须在本渠道内全局唯一，而不只是在会话内唯一：去重按 (channel_id, external_id) 判断，
+// 平台的消息编号通常只在会话内唯一（Telegram 的 message_id、Slack 的 ts、邮件的编号在不同会话中会重复），
+// 连接器要用会话标识拼出前缀，例如 chatID:messageID；不带前缀会把别的会话的同号消息当成重复丢弃。
 type ReceiveParams struct {
 	ChannelID           string
 	From                string     // 发言人在渠道中的外部编号

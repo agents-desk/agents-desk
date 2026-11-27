@@ -8,6 +8,7 @@ import (
 	"github.com/go-tenon/tenon/broadcast"
 
 	"agents-desk/internal/channel"
+	"agents-desk/internal/conversation"
 	"agents-desk/internal/push"
 )
 
@@ -41,9 +42,16 @@ func Push(hub *broadcast.Hub) func(ctx context.Context, channelID, contactID str
 }
 
 // Send 把会话有新消息推送到联系人的实时频道，用时间线中的消息 ID 作为外部编号，并报告已送达。
-// 推送失败时返回错误，任务稍后重试。
+// 推送失败时返回错误，任务稍后重试。事件类型按会话的种类区分：内部的会话推 conversation，商务沟通推 chat，工单推 ticket。
 func (c Connector) Send(ctx context.Context, m channel.Outgoing) (string, bool, error) {
-	ev := push.Event{Type: push.Conversation, ID: m.ConversationID, Seq: m.Seq}
+	typ := push.Conversation
+	switch conversation.Kind(m.ConversationKind) {
+	case conversation.Chat:
+		typ = push.Chat
+	case conversation.Ticket:
+		typ = push.Ticket
+	}
+	ev := push.Event{Type: typ, ID: m.ConversationID, Seq: m.Seq}
 	if err := c.hub.PublishJSON(ctx, Channel(m.Channel.ID, m.ContactID), ev); err != nil {
 		return "", false, errors.Wrap(err, "push to widget")
 	}

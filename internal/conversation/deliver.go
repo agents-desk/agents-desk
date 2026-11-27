@@ -3,7 +3,9 @@ package conversation
 import (
 	"context"
 	"database/sql"
+	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
@@ -17,6 +19,15 @@ import (
 
 // DeliverTopic 是把发给对方的消息交给连接器发出的下游，在入口中加入 Downstream。
 var DeliverTopic = queue.Topic[Appended]("conversation.deliver")
+
+// autoTranslateBudget 是一次自动翻译的最长等待时间：翻译是为发出服务的，模型接口慢或不可用不该把消息堵在发送中。
+const autoTranslateBudget = 20 * time.Second
+
+// Delivers 报告时间线项 it 是否需要交给投递任务：只有发给对方、并且指定了渠道的消息才需要。
+// commit 用它过滤下游，内部聊天、内部备注和系统事件因此不会给投递任务产生空任务。
+func Delivers(it *Item) bool {
+	return it.Kind == Message && it.Visibility == Everyone && !it.ActorType.IsExternal() && it.ChannelID != nil
+}
 
 // Deliver 把时间线中发给对方的消息交给渠道的连接器发出，并记录送达状态。
 type Deliver struct {
@@ -88,6 +99,7 @@ func (a *Deliver) Job(ctx context.Context, p Appended) error {
 	externalID, delivered, err := connector.Send(ctx, channel.Outgoing{
 		Channel:           ch,
 		ConversationID:    c.ID,
+		ConversationKind:  string(c.Kind),
 		ItemID:            it.ID,
 		Seq:               it.Seq,
 		Target:            target,
@@ -216,14 +228,15 @@ func pendingTranslationOf(derived map[string]any) *AutoTranslateRequest {
 
 // applyPendingTranslation 调用注入的 AutoTranslator 为待投递消息生成目标译文，并原位更新 timeline_items.content
 // 同时从 derived 中移除 pending_translation（用 JSONB 减法避免覆盖并发写入的语言/译文派生字段）。
+// 翻译失败或超时时按成员原文发出并留下 translation_failed 标记：投递的可用性不依赖翻译服务。
+// 只有进程被取消（例如退出）时返回错误，交给队列重试。
 func (a *Deliver) applyPendingTranslation(ctx context.Context, it *Item, c *Conversation, req *AutoTranslateRequest) error {
 	if a.down.AutoTranslate == nil || strings.TrimSpace(it.Content.Text) == "" {
-		_, err := a.db.NewUpdate().Table("timeline_items").
-			Set("derived = derived - 'pending_translation'").
-			Where("id = ? AND tenant_id = ?", it.ID, c.TenantID).Exec(ctx)
-		return errors.Wrap(err, "clear pending translation flag")
+		return a.clearPendingTranslation(ctx, it, c)
 	}
-	translated, resolvedLang, needed, err := a.down.AutoTranslate(ctx, AutoTranslateJob{
+	tctx, cancel := context.WithTimeout(ctx, autoTranslateBudget)
+	defer cancel()
+	translated, resolvedLang, needed, err := a.down.AutoTranslate(tctx, AutoTranslateJob{
 		TenantID:       c.TenantID,
 		ConversationID: c.ID,
 		MemberID:       it.ActorID,
@@ -232,7 +245,12 @@ func (a *Deliver) applyPendingTranslation(ctx context.Context, it *Item, c *Conv
 		Tone:           req.Tone,
 	})
 	if err != nil {
-		return err
+		if ctx.Err() != nil {
+			return err
+		}
+		slog.WarnContext(ctx, "auto translate failed; sending original text",
+			"tenant_id", c.TenantID, "conversation_id", c.ID, "item_id", it.ID, "error", err)
+		return a.markTranslationFailed(ctx, it, c)
 	}
 	if needed && strings.TrimSpace(translated) != "" {
 		it.Content = Content{
@@ -242,16 +260,33 @@ func (a *Deliver) applyPendingTranslation(ctx context.Context, it *Item, c *Conv
 			Mentions:         it.Content.Mentions,
 			ExternalMentions: it.Content.ExternalMentions,
 		}
-		_, err = a.db.NewUpdate().Model((*Item)(nil)).
-			Set("content = ?", it.Content).
-			Set("derived = derived - 'pending_translation'").
-			Where("id = ? AND tenant_id = ?", it.ID, c.TenantID).Exec(ctx)
-		return errors.Wrap(err, "save auto-translated reply content")
+		return database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
+			if _, err := tx.NewUpdate().Model((*Item)(nil)).
+				Set("content = ?", it.Content).
+				Set("derived = derived - 'pending_translation'").
+				Where("id = ? AND tenant_id = ?", it.ID, c.TenantID).Exec(ctx); err != nil {
+				return errors.Wrap(err, "save auto-translated reply content")
+			}
+			return errors.Wrap(SearchIndex.Sync(ctx, tx, it.ID), "reindex auto-translated reply")
+		})
 	}
-	_, err = a.db.NewUpdate().Table("timeline_items").
+	return a.clearPendingTranslation(ctx, it, c)
+}
+
+// clearPendingTranslation 从 derived 中移除待翻译标记。
+func (a *Deliver) clearPendingTranslation(ctx context.Context, it *Item, c *Conversation) error {
+	_, err := a.db.NewUpdate().Table("timeline_items").
 		Set("derived = derived - 'pending_translation'").
 		Where("id = ? AND tenant_id = ?", it.ID, c.TenantID).Exec(ctx)
-	return errors.Wrap(err, "clear unneeded pending translation")
+	return errors.Wrap(err, "clear pending translation flag")
+}
+
+// markTranslationFailed 移除待翻译标记并记下这次自动翻译没有成功，消息按原文发出。
+func (a *Deliver) markTranslationFailed(ctx context.Context, it *Item, c *Conversation) error {
+	_, err := a.db.NewRaw(`UPDATE timeline_items
+		SET derived = (derived - 'pending_translation') || jsonb_build_object('translation_failed', true)
+		WHERE id = ? AND tenant_id = ?`, it.ID, c.TenantID).Exec(ctx)
+	return errors.Wrap(err, "mark translation failed")
 }
 
 // OnDead 在消息投递任务因永久错误、业务错误或重试次数耗尽而进入失败任务表前执行一次：

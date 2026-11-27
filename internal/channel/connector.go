@@ -84,6 +84,7 @@ type DeliveryTarget struct {
 type Outgoing struct {
 	Channel           *Channel
 	ConversationID    string            // 消息所在的会话
+	ConversationKind  string            // 会话的种类（service、ticket 或 chat）；实时频道用它决定推送事件的类型
 	ItemID            string            // 时间线中这条消息的 ID，连接器可以用它去重
 	Seq               int64             // 这条消息在时间线中的序号
 	Target            DeliveryTarget    // 结构化投递目标（单聊或外部群）
@@ -110,6 +111,7 @@ type MediaFetcher interface {
 }
 
 // Connector 是一种渠道的连接器：把时间线中的消息发到外部渠道。收到的消息和回执由连接器调用会话的业务动作写入。
+// 写入收到的消息时，外部消息编号必须在渠道内全局唯一（通常要拼上会话标识），会话按它去重，见 conversation.ReceiveParams。
 type Connector interface {
 	// Capabilities 返回连接器的能力声明。
 	Capabilities() Capabilities

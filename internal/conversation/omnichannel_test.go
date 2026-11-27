@@ -8,7 +8,6 @@ import (
 
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/identity"
-	"github.com/go-tenon/tenon/queue"
 
 	"agents-desk/internal/apptest"
 	"agents-desk/internal/channel"
@@ -45,7 +44,7 @@ func TestOmnichannelAutoMergeReplyAndContactView(t *testing.T) {
 		channel.Telegram: tgConn,
 		channel.Test:     channel.TestConnector{},
 	}
-	down := conversation.Downstream{Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic}}
+	down := conversation.Downstream{Sinks: []conversation.Sink{{Topic: conversation.DeliverTopic}}}
 
 	// 创建两个不同渠道：网页聊天插件 + Telegram 机器人
 	widgetCh, err := channel.NewCreate(env.DB).Handle(ctx, sys, channel.CreateParams{Kind: channel.Widget, Name: "官网"})
@@ -209,7 +208,7 @@ func TestContactMergeAutoMergesActiveConversations(t *testing.T) {
 		channel.Widget:   &omniStubConnector{},
 		channel.Telegram: &omniStubConnector{},
 	}
-	down := conversation.Downstream{Topics: []queue.Topic[conversation.Appended]{conversation.DeliverTopic}}
+	down := conversation.Downstream{Sinks: []conversation.Sink{{Topic: conversation.DeliverTopic}}}
 
 	widgetCh, err := channel.NewCreate(env.DB).Handle(ctx, sys, channel.CreateParams{Kind: channel.Widget, Name: "官网"})
 	if err != nil {
