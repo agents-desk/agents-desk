@@ -29,6 +29,7 @@ import {
 import { confirm, Inspector, InspectorField, InspectorSection, notifyError, notifySuccess, PaneBody, PaneHeader, useLanguage, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../api"
+import { ContactAvatar } from "../contacts/display"
 import { channelColor, ChannelChip } from "../inbox/channel-badge"
 import { useMe, useMembers } from "../inbox/data"
 import { LanguageSelect } from "../LanguageSelect"
@@ -157,7 +158,7 @@ export function BusinessDetails({ chat, onClose, onLeft }: BusinessDetailsProps)
               <IconUsersGroup size={24} stroke={1.6} />
             </ThemeIcon>
           ) : (
-            <Avatar size={52} radius="xl" name={title} color="initials" />
+            <ContactAvatar contact={chat.contact} size={52} />
           )}
           <Stack gap={6} align="center" w="100%">
             <Text size="md" fw={600} ta="center" truncate maw="100%">

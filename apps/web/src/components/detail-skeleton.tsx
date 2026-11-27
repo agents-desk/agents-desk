@@ -28,21 +28,30 @@ export function ConversationSkeleton({ back, composer = true }: { back?: () => v
   )
 }
 
-/** TimelineSkeleton 是时间线中左右交错的几个消息气泡骨架。 */
+/** TimelineSkeleton 是时间线中带左右双侧头像占位的交错消息气泡骨架。 */
 export function TimelineSkeleton(): ReactNode {
   return (
     <Stack gap="md">
-      <Box style={{ alignSelf: "flex-start", width: "54%", maxWidth: 360 }}>
-        <Skeleton h={10} w={88} mb={6} radius="sm" />
-        <Skeleton h={52} radius="md" />
+      <Box style={{ alignSelf: "flex-start", width: "58%", maxWidth: 400 }}>
+        <Skeleton h={10} w={88} ml={42} mb={6} radius="sm" />
+        <Group gap={10} wrap="nowrap" align="flex-start">
+          <Skeleton circle h={32} w={32} mt={3} style={{ flex: "none" }} />
+          <Skeleton h={52} radius="md" style={{ flex: 1 }} />
+        </Group>
       </Box>
-      <Box style={{ alignSelf: "flex-end", width: "46%", maxWidth: 320 }}>
-        <Skeleton h={10} w={72} ml="auto" mb={6} radius="sm" />
-        <Skeleton h={42} radius="md" />
+      <Box style={{ alignSelf: "flex-end", width: "50%", maxWidth: 360 }}>
+        <Skeleton h={10} w={72} ml="auto" mr={42} mb={6} radius="sm" />
+        <Group gap={10} wrap="nowrap" align="flex-start" style={{ flexDirection: "row-reverse" }}>
+          <Skeleton circle h={32} w={32} mt={3} style={{ flex: "none" }} />
+          <Skeleton h={42} radius="md" style={{ flex: 1 }} />
+        </Group>
       </Box>
-      <Box style={{ alignSelf: "flex-start", width: "60%", maxWidth: 400 }}>
-        <Skeleton h={10} w={96} mb={6} radius="sm" />
-        <Skeleton h={64} radius="md" />
+      <Box style={{ alignSelf: "flex-start", width: "64%", maxWidth: 440 }}>
+        <Skeleton h={10} w={96} ml={42} mb={6} radius="sm" />
+        <Group gap={10} wrap="nowrap" align="flex-start">
+          <Skeleton circle h={32} w={32} mt={3} style={{ flex: "none" }} />
+          <Skeleton h={64} radius="md" style={{ flex: 1 }} />
+        </Group>
       </Box>
     </Stack>
   )
@@ -58,7 +67,7 @@ export function InspectorSkeleton({ title, onClose, back }: { title?: ReactNode;
         back={back}
         actions={
           onClose && (
-            <ActionIcon size="sm" aria-label={t("inbox.close_details")} onClick={onClose}>
+            <ActionIcon variant="subtle" color="gray" size="sm" aria-label={t("inbox.close_details")} onClick={onClose}>
               <IconX size={16} />
             </ActionIcon>
           )

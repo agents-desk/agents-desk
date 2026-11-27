@@ -80,10 +80,10 @@ export function ContactAvatar({ contact, size }: { contact: ContactLabel | null 
   const color = contactAvatarColor(contact)
   const label = contact?.name?.trim() || contact?.email?.trim()
   if (label) {
-    return <Avatar size={size} name={label} color={color} />
+    return <Avatar size={size} name={label} color={color} style={{ flex: "none" }} />
   }
   return (
-    <Avatar size={size} color={color} variant="light">
+    <Avatar size={size} color={color} variant="light" style={{ flex: "none" }}>
       <IconUser size={Math.round(size * 0.54)} stroke={1.6} />
     </Avatar>
   )

@@ -14,11 +14,18 @@ function useInvalidate() {
   return () => queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
 }
 
+/** AssignTarget 是支持指派的会话或工单对象的最小字段集合。 */
+interface AssignTarget {
+  id: string
+  assignee?: ConversationDTO["assignee"]
+  team_id?: string
+}
+
 /**
- * AssignMenu 是指派的菜单：指派给我，其他成员，团队收件箱（转到别的团队收件箱时服务端清空负责人），取消负责人。
+ * AssignMenu 是会话与工单共用的指派菜单：指派给我、其他成员、团队收件箱（转到别的团队收件箱时服务端清空负责人）与取消负责人。
  * 没有“把会话改派给别人”的权限时只能领取；服务端仍会检查。
  */
-export function AssignMenu({ c, compact }: { c: ConversationDTO; compact?: boolean }): ReactNode {
+export function AssignMenu({ c, compact, onSuccess }: { c: AssignTarget; compact?: boolean; onSuccess?: () => void }): ReactNode {
   const t = useT()
   const can = useCan()
   const me = useMe()
@@ -27,7 +34,7 @@ export function AssignMenu({ c, compact }: { c: ConversationDTO; compact?: boole
   const invalidate = useInvalidate()
   const assign = useMutation({
     mutationFn: (body: { assignee_id?: string; team_id?: string }) => tenantApi.conversation.assign(c.id, body),
-    onSuccess: invalidate,
+    onSuccess: () => (onSuccess ? onSuccess() : invalidate()),
     onError: (err) => notifyError(err),
   })
   const others = can("conversations:assign")

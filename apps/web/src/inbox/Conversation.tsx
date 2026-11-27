@@ -6,6 +6,7 @@ import { IconArrowRight, IconCheck, IconInfoCircle, IconLayoutSidebarRight, Icon
 import { AsidePane, notifyError, PaneHeader, useAsidePaneState, useCan, useNarrow, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
+import { ContactAvatar } from "../contacts/display"
 import { isTypingTarget, NARROW_QUERY } from "../layout"
 import { CreateTicketModal } from "../tickets/CreateTicketModal"
 import { useConversationChannel } from "./channel"
@@ -14,6 +15,7 @@ import { useContactHistory, useConversation, useMe, useMembers, useTeams, useTim
 import { Details } from "./Details"
 import { contactName } from "./List"
 import { AssignMenu, SnoozeMenu } from "./menus"
+import { useSyncRead } from "./MessagePrimitives"
 import type { MatchField } from "./search"
 import { Timeline } from "./Timeline"
 import { ConversationSkeleton, InspectorSkeleton } from "../components/detail-skeleton"
@@ -65,16 +67,17 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
     if (last?.kind === "message" || last?.kind === "note") clearTyping(last.actor.type === "contact" ? "contact" : last.actor.id)
   }, [last, clearTyping])
 
-  // 标记已读：页面在前台、时间线的最后一项比读到的位置新时
-  const lastSeq = last?.seq ?? 0
-  const marked = useRef(0)
-  useEffect(() => {
-    if (!c || lastSeq <= Math.max(c.read_seq, marked.current) || document.visibilityState !== "visible") return
-    marked.current = lastSeq
-    void tenantApi.conversation.read(id, { seq: lastSeq }).then(() =>
-      queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() }),
-    )
-  }, [c, id, lastSeq, queryClient])
+  // 标记已读：页面在前台、时间线的最后一项比读到的位置新时推进，从后台切回前台时补标
+  useSyncRead({
+    ready: Boolean(c),
+    readSeq: c?.read_seq ?? 0,
+    lastSeq: last?.seq ?? 0,
+    onMark: (seq) => {
+      void tenantApi.conversation.read(id, { seq }).then(() =>
+        queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() }),
+      )
+    },
+  })
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
   const close = useMutation({ mutationFn: () => tenantApi.conversation.close(id), onSuccess: invalidate, onError: (err) => notifyError(err) })
@@ -156,34 +159,37 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
       <Box ref={mainRef} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
         {/* 宽屏锁定 52px 基准顶栏与相邻各栏齐平；窄屏操作按钮换到第二行 */}
         <PaneHeader fixed={!narrow} back={narrow ? back : undefined} style={narrow ? { paddingBlock: 8 } : undefined}>
-          <Box style={{ minWidth: 0, flex: 1 }}>
-            <Group gap={6} wrap="nowrap">
-              {c.contact ? (
-                <Link
-                  to="/t/$slug/contacts/$id"
-                  params={{ slug, id: c.contact.id }}
-                  search={{ sort: "recent" }}
-                  className="inbox-contact-link"
-                >
+          <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+            <ContactAvatar contact={c.contact} size={32} />
+            <Box style={{ minWidth: 0, flex: 1 }}>
+              <Group gap={6} wrap="nowrap">
+                {c.contact ? (
+                  <Link
+                    to="/t/$slug/contacts/$id"
+                    params={{ slug, id: c.contact.id }}
+                    search={{ sort: "recent" }}
+                    className="inbox-contact-link"
+                  >
+                    <Text size="md" fw={600} truncate lh={1.25}>
+                      {contactName(c, t)}
+                    </Text>
+                  </Link>
+                ) : (
                   <Text size="md" fw={600} truncate lh={1.25}>
                     {contactName(c, t)}
                   </Text>
-                </Link>
-              ) : (
-                <Text size="md" fw={600} truncate lh={1.25}>
-                  {contactName(c, t)}
-                </Text>
-              )}
-              {c.status !== "open" && (
-                <Badge size="xs" variant="light" color={c.status === "snoozed" ? "yellow" : "gray"} style={{ flex: "none" }}>
-                  {t(`inbox.status_${c.status}` as const)}
-                </Badge>
-              )}
-            </Group>
-            <Text size="xs" c="dimmed" truncate lh={1.3}>
-              {meta}
-            </Text>
-          </Box>
+                )}
+                {c.status !== "open" && (
+                  <Badge size="xs" variant="light" color={c.status === "snoozed" ? "yellow" : "gray"} style={{ flex: "none" }}>
+                    {t(`inbox.status_${c.status}` as const)}
+                  </Badge>
+                )}
+              </Group>
+              <Text size="xs" c="dimmed" truncate lh={1.3}>
+                {meta}
+              </Text>
+            </Box>
+          </Group>
           {viewers.length > 0 && !compactActions && (
             <Tooltip label={t("inbox.viewing", { who: viewers.map((v) => v.name).join(", ") })}>
               <Avatar.Group spacing="xs" style={{ flex: "none" }}>

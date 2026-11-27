@@ -3,7 +3,6 @@ import type {
   ConversationDTO,
   ConversationStatus,
   ConversationSearchHitDTO,
-  ConversationSummary,
   ConversationViewConfig,
   ConversationViewSummary,
 } from "@agents-desk/client/tenant"
@@ -54,7 +53,7 @@ import { flatten, flattenSearchHits, prefetchConversation, useConversationList, 
 import { useDraft } from "./drafts"
 import { type FillWatcher, useFillVisible } from "./fill"
 import { FilterFields, FilterSummaryChips } from "./FilterFields"
-import { activity, duration, waitColor, waitLevel } from "./format"
+import { activity, duration, waitLevel } from "./format"
 import { HighlightedSnippet } from "./Highlight"
 import { useNow } from "./Nav"
 import {
@@ -87,7 +86,7 @@ interface ListProps {
 }
 
 /**
- * ConversationList 是会话列表：顶部是列表或视图名称和积压情况（待回复数、等得最久的时长、会话数），支持按关键词全文搜索、
+ * ConversationList 是会话列表：顶部展示当前列表或视图名称，支持按关键词全文搜索、
  * 切换状态、排序与统一筛选面板（状态、回复状态、优先级、团队、负责人、渠道、标签、语言、自定义属性）。
  * 打开已保存视图时支持直接微调条件实时预览，通过 useSavedView 提示“重置 / 另存为 / 保存更改”；
  * 在普通收件箱添加筛选后可一键“保存为视图”。
@@ -95,7 +94,6 @@ interface ListProps {
 export function ConversationList({ search, openId, go, open }: ListProps): ReactNode {
   const t = useT()
   const now = useNow()
-  const th = useThresholds()
   const me = useMe()
   const queryClient = useQueryClient()
   const list = useConversationList(search)
@@ -143,11 +141,10 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
     }
   }, [debouncedQ, search.q])
 
-  // 列表/视图名与积压情况：来自收件箱的数量
+  // 列表/视图名称：来自收件箱分组与视图列表
   const activeView = search.view ? inbox.data?.views.find((v) => v.id === search.view) : undefined
   const viewMissing = Boolean(search.view && inbox.data && !activeView)
   const team = !search.view && search.team ? inbox.data?.teams.find((x) => x.id === search.team) : undefined
-  const summary: ConversationSummary | undefined = activeView ?? team ?? (inbox.data && !search.view ? inbox.data[search.box] : undefined)
   const title = activeView?.name ?? team?.name ?? t(`inbox.box_${search.box}` as const)
 
   // 当前生效的同构筛选条件：视图模式下优先使用临时微调的 search.filter，否则回落到视图已保存配置；
@@ -315,32 +312,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                 <Text size="xs" c="dimmed" truncate lh={1.25} style={{ fontVariantNumeric: "tabular-nums" }}>
                   {searchQuery.isPending ? "…" : t("inbox.search_results_count", { n: searchTotal })}
                 </Text>
-              ) : (
-                summary &&
-                !savedViewState.dirty && (
-                  <Text size="xs" c="dimmed" truncate lh={1.25} style={{ fontVariantNumeric: "tabular-nums" }}>
-                    {summary.waiting > 0 ? (
-                      <>
-                        {t("inbox.backlog_waiting")}{" "}
-                        <Text span size="xs" fw={600} c="deep-orange">
-                          {summary.waiting}
-                        </Text>
-                        {summary.oldest_waiting_since && (
-                          <>
-                            {" · "}
-                            {t("inbox.backlog_oldest")}{" "}
-                            <Text span size="xs" fw={600} c={waitColor[waitLevel(summary.oldest_waiting_since, now, th)]}>
-                              {duration(summary.oldest_waiting_since, now, t)}
-                            </Text>
-                          </>
-                        )}
-                      </>
-                    ) : (
-                      t("inbox.backlog_open", { n: summary.count })
-                    )}
-                  </Text>
-                )
-              )
+              ) : undefined
             }
             actions={
               <Group gap={4} wrap="nowrap" style={{ flex: "none" }}>
@@ -587,7 +559,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
             {[0, 1, 2, 3, 4, 5].map((i) => (
               <Box key={i} px="sm" className="inbox-row">
                 <Group gap={10} wrap="nowrap" align="center" w="100%">
-                  <Skeleton circle h={28} w={28} style={{ flex: "none" }} />
+                  <Skeleton circle h={30} w={30} style={{ flex: "none" }} />
                   <Box style={{ flex: 1, minWidth: 0 }}>
                     <Group justify="space-between" mb={6}>
                       <Skeleton h={12} w="46%" radius="sm" />

@@ -376,6 +376,10 @@
   background: color-mix(in srgb, var(--mantine-color-yellow-light) 65%, var(--tn-surface));
 }
 
+.inbox-composer-box[data-public] .inbox-composer-translation {
+  border-left-color: color-mix(in srgb, var(--mantine-primary-color-filled) 26%, transparent);
+}
+
 .inbox-translation-head {
   padding-bottom: 4px;
   border-bottom: 1px solid color-mix(in srgb, var(--tn-border) 50%, transparent);
@@ -383,6 +387,10 @@
 
 .inbox-composer-box[data-note] .inbox-translation-head {
   border-bottom-color: color-mix(in srgb, var(--mantine-color-yellow-6) 20%, transparent);
+}
+
+.inbox-composer-box[data-public] .inbox-translation-head {
+  border-bottom-color: color-mix(in srgb, var(--mantine-primary-color-filled) 20%, transparent);
 }
 
 .inbox-composer-translation[data-empty] {
@@ -442,70 +450,122 @@
   .inbox-composer-box[data-note] .inbox-composer-main[data-split] .inbox-composer-translation {
     border-bottom-color: color-mix(in srgb, var(--mantine-color-yellow-6) 28%, transparent);
   }
+
+  .inbox-composer-box[data-public] .inbox-composer-main[data-split] .inbox-composer-translation {
+    border-bottom-color: color-mix(in srgb, var(--mantine-primary-color-filled) 26%, transparent);
+  }
 }
 
-/* 对方的消息气泡使用纯面底色，切换到原文时略沉以示区分；方向性圆角随连续消息分组自然融合 */
+/* 气泡定位容器：承载悬停操作栏，保证隐藏操作按钮不挤压气泡宽度 */
+.inbox-bubble-wrap {
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* 聊天气泡：己方品牌浅底配细描边，对方纯面底配柔和阴影，顶角指向外侧头像，连续消息平滑衔接 */
 .inbox-bubble {
   border-radius: 12px;
 }
 
-.inbox-bubble[data-mine][data-first][data-last] {
-  border-radius: 12px 12px 4px 12px;
-}
-
-.inbox-bubble[data-mine][data-first]:not([data-last]) {
-  border-radius: 12px 12px 4px 12px;
-}
-
-.inbox-bubble[data-mine]:not([data-first]):not([data-last]) {
-  border-radius: 12px 4px 4px 12px;
-}
-
-.inbox-bubble[data-mine]:not([data-first])[data-last] {
-  border-radius: 12px 4px 12px 12px;
-}
-
-.inbox-bubble[data-incoming][data-first][data-last] {
-  border-radius: 12px 12px 12px 4px;
-}
-
-.inbox-bubble[data-incoming][data-first]:not([data-last]) {
-  border-radius: 12px 12px 12px 4px;
-}
-
-.inbox-bubble[data-incoming]:not([data-first]):not([data-last]) {
-  border-radius: 4px 12px 12px 4px;
-}
-
-.inbox-bubble[data-incoming]:not([data-first])[data-last] {
-  border-radius: 4px 12px 12px 12px;
+.inbox-bubble[data-mine] {
+  background: var(--mantine-primary-color-light);
+  border: 1px solid color-mix(in srgb, var(--mantine-primary-color-filled) 16%, transparent);
 }
 
 .inbox-bubble[data-incoming] {
   background: var(--tn-surface);
-  border-color: var(--tn-border);
+  border: 1px solid var(--tn-border);
+  box-shadow: 0 1px 1px color-mix(in srgb, var(--mantine-color-black) 3%, transparent);
+}
+
+.inbox-bubble[data-mine][data-first][data-last] {
+  border-radius: 12px 4px 12px 12px;
+}
+
+.inbox-bubble[data-mine][data-first]:not([data-last]) {
+  border-radius: 12px 4px 6px 12px;
+}
+
+.inbox-bubble[data-mine]:not([data-first]):not([data-last]) {
+  border-radius: 12px 6px 6px 12px;
+}
+
+.inbox-bubble[data-mine]:not([data-first])[data-last] {
+  border-radius: 12px 6px 12px 12px;
+}
+
+.inbox-bubble[data-incoming][data-first][data-last] {
+  border-radius: 4px 12px 12px 12px;
+}
+
+.inbox-bubble[data-incoming][data-first]:not([data-last]) {
+  border-radius: 4px 12px 12px 6px;
+}
+
+.inbox-bubble[data-incoming]:not([data-first]):not([data-last]) {
+  border-radius: 6px 12px 12px 6px;
+}
+
+.inbox-bubble[data-incoming]:not([data-first])[data-last] {
+  border-radius: 6px 12px 12px 12px;
+}
+
+/* 工单公开进度气泡：保留聊天气泡形态，通过品牌描边与浅品牌底突出对外同步记录 */
+.inbox-bubble[data-public] {
+  border: 1px solid color-mix(in srgb, var(--mantine-primary-color-filled) 38%, transparent);
+}
+
+.inbox-bubble[data-public][data-incoming] {
+  background: color-mix(in srgb, var(--mantine-primary-color-light) 55%, var(--tn-surface));
 }
 
 .inbox-bubble[data-original] {
   background: var(--tn-hover);
 }
 
-/* 消息与备注的悬浮快捷操作（复制、组内时间）：平时隐藏保持安静，悬停/聚焦或触屏时显现 */
+/* 气泡外侧悬浮快捷操作（组内时间、复制）：绝对定位在气泡外侧，内边距无缝衔接防止断 hover */
 .inbox-msg-actions {
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  padding-left: 6px;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease;
+}
+
+.inbox-msg-actions[data-mine] {
+  left: auto;
+  right: 100%;
+  padding-left: 0;
+  padding-right: 6px;
+  flex-direction: row-reverse;
+}
+
+.inbox-note-actions {
   opacity: 0;
   transition: opacity 140ms ease;
 }
 
 .inbox-msg:hover .inbox-msg-actions,
-.inbox-msg:focus-within .inbox-msg-actions,
-.inbox-note:hover .inbox-msg-actions,
-.inbox-note:focus-within .inbox-msg-actions {
+.inbox-msg:focus-within .inbox-msg-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.inbox-note:hover .inbox-note-actions,
+.inbox-note:focus-within .inbox-note-actions {
   opacity: 1;
 }
 
 @media (hover: none), (pointer: coarse) {
-  .inbox-msg-actions {
+  .inbox-msg-actions,
+  .inbox-note-actions {
     opacity: 0.75;
+    pointer-events: auto;
   }
 }
 
@@ -518,19 +578,6 @@
 /* 内部备注的文字色随明暗主题保持清晰对比度 */
 .inbox-note-accent {
   color: var(--mantine-color-yellow-light-color);
-}
-
-/* 工单内部讨论卡片：中性表面底色加细边框，适合高频长篇协作阅读 */
-.ticket-note-card {
-  background: var(--tn-surface);
-  border: 1px solid var(--tn-border);
-}
-
-/* 工单公开进度卡片：品牌浅底加品牌细边框与左侧 3px 品牌强调条，突出对外同步给客户的记录 */
-.ticket-public-card {
-  background: var(--mantine-primary-color-light);
-  border: 1px solid color-mix(in srgb, var(--mantine-primary-color-filled) 28%, transparent);
-  border-left: 3px solid var(--mantine-primary-color-filled);
 }
 
 /* 正在输入胶囊与三点呼吸动画 */
