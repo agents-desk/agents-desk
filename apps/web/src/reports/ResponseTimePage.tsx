@@ -17,7 +17,15 @@ import { useReportFilters } from "./search"
 import { SectionCard } from "./SectionCard"
 
 /** 响应时间报表页面组件。 */
-export function ResponseTimePage({ route }: { route: PeriodRoute }): ReactNode {
+export function ResponseTimePage({
+  route,
+  title,
+  toolbarRight,
+}: {
+  route: PeriodRoute
+  title?: ReactNode
+  toolbarRight?: ReactNode
+}): ReactNode {
   const t = useT()
   const can = useCan()
   const uiLang = useLanguage()
@@ -134,12 +142,13 @@ export function ResponseTimePage({ route }: { route: PeriodRoute }): ReactNode {
 
   return (
     <ReportShell
-      title={t("nav.reports_response_time")}
+      title={title ?? t("nav.reports_service")}
       period={filters.period}
       filters={filters}
       meta={data?.period}
       error={query.error}
       updating={pageState.busy}
+      toolbarRight={toolbarRight}
     >
       {/* 主分析面板：指标带 + 中位数趋势图 */}
       <section className="rp-panel">

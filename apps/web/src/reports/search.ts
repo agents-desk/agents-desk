@@ -27,10 +27,27 @@ export interface ReportFilterQueryParams extends PeriodQueryParams {
 
 /** 满意度报表页面的 URL search 参数：在通用筛选外，增加评价明细表的分页和星级筛选。 */
 export interface SatisfactionSearchParams extends ReportFilterSearchParams {
+  tab?: "volume" | "response" | "satisfaction"
   page?: number
   per_page?: number
   min_score?: number
   max_score?: number
+}
+
+/** 客服报表的 URL search 参数（统一承接会话量、响应时效、满意度 3 个 Tab）。 */
+export type ServiceReportSearchParams = SatisfactionSearchParams
+
+/** 工单报表的 URL search 参数。 */
+export interface TicketsReportSearchParams extends PeriodSearchParams {
+  team_id?: string
+  type_id?: string
+  visibility?: "all" | "members"
+}
+
+/** 商务沟通报表的 URL search 参数。 */
+export interface BusinessReportSearchParams extends PeriodSearchParams {
+  channel_kind?: "business_link" | "telegram_account"
+  owner_id?: string
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -52,13 +69,16 @@ export function reportFilterSearch(
   }
 }
 
-/** 校验并解析满意度报表的查询参数（通用筛选 + 评价明细分页和星级范围）。 */
-export function satisfactionSearch(
+/** 校验并解析客服报表的查询参数（Tab + 通用筛选 + 评价明细分页和星级范围）。 */
+export function serviceReportSearch(
   options: PeriodSearchOptions = { defaultPreset: "7d" },
-): (search: Record<string, unknown>) => SatisfactionSearchParams {
+): (search: Record<string, unknown>) => ServiceReportSearchParams {
   const parseBase = reportFilterSearch(options)
-  return (search: Record<string, unknown>): SatisfactionSearchParams => {
-    const out: SatisfactionSearchParams = parseBase(search)
+  return (search: Record<string, unknown>): ServiceReportSearchParams => {
+    const out: ServiceReportSearchParams = parseBase(search)
+    if (search.tab === "volume" || search.tab === "response" || search.tab === "satisfaction") {
+      out.tab = search.tab
+    }
     const page = Number(search.page)
     if (Number.isInteger(page) && page > 1) out.page = page
     const perPage = Number(search.per_page)
@@ -67,6 +87,35 @@ export function satisfactionSearch(
     if (Number.isInteger(minScore) && minScore >= 1 && minScore <= 5) out.min_score = minScore
     const maxScore = Number(search.max_score)
     if (Number.isInteger(maxScore) && maxScore >= 1 && maxScore <= 5) out.max_score = maxScore
+    return out
+  }
+}
+
+/** 校验并解析工单报表的查询参数。 */
+export function ticketsReportSearch(
+  options: PeriodSearchOptions = { defaultPreset: "7d" },
+): (search: Record<string, unknown>) => TicketsReportSearchParams {
+  const parsePeriod = periodSearch(options)
+  return (search: Record<string, unknown>): TicketsReportSearchParams => {
+    const out: TicketsReportSearchParams = parsePeriod(search)
+    if (typeof search.team_id === "string" && UUID_RE.test(search.team_id)) out.team_id = search.team_id
+    if (typeof search.type_id === "string" && UUID_RE.test(search.type_id)) out.type_id = search.type_id
+    if (search.visibility === "all" || search.visibility === "members") out.visibility = search.visibility
+    return out
+  }
+}
+
+/** 校验并解析商务沟通报表的查询参数。 */
+export function businessReportSearch(
+  options: PeriodSearchOptions = { defaultPreset: "7d" },
+): (search: Record<string, unknown>) => BusinessReportSearchParams {
+  const parsePeriod = periodSearch(options)
+  return (search: Record<string, unknown>): BusinessReportSearchParams => {
+    const out: BusinessReportSearchParams = parsePeriod(search)
+    if (search.channel_kind === "business_link" || search.channel_kind === "telegram_account") {
+      out.channel_kind = search.channel_kind
+    }
+    if (typeof search.owner_id === "string" && UUID_RE.test(search.owner_id)) out.owner_id = search.owner_id
     return out
   }
 }

@@ -84,6 +84,12 @@ export function MembersPage({ route }: { route: PeriodRoute }): ReactNode {
           return compareNum(a.resolution_median, b.resolution_median, desc)
         case "csat":
           return compareNum(a.csat, b.csat, desc)
+        case "tickets_resolved":
+          return compareNum(a.tickets_resolved, b.tickets_resolved, desc)
+        case "tickets_open":
+          return compareNum(a.tickets_open, b.tickets_open, desc)
+        case "business_messages":
+          return compareNum(a.business_messages, b.business_messages, desc)
         default:
           return 0
       }
@@ -117,11 +123,13 @@ export function MembersPage({ route }: { route: PeriodRoute }): ReactNode {
       key: "closed_count",
       label: t("reports.closed_rounds"),
       value: formatInt(s?.closed_count, uiLang),
+      secondary: s ? t("reports.member_replies_sub", { n: formatInt(s.replies_sent, uiLang) }) : undefined,
     },
     {
-      key: "replies_sent",
-      label: t("reports.replies_sent"),
-      value: formatInt(s?.replies_sent, uiLang),
+      key: "tickets_resolved",
+      label: t("reports.ticket_resolved"),
+      value: formatInt(s?.tickets_resolved, uiLang),
+      secondary: s ? t("reports.member_biz_sub", { n: formatInt(s.business_messages, uiLang) }) : undefined,
     },
     {
       key: "team_frt",
@@ -265,6 +273,44 @@ export function MembersPage({ route }: { route: PeriodRoute }): ReactNode {
               —
             </Text>
           ),
+      },
+      {
+        accessor: "tickets_resolved",
+        title: t("reports.col_tickets_resolved"),
+        sortable: true,
+        textAlign: "right",
+        width: 112,
+        render: (row) => (
+          <Stack gap={0} align="flex-end">
+            <Text size="sm" fw={500} style={{ fontVariantNumeric: "tabular-nums" }}>
+              {formatInt(row.tickets_resolved, uiLang)}
+            </Text>
+            {row.tickets_open > 0 && (
+              <Text size="xs" c="dimmed" style={{ fontVariantNumeric: "tabular-nums" }}>
+                {t("reports.member_tickets_open_sub", { n: formatInt(row.tickets_open, uiLang) })}
+              </Text>
+            )}
+          </Stack>
+        ),
+      },
+      {
+        accessor: "business_messages",
+        title: t("reports.col_biz_messages"),
+        sortable: true,
+        textAlign: "right",
+        width: 112,
+        render: (row) => (
+          <Stack gap={0} align="flex-end">
+            <Text size="sm" style={{ fontVariantNumeric: "tabular-nums" }}>
+              {formatInt(row.business_messages, uiLang)}
+            </Text>
+            {row.business_chats > 0 && (
+              <Text size="xs" c="dimmed" style={{ fontVariantNumeric: "tabular-nums" }}>
+                {t("reports.member_biz_chats_sub", { n: formatInt(row.business_chats, uiLang) })}
+              </Text>
+            )}
+          </Stack>
+        ),
       },
     ],
     [canInbox, formatDuration, scope, slug, t, uiLang],

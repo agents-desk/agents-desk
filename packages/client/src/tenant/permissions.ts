@@ -126,11 +126,14 @@ export const required = {
     update: ["members:manage"],
   },
   report: {
+    business: ["reports:read"],
     conversations: ["reports:read"],
     members: ["reports:read"],
+    overview: ["reports:read"],
     responseTime: ["reports:read"],
     satisfaction: ["reports:read"],
     satisfactionRatings: ["reports:read"],
+    tickets: ["reports:read"],
     translation: ["reports:read"],
   },
   role: {

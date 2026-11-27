@@ -742,11 +742,12 @@ export const messages = {
     "nav.preferences": "Preferences",
     "nav.profile": "Profile",
     "nav.reports": "Reports",
-    "nav.reports_conversations": "Conversations",
+    "nav.reports_ai": "AI \u0026 Translation",
+    "nav.reports_business": "Business",
     "nav.reports_members": "Members",
-    "nav.reports_response_time": "Response time",
-    "nav.reports_satisfaction": "Satisfaction",
-    "nav.reports_translation": "Translation",
+    "nav.reports_overview": "Overview",
+    "nav.reports_service": "Service",
+    "nav.reports_tickets": "Tickets",
     "nav.roles": "Roles",
     "nav.settings": "Settings",
     "nav.switch_tenant": "Switch workspace",
@@ -805,10 +806,33 @@ export const messages = {
     "prompt.reply_time_minutes": "We've got your message and typically reply in a few minutes.",
     "prompt.ticket_status_changed": "Ticket #{{.number}} ({{.title}}) status changed to {{.status}}",
     "prompt.ticket_update": "Ticket #{{.number}} update: {{.text}}",
+    "reports.all_biz_channels": "All business channels",
     "reports.all_channels": "All channels",
+    "reports.all_owners": "All business owners",
     "reports.all_teams": "All teams",
+    "reports.all_ticket_types": "All ticket types",
+    "reports.all_visibility": "All visibility",
     "reports.avg_duration": "Avg latency",
     "reports.avg_score": "Average score",
+    "reports.biz_active_chats": "Active business chats",
+    "reports.biz_by_channel_kind": "By business channel type",
+    "reports.biz_by_language": "By partner language",
+    "reports.biz_by_owner": "By business owner",
+    "reports.biz_col_channels": "Active channels",
+    "reports.biz_col_inbound": "Inbound",
+    "reports.biz_col_outbound": "Outbound",
+    "reports.biz_kind_link": "Personal business link",
+    "reports.biz_kind_tg_account": "Personal Telegram account",
+    "reports.biz_live_sub": "{{.chats}} total chats · {{.channels}} active channels",
+    "reports.biz_messages": "Business messages",
+    "reports.biz_mode_sub": "{{.direct}} direct · {{.group}} group",
+    "reports.biz_msg_dir_sub": "{{.in}} inbound · {{.out}} outbound",
+    "reports.biz_new_chats": "New business chats",
+    "reports.biz_series_inbound": "Inbound",
+    "reports.biz_series_outbound": "Outbound",
+    "reports.biz_series_title": "Business activity trend",
+    "reports.biz_waiting_now": "Waiting follow-up",
+    "reports.biz_waiting_now_desc": "Business chats whose latest message was sent by an external contact.",
     "reports.bucket_15m_1h": "15m–1h",
     "reports.bucket_1h_4h": "1–4h",
     "reports.bucket_4h_24h": "4–24h",
@@ -819,6 +843,7 @@ export const messages = {
     "reports.by_language": "By customer language",
     "reports.by_model": "By model",
     "reports.by_operation": "By operation",
+    "reports.by_scene": "By business scene",
     "reports.by_tag": "By tag (Top 10)",
     "reports.by_team": "By team inbox",
     "reports.channel_disabled": "{{.name}} (disabled)",
@@ -828,6 +853,7 @@ export const messages = {
     "reports.col_avg": "Avg",
     "reports.col_avg_duration": "Avg latency",
     "reports.col_avg_score": "Avg score",
+    "reports.col_biz_messages": "Business msgs",
     "reports.col_calls": "Calls",
     "reports.col_channel": "Channel",
     "reports.col_closed": "Closed",
@@ -844,6 +870,7 @@ export const messages = {
     "reports.col_member": "Member",
     "reports.col_model": "Model",
     "reports.col_open_assigned": "Open now",
+    "reports.col_open_now": "Open now",
     "reports.col_operation": "Operation",
     "reports.col_rated": "Ratings",
     "reports.col_rated_at": "Rated at",
@@ -851,9 +878,12 @@ export const messages = {
     "reports.col_res_median": "Resolution median",
     "reports.col_round": "Round",
     "reports.col_samples": "Samples",
+    "reports.col_scene": "Scene",
     "reports.col_score": "Rating",
     "reports.col_success_rate": "Success rate",
     "reports.col_team": "Team inbox",
+    "reports.col_ticket_type": "Ticket type",
+    "reports.col_tickets_resolved": "Tickets resolved",
     "reports.col_tokens": "Tokens",
     "reports.conv_created": "Created conversations",
     "reports.conv_created_desc": "Service conversations created during the selected period.",
@@ -864,6 +894,7 @@ export const messages = {
     "reports.conv_series_title": "Conversation trend",
     "reports.cost_and_latency": "Translation cost",
     "reports.cost_sub": "Avg {{.ms}} · {{.n}} billed calls",
+    "reports.created_and_open": "{{.created}} created · {{.open}} open",
     "reports.csat_desc": "Share of 4-star and 5-star ratings out of all ratings.",
     "reports.csat_label": "CSAT",
     "reports.csat_sub": "{{.pos}} positive / {{.total}} total",
@@ -877,6 +908,7 @@ export const messages = {
     "reports.drill_member_inbox": "View open conversations assigned to this member in Inbox",
     "reports.drill_tag_inbox": "View conversations with this tag in Inbox",
     "reports.drill_team_inbox": "View currently open conversations for this team in Inbox",
+    "reports.drill_tickets": "Open in tickets",
     "reports.empty": "No data for the selected period",
     "reports.filter_all_ratings": "All",
     "reports.filter_negative": "Negative (1–2★)",
@@ -905,11 +937,15 @@ export const messages = {
     "reports.load_failed": "Failed to load report data. Please try again.",
     "reports.member_active": "Active members",
     "reports.member_active_sub": "{{.total}} members listed",
+    "reports.member_biz_chats_sub": "{{.n}} business chats",
+    "reports.member_biz_sub": "{{.n}} business msgs",
     "reports.member_chart_title": "Workload comparison",
     "reports.member_removed": "Removed",
+    "reports.member_replies_sub": "{{.n}} replies",
     "reports.member_table_title": "Member performance",
     "reports.member_team_csat": "Team CSAT {{.v}}",
     "reports.member_team_frt": "Team FRT median",
+    "reports.member_tickets_open_sub": "{{.n}} open",
     "reports.metric_calls": "Calls",
     "reports.metric_cost": "Cost",
     "reports.metric_tokens": "Tokens",
@@ -921,12 +957,29 @@ export const messages = {
     "reports.op_other": "Other",
     "reports.op_reply": "Agent reply",
     "reports.open_conversation": "Open",
+    "reports.ov_live_business_24h": "Active (24h)",
+    "reports.ov_live_business_waiting": "Business waiting",
+    "reports.ov_live_business_waiting_tip": "Business chats waiting for a member reply",
+    "reports.ov_live_online": "Online members",
+    "reports.ov_live_online_tip": "Online members out of total workspace members",
+    "reports.ov_live_service_unassigned": "Unassigned service",
+    "reports.ov_live_service_unassigned_tip": "Open service conversations with no assignee",
+    "reports.ov_live_service_waiting": "Service waiting",
+    "reports.ov_live_service_waiting_tip": "Open service conversations waiting for a reply",
+    "reports.ov_live_ticket_open": "Unresolved tickets",
+    "reports.ov_live_ticket_open_tip": "Tickets currently submitted, in progress, or waiting on customer",
+    "reports.ov_series_business": "Business messages",
+    "reports.ov_series_service": "Service created",
+    "reports.ov_series_tickets": "Tickets created",
+    "reports.ov_series_title": "Workspace activity trend",
     "reports.period_30d": "Last 30 days",
     "reports.period_7d": "Last 7 days",
     "reports.period_last_month": "Last month",
     "reports.period_range": "{{.from}} to {{.to}} · {{.tz}}",
     "reports.period_this_month": "This month",
     "reports.period_today": "Today",
+    "reports.priority_high": "High priority",
+    "reports.priority_normal": "Normal priority",
     "reports.rated_count": "Ratings received",
     "reports.ratings_list": "Customer ratings",
     "reports.replies_sent": "Replies sent",
@@ -942,6 +995,10 @@ export const messages = {
     "reports.samples_avg_only": "Avg {{.avg}} · {{.n}} samples",
     "reports.samples_avg_p90": "Avg {{.avg}} · P90 {{.p90}} · {{.n}} samples",
     "reports.samples_short": "{{.n}} samples",
+    "reports.scene_business": "Business chat",
+    "reports.scene_internal_chat": "Internal chat",
+    "reports.scene_service": "Customer service",
+    "reports.scene_ticket": "Tickets",
     "reports.score_distribution": "Rating distribution",
     "reports.score_filter_hint": "Click a star row to filter ratings below",
     "reports.score_only_badge": "{{.n}}-star only",
@@ -953,15 +1010,38 @@ export const messages = {
     "reports.series_frt": "First reply median",
     "reports.series_reopened": "Reopened",
     "reports.series_res": "Resolution median",
+    "reports.service_tab_response": "Response time",
+    "reports.service_tab_satisfaction": "Satisfaction",
+    "reports.service_tab_volume": "Volume",
     "reports.success_rate": "Success rate",
     "reports.success_rate_sub": "{{.failed}} failed",
     "reports.team_disabled": "{{.name}} (disabled)",
+    "reports.team_unassigned": "Unassigned team",
+    "reports.ticket_by_assignee": "By assignee",
+    "reports.ticket_by_priority_visibility": "Priority \u0026 visibility",
+    "reports.ticket_by_type": "By ticket type",
+    "reports.ticket_created": "Tickets created",
+    "reports.ticket_linked_contacts": "Affected contacts",
+    "reports.ticket_linked_contacts_desc": "Total affected contacts linked to tickets created in this period.",
+    "reports.ticket_live_in_progress": "In progress",
+    "reports.ticket_live_submitted": "Submitted",
+    "reports.ticket_live_unassigned": "Unassigned",
+    "reports.ticket_live_waiting": "Waiting on customer",
+    "reports.ticket_priority_label": "By priority",
+    "reports.ticket_res_avg": "Avg {{.avg}}",
+    "reports.ticket_res_median": "Resolution median",
+    "reports.ticket_resolved": "Tickets resolved",
+    "reports.ticket_series_title": "Tickets created vs resolved",
+    "reports.ticket_type_general": "General ticket",
+    "reports.ticket_visibility_label": "By visibility",
     "reports.tokens_sub": "Prompt {{.prompt}} · Completion {{.completion}}",
     "reports.tokens_total": "Total tokens",
     "reports.translation_calls": "Translation calls",
     "reports.translation_calls_sub": "{{.ok}} succeeded · {{.failed}} failed",
     "reports.translation_series": "Translation trend",
     "reports.translation_switch_hint": "Click a metric above to switch the trend",
+    "reports.vis_all": "Customer visible",
+    "reports.vis_members": "Members only",
     "roles.description": "The owner has every permission and is set by a platform admin. A role that members still use stays until you give those members another role.",
     "roles.permissions_hint": "Every role can view members and team inboxes, and view and reply to the conversations it can see",
     "settings.group_channels": "Channels",
@@ -2097,11 +2177,12 @@ export const messages = {
     "nav.preferences": "偏好设置",
     "nav.profile": "个人资料",
     "nav.reports": "报表",
-    "nav.reports_conversations": "会话",
+    "nav.reports_ai": "AI 与翻译",
+    "nav.reports_business": "商务",
     "nav.reports_members": "成员",
-    "nav.reports_response_time": "响应时间",
-    "nav.reports_satisfaction": "满意度",
-    "nav.reports_translation": "翻译",
+    "nav.reports_overview": "概览",
+    "nav.reports_service": "客服",
+    "nav.reports_tickets": "工单",
     "nav.roles": "角色",
     "nav.settings": "设置",
     "nav.switch_tenant": "切换工作区",
@@ -2160,10 +2241,33 @@ export const messages = {
     "prompt.reply_time_minutes": "我们已收到你的消息，通常会在几分钟内回复。",
     "prompt.ticket_status_changed": "工单 #{{.number}}（{{.title}}）状态已更新为「{{.status}}」",
     "prompt.ticket_update": "工单 #{{.number}} 进度更新：{{.text}}",
+    "reports.all_biz_channels": "全部商务渠道",
     "reports.all_channels": "全部渠道",
+    "reports.all_owners": "全部商务成员",
     "reports.all_teams": "全部团队",
+    "reports.all_ticket_types": "全部工单类型",
+    "reports.all_visibility": "全部可见范围",
     "reports.avg_duration": "平均耗时",
     "reports.avg_score": "平均评分",
+    "reports.biz_active_chats": "活跃商务会话",
+    "reports.biz_by_channel_kind": "按商务渠道类型分布",
+    "reports.biz_by_language": "按对方语言分布",
+    "reports.biz_by_owner": "按商务成员分布",
+    "reports.biz_col_channels": "启用渠道",
+    "reports.biz_col_inbound": "收到消息",
+    "reports.biz_col_outbound": "发出消息",
+    "reports.biz_kind_link": "个人商务链接",
+    "reports.biz_kind_tg_account": "Telegram 个人号",
+    "reports.biz_live_sub": "累计 {{.chats}} 会话 · {{.channels}} 个启用渠道",
+    "reports.biz_messages": "商务消息量",
+    "reports.biz_mode_sub": "单聊 {{.direct}} · 群聊 {{.group}}",
+    "reports.biz_msg_dir_sub": "收到 {{.in}} · 发出 {{.out}}",
+    "reports.biz_new_chats": "新建商务会话",
+    "reports.biz_series_inbound": "外部来信",
+    "reports.biz_series_outbound": "成员发出",
+    "reports.biz_series_title": "商务沟通活跃趋势",
+    "reports.biz_waiting_now": "当前待跟进",
+    "reports.biz_waiting_now_desc": "最新一条消息来自外部联系人的商务会话数。",
     "reports.bucket_15m_1h": "15 分–1 小时",
     "reports.bucket_1h_4h": "1–4 小时",
     "reports.bucket_4h_24h": "4–24 小时",
@@ -2174,6 +2278,7 @@ export const messages = {
     "reports.by_language": "按客户语言分布",
     "reports.by_model": "按模型分布",
     "reports.by_operation": "按调用场景分布",
+    "reports.by_scene": "按业务场景分布",
     "reports.by_tag": "按标签分布（Top 10）",
     "reports.by_team": "按团队收件箱分布",
     "reports.channel_disabled": "{{.name}}（已停用）",
@@ -2183,6 +2288,7 @@ export const messages = {
     "reports.col_avg": "均值",
     "reports.col_avg_duration": "平均耗时",
     "reports.col_avg_score": "平均分",
+    "reports.col_biz_messages": "商务消息",
     "reports.col_calls": "调用数",
     "reports.col_channel": "渠道",
     "reports.col_closed": "关闭轮次",
@@ -2199,6 +2305,7 @@ export const messages = {
     "reports.col_member": "成员",
     "reports.col_model": "模型",
     "reports.col_open_assigned": "当前待处理",
+    "reports.col_open_now": "当前积压",
     "reports.col_operation": "场景",
     "reports.col_rated": "评价数",
     "reports.col_rated_at": "评价时间",
@@ -2206,9 +2313,12 @@ export const messages = {
     "reports.col_res_median": "解决中位数",
     "reports.col_round": "轮次",
     "reports.col_samples": "样本数",
+    "reports.col_scene": "业务场景",
     "reports.col_score": "星级",
     "reports.col_success_rate": "成功率",
     "reports.col_team": "团队收件箱",
+    "reports.col_ticket_type": "工单类型",
+    "reports.col_tickets_resolved": "解决工单",
     "reports.col_tokens": "Token",
     "reports.conv_created": "新建会话",
     "reports.conv_created_desc": "统计期内新创建的服务型会话总数。",
@@ -2219,6 +2329,7 @@ export const messages = {
     "reports.conv_series_title": "会话趋势",
     "reports.cost_and_latency": "翻译费用",
     "reports.cost_sub": "平均耗时 {{.ms}} · {{.n}} 次含计费",
+    "reports.created_and_open": "新建 {{.created}} · 积压 {{.open}}",
     "reports.csat_desc": "4 星与 5 星评价占全部评价的比例。",
     "reports.csat_label": "满意度（CSAT）",
     "reports.csat_sub": "好评 {{.pos}} / 共 {{.total}} 条",
@@ -2232,6 +2343,7 @@ export const messages = {
     "reports.drill_member_inbox": "在收件箱查看该成员当前待处理会话",
     "reports.drill_tag_inbox": "在收件箱查看该标签的会话",
     "reports.drill_team_inbox": "在收件箱查看该团队当前打开的会话",
+    "reports.drill_tickets": "在工单列表中查看",
     "reports.empty": "所选时间范围内暂无数据",
     "reports.filter_all_ratings": "全部",
     "reports.filter_negative": "差评（1–2 星）",
@@ -2260,11 +2372,15 @@ export const messages = {
     "reports.load_failed": "加载报表数据失败，请稍后重试。",
     "reports.member_active": "活跃成员",
     "reports.member_active_sub": "共 {{.total}} 名成员",
+    "reports.member_biz_chats_sub": "{{.n}} 个商务会话",
+    "reports.member_biz_sub": "商务消息 {{.n}} 条",
     "reports.member_chart_title": "成员工作量对比",
     "reports.member_removed": "已移出",
+    "reports.member_replies_sub": "回复 {{.n}} 条",
     "reports.member_table_title": "成员绩效明细",
     "reports.member_team_csat": "团队满意度 {{.v}}",
     "reports.member_team_frt": "团队首响中位数",
+    "reports.member_tickets_open_sub": "积压 {{.n}}",
     "reports.metric_calls": "调用量",
     "reports.metric_cost": "费用",
     "reports.metric_tokens": "Token",
@@ -2276,12 +2392,29 @@ export const messages = {
     "reports.op_other": "其他",
     "reports.op_reply": "成员回复翻译",
     "reports.open_conversation": "查看会话",
+    "reports.ov_live_business_24h": "近 24 小时活跃",
+    "reports.ov_live_business_waiting": "待跟进商务",
+    "reports.ov_live_business_waiting_tip": "最新消息来自外部联系人的商务会话",
+    "reports.ov_live_online": "在线成员",
+    "reports.ov_live_online_tip": "当前在线的工作区成员与在职总人数",
+    "reports.ov_live_service_unassigned": "未指派会话",
+    "reports.ov_live_service_unassigned_tip": "当前未关闭且无负责人的服务型会话",
+    "reports.ov_live_service_waiting": "待回复会话",
+    "reports.ov_live_service_waiting_tip": "当前等待客服回复的服务型会话",
+    "reports.ov_live_ticket_open": "未解决工单",
+    "reports.ov_live_ticket_open_tip": "当前处于已提交、处理中或等待客户的工单",
+    "reports.ov_series_business": "商务消息",
+    "reports.ov_series_service": "新建客服会话",
+    "reports.ov_series_tickets": "新建工单",
+    "reports.ov_series_title": "全工作区业务趋势",
     "reports.period_30d": "近 30 天",
     "reports.period_7d": "近 7 天",
     "reports.period_last_month": "上月",
     "reports.period_range": "{{.from}} 至 {{.to}} · {{.tz}}",
     "reports.period_this_month": "本月",
     "reports.period_today": "今天",
+    "reports.priority_high": "高优先级",
+    "reports.priority_normal": "普通优先级",
     "reports.rated_count": "收到评价",
     "reports.ratings_list": "评价明细",
     "reports.replies_sent": "发出回复",
@@ -2297,6 +2430,10 @@ export const messages = {
     "reports.samples_avg_only": "均值 {{.avg}} · {{.n}} 样本",
     "reports.samples_avg_p90": "均值 {{.avg}} · P90 {{.p90}} · {{.n}} 样本",
     "reports.samples_short": "{{.n}} 样本",
+    "reports.scene_business": "商务沟通",
+    "reports.scene_internal_chat": "内部聊天",
+    "reports.scene_service": "客服会话",
+    "reports.scene_ticket": "工单协作",
     "reports.score_distribution": "星级分布",
     "reports.score_filter_hint": "点击星级筛选下方评价",
     "reports.score_only_badge": "仅 {{.n}} 星",
@@ -2308,15 +2445,38 @@ export const messages = {
     "reports.series_frt": "首次回复中位数",
     "reports.series_reopened": "重新打开",
     "reports.series_res": "解决时长中位数",
+    "reports.service_tab_response": "响应时效",
+    "reports.service_tab_satisfaction": "满意度",
+    "reports.service_tab_volume": "会话量",
     "reports.success_rate": "调用成功率",
     "reports.success_rate_sub": "失败 {{.failed}} 次",
     "reports.team_disabled": "{{.name}}（已停用）",
+    "reports.team_unassigned": "未分配团队",
+    "reports.ticket_by_assignee": "按负责人分布",
+    "reports.ticket_by_priority_visibility": "优先级与可见范围",
+    "reports.ticket_by_type": "按工单类型分布",
+    "reports.ticket_created": "新建工单",
+    "reports.ticket_linked_contacts": "受影响客户",
+    "reports.ticket_linked_contacts_desc": "统计期内新建工单关联的受影响客户总数。",
+    "reports.ticket_live_in_progress": "处理中",
+    "reports.ticket_live_submitted": "已提交",
+    "reports.ticket_live_unassigned": "未指派",
+    "reports.ticket_live_waiting": "等待客户",
+    "reports.ticket_priority_label": "按优先级",
+    "reports.ticket_res_avg": "均值 {{.avg}}",
+    "reports.ticket_res_median": "解决时长中位数",
+    "reports.ticket_resolved": "已解决工单",
+    "reports.ticket_series_title": "工单新建与解决趋势",
+    "reports.ticket_type_general": "通用工单",
+    "reports.ticket_visibility_label": "按可见范围",
     "reports.tokens_sub": "输入 {{.prompt}} · 输出 {{.completion}}",
     "reports.tokens_total": "Token 消耗",
     "reports.translation_calls": "翻译调用",
     "reports.translation_calls_sub": "成功 {{.ok}} · 失败 {{.failed}}",
     "reports.translation_series": "翻译调用趋势",
     "reports.translation_switch_hint": "点击上方指标切换趋势",
+    "reports.vis_all": "客户可见",
+    "reports.vis_members": "仅成员可见",
     "roles.description": "主管理员拥有全部权限，由平台管理员指定。还有成员使用的角色不能删除，先把他们改成别的角色。",
     "roles.permissions_hint": "每个角色都能查看成员和团队收件箱、查看和回复看得到的会话",
     "settings.group_channels": "渠道",
@@ -3455,11 +3615,12 @@ export type MessageId =
   | "nav.preferences"
   | "nav.profile"
   | "nav.reports"
-  | "nav.reports_conversations"
+  | "nav.reports_ai"
+  | "nav.reports_business"
   | "nav.reports_members"
-  | "nav.reports_response_time"
-  | "nav.reports_satisfaction"
-  | "nav.reports_translation"
+  | "nav.reports_overview"
+  | "nav.reports_service"
+  | "nav.reports_tickets"
   | "nav.roles"
   | "nav.settings"
   | "nav.switch_tenant"
@@ -3518,10 +3679,33 @@ export type MessageId =
   | "prompt.reply_time_minutes"
   | "prompt.ticket_status_changed"
   | "prompt.ticket_update"
+  | "reports.all_biz_channels"
   | "reports.all_channels"
+  | "reports.all_owners"
   | "reports.all_teams"
+  | "reports.all_ticket_types"
+  | "reports.all_visibility"
   | "reports.avg_duration"
   | "reports.avg_score"
+  | "reports.biz_active_chats"
+  | "reports.biz_by_channel_kind"
+  | "reports.biz_by_language"
+  | "reports.biz_by_owner"
+  | "reports.biz_col_channels"
+  | "reports.biz_col_inbound"
+  | "reports.biz_col_outbound"
+  | "reports.biz_kind_link"
+  | "reports.biz_kind_tg_account"
+  | "reports.biz_live_sub"
+  | "reports.biz_messages"
+  | "reports.biz_mode_sub"
+  | "reports.biz_msg_dir_sub"
+  | "reports.biz_new_chats"
+  | "reports.biz_series_inbound"
+  | "reports.biz_series_outbound"
+  | "reports.biz_series_title"
+  | "reports.biz_waiting_now"
+  | "reports.biz_waiting_now_desc"
   | "reports.bucket_15m_1h"
   | "reports.bucket_1h_4h"
   | "reports.bucket_4h_24h"
@@ -3532,6 +3716,7 @@ export type MessageId =
   | "reports.by_language"
   | "reports.by_model"
   | "reports.by_operation"
+  | "reports.by_scene"
   | "reports.by_tag"
   | "reports.by_team"
   | "reports.channel_disabled"
@@ -3541,6 +3726,7 @@ export type MessageId =
   | "reports.col_avg"
   | "reports.col_avg_duration"
   | "reports.col_avg_score"
+  | "reports.col_biz_messages"
   | "reports.col_calls"
   | "reports.col_channel"
   | "reports.col_closed"
@@ -3557,6 +3743,7 @@ export type MessageId =
   | "reports.col_member"
   | "reports.col_model"
   | "reports.col_open_assigned"
+  | "reports.col_open_now"
   | "reports.col_operation"
   | "reports.col_rated"
   | "reports.col_rated_at"
@@ -3564,9 +3751,12 @@ export type MessageId =
   | "reports.col_res_median"
   | "reports.col_round"
   | "reports.col_samples"
+  | "reports.col_scene"
   | "reports.col_score"
   | "reports.col_success_rate"
   | "reports.col_team"
+  | "reports.col_ticket_type"
+  | "reports.col_tickets_resolved"
   | "reports.col_tokens"
   | "reports.conv_created"
   | "reports.conv_created_desc"
@@ -3577,6 +3767,7 @@ export type MessageId =
   | "reports.conv_series_title"
   | "reports.cost_and_latency"
   | "reports.cost_sub"
+  | "reports.created_and_open"
   | "reports.csat_desc"
   | "reports.csat_label"
   | "reports.csat_sub"
@@ -3590,6 +3781,7 @@ export type MessageId =
   | "reports.drill_member_inbox"
   | "reports.drill_tag_inbox"
   | "reports.drill_team_inbox"
+  | "reports.drill_tickets"
   | "reports.empty"
   | "reports.filter_all_ratings"
   | "reports.filter_negative"
@@ -3618,11 +3810,15 @@ export type MessageId =
   | "reports.load_failed"
   | "reports.member_active"
   | "reports.member_active_sub"
+  | "reports.member_biz_chats_sub"
+  | "reports.member_biz_sub"
   | "reports.member_chart_title"
   | "reports.member_removed"
+  | "reports.member_replies_sub"
   | "reports.member_table_title"
   | "reports.member_team_csat"
   | "reports.member_team_frt"
+  | "reports.member_tickets_open_sub"
   | "reports.metric_calls"
   | "reports.metric_cost"
   | "reports.metric_tokens"
@@ -3634,12 +3830,29 @@ export type MessageId =
   | "reports.op_other"
   | "reports.op_reply"
   | "reports.open_conversation"
+  | "reports.ov_live_business_24h"
+  | "reports.ov_live_business_waiting"
+  | "reports.ov_live_business_waiting_tip"
+  | "reports.ov_live_online"
+  | "reports.ov_live_online_tip"
+  | "reports.ov_live_service_unassigned"
+  | "reports.ov_live_service_unassigned_tip"
+  | "reports.ov_live_service_waiting"
+  | "reports.ov_live_service_waiting_tip"
+  | "reports.ov_live_ticket_open"
+  | "reports.ov_live_ticket_open_tip"
+  | "reports.ov_series_business"
+  | "reports.ov_series_service"
+  | "reports.ov_series_tickets"
+  | "reports.ov_series_title"
   | "reports.period_30d"
   | "reports.period_7d"
   | "reports.period_last_month"
   | "reports.period_range"
   | "reports.period_this_month"
   | "reports.period_today"
+  | "reports.priority_high"
+  | "reports.priority_normal"
   | "reports.rated_count"
   | "reports.ratings_list"
   | "reports.replies_sent"
@@ -3655,6 +3868,10 @@ export type MessageId =
   | "reports.samples_avg_only"
   | "reports.samples_avg_p90"
   | "reports.samples_short"
+  | "reports.scene_business"
+  | "reports.scene_internal_chat"
+  | "reports.scene_service"
+  | "reports.scene_ticket"
   | "reports.score_distribution"
   | "reports.score_filter_hint"
   | "reports.score_only_badge"
@@ -3666,15 +3883,38 @@ export type MessageId =
   | "reports.series_frt"
   | "reports.series_reopened"
   | "reports.series_res"
+  | "reports.service_tab_response"
+  | "reports.service_tab_satisfaction"
+  | "reports.service_tab_volume"
   | "reports.success_rate"
   | "reports.success_rate_sub"
   | "reports.team_disabled"
+  | "reports.team_unassigned"
+  | "reports.ticket_by_assignee"
+  | "reports.ticket_by_priority_visibility"
+  | "reports.ticket_by_type"
+  | "reports.ticket_created"
+  | "reports.ticket_linked_contacts"
+  | "reports.ticket_linked_contacts_desc"
+  | "reports.ticket_live_in_progress"
+  | "reports.ticket_live_submitted"
+  | "reports.ticket_live_unassigned"
+  | "reports.ticket_live_waiting"
+  | "reports.ticket_priority_label"
+  | "reports.ticket_res_avg"
+  | "reports.ticket_res_median"
+  | "reports.ticket_resolved"
+  | "reports.ticket_series_title"
+  | "reports.ticket_type_general"
+  | "reports.ticket_visibility_label"
   | "reports.tokens_sub"
   | "reports.tokens_total"
   | "reports.translation_calls"
   | "reports.translation_calls_sub"
   | "reports.translation_series"
   | "reports.translation_switch_hint"
+  | "reports.vis_all"
+  | "reports.vis_members"
   | "roles.description"
   | "roles.permissions_hint"
   | "settings.group_channels"

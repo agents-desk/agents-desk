@@ -1,6 +1,5 @@
-// Package report 是工作区的基础报表：会话、响应时间、满意度、成员和翻译。
-// 所有统计均按工作区（sub.Tenant）严格隔离，仅统计服务型会话（kind = 'service'），
-// 时间边界由 go-tenon/tenon/period 在 Go 侧按 IANA 时区换算为 UTC 半开区间传入 SQL，不使用数据库时钟函数。
+// Package report 是工作区的报表模块：概览、客服（会话/响应时间/满意度）、工单、商务沟通、成员人效和 AI 与翻译。
+// 所有统计均按工作区（sub.Tenant）严格隔离，时间边界由 go-tenon/tenon/period 在 Go 侧按 IANA 时区换算为 UTC 半开区间传入 SQL，不使用数据库时钟函数。
 package report
 
 import (

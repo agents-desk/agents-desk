@@ -66,6 +66,22 @@ export function TranslationPage({ route }: { route: PeriodRoute }): ReactNode {
     }
   }
 
+  const sceneLabel = (scene: string): string => {
+    switch (scene) {
+      case "service":
+        return t("reports.scene_service")
+      case "ticket":
+        return t("reports.scene_ticket")
+      case "business":
+        return t("reports.scene_business")
+      case "internal_chat":
+        return t("reports.scene_internal_chat")
+      default:
+        return t("reports.op_other")
+    }
+  }
+
+  const maxSceneCalls = Math.max(1, ...(data?.by_scene ?? []).map((x) => x.calls))
   const maxOpCalls = Math.max(1, ...(data?.by_operation ?? []).map((x) => x.calls))
   const maxModelCalls = Math.max(1, ...(data?.by_model ?? []).map((x) => x.calls))
   const maxDetected = Math.max(1, ...(data?.detected_languages ?? []).map((x) => x.count))
@@ -135,7 +151,7 @@ export function TranslationPage({ route }: { route: PeriodRoute }): ReactNode {
 
   return (
     <ReportShell
-      title={t("nav.reports_translation")}
+      title={t("nav.reports_ai")}
       period={period}
       meta={data?.period}
       error={query.error}
@@ -184,6 +200,54 @@ export function TranslationPage({ route }: { route: PeriodRoute }): ReactNode {
           </LoadingStage>
         </div>
       </section>
+
+      <SectionCard
+        title={t("reports.by_scene")}
+        loading={loading}
+        empty={!data?.by_scene.length}
+        minHeight={160}
+        flush
+      >
+        <table className="rp-table">
+          <thead>
+            <tr>
+              <th>{t("reports.col_scene")}</th>
+              <th data-align="right">{t("reports.col_calls")}</th>
+              <th data-align="right">{t("reports.col_success_rate")}</th>
+              <th data-align="right">{t("reports.col_tokens")}</th>
+              <th data-align="right">{t("reports.col_avg_duration")}</th>
+              <th data-align="right">{t("reports.col_cost")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(data?.by_scene ?? []).map((row) => (
+              <tr key={row.scene} className="rp-row">
+                <td>
+                  <Text size="sm" fw={500}>
+                    {sceneLabel(row.scene)}
+                  </Text>
+                </td>
+                <td data-align="right">
+                  <div>{formatInt(row.calls, uiLang)}</div>
+                  <InlineShareBar ratio={(row.calls / maxSceneCalls) * 100} />
+                </td>
+                <td data-align="right">
+                  <Badge
+                    size="sm"
+                    variant="light"
+                    color={row.failed_calls === 0 ? "green" : (row.success_rate ?? 0) >= 90 ? "yellow" : "red"}
+                  >
+                    {formatPercent(row.success_rate)}
+                  </Badge>
+                </td>
+                <td data-align="right">{formatInt(row.total_tokens, uiLang)}</td>
+                <td data-align="right">{formatDuration(row.avg_duration_ms, { unit: "ms" })}</td>
+                <td data-align="right">{formatUSD(row.cost_usd)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </SectionCard>
 
       <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
         <SectionCard

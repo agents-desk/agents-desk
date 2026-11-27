@@ -514,6 +514,45 @@ export const schemas = {
     },
   },
   report: {
+    business: {
+      query: {
+        "properties": {
+          "channel_kind": {
+            "enum": [
+              "business_link",
+              "telegram_account"
+            ],
+            "type": "string"
+          },
+          "from": {
+            "format": "date",
+            "type": "string"
+          },
+          "granularity": {
+            "enum": [
+              "hour",
+              "day",
+              "week",
+              "month"
+            ],
+            "type": "string"
+          },
+          "owner_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "to": {
+            "format": "date",
+            "type": "string"
+          },
+          "tz": {
+            "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+    },
     conversations: {
       query: {
         "properties": {
@@ -572,6 +611,34 @@ export const schemas = {
           },
           "team_id": {
             "format": "uuid",
+            "type": "string"
+          },
+          "to": {
+            "format": "date",
+            "type": "string"
+          },
+          "tz": {
+            "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+    },
+    overview: {
+      query: {
+        "properties": {
+          "from": {
+            "format": "date",
+            "type": "string"
+          },
+          "granularity": {
+            "enum": [
+              "hour",
+              "day",
+              "week",
+              "month"
+            ],
             "type": "string"
           },
           "to": {
@@ -713,6 +780,49 @@ export const schemas = {
           },
           "tz": {
             "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+    },
+    tickets: {
+      query: {
+        "properties": {
+          "from": {
+            "format": "date",
+            "type": "string"
+          },
+          "granularity": {
+            "enum": [
+              "hour",
+              "day",
+              "week",
+              "month"
+            ],
+            "type": "string"
+          },
+          "team_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "to": {
+            "format": "date",
+            "type": "string"
+          },
+          "type_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "tz": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "visibility": {
+            "enum": [
+              "all",
+              "members"
+            ],
             "type": "string"
           }
         },

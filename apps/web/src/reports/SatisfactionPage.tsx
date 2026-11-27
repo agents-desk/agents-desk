@@ -54,7 +54,15 @@ function activeRatingFilter(min?: number, max?: number): RatingBucketFilter | ""
 }
 
 /** 满意度报表页面组件。 */
-export function SatisfactionPage({ route }: { route: PeriodRoute }): ReactNode {
+export function SatisfactionPage({
+  route,
+  title,
+  toolbarRight,
+}: {
+  route: PeriodRoute
+  title?: ReactNode
+  toolbarRight?: ReactNode
+}): ReactNode {
   const t = useT()
   const can = useCan()
   const uiLang = useLanguage()
@@ -317,12 +325,13 @@ export function SatisfactionPage({ route }: { route: PeriodRoute }): ReactNode {
 
   return (
     <ReportShell
-      title={t("nav.reports_satisfaction")}
+      title={title ?? t("nav.reports_service")}
       period={filters.period}
       filters={filters}
       meta={data?.period}
       error={reportQuery.error ?? ratingsQuery.error}
       updating={pageState.busy}
+      toolbarRight={toolbarRight}
     >
       {/* 主分析面板：指标带 + 左右双栏（CSAT 趋势 + 可点击星级分布） */}
       <section className="rp-panel">

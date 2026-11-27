@@ -25,7 +25,15 @@ import { useReportFilters } from "./search"
 import { SectionCard } from "./SectionCard"
 
 /** 会话报表页面组件。 */
-export function ConversationsPage({ route }: { route: PeriodRoute }): ReactNode {
+export function ConversationsPage({
+  route,
+  title,
+  toolbarRight,
+}: {
+  route: PeriodRoute
+  title?: ReactNode
+  toolbarRight?: ReactNode
+}): ReactNode {
   const t = useT()
   const can = useCan()
   const uiLang = useLanguage()
@@ -116,12 +124,13 @@ export function ConversationsPage({ route }: { route: PeriodRoute }): ReactNode 
 
   return (
     <ReportShell
-      title={t("nav.reports_conversations")}
+      title={title ?? t("nav.reports_service")}
       period={filters.period}
       filters={filters}
       meta={data?.period}
       error={query.error}
       updating={pageState.busy}
+      toolbarRight={toolbarRight}
     >
       {/* 实时积压状态条：与周期趋势独立，每一项直接进入收件箱对应实时视图 */}
       <div className="rp-live-strip">

@@ -1089,12 +1089,33 @@ func seedReportHistory(ctx context.Context, out io.Writer, db *bun.DB, memberLog
 
 	var convIDs []string
 	if err := db.NewSelect().Table("conversations").ColumnExpr("id::text").
-		Where("tenant_id = ?", inDemo.Tenant).OrderExpr("created_at ASC, id ASC").Scan(ctx, &convIDs); err != nil {
+		Where("tenant_id = ? AND kind = ?", inDemo.Tenant, conversation.Service).OrderExpr("created_at ASC, id ASC").Scan(ctx, &convIDs); err != nil {
 		return errors.Wrap(err, "list demo conversations for report seed")
 	}
 	if len(convIDs) < 6 {
 		fmt.Fprintln(out, "示例工作区会话不足，跳过报表历史")
 		return nil
+	}
+	var ticketIDs []string
+	if err := db.NewSelect().Table("conversations").ColumnExpr("id::text").
+		Where("tenant_id = ? AND kind = ?", inDemo.Tenant, conversation.Ticket).OrderExpr("created_at ASC, id ASC").Scan(ctx, &ticketIDs); err != nil {
+		return errors.Wrap(err, "list demo tickets for report seed")
+	}
+	var bizChatIDs []string
+	if err := db.NewSelect().TableExpr("conversations c").
+		Join("JOIN chats ch ON ch.conversation_id = c.id").
+		ColumnExpr("c.id::text").
+		Where("c.tenant_id = ? AND c.kind = ? AND ch.scope = ?", inDemo.Tenant, conversation.Chat, conversation.ChatExternal).
+		OrderExpr("c.created_at ASC, c.id ASC").Scan(ctx, &bizChatIDs); err != nil {
+		return errors.Wrap(err, "list demo business chats for report seed")
+	}
+	var intChatIDs []string
+	if err := db.NewSelect().TableExpr("conversations c").
+		Join("JOIN chats ch ON ch.conversation_id = c.id").
+		ColumnExpr("c.id::text").
+		Where("c.tenant_id = ? AND c.kind = ? AND ch.scope = ?", inDemo.Tenant, conversation.Chat, conversation.ChatInternal).
+		OrderExpr("c.created_at ASC, c.id ASC").Scan(ctx, &intChatIDs); err != nil {
+		return errors.Wrap(err, "list demo internal chats for report seed")
 	}
 
 	base := time.Now().UTC().Truncate(time.Minute)
@@ -1122,6 +1143,41 @@ func seedReportHistory(ctx context.Context, out io.Writer, db *bun.DB, memberLog
 			Set("created_at = ?", ts.Add(3*time.Minute)).
 			Where("conversation_id = ? AND kind = ? AND actor_type = ?", cid, conversation.Message, conversation.MemberActor).Exec(ctx); err != nil {
 			return errors.Wrap(err, "spread seed member reply created_at")
+		}
+	}
+
+	// 把示例工单与商务沟通的时间分散到最近 5 天，让工单报表与商务沟通报表呈现连续趋势。
+	tkOffsets := []int{5, 3, 2, 1, 0}
+	for i, tid := range ticketIDs {
+		days := tkOffsets[i%len(tkOffsets)]
+		ts := base.Add(-time.Duration(days)*24*time.Hour - time.Duration(i*45)*time.Minute)
+		if _, err := db.NewUpdate().Table("conversations").
+			Set("created_at = ?", ts).
+			Where("id = ?", tid).Exec(ctx); err != nil {
+			return errors.Wrap(err, "spread seed ticket created_at")
+		}
+		if _, err := db.NewUpdate().Table("tickets").
+			Set("created_at = ?", ts).
+			Set("resolved_at = CASE WHEN resolved_at IS NOT NULL THEN ?::timestamptz ELSE NULL END", ts.Add(time.Duration(1800+i*1200)*time.Second)).
+			Where("conversation_id = ?", tid).Exec(ctx); err != nil {
+			return errors.Wrap(err, "spread seed ticket meta")
+		}
+	}
+	bizOffsets := []int{4, 2, 1, 0}
+	for i, bid := range bizChatIDs {
+		days := bizOffsets[i%len(bizOffsets)]
+		ts := base.Add(-time.Duration(days)*24*time.Hour - time.Duration(i*30)*time.Minute)
+		if _, err := db.NewUpdate().Table("conversations").
+			Set("created_at = ?", ts).
+			Set("last_message_at = ?", ts.Add(35*time.Minute)).
+			Set("language = CASE WHEN language = '' THEN 'en' ELSE language END").
+			Where("id = ?", bid).Exec(ctx); err != nil {
+			return errors.Wrap(err, "spread seed business chat created_at")
+		}
+		if _, err := db.NewUpdate().Table("timeline_items").
+			Set("created_at = ?::timestamptz + (seq * interval '5 minutes')", ts).
+			Where("conversation_id = ?", bid).Exec(ctx); err != nil {
+			return errors.Wrap(err, "spread seed business messages")
 		}
 	}
 
@@ -1202,6 +1258,19 @@ func seedReportHistory(ctx context.Context, out io.Writer, db *bun.DB, memberLog
 		{0, "incoming", "google/gemini-2.5-flash", 300, 58, 530, 0.000205, ""},
 	}
 	tenantID := inDemo.Tenant
+	targetIDs := make([]string, 0, len(calls))
+	for i := range calls {
+		switch {
+		case i%4 == 1 && len(ticketIDs) > 0:
+			targetIDs = append(targetIDs, ticketIDs[i%len(ticketIDs)])
+		case i%4 == 2 && len(bizChatIDs) > 0:
+			targetIDs = append(targetIDs, bizChatIDs[i%len(bizChatIDs)])
+		case i%4 == 3 && len(intChatIDs) > 0:
+			targetIDs = append(targetIDs, intChatIDs[i%len(intChatIDs)])
+		default:
+			targetIDs = append(targetIDs, convIDs[i%len(convIDs)])
+		}
+	}
 	for i, c := range calls {
 		ts := base.Add(-time.Duration(c.daysAgo)*24*time.Hour - time.Duration(i*19)*time.Minute)
 		var costPtr *float64
@@ -1227,7 +1296,7 @@ func seedReportHistory(ctx context.Context, out io.Writer, db *bun.DB, memberLog
 			DurationMS:       c.durationMS,
 			Error:            c.errText,
 			TargetType:       "conversation",
-			TargetID:         convIDs[i%len(convIDs)],
+			TargetID:         targetIDs[i],
 		}
 		if _, err := db.NewInsert().Model(rec).Exec(ctx); err != nil {
 			return errors.Wrap(err, "insert seed llm call")

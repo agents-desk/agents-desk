@@ -25,7 +25,7 @@ export interface MetricStripProps {
 }
 
 /** 按变化方向与 invert 语义渲染紧凑环比徽章。 */
-function DeltaBadge({ delta }: { delta?: StatDelta }): ReactNode {
+export function DeltaBadge({ delta }: { delta?: StatDelta }): ReactNode {
   if (!delta || delta.value === null || delta.value === undefined || !Number.isFinite(delta.value)) return null
   const v = delta.value
   const label = delta.label ?? (v > 0 ? `+${v}` : String(v))
