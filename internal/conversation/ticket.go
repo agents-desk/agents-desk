@@ -14,6 +14,8 @@ import (
 	"agents-desk/internal/auth"
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
+	"agents-desk/internal/lang"
+	"agents-desk/internal/push"
 	"agents-desk/internal/tag"
 	"agents-desk/internal/tickettype"
 )
@@ -32,6 +34,7 @@ type TicketMeta struct {
 	Visibility  tickettype.Visibility `bun:"visibility,notnull"`
 	CreatedBy   *string               `bun:"created_by"`
 	ResolvedAt  *time.Time            `bun:"resolved_at"`
+	Derived     map[string]any        `bun:"derived,type:jsonb,notnull"`
 }
 
 // TicketContact 是 ticket_contacts 关联表的数据库模型，多对多连接工单与受影响联系人。
@@ -61,29 +64,33 @@ type LinkedContactDTO struct {
 
 // TicketDTO 是接口中的工单视图，聚合了会话内核字段与工单扩展字段。
 type TicketDTO struct {
-	ID             string                `json:"id"`
-	Number         int64                 `json:"number" doc:"工作区内递增编号，例如 1024"`
-	TypeID         *string               `json:"type_id,omitempty" doc:"工单类型 ID；为空表示通用工单"`
-	TypeName       string                `json:"type_name,omitempty"`
-	Title          string                `json:"title"`
-	Description    string                `json:"description"`
-	Status         TicketStatus          `json:"status"`
-	Visibility     tickettype.Visibility `json:"visibility" doc:"all（客户可见）或 members（仅成员可见）"`
-	TeamID         *string               `json:"team_id,omitempty"`
-	Assignee       *Actor                `json:"assignee,omitempty"`
-	Priority       Priority              `json:"priority"`
-	CreatedBy      *string               `json:"created_by,omitempty"`
-	ResolvedAt     *time.Time            `json:"resolved_at,omitempty"`
-	LastMessageAt  time.Time             `json:"last_message_at"`
-	LastSeq        int64                 `json:"last_seq"`
-	Unread         bool                  `json:"unread"`
-	ReadSeq        int64                 `json:"read_seq"`
-	Tags           []tag.Summary         `json:"tags"`
-	Attributes     map[string]any        `json:"attributes"`
-	LinkedCount    int                   `json:"linked_count" doc:"工单关联的受影响客户总数"`
-	LinkedContacts []LinkedContactDTO    `json:"linked_contacts,omitempty" doc:"当前成员有权限看到的受影响客户列表（详情接口返回）"`
-	CreatedAt      time.Time             `json:"created_at"`
-	UpdatedAt      time.Time             `json:"updated_at"`
+	ID                    string                `json:"id"`
+	Number                int64                 `json:"number" doc:"工作区内递增编号，例如 1024"`
+	TypeID                *string               `json:"type_id,omitempty" doc:"工单类型 ID；为空表示通用工单"`
+	TypeName              string                `json:"type_name,omitempty"`
+	Title                 string                `json:"title"`
+	Description           string                `json:"description"`
+	Language              string                `json:"language,omitempty" doc:"工单标题与描述识别出的源语言（BCP 47）"`
+	TitleTranslated       string                `json:"title_translated,omitempty" doc:"当前查看成员语言的工单标题译文；同语言或暂无时为空"`
+	DescriptionTranslated string                `json:"description_translated,omitempty" doc:"当前查看成员语言的工单描述译文；同语言或暂无时为空"`
+	MetaUntranslated      bool                  `json:"meta_untranslated,omitempty" doc:"工单标题或描述对当前查看成员是否还缺译文"`
+	Status                TicketStatus          `json:"status"`
+	Visibility            tickettype.Visibility `json:"visibility" doc:"all（客户可见）或 members（仅成员可见）"`
+	TeamID                *string               `json:"team_id,omitempty"`
+	Assignee              *Actor                `json:"assignee,omitempty"`
+	Priority              Priority              `json:"priority"`
+	CreatedBy             *string               `json:"created_by,omitempty"`
+	ResolvedAt            *time.Time            `json:"resolved_at,omitempty"`
+	LastMessageAt         time.Time             `json:"last_message_at"`
+	LastSeq               int64                 `json:"last_seq"`
+	Unread                bool                  `json:"unread"`
+	ReadSeq               int64                 `json:"read_seq"`
+	Tags                  []tag.Summary         `json:"tags"`
+	Attributes            map[string]any        `json:"attributes"`
+	LinkedCount           int                   `json:"linked_count" doc:"工单关联的受影响客户总数"`
+	LinkedContacts        []LinkedContactDTO    `json:"linked_contacts,omitempty" doc:"当前成员有权限看到的受影响客户列表（详情接口返回）"`
+	CreatedAt             time.Time             `json:"created_at"`
+	UpdatedAt             time.Time             `json:"updated_at"`
 }
 
 // TicketOutput 是返回单个工单的响应。
@@ -183,6 +190,10 @@ func toTicketDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs [
 	if err != nil {
 		return nil, err
 	}
+	viewerLang, err := MemberLanguage(ctx, db, sub)
+	if err != nil {
+		return nil, err
+	}
 
 	var linksByTicket map[string][]LinkedContactDTO
 	if includeLinks {
@@ -206,28 +217,39 @@ func toTicketDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs [
 		if m.TypeID != nil {
 			typeName = typeNames[*m.TypeID]
 		}
+		metaLang, _ := m.Derived["language"].(string)
+		titleTr := translationInMap(derivedMap(m.Derived, "title"), viewerLang)
+		descTr := translationInMap(derivedMap(m.Derived, "description"), viewerLang)
+		metaUntranslated := false
+		if viewerLang != "" && (m.Title != "" || m.Description != "") {
+			metaUntranslated = len(TicketMetaMissingLanguages(m.Title, m.Description, m.Derived, []string{viewerLang})) > 0
+		}
 		dto := TicketDTO{
-			ID:            c.ID,
-			Number:        m.Number,
-			TypeID:        m.TypeID,
-			TypeName:      typeName,
-			Title:         m.Title,
-			Description:   m.Description,
-			Status:        TicketStatus(c.Status),
-			Visibility:    m.Visibility,
-			TeamID:        c.TeamID,
-			Priority:      c.Priority,
-			CreatedBy:     m.CreatedBy,
-			ResolvedAt:    m.ResolvedAt,
-			LastMessageAt: c.LastMessageAt,
-			LastSeq:       c.LastSeq,
-			Unread:        unread[c.ID],
-			ReadSeq:       readSeq[c.ID],
-			Tags:          tags,
-			Attributes:    attrs,
-			LinkedCount:   linkedCounts[c.ID],
-			CreatedAt:     c.CreatedAt,
-			UpdatedAt:     c.UpdatedAt,
+			ID:                    c.ID,
+			Number:                m.Number,
+			TypeID:                m.TypeID,
+			TypeName:              typeName,
+			Title:                 m.Title,
+			Description:           m.Description,
+			Language:              metaLang,
+			TitleTranslated:       titleTr,
+			DescriptionTranslated: descTr,
+			MetaUntranslated:      metaUntranslated,
+			Status:                TicketStatus(c.Status),
+			Visibility:            m.Visibility,
+			TeamID:                c.TeamID,
+			Priority:              c.Priority,
+			CreatedBy:             m.CreatedBy,
+			ResolvedAt:            m.ResolvedAt,
+			LastMessageAt:         c.LastMessageAt,
+			LastSeq:               c.LastSeq,
+			Unread:                unread[c.ID],
+			ReadSeq:               readSeq[c.ID],
+			Tags:                  tags,
+			Attributes:            attrs,
+			LinkedCount:           linkedCounts[c.ID],
+			CreatedAt:             c.CreatedAt,
+			UpdatedAt:             c.UpdatedAt,
 		}
 		if c.AssigneeType != "" {
 			dto.Assignee = &Actor{Type: c.AssigneeType, ID: c.AssigneeID}
@@ -413,4 +435,166 @@ func nextTicketNumber(ctx context.Context, tx bun.IDB, tenantID string) (int64, 
 	var num int64
 	err := tx.NewRaw(`UPDATE tenants SET next_ticket_number = next_ticket_number + 1 WHERE id = ? RETURNING next_ticket_number - 1`, tenantID).Scan(ctx, &num)
 	return num, errors.Wrap(err, "allocate ticket number")
+}
+
+// derivedMap 返回 derived[key] 对应的 map；不存在或类型不匹配时返回 nil。
+func derivedMap(derived map[string]any, key string) map[string]any {
+	if derived == nil {
+		return nil
+	}
+	m, _ := derived[key].(map[string]any)
+	return m
+}
+
+// translationInMap 从按语言索引的译文 map 中取出匹配 target（含 BCP 47 等价标签）的非空译文。
+func translationInMap(m map[string]any, target string) string {
+	if len(m) == 0 || target == "" {
+		return ""
+	}
+	if v, ok := m[target].(string); ok && v != "" {
+		return v
+	}
+	for k, raw := range m {
+		if v, ok := raw.(string); ok && v != "" && lang.Same(k, target) {
+			return v
+		}
+	}
+	return ""
+}
+
+// TicketMetaMissingLanguages 返回 targets 中工单标题/描述还缺译文的语言列表。
+func TicketMetaMissingLanguages(title, desc string, derived map[string]any, targets []string) []string {
+	if title == "" && desc == "" {
+		return nil
+	}
+	source, _ := derived["language"].(string)
+	if source == Undetermined {
+		return nil
+	}
+	if source == "" {
+		return targets
+	}
+	titles := derivedMap(derived, "title")
+	descs := derivedMap(derived, "description")
+	var missing []string
+	for _, t := range targets {
+		if t == "" || lang.Same(source, t) {
+			continue
+		}
+		needTitle := title != "" && translationInMap(titles, t) == ""
+		needDesc := desc != "" && translationInMap(descs, t) == ""
+		if needTitle || needDesc {
+			missing = append(missing, t)
+		}
+	}
+	return missing
+}
+
+// SaveTicketMetaTranslation 在事务中合并保存工单 ticketID 标题与描述的源语言和译文，
+// 提交后向可见成员及客户可见工单的网页聊天插件推送刷新事件。
+func SaveTicketMetaTranslation(ctx context.Context, db *bun.DB, down Downstream, tenantID, ticketID, source string, titles, descs map[string]string) error {
+	return database.RunInTx(ctx, db, nil, func(ctx context.Context, tx database.Tx) error {
+		c, err := find(ctx, tx, tenantID, ticketID, true)
+		if errors.Is(err, ErrNotFound) {
+			return nil
+		}
+		if err != nil || c.Kind != Ticket {
+			return err
+		}
+		var tk TicketMeta
+		err = tx.NewSelect().Model(&tk).Where("conversation_id = ? AND tenant_id = ?", ticketID, tenantID).For("UPDATE").Scan(ctx)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return errors.Wrap(err, "load ticket meta for translation")
+		}
+		if tk.Derived == nil {
+			tk.Derived = map[string]any{}
+		}
+		changed := false
+		if cur, _ := tk.Derived["language"].(string); cur == "" && source != "" {
+			tk.Derived["language"] = source
+			changed = true
+		}
+		titleMap := derivedMap(tk.Derived, "title")
+		if titleMap == nil {
+			titleMap = map[string]any{}
+		}
+		for k, v := range titles {
+			if prev, _ := titleMap[k].(string); prev != v {
+				titleMap[k] = v
+				changed = true
+			}
+		}
+		if len(titleMap) > 0 {
+			tk.Derived["title"] = titleMap
+		}
+		descMap := derivedMap(tk.Derived, "description")
+		if descMap == nil {
+			descMap = map[string]any{}
+		}
+		for k, v := range descs {
+			if prev, _ := descMap[k].(string); prev != v {
+				descMap[k] = v
+				changed = true
+			}
+		}
+		if len(descMap) > 0 {
+			tk.Derived["description"] = descMap
+		}
+		if !changed {
+			return nil
+		}
+		if _, err := tx.NewUpdate().Model(&tk).Column("derived").WherePK().Exec(ctx); err != nil {
+			return errors.Wrap(err, "save ticket meta translation")
+		}
+		ev := push.Event{Type: push.Ticket, ID: c.ID, Seq: c.LastSeq}
+		if down.Hub != nil {
+			audience, err := audienceOf(ctx, tx, down.Roles, c, nil)
+			if err != nil {
+				return err
+			}
+			if len(audience) > 0 {
+				hub := down.Hub
+				tx.AfterCommit(func(ctx context.Context) error {
+					return errors.Wrap(push.Send(ctx, hub, tenantID, audience, ev), "push ticket meta translation")
+				})
+			}
+		}
+		if down.ContactPush != nil && tk.Visibility == tickettype.VisibilityAll {
+			targets, err := ticketContactPushTargets(ctx, tx, down, c, []*Item{{Kind: Event, Content: Content{Event: "ticket.updated"}}})
+			if err != nil {
+				return err
+			}
+			if len(targets) > 0 {
+				notify := down.ContactPush
+				tx.AfterCommit(func(ctx context.Context) error {
+					var errs []error
+					for _, target := range targets {
+						if err := notify(ctx, target.ChannelID, target.ContactID, ev); err != nil {
+							errs = append(errs, errors.Wrap(err, "push ticket meta translation to contact"))
+						}
+					}
+					return errors.Join(errs...)
+				})
+			}
+		}
+		return nil
+	})
+}
+
+// VisibleTicketIDs 返回 ids 中属于 sub 所在工作区、sub 能看到的工单会话 ID 列表。
+func VisibleTicketIDs(ctx context.Context, db bun.IDB, sub identity.Subject, ids []string) ([]string, error) {
+	if err := authorize(sub, auth.ConversationsRead); err != nil {
+		return nil, err
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var out []string
+	q := visible(db.NewSelect().Model((*Conversation)(nil)).Column("conversation.id").
+		Where("conversation.tenant_id = ? AND conversation.kind = ? AND conversation.id IN (?)", sub.Tenant, Ticket, bun.In(ids)), sub)
+	err := q.Scan(ctx, &out)
+	return out, errors.Wrap(err, "load visible ticket ids")
 }

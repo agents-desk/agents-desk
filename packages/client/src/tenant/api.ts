@@ -126,6 +126,12 @@ export interface ContactDTO {
   name: string
   /** 成员填写的联系人备注，跨会话持久可见 */
   notes: string
+  /** 联系人备注识别出的源语言（BCP 47） */
+  notes_language?: string
+  /** 当前查看成员语言的联系人备注译文；同语言或暂无时为空 */
+  notes_translated?: string
+  /** 联系人备注对当前查看成员是否还缺译文 */
+  notes_untranslated?: boolean
   /** 联系人在工作区内的递增编号，从 1 开始 */
   number: number
   /** 首次访问的来源页面 */
@@ -159,6 +165,12 @@ export interface ContactDetailDTO {
   name: string
   /** 成员填写的联系人备注，跨会话持久可见 */
   notes: string
+  /** 联系人备注识别出的源语言（BCP 47） */
+  notes_language?: string
+  /** 当前查看成员语言的联系人备注译文；同语言或暂无时为空 */
+  notes_translated?: string
+  /** 联系人备注对当前查看成员是否还缺译文 */
+  notes_untranslated?: boolean
   /** 联系人在工作区内的递增编号，从 1 开始 */
   number: number
   /** 首次访问的来源页面 */
@@ -249,6 +261,8 @@ export interface ContactSummaryDTO {
   all: number
   /** 当前成员可见的渠道，供联系人列表按渠道筛选 */
   channels: ChannelSummary[]
+  /** 当前成员可见联系人中实际出现过的语言标签（BCP 47），按使用人数降序排列 */
+  languages: string[]
   /** 线索数量 */
   leads: number
   /** 用户数量 */
@@ -960,13 +974,19 @@ export interface ConversationTicketDTO {
   created_at: string
   created_by?: string
   description: string
+  /** 当前查看成员语言的工单描述译文；同语言或暂无时为空 */
+  description_translated?: string
   id: string
+  /** 工单标题与描述识别出的源语言（BCP 47） */
+  language?: string
   last_message_at: string
   last_seq: number
   /** 当前成员有权限看到的受影响客户列表（详情接口返回） */
   linked_contacts?: ConversationLinkedContactDTO[]
   /** 工单关联的受影响客户总数 */
   linked_count: number
+  /** 工单标题或描述对当前查看成员是否还缺译文 */
+  meta_untranslated?: boolean
   /** 工作区内递增编号，例如 1024 */
   number: number
   priority: ConversationPriority
@@ -976,6 +996,8 @@ export interface ConversationTicketDTO {
   tags: TagSummary[]
   team_id?: string
   title: string
+  /** 当前查看成员语言的工单标题译文；同语言或暂无时为空 */
+  title_translated?: string
   /** 工单类型 ID；为空表示通用工单 */
   type_id?: string
   type_name?: string
@@ -1294,6 +1316,8 @@ export interface MacroUpdateParams {
 
 export interface MemberAddParams {
   email: string
+  /** 可选：新账号的沟通与译文偏好语言（BCP 47，如 zh-CN、en、hi-Latn、pt-BR）；为空默认 zh-CN */
+  language?: string
   /** 这个邮箱还没有账号时必填 */
   name?: string
   /** 新账号的初始密码，由你告诉本人；这个邮箱还没有账号时必填 */
@@ -1301,8 +1325,6 @@ export interface MemberAddParams {
   /** 角色：这个工作区自己的角色 */
   role_id: string
 }
-
-export type MemberLanguage = "zh-CN" | "en"
 
 export interface MemberRoleChange {
   /** 新的角色：这个工作区自己的角色 */
@@ -1322,8 +1344,8 @@ export interface MemberTenantMember {
   avatar_url: string
   email: string
   id: string
-  /** 成员偏好的界面与翻译语言 */
-  language: MemberLanguage
+  /** 成员的沟通与译文偏好语言（BCP 47） */
+  language: string
   name: string
   /** 是不是主管理员：主管理员那一行不能修改角色、不能移出 */
   owner: boolean
@@ -2353,12 +2375,16 @@ export interface TickettypeUpdateParams {
 }
 
 export interface TranslationFillBody {
-  /** 时间线中的项：会话中标为 untranslated 的消息、会话列表中 preview_untranslated 的那一行的 preview_item_id */
-  item_ids: string[]
+  /** 联系人详情或侧栏中 notes_untranslated 为 true 的联系人 ID */
+  contact_ids?: string[]
+  /** 时间线中标为 untranslated 的消息或列表 preview_item_id */
+  item_ids?: string[]
+  /** 工单列表或详情中 meta_untranslated 为 true 的工单 ID */
+  ticket_ids?: string[]
 }
 
 export interface TranslationFillDTO {
-  /** 放进后台补译的消息数；译好后像收到的消息一样推送 */
+  /** 放进后台补译的任务数；译好后推送刷新 */
   queued: number
 }
 
@@ -2367,9 +2393,13 @@ export interface TranslationGlossaryInputBody {
 }
 
 export interface TranslationPreviewBody {
-  /** 目标语言（BCP 47）；不填时按会话类型自动推断（服务型会话取客户语言，内部聊天取其他参与者语言，工单取关联客户或参与者语言） */
+  /** 目标语言（BCP 47）；不填时按通道模式与真实接收者自动推断 */
   language?: string
-  /** 为 true 时仅返回译文、跳过盲回译，用于折叠态自动翻译发送 */
+  /** 内部协作模式下 @ 提及的成员 ID，优先作为目标语言推导来源 */
+  mentions?: string[]
+  /** 通道模式：outbound（对外回复/公开进度）或 internal（内部聊天/内部备注/内部讨论）；不填按会话类型推断 */
+  mode?: "outbound" | "internal"
+  /** 为 true 时仅返回译文、跳过盲回译 */
   skip_back_translation?: boolean
   /** 成员写的回复或消息 */
   text: string
@@ -2380,13 +2410,13 @@ export interface TranslationPreviewBody {
 export interface TranslationPreviewDTO {
   /** 译文译回成员语言的结果，成员据此确认；不需要翻译时为空 */
   back_translation: string
-  /** 成员的语言 */
+  /** 成员的沟通语言 */
   from: string
-  /** 发给对方的语言；不需要翻译时可能为空 */
+  /** 目标语言；不需要翻译时可能为空 */
   language: string
-  /** 是否需要翻译：对方的语言未知，或者与成员的语言相同时为 false，按原文发出 */
+  /** 是否需要翻译：目标语言未知、与成员语言相同或文本本身已是目标语言时为 false */
   needed: boolean
-  /** 发给对方的译文；不需要翻译时等于原文 */
+  /** 目标语言的译文；不需要翻译时等于原文 */
   translation: string
 }
 
@@ -2397,6 +2427,8 @@ export interface TranslationSettingsDTO {
   glossary: TranslationTerm[]
   /** 回复译文的语气 */
   tone: TranslationTone
+  /** 当前工作区中实际出现过的活跃语言标签（成员与联系人语言去重，按使用频次降序），供前端选择器和筛选器动态置顶 */
+  workspace_languages: string[]
 }
 
 export interface TranslationTerm {

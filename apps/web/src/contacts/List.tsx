@@ -9,7 +9,8 @@ import { type ReactNode, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { useTags } from "../inbox/data"
 import { activity } from "../inbox/format"
-import { filterLanguages, languageName } from "../languages"
+import { LanguageSelect } from "../LanguageSelect"
+import { languageName } from "../languages"
 import { NARROW_QUERY } from "../layout"
 import { formatLocalTime } from "../timezone"
 import { ContactAvatar, contactDisplayName, contactSubline } from "./display"
@@ -113,7 +114,7 @@ export function ContactDirectory({
         : t("nav.contacts")
   const channels = (summary.data?.channels ?? []).map((ch) => ({ value: ch.id, label: ch.name }))
   const tagChoices = tags.map((tg) => ({ value: tg.id, label: tg.name }))
-  const languageChoices = filterLanguages.map((tag) => ({ value: tag, label: languageName(tag, ui) }))
+  const activeLanguages = summary.data?.languages ?? []
   const sorts = kit.enums.ContactSort.values.map((v) => ({ value: v, label: kit.label("ContactSort", v) }))
   const hasFilters = Boolean(search.q || search.language || search.channel || search.tag)
   const summaryCount = activeView
@@ -218,11 +219,11 @@ export function ContactDirectory({
             leftSection={<IconSearch size={14} stroke={1.6} />}
             rightSection={keyword ? <CloseButton size="xs" aria-label={t("common.clear_search")} onClick={() => setKeyword("")} /> : null}
           />
-          <Select
-            w={compact ? 112 : 128}
+          <LanguageSelect
+            w={compact ? 120 : 140}
             clearable
+            first={activeLanguages}
             placeholder={t("contacts.filter_language")}
-            data={languageChoices}
             value={search.language ?? null}
             onChange={(v) => go({ language: v || undefined })}
             aria-label={t("contacts.language")}

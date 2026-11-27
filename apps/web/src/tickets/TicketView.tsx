@@ -2,7 +2,7 @@ import type { ConversationItemDTO, ConversationTicketDTO, TicketStatus } from "@
 import { ActionIcon, Avatar, Badge, Box, Button, Divider, Group, Menu, Stack, Text, TextInput, Tooltip } from "@mantine/core"
 import { useElementSize } from "@mantine/hooks"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { IconCheck, IconChevronDown, IconLayoutSidebarRight, IconLock, IconPencil, IconWorld } from "@tabler/icons-react"
+import { IconCheck, IconChevronDown, IconLanguage, IconLayoutSidebarRight, IconLock, IconPencil, IconWorld } from "@tabler/icons-react"
 import {
   AsidePane,
   ImageLightbox,
@@ -69,9 +69,24 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
   const details = useAsidePaneState("ticket-details", { defaultOpen: true, compactQuery: NARROW_QUERY })
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState("")
+  const [showOriginalTitle, setShowOriginalTitle] = useState(false)
   const { ref: mainRef, width: mainWidth } = useElementSize()
+  const translation = useQuery(kit.queries.translation.settings())
+  const translating = translation.data?.enabled ?? false
 
   const tk = ticketQuery.data
+  // 工单标题或描述缺少当前成员语言译文时，自动触发后台补译（译好后由实时推送刷新）
+  const filledMetaRef = useRef("")
+  useEffect(() => {
+    if (!tk || !translating || !tk.meta_untranslated || !me.data?.language) return
+    const key = `${tk.id}:${me.data.language}:${tk.updated_at}`
+    if (filledMetaRef.current === key) return
+    filledMetaRef.current = key
+    void tenantApi.translation.fill({ ticket_ids: [tk.id] })
+  }, [tk, translating, me.data?.language])
+  useEffect(() => {
+    setShowOriginalTitle(false)
+  }, [tk?.id])
   // 打开时读到的位置：“新消息”分隔线画在它之后，仅在拿到真实详情数据后锁定，避免被列表占位数据锁死旧位置
   const readAtOpen = useRef<number | null>(null)
   if (tk && !ticketQuery.isPlaceholderData && readAtOpen.current === null) readAtOpen.current = tk.read_seq
@@ -202,8 +217,21 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
                       setEditingTitle(true)
                     }}
                   >
-                    {tk.title}
+                    {tk.title_translated && !showOriginalTitle ? tk.title_translated : tk.title}
                   </Text>
+                  {tk.title_translated && (
+                    <Tooltip label={t(showOriginalTitle ? "inbox.view_translation" : "inbox.view_original")} openDelay={300}>
+                      <ActionIcon
+                        size={20}
+                        variant={showOriginalTitle ? "light" : "subtle"}
+                        color={showOriginalTitle ? undefined : "gray"}
+                        aria-label={t(showOriginalTitle ? "inbox.view_translation" : "inbox.view_original")}
+                        onClick={() => setShowOriginalTitle((v) => !v)}
+                      >
+                        <IconLanguage size={13} />
+                      </ActionIcon>
+                    </Tooltip>
+                  )}
                   {canEdit && (
                     <Tooltip label={t("tickets.edit_title")} openDelay={300}>
                       <ActionIcon

@@ -84,8 +84,6 @@ export interface MemberImpersonationInfo {
   read_only: boolean
 }
 
-export type MemberLanguage = "zh-CN" | "en"
-
 export interface MemberLoginInputBody {
   email: string
   password: string
@@ -101,13 +99,16 @@ export interface MemberNotificationSettings {
 }
 
 export interface MemberPreferences {
-  language: MemberLanguage
+  /** 沟通与译文偏好语言（任意合法 BCP 47 标签，例如 zh-CN、en、hi-Latn、pt-BR） */
+  language: string
   /** 发送回复后是否自动打开下一个待回复的会话 */
   open_next_after_reply?: boolean
   /** 回复框发送快捷键：enter 回车发送，ctrl_enter Ctrl/Cmd + 回车发送；不传默认为 enter */
   send_shortcut?: MemberSendShortcut
   /** IANA 时区名，例如 Asia/Shanghai；不传表示跟随浏览器 */
   time_zone?: string
+  /** 界面显示语言（zh-CN 或 en）；不传时按 language 自动匹配 */
+  ui_language?: MemberUiLanguage
 }
 
 export interface MemberProfile {
@@ -119,7 +120,8 @@ export interface MemberProfile {
   id: string
   /** 代为登录状态；本人登录时为空 */
   impersonation?: MemberImpersonationInfo
-  language: MemberLanguage
+  /** 沟通与译文偏好语言（任意合法 BCP 47 标签，例如 zh-CN、en、hi-Latn、pt-BR） */
+  language: string
   name: string
   /** 实时提醒设置：浏览器通知与提示音开关 */
   notifications: MemberNotificationSettings
@@ -129,9 +131,13 @@ export interface MemberProfile {
   send_shortcut?: MemberSendShortcut
   /** IANA 时区名，例如 Asia/Shanghai；不传表示跟随浏览器 */
   time_zone?: string
+  /** 界面显示语言（zh-CN 或 en）；不传时按 language 自动匹配 */
+  ui_language?: MemberUiLanguage
 }
 
 export type MemberSendShortcut = "enter" | "ctrl_enter"
+
+export type MemberUiLanguage = "zh-CN" | "en"
 
 export interface Meta {
   height?: number

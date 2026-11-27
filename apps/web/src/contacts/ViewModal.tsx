@@ -5,7 +5,7 @@ import { notifyError, notifySuccess, useCan, useLanguage, useT } from "@go-tenon
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { useTags } from "../inbox/data"
-import { filterLanguages, languageName } from "../languages"
+import { LanguageSelect } from "../LanguageSelect"
 
 /** ContactViewModal 是新建或编辑联系人保存筛选视图的弹窗。 */
 export function ContactViewModal({
@@ -79,7 +79,7 @@ export function ContactViewModal({
   })
 
   const kindOptions = kit.enums.ContactKind.values.map((v) => ({ value: v, label: kit.label("ContactKind", v) }))
-  const languageOptions = filterLanguages.map((tag) => ({ value: tag, label: languageName(tag, ui) }))
+  const activeLanguages = summary.data?.languages ?? []
   const channelOptions = (summary.data?.channels ?? []).map((ch) => ({ value: ch.id, label: ch.name }))
   const tagOptions = tags.map((tg) => ({ value: tg.id, label: tg.name }))
   const sortOptions = kit.enums.ContactSort.values.map((v) => ({ value: v, label: kit.label("ContactSort", v) }))
@@ -121,11 +121,11 @@ export function ContactViewModal({
           value={q}
           onChange={(e) => setQ(e.currentTarget.value)}
         />
-        <Select
+        <LanguageSelect
           label={t("contacts.language")}
           placeholder={t("contacts.filter_language")}
           clearable
-          data={languageOptions}
+          first={activeLanguages}
           value={language || null}
           onChange={(v) => setLanguage(v || "")}
         />

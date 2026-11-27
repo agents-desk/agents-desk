@@ -61,12 +61,22 @@ func TestPreferences(t *testing.T) {
 			t.Errorf("%s：%d %s", body, r.status, r.body)
 		}
 	}
-	if r := call(h, "PUT", "/api/me/preferences", `{"language":"fr"}`, session); r.status != http.StatusUnprocessableEntity || fieldOf(r.body) != "body.language" {
-		t.Errorf("不在列表中的语言：%d %s", r.status, r.body)
+	if r := call(h, "PUT", "/api/me/preferences", `{"ui_language":"fr","language":"en"}`, session); r.status != http.StatusUnprocessableEntity || fieldOf(r.body) != "body.ui_language" {
+		t.Errorf("不在界面语言列表中的 ui_language：%d %s", r.status, r.body)
 	}
-	// 被拒绝的修改不改变已保存的值；不传时区表示跟随浏览器
+	if r := call(h, "PUT", "/api/me/preferences", `{"language":"not a tag"}`, session); r.status != http.StatusUnprocessableEntity || r.code != "member.invalid_language" || fieldOf(r.body) != "body.language" {
+		t.Errorf("非法 BCP 47 沟通语言：%d %s", r.status, r.body)
+	}
+	// 被拒绝的修改不改变已保存的值
 	if lang, zone := prefs(); lang != "en" || zone != "Asia/Kolkata" {
 		t.Fatalf("被拒绝后：%q %q", lang, zone)
+	}
+	// 沟通语言与界面语言解耦：支持任意合法 BCP 47（如巴西葡萄牙语 pt-BR、印地语拉丁拼写 hi-Latn）
+	if r := call(h, "PUT", "/api/me/preferences", `{"ui_language":"en","language":"pt-br"}`, session); r.status != http.StatusOK {
+		t.Fatalf("保存巴西葡语沟通语言：%d %s", r.status, r.body)
+	}
+	if lang, zone := prefs(); lang != "pt-BR" || zone != "" {
+		t.Fatalf("保存巴西葡语后：%q %q", lang, zone)
 	}
 	if r := call(h, "PUT", "/api/me/preferences", `{"language":"zh-CN"}`, session); r.status != http.StatusOK {
 		t.Fatalf("跟随浏览器：%d %s", r.status, r.body)

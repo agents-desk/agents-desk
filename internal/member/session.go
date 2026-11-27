@@ -16,6 +16,7 @@ import (
 	"github.com/go-tenon/tenon/login"
 
 	"agents-desk/internal/account"
+	"agents-desk/internal/lang"
 )
 
 // LoginInput 是登录的请求：邮箱和密码。
@@ -125,6 +126,10 @@ func loadProfile(ctx context.Context, db bun.IDB, logins *login.Realm, files *fi
 	if shortcut == "" {
 		shortcut = SendEnter
 	}
+	uiLang := m.UILanguage
+	if uiLang == "" {
+		uiLang = UILanguage(lang.MatchUI(string(m.Language)))
+	}
 	p := &Profile{
 		ID:            m.ID,
 		Name:          m.Name,
@@ -132,6 +137,7 @@ func loadProfile(ctx context.Context, db bun.IDB, logins *login.Realm, files *fi
 		AvatarURL:     avatar,
 		Notifications: m.NotificationPreferences.Settings(),
 		Preferences: Preferences{
+			UILanguage:         uiLang,
 			Language:           m.Language,
 			TimeZone:           m.TimeZone,
 			SendShortcut:       shortcut,

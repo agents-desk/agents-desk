@@ -51,9 +51,9 @@ func RegisterTenantRoutes(api *rest.API, require func(...auth.Permission) func(*
 		Get:        "member-get",
 		Create:     "member-add",
 		Update:     "member-update",
-		Columns:    []string{"name", "email", "role_name", "status"},
+		Columns:    []string{"name", "email", "language", "role_name", "status"},
 		Filters:    []string{"name", "role_id"},
-		CreateForm: []string{"email", "name", "password", "role_id"},
+		CreateForm: []string{"email", "name", "password", "language", "role_id"},
 		Refs:       map[string]string{"role_id": "role"},
 		// 主管理员那一行和自己那一行没有“修改”“移出”：主管理员只在管理员端更换，任何人不能修改、移出自己
 		UpdateWhen: notOwnerOrSelf,

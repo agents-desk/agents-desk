@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/activity"
@@ -16,10 +17,11 @@ import (
 // ErrDuplicateTerm 是术语表中有重复的词（不区分大小写）。
 var ErrDuplicateTerm = errorx.Define(errorx.InvalidArgument, "translation.duplicate_term")
 
-// SettingsDTO 是接口中的翻译设置：工作区的语气和术语表，以及平台是否配置了翻译的模型接口。
+// SettingsDTO 是接口中的翻译设置：工作区的语气、术语表、翻译是否可用，以及工作区实际活跃的语言列表。
 type SettingsDTO struct {
 	Settings
-	Enabled bool `json:"enabled" doc:"翻译是否可用：平台设置中配置了翻译的模型接口。不可用时收到的消息不翻译，回复按原文发出"`
+	Enabled            bool     `json:"enabled" doc:"翻译是否可用：平台设置中配置了翻译的模型接口。不可用时收到的消息不翻译，回复按原文发出"`
+	WorkspaceLanguages []string `json:"workspace_languages" nullable:"false" doc:"当前工作区中实际出现过的活跃语言标签（成员与联系人语言去重，按使用频次降序），供前端选择器和筛选器动态置顶"`
 }
 
 // SettingsOutput 是读取翻译设置的响应。
@@ -53,7 +55,7 @@ func NewSettingsActions(db *bun.DB, s *settings.Group[Settings], translator *Tra
 	return &SettingsActions{db: db, settings: s, translator: translator}
 }
 
-// Get 返回 sub 所在工作区的翻译设置，以及翻译是否可用。
+// Get 返回 sub 所在工作区的翻译设置、翻译是否可用，以及工作区当前活跃语言列表。
 func (a *SettingsActions) Get(ctx context.Context, sub identity.Subject) (*SettingsDTO, error) {
 	s, err := a.settings.Tenant(sub.Tenant).Get(ctx)
 	if err != nil {
@@ -63,7 +65,50 @@ func (a *SettingsActions) Get(ctx context.Context, sub identity.Subject) (*Setti
 	if err != nil {
 		return nil, err
 	}
-	return &SettingsDTO{Settings: s, Enabled: enabled}, nil
+	langs, err := workspaceLanguages(ctx, a.db, sub.Tenant)
+	if err != nil {
+		return nil, err
+	}
+	return &SettingsDTO{Settings: s, Enabled: enabled, WorkspaceLanguages: langs}, nil
+}
+
+// workspaceLanguages 聚合工作区 tenant 中成员、联系人与会话实际出现过的非空语言标签，按出现次数降序排列。
+func workspaceLanguages(ctx context.Context, db bun.IDB, tenant string) ([]string, error) {
+	var rows []struct {
+		Language string `bun:"language"`
+		Count    int64  `bun:"cnt"`
+	}
+	err := db.NewRaw(`
+		SELECT language, SUM(cnt) AS cnt FROM (
+			SELECT m.language, COUNT(DISTINCT m.id) AS cnt
+			FROM members m
+			JOIN authz_assignments a ON a.subject_type = 'member' AND a.subject_id = m.id::text AND a.tenant = ?
+			WHERE m.disabled_at IS NULL AND m.language <> ''
+			GROUP BY m.language
+			UNION ALL
+			SELECT c.language, COUNT(*) AS cnt
+			FROM contacts c
+			WHERE c.tenant_id = ? AND c.language <> ''
+			GROUP BY c.language
+			UNION ALL
+			SELECT conv.language, COUNT(*) AS cnt
+			FROM conversations conv
+			WHERE conv.tenant_id = ? AND conv.language <> ''
+			GROUP BY conv.language
+		) t
+		GROUP BY language
+		ORDER BY cnt DESC, language ASC
+		LIMIT 50`, tenant, tenant, tenant).Scan(ctx, &rows)
+	if err != nil {
+		return nil, errors.Wrap(err, "load workspace languages")
+	}
+	out := make([]string, 0, len(rows))
+	for _, r := range rows {
+		if l := strings.TrimSpace(r.Language); l != "" {
+			out = append(out, l)
+		}
+	}
+	return out, nil
 }
 
 // SaveTone 保存 sub 所在工作区的语气，记录操作日志。

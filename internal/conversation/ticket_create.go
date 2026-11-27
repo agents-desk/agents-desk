@@ -254,6 +254,7 @@ func (a *CreateTicket) Handle(ctx context.Context, sub identity.Subject, p Creat
 			Description:    desc,
 			Visibility:     vis,
 			CreatedBy:      createdBy,
+			Derived:        map[string]any{},
 		}
 		if _, err := tx.NewInsert().Model(tk).Exec(ctx); err != nil {
 			return errors.Wrap(err, "insert ticket meta")

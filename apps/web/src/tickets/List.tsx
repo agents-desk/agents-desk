@@ -261,7 +261,7 @@ function TicketRow({ tk, active, onClick }: { tk: ConversationTicketDTO; active:
             </Text>
           </Indicator>
           <Text size="sm" fw={tk.unread ? 700 : 600} truncate style={{ flex: 1, minWidth: 0 }}>
-            {tk.title}
+            {tk.title_translated || tk.title}
           </Text>
           {tk.visibility === "members" && (
             <Tooltip label={t("tickets.visibility_members")} openDelay={300}>

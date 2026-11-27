@@ -1,33 +1,67 @@
-// 业务语言单一数据源：所有语言选择器（回复框翻译、会话与联系人详情、筛选、术语表）均由此派生。
-// 后续新增支持的语种，只需在 commonLanguages 中追加对应 BCP 47 标签即可；筛选与下拉列表自动同步。
-// 名字由浏览器的 Intl.DisplayNames 按界面语言动态生成，同时支持输入任意合法 BCP 47 标签。
+// 全球业务语言目录与 BCP 47 比较、规范化工具：
+// 名字由浏览器原生 Intl.DisplayNames 按界面语言动态生成，支持搜索界面语言名、英语名、自称与任意合法 BCP 47 标签。
+import { useQuery } from "@tanstack/react-query"
+import { kit } from "./api"
 
-/** commonLanguages 是当前核心支持的常用业务语言（BCP 47）：中文、英语、拉丁印地语、印地语。 */
+/** commonLanguages 是覆盖全球主要市场的标准业务语言目录（BCP 47）；下拉框会自动将工作区实际活跃语言置顶。 */
 export const commonLanguages = [
   "zh-CN",
+  "zh-TW",
   "en",
   "hi-Latn",
   "hi",
+  "pt-BR",
+  "pt-PT",
+  "es",
+  "es-419",
+  "id",
+  "vi",
+  "th",
+  "ms",
+  "ar",
+  "ar-Latn",
+  "fr",
+  "de",
+  "ja",
+  "ko",
+  "ru",
+  "tr",
+  "it",
+  "nl",
+  "pl",
+  "uk",
+  "bn",
+  "ta",
+  "te",
+  "ur",
+  "tl",
 ] as const
 
 /**
- * filterLanguages 是按主语言去重后的筛选语言列表（例如 zh-CN -> zh，hi-Latn / hi -> hi），
- * 供联系人列表与保存筛选按主语言前缀同时命中所有书写变体。
+ * sameLanguage 判断两个 BCP 47 标签是否指向同一种语言与书写/地区变体（与后端 internal/lang.Same 严格一致）：
+ * - 先比较主语言（language）与书写方式（经 maximize 推断默认脚本，如 zh-CN == zh-Hans，hi != hi-Latn）；
+ * - 双方都显式指定了不同地区且主语言不是中文时（如 pt-BR vs pt-PT、es-MX vs es-ES）视为不同变体；
+ * - 一方未显式指定地区时（如 pt vs pt-BR、en vs en-US）视为兼容相同。
  */
-export const filterLanguages: readonly string[] = [
-  ...new Set(commonLanguages.map((tag) => tag.split("-")[0])),
-]
-
-/** sameLanguage 判断两个 BCP 47 语言标签是否指向同一书写语言（合并 zh-CN/zh-Hans 与 zh-TW/zh-Hant）。 */
 export function sameLanguage(a?: string, b?: string): boolean {
   if (!a || !b) return false
-  const norm = (s: string) => {
-    const k = s.trim().toLowerCase().replaceAll("_", "-")
-    if (k === "zh-cn" || k === "zh-sg" || k === "zh-hans") return "zh-hans"
-    if (k === "zh-tw" || k === "zh-hk" || k === "zh-mo" || k === "zh-hant") return "zh-hant"
-    return k
+  const rawA = a.trim().replaceAll("_", "-")
+  const rawB = b.trim().replaceAll("_", "-")
+  if (!rawA || !rawB) return false
+  try {
+    const la = new Intl.Locale(rawA)
+    const lb = new Intl.Locale(rawB)
+    const maxA = la.maximize()
+    const maxB = lb.maximize()
+    if (maxA.language !== maxB.language) return false
+    if (maxA.script !== maxB.script) return false
+    if (maxA.language !== "zh" && la.region && lb.region && la.region !== lb.region) {
+      return false
+    }
+    return true
+  } catch {
+    return rawA.toLowerCase() === rawB.toLowerCase()
   }
-  return norm(a) === norm(b)
 }
 
 /** displayNames 缓存每种界面语言的 Intl.DisplayNames。 */
@@ -47,11 +81,17 @@ export function languageName(tag: string, ui: string): string {
   }
 }
 
+/** languageSearchKeys 返回语言 tag 用于本地模糊搜索的关键词集合（界面名、英文名、原生自称与标签代码）。 */
+export function languageSearchKeys(tag: string, ui: string): string {
+  const parts = [tag, languageName(tag, ui), languageName(tag, "en"), languageName(tag, tag)]
+  return parts.join(" ").toLowerCase()
+}
+
 /** TAG 是语言标签的样子：两三个字母的主语言，后面是用 - 或 _ 连接的子标签，例如 hi-Latn、pt_BR。 */
 const TAG = /^[A-Za-z]{2,3}([-_][A-Za-z0-9]{1,8})*$/
 
 /**
- * validLanguage 返回 tag 是否是浏览器认识的 BCP 47 标签，并给出规范的写法（hi-latn → hi-Latn）；不认识时返回空字符串。
+ * validLanguage 返回 tag 是否是浏览器认识的 BCP 47 标签，并给出规范的写法（hi-latn → hi-Latn，pt_br → pt-BR）；不认识时返回空字符串。
  * 只接受两三个字母开头的标签，搜索框中的语言名（例如 English）不会被当成标签。
  */
 export function validLanguage(tag: string): string {
@@ -77,4 +117,10 @@ export function languageOptions(
     out.push({ value: tag, label: languageName(tag, ui) })
   }
   return out
+}
+
+/** useWorkspaceLanguages 返回当前工作区中实际出现过的活跃语言标签（成员与联系人语言去重），供选择器和筛选器动态置顶。 */
+export function useWorkspaceLanguages(): string[] {
+  const q = useQuery({ ...kit.queries.translation.settings(), staleTime: 60_000 })
+  return q.data?.workspace_languages ?? []
 }

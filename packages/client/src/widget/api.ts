@@ -301,6 +301,8 @@ export interface WidgetSent {
 export interface WidgetSessionBody {
   /** 可选：访客或商务沟通对方自报的邮箱 */
   email?: string
+  /** 浏览器或 App 上报的语言（BCP 47），例如 pt-BR、hi-Latn；仅在客户尚未识别语言时作为冷启动先验 */
+  language?: string
   /** 可选：访客或商务沟通对方自报的称呼 */
   name?: string
   /** 嵌入聊天窗口的产品页面地址 */

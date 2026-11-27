@@ -173,6 +173,10 @@ export const components = {
         "maxLength": 254,
         "type": "string"
       },
+      "language": {
+        "maxLength": 35,
+        "type": "string"
+      },
       "name": {
         "maxLength": 100,
         "type": "string"

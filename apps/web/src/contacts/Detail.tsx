@@ -50,6 +50,8 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
   const [mergeOpen, setMergeOpen] = useState(false)
 
   const detail = useQuery(kit.queries.contact.get(id))
+  const translation = useQuery(kit.queries.translation.settings())
+  const translating = translation.data?.enabled ?? false
   const conversations = useQuery(contactConversationsQuery(id))
   const contactTickets = useContactTickets(can("conversations:read") ? id : undefined)
 
@@ -137,6 +139,10 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
             <ContactNotesCard
               contactId={c.id}
               value={c.notes}
+              translatedValue={c.notes_translated}
+              sourceLanguage={c.notes_language}
+              untranslated={c.notes_untranslated}
+              translating={translating}
               title={t("contacts.notes")}
               placeholder={t("contacts.notes_placeholder")}
               editable={editable}
@@ -274,7 +280,7 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
                         </Group>
                         <Group justify="space-between" align="center" gap="xs" wrap="nowrap">
                           <Text size="sm" fw={500} truncate style={{ flex: 1, minWidth: 0 }}>
-                            {tk.title}
+                            {tk.title_translated || tk.title}
                           </Text>
                           <Text size="xs" fw={500} c="brand" style={{ flex: "none", display: "inline-flex", alignItems: "center", gap: 2 }}>
                             <span>{t("tickets.open_ticket")}</span>

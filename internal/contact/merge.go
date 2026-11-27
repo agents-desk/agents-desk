@@ -25,8 +25,9 @@ type BeforeMergeHook func(ctx context.Context, tx database.Tx, targetContactID, 
 //   - BeforeMigrate 在迁移 conversations.contact_id 之前归并双活服务型会话；
 //   - AfterMigrate 在完成联系人合并后向受影响的成员和客户端推送刷新。
 type MergeHooks struct {
-	BeforeMigrate func(ctx context.Context, tx database.Tx, sub identity.Subject, targetContactID, sourceContactID string) error
-	AfterMigrate  func(ctx context.Context, tx database.Tx, sub identity.Subject, targetContactID string, affectedConvIDs []string) error
+	BeforeMigrate  func(ctx context.Context, tx database.Tx, sub identity.Subject, targetContactID, sourceContactID string) error
+	AfterMigrate   func(ctx context.Context, tx database.Tx, sub identity.Subject, targetContactID string, affectedConvIDs []string) error
+	OnNotesUpdated NotesUpdatedHook
 }
 
 // MergeBody 是手动合并联系人的请求体：把 source_id 指定的联系人合并进路径指定的目标联系人。

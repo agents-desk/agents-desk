@@ -76,12 +76,12 @@ import {
 import { ChannelIcon } from "./channel-badge"
 import {
   ComposerSendArea,
-  defaultPeerLanguage,
   InlineTranslationPane,
   NO_TRANSLATION,
+  resolveInternalTargetLanguage,
   useComposerTranslation,
 } from "./ComposerTranslation"
-import { useAttributes, useMacros, useMe, useMembers, useTags, useTeams } from "./data"
+import { useAttributes, useMacros, useMe, useMembers, useTags, useTeams, useTimeline } from "./data"
 import { clearDraft, type DraftMode, getDraft, saveDraft } from "./drafts"
 import { snoozeOptions } from "./menus"
 
@@ -159,28 +159,34 @@ export function Composer({
     }
   }, [defaultReplyChannelId])
 
+  const timeline = useTimeline(c.id)
   const area = useRef<HTMLTextAreaElement>(null)
   const value = text.trim()
   const note = mode === "note"
   const hasPending = !note && hasPendingActions(pendingActions)
   const translatableText = !value.startsWith("/") ? value : ""
-  // 内部备注模式按被 @ 的同事（或工作区其他成员）推导默认目标语言；回复模式默认跟随客户语言
+  // 内部备注模式严格按真实接收者推导（@ 提及同事 → 会话负责人与时间线参与成员）；回复模式默认跟随客户语言
   const noteDefaultTarget = useMemo(() => {
-    const mentioned = members.filter((m) => mentionIds.includes(m.id) && m.id !== me.data?.id).map((m) => m.language)
-    return (
-      defaultPeerLanguage(mentioned, me.data?.language) ||
-      defaultPeerLanguage(
-        members.filter((m) => m.id !== me.data?.id).map((m) => m.language),
-        me.data?.language,
-      )
-    )
-  }, [members, mentionIds, me.data?.id, me.data?.language])
+    const directIds: (string | undefined)[] = [
+      c.assignee?.type === "member" ? c.assignee.id : undefined,
+      ...(timeline.data ?? []).filter((it) => it.actor.type === "member").map((it) => it.actor.id),
+    ]
+    return resolveInternalTargetLanguage({
+      mentionIds,
+      directMemberIds: directIds,
+      membersById: memberById,
+      myId: me.data?.id,
+      myLang: me.data?.language,
+    })
+  }, [c.assignee, timeline.data, mentionIds, memberById, me.data?.id, me.data?.language])
   const preview = useComposerTranslation({
     conversationId: c.id,
     text: translatableText,
     defaultTarget: note ? noteDefaultTarget : (c.language ?? ""),
     myLang: me.data?.language,
     mode: note ? "verified" : "replace",
+    previewMode: note ? "internal" : "outbound",
+    mentions: note ? mentionIds : undefined,
   })
   const queue = useUploadQueue<UploadedMedia>({
     upload: (file) => uploadMediaFile(file, (f) => tenantApi.file.upload({ file: f })),
