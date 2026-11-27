@@ -34,6 +34,7 @@ import { activity } from "../inbox/format"
 import { HighlightedSnippet } from "../inbox/Highlight"
 import { chatDisplayName, type ChatModeFilter, flattenChats, prefetchChat, useChatList } from "./data"
 import { EmptyState } from "../components/empty-state"
+import { StatusMark } from "../components/status-mark"
 import { useListKeys } from "../layout"
 
 /** ChatListProps 是聊天列表栏的设置。 */
@@ -241,6 +242,8 @@ function ChatRow({
       onFocus={warm}
       className="inbox-row"
       data-active={active || undefined}
+      data-unread={chat.unread || undefined}
+      data-read={!chat.unread || undefined}
       w="100%"
       px="var(--tn-pane-px)"
       py={10}
@@ -278,10 +281,15 @@ function ChatRow({
                 </Box>
               </Tooltip>
             )}
-            <Text size="sm" fw={chat.unread ? 700 : 600} truncate style={{ flex: 1, minWidth: 0 }}>
+            <Text size="sm" fw={chat.unread ? 700 : 400} className="inbox-row-title" truncate style={{ flex: 1, minWidth: 0 }}>
               {title}
             </Text>
-            <Text size="xs" c="dimmed" style={{ flex: "none", fontVariantNumeric: "tabular-nums" }}>
+            <Text
+              size="xs"
+              c={chat.unread ? undefined : "dimmed"}
+              fw={chat.unread ? 600 : undefined}
+              style={{ flex: "none", fontVariantNumeric: "tabular-nums" }}
+            >
               {activity(chat.last_message_at, ui, t, zone)}
             </Text>
           </Group>
@@ -308,9 +316,17 @@ function ChatRow({
                 {t("inbox.search_match_count", { n: matchCount })}
               </Badge>
             ) : chat.unread_count > 0 ? (
-              <Badge size="xs" circle color="brand" style={{ flex: "none", fontVariantNumeric: "tabular-nums" }}>
+              <Badge
+                size="xs"
+                circle={chat.unread_count < 10}
+                color="red"
+                px={chat.unread_count < 10 ? 0 : 5}
+                style={{ flex: "none", fontVariantNumeric: "tabular-nums" }}
+              >
                 {chat.unread_count > 99 ? "99+" : chat.unread_count}
               </Badge>
+            ) : chat.unread ? (
+              <StatusMark color="red" />
             ) : null}
           </Group>
         </Stack>

@@ -1,5 +1,5 @@
 import type { ConversationItemDTO } from "@agents-desk/client/tenant"
-import { Button, Divider, Text } from "@mantine/core"
+import { Button, Divider } from "@mantine/core"
 import { IconArrowDown } from "@tabler/icons-react"
 import { useT } from "@go-tenon/ui"
 import { type ReactNode, type RefObject, useEffect, useRef, useState } from "react"
@@ -116,16 +116,19 @@ export function useStickToBottom({
 export function ScrollToBottomButton({ stick }: { stick: StickToBottom }): ReactNode {
   const t = useT()
   if (!stick.showScrollDown) return null
+  const hasUnseen = stick.unseenCount > 0
   return (
     <Button
-      size="compact-xs"
+      size={hasUnseen ? "xs" : "compact-xs"}
       radius="xl"
-      variant={stick.unseenCount > 0 ? "filled" : "default"}
+      color={hasUnseen ? "red" : undefined}
+      variant={hasUnseen ? "filled" : "default"}
       leftSection={<IconArrowDown size={14} />}
       className="inbox-scroll-bottom"
+      data-unread={hasUnseen || undefined}
       onClick={stick.scrollToBottom}
     >
-      {stick.unseenCount > 0 ? t("inbox.new_message_jump", { n: stick.unseenCount }) : t("inbox.scroll_to_bottom")}
+      {hasUnseen ? t("inbox.new_message_jump", { n: stick.unseenCount }) : t("inbox.scroll_to_bottom")}
     </Button>
   )
 }
@@ -141,13 +144,9 @@ export function NewMessagesDivider(): ReactNode {
   const t = useT()
   return (
     <Divider
-      my={12}
-      color="red.3"
-      label={
-        <Text size="xs" c="red">
-          {t("inbox.new_messages")}
-        </Text>
-      }
+      my={14}
+      className="inbox-new-divider"
+      label={<span className="inbox-new-divider-pill">{t("inbox.new_messages")}</span>}
       labelPosition="center"
     />
   )
