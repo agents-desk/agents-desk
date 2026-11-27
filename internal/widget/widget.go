@@ -37,6 +37,12 @@ var (
 	ErrInvalidColor = errorx.Define(errorx.InvalidArgument, "widget.invalid_color")
 	// ErrBusinessLinkInUse 是个人商务沟通链接已有聊天或联系人记录，不能删除，只能停用。
 	ErrBusinessLinkInUse = errorx.Define(errorx.Conflict, "widget.business_link_in_use")
+	// ErrInvalidPasscode 是打开受口令保护的商务沟通链接时输入的访问口令不正确。
+	ErrInvalidPasscode = errorx.Define(errorx.PermissionDenied, "widget.invalid_passcode")
+	// ErrBusinessLinkExpired 是商务沟通链接已超过有效期，不再接受新访客进入。
+	ErrBusinessLinkExpired = errorx.Define(errorx.Conflict, "widget.business_link_expired")
+	// ErrIntakeRequired 是开场留资表单中有必填项尚未填写。
+	ErrIntakeRequired = errorx.Define(errorx.InvalidArgument, "widget.intake_required")
 )
 
 // Appearance 是聊天窗口的外观配置，持久化在渠道设置中并直接暴露给公开配置与预览协议。
@@ -45,12 +51,50 @@ type Appearance struct {
 	Greeting string `json:"greeting,omitempty" maxLength:"500" doc:"聊天窗口顶部的问候语；为空时显示默认问候语"`
 }
 
-// Settings 是聊天插件保存在渠道设置（channels.settings）中的内容。
+// IntakeFieldMode 是开场留资表单中单个字段的展示与校验模式：off（隐藏）、optional（选填）、required（必填）。
+type IntakeFieldMode string
+
+const (
+	IntakeOff      IntakeFieldMode = "off"
+	IntakeOptional IntakeFieldMode = "optional"
+	IntakeRequired IntakeFieldMode = "required"
+)
+
+// BusinessCardConfig 是网页商务沟通链接的对外名片展示配置。
+type BusinessCardConfig struct {
+	ShowOwner       bool   `json:"show_owner" doc:"是否在聊天窗口顶部展示归属成员的头像、姓名、头衔与简介"`
+	TitleOverride   string `json:"title_override,omitempty" maxLength:"60" doc:"可选：覆盖成员个人资料中的头衔"`
+	CompanyOverride string `json:"company_override,omitempty" maxLength:"80" doc:"可选：覆盖工作区默认展示的公司或品牌名"`
+	BioOverride     string `json:"bio_override,omitempty" maxLength:"240" doc:"可选：覆盖成员个人资料中的对外简介"`
+	AwayMessage     string `json:"away_message,omitempty" maxLength:"300" doc:"成员处于离开状态时在商务沟通窗口展示的提示语"`
+}
+
+// BusinessIntakeConfig 是网页商务沟通链接的开场留资表单配置。
+type BusinessIntakeConfig struct {
+	Enabled bool            `json:"enabled" doc:"是否开启开场留资表单"`
+	Name    IntakeFieldMode `json:"name,omitempty" enum:"off,optional,required" doc:"称呼/姓名字段模式"`
+	Company IntakeFieldMode `json:"company,omitempty" enum:"off,optional,required" doc:"公司/组织字段模式"`
+	Email   IntakeFieldMode `json:"email,omitempty" enum:"off,optional,required" doc:"邮箱字段模式"`
+	Note    IntakeFieldMode `json:"note,omitempty" enum:"off,optional,required" doc:"合作意向/备注字段模式"`
+}
+
+// BusinessAccessStored 是保存在 channels.settings 中的网页商务链接访问控制配置（含口令哈希，不直接对外暴露）。
+type BusinessAccessStored struct {
+	Mode         string     `json:"mode,omitempty" enum:"public,passcode"`
+	PasscodeHash string     `json:"passcode_hash,omitempty"`
+	ExpiresAt    *time.Time `json:"expires_at,omitempty"`
+}
+
+// Settings 是聊天插件与网页商务沟通链接保存在渠道设置（channels.settings）中的内容。
 type Settings struct {
 	Appearance     Appearance             `json:"appearance"`         // 聊天窗口的外观配置
 	AllowedOrigins []string               `json:"allowed_origins"`    // 允许嵌入聊天窗口的网站，形如 https://shop.example.com；为空表示所有网站
 	IdentitySecret string                 `json:"identity_secret"`    // 身份验证密钥，用应用密钥加密保存；产品后端用明文签名用户身份
 	Business       channel.BusinessPolicy `json:"business,omitempty"` // 商务沟通链接通用的协作、标签与翻译策略
+	Card           *BusinessCardConfig    `json:"card,omitempty"`     // 网页商务沟通链接的名片展示配置
+	Intake         *BusinessIntakeConfig  `json:"intake,omitempty"`   // 网页商务沟通链接的开场留资表单配置
+	Access         *BusinessAccessStored  `json:"access,omitempty"`   // 网页商务沟通链接的访问口令与有效期配置
+	Starters       []string               `json:"starters,omitempty"` // 网页商务沟通链接的快捷开场话题
 }
 
 // settingsOf 读出渠道 ch 中聊天插件的设置。

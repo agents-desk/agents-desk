@@ -3542,6 +3542,102 @@ export const components = {
     },
     "type": "object"
   },
+  WidgetBusinessAccessInput: {
+    "additionalProperties": false,
+    "properties": {
+      "clear_passcode": {
+        "type": "boolean"
+      },
+      "expires_at": {
+        "format": "date-time",
+        "type": "string"
+      },
+      "mode": {
+        "enum": [
+          "public",
+          "passcode"
+        ],
+        "type": "string"
+      },
+      "passcode": {
+        "maxLength": 64,
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  WidgetBusinessCardConfig: {
+    "additionalProperties": false,
+    "properties": {
+      "away_message": {
+        "maxLength": 300,
+        "type": "string"
+      },
+      "bio_override": {
+        "maxLength": 240,
+        "type": "string"
+      },
+      "company_override": {
+        "maxLength": 80,
+        "type": "string"
+      },
+      "show_owner": {
+        "type": "boolean"
+      },
+      "title_override": {
+        "maxLength": 60,
+        "type": "string"
+      }
+    },
+    "required": [
+      "show_owner"
+    ],
+    "type": "object"
+  },
+  WidgetBusinessIntakeConfig: {
+    "additionalProperties": false,
+    "properties": {
+      "company": {
+        "enum": [
+          "off",
+          "optional",
+          "required"
+        ],
+        "type": "string"
+      },
+      "email": {
+        "enum": [
+          "off",
+          "optional",
+          "required"
+        ],
+        "type": "string"
+      },
+      "enabled": {
+        "type": "boolean"
+      },
+      "name": {
+        "enum": [
+          "off",
+          "optional",
+          "required"
+        ],
+        "type": "string"
+      },
+      "note": {
+        "enum": [
+          "off",
+          "optional",
+          "required"
+        ],
+        "type": "string"
+      }
+    },
+    "required": [
+      "enabled"
+    ],
+    "type": "object"
+  },
   WidgetChanges: {
     "additionalProperties": false,
     "properties": {
@@ -3625,19 +3721,39 @@ export const components = {
   WidgetUpdateBusinessLinkBody: {
     "additionalProperties": false,
     "properties": {
+      "access": {
+        "$ref": "#/components/schemas/WidgetBusinessAccessInput"
+      },
       "appearance": {
         "$ref": "#/components/schemas/WidgetAppearance"
       },
       "business": {
         "$ref": "#/components/schemas/ChannelBusinessPolicy"
       },
+      "card": {
+        "$ref": "#/components/schemas/WidgetBusinessCardConfig"
+      },
       "enabled": {
         "type": "boolean"
+      },
+      "intake": {
+        "$ref": "#/components/schemas/WidgetBusinessIntakeConfig"
       },
       "name": {
         "maxLength": 60,
         "minLength": 1,
         "type": "string"
+      },
+      "public_code": {
+        "maxLength": 40,
+        "type": "string"
+      },
+      "starters": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 5,
+        "type": "array"
       }
     },
     "required": [

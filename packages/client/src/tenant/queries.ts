@@ -131,10 +131,21 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "business"),
       }),
+      /** GET /my/business-links/{id} */
+      linkGet: (...args: Parameters<Client["business"]["linkGet"]>) => ({
+        queryKey: key("business", "linkGet", ...args),
+        queryFn: () => client.business.linkGet(...args),
+      }),
       /** GET /my/business-links */
       linkList: (...args: Parameters<Client["business"]["linkList"]>) => ({
         queryKey: key("business", "linkList", ...args),
         queryFn: () => client.business.linkList(...args),
+      }),
+      /** POST /my/business-links/{id}/rotate-code */
+      linkRotateCode: () => ({
+        mutationFn: (variables: Parameters<Client["business"]["linkRotateCode"]>[0]) => client.business.linkRotateCode(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "business"),
       }),
       /** PUT /my/business-links/{id} */
       linkUpdate: () => ({

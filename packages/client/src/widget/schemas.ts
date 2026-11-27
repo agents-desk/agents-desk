@@ -11,6 +11,11 @@ export const schemas = {
         "$ref": "#/components/schemas/WidgetContactEmailBody"
       },
     },
+    intake: {
+      body: {
+        "$ref": "#/components/schemas/WidgetContactIntakeBody"
+      },
+    },
   },
   conversation: {
     rate: {
@@ -122,6 +127,28 @@ export const components = {
     ],
     "type": "object"
   },
+  WidgetContactIntakeBody: {
+    "additionalProperties": false,
+    "properties": {
+      "company": {
+        "maxLength": 120,
+        "type": "string"
+      },
+      "email": {
+        "maxLength": 254,
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 120,
+        "type": "string"
+      },
+      "note": {
+        "maxLength": 500,
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
   WidgetMessageBody: {
     "additionalProperties": false,
     "properties": {
@@ -169,6 +196,10 @@ export const components = {
   WidgetSessionBody: {
     "additionalProperties": false,
     "properties": {
+      "company": {
+        "maxLength": 120,
+        "type": "string"
+      },
       "email": {
         "maxLength": 254,
         "type": "string"
@@ -179,6 +210,10 @@ export const components = {
       },
       "name": {
         "maxLength": 100,
+        "type": "string"
+      },
+      "passcode": {
+        "maxLength": 64,
         "type": "string"
       },
       "referrer": {

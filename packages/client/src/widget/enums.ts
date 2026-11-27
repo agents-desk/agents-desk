@@ -62,6 +62,14 @@ export const enums = {
       "zh-CN": { open: "打开", snoozed: "稍后处理", closed: "已关闭" },
     },
   },
+  MemberStatus: {
+    prefix: "member.status",
+    values: ["online", "away"],
+    labels: {
+      "en": { online: "Online", away: "Away" },
+      "zh-CN": { online: "在线", away: "离开" },
+    },
+  },
   TagColor: {
     prefix: "tag.color",
     values: ["blue-gray", "red", "deep-orange", "yellow", "green", "sky-blue", "bright-blue", "violet", "purple", "magenta", "brown"],

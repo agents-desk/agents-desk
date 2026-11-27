@@ -40,6 +40,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "contact"),
       }),
+      /** POST /contact/intake */
+      intake: () => ({
+        mutationFn: (variables: Parameters<Client["contact"]["intake"]>[0]) => client.contact.intake(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "contact"),
+      }),
     },
     conversation: {
       /** conversation 分组全部查询的 key 前缀。 */

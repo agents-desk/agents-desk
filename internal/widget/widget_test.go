@@ -329,7 +329,7 @@ func TestManage(t *testing.T) {
 	if err != nil || after.IdentitySecret != before.IdentitySecret || len(after.IdentitySecret) != 43 {
 		t.Fatalf("修改后的密钥：%q %q %v", before.IdentitySecret, after.IdentitySecret, err)
 	}
-	cfg, err := NewGetConfig().Handle(alpha.in(t, alpha.widget.ID))
+	cfg, err := NewGetConfig(env.DB, env.Files).Handle(alpha.in(t, alpha.widget.ID))
 	if err != nil || cfg.Appearance.Greeting != "你好" || cfg.Appearance.Color != "#2bdd66" || cfg.Name != "官网" {
 		t.Fatalf("公开设置：%+v %v", cfg, err)
 	}
@@ -342,7 +342,7 @@ func TestManage(t *testing.T) {
 	if err != nil || w.Appearance.Color != "#fedc20" {
 		t.Fatalf("自定义颜色修改后：%+v %v", w, err)
 	}
-	cfg, err = NewGetConfig().Handle(alpha.in(t, alpha.widget.ID))
+	cfg, err = NewGetConfig(env.DB, env.Files).Handle(alpha.in(t, alpha.widget.ID))
 	if err != nil || cfg.Appearance.Color != "#fedc20" {
 		t.Fatalf("自定义颜色公开设置：%+v %v", cfg, err)
 	}

@@ -1,3 +1,4 @@
+import { isApiError } from "@agents-desk/client/widget"
 import { Box, Button, Center, Indicator, Loader, Paper, Text } from "@mantine/core"
 import { IconTicket } from "@tabler/icons-react"
 import { useQueryClient } from "@tanstack/react-query"
@@ -7,6 +8,8 @@ import { channel, embedded, hasCloseButton, type Init, inline, listen, tell, wai
 import { identity } from "../identity"
 import { useIdentity, useRealtime } from "../realtime"
 import { DEFAULT_WIDGET_COLOR, useSetWidgetBrand } from "../theme"
+import { BusinessCardHeader } from "./BusinessCardHeader"
+import { ExpiredView, IntakeForm, needsIntake, PasscodeGate } from "./BusinessGates"
 import { useBrandForeground } from "./contrast"
 import { ConversationView } from "./Conversation"
 import { Header } from "./Header"
@@ -15,22 +18,6 @@ import { useConfig, useTicket, useTickets, useTimeline } from "./queries"
 import { type ReplyTicketContext, TicketDetailView, TicketListItems } from "./TicketDetail"
 import { useViewportHeight } from "./viewport"
 
-/** started 是页面的初始化：整个页面只做一次（开发时 React 的 StrictMode 会把 effect 执行两遍）。 */
-let started: Promise<Init> | undefined
-
-/**
- * initOnce 拿到外面给出的初始状态；独立模式、容器内联模式、已登录用户或本地已有访客记录时立即建立/恢复会话，
- * 浮窗收起态的全新匿名访客保持静默，等到第一次打开聊天窗口时再建立线索。
- */
-function initOnce(): Promise<Init> {
-  started ??= waitInit().then(async (init) => {
-    await identity.start(init.userToken, init.referrer, !embedded || inline)
-    if (!embedded) tell("ready")
-    return init
-  })
-  return started
-}
-
 /** View 是聊天窗口当前显示的视图：统一连续对话流、工单列表或单张工单详情。 */
 type View =
   | { kind: "chat" }
@@ -38,12 +25,8 @@ type View =
   | { kind: "ticket"; id: string; from: "chat" | "tickets" }
 
 /**
- * Widget 是整个聊天窗口。四种运行方式：
- *   - 嵌入电脑网页：收起时只有右下角的启动按钮；展开后是浮层，下面是收起按钮。iframe 的大小由 loader.js 按 open 和 close 调整；
- *   - 嵌入手机网页：展开后占满屏幕，右上角关闭；
- *   - 容器内联（embed=1&inline=1）：铺满父页面容器，一直展开，通过 postMessage 与宿主通信；
- *   - 独立（App 的 WebView、直接打开）：一直占满屏幕，有 App 的桥时右上角的关闭按钮通知 App。
- * 拿到外面给出的初始状态（用户身份、是不是手机）后建立会话，之后按外面的命令展开、收起、登录、退出。
+ * Widget 是整个聊天窗口（同时承载公共网页聊天插件与个人网页商务沟通链接）。
+ * 对于受口令保护或已过期的商务沟通链接，先等待公开配置到达再决定是展示门禁还是直接建立会话。
  */
 export function Widget(): ReactNode {
   const t = useT()
@@ -51,11 +34,15 @@ export function Widget(): ReactNode {
   const queryClient = useQueryClient()
   const [ready, setReady] = useState(false)
   const [failed, setFailed] = useState(false)
+  const [gate, setGate] = useState<"none" | "passcode" | "expired">("none")
+  const [intakeSkipped, setIntakeSkipped] = useState(false)
+  const [intakeCompleted, setIntakeCompleted] = useState(false)
   const floating = embedded && !inline
   const [mobile, setMobile] = useState(!floating)
   const [open, setOpen] = useState(!floating)
   const openRef = useRef(open)
   openRef.current = open
+  const initStartedRef = useRef(false)
   const [view, setView] = useState<View>({ kind: "chat" })
   const [replyTicket, setReplyTicket] = useState<ReplyTicketContext | null>(null)
   const [visible, setVisible] = useState(() => typeof document === "undefined" || document.visibilityState === "visible")
@@ -66,27 +53,65 @@ export function Widget(): ReactNode {
   const tickets = useTickets()
   useRealtime()
 
-  // toggle 展开或收起，并告诉 loader.js 调整 iframe 的大小；展开时确保已激活身份（全新访客此时才建立线索）
+  const handleSessionError = (err: unknown) => {
+    if (isApiError(err)) {
+      if (err.code === "widget.invalid_passcode") {
+        setGate("passcode")
+        return
+      }
+      if (err.code === "widget.business_link_expired") {
+        setGate("expired")
+        return
+      }
+    }
+    setFailed(true)
+  }
+
+  // toggle 展开或收起，并告诉 loader.js 调整 iframe 的大小；展开时确保已激活身份
   const toggle = (next: boolean) => {
     openRef.current = next
     setOpen(next)
     tell(next ? "open" : "close")
-    if (next) void identity.ensure().catch(() => setFailed(true))
+    if (next) void identity.ensure().catch(handleSessionError)
   }
 
-  // 初始状态：嵌入时等父页面 init，独立时读 App 设置的 window.agentsDesk；然后按条件建立或延迟建立会话
+  // 等到公开配置到达后再按需启动会话：过期或需口令的新访客直接停在门禁页，不盲发 /session 报 403/409
   useEffect(() => {
-    void initOnce()
-      .then((init) => {
-        if (floating) setMobile(init.mobile)
+    if (!config.data || initStartedRef.current) return
+    initStartedRef.current = true
+    const biz = config.data.kind === "business_link" ? config.data.business : undefined
+    const hasStored = identity.hasStoredSession()
+    if (biz && !hasStored) {
+      if (biz.expired) {
+        setGate("expired")
         setReady(true)
-        // 如果用户在握手期间就点开了窗口，补上激活身份
-        if (openRef.current) void identity.ensure().catch(() => setFailed(true))
+        if (!embedded) tell("ready")
+        return
+      }
+      if (biz.requires_passcode) {
+        setGate("passcode")
+        setReady(true)
+        if (!embedded) tell("ready")
+        return
+      }
+    }
+    void waitInit()
+      .then(async (init: Init) => {
+        if (floating) setMobile(init.mobile)
+        await identity.start(init.userToken, init.referrer, !embedded || inline)
+        if (!embedded) tell("ready")
+        setReady(true)
+        if (openRef.current) {
+          await identity.ensure()
+        }
       })
-      .catch(() => setFailed(true))
-  }, [])
+      .catch((err) => {
+        setReady(true)
+        handleSessionError(err)
+      })
+  }, [config.data, floating])
 
-  // 外面的命令：展开、收起、登录、退出；同用户续签 token 静默刷新，换人或退出回到对话流并清空工单上下文
+  // 外面的命令：展开、收起、登录、退出
   useEffect(
     () =>
       listen({
@@ -94,7 +119,6 @@ export function Widget(): ReactNode {
           if (floating) setMobile(m)
         },
         command: (c) => {
-          // 展开和收起只在浮窗嵌入网页时有意义；容器内联和独立模式一直占满容器
           if (c.command === "open" || c.command === "close") {
             if (floating) toggle(c.command === "open")
             return
@@ -108,7 +132,7 @@ export function Widget(): ReactNode {
                 setReplyTicket(null)
                 void queryClient.invalidateQueries({ queryKey: ["widget"] })
               })
-              .catch(() => setFailed(true))
+              .catch(handleSessionError)
             return
           }
           setView({ kind: "chat" })
@@ -116,7 +140,7 @@ export function Widget(): ReactNode {
           void identity
             .logout(openRef.current)
             .then(() => queryClient.invalidateQueries({ queryKey: ["widget"] }))
-            .catch(() => setFailed(true))
+            .catch(handleSessionError)
         },
       }),
     [floating, queryClient],
@@ -159,20 +183,29 @@ export function Widget(): ReactNode {
     )
   }
 
-  const full = mobile || !floating // 占满屏幕或容器：手机、容器内联和 App
+  const full = mobile || !floating
   const close = floating ? (full ? "close" : "collapse") : hasCloseButton() ? "close" : undefined
   const onClose = () => (floating ? toggle(false) : tell("close"))
   const ticketList = tickets.data ?? []
   const hasWaitingTicket = ticketList.some((tk) => tk.status === "waiting_on_customer")
   const latestConversation = timeline.data?.latest_conversation
-  const chatStatus = latestConversation
-    ? latestConversation.status === "closed"
-      ? t("chat.status_closed")
-      : t("chat.status_open")
-    : undefined
+  const hasMessages = (timeline.data?.items.length ?? 0) > 0
+  const isBusinessLink = config.data?.kind === "business_link"
+  const biz = config.data?.business
+  const chatStatus =
+    !isBusinessLink && latestConversation
+      ? latestConversation.status === "closed"
+        ? t("chat.status_closed")
+        : t("chat.status_open")
+      : undefined
+
+  const showIntake =
+    isBusinessLink &&
+    !intakeCompleted &&
+    needsIntake(contact ?? null, biz?.intake, intakeSkipped, hasMessages)
 
   const ticketAction =
-    ticketList.length > 0 ? (
+    !isBusinessLink && ticketList.length > 0 ? (
       <Button
         size="compact-xs"
         variant="subtle"
@@ -188,13 +221,61 @@ export function Widget(): ReactNode {
       </Button>
     ) : undefined
 
+  const renderMainHeader = () => {
+    if (isBusinessLink) {
+      return (
+        <BusinessCardHeader
+          color={color}
+          title={name}
+          owner={biz?.owner}
+          greeting={hasMessages ? undefined : config.data?.appearance.greeting || t("home.default_greeting")}
+          awayMessage={biz?.away_message}
+          compact={hasMessages && !showIntake}
+          close={close}
+          onClose={onClose}
+        />
+      )
+    }
+    return (
+      <Header
+        color={color}
+        title={name}
+        greeting={latestConversation ? undefined : config.data?.appearance.greeting || t("home.default_greeting")}
+        status={chatStatus}
+        extra={ticketAction}
+        close={close}
+        onClose={onClose}
+      />
+    )
+  }
+
   const panel = (
     <Box
       className="w-panel"
       data-full={full || undefined}
       style={full && height ? { height } : undefined}
     >
-      {!ready || !config.data || !contact || timeline.isPending ? (
+      {!ready || !config.data ? (
+        <Center style={{ flex: 1 }}>
+          <Loader color={color} />
+        </Center>
+      ) : gate === "expired" ? (
+        <Box key="expired" className="w-view">
+          {renderMainHeader()}
+          <ExpiredView />
+        </Box>
+      ) : gate === "passcode" ? (
+        <Box key="passcode" className="w-view">
+          {renderMainHeader()}
+          <PasscodeGate
+            color={color}
+            onUnlock={async (passcode) => {
+              await identity.unlockWithPasscode(passcode)
+              setGate("none")
+            }}
+          />
+        </Box>
+      ) : !contact || timeline.isPending ? (
         <Center style={{ flex: 1 }}>
           <Loader color={color} />
         </Center>
@@ -230,24 +311,27 @@ export function Widget(): ReactNode {
         </Box>
       ) : (
         <Box key="chat" className="w-view">
-          <Header
-            color={color}
-            title={name}
-            greeting={latestConversation ? undefined : config.data.appearance.greeting || t("home.default_greeting")}
-            status={chatStatus}
-            extra={ticketAction}
-            close={close}
-            onClose={onClose}
-          />
-          <ConversationView
-            color={color}
-            name={name}
-            touch={full}
-            visible={open && visible}
-            replyTicket={replyTicket}
-            onClearReplyTicket={() => setReplyTicket(null)}
-            onOpenTicket={(id) => setView({ kind: "ticket", id, from: "chat" })}
-          />
+          {renderMainHeader()}
+          {showIntake && biz?.intake ? (
+            <IntakeForm
+              color={color}
+              intake={biz.intake}
+              contact={contact}
+              onDone={() => setIntakeCompleted(true)}
+              onSkip={() => setIntakeSkipped(true)}
+            />
+          ) : (
+            <ConversationView
+              color={color}
+              name={name}
+              touch={full}
+              visible={open && visible}
+              starters={isBusinessLink ? biz?.starters : undefined}
+              replyTicket={replyTicket}
+              onClearReplyTicket={() => setReplyTicket(null)}
+              onOpenTicket={(id) => setView({ kind: "ticket", id, from: "chat" })}
+            />
+          )}
         </Box>
       )}
     </Box>

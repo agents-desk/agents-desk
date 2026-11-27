@@ -104,6 +104,7 @@ export function createIdentity(options: IdentityOptions = {}) {
   let current: Session | null = null
   let userToken: string | undefined // 当前的用户身份；线索为空
   let referrer: string | undefined // 嵌入聊天窗口的产品页面地址
+  let passcode: string | undefined // 受口令保护的商务沟通链接口令
   let pending: Promise<void> | undefined
   let renewing: Promise<void> | undefined // 正在重新建立的会话
   let tokenWaiter: { sub: string; resolve: (token: string | undefined) => void } | undefined
@@ -153,6 +154,7 @@ export function createIdentity(options: IdentityOptions = {}) {
     const res = await api.widget.session({
       visitor_id: load("visitor") ?? undefined,
       user_token: token,
+      passcode,
       language: browserLang,
       time_zone: timeZone,
       referrer,
@@ -253,6 +255,13 @@ export function createIdentity(options: IdentityOptions = {}) {
       if (current && current.user === wanted) return
       await switchTo(userToken)
     },
+    /** unlockWithPasscode 提交访问口令并建立受保护的商务链接会话。 */
+    async unlockWithPasscode(code: string) {
+      passcode = code.trim()
+      await switchTo(userToken)
+    },
+    /** hasStoredSession 报告本地是否已有访客身份记录。 */
+    hasStoredSession: (): boolean => hasStoredIdentity(),
     /** login 切换到产品网站登录的用户，或静默刷新同一用户的 user_token；返回值报告身份是否发生变化。 */
     login: (token: string): Promise<boolean> => switchTo(token),
     /** logout 退出登录：丢掉用户会话；窗口打开或本地留有访客编号时回到访客线索，否则保持静默直到下次打开窗口。 */

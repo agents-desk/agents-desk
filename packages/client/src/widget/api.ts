@@ -242,6 +242,8 @@ export interface FormFile {
   Size: number
 }
 
+export type MemberStatus = "online" | "away"
+
 export interface Meta {
   height?: number
   width?: number
@@ -264,10 +266,27 @@ export interface WidgetAppearance {
   greeting?: string
 }
 
+export interface WidgetBusinessIntakeConfig {
+  /** 公司/组织字段模式 */
+  company?: "off" | "optional" | "required"
+  /** 邮箱字段模式 */
+  email?: "off" | "optional" | "required"
+  /** 是否开启开场留资表单 */
+  enabled: boolean
+  /** 称呼/姓名字段模式 */
+  name?: "off" | "optional" | "required"
+  /** 合作意向/备注字段模式 */
+  note?: "off" | "optional" | "required"
+}
+
 export interface WidgetConfigDTO {
   /** 聊天窗口的外观配置 */
   appearance: WidgetAppearance
-  /** 聊天插件的名称，显示在聊天窗口的标题中 */
+  /** 网页商务沟通链接的公开名片、留资与访问配置 */
+  business?: WidgetPublicBusinessConfig
+  /** 渠道种类：widget 或 business_link */
+  kind: ChannelKind
+  /** 聊天插件或商务链接的名称，显示在聊天窗口的标题中 */
   name: string
 }
 
@@ -278,6 +297,17 @@ export interface WidgetContactEmailBody {
   email: string
 }
 
+export interface WidgetContactIntakeBody {
+  /** 对方所属公司或组织名称 */
+  company?: string
+  /** 对方联系邮箱 */
+  email?: string
+  /** 对方称呼或姓名 */
+  name?: string
+  /** 合作意向或需求简述 */
+  note?: string
+}
+
 export interface WidgetMessageBody {
   /** 通过 /files 上传的媒体附件列表 */
   attachments?: ConversationAttachmentInput[]
@@ -286,6 +316,31 @@ export interface WidgetMessageBody {
   text?: string
   /** 可选：客户从工单详情发起补充信息时附带的工单 ID，用于关联当前活跃会话并唤醒等待工单 */
   ticket_id?: string
+}
+
+export interface WidgetPublicBusinessConfig {
+  /** 对接人处于离开状态时的提示语 */
+  away_message?: string
+  /** 链接是否已超过有效期 */
+  expired: boolean
+  /** 开场留资表单配置 */
+  intake: WidgetBusinessIntakeConfig
+  /** 开启名片展示时的对接人名片 */
+  owner?: WidgetPublicOwnerCard
+  /** 新建访客会话是否需要输入访问口令 */
+  requires_passcode: boolean
+  /** 快捷开场话题列表 */
+  starters: string[]
+}
+
+export interface WidgetPublicOwnerCard {
+  avatar_url?: string
+  bio?: string
+  company?: string
+  name: string
+  /** 对接人当前在线状态：online 或 away */
+  status: MemberStatus
+  title?: string
 }
 
 export interface WidgetRateInputBody {
@@ -301,12 +356,16 @@ export interface WidgetSent {
 }
 
 export interface WidgetSessionBody {
+  /** 可选：商务沟通对方自报的公司或组织 */
+  company?: string
   /** 可选：访客或商务沟通对方自报的邮箱 */
   email?: string
   /** 浏览器或 App 上报的语言（BCP 47），例如 pt-BR、hi-Latn；仅在客户尚未识别语言时作为冷启动先验 */
   language?: string
   /** 可选：访客或商务沟通对方自报的称呼 */
   name?: string
+  /** 可选：受口令保护的商务沟通链接所需的访问口令 */
+  passcode?: string
   /** 嵌入聊天窗口的产品页面地址 */
   referrer?: string
   /** 浏览器上报的 IANA 时区名，例如 Asia/Shanghai */
@@ -358,6 +417,13 @@ export function createClient(options: ClientOptions) {
        */
       email: (body: WidgetContactEmailBody): Promise<ContactSummary> =>
         rt.request<ContactSummary>({ method: "POST", path: `/contact/email`, body }),
+      /**
+       * 提交商务沟通开场留资资料
+       *
+       * POST /contact/intake
+       */
+      intake: (body: WidgetContactIntakeBody): Promise<ContactSummary> =>
+        rt.request<ContactSummary>({ method: "POST", path: `/contact/intake`, body }),
     },
     /** operationId 以 conversation- 开头的接口。 */
     conversation: {

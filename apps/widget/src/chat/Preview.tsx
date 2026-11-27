@@ -1,8 +1,10 @@
-import type { WidgetAppearance } from "@agents-desk/client/widget"
-import { Box, Stack } from "@mantine/core"
+import type { WidgetAppearance, WidgetBusinessIntakeConfig, WidgetPublicOwnerCard } from "@agents-desk/client/widget"
+import { Box, Button, Stack, Text } from "@mantine/core"
 import { useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react"
 import { DEFAULT_WIDGET_COLOR, isValidHexColor, useSetWidgetBrand } from "../theme"
+import { BusinessCardHeader } from "./BusinessCardHeader"
+import { IntakeForm, PasscodeGate } from "./BusinessGates"
 import { Composer } from "./Composer"
 import { Bubble } from "./Conversation"
 import { Header } from "./Header"
@@ -11,18 +13,32 @@ import { Launcher } from "./Launcher"
 /** PREFIX 是工作区配置工作台与预览窗口之间 postMessage 的消息前缀。 */
 const PREFIX = "agents-desk:"
 
-/** PreviewScene 是预览窗口展示的页面场景：对话中或收起态启动气泡。 */
-type PreviewScene = "conversation" | "launcher"
+/** PreviewMode 区分公共网页聊天插件与个人网页商务沟通链接两种预览模式。 */
+type PreviewMode = "widget" | "business_link"
 
-/** PreviewViewport 是预览窗口模拟的宿主视口形态：桌面浮窗或手机全屏。 */
+/** PreviewScene 是预览窗口展示的页面场景：对话中、收起态启动气泡、开场留资或口令校验。 */
+type PreviewScene = "conversation" | "launcher" | "intake" | "passcode"
+
+/** PreviewViewport 是预览窗口模拟的宿主视口形态：桌面或手机全屏。 */
 type PreviewViewport = "desktop" | "mobile"
+
+/** PreviewBusinessPayload 是商务沟通链接工作台推送的实时名片、留资与快捷话题草稿。 */
+interface PreviewBusinessPayload {
+  owner?: WidgetPublicOwnerCard
+  away_message?: string
+  intake?: WidgetBusinessIntakeConfig
+  starters?: string[]
+  requires_passcode?: boolean
+}
 
 /** PreviewState 是工作区配置工作台推送的实时草稿与预览参数。 */
 interface PreviewState {
+  mode: PreviewMode
   name: string
   appearance: WidgetAppearance
   scene: PreviewScene
   viewport: PreviewViewport
+  business?: PreviewBusinessPayload
 }
 
 /** PreviewMessage 是预览对话时间线中的本地模拟消息。 */
@@ -41,13 +57,14 @@ function notifyParent(type: "preview_ready" | "preview_scene", data: Record<stri
 }
 
 /**
- * Preview 是网页聊天插件的纯客户端可交互预览壳（挂载于 /widget/preview）。
- * 复用真实的 Header、Bubble、Composer、Launcher 组件与根主题，以本地示例数据驱动单一连续对话流预览。
+ * Preview 是网页聊天插件与商务沟通链接共用的纯客户端可交互预览壳（挂载于 /widget/preview）。
+ * 复用真实的 Header、BusinessCardHeader、IntakeForm、PasscodeGate、Bubble、Composer 与 Launcher，零后端写入。
  */
 export function Preview(): ReactNode {
   const t = useT()
   const setBrandColor = useSetWidgetBrand()
   const [state, setState] = useState<PreviewState>({
+    mode: "widget",
     name: "",
     appearance: { color: DEFAULT_WIDGET_COLOR, greeting: "" },
     scene: "conversation",
@@ -61,15 +78,20 @@ export function Preview(): ReactNode {
     const onMessage = (e: MessageEvent) => {
       if (e.origin !== window.location.origin || e.source !== window.parent) return
       if (!e.data || e.data.type !== `${PREFIX}preview`) return
+      const nextMode: PreviewMode = e.data.mode === "business_link" ? "business_link" : "widget"
       const nextColor = typeof e.data.appearance?.color === "string" ? e.data.appearance.color : DEFAULT_WIDGET_COLOR
       const nextGreeting = typeof e.data.appearance?.greeting === "string" ? e.data.appearance.greeting : ""
-      const nextScene: PreviewScene = e.data.scene === "launcher" ? "launcher" : "conversation"
+      const rawScene = e.data.scene
+      const nextScene: PreviewScene =
+        rawScene === "launcher" || rawScene === "intake" || rawScene === "passcode" ? rawScene : "conversation"
       const nextViewport: PreviewViewport = e.data.viewport === "mobile" ? "mobile" : "desktop"
       setState({
+        mode: nextMode,
         name: typeof e.data.name === "string" ? e.data.name : "",
         appearance: { color: nextColor, greeting: nextGreeting },
-        scene: nextViewport === "mobile" && nextScene === "launcher" ? "conversation" : nextScene,
+        scene: nextMode === "widget" && nextViewport === "mobile" && nextScene === "launcher" ? "conversation" : nextScene,
         viewport: nextViewport,
+        business: nextMode === "business_link" && e.data.business ? (e.data.business as PreviewBusinessPayload) : undefined,
       })
     }
     window.addEventListener("message", onMessage)
@@ -83,9 +105,9 @@ export function Preview(): ReactNode {
     if (isValidHexColor(colorValue)) setBrandColor(colorValue)
   }, [colorValue, setBrandColor])
 
-  // 桌面浮窗态透明底以展示真实浮层与阴影；手机全屏态铺满实体背景。
+  // 仅网页聊天插件的桌面浮窗态透明底以展示真实浮层与阴影；商务沟通链接与手机全屏态铺满实体背景。
   useEffect(() => {
-    if (state.viewport === "desktop") {
+    if (state.mode === "widget" && state.viewport === "desktop") {
       document.documentElement.dataset.embedded = ""
     } else {
       delete document.documentElement.dataset.embedded
@@ -93,7 +115,7 @@ export function Preview(): ReactNode {
     return () => {
       delete document.documentElement.dataset.embedded
     }
-  }, [state.viewport])
+  }, [state.mode, state.viewport])
 
   // 模拟发送新消息后滚动到时间线底部。
   useEffect(() => {
@@ -101,24 +123,27 @@ export function Preview(): ReactNode {
     if (el) el.scrollTop = el.scrollHeight
   }, [extraMessages.length, state.scene])
 
+  const isBiz = state.mode === "business_link"
+  const ownerName = state.business?.owner?.name || t("preview.business_owner_name")
+
   const sampleMessages = useMemo<PreviewMessage[]>(
     () => [
       {
         id: "m1",
         mine: true,
-        text: t("preview.sample_customer_msg"),
+        text: t(isBiz ? "preview.business_sample_partner" : "preview.sample_customer_msg"),
         time: t("time.just_now"),
       },
       {
         id: "m2",
         mine: false,
-        author: t("preview.agent_name"),
-        text: t("preview.sample_agent_reply"),
+        author: isBiz ? ownerName : t("preview.agent_name"),
+        text: t(isBiz ? "preview.business_sample_owner" : "preview.sample_agent_reply"),
         time: t("time.just_now"),
       },
       ...extraMessages,
     ],
-    [extraMessages, t],
+    [extraMessages, isBiz, ownerName, t],
   )
 
   const switchScene = (next: PreviewScene) => {
@@ -136,7 +161,96 @@ export function Preview(): ReactNode {
   const color = "brand"
   const title = state.name.trim() || t("app.widget")
   const greeting = state.appearance.greeting?.trim() || t("home.default_greeting")
-  const full = state.viewport === "mobile"
+  const full = isBiz || state.viewport === "mobile"
+
+  if (isBiz) {
+    const biz = state.business
+    const starters = biz?.starters ?? []
+    const intake: WidgetBusinessIntakeConfig = biz?.intake ?? {
+      enabled: true,
+      name: "required",
+      company: "optional",
+      email: "optional",
+      note: "off",
+    }
+    return (
+      <Box className="w-panel" data-full>
+        <Box key={state.scene} className="w-view">
+          <BusinessCardHeader
+            color={color}
+            title={title}
+            owner={biz?.owner}
+            greeting={state.scene === "conversation" ? undefined : greeting}
+            awayMessage={biz?.away_message}
+            compact={state.scene === "conversation"}
+          />
+          {state.scene === "passcode" ? (
+            <PasscodeGate
+              color={color}
+              preview
+              onUnlock={async () => switchScene(intake.enabled ? "intake" : "conversation")}
+            />
+          ) : state.scene === "intake" ? (
+            <IntakeForm
+              color={color}
+              intake={{ ...intake, enabled: true }}
+              preview
+              onDone={() => switchScene("conversation")}
+              onSkip={() => switchScene("conversation")}
+            />
+          ) : (
+            <>
+              <Box className="w-scroll-wrap">
+                <Box ref={scrollRef} className="w-scroll" p="md">
+                  <Stack gap="sm">
+                    {sampleMessages.map((m) => (
+                      <Bubble
+                        key={m.id}
+                        mine={m.mine}
+                        author={m.author}
+                        text={m.text}
+                        meta={m.time}
+                        color={color}
+                        onPreview={() => {}}
+                      />
+                    ))}
+                    {starters.length > 0 && (
+                      <Stack gap={6} pt="xs">
+                        <Text size="xs" c="dimmed">
+                          {t("business.starters_heading")}
+                        </Text>
+                        {starters.map((topic) => (
+                          <Button
+                            key={topic}
+                            variant="light"
+                            color={color}
+                            size="xs"
+                            radius="md"
+                            justify="flex-start"
+                            onClick={() => handleSend(topic)}
+                            styles={{ label: { whiteSpace: "normal", textAlign: "left" } }}
+                          >
+                            {topic}
+                          </Button>
+                        ))}
+                      </Stack>
+                    )}
+                  </Stack>
+                </Box>
+              </Box>
+              <Composer
+                color={color}
+                touch={state.viewport === "mobile"}
+                placeholder={t("composer.placeholder")}
+                allowAttachments={false}
+                onSend={handleSend}
+              />
+            </>
+          )}
+        </Box>
+      </Box>
+    )
+  }
 
   // 桌面收起态仅渲染右下角启动按钮。
   if (!full && state.scene === "launcher") {
