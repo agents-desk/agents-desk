@@ -73,7 +73,6 @@ import {
   ComposerSendArea,
   defaultPeerLanguage,
   InlineTranslationPane,
-  TranslationToggleButton,
   useComposerTranslation,
   verifiedTranslationOf,
 } from "../inbox/ComposerTranslation"
@@ -1109,8 +1108,6 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
               </Tooltip>
             )}
           </FileButton>
-
-          <TranslationToggleButton preview={preview} myLang={me.data?.language} note={note} />
 
           {preview.confirming && (
             <Text size="xs" c="brand" ml={4}>

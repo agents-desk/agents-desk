@@ -290,57 +290,9 @@ export function useComposerTranslation({
 }
 
 /**
- * TranslationToggleButton 是所有输入框底栏统一放置的译文校对图标开关，
- * 与快捷回复、附件等纯图标按钮保持一致视觉密度；状态细节通过 Tooltip 提示。
- */
-export function TranslationToggleButton({
-  preview,
-  myLang,
-  note,
-}: {
-  preview: ComposerTranslation
-  myLang?: string
-  note?: boolean
-}): ReactNode {
-  const t = useT()
-  const ui = useLanguage()
-  if (!preview.enabled) return null
-
-  const off = preview.allowOff && preview.target === NO_TRANSLATION
-  const sameAsMe = Boolean(preview.effectiveLang) && sameLanguage(preview.effectiveLang, myLang)
-
-  let tooltip: string
-  if (preview.expanded) {
-    tooltip = t("inbox.collapse_translation")
-  } else if (off) {
-    tooltip = t("inbox.check_translation_off")
-  } else if (preview.allowOff && preview.effectiveLang && !sameAsMe) {
-    tooltip = t("inbox.check_translation_auto_to", { lang: languageName(preview.effectiveLang, ui) })
-  } else {
-    tooltip = t("inbox.check_translation_auto")
-  }
-
-  return (
-    <Tooltip label={tooltip} openDelay={250}>
-      <ActionIcon
-        variant={preview.expanded ? "light" : "subtle"}
-        color={preview.expanded ? (note ? "yellow" : undefined) : "gray"}
-        size="input-sm"
-        opacity={off && !preview.expanded ? 0.55 : undefined}
-        onClick={preview.toggleExpanded}
-        aria-pressed={preview.expanded}
-        aria-label={t(preview.expanded ? "inbox.collapse_translation" : "inbox.check_translation")}
-      >
-        <IconLanguage size={16} />
-      </ActionIcon>
-    </Tooltip>
-  )
-}
-
-/**
- * AutoTranslateHint 是译文校对收起时展示在发送按钮旁的轻量自动翻译状态提示：
- * 对外回复显示“自动译为 {{.lang}}”（或关闭时显示“按原文发送”），跨语言内部聊天显示“自动互译”，
- * 点击直接展开译文校对栏；展开校对栏后自动隐藏，保持界面无重复提示。
+ * AutoTranslateHint 是发送按钮旁的自动翻译状态，也是打开译文校对栏的唯一入口：
+ * 对外回复显示“自动译为 {{.lang}}”（关闭时显示“按原文发送”），跨语言内部聊天显示“自动互译”，
+ * 其余情况显示“译文校对”；点击展开译文校对栏，展开后隐藏，由校对栏右上角的 × 收起。
  */
 export function AutoTranslateHint({
   preview,
@@ -360,7 +312,8 @@ export function AutoTranslateHint({
   const effectiveLang = preview.effectiveLang
   const sameAsMe = Boolean(effectiveLang) && sameLanguage(effectiveLang, myLang)
 
-  let label = ""
+  // 有自动翻译时说明译成什么；没有可说明的（同语言、客户语言未知）时显示“译文校对”，校对栏总有入口
+  let label = t("inbox.check_translation")
   if (preview.mode === "replace") {
     if (off) {
       label = t("inbox.auto_translate_off")
@@ -370,8 +323,6 @@ export function AutoTranslateHint({
   } else if (effectiveLang && !sameAsMe) {
     label = override ?? t("inbox.auto_translate_mutual")
   }
-
-  if (!label) return null
 
   return (
     <Tooltip label={t("inbox.auto_translate_click_hint")} openDelay={300}>

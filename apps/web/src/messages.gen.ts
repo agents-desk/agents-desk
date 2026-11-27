@@ -496,9 +496,6 @@ export const messages = {
     "inbox.channel_send_via": "Send via {{.channel}}",
     "inbox.channel_via": "via {{.channel}}",
     "inbox.check_translation": "Review translation",
-    "inbox.check_translation_auto": "Review translation (auto-translates by default)",
-    "inbox.check_translation_auto_to": "Review translation (auto-translates to {{.lang}})",
-    "inbox.check_translation_off": "Review translation (currently off)",
     "inbox.choose_language": "Choose the language to send in",
     "inbox.choose_reply_channel": "Choose reply channel",
     "inbox.clear_filters": "Clear filters",
@@ -1932,9 +1929,6 @@ export const messages = {
     "inbox.channel_send_via": "经由 {{.channel}} 发送",
     "inbox.channel_via": "经由 {{.channel}}",
     "inbox.check_translation": "译文校对",
-    "inbox.check_translation_auto": "译文校对（默认自动互译）",
-    "inbox.check_translation_auto_to": "译文校对（默认自动译为{{.lang}}）",
-    "inbox.check_translation_off": "译文校对（当前不翻译）",
     "inbox.choose_language": "选择译文的语言",
     "inbox.choose_reply_channel": "选择回复渠道",
     "inbox.clear_filters": "清除筛选",
@@ -3371,9 +3365,6 @@ export type MessageId =
   | "inbox.channel_send_via"
   | "inbox.channel_via"
   | "inbox.check_translation"
-  | "inbox.check_translation_auto"
-  | "inbox.check_translation_auto_to"
-  | "inbox.check_translation_off"
   | "inbox.choose_language"
   | "inbox.choose_reply_channel"
   | "inbox.clear_filters"

@@ -79,7 +79,6 @@ import {
   defaultPeerLanguage,
   InlineTranslationPane,
   NO_TRANSLATION,
-  TranslationToggleButton,
   useComposerTranslation,
 } from "./ComposerTranslation"
 import { useAttributes, useMacros, useMe, useMembers, useTags, useTeams } from "./data"
@@ -640,7 +639,6 @@ export function Composer({
               </Tooltip>
             )}
           </FileButton>
-          <TranslationToggleButton preview={preview} myLang={me.data?.language} note={note} />
           {preview.confirming && (
             <Text size="xs" c="brand" ml={4}>
               {ctrlEnterSend ? t("inbox.ctrl_enter_again", { key: sendModKey }) : t("inbox.enter_again")}
