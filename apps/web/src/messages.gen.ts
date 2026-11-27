@@ -1193,6 +1193,7 @@ export const messages = {
     "ticket_types.title": "Ticket types",
     "tickets.add_conversations": "Link conversations",
     "tickets.add_more_conversations": "Add more conversations",
+    "tickets.auto_translate_public": "Translated per customer",
     "tickets.back": "Back to tickets",
     "tickets.box_all": "All tickets",
     "tickets.box_mine": "My tickets",
@@ -2628,6 +2629,7 @@ export const messages = {
     "ticket_types.title": "工单类型",
     "tickets.add_conversations": "关联会话",
     "tickets.add_more_conversations": "添加其他会话",
+    "tickets.auto_translate_public": "按客户语言翻译",
     "tickets.back": "返回工单列表",
     "tickets.box_all": "全部工单",
     "tickets.box_mine": "我的工单",
@@ -4066,6 +4068,7 @@ export type MessageId =
   | "ticket_types.title"
   | "tickets.add_conversations"
   | "tickets.add_more_conversations"
+  | "tickets.auto_translate_public"
   | "tickets.back"
   | "tickets.box_all"
   | "tickets.box_mine"

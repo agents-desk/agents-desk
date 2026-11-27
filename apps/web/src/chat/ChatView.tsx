@@ -10,7 +10,7 @@ import {
   Anchor,
   Avatar,
   Box,
-  Button,
+  Menu,
   Center,
   CopyButton,
   Divider,
@@ -37,7 +37,6 @@ import {
   IconLayoutSidebarRight,
   IconLock,
   IconPaperclip,
-  IconSend,
   IconUsersGroup,
 } from "@tabler/icons-react"
 import {
@@ -71,7 +70,7 @@ import {
 import { useConversationChannel } from "../inbox/channel"
 import { channelColor, ChannelChip } from "../inbox/channel-badge"
 import {
-  AutoTranslateHint,
+  ComposerSendArea,
   defaultPeerLanguage,
   InlineTranslationPane,
   TranslationToggleButton,
@@ -1119,20 +1118,24 @@ function ChatComposer({ chat, onTyping }: { chat: ConversationChatDTO; onTyping:
             </Text>
           )}
 
-          <Group gap="xs" ml="auto" wrap="nowrap">
-            <AutoTranslateHint preview={preview} myLang={me.data?.language} />
-            <Tooltip label={sendHint} openDelay={350}>
-              <Button
-                color={note ? "yellow" : undefined}
-                leftSection={note ? <IconLock size={14} /> : <IconSend size={14} />}
-                disabled={!canSubmit}
-                loading={send.isPending || preview.pending}
-                onClick={() => void submit()}
-              >
-                {mainLabel}
-              </Button>
-            </Tooltip>
-          </Group>
+          <ComposerSendArea
+            preview={preview}
+            myLang={me.data?.language}
+            label={mainLabel}
+            sendHint={sendHint}
+            note={note}
+            disabled={!canSubmit}
+            loading={send.isPending || preview.pending}
+            onSend={() => void submit()}
+            menu={
+              willAutoTranslateExternal && (
+                <>
+                  <Menu.Item onClick={() => void submit()}>{t("inbox.send")}</Menu.Item>
+                  <Menu.Item onClick={() => void submit({ skipTranslation: true })}>{t("inbox.send_original")}</Menu.Item>
+                </>
+              )
+            }
+          />
         </Group>
       </Box>
     </Box>

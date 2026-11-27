@@ -345,9 +345,12 @@ export function TranslationToggleButton({
 export function AutoTranslateHint({
   preview,
   myLang,
+  label: override,
 }: {
   preview: ComposerTranslation
   myLang?: string
+  /** 自动翻译生效时显示的文字，替换默认的“自动互译”，例如工单的公开进度按各客户的语言翻译。 */
+  label?: string
 }): ReactNode {
   const t = useT()
   const ui = useLanguage()
@@ -365,7 +368,7 @@ export function AutoTranslateHint({
       label = t("inbox.auto_translate_to", { lang: languageName(effectiveLang, ui) })
     }
   } else if (effectiveLang && !sameAsMe) {
-    label = t("inbox.auto_translate_mutual")
+    label = override ?? t("inbox.auto_translate_mutual")
   }
 
   if (!label) return null
@@ -755,5 +758,74 @@ export function InlineTranslationPane({
         </Box>
       )}
     </Box>
+  )
+}
+
+/**
+ * ComposerSendArea 是所有输入框底栏右侧统一的发送区：自动翻译状态提示（AutoTranslateHint）加发送按钮；
+ * 传入 menu 时发送按钮右侧带下拉的更多发送方式（例如“不翻译，发送原文”“发送并关闭”）。
+ * 内部备注（note）用黄色按钮，与输入框的备注底色一致。
+ */
+export function ComposerSendArea({
+  preview,
+  myLang,
+  hintLabel,
+  label,
+  sendHint,
+  note,
+  disabled,
+  loading,
+  onSend,
+  menu,
+}: {
+  preview: ComposerTranslation
+  myLang?: string
+  /** 替换自动翻译提示的默认文字，见 AutoTranslateHint。 */
+  hintLabel?: string
+  /** 发送按钮的文字。 */
+  label: ReactNode
+  /** 发送按钮的提示，例如“Enter 发送”。 */
+  sendHint: string
+  note?: boolean
+  disabled: boolean
+  loading: boolean
+  onSend: () => void
+  /** 更多发送方式：Menu.Item、Menu.Label 等。 */
+  menu?: ReactNode
+}): ReactNode {
+  const t = useT()
+  return (
+    <Group gap="xs" ml="auto" wrap="nowrap">
+      <AutoTranslateHint preview={preview} myLang={myLang} label={hintLabel} />
+      <Group gap={0} wrap="nowrap">
+        <Tooltip label={sendHint} openDelay={350}>
+          <Button
+            color={note ? "yellow" : undefined}
+            disabled={disabled}
+            loading={loading}
+            onClick={onSend}
+            style={menu ? { borderTopRightRadius: 0, borderBottomRightRadius: 0 } : undefined}
+          >
+            {label}
+          </Button>
+        </Tooltip>
+        {menu && (
+          <Menu position="top-end" withinPortal>
+            <Menu.Target>
+              <Button
+                px={7}
+                color={note ? "yellow" : undefined}
+                disabled={disabled}
+                className="inbox-send-menu"
+                aria-label={t("inbox.send_options")}
+              >
+                <IconChevronDown size={14} />
+              </Button>
+            </Menu.Target>
+            <Menu.Dropdown>{menu}</Menu.Dropdown>
+          </Menu>
+        )}
+      </Group>
+    </Group>
   )
 }
