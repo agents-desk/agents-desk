@@ -26,7 +26,7 @@ export function DetailsAsideTabs({
 }): ReactNode {
   const t = useT()
   return (
-    <Box px="sm" py={8} style={{ borderBottom: "1px solid var(--tn-border)" }}>
+    <Box px="var(--tn-pane-px)" py={8} style={{ borderBottom: "1px solid var(--tn-border)" }}>
       <SegmentedControl
         fullWidth
         size="xs"
@@ -129,7 +129,7 @@ export function AiAssistantPanel({ scene }: { scene: "inbox" | "ticket" | "chat"
           ]
 
   return (
-    <Stack gap="sm" p="sm">
+    <Stack gap="sm" px="var(--tn-pane-px)" py="sm">
       <Paper withBorder p="sm" radius="md" style={{ borderStyle: "dashed" }}>
         <Group gap="xs" wrap="nowrap" align="flex-start">
           <ThemeIcon size={30} radius="md" variant="light" color="brand" style={{ flex: "none" }}>

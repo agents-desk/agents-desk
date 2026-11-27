@@ -123,7 +123,7 @@ export function GroupDetails({ chat, onClose, onLeft }: GroupDetailsProps): Reac
   }
 
   return (
-    <Stack gap={0} h="100%">
+    <Stack gap={0} h="100%" className="inbox-details">
       <PaneHeader
         title={t("chat.group_settings")}
         actions={

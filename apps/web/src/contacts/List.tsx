@@ -111,7 +111,9 @@ export function ContactDirectory({
       ? t("contacts.nav_users")
       : search.kind === "lead"
         ? t("contacts.nav_leads")
-        : t("nav.contacts")
+        : search.kind === "internal"
+          ? t("contacts.nav_internal")
+          : t("nav.contacts")
   const channels = (summary.data?.channels ?? []).map((ch) => ({ value: ch.id, label: ch.name }))
   const tagChoices = tags.map((tg) => ({ value: tg.id, label: tg.name }))
   const activeLanguages = summary.data?.languages ?? []
@@ -124,7 +126,9 @@ export function ContactDirectory({
         ? summary.data.users
         : search.kind === "lead"
           ? summary.data.leads
-          : summary.data.all
+          : search.kind === "internal"
+            ? summary.data.internal
+            : summary.data.all
       : undefined
   const badgeCount = hasFilters ? (list.data ? `${items.length}${list.hasNextPage ? "+" : ""}` : undefined) : summaryCount
   // 右侧分栏打开时空间收窄，自动隐藏中间列（右侧档案栏中已经完整展示地区与语言）
@@ -360,7 +364,12 @@ export function ContactDirectory({
                         <Text size="sm" fw={500} truncate>
                           {displayName}
                         </Text>
-                        <Badge size="xs" variant="light" color={c.kind === "user" ? "bright-blue" : "gray"} style={{ flex: "none" }}>
+                        <Badge
+                          size="xs"
+                          variant="light"
+                          color={c.kind === "internal" ? "green" : c.kind === "user" ? "bright-blue" : "gray"}
+                          style={{ flex: "none" }}
+                        >
                           {kit.label("ContactKind", c.kind)}
                         </Badge>
                       </Group>

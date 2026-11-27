@@ -273,22 +273,20 @@ export function ExternalGroupsPanel({ audience }: { audience: BotAudience }): Re
 
   return (
     <Stack gap="sm">
-      <Group justify="space-between" wrap="wrap" gap="sm">
-        <Text size="sm" c="dimmed">
-          {t(audience === "internal" ? "extgroups.description_internal" : "extgroups.description_customer")}
-        </Text>
-        <SegmentedControl
-          size="xs"
-          value={statusFilter}
-          onChange={setStatusFilter}
-          data={[
-            { value: "all", label: t("extgroups.filter_all") },
-            { value: "pending_setup", label: t("extgroups.filter_pending") },
-            { value: "active", label: t("extgroups.filter_active") },
-            { value: "removed", label: t("extgroups.filter_removed") },
-          ]}
-        />
-      </Group>
+      <Text size="sm" c="dimmed">
+        {t(audience === "internal" ? "extgroups.description_internal" : "extgroups.description_customer")}
+      </Text>
+      <SegmentedControl
+        w="fit-content"
+        value={statusFilter}
+        onChange={setStatusFilter}
+        data={[
+          { value: "all", label: t("extgroups.filter_all") },
+          { value: "pending_setup", label: t("extgroups.filter_pending") },
+          { value: "active", label: t("extgroups.filter_active") },
+          { value: "removed", label: t("extgroups.filter_removed") },
+        ]}
+      />
 
       <DataTable
         records={list.data ?? []}

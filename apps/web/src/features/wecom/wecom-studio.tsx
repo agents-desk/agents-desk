@@ -183,7 +183,7 @@ export function WeComStudio({ slug, id }: { slug: string; id: string }): ReactNo
         ) : undefined
       }
     >
-      <Box mih={600}>
+      <Box mih={640}>
         {bot.isPending ? (
           <Stack gap="md">
             <Skeleton height={110} radius="md" />
@@ -212,7 +212,7 @@ export function WeComStudio({ slug, id }: { slug: string; id: string }): ReactNo
                       )}
                     </Stack>
                     <Button
-                      size="xs"
+                      size="sm"
                       variant="light"
                       leftSection={<IconRefresh size={14} />}
                       loading={reconnect.isPending}
@@ -230,6 +230,14 @@ export function WeComStudio({ slug, id }: { slug: string; id: string }): ReactNo
               )}
 
               <SectionCard title={t("wecom_studio.section_basic")} description={t("wecom_studio.section_basic_desc")}>
+                <Group gap="xs">
+                  <Text size="xs" c="dimmed">
+                    {t("channels.audience")}
+                  </Text>
+                  <Badge size="xs" variant="light" color="green">
+                    {kit.label("ChannelAudience", "internal")}
+                  </Badge>
+                </Group>
                 <TextInput label={t("wecom.name")} required maxLength={60} {...form.getInputProps("name")} />
                 <Switch
                   label={t("wecom_studio.enabled")}

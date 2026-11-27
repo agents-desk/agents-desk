@@ -94,7 +94,7 @@ function MemberChannelsTab(): ReactNode {
 
   return (
     <Stack gap="md">
-      <Group gap="xs" wrap="wrap">
+      <Group gap="xs" wrap="wrap" align="center">
         <TextInput
           style={{ flex: 1, minWidth: 220 }}
           placeholder={t("business_gov.search_placeholder")}
@@ -103,7 +103,6 @@ function MemberChannelsTab(): ReactNode {
           onChange={(e) => setQ(e.currentTarget.value)}
         />
         <SegmentedControl
-          size="xs"
           value={kind}
           onChange={(v) => setKind(v as "" | "business_link" | "telegram_account")}
           data={[
