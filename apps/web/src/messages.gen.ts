@@ -79,10 +79,12 @@ export const messages = {
     "ai_placeholder.view_roadmap": "View roadmap",
     "alerts.assigned_body": "A conversation was assigned to you. Click to open",
     "alerts.assigned_title": "Assigned to you: {{.contact}}",
+    "alerts.chat_title": "Chat message from {{.contact}}",
     "alerts.mention_body": "Someone mentioned you in an internal note. Click to open",
     "alerts.mention_title": "Mentioned you: {{.contact}}",
     "alerts.new_message_body": "Customer sent a new message. Click to open",
     "alerts.new_message_title": "New message: {{.contact}}",
+    "alerts.ticket_title": "Ticket update: {{.contact}}",
     "app.web": "agents-desk",
     "assignment_page.default_member": "Default assignee",
     "assignment_page.default_member_hint": "New conversations are assigned directly to this member with a default-assignment event on the timeline",
@@ -799,6 +801,7 @@ export const messages = {
     "inbox.delivery_read": "Read",
     "inbox.delivery_sending": "Sending",
     "inbox.delivery_translating": "Translating \u0026 sending…",
+    "inbox.delivery_translation_failed": "Translation failed (not sent)",
     "inbox.details": "Details",
     "inbox.details_contact": "Contact",
     "inbox.details_conversation": "Conversation",
@@ -877,8 +880,12 @@ export const messages = {
     "inbox.no_translation": "Don't translate",
     "inbox.not_found": "This conversation doesn't exist, or you can't see it",
     "inbox.note_by": "Internal note · {{.who}}",
+    "inbox.note_edit_title": "Edit internal note",
     "inbox.note_hint": "Only members can see this. Type @ to mention a teammate",
     "inbox.note_placeholder": "Write an internal note, @ a teammate…",
+    "inbox.note_recall_confirm": "After recalling, members can no longer see the content of this internal note.",
+    "inbox.note_recall_title": "Recall internal note",
+    "inbox.note_recalled": "Internal note recalled",
     "inbox.original": "Original",
     "inbox.partner_group": "Business group",
     "inbox.pick": "Pick a conversation on the left",
@@ -902,6 +909,8 @@ export const messages = {
     "inbox.retranslate": "Retranslate",
     "inbox.retranslating": "Text changed, translating again",
     "inbox.retry": "Resend",
+    "inbox.retry_original": "Send original text",
+    "inbox.retry_translate": "Retry translation",
     "inbox.said": "{{.who}}: ",
     "inbox.scroll_to_bottom": "Jump to latest",
     "inbox.search_empty": "No conversations matching “{{.q}}”",
@@ -2043,10 +2052,12 @@ export const messages = {
     "ai_placeholder.view_roadmap": "查看规划",
     "alerts.assigned_body": "会话已指派给你，点击查看",
     "alerts.assigned_title": "新会话指派：{{.contact}}",
+    "alerts.chat_title": "来自 {{.contact}} 的聊天消息",
     "alerts.mention_body": "有人在内部备注中 @ 了你，点击查看",
     "alerts.mention_title": "内部备注 @ 你：{{.contact}}",
     "alerts.new_message_body": "客户发来新消息，点击查看",
     "alerts.new_message_title": "新消息：{{.contact}}",
+    "alerts.ticket_title": "工单更新：{{.contact}}",
     "app.web": "agents-desk",
     "assignment_page.default_member": "默认负责人",
     "assignment_page.default_member_hint": "新会话直接指派给这位成员，并在时间线中记录默认指派事件",
@@ -2763,6 +2774,7 @@ export const messages = {
     "inbox.delivery_read": "已读",
     "inbox.delivery_sending": "发送中",
     "inbox.delivery_translating": "翻译并发送中…",
+    "inbox.delivery_translation_failed": "翻译失败，未发送",
     "inbox.details": "详情",
     "inbox.details_contact": "联系人",
     "inbox.details_conversation": "会话",
@@ -2841,8 +2853,12 @@ export const messages = {
     "inbox.no_translation": "不翻译",
     "inbox.not_found": "会话不存在，或者你看不到它",
     "inbox.note_by": "内部备注 · {{.who}}",
+    "inbox.note_edit_title": "编辑内部备注",
     "inbox.note_hint": "只有成员可见，输入 @ 提到同事",
     "inbox.note_placeholder": "写内部备注，@ 同事…",
+    "inbox.note_recall_confirm": "撤回后所有成员将无法查看该内部备注正文，确定要撤回吗？",
+    "inbox.note_recall_title": "撤回内部备注",
+    "inbox.note_recalled": "内部备注已撤回",
     "inbox.original": "原文",
     "inbox.partner_group": "商务群",
     "inbox.pick": "从左边选一个会话",
@@ -2866,6 +2882,8 @@ export const messages = {
     "inbox.retranslate": "重新翻译",
     "inbox.retranslating": "原文改了，正在重新翻译",
     "inbox.retry": "重发",
+    "inbox.retry_original": "按原文发送",
+    "inbox.retry_translate": "重试翻译",
     "inbox.said": "{{.who}}：",
     "inbox.scroll_to_bottom": "回到底部",
     "inbox.search_empty": "没有找到包含“{{.q}}”的会话",
@@ -4010,10 +4028,12 @@ export type MessageId =
   | "ai_placeholder.view_roadmap"
   | "alerts.assigned_body"
   | "alerts.assigned_title"
+  | "alerts.chat_title"
   | "alerts.mention_body"
   | "alerts.mention_title"
   | "alerts.new_message_body"
   | "alerts.new_message_title"
+  | "alerts.ticket_title"
   | "app.web"
   | "assignment_page.default_member"
   | "assignment_page.default_member_hint"
@@ -4730,6 +4750,7 @@ export type MessageId =
   | "inbox.delivery_read"
   | "inbox.delivery_sending"
   | "inbox.delivery_translating"
+  | "inbox.delivery_translation_failed"
   | "inbox.details"
   | "inbox.details_contact"
   | "inbox.details_conversation"
@@ -4808,8 +4829,12 @@ export type MessageId =
   | "inbox.no_translation"
   | "inbox.not_found"
   | "inbox.note_by"
+  | "inbox.note_edit_title"
   | "inbox.note_hint"
   | "inbox.note_placeholder"
+  | "inbox.note_recall_confirm"
+  | "inbox.note_recall_title"
+  | "inbox.note_recalled"
   | "inbox.original"
   | "inbox.partner_group"
   | "inbox.pick"
@@ -4833,6 +4858,8 @@ export type MessageId =
   | "inbox.retranslate"
   | "inbox.retranslating"
   | "inbox.retry"
+  | "inbox.retry_original"
+  | "inbox.retry_translate"
   | "inbox.said"
   | "inbox.scroll_to_bottom"
   | "inbox.search_empty"

@@ -70,7 +70,7 @@ func (a *EditMessage) Handle(ctx context.Context, sub identity.Subject, conversa
 			return err
 		}
 		if err := tx.NewSelect().Model(&item).
-			Where("id = ? AND tenant_id = ? AND conversation_id = ?", itemID, c.TenantID, c.ID).Scan(ctx); err != nil {
+			Where("id = ? AND tenant_id = ? AND conversation_id = ?", itemID, c.TenantID, c.ID).For("UPDATE").Scan(ctx); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return ErrNotFound.New()
 			}
@@ -89,11 +89,11 @@ func (a *EditMessage) Handle(ctx context.Context, sub identity.Subject, conversa
 				Where("conversation_id = ?", c.ID).Scan(ctx, &scope); err != nil {
 				return errors.Wrap(err, "load chat scope for edit")
 			}
-			if scope != ChatInternal {
+			if scope != ChatInternal && item.Kind != Note {
 				return ErrMessageNotEditable.New()
 			}
-		case Service:
-			// 服务型会话只开放内部备注；发给客户的消息已经送达，改动请发送更正
+		case Service, Ticket:
+			// 服务型会话和工单只开放内部备注；发给客户的消息已投递，改动请发送更正
 			if item.Kind != Note {
 				return ErrMessageNotEditable.New()
 			}
@@ -120,6 +120,30 @@ func (a *EditMessage) Handle(ctx context.Context, sub identity.Subject, conversa
 			VALUES (?, ?, ?, ?, ?, ?, ?)`,
 			item.ID, next, c.TenantID, c.ID, text, sub.ID, now()).Exec(ctx); err != nil {
 			return errors.Wrap(err, "insert message revision")
+		}
+		// 编辑正文后清除旧的语言识别和译文缓存，并通知关注编辑事件的下游（如翻译）按新正文重译
+		if item.Derived != nil {
+			_, hasLang := item.Derived["language"]
+			_, hasTr := item.Derived["translations"]
+			_, hasVer := item.Derived["verified_language"]
+			if hasLang || hasTr || hasVer {
+				delete(item.Derived, "language")
+				delete(item.Derived, "translations")
+				delete(item.Derived, "verified_language")
+				if _, err := tx.NewUpdate().Model((*Item)(nil)).Set("derived = ?", item.Derived).
+					Where("id = ? AND tenant_id = ?", item.ID, c.TenantID).Exec(ctx); err != nil {
+					return errors.Wrap(err, "clear stale translations on edit")
+				}
+			}
+		}
+		editedItem := item
+		editedItem.Content.Text = text
+		for _, sink := range a.down.Sinks {
+			if sink.OnEdit && sink.accepts(&editedItem) {
+				if err := sink.Topic.Publish(ctx, tx, Appended{TenantID: c.TenantID, ConversationID: c.ID, ItemID: item.ID, Seq: item.Seq}); err != nil {
+					return err
+				}
+			}
 		}
 		if err := SearchIndex.Sync(ctx, tx, item.ID); err != nil {
 			return err

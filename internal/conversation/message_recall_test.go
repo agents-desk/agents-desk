@@ -119,3 +119,89 @@ func TestRecallMessage(t *testing.T) {
 		t.Fatalf("发给客户的消息不能撤回：%v", err)
 	}
 }
+
+func TestRecallPreviewLeakPreventionAndChatExternalNotes(t *testing.T) {
+	t.Parallel()
+	env := apptest.New(t)
+	ctx := context.Background()
+	down := conversation.Downstream{Roles: env.Roles}
+
+	tn, err := tenant.NewCreate(env.DB, env.Roles, env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+		Name: "recall-prev", Slug: "recall-prev", OwnerEmail: "owner@recallp.com", OwnerName: "Owner", OwnerPassword: "password",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sys := identity.Subject{Type: identity.System, ID: "test", Tenant: tn.ID}
+	agentRole, err := env.Roles.RoleByName(ctx, "坐席", tn.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	alice, err := member.NewAdd(env.DB, env.Roles, env.MemberLogins, env.Files).Handle(ctx, sys, member.AddParams{
+		Email: "alice@recallp.com", Name: "Alice", Password: "password", RoleID: agentRole.ID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	aliceID := alice.ID
+	subOwner := identity.Subject{Type: member.Type, ID: tn.OwnerID, Tenant: tn.ID, Permissions: auth.WithBase(auth.Owner.Permissions)}
+	subAlice := identity.Subject{Type: member.Type, ID: alice.ID, Tenant: tn.ID, Permissions: auth.WithBase(auth.RolePermissions(auth.ScopeAll, nil))}
+
+	recall := conversation.NewRecallMessage(env.DB, down)
+
+	// 1. 内部聊天最后一条消息撤回后，列表 PreviewRecalled=true 且不泄露原文
+	chat, err := conversation.NewCreateDirectChat(env.DB, down).Handle(ctx, subOwner, conversation.CreateDirectChatParams{ParticipantID: alice.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	secretMsg, err := conversation.NewSendChatMessage(env.DB, down).Handle(ctx, subAlice, chat.ID, conversation.SendChatMessageBody{Text: "不能外泄的敏感消息"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := recall.Handle(ctx, subAlice, chat.ID, secretMsg.ID); err != nil {
+		t.Fatal(err)
+	}
+	chats, err := conversation.NewListChats(env.DB).Handle(ctx, subOwner, &conversation.ListChatsInput{})
+	if err != nil || len(chats.Items) != 1 {
+		t.Fatal(err)
+	}
+	if !chats.Items[0].PreviewRecalled || chats.Items[0].Preview != "" || chats.Items[0].PreviewAttachment != nil || chats.Items[0].PreviewUntranslated {
+		t.Fatalf("撤回最后一条消息后聊天列表不应泄露任何预览信息：%+v", chats.Items[0])
+	}
+
+	// 2. 外部商务聊天（ChatExternal）中的内部备注允许作者撤回，对外消息不能撤回
+	bizCh := &channel.Channel{
+		ID: "019a0000-0000-7000-8000-000000000202", TenantID: tn.ID, Kind: channel.BusinessLink,
+		Name: "Alice 商务专线", Settings: map[string]any{}, OwnerMemberID: &aliceID, Enabled: true,
+	}
+	if _, err := env.DB.NewInsert().Model(bizCh).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	reg := channel.DefaultRegistry()
+	reg[channel.BusinessLink] = channel.TestConnector{}
+	recBiz, err := conversation.NewReceive(env.DB, reg, down).Handle(ctx, sys, conversation.ReceiveParams{
+		ChannelID: bizCh.ID, From: "visitor:p-rec", FromName: "Partner", Text: "Hello",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bizMsg, err := conversation.NewSendChatMessage(env.DB, down).Handle(ctx, subAlice, recBiz.ConversationID, conversation.SendChatMessageBody{
+		Text: "Public reply",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := recall.Handle(ctx, subAlice, recBiz.ConversationID, bizMsg.ID); !errors.Is(err, conversation.ErrMessageNotEditable) {
+		t.Fatalf("外部商务聊天发给客户的消息不能撤回：%v", err)
+	}
+	bizNote, err := conversation.NewSendChatMessage(env.DB, down).Handle(ctx, subAlice, recBiz.ConversationID, conversation.SendChatMessageBody{
+		Text: "内部核对意见",
+		Note: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := recall.Handle(ctx, subAlice, recBiz.ConversationID, bizNote.ID); err != nil {
+		t.Fatalf("外部商务聊天中的内部备注应允许作者撤回：%v", err)
+	}
+}

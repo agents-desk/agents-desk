@@ -400,6 +400,11 @@ export const schemas = {
         "$ref": "#/components/schemas/ConversationReplyBody"
       },
     },
+    retry: {
+      body: {
+        "$ref": "#/components/schemas/ConversationRetryBody"
+      },
+    },
     search: {
       query: {
         "properties": {
@@ -2484,6 +2489,15 @@ export const components = {
       },
       "translation": {
         "$ref": "#/components/schemas/ConversationTranslation"
+      }
+    },
+    "type": "object"
+  },
+  ConversationRetryBody: {
+    "additionalProperties": false,
+    "properties": {
+      "skip_translation": {
+        "type": "boolean"
       }
     },
     "type": "object"

@@ -51,6 +51,7 @@ type ConversationDTO struct {
 	// PreviewItemID 和 PreviewUntranslated 让会话列表也按“看到时补译”：这一行出现在页面上时请求补译 PreviewItemID
 	PreviewItemID       string         `json:"preview_item_id,omitempty" doc:"最后一条消息的 ID，只在它还缺我的语言的译文时给出"`
 	PreviewUntranslated bool           `json:"preview_untranslated,omitempty" doc:"最后一条消息是对方发来、还缺我的语言的译文的：preview 是原文，页面看到这一行时请求补译"`
+	PreviewRecalled     bool           `json:"preview_recalled,omitempty" doc:"最后一条消息是否已撤回"`
 	Unread              bool           `json:"unread" doc:"有我还没读到的消息或内部备注（不算我自己写的）"`
 	ReadSeq             int64          `json:"read_seq" doc:"我读到的位置：序号不大于它的项已读；会话页在它之后显示“新消息”分隔线"`
 	MentionedAt         *time.Time     `json:"mentioned_at,omitempty" doc:"最近一次 @ 我的时间，只在“@我”的列表中有"`
@@ -78,6 +79,7 @@ type ItemDTO struct {
 	Attachments   []AttachmentDTO  `json:"attachments,omitempty" doc:"附带的图片和文件"`
 	Derived       map[string]any   `json:"derived" doc:"派生内容，例如按语言的译文，由后台补上"`
 	Delivery      *DeliveryStatus  `json:"delivery,omitempty" doc:"发给对方的消息的送达状态"`
+	DeliveryError string           `json:"delivery_error,omitempty" doc:"发给对方的消息送达失败时的原因"`
 	CreatedAt     time.Time        `json:"created_at"`
 	// Untranslated 只在读取时间线时给出，按读取的成员的语言
 	Untranslated bool `json:"untranslated,omitempty" doc:"对方发来、还没有我的语言的译文、也不是我的语言的消息：翻译可用时页面显示“翻译中”，并请求补译"`
@@ -133,8 +135,12 @@ func toItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Item) ([]I
 		return nil, errors.Wrap(err, "load deliveries")
 	}
 	status := make(map[string]DeliveryStatus, len(deliveries))
+	deliveryError := make(map[string]string)
 	for _, d := range deliveries {
 		status[d.ItemID] = d.Status
+		if d.Status == Failed && d.Error != "" {
+			deliveryError[d.ItemID] = d.Error
+		}
 	}
 	channels := map[string]channel.Summary{}
 	if len(chIDs) > 0 {
@@ -242,6 +248,9 @@ func toItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Item) ([]I
 		}
 		if s, ok := status[it.ID]; ok {
 			out[i].Delivery = &s
+			if errMsg := deliveryError[it.ID]; errMsg != "" {
+				out[i].DeliveryError = errMsg
+			}
 		}
 		if rev, ok := latestRevision[it.ID]; ok {
 			out[i].Content.Text = rev.Text
@@ -257,6 +266,7 @@ func toItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Item) ([]I
 			out[i].Attachments = nil
 			out[i].Derived = map[string]any{}
 			out[i].Delivery = nil
+			out[i].DeliveryError = ""
 		}
 		if corr, ok := correctedBy[it.ID]; ok {
 			by := corr.CorrectionItemID
@@ -392,6 +402,10 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 	if err != nil {
 		return nil, errors.Wrap(err, "load previews")
 	}
+	previewRecalled, err := applyPreviewProjections(ctx, db, lasts)
+	if err != nil {
+		return nil, err
+	}
 	previews := make(map[string]*Item, len(lasts))
 	lastIDs := make([]string, 0, len(lasts))
 	var previewExtUserIDs []string
@@ -462,10 +476,15 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 					actor.ExternalID = info.ExternalID
 				}
 			}
-			d.Preview, d.PreviewActor = previewText(p, sub.ID, language), &actor
-			d.PreviewAttachment = previewAttachments[p.ID]
-			if untranslated(p, sub.ID, language) {
-				d.PreviewItemID, d.PreviewUntranslated = p.ID, true
+			d.PreviewActor = &actor
+			if previewRecalled[p.ID] {
+				d.PreviewRecalled = true
+			} else {
+				d.Preview = previewText(p, sub.ID, language)
+				d.PreviewAttachment = previewAttachments[p.ID]
+				if untranslated(p, sub.ID, language) {
+					d.PreviewItemID, d.PreviewUntranslated = p.ID, true
+				}
 			}
 		}
 		if c.ChannelID != nil {
@@ -538,4 +557,45 @@ func previewText(it *Item, viewerID, language string) string {
 		}
 	}
 	return it.SourceText()
+}
+
+// applyPreviewProjections 批量加载列表最后一条消息 lasts 的撤回与最新编辑修订：
+// 已撤回的消息记录在返回集合中；未撤回但编辑过的消息就地替换为最新修订正文。
+func applyPreviewProjections(ctx context.Context, db bun.IDB, lasts []Item) (map[string]bool, error) {
+	recalled := map[string]bool{}
+	if len(lasts) == 0 {
+		return recalled, nil
+	}
+	ids := make([]string, len(lasts))
+	for i := range lasts {
+		ids[i] = lasts[i].ID
+	}
+	var recallIDs []string
+	if err := db.NewRaw(`SELECT item_id FROM message_recalls WHERE item_id IN (?)`, bun.In(ids)).Scan(ctx, &recallIDs); err != nil {
+		return nil, errors.Wrap(err, "load preview recalls")
+	}
+	for _, id := range recallIDs {
+		recalled[id] = true
+	}
+	var revisions []struct {
+		ItemID string `bun:"item_id"`
+		Text   string `bun:"text"`
+	}
+	if err := db.NewRaw(`SELECT DISTINCT ON (item_id) item_id, text
+		FROM message_revisions WHERE item_id IN (?) ORDER BY item_id, revision DESC`, bun.In(ids)).Scan(ctx, &revisions); err != nil {
+		return nil, errors.Wrap(err, "load preview revisions")
+	}
+	revByItem := make(map[string]string, len(revisions))
+	for _, r := range revisions {
+		revByItem[r.ItemID] = r.Text
+	}
+	for i := range lasts {
+		if recalled[lasts[i].ID] {
+			continue
+		}
+		if text, ok := revByItem[lasts[i].ID]; ok {
+			lasts[i].Content.Text = text
+		}
+	}
+	return recalled, nil
 }

@@ -1,8 +1,10 @@
 import type { ConversationActor, ConversationItemDTO } from "@agents-desk/client/tenant"
-import { ActionIcon, Anchor, Avatar, Box, CopyButton, Group, Loader, Paper, Text, ThemeIcon, Tooltip, UnstyledButton } from "@mantine/core"
-import { IconCheck, IconCopy, IconInfoCircle, IconLanguage, IconLock, IconRobot } from "@tabler/icons-react"
-import { useLanguage, useT } from "@go-tenon/ui"
+import { ActionIcon, Anchor, Avatar, Box, Button, CopyButton, Group, Loader, Modal, Paper, Text, Textarea, ThemeIcon, Tooltip, UnstyledButton } from "@mantine/core"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { IconArrowBackUp, IconCheck, IconCopy, IconInfoCircle, IconLanguage, IconLock, IconPencil, IconRobot } from "@tabler/icons-react"
+import { notifyError, useLanguage, useT } from "@go-tenon/ui"
 import { Fragment, type ReactNode, useEffect, useRef, useState } from "react"
+import { kit, tenantApi } from "../api"
 import { ContactAvatar, type ContactLabel } from "../contacts/display"
 import { languageName } from "../languages"
 import { type LightboxImage, MessageAttachments } from "./Attachments"
@@ -600,15 +602,39 @@ export function TimelineNote({
 }): ReactNode {
   const t = useT()
   const ui = useLanguage()
+  const queryClient = useQueryClient()
   const [showOriginal, setShowOriginal] = useState(false)
   const [showVerified, setShowVerified] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editText, setEditText] = useState("")
+  const [recalling, setRecalling] = useState(false)
 
+  const edit = useMutation({
+    mutationFn: (text: string) => tenantApi.conversation.itemEdit(conversationId, it.id, { text }),
+    onSuccess: () => {
+      setEditing(false)
+      void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
+      void queryClient.invalidateQueries({ queryKey: kit.queries.chat.key() })
+    },
+    onError: (err) => notifyError(err),
+  })
+  const recall = useMutation({
+    mutationFn: () => tenantApi.conversation.itemRecall(conversationId, it.id),
+    onSuccess: () => {
+      setRecalling(false)
+      void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
+      void queryClient.invalidateQueries({ queryKey: kit.queries.chat.key() })
+    },
+    onError: (err) => notifyError(err),
+  })
+
+  const recalled = Boolean(it.recalled)
   const raw = it.content.text ?? ""
-  const translated = isOwn ? undefined : translationOf(it, lang)
-  const verified = isOwn ? verifiedTranslationOf(it) : undefined
-  const shown = translated && !showOriginal ? translated : raw
+  const translated = !recalled && !isOwn ? translationOf(it, lang) : undefined
+  const verified = !recalled && isOwn ? verifiedTranslationOf(it) : undefined
+  const shown = recalled ? "" : translated && !showOriginal ? translated : raw
   const fromLang = it.derived.language as string | undefined
-  const needFill = !isOwn && translating && it.untranslated
+  const needFill = !recalled && !isOwn && translating && it.untranslated
 
   const caption = (
     <TranslationCaption
@@ -624,52 +650,125 @@ export function TimelineNote({
   )
 
   return (
-    <Paper
-      ref={needFill ? watch(it.id) : undefined}
-      mt={mt}
-      px="sm"
-      py={8}
-      radius="md"
-      bg="var(--mantine-color-yellow-light)"
-      data-seq={it.seq}
-      className={focused ? "inbox-note inbox-focus-pulse" : "inbox-note"}
-    >
-      <Group gap={6} mb={4} wrap="nowrap">
-        <IconLock size={12} className="inbox-note-accent" style={{ flex: "none" }} />
-        {avatar}
-        <Text size="xs" fw={600} className="inbox-note-accent">
-          {t("inbox.note_by", { who: author })}
-        </Text>
-        <Tooltip label={fullTime} openDelay={300}>
-          <Text fz={11} className="inbox-note-accent" opacity={0.8} style={{ fontVariantNumeric: "tabular-nums" }}>
-            {time}
+    <>
+      <Paper
+        ref={needFill ? watch(it.id) : undefined}
+        mt={mt}
+        px="sm"
+        py={8}
+        radius="md"
+        bg="var(--mantine-color-yellow-light)"
+        data-seq={it.seq}
+        className={focused ? "inbox-note inbox-focus-pulse" : "inbox-note"}
+      >
+        <Group gap={6} mb={4} wrap="nowrap">
+          <IconLock size={12} className="inbox-note-accent" style={{ flex: "none" }} />
+          {avatar}
+          <Text size="xs" fw={600} className="inbox-note-accent">
+            {t("inbox.note_by", { who: author })}
           </Text>
-        </Tooltip>
-        {shown && (
-          <Box ml="auto" className="inbox-note-actions">
-            <CopyAction value={shown} />
-          </Box>
-        )}
-      </Group>
-
-      {shown && <MessageText text={shown} highlight={highlight} mentions mentionClassName="inbox-note-accent" />}
-      <MessageAttachments conversationId={conversationId} attachments={it.attachments} hasText={Boolean(shown)} onPreview={onPreview} />
-
-      {verified && showVerified && (
-        <Box mt={6} pt={6} className="inbox-sent-translation">
-          <Text size="xs" c="dimmed">
-            {t("inbox.sent_translation", { lang: languageName(verified.language, ui) })}
-          </Text>
-          <MessageText text={verified.text} highlight={highlight} mentions mentionClassName="inbox-note-accent" />
-        </Box>
-      )}
-
-      {(translated || needFill || verified) && (
-        <Group gap={4} mt={4} wrap="wrap">
-          {caption}
+          <Tooltip label={fullTime} openDelay={300}>
+            <Text fz={11} className="inbox-note-accent" opacity={0.8} style={{ fontVariantNumeric: "tabular-nums" }}>
+              {time}
+            </Text>
+          </Tooltip>
+          {Boolean(it.revision) && !recalled && (
+            <Text fz={11} c="dimmed">
+              · {t("inbox.message_edited")}
+            </Text>
+          )}
+          {!recalled && (shown || isOwn) && (
+            <Group gap={2} ml="auto" wrap="nowrap" className="inbox-note-actions">
+              {isOwn && (
+                <>
+                  <Tooltip label={t("inbox.message_edit")} openDelay={250}>
+                    <ActionIcon
+                      variant="subtle"
+                      color="gray"
+                      size={20}
+                      aria-label={t("inbox.message_edit")}
+                      onClick={() => {
+                        setEditText(raw)
+                        setEditing(true)
+                      }}
+                    >
+                      <IconPencil size={12} />
+                    </ActionIcon>
+                  </Tooltip>
+                  <Tooltip label={t("inbox.message_recall")} openDelay={250}>
+                    <ActionIcon
+                      variant="subtle"
+                      color="gray"
+                      size={20}
+                      aria-label={t("inbox.message_recall")}
+                      onClick={() => setRecalling(true)}
+                    >
+                      <IconArrowBackUp size={12} />
+                    </ActionIcon>
+                  </Tooltip>
+                </>
+              )}
+              {shown && <CopyAction value={shown} />}
+            </Group>
+          )}
         </Group>
-      )}
-    </Paper>
+
+        {recalled ? (
+          <Text size="sm" c="dimmed" fs="italic">
+            {t("inbox.note_recalled")}
+          </Text>
+        ) : (
+          <>
+            {shown && <MessageText text={shown} highlight={highlight} mentions mentionClassName="inbox-note-accent" />}
+            <MessageAttachments conversationId={conversationId} attachments={it.attachments} hasText={Boolean(shown)} onPreview={onPreview} />
+
+            {verified && showVerified && (
+              <Box mt={6} pt={6} className="inbox-sent-translation">
+                <Text size="xs" c="dimmed">
+                  {t("inbox.sent_translation", { lang: languageName(verified.language, ui) })}
+                </Text>
+                <MessageText text={verified.text} highlight={highlight} mentions mentionClassName="inbox-note-accent" />
+              </Box>
+            )}
+
+            {(translated || needFill || verified) && (
+              <Group gap={4} mt={4} wrap="wrap">
+                {caption}
+              </Group>
+            )}
+          </>
+        )}
+      </Paper>
+      <Modal opened={editing} onClose={() => setEditing(false)} title={t("inbox.note_edit_title")} centered>
+        <Textarea
+          value={editText}
+          onChange={(e) => setEditText(e.currentTarget.value)}
+          autosize
+          minRows={3}
+          maxRows={10}
+          data-autofocus
+        />
+        <Group justify="flex-end" mt="md">
+          <Button variant="default" onClick={() => setEditing(false)}>
+            {t("inbox.cancel")}
+          </Button>
+          <Button onClick={() => edit.mutate(editText.trim())} loading={edit.isPending} disabled={!editText.trim()}>
+            {t("inbox.message_edit_save")}
+          </Button>
+        </Group>
+      </Modal>
+      <Modal opened={recalling} onClose={() => setRecalling(false)} title={t("inbox.note_recall_title")} centered>
+        <Text size="sm">{t("inbox.note_recall_confirm")}</Text>
+        <Group justify="flex-end" mt="md">
+          <Button variant="default" onClick={() => setRecalling(false)}>
+            {t("inbox.cancel")}
+          </Button>
+          <Button color="red" onClick={() => recall.mutate()} loading={recall.isPending}>
+            {t("inbox.message_recall")}
+          </Button>
+        </Group>
+      </Modal>
+    </>
   )
 }
 

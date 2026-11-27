@@ -102,8 +102,9 @@ func AutoTranslateFunc(db *bun.DB, translator *Translator, incoming *Incoming) c
 		to := req.Language
 		if to == "" {
 			var convLang string
-			err := db.NewRaw(`SELECT COALESCE(NULLIF(ct.language, ''), c.language) FROM conversations c
+			err := db.NewRaw(`SELECT COALESCE(NULLIF(ct.language, ''), NULLIF(eg.language, ''), c.language) FROM conversations c
 				LEFT JOIN contacts ct ON ct.id = c.contact_id AND ct.tenant_id = c.tenant_id
+				LEFT JOIN external_groups eg ON eg.id = c.external_group_id AND eg.tenant_id = c.tenant_id
 				WHERE c.id = ? AND c.tenant_id = ?`, req.ConversationID, req.TenantID).Scan(ctx, &convLang)
 			if err != nil {
 				return "", "", false, errors.Wrap(err, "load conversation language for auto translate")
@@ -232,7 +233,7 @@ func (a *Preview) detectInternalLanguage(ctx context.Context, tenant string, c *
 			}
 		}
 		if len(ids) > 0 {
-			return a.mostCommonMemberLanguage(ctx, ids, from)
+			return a.mostCommonMemberLanguage(ctx, tenant, ids, from)
 		}
 	}
 
@@ -268,7 +269,7 @@ func (a *Preview) detectInternalLanguage(ctx context.Context, tenant string, c *
 	for _, id := range partIDs {
 		add(id)
 	}
-	if l, err := a.mostCommonMemberLanguage(ctx, peerIDs, from); err != nil || l != "" {
+	if l, err := a.mostCommonMemberLanguage(ctx, tenant, peerIDs, from); err != nil || l != "" {
 		return l, err
 	}
 
@@ -285,13 +286,13 @@ func (a *Preview) detectInternalLanguage(ctx context.Context, tenant string, c *
 				filtered = append(filtered, id)
 			}
 		}
-		return a.mostCommonMemberLanguage(ctx, filtered, from)
+		return a.mostCommonMemberLanguage(ctx, tenant, filtered, from)
 	}
 	return "", nil
 }
 
-// mostCommonMemberLanguage 从一组未停用成员 ID 中选出最常见且与 from 不同的沟通语言；没有异语成员时返回空字符串。
-func (a *Preview) mostCommonMemberLanguage(ctx context.Context, memberIDs []string, from string) (string, error) {
+// mostCommonMemberLanguage 从工作区 tenant 的一组未停用成员 ID 中选出最常见且与 from 不同的沟通语言；没有异语成员时返回空字符串。
+func (a *Preview) mostCommonMemberLanguage(ctx context.Context, tenant string, memberIDs []string, from string) (string, error) {
 	if len(memberIDs) == 0 {
 		return "", nil
 	}
@@ -299,8 +300,9 @@ func (a *Preview) mostCommonMemberLanguage(ctx context.Context, memberIDs []stri
 		ID       string `bun:"id"`
 		Language string `bun:"language"`
 	}
-	if err := a.db.NewSelect().Table("members").Column("id", "language").
-		Where("id IN (?) AND disabled_at IS NULL", bun.In(memberIDs)).Scan(ctx, &rows); err != nil {
+	if err := a.db.NewSelect().TableExpr("members AS m").ColumnExpr("DISTINCT m.id, m.language").
+		Join("JOIN authz_assignments a ON a.subject_type = 'member' AND a.subject_id = m.id::text AND a.tenant = ?", tenant).
+		Where("m.id IN (?) AND m.disabled_at IS NULL", bun.In(memberIDs)).Scan(ctx, &rows); err != nil {
 		return "", errors.Wrap(err, "load member languages")
 	}
 	byID := make(map[string]string, len(rows))
@@ -346,7 +348,9 @@ func (a *Preview) detectTicketCustomerLanguage(ctx context.Context, tenant, tick
 func (a *Preview) detect(ctx context.Context, sub identity.Subject, id, memberLang string) (string, error) {
 	var ids []string
 	err := a.db.NewSelect().Table("timeline_items").Column("id").
-		Where("tenant_id = ? AND conversation_id = ? AND kind = ? AND actor_type = ? AND visibility = ?", sub.Tenant, id, conversation.Message, conversation.ContactActor, conversation.Everyone).
+		Where("tenant_id = ? AND conversation_id = ? AND kind = ? AND actor_type IN (?) AND visibility = ?",
+			sub.Tenant, id, conversation.Message, bun.In([]conversation.ActorType{conversation.ContactActor, conversation.ExternalUserActor}), conversation.Everyone).
+		Where("NOT EXISTS (SELECT 1 FROM message_recalls rc WHERE rc.item_id = timeline_items.id)").
 		Where("content->>'text' <> '' AND COALESCE(derived->>'language', '') = ''").
 		OrderExpr("seq DESC").Limit(3).Scan(ctx, &ids)
 	if err != nil {

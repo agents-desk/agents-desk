@@ -94,6 +94,7 @@ type ChatDTO struct {
 	PreviewAttachment   *PreviewAttachment   `json:"preview_attachment,omitempty"`
 	PreviewItemID       string               `json:"preview_item_id,omitempty"`
 	PreviewUntranslated bool                 `json:"preview_untranslated,omitempty"`
+	PreviewRecalled     bool                 `json:"preview_recalled,omitempty" doc:"最后一条消息是否已撤回"`
 	Match               *SearchMatch         `json:"match,omitempty" doc:"按关键词搜索聊天记录时命中的代表性消息与高亮摘要"`
 	MatchCount          int                  `json:"match_count,omitempty" doc:"按关键词搜索时该聊天中命中的消息总条数"`
 	LastMessageAt       time.Time            `json:"last_message_at"`
@@ -278,6 +279,10 @@ func toChatDTOs(ctx context.Context, db bun.IDB, files *filesystem.Service, sub 
 	if err != nil {
 		return nil, errors.Wrap(err, "load chat previews")
 	}
+	previewRecalled, err := applyPreviewProjections(ctx, db, lasts)
+	if err != nil {
+		return nil, err
+	}
 	previews := make(map[string]*Item, len(lasts))
 	lastIDs := make([]string, 0, len(lasts))
 	var previewExtUserIDs []string
@@ -412,7 +417,6 @@ func toChatDTOs(ctx context.Context, db bun.IDB, files *filesystem.Service, sub 
 			dto.Participants = list
 		}
 		if p := previews[c.ID]; p != nil {
-			dto.Preview = previewText(p, sub.ID, language)
 			actor := Actor{Type: p.ActorType, ID: p.ActorID}
 			switch p.ActorType {
 			case ContactActor:
@@ -426,10 +430,15 @@ func toChatDTOs(ctx context.Context, db bun.IDB, files *filesystem.Service, sub 
 				}
 			}
 			dto.PreviewActor = &actor
-			dto.PreviewAttachment = previewAttachments[p.ID]
-			if untranslated(p, sub.ID, language) {
-				dto.PreviewItemID = p.ID
-				dto.PreviewUntranslated = true
+			if previewRecalled[p.ID] {
+				dto.PreviewRecalled = true
+			} else {
+				dto.Preview = previewText(p, sub.ID, language)
+				dto.PreviewAttachment = previewAttachments[p.ID]
+				if untranslated(p, sub.ID, language) {
+					dto.PreviewItemID = p.ID
+					dto.PreviewUntranslated = true
+				}
 			}
 		}
 		out[i] = dto

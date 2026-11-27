@@ -60,13 +60,9 @@ func (a *Incoming) Job(ctx context.Context, p conversation.Appended) error {
 			return err
 		}
 	}
-	var it conversation.Item
-	err := a.db.NewSelect().Model(&it).Where("id = ? AND tenant_id = ?", p.ItemID, p.TenantID).Scan(ctx)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil
-	}
-	if err != nil {
-		return errors.Wrap(err, "load timeline item for job")
+	it, active, err := loadLatestItemForTranslation(ctx, a.db, p.TenantID, p.ItemID)
+	if err != nil || !active {
+		return err
 	}
 	if it.Kind == conversation.Event {
 		switch it.Content.Event {
@@ -95,7 +91,7 @@ func (a *Incoming) Job(ctx context.Context, p conversation.Appended) error {
 	if isBiz && bp.AutoTranslate != nil && !*bp.AutoTranslate {
 		return nil
 	}
-	targets, err := a.itemPretranslateLanguages(ctx, p.TenantID, &it)
+	targets, err := a.itemPretranslateLanguages(ctx, p.TenantID, it)
 	if err != nil {
 		return err
 	}
@@ -189,8 +185,9 @@ func conversationMemberLanguages(ctx context.Context, db bun.IDB, tenant, conver
 		return nil, nil
 	}
 	var langs []string
-	if err := db.NewSelect().Table("members").Column("language").
-		Where("id IN (?) AND disabled_at IS NULL AND language <> ''", bun.In(memberIDs)).
+	if err := db.NewSelect().TableExpr("members AS m").Column("m.language").
+		Join("JOIN authz_assignments a ON a.subject_type = 'member' AND a.subject_id = m.id::text AND a.tenant = ?", tenant).
+		Where("m.id IN (?) AND m.disabled_at IS NULL AND m.language <> ''", bun.In(memberIDs)).
 		Scan(ctx, &langs); err != nil {
 		return nil, errors.Wrap(err, "load audience member languages")
 	}
@@ -244,13 +241,9 @@ func (a *Incoming) Ensure(ctx context.Context, tenant, itemID string, targets []
 	}
 	defer func() { _ = lk.Release(context.WithoutCancel(ctx)) }()
 
-	var it conversation.Item
-	err = a.db.NewSelect().Model(&it).Where("id = ? AND tenant_id = ?", itemID, tenant).Scan(ctx)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil
-	}
-	if err != nil {
-		return errors.Wrap(err, "load timeline item")
+	it, active, err := loadLatestItemForTranslation(ctx, a.db, tenant, itemID)
+	if err != nil || !active {
+		return err
 	}
 	if !it.Translatable() {
 		return nil
@@ -263,7 +256,7 @@ func (a *Incoming) Ensure(ctx context.Context, tenant, itemID string, targets []
 	var translated conversation.Translated
 	if source != "" {
 		// 已经识别过源语言：只补译缺的语言，不重新识别
-		translations, err := a.translator.Translate(ctx, tenant, &it, source, missing)
+		translations, err := a.translator.Translate(ctx, tenant, it, source, missing)
 		if errors.Is(err, llm.ErrNotConfigured) {
 			slog.DebugContext(ctx, "translation is not configured, skip", "item", it.ID)
 			return nil
@@ -287,7 +280,7 @@ func (a *Incoming) Ensure(ctx context.Context, tenant, itemID string, targets []
 				return errors.Wrap(err, "load conversation language")
 			}
 		}
-		detected, translations, err := a.translator.Incoming(ctx, tenant, &it, usual, missing)
+		detected, translations, err := a.translator.Incoming(ctx, tenant, it, usual, missing)
 		if errors.Is(err, llm.ErrNotConfigured) {
 			slog.DebugContext(ctx, "translation is not configured, skip", "item", it.ID)
 			return nil
@@ -298,6 +291,34 @@ func (a *Incoming) Ensure(ctx context.Context, tenant, itemID string, targets []
 		translated = conversation.Translated{Language: detected, Translations: translations}
 	}
 	return conversation.SaveTranslation(ctx, a.db, a.down, tenant, it.ID, translated)
+}
+
+// loadLatestItemForTranslation 读取待翻译的时间线项并叠加撤回与最新编辑修订：
+// 已撤回时返回 active=false；若存在修订记录则用最新正文覆盖 Content.Text。
+func loadLatestItemForTranslation(ctx context.Context, db bun.IDB, tenant, itemID string) (*conversation.Item, bool, error) {
+	var it conversation.Item
+	err := db.NewSelect().Model(&it).Where("id = ? AND tenant_id = ?", itemID, tenant).Scan(ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, errors.Wrap(err, "load timeline item")
+	}
+	recalled, err := db.NewSelect().Table("message_recalls").Where("item_id = ?", it.ID).Exists(ctx)
+	if err != nil {
+		return nil, false, errors.Wrap(err, "check message recall before translation")
+	}
+	if recalled {
+		return nil, false, nil
+	}
+	var revText string
+	err = db.NewRaw(`SELECT text FROM message_revisions WHERE item_id = ? ORDER BY revision DESC LIMIT 1`, it.ID).Scan(ctx, &revText)
+	if err == nil && revText != "" {
+		it.Content.Text = revText
+	} else if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, false, errors.Wrap(err, "load latest revision for translation")
+	}
+	return &it, true, nil
 }
 
 // RegisterJobs 在 worker 上登记翻译收到的消息、补译与工单公开进度广播任务。

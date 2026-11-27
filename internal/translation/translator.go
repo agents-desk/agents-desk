@@ -134,29 +134,40 @@ const (
 	historyEach     = 300  // 每条的长度上限（字符），超出的截断
 )
 
-// history 返回会话 conversationID 中序号小于 before 的最近几条消息（对所有人可见、有文字的消息），写成提示中的一段参考：
-// 按时间先后，每行“Customer: ……”或“Support: ……”。before 为 0 时取最近的。没有时返回空字符串。
+// history 返回会话 conversationID 中序号小于 before 的最近几条消息（对所有人可见、未撤回、合并最新编辑修订的有文字消息），
+// 按时间先后每行写成“Customer: ……”或“Support: ……”。before 为 0 时取最近的。没有时返回空字符串。
 func (tr *Translator) history(ctx context.Context, tenant, conversationID string, before int64) (string, error) {
-	q := tr.db.NewSelect().Model((*conversation.Item)(nil)).Column("actor_type", "content").
-		Where("tenant_id = ? AND conversation_id = ? AND kind = ? AND visibility = ? AND actor_type <> ?",
+	q := tr.db.NewSelect().TableExpr("timeline_items AS t").
+		Column("t.actor_type").
+		ColumnExpr("COALESCE(rev.text, t.content->>'text', '') AS text").
+		Join(`LEFT JOIN LATERAL (
+			SELECT mr.text FROM message_revisions mr
+			WHERE mr.item_id = t.id ORDER BY mr.revision DESC LIMIT 1
+		) rev ON true`).
+		Where("t.tenant_id = ? AND t.conversation_id = ? AND t.kind = ? AND t.visibility = ? AND t.actor_type <> ?",
 			tenant, conversationID, conversation.Message, conversation.Everyone, conversation.SystemActor).
-		Where("content->>'text' <> ''").OrderExpr("seq DESC").Limit(historyMessages)
+		Where("NOT EXISTS (SELECT 1 FROM message_recalls rc WHERE rc.item_id = t.id)").
+		Where("COALESCE(rev.text, t.content->>'text', '') <> ''").
+		OrderExpr("t.seq DESC").Limit(historyMessages)
 	if before > 0 {
-		q = q.Where("seq < ?", before)
+		q = q.Where("t.seq < ?", before)
 	}
-	var items []conversation.Item
-	if err := q.Scan(ctx, &items); err != nil {
+	var rows []struct {
+		ActorType conversation.ActorType `bun:"actor_type"`
+		Text      string                 `bun:"text"`
+	}
+	if err := q.Scan(ctx, &rows); err != nil {
 		return "", errors.Wrap(err, "load conversation history")
 	}
 	var lines []string // 从最近的往前
 	total := 0
-	for _, it := range items {
-		text := strings.Join(strings.Fields(it.Content.Text), " ")
+	for _, row := range rows {
+		text := strings.Join(strings.Fields(row.Text), " ")
 		if r := []rune(text); len(r) > historyEach {
 			text = string(r[:historyEach]) + "…"
 		}
 		who := "Support"
-		if it.ActorType == conversation.ContactActor {
+		if row.ActorType.IsExternal() {
 			who = "Customer"
 		}
 		line := who + ": " + text

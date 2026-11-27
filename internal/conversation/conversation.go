@@ -428,10 +428,11 @@ type AutoTranslator func(ctx context.Context, req AutoTranslateJob) (text, langu
 
 // Sink 是一个下游：交给 worker 的队列（每个队列各自重试），以及这一项要不要交给它。
 // Accept 为 nil 时每一项都交给它；否则只把它关心的项交给它，例如投递只看发给对方的消息，
-// 内部聊天的消息因此不会给每个下游都产生一个任务。
+// 内部聊天的消息因此不会给每个下游都产生一个任务。OnEdit 为 true 时消息被编辑后也会发布重处理任务。
 type Sink struct {
 	Topic  queue.Topic[Appended]
 	Accept func(*Item) bool
+	OnEdit bool
 }
 
 // accepts 报告时间线项 it 是否应该交给这个下游。

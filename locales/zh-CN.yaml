@@ -295,6 +295,7 @@ conversation.not_closed: 会话还没有关闭，关闭后才能评价
 conversation.rating_not_requested: 这个会话没有开启关闭后评价
 conversation.already_rated: 这次已经评价过了
 conversation.not_failed: 这条消息没有发送失败，不用重发
+conversation.auto_translate_failed: 自动翻译失败，消息尚未发出，请重试翻译或按原文发送
 conversation.closed: 会话已经关闭，先重新打开
 conversation.already_assigned: 这个会话已经被别人领取了
 conversation.invalid_language: 不是有效的语言，请从列表中选择，或者输入语言标签，例如 hi-Latn

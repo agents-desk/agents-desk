@@ -651,7 +651,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                 {others.map((x) => (
                   <UnstyledButton key={x.id} onClick={() => onOpen(x.id)} className="inbox-history" px={6} py={5} style={{ width: "100%" }}>
                     <Text size="sm" truncate>
-                      {previewSummary(x.preview, x.preview_attachment, t) || "—"}
+                      {previewSummary(x.preview, x.preview_attachment, t, x.preview_recalled) || "—"}
                     </Text>
                     <Group gap={5} wrap="nowrap" mt={2}>
                       {x.channel && <ChannelIcon kind={x.channel.kind} size={11} />}

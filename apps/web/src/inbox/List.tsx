@@ -838,7 +838,7 @@ function Row({
                       {t("inbox.said", { who })}
                     </Text>
                   )}
-                  {c.preview || "\u00A0"}
+                  {c.preview_recalled ? t("inbox.message_recalled") : c.preview || "\u00A0"}
                 </>
               )}
             </Text>

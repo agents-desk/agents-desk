@@ -210,7 +210,9 @@ export function previewSummary(
   preview: string,
   attachment: ConversationPreviewAttachment | undefined,
   t: ReturnType<typeof useT>,
+  recalled?: boolean,
 ): string {
+  if (recalled) return t("inbox.message_recalled")
   if (!attachment) return preview
   const label =
     attachment.kind === "image"

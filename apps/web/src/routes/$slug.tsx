@@ -76,6 +76,7 @@ function TenantLayout() {
   const centrifuge = useRealtime(tenant.slug, tenant.id, user.data?.id, ({ type, id, alert }) => {
     dispatchPushAlert({
       slug: tenant.slug,
+      kind: type,
       conversationId: id,
       alert,
       settings: user.data?.notifications,

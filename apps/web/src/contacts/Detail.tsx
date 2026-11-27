@@ -216,7 +216,7 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
                           lineClamp={2}
                           style={{ flex: 1, minWidth: 0 }}
                         >
-                          {previewSummary(conv.preview, conv.preview_attachment, t) || "—"}
+                          {previewSummary(conv.preview, conv.preview_attachment, t, conv.preview_recalled) || "—"}
                         </Text>
                         <Text
                           size="xs"

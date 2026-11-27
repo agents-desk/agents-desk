@@ -1076,3 +1076,118 @@ func TestTranslationFeatureFlagOff(t *testing.T) {
 		t.Fatalf("关闭 ai.translation 后不应调用翻译模型：text=%q needed=%v calls=%d err=%v", outText, needed, f.model.count(), err)
 	}
 }
+
+func TestEditRecallHistoryExternalGroupAndCrossTenantMentions(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	f := setup(t, true)
+	f.model.language = "hi-Latn"
+
+	// 1. 建立第二工作区 Beta 及其 en 成员，验证跨租户 mentions IDOR 防护
+	tnB, err := tenant.NewCreate(f.env.DB, f.env.Roles, f.env.MemberLogins, tenant.Addresses{}).Handle(ctx, apptest.Admin, tenant.CreateParams{
+		Name: "beta", Slug: "beta", OwnerEmail: "owner@beta.com", OwnerName: "BetaOwner", OwnerPassword: "password",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.env.DB.NewRaw("UPDATE members SET language = 'en' WHERE id = ?", tnB.OwnerID).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	incoming := NewIncoming(f.env.DB, f.locker, f.translator, f.down)
+	preview := NewPreview(f.env.DB, f.translator, incoming)
+
+	// 在 alpha 内部聊天中 @ beta 工作区的英文成员：必须被租户隔离过滤，不能推断出英文
+	chat, err := conversation.NewCreateDirectChat(f.env.DB, f.down).Handle(ctx, f.agent, conversation.CreateDirectChatParams{ParticipantID: f.agent.ID})
+	if err == nil {
+		_ = chat
+	}
+	// 用 alpha 服务型会话的内部模式测 mentions 隔离
+	cust := f.receive(t, "c-idor", "hello")
+	prevOut, err := preview.Handle(ctx, f.agent, cust.ConversationID, PreviewBody{
+		Text:     "跨租户探测",
+		Mode:     PreviewInternal,
+		Mentions: []string{tnB.OwnerID},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if prevOut.Needed || prevOut.Language != "" {
+		t.Fatalf("跨租户 mentions 不应泄露他租户成员语言：%+v", prevOut)
+	}
+
+	// 2. 编辑内部备注后重译应读最新修订正文；撤回后应跳过翻译，history() 也应使用修订正文、排除撤回并包含 ExternalUserActor
+	note, err := conversation.NewAddNote(f.env.DB, f.down).Handle(ctx, f.agent, cust.ConversationID, "备注原文 v1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	edit := conversation.NewEditMessage(f.env.DB, f.down)
+	if _, err := edit.Handle(ctx, f.agent, cust.ConversationID, note.ID, "备注修改后 v2"); err != nil {
+		t.Fatal(err)
+	}
+	beforeCalls := f.model.count()
+	if err := incoming.Job(ctx, conversation.Appended{TenantID: f.system.Tenant, ConversationID: cust.ConversationID, ItemID: note.ID, Seq: note.Seq}); err != nil {
+		t.Fatal(err)
+	}
+	if f.model.count() != beforeCalls+1 {
+		t.Fatalf("编辑后重译应调用模型 1 次")
+	}
+	_, lastUser := f.model.last("incoming_translation")
+	if lastUser != "备注修改后 v2" {
+		t.Fatalf("重译应使用最新修订正文，实际 %q", lastUser)
+	}
+
+	// 撤回后调用 Incoming.Job 不再调用模型
+	if err := conversation.NewRecallMessage(f.env.DB, f.down).Handle(ctx, f.agent, cust.ConversationID, note.ID); err != nil {
+		t.Fatal(err)
+	}
+	afterRecallBefore := f.model.count()
+	if err := incoming.Job(ctx, conversation.Appended{TenantID: f.system.Tenant, ConversationID: cust.ConversationID, ItemID: note.ID, Seq: note.Seq}); err != nil {
+		t.Fatal(err)
+	}
+	if f.model.count() != afterRecallBefore {
+		t.Fatalf("已撤回消息不应触发翻译")
+	}
+
+	// 3. 外部群会话（ExternalUserActor + external_groups.language）：
+	//    Preview.detect 识别 ExternalUserActor、AutoTranslateFunc 读取 external_groups.language，且 history() 正确标注 ExternalUserActor 为 Customer
+	grpCh, err := channel.NewCreate(f.env.DB).Handle(ctx, f.system, channel.CreateParams{Kind: channel.Telegram, Name: "群机器人"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reg := channel.DefaultRegistry()
+	reg[channel.Telegram] = channel.TestConnector{}
+	grpRec1, err := conversation.NewReceive(f.env.DB, reg, f.down).Handle(ctx, f.system, conversation.ReceiveParams{
+		ChannelID: grpCh.ID, From: "eu-1", FromName: "Ali", ExternalChatID: "tg-ext-group-1", IsGroup: true, ChatTitle: "VIP 外部群", Text: "mera order pending hai",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	grpRec2, err := conversation.NewReceive(f.env.DB, reg, f.down).Handle(ctx, f.system, conversation.ReceiveParams{
+		ChannelID: grpCh.ID, From: "eu-1", FromName: "Ali", ExternalChatID: "tg-ext-group-1", IsGroup: true, ChatTitle: "VIP 外部群", Text: "kab milega?",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 测试 Preview.detect 能查到 ExternalUserActor 的未识别消息并更新群语言为 hi-Latn
+	f.model.language = "hi-Latn"
+	detectedLang, err := preview.detect(ctx, f.agent, grpRec2.ConversationID, "zh-CN")
+	if err != nil || detectedLang != "hi-Latn" {
+		t.Fatalf("Preview.detect 应识别外部群 ExternalUserActor 消息语言为 hi-Latn，实际 lang=%q err=%v", detectedLang, err)
+	}
+	// 清空 conversations.language 仅保留 external_groups.language 验证 AutoTranslateFunc 联合回退查询
+	if _, err := f.env.DB.NewRaw("UPDATE conversations SET language = '' WHERE id = ?", grpRec2.ConversationID).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	autoFn := AutoTranslateFunc(f.env.DB, f.translator, incoming)
+	if _, resolvedLang, needed, err := autoFn(ctx, conversation.AutoTranslateJob{
+		TenantID: f.system.Tenant, ConversationID: grpRec2.ConversationID, MemberID: f.agent.ID, Text: "马上为您加急处理",
+	}); err != nil || !needed || resolvedLang != "hi-Latn" {
+		t.Fatalf("AutoTranslateFunc 应读取 external_groups.language=hi-Latn 并翻译：lang=%q needed=%v err=%v", resolvedLang, needed, err)
+	}
+	sysPrompt, _ := f.model.last("reply_translation")
+	if !strings.Contains(sysPrompt, "Customer: mera order pending hai") || !strings.Contains(sysPrompt, "Customer: kab milega?") {
+		t.Fatalf("外部群 history 应将 ExternalUserActor 标注为 Customer，实际 prompt=%s", sysPrompt)
+	}
+	_ = grpRec1
+}

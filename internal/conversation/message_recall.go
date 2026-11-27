@@ -53,7 +53,7 @@ func (a *RecallMessage) Handle(ctx context.Context, sub identity.Subject, conver
 		}
 		var item Item
 		if err := tx.NewSelect().Model(&item).
-			Where("id = ? AND tenant_id = ? AND conversation_id = ?", itemID, c.TenantID, c.ID).Scan(ctx); err != nil {
+			Where("id = ? AND tenant_id = ? AND conversation_id = ?", itemID, c.TenantID, c.ID).For("UPDATE").Scan(ctx); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return ErrNotFound.New()
 			}
@@ -72,10 +72,10 @@ func (a *RecallMessage) Handle(ctx context.Context, sub identity.Subject, conver
 				Where("conversation_id = ?", c.ID).Scan(ctx, &scope); err != nil {
 				return errors.Wrap(err, "load chat scope for recall")
 			}
-			if scope != ChatInternal {
+			if scope != ChatInternal && item.Kind != Note {
 				return ErrMessageNotEditable.New()
 			}
-		case Service:
+		case Service, Ticket:
 			if item.Kind != Note {
 				return ErrMessageNotEditable.New()
 			}

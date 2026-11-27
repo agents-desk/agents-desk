@@ -212,7 +212,7 @@ function ChatRow({
   const title = chatDisplayName(chat, t)
   const draft = useDraft(chat.id)
   const draftText = !active && draft?.text.trim() ? draft.text.trim() : ""
-  const rawPreview = previewSummary(chat.preview, chat.preview_attachment, t)
+  const rawPreview = previewSummary(chat.preview, chat.preview_attachment, t, chat.preview_recalled)
 
   let senderPrefix = ""
   if (chat.mode === "group" && chat.preview_actor && rawPreview) {
