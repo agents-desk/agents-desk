@@ -190,6 +190,7 @@ export const required = {
     get: ["conversations:read"],
     getByNumber: ["conversations:read"],
     list: ["conversations:read"],
+    note: ["conversations:reply"],
     publishUpdate: ["conversations:reply"],
     status: ["conversations:reply"],
     typeCreate: ["ticket-types:manage"],

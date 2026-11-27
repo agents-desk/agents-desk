@@ -29,9 +29,9 @@ func (a *SendSystemMessage) Handle(ctx context.Context, sub identity.Subject, id
 	return a.HandleTranslated(ctx, sub, id, text, "", "", prompt)
 }
 
-// HandleTranslated 以系统主体 sub 在工作区中向会话 id 追加一条带可选原文和目标语言的系统消息
+// HandleTranslated 以系统主体 sub 在工作区中向会话 id 追加一条带可选原文、目标语言与附件的系统消息
 // （例如工单公开进度按客户语言翻译后同步到关联服务型会话，同时保留成员写的原文供坐席查看）。
-func (a *SendSystemMessage) HandleTranslated(ctx context.Context, sub identity.Subject, id, text, original, language string, prompt *Prompt) (*ItemDTO, error) {
+func (a *SendSystemMessage) HandleTranslated(ctx context.Context, sub identity.Subject, id, text, original, language string, prompt *Prompt, attachments ...*Attachment) (*ItemDTO, error) {
 	if err := authorize(sub, ""); err != nil {
 		return nil, err
 	}
@@ -52,6 +52,27 @@ func (a *SendSystemMessage) HandleTranslated(ctx context.Context, sub identity.S
 		}
 		if err := commit(ctx, tx, a.down, c, &item); err != nil {
 			return err
+		}
+		if len(attachments) > 0 {
+			clones := make([]*Attachment, 0, len(attachments))
+			for _, src := range attachments {
+				clones = append(clones, &Attachment{
+					Kind:        src.Kind,
+					Filename:    src.Filename,
+					ContentType: src.ContentType,
+					Size:        src.Size,
+					Width:       src.Width,
+					Height:      src.Height,
+					DurationMs:  src.DurationMs,
+					IsVoice:     src.IsVoice,
+					FileID:      src.FileID,
+					ThumbFileID: src.ThumbFileID,
+					FetchStatus: src.FetchStatus,
+				})
+			}
+			if err := insertAttachments(ctx, tx, c.TenantID, item.ID, clones); err != nil {
+				return err
+			}
 		}
 		if deliveryChannelID == nil {
 			return nil

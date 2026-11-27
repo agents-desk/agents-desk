@@ -54,7 +54,7 @@ import { describeEvent } from "../inbox/events"
 import { type FillWatcher, useFillVisible } from "../inbox/fill"
 import { clock, dayLabel, fullDateTime, sameDay } from "../inbox/format"
 import { translationOf } from "../inbox/Timeline"
-import { TICKET_STATUSES, ticketStatusColor, ticketStatusLabel, ticketVisibilityLabel, useTicket } from "./meta"
+import { invalidateTicket, TICKET_STATUSES, ticketStatusColor, ticketStatusLabel, ticketVisibilityLabel, useTicket } from "./meta"
 import { TicketComposer } from "./TicketComposer"
 import { TicketDetails } from "./TicketDetails"
 import { StatusMark } from "../components/status-mark"
@@ -86,9 +86,9 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
   const { ref: mainRef, width: mainWidth } = useElementSize()
 
   const tk = ticketQuery.data
-  // 打开时读到的位置：“新消息”分隔线画在它之后，读过之后也保持在原处
+  // 打开时读到的位置：“新消息”分隔线画在它之后，仅在拿到真实详情数据后锁定，避免被列表占位数据锁死旧位置
   const readAtOpen = useRef<number | null>(null)
-  if (tk && readAtOpen.current === null) readAtOpen.current = tk.read_seq
+  if (tk && !ticketQuery.isPlaceholderData && readAtOpen.current === null) readAtOpen.current = tk.read_seq
   const last = timeline.data?.at(-1)
   useEffect(() => {
     if (last?.kind === "message" || last?.kind === "note") {
@@ -96,22 +96,25 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
     }
   }, [last, clearTyping])
 
-  // 页面在前台且出现更新的时间线项时标记已读
+  // 页面在前台且出现更新的时间线项时标记已读；标签页从后台切回前台时同样补标已读
   const lastSeq = last?.seq ?? 0
   const marked = useRef(0)
   useEffect(() => {
-    if (!tk || lastSeq <= Math.max(tk.read_seq, marked.current) || document.visibilityState !== "visible") return
-    marked.current = lastSeq
-    void tenantApi.conversation.read(id, { seq: lastSeq }).then(() => {
-      void queryClient.invalidateQueries({ queryKey: kit.queries.ticket.key() })
-      void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.inbox().queryKey })
-    })
+    const syncRead = () => {
+      if (!tk || lastSeq <= Math.max(tk.read_seq, marked.current) || document.visibilityState !== "visible") return
+      marked.current = lastSeq
+      void tenantApi.conversation.read(id, { seq: lastSeq }).then(() => {
+        void queryClient.invalidateQueries({ queryKey: kit.queries.ticket.get(id).queryKey })
+        void queryClient.invalidateQueries({ queryKey: [...kit.queries.ticket.key(), "list"] })
+        void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.inbox().queryKey })
+      })
+    }
+    syncRead()
+    document.addEventListener("visibilitychange", syncRead)
+    return () => document.removeEventListener("visibilitychange", syncRead)
   }, [tk, id, lastSeq, queryClient])
 
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: kit.queries.ticket.key() })
-    void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
-  }
+  const invalidate = () => invalidateTicket(queryClient, id)
   const setStatus = useMutation({
     mutationFn: (status: TicketStatus) => tenantApi.ticket.status(id, { status }),
     onSuccess: invalidate,
@@ -456,6 +459,7 @@ function TicketTimeline({
                     ticket={ticket}
                     it={it}
                     author={names.member(it.actor.id)}
+                    avatarUrl={byId.get(it.actor.id)?.avatar_url || undefined}
                     isOwn={it.actor.type === "member" && it.actor.id === me.data?.id}
                     time={clock(it.created_at, ui, zone)}
                     fullTime={fullDateTime(it.created_at, ui, zone)}
@@ -489,11 +493,12 @@ function TicketTimeline({
   )
 }
 
-/** TicketTimelineCard 渲染工单中的单条内部讨论备注或公开进度消息，支持跨语言译文展示与原文切换。 */
+/** TicketTimelineCard 渲染工单中的单条内部讨论或公开进度消息，仅对公开进度做特殊视觉标记。 */
 function TicketTimelineCard({
   ticket,
   it,
   author,
+  avatarUrl,
   isOwn,
   time,
   fullTime,
@@ -506,6 +511,7 @@ function TicketTimelineCard({
   ticket: ConversationTicketDTO
   it: ConversationItemDTO
   author: string
+  avatarUrl: string | undefined
   isOwn: boolean
   time: string
   fullTime: string
@@ -521,6 +527,8 @@ function TicketTimelineCard({
   const [showVerified, setShowVerified] = useState(false)
 
   const isPublic = it.kind === "message" && it.visibility === "all"
+  const broadcastCount = typeof it.derived.broadcast_count === "number" ? it.derived.broadcast_count : undefined
+  const showBroadcastHint = isPublic && (broadcastCount !== undefined ? broadcastCount > 0 : ticket.linked_count > 0)
   const raw = it.content.text ?? ""
   const translated = isOwn ? undefined : translationOf(it, lang)
   const verified = isOwn ? verifiedTranslationOf(it) : undefined
@@ -535,23 +543,16 @@ function TicketTimelineCard({
       px="sm"
       py={10}
       radius="md"
-      withBorder={isPublic}
-      bg={isPublic ? "var(--mantine-primary-color-light)" : "var(--mantine-color-yellow-light)"}
-      className={isPublic ? undefined : "inbox-note"}
-      style={
-        isPublic
-          ? { borderLeft: "3px solid var(--mantine-primary-color-filled)" }
-          : undefined
-      }
+      className={isPublic ? "ticket-public-card" : "ticket-note-card"}
     >
       <Group gap={6} mb={4} wrap="nowrap">
         {isPublic ? (
           <IconWorld size={14} color="var(--mantine-primary-color-filled)" style={{ flex: "none" }} />
         ) : (
-          <IconLock size={12} className="inbox-note-accent" style={{ flex: "none" }} />
+          <Avatar src={avatarUrl} size={18} name={author} color="initials" style={{ flex: "none" }} />
         )}
-        <Text size="xs" fw={600} c={isPublic ? "brand" : undefined} className={isPublic ? undefined : "inbox-note-accent"}>
-          {isPublic ? `${t("tickets.public_badge")} · ${author}` : t("inbox.note_by", { who: author })}
+        <Text size="xs" fw={600} c={isPublic ? "brand" : undefined}>
+          {isPublic ? `${t("tickets.public_badge")} · ${author}` : author}
         </Text>
         <Text size="xs" c="dimmed">
           ·
@@ -581,7 +582,7 @@ function TicketTimelineCard({
           {shown.split(/(@\S+)/).map((part, i) =>
             !isPublic && part.startsWith("@") ? (
               // biome-ignore lint/suspicious/noArrayIndexKey: 拆分出的文本片段顺序固定
-              <Text key={i} span fw={700} className="inbox-note-accent">
+              <Text key={i} span fw={600} c="brand">
                 {part}
               </Text>
             ) : (
@@ -605,7 +606,7 @@ function TicketTimelineCard({
         </Box>
       )}
 
-      {(translated || needFill || verified || (isPublic && ticket.linked_count > 0)) && (
+      {(translated || needFill || verified || showBroadcastHint) && (
         <Group gap={6} mt={6} wrap="wrap">
           {translated ? (
             <>
@@ -645,9 +646,9 @@ function TicketTimelineCard({
               </UnstyledButton>
             </>
           ) : null}
-          {isPublic && ticket.linked_count > 0 && (
+          {showBroadcastHint && (
             <Text size="xs" c="dimmed" ml={translated || needFill || verified ? "auto" : undefined}>
-              {t("tickets.public_synced_hint", { n: ticket.linked_count })}
+              {broadcastCount !== undefined ? t("tickets.public_synced_hint", { n: broadcastCount }) : t("tickets.public_syncing")}
             </Text>
           )}
         </Group>

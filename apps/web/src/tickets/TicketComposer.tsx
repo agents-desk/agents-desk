@@ -6,7 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { IconLock, IconPaperclip, IconWorld } from "@tabler/icons-react"
 import { notifyError, notifySuccess, TriggerMenu, textTriggerRule, useCan, useT, useTextTrigger, useUploadQueue } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { kit, tenantApi } from "../api"
+import { tenantApi } from "../api"
 import {
   ATTACHMENT_ACCEPT,
   AttachmentStrip,
@@ -17,22 +17,24 @@ import {
   uploadMediaFile,
 } from "../inbox/Attachments"
 import {
+  ComposerSendArea,
   defaultPeerLanguage,
   InlineTranslationPane,
-  ComposerSendArea,
   useComposerTranslation,
 } from "../inbox/ComposerTranslation"
 import { useMe, useMembers } from "../inbox/data"
 import { clearDraft, getDraft, saveDraft } from "../inbox/drafts"
+import { sameLanguage } from "../languages"
 import { isTypingTarget } from "../layout"
+import { invalidateTicket, mergeTimelineItem } from "./meta"
 
 /** TicketComposerMode 是工单输入区的两种模式：内部讨论备注或发布对外公开进度。 */
 type TicketComposerMode = "note" | "public"
 
 /**
  * TicketComposer 是工单底部的双模式输入卡片：
- * - 内部讨论（默认）：暖黄底，仅成员可见，支持 @ 提及同事、附件和跨语言成员自动互译；
- * - 公开进度：仅在工单 visibility=all 时可用，发送后按各关联客户语言去重翻译并同步到所有关联客户会话。
+ * - 内部讨论（默认）：中性表面底色，仅成员可见，支持 @ 提及同事、附件和跨语言成员自动互译；
+ * - 公开进度：品牌浅底提示，仅在工单 visibility=all 时可用，发送后按各关联客户语言去重翻译并同步到所有关联客户会话。
  */
 export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicketDTO; onTyping: () => void }): ReactNode {
   const t = useT()
@@ -106,13 +108,19 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
     )
   }, [members, mentionIds, me.data?.id, me.data?.language])
 
+  const publicPeerLanguages = useMemo(() => {
+    const seen: string[] = []
+    for (const lc of ticket.linked_contacts ?? []) {
+      const l = lc.contact.language?.trim()
+      if (!l || sameLanguage(l, me.data?.language)) continue
+      if (!seen.some((x) => sameLanguage(x, l))) seen.push(l)
+    }
+    return seen
+  }, [ticket.linked_contacts, me.data?.language])
+
   const publicDefaultTarget = useMemo(
-    () =>
-      defaultPeerLanguage(
-        (ticket.linked_contacts ?? []).map((lc) => lc.contact.language),
-        me.data?.language,
-      ) || noteDefaultTarget,
-    [ticket.linked_contacts, me.data?.language, noteDefaultTarget],
+    () => publicPeerLanguages[0] || noteDefaultTarget,
+    [publicPeerLanguages, noteDefaultTarget],
   )
 
   const preview = useComposerTranslation({
@@ -128,30 +136,30 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
       const attachments = attachmentInputs.length > 0 ? attachmentInputs : undefined
       if (sendMode === "note") {
         const ids = members.filter((m) => mentionIds.includes(m.id) && value.includes(`@${m.name}`)).map((m) => m.id)
-        await tenantApi.conversation.note(ticket.id, {
+        const item = await tenantApi.ticket.note(ticket.id, {
           text: value || undefined,
           mentions: ids.length > 0 ? ids : undefined,
           attachments,
           translation,
         })
-        return "note" as const
+        return { sentMode: "note" as const, item }
       }
-      await tenantApi.ticket.publishUpdate(ticket.id, {
+      const item = await tenantApi.ticket.publishUpdate(ticket.id, {
         text: value || undefined,
         attachments,
         translation,
       })
-      return "public" as const
+      return { sentMode: "public" as const, item }
     },
-    onSuccess: (sentMode) => {
+    onSuccess: ({ sentMode, item }) => {
       clearDraft(ticket.id)
       setText("")
       setMentionIds([])
       queue.clear()
       preview.reset()
+      mergeTimelineItem(queryClient, ticket.id, item)
       if (sentMode === "public") notifySuccess(t("tickets.public_sent"))
-      void queryClient.invalidateQueries({ queryKey: kit.queries.ticket.key() })
-      void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
+      invalidateTicket(queryClient, ticket.id)
     },
     onError: (err) => notifyError(err),
   })
@@ -239,7 +247,7 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
         queue.handleDrop(e)
       }}
     >
-      <Box className="inbox-composer-box" data-note={note || undefined} data-dragging={dragging || undefined}>
+      <Box className="inbox-composer-box" data-public={!note || undefined} data-dragging={dragging || undefined}>
         <TriggerMenu trigger={trigger} position="top" width="min(100%, 280px)" maxHeight={240} />
         <Group gap="xs" className="inbox-composer-head" data-tn-density="inspector" wrap="wrap">
           <SegmentedControl
@@ -257,15 +265,15 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
           />
           {note ? (
             <Group gap={4} wrap="nowrap">
-              <IconLock size={12} className="inbox-note-accent" style={{ flex: "none" }} />
-              <Text size="xs" className="inbox-note-accent">
+              <IconLock size={12} color="var(--mantine-color-dimmed)" style={{ flex: "none" }} />
+              <Text size="xs" c="dimmed">
                 {canPublish ? t("inbox.note_hint") : t("tickets.public_disabled_hint")}
               </Text>
             </Group>
           ) : (
             <Group gap={4} wrap="nowrap">
               <IconWorld size={14} color="var(--mantine-primary-color-filled)" style={{ flex: "none" }} />
-              <Text size="xs" c="brand">
+              <Text size="xs" c="brand" fw={500}>
                 {ticket.linked_count > 0
                   ? t("tickets.public_composer_hint", { n: ticket.linked_count })
                   : t("tickets.public_composer_no_links")}
@@ -346,6 +354,11 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
             )}
           </FileButton>
 
+          {!note && preview.expanded && publicPeerLanguages.length > 1 && (
+            <Text size="xs" c="dimmed">
+              {t("tickets.public_multi_lang_hint")}
+            </Text>
+          )}
           {preview.confirming && (
             <Text size="xs" c="brand" ml={4}>
               {ctrlEnterSend ? t("inbox.ctrl_enter_again", { key: sendModKey }) : t("inbox.enter_again")}
@@ -358,7 +371,6 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
             hintLabel={note ? undefined : t("tickets.auto_translate_public")}
             label={mainLabel}
             sendHint={sendHint}
-            note={note}
             disabled={!canSubmit}
             loading={send.isPending || preview.pending}
             onSend={() => void submit()}

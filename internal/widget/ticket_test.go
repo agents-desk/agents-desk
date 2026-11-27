@@ -111,8 +111,8 @@ func TestContactTicketsVisibilityAndCrossChannel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create public ticket: %v", err)
 	}
-	if _, err := conversation.NewAddNote(env.DB, down).Handle(ctx, f.agent, publicTk.ID, "内部讨论：不要发给客户", nil); err != nil {
-		t.Fatalf("add note: %v", err)
+	if _, err := conversation.NewAddTicketNote(env.DB, down).Handle(ctx, f.agent, publicTk.ID, "内部讨论：不要发给客户", nil); err != nil {
+		t.Fatalf("add ticket note: %v", err)
 	}
 	if _, err := conversation.NewPublishTicketUpdate(env.DB, down).Handle(ctx, f.agent, publicTk.ID, conversation.PublishTicketUpdateBody{
 		Text: "已提交支付通道补单，预计 10 分钟到账。",

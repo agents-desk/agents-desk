@@ -3881,6 +3881,13 @@ export function createClient(options: ClientOptions) {
       list: (input: TicketListInput = {}): Promise<CursorConversationTicketDTO> =>
         rt.request<CursorConversationTicketDTO>({ method: "GET", path: `/tickets`, query: { "contact_id": input["contact_id"], "conversation_id": input["conversation_id"], "cursor": input["cursor"], "inbox": input["inbox"], "per_page": input["per_page"], "priority": input["priority"], "q": input["q"], "status": input["status"], "team_id": input["team_id"], "type_id": input["type_id"], "unresolved_only": input["unresolved_only"], "visibility": input["visibility"] } }),
       /**
+       * 写工单内部讨论
+       *
+       * POST /tickets/{id}/notes
+       */
+      note: (id: string, body: ConversationNoteBody): Promise<ConversationItemDTO> =>
+        rt.request<ConversationItemDTO>({ method: "POST", path: `/tickets/${encodeURIComponent(id)}/notes`, body }),
+      /**
        * 发布工单公开进度
        *
        * POST /tickets/{id}/updates

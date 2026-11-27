@@ -1107,6 +1107,11 @@ export const schemas = {
         "type": "object"
       },
     },
+    note: {
+      body: {
+        "$ref": "#/components/schemas/ConversationNoteBody"
+      },
+    },
     publishUpdate: {
       body: {
         "$ref": "#/components/schemas/ConversationPublishTicketUpdateBody"

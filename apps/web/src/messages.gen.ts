@@ -1251,10 +1251,12 @@ export const messages = {
     "tickets.public_composer_hint": "Will be translated per customer language and sent to {{.n}} affected customer(s)",
     "tickets.public_composer_no_links": "No affected customers linked yet; the update will still be saved on the ticket",
     "tickets.public_disabled_hint": "Internal-only tickets cannot publish public updates",
+    "tickets.public_multi_lang_hint": "Review this language; other customer languages translate automatically",
     "tickets.public_placeholder": "Write a customer-facing progress update…",
     "tickets.public_send": "Publish update",
     "tickets.public_sent": "Public update published",
     "tickets.public_synced_hint": "Translated and synced to {{.n}} affected customer(s)",
+    "tickets.public_syncing": "Syncing to affected customers…",
     "tickets.relation_source": "Source",
     "tickets.search_placeholder": "Search #number or title…",
     "tickets.source_conversation_hint": "Source conversation: {{.contact}} ({{.channel}})",
@@ -2684,10 +2686,12 @@ export const messages = {
     "tickets.public_composer_hint": "将按各客户语言自动翻译并同步至关联的 {{.n}} 位客户",
     "tickets.public_composer_no_links": "当前没有关联的受影响客户，公开进度仍会保存在工单中供客户查看",
     "tickets.public_disabled_hint": "仅成员可见的工单不可发布公开进度",
+    "tickets.public_multi_lang_hint": "校对当前目标语言，其余客户语言由后台自动翻译",
     "tickets.public_placeholder": "写下要向关联客户同步的排查或处理进展…",
     "tickets.public_send": "发布公开进度",
     "tickets.public_sent": "已发布公开进度",
     "tickets.public_synced_hint": "已按各客户语言同步至关联的 {{.n}} 位客户",
+    "tickets.public_syncing": "正在同步至关联客户…",
     "tickets.relation_source": "来源",
     "tickets.search_placeholder": "搜索 #编号 或标题…",
     "tickets.source_conversation_hint": "来源会话：{{.contact}}（{{.channel}}）",
@@ -4120,10 +4124,12 @@ export type MessageId =
   | "tickets.public_composer_hint"
   | "tickets.public_composer_no_links"
   | "tickets.public_disabled_hint"
+  | "tickets.public_multi_lang_hint"
   | "tickets.public_placeholder"
   | "tickets.public_send"
   | "tickets.public_sent"
   | "tickets.public_synced_hint"
+  | "tickets.public_syncing"
   | "tickets.relation_source"
   | "tickets.search_placeholder"
   | "tickets.source_conversation_hint"

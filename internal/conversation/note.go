@@ -60,47 +60,11 @@ func (a *AddNote) HandleBody(ctx context.Context, sub identity.Subject, id strin
 		if err != nil {
 			return err
 		}
-		if c.Kind == Chat {
+		if c.Kind != Service {
 			return ErrWrongKind.New()
 		}
-		confirmed, err := confirmAttachmentInputs(ctx, tx, a.down.Media.Files, sub, body.Attachments)
-		if err != nil {
-			return err
-		}
-		actor := actorOf(sub)
-		roles := authz.NewStore(tx, auth.Catalog)
-		for i, m := range body.Mentions {
-			if _, err := member.RoleOf(ctx, roles, identity.Ref{Type: member.Type, ID: m}, sub.Tenant); err != nil {
-				if errors.Is(err, member.ErrNotFound) {
-					return member.ErrNotFound.New(errorx.Field(fmt.Sprintf("mentions[%d]", i)))
-				}
-				return err
-			}
-		}
-		item = Item{Kind: Note, ActorType: actor, ActorID: sub.ID, Visibility: MembersOnly, Content: Content{Text: body.Text, Mentions: body.Mentions}}
-		if err := applyVerifiedTranslation(ctx, tx, sub, &item, body.Translation); err != nil {
-			return err
-		}
-		if c.Kind == Ticket {
-			c.LastMessageAt = now()
-		}
-		if err := join(ctx, tx, c.ID, actor, sub.ID); err != nil {
-			return err
-		}
-		if err := commit(ctx, tx, a.down, c, &item); err != nil {
-			return err
-		}
-		if err := insertAttachments(ctx, tx, c.TenantID, item.ID, confirmed); err != nil {
-			return err
-		}
-		for _, m := range body.Mentions {
-			_, err := tx.NewRaw(`INSERT INTO conversation_mentions (tenant_id, member_id, conversation_id, item_id, seq, created_at)
-				VALUES (?, ?, ?, ?, ?, ?)`, sub.Tenant, m, c.ID, item.ID, item.Seq, item.CreatedAt).Exec(ctx)
-			if err != nil {
-				return errors.Wrap(err, "insert mention")
-			}
-		}
-		return nil
+		item, err = writeNote(ctx, tx, a.down, sub, c, body)
+		return err
 	})
 	if err != nil {
 		return nil, err
@@ -110,6 +74,45 @@ func (a *AddNote) HandleBody(ctx context.Context, sub identity.Subject, id strin
 		return nil, err
 	}
 	return &dtos[0], nil
+}
+
+// writeNote 在事务 tx 中校验附件与 @ 成员，写入一条仅成员可见的 Note 时间线项及关联记录。
+func writeNote(ctx context.Context, tx database.Tx, down Downstream, sub identity.Subject, c *Conversation, body NoteBody) (Item, error) {
+	confirmed, err := confirmAttachmentInputs(ctx, tx, down.Media.Files, sub, body.Attachments)
+	if err != nil {
+		return Item{}, err
+	}
+	actor := actorOf(sub)
+	roles := authz.NewStore(tx, auth.Catalog)
+	for i, m := range body.Mentions {
+		if _, err := member.RoleOf(ctx, roles, identity.Ref{Type: member.Type, ID: m}, sub.Tenant); err != nil {
+			if errors.Is(err, member.ErrNotFound) {
+				return Item{}, member.ErrNotFound.New(errorx.Field(fmt.Sprintf("mentions[%d]", i)))
+			}
+			return Item{}, err
+		}
+	}
+	item := Item{Kind: Note, ActorType: actor, ActorID: sub.ID, Visibility: MembersOnly, Content: Content{Text: body.Text, Mentions: body.Mentions}}
+	if err := applyVerifiedTranslation(ctx, tx, sub, &item, body.Translation); err != nil {
+		return Item{}, err
+	}
+	if err := join(ctx, tx, c.ID, actor, sub.ID); err != nil {
+		return Item{}, err
+	}
+	if err := commit(ctx, tx, down, c, &item); err != nil {
+		return Item{}, err
+	}
+	if err := insertAttachments(ctx, tx, c.TenantID, item.ID, confirmed); err != nil {
+		return Item{}, err
+	}
+	for _, m := range body.Mentions {
+		_, err := tx.NewRaw(`INSERT INTO conversation_mentions (tenant_id, member_id, conversation_id, item_id, seq, created_at)
+			VALUES (?, ?, ?, ?, ?, ?)`, sub.Tenant, m, c.ID, item.ID, item.Seq, item.CreatedAt).Exec(ctx)
+		if err != nil {
+			return Item{}, errors.Wrap(err, "insert mention")
+		}
+	}
+	return item, nil
 }
 
 // HTTP 处理 POST /t/{slug}/api/conversations/{id}/notes。

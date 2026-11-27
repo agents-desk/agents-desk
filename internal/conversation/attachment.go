@@ -438,6 +438,20 @@ func insertAttachments(ctx context.Context, tx bun.IDB, tenantID, itemID string,
 	return errors.Wrap(err, "insert timeline attachments")
 }
 
+// LoadItemAttachments 读取租户 tenantID 中时间线项 itemID 已就绪（FetchReady）的全部附件行，按 position 排序。
+// 供工单公开进度向关联客户会话广播时复用附件文件引用。
+func LoadItemAttachments(ctx context.Context, db bun.IDB, tenantID, itemID string) ([]*Attachment, error) {
+	var rows []*Attachment
+	err := db.NewSelect().Model(&rows).
+		Where("tenant_id = ? AND item_id = ? AND fetch_status = ?", tenantID, itemID, FetchReady).
+		OrderExpr("position").
+		Scan(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "load item attachments")
+	}
+	return rows, nil
+}
+
 // loadAttachments 批量加载 itemIDs 对应的附件列表，按 position 排序，并经 files.GetMany 和 images 生成公开地址与缩略图地址。
 func loadAttachments(ctx context.Context, db bun.IDB, media Media, itemIDs []string) (map[string][]AttachmentDTO, error) {
 	out := map[string][]AttachmentDTO{}

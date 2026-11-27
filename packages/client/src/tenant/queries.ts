@@ -857,6 +857,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         queryKey: key("ticket", "list", ...args),
         queryFn: () => client.ticket.list(...args),
       }),
+      /** POST /tickets/{id}/notes */
+      note: () => ({
+        mutationFn: (variables: Parameters<Client["ticket"]["note"]>) => client.ticket.note(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "ticket"),
+      }),
       /** POST /tickets/{id}/updates */
       publishUpdate: () => ({
         mutationFn: (variables: Parameters<Client["ticket"]["publishUpdate"]>) => client.ticket.publishUpdate(...variables),

@@ -215,8 +215,11 @@ func TestTicketCoreLifecycleAndIsolation(t *testing.T) {
 	if _, err := conversation.NewPatchAttributes(env.DB, down).Handle(ctx, subOwner, tk1.ID, map[string]any{"upi_ref": "UTR-002"}); err != nil {
 		t.Fatalf("修改工单自定义字段失败：%v", err)
 	}
-	if _, err := conversation.NewAddNote(env.DB, down).Handle(ctx, subOwner, tk1.ID, "正在核查 UPI 通道", nil); err != nil {
-		t.Fatalf("工单写内部备注失败：%v", err)
+	if _, err := conversation.NewAddNote(env.DB, down).Handle(ctx, subOwner, tk1.ID, "不应经会话接口写工单备注", nil); !errors.Is(err, conversation.ErrWrongKind) {
+		t.Fatalf("AddNote 应拒绝工单：%v", err)
+	}
+	if _, err := conversation.NewAddTicketNote(env.DB, down).Handle(ctx, subOwner, tk1.ID, "正在核查 UPI 通道", nil); err != nil {
+		t.Fatalf("工单写内部讨论失败：%v", err)
 	}
 
 	// 4. 状态流转：等待客户 → 客户在关联会话发新消息自动切回处理中 → 已解决记录 resolved_at → 重新改回处理中清空 resolved_at
