@@ -38,7 +38,7 @@ function StatusLabel({ status }: { status: MemberStatus }): ReactNode {
  * 并刷新成员列表和团队收件箱的成员，让其中的状态跟着变。放在个人菜单中。
  */
 export function StatusControl(): ReactNode {
-  const { slug } = useParams({ from: "/t/$slug" })
+  const { slug } = useParams({ from: "/$slug" })
   const queryClient = useQueryClient()
   const t = useT()
   const queryKey = ["me", "status", slug]

@@ -37,7 +37,7 @@ export function ContactDirectory({
   const ui = useLanguage()
   const zone = useTimeZone()
   const narrow = useNarrow(NARROW_QUERY)
-  const { slug } = useParams({ from: "/t/$slug" })
+  const { slug } = useParams({ from: "/$slug" })
   const navigate = useNavigate()
   const tags = useTags()
 
@@ -132,7 +132,7 @@ export function ContactDirectory({
 
   const openContact = (id: string) => {
     clickedId.current = id
-    void navigate({ to: "/t/$slug/contacts/$id", params: { slug, id }, search })
+    void navigate({ to: "/$slug/contacts/$id", params: { slug, id }, search })
   }
 
   return (

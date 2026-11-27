@@ -13,13 +13,15 @@ export function getRouter() {
     routeTree,
     session,
     i18n,
+    // 登录后无回跳地址时进入工作台智能入口 /app/（自动跳上次工作区或工作区选择页）。
+    homePath: "/",
     // 权限按工作区区分：进入工作区之后读取成员在其中的权限，还没有进入时没有权限。
     permissions: async () => (session.identity()?.tenant ? (await tenantApi.tenant.current()).permissions : []),
-    // 工作区的标识是 slug（地址 /t/{slug}/）。已停用的工作区不能进入，不出现在切换的列表中。
+    // 工作区的标识是 slug（地址 /app/{slug}/）。已停用的工作区不能进入，不出现在切换的列表中。
     tenancy: {
       tenants: async () =>
         (await api.tenant.mine()).filter((t) => t.status === "active").map((t) => ({ id: t.slug, name: t.name })),
-      home: (slug) => `/t/${slug}/`,
+      home: (slug) => `/${slug}/`,
     },
     onError: reportRouteError,
     router: { ssr: { nonce: cspNonce() }, defaultErrorComponent: RouteError, defaultNotFoundComponent: NotFoundPage },

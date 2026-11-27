@@ -31,7 +31,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
   const can = useCan()
   const uiLang = useLanguage()
   const formatDuration = useFormatDuration()
-  const { slug } = useParams({ from: "/t/$slug" })
+  const { slug } = useParams({ from: "/$slug" })
   const period = usePeriod(route, { defaultPreset: "7d" })
   const query = useQuery({
     ...kit.queries.report.overview(period.params),
@@ -57,7 +57,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
     tip: string
     value: string
     warn?: boolean
-    to?: "/t/$slug/inbox" | "/t/$slug/tickets" | "/t/$slug/chat" | "/t/$slug/reports/members"
+    to?: "/$slug/inbox" | "/$slug/tickets" | "/$slug/chat" | "/$slug/reports/members"
     search?: Record<string, unknown>
   }> = [
     {
@@ -66,7 +66,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
       tip: t("reports.ov_live_service_waiting_tip"),
       value: formatInt(live?.service_waiting, uiLang),
       warn: Boolean(live && live.service_waiting > 0),
-      to: canConv ? "/t/$slug/inbox" : undefined,
+      to: canConv ? "/$slug/inbox" : undefined,
       search: { box: "all", status: "open", sort: "waiting" },
     },
     {
@@ -74,7 +74,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
       label: t("reports.ov_live_service_unassigned"),
       tip: t("reports.ov_live_service_unassigned_tip"),
       value: formatInt(live?.service_unassigned, uiLang),
-      to: canConv ? "/t/$slug/inbox" : undefined,
+      to: canConv ? "/$slug/inbox" : undefined,
       search: { box: "unassigned", status: "open", sort: "waiting" },
     },
     {
@@ -83,7 +83,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
       tip: t("reports.ov_live_ticket_open_tip"),
       value: formatInt(live?.ticket_open, uiLang),
       warn: Boolean(live && live.ticket_unassigned > 0),
-      to: canConv ? "/t/$slug/tickets" : undefined,
+      to: canConv ? "/$slug/tickets" : undefined,
       search: { box: "all", status: "unresolved" },
     },
     {
@@ -92,14 +92,14 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
       tip: t("reports.ov_live_business_waiting_tip"),
       value: formatInt(live?.business_waiting, uiLang),
       warn: Boolean(live && live.business_waiting > 0),
-      to: canConv ? "/t/$slug/chat" : undefined,
+      to: canConv ? "/$slug/chat" : undefined,
     },
     {
       key: "online",
       label: t("reports.ov_live_online"),
       tip: t("reports.ov_live_online_tip"),
       value: live ? `${formatInt(live.online_members, uiLang)} / ${formatInt(live.total_members, uiLang)}` : "—",
-      to: "/t/$slug/reports/members",
+      to: "/$slug/reports/members",
     },
   ]
 
@@ -169,7 +169,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
       <SimpleGrid cols={{ base: 1, sm: 2, xl: 4 }} spacing="md">
         <OverviewDomainCard
           title={t("nav.reports_service")}
-          to="/t/$slug/reports/service"
+          to="/$slug/reports/service"
           slug={slug}
           search={periodSearchParams}
           loading={loading}
@@ -194,7 +194,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
 
         <OverviewDomainCard
           title={t("nav.reports_tickets")}
-          to="/t/$slug/reports/tickets"
+          to="/$slug/reports/tickets"
           slug={slug}
           search={periodSearchParams}
           loading={loading}
@@ -210,7 +210,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
 
         <OverviewDomainCard
           title={t("nav.reports_business")}
-          to="/t/$slug/reports/business"
+          to="/$slug/reports/business"
           slug={slug}
           search={periodSearchParams}
           loading={loading}
@@ -226,7 +226,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
 
         <OverviewDomainCard
           title={t("nav.reports_ai")}
-          to="/t/$slug/reports/translation"
+          to="/$slug/reports/translation"
           slug={slug}
           search={periodSearchParams}
           loading={loading}
@@ -284,7 +284,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
 
 interface OverviewDomainCardProps {
   title: string
-  to: "/t/$slug/reports/service" | "/t/$slug/reports/tickets" | "/t/$slug/reports/business" | "/t/$slug/reports/translation"
+  to: "/$slug/reports/service" | "/$slug/reports/tickets" | "/$slug/reports/business" | "/$slug/reports/translation"
   slug: string
   search: Record<string, unknown>
   loading: boolean

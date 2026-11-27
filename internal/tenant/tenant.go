@@ -1,7 +1,7 @@
 // Package tenant 是租户，即产品中的“工作区”：一个团队的空间，包含它的成员、数据和配置。
 // 租户的 ID 是 Tenon 中的租户（identity.Subject.Tenant）、authz 的域，也是业务表中的 tenant_id。
 //
-// 身份和地址分开：ID 是 UUID，只在代码和数据中使用；slug 是地址（/t/{slug}/），以后可以再加自定义域名。
+// 身份和地址分开：ID 是 UUID，只在代码和数据中使用；slug 是地址（/app/{slug}/），以后可以再加自定义域名。
 // 请求只在一处由地址换成 ID，业务代码只见到 ID。
 package tenant
 
@@ -33,8 +33,13 @@ var (
 	ErrDisabled = errorx.Define(errorx.PermissionDenied, "tenant.disabled")
 )
 
-// reservedSlugs 是不能作为 slug 的词：它们是或者将来可能是应用自己的路径。
-var reservedSlugs = []string{"admin", "api", "app", "assets", "help", "login", "logout", "static", "support", "system", "widget", "www"}
+// reservedSlugs 是不能作为 slug 的词：覆盖平台顶层路径与工作台 /app/ 下的静态保留路由，避免与租户路径冲突。
+var reservedSlugs = []string{
+	"account", "admin", "api", "app", "assets", "auth", "callback", "forgot",
+	"help", "invite", "join", "login", "logout", "oauth", "onboarding",
+	"register", "reset", "settings", "sso", "static", "support", "system",
+	"widget", "workspace", "workspaces", "www",
+}
 
 // Status 是租户的状态。
 type Status string
@@ -102,9 +107,9 @@ type Addresses struct {
 	PublicURL string // 应用对外的地址，例如 https://desk.example.com
 }
 
-// URL 返回成员进入租户的地址：<PublicURL>/t/<slug>/。slug 只含小写字母、数字和连字符，不需要转义。
+// URL 返回成员进入租户的地址：<PublicURL>/app/<slug>/。slug 只含小写字母、数字和连字符，不需要转义。
 func (a Addresses) URL(t *Tenant) string {
-	return strings.TrimSuffix(a.PublicURL, "/") + "/t/" + t.Slug + "/"
+	return strings.TrimSuffix(a.PublicURL, "/") + "/app/" + t.Slug + "/"
 }
 
 // newID 返回按时间递增的 UUIDv7。

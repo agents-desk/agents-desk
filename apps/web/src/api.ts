@@ -12,7 +12,7 @@ import { createKit } from "@agents-desk/client/tenant/kit"
 import { i18n } from "./i18n"
 
 // session 记录当前的成员和成员所在的工作区：打开页面、登录后读取 /api/me，没有登录时它返回 401。读取当前成员时界面切换到成员的界面语言，退出后回到浏览器的语言。
-// 身份中的 tenant 是工作区的 slug，进入 /t/{slug}/ 时由 enterTenant 设置。受保护的接口返回 401 时，会话随之变为未登录。
+// 身份中的 tenant 是工作区的 slug，进入 /app/{slug}/ 时由 enterTenant 设置。受保护的接口返回 401 时，会话随之变为未登录。
 export const session = createSession({
   load: async () => {
     const me = await api.auth.me()

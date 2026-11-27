@@ -23,7 +23,7 @@ import (
 // CreateParams 是新建租户的内容：名称、slug 和主管理员。主管理员的邮箱已有成员账号时，姓名和初始密码不使用。
 type CreateParams struct {
 	Name          string `json:"name" minLength:"1" maxLength:"60"`
-	Slug          string `json:"slug" pattern:"^[a-z][a-z0-9-]{1,30}[a-z0-9]$" doc:"工作区的地址 /t/{slug}/：小写字母开头，小写字母、数字和连字符，3 到 32 个字符；创建后不能修改"`
+	Slug          string `json:"slug" pattern:"^[a-z][a-z0-9-]{1,30}[a-z0-9]$" doc:"工作区的地址 /app/{slug}/：小写字母开头，小写字母、数字和连字符，3 到 32 个字符；创建后不能修改"`
 	OwnerEmail    string `json:"owner_email" format:"email" maxLength:"254"`
 	OwnerName     string `json:"owner_name,omitempty" maxLength:"60" doc:"这个邮箱还没有成员账号时必填"`
 	OwnerPassword string `json:"owner_password,omitempty" maxLength:"128" doc:"新账号的初始密码，这个邮箱还没有成员账号时必填"`

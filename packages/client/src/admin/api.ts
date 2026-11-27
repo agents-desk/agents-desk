@@ -487,7 +487,7 @@ export interface TenantCreateParams {
   owner_name?: string
   /** 新账号的初始密码，这个邮箱还没有成员账号时必填 */
   owner_password?: string
-  /** 工作区的地址 /t/{slug}/：小写字母开头，小写字母、数字和连字符，3 到 32 个字符；创建后不能修改 */
+  /** 工作区的地址 /app/{slug}/：小写字母开头，小写字母、数字和连字符，3 到 32 个字符；创建后不能修改 */
   slug: string
 }
 

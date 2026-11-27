@@ -17,7 +17,7 @@ import (
 func TestEveryLanguageHasEveryMessage(t *testing.T) {
 	t.Parallel()
 	languages := lang.UILanguages
-	for _, prefix := range []string{"", "web.", "admin.", "widget."} {
+	for _, prefix := range []string{"", "site.", "web.", "admin.", "widget."} {
 		ids := map[string][]string{}
 		for _, lang := range languages {
 			data, err := fs.ReadFile(locales.FS, prefix+lang+".yaml")

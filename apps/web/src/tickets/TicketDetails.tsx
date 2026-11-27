@@ -38,7 +38,7 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
   const can = useCan()
   const ui = useLanguage()
   const zone = useTimeZone()
-  const { slug } = useParams({ from: "/t/$slug" })
+  const { slug } = useParams({ from: "/$slug" })
   const queryClient = useQueryClient()
   const me = useMe()
   const { list: members } = useMembers()
@@ -385,7 +385,7 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
                     <Group key={lc.contact.id} gap={4} wrap="nowrap" align="flex-start">
                       {lc.conversation_id ? (
                         <Link
-                          to="/t/$slug/inbox/$id"
+                          to="/$slug/inbox/$id"
                           params={{ slug, id: lc.conversation_id }}
                           search={{ box: "all", status: lc.conversation_status || "open", sort: "waiting" }}
                           className="inbox-history"
@@ -395,7 +395,7 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
                         </Link>
                       ) : (
                         <Link
-                          to="/t/$slug/contacts/$id"
+                          to="/$slug/contacts/$id"
                           params={{ slug, id: lc.contact.id }}
                           search={{ sort: "recent" }}
                           className="inbox-history"

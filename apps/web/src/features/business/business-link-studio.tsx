@@ -639,7 +639,7 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
   return (
     <Page
       title={linkQuery.data ? linkQuery.data.name : t("biz_studio.title")}
-      back={() => void navigate({ to: "/t/$slug/settings/business-channels", params: { slug } })}
+      back={() => void navigate({ to: "/$slug/settings/business-channels", params: { slug } })}
       actions={
         linkQuery.data ? (
           <Group

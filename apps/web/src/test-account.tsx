@@ -1,43 +1,64 @@
-import { Button, Stack, Text } from "@mantine/core"
+import { Button, Divider, Group, Stack, Text } from "@mantine/core"
 import { notifyError, useApp, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 
+/** TestAccountOption 描述一个开发环境快捷登录账号。 */
+export interface TestAccountOption {
+  label: string
+  email: string
+  password: string
+}
+
 /** TestAccountSignIn 的选项。 */
 export interface TestAccountSignInProps {
-  /** 调用登录接口，与 LoginForm 的 login 相同。 */
+  /** 调用登录接口，与登录表单相同。 */
   login: (values: { email: string; password: string }) => Promise<unknown>
-  email: string // seed 命令写入的测试账号
-  password: string
-  redirect?: string // 登录前想去的页面，登录后回到这里
+  /** seed 写入的测试账号列表，支持按角色一键登录。 */
+  accounts: TestAccountOption[]
+  redirect?: string
 }
 
 /**
- * 开发环境中“用测试账号登录”的按钮：点一下用 seed 写入的账号登录，回到登录前想去的页面；下面用小字写着账号和密码。
- * 只在开发环境中使用：调用处写 {import.meta.env.DEV && <TestAccountSignIn … />}，构建时连同账号一起去掉。
+ * 开发环境多角色快捷登录条：点击对应角色立即用 seed 账号登录并回跳。
+ * 仅在 import.meta.env.DEV 分支中渲染，生产构建时连同测试账号一起移除。
  */
-export function TestAccountSignIn({ login, email, password, redirect }: TestAccountSignInProps): ReactNode {
+export function TestAccountSignIn({ login, accounts, redirect }: TestAccountSignInProps): ReactNode {
   const app = useApp()
   const t = useT()
-  const [pending, setPending] = useState(false)
-  const signIn = async () => {
-    setPending(true)
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null)
+
+  const signIn = async (account: TestAccountOption) => {
+    setPendingEmail(account.email)
     try {
-      await login({ email, password })
+      await login({ email: account.email, password: account.password })
       await app.session.signIn()
       await app.redirectAfterSignIn(redirect)
     } catch (err) {
       notifyError(err, t("test_account.failed"))
     } finally {
-      setPending(false)
+      setPendingEmail(null)
     }
   }
+
   return (
-    <Stack gap={4} mt="md">
-      <Button variant="light" fullWidth loading={pending} onClick={() => void signIn()}>
-        {t("test_account.sign_in")}
-      </Button>
+    <Stack gap="xs" mt="lg">
+      <Divider label={t("test_account.dev_heading")} labelPosition="center" />
+      <Group grow gap="xs">
+        {accounts.map((acc) => (
+          <Button
+            key={acc.email}
+            size="xs"
+            variant="light"
+            loading={pendingEmail === acc.email}
+            disabled={pendingEmail !== null && pendingEmail !== acc.email}
+            onClick={() => void signIn(acc)}
+          >
+            {acc.label}
+          </Button>
+        ))}
+      </Group>
       <Text size="xs" c="dimmed" ta="center">
-        {email} ／ {password}
+        {accounts.map((acc) => acc.email).join(" · ")}
       </Text>
     </Stack>
   )

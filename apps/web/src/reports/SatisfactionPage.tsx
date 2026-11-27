@@ -68,7 +68,7 @@ export function SatisfactionPage({
   const uiLang = useLanguage()
   const formatDateTime = useFormatDateTime()
   const navigate = useNavigate()
-  const { slug } = useParams({ from: "/t/$slug" })
+  const { slug } = useParams({ from: "/$slug" })
   const ratingsSectionRef = useRef<HTMLDivElement>(null)
 
   const filters = useReportFilters(route)
@@ -230,7 +230,7 @@ export function SatisfactionPage({
             return (
               <Tooltip label={t("reports.drill_contact")} openDelay={300} withArrow>
                 <Link
-                  to="/t/$slug/contacts/$id"
+                  to="/$slug/contacts/$id"
                   params={{ slug, id: row.contact_id }}
                   search={{ sort: "recent" }}
                   className="rp-drill-link"
@@ -299,7 +299,7 @@ export function SatisfactionPage({
               textAlign: "right" as const,
               render: (row: ReportRatingItem) => (
                 <AnchorLink
-                  to="/t/$slug/inbox/$id"
+                  to="/$slug/inbox/$id"
                   params={{ slug, id: row.conversation_id }}
                   search={{ box: "all", status: "closed", sort: "waiting" }}
                   size="xs"

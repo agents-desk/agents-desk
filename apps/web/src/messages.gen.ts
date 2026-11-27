@@ -382,6 +382,7 @@ export const messages = {
     "command.searching": "Searching…",
     "command.shortcuts_action": "Show keyboard shortcuts",
     "command.view_all_results": "View all {{.n}} conversations in Inbox",
+    "command.workspaces_group": "Switch workspace",
     "common.cancel": "Cancel",
     "common.clear_search": "Clear search",
     "common.copied": "Copied",
@@ -805,8 +806,27 @@ export const messages = {
     "inbox.visitor": "Visitor",
     "inbox.visitor_numbered": "Visitor #{{.n}}",
     "inbox.you": "You",
-    "login.description": "Sign in with the email and password your workspace admin gave you",
-    "login.title": "Sign in",
+    "login.aside_footer": "Unified Team Service Platform",
+    "login.aside_headline": "AI-first unified service workspace for your team",
+    "login.aside_subline": "Unite customer support, internal collaboration, and partner conversations in one calm workspace.",
+    "login.back_home": "Back to home",
+    "login.description": "Sign in with your workspace account to continue",
+    "login.email": "Email",
+    "login.email_invalid": "Please enter a valid email address",
+    "login.email_placeholder": "name@company.com",
+    "login.email_required": "Please enter your email",
+    "login.feature_ai_desc": "Translate cross-language chats automatically with macros and context at your fingertips.",
+    "login.feature_ai_title": "Live translation \u0026 AI assist",
+    "login.feature_inbox_desc": "Handle web widget, Telegram, and tickets in one queue with clear routing and ownership.",
+    "login.feature_inbox_title": "Omnichannel inbox",
+    "login.feature_workspace_desc": "Use one account across multiple workspaces with isolated permissions, channels, and instant switching.",
+    "login.feature_workspace_title": "Multi-workspace isolation",
+    "login.footer_hint": "Don’t have an account yet? Ask your workspace admin to add you.",
+    "login.password": "Password",
+    "login.password_placeholder": "Enter your password",
+    "login.password_required": "Please enter your password",
+    "login.submit": "Sign in",
+    "login.title": "Sign in to workspace",
     "macros.action_add_attr": "Add attribute",
     "macros.action_assignee": "Assignee",
     "macros.action_assignee_clear": "Unassign",
@@ -1294,7 +1314,11 @@ export const messages = {
     "telegrams.team_hint": "The team inbox new conversations go to",
     "telegrams.team_unassigned": "Unassigned",
     "telegrams.title": "Telegram bots",
+    "test_account.dev_heading": "Dev quick sign-in",
     "test_account.failed": "Test account sign-in failed. Run go run ./cmd/agents-desk seed first",
+    "test_account.role_agent": "Agent",
+    "test_account.role_manager": "Manager",
+    "test_account.role_owner": "Owner",
     "test_account.sign_in": "Sign in with a test account",
     "tg_studio.backfill_0": "None (0)",
     "tg_studio.backfill_20": "Latest 20",
@@ -1631,6 +1655,18 @@ export const messages = {
     "widgets.team_hint": "The team inbox new conversations go to",
     "widgets.team_unassigned": "Unassigned",
     "widgets.title": "Website chat widgets",
+    "workspace.all_workspaces": "All workspaces",
+    "workspace.back_home": "Back to home",
+    "workspace.count": "{{.n}} workspaces",
+    "workspace.disabled_section": "Disabled",
+    "workspace.impersonation_locked": "Impersonation is locked to this workspace",
+    "workspace.last_visited": "Last visited",
+    "workspace.no_match": "No matching workspaces",
+    "workspace.search_placeholder": "Search workspaces…",
+    "workspace.settings": "Workspace settings",
+    "workspace.signed_in_as": "Signed in as {{.name}}",
+    "workspace.switch_label": "Switch workspace",
+    "workspace.switch_tooltip": "Click to switch workspace",
   },
   "zh-CN": {
     "alerts.assigned_body": "会话已指派给你，点击查看",
@@ -2012,6 +2048,7 @@ export const messages = {
     "command.searching": "正在搜索…",
     "command.shortcuts_action": "查看全部键盘快捷键",
     "command.view_all_results": "在收件箱中查看全部 {{.n}} 个会话",
+    "command.workspaces_group": "切换工作区",
     "common.cancel": "取消",
     "common.clear_search": "清除搜索",
     "common.copied": "已复制",
@@ -2435,8 +2472,27 @@ export const messages = {
     "inbox.visitor": "访客",
     "inbox.visitor_numbered": "访客 #{{.n}}",
     "inbox.you": "你",
-    "login.description": "用工作区管理员给你的邮箱和密码登录",
-    "login.title": "登录",
+    "login.aside_footer": "团队综合服务平台",
+    "login.aside_headline": "AI 驱动的团队统一服务工作台",
+    "login.aside_subline": "在一个空间里连接客户咨询、内部协作与商务沟通，让团队响应更快、更从容。",
+    "login.back_home": "返回首页",
+    "login.description": "使用你的工作区账号继续",
+    "login.email": "邮箱",
+    "login.email_invalid": "请输入有效的邮箱地址",
+    "login.email_placeholder": "name@company.com",
+    "login.email_required": "请输入邮箱",
+    "login.feature_ai_desc": "跨语言对话自动互译，快捷回复与上下文摘要助坐席高效接待。",
+    "login.feature_ai_title": "实时翻译与 AI 辅助",
+    "login.feature_inbox_desc": "网页插件、Telegram 与工单集中处理，自动指派与状态流转清晰可控。",
+    "login.feature_inbox_title": "全渠道统一收件箱",
+    "login.feature_workspace_desc": "单一账号加入多个业务工作区，权限、渠道与数据严格隔离并一键切换。",
+    "login.feature_workspace_title": "多工作区隔离协作",
+    "login.footer_hint": "还没有账号？请联系团队工作区管理员将你加入。",
+    "login.password": "密码",
+    "login.password_placeholder": "请输入密码",
+    "login.password_required": "请输入密码",
+    "login.submit": "登录",
+    "login.title": "登录工作台",
     "macros.action_add_attr": "添加属性",
     "macros.action_assignee": "负责人",
     "macros.action_assignee_clear": "取消负责人",
@@ -2924,7 +2980,11 @@ export const messages = {
     "telegrams.team_hint": "新会话进入的团队收件箱",
     "telegrams.team_unassigned": "未指派",
     "telegrams.title": "Telegram 机器人",
+    "test_account.dev_heading": "开发环境快捷登录",
     "test_account.failed": "测试账号登录失败，先运行 go run ./cmd/agents-desk seed",
+    "test_account.role_agent": "坐席",
+    "test_account.role_manager": "管理员",
+    "test_account.role_owner": "主管理员",
     "test_account.sign_in": "用测试账号登录",
     "tg_studio.backfill_0": "不拉取（0 条）",
     "tg_studio.backfill_20": "最近 20 条",
@@ -3261,6 +3321,18 @@ export const messages = {
     "widgets.team_hint": "新会话进入的团队收件箱",
     "widgets.team_unassigned": "未指派",
     "widgets.title": "网页聊天插件",
+    "workspace.all_workspaces": "全部工作区",
+    "workspace.back_home": "返回首页",
+    "workspace.count": "共 {{.n}} 个工作区",
+    "workspace.disabled_section": "已停用",
+    "workspace.impersonation_locked": "代为登录已锁定当前工作区",
+    "workspace.last_visited": "上次访问",
+    "workspace.no_match": "没有匹配的工作区",
+    "workspace.search_placeholder": "搜索工作区…",
+    "workspace.settings": "工作区设置",
+    "workspace.signed_in_as": "当前登录：{{.name}}",
+    "workspace.switch_label": "切换工作区",
+    "workspace.switch_tooltip": "点击切换工作区",
   },
 } as const
 
@@ -3645,6 +3717,7 @@ export type MessageId =
   | "command.searching"
   | "command.shortcuts_action"
   | "command.view_all_results"
+  | "command.workspaces_group"
   | "common.cancel"
   | "common.clear_search"
   | "common.copied"
@@ -4068,7 +4141,26 @@ export type MessageId =
   | "inbox.visitor"
   | "inbox.visitor_numbered"
   | "inbox.you"
+  | "login.aside_footer"
+  | "login.aside_headline"
+  | "login.aside_subline"
+  | "login.back_home"
   | "login.description"
+  | "login.email"
+  | "login.email_invalid"
+  | "login.email_placeholder"
+  | "login.email_required"
+  | "login.feature_ai_desc"
+  | "login.feature_ai_title"
+  | "login.feature_inbox_desc"
+  | "login.feature_inbox_title"
+  | "login.feature_workspace_desc"
+  | "login.feature_workspace_title"
+  | "login.footer_hint"
+  | "login.password"
+  | "login.password_placeholder"
+  | "login.password_required"
+  | "login.submit"
   | "login.title"
   | "macros.action_add_attr"
   | "macros.action_assignee"
@@ -4557,7 +4649,11 @@ export type MessageId =
   | "telegrams.team_hint"
   | "telegrams.team_unassigned"
   | "telegrams.title"
+  | "test_account.dev_heading"
   | "test_account.failed"
+  | "test_account.role_agent"
+  | "test_account.role_manager"
+  | "test_account.role_owner"
   | "test_account.sign_in"
   | "tg_studio.backfill_0"
   | "tg_studio.backfill_20"
@@ -4894,6 +4990,18 @@ export type MessageId =
   | "widgets.team_hint"
   | "widgets.team_unassigned"
   | "widgets.title"
+  | "workspace.all_workspaces"
+  | "workspace.back_home"
+  | "workspace.count"
+  | "workspace.disabled_section"
+  | "workspace.impersonation_locked"
+  | "workspace.last_visited"
+  | "workspace.no_match"
+  | "workspace.search_placeholder"
+  | "workspace.settings"
+  | "workspace.signed_in_as"
+  | "workspace.switch_label"
+  | "workspace.switch_tooltip"
 
 // 登记消息 ID：@go-tenon/ui 的 useT 只接受其中的 ID。
 declare module "@go-tenon/ui" {

@@ -176,7 +176,7 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
                 {conversations.data?.items.map((conv) => (
                   <Link
                     key={conv.id}
-                    to="/t/$slug/inbox/$id"
+                    to="/$slug/inbox/$id"
                     params={{ slug, id: conv.id }}
                     search={{ box: "all", status: conv.status, sort: "waiting" }}
                     className="ct-conv"
@@ -254,7 +254,7 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
                   {contactTickets.data?.items.map((tk) => (
                     <Link
                       key={tk.id}
-                      to="/t/$slug/tickets/$id"
+                      to="/$slug/tickets/$id"
                       params={{ slug, id: tk.id }}
                       search={{ box: "all", status: "unresolved" }}
                       className="ct-conv"

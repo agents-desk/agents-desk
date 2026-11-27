@@ -34,7 +34,7 @@ export function TranslationPage({ route }: { route: PeriodRoute }): ReactNode {
   const can = useCan()
   const uiLang = useLanguage()
   const formatDuration = useFormatDuration()
-  const { slug } = useParams({ from: "/t/$slug" })
+  const { slug } = useParams({ from: "/$slug" })
   const period = usePeriod(route, { defaultPreset: "7d" })
   const query = useQuery({
     ...kit.queries.report.translation(period.params),
@@ -383,7 +383,7 @@ export function TranslationPage({ route }: { route: PeriodRoute }): ReactNode {
               return (
                 <Tooltip key={item.language} label={t("reports.drill_language_inbox")} openDelay={300} withArrow>
                   <Link
-                    to="/t/$slug/inbox"
+                    to="/$slug/inbox"
                     params={{ slug }}
                     search={languageInboxSearch(item.language)}
                     className="rp-bar-row"

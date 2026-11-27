@@ -44,7 +44,7 @@ export function MembersPage({ route }: { route: PeriodRoute }): ReactNode {
   const can = useCan()
   const uiLang = useLanguage()
   const formatDuration = useFormatDuration()
-  const { slug } = useParams({ from: "/t/$slug" })
+  const { slug } = useParams({ from: "/$slug" })
   const filters = useReportFilters(route)
   const query = useQuery({
     ...kit.queries.report.members(filters.queryParams),
@@ -197,7 +197,7 @@ export function MembersPage({ route }: { route: PeriodRoute }): ReactNode {
           canInbox && row.open_assigned > 0 ? (
             <Tooltip label={t("reports.drill_member_inbox")} openDelay={250} withArrow>
               <Link
-                to="/t/$slug/inbox"
+                to="/$slug/inbox"
                 params={{ slug }}
                 search={memberOpenInboxSearch(row.member_id, scope)}
                 className="rp-drill-link"

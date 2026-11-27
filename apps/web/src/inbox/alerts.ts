@@ -54,7 +54,7 @@ export function playAlertSound(): void {
 function isViewingConversation(slug: string, conversationId: string): boolean {
   if (typeof document === "undefined" || typeof window === "undefined") return false
   if (document.visibilityState !== "visible") return false
-  return window.location.pathname === `/t/${slug}/inbox/${conversationId}`
+  return window.location.pathname === `/${slug}/inbox/${conversationId}`
 }
 
 /**
