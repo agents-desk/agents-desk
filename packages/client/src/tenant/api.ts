@@ -5,6 +5,22 @@ import { Runtime, type ClientOptions, type Download, type SessionLike, type Stre
 export * from "./errors"
 export { ApiError, isApiError, saveBlob, type ClientOptions, type Download, type SessionLike, type FieldError, type StreamOptions } from "./runtime"
 
+export interface AgentGenerationDTO {
+  /** 产出回复的机器人 */
+  actor: ConversationActor
+  /** 产出片段的序号，客户端用它续上气泡 */
+  checkpoint: number
+  conversation_id: string
+  created_at: string
+  id: string
+  state: AgentGenerationState
+  /** 已产出的文字 */
+  text: string
+  updated_at: string
+}
+
+export type AgentGenerationState = "pending" | "streaming" | "waiting_approval" | "completed" | "failed" | "canceled"
+
 export interface AttributeCreateParams {
   description?: string
   /** 属性标识，小写字母开头，可包含小写字母、数字和下划线；创建后不可修改 */
@@ -4022,6 +4038,23 @@ export function createClient(options: ClientOptions) {
        */
       upload: (form: FileUploadForm): Promise<File> =>
         rt.request<File>({ method: "POST", path: `/files`, form }),
+    },
+    /** operationId 以 generation- 开头的接口。 */
+    generation: {
+      /**
+       * 取消生成
+       *
+       * POST /generations/{id}/cancel
+       */
+      cancel: (id: string): Promise<void> =>
+        rt.request<void>({ method: "POST", path: `/generations/${encodeURIComponent(id)}/cancel` }),
+      /**
+       * 读取进行中的生成
+       *
+       * GET /conversations/{id}/generations
+       */
+      list: (id: string): Promise<AgentGenerationDTO[]> =>
+        rt.request<AgentGenerationDTO[]>({ method: "GET", path: `/conversations/${encodeURIComponent(id)}/generations` }),
     },
     /** operationId 以 hours- 开头的接口。 */
     hours: {

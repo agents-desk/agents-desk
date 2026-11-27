@@ -466,6 +466,8 @@ queue.topic.translation.fill.label: 历史消息补译
 queue.topic.translation.fill.description: 为切换主要语言后的工作区补齐历史会话翻译
 queue.topic.conversation.automate.label: 自动化规则执行
 queue.topic.conversation.automate.description: 按工作区配置的自动化规则处理会话事件与自动分配
+queue.topic.agent.generate.label: AI 回复生成
+queue.topic.agent.generate.description: 会话中有启用的机器人时为成员的新消息生成回复，逐字推送并定稿为时间线消息
 queue.topic.ticket.broadcast.label: 工单公开进度同步
 queue.topic.ticket.broadcast.description: 按关联会话的客户语言去重翻译工单公开进度并批量投递
 queue.topic.search.sync.conversation_items.label: 会话搜索索引同步
@@ -501,6 +503,8 @@ schedule.task.operations_cleanup.label: 清理历史后台操作
 schedule.task.operations_cleanup.description: 删除 30 天前的后台操作与导出记录
 schedule.task.conversations_unsnooze.label: 唤醒到期稍后处理会话
 schedule.task.conversations_unsnooze.description: 重新打开稍后处理到期的会话
+schedule.task.generations_expire.label: 清理超时的 AI 生成
+schedule.task.generations_expire.description: 把超过有效期仍未结束的 AI 生成标记为失败
 
 conversation.invalid_actions: 附带操作的参数无效
 conversation.invalid_filter: 筛选条件配置无效
@@ -588,3 +592,14 @@ chat.not_participant: 该成员不在这个群聊中
 chat.name_required: 群聊名称不能为空
 chat.owner_protected: 不能移出该商务渠道的归属成员
 chat.contact_protected: 不能移出外部联系人参与者
+agent.generation_not_found: 生成不存在
+agent.generation_finished: 这次生成已经结束
+agent.forbidden: 你没有权限执行这个操作
+agent.bot_not_found: 机器人不存在或已停用
+agent.empty_reply: 模型没有产出任何内容
+agent.generation_state.pending: 等待中
+agent.generation_state.streaming: 生成中
+agent.generation_state.waiting_approval: 等待确认
+agent.generation_state.completed: 已完成
+agent.generation_state.failed: 失败
+agent.generation_state.canceled: 已取消

@@ -48,6 +48,7 @@ import (
 	"github.com/go-tenon/tenon/sheet/exports"
 	"github.com/go-tenon/tenon/telemetry"
 
+	"agents-desk/internal/agent"
 	"agents-desk/internal/auth"
 	"agents-desk/internal/automation"
 	"agents-desk/internal/business"
@@ -122,6 +123,7 @@ func (a *App) downstream() conversation.Downstream {
 			{Topic: translation.Topic, Accept: translation.Accepts},
 			{Topic: translation.TicketBroadcastTopic, Accept: translation.Broadcasts},
 			{Topic: automation.Topic, Accept: automation.Accepts},
+			{Topic: agent.Topic, Accept: agent.Triggers},
 		},
 		Hub:      a.hub,
 		Roles:    a.roles,
@@ -308,6 +310,8 @@ func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
 	conversation.RegisterJobs(w, a.db, a.channels, down)
 	translation.RegisterJobs(w, a.db, a.locker, a.translator, down)
 	automation.RegisterJobs(w, a.db, a.locker, down)
+	// 模型实现还没有接入：执行器只在会话中有启用的机器人且 Generator 不为 nil 时生成，当前什么也不做
+	agent.RegisterJobs(w, agent.NewRunner(a.db, down, a.hub, nil))
 	tenant.RegisterJobs(w, a.db, a.memberLogins, tenant.Addresses{PublicURL: a.cfg.HTTP.PublicURL}, a.hub, a.exporter)
 	contact.RegisterJobs(w, a.db, a.hub, a.exporter)
 	scheduleapi.HandleRunNow(w, a.tasks)
@@ -375,6 +379,11 @@ func (a *App) tasks() *schedule.Scheduler {
 	},
 		schedule.Label("schedule.task.conversations_unsnooze.label"),
 		schedule.Describe("schedule.task.conversations_unsnooze.description"))
+	sched.Add("generations:expire", "* * * * *", schedule.Cleanup(func(ctx context.Context, limit int) (int, error) {
+		return agent.ExpireGenerations(ctx, a.db, time.Now().UTC(), limit)
+	}, 500),
+		schedule.Label("schedule.task.generations_expire.label"),
+		schedule.Describe("schedule.task.generations_expire.description"))
 	return sched
 }
 

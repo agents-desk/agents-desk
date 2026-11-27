@@ -11,6 +11,20 @@ export const AccountErrors = {
   WrongPassword: "account.wrong_password",
 } as const
 
+/** agents-desk/internal/agent 的错误码。 */
+export const AgentErrors = {
+  /** ErrNotFound 是生成不存在，或者属于别的工作区。 */
+  NotFound: "agent.generation_not_found",
+  /** ErrFinished 是生成已经结束（完成、取消或失败），不能继续写入、取消或再次定稿。 */
+  Finished: "agent.generation_finished",
+  /** ErrForbidden 是不是系统主体，或者没有执行这个生成动作的权限。 */
+  Forbidden: "agent.forbidden",
+  /** ErrBotNotFound 是机器人不存在、已停用，或者属于别的工作区。 */
+  BotNotFound: "agent.bot_not_found",
+  /** ErrEmptyReply 是模型没有产出任何内容，不产生消息。 */
+  EmptyReply: "agent.empty_reply",
+} as const
+
 /** agents-desk/internal/attribute 的错误码。 */
 export const AttributeErrors = {
   /** ErrNotFound 是属性定义不存在，或者属于别的工作区。 */

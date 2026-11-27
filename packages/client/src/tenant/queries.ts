@@ -480,6 +480,21 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
           invalidate(context, "file"),
       }),
     },
+    generation: {
+      /** generation 分组全部查询的 key 前缀。 */
+      key: () => key("generation"),
+      /** POST /generations/{id}/cancel */
+      cancel: () => ({
+        mutationFn: (variables: Parameters<Client["generation"]["cancel"]>[0]) => client.generation.cancel(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "generation"),
+      }),
+      /** GET /conversations/{id}/generations */
+      list: (...args: Parameters<Client["generation"]["list"]>) => ({
+        queryKey: key("generation", "list", ...args),
+        queryFn: () => client.generation.list(...args),
+      }),
+    },
     hours: {
       /** hours 分组全部查询的 key 前缀。 */
       key: () => key("hours"),
