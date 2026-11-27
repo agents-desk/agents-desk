@@ -364,6 +364,7 @@ activity.feature.cleared: "Cleared feature flag “{{.name}}” override ({{.sco
 platform_settings.invalid_email: "Enter a valid email address"
 platform_settings.required_field: "This field is required when Resend is enabled"
 platform_settings.telegram_incomplete: "Both Telegram API ID and API Hash must be filled together or left empty"
+platform_settings.invalid_proxy_url: "Invalid proxy URL; use socks5://host:port"
 platform_settings.language.zh-CN: "简体中文"
 platform_settings.language.en: "English"
 
@@ -381,6 +382,8 @@ mail.fields.api_key: "Resend API Key"
 telegram-api.title: "Telegram Personal API"
 telegram-api.fields.api_id: "API ID"
 telegram-api.fields.api_hash: "API Hash"
+telegram-api.fields.proxy_url: "SOCKS5 Proxy (optional)"
+telegram-api.descriptions.proxy_url: "Optional socks5://[user:pass@]host:port proxy when the server cannot reach Telegram directly"
 
 tgaccount.not_configured: "Telegram API ID and API Hash are not configured yet. Ask a platform admin to configure them in system settings"
 tgaccount.login_not_found: "Login session not found or expired. Please start again"

@@ -1,6 +1,7 @@
 package tgaccount
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -75,11 +76,13 @@ func (f *fakeLoginDriver) Close() {
 	f.mu.Unlock()
 }
 
-// fakeLiveClient 模拟已连接的 Telegram 个人号客户端，记录所有出站文本消息并提供预设对话和历史记录。
+// fakeLiveClient 模拟已连接的 Telegram 个人号客户端，记录所有出站文本消息并提供预设对话、文件夹、媒体与历史记录。
 type fakeLiveClient struct {
 	mu      sync.Mutex
 	dialogs []DialogDTO
+	folders []FolderDTO
 	history map[string][]IncomingMessage
+	media   map[string][]byte
 	sent    []sentRecord
 	nextID  int
 }
@@ -97,10 +100,33 @@ func (c *fakeLiveClient) ListDialogs(_ context.Context, _ int) ([]DialogDTO, err
 	return out, nil
 }
 
+func (c *fakeLiveClient) ListFolders(_ context.Context) ([]FolderDTO, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	out := make([]FolderDTO, len(c.folders))
+	copy(out, c.folders)
+	return out, nil
+}
+
 func (c *fakeLiveClient) FetchHistory(_ context.Context, peer SyncedPeer, _ int) ([]IncomingMessage, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return append([]IncomingMessage(nil), c.history[peer.ExternalChatID]...), nil
+}
+
+func (c *fakeLiveClient) DownloadMedia(_ context.Context, ref string, _ int64) (*channel.FetchedMedia, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	data, ok := c.media[ref]
+	if !ok {
+		return nil, channel.ErrMediaUnavailable.New()
+	}
+	return &channel.FetchedMedia{
+		Body:        io.NopCloser(bytes.NewReader(data)),
+		Filename:    "photo.jpg",
+		ContentType: "image/jpeg",
+		Size:        int64(len(data)),
+	}, nil
 }
 
 func (c *fakeLiveClient) SendText(_ context.Context, peer SyncedPeer, text string) (int, error) {
@@ -115,18 +141,20 @@ func (c *fakeLiveClient) SendMedia(_ context.Context, peer SyncedPeer, _ channel
 	return c.SendText(context.Background(), peer, caption)
 }
 
-// fakeBackend 模拟 MTProto 后端：可在测试中按会话标识精确注入实时更新并校验会话密文存取。
+// fakeBackend 模拟 MTProto 后端：可在测试中按会话标识精确注入实时更新并校验会话密文与代理配置传递。
 type fakeBackend struct {
 	mu          sync.Mutex
 	nextProfile TelegramProfile
 	need2FA     bool
+	lastProxy   string
 	live        *fakeLiveClient
 	onMessages  map[string]func(context.Context, IncomingMessage) error
 	startedCh   chan string
 }
 
-func (b *fakeBackend) StartPhoneLogin(_ context.Context, _ int, _, phone string) (LoginDriver, error) {
+func (b *fakeBackend) StartPhoneLogin(_ context.Context, cfg MTProtoConfig, phone string) (LoginDriver, error) {
 	b.mu.Lock()
+	b.lastProxy = cfg.ProxyURL
 	prof := b.nextProfile
 	prof.Phone = phone
 	need2FA := b.need2FA
@@ -138,8 +166,9 @@ func (b *fakeBackend) StartPhoneLogin(_ context.Context, _ int, _, phone string)
 	}, nil
 }
 
-func (b *fakeBackend) StartQRLogin(_ context.Context, _ int, _ string) (LoginDriver, error) {
+func (b *fakeBackend) StartQRLogin(_ context.Context, cfg MTProtoConfig) (LoginDriver, error) {
 	b.mu.Lock()
+	b.lastProxy = cfg.ProxyURL
 	prof := b.nextProfile
 	b.mu.Unlock()
 	exp := time.Now().UTC().Add(time.Minute)
@@ -149,7 +178,7 @@ func (b *fakeBackend) StartQRLogin(_ context.Context, _ int, _ string) (LoginDri
 	}, nil
 }
 
-func (b *fakeBackend) RunAccount(ctx context.Context, _ int, _ string, storage session.Storage,
+func (b *fakeBackend) RunAccount(ctx context.Context, cfg MTProtoConfig, storage session.Storage,
 	onMessage func(context.Context, IncomingMessage) error, onReady func(LiveClient)) error {
 	raw, err := storage.LoadSession(ctx)
 	if err != nil {
@@ -157,6 +186,7 @@ func (b *fakeBackend) RunAccount(ctx context.Context, _ int, _ string, storage s
 	}
 	key := string(raw)
 	b.mu.Lock()
+	b.lastProxy = cfg.ProxyURL
 	if b.onMessages == nil {
 		b.onMessages = map[string]func(context.Context, IncomingMessage) error{}
 	}
@@ -177,7 +207,10 @@ func (b *fakeBackend) RunAccount(ctx context.Context, _ int, _ string, storage s
 	return ctx.Err()
 }
 
-func (b *fakeBackend) RunOneShot(ctx context.Context, _ int, _ string, storage session.Storage, fn func(context.Context, LiveClient) error) error {
+func (b *fakeBackend) RunOneShot(ctx context.Context, cfg MTProtoConfig, storage session.Storage, fn func(context.Context, LiveClient) error) error {
+	b.mu.Lock()
+	b.lastProxy = cfg.ProxyURL
+	b.mu.Unlock()
 	if _, err := storage.LoadSession(ctx); err != nil {
 		return err
 	}
@@ -228,6 +261,10 @@ func TestTelegramPersonalAccountFullFlow(t *testing.T) {
 	}
 	live := &fakeLiveClient{
 		dialogs: []DialogDTO{{SyncedPeer: dmPeer}, {SyncedPeer: groupPeer}, {SyncedPeer: privatePeer}},
+		folders: []FolderDTO{
+			{ID: 2, Title: "VIP 客户", PeerCount: 1, Peers: []SyncedPeer{dmPeer}},
+			{ID: 3, Title: "渠道群", PeerCount: 1, Peers: []SyncedPeer{groupPeer}},
+		},
 		history: map[string][]IncomingMessage{
 			groupPeer.ExternalChatID: {
 				{
@@ -239,13 +276,26 @@ func TestTelegramPersonalAccountFullFlow(t *testing.T) {
 					CreatedAt:      time.Now().UTC().Add(-5 * time.Minute),
 				},
 			},
+			dmPeer.ExternalChatID: {
+				{
+					ExternalChatID: dmPeer.ExternalChatID,
+					MessageID:      15,
+					SenderID:       dmPeer.ExternalChatID,
+					SenderName:     dmPeer.Title,
+					Text:           "Earlier DM quote request",
+					CreatedAt:      time.Now().UTC().Add(-10 * time.Minute),
+				},
+			},
+		},
+		media: map[string][]byte{
+			"fake-media-ref-1": []byte("jpeg-bytes"),
 		},
 	}
 	backend := &fakeBackend{
 		nextProfile: TelegramProfile{UserID: 88001, Username: "alice_bd", DisplayName: "Alice BD"},
 		need2FA:     true,
 		live:        live,
-		startedCh:   make(chan string, 4),
+		startedCh:   make(chan string, 8),
 	}
 
 	mgr := NewManager(env.DB, env.Crypt, env.Files, tgSettings, backend)
@@ -257,19 +307,22 @@ func TestTelegramPersonalAccountFullFlow(t *testing.T) {
 	mgr.SetReceive(conversation.NewReceive(env.DB, reg, down))
 
 	// 1. 平台未配置 Telegram API 凭据时，拒绝发起登录
-	if _, err := mgr.StartLogin(ctx, subAlice, LoginModePhone, "Alice 主号", "+8613800138000"); !errors.Is(err, ErrNotConfigured) {
+	if _, err := mgr.StartLogin(ctx, subAlice, LoginModePhone, "Alice 主号", "+8613800138000", ""); !errors.Is(err, ErrNotConfigured) {
 		t.Fatalf("未配置 API 凭据应返回 ErrNotConfigured：%v", err)
 	}
 	if _, err := platformsettings.NewSaveTelegram(env.DB, tgSettings).Handle(ctx, apptest.Admin, platformsettings.Telegram{
-		APIID: 123456, APIHash: "test-api-hash-0123456789abcdef",
+		APIID: 123456, APIHash: "test-api-hash-0123456789abcdef", ProxyURL: "socks5://127.0.0.1:1080",
 	}); err != nil {
 		t.Fatalf("保存平台 Telegram 凭据失败：%v", err)
 	}
 
-	// 2. 手机号 -> 验证码 -> 2FA 两步验证密码完整登录流程，并验证加密会话密文落库
-	loginRes, err := mgr.StartLogin(ctx, subAlice, LoginModePhone, "Alice 主号", "+8613800138000")
+	// 2. 手机号 -> 验证码 -> 2FA 两步验证密码完整登录流程，并验证加密会话密文与代理传递
+	loginRes, err := mgr.StartLogin(ctx, subAlice, LoginModePhone, "Alice 主号", "+8613800138000", "")
 	if err != nil || loginRes.Step != StepAwaitingCode {
 		t.Fatalf("发起手机号登录失败：%v %+v", err, loginRes)
+	}
+	if backend.lastProxy != "socks5://127.0.0.1:1080" {
+		t.Fatalf("平台 SOCKS5 代理未透传给 MTProto 后端：%q", backend.lastProxy)
 	}
 	// 其他成员无法劫持 Alice 的登录会话
 	if _, err := mgr.SubmitCode(ctx, subBob, loginRes.LoginID, "12345"); !errors.Is(err, ErrLoginNotFound) {
@@ -284,6 +337,15 @@ func TestTelegramPersonalAccountFullFlow(t *testing.T) {
 		t.Fatalf("提交 2FA 密码完成登录失败：%v %+v", err, doneRes)
 	}
 	acctID := doneRes.Account.ID
+
+	// 确认 GetAccount 仅本人可读，其他成员不可越权
+	gotAcct, err := mgr.GetAccount(ctx, subAlice, acctID)
+	if err != nil || gotAcct.ID != acctID || gotAcct.Sync.Mode != SyncModeWhitelist {
+		t.Fatalf("GetAccount 异常：%v %+v", err, gotAcct)
+	}
+	if _, err := mgr.GetAccount(ctx, subBob, acctID); !errors.Is(err, channel.ErrNotFound) {
+		t.Fatalf("Bob 不应读取 Alice 的个人号详情：%v", err)
+	}
 
 	// 确认数据库中的 session_cipher 是密文，不泄露明文会话内容，且能正常解密回原字节
 	rawCh, err := channel.Find(ctx, env.DB, alpha.ID, acctID)
@@ -304,7 +366,7 @@ func TestTelegramPersonalAccountFullFlow(t *testing.T) {
 	backend.nextProfile = TelegramProfile{UserID: 88002, Username: "alice_eu", DisplayName: "Alice EU"}
 	backend.need2FA = false
 	backend.mu.Unlock()
-	login2, err := mgr.StartLogin(ctx, subAlice, LoginModePhone, "Alice 欧洲号", "+447700900123")
+	login2, err := mgr.StartLogin(ctx, subAlice, LoginModePhone, "Alice 欧洲号", "+447700900123", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -326,12 +388,40 @@ func TestTelegramPersonalAccountFullFlow(t *testing.T) {
 	if err != nil || len(dialogs) != 3 {
 		t.Fatalf("拉取候选对话失败：%v %+v", err, dialogs)
 	}
+	folders, err := mgr.ListFolders(ctx, subAlice, acctID)
+	if err != nil || len(folders) != 2 || folders[0].Title != "VIP 客户" {
+		t.Fatalf("拉取文件夹列表失败：%v %+v", err, folders)
+	}
 	updatedAcct, err := mgr.UpdateSyncedPeers(ctx, subAlice, acctID, []SyncedPeer{dmPeer, groupPeer}, 20)
 	if err != nil || len(updatedAcct.SyncedPeers) != 2 {
 		t.Fatalf("保存同步白名单失败：%v %+v", err, updatedAcct)
 	}
 
-	// 启动常驻同步循环，测试白名单过滤 + 双向收发 + 出站回声去重 + 手机端发消息同步
+	// 手动为单个会话回填历史消息（二次回填幂等去重返回 0）
+	imported1, err := mgr.BackfillPeer(ctx, subAlice, acctID, dmPeer.ExternalChatID, 20)
+	if err != nil {
+		t.Fatalf("手动回填历史失败：%v", err)
+	}
+	if imported1 != 0 {
+		// 更新白名单时 dmPeer 已被回填过 1 条，因此手动再次回填同一批历史应全部去重为 0
+		t.Fatalf("重复回填应全部去重，实际导入 %d", imported1)
+	}
+	live.mu.Lock()
+	live.history[dmPeer.ExternalChatID] = append(live.history[dmPeer.ExternalChatID], IncomingMessage{
+		ExternalChatID: dmPeer.ExternalChatID,
+		MessageID:      16,
+		SenderID:       dmPeer.ExternalChatID,
+		SenderName:     dmPeer.Title,
+		Text:           "Newer historic message",
+		CreatedAt:      time.Now().UTC().Add(-8 * time.Minute),
+	})
+	live.mu.Unlock()
+	imported2, err := mgr.BackfillPeer(ctx, subAlice, acctID, dmPeer.ExternalChatID, 20)
+	if err != nil || imported2 != 1 {
+		t.Fatalf("新增历史消息应导入 1 条，实际 imported=%d err=%v", imported2, err)
+	}
+
+	// 启动常驻同步循环，测试白名单过滤 + 双向收发 + 出站回声去重 + 手机端发消息同步 + 同步策略控制
 	runCtx, stopRun := context.WithCancel(ctx)
 	doneRun := make(chan struct{})
 	go func() {
@@ -344,25 +434,25 @@ func TestTelegramPersonalAccountFullFlow(t *testing.T) {
 	})
 
 	const acct1Session = `{"dc":2,"key":"secret-2fa-session-payload"}`
-	deadline := time.After(3 * time.Second)
-	for {
-		backend.mu.Lock()
-		_, ready := backend.onMessages[acct1Session]
-		backend.mu.Unlock()
-		if ready {
-			break
-		}
-		select {
-		case <-backend.startedCh:
-		case <-deadline:
-			t.Fatal("等待 Telegram 个人号长连接就绪超时")
+	waitRunnerReady := func() func(context.Context, IncomingMessage) error {
+		deadline := time.After(3 * time.Second)
+		for {
+			backend.mu.Lock()
+			fn, ready := backend.onMessages[acct1Session]
+			backend.mu.Unlock()
+			if ready {
+				return fn
+			}
+			select {
+			case <-backend.startedCh:
+			case <-deadline:
+				t.Fatal("等待 Telegram 个人号长连接就绪超时")
+			}
 		}
 	}
+	onMsg := waitRunnerReady()
 
 	// 推送一条未勾选的私人聊天消息 -> 应被严格忽略
-	backend.mu.Lock()
-	onMsg := backend.onMessages[acct1Session]
-	backend.mu.Unlock()
 	if err := onMsg(ctx, IncomingMessage{
 		ExternalChatID: privatePeer.ExternalChatID,
 		MessageID:      1,
@@ -373,16 +463,35 @@ func TestTelegramPersonalAccountFullFlow(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	// 推送一条已勾选的 1:1 商务单聊消息
+	// 推送一条已勾选的 1:1 商务单聊消息（含媒体附件）
 	if err := onMsg(ctx, IncomingMessage{
 		ExternalChatID: dmPeer.ExternalChatID,
 		MessageID:      20,
 		SenderID:       dmPeer.ExternalChatID,
 		SenderName:     dmPeer.Title,
 		Text:           "Hi Alice, checking contract status",
-		CreatedAt:      time.Now().UTC(),
+		Media: []IncomingMedia{{
+			Kind:        conversation.AttachmentImage,
+			Filename:    "contract.jpg",
+			ContentType: "image/jpeg",
+			Size:        10,
+			SourceRef:   "fake-media-ref-1",
+			AutoFetch:   true,
+		}},
+		CreatedAt: time.Now().UTC(),
 	}); err != nil {
 		t.Fatal(err)
+	}
+	// 校验 MediaFetcher 能从连接器流式拉取媒体字节
+	fetcher := mgr.Connector().(channel.MediaFetcher)
+	fetched, err := fetcher.FetchMedia(ctx, rawCh, "fake-media-ref-1", 1024)
+	if err != nil {
+		t.Fatalf("FetchMedia 失败：%v", err)
+	}
+	gotBytes, _ := io.ReadAll(fetched.Body)
+	_ = fetched.Body.Close()
+	if string(gotBytes) != "jpeg-bytes" {
+		t.Fatalf("FetchMedia 返回内容异常：%q", string(gotBytes))
 	}
 
 	listChats := conversation.NewListChats(env.DB)
@@ -396,10 +505,12 @@ func TestTelegramPersonalAccountFullFlow(t *testing.T) {
 	}
 
 	// 找回外部群聊并从平台发出一条回复 -> Deliver 通过 Connector.Send 发到 Telegram -> 模拟 Telegram 回声不重复入库
-	var grpChatID string
+	var grpChatID, dmChatID string
 	for _, ch := range chats.Items {
 		if ch.Mode == conversation.ChatGroup {
 			grpChatID = ch.ID
+		} else {
+			dmChatID = ch.ID
 		}
 	}
 	reply, err := conversation.NewSendChatMessage(env.DB, down).Handle(ctx, subAlice, grpChatID, conversation.SendChatMessageBody{
@@ -427,7 +538,7 @@ func TestTelegramPersonalAccountFullFlow(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	// 模拟成员在手机 Telegram App 中直接发出的另一条消息（MessageID = 502）：应同步入库
+	// 模拟成员在手机 Telegram App 中直接发出的另一条消息（MessageID = 502）：默认 sync_outgoing=true 应同步入库
 	if err := onMsg(ctx, IncomingMessage{
 		ExternalChatID: groupPeer.ExternalChatID,
 		MessageID:      502,
@@ -442,7 +553,133 @@ func TestTelegramPersonalAccountFullFlow(t *testing.T) {
 		t.Fatalf("外部群聊应包含 1 条历史 + 1 条平台回复（回声已去重）+ 1 条手机端同步消息：%v %+v", err, items)
 	}
 
-	// 4. 解绑未使用的第二个账号直接删除；解绑已有聊天记录的主账号则清空密文并停用
+	// 4. 更新同步策略：关闭 sync_outgoing、群聊改为 mentions_only、写入商务策略，并验证实时生效
+	autoFalse := false
+	syncCfg := SyncConfig{
+		Mode:          SyncModeWhitelist,
+		BackfillLimit: 30,
+		SyncOutgoing:  false,
+		SyncMedia:     false,
+		GroupMode:     GroupSyncMentionsOnly,
+	}
+	bizPol := channel.BusinessPolicy{
+		DefaultCollaboratorIDs: []string{bob.ID},
+		TranslationTone:        "formal",
+		AutoTranslate:          &autoFalse,
+	}
+	upd, err := mgr.UpdateAccount(ctx, subAlice, acctID, UpdateAccountParams{
+		Name:     "Alice 商务主号",
+		Enabled:  true,
+		Sync:     &syncCfg,
+		Business: &bizPol,
+	})
+	if err != nil || upd.Name != "Alice 商务主号" || upd.Sync.SyncOutgoing || upd.Sync.GroupMode != GroupSyncMentionsOnly || upd.Business.TranslationTone != "formal" {
+		t.Fatalf("更新个人号同步与商务策略失败：%v %+v", err, upd)
+	}
+	// sync_outgoing=false：手机端发出的消息不再入库
+	if err := onMsg(ctx, IncomingMessage{
+		ExternalChatID: groupPeer.ExternalChatID,
+		MessageID:      503,
+		Text:           "Should be skipped because sync_outgoing=false",
+		FromOwner:      true,
+		CreatedAt:      time.Now().UTC(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// group_mode=mentions_only：群聊未提及自己的普通消息忽略，提及自己的消息入库
+	if err := onMsg(ctx, IncomingMessage{
+		ExternalChatID: groupPeer.ExternalChatID,
+		MessageID:      504,
+		SenderID:       "tg:user:2001",
+		SenderName:     "Rajesh Partner",
+		Text:           "Chatter without mention",
+		Mentioned:      false,
+		CreatedAt:      time.Now().UTC(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := onMsg(ctx, IncomingMessage{
+		ExternalChatID: groupPeer.ExternalChatID,
+		MessageID:      505,
+		SenderID:       "tg:user:2001",
+		SenderName:     "Rajesh Partner",
+		Text:           "@alice_bd please confirm invoice",
+		Mentioned:      true,
+		CreatedAt:      time.Now().UTC(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	itemsAfterPolicy, err := conversation.NewTimeline(env.DB).Handle(ctx, subAlice, grpChatID, 0, 50)
+	if err != nil || len(itemsAfterPolicy) != 4 {
+		t.Fatalf("策略生效后群聊应仅新增 1 条被 @ 消息（共 4 条），实际 %d err=%v", len(itemsAfterPolicy), err)
+	}
+
+	// 暂停 dmPeer 后实时消息被跳过
+	pausedDM := dmPeer
+	pausedDM.Paused = true
+	if _, err := mgr.UpdateSyncedPeers(ctx, subAlice, acctID, []SyncedPeer{pausedDM, groupPeer}, 0); err != nil {
+		t.Fatal(err)
+	}
+	beforeDM, _ := conversation.NewTimeline(env.DB).Handle(ctx, subAlice, dmChatID, 0, 50)
+	if err := onMsg(ctx, IncomingMessage{
+		ExternalChatID: dmPeer.ExternalChatID,
+		MessageID:      21,
+		SenderID:       dmPeer.ExternalChatID,
+		SenderName:     dmPeer.Title,
+		Text:           "Message while paused",
+		CreatedAt:      time.Now().UTC(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	afterDM, _ := conversation.NewTimeline(env.DB).Handle(ctx, subAlice, dmChatID, 0, 50)
+	if len(afterDM) != len(beforeDM) {
+		t.Fatalf("暂停同步期间单聊不应写入新消息：before=%d after=%d", len(beforeDM), len(afterDM))
+	}
+
+	// 5. 文件夹同步模式：勾选文件夹 2 自动同步其下的对话
+	folderSync := SyncConfig{
+		Mode:          SyncModeFolders,
+		FolderIDs:     []int{2},
+		BackfillLimit: 20,
+		SyncOutgoing:  true,
+		SyncMedia:     true,
+		GroupMode:     GroupSyncAll,
+	}
+	updFolder, err := mgr.UpdateAccount(ctx, subAlice, acctID, UpdateAccountParams{
+		Name:    "Alice 商务主号",
+		Enabled: true,
+		Sync:    &folderSync,
+	})
+	if err != nil || updFolder.Sync.Mode != SyncModeFolders || len(updFolder.SyncedPeers) != 1 || updFolder.SyncedPeers[0].ExternalChatID != dmPeer.ExternalChatID || !updFolder.SyncedPeers[0].Paused {
+		t.Fatalf("文件夹模式同步应保留已暂停状态并仅包含文件夹 2 的对话：%v %+v", err, updFolder)
+	}
+
+	// 6. 手动重连 + 原地重新授权（带 accountID 跳过新建配额检查并保留原渠道配置）
+	quotaHit := false
+	mgr.SetPolicyChecker(func(_ context.Context, _ identity.Subject, isReconnect bool) error {
+		if !isReconnect {
+			quotaHit = true
+			return errors.New("quota exceeded")
+		}
+		return nil
+	})
+	if _, err := mgr.ReconnectAccount(ctx, subAlice, acctID); err != nil {
+		t.Fatalf("手动重连失败：%v", err)
+	}
+	backend.mu.Lock()
+	backend.nextProfile = TelegramProfile{UserID: 88001, Username: "alice_bd_new", DisplayName: "Alice BD"}
+	backend.need2FA = false
+	backend.mu.Unlock()
+	reLogin, err := mgr.StartLogin(ctx, subAlice, LoginModePhone, "", "+8613800138000", acctID)
+	if err != nil || quotaHit {
+		t.Fatalf("原地重新授权应跳过新建配额检查：err=%v quotaHit=%v", err, quotaHit)
+	}
+	reDone, err := mgr.SubmitCode(ctx, subAlice, reLogin.LoginID, "12345")
+	if err != nil || reDone.Account == nil || reDone.Account.ID != acctID || reDone.Account.Name != "Alice 商务主号" || reDone.Account.Username != "alice_bd_new" {
+		t.Fatalf("原地重新授权应保留原 ID 与名称并刷新资料：%v %+v", err, reDone)
+	}
+
+	// 7. 解绑未使用的第二个账号直接删除；解绑已有聊天记录的主账号则清空密文并停用
 	if err := mgr.DisconnectAccount(ctx, subAlice, done2.Account.ID); err != nil {
 		t.Fatalf("解绑未使用账号失败：%v", err)
 	}

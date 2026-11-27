@@ -104,3 +104,39 @@ func TestGeneralAndMailSettings(t *testing.T) {
 		t.Fatalf("期望 3 条设置日志，实际 %d err=%v", len(logs.Items), err)
 	}
 }
+
+func TestTelegramSettingsAndProxy(t *testing.T) {
+	t.Parallel()
+	env := apptest.New(t)
+	ctx := context.Background()
+
+	tgGroup := platformsettings.NewTelegramGroup(env.DB, env.Crypt)
+	saveTG := platformsettings.NewSaveTelegram(env.DB, tgGroup)
+	testTG := platformsettings.NewTestTelegram(tgGroup)
+
+	// API ID 与 API Hash 必须同时填写
+	if _, err := saveTG.Handle(ctx, apptest.Admin, platformsettings.Telegram{APIID: 12345}); !errors.Is(err, platformsettings.ErrTelegramCredentialsIncomplete) {
+		t.Fatalf("仅填 API ID 应返回 ErrTelegramCredentialsIncomplete：%v", err)
+	}
+	// 非 SOCKS5 代理地址被拒绝
+	if _, err := saveTG.Handle(ctx, apptest.Admin, platformsettings.Telegram{
+		APIID: 12345, APIHash: "abcdef0123456789", ProxyURL: "http://127.0.0.1:8080",
+	}); !errors.Is(err, platformsettings.ErrInvalidProxyURL) {
+		t.Fatalf("HTTP 代理应返回 ErrInvalidProxyURL：%v", err)
+	}
+	if _, err := testTG.Handle(ctx, "http://127.0.0.1:8080"); !errors.Is(err, platformsettings.ErrInvalidProxyURL) {
+		t.Fatalf("连通性测试收到非法代理应返回 ErrInvalidProxyURL：%v", err)
+	}
+
+	// 保存带 socks5h 代理的凭据并读回
+	saved, err := saveTG.Handle(ctx, apptest.Admin, platformsettings.Telegram{
+		APIID: 12345, APIHash: "abcdef0123456789", ProxyURL: "socks5h://user:pass@127.0.0.1:1080",
+	})
+	if err != nil || saved.ProxyURL != "socks5h://user:pass@127.0.0.1:1080" || !saved.Configured() {
+		t.Fatalf("保存 Telegram 凭据与代理失败：%+v err=%v", saved, err)
+	}
+	loaded, err := tgGroup.Get(ctx)
+	if err != nil || loaded.APIID != 12345 || loaded.APIHash != "abcdef0123456789" || loaded.ProxyURL != "socks5h://user:pass@127.0.0.1:1080" {
+		t.Fatalf("读取 Telegram 设置失败：%+v err=%v", loaded, err)
+	}
+}

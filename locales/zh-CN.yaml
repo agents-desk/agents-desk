@@ -364,6 +364,7 @@ activity.feature.cleared: "清除了功能开关「{{.name}}」的设置（{{.sc
 platform_settings.invalid_email: 请输入有效的邮箱地址
 platform_settings.required_field: 启用 Resend 发信时此项不能为空
 platform_settings.telegram_incomplete: Telegram API ID 与 API Hash 必须同时填写或同时留空
+platform_settings.invalid_proxy_url: 代理地址格式无效，请使用 socks5://host:port 格式
 platform_settings.language.zh-CN: 简体中文
 platform_settings.language.en: English
 
@@ -381,6 +382,8 @@ mail.fields.api_key: Resend API Key
 telegram-api.title: Telegram 个人号 API
 telegram-api.fields.api_id: API ID
 telegram-api.fields.api_hash: API Hash
+telegram-api.fields.proxy_url: SOCKS5 出口代理（可选）
+telegram-api.descriptions.proxy_url: 如服务器无法直连 Telegram，可填写 socks5://[user:pass@]host:port；留空直连
 
 tgaccount.not_configured: 平台尚未配置 Telegram API ID 与 API Hash，请联系平台管理员在系统设置中填写
 tgaccount.login_not_found: 登录会话不存在或已过期，请重新发起登录

@@ -1296,6 +1296,59 @@ export const messages = {
     "telegrams.title": "Telegram bots",
     "test_account.failed": "Test account sign-in failed. Run go run ./cmd/agents-desk seed first",
     "test_account.sign_in": "Sign in with a test account",
+    "tg_studio.backfill_0": "None (0)",
+    "tg_studio.backfill_20": "Latest 20",
+    "tg_studio.backfill_50": "Latest 50",
+    "tg_studio.backfill_limit": "Default history backfill",
+    "tg_studio.enabled": "Enable this Telegram account",
+    "tg_studio.enabled_hint": "Disabling disconnects MTProto and pauses syncing; re-enable anytime to resume",
+    "tg_studio.folder_peers_count": "{{.count}} syncable chat(s)",
+    "tg_studio.folders_empty": "No custom Telegram folders found. Create folders in Telegram first or switch to whitelist mode.",
+    "tg_studio.folders_failed": "Failed to load Telegram folders. Make sure the account is online and retry.",
+    "tg_studio.folders_hint": "Pick folders you created in Telegram; saving automatically syncs their direct chats and groups.",
+    "tg_studio.folders_refresh": "Refresh folders",
+    "tg_studio.group_all": "All messages",
+    "tg_studio.group_mentions": "Mentions \u0026 replies only",
+    "tg_studio.group_mode": "External group sync mode",
+    "tg_studio.health_desc": "Inspect MTProto live connection health, last sync timestamp, and errors. Reconnect or re-authorize in place anytime.",
+    "tg_studio.health_title": "Connection health \u0026 status",
+    "tg_studio.last_synced": "Last synced: {{.time}}",
+    "tg_studio.modal_backfill_label": "History backfill for new chats",
+    "tg_studio.mode_folders": "Telegram folders",
+    "tg_studio.mode_whitelist": "Manual whitelist",
+    "tg_studio.never_synced": "No messages synced yet",
+    "tg_studio.peer_backfill": "Backfill 20 messages",
+    "tg_studio.peer_backfill_none": "Already up to date; no new messages",
+    "tg_studio.peer_backfilled": "Imported {{.count}} historic message(s)",
+    "tg_studio.peer_pause": "Pause sync",
+    "tg_studio.peer_paused_ok": "Paused syncing for this chat",
+    "tg_studio.peer_remove": "Remove",
+    "tg_studio.peer_remove_confirm": "Remove “{{.name}}” from synced chats?",
+    "tg_studio.peer_remove_msg": "New messages will stop syncing for this chat. Existing conversation history stays intact.",
+    "tg_studio.peer_removed": "Removed from synced chats",
+    "tg_studio.peer_resume": "Resume sync",
+    "tg_studio.peer_resumed_ok": "Resumed syncing for this chat",
+    "tg_studio.peer_status_active": "Syncing",
+    "tg_studio.peer_status_paused": "Paused",
+    "tg_studio.peers_desc": "Manage synced direct chats and groups. Pause syncing per chat, backfill recent history, or remove from the whitelist.",
+    "tg_studio.peers_empty": "No synced chats yet. Click “Pick synced chats” to add partners or groups.",
+    "tg_studio.reauth": "Re-authorize in place",
+    "tg_studio.reauth_hint": "Re-authorizing refreshes the encrypted session without losing your synced chats, history, or business policy.",
+    "tg_studio.reauth_title": "Re-authorize “{{.name}}”",
+    "tg_studio.reconnect": "Reconnect",
+    "tg_studio.reconnected": "Reconnect triggered",
+    "tg_studio.section_basic": "Basic settings",
+    "tg_studio.section_basic_desc": "Configure how this personal account appears and whether syncing is active.",
+    "tg_studio.section_sync": "Sync scope \u0026 behavior",
+    "tg_studio.section_sync_desc": "Control synced chat scope, history backfill, media ingestion, and group noise filtering. Outbound messages always require manual sending.",
+    "tg_studio.sync_media": "Sync incoming photos and document attachments",
+    "tg_studio.sync_media_hint": "Turn off to ingest text-only messages and save storage",
+    "tg_studio.sync_mode": "Sync scope mode",
+    "tg_studio.sync_outgoing": "Sync messages sent from your phone/desktop Telegram",
+    "tg_studio.sync_outgoing_hint": "Keep workspace timelines complete when you reply directly inside the official Telegram app",
+    "tg_studio.tab_config": "General \u0026 sync policy",
+    "tg_studio.tab_peers": "Synced chats",
+    "tg_studio.title": "Telegram personal account",
     "ticket_types.add": "New ticket type",
     "ticket_types.add_field": "Add field",
     "ticket_types.default_team": "Default team inbox",
@@ -2873,6 +2926,59 @@ export const messages = {
     "telegrams.title": "Telegram 机器人",
     "test_account.failed": "测试账号登录失败，先运行 go run ./cmd/agents-desk seed",
     "test_account.sign_in": "用测试账号登录",
+    "tg_studio.backfill_0": "不拉取（0 条）",
+    "tg_studio.backfill_20": "最近 20 条",
+    "tg_studio.backfill_50": "最近 50 条",
+    "tg_studio.backfill_limit": "新会话默认拉取历史",
+    "tg_studio.enabled": "启用此 Telegram 个人号",
+    "tg_studio.enabled_hint": "停用后将断开长连接并暂停收发消息，重新启用即可恢复同步",
+    "tg_studio.folder_peers_count": "{{.count}} 个可同步会话",
+    "tg_studio.folders_empty": "未读取到自定义 Telegram 文件夹，请先在 Telegram 客户端中创建文件夹或改用白名单模式。",
+    "tg_studio.folders_failed": "读取 Telegram 文件夹失败，请确认账号在线后重试。",
+    "tg_studio.folders_hint": "勾选你在 Telegram 客户端中整理的商务文件夹，保存后自动将其下的单聊与群聊纳入同步。",
+    "tg_studio.folders_refresh": "刷新文件夹",
+    "tg_studio.group_all": "同步全部群消息",
+    "tg_studio.group_mentions": "仅同步 @提及或回复我的消息",
+    "tg_studio.group_mode": "外部群聊同步策略",
+    "tg_studio.health_desc": "查看 MTProto 长连接状态、最近同步时间与错误信息，可随时手动重连或原地重新授权。",
+    "tg_studio.health_title": "连接健康与账号状态",
+    "tg_studio.last_synced": "最近同步：{{.time}}",
+    "tg_studio.modal_backfill_label": "新增会话历史回填",
+    "tg_studio.mode_folders": "按 Telegram 文件夹",
+    "tg_studio.mode_whitelist": "精细白名单",
+    "tg_studio.never_synced": "尚未同步过消息",
+    "tg_studio.peer_backfill": "回填最近 20 条",
+    "tg_studio.peer_backfill_none": "已是最新，无新增历史消息",
+    "tg_studio.peer_backfilled": "已补拉 {{.count}} 条新历史消息",
+    "tg_studio.peer_pause": "暂停同步",
+    "tg_studio.peer_paused_ok": "已暂停同步该会话",
+    "tg_studio.peer_remove": "移出同步",
+    "tg_studio.peer_remove_confirm": "将“{{.name}}”移出同步列表？",
+    "tg_studio.peer_remove_msg": "移出后不再接收或发送该会话的新消息，工作区中已有的历史记录仍会保留。",
+    "tg_studio.peer_removed": "已从同步列表移出",
+    "tg_studio.peer_resume": "恢复同步",
+    "tg_studio.peer_resumed_ok": "已恢复同步该会话",
+    "tg_studio.peer_status_active": "同步中",
+    "tg_studio.peer_status_paused": "已暂停",
+    "tg_studio.peers_desc": "管理已同步的单聊与群聊。可随时暂停单个会话的实时同步、手动补拉最近历史，或移出同步白名单。",
+    "tg_studio.peers_empty": "尚未勾选任何同步会话，点击右上角「挑选同步会话」开始配置。",
+    "tg_studio.reauth": "原地重新登录",
+    "tg_studio.reauth_hint": "重新授权仅刷新加密会话凭据，不会影响已有的同步列表、历史聊天与商务策略。",
+    "tg_studio.reauth_title": "原地重新授权“{{.name}}”",
+    "tg_studio.reconnect": "手动重连",
+    "tg_studio.reconnected": "已触发重连，请稍候查看连接状态",
+    "tg_studio.section_basic": "基本信息",
+    "tg_studio.section_basic_desc": "设置该个人号在工作区中的显示名称与启用状态。",
+    "tg_studio.section_sync": "同步范围与行为策略",
+    "tg_studio.section_sync_desc": "精细控制同步的会话范围、历史回填条数、附件同步与群聊降噪策略。所有出站消息均需人工确认发送，绝不自动回复或群发。",
+    "tg_studio.sync_media": "同步合作方发来的图片与文档附件",
+    "tg_studio.sync_media_hint": "关闭后仅同步纯文字消息，节省存储空间与流量",
+    "tg_studio.sync_mode": "会话同步范围",
+    "tg_studio.sync_outgoing": "同步自己在手机/桌面端发出的消息",
+    "tg_studio.sync_outgoing_hint": "开启后，你在官方 Telegram 客户端发送的回复也会同步到工作区时间线，保持上下文完整",
+    "tg_studio.tab_config": "基本与同步策略",
+    "tg_studio.tab_peers": "同步会话管理",
+    "tg_studio.title": "Telegram 个人号配置",
     "ticket_types.add": "新建工单类型",
     "ticket_types.add_field": "新建字段",
     "ticket_types.default_team": "默认团队收件箱",
@@ -4453,6 +4559,59 @@ export type MessageId =
   | "telegrams.title"
   | "test_account.failed"
   | "test_account.sign_in"
+  | "tg_studio.backfill_0"
+  | "tg_studio.backfill_20"
+  | "tg_studio.backfill_50"
+  | "tg_studio.backfill_limit"
+  | "tg_studio.enabled"
+  | "tg_studio.enabled_hint"
+  | "tg_studio.folder_peers_count"
+  | "tg_studio.folders_empty"
+  | "tg_studio.folders_failed"
+  | "tg_studio.folders_hint"
+  | "tg_studio.folders_refresh"
+  | "tg_studio.group_all"
+  | "tg_studio.group_mentions"
+  | "tg_studio.group_mode"
+  | "tg_studio.health_desc"
+  | "tg_studio.health_title"
+  | "tg_studio.last_synced"
+  | "tg_studio.modal_backfill_label"
+  | "tg_studio.mode_folders"
+  | "tg_studio.mode_whitelist"
+  | "tg_studio.never_synced"
+  | "tg_studio.peer_backfill"
+  | "tg_studio.peer_backfill_none"
+  | "tg_studio.peer_backfilled"
+  | "tg_studio.peer_pause"
+  | "tg_studio.peer_paused_ok"
+  | "tg_studio.peer_remove"
+  | "tg_studio.peer_remove_confirm"
+  | "tg_studio.peer_remove_msg"
+  | "tg_studio.peer_removed"
+  | "tg_studio.peer_resume"
+  | "tg_studio.peer_resumed_ok"
+  | "tg_studio.peer_status_active"
+  | "tg_studio.peer_status_paused"
+  | "tg_studio.peers_desc"
+  | "tg_studio.peers_empty"
+  | "tg_studio.reauth"
+  | "tg_studio.reauth_hint"
+  | "tg_studio.reauth_title"
+  | "tg_studio.reconnect"
+  | "tg_studio.reconnected"
+  | "tg_studio.section_basic"
+  | "tg_studio.section_basic_desc"
+  | "tg_studio.section_sync"
+  | "tg_studio.section_sync_desc"
+  | "tg_studio.sync_media"
+  | "tg_studio.sync_media_hint"
+  | "tg_studio.sync_mode"
+  | "tg_studio.sync_outgoing"
+  | "tg_studio.sync_outgoing_hint"
+  | "tg_studio.tab_config"
+  | "tg_studio.tab_peers"
+  | "tg_studio.title"
   | "ticket_types.add"
   | "ticket_types.add_field"
   | "ticket_types.default_team"

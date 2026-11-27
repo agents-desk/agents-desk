@@ -139,6 +139,10 @@ export const messages = {
     "settings.logo_upload_failed": "Upload failed",
     "settings.mail_description": "Configure Resend for outgoing email. The sender domain must be verified in Resend; leave the API key empty to log emails without sending.",
     "settings.telegram_description": "Configure Telegram app API ID and API Hash from my.telegram.org so workspace members can connect personal Telegram accounts for B2B chats. Leave empty to disable.",
+    "settings.telegram_proxy_placeholder": "socks5://user:pass@127.0.0.1:1080",
+    "settings.telegram_test": "Test connection",
+    "settings.telegram_test_failed": "Connection failed: {{.error}}",
+    "settings.telegram_test_ok": "Connected to Telegram DC ({{.ms}} ms)",
     "tenants.change_owner": "Change owner",
     "tenants.export": "Export workspaces",
     "tenants.impersonate": "Impersonate",
@@ -282,6 +286,10 @@ export const messages = {
     "settings.logo_upload_failed": "上传失败",
     "settings.mail_description": "配置 Resend 发信服务，发件人邮箱所属域名需先在 Resend 完成验证；API Key 留空表示暂不外发（仅写入日志）。",
     "settings.telegram_description": "配置在 my.telegram.org 申请的 Telegram 应用 API ID 与 API Hash，供工作区成员绑定 Telegram 个人号开展商务沟通；留空表示暂不启用。",
+    "settings.telegram_proxy_placeholder": "socks5://user:pass@127.0.0.1:1080",
+    "settings.telegram_test": "测试连通性",
+    "settings.telegram_test_failed": "连通失败：{{.error}}",
+    "settings.telegram_test_ok": "已连通 Telegram DC（延迟 {{.ms}} ms）",
     "tenants.change_owner": "更换主管理员",
     "tenants.export": "导出工作区",
     "tenants.impersonate": "代为登录",
@@ -428,6 +436,10 @@ export type MessageId =
   | "settings.logo_upload_failed"
   | "settings.mail_description"
   | "settings.telegram_description"
+  | "settings.telegram_proxy_placeholder"
+  | "settings.telegram_test"
+  | "settings.telegram_test_failed"
+  | "settings.telegram_test_ok"
   | "tenants.change_owner"
   | "tenants.export"
   | "tenants.impersonate"
