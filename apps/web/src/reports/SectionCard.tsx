@@ -1,9 +1,8 @@
 // 报表内容分区容器：拆解区块（SectionCard）与明细表分区（DetailSection），统一加载态与空态。
 
 import { Center, Skeleton, Text } from "@mantine/core"
-import { useT } from "@go-tenon/ui"
+import { EmptyState, useT } from "@go-tenon/ui"
 import type { ReactNode } from "react"
-import { EmptyState } from "../components/empty-state"
 
 export interface SectionCardProps {
   title: ReactNode

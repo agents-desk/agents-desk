@@ -1,14 +1,23 @@
-import { Button, Card, Group, NumberInput, Stack, Text, TextInput, Title } from "@mantine/core"
+import { Button, Group, NumberInput, SimpleGrid, Stack, TextInput } from "@mantine/core"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import type { ErrorInfo } from "@go-tenon/client"
-import { applyServerErrors, FormError, notifySuccess, Page, SecretInput, useSchemaForm, useT } from "@go-tenon/ui"
+import {
+  applyServerErrors,
+  FormError,
+  FormSection,
+  notifySuccess,
+  Page,
+  SecretInput,
+  useSchemaForm,
+  useT,
+} from "@go-tenon/ui"
 import type { LlmSettings } from "@agents-desk/client/admin"
 import { useEffect, useState } from "react"
 import { api, kit } from "../../../api"
 
 export const Route = createFileRoute("/_app/settings/model")({
-  staticData: { title: "nav.model", icon: "ai", order: 2, permission: "platform-settings:manage" },
+  staticData: { title: "nav.model", icon: "ai", order: 4, permission: "platform-settings:manage" },
   component: ModelSettings,
 })
 
@@ -53,8 +62,9 @@ function ModelSettings() {
   }, [current.data])
 
   return (
-    <Page title={t("nav.model")} description={t("model.description")}>
+    <Page title={t("nav.model")} description={t("model.description")} width="narrow">
       <form
+        noValidate
         onSubmit={form.onSubmit(async (values) => {
           setError(undefined)
           try {
@@ -68,96 +78,87 @@ function ModelSettings() {
         })}
       >
         <Stack gap="md">
-          <FormError error={error} />
-          <Card withBorder>
-            <Stack gap="sm">
-              <Title order={4}>{t("model.gateway_title")}</Title>
-              <Text size="sm" c="dimmed">
-                {t("model.gateway_description")}
-              </Text>
-              <TextInput
-                label={t("model.base_url")}
-                placeholder="https://gateway.example.com/v1"
-                {...form.getInputProps("gateway.base_url")}
+          <FormError error={error} form={form} />
+          <FormSection title={t("model.gateway_title")} description={t("model.gateway_description")}>
+            <TextInput
+              label={t("model.base_url")}
+              placeholder="https://gateway.example.com/v1"
+              {...form.getInputProps("gateway.base_url")}
+            />
+            <SecretInput label={t("model.api_key")} {...form.getInputProps("gateway.api_key")} />
+          </FormSection>
+          <FormSection title={t("model.models_title")}>
+            <TextInput
+              label={t("model.chat_label")}
+              description={t("model.chat_description")}
+              placeholder="chat-pro"
+              {...form.getInputProps("models.chat")}
+            />
+            <TextInput
+              label={t("model.fast_router_label")}
+              description={t("model.fast_router_description")}
+              placeholder="router-fast"
+              {...form.getInputProps("models.fast_router")}
+            />
+            <TextInput
+              label={t("model.translation_label")}
+              description={t("model.translation_description")}
+              placeholder="translate-fast"
+              {...form.getInputProps("models.translation")}
+            />
+            <TextInput
+              label={t("model.embedding_label")}
+              description={t("model.embedding_description")}
+              placeholder="embed-large"
+              {...form.getInputProps("models.embedding")}
+            />
+            <TextInput
+              label={t("model.rerank_label")}
+              description={t("model.rerank_description")}
+              placeholder="rerank-v3"
+              {...form.getInputProps("models.rerank")}
+            />
+            <TextInput
+              label={t("model.transcribe_label")}
+              description={t("model.transcribe_description")}
+              placeholder="whisper-1"
+              {...form.getInputProps("models.transcribe")}
+            />
+          </FormSection>
+          <FormSection title={t("model.budget_title")} description={t("model.budget_description")}>
+            <SimpleGrid cols={{ base: 1, sm: 3 }}>
+              <NumberInput
+                label={t("model.budget_daily_cost")}
+                min={0}
+                max={100000}
+                decimalScale={4}
+                allowNegative={false}
+                value={form.values.default_budget.daily_cost_usd}
+                onChange={(v) => form.setFieldValue("default_budget.daily_cost_usd", typeof v === "number" ? v : 0)}
+                error={form.errors["default_budget.daily_cost_usd"]}
               />
-              <SecretInput label={t("model.api_key")} {...form.getInputProps("gateway.api_key")} />
-            </Stack>
-          </Card>
-          <Card withBorder>
-            <Stack gap="sm">
-              <Title order={4}>{t("model.models_title")}</Title>
-              <TextInput
-                label={t("model.chat_label")}
-                description={t("model.chat_description")}
-                placeholder="chat-pro"
-                {...form.getInputProps("models.chat")}
+              <NumberInput
+                label={t("model.budget_monthly_cost")}
+                min={0}
+                max={1000000}
+                decimalScale={4}
+                allowNegative={false}
+                value={form.values.default_budget.monthly_cost_usd}
+                onChange={(v) => form.setFieldValue("default_budget.monthly_cost_usd", typeof v === "number" ? v : 0)}
+                error={form.errors["default_budget.monthly_cost_usd"]}
               />
-              <TextInput
-                label={t("model.fast_router_label")}
-                description={t("model.fast_router_description")}
-                placeholder="router-fast"
-                {...form.getInputProps("models.fast_router")}
+              <NumberInput
+                label={t("model.budget_daily_tokens")}
+                min={0}
+                max={10000000000}
+                allowDecimal={false}
+                allowNegative={false}
+                value={form.values.default_budget.daily_total_tokens}
+                onChange={(v) => form.setFieldValue("default_budget.daily_total_tokens", typeof v === "number" ? v : 0)}
+                error={form.errors["default_budget.daily_total_tokens"]}
               />
-              <TextInput
-                label={t("model.translation_label")}
-                description={t("model.translation_description")}
-                placeholder="translate-fast"
-                {...form.getInputProps("models.translation")}
-              />
-              <TextInput
-                label={t("model.embedding_label")}
-                description={t("model.embedding_description")}
-                placeholder="embed-large"
-                {...form.getInputProps("models.embedding")}
-              />
-              <TextInput
-                label={t("model.rerank_label")}
-                description={t("model.rerank_description")}
-                placeholder="rerank-v3"
-                {...form.getInputProps("models.rerank")}
-              />
-              <TextInput
-                label={t("model.transcribe_label")}
-                description={t("model.transcribe_description")}
-                placeholder="whisper-1"
-                {...form.getInputProps("models.transcribe")}
-              />
-            </Stack>
-          </Card>
-          <Card withBorder>
-            <Stack gap="sm">
-              <Title order={4}>{t("model.budget_title")}</Title>
-              <Text size="sm" c="dimmed">
-                {t("model.budget_description")}
-              </Text>
-              <Group grow align="flex-start">
-                <NumberInput
-                  label={t("model.budget_daily_cost")}
-                  min={0}
-                  max={100000}
-                  decimalScale={4}
-                  value={form.values.default_budget.daily_cost_usd}
-                  onChange={(v) => form.setFieldValue("default_budget.daily_cost_usd", typeof v === "number" ? v : 0)}
-                />
-                <NumberInput
-                  label={t("model.budget_monthly_cost")}
-                  min={0}
-                  max={1000000}
-                  decimalScale={4}
-                  value={form.values.default_budget.monthly_cost_usd}
-                  onChange={(v) => form.setFieldValue("default_budget.monthly_cost_usd", typeof v === "number" ? v : 0)}
-                />
-                <NumberInput
-                  label={t("model.budget_daily_tokens")}
-                  min={0}
-                  max={10000000000}
-                  allowDecimal={false}
-                  value={form.values.default_budget.daily_total_tokens}
-                  onChange={(v) => form.setFieldValue("default_budget.daily_total_tokens", typeof v === "number" ? v : 0)}
-                />
-              </Group>
-            </Stack>
-          </Card>
+            </SimpleGrid>
+          </FormSection>
           <Group justify="flex-end">
             <Button type="submit" disabled={!form.isDirty()} loading={form.submitting}>
               {t("common.save")}

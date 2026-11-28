@@ -26,7 +26,6 @@ import {
 import { useForm } from "@mantine/form"
 import {
   IconFolder,
-  IconHistory,
   IconKey,
   IconPlayerPause,
   IconPlayerPlay,
@@ -43,19 +42,23 @@ import {
   confirm,
   DataTable,
   FormError,
+  FormSection,
   notifyError,
   notifySuccess,
   Page,
+  PageActions,
+  RowActions,
   StatusDot,
+  useLanguage,
   useT,
+  useTimeZone,
 } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { kit, tenantApi } from "../../api"
-import { RowActions } from "../../components/row-actions"
 import { useUnsavedGuard } from "../../components/unsaved-guard"
 import { useMe, useMembers } from "../../inbox/data"
+import { fullDateTime } from "../../inbox/format"
 import { SyncedPeersModal, TelegramLoginModal } from "./telegram-modals"
-import { FormSection } from "../../components/form-section"
 
 interface TelegramAccountFormValues {
   name: string
@@ -106,6 +109,8 @@ function toFormValues(acc: TgaccountAccountDTO): TelegramAccountFormValues {
  */
 export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }): ReactNode {
   const t = useT()
+  const ui = useLanguage()
+  const zone = useTimeZone()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const tab = (useSearch({ strict: false }) as { tab?: string }).tab || "config"
@@ -346,7 +351,7 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
                 <Skeleton height={200} radius="md" />
               </Stack>
             ) : account ? (
-              <form onSubmit={form.onSubmit((v) => save.mutate(v))}>
+              <form noValidate onSubmit={form.onSubmit((v) => save.mutate(v))}>
                 <Stack gap="md">
                   <FormError error={serverError} />
 
@@ -391,7 +396,7 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
                         </Group>
                         <Text size="xs" c="dimmed">
                           {account.last_synced_at
-                            ? t("tg_studio.last_synced", { time: new Date(account.last_synced_at).toLocaleString() })
+                            ? t("tg_studio.last_synced", { time: fullDateTime(account.last_synced_at, ui, zone) })
                             : t("tg_studio.never_synced")}
                         </Text>
                       </Stack>
@@ -474,8 +479,17 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
                                     px="sm"
                                     py={6}
                                     radius="sm"
+                                    role="checkbox"
+                                    tabIndex={0}
+                                    aria-checked={checked}
                                     style={{ cursor: "pointer" }}
                                     onClick={() => toggleFolder(f.id)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault()
+                                        toggleFolder(f.id)
+                                      }
+                                    }}
                                   >
                                     <Group justify="space-between" wrap="nowrap">
                                       <Group gap="xs" wrap="nowrap">
@@ -506,6 +520,7 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
                         { value: "50", label: t("tg_studio.backfill_50") },
                       ]}
                       value={form.values.sync.backfill_limit}
+                      error={form.errors["sync.backfill_limit"]}
                       onChange={(v) => form.setFieldValue("sync.backfill_limit", v ?? "20")}
                     />
 
@@ -564,6 +579,7 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
                         { value: "friendly", label: kit.label("TranslationTone", "friendly") },
                       ]}
                       value={form.values.business.translation_tone}
+                      error={form.errors["business.translation_tone"]}
                       onChange={(v) =>
                         form.setFieldValue("business.translation_tone", (v ?? "") as "" | "friendly" | "neutral" | "formal")
                       }
@@ -576,6 +592,7 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
                         { value: "off", label: t("biz_studio.auto_translate_off") },
                       ]}
                       value={form.values.business.auto_translate}
+                      error={form.errors["business.auto_translate"]}
                       onChange={(v) => form.setFieldValue("business.auto_translate", (v ?? "inherit") as "inherit" | "on" | "off")}
                     />
                   </FormSection>
@@ -588,11 +605,8 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
             label: t("tg_studio.tab_peers"),
             count: account?.synced_peers.length || undefined,
             content: (
-              <Stack gap="md">
-                <Group justify="space-between" align="center" wrap="wrap" gap="sm">
-                  <Text size="sm" c="dimmed">
-                    {t("tg_studio.peers_desc")}
-                  </Text>
+              <Stack gap="sm">
+                <PageActions>
                   <Button
                     leftSection={<IconPlus size={16} />}
                     disabled={!account || !account.enabled || account.status === "auth_expired"}
@@ -600,7 +614,10 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
                   >
                     {t("business_channels.tg_pick_dialogs")}
                   </Button>
-                </Group>
+                </PageActions>
+                <Text size="sm" c="dimmed">
+                  {t("tg_studio.peers_desc")}
+                </Text>
 
                 <DataTable
                   records={account?.synced_peers ?? []}
@@ -655,12 +672,6 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
                               icon: peer.paused ? <IconPlayerPlay size={14} /> : <IconPlayerPause size={14} />,
                               disabled: updatePeers.isPending,
                               onClick: () => handleTogglePause(peer),
-                            },
-                            {
-                              label: t("tg_studio.peer_backfill"),
-                              icon: <IconHistory size={14} />,
-                              disabled: backfillPeer.isPending || !account?.enabled || account.status === "auth_expired",
-                              onClick: () => backfillPeer.mutate(peer.external_chat_id),
                             },
                             {
                               label: t("tg_studio.peer_remove"),

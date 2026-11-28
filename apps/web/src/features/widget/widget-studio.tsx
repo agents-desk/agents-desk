@@ -3,7 +3,7 @@ import { Badge, Box, Button, ColorInput, Group, Skeleton, Stack, Switch, TagsInp
 import { useForm } from "@mantine/form"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useSearch } from "@tanstack/react-router"
-import { applyServerErrors, FormError, notifySuccess, Page, primaryColors, ResourceSelect, useT } from "@go-tenon/ui"
+import { applyServerErrors, FormError, FormSection, notifySuccess, Page, primaryColors, ResourceSelect, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { tenantApi } from "../../api"
 import { AiReceptionCard } from "../../components/ai-placeholders"
@@ -14,7 +14,6 @@ import { computePreviewLanguages, resolvePreviewCopy } from "./preview-protocol"
 import { WidgetInstallPanel } from "./widget-install-panel"
 import { WidgetPreviewStage } from "./widget-preview-stage"
 import classes from "./widget-studio.module.css"
-import { FormSection } from "../../components/form-section"
 
 /** presetSwatches 是 26 种主题预设色的十六进制色块，供颜色选择器快捷点选。 */
 const presetSwatches = Object.values(primaryColors)
@@ -193,7 +192,7 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
                   <Skeleton height={680} radius="md" />
                 </Box>
               ) : (
-                <form onSubmit={form.onSubmit((v) => save.mutate(v))}>
+                <form noValidate onSubmit={form.onSubmit((v) => save.mutate(v))}>
                   <Box className={classes.layout}>
                     <Stack gap="md">
                       <FormError error={serverError} />

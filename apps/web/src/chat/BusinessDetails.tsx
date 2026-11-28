@@ -121,6 +121,7 @@ export function BusinessDetails({ chat, onClose, onLeft }: BusinessDetailsProps)
   const detected = chat.language ? languageName(chat.language, ui) : ""
   const canLeave = memberParticipants.length > 1
   const chColor = chat.channel ? channelColor(chat.channel.kind) : "brand"
+  const aiEnabled = useAiWorkspaceEnabled()
 
   const handleRemove = async (memberId: string, memberName: string) => {
     const ok = await confirm({
@@ -155,7 +156,7 @@ export function BusinessDetails({ chat, onClose, onLeft }: BusinessDetailsProps)
       <DetailsAsideTabs value={asideTab} onChange={setAsideTab} />
 
       <PaneBody>
-        {useAiWorkspaceEnabled() && asideTab === "ai" ? (
+        {aiEnabled && asideTab === "ai" ? (
           <AiAssistantPanel scene="chat" />
         ) : (
         <>

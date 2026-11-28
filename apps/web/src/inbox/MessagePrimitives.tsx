@@ -37,12 +37,13 @@ export function canGroupItems(
   cur: ConversationItemDTO,
   firstNew: ConversationItemDTO | undefined,
   sameBucket?: (a: ConversationItemDTO, b: ConversationItemDTO) => boolean,
+  timeZone?: string,
 ): boolean {
   if (!prev || prev.kind === "event" || cur.kind === "event") return false
   if (cur === firstNew) return false
   if (prev.actor.type !== cur.actor.type || prev.actor.id !== cur.actor.id) return false
   if (sameBucket && !sameBucket(prev, cur)) return false
-  if (!sameDay(prev.created_at, cur.created_at)) return false
+  if (!sameDay(prev.created_at, cur.created_at, timeZone)) return false
   return Math.abs(new Date(cur.created_at).getTime() - new Date(prev.created_at).getTime()) <= GROUP_WINDOW_MS
 }
 
@@ -664,46 +665,46 @@ export function TimelineNote({
         <Group gap={6} mb={4} wrap="nowrap">
           <IconLock size={12} className="inbox-note-accent" style={{ flex: "none" }} />
           {avatar}
-          <Text size="xs" fw={600} className="inbox-note-accent">
+          <Text size="xs" fw={600} truncate className="inbox-note-accent" style={{ minWidth: 0 }}>
             {t("inbox.note_by", { who: author })}
           </Text>
           <Tooltip label={fullTime} openDelay={300}>
-            <Text fz={11} className="inbox-note-accent" opacity={0.8} style={{ fontVariantNumeric: "tabular-nums" }}>
+            <Text fz={11} className="inbox-note-accent" opacity={0.8} style={{ flex: "none", fontVariantNumeric: "tabular-nums" }}>
               {time}
             </Text>
           </Tooltip>
           {Boolean(it.revision) && !recalled && (
-            <Text fz={11} c="dimmed">
+            <Text fz={11} c="dimmed" style={{ flex: "none" }}>
               · {t("inbox.message_edited")}
             </Text>
           )}
           {!recalled && (shown || isOwn) && (
-            <Group gap={2} ml="auto" wrap="nowrap" className="inbox-note-actions">
+            <Group gap={2} ml="auto" wrap="nowrap" className="inbox-note-actions" style={{ flex: "none" }}>
               {isOwn && (
                 <>
                   <Tooltip label={t("inbox.message_edit")} openDelay={250}>
                     <ActionIcon
                       variant="subtle"
                       color="gray"
-                      size={20}
+                      size={22}
                       aria-label={t("inbox.message_edit")}
                       onClick={() => {
                         setEditText(raw)
                         setEditing(true)
                       }}
                     >
-                      <IconPencil size={12} />
+                      <IconPencil size={14} />
                     </ActionIcon>
                   </Tooltip>
                   <Tooltip label={t("inbox.message_recall")} openDelay={250}>
                     <ActionIcon
                       variant="subtle"
                       color="gray"
-                      size={20}
+                      size={22}
                       aria-label={t("inbox.message_recall")}
                       onClick={() => setRecalling(true)}
                     >
-                      <IconArrowBackUp size={12} />
+                      <IconArrowBackUp size={14} />
                     </ActionIcon>
                   </Tooltip>
                 </>

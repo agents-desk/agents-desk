@@ -5,7 +5,7 @@ import { IconLink, IconSearch } from "@tabler/icons-react"
 import { notifyError, notifySuccess, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { contactDisplayName } from "../contacts/display"
+import { contactDisplayName, contactKindColor } from "../contacts/display"
 
 /** LinkContactModalProps 是在工单页关联受影响客户弹窗的设置。 */
 interface LinkContactModalProps {
@@ -48,7 +48,7 @@ export function LinkContactModal({ opened, ticketId, linkedContactIds, onClose }
   const candidates = (contacts.data?.items ?? []).filter((ct) => !linkedContactIds.has(ct.id))
 
   return (
-    <Modal opened={opened} onClose={onClose} title={t("tickets.link_contact_title")} size="md">
+    <Modal opened={opened} onClose={onClose} title={t("tickets.link_contact_title")} size="md" closeOnClickOutside={false}>
       <Stack gap="sm">
         <TextInput
           value={q}
@@ -82,7 +82,7 @@ export function LinkContactModal({ opened, ticketId, linkedContactIds, onClose }
                     <Text size="sm" fw={500} truncate style={{ flex: 1, minWidth: 0 }}>
                       {contactDisplayName(ct, t)}
                     </Text>
-                    <Badge size="xs" variant="light" color="gray" style={{ flex: "none" }}>
+                    <Badge size="xs" variant="light" color={contactKindColor[ct.kind]} style={{ flex: "none" }}>
                       {kit.label("ContactKind", ct.kind)}
                     </Badge>
                     <IconLink size={14} color="var(--tn-muted)" style={{ flex: "none" }} />

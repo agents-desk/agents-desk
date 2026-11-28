@@ -16,6 +16,7 @@ function AccountSettings() {
   return (
     <Page
       title={t("nav.account")}
+      width="narrow"
       tabs={[
         { value: "basic", label: t("profile.tab_basic"), content: <BasicProfileForm /> },
         { value: "password", label: t("profile.tab_password"), content: <PasswordForm /> },

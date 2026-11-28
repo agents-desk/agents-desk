@@ -445,6 +445,8 @@ export const messages = {
     "chat.business_info": "Chat info",
     "chat.business_manage": "Manage business channels",
     "chat.business_note_hint": "Visible only to workspace collaborators, never sent externally",
+    "chat.business_pick": "Select a business chat to start messaging",
+    "chat.business_pick_hint": "Supports 1:1 business DMs and external groups with automatic cross-language translation",
     "chat.business_reply_placeholder": "Reply to this business contact, or paste images and attachments…",
     "chat.business_search_placeholder": "Search business contacts, groups, or messages…",
     "chat.business_section": "Business chats",
@@ -543,7 +545,9 @@ export const messages = {
     "common.enable": "Enable",
     "common.enabled": "Enabled",
     "common.leave": "Leave",
+    "common.load_failed": "Failed to load data. Please try again.",
     "common.more": "More actions",
+    "common.retry": "Retry",
     "common.save": "Save",
     "common.saved": "Saved",
     "common.status": "Status",
@@ -2537,6 +2541,8 @@ export const messages = {
     "chat.business_info": "沟通信息",
     "chat.business_manage": "管理商务渠道",
     "chat.business_note_hint": "仅工作区协作成员可见",
+    "chat.business_pick": "选择一个商务沟通开始对话",
+    "chat.business_pick_hint": "支持 1:1 商务单聊与外部群聊，跨语言外部消息自动互译",
     "chat.business_reply_placeholder": "回复商务联系人，可以粘贴图片和附件…",
     "chat.business_search_placeholder": "搜索外部联系人、群聊或消息记录…",
     "chat.business_section": "商务沟通",
@@ -2635,7 +2641,9 @@ export const messages = {
     "common.enable": "启用",
     "common.enabled": "已启用",
     "common.leave": "离开",
+    "common.load_failed": "加载失败，请稍后重试。",
     "common.more": "更多操作",
+    "common.retry": "重试",
     "common.save": "保存",
     "common.saved": "已保存",
     "common.status": "状态",
@@ -4632,6 +4640,8 @@ export type MessageId =
   | "chat.business_info"
   | "chat.business_manage"
   | "chat.business_note_hint"
+  | "chat.business_pick"
+  | "chat.business_pick_hint"
   | "chat.business_reply_placeholder"
   | "chat.business_search_placeholder"
   | "chat.business_section"
@@ -4730,7 +4740,9 @@ export type MessageId =
   | "common.enable"
   | "common.enabled"
   | "common.leave"
+  | "common.load_failed"
   | "common.more"
+  | "common.retry"
   | "common.save"
   | "common.saved"
   | "common.status"

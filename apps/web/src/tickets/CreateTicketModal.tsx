@@ -11,6 +11,7 @@ import {
   ScrollArea,
   SegmentedControl,
   Select,
+  SimpleGrid,
   Stack,
   Text,
   Textarea,
@@ -204,8 +205,9 @@ export function CreateTicketModal({ opened, onClose, sourceConversation, onCreat
       onClose={onClose}
       title={t(sourceConversation ? "tickets.create_from_conversation_title" : "tickets.create_title")}
       size="lg"
+      closeOnClickOutside={false}
     >
-      <form onSubmit={onSubmit}>
+      <form noValidate onSubmit={onSubmit}>
         <Stack gap="sm">
           {(sourceConversation || extraConversations.length > 0 || pickerOpen) && (
             <Paper withBorder radius="md" px="sm" py="xs" bg="var(--tn-canvas)">
@@ -400,7 +402,7 @@ export function CreateTicketModal({ opened, onClose, sourceConversation, onCreat
                 </Text>
               </Stack>
 
-              <Group grow align="flex-start">
+              <SimpleGrid cols={{ base: 1, sm: 3 }} style={{ alignItems: "flex-start" }}>
                 <Select
                   label={t("inbox.team")}
                   placeholder={t("inbox.no_team")}
@@ -429,7 +431,7 @@ export function CreateTicketModal({ opened, onClose, sourceConversation, onCreat
                     { value: "high", label: t("inbox.priority_high") },
                   ]}
                 />
-              </Group>
+              </SimpleGrid>
 
               {typeId && typeAttrs.length > 0 && (
                 <Stack gap="xs" pt="xs" style={{ borderTop: "1px solid var(--tn-border)" }}>
@@ -454,7 +456,7 @@ export function CreateTicketModal({ opened, onClose, sourceConversation, onCreat
             </Stack>
           )}
 
-          <Group justify="flex-end" mt="xs">
+          <Group justify="flex-end" gap="xs" mt="xs">
             <Button variant="default" onClick={onClose} disabled={create.isPending}>
               {t("common.cancel")}
             </Button>

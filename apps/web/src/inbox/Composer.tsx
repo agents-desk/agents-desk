@@ -325,10 +325,12 @@ export function Composer({
       setMentionIds([])
       setPendingActions(emptyPendingActions())
       setMacroWarnings([])
-      onClearReplyTo?.()
-      onClearCorrecting?.()
-      onClearAdoptedDraft?.()
-      onChangeExtMentions?.([])
+      if (variables.mode === "reply") {
+        onClearReplyTo?.()
+        onClearCorrecting?.()
+        onClearAdoptedDraft?.()
+        onChangeExtMentions?.([])
+      }
       queue.clear()
       preview.reset()
       void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
@@ -376,7 +378,7 @@ export function Composer({
         getKey: (m) => m.id,
         renderItem: (m: MemberTenantMember) => (
           <Group gap="xs" wrap="nowrap">
-            <Avatar src={m.avatar_url || undefined} size={22} name={m.name} />
+            <Avatar src={m.avatar_url || undefined} size={22} name={m.name} color="initials" />
             <Text size="sm" truncate>
               {m.name}
             </Text>
@@ -705,9 +707,10 @@ export function Composer({
               <Menu.Target>
                 <Tooltip label={t("inbox.choose_reply_channel")} openDelay={350}>
                   <Button
-                    size="compact-xs"
                     variant="light"
                     color="bright-blue"
+                    maw="100%"
+                    styles={{ label: { overflow: "hidden", textOverflow: "ellipsis" } }}
                     leftSection={<ChannelIcon kind={effectiveChannel.kind} size={12} />}
                     rightSection={<IconChevronDown size={12} />}
                   >

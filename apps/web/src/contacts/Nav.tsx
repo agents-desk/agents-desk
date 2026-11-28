@@ -12,10 +12,9 @@ import {
   IconUserQuestion,
   IconUsers,
 } from "@tabler/icons-react"
-import { confirm, Fill, notifyError, notifySuccess, RailSection, useT } from "@go-tenon/ui"
+import { confirm, Fill, MenuBadge, notifyError, notifySuccess, RailSection, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { NavCount } from "../components/nav-count"
 import type { ContactsSearch } from "./search"
 import { ContactViewModal } from "./ViewModal"
 
@@ -55,7 +54,7 @@ export function ContactsNav({ search, go }: { search: ContactsSearch; go: (patch
   }
 
   const pick = (kind?: ContactKind) => go({ view: undefined, kind })
-  const count = (n?: number) => <NavCount n={n} />
+  const count = (n?: number) => <MenuBadge value={n} variant="muted" />
 
   return (
     <>

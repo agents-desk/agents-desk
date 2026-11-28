@@ -5,7 +5,7 @@ import { Badge, Group, Progress, SimpleGrid, Skeleton, Stack, Text, Tooltip } fr
 import { IconArrowUpRight } from "@tabler/icons-react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link, useParams } from "@tanstack/react-router"
-import { LoadingStage, type PeriodRoute, useCan, useLanguage, useSmoothTransition, useT } from "@go-tenon/ui"
+import { LoadingStage, type MetricItem, MetricStrip, type PeriodRoute, useCan, useLanguage, useSmoothTransition, useT } from "@go-tenon/ui"
 import type { ReactNode } from "react"
 import { kit } from "../api"
 import { languageName } from "../languages"
@@ -18,7 +18,6 @@ import {
   teamInboxSearch,
 } from "./drilldown"
 import { formatInt, pctDelta } from "./format"
-import { type MetricItem, MetricStrip } from "./MetricStrip"
 import { GranularityControl } from "./PeriodButton"
 import { ReportShell } from "./ReportShell"
 import { useReportFilters } from "./search"
@@ -185,7 +184,7 @@ export function ConversationsPage({
               )
             }
             return (
-              <Tooltip key={item.key} label={item.tip} openDelay={250} withArrow>
+              <Tooltip key={item.key} label={item.tip} openDelay={250}>
                 <Link
                   to="/$slug/inbox"
                   params={{ slug }}
@@ -233,6 +232,7 @@ export function ConversationsPage({
                 withLegend
                 withDots={false}
                 gridAxis="y"
+                valueFormatter={(v) => formatInt(v, uiLang)}
               />
             )}
           </LoadingStage>
@@ -253,63 +253,74 @@ export function ConversationsPage({
           minHeight={180}
           flush
         >
-          <table className="rp-table">
-            <thead>
-              <tr>
-                <th>{t("reports.col_channel")}</th>
-                <th>{t("reports.col_kind")}</th>
-                <th data-align="right">{t("reports.col_created")}</th>
-                <th data-align="right">{t("reports.col_closed")}</th>
-                {canInbox && <th style={{ width: 36 }} />}
-              </tr>
-            </thead>
-            <tbody>
-              {(data?.by_channel ?? []).map((row) => {
-                const selected = filters.channelId === row.id
-                return (
-                  <tr
-                    key={row.id}
-                    className="rp-row"
-                    data-clickable=""
-                    data-selected={selected || undefined}
-                    onClick={() => toggleChannel(row.id)}
-                  >
-                    <td>
-                      <Group gap={6} wrap="nowrap">
-                        <Text size="sm" fw={500} truncate>
-                          {row.name}
-                        </Text>
-                        {!row.enabled && (
-                          <Badge size="xs" variant="light" color="gray">
-                            {t("reports.disabled_badge")}
-                          </Badge>
-                        )}
-                      </Group>
-                    </td>
-                    <td>
-                      <Badge size="xs" variant="light" color="gray">
-                        {kit.label("ChannelKind", row.kind)}
-                      </Badge>
-                    </td>
-                    <td data-align="right">
-                      <div>{formatInt(row.created, uiLang)}</div>
-                      <InlineShareBar ratio={(row.created / maxChannel) * 100} />
-                    </td>
-                    <td data-align="right">{formatInt(row.closed, uiLang)}</td>
-                    {canInbox && (
-                      <td data-align="right">
-                        <InboxDrillButton
-                          slug={slug}
-                          search={channelInboxSearch(row.id, scope)}
-                          label={t("reports.drill_channel_inbox")}
-                        />
+          <div className="rp-table-scroll">
+            <table className="rp-table">
+              <thead>
+                <tr>
+                  <th>{t("reports.col_channel")}</th>
+                  <th>{t("reports.col_kind")}</th>
+                  <th data-align="right">{t("reports.col_created")}</th>
+                  <th data-align="right">{t("reports.col_closed")}</th>
+                  {canInbox && <th style={{ width: 36 }} />}
+                </tr>
+              </thead>
+              <tbody>
+                {(data?.by_channel ?? []).map((row) => {
+                  const selected = filters.channelId === row.id
+                  return (
+                    <tr
+                      key={row.id}
+                      className="rp-row"
+                      data-clickable=""
+                      data-selected={selected || undefined}
+                      tabIndex={0}
+                      aria-selected={selected}
+                      onClick={() => toggleChannel(row.id)}
+                      onKeyDown={(e) => {
+                        if (e.target !== e.currentTarget) return
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault()
+                          toggleChannel(row.id)
+                        }
+                      }}
+                    >
+                      <td>
+                        <Group gap={6} wrap="nowrap">
+                          <Text size="sm" fw={500} truncate>
+                            {row.name}
+                          </Text>
+                          {!row.enabled && (
+                            <Badge size="xs" variant="light" color="gray">
+                              {t("reports.disabled_badge")}
+                            </Badge>
+                          )}
+                        </Group>
                       </td>
-                    )}
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                      <td>
+                        <Badge size="xs" variant="light" color="gray">
+                          {kit.label("ChannelKind", row.kind)}
+                        </Badge>
+                      </td>
+                      <td data-align="right">
+                        <div>{formatInt(row.created, uiLang)}</div>
+                        <InlineShareBar ratio={(row.created / maxChannel) * 100} />
+                      </td>
+                      <td data-align="right">{formatInt(row.closed, uiLang)}</td>
+                      {canInbox && (
+                        <td data-align="right">
+                          <InboxDrillButton
+                            slug={slug}
+                            search={channelInboxSearch(row.id, scope)}
+                            label={t("reports.drill_channel_inbox")}
+                          />
+                        </td>
+                      )}
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </SectionCard>
 
         <SectionCard
@@ -324,58 +335,73 @@ export function ConversationsPage({
           minHeight={180}
           flush
         >
-          <table className="rp-table">
-            <thead>
-              <tr>
-                <th>{t("reports.col_team")}</th>
-                <th data-align="right">{t("reports.col_created")}</th>
-                <th data-align="right">{t("reports.col_closed")}</th>
-                {canInbox && <th style={{ width: 36 }} />}
-              </tr>
-            </thead>
-            <tbody>
-              {(data?.by_team ?? []).map((row) => {
-                const clickable = Boolean(row.id)
-                const selected = Boolean(row.id && filters.teamId === row.id)
-                return (
-                  <tr
-                    key={row.id ?? "__unassigned__"}
-                    className="rp-row"
-                    data-clickable={clickable ? "" : undefined}
-                    data-selected={selected || undefined}
-                    onClick={clickable ? () => toggleTeam(row.id) : undefined}
-                  >
-                    <td>
-                      <Group gap={6} wrap="nowrap">
-                        <Text size="sm" fw={500} c={row.id ? undefined : "dimmed"} truncate>
-                          {row.id ? row.name : t("reports.no_team")}
-                        </Text>
-                        {row.disabled && (
-                          <Badge size="xs" variant="light" color="gray">
-                            {t("reports.disabled_badge")}
-                          </Badge>
-                        )}
-                      </Group>
-                    </td>
-                    <td data-align="right">
-                      <div>{formatInt(row.created, uiLang)}</div>
-                      <InlineShareBar ratio={(row.created / maxTeam) * 100} />
-                    </td>
-                    <td data-align="right">{formatInt(row.closed, uiLang)}</td>
-                    {canInbox && (
-                      <td data-align="right">
-                        <InboxDrillButton
-                          slug={slug}
-                          search={teamInboxSearch(row.id, scope)}
-                          label={t("reports.drill_team_inbox")}
-                        />
+          <div className="rp-table-scroll">
+            <table className="rp-table">
+              <thead>
+                <tr>
+                  <th>{t("reports.col_team")}</th>
+                  <th data-align="right">{t("reports.col_created")}</th>
+                  <th data-align="right">{t("reports.col_closed")}</th>
+                  {canInbox && <th style={{ width: 36 }} />}
+                </tr>
+              </thead>
+              <tbody>
+                {(data?.by_team ?? []).map((row) => {
+                  const clickable = Boolean(row.id)
+                  const selected = Boolean(row.id && filters.teamId === row.id)
+                  return (
+                    <tr
+                      key={row.id ?? "__unassigned__"}
+                      className="rp-row"
+                      data-clickable={clickable ? "" : undefined}
+                      data-selected={selected || undefined}
+                      tabIndex={clickable ? 0 : undefined}
+                      aria-selected={clickable ? selected : undefined}
+                      onClick={clickable ? () => toggleTeam(row.id) : undefined}
+                      onKeyDown={
+                        clickable
+                          ? (e) => {
+                              if (e.target !== e.currentTarget) return
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault()
+                                toggleTeam(row.id)
+                              }
+                            }
+                          : undefined
+                      }
+                    >
+                      <td>
+                        <Group gap={6} wrap="nowrap">
+                          <Text size="sm" fw={500} c={row.id ? undefined : "dimmed"} truncate>
+                            {row.id ? row.name : t("reports.team_unassigned")}
+                          </Text>
+                          {row.disabled && (
+                            <Badge size="xs" variant="light" color="gray">
+                              {t("reports.disabled_badge")}
+                            </Badge>
+                          )}
+                        </Group>
                       </td>
-                    )}
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                      <td data-align="right">
+                        <div>{formatInt(row.created, uiLang)}</div>
+                        <InlineShareBar ratio={(row.created / maxTeam) * 100} />
+                      </td>
+                      <td data-align="right">{formatInt(row.closed, uiLang)}</td>
+                      {canInbox && (
+                        <td data-align="right">
+                          <InboxDrillButton
+                            slug={slug}
+                            search={teamInboxSearch(row.id, scope)}
+                            label={t("reports.drill_team_inbox")}
+                          />
+                        </td>
+                      )}
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </SectionCard>
 
         <SectionCard title={t("reports.by_tag")} loading={loading} empty={!data?.by_tag.length} minHeight={180}>
@@ -405,7 +431,7 @@ export function ConversationsPage({
                 )
               }
               return (
-                <Tooltip key={tag.id} label={t("reports.drill_tag_inbox")} openDelay={300} withArrow>
+                <Tooltip key={tag.id} label={t("reports.drill_tag_inbox")} openDelay={300}>
                   <Link
                     to="/$slug/inbox"
                     params={{ slug }}
@@ -462,7 +488,7 @@ export function ConversationsPage({
                 )
               }
               return (
-                <Tooltip key={item.language} label={t("reports.drill_language_inbox")} openDelay={300} withArrow>
+                <Tooltip key={item.language} label={t("reports.drill_language_inbox")} openDelay={300}>
                   <Link
                     to="/$slug/inbox"
                     params={{ slug }}

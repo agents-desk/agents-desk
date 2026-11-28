@@ -1,19 +1,10 @@
+import { isTypingTarget } from "@go-tenon/ui"
 import { useEffect } from "react"
+
+export { isTypingTarget }
 
 /** NARROW_QUERY 是工作台端统一的窄屏断点（小于 900px）：二级导航收进抽屉，列表与详情轮流占满。 */
 export const NARROW_QUERY = "(max-width: 899px)"
-
-/**
- * isTypingTarget 报告键盘事件是否落在输入框、下拉选择、富文本或弹窗中：
- * 为真时工作台单键快捷键（如 J/K/I/R/E）暂停，按键交给输入框。
- */
-export function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false
-  if (target.isContentEditable) return true
-  const tag = target.tagName
-  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true
-  return Boolean(target.closest("[role='dialog'], [role='menu'], [role='listbox'], [contenteditable='true']"))
-}
 
 /**
  * useListKeys 让列表支持非输入态按 J/K 打开下一条/上一条（聊天、工单列表用；收件箱另外处理搜索结果）。

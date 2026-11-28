@@ -28,8 +28,14 @@ export function ChangeOwnerModal({ tenant, onClose }: { tenant?: TenantDTO; onCl
   }, [tenant])
 
   return (
-    <Modal opened={!!tenant} onClose={onClose} title={t("change_owner.title", { name: tenant?.name ?? "" })}>
+    <Modal
+      opened={!!tenant}
+      onClose={onClose}
+      closeOnClickOutside={false}
+      title={t("change_owner.title", { name: tenant?.name ?? "" })}
+    >
       <form
+        noValidate
         onSubmit={form.onSubmit(async (values) => {
           if (!tenant) return
           setSaving(true)
@@ -48,15 +54,15 @@ export function ChangeOwnerModal({ tenant, onClose }: { tenant?: TenantDTO; onCl
           <Text size="sm" c="dimmed">
             {t("change_owner.current", { name: tenant?.owner_name, email: tenant?.owner_email })}
           </Text>
-          <FormError error={error} />
-          <TextInput label={t("change_owner.email")} required {...form.getInputProps("email")} />
+          <FormError error={error} form={form} />
+          <TextInput label={t("change_owner.email")} required data-autofocus {...form.getInputProps("email")} />
           <Text size="sm" c="dimmed">
             {t("change_owner.existing_hint")}
           </Text>
           <TextInput label={t("change_owner.name")} {...form.getInputProps("name")} />
           <PasswordInput label={t("change_owner.password")} {...form.getInputProps("password")} />
-          <Group justify="flex-end">
-            <Button variant="default" onClick={onClose}>
+          <Group justify="flex-end" gap="xs">
+            <Button variant="default" disabled={saving} onClick={onClose}>
               {t("common.cancel")}
             </Button>
             <Button type="submit" loading={saving}>

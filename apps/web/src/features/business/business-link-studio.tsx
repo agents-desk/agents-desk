@@ -15,6 +15,7 @@ import {
   CopyButton,
   Divider,
   Group,
+  Input,
   MultiSelect,
   Paper,
   PasswordInput,
@@ -43,7 +44,7 @@ import {
 } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useSearch } from "@tanstack/react-router"
-import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, primaryColors, useLanguage, useT } from "@go-tenon/ui"
+import { applyServerErrors, confirm, FormError, FormSection, notifyError, notifySuccess, Page, primaryColors, useLanguage, useT } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { kit, tenantApi } from "../../api"
 import { useUnsavedGuard } from "../../components/unsaved-guard"
@@ -59,7 +60,6 @@ import {
   resolvePreviewCopy,
 } from "../widget/preview-protocol"
 import classes from "../widget/widget-studio.module.css"
-import { FormSection } from "../../components/form-section"
 
 const presetSwatches = Object.values(primaryColors)
 const defaultColorHex = primaryColors["bright-blue"]
@@ -435,14 +435,14 @@ function ShareAndQRPanel({
           <TextInput label={t("business_channels.col_url")} value={shareURL} readOnly style={{ flex: 1 }} />
           <CopyButton value={shareURL} timeout={1500}>
             {({ copied, copy }) => (
-              <Tooltip label={t(copied ? "common.copied" : "business_channels.copy_url")} withArrow>
+              <Tooltip label={t(copied ? "common.copied" : "business_channels.copy_url")}>
                 <ActionIcon variant="default" size="input-sm" color={copied ? "green" : undefined} onClick={copy} aria-label={t("business_channels.copy_url")}>
                   {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
                 </ActionIcon>
               </Tooltip>
             )}
           </CopyButton>
-          <Tooltip label={t("business_channels.open_preview")} withArrow>
+          <Tooltip label={t("business_channels.open_preview")}>
             <ActionIcon
               component="a"
               href={shareURL}
@@ -747,7 +747,7 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
                   <Skeleton height={680} radius="md" />
                 </Box>
               ) : (
-                <form onSubmit={form.onSubmit((v) => save.mutate(v))}>
+                <form noValidate onSubmit={form.onSubmit((v) => save.mutate(v))}>
                   <Box className={classes.layout}>
                     <Stack gap="md">
                       <FormError error={serverError} />
@@ -870,25 +870,31 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
                             {...form.getInputProps("access.passcode")}
                           />
                         )}
-                        <Group align="flex-end" gap="xs">
-                          <TextInput
-                            type="datetime-local"
-                            style={{ flex: 1 }}
-                            label={t("biz_studio.expires_at")}
-                            description={t("biz_studio.expires_at_hint")}
-                            {...form.getInputProps("access.expires_at_local")}
-                          />
-                          {form.values.access.expires_at_local && (
-                            <Button
-                              variant="subtle"
-                              color="gray"
-                              size="sm"
-                              onClick={() => form.setFieldValue("access.expires_at_local", "")}
-                            >
-                              {t("biz_studio.clear_expires")}
-                            </Button>
-                          )}
-                        </Group>
+                        <Input.Wrapper
+                          label={t("biz_studio.expires_at")}
+                          description={t("biz_studio.expires_at_hint")}
+                          error={form.errors["access.expires_at_local"]}
+                        >
+                          <Group gap="xs" wrap="nowrap" align="center">
+                            <TextInput
+                              type="datetime-local"
+                              style={{ flex: 1 }}
+                              aria-label={t("biz_studio.expires_at")}
+                              {...form.getInputProps("access.expires_at_local")}
+                              error={Boolean(form.errors["access.expires_at_local"])}
+                            />
+                            {form.values.access.expires_at_local && (
+                              <Button
+                                variant="subtle"
+                                color="gray"
+                                size="sm"
+                                onClick={() => form.setFieldValue("access.expires_at_local", "")}
+                              >
+                                {t("biz_studio.clear_expires")}
+                              </Button>
+                            )}
+                          </Group>
+                        </Input.Wrapper>
                       </FormSection>
 
                       <FormSection title={t("biz_studio.section_policy")} description={t("biz_studio.section_policy_desc")}>
@@ -920,6 +926,7 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
                             { value: "friendly", label: kit.label("TranslationTone", "friendly") },
                           ]}
                           value={form.values.business.translation_tone}
+                          error={form.errors["business.translation_tone"]}
                           onChange={(v) =>
                             form.setFieldValue("business.translation_tone", (v ?? "") as "" | "friendly" | "neutral" | "formal")
                           }
@@ -932,6 +939,7 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
                             { value: "off", label: t("biz_studio.auto_translate_off") },
                           ]}
                           value={form.values.business.auto_translate}
+                          error={form.errors["business.auto_translate"]}
                           onChange={(v) => form.setFieldValue("business.auto_translate", (v ?? "inherit") as "inherit" | "on" | "off")}
                         />
                       </FormSection>

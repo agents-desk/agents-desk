@@ -95,7 +95,7 @@ export function NewChatModal({ opened, onClose, onOpened }: NewChatModalProps): 
   }
 
   return (
-    <Modal opened={opened} onClose={onClose} title={t("chat.new_title")} size="md">
+    <Modal opened={opened} onClose={onClose} title={t("chat.new_title")} size="md" closeOnClickOutside={false}>
       <Stack gap="sm">
         <SegmentedControl
           fullWidth
@@ -192,7 +192,7 @@ export function NewChatModal({ opened, onClose, onOpened }: NewChatModalProps): 
         </ScrollArea.Autosize>
 
         {tab === "group" && (
-          <form onSubmit={submitGroup}>
+          <form noValidate onSubmit={submitGroup}>
             <Group justify="space-between" align="center" mt="xs">
               <Text size="xs" c="dimmed">
                 {t("chat.selected_members", { n: selected.length + 1 })}

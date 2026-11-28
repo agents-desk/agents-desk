@@ -1,10 +1,9 @@
-import { ActionIcon, Box, Group, Skeleton, Stack } from "@mantine/core"
-import { IconX } from "@tabler/icons-react"
-import { PaneBody, PaneHeader, useT } from "@go-tenon/ui"
+import { Box, Group, Skeleton, Stack } from "@mantine/core"
+import { PaneHeader } from "@go-tenon/ui"
 import type { ReactNode } from "react"
 
-// 打开会话、聊天、工单、联系人档案时，数据还没到（直接打开链接或网络较慢）就先显示与真实页面同样布局的骨架：
-// 顶栏、时间线、输入框、详情栏都在原位，数据到达后只替换内容。
+// 打开会话、聊天、工单时，数据还没到（直接打开链接或网络较慢）就先显示与真实页面同样布局的骨架：
+// 顶栏、时间线、输入框都在原位，数据到达后只替换内容。
 
 /** ConversationSkeleton 是会话、聊天、工单主栏的骨架：52px 顶栏、消息气泡和底部输入框。 */
 export function ConversationSkeleton({ back, composer = true }: { back?: () => void; composer?: boolean }): ReactNode {
@@ -53,36 +52,6 @@ export function TimelineSkeleton(): ReactNode {
           <Skeleton h={64} radius="md" style={{ flex: 1 }} />
         </Group>
       </Box>
-    </Stack>
-  )
-}
-
-/** InspectorSkeleton 是右侧详情栏（或联系人档案）的骨架：顶栏和几行“名称—值”。 */
-export function InspectorSkeleton({ title, onClose, back }: { title?: ReactNode; onClose?: () => void; back?: () => void }): ReactNode {
-  const t = useT()
-  return (
-    <Stack gap={0} h="100%" w="100%" aria-busy>
-      <PaneHeader
-        title={title ?? <Skeleton h={14} w={120} radius="sm" />}
-        back={back}
-        actions={
-          onClose && (
-            <ActionIcon variant="subtle" color="gray" size="sm" aria-label={t("inbox.close_details")} onClick={onClose}>
-              <IconX size={16} />
-            </ActionIcon>
-          )
-        }
-      />
-      <PaneBody>
-        <Stack gap="md" p="var(--tn-pane-px)">
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <Group key={i} gap="md" wrap="nowrap">
-              <Skeleton h={10} w={64} radius="sm" />
-              <Skeleton h={10} w={`${50 + ((i * 13) % 35)}%`} radius="sm" />
-            </Group>
-          ))}
-        </Stack>
-      </PaneBody>
     </Stack>
   )
 }

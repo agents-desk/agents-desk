@@ -1,4 +1,4 @@
-import type { useT } from "@go-tenon/ui"
+import { inTimeZone, type useT } from "@go-tenon/ui"
 import type { Thresholds } from "./data"
 
 // 时间的显示：等待时长、消息旁的时:分、日期分组。按界面的语言格式化，时区跟随成员的偏好（TimeZoneProvider）。
@@ -32,8 +32,8 @@ export const waitColor: Record<WaitLevel, string | undefined> = { ok: undefined,
 /** conversationStatusColor 是会话状态徽标的颜色：打开 bright-blue，稍后处理 yellow，已关闭 gray。 */
 export const conversationStatusColor = { open: "bright-blue", snoozed: "yellow", closed: "gray" } as const
 
-/** startOfDay 返回 d 所在那天的零点（浏览器的时区）。 */
-const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+/** startOfDay 返回 d 所在那天的零点（按成员时区）。 */
+const startOfDay = (d: Date, timeZone?: string) => inTimeZone(d, timeZone).startOf("day").valueOf()
 
 /** clock 返回时:分。 */
 export const clock = (iso: string, language: string, timeZone?: string) =>
@@ -46,7 +46,7 @@ export const fullDateTime = (iso: string, language: string, timeZone?: string) =
 /** dayLabel 返回日期分组的标题：今天、昨天，或者月日。 */
 export function dayLabel(iso: string, language: string, t: T, timeZone?: string): string {
   const d = new Date(iso)
-  const days = Math.round((startOfDay(new Date()) - startOfDay(d)) / 86_400_000)
+  const days = Math.round((startOfDay(new Date(), timeZone) - startOfDay(d, timeZone)) / 86_400_000)
   if (days === 0) return t("time.today")
   if (days === 1) return t("time.yesterday")
   return new Intl.DateTimeFormat(language, { month: "short", day: "numeric", timeZone }).format(d)
@@ -58,5 +58,6 @@ export function activity(iso: string, language: string, t: T, timeZone?: string)
   return label === t("time.today") ? clock(iso, language, timeZone) : label
 }
 
-/** sameDay 报告两个时间是不是同一天。 */
-export const sameDay = (a: string, b: string) => startOfDay(new Date(a)) === startOfDay(new Date(b))
+/** sameDay 报告两个时间在给定时区下是不是同一天。 */
+export const sameDay = (a: string, b: string, timeZone?: string) =>
+  startOfDay(new Date(a), timeZone) === startOfDay(new Date(b), timeZone)

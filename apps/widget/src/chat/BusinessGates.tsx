@@ -147,6 +147,25 @@ export function IntakeForm({
   const [note, setNote] = useState("")
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const firstField =
+    intake.name !== "off"
+      ? "name"
+      : intake.company !== "off"
+        ? "company"
+        : intake.email !== "off"
+          ? "email"
+          : intake.note !== "off"
+            ? "note"
+            : null
+
+  const clearFieldError = (field: string) => {
+    setErrors((prev) => {
+      if (!prev[field]) return prev
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
+  }
 
   const canSkip =
     intake.name !== "required" &&
@@ -222,8 +241,12 @@ export function IntakeForm({
                 label={t("business.intake_name")}
                 placeholder={t("business.intake_name_placeholder")}
                 required={intake.name === "required"}
+                autoFocus={!preview && firstField === "name"}
                 value={name}
-                onChange={(e) => setName(e.currentTarget.value)}
+                onChange={(e) => {
+                  setName(e.currentTarget.value)
+                  clearFieldError("name")
+                }}
                 error={errors.name}
               />
             )}
@@ -233,8 +256,12 @@ export function IntakeForm({
                 label={t("business.intake_company")}
                 placeholder={t("business.intake_company_placeholder")}
                 required={intake.company === "required"}
+                autoFocus={!preview && firstField === "company"}
                 value={company}
-                onChange={(e) => setCompany(e.currentTarget.value)}
+                onChange={(e) => {
+                  setCompany(e.currentTarget.value)
+                  clearFieldError("company")
+                }}
                 error={errors.company}
               />
             )}
@@ -245,8 +272,12 @@ export function IntakeForm({
                 label={t("business.intake_email")}
                 placeholder={t("business.intake_email_placeholder")}
                 required={intake.email === "required"}
+                autoFocus={!preview && firstField === "email"}
                 value={email}
-                onChange={(e) => setEmail(e.currentTarget.value)}
+                onChange={(e) => {
+                  setEmail(e.currentTarget.value)
+                  clearFieldError("email")
+                }}
                 error={errors.email}
               />
             )}
@@ -256,11 +287,15 @@ export function IntakeForm({
                 label={t("business.intake_note")}
                 placeholder={t("business.intake_note_placeholder")}
                 required={intake.note === "required"}
+                autoFocus={!preview && firstField === "note"}
                 autosize
                 minRows={2}
                 maxRows={3}
                 value={note}
-                onChange={(e) => setNote(e.currentTarget.value)}
+                onChange={(e) => {
+                  setNote(e.currentTarget.value)
+                  clearFieldError("note")
+                }}
                 error={errors.note}
               />
             )}

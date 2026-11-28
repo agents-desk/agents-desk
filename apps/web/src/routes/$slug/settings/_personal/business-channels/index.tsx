@@ -30,10 +30,9 @@ import {
   IconUser,
   IconUsersGroup,
 } from "@tabler/icons-react"
-import { AnchorLink, applyServerErrors, confirm, DataTable, FormError, notifyError, notifySuccess, Page, PageActions, preloadQueries, StatusDot, useCan, useT } from "@go-tenon/ui"
+import { AnchorLink, applyServerErrors, confirm, DataTable, FormError, notifyError, notifySuccess, Page, PageActions, preloadQueries, RowActions, StatusDot, useCan, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../../../../../api"
-import { RowActions } from "../../../../../components/row-actions"
 import { SyncedPeersModal, TelegramLoginModal } from "../../../../../features/business/telegram-modals"
 
 // 我的商务渠道列表：Page 页内标签 + 表格，
@@ -170,9 +169,11 @@ function BusinessLinksTab({ slug }: { slug: string }): ReactNode {
           label={!linksAllowed ? t("business_channels.links_disabled_title") : t("business_channels.quota_reached", { limit: maxLinks })}
           disabled={linksAllowed && !quotaReached}
         >
-          <Button leftSection={<IconPlus size={16} />} disabled={!linksAllowed || quotaReached} onClick={openCreate}>
-            {t("business_channels.link_new")}
-          </Button>
+          <span style={{ display: "inline-block" }}>
+            <Button leftSection={<IconPlus size={16} />} disabled={!linksAllowed || quotaReached} onClick={openCreate}>
+              {t("business_channels.link_new")}
+            </Button>
+          </span>
         </Tooltip>
       </PageActions>
       <Group gap="xs" wrap="wrap">
@@ -202,10 +203,16 @@ function BusinessLinksTab({ slug }: { slug: string }): ReactNode {
             title: t("business_channels.link_name"),
             render: (item) => (
               <Group gap="xs" wrap="nowrap">
-                <span
-                  className="desk-status-mark"
+                <Box
+                  component="span"
+                  w={8}
+                  h={8}
                   aria-hidden
-                  style={{ background: item.appearance.color || "var(--mantine-primary-color-filled)" }}
+                  style={{
+                    flex: "none",
+                    borderRadius: "50%",
+                    background: item.appearance.color || "var(--mantine-primary-color-filled)",
+                  }}
                 />
                 <Box style={{ minWidth: 0 }}>
                   <Group gap={6} wrap="nowrap">
@@ -308,8 +315,8 @@ function BusinessLinksTab({ slug }: { slug: string }): ReactNode {
         ]}
       />
 
-      <Modal opened={creating} onClose={() => setCreating(false)} title={t("business_channels.link_create_title")}>
-        <form onSubmit={form.onSubmit((v) => create.mutate(v))}>
+      <Modal opened={creating} onClose={() => setCreating(false)} closeOnClickOutside={false} title={t("business_channels.link_create_title")}>
+        <form noValidate onSubmit={form.onSubmit((v) => create.mutate(v))}>
           <Stack gap="md">
             <FormError error={formError} />
             <Text size="xs" c="dimmed">
@@ -323,7 +330,7 @@ function BusinessLinksTab({ slug }: { slug: string }): ReactNode {
               data-autofocus
               {...form.getInputProps("name")}
             />
-            <Group justify="flex-end">
+            <Group justify="flex-end" gap="xs">
               <Button variant="default" onClick={() => setCreating(false)}>
                 {t("common.cancel")}
               </Button>
@@ -430,9 +437,11 @@ function TelegramAccountsTab({ slug }: { slug: string }): ReactNode {
           }
           disabled={(tgAllowed && configured && !quotaReached) || list.isPending}
         >
-          <Button leftSection={<IconPlus size={16} />} disabled={!tgAllowed || !configured || quotaReached} onClick={openNewLogin}>
-            {t("business_channels.tg_connect")}
-          </Button>
+          <span style={{ display: "inline-block" }}>
+            <Button leftSection={<IconPlus size={16} />} disabled={!tgAllowed || !configured || quotaReached} onClick={openNewLogin}>
+              {t("business_channels.tg_connect")}
+            </Button>
+          </span>
         </Tooltip>
       </PageActions>
       <Group gap="xs" wrap="wrap">

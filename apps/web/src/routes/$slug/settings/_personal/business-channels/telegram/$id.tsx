@@ -5,6 +5,7 @@ import { TelegramAccountStudio } from "../../../../../../features/business/teleg
 
 // Telegram 个人号商务渠道配置工作台：管理连接健康、同步策略、文件夹/白名单会话与通用商务策略。
 export const Route = createFileRoute("/$slug/settings/_personal/business-channels/telegram/$id")({
+  staticData: { title: "tg_studio.title" },
   loader: ({ context, params }) =>
     preloadQueries(context.app.queryClient, [
       kit.queries.tgaccount.get(params.id),

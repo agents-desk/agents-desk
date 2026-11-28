@@ -10,6 +10,8 @@ import {
   type Column,
   DataTable,
   LoadingStage,
+  type MetricItem,
+  MetricStrip,
   type PeriodRoute,
   useCan,
   useFormatDuration,
@@ -23,7 +25,6 @@ import { StatusBadge } from "../status"
 import { REPORT_BAR_PROPS } from "./Breakdown"
 import { memberOpenInboxSearch } from "./drilldown"
 import { csatColor, formatInt, formatPercent, formatScore } from "./format"
-import { type MetricItem, MetricStrip } from "./MetricStrip"
 import { ReportShell } from "./ReportShell"
 import { useReportFilters } from "./search"
 import { DetailSection } from "./SectionCard"
@@ -147,9 +148,7 @@ export function MembersPage({ route }: { route: PeriodRoute }): ReactNode {
         sortable: true,
         render: (row) => (
           <Group gap="xs" wrap="nowrap">
-            <Avatar src={row.avatar_url || undefined} size="sm" radius="xl" color="brand">
-              {(row.name || "?").slice(0, 1).toUpperCase()}
-            </Avatar>
+            <Avatar src={row.avatar_url || undefined} size="sm" radius="xl" name={row.name || row.member_id} color="initials" />
             <Text size="sm" fw={500} truncate>
               {row.name || row.member_id}
             </Text>
@@ -195,7 +194,7 @@ export function MembersPage({ route }: { route: PeriodRoute }): ReactNode {
         width: 116,
         render: (row) =>
           canInbox && row.open_assigned > 0 ? (
-            <Tooltip label={t("reports.drill_member_inbox")} openDelay={250} withArrow>
+            <Tooltip label={t("reports.drill_member_inbox")} openDelay={250}>
               <Link
                 to="/$slug/inbox"
                 params={{ slug }}
@@ -335,10 +334,10 @@ export function MembersPage({ route }: { route: PeriodRoute }): ReactNode {
               {t("reports.member_chart_title")}
             </Text>
             {loading ? (
-              <Skeleton height={210} radius="sm" />
+              <Skeleton height={240} radius="sm" />
             ) : (
               <BarChart
-                h={210}
+                h={240}
                 data={chartData}
                 dataKey="name"
                 series={[
@@ -348,6 +347,7 @@ export function MembersPage({ route }: { route: PeriodRoute }): ReactNode {
                 barProps={REPORT_BAR_PROPS}
                 withLegend
                 gridAxis="y"
+                valueFormatter={(v) => formatInt(v, uiLang)}
               />
             )}
           </div>

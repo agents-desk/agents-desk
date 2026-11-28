@@ -9,6 +9,7 @@ import {
   LoadingStage,
   type PeriodRoute,
   type StatDelta,
+  StatDeltaBadge,
   useCan,
   useFormatDuration,
   useLanguage,
@@ -21,7 +22,6 @@ import { kit } from "../api"
 import { REPORT_AREA_PROPS } from "./Breakdown"
 import { liveBacklogInboxSearch } from "./drilldown"
 import { csatColor, formatInt, formatPercent, formatUSD, pctDelta } from "./format"
-import { DeltaBadge } from "./MetricStrip"
 import { GranularityControl } from "./PeriodButton"
 import { ReportShell } from "./ReportShell"
 import { ReportEmpty, SectionCard } from "./SectionCard"
@@ -171,7 +171,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
               )
             }
             return (
-              <Tooltip key={item.key} label={item.tip} openDelay={250} withArrow>
+              <Tooltip key={item.key} label={item.tip} openDelay={250}>
                 <Link
                   to={item.to}
                   params={{ slug }}
@@ -301,14 +301,14 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
         action={<GranularityControl period={period} />}
         loading={loading}
         empty={!chartState.data?.length}
-        minHeight={260}
+        minHeight={240}
       >
         <LoadingStage loading={chartState.busy && !pageState.busy}>
           {!chartState.data?.length ? (
             <ReportEmpty minHeight={240} />
           ) : (
             <AreaChart
-              h={260}
+              h={240}
               data={chartState.data}
               dataKey="date"
               series={[
@@ -384,7 +384,7 @@ function OverviewDomainCard({
               <Text size="xl" fw={700} style={{ fontVariantNumeric: "tabular-nums", lineHeight: 1.2 }}>
                 {primaryValue}
               </Text>
-              <DeltaBadge delta={delta} />
+              <StatDeltaBadge delta={delta} size="xs" />
             </Group>
           )}
         </div>

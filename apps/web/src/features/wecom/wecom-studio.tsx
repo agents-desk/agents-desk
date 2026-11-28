@@ -5,7 +5,6 @@ import {
   Box,
   Button,
   Group,
-  Paper,
   PasswordInput,
   Skeleton,
   Stack,
@@ -18,14 +17,13 @@ import { useForm } from "@mantine/form"
 import { IconAlertCircle, IconRefresh } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
-import { applyServerErrors, FormError, notifyError, notifySuccess, Page, ResourceSelect, StatusDot, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
+import { applyServerErrors, FormError, FormSection, notifyError, notifySuccess, Page, ResourceSelect, StatusDot, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../../api"
 import { AiReceptionCard } from "../../components/ai-placeholders"
 import { useUnsavedGuard } from "../../components/unsaved-guard"
 import { fullDateTime } from "../../inbox/format"
 import { teams } from "../../resources"
-import { FormSection } from "../../components/form-section"
 
 /** wecomStatusColor 返回企微机器人长连接状态对应的语义色。 */
 export function wecomStatusColor(status: WecomBotDTO["status"]): string {
@@ -147,6 +145,7 @@ export function WeComStudio({ slug, id }: { slug: string; id: string }): ReactNo
   return (
     <Page
       title={bot.data ? bot.data.name : t("wecom_studio.title")}
+      width="narrow"
       back={() => void navigate({ to: "/$slug/settings/internal-channels", params: { slug }, search: { tab: "wecom" } })}
       actions={
         bot.data ? (
@@ -174,26 +173,19 @@ export function WeComStudio({ slug, id }: { slug: string; id: string }): ReactNo
             <Skeleton height={180} radius="md" />
           </Stack>
         ) : (
-          <form onSubmit={form.onSubmit((v) => save.mutate(v))}>
+          <form noValidate onSubmit={form.onSubmit((v) => save.mutate(v))}>
             <Stack gap="md">
               <FormError error={serverError} />
 
               {bot.data && (
-                <Paper withBorder p="md" radius="md">
-                  <Group justify="space-between" wrap="wrap" gap="sm">
-                    <Stack gap={4}>
-                      <Group gap="xs">
-                        <StatusDot color={wecomStatusColor(bot.data.status)}>{kit.label("WecomStatus", bot.data.status)}</StatusDot>
-                        <Badge variant="light" color="gray" size="xs">
-                          {t("wecom_studio.transport_ws")}
-                        </Badge>
-                      </Group>
-                      {bot.data.last_connected_at && (
-                        <Text size="xs" c="dimmed">
-                          {t("wecom_studio.last_connected", { time: fullDateTime(bot.data.last_connected_at, ui, zone) })}
-                        </Text>
-                      )}
-                    </Stack>
+                <FormSection
+                  title={t("common.status")}
+                  description={
+                    bot.data.last_connected_at
+                      ? t("wecom_studio.last_connected", { time: fullDateTime(bot.data.last_connected_at, ui, zone) })
+                      : undefined
+                  }
+                  actions={
                     <Button
                       size="sm"
                       variant="light"
@@ -203,13 +195,20 @@ export function WeComStudio({ slug, id }: { slug: string; id: string }): ReactNo
                     >
                       {t("wecom_studio.reconnect")}
                     </Button>
+                  }
+                >
+                  <Group gap="xs">
+                    <StatusDot color={wecomStatusColor(bot.data.status)}>{kit.label("WecomStatus", bot.data.status)}</StatusDot>
+                    <Badge variant="light" color="gray" size="xs">
+                      {t("wecom_studio.transport_ws")}
+                    </Badge>
                   </Group>
                   {bot.data.last_error && (
-                    <Alert mt="sm" color="red" variant="light" icon={<IconAlertCircle size={16} />}>
+                    <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
                       <Text size="xs">{bot.data.last_error}</Text>
                     </Alert>
                   )}
-                </Paper>
+                </FormSection>
               )}
 
               <FormSection title={t("wecom_studio.section_basic")} description={t("wecom_studio.section_basic_desc")}>

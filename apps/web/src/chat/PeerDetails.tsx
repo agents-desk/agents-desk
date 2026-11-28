@@ -52,6 +52,7 @@ export function PeerDetails({ chat, onClose, onOpenChat }: PeerDetailsProps): Re
     enabled: Boolean(peerId),
   })
   const groups = sharedGroups.data?.items ?? []
+  const aiEnabled = useAiWorkspaceEnabled()
 
   return (
     <Stack gap={0} h="100%" className="inbox-details">
@@ -66,7 +67,7 @@ export function PeerDetails({ chat, onClose, onOpenChat }: PeerDetailsProps): Re
       <DetailsAsideTabs value={asideTab} onChange={setAsideTab} />
 
       <PaneBody>
-        {useAiWorkspaceEnabled() && asideTab === "ai" ? (
+        {aiEnabled && asideTab === "ai" ? (
           <AiAssistantPanel scene="chat" />
         ) : (
         <>

@@ -20,7 +20,7 @@ import {
   IconUsers,
   IconUsersGroup,
 } from "@tabler/icons-react"
-import { confirm, Fill, notifyError, notifySuccess, RailSection, useCan, useT } from "@go-tenon/ui"
+import { confirm, Fill, MenuBadge, notifyError, notifySuccess, RailSection, useCan, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { useChat } from "../chat/data"
@@ -33,7 +33,6 @@ import { type Thresholds, useThresholds } from "./data"
 import { waitColor, waitLevel } from "./format"
 import type { InboxSearch } from "./search"
 import { ViewModal } from "./ViewModal"
-import { NavCount } from "../components/nav-count"
 
 /** useNow 返回现在的时间，每 30 秒更新一次：等待时长随之变化。 */
 export function useNow(): number {
@@ -56,7 +55,7 @@ function inChatGroup(chat: ConversationChatDTO, group: ChatNavTarget): boolean {
 function Count({ s, now, th }: { s?: ConversationSummary; now: number; th?: Thresholds }): ReactNode {
   if (!s) return null
   const color = s.oldest_waiting_since ? waitColor[waitLevel(s.oldest_waiting_since, now, th)] : undefined
-  return <NavCount n={s.count} color={color} />
+  return <MenuBadge value={s.count > 0 ? s.count : undefined} variant="muted" color={color} />
 }
 
 /**
@@ -93,10 +92,10 @@ export function InboxNav(): ReactNode {
   const [createTicketOpen, setCreateTicketOpen] = useState(false)
   const [newChatOpen, setNewChatOpen] = useState(false)
 
-  // navigateInbox 切换会话列表：已经在会话分组中时保留其余地址参数和打开着的会话
+  // navigateInbox 切换会话列表：已经在会话分组中时保留列表浏览参数和打开着的会话，同时清除搜索定位与旧筛选标签
   const navigateInbox = (patch: Partial<InboxSearch>) => {
     if (search) {
-      const next = { ...search, ...patch }
+      const next = { ...search, q: undefined, scope: undefined, seq: undefined, matchField: undefined, tag: undefined, ...patch }
       void (id
         ? navigate({ to: "/$slug/inbox/$id", params: { slug, id }, search: next })
         : navigate({ to: "/$slug/inbox", params: { slug }, search: next }))
@@ -187,7 +186,7 @@ export function InboxNav(): ReactNode {
       key={`ticket:${box}`}
       label={label}
       leftSection={icon}
-      rightSection={<NavCount n={count} />}
+      rightSection={<MenuBadge value={count && count > 0 ? count : undefined} variant="muted" />}
       active={activeTicketBox === box}
       onClick={() => navigateTicket(box)}
     />
@@ -207,7 +206,7 @@ export function InboxNav(): ReactNode {
           key="spam"
           label={t("inbox.box_spam")}
           leftSection={<IconAlertOctagon size={16} stroke={1.6} />}
-          rightSection={<NavCount n={d?.spam} />}
+          rightSection={<MenuBadge value={d?.spam && d.spam > 0 ? d.spam : undefined} variant="muted" />}
           active={Boolean(search && search.box === "spam" && !search.team && !search.view)}
           onClick={() => navigateInbox({ box: "spam", team: undefined, view: undefined, filter: undefined })}
         />
@@ -218,7 +217,7 @@ export function InboxNav(): ReactNode {
             collapsible
             storeKey="inbox-ai-reception"
             action={
-              <Badge size="xs" variant="light" color="gray" style={{ textTransform: "none", lineHeight: 1.2 }}>
+              <Badge size="xs" variant="light" color="brand" style={{ textTransform: "none", lineHeight: 1.2 }}>
                 {t("ai_placeholder.coming_soon")}
               </Badge>
             }

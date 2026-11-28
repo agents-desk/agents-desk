@@ -3,16 +3,14 @@ import { closestCenter, DndContext, type DragEndEvent, KeyboardSensor, PointerSe
 import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers"
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { ActionIcon, Alert, Badge, Button, Code, Group, Modal, Select, Stack, Table, TagsInput, Text, TextInput } from "@mantine/core"
+import { ActionIcon, Alert, Badge, Button, Code, Group, Modal, Paper, Select, Skeleton, Stack, Table, TagsInput, Text, TextInput } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { IconGripVertical, IconPencil, IconPlus, IconTrash } from "@tabler/icons-react"
-import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, preloadQueries, useT } from "@go-tenon/ui"
+import { applyServerErrors, confirm, EmptyState, FormError, notifyError, notifySuccess, Page, preloadQueries, RowActions, TableCard, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../../../../../api"
-import { EmptyState } from "../../../../../components/empty-state"
-import { RowActions } from "../../../../../components/row-actions"
 import { TicketTypeForm } from "./index"
 
 // 工单类型详情页：管理该类型的基本信息及专属自定义字段（增删改与拖拽排序）。
@@ -134,19 +132,18 @@ function TicketTypeDetailPage(): ReactNode {
       actions={
         item ? (
           <Group gap="xs">
-            <Button variant="default" size="xs" leftSection={<IconPencil size={14} />} onClick={() => setEditingType(true)}>
+            <Button variant="default" leftSection={<IconPencil size={14} />} onClick={() => setEditingType(true)}>
               {t("ticket_types.edit")}
             </Button>
             <Button
               variant={isDisabled ? "filled" : "light"}
               color={isDisabled ? undefined : "red"}
-              size="xs"
               loading={toggling}
               onClick={() => void toggleDisabled()}
             >
               {t(isDisabled ? "ticket_types.enable" : "ticket_types.disable")}
             </Button>
-            <Button size="xs" leftSection={<IconPlus size={14} />} onClick={() => setCreatingField(true)}>
+            <Button leftSection={<IconPlus size={14} />} onClick={() => setCreatingField(true)}>
               {t("ticket_types.add_field")}
             </Button>
           </Group>
@@ -163,7 +160,7 @@ function TicketTypeDetailPage(): ReactNode {
           <Group gap="md">
             <Group gap={6}>
               <Text size="sm" c="dimmed">
-                {t("ticket_types.default_visibility")}:
+                {t("ticket_types.default_visibility")}
               </Text>
               <Badge variant="light" color={item.default_visibility === "all" ? "bright-blue" : "gray"}>
                 {kit.label("TicketTypeVisibility", item.default_visibility)}
@@ -171,7 +168,7 @@ function TicketTypeDetailPage(): ReactNode {
             </Group>
             <Group gap={6}>
               <Text size="sm" c="dimmed">
-                {t("ticket_types.default_team")}:
+                {t("ticket_types.default_team")}
               </Text>
               <Text size="sm">{item.default_team_name || "—"}</Text>
             </Group>
@@ -182,10 +179,12 @@ function TicketTypeDetailPage(): ReactNode {
           {t("ticket_types.fields_heading")}
         </Text>
 
-        {fields.length === 0 ? (
-          <div className="desk-table-card">
+        {fieldsQuery.isPending ? (
+          <Skeleton height={160} radius="md" />
+        ) : fields.length === 0 ? (
+          <Paper withBorder>
             <EmptyState title={t("ticket_types.fields_empty")} />
-          </div>
+          </Paper>
         ) : (
           <DndContext
             sensors={sensors}
@@ -194,7 +193,7 @@ function TicketTypeDetailPage(): ReactNode {
             onDragEnd={(e) => void onDragEnd(e)}
           >
             <SortableContext items={fields.map((x) => x.id)} strategy={verticalListSortingStrategy}>
-              <Table.ScrollContainer minWidth={720} className="desk-table-card" type="native">
+              <TableCard minWidth={720}>
                 <Table verticalSpacing="sm" horizontalSpacing="md">
                   <Table.Thead>
                     <Table.Tr>
@@ -217,13 +216,13 @@ function TicketTypeDetailPage(): ReactNode {
                     ))}
                   </Table.Tbody>
                 </Table>
-              </Table.ScrollContainer>
+              </TableCard>
             </SortableContext>
           </DndContext>
         )}
       </Stack>
 
-      <Modal opened={editingType && !!item} onClose={() => setEditingType(false)} title={t("ticket_types.edit")} size="md">
+      <Modal opened={editingType && !!item} onClose={() => setEditingType(false)} title={t("ticket_types.edit")} size="md" closeOnClickOutside={false}>
         {editingType && item && (
           <TicketTypeForm
             initial={item}
@@ -245,6 +244,7 @@ function TicketTypeDetailPage(): ReactNode {
         }}
         title={t(editingField ? "attributes.edit" : "ticket_types.add_field")}
         size="md"
+        closeOnClickOutside={false}
       >
         {(creatingField || editingField) && (
           <TicketFieldForm
@@ -323,7 +323,7 @@ function SortableFieldRow({ attr, onEdit, onRemove }: { attr: AttributeDTO; onEd
             <Text size="xs" c="dimmed">
               {attr.description}
             </Text>
-          ) : !hasOptions(attr.type) ? (
+          ) : !(hasOptions(attr.type) && attr.options.length > 0) ? (
             <Text size="xs" c="dimmed">
               —
             </Text>
@@ -445,7 +445,7 @@ function TicketFieldForm({
           maxLength={200}
           {...form.getInputProps("description")}
         />
-        <Group justify="flex-end">
+        <Group justify="flex-end" gap="xs">
           <Button variant="default" onClick={onCancel}>
             {t("common.cancel")}
           </Button>

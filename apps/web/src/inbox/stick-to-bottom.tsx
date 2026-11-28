@@ -1,27 +1,17 @@
 import type { ConversationItemDTO } from "@agents-desk/client/tenant"
 import { Button, Divider } from "@mantine/core"
 import { IconArrowDown } from "@tabler/icons-react"
-import { useT } from "@go-tenon/ui"
-import { type ReactNode, type RefObject, useEffect, useRef, useState } from "react"
+import { type StickToBottom, useStickToBottom as useCoreStickToBottom, useT } from "@go-tenon/ui"
+import type { ReactNode } from "react"
 
-// 会话、聊天和工单三处时间线共用的滚动行为：打开时落到底部，新消息在底部附近或自己发出时跟随，
-// 否则在右下角显示“N 条新消息 / 回到底部”；打开前已读位置之后的第一条别人的消息上方显示“新消息”分隔线。
+export type { StickToBottom }
 
-/** StickToBottom 是 useStickToBottom 的结果，交给时间线的滚动容器和 ScrollToBottomButton。 */
-export interface StickToBottom {
-  scroller: RefObject<HTMLDivElement | null>
-  onScroll: () => void
-  showScrollDown: boolean
-  unseenCount: number
-  scrollToBottom: () => void
-  /** settle 告诉它已经由别处（例如搜索定位）完成了首次滚动，之后只跟随新增的消息。 */
-  settle: () => void
-}
+// 会话、聊天和工单三处时间线共用的滚动行为：基于 @go-tenon/ui 的 useStickToBottom，
+// 补充工作台“N 条新消息 / 回到底部”浮钮与“新消息”分隔线。
 
 /**
  * useStickToBottom 管理时间线的自动跟随：ready 为 true 后第一次落到底部（hold 为 true 时让位给定位滚动），
- * 之后 list 增加时，自己发的或停在底部附近（80px 内）时跟随到底部，否则累计未看到的消息条数（不含系统事件）。
- * typingCount 变化时，停在底部附近才跟随“正在输入”。
+ * 自己发的消息或停在底部附近时跟随到底部，其余非系统事件计入未读条数；typingCount 变化时仅在贴底态跟随。
  */
 export function useStickToBottom({
   ready,
@@ -36,80 +26,14 @@ export function useStickToBottom({
   typingCount?: number
   hold?: boolean
 }): StickToBottom {
-  const scroller = useRef<HTMLDivElement>(null)
-  const nearBottom = useRef(true)
-  const initialized = useRef(false)
-  const prevCount = useRef(0)
-  const [showScrollDown, setShowScrollDown] = useState(false)
-  const [unseenCount, setUnseenCount] = useState(0)
-
-  useEffect(() => {
-    if (!ready) return
-    const el = scroller.current
-    if (!el) return
-    if (!initialized.current) {
-      if (hold) return
-      initialized.current = true
-      prevCount.current = list.length
-      el.scrollTop = el.scrollHeight
-      nearBottom.current = true
-      return
-    }
-    if (list.length > prevCount.current) {
-      const added = list.slice(prevCount.current)
-      prevCount.current = list.length
-      const hasOwn = added.some((it) => it.actor.type === "member" && it.actor.id === myId)
-      if (hasOwn || nearBottom.current) {
-        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
-        nearBottom.current = true
-        setShowScrollDown(false)
-        setUnseenCount(0)
-      } else {
-        const incoming = added.filter((it) => it.kind !== "event").length
-        if (incoming > 0) {
-          setUnseenCount((n) => n + incoming)
-          setShowScrollDown(true)
-        }
-      }
-      return
-    }
-    prevCount.current = list.length
-  }, [ready, hold, list, myId])
-
-  useEffect(() => {
-    if (!initialized.current || typingCount === 0 || !nearBottom.current) return
-    const el = scroller.current
-    el?.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
-  }, [typingCount])
-
-  const onScroll = () => {
-    const el = scroller.current
-    if (!el) return
-    const gap = el.scrollHeight - el.scrollTop - el.clientHeight
-    nearBottom.current = gap <= 80
-    if (gap <= 80) {
-      setShowScrollDown(false)
-      setUnseenCount(0)
-    } else if (gap > 120) {
-      setShowScrollDown(true)
-    }
-  }
-
-  const scrollToBottom = () => {
-    const el = scroller.current
-    if (!el) return
-    nearBottom.current = true
-    setShowScrollDown(false)
-    setUnseenCount(0)
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
-  }
-
-  const settle = () => {
-    initialized.current = true
-    prevCount.current = list.length
-  }
-
-  return { scroller, onScroll, showScrollDown, unseenCount, scrollToBottom, settle }
+  return useCoreStickToBottom({
+    ready,
+    items: list,
+    isOwn: (it) => it.actor.type === "member" && it.actor.id === myId,
+    countItem: (it) => it.kind !== "event",
+    followSignal: typingCount,
+    hold,
+  })
 }
 
 /** ScrollToBottomButton 是时间线右下角的“N 条新消息 / 回到底部”按钮，离开底部时出现。 */

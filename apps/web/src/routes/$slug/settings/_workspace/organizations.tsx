@@ -13,12 +13,12 @@ import {
   notifyError,
   notifySuccess,
   Page,
+  RowActions,
   useCan,
   useT,
 } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { tenantApi } from "../../../../api"
-import { RowActions } from "../../../../components/row-actions"
 
 const PER_PAGE = 20
 
@@ -256,6 +256,7 @@ function OrganizationsPage(): ReactNode {
       <Modal
         opened={modalOpen}
         onClose={closeModal}
+        closeOnClickOutside={false}
         title={t(editing ? "organizations.edit_title" : "organizations.create_title")}
         size="md"
       >
@@ -273,6 +274,7 @@ function OrganizationsPage(): ReactNode {
               placeholder={t("organizations.name_placeholder")}
               required
               maxLength={120}
+              data-autofocus
               {...form.getInputProps("name")}
             />
             <TextInput
@@ -294,7 +296,7 @@ function OrganizationsPage(): ReactNode {
               maxLength={2000}
               {...form.getInputProps("notes")}
             />
-            <Group justify="flex-end">
+            <Group justify="flex-end" gap="xs">
               <Button variant="default" onClick={closeModal}>
                 {t("common.cancel")}
               </Button>

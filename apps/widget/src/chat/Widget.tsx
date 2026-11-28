@@ -1,5 +1,5 @@
 import { isApiError } from "@agents-desk/client/widget"
-import { Box, Button, Center, Indicator, Loader, Paper, Text } from "@mantine/core"
+import { Box, Button, Center, Indicator, Loader, Paper, Stack, Text } from "@mantine/core"
 import { IconTicket } from "@tabler/icons-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useT } from "@go-tenon/ui/core"
@@ -191,9 +191,16 @@ export function Widget(): ReactNode {
   if (!channel || config.isError || failed) {
     return floating ? null : (
       <Center h="100dvh" p="xl">
-        <Text c="dimmed" ta="center">
-          {t("panel.unavailable")}
-        </Text>
+        <Stack align="center" gap="sm">
+          <Text c="dimmed" ta="center">
+            {t("panel.unavailable")}
+          </Text>
+          {channel && !failed && config.isError && (
+            <Button variant="light" size="xs" onClick={() => void config.refetch()}>
+              {t("tenon.common.retry")}
+            </Button>
+          )}
+        </Stack>
       </Center>
     )
   }
@@ -296,6 +303,20 @@ export function Widget(): ReactNode {
               setGate("none")
             }}
           />
+        </Box>
+      ) : timeline.isError ? (
+        <Box key="error" className="w-view">
+          {renderMainHeader()}
+          <Center style={{ flex: 1 }} p="xl">
+            <Stack align="center" gap="sm">
+              <Text c="dimmed" size="sm" ta="center">
+                {t("tenon.error.failed")}
+              </Text>
+              <Button variant="light" size="xs" color={color} onClick={() => void timeline.refetch()}>
+                {t("tenon.common.retry")}
+              </Button>
+            </Stack>
+          </Center>
         </Box>
       ) : !contact || timeline.isPending ? (
         <Center style={{ flex: 1 }}>

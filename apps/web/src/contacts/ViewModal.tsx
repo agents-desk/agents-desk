@@ -85,13 +85,14 @@ export function ContactViewModal({
   const sortOptions = kit.enums.ContactSort.values.map((v) => ({ value: v, label: kit.label("ContactSort", v) }))
 
   return (
-    <Modal opened={opened} onClose={onClose} title={t(editing ? "contacts.view_edit" : "contacts.view_create")} size="md" radius="md">
+    <Modal opened={opened} onClose={onClose} title={t(editing ? "contacts.view_edit" : "contacts.view_create")} size="md" radius="md" closeOnClickOutside={false}>
       <Stack gap="sm">
         <TextInput
           label={t("contacts.view_name")}
           placeholder={t("contacts.view_name_placeholder")}
           required
           maxLength={50}
+          data-autofocus
           value={name}
           onChange={(e) => setName(e.currentTarget.value)}
         />
@@ -157,7 +158,7 @@ export function ContactViewModal({
           value={sort}
           onChange={(v) => v && setSort(v as ContactSort)}
         />
-        <Group justify="flex-end" mt="xs">
+        <Group justify="flex-end" gap="xs" mt="xs">
           <Button variant="default" onClick={onClose}>
             {t("common.cancel")}
           </Button>

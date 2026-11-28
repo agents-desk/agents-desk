@@ -21,7 +21,7 @@ import {
 import { useDebouncedValue } from "@mantine/hooks"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { IconPlus, IconSearch, IconUsersGroup } from "@tabler/icons-react"
-import { PaneBody, PaneHeader, PaneToolbar, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
+import { EmptyState, PaneBody, PaneHeader, PaneToolbar, StatusDot, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { kit } from "../api"
 import { ContactAvatar } from "../contacts/display"
@@ -33,8 +33,6 @@ import { type FillWatcher, useFillVisible } from "../inbox/fill"
 import { activity } from "../inbox/format"
 import { HighlightedSnippet } from "../inbox/Highlight"
 import { chatDisplayName, type ChatModeFilter, flattenChats, prefetchChat, useChatList } from "./data"
-import { EmptyState } from "../components/empty-state"
-import { StatusMark } from "../components/status-mark"
 import { useListKeys } from "../layout"
 
 /** ChatListProps 是聊天列表栏的设置。 */
@@ -152,7 +150,7 @@ export function ChatList({
         {list.isPending ? (
           <Stack gap={0}>
             {[0, 1, 2, 3, 4].map((i) => (
-              <Box key={i} px="sm" py={10} className="inbox-row">
+              <Box key={i} px="var(--tn-pane-px)" py={10} className="inbox-row">
                 <Group gap="sm" wrap="nowrap">
                   <Skeleton circle h={36} w={36} />
                   <Stack gap={6} style={{ flex: 1 }}>
@@ -163,6 +161,15 @@ export function ChatList({
               </Box>
             ))}
           </Stack>
+        ) : list.isError ? (
+          <EmptyState
+            title={t("common.load_failed")}
+            action={
+              <Button size="xs" variant="light" onClick={() => void list.refetch()}>
+                {t("common.retry")}
+              </Button>
+            }
+          />
         ) : items.length === 0 ? (
           <EmptyState
             title={t(hasFilters ? "chat.empty_filtered" : isExternal ? "chat.business_empty" : "chat.empty")}
@@ -326,7 +333,7 @@ function ChatRow({
                 {chat.unread_count > 99 ? "99+" : chat.unread_count}
               </Badge>
             ) : chat.unread ? (
-              <StatusMark color="red" />
+              <StatusDot color="red" />
             ) : null}
           </Group>
         </Stack>

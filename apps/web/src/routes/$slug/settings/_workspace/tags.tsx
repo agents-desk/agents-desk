@@ -11,8 +11,10 @@ import {
   ColorSwatch,
   Group,
   Modal,
+  Paper,
   SegmentedControl,
   Select,
+  Skeleton,
   Stack,
   Table,
   TagsInput,
@@ -26,6 +28,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import {
   applyServerErrors,
   confirm,
+  EmptyState,
   type FieldInput,
   FormError,
   notifyError,
@@ -35,13 +38,13 @@ import {
   preloadQueries,
   preloadResourceList,
   ResourcePage,
+  RowActions,
   tabbedListSearch,
+  TableCard,
   useT,
 } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../../../../api"
-import { EmptyState } from "../../../../components/empty-state"
-import { RowActions } from "../../../../components/row-actions"
 import { tags } from "../../../../resources"
 
 // 标签与属性：合并标签定义与会话/联系人自定义属性管理两个页内标签，共用 tenant-settings:manage 权限。
@@ -207,10 +210,12 @@ function AttributesTab(): ReactNode {
         ]}
       />
 
-      {items.length === 0 ? (
-        <div className="desk-table-card">
+      {list.isPending ? (
+        <Skeleton height={160} radius="md" />
+      ) : items.length === 0 ? (
+        <Paper withBorder>
           <EmptyState title={t("attributes.empty")} />
-        </div>
+        </Paper>
       ) : (
         <DndContext
           sensors={sensors}
@@ -219,7 +224,7 @@ function AttributesTab(): ReactNode {
           onDragEnd={(e) => void onDragEnd(e)}
         >
           <SortableContext items={items.map((x) => x.id)} strategy={verticalListSortingStrategy}>
-            <Table.ScrollContainer minWidth={720} className="desk-table-card" type="native">
+            <TableCard minWidth={720}>
               <Table verticalSpacing="sm" horizontalSpacing="md">
                 <Table.Thead>
                   <Table.Tr>
@@ -237,7 +242,7 @@ function AttributesTab(): ReactNode {
                   ))}
                 </Table.Tbody>
               </Table>
-            </Table.ScrollContainer>
+            </TableCard>
           </SortableContext>
         </DndContext>
       )}
@@ -250,6 +255,7 @@ function AttributesTab(): ReactNode {
         }}
         title={t(editing ? "attributes.edit" : "attributes.add")}
         size="md"
+        closeOnClickOutside={false}
       >
         {(creating || editing) && (
           <AttributeForm
@@ -329,7 +335,7 @@ function SortableRow({ attr, onEdit, onRemove }: { attr: AttributeDTO; onEdit: (
             <Text size="xs" c="dimmed">
               {attr.description}
             </Text>
-          ) : !hasOptions(attr.type) ? (
+          ) : !(hasOptions(attr.type) && attr.options.length > 0) ? (
             <Text size="xs" c="dimmed">
               —
             </Text>
@@ -450,7 +456,7 @@ function AttributeForm({
           maxLength={200}
           {...form.getInputProps("description")}
         />
-        <Group justify="flex-end">
+        <Group justify="flex-end" gap="xs">
           <Button variant="default" onClick={onCancel}>
             {t("common.cancel")}
           </Button>

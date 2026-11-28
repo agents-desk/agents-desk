@@ -261,6 +261,7 @@ export function MacroForm({ ctx }: { ctx: ResourceFormContext }): ReactNode {
           <TextInput
             label={fieldLabel("shortcut")}
             description={t("macros.shortcut_hint")}
+            inputWrapperOrder={["label", "input", "description", "error"]}
             placeholder={t("macros.shortcut_placeholder")}
             leftSection={
               <Text size="sm" c="dimmed" ff="monospace">
@@ -291,6 +292,7 @@ export function MacroForm({ ctx }: { ctx: ResourceFormContext }): ReactNode {
             <TriggerMenu trigger={trigger} position="bottom" width={300} empty={t("macros.var_empty")} />
             <Textarea
               ref={bodyRef}
+              aria-label={fieldLabel("body")}
               value={form.values.body}
               onChange={(e) => trigger.handleChange(e.currentTarget.value, e.currentTarget.selectionStart)}
               onKeyDown={(e) => {
@@ -316,7 +318,7 @@ export function MacroForm({ ctx }: { ctx: ResourceFormContext }): ReactNode {
         <Paper withBorder radius="md" p="sm">
           <Stack gap="sm">
             {/* 指派团队收件箱 */}
-            <Group grow align="flex-end">
+            <Group grow align="flex-start">
               <Select
                 label={t("macros.action_team")}
                 allowDeselect={false}
@@ -345,7 +347,7 @@ export function MacroForm({ ctx }: { ctx: ResourceFormContext }): ReactNode {
             </Group>
 
             {/* 指派负责人 */}
-            <Group grow align="flex-end">
+            <Group grow align="flex-start">
               <Select
                 label={t("macros.action_assignee")}
                 allowDeselect={false}
@@ -455,7 +457,7 @@ export function MacroForm({ ctx }: { ctx: ResourceFormContext }): ReactNode {
             </Stack>
 
             {/* 会话状态：关闭 / 稍后处理 */}
-            <Group grow align="flex-end">
+            <Group grow align="flex-start">
               <Select
                 label={t("macros.action_status")}
                 allowDeselect={false}

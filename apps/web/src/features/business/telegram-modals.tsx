@@ -29,9 +29,11 @@ import {
   ThemeIcon,
   Tooltip,
 } from "@mantine/core"
+import type { ErrorInfo } from "@go-tenon/client"
+import { describeError } from "@go-tenon/client"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { IconRefresh, IconSearch, IconUser, IconUsersGroup } from "@tabler/icons-react"
-import { notifyError, notifySuccess, useT } from "@go-tenon/ui"
+import { EmptyState, FormError, notifySuccess, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { kit, tenantApi } from "../../api"
 
@@ -54,8 +56,10 @@ export function TelegramLoginModal({
   const [code, setCode] = useState("")
   const [password, setPassword] = useState("")
   const [session, setSession] = useState<TgaccountLoginSessionDTO | null>(null)
+  const [formError, setFormError] = useState<ErrorInfo>()
 
   useEffect(() => {
+    setFormError(undefined)
     if (!opened) {
       setMode("qr")
       setName("")
@@ -77,18 +81,20 @@ export function TelegramLoginModal({
         account_id: reconnectAccount?.id,
       }),
     onSuccess: (next) => {
+      setFormError(undefined)
       setSession(next)
       if (next.step === "connected" && next.account) {
         notifySuccess(t("business_channels.tg_connected"))
         onConnected(next.account)
       }
     },
-    onError: (err) => notifyError(err),
+    onError: (err) => setFormError(describeError(err)),
   })
 
   const submitCode = useMutation({
     mutationFn: () => tenantApi.tgaccount.loginCode(session!.login_id, { code: code.trim() }),
     onSuccess: (next) => {
+      setFormError(undefined)
       setCode("")
       setSession(next)
       if (next.step === "connected" && next.account) {
@@ -96,12 +102,13 @@ export function TelegramLoginModal({
         onConnected(next.account)
       }
     },
-    onError: (err) => notifyError(err),
+    onError: (err) => setFormError(describeError(err)),
   })
 
   const submitPassword = useMutation({
     mutationFn: () => tenantApi.tgaccount.loginPassword(session!.login_id, { password }),
     onSuccess: (next) => {
+      setFormError(undefined)
       setPassword("")
       setSession(next)
       if (next.step === "connected" && next.account) {
@@ -109,7 +116,7 @@ export function TelegramLoginModal({
         onConnected(next.account)
       }
     },
-    onError: (err) => notifyError(err),
+    onError: (err) => setFormError(describeError(err)),
   })
 
   // 扫码等待期间每 2 秒轮询登录状态，自动刷新二维码或进入 2FA / 完成步骤
@@ -140,15 +147,18 @@ export function TelegramLoginModal({
     : t("business_channels.tg_connect_title")
 
   return (
-    <Modal opened={opened} onClose={onClose} title={modalTitle} size="md">
+    <Modal opened={opened} onClose={onClose} closeOnClickOutside={false} title={modalTitle} size="md">
       {!session ? (
         <form
+          noValidate
           onSubmit={(e) => {
             e.preventDefault()
+            setFormError(undefined)
             startLogin.mutate()
           }}
         >
           <Stack gap="md">
+            <FormError error={formError} />
             {reconnectAccount && (
               <Text size="xs" c="dimmed">
                 {t("tg_studio.reauth_hint")}
@@ -183,13 +193,12 @@ export function TelegramLoginModal({
                 data-autofocus
               />
             )}
-            <Group justify="flex-end">
+            <Group justify="flex-end" gap="xs">
               <Button variant="default" onClick={onClose}>
                 {t("common.cancel")}
               </Button>
               <Button
                 type="submit"
-                color="bright-blue"
                 loading={startLogin.isPending}
                 disabled={mode === "phone" && !phone.trim()}
               >
@@ -224,21 +233,24 @@ export function TelegramLoginModal({
               {t("business_channels.tg_waiting_scan")}
             </Text>
           </Group>
-          <Group justify="flex-end" w="100%">
-            <Button variant="default" onClick={() => setSession(null)}>
+          <Group justify="flex-end" w="100%" gap="xs">
+            <Button variant="default" onClick={() => { setFormError(undefined); setSession(null) }}>
               {t("business_channels.tg_back")}
             </Button>
           </Group>
         </Stack>
       ) : session.step === "awaiting_code" ? (
         <form
+          noValidate
           onSubmit={(e) => {
             e.preventDefault()
             if (!code.trim()) return
+            setFormError(undefined)
             submitCode.mutate()
           }}
         >
           <Stack gap="md">
+            <FormError error={formError} />
             <Text size="sm" c="dimmed">
               {t("business_channels.tg_code_hint")}
             </Text>
@@ -250,11 +262,11 @@ export function TelegramLoginModal({
               required
               data-autofocus
             />
-            <Group justify="flex-end">
-              <Button variant="default" onClick={() => setSession(null)}>
+            <Group justify="flex-end" gap="xs">
+              <Button variant="default" onClick={() => { setFormError(undefined); setSession(null) }}>
                 {t("business_channels.tg_back")}
               </Button>
-              <Button type="submit" color="bright-blue" loading={submitCode.isPending} disabled={!code.trim()}>
+              <Button type="submit" loading={submitCode.isPending} disabled={!code.trim()}>
                 {t("business_channels.tg_verify")}
               </Button>
             </Group>
@@ -262,13 +274,16 @@ export function TelegramLoginModal({
         </form>
       ) : session.step === "awaiting_password" ? (
         <form
+          noValidate
           onSubmit={(e) => {
             e.preventDefault()
             if (!password) return
+            setFormError(undefined)
             submitPassword.mutate()
           }}
         >
           <Stack gap="md">
+            <FormError error={formError} />
             <Text size="sm" c="dimmed">
               {session.password_hint
                 ? t("business_channels.tg_password_hint_with_tip", { hint: session.password_hint })
@@ -281,11 +296,11 @@ export function TelegramLoginModal({
               required
               data-autofocus
             />
-            <Group justify="flex-end">
-              <Button variant="default" onClick={() => setSession(null)}>
+            <Group justify="flex-end" gap="xs">
+              <Button variant="default" onClick={() => { setFormError(undefined); setSession(null) }}>
                 {t("business_channels.tg_back")}
               </Button>
-              <Button type="submit" color="bright-blue" loading={submitPassword.isPending} disabled={!password}>
+              <Button type="submit" loading={submitPassword.isPending} disabled={!password}>
                 {t("business_channels.tg_verify")}
               </Button>
             </Group>
@@ -296,11 +311,11 @@ export function TelegramLoginModal({
           <Alert color="red" variant="light" title={t("business_channels.tg_login_failed")}>
             <Text size="sm">{session.error || t("business_channels.tg_login_failed")}</Text>
           </Alert>
-          <Group justify="flex-end">
+          <Group justify="flex-end" gap="xs">
             <Button variant="default" onClick={onClose}>
               {t("common.cancel")}
             </Button>
-            <Button color="bright-blue" onClick={() => setSession(null)}>
+            <Button onClick={() => { setFormError(undefined); setSession(null) }}>
               {t("business_channels.tg_retry")}
             </Button>
           </Group>
@@ -325,6 +340,7 @@ export function SyncedPeersModal({
   const [kindFilter, setKindFilter] = useState<"all" | "direct" | "group">("all")
   const [selected, setSelected] = useState<Map<string, TgaccountSyncedPeer>>(new Map())
   const [backfillLimit, setBackfillLimit] = useState<string>("20")
+  const [saveError, setSaveError] = useState<ErrorInfo>()
 
   const dialogsQuery = useQuery({
     ...kit.queries.tgaccount.dialogs(account?.id ?? ""),
@@ -332,6 +348,7 @@ export function SyncedPeersModal({
   })
 
   useEffect(() => {
+    setSaveError(undefined)
     if (!account) return
     setQ("")
     setKindFilter("all")
@@ -382,146 +399,169 @@ export function SyncedPeersModal({
         backfill_limit: Number(backfillLimit) || 0,
       }),
     onSuccess: (updated) => {
+      setSaveError(undefined)
       notifySuccess(t("business_channels.tg_peers_saved"))
       onSaved(updated)
     },
-    onError: (err) => notifyError(err),
+    onError: (err) => setSaveError(describeError(err)),
   })
 
   return (
     <Modal
       opened={account !== null}
       onClose={onClose}
+      closeOnClickOutside={false}
       title={account ? t("business_channels.tg_pick_dialogs_title", { name: account.name }) : ""}
       size="lg"
     >
-      <Stack gap="md">
-        <Text size="xs" c="dimmed">
-          {t("business_channels.tg_pick_dialogs_hint")}
-        </Text>
+      <form
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault()
+          setSaveError(undefined)
+          save.mutate()
+        }}
+      >
+        <Stack gap="md">
+          <FormError error={saveError} />
+          <Text size="xs" c="dimmed">
+            {t("business_channels.tg_pick_dialogs_hint")}
+          </Text>
 
-        <Group gap="xs" wrap="wrap">
-          <TextInput
-            style={{ flex: 1, minWidth: 180 }}
-            size="sm"
-            placeholder={t("business_channels.tg_dialogs_search")}
-            leftSection={<IconSearch size={14} />}
-            value={q}
-            onChange={(e) => setQ(e.currentTarget.value)}
-          />
-          <SegmentedControl
-            size="xs"
-            value={kindFilter}
-            onChange={(v) => setKindFilter(v as "all" | "direct" | "group")}
-            data={[
-              { value: "all", label: t("chat.filter_all") },
-              { value: "direct", label: t("chat.filter_direct") },
-              { value: "group", label: t("chat.filter_group") },
-            ]}
-          />
-          <Tooltip label={t("business_channels.tg_refresh_dialogs")}>
-            <ActionIcon variant="default" size="input-sm" loading={dialogsQuery.isFetching} onClick={() => void dialogsQuery.refetch()}>
-              <IconRefresh size={16} />
-            </ActionIcon>
-          </Tooltip>
-        </Group>
-
-        {dialogsQuery.isPending ? (
-          <Stack gap="xs" py="md">
-            <Skeleton h={40} radius="sm" />
-            <Skeleton h={40} radius="sm" />
-            <Skeleton h={40} radius="sm" />
-          </Stack>
-        ) : dialogsQuery.isError ? (
-          <Alert color="red" variant="light">
-            <Group justify="space-between" align="center">
-              <Text size="sm">{t("business_channels.tg_dialogs_failed")}</Text>
-              <Button size="xs" variant="light" color="red" onClick={() => void dialogsQuery.refetch()}>
-                {t("business_channels.tg_retry")}
-              </Button>
-            </Group>
-          </Alert>
-        ) : filtered.length === 0 ? (
-          <Center py="xl">
-            <Text size="sm" c="dimmed">
-              {t("business_channels.tg_dialogs_empty")}
-            </Text>
-          </Center>
-        ) : (
-          <ScrollArea.Autosize mah={340} type="auto">
-            <Stack gap={6}>
-              {filtered.map((d) => {
-                const checked = selected.has(d.external_chat_id)
-                return (
-                  <Paper
-                    key={d.external_chat_id}
-                    withBorder
-                    px="sm"
-                    py={8}
-                    radius="sm"
-                    style={{ cursor: "pointer" }}
-                    onClick={() => toggleDialog(d)}
-                  >
-                    <Group gap="sm" wrap="nowrap">
-                      <Checkbox checked={checked} onChange={() => {}} tabIndex={-1} style={{ pointerEvents: "none" }} />
-                      <ThemeIcon size={28} radius="xl" variant="light" color={d.is_group ? "brand" : "bright-blue"} style={{ flex: "none" }}>
-                        {d.is_group ? <IconUsersGroup size={14} /> : <IconUser size={14} />}
-                      </ThemeIcon>
-                      <Box style={{ flex: 1, minWidth: 0 }}>
-                        <Group gap={6} wrap="nowrap">
-                          <Text size="sm" fw={500} truncate>
-                            {d.title}
-                          </Text>
-                          <Badge size="xs" variant="light" color={d.is_group ? "brand" : "gray"} style={{ flex: "none" }}>
-                            {t(d.is_group ? "chat.mode_group" : "chat.mode_direct")}
-                          </Badge>
-                        </Group>
-                        {d.username && (
-                          <Text size="xs" c="dimmed" truncate>
-                            @{d.username}
-                          </Text>
-                        )}
-                      </Box>
-                    </Group>
-                  </Paper>
-                )
-              })}
-            </Stack>
-          </ScrollArea.Autosize>
-        )}
-
-        <Divider />
-
-        <Group justify="space-between" align="center" wrap="wrap" gap="sm">
-          <Group gap="xs" align="center">
-            <Text size="xs" c="dimmed">
-              {t("tg_studio.modal_backfill_label")}
-            </Text>
-            <Select
-              size="xs"
-              w={136}
-              value={backfillLimit}
-              onChange={(v) => setBackfillLimit(v ?? "20")}
+          <Group gap="xs" wrap="wrap">
+            <TextInput
+              style={{ flex: 1, minWidth: 180 }}
+              size="sm"
+              placeholder={t("business_channels.tg_dialogs_search")}
+              leftSection={<IconSearch size={14} />}
+              value={q}
+              onChange={(e) => setQ(e.currentTarget.value)}
+            />
+            <SegmentedControl
+              value={kindFilter}
+              onChange={(v) => setKindFilter(v as "all" | "direct" | "group")}
               data={[
-                { value: "0", label: t("tg_studio.backfill_0") },
-                { value: "20", label: t("tg_studio.backfill_20") },
-                { value: "50", label: t("tg_studio.backfill_50") },
+                { value: "all", label: t("chat.filter_all") },
+                { value: "direct", label: t("chat.filter_direct") },
+                { value: "group", label: t("chat.filter_group") },
               ]}
             />
+            <Tooltip label={t("business_channels.tg_refresh_dialogs")}>
+              <ActionIcon
+                variant="default"
+                size="input-sm"
+                aria-label={t("business_channels.tg_refresh_dialogs")}
+                loading={dialogsQuery.isFetching}
+                onClick={() => void dialogsQuery.refetch()}
+              >
+                <IconRefresh size={16} />
+              </ActionIcon>
+            </Tooltip>
           </Group>
-          <Group gap="xs">
-            <Text size="xs" c="dimmed">
-              {t("business_channels.tg_selected_count", { n: selected.size })}
-            </Text>
-            <Button variant="default" onClick={onClose}>
-              {t("common.cancel")}
-            </Button>
-            <Button color="bright-blue" loading={save.isPending} onClick={() => save.mutate()}>
-              {t("common.save")}
-            </Button>
+
+          {dialogsQuery.isPending ? (
+            <Stack gap="xs" py="md">
+              <Skeleton h={40} radius="sm" />
+              <Skeleton h={40} radius="sm" />
+              <Skeleton h={40} radius="sm" />
+            </Stack>
+          ) : dialogsQuery.isError ? (
+            <Alert color="red" variant="light">
+              <Group justify="space-between" align="center">
+                <Text size="sm">{t("business_channels.tg_dialogs_failed")}</Text>
+                <Button size="xs" variant="light" color="red" onClick={() => void dialogsQuery.refetch()}>
+                  {t("business_channels.tg_retry")}
+                </Button>
+              </Group>
+            </Alert>
+          ) : filtered.length === 0 ? (
+            <EmptyState title={t("business_channels.tg_dialogs_empty")} />
+          ) : (
+            <ScrollArea.Autosize mah={340} type="auto">
+              <Stack gap={6}>
+                {filtered.map((d) => {
+                  const checked = selected.has(d.external_chat_id)
+                  return (
+                    <Paper
+                      key={d.external_chat_id}
+                      withBorder
+                      px="sm"
+                      py={8}
+                      radius="sm"
+                      role="checkbox"
+                      tabIndex={0}
+                      aria-checked={checked}
+                      style={{ cursor: "pointer" }}
+                      onClick={() => toggleDialog(d)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault()
+                          toggleDialog(d)
+                        }
+                      }}
+                    >
+                      <Group gap="sm" wrap="nowrap">
+                        <Checkbox checked={checked} onChange={() => {}} tabIndex={-1} style={{ pointerEvents: "none" }} />
+                        <ThemeIcon size={28} radius="xl" variant="light" color={d.is_group ? "brand" : "bright-blue"} style={{ flex: "none" }}>
+                          {d.is_group ? <IconUsersGroup size={14} /> : <IconUser size={14} />}
+                        </ThemeIcon>
+                        <Box style={{ flex: 1, minWidth: 0 }}>
+                          <Group gap={6} wrap="nowrap">
+                            <Text size="sm" fw={500} truncate>
+                              {d.title}
+                            </Text>
+                            <Badge size="xs" variant="light" color={d.is_group ? "brand" : "gray"} style={{ flex: "none" }}>
+                              {t(d.is_group ? "chat.mode_group" : "chat.mode_direct")}
+                            </Badge>
+                          </Group>
+                          {d.username && (
+                            <Text size="xs" c="dimmed" truncate>
+                              @{d.username}
+                            </Text>
+                          )}
+                        </Box>
+                      </Group>
+                    </Paper>
+                  )
+                })}
+              </Stack>
+            </ScrollArea.Autosize>
+          )}
+
+          <Divider />
+
+          <Group justify="space-between" align="center" wrap="wrap" gap="sm">
+            <Group gap="xs" align="center">
+              <Text size="xs" c="dimmed">
+                {t("tg_studio.modal_backfill_label")}
+              </Text>
+              <Select
+                size="xs"
+                w={136}
+                aria-label={t("tg_studio.modal_backfill_label")}
+                value={backfillLimit}
+                onChange={(v) => setBackfillLimit(v ?? "20")}
+                data={[
+                  { value: "0", label: t("tg_studio.backfill_0") },
+                  { value: "20", label: t("tg_studio.backfill_20") },
+                  { value: "50", label: t("tg_studio.backfill_50") },
+                ]}
+              />
+            </Group>
+            <Group gap="xs">
+              <Text size="xs" c="dimmed">
+                {t("business_channels.tg_selected_count", { n: selected.size })}
+              </Text>
+              <Button variant="default" onClick={onClose}>
+                {t("common.cancel")}
+              </Button>
+              <Button type="submit" loading={save.isPending}>
+                {t("common.save")}
+              </Button>
+            </Group>
           </Group>
-        </Group>
-      </Stack>
+        </Stack>
+      </form>
     </Modal>
   )
 }

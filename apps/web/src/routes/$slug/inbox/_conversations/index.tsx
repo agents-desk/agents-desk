@@ -2,8 +2,7 @@ import { Group, Kbd, Text } from "@mantine/core"
 import { useOs } from "@mantine/hooks"
 import { createFileRoute } from "@tanstack/react-router"
 import { IconMessages } from "@tabler/icons-react"
-import { useT } from "@go-tenon/ui"
-import { EmptyState } from "../../../../components/empty-state"
+import { EmptyState, useT } from "@go-tenon/ui"
 
 // 还没有打开会话时，会话一栏的提示与常用快捷键导览。
 export const Route = createFileRoute("/$slug/inbox/_conversations/")({ component: NoConversation })

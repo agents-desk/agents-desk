@@ -4,12 +4,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { IconUserMinus } from "@tabler/icons-react"
 import type { ErrorInfo } from "@go-tenon/client"
-import { applyServerErrors, confirm, DataTable, FormError, notifyError, notifySuccess, Page, preloadQueries, ResourceSelect, useCan, useT } from "@go-tenon/ui"
+import { applyServerErrors, confirm, DataTable, FormError, notifyError, notifySuccess, Page, preloadQueries, ResourceSelect, RowActions, useCan, useT } from "@go-tenon/ui"
 import type { HoursSchedule, TeamDTO } from "@agents-desk/client/tenant"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../../../../../api"
 import { emptySchedule, ScheduleFields } from "../../../../../business-hours"
-import { RowActions } from "../../../../../components/row-actions"
 import { useUnsavedGuard } from "../../../../../components/unsaved-guard"
 import { members as memberResource } from "../../../../../resources"
 import { StatusBadge } from "../../../../../status"
@@ -109,7 +108,6 @@ function TeamMembers(): ReactNode {
           <Button
             variant={isDisabled ? "filled" : "light"}
             color={isDisabled ? undefined : "red"}
-            size="xs"
             loading={disable.isPending || enable.isPending}
             onClick={() => void toggleDisabled()}
           >

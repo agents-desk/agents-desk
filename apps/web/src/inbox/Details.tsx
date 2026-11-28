@@ -1,10 +1,11 @@
 import type { ConversationAssignment, ConversationDTO, ConversationHandlingMode } from "@agents-desk/client/tenant"
-import { ActionIcon, Anchor, Badge, Box, Button, CopyButton, Group, Modal, Rating, Select, Stack, Text, TextInput, Tooltip, UnstyledButton } from "@mantine/core"
+import { ActionIcon, Anchor, Badge, Box, Button, CopyButton, Group, Modal, Rating, Select, Skeleton, Stack, Text, TextInput, Tooltip, UnstyledButton } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate, useParams } from "@tanstack/react-router"
 import { IconBan, IconCheck, IconCopy, IconExternalLink, IconGitMerge, IconLink, IconPlus, IconSettings, IconShieldCheck, IconX } from "@tabler/icons-react"
 import {
   confirm,
+  formatTimeZoneLocal,
   Inspector,
   InspectorField,
   InspectorSection,
@@ -21,14 +22,13 @@ import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { AiAssistantPanel, type DetailsAsideTab, DetailsAsideTabs, useAiWorkspaceEnabled } from "../components/ai-placeholders"
 import { ContactNotesCard } from "../contacts/ContactNotesCard"
-import { contactDisplayName } from "../contacts/display"
+import { contactDisplayName, contactKindColor } from "../contacts/display"
 import { MergeContactModal } from "../contacts/MergeContactModal"
 import { LanguageSelect } from "../LanguageSelect"
 import { languageName } from "../languages"
 import { CreateTicketModal } from "../tickets/CreateTicketModal"
 import { LinkTicketModal } from "../tickets/LinkTicketModal"
 import { ticketStatusColor, ticketStatusLabel, useConversationTickets } from "../tickets/meta"
-import { formatLocalTime } from "../timezone"
 import { previewSummary } from "./Attachments"
 import { ChannelIcon } from "./channel-badge"
 import {
@@ -74,6 +74,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
   const [createTicketOpen, setCreateTicketOpen] = useState(false)
   const [linkTicketOpen, setLinkTicketOpen] = useState(false)
   const [asideTab, setAsideTab] = useState<DetailsAsideTab>("details")
+  const aiEnabled = useAiWorkspaceEnabled()
   const contactDetail = useQuery({
     ...kit.queries.contact.get(c.contact?.id ?? ""),
     enabled: !!c.contact?.id,
@@ -210,7 +211,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
   const others = (history.data?.items ?? []).filter((x) => x.id !== c.id)
   const location = contactDetail.data?.location || c.contact?.location || ""
   const timeZone = contactDetail.data?.time_zone || c.contact?.time_zone || ""
-  const localTime = formatLocalTime(timeZone)
+  const localTime = formatTimeZoneLocal(timeZone)
   const locationText = [location, localTime ? t("contacts.local_time", { time: localTime }) : ""].filter(Boolean).join(" · ")
   const referrer = contactDetail.data?.referrer ?? ""
 
@@ -226,7 +227,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
       />
       <DetailsAsideTabs value={asideTab} onChange={setAsideTab} />
       <PaneBody>
-        {useAiWorkspaceEnabled() && asideTab === "ai" ? (
+        {aiEnabled && asideTab === "ai" ? (
           <AiAssistantPanel scene="inbox" />
         ) : (
         <Inspector>
@@ -261,7 +262,8 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                         size="compact-xs"
                         variant="light"
                         color="gray"
-                        loading={setHandlingMode.isPending}
+                        loading={setHandlingMode.isPending && setHandlingMode.variables?.mode === "human"}
+                        disabled={setHandlingMode.isPending && setHandlingMode.variables?.mode !== "human"}
                         onClick={() => setHandlingMode.mutate({ mode: "human" })}
                       >
                         {t("inbox.takeover_human")}
@@ -272,7 +274,8 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                         size="compact-xs"
                         variant="light"
                         color="green"
-                        loading={setHandlingMode.isPending}
+                        loading={setHandlingMode.isPending && setHandlingMode.variables?.mode === "ai_auto"}
+                        disabled={setHandlingMode.isPending && setHandlingMode.variables?.mode !== "ai_auto"}
                         onClick={() => setHandlingMode.mutate({ mode: "ai_auto", bot_id: primaryBotId })}
                       >
                         {t("inbox.resume_ai_auto")}
@@ -283,7 +286,8 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                         size="compact-xs"
                         variant="light"
                         color="bright-blue"
-                        loading={setHandlingMode.isPending}
+                        loading={setHandlingMode.isPending && setHandlingMode.variables?.mode === "ai_copilot"}
+                        disabled={setHandlingMode.isPending && setHandlingMode.variables?.mode !== "ai_copilot"}
                         onClick={() => setHandlingMode.mutate({ mode: "ai_copilot", bot_id: primaryBotId })}
                       >
                         {t("inbox.enable_ai_copilot")}
@@ -368,7 +372,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
               />
             </InspectorField>
             {convAttrs.map((def) => (
-              <InspectorField key={def.id} label={def.name}>
+              <InspectorField key={def.id} label={def.name} align="start">
                 <AttributeInput
                   key={`${c.id}:${def.key}`}
                   def={def}
@@ -443,7 +447,9 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
               </Group>
             }
           >
-            {(convTickets.data?.items.length ?? 0) === 0 ? (
+            {convTickets.isPending ? (
+              <Skeleton height={44} radius="sm" />
+            ) : (convTickets.data?.items.length ?? 0) === 0 ? (
               <Stack gap={6}>
                 <Text size="xs" c="dimmed">
                   {t("tickets.conversation_empty")}
@@ -556,12 +562,12 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
               </InspectorField>
               <InspectorField label={t("contacts.col_external_id")}>
                 <Group gap={4} wrap="nowrap" justify="space-between">
-                  <Text size="xs" c="dimmed" truncate style={{ flex: 1, minWidth: 0, fontFamily: "monospace" }}>
+                  <Text size="xs" c="dimmed" truncate ff="monospace" style={{ flex: 1, minWidth: 0 }}>
                     {c.external_group.external_id}
                   </Text>
                   <CopyButton value={c.external_group.external_id} timeout={1500}>
                     {({ copied, copy }) => (
-                      <Tooltip label={t(copied ? "contacts.copied" : "contacts.copy")} withArrow>
+                      <Tooltip label={t(copied ? "contacts.copied" : "contacts.copy")}>
                         <ActionIcon variant="subtle" color={copied ? "green" : "gray"} size={22} onClick={copy} aria-label={t("contacts.copy")}>
                           {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
                         </ActionIcon>
@@ -659,7 +665,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                         {contactDisplayName(c.contact, t)}
                       </Text>
                     </Link>
-                    <Badge size="xs" variant="light" color={c.contact.kind === "internal" ? "green" : "gray"} style={{ flex: "none" }}>
+                    <Badge size="xs" variant="light" color={contactKindColor[c.contact.kind]} style={{ flex: "none" }}>
                       {kit.label("ContactKind", c.contact.kind)}
                     </Badge>
                     {c.contact.blocked_at && (
@@ -674,7 +680,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
               </InspectorField>
               {c.contact?.blocked_at && c.contact.blocked_reason && (
                 <InspectorField label={t("contacts.blocked_reason")} align="start">
-                  <Text size="xs" c="red">
+                  <Text size="xs" c="red" style={{ overflowWrap: "anywhere" }}>
                     {c.contact.blocked_reason}
                   </Text>
                 </InspectorField>
@@ -687,7 +693,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                   {c.contact?.email && (
                     <CopyButton value={c.contact.email} timeout={1500}>
                       {({ copied, copy }) => (
-                        <Tooltip label={t(copied ? "contacts.copied" : "contacts.copy")} withArrow>
+                        <Tooltip label={t(copied ? "contacts.copied" : "contacts.copy")}>
                           <ActionIcon variant="subtle" color={copied ? "green" : "gray"} size={22} onClick={copy} aria-label={t("contacts.copy")}>
                             {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
                           </ActionIcon>
@@ -761,7 +767,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
                     />
                   </InspectorField>
                   {contactAttrs.map((def) => (
-                    <InspectorField key={def.id} label={def.name}>
+                    <InspectorField key={def.id} label={def.name} align="start">
                       <AttributeInput
                         key={`${c.contact?.id}:${def.key}`}
                         def={def}
@@ -805,7 +811,9 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
               ) : undefined
             }
           >
-            {others.length === 0 ? (
+            {history.isPending ? (
+              <Skeleton height={60} radius="sm" />
+            ) : others.length === 0 ? (
               <Text size="xs" c="dimmed">
                 {t("inbox.no_history")}
               </Text>
@@ -862,7 +870,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
         linkedTicketIds={new Set((convTickets.data?.items ?? []).map((x) => x.id))}
         onClose={() => setLinkTicketOpen(false)}
       />
-      <Modal opened={blockModalOpen} onClose={() => setBlockModalOpen(false)} title={t("contacts.block_confirm_title")} centered>
+      <Modal opened={blockModalOpen} onClose={() => setBlockModalOpen(false)} title={t("contacts.block_confirm_title")} centered closeOnClickOutside={false}>
         <Stack gap="md">
           <Text size="sm" c="dimmed">
             {t("contacts.block_desc")}

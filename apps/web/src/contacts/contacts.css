@@ -92,26 +92,6 @@
   outline-offset: 2px;
 }
 
-/* 状态色圆点 */
-.ct-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex: none;
-}
-
-.ct-dot[data-status="open"] {
-  background: var(--mantine-color-bright-blue-6);
-}
-
-.ct-dot[data-status="snoozed"] {
-  background: var(--mantine-color-yellow-6);
-}
-
-.ct-dot[data-status="closed"] {
-  background: var(--mantine-color-gray-5);
-}
-
 /* 二级导航中的联系人保存筛选条目：悬停时将右侧计数切换为更多操作菜单 */
 .ct-view-row {
   position: relative;
@@ -136,4 +116,15 @@
 .ct-view-row[data-editable]:hover .ct-view-count,
 .ct-view-row[data-editable]:focus-within .ct-view-count {
   opacity: 0;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .ct-view-row[data-editable] .ct-view-actions {
+    opacity: 0.78;
+    pointer-events: auto;
+  }
+
+  .ct-view-row[data-editable] .ct-view-count {
+    opacity: 0;
+  }
 }

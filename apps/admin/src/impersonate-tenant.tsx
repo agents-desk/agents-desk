@@ -36,8 +36,14 @@ export function ImpersonateTenantModal({ tenant, onClose }: { tenant?: TenantDTO
   }))
 
   return (
-    <Modal opened={!!tenant} onClose={onClose} title={t("impersonate.title", { name: tenant?.name ?? "" })}>
+    <Modal
+      opened={!!tenant}
+      onClose={onClose}
+      closeOnClickOutside={false}
+      title={t("impersonate.title", { name: tenant?.name ?? "" })}
+    >
       <form
+        noValidate
         onSubmit={form.onSubmit(async (values) => {
           if (!tenant) return
           setSubmitting(true)
@@ -64,7 +70,7 @@ export function ImpersonateTenantModal({ tenant, onClose }: { tenant?: TenantDTO
           <Text size="sm" c="dimmed">
             {t("impersonate.description")}
           </Text>
-          <FormError error={error} />
+          <FormError error={error} form={form} />
           <Select
             label={t("impersonate.member")}
             data={memberOptions}
@@ -76,6 +82,7 @@ export function ImpersonateTenantModal({ tenant, onClose }: { tenant?: TenantDTO
             label={t("impersonate.reason")}
             placeholder={t("impersonate.reason_placeholder")}
             required
+            data-autofocus
             {...form.getInputProps("reason")}
           />
           <Switch
@@ -83,8 +90,8 @@ export function ImpersonateTenantModal({ tenant, onClose }: { tenant?: TenantDTO
             description={t("impersonate.read_only_hint")}
             {...form.getInputProps("read_only", { type: "checkbox" })}
           />
-          <Group justify="flex-end">
-            <Button variant="default" onClick={onClose}>
+          <Group justify="flex-end" gap="xs">
+            <Button variant="default" disabled={submitting} onClick={onClose}>
               {t("common.cancel")}
             </Button>
             <Button type="submit" color="deep-orange" loading={submitting}>

@@ -1,7 +1,7 @@
-import { ActionIcon, Autocomplete, Button, Group, Select, Stack, Switch, Text } from "@mantine/core"
+import { ActionIcon, Autocomplete, Button, Group, Stack, Switch, Text } from "@mantine/core"
 import type { UseFormReturnType } from "@mantine/form"
 import { IconCopy, IconPlus, IconX } from "@tabler/icons-react"
-import { useT } from "@go-tenon/ui"
+import { TimeZoneSelect, useT } from "@go-tenon/ui"
 import type { HoursInterval, HoursSchedule, HoursWeek } from "@agents-desk/client/tenant"
 import type { ReactNode } from "react"
 import type { MessageId } from "./messages.gen"
@@ -25,24 +25,6 @@ export const defaultInterval: HoursInterval = { start: "09:00", end: "18:00" }
 
 // times 是时间输入框的候选：每半小时一个，到 24:00；也可以直接输入其他钟点。
 const times = Array.from({ length: 49 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`)
-
-// zones 是浏览器认识的 IANA 时区名。
-const zones = Intl.supportedValuesOf("timeZone")
-
-/** TimeZoneSelect 是时区的下拉框，可以搜索。 */
-export function TimeZoneSelect({ form, path }: { form: UseFormReturnType<any>; path: string }): ReactNode {
-  const t = useT()
-  return (
-    <Select
-      label={t("hours.time_zone")}
-      description={t("hours.time_zone_hint")}
-      searchable
-      data={zones}
-      {...form.getInputProps(path)}
-      onChange={(v) => form.setFieldValue(path, v ?? "")}
-    />
-  )
-}
 
 /**
  * Intervals 是一天的时间段：每段一个开始和一个结束，可以增删，最多 3 段。path 是时间段列表在表单中的位置，
@@ -106,8 +88,9 @@ export function WeekEditor({ form, path }: { form: UseFormReturnType<any>; path:
         return (
           <Group key={d.key} align="flex-start" gap="lg" wrap="nowrap">
             <Switch
-              w={110}
-              mt={6}
+              w={120}
+              mt={8}
+              style={{ flex: "none" }}
               label={t(d.label)}
               checked={working}
               onChange={(e) => form.setFieldValue(dayPath, e.currentTarget.checked ? [defaultInterval] : [])}
@@ -115,7 +98,7 @@ export function WeekEditor({ form, path }: { form: UseFormReturnType<any>; path:
             {working ? (
               <Intervals form={form} path={dayPath} />
             ) : (
-              <Text size="sm" c="dimmed" mt={6}>
+              <Text size="sm" c="dimmed" mt={8}>
                 {t("hours.off")}
               </Text>
             )}
@@ -128,10 +111,19 @@ export function WeekEditor({ form, path }: { form: UseFormReturnType<any>; path:
 
 /** ScheduleFields 是时区和每周的工作时间。path 是 Schedule 在表单中的位置，为空时就是表单本身。 */
 export function ScheduleFields({ form, path = "" }: { form: UseFormReturnType<any>; path?: string }): ReactNode {
+  const t = useT()
   const at = (field: string) => (path ? `${path}.${field}` : field)
+  const tzPath = at("time_zone")
   return (
     <Stack gap="md">
-      <TimeZoneSelect form={form} path={at("time_zone")} />
+      <TimeZoneSelect
+        label={t("hours.time_zone")}
+        description={t("hours.time_zone_hint")}
+        allowDeselect={false}
+        value={(form.getInputProps(tzPath).value as string) || null}
+        error={form.errors[tzPath]}
+        onChange={(v) => form.setFieldValue(tzPath, v ?? "")}
+      />
       <WeekEditor form={form} path={at("week")} />
     </Stack>
   )

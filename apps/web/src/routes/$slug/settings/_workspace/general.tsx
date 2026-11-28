@@ -1,7 +1,7 @@
-import { Avatar, Button, FileButton, Group, NumberInput, Stack, Text, TextInput } from "@mantine/core"
+import { Button, Group, NumberInput, Stack, TextInput } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { createFileRoute, useRouter } from "@tanstack/react-router"
-import { applyServerErrors, FormError, notifyError, notifySuccess, Page, useT } from "@go-tenon/ui"
+import { applyServerErrors, AvatarField, FormError, notifySuccess, Page, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { api, tenantApi } from "../../../../api"
 import { useUnsavedGuard } from "../../../../components/unsaved-guard"
@@ -25,24 +25,11 @@ function General(): ReactNode {
     },
   })
   const [preview, setPreview] = useState(tenant.logo_url)
-  const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<ReturnType<typeof applyServerErrors>>()
 
-  const chooseLogo = async (file: File | null) => {
-    if (!file) return
-    setUploading(true)
-    try {
-      const uploaded = await api.file.upload({ file })
-      form.setFieldValue("logo_file_id", uploaded.id)
-      form.clearFieldError("logo_file_id")
-      setPreview(uploaded.url)
-    } catch (err) {
-      notifyError(err, t("general.logo_upload_failed"))
-    } finally {
-      setUploading(false)
-    }
-  }
+  const dirty = form.isDirty() || preview !== tenant.logo_url
+  const unsaved = useUnsavedGuard(dirty)
 
   const submit = form.onSubmit(async (values) => {
     setSaving(true)
@@ -53,6 +40,7 @@ function General(): ReactNode {
         logo_file_id: values.logo_file_id,
         reopen_window_hours: Number(values.reopen_window_hours),
       })
+      unsaved.release()
       // 重新读取布局中的工作区，侧栏顶部的名称、Logo 和浏览器标签图标随之更新
       await router.invalidate()
       form.resetDirty()
@@ -64,49 +52,26 @@ function General(): ReactNode {
     }
   })
 
-  useUnsavedGuard(form.isDirty())
   return (
-    <Page title={t("nav.general")}>
+    <Page title={t("nav.general")} width="narrow">
       <form noValidate onSubmit={submit}>
         <Stack gap="md">
           <FormError error={error} />
-          <Stack gap={6}>
-            <Text size="sm" fw={500}>
-              {t("general.logo")}
-            </Text>
-            <Group gap="md">
-              <Avatar src={preview || null} size={56} radius="md" color="brand">
-                {form.values.name.slice(0, 1)}
-              </Avatar>
-              <Stack gap={6}>
-                <Group gap="xs">
-                  <FileButton onChange={(f) => void chooseLogo(f)} accept="image/png,image/jpeg,image/webp">
-                    {(props) => (
-                      <Button {...props} variant="default" size="xs" loading={uploading}>
-                        {t("general.logo_upload")}
-                      </Button>
-                    )}
-                  </FileButton>
-                  {preview && (
-                    <Button
-                      variant="subtle"
-                      color="gray"
-                      size="xs"
-                      onClick={() => {
-                        form.setFieldValue("logo_file_id", "")
-                        setPreview("")
-                      }}
-                    >
-                      {t("general.logo_remove")}
-                    </Button>
-                  )}
-                </Group>
-                <Text size="xs" c={form.errors.logo_file_id ? "red" : "dimmed"}>
-                  {form.errors.logo_file_id ?? t("general.logo_hint")}
-                </Text>
-              </Stack>
-            </Group>
-          </Stack>
+          <AvatarField
+            label={t("general.logo")}
+            name={form.values.name}
+            previewUrl={preview}
+            size={56}
+            radius="md"
+            onUpload={(file) => api.file.upload({ file })}
+            onChange={({ id, url }) => {
+              form.setFieldValue("logo_file_id", id)
+              form.clearFieldError("logo_file_id")
+              setPreview(url)
+            }}
+            hint={t("general.logo_hint")}
+            error={form.errors.logo_file_id}
+          />
           <TextInput label={t("general.name")} required maxLength={60} {...form.getInputProps("name")} />
           <TextInput label={t("general.address")} value={`/app/${tenant.slug}/`} readOnly description={t("general.address_hint")} />
           <NumberInput
@@ -119,7 +84,7 @@ function General(): ReactNode {
             {...form.getInputProps("reopen_window_hours")}
           />
           <Group justify="flex-end">
-            <Button type="submit" disabled={!form.isDirty()} loading={saving}>
+            <Button type="submit" disabled={!dirty} loading={saving}>
               {t("common.save")}
             </Button>
           </Group>

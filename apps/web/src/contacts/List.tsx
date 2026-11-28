@@ -4,19 +4,17 @@ import { useDebouncedValue } from "@mantine/hooks"
 import { infiniteQueryOptions, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
 import { IconBookmarkPlus, IconMessageCircle, IconSearch } from "@tabler/icons-react"
-import { ExportButton, PaneBody, PaneHeader, PaneToolbar, useCan, useLanguage, useNarrow, useT, useTimeZone } from "@go-tenon/ui"
-import { type ReactNode, useEffect, useRef, useState } from "react"
+import { EmptyState, ExportButton, formatTimeZoneLocal, PaneBody, PaneHeader, PaneToolbar, useCan, useLanguage, useNarrow, useT, useTimeZone } from "@go-tenon/ui"
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { useTags } from "../inbox/data"
 import { activity } from "../inbox/format"
 import { LanguageSelect } from "../LanguageSelect"
 import { languageName } from "../languages"
 import { NARROW_QUERY } from "../layout"
-import { formatLocalTime } from "../timezone"
-import { ContactAvatar, contactDisplayName, contactSubline } from "./display"
+import { ContactAvatar, contactDisplayName, contactKindColor, contactSubline } from "./display"
 import type { ContactsSearch } from "./search"
 import { ContactViewModal } from "./ViewModal"
-import { EmptyState } from "../components/empty-state"
 import { prefetchContact } from "./Detail"
 
 /**
@@ -183,6 +181,7 @@ export function ContactDirectory({
             )}
             {can("contacts:export") && (
               <ExportButton
+                iconOnly
                 title={t("contacts.export")}
                 source={{
                   start: () =>
@@ -325,7 +324,7 @@ export function ContactDirectory({
           <>
             {items.map((c) => {
               const displayName = contactDisplayName(c, t)
-              const localTime = formatLocalTime(c.time_zone)
+              const localTime = formatTimeZoneLocal(c.time_zone)
               const place = [c.location, localTime ? t("contacts.local_time", { time: localTime }) : ""].filter(Boolean).join(" · ")
               const langLabel = c.language ? languageName(c.language, ui) : ""
               const subline = contactSubline(c)
@@ -367,7 +366,7 @@ export function ContactDirectory({
                         <Badge
                           size="xs"
                           variant="light"
-                          color={c.kind === "internal" ? "green" : c.kind === "user" ? "bright-blue" : "gray"}
+                          color={contactKindColor[c.kind]}
                           style={{ flex: "none" }}
                         >
                           {kit.label("ContactKind", c.kind)}

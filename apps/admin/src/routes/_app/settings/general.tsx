@@ -1,14 +1,14 @@
-import { Avatar, Button, FileButton, Group, Paper, Stack, Text, TextInput, Title } from "@mantine/core"
+import { Button, Group, Paper, Stack, Text, TextInput, Title } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { type FieldInput, notifyError, notifySuccess, Page, SecretInput, SettingsForm, useT } from "@go-tenon/ui"
+import { AvatarField, type FieldInput, notifyError, notifySuccess, Page, SecretInput, SettingsForm, useT } from "@go-tenon/ui"
 import { type FormEvent, useEffect, useState } from "react"
 import { api, kit } from "../../../api"
 import { generalSettings, mailSettings } from "../../../resources"
 
 // 系统设置：通过框架的 SettingsPage 把常规设置和邮件服务（Resend）合并为多标签页，字段和校验来自 Go 声明。
 export const Route = createFileRoute("/_app/settings/general")({
-  staticData: { title: "nav.general_settings", icon: "settings", order: 5, permission: "platform-settings:manage" },
+  staticData: { title: "nav.general_settings", icon: "settings", order: 6, permission: "platform-settings:manage" },
   component: GeneralSettingsPage,
 })
 
@@ -26,62 +26,34 @@ const APIKeyField: FieldInput = ({ field, label, value, onChange, error, disable
 )
 
 // LogoField 上传平台 Logo 为临时文件并回填 logo_file_id，保存表单后服务端正式确认并同步至公开站点信息。
-const LogoField: FieldInput = ({ label, value, onChange, error, disabled }) => {
+const LogoField: FieldInput = ({ label, value, onChange, error }) => {
   const t = useT()
   const site = useQuery(kit.queries.site.get())
   const general = useQuery(kit.queries.general.settingsGet())
   const [previews, setPreviews] = useState<Record<string, string>>({})
-  const [uploading, setUploading] = useState(false)
 
   const fileId = typeof value === "string" ? value : ""
   const preview = fileId
     ? (previews[fileId] ?? (fileId === general.data?.logo_file_id ? site.data?.logo_url : undefined))
     : undefined
 
-  const choose = async (file: File | null) => {
-    if (!file) return
-    setUploading(true)
-    try {
-      const uploaded = await api.file.upload({ file })
-      setPreviews((prev) => ({ ...prev, [uploaded.id]: uploaded.url }))
-      onChange?.(uploaded.id)
-    } catch (err) {
-      notifyError(err, t("settings.logo_upload_failed"))
-    } finally {
-      setUploading(false)
-    }
-  }
-
   return (
-    <Stack gap={6}>
-      <Text size="sm" fw={500}>
-        {label}
-      </Text>
-      <Group gap="md">
-        <Avatar src={preview || null} size={56} radius="md" color="brand">
-          {(site.data?.site_name ?? "A").slice(0, 1)}
-        </Avatar>
-        <Stack gap={6}>
-          <Group gap="xs">
-            <FileButton onChange={(f) => void choose(f)} accept="image/png,image/jpeg,image/webp" disabled={disabled}>
-              {(props) => (
-                <Button {...props} variant="default" size="xs" loading={uploading} disabled={disabled}>
-                  {t("settings.logo_upload")}
-                </Button>
-              )}
-            </FileButton>
-            {fileId && !disabled && (
-              <Button variant="subtle" color="gray" size="xs" onClick={() => onChange?.("")}>
-                {t("settings.logo_remove")}
-              </Button>
-            )}
-          </Group>
-          <Text size="xs" c={error ? "red" : "dimmed"}>
-            {error ?? t("settings.logo_hint")}
-          </Text>
-        </Stack>
-      </Group>
-    </Stack>
+    <AvatarField
+      label={label}
+      name={site.data?.site_name ?? "A"}
+      previewUrl={preview}
+      size={56}
+      radius="md"
+      onUpload={(file) => api.file.upload({ file })}
+      onChange={({ id, url }) => {
+        if (id && url) {
+          setPreviews((prev) => ({ ...prev, [id]: url }))
+        }
+        onChange?.(id)
+      }}
+      hint={t("settings.logo_hint")}
+      error={error}
+    />
   )
 }
 
@@ -141,6 +113,7 @@ function GeneralSettingsPage() {
   return (
     <Page
       title={t("nav.general_settings")}
+      width="narrow"
       tabs={[
         {
           value: generalSettings.name,

@@ -28,6 +28,7 @@ function AssignmentAndRulesPage(): ReactNode {
     <Page
       title={t("nav.assignment_rules")}
       description={t("assignment_rules.description")}
+      width="narrow"
       tabs={[
         {
           value: "assignment",
@@ -132,6 +133,7 @@ function AssignmentForm({ initial, slug }: { initial: ConversationAssignmentSett
             data={targetOptions}
             allowDeselect={false}
             value={form.values.default_target}
+            error={form.errors.default_target}
             onChange={(v) => {
               if (!v) return
               form.setFieldValue("default_target", v as ConversationDefaultTarget)
@@ -170,7 +172,9 @@ function AssignmentForm({ initial, slug }: { initial: ConversationAssignmentSett
             min={0}
             max={720}
             allowDecimal={false}
+            allowNegative={false}
             value={form.values.auto_close_after_hours}
+            error={form.errors.auto_close_after_hours}
             onChange={(v) => form.setFieldValue("auto_close_after_hours", typeof v === "number" ? v : 0)}
           />
           <NumberInput
@@ -179,7 +183,9 @@ function AssignmentForm({ initial, slug }: { initial: ConversationAssignmentSett
             min={0}
             max={10080}
             allowDecimal={false}
+            allowNegative={false}
             value={form.values.sla_reassign_minutes}
+            error={form.errors.sla_reassign_minutes}
             onChange={(v) => form.setFieldValue("sla_reassign_minutes", typeof v === "number" ? v : 0)}
           />
           <Group justify="flex-end">

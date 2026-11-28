@@ -46,10 +46,11 @@ import {
   IconUsersGroup,
   IconX,
 } from "@tabler/icons-react"
-import { ExportButton, notifyError, notifySuccess, PaneBody, PaneHeader, PaneToolbar, useCan, useLanguage, useSavedView, useT, useTimeZone } from "@go-tenon/ui"
+import { EmptyState, ExportButton, notifyError, notifySuccess, PaneBody, PaneHeader, PaneToolbar, useCan, useLanguage, useSavedView, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { ContactAvatar, contactDisplayName } from "../contacts/display"
+import { previewSummary } from "./Attachments"
 import { MultiChannelBadge } from "./channel-badge"
 import { flatten, flattenSearchHits, prefetchConversation, useConversationList, useConversationSearch, useMe, useMembers, useTeams, useThresholds } from "./data"
 import { useDraft } from "./drafts"
@@ -71,7 +72,6 @@ import {
   serializeFilter,
 } from "./search"
 import { ViewModal } from "./ViewModal"
-import { EmptyState } from "../components/empty-state"
 
 /** OpenFocus 是点击搜索结果打开会话时附带的消息定位信息。 */
 export interface OpenFocus {
@@ -267,7 +267,11 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [selecting, stopSelecting])
 
-  const selectedCount = items.filter((c) => selected.has(c.id)).length
+  const activeSelectedIds = useMemo(() => {
+    const visible = new Set(items.map((c) => c.id))
+    return [...selected].filter((id) => visible.has(id))
+  }, [items, selected])
+  const selectedCount = activeSelectedIds.length
   const allSelected = items.length > 0 && selectedCount === items.length
   const indeterminate = selectedCount > 0 && selectedCount < items.length
   const toggleAll = () => {
@@ -285,7 +289,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
     <Stack gap={0} h="100%">
       {selecting ? (
         <BulkBar
-          ids={[...selected]}
+          ids={activeSelectedIds}
           allSelected={allSelected}
           indeterminate={indeterminate}
           hasItems={items.length > 0}
@@ -328,6 +332,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                 )}
                 {!searching && !viewMissing && can("reports:read") && (
                   <ExportButton
+                    iconOnly
                     title={t("inbox.export")}
                     source={{
                       start: () =>
@@ -549,7 +554,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
           searchQuery.isPending ? (
             <Stack gap={0}>
               {[0, 1, 2, 3, 4].map((i) => (
-                <Box key={i} px="sm" py={10} className="inbox-row" data-search="">
+                <Box key={i} px="var(--tn-pane-px)" py={10} className="inbox-row" data-search="">
                   <Group justify="space-between" mb={6}>
                     <Skeleton h={12} w="44%" radius="sm" />
                     <Skeleton h={10} w={36} radius="sm" />
@@ -558,6 +563,15 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                 </Box>
               ))}
             </Stack>
+          ) : searchQuery.isError ? (
+            <EmptyState
+              title={t("common.load_failed")}
+              action={
+                <Button size="xs" variant="light" onClick={() => void searchQuery.refetch()}>
+                  {t("common.retry")}
+                </Button>
+              }
+            />
           ) : hits.length === 0 ? (
             <EmptyState title={t("inbox.search_empty", { q: search.q?.trim() ?? "" })} />
           ) : (
@@ -578,7 +592,7 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
         ) : list.isPending ? (
           <Stack gap={0}>
             {[0, 1, 2, 3, 4, 5].map((i) => (
-              <Box key={i} px="sm" className="inbox-row">
+              <Box key={i} px="var(--tn-pane-px)" className="inbox-row">
                 <Group gap={10} wrap="nowrap" align="center" w="100%">
                   <Skeleton circle h={36} w={36} style={{ flex: "none" }} />
                   <Box style={{ flex: 1, minWidth: 0 }}>
@@ -592,6 +606,15 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
               </Box>
             ))}
           </Stack>
+        ) : list.isError ? (
+          <EmptyState
+            title={t("common.load_failed")}
+            action={
+              <Button size="xs" variant="light" onClick={() => void list.refetch()}>
+                {t("common.retry")}
+              </Button>
+            }
+          />
         ) : items.length === 0 ? (
           <EmptyState
             title={t(filterCount > 0 ? "inbox.empty_filtered" : "inbox.empty")}
@@ -669,7 +692,7 @@ function SearchRow({ hit, active, onClick }: { hit: ConversationSearchHitDTO; ac
       data-search=""
       data-active={active || undefined}
       w="100%"
-      px="sm"
+      px="var(--tn-pane-px)"
       py={9}
     >
       <Box style={{ minWidth: 0 }}>
@@ -857,7 +880,7 @@ function Row({
                       {t("inbox.said", { who })}
                     </Text>
                   )}
-                  {c.preview_recalled ? t("inbox.message_recalled") : c.preview || "\u00A0"}
+                  {previewSummary(c.preview, c.preview_attachment, t, c.preview_recalled) || "\u00A0"}
                 </>
               )}
             </Text>
@@ -956,7 +979,7 @@ function BulkBar({
   // 没有“改派给别人”的权限时只能领取
   const others = can("conversations:assign")
   return (
-    <PaneHeader style={{ background: "var(--tn-active-bg)" }}>
+    <PaneHeader showNavToggle style={{ background: "var(--tn-active-bg)" }}>
       <Tooltip label={t("inbox.select_all")} openDelay={300}>
         <Checkbox
           size="xs"
