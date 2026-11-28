@@ -36,7 +36,7 @@ type Runner struct {
 }
 
 // NewRunner 返回 AI 的队列执行器；svc 为 nil 时跳过生成。
-func NewRunner(db *bun.DB, _ conversation.Downstream, hub *broadcast.Hub, svc *Service) *Runner {
+func NewRunner(db *bun.DB, hub *broadcast.Hub, svc *Service) *Runner {
 	var hook func(ctx context.Context, tenantID, convID string)
 	if svc != nil {
 		hook = svc.CancelRun

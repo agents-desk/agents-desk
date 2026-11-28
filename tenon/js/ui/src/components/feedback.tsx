@@ -1,11 +1,12 @@
 // 确认和提示：删除、执行操作之前的确认对话框，完成或失败后的通知。
 
-import { describeError, type ErrorInfo } from "@go-tenon/client"
+import { describeError } from "@go-tenon/client"
 import { Text } from "@mantine/core"
 import { modals } from "@mantine/modals"
 import { notifications } from "@mantine/notifications"
 import type { ReactNode } from "react"
 import { text } from "../i18n/i18n"
+import { errorMessage } from "./error-message"
 
 /** confirm 的选项。 */
 export interface ConfirmOptions {
@@ -52,23 +53,4 @@ export function notifyError(err: unknown, title?: ReactNode): void {
   notifications.show({ title, message: errorMessage(describeError(err)), color: "red", autoClose: 6000 })
 }
 
-/** 没有服务端文案时（断网等）按错误的种类显示的提示。 */
-export function errorMessage(info: ErrorInfo): string {
-  if (info.message) return info.message
-  switch (info.kind) {
-    case "network":
-      return text("tenon.error.network")
-    case "rate_limited":
-      return info.retryAfter
-        ? text("tenon.error.rate_limited_after", { seconds: info.retryAfter })
-        : text("tenon.error.rate_limited")
-    case "server":
-      return text("tenon.error.server")
-    case "forbidden":
-      return text("tenon.error.forbidden")
-    case "not_found":
-      return text("tenon.error.not_found")
-    default:
-      return text("tenon.error.failed")
-  }
-}
+export { errorMessage, formatErrorMessage } from "./error-message"

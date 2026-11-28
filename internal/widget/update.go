@@ -2,7 +2,6 @@ package widget
 
 import (
 	"context"
-	"maps"
 	"slices"
 
 	"github.com/cockroachdb/errors"
@@ -95,8 +94,11 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 		if err != nil {
 			return err
 		}
-		ch.Settings = map[string]any{}
-		maps.Copy(ch.Settings, settings)
+		// 保留渠道级 ai_reception 配置，写入更新后的设置。
+		if v, ok := ch.Settings["ai_reception"]; ok {
+			settings["ai_reception"] = v
+		}
+		ch.Settings = settings
 		ch.Name, ch.TeamID, ch.Enabled = b.Name, b.TeamID, b.Enabled
 		if _, err := tx.NewUpdate().Model(ch).Column("name", "team_id", "enabled", "settings", "updated_at").WherePK().Exec(ctx); err != nil {
 			return errors.Wrap(err, "update widget")

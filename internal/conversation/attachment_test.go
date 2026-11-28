@@ -188,7 +188,7 @@ func TestAttachmentsFlow(t *testing.T) {
 
 	// 3. 内部备注也可以纯发图片
 	noteImg := uploadAs(f.agent, "internal.png", "image/png", makePNG(t, 64, 64))
-	note, err := conversation.NewAddNote(env.DB, f.down).Handle(ctx, f.agent, conv.ID, "", nil, conversation.AttachmentInput{FileID: noteImg.ID.String()})
+	note, err := conversation.NewAddNote(env.DB, f.down).Handle(ctx, f.agent, conv.ID, conversation.NoteBody{Attachments: []conversation.AttachmentInput{{FileID: noteImg.ID.String()}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,7 +235,7 @@ func TestAttachmentsValidationAndIsolation(t *testing.T) {
 	if _, err := conversation.NewReply(env.DB, alpha.down).Handle(ctx, alpha.agent, convID, conversation.ReplyBody{Text: "   "}); !errors.Is(err, conversation.ErrEmptyMessage) {
 		t.Fatalf("空回复应返回 ErrEmptyMessage，得到 %v", err)
 	}
-	if _, err := conversation.NewAddNote(env.DB, alpha.down).Handle(ctx, alpha.agent, convID, "", nil); !errors.Is(err, conversation.ErrEmptyMessage) {
+	if _, err := conversation.NewAddNote(env.DB, alpha.down).Handle(ctx, alpha.agent, convID, conversation.NoteBody{}); !errors.Is(err, conversation.ErrEmptyMessage) {
 		t.Fatalf("空备注应返回 ErrEmptyMessage，得到 %v", err)
 	}
 

@@ -560,6 +560,8 @@ flags.scope.everyone: "Everyone"
 flags.scope.tenant: "Workspace"
 flags.mode.on: "On"
 flags.mode.off: "Off"
+flags.mode.force_on: "Force on"
+flags.mode.force_off: "Force off"
 flags.mode.percent: "Percentage rollout"
 
 notification.tenants.exported.title: "Workspace export completed"

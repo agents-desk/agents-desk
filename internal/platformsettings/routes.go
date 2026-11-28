@@ -35,7 +35,7 @@ func RegisterRoutes(api *rest.API, requireManage func(*huma.Operation), db *bun.
 	rest.Register(api, route("general-settings-update", http.MethodPut, "/settings/general", "保存常规设置"), NewSaveGeneral(db, general, files).HTTP)
 	rest.Register(api, route("mail-settings-get", http.MethodGet, "/settings/mail", "读取邮件服务设置"), NewGetMail(mailGroup).HTTP)
 	rest.Register(api, route("mail-settings-update", http.MethodPut, "/settings/mail", "保存邮件服务设置"), NewSaveMail(db, mailGroup).HTTP)
-	rest.Register(api, route("mail-settings-test", http.MethodPost, "/settings/mail/test", "发送测试邮件"), NewTestMail(db, general, mailGroup, td.Logins, td.Templates).HTTP)
+	rest.Register(api, route("mail-settings-test", http.MethodPost, "/settings/mail/test", "发送测试邮件"), NewTestMail(general, mailGroup, td.Logins, td.Templates).HTTP)
 
 	api.Settings(rest.Settings{
 		Name:   "general",

@@ -3,7 +3,6 @@ package widget
 import (
 	"context"
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/go-tenon/tenon/errorx"
@@ -55,8 +54,8 @@ func NewTranslateCopy(translate CopyTranslator) *TranslateCopy {
 // 平台未配置翻译模型返回 llm.ErrNotConfigured。
 func (a *TranslateCopy) Handle(ctx context.Context, sub identity.Subject, b TranslateCopyBody) (*TranslateCopyDTO, error) {
 	if sub.Type != identity.System &&
-		!slices.Contains(sub.Permissions, string(auth.ChannelsManage)) &&
-		!slices.Contains(sub.Permissions, string(auth.BusinessChannelsUse)) {
+		!sub.Can(string(auth.ChannelsManage)) &&
+		!sub.Can(string(auth.BusinessChannelsUse)) {
 		return nil, ErrForbidden.New()
 	}
 	source, ok := lang.Canonical(b.SourceLanguage)

@@ -106,7 +106,7 @@ type Article struct {
 item := &Article{ID: uuid.Must(uuid.NewV7()), AuthorID: subject.ID}
 ```
 
-插入前就有 ID，同一事务中的关联记录、对象存储的键都能直接用它；UUIDv7 按时间递增，写入性能接近自增 ID。
+需要字符串格式的 UUIDv7（如消息、外部关联 ID）时可调用 `database.NewID()`。插入前就有 ID，同一事务中的关联记录、对象存储的键都能直接用它；UUIDv7 按时间递增，写入性能接近自增 ID。
 
 <a id="timestamps"></a>
 ### 自动维护时间戳：`database.Timestamps`
@@ -131,7 +131,7 @@ _, err = db.NewUpdate().Model(item).
 
 - 原生 SQL 自己写两列；upsert 的冲突更新写 `Set("updated_at = EXCLUDED.updated_at")`。
 - SQL 中的时间由 Go 传入，不用 `NOW()`，时间列不设默认值：测试的假时钟只对 Go 有效，见[控制时间](../testing/testing.md#controlling-time)。
-- 读出的时间在 UTC 中。PostgreSQL 只保存到微秒，自己写入、之后要与读出的值比较的时间用 `time.Now().UTC().Truncate(time.Microsecond)`。
+- 读出的时间在 UTC 中。PostgreSQL 只保存到微秒，可用 `database.Now()`（等价于 `time.Now().UTC().Truncate(time.Microsecond)`）生成待写入并与读出值比较的时间。
 
 <a id="handling-not-found"></a>
 ## 处理“未找到”：`sql.ErrNoRows`

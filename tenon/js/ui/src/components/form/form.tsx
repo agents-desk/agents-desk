@@ -118,12 +118,13 @@ function hasPath(values: unknown, path: string): boolean {
   return true
 }
 
-/** 表单上方的错误：不属于某个字段的错误，例如 slug 已被使用、断网。 */
-export function FormError({ error }: { error?: ErrorInfo }): ReactNode {
-  if (!error) return null
+/** 表单上方的错误：不属于某个字段的错误，例如 slug 已被使用、断网；传入 form 时自动合并 hiddenError。 */
+export function FormError({ error, form }: { error?: ErrorInfo; form?: { hiddenError?: ErrorInfo } }): ReactNode {
+  const shown = error ?? form?.hiddenError
+  if (!shown) return null
   return (
     <Alert color="red" variant="light" icon={<IconAlertCircle size={18} />} role="alert">
-      {errorMessage(error)}
+      {errorMessage(shown)}
     </Alert>
   )
 }

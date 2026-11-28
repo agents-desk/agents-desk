@@ -235,6 +235,7 @@ function TenantLayout() {
       <RealtimeContext.Provider value={centrifuge}>
         <RailLayout
           title={tenant.name}
+          documentTitle={false}
           logo={<WorkspaceSwitcher tenant={tenant} impersonation={Boolean(impersonation)} />}
           settings={settings}
           navWidth={200}

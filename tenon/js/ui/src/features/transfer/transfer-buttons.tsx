@@ -2,7 +2,22 @@
 // 导出显示进度，完成后下载。进度同时出现在顶栏的后台任务中。
 
 import { describeError, type OperationLike } from "@go-tenon/client"
-import { Alert, Anchor, Button, Group, Modal, Progress, Stack, Text, ThemeIcon, UnstyledButton } from "@mantine/core"
+import {
+  ActionIcon,
+  type ActionIconProps,
+  Alert,
+  Anchor,
+  Button,
+  type ButtonProps,
+  Group,
+  Modal,
+  Progress,
+  Stack,
+  Text,
+  ThemeIcon,
+  Tooltip,
+  UnstyledButton,
+} from "@mantine/core"
 import {
   IconAlertTriangle,
   IconCheck,
@@ -64,6 +79,12 @@ export interface ImportButtonProps {
   template?: () => Promise<void> | void
   /** 导入完成后调用，例如刷新列表。 */
   onCompleted?: () => void
+  /** 按钮尺寸。 */
+  size?: ButtonProps["size"]
+  /** 按钮样式变体。 */
+  variant?: ButtonProps["variant"]
+  /** 仅显示图标按钮并配 Tooltip，适合窄工具栏。 */
+  iconOnly?: boolean
 }
 
 /**
@@ -77,6 +98,9 @@ export function ImportButton({
   accept = ".xlsx,.csv",
   template,
   onCompleted,
+  size,
+  variant,
+  iconOnly,
 }: ImportButtonProps): ReactNode {
   const t = useText()
   const title = titleProp ?? t("tenon.transfer.import")
@@ -162,9 +186,28 @@ export function ImportButton({
   }
   return (
     <>
-      <Button variant="default" leftSection={<IconFileUpload size={16} />} onClick={() => setOpen(true)}>
-        {title}
-      </Button>
+      {iconOnly ? (
+        <Tooltip label={title}>
+          <ActionIcon
+            variant={variant ?? "subtle"}
+            color={variant && variant !== "subtle" ? undefined : "gray"}
+            size={(size as ActionIconProps["size"]) ?? "input-sm"}
+            aria-label={title}
+            onClick={() => setOpen(true)}
+          >
+            <IconFileUpload size={16} stroke={1.6} />
+          </ActionIcon>
+        </Tooltip>
+      ) : (
+        <Button
+          variant={variant ?? "default"}
+          size={size}
+          leftSection={<IconFileUpload size={16} />}
+          onClick={() => setOpen(true)}
+        >
+          {title}
+        </Button>
+      )}
       <Modal title={title} opened={open} onClose={close} size="md">
         {body}
         <Group justify="flex-end" mt="lg">
@@ -239,6 +282,12 @@ export interface ExportButtonProps {
   source: ExportSource
   /** 按钮和对话框的标题，默认“导出”（当前语言的）。 */
   title?: string
+  /** 按钮尺寸。 */
+  size?: ButtonProps["size"]
+  /** 按钮样式变体。 */
+  variant?: ButtonProps["variant"]
+  /** 仅显示图标按钮并配 Tooltip，适合窄工具栏。 */
+  iconOnly?: boolean
 }
 
 /**
@@ -246,7 +295,7 @@ export interface ExportButtonProps {
  *
  *	<ExportButton source={{ start: () => api.article.exportStart({ format: "xlsx" }), progress }} />
  */
-export function ExportButton({ source, title: titleProp }: ExportButtonProps): ReactNode {
+export function ExportButton({ source, title: titleProp, size, variant, iconOnly }: ExportButtonProps): ReactNode {
   const t = useText()
   const title = titleProp ?? t("tenon.transfer.export")
   const exp = useExport({ title, ...source })
@@ -295,16 +344,34 @@ export function ExportButton({ source, title: titleProp }: ExportButtonProps): R
   }
   return (
     <>
-      <Button
-        variant="default"
-        leftSection={<IconUpload size={16} />}
-        onClick={() => {
-          setOpen(true)
-          if (exp.phase === "idle") void exp.start()
-        }}
-      >
-        {title}
-      </Button>
+      {iconOnly ? (
+        <Tooltip label={title}>
+          <ActionIcon
+            variant={variant ?? "subtle"}
+            color={variant && variant !== "subtle" ? undefined : "gray"}
+            size={(size as ActionIconProps["size"]) ?? "input-sm"}
+            aria-label={title}
+            onClick={() => {
+              setOpen(true)
+              if (exp.phase === "idle") void exp.start()
+            }}
+          >
+            <IconUpload size={16} stroke={1.6} />
+          </ActionIcon>
+        </Tooltip>
+      ) : (
+        <Button
+          variant={variant ?? "default"}
+          size={size}
+          leftSection={<IconUpload size={16} />}
+          onClick={() => {
+            setOpen(true)
+            if (exp.phase === "idle") void exp.start()
+          }}
+        >
+          {title}
+        </Button>
+      )}
       <Modal title={title} opened={open} onClose={close} size="sm">
         {body}
         <Group justify="flex-end" mt="lg">

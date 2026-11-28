@@ -28,10 +28,12 @@ Tenon 应用网页前端的技术选型、目录结构和编码规范。`tenon i
 ## 按界面选择布局、样式预设和渲染方式
 
 | 界面 | `tenon add frontend` 的选项 | 默认的预设和渲染 |
-| --- | --- | --- |
+| --- | --- |
 | 模块切换为主（SaaS 控制台、用户中心） | `--layout rail`（默认） | `comfortable`，浏览器中渲染 |
 | 表格和大表单多（运营后台、ERP） | `--layout frame` | `compact`，浏览器中渲染 |
 | 公开页面（官网、内容站、帮助中心） | `--layout site` | `spacious`，服务端渲染 |
+
+不需要完整后台控件（如 `DataTable`、`@mantine/dates`、弹窗通知）的轻量前端（如官网 `site` 或嵌入式挂件 `widget`），改用 `@go-tenon/ui/core` 与 `@go-tenon/ui/base.css`（支持主题、`EmptyState`、`StatusDot`、`MenuBadge`、`ImageLightbox`、`useUploadQueue`、`formatFileSize` 等基础入口）。
 
 登录页（`--login`）、样式预设（`--preset`）和渲染方式（`--render`）各自独立，可以与任何布局搭配，见 [tenon add frontend](../installation/tooling.md#add-frontend)。
 

@@ -154,7 +154,7 @@ type GetInput struct {
 rest.Public()(&op)
 ```
 
-需要登录的接口用 `api.RequireToken`（在 `rest.Options.Validate` 设置了默认令牌校验器时）或 `rest.RequireToken`，列出调用者必须具备的全部权限：
+需要登录的接口用 `api.RequireToken`（在 `rest.Options.Validate` 设置了默认令牌校验器时）、泛型版本 `rest.RequirePermissions`（接受自定义字符串权限常量）或 `rest.RequireToken`，列出调用者必须具备的全部权限：
 
 ```go
 requireArticles := api.RequireToken("articles") // 或 rest.RequireToken(api, tokens.Validate, "articles")
@@ -325,6 +325,8 @@ api.Router().Get("/livez", func(w http.ResponseWriter, r *http.Request) {
 ```
 
 这类路由经过 Router 上的中间件，不进入 OpenAPI 文档，没有输入校验和访问策略的检查。业务接口用 `rest.Register`。
+
+需要 Token 认证的非 JSON 原生处理器（文件下载、自定义流）用 `api.HandleHTTP(method, path, fn, permissions...)`，认证、权限校验、只读限制、错误响应（`api.WriteError`）和访问日志与 `RequireToken` 一致；手动解析请求主体时调用 `api.Authenticate(r, permissions...)`。
 
 <a id="native-huma-register"></a>
 ### 原生 `huma.Register`

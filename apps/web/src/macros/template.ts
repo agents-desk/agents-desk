@@ -15,12 +15,6 @@ import type {
 } from "@agents-desk/client/tenant"
 import { snoozeOptions } from "../inbox/menus"
 
-/** TemplateVar 描述一条可插入快捷回复正文的模板变量。 */
-export interface TemplateVar {
-  key: string
-  label: string
-}
-
 /** PendingStatus 是回复框中待执行的会话状态变更：关闭，或稍后处理到按成员时区展开后的具体时间点。 */
 export type PendingStatus =
   | { kind: "close" }

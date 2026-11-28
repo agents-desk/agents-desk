@@ -1,7 +1,7 @@
 import type { ConversationContactTicketDTO } from "@agents-desk/client/widget"
 import { Alert, Badge, Box, Button, Center, Group, Loader, Paper, Stack, Text, ThemeIcon, UnstyledButton } from "@mantine/core"
 import { IconAlertCircle, IconChevronRight, IconMessageCircle, IconTicket } from "@tabler/icons-react"
-import { ImageLightbox, useLanguage, useT } from "@go-tenon/ui"
+import { ImageLightbox, useLanguage, useT } from "@go-tenon/ui/core"
 import { type ReactNode, useState } from "react"
 import { type LightboxImage, WidgetMessageAttachments } from "./Attachments"
 import { ago, clock, dayLabel } from "./format"

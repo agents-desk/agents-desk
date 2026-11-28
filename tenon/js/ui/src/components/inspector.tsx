@@ -114,6 +114,7 @@ export function InspectorField({ label, align = "center", className, children }:
       gap="xs"
       wrap="nowrap"
       align={align === "start" ? "flex-start" : "center"}
+      data-align={align}
       className={className ? `tn-inspector-field ${className}` : "tn-inspector-field"}
     >
       <Text size="xs" c="dimmed" className="tn-inspector-field-label" lh={1.35}>

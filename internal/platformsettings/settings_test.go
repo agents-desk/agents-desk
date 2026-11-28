@@ -124,7 +124,7 @@ func TestMailTestActionAndTemplates(t *testing.T) {
 		t.Fatalf("未保存 Resend 配置时 Configured 应为 false：ok=%v err=%v", ok, err)
 	}
 
-	act := platformsettings.NewTestMail(env.DB, generalGroup, mailGroup, env.AdminLogins, templates)
+	act := platformsettings.NewTestMail(generalGroup, mailGroup, env.AdminLogins, templates)
 	if _, err := act.Handle(ctx, apptest.Admin, "bad-email"); !errors.Is(err, platformsettings.ErrInvalidEmail) {
 		t.Fatalf("非法收件邮箱应返回 ErrInvalidEmail，实际 %v", err)
 	}

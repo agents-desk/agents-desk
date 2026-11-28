@@ -1,7 +1,7 @@
 import "@fontsource-variable/inter/index.css"
-import "@go-tenon/ui/styles.css"
+import "@go-tenon/ui/base.css"
 import { telemetryMeta } from "@go-tenon/start"
-import { type RouterContext, UIProvider } from "@go-tenon/ui"
+import { CoreUIProvider, type RouterContext } from "@go-tenon/ui/core"
 import { ColorSchemeScript, mantineHtmlProps } from "@mantine/core"
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts, useRouter } from "@tanstack/react-router"
 import type { ReactNode } from "react"
@@ -39,7 +39,7 @@ function Document({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <UIProvider theme={theme} colorSchemeKey={colorScheme}>{children}</UIProvider>
+        <CoreUIProvider theme={theme} colorSchemeKey={colorScheme}>{children}</CoreUIProvider>
         <Scripts />
       </body>
     </html>

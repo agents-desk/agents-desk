@@ -479,18 +479,5 @@ func encryptSessionBytes(c *crypt.Crypt, data []byte) string {
 	return c.Encrypt(base64.StdEncoding.EncodeToString(data))
 }
 
-// decryptSessionBytes 解密 channels.settings.session_cipher 为原始会话字节。
-func decryptSessionBytes(c *crypt.Crypt, cipher string) ([]byte, error) {
-	plain, err := c.Decrypt(cipher)
-	if err != nil {
-		return nil, errors.Wrap(err, "decrypt telegram session")
-	}
-	raw, err := base64.StdEncoding.DecodeString(plain)
-	if err != nil {
-		return nil, errors.Wrap(err, "decode telegram session")
-	}
-	return raw, nil
-}
-
 // newID 返回按时间递增的 UUIDv7。
 func newID() string { return uuid.Must(uuid.NewV7()).String() }

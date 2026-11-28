@@ -1,6 +1,6 @@
 import { ActionIcon, Box, Group, Text, Title } from "@mantine/core"
 import { IconChevronDown, IconChevronLeft, IconX } from "@tabler/icons-react"
-import { useT } from "@go-tenon/ui"
+import { useT } from "@go-tenon/ui/core"
 import type { ReactNode } from "react"
 import { useBrandForeground } from "./contrast"
 

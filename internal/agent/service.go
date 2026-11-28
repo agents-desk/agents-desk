@@ -54,26 +54,18 @@ func WithModelOverride(m model.Model) ServiceOption {
 	}
 }
 
-// WithApprovalTools 在 Runs 启动时额外预登记需要审批的工具名称。
-func WithApprovalTools(names ...string) ServiceOption {
-	return func(s *Service) {
-		s.extraApprovals = append(s.extraApprovals, names...)
-	}
-}
-
 // Service 是统一托管于 tenon/ai/chat.Runs 的 Agent 运行时服务，协调上下文加载、工具安全隔离、
 // 人工审批续跑、流式落库、预算熔断降级与平滑停机排空。
 type Service struct {
-	db             *bun.DB
-	down           conversation.Downstream
-	hub            *broadcast.Hub
-	locker         *lock.Locker
-	llm            *llm.Client
-	trSettings     *settings.Group[translation.Settings]
-	retriever      Retriever
-	registry       *Registry
-	modelOverride  model.Model
-	extraApprovals []string
+	db            *bun.DB
+	down          conversation.Downstream
+	hub           *broadcast.Hub
+	locker        *lock.Locker
+	llm           *llm.Client
+	trSettings    *settings.Group[translation.Settings]
+	retriever     Retriever
+	registry      *Registry
+	modelOverride model.Model
 
 	runs     *chat.Runs
 	open     *Open
@@ -123,13 +115,10 @@ func NewService(
 		opt(s)
 	}
 
-	approvalNames := append(s.registry.AllApprovalCandidates(), s.extraApprovals...)
 	runOpts := []chat.Option{
 		chat.UseHistory(newHistoryStore(db)),
 		chat.AgentFor(s.agentFor),
-	}
-	if len(approvalNames) > 0 {
-		runOpts = append(runOpts, chat.RequireApprovalOf(approvalNames...))
+		chat.RequireApprovalFunc(s.approvalsFor),
 	}
 	if hub != nil && locker != nil {
 		runOpts = append(runOpts, chat.Cluster(hub, locker))
@@ -146,7 +135,7 @@ func (s *Service) SetDownstream(down conversation.Downstream) {
 
 // Runner 返回绑定当前服务的队列执行器。
 func (s *Service) Runner() *Runner {
-	return NewRunner(s.db, s.down, s.hub, s)
+	return NewRunner(s.db, s.hub, s)
 }
 
 // CancelRun 取消会话中正在运行的 ai/chat 任务。
@@ -254,8 +243,8 @@ func (s *Service) buildExecutionContext(ctx context.Context, tenantID, convID st
 	}, nil
 }
 
-// agentFor 按对话当前的活跃生成、机器人配置与安全边界构建本轮执行的 llmagent。
-func (s *Service) agentFor(ctx context.Context, c chat.Conversation) (agent.Agent, error) {
+// resolveRunSetup 加载当前对话的活跃生成、启用机器人及运行边界上下文，供 agentFor 与 approvalsFor 共用。
+func (s *Service) resolveRunSetup(ctx context.Context, c chat.Conversation) (*Bot, BotSettings, *ExecutionContext, error) {
 	var g Generation
 	if err := s.db.NewSelect().Model(&g).
 		Where("tenant_id = ? AND conversation_id = ? AND state IN (?)",
@@ -263,21 +252,40 @@ func (s *Service) agentFor(ctx context.Context, c chat.Conversation) (agent.Agen
 		OrderExpr("created_at DESC").Limit(1).
 		Scan(ctx); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound.New()
+			return nil, BotSettings{}, nil, ErrNotFound.New()
 		}
-		return nil, errors.Wrap(err, "load active generation")
+		return nil, BotSettings{}, nil, errors.Wrap(err, "load active generation")
 	}
 	var bot Bot
 	if err := s.db.NewSelect().Model(&bot).
 		Where("id = ? AND tenant_id = ? AND enabled = true", g.ActorID, c.UserID).
 		Scan(ctx); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrBotNotFound.New()
+			return nil, BotSettings{}, nil, ErrBotNotFound.New()
 		}
-		return nil, errors.Wrap(err, "load bot for agent run")
+		return nil, BotSettings{}, nil, errors.Wrap(err, "load bot for agent run")
 	}
 	cfg := bot.Config()
 	exec, err := s.buildExecutionContext(ctx, c.UserID, c.ID, &g)
+	if err != nil {
+		return nil, BotSettings{}, nil, err
+	}
+	return &bot, cfg, exec, nil
+}
+
+// approvalsFor 按对话当前的机器人配置动态返回本轮需要人工审批确认的工具名称。
+func (s *Service) approvalsFor(ctx context.Context, c chat.Conversation) ([]string, error) {
+	_, cfg, exec, err := s.resolveRunSetup(ctx, c)
+	if err != nil {
+		return nil, err
+	}
+	_, approvals := s.registry.ToolsFor(s, cfg, exec)
+	return approvals, nil
+}
+
+// agentFor 按对话当前的活跃生成、机器人配置与安全边界构建本轮执行的 llmagent。
+func (s *Service) agentFor(ctx context.Context, c chat.Conversation) (agent.Agent, error) {
+	bot, cfg, exec, err := s.resolveRunSetup(ctx, c)
 	if err != nil {
 		return nil, err
 	}

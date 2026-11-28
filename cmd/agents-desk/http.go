@@ -332,7 +332,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		adminnotify.RegisterRoutes(api, require(), a.db, a.hub)
 		tenant.RegisterRoutes(api, require(auth.TenantsRead), require(auth.TenantsManage), require(auth.TenantsImpersonate), a.db, a.roles, a.memberLogins, a.memberTokens, addr, memberHooks, a.creds)
 		member.RegisterAdminRoutes(api, require(auth.TenantsManage), a.db, a.memberLogins, a.creds)
-		tenant.RegisterExportRoutes(api, require(auth.TenantsRead), a.db, a.memberLogins, addr, a.exporter, a.hub)
+		tenant.RegisterExportRoutes(api, require(auth.TenantsRead), a.db, addr, a.exporter, a.hub)
 		r.Get("/tenants/exports/{id}/download", a.downloadTenantExport)
 		platformsettings.RegisterPublicRoutes(api, a.generalSettings, a.files)
 		platformsettings.RegisterRoutes(api, require(auth.PlatformSettingsManage), a.db, a.generalSettings, a.mailSettings, a.files, platformsettings.TestMailDeps{

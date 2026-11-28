@@ -165,7 +165,7 @@ func TestMessageCorrection(t *testing.T) {
 	}); !errors.Is(err, conversation.ErrMessageNotCorrectable) {
 		t.Fatalf("客户消息不应允许更正：%v", err)
 	}
-	note, err := conversation.NewAddNote(env.DB, down).Handle(ctx, subAlice, rec.ConversationID, "内部核对中", nil)
+	note, err := conversation.NewAddNote(env.DB, down).Handle(ctx, subAlice, rec.ConversationID, conversation.NoteBody{Text: "内部核对中"})
 	if err != nil {
 		t.Fatal(err)
 	}

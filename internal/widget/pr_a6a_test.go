@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -44,8 +45,8 @@ func TestMiddlewareIPBlockAndBlockedContactAuth(t *testing.T) {
 	reqBlocked.RemoteAddr = "203.0.113.10:4231"
 	recBlocked := httptest.NewRecorder()
 	r.ServeHTTP(recBlocked, reqBlocked)
-	if recBlocked.Code != http.StatusForbidden {
-		t.Fatalf("黑名单 IP 应返回 403，实际 %d", recBlocked.Code)
+	if recBlocked.Code != http.StatusForbidden || !strings.Contains(recBlocked.Body.String(), `"code":"blockip.blocked"`) {
+		t.Fatalf("黑名单 IP 应返回 403 blockip.blocked，实际 %d %s", recBlocked.Code, recBlocked.Body.String())
 	}
 
 	reqOtherIP := httptest.NewRequest(http.MethodGet, "/w/"+f.widget.ID+"/api/ping", nil)

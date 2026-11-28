@@ -2,7 +2,7 @@
 
 站内通知是用户的收件箱：每条通知是 `notifications` 表中的一行，属于某个租户中的某个主体，带有已读状态。
 
-包：`notification`。
+包：`notification`、`notification/notificationapi`。
 
 - 通知在业务事务中用 `tx` 发送，与业务修改一起提交或回滚；用 `db` 发送时，事务回滚后通知仍在。
 - 邮件、[移动推送](push.md)等其他渠道由业务动作在同一个事务中显式写出来。
@@ -211,7 +211,7 @@ func (h *Handlers) Inbox(ctx context.Context, _ *struct{}) (*huma.StreamResponse
 }
 ```
 
-用 `rest.RegisterSSE(api, op, map[string]any{"badge": Badge{}}, h.Inbox)` 注册。`@go-tenon/ui` 的 [`NotificationsMenu`](../frontend/layout.md#menus) 是读取 `badge` 事件的铃铛，自己画列表时用 [`useNotifications`](../frontend/features.md#notifications)。
+用 `rest.RegisterSSE(api, op, map[string]any{"badge": Badge{}}, h.Inbox)` 注册。需要一键挂载通知列表、`read`、`read-all` 与实时未读角标流接口时，调用 `notificationapi.Register(api, protect, db, hub)`，并配合 `notificationapi.Send` 在事务提交后推送广播。`@go-tenon/ui` 的 [`NotificationsMenu`](../frontend/layout.md#menus) 是读取 `badge` 事件的铃铛，自己画列表时用 [`useNotifications`](../frontend/features.md#notifications)。
 
 <a id="retention"></a>
 ## 用 `Cleanup` 删除旧通知

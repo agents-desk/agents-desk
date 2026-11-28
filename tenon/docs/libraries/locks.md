@@ -113,6 +113,15 @@ if errors.Is(err, lock.ErrNotAcquired) {
 - 锁转给他人或续期在 `ttl` 内持续失败时，`Hold` 立即取消传给 `fn` 的 `ctx`（`context.Cause(ctx)` 包含 `lock.ErrNotHeld`），阻止两个实例同时持有外部长连接。
 - 收到停止信号（外层 `ctx` 取消）时，`Hold` 等待 `fn` 返回后主动释放锁，新实例立即可接管。
 
+<a id="supervisor"></a>
+## 协调多实例长连接：`Supervisor`
+
+需要动态增删一组长连接任务（如按租户或渠道机器人建连）并保持每项在集群中至多一个实例运行时，使用 `lock.NewSupervisor(opts)`：
+
+- `Load` 定期（`SyncInterval`）或被 `Wake()` 唤醒时加载期望配置映射，按项启动/停止协程，配置变化时执行 `OnUpdate` 或重建。
+- 每项在独立协程中通过 `Locker.Hold` 竞争租约后执行 `Run`；调用 `ready()` 重置退避。
+- `Run` 返回 `lock.ErrStop` 时停止该项重试（直到配置改变后重新拉起）；返回 `lock.ErrRestart` 或调用 `Restart(key)` 时无退避立即重连。
+
 <a id="postgres-store"></a>
 ## PostgreSQL 存储：`pglock`
 

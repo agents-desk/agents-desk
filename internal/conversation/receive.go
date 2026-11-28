@@ -623,7 +623,6 @@ func (a *Receive) receiveExternalChat(ctx context.Context, tx database.Tx, sub i
 			For("UPDATE").Scan(ctx)
 		if errors.Is(err, sql.ErrNoRows) {
 			cm = nil
-			err = nil
 		} else if err != nil {
 			return nil, errors.Wrap(err, "load external chat meta")
 		}
@@ -637,7 +636,6 @@ func (a *Receive) receiveExternalChat(ctx context.Context, tx database.Tx, sub i
 			For("UPDATE").Scan(ctx)
 		if errors.Is(err, sql.ErrNoRows) {
 			c = nil
-			err = nil
 		} else if err != nil {
 			return nil, errors.Wrap(err, "load direct external chat conversation")
 		}

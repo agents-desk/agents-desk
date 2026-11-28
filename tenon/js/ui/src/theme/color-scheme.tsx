@@ -14,8 +14,8 @@ export function ColorSchemeToggle(): ReactNode {
   const label = dark ? t("tenon.color_scheme.to_light") : t("tenon.color_scheme.to_dark")
   return (
     <Tooltip label={label}>
-      <ActionIcon aria-label={label} onClick={() => setColorScheme(dark ? "light" : "dark")} size="lg">
-        {dark ? <IconSun size={18} stroke={1.6} /> : <IconMoon size={18} stroke={1.6} />}
+      <ActionIcon aria-label={label} onClick={() => setColorScheme(dark ? "light" : "dark")} size={32}>
+        {dark ? <IconSun size={16} stroke={1.5} /> : <IconMoon size={16} stroke={1.5} />}
       </ActionIcon>
     </Tooltip>
   )

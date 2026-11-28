@@ -213,7 +213,7 @@ type SiteSettingsBody struct {
 }
 ```
 
-- 修改设置的接口用权限保护，例如只允许有 `platform:settings` 权限的[运营人员](../security/tenancy.md#platform)；租户管理员只能修改 `Tenant(sub.Tenant)` 的设置。
+- 修改设置的接口用权限保护，例如只允许有 `platform:settings` 权限的[运营人员](../security/tenancy.md#platform)；租户管理员只能修改 `Tenant(sub.Tenant)` 的设置。保存前记录变更字段时调用 `group.Diff(old, next)`，返回发生变化的 JSON 路径并自动遮蔽带 `settings:"secret"` 的字段值。
 - 用 `api.Settings` 把读取和保存的两个接口声明为一个设置页面，前端的 `SettingsForm` 按声明渲染表单，见[设置页面](../frontend/resources.md#settings)；几组设置放在一个页面中见[多组设置](../frontend/resources.md#settings-groups)。
 
 <a id="testing"></a>

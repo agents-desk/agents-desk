@@ -124,7 +124,7 @@ func TestPushAlerts(t *testing.T) {
 	}
 
 	// 4. a1 在内部备注中 @ a2（也包含自己）：a2 收到 mention 提醒，a1 和 owner 无 alert
-	if _, err := conversation.NewAddNote(env.DB, down).Handle(ctx, a1Sub, got.ConversationID, "请 @坐席二 看下", []string{a2.ID, a1.ID}); err != nil {
+	if _, err := conversation.NewAddNote(env.DB, down).Handle(ctx, a1Sub, got.ConversationID, conversation.NoteBody{Text: "请 @坐席二 看下", Mentions: []string{a2.ID, a1.ID}}); err != nil {
 		t.Fatal(err)
 	}
 	if ev := readAlert(t, ownerChan); ev.Alert != "" {

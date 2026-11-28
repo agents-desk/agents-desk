@@ -255,7 +255,7 @@ ID 由附件内容计算，之前几轮的附件也能找到，`chat.Attachments
 <a id="approval"></a>
 ## 审批工具调用：`chat.RequireApproval`
 
-退款、发布这类操作，用 `chat.RequireApproval(tools...)` 要求模型调用后先由人确认；工具由 [`AgentFor`](#choosing-agents) 按对话提供时用 `chat.RequireApprovalOf(names...)` 按名称列出。
+退款、发布这类操作，用 `chat.RequireApproval(tools...)` 要求模型调用后先由人确认；工具由 [`AgentFor`](#choosing-agents) 按对话提供时用 `chat.RequireApprovalOf(names...)` 按名称列出，或用 `chat.RequireApprovalFunc(fn)` 按对话动态决定需要审批的工具名列表。
 
 - 运行在其他工具执行完后停下，消息流为每个调用发出 `tool-approval-request`，前端用 [`useAssistantChat`](../frontend/features.md#ai-chat) 的 `pending` 和 `respond` 显示和提交。
 - 审批结果发给 `POST /assistant/chat`，`Submit` 执行批准的调用，把拒绝的理由告诉模型，全部有了决定后对话继续；还有调用未决定时 `Submit` 返回 `nil`，`UIStream` 推送一个空的回答。

@@ -65,6 +65,7 @@ export interface RailLayoutProps {
   settingsSearch?: boolean // 是否在设置页二级导航顶部显示搜索框，默认 false
   compactQuery?: string // 窄屏抽屉模式的媒体查询，默认 "(max-width: 47.99em)"
   documentTitle?: boolean // 浏览器标签的标题是“页面 - 应用的名称”，页面是路由的 staticData.title；默认开启，false 时不设置
+  titleBadge?: number // 浏览器标签标题前缀的待办或未读计数，大于 0 时显示为 “(N) 标题”
   banner?: ReactNode // 布局最顶部的通栏提示，例如 ImpersonationBanner
   children?: ReactNode // 页面内容；默认是子路由
 }
@@ -196,13 +197,16 @@ export function RailLayout({
   settingsSearch = false,
   compactQuery = "(max-width: 47.99em)",
   documentTitle = true,
+  titleBadge,
   banner,
   children,
 }: RailLayoutProps): ReactNode {
   const { menu, active } = useNavigation()
   const t = useText()
   const pageTitle = usePageTitle(false)
-  useDocumentTitle(documentTitle ? formatDocumentTitle(pageTitle, title) : undefined)
+  const baseDocTitle = formatDocumentTitle(pageTitle, title)
+  const docTitle = baseDocTitle && titleBadge && titleBadge > 0 ? `(${titleBadge}) ${baseDocTitle}` : baseDocTitle
+  useDocumentTitle(documentTitle ? docTitle : undefined)
   const navigate = useNavigate()
   const href = useRouterState({ select: (s) => s.location.href })
   const routerPending = useRouterState({ select: (s) => s.status === "pending" })
@@ -344,7 +348,7 @@ export function RailLayout({
       </a>
       <nav className="tn-rail-rail" aria-label={t("tenon.rail.modules")}>
         <div className="tn-rail-logo" title={title}>
-          {logo ?? <span className="tn-brand-mark">{title.slice(0, 1)}</span>}
+          {logo ?? <span className="tn-brand-mark">{(title.trim() || "T").slice(0, 1)}</span>}
         </div>
         {railTop && <div className="tn-rail-top">{railTop}</div>}
         <Stack gap={6} align="center" className="tn-rail-modules">

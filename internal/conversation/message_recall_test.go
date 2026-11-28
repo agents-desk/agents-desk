@@ -101,7 +101,7 @@ func TestRecallMessage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	note, err := conversation.NewAddNote(env.DB, down).Handle(ctx, subAlice, rec.ConversationID, "初稿", nil)
+	note, err := conversation.NewAddNote(env.DB, down).Handle(ctx, subAlice, rec.ConversationID, conversation.NoteBody{Text: "初稿"})
 	if err != nil {
 		t.Fatal(err)
 	}

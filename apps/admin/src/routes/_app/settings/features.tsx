@@ -135,6 +135,8 @@ function FlagCard({ flag }: { flag: FlagsFlagDTO }) {
                 { value: "default", label: t("features.mode.default") },
                 { value: "on", label: t("features.mode.on") },
                 { value: "off", label: t("features.mode.off") },
+                { value: "force_on", label: t("features.mode.force_on") },
+                { value: "force_off", label: t("features.mode.force_off") },
                 { value: "percent", label: t("features.mode.percent") },
               ]}
             />

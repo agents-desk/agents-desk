@@ -8,11 +8,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-tenon/tenon/feature"
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/apptest"
 	"agents-desk/internal/auth"
+	"agents-desk/internal/flags"
 	"agents-desk/internal/member"
 	"agents-desk/internal/tenant"
 )
@@ -70,10 +72,11 @@ func TestRenameLogo(t *testing.T) {
 		t.Fatalf("未传 logo_file_id 时应保留原有 Logo：%+v err=%v", cur, err)
 	}
 
-	// 传空字符串清除 Logo
+	// 传空字符串清除 Logo，同时验证传入 features 时重命名响应保留工作区特性列表
 	empty := ""
-	cur, err = tenant.NewRename(env.DB, env.Files).Handle(ctx, owner, tenant.GeneralSettings{Name: "Acme Help", LogoFileID: &empty})
-	if err != nil || cur.LogoFileID != "" || cur.LogoURL != "" {
-		t.Fatalf("传空字符串后应清除 Logo：%+v err=%v", cur, err)
+	fstore := feature.NewStore(env.DB, flags.Catalog)
+	cur, err = tenant.NewRename(env.DB, env.Files, fstore).Handle(ctx, owner, tenant.GeneralSettings{Name: "Acme Help", LogoFileID: &empty})
+	if err != nil || cur.LogoFileID != "" || cur.LogoURL != "" || cur.Features == nil {
+		t.Fatalf("传空字符串后应清除 Logo 并保留 Features：%+v err=%v", cur, err)
 	}
 }

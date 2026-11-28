@@ -7,7 +7,7 @@ import type {
 import { ActionIcon, Box, Button, Center, Divider, Group, Loader, Stack, Text, ThemeIcon, UnstyledButton } from "@mantine/core"
 import { IconArrowDown, IconChevronRight, IconMessageCircle, IconTicket, IconX } from "@tabler/icons-react"
 import { useQueryClient } from "@tanstack/react-query"
-import { ImageLightbox, useLanguage, useT } from "@go-tenon/ui"
+import { ImageLightbox, useLanguage, useT } from "@go-tenon/ui/core"
 import { Fragment, type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { authed, widgetApi } from "../api"
 import { channel as currentChannelId } from "../host"

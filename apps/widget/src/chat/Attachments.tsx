@@ -18,7 +18,7 @@ import {
   IconRefresh,
   IconX,
 } from "@tabler/icons-react"
-import { formatFileSize, type UploadQueueItem, useT } from "@go-tenon/ui"
+import { formatFileSize, type UploadQueueItem, useT } from "@go-tenon/ui/core"
 import { type ReactNode, useState } from "react"
 import { delegatesOpenLink, openLink } from "../host"
 

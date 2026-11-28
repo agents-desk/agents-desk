@@ -1,7 +1,7 @@
 import type { ConversationAttachmentDTO, ConversationAttachmentInput } from "@agents-desk/client/widget"
 import { ActionIcon, Box, FileButton, Group, Text, Textarea, Tooltip } from "@mantine/core"
 import { IconPaperclip, IconSend, IconX } from "@tabler/icons-react"
-import { useT, useUploadQueue } from "@go-tenon/ui"
+import { useT, useUploadQueue } from "@go-tenon/ui/core"
 import { type ReactNode, useRef, useState } from "react"
 import { authed, widgetApi } from "../api"
 import {

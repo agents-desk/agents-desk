@@ -215,7 +215,7 @@ func TestTicketCoreLifecycleAndIsolation(t *testing.T) {
 	if _, err := conversation.NewPatchAttributes(env.DB, down).Handle(ctx, subOwner, tk1.ID, map[string]any{"upi_ref": "UTR-002"}); err != nil {
 		t.Fatalf("修改工单自定义字段失败：%v", err)
 	}
-	if _, err := conversation.NewAddNote(env.DB, down).Handle(ctx, subOwner, tk1.ID, "不应经会话接口写工单备注", nil); !errors.Is(err, conversation.ErrWrongKind) {
+	if _, err := conversation.NewAddNote(env.DB, down).Handle(ctx, subOwner, tk1.ID, conversation.NoteBody{Text: "不应经会话接口写工单备注"}); !errors.Is(err, conversation.ErrWrongKind) {
 		t.Fatalf("AddNote 应拒绝工单：%v", err)
 	}
 	if _, err := conversation.NewAddTicketNote(env.DB, down).Handle(ctx, subOwner, tk1.ID, "正在核查 UPI 通道", nil); err != nil {

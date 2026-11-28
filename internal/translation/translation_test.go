@@ -496,7 +496,7 @@ func TestFill(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	n, err := fill.Handle(ctx, f.agent, []string{p.ItemID, reply.ID, "not-a-uuid"})
+	n, err := fill.Handle(ctx, f.agent, FillBody{ItemIDs: []string{p.ItemID, reply.ID, "not-a-uuid"}})
 	if err != nil || n != 1 {
 		t.Fatalf("补译：%d %v", n, err)
 	}
@@ -510,7 +510,7 @@ func TestFill(t *testing.T) {
 	if untranslated(p.ConversationID, p.ItemID) {
 		t.Fatal("补译之后不应当再标为 untranslated")
 	}
-	if n, err := fill.Handle(ctx, f.agent, []string{p.ItemID}); err != nil || n != 0 {
+	if n, err := fill.Handle(ctx, f.agent, FillBody{ItemIDs: []string{p.ItemID}}); err != nil || n != 0 {
 		t.Fatalf("已经有译文时：%d %v", n, err)
 	}
 
@@ -521,7 +521,7 @@ func TestFill(t *testing.T) {
 	if !untranslated(p.ConversationID, p.ItemID) {
 		t.Fatal("改成日语后旧消息应当标为 untranslated")
 	}
-	if n, err := fill.Handle(ctx, f.agent, []string{p.ItemID}); err != nil || n != 1 {
+	if n, err := fill.Handle(ctx, f.agent, FillBody{ItemIDs: []string{p.ItemID}}); err != nil || n != 1 {
 		t.Fatalf("补日语：%d %v", n, err)
 	}
 	f.model.language = "und"
@@ -541,7 +541,7 @@ func TestFill(t *testing.T) {
 	// 翻译不可用时什么也不做
 	off := setup(t, false)
 	q := off.receive(t, "rahul", "hello")
-	if n, err := NewFillMissing(off.env.DB, off.translator).Handle(ctx, off.agent, []string{q.ItemID}); err != nil || n != 0 {
+	if n, err := NewFillMissing(off.env.DB, off.translator).Handle(ctx, off.agent, FillBody{ItemIDs: []string{q.ItemID}}); err != nil || n != 0 {
 		t.Fatalf("没有配置时补译：%d %v", n, err)
 	}
 }
@@ -762,7 +762,7 @@ func TestPrimaryLanguages(t *testing.T) {
 	if c, err := conversation.NewGet(f.env.DB).Handle(ctx, f.agent, p.ConversationID); err != nil || c.PreviewUntranslated || c.Preview != "我的订单还没到" {
 		t.Fatalf("中文成员看到的预览：%+v %v", c, err)
 	}
-	if n, err := NewFillMissing(f.env.DB, f.translator).Handle(ctx, en, []string{c.PreviewItemID, p.ItemID}); err != nil || n != 1 {
+	if n, err := NewFillMissing(f.env.DB, f.translator).Handle(ctx, en, FillBody{ItemIDs: []string{c.PreviewItemID, p.ItemID}}); err != nil || n != 1 {
 		t.Fatalf("英文成员补译：%d %v", n, err)
 	}
 
@@ -803,7 +803,7 @@ func TestHistory(t *testing.T) {
 	if _, err := conversation.NewReply(f.env.DB, f.down).Handle(ctx, f.agent, last.ConversationID, conversation.ReplyBody{Text: "我在查"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := conversation.NewAddNote(f.env.DB, f.down).Handle(ctx, f.agent, last.ConversationID, "内部备注", nil); err != nil {
+	if _, err := conversation.NewAddNote(f.env.DB, f.down).Handle(ctx, f.agent, last.ConversationID, conversation.NoteBody{Text: "内部备注"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -924,7 +924,7 @@ func TestUnifiedComposerTranslation(t *testing.T) {
 	}
 
 	// 4. 内部备注附带人工校对译文同样保留并不被后台覆写
-	note, err := conversation.NewAddNote(f.env.DB, f.down).HandleBody(ctx, f.agent, p.ConversationID, conversation.NoteBody{
+	note, err := conversation.NewAddNote(f.env.DB, f.down).Handle(ctx, f.agent, p.ConversationID, conversation.NoteBody{
 		Text:        "已转财务加急处理",
 		Translation: &conversation.Translation{Language: "en", Text: "Escalated to finance for urgent handling"},
 	})
@@ -1117,7 +1117,7 @@ func TestEditRecallHistoryExternalGroupAndCrossTenantMentions(t *testing.T) {
 	}
 
 	// 2. 编辑内部备注后重译应读最新修订正文；撤回后应跳过翻译，history() 也应使用修订正文、排除撤回并包含 ExternalUserActor
-	note, err := conversation.NewAddNote(f.env.DB, f.down).Handle(ctx, f.agent, cust.ConversationID, "备注原文 v1", nil)
+	note, err := conversation.NewAddNote(f.env.DB, f.down).Handle(ctx, f.agent, cust.ConversationID, conversation.NoteBody{Text: "备注原文 v1"})
 	if err != nil {
 		t.Fatal(err)
 	}

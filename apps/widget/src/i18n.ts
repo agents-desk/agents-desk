@@ -4,13 +4,11 @@
 // 与 language（命中的 UI 界面语种包，用于界面固定文案、排版方向与日期格式化）。
 
 import { formatMessage, type Catalog, type I18n, type Message, type MessageData, type MessageTable } from "@go-tenon/client"
+import type {} from "@go-tenon/ui/i18n"
 import en from "./locales/en.json"
 
 /** WIDGET_LANGUAGES 是聊天窗口内置的界面语种列表，第一项为全局默认回退语言。 */
 export const WIDGET_LANGUAGES = ["en", "zh-CN", "zh-TW", "hi", "hi-Latn"] as const
-
-/** WidgetLanguage 是聊天窗口内置的界面语种标签。 */
-export type WidgetLanguage = (typeof WIDGET_LANGUAGES)[number]
 
 /** MessageId 是聊天窗口全部界面词条的强类型 ID，由 en.json 推导。 */
 export type MessageId = keyof typeof en
@@ -260,8 +258,8 @@ if (typeof window !== "undefined") {
   })
 }
 
-// 登记消息 ID：@go-tenon/ui 的 useT 只接受 en.json 中的合法 ID。
-declare module "@go-tenon/ui" {
+// 登记消息 ID：@go-tenon/ui 与 @go-tenon/ui/core 的 useT 只接受 en.json 中的合法 ID。
+declare module "@go-tenon/ui/i18n" {
   interface I18nRegister {
     messageId: MessageId
   }

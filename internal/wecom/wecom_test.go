@@ -371,6 +371,18 @@ func TestWeComLongConnectionLifecycleAndIsolation(t *testing.T) {
 
 	cancel()
 	<-runDone
+
+	// 手动重连企业微信机器人时保留 channels.settings.ai_reception
+	if _, err := env.DB.NewRaw(`UPDATE channels SET settings = jsonb_set(settings, '{ai_reception}', '{"enabled":true,"bot_id":"bot-x"}'::jsonb) WHERE id = ?`, bot.ID).Exec(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewReconnect(env.DB, nil).Handle(t.Context(), ownerAlpha, bot.ID); err != nil {
+		t.Fatalf("重连企业微信机器人失败: %v", err)
+	}
+	var aiReception string
+	if err := env.DB.NewRaw(`SELECT COALESCE(settings->'ai_reception'->>'bot_id', '') FROM channels WHERE id = ?`, bot.ID).Scan(t.Context(), &aiReception); err != nil || aiReception != "bot-x" {
+		t.Fatalf("企微 Reconnect 不应覆盖 ai_reception：got %q err=%v", aiReception, err)
+	}
 }
 
 func waitUntil(t *testing.T, timeout time.Duration, fn func() bool) {

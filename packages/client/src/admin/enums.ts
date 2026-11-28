@@ -8,10 +8,10 @@
 export const enums = {
   FlagsMode: {
     prefix: "flags.mode",
-    values: ["on", "off", "percent"],
+    values: ["on", "off", "force_on", "force_off", "percent"],
     labels: {
-      "en": { on: "On", off: "Off", percent: "Percentage rollout" },
-      "zh-CN": { on: "开启", off: "关闭", percent: "按比例放量" },
+      "en": { on: "On", off: "Off", force_on: "Force on", force_off: "Force off", percent: "Percentage rollout" },
+      "zh-CN": { on: "开启", off: "关闭", force_on: "强制全员开启", force_off: "强制全员关闭", percent: "按比例放量" },
     },
   },
   FlagsScope: {

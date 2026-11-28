@@ -17,6 +17,7 @@ import {
 } from "@go-tenon/ui"
 import { type ReactNode, useMemo, useState } from "react"
 import { kit } from "../api"
+import { useAiWorkspaceEnabled } from "../components/ai-placeholders"
 import { languageName } from "../languages"
 import { InlineShareBar, REPORT_AREA_PROPS } from "./Breakdown"
 import { languageInboxSearch } from "./drilldown"
@@ -40,7 +41,8 @@ export function TranslationPage({ route }: { route: PeriodRoute }): ReactNode {
   const { slug } = useParams({ from: "/$slug" })
   const period = usePeriod(route, { defaultPreset: "7d" })
   const search = route.useSearch() as TranslationReportSearchParams
-  const tab: AiReportTab = search.tab === "agent" ? "agent" : "translation"
+  const aiEnabled = useAiWorkspaceEnabled()
+  const tab: AiReportTab = aiEnabled && search.tab === "agent" ? "agent" : "translation"
   const query = useQuery({
     ...kit.queries.report.translation(period.params),
     placeholderData: keepPreviousData,
@@ -304,7 +306,7 @@ export function TranslationPage({ route }: { route: PeriodRoute }): ReactNode {
       meta={data?.period}
       error={query.error}
       updating={pageState.busy}
-      toolbarRight={tabSwitcher}
+      toolbarRight={aiEnabled ? tabSwitcher : undefined}
     >
       {/* 主分析面板：点击调用量 / Token / 费用指标格直接切换下方趋势图 */}
       <section className="rp-panel">

@@ -1500,6 +1500,23 @@
   background: var(--tn-surface);
 }
 
+.tn-table-card {
+  border: 1px solid var(--tn-border);
+  border-radius: var(--mantine-radius-default);
+  overflow: hidden;
+  background: var(--tn-surface);
+}
+
+.tn-table-card thead th {
+  background: var(--tn-canvas);
+  color: var(--tn-muted);
+  font-weight: 500;
+}
+
+.tn-table-card tbody tr:last-child td {
+  border-bottom: 0;
+}
+
 /* ———————————————— 描述列表 ———————————————— */
 
 /* 卡片中名称在左、值靠右，行间一条淡线；标题没有底色。值太长时在右侧换行。 */
@@ -1683,6 +1700,109 @@
   width: 104px;
 }
 
+.tn-period-preset-select {
+  width: 120px;
+}
+
+/* 等分指标带（MetricStrip）：以细竖线分隔展示核心 KPI，支持点击切换状态 */
+.tn-metric-strip {
+  display: grid;
+  grid-template-columns: repeat(var(--tn-metric-cols, 4), minmax(0, 1fr));
+}
+
+.tn-metric-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px 20px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--tn-border);
+  color: inherit;
+  font: inherit;
+  transition: background-color 140ms ease;
+}
+
+.tn-metric-cell:last-child {
+  border-right: 0;
+}
+
+.tn-metric-cell[data-interactive] {
+  cursor: pointer;
+}
+
+.tn-metric-cell[data-interactive]:hover {
+  background: var(--tn-hover);
+}
+
+.tn-metric-cell[data-interactive]:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -2px;
+}
+
+.tn-metric-cell[data-active] {
+  background: var(--tn-active-bg);
+}
+
+.tn-metric-cell[data-active]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--mantine-primary-color-filled);
+}
+
+@media (min-width: 541px) and (max-width: 960px) {
+  .tn-metric-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tn-metric-cell {
+    border-bottom: 1px solid var(--tn-border);
+  }
+
+  .tn-metric-cell:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .tn-metric-cell:nth-last-child(-n + 2) {
+    border-bottom: 0;
+  }
+}
+
+@media (max-width: 540px) {
+  .tn-metric-strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tn-metric-cell {
+    border-right: 0;
+    border-bottom: 1px solid var(--tn-border);
+  }
+
+  .tn-metric-cell:last-child {
+    border-bottom: 0;
+  }
+}
+
+.tn-metric-value {
+  font-size: 1.5rem;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+  color: var(--tn-text);
+}
+
+.tn-metric-secondary {
+  font-variant-numeric: tabular-nums;
+}
+
 @media (max-width: 47.99em) {
   .tn-period-picker {
     width: 100%;
@@ -1805,6 +1925,7 @@
  */
 [data-tn-density="dense"] {
   --tn-control-height: 30px;
+  --tn-button-padding-x: 10px;
 
   & .mantine-Input-wrapper {
     --input-height-sm: 30px;
@@ -1827,6 +1948,7 @@
 
 [data-tn-density="inspector"] {
   --tn-control-height: 28px;
+  --tn-button-padding-x: 10px;
 
   & .mantine-Input-wrapper {
     --input-height-sm: 28px;
@@ -2042,6 +2164,10 @@
 .tn-inspector-field-label {
   flex: none;
   width: var(--tn-inspector-label-width, 84px);
+}
+
+.tn-inspector-field[data-align="start"] .tn-inspector-field-label {
+  padding-top: 6px;
 }
 
 .tn-inspector-field-value {

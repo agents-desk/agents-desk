@@ -80,4 +80,18 @@ func TestFeatureFlagsManagement(t *testing.T) {
 	if err != nil || len(logs.Items) != 3 {
 		t.Fatalf("期望 3 条功能开关操作日志，实际 %d err=%v", len(logs.Items), err)
 	}
+
+	// 强制全员开启/关闭模式应映射到 feature.ForceOn / feature.ForceOff 并覆盖默认状态
+	in = flags.SetInput{Name: flags.WidgetVisitorUploads.Name}
+	in.Body.Scope = flags.ScopeEveryone
+	in.Body.Mode = flags.ModeForceOn
+	updated, err = set.Handle(ctx, apptest.Admin, in)
+	if err != nil || updated.Everyone == nil || updated.Everyone.Mode != flags.ModeForceOn || !store.Active(ctx, identity.Subject{Tenant: created.ID}, flags.WidgetVisitorUploads) {
+		t.Fatalf("ModeForceOn 设置不符合预期：%+v err=%v", updated.Everyone, err)
+	}
+	in.Body.Mode = flags.ModeForceOff
+	updated, err = set.Handle(ctx, apptest.Admin, in)
+	if err != nil || updated.Everyone == nil || updated.Everyone.Mode != flags.ModeForceOff || store.Active(ctx, identity.Subject{Tenant: created.ID}, flags.WidgetVisitorUploads) {
+		t.Fatalf("ModeForceOff 设置不符合预期：%+v err=%v", updated.Everyone, err)
+	}
 }

@@ -102,13 +102,15 @@ func (ScopeKind) Schema(r huma.Registry) *huma.Schema { return contract.EnumSche
 type Mode string
 
 const (
-	ModeOn      Mode = "on"      // 开启
-	ModeOff     Mode = "off"     // 关闭
-	ModePercent Mode = "percent" // 按比例放量（仅全员）
+	ModeOn       Mode = "on"        // 开启
+	ModeOff      Mode = "off"       // 关闭
+	ModeForceOn  Mode = "force_on"  // 强制全员开启（覆盖工作区设置）
+	ModeForceOff Mode = "force_off" // 强制全员关闭（覆盖工作区设置）
+	ModePercent  Mode = "percent"   // 按比例放量（仅全员）
 )
 
 // Modes 是全部开关设置模式。
-var Modes = enum.New("flags.mode", enum.Item(ModeOn), enum.Item(ModeOff), enum.Item(ModePercent))
+var Modes = enum.New("flags.mode", enum.Item(ModeOn), enum.Item(ModeOff), enum.Item(ModeForceOn), enum.Item(ModeForceOff), enum.Item(ModePercent))
 
 // Schema 让 OpenAPI 中的 Mode 带枚举约束和译文。
 func (Mode) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r, Modes) }
@@ -262,6 +264,10 @@ func (a *Set) Handle(ctx context.Context, sub identity.Subject, in SetInput) (Fl
 		state = feature.On
 	case ModeOff:
 		state = feature.Off
+	case ModeForceOn:
+		state = feature.ForceOn
+	case ModeForceOff:
+		state = feature.ForceOff
 	case ModePercent:
 		state = feature.Percent(in.Body.Percent)
 	default:

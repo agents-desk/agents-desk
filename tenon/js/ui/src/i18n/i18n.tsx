@@ -54,7 +54,7 @@ export function useLanguage(): string {
 /**
  * 应用的界面文字的消息 ID 登记在这里：tenon generate 生成的 messages.gen.ts 声明
  *
- *   declare module "@go-tenon/ui" { interface I18nRegister { messageId: MessageId } }
+ *   declare module "@go-tenon/ui/i18n" { interface I18nRegister { messageId: MessageId } }
  *
  * 之后 useT 只接受其中的 ID。没有登记时接受任意文字。
  */

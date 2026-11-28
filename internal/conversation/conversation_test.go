@@ -149,7 +149,7 @@ func TestNoteAndPermissions(t *testing.T) {
 	f := setup(t, env, "alpha")
 
 	id := f.receive(t, "anil", "refund kab aayega?", "").ConversationID
-	note, err := conversation.NewAddNote(env.DB, f.down).Handle(ctx, f.agent, id, "@张三 这单要找财务", nil)
+	note, err := conversation.NewAddNote(env.DB, f.down).Handle(ctx, f.agent, id, conversation.NoteBody{Text: "@张三 这单要找财务"})
 	if err != nil || note.Kind != conversation.Note || note.Visibility != conversation.MembersOnly || note.Delivery != nil {
 		t.Fatalf("内部备注：%+v %v", note, err)
 	}
@@ -207,7 +207,7 @@ func TestConcurrentSeq(t *testing.T) {
 	var wg sync.WaitGroup
 	for range 10 {
 		wg.Go(func() {
-			if _, err := conversation.NewAddNote(env.DB, f.down).Handle(ctx, f.agent, id, "note", nil); err != nil {
+			if _, err := conversation.NewAddNote(env.DB, f.down).Handle(ctx, f.agent, id, conversation.NoteBody{Text: "note"}); err != nil {
 				t.Error(err)
 			}
 		})

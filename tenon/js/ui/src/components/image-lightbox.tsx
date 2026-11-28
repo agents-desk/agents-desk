@@ -11,12 +11,14 @@ export interface ImageLightboxProps {
   src: string | null
   /** 图片标题或原始文件名，显示在底部并用于下载文件名。 */
   filename?: string
+  /** 自定义外链打开回调（如宿主桥接）；传入时“打开原图”和“下载”改为调用它。 */
+  onOpenUrl?: (url: string) => void
   /** 关闭灯箱。 */
   onClose: () => void
 }
 
 /** 点击缩略图后弹出大图预览，点击背景或按 Esc 关闭。 */
-export function ImageLightbox({ src, filename, onClose }: ImageLightboxProps): ReactNode {
+export function ImageLightbox({ src, filename, onOpenUrl, onClose }: ImageLightboxProps): ReactNode {
   const t = useText()
   return (
     <Modal
@@ -49,6 +51,14 @@ export function ImageLightbox({ src, filename, onClose }: ImageLightboxProps): R
                   variant="filled"
                   color="dark"
                   aria-label={t("tenon.lightbox.open_original")}
+                  onClick={
+                    onOpenUrl
+                      ? (e) => {
+                          e.preventDefault()
+                          onOpenUrl(src)
+                        }
+                      : undefined
+                  }
                 >
                   <IconExternalLink size={16} />
                 </ActionIcon>
@@ -63,6 +73,14 @@ export function ImageLightbox({ src, filename, onClose }: ImageLightboxProps): R
                   variant="filled"
                   color="dark"
                   aria-label={t("tenon.lightbox.download")}
+                  onClick={
+                    onOpenUrl
+                      ? (e) => {
+                          e.preventDefault()
+                          onOpenUrl(src)
+                        }
+                      : undefined
+                  }
                 >
                   <IconDownload size={16} />
                 </ActionIcon>

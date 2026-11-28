@@ -11,7 +11,7 @@ import { Notifications } from "@mantine/notifications"
 import { type ReactNode, useMemo } from "react"
 import { useText } from "../i18n/i18n"
 import { type IconComponent, IconsProvider } from "./icons"
-import { themes } from "./theme"
+import { themes, uiCssVariablesResolver } from "./theme"
 
 /** UIProvider 的选项。 */
 export interface UIProviderProps {
@@ -57,6 +57,7 @@ export function UIProvider({
       theme={theme}
       defaultColorScheme={defaultColorScheme}
       colorSchemeManager={colorSchemeManager}
+      cssVariablesResolver={uiCssVariablesResolver}
       env={env}
     >
       <Notifications position="top-right" limit={4} />

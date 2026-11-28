@@ -45,18 +45,7 @@ export function inTimeZone(value: string | Date, zone?: string): dayjs.Dayjs {
   return zone && d.isValid() ? d.tz(zone) : d
 }
 
-/** 把字节数格式化为易读的文件大小，例如 512 B、1.2 KB、3.4 MB。 */
-export function formatFileSize(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B"
-  const units = ["B", "KB", "MB", "GB", "TB"]
-  let value = bytes
-  let i = 0
-  while (value >= 1024 && i < units.length - 1) {
-    value /= 1024
-    i++
-  }
-  return i === 0 ? `${Math.round(value)} B` : `${Math.round(value * 10) / 10} ${units[i]}`
-}
+export { formatFileSize } from "./file-size"
 
 /** 时长格式化的选项。 */
 export interface FormatDurationOptions {

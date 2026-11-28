@@ -260,7 +260,7 @@ func TestInternalChatLifecycleIsolationAndPush(t *testing.T) {
 	if _, err := conversation.NewSetPriority(env.DB, down).Handle(ctx, subAlice, dm1.ID, conversation.High); !errors.Is(err, conversation.ErrWrongKind) {
 		t.Fatalf("SetPriority 应拒绝内部聊天：%v", err)
 	}
-	if _, err := conversation.NewAddNote(env.DB, down).Handle(ctx, subAlice, dm1.ID, "note", nil); !errors.Is(err, conversation.ErrWrongKind) {
+	if _, err := conversation.NewAddNote(env.DB, down).Handle(ctx, subAlice, dm1.ID, conversation.NoteBody{Text: "note"}); !errors.Is(err, conversation.ErrWrongKind) {
 		t.Fatalf("AddNote 应拒绝内部聊天：%v", err)
 	}
 	inbox, err := conversation.NewGetInbox(env.DB).Handle(ctx, subAlice)

@@ -177,3 +177,9 @@ const composer = useAssistantComposer(chat)
 - `canSend`：有文字或附件、没有等待审批的工具调用（`awaiting`），并且回答进行中时只有文字。
 - `submit` 发送并清空输入框，没有发出去时恢复文字和附件，原因在 `error` 中。
 - `fileParts(message.parts)` 取出消息中的文件片段（`{ mediaType, filename, url }`），用于显示已经发送的附件。
+
+<a id="common-forms"></a>
+## 账号、报表与工作台通用件
+
+- 认证与个人设置：`LoginForm`（支持 `emailLabel`、`emailPlaceholder`、`leftIcons`、`submitSize`）、`ForgotPasswordForm`、`PasswordChangeForm`、`DevSignIn`、`AvatarField` 与 `TimeZoneSelect`。
+- 报表与布局件：`MetricStrip`、`StatDeltaBadge`、`PeriodPicker`（支持 `compact` 模式）与 `GranularityControl`；表单/详情组：`FormSection`、`EmptyState`、`RowActions`、`InspectorSkeleton`、`useUnsavedChanges`（`ignoreSearch`）与 `useStickToBottom`。

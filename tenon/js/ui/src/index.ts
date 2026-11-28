@@ -11,6 +11,7 @@
 // ———————————————————————————— app ————————————————————————————
 export * from "./app/app"
 export * from "./app/document-title"
+export * from "./app/keyboard"
 export {
   Fill,
   type LayoutState,
@@ -54,11 +55,14 @@ export * from "./components/data-table/data-table"
 export * from "./components/data-table/list"
 export * from "./components/data-table/saved-view"
 export * from "./components/description-list"
+export * from "./components/empty-state"
 export * from "./components/feedback"
 export * from "./components/form/autosave"
+export * from "./components/form/avatar-field"
 export * from "./components/form/form"
 export * from "./components/form/rules"
 export * from "./components/form/secret-input"
+export * from "./components/form-section"
 export * from "./components/image-lightbox"
 export * from "./components/inspector"
 export * from "./components/links"
@@ -66,15 +70,20 @@ export * from "./components/loading"
 export * from "./components/menu-badge"
 export * from "./components/page"
 export * from "./components/period/period"
+export * from "./components/row-actions"
 export * from "./components/stat-card"
 export * from "./components/status-dot"
+export * from "./components/stick-to-bottom"
+export * from "./components/table-card"
 export * from "./components/text-trigger/text-trigger"
+export * from "./components/timezone-select"
 export * from "./components/truncated-text"
 export * from "./components/upload-queue"
 // ———————————————————————————— features ————————————————————————————
 export * from "./features/activity/activity-log"
 export * from "./features/activity/model"
 export * from "./features/browser-sign-in"
+export * from "./features/dev-sign-in"
 export {
   type DoctorApi,
   DoctorPanel,
@@ -88,6 +97,7 @@ export * from "./features/notifications/model"
 export * from "./features/notifications/notifications-menu"
 export * from "./features/operations/model"
 export * from "./features/operations/operations-menu"
+export * from "./features/password-change-form"
 export {
   type QueueApi,
   type QueueFailedJobData,
@@ -132,3 +142,4 @@ export * from "./theme/format"
 export * from "./theme/icons"
 export * from "./theme/provider"
 export * from "./theme/theme"
+export * from "./theme/timezone"

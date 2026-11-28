@@ -15,7 +15,6 @@ import (
 	"github.com/go-tenon/tenon/httpx"
 	"github.com/go-tenon/tenon/httpx/rest"
 	"github.com/go-tenon/tenon/identity"
-	"github.com/go-tenon/tenon/login"
 	"github.com/go-tenon/tenon/notification"
 	"github.com/go-tenon/tenon/operation"
 	"github.com/go-tenon/tenon/queue"
@@ -77,15 +76,14 @@ type ExportOutput struct {
 // QueueExport 在后台队列中将工作区列表导出为表格文件，并实时推送进度与完成通知。
 type QueueExport struct {
 	db       *bun.DB
-	logins   *login.Realm
 	addr     Addresses
 	hub      *broadcast.Hub
 	exporter *exports.Service
 }
 
 // NewQueueExport 返回后台导出工作区的动作。
-func NewQueueExport(db *bun.DB, logins *login.Realm, addr Addresses, hub *broadcast.Hub, exporter *exports.Service) *QueueExport {
-	return &QueueExport{db: db, logins: logins, addr: addr, hub: hub, exporter: exporter}
+func NewQueueExport(db *bun.DB, addr Addresses, hub *broadcast.Hub, exporter *exports.Service) *QueueExport {
+	return &QueueExport{db: db, addr: addr, hub: hub, exporter: exporter}
 }
 
 // operationTopic 返回某个后台操作的进度广播主题。
@@ -274,8 +272,8 @@ func (a *QueueExport) saved(ctx context.Context, tx database.Tx, exp *exports.Ex
 }
 
 // RegisterExportRoutes 在管理员端 API 注册工作区异步导出与进度事件流接口。
-func RegisterExportRoutes(api *rest.API, requireRead func(*huma.Operation), db *bun.DB, logins *login.Realm, addr Addresses, exporter *exports.Service, hub *broadcast.Hub) {
-	exp := NewQueueExport(db, logins, addr, hub, exporter)
+func RegisterExportRoutes(api *rest.API, requireRead func(*huma.Operation), db *bun.DB, addr Addresses, exporter *exports.Service, hub *broadcast.Hub) {
+	exp := NewQueueExport(db, addr, hub, exporter)
 	start := huma.Operation{
 		OperationID:   "tenant-export-start",
 		Method:        http.MethodPost,
@@ -299,6 +297,6 @@ func RegisterExportRoutes(api *rest.API, requireRead func(*huma.Operation), db *
 }
 
 // RegisterJobs 在队列 worker 中注册工作区后台导出任务。
-func RegisterJobs(w *queue.Worker, db *bun.DB, logins *login.Realm, addr Addresses, hub *broadcast.Hub, exporter *exports.Service) {
-	ExportJob.Handle(w, NewQueueExport(db, logins, addr, hub, exporter).Job)
+func RegisterJobs(w *queue.Worker, db *bun.DB, addr Addresses, hub *broadcast.Hub, exporter *exports.Service) {
+	ExportJob.Handle(w, NewQueueExport(db, addr, hub, exporter).Job)
 }

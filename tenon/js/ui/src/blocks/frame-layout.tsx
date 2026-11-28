@@ -75,6 +75,8 @@ export interface FrameLayoutProps {
    * false 时不设置，标题由应用自己管理。
    */
   documentTitle?: boolean
+  /** 浏览器标签标题前缀的未读或待办计数，大于 0 时显示为 “(N) 标题”。 */
+  titleBadge?: number
   /** 内容区顶部的通栏提示，例如 ImpersonationBanner。 */
   banner?: ReactNode
 }
@@ -96,6 +98,7 @@ export function FrameLayout({
   tabs,
   maxWidth,
   documentTitle = true,
+  titleBadge,
   banner,
 }: FrameLayoutProps): ReactNode {
   const theme = useMantineTheme()
@@ -110,7 +113,9 @@ export function FrameLayout({
   const routerPending = useRouterState({ select: (s) => s.status === "pending" })
   const tabsOn = Boolean(tabs) && state.tabs
   const pageTitle = usePageTitle(tabsOn)
-  useDocumentTitle(documentTitle ? formatDocumentTitle(pageTitle, title) : undefined)
+  const baseDocTitle = formatDocumentTitle(pageTitle, title)
+  const docTitle = baseDocTitle && titleBadge && titleBadge > 0 ? `(${titleBadge}) ${baseDocTitle}` : baseDocTitle
+  useDocumentTitle(documentTitle ? docTitle : undefined)
   const showTabBar = tabsOn && !narrow
 
   // 窄屏时打开页面或切回宽屏后收起导航抽屉。
@@ -200,7 +205,7 @@ export function FrameLayout({
               )}
             </ActionIcon>
             <Link to="/" className="tn-brand">
-              {logo ?? <span className="tn-brand-mark">{(title ?? "T").slice(0, 1)}</span>}
+              {logo ?? <span className="tn-brand-mark">{(title?.trim() || "T").slice(0, 1)}</span>}
               {title && <span className="tn-brand-title">{title}</span>}
             </Link>
           </div>
@@ -244,7 +249,7 @@ export function FrameLayout({
           <div className="tn-nav-drawer">
             <div className="tn-nav-drawer-header">
               <Link to="/" className="tn-brand" onClick={closeNav}>
-                {logo ?? <span className="tn-brand-mark">{(title ?? "T").slice(0, 1)}</span>}
+                {logo ?? <span className="tn-brand-mark">{(title?.trim() || "T").slice(0, 1)}</span>}
                 {title && <span className="tn-brand-title">{title}</span>}
               </Link>
               <CloseButton size="sm" onClick={closeNav} aria-label={t("tenon.frame.close_nav")} />

@@ -48,6 +48,8 @@ export interface UnsavedChangesOptions {
   confirm?: () => boolean | Promise<boolean>
   /** 默认的询问文字。 */
   message?: string
+  /** 为 true 时同一路径下仅查询参数变化（如 ?tab=）不触发离开确认。 */
+  ignoreSearch?: boolean
 }
 
 /** useUnsavedChanges 的返回值。 */
@@ -79,8 +81,9 @@ export function useUnsavedChanges(dirty: boolean, options: UnsavedChangesOptions
   }, [setTabDirty, dirty])
   const ask = options.confirm ?? (() => window.confirm(options.message ?? text("tenon.unsaved.leave")))
   useBlocker({
-    shouldBlockFn: async () => {
+    shouldBlockFn: async ({ current, next }) => {
       if (pane || !state.current.dirty || state.current.released) return false
+      if (options.ignoreSearch && current.pathname === next.pathname) return false
       return !(await ask())
     },
     enableBeforeUnload: () => !pane && state.current.dirty && !state.current.released,

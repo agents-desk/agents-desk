@@ -33,8 +33,6 @@ export interface AgentBotSettings {
   allowed_tools?: string[]
   /** 客户插话策略：notify（默认）或 cancel_restart */
   barge_in_policy?: string
-  /** 置信度阈值（0-1） */
-  confidence_threshold?: number
   /** 合并连续输入的消息防抖时间（毫秒） */
   debounce_ms?: number
   /** 单轮生成允许的最大工具调用步数 */
@@ -3604,6 +3602,8 @@ export interface ConversationSearchInput {
   assignee_id?: string
   /** 可选：只搜索这个接待控制模式的会话 */
   handling_mode?: ConversationHandlingMode
+  /** 可选：只搜索该服务对象类型的会话（customer/partner/internal） */
+  audience?: ChannelAudience
   /** 可选：只搜索来自这个渠道的会话 */
   channel_id?: string
   /** 可选：只搜索这个优先级的会话 */
@@ -4549,7 +4549,7 @@ export function createClient(options: ClientOptions) {
        * GET /conversations/search
        */
       search: (input: ConversationSearchInput = {}): Promise<OffsetConversationSearchHitDTO> =>
-        rt.request<OffsetConversationSearchHitDTO>({ method: "GET", path: `/conversations/search`, query: { "assignee_id": input["assignee_id"], "assignee_type": input["assignee_type"], "channel_id": input["channel_id"], "filter": input["filter"], "handling_mode": input["handling_mode"], "inbox": input["inbox"], "page": input["page"], "per_page": input["per_page"], "priority": input["priority"], "q": input["q"], "status": input["status"], "tag_id": input["tag_id"], "team_id": input["team_id"], "view_id": input["view_id"] } }),
+        rt.request<OffsetConversationSearchHitDTO>({ method: "GET", path: `/conversations/search`, query: { "assignee_id": input["assignee_id"], "assignee_type": input["assignee_type"], "audience": input["audience"], "channel_id": input["channel_id"], "filter": input["filter"], "handling_mode": input["handling_mode"], "inbox": input["inbox"], "page": input["page"], "per_page": input["per_page"], "priority": input["priority"], "q": input["q"], "status": input["status"], "tag_id": input["tag_id"], "team_id": input["team_id"], "view_id": input["view_id"] } }),
       /**
        * 稍后处理
        *

@@ -1,4 +1,4 @@
-import type { ErrorReport } from "@go-tenon/ui"
+import type { ErrorReport } from "@go-tenon/ui/core"
 
 /** 浏览器端观测桥接接口，由 src/client.tsx 在读取到 Go 下发的配置后注册。 */
 export interface ObserveSink {

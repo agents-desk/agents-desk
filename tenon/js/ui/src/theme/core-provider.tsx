@@ -8,7 +8,7 @@ import {
 } from "@mantine/core"
 import { type ReactNode, useMemo } from "react"
 import { type IconComponent, IconsProvider } from "./icons"
-import { themes } from "./theme"
+import { themes, uiCssVariablesResolver } from "./theme"
 
 /** CoreUIProvider 的选项。 */
 export interface CoreUIProviderProps {
@@ -43,6 +43,7 @@ export function CoreUIProvider({
       theme={theme}
       defaultColorScheme={defaultColorScheme}
       colorSchemeManager={colorSchemeManager}
+      cssVariablesResolver={uiCssVariablesResolver}
       env={env}
     >
       <IconsProvider icons={icons}>{children}</IconsProvider>

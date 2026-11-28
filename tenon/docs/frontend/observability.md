@@ -91,30 +91,11 @@ export const app = createApp({
 <a id="context"></a>
 ## 设置用户、租户和页面名
 
-登录、退出、切换租户时更新 SDK 中的用户；页面切换后用路由模板命名页面，`/articles/1` 和 `/articles/2` 归为同一个页面。`app` 是 `createApp` 的返回值：
+直接使用 `@go-tenon/start/observe` 提供的轻量桥接（`enableObserve`、`reportRouteError`、`bindObserve`）连接各前端的 `router.tsx`、`observe.ts` 和 `client.tsx`：未填写 `telemetry.browser` 时为空操作；登录、退出或切换租户后自动同步用户上下文，页面切换后按路由模板写入页面名（匿名应用自动跳过用户同步）：
 
 ```ts
 import { openobserveRum } from "@openobserve/browser-rum"
-import { app } from "./app"
-import { observing } from "./observe"
-
-if (observing) {
-  const syncUser = () => {
-    const id = app.session.identity()
-    if (id) {
-      openobserveRum.setUser({ id: id.account })
-      openobserveRum.setGlobalContextProperty("tenant", id.tenant ?? "")
-    } else {
-      openobserveRum.clearUser()
-    }
-  }
-  app.session.subscribe(syncUser)
-  syncUser()
-  app.router.subscribe("onResolved", () => {
-    const match = app.router.state.matches.at(-1)
-    if (match) openobserveRum.setViewName(match.routeId)
-  })
-}
+import { enableObserve } from "@go-tenon/start/observe"
 ```
 
 用户只记录账号 ID，姓名、邮箱等个人信息不写进观测平台。

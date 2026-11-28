@@ -8,7 +8,7 @@
     "./core": "./src/core.ts",
     "./chat": "./src/features/chat.ts",
     "./theme": "./src/theme/theme.ts",
-    "./i18n": "./src/i18n/i18n.ts",
+    "./i18n": "./src/i18n/index.ts",
     "./base.css": "./src/base.css",
     "./styles.css": "./src/styles.css"
   },

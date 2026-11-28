@@ -63,7 +63,7 @@ func TestEditMessage(t *testing.T) {
 	edit := conversation.NewEditMessage(env.DB, down)
 
 	// 1. 内部备注可以编辑，没有时间窗；编辑后返回最新正文和编辑次数
-	note, err := conversation.NewAddNote(env.DB, down).Handle(ctx, subAlice, rec.ConversationID, "初稿", nil)
+	note, err := conversation.NewAddNote(env.DB, down).Handle(ctx, subAlice, rec.ConversationID, conversation.NoteBody{Text: "初稿"})
 	if err != nil {
 		t.Fatal(err)
 	}

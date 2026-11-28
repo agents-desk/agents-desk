@@ -207,8 +207,8 @@ func (b *TicketBroadcast) Handle(ctx context.Context, p conversation.Appended) e
 		newTranslations := map[string]string{}
 		if sourceLang != "" {
 			translatedMap, err := b.translator.Translate(ctx, p.TenantID, &it, sourceLang, needLangs)
-			if errors.Is(err, llm.ErrNotConfigured) {
-				slog.DebugContext(ctx, "ticket broadcast translation not configured, sending original text", "item", it.ID)
+			if errors.Is(err, llm.ErrNotConfigured) || errors.Is(err, llm.ErrBudgetExceeded) {
+				slog.WarnContext(ctx, "ticket broadcast translation skipped, sending original text", "item", it.ID, "reason", err)
 			} else if err != nil {
 				return err
 			} else {
@@ -220,11 +220,14 @@ func (b *TicketBroadcast) Handle(ctx context.Context, p conversation.Appended) e
 		} else {
 			var authorLang string
 			if it.ActorType == conversation.MemberActor && it.ActorID != "" {
-				_ = b.db.NewSelect().Table("members").Column("language").Where("id = ?", it.ActorID).Scan(ctx, &authorLang)
+				err := b.db.NewSelect().Table("members").Column("language").Where("id = ?", it.ActorID).Scan(ctx, &authorLang)
+				if err != nil && !errors.Is(err, sql.ErrNoRows) {
+					return errors.Wrap(err, "load ticket broadcast author language")
+				}
 			}
 			detected, translatedMap, err := b.translator.Incoming(ctx, p.TenantID, &it, authorLang, needLangs)
-			if errors.Is(err, llm.ErrNotConfigured) {
-				slog.DebugContext(ctx, "ticket broadcast translation not configured, sending original text", "item", it.ID)
+			if errors.Is(err, llm.ErrNotConfigured) || errors.Is(err, llm.ErrBudgetExceeded) {
+				slog.WarnContext(ctx, "ticket broadcast translation skipped, sending original text", "item", it.ID, "reason", err)
 			} else if err != nil {
 				return err
 			} else {
