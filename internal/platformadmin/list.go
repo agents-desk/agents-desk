@@ -55,13 +55,21 @@ func (a *List) HTTP(ctx context.Context, in *ListInput) (*ListOutput, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "list platform admins")
 	}
+	ids := make([]string, len(rows))
+	for i := range rows {
+		ids[i] = rows[i].ID
+	}
+	emails, err := a.logins.IdentifiersMany(ctx, ids, login.KindEmail)
+	if err != nil {
+		return nil, err
+	}
 	items := make([]AdminDTO, 0, len(rows))
 	for i := range rows {
-		dto, err := toDTO(ctx, a.logins, &rows[i], sub.ID)
-		if err != nil {
-			return nil, err
-		}
-		items = append(items, dto)
+		r := &rows[i]
+		items = append(items, AdminDTO{
+			ID: r.ID, Name: r.Name, Email: emails[r.ID], Status: r.Status(),
+			Self: r.ID == sub.ID, CreatedAt: r.CreatedAt,
+		})
 	}
 	return &ListOutput{Body: page.NewOffset(items, in.OffsetParams, int64(total))}, nil
 }

@@ -15,8 +15,6 @@ import (
 
 	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/database"
-	"github.com/go-tenon/tenon/httpx"
-	"github.com/go-tenon/tenon/httpx/rest"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/operation"
 	"github.com/go-tenon/tenon/queue"
@@ -56,15 +54,9 @@ type ExportProgressInput struct {
 	ID uuid.UUID `path:"id"`
 }
 
-// ExportProgress 是返回给前端的联系人导出进度与下载信息，附带失败原因译文。
-type ExportProgress struct {
-	*exports.Export
-	ErrorMessage string `json:"error_message,omitempty"`
-}
-
 // ExportOutput 是发起后台导出的 HTTP 响应。
 type ExportOutput struct {
-	Body ExportProgress
+	Body exports.Progress
 }
 
 // QueueExport 在后台队列中将符合筛选条件与调用者可见范围的联系人导出为表格文件，并实时推送进度。
@@ -78,9 +70,6 @@ type QueueExport struct {
 func NewQueueExport(db *bun.DB, hub *broadcast.Hub, exporter *exports.Service) *QueueExport {
 	return &QueueExport{db: db, hub: hub, exporter: exporter}
 }
-
-// exportOperationTopic 返回某个后台导出操作的进度广播主题。
-func exportOperationTopic(id uuid.UUID) string { return "operation:" + id.String() }
 
 // Handle 校验可选视图并合并筛选条件，在事务中登记导出操作并发布队列任务。
 func (a *QueueExport) Handle(ctx context.Context, sub identity.Subject, format sheet.Format, filter Filter, sort Sort, viewID string) (*exports.Export, error) {
@@ -113,14 +102,14 @@ func (a *QueueExport) Handle(ctx context.Context, sub identity.Subject, format s
 }
 
 // formatContactExportProgress 在导出完成且结果存于私有盘时补充工作区成员鉴权下载地址。
-func formatContactExportProgress(ctx context.Context, exp *exports.Export) ExportProgress {
+func formatContactExportProgress(ctx context.Context, exp *exports.Export) exports.Progress {
 	out := *exp
 	if out.Status == operation.StatusCompleted && out.FileID != uuid.Nil && out.URL == "" {
 		if slug := chi.URLParamFromCtx(ctx, "slug"); slug != "" {
 			out.URL = "/t/" + url.PathEscape(slug) + "/api/contacts/exports/" + out.ID.String() + "/download"
 		}
 	}
-	return ExportProgress{Export: &out, ErrorMessage: out.ErrorMessage(ctx)}
+	return out.Progress(ctx)
 }
 
 // HTTP 处理 POST /t/{slug}/api/contacts/exports。
@@ -143,37 +132,7 @@ func (a *QueueExport) HTTP(ctx context.Context, in *ExportStartInput) (*ExportOu
 // Progress 处理 GET /t/{slug}/api/contacts/exports/{id}/progress：推送导出进度 SSE 事件直到完成或失败。
 func (a *QueueExport) Progress(ctx context.Context, in *ExportProgressInput) (*huma.StreamResponse, error) {
 	sub, _ := identity.FromContext(ctx)
-	if _, err := a.exporter.Get(ctx, sub, in.ID); err != nil {
-		return nil, err
-	}
-	return rest.SSE(func(s *httpx.Stream) error {
-		var events *broadcast.Subscription
-		if a.hub != nil {
-			events = a.hub.Subscribe(exportOperationTopic(in.ID))
-			defer events.Close()
-		}
-		for {
-			exp, err := a.exporter.Get(s.Context(), sub, in.ID)
-			if err != nil {
-				return err
-			}
-			p := formatContactExportProgress(s.Context(), exp)
-			if err := s.SendJSON(httpx.Event{Name: "progress"}, p); err != nil || exp.Finished() {
-				return nil
-			}
-			if events == nil {
-				return nil
-			}
-			select {
-			case <-s.Done():
-				return nil
-			case _, ok := <-events.C():
-				if !ok {
-					return nil
-				}
-			}
-		}
-	}), nil
+	return a.exporter.ProgressSSE(ctx, a.hub, sub, in.ID, exports.ProgressOptions{Format: formatContactExportProgress})
 }
 
 // Job 是队列 worker 的处理函数：严格按发起人所在工作区和可见范围导出联系人及标签、自定义属性列。
@@ -299,7 +258,7 @@ func (a *QueueExport) Job(ctx context.Context, req ExportRequest) error {
 			}
 		}
 		return nil
-	}, a.saved)
+	}, exports.BroadcastSaved(a.hub))
 }
 
 // formatExportAttr 把自定义属性值转换为适合表格导出的标量。
@@ -319,18 +278,6 @@ func formatExportAttr(v any) any {
 	default:
 		return x
 	}
-}
-
-// saved 在每次导出进度持久化事务提交后广播事件，触发 SSE 客户端刷新。
-func (a *QueueExport) saved(_ context.Context, tx database.Tx, exp *exports.Export) error {
-	if a.hub == nil {
-		return nil
-	}
-	topic := exportOperationTopic(exp.ID)
-	tx.AfterCommit(func(ctx context.Context) error {
-		return a.hub.Publish(ctx, topic, nil)
-	})
-	return nil
 }
 
 // RegisterJobs 在队列 worker 中注册联系人后台导出任务。

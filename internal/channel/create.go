@@ -38,7 +38,7 @@ func (a *Create) Handle(ctx context.Context, sub identity.Subject, p CreateParam
 	if aud == "" {
 		aud = AudienceCustomer
 	}
-	c := &Channel{ID: newID(), TenantID: sub.Tenant, Kind: p.Kind, Audience: aud, Name: p.Name, Settings: settings, TeamID: p.TeamID, Enabled: true}
+	c := &Channel{ID: database.NewID(), TenantID: sub.Tenant, Kind: p.Kind, Audience: aud, Name: p.Name, Settings: settings, TeamID: p.TeamID, Enabled: true}
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		if _, err := tx.NewInsert().Model(c).Exec(ctx); err != nil {
 			return errors.Wrap(err, "insert channel")

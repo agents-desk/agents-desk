@@ -1,19 +1,14 @@
-// Package audit 提供管理员端查看平台操作日志的业务动作与接口。
-// 操作记录由各业务动作在事务中通过 tenon/activity.Record 写入 activity_log 表，本包只读取平台域（tenant = ""）的记录，
-// 补全操作人与目标名称，并按当前请求语言翻译为可供 ActivityLog 直接展示的分页表格数据。
+// Package audit 提供平台与工作区操作日志的查询接口与对象名称解析。
 package audit
 
 import (
 	"context"
-	"maps"
-	"strings"
-	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/activity"
-	"github.com/go-tenon/tenon/i18n"
+	"github.com/go-tenon/tenon/activity/activityapi"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/page"
 
@@ -27,18 +22,8 @@ type ListInput struct {
 	TargetType string `query:"target_type" enum:",tenant,platform_admin,member,settings,feature" doc:"按对象类型筛选；为空时返回全部"`
 }
 
-// Item 是操作日志表格中的一条记录，字段与 @go-tenon/ui 的 ActivityLog 约定一致。
-type Item struct {
-	ID           string    `json:"id"`
-	Event        string    `json:"event"`
-	TargetType   string    `json:"target_type,omitempty"`
-	TargetID     string    `json:"target_id,omitempty"`
-	Text         string    `json:"text"`
-	Actor        string    `json:"actor,omitempty"`
-	Impersonator string    `json:"impersonator,omitempty"`
-	CreatedAt    time.Time `json:"created_at"`
-	Href         string    `json:"href,omitempty"`
-}
+// Item 是操作日志表格中的一条记录。
+type Item = activityapi.Item
 
 // ListOutput 是平台操作日志的响应（固定分页）。
 type ListOutput struct {
@@ -47,67 +32,31 @@ type ListOutput struct {
 
 // List 读取平台域的操作日志。
 type List struct {
-	db *bun.DB
+	svc *activityapi.Service
 }
 
 // NewList 返回平台操作日志查询动作。
-func NewList(db *bun.DB) *List { return &List{db: db} }
+func NewList(db *bun.DB) *List {
+	svc := activityapi.New(db, activityapi.Options{
+		ActorNames: func(ctx context.Context, refs []identity.Ref) (map[identity.Ref]string, error) {
+			return loadActorNames(ctx, db, refs)
+		},
+		TargetNames: func(ctx context.Context, _ string, targets []activityapi.TargetRef) (map[activityapi.TargetRef]string, error) {
+			return loadPlatformTargetNames(ctx, db, targets)
+		},
+		TargetHref: targetHref,
+	})
+	return &List{svc: svc}
+}
 
 // Handle 按条件分页查询平台操作日志，解析操作人姓名和目标名称并翻译为当前语言的展示文字。
 func (a *List) Handle(ctx context.Context, in ListInput) (page.Offset[Item], error) {
-	res, err := activity.List(ctx, a.db, activity.Query{
+	return a.svc.List(ctx, activity.Query{
 		Tenant:     "",
 		ActorTypes: []identity.SubjectType{platformadmin.Type, identity.System},
 		TargetType: in.TargetType,
 		Page:       in.OffsetParams,
 	})
-	if err != nil {
-		return page.Offset[Item]{}, err
-	}
-	actors, err := a.loadActorNames(ctx, res.Items)
-	if err != nil {
-		return page.Offset[Item]{}, err
-	}
-	targets, err := a.loadTargetNames(ctx, res.Items)
-	if err != nil {
-		return page.Offset[Item]{}, err
-	}
-	items := make([]Item, 0, len(res.Items))
-	for _, r := range res.Items {
-		props := maps.Clone(r.Properties)
-		if props == nil {
-			props = map[string]any{}
-		}
-		if _, ok := props["name"]; !ok {
-			if name := targets[targetKey{r.TargetType, r.TargetID}]; name != "" {
-				props["name"] = name
-			} else if r.TargetID != "" {
-				props["name"] = r.TargetID
-			}
-		}
-		// 将 changed 数组格式化为逗号分隔字符串，便于在模板中直接显示
-		if ch, ok := props["changed"].([]any); ok {
-			parts := make([]string, 0, len(ch))
-			for _, v := range ch {
-				if s, ok := v.(string); ok && s != "" {
-					parts = append(parts, s)
-				}
-			}
-			props["changed"] = strings.Join(parts, ", ")
-		}
-		items = append(items, Item{
-			ID:           r.ID.String(),
-			Event:        r.Event,
-			TargetType:   r.TargetType,
-			TargetID:     r.TargetID,
-			Text:         i18n.T(ctx, "activity."+r.Event, props),
-			Actor:        actors[r.Actor()],
-			Impersonator: actors[r.Impersonator()],
-			CreatedAt:    r.CreatedAt,
-			Href:         targetHref(r.TargetType, r.TargetID),
-		})
-	}
-	return page.NewOffset(items, in.OffsetParams, res.Total), nil
 }
 
 // HTTP 处理 GET /audit。
@@ -119,16 +68,10 @@ func (a *List) HTTP(ctx context.Context, in *ListInput) (*ListOutput, error) {
 	return &ListOutput{Body: res}, nil
 }
 
-// targetKey 唯一标识一条日志指向的业务对象。
-type targetKey struct{ kind, id string }
-
-// loadActorNames 批量读取日志中出现的平台管理员与成员姓名，按 identity.Ref 映射。
-func (a *List) loadActorNames(ctx context.Context, rows []activity.Activity) (map[identity.Ref]string, error) {
+// loadActorNames 批量读取日志中出现的平台管理员与成员姓名。
+func loadActorNames(ctx context.Context, db bun.IDB, refs []identity.Ref) (map[identity.Ref]string, error) {
 	var adminIDs, memberIDs []string
-	collect := func(ref identity.Ref) {
-		if ref.IsZero() {
-			return
-		}
+	for _, ref := range refs {
 		switch ref.Type {
 		case platformadmin.Type:
 			adminIDs = append(adminIDs, ref.ID)
@@ -136,17 +79,13 @@ func (a *List) loadActorNames(ctx context.Context, rows []activity.Activity) (ma
 			memberIDs = append(memberIDs, ref.ID)
 		}
 	}
-	for _, r := range rows {
-		collect(r.Actor())
-		collect(r.Impersonator())
-	}
 	names := map[identity.Ref]string{}
 	if len(adminIDs) > 0 {
 		var list []struct {
 			ID   string `bun:"id"`
 			Name string `bun:"name"`
 		}
-		if err := a.db.NewSelect().Table("platform_admins").Column("id", "name").Where("id IN (?)", bun.List(adminIDs)).Scan(ctx, &list); err != nil {
+		if err := db.NewSelect().Table("platform_admins").Column("id", "name").Where("id IN (?)", bun.List(adminIDs)).Scan(ctx, &list); err != nil {
 			return nil, errors.Wrap(err, "load platform admin names")
 		}
 		for _, item := range list {
@@ -158,7 +97,7 @@ func (a *List) loadActorNames(ctx context.Context, rows []activity.Activity) (ma
 			ID   string `bun:"id"`
 			Name string `bun:"name"`
 		}
-		if err := a.db.NewSelect().Table("members").Column("id", "name").Where("id IN (?)", bun.List(memberIDs)).Scan(ctx, &list); err != nil {
+		if err := db.NewSelect().Table("members").Column("id", "name").Where("id IN (?)", bun.List(memberIDs)).Scan(ctx, &list); err != nil {
 			return nil, errors.Wrap(err, "load member names")
 		}
 		for _, item := range list {
@@ -168,60 +107,53 @@ func (a *List) loadActorNames(ctx context.Context, rows []activity.Activity) (ma
 	return names, nil
 }
 
-// loadTargetNames 批量读取日志涉及的工作区、成员和平台管理员名称，供事件译文兜底展示。
-func (a *List) loadTargetNames(ctx context.Context, rows []activity.Activity) (map[targetKey]string, error) {
-	var tenantIDs, adminIDs, memberIDs []string
-	for _, r := range rows {
-		if r.TargetID == "" {
+// targetLookupSpec 描述一种日志目标对象的名称查询表结构。
+type targetLookupSpec struct {
+	kind     string
+	table    string
+	col      string
+	scopedBy string
+}
+
+// lookupTargetNames 按 targets 批量查询各类型目标对象的显示名称。
+func lookupTargetNames(ctx context.Context, db bun.IDB, tenantID string, targets []activityapi.TargetRef, specs []targetLookupSpec) (map[activityapi.TargetRef]string, error) {
+	idsByKind := map[string][]string{}
+	for _, t := range targets {
+		if t.ID != "" {
+			idsByKind[t.Type] = append(idsByKind[t.Type], t.ID)
+		}
+	}
+	names := map[activityapi.TargetRef]string{}
+	for _, sp := range specs {
+		ids := idsByKind[sp.kind]
+		if len(ids) == 0 {
 			continue
 		}
-		switch r.TargetType {
-		case "tenant":
-			tenantIDs = append(tenantIDs, r.TargetID)
-		case string(platformadmin.Type):
-			adminIDs = append(adminIDs, r.TargetID)
-		case string(member.Type):
-			memberIDs = append(memberIDs, r.TargetID)
-		}
-	}
-	names := map[targetKey]string{}
-	if len(tenantIDs) > 0 {
 		var list []struct {
 			ID   string `bun:"id"`
 			Name string `bun:"name"`
 		}
-		if err := a.db.NewSelect().Table("tenants").Column("id", "name").Where("id IN (?)", bun.List(tenantIDs)).Scan(ctx, &list); err != nil {
-			return nil, errors.Wrap(err, "load tenant names")
+		q := db.NewSelect().Table(sp.table).Column("id").ColumnExpr(sp.col+" AS name").Where("id IN (?)", bun.List(ids))
+		if sp.scopedBy != "" {
+			q = q.Where(sp.scopedBy+" = ?", tenantID)
+		}
+		if err := q.Scan(ctx, &list); err != nil {
+			return nil, errors.Wrapf(err, "load audit target %s names", sp.kind)
 		}
 		for _, item := range list {
-			names[targetKey{"tenant", item.ID}] = item.Name
-		}
-	}
-	if len(adminIDs) > 0 {
-		var list []struct {
-			ID   string `bun:"id"`
-			Name string `bun:"name"`
-		}
-		if err := a.db.NewSelect().Table("platform_admins").Column("id", "name").Where("id IN (?)", bun.List(adminIDs)).Scan(ctx, &list); err != nil {
-			return nil, errors.Wrap(err, "load target platform admin names")
-		}
-		for _, item := range list {
-			names[targetKey{string(platformadmin.Type), item.ID}] = item.Name
-		}
-	}
-	if len(memberIDs) > 0 {
-		var list []struct {
-			ID   string `bun:"id"`
-			Name string `bun:"name"`
-		}
-		if err := a.db.NewSelect().Table("members").Column("id", "name").Where("id IN (?)", bun.List(memberIDs)).Scan(ctx, &list); err != nil {
-			return nil, errors.Wrap(err, "load target member names")
-		}
-		for _, item := range list {
-			names[targetKey{string(member.Type), item.ID}] = item.Name
+			names[activityapi.TargetRef{Type: sp.kind, ID: item.ID}] = item.Name
 		}
 	}
 	return names, nil
+}
+
+// loadPlatformTargetNames 批量读取平台日志涉及的工作区、成员与平台管理员名称。
+func loadPlatformTargetNames(ctx context.Context, db bun.IDB, targets []activityapi.TargetRef) (map[activityapi.TargetRef]string, error) {
+	return lookupTargetNames(ctx, db, "", targets, []targetLookupSpec{
+		{kind: "tenant", table: "tenants", col: "name"},
+		{kind: string(platformadmin.Type), table: "platform_admins", col: "name"},
+		{kind: string(member.Type), table: "members", col: "name"},
+	})
 }
 
 // targetHref 返回操作日志条目在管理员端内对应的跳转路径。
@@ -236,14 +168,10 @@ func targetHref(targetType, targetID string) string {
 	case "feature":
 		return "/settings/features"
 	case "settings":
-		switch targetID {
-		case "llm":
+		if targetID == "llm" {
 			return "/settings/model"
-		case "general", "mail":
-			return "/settings/general"
-		default:
-			return "/settings/general"
 		}
+		return "/settings/general"
 	default:
 		return ""
 	}

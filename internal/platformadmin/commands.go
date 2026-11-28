@@ -53,7 +53,7 @@ func Commands(db *bun.DB, roles *authz.Store, logins *login.Realm, tokens *apito
 				}
 			}
 			now := time.Now().UTC()
-			admin := &Admin{ID: newID(), Name: name, CreatedAt: now, UpdatedAt: now}
+			admin := &Admin{ID: database.NewID(), Name: name, CreatedAt: now, UpdatedAt: now}
 			err := database.RunInTx(ctx, db, nil, func(ctx context.Context, tx database.Tx) error {
 				if _, err := tx.NewInsert().Model(admin).Exec(ctx); err != nil {
 					return err

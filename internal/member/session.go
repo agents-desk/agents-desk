@@ -11,11 +11,11 @@ import (
 
 	"github.com/go-tenon/tenon/apitoken"
 	"github.com/go-tenon/tenon/filesystem"
+	"github.com/go-tenon/tenon/filesystem/fileapi"
+	"github.com/go-tenon/tenon/httpx"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/login"
 
-	"agents-desk/internal/account"
-	"agents-desk/internal/clientip"
 	"agents-desk/internal/lang"
 )
 
@@ -81,7 +81,7 @@ func (s *Session) Login(ctx context.Context, in *LoginInput) (*SessionOutput, er
 		return nil, err
 	}
 	token, err := s.tokens.Login(ctx, out.Subject, apitoken.Device{
-		IP:        clientip.FromContext(ctx),
+		IP:        httpx.ClientIPFromContext(ctx),
 		UserAgent: in.UserAgent,
 	})
 	if err != nil {
@@ -123,7 +123,7 @@ func loadProfile(ctx context.Context, db bun.IDB, logins *login.Realm, files *fi
 	if err != nil {
 		return nil, err
 	}
-	avatar, err := account.AvatarURL(ctx, files, m.AvatarFileID)
+	avatar, err := fileapi.URL(ctx, files, m.AvatarFileID)
 	if err != nil {
 		return nil, err
 	}

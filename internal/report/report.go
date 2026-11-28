@@ -5,11 +5,11 @@ package report
 import (
 	"context"
 	"math"
-	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/period"
 
@@ -17,9 +17,6 @@ import (
 	"agents-desk/internal/hours"
 	"agents-desk/internal/team"
 )
-
-// now 返回当前 UTC 时刻；独立为函数便于在 synctest 下与假时钟协同。
-var now = func() time.Time { return time.Now().UTC() }
 
 // PeriodMeta 是报表响应中携带的时间窗口元信息；独立命名以避免与 filesystem.Meta 在 OpenAPI schema 中重名。
 type PeriodMeta period.Meta
@@ -72,26 +69,11 @@ func resolvePeriodOnly(ctx context.Context, db bun.IDB, tenantID string, p perio
 		defZone = hours.Defaults.TimeZone
 	}
 	return period.Resolve(p, period.Options{
-		Now:         now(),
+		Now:         database.Now(),
 		DefaultZone: defZone,
 		DefaultDays: 30,
 		MaxDays:     366,
 	})
-}
-
-// bucketExpr 返回按粒度 g 在参数化时区 ? 下把时间列 col 截断为桶标签字符串的 PostgreSQL 表达式，
-// 格式与 period.Window.Buckets() 保持一致。
-func bucketExpr(col string, g period.Granularity) string {
-	switch g {
-	case period.Hour:
-		return "to_char(date_trunc('hour', " + col + " AT TIME ZONE ?), 'YYYY-MM-DD HH24:MI')"
-	case period.Week:
-		return "to_char(date_trunc('week', " + col + " AT TIME ZONE ?), 'YYYY-MM-DD')"
-	case period.Month:
-		return "to_char(date_trunc('month', " + col + " AT TIME ZONE ?), 'YYYY-MM-DD')"
-	default:
-		return "to_char(date_trunc('day', " + col + " AT TIME ZONE ?), 'YYYY-MM-DD')"
-	}
 }
 
 // round1 把浮点数保留 1 位小数。

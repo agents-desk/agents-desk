@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/go-tenon/tenon/activity"
+	"github.com/go-tenon/tenon/feature/featureapi"
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/apptest"
@@ -26,31 +27,29 @@ func TestFeatureFlagsManagement(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	list := flags.NewList(env.DB, store)
-	set := flags.NewSet(env.DB, store)
-	clear := flags.NewClear(env.DB, store)
+	h := featureapi.NewHandlers(env.DB, store, flags.Options(env.DB))
 
 	// 初始列表返回目录中的全部开关
-	items, err := list.Handle(ctx)
+	items, err := h.ListAll(ctx)
 	if err != nil || len(items) != len(flags.Catalog) {
 		t.Fatalf("开关列表：len=%d err=%v", len(items), err)
 	}
 
-	// 未知开关返回 ErrNotFound
-	if _, err := set.Handle(ctx, apptest.Admin, flags.SetInput{Name: "unknown.flag"}); !errors.Is(err, flags.ErrNotFound) {
-		t.Fatalf("未知开关应当返回 ErrNotFound，实际 %v", err)
+	// 未知开关返回 featureapi.ErrNotFound
+	if _, err := h.ApplySet(ctx, apptest.Admin, featureapi.SetInput{Name: "unknown.flag"}); !errors.Is(err, featureapi.ErrNotFound) {
+		t.Fatalf("未知开关应当返回 featureapi.ErrNotFound，实际 %v", err)
 	}
 
 	// 为指定工作区开启默认关闭的实验开关
-	in := flags.SetInput{Name: flags.WidgetVisitorUploads.Name}
-	in.Body.Scope = flags.ScopeTenant
+	in := featureapi.SetInput{Name: flags.WidgetVisitorUploads.Name}
+	in.Body.Scope = featureapi.ScopeTenant
 	in.Body.TenantID = created.ID
-	in.Body.Mode = flags.ModeOn
-	updated, err := set.Handle(ctx, apptest.Admin, in)
+	in.Body.Mode = featureapi.ModeOn
+	updated, err := h.ApplySet(ctx, apptest.Admin, in)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(updated.Overrides) != 1 || updated.Overrides[0].TenantSlug != "beta" || updated.Overrides[0].Mode != flags.ModeOn {
+	if len(updated.Overrides) != 1 || updated.Overrides[0].TenantSlug != "beta" || updated.Overrides[0].Mode != featureapi.ModeOn {
 		t.Fatalf("工作区覆盖不符合预期：%+v", updated.Overrides)
 	}
 	if !store.Active(ctx, identity.Subject{Tenant: created.ID}, flags.WidgetVisitorUploads) {
@@ -58,18 +57,18 @@ func TestFeatureFlagsManagement(t *testing.T) {
 	}
 
 	// 全员按比例放量 25%
-	in = flags.SetInput{Name: flags.WidgetVisitorUploads.Name}
-	in.Body.Scope = flags.ScopeEveryone
-	in.Body.Mode = flags.ModePercent
+	in = featureapi.SetInput{Name: flags.WidgetVisitorUploads.Name}
+	in.Body.Scope = featureapi.ScopeEveryone
+	in.Body.Mode = featureapi.ModePercent
 	in.Body.Percent = 25
-	updated, err = set.Handle(ctx, apptest.Admin, in)
-	if err != nil || updated.Everyone == nil || updated.Everyone.Mode != flags.ModePercent || updated.Everyone.Percent != 25 {
+	updated, err = h.ApplySet(ctx, apptest.Admin, in)
+	if err != nil || updated.Everyone == nil || updated.Everyone.Mode != featureapi.ModePercent || updated.Everyone.Percent != 25 {
 		t.Fatalf("全员比例设置：%+v err=%v", updated.Everyone, err)
 	}
 
 	// 清除工作区覆盖
-	cleared, err := clear.Handle(ctx, apptest.Admin, flags.ClearInput{
-		Name: flags.WidgetVisitorUploads.Name, Scope: flags.ScopeTenant, TenantID: created.ID,
+	cleared, err := h.ApplyClear(ctx, apptest.Admin, featureapi.ClearInput{
+		Name: flags.WidgetVisitorUploads.Name, Scope: featureapi.ScopeTenant, TenantID: created.ID,
 	})
 	if err != nil || len(cleared.Overrides) != 0 {
 		t.Fatalf("清除覆盖后应当为空：%+v err=%v", cleared.Overrides, err)
@@ -82,16 +81,16 @@ func TestFeatureFlagsManagement(t *testing.T) {
 	}
 
 	// 强制全员开启/关闭模式应映射到 feature.ForceOn / feature.ForceOff 并覆盖默认状态
-	in = flags.SetInput{Name: flags.WidgetVisitorUploads.Name}
-	in.Body.Scope = flags.ScopeEveryone
-	in.Body.Mode = flags.ModeForceOn
-	updated, err = set.Handle(ctx, apptest.Admin, in)
-	if err != nil || updated.Everyone == nil || updated.Everyone.Mode != flags.ModeForceOn || !store.Active(ctx, identity.Subject{Tenant: created.ID}, flags.WidgetVisitorUploads) {
+	in = featureapi.SetInput{Name: flags.WidgetVisitorUploads.Name}
+	in.Body.Scope = featureapi.ScopeEveryone
+	in.Body.Mode = featureapi.ModeForceOn
+	updated, err = h.ApplySet(ctx, apptest.Admin, in)
+	if err != nil || updated.Everyone == nil || updated.Everyone.Mode != featureapi.ModeForceOn || !store.Active(ctx, identity.Subject{Tenant: created.ID}, flags.WidgetVisitorUploads) {
 		t.Fatalf("ModeForceOn 设置不符合预期：%+v err=%v", updated.Everyone, err)
 	}
-	in.Body.Mode = flags.ModeForceOff
-	updated, err = set.Handle(ctx, apptest.Admin, in)
-	if err != nil || updated.Everyone == nil || updated.Everyone.Mode != flags.ModeForceOff || store.Active(ctx, identity.Subject{Tenant: created.ID}, flags.WidgetVisitorUploads) {
+	in.Body.Mode = featureapi.ModeForceOff
+	updated, err = h.ApplySet(ctx, apptest.Admin, in)
+	if err != nil || updated.Everyone == nil || updated.Everyone.Mode != featureapi.ModeForceOff || store.Active(ctx, identity.Subject{Tenant: created.ID}, flags.WidgetVisitorUploads) {
 		t.Fatalf("ModeForceOff 设置不符合预期：%+v err=%v", updated.Everyone, err)
 	}
 }

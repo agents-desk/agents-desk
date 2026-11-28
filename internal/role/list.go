@@ -40,7 +40,7 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) 
 	all = slices.DeleteFunc(all, func(r authz.Role) bool {
 		return r.Tenant != sub.Tenant || !strings.Contains(strings.ToLower(r.Name), name)
 	})
-	counts, err := memberCounts(ctx, a.roles, sub.Tenant)
+	counts, err := a.roles.RoleMemberCounts(ctx, sub.Tenant)
 	if err != nil {
 		return nil, err
 	}

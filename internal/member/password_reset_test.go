@@ -12,6 +12,7 @@ import (
 	"github.com/go-tenon/tenon/login/logintest"
 	"github.com/go-tenon/tenon/queue/queuetest"
 
+	"agents-desk/internal/account"
 	"agents-desk/internal/apptest"
 	"agents-desk/internal/auth"
 	"agents-desk/internal/emails"
@@ -96,7 +97,7 @@ func TestMemberPasswordResetAdminResetAndInviteMail(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pr := member.NewPasswordReset(logins, tokens)
+	pr := account.NewPasswordReset(logins, tokens)
 	req, err := pr.Forgot(ctx, "alice@example.com")
 	if err != nil {
 		t.Fatal(err)

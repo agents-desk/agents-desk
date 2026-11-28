@@ -10,7 +10,6 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
-	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
@@ -127,7 +126,7 @@ func (a *CreateTicket) Handle(ctx context.Context, sub identity.Subject, p Creat
 				return ErrForbidden.New()
 			}
 			ref := identity.Ref{Type: member.Type, ID: *p.AssigneeID}
-			if _, err := member.RoleOf(ctx, authz.NewStore(tx, auth.Catalog), ref, sub.Tenant); err != nil {
+			if _, err := member.RoleOf(ctx, a.down.rolesWithDB(tx), ref, sub.Tenant); err != nil {
 				if errors.Is(err, member.ErrNotFound) {
 					return member.ErrNotFound.New(errorx.Field("assignee_id"))
 				}
@@ -233,9 +232,9 @@ func (a *CreateTicket) Handle(ctx context.Context, sub identity.Subject, p Creat
 		if err != nil {
 			return err
 		}
-		at := now()
+		at := database.Now()
 		c := &Conversation{
-			ID:            newID(),
+			ID:            database.NewID(),
 			TenantID:      sub.Tenant,
 			Kind:          Ticket,
 			TeamID:        teamID,
@@ -284,7 +283,7 @@ func (a *CreateTicket) Handle(ctx context.Context, sub identity.Subject, p Creat
 		// 写入受影响对象关联，并在每条来源服务型会话记系统事件
 		for _, l := range links {
 			rec := &TicketTarget{
-				ID:                   newID(),
+				ID:                   database.NewID(),
 				TenantID:             sub.Tenant,
 				TicketID:             c.ID,
 				ContactID:            l.contactID,

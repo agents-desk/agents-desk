@@ -18,6 +18,7 @@ import (
 	"github.com/go-tenon/tenon/enum"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/filesystem"
+	"github.com/go-tenon/tenon/filesystem/fileapi"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/mail"
 	"github.com/go-tenon/tenon/mail/logmail"
@@ -95,12 +96,22 @@ func BuildMailer(m Mail) (mail.Mailer, error) {
 
 // DynamicMailer 根据平台实时的 Resend 设置动态构建并发送邮件，使管理后台改完配置无需重启立即生效。
 type DynamicMailer struct {
+	*mail.DynamicMailer
 	group *settings.Group[Mail]
 }
 
 // NewDynamicMailer 返回动态读取 mailSettings 的邮件发送器。
 func NewDynamicMailer(group *settings.Group[Mail]) *DynamicMailer {
-	return &DynamicMailer{group: group}
+	return &DynamicMailer{
+		group: group,
+		DynamicMailer: mail.NewDynamic(func(ctx context.Context) (mail.Mailer, error) {
+			cfg, err := group.Get(ctx)
+			if err != nil {
+				return nil, err
+			}
+			return BuildMailer(cfg)
+		}),
+	}
 }
 
 // Configured 报告平台是否已配置有效的 Resend API Key 与发件人邮箱。
@@ -113,19 +124,6 @@ func (m *DynamicMailer) Configured(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	return strings.TrimSpace(cfg.APIKey) != "" && strings.TrimSpace(cfg.FromEmail) != "", nil
-}
-
-// Send 读取最新平台邮件配置并发送邮件 msg。
-func (m *DynamicMailer) Send(ctx context.Context, msg mail.Message) error {
-	cfg, err := m.group.Get(ctx)
-	if err != nil {
-		return err
-	}
-	sender, err := BuildMailer(cfg)
-	if err != nil {
-		return err
-	}
-	return sender.Send(ctx, msg)
 }
 
 // NewGeneralGroup 返回平台常规设置的存储组。
@@ -182,7 +180,7 @@ func (a *GetPublicSite) HTTP(ctx context.Context, _ *struct{}) (*PublicSiteBody,
 		if err != nil {
 			return nil, err
 		}
-		logoURL, err = file.URL(ctx, a.files, &id)
+		logoURL, err = fileapi.URL(ctx, a.files, &id)
 		if err != nil {
 			return nil, err
 		}
@@ -228,9 +226,6 @@ func (a *SaveGeneral) Handle(ctx context.Context, subject identity.Subject, next
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		var changed []string
 		err := a.group.WithDB(tx).Update(ctx, func(cur *General) error {
-			if cur.SiteName != next.SiteName {
-				changed = append(changed, "site_name")
-			}
 			if cur.LogoFileID != next.LogoFileID {
 				var curID *uuid.UUID
 				if cur.LogoFileID != "" {
@@ -240,7 +235,7 @@ func (a *SaveGeneral) Handle(ctx context.Context, subject identity.Subject, next
 					}
 					curID = &parsed
 				}
-				newID, err := file.ReplaceImage(ctx, tx, a.files, subject, "logo_file_id", file.Logo, curID, next.LogoFileID)
+				newID, err := fileapi.ReplaceOptional(ctx, tx, a.files, subject, "logo_file_id", file.Logo, curID, next.LogoFileID)
 				if err != nil {
 					return err
 				}
@@ -249,14 +244,8 @@ func (a *SaveGeneral) Handle(ctx context.Context, subject identity.Subject, next
 				} else {
 					next.LogoFileID = ""
 				}
-				changed = append(changed, "logo_file_id")
 			}
-			if cur.SupportEmail != next.SupportEmail {
-				changed = append(changed, "support_email")
-			}
-			if cur.DefaultLanguage != next.DefaultLanguage {
-				changed = append(changed, "default_language")
-			}
+			changed = a.group.Diff(*cur, next)
 			*cur = next
 			return nil
 		})
@@ -323,15 +312,7 @@ func (a *SaveMail) Handle(ctx context.Context, subject identity.Subject, next Ma
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		var changed []string
 		err := a.group.WithDB(tx).Update(ctx, func(cur *Mail) error {
-			if cur.FromName != next.FromName {
-				changed = append(changed, "from_name")
-			}
-			if cur.FromEmail != next.FromEmail {
-				changed = append(changed, "from_email")
-			}
-			if cur.APIKey != next.APIKey {
-				changed = append(changed, "api_key")
-			}
+			changed = a.group.Diff(*cur, next)
 			*cur = next
 			return nil
 		})

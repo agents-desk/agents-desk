@@ -13,6 +13,7 @@ import (
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/feature"
 	"github.com/go-tenon/tenon/filesystem"
+	"github.com/go-tenon/tenon/filesystem/fileapi"
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/file"
@@ -54,7 +55,7 @@ func (a *Rename) Handle(ctx context.Context, sub identity.Subject, s GeneralSett
 		var logoChanged bool
 		var nextLogo *uuid.UUID
 		if s.LogoFileID != nil {
-			nextLogo, err = file.ReplaceImage(ctx, tx, a.files, sub, "logo_file_id", file.Logo, t.LogoFileID, strings.TrimSpace(*s.LogoFileID))
+			nextLogo, err = fileapi.ReplaceOptional(ctx, tx, a.files, sub, "logo_file_id", file.Logo, t.LogoFileID, strings.TrimSpace(*s.LogoFileID))
 			if err != nil {
 				return err
 			}

@@ -41,7 +41,7 @@ func TestQueueExportTenants(t *testing.T) {
 
 	ops := operation.New(env.DB)
 	exporter := exports.New(env.DB, ops, env.Files)
-	action := tenant.NewQueueExport(env.DB, addr, nil, exporter)
+	action := tenant.NewQueueExport(env.DB, env.MemberLogins, addr, nil, exporter)
 
 	// 发起后台导出
 	exp, err := action.Handle(ctx, apptest.Admin, sheet.XLSX, "", "")
@@ -117,7 +117,7 @@ func TestQueueExportTenantsCursorPagination(t *testing.T) {
 
 	ops := operation.New(env.DB)
 	exporter := exports.New(env.DB, ops, env.Files)
-	action := tenant.NewQueueExport(env.DB, tenant.Addresses{PublicURL: "http://localhost:8081"}, nil, exporter)
+	action := tenant.NewQueueExport(env.DB, env.MemberLogins, tenant.Addresses{PublicURL: "http://localhost:8081"}, nil, exporter)
 	exp, err := action.Handle(ctx, apptest.Admin, sheet.CSV, "", "")
 	if err != nil {
 		t.Fatal(err)

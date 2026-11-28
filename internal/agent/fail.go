@@ -55,7 +55,7 @@ func (a *Fail) Handle(ctx context.Context, sub identity.Subject, p FailParams) e
 		}
 		g.State = Failed
 		g.Error = p.Reason
-		g.UpdatedAt = now()
+		g.UpdatedAt = database.Now()
 		if p.ToolCalls != nil {
 			g.ToolCalls = p.ToolCalls
 		}

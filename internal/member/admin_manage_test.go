@@ -57,10 +57,10 @@ func TestAdminMemberManagement(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	adminList := member.NewAdminList(env.DB, env.MemberLogins)
-	adminGet := member.NewAdminGet(env.DB, env.MemberLogins)
-	disableAct := member.NewAdminDisable(env.DB, env.MemberLogins, creds)
-	enableAct := member.NewAdminEnable(env.DB, env.MemberLogins)
+	adminList := member.NewAdminList(env.DB, env.Roles, env.MemberLogins)
+	adminGet := member.NewAdminGet(env.DB, env.Roles, env.MemberLogins)
+	disableAct := member.NewAdminDisable(env.DB, env.Roles, env.MemberLogins, creds)
+	enableAct := member.NewAdminEnable(env.DB, env.Roles, env.MemberLogins)
 
 	// 按邮箱关键词搜索主管理一
 	found, err := adminList.Handle(ctx, &member.AdminListInput{Q: "owner1@gm.com"})

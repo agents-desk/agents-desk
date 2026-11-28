@@ -87,7 +87,7 @@ func (a *Deliver) Job(ctx context.Context, p Appended) error {
 				return errors.Wrap(err, "lock item for dead delivery retry")
 			}
 			res, err := tx.NewUpdate().Model((*Delivery)(nil)).
-				Set("status = ?", Sending).Set("error = ''").Set("updated_at = ?", now()).
+				Set("status = ?", Sending).Set("error = ''").Set("updated_at = ?", database.Now()).
 				Where("item_id = ? AND status = ?", it.ID, Failed).Exec(ctx)
 			if err != nil {
 				return errors.Wrap(err, "reclaim failed delivery")
@@ -403,7 +403,7 @@ func (a *Deliver) markAndNotify(ctx context.Context, tenantID, conversationID, i
 			}
 		}
 		q := tx.NewUpdate().Model((*Delivery)(nil)).
-			Set("status = ?", status).Set("external_id = ?", externalID).Set("error = ?", reason).Set("updated_at = ?", now()).
+			Set("status = ?", status).Set("external_id = ?", externalID).Set("error = ?", reason).Set("updated_at = ?", database.Now()).
 			Where("item_id = ?", itemID)
 		if status == Failed {
 			q = q.Where("status = ?", Sending)

@@ -8,6 +8,7 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/authz"
+	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/period"
 
@@ -188,7 +189,7 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 	}
 
 	// 2. 实时快照：商务沟通近 24 小时活跃数与待跟进数（最新消息来自外部联系人或外部群发言人）
-	since24h := now().Add(-24 * time.Hour)
+	since24h := database.Now().Add(-24 * time.Hour)
 	if err := a.db.NewRaw(`
 		SELECT
 			count(*) FILTER (WHERE c.last_message_at >= ?) AS active_24h,
@@ -356,15 +357,7 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 	ai.PrevTotalCostUSD = round6(ai.PrevTotalCostUSD)
 
 	// 8. 合并全局趋势序列（对外客服新建、商务服务新建、内部服务新建、工单新建、商务消息量）
-	pointMap := map[string]*OverviewPoint{}
-	ensurePt := func(b string) *OverviewPoint {
-		pt, ok := pointMap[b]
-		if !ok {
-			pt = &OverviewPoint{Date: b}
-			pointMap[b] = pt
-		}
-		return pt
-	}
+	pointMap := map[string]OverviewPoint{}
 	type convSeriesRow struct {
 		Bucket   string `bun:"bucket"`
 		Service  int64  `bun:"svc"`
@@ -374,7 +367,7 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 	}
 	var convRows []convSeriesRow
 	if err := a.db.NewSelect().TableExpr("conversations c").
-		ColumnExpr(bucketExpr("c.created_at", w.Granularity)+" AS bucket", w.TimeZone).
+		ColumnExpr(w.BucketExpr("c.created_at")+" AS bucket", w.TimeZone).
 		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.audience = ?) AS svc", conversation.Service, channel.AudienceCustomer).
 		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.audience = ?) AS partner", conversation.Service, channel.AudiencePartner).
 		ColumnExpr("count(*) FILTER (WHERE c.kind = ? AND c.audience = ?) AS internal", conversation.Service, channel.AudienceInternal).
@@ -386,11 +379,13 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 		return nil, errors.Wrap(err, "report overview conv series")
 	}
 	for _, r := range convRows {
-		pt := ensurePt(r.Bucket)
+		pt := pointMap[r.Bucket]
+		pt.Date = r.Bucket
 		pt.ServiceCreated = r.Service
 		pt.PartnerCreated = r.Partner
 		pt.InternalCreated = r.Internal
 		pt.TicketCreated = r.Ticket
+		pointMap[r.Bucket] = pt
 	}
 
 	type bizSeriesRow struct {
@@ -401,7 +396,7 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 	if err := a.db.NewSelect().TableExpr("timeline_items it").
 		Join("JOIN conversations c ON c.id = it.conversation_id").
 		Join("JOIN chats ch ON ch.conversation_id = c.id").
-		ColumnExpr(bucketExpr("it.created_at", w.Granularity)+" AS bucket", w.TimeZone).
+		ColumnExpr(w.BucketExpr("it.created_at")+" AS bucket", w.TimeZone).
 		ColumnExpr("count(*) AS cnt").
 		Where("it.tenant_id = ? AND c.kind = ? AND ch.scope = ? AND c.spam_at IS NULL AND it.kind = ? AND it.created_at >= ? AND it.created_at < ?",
 			sub.Tenant, conversation.Chat, conversation.ChatExternal, conversation.Message, w.Start, w.End).
@@ -410,17 +405,15 @@ func (a *Overview) Handle(ctx context.Context, sub identity.Subject, p period.Pa
 		return nil, errors.Wrap(err, "report overview business series")
 	}
 	for _, r := range bizRows {
-		ensurePt(r.Bucket).BusinessMessages = r.Count
+		pt := pointMap[r.Bucket]
+		pt.Date = r.Bucket
+		pt.BusinessMessages = r.Count
+		pointMap[r.Bucket] = pt
 	}
 
-	sparse := make([]OverviewPoint, 0, len(pointMap))
-	for _, pt := range pointMap {
-		sparse = append(sparse, *pt)
-	}
-	series := period.FillSeries(w, sparse,
-		func(pt OverviewPoint) string { return pt.Date },
-		func(b string) OverviewPoint { return OverviewPoint{Date: b} },
-	)
+	series := period.FillSeriesMap(w, pointMap, func(b string) OverviewPoint {
+		return OverviewPoint{Date: b}
+	})
 
 	return &OverviewReport{
 		Period:   PeriodMeta(w.Meta()),

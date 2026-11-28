@@ -144,19 +144,11 @@ func (a *Conversations) Handle(ctx context.Context, sub identity.Subject, f Filt
 		Bucket string `bun:"bucket"`
 		Count  int64  `bun:"cnt"`
 	}
-	byDate := map[string]*ConversationsPoint{}
-	touch := func(b string) *ConversationsPoint {
-		p, ok := byDate[b]
-		if !ok {
-			p = &ConversationsPoint{Date: b}
-			byDate[b] = p
-		}
-		return p
-	}
+	byDate := map[string]ConversationsPoint{}
 
 	var createdRows []bucketVal
 	qCreatedSeries := a.db.NewSelect().TableExpr("conversations c").
-		ColumnExpr(bucketExpr("c.created_at", w.Granularity)+" AS bucket", w.TimeZone).
+		ColumnExpr(w.BucketExpr("c.created_at")+" AS bucket", w.TimeZone).
 		ColumnExpr("count(*) AS cnt").
 		Where("c.tenant_id = ? AND c.kind = ? AND c.created_at >= ? AND c.created_at < ?", sub.Tenant, conversation.Service, w.Start, w.End).
 		GroupExpr("1")
@@ -165,13 +157,16 @@ func (a *Conversations) Handle(ctx context.Context, sub identity.Subject, f Filt
 		return nil, errors.Wrap(err, "report conversations created series")
 	}
 	for _, r := range createdRows {
-		touch(r.Bucket).Created = r.Count
+		p := byDate[r.Bucket]
+		p.Date = r.Bucket
+		p.Created = r.Count
+		byDate[r.Bucket] = p
 	}
 
 	var reopenedRows []bucketVal
 	qReopenedSeries := a.db.NewSelect().TableExpr("conversation_rounds r").
 		Join("JOIN conversations c ON c.id = r.conversation_id").
-		ColumnExpr(bucketExpr("r.opened_at", w.Granularity)+" AS bucket", w.TimeZone).
+		ColumnExpr(w.BucketExpr("r.opened_at")+" AS bucket", w.TimeZone).
 		ColumnExpr("count(*) AS cnt").
 		Where("r.tenant_id = ? AND c.kind = ? AND r.round > 1 AND r.opened_at >= ? AND r.opened_at < ?", sub.Tenant, conversation.Service, w.Start, w.End).
 		GroupExpr("1")
@@ -180,13 +175,16 @@ func (a *Conversations) Handle(ctx context.Context, sub identity.Subject, f Filt
 		return nil, errors.Wrap(err, "report conversations reopened series")
 	}
 	for _, r := range reopenedRows {
-		touch(r.Bucket).Reopened = r.Count
+		p := byDate[r.Bucket]
+		p.Date = r.Bucket
+		p.Reopened = r.Count
+		byDate[r.Bucket] = p
 	}
 
 	var closedRows []bucketVal
 	qClosedSeries := a.db.NewSelect().TableExpr("conversation_rounds r").
 		Join("JOIN conversations c ON c.id = r.conversation_id").
-		ColumnExpr(bucketExpr("r.closed_at", w.Granularity)+" AS bucket", w.TimeZone).
+		ColumnExpr(w.BucketExpr("r.closed_at")+" AS bucket", w.TimeZone).
 		ColumnExpr("count(*) AS cnt").
 		Where("r.tenant_id = ? AND c.kind = ? AND r.closed_at >= ? AND r.closed_at < ?", sub.Tenant, conversation.Service, w.Start, w.End).
 		GroupExpr("1")
@@ -195,17 +193,15 @@ func (a *Conversations) Handle(ctx context.Context, sub identity.Subject, f Filt
 		return nil, errors.Wrap(err, "report conversations closed series")
 	}
 	for _, r := range closedRows {
-		touch(r.Bucket).Closed = r.Count
+		p := byDate[r.Bucket]
+		p.Date = r.Bucket
+		p.Closed = r.Count
+		byDate[r.Bucket] = p
 	}
 
-	sparse := make([]ConversationsPoint, 0, len(byDate))
-	for _, p := range byDate {
-		sparse = append(sparse, *p)
-	}
-	series := period.FillSeries(w, sparse,
-		func(p ConversationsPoint) string { return p.Date },
-		func(b string) ConversationsPoint { return ConversationsPoint{Date: b} },
-	)
+	series := period.FillSeriesMap(w, byDate, func(b string) ConversationsPoint {
+		return ConversationsPoint{Date: b}
+	})
 
 	// 5. 按渠道分布
 	byChannel, err := a.channelVolumes(ctx, sub.Tenant, w, f)

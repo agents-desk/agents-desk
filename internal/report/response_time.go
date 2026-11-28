@@ -127,15 +127,7 @@ func (a *ResponseTime) Handle(ctx context.Context, sub identity.Subject, f Filte
 	}
 
 	// 3. 趋势序列（中位数与样本量，按连续时间桶补零）
-	byDate := map[string]*ResponseTimePoint{}
-	touch := func(b string) *ResponseTimePoint {
-		p, ok := byDate[b]
-		if !ok {
-			p = &ResponseTimePoint{Date: b}
-			byDate[b] = p
-		}
-		return p
-	}
+	byDate := map[string]ResponseTimePoint{}
 	type seriesRow struct {
 		Bucket  string   `bun:"bucket"`
 		Samples int64    `bun:"samples"`
@@ -144,7 +136,7 @@ func (a *ResponseTime) Handle(ctx context.Context, sub identity.Subject, f Filte
 	var frtSeries []seriesRow
 	qFRTSeries := a.db.NewSelect().TableExpr("conversation_rounds r").
 		Join("JOIN conversations c ON c.id = r.conversation_id").
-		ColumnExpr(bucketExpr("r.first_reply_at", w.Granularity)+" AS bucket", w.TimeZone).
+		ColumnExpr(w.BucketExpr("r.first_reply_at")+" AS bucket", w.TimeZone).
 		ColumnExpr("count(*) AS samples").
 		ColumnExpr("percentile_cont(0.5) WITHIN GROUP (ORDER BY "+frtExpr+") AS median").
 		Where("r.tenant_id = ? AND c.kind = ? AND r.first_reply_at >= ? AND r.first_reply_at < ?", sub.Tenant, conversation.Service, w.Start, w.End).
@@ -154,15 +146,17 @@ func (a *ResponseTime) Handle(ctx context.Context, sub identity.Subject, f Filte
 		return nil, errors.Wrap(err, "report frt series")
 	}
 	for _, r := range frtSeries {
-		p := touch(r.Bucket)
+		p := byDate[r.Bucket]
+		p.Date = r.Bucket
 		p.FirstReplySamples = r.Samples
 		p.FirstReplyMedian = roundPtr(r.Median)
+		byDate[r.Bucket] = p
 	}
 
 	var resSeries []seriesRow
 	qResSeries := a.db.NewSelect().TableExpr("conversation_rounds r").
 		Join("JOIN conversations c ON c.id = r.conversation_id").
-		ColumnExpr(bucketExpr("r.closed_at", w.Granularity)+" AS bucket", w.TimeZone).
+		ColumnExpr(w.BucketExpr("r.closed_at")+" AS bucket", w.TimeZone).
 		ColumnExpr("count(*) AS samples").
 		ColumnExpr("percentile_cont(0.5) WITHIN GROUP (ORDER BY "+resExpr+") AS median").
 		Where("r.tenant_id = ? AND c.kind = ? AND r.closed_at >= ? AND r.closed_at < ?", sub.Tenant, conversation.Service, w.Start, w.End).
@@ -172,19 +166,16 @@ func (a *ResponseTime) Handle(ctx context.Context, sub identity.Subject, f Filte
 		return nil, errors.Wrap(err, "report resolution series")
 	}
 	for _, r := range resSeries {
-		p := touch(r.Bucket)
+		p := byDate[r.Bucket]
+		p.Date = r.Bucket
 		p.ResolutionSamples = r.Samples
 		p.ResolutionMedian = roundPtr(r.Median)
+		byDate[r.Bucket] = p
 	}
 
-	sparse := make([]ResponseTimePoint, 0, len(byDate))
-	for _, p := range byDate {
-		sparse = append(sparse, *p)
-	}
-	series := period.FillSeries(w, sparse,
-		func(p ResponseTimePoint) string { return p.Date },
-		func(b string) ResponseTimePoint { return ResponseTimePoint{Date: b} },
-	)
+	series := period.FillSeriesMap(w, byDate, func(b string) ResponseTimePoint {
+		return ResponseTimePoint{Date: b}
+	})
 
 	// 4. 时长分桶直方图
 	frtBuckets, err := a.durationBuckets(ctx, sub.Tenant, f, "r.first_reply_at", frtExpr, w)

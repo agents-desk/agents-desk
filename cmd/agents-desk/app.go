@@ -485,7 +485,7 @@ func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
 	})
 	a.agentSvc.SetDownstream(down)
 	agent.RegisterJobs(w, a.agentSvc.Runner())
-	tenant.RegisterJobs(w, a.db, tenant.Addresses{PublicURL: a.cfg.HTTP.PublicURL}, a.hub, a.exporter)
+	tenant.RegisterJobs(w, a.db, a.memberLogins, tenant.Addresses{PublicURL: a.cfg.HTTP.PublicURL}, a.hub, a.exporter)
 	contact.RegisterJobs(w, a.db, a.hub, a.exporter)
 	conversation.RegisterExportJobs(w, a.db, a.hub, a.exporter)
 	scheduleapi.HandleRunNow(w, a.tasks)

@@ -8,7 +8,6 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
-	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
@@ -105,7 +104,7 @@ func applyAssign(ctx context.Context, tx database.Tx, down Downstream, sub ident
 		toType, toID = BotActor, *p.AssigneeID
 	case p.AssigneeID != nil:
 		ref := identity.Ref{Type: member.Type, ID: *p.AssigneeID}
-		if _, err := member.RoleOf(ctx, authz.NewStore(tx, auth.Catalog), ref, sub.Tenant); err != nil {
+		if _, err := member.RoleOf(ctx, down.rolesWithDB(tx), ref, sub.Tenant); err != nil {
 			if errors.Is(err, member.ErrNotFound) {
 				return nil, member.ErrNotFound.New(errorx.Field("assignee_id"))
 			}

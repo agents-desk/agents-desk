@@ -554,15 +554,8 @@ tgaccount.login_step.awaiting_password: 等待两步验证密码
 tgaccount.login_step.connected: 已连接
 tgaccount.login_step.failed: 登录失败
 
-flags.not_found: 功能开关不存在
-flags.tenant_required: 请选择一个工作区
-flags.scope.everyone: 全员
-flags.scope.tenant: 工作区
-flags.mode.on: 开启
-flags.mode.off: 关闭
-flags.mode.force_on: 强制全员开启
-flags.mode.force_off: 强制全员关闭
-flags.mode.percent: 按比例放量
+feature.tenant_required: 请选择一个工作区
+feature.scope.tenant: 工作区
 
 notification.tenants.exported.title: 工作区列表导出完成
 notification.tenants.exported.body: "已导出 {{.processed}} 个工作区，点击查看工作区列表。"

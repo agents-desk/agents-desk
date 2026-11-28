@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/database"
@@ -184,6 +183,3 @@ func normalizeDomain(raw string) string {
 	}
 	return strings.ToLower(strings.TrimSpace(s))
 }
-
-func newID() string  { return uuid.Must(uuid.NewV7()).String() }
-func now() time.Time { return time.Now().UTC().Truncate(time.Microsecond) }

@@ -101,9 +101,9 @@ func (a *CreateBot) Handle(ctx context.Context, sub identity.Subject, in BotInpu
 	if in.Enabled != nil {
 		enabled = *in.Enabled
 	}
-	at := now()
+	at := database.Now()
 	b := &Bot{
-		ID:       newID(),
+		ID:       database.NewID(),
 		TenantID: sub.Tenant,
 		Name:     strings.TrimSpace(in.Name),
 		Enabled:  enabled,
@@ -154,7 +154,7 @@ func (a *UpdateBot) Handle(ctx context.Context, sub identity.Subject, id string,
 			b.Enabled = *in.Enabled
 		}
 		b.Settings = botSettingsMap(in.Settings)
-		b.UpdatedAt = now()
+		b.UpdatedAt = database.Now()
 		if _, err := tx.NewUpdate().Model(&b).Column("name", "enabled", "settings", "updated_at").WherePK().Exec(ctx); err != nil {
 			return errors.Wrap(err, "update bot")
 		}

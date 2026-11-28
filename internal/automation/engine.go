@@ -10,6 +10,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/feature"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/lock"
@@ -184,9 +185,9 @@ func (r *Runner) alreadyExecuted(ctx context.Context, ruleID, dedupKey string) (
 
 // recordRun 写入或更新一次规则的执行记录。
 func (r *Runner) recordRun(ctx context.Context, tenantID, ruleID, conversationID, triggerItemID, dedupKey string, status RunStatus, errMsg string) error {
-	at := now()
+	at := database.Now()
 	run := &Run{
-		ID: newID(), TenantID: tenantID, RuleID: ruleID, ConversationID: conversationID,
+		ID: database.NewID(), TenantID: tenantID, RuleID: ruleID, ConversationID: conversationID,
 		TriggerItemID: triggerItemID, DedupKey: dedupKey, Status: status, Error: errMsg,
 	}
 	run.CreatedAt, run.UpdatedAt = at, at

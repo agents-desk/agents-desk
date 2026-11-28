@@ -109,7 +109,7 @@ func (a *UpdateTicket) Handle(ctx context.Context, sub identity.Subject, id stri
 		if _, err := tx.NewUpdate().Model(tk).Column(cols...).WherePK().Exec(ctx); err != nil {
 			return errors.Wrap(err, "update ticket meta")
 		}
-		c.LastMessageAt = now()
+		c.LastMessageAt = database.Now()
 		ev := event(sub, "ticket.updated", map[string]any{"changes": changed})
 		return commit(ctx, tx, a.down, c, ev)
 	})
@@ -163,7 +163,7 @@ func (a *SetTicketStatus) Handle(ctx context.Context, sub identity.Subject, id s
 		if from == status {
 			return nil
 		}
-		at := now()
+		at := database.Now()
 		c.Status = Status(status)
 		c.LastMessageAt = at
 		if status == TicketResolved {

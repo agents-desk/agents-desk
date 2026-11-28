@@ -11,11 +11,11 @@ import (
 	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/filesystem"
+	"github.com/go-tenon/tenon/filesystem/fileapi"
 	"github.com/go-tenon/tenon/httpx/rest"
 	"github.com/go-tenon/tenon/login"
 
 	"agents-desk/internal/account"
-	"agents-desk/internal/file"
 )
 
 // RegisterRoutes 注册平台管理员的登录、退出、当前账号、个人资料、修改密码和上传文件。files 保存上传的文件（头像），maxUpload 是单个文件的上限。requireAdmin 要求平台管理员的登录凭据；
@@ -32,7 +32,7 @@ func RegisterRoutes(api *rest.API, requireAdmin func(*huma.Operation), db *bun.D
 	requireAdmin(&op)
 	rest.Register(api, op, s.Logout)
 
-	pr := NewPasswordReset(logins, tokens)
+	pr := account.NewPasswordReset(logins, tokens)
 	op = huma.Operation{OperationID: "admin-password-forgot", Method: http.MethodPost, Path: "/auth/password/forgot", Summary: "发送重置密码验证码邮件"}
 	rest.Public()(&op)
 	rest.SameOrigin(api)(&op)
@@ -56,7 +56,7 @@ func RegisterRoutes(api *rest.API, requireAdmin func(*huma.Operation), db *bun.D
 	requireAdmin(&op)
 	rest.Register(api, op, account.NewChangePassword(db, logins, tokens).HTTP)
 
-	file.RegisterRoutes(api, requireAdmin, files, maxUpload)
+	fileapi.Register(api, requireAdmin, files, maxUpload)
 }
 
 // RegisterManageRoutes 注册平台管理员账号的增查改与停用/启用接口，并声明为管理员端的资源。

@@ -194,7 +194,7 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 			updated = c
 			return nil
 		}
-		at := now()
+		at := database.Now()
 		c.UpdatedAt = at
 		if _, err := tx.NewUpdate().Model(c).Column(append(cols, "updated_at")...).WherePK().Exec(ctx); err != nil {
 			if database.IsUniqueViolation(err, "contacts_tenant_member") {

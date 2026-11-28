@@ -368,6 +368,3 @@ func isShortcutConflict(err error) bool {
 	return database.IsUniqueViolation(err, "uq_macros_tenant_shared_shortcut") ||
 		database.IsUniqueViolation(err, "uq_macros_tenant_personal_shortcut")
 }
-
-// newID 返回按时间递增的 UUIDv7。
-func newID() string { return uuid.Must(uuid.NewV7()).String() }

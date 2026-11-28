@@ -20,6 +20,7 @@ import (
 	"github.com/go-tenon/tenon/apitoken"
 	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/broadcast/broadcasttest"
+	"github.com/go-tenon/tenon/feature"
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/httpx/rest"
 	"github.com/go-tenon/tenon/identity"
@@ -457,11 +458,7 @@ func TestWidgetVisitorUploadsFeatureFlag(t *testing.T) {
 	}
 
 	// 关闭 widget.visitor_uploads 后，config 返回 visitor_uploads=false 且上传返回 403
-	offIn := flags.SetInput{Name: flags.WidgetVisitorUploads.Name}
-	offIn.Body.Scope = flags.ScopeTenant
-	offIn.Body.TenantID = f.system.Tenant
-	offIn.Body.Mode = flags.ModeOff
-	if _, err := flags.NewSet(env.DB, store).Handle(ctx, apptest.Admin, offIn); err != nil {
+	if err := store.Set(ctx, flags.WidgetVisitorUploads, feature.Tenant(f.system.Tenant), feature.Off); err != nil {
 		t.Fatal(err)
 	}
 
@@ -482,11 +479,7 @@ func TestWidgetVisitorUploadsFeatureFlag(t *testing.T) {
 	}
 
 	// 重新开启后 config 返回 visitor_uploads=true 且上传成功
-	onIn := flags.SetInput{Name: flags.WidgetVisitorUploads.Name}
-	onIn.Body.Scope = flags.ScopeTenant
-	onIn.Body.TenantID = f.system.Tenant
-	onIn.Body.Mode = flags.ModeOn
-	if _, err := flags.NewSet(env.DB, store).Handle(ctx, apptest.Admin, onIn); err != nil {
+	if err := store.Set(ctx, flags.WidgetVisitorUploads, feature.Tenant(f.system.Tenant), feature.On); err != nil {
 		t.Fatal(err)
 	}
 	cfgRec2 := httptest.NewRecorder()

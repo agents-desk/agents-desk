@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { describeError } from "@go-tenon/client"
 import { AnchorLink, errorMessage, Page, StatCard, TableCard, useCan, useFormatDateTime, useT, useTimeZone } from "@go-tenon/ui"
-import type { AuditItem, PlatformoverviewOverview, PlatformoverviewRecentTenant } from "@agents-desk/client/admin"
+import type { ActivityItem, PlatformoverviewOverview, PlatformoverviewRecentTenant } from "@agents-desk/client/admin"
 import type { ReactNode } from "react"
 import { kit } from "../../api"
 
@@ -314,7 +314,7 @@ function RecentTenantsCard({ items }: { items: PlatformoverviewRecentTenant[] })
 }
 
 // RecentAuditsCard 展示最近 5 条平台操作日志。
-function RecentAuditsCard({ items }: { items: AuditItem[] }): ReactNode {
+function RecentAuditsCard({ items }: { items: ActivityItem[] }): ReactNode {
   const t = useT()
   const formatDateTime = useFormatDateTime()
   return (

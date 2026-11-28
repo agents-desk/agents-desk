@@ -114,7 +114,7 @@ func (a *ApproveToolCall) decide(ctx context.Context, sub identity.Subject, genI
 			}
 			return errors.Wrap(err, "lock generation after approval")
 		}
-		at := now()
+		at := database.Now()
 		status := "rejected"
 		eventName := "generation.tool_rejected"
 		if approve {

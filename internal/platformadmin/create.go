@@ -40,7 +40,7 @@ func NewCreate(db *bun.DB, roles *authz.Store, logins *login.Realm) *Create {
 // actor 是执行创建的主体，命令行中是系统。邮箱已被使用时返回 ErrEmailTaken，密码不符合要求时返回 login.ErrWeakPassword。
 func (a *Create) Handle(ctx context.Context, actor identity.Subject, name, email, password string) (*Admin, error) {
 	now := time.Now().UTC()
-	admin := &Admin{ID: newID(), Name: name, CreatedAt: now, UpdatedAt: now}
+	admin := &Admin{ID: database.NewID(), Name: name, CreatedAt: now, UpdatedAt: now}
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		if _, err := tx.NewInsert().Model(admin).Exec(ctx); err != nil {
 			return errors.Wrap(err, "insert platform admin")

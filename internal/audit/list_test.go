@@ -63,7 +63,7 @@ func TestListPlatformAuditLog(t *testing.T) {
 	if items[1].Event != "tenant.created" || !strings.Contains(items[1].Text, "acme") {
 		t.Fatalf("第二条日志不符合预期：%+v", items[1])
 	}
-	if items[2].Event != "platform_admin.created" || items[2].Actor != "" || !strings.Contains(items[2].Text, "运维小明") || items[2].Href != "/admins" {
+	if items[2].Event != "platform_admin.created" || items[2].Actor != "系统规则" || !strings.Contains(items[2].Text, "运维小明") || items[2].Href != "/admins" {
 		t.Fatalf("第三条日志不符合预期：%+v", items[2])
 	}
 

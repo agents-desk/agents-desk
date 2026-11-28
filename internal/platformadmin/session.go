@@ -10,11 +10,10 @@ import (
 
 	"github.com/go-tenon/tenon/apitoken"
 	"github.com/go-tenon/tenon/filesystem"
+	"github.com/go-tenon/tenon/filesystem/fileapi"
+	"github.com/go-tenon/tenon/httpx"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/login"
-
-	"agents-desk/internal/account"
-	"agents-desk/internal/clientip"
 )
 
 // LoginInput 是登录的请求：邮箱和密码。
@@ -67,7 +66,7 @@ func (s *Session) Login(ctx context.Context, in *LoginInput) (*SessionOutput, er
 		return nil, err
 	}
 	token, err := s.tokens.Login(ctx, out.Subject, apitoken.Device{
-		IP:        clientip.FromContext(ctx),
+		IP:        httpx.ClientIPFromContext(ctx),
 		UserAgent: in.UserAgent,
 	})
 	if err != nil {
@@ -109,7 +108,7 @@ func loadProfile(ctx context.Context, db bun.IDB, logins *login.Realm, files *fi
 	if i := slices.IndexFunc(ids, func(id login.Attached) bool { return id.Kind == login.KindEmail }); i >= 0 {
 		email = ids[i].Value
 	}
-	avatar, err := account.AvatarURL(ctx, files, a.AvatarFileID)
+	avatar, err := fileapi.URL(ctx, files, a.AvatarFileID)
 	if err != nil {
 		return nil, err
 	}

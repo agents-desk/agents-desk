@@ -31,7 +31,7 @@ func (a *Disable) Handle(ctx context.Context, sub identity.Subject, id string) (
 		if t.DisabledAt != nil {
 			return nil
 		}
-		at := now()
+		at := database.Now()
 		t.DisabledAt = &at
 		if _, err := tx.NewUpdate().Model(t).Column("disabled_at", "updated_at").WherePK().Exec(ctx); err != nil {
 			return errors.Wrap(err, "disable ticket type")

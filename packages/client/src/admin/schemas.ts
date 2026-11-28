@@ -67,12 +67,12 @@ export const schemas = {
     },
     passwordForgot: {
       body: {
-        "$ref": "#/components/schemas/PlatformadminForgotPasswordInputBody"
+        "$ref": "#/components/schemas/AccountForgotPasswordInputBody"
       },
     },
     passwordReset: {
       body: {
-        "$ref": "#/components/schemas/PlatformadminResetPasswordInputBody"
+        "$ref": "#/components/schemas/AccountResetPasswordInputBody"
       },
     },
     update: {
@@ -136,7 +136,7 @@ export const schemas = {
       query: {
         "properties": {
           "scope": {
-            "$ref": "#/components/schemas/FlagsScope"
+            "$ref": "#/components/schemas/FeatureScope"
           },
           "tenant_id": {
             "type": "string"
@@ -147,7 +147,7 @@ export const schemas = {
     },
     set: {
       body: {
-        "$ref": "#/components/schemas/FlagsSetInputBody"
+        "$ref": "#/components/schemas/FeatureSetInputBody"
       },
     },
   },
@@ -201,7 +201,7 @@ export const schemas = {
     },
     read: {
       body: {
-        "$ref": "#/components/schemas/AdminnotifyReadInputBody"
+        "$ref": "#/components/schemas/NotificationReadInputBody"
       },
     },
   },
@@ -353,6 +353,20 @@ export const schemas = {
 
 /** schemas 中 $ref 引用的命名类型，键是 OpenAPI 中的名称。 */
 export const components = {
+  AccountForgotPasswordInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "email": {
+        "format": "email",
+        "maxLength": 254,
+        "type": "string"
+      }
+    },
+    "required": [
+      "email"
+    ],
+    "type": "object"
+  },
   AccountPasswordChange: {
     "additionalProperties": false,
     "properties": {
@@ -391,24 +405,33 @@ export const components = {
     ],
     "type": "object"
   },
-  AdminnotifyReadInputBody: {
+  AccountResetPasswordInputBody: {
     "additionalProperties": false,
     "properties": {
-      "ids": {
-        "items": {
-          "type": "string"
-        },
-        "maxItems": 100,
-        "minItems": 1,
-        "type": "array"
+      "code": {
+        "maxLength": 16,
+        "minLength": 4,
+        "type": "string"
+      },
+      "password": {
+        "maxLength": 128,
+        "minLength": 8,
+        "type": "string"
+      },
+      "request_id": {
+        "maxLength": 64,
+        "minLength": 1,
+        "type": "string"
       }
     },
     "required": [
-      "ids"
+      "request_id",
+      "code",
+      "password"
     ],
     "type": "object"
   },
-  FlagsMode: {
+  FeatureMode: {
     "enum": [
       "on",
       "off",
@@ -418,18 +441,18 @@ export const components = {
     ],
     "type": "string"
   },
-  FlagsScope: {
+  FeatureScope: {
     "enum": [
       "everyone",
       "tenant"
     ],
     "type": "string"
   },
-  FlagsSetInputBody: {
+  FeatureSetInputBody: {
     "additionalProperties": false,
     "properties": {
       "mode": {
-        "$ref": "#/components/schemas/FlagsMode"
+        "$ref": "#/components/schemas/FeatureMode"
       },
       "percent": {
         "format": "int64",
@@ -438,7 +461,7 @@ export const components = {
         "type": "integer"
       },
       "scope": {
-        "$ref": "#/components/schemas/FlagsScope"
+        "$ref": "#/components/schemas/FeatureScope"
       },
       "tenant_id": {
         "type": "string"
@@ -602,6 +625,23 @@ export const components = {
     ],
     "type": "string"
   },
+  NotificationReadInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "ids": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 100,
+        "minItems": 1,
+        "type": "array"
+      }
+    },
+    "required": [
+      "ids"
+    ],
+    "type": "object"
+  },
   PlatformAdminStatus: {
     "enum": [
       "active",
@@ -642,20 +682,6 @@ export const components = {
     ],
     "type": "object"
   },
-  PlatformadminForgotPasswordInputBody: {
-    "additionalProperties": false,
-    "properties": {
-      "email": {
-        "format": "email",
-        "maxLength": 254,
-        "type": "string"
-      }
-    },
-    "required": [
-      "email"
-    ],
-    "type": "object"
-  },
   PlatformadminLoginInputBody: {
     "additionalProperties": false,
     "properties": {
@@ -672,32 +698,6 @@ export const components = {
     },
     "required": [
       "email",
-      "password"
-    ],
-    "type": "object"
-  },
-  PlatformadminResetPasswordInputBody: {
-    "additionalProperties": false,
-    "properties": {
-      "code": {
-        "maxLength": 16,
-        "minLength": 4,
-        "type": "string"
-      },
-      "password": {
-        "maxLength": 128,
-        "minLength": 8,
-        "type": "string"
-      },
-      "request_id": {
-        "maxLength": 64,
-        "minLength": 1,
-        "type": "string"
-      }
-    },
-    "required": [
-      "request_id",
-      "code",
       "password"
     ],
     "type": "object"

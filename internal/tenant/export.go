@@ -12,17 +12,15 @@ import (
 
 	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/database"
-	"github.com/go-tenon/tenon/httpx"
 	"github.com/go-tenon/tenon/httpx/rest"
 	"github.com/go-tenon/tenon/identity"
+	"github.com/go-tenon/tenon/login"
 	"github.com/go-tenon/tenon/notification"
+	"github.com/go-tenon/tenon/notification/notificationapi"
 	"github.com/go-tenon/tenon/operation"
 	"github.com/go-tenon/tenon/queue"
 	"github.com/go-tenon/tenon/sheet"
 	"github.com/go-tenon/tenon/sheet/exports"
-
-	"agents-desk/internal/adminnotify"
-	"agents-desk/internal/member"
 )
 
 // ExportRequest 是后台导出工作区的队列任务载荷。
@@ -62,32 +60,24 @@ type ExportProgressInput struct {
 	ID uuid.UUID `path:"id"`
 }
 
-// ExportProgress 是返回给前端的导出进度与结果，附带失败原因译文。
-type ExportProgress struct {
-	*exports.Export
-	ErrorMessage string `json:"error_message,omitempty"`
-}
-
 // ExportOutput 是发起后台导出的响应。
 type ExportOutput struct {
-	Body ExportProgress
+	Body exports.Progress
 }
 
 // QueueExport 在后台队列中将工作区列表导出为表格文件，并实时推送进度与完成通知。
 type QueueExport struct {
 	db       *bun.DB
+	logins   *login.Realm
 	addr     Addresses
 	hub      *broadcast.Hub
 	exporter *exports.Service
 }
 
 // NewQueueExport 返回后台导出工作区的动作。
-func NewQueueExport(db *bun.DB, addr Addresses, hub *broadcast.Hub, exporter *exports.Service) *QueueExport {
-	return &QueueExport{db: db, addr: addr, hub: hub, exporter: exporter}
+func NewQueueExport(db *bun.DB, logins *login.Realm, addr Addresses, hub *broadcast.Hub, exporter *exports.Service) *QueueExport {
+	return &QueueExport{db: db, logins: logins, addr: addr, hub: hub, exporter: exporter}
 }
-
-// operationTopic 返回某个后台操作的进度广播主题。
-func operationTopic(id uuid.UUID) string { return "operation:" + id.String() }
 
 // Handle 在事务中登记导出操作并发布队列任务，返回 pending 状态的导出记录。
 func (a *QueueExport) Handle(ctx context.Context, subject identity.Subject, format sheet.Format, name string, status Status) (*exports.Export, error) {
@@ -106,12 +96,12 @@ func (a *QueueExport) Handle(ctx context.Context, subject identity.Subject, form
 }
 
 // formatExportProgress 在导出完成且结果存于私有盘时补充平台管理员端鉴权下载地址。
-func formatExportProgress(ctx context.Context, exp *exports.Export) ExportProgress {
+func formatExportProgress(ctx context.Context, exp *exports.Export) exports.Progress {
 	out := *exp
 	if out.Status == operation.StatusCompleted && out.FileID != uuid.Nil && out.URL == "" {
 		out.URL = "/admin/api/tenants/exports/" + out.ID.String() + "/download"
 	}
-	return ExportProgress{Export: &out, ErrorMessage: out.ErrorMessage(ctx)}
+	return out.Progress(ctx)
 }
 
 // HTTP 处理 POST /tenants/exports：发起异步导出并返回操作 ID。
@@ -127,37 +117,7 @@ func (a *QueueExport) HTTP(ctx context.Context, in *ExportStartInput) (*ExportOu
 // Progress 处理 GET /tenants/exports/{id}/progress：推送导出进度 SSE 事件直到完成或失败。
 func (a *QueueExport) Progress(ctx context.Context, in *ExportProgressInput) (*huma.StreamResponse, error) {
 	subject, _ := identity.FromContext(ctx)
-	if _, err := a.exporter.Get(ctx, subject, in.ID); err != nil {
-		return nil, err
-	}
-	return rest.SSE(func(s *httpx.Stream) error {
-		var events *broadcast.Subscription
-		if a.hub != nil {
-			events = a.hub.Subscribe(operationTopic(in.ID))
-			defer events.Close()
-		}
-		for {
-			exp, err := a.exporter.Get(s.Context(), subject, in.ID)
-			if err != nil {
-				return err
-			}
-			p := formatExportProgress(s.Context(), exp)
-			if err := s.SendJSON(httpx.Event{Name: "progress"}, p); err != nil || exp.Finished() {
-				return nil
-			}
-			if events == nil {
-				return nil
-			}
-			select {
-			case <-s.Done():
-				return nil
-			case _, ok := <-events.C():
-				if !ok {
-					return nil
-				}
-			}
-		}
-	}), nil
+	return a.exporter.ProgressSSE(ctx, a.hub, subject, in.ID, exports.ProgressOptions{Format: formatExportProgress})
 }
 
 // Job 是队列 worker 的处理函数：统计总数并逐行导出符合筛选条件的工作区，完成后上传文件并发送站内通知。
@@ -213,7 +173,7 @@ func (a *QueueExport) Job(ctx context.Context, req ExportRequest) error {
 					ownerIDs = append(ownerIDs, rows[i].OwnerID)
 				}
 			}
-			emails, err := member.Emails(ctx, a.db, ownerIDs)
+			emails, err := a.logins.IdentifiersMany(ctx, ownerIDs, login.KindEmail)
 			if err != nil {
 				return err
 			}
@@ -246,11 +206,10 @@ func (a *QueueExport) Job(ctx context.Context, req ExportRequest) error {
 
 // saved 在每次进度持久化事务中被调用：提交后广播进度更新，操作结束时给发起管理员写入站内通知。
 func (a *QueueExport) saved(ctx context.Context, tx database.Tx, exp *exports.Export) error {
-	if a.hub != nil {
-		topic := operationTopic(exp.ID)
-		tx.AfterCommit(func(ctx context.Context) error {
-			return a.hub.Publish(ctx, topic, nil)
-		})
+	if notifySaved := exports.BroadcastSaved(a.hub); notifySaved != nil {
+		if err := notifySaved(ctx, tx, exp); err != nil {
+			return err
+		}
 	}
 	if !exp.Finished() {
 		return nil
@@ -259,7 +218,7 @@ func (a *QueueExport) saved(ctx context.Context, tx database.Tx, exp *exports.Ex
 	if exp.Status == operation.StatusFailed {
 		event = "tenants.export_failed"
 	}
-	_, err := adminnotify.Send(ctx, tx, a.hub, notification.Notification{
+	_, err := notificationapi.Send(ctx, tx, a.hub, notification.Notification{
 		Event: event,
 		Data: map[string]any{
 			"operation_id": exp.ID.String(),
@@ -272,8 +231,8 @@ func (a *QueueExport) saved(ctx context.Context, tx database.Tx, exp *exports.Ex
 }
 
 // RegisterExportRoutes 在管理员端 API 注册工作区异步导出与进度事件流接口。
-func RegisterExportRoutes(api *rest.API, requireRead func(*huma.Operation), db *bun.DB, addr Addresses, exporter *exports.Service, hub *broadcast.Hub) {
-	exp := NewQueueExport(db, addr, hub, exporter)
+func RegisterExportRoutes(api *rest.API, requireRead func(*huma.Operation), db *bun.DB, logins *login.Realm, addr Addresses, exporter *exports.Service, hub *broadcast.Hub) {
+	exp := NewQueueExport(db, logins, addr, hub, exporter)
 	start := huma.Operation{
 		OperationID:   "tenant-export-start",
 		Method:        http.MethodPost,
@@ -293,10 +252,10 @@ func RegisterExportRoutes(api *rest.API, requireRead func(*huma.Operation), db *
 	requireRead(&progress)
 
 	rest.Register(api, start, exp.HTTP)
-	rest.RegisterSSE(api, progress, map[string]any{"progress": ExportProgress{}}, exp.Progress)
+	rest.RegisterSSE(api, progress, map[string]any{"progress": exports.Progress{}}, exp.Progress)
 }
 
 // RegisterJobs 在队列 worker 中注册工作区后台导出任务。
-func RegisterJobs(w *queue.Worker, db *bun.DB, addr Addresses, hub *broadcast.Hub, exporter *exports.Service) {
-	ExportJob.Handle(w, NewQueueExport(db, addr, hub, exporter).Job)
+func RegisterJobs(w *queue.Worker, db *bun.DB, logins *login.Realm, addr Addresses, hub *broadcast.Hub, exporter *exports.Service) {
+	ExportJob.Handle(w, NewQueueExport(db, logins, addr, hub, exporter).Job)
 }

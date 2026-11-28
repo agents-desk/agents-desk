@@ -1,6 +1,8 @@
 package automation
 
 import (
+	"github.com/go-tenon/tenon/database"
+
 	"context"
 
 	"github.com/cockroachdb/errors"
@@ -81,11 +83,11 @@ var builtins = []builtinDef{
 // EnsureBuiltins 确保工作区 tenantID 中存在全部内置自动化规则；已经存在的保持管理员设置的开关不变。
 // 可以在新建工作区的事务中调用，也可以在读取规则或处理事件前幂等调用。
 func EnsureBuiltins(ctx context.Context, db bun.IDB, tenantID string) error {
-	at := now()
+	at := database.Now()
 	rows := make([]Rule, len(builtins))
 	for i, b := range builtins {
 		rows[i] = Rule{
-			ID: newID(), TenantID: tenantID, BuiltinKey: b.Key, Trigger: b.Trigger,
+			ID: database.NewID(), TenantID: tenantID, BuiltinKey: b.Key, Trigger: b.Trigger,
 			Conditions: b.Conditions, Actions: b.Actions, Enabled: b.Enabled, Position: b.Position,
 		}
 		rows[i].CreatedAt, rows[i].UpdatedAt = at, at

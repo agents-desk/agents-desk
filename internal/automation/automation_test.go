@@ -15,6 +15,7 @@ import (
 
 	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/broadcast/broadcasttest"
+	"github.com/go-tenon/tenon/feature"
 	"github.com/go-tenon/tenon/httpx/rest"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/lock"
@@ -727,11 +728,7 @@ func TestAutomationFeatureFlagOff(t *testing.T) {
 
 	store := flags.NewStore(env.DB)
 	f.runner.SetFeatures(store)
-	setIn := flags.SetInput{Name: flags.AutoAutomation.Name}
-	setIn.Body.Scope = flags.ScopeTenant
-	setIn.Body.TenantID = f.tenant.ID
-	setIn.Body.Mode = flags.ModeOff
-	if _, err := flags.NewSet(env.DB, store).Handle(ctx, apptest.Admin, setIn); err != nil {
+	if err := store.Set(ctx, flags.AutoAutomation, feature.Tenant(f.tenant.ID), feature.Off); err != nil {
 		t.Fatal(err)
 	}
 

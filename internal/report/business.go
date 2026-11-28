@@ -10,10 +10,10 @@ import (
 
 	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/filesystem"
+	"github.com/go-tenon/tenon/filesystem/fileapi"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/period"
 
-	"agents-desk/internal/account"
 	"agents-desk/internal/channel"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/member"
@@ -185,15 +185,7 @@ func (a *Business) Handle(ctx context.Context, sub identity.Subject, f BusinessF
 	}
 
 	// 5. 趋势序列（外部来信、成员发出、新建会话）
-	pointMap := map[string]*BusinessPoint{}
-	ensurePt := func(b string) *BusinessPoint {
-		pt, ok := pointMap[b]
-		if !ok {
-			pt = &BusinessPoint{Date: b}
-			pointMap[b] = pt
-		}
-		return pt
-	}
+	pointMap := map[string]BusinessPoint{}
 	type msgSeriesRow struct {
 		Bucket   string `bun:"bucket"`
 		Inbound  int64  `bun:"inbound"`
@@ -204,7 +196,7 @@ func (a *Business) Handle(ctx context.Context, sub identity.Subject, f BusinessF
 		Join("JOIN conversations c ON c.id = it.conversation_id").
 		Join("JOIN chats ch ON ch.conversation_id = c.id").
 		Join("LEFT JOIN channels chan_t ON chan_t.id = ch.channel_id").
-		ColumnExpr(bucketExpr("it.created_at", w.Granularity)+" AS bucket", w.TimeZone).
+		ColumnExpr(w.BucketExpr("it.created_at")+" AS bucket", w.TimeZone).
 		ColumnExpr("count(*) FILTER (WHERE it.actor_type IN (?, ?)) AS inbound", conversation.ContactActor, conversation.ExternalUserActor).
 		ColumnExpr("count(*) FILTER (WHERE it.actor_type = ?) AS outbound", conversation.MemberActor).
 		Where("it.tenant_id = ? AND c.kind = ? AND ch.scope = ? AND c.spam_at IS NULL AND it.kind = ? AND it.created_at >= ? AND it.created_at < ?",
@@ -215,9 +207,11 @@ func (a *Business) Handle(ctx context.Context, sub identity.Subject, f BusinessF
 		return nil, errors.Wrap(err, "report business message series")
 	}
 	for _, r := range mRows {
-		pt := ensurePt(r.Bucket)
+		pt := pointMap[r.Bucket]
+		pt.Date = r.Bucket
 		pt.Inbound = r.Inbound
 		pt.Outbound = r.Outbound
+		pointMap[r.Bucket] = pt
 	}
 
 	type newSeriesRow struct {
@@ -228,7 +222,7 @@ func (a *Business) Handle(ctx context.Context, sub identity.Subject, f BusinessF
 	qNewSeries := a.db.NewSelect().TableExpr("conversations c").
 		Join("JOIN chats ch ON ch.conversation_id = c.id").
 		Join("LEFT JOIN channels chan_t ON chan_t.id = ch.channel_id").
-		ColumnExpr(bucketExpr("c.created_at", w.Granularity)+" AS bucket", w.TimeZone).
+		ColumnExpr(w.BucketExpr("c.created_at")+" AS bucket", w.TimeZone).
 		ColumnExpr("count(*) AS cnt").
 		Where("c.tenant_id = ? AND c.kind = ? AND ch.scope = ? AND c.spam_at IS NULL AND c.created_at >= ? AND c.created_at < ?",
 			sub.Tenant, conversation.Chat, conversation.ChatExternal, w.Start, w.End).
@@ -238,17 +232,15 @@ func (a *Business) Handle(ctx context.Context, sub identity.Subject, f BusinessF
 		return nil, errors.Wrap(err, "report business new chat series")
 	}
 	for _, r := range nRows {
-		ensurePt(r.Bucket).NewChats = r.Count
+		pt := pointMap[r.Bucket]
+		pt.Date = r.Bucket
+		pt.NewChats = r.Count
+		pointMap[r.Bucket] = pt
 	}
 
-	sparse := make([]BusinessPoint, 0, len(pointMap))
-	for _, pt := range pointMap {
-		sparse = append(sparse, *pt)
-	}
-	series := period.FillSeries(w, sparse,
-		func(pt BusinessPoint) string { return pt.Date },
-		func(b string) BusinessPoint { return BusinessPoint{Date: b} },
-	)
+	series := period.FillSeriesMap(w, pointMap, func(b string) BusinessPoint {
+		return BusinessPoint{Date: b}
+	})
 
 	// 6. 按商务渠道种类拆解
 	kindMap := map[channel.Kind]*BusinessChannelKindVolume{}
@@ -443,7 +435,7 @@ func (a *Business) Handle(ctx context.Context, sub identity.Subject, f BusinessF
 			}
 			o.Name = p.Name
 			if a.files != nil {
-				url, err := account.AvatarURL(ctx, a.files, p.AvatarFileID)
+				url, err := fileapi.URL(ctx, a.files, p.AvatarFileID)
 				if err != nil {
 					return nil, err
 				}

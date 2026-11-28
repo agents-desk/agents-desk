@@ -585,7 +585,7 @@ func TestPrivateExportsAndReadOnlyHTTP(t *testing.T) {
 	if cStart.status != http.StatusAccepted {
 		t.Fatalf("发起联系人导出失败：%d %s", cStart.status, cStart.body)
 	}
-	var cProg contact.ExportProgress
+	var cProg exports.Progress
 	if err := json.Unmarshal([]byte(cStart.body), &cProg); err != nil {
 		t.Fatal(err)
 	}
@@ -621,7 +621,7 @@ func TestPrivateExportsAndReadOnlyHTTP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tExp := tenant.NewQueueExport(env.DB, tenant.Addresses{}, hub, exporter)
+	tExp := tenant.NewQueueExport(env.DB, env.MemberLogins, tenant.Addresses{}, hub, exporter)
 	tRec, err := tExp.Handle(ctx, adminSub, sheet.CSV, "", "")
 	if err != nil {
 		t.Fatal(err)

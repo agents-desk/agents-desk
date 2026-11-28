@@ -7,9 +7,9 @@ import (
 
 	"github.com/go-tenon/tenon/feature"
 	"github.com/go-tenon/tenon/filesystem"
+	"github.com/go-tenon/tenon/filesystem/fileapi"
 	"github.com/go-tenon/tenon/identity"
 
-	"agents-desk/internal/file"
 	"agents-desk/internal/flags"
 )
 
@@ -52,7 +52,7 @@ func (a *Current) Handle(ctx context.Context, sub identity.Subject) (*CurrentDTO
 	if err != nil {
 		return nil, err
 	}
-	logoURL, err := file.URL(ctx, a.files, t.LogoFileID)
+	logoURL, err := fileapi.URL(ctx, a.files, t.LogoFileID)
 	if err != nil {
 		return nil, err
 	}

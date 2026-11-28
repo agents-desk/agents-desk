@@ -9,7 +9,6 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/contract"
@@ -250,9 +249,3 @@ func samePtr(a, b *string) bool {
 	}
 	return *a == *b
 }
-
-// newID 返回按时间递增的 UUIDv7。
-func newID() string { return uuid.Must(uuid.NewV7()).String() }
-
-// now 返回当前 UTC 时间（微秒精度，与 PostgreSQL timestamptz 一致）。
-func now() time.Time { return time.Now().UTC().Truncate(time.Microsecond) }

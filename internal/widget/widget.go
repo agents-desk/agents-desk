@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/errorx"
@@ -200,6 +199,3 @@ func normalizeOrigins(in []string) ([]string, error) {
 	}
 	return out, nil
 }
-
-// newID 返回按时间递增的 UUIDv7。
-func newID() string { return uuid.Must(uuid.NewV7()).String() }

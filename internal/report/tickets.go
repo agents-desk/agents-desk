@@ -10,10 +10,10 @@ import (
 
 	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/filesystem"
+	"github.com/go-tenon/tenon/filesystem/fileapi"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/period"
 
-	"agents-desk/internal/account"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/member"
 	"agents-desk/internal/team"
@@ -196,15 +196,7 @@ func (a *Tickets) Handle(ctx context.Context, sub identity.Subject, f TicketFilt
 	}
 
 	// 3. 趋势序列（新建与已解决）
-	pointMap := map[string]*TicketsPoint{}
-	ensurePt := func(b string) *TicketsPoint {
-		pt, ok := pointMap[b]
-		if !ok {
-			pt = &TicketsPoint{Date: b}
-			pointMap[b] = pt
-		}
-		return pt
-	}
+	pointMap := map[string]TicketsPoint{}
 	type bucketRow struct {
 		Bucket string `bun:"bucket"`
 		Count  int64  `bun:"cnt"`
@@ -212,7 +204,7 @@ func (a *Tickets) Handle(ctx context.Context, sub identity.Subject, f TicketFilt
 	var cRows []bucketRow
 	qCreatedSeries := a.db.NewSelect().TableExpr("conversations c").
 		Join("JOIN tickets t ON t.conversation_id = c.id").
-		ColumnExpr(bucketExpr("c.created_at", w.Granularity)+" AS bucket", w.TimeZone).
+		ColumnExpr(w.BucketExpr("c.created_at")+" AS bucket", w.TimeZone).
 		ColumnExpr("count(*) AS cnt").
 		Where("c.tenant_id = ? AND c.kind = ? AND c.created_at >= ? AND c.created_at < ?", sub.Tenant, conversation.Ticket, w.Start, w.End).
 		GroupExpr("1")
@@ -221,13 +213,16 @@ func (a *Tickets) Handle(ctx context.Context, sub identity.Subject, f TicketFilt
 		return nil, errors.Wrap(err, "report tickets created series")
 	}
 	for _, r := range cRows {
-		ensurePt(r.Bucket).Created = r.Count
+		pt := pointMap[r.Bucket]
+		pt.Date = r.Bucket
+		pt.Created = r.Count
+		pointMap[r.Bucket] = pt
 	}
 
 	var rRows []bucketRow
 	qResolvedSeries := a.db.NewSelect().TableExpr("conversations c").
 		Join("JOIN tickets t ON t.conversation_id = c.id").
-		ColumnExpr(bucketExpr("t.resolved_at", w.Granularity)+" AS bucket", w.TimeZone).
+		ColumnExpr(w.BucketExpr("t.resolved_at")+" AS bucket", w.TimeZone).
 		ColumnExpr("count(*) AS cnt").
 		Where("c.tenant_id = ? AND c.kind = ? AND t.resolved_at >= ? AND t.resolved_at < ?", sub.Tenant, conversation.Ticket, w.Start, w.End).
 		GroupExpr("1")
@@ -236,17 +231,15 @@ func (a *Tickets) Handle(ctx context.Context, sub identity.Subject, f TicketFilt
 		return nil, errors.Wrap(err, "report tickets resolved series")
 	}
 	for _, r := range rRows {
-		ensurePt(r.Bucket).Resolved = r.Count
+		pt := pointMap[r.Bucket]
+		pt.Date = r.Bucket
+		pt.Resolved = r.Count
+		pointMap[r.Bucket] = pt
 	}
 
-	sparse := make([]TicketsPoint, 0, len(pointMap))
-	for _, pt := range pointMap {
-		sparse = append(sparse, *pt)
-	}
-	series := period.FillSeries(w, sparse,
-		func(pt TicketsPoint) string { return pt.Date },
-		func(b string) TicketsPoint { return TicketsPoint{Date: b} },
-	)
+	series := period.FillSeriesMap(w, pointMap, func(b string) TicketsPoint {
+		return TicketsPoint{Date: b}
+	})
 
 	// 4. 按工单类型拆解
 	type typeRow struct {
@@ -421,7 +414,7 @@ func (a *Tickets) Handle(ctx context.Context, sub identity.Subject, f TicketFilt
 			}
 			m.Name = p.Name
 			if a.files != nil {
-				url, err := account.AvatarURL(ctx, a.files, p.AvatarFileID)
+				url, err := fileapi.URL(ctx, a.files, p.AvatarFileID)
 				if err != nil {
 					return nil, err
 				}

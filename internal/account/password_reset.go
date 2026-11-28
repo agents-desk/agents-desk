@@ -1,4 +1,4 @@
-package platformadmin
+package account
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"github.com/go-tenon/tenon/login"
 )
 
-// ForgotPasswordInput 是请求发送平台管理员密码重置验证码的 HTTP 请求。
+// ForgotPasswordInput 是请求发送密码重置验证码的 HTTP 请求。
 type ForgotPasswordInput struct {
 	Body struct {
 		Email string `json:"email" format:"email" maxLength:"254"`
@@ -22,12 +22,12 @@ type ForgotPasswordDTO struct {
 	RequestID string `json:"request_id"`
 }
 
-// ForgotPasswordOutput 是管理员找回密码接口响应。
+// ForgotPasswordOutput 是找回密码接口的 HTTP 响应。
 type ForgotPasswordOutput struct {
 	Body ForgotPasswordDTO
 }
 
-// ResetPasswordInput 是凭邮箱验证码重设管理员密码的 HTTP 请求。
+// ResetPasswordInput 是凭邮箱验证码重设密码的 HTTP 请求。
 type ResetPasswordInput struct {
 	Body struct {
 		RequestID string `json:"request_id" minLength:"1" maxLength:"64"`
@@ -36,18 +36,18 @@ type ResetPasswordInput struct {
 	}
 }
 
-// PasswordReset 处理平台管理员端的忘记密码发送验证码与重设密码。
+// PasswordReset 处理平台管理员与成员共用的忘记密码发送验证码与重设密码。
 type PasswordReset struct {
 	logins *login.Realm
 	tokens *apitoken.Store
 }
 
-// NewPasswordReset 返回平台管理员密码找回动作。
+// NewPasswordReset 返回密码找回动作。
 func NewPasswordReset(logins *login.Realm, tokens *apitoken.Store) *PasswordReset {
 	return &PasswordReset{logins: logins, tokens: tokens}
 }
 
-// Forgot 发送管理员重置密码验证码邮件；未注册的邮箱由底层返回固定格式的 request_id，不暴露账号是否存在。
+// Forgot 发送重置密码验证码邮件；未注册的邮箱由底层返回固定格式的 request_id，不暴露账号是否存在。
 func (a *PasswordReset) Forgot(ctx context.Context, email string) (ForgotPasswordDTO, error) {
 	reqID, err := a.logins.SendCode(ctx, login.Reset, login.Email(email))
 	if err != nil {
@@ -59,7 +59,7 @@ func (a *PasswordReset) Forgot(ctx context.Context, email string) (ForgotPasswor
 	return ForgotPasswordDTO{RequestID: reqID}, nil
 }
 
-// Reset 校验验证码并将管理员密码替换为 password，完成后撤销该账号全部登录令牌。
+// Reset 校验验证码并将密码替换为 password，完成后撤销该账号全部登录令牌。
 func (a *PasswordReset) Reset(ctx context.Context, requestID, code, password string) error {
 	out, err := a.logins.VerifyCode(ctx, requestID, code)
 	if err != nil {
@@ -76,7 +76,7 @@ func (a *PasswordReset) Reset(ctx context.Context, requestID, code, password str
 	return err
 }
 
-// ForgotHTTP 处理 POST /admin/api/auth/password/forgot。
+// ForgotHTTP 处理忘记密码发送验证码 HTTP 请求。
 func (a *PasswordReset) ForgotHTTP(ctx context.Context, in *ForgotPasswordInput) (*ForgotPasswordOutput, error) {
 	dto, err := a.Forgot(ctx, in.Body.Email)
 	if err != nil {
@@ -85,7 +85,7 @@ func (a *PasswordReset) ForgotHTTP(ctx context.Context, in *ForgotPasswordInput)
 	return &ForgotPasswordOutput{Body: dto}, nil
 }
 
-// ResetHTTP 处理 POST /admin/api/auth/password/reset。
+// ResetHTTP 处理凭邮箱验证码重设密码 HTTP 请求。
 func (a *PasswordReset) ResetHTTP(ctx context.Context, in *ResetPasswordInput) (*struct{}, error) {
 	return nil, a.Reset(ctx, in.Body.RequestID, in.Body.Code, in.Body.Password)
 }

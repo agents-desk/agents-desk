@@ -18,8 +18,8 @@ import (
 	"github.com/go-tenon/tenon/i18n"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/notification"
+	"github.com/go-tenon/tenon/notification/notificationapi"
 
-	"agents-desk/internal/adminnotify"
 	"agents-desk/internal/apptest"
 	"agents-desk/internal/platformadmin"
 	"agents-desk/locales"
@@ -44,7 +44,7 @@ func TestAdminNotifications(t *testing.T) {
 	// 发送两条通知给该管理员
 	if err := database.RunInTx(ctx, env.DB, nil, func(ctx context.Context, tx database.Tx) error {
 		for _, count := range []int{3, 5} {
-			if _, err := adminnotify.Send(ctx, tx, nil, notification.Notification{
+			if _, err := notificationapi.Send(ctx, tx, nil, notification.Notification{
 				Event: "tenants.exported",
 				Data:  map[string]any{"processed": count, "href": "/tenants"},
 			}, notification.RecipientOf(sub)); err != nil {
@@ -61,7 +61,7 @@ func TestAdminNotifications(t *testing.T) {
 	api := rest.New(router, rest.Options{
 		Accounts: identity.Accounts{platformadmin.Type: platformadmin.Resolve(env.DB, env.Roles)},
 	})
-	adminnotify.RegisterRoutes(api, rest.RequireToken(api, tokens.Validate), env.DB, nil)
+	notificationapi.Register(api, rest.RequireToken(api, tokens.Validate), env.DB, nil)
 
 	do := func(method, path, body string) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(method, path, strings.NewReader(body))
@@ -78,7 +78,7 @@ func TestAdminNotifications(t *testing.T) {
 		t.Fatalf("列表：status=%d body=%s", rr.Code, rr.Body.String())
 	}
 	var res struct {
-		Items []adminnotify.Item `json:"items"`
+		Items []notificationapi.Item `json:"items"`
 	}
 	if err := json.Unmarshal(rr.Body.Bytes(), &res); err != nil {
 		t.Fatal(err)

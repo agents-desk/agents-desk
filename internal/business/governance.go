@@ -17,9 +17,9 @@ import (
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/filesystem"
+	"github.com/go-tenon/tenon/filesystem/fileapi"
 	"github.com/go-tenon/tenon/identity"
 
-	"agents-desk/internal/account"
 	"agents-desk/internal/channel"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/member"
@@ -335,7 +335,7 @@ func (g *Governance) buildItems(ctx context.Context, tenantID string, rows []cha
 			m := &mRows[i]
 			avatarURL := ""
 			if g.files != nil {
-				u, err := account.AvatarURL(ctx, g.files, m.AvatarFileID)
+				u, err := fileapi.URL(ctx, g.files, m.AvatarFileID)
 				if err == nil {
 					avatarURL = u
 				}

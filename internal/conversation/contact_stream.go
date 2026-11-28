@@ -299,7 +299,7 @@ func (a *MarkAllReadByContact) Handle(ctx context.Context, sub identity.Subject,
 
 		// 批量更新所有可见会话中尚未已读的客服或商务回复消息为已读，并收集受影响的会话 ID
 		var affectedConvIDs []string
-		at := now()
+		at := database.Now()
 		if cutoffID != "" && !restrictChannel {
 			err = tx.NewRaw(`UPDATE message_deliveries d SET status = ?, updated_at = ?
 				FROM timeline_items t

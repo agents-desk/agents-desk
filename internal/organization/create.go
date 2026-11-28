@@ -38,13 +38,13 @@ func NewCreate(db *bun.DB) *Create { return &Create{db: db} }
 
 // Handle 在 sub 所在工作区中新建组织并记录操作日志。
 func (a *Create) Handle(ctx context.Context, sub identity.Subject, b CreateBody) (*DTO, error) {
-	at := now()
+	at := database.Now()
 	attrs := b.Attributes
 	if attrs == nil {
 		attrs = map[string]any{}
 	}
 	o := &Organization{
-		ID:         newID(),
+		ID:         database.NewID(),
 		TenantID:   sub.Tenant,
 		Name:       strings.TrimSpace(b.Name),
 		Domain:     normalizeDomain(b.Domain),

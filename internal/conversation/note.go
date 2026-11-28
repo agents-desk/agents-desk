@@ -7,7 +7,6 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
-	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
@@ -78,7 +77,7 @@ func writeNote(ctx context.Context, tx database.Tx, down Downstream, sub identit
 		return Item{}, err
 	}
 	actor := actorOf(sub)
-	roles := authz.NewStore(tx, auth.Catalog)
+	roles := down.rolesWithDB(tx)
 	for i, m := range body.Mentions {
 		if _, err := member.RoleOf(ctx, roles, identity.Ref{Type: member.Type, ID: m}, sub.Tenant); err != nil {
 			if errors.Is(err, member.ErrNotFound) {

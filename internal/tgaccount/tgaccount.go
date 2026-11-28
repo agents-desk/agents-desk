@@ -16,7 +16,6 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/google/uuid"
 	"github.com/gotd/td/session"
 	"github.com/gotd/td/tg"
 	"github.com/uptrace/bun"
@@ -478,6 +477,3 @@ func (s *dbSessionStorage) StoreSession(ctx context.Context, data []byte) error 
 func encryptSessionBytes(c *crypt.Crypt, data []byte) string {
 	return c.Encrypt(base64.StdEncoding.EncodeToString(data))
 }
-
-// newID 返回按时间递增的 UUIDv7。
-func newID() string { return uuid.Must(uuid.NewV7()).String() }

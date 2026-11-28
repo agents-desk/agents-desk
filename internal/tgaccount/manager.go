@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -62,13 +63,30 @@ type accountRunner struct {
 	channelID string
 	tenantID  string
 	creds     MTProtoConfig
-	cancel    context.CancelFunc
 
 	mu            sync.RWMutex
 	client        LiveClient
 	syncedPeers   map[string]SyncedPeer
 	syncCfg       SyncConfig
 	lastSyncTouch time.Time
+}
+
+type tgSpec struct {
+	channel channel.Channel
+	creds   MTProtoConfig
+	peers   []SyncedPeer
+	sync    SyncConfig
+}
+
+func tgSpecEqual(a, b tgSpec) bool {
+	return a.creds == b.creds &&
+		a.sync.Mode == b.sync.Mode &&
+		a.sync.BackfillLimit == b.sync.BackfillLimit &&
+		a.sync.SyncOutgoing == b.sync.SyncOutgoing &&
+		a.sync.SyncMedia == b.sync.SyncMedia &&
+		a.sync.GroupMode == b.sync.GroupMode &&
+		slices.Equal(a.sync.FolderIDs, b.sync.FolderIDs) &&
+		slices.Equal(a.peers, b.peers)
 }
 
 func (r *accountRunner) setClient(c LiveClient) {
@@ -149,9 +167,10 @@ type Manager struct {
 	loginsMu sync.Mutex
 	logins   map[string]*loginEntry
 
+	supMu     sync.Mutex
+	sup       *lock.Supervisor[string, tgSpec]
 	runnersMu sync.RWMutex
 	runners   map[string]*accountRunner
-	wakeCh    chan struct{}
 }
 
 // NewManager 返回 Telegram 个人号管理器；backend 为空时使用纯 Go GotdBackend。
@@ -167,7 +186,6 @@ func NewManager(db *bun.DB, c *crypt.Crypt, files *filesystem.Service, tgCreds *
 		backend: backend,
 		logins:  map[string]*loginEntry{},
 		runners: map[string]*accountRunner{},
-		wakeCh:  make(chan struct{}, 1),
 	}
 }
 
@@ -177,7 +195,57 @@ var _ channel.Runner = (*Manager)(nil)
 func (*Manager) Name() string { return "tgaccount" }
 
 // SetLocker 绑定分布式锁，多实例部署时保证每个 Telegram 个人号只由单个实例持有 MTProto 长连接。
-func (m *Manager) SetLocker(l *lock.Locker) { m.locker = l }
+func (m *Manager) SetLocker(l *lock.Locker) {
+	m.supMu.Lock()
+	m.locker = l
+	m.sup = nil
+	m.supMu.Unlock()
+}
+
+func (m *Manager) ensureSupervisor() *lock.Supervisor[string, tgSpec] {
+	m.supMu.Lock()
+	defer m.supMu.Unlock()
+	if m.sup == nil {
+		m.sup = lock.NewSupervisor(lock.SupervisorOptions[string, tgSpec]{
+			Locker:         m.locker,
+			LockName:       func(id string) string { return "tgaccount:conn:" + id },
+			LeaseTTL:       45 * time.Second,
+			SyncInterval:   15 * time.Second,
+			AcquireWait:    10 * time.Second,
+			LostWait:       2 * time.Second,
+			InitialBackoff: 3 * time.Second,
+			MaxBackoff:     time.Minute,
+			Equal:          tgSpecEqual,
+			OnUpdate: func(id string, spec tgSpec) {
+				m.runnersMu.RLock()
+				r := m.runners[id]
+				m.runnersMu.RUnlock()
+				if r == nil {
+					return
+				}
+				if r.creds != spec.creds {
+					m.ensureSupervisor().Restart(id)
+					return
+				}
+				r.setPeers(spec.peers)
+				r.setSync(spec.sync)
+			},
+			Load: m.loadDesiredAccounts,
+			Run:  m.runAccount,
+			OnError: func(ctx context.Context, id string, spec tgSpec, err error) {
+				if errors.Is(err, errCtrlStopped) {
+					return
+				}
+				if errors.Is(err, ErrNotConnected) {
+					m.recordStatus(ctx, spec.channel.TenantID, id, StatusAuthExpired, err.Error())
+					return
+				}
+				m.recordStatus(ctx, spec.channel.TenantID, id, StatusDisconnected, err.Error())
+			},
+		})
+	}
+	return m.sup
+}
 
 // SetNATS 绑定 NATS 连接，用于跨实例转发个人号 RPC、控制信号与交互式登录请求。
 func (m *Manager) SetNATS(nc *nats.Conn) { m.nc = nc }
@@ -195,22 +263,36 @@ func (m *Manager) Wake() { m.wake() }
 
 // wake 通知后台常驻循环立即重新对齐已启用的个人号连接列表。
 func (m *Manager) wake() {
-	select {
-	case m.wakeCh <- struct{}{}:
-	default:
+	m.supMu.Lock()
+	sup := m.sup
+	m.supMu.Unlock()
+	if sup != nil {
+		sup.Wake()
+	}
+}
+
+func (m *Manager) restartLocal(id string) {
+	m.supMu.Lock()
+	sup := m.sup
+	m.supMu.Unlock()
+	if sup != nil {
+		sup.Restart(id)
 	}
 }
 
 // ReconnectTenant 断开指定工作区当前全部个人号长连接并触发重连（含跨实例广播），供该工作区更新 API 凭据或代理后调用，不影响其他工作区。
 func (m *Manager) ReconnectTenant(tenantID string) {
-	m.runnersMu.Lock()
+	m.runnersMu.RLock()
+	var localIDs []string
 	for id, r := range m.runners {
 		if r.tenantID == tenantID {
-			r.cancel()
-			delete(m.runners, id)
+			localIDs = append(localIDs, id)
 		}
 	}
-	m.runnersMu.Unlock()
+	m.runnersMu.RUnlock()
+	for _, id := range localIDs {
+		m.restartLocal(id)
+	}
 	if m.nc != nil && m.db != nil && strings.TrimSpace(tenantID) != "" {
 		qCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		var ids []string
@@ -307,7 +389,7 @@ func (m *Manager) StartLogin(ctx context.Context, sub identity.Subject, mode Log
 
 	m.pruneExpiredLogins()
 	entry := &loginEntry{
-		id:              newID(),
+		id:              database.NewID(),
 		tenantID:        sub.Tenant,
 		memberID:        sub.ID,
 		targetAccountID: accountID,
@@ -430,7 +512,7 @@ func (m *Manager) buildLoginDTO(ctx context.Context, entry *loginEntry) (*LoginS
 			entry.accountDTO = acct
 			entry.persisted = true
 			entry.driver.Close()
-			m.stopRunner(acct.ID)
+			m.restartLocal(acct.ID)
 			m.publishAccountCtrl(acct.ID, ctrlRestart)
 			m.wake()
 		}
@@ -534,7 +616,7 @@ func (m *Manager) persistConnectedAccount(ctx context.Context, entry *loginEntry
 		}
 		ownerID := entry.memberID
 		ch := &channel.Channel{
-			ID:            newID(),
+			ID:            database.NewID(),
 			TenantID:      entry.tenantID,
 			Kind:          channel.TelegramAccount,
 			Audience:      channel.AudiencePartner,
@@ -782,7 +864,7 @@ func (m *Manager) ReconnectAccount(ctx context.Context, sub identity.Subject, id
 	if err != nil {
 		return nil, err
 	}
-	m.stopRunner(id)
+	m.restartLocal(id)
 	m.publishAccountCtrl(id, ctrlRestart)
 	m.wake()
 	slog.InfoContext(ctx, "telegram personal account manual reconnect requested", "channel_id", id)
@@ -839,7 +921,6 @@ func (m *Manager) DisconnectAccount(ctx context.Context, sub identity.Subject, i
 	if err != nil {
 		return err
 	}
-	m.stopRunner(id)
 	m.publishAccountCtrl(id, ctrlDisconnect)
 	m.wake()
 	return nil
@@ -1149,28 +1230,13 @@ func (m *Manager) fetchHistory(ctx context.Context, ch *channel.Channel, peer Sy
 
 // Run 常驻同步循环：按周期或变更通知自动为每个启用且已授权的 Telegram 个人号维护 MTProto 长连接。
 func (m *Manager) Run(ctx context.Context) error {
-	ticker := time.NewTicker(15 * time.Second)
-	defer ticker.Stop()
-	defer m.stopAllRunners()
 	defer m.closeAllLogins()
-
-	m.reconcile(ctx)
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-ticker.C:
-			m.reconcile(ctx)
-		case <-m.wakeCh:
-			m.reconcile(ctx)
-		}
-	}
+	return m.ensureSupervisor().Run(ctx)
 }
 
-func (m *Manager) reconcile(ctx context.Context) {
+func (m *Manager) loadDesiredAccounts(ctx context.Context) (map[string]tgSpec, error) {
 	if m.tgCreds == nil {
-		m.stopAllRunners()
-		return
+		return map[string]tgSpec{}, nil
 	}
 	var rows []channel.Channel
 	err := m.db.NewSelect().Model(&rows).
@@ -1178,14 +1244,13 @@ func (m *Manager) reconcile(ctx context.Context) {
 		Where("EXISTS (SELECT 1 FROM tenants t WHERE t.id = channel.tenant_id AND t.disabled_at IS NULL)").
 		Scan(ctx)
 	if err != nil {
-		slog.WarnContext(ctx, "load active telegram accounts for sync", "error", err)
-		return
+		return nil, errors.Wrap(err, "load active telegram accounts for sync")
 	}
 
 	// 按工作区独立加载 MTProto 凭据与代理，单个工作区未配置或读取失败不影响其他工作区
 	tenantCreds := map[string]MTProtoConfig{}
 	tenantLoaded := map[string]bool{}
-	desired := map[string]channel.Channel{}
+	desired := map[string]tgSpec{}
 	for _, ch := range rows {
 		cfg, err := settingsOf(&ch)
 		if err != nil || cfg.SessionCipher == "" || cfg.Status == StatusAuthExpired {
@@ -1200,163 +1265,104 @@ func (m *Manager) reconcile(ctx context.Context) {
 				slog.WarnContext(ctx, "load tenant telegram credentials during reconcile", "tenant_id", ch.TenantID, "error", err)
 			}
 		}
-		if _, ok := tenantCreds[ch.TenantID]; !ok {
+		mc, ok := tenantCreds[ch.TenantID]
+		if !ok {
 			continue
 		}
-		desired[ch.ID] = ch
-	}
-
-	// 停止已停用、已删除、授权失效、凭据已清空或凭据/代理发生变更的连接
-	m.runnersMu.Lock()
-	for id, r := range m.runners {
-		ch, ok := desired[id]
-		if !ok || r.creds != tenantCreds[ch.TenantID] {
-			r.cancel()
-			delete(m.runners, id)
+		desired[ch.ID] = tgSpec{
+			channel: ch,
+			creds:   mc,
+			peers:   cfg.SyncedPeers,
+			sync:    cfg.resolvedSync(),
 		}
 	}
-	for id, ch := range desired {
-		cfg, _ := settingsOf(&ch)
-		mc := tenantCreds[ch.TenantID]
-		if existing := m.runners[id]; existing != nil {
-			existing.setPeers(cfg.SyncedPeers)
-			existing.setSync(cfg.resolvedSync())
-			continue
-		}
-		rCtx, cancel := context.WithCancel(ctx)
-		runner := &accountRunner{channelID: id, tenantID: ch.TenantID, creds: mc, cancel: cancel}
-		runner.setPeers(cfg.SyncedPeers)
-		runner.setSync(cfg.resolvedSync())
-		m.runners[id] = runner
-		chCopy := ch
-		go m.runLoop(rCtx, mc, &chCopy, runner)
-	}
-	m.runnersMu.Unlock()
+	return desired, nil
 }
 
-func (m *Manager) runLoop(ctx context.Context, mc MTProtoConfig, ch *channel.Channel, runner *accountRunner) {
-	backoff := 3 * time.Second
-	storage := &dbSessionStorage{db: m.db, crypt: m.crypt, tenantID: ch.TenantID, channelID: ch.ID}
-	for {
-		if ctx.Err() != nil {
-			return
-		}
-		runOnce := func(runCtx context.Context) error {
-			runCtx, cancelRun := context.WithCancel(runCtx)
-			defer cancelRun()
+func (m *Manager) runAccount(runCtx context.Context, id string, spec tgSpec, ready func()) error {
+	ch := spec.channel
+	storage := &dbSessionStorage{db: m.db, crypt: m.crypt, tenantID: ch.TenantID, channelID: id}
+	runner := &accountRunner{channelID: id, tenantID: ch.TenantID, creds: spec.creds}
+	runner.setPeers(spec.peers)
+	runner.setSync(spec.sync)
 
-			var restartRequested atomic.Bool
-			var subsMu sync.Mutex
-			var subs []*nats.Subscription
-			cleanupSubs := func() {
-				subsMu.Lock()
-				list := subs
-				subs = nil
-				subsMu.Unlock()
-				for _, s := range list {
-					_ = s.Unsubscribe()
-				}
-			}
-			defer cleanupSubs()
-
-			runErr := m.backend.RunAccount(runCtx, mc, storage,
-				func(msgCtx context.Context, msg IncomingMessage) error {
-					peer, ok := runner.lookupPeer(msg.ExternalChatID)
-					if !ok {
-						// 未在同步白名单中的个人隐私聊天直接忽略
-						return nil
-					}
-					_, ingestErr := m.ingestMessage(msgCtx, ch, runner.getSync(), runner, peer, msg, false)
-					return ingestErr
-				},
-				func(cli LiveClient) {
-					runner.setClient(cli)
-					backoff = 3 * time.Second
-					if m.nc != nil {
-						if rpcSub, subErr := m.nc.Subscribe(natsRPCPrefix+ch.ID, func(msg *nats.Msg) {
-							go m.handleAccountRPC(runCtx, ch, cli, msg)
-						}); subErr != nil {
-							slog.WarnContext(runCtx, "subscribe tgaccount nats rpc failed", "channel_id", ch.ID, "error", subErr)
-						} else {
-							subsMu.Lock()
-							subs = append(subs, rpcSub)
-							subsMu.Unlock()
-						}
-						if ctrlSub, subErr := m.nc.Subscribe(natsCtrlPrefix+ch.ID, func(msg *nats.Msg) {
-							m.handleAccountCtrl(runCtx, ch.TenantID, ch.ID, runner, &restartRequested, cancelRun, msg.Data)
-						}); subErr != nil {
-							slog.WarnContext(runCtx, "subscribe tgaccount nats ctrl failed", "channel_id", ch.ID, "error", subErr)
-						} else {
-							subsMu.Lock()
-							subs = append(subs, ctrlSub)
-							subsMu.Unlock()
-						}
-						_ = m.nc.Flush()
-					}
-					m.recordStatus(runCtx, ch.TenantID, ch.ID, StatusConnected, "")
-					slog.InfoContext(runCtx, "telegram personal account connected", "channel_id", ch.ID)
-				},
-			)
-			if restartRequested.Load() && ctx.Err() == nil {
-				return errRestartRequested
-			}
-			return runErr
+	m.runnersMu.Lock()
+	m.runners[id] = runner
+	m.runnersMu.Unlock()
+	defer func() {
+		m.runnersMu.Lock()
+		if m.runners[id] == runner {
+			delete(m.runners, id)
 		}
-		var err error
-		if m.locker != nil {
-			err = m.locker.Hold(ctx, "tgaccount:conn:"+ch.ID, 45*time.Second, runOnce)
-		} else {
-			err = runOnce(ctx)
-		}
+		m.runnersMu.Unlock()
 		runner.setClient(nil)
-		if ctx.Err() != nil {
-			return
-		}
-		if errors.Is(err, lock.ErrNotAcquired) {
-			// 其他实例持有该账号的连接租约，静默退避后重试抢占，不覆盖在线状态
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(10 * time.Second):
-			}
-			continue
-		}
-		if errors.Is(err, lock.ErrNotHeld) {
-			// 本实例持有的连接租约过期丢失，不再写回 disconnected 以免覆盖新接管实例状态
-			slog.WarnContext(ctx, "telegram personal account lease lost", "channel_id", ch.ID, "error", err)
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(2 * time.Second):
-			}
-			continue
-		}
-		if errors.Is(err, errRestartRequested) {
-			slog.InfoContext(ctx, "telegram personal account restart requested", "channel_id", ch.ID)
-			m.runnersMu.Lock()
-			if m.runners[ch.ID] == runner {
-				delete(m.runners, ch.ID)
-			}
-			m.runnersMu.Unlock()
-			m.wake()
-			return
-		}
-		if errors.Is(err, ErrNotConnected) {
-			m.recordStatus(context.Background(), ch.TenantID, ch.ID, StatusAuthExpired, err.Error())
-			slog.WarnContext(ctx, "telegram personal account auth expired", "channel_id", ch.ID)
-			return
-		}
-		slog.WarnContext(ctx, "telegram personal account disconnected, reconnecting", "channel_id", ch.ID, "backoff", backoff, "error", err)
-		m.recordStatus(context.Background(), ch.TenantID, ch.ID, StatusDisconnected, err.Error())
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(backoff):
-			if backoff < time.Minute {
-				backoff *= 2
-			}
+	}()
+
+	runCtx, cancelRun := context.WithCancel(runCtx)
+	defer cancelRun()
+
+	var restartRequested, stopRequested atomic.Bool
+	var subsMu sync.Mutex
+	var subs []*nats.Subscription
+	cleanupSubs := func() {
+		subsMu.Lock()
+		list := subs
+		subs = nil
+		subsMu.Unlock()
+		for _, s := range list {
+			_ = s.Unsubscribe()
 		}
 	}
+	defer cleanupSubs()
+
+	runErr := m.backend.RunAccount(runCtx, spec.creds, storage,
+		func(msgCtx context.Context, msg IncomingMessage) error {
+			peer, ok := runner.lookupPeer(msg.ExternalChatID)
+			if !ok {
+				// 未在同步白名单中的个人隐私聊天直接忽略
+				return nil
+			}
+			_, ingestErr := m.ingestMessage(msgCtx, &ch, runner.getSync(), runner, peer, msg, false)
+			return ingestErr
+		},
+		func(cli LiveClient) {
+			runner.setClient(cli)
+			ready()
+			if m.nc != nil {
+				if rpcSub, subErr := m.nc.Subscribe(natsRPCPrefix+id, func(msg *nats.Msg) {
+					go m.handleAccountRPC(runCtx, &ch, cli, msg)
+				}); subErr != nil {
+					slog.WarnContext(runCtx, "subscribe tgaccount nats rpc failed", "channel_id", id, "error", subErr)
+				} else {
+					subsMu.Lock()
+					subs = append(subs, rpcSub)
+					subsMu.Unlock()
+				}
+				if ctrlSub, subErr := m.nc.Subscribe(natsCtrlPrefix+id, func(msg *nats.Msg) {
+					m.handleAccountCtrl(runCtx, ch.TenantID, id, runner, &restartRequested, &stopRequested, cancelRun, msg.Data)
+				}); subErr != nil {
+					slog.WarnContext(runCtx, "subscribe tgaccount nats ctrl failed", "channel_id", id, "error", subErr)
+				} else {
+					subsMu.Lock()
+					subs = append(subs, ctrlSub)
+					subsMu.Unlock()
+				}
+				_ = m.nc.Flush()
+			}
+			m.recordStatus(runCtx, ch.TenantID, id, StatusConnected, "")
+			slog.InfoContext(runCtx, "telegram personal account connected", "channel_id", id)
+		},
+	)
+	if stopRequested.Load() {
+		return fmt.Errorf("%w: %w", lock.ErrStop, errCtrlStopped)
+	}
+	if restartRequested.Load() && runCtx.Err() == nil {
+		return lock.ErrRestart
+	}
+	if errors.Is(runErr, ErrNotConnected) {
+		return fmt.Errorf("%w: %w", lock.ErrStop, runErr)
+	}
+	return runErr
 }
 
 func (m *Manager) recordStatus(ctx context.Context, tenantID, channelID string, status AccountStatus, lastErr string) {
@@ -1383,24 +1389,6 @@ func (m *Manager) touchLastSynced(ctx context.Context, tenantID, channelID strin
 	if err != nil {
 		slog.WarnContext(ctx, "update telegram account last_synced_at", "channel_id", channelID, "error", err)
 	}
-}
-
-func (m *Manager) stopRunner(channelID string) {
-	m.runnersMu.Lock()
-	if r := m.runners[channelID]; r != nil {
-		r.cancel()
-		delete(m.runners, channelID)
-	}
-	m.runnersMu.Unlock()
-}
-
-func (m *Manager) stopAllRunners() {
-	m.runnersMu.Lock()
-	for id, r := range m.runners {
-		r.cancel()
-		delete(m.runners, id)
-	}
-	m.runnersMu.Unlock()
 }
 
 // ingestMessage 按同步策略将白名单内的一条 Telegram 单聊或群聊消息写入外部商务聊天，并过滤暂停会话、未提及群消息及本平台回声。

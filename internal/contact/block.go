@@ -44,7 +44,7 @@ func (a *Block) Handle(ctx context.Context, sub identity.Subject, id string, b B
 		if err != nil {
 			return err
 		}
-		at := now()
+		at := database.Now()
 		c.BlockedAt = &at
 		c.BlockedReason = reason
 		c.UpdatedAt = at
@@ -102,7 +102,7 @@ func (a *Unblock) Handle(ctx context.Context, sub identity.Subject, id string) (
 		if err != nil {
 			return err
 		}
-		at := now()
+		at := database.Now()
 		c.BlockedAt = nil
 		c.BlockedReason = ""
 		c.UpdatedAt = at

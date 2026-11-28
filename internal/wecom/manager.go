@@ -20,6 +20,7 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/crypt"
+	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/lock"
@@ -38,8 +39,12 @@ const (
 	uploadChunkBytes = 512 * 1024
 )
 
-// errRestartRequested 表示外部控制广播触发了企业微信长连接主动重启。
-var errRestartRequested = errors.New("wecom: restart requested")
+type wecomSpec struct {
+	channel     channel.Channel
+	botID       string
+	secret      string
+	welcomeText string
+}
 
 // sendRPCRequest 是经 NATS 在多实例间转发给持有长连接实例的出站发送请求。
 type sendRPCRequest struct {
@@ -68,7 +73,8 @@ type sendRPCResponse struct {
 type botRunner struct {
 	channelID string
 	tenantID  string
-	cancel    context.CancelFunc
+	botID     string
+	secret    string
 
 	mu             sync.RWMutex
 	conn           *websocket.Conn
@@ -130,7 +136,7 @@ func (r *botRunner) sendAndWait(ctx context.Context, cmd, reqID string, body any
 		return Frame{}, ErrNotConnected.New()
 	}
 	if reqID == "" {
-		reqID = newID()
+		reqID = database.NewID()
 	}
 	var rawBody json.RawMessage
 	if body != nil {
@@ -233,16 +239,16 @@ type Manager struct {
 	wsHTTPClient *http.Client // 用于 WebSocket 建链（不设总请求超时，带 SSRF 防护）
 	receive      *conversation.Receive
 
+	sup       *lock.Supervisor[string, wecomSpec]
 	runnersMu sync.RWMutex
 	runners   map[string]*botRunner
-	wakeCh    chan struct{}
 }
 
 var _ channel.Runner = (*Manager)(nil)
 
 // NewManager 返回企业微信长连接管理器；httpClient 与 wsHTTPClient 默认使用带 SSRF 防护的 outbound 客户端。
 func NewManager(db *bun.DB, c *crypt.Crypt, files *filesystem.Service, locker *lock.Locker, nc *nats.Conn) *Manager {
-	return &Manager{
+	m := &Manager{
 		db:           db,
 		crypt:        c,
 		files:        files,
@@ -251,8 +257,40 @@ func NewManager(db *bun.DB, c *crypt.Crypt, files *filesystem.Service, locker *l
 		httpClient:   outbound.New(outbound.Options{Timeout: 30 * time.Second}),
 		wsHTTPClient: outbound.New(outbound.Options{Timeout: -1}),
 		runners:      map[string]*botRunner{},
-		wakeCh:       make(chan struct{}, 1),
 	}
+	m.sup = lock.NewSupervisor(lock.SupervisorOptions[string, wecomSpec]{
+		Locker:         locker,
+		LockName:       func(id string) string { return "wecom:conn:" + id },
+		LeaseTTL:       45 * time.Second,
+		SyncInterval:   15 * time.Second,
+		AcquireWait:    10 * time.Second,
+		LostWait:       2 * time.Second,
+		InitialBackoff: 2 * time.Second,
+		MaxBackoff:     time.Minute,
+		Equal: func(a, b wecomSpec) bool {
+			return a.botID == b.botID && a.secret == b.secret && a.welcomeText == b.welcomeText
+		},
+		OnUpdate: func(key string, spec wecomSpec) {
+			if r := m.localRunner(key); r != nil {
+				if r.botID != spec.botID || r.secret != spec.secret {
+					m.sup.Restart(key)
+					return
+				}
+				r.setWelcomeText(spec.welcomeText)
+			}
+		},
+		Load: m.loadDesiredBots,
+		Run:  m.runBot,
+		OnError: func(ctx context.Context, id string, spec wecomSpec, err error) {
+			var authErr *authError
+			if errors.As(err, &authErr) {
+				m.recordStatus(ctx, spec.channel.TenantID, id, StatusAuthFailed, authErr.Error(), false)
+				return
+			}
+			m.recordStatus(ctx, spec.channel.TenantID, id, StatusDisconnected, err.Error(), false)
+		},
+	})
+	return m
 }
 
 // Name 返回运行器名称，实现 channel.Runner。
@@ -272,147 +310,69 @@ func (m *Manager) SetHTTPClients(mediaClient, wsClient *http.Client) {
 }
 
 // Wake 通知长连接管理器立即重新对齐数据库中的已启用机器人列表。
-func (m *Manager) Wake() {
-	select {
-	case m.wakeCh <- struct{}{}:
-	default:
-	}
-}
+func (m *Manager) Wake() { m.sup.Wake() }
 
 // Restart 主动断开指定机器人的现有长连接（含跨实例广播）并触发立即重连。
 func (m *Manager) Restart(channelID string) {
-	m.stopRunner(channelID)
 	if m.nc != nil {
 		_ = m.nc.Publish(natsCtrlPrefix+channelID, []byte("restart"))
 	}
-	m.Wake()
+	m.sup.Restart(channelID)
 }
 
 // Run 常驻循环：周期对齐数据库中的启用机器人并为每个机器人维持 WebSocket 长连接。
 func (m *Manager) Run(ctx context.Context) error {
-	ticker := time.NewTicker(15 * time.Second)
-	defer ticker.Stop()
-	defer m.stopAllRunners()
-
-	m.reconcile(ctx)
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-ticker.C:
-			m.reconcile(ctx)
-		case <-m.wakeCh:
-			m.reconcile(ctx)
-		}
-	}
+	return m.sup.Run(ctx)
 }
 
-func (m *Manager) reconcile(ctx context.Context) {
+func (m *Manager) loadDesiredBots(ctx context.Context) (map[string]wecomSpec, error) {
 	var rows []channel.Channel
 	err := m.db.NewSelect().Model(&rows).
 		Where("kind = ? AND enabled = TRUE AND owner_member_id IS NULL", channel.WeCom).
 		Where("EXISTS (SELECT 1 FROM tenants t WHERE t.id = channel.tenant_id AND t.disabled_at IS NULL)").
 		Scan(ctx)
 	if err != nil {
-		slog.WarnContext(ctx, "load active wecom bots for sync", "error", err)
-		return
+		return nil, errors.Wrap(err, "load active wecom bots for sync")
 	}
-	desired := map[string]channel.Channel{}
+	desired := make(map[string]wecomSpec, len(rows))
 	for _, ch := range rows {
 		s, err := settingsOf(&ch)
 		if err != nil || s.BotID == "" || s.Secret == "" || s.Status == StatusAuthFailed {
 			continue
 		}
-		desired[ch.ID] = ch
+		desired[ch.ID] = wecomSpec{channel: ch, botID: s.BotID, secret: s.Secret, welcomeText: s.WelcomeText}
 	}
-
-	m.runnersMu.Lock()
-	for id, r := range m.runners {
-		if _, ok := desired[id]; !ok {
-			r.cancel()
-			delete(m.runners, id)
-		}
-	}
-	for id, ch := range desired {
-		s, _ := settingsOf(&ch)
-		if existing := m.runners[id]; existing != nil {
-			existing.setWelcomeText(s.WelcomeText)
-			continue
-		}
-		rCtx, cancel := context.WithCancel(ctx)
-		runner := &botRunner{
-			channelID:   id,
-			tenantID:    ch.TenantID,
-			cancel:      cancel,
-			pending:     map[string][]chan Frame{},
-			welcomeText: s.WelcomeText,
-		}
-		m.runners[id] = runner
-		chCopy := ch
-		go m.runLoop(rCtx, &chCopy, runner)
-	}
-	m.runnersMu.Unlock()
+	return desired, nil
 }
 
-func (m *Manager) runLoop(ctx context.Context, ch *channel.Channel, runner *botRunner) {
-	backoff := 2 * time.Second
-	for {
-		if ctx.Err() != nil {
-			return
-		}
-		runOnce := func(runCtx context.Context) error {
-			return m.connectAndServe(runCtx, ch, runner, func() { backoff = 2 * time.Second })
-		}
-		var err error
-		if m.locker != nil {
-			err = m.locker.Hold(ctx, "wecom:conn:"+ch.ID, 45*time.Second, runOnce)
-		} else {
-			err = runOnce(ctx)
-		}
-		runner.setConn(nil)
-		if ctx.Err() != nil {
-			return
-		}
-		if errors.Is(err, lock.ErrNotAcquired) {
-			// 其他实例正在持有该机器人连接租约，静默退避等待抢占，不覆盖在线状态。
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(10 * time.Second):
-			}
-			continue
-		}
-		if errors.Is(err, lock.ErrNotHeld) {
-			// 本实例持有的连接租约过期丢失，不再写回 disconnected 以免覆盖新接管实例状态。
-			slog.WarnContext(ctx, "wecom bot lease lost", "channel_id", ch.ID, "error", err)
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(2 * time.Second):
-			}
-			continue
-		}
-		if errors.Is(err, errRestartRequested) {
-			slog.InfoContext(ctx, "wecom bot restart requested, reconnecting", "channel_id", ch.ID)
-			continue
-		}
-		var authErr *authError
-		if errors.As(err, &authErr) {
-			m.recordStatus(context.Background(), ch.TenantID, ch.ID, StatusAuthFailed, authErr.Error(), false)
-			slog.WarnContext(ctx, "wecom bot auth failed, pausing reconnect", "channel_id", ch.ID, "error", authErr)
-			return
-		}
-		m.recordStatus(context.Background(), ch.TenantID, ch.ID, StatusDisconnected, err.Error(), false)
-		slog.WarnContext(ctx, "wecom bot disconnected, reconnecting", "channel_id", ch.ID, "backoff", backoff, "error", err)
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(backoff):
-			if backoff < time.Minute {
-				backoff *= 2
-			}
-		}
+func (m *Manager) runBot(runCtx context.Context, id string, spec wecomSpec, ready func()) error {
+	runner := &botRunner{
+		channelID:   id,
+		tenantID:    spec.channel.TenantID,
+		botID:       spec.botID,
+		secret:      spec.secret,
+		pending:     map[string][]chan Frame{},
+		welcomeText: spec.welcomeText,
 	}
+	m.runnersMu.Lock()
+	m.runners[id] = runner
+	m.runnersMu.Unlock()
+	defer func() {
+		m.runnersMu.Lock()
+		if m.runners[id] == runner {
+			delete(m.runners, id)
+		}
+		m.runnersMu.Unlock()
+		runner.setConn(nil)
+	}()
+
+	chCopy := spec.channel
+	err := m.connectAndServe(runCtx, &chCopy, runner, ready)
+	var authErr *authError
+	if errors.As(err, &authErr) {
+		return fmt.Errorf("%w: %w", lock.ErrStop, err)
+	}
+	return err
 }
 
 type authError struct {
@@ -463,7 +423,7 @@ func (m *Manager) connectAndServe(ctx context.Context, ch *channel.Channel, runn
 	}()
 
 	// 1. 发送 aibot_subscribe 鉴权订阅帧
-	resp, err := runner.sendAndWait(serveCtx, CmdSubscribe, newID(), map[string]any{
+	resp, err := runner.sendAndWait(serveCtx, CmdSubscribe, database.NewID(), map[string]any{
 		"bot_id": s.BotID,
 		"secret": secret,
 	})
@@ -524,18 +484,18 @@ func (m *Manager) connectAndServe(ctx context.Context, ch *channel.Channel, runn
 		case <-serveCtx.Done():
 			_ = conn.Close(websocket.StatusNormalClosure, "restart")
 			if restartRequested.Load() {
-				return errRestartRequested
+				return lock.ErrRestart
 			}
 			return serveCtx.Err()
 		case err := <-readErrCh:
 			if restartRequested.Load() && ctx.Err() == nil {
-				return errRestartRequested
+				return lock.ErrRestart
 			}
 			return err
 		case <-ticker.C:
-			if _, err := runner.sendAndWait(serveCtx, CmdPing, newID(), nil); err != nil {
+			if _, err := runner.sendAndWait(serveCtx, CmdPing, database.NewID(), nil); err != nil {
 				if restartRequested.Load() && ctx.Err() == nil {
-					return errRestartRequested
+					return lock.ErrRestart
 				}
 				return errors.Wrap(err, "wecom heartbeat failed")
 			}
@@ -769,7 +729,7 @@ func (m *Manager) executeSend(ctx context.Context, runner *botRunner, req sendRP
 			// 若被动回复窗口过期，自动降级为 aibot_send_msg 主动发送
 			slog.InfoContext(ctx, "wecom respond_msg failed, falling back to send_msg", "channel_id", runner.channelID, "error", err)
 		}
-		lastReqID = newID()
+		lastReqID = database.NewID()
 		if _, err := runner.sendAndWait(ctx, CmdSendMsg, lastReqID, map[string]any{
 			"chatid":    req.ExternalTo,
 			"chat_type": chatType,
@@ -793,7 +753,7 @@ func (m *Manager) executeSend(ctx context.Context, runner *botRunner, req sendRP
 			if err != nil {
 				return "", err
 			}
-			lastReqID = newID()
+			lastReqID = database.NewID()
 			if _, err := runner.sendAndWait(ctx, CmdSendMsg, lastReqID, map[string]any{
 				"chatid":    req.ExternalTo,
 				"chat_type": chatType,
@@ -835,7 +795,7 @@ func (m *Manager) uploadMedia(ctx context.Context, runner *botRunner, att rpcAtt
 	}
 	totalChunks := int((size + uploadChunkBytes - 1) / uploadChunkBytes)
 
-	initResp, err := runner.sendAndWait(ctx, CmdUploadInit, newID(), map[string]any{
+	initResp, err := runner.sendAndWait(ctx, CmdUploadInit, database.NewID(), map[string]any{
 		"type":         mediaType,
 		"filename":     filename,
 		"total_size":   size,
@@ -859,7 +819,7 @@ func (m *Manager) uploadMedia(ctx context.Context, runner *botRunner, att rpcAtt
 			return "", errors.Wrapf(readErr, "read wecom attachment chunk %d", idx)
 		}
 		if n > 0 {
-			if _, err := runner.sendAndWait(ctx, CmdUploadChunk, newID(), map[string]any{
+			if _, err := runner.sendAndWait(ctx, CmdUploadChunk, database.NewID(), map[string]any{
 				"upload_id":   initBody.UploadID,
 				"chunk_index": idx,
 				"base64_data": base64.StdEncoding.EncodeToString(buf[:n]),
@@ -876,7 +836,7 @@ func (m *Manager) uploadMedia(ctx context.Context, runner *botRunner, att rpcAtt
 		return "", errors.New("wecom: attachment content is empty")
 	}
 
-	finishResp, err := runner.sendAndWait(ctx, CmdUploadFinish, newID(), map[string]any{
+	finishResp, err := runner.sendAndWait(ctx, CmdUploadFinish, database.NewID(), map[string]any{
 		"upload_id": initBody.UploadID,
 	})
 	if err != nil {
@@ -923,24 +883,6 @@ func (m *Manager) recordStatus(ctx context.Context, tenantID, channelID string, 
 	if err != nil {
 		slog.WarnContext(ctx, "update wecom bot status", "channel_id", channelID, "error", err)
 	}
-}
-
-func (m *Manager) stopRunner(channelID string) {
-	m.runnersMu.Lock()
-	if r := m.runners[channelID]; r != nil {
-		r.cancel()
-		delete(m.runners, channelID)
-	}
-	m.runnersMu.Unlock()
-}
-
-func (m *Manager) stopAllRunners() {
-	m.runnersMu.Lock()
-	for id, r := range m.runners {
-		r.cancel()
-		delete(m.runners, id)
-	}
-	m.runnersMu.Unlock()
 }
 
 func (m *Manager) localRunner(channelID string) *botRunner {

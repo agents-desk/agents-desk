@@ -17,7 +17,6 @@ import (
 
 	"agents-desk/internal/blockip"
 	"agents-desk/internal/channel"
-	"agents-desk/internal/clientip"
 	"agents-desk/internal/contact"
 )
 
@@ -42,7 +41,7 @@ func Middleware(db bun.IDB) func(http.Handler) http.Handler {
 					return
 				}
 				if ch != nil {
-					blocked, err := blockip.IsBlocked(r.Context(), db, ch.TenantID, clientip.FromContext(r.Context()))
+					blocked, err := blockip.IsBlocked(r.Context(), db, ch.TenantID, httpx.ClientIPFromContext(r.Context()))
 					if err != nil {
 						slog.ErrorContext(r.Context(), "check widget blocked ip", "error", err)
 						httpx.WriteProblem(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))

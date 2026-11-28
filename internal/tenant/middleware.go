@@ -23,8 +23,8 @@ type requestKey struct{}
 // 所以与“不是这个工作区的成员”得到同样的 404，不透露工作区是否存在。
 const unknown = "00000000-0000-0000-0000-000000000000"
 
-// Middleware 是 /t/{slug}/api 和 /t/{slug}/realtime 的中间件：按路径中的 slug 查出租户，放进请求的 context，
-// 供 FromRequest、IDFrom、Resolve 使用。
+// Middleware 是 /t/{slug}/api 和 /t/{slug}/realtime 的中间件：按路径中的 slug 查出租户，
+// 将租户记录与 identity.WithTenant 写入请求的 context，供 FromRequest、IDFrom、Resolve 以及 api.HandleHTTP 使用。
 // 这是请求中唯一一处由地址换成 ID 的地方；以后有了自定义域名，在这里先按 Host 查找。查询出错时响应 500。
 func Middleware(db bun.IDB) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -39,7 +39,9 @@ func Middleware(db bun.IDB) func(http.Handler) http.Handler {
 				httpx.WriteProblem(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 				return
 			}
-			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), requestKey{}, t)))
+			ctx := context.WithValue(r.Context(), requestKey{}, t)
+			ctx = identity.WithTenant(ctx, IDFrom(ctx))
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }

@@ -71,7 +71,7 @@ func (a *Create) Handle(ctx context.Context, sub identity.Subject, b CreateBody)
 	if err != nil {
 		return nil, err
 	}
-	id := newID()
+	id := database.NewID()
 	err = database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		if err := checkTeam(ctx, tx, sub.Tenant, b.TeamID); err != nil {
 			return err

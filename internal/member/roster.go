@@ -7,11 +7,11 @@ import (
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/filesystem"
+	"github.com/go-tenon/tenon/filesystem/fileapi"
 	"github.com/go-tenon/tenon/i18n"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/login"
 
-	"agents-desk/internal/account"
 	"agents-desk/internal/auth"
 )
 
@@ -79,7 +79,12 @@ func toTenantMember(ctx context.Context, logins *login.Realm, files *filesystem.
 	if err != nil {
 		return TenantMember{}, err
 	}
-	avatar, err := account.AvatarURL(ctx, files, m.AvatarFileID)
+	return toTenantMemberWithEmail(ctx, files, sub, m, email, role, status)
+}
+
+// toTenantMemberWithEmail 使用预加载好的邮箱构造工作区成员 DTO。
+func toTenantMemberWithEmail(ctx context.Context, files *filesystem.Service, sub identity.Subject, m *Member, email string, role authz.Role, status Status) (TenantMember, error) {
+	avatar, err := fileapi.URL(ctx, files, m.AvatarFileID)
 	if err != nil {
 		return TenantMember{}, err
 	}

@@ -81,7 +81,7 @@ func (a *MarkSpam) Handle(ctx context.Context, sub identity.Subject, id string, 
 			return ErrWrongKind.New()
 		}
 
-		at := now()
+		at := database.Now()
 		blockedContact := false
 		if lockedContactID != "" && c.ContactID != nil && *c.ContactID == lockedContactID {
 			if _, err := tx.NewUpdate().Table("contacts").

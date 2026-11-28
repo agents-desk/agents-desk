@@ -254,7 +254,7 @@ func mergePair(ctx context.Context, tx database.Tx, down Downstream, sub identit
 	).Exec(ctx); err != nil {
 		return nil, errors.Wrap(err, "merge conversation tags")
 	}
-	at := now()
+	at := database.Now()
 	// 更新工单来源会话引用，保留来源会话关联工单。
 	if _, err := tx.NewRaw(
 		`UPDATE ticket_targets SET source_conversation_id = ?, updated_at = ?
@@ -391,7 +391,7 @@ func mergePair(ctx context.Context, tx database.Tx, down Downstream, sub identit
 
 	// 6. 在目标会话末尾追加合并系统事件，并同步删除来源会话
 	mergeEvent := &Item{
-		ID:             newID(),
+		ID:             database.NewID(),
 		CreatedAt:      at,
 		UpdatedAt:      at,
 		TenantID:       target.TenantID,

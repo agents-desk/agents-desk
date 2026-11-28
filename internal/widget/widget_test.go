@@ -15,6 +15,7 @@ import (
 	"github.com/go-tenon/tenon/apitoken"
 	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/broadcast/broadcasttest"
+	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/queue/queuetest"
 
@@ -297,7 +298,7 @@ func TestManage(t *testing.T) {
 	}
 	var betaTeam string
 	if err := env.DB.NewRaw("INSERT INTO teams (id, created_at, updated_at, tenant_id, name) VALUES (?, now(), now(), ?, 'beta') RETURNING id",
-		newID(), beta.system.Tenant).Scan(ctx, &betaTeam); err != nil {
+		database.NewID(), beta.system.Tenant).Scan(ctx, &betaTeam); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := NewCreate(env.DB, env.Crypt).Handle(ctx, alpha.system, Changes{Name: "x", TeamID: &betaTeam}); !errors.Is(err, ErrTeamNotFound) {
@@ -540,7 +541,7 @@ func TestFrameAncestors(t *testing.T) {
 	if got, err := FrameAncestors(ctx, env.DB, f.widget.ID); err != nil || got != "https://shop.example.com http://localhost:3000" {
 		t.Fatalf("设置后：%q %v", got, err)
 	}
-	for name, id := range map[string]string{"不是 UUID": "x", "不存在": newID()} {
+	for name, id := range map[string]string{"不是 UUID": "x", "不存在": database.NewID()} {
 		if got, err := FrameAncestors(ctx, env.DB, id); err != nil || got != "'none'" {
 			t.Errorf("%s：%q %v", name, got, err)
 		}

@@ -88,21 +88,6 @@ func toDTO(r authz.Role, count int) RoleDTO {
 	return RoleDTO{ID: r.ID, Name: r.Name, Description: r.Description, ConversationScope: scope, Permissions: ops, MemberCount: count}
 }
 
-// memberCounts 返回工作区 tenant 中每个角色的人数，按角色 ID 查找。
-func memberCounts(ctx context.Context, roles *authz.Store, tenant string) (map[string]int, error) {
-	members, err := roles.Members(ctx, tenant)
-	if err != nil {
-		return nil, err
-	}
-	counts := map[string]int{}
-	for _, m := range members {
-		for _, r := range m.Roles {
-			counts[r.ID]++
-		}
-	}
-	return counts, nil
-}
-
 // nameTaken 把 authz 的同名错误转换为 ErrNameTaken，指向字段 name；其他错误原样返回。
 func nameTaken(err error, name string) error {
 	if errors.Is(err, authz.ErrRoleExists) {

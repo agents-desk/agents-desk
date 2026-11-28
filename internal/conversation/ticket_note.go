@@ -41,7 +41,7 @@ func (a *AddTicketNote) HandleBody(ctx context.Context, sub identity.Subject, id
 		if err != nil {
 			return err
 		}
-		c.LastMessageAt = now()
+		c.LastMessageAt = database.Now()
 		item, err = writeNote(ctx, tx, a.down, sub, c, body)
 		return err
 	})

@@ -99,7 +99,7 @@ func (a *Create) Handle(ctx context.Context, sub identity.Subject, b CreateBody)
 		createdBy = &id
 	}
 	row := &BlockedIP{
-		ID:        newID(),
+		ID:        database.NewID(),
 		TenantID:  sub.Tenant,
 		CIDR:      cidr,
 		Reason:    reason,

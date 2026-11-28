@@ -9,7 +9,6 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
-	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
@@ -72,7 +71,7 @@ func (a *CreateDirectChat) Handle(ctx context.Context, sub identity.Subject, p C
 			}
 		} else {
 			// 校验目标成员属于当前工作区
-			if _, err := member.RoleOf(ctx, authz.NewStore(tx, auth.Catalog), identity.Ref{Type: member.Type, ID: p.ParticipantID}, sub.Tenant); err != nil {
+			if _, err := member.RoleOf(ctx, a.down.rolesWithDB(tx), identity.Ref{Type: member.Type, ID: p.ParticipantID}, sub.Tenant); err != nil {
 				if errors.Is(err, member.ErrNotFound) {
 					return member.ErrNotFound.New(errorx.Field("participant_id"))
 				}
@@ -92,9 +91,9 @@ func (a *CreateDirectChat) Handle(ctx context.Context, sub identity.Subject, p C
 			return errors.Wrap(err, "find existing direct chat")
 		}
 
-		at := now()
+		at := database.Now()
 		c := &Conversation{
-			ID:            newID(),
+			ID:            database.NewID(),
 			TenantID:      sub.Tenant,
 			Kind:          Chat,
 			HandlingMode:  HandlingHuman,
@@ -194,7 +193,7 @@ func (a *CreateGroupChat) Handle(ctx context.Context, sub identity.Subject, p Cr
 			seen[sub.ID] = true
 			memberIDs = append(memberIDs, sub.ID)
 		}
-		roles := authz.NewStore(tx, auth.Catalog)
+		roles := a.down.rolesWithDB(tx)
 		for i, mid := range p.MemberIDs {
 			if mid == "" || seen[mid] {
 				continue
@@ -209,9 +208,9 @@ func (a *CreateGroupChat) Handle(ctx context.Context, sub identity.Subject, p Cr
 			memberIDs = append(memberIDs, mid)
 		}
 
-		at := now()
+		at := database.Now()
 		c := &Conversation{
-			ID:            newID(),
+			ID:            database.NewID(),
 			TenantID:      sub.Tenant,
 			Kind:          Chat,
 			HandlingMode:  HandlingHuman,

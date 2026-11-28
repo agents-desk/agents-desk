@@ -5,12 +5,12 @@ package account
 import (
 	"context"
 
-	"github.com/cockroachdb/errors"
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/filesystem"
+	"github.com/go-tenon/tenon/filesystem/fileapi"
 	"github.com/go-tenon/tenon/identity"
 )
 
@@ -24,50 +24,13 @@ var Avatar = filesystem.Accept{
 	MaxSize: 2 * filesystem.MiB,
 }
 
-// ReplaceAvatar 在事务 tx 中把头像从 current 换成 next（文件 ID 的字符串，为空表示去掉头像），返回新头像的文件 ID：
-// 确认 next（只能是 owner 自己上传的、符合 Avatar 的图片），删除原来的文件。两者相同时什么也不做。
-// next 不能使用时返回带字段 avatar_file_id 的 filesystem.ErrNotFound 或 filesystem.ErrNotAccepted。
+// ReplaceAvatar 在事务 tx 中把头像从 current 换成 next（文件 ID 的字符串，为空表示去掉头像），返回新头像的文件 ID。
 func ReplaceAvatar(ctx context.Context, tx bun.IDB, files *filesystem.Service, owner identity.Subject, current *uuid.UUID, next *string) (*uuid.UUID, error) {
-	var id *uuid.UUID
-	if next != nil && *next != "" {
-		parsed, err := uuid.Parse(*next)
-		if err != nil {
-			return nil, filesystem.ErrNotFound.New(errorx.Field("avatar_file_id"))
-		}
-		id = &parsed
+	var nextID string
+	if next != nil {
+		nextID = *next
 	}
-	if id == current || id != nil && current != nil && *id == *current {
-		return current, nil
-	}
-	fs := files.WithDB(tx)
-	if id != nil {
-		if _, err := fs.Confirm(ctx, owner, *id, Avatar); err != nil {
-			for _, known := range []*errorx.Template{filesystem.ErrNotFound, filesystem.ErrNotAccepted, filesystem.ErrNotUploaded} {
-				if errors.Is(err, known) {
-					return nil, known.New(errorx.Field("avatar_file_id"))
-				}
-			}
-			return nil, err
-		}
-	}
-	if current != nil {
-		if err := fs.Delete(ctx, *current); err != nil {
-			return nil, err
-		}
-	}
-	return id, nil
-}
-
-// AvatarURL 返回文件 id 的公开地址，id 为空时返回空字符串。
-func AvatarURL(ctx context.Context, files *filesystem.Service, id *uuid.UUID) (string, error) {
-	if id == nil {
-		return "", nil
-	}
-	f, err := files.Get(ctx, *id)
-	if err != nil {
-		return "", err
-	}
-	return f.URL, nil
+	return fileapi.ReplaceOptional(ctx, tx, files, owner, "avatar_file_id", Avatar, current, nextID)
 }
 
 // ProfileChanges 是修改个人资料的请求：名字和头像。

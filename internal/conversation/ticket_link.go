@@ -146,7 +146,7 @@ func (a *LinkTicketContact) Handle(ctx context.Context, sub identity.Subject, ti
 			createdBy = &id
 		}
 		link := &TicketTarget{
-			ID:        newID(),
+			ID:        database.NewID(),
 			TenantID:  sub.Tenant,
 			TicketID:  tc.ID,
 			CreatedBy: createdBy,
@@ -176,7 +176,7 @@ func (a *LinkTicketContact) Handle(ctx context.Context, sub identity.Subject, ti
 			return errors.Wrap(err, "insert ticket target")
 		}
 
-		tc.LastMessageAt = now()
+		tc.LastMessageAt = database.Now()
 		tcEv := event(sub, "ticket.contact_linked", evData)
 		if err := commit(ctx, tx, a.down, tc, tcEv); err != nil {
 			return err
@@ -258,7 +258,7 @@ func (a *UnlinkTicketContact) Handle(ctx context.Context, sub identity.Subject, 
 			return errors.Wrap(err, "load contact name for unlink event")
 		}
 
-		tc.LastMessageAt = now()
+		tc.LastMessageAt = database.Now()
 		tcEv := event(sub, "ticket.contact_unlinked", map[string]any{
 			"contact_id":   contactID,
 			"contact_name": contactName,

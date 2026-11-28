@@ -32,7 +32,7 @@ func (a *SaveSettings) Handle(ctx context.Context, subject identity.Subject, upd
 	return database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		var changed []string
 		err := a.group.WithDB(tx).Update(ctx, func(s *Settings) error {
-			changed = settingsChanges(*s, updated)
+			changed = a.group.Diff(*s, updated)
 			*s = updated
 			return nil
 		})
