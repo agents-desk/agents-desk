@@ -29,7 +29,7 @@ func (a *Get) Handle(ctx context.Context, sub identity.Subject, id string) (*Rol
 	if r.Tenant != sub.Tenant {
 		return nil, ErrNotFound.New() // 全局角色，例如主管理员
 	}
-	counts, err := memberCounts(ctx, a.roles, sub.Tenant)
+	counts, err := a.roles.RoleMemberCounts(ctx, sub.Tenant)
 	if err != nil {
 		return nil, err
 	}

@@ -9,9 +9,9 @@ import (
 
 	"github.com/go-tenon/tenon/feature"
 	"github.com/go-tenon/tenon/filesystem"
+	"github.com/go-tenon/tenon/filesystem/fileapi"
 	"github.com/go-tenon/tenon/identity"
 
-	"agents-desk/internal/account"
 	"agents-desk/internal/channel"
 	"agents-desk/internal/flags"
 	"agents-desk/internal/lang"
@@ -155,7 +155,7 @@ func (a *GetConfig) Handle(ctx context.Context, requestedLang ...string) (*Confi
 			}
 			avatarURL := ""
 			if a.files != nil {
-				if u, err := account.AvatarURL(ctx, a.files, m.AvatarFileID); err == nil {
+				if u, err := fileapi.URL(ctx, a.files, m.AvatarFileID); err == nil {
 					avatarURL = u
 				}
 			}

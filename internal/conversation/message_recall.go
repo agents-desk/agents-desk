@@ -82,12 +82,12 @@ func (a *RecallMessage) Handle(ctx context.Context, sub identity.Subject, conver
 		default:
 			return ErrMessageNotEditable.New()
 		}
-		if item.Kind == Message && now().Sub(item.CreatedAt) > recallWindow {
+		if item.Kind == Message && database.Now().Sub(item.CreatedAt) > recallWindow {
 			return ErrMessageRecallWindow.New()
 		}
 		if _, err := tx.NewRaw(`INSERT INTO message_recalls (item_id, tenant_id, conversation_id, recalled_by, created_at)
 			VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`,
-			item.ID, c.TenantID, c.ID, sub.ID, now()).Exec(ctx); err != nil {
+			item.ID, c.TenantID, c.ID, sub.ID, database.Now()).Exec(ctx); err != nil {
 			return errors.Wrap(err, "insert message recall")
 		}
 		// 撤回后从全文索引中移除

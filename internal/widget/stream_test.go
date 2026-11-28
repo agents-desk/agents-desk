@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/broadcast/broadcasttest"
+	"github.com/go-tenon/tenon/database"
 
 	"agents-desk/internal/apptest"
 	"agents-desk/internal/channel"
@@ -60,7 +61,7 @@ func TestContactStreamPaginationReadTypingAndTicketWakeup(t *testing.T) {
 
 	// 为同一用户绑定另一个外部渠道（例如 Telegram）
 	otherCh := &channel.Channel{
-		ID: newID(), TenantID: f.system.Tenant, Kind: channel.Test, Name: "Telegram", Enabled: true, Settings: map[string]any{},
+		ID: database.NewID(), TenantID: f.system.Tenant, Kind: channel.Test, Name: "Telegram", Enabled: true, Settings: map[string]any{},
 	}
 	if _, err := env.DB.NewInsert().Model(otherCh).Exec(ctx); err != nil {
 		t.Fatal(err)

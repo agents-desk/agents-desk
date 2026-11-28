@@ -14,7 +14,6 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/activity"
@@ -272,7 +271,7 @@ func (a *Create) Handle(ctx context.Context, sub identity.Subject, b CreateBody)
 	if err != nil {
 		return nil, err
 	}
-	id := newID()
+	id := database.NewID()
 	err = database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		if err := checkTeam(ctx, tx, sub.Tenant, b.TeamID); err != nil {
 			return err
@@ -586,5 +585,3 @@ func toDTOs(ctx context.Context, db bun.IDB, chs []channel.Channel) ([]BotDTO, e
 	}
 	return out, nil
 }
-
-func newID() string { return uuid.Must(uuid.NewV7()).String() }

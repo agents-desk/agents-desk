@@ -36,7 +36,7 @@ func (a *RequestRating) Handle(ctx context.Context, sub identity.Subject, id str
 		if c.Kind != Service || c.Status != Closed || c.ratingRequestedSinceClosed() {
 			return nil
 		}
-		at := now()
+		at := database.Now()
 		if c.ClosedAt != nil && at.Before(*c.ClosedAt) {
 			at = *c.ClosedAt
 		}

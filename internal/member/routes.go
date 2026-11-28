@@ -9,11 +9,11 @@ import (
 
 	"github.com/go-tenon/tenon/apitoken"
 	"github.com/go-tenon/tenon/filesystem"
+	"github.com/go-tenon/tenon/filesystem/fileapi"
 	"github.com/go-tenon/tenon/httpx/rest"
 	"github.com/go-tenon/tenon/login"
 
 	"agents-desk/internal/account"
-	"agents-desk/internal/file"
 )
 
 // RegisterRoutes 注册成员的登录、退出、当前账号、个人资料、修改密码和上传文件。files 保存上传的文件（头像），maxUpload 是单个文件的上限。requireMember 要求成员的登录凭据；lifetime 是浏览器保存会话 cookie 的时长。
@@ -30,7 +30,7 @@ func RegisterRoutes(api *rest.API, requireMember func(*huma.Operation), db *bun.
 	rest.AllowReadOnly()(&op)
 	rest.Register(api, op, s.Logout)
 
-	pr := NewPasswordReset(logins, tokens)
+	pr := account.NewPasswordReset(logins, tokens)
 	op = huma.Operation{OperationID: "auth-password-forgot", Method: http.MethodPost, Path: "/auth/password/forgot", Summary: "发送重置密码验证码邮件"}
 	rest.Public()(&op)
 	rest.SameOrigin(api)(&op)
@@ -66,5 +66,5 @@ func RegisterRoutes(api *rest.API, requireMember func(*huma.Operation), db *bun.
 	rest.DirectOnly()(&op)
 	rest.Register(api, op, NewUpdateNotifications(db, logins, files).HTTP)
 
-	file.RegisterRoutes(api, requireMember, files, maxUpload)
+	fileapi.Register(api, requireMember, files, maxUpload)
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/auth"
@@ -53,7 +54,7 @@ func applyAddTag(ctx context.Context, tx bun.IDB, sub identity.Subject, c *Conve
 		return nil, err
 	}
 	res, err := tx.NewRaw(`INSERT INTO conversation_tags (tenant_id, conversation_id, tag_id, created_at)
-		VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING`, c.TenantID, c.ID, t.ID, now()).Exec(ctx)
+		VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING`, c.TenantID, c.ID, t.ID, database.Now()).Exec(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "add conversation tag")
 	}

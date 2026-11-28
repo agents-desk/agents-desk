@@ -72,7 +72,7 @@ func (a *PublishTicketUpdate) Handle(ctx context.Context, sub identity.Subject, 
 		if err := applyVerifiedTranslation(ctx, tx, sub, &item, body.Translation); err != nil {
 			return err
 		}
-		c.LastMessageAt = now()
+		c.LastMessageAt = database.Now()
 		if err := join(ctx, tx, c.ID, actor, sub.ID); err != nil {
 			return err
 		}

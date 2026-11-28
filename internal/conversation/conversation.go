@@ -12,7 +12,6 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/authz"
@@ -415,7 +414,7 @@ func openRound(ctx context.Context, tx bun.IDB, c *Conversation, at time.Time) e
 		return errors.Wrap(err, "next conversation round")
 	}
 	r := &Round{
-		ID:             newID(),
+		ID:             database.NewID(),
 		TenantID:       c.TenantID,
 		ConversationID: c.ID,
 		Round:          next,
@@ -504,6 +503,14 @@ type Downstream struct {
 	OnGenerationCanceled func(ctx context.Context, tenantID, conversationID string)
 }
 
+// rolesWithDB 在事务 tx 上复用 Downstream.Roles 的缓存与凭据复查配置；测试未装配 Roles 时新建最小存储。
+func (d Downstream) rolesWithDB(tx bun.IDB) *authz.Store {
+	if d.Roles != nil {
+		return d.Roles.WithDB(tx)
+	}
+	return authz.NewStore(tx, auth.Catalog)
+}
+
 // realtimeHubKinds 返回使用浏览器实时频道（TransportRealtimeHub）的渠道种类集合，解耦会话内核与具体渠道实现。
 func realtimeHubKinds(down Downstream) []channel.Kind {
 	if len(down.Registry) > 0 {
@@ -568,7 +575,7 @@ func commit(ctx context.Context, tx database.Tx, down Downstream, c *Conversatio
 	if err != nil {
 		return err
 	}
-	at := now()
+	at := database.Now()
 	appended := make([]Appended, 0, len(items))
 	syncIDs := make([]string, 0, len(items))
 	for _, it := range items {
@@ -577,7 +584,7 @@ func commit(ctx context.Context, tx database.Tx, down Downstream, c *Conversatio
 		if !it.CreatedAt.IsZero() {
 			itemAt = it.CreatedAt.UTC().Truncate(time.Microsecond)
 		}
-		it.ID, it.Seq, it.CreatedAt, it.UpdatedAt, it.TenantID, it.ConversationID = newID(), c.LastSeq, itemAt, at, c.TenantID, c.ID
+		it.ID, it.Seq, it.CreatedAt, it.UpdatedAt, it.TenantID, it.ConversationID = database.NewID(), c.LastSeq, itemAt, at, c.TenantID, c.ID
 		if it.Derived == nil {
 			it.Derived = map[string]any{}
 		}
@@ -814,14 +821,8 @@ func sameTime(a, b *time.Time) bool {
 
 // join 在事务 tx 中把参与者加入会话 conversationID，已经在其中时保持原样。
 func join(ctx context.Context, tx bun.IDB, conversationID string, typ ActorType, id string) error {
-	p := &Participant{ID: newID(), ConversationID: conversationID, Type: typ, ParticipantID: id}
-	p.CreatedAt, p.UpdatedAt = now(), now()
+	p := &Participant{ID: database.NewID(), ConversationID: conversationID, Type: typ, ParticipantID: id}
+	p.CreatedAt, p.UpdatedAt = database.Now(), database.Now()
 	_, err := tx.NewInsert().Model(p).On("CONFLICT DO NOTHING").Exec(ctx)
 	return errors.Wrap(err, "add participant")
 }
-
-// newID 返回按时间递增的 UUIDv7。
-func newID() string { return uuid.Must(uuid.NewV7()).String() }
-
-// now 返回当前时间，精度与 PostgreSQL 的 timestamptz 一致。
-func now() time.Time { return time.Now().UTC().Truncate(time.Microsecond) }

@@ -23,12 +23,12 @@ export const schemas = {
     },
     passwordForgot: {
       body: {
-        "$ref": "#/components/schemas/MemberForgotPasswordInputBody"
+        "$ref": "#/components/schemas/AccountForgotPasswordInputBody"
       },
     },
     passwordReset: {
       body: {
-        "$ref": "#/components/schemas/MemberResetPasswordInputBody"
+        "$ref": "#/components/schemas/AccountResetPasswordInputBody"
       },
     },
     preferencesUpdate: {
@@ -46,6 +46,20 @@ export const schemas = {
 
 /** schemas 中 $ref 引用的命名类型，键是 OpenAPI 中的名称。 */
 export const components = {
+  AccountForgotPasswordInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "email": {
+        "format": "email",
+        "maxLength": 254,
+        "type": "string"
+      }
+    },
+    "required": [
+      "email"
+    ],
+    "type": "object"
+  },
   AccountPasswordChange: {
     "additionalProperties": false,
     "properties": {
@@ -66,6 +80,32 @@ export const components = {
     ],
     "type": "object"
   },
+  AccountResetPasswordInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "code": {
+        "maxLength": 16,
+        "minLength": 4,
+        "type": "string"
+      },
+      "password": {
+        "maxLength": 128,
+        "minLength": 8,
+        "type": "string"
+      },
+      "request_id": {
+        "maxLength": 64,
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "request_id",
+      "code",
+      "password"
+    ],
+    "type": "object"
+  },
   MemberAlertChannel: {
     "additionalProperties": false,
     "properties": {
@@ -79,20 +119,6 @@ export const components = {
     "required": [
       "browser",
       "sound"
-    ],
-    "type": "object"
-  },
-  MemberForgotPasswordInputBody: {
-    "additionalProperties": false,
-    "properties": {
-      "email": {
-        "format": "email",
-        "maxLength": 254,
-        "type": "string"
-      }
-    },
-    "required": [
-      "email"
     ],
     "type": "object"
   },
@@ -186,32 +212,6 @@ export const components = {
     },
     "required": [
       "name"
-    ],
-    "type": "object"
-  },
-  MemberResetPasswordInputBody: {
-    "additionalProperties": false,
-    "properties": {
-      "code": {
-        "maxLength": 16,
-        "minLength": 4,
-        "type": "string"
-      },
-      "password": {
-        "maxLength": 128,
-        "minLength": 8,
-        "type": "string"
-      },
-      "request_id": {
-        "maxLength": 64,
-        "minLength": 1,
-        "type": "string"
-      }
-    },
-    "required": [
-      "request_id",
-      "code",
-      "password"
     ],
     "type": "object"
   },

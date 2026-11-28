@@ -82,7 +82,7 @@ func CancelActiveGenerationsInTx(ctx context.Context, tx database.Tx, down Downs
 		SET state = 'canceled', cancel_reason = ?, updated_at = ?
 		WHERE tenant_id = ? AND conversation_id = ? AND state IN ('pending', 'streaming', 'waiting_approval')
 		RETURNING id::text`,
-		reason, now(), tenantID, conversationID).Scan(ctx, &ids)
+		reason, database.Now(), tenantID, conversationID).Scan(ctx, &ids)
 	if err != nil {
 		return nil, errors.Wrap(err, "cancel active generations")
 	}
@@ -218,7 +218,7 @@ func resolveTargetBotID(ctx context.Context, tx bun.IDB, c *Conversation, reques
 func recordRoundHandover(ctx context.Context, tx bun.IDB, tenantID, conversationID, reason string) error {
 	_, err := tx.NewUpdate().Table("conversation_rounds").
 		Set("handover_reason = ?", reason).
-		Set("updated_at = ?", now()).
+		Set("updated_at = ?", database.Now()).
 		Where("tenant_id = ? AND conversation_id = ? AND closed_at IS NULL", tenantID, conversationID).
 		Exec(ctx)
 	return errors.Wrap(err, "record round handover reason")

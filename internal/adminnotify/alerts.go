@@ -13,6 +13,7 @@ import (
 	"github.com/go-tenon/tenon/doctor"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/notification"
+	"github.com/go-tenon/tenon/notification/notificationapi"
 	"github.com/go-tenon/tenon/ratelimit"
 
 	"agents-desk/internal/platformadmin"
@@ -55,7 +56,7 @@ func (a *AlertNotifier) Notify(ctx context.Context, alertKey string, n notificat
 		recipients[i] = notification.Recipient{Ref: identity.Ref{Type: platformadmin.Type, ID: id}}
 	}
 	return database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
-		_, err := Send(ctx, tx, a.hub, n, recipients...)
+		_, err := notificationapi.Send(ctx, tx, a.hub, n, recipients...)
 		return err
 	})
 }

@@ -13,9 +13,9 @@ import (
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/enum"
 	"github.com/go-tenon/tenon/filesystem"
+	"github.com/go-tenon/tenon/filesystem/fileapi"
 	"github.com/go-tenon/tenon/identity"
 
-	"agents-desk/internal/account"
 	"agents-desk/internal/channel"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/member"
@@ -236,7 +236,7 @@ func toChatDTOs(ctx context.Context, db bun.IDB, files *filesystem.Service, sub 
 			var avatar string
 			if files != nil && m.AvatarFileID != nil {
 				var err error
-				avatar, err = account.AvatarURL(ctx, files, m.AvatarFileID)
+				avatar, err = fileapi.URL(ctx, files, m.AvatarFileID)
 				if err != nil {
 					return nil, err
 				}

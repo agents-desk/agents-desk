@@ -8,10 +8,10 @@ import (
 
 	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/filesystem"
+	"github.com/go-tenon/tenon/filesystem/fileapi"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/login"
 
-	"agents-desk/internal/account"
 	"agents-desk/internal/member"
 )
 
@@ -95,7 +95,7 @@ func toTeamMember(ctx context.Context, roles *authz.Store, logins *login.Realm, 
 	if err != nil {
 		return TeamMember{}, err
 	}
-	avatar, err := account.AvatarURL(ctx, files, m.AvatarFileID)
+	avatar, err := fileapi.URL(ctx, files, m.AvatarFileID)
 	if err != nil {
 		return TeamMember{}, err
 	}

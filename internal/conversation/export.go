@@ -15,7 +15,6 @@ import (
 
 	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/database"
-	"github.com/go-tenon/tenon/httpx"
 	"github.com/go-tenon/tenon/httpx/rest"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/operation"
@@ -66,15 +65,9 @@ type ExportProgressInput struct {
 	ID uuid.UUID `path:"id"`
 }
 
-// ExportProgress 是返回给前端的会话导出进度与下载信息，附带失败原因译文。
-type ExportProgress struct {
-	*exports.Export
-	ErrorMessage string `json:"error_message,omitempty"`
-}
-
 // ExportOutput 是发起后台导出的 HTTP 响应。
 type ExportOutput struct {
-	Body ExportProgress
+	Body exports.Progress
 }
 
 // QueueExport 在后台队列中按发起人可见范围与筛选条件异步导出服务型会话表格并推送进度。
@@ -88,8 +81,6 @@ type QueueExport struct {
 func NewQueueExport(db *bun.DB, hub *broadcast.Hub, exporter *exports.Service) *QueueExport {
 	return &QueueExport{db: db, hub: hub, exporter: exporter}
 }
-
-func exportOperationTopic(id uuid.UUID) string { return "operation:" + id.String() }
 
 // Handle 校验调用者的权限与筛选条件，在事务中登记导出操作并发布队列任务。
 func (a *QueueExport) Handle(ctx context.Context, sub identity.Subject, format sheet.Format, query ExportQuery) (*exports.Export, error) {
@@ -135,14 +126,14 @@ func (q ExportQuery) toListInput() *ListInput {
 	}
 }
 
-func formatConversationExportProgress(ctx context.Context, exp *exports.Export) ExportProgress {
+func formatConversationExportProgress(ctx context.Context, exp *exports.Export) exports.Progress {
 	out := *exp
 	if out.Status == operation.StatusCompleted && out.FileID != uuid.Nil && out.URL == "" {
 		if slug := chi.URLParamFromCtx(ctx, "slug"); slug != "" {
 			out.URL = "/t/" + url.PathEscape(slug) + "/api/conversations/exports/" + out.ID.String() + "/download"
 		}
 	}
-	return ExportProgress{Export: &out, ErrorMessage: out.ErrorMessage(ctx)}
+	return out.Progress(ctx)
 }
 
 // HTTP 处理 POST /t/{slug}/api/conversations/exports。
@@ -158,37 +149,7 @@ func (a *QueueExport) HTTP(ctx context.Context, in *ExportStartInput) (*ExportOu
 // Progress 处理 GET /t/{slug}/api/conversations/exports/{id}/progress。
 func (a *QueueExport) Progress(ctx context.Context, in *ExportProgressInput) (*huma.StreamResponse, error) {
 	sub, _ := identity.FromContext(ctx)
-	if _, err := a.exporter.Get(ctx, sub, in.ID); err != nil {
-		return nil, err
-	}
-	return rest.SSE(func(s *httpx.Stream) error {
-		var events *broadcast.Subscription
-		if a.hub != nil {
-			events = a.hub.Subscribe(exportOperationTopic(in.ID))
-			defer events.Close()
-		}
-		for {
-			exp, err := a.exporter.Get(s.Context(), sub, in.ID)
-			if err != nil {
-				return err
-			}
-			p := formatConversationExportProgress(s.Context(), exp)
-			if err := s.SendJSON(httpx.Event{Name: "progress"}, p); err != nil || exp.Finished() {
-				return nil
-			}
-			if events == nil {
-				return nil
-			}
-			select {
-			case <-s.Done():
-				return nil
-			case _, ok := <-events.C():
-				if !ok {
-					return nil
-				}
-			}
-		}
-	}), nil
+	return a.exporter.ProgressSSE(ctx, a.hub, sub, in.ID, exports.ProgressOptions{Format: formatConversationExportProgress})
 }
 
 // Job 按发起人所在工作区和可见范围游标分批导出服务型会话表格。
@@ -307,18 +268,7 @@ func (a *QueueExport) Job(ctx context.Context, req ExportRequest) error {
 			cursorID = last.ID
 		}
 		return nil
-	}, a.saved)
-}
-
-func (a *QueueExport) saved(_ context.Context, tx database.Tx, exp *exports.Export) error {
-	if a.hub == nil {
-		return nil
-	}
-	topic := exportOperationTopic(exp.ID)
-	tx.AfterCommit(func(ctx context.Context) error {
-		return a.hub.Publish(ctx, topic, nil)
-	})
-	return nil
+	}, exports.BroadcastSaved(a.hub))
 }
 
 // RegisterExportRoutes 在工作区 API（/t/{slug}/api）中注册会话异步导出与进度查询接口（要求 reports:read 权限）。
@@ -332,7 +282,7 @@ func RegisterExportRoutes(api *rest.API, require func(...auth.Permission) func(*
 
 	progressOp := huma.Operation{OperationID: "conversation-export-progress", Method: http.MethodGet, Path: "/conversations/exports/{id}/progress", Summary: "会话导出进度"}
 	readReports(&progressOp)
-	rest.RegisterSSE(api, progressOp, map[string]any{"progress": ExportProgress{}}, exp.Progress)
+	rest.RegisterSSE(api, progressOp, map[string]any{"progress": exports.Progress{}}, exp.Progress)
 }
 
 // loadExportTeamNames 批量读取当前批会话涉及的团队收件箱名称。

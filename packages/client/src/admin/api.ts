@@ -5,6 +5,14 @@ import { Runtime, type ClientOptions, type Download, type SessionLike, type Stre
 export * from "./errors"
 export { ApiError, isApiError, saveBlob, type ClientOptions, type Download, type SessionLike, type FieldError, type StreamOptions } from "./runtime"
 
+export interface AccountForgotPasswordDTO {
+  request_id: string
+}
+
+export interface AccountForgotPasswordInputBody {
+  email: string
+}
+
 export interface AccountPasswordChange {
   current_password: string
   new_password: string
@@ -16,28 +24,13 @@ export interface AccountProfileChanges {
   name: string
 }
 
-export interface AdminnotifyBadge {
-  unread: number
+export interface AccountResetPasswordInputBody {
+  code: string
+  password: string
+  request_id: string
 }
 
-export interface AdminnotifyItem {
-  body?: string
-  created_at: string
-  href?: string
-  id: string
-  read: boolean
-  title: string
-}
-
-export interface AdminnotifyListOutputBody {
-  items: AdminnotifyItem[]
-}
-
-export interface AdminnotifyReadInputBody {
-  ids: string[]
-}
-
-export interface AuditItem {
+export interface ActivityItem {
   actor?: string
   created_at: string
   event: string
@@ -92,6 +85,40 @@ export interface ErrorModel {
   type?: string
 }
 
+export interface FeatureFlagDTO {
+  by_tenant: boolean
+  default_on: boolean
+  description: string
+  everyone?: FeatureRuleDTO
+  name: string
+  overrides: FeatureRuleDTO[]
+}
+
+export interface FeatureListOutputBody {
+  items: FeatureFlagDTO[]
+}
+
+export type FeatureMode = "on" | "off" | "force_on" | "force_off" | "percent"
+
+export interface FeatureRuleDTO {
+  mode: FeatureMode
+  percent?: number
+  scope: FeatureScope
+  tenant_id?: string
+  tenant_name?: string
+  tenant_slug?: string
+  updated_at: string
+}
+
+export type FeatureScope = "everyone" | "tenant"
+
+export interface FeatureSetInputBody {
+  mode: FeatureMode
+  percent?: number
+  scope: FeatureScope
+  tenant_id?: string
+}
+
 export interface File {
   content_type: string
   created_at: string
@@ -105,40 +132,6 @@ export interface File {
   status: string
   updated_at: string
   url: string
-}
-
-export interface FlagsFlagDTO {
-  by_tenant: boolean
-  default_on: boolean
-  description: string
-  everyone?: FlagsRuleDTO
-  name: string
-  overrides: FlagsRuleDTO[]
-}
-
-export interface FlagsListOutputBody {
-  items: FlagsFlagDTO[]
-}
-
-export type FlagsMode = "on" | "off" | "force_on" | "force_off" | "percent"
-
-export interface FlagsRuleDTO {
-  mode: FlagsMode
-  percent?: number
-  scope: FlagsScope
-  tenant_id?: string
-  tenant_name?: string
-  tenant_slug?: string
-  updated_at: string
-}
-
-export type FlagsScope = "everyone" | "tenant"
-
-export interface FlagsSetInputBody {
-  mode: FlagsMode
-  percent?: number
-  scope: FlagsScope
-  tenant_id?: string
 }
 
 export interface FormFile {
@@ -220,8 +213,29 @@ export interface Meta {
   width?: number
 }
 
-export interface OffsetAuditItem {
-  items: AuditItem[]
+export interface NotificationBadge {
+  unread: number
+}
+
+export interface NotificationItem {
+  body?: string
+  created_at: string
+  href?: string
+  id: string
+  read: boolean
+  title: string
+}
+
+export interface NotificationListOutputBody {
+  items: NotificationItem[]
+}
+
+export interface NotificationReadInputBody {
+  ids: string[]
+}
+
+export interface OffsetActivityItem {
+  items: ActivityItem[]
   page: number
   per_page: number
   /** Total number of items across all pages. */
@@ -280,14 +294,6 @@ export interface PlatformadminCreateInputBody {
   password: string
 }
 
-export interface PlatformadminForgotPasswordDTO {
-  request_id: string
-}
-
-export interface PlatformadminForgotPasswordInputBody {
-  email: string
-}
-
 export interface PlatformadminLoginInputBody {
   email: string
   password: string
@@ -304,12 +310,6 @@ export interface PlatformadminProfile {
   permissions: string[]
 }
 
-export interface PlatformadminResetPasswordInputBody {
-  code: string
-  password: string
-  request_id: string
-}
-
 export interface PlatformadminUpdateInputBody {
   name: string
 }
@@ -323,7 +323,7 @@ export interface PlatformoverviewAdminSummary {
 export interface PlatformoverviewOverview {
   admins?: PlatformoverviewAdminSummary
   queue?: PlatformoverviewQueueSummary
-  recent_audits?: AuditItem[]
+  recent_audits?: ActivityItem[]
   recent_tenants?: PlatformoverviewRecentTenant[]
   tenants?: PlatformoverviewTenantSummary
   usage?: PlatformoverviewUsageSummary
@@ -389,6 +389,25 @@ export interface PlatformsettingsTestMailDTO {
 export interface PlatformsettingsTestMailInputBody {
   /** 收件箱地址；留空时发送给当前管理员登录邮箱 */
   to?: string
+}
+
+export interface Progress {
+  completed_at?: string
+  created_at: string
+  error?: string
+  error_message?: string
+  expires_at?: string
+  failed: number
+  file_id?: string
+  filename?: string
+  format: string
+  id: string
+  kind: string
+  processed: number
+  status: string
+  total: number
+  updated_at: string
+  url?: string
 }
 
 export interface QueueBulkResult {
@@ -563,25 +582,6 @@ export interface TenantDTO {
   url: string
 }
 
-export interface TenantExportProgress {
-  completed_at?: string
-  created_at: string
-  error?: string
-  error_message?: string
-  expires_at?: string
-  failed: number
-  file_id?: string
-  filename?: string
-  format: string
-  id: string
-  kind: string
-  processed: number
-  status: string
-  total: number
-  updated_at: string
-  url?: string
-}
-
 export interface TenantExportStartInputBody {
   /** 导出格式，默认 xlsx */
   format?: "xlsx" | "csv"
@@ -665,7 +665,7 @@ export interface AuditListInput {
 
 /** feature-clear 的参数。 */
 export interface FeatureClearInput {
-  scope?: FlagsScope
+  scope?: FeatureScope
   tenant_id?: string
 }
 
@@ -676,7 +676,7 @@ export type FileUploadForm = {
 
 /** notification-inbox 推送的事件，按 event 区分。 */
 export type NotificationInboxEvent =
-  | { event: "badge"; data: AdminnotifyBadge; id?: string }
+  | { event: "badge"; data: NotificationBadge; id?: string }
 
 /** notification-list 的参数。 */
 export interface NotificationListInput {
@@ -728,7 +728,7 @@ export interface ScheduleRunsInput {
 
 /** tenant-export-progress 推送的事件，按 event 区分。 */
 export type TenantExportProgressEvent =
-  | { event: "progress"; data: TenantExportProgress; id?: string }
+  | { event: "progress"; data: Progress; id?: string }
 
 /** tenant-list 的参数。 */
 export interface TenantListInput {
@@ -816,14 +816,14 @@ export function createClient(options: ClientOptions) {
        *
        * POST /auth/password/forgot
        */
-      passwordForgot: (body: PlatformadminForgotPasswordInputBody): Promise<PlatformadminForgotPasswordDTO> =>
-        rt.request<PlatformadminForgotPasswordDTO>({ method: "POST", path: `/auth/password/forgot`, public: true, body }),
+      passwordForgot: (body: AccountForgotPasswordInputBody): Promise<AccountForgotPasswordDTO> =>
+        rt.request<AccountForgotPasswordDTO>({ method: "POST", path: `/auth/password/forgot`, public: true, body }),
       /**
        * 凭邮箱验证码重设密码
        *
        * POST /auth/password/reset
        */
-      passwordReset: (body: PlatformadminResetPasswordInputBody): Promise<void> =>
+      passwordReset: (body: AccountResetPasswordInputBody): Promise<void> =>
         rt.request<void>({ method: "POST", path: `/auth/password/reset`, public: true, body }),
       /**
        * 修改平台管理员
@@ -840,8 +840,8 @@ export function createClient(options: ClientOptions) {
        *
        * GET /audit
        */
-      list: (input: AuditListInput = {}): Promise<OffsetAuditItem> =>
-        rt.request<OffsetAuditItem>({ method: "GET", path: `/audit`, query: { "page": input["page"], "per_page": input["per_page"], "target_type": input["target_type"] } }),
+      list: (input: AuditListInput = {}): Promise<OffsetActivityItem> =>
+        rt.request<OffsetActivityItem>({ method: "GET", path: `/audit`, query: { "page": input["page"], "per_page": input["per_page"], "target_type": input["target_type"] } }),
     },
     /** operationId 以 auth- 开头的接口。 */
     auth: {
@@ -888,22 +888,22 @@ export function createClient(options: ClientOptions) {
        *
        * DELETE /features/{name}
        */
-      clear: (name: string, input: FeatureClearInput = {}): Promise<FlagsFlagDTO> =>
-        rt.request<FlagsFlagDTO>({ method: "DELETE", path: `/features/${encodeURIComponent(name)}`, query: { "scope": input["scope"], "tenant_id": input["tenant_id"] } }),
+      clear: (name: string, input: FeatureClearInput = {}): Promise<FeatureFlagDTO> =>
+        rt.request<FeatureFlagDTO>({ method: "DELETE", path: `/features/${encodeURIComponent(name)}`, query: { "scope": input["scope"], "tenant_id": input["tenant_id"] } }),
       /**
        * 功能开关列表
        *
        * GET /features
        */
-      list: (): Promise<FlagsListOutputBody> =>
-        rt.request<FlagsListOutputBody>({ method: "GET", path: `/features` }),
+      list: (): Promise<FeatureListOutputBody> =>
+        rt.request<FeatureListOutputBody>({ method: "GET", path: `/features` }),
       /**
        * 设置功能开关
        *
        * PUT /features/{name}
        */
-      set: (name: string, body: FlagsSetInputBody): Promise<FlagsFlagDTO> =>
-        rt.request<FlagsFlagDTO>({ method: "PUT", path: `/features/${encodeURIComponent(name)}`, body }),
+      set: (name: string, body: FeatureSetInputBody): Promise<FeatureFlagDTO> =>
+        rt.request<FeatureFlagDTO>({ method: "PUT", path: `/features/${encodeURIComponent(name)}`, body }),
     },
     /** operationId 以 file- 开头的接口。 */
     file: {
@@ -1001,14 +1001,14 @@ export function createClient(options: ClientOptions) {
        *
        * GET /notifications
        */
-      list: (input: NotificationListInput = {}): Promise<AdminnotifyListOutputBody> =>
-        rt.request<AdminnotifyListOutputBody>({ method: "GET", path: `/notifications`, query: { "before": input["before"], "limit": input["limit"] } }),
+      list: (input: NotificationListInput = {}): Promise<NotificationListOutputBody> =>
+        rt.request<NotificationListOutputBody>({ method: "GET", path: `/notifications`, query: { "before": input["before"], "limit": input["limit"] } }),
       /**
        * 标记通知已读
        *
        * POST /notifications/read
        */
-      read: (body: AdminnotifyReadInputBody): Promise<void> =>
+      read: (body: NotificationReadInputBody): Promise<void> =>
         rt.request<void>({ method: "POST", path: `/notifications/read`, body }),
       /**
        * 全部标记已读
@@ -1180,8 +1180,8 @@ export function createClient(options: ClientOptions) {
        *
        * POST /tenants/exports
        */
-      exportStart: (body: TenantExportStartInputBody): Promise<TenantExportProgress> =>
-        rt.request<TenantExportProgress>({ method: "POST", path: `/tenants/exports`, body }),
+      exportStart: (body: TenantExportStartInputBody): Promise<Progress> =>
+        rt.request<Progress>({ method: "POST", path: `/tenants/exports`, body }),
       /**
        * 读取工作区
        *

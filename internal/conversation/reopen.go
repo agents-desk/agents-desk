@@ -7,6 +7,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
 
@@ -46,7 +47,7 @@ func reopen(sub identity.Subject) changeFunc {
 			if err := ensureNoOtherActive(ctx, tx, c); err != nil {
 				return nil, err
 			}
-			at := now()
+			at := database.Now()
 			c.OpenedAt, c.FirstReplyAt = at, nil
 			if err := openRound(ctx, tx, c, at); err != nil {
 				return nil, err

@@ -11,11 +11,11 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/go-tenon/tenon/apitoken"
+	"github.com/go-tenon/tenon/httpx"
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/apptest"
 	"agents-desk/internal/blockip"
-	"agents-desk/internal/clientip"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
 )
@@ -33,7 +33,7 @@ func TestMiddlewareIPBlockAndBlockedContactAuth(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := chi.NewRouter()
-	r.Use(clientip.Middleware)
+	r.Use(httpx.ClientIP(httpx.ClientIPConfig{}))
 	r.Route("/w/{channel}/api", func(sub chi.Router) {
 		sub.Use(Middleware(env.DB))
 		sub.Get("/ping", func(w http.ResponseWriter, _ *http.Request) {

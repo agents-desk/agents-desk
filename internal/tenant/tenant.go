@@ -112,9 +112,6 @@ func (a Addresses) URL(t *Tenant) string {
 	return strings.TrimSuffix(a.PublicURL, "/") + "/app/" + t.Slug + "/"
 }
 
-// newID 返回按时间递增的 UUIDv7。
-func newID() string { return uuid.Must(uuid.NewV7()).String() }
-
 // checkSlug 检查 slug 不是保留词；格式由接口的 pattern 校验。
 func checkSlug(slug string) error {
 	if slices.Contains(reservedSlugs, slug) {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
 
@@ -33,7 +34,7 @@ func NewSnooze(db *bun.DB, down Downstream) *Snooze { return &Snooze{db: db, dow
 // until 不晚于现在时返回 ErrSnoozeInPast（字段 until）；会话已关闭时返回 ErrClosed。
 func (a *Snooze) Handle(ctx context.Context, sub identity.Subject, id string, until time.Time) (*ConversationDTO, error) {
 	until = until.UTC().Truncate(time.Microsecond)
-	if !until.After(now()) {
+	if !until.After(database.Now()) {
 		return nil, ErrSnoozeInPast.New(errorx.Field("until"))
 	}
 	return change(ctx, a.db, a.down, sub, id, auth.ConversationsReply, func(_ context.Context, _ bun.IDB, c *Conversation) ([]*Item, error) {
@@ -47,7 +48,7 @@ func applySnooze(sub identity.Subject, c *Conversation, until time.Time) ([]*Ite
 		return nil, ErrWrongKind.New()
 	}
 	until = until.UTC().Truncate(time.Microsecond)
-	if !until.After(now()) {
+	if !until.After(database.Now()) {
 		return nil, ErrSnoozeInPast.New(errorx.Field("until"))
 	}
 	if c.Status == Closed {

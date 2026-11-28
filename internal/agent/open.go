@@ -8,6 +8,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
+	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/conversation"
@@ -82,9 +83,9 @@ func (a *Open) Handle(ctx context.Context, sub identity.Subject, p OpenParams) (
 	if ttl <= 0 {
 		ttl = defaultGenerationTTL
 	}
-	at := now()
+	at := database.Now()
 	g := &Generation{
-		ID:               newID(),
+		ID:               database.NewID(),
 		TenantID:         sub.Tenant,
 		ConversationID:   p.ConversationID,
 		ActorID:          p.BotID,

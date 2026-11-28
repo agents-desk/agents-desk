@@ -83,7 +83,7 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 			updated = o
 			return nil
 		}
-		o.UpdatedAt = now()
+		o.UpdatedAt = database.Now()
 		if _, err := tx.NewUpdate().Model(o).Column(append(cols, "updated_at")...).WherePK().Exec(ctx); err != nil {
 			if database.IsUniqueViolation(err, "organizations_tenant_name") {
 				return ErrNameTaken.New(errorx.Field("name"), errorx.Public("name", o.Name))

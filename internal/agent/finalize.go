@@ -73,7 +73,7 @@ func (a *Finalize) Handle(ctx context.Context, sub identity.Subject, p FinalizeP
 		if !g.State.active() {
 			return ErrFinished.New()
 		}
-		at := now()
+		at := database.Now()
 		mode := g.Mode
 		if mode == "" {
 			mode = ModeReply

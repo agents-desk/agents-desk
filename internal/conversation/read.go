@@ -49,7 +49,7 @@ func (a *MarkRead) Handle(ctx context.Context, sub identity.Subject, id string, 
 		_, err := tx.NewRaw(`INSERT INTO conversation_reads (member_id, conversation_id, last_read_seq, updated_at) VALUES (?, ?, ?, ?)
 			ON CONFLICT (member_id, conversation_id) DO UPDATE
 			SET last_read_seq = GREATEST(conversation_reads.last_read_seq, EXCLUDED.last_read_seq), updated_at = EXCLUDED.updated_at`,
-			sub.ID, c.ID, min(seq, c.LastSeq), now()).Exec(ctx)
+			sub.ID, c.ID, min(seq, c.LastSeq), database.Now()).Exec(ctx)
 		if err != nil {
 			return errors.Wrap(err, "save conversation read")
 		}

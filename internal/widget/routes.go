@@ -11,13 +11,13 @@ import (
 	"github.com/go-tenon/tenon/crypt"
 	"github.com/go-tenon/tenon/feature"
 	"github.com/go-tenon/tenon/filesystem"
+	"github.com/go-tenon/tenon/filesystem/fileapi"
 	"github.com/go-tenon/tenon/httpx/rest"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/ratelimit"
 
 	"agents-desk/internal/auth"
 	"agents-desk/internal/conversation"
-	"agents-desk/internal/file"
 	"agents-desk/internal/flags"
 )
 
@@ -162,7 +162,7 @@ func RegisterVisitorRoutes(api *rest.API, requireContact func(*huma.Operation), 
 	if visitorMaxUpload > 20*filesystem.MiB {
 		visitorMaxUpload = 20 * filesystem.MiB
 	}
-	file.RegisterRoutes(api, requireContact, down.Media.Files, visitorMaxUpload, file.UploadOptions{
+	fileapi.Register(api, requireContact, down.Media.Files, visitorMaxUpload, fileapi.UploadOptions{
 		Private: true,
 		Accept:  conversation.AttachmentAccept(),
 		Allow: func(ctx context.Context) error {

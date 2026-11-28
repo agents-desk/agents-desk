@@ -518,7 +518,7 @@ func (a *Receive) startContactConversation(ctx context.Context, tx bun.IDB, ch *
 	}
 	chID, replyChID := ch.ID, ch.ID
 	c := &Conversation{
-		ID: newID(), TenantID: ch.TenantID, Kind: Service, Audience: ch.EffectiveAudience(),
+		ID: database.NewID(), TenantID: ch.TenantID, Kind: Service, Audience: ch.EffectiveAudience(),
 		ChannelID: &chID, ReplyChannelID: &replyChID, ContactID: &person.ID, TeamID: decision.TeamID,
 		HandlingMode: decision.HandlingMode,
 		Status:       Open, Priority: Normal, Language: person.Language, OpenedAt: at, LastMessageAt: at, Attributes: map[string]any{},
@@ -547,7 +547,7 @@ func (a *Receive) startGroupConversation(ctx context.Context, tx bun.IDB, ch *ch
 	}
 	chID, replyChID := ch.ID, ch.ID
 	c := &Conversation{
-		ID: newID(), TenantID: ch.TenantID, Kind: Service, Audience: ch.EffectiveAudience(),
+		ID: database.NewID(), TenantID: ch.TenantID, Kind: Service, Audience: ch.EffectiveAudience(),
 		ChannelID: &chID, ReplyChannelID: &replyChID, ExternalGroupID: &group.ID, TeamID: decision.TeamID,
 		HandlingMode: decision.HandlingMode,
 		Status:       Open, Priority: Normal, Language: group.Language, OpenedAt: at, LastMessageAt: at, Attributes: map[string]any{},
@@ -662,7 +662,7 @@ func (a *Receive) receiveExternalChat(ctx context.Context, tx database.Tx, sub i
 		}
 		chID, replyChID := ch.ID, ch.ID
 		c = &Conversation{
-			ID:             newID(),
+			ID:             database.NewID(),
 			TenantID:       ch.TenantID,
 			Kind:           Chat,
 			Audience:       ch.EffectiveAudience(),
@@ -703,7 +703,7 @@ func (a *Receive) receiveExternalChat(ctx context.Context, tx database.Tx, sub i
 		}
 		// 应用个人商务渠道策略：自动拉入默认协作成员
 		if len(bp.DefaultCollaboratorIDs) > 0 {
-			roles := authz.NewStore(tx, auth.Catalog)
+			roles := a.down.rolesWithDB(tx)
 			for _, mid := range bp.DefaultCollaboratorIDs {
 				if mid == "" || mid == ownerID {
 					continue
@@ -797,7 +797,7 @@ func (a *Receive) receiveExternalChat(ctx context.Context, tx database.Tx, sub i
 		if _, err := tx.NewRaw(`INSERT INTO conversation_reads (member_id, conversation_id, last_read_seq, updated_at) VALUES (?, ?, ?, ?)
 			ON CONFLICT (member_id, conversation_id) DO UPDATE
 			SET last_read_seq = GREATEST(conversation_reads.last_read_seq, EXCLUDED.last_read_seq), updated_at = EXCLUDED.updated_at`,
-			ownerID, c.ID, msg.Seq, now()).Exec(ctx); err != nil {
+			ownerID, c.ID, msg.Seq, database.Now()).Exec(ctx); err != nil {
 			return nil, errors.Wrap(err, "advance owner external chat read seq")
 		}
 	}
@@ -812,7 +812,7 @@ func inboundTime(t *time.Time) time.Time {
 	if t != nil && !t.IsZero() {
 		return t.UTC().Truncate(time.Microsecond)
 	}
-	return now()
+	return database.Now()
 }
 
 func inboundDerived(replyContext map[string]any) map[string]any {

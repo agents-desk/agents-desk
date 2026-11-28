@@ -46,7 +46,7 @@ func (a *Create) Handle(ctx context.Context, sub identity.Subject, p CreateParam
 	}
 	teamID := cleanTeamID(p.DefaultTeamID)
 	t := &TicketType{
-		ID:                newID(),
+		ID:                database.NewID(),
 		TenantID:          sub.Tenant,
 		Name:              name,
 		Description:       desc,

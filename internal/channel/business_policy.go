@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/errorx"
 )
 
@@ -98,7 +99,7 @@ func GeneratePublicCode() string {
 		n, err := rand.Int(rand.Reader, max)
 		if err != nil {
 			// crypto/rand 正常不会失败，回退至 UUIDv7 片段保证非空
-			return strings.ReplaceAll(newID(), "-", "")[:10]
+			return strings.ReplaceAll(database.NewID(), "-", "")[:10]
 		}
 		b.WriteByte(publicCodeAlphabet[n.Int64()])
 	}

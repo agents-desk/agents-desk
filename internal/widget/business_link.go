@@ -491,7 +491,7 @@ func (a *CreateBusinessLink) Handle(ctx context.Context, sub identity.Subject, b
 	ownerID := sub.ID
 	code := channel.GeneratePublicCode()
 	ch := &channel.Channel{
-		ID:            newID(),
+		ID:            database.NewID(),
 		TenantID:      sub.Tenant,
 		Kind:          channel.BusinessLink,
 		Audience:      channel.AudiencePartner,

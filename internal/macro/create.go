@@ -61,7 +61,7 @@ func (a *Create) Handle(ctx context.Context, sub identity.Subject, p CreateParam
 			return err
 		}
 		m = &Macro{
-			ID:        newID(),
+			ID:        database.NewID(),
 			TenantID:  sub.Tenant,
 			OwnerID:   ownerID,
 			Shortcut:  shortcut,

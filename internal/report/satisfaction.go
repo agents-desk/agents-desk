@@ -158,7 +158,7 @@ func (a *Satisfaction) Handle(ctx context.Context, sub identity.Subject, f Filte
 	var sRows []seriesRow
 	qSeries := a.db.NewSelect().TableExpr("conversation_rounds r").
 		Join("JOIN conversations c ON c.id = r.conversation_id").
-		ColumnExpr(bucketExpr("r.rated_at", w.Granularity)+" AS bucket", w.TimeZone).
+		ColumnExpr(w.BucketExpr("r.rated_at")+" AS bucket", w.TimeZone).
 		ColumnExpr("count(*) AS rated, count(*) FILTER (WHERE r.rating >= 4) AS pos, avg(r.rating) AS avg").
 		Where("r.tenant_id = ? AND c.kind = ? AND r.rating IS NOT NULL AND r.rated_at >= ? AND r.rated_at < ?", sub.Tenant, conversation.Service, w.Start, w.End).
 		GroupExpr("1")
@@ -166,9 +166,9 @@ func (a *Satisfaction) Handle(ctx context.Context, sub identity.Subject, f Filte
 	if err := qSeries.Scan(ctx, &sRows); err != nil {
 		return nil, errors.Wrap(err, "report satisfaction series")
 	}
-	sparse := make([]SatisfactionPoint, len(sRows))
-	for i, r := range sRows {
-		sparse[i] = SatisfactionPoint{
+	byDate := make(map[string]SatisfactionPoint, len(sRows))
+	for _, r := range sRows {
+		byDate[r.Bucket] = SatisfactionPoint{
 			Date:          r.Bucket,
 			RatedCount:    r.Rated,
 			PositiveCount: r.Positive,
@@ -176,10 +176,9 @@ func (a *Satisfaction) Handle(ctx context.Context, sub identity.Subject, f Filte
 			AvgScore:      roundPtr(r.Avg),
 		}
 	}
-	series := period.FillSeries(w, sparse,
-		func(p SatisfactionPoint) string { return p.Date },
-		func(b string) SatisfactionPoint { return SatisfactionPoint{Date: b} },
-	)
+	series := period.FillSeriesMap(w, byDate, func(b string) SatisfactionPoint {
+		return SatisfactionPoint{Date: b}
+	})
 
 	byTeam, err := a.byTeam(ctx, sub.Tenant, w, f)
 	if err != nil {

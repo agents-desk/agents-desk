@@ -91,6 +91,14 @@ export const FeatureErrors = {
   Invalid: "feature.invalid",
 } as const
 
+/** github.com/go-tenon/tenon/feature/featureapi 的错误码。 */
+export const FeatureapiErrors = {
+  /** ErrNotFound 表示请求的开关不在代码声明的目录中。 */
+  NotFound: "feature.not_found",
+  /** ErrTenantRequired 表示作用域为 tenant 时缺少有效的 tenant_id。 */
+  TenantRequired: "feature.tenant_required",
+} as const
+
 /** github.com/go-tenon/tenon/filesystem 的错误码。 */
 export const FilesystemErrors = {
   /** 404：不存在、已删除、已过期或不属于当前主体 */

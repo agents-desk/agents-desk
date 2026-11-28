@@ -16,6 +16,7 @@ import (
 
 	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/broadcast/broadcasttest"
+	"github.com/go-tenon/tenon/feature"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/lock"
 	"github.com/go-tenon/tenon/lock/pglock"
@@ -1043,11 +1044,7 @@ func TestTranslationFeatureFlagOff(t *testing.T) {
 
 	store := flags.NewStore(f.env.DB)
 	f.translator.SetFeatures(store)
-	setIn := flags.SetInput{Name: flags.AITranslation.Name}
-	setIn.Body.Scope = flags.ScopeTenant
-	setIn.Body.TenantID = f.system.Tenant
-	setIn.Body.Mode = flags.ModeOff
-	if _, err := flags.NewSet(f.env.DB, store).Handle(ctx, apptest.Admin, setIn); err != nil {
+	if err := store.Set(ctx, flags.AITranslation, feature.Tenant(f.system.Tenant), feature.Off); err != nil {
 		t.Fatal(err)
 	}
 

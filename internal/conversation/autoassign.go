@@ -76,7 +76,7 @@ func roundRobin(ctx context.Context, tx bun.IDB, c *Conversation) (*Item, error)
 	if err != nil {
 		return nil, errors.Wrap(err, "pick round robin member")
 	}
-	if _, err := tx.NewRaw("UPDATE team_members SET last_assigned_at = ? WHERE team_id = ? AND member_id = ?", now(), *c.TeamID, next).Exec(ctx); err != nil {
+	if _, err := tx.NewRaw("UPDATE team_members SET last_assigned_at = ? WHERE team_id = ? AND member_id = ?", database.Now(), *c.TeamID, next).Exec(ctx); err != nil {
 		return nil, errors.Wrap(err, "record round robin")
 	}
 	c.AssigneeType, c.AssigneeID = MemberActor, next
@@ -149,7 +149,7 @@ func OnMemberLeft(down Downstream) member.RemovedHook {
 		}
 		leavingSub := identity.Subject{Type: member.Type, ID: memberID, Tenant: tenant}
 		for i := range chatConvs {
-			at := now()
+			at := database.Now()
 			res, err := tx.NewRaw(`UPDATE conversation_participants SET left_at = ?, updated_at = ?
 				WHERE conversation_id = ? AND participant_type = ? AND participant_id = ? AND left_at IS NULL`,
 				at, at, chatConvs[i].ID, MemberActor, memberID).Exec(ctx)

@@ -52,7 +52,7 @@ func (a *Create) Handle(ctx context.Context, sub identity.Subject, p CreateParam
 	name := strings.TrimSpace(p.Name)
 	desc := strings.TrimSpace(p.Description)
 	d := &Definition{
-		ID: newID(), TenantID: sub.Tenant, Target: p.Target, Key: p.Key,
+		ID: database.NewID(), TenantID: sub.Tenant, Target: p.Target, Key: p.Key,
 		Name: name, Description: desc, Type: p.Type, Options: opts,
 	}
 	err = database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {

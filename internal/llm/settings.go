@@ -110,44 +110,6 @@ func (s *Settings) model(t CallType) string {
 	panic("llm: unknown call type " + string(t))
 }
 
-// settingsChanges 返回从 old 到 updated 修改了的字段名；密钥只记字段名，不记值。
-func settingsChanges(old, updated Settings) []string {
-	var changed []string
-	if old.Gateway.BaseURL != updated.Gateway.BaseURL {
-		changed = append(changed, "gateway.base_url")
-	}
-	if old.Gateway.APIKey != updated.Gateway.APIKey {
-		changed = append(changed, "gateway.api_key")
-	}
-	modelPairs := []struct {
-		name   string
-		oldVal string
-		newVal string
-	}{
-		{"models.chat", old.Models.Chat, updated.Models.Chat},
-		{"models.fast_router", old.Models.FastRouter, updated.Models.FastRouter},
-		{"models.translation", old.Models.Translation, updated.Models.Translation},
-		{"models.embedding", old.Models.Embedding, updated.Models.Embedding},
-		{"models.rerank", old.Models.Rerank, updated.Models.Rerank},
-		{"models.transcribe", old.Models.Transcribe, updated.Models.Transcribe},
-	}
-	for _, p := range modelPairs {
-		if p.oldVal != p.newVal {
-			changed = append(changed, p.name)
-		}
-	}
-	if old.DefaultBudget.DailyCostUSD != updated.DefaultBudget.DailyCostUSD {
-		changed = append(changed, "default_budget.daily_cost_usd")
-	}
-	if old.DefaultBudget.MonthlyCostUSD != updated.DefaultBudget.MonthlyCostUSD {
-		changed = append(changed, "default_budget.monthly_cost_usd")
-	}
-	if old.DefaultBudget.DailyTotalTokens != updated.DefaultBudget.DailyTotalTokens {
-		changed = append(changed, "default_budget.daily_total_tokens")
-	}
-	return changed
-}
-
 // resolveBudget 将平台默认预算与工作区覆写合并为最终生效阈值。
 func resolveBudget(def Budget, ov TenantBudget) Budget {
 	eff := def

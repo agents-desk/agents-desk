@@ -85,7 +85,7 @@ func (a *Cancel) HandleWithReason(ctx context.Context, sub identity.Subject, id,
 		}
 		g.State = Canceled
 		g.CancelReason = reason
-		g.UpdatedAt = now()
+		g.UpdatedAt = database.Now()
 		if _, err := tx.NewUpdate().Model(&g).Column("state", "cancel_reason", "updated_at").WherePK().Exec(ctx); err != nil {
 			return errors.Wrap(err, "cancel generation")
 		}

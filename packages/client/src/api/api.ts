@@ -5,9 +5,23 @@ import { Runtime, type ClientOptions, type Download, type SessionLike, type Stre
 export * from "./errors"
 export { ApiError, isApiError, saveBlob, type ClientOptions, type Download, type SessionLike, type FieldError, type StreamOptions } from "./runtime"
 
+export interface AccountForgotPasswordDTO {
+  request_id: string
+}
+
+export interface AccountForgotPasswordInputBody {
+  email: string
+}
+
 export interface AccountPasswordChange {
   current_password: string
   new_password: string
+}
+
+export interface AccountResetPasswordInputBody {
+  code: string
+  password: string
+  request_id: string
 }
 
 export interface ErrorDetail {
@@ -67,14 +81,6 @@ export interface MemberAlertChannel {
   browser: boolean
   /** 是否播放提示音 */
   sound: boolean
-}
-
-export interface MemberForgotPasswordDTO {
-  request_id: string
-}
-
-export interface MemberForgotPasswordInputBody {
-  email: string
 }
 
 export interface MemberImpersonationInfo {
@@ -149,12 +155,6 @@ export interface MemberProfileChanges {
   name: string
   /** 对外展示的头衔或职位，用于商务沟通名片 */
   title?: string
-}
-
-export interface MemberResetPasswordInputBody {
-  code: string
-  password: string
-  request_id: string
 }
 
 export type MemberSendShortcut = "enter" | "ctrl_enter"
@@ -234,14 +234,14 @@ export function createClient(options: ClientOptions) {
        *
        * POST /auth/password/forgot
        */
-      passwordForgot: (body: MemberForgotPasswordInputBody): Promise<MemberForgotPasswordDTO> =>
-        rt.request<MemberForgotPasswordDTO>({ method: "POST", path: `/auth/password/forgot`, public: true, body }),
+      passwordForgot: (body: AccountForgotPasswordInputBody): Promise<AccountForgotPasswordDTO> =>
+        rt.request<AccountForgotPasswordDTO>({ method: "POST", path: `/auth/password/forgot`, public: true, body }),
       /**
        * 凭邮箱验证码重设密码
        *
        * POST /auth/password/reset
        */
-      passwordReset: (body: MemberResetPasswordInputBody): Promise<void> =>
+      passwordReset: (body: AccountResetPasswordInputBody): Promise<void> =>
         rt.request<void>({ method: "POST", path: `/auth/password/reset`, public: true, body }),
       /**
        * 修改偏好设置

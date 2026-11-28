@@ -387,7 +387,7 @@ func isBudgetExceededErr(err error, msg string) bool {
 // consumeRun 消费 chat.Run 的事件流并驱动 generations 与 conversation.handling_mode 状态流转。
 func (s *Service) consumeRun(ctx context.Context, g *Generation, run *chat.Run) error {
 	if _, err := s.db.NewRaw(`UPDATE generations SET run_id = ?, updated_at = ? WHERE id = ? AND tenant_id = ?`,
-		run.ID, now(), g.ID, g.TenantID).Exec(ctx); err != nil {
+		run.ID, database.Now(), g.ID, g.TenantID).Exec(ctx); err != nil {
 		return errors.Wrap(err, "record generation run_id")
 	}
 
@@ -537,7 +537,7 @@ func (s *Service) enterWaitingApproval(ctx context.Context, g *Generation, appro
 			updated.Citations = citations
 		}
 		updated.Checkpoint++
-		updated.UpdatedAt = now()
+		updated.UpdatedAt = database.Now()
 		if _, err := tx.NewUpdate().Model(&updated).
 			Column("state", "pending_approvals", "tool_calls", "citations", "checkpoint_seq", "updated_at").
 			WherePK().Exec(ctx); err != nil {

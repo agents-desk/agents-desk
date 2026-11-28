@@ -11,7 +11,6 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/contract"
@@ -113,9 +112,6 @@ type TeamOutput struct {
 type IDInput struct {
 	ID string `path:"id" format:"uuid"`
 }
-
-// newID 返回按时间递增的 UUIDv7。
-func newID() string { return uuid.Must(uuid.NewV7()).String() }
 
 // find 读取工作区 tenant 中的团队收件箱 id，不存在或不属于这个工作区时返回 ErrNotFound。lock 为 true 时锁住这一行。
 func find(ctx context.Context, db bun.IDB, tenant, id string, lock bool) (*Team, error) {

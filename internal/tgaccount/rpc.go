@@ -36,8 +36,8 @@ const (
 	mediaRPCTimeout = 2 * time.Minute
 )
 
-// errRestartRequested 表示管理操作通过控制广播要求长连接立即重建。
-var errRestartRequested = errors.New("tgaccount: restart requested")
+// errCtrlStopped 表示管理操作通过控制广播停用或断开了长连接。
+var errCtrlStopped = errors.New("tgaccount: stopped by control signal")
 
 type rpcError struct {
 	Code          string `json:"code,omitempty"`
@@ -174,7 +174,7 @@ func (m *Manager) publishAccountCtrl(channelID, cmd string) {
 	_ = m.nc.Publish(natsCtrlPrefix+channelID, []byte(cmd))
 }
 
-func (m *Manager) handleAccountCtrl(ctx context.Context, tenantID, channelID string, runner *accountRunner, restartRequested *atomic.Bool, cancelRun context.CancelFunc, data []byte) {
+func (m *Manager) handleAccountCtrl(ctx context.Context, tenantID, channelID string, runner *accountRunner, restartRequested, stopRequested *atomic.Bool, cancelRun context.CancelFunc, data []byte) {
 	switch string(data) {
 	case ctrlReload:
 		ch, err := channel.Find(ctx, m.db, tenantID, channelID)
@@ -183,7 +183,9 @@ func (m *Manager) handleAccountCtrl(ctx context.Context, tenantID, channelID str
 			return
 		}
 		if !ch.Enabled {
-			m.stopRunner(channelID)
+			stopRequested.Store(true)
+			cancelRun()
+			m.wake()
 			return
 		}
 		cfg, err := settingsOf(ch)
@@ -197,7 +199,9 @@ func (m *Manager) handleAccountCtrl(ctx context.Context, tenantID, channelID str
 		restartRequested.Store(true)
 		cancelRun()
 	case ctrlDisconnect:
-		m.stopRunner(channelID)
+		stopRequested.Store(true)
+		cancelRun()
+		m.wake()
 	}
 }
 

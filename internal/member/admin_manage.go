@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-tenon/tenon/activity"
 	"github.com/go-tenon/tenon/apitoken"
+	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/contract"
 	"github.com/go-tenon/tenon/database"
@@ -75,12 +76,13 @@ type AdminListOutput struct {
 // AdminList 列出全平台的成员账号。
 type AdminList struct {
 	db     *bun.DB
+	roles  *authz.Store
 	logins *login.Realm
 }
 
 // NewAdminList 返回管理员端全局成员列表动作。
-func NewAdminList(db *bun.DB, logins *login.Realm) *AdminList {
-	return &AdminList{db: db, logins: logins}
+func NewAdminList(db *bun.DB, roles *authz.Store, logins *login.Realm) *AdminList {
+	return &AdminList{db: db, roles: roles, logins: logins}
 }
 
 // Handle 按关键词与账号状态分页返回全平台成员，统计每位成员所属的工作区数量。
@@ -94,10 +96,17 @@ func (a *AdminList) Handle(ctx context.Context, in *AdminListInput) (*page.Offse
 		Limit(in.Limit()).Offset(in.Offset())
 	if in.Q != "" {
 		like := "%" + database.EscapeLike(in.Q) + "%"
-		q = q.Where(`(name ILIKE ? ESCAPE '\' OR EXISTS (
-			SELECT 1 FROM auth_identifiers ai
-			WHERE ai.subject_type = ? AND ai.kind = ? AND ai.subject_id = member.id::text AND ai.value ILIKE ? ESCAPE '\'
-		))`, like, Type, login.KindEmail, like)
+		matchedIDs, err := a.logins.SearchSubjectIDs(ctx, login.KindEmail, in.Q)
+		if err != nil {
+			return nil, err
+		}
+		q = q.WhereGroup(" AND ", func(q *bun.SelectQuery) *bun.SelectQuery {
+			q = q.Where(`name ILIKE ? ESCAPE '\'`, like)
+			if len(matchedIDs) > 0 {
+				q = q.WhereOr("id IN (?)", bun.In(matchedIDs))
+			}
+			return q
+		})
 	}
 	switch in.Status {
 	case AccountActive:
@@ -109,7 +118,7 @@ func (a *AdminList) Handle(ctx context.Context, in *AdminListInput) (*page.Offse
 	if err != nil {
 		return nil, errors.Wrap(err, "list global members")
 	}
-	items, err := toAdminDTOs(ctx, a.db, a.logins, rows)
+	items, err := toAdminDTOs(ctx, a.roles, a.logins, rows)
 	if err != nil {
 		return nil, err
 	}
@@ -129,12 +138,13 @@ func (a *AdminList) HTTP(ctx context.Context, in *AdminListInput) (*AdminListOut
 // AdminGet 读取管理员端单个成员详情。
 type AdminGet struct {
 	db     *bun.DB
+	roles  *authz.Store
 	logins *login.Realm
 }
 
 // NewAdminGet 返回管理员端读取单个成员的动作。
-func NewAdminGet(db *bun.DB, logins *login.Realm) *AdminGet {
-	return &AdminGet{db: db, logins: logins}
+func NewAdminGet(db *bun.DB, roles *authz.Store, logins *login.Realm) *AdminGet {
+	return &AdminGet{db: db, roles: roles, logins: logins}
 }
 
 // Handle 读取全局成员 id 的详情。
@@ -143,7 +153,7 @@ func (a *AdminGet) Handle(ctx context.Context, id string) (*AdminMemberDTO, erro
 	if err != nil {
 		return nil, err
 	}
-	items, err := toAdminDTOs(ctx, a.db, a.logins, []Member{*m})
+	items, err := toAdminDTOs(ctx, a.roles, a.logins, []Member{*m})
 	if err != nil {
 		return nil, err
 	}
@@ -162,23 +172,24 @@ func (a *AdminGet) HTTP(ctx context.Context, in *AdminIDInput) (*AdminMemberOutp
 // SetAccountDisabled 全局停用或启用成员账号，停用时清除全部登录令牌并通知长连接复查。
 type SetAccountDisabled struct {
 	db       *bun.DB
+	roles    *authz.Store
 	logins   *login.Realm
 	creds    *broadcast.Credentials
 	disabled bool
 }
 
 // NewAdminDisable 返回全局停用成员账号的动作。
-func NewAdminDisable(db *bun.DB, logins *login.Realm, creds ...*broadcast.Credentials) *SetAccountDisabled {
+func NewAdminDisable(db *bun.DB, roles *authz.Store, logins *login.Realm, creds ...*broadcast.Credentials) *SetAccountDisabled {
 	var c *broadcast.Credentials
 	if len(creds) > 0 {
 		c = creds[0]
 	}
-	return &SetAccountDisabled{db: db, logins: logins, creds: c, disabled: true}
+	return &SetAccountDisabled{db: db, roles: roles, logins: logins, creds: c, disabled: true}
 }
 
 // NewAdminEnable 返回全局启用成员账号的动作。
-func NewAdminEnable(db *bun.DB, logins *login.Realm) *SetAccountDisabled {
-	return &SetAccountDisabled{db: db, logins: logins, disabled: false}
+func NewAdminEnable(db *bun.DB, roles *authz.Store, logins *login.Realm) *SetAccountDisabled {
+	return &SetAccountDisabled{db: db, roles: roles, logins: logins, disabled: false}
 }
 
 // Handle 在事务中停用或启用全局成员 id，并记录平台域操作日志。
@@ -243,7 +254,7 @@ func (a *SetAccountDisabled) HTTP(ctx context.Context, in *AdminIDInput) (*Admin
 	if err != nil {
 		return nil, err
 	}
-	items, err := toAdminDTOs(ctx, a.db, a.logins, []Member{*m})
+	items, err := toAdminDTOs(ctx, a.roles, a.logins, []Member{*m})
 	if err != nil {
 		return nil, err
 	}
@@ -251,45 +262,24 @@ func (a *SetAccountDisabled) HTTP(ctx context.Context, in *AdminIDInput) (*Admin
 }
 
 // toAdminDTOs 批量补充成员邮箱与所属工作区计数，构造管理员端成员 DTO 列表。
-func toAdminDTOs(ctx context.Context, db bun.IDB, logins *login.Realm, rows []Member) ([]AdminMemberDTO, error) {
+func toAdminDTOs(ctx context.Context, roles *authz.Store, logins *login.Realm, rows []Member) ([]AdminMemberDTO, error) {
 	out := make([]AdminMemberDTO, len(rows))
 	if len(rows) == 0 {
 		return out, nil
 	}
 	ids := make([]string, len(rows))
+	refs := make([]identity.Ref, len(rows))
 	for i := range rows {
 		ids[i] = rows[i].ID
+		refs[i] = rows[i].Ref()
 	}
-	emails, err := Emails(ctx, db, ids)
+	emails, err := logins.IdentifiersMany(ctx, ids, login.KindEmail)
 	if err != nil {
 		return nil, err
 	}
-	// 当通过测试或特殊配置缺少邮箱记录时回退使用 login.Realm 查询单个账号
-	if logins != nil {
-		for _, id := range ids {
-			if emails[id] != "" {
-				continue
-			}
-			if addr, err := Email(ctx, logins, identity.Ref{Type: Type, ID: id}); err == nil && addr != "" {
-				emails[id] = addr
-			}
-		}
-	}
-	var counts []struct {
-		SubjectID string `bun:"subject_id"`
-		Cnt       int    `bun:"cnt"`
-	}
-	if err := db.NewSelect().Table("authz_assignments").
-		Column("subject_id").
-		ColumnExpr("COUNT(DISTINCT tenant) AS cnt").
-		Where("subject_type = ? AND tenant <> '' AND subject_id IN (?)", Type, bun.In(ids)).
-		GroupExpr("subject_id").
-		Scan(ctx, &counts); err != nil {
-		return nil, errors.Wrap(err, "count member tenants")
-	}
-	tenantCounts := make(map[string]int, len(counts))
-	for _, c := range counts {
-		tenantCounts[c.SubjectID] = c.Cnt
+	tenantCounts, err := roles.TenantCounts(ctx, refs)
+	if err != nil {
+		return nil, err
 	}
 	for i := range rows {
 		m := &rows[i]
@@ -301,7 +291,7 @@ func toAdminDTOs(ctx context.Context, db bun.IDB, logins *login.Realm, rows []Me
 			ID:          m.ID,
 			Name:        m.Name,
 			Email:       emails[m.ID],
-			TenantCount: tenantCounts[m.ID],
+			TenantCount: tenantCounts[m.Ref()],
 			Status:      status,
 			DisabledAt:  m.DisabledAt,
 			CreatedAt:   m.CreatedAt,
@@ -311,16 +301,16 @@ func toAdminDTOs(ctx context.Context, db bun.IDB, logins *login.Realm, rows []Me
 }
 
 // RegisterAdminRoutes 在管理员端 API（/admin/api）注册全局成员管理接口与资源声明。
-func RegisterAdminRoutes(api *rest.API, requireManage func(*huma.Operation), db *bun.DB, logins *login.Realm, creds ...*broadcast.Credentials) {
+func RegisterAdminRoutes(api *rest.API, requireManage func(*huma.Operation), db *bun.DB, roles *authz.Store, logins *login.Realm, creds ...*broadcast.Credentials) {
 	route := func(id, method, path, summary string) huma.Operation {
 		op := huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary}
 		requireManage(&op)
 		return op
 	}
-	rest.Register(api, route("admin-member-list", http.MethodGet, "/members", "全局成员列表"), NewAdminList(db, logins).HTTP)
-	rest.Register(api, route("admin-member-get", http.MethodGet, "/members/{id}", "读取全局成员"), NewAdminGet(db, logins).HTTP)
-	rest.Register(api, route("admin-member-disable", http.MethodPost, "/members/{id}/disable", "停用成员账号"), NewAdminDisable(db, logins, creds...).HTTP)
-	rest.Register(api, route("admin-member-enable", http.MethodPost, "/members/{id}/enable", "启用成员账号"), NewAdminEnable(db, logins).HTTP)
+	rest.Register(api, route("admin-member-list", http.MethodGet, "/members", "全局成员列表"), NewAdminList(db, roles, logins).HTTP)
+	rest.Register(api, route("admin-member-get", http.MethodGet, "/members/{id}", "读取全局成员"), NewAdminGet(db, roles, logins).HTTP)
+	rest.Register(api, route("admin-member-disable", http.MethodPost, "/members/{id}/disable", "停用成员账号"), NewAdminDisable(db, roles, logins, creds...).HTTP)
+	rest.Register(api, route("admin-member-enable", http.MethodPost, "/members/{id}/enable", "启用成员账号"), NewAdminEnable(db, roles, logins).HTTP)
 
 	api.Resource(rest.Resource{
 		Name:    "member",

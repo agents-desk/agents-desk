@@ -42,7 +42,7 @@ func applyClose(ctx context.Context, tx database.Tx, down Downstream, sub identi
 	if _, err := CancelActiveGenerationsInTx(ctx, tx, down, c.TenantID, c.ID, "conversation_closed"); err != nil {
 		return nil, err
 	}
-	at := now()
+	at := database.Now()
 	resType, genCount, err := computeRoundResolution(ctx, tx, c)
 	if err != nil {
 		return nil, err
@@ -76,7 +76,7 @@ func applyClose(ctx context.Context, tx database.Tx, down Downstream, sub identi
 			return nil, errors.Wrap(err, "next conversation round")
 		}
 		r := &Round{
-			ID:                newID(),
+			ID:                database.NewID(),
 			TenantID:          c.TenantID,
 			ConversationID:    c.ID,
 			Round:             round,

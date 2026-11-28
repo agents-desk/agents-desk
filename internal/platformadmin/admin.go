@@ -90,9 +90,6 @@ type IDInput struct {
 	ID string `path:"id" format:"uuid"`
 }
 
-// newID 返回按时间递增的 UUIDv7。
-func newID() string { return uuid.Must(uuid.NewV7()).String() }
-
 // find 按 ID 读取管理员，不存在时返回 ErrNotFound。
 func find(ctx context.Context, db bun.IDB, id string) (*Admin, error) {
 	return findLocked(ctx, db, id, false)

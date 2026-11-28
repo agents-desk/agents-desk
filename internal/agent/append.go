@@ -51,7 +51,7 @@ func (a *Append) Handle(ctx context.Context, sub identity.Subject, p AppendParam
 		g.Parts["text"] = g.text() + p.Delta
 		g.State = Streaming
 		g.Checkpoint++
-		g.UpdatedAt = now()
+		g.UpdatedAt = database.Now()
 		_, err := tx.NewUpdate().Model(&g).
 			Column("state", "parts", "checkpoint_seq", "updated_at").WherePK().Exec(ctx)
 		return errors.Wrap(err, "save generation chunk")

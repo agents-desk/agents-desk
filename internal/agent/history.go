@@ -13,6 +13,7 @@ import (
 	"trpc.group/trpc-go/trpc-agent-go/model"
 
 	"github.com/go-tenon/tenon/ai/chat"
+	"github.com/go-tenon/tenon/database"
 
 	"agents-desk/internal/conversation"
 )
@@ -218,9 +219,9 @@ func (h *historyStore) Save(ctx context.Context, c chat.Conversation, e chat.Ent
 	if err != nil {
 		return errors.Wrap(err, "marshal agent turn message")
 	}
-	at := now()
+	at := database.Now()
 	turn := &AgentTurn{
-		ID:             newID(),
+		ID:             database.NewID(),
 		TenantID:       c.UserID,
 		ConversationID: c.ID,
 		GenerationID:   genPtr,

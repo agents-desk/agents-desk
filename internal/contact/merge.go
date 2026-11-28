@@ -131,7 +131,7 @@ func (a *Merge) Handle(ctx context.Context, sub identity.Subject, targetID strin
 			}
 		}
 
-		at := now()
+		at := database.Now()
 		var cols []string
 		if inheritedExternalID != "" {
 			target.ExternalUserID = inheritedExternalID
@@ -342,7 +342,7 @@ func MergeLead(ctx context.Context, tx bun.IDB, tenant, leadID, userID, consumeC
 		return user, nil, nil
 	}
 
-	at := now()
+	at := database.Now()
 	// 资料回填：产品传来的用户资料优先，用户为空的项从线索补齐
 	var cols []string
 	if user.Name == "" && lead.Name != "" {

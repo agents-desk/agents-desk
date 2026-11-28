@@ -18,7 +18,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { describeError } from "@go-tenon/client"
 import { errorMessage, notifyError, notifySuccess, Page, ResourceSelect, TableCard, useT } from "@go-tenon/ui"
-import type { FlagsFlagDTO, FlagsMode } from "@agents-desk/client/admin"
+import type { FeatureFlagDTO, FeatureMode } from "@agents-desk/client/admin"
 import { useState } from "react"
 import { api } from "../../../api"
 import { tenants } from "../../../resources"
@@ -52,24 +52,24 @@ function FeatureFlagsPage() {
   )
 }
 
-type GlobalChoice = "default" | FlagsMode
+type GlobalChoice = "default" | FeatureMode
 
-function FlagCard({ flag }: { flag: FlagsFlagDTO }) {
+function FlagCard({ flag }: { flag: FeatureFlagDTO }) {
   const t = useT()
   const queryClient = useQueryClient()
   const [percent, setPercent] = useState<number>(flag.everyone?.mode === "percent" ? (flag.everyone.percent ?? 0) : 10)
   const [tenantID, setTenantID] = useState<string | null>(null)
   const [overrideMode, setOverrideMode] = useState<"on" | "off">("on")
 
-  const updateCache = (updated: FlagsFlagDTO) => {
-    queryClient.setQueryData<{ items: FlagsFlagDTO[] }>(queryKey, (prev) =>
+  const updateCache = (updated: FeatureFlagDTO) => {
+    queryClient.setQueryData<{ items: FeatureFlagDTO[] }>(queryKey, (prev) =>
       prev ? { items: prev.items.map((f) => (f.name === updated.name ? updated : f)) } : prev,
     )
     notifySuccess(t("features.saved"))
   }
 
   const setRule = useMutation({
-    mutationFn: (body: { scope: "everyone" | "tenant"; tenant_id?: string; mode: FlagsMode; percent?: number }) =>
+    mutationFn: (body: { scope: "everyone" | "tenant"; tenant_id?: string; mode: FeatureMode; percent?: number }) =>
       api.feature.set(flag.name, body),
     onSuccess: updateCache,
     onError: (err) => notifyError(err),

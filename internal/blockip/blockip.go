@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/database"
@@ -25,8 +24,6 @@ var (
 	// ErrDuplicate 是同一个 IP 地址或网段已在当前工作区黑名单中。
 	ErrDuplicate = errorx.Define(errorx.Conflict, "blockip.duplicate")
 )
-
-func newID() string { return uuid.Must(uuid.NewV7()).String() }
 
 // BlockedIP 表示工作区黑名单中的一条 IP 或 CIDR 封禁规则。
 type BlockedIP struct {

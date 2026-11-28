@@ -88,7 +88,7 @@ func (a *Delete) Handle(ctx context.Context, sub identity.Subject, id string) (*
 			Where("tenant_id = ? AND contact_id = ?", sub.Tenant, c.ID).Exec(ctx); err != nil {
 			return errors.Wrap(err, "delete contact tags on anonymize")
 		}
-		at := now()
+		at := database.Now()
 		if _, err := tx.NewUpdate().Table("contacts").
 			Set("name = ''").
 			Set("email = ''").

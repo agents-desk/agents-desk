@@ -42,7 +42,7 @@ func NewCreate(db *bun.DB) *Create { return &Create{db: db} }
 
 // Handle 在 sub 所在的工作区中新建团队收件箱并记录操作日志。名称已被使用时返回 ErrNameTaken（字段 name）。
 func (a *Create) Handle(ctx context.Context, sub identity.Subject, c Changes) (*TeamDTO, error) {
-	t := &Team{ID: newID(), TenantID: sub.Tenant, Name: c.Name, Description: c.Description, Assignment: c.assignment()}
+	t := &Team{ID: database.NewID(), TenantID: sub.Tenant, Name: c.Name, Description: c.Description, Assignment: c.assignment()}
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		if _, err := tx.NewInsert().Model(t).Exec(ctx); err != nil {
 			if database.IsUniqueViolation(err, "teams_tenant_name") {

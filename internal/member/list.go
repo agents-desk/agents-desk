@@ -88,9 +88,13 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) 
 	if err != nil {
 		return nil, err
 	}
+	emails, err := a.logins.IdentifiersMany(ctx, pageIDs, login.KindEmail)
+	if err != nil {
+		return nil, err
+	}
 	items := make([]TenantMember, 0, len(rows))
 	for i := range rows {
-		item, err := toTenantMember(ctx, a.logins, a.files, sub, &rows[i], roleByID[rows[i].ID], statuses[rows[i].ID])
+		item, err := toTenantMemberWithEmail(ctx, a.files, sub, &rows[i], emails[rows[i].ID], roleByID[rows[i].ID], statuses[rows[i].ID])
 		if err != nil {
 			return nil, err
 		}

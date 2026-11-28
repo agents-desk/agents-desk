@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/broadcast/broadcasttest"
+	"github.com/go-tenon/tenon/database"
 
 	"agents-desk/internal/apptest"
 	"agents-desk/internal/channel"
@@ -69,7 +70,7 @@ func TestContactTicketsVisibilityAndCrossChannel(t *testing.T) {
 
 	// 该用户通过另一个外部渠道（例如 Telegram）发起服务型会话
 	otherCh := &channel.Channel{
-		ID:       newID(),
+		ID:       database.NewID(),
 		TenantID: f.system.Tenant,
 		Kind:     channel.Test,
 		Name:     "Telegram 渠道",

@@ -145,7 +145,7 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 		if err != nil {
 			return err
 		}
-		at := now()
+		at := database.Now()
 		actor := actorOf(sub)
 		item = buildOutboundMessageItem(actor, sub.ID, targetChannelID, replyToID, body.Text, extMentions, body.Translation, body.AutoTranslate)
 		if body.SourceGenerationID != "" {

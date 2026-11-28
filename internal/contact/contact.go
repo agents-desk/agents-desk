@@ -10,7 +10,6 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/contract"
@@ -163,7 +162,7 @@ func ResolveIdentityWithKind(ctx context.Context, tx bun.IDB, tenant, channelID,
 	if defaultKind == "" {
 		defaultKind = Lead
 	}
-	at := now()
+	at := database.Now()
 	var id Identity
 	err = tx.NewSelect().Model(&id).Where("channel_id = ? AND external_id = ?", channelID, externalID).Scan(ctx)
 	switch {
@@ -184,7 +183,7 @@ func ResolveIdentityWithKind(ctx context.Context, tx bun.IDB, tenant, channelID,
 		return nil, false, err
 	}
 	c = &Contact{
-		ID: newID(), TenantID: tenant, Number: num, Kind: defaultKind,
+		ID: database.NewID(), TenantID: tenant, Number: num, Kind: defaultKind,
 		Name: strings.TrimSpace(p.Name), Company: strings.TrimSpace(p.Company), Email: strings.TrimSpace(p.Email),
 		Language: sanitizeLanguage(p.Language),
 		TimeZone: sanitizeTimeZone(p.TimeZone), Referrer: sanitizeReferrer(p.Referrer),
@@ -203,7 +202,7 @@ func ResolveIdentityWithKind(ctx context.Context, tx bun.IDB, tenant, channelID,
 // ResolveUser 在事务 tx 中按产品后端传来的用户编号 userID 找到工作区 tenant 中的用户，还没有时新建一个，并确保他在渠道
 // channelID 中有外部编号为 externalID 的身份。p 是产品传来的最新资料，非空的项写入联系人；渠道身份已经存在时用它对应的联系人。
 func ResolveUser(ctx context.Context, tx bun.IDB, tenant, channelID, externalID, userID string, p Profile) (*Contact, error) {
-	at := now()
+	at := database.Now()
 	var id Identity
 	err := tx.NewSelect().Model(&id).Where("channel_id = ? AND external_id = ?", channelID, externalID).Scan(ctx)
 	var c *Contact
@@ -223,7 +222,7 @@ func ResolveUser(ctx context.Context, tx bun.IDB, tenant, channelID, externalID,
 				return nil, err
 			}
 			c = &Contact{
-				ID: newID(), TenantID: tenant, Number: num, Kind: User, ExternalUserID: userID,
+				ID: database.NewID(), TenantID: tenant, Number: num, Kind: User, ExternalUserID: userID,
 				Language: sanitizeLanguage(p.Language),
 				TimeZone: sanitizeTimeZone(p.TimeZone), Referrer: sanitizeReferrer(p.Referrer),
 				LastSeenAt: &at, Attributes: map[string]any{}, NotesDerived: map[string]any{},
@@ -292,7 +291,7 @@ func LinkUser(ctx context.Context, tx database.Tx, tenant, channelID, externalID
 		return c, nil, err
 	}
 	// 原渠道身份挂在线索下：先查找或新建对应的产品用户，再把线索（含渠道身份和历史会话）合并到用户名下。
-	at := now()
+	at := database.Now()
 	u := new(Contact)
 	err = tx.NewSelect().Model(u).Where("tenant_id = ? AND external_user_id = ?", tenant, userID).Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -301,7 +300,7 @@ func LinkUser(ctx context.Context, tx database.Tx, tenant, channelID, externalID
 			return nil, nil, err
 		}
 		u = &Contact{
-			ID: newID(), TenantID: tenant, Number: num, Kind: User, ExternalUserID: userID,
+			ID: database.NewID(), TenantID: tenant, Number: num, Kind: User, ExternalUserID: userID,
 			Name: p.Name, Email: p.Email,
 			Language: sanitizeLanguage(p.Language),
 			TimeZone: sanitizeTimeZone(p.TimeZone), Referrer: sanitizeReferrer(p.Referrer),
@@ -492,7 +491,7 @@ func AddTag(ctx context.Context, tx bun.IDB, tenant, contactID, tagID string) (*
 		return nil, false, err
 	}
 	res, err := tx.NewRaw(`INSERT INTO contact_tags (tenant_id, contact_id, tag_id, created_at)
-		VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING`, tenant, contactID, tagID, now()).Exec(ctx)
+		VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING`, tenant, contactID, tagID, database.Now()).Exec(ctx)
 	if err != nil {
 		return nil, false, errors.Wrap(err, "add contact tag")
 	}
@@ -550,9 +549,3 @@ func nextNumber(ctx context.Context, tx bun.IDB, tenant string) (int64, error) {
 	).Scan(ctx, &n)
 	return n, errors.Wrap(err, "allocate contact number")
 }
-
-// newID 返回按时间递增的 UUIDv7。
-func newID() string { return uuid.Must(uuid.NewV7()).String() }
-
-// now 返回当前时间，精度与 PostgreSQL 的 timestamptz 一致。
-func now() time.Time { return time.Now().UTC().Truncate(time.Microsecond) }

@@ -40,7 +40,7 @@ func (a *RateByContact) Handle(ctx context.Context, sub identity.Subject, channe
 		case c.ratedSinceClosed():
 			return ErrAlreadyRated.New()
 		}
-		at := now()
+		at := database.Now()
 		var r Round
 		err = tx.NewSelect().Model(&r).
 			Where("tenant_id = ? AND conversation_id = ? AND closed_at IS NOT NULL", c.TenantID, c.ID).

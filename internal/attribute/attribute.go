@@ -13,7 +13,6 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/contract"
@@ -431,6 +430,3 @@ func equalValue(a, b any) bool {
 	}
 	return a == b
 }
-
-// newID 返回按时间递增的 UUIDv7。
-func newID() string { return uuid.Must(uuid.NewV7()).String() }

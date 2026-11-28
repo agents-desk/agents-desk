@@ -13,11 +13,11 @@ import (
 	"github.com/go-tenon/tenon/crypt"
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/errorx"
+	"github.com/go-tenon/tenon/httpx"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/ratelimit"
 
 	"agents-desk/internal/channel"
-	"agents-desk/internal/clientip"
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
 )
@@ -215,7 +215,7 @@ func (a *StartSession) Handle(ctx context.Context, b SessionBody, device apitoke
 // HTTP 处理 POST /w/{channel}/api/session。
 func (a *StartSession) HTTP(ctx context.Context, in *SessionInput) (*SessionOutput, error) {
 	dto, err := a.Handle(ctx, in.Body, apitoken.Device{
-		IP:        clientip.FromContext(ctx),
+		IP:        httpx.ClientIPFromContext(ctx),
 		UserAgent: in.UserAgent,
 	})
 	if err != nil {

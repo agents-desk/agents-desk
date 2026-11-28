@@ -71,7 +71,7 @@ func (a *Create) Handle(ctx context.Context, sub identity.Subject, c Changes) (*
 		if err := checkTeam(ctx, tx, sub.Tenant, c.TeamID); err != nil {
 			return err
 		}
-		ch := &channel.Channel{ID: newID(), TenantID: sub.Tenant, Kind: channel.Widget, Name: c.Name, Settings: settings, TeamID: c.TeamID, Enabled: true}
+		ch := &channel.Channel{ID: database.NewID(), TenantID: sub.Tenant, Kind: channel.Widget, Name: c.Name, Settings: settings, TeamID: c.TeamID, Enabled: true}
 		if _, err := tx.NewInsert().Model(ch).Exec(ctx); err != nil {
 			return errors.Wrap(err, "insert widget")
 		}

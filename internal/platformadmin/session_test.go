@@ -18,6 +18,7 @@ import (
 	"github.com/go-tenon/tenon/login"
 	"github.com/go-tenon/tenon/login/logintest"
 
+	"agents-desk/internal/account"
 	"agents-desk/internal/apptest"
 	"agents-desk/internal/auth"
 	"agents-desk/internal/member"
@@ -134,7 +135,7 @@ func TestAdminPasswordResetRevokesTokens(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pr := platformadmin.NewPasswordReset(logins, tokens)
+	pr := account.NewPasswordReset(logins, tokens)
 	req, err := pr.Forgot(ctx, "reset-adm@example.com")
 	if err != nil {
 		t.Fatal(err)

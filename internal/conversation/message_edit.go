@@ -107,7 +107,7 @@ func (a *EditMessage) Handle(ctx context.Context, sub identity.Subject, conversa
 		if recalled {
 			return ErrMessageNotEditable.New()
 		}
-		if item.Kind == Message && now().Sub(item.CreatedAt) > editWindow {
+		if item.Kind == Message && database.Now().Sub(item.CreatedAt) > editWindow {
 			return ErrMessageEditWindow.New()
 		}
 
@@ -118,7 +118,7 @@ func (a *EditMessage) Handle(ctx context.Context, sub identity.Subject, conversa
 		}
 		if _, err := tx.NewRaw(`INSERT INTO message_revisions (item_id, revision, tenant_id, conversation_id, text, editor_id, created_at)
 			VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			item.ID, next, c.TenantID, c.ID, text, sub.ID, now()).Exec(ctx); err != nil {
+			item.ID, next, c.TenantID, c.ID, text, sub.ID, database.Now()).Exec(ctx); err != nil {
 			return errors.Wrap(err, "insert message revision")
 		}
 		// 编辑正文后清除旧的语言识别和译文缓存，并通知关注编辑事件的下游（如翻译）按新正文重译

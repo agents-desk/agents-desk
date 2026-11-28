@@ -150,7 +150,7 @@ func (a *Translation) Handle(ctx context.Context, sub identity.Subject, p period
 	}
 	var sRows []seriesRow
 	err = a.db.NewSelect().Table("llm_calls").
-		ColumnExpr(bucketExpr("created_at", w.Granularity)+" AS bucket", w.TimeZone).
+		ColumnExpr(w.BucketExpr("created_at")+" AS bucket", w.TimeZone).
 		ColumnExpr("count(*) AS calls, count(*) FILTER (WHERE error <> '') AS failed").
 		ColumnExpr("COALESCE(sum(prompt_tokens + completion_tokens), 0) AS tokens, COALESCE(sum(cost), 0)::float8 AS cost").
 		Where("tenant_id = ? AND call_type = ? AND created_at >= ? AND created_at < ?", sub.Tenant, llm.Translation, w.Start, w.End).
@@ -159,9 +159,9 @@ func (a *Translation) Handle(ctx context.Context, sub identity.Subject, p period
 	if err != nil {
 		return nil, errors.Wrap(err, "report translation series")
 	}
-	sparse := make([]TranslationPoint, len(sRows))
-	for i, r := range sRows {
-		sparse[i] = TranslationPoint{
+	byDate := make(map[string]TranslationPoint, len(sRows))
+	for _, r := range sRows {
+		byDate[r.Bucket] = TranslationPoint{
 			Date:        r.Bucket,
 			Calls:       r.Calls,
 			FailedCalls: r.Failed,
@@ -169,10 +169,9 @@ func (a *Translation) Handle(ctx context.Context, sub identity.Subject, p period
 			CostUSD:     round6(r.Cost),
 		}
 	}
-	series := period.FillSeries(w, sparse,
-		func(pt TranslationPoint) string { return pt.Date },
-		func(b string) TranslationPoint { return TranslationPoint{Date: b} },
-	)
+	series := period.FillSeriesMap(w, byDate, func(b string) TranslationPoint {
+		return TranslationPoint{Date: b}
+	})
 
 	// 按业务场景拆解（兼容 conversation、timeline_item 与 ticket 三类翻译目标并映射回会话域）
 	type sceneRow struct {

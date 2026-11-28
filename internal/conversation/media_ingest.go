@@ -220,7 +220,7 @@ func (a *FetchAttachment) Handle(ctx context.Context, sub identity.Subject, conv
 		if att.FetchStatus == FetchReady && att.FileID != nil {
 			return nil
 		}
-		if att.FetchStatus == FetchFetching && now().Sub(att.UpdatedAt) < staleFetchTimeout {
+		if att.FetchStatus == FetchFetching && database.Now().Sub(att.UpdatedAt) < staleFetchTimeout {
 			return nil
 		}
 		if att.SourceChannelID == nil || *att.SourceChannelID == "" || att.SourceRef == "" {
@@ -344,7 +344,7 @@ func RecoverStaleMediaFetches(ctx context.Context, db *bun.DB, staleAfter time.D
 	if staleAfter <= 0 {
 		staleAfter = staleFetchTimeout
 	}
-	cutoff := now().Add(-staleAfter)
+	cutoff := database.Now().Add(-staleAfter)
 	var ids []string
 	if err := db.NewSelect().Model((*Attachment)(nil)).Column("id").
 		Where("fetch_status = ? AND updated_at < ?", FetchFetching, cutoff).
@@ -442,7 +442,7 @@ func completeAttachmentFile(ctx context.Context, db *bun.DB, att *Attachment, f 
 	if f.Meta.Width > 0 && f.Meta.Height > 0 {
 		width, height = f.Meta.Width, f.Meta.Height
 	}
-	at := now()
+	at := database.Now()
 	_, err := db.NewUpdate().Model((*Attachment)(nil)).
 		Set("file_id = ?", fid).
 		Set("kind = ?", kind).

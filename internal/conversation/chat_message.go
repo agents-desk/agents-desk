@@ -7,7 +7,6 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
-	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
@@ -68,7 +67,7 @@ func (a *SendChatMessage) Handle(ctx context.Context, sub identity.Subject, id s
 		if err != nil {
 			return err
 		}
-		at := now()
+		at := database.Now()
 		actor := actorOf(sub)
 		isExternalReply := cm.Scope == ChatExternal && !body.Note
 		var replyToID *string
@@ -95,7 +94,7 @@ func (a *SendChatMessage) Handle(ctx context.Context, sub identity.Subject, id s
 		}
 		var mentions []string
 		if !isExternalReply {
-			roles := authz.NewStore(tx, auth.Catalog)
+			roles := a.down.rolesWithDB(tx)
 			for i, m := range body.Mentions {
 				if _, err := member.RoleOf(ctx, roles, identity.Ref{Type: member.Type, ID: m}, sub.Tenant); err != nil {
 					if errors.Is(err, member.ErrNotFound) {

@@ -82,7 +82,7 @@ func (a *Retry) Handle(ctx context.Context, sub identity.Subject, id, itemID str
 				}
 			}
 		}
-		res, err := tx.NewUpdate().Model((*Delivery)(nil)).Set("status = ?", Sending).Set("error = ''").Set("updated_at = ?", now()).
+		res, err := tx.NewUpdate().Model((*Delivery)(nil)).Set("status = ?", Sending).Set("error = ''").Set("updated_at = ?", database.Now()).
 			Where("item_id = ? AND status = ?", item.ID, Failed).Exec(ctx)
 		if err != nil {
 			return errors.Wrap(err, "reset delivery")

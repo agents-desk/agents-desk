@@ -10,7 +10,6 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/activity"
@@ -174,7 +173,7 @@ func EnsureGroup(ctx context.Context, tx bun.IDB, tenant, channelID, externalID,
 
 	t := at
 	g = &Group{
-		ID:           newID(),
+		ID:           database.NewID(),
 		TenantID:     tenant,
 		ChannelID:    channelID,
 		ExternalID:   extID,
@@ -200,7 +199,7 @@ func EnsureUser(ctx context.Context, tx bun.IDB, tenant, channelID, externalID, 
 	extID := strings.TrimSpace(externalID)
 	display := strings.TrimSpace(name)
 	avatar := strings.TrimSpace(avatarURL)
-	at := now()
+	at := database.Now()
 
 	u := new(User)
 	err := tx.NewSelect().Model(u).
@@ -227,7 +226,7 @@ func EnsureUser(ctx context.Context, tx bun.IDB, tenant, channelID, externalID, 
 	}
 
 	u = &User{
-		ID:         newID(),
+		ID:         database.NewID(),
 		TenantID:   tenant,
 		ChannelID:  channelID,
 		ExternalID: extID,
@@ -251,7 +250,7 @@ func EnsureUser(ctx context.Context, tx bun.IDB, tenant, channelID, externalID, 
 func SyncJoined(ctx context.Context, db *bun.DB, tenant, channelID, externalID, name string) (*Group, error) {
 	var out *Group
 	err := database.RunInTx(ctx, db, nil, func(ctx context.Context, tx database.Tx) error {
-		g, _, err := EnsureGroup(ctx, tx, tenant, channelID, externalID, name, now())
+		g, _, err := EnsureGroup(ctx, tx, tenant, channelID, externalID, name, database.Now())
 		out = g
 		return err
 	})
@@ -445,7 +444,7 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 			updated = g
 			return nil
 		}
-		g.UpdatedAt = now()
+		g.UpdatedAt = database.Now()
 		if _, err := tx.NewUpdate().Model(g).Column(append(cols, "updated_at")...).WherePK().Exec(ctx); err != nil {
 			return errors.Wrap(err, "update external group")
 		}
@@ -537,6 +536,3 @@ func toDTOs(ctx context.Context, db bun.IDB, tenant string, rows []Group) ([]Gro
 	}
 	return out, nil
 }
-
-func newID() string  { return uuid.Must(uuid.NewV7()).String() }
-func now() time.Time { return time.Now().UTC().Truncate(time.Microsecond) }

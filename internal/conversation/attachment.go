@@ -360,7 +360,7 @@ func confirmAttachmentInputs(ctx context.Context, tx bun.IDB, files *filesystem.
 		}
 		fileUUID := f.ID
 		out = append(out, &Attachment{
-			ID:          newID(),
+			ID:          database.NewID(),
 			Kind:        kind,
 			Filename:    f.Filename,
 			ContentType: f.ContentType,
@@ -410,7 +410,7 @@ func buildIncomingAttachments(channelID string, incoming []IncomingAttachment) (
 		}
 		chID := channelID
 		out = append(out, &Attachment{
-			ID:              newID(),
+			ID:              database.NewID(),
 			Kind:            kind,
 			Filename:        in.Filename,
 			ContentType:     in.ContentType,
@@ -434,10 +434,10 @@ func insertAttachments(ctx context.Context, tx bun.IDB, tenantID, itemID string,
 	if len(rows) == 0 {
 		return nil
 	}
-	at := now()
+	at := database.Now()
 	for i, a := range rows {
 		if a.ID == "" {
-			a.ID = newID()
+			a.ID = database.NewID()
 		}
 		a.CreatedAt = at
 		a.UpdatedAt = at

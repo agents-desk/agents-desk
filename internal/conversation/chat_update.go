@@ -8,7 +8,6 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
 
-	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
@@ -66,7 +65,7 @@ func (a *UpdateChat) Handle(ctx context.Context, sub identity.Subject, id string
 		if _, err := tx.NewUpdate().Model(cm).Column("name", "updated_at").WherePK().Exec(ctx); err != nil {
 			return errors.Wrap(err, "rename group chat")
 		}
-		c.LastMessageAt = now()
+		c.LastMessageAt = database.Now()
 		ev := event(sub, "chat.renamed", map[string]any{"from": from, "to": name})
 		return commit(ctx, tx, a.down, c, ev)
 	})
@@ -121,7 +120,7 @@ func (a *AddChatParticipants) Handle(ctx context.Context, sub identity.Subject, 
 		if cm.Mode != ChatGroup && cm.Scope != ChatExternal {
 			return ErrChatGroupOnly.New()
 		}
-		roles := authz.NewStore(tx, auth.Catalog)
+		roles := a.down.rolesWithDB(tx)
 		var added []string
 		for i, mid := range memberIDs {
 			if _, err := member.RoleOf(ctx, roles, identity.Ref{Type: member.Type, ID: mid}, sub.Tenant); err != nil {
@@ -131,7 +130,7 @@ func (a *AddChatParticipants) Handle(ctx context.Context, sub identity.Subject, 
 				return err
 			}
 			res, err := tx.NewRaw(`INSERT INTO conversation_participants (id, created_at, updated_at, conversation_id, participant_type, participant_id)
-				VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`, newID(), now(), now(), c.ID, MemberActor, mid).Exec(ctx)
+				VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`, database.NewID(), database.Now(), database.Now(), c.ID, MemberActor, mid).Exec(ctx)
 			if err != nil {
 				return errors.Wrap(err, "add chat participant")
 			}
@@ -142,7 +141,7 @@ func (a *AddChatParticipants) Handle(ctx context.Context, sub identity.Subject, 
 		if len(added) == 0 {
 			return nil
 		}
-		c.LastMessageAt = now()
+		c.LastMessageAt = database.Now()
 		ev := event(sub, "chat.member_added", map[string]any{"member_ids": added})
 		return commit(ctx, tx, a.down, c, ev)
 	})
@@ -208,7 +207,7 @@ func (a *RemoveChatParticipant) Handle(ctx context.Context, sub identity.Subject
 		}
 		res, err := tx.NewRaw(`UPDATE conversation_participants SET left_at = ?
 			WHERE conversation_id = ? AND participant_type = ? AND participant_id = ? AND left_at IS NULL`,
-			now(), c.ID, participantType, participantID).Exec(ctx)
+			database.Now(), c.ID, participantType, participantID).Exec(ctx)
 		if err != nil {
 			return errors.Wrap(err, "remove chat participant")
 		}
@@ -220,7 +219,7 @@ func (a *RemoveChatParticipant) Handle(ctx context.Context, sub identity.Subject
 			return ErrChatNotParticipant.New()
 		}
 
-		c.LastMessageAt = now()
+		c.LastMessageAt = database.Now()
 		evName := "chat.member_removed"
 		if removedSelf {
 			evName = "chat.member_left"

@@ -6,16 +6,16 @@
  * 缺少时先用默认语言，再用取值本身。
  */
 export const enums = {
-  FlagsMode: {
-    prefix: "flags.mode",
+  FeatureMode: {
+    prefix: "feature.mode",
     values: ["on", "off", "force_on", "force_off", "percent"],
     labels: {
-      "en": { on: "On", off: "Off", force_on: "Force on", force_off: "Force off", percent: "Percentage rollout" },
-      "zh-CN": { on: "开启", off: "关闭", force_on: "强制全员开启", force_off: "强制全员关闭", percent: "按比例放量" },
+      "en": { on: "Enabled", off: "Disabled", force_on: "Force enabled", force_off: "Force disabled", percent: "Percentage rollout" },
+      "zh-CN": { on: "开启", off: "关闭", force_on: "强制开启", force_off: "强制关闭", percent: "按比例放量" },
     },
   },
-  FlagsScope: {
-    prefix: "flags.scope",
+  FeatureScope: {
+    prefix: "feature.scope",
     values: ["everyone", "tenant"],
     labels: {
       "en": { everyone: "Everyone", tenant: "Workspace" },

@@ -10,9 +10,9 @@ import (
 
 	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/filesystem"
+	"github.com/go-tenon/tenon/filesystem/fileapi"
 	"github.com/go-tenon/tenon/identity"
 
-	"agents-desk/internal/account"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/member"
 )
@@ -327,7 +327,7 @@ func (a *Members) Handle(ctx context.Context, sub identity.Subject, f FilterPara
 			}
 			m.Name = p.Name
 			if a.files != nil {
-				url, err := account.AvatarURL(ctx, a.files, p.AvatarFileID)
+				url, err := fileapi.URL(ctx, a.files, p.AvatarFileID)
 				if err != nil {
 					return nil, err
 				}

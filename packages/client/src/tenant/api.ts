@@ -5,6 +5,18 @@ import { Runtime, type ClientOptions, type Download, type SessionLike, type Stre
 export * from "./errors"
 export { ApiError, isApiError, saveBlob, type ClientOptions, type Download, type SessionLike, type FieldError, type StreamOptions } from "./runtime"
 
+export interface ActivityItem {
+  actor?: string
+  created_at: string
+  event: string
+  href?: string
+  id: string
+  impersonator?: string
+  target_id?: string
+  target_type?: string
+  text: string
+}
+
 export interface AgentApprovalDecisionInput {
   /** 拒绝原因（仅拒绝时使用） */
   reason?: string
@@ -152,18 +164,6 @@ export interface AttributeUpdateParams {
   options?: string[]
   /** 展示顺序；不填时保持不变 */
   position?: number
-}
-
-export interface AuditItem {
-  actor?: string
-  created_at: string
-  event: string
-  href?: string
-  id: string
-  impersonator?: string
-  target_id?: string
-  target_type?: string
-  text: string
 }
 
 export type AutomationBuiltin = "reply_time" | "collect_lead_contact" | "request_rating" | "ticket_status_notify"
@@ -469,25 +469,6 @@ export interface ContactDetailDTO {
   /** IANA 时区名，用于显示对方的当地时间 */
   time_zone: string
   updated_at: string
-}
-
-export interface ContactExportProgress {
-  completed_at?: string
-  created_at: string
-  error?: string
-  error_message?: string
-  expires_at?: string
-  failed: number
-  file_id?: string
-  filename?: string
-  format: string
-  id: string
-  kind: string
-  processed: number
-  status: string
-  total: number
-  updated_at: string
-  url?: string
 }
 
 export interface ContactExportStartInputBody {
@@ -1045,25 +1026,6 @@ export type ConversationDelivery = "sending" | "delivered" | "read" | "failed"
 export interface ConversationEditMessageBody {
   /** 新的正文 */
   text?: string
-}
-
-export interface ConversationExportProgress {
-  completed_at?: string
-  created_at: string
-  error?: string
-  error_message?: string
-  expires_at?: string
-  failed: number
-  file_id?: string
-  filename?: string
-  format: string
-  id: string
-  kind: string
-  processed: number
-  status: string
-  total: number
-  updated_at: string
-  url?: string
 }
 
 export interface ConversationExportStartInputBody {
@@ -1923,8 +1885,8 @@ export interface Meta {
   width?: number
 }
 
-export interface OffsetAuditItem {
-  items: AuditItem[]
+export interface OffsetActivityItem {
+  items: ActivityItem[]
   page: number
   per_page: number
   /** Total number of items across all pages. */
@@ -2072,6 +2034,25 @@ export interface OrganizationUpdateBody {
 export interface Part {
   mark?: boolean
   text: string
+}
+
+export interface Progress {
+  completed_at?: string
+  created_at: string
+  error?: string
+  error_message?: string
+  expires_at?: string
+  failed: number
+  file_id?: string
+  filename?: string
+  format: string
+  id: string
+  kind: string
+  processed: number
+  status: string
+  total: number
+  updated_at: string
+  url?: string
 }
 
 export interface ReportBusinessChannelKindVolume {
@@ -3501,7 +3482,7 @@ export interface ChatListInput {
 
 /** contact-export-progress 推送的事件，按 event 区分。 */
 export type ContactExportProgressEvent =
-  | { event: "progress"; data: ContactExportProgress; id?: string }
+  | { event: "progress"; data: Progress; id?: string }
 
 /** contact-list 的参数。 */
 export interface ContactListInput {
@@ -3529,7 +3510,7 @@ export interface ContactListInput {
 
 /** conversation-export-progress 推送的事件，按 event 区分。 */
 export type ConversationExportProgressEvent =
-  | { event: "progress"; data: ConversationExportProgress; id?: string }
+  | { event: "progress"; data: Progress; id?: string }
 
 /** conversation-items 的参数。 */
 export interface ConversationItemsInput {
@@ -4265,8 +4246,8 @@ export function createClient(options: ClientOptions) {
        *
        * POST /contacts/exports
        */
-      exportStart: (body: ContactExportStartInputBody): Promise<ContactExportProgress> =>
-        rt.request<ContactExportProgress>({ method: "POST", path: `/contacts/exports`, body }),
+      exportStart: (body: ContactExportStartInputBody): Promise<Progress> =>
+        rt.request<Progress>({ method: "POST", path: `/contacts/exports`, body }),
       /**
        * 读取联系人
        *
@@ -4429,8 +4410,8 @@ export function createClient(options: ClientOptions) {
        *
        * POST /conversations/exports
        */
-      exportStart: (body: ConversationExportStartInputBody): Promise<ConversationExportProgress> =>
-        rt.request<ConversationExportProgress>({ method: "POST", path: `/conversations/exports`, body }),
+      exportStart: (body: ConversationExportStartInputBody): Promise<Progress> =>
+        rt.request<Progress>({ method: "POST", path: `/conversations/exports`, body }),
       /**
        * 读取会话
        *
@@ -5098,8 +5079,8 @@ export function createClient(options: ClientOptions) {
        *
        * GET /audit-logs
        */
-      auditList: (input: TenantAuditListInput = {}): Promise<OffsetAuditItem> =>
-        rt.request<OffsetAuditItem>({ method: "GET", path: `/audit-logs`, query: { "page": input["page"], "per_page": input["per_page"], "target_type": input["target_type"] } }),
+      auditList: (input: TenantAuditListInput = {}): Promise<OffsetActivityItem> =>
+        rt.request<OffsetActivityItem>({ method: "GET", path: `/audit-logs`, query: { "page": input["page"], "per_page": input["per_page"], "target_type": input["target_type"] } }),
       /**
        * 当前工作区和我的权限
        *

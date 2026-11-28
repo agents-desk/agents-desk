@@ -45,7 +45,7 @@ func NewCreate(db *bun.DB) *Create { return &Create{db: db} }
 func (a *Create) Handle(ctx context.Context, sub identity.Subject, c Changes) (*TagDTO, error) {
 	name := strings.TrimSpace(c.Name)
 	desc := strings.TrimSpace(c.Description)
-	t := &Tag{ID: newID(), TenantID: sub.Tenant, Name: name, Color: c.color(), Description: desc}
+	t := &Tag{ID: database.NewID(), TenantID: sub.Tenant, Name: name, Color: c.color(), Description: desc}
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
 		if _, err := tx.NewInsert().Model(t).Exec(ctx); err != nil {
 			if database.IsUniqueViolation(err, "tags_tenant_name") {
