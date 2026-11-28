@@ -13,7 +13,6 @@ function Profile() {
   return (
     <Page
       title={t("nav.profile")}
-      width="narrow"
       tabs={[
         { value: "basic", label: t("profile.tab_basic"), content: <BasicProfileForm /> },
         { value: "password", label: t("profile.tab_password"), content: <ChangePasswordForm /> },

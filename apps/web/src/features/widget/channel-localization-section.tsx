@@ -7,6 +7,7 @@ import {
   Divider,
   Group,
   Menu,
+  SimpleGrid,
   Stack,
   TagsInput,
   Text,
@@ -332,28 +333,30 @@ export function ChannelLocalizationSection({
 
           {isBiz && showOwner && (
             <>
-              <TextInput
-                label={t("biz_studio.title_override")}
-                placeholder={fallbackPlaceholder(
-                  defaultCopy.owner_title,
-                  fallbackOwnerTitle
-                    ? t("biz_studio.title_override_placeholder", { fallback: fallbackOwnerTitle })
-                    : t("biz_studio.title_override_empty"),
-                )}
-                maxLength={60}
-                value={currentCopy.owner_title ?? ""}
-                onChange={(e) => updateCopyField("owner_title", e.currentTarget.value)}
-              />
-              <TextInput
-                label={t("biz_studio.company_override")}
-                placeholder={fallbackPlaceholder(
-                  defaultCopy.owner_company,
-                  t("biz_studio.company_override_placeholder", { fallback: fallbackOwnerCompany }),
-                )}
-                maxLength={80}
-                value={currentCopy.owner_company ?? ""}
-                onChange={(e) => updateCopyField("owner_company", e.currentTarget.value)}
-              />
+              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+                <TextInput
+                  label={t("biz_studio.title_override")}
+                  placeholder={fallbackPlaceholder(
+                    defaultCopy.owner_title,
+                    fallbackOwnerTitle
+                      ? t("biz_studio.title_override_placeholder", { fallback: fallbackOwnerTitle })
+                      : t("biz_studio.title_override_empty"),
+                  )}
+                  maxLength={60}
+                  value={currentCopy.owner_title ?? ""}
+                  onChange={(e) => updateCopyField("owner_title", e.currentTarget.value)}
+                />
+                <TextInput
+                  label={t("biz_studio.company_override")}
+                  placeholder={fallbackPlaceholder(
+                    defaultCopy.owner_company,
+                    t("biz_studio.company_override_placeholder", { fallback: fallbackOwnerCompany }),
+                  )}
+                  maxLength={80}
+                  value={currentCopy.owner_company ?? ""}
+                  onChange={(e) => updateCopyField("owner_company", e.currentTarget.value)}
+                />
+              </SimpleGrid>
               <Textarea
                 label={t("biz_studio.bio_override")}
                 placeholder={fallbackPlaceholder(
@@ -362,7 +365,7 @@ export function ChannelLocalizationSection({
                 )}
                 autosize
                 minRows={2}
-                maxRows={4}
+                maxRows={3}
                 maxLength={240}
                 value={currentCopy.owner_bio ?? ""}
                 onChange={(e) => updateCopyField("owner_bio", e.currentTarget.value)}
@@ -376,7 +379,7 @@ export function ChannelLocalizationSection({
                 label={t("biz_studio.away_message")}
                 placeholder={fallbackPlaceholder(defaultCopy.away_message, t("biz_studio.away_message_placeholder"))}
                 autosize
-                minRows={2}
+                minRows={1}
                 maxRows={3}
                 maxLength={300}
                 value={currentCopy.away_message ?? ""}

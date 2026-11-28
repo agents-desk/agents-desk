@@ -28,7 +28,6 @@ function AssignmentAndRulesPage(): ReactNode {
     <Page
       title={t("nav.assignment_rules")}
       description={t("assignment_rules.description")}
-      width="narrow"
       tabs={[
         {
           value: "assignment",

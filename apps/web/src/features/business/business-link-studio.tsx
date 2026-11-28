@@ -4,6 +4,7 @@ import type {
   WidgetBusinessLinkDTO,
   WidgetLocalization,
 } from "@agents-desk/client/tenant"
+import { fieldErrors } from "@go-tenon/client"
 import {
   ActionIcon,
   Avatar,
@@ -21,6 +22,7 @@ import {
   PasswordInput,
   SegmentedControl,
   Select,
+  SimpleGrid,
   Skeleton,
   Stack,
   Switch,
@@ -203,6 +205,9 @@ function BusinessLinkPreviewStage({
   previewLanguages,
   onLanguageChange,
   business,
+  scene: controlledScene,
+  onSceneChange,
+  defaultScene = "conversation",
 }: {
   name: string
   greeting: string
@@ -211,10 +216,18 @@ function BusinessLinkPreviewStage({
   previewLanguages: string[]
   onLanguageChange: (lang: string) => void
   business: PreviewBusinessPayload
+  scene?: BizPreviewScene
+  onSceneChange?: (scene: BizPreviewScene) => void
+  defaultScene?: BizPreviewScene
 }): ReactNode {
   const t = useT()
-  const [scene, setScene] = useState<BizPreviewScene>("conversation")
+  const [innerScene, setInnerScene] = useState<BizPreviewScene>(defaultScene)
   const [viewport, setViewport] = useState<PreviewViewport>("mobile")
+  const scene = controlledScene ?? innerScene
+  const handleSceneChange = (next: BizPreviewScene) => {
+    setInnerScene(next)
+    onSceneChange?.(next)
+  }
 
   const buildMessage = useCallback(
     (nextScene: BizPreviewScene, nextViewport: PreviewViewport): PreviewMessage => ({
@@ -267,7 +280,7 @@ function BusinessLinkPreviewStage({
         },
       ]}
       validScenes={BIZ_PREVIEW_SCENES}
-      onSceneChange={setScene}
+      onSceneChange={handleSceneChange}
       language={language}
       previewLanguages={previewLanguages}
       onLanguageChange={onLanguageChange}
@@ -446,6 +459,7 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
   const [serverError, setServerError] = useState<ReturnType<typeof applyServerErrors>>()
   const [activeLang, setActiveLang] = useState("en")
   const [previewLang, setPreviewLang] = useState("en")
+  const [receptionScene, setReceptionScene] = useState<BizPreviewScene>("intake")
 
   const linkQuery = useQuery(kit.queries.business.linkGet(id))
   const policyQuery = useQuery(kit.queries.business.policyGet())
@@ -528,7 +542,24 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
       form.resetDirty(next)
       notifySuccess(t("biz_studio.saved"))
     },
-    onError: (err) => setServerError(applyServerErrors(form, err)),
+    onError: (err) => {
+      setServerError(applyServerErrors(form, err))
+      const fields = Object.keys(fieldErrors(err))
+      if (fields.length === 0) return
+      const targetTab = fields[0].startsWith("intake.") || fields[0].startsWith("access.")
+        ? "reception"
+        : fields[0].startsWith("business.")
+          ? "policy"
+          : "config"
+      const currentTab = tab === "reception" || tab === "policy" || tab === "share" ? tab : "config"
+      if (targetTab !== currentTab) {
+        void navigate({
+          to: ".",
+          search: ((prev: Record<string, unknown>) => ({ ...prev, tab: targetTab === "config" ? undefined : targetTab })) as never,
+          replace: true,
+        })
+      }
+    },
   })
 
   const dirty = form.isDirty()
@@ -619,8 +650,8 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
           <Group
             gap="xs"
             style={{
-              visibility: tab === "config" ? "visible" : "hidden",
-              pointerEvents: tab === "config" ? "auto" : "none",
+              visibility: tab !== "share" ? "visible" : "hidden",
+              pointerEvents: tab !== "share" ? "auto" : "none",
             }}
           >
             {dirty && (
@@ -642,13 +673,12 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
           value: "config",
           label: t("biz_studio.tab_config"),
           content: (
-            <div className={classes.tabPanel}>
+            <div className={classes.previewTabPanel}>
               {linkQuery.isPending ? (
                 <Box className={classes.layout}>
                   <Stack gap="md">
-                    <Skeleton height={180} radius="md" />
-                    <Skeleton height={240} radius="md" />
-                    <Skeleton height={300} radius="md" />
+                    <Skeleton height={220} radius="md" />
+                    <Skeleton height={360} radius="md" />
                   </Stack>
                   <Skeleton height={680} radius="md" />
                 </Box>
@@ -656,36 +686,29 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
                 <form noValidate onSubmit={form.onSubmit((v) => save.mutate(v))}>
                   <Box className={classes.layout}>
                     <Stack gap="md">
-                      <FormError error={serverError} />
-
                       <FormSection title={t("biz_studio.section_basic")} description={t("biz_studio.section_basic_desc")}>
-                        <TextInput
-                          label={t("business_channels.link_name")}
-                          placeholder={t("business_channels.link_name_placeholder")}
-                          required
-                          maxLength={60}
-                          {...form.getInputProps("name")}
-                        />
-                        <TextInput
-                          label={t("biz_studio.public_code")}
-                          description={t("biz_studio.public_code_hint")}
-                          leftSection={
-                            <Text size="xs" c="dimmed" pl={4}>
-                              /c/
-                            </Text>
-                          }
-                          leftSectionWidth={32}
-                          maxLength={40}
-                          {...form.getInputProps("public_code")}
-                        />
-                        <Switch
-                          label={t("biz_studio.enabled")}
-                          description={t("biz_studio.enabled_hint")}
-                          {...form.getInputProps("enabled", { type: "checkbox" })}
-                        />
-                      </FormSection>
-
-                      <FormSection title={t("biz_studio.section_appearance")} description={t("biz_studio.section_appearance_desc")}>
+                        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+                          <TextInput
+                            label={t("business_channels.link_name")}
+                            placeholder={t("business_channels.link_name_placeholder")}
+                            required
+                            maxLength={60}
+                            {...form.getInputProps("name")}
+                          />
+                          <TextInput
+                            label={t("biz_studio.public_code")}
+                            description={t("biz_studio.public_code_hint")}
+                            inputWrapperOrder={["label", "input", "description", "error"]}
+                            leftSection={
+                              <Text size="xs" c="dimmed" pl={4}>
+                                /c/
+                              </Text>
+                            }
+                            leftSectionWidth={32}
+                            maxLength={40}
+                            {...form.getInputProps("public_code")}
+                          />
+                        </SimpleGrid>
                         <ColorInput
                           label={t("business_channels.link_color")}
                           format="hex"
@@ -694,10 +717,17 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
                           fixOnBlur={false}
                           {...form.getInputProps("appearance.color")}
                         />
-                        <Switch
-                          label={t("biz_studio.show_owner")}
-                          {...form.getInputProps("card.show_owner", { type: "checkbox" })}
-                        />
+                        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+                          <Switch
+                            label={t("biz_studio.enabled")}
+                            description={t("biz_studio.enabled_hint")}
+                            {...form.getInputProps("enabled", { type: "checkbox" })}
+                          />
+                          <Switch
+                            label={t("biz_studio.show_owner")}
+                            {...form.getInputProps("card.show_owner", { type: "checkbox" })}
+                          />
+                        </SimpleGrid>
                       </FormSection>
 
                       <FormSection title={t("widget_i18n.section_title")} description={t("widget_i18n.section_desc")}>
@@ -718,11 +748,50 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
                           fallbackOwnerBio={fallbackBio}
                         />
                       </FormSection>
+                    </Stack>
 
+                    <BusinessLinkPreviewStage
+                      defaultScene="conversation"
+                      name={resolvedPreview.title || form.values.name}
+                      greeting={resolvedPreview.greeting || ""}
+                      appearance={form.values.appearance}
+                      language={previewLang}
+                      previewLanguages={previewLanguages}
+                      onLanguageChange={setPreviewLang}
+                      business={previewBusiness}
+                    />
+                  </Box>
+                </form>
+              )}
+            </div>
+          ),
+        },
+        {
+          value: "reception",
+          label: t("biz_studio.tab_reception"),
+          content: (
+            <div className={classes.previewTabPanel}>
+              {linkQuery.isPending ? (
+                <Box className={classes.layout}>
+                  <Stack gap="md">
+                    <Skeleton height={220} radius="md" />
+                    <Skeleton height={220} radius="md" />
+                  </Stack>
+                  <Skeleton height={680} radius="md" />
+                </Box>
+              ) : (
+                <form noValidate onSubmit={form.onSubmit((v) => save.mutate(v))}>
+                  <Box className={classes.layout}>
+                    <Stack gap="md">
                       <FormSection title={t("biz_studio.section_intake")} description={t("biz_studio.section_intake_desc")}>
                         <Switch
                           label={t("biz_studio.intake_enabled")}
-                          {...form.getInputProps("intake.enabled", { type: "checkbox" })}
+                          checked={form.values.intake.enabled}
+                          onChange={(e) => {
+                            const checked = e.currentTarget.checked
+                            form.setFieldValue("intake.enabled", checked)
+                            if (checked) setReceptionScene("intake")
+                          }}
                         />
                         {form.values.intake.enabled && (
                           <Stack gap="xs" pt={4}>
@@ -757,7 +826,11 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
                           </Text>
                           <SegmentedControl
                             value={form.values.access.mode}
-                            onChange={(v) => form.setFieldValue("access.mode", v === "passcode" ? "passcode" : "public")}
+                            onChange={(v) => {
+                              const mode = v === "passcode" ? "passcode" : "public"
+                              form.setFieldValue("access.mode", mode)
+                              if (mode === "passcode") setReceptionScene("passcode")
+                            }}
                             data={[
                               { value: "public", label: t("biz_studio.access_public") },
                               { value: "passcode", label: t("biz_studio.access_passcode") },
@@ -802,56 +875,11 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
                           </Group>
                         </Input.Wrapper>
                       </FormSection>
-
-                      <FormSection title={t("biz_studio.section_policy")} description={t("biz_studio.section_policy_desc")}>
-                        <MultiSelect
-                          label={t("biz_studio.collaborators")}
-                          description={t("biz_studio.collaborators_hint")}
-                          placeholder={t("biz_studio.collaborators_placeholder")}
-                          data={memberOptions}
-                          searchable
-                          clearable
-                          {...form.getInputProps("business.default_collaborator_ids")}
-                        />
-                        <MultiSelect
-                          label={t("biz_studio.default_tags")}
-                          description={t("biz_studio.default_tags_hint")}
-                          placeholder={t("biz_studio.default_tags_placeholder")}
-                          data={tagOptions}
-                          searchable
-                          clearable
-                          {...form.getInputProps("business.default_tag_ids")}
-                        />
-                        <Divider />
-                        <Select
-                          label={t("biz_studio.translation_tone")}
-                          data={[
-                            { value: "", label: t("biz_studio.tone_inherit") },
-                            { value: "formal", label: kit.label("TranslationTone", "formal") },
-                            { value: "neutral", label: kit.label("TranslationTone", "neutral") },
-                            { value: "friendly", label: kit.label("TranslationTone", "friendly") },
-                          ]}
-                          value={form.values.business.translation_tone}
-                          error={form.errors["business.translation_tone"]}
-                          onChange={(v) =>
-                            form.setFieldValue("business.translation_tone", (v ?? "") as "" | "friendly" | "neutral" | "formal")
-                          }
-                        />
-                        <Select
-                          label={t("biz_studio.auto_translate")}
-                          data={[
-                            { value: "inherit", label: t("biz_studio.auto_translate_inherit") },
-                            { value: "on", label: t("biz_studio.auto_translate_on") },
-                            { value: "off", label: t("biz_studio.auto_translate_off") },
-                          ]}
-                          value={form.values.business.auto_translate}
-                          error={form.errors["business.auto_translate"]}
-                          onChange={(v) => form.setFieldValue("business.auto_translate", (v ?? "inherit") as "inherit" | "on" | "off")}
-                        />
-                      </FormSection>
                     </Stack>
 
                     <BusinessLinkPreviewStage
+                      scene={receptionScene}
+                      onSceneChange={setReceptionScene}
                       name={resolvedPreview.title || form.values.name}
                       greeting={resolvedPreview.greeting || ""}
                       appearance={form.values.appearance}
@@ -867,32 +895,92 @@ export function BusinessLinkStudio({ slug, id }: { slug: string; id: string }): 
           ),
         },
         {
+          value: "policy",
+          label: t("biz_studio.section_policy"),
+          content: linkQuery.isPending ? (
+            <Skeleton height={240} radius="md" />
+          ) : (
+            <form noValidate onSubmit={form.onSubmit((v) => save.mutate(v))}>
+              <FormSection title={t("biz_studio.section_policy")} description={t("biz_studio.section_policy_desc")}>
+                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+                  <MultiSelect
+                    label={t("biz_studio.collaborators")}
+                    description={t("biz_studio.collaborators_hint")}
+                    inputWrapperOrder={["label", "input", "description", "error"]}
+                    placeholder={t("biz_studio.collaborators_placeholder")}
+                    data={memberOptions}
+                    searchable
+                    clearable
+                    {...form.getInputProps("business.default_collaborator_ids")}
+                  />
+                  <MultiSelect
+                    label={t("biz_studio.default_tags")}
+                    description={t("biz_studio.default_tags_hint")}
+                    inputWrapperOrder={["label", "input", "description", "error"]}
+                    placeholder={t("biz_studio.default_tags_placeholder")}
+                    data={tagOptions}
+                    searchable
+                    clearable
+                    {...form.getInputProps("business.default_tag_ids")}
+                  />
+                </SimpleGrid>
+                <Divider />
+                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+                  <Select
+                    label={t("biz_studio.translation_tone")}
+                    data={[
+                      { value: "", label: t("biz_studio.tone_inherit") },
+                      { value: "formal", label: kit.label("TranslationTone", "formal") },
+                      { value: "neutral", label: kit.label("TranslationTone", "neutral") },
+                      { value: "friendly", label: kit.label("TranslationTone", "friendly") },
+                    ]}
+                    value={form.values.business.translation_tone}
+                    error={form.errors["business.translation_tone"]}
+                    onChange={(v) =>
+                      form.setFieldValue("business.translation_tone", (v ?? "") as "" | "friendly" | "neutral" | "formal")
+                    }
+                  />
+                  <Select
+                    label={t("biz_studio.auto_translate")}
+                    data={[
+                      { value: "inherit", label: t("biz_studio.auto_translate_inherit") },
+                      { value: "on", label: t("biz_studio.auto_translate_on") },
+                      { value: "off", label: t("biz_studio.auto_translate_off") },
+                    ]}
+                    value={form.values.business.auto_translate}
+                    error={form.errors["business.auto_translate"]}
+                    onChange={(v) => form.setFieldValue("business.auto_translate", (v ?? "inherit") as "inherit" | "on" | "off")}
+                  />
+                </SimpleGrid>
+              </FormSection>
+            </form>
+          ),
+        },
+        {
           value: "share",
           label: t("biz_studio.tab_share"),
-          content: (
-            <div className={classes.tabPanel}>
-              {linkQuery.data ? (
-                <ShareAndQRPanel
-                  link={linkQuery.data}
-                  ownerName={ownerName}
-                  ownerSubtitle={[effectiveTitle, effectiveCompany].filter(Boolean).join(" · ")}
-                  ownerAvatar={me.data?.avatar_url}
-                  availableLanguages={previewLanguages}
-                  onRotated={(updated) => {
-                    queryClient.setQueryData(kit.queries.business.linkGet(id).queryKey, updated)
-                    void queryClient.invalidateQueries({ queryKey: kit.queries.business.key() })
-                    const next = toFormValues(updated)
-                    form.setValues(next)
-                    form.resetDirty(next)
-                  }}
-                />
-              ) : (
-                <Skeleton height={320} radius="md" />
-              )}
-            </div>
+          content: linkQuery.data ? (
+            <ShareAndQRPanel
+              link={linkQuery.data}
+              ownerName={ownerName}
+              ownerSubtitle={[effectiveTitle, effectiveCompany].filter(Boolean).join(" · ")}
+              ownerAvatar={me.data?.avatar_url}
+              availableLanguages={previewLanguages}
+              onRotated={(updated) => {
+                queryClient.setQueryData(kit.queries.business.linkGet(id).queryKey, updated)
+                void queryClient.invalidateQueries({ queryKey: kit.queries.business.key() })
+                const next = toFormValues(updated)
+                form.setValues(next)
+                form.resetDirty(next)
+              }}
+            />
+          ) : (
+            <Skeleton height={320} radius="md" />
           ),
         },
       ]}
-    />
+    >
+      <FormError error={serverError} />
+    </Page>
   )
 }

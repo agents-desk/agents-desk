@@ -4,6 +4,7 @@ import type {
   TgaccountSyncConfig,
   TgaccountSyncedPeer,
 } from "@agents-desk/client/tenant"
+import { fieldErrors } from "@go-tenon/client"
 import {
   Alert,
   Badge,
@@ -16,6 +17,7 @@ import {
   Paper,
   SegmentedControl,
   Select,
+  SimpleGrid,
   Skeleton,
   Stack,
   Switch,
@@ -208,7 +210,18 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
       invalidate()
       notifySuccess(t("common.saved"))
     },
-    onError: (err) => setServerError(applyServerErrors(form, err)),
+    onError: (err) => {
+      setServerError(applyServerErrors(form, err))
+      const fields = Object.keys(fieldErrors(err))
+      if (fields.length === 0) return
+      const onlyPolicy = fields.every((f) => f.startsWith("business."))
+      const hasConfig = fields.some((f) => !f.startsWith("business."))
+      if (onlyPolicy && tab !== "policy") {
+        void navigate({ to: ".", search: ((prev: Record<string, unknown>) => ({ ...prev, tab: "policy" })) as never, replace: true })
+      } else if (hasConfig && tab === "policy") {
+        void navigate({ to: ".", search: ((prev: Record<string, unknown>) => ({ ...prev, tab: undefined })) as never, replace: true })
+      }
+    },
   })
 
   const reconnect = useMutation({
@@ -322,8 +335,8 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
             <Group
               gap="xs"
               style={{
-                visibility: tab === "config" ? "visible" : "hidden",
-                pointerEvents: tab === "config" ? "auto" : "none",
+                visibility: tab !== "peers" ? "visible" : "hidden",
+                pointerEvents: tab !== "peers" ? "auto" : "none",
               }}
             >
               {dirty && (
@@ -353,8 +366,6 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
             ) : account ? (
               <form noValidate onSubmit={form.onSubmit((v) => save.mutate(v))}>
                 <Stack gap="md">
-                  <FormError error={serverError} />
-
                   <FormSection
                     title={t("tg_studio.health_title")}
                     description={t("tg_studio.health_desc")}
@@ -424,19 +435,32 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
                   </FormSection>
 
                   <FormSection title={t("tg_studio.section_sync")} description={t("tg_studio.section_sync_desc")}>
-                    <Stack gap={4}>
-                      <Text size="sm" fw={500}>
-                        {t("tg_studio.sync_mode")}
-                      </Text>
-                      <SegmentedControl
-                        value={form.values.sync.mode}
-                        onChange={(v) => form.setFieldValue("sync.mode", v === "folders" ? "folders" : "whitelist")}
+                    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                      <Stack gap={4}>
+                        <Text size="sm" fw={500}>
+                          {t("tg_studio.sync_mode")}
+                        </Text>
+                        <SegmentedControl
+                          value={form.values.sync.mode}
+                          onChange={(v) => form.setFieldValue("sync.mode", v === "folders" ? "folders" : "whitelist")}
+                          data={[
+                            { value: "whitelist", label: t("tg_studio.mode_whitelist") },
+                            { value: "folders", label: t("tg_studio.mode_folders") },
+                          ]}
+                        />
+                      </Stack>
+                      <Select
+                        label={t("tg_studio.backfill_limit")}
                         data={[
-                          { value: "whitelist", label: t("tg_studio.mode_whitelist") },
-                          { value: "folders", label: t("tg_studio.mode_folders") },
+                          { value: "0", label: t("tg_studio.backfill_0") },
+                          { value: "20", label: t("tg_studio.backfill_20") },
+                          { value: "50", label: t("tg_studio.backfill_50") },
                         ]}
+                        value={form.values.sync.backfill_limit}
+                        error={form.errors["sync.backfill_limit"]}
+                        onChange={(v) => form.setFieldValue("sync.backfill_limit", v ?? "20")}
                       />
-                    </Stack>
+                    </SimpleGrid>
 
                     {form.values.sync.mode === "folders" && (
                       <Paper withBorder p="sm" radius="sm">
@@ -512,28 +536,18 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
                       </Paper>
                     )}
 
-                    <Select
-                      label={t("tg_studio.backfill_limit")}
-                      data={[
-                        { value: "0", label: t("tg_studio.backfill_0") },
-                        { value: "20", label: t("tg_studio.backfill_20") },
-                        { value: "50", label: t("tg_studio.backfill_50") },
-                      ]}
-                      value={form.values.sync.backfill_limit}
-                      error={form.errors["sync.backfill_limit"]}
-                      onChange={(v) => form.setFieldValue("sync.backfill_limit", v ?? "20")}
-                    />
-
-                    <Switch
-                      label={t("tg_studio.sync_outgoing")}
-                      description={t("tg_studio.sync_outgoing_hint")}
-                      {...form.getInputProps("sync.sync_outgoing", { type: "checkbox" })}
-                    />
-                    <Switch
-                      label={t("tg_studio.sync_media")}
-                      description={t("tg_studio.sync_media_hint")}
-                      {...form.getInputProps("sync.sync_media", { type: "checkbox" })}
-                    />
+                    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                      <Switch
+                        label={t("tg_studio.sync_outgoing")}
+                        description={t("tg_studio.sync_outgoing_hint")}
+                        {...form.getInputProps("sync.sync_outgoing", { type: "checkbox" })}
+                      />
+                      <Switch
+                        label={t("tg_studio.sync_media")}
+                        description={t("tg_studio.sync_media_hint")}
+                        {...form.getInputProps("sync.sync_media", { type: "checkbox" })}
+                      />
+                    </SimpleGrid>
 
                     <Stack gap={4}>
                       <Text size="sm" fw={500}>
@@ -549,11 +563,23 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
                       />
                     </Stack>
                   </FormSection>
-
-                  <FormSection title={t("biz_studio.section_policy")} description={t("biz_studio.section_policy_desc")}>
+                </Stack>
+              </form>
+            ) : null,
+          },
+          {
+            value: "policy",
+            label: t("biz_studio.section_policy"),
+            content: accountQuery.isPending ? (
+              <Skeleton height={240} radius="md" />
+            ) : account ? (
+              <form noValidate onSubmit={form.onSubmit((v) => save.mutate(v))}>
+                <FormSection title={t("biz_studio.section_policy")} description={t("biz_studio.section_policy_desc")}>
+                  <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
                     <MultiSelect
                       label={t("biz_studio.collaborators")}
                       description={t("biz_studio.collaborators_hint")}
+                      inputWrapperOrder={["label", "input", "description", "error"]}
                       placeholder={t("biz_studio.collaborators_placeholder")}
                       data={memberOptions}
                       searchable
@@ -563,13 +589,16 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
                     <MultiSelect
                       label={t("biz_studio.default_tags")}
                       description={t("biz_studio.default_tags_hint")}
+                      inputWrapperOrder={["label", "input", "description", "error"]}
                       placeholder={t("biz_studio.default_tags_placeholder")}
                       data={tagOptions}
                       searchable
                       clearable
                       {...form.getInputProps("business.default_tag_ids")}
                     />
-                    <Divider />
+                  </SimpleGrid>
+                  <Divider />
+                  <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
                     <Select
                       label={t("biz_studio.translation_tone")}
                       data={[
@@ -595,8 +624,8 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
                       error={form.errors["business.auto_translate"]}
                       onChange={(v) => form.setFieldValue("business.auto_translate", (v ?? "inherit") as "inherit" | "on" | "off")}
                     />
-                  </FormSection>
-                </Stack>
+                  </SimpleGrid>
+                </FormSection>
               </form>
             ) : null,
           },
@@ -700,7 +729,9 @@ export function TelegramAccountStudio({ slug, id }: { slug: string; id: string }
             ),
           },
         ]}
-      />
+      >
+        <FormError error={serverError} />
+      </Page>
 
       <TelegramLoginModal
         opened={reauthOpen}

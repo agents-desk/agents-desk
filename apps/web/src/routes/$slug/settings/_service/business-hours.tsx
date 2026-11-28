@@ -30,7 +30,6 @@ function BusinessHours(): ReactNode {
     <Page
       title={t("business_hours.title")}
       description={t("business_hours.description")}
-      width="narrow"
       tabs={[
         { value: "schedule", label: t("business_hours.tab_schedule"), content: current.data && <ScheduleForm saved={current.data} /> },
         { value: "special", label: t("business_hours.tab_special"), content: current.data && <SpecialDatesForm saved={current.data} /> },

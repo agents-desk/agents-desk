@@ -260,7 +260,6 @@ export function TelegramStudio({
   return (
     <Page
       title={tg.data ? tg.data.name : t("telegram_install.title")}
-      width="narrow"
       back={() =>
         void navigate({
           to: backRoute,

@@ -223,10 +223,8 @@ export const messages = {
     "biz_studio.scene_passcode": "Passcode",
     "biz_studio.section_access": "Access control",
     "biz_studio.section_access_desc": "Set a passcode and expiration for invite-only or event links.",
-    "biz_studio.section_appearance": "Appearance \u0026 starters",
-    "biz_studio.section_appearance_desc": "Theme color, greeting, and topics visitors can send with one click.",
     "biz_studio.section_basic": "Basics",
-    "biz_studio.section_basic_desc": "Link name, status, and URL.",
+    "biz_studio.section_basic_desc": "Link name, short URL, theme color, and toggles.",
     "biz_studio.section_intake": "Pre-chat form",
     "biz_studio.section_intake_desc": "Ask visitors for their name, company, and email before chatting, so the list shows who they are.",
     "biz_studio.section_policy": "Collaboration \u0026 translation",
@@ -239,7 +237,8 @@ export const messages = {
     "biz_studio.starters": "Conversation starters (up to 5)",
     "biz_studio.starters_hint": "Press Enter to add; visitors can click a topic to start chatting immediately",
     "biz_studio.starters_placeholder": "e.g. Reseller partnership inquiry",
-    "biz_studio.tab_config": "Configure \u0026 preview",
+    "biz_studio.tab_config": "Appearance \u0026 card",
+    "biz_studio.tab_reception": "Pre-chat \u0026 access",
     "biz_studio.tab_share": "Share \u0026 QR code",
     "biz_studio.title": "Web business link",
     "biz_studio.title_override": "Title (optional)",
@@ -2039,13 +2038,11 @@ export const messages = {
     "widget_studio.saved": "Chat widget settings saved",
     "widget_studio.scene_conversation": "Chat",
     "widget_studio.scene_launcher": "Launcher",
-    "widget_studio.section_appearance": "Appearance \u0026 copy",
-    "widget_studio.section_appearance_desc": "Customize the chat window's brand color and greeting",
     "widget_studio.section_basic": "Basics",
-    "widget_studio.section_basic_desc": "Set the widget title and availability",
+    "widget_studio.section_basic_desc": "Set the widget name, brand color, and availability",
     "widget_studio.section_routing": "Routing \u0026 security",
     "widget_studio.section_routing_desc": "Choose the destination team inbox and allowed embed origins",
-    "widget_studio.tab_config": "Configure \u0026 preview",
+    "widget_studio.tab_config": "Appearance \u0026 copy",
     "widget_studio.tab_install": "Install \u0026 verify",
     "widget_studio.viewport_desktop": "Desktop",
     "widget_studio.viewport_mobile": "Mobile",
@@ -2293,10 +2290,8 @@ export const messages = {
     "biz_studio.scene_passcode": "口令",
     "biz_studio.section_access": "访问控制",
     "biz_studio.section_access_desc": "为定向邀请或展会活动的链接设置访问口令和有效期。",
-    "biz_studio.section_appearance": "外观与开场话题",
-    "biz_studio.section_appearance_desc": "窗口主题色、问候语和对方可以一键发送的话题。",
     "biz_studio.section_basic": "基本信息",
-    "biz_studio.section_basic_desc": "链接名称、启用状态和访问地址。",
+    "biz_studio.section_basic_desc": "链接名称、访问地址、主题色与开关设置。",
     "biz_studio.section_intake": "开场表单",
     "biz_studio.section_intake_desc": "请对方在开聊前填写称呼、公司和邮箱，列表中直接显示对方身份。",
     "biz_studio.section_policy": "协作与翻译",
@@ -2309,7 +2304,8 @@ export const messages = {
     "biz_studio.starters": "开场话题（最多 5 条）",
     "biz_studio.starters_hint": "输入后按回车添加，对方在空白对话中点击即可发送",
     "biz_studio.starters_placeholder": "例如：渠道代理合作咨询",
-    "biz_studio.tab_config": "配置与预览",
+    "biz_studio.tab_config": "外观与名片",
+    "biz_studio.tab_reception": "开场与门禁",
     "biz_studio.tab_share": "分享与二维码",
     "biz_studio.title": "网页商务链接",
     "biz_studio.title_override": "头衔（可选）",
@@ -4109,13 +4105,11 @@ export const messages = {
     "widget_studio.saved": "已保存聊天插件配置",
     "widget_studio.scene_conversation": "对话中",
     "widget_studio.scene_launcher": "启动气泡",
-    "widget_studio.section_appearance": "外观与文案",
-    "widget_studio.section_appearance_desc": "自定义聊天窗口的品牌主题色与欢迎语",
     "widget_studio.section_basic": "基础信息",
-    "widget_studio.section_basic_desc": "设置插件标题与启用状态",
+    "widget_studio.section_basic_desc": "设置插件名称、主题色与启用状态",
     "widget_studio.section_routing": "路由与安全",
     "widget_studio.section_routing_desc": "配置新会话进入的团队收件箱与允许嵌入的域名",
-    "widget_studio.tab_config": "配置与预览",
+    "widget_studio.tab_config": "外观与文案",
     "widget_studio.tab_install": "安装与接入",
     "widget_studio.viewport_desktop": "桌面浮窗",
     "widget_studio.viewport_mobile": "手机全屏",
@@ -4366,8 +4360,6 @@ export type MessageId =
   | "biz_studio.scene_passcode"
   | "biz_studio.section_access"
   | "biz_studio.section_access_desc"
-  | "biz_studio.section_appearance"
-  | "biz_studio.section_appearance_desc"
   | "biz_studio.section_basic"
   | "biz_studio.section_basic_desc"
   | "biz_studio.section_intake"
@@ -4383,6 +4375,7 @@ export type MessageId =
   | "biz_studio.starters_hint"
   | "biz_studio.starters_placeholder"
   | "biz_studio.tab_config"
+  | "biz_studio.tab_reception"
   | "biz_studio.tab_share"
   | "biz_studio.title"
   | "biz_studio.title_override"
@@ -6182,8 +6175,6 @@ export type MessageId =
   | "widget_studio.saved"
   | "widget_studio.scene_conversation"
   | "widget_studio.scene_launcher"
-  | "widget_studio.section_appearance"
-  | "widget_studio.section_appearance_desc"
   | "widget_studio.section_basic"
   | "widget_studio.section_basic_desc"
   | "widget_studio.section_routing"
