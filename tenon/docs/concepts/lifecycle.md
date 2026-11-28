@@ -32,7 +32,7 @@
 | 定时任务调度器 | 到点执行定时任务 | [运行调度器](../background/scheduling.md#running-the-scheduler) |
 | 实时频道 | 单独承接 WebSocket 连接，可选 | [单独部署实时连接](../libraries/realtime.md#separate-process) |
 
-`serve` 运行全部部分（`Standalone` 的除外），`serve worker` 只运行一个部分，见 [serve 命令](../general/commands.md#serve-command)。同一个进程中的各部分共用 `Open` 打开的资源，例如同一个数据库连接池。一个部分运行时出错，其余部分随之平滑停止，进程以非 0 状态退出，由 systemd 或 Docker 重启。
+`serve` 运行全部部分（`Standalone` 的除外），`serve worker` 或 `serve worker scheduler` 运行指定的部分，见 [serve 命令](../general/commands.md#serve-command)。同一个进程中的各部分共用 `Open` 打开的资源，例如同一个数据库连接池。一个部分运行时出错，其余部分随之平滑停止，进程以非 0 状态退出，由 systemd 或 Docker 重启。
 
 <a id="call-context"></a>
 ## 一次调用的 context

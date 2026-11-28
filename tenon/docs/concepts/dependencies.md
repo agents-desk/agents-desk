@@ -135,7 +135,7 @@ func Open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
     return &App{cfg: cfg, db: db}, nil
 }
 
-// Parts 是常驻进程的运行部分：serve 运行全部部分，serve <名字> 只运行其中一个。
+// Parts 是常驻进程的运行部分：serve 运行全部部分，serve <名字...> 只运行指定的部分。
 func Parts(a *App) []command.Part {
     return []command.Part{
         {Name: "http", Short: "接口和页面", Start: a.HTTP},

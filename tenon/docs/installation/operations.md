@@ -88,15 +88,16 @@ server {
 
 ```bash
 sudo touch /etc/nginx/blog.maintenance
-sudo systemctl stop 'blog@*'
+sudo systemctl stop blog
 
 # 维护数据库；换上新二进制并执行迁移
 
-sudo systemctl start blog@http blog@worker blog@scheduler
+sudo systemctl start blog
 curl -fsS https://example.com/readyz  # 在办公网络中检查
 sudo rm /etc/nginx/blog.maintenance
 ```
 
+- 多台服务器按角色部署时，在各节点分别执行 `systemctl stop blog` 与 `systemctl start blog`。
 - 先挡住请求再停止程序：顺序反过来时中间的请求得到 `502`。配置了 `maintenance_file` 时可用 `go tool tenon deploy maintenance on` / `off` 开关维护页。
 - worker 和调度器也停止：维护期间它们不断出错，还可能用旧代码处理新数据。没执行的任务留在队列中。
 - 错过的定时任务等下一次触发；每天只执行一次的任务恢复后[手动执行](../background/scheduling.md#running-manually)。

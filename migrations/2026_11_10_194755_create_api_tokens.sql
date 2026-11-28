@@ -24,6 +24,7 @@ CREATE TABLE api_tokens (
     resource text NOT NULL,
     auth_methods text NOT NULL,
     auth_time timestamptz,
+    read_only boolean NOT NULL DEFAULT false,
     CONSTRAINT api_tokens_token_hash_unique UNIQUE (token_hash)
 );
 CREATE INDEX api_tokens_subject ON api_tokens (subject_type, subject_id);
@@ -54,6 +55,7 @@ COMMENT ON COLUMN api_tokens.client_name IS 'oauth：授权时客户端的名称
 COMMENT ON COLUMN api_tokens.resource IS 'oauth：令牌只能用于这个资源（例如 MCP 服务的地址）；其余为空字符串';
 COMMENT ON COLUMN api_tokens.auth_methods IS '登录 token 这次登录通过的验证方式（空格分隔），如 password totp；确认身份时补充；其他种类为空';
 COMMENT ON COLUMN api_tokens.auth_time IS '登录 token 最近一次验证身份的时间：登录或确认身份；为空表示不经过本人登录（如代为登录）';
+COMMENT ON COLUMN api_tokens.read_only IS '凭据是否限定为只读模式（例如只读代为登录排查）';
 
 -- +goose Down
 DROP TABLE api_tokens;

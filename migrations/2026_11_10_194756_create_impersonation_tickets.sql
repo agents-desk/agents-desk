@@ -14,6 +14,7 @@ CREATE TABLE impersonation_tickets (
     lifetime bigint NOT NULL,
     idle_timeout bigint NOT NULL,
     expires_at timestamptz NOT NULL,
+    read_only boolean NOT NULL DEFAULT false,
     CONSTRAINT impersonation_tickets_ticket_hash_unique UNIQUE (ticket_hash)
 );
 CREATE INDEX impersonation_tickets_expires_at ON impersonation_tickets (expires_at);
@@ -33,6 +34,7 @@ COMMENT ON COLUMN impersonation_tickets.reason IS '代为登录原因或工单�
 COMMENT ON COLUMN impersonation_tickets.lifetime IS '交换后代为登录令牌的最长有效期（秒）';
 COMMENT ON COLUMN impersonation_tickets.idle_timeout IS '交换后代为登录令牌的空闲超时时长（秒）';
 COMMENT ON COLUMN impersonation_tickets.expires_at IS '票据过期时间';
+COMMENT ON COLUMN impersonation_tickets.read_only IS '交换后的代为登录令牌是否限定为只读模式';
 
 -- +goose Down
 DROP TABLE impersonation_tickets;

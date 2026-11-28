@@ -113,7 +113,7 @@ func parts(a *App) []command.Part {
 ```
 
 - `App` 保存进程中各部分共用的资源。`open` 创建它们；接上数据库后也在这里打开，把关闭登记到 `cleanup.Stack`，进程退出时自动关闭。
-- `parts` 列出常驻运行的部分。加上队列的 worker、定时任务的调度器时各加一项；`serve` 运行全部部分，`serve http` 只运行其中一个，见 [serve](../general/commands.md#serve-command)。
+- `parts` 列出常驻运行的部分。加上队列的 worker、定时任务的调度器时各加一项；`serve` 运行全部部分，`serve http` 或 `serve worker scheduler` 只运行指定的部分，见 [serve](../general/commands.md#serve-command)。
 
 <a id="entry-routes"></a>
 ### `serveHTTP` 和 `routes`
