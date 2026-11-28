@@ -672,7 +672,7 @@ export function InlineTranslationPane({
           {t("inbox.translation_placeholder_generic")}
         </Text>
       ) : empty ? (
-        <Text size="md" c="dimmed" lh={1.55} className="inbox-translation-placeholder">
+        <Text size="xs" c="dimmed" lh={1.55} className="inbox-translation-placeholder">
           {targetLang ? t("inbox.translation_placeholder", { lang: languageName(targetLang, ui) }) : t("inbox.choose_language")}
         </Text>
       ) : shown && !shown.needed && !preview.pending && !stale ? (
@@ -728,9 +728,17 @@ export function InlineTranslationPane({
             <Text
               size="md"
               lh={1.55}
+              role="button"
+              tabIndex={0}
               className="inbox-translation-editable"
               style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
               onClick={startEdit}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault()
+                  startEdit()
+                }
+              }}
               title={t("inbox.edit_translation")}
             >
               {displayText}

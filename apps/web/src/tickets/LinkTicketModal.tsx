@@ -49,7 +49,7 @@ export function LinkTicketModal({ opened, conversationId, linkedTicketIds, onClo
   const candidates = (search.data?.items ?? []).filter((tk) => !linkedTicketIds.has(tk.id))
 
   return (
-    <Modal opened={opened} onClose={onClose} title={t("tickets.link_ticket_title")} size="md">
+    <Modal opened={opened} onClose={onClose} title={t("tickets.link_ticket_title")} size="md" closeOnClickOutside={false}>
       <Stack gap="sm">
         <TextInput
           value={q}

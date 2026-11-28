@@ -5,9 +5,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { IconCheck, IconChevronDown, IconLanguage, IconLayoutSidebarRight, IconLock, IconPencil, IconWorld } from "@tabler/icons-react"
 import {
   AsidePane,
+  EmptyState,
   ImageLightbox,
+  InspectorSkeleton,
   notifyError,
   PaneHeader,
+  StatusDot,
   useAsidePaneState,
   useCan,
   useLanguage,
@@ -38,10 +41,8 @@ import {
 import { invalidateTicket, TICKET_STATUSES, ticketStatusColor, ticketStatusLabel, ticketVisibilityLabel, useTicket } from "./meta"
 import { TicketComposer } from "./TicketComposer"
 import { TicketDetails } from "./TicketDetails"
-import { StatusMark } from "../components/status-mark"
 import { firstUnread, NewMessagesDivider, ScrollToBottomButton, useStickToBottom } from "../inbox/stick-to-bottom"
-import { ConversationSkeleton, InspectorSkeleton, TimelineSkeleton } from "../components/detail-skeleton"
-import { EmptyState } from "../components/empty-state"
+import { ConversationSkeleton, TimelineSkeleton } from "../components/detail-skeleton"
 
 /** isPublicUpdate 判断工单时间线项是否为对外同步的公开进度消息。 */
 function isPublicUpdate(it: ConversationItemDTO): boolean {
@@ -141,7 +142,14 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
 
   // 还没有数据（直接打开链接或网络较慢）时显示与页面同样布局的骨架，详情栏保持原来的开合，数据到达后只替换内容
   if (!tk) {
-    if (ticketQuery.isError) return <EmptyState fill title={t("tickets.not_found")} />
+    if (ticketQuery.isError) {
+      return (
+        <Box style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+          {narrow && <PaneHeader back={back} />}
+          <EmptyState fill title={t("tickets.not_found")} />
+        </Box>
+      )
+    }
     return (
       <Group gap={0} h="100%" wrap="nowrap" align="stretch" style={{ flex: 1, minWidth: 0 }}>
         <ConversationSkeleton back={narrow ? back : undefined} />
@@ -151,7 +159,7 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
           compactQuery={NARROW_QUERY}
           resizable={{ storageKey: "ticket-details", defaultWidth: 320, min: 260, max: 420 }}
         >
-          <InspectorSkeleton onClose={details.close} />
+          <InspectorSkeleton onClose={details.close} closeLabel={t("inbox.close_details")} />
         </AsidePane>
       </Group>
     )
@@ -173,6 +181,7 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
   const canEdit = can("conversations:reply")
 
   const commitTitle = () => {
+    if (!editingTitle || saveTitle.isPending) return
     const trimmed = titleDraft.trim()
     if (!trimmed || trimmed === tk.title) {
       setEditingTitle(false)
@@ -304,7 +313,7 @@ export function TicketView({ id, tenantId, back }: { id: string; tenantId: strin
                     onClick={() => setStatus.mutate(st)}
                   >
                     <Group gap={6} wrap="nowrap">
-                      <StatusMark color={ticketStatusColor[st]} />
+                      <StatusDot color={ticketStatusColor[st]} />
                       <Text size="sm">{ticketStatusLabel(st, t)}</Text>
                     </Group>
                   </Menu.Item>
@@ -394,10 +403,10 @@ function TicketTimeline({
           {list.map((it, i) => {
             const prev = list[i - 1]
             const next = list[i + 1]
-            const showDay = i === 0 || !sameDay(prev.created_at, it.created_at)
+            const showDay = i === 0 || !sameDay(prev.created_at, it.created_at, zone)
             const showNew = it === firstNew
-            const groupedWithPrev = !showDay && !showNew && canGroupItems(prev, it, firstNew, sameKind)
-            const groupedWithNext = Boolean(next) && canGroupItems(it, next, firstNew, sameKind)
+            const groupedWithPrev = !showDay && !showNew && canGroupItems(prev, it, firstNew, sameKind, zone)
+            const groupedWithNext = Boolean(next) && canGroupItems(it, next, firstNew, sameKind, zone)
             const gapTop = i === 0 ? 0 : groupedWithPrev ? 4 : 16
             const author = names.member(it.actor.id)
             return (
@@ -406,7 +415,7 @@ function TicketTimeline({
                 {showNew && <NewMessagesDivider />}
                 {it.kind === "event" ? (
                   <Text size="xs" c="dimmed" ta="center" mt={gapTop} className="inbox-event">
-                    {describeEvent(it, byId, names, t, ui)} · {clock(it.created_at, ui, zone)}
+                    {describeEvent(it, byId, names, t, ui, zone)} · {clock(it.created_at, ui, zone)}
                   </Text>
                 ) : (
                   <TicketBubble

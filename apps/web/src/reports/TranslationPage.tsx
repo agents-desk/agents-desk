@@ -7,6 +7,8 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link, useNavigate, useParams } from "@tanstack/react-router"
 import {
   LoadingStage,
+  type MetricItem,
+  MetricStrip,
   type PeriodRoute,
   useCan,
   useFormatDuration,
@@ -22,7 +24,6 @@ import { languageName } from "../languages"
 import { InlineShareBar, REPORT_AREA_PROPS } from "./Breakdown"
 import { languageInboxSearch } from "./drilldown"
 import { formatInt, formatPercent, formatUSD, pctDelta } from "./format"
-import { type MetricItem, MetricStrip } from "./MetricStrip"
 import { GranularityControl } from "./PeriodButton"
 import { ReportShell } from "./ReportShell"
 import type { TranslationReportSearchParams } from "./search"
@@ -64,7 +65,6 @@ export function TranslationPage({ route }: { route: PeriodRoute }): ReactNode {
 
   const tabSwitcher = (
     <SegmentedControl
-      size="xs"
       value={tab}
       onChange={setTab}
       data={[
@@ -267,33 +267,35 @@ export function TranslationPage({ route }: { route: PeriodRoute }): ReactNode {
         </section>
 
         <SectionCard title={t("reports.ai_agent_breakdown_title")} loading={false} empty={false} flush>
-          <table className="rp-table">
-            <thead>
-              <tr>
-                <th>{t("reports.col_scene")}</th>
-                <th data-align="right">{t("reports.ai_agent_auto_resolve")}</th>
-                <th data-align="right">{t("reports.ai_agent_handoff_rate")}</th>
-                <th data-align="right">{t("reports.ai_agent_approvals")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {plannedRows.map((row) => (
-                <tr key={row.key} className="rp-row">
-                  <td>
-                    <Text size="sm" fw={500}>
-                      {row.title}
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      {row.desc}
-                    </Text>
-                  </td>
-                  <td data-align="right">—</td>
-                  <td data-align="right">—</td>
-                  <td data-align="right">—</td>
+          <div className="rp-table-scroll">
+            <table className="rp-table">
+              <thead>
+                <tr>
+                  <th>{t("reports.col_scene")}</th>
+                  <th data-align="right">{t("reports.ai_agent_auto_resolve")}</th>
+                  <th data-align="right">{t("reports.ai_agent_handoff_rate")}</th>
+                  <th data-align="right">{t("reports.ai_agent_approvals")}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {plannedRows.map((row) => (
+                  <tr key={row.key} className="rp-row">
+                    <td>
+                      <Text size="sm" fw={500}>
+                        {row.title}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {row.desc}
+                      </Text>
+                    </td>
+                    <td data-align="right">—</td>
+                    <td data-align="right">—</td>
+                    <td data-align="right">—</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </SectionCard>
       </ReportShell>
     )
@@ -355,76 +357,29 @@ export function TranslationPage({ route }: { route: PeriodRoute }): ReactNode {
         minHeight={160}
         flush
       >
-        <table className="rp-table">
-          <thead>
-            <tr>
-              <th>{t("reports.col_scene")}</th>
-              <th data-align="right">{t("reports.col_calls")}</th>
-              <th data-align="right">{t("reports.col_success_rate")}</th>
-              <th data-align="right">{t("reports.col_tokens")}</th>
-              <th data-align="right">{t("reports.col_avg_duration")}</th>
-              <th data-align="right">{t("reports.col_cost")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(data?.by_scene ?? []).map((row) => (
-              <tr key={row.scene} className="rp-row">
-                <td>
-                  <Text size="sm" fw={500}>
-                    {sceneLabel(row.scene)}
-                  </Text>
-                </td>
-                <td data-align="right">
-                  <div>{formatInt(row.calls, uiLang)}</div>
-                  <InlineShareBar ratio={(row.calls / maxSceneCalls) * 100} />
-                </td>
-                <td data-align="right">
-                  <Badge
-                    size="sm"
-                    variant="light"
-                    color={row.failed_calls === 0 ? "green" : (row.success_rate ?? 0) >= 90 ? "yellow" : "red"}
-                  >
-                    {formatPercent(row.success_rate)}
-                  </Badge>
-                </td>
-                <td data-align="right">{formatInt(row.total_tokens, uiLang)}</td>
-                <td data-align="right">{formatDuration(row.avg_duration_ms, { unit: "ms" })}</td>
-                <td data-align="right">{formatUSD(row.cost_usd)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </SectionCard>
-
-      <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
-        <SectionCard
-          title={t("reports.by_operation")}
-          loading={loading}
-          empty={!data?.by_operation.length}
-          minHeight={180}
-          flush
-        >
+        <div className="rp-table-scroll">
           <table className="rp-table">
             <thead>
               <tr>
-                <th>{t("reports.col_operation")}</th>
+                <th>{t("reports.col_scene")}</th>
                 <th data-align="right">{t("reports.col_calls")}</th>
                 <th data-align="right">{t("reports.col_success_rate")}</th>
+                <th data-align="right">{t("reports.col_tokens")}</th>
                 <th data-align="right">{t("reports.col_avg_duration")}</th>
                 <th data-align="right">{t("reports.col_cost")}</th>
               </tr>
             </thead>
             <tbody>
-              {(data?.by_operation ?? []).map((row) => (
-                <tr key={row.operation} className="rp-row">
+              {(data?.by_scene ?? []).map((row) => (
+                <tr key={row.scene} className="rp-row">
                   <td>
                     <Text size="sm" fw={500}>
-                      {operationLabel(row.operation)}
+                      {sceneLabel(row.scene)}
                     </Text>
                   </td>
                   <td data-align="right">
                     <div>{formatInt(row.calls, uiLang)}</div>
-                    <InlineShareBar ratio={(row.calls / maxOpCalls) * 100} />
+                    <InlineShareBar ratio={(row.calls / maxSceneCalls) * 100} />
                   </td>
                   <td data-align="right">
                     <Badge
@@ -435,12 +390,63 @@ export function TranslationPage({ route }: { route: PeriodRoute }): ReactNode {
                       {formatPercent(row.success_rate)}
                     </Badge>
                   </td>
+                  <td data-align="right">{formatInt(row.total_tokens, uiLang)}</td>
                   <td data-align="right">{formatDuration(row.avg_duration_ms, { unit: "ms" })}</td>
                   <td data-align="right">{formatUSD(row.cost_usd)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      </SectionCard>
+
+      <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
+        <SectionCard
+          title={t("reports.by_operation")}
+          loading={loading}
+          empty={!data?.by_operation.length}
+          minHeight={180}
+          flush
+        >
+          <div className="rp-table-scroll">
+            <table className="rp-table">
+              <thead>
+                <tr>
+                  <th>{t("reports.col_operation")}</th>
+                  <th data-align="right">{t("reports.col_calls")}</th>
+                  <th data-align="right">{t("reports.col_success_rate")}</th>
+                  <th data-align="right">{t("reports.col_avg_duration")}</th>
+                  <th data-align="right">{t("reports.col_cost")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data?.by_operation ?? []).map((row) => (
+                  <tr key={row.operation} className="rp-row">
+                    <td>
+                      <Text size="sm" fw={500}>
+                        {operationLabel(row.operation)}
+                      </Text>
+                    </td>
+                    <td data-align="right">
+                      <div>{formatInt(row.calls, uiLang)}</div>
+                      <InlineShareBar ratio={(row.calls / maxOpCalls) * 100} />
+                    </td>
+                    <td data-align="right">
+                      <Badge
+                        size="sm"
+                        variant="light"
+                        color={row.failed_calls === 0 ? "green" : (row.success_rate ?? 0) >= 90 ? "yellow" : "red"}
+                      >
+                        {formatPercent(row.success_rate)}
+                      </Badge>
+                    </td>
+                    <td data-align="right">{formatDuration(row.avg_duration_ms, { unit: "ms" })}</td>
+                    <td data-align="right">{formatUSD(row.cost_usd)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </SectionCard>
 
         <SectionCard
@@ -450,42 +456,44 @@ export function TranslationPage({ route }: { route: PeriodRoute }): ReactNode {
           minHeight={180}
           flush
         >
-          <table className="rp-table">
-            <thead>
-              <tr>
-                <th>{t("reports.col_model")}</th>
-                <th data-align="right">{t("reports.col_calls")}</th>
-                <th data-align="right">{t("reports.col_tokens")}</th>
-                <th data-align="right">{t("reports.col_avg_duration")}</th>
-                <th data-align="right">{t("reports.col_cost")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(data?.by_model ?? []).map((row) => (
-                <tr key={row.model} className="rp-row">
-                  <td>
-                    <Group gap={6} wrap="nowrap">
-                      <Text size="sm" ff="monospace" fw={500} truncate>
-                        {row.model}
-                      </Text>
-                      {row.failed_calls > 0 && (
-                        <Badge size="xs" variant="light" color="red">
-                          {t("reports.col_failed")} {formatInt(row.failed_calls, uiLang)}
-                        </Badge>
-                      )}
-                    </Group>
-                  </td>
-                  <td data-align="right">
-                    <div>{formatInt(row.calls, uiLang)}</div>
-                    <InlineShareBar ratio={(row.calls / maxModelCalls) * 100} />
-                  </td>
-                  <td data-align="right">{formatInt(row.total_tokens, uiLang)}</td>
-                  <td data-align="right">{formatDuration(row.avg_duration_ms, { unit: "ms" })}</td>
-                  <td data-align="right">{formatUSD(row.cost_usd)}</td>
+          <div className="rp-table-scroll">
+            <table className="rp-table">
+              <thead>
+                <tr>
+                  <th>{t("reports.col_model")}</th>
+                  <th data-align="right">{t("reports.col_calls")}</th>
+                  <th data-align="right">{t("reports.col_tokens")}</th>
+                  <th data-align="right">{t("reports.col_avg_duration")}</th>
+                  <th data-align="right">{t("reports.col_cost")}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(data?.by_model ?? []).map((row) => (
+                  <tr key={row.model} className="rp-row">
+                    <td>
+                      <Group gap={6} wrap="nowrap">
+                        <Text size="sm" ff="monospace" fw={500} truncate>
+                          {row.model}
+                        </Text>
+                        {row.failed_calls > 0 && (
+                          <Badge size="xs" variant="light" color="red">
+                            {t("reports.col_failed")} {formatInt(row.failed_calls, uiLang)}
+                          </Badge>
+                        )}
+                      </Group>
+                    </td>
+                    <td data-align="right">
+                      <div>{formatInt(row.calls, uiLang)}</div>
+                      <InlineShareBar ratio={(row.calls / maxModelCalls) * 100} />
+                    </td>
+                    <td data-align="right">{formatInt(row.total_tokens, uiLang)}</td>
+                    <td data-align="right">{formatDuration(row.avg_duration_ms, { unit: "ms" })}</td>
+                    <td data-align="right">{formatUSD(row.cost_usd)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </SectionCard>
 
         <SectionCard
@@ -528,7 +536,7 @@ export function TranslationPage({ route }: { route: PeriodRoute }): ReactNode {
                 )
               }
               return (
-                <Tooltip key={item.language} label={t("reports.drill_language_inbox")} openDelay={300} withArrow>
+                <Tooltip key={item.language} label={t("reports.drill_language_inbox")} openDelay={300}>
                   <Link
                     to="/$slug/inbox"
                     params={{ slug }}

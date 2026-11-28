@@ -234,16 +234,18 @@ export function ChannelLocalizationSection({
           {t("widget_i18n.editing_language")}
         </Text>
         <Tooltip label={t("widget_i18n.ai_not_configured")} disabled={aiEnabled}>
-          <Button
-            size="compact-xs"
-            variant="light"
-            leftSection={<IconSparkles size={13} />}
-            disabled={!aiEnabled || allTargets.length === 0}
-            loading={translateMutation.isPending}
-            onClick={() => runTranslate(isEditingDefault ? allTargets : [editingLang])}
-          >
-            {isEditingDefault ? t("widget_i18n.ai_translate_all") : t("widget_i18n.ai_translate_current")}
-          </Button>
+          <span style={{ display: "inline-block" }}>
+            <Button
+              size="compact-xs"
+              variant="light"
+              leftSection={<IconSparkles size={13} />}
+              disabled={!aiEnabled || allTargets.length === 0}
+              loading={translateMutation.isPending}
+              onClick={() => runTranslate(isEditingDefault ? allTargets : [editingLang])}
+            >
+              {isEditingDefault ? t("widget_i18n.ai_translate_all") : t("widget_i18n.ai_translate_current")}
+            </Button>
+          </span>
         </Tooltip>
       </Group>
 

@@ -32,7 +32,7 @@ export function InboxDrillButton({
   label: string
 }): ReactNode {
   return (
-    <Tooltip label={label} openDelay={250} withArrow>
+    <Tooltip label={label} openDelay={250}>
       <Link
         to="/$slug/inbox"
         params={{ slug }}

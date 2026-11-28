@@ -2,6 +2,7 @@ import {
   Avatar,
   Badge,
   Box,
+  CloseButton,
   Divider,
   Group,
   Menu,
@@ -141,10 +142,29 @@ export function WorkspaceSwitcher({
                   size="xs"
                   placeholder={t("workspace.search_placeholder")}
                   leftSection={<IconSearch size={13} stroke={1.8} />}
+                  rightSection={
+                    search ? (
+                      <CloseButton
+                        size="xs"
+                        variant="subtle"
+                        aria-label={t("common.clear_search")}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setSearch("")
+                        }}
+                      />
+                    ) : undefined
+                  }
                   value={search}
                   onChange={(e) => setSearch(e.currentTarget.value)}
                   onClick={(e) => e.stopPropagation()}
-                  onKeyDown={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      setOpened(false)
+                      return
+                    }
+                    e.stopPropagation()
+                  }}
                 />
               </Box>
             )}

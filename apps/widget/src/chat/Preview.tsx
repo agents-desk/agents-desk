@@ -82,12 +82,14 @@ export function Preview(): ReactNode {
       if (e.origin !== window.location.origin || e.source !== window.parent) return
       if (!e.data || e.data.type !== `${PREFIX}preview`) return
       const nextMode: PreviewMode = e.data.mode === "business_link" ? "business_link" : "widget"
-      if (typeof e.data.lang === "string" && e.data.lang) {
-        i18n.setLanguage(e.data.lang)
-      }
       const nextColor = typeof e.data.appearance?.color === "string" ? e.data.appearance.color : DEFAULT_WIDGET_COLOR
       const nextGreeting = typeof e.data.greeting === "string" ? e.data.greeting : ""
-      const nextLanguage = typeof e.data.language === "string" && e.data.language ? e.data.language : "en"
+      const nextLanguage =
+        typeof e.data.language === "string" && e.data.language
+          ? e.data.language
+          : typeof e.data.lang === "string" && e.data.lang
+            ? e.data.lang
+            : "en"
       const rawScene = e.data.scene
       const nextScene: PreviewScene =
         rawScene === "launcher" || rawScene === "intake" || rawScene === "passcode" ? rawScene : "conversation"

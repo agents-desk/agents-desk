@@ -15,7 +15,7 @@ import {
   IconTicket,
   IconX,
 } from "@tabler/icons-react"
-import { AsidePane, notifyError, notifySuccess, PaneHeader, useAsidePaneState, useCan, useNarrow, useT } from "@go-tenon/ui"
+import { AsidePane, EmptyState, InspectorSkeleton, notifyError, notifySuccess, PaneHeader, useAsidePaneState, useCan, useNarrow, useT } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { isTypingTarget, NARROW_QUERY } from "../layout"
@@ -34,13 +34,13 @@ import {
   useTimeline,
 } from "./data"
 import { Details } from "./Details"
+import { conversationStatusColor } from "./format"
 import { contactName, ConversationPeerAvatar } from "./List"
 import { AssignMenu, SnoozeMenu } from "./menus"
 import { useSyncRead } from "./MessagePrimitives"
 import type { MatchField } from "./search"
 import { Timeline } from "./Timeline"
-import { ConversationSkeleton, InspectorSkeleton } from "../components/detail-skeleton"
-import { EmptyState } from "../components/empty-state"
+import { ConversationSkeleton } from "../components/detail-skeleton"
 
 /** ConversationProps 是会话页的设置。 */
 interface ConversationProps {
@@ -232,7 +232,14 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
 
   // 还没有数据（直接打开链接或网络较慢）时显示与页面同样布局的骨架，详情栏保持原来的开合，数据到达后只替换内容
   if (!c) {
-    if (conversation.isError) return <EmptyState fill title={t("inbox.not_found")} />
+    if (conversation.isError) {
+      return (
+        <Box style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+          {narrow && <PaneHeader back={back} />}
+          <EmptyState fill title={t("inbox.not_found")} />
+        </Box>
+      )
+    }
     return (
       <Group gap={0} h="100%" wrap="nowrap" align="stretch" style={{ flex: 1, minWidth: 0 }}>
         <ConversationSkeleton back={narrow ? back : undefined} />
@@ -242,7 +249,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
           compactQuery={NARROW_QUERY}
           resizable={{ storageKey: "inbox-details", defaultWidth: 320, min: 260, max: 420 }}
         >
-          <InspectorSkeleton onClose={details.close} />
+          <InspectorSkeleton onClose={details.close} closeLabel={t("inbox.close_details")} />
         </AsidePane>
       </Group>
     )
@@ -320,7 +327,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
                   </Badge>
                 )}
                 {c.status !== "open" && (
-                  <Badge size="xs" variant="light" color={c.status === "snoozed" ? "yellow" : "gray"} style={{ flex: "none" }}>
+                  <Badge size="xs" variant="light" color={conversationStatusColor[c.status]} style={{ flex: "none" }}>
                     {t(`inbox.status_${c.status}` as const)}
                   </Badge>
                 )}
@@ -449,11 +456,11 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
           </Group>
         </PaneHeader>
         {c.spam_at && (
-          <Alert variant="light" color="deep-orange" radius={0} py={8} px="md" icon={<IconAlertOctagon size={16} />}>
+          <Alert variant="light" color="red" radius={0} py={8} px="md" icon={<IconAlertOctagon size={16} />}>
             <Group justify="space-between" gap="sm" wrap="wrap">
               <Text size="xs">{t("inbox.spam_banner")}</Text>
               {can("conversations:reply") && (
-                <Button size="compact-xs" variant="light" color="deep-orange" loading={unmarkSpam.isPending} onClick={() => unmarkSpam.mutate()}>
+                <Button size="compact-xs" variant="light" color="red" loading={unmarkSpam.isPending} onClick={() => unmarkSpam.mutate()}>
                   {t("inbox.unmark_spam")}
                 </Button>
               )}
@@ -485,7 +492,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
           onCorrect={can("conversations:reply") ? handleCorrect : undefined}
         />
         {generations.length > 0 && (
-          <Stack gap={6} px="md" py={8}>
+          <Stack gap={6} px="md" py={8} bg="var(--tn-canvas)" style={{ borderTop: "1px solid var(--tn-border)" }}>
             {generations.map((g) => {
               const pendingCalls = g.pending_approvals.filter((a) => a.status === "pending")
               if (g.state === "waiting_approval" && pendingCalls.length > 0) {
@@ -495,41 +502,49 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
                       <Text size="xs" fw={600}>
                         {t("inbox.ai_approval_title")}
                       </Text>
-                      {pendingCalls.map((call) => (
-                        <Group key={call.call_id} justify="space-between" gap="xs" wrap="wrap">
-                          <Group gap={6} style={{ minWidth: 0, flex: 1 }}>
-                            <Code>{call.name}</Code>
-                            {call.arguments && (
-                              <Text size="xs" c="dimmed" truncate>
-                                {call.arguments}
-                              </Text>
+                      {pendingCalls.map((call) => {
+                        const approvingThis =
+                          approveTool.isPending && approveTool.variables?.genId === g.id && approveTool.variables?.callId === call.call_id
+                        const rejectingThis =
+                          rejectTool.isPending && rejectTool.variables?.genId === g.id && rejectTool.variables?.callId === call.call_id
+                        return (
+                          <Group key={call.call_id} justify="space-between" gap="xs" wrap="wrap">
+                            <Group gap={6} style={{ minWidth: 0, flex: 1 }}>
+                              <Code>{call.name}</Code>
+                              {call.arguments && (
+                                <Text size="xs" c="dimmed" truncate>
+                                  {call.arguments}
+                                </Text>
+                              )}
+                            </Group>
+                            {can("conversations:reply") && (
+                              <Group gap={6}>
+                                <Button
+                                  size="compact-xs"
+                                  color="green"
+                                  leftSection={<IconCheck size={12} />}
+                                  loading={approvingThis}
+                                  disabled={rejectingThis}
+                                  onClick={() => approveTool.mutate({ genId: g.id, callId: call.call_id })}
+                                >
+                                  {t("inbox.ai_approve")}
+                                </Button>
+                                <Button
+                                  size="compact-xs"
+                                  variant="light"
+                                  color="red"
+                                  leftSection={<IconX size={12} />}
+                                  loading={rejectingThis}
+                                  disabled={approvingThis}
+                                  onClick={() => rejectTool.mutate({ genId: g.id, callId: call.call_id })}
+                                >
+                                  {t("inbox.ai_reject")}
+                                </Button>
+                              </Group>
                             )}
                           </Group>
-                          {can("conversations:reply") && (
-                            <Group gap={6}>
-                              <Button
-                                size="compact-xs"
-                                color="green"
-                                leftSection={<IconCheck size={12} />}
-                                loading={approveTool.isPending}
-                                onClick={() => approveTool.mutate({ genId: g.id, callId: call.call_id })}
-                              >
-                                {t("inbox.ai_approve")}
-                              </Button>
-                              <Button
-                                size="compact-xs"
-                                variant="light"
-                                color="red"
-                                leftSection={<IconX size={12} />}
-                                loading={rejectTool.isPending}
-                                onClick={() => rejectTool.mutate({ genId: g.id, callId: call.call_id })}
-                              >
-                                {t("inbox.ai_reject")}
-                              </Button>
-                            </Group>
-                          )}
-                        </Group>
-                      ))}
+                        )
+                      })}
                     </Stack>
                   </Alert>
                 )
@@ -553,7 +568,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
                         variant="light"
                         color="gray"
                         leftSection={<IconPlayerStop size={12} />}
-                        loading={cancelGeneration.isPending}
+                        loading={cancelGeneration.isPending && cancelGeneration.variables === g.id}
                         onClick={() => cancelGeneration.mutate(g.id)}
                       >
                         {t("inbox.ai_stop")}
@@ -569,7 +584,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
                     <Stack gap={4}>
                       <Group justify="space-between" gap="xs">
                         <Group gap={6}>
-                          <IconRobot size={14} style={{ color: "var(--mantine-color-bright-blue-6)" }} />
+                          <IconRobot size={14} style={{ color: "var(--mantine-color-bright-blue-text)" }} />
                           <Text size="xs" fw={600} c="bright-blue">
                             {t("inbox.ai_draft_title")}
                           </Text>
@@ -621,7 +636,7 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
           handleRef={composerRef}
         />
       </Box>
-      <Modal opened={spamModalOpen} onClose={() => setSpamModalOpen(false)} title={t("inbox.mark_spam_confirm")} centered>
+      <Modal opened={spamModalOpen} onClose={() => setSpamModalOpen(false)} title={t("inbox.mark_spam_confirm")} centered closeOnClickOutside={false}>
         <Stack gap="md">
           <Text size="sm" c="dimmed">
             {t("inbox.mark_spam_desc")}

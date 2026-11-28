@@ -4,10 +4,9 @@ import { useForm } from "@mantine/form"
 import { IconPlus, IconTrash } from "@tabler/icons-react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { applyServerErrors, confirm, DataTable, FormError, notifyError, notifySuccess, Page, PageActions, preloadQueries, useLanguage, useT } from "@go-tenon/ui"
+import { applyServerErrors, confirm, DataTable, FormError, notifyError, notifySuccess, Page, PageActions, preloadQueries, RowActions, useLanguage, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../../../../api"
-import { RowActions } from "../../../../components/row-actions"
 import { useUnsavedGuard } from "../../../../components/unsaved-guard"
 import { LanguageSelect } from "../../../../LanguageSelect"
 import { languageName } from "../../../../languages"
@@ -204,7 +203,13 @@ function GlossaryTab(): ReactNode {
         ]}
       />
 
-      <Modal opened={!!editing} onClose={() => setEditing(undefined)} title={t(editing?.index === undefined ? "glossary.add" : "glossary.edit")} size="lg">
+      <Modal
+        opened={!!editing}
+        onClose={() => setEditing(undefined)}
+        closeOnClickOutside={false}
+        title={t(editing?.index === undefined ? "glossary.add" : "glossary.edit")}
+        size="lg"
+      >
         {editing && (
           <TermForm
             initial={editing.term}
@@ -292,7 +297,7 @@ function TermForm({ initial, onSave, onCancel }: { initial: TranslationTerm; onS
               <Group key={i} gap="xs" wrap="nowrap" align="flex-start">
                 <LanguageSelect w={220} placeholder={t("glossary.language")} aria-label={t("glossary.language")} {...form.getInputProps(`pairs.${i}.lang`)} />
                 <TextInput style={{ flex: 1 }} maxLength={200} placeholder={t("glossary.translation")} aria-label={t("glossary.translation")} {...form.getInputProps(`pairs.${i}.text`)} />
-                <ActionIcon variant="subtle" color="gray" mt={6} onClick={() => form.removeListItem("pairs", i)} aria-label={t("glossary.remove_translation")}>
+                <ActionIcon variant="subtle" color="gray" mt={4} onClick={() => form.removeListItem("pairs", i)} aria-label={t("glossary.remove_translation")}>
                   <IconTrash size={16} />
                 </ActionIcon>
               </Group>
@@ -302,7 +307,7 @@ function TermForm({ initial, onSave, onCancel }: { initial: TranslationTerm; onS
             </Button>
           </Stack>
         )}
-        <Group justify="flex-end">
+        <Group justify="flex-end" gap="xs">
           <Button variant="default" onClick={onCancel}>
             {t("common.cancel")}
           </Button>

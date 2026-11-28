@@ -1,4 +1,4 @@
-import { Anchor, Badge, Button, Group, Modal, NumberInput, PasswordInput, Stack, Text } from "@mantine/core"
+import { Anchor, Badge, Button, Group, Modal, NumberInput, PasswordInput, Skeleton, Stack, Text } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { ExportButton, type FieldInput, notifyError, notifySuccess, ResourcePage, useCan, useT } from "@go-tenon/ui"
@@ -109,6 +109,12 @@ function TenantBudgetModal({ tenant, onClose }: { tenant?: TenantDTO; onClose: (
   })
 
   useEffect(() => {
+    setDailyCost("")
+    setMonthlyCost("")
+    setDailyTokens("")
+  }, [tenant?.id])
+
+  useEffect(() => {
     if (!current.data) return
     const ov = current.data.override
     setDailyCost(ov.daily_cost_usd ?? "")
@@ -140,58 +146,80 @@ function TenantBudgetModal({ tenant, onClose }: { tenant?: TenantDTO; onClose: (
     <Modal
       opened={Boolean(tenant)}
       onClose={onClose}
+      closeOnClickOutside={false}
       title={tenant ? t("tenants.llm_budget_title", { name: tenant.name }) : ""}
       size="md"
     >
-      <Stack gap="md">
-        <Text size="sm" c="dimmed">
-          {t("tenants.llm_budget_desc")}
-        </Text>
-        <NumberInput
-          label={t("tenants.llm_budget_daily_cost")}
-          placeholder={t("tenants.llm_budget_placeholder")}
-          min={0}
-          max={100000}
-          decimalScale={4}
-          value={dailyCost}
-          onChange={setDailyCost}
-        />
-        <NumberInput
-          label={t("tenants.llm_budget_monthly_cost")}
-          placeholder={t("tenants.llm_budget_placeholder")}
-          min={0}
-          max={1000000}
-          decimalScale={4}
-          value={monthlyCost}
-          onChange={setMonthlyCost}
-        />
-        <NumberInput
-          label={t("tenants.llm_budget_daily_tokens")}
-          placeholder={t("tenants.llm_budget_placeholder")}
-          min={0}
-          max={10000000000}
-          allowDecimal={false}
-          value={dailyTokens}
-          onChange={setDailyTokens}
-        />
-        {current.data && (
-          <Text size="xs" c="dimmed">
-            {t("tenants.llm_budget_effective", {
-              daily_cost: String(current.data.effective.daily_cost_usd),
-              monthly_cost: String(current.data.effective.monthly_cost_usd),
-              daily_tokens: String(current.data.effective.daily_total_tokens),
-            })}
+      <form
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault()
+          save.mutate()
+        }}
+      >
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            {t("tenants.llm_budget_desc")}
           </Text>
-        )}
-        <Group justify="flex-end">
-          <Button variant="default" onClick={onClose}>
-            {t("common.cancel")}
-          </Button>
-          <Button loading={save.isPending} onClick={() => save.mutate()}>
-            {t("common.save")}
-          </Button>
-        </Group>
-      </Stack>
+          {current.isLoading ? (
+            <Stack gap="sm">
+              <Skeleton height={56} />
+              <Skeleton height={56} />
+              <Skeleton height={56} />
+            </Stack>
+          ) : (
+            <>
+              <NumberInput
+                label={t("tenants.llm_budget_daily_cost")}
+                placeholder={t("tenants.llm_budget_placeholder")}
+                min={0}
+                max={100000}
+                decimalScale={4}
+                allowNegative={false}
+                value={dailyCost}
+                onChange={setDailyCost}
+              />
+              <NumberInput
+                label={t("tenants.llm_budget_monthly_cost")}
+                placeholder={t("tenants.llm_budget_placeholder")}
+                min={0}
+                max={1000000}
+                decimalScale={4}
+                allowNegative={false}
+                value={monthlyCost}
+                onChange={setMonthlyCost}
+              />
+              <NumberInput
+                label={t("tenants.llm_budget_daily_tokens")}
+                placeholder={t("tenants.llm_budget_placeholder")}
+                min={0}
+                max={10000000000}
+                allowDecimal={false}
+                allowNegative={false}
+                value={dailyTokens}
+                onChange={setDailyTokens}
+              />
+              {current.data && (
+                <Text size="xs" c="dimmed">
+                  {t("tenants.llm_budget_effective", {
+                    daily_cost: String(current.data.effective.daily_cost_usd),
+                    monthly_cost: String(current.data.effective.monthly_cost_usd),
+                    daily_tokens: String(current.data.effective.daily_total_tokens),
+                  })}
+                </Text>
+              )}
+            </>
+          )}
+          <Group justify="flex-end" gap="xs">
+            <Button variant="default" disabled={save.isPending} onClick={onClose}>
+              {t("common.cancel")}
+            </Button>
+            <Button type="submit" disabled={current.isLoading} loading={save.isPending}>
+              {t("common.save")}
+            </Button>
+          </Group>
+        </Stack>
+      </form>
     </Modal>
   )
 }

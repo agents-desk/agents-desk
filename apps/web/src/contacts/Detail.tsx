@@ -21,21 +21,19 @@ import {
 import { type QueryClient, queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { IconArrowUpRight, IconBan, IconCheck, IconCopy, IconExternalLink, IconGitMerge, IconInfoCircle, IconPencil, IconShieldCheck, IconTrash, IconX } from "@tabler/icons-react"
-import { confirm, Inspector, InspectorField, InspectorSection, notifyError, notifySuccess, PaneBody, PaneHeader, prefetchQueries, type PreloadQuery, useCan, useLanguage, useNarrow, useT, useTimeZone } from "@go-tenon/ui"
+import { confirm, formatTimeZoneLocal, formatTimeZoneOffset, Inspector, InspectorField, InspectorSection, InspectorSkeleton, listTimeZones, notifyError, notifySuccess, PaneBody, PaneHeader, prefetchQueries, type PreloadQuery, StatusDot, useCan, useLanguage, useNarrow, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { previewSummary } from "../inbox/Attachments"
 import { useMembers } from "../inbox/data"
-import { activity } from "../inbox/format"
+import { activity, conversationStatusColor } from "../inbox/format"
 import { LanguageSelect } from "../LanguageSelect"
 import { languageName } from "../languages"
 import { NARROW_QUERY } from "../layout"
-import { allZones, formatLocalTime, offsetOf } from "../timezone"
 import { contactTicketsQuery, ticketStatusColor, ticketStatusLabel, useContactTickets } from "../tickets/meta"
 import { ContactNotesCard } from "./ContactNotesCard"
-import { ContactAvatar, contactDisplayName } from "./display"
+import { ContactAvatar, contactDisplayName, contactKindColor } from "./display"
 import { MergeContactModal } from "./MergeContactModal"
-import { InspectorSkeleton } from "../components/detail-skeleton"
 
 /** AUTO 是语言选择器中的“自动识别”。 */
 const AUTO = "auto"
@@ -115,7 +113,9 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
   )
 
   // 还没有数据时显示档案同样布局的骨架，数据到达后只替换内容
-  if (detail.isPending) return <InspectorSkeleton back={narrow ? onClose : undefined} onClose={onClose} />
+  if (detail.isPending) {
+    return <InspectorSkeleton back={narrow ? onClose : undefined} onClose={narrow ? undefined : onClose} closeLabel={t("contacts.close_detail")} />
+  }
 
   if (!detail.data) {
     return (
@@ -132,7 +132,7 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
 
   const c = detail.data
   const displayName = contactDisplayName(c, t)
-  const localTime = formatLocalTime(c.time_zone)
+  const localTime = formatTimeZoneLocal(c.time_zone)
   const subtitle = [c.location, localTime ? t("contacts.local_time", { time: localTime }) : ""].filter(Boolean).join(" · ")
   const editable = can("contacts:update")
   const showNumberBadge = c.number > 0 && Boolean(c.name.trim() || c.email.trim())
@@ -156,7 +156,7 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
             <Badge
               size="xs"
               variant="light"
-              color={c.kind === "user" ? "bright-blue" : c.kind === "internal" ? "green" : "gray"}
+              color={contactKindColor[c.kind]}
               style={{ flex: "none" }}
             >
               {kit.label("ContactKind", c.kind)}
@@ -301,7 +301,7 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
                     <Box p="xs">
                       <Group justify="space-between" wrap="nowrap" mb={4}>
                         <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
-                          <span className="ct-dot" data-status={conv.status} />
+                          <StatusDot color={conversationStatusColor[conv.status]} />
                           <Text size="xs" fw={500}>
                             {t(`inbox.status_${conv.status}` as const)}
                           </Text>
@@ -417,7 +417,7 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
         </Inspector>
       </PaneBody>
       <MergeContactModal opened={mergeOpen} target={c} onClose={() => setMergeOpen(false)} />
-      <Modal opened={blockModalOpen} onClose={() => setBlockModalOpen(false)} title={t("contacts.block_confirm_title")} centered>
+      <Modal opened={blockModalOpen} onClose={() => setBlockModalOpen(false)} title={t("contacts.block_confirm_title")} centered closeOnClickOutside={false}>
         <Stack gap="md">
           <Text size="sm" c="dimmed">
             {t("contacts.block_desc")}
@@ -515,7 +515,7 @@ function InlineTextField({
         {copyable && value && (
           <CopyButton value={value} timeout={1500}>
             {({ copied, copy }) => (
-              <Tooltip label={t(copied ? "contacts.copied" : "contacts.copy")} withArrow>
+              <Tooltip label={t(copied ? "contacts.copied" : "contacts.copy")}>
                 <ActionIcon variant="subtle" color={copied ? "green" : "gray"} size={22} onClick={copy} aria-label={t("contacts.copy")}>
                   {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
                 </ActionIcon>
@@ -524,7 +524,7 @@ function InlineTextField({
           </CopyButton>
         )}
         {editable && (
-          <Tooltip label={t("contacts.edit")} withArrow>
+          <Tooltip label={t("contacts.edit")}>
             <ActionIcon variant="subtle" color="gray" size={22} onClick={() => setEditing(true)} aria-label={t("contacts.edit")}>
               <IconPencil size={14} />
             </ActionIcon>
@@ -552,7 +552,7 @@ function PropertiesSection({
   const zone = useTimeZone()
   const { list: members } = useMembers()
   const [editingZone, setEditingZone] = useState(false)
-  const zones = useMemo(() => allZones().map((z) => ({ value: z, label: `${z} (${offsetOf(z)})` })), [])
+  const zones = useMemo(() => listTimeZones().map((z) => ({ value: z, label: `${z} (${formatTimeZoneOffset(z)})` })), [])
   const orgsQuery = useQuery({
     queryKey: ["organization", "dropdown"],
     queryFn: () => tenantApi.organization.list({ per_page: 100 }),
@@ -565,7 +565,7 @@ function PropertiesSection({
     return items
   }, [orgsQuery.data?.items, c.organization])
   const detected = c.language ? languageName(c.language, ui) : ""
-  const localTime = formatLocalTime(c.time_zone)
+  const localTime = formatTimeZoneLocal(c.time_zone)
 
   return (
     <InspectorSection title={t("contacts.profile")} withDivider={false}>
@@ -639,7 +639,7 @@ function PropertiesSection({
             <Code className="ct-code">{c.external_user_id}</Code>
             <CopyButton value={c.external_user_id} timeout={1500}>
               {({ copied, copy }) => (
-                <Tooltip label={t(copied ? "contacts.copied" : "contacts.copy")} withArrow>
+                <Tooltip label={t(copied ? "contacts.copied" : "contacts.copy")}>
                   <ActionIcon
                     className="ct-hover-action"
                     variant="subtle"
@@ -720,7 +720,7 @@ function PropertiesSection({
               {c.time_zone ? (localTime ? `${c.time_zone} · ${localTime}` : c.time_zone) : "—"}
             </Text>
             {editable && (
-              <Tooltip label={t("contacts.edit")} withArrow>
+              <Tooltip label={t("contacts.edit")}>
                 <ActionIcon
                   className="ct-hover-action"
                   variant="subtle"
@@ -810,7 +810,7 @@ function IdentitiesSection({ identities }: { identities: ContactIdentityDTO[] })
                 <Code className="ct-code">{ident.external_id}</Code>
                 <CopyButton value={ident.external_id} timeout={1500}>
                   {({ copied, copy }) => (
-                    <Tooltip label={t(copied ? "contacts.copied" : "contacts.copy")} withArrow>
+                    <Tooltip label={t(copied ? "contacts.copied" : "contacts.copy")}>
                       <ActionIcon
                         className="ct-hover-action"
                         variant="subtle"

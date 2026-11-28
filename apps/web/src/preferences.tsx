@@ -1,14 +1,22 @@
 import { Button, Group, Select, Stack, Switch } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { applyServerErrors, FormError, inTimeZone, notifySuccess, useT } from "@go-tenon/ui"
+import {
+  applyServerErrors,
+  browserTimeZone,
+  FormError,
+  formatTimeZoneOffset,
+  inTimeZone,
+  listTimeZones,
+  notifySuccess,
+  useT,
+} from "@go-tenon/ui"
 import type { MemberSendShortcut, MemberUiLanguage } from "@agents-desk/client/api"
 import { type ReactNode, useMemo, useState } from "react"
 import { api, apiKit, kit } from "./api"
 import { me } from "./auth"
 import { i18n } from "./i18n"
 import { LanguageSelect } from "./LanguageSelect"
-import { allZones, browserZone, offsetOf } from "./timezone"
 import { useUnsavedGuard } from "./components/unsaved-guard"
 
 // 偏好设置：界面语言、沟通与译文语言、时区、发送方式和发送后自动打开下一个待回复，属于账号本身，在所有工作区中一样。
@@ -61,8 +69,8 @@ function Form({
   // 第一项是跟随浏览器；其余是浏览器支持的全部时区，带现在的 UTC 偏移。
   const zones = useMemo(
     () => [
-      { value: "", label: t("preferences.follow_browser", { zone: browserZone }) },
-      ...allZones().map((z) => ({ value: z, label: `${z} (${offsetOf(z)})` })),
+      { value: "", label: t("preferences.follow_browser", { zone: browserTimeZone() }) },
+      ...listTimeZones().map((z) => ({ value: z, label: `${z} (${formatTimeZoneOffset(z)})` })),
     ],
     [t],
   )

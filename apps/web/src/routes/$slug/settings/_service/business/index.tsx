@@ -6,6 +6,7 @@ import {
   Box,
   Button,
   Checkbox,
+  CloseButton,
   Group,
   Modal,
   MultiSelect,
@@ -18,19 +19,23 @@ import {
   TextInput,
 } from "@mantine/core"
 import { useForm } from "@mantine/form"
+import { useDebouncedValue } from "@mantine/hooks"
 import { IconInfoCircle, IconPlayerPause, IconPlayerPlay, IconPlugConnected, IconSearch, IconUserPlus } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
+import { describeError, type ErrorInfo } from "@go-tenon/client"
 import {
   applyServerErrors,
   confirm,
   DataTable,
   FormError,
+  FormSection,
   notifyError,
   notifySuccess,
   Page,
   type PageTab,
   preloadQueries,
+  RowActions,
   SecretInput,
   StatusDot,
   useCan,
@@ -38,9 +43,7 @@ import {
 } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../../../../../api"
-import { RowActions } from "../../../../../components/row-actions"
 import { useUnsavedGuard } from "../../../../../components/unsaved-guard"
-import { FormSection } from "../../../../../components/form-section"
 import { ExternalGroupsPanel, TelegramsPanel } from "../../../../../features/channels/shared-panels"
 import { ChannelIcon } from "../../../../../inbox/channel-badge"
 import { useMembers } from "../../../../../inbox/data"
@@ -123,13 +126,14 @@ function MemberChannelsTab(): ReactNode {
   const [kind, setKind] = useState<"" | "business_link" | "telegram_account">("")
   const [enabledFilter, setEnabledFilter] = useState<"" | "true" | "false">("")
   const [q, setQ] = useState("")
+  const [debouncedQ] = useDebouncedValue(q.trim(), 250)
   const [collabTarget, setCollabTarget] = useState<BusinessChannelItemDTO | null>(null)
 
   const list = useQuery(
     kit.queries.business.channelList({
       kind: kind || undefined,
       enabled: enabledFilter || undefined,
-      q: q.trim() || undefined,
+      q: debouncedQ || undefined,
     }),
   )
   const items = list.data ?? []
@@ -168,6 +172,16 @@ function MemberChannelsTab(): ReactNode {
           style={{ flex: 1, minWidth: 220 }}
           placeholder={t("business_gov.search_placeholder")}
           leftSection={<IconSearch size={14} />}
+          rightSection={
+            q ? (
+              <CloseButton
+                size="xs"
+                variant="subtle"
+                aria-label={t("common.clear_search")}
+                onClick={() => setQ("")}
+              />
+            ) : undefined
+          }
           value={q}
           onChange={(e) => setQ(e.currentTarget.value)}
         />
@@ -183,6 +197,7 @@ function MemberChannelsTab(): ReactNode {
         <Select
           size="sm"
           w={130}
+          aria-label={t("business_gov.filter_all_status")}
           value={enabledFilter}
           onChange={(v) => setEnabledFilter((v ?? "") as "" | "true" | "false")}
           data={[
@@ -361,8 +376,10 @@ function AddCollaboratorsModal({
   const [memberIds, setMemberIds] = useState<string[]>([])
   const [applyExisting, setApplyExisting] = useState(true)
   const [addDefault, setAddDefault] = useState(true)
+  const [formError, setFormError] = useState<ErrorInfo>()
 
   useEffect(() => {
+    setFormError(undefined)
     if (!target) return
     setMemberIds([])
     setApplyExisting(true)
@@ -381,6 +398,7 @@ function AddCollaboratorsModal({
         add_to_default: addDefault,
       }),
     onSuccess: (res) => {
+      setFormError(undefined)
       if (applyExisting) {
         notifySuccess(t("business_gov.collab_success", { chats: res.updated_chats }))
       } else {
@@ -388,51 +406,63 @@ function AddCollaboratorsModal({
       }
       onDone()
     },
-    onError: (err) => notifyError(err),
+    onError: (err) => setFormError(describeError(err)),
   })
 
   return (
     <Modal
       opened={target !== null}
       onClose={onClose}
+      closeOnClickOutside={false}
       title={target ? t("business_gov.collab_modal_title", { name: target.name }) : ""}
     >
-      <Stack gap="md">
-        <Text size="xs" c="dimmed">
-          {t("business_gov.collab_modal_hint")}
-        </Text>
-        <MultiSelect
-          label={t("business_gov.collab_members_label")}
-          placeholder={t("business_gov.collab_members_placeholder")}
-          data={options}
-          value={memberIds}
-          onChange={setMemberIds}
-          searchable
-          clearable
-        />
-        <Checkbox
-          label={t("business_gov.collab_apply_existing")}
-          checked={applyExisting}
-          onChange={(e) => setApplyExisting(e.currentTarget.checked)}
-        />
-        <Checkbox
-          label={t("business_gov.collab_add_default")}
-          checked={addDefault}
-          onChange={(e) => setAddDefault(e.currentTarget.checked)}
-        />
-        <Group justify="flex-end">
-          <Button variant="default" onClick={onClose}>
-            {t("common.cancel")}
-          </Button>
-          <Button
-            disabled={memberIds.length === 0 || (!applyExisting && !addDefault)}
-            loading={submit.isPending}
-            onClick={() => submit.mutate()}
-          >
-            {t("business_gov.collab_submit")}
-          </Button>
-        </Group>
-      </Stack>
+      <form
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault()
+          setFormError(undefined)
+          submit.mutate()
+        }}
+      >
+        <Stack gap="md">
+          <FormError error={formError} />
+          <Text size="xs" c="dimmed">
+            {t("business_gov.collab_modal_hint")}
+          </Text>
+          <MultiSelect
+            label={t("business_gov.collab_members_label")}
+            placeholder={t("business_gov.collab_members_placeholder")}
+            data={options}
+            value={memberIds}
+            onChange={setMemberIds}
+            searchable
+            clearable
+            data-autofocus
+          />
+          <Checkbox
+            label={t("business_gov.collab_apply_existing")}
+            checked={applyExisting}
+            onChange={(e) => setApplyExisting(e.currentTarget.checked)}
+          />
+          <Checkbox
+            label={t("business_gov.collab_add_default")}
+            checked={addDefault}
+            onChange={(e) => setAddDefault(e.currentTarget.checked)}
+          />
+          <Group justify="flex-end" gap="xs">
+            <Button variant="default" onClick={onClose}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              type="submit"
+              disabled={memberIds.length === 0 || (!applyExisting && !addDefault)}
+              loading={submit.isPending}
+            >
+              {t("business_gov.collab_submit")}
+            </Button>
+          </Group>
+        </Stack>
+      </form>
     </Modal>
   )
 }
@@ -571,6 +601,7 @@ function BusinessPolicyTab(): ReactNode {
                 { value: "friendly", label: kit.label("TranslationTone", "friendly") },
               ]}
               value={form.values.default_translation_tone}
+              error={form.errors.default_translation_tone}
               onChange={(v) => form.setFieldValue("default_translation_tone", (v ?? "") as BusinessPolicy["default_translation_tone"])}
             />
         </FormSection>
@@ -646,7 +677,7 @@ function TelegramCredentialsTab(): ReactNode {
       if (res.ok) {
         notifySuccess(t("business_gov.tg_test_ok", { ms: res.latency_ms }))
       } else {
-        notifyError(undefined, t("business_gov.tg_test_failed", { error: res.error ?? "" }))
+        notifyError(new Error(t("business_gov.tg_test_failed", { error: res.error ?? "" })))
       }
     },
     onError: (err) => notifyError(err),

@@ -19,7 +19,7 @@ import {
 import { useDebouncedValue } from "@mantine/hooks"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { IconFlame, IconLink, IconLock, IconPlus, IconSearch } from "@tabler/icons-react"
-import { PaneBody, PaneHeader, PaneToolbar, useCan, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
+import { EmptyState, PaneBody, PaneHeader, PaneToolbar, StatusDot, useCan, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { kit } from "../api"
 import { useMe, useMembers, useTeams } from "../inbox/data"
@@ -27,8 +27,6 @@ import { useDraft } from "../inbox/drafts"
 import { activity } from "../inbox/format"
 import { flattenTickets, prefetchTicket, TICKET_STATUSES, ticketStatusColor, ticketStatusLabel, useTicketList, useTicketTypes } from "./meta"
 import type { TicketSearch, TicketStatusFilter } from "./search"
-import { EmptyState } from "../components/empty-state"
-import { StatusMark } from "../components/status-mark"
 import { useListKeys } from "../layout"
 
 /** TicketListProps 是工单列表栏的设置。 */
@@ -186,7 +184,7 @@ export function TicketList({ search, openId, go, open, onCreate }: TicketListPro
         {list.isPending ? (
           <Stack gap={0}>
             {[0, 1, 2, 3, 4].map((i) => (
-              <Box key={i} px="sm" py={10} className="inbox-row" data-search="">
+              <Box key={i} px="var(--tn-pane-px)" py={10} className="inbox-row" data-search="">
                 <Group justify="space-between" mb={6}>
                   <Skeleton h={12} w="56%" radius="sm" />
                   <Skeleton h={10} w={36} radius="sm" />
@@ -195,6 +193,15 @@ export function TicketList({ search, openId, go, open, onCreate }: TicketListPro
               </Box>
             ))}
           </Stack>
+        ) : list.isError ? (
+          <EmptyState
+            title={t("common.load_failed")}
+            action={
+              <Button size="xs" variant="light" onClick={() => void list.refetch()}>
+                {t("common.retry")}
+              </Button>
+            }
+          />
         ) : items.length === 0 ? (
           <EmptyState
             title={t(hasFilters ? "tickets.empty_filtered" : "tickets.empty")}
@@ -257,7 +264,7 @@ function TicketRow({ tk, active, onClick }: { tk: ConversationTicketDTO; active:
     >
       <Stack gap={5} style={{ minWidth: 0 }}>
         <Group gap={5} wrap="nowrap">
-          {tk.unread && <StatusMark color="red" />}
+          {tk.unread && <StatusDot color="red" />}
           <Text size="xs" fw={tk.unread ? 600 : 400} c={tk.unread ? undefined : "dimmed"} style={{ fontVariantNumeric: "tabular-nums" }}>
             #{tk.number}
           </Text>

@@ -35,7 +35,7 @@ function Home() {
     <img
       src={site.data.logo_url}
       alt={brandName}
-      style={{ width: 26, height: 26, borderRadius: "var(--mantine-radius-md)", objectFit: "contain" }}
+      style={{ width: 26, height: 26, borderRadius: "var(--mantine-radius-md)", objectFit: "contain", flex: "none" }}
     />
   ) : undefined
 
@@ -73,6 +73,8 @@ function Home() {
   return (
     <SiteLayout
       brand={brand}
+      size="lg"
+      documentTitle={brandName}
       actions={actions}
       note={t("footer.note", { brand: brandName })}
     >
@@ -110,7 +112,7 @@ function Home() {
                   <ThemeIcon size={40} radius="md" variant="light" color="brand">
                     <item.icon size={20} stroke={1.7} />
                   </ThemeIcon>
-                  <Title order={4}>{item.title}</Title>
+                  <Title order={2} size="h4">{item.title}</Title>
                   <Text size="sm" c="dimmed">
                     {item.desc}
                   </Text>

@@ -94,8 +94,9 @@ export function ViewModal({ opened, onClose, editing, initialConfig, onSaved }: 
       title={t(editing ? "views.edit" : "views.create")}
       size="md"
       centered
+      closeOnClickOutside={false}
     >
-      <form onSubmit={handleSubmit}>
+      <form noValidate onSubmit={handleSubmit}>
         <Stack gap="sm">
           <TextInput
             label={t("views.name")}
@@ -155,7 +156,7 @@ export function ViewModal({ opened, onClose, editing, initialConfig, onSaved }: 
             />
           </Stack>
 
-          <Group justify="flex-end" mt="xs">
+          <Group justify="flex-end" gap="xs" mt="xs">
             <Button variant="default" onClick={onClose}>
               {t("common.cancel")}
             </Button>

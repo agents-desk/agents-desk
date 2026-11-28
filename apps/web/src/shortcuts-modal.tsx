@@ -36,10 +36,18 @@ export function ShortcutsModal({
   const mod = isMac ? "⌘" : "Ctrl"
   const ctrlEnterSend = profile.data?.send_shortcut === "ctrl_enter"
 
-  // 全局非输入态按 ? 切换快捷键帮助面板
+  // 全局非输入态按 ? 打开；帮助弹窗已打开且焦点不在文本输入控件内时，再按 ? 关闭
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      if (opened) {
+        const el = e.target
+        if (el instanceof HTMLElement && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName))) {
+          return
+        }
+      } else if (isTypingTarget(e.target)) {
+        return
+      }
       if (e.key === "?") {
         e.preventDefault()
         onToggle()
@@ -47,7 +55,7 @@ export function ShortcutsModal({
     }
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
-  }, [onToggle])
+  }, [onToggle, opened])
 
   const groups: ShortcutGroup[] = [
     {

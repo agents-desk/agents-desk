@@ -106,105 +106,6 @@
   overflow: hidden;
 }
 
-/* 统一指标带：按列细线等分 */
-.rp-metric-strip {
-  display: grid;
-  grid-template-columns: repeat(var(--rp-cols, 4), minmax(0, 1fr));
-}
-
-.rp-metric-cell {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-  padding: 16px 20px;
-  text-align: left;
-  background: transparent;
-  border: 0;
-  border-right: 1px solid var(--tn-border);
-  color: inherit;
-  font: inherit;
-  transition: background-color 140ms ease;
-}
-
-.rp-metric-cell:last-child {
-  border-right: 0;
-}
-
-.rp-metric-cell[data-interactive] {
-  cursor: pointer;
-}
-
-.rp-metric-cell[data-interactive]:hover {
-  background: var(--tn-hover);
-}
-
-.rp-metric-cell[data-interactive]:focus-visible {
-  outline: 2px solid var(--mantine-primary-color-filled);
-  outline-offset: -2px;
-}
-
-.rp-metric-cell[data-active] {
-  background: var(--tn-active-bg);
-}
-
-.rp-metric-cell[data-active]::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 2px;
-  background: var(--mantine-primary-color-filled);
-}
-
-@media (max-width: 960px) {
-  .rp-metric-strip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .rp-metric-cell {
-    border-bottom: 1px solid var(--tn-border);
-  }
-
-  .rp-metric-cell:nth-child(2n) {
-    border-right: 0;
-  }
-
-  .rp-metric-cell:nth-last-child(-n + 2) {
-    border-bottom: 0;
-  }
-}
-
-@media (max-width: 540px) {
-  .rp-metric-strip {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .rp-metric-cell {
-    border-right: 0;
-    border-bottom: 1px solid var(--tn-border);
-  }
-
-  .rp-metric-cell:last-child {
-    border-bottom: 0;
-  }
-}
-
-.rp-metric-value {
-  font-size: 1.5rem;
-  font-weight: 650;
-  line-height: 1.2;
-  letter-spacing: -0.025em;
-  font-variant-numeric: tabular-nums;
-  color: var(--tn-text);
-}
-
-.rp-metric-secondary {
-  font-variant-numeric: tabular-nums;
-}
-
 /* 主面板内的图表区与横线分隔 */
 .rp-panel-body {
   border-top: 1px solid var(--tn-border);
@@ -280,7 +181,12 @@
   gap: 8px 12px;
 }
 
-/* 拆解数据表：浅行底线与悬停高亮 */
+/* 拆解数据表：横向滚动容错、浅行底线与悬停高亮 */
+.rp-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
 .rp-table {
   width: 100%;
   border-collapse: collapse;
@@ -334,6 +240,11 @@
 
 .rp-row[data-clickable]:hover {
   background: var(--tn-hover);
+}
+
+.rp-row[data-clickable]:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -2px;
 }
 
 .rp-row[data-selected] {

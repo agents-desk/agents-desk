@@ -1,6 +1,6 @@
-import { Anchor, Radio, Stack } from "@mantine/core"
-import { createFileRoute, Link } from "@tanstack/react-router"
-import { type FieldInput, preloadResourceList, ResourcePage, StatusDot } from "@go-tenon/ui"
+import { Radio, Stack } from "@mantine/core"
+import { createFileRoute } from "@tanstack/react-router"
+import { AnchorLink, type FieldInput, preloadResourceList, ResourcePage, StatusDot } from "@go-tenon/ui"
 import { teams } from "../../../../../resources"
 
 // 团队收件箱：有 teams:manage 权限的成员新建、修改、停用/启用和删除空的团队收件箱；点名称进入团队收件箱，管理它的成员和工作时间。
@@ -33,11 +33,9 @@ function Teams() {
       inputs={{ assignment: AssignmentInput }}
       render={{
         name: (v, row) => (
-          <Anchor
-            renderRoot={(props) => <Link {...props} to="/$slug/settings/teams/$id" params={{ slug, id: String(row.id) }} />}
-          >
+          <AnchorLink to="/$slug/settings/teams/$id" params={{ slug, id: String(row.id) }} size="sm" fw={500}>
             {String(v)}
-          </Anchor>
+          </AnchorLink>
         ),
         status: (v) => (
           <StatusDot color={v === "active" ? "green" : "gray"}>{String(teams.display("status", v))}</StatusDot>

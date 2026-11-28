@@ -3,6 +3,7 @@ import { Alert, Badge, Box, Button, Center, Group, Loader, Paper, Stack, Text, T
 import { IconAlertCircle, IconChevronRight, IconMessageCircle, IconTicket } from "@tabler/icons-react"
 import { ImageLightbox, useLanguage, useT } from "@go-tenon/ui/core"
 import { type ReactNode, useState } from "react"
+import { delegatesOpenLink, openLink } from "../host"
 import { type LightboxImage, WidgetMessageAttachments } from "./Attachments"
 import { ago, clock, dayLabel } from "./format"
 import { Linkify } from "./linkify"
@@ -213,7 +214,12 @@ export function TicketDetailView({
           {t(waiting ? "tickets.reply_action" : "tickets.open_chat")}
         </Button>
       </Box>
-      <ImageLightbox src={lightbox?.src ?? null} filename={lightbox?.filename} onClose={() => setLightbox(null)} />
+      <ImageLightbox
+        src={lightbox?.src ?? null}
+        filename={lightbox?.filename}
+        onOpenUrl={delegatesOpenLink() ? openLink : undefined}
+        onClose={() => setLightbox(null)}
+      />
     </>
   )
 }

@@ -1,10 +1,9 @@
 import { Button } from "@mantine/core"
 import { createFileRoute, getRouteApi, useNavigate } from "@tanstack/react-router"
 import { IconPlus, IconTicket } from "@tabler/icons-react"
-import { useCan, useT } from "@go-tenon/ui"
+import { EmptyState, useCan, useT } from "@go-tenon/ui"
 import { useState } from "react"
 import { CreateTicketModal } from "../../../../tickets/CreateTicketModal"
-import { EmptyState } from "../../../../components/empty-state"
 
 // 还没有打开工单时的空态引导页。
 export const Route = createFileRoute("/$slug/inbox/tickets/")({ component: NoTicket })

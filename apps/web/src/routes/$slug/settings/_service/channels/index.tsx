@@ -15,12 +15,12 @@ import {
   PageActions,
   preloadQueries,
   ResourceSelect,
+  RowActions,
   StatusDot,
   useT,
 } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../../../../../api"
-import { RowActions } from "../../../../../components/row-actions"
 import { ExternalGroupsPanel, TelegramsPanel, UpcomingChannelsBanner } from "../../../../../features/channels/shared-panels"
 import { teams } from "../../../../../resources"
 
@@ -201,8 +201,8 @@ function WidgetsTab({ slug }: { slug: string }): ReactNode {
         ]}
       />
 
-      <Modal opened={creating} onClose={() => setCreating(false)} title={t("widgets.create_title")}>
-        <form onSubmit={form.onSubmit((v) => create.mutate(v))}>
+      <Modal opened={creating} onClose={() => setCreating(false)} closeOnClickOutside={false} title={t("widgets.create_title")}>
+        <form noValidate onSubmit={form.onSubmit((v) => create.mutate(v))}>
           <Stack gap="md">
             <FormError error={createError} />
             <TextInput
@@ -224,7 +224,7 @@ function WidgetsTab({ slug }: { slug: string }): ReactNode {
               error={form.errors.team_id}
               clearable
             />
-            <Group justify="flex-end">
+            <Group justify="flex-end" gap="xs">
               <Button variant="default" onClick={() => setCreating(false)}>
                 {t("common.cancel")}
               </Button>

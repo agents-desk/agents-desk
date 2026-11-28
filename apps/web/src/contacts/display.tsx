@@ -1,7 +1,15 @@
+import type { ContactKind } from "@agents-desk/client/tenant"
 import { Avatar } from "@mantine/core"
 import { IconUser } from "@tabler/icons-react"
 import type { useT } from "@go-tenon/ui"
 import type { ReactNode } from "react"
+
+/** contactKindColor 按联系人类型返回统一的主题徽标色板名。 */
+export const contactKindColor: Record<ContactKind, string> = {
+  user: "bright-blue",
+  internal: "green",
+  lead: "gray",
+}
 
 /** ContactLabel 是展示联系人名字和头像所需的最小字段集合，兼容 ContactSummary 和 ContactDTO。 */
 export interface ContactLabel {

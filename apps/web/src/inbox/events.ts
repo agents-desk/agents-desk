@@ -1,6 +1,7 @@
 import type { ConversationItemDTO, MemberTenantMember } from "@agents-desk/client/tenant"
 import type { useT } from "@go-tenon/ui"
 import { languageName } from "../languages"
+import { fullDateTime } from "./format"
 
 // 系统事件在时间线中显示成一句话，例如“张三 把会话指派给 李四”。事件的名称和数据由服务端的会话动作写入。
 
@@ -51,7 +52,14 @@ function formatAttrChanges(raw: unknown, t: T): string {
 }
 
 /** describeEvent 返回系统事件 it 的一句话，语言名按界面语言 ui。不认识的事件显示事件名，以后加的事件不会显示成空白。 */
-export function describeEvent(it: ConversationItemDTO, members: Map<string, MemberTenantMember>, names: Names, t: T, ui: string): string {
+export function describeEvent(
+  it: ConversationItemDTO,
+  members: Map<string, MemberTenantMember>,
+  names: Names,
+  t: T,
+  ui: string,
+  timeZone?: string,
+): string {
   const who = whoDid(it, members, t)
   const d = (it.content.data ?? {}) as Record<string, unknown>
   switch (it.content.event) {
@@ -86,7 +94,7 @@ export function describeEvent(it: ConversationItemDTO, members: Map<string, Memb
     case "conversation.reopened":
       return t("event.reopened", { who })
     case "conversation.snoozed":
-      return t("event.snoozed", { who, until: new Date(String(d.until)).toLocaleString() })
+      return t("event.snoozed", { who, until: fullDateTime(String(d.until), ui, timeZone) })
     case "conversation.unsnoozed":
       return t("event.unsnoozed", { who })
     case "conversation.priority_changed":

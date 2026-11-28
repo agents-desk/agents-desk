@@ -3,16 +3,14 @@ import { closestCenter, DndContext, type DragEndEvent, KeyboardSensor, PointerSe
 import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers"
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { ActionIcon, Anchor, Badge, Button, Group, Modal, Radio, Select, Stack, Table, Text, TextInput } from "@mantine/core"
+import { ActionIcon, Badge, Button, Group, Modal, Paper, Radio, Select, Skeleton, Stack, Table, Text, TextInput } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { createFileRoute, Link } from "@tanstack/react-router"
+import { createFileRoute } from "@tanstack/react-router"
 import { IconGripVertical, IconPlayerPause, IconPlayerPlay, IconPlus, IconTrash } from "@tabler/icons-react"
-import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, preloadQueries, StatusDot, useT } from "@go-tenon/ui"
+import { AnchorLink, applyServerErrors, confirm, EmptyState, FormError, notifyError, notifySuccess, Page, preloadQueries, RowActions, StatusDot, TableCard, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../../../../../api"
-import { EmptyState } from "../../../../../components/empty-state"
-import { RowActions } from "../../../../../components/row-actions"
 
 // 工单类型列表：管理工单模板、默认团队收件箱、默认可见范围、拖拽排序及停用/启用；点击名称进入字段配置。
 export const Route = createFileRoute("/$slug/settings/_service/ticket-types/")({
@@ -115,10 +113,12 @@ function TicketTypesPage(): ReactNode {
         </Button>
       }
     >
-      {items.length === 0 ? (
-        <div className="desk-table-card">
+      {list.isPending ? (
+        <Skeleton height={160} radius="md" />
+      ) : items.length === 0 ? (
+        <Paper withBorder>
           <EmptyState title={t("ticket_types.empty")} />
-        </div>
+        </Paper>
       ) : (
         <DndContext
           sensors={sensors}
@@ -127,7 +127,7 @@ function TicketTypesPage(): ReactNode {
           onDragEnd={(e) => void onDragEnd(e)}
         >
           <SortableContext items={items.map((x) => x.id)} strategy={verticalListSortingStrategy}>
-            <Table.ScrollContainer minWidth={760} className="desk-table-card" type="native">
+            <TableCard minWidth={760}>
               <Table verticalSpacing="sm" horizontalSpacing="md">
                 <Table.Thead>
                   <Table.Tr>
@@ -153,7 +153,7 @@ function TicketTypesPage(): ReactNode {
                   ))}
                 </Table.Tbody>
               </Table>
-            </Table.ScrollContainer>
+            </TableCard>
           </SortableContext>
         </DndContext>
       )}
@@ -166,6 +166,7 @@ function TicketTypesPage(): ReactNode {
         }}
         title={t(editing ? "ticket_types.edit" : "ticket_types.add")}
         size="md"
+        closeOnClickOutside={false}
       >
         {(creating || editing) && (
           <TicketTypeForm
@@ -234,12 +235,9 @@ function SortableTypeRow({
       </Table.Td>
       <Table.Td>
         <Stack gap={2}>
-          <Anchor
-            fw={500}
-            renderRoot={(props) => <Link {...props} to="/$slug/settings/ticket-types/$id" params={{ slug, id: item.id }} />}
-          >
+          <AnchorLink to="/$slug/settings/ticket-types/$id" params={{ slug, id: item.id }} size="sm" fw={500}>
             {item.name}
-          </Anchor>
+          </AnchorLink>
           {item.description && (
             <Text size="xs" c="dimmed" lineClamp={1}>
               {item.description}
@@ -371,7 +369,7 @@ export function TicketTypeForm({
             <Radio value="members" label={kit.label("TicketTypeVisibility", "members")} />
           </Stack>
         </Radio.Group>
-        <Group justify="flex-end">
+        <Group justify="flex-end" gap="xs">
           <Button variant="default" onClick={onCancel}>
             {t("common.cancel")}
           </Button>

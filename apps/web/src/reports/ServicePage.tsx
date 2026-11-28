@@ -34,7 +34,6 @@ export function ServicePage({ route }: { route: PeriodRoute }): ReactNode {
 
   const switcher = (
     <SegmentedControl
-      size="xs"
       value={tab}
       onChange={setTab}
       data={[

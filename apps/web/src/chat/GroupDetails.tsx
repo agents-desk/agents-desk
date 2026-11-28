@@ -122,6 +122,8 @@ export function GroupDetails({ chat, onClose, onLeft }: GroupDetailsProps): Reac
     if (ok) leave.mutate()
   }
 
+  const aiEnabled = useAiWorkspaceEnabled()
+
   return (
     <Stack gap={0} h="100%" className="inbox-details">
       <PaneHeader
@@ -135,7 +137,7 @@ export function GroupDetails({ chat, onClose, onLeft }: GroupDetailsProps): Reac
       <DetailsAsideTabs value={asideTab} onChange={setAsideTab} />
 
       <PaneBody>
-        {useAiWorkspaceEnabled() && asideTab === "ai" ? (
+        {aiEnabled && asideTab === "ai" ? (
           <AiAssistantPanel scene="chat" />
         ) : (
         <Inspector>

@@ -127,6 +127,7 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
   if (ticket.type_id && ticket.type_name && !typeOptions.some((x) => x.value === ticket.type_id)) {
     typeOptions.unshift({ value: ticket.type_id, label: ticket.type_name })
   }
+  const aiEnabled = useAiWorkspaceEnabled()
 
   return (
     <Stack gap={0} h="100%" className="inbox-details">
@@ -140,7 +141,7 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
       />
       <DetailsAsideTabs value={asideTab} onChange={setAsideTab} />
       <PaneBody>
-        {useAiWorkspaceEnabled() && asideTab === "ai" ? (
+        {aiEnabled && asideTab === "ai" ? (
           <AiAssistantPanel scene="ticket" />
         ) : (
         <Inspector>
@@ -306,7 +307,7 @@ export function TicketDetails({ ticket, onClose }: { ticket: ConversationTicketD
           {ticket.type_id && ticketAttrs.length > 0 && (
             <InspectorSection title={t("tickets.details_fields")} collapsible storeKey="ticket-details-fields">
               {ticketAttrs.map((def) => (
-                <InspectorField key={def.id} label={def.name}>
+                <InspectorField key={def.id} label={def.name} align="start">
                   <AttributeInput
                     key={`${ticket.id}:${def.key}`}
                     def={def}

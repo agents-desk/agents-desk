@@ -1,3 +1,4 @@
+import "@fontsource-variable/inter/index.css"
 import "@go-tenon/ui/styles.css"
 import { telemetryMeta } from "@go-tenon/start"
 import { type RouterContext, UIProvider } from "@go-tenon/ui"

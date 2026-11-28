@@ -31,7 +31,7 @@ import { Icon, type MenuItem, notifyError, notifySuccess, useCan, useLanguage, u
 import { type ReactNode, useMemo, useState } from "react"
 import { kit, tenantApi } from "./api"
 import { chatDisplayName } from "./chat/data"
-import { contactDisplayName, contactSubline } from "./contacts/display"
+import { contactDisplayName, contactKindColor, contactSubline } from "./contacts/display"
 import { useMe, useMembers, useTeams } from "./inbox/data"
 import { activity, conversationStatusColor } from "./inbox/format"
 import { HighlightedSnippet, HighlightQuery } from "./inbox/Highlight"
@@ -358,7 +358,7 @@ export function CommandPalette({
           return {
             id: `quick:${item.id}`,
             label: item.title,
-            icon: <Icon name={item.icon ?? "apps"} size={15} stroke={1.6} />,
+            icon: <Icon name={item.icon ?? "apps"} size={16} stroke={1.6} />,
             onClick: () => void navigate({ to: target.path }),
           }
         }),
@@ -371,7 +371,7 @@ export function CommandPalette({
         id: `page:${item.id}`,
         label: item.title,
         description: trail.length > 0 ? trail.join(" / ") : undefined,
-        icon: <Icon name={icon ?? "apps"} size={15} stroke={1.6} />,
+        icon: <Icon name={icon ?? "apps"} size={16} stroke={1.6} />,
         onClick: () => void navigate({ to: item.path }),
       })),
       shortcutsItem,
@@ -622,9 +622,11 @@ export function CommandPalette({
                   })
                 }
               >
-                <Group gap="xs" c="brand" px={4}>
-                  <IconArrowRight size={16} stroke={1.6} />
-                  <Text size="xs" fw={600}>
+                <Group gap="sm" wrap="nowrap" w="100%">
+                  <Box className="cmd-palette-icon">
+                    <IconArrowRight size={16} stroke={1.6} />
+                  </Box>
+                  <Text size="xs" fw={600} c="brand">
                     {t("command.view_all_results", { n: convTotal })}
                   </Text>
                 </Group>
@@ -658,7 +660,7 @@ export function CommandPalette({
                         <Text size="sm" fw={500} truncate>
                           <HighlightQuery text={displayName} query={debounced} />
                         </Text>
-                        <Badge size="xs" variant="light" color="gray" style={{ flex: "none" }}>
+                        <Badge size="xs" variant="light" color={contactKindColor[ct.kind]} style={{ flex: "none" }}>
                           {kit.label("ContactKind", ct.kind)}
                         </Badge>
                       </Group>

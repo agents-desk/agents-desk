@@ -58,34 +58,25 @@
   outline-offset: 2px;
 }
 
-/* 不带文字的状态圆点（StatusMark）：导航项、菜单项、列表行中统一 8px，颜色由组件以色板变量传入 */
-.desk-status-mark {
-  display: inline-block;
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-/*
- * 设置页中不能用 DataTable 的表格（需要拖动排序的属性、工单类型、字段）：
- * 外框、表头底色和文字颜色与框架 DataTable（.tn-datatable）一致，窄屏时在卡片内横向滚动，右侧的操作列完整显示。
- */
-.desk-table-card {
-  border: 1px solid var(--tn-border);
-  border-radius: var(--mantine-radius-md);
-  overflow: hidden;
-  background: var(--tn-surface);
-}
-
-.desk-table-card thead th {
-  background: var(--tn-canvas);
+/* 消息气泡与档案卡下方的轻量译文切换按钮与图标：默认柔和灰字，悬停时切换为品牌色 */
+.inbox-caption-icon {
   color: var(--tn-muted);
-  font-weight: 500;
+  flex: none;
 }
 
-.desk-table-card tbody tr:last-child td {
-  border-bottom: 0;
+.inbox-caption-btn {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--mantine-font-size-xs);
+  line-height: 1.3;
+  color: var(--tn-muted);
+  transition: color 120ms ease;
+}
+
+@media (hover: hover) {
+  .inbox-caption-btn:hover {
+    color: var(--mantine-primary-color-light-color);
+  }
 }
 
 /* ———————————————— 工作区切换器（RailLayout 顶部） ———————————————— */
@@ -156,19 +147,22 @@
 
 .desk-login-topbar {
   position: fixed;
-  top: 16px;
-  right: 20px;
-  left: calc(50% + 24px);
+  top: 0;
+  right: 0;
+  left: 50%;
   z-index: 20;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--mantine-spacing-sm);
+  padding: 14px 20px;
+  background: color-mix(in srgb, var(--tn-surface) 82%, transparent);
+  backdrop-filter: blur(8px);
 }
 
 @media (max-width: 61.99em) {
   .desk-login-topbar {
-    left: 20px;
+    left: 0;
   }
 }
 
@@ -179,14 +173,17 @@
 
 .desk-auth-topbar {
   position: fixed;
-  top: 16px;
-  right: 20px;
-  left: 20px;
+  top: 0;
+  right: 0;
+  left: 0;
   z-index: 20;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--mantine-spacing-sm);
+  padding: 14px 20px;
+  background: color-mix(in srgb, var(--tn-canvas) 82%, transparent);
+  backdrop-filter: blur(8px);
 }
 
 .desk-auth-back {

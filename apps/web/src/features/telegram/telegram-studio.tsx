@@ -15,20 +15,18 @@ import {
   Table,
   Text,
   TextInput,
-  Title,
   Tooltip,
 } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { IconCheck, IconCopy } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useSearch } from "@tanstack/react-router"
-import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, ResourceSelect, useT } from "@go-tenon/ui"
+import { applyServerErrors, confirm, FormError, FormSection, notifyError, notifySuccess, Page, ResourceSelect, TableCard, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../../api"
 import { AiReceptionCard } from "../../components/ai-placeholders"
 import { useUnsavedGuard } from "../../components/unsaved-guard"
 import { teams } from "../../resources"
-import { FormSection } from "../../components/form-section"
 
 /** Copy 复制 value 并在按钮上短暂显示对勾；默认尺寸与 sm 输入框等高。 */
 function Copy({ value }: { value: string }): ReactNode {
@@ -36,7 +34,7 @@ function Copy({ value }: { value: string }): ReactNode {
   return (
     <CopyButton value={value} timeout={1500}>
       {({ copied, copy }) => (
-        <Tooltip label={t(copied ? "telegram_install.copied" : "telegram_install.copy")} withArrow>
+        <Tooltip label={t(copied ? "telegram_install.copied" : "telegram_install.copy")}>
           <ActionIcon variant="subtle" size="input-sm" color={copied ? "green" : "gray"} onClick={copy} aria-label={t("telegram_install.copy")}>
             {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
           </ActionIcon>
@@ -103,22 +101,32 @@ function TelegramInstallPanel({ id }: { id: string }): ReactNode {
     }
   }
 
+  if (install.isPending) {
+    return (
+      <Stack gap="md">
+        <Skeleton height={240} radius="md" />
+        <Skeleton height={180} radius="md" />
+      </Stack>
+    )
+  }
+
   return (
-    <Stack gap="xl">
-      <Stack gap="xs">
-        <Group justify="space-between">
-          <Title order={4}>{t("telegram_install.webhook")}</Title>
-          {install.data && (
+    <Stack gap="md">
+      <FormSection
+        title={t("telegram_install.webhook")}
+        description={
+          install.data
+            ? t(install.data.gateway_managed ? "telegram_install.mode_gateway_hint" : "telegram_install.mode_direct_hint")
+            : undefined
+        }
+        actions={
+          install.data && (
             <Badge variant="light" color={install.data.gateway_managed ? "bright-blue" : "gray"}>
               {t(install.data.gateway_managed ? "telegrams.mode_gateway" : "telegrams.mode_direct")}
             </Badge>
-          )}
-        </Group>
-        {install.data && (
-          <Text size="sm" c="dimmed">
-            {t(install.data.gateway_managed ? "telegram_install.mode_gateway_hint" : "telegram_install.mode_direct_hint")}
-          </Text>
-        )}
+          )
+        }
+      >
         <Group align="flex-end" gap="xs">
           <TextInput label={t("telegram_install.channel_id")} value={install.data?.channel_id ?? id} readOnly style={{ flex: 1 }} />
           <Copy value={install.data?.channel_id ?? id} />
@@ -139,32 +147,30 @@ function TelegramInstallPanel({ id }: { id: string }): ReactNode {
             {t("telegram_install.rotate")}
           </Button>
         </Group>
-      </Stack>
+      </FormSection>
 
-      <Stack gap="xs">
-        <Title order={4}>{t("telegram_install.gateway_headers")}</Title>
-        <Text size="sm" c="dimmed">
-          {t("telegram_install.gateway_headers_hint")}
-        </Text>
-        <Table withTableBorder>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>{t("telegram_install.header")}</Table.Th>
-              <Table.Th>{t("telegram_install.header_desc")}</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {gatewayHeaders.map((h) => (
-              <Table.Tr key={h.name}>
-                <Table.Td>
-                  <Code>{h.name}</Code>
-                </Table.Td>
-                <Table.Td>{t(h.desc)}</Table.Td>
+      <FormSection title={t("telegram_install.gateway_headers")} description={t("telegram_install.gateway_headers_hint")}>
+        <TableCard minWidth={480}>
+          <Table verticalSpacing="xs" horizontalSpacing="sm">
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>{t("telegram_install.header")}</Table.Th>
+                <Table.Th>{t("telegram_install.header_desc")}</Table.Th>
               </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
-      </Stack>
+            </Table.Thead>
+            <Table.Tbody>
+              {gatewayHeaders.map((h) => (
+                <Table.Tr key={h.name}>
+                  <Table.Td>
+                    <Code>{h.name}</Code>
+                  </Table.Td>
+                  <Table.Td>{t(h.desc)}</Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        </TableCard>
+      </FormSection>
     </Stack>
   )
 }
@@ -254,6 +260,7 @@ export function TelegramStudio({
   return (
     <Page
       title={tg.data ? tg.data.name : t("telegram_install.title")}
+      width="narrow"
       back={() =>
         void navigate({
           to: backRoute,
@@ -297,7 +304,7 @@ export function TelegramStudio({
                   <Skeleton height={130} radius="md" />
                 </Stack>
               ) : (
-                <form onSubmit={form.onSubmit((v) => save.mutate(v))}>
+                <form noValidate onSubmit={form.onSubmit((v) => save.mutate(v))}>
                   <Stack gap="md">
                     <FormError error={serverError} />
 

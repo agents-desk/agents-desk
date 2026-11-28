@@ -257,6 +257,7 @@ export function FilterFields({ value, onChange, compact }: FilterFieldsProps): R
             value={value.assignee?.member_id ?? null}
             onChange={(id) => patch({ assignee: id ? { mode: "member", member_id: id } : { mode: "member" } })}
             data={members.map((m) => ({ value: m.id, label: m.name }))}
+            clearable
             searchable
             comboboxProps={{ withinPortal: true }}
           />
@@ -281,6 +282,7 @@ export function FilterFields({ value, onChange, compact }: FilterFieldsProps): R
         placeholder={t("views.handling_mode_placeholder")}
         value={value.handling_modes ?? []}
         onChange={(next) => patch({ handling_modes: next.length > 0 ? (next as ConversationHandlingMode[]) : undefined })}
+        clearable
         data={[
           { value: "human", label: t("inbox.handling_mode_human") },
           { value: "ai_auto", label: t("inbox.handling_mode_ai_auto") },
@@ -376,7 +378,7 @@ export function FilterFields({ value, onChange, compact }: FilterFieldsProps): R
               <Stack key={`${cond.key}-${index}`} gap={4} p={6} className="inbox-attr-cond">
                 <Group gap={4} wrap="nowrap">
                   <Select
-                    size="xs"
+                    size={size}
                     style={{ flex: 1, minWidth: 0 }}
                     aria-label={t("views.attr_key")}
                     value={cond.key}
@@ -392,7 +394,7 @@ export function FilterFields({ value, onChange, compact }: FilterFieldsProps): R
                     comboboxProps={{ withinPortal: true }}
                   />
                   <Select
-                    size="xs"
+                    size={size}
                     w={104}
                     aria-label={t("views.attr_op")}
                     value={cond.op}
@@ -415,7 +417,7 @@ export function FilterFields({ value, onChange, compact }: FilterFieldsProps): R
                     comboboxProps={{ withinPortal: true }}
                   />
                   <ActionIcon
-                    size="sm"
+                    size={compact ? "input-xs" : "input-sm"}
                     variant="subtle"
                     color="gray"
                     aria-label={t("views.delete")}
@@ -426,6 +428,7 @@ export function FilterFields({ value, onChange, compact }: FilterFieldsProps): R
                 </Group>
                 {needVal && def && (
                   <AttrValueInput
+                    size={size}
                     def={def}
                     op={cond.op}
                     value={cond.value}
@@ -443,11 +446,13 @@ export function FilterFields({ value, onChange, compact }: FilterFieldsProps): R
 
 /** AttrValueInput 按属性定义类型和操作符渲染对应的筛选值控件。 */
 function AttrValueInput({
+  size,
   def,
   op,
   value,
   onChange,
 }: {
+  size: "xs" | "sm"
   def: AttributeDTO
   op: ConversationAttributeOp
   value: unknown
@@ -458,7 +463,7 @@ function AttrValueInput({
     case "number":
       return (
         <NumberInput
-          size="xs"
+          size={size}
           aria-label={t("views.attr_value")}
           value={typeof value === "number" ? value : ""}
           onChange={(v) => onChange(v === "" ? "" : Number(v))}
@@ -467,7 +472,7 @@ function AttrValueInput({
     case "boolean":
       return (
         <SegmentedControl
-          size="xs"
+          size={size}
           fullWidth
           value={value === false ? "false" : "true"}
           onChange={(v) => onChange(v === "true")}
@@ -480,7 +485,7 @@ function AttrValueInput({
     case "date":
       return (
         <TextInput
-          size="xs"
+          size={size}
           type="date"
           aria-label={t("views.attr_value")}
           value={typeof value === "string" ? value : ""}
@@ -491,7 +496,7 @@ function AttrValueInput({
       if (op === "in") {
         return (
           <MultiSelect
-            size="xs"
+            size={size}
             aria-label={t("views.attr_value")}
             value={Array.isArray(value) ? value.map(String) : []}
             onChange={(vals) => onChange(vals)}
@@ -502,7 +507,7 @@ function AttrValueInput({
       }
       return (
         <Select
-          size="xs"
+          size={size}
           aria-label={t("views.attr_value")}
           value={typeof value === "string" ? value : null}
           onChange={(v) => onChange(v ?? "")}
@@ -513,7 +518,7 @@ function AttrValueInput({
     case "multi_select":
       return (
         <MultiSelect
-          size="xs"
+          size={size}
           aria-label={t("views.attr_value")}
           value={Array.isArray(value) ? value.map(String) : []}
           onChange={(vals) => onChange(vals)}
@@ -524,7 +529,7 @@ function AttrValueInput({
     default:
       return (
         <TextInput
-          size="xs"
+          size={size}
           aria-label={t("views.attr_value")}
           placeholder={t("views.attr_value")}
           value={typeof value === "string" ? value : ""}
@@ -685,6 +690,7 @@ export function FilterSummaryChips({
           size="xs"
           variant="light"
           color={c.color ?? "gray"}
+          maw="100%"
           pr={3}
           rightSection={
             <CloseButton

@@ -5,7 +5,7 @@ import { admins } from "../../resources"
 
 // 平台管理员：管理整套部署的平台管理员账号（列表、新建、改名、停用和启用）。
 export const Route = createFileRoute("/_app/admins")({
-  staticData: { title: "nav.admins", icon: "users", order: 4, permission: "platform-admins:manage" },
+  staticData: { title: "nav.admins", icon: "shield", order: 3, permission: "platform-admins:manage" },
   validateSearch: admins.listSearch,
   component: Admins,
 })

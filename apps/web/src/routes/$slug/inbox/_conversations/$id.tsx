@@ -20,7 +20,7 @@ function OpenConversation() {
   const tenant = tenantRoute.useLoaderData()
   const navigate = useNavigate()
   const list = useConversationList(search)
-  const open = (next: string) => void navigate({ to: "/$slug/inbox/$id", params: { slug, id: next }, search })
+  const open = (next: string) => void navigate({ to: "/$slug/inbox/$id", params: { slug, id: next }, search: { ...search, seq: undefined, matchField: undefined } })
   // 下一个待回复：当前列表中排在这个会话后面、正在等待回复的第一个；后面没有时从头找
   const items = flatten(list.data?.pages)
   const at = items.findIndex((c) => c.id === id)

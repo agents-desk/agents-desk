@@ -10,7 +10,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { ImageLightbox, useLanguage, useT } from "@go-tenon/ui/core"
 import { Fragment, type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { authed, widgetApi } from "../api"
-import { channel as currentChannelId } from "../host"
+import { channel as currentChannelId, delegatesOpenLink, openLink } from "../host"
 import { useIdentity } from "../realtime"
 import { type LightboxImage, WidgetMessageAttachments } from "./Attachments"
 import { Composer } from "./Composer"
@@ -458,9 +458,9 @@ export function ConversationView({
           py={6}
           wrap="nowrap"
           bg="var(--mantine-color-yellow-light)"
-          style={{ borderTop: "1px solid var(--mantine-color-yellow-3)" }}
+          style={{ borderTop: "1px solid color-mix(in srgb, var(--mantine-color-yellow-6) 30%, transparent)" }}
         >
-          <IconTicket size={15} color="var(--mantine-color-yellow-7)" style={{ flex: "none" }} />
+          <IconTicket size={15} color="var(--mantine-color-yellow-light-color)" style={{ flex: "none" }} />
           <Text size="xs" fw={500} style={{ flex: 1, minWidth: 0 }} truncate>
             {t("tickets.replying_context", { number: replyTicket.number, title: replyTicket.title })}
           </Text>
@@ -486,7 +486,12 @@ export function ConversationView({
         }
         onTyping={typing}
       />
-      <ImageLightbox src={lightbox?.src ?? null} filename={lightbox?.filename} onClose={() => setLightbox(null)} />
+      <ImageLightbox
+        src={lightbox?.src ?? null}
+        filename={lightbox?.filename}
+        onOpenUrl={delegatesOpenLink() ? openLink : undefined}
+        onClose={() => setLightbox(null)}
+      />
     </>
   )
 }

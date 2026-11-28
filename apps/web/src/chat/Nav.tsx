@@ -3,11 +3,9 @@ import { ActionIcon, NavLink, Text, Tooltip } from "@mantine/core"
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useParams } from "@tanstack/react-router"
 import { IconBriefcase, IconMessageCircle, IconMessages, IconPlus, IconUsersGroup } from "@tabler/icons-react"
-import { RailSection, useCan, useT } from "@go-tenon/ui"
+import { MenuBadge, RailSection, StatusDot, useCan, useT } from "@go-tenon/ui"
 import type { ReactNode } from "react"
 import { kit } from "../api"
-import { NavCount } from "../components/nav-count"
-import { StatusMark } from "../components/status-mark"
 import { ChannelIcon } from "../inbox/channel-badge"
 import type { ChatModeFilter } from "./data"
 
@@ -65,7 +63,7 @@ export function ChatSections({
         <NavLink
           label={t("chat.filter_all")}
           leftSection={<IconMessages size={16} stroke={1.6} />}
-          rightSection={<NavCount n={internalUnread} unread />}
+          rightSection={<MenuBadge value={internalUnread > 0 ? internalUnread : undefined} max={99} />}
           active={internal && !active?.filter}
           onClick={() => onSelect({ scope: "internal" })}
         />
@@ -87,7 +85,7 @@ export function ChatSections({
         <NavLink
           label={t("chat.business_all")}
           leftSection={<IconBriefcase size={16} stroke={1.6} />}
-          rightSection={<NavCount n={externalUnread} unread />}
+          rightSection={<MenuBadge value={externalUnread > 0 ? externalUnread : undefined} max={99} />}
           active={external && !active?.channel}
           onClick={() => onSelect({ scope: "external" })}
         />
@@ -116,7 +114,7 @@ export function ChatSections({
               key={acc.id}
               label={acc.name}
               leftSection={<ChannelIcon kind="telegram_account" size={16} />}
-              rightSection={<StatusMark color={dotColor} />}
+              rightSection={<StatusDot color={dotColor} />}
               active={external && active?.channel === acc.id}
               onClick={() => onSelect({ scope: "external", channel: acc.id })}
             />

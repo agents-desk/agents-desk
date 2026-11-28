@@ -6,7 +6,7 @@ import { Avatar, Badge, Button, Group, Progress, SegmentedControl, Select, Simpl
 import { IconX } from "@tabler/icons-react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
-import { LoadingStage, type PeriodRoute, useLanguage, usePeriod, useSmoothTransition, useT } from "@go-tenon/ui"
+import { LoadingStage, type MetricItem, MetricStrip, type PeriodRoute, useLanguage, usePeriod, useSmoothTransition, useT } from "@go-tenon/ui"
 import { type ReactNode, useCallback } from "react"
 import { kit } from "../api"
 import { languageName } from "../languages"
@@ -14,7 +14,6 @@ import { StatusBadge } from "../status"
 import { InlineShareBar, REPORT_AREA_PROPS } from "./Breakdown"
 import { ConversationsPage } from "./ConversationsPage"
 import { formatInt, pctDelta } from "./format"
-import { type MetricItem, MetricStrip } from "./MetricStrip"
 import { GranularityControl } from "./PeriodButton"
 import { ReportShell } from "./ReportShell"
 import { ResponseTimePage } from "./ResponseTimePage"
@@ -52,7 +51,6 @@ export function BusinessPage({ route }: { route: PeriodRoute }): ReactNode {
 
   const switcher = (
     <SegmentedControl
-      size="xs"
       value={tab}
       onChange={setTab}
       data={[
@@ -219,7 +217,7 @@ function BusinessChatsTab({
   ]
 
   const maxKindMsgs = Math.max(1, ...(data?.by_channel_kind ?? []).map((x) => x.messages_total))
-  const maxOwnerMsgs = Math.max(1, ...(data?.by_owner ?? []).map((x) => x.messages_inbound + x.messages_outbound))
+  const maxOutbound = Math.max(1, ...(data?.by_owner ?? []).map((x) => x.messages_outbound))
   const maxLang = Math.max(1, ...(data?.by_language ?? []).map((x) => x.count))
 
   return (
@@ -279,39 +277,50 @@ function BusinessChatsTab({
           minHeight={180}
           flush
         >
-          <table className="rp-table">
-            <thead>
-              <tr>
-                <th>{t("reports.col_kind")}</th>
-                <th data-align="right">{t("reports.biz_active_chats")}</th>
-                <th data-align="right">{t("reports.biz_new_chats")}</th>
-                <th data-align="right">{t("reports.biz_messages")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(data?.by_channel_kind ?? []).map((row) => (
-                <tr
-                  key={row.kind}
-                  className="rp-row"
-                  data-clickable=""
-                  data-selected={channelKind === row.kind ? "" : undefined}
-                  onClick={() => patchSearch({ channel_kind: channelKind === row.kind ? undefined : row.kind })}
-                >
-                  <td>
-                    <Text size="sm" fw={500}>
-                      {kindLabel(row.kind)}
-                    </Text>
-                  </td>
-                  <td data-align="right">{formatInt(row.active_chats, uiLang)}</td>
-                  <td data-align="right">{formatInt(row.new_chats, uiLang)}</td>
-                  <td data-align="right">
-                    <div>{formatInt(row.messages_total, uiLang)}</div>
-                    <InlineShareBar ratio={(row.messages_total / maxKindMsgs) * 100} />
-                  </td>
+          <div className="rp-table-scroll">
+            <table className="rp-table">
+              <thead>
+                <tr>
+                  <th>{t("reports.col_kind")}</th>
+                  <th data-align="right">{t("reports.biz_active_chats")}</th>
+                  <th data-align="right">{t("reports.biz_new_chats")}</th>
+                  <th data-align="right">{t("reports.biz_messages")}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(data?.by_channel_kind ?? []).map((row) => (
+                  <tr
+                    key={row.kind}
+                    className="rp-row"
+                    data-clickable=""
+                    data-selected={channelKind === row.kind ? "" : undefined}
+                    tabIndex={0}
+                    aria-selected={channelKind === row.kind}
+                    onClick={() => patchSearch({ channel_kind: channelKind === row.kind ? undefined : row.kind })}
+                    onKeyDown={(e) => {
+                      if (e.target !== e.currentTarget) return
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault()
+                        patchSearch({ channel_kind: channelKind === row.kind ? undefined : row.kind })
+                      }
+                    }}
+                  >
+                    <td>
+                      <Text size="sm" fw={500}>
+                        {kindLabel(row.kind)}
+                      </Text>
+                    </td>
+                    <td data-align="right">{formatInt(row.active_chats, uiLang)}</td>
+                    <td data-align="right">{formatInt(row.new_chats, uiLang)}</td>
+                    <td data-align="right">
+                      <div>{formatInt(row.messages_total, uiLang)}</div>
+                      <InlineShareBar ratio={(row.messages_total / maxKindMsgs) * 100} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </SectionCard>
 
         <SectionCard
@@ -353,33 +362,39 @@ function BusinessChatsTab({
         minHeight={180}
         flush
       >
-        <table className="rp-table">
-          <thead>
-            <tr>
-              <th>{t("reports.col_member")}</th>
-              <th data-align="right">{t("reports.biz_col_channels")}</th>
-              <th data-align="right">{t("reports.biz_active_chats")}</th>
-              <th data-align="right">{t("reports.biz_new_chats")}</th>
-              <th data-align="right">{t("reports.biz_col_inbound")}</th>
-              <th data-align="right">{t("reports.biz_col_outbound")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(data?.by_owner ?? []).map((row) => {
-              const total = row.messages_inbound + row.messages_outbound
-              return (
+        <div className="rp-table-scroll">
+          <table className="rp-table">
+            <thead>
+              <tr>
+                <th>{t("reports.col_member")}</th>
+                <th data-align="right">{t("reports.biz_col_channels")}</th>
+                <th data-align="right">{t("reports.biz_active_chats")}</th>
+                <th data-align="right">{t("reports.biz_new_chats")}</th>
+                <th data-align="right">{t("reports.biz_col_inbound")}</th>
+                <th data-align="right">{t("reports.biz_col_outbound")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(data?.by_owner ?? []).map((row) => (
                 <tr
                   key={row.member_id}
                   className="rp-row"
                   data-clickable=""
                   data-selected={ownerId === row.member_id ? "" : undefined}
+                  tabIndex={0}
+                  aria-selected={ownerId === row.member_id}
                   onClick={() => patchSearch({ owner_id: ownerId === row.member_id ? undefined : row.member_id })}
+                  onKeyDown={(e) => {
+                    if (e.target !== e.currentTarget) return
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault()
+                      patchSearch({ owner_id: ownerId === row.member_id ? undefined : row.member_id })
+                    }
+                  }}
                 >
                   <td>
                     <Group gap="xs" wrap="nowrap">
-                      <Avatar src={row.avatar_url || undefined} size="xs" radius="xl" color="brand">
-                        {(row.name || "?").slice(0, 1).toUpperCase()}
-                      </Avatar>
+                      <Avatar src={row.avatar_url || undefined} size="sm" radius="xl" name={row.name || row.member_id} color="initials" />
                       <Text size="sm" fw={500} truncate>
                         {row.name || row.member_id}
                       </Text>
@@ -398,13 +413,13 @@ function BusinessChatsTab({
                   <td data-align="right">{formatInt(row.messages_inbound, uiLang)}</td>
                   <td data-align="right">
                     <div>{formatInt(row.messages_outbound, uiLang)}</div>
-                    <InlineShareBar ratio={(total / maxOwnerMsgs) * 100} />
+                    <InlineShareBar ratio={(row.messages_outbound / maxOutbound) * 100} />
                   </td>
                 </tr>
-              )
-            })}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </SectionCard>
     </ReportShell>
   )

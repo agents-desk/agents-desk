@@ -2,7 +2,7 @@ import type { MemberNotificationSettings } from "@agents-desk/client/api"
 import { Alert, Button, Group, Stack, Switch, Table, Text } from "@mantine/core"
 import { IconBell, IconBellOff, IconCheck, IconVolume } from "@tabler/icons-react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { notifyError, notifySuccess, useT } from "@go-tenon/ui"
+import { notifyError, notifySuccess, TableCard, useT } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { api } from "./api"
 import { me } from "./auth"
@@ -90,7 +90,7 @@ function Form({ initial }: { initial: MemberNotificationSettings }): ReactNode {
         </Alert>
       )}
 
-      <Table.ScrollContainer minWidth={520} className="desk-table-card" type="native">
+      <TableCard minWidth={520}>
         <Table verticalSpacing="sm" horizontalSpacing="md">
           <Table.Thead>
             <Table.Tr>
@@ -138,7 +138,7 @@ function Form({ initial }: { initial: MemberNotificationSettings }): ReactNode {
             ))}
           </Table.Tbody>
         </Table>
-      </Table.ScrollContainer>
+      </TableCard>
 
       <Group>
         <Button variant="default" leftSection={<IconVolume size={16} />} onClick={playAlertSound}>

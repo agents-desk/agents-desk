@@ -1,4 +1,4 @@
-import { ActionIcon, Alert, Button, Group, Radio, Stack, Switch, Text, TextInput } from "@mantine/core"
+import { ActionIcon, Alert, Button, Group, Paper, Radio, Stack, Switch, Text, TextInput } from "@mantine/core"
 import { DateInput } from "@mantine/dates"
 import { useForm } from "@mantine/form"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -30,6 +30,7 @@ function BusinessHours(): ReactNode {
     <Page
       title={t("business_hours.title")}
       description={t("business_hours.description")}
+      width="narrow"
       tabs={[
         { value: "schedule", label: t("business_hours.tab_schedule"), content: current.data && <ScheduleForm saved={current.data} /> },
         { value: "special", label: t("business_hours.tab_special"), content: current.data && <SpecialDatesForm saved={current.data} /> },
@@ -117,24 +118,26 @@ function SpecialDatesForm({ saved }: { saved: HoursSettingsDTO }): ReactNode {
         <FormError error={error} />
         {dates.map((d, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: 特殊日期按位置编辑
-          <Stack key={i} gap="xs" p="sm" style={{ border: "1px solid var(--tn-border)", borderRadius: "var(--mantine-radius-md)" }}>
-            <Group justify="space-between">
-              <Text size="sm" fw={500}>
-                {d.date || t("business_hours.new_date")}
-              </Text>
-              <ActionIcon variant="subtle" color="red" aria-label={t("business_hours.remove_date")} onClick={() => form.removeListItem("special_dates", i)}>
-                <IconTrash size={16} />
-              </ActionIcon>
-            </Group>
-            <DateInput label={t("business_hours.date")} valueFormat="YYYY-MM-DD" {...form.getInputProps(`special_dates.${i}.date`)} />
-            <TextInput label={t("business_hours.name")} placeholder={t("business_hours.name_placeholder")} {...form.getInputProps(`special_dates.${i}.name`)} />
-            <Switch
-              label={t("business_hours.closed")}
-              checked={d.intervals.length === 0}
-              onChange={(e) => form.setFieldValue(`special_dates.${i}.intervals`, e.currentTarget.checked ? [] : [{ start: "09:00", end: "18:00" }])}
-            />
-            {d.intervals.length > 0 && <Intervals form={form} path={`special_dates.${i}.intervals`} />}
-          </Stack>
+          <Paper key={i} withBorder p="md">
+            <Stack gap="xs">
+              <Group justify="space-between">
+                <Text size="sm" fw={500}>
+                  {d.date || t("business_hours.new_date")}
+                </Text>
+                <ActionIcon variant="subtle" color="red" aria-label={t("business_hours.remove_date")} onClick={() => form.removeListItem("special_dates", i)}>
+                  <IconTrash size={16} />
+                </ActionIcon>
+              </Group>
+              <DateInput label={t("business_hours.date")} valueFormat="YYYY-MM-DD" {...form.getInputProps(`special_dates.${i}.date`)} />
+              <TextInput label={t("business_hours.name")} placeholder={t("business_hours.name_placeholder")} {...form.getInputProps(`special_dates.${i}.name`)} />
+              <Switch
+                label={t("business_hours.closed")}
+                checked={d.intervals.length === 0}
+                onChange={(e) => form.setFieldValue(`special_dates.${i}.intervals`, e.currentTarget.checked ? [] : [{ start: "09:00", end: "18:00" }])}
+              />
+              {d.intervals.length > 0 && <Intervals form={form} path={`special_dates.${i}.intervals`} />}
+            </Stack>
+          </Paper>
         ))}
         <Group>
           <Button

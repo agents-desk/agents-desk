@@ -4,6 +4,7 @@ import {
   Badge,
   Box,
   Button,
+  CloseButton,
   Divider,
   Group,
   Paper,
@@ -17,6 +18,7 @@ import { createFileRoute, Link } from "@tanstack/react-router"
 import { IconArrowLeft, IconChevronRight, IconLogout, IconSearch } from "@tabler/icons-react"
 import {
   ColorSchemeToggle,
+  EmptyState,
   LanguageMenu,
   requireAuth,
   useApp,
@@ -105,7 +107,7 @@ function WorkspacesPage() {
 
         <div className="tn-auth-card desk-workspaces-card">
           <Stack gap="md">
-            <Group justify="space-between" align="flex-start" wrap="nowrap">
+            <Group justify="space-between" align="flex-start" wrap="wrap" gap="xs">
               <Stack gap={2}>
                 <Title order={3}>{t("choose_tenant.title")}</Title>
                 {mine.length > 0 && (
@@ -130,21 +132,27 @@ function WorkspacesPage() {
               <TextInput
                 placeholder={t("workspace.search_placeholder")}
                 leftSection={<IconSearch size={15} stroke={1.6} />}
+                rightSection={
+                  search ? (
+                    <CloseButton
+                      size="xs"
+                      variant="subtle"
+                      aria-label={t("common.clear_search")}
+                      onClick={() => setSearch("")}
+                    />
+                  ) : undefined
+                }
                 value={search}
                 onChange={(e) => setSearch(e.currentTarget.value)}
               />
             )}
 
             {mine.length === 0 ? (
-              <Paper withBorder p="lg" radius="md" className="desk-workspaces-empty">
-                <Text size="sm" c="dimmed" ta="center">
-                  {t("choose_tenant.none")}
-                </Text>
+              <Paper withBorder radius="md" className="desk-workspaces-empty">
+                <EmptyState title={t("choose_tenant.none")} />
               </Paper>
             ) : activeList.length === 0 && disabledList.length === 0 ? (
-              <Text size="sm" c="dimmed" ta="center" py="md">
-                {t("workspace.no_match")}
-              </Text>
+              <EmptyState title={t("workspace.no_match")} />
             ) : (
               <Stack gap="sm">
                 {activeList.map((tn) => {
@@ -199,7 +207,7 @@ function WorkspacesPage() {
                               </Text>
                             </Box>
                           </Group>
-                          <Badge variant="light" color="gray" style={{ flex: "none" }}>
+                          <Badge size="xs" variant="light" color="gray" style={{ flex: "none" }}>
                             {t("choose_tenant.disabled")}
                           </Badge>
                         </Group>
@@ -211,7 +219,7 @@ function WorkspacesPage() {
             )}
 
             <Divider />
-            <Group justify="space-between" align="center">
+            <Group justify="space-between" align="center" wrap="wrap" gap="xs">
               <Text size="xs" c="dimmed">
                 {user.data ? t("workspace.signed_in_as", { name: user.data.name }) : ""}
               </Text>

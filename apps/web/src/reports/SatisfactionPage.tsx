@@ -22,6 +22,8 @@ import {
   type Column,
   DataTable,
   LoadingStage,
+  type MetricItem,
+  MetricStrip,
   type PeriodRoute,
   TruncatedText,
   useCan,
@@ -35,7 +37,6 @@ import { kit } from "../api"
 import { InboxDrillButton, REPORT_AREA_PROPS } from "./Breakdown"
 import { channelInboxSearch, teamInboxSearch } from "./drilldown"
 import { csatColor, diffDelta, formatInt, formatPercent, formatScore, pctDelta, scoreColor } from "./format"
-import { type MetricItem, MetricStrip } from "./MetricStrip"
 import { GranularityControl } from "./PeriodButton"
 import { ReportShell } from "./ReportShell"
 import { type SatisfactionSearchParams, useReportFilters } from "./search"
@@ -230,7 +231,7 @@ export function SatisfactionPage({
           const name = row.contact_name || t("inbox.visitor")
           if (canContacts && row.contact_id) {
             return (
-              <Tooltip label={t("reports.drill_contact")} openDelay={300} withArrow>
+              <Tooltip label={t("reports.drill_contact")} openDelay={300}>
                 <Link
                   to="/$slug/contacts/$id"
                   params={{ slug, id: row.contact_id }}
@@ -349,12 +350,12 @@ export function SatisfactionPage({
             </Group>
             <LoadingStage loading={chartState.busy && !pageState.busy}>
               {loading ? (
-                <Skeleton height={220} radius="sm" />
+                <Skeleton height={240} radius="sm" />
               ) : !chartState.data?.length || !s?.rated_count ? (
-                <ReportEmpty minHeight={220} />
+                <ReportEmpty minHeight={240} />
               ) : (
                 <AreaChart
-                  h={220}
+                  h={240}
                   data={chartState.data}
                   dataKey="date"
                   series={[{ name: "csat", label: t("reports.csat_label"), color: "green.6" }]}
@@ -437,61 +438,76 @@ export function SatisfactionPage({
           minHeight={160}
           flush
         >
-          <table className="rp-table">
-            <thead>
-              <tr>
-                <th>{t("reports.col_team")}</th>
-                <th data-align="right">{t("reports.col_csat")}</th>
-                <th data-align="right">{t("reports.col_avg_score")}</th>
-                <th data-align="right">{t("reports.col_rated")}</th>
-                {canInbox && <th style={{ width: 36 }} />}
-              </tr>
-            </thead>
-            <tbody>
-              {(data?.by_team ?? []).map((row) => {
-                const clickable = Boolean(row.id)
-                const selected = Boolean(row.id && filters.teamId === row.id)
-                return (
-                  <tr
-                    key={row.id ?? "__unassigned__"}
-                    className="rp-row"
-                    data-clickable={clickable ? "" : undefined}
-                    data-selected={selected || undefined}
-                    onClick={clickable ? () => toggleTeam(row.id) : undefined}
-                  >
-                    <td>
-                      <Group gap={6} wrap="nowrap">
-                        <Text size="sm" fw={500} c={row.id ? undefined : "dimmed"} truncate>
-                          {row.id ? row.name : t("reports.no_team")}
-                        </Text>
-                        {row.disabled && (
-                          <Badge size="xs" variant="light" color="gray">
-                            {t("reports.disabled_badge")}
-                          </Badge>
-                        )}
-                      </Group>
-                    </td>
-                    <td data-align="right">
-                      <Badge size="sm" variant="light" color={csatColor(row.csat)}>
-                        {formatPercent(row.csat)}
-                      </Badge>
-                    </td>
-                    <td data-align="right">{formatScore(row.avg_score)}</td>
-                    <td data-align="right">{formatInt(row.rated_count, uiLang)}</td>
-                    {canInbox && (
-                      <td data-align="right">
-                        <InboxDrillButton
-                          slug={slug}
-                          search={teamInboxSearch(row.id, scope)}
-                          label={t("reports.drill_team_inbox")}
-                        />
+          <div className="rp-table-scroll">
+            <table className="rp-table">
+              <thead>
+                <tr>
+                  <th>{t("reports.col_team")}</th>
+                  <th data-align="right">{t("reports.col_csat")}</th>
+                  <th data-align="right">{t("reports.col_avg_score")}</th>
+                  <th data-align="right">{t("reports.col_rated")}</th>
+                  {canInbox && <th style={{ width: 36 }} />}
+                </tr>
+              </thead>
+              <tbody>
+                {(data?.by_team ?? []).map((row) => {
+                  const clickable = Boolean(row.id)
+                  const selected = Boolean(row.id && filters.teamId === row.id)
+                  return (
+                    <tr
+                      key={row.id ?? "__unassigned__"}
+                      className="rp-row"
+                      data-clickable={clickable ? "" : undefined}
+                      data-selected={selected || undefined}
+                      tabIndex={clickable ? 0 : undefined}
+                      aria-selected={clickable ? selected : undefined}
+                      onClick={clickable ? () => toggleTeam(row.id) : undefined}
+                      onKeyDown={
+                        clickable
+                          ? (e) => {
+                              if (e.target !== e.currentTarget) return
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault()
+                                toggleTeam(row.id)
+                              }
+                            }
+                          : undefined
+                      }
+                    >
+                      <td>
+                        <Group gap={6} wrap="nowrap">
+                          <Text size="sm" fw={500} c={row.id ? undefined : "dimmed"} truncate>
+                            {row.id ? row.name : t("reports.team_unassigned")}
+                          </Text>
+                          {row.disabled && (
+                            <Badge size="xs" variant="light" color="gray">
+                              {t("reports.disabled_badge")}
+                            </Badge>
+                          )}
+                        </Group>
                       </td>
-                    )}
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                      <td data-align="right">
+                        <Badge size="sm" variant="light" color={csatColor(row.csat)}>
+                          {formatPercent(row.csat)}
+                        </Badge>
+                      </td>
+                      <td data-align="right">{formatScore(row.avg_score)}</td>
+                      <td data-align="right">{formatInt(row.rated_count, uiLang)}</td>
+                      {canInbox && (
+                        <td data-align="right">
+                          <InboxDrillButton
+                            slug={slug}
+                            search={teamInboxSearch(row.id, scope)}
+                            label={t("reports.drill_team_inbox")}
+                          />
+                        </td>
+                      )}
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </SectionCard>
 
         <SectionCard
@@ -506,60 +522,71 @@ export function SatisfactionPage({
           minHeight={160}
           flush
         >
-          <table className="rp-table">
-            <thead>
-              <tr>
-                <th>{t("reports.col_channel")}</th>
-                <th data-align="right">{t("reports.col_csat")}</th>
-                <th data-align="right">{t("reports.col_avg_score")}</th>
-                <th data-align="right">{t("reports.col_rated")}</th>
-                {canInbox && <th style={{ width: 36 }} />}
-              </tr>
-            </thead>
-            <tbody>
-              {(data?.by_channel ?? []).map((row) => {
-                const selected = filters.channelId === row.id
-                return (
-                  <tr
-                    key={row.id}
-                    className="rp-row"
-                    data-clickable=""
-                    data-selected={selected || undefined}
-                    onClick={() => toggleChannel(row.id)}
-                  >
-                    <td>
-                      <Group gap={6} wrap="nowrap">
-                        <Text size="sm" fw={500} truncate>
-                          {row.name}
-                        </Text>
-                        {!row.enabled && (
-                          <Badge size="xs" variant="light" color="gray">
-                            {t("reports.disabled_badge")}
-                          </Badge>
-                        )}
-                      </Group>
-                    </td>
-                    <td data-align="right">
-                      <Badge size="sm" variant="light" color={csatColor(row.csat)}>
-                        {formatPercent(row.csat)}
-                      </Badge>
-                    </td>
-                    <td data-align="right">{formatScore(row.avg_score)}</td>
-                    <td data-align="right">{formatInt(row.rated_count, uiLang)}</td>
-                    {canInbox && (
-                      <td data-align="right">
-                        <InboxDrillButton
-                          slug={slug}
-                          search={channelInboxSearch(row.id, scope)}
-                          label={t("reports.drill_channel_inbox")}
-                        />
+          <div className="rp-table-scroll">
+            <table className="rp-table">
+              <thead>
+                <tr>
+                  <th>{t("reports.col_channel")}</th>
+                  <th data-align="right">{t("reports.col_csat")}</th>
+                  <th data-align="right">{t("reports.col_avg_score")}</th>
+                  <th data-align="right">{t("reports.col_rated")}</th>
+                  {canInbox && <th style={{ width: 36 }} />}
+                </tr>
+              </thead>
+              <tbody>
+                {(data?.by_channel ?? []).map((row) => {
+                  const selected = filters.channelId === row.id
+                  return (
+                    <tr
+                      key={row.id}
+                      className="rp-row"
+                      data-clickable=""
+                      data-selected={selected || undefined}
+                      tabIndex={0}
+                      aria-selected={selected}
+                      onClick={() => toggleChannel(row.id)}
+                      onKeyDown={(e) => {
+                        if (e.target !== e.currentTarget) return
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault()
+                          toggleChannel(row.id)
+                        }
+                      }}
+                    >
+                      <td>
+                        <Group gap={6} wrap="nowrap">
+                          <Text size="sm" fw={500} truncate>
+                            {row.name}
+                          </Text>
+                          {!row.enabled && (
+                            <Badge size="xs" variant="light" color="gray">
+                              {t("reports.disabled_badge")}
+                            </Badge>
+                          )}
+                        </Group>
                       </td>
-                    )}
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                      <td data-align="right">
+                        <Badge size="sm" variant="light" color={csatColor(row.csat)}>
+                          {formatPercent(row.csat)}
+                        </Badge>
+                      </td>
+                      <td data-align="right">{formatScore(row.avg_score)}</td>
+                      <td data-align="right">{formatInt(row.rated_count, uiLang)}</td>
+                      {canInbox && (
+                        <td data-align="right">
+                          <InboxDrillButton
+                            slug={slug}
+                            search={channelInboxSearch(row.id, scope)}
+                            label={t("reports.drill_channel_inbox")}
+                          />
+                        </td>
+                      )}
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </SectionCard>
       </SimpleGrid>
 

@@ -79,7 +79,7 @@ body {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: var(--mantine-color-gray-0);
+  background: var(--tn-canvas);
 }
 
 .w-scroll-bottom {
@@ -150,7 +150,7 @@ body {
 /* 工单列表的一行：点击区域至少 44px，悬停与按压有清晰反馈 */
 .w-conversation {
   min-height: 56px;
-  border-top: 1px solid var(--mantine-color-gray-2);
+  border-top: 1px solid var(--tn-border);
   transition: background-color 140ms ease;
 }
 .w-conversation:first-of-type {
@@ -158,18 +158,18 @@ body {
 }
 @media (hover: hover) {
   .w-conversation:hover {
-    background: var(--mantine-color-gray-0);
+    background: var(--tn-canvas);
   }
   .w-conversation:hover .w-conversation-arrow {
-    color: var(--mantine-color-gray-7);
+    color: var(--tn-text-secondary);
     transform: translateX(2px);
   }
 }
 .w-conversation:active {
-  background: var(--mantine-color-gray-1);
+  background: var(--tn-hover);
 }
 .w-conversation-arrow {
-  color: var(--mantine-color-gray-5);
+  color: var(--tn-subtle);
   transition: transform 140ms ease, color 140ms ease;
 }
 [dir="rtl"] .w-rtl-flip,
@@ -182,7 +182,7 @@ body {
   }
 }
 
-/* 消息气泡：客服白底配轻边框与微阴影，与 gray-0 画布拉开清晰层次；逻辑圆角天然兼容 LTR/RTL */
+/* 消息气泡：客服白底配轻边框与微阴影，与 canvas 画布拉开清晰层次；逻辑圆角天然兼容 LTR/RTL */
 .w-bubble {
   padding: 8px 12px;
   border-radius: 16px;
@@ -203,8 +203,8 @@ body {
   border-end-end-radius: 16px;
 }
 .w-bubble:not([data-mine]) {
-  background: var(--mantine-color-body);
-  border: 1px solid var(--mantine-color-gray-2);
+  background: var(--tn-surface);
+  border: 1px solid var(--tn-border);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--mantine-color-black) 4%, transparent);
   border-end-start-radius: 4px;
 }
@@ -285,7 +285,7 @@ body {
 .w-composer[data-dragging] {
   outline: 2px dashed var(--mantine-primary-color-filled);
   outline-offset: -4px;
-  background: var(--mantine-color-gray-0);
+  background: var(--tn-canvas);
 }
 
 /* 待发送附件预览条 */
@@ -295,8 +295,8 @@ body {
   height: 48px;
   border-radius: var(--mantine-radius-sm);
   overflow: hidden;
-  border: 1px solid var(--mantine-color-gray-3);
-  background: var(--mantine-color-gray-0);
+  border: 1px solid var(--tn-border-strong);
+  background: var(--tn-canvas);
   flex: none;
 }
 .w-attach-thumb[data-error] {
@@ -328,8 +328,8 @@ body {
 .w-attach-file {
   max-width: 200px;
   border-radius: var(--mantine-radius-sm);
-  border: 1px solid var(--mantine-color-gray-3);
-  background: var(--mantine-color-gray-0);
+  border: 1px solid var(--tn-border-strong);
+  background: var(--tn-canvas);
 }
 .w-attach-file[data-error] {
   border-color: var(--mantine-color-red-filled);
@@ -381,8 +381,8 @@ body {
   min-width: 160px;
   max-width: 230px;
   border-radius: 10px;
-  background: var(--mantine-color-white);
-  border: 1px solid var(--mantine-color-gray-2);
+  background: var(--tn-surface);
+  border: 1px solid var(--tn-border);
   color: inherit;
   text-decoration: none;
 }
@@ -457,8 +457,8 @@ body {
   max-width: 100%;
   padding: 6px 8px;
   border-radius: 10px;
-  background: var(--mantine-color-white);
-  border: 1px solid var(--mantine-color-gray-2);
+  background: var(--tn-surface);
+  border: 1px solid var(--tn-border);
 }
 .w-msg-audio[data-mine] {
   background: color-mix(in srgb, var(--mantine-color-white) 16%, transparent);

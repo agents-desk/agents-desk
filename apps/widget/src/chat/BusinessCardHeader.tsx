@@ -59,7 +59,7 @@ export function BusinessCardHeader({
           <Stack gap={compact ? 4 : "xs"}>
             <Group gap="sm" wrap="nowrap" align="center" style={{ paddingInlineEnd: close ? 28 : 0 }}>
               <Indicator size={10} offset={3} position="bottom-end" color={online ? "green" : "gray"} withBorder>
-                <Avatar size={compact ? 36 : 46} radius="xl" src={owner.avatar_url || undefined} color="dark" variant="filled">
+                <Avatar size={compact ? 36 : 46} radius="xl" src={owner.avatar_url || undefined} color="initials" name={owner.name}>
                   {owner.name.slice(0, 1)}
                 </Avatar>
               </Indicator>
@@ -85,7 +85,7 @@ export function BusinessCardHeader({
               </Text>
             )}
             {!compact && greeting && (
-              <Title order={3} size="h4" c={fg} mt={2} fw={600}>
+              <Title order={2} size="h4" c={fg} mt={2} fw={600}>
                 {greeting}
               </Title>
             )}
@@ -111,9 +111,9 @@ export function BusinessCardHeader({
           py={8}
           wrap="nowrap"
           bg="var(--mantine-color-yellow-light)"
-          style={{ borderBottom: "1px solid var(--mantine-color-yellow-3)" }}
+          style={{ borderBottom: "1px solid color-mix(in srgb, var(--mantine-color-yellow-6) 30%, transparent)" }}
         >
-          <IconClock size={14} color="var(--mantine-color-yellow-7)" style={{ flex: "none" }} />
+          <IconClock size={14} color="var(--mantine-color-yellow-light-color)" style={{ flex: "none" }} />
           <Text size="xs" lh={1.4}>
             {awayMessage}
           </Text>

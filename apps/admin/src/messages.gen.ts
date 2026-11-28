@@ -55,20 +55,9 @@ export const messages = {
     "impersonate.reason_placeholder": "e.g., Ticket #1024 investigating message delivery",
     "impersonate.submit": "Open workspace",
     "impersonate.title": "Impersonate in “{{.name}}”",
-    "login.back_to_login": "Back to sign in",
     "login.description": "For platform admins",
-    "login.email": "Email",
-    "login.email_invalid": "Enter a valid email address",
-    "login.forgot_description": "Enter your admin email address and we will send a 6-digit verification code to set a new password.",
     "login.forgot_password": "Forgot password?",
     "login.forgot_title": "Reset admin password",
-    "login.resend_code": "Resend code",
-    "login.reset_code": "Verification code",
-    "login.reset_code_required": "Enter the verification code sent to your email",
-    "login.reset_code_sent": "If this email is registered, a verification code has been sent to {{.email}}",
-    "login.reset_submit": "Reset password",
-    "login.reset_success": "Password has been reset. Sign in with your new password",
-    "login.send_reset_code": "Send verification code",
     "login.title": "Admin sign-in",
     "model.api_key": "Gateway API key",
     "model.base_url": "Gateway URL",
@@ -86,7 +75,6 @@ export const messages = {
     "model.fast_router_label": "Fast router",
     "model.gateway_description": "All model capabilities are routed through this OpenAI-compatible gateway (such as OmiRouter). The base URL usually ends with /v1.",
     "model.gateway_title": "Unified Model Gateway",
-    "model.model": "Logical model name",
     "model.models_title": "Models by Call Type",
     "model.rerank_description": "Semantically reranks retrieved knowledge base candidates",
     "model.rerank_label": "Rerank",
@@ -142,24 +130,11 @@ export const messages = {
     "overview.view_all": "View all",
     "profile.avatar": "Avatar",
     "profile.avatar_hint": "PNG, JPEG or WebP, up to 2 MB",
-    "profile.change_password": "Change password",
-    "profile.confirm_password": "Confirm new password",
-    "profile.current_password": "Current password",
     "profile.name": "Name",
-    "profile.new_password": "New password",
-    "profile.new_password_hint": "8 to 128 characters",
-    "profile.password_changed": "Password changed. You've been signed out on other devices",
-    "profile.password_mismatch": "The new passwords don't match",
-    "profile.remove": "Remove",
     "profile.tab_basic": "Basic info",
     "profile.tab_password": "Change password",
-    "profile.upload": "Upload image",
-    "profile.upload_failed": "Upload failed",
     "settings.general_description": "Configure the platform display name, logo, support contact email, and default interface language.",
     "settings.logo_hint": "PNG, JPEG or WebP, up to 2 MB. Shown in the console, sign-in page, and browser tab icon",
-    "settings.logo_remove": "Remove",
-    "settings.logo_upload": "Upload image",
-    "settings.logo_upload_failed": "Upload failed",
     "settings.mail_description": "Configure Resend for outgoing email. The sender domain must be verified in Resend; leave the API key empty to log emails without sending.",
     "settings.mail_test_description": "Save your mail settings above first, then send a test email to verify your Resend domain and API key.",
     "settings.mail_test_sent": "Test email sent to {{.to}}",
@@ -179,8 +154,6 @@ export const messages = {
     "tenants.llm_budget_placeholder": "Follow platform default",
     "tenants.llm_budget_saved": "Workspace model budget updated",
     "tenants.llm_budget_title": "Model budget for “{{.name}}”",
-    "test_account.failed": "Test account sign-in failed. Run go run ./cmd/agents-desk seed first",
-    "test_account.sign_in": "Sign in with a test account",
   },
   "zh-CN": {
     "admins.password_hint": "8 到 128 个字符",
@@ -233,20 +206,9 @@ export const messages = {
     "impersonate.reason_placeholder": "例如：工单 #1024 排查会话收发异常",
     "impersonate.submit": "进入工作区",
     "impersonate.title": "代为登录“{{.name}}”",
-    "login.back_to_login": "返回登录",
     "login.description": "平台管理员使用",
-    "login.email": "邮箱",
-    "login.email_invalid": "请输入有效的邮箱地址",
-    "login.forgot_description": "输入你的管理员邮箱，我们会发送一个 6 位验证码用于设置新密码。",
     "login.forgot_password": "忘记密码？",
     "login.forgot_title": "重置管理员密码",
-    "login.resend_code": "重新发送验证码",
-    "login.reset_code": "验证码",
-    "login.reset_code_required": "请输入邮箱收到的验证码",
-    "login.reset_code_sent": "如该邮箱已注册，验证码已发送至 {{.email}}",
-    "login.reset_submit": "确认重置密码",
-    "login.reset_success": "密码已重置，请使用新密码登录",
-    "login.send_reset_code": "发送验证码",
     "login.title": "管理员登录",
     "model.api_key": "网关密钥",
     "model.base_url": "网关地址",
@@ -264,7 +226,6 @@ export const messages = {
     "model.fast_router_label": "快速路由",
     "model.gateway_description": "所有模型能力统一经此 OpenAI 兼容网关（如 OmiRouter）调用，地址通常以 /v1 结尾。",
     "model.gateway_title": "统一模型网关",
-    "model.model": "逻辑模型名",
     "model.models_title": "各调用类型模型",
     "model.rerank_description": "对检索候选知识分片进行语义重排序的模型",
     "model.rerank_label": "重排",
@@ -320,24 +281,11 @@ export const messages = {
     "overview.view_all": "查看全部",
     "profile.avatar": "头像",
     "profile.avatar_hint": "PNG、JPEG 或 WebP，不超过 2 MB",
-    "profile.change_password": "修改密码",
-    "profile.confirm_password": "再输入一次新密码",
-    "profile.current_password": "当前密码",
     "profile.name": "名字",
-    "profile.new_password": "新密码",
-    "profile.new_password_hint": "8 到 128 个字符",
-    "profile.password_changed": "密码已修改，其他设备上的登录已退出",
-    "profile.password_mismatch": "两次输入的新密码不一致",
-    "profile.remove": "移除",
     "profile.tab_basic": "基本资料",
     "profile.tab_password": "修改密码",
-    "profile.upload": "上传图片",
-    "profile.upload_failed": "上传失败",
     "settings.general_description": "配置平台显示名称、Logo、联系邮箱和默认界面语言，保存后立即生效。",
     "settings.logo_hint": "PNG、JPEG 或 WebP，不超过 2 MB；同步显示在管理后台、登录页与浏览器标签图标",
-    "settings.logo_remove": "移除",
-    "settings.logo_upload": "上传图片",
-    "settings.logo_upload_failed": "上传失败",
     "settings.mail_description": "配置 Resend 发信服务，发件人邮箱所属域名需先在 Resend 完成验证；API Key 留空表示暂不外发（仅写入日志）。",
     "settings.mail_test_description": "先保存上面的发信配置，再发送一封测试邮件确认 Resend 域名与 API Key 是否可用。",
     "settings.mail_test_sent": "测试邮件已发送至 {{.to}}",
@@ -357,8 +305,6 @@ export const messages = {
     "tenants.llm_budget_placeholder": "跟随平台默认",
     "tenants.llm_budget_saved": "工作区模型预算已更新",
     "tenants.llm_budget_title": "配置“{{.name}}”的模型预算上限",
-    "test_account.failed": "测试账号登录失败，先运行 go run ./cmd/agents-desk seed",
-    "test_account.sign_in": "用测试账号登录",
   },
 } as const
 
@@ -414,20 +360,9 @@ export type MessageId =
   | "impersonate.reason_placeholder"
   | "impersonate.submit"
   | "impersonate.title"
-  | "login.back_to_login"
   | "login.description"
-  | "login.email"
-  | "login.email_invalid"
-  | "login.forgot_description"
   | "login.forgot_password"
   | "login.forgot_title"
-  | "login.resend_code"
-  | "login.reset_code"
-  | "login.reset_code_required"
-  | "login.reset_code_sent"
-  | "login.reset_submit"
-  | "login.reset_success"
-  | "login.send_reset_code"
   | "login.title"
   | "model.api_key"
   | "model.base_url"
@@ -445,7 +380,6 @@ export type MessageId =
   | "model.fast_router_label"
   | "model.gateway_description"
   | "model.gateway_title"
-  | "model.model"
   | "model.models_title"
   | "model.rerank_description"
   | "model.rerank_label"
@@ -501,24 +435,11 @@ export type MessageId =
   | "overview.view_all"
   | "profile.avatar"
   | "profile.avatar_hint"
-  | "profile.change_password"
-  | "profile.confirm_password"
-  | "profile.current_password"
   | "profile.name"
-  | "profile.new_password"
-  | "profile.new_password_hint"
-  | "profile.password_changed"
-  | "profile.password_mismatch"
-  | "profile.remove"
   | "profile.tab_basic"
   | "profile.tab_password"
-  | "profile.upload"
-  | "profile.upload_failed"
   | "settings.general_description"
   | "settings.logo_hint"
-  | "settings.logo_remove"
-  | "settings.logo_upload"
-  | "settings.logo_upload_failed"
   | "settings.mail_description"
   | "settings.mail_test_description"
   | "settings.mail_test_sent"
@@ -538,8 +459,6 @@ export type MessageId =
   | "tenants.llm_budget_placeholder"
   | "tenants.llm_budget_saved"
   | "tenants.llm_budget_title"
-  | "test_account.failed"
-  | "test_account.sign_in"
 
 // 登记消息 ID：@go-tenon/ui 与 @go-tenon/ui/core 的 useT 只接受其中的 ID。
 declare module "@go-tenon/ui/i18n" {

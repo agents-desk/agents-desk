@@ -40,6 +40,7 @@ export function AssignMenu({ c, compact, onSuccess }: { c: AssignTarget; compact
   })
   const others = can("conversations:assign")
   const mine = c.assignee?.type === "member" && c.assignee.id === me.data?.id
+  if (!others && (!me.data || mine)) return null
   return (
     <Menu position="bottom-end" withinPortal>
       <Menu.Target>
@@ -163,16 +164,38 @@ export function SnoozeMenu({ id, compact }: { id: string; compact?: boolean }): 
           <Menu.Item onClick={() => setCustom(true)}>{t("inbox.snooze_custom")}</Menu.Item>
         </Menu.Dropdown>
       </Menu>
-      <Modal opened={custom} onClose={() => setCustom(false)} title={t("inbox.snooze_custom")}>
+      <Modal
+        opened={custom}
+        onClose={() => {
+          setCustom(false)
+          setUntil(null)
+        }}
+        title={t("inbox.snooze_custom")}
+        closeOnClickOutside={false}
+      >
         <Stack>
           <DateTimePicker value={until} onChange={setUntil} minDate={new Date()} label={t("inbox.snooze_until")} timePickerProps={{ withDropdown: true }} />
-          <Group justify="flex-end">
+          <Group justify="flex-end" gap="xs">
+            <Button
+              variant="default"
+              onClick={() => {
+                setCustom(false)
+                setUntil(null)
+              }}
+            >
+              {t("inbox.cancel")}
+            </Button>
             <Button
               disabled={!until}
               loading={snooze.isPending}
               onClick={() => {
                 if (!until) return
-                snooze.mutate(new Date(until), { onSuccess: () => setCustom(false) })
+                snooze.mutate(new Date(until), {
+                  onSuccess: () => {
+                    setCustom(false)
+                    setUntil(null)
+                  },
+                })
               }}
             >
               {t("inbox.snooze")}

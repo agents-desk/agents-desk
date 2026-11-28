@@ -173,7 +173,7 @@ export function TicketComposer({ ticket, onTyping }: { ticket: ConversationTicke
         getKey: (m) => m.id,
         renderItem: (m: MemberTenantMember) => (
           <Group gap="xs" wrap="nowrap">
-            <Avatar src={m.avatar_url || undefined} size={22} name={m.name} />
+            <Avatar src={m.avatar_url || undefined} size={22} name={m.name} color="initials" />
             <Text size="sm" truncate>
               {m.name}
             </Text>

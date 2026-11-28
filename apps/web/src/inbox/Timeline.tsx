@@ -135,10 +135,10 @@ export function Timeline({
           {list.map((it, i) => {
             const prev = list[i - 1]
             const next = list[i + 1]
-            const showDay = i === 0 || !sameDay(prev.created_at, it.created_at)
+            const showDay = i === 0 || !sameDay(prev.created_at, it.created_at, zone)
             const showNew = it === firstNew
-            const groupedWithPrev = !showDay && !showNew && canGroupItems(prev, it, firstNew, sameChannelMsg)
-            const groupedWithNext = Boolean(next) && canGroupItems(it, next, firstNew, sameChannelMsg)
+            const groupedWithPrev = !showDay && !showNew && canGroupItems(prev, it, firstNew, sameChannelMsg, zone)
+            const groupedWithNext = Boolean(next) && canGroupItems(it, next, firstNew, sameChannelMsg, zone)
             const gapTop = i === 0 ? 0 : groupedWithPrev ? 4 : 16
             const msgAuthor = authorOf(it)
             const quotedItem = it.reply_to_item_id ? byItemId.get(it.reply_to_item_id) : undefined
@@ -163,7 +163,7 @@ export function Timeline({
                 {showNew && <NewMessagesDivider />}
                 {it.kind === "event" ? (
                   <Text size="xs" c="dimmed" ta="center" mt={gapTop} className="inbox-event">
-                    {describeEvent(it, byId, names, t, language)} · {clock(it.created_at, language, zone)}
+                    {describeEvent(it, byId, names, t, language, zone)} · {clock(it.created_at, language, zone)}
                   </Text>
                 ) : it.kind === "note" ? (
                   <TimelineNote
@@ -345,7 +345,11 @@ function Message({
           </Tooltip>
         ) : (
           <Text span size="xs" c={deliveryColor[it.delivery]}>
-            {pendingAutoTranslate ? t("inbox.delivery_translating") : t(`inbox.delivery_${it.delivery}` as const)}
+            {pendingAutoTranslate
+              ? t("inbox.delivery_translating")
+              : translationFailed
+                ? t("inbox.delivery_translation_failed")
+                : t(`inbox.delivery_${it.delivery}` as const)}
           </Text>
         )}
         {it.delivery === "failed" && translationFailed ? (

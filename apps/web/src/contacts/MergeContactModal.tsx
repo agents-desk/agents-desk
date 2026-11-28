@@ -6,7 +6,7 @@ import { IconGitMerge, IconSearch } from "@tabler/icons-react"
 import { notifyError, notifySuccess, useT } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { ContactAvatar, contactDisplayName } from "./display"
+import { ContactAvatar, contactDisplayName, contactKindColor } from "./display"
 
 /** MergeContactTarget 是保留的目标联系人最小字段集合，兼容 ContactDetailDTO 与 ContactSummary。 */
 type MergeContactTarget = Pick<ContactDTO, "id" | "number" | "kind" | "name" | "email"> & { external_user_id?: string }
@@ -72,7 +72,7 @@ export function MergeContactModal({
   })
 
   return (
-    <Modal opened={opened} onClose={onClose} title={t("contacts.merge_title")} size="md" centered>
+    <Modal opened={opened} onClose={onClose} title={t("contacts.merge_title")} size="md" centered closeOnClickOutside={false}>
       <Stack gap="sm">
         <Text size="sm" c="dimmed">
           {t("contacts.merge_desc", { name: targetName })}
@@ -117,7 +117,7 @@ export function MergeContactModal({
                             <Text size="sm" fw={500} truncate>
                               {itemName}
                             </Text>
-                            <Badge size="xs" variant="light" color={item.kind === "user" ? "bright-blue" : "gray"} style={{ flex: "none" }}>
+                            <Badge size="xs" variant="light" color={contactKindColor[item.kind]} style={{ flex: "none" }}>
                               {kit.label("ContactKind", item.kind)}
                             </Badge>
                           </Group>
@@ -152,7 +152,7 @@ export function MergeContactModal({
           </Paper>
         )}
 
-        <Group justify="flex-end" mt="xs">
+        <Group justify="flex-end" gap="xs" mt="xs">
           <Button variant="default" onClick={onClose} disabled={merge.isPending}>
             {t("common.cancel")}
           </Button>

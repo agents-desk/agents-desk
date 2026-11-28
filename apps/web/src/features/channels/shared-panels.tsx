@@ -14,6 +14,7 @@ import {
   notifySuccess,
   PageActions,
   ResourceSelect,
+  RowActions,
   StatusDot,
   useLanguage,
   useT,
@@ -22,7 +23,6 @@ import {
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../../api"
 import { AiReceptionCard, useAiWorkspaceEnabled } from "../../components/ai-placeholders"
-import { RowActions } from "../../components/row-actions"
 import { ChannelIcon } from "../../inbox/channel-badge"
 import { activity } from "../../inbox/format"
 import { LanguageSelect } from "../../LanguageSelect"
@@ -185,8 +185,8 @@ export function TelegramsPanel({ slug, audience }: { slug: string; audience: Bot
         ]}
       />
 
-      <Modal opened={creating} onClose={() => setCreating(false)} title={t("telegrams.create_title")}>
-        <form onSubmit={form.onSubmit((v) => create.mutate(v))}>
+      <Modal opened={creating} onClose={() => setCreating(false)} closeOnClickOutside={false} title={t("telegrams.create_title")}>
+        <form noValidate onSubmit={form.onSubmit((v) => create.mutate(v))}>
           <Stack gap="md">
             <FormError error={createError} />
             <TextInput label={t("telegrams.name")} required maxLength={60} data-autofocus {...form.getInputProps("name")} />
@@ -230,7 +230,7 @@ export function TelegramsPanel({ slug, audience }: { slug: string; audience: Bot
               error={form.errors.team_id}
               clearable
             />
-            <Group justify="flex-end">
+            <Group justify="flex-end" gap="xs">
               <Button variant="default" onClick={() => setCreating(false)}>
                 {t("common.cancel")}
               </Button>
@@ -264,6 +264,7 @@ export function ExternalGroupsPanel({ audience }: { audience: BotAudience }): Re
   const queryClient = useQueryClient()
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [editing, setEditing] = useState<ExtgroupGroupDTO | null>(null)
+  const [editError, setEditError] = useState<ReturnType<typeof applyServerErrors>>()
 
   const list = useQuery({
     queryKey: ["external-groups", "list", audience, statusFilter],
@@ -303,6 +304,7 @@ export function ExternalGroupsPanel({ audience }: { audience: BotAudience }): Re
   })()
 
   const openEdit = (g: ExtgroupGroupDTO) => {
+    setEditError(undefined)
     setEditing(g)
     form.setValues({
       name: g.name,
@@ -325,12 +327,13 @@ export function ExternalGroupsPanel({ audience }: { audience: BotAudience }): Re
       })
     },
     onSuccess: () => {
+      setEditError(undefined)
       setEditing(null)
       void queryClient.invalidateQueries({ queryKey: ["external-groups"] })
       void queryClient.invalidateQueries({ queryKey: ["organization"] })
       notifySuccess(t("common.saved"))
     },
-    onError: (err) => notifyError(err),
+    onError: (err) => setEditError(applyServerErrors(form, err)),
   })
 
   return (
@@ -435,6 +438,7 @@ export function ExternalGroupsPanel({ audience }: { audience: BotAudience }): Re
       <Modal
         opened={Boolean(editing)}
         onClose={() => setEditing(null)}
+        closeOnClickOutside={false}
         title={t(
           audience === "internal"
             ? "extgroups.edit_title_internal"
@@ -444,9 +448,10 @@ export function ExternalGroupsPanel({ audience }: { audience: BotAudience }): Re
         )}
         size="md"
       >
-        <form onSubmit={form.onSubmit((v) => save.mutate(v))}>
+        <form noValidate onSubmit={form.onSubmit((v) => save.mutate(v))}>
           <Stack gap="md">
-            <TextInput label={t("extgroups.name")} maxLength={120} {...form.getInputProps("name")} />
+            <FormError error={editError} />
+            <TextInput label={t("extgroups.name")} maxLength={120} data-autofocus {...form.getInputProps("name")} />
             <ResourceSelect
               model={teams}
               label={t("extgroups.team_label")}
@@ -494,7 +499,7 @@ export function ExternalGroupsPanel({ audience }: { audience: BotAudience }): Re
               />
             </Stack>
             <AiReceptionCard scene="group" />
-            <Group justify="flex-end">
+            <Group justify="flex-end" gap="xs">
               <Button variant="default" onClick={() => setEditing(null)}>
                 {t("common.cancel")}
               </Button>

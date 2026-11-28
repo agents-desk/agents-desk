@@ -7,7 +7,6 @@ import {
   applyServerErrors,
   type FieldInput,
   FormError,
-  notifyError,
   notifySuccess,
   Page,
   preloadResourceList,
@@ -137,7 +136,6 @@ function MembersAndRolesPage(): ReactNode {
     },
     onError: (err) => {
       setHandoverError(applyServerErrors(handoverForm, err))
-      notifyError(err)
     },
   })
 
@@ -152,7 +150,6 @@ function MembersAndRolesPage(): ReactNode {
     },
     onError: (err) => {
       setResetError(applyServerErrors(resetForm, err))
-      notifyError(err)
     },
   })
 
@@ -229,9 +226,11 @@ function MembersAndRolesPage(): ReactNode {
       <Modal
         opened={Boolean(resetTarget)}
         onClose={() => setResetTarget(null)}
+        closeOnClickOutside={false}
         title={t("members.reset_password_title", { name: resetTarget?.name ?? "" })}
       >
         <form
+          noValidate
           onSubmit={resetForm.onSubmit((v) => {
             if (!resetTarget) return
             resetPassword.mutate({ id: resetTarget.id, mode: v.mode, password: v.password })
@@ -257,10 +256,11 @@ function MembersAndRolesPage(): ReactNode {
                 label={t("profile.new_password")}
                 description={t("profile.new_password_hint")}
                 required
+                data-autofocus
                 {...resetForm.getInputProps("password")}
               />
             )}
-            <Group justify="flex-end">
+            <Group justify="flex-end" gap="xs">
               <Button variant="default" onClick={() => setResetTarget(null)}>
                 {t("common.cancel")}
               </Button>
@@ -274,9 +274,11 @@ function MembersAndRolesPage(): ReactNode {
       <Modal
         opened={Boolean(handoverTarget)}
         onClose={() => setHandoverTarget(null)}
+        closeOnClickOutside={false}
         title={t("members.handover_title", { name: handoverTarget?.name ?? "" })}
       >
         <form
+          noValidate
           onSubmit={handoverForm.onSubmit((v) => {
             if (!handoverTarget) return
             handover.mutate({ id: handoverTarget.id, ...v })
@@ -292,6 +294,7 @@ function MembersAndRolesPage(): ReactNode {
               placeholder={t("members.handover_target_member_placeholder")}
               searchable
               clearable
+              data-autofocus
               data={allMembers
                 .filter((m) => m.id !== handoverTarget?.id)
                 .map((m) => ({ value: m.id, label: m.name }))}
@@ -317,7 +320,7 @@ function MembersAndRolesPage(): ReactNode {
                 onChange={(e) => handoverForm.setFieldValue("remove_after", e.currentTarget.checked)}
               />
             )}
-            <Group justify="flex-end">
+            <Group justify="flex-end" gap="xs">
               <Button variant="default" onClick={() => setHandoverTarget(null)}>
                 {t("common.cancel")}
               </Button>

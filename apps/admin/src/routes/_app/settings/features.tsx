@@ -1,5 +1,6 @@
 import {
   ActionIcon,
+  Alert,
   Badge,
   Button,
   Card,
@@ -15,7 +16,8 @@ import {
 import { IconTrash } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { notifyError, notifySuccess, Page, ResourceSelect, useT } from "@go-tenon/ui"
+import { describeError } from "@go-tenon/client"
+import { errorMessage, notifyError, notifySuccess, Page, ResourceSelect, TableCard, useT } from "@go-tenon/ui"
 import type { FlagsFlagDTO, FlagsMode } from "@agents-desk/client/admin"
 import { useState } from "react"
 import { api } from "../../../api"
@@ -23,7 +25,7 @@ import { tenants } from "../../../resources"
 
 // 功能开关管理：配置每个开关的全员规则（跟随默认、全员开启、全员关闭、按比例放量）与按工作区的单独覆盖。
 export const Route = createFileRoute("/_app/settings/features")({
-  staticData: { title: "nav.features", icon: "plugin", order: 3, permission: "features:manage" },
+  staticData: { title: "nav.features", icon: "plugin", order: 5, permission: "features:manage" },
   component: FeatureFlagsPage,
 })
 
@@ -37,6 +39,11 @@ function FeatureFlagsPage() {
     <Page title={t("nav.features")} description={t("features.description")}>
       <Stack gap="md">
         {list.isPending && <Loader size="sm" />}
+        {list.isError && (
+          <Alert color="red" variant="light">
+            {errorMessage(describeError(list.error))}
+          </Alert>
+        )}
         {(list.data?.items ?? []).map((flag) => (
           <FlagCard key={flag.name} flag={flag} />
         ))}
@@ -122,12 +129,11 @@ function FlagCard({ flag }: { flag: FlagsFlagDTO }) {
               {flag.description}
             </Text>
           </Stack>
-          <Group gap="xs" align="center">
+          <Group gap="xs" align="center" wrap="wrap">
             <Text size="xs" c="dimmed">
               {t("features.everyone_label")}
             </Text>
             <SegmentedControl
-              size="xs"
               disabled={busy}
               value={currentGlobal}
               onChange={onGlobalChange}
@@ -144,7 +150,7 @@ function FlagCard({ flag }: { flag: FlagsFlagDTO }) {
         </Group>
 
         {currentGlobal === "percent" && (
-          <Group gap="sm" align="flex-end">
+          <Group gap="sm" align="flex-end" wrap="wrap">
             <NumberInput
               label={t("features.percent_label")}
               min={0}
@@ -152,10 +158,8 @@ function FlagCard({ flag }: { flag: FlagsFlagDTO }) {
               value={percent}
               onChange={(v) => setPercent(typeof v === "number" ? v : 0)}
               w={160}
-              size="xs"
             />
             <Button
-              size="xs"
               variant="default"
               loading={busy}
               onClick={() => setRule.mutate({ scope: "everyone", mode: "percent", percent })}
@@ -171,7 +175,7 @@ function FlagCard({ flag }: { flag: FlagsFlagDTO }) {
           <Text size="xs" fw={600} c="dimmed">
             {t("features.overrides_title")}
           </Text>
-          <Group gap="sm" align="flex-end">
+          <Group gap="sm" align="flex-end" wrap="wrap">
             <ResourceSelect
               model={tenants}
               placeholder={t("features.select_tenant")}
@@ -179,11 +183,9 @@ function FlagCard({ flag }: { flag: FlagsFlagDTO }) {
               getOption={(row) => ({ value: String(row.id), label: `${String(row.name ?? "")} (${String(row.slug ?? "")})` })}
               value={tenantID}
               onChange={setTenantID}
-              size="xs"
-              style={{ flex: 1, maxWidth: 320 }}
+              style={{ flex: 1, minWidth: 220, maxWidth: 320 }}
             />
             <SegmentedControl
-              size="xs"
               value={overrideMode}
               onChange={(v) => setOverrideMode(v as "on" | "off")}
               data={[
@@ -191,7 +193,7 @@ function FlagCard({ flag }: { flag: FlagsFlagDTO }) {
                 { value: "off", label: t("features.override_off") },
               ]}
             />
-            <Button size="xs" disabled={!tenantID} loading={busy} onClick={onAddOverride}>
+            <Button disabled={!tenantID} loading={busy} onClick={onAddOverride}>
               {t("features.add_override")}
             </Button>
           </Group>
@@ -201,37 +203,39 @@ function FlagCard({ flag }: { flag: FlagsFlagDTO }) {
               {t("features.no_overrides")}
             </Text>
           ) : (
-            <Table verticalSpacing="xs">
-              <Table.Tbody>
-                {flag.overrides.map((o) => (
-                  <Table.Tr key={o.tenant_id}>
-                    <Table.Td>
-                      <Text size="sm">
-                        {o.tenant_name || o.tenant_id}
-                        {o.tenant_slug ? ` (${o.tenant_slug})` : ""}
-                      </Text>
-                    </Table.Td>
-                    <Table.Td w={100}>
-                      <Badge variant="light" color={o.mode === "on" ? "green" : "red"} size="xs">
-                        {t(o.mode === "on" ? "features.override_on" : "features.override_off")}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td align="right" w={60}>
-                      <ActionIcon
-                        variant="subtle"
-                        color="red"
-                        size="sm"
-                        aria-label={t("features.remove_override")}
-                        disabled={busy}
-                        onClick={() => clearRule.mutate({ scope: "tenant", tenant_id: o.tenant_id })}
-                      >
-                        <IconTrash size={14} />
-                      </ActionIcon>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
+            <TableCard minWidth={420}>
+              <Table verticalSpacing="xs">
+                <Table.Tbody>
+                  {flag.overrides.map((o) => (
+                    <Table.Tr key={o.tenant_id}>
+                      <Table.Td>
+                        <Text size="sm">
+                          {o.tenant_name || o.tenant_id}
+                          {o.tenant_slug ? ` (${o.tenant_slug})` : ""}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td w={100}>
+                        <Badge variant="light" color={o.mode === "on" ? "green" : "red"} size="xs">
+                          {t(o.mode === "on" ? "features.override_on" : "features.override_off")}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td align="right" w={60}>
+                        <ActionIcon
+                          variant="subtle"
+                          color="red"
+                          size="sm"
+                          aria-label={t("features.remove_override")}
+                          disabled={busy}
+                          onClick={() => clearRule.mutate({ scope: "tenant", tenant_id: o.tenant_id })}
+                        >
+                          <IconTrash size={14} />
+                        </ActionIcon>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </TableCard>
           )}
         </Stack>
       </Stack>

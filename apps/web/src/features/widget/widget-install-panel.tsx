@@ -1,17 +1,17 @@
-import { ActionIcon, Box, Button, Code, CopyButton, Group, PasswordInput, Stack, Table, Tabs, Text, TextInput, Title, Tooltip } from "@mantine/core"
+import { ActionIcon, Box, Button, Code, CopyButton, Group, PasswordInput, Skeleton, Stack, Table, Tabs, Text, TextInput, Tooltip } from "@mantine/core"
 import { IconCheck, IconCopy } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { confirm, notifyError, notifySuccess, useT } from "@go-tenon/ui"
+import { confirm, FormSection, notifyError, notifySuccess, TableCard, useT } from "@go-tenon/ui"
 import type { ReactNode } from "react"
 import { tenantApi } from "../../api"
 
-/** Copy 是复制 value 的小按钮，复制后短暂显示对勾；alignInput 时与 sm 输入框等高对齐。 */
+/** Copy 复制 value 并在按钮上短暂显示对勾；alignInput 时与 sm 输入框等高对齐。 */
 function Copy({ value, alignInput = false }: { value: string; alignInput?: boolean }): ReactNode {
   const t = useT()
   return (
     <CopyButton value={value} timeout={1500}>
       {({ copied, copy }) => (
-        <Tooltip label={t(copied ? "widget_install.copied" : "widget_install.copy")} withArrow>
+        <Tooltip label={t(copied ? "widget_install.copied" : "widget_install.copy")}>
           <ActionIcon
             variant="subtle"
             size={alignInput ? "input-sm" : undefined}
@@ -84,11 +84,7 @@ const bridgeMessages = [
 function AppSetup({ appURL }: { appURL: string }): ReactNode {
   const t = useT()
   return (
-    <Stack gap="xs">
-      <Title order={4}>{t("widget_install.app")}</Title>
-      <Text size="sm" c="dimmed">
-        {t("widget_install.app_hint")}
-      </Text>
+    <FormSection title={t("widget_install.app")} description={t("widget_install.app_hint")}>
       <Group align="flex-end" gap="xs">
         <TextInput label={t("widget_install.app_url")} value={appURL} readOnly style={{ flex: 1 }} />
         <Copy value={appURL} alignInput />
@@ -103,7 +99,9 @@ function AppSetup({ appURL }: { appURL: string }): ReactNode {
             <Box pos="absolute" top={8} right={8} style={{ zIndex: 1 }}>
               <Copy value={iosExample(appURL)} />
             </Box>
-            <Code block>{iosExample(appURL)}</Code>
+            <Code block pr={44}>
+              {iosExample(appURL)}
+            </Code>
           </Box>
         </Tabs.Panel>
         <Tabs.Panel value="android" pt="xs">
@@ -111,29 +109,33 @@ function AppSetup({ appURL }: { appURL: string }): ReactNode {
             <Box pos="absolute" top={8} right={8} style={{ zIndex: 1 }}>
               <Copy value={androidExample(appURL)} />
             </Box>
-            <Code block>{androidExample(appURL)}</Code>
+            <Code block pr={44}>
+              {androidExample(appURL)}
+            </Code>
           </Box>
         </Tabs.Panel>
       </Tabs>
-      <Table withTableBorder>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>{t("widget_install.app_msg")}</Table.Th>
-            <Table.Th>{t("widget_install.app_msg_when")}</Table.Th>
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {bridgeMessages.map((m) => (
-            <Table.Tr key={m.type}>
-              <Table.Td>
-                <Code>{m.type}</Code>
-              </Table.Td>
-              <Table.Td>{t(m.when)}</Table.Td>
+      <TableCard minWidth={480}>
+        <Table verticalSpacing="xs" horizontalSpacing="sm">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>{t("widget_install.app_msg")}</Table.Th>
+              <Table.Th>{t("widget_install.app_msg_when")}</Table.Th>
             </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
-    </Stack>
+          </Table.Thead>
+          <Table.Tbody>
+            {bridgeMessages.map((m) => (
+              <Table.Tr key={m.type}>
+                <Table.Td>
+                  <Code>{m.type}</Code>
+                </Table.Td>
+                <Table.Td>{t(m.when)}</Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      </TableCard>
+    </FormSection>
   )
 }
 
@@ -163,26 +165,29 @@ export function WidgetInstallPanel({ id }: { id: string }): ReactNode {
     }
   }
 
-  return (
-    <Stack gap="xl">
-      <Stack gap="xs">
-        <Group justify="space-between">
-          <Title order={4}>{t("widget_install.embed")}</Title>
-          {install.data && <Copy value={install.data.embed_code} />}
-        </Group>
-        <Text size="sm" c="dimmed">
-          {t("widget_install.embed_hint")}
-        </Text>
-        <Code block>{install.data?.embed_code ?? ""}</Code>
+  if (install.isPending) {
+    return (
+      <Stack gap="md">
+        <Skeleton height={160} radius="md" />
+        <Skeleton height={240} radius="md" />
+        <Skeleton height={200} radius="md" />
       </Stack>
+    )
+  }
+
+  return (
+    <Stack gap="md">
+      <FormSection
+        title={t("widget_install.embed")}
+        description={t("widget_install.embed_hint")}
+        actions={install.data && <Copy value={install.data.embed_code} />}
+      >
+        <Code block>{install.data?.embed_code ?? ""}</Code>
+      </FormSection>
 
       {install.data && <AppSetup appURL={install.data.app_url} />}
 
-      <Stack gap="xs">
-        <Title order={4}>{t("widget_install.identity")}</Title>
-        <Text size="sm" c="dimmed">
-          {t("widget_install.identity_hint")}
-        </Text>
+      <FormSection title={t("widget_install.identity")} description={t("widget_install.identity_hint")}>
         <Group align="flex-end" gap="xs">
           <PasswordInput label={t("widget_install.secret")} value={install.data?.identity_secret ?? ""} readOnly style={{ flex: 1 }} />
           {install.data && <Copy value={install.data.identity_secret} alignInput />}
@@ -193,7 +198,7 @@ export function WidgetInstallPanel({ id }: { id: string }): ReactNode {
             {t("widget_install.rotate")}
           </Button>
         </Group>
-      </Stack>
+      </FormSection>
     </Stack>
   )
 }

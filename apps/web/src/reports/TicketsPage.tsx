@@ -7,6 +7,8 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link, useNavigate, useParams } from "@tanstack/react-router"
 import {
   LoadingStage,
+  type MetricItem,
+  MetricStrip,
   type PeriodRoute,
   useCan,
   useFormatDuration,
@@ -19,7 +21,6 @@ import { type ReactNode, useCallback } from "react"
 import { kit } from "../api"
 import { InlineShareBar, REPORT_AREA_PROPS } from "./Breakdown"
 import { formatInt, pctDelta } from "./format"
-import { type MetricItem, MetricStrip } from "./MetricStrip"
 import { GranularityControl } from "./PeriodButton"
 import { ReportShell } from "./ReportShell"
 import type { TicketsReportSearchParams } from "./search"
@@ -194,9 +195,9 @@ export function TicketsPage({ route }: { route: PeriodRoute }): ReactNode {
     },
   ]
 
-  const maxType = Math.max(1, ...(data?.by_type ?? []).map((x) => Math.max(x.created, x.open_now)))
+  const maxType = Math.max(1, ...(data?.by_type ?? []).map((x) => x.created))
   const maxTeam = Math.max(1, ...(data?.by_team ?? []).map((x) => x.created))
-  const maxAssignee = Math.max(1, ...(data?.by_assignee ?? []).map((x) => Math.max(x.resolved, x.open_now)))
+  const maxAssignee = Math.max(1, ...(data?.by_assignee ?? []).map((x) => x.resolved))
 
   return (
     <ReportShell
@@ -239,7 +240,7 @@ export function TicketsPage({ route }: { route: PeriodRoute }): ReactNode {
               )
             }
             return (
-              <Tooltip key={item.key} label={t("reports.drill_tickets")} openDelay={250} withArrow>
+              <Tooltip key={item.key} label={t("reports.drill_tickets")} openDelay={250}>
                 <Link
                   to="/$slug/inbox/tickets"
                   params={{ slug }}
@@ -301,46 +302,65 @@ export function TicketsPage({ route }: { route: PeriodRoute }): ReactNode {
           minHeight={180}
           flush
         >
-          <table className="rp-table">
-            <thead>
-              <tr>
-                <th>{t("reports.col_ticket_type")}</th>
-                <th data-align="right">{t("reports.ticket_created")}</th>
-                <th data-align="right">{t("reports.ticket_resolved")}</th>
-                <th data-align="right">{t("reports.col_open_now")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(data?.by_type ?? []).map((row) => (
-                <tr
-                  key={row.id ?? "__general__"}
-                  className="rp-row"
-                  data-clickable={row.id ? "" : undefined}
-                  data-selected={row.id && typeId === row.id ? "" : undefined}
-                  onClick={() => row.id && patchSearch({ type_id: typeId === row.id ? undefined : row.id })}
-                >
-                  <td>
-                    <Group gap={6} wrap="nowrap">
-                      <Text size="sm" fw={500} c={row.id ? undefined : "dimmed"}>
-                        {row.id ? row.name : t("reports.ticket_type_general")}
-                      </Text>
-                      {row.disabled && (
-                        <Badge size="xs" variant="light" color="gray">
-                          {t("common.disabled")}
-                        </Badge>
-                      )}
-                    </Group>
-                  </td>
-                  <td data-align="right">
-                    <div>{formatInt(row.created, uiLang)}</div>
-                    <InlineShareBar ratio={(row.created / maxType) * 100} />
-                  </td>
-                  <td data-align="right">{formatInt(row.resolved, uiLang)}</td>
-                  <td data-align="right">{formatInt(row.open_now, uiLang)}</td>
+          <div className="rp-table-scroll">
+            <table className="rp-table">
+              <thead>
+                <tr>
+                  <th>{t("reports.col_ticket_type")}</th>
+                  <th data-align="right">{t("reports.ticket_created")}</th>
+                  <th data-align="right">{t("reports.ticket_resolved")}</th>
+                  <th data-align="right">{t("reports.col_open_now")}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(data?.by_type ?? []).map((row) => {
+                  const clickable = Boolean(row.id)
+                  const selected = Boolean(row.id && typeId === row.id)
+                  return (
+                    <tr
+                      key={row.id ?? "__general__"}
+                      className="rp-row"
+                      data-clickable={clickable ? "" : undefined}
+                      data-selected={selected ? "" : undefined}
+                      tabIndex={clickable ? 0 : undefined}
+                      aria-selected={clickable ? selected : undefined}
+                      onClick={clickable ? () => patchSearch({ type_id: typeId === row.id ? undefined : row.id }) : undefined}
+                      onKeyDown={
+                        clickable
+                          ? (e) => {
+                              if (e.target !== e.currentTarget) return
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault()
+                                patchSearch({ type_id: typeId === row.id ? undefined : row.id })
+                              }
+                            }
+                          : undefined
+                      }
+                    >
+                      <td>
+                        <Group gap={6} wrap="nowrap">
+                          <Text size="sm" fw={500} c={row.id ? undefined : "dimmed"}>
+                            {row.id ? row.name : t("reports.ticket_type_general")}
+                          </Text>
+                          {row.disabled && (
+                            <Badge size="xs" variant="light" color="gray">
+                              {t("common.disabled")}
+                            </Badge>
+                          )}
+                        </Group>
+                      </td>
+                      <td data-align="right">
+                        <div>{formatInt(row.created, uiLang)}</div>
+                        <InlineShareBar ratio={(row.created / maxType) * 100} />
+                      </td>
+                      <td data-align="right">{formatInt(row.resolved, uiLang)}</td>
+                      <td data-align="right">{formatInt(row.open_now, uiLang)}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </SectionCard>
 
         <SectionCard
@@ -350,44 +370,63 @@ export function TicketsPage({ route }: { route: PeriodRoute }): ReactNode {
           minHeight={180}
           flush
         >
-          <table className="rp-table">
-            <thead>
-              <tr>
-                <th>{t("reports.col_team")}</th>
-                <th data-align="right">{t("reports.ticket_created")}</th>
-                <th data-align="right">{t("reports.ticket_resolved")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(data?.by_team ?? []).map((row) => (
-                <tr
-                  key={row.id ?? "__none__"}
-                  className="rp-row"
-                  data-clickable={row.id ? "" : undefined}
-                  data-selected={row.id && teamId === row.id ? "" : undefined}
-                  onClick={() => row.id && patchSearch({ team_id: teamId === row.id ? undefined : row.id })}
-                >
-                  <td>
-                    <Group gap={6} wrap="nowrap">
-                      <Text size="sm" fw={500} c={row.id ? undefined : "dimmed"}>
-                        {row.id ? row.name : t("reports.team_unassigned")}
-                      </Text>
-                      {row.disabled && (
-                        <Badge size="xs" variant="light" color="gray">
-                          {t("common.disabled")}
-                        </Badge>
-                      )}
-                    </Group>
-                  </td>
-                  <td data-align="right">
-                    <div>{formatInt(row.created, uiLang)}</div>
-                    <InlineShareBar ratio={(row.created / maxTeam) * 100} />
-                  </td>
-                  <td data-align="right">{formatInt(row.closed, uiLang)}</td>
+          <div className="rp-table-scroll">
+            <table className="rp-table">
+              <thead>
+                <tr>
+                  <th>{t("reports.col_team")}</th>
+                  <th data-align="right">{t("reports.ticket_created")}</th>
+                  <th data-align="right">{t("reports.ticket_resolved")}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(data?.by_team ?? []).map((row) => {
+                  const clickable = Boolean(row.id)
+                  const selected = Boolean(row.id && teamId === row.id)
+                  return (
+                    <tr
+                      key={row.id ?? "__none__"}
+                      className="rp-row"
+                      data-clickable={clickable ? "" : undefined}
+                      data-selected={selected ? "" : undefined}
+                      tabIndex={clickable ? 0 : undefined}
+                      aria-selected={clickable ? selected : undefined}
+                      onClick={clickable ? () => patchSearch({ team_id: teamId === row.id ? undefined : row.id }) : undefined}
+                      onKeyDown={
+                        clickable
+                          ? (e) => {
+                              if (e.target !== e.currentTarget) return
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault()
+                                patchSearch({ team_id: teamId === row.id ? undefined : row.id })
+                              }
+                            }
+                          : undefined
+                      }
+                    >
+                      <td>
+                        <Group gap={6} wrap="nowrap">
+                          <Text size="sm" fw={500} c={row.id ? undefined : "dimmed"}>
+                            {row.id ? row.name : t("reports.team_unassigned")}
+                          </Text>
+                          {row.disabled && (
+                            <Badge size="xs" variant="light" color="gray">
+                              {t("common.disabled")}
+                            </Badge>
+                          )}
+                        </Group>
+                      </td>
+                      <td data-align="right">
+                        <div>{formatInt(row.created, uiLang)}</div>
+                        <InlineShareBar ratio={(row.created / maxTeam) * 100} />
+                      </td>
+                      <td data-align="right">{formatInt(row.closed, uiLang)}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </SectionCard>
 
         <SectionCard
@@ -397,43 +436,43 @@ export function TicketsPage({ route }: { route: PeriodRoute }): ReactNode {
           minHeight={180}
           flush
         >
-          <table className="rp-table">
-            <thead>
-              <tr>
-                <th>{t("reports.col_assignee")}</th>
-                <th data-align="right">{t("reports.ticket_resolved")}</th>
-                <th data-align="right">{t("reports.col_open_now")}</th>
-                <th data-align="right">{t("reports.col_res_median")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(data?.by_assignee ?? []).map((row) => (
-                <tr key={row.member_id} className="rp-row">
-                  <td>
-                    <Group gap="xs" wrap="nowrap">
-                      <Avatar src={row.avatar_url || undefined} size="xs" radius="xl" color="brand">
-                        {(row.name || "?").slice(0, 1).toUpperCase()}
-                      </Avatar>
-                      <Text size="sm" fw={500} truncate>
-                        {row.name || row.member_id}
-                      </Text>
-                      {row.removed && (
-                        <Badge size="xs" variant="light" color="gray">
-                          {t("reports.member_removed")}
-                        </Badge>
-                      )}
-                    </Group>
-                  </td>
-                  <td data-align="right">
-                    <div>{formatInt(row.resolved, uiLang)}</div>
-                    <InlineShareBar ratio={(row.resolved / maxAssignee) * 100} />
-                  </td>
-                  <td data-align="right">{formatInt(row.open_now, uiLang)}</td>
-                  <td data-align="right">{formatDuration(row.resolution_median_seconds)}</td>
+          <div className="rp-table-scroll">
+            <table className="rp-table">
+              <thead>
+                <tr>
+                  <th>{t("reports.col_assignee")}</th>
+                  <th data-align="right">{t("reports.ticket_resolved")}</th>
+                  <th data-align="right">{t("reports.col_open_now")}</th>
+                  <th data-align="right">{t("reports.col_res_median")}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(data?.by_assignee ?? []).map((row) => (
+                  <tr key={row.member_id} className="rp-row">
+                    <td>
+                      <Group gap="xs" wrap="nowrap">
+                        <Avatar src={row.avatar_url || undefined} size="sm" radius="xl" name={row.name || row.member_id} color="initials" />
+                        <Text size="sm" fw={500} truncate>
+                          {row.name || row.member_id}
+                        </Text>
+                        {row.removed && (
+                          <Badge size="xs" variant="light" color="gray">
+                            {t("reports.member_removed")}
+                          </Badge>
+                        )}
+                      </Group>
+                    </td>
+                    <td data-align="right">
+                      <div>{formatInt(row.resolved, uiLang)}</div>
+                      <InlineShareBar ratio={(row.resolved / maxAssignee) * 100} />
+                    </td>
+                    <td data-align="right">{formatInt(row.open_now, uiLang)}</td>
+                    <td data-align="right">{formatDuration(row.resolution_median_seconds)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </SectionCard>
 
         <SectionCard

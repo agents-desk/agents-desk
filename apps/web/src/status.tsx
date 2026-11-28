@@ -1,11 +1,10 @@
-import { Badge, Checkbox, Group, SegmentedControl, Skeleton, Stack, Tooltip } from "@mantine/core"
+import { Checkbox, Group, SegmentedControl, Skeleton, Stack, Tooltip } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useParams } from "@tanstack/react-router"
-import { notifyError, useLanguage, useT } from "@go-tenon/ui"
+import { notifyError, StatusDot, useLanguage, useT } from "@go-tenon/ui"
 import type { MemberStatus, MemberStatusSetting } from "@agents-desk/client/tenant"
 import type { ReactNode } from "react"
 import { kit, tenantApi } from "./api"
-import { StatusMark } from "./components/status-mark"
 
 const statuses: MemberStatus[] = ["online", "away"]
 
@@ -15,11 +14,7 @@ export const memberStatusColor: Record<MemberStatus, string> = { online: "green"
 /** StatusBadge 显示一位成员的在线状态，成员页和团队收件箱的成员表格用它。 */
 export function StatusBadge({ status }: { status: MemberStatus }): ReactNode {
   useLanguage() // 枚举的显示文字按当前语言，切换语言时重新渲染
-  return (
-    <Badge variant="dot" color={memberStatusColor[status]}>
-      {kit.label("MemberStatus", status)}
-    </Badge>
-  )
+  return <StatusDot color={memberStatusColor[status]}>{kit.label("MemberStatus", status)}</StatusDot>
 }
 
 /** StatusLabel 是在线状态的文字，前面是一个小圆点：在线是 green，离开是 gray。 */
@@ -27,7 +22,7 @@ function StatusLabel({ status }: { status: MemberStatus }): ReactNode {
   useLanguage() // 枚举的显示文字按当前语言，切换语言时重新渲染
   return (
     <Group gap={6} wrap="nowrap" justify="center">
-      <StatusMark color={memberStatusColor[status]} />
+      <StatusDot color={memberStatusColor[status]} />
       {kit.label("MemberStatus", status)}
     </Group>
   )
@@ -56,7 +51,7 @@ export function StatusControl(): ReactNode {
   if (!value) return <Skeleton h={30} radius="md" />
   return (
     <Stack gap="xs">
-      <Tooltip label={t("status.description")} multiline w={220} withArrow openDelay={300}>
+      <Tooltip label={t("status.description")} multiline w={220} openDelay={300}>
         <SegmentedControl
           fullWidth
           size="xs"

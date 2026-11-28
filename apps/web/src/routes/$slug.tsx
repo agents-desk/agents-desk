@@ -135,15 +135,6 @@ function TenantLayout() {
   const waitingOnMe = inbox.data && chatUnread.data ? inbox.data.mine.waiting + chatUnread.data.unread_chats : undefined
   useMenuBadge("/$slug/inbox", waitingOnMe)
 
-  // 浏览器标签页标题同步显示等待自己处理的待办数量
-  useEffect(() => {
-    if (typeof document === "undefined") return
-    document.title = waitingOnMe && waitingOnMe > 0 ? `(${waitingOnMe}) ${tenant.name}` : tenant.name
-    return () => {
-      document.title = tenant.name
-    }
-  }, [waitingOnMe, tenant.name])
-
   const realtimeState = useRealtimeState(centrifuge)
   const showRealtimeBanner =
     realtimeState.offline || (Boolean(user.data?.id) && realtimeState.everConnected && realtimeState.status !== "connected")
@@ -236,6 +227,7 @@ function TenantLayout() {
         <RailLayout
           title={tenant.name}
           documentTitle={false}
+          titleBadge={waitingOnMe}
           logo={<WorkspaceSwitcher tenant={tenant} impersonation={Boolean(impersonation)} />}
           settings={settings}
           navWidth={200}

@@ -2,7 +2,8 @@ import { Alert, Anchor, Avatar, Badge, Card, Center, Group, Loader, SimpleGrid, 
 import { IconAlertTriangle } from "@tabler/icons-react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { AnchorLink, Page, StatCard, useFormatDateTime, useT, useTimeZone } from "@go-tenon/ui"
+import { describeError } from "@go-tenon/client"
+import { AnchorLink, errorMessage, Page, StatCard, TableCard, useCan, useFormatDateTime, useT, useTimeZone } from "@go-tenon/ui"
 import type { AuditItem, PlatformoverviewOverview, PlatformoverviewRecentTenant } from "@agents-desk/client/admin"
 import type { ReactNode } from "react"
 import { kit } from "../../api"
@@ -32,8 +33,8 @@ function OverviewPage(): ReactNode {
       data.admins != null ||
       data.usage != null ||
       data.queue != null ||
-      (data.recent_tenants?.length ?? 0) > 0 ||
-      (data.recent_audits?.length ?? 0) > 0)
+      data.recent_tenants != null ||
+      data.recent_audits != null)
 
   return (
     <Page title={t("nav.overview")} breadcrumbs={false} description={t("overview.description", { tz: zone })}>
@@ -43,7 +44,7 @@ function OverviewPage(): ReactNode {
         </Center>
       ) : overview.error ? (
         <Alert color="red" variant="light" title={t("overview.load_failed")}>
-          {String(overview.error instanceof Error ? overview.error.message : overview.error)}
+          {errorMessage(describeError(overview.error))}
         </Alert>
       ) : !hasAnySection ? (
         <Card withBorder padding="lg">
@@ -79,16 +80,17 @@ function OverviewPage(): ReactNode {
   )
 }
 
-// InventoryGrid 展示工作区、打开中会话、工作区成员与平台管理员的资源卡片。
+// InventoryGrid 使用框架 StatCard 展示工作区、打开中会话、工作区成员与平台管理员的资源卡片。
 function InventoryGrid({ data }: { data: PlatformoverviewOverview }): ReactNode {
   const t = useT()
+  const can = useCan()
   const cards: {
     key: string
     label: string
     value: string
     hint?: string
     badge?: { text: string; color: string }
-    to?: "/tenants" | "/admins"
+    to?: "/tenants" | "/members" | "/admins"
   }[] = []
 
   if (data.tenants != null) {
@@ -122,6 +124,7 @@ function InventoryGrid({ data }: { data: PlatformoverviewOverview }): ReactNode 
       label: t("overview.members_label"),
       value: integer.format(data.usage.members_total),
       hint: t("overview.members_hint", { contacts: integer.format(data.usage.contacts_total) }),
+      to: can("tenants:manage") ? "/members" : undefined,
     })
   }
   if (data.admins != null) {
@@ -141,34 +144,34 @@ function InventoryGrid({ data }: { data: PlatformoverviewOverview }): ReactNode 
 
   return (
     <SimpleGrid cols={{ base: 1, sm: 2, lg: Math.min(cards.length, 4) }} spacing="md">
-      {cards.map((c) => (
-        <Card key={c.key} withBorder padding="md">
-          <Group justify="space-between" align="center">
-            {c.to ? (
-              <AnchorLink to={c.to} size="xs" c="dimmed">
-                {c.label}
-              </AnchorLink>
-            ) : (
-              <Text size="xs" c="dimmed">
-                {c.label}
-              </Text>
-            )}
-            {c.badge && (
-              <Badge size="xs" color={c.badge.color} variant="light">
-                {c.badge.text}
-              </Badge>
-            )}
-          </Group>
-          <Text size="xl" fw={600} mt={4}>
-            {c.value}
-          </Text>
-          {c.hint && (
-            <Text size="xs" c="dimmed" mt={2}>
-              {c.hint}
-            </Text>
-          )}
-        </Card>
-      ))}
+      {cards.map((c) => {
+        const title = c.to ? (
+          <AnchorLink to={c.to} size="xs" c="dimmed">
+            {c.label}
+          </AnchorLink>
+        ) : (
+          c.label
+        )
+        return (
+          <StatCard
+            key={c.key}
+            label={
+              c.badge ? (
+                <Group justify="space-between" gap="xs" wrap="nowrap" w="100%">
+                  {title}
+                  <Badge size="xs" color={c.badge.color} variant="light">
+                    {c.badge.text}
+                  </Badge>
+                </Group>
+              ) : (
+                title
+              )
+            }
+            value={c.value}
+            secondary={c.hint}
+          />
+        )
+      })}
     </SimpleGrid>
   )
 }
@@ -263,46 +266,48 @@ function RecentTenantsCard({ items }: { items: PlatformoverviewRecentTenant[] })
           {t("overview.recent_tenants_empty")}
         </Text>
       ) : (
-        <Table verticalSpacing="xs">
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>{t("overview.col_workspace")}</Table.Th>
-              <Table.Th>{t("overview.col_status")}</Table.Th>
-              <Table.Th ta="right">{t("overview.col_created")}</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {items.map((tn) => (
-              <Table.Tr key={tn.id}>
-                <Table.Td>
-                  <Group gap="xs" wrap="nowrap">
-                    <Avatar src={tn.logo_url || null} size={24} radius="sm" color="brand">
-                      {tn.name.slice(0, 1)}
-                    </Avatar>
-                    <div>
-                      <Anchor href={tn.url} target="_blank" rel="noreferrer" size="sm" fw={500}>
-                        {tn.name}
-                      </Anchor>
-                      <Text size="xs" c="dimmed">
-                        /app/{tn.slug}/
-                      </Text>
-                    </div>
-                  </Group>
-                </Table.Td>
-                <Table.Td>
-                  <Badge variant="light" size="xs" color={tn.status === "active" ? "green" : "gray"}>
-                    {t(tn.status === "active" ? "overview.status_active" : "overview.status_disabled")}
-                  </Badge>
-                </Table.Td>
-                <Table.Td ta="right">
-                  <Text size="xs" c="dimmed" style={{ whiteSpace: "nowrap" }}>
-                    {formatDateTime(tn.created_at)}
-                  </Text>
-                </Table.Td>
+        <TableCard minWidth={420}>
+          <Table verticalSpacing="xs">
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>{t("overview.col_workspace")}</Table.Th>
+                <Table.Th>{t("overview.col_status")}</Table.Th>
+                <Table.Th ta="right">{t("overview.col_created")}</Table.Th>
               </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
+            </Table.Thead>
+            <Table.Tbody>
+              {items.map((tn) => (
+                <Table.Tr key={tn.id}>
+                  <Table.Td>
+                    <Group gap="xs" wrap="nowrap">
+                      <Avatar src={tn.logo_url || null} size={24} radius="sm" color="brand">
+                        {tn.name.slice(0, 1)}
+                      </Avatar>
+                      <div>
+                        <Anchor href={tn.url} target="_blank" rel="noreferrer" size="sm" fw={500}>
+                          {tn.name}
+                        </Anchor>
+                        <Text size="xs" c="dimmed">
+                          /app/{tn.slug}/
+                        </Text>
+                      </div>
+                    </Group>
+                  </Table.Td>
+                  <Table.Td>
+                    <Badge variant="light" size="xs" color={tn.status === "active" ? "green" : "gray"}>
+                      {t(tn.status === "active" ? "overview.status_active" : "overview.status_disabled")}
+                    </Badge>
+                  </Table.Td>
+                  <Table.Td ta="right">
+                    <Text size="xs" c="dimmed" style={{ whiteSpace: "nowrap" }}>
+                      {formatDateTime(tn.created_at)}
+                    </Text>
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        </TableCard>
       )}
     </Card>
   )

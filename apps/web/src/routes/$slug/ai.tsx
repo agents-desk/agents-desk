@@ -138,7 +138,7 @@ function AiHubPage(): ReactNode {
                         <ThemeIcon size={36} radius="md" variant="light" color={item.color}>
                           {item.icon}
                         </ThemeIcon>
-                        <Badge size="xs" variant="light" color="yellow">
+                        <Badge size="xs" variant="light" color="brand">
                           {t("ai_placeholder.coming_soon")}
                         </Badge>
                       </Group>
@@ -227,7 +227,7 @@ function PlaceholderGrid({ items }: { items: { icon: ReactNode; title: string; d
               <ThemeIcon size={34} radius="md" variant="light" color="brand">
                 {it.icon}
               </ThemeIcon>
-              <Badge size="xs" variant="light" color="gray">
+              <Badge size="xs" variant="light" color="brand">
                 {t("ai_placeholder.coming_soon")}
               </Badge>
             </Group>

@@ -1,9 +1,22 @@
-import { ActionIcon, Button, Group, Paper, Stack, Table, Text, TextInput, Tooltip } from "@mantine/core"
+import { Button, Group, SimpleGrid, Stack, Text, TextInput } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { IconPlus, IconTrash } from "@tabler/icons-react"
-import { applyServerErrors, confirm, FormError, notifyError, notifySuccess, Page, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
+import {
+  applyServerErrors,
+  confirm,
+  DataTable,
+  FormError,
+  FormSection,
+  notifyError,
+  notifySuccess,
+  Page,
+  RowActions,
+  useLanguage,
+  useT,
+  useTimeZone,
+} from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../../../../api"
 import { activity } from "../../../../inbox/format"
@@ -67,7 +80,7 @@ function BlockedIPsPage(): ReactNode {
   return (
     <Page title={t("nav.blocked_ips")} description={t("blocked_ips.description")}>
       <Stack gap="lg">
-        <Paper withBorder p="md" radius="md">
+        <FormSection title={t("blocked_ips.add")}>
           <form
             noValidate
             onSubmit={form.onSubmit((values) => {
@@ -77,23 +90,22 @@ function BlockedIPsPage(): ReactNode {
           >
             <Stack gap="sm">
               <FormError error={formError} />
-              <Group align="flex-start" gap="sm" wrap="wrap">
+              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
                 <TextInput
                   label={t("blocked_ips.cidr")}
                   description={t("blocked_ips.cidr_hint")}
+                  inputWrapperOrder={["label", "input", "description", "error"]}
                   placeholder={t("blocked_ips.cidr_placeholder")}
                   required
-                  style={{ flex: 1, minWidth: 220 }}
                   {...form.getInputProps("cidr")}
                 />
                 <TextInput
                   label={t("blocked_ips.reason")}
                   placeholder={t("blocked_ips.reason_placeholder")}
                   maxLength={500}
-                  style={{ flex: 1, minWidth: 220 }}
                   {...form.getInputProps("reason")}
                 />
-              </Group>
+              </SimpleGrid>
               <Group justify="flex-end">
                 <Button type="submit" leftSection={<IconPlus size={14} />} loading={create.isPending}>
                   {t("blocked_ips.add")}
@@ -101,62 +113,61 @@ function BlockedIPsPage(): ReactNode {
               </Group>
             </Stack>
           </form>
-        </Paper>
+        </FormSection>
 
-        {rows.length === 0 && !list.isPending ? (
-          <Paper withBorder p="lg" radius="md">
-            <Text size="sm" c="dimmed" ta="center">
-              {t("blocked_ips.empty")}
-            </Text>
-          </Paper>
-        ) : (
-          <Paper withBorder radius="md" style={{ overflow: "hidden" }}>
-            <Table verticalSpacing="sm" horizontalSpacing="md">
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>{t("blocked_ips.col_cidr")}</Table.Th>
-                  <Table.Th>{t("blocked_ips.col_reason")}</Table.Th>
-                  <Table.Th>{t("blocked_ips.col_created_at")}</Table.Th>
-                  <Table.Th w={60} />
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {rows.map((row) => (
-                  <Table.Tr key={row.id}>
-                    <Table.Td>
-                      <Text size="sm" fw={500} ff="monospace">
-                        {row.cidr}
-                      </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm" c={row.reason ? undefined : "dimmed"}>
-                        {row.reason || "—"}
-                      </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="xs" c="dimmed">
-                        {activity(row.created_at, ui, t, zone)}
-                      </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Tooltip label={t("blocked_ips.delete")}>
-                        <ActionIcon
-                          variant="subtle"
-                          color="red"
-                          loading={remove.isPending}
-                          aria-label={t("blocked_ips.delete")}
-                          onClick={() => void handleDelete(row.id, row.cidr)}
-                        >
-                          <IconTrash size={15} />
-                        </ActionIcon>
-                      </Tooltip>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </Paper>
-        )}
+        <DataTable
+          records={rows}
+          loading={list.isPending}
+          empty={t("blocked_ips.empty")}
+          columns={[
+            {
+              accessor: "cidr",
+              title: t("blocked_ips.col_cidr"),
+              render: (row) => (
+                <Text size="sm" fw={500} ff="monospace">
+                  {row.cidr}
+                </Text>
+              ),
+            },
+            {
+              accessor: "reason",
+              title: t("blocked_ips.col_reason"),
+              render: (row) => (
+                <Text size="sm" c={row.reason ? undefined : "dimmed"}>
+                  {row.reason || "—"}
+                </Text>
+              ),
+            },
+            {
+              accessor: "created_at",
+              title: t("blocked_ips.col_created_at"),
+              render: (row) => (
+                <Text size="xs" c="dimmed">
+                  {activity(row.created_at, ui, t, zone)}
+                </Text>
+              ),
+            },
+            {
+              accessor: "actions",
+              title: "",
+              textAlign: "right",
+              render: (row) => (
+                <RowActions
+                  loading={remove.isPending && remove.variables === row.id}
+                  actions={[
+                    {
+                      label: t("blocked_ips.delete"),
+                      icon: <IconTrash size={14} />,
+                      danger: true,
+                      loading: remove.isPending && remove.variables === row.id,
+                      onClick: () => void handleDelete(row.id, row.cidr),
+                    },
+                  ]}
+                />
+              ),
+            },
+          ]}
+        />
       </Stack>
     </Page>
   )

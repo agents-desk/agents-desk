@@ -33,7 +33,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { IconArrowBackUp, IconLayoutSidebarRight, IconLock, IconPaperclip, IconPencil, IconUsersGroup, IconX } from "@tabler/icons-react"
 import {
   AsidePane,
+  EmptyState,
   ImageLightbox,
+  InspectorSkeleton,
   notifyError,
   PaneHeader,
   TriggerMenu,
@@ -91,8 +93,7 @@ import { GroupDetails } from "./GroupDetails"
 import { PeerDetails } from "./PeerDetails"
 import { firstUnread, NewMessagesDivider, ScrollToBottomButton, useStickToBottom } from "../inbox/stick-to-bottom"
 import { clearDraft, type DraftMode, getDraft, saveDraft } from "../inbox/drafts"
-import { ConversationSkeleton, InspectorSkeleton, TimelineSkeleton } from "../components/detail-skeleton"
-import { EmptyState } from "../components/empty-state"
+import { ConversationSkeleton, TimelineSkeleton } from "../components/detail-skeleton"
 
 /**
  * ChatView 是单条聊天（内部单聊/群聊 或 商务沟通 1:1/外部群聊）的主对话区：
@@ -165,7 +166,14 @@ export function ChatView({
 
   // 还没有数据（直接打开链接或网络较慢）时显示与页面同样布局的骨架，详情栏保持原来的开合，数据到达后只替换内容
   if (!chat) {
-    if (chatQuery.isError) return <EmptyState fill title={t("chat.not_found")} />
+    if (chatQuery.isError) {
+      return (
+        <Box style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+          {narrow && <PaneHeader back={back} />}
+          <EmptyState fill title={t("chat.not_found")} />
+        </Box>
+      )
+    }
     return (
       <Group gap={0} h="100%" wrap="nowrap" align="stretch" style={{ flex: 1, minWidth: 0 }}>
         <ConversationSkeleton back={narrow ? back : undefined} />
@@ -175,7 +183,7 @@ export function ChatView({
           compactQuery={NARROW_QUERY}
           resizable={{ storageKey: "chat-details", defaultWidth: 320, min: 260, max: 420 }}
         >
-          <InspectorSkeleton onClose={details.close} />
+          <InspectorSkeleton onClose={details.close} closeLabel={t("inbox.close_details")} />
         </AsidePane>
       </Group>
     )
@@ -372,10 +380,10 @@ function ChatTimeline({
           {list.map((it, i) => {
             const prev = list[i - 1]
             const next = list[i + 1]
-            const showDay = i === 0 || !sameDay(prev.created_at, it.created_at)
+            const showDay = i === 0 || !sameDay(prev.created_at, it.created_at, zone)
             const showNew = it === firstNew
-            const groupedWithPrev = !showDay && !showNew && canGroupItems(prev, it, firstNew, bothMessages)
-            const groupedWithNext = Boolean(next) && canGroupItems(it, next, firstNew, bothMessages)
+            const groupedWithPrev = !showDay && !showNew && canGroupItems(prev, it, firstNew, bothMessages, zone)
+            const groupedWithNext = Boolean(next) && canGroupItems(it, next, firstNew, bothMessages, zone)
             const gapTop = i === 0 ? 0 : groupedWithPrev ? 4 : 16
             const isOwn = it.actor.type === "member" && it.actor.id === me.data?.id
             const mine = isExternal ? it.actor.type !== "contact" : isOwn
@@ -395,7 +403,7 @@ function ChatTimeline({
                 {showNew && <NewMessagesDivider />}
                 {it.kind === "event" ? (
                   <Text size="xs" c="dimmed" ta="center" mt={gapTop} className="inbox-event">
-                    {describeEvent(it, byId, names, t, ui)} · {clock(it.created_at, ui, zone)}
+                    {describeEvent(it, byId, names, t, ui, zone)} · {clock(it.created_at, ui, zone)}
                   </Text>
                 ) : it.kind === "note" ? (
                   <TimelineNote
@@ -902,7 +910,7 @@ function ChatComposer({
         getKey: (m) => m.id,
         renderItem: (m: MemberTenantMember) => (
           <Group gap="xs" wrap="nowrap">
-            <Avatar src={m.avatar_url || undefined} size={22} name={m.name} />
+            <Avatar src={m.avatar_url || undefined} size={22} name={m.name} color="initials" />
             <Text size="sm" truncate>
               {m.name}
             </Text>
