@@ -1,6 +1,6 @@
 import type { WidgetAppearance, WidgetBusinessIntakeConfig, WidgetPublicOwnerCard } from "@agents-desk/client/widget"
 import { Box, Button, Stack, Text } from "@mantine/core"
-import { useT } from "@go-tenon/ui"
+import { useT } from "@go-tenon/ui/core"
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react"
 import { i18n } from "../i18n"
 import { DEFAULT_WIDGET_COLOR, isValidHexColor, useSetWidgetBrand } from "../theme"

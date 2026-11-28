@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-tenon/tenon/activity"
 	"github.com/go-tenon/tenon/database"
+	"github.com/go-tenon/tenon/feature"
 	"github.com/go-tenon/tenon/filesystem"
 	"github.com/go-tenon/tenon/identity"
 
@@ -31,13 +32,14 @@ type RenameInput struct {
 
 // Rename 修改当前工作区的常规设置：名称、Logo 和重开窗口。地址（slug）创建后不能修改。
 type Rename struct {
-	db    *bun.DB
-	files *filesystem.Service
+	db       *bun.DB
+	files    *filesystem.Service
+	features []*feature.Store
 }
 
 // NewRename 返回修改工作区常规设置的动作。
-func NewRename(db *bun.DB, files *filesystem.Service) *Rename {
-	return &Rename{db: db, files: files}
+func NewRename(db *bun.DB, files *filesystem.Service, features ...*feature.Store) *Rename {
+	return &Rename{db: db, files: files, features: features}
 }
 
 // Handle 更新 sub 所在工作区的常规设置并记录操作日志，返回修改后的当前工作区。
@@ -107,7 +109,7 @@ func (a *Rename) Handle(ctx context.Context, sub identity.Subject, s GeneralSett
 	if err != nil {
 		return nil, err
 	}
-	return NewCurrent(a.db, a.files).Handle(ctx, sub)
+	return NewCurrent(a.db, a.files, a.features...).Handle(ctx, sub)
 }
 
 // sameUUID 报告两个可选 UUID 指针是否指向相同值。

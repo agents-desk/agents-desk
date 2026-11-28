@@ -560,6 +560,8 @@ flags.scope.everyone: 全员
 flags.scope.tenant: 工作区
 flags.mode.on: 开启
 flags.mode.off: 关闭
+flags.mode.force_on: 强制全员开启
+flags.mode.force_off: 强制全员关闭
 flags.mode.percent: 按比例放量
 
 notification.tenants.exported.title: 工作区列表导出完成

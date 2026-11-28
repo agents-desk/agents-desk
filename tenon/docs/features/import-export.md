@@ -516,7 +516,7 @@ func (a *QueueExport) Job(ctx context.Context, req ExportRequest) error {
 <a id="export-progress"></a>
 ## 导出进度与下载地址
 
-进度接口 `GET /articles/exports/{id}/progress` 的写法与[后台操作的进度接口](operations.md#progress)相同，把 `ops.Get` 换成 `a.exporter.Get`、推送 `ExportProgress`。导出在前端连上之前已经结束时，第一个事件就是最终结果。完成时的事件带着下载地址：
+进度接口 `GET /articles/exports/{id}/progress` 可直接返回 `a.exporter.ProgressSSE(ctx, a.hub, subject, in.ID)`，后端任务调用 `Process` 时传入 `exports.BroadcastSaved(a.hub)`（向 `operation.Topic(exp.ID)` 广播更新）；需要补充私有盘签名地址时传入 `exports.ProgressOptions{Format: ...}`。导出在前端连上之前已经结束时，第一个事件就是最终结果。完成时的事件带着下载地址：
 
 ```text
 event: progress

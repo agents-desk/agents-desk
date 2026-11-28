@@ -104,3 +104,10 @@ body {
 :is(.mantine-Button-root, .mantine-ActionIcon-root, .mantine-Pagination-control):is(:disabled, [data-disabled]) {
   cursor: not-allowed;
 }
+
+.tn-status-dot-mark {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}

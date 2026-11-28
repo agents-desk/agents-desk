@@ -93,7 +93,6 @@ type BotSettings struct {
 	BargeInPolicy        string   `json:"barge_in_policy,omitempty" doc:"客户插话策略：notify（默认）或 cancel_restart"`
 	DebounceMS           int      `json:"debounce_ms,omitempty" minimum:"0" maximum:"15000" doc:"合并连续输入的消息防抖时间（毫秒）"`
 	MaxToolIterations    int      `json:"max_tool_iterations,omitempty" minimum:"1" maximum:"20" doc:"单轮生成允许的最大工具调用步数"`
-	ConfidenceThreshold  float64  `json:"confidence_threshold,omitempty" minimum:"0" maximum:"1" doc:"置信度阈值（0-1）"`
 }
 
 // ToolApproval 是等待或已完成的工具调用人工审批记录。

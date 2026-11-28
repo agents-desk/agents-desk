@@ -49,13 +49,8 @@ func NewFillMissing(db *bun.DB, translator *Translator) *FillMissing {
 	return &FillMissing{db: db, translator: translator}
 }
 
-// Handle 为时间线项 itemIDs 发布补译任务（兼容直接按 itemIDs 调用的场景）。
-func (a *FillMissing) Handle(ctx context.Context, sub identity.Subject, itemIDs []string) (int, error) {
-	return a.HandleBody(ctx, sub, FillBody{ItemIDs: itemIDs})
-}
-
-// HandleBody 校验可见性后，为缺失当前成员语言译文的消息、工单标题/描述与联系人备注发布补译任务。
-func (a *FillMissing) HandleBody(ctx context.Context, sub identity.Subject, b FillBody) (int, error) {
+// Handle 校验可见性后，为缺失当前成员语言译文的消息、工单标题/描述与联系人备注发布补译任务。
+func (a *FillMissing) Handle(ctx context.Context, sub identity.Subject, b FillBody) (int, error) {
 	enabled, err := a.translator.EnabledFor(ctx, sub.Tenant)
 	if err != nil || !enabled {
 		return 0, err
@@ -153,7 +148,7 @@ func parseUUIDs(raw []string) []string {
 // HTTP 处理 POST /t/{slug}/api/translations/fill。
 func (a *FillMissing) HTTP(ctx context.Context, in *FillInput) (*FillOutput, error) {
 	sub, _ := identity.FromContext(ctx)
-	n, err := a.HandleBody(ctx, sub, in.Body)
+	n, err := a.Handle(ctx, sub, in.Body)
 	if err != nil {
 		return nil, err
 	}

@@ -105,6 +105,7 @@ func TestTranslateCopy(t *testing.T) {
 
 	noPerm := identity.Subject{Type: member.Type, ID: "m1", Tenant: "t1", Permissions: []string{string(auth.ConversationsRead)}}
 	bizUser := identity.Subject{Type: member.Type, ID: "m2", Tenant: "t1", Permissions: []string{string(auth.BusinessChannelsUse)}}
+	wildcardUser := identity.Subject{Type: member.Type, ID: "m3", Tenant: "t1", Permissions: []string{"*"}}
 
 	var gotSource string
 	var gotTargets []string
@@ -157,8 +158,8 @@ func TestTranslateCopy(t *testing.T) {
 		t.Fatalf("翻译还原结果异常：%+v", out.Translations)
 	}
 
-	// 未注入翻译器时返回 llm.ErrNotConfigured
-	if _, err := NewTranslateCopy(nil).Handle(ctx, bizUser, TranslateCopyBody{
+	// 未注入翻译器时返回 llm.ErrNotConfigured（同时验证通配权限 "*" 通过校验）
+	if _, err := NewTranslateCopy(nil).Handle(ctx, wildcardUser, TranslateCopyBody{
 		SourceLanguage:  "zh-CN",
 		TargetLanguages: []string{"en"},
 		Copy:            LocalizedCopy{Greeting: "你好"},

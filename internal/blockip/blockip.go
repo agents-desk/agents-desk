@@ -26,8 +26,6 @@ var (
 	ErrDuplicate = errorx.Define(errorx.Conflict, "blockip.duplicate")
 )
 
-var now = func() time.Time { return time.Now().UTC() }
-
 func newID() string { return uuid.Must(uuid.NewV7()).String() }
 
 // BlockedIP 表示工作区黑名单中的一条 IP 或 CIDR 封禁规则。

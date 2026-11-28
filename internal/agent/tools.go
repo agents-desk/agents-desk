@@ -115,19 +115,6 @@ func (r *Registry) ToolsFor(svc *Service, bot BotSettings, exec *ExecutionContex
 	return tools, approvalNames
 }
 
-// AllApprovalCandidates 返回注册表中所有可能成为高风险的工具名，供启动阶段登记占位检查。
-func (r *Registry) AllApprovalCandidates() []string {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	var names []string
-	for _, name := range r.order {
-		if r.specs[name].Risk == RiskHighImpact {
-			names = append(names, name)
-		}
-	}
-	return names
-}
-
 // safeTool 是所有暴露给模型的工具统一安全包装：强制要求受信任 ExecutionContext，
 // 并把耗时、结果摘要与错误审计写入 TraceCollector。
 type safeTool struct {

@@ -2,7 +2,7 @@
 
 功能开关让新功能逐步上线：开关和默认规则在代码中声明，运营人员在数据库中为全员、租户或用户修改设置，例如给几个租户试用、按比例放量、紧急关闭。
 
-包：`feature`。
+包：`feature`、`feature/featureapi`。
 
 - 检查开关只读数据库、不缓存，修改设置后所有实例的下一次检查立即生效。
 - 按比例放量用开关名和用户（或租户）ID 的哈希决定：同一个人每次结果相同，比例从 10% 提高到 50% 时原来的 10% 仍然开启。
@@ -160,7 +160,7 @@ for _, flag := range store.Catalog() {
 }
 ```
 
-修改设置的接口用权限保护，例如只允许有 `platform:features` 权限的运营人员。让租户管理员自己开启试用功能时，接口只接受 `feature.Tenant(sub.Tenant)` 这一个范围。
+修改设置的接口用权限保护，例如只允许有 `platform:features` 权限的运营人员。让租户管理员自己开启试用功能时，接口只接受 `feature.Tenant(sub.Tenant)` 这一个范围。需要直接提供标准后台管理接口（`GET /features`、`PUT /features/{name}`、`DELETE /features/{name}`）时，调用 `featureapi.Register(api, protect, db, store, opts)`，支持开启、关闭、强制开启/关闭、按比例放量以及同事务操作日志。
 
 <a id="removing-flags"></a>
 ## 用 `Prune` 删除开关

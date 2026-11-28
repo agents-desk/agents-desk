@@ -15,6 +15,7 @@ import (
 	"github.com/go-tenon/tenon/apitoken"
 	"github.com/go-tenon/tenon/authz"
 	"github.com/go-tenon/tenon/database"
+	"github.com/go-tenon/tenon/httpx"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/login"
 
@@ -239,7 +240,10 @@ func (a *Impersonate) Handle(ctx context.Context, actor identity.Subject, tenant
 // HTTP 处理 POST /admin/api/tenants/{id}/impersonate。
 func (a *Impersonate) HTTP(ctx context.Context, in *ImpersonateInput) (*ImpersonateOutput, error) {
 	actor, _ := identity.FromContext(ctx)
-	res, err := a.Handle(ctx, actor, in.ID, in.Body, apitoken.Device{UserAgent: in.UserAgent})
+	res, err := a.Handle(ctx, actor, in.ID, in.Body, apitoken.Device{
+		IP:        httpx.ClientIPFromContext(ctx),
+		UserAgent: in.UserAgent,
+	})
 	if err != nil {
 		return nil, err
 	}

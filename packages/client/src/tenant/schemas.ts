@@ -474,6 +474,9 @@ export const schemas = {
           "assignee_type": {
             "$ref": "#/components/schemas/ConversationActorType"
           },
+          "audience": {
+            "$ref": "#/components/schemas/ChannelAudience"
+          },
           "channel_id": {
             "format": "uuid",
             "type": "string"
@@ -1604,12 +1607,6 @@ export const components = {
       },
       "barge_in_policy": {
         "type": "string"
-      },
-      "confidence_threshold": {
-        "format": "double",
-        "maximum": 1,
-        "minimum": 0,
-        "type": "number"
       },
       "debounce_ms": {
         "format": "int64",

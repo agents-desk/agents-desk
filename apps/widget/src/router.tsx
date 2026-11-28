@@ -1,5 +1,5 @@
 import { cspNonce } from "@go-tenon/start"
-import { createApp, NotFoundPage, RouteError } from "@go-tenon/ui"
+import { createApp, NotFoundPage, RouteError } from "@go-tenon/ui/core"
 import { i18n } from "./i18n"
 import { bindObserve, reportRouteError } from "./observe"
 import { routeTree } from "./routeTree.gen"

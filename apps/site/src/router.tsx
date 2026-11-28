@@ -1,6 +1,6 @@
 import { host } from "@go-tenon/host"
 import { cspNonce } from "@go-tenon/start"
-import { createApp, NotFoundPage, RouteError } from "@go-tenon/ui"
+import { createApp, NotFoundPage, RouteError } from "@go-tenon/ui/core"
 import { session } from "./api"
 import { i18n } from "./i18n"
 import { bindObserve, reportRouteError } from "./observe"

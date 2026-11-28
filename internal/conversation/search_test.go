@@ -111,7 +111,7 @@ func TestSearchFullTextAndTranslation(t *testing.T) {
 		t.Fatal(err)
 	}
 	// 内部备注包含订单编号
-	if _, err := addNote.Handle(ctx, owner1, r1.ConversationID, "关联工单号 ORD-20261122-888 需加急处理", nil); err != nil {
+	if _, err := addNote.Handle(ctx, owner1, r1.ConversationID, conversation.NoteBody{Text: "关联工单号 ORD-20261122-888 需加急处理"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -329,7 +329,7 @@ func TestSearchVisibilityScopes(t *testing.T) {
 	if _, err := assign.Handle(ctx, owner, c3.ConversationID, conversation.Assignment{TeamID: &team2.ID}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := addNote.Handle(ctx, owner, c3.ConversationID, "请 @坐席A 协助看下这张发票", []string{mAssigned.ID}); err != nil {
+	if _, err := addNote.Handle(ctx, owner, c3.ConversationID, conversation.NoteBody{Text: "请 @坐席A 协助看下这张发票", Mentions: []string{mAssigned.ID}}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -376,6 +376,22 @@ func TestSearchVisibilityScopes(t *testing.T) {
 	p2, err := searcher.Handle(ctx, owner, &conversation.SearchInput{Q: "发票", OffsetParams: page.OffsetParams{Page: 2, PerPage: 2}})
 	if err != nil || p2.Total != 3 || len(p2.Items) != 1 {
 		t.Fatalf("page2 total=%d len=%d err=%v", p2.Total, len(p2.Items), err)
+	}
+
+	// 按 channel_id 搜索需匹配 reply_channel_id 及 timeline_items.channel_id，并验证 audience 过滤
+	replyCh, err := channel.NewCreate(env.DB).Handle(ctx, sys, channel.CreateParams{Kind: channel.Test, Name: "回复渠道"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.DB.NewRaw(`UPDATE conversations SET reply_channel_id = ?, audience = ? WHERE id = ?`,
+		replyCh.ID, channel.AudiencePartner, c2.ConversationID).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got := idsOf(owner, conversation.SearchInput{Q: "发票", ChannelID: replyCh.ID}); !slices.Equal(got, []string{c2.ConversationID}) {
+		t.Fatalf("search by reply_channel_id = %v, want [%s]", got, c2.ConversationID)
+	}
+	if got := idsOf(owner, conversation.SearchInput{Q: "发票", Audience: channel.AudiencePartner}); !slices.Equal(got, []string{c2.ConversationID}) {
+		t.Fatalf("search by audience = %v, want [%s]", got, c2.ConversationID)
 	}
 }
 

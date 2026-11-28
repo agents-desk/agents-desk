@@ -39,15 +39,10 @@ type NoteInput struct {
 	Body NoteBody
 }
 
-// Handle 由 sub 在 sub 所在工作区的会话 id 中写一条内部备注，@ 到成员 mentions，附带可选附件 attachments，sub 成为会话的参与者。
+// Handle 使用完整请求体 body 在会话 id 中写入内部备注，@ 到成员 mentions，附带可选附件，并支持发送前已校对的译文。
 // 文字和附件都为空时返回 ErrEmptyMessage；会话不存在或 sub 看不到时返回 ErrNotFound，没有权限时返回 ErrForbidden；
 // @ 到的人不是这个工作区的成员时返回 member.ErrNotFound（字段 mentions[i]）。
-func (a *AddNote) Handle(ctx context.Context, sub identity.Subject, id, text string, mentions []string, attachments ...AttachmentInput) (*ItemDTO, error) {
-	return a.HandleBody(ctx, sub, id, NoteBody{Text: text, Mentions: mentions, Attachments: attachments})
-}
-
-// HandleBody 使用完整请求体 body 在会话 id 中写入内部备注，支持附带发送前已校对的译文。
-func (a *AddNote) HandleBody(ctx context.Context, sub identity.Subject, id string, body NoteBody) (*ItemDTO, error) {
+func (a *AddNote) Handle(ctx context.Context, sub identity.Subject, id string, body NoteBody) (*ItemDTO, error) {
 	if err := authorize(sub, auth.ConversationsReply); err != nil {
 		return nil, err
 	}
@@ -118,7 +113,7 @@ func writeNote(ctx context.Context, tx database.Tx, down Downstream, sub identit
 // HTTP 处理 POST /t/{slug}/api/conversations/{id}/notes。
 func (a *AddNote) HTTP(ctx context.Context, in *NoteInput) (*ItemOutput, error) {
 	sub, _ := identity.FromContext(ctx)
-	item, err := a.HandleBody(ctx, sub, in.ID, in.Body)
+	item, err := a.Handle(ctx, sub, in.ID, in.Body)
 	if err != nil {
 		return nil, err
 	}

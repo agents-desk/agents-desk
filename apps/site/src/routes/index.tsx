@@ -11,7 +11,7 @@ import {
   useLanguage,
   useSignedIn,
   useT,
-} from "@go-tenon/ui"
+} from "@go-tenon/ui/core"
 import { kit } from "../api"
 import { i18n } from "../i18n"
 

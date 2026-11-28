@@ -8,7 +8,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"log/slog"
-	"maps"
 	"net/url"
 	"strings"
 	"time"
@@ -391,7 +390,11 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 		if err != nil {
 			return err
 		}
-		maps.Copy(ch.Settings, sm)
+		// 保留渠道级 ai_reception 配置，写入更新后的设置。
+		if v, ok := ch.Settings["ai_reception"]; ok {
+			sm["ai_reception"] = v
+		}
+		ch.Settings = sm
 		ch.Name, ch.Audience, ch.TeamID, ch.Enabled = name, channel.AudienceInternal, b.TeamID, b.Enabled
 		if _, err := tx.NewUpdate().Model(ch).Column("name", "audience", "team_id", "enabled", "settings", "updated_at").WherePK().Exec(ctx); err != nil {
 			return errors.Wrap(err, "update wecom channel")
@@ -447,8 +450,12 @@ func (a *Reconnect) Handle(ctx context.Context, sub identity.Subject, id string)
 		if err != nil {
 			return err
 		}
-		ch.Enabled = true
+		// 保留渠道级 ai_reception 配置，写入更新后的设置。
+		if v, ok := ch.Settings["ai_reception"]; ok {
+			sm["ai_reception"] = v
+		}
 		ch.Settings = sm
+		ch.Enabled = true
 		_, err = tx.NewUpdate().Model(ch).Column("enabled", "settings", "updated_at").WherePK().Exec(ctx)
 		return errors.Wrap(err, "reconnect wecom channel")
 	})

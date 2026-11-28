@@ -216,7 +216,7 @@ func TestConversation(t *testing.T) {
 	}
 
 	// 坐席写备注、回复；连接器把回复推送到客户的频道
-	if _, err := conversation.NewAddNote(env.DB, down).Handle(ctx, f.agent, sent.ConversationID, "查一下物流", nil); err != nil {
+	if _, err := conversation.NewAddNote(env.DB, down).Handle(ctx, f.agent, sent.ConversationID, conversation.NoteBody{Text: "查一下物流"}); err != nil {
 		t.Fatal(err)
 	}
 	pubs := hub.Subscribe(Channel(f.widget.ID, visitor.ID))
@@ -344,6 +344,10 @@ func TestManage(t *testing.T) {
 		t.Fatalf("英文公开设置：%+v %v", enCfg, err)
 	}
 
+	// 更新网页聊天插件配置时保留 channels.settings.ai_reception
+	if _, err := env.DB.NewRaw(`UPDATE channels SET settings = jsonb_set(settings, '{ai_reception}', '{"enabled":true,"mode":"ai_auto"}'::jsonb) WHERE id = ?`, alpha.widget.ID).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
 	// 支持自定义 #rrggbb 十六进制颜色并标准化为小写，非法格式返回 ErrInvalidColor
 	w, err = NewUpdate(env.DB).Handle(ctx, alpha.system, alpha.widget.ID, UpdateBody{
 		Changes: Changes{Name: "官网", Appearance: Appearance{Color: "#FEDC20"}},
@@ -351,6 +355,10 @@ func TestManage(t *testing.T) {
 	})
 	if err != nil || w.Appearance.Color != "#fedc20" {
 		t.Fatalf("自定义颜色修改后：%+v %v", w, err)
+	}
+	var aiRec string
+	if err := env.DB.NewRaw(`SELECT COALESCE(settings->'ai_reception'->>'mode', '') FROM channels WHERE id = ?`, alpha.widget.ID).Scan(ctx, &aiRec); err != nil || aiRec != "ai_auto" {
+		t.Fatalf("widget Update 不应覆盖 ai_reception：mode=%q err=%v", aiRec, err)
 	}
 	cfg, err = NewGetConfig(env.DB, env.Files).Handle(alpha.in(t, alpha.widget.ID))
 	if err != nil || cfg.Appearance.Color != "#fedc20" {

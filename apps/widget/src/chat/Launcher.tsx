@@ -1,6 +1,6 @@
 import { ActionIcon, Indicator } from "@mantine/core"
 import { IconChevronDown, IconMessageCircle } from "@tabler/icons-react"
-import { useT } from "@go-tenon/ui"
+import { useT } from "@go-tenon/ui/core"
 import type { ReactNode } from "react"
 
 /** Launcher 是嵌入网页时右下角的启动按钮：收起时是聊天图标，有未读时带角标（超过 99 显示 99+）；展开时是收起的箭头。 */

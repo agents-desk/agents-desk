@@ -1,6 +1,6 @@
 import { Anchor, Box, Button, Code, Container, Group, Paper, Select, Skeleton, Stack, Text, Textarea, TextInput, Title } from "@mantine/core"
 import { createFileRoute } from "@tanstack/react-router"
-import { NotFoundPage, useT } from "@go-tenon/ui"
+import { NotFoundPage, useT } from "@go-tenon/ui/core"
 import { type ReactNode, useEffect, useState } from "react"
 import { languageEndonym, WIDGET_LANGUAGES } from "../i18n"
 

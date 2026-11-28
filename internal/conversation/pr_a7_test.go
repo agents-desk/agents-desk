@@ -47,7 +47,7 @@ func TestGetInboxViewsSplitAndCounts(t *testing.T) {
 	if _, err := conversation.NewReply(env.DB, f.down).Handle(ctx, ownerAgent, openConv.ConversationID, conversation.ReplyBody{Text: "收到"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := conversation.NewAddNote(env.DB, f.down).Handle(ctx, ownerAgent, closedConv.ConversationID, "提醒处理", []string{ownerID}); err != nil {
+	if _, err := conversation.NewAddNote(env.DB, f.down).Handle(ctx, ownerAgent, closedConv.ConversationID, conversation.NoteBody{Text: "提醒处理", Mentions: []string{ownerID}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := conversation.NewClose(env.DB, f.down).Handle(ctx, ownerAgent, closedConv.ConversationID); err != nil {
@@ -133,7 +133,7 @@ func TestMergeConversationsBulkAndRelatedTables(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sourceNote, err := conversation.NewAddNote(env.DB, f.down).Handle(ctx, agent, cSourceRecv.ConversationID, "内部备注提醒", []string{ownerID})
+	sourceNote, err := conversation.NewAddNote(env.DB, f.down).Handle(ctx, agent, cSourceRecv.ConversationID, conversation.NoteBody{Text: "内部备注提醒", Mentions: []string{ownerID}})
 	if err != nil {
 		t.Fatal(err)
 	}

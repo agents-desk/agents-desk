@@ -5,8 +5,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/uptrace/bun"
-
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/login"
@@ -35,7 +33,6 @@ type TestMailOutput struct {
 
 // TestMail 使用平台当前已保存的 Resend 设置向指定邮箱发送测试邮件。
 type TestMail struct {
-	db        *bun.DB
 	general   *settings.Group[General]
 	mailGroup *settings.Group[Mail]
 	logins    *login.Realm
@@ -43,8 +40,8 @@ type TestMail struct {
 }
 
 // NewTestMail 返回测试邮件连通性的动作。
-func NewTestMail(db *bun.DB, general *settings.Group[General], mailGroup *settings.Group[Mail], logins *login.Realm, templates *mail.Templates) *TestMail {
-	return &TestMail{db: db, general: general, mailGroup: mailGroup, logins: logins, templates: templates}
+func NewTestMail(general *settings.Group[General], mailGroup *settings.Group[Mail], logins *login.Realm, templates *mail.Templates) *TestMail {
+	return &TestMail{general: general, mailGroup: mailGroup, logins: logins, templates: templates}
 }
 
 // Handle 读取当前已保存的邮件配置并向 to（为空时取当前管理员邮箱）发送测试邮件。

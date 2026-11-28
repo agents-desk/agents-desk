@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./observe": "./src/observe.ts",
     "./server": "./src/server.ts",
     "./serve": "./src/serve.ts",
     "./print": "./src/print.tsx",

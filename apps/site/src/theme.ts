@@ -1,4 +1,4 @@
-import { createUiTheme } from "@go-tenon/ui"
+import { createUiTheme } from "@go-tenon/ui/core"
 
 const fontFamily =
   '"Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif'

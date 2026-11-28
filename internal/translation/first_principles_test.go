@@ -272,7 +272,7 @@ func TestContactNotesTranslationAndFill(t *testing.T) {
 
 	// FillMissing 支持直接对 contact_ids 发布补译任务
 	fill := NewFillMissing(f.env.DB, f.translator)
-	queued, err := fill.HandleBody(ctx, f.agent, FillBody{ContactIDs: []string{cid}})
+	queued, err := fill.Handle(ctx, f.agent, FillBody{ContactIDs: []string{cid}})
 	if err != nil || queued != 1 {
 		t.Fatalf("应排队 1 条联系人备注补译任务：queued=%d err=%v", queued, err)
 	}

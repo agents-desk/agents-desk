@@ -165,7 +165,7 @@ func TestChatRuntime_AutoCopilotIsolationAndLanguage(t *testing.T) {
 	if _, err := env.DB.NewRaw(`UPDATE conversations SET language = 'hi-Latn' WHERE id = ?`, rec.ConversationID).Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := conversation.NewAddNote(env.DB, down).Handle(ctx, owner, rec.ConversationID, "SECRET_INTERNAL_VIP_FLAG", nil); err != nil {
+	if _, err := conversation.NewAddNote(env.DB, down).Handle(ctx, owner, rec.ConversationID, conversation.NoteBody{Text: "SECRET_INTERNAL_VIP_FLAG"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -599,5 +599,87 @@ func TestChatRuntime_HighRiskToolApprovalAndBargeIn(t *testing.T) {
 	}
 	if jobs := queuetest.Pending(t, env.DB, conversation.DeliverTopic); len(jobs) < 2 {
 		t.Fatalf("审批与拒绝生成的回复都应交给投递队列: %d", len(jobs))
+	}
+
+	// 场景 C：低风险工具仅配置在机器人 RequireApprovalTools 中时，也必须经动态审批列表触发 waiting_approval
+	var dynExecuted atomic.Int32
+	regDyn := agent.NewRegistry()
+	regDyn.Register(agent.ToolSpec{
+		Name:            "tag_vip",
+		Description:     "Tag conversation",
+		Risk:            agent.RiskLowImpact,
+		ExternalAllowed: true,
+		Build: func(_ *agent.Service) tool.CallableTool {
+			return function.NewFunctionTool(
+				func(_ context.Context, _ struct{}) (map[string]any, error) {
+					dynExecuted.Add(1)
+					return map[string]any{"ok": true}, nil
+				},
+				function.WithName("tag_vip"),
+				function.WithDescription("Tag conversation"),
+			)
+		},
+	})
+	botDyn, err := agent.NewCreateBot(env.DB).Handle(ctx, owner, agent.BotInput{
+		Name: "动态审批专员",
+		Settings: agent.BotSettings{
+			AllowedTools:         []string{"tag_vip"},
+			RequireApprovalTools: []string{"tag_vip"},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	chDyn, err := channel.NewCreate(env.DB).Handle(ctx, sys, channel.CreateParams{
+		Kind: channel.Test, Name: "动态审批渠道",
+		Settings: map[string]any{"ai_reception": map[string]any{"enabled": true, "bot_id": botDyn.ID, "mode": "ai_auto"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	dynModel := &scriptedModel{
+		handler: func(_ context.Context, req *model.Request, _ int) ([]*model.Response, error) {
+			for _, msg := range req.Messages {
+				if msg.Role == model.RoleTool {
+					return []*model.Response{{Done: true, Choices: []model.Choice{{Message: model.NewAssistantMessage("已打标。")}}}}, nil
+				}
+			}
+			return []*model.Response{{
+				Done: true,
+				Choices: []model.Choice{{
+					Message: model.Message{
+						Role: model.RoleAssistant,
+						ToolCalls: []model.ToolCall{{
+							ID:       "call-dyn-tag",
+							Type:     "function",
+							Function: model.FunctionDefinitionParam{Name: "tag_vip", Arguments: []byte(`{}`)},
+						}},
+					},
+				}},
+			}}, nil
+		},
+	}
+	svcDyn := agent.NewService(env.DB, down, hub, nil, nil, nil,
+		agent.WithRegistry(regDyn),
+		agent.WithModelOverride(dynModel),
+	)
+	t.Cleanup(func() { _ = svcDyn.Shutdown(context.Background()) })
+	rec3, err := conversation.NewReceive(env.DB, channel.DefaultRegistry(), down).Handle(ctx, sys, conversation.ReceiveParams{
+		ChannelID: chDyn.ID, From: "c-3", FromName: "王五", Text: "请帮我打标",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svcDyn.Runner().Job(ctx, conversation.Appended{
+		TenantID: tn.ID, ConversationID: rec3.ConversationID, ItemID: rec3.Item.ID, Seq: rec3.Item.Seq,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if dynExecuted.Load() != 0 {
+		t.Fatalf("仅 RequireApprovalTools 配置的低风险工具审批前不得执行: exec=%d", dynExecuted.Load())
+	}
+	gens3, err := agent.NewList(env.DB).Handle(ctx, owner, rec3.ConversationID)
+	if err != nil || len(gens3) != 1 || gens3[0].State != agent.WaitingApproval {
+		t.Fatalf("动态审批工具应触发 waiting_approval: %+v err=%v", gens3, err)
 	}
 }

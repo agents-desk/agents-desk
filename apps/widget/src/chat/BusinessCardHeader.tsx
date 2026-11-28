@@ -1,7 +1,7 @@
 import type { WidgetPublicOwnerCard } from "@agents-desk/client/widget"
 import { ActionIcon, Avatar, Box, Group, Indicator, Stack, Text, Title } from "@mantine/core"
 import { IconClock, IconX } from "@tabler/icons-react"
-import { useT } from "@go-tenon/ui"
+import { useT } from "@go-tenon/ui/core"
 import type { ReactNode } from "react"
 import { useBrandForeground } from "./contrast"
 

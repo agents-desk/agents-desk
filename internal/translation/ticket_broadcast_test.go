@@ -304,4 +304,38 @@ func TestTicketBroadcastDedupAndNoteTranslation(t *testing.T) {
 			t.Fatalf("会话 %s 应收到同步的图片附件，实际：%+v", convID, found.Attachments)
 		}
 	}
+
+	// 模型预算超限（llm.ErrBudgetExceeded）时降级跳过翻译，原样同步公开进度到关联会话而不报错卡死队列
+	if _, err := env.DB.NewRaw(`UPDATE llm_calls SET prompt_tokens = 100 WHERE tenant_id = ?`, tn.ID).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := llm.NewSaveSettings(env.DB, llmSettings).Handle(ctx, apptest.Admin, llm.Settings{
+		Gateway:       llm.Gateway{BaseURL: srv.URL + "/v1", APIKey: "test-key"},
+		Models:        llm.Models{Translation: "test-translate"},
+		DefaultBudget: llm.Budget{DailyTotalTokens: 1},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	pubBudget, err := conversation.NewPublishTicketUpdate(env.DB, mediaDown).Handle(ctx, subOwner, tk.ID, conversation.PublishTicketUpdateBody{
+		Text: "预算耗尽期间仍需发送原文字段",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := mediaBroadcaster.Handle(ctx, conversation.Appended{TenantID: tn.ID, ConversationID: tk.ID, ItemID: pubBudget.ID, Seq: pubBudget.Seq}); err != nil {
+		t.Fatalf("预算超限应降级同步原文而不返回错误：%v", err)
+	}
+	tlAfterBudget, err := conversation.NewTimeline(env.DB, mediaDown.Media).Handle(ctx, subOwner, c1.ConversationID, 0, 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundOrig := false
+	for _, it := range tlAfterBudget {
+		if it.Content.Prompt != nil && it.Content.Prompt.Params["item_id"] == pubBudget.ID && it.Content.Text == "预算耗尽期间仍需发送原文字段" {
+			foundOrig = true
+		}
+	}
+	if !foundOrig {
+		t.Fatalf("预算超限降级后关联会话应收到原文公开进度：%s", pubBudget.ID)
+	}
 }

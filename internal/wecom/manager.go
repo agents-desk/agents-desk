@@ -15,6 +15,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/coder/websocket"
+	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	"github.com/uptrace/bun"
 
@@ -811,7 +812,7 @@ func (m *Manager) executeSend(ctx context.Context, runner *botRunner, req sendRP
 
 // uploadMedia 按企微智能机器人长连接三步协议（init -> chunk -> finish）分片上传媒体文件并返回 media_id。
 func (m *Manager) uploadMedia(ctx context.Context, runner *botRunner, att rpcAttachment, mediaType string) (string, error) {
-	fileUUID, err := parseUUID(att.FileID)
+	fileUUID, err := uuid.Parse(att.FileID)
 	if err != nil {
 		return "", errors.Wrap(err, "parse wecom attachment file id")
 	}

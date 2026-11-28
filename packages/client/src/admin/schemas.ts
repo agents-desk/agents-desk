@@ -412,6 +412,8 @@ export const components = {
     "enum": [
       "on",
       "off",
+      "force_on",
+      "force_off",
       "percent"
     ],
     "type": "string"

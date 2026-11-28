@@ -2,7 +2,7 @@
 
 操作日志记录谁（actor）在哪个租户中对什么（target）做了什么（event），每次操作是 `activity_log` 表中的一行，供产品界面按对象或按操作人查看历史。它是业务数据，在业务事务中写入，与业务修改一起提交或回滚；给运维看的日志见[日志](../general/logging.md)。
 
-包：`activity`。
+包：`activity`、`activity/activityapi`。
 
 <a id="example-usage"></a>
 ## 示例
@@ -170,7 +170,7 @@ for _, a := range res.Items {
 body := page.NewOffset(items, in.OffsetParams, res.Total)
 ```
 
-前端把生成的客户端方法交给 `ActivityLog`，`key` 区分同一页面上的几份记录或不同的筛选条件（变化时自动回到第一页），`toolbar` 放筛选控件：
+前端把生成的客户端方法交给 `ActivityLog`，`key` 区分同一页面上的几份记录或不同的筛选条件（变化时自动回到第一页），`toolbar` 放筛选控件；服务端分页组装、批量姓名解析与多语言文案格式化可用 `activityapi.New(db, opts).List(ctx, query)`：
 
 ```tsx
 <ActivityLog

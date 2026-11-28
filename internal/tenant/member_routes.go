@@ -30,5 +30,5 @@ func RegisterTenantRoutes(api *rest.API, require func(...auth.Permission) func(*
 
 	op = huma.Operation{OperationID: "tenant-rename", Method: http.MethodPut, Path: "/tenant", Summary: "修改工作区的常规设置"}
 	require(auth.TenantSettingsManage)(&op)
-	rest.Register(api, op, NewRename(db, files).HTTP)
+	rest.Register(api, op, NewRename(db, files, features...).HTTP)
 }

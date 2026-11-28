@@ -14,9 +14,6 @@ const search = new URLSearchParams(typeof location === "undefined" ? "" : locati
 /** channel 是这个聊天窗口的聊天插件 ID。 */
 export const channel = search.get("channel") ?? ""
 
-/** urlLang 是页面地址中显式传入的语言参数（?lang=）。 */
-export const urlLang = search.get("lang") ?? ""
-
 /** embedded 报告聊天窗口是不是被父页面放在 iframe 中（带 embed=1）。 */
 export const embedded = search.get("embed") === "1" && typeof window !== "undefined" && window.parent !== window
 

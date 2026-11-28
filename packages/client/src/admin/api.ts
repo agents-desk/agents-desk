@@ -120,7 +120,7 @@ export interface FlagsListOutputBody {
   items: FlagsFlagDTO[]
 }
 
-export type FlagsMode = "on" | "off" | "percent"
+export type FlagsMode = "on" | "off" | "force_on" | "force_off" | "percent"
 
 export interface FlagsRuleDTO {
   mode: FlagsMode

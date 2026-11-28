@@ -227,6 +227,56 @@ export function usePeriod(route: PeriodRoute, options: UsePeriodOptions = {}): P
   return { preset, from, to, tz, granularity, params, setPreset, setRange, setGranularity, reset }
 }
 
+/** GranularityControl 的选项。 */
+export interface GranularityControlProps {
+  /** 当前选中的粒度；undefined 表示自动。 */
+  value: PeriodGranularity | undefined
+  /** 粒度变更回调。 */
+  onChange: (value: PeriodGranularity | undefined) => void
+  /** 可选的分桶粒度列表，默认 ["day", "week", "month"]。 */
+  granularities?: readonly PeriodGranularity[]
+  /** 控件尺寸，默认 "xs"。 */
+  size?: "xs" | "sm"
+  className?: string
+}
+
+const DEFAULT_PRESETS: readonly Exclude<PeriodPreset, "custom">[] = ["today", "7d", "30d", "this_month", "last_month"]
+const DEFAULT_GRANULARITIES: readonly PeriodGranularity[] = ["day", "week", "month"]
+
+/** 分桶粒度选择器：可在 PeriodPicker 内使用，也可在自定义工具条中独立组合。 */
+export function GranularityControl({
+  value,
+  onChange,
+  granularities = DEFAULT_GRANULARITIES,
+  size = "xs",
+  className,
+}: GranularityControlProps): ReactNode {
+  const t = useText()
+  const granLabel = (g: PeriodGranularity) => {
+    switch (g) {
+      case "hour":
+        return t("tenon.period.hour")
+      case "day":
+        return t("tenon.period.day")
+      case "week":
+        return t("tenon.period.week")
+      case "month":
+        return t("tenon.period.month")
+    }
+  }
+  return (
+    <Select
+      className={className ? `tn-period-granularity ${className}` : "tn-period-granularity"}
+      size={size}
+      clearable
+      placeholder={t("tenon.period.granularity")}
+      value={value ?? null}
+      onChange={(v) => onChange((v as PeriodGranularity | null) ?? undefined)}
+      data={granularities.map((g) => ({ value: g, label: granLabel(g) }))}
+    />
+  )
+}
+
 /** PeriodPicker 的选项。 */
 export interface PeriodPickerProps {
   /** usePeriod 返回的状态对象。 */
@@ -239,10 +289,9 @@ export interface PeriodPickerProps {
   granularities?: readonly PeriodGranularity[]
   /** 控件尺寸，默认 "xs"。 */
   size?: "xs" | "sm"
+  /** 紧凑模式：用 Select 下拉代替 SegmentedControl，适合窄栏或工具栏。 */
+  compact?: boolean
 }
-
-const DEFAULT_PRESETS: readonly Exclude<PeriodPreset, "custom">[] = ["today", "7d", "30d", "this_month", "last_month"]
-const DEFAULT_GRANULARITIES: readonly PeriodGranularity[] = ["day", "week", "month"]
 
 /**
  * 时间窗口选择器：快捷预设（今天 / 近 7 天 / 近 30 天 / 本月 / 上月）+ 自定义日期区间选择，
@@ -254,6 +303,7 @@ export function PeriodPicker({
   showGranularity = false,
   granularities = DEFAULT_GRANULARITIES,
   size = "xs",
+  compact = false,
 }: PeriodPickerProps): ReactNode {
   const t = useText()
   const [draft, setDraft] = useState<[string | null, string | null] | null>(null)
@@ -273,33 +323,35 @@ export function PeriodPicker({
     }
   }
 
-  const granLabel = (g: PeriodGranularity) => {
-    switch (g) {
-      case "hour":
-        return t("tenon.period.hour")
-      case "day":
-        return t("tenon.period.day")
-      case "week":
-        return t("tenon.period.week")
-      case "month":
-        return t("tenon.period.month")
-    }
-  }
-
   const rangeValue: [string | null, string | null] = draft ?? [period.from, period.to]
+  const presetOptions = presets.map((p) => ({ value: p, label: presetLabel(p) }))
 
   return (
     <Group gap="xs" wrap="wrap" className="tn-period-picker">
       <div className="tn-period-presets">
-        <SegmentedControl
-          size={size}
-          value={period.preset === "custom" ? "" : period.preset}
-          onChange={(v) => {
-            setDraft(null)
-            if (v) period.setPreset(v as Exclude<PeriodPreset, "custom">)
-          }}
-          data={presets.map((p) => ({ value: p, label: presetLabel(p) }))}
-        />
+        {compact ? (
+          <Select
+            className="tn-period-preset-select"
+            size={size}
+            value={period.preset === "custom" ? null : period.preset}
+            placeholder={t("tenon.period.range_placeholder")}
+            onChange={(v) => {
+              setDraft(null)
+              if (v) period.setPreset(v as Exclude<PeriodPreset, "custom">)
+            }}
+            data={presetOptions}
+          />
+        ) : (
+          <SegmentedControl
+            size={size}
+            value={period.preset === "custom" ? "" : period.preset}
+            onChange={(v) => {
+              setDraft(null)
+              if (v) period.setPreset(v as Exclude<PeriodPreset, "custom">)
+            }}
+            data={presetOptions}
+          />
+        )}
       </div>
       <DatePickerInput
         className="tn-period-range"
@@ -321,14 +373,11 @@ export function PeriodPicker({
         allowSingleDateInRange
       />
       {showGranularity && (
-        <Select
-          className="tn-period-granularity"
+        <GranularityControl
+          value={period.granularity}
+          onChange={period.setGranularity}
+          granularities={granularities}
           size={size}
-          clearable
-          placeholder={t("tenon.period.granularity")}
-          value={period.granularity ?? null}
-          onChange={(v) => period.setGranularity((v as PeriodGranularity | null) ?? undefined)}
-          data={granularities.map((g) => ({ value: g, label: granLabel(g) }))}
         />
       )}
     </Group>

@@ -2,8 +2,8 @@
 // 提供与 --tn-rail-header（默认 52px）齐平的顶栏（PaneHeader）、带紧凑控件密度的工具条（PaneToolbar）、
 // 独立纵向滚动的正文区（PaneBody）以及支持鼠标拖拽、键盘微调和按账号持久化的栏宽调节（resizable）。
 
-import { ActionIcon, Box, Drawer, Group, Stack, Text, Tooltip } from "@mantine/core"
-import { IconChevronLeft, IconLayoutSidebarLeftExpand } from "@tabler/icons-react"
+import { ActionIcon, Box, Drawer, Group, Skeleton, Stack, Text, Tooltip } from "@mantine/core"
+import { IconChevronLeft, IconLayoutSidebarLeftExpand, IconX } from "@tabler/icons-react"
 import {
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -506,5 +506,58 @@ export function AsidePane({
         {opened && children}
       </Box>
     </Drawer>
+  )
+}
+
+/** InspectorSkeleton 的选项。 */
+export interface InspectorSkeletonProps {
+  /** 面板标题；省略时渲染骨架条。 */
+  title?: ReactNode
+  /** 关闭按钮回调；省略时不渲染关闭按钮。 */
+  onClose?: () => void
+  /** 关闭按钮无障碍标签，默认读取 tenon.common.close。 */
+  closeLabel?: string
+  /** 窄屏或内页返回按钮回调。 */
+  back?: () => void
+  /** 骨架行数，默认 6。 */
+  rows?: number
+}
+
+/** 详情侧栏加载态骨架：保持与 PaneHeader / PaneBody 对齐的结构占位。 */
+export function InspectorSkeleton({ title, onClose, closeLabel, back, rows = 6 }: InspectorSkeletonProps): ReactNode {
+  const t = useText()
+  const items = Array.from({ length: rows }, (_, idx) => ({
+    id: `skeleton-${idx + 1}`,
+    width: `${50 + ((idx * 13) % 35)}%`,
+  }))
+  return (
+    <Stack gap={0} h="100%" w="100%" aria-busy>
+      <PaneHeader
+        title={title ?? <Skeleton h={14} w={120} radius="sm" />}
+        back={back}
+        actions={
+          onClose && (
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              aria-label={closeLabel ?? t("tenon.common.close")}
+              onClick={onClose}
+            >
+              <IconX size={18} stroke={1.6} />
+            </ActionIcon>
+          )
+        }
+      />
+      <PaneBody>
+        <Stack gap="md" p="var(--tn-pane-px)">
+          {items.map((item) => (
+            <Group key={item.id} gap="md" wrap="nowrap">
+              <Skeleton h={10} w={64} radius="sm" />
+              <Skeleton h={10} w={item.width} radius="sm" />
+            </Group>
+          ))}
+        </Stack>
+      </PaneBody>
+    </Stack>
   )
 }

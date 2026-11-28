@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"net/http"
-	"slices"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -164,20 +163,8 @@ func loadProfile(ctx context.Context, db bun.IDB, logins *login.Realm, files *fi
 		p.Impersonation = &ImpersonationInfo{
 			ActorID:   sub.Impersonator.ID,
 			ActorName: actorName,
-			ReadOnly:  sub.ReadOnly || isReadOnlyScopes(sub.Scopes),
+			ReadOnly:  sub.ReadOnly,
 		}
 	}
 	return p, nil
-}
-
-// isReadOnlyScopes 报告凭据的 Scopes 是否属于只读排查模式。
-func isReadOnlyScopes(scopes []string) bool {
-	if len(scopes) == 0 {
-		return false
-	}
-	return slices.Equal(scopes, []string{"*:read"}) || !slices.ContainsFunc(scopes, func(s string) bool {
-		return s == "*" || s != "*:read" && !slices.Contains([]string{
-			"members:read", "teams:read", "channels:read", "conversations:read", "conversations:read-all", "conversations:read-team", "contacts:read", "reports:read",
-		}, s)
-	})
 }

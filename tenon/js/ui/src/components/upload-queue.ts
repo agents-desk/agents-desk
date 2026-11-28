@@ -3,8 +3,8 @@
 import { describeError } from "@go-tenon/client"
 import { type ClipboardEvent, type DragEvent, useCallback, useEffect, useRef, useState } from "react"
 import { text as uiText } from "../i18n/i18n"
-import { formatFileSize } from "../theme/format"
-import { errorMessage } from "./feedback"
+import { formatFileSize } from "../theme/file-size"
+import { errorMessage } from "./error-message"
 
 /** UploadQueueItem 是队列中的一个待发送文件。 */
 export interface UploadQueueItem<T> {

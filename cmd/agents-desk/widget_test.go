@@ -621,7 +621,7 @@ func TestPrivateExportsAndReadOnlyHTTP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tExp := tenant.NewQueueExport(env.DB, env.MemberLogins, tenant.Addresses{}, hub, exporter)
+	tExp := tenant.NewQueueExport(env.DB, tenant.Addresses{}, hub, exporter)
 	tRec, err := tExp.Handle(ctx, adminSub, sheet.CSV, "", "")
 	if err != nil {
 		t.Fatal(err)

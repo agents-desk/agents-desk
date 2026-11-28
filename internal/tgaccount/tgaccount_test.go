@@ -3,6 +3,7 @@ package tgaccount
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"io"
 	"strings"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/broadcast/broadcasttest"
+	"github.com/go-tenon/tenon/crypt"
 	"github.com/go-tenon/tenon/identity"
 	"github.com/go-tenon/tenon/outbound"
 	"github.com/go-tenon/tenon/page"
@@ -773,4 +775,12 @@ func TestTenantCredentialsIsolationAndValidation(t *testing.T) {
 	if _, err := testConn.Handle(ctx, subAlpha, "socks5://127.0.0.1:1080"); !errors.Is(err, ErrInvalidProxyURL) {
 		t.Fatalf("连通性测试遇到内网代理应返回 ErrInvalidProxyURL，实际：%v", err)
 	}
+}
+
+func decryptSessionBytes(c *crypt.Crypt, cipher string) ([]byte, error) {
+	plain, err := c.Decrypt(cipher)
+	if err != nil {
+		return nil, err
+	}
+	return base64.StdEncoding.DecodeString(plain)
 }

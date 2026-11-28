@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/google/uuid"
 
 	"github.com/go-tenon/tenon/filesystem"
 
@@ -222,5 +221,3 @@ func (b *boundedReadCloser) Read(p []byte) (int, error) {
 }
 
 func (b *boundedReadCloser) Close() error { return b.rc.Close() }
-
-func parseUUID(raw string) (uuid.UUID, error) { return uuid.Parse(raw) }

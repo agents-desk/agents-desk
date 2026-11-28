@@ -371,6 +371,8 @@ _, err := a.staff.SendCode(ctx, login.Reset, login.Email(in.Email))
 
 员工通过邀请邮件设置密码，邮箱随之标为已验证。
 
+批量读取或检索账号标识时使用 `IdentifiersMany(ctx, ids, kind)` 和 `SearchSubjectIDs(ctx, kind, q)`，避免 N+1 查询。
+
 > [!WARNING]
 > `Attach` 跳过验证码，未验证的标识同样占用唯一性：只用于管理员建号这类可信的场景，自助注册一律通过验证码。
 

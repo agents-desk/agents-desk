@@ -4,7 +4,6 @@ package tag
 import (
 	"context"
 	"database/sql"
-	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/danielgtaylor/huma/v2"
@@ -200,6 +199,3 @@ func toDTOs(ctx context.Context, db bun.IDB, tags []Tag) ([]TagDTO, error) {
 
 // newID 返回按时间递增的 UUIDv7。
 func newID() string { return uuid.Must(uuid.NewV7()).String() }
-
-// Now 返回当前时间，精度与 PostgreSQL 的 timestamptz 一致。
-func Now() time.Time { return time.Now().UTC().Truncate(time.Microsecond) }

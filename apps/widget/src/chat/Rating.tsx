@@ -2,7 +2,7 @@ import type { ConversationContactConversationMeta, ConversationContactTimelineDT
 import { Button, Paper, Rating as Stars, Stack, Text, Textarea } from "@mantine/core"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { describeError } from "@go-tenon/client"
-import { useT } from "@go-tenon/ui"
+import { useT } from "@go-tenon/ui/core"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { authed, widgetApi } from "../api"
 import { useIdentity } from "../realtime"

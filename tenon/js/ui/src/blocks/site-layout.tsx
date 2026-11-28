@@ -4,6 +4,7 @@
 import { Box, Burger, Container, Drawer, Group, SimpleGrid, Stack, Text } from "@mantine/core"
 import { Link, Outlet, useRouterState } from "@tanstack/react-router"
 import { type CSSProperties, type ReactNode, useState } from "react"
+import { useDocumentTitle } from "../app/document-title"
 import { normalizePath } from "../app/menu"
 import { useText } from "../i18n/i18n"
 
@@ -39,6 +40,8 @@ export interface SiteLayoutProps {
   note?: ReactNode
   /** 页头和页脚的最大宽度（Mantine 的容器尺寸），默认 xl，与 DocsLayout 对齐。 */
   size?: "sm" | "md" | "lg" | "xl"
+  /** 同步写入 document.title 的浏览器标签标题。 */
+  documentTitle?: string
   /** 页面内容；默认是子路由。 */
   children?: ReactNode
 }
@@ -79,11 +82,14 @@ export function SiteLayout({
   footer = [],
   note,
   size = "xl",
+  documentTitle,
   children,
 }: SiteLayoutProps): ReactNode {
   const [open, setOpen] = useState(false)
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const t = useText()
+  useDocumentTitle(documentTitle)
+  const hasNav = nav.length > 0
   const vars = { "--tn-header-height": `${headerHeight}px` } as CSSProperties
   return (
     <div className="tn-site" style={vars}>
@@ -92,34 +98,40 @@ export function SiteLayout({
           <Link to="/" className="tn-site-brand">
             {brand}
           </Link>
-          <Group gap={2} className="tn-site-nav" visibleFrom="sm" component="nav" aria-label={t("tenon.site.nav")}>
-            {nav.map((l, i) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: 导航是固定的列表
-              <SiteAnchor key={i} link={l} active={siteLinkActive(pathname, l)} />
-            ))}
-          </Group>
+          {hasNav && (
+            <Group gap={2} className="tn-site-nav" visibleFrom="sm" component="nav" aria-label={t("tenon.site.nav")}>
+              {nav.map((l, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: 导航是固定的列表
+                <SiteAnchor key={i} link={l} active={siteLinkActive(pathname, l)} />
+              ))}
+            </Group>
+          )}
           <Box style={{ flex: 1 }} />
-          <Group gap="xs" visibleFrom="sm">
+          <Group gap="xs" visibleFrom={hasNav ? "sm" : undefined}>
             {actions}
           </Group>
-          <Burger
-            hiddenFrom="sm"
-            size="sm"
-            opened={open}
-            onClick={() => setOpen((o) => !o)}
-            aria-label={t("tenon.frame.open_nav")}
-          />
+          {hasNav && (
+            <Burger
+              hiddenFrom="sm"
+              size="sm"
+              opened={open}
+              onClick={() => setOpen((o) => !o)}
+              aria-label={t("tenon.frame.open_nav")}
+            />
+          )}
         </Container>
       </header>
-      <Drawer opened={open} onClose={() => setOpen(false)} size="xs" position="right" title={brand}>
-        <Stack gap={4} className="tn-site-nav">
-          {nav.map((l, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: 导航是固定的列表
-            <SiteAnchor key={i} link={l} active={siteLinkActive(pathname, l)} onClick={() => setOpen(false)} />
-          ))}
-          <Group mt="md">{actions}</Group>
-        </Stack>
-      </Drawer>
+      {hasNav && (
+        <Drawer opened={open} onClose={() => setOpen(false)} size="xs" position="right" title={brand}>
+          <Stack gap={4} className="tn-site-nav">
+            {nav.map((l, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: 导航是固定的列表
+              <SiteAnchor key={i} link={l} active={siteLinkActive(pathname, l)} onClick={() => setOpen(false)} />
+            ))}
+            <Group mt="md">{actions}</Group>
+          </Stack>
+        </Drawer>
+      )}
       <main className="tn-site-main">{children ?? <Outlet />}</main>
       {(footer.length > 0 || note) && (
         <footer className="tn-site-footer">

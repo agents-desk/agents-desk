@@ -180,7 +180,7 @@ Go 为每个页面请求生成 nonce，换掉页面外壳和预渲染页面中�
 ```go
 CSP: func(r *http.Request, nonce string) string {
     p := frontend.DefaultPolicy(nonce)
-    p.AddConnectSrc(frontend.Origin("https://o2.example.com"))
+    p.AddTelemetry(cfg.Telemetry.Browser) // 启用 OpenObserve 浏览器端上报时自动追加上报源与 worker-src blob:
     return p.String()
 },
 ```

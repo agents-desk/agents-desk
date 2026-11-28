@@ -131,7 +131,7 @@ go tool tenon deploy run -t prod -- doctor
 
 ### 4. 配置 Nginx 反向代理（80 端口模板）
 
-在服务器上创建或更新站点配置（例如 `/etc/nginx/conf.d/agents-desk.conf`），将 80 端口请求转发到本机 `127.0.0.1:8081`：
+在服务器上创建或更新站点配置（例如 `/etc/nginx/conf.d/agents-desk.conf`），将 80 端口请求转发到本机 `127.0.0.1:8080`：
 
 ```nginx
 map $http_upgrade $connection_upgrade {
@@ -140,14 +140,14 @@ map $http_upgrade $connection_upgrade {
 }
 
 upstream agents-desk_backend {
-    server 127.0.0.1:8081 max_fails=3 fail_timeout=10s;
+    server 127.0.0.1:8080 max_fails=3 fail_timeout=10s;
 }
 
 server {
     listen 80;
     server_name example.com;
 
-    client_max_body_size 55m;
+    client_max_body_size 32m;
 
     location / {
         proxy_pass http://agents-desk_backend;
@@ -173,7 +173,7 @@ server {
 
 ```bash
 sudo nginx -t && sudo systemctl reload nginx
-curl -fsS http://127.0.0.1:8081/readyz
+curl -fsS http://127.0.0.1:8080/readyz
 ```
 
 ### 5. 日常运维与一次性命令

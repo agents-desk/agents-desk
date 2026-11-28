@@ -225,7 +225,7 @@ mailer := mail.Failover([]mail.Named{
 <a id="custom-mailers"></a>
 ## 自定义发送器
 
-接入其他服务商时实现 `mail.Mailer`，发送前补上默认发件人并校验：
+接入其他服务商时实现 `mail.Mailer`，发送前补上默认发件人并校验；需要从数据库设置动态读取并热切换发送器时，使用 `mail.NewDynamic(loadFn)`（`DynamicMailer`）：
 
 ```go
 func (m *PostmarkMailer) Send(ctx context.Context, msg mail.Message) error {

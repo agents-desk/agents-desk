@@ -76,7 +76,7 @@ op.Middlewares = append(op.Middlewares, func(ctx huma.Context, next func(huma.Co
 <a id="request-timeout"></a>
 ## 请求超时：`httpx.Timeout`
 
-`httpx.Timeout(cfg.HTTP.Timeout)` 为请求的 context 设置超时（`http.timeout.duration`，默认 30 秒）。超时后 context 被取消，传入了 `ctx` 的查询和外部调用随之停止，处理器返回的错误决定响应。
+`httpx.Timeout(cfg.HTTP.Timeout)` 为请求的 context 设置超时（`http.timeout.duration`，默认 30 秒），针对单组路由设置不同超时用 `httpx.TimeoutFor(d)`。超时后 context 被取消，传入了 `ctx` 的查询和外部调用随之停止，处理器返回的错误决定响应。
 
 它不在 `httpx.Defaults` 中，可以只装在部分路由组上；需要更长时间的接口放在超时更长的路由组中。[服务端推送](sse.md)开始推送后脱离这个超时。
 
@@ -204,7 +204,7 @@ router.Use(
 
 - 上传路由还要设置相同的 `Operation.MaxBodyBytes`，见[请求体大小](requests.md#body-size)。
 - `AccessLog` 装在 `Recover` 之外，panic 产生的 500 才会出现在访问日志中。
-- 用在 `rest` 之外的 `http.Handler` 上时用 `chi.Chain(httpx.Defaults(cfg.HTTP)...).Handler(mux)`。
+- 用在 `rest` 之外的 `http.Handler` 上时用 `chi.Chain(httpx.Defaults(cfg.HTTP)...).Handler(mux)`，返回错误时可用 `httpx.WriteError(w, r, err)` 写出本地化的 Problem Details。
 
 <a id="http-configuration"></a>
 ## 配置
@@ -280,7 +280,7 @@ if err != nil {
 <a id="trusted-proxies"></a>
 ### 可信代理
 
-`ClientIP` 只在直连地址属于 `http.client_ip.trusted_proxies` 时读取 `X-Forwarded-For`：从右向左跳过可信代理，第一个不可信的地址写入 `r.RemoteAddr`。没有配置时日志中的客户端地址都是代理的地址。
+`ClientIP` 只在直连地址属于 `http.client_ip.trusted_proxies` 时读取 `X-Forwarded-For`：从右向左跳过可信代理，第一个不可信的地址写入 `r.RemoteAddr` 并存入请求 context（可用 `httpx.ClientIPFromContext(ctx)` 取出；非 HTTP 入口或测试中可用 `httpx.WithClientIP` 写入）。没有配置时日志中的客户端地址都是代理的地址。
 
 ```yaml
 http:

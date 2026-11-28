@@ -53,9 +53,6 @@ func botSettingsMap(cfg BotSettings) map[string]any {
 	if cfg.MaxToolIterations > 0 {
 		m["max_tool_iterations"] = cfg.MaxToolIterations
 	}
-	if cfg.ConfidenceThreshold > 0 {
-		m["confidence_threshold"] = cfg.ConfidenceThreshold
-	}
 	return m
 }
 

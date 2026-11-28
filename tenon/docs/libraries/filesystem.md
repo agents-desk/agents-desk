@@ -2,7 +2,7 @@
 
 `filesystem` 保存用户上传的文件（封面、头像、附件、导出的表格）：`files` 表记录每个文件，正文保存在磁盘上，磁盘是本地目录或 S3 兼容的对象存储。文件通过应用服务器上传，或由客户端直传到 S3；每个文件有公开地址，图片缩略图由 imgproxy 按地址生成。
 
-包：`filesystem`、`filesystem/local`、`filesystem/s3`、`imgproxy`。
+包：`filesystem`、`filesystem/local`、`filesystem/s3`、`filesystem/fileapi`、`imgproxy`。
 
 - 上传得到的文件是 `temporary`，业务使用它时调用 `Confirm` 变为 `ready`；超过 `temp_ttl` 没有确认的文件由 `Cleanup` 删除。用户放弃编辑时，存储中不留下没人引用的文件。
 - 文件都是公开的：知道地址就能下载。`Get`、`Open` 只按 ID 查询，权限由业务在调用前检查。
@@ -92,6 +92,7 @@ disk, err := s3.Open(ctx, cfg.Filesystem.Disks.S3)
 
 - `Open` 检查桶可以访问。桶（或 CDN 回源）要配置公开读，`public_url` 加对象键能直接下载。
 - S3 按上传时声明的 `Content-Type` 返回文件。`public_url` 用与应用不同的域名，上传的网页读不到应用的 cookie；要展示给用户的文件在确认时用 [`Accept`](#confirming-files) 限定类型。
+- 需要把媒体源加入内容安全策略（`img-src` / `media-src`）时，调用 `cfg.Filesystem.MediaOrigins()` 或 `cfg.Filesystem.Disks.S3.MediaOrigin()` 提取配置里的 origin。
 - 已有 AWS SDK 的客户端时用 `s3.New(client, bucket, publicURL)` 创建磁盘；`disk.Client()` 返回原生客户端，用于未封装的 S3 功能。
 - 客户端直传要为桶配置 CORS，存储要支持条件写入，见[客户端直传](#direct-upload)。`s3.Doctor(disk, uploadOrigins...)` 检查公开地址、CORS 和条件写入，见[自检](../installation/doctor.md#framework-checks)。
 
@@ -108,6 +109,7 @@ record, err := fileService.Upload(ctx, owner, filesystem.FileInput{
 ```
 
 - 正文长度必须正好等于 `Size`，否则返回 `filesystem.ErrInvalid`，写入的内容随之删除。超过 `max_upload_size` 返回 `filesystem.ErrTooLarge`。
+- 需要拒绝 HTML/SVG/XML/JS 等脚本化活跃内容时设置 `FileInput.RejectActive = true`，命中时返回 `filesystem.ErrInvalid`。
 - 服务端拉取未知长度流（如外部渠道下载或后台流式生成）时，`Size` 传 `filesystem.UnknownSize`（`-1`），流式写入磁盘后自动回填真实大小，同样受 `max_upload_size` 限制。
 - `Disk` 为空时用 `default_disk`，也可以指定 `Disk: "s3"`。
 - 对象键是上传日期、文件 ID 加小写扩展名，例如 `2026/11/10/0193a3c2-….jpg`；原始文件名只保存在 `filename` 列，公开地址中不出现。
@@ -163,7 +165,7 @@ err := database.RunInTx(ctx, db, nil, func(ctx context.Context, tx database.Tx) 
 })
 ```
 
-事务回滚时新文件保持 `temporary`，旧文件原样保留。
+事务回滚时新文件保持 `temporary`，旧文件原样保留。若旧文件 ID 无需跳过相等判断或只需原子确认新文件并删除非空旧文件，可直接调用 `fileService.WithDB(tx).Replace(ctx, owner, newCoverID, article.CoverID, coverImage)`。
 
 <a id="ordered-files"></a>
 ## 多个有序文件
@@ -191,7 +193,7 @@ record, err := fileService.Get(ctx, article.CoverID)
 ```
 
 - `Get` 只按 ID 查询，不检查权限。已删除的文件返回 `filesystem.ErrNotFound`。批量读取多个文件时用 `GetMany(ctx, ids)`，返回按 ID 索引的 map，每条记录按所在磁盘填好 `URL`。
-- 只需要拼地址时，业务表保存 `key`，用磁盘的 `URL(key)` 生成。
+- 只需要拼地址时，业务表保存 `key`，用磁盘的 `URL(key)` 或服务的 `fileService.URL(disk, key)` 生成。
 
 在服务端处理文件内容时用 `Open` 读取正文，调用方关闭它：
 
@@ -362,7 +364,7 @@ record, err = fileService.CompleteMultipart(ctx, owner, record.ID, uploadID, []f
 | `POST /files/{id}/multipart/{uploadID}/complete` | `file-multipart-complete` | `CompleteMultipart` | `File` |
 | `DELETE /files/{id}/multipart/{uploadID}` | `file-multipart-abort` | `AbortMultipart` | 无（204） |
 
-- 只用本地磁盘时只保留第一个接口。
+- 只用本地磁盘时只保留第一个接口；标准的 `POST /files` 上传端点（默认拦截可运行脚本的活跃文件，支持 `Private` 磁盘与前置许可检查）可直接调用 `fileapi.Register(api, protect, files, maxSize, opts)` 注册，业务表单替换可选图片/文件引用的逻辑使用 `fileapi.ReplaceOptional` 与 `fileapi.URL`。
 - `Confirm` 不单独开接口，在使用文件的业务接口中调用，见[在业务接口中确认](#rest-confirm)。
 - `OperationID` 决定[生成客户端](../http/clients.md)的方法名，例如 `api.file.signPut`。
 

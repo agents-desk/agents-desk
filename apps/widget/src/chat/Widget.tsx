@@ -2,7 +2,7 @@ import { isApiError } from "@agents-desk/client/widget"
 import { Box, Button, Center, Indicator, Loader, Paper, Text } from "@mantine/core"
 import { IconTicket } from "@tabler/icons-react"
 import { useQueryClient } from "@tanstack/react-query"
-import { useT } from "@go-tenon/ui"
+import { useT } from "@go-tenon/ui/core"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { channel, embedded, hasCloseButton, type Init, inline, listen, tell, waitInit } from "../host"
 import {

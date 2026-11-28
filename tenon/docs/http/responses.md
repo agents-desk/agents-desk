@@ -245,7 +245,9 @@ if err != nil {
     return nil, err // 非法时区、日期倒挂、超过跨度上限时返回 422
 }
 // SQL 使用 WHERE created_at >= w.Start AND created_at < w.End（不用 NOW()）
+// 按桶分组可使用 w.BucketExpr("created_at") 并绑定参数 w.TimeZone
 series := period.FillSeries(w, rows, func(p Point) string { return p.Date }, func(d string) Point { return Point{Date: d} })
+// 已有 map[string]Point 时可用 period.FillSeriesMap(w, byBucket, func(d string) Point { return Point{Date: d} })
 ```
 
 - 跨度不超过 62 天且未指定粒度时默认 `day`，超过时自动切换 `week`（按周一起始，与 PostgreSQL `date_trunc('week', ...)` 对齐）。

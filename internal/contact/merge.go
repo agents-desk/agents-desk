@@ -351,6 +351,13 @@ func MergeLead(ctx context.Context, tx bun.IDB, tenant, leadID, userID, consumeC
 	if user.Email == "" && lead.Email != "" {
 		user.Email, cols = lead.Email, append(cols, "email")
 	}
+	if user.Company == "" && lead.Company != "" {
+		user.Company, cols = lead.Company, append(cols, "company")
+	}
+	if user.OrganizationID == nil && lead.OrganizationID != nil {
+		oid := *lead.OrganizationID
+		user.OrganizationID, cols = &oid, append(cols, "organization_id")
+	}
 	if user.Location == "" && lead.Location != "" {
 		user.Location, cols = lead.Location, append(cols, "location")
 	}

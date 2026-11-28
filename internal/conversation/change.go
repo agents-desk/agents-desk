@@ -2,7 +2,6 @@ package conversation
 
 import (
 	"context"
-	"time"
 
 	"github.com/uptrace/bun"
 
@@ -66,6 +65,3 @@ func changeTx(ctx context.Context, db *bun.DB, down Downstream, sub identity.Sub
 func event(sub identity.Subject, name string, data map[string]any) *Item {
 	return &Item{Kind: Event, ActorType: actorOf(sub), ActorID: sub.ID, Visibility: MembersOnly, Content: Content{Event: name, Data: data}}
 }
-
-// timePtr 返回 t 的指针。
-func timePtr(t time.Time) *time.Time { return &t }

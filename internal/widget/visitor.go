@@ -49,7 +49,7 @@ func Middleware(db bun.IDB) func(http.Handler) http.Handler {
 						return
 					}
 					if blocked {
-						httpx.WriteProblem(w, http.StatusForbidden, "visitor ip is blocked")
+						httpx.WriteError(w, r, blockip.ErrBlocked.New())
 						return
 					}
 				}

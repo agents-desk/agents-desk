@@ -61,12 +61,3 @@ func Set(ctx context.Context, roles *authz.Store, ref identity.Ref, tenant strin
 	}
 	return roles.SetRoles(ctx, ref, tenant, r.ID)
 }
-
-// Revoke 在 tenant 中撤销 ref 的预置角色 role。
-func Revoke(ctx context.Context, roles *authz.Store, ref identity.Ref, tenant string, role authz.Role) error {
-	r, err := roles.RoleByName(ctx, role.Name, "")
-	if err != nil {
-		return err
-	}
-	return roles.Unassign(ctx, ref, tenant, r.ID)
-}

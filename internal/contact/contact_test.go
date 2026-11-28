@@ -17,6 +17,7 @@ import (
 	"agents-desk/internal/contact"
 	"agents-desk/internal/conversation"
 	"agents-desk/internal/member"
+	"agents-desk/internal/organization"
 	"agents-desk/internal/role"
 	"agents-desk/internal/team"
 	"agents-desk/internal/tenant"
@@ -234,13 +235,20 @@ func TestMergeLead(t *testing.T) {
 	}
 	tokens := apitoken.NewStore(env.DB, apitoken.Config{Lifetime: time.Hour, IdleTimeout: time.Hour})
 
+	org, err := organization.NewCreate(env.DB).Handle(ctx, w.agent, organization.CreateBody{Name: "Acme Global"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	var lead, user *contact.Contact
 	err = database.RunInTx(ctx, env.DB, nil, func(ctx context.Context, tx database.Tx) error {
 		var err error
 		lead, _, err = contact.ResolveIdentity(ctx, tx, w.tenant, w.channel.ID, "visitor:abc", contact.Profile{
-			Name: "Visitor Name", Email: "lead@example.com", TimeZone: "Asia/Shanghai", Referrer: "https://example.com/start",
+			Name: "Visitor Name", Company: "Acme Lead Co", Email: "lead@example.com", TimeZone: "Asia/Shanghai", Referrer: "https://example.com/start",
 		})
 		if err != nil {
+			return err
+		}
+		if _, err := tx.NewUpdate().Model(lead).Set("organization_id = ?", org.ID).WherePK().Exec(ctx); err != nil {
 			return err
 		}
 		// 线索还在另一个渠道有身份
@@ -304,7 +312,9 @@ func TestMergeLead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if detail.Name != "Official User" || detail.Email != "lead@example.com" || detail.TimeZone != "Asia/Shanghai" ||
+	if detail.Name != "Official User" || detail.Company != "Acme Lead Co" ||
+		detail.OrganizationID == nil || *detail.OrganizationID != org.ID ||
+		detail.Email != "lead@example.com" || detail.TimeZone != "Asia/Shanghai" ||
 		detail.Referrer != "https://example.com/start" || detail.Notes != "用户备注\n\n线索备注" ||
 		detail.Language != "en" || !detail.LanguageManual || detail.ConversationCount != 1 {
 		t.Fatalf("合并后资料不对：%+v", detail)
@@ -534,7 +544,7 @@ func TestVisibilityScope(t *testing.T) {
 	}
 
 	// 6. 内部备注 @ 协作：在未绑定渠道的会话中 @ 张三，张三可以看到 cUnassigned 和该渠道
-	if _, err := conversation.NewAddNote(env.DB, conversation.Downstream{}).Handle(ctx, owner, recUnassigned.ConversationID, "请张三协助", []string{agentB.ID}); err != nil {
+	if _, err := conversation.NewAddNote(env.DB, conversation.Downstream{}).Handle(ctx, owner, recUnassigned.ConversationID, conversation.NoteBody{Text: "请张三协助", Mentions: []string{agentB.ID}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := get.Handle(ctx, agentB, cUnassigned.ID); err != nil {

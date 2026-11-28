@@ -2,7 +2,10 @@
 
 import { generateColors } from "@mantine/colors-generator"
 import {
+  ActionIcon,
+  type ActionIconCssVariables,
   Button,
+  type CSSVariablesResolver,
   createTheme,
   Input,
   type MantineColorsTuple,
@@ -134,6 +137,51 @@ function metrics(m: LayoutMetrics): MantineThemeOverride {
   return { other: { tenon: m } }
 }
 
+function actionIconComponent(isCompact: boolean) {
+  return ActionIcon.extend({
+    defaultProps: { variant: "subtle" },
+    vars: (theme, props) => {
+      const root: Partial<Record<ActionIconCssVariables["root"], string>> = {}
+      if (props.color === undefined && (props.variant === undefined || props.variant === "subtle")) {
+        const colors = theme.variantColorResolver({
+          color: "gray",
+          theme,
+          variant: "subtle",
+          autoContrast: props.autoContrast,
+        })
+        root["--ai-bg"] = colors.background
+        root["--ai-hover"] = colors.hover
+        root["--ai-hover-color"] = colors.hoverColor
+        root["--ai-color"] = colors.color
+        root["--ai-bd"] = colors.border
+      }
+      if (isCompact && props.size === "input-sm") {
+        root["--ai-size"] = compactControl.height
+      }
+      return { root }
+    },
+  })
+}
+
+const lightTextColors: readonly PrimaryColor[] = [
+  "green",
+  "yellow",
+  "deep-orange",
+  "bright-orange",
+  "bright-green",
+  "light-blue",
+  "sky-blue",
+]
+
+/** uiCssVariablesResolver 在亮色模式下校准高亮度预设色的文本语义变量，确保白底对比度。 */
+export const uiCssVariablesResolver: CSSVariablesResolver = () => ({
+  variables: {},
+  light: Object.fromEntries(
+    lightTextColors.map((name) => [`--mantine-color-${name}-text`, `var(--mantine-color-${name}-9)`]),
+  ),
+  dark: {},
+})
+
 /** 三套预设共用的部分：字体、色板、焦点、组件的默认属性。 */
 function base(m: LayoutMetrics): MantineThemeOverride {
   const size = m.controlSize
@@ -150,7 +198,8 @@ function base(m: LayoutMetrics): MantineThemeOverride {
     headings: { fontFamily, fontWeight: "600" },
     components: {
       Button: { defaultProps: { size } },
-      ActionIcon: { defaultProps: { variant: "subtle", color: "gray" } },
+      ActionIcon: actionIconComponent(false),
+      InputWrapper: { defaultProps: { inputWrapperOrder: ["label", "input", "description", "error"] } },
       TextInput: { defaultProps: { size } },
       PasswordInput: { defaultProps: { size } },
       NumberInput: { defaultProps: { size } },
@@ -233,12 +282,13 @@ const compact: MantineThemeOverride = mergeThemeOverrides(
             ? {
                 root: {
                   "--button-height": compactControl.height,
-                  "--button-padding-x": "12px",
+                  "--button-padding-x": "var(--tn-button-padding-x, 12px)",
                   "--button-fz": compactControl.fz,
                 },
               }
             : { root: {} },
       }),
+      ActionIcon: actionIconComponent(true),
       Input: Input.extend({
         vars: (_, props) =>
           props.size === undefined || props.size === "sm"

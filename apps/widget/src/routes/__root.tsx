@@ -1,7 +1,7 @@
 import "@go-tenon/ui/base.css"
 import "../widget.css"
 import { telemetryMeta } from "@go-tenon/start"
-import type { RouterContext } from "@go-tenon/ui"
+import type { RouterContext } from "@go-tenon/ui/core"
 import { ColorSchemeScript, DirectionProvider, MantineProvider, mantineHtmlProps, useDirection } from "@mantine/core"
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts, useRouter } from "@tanstack/react-router"
 import { type ReactNode, useEffect, useMemo, useState, useSyncExternalStore } from "react"

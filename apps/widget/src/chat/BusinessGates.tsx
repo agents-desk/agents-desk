@@ -3,7 +3,7 @@ import { Box, Button, Center, Paper, PasswordInput, Stack, Text, Textarea, TextI
 import { IconClockOff, IconLock } from "@tabler/icons-react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { describeError } from "@go-tenon/client"
-import { useT } from "@go-tenon/ui"
+import { useT } from "@go-tenon/ui/core"
 import { type FormEvent, type ReactNode, useState } from "react"
 import { authed, widgetApi } from "../api"
 import { identity } from "../identity"
