@@ -9,7 +9,7 @@ import { LoadingStage, type MetricItem, MetricStrip, type PeriodRoute, useCan, u
 import type { ReactNode } from "react"
 import { kit } from "../api"
 import { languageName } from "../languages"
-import { InboxDrillButton, InlineShareBar, REPORT_AREA_PROPS } from "./Breakdown"
+import { InboxDrillButton, InlineShareBar, type LiveBacklogItem, LiveBacklogStrip, REPORT_AREA_PROPS } from "./Breakdown"
 import {
   channelInboxSearch,
   languageInboxSearch,
@@ -62,29 +62,38 @@ export function ConversationsPage({
   const langTotal = (data?.by_language ?? []).reduce((acc, x) => acc + x.count, 0)
   const maxLang = Math.max(1, ...(data?.by_language ?? []).map((x) => x.count))
 
-  const liveItems: Array<{
-    key: "open" | "waiting" | "unassigned" | "snoozed"
-    label: string
-    tip: string
-    value: number | undefined
-    warn?: boolean
-  }> = [
-    { key: "open", label: t("reports.live_open"), tip: t("reports.live_open_tip"), value: s?.open_now },
-    {
-      key: "waiting",
-      label: t("reports.live_waiting"),
-      tip: t("reports.live_waiting_tip"),
-      value: s?.waiting_now,
-      warn: Boolean(s && s.waiting_now > 0),
-    },
-    {
-      key: "unassigned",
-      label: t("reports.live_unassigned"),
-      tip: t("reports.live_unassigned_tip"),
-      value: s?.unassigned_now,
-    },
-    { key: "snoozed", label: t("reports.live_snoozed"), tip: t("reports.live_snoozed_tip"), value: s?.snoozed_now },
-  ]
+  const liveItems: LiveBacklogItem[] = (
+    [
+      { key: "open", label: t("reports.live_open"), tip: t("reports.live_open_tip"), value: s?.open_now },
+      {
+        key: "waiting",
+        label: t("reports.live_waiting"),
+        tip: t("reports.live_waiting_tip"),
+        value: s?.waiting_now,
+        warn: Boolean(s && s.waiting_now > 0),
+      },
+      {
+        key: "unassigned",
+        label: t("reports.live_unassigned"),
+        tip: t("reports.live_unassigned_tip"),
+        value: s?.unassigned_now,
+      },
+      { key: "snoozed", label: t("reports.live_snoozed"), tip: t("reports.live_snoozed_tip"), value: s?.snoozed_now },
+    ] as const
+  ).map((item) => ({
+    key: item.key,
+    label: item.label,
+    tip: item.tip,
+    value: formatInt(item.value, uiLang),
+    warn: "warn" in item ? item.warn : undefined,
+    link: canInbox
+      ? {
+          to: "/$slug/inbox",
+          params: { slug },
+          search: liveBacklogInboxSearch(item.key, scope) as unknown as Record<string, unknown>,
+        }
+      : undefined,
+  }))
 
   const metrics: MetricItem[] = [
     {
@@ -154,51 +163,7 @@ export function ConversationsPage({
       exportConfig={{ report: "conversations", params: filters.queryParams }}
     >
       {/* 实时积压状态条：与周期趋势独立，每一项直接进入收件箱对应实时视图 */}
-      <div className="rp-live-strip">
-        <span className="rp-live-badge">
-          <span className="rp-live-dot" aria-hidden="true" />
-          {t("reports.live_label")}
-        </span>
-        <div className="rp-live-items">
-          {liveItems.map((item) => {
-            const inner = (
-              <>
-                <Text span size="xs" c="dimmed">
-                  {item.label}
-                </Text>
-                {loading ? (
-                  <Skeleton height={16} width={28} radius="xs" />
-                ) : (
-                  <Text span className="rp-live-value" c={item.warn ? "deep-orange" : undefined}>
-                    {formatInt(item.value, uiLang)}
-                  </Text>
-                )}
-                {canInbox && <IconArrowUpRight size={14} stroke={1.6} className="rp-live-arrow" />}
-              </>
-            )
-            if (!canInbox) {
-              return (
-                <span key={item.key} className="rp-live-item">
-                  {inner}
-                </span>
-              )
-            }
-            return (
-              <Tooltip key={item.key} label={item.tip} openDelay={250}>
-                <Link
-                  to="/$slug/inbox"
-                  params={{ slug }}
-                  search={liveBacklogInboxSearch(item.key, scope)}
-                  className="rp-live-item"
-                  data-clickable=""
-                >
-                  {inner}
-                </Link>
-              </Tooltip>
-            )
-          })}
-        </div>
-      </div>
+      <LiveBacklogStrip loading={loading} items={liveItems} />
 
       {/* 主分析面板：周期等分指标带 + 会话趋势面积图 */}
       <section className="rp-panel">

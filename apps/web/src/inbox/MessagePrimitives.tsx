@@ -20,7 +20,71 @@ const GROUP_WINDOW_MS = 3 * 60 * 1000
 const LINK = /https?:\/\/[^\s<>\x22]+[^\s<>\x22\x27.,;:!?)\]}。，；：！？）】」』]/g
 
 /** deliveryColor 是外部渠道送达状态的颜色：已读为进行中蓝，失败为红色，其余为灰色。 */
-export const deliveryColor = { sending: "dimmed", delivered: "dimmed", read: "bright-blue", failed: "red" } as const
+const deliveryColor = { sending: "dimmed", delivered: "dimmed", read: "bright-blue", failed: "red" } as const
+
+/** DeliveryStatus 渲染己方消息的送达状态（翻译中、发送中、已送达、已读与失败重试操作）。 */
+export function DeliveryStatus({
+  item,
+  retrying,
+  onRetry,
+}: {
+  item: ConversationItemDTO
+  retrying?: boolean
+  onRetry: (opts: { skipTranslation?: boolean }) => void
+}): ReactNode {
+  const t = useT()
+  if (!item.delivery) return null
+  const pendingAutoTranslate = Boolean(item.delivery === "sending" && item.derived?.pending_translation)
+  const translationFailed = Boolean(item.delivery === "failed" && item.derived?.translation_failed)
+  const statusLabel = pendingAutoTranslate
+    ? t("inbox.delivery_translating")
+    : translationFailed
+      ? t("inbox.delivery_translation_failed")
+      : t(`inbox.delivery_${item.delivery}` as const)
+  const labelNode = (
+    <Text span size="xs" c={deliveryColor[item.delivery]}>
+      {statusLabel}
+    </Text>
+  )
+
+  return (
+    <>
+      {pendingAutoTranslate && <Loader size={10} />}
+      {item.delivery === "failed" && item.delivery_error ? (
+        <Tooltip label={item.delivery_error} multiline maw={280} openDelay={200}>
+          {labelNode}
+        </Tooltip>
+      ) : (
+        labelNode
+      )}
+      {item.delivery === "failed" && translationFailed ? (
+        <>
+          <Text span size="xs" c="dimmed">
+            ·
+          </Text>
+          <UnstyledButton fz="xs" c="red" td="underline" onClick={() => onRetry({})} disabled={retrying}>
+            {t("inbox.retry_translate")}
+          </UnstyledButton>
+          <Text span size="xs" c="dimmed">
+            ·
+          </Text>
+          <UnstyledButton fz="xs" c="red" td="underline" onClick={() => onRetry({ skipTranslation: true })} disabled={retrying}>
+            {t("inbox.retry_original")}
+          </UnstyledButton>
+        </>
+      ) : item.delivery === "failed" ? (
+        <>
+          <Text span size="xs" c="dimmed">
+            ·
+          </Text>
+          <UnstyledButton fz="xs" c="red" td="underline" onClick={() => onRetry({})} disabled={retrying}>
+            {t("inbox.retry")}
+          </UnstyledButton>
+        </>
+      ) : null}
+    </>
+  )
+}
 
 /** translationOf 返回他人的消息在目标语言 lang 中的译文；缺少译文或同语言时返回 undefined。 */
 export function translationOf(it: ConversationItemDTO, lang: string | undefined): string | undefined {

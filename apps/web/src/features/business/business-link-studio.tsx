@@ -32,20 +32,17 @@ import { useForm } from "@mantine/form"
 import {
   IconCheck,
   IconCopy,
-  IconDeviceDesktop,
-  IconDeviceMobile,
   IconDownload,
   IconExternalLink,
   IconForms,
   IconLock,
   IconMessage,
   IconRefresh,
-  IconWorld,
 } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useSearch } from "@tanstack/react-router"
 import { applyServerErrors, confirm, FormError, FormSection, notifyError, notifySuccess, Page, primaryColors, useLanguage, useT } from "@go-tenon/ui"
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react"
 import { kit, tenantApi } from "../../api"
 import { useUnsavedGuard } from "../../components/unsaved-guard"
 import { useMe, useMembers } from "../../inbox/data"
@@ -59,6 +56,7 @@ import {
   type PreviewViewport,
   resolvePreviewCopy,
 } from "../widget/preview-protocol"
+import { PreviewStageFrame } from "../widget/widget-preview-stage"
 import classes from "../widget/widget-studio.module.css"
 
 const presetSwatches = Object.values(primaryColors)
@@ -191,9 +189,11 @@ function IntakeFieldRow({
   )
 }
 
+const BIZ_PREVIEW_SCENES: readonly BizPreviewScene[] = ["intake", "conversation", "passcode"]
+
 /**
  * BusinessLinkPreviewStage 是商务沟通链接的右侧同源实时预览舞台：
- * 通过 postMessage 将表单草稿与当前预览语言推送至 /widget/preview，支持切换开场留资、对话中与口令门禁场景、语言及桌面/手机视口。
+ * 基于 PreviewStageFrame 推送草稿与商务配置至 /widget/preview，支持开场留资、对话中与口令门禁场景及双视口切换。
  */
 function BusinessLinkPreviewStage({
   name,
@@ -213,164 +213,70 @@ function BusinessLinkPreviewStage({
   business: PreviewBusinessPayload
 }): ReactNode {
   const t = useT()
-  const uiLang = useLanguage()
-  const iframeRef = useRef<HTMLIFrameElement>(null)
-  const [ready, setReady] = useState(false)
   const [scene, setScene] = useState<BizPreviewScene>("conversation")
   const [viewport, setViewport] = useState<PreviewViewport>("mobile")
 
-  const postPreview = useCallback(
-    (nextScene: BizPreviewScene, nextViewport: PreviewViewport) => {
-      const target = iframeRef.current?.contentWindow
-      if (!target) return
-      const payload: PreviewMessage = {
-        type: `${PREVIEW_PREFIX}preview`,
-        mode: "business_link",
-        lang: language,
-        name,
-        greeting,
-        appearance,
-        language,
-        scene: nextScene,
-        viewport: nextViewport,
-        business,
-      }
-      target.postMessage(payload, window.location.origin)
-    },
+  const buildMessage = useCallback(
+    (nextScene: BizPreviewScene, nextViewport: PreviewViewport): PreviewMessage => ({
+      type: `${PREVIEW_PREFIX}preview`,
+      mode: "business_link",
+      lang: language,
+      name,
+      greeting,
+      appearance,
+      language,
+      scene: nextScene,
+      viewport: nextViewport,
+      business,
+    }),
     [appearance, business, greeting, language, name],
   )
-  const latestPostRef = useRef<() => void>(() => {})
-  latestPostRef.current = () => postPreview(scene, viewport)
-
-  useEffect(() => {
-    const onMessage = (e: MessageEvent) => {
-      if (e.origin !== window.location.origin || e.source !== iframeRef.current?.contentWindow) return
-      if (!e.data || typeof e.data.type !== "string" || !e.data.type.startsWith(PREVIEW_PREFIX)) return
-      const kind = e.data.type.slice(PREVIEW_PREFIX.length)
-      if (kind === "preview_ready") {
-        setReady(true)
-        latestPostRef.current()
-        return
-      }
-      if (kind === "preview_scene") {
-        const next = e.data.scene
-        if (next === "intake" || next === "conversation" || next === "passcode") {
-          setScene(next)
-        }
-      }
-    }
-    window.addEventListener("message", onMessage)
-    return () => window.removeEventListener("message", onMessage)
-  }, [])
-
-  useEffect(() => {
-    if (!ready) return
-    postPreview(scene, viewport)
-  }, [postPreview, ready, scene, viewport])
-
-  const languageOptions = useMemo(() => {
-    const tags = new Set<string>([...previewLanguages, language])
-    return [...tags].filter(Boolean).map((code) => ({
-      value: code,
-      label: `${languageName(code, uiLang)} (${code})`,
-    }))
-  }, [language, previewLanguages, uiLang])
 
   return (
-    <Stack gap="sm" className={classes.previewColumn}>
-      <Group justify="space-between" gap="xs" wrap="wrap">
-        <SegmentedControl
-          size="xs"
-          value={scene}
-          onChange={(v) => setScene(v as BizPreviewScene)}
-          data={[
-            {
-              value: "intake",
-              label: (
-                <Center style={{ gap: 4 }}>
-                  <IconForms size={13} />
-                  <span>{t("biz_studio.scene_intake")}</span>
-                </Center>
-              ),
-            },
-            {
-              value: "conversation",
-              label: (
-                <Center style={{ gap: 4 }}>
-                  <IconMessage size={13} />
-                  <span>{t("biz_studio.scene_conversation")}</span>
-                </Center>
-              ),
-            },
-            {
-              value: "passcode",
-              label: (
-                <Center style={{ gap: 4 }}>
-                  <IconLock size={13} />
-                  <span>{t("biz_studio.scene_passcode")}</span>
-                </Center>
-              ),
-            },
-          ]}
-        />
-        <Group gap="xs" wrap="nowrap">
-          <Select
-            size="xs"
-            w={150}
-            aria-label={t("widget_i18n.preview_language")}
-            leftSection={<IconWorld size={13} />}
-            value={language}
-            onChange={(v) => v && onLanguageChange(v)}
-            data={languageOptions}
-            allowDeselect={false}
-          />
-          <SegmentedControl
-            size="xs"
-            value={viewport}
-            onChange={(v) => setViewport(v === "desktop" ? "desktop" : "mobile")}
-            data={[
-              {
-                value: "mobile",
-                label: (
-                  <Center style={{ gap: 4 }}>
-                    <IconDeviceMobile size={13} />
-                    <span>{t("widget_studio.viewport_mobile")}</span>
-                  </Center>
-                ),
-              },
-              {
-                value: "desktop",
-                label: (
-                  <Center style={{ gap: 4 }}>
-                    <IconDeviceDesktop size={13} />
-                    <span>{t("widget_studio.viewport_desktop")}</span>
-                  </Center>
-                ),
-              },
-            ]}
-          />
-        </Group>
-      </Group>
-
-      <Box className={classes.stage}>
-        <Box className={viewport === "mobile" ? classes.mobileShell : classes.desktopShell}>
-          <iframe
-            ref={iframeRef}
-            src="/widget/preview"
-            title={t("biz_studio.title")}
-            className={classes.frame}
-            onLoad={() => {
-              setReady(true)
-              latestPostRef.current()
-            }}
-          />
-        </Box>
-      </Box>
-
-      <Text size="xs" c="dimmed" ta="center">
-        {t("biz_studio.preview_hint")}
-      </Text>
-    </Stack>
+    <PreviewStageFrame
+      title={t("biz_studio.title")}
+      hint={t("biz_studio.preview_hint")}
+      scene={scene}
+      scenes={[
+        {
+          value: "intake",
+          label: (
+            <Center style={{ gap: 4 }}>
+              <IconForms size={13} />
+              <span>{t("biz_studio.scene_intake")}</span>
+            </Center>
+          ),
+        },
+        {
+          value: "conversation",
+          label: (
+            <Center style={{ gap: 4 }}>
+              <IconMessage size={13} />
+              <span>{t("biz_studio.scene_conversation")}</span>
+            </Center>
+          ),
+        },
+        {
+          value: "passcode",
+          label: (
+            <Center style={{ gap: 4 }}>
+              <IconLock size={13} />
+              <span>{t("biz_studio.scene_passcode")}</span>
+            </Center>
+          ),
+        },
+      ]}
+      validScenes={BIZ_PREVIEW_SCENES}
+      onSceneChange={setScene}
+      language={language}
+      previewLanguages={previewLanguages}
+      onLanguageChange={onLanguageChange}
+      languageSelectWidth={150}
+      viewport={viewport}
+      onViewportChange={setViewport}
+      mobileFirstViewport
+      buildMessage={buildMessage}
+    />
   )
 }
 

@@ -1,13 +1,23 @@
 // 浏览器端可观测性桥接：在 SSR 与浏览器端之间统一托管 sink 注册、路由错误上报、页面名与登录身份同步。
 
-/** 页面错误中的接口元信息，与 @go-tenon/ui 的 ErrorInfo 兼容。 */
+/** 单个字段的校验错误信息，与 @go-tenon/client 的 FieldError 结构一致。 */
+export interface ObserveFieldError {
+  location?: string
+  message: string
+  code?: string
+  value?: unknown
+}
+
+/** 页面错误中的接口元信息，与 @go-tenon/client 的 ErrorInfo 和 @go-tenon/ui 的 ErrorReport 兼容。 */
 export interface ObserveErrorInfo {
+  kind?: string
   status?: number
   code?: string
-  kind?: string
-  requestId?: string
   message?: string
-  fields?: Record<string, string>
+  fields?: readonly ObserveFieldError[]
+  params?: Record<string, unknown>
+  retryAfter?: number
+  requestId?: string
 }
 
 /** 路由错误上报载荷，与 @go-tenon/ui 的 ErrorReport 兼容。 */

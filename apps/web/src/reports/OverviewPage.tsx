@@ -1,7 +1,7 @@
 // 报表概览：顶部固定展示此刻全工作区实时健康状态，下方展示客服、商务服务、内部服务、工单、商务沟通与 AI 翻译的周期核心指标及融合趋势。
 
 import { AreaChart } from "@mantine/charts"
-import { Badge, Group, SimpleGrid, Skeleton, Stack, Text, Tooltip } from "@mantine/core"
+import { Badge, Group, SimpleGrid, Skeleton, Stack, Text } from "@mantine/core"
 import { IconArrowUpRight } from "@tabler/icons-react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link, useParams } from "@tanstack/react-router"
@@ -19,7 +19,7 @@ import {
 } from "@go-tenon/ui"
 import type { ReactNode } from "react"
 import { kit } from "../api"
-import { REPORT_AREA_PROPS } from "./Breakdown"
+import { type LiveBacklogItem, LiveBacklogStrip, REPORT_AREA_PROPS } from "./Breakdown"
 import { liveBacklogInboxSearch } from "./drilldown"
 import { csatColor, formatInt, formatPercent, formatUSD, pctDelta } from "./format"
 import { GranularityControl } from "./PeriodButton"
@@ -54,31 +54,33 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
   const ai = data?.ai
   const canConv = can("conversations:read")
 
-  const liveItems: Array<{
-    key: string
-    label: string
-    tip: string
-    value: string
-    warn?: boolean
-    to?: "/$slug/inbox" | "/$slug/inbox/tickets" | "/$slug/inbox/chat" | "/$slug/reports/members"
-    search?: Record<string, unknown>
-  }> = [
+  const liveItems: LiveBacklogItem[] = [
     {
       key: "svc_waiting",
       label: t("reports.ov_live_service_waiting"),
       tip: t("reports.ov_live_service_waiting_tip"),
       value: formatInt(live?.service_waiting, uiLang),
       warn: Boolean(live && live.service_waiting > 0),
-      to: canConv ? "/$slug/inbox" : undefined,
-      search: liveBacklogInboxSearch("waiting", { audience: "customer" }) as unknown as Record<string, unknown>,
+      link: canConv
+        ? {
+            to: "/$slug/inbox",
+            params: { slug },
+            search: liveBacklogInboxSearch("waiting", { audience: "customer" }) as unknown as Record<string, unknown>,
+          }
+        : undefined,
     },
     {
       key: "svc_unassigned",
       label: t("reports.ov_live_service_unassigned"),
       tip: t("reports.ov_live_service_unassigned_tip"),
       value: formatInt(live?.service_unassigned, uiLang),
-      to: canConv ? "/$slug/inbox" : undefined,
-      search: liveBacklogInboxSearch("unassigned", { audience: "customer" }) as unknown as Record<string, unknown>,
+      link: canConv
+        ? {
+            to: "/$slug/inbox",
+            params: { slug },
+            search: liveBacklogInboxSearch("unassigned", { audience: "customer" }) as unknown as Record<string, unknown>,
+          }
+        : undefined,
     },
     {
       key: "ptr_waiting",
@@ -86,8 +88,13 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
       tip: t("reports.ov_live_partner_waiting_tip"),
       value: formatInt(live?.partner_waiting, uiLang),
       warn: Boolean(live && live.partner_waiting > 0),
-      to: canConv ? "/$slug/inbox" : undefined,
-      search: liveBacklogInboxSearch("waiting", { audience: "partner" }) as unknown as Record<string, unknown>,
+      link: canConv
+        ? {
+            to: "/$slug/inbox",
+            params: { slug },
+            search: liveBacklogInboxSearch("waiting", { audience: "partner" }) as unknown as Record<string, unknown>,
+          }
+        : undefined,
     },
     {
       key: "int_waiting",
@@ -95,8 +102,13 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
       tip: t("reports.ov_live_internal_waiting_tip"),
       value: formatInt(live?.internal_waiting, uiLang),
       warn: Boolean(live && live.internal_waiting > 0),
-      to: canConv ? "/$slug/inbox" : undefined,
-      search: liveBacklogInboxSearch("waiting", { audience: "internal" }) as unknown as Record<string, unknown>,
+      link: canConv
+        ? {
+            to: "/$slug/inbox",
+            params: { slug },
+            search: liveBacklogInboxSearch("waiting", { audience: "internal" }) as unknown as Record<string, unknown>,
+          }
+        : undefined,
     },
     {
       key: "tk_open",
@@ -104,8 +116,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
       tip: t("reports.ov_live_ticket_open_tip"),
       value: formatInt(live?.ticket_open, uiLang),
       warn: Boolean(live && live.ticket_unassigned > 0),
-      to: canConv ? "/$slug/inbox/tickets" : undefined,
-      search: { box: "all", status: "unresolved" },
+      link: canConv ? { to: "/$slug/inbox/tickets", params: { slug }, search: { box: "all", status: "unresolved" } } : undefined,
     },
     {
       key: "biz_waiting",
@@ -113,15 +124,14 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
       tip: t("reports.ov_live_business_waiting_tip"),
       value: formatInt(live?.business_waiting, uiLang),
       warn: Boolean(live && live.business_waiting > 0),
-      to: canConv ? "/$slug/inbox/chat" : undefined,
-      search: canConv ? { scope: "external" } : undefined,
+      link: canConv ? { to: "/$slug/inbox/chat", params: { slug }, search: { scope: "external" } } : undefined,
     },
     {
       key: "online",
       label: t("reports.ov_live_online"),
       tip: t("reports.ov_live_online_tip"),
       value: live ? `${formatInt(live.online_members, uiLang)} / ${formatInt(live.total_members, uiLang)}` : "—",
-      to: "/$slug/reports/members",
+      link: { to: "/$slug/reports/members", params: { slug } },
     },
   ]
 
@@ -141,51 +151,7 @@ export function OverviewPage({ route }: { route: PeriodRoute }): ReactNode {
       updating={pageState.busy}
     >
       {/* 此刻实时健康条：跨客服、工单、商务与成员在线状态，不受时间窗口影响 */}
-      <div className="rp-live-strip">
-        <span className="rp-live-badge">
-          <span className="rp-live-dot" aria-hidden="true" />
-          {t("reports.live_label")}
-        </span>
-        <div className="rp-live-items">
-          {liveItems.map((item) => {
-            const inner = (
-              <>
-                <Text span size="xs" c="dimmed">
-                  {item.label}
-                </Text>
-                {loading ? (
-                  <Skeleton height={16} width={28} radius="xs" />
-                ) : (
-                  <Text span className="rp-live-value" c={item.warn ? "deep-orange" : undefined}>
-                    {item.value}
-                  </Text>
-                )}
-                {item.to && <IconArrowUpRight size={14} stroke={1.6} className="rp-live-arrow" />}
-              </>
-            )
-            if (!item.to) {
-              return (
-                <span key={item.key} className="rp-live-item">
-                  {inner}
-                </span>
-              )
-            }
-            return (
-              <Tooltip key={item.key} label={item.tip} openDelay={250}>
-                <Link
-                  to={item.to}
-                  params={{ slug }}
-                  search={item.search as never}
-                  className="rp-live-item"
-                  data-clickable=""
-                >
-                  {inner}
-                </Link>
-              </Tooltip>
-            )
-          })}
-        </div>
-      </div>
+      <LiveBacklogStrip loading={loading} items={liveItems} />
 
       {/* 六大业务域周期汇总卡片：点击卡片直达对应专题报表 */}
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">

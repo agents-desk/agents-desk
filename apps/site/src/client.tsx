@@ -4,7 +4,7 @@ import { openobserveRum } from "@openobserve/browser-rum"
 import { StartClient } from "@tanstack/react-start/client"
 import { StrictMode, startTransition } from "react"
 import { hydrateRoot } from "react-dom/client"
-import { enableObserve } from "./observe"
+import { enableObserve } from "@go-tenon/start/observe"
 
 // 读取 Go 从配置文件下发的公开观测配置；未配置（例如本地开发）时不初始化，不发送任何数据。
 const telemetry = browserTelemetry()

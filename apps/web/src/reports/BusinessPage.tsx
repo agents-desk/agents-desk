@@ -7,7 +7,7 @@ import { IconX } from "@tabler/icons-react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { LoadingStage, type MetricItem, MetricStrip, type PeriodRoute, useLanguage, usePeriod, useSmoothTransition, useT } from "@go-tenon/ui"
-import { type ReactNode, useCallback } from "react"
+import type { ReactNode } from "react"
 import { kit } from "../api"
 import { languageName } from "../languages"
 import { StatusBadge } from "../status"
@@ -17,7 +17,7 @@ import { formatInt, pctDelta } from "./format"
 import { GranularityControl } from "./PeriodButton"
 import { ReportShell } from "./ReportShell"
 import { ResponseTimePage } from "./ResponseTimePage"
-import type { BusinessReportSearchParams } from "./search"
+import { type BusinessReportSearchParams, usePatchSearch } from "./search"
 import { ReportEmpty, SectionCard } from "./SectionCard"
 
 type BusinessTab = "chat" | "volume" | "response"
@@ -83,29 +83,12 @@ function BusinessChatsTab({
 }): ReactNode {
   const t = useT()
   const uiLang = useLanguage()
-  const navigate = useNavigate()
   const period = usePeriod(route, { defaultPreset: "7d" })
   const search = route.useSearch() as BusinessReportSearchParams
   const channelKind = search.channel_kind
   const ownerId = search.owner_id
 
-  const patchSearch = useCallback(
-    (patch: Record<string, unknown>) => {
-      void navigate({
-        to: ".",
-        search: ((prev: Record<string, unknown>) => {
-          const next: Record<string, unknown> = { ...prev }
-          for (const [k, v] of Object.entries(patch)) {
-            if (v === undefined || v === "") delete next[k]
-            else next[k] = v
-          }
-          return next
-        }) as never,
-        replace: true,
-      })
-    },
-    [navigate],
-  )
+  const patchSearch = usePatchSearch()
 
   const members = useQuery(kit.queries.member.list({ per_page: 100 }))
   const queryParams = {

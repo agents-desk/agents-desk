@@ -1,5 +1,5 @@
 import type { ConversationDTO, ConversationItemDTO } from "@agents-desk/client/tenant"
-import { ActionIcon, Box, Divider, Group, Loader, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core"
+import { ActionIcon, Box, Divider, Group, Stack, Text, Tooltip } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { IconCornerUpLeft, IconPencil } from "@tabler/icons-react"
 import { ImageLightbox, notifyError, useLanguage, useT, useTimeZone } from "@go-tenon/ui"
@@ -16,7 +16,7 @@ import { contactName } from "./List"
 import {
   ActorAvatar,
   canGroupItems,
-  deliveryColor,
+  DeliveryStatus,
   MessageBubble,
   TimelineNote,
   TranslationCaption,
@@ -327,58 +327,10 @@ function Message({
   ) : undefined
 
   // 己方消息在组尾展示送达状态；发送中或发送失败时无论是否组尾都立即展示
-  const pendingAutoTranslate = Boolean(it.delivery === "sending" && it.derived?.pending_translation)
-  const translationFailed = Boolean(it.delivery === "failed" && it.derived?.translation_failed)
   const showDelivery = Boolean(mine && it.delivery && (last || it.delivery === "failed" || it.delivery === "sending"))
-  const failedLabel = (
-    <Text span size="xs" c={it.delivery ? deliveryColor[it.delivery] : undefined}>
-      {translationFailed ? t("inbox.delivery_translation_failed") : it.delivery ? t(`inbox.delivery_${it.delivery}` as const) : ""}
-    </Text>
-  )
-  const deliveryNode =
-    showDelivery && it.delivery ? (
-      <>
-        {pendingAutoTranslate && <Loader size={10} />}
-        {it.delivery === "failed" && it.delivery_error ? (
-          <Tooltip label={it.delivery_error} multiline maw={280} openDelay={200}>
-            {failedLabel}
-          </Tooltip>
-        ) : (
-          <Text span size="xs" c={deliveryColor[it.delivery]}>
-            {pendingAutoTranslate
-              ? t("inbox.delivery_translating")
-              : translationFailed
-                ? t("inbox.delivery_translation_failed")
-                : t(`inbox.delivery_${it.delivery}` as const)}
-          </Text>
-        )}
-        {it.delivery === "failed" && translationFailed ? (
-          <>
-            <Text span size="xs" c="dimmed">
-              ·
-            </Text>
-            <UnstyledButton fz="xs" c="red" td="underline" onClick={() => retry.mutate({})} disabled={retry.isPending}>
-              {t("inbox.retry_translate")}
-            </UnstyledButton>
-            <Text span size="xs" c="dimmed">
-              ·
-            </Text>
-            <UnstyledButton fz="xs" c="red" td="underline" onClick={() => retry.mutate({ skipTranslation: true })} disabled={retry.isPending}>
-              {t("inbox.retry_original")}
-            </UnstyledButton>
-          </>
-        ) : it.delivery === "failed" ? (
-          <>
-            <Text span size="xs" c="dimmed">
-              ·
-            </Text>
-            <UnstyledButton fz="xs" c="red" td="underline" onClick={() => retry.mutate({})} disabled={retry.isPending}>
-              {t("inbox.retry")}
-            </UnstyledButton>
-          </>
-        ) : null}
-      </>
-    ) : undefined
+  const deliveryNode = showDelivery ? (
+    <DeliveryStatus item={it} retrying={retry.isPending} onRetry={(opts) => retry.mutate(opts)} />
+  ) : undefined
 
   // 跨渠道会话（或该条消息的渠道与会话来源渠道不同）在消息头部展示渠道胶囊，便于识别每条消息的来去管道
   const showChannelChip = Boolean(it.channel && ((c.channels?.length ?? 0) > 1 || (c.channel && it.channel.id !== c.channel.id)))

@@ -1,10 +1,10 @@
 // 工单报表：顶部工单实时积压条、周期新建与解决趋势、解决效率及按类型/团队/优先级/可见范围/负责人拆解。
 
 import { AreaChart } from "@mantine/charts"
-import { Avatar, Badge, Button, Group, Progress, Select, SimpleGrid, Skeleton, Stack, Text, Tooltip } from "@mantine/core"
-import { IconArrowUpRight, IconX } from "@tabler/icons-react"
+import { Avatar, Badge, Button, Group, Progress, Select, SimpleGrid, Skeleton, Stack, Text } from "@mantine/core"
+import { IconX } from "@tabler/icons-react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
-import { Link, useNavigate, useParams } from "@tanstack/react-router"
+import { useParams } from "@tanstack/react-router"
 import {
   LoadingStage,
   type MetricItem,
@@ -17,13 +17,13 @@ import {
   useSmoothTransition,
   useT,
 } from "@go-tenon/ui"
-import { type ReactNode, useCallback } from "react"
+import type { ReactNode } from "react"
 import { kit } from "../api"
-import { InlineShareBar, REPORT_AREA_PROPS } from "./Breakdown"
+import { InlineShareBar, type LiveBacklogItem, LiveBacklogStrip, REPORT_AREA_PROPS } from "./Breakdown"
 import { formatInt, pctDelta } from "./format"
 import { GranularityControl } from "./PeriodButton"
 import { ReportShell } from "./ReportShell"
-import type { TicketsReportSearchParams } from "./search"
+import { type TicketsReportSearchParams, usePatchSearch } from "./search"
 import { ReportEmpty, SectionCard } from "./SectionCard"
 
 /** 工单报表页面组件。 */
@@ -33,30 +33,13 @@ export function TicketsPage({ route }: { route: PeriodRoute }): ReactNode {
   const uiLang = useLanguage()
   const formatDuration = useFormatDuration()
   const { slug } = useParams({ from: "/$slug" })
-  const navigate = useNavigate()
   const period = usePeriod(route, { defaultPreset: "7d" })
   const search = route.useSearch() as TicketsReportSearchParams
   const teamId = search.team_id
   const typeId = search.type_id
   const visibility = search.visibility
 
-  const patchSearch = useCallback(
-    (patch: Record<string, unknown>) => {
-      void navigate({
-        to: ".",
-        search: ((prev: Record<string, unknown>) => {
-          const next: Record<string, unknown> = { ...prev }
-          for (const [k, v] of Object.entries(patch)) {
-            if (v === undefined || v === "") delete next[k]
-            else next[k] = v
-          }
-          return next
-        }) as never,
-        replace: true,
-      })
-    },
-    [navigate],
-  )
+  const patchSearch = usePatchSearch()
 
   const teams = useQuery(kit.queries.team.list({ per_page: 100 }))
   const ticketTypes = useQuery(kit.queries.ticket.typeList({}))
@@ -137,31 +120,35 @@ export function TicketsPage({ route }: { route: PeriodRoute }): ReactNode {
     </>
   )
 
-  const liveItems = [
+  const liveItems: LiveBacklogItem[] = [
     {
       key: "submitted",
       label: t("reports.ticket_live_submitted"),
-      value: s?.submitted_now,
-      search: { box: "all", status: "submitted" },
+      tip: t("reports.drill_tickets"),
+      value: formatInt(s?.submitted_now, uiLang),
+      link: canTickets ? { to: "/$slug/inbox/tickets", params: { slug }, search: { box: "all", status: "submitted" } } : undefined,
     },
     {
       key: "in_progress",
       label: t("reports.ticket_live_in_progress"),
-      value: s?.in_progress_now,
-      search: { box: "all", status: "in_progress" },
+      tip: t("reports.drill_tickets"),
+      value: formatInt(s?.in_progress_now, uiLang),
+      link: canTickets ? { to: "/$slug/inbox/tickets", params: { slug }, search: { box: "all", status: "in_progress" } } : undefined,
     },
     {
       key: "waiting",
       label: t("reports.ticket_live_waiting"),
-      value: s?.waiting_now,
-      search: { box: "all", status: "waiting_on_customer" },
+      tip: t("reports.drill_tickets"),
+      value: formatInt(s?.waiting_now, uiLang),
+      link: canTickets ? { to: "/$slug/inbox/tickets", params: { slug }, search: { box: "all", status: "waiting_on_customer" } } : undefined,
     },
     {
       key: "unassigned",
       label: t("reports.ticket_live_unassigned"),
-      value: s?.unassigned_now,
+      tip: t("reports.drill_tickets"),
+      value: formatInt(s?.unassigned_now, uiLang),
       warn: Boolean(s && s.unassigned_now > 0),
-      search: { box: "unassigned", status: "unresolved" },
+      link: canTickets ? { to: "/$slug/inbox/tickets", params: { slug }, search: { box: "unassigned", status: "unresolved" } } : undefined,
     },
   ]
 
@@ -210,51 +197,7 @@ export function TicketsPage({ route }: { route: PeriodRoute }): ReactNode {
       exportConfig={{ report: "tickets", params: queryParams }}
     >
       {/* 实时积压状态条 */}
-      <div className="rp-live-strip">
-        <span className="rp-live-badge">
-          <span className="rp-live-dot" aria-hidden="true" />
-          {t("reports.live_label")}
-        </span>
-        <div className="rp-live-items">
-          {liveItems.map((item) => {
-            const inner = (
-              <>
-                <Text span size="xs" c="dimmed">
-                  {item.label}
-                </Text>
-                {loading ? (
-                  <Skeleton height={16} width={28} radius="xs" />
-                ) : (
-                  <Text span className="rp-live-value" c={item.warn ? "deep-orange" : undefined}>
-                    {formatInt(item.value, uiLang)}
-                  </Text>
-                )}
-                {canTickets && <IconArrowUpRight size={14} stroke={1.6} className="rp-live-arrow" />}
-              </>
-            )
-            if (!canTickets) {
-              return (
-                <span key={item.key} className="rp-live-item">
-                  {inner}
-                </span>
-              )
-            }
-            return (
-              <Tooltip key={item.key} label={t("reports.drill_tickets")} openDelay={250}>
-                <Link
-                  to="/$slug/inbox/tickets"
-                  params={{ slug }}
-                  search={item.search as never}
-                  className="rp-live-item"
-                  data-clickable=""
-                >
-                  {inner}
-                </Link>
-              </Tooltip>
-            )
-          })}
-        </div>
-      </div>
+      <LiveBacklogStrip loading={loading} items={liveItems} />
 
       {/* 主分析面板：指标带 + 工单趋势图 */}
       <section className="rp-panel">

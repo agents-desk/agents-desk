@@ -15,7 +15,6 @@ import {
   FileButton,
   Group,
   Indicator,
-  Loader,
   Menu,
   Modal,
   Paper,
@@ -25,7 +24,6 @@ import {
   Textarea,
   ThemeIcon,
   Tooltip,
-  UnstyledButton,
 } from "@mantine/core"
 import { useOs } from "@mantine/hooks"
 import { notifications } from "@mantine/notifications"
@@ -77,7 +75,7 @@ import { clock, dayLabel, fullDateTime, sameDay } from "../inbox/format"
 import {
   ActorAvatar,
   canGroupItems,
-  deliveryColor,
+  DeliveryStatus,
   MessageBubble,
   TimelineNote,
   TranslationCaption,
@@ -586,54 +584,10 @@ function ChatBubble({
     />
   ) : undefined
 
-  const pendingAutoTranslate = Boolean(it.delivery === "sending" && it.derived?.pending_translation)
-  const translationFailed = Boolean(it.delivery === "failed" && it.derived?.translation_failed)
   const showDelivery = Boolean(isExternal && mine && it.delivery && (last || it.delivery === "failed" || it.delivery === "sending"))
-  const failedLabel = (
-    <Text span size="xs" c={it.delivery ? deliveryColor[it.delivery] : undefined}>
-      {translationFailed ? t("inbox.delivery_translation_failed") : it.delivery ? t(`inbox.delivery_${it.delivery}` as const) : ""}
-    </Text>
-  )
-  const deliveryNode =
-    showDelivery && it.delivery ? (
-      <>
-        {pendingAutoTranslate && <Loader size={10} />}
-        {it.delivery === "failed" && it.delivery_error ? (
-          <Tooltip label={it.delivery_error} multiline maw={280} openDelay={200}>
-            {failedLabel}
-          </Tooltip>
-        ) : (
-          <Text span size="xs" c={deliveryColor[it.delivery]}>
-            {pendingAutoTranslate ? t("inbox.delivery_translating") : t(`inbox.delivery_${it.delivery}` as const)}
-          </Text>
-        )}
-        {it.delivery === "failed" && translationFailed ? (
-          <>
-            <Text span size="xs" c="dimmed">
-              ·
-            </Text>
-            <UnstyledButton fz="xs" c="red" td="underline" onClick={() => retry.mutate({})} disabled={retry.isPending}>
-              {t("inbox.retry_translate")}
-            </UnstyledButton>
-            <Text span size="xs" c="dimmed">
-              ·
-            </Text>
-            <UnstyledButton fz="xs" c="red" td="underline" onClick={() => retry.mutate({ skipTranslation: true })} disabled={retry.isPending}>
-              {t("inbox.retry_original")}
-            </UnstyledButton>
-          </>
-        ) : it.delivery === "failed" ? (
-          <>
-            <Text span size="xs" c="dimmed">
-              ·
-            </Text>
-            <UnstyledButton fz="xs" c="red" td="underline" onClick={() => retry.mutate({})} disabled={retry.isPending}>
-              {t("inbox.retry")}
-            </UnstyledButton>
-          </>
-        ) : null}
-      </>
-    ) : undefined
+  const deliveryNode = showDelivery ? (
+    <DeliveryStatus item={it} retrying={retry.isPending} onRetry={(opts) => retry.mutate(opts)} />
+  ) : undefined
 
   const expandedTranslation =
     sentAs && showSentTranslation ? { language: sentAs, text: raw } : verified && showVerified ? verified : undefined
