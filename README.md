@@ -96,7 +96,7 @@ go tool tenon deploy -t prod --dry-run
 
 ### 2. 初始化目标服务器
 
-首次部署运行一次 `setup`，自动检查环境、创建 `<instance>` 系统用户与 `/opt/<instance>` 目录，写入 `/etc/systemd/system/<instance>@.service`，并在 `/usr/local/bin/<instance>` 安装运维入口：
+首次部署运行一次 `setup`，自动检查环境、创建 `<instance>` 系统用户与 `/opt/<instance>` 目录，写入 `/etc/systemd/system/<instance>.service`，并在 `/usr/local/bin/<instance>` 安装运维入口：
 
 ```bash
 go tool tenon deploy setup -t prod
@@ -104,7 +104,7 @@ go tool tenon deploy setup -t prod
 
 ### 3. 打包、上传并启动服务
 
-直接运行 `go tool tenon deploy`，自动校验 Git 工作区干净、并发探测目标机架构（`amd64` 或 `arm64`）、带前端指纹缓存交叉编译（自动注入 Git Tag 版本到 `--version` 与 OTel `service.version`）、内容寻址去重后经 gzip 流式上传、全机并行 `config check`、主节点 `migrate up` 与 `doctor`，最后按波次零停机热重载（unit 或 drop-in 变更时自动滚动重启）。存在多个目标时显式传 `-t`（支持一次构建、按序串行发多个实例）：
+直接运行 `go tool tenon deploy`，自动校验 Git 工作区干净、并发探测目标机架构（`amd64` 或 `arm64`）、带前端指纹缓存交叉编译（自动注入 Git Tag 版本到 `--version` 与 OTel `service.version`）、内容寻址去重后经 gzip 流式上传、全机并行 `config check`、主节点 `migrate up` 与 `doctor`，最后按波次零停机热重载（unit 变更时自动滚动重启）。存在多个目标时显式传 `-t`（支持一次构建、按序串行发多个实例）：
 
 ```bash
 # 发布单个目标（仅存在唯一目标时可省略 -t；未提交代码时传 --allow-dirty）

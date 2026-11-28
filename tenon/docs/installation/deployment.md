@@ -32,8 +32,8 @@ go tool tenon deploy -t prod
 ```
 
 - **分层组织**：`deploy/app.yaml` 与 `deploy/example/` 提交到仓库，描述产物名（`app`）、Release 仓库和公共默认值；每套独立部署实例放在 `deploy/targets/<目标名>/`（整体加入 `.gitignore`，也可通过环境变量 `TENON_DEPLOY_TARGETS` 或 `--targets-dir` 指向外部私有运维仓库），内含 `target.yaml` 与 `config.yaml`。
-- `tenon deploy setup` 检查目标机为带 systemd 的 Linux（含 SSR 时检查 glibc），按实例名（`instance`）创建系统用户、内容寻址对象池 `artifacts/` 与 `releases/`，写入 `<instance>@.service`、角色级 drop-in 与 `/usr/local/bin/<instance>` 运维入口并 `daemon-reload`。
-- `tenon deploy` 校验 Git 工作区干净（可传 `--allow-dirty`），探测架构并本地交叉编译（可传 `--tag vX.Y.Z` 拉取并校验 GitHub Release 产物，或 `--binary` 指定本地文件；使用 `--tag`/`--binary` 或查询运维命令时可脱离源码仓库直接运行），在主节点通过会话级 `flock` 加锁，按 SHA-256 去重后经 gzip 流式上传，二进制、配置与 unit 均未变化时自动跳过（No-op）。随后全机并行 `config check`、主节点 `migrate up` 与 `doctor`，按波次滚动切换（unit 或 drop-in 变更时自动 `restart`，其余走 `reload`），最后清理旧发布并回收无引用对象。
+- `tenon deploy setup` 检查目标机为带 systemd 的 Linux（含 SSR 时检查 glibc），按实例名（`instance`）创建系统用户、内容寻址对象池 `artifacts/` 与 `releases/`，按主机角色写入自包含的 `<instance>.service` 与 `/usr/local/bin/<instance>` 运维入口并 `daemon-reload`。
+- `tenon deploy` 校验 Git 工作区干净（可传 `--allow-dirty`），探测架构并本地交叉编译（可传 `--tag vX.Y.Z` 拉取并校验 GitHub Release 产物，或 `--binary` 指定本地文件；使用 `--tag`/`--binary` 或查询运维命令时可脱离源码仓库直接运行），在主节点通过会话级 `flock` 加锁，按 SHA-256 去重后经 gzip 流式上传，二进制、配置与 unit 均未变化时自动跳过（No-op）。随后全机并行 `config check`、主节点 `migrate up` 与 `doctor`，按波次滚动切换（unit 变更时自动 `restart`，其余走 `reload`），最后清理旧发布并回收无引用对象。
 - **版本与发布分离**：`tenon build` 将 `git describe --tags --always --dirty` 注入二进制；远端以单调递增序号（`releases/0001/`）配合不可变 `manifest.json` 与 `history.jsonl` 记录每次发布，支持仅配置热发与精准回滚。
 - 常用运维命令：`config`（仅同步配置并热重载，复用线上二进制）、`releases`（查看历史发布）、`rollback [序号|tag]`、`status [--role http]`、`logs [--role http] [-F] [--since 15m] [--contains ERR]`、`run -- doctor`、`env push|pull`、`maintenance on|off`。
 - **AI 助手与人类同等优先**：所有子命令支持 `--format json` 结构化输出且全程非交互；只读观测与发布预演同步作为 MCP 工具暴露（`tenon_deploy_info`、`tenon_deploy_status`、`tenon_deploy_logs`、`tenon_deploy_plan`），见 [MCP 服务](ai-assistants.md#mcp-servers)。在 `target.yaml` 或 `defaults` 中可选配置 `observe_user`（如 `observe`），`tenon deploy setup` 自动创建仅加入 `systemd-journal` 组、无 `sudo` 权限的低权限观测用户，`status`、`logs`、`releases` 与 MCP 部署观测工具自动使用该用户，与发布账号隔离。
@@ -59,14 +59,14 @@ hosts:
   - 203.0.113.20
 ```
 
-- **完全命名空间隔离**：目标机上的 systemd 模板（`/etc/systemd/system/<instance>@.service`）、`RuntimeDirectory`（`/run/<instance>/%i`）、默认系统用户（`<instance>`）、默认目录（`/opt/<instance>`）、远端二进制（`/opt/<instance>/bin/<instance>`）与命令行入口（`/usr/local/bin/<instance>`）均使用 `instance`，而本地构建与 `--tag` 下载仍使用 `app`。
+- **完全命名空间隔离**：目标机上的 systemd unit（`/etc/systemd/system/<instance>.service`）、`RuntimeDirectory`（`/run/<instance>`）、默认系统用户（`<instance>`）、默认目录（`/opt/<instance>`）、远端二进制（`/opt/<instance>/bin/<instance>`）与命令行入口（`/usr/local/bin/<instance>`）均使用 `instance`，而本地构建与 `--tag` 下载仍使用 `app`。
 - **安全防手滑**：仅存在 1 个目标时可省略 `-t` 自动选中；存在 2 个及以上目标时必须显式传入 `-t <target>`（或 `--all`）。
 - **一次构建，串行发布多目标**：`go tool tenon deploy -t prod -t partner-acme`（或 `--all`）对同一架构只构建一次二进制，按顺序逐个实例发布，任一目标失败立即熔断。
 
 <a id="multi-host-roles"></a>
-### 多服务与多机拓扑：`roles`
+### 按服务器拆分角色：`roles`
 
-单机实例在 `target.yaml` 中直接写 `hosts: [203.0.113.10]`（运行 `all`）；多服务多台服务器改用 `roles` 按角色声明拓扑：
+遵循“一台服务器运行一个项目的一个进程”原则：单机或同构多机在 `target.yaml` 中写 `hosts`（运行完整 `serve`）；按服务器拆分进程时改用 `roles`，每台主机只属于一个角色：
 
 ```yaml
 # deploy/targets/prod/target.yaml
@@ -76,18 +76,17 @@ roles:
   http:
     hosts: [10.0.1.11, 10.0.1.12, 10.0.1.13]
     max_parallel: 2               # 金丝雀通过后其余节点每批最多同时切 2 台
-    stop_timeout: 30s
-  worker:
+    stop_timeout: 30s             # 直接写入各主机的 <instance>.service
+  background:
+    parts: [worker, scheduler]    # 单进程运行多个部分：ExecStart ... serve worker scheduler
     hosts: [10.0.1.21, 10.0.1.22]
-    stop_timeout: 120s            # 自动生成 <instance>@worker.service.d/override.conf
+    stop_timeout: 120s
     env:
       GOMAXPROCS: "4"
-  scheduler:
-    hosts: [10.0.1.21]            # 同机兼多角色自动归并，只上传和切换一次
 ```
 
-- **分波次金丝雀滚动**：先升级后端节点（`rpc`、`worker`、`scheduler`），再升级入口节点（`http`、`all`）；每组超过 1 台时先单独切换首台金丝雀并校验 `StatusText` 与本机 `health`，通过后再按 `max_parallel` 滚动其余节点，任一台失败立即熔断并输出最近日志。
-- **声明式 unit 对账**：切换每台主机时自动停用并禁用已不在期望列表中的旧 `<instance>@*.service`（例如从 `all` 拆分为 `http` 与 `worker` 时先停 `<instance>@all.service`），避免端口冲突和孤儿进程。
+- **一机一进程**：每台主机只生成一个自包含的 `<instance>.service`，角色的 `parts`、`stop_timeout` 和 `env` 直接写入该文件；同一主机出现在多个 `roles` 中时校验报错。同构 `hosts` 写法也可在顶层设置 `max_parallel`、`stop_timeout` 和 `env`。
+- **分波次金丝雀滚动**：先升级后端节点（`rpc`、`worker`、`scheduler` 等），再升级入口节点（完整 `serve` 或含 `http`）；每组超过 1 台时先单独切换首台金丝雀并校验 `StatusText` 与本机 `health`，通过后再按 `max_parallel` 滚动其余节点，任一台失败立即熔断并输出最近日志。
 
 <a id="deploy-config-files"></a>
 ### 指定生产配置文件：`config_files` 与可选 `env_file`
@@ -103,9 +102,9 @@ hosts: [203.0.113.10]
 ```
 
 - **精确同步与权限隔离**：`tenon deploy` 在构建前校验清单中的每个文件存在，仅打包清单内文件上传到远端 `releases/<序号>/config/`，目录与文件权限分别设为 `0750` / `0640`（属主 `root:<service_user>`）。
-- **自动注入 `--config`**：systemd 模板 unit 的 `ExecStart`、`/usr/local/bin/<instance>` 以及 `config check`、`doctor`、`migrate up`、`health`、`tenon deploy run` 自动携带清单中的 `--config` 参数。
+- **自动注入 `--config`**：systemd unit 的 `ExecStart`、`/usr/local/bin/<instance>` 以及 `config check`、`doctor`、`migrate up`、`health`、`tenon deploy run` 自动携带清单中的 `--config` 参数。
 - **可选 `env_file`**：全部配置写在 `config.yaml` 时无需配置 `env_file`（systemd 使用 `EnvironmentFile=-/etc/<instance>/env` 忽略缺失，随时仍可用 `tenon deploy env push` 推送）；需要强制检查环境变量文件时在 `target.yaml` 显式写 `env_file: /etc/<instance>/env`。
-- **仅配置热发与自动重启收敛**：只改配置文件内容时执行 `tenon deploy config -t <target>` 复用线上二进制热重载生效，`rollback` 时配置与二进制一起回退；变更 `config_files` 列表或角色 drop-in 后自动同步 unit 与包装脚本并滚动重启。
+- **仅配置热发与自动重启收敛**：只改配置文件内容时执行 `tenon deploy config -t <target>` 复用线上二进制热重载生效，`rollback` 时配置与二进制一起回退；变更 `config_files` 列表或 `stop_timeout` / `env` 后自动同步 unit 与包装脚本并滚动重启。
 
 <a id="release-process"></a>
 ## 第一次发布与手动步骤
@@ -146,14 +145,14 @@ hosts: [203.0.113.10]
 `serve` 在一个进程中运行全部部分（HTTP 服务、队列 worker、调度器等），见[serve 命令](../general/commands.md#serve-command)。正式部署交给 [systemd](#systemd)，由它重启崩溃的进程、停止时发送 `SIGTERM`。
 
 <a id="process-forms"></a>
-## 一个进程，还是每个部分一个进程
+## 一个进程，还是按服务器拆分部分
 
 | 命令 | 适合 |
 | --- | --- |
-| `serve`（即 `serve all`） | 刚上线、规模不大：一个进程，部署和监控最简单 |
-| `serve http`、`serve worker`、`serve scheduler`、`serve rpc`…… | 任务多，或耗时的任务拖慢了接口：各部分按负载增减实例 |
+| `serve` | 刚上线、规模不大：每台机器一个进程运行全部部分 |
+| `serve http`、`serve worker scheduler`、`serve rpc`…… | 任务多，或耗时的任务拖慢了接口：在不同服务器上各跑一个进程 |
 
-部分的名字是 `bootstrap` 的 `Parts` 中登记的名字，`serve --help` 列出全部。代码和配置相同，先用 `serve`，需要时再分开。
+部分的名字是 `bootstrap` 的 `Parts` 中登记的名字，`serve --help` 列出全部。代码和配置相同，先用 `serve`，需要时按服务器拆分（单个进程可传入多个部分名，例如 `serve worker scheduler`）。
 
 - 每个部分都可以运行多个实例：HTTP 服务放在负载均衡后面；一个任务只被一个 worker 领取；调度器用锁保证每次触发只执行一次，见[多个实例](../background/scheduling.md#multiple-instances)。
 - 只有 HTTP 服务需要健康检查，见[健康检查](#health-checks)。
@@ -171,23 +170,23 @@ sudo install -d -o blog -g blog /opt/blog/storage
 
 `/etc/blog/env`（权限 `600`，属于 root）每行一个变量，例如 `DATABASE_URL=postgres://...`。
 
-`/etc/systemd/system/blog@.service`：
+`/etc/systemd/system/blog.service`：
 
 ```ini
 [Unit]
-Description=blog %i
+Description=blog
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=notify-reload
 NotifyAccess=all
-RuntimeDirectory=blog/%i
-PIDFile=/run/blog/%i/daemon.pid
+RuntimeDirectory=blog
+PIDFile=/run/blog/daemon.pid
 User=blog
 WorkingDirectory=/opt/blog
 EnvironmentFile=/etc/blog/env
-ExecStart=/opt/blog/bin/blog serve %i
+ExecStart=/opt/blog/bin/blog serve
 Restart=on-failure
 RestartSec=5s
 RestartPreventExitStatus=2 3
@@ -203,12 +202,11 @@ WantedBy=multi-user.target
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now blog@all                               # 一起运行
-sudo systemctl enable --now blog@http blog@worker blog@scheduler   # 或者分开运行
-journalctl -u 'blog@*' -f
+sudo systemctl enable --now blog
+journalctl -u blog -f
 ```
 
-- `%i` 是 `@` 后面的部分名，`all` 运行全部。改为分开运行时先 `systemctl disable --now blog@all`。
+- 按服务器拆分部分时，把对应机器上 `blog.service` 的 `ExecStart` 改为 `serve http` 或 `serve worker scheduler`，执行 `sudo systemctl daemon-reload && sudo systemctl restart blog`。
 - `Type=notify-reload`、`NotifyAccess`、`RuntimeDirectory`、`PIDFile` 启用就绪通知和 `systemctl reload` 的[不停机升级](operations.md#zero-downtime-upgrades)，由 `command.Daemon` 实现。
 - `RestartPreventExitStatus=2 3`：用法错误和配置错误不重启，`systemctl status` 显示原因。数据库连不上时以 4 退出，每 5 秒重试。
 - `TimeoutStopSec` 要比程序的[平滑停止](#graceful-shutdown)时间长。程序要写其他目录时加进 `ReadWritePaths`。
@@ -230,13 +228,11 @@ run /opt/blog/bin/blog.new config check
 sudo mv /opt/blog/bin/blog.new /opt/blog/bin/blog
 run /opt/blog/bin/blog migrate up
 
-for unit in $(systemctl list-units 'blog@*' --state=active --plain --no-legend | awk '{print $1}'); do
-    sudo systemctl reload "$unit"
-    if [[ $(systemctl show -p StatusText --value "$unit") == "upgrade failed"* ]]; then
-        systemctl status "$unit" --no-pager
-        exit 1
-    fi
-done
+sudo systemctl reload blog
+if [[ $(systemctl show -p StatusText --value blog) == "upgrade failed"* ]]; then
+    systemctl status blog --no-pager
+    exit 1
+fi
 ```
 
 - `run` 用服务的用户、环境变量和工作目录执行一次性命令。
@@ -355,4 +351,4 @@ example.com {
 <a id="logging"></a>
 ## 日志
 
-日志写到标准错误，由 journald 收集（可用 `tenon deploy logs` 或 `journalctl -u 'blog@*' -f` 查看）；标准错误不是终端时为 JSON 格式，见[日志格式](../general/logging.md#formats)。用户反馈问题时让他提供响应头 `X-Request-ID`，按它查这次请求的全部日志，见[按请求 ID 查日志](../general/logging.md#finding-a-request)。推送到观测平台见[可观测性](../general/telemetry.md#setup)。
+日志写到标准错误，由 journald 收集（可用 `tenon deploy logs` 或 `journalctl -u blog -f` 查看）；标准错误不是终端时为 JSON 格式，见[日志格式](../general/logging.md#formats)。用户反馈问题时让他提供响应头 `X-Request-ID`，按它查这次请求的全部日志，见[按请求 ID 查日志](../general/logging.md#finding-a-request)。推送到观测平台见[可观测性](../general/telemetry.md#setup)。

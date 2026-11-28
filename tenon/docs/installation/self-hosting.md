@@ -8,7 +8,7 @@
 ## 交付什么
 
 - **Linux 可执行文件**：按[构建](deployment.md#building)编译对应架构（`amd64` 或 `arm64`）的二进制，内嵌前端静态资源、SSR、迁移和翻译。应用装配好 [`doctor` 命令](doctor.md#doctor-command)、[迁移之前](doctor.md#before-migrating)和[启动之前](doctor.md#before-starting)的检查，以及恢复备份时要用的 [queue 命令](../background/queue.md#stats-command)。
-- **`config/` 目录**（不含 `local.yaml`）、**`.env.example`** 与 **`<应用>@.service`**（见[用 systemd 运行](deployment.md#systemd)）。
+- **`config/` 目录**（不含 `local.yaml`）、**`.env.example`** 与 **`<应用>.service`**（见[用 systemd 运行](deployment.md#systemd)）。
 - 依赖服务：PostgreSQL 18 以上与 NATS JetStream（2.15 以上）由客户侧提供或按下方要求在同一台机器上部署。若客户侧环境强制要求容器运行时，也可将同一二进制与 `config` 打包进基础镜像运行。
 
 <a id="env-file"></a>
@@ -40,7 +40,7 @@ NATS_URL=nats://127.0.0.1:4222
 <a id="first-start"></a>
 ## 第一次启动
 
-将二进制、配置放到 `/opt/acme`，安装 `/etc/systemd/system/acme@.service`（或直接运行 `tenon deploy setup` 与 `tenon deploy env push`）：
+将二进制、配置放到 `/opt/acme`，安装 `/etc/systemd/system/acme.service`（或直接运行 `tenon deploy setup` 与 `tenon deploy env push`）：
 
 ```bash
 sudo systemd-run --wait --pipe --quiet --uid=acme \
@@ -49,7 +49,7 @@ sudo systemd-run --wait --pipe --quiet --uid=acme \
 sudo systemd-run --wait --pipe --quiet --uid=acme \
     -p EnvironmentFile=/etc/acme/env -p WorkingDirectory=/opt/acme \
     /opt/acme/bin/acme migrate up
-sudo systemctl enable --now acme@all
+sudo systemctl enable --now acme
 sudo systemd-run --wait --pipe --quiet --uid=acme \
     -p EnvironmentFile=/etc/acme/env -p WorkingDirectory=/opt/acme \
     /opt/acme/bin/acme doctor
@@ -60,7 +60,7 @@ sudo systemd-run --wait --pipe --quiet --uid=acme \
 <a id="upgrading"></a>
 ## 升级
 
-先[备份](#backups)，再按[手动发布新版本](deployment.md#systemd-releases)（或 `tenon deploy`）校验配置、执行 `migrate up` 并 `systemctl reload acme@all` 完成零停机升级。
+先[备份](#backups)，再按[手动发布新版本](deployment.md#systemd-releases)（或 `tenon deploy`）校验配置、执行 `migrate up` 并 `systemctl reload acme` 完成零停机升级。
 
 - 迁移先于服务重载执行：失败时旧进程照常运行，修好后重新执行。
 - 版本说明写清楚能否回退：换回旧二进制不撤销新版本迁移对表结构的修改。
@@ -80,10 +80,10 @@ tar -czf storage-$(date +%F).tar.gz -C /opt/acme storage
 恢复：
 
 ```bash
-sudo systemctl stop 'acme@*'
+sudo systemctl stop acme
 dropdb acme && createdb acme
 pg_restore -d acme < acme-2026-11-17.dump
-sudo systemctl start acme@all
+sudo systemctl start acme
 ```
 
 队列中的待转发任务和延迟任务保存在数据库中，随恢复自动还原。其他事项见[恢复之后](operations.md#after-restoring)。
@@ -91,7 +91,7 @@ sudo systemctl start acme@all
 <a id="troubleshooting"></a>
 ## 排查问题
 
-- **服务起不来或反复退出**：启动前自检没有通过，看 `journalctl -u 'acme@*' -n 100 --no-pager`；也可执行 `doctor` 获取带修复提示的报告。
+- **服务起不来或反复退出**：启动前自检没有通过，看 `journalctl -u acme -n 100 --no-pager`；也可执行 `doctor` 获取带修复提示的报告。
 - **`doctor` 报 JetStream 未开启**：确认 NATS 启动时带了 `-js` 与持久化目录 `-sd`。
 - **`storage` 检查报 `permission denied`**：确认 `/opt/acme/storage` 属于服务用户 `acme`，且 unit 的 `ReadWritePaths` 包含 `/opt/acme/storage`。
 - **任务没有执行**：运行 `acme queue status` 查看 `outbox pending` 和各 topic 状态，见[监控积压](operations.md#queue-monitoring)。

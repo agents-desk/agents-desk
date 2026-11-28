@@ -192,7 +192,7 @@ command.Execute(root, command.Languages(i18n.MustNew("zh-CN", locales.FS)))
 常驻进程由几个**部分**组成：HTTP 服务、[RPC 服务](../rpc/endpoints.md#running)、[队列 worker](../background/queue.md#running-workers)、[定时任务调度器](../background/scheduling.md#running-the-scheduler)。每个部分是 `App` 的一个方法（见[多个运行部分](../concepts/dependencies.md#running-parts)），在 `bootstrap` 的 `Parts` 中登记：
 
 ```go
-// Parts 是常驻进程的运行部分：serve 运行全部部分，serve <名字> 只运行其中一个。
+// Parts 是常驻进程的运行部分：serve 运行全部部分，serve <名字...> 只运行指定的部分。
 func Parts(a *App) []command.Part {
     return []command.Part{
         {Name: "http", Short: "接口、页面和实时频道", Start: a.HTTP},
@@ -205,13 +205,14 @@ func Parts(a *App) []command.Part {
 
 | 命令 | 运行的部分 |
 | --- | --- |
-| `serve`、`serve all` | 全部部分，`Standalone` 的除外；`all` 供 systemd 的模板单元（`blog@all`）使用 |
+| `serve` | 全部部分，`Standalone` 的除外 |
 | `serve http` | 只运行 HTTP 服务；`serve worker` 等同理 |
+| `serve worker scheduler` | 在一个进程中同时运行指定的多个部分 |
 
-- 小型部署只运行 `serve`；业务量增长后每个部分一个进程，代码和配置不变。多个实例中调度器保证[每次触发只执行一次](../background/scheduling.md#multiple-instances)。
-- `Standalone` 的部分只单独运行，例如 [`realtime`](../libraries/realtime.md#separate-process)：运行全部时实时频道已经挂在 HTTP 服务上。
+- 小型部署只运行 `serve`；业务量增长后按服务器拆分运行，代码和配置不变。多个实例中调度器保证[每次触发只执行一次](../background/scheduling.md#multiple-instances)。
+- `Standalone` 的部分只在点名时运行，例如 [`realtime`](../libraries/realtime.md#separate-process)：不带参数的 `serve` 中实时频道已经挂在 HTTP 服务上。
 - 构造命令时用零值的 `App` 调用 `Parts`，所以其中只取方法值（`a.HTTP`），不使用依赖。
-- 名字写错或给出多个名字时以 `ExitUsage` 退出，`serve --help` 列出全部名字。
+- 名字写错或重复传入同一部分名时以 `ExitUsage` 退出，`serve --help` 列出全部名字。
 - 各部分共用 `Open` 中创建的数据库连接池，[`max_conns`](../database/database.md#configuration) 按 HTTP 请求和 worker 并发数之和估算。
 
 执行过程：
