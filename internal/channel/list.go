@@ -18,6 +18,7 @@ type ListItem struct {
 	TeamID        *string  `json:"team_id,omitempty" doc:"默认进入的团队收件箱 ID"`
 	OwnerMemberID *string  `json:"owner_member_id,omitempty" doc:"个人商务渠道所属的成员 ID；公共渠道为空"`
 	Enabled       bool     `json:"enabled" doc:"渠道是否启用"`
+	Archived      bool     `json:"archived" doc:"渠道是否已归档"`
 }
 
 // ListOutput 是工作区渠道列表的响应。
@@ -37,7 +38,7 @@ func NewList(db *bun.DB) *List { return &List{db: db} }
 func (a *List) Handle(ctx context.Context, sub identity.Subject) ([]ListItem, error) {
 	var rows []Channel
 	err := a.db.NewSelect().Model(&rows).
-		Column("id", "kind", "audience", "name", "team_id", "owner_member_id", "enabled").
+		Column("id", "kind", "audience", "name", "team_id", "owner_member_id", "enabled", "archived_at").
 		Where("tenant_id = ?", sub.Tenant).
 		OrderExpr("created_at ASC, id ASC").Scan(ctx)
 	if err != nil {
@@ -48,6 +49,7 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject) ([]ListItem, er
 		out[i] = ListItem{
 			ID: c.ID, Kind: c.Kind, Audience: c.EffectiveAudience(),
 			Name: c.Name, TeamID: c.TeamID, OwnerMemberID: c.OwnerMemberID, Enabled: c.Enabled,
+			Archived: c.ArchivedAt != nil,
 		}
 	}
 	return out, nil

@@ -36,9 +36,15 @@ func NewTemplates() (*mail.Templates, error) {
 	return mail.NewTemplates(Files)
 }
 
-// RegisterJobs 在队列 worker 上登记邮件发送任务。
-func RegisterJobs(w *queue.Worker, mailer mail.Mailer) {
+// RegisterJobs 在队列 worker 上登记邮件发送任务，可选在进入失败表时触发告警回调。
+func RegisterJobs(w *queue.Worker, mailer mail.Mailer, onDead ...func(context.Context, mail.Message, error) error) {
+	var opts []queue.HandleOption
+	for _, fn := range onDead {
+		if fn != nil {
+			opts = append(opts, queue.OnDead(fn))
+		}
+	}
 	SendTopic.Handle(w, func(ctx context.Context, msg mail.Message) error {
 		return mailer.Send(ctx, msg)
-	})
+	}, opts...)
 }

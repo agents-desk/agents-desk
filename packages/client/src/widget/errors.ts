@@ -91,6 +91,8 @@ export const ChannelErrors = {
   NotFound: "channel.not_found",
   /** ErrDisabled 是渠道已停用，不再收发消息。 */
   Disabled: "channel.disabled",
+  /** ErrPersonalProtected 是成员个人商务渠道不能通过公共渠道删除接口移除。 */
+  PersonalProtected: "channel.personal_protected",
   /** ErrMediaTooLarge 是外部渠道的媒体超出该渠道接口允许下载的大小上限（例如 Telegram Bot API 20 MiB 限制）。 */
   MediaTooLarge: "channel.media_too_large",
   /** ErrMediaUnavailable 是外部渠道上的媒体已失效、被删除或渠道不支持按需拉取。 */
@@ -179,6 +181,10 @@ export const ConversationErrors = {
   AutoTranslateFailed: "conversation.auto_translate_failed",
   /** ErrInvalidFilter 是视图或列表传入的筛选条件不合法。 */
   InvalidFilter: "conversation.invalid_filter",
+  /** ErrHandoverTargetRequired 是发起工作交接时未选择接收成员、接收团队或移出操作。 */
+  HandoverTargetRequired: "conversation.handover_target_required",
+  /** ErrHandoverSameMember 是将成员的待办会话交接给其本人。 */
+  HandoverSameMember: "conversation.handover_same_member",
   /** ErrInvalidLanguage 是设置的对方语言不是合法的 BCP 47 标签。 */
   InvalidLanguage: "conversation.invalid_language",
   /** ErrMessageNotCorrectable 是这条消息不能更正（例如对方发来的消息、内部备注、系统事件、已撤回的消息，或试图用内部备注作为更正）。 */
@@ -283,6 +289,12 @@ export const PlatformsettingsErrors = {
   RequiredField: "platform_settings.required_field",
   /** ErrMailNotConfigured 表示平台尚未完成 Resend API Key 与发件人邮箱配置。 */
   MailNotConfigured: "platform_settings.mail_not_configured",
+} as const
+
+/** agents-desk/internal/report 的错误码。 */
+export const ReportErrors = {
+  /** ErrUnsupportedReport 是请求的导出报表类型无效。 */
+  UnsupportedReport: "report.unsupported_type",
 } as const
 
 /** agents-desk/internal/role 的错误码。 */

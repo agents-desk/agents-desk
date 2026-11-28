@@ -33,7 +33,7 @@ func NewList(db *bun.DB) *List { return &List{db: db} }
 // Handle 返回 sub 所在工作区的聊天插件，包括停用的。
 func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) (*page.Offset[WidgetDTO], error) {
 	var rows []channel.Channel
-	total, err := a.db.NewSelect().Model(&rows).Where("tenant_id = ? AND kind = ?", sub.Tenant, channel.Widget).
+	total, err := a.db.NewSelect().Model(&rows).Where("tenant_id = ? AND kind = ? AND archived_at IS NULL", sub.Tenant, channel.Widget).
 		OrderExpr("created_at, id").Limit(in.Limit()).Offset(in.Offset()).ScanAndCount(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "list widgets")

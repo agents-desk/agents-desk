@@ -189,6 +189,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
     channel: {
       /** channel 分组全部查询的 key 前缀。 */
       key: () => key("channel"),
+      /** DELETE /channels/{id} */
+      delete: () => ({
+        mutationFn: (variables: Parameters<Client["channel"]["delete"]>[0]) => client.channel.delete(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "channel"),
+      }),
       /** GET /channels */
       list: (...args: Parameters<Client["channel"]["list"]>) => ({
         queryKey: key("channel", "list", ...args),
@@ -262,6 +268,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       /** POST /contacts/{id}/block */
       block: () => ({
         mutationFn: (variables: Parameters<Client["contact"]["block"]>) => client.contact.block(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "contact"),
+      }),
+      /** DELETE /contacts/{id} */
+      delete: () => ({
+        mutationFn: (variables: Parameters<Client["contact"]["delete"]>[0]) => client.contact.delete(variables),
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "contact"),
       }),
@@ -394,6 +406,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       /** DELETE /conversations/{id}/contact/tags/{tag_id} */
       contactTagRemove: () => ({
         mutationFn: (variables: Parameters<Client["conversation"]["contactTagRemove"]>) => client.conversation.contactTagRemove(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
+      /** POST /conversations/exports */
+      exportStart: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["exportStart"]>[0]) => client.conversation.exportStart(variables),
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "conversation"),
       }),
@@ -624,6 +642,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
       get: (...args: Parameters<Client["member"]["get"]>) => ({
         queryKey: key("member", "get", ...args),
         queryFn: () => client.member.get(...args),
+      }),
+      /** POST /members/{id}/handover */
+      handover: () => ({
+        mutationFn: (variables: Parameters<Client["member"]["handover"]>) => client.member.handover(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "member"),
       }),
       /** POST /me/heartbeat */
       heartbeat: () => ({
@@ -892,6 +916,11 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
     tenant: {
       /** tenant 分组全部查询的 key 前缀。 */
       key: () => key("tenant"),
+      /** GET /audit-logs */
+      auditList: (...args: Parameters<Client["tenant"]["auditList"]>) => ({
+        queryKey: key("tenant", "auditList", ...args),
+        queryFn: () => client.tenant.auditList(...args),
+      }),
       /** GET /tenant */
       current: (...args: Parameters<Client["tenant"]["current"]>) => ({
         queryKey: key("tenant", "current", ...args),

@@ -38,6 +38,33 @@ export const schemas = {
         "type": "object"
       },
     },
+    memberList: {
+      query: {
+        "properties": {
+          "page": {
+            "default": 1,
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "per_page": {
+            "default": 20,
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "q": {
+            "maxLength": 60,
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/MemberAccountStatus"
+          }
+        },
+        "type": "object"
+      },
+    },
     passwordForgot: {
       body: {
         "$ref": "#/components/schemas/PlatformadminForgotPasswordInputBody"
@@ -76,6 +103,7 @@ export const schemas = {
               "",
               "tenant",
               "platform_admin",
+              "member",
               "settings",
               "feature"
             ],
@@ -463,6 +491,13 @@ export const components = {
       "models"
     ],
     "type": "object"
+  },
+  MemberAccountStatus: {
+    "enum": [
+      "active",
+      "disabled"
+    ],
+    "type": "string"
   },
   PlatformAdminStatus: {
     "enum": [

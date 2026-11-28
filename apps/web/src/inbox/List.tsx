@@ -46,7 +46,7 @@ import {
   IconUsersGroup,
   IconX,
 } from "@tabler/icons-react"
-import { notifyError, notifySuccess, PaneBody, PaneHeader, PaneToolbar, useCan, useLanguage, useSavedView, useT, useTimeZone } from "@go-tenon/ui"
+import { ExportButton, notifyError, notifySuccess, PaneBody, PaneHeader, PaneToolbar, useCan, useLanguage, useSavedView, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
 import { ContactAvatar, contactDisplayName } from "../contacts/display"
@@ -95,6 +95,7 @@ interface ListProps {
  */
 export function ConversationList({ search, openId, go, open }: ListProps): ReactNode {
   const t = useT()
+  const can = useCan()
   const now = useNow()
   const me = useMe()
   const queryClient = useQueryClient()
@@ -324,6 +325,24 @@ export function ConversationList({ search, openId, go, open }: ListProps): React
                       <IconPencil size={16} />
                     </ActionIcon>
                   </Tooltip>
+                )}
+                {!searching && !viewMissing && can("reports:read") && (
+                  <ExportButton
+                    title={t("inbox.export")}
+                    source={{
+                      start: () =>
+                        tenantApi.conversation.exportStart({
+                          format: "xlsx",
+                          inbox: filterMode ? undefined : search.box,
+                          view_id: search.view,
+                          filter: filterMode ? JSON.stringify(activeFilter) : undefined,
+                          team_id: filterMode ? undefined : search.team,
+                          status: filterMode || search.box === "mentions" || search.box === "spam" ? undefined : search.status,
+                          tag_id: filterMode ? undefined : search.tag,
+                        }),
+                      progress: (id) => (o) => tenantApi.conversation.exportProgress(id, o),
+                    }}
+                  />
                 )}
                 {!searching && !viewMissing && (
                   <Button size="compact-xs" variant="subtle" color="gray" onClick={() => setSelecting(true)}>

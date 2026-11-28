@@ -112,4 +112,47 @@ export const resources = {
       },
     },
   },
+  member: {
+    name: "member",
+    key: "id",
+    operations: {
+      list: ["admin", "memberList"],
+      get: ["admin", "memberGet"],
+    },
+    permissions: {
+      list: ["tenants:manage"],
+      get: ["tenants:manage"],
+    },
+    columns: [
+      { name: "name", type: "string", required: true },
+      { name: "email", type: "string", required: true },
+      { name: "tenant_count", type: "integer", format: "int64", required: true },
+      { name: "status", type: "string", enum: "MemberAccountStatus", required: true },
+      { name: "created_at", type: "string", format: "date-time", required: true },
+    ],
+    filters: [
+      { name: "q", type: "string" },
+      { name: "status", type: "string", enum: "MemberAccountStatus" },
+    ],
+    createForm: [
+    ],
+    updateForm: [
+    ],
+    actions: [
+      { name: "disable", operation: ["admin", "memberDisable"], permissions: ["tenants:manage"], confirm: true, danger: true, when: { "status": ["active"] } },
+      { name: "enable", operation: ["admin", "memberEnable"], permissions: ["tenants:manage"], confirm: true, danger: false, when: { "status": ["disabled"] } },
+    ],
+    labels: {
+      "en": {
+        title: "Members",
+        fields: { name: "Name", email: "Email", tenant_count: "Workspaces", status: "Status", created_at: "Created", q: "Search members" },
+        actions: { disable: "Disable account", enable: "Enable account" },
+      },
+      "zh-CN": {
+        title: "成员",
+        fields: { name: "名字", email: "邮箱", tenant_count: "所属工作区数", status: "在线状态", created_at: "创建时间", q: "搜索成员" },
+        actions: { disable: "停用账号", enable: "启用账号" },
+      },
+    },
+  },
 } as const

@@ -24,6 +24,8 @@ var (
 	ErrNotFound = errorx.Define(errorx.NotFound, "channel.not_found")
 	// ErrDisabled 是渠道已停用，不再收发消息。
 	ErrDisabled = errorx.Define(errorx.Conflict, "channel.disabled")
+	// ErrPersonalProtected 是成员个人商务渠道不能通过公共渠道删除接口移除。
+	ErrPersonalProtected = errorx.Define(errorx.PermissionDenied, "channel.personal_protected")
 )
 
 // Kind 是渠道的传输协议种类，决定由哪个连接器收发消息。
@@ -91,6 +93,7 @@ type Channel struct {
 	OwnerMemberID *string        `bun:"owner_member_id"`             // 个人商务渠道所属的成员 ID；公共渠道为空
 	PublicCode    *string        `bun:"public_code"`                 // 网页商务链接的公开短码，用于 /c/{code} 访问；非商务链接为空
 	Enabled       bool           `bun:"enabled,notnull"`
+	ArchivedAt    *time.Time     `bun:"archived_at"` // 渠道归档时间，保留历史会话与报表关联
 }
 
 // IsPersonal 报告该渠道是否属于某位成员的个人商务渠道。

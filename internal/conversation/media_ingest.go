@@ -144,13 +144,13 @@ func (m *MediaIngestor) Job(ctx context.Context, job MediaIngestJob) error {
 	return retryErr
 }
 
-// OnDead 在媒体拉取任务进入失败队列前执行一次：将仍处于 pending 的附件标为 unavailable 并推送给成员。
+// OnDead 在媒体拉取任务进入失败队列前执行一次：将仍处于 pending 的附件标为 unavailable 并推送给成员，并通知管理员告警。
 func (m *MediaIngestor) OnDead(ctx context.Context, job MediaIngestJob, cause error) error {
 	code := mediaErrorCode(cause)
 	if cause == nil {
 		code = channel.ErrMediaUnavailable.Code()
 	}
-	return database.RunInTx(ctx, m.db, nil, func(ctx context.Context, tx database.Tx) error {
+	err := database.RunInTx(ctx, m.db, nil, func(ctx context.Context, tx database.Tx) error {
 		res, err := tx.NewUpdate().Model((*Attachment)(nil)).
 			Set("fetch_status = ?", FetchUnavailable).Set("fetch_error = ?", code).
 			Where("tenant_id = ? AND item_id = ? AND fetch_status = ?", job.TenantID, job.ItemID, FetchPending).
@@ -167,6 +167,10 @@ func (m *MediaIngestor) OnDead(ctx context.Context, job MediaIngestJob, cause er
 		}
 		return NotifyUpdated(ctx, tx, m.down, job.TenantID, []string{job.ConversationID})
 	})
+	if m.down.OnDeadAlert != nil {
+		m.down.OnDeadAlert(ctx, string(MediaIngestTopic), cause)
+	}
+	return err
 }
 
 // FetchAttachmentInput 是按需拉取远端附件的 HTTP 请求。

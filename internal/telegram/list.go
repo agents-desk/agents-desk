@@ -37,7 +37,7 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) 
 		in = &ListInput{}
 	}
 	var rows []channel.Channel
-	q := a.db.NewSelect().Model(&rows).Where("tenant_id = ? AND kind = ?", sub.Tenant, channel.Telegram)
+	q := a.db.NewSelect().Model(&rows).Where("tenant_id = ? AND kind = ? AND archived_at IS NULL", sub.Tenant, channel.Telegram)
 	if in.Audience != "" {
 		q = q.Where("audience = ?", in.Audience)
 	}

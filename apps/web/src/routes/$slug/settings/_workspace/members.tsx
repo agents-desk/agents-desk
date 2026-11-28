@@ -1,7 +1,7 @@
 import type { MemberStatus } from "@agents-desk/client/tenant"
-import { Button, Checkbox, Group, Modal, PasswordInput, Radio, Stack, Text } from "@mantine/core"
-import { IconKey } from "@tabler/icons-react"
-import { useMutation } from "@tanstack/react-query"
+import { Button, Checkbox, Group, Modal, PasswordInput, Radio, Select, Stack, Text } from "@mantine/core"
+import { IconArrowsExchange, IconKey } from "@tabler/icons-react"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import {
   applyServerErrors,
@@ -17,7 +17,8 @@ import {
 } from "@go-tenon/ui"
 import { useForm } from "@mantine/form"
 import { type ReactNode, useState } from "react"
-import { tenantApi } from "../../../../api"
+import { kit, tenantApi } from "../../../../api"
+import { useMembers, useTeams } from "../../../../inbox/data"
 import { LanguageSelect } from "../../../../LanguageSelect"
 import { members, roles } from "../../../../resources"
 import { StatusBadge } from "../../../../status"
@@ -100,11 +101,46 @@ const PermissionsInput: FieldInput = ({ field, label, value, onChange, error, di
 
 function MembersAndRolesPage(): ReactNode {
   const t = useT()
+  const queryClient = useQueryClient()
+  const teams = useTeams()
+  const { list: allMembers } = useMembers()
   const [resetTarget, setResetTarget] = useState<{ id: string; name: string; email: string } | null>(null)
   const [resetError, setResetError] = useState<ReturnType<typeof applyServerErrors>>()
   const resetForm = useForm<{ mode: "password" | "email"; password: string }>({
     initialValues: { mode: "password", password: "" },
   })
+  const [handoverTarget, setHandoverTarget] = useState<{ id: string; name: string; owner: boolean } | null>(null)
+  const [handoverError, setHandoverError] = useState<ReturnType<typeof applyServerErrors>>()
+  const handoverForm = useForm<{ target_member_id: string | null; target_team_id: string | null; remove_after: boolean }>({
+    initialValues: { target_member_id: null, target_team_id: null, remove_after: false },
+  })
+
+  const handover = useMutation({
+    mutationFn: (v: { id: string; target_member_id: string | null; target_team_id: string | null; remove_after: boolean }) =>
+      tenantApi.member.handover(v.id, {
+        target_member_id: v.target_member_id || undefined,
+        target_team_id: v.target_team_id || undefined,
+        remove_after: v.remove_after || undefined,
+      }),
+    onSuccess: (res) => {
+      setHandoverTarget(null)
+      setHandoverError(undefined)
+      handoverForm.reset()
+      void queryClient.invalidateQueries({ queryKey: kit.queries.member.key() })
+      void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
+      notifySuccess(
+        t("members.handover_done", {
+          convs: res.transferred_conversations,
+          tickets: res.transferred_tickets,
+        }),
+      )
+    },
+    onError: (err) => {
+      setHandoverError(applyServerErrors(handoverForm, err))
+      notifyError(err)
+    },
+  })
+
   const resetPassword = useMutation({
     mutationFn: (v: { id: string; mode: "password" | "email"; password: string }) =>
       tenantApi.member.resetPassword(v.id, v.mode === "email" ? { send_reset_email: true } : { password: v.password }),
@@ -137,25 +173,40 @@ function MembersAndRolesPage(): ReactNode {
                 form="modal"
                 inputs={{ password: PasswordField, language: LanguageField }}
                 render={{ status: (v) => <StatusBadge status={v as MemberStatus} /> }}
-                rowActions={(row) =>
-                  row.owner === true || row.self === true
-                    ? []
-                    : [
-                        {
-                          label: t("members.reset_password"),
-                          icon: <IconKey size={14} />,
-                          onClick: () => {
-                            setResetError(undefined)
-                            resetForm.setValues({ mode: "password", password: "" })
-                            setResetTarget({
-                              id: String(row.id ?? ""),
-                              name: String(row.name ?? ""),
-                              email: String(row.email ?? ""),
-                            })
-                          },
-                        },
-                      ]
-                }
+                rowActions={(row) => {
+                  if (row.self === true) return []
+                  const actions = [
+                    {
+                      label: t("members.handover"),
+                      icon: <IconArrowsExchange size={14} />,
+                      onClick: () => {
+                        setHandoverError(undefined)
+                        handoverForm.setValues({ target_member_id: null, target_team_id: null, remove_after: false })
+                        setHandoverTarget({
+                          id: String(row.id ?? ""),
+                          name: String(row.name ?? ""),
+                          owner: row.owner === true,
+                        })
+                      },
+                    },
+                  ]
+                  if (row.owner !== true) {
+                    actions.push({
+                      label: t("members.reset_password"),
+                      icon: <IconKey size={14} />,
+                      onClick: () => {
+                        setResetError(undefined)
+                        resetForm.setValues({ mode: "password", password: "" })
+                        setResetTarget({
+                          id: String(row.id ?? ""),
+                          name: String(row.name ?? ""),
+                          email: String(row.email ?? ""),
+                        })
+                      },
+                    })
+                  }
+                  return actions
+                }}
               />
             ),
           },
@@ -215,6 +266,63 @@ function MembersAndRolesPage(): ReactNode {
               </Button>
               <Button type="submit" loading={resetPassword.isPending}>
                 {t("common.save")}
+              </Button>
+            </Group>
+          </Stack>
+        </form>
+      </Modal>
+      <Modal
+        opened={Boolean(handoverTarget)}
+        onClose={() => setHandoverTarget(null)}
+        title={t("members.handover_title", { name: handoverTarget?.name ?? "" })}
+      >
+        <form
+          onSubmit={handoverForm.onSubmit((v) => {
+            if (!handoverTarget) return
+            handover.mutate({ id: handoverTarget.id, ...v })
+          })}
+        >
+          <Stack gap="md">
+            <Text size="sm" c="dimmed">
+              {t("members.handover_desc", { name: handoverTarget?.name ?? "" })}
+            </Text>
+            <FormError error={handoverError} />
+            <Select
+              label={t("members.handover_target_member")}
+              placeholder={t("members.handover_target_member_placeholder")}
+              searchable
+              clearable
+              data={allMembers
+                .filter((m) => m.id !== handoverTarget?.id)
+                .map((m) => ({ value: m.id, label: m.name }))}
+              value={handoverForm.values.target_member_id}
+              onChange={(v) => handoverForm.setFieldValue("target_member_id", v)}
+              error={handoverForm.errors.target_member_id}
+            />
+            <Select
+              label={t("members.handover_target_team")}
+              placeholder={t("members.handover_target_team_placeholder")}
+              searchable
+              clearable
+              data={teams.filter((x) => x.status === "active").map((x) => ({ value: x.id, label: x.name }))}
+              value={handoverForm.values.target_team_id}
+              onChange={(v) => handoverForm.setFieldValue("target_team_id", v)}
+              error={handoverForm.errors.target_team_id}
+            />
+            {!handoverTarget?.owner && (
+              <Checkbox
+                label={t("members.handover_remove_after")}
+                description={t("members.handover_remove_after_hint")}
+                checked={handoverForm.values.remove_after}
+                onChange={(e) => handoverForm.setFieldValue("remove_after", e.currentTarget.checked)}
+              />
+            )}
+            <Group justify="flex-end">
+              <Button variant="default" onClick={() => setHandoverTarget(null)}>
+                {t("common.cancel")}
+              </Button>
+              <Button type="submit" loading={handover.isPending}>
+                {t("members.handover_submit")}
               </Button>
             </Group>
           </Stack>

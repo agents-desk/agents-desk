@@ -22,6 +22,14 @@ export const enums = {
       "zh-CN": { everyone: "全员", tenant: "工作区" },
     },
   },
+  MemberAccountStatus: {
+    prefix: "member_account.status",
+    values: ["active", "disabled"],
+    labels: {
+      "en": { active: "Active", disabled: "Disabled" },
+      "zh-CN": { active: "正常", disabled: "已停用" },
+    },
+  },
   PlatformAdminStatus: {
     prefix: "platform_admin.status",
     values: ["active", "disabled"],

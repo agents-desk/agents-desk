@@ -106,13 +106,67 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) 
 	if err := authorize(sub, auth.ConversationsRead); err != nil {
 		return nil, err
 	}
+	q, activeFilter, sortMode, err := buildServiceListQuery(ctx, a.db, sub, in)
+	if err != nil {
+		return nil, err
+	}
+	q = q.Limit(in.Limit())
 
+	// 排序和游标：@我 按最近被 @ 的时间，其他列表与视图按 sortMode
+	var rows []Conversation
+	var key func(ConversationDTO) any
+	switch {
+	case activeFilter == nil && in.Inbox == InboxMentions:
+		q = q.Join("JOIN (SELECT conversation_id, max(created_at) AS mentioned_at FROM conversation_mentions WHERE tenant_id = ? AND member_id = ? GROUP BY conversation_id) AS m ON m.conversation_id = conversation.id", sub.Tenant, sub.ID).
+			ColumnExpr("conversation.*").ColumnExpr("m.mentioned_at").OrderExpr("m.mentioned_at DESC, conversation.id DESC")
+		var after timeKey
+		if ok, err := in.After(&after); err != nil {
+			return nil, err
+		} else if ok {
+			q = q.Where("(m.mentioned_at, conversation.id) < (?, ?)", after.At, after.ID)
+		}
+		key = func(d ConversationDTO) any { return timeKey{At: *d.MentionedAt, ID: d.ID} }
+	case sortMode == ByRecent:
+		q = q.OrderExpr("conversation.last_message_at DESC, conversation.id DESC")
+		var after timeKey
+		if ok, err := in.After(&after); err != nil {
+			return nil, err
+		} else if ok {
+			q = q.Where("(conversation.last_message_at, conversation.id) < (?, ?)", after.At, after.ID)
+		}
+		key = func(d ConversationDTO) any { return timeKey{At: d.LastMessageAt, ID: d.ID} }
+	default:
+		q = q.OrderExpr(waitingGroup + ", " + waitingValue + ", conversation.id")
+		var after waitingKey
+		if ok, err := in.After(&after); err != nil {
+			return nil, err
+		} else if ok {
+			q = q.Where("("+waitingGroup+", "+waitingValue+", conversation.id) > (?, ?, ?)", after.Group, after.Key, after.ID)
+		}
+		key = func(d ConversationDTO) any { return toWaitingKey(d) }
+	}
+	if err := q.Scan(ctx, &rows); err != nil {
+		return nil, errors.Wrap(err, "list conversations")
+	}
+	items, err := toDTOs(ctx, a.db, sub, rows)
+	if err != nil {
+		return nil, err
+	}
+	p := page.NewCursor(items, in.CursorParams, key)
+	return &p, nil
+}
+
+// buildServiceListQuery 校验视图/临时筛选参数并构造附带 visible() 与筛选条件的服务型会话基础查询，供列表与导出共用。
+func buildServiceListQuery(ctx context.Context, db bun.IDB, sub identity.Subject, in *ListInput) (*bun.SelectQuery, *Filter, Sort, error) {
+	if in == nil {
+		in = &ListInput{}
+	}
 	sortMode := in.Sort
 	var activeFilter *Filter
 	if in.ViewID != "" {
-		v, err := NewViews(a.db).Get(ctx, sub, in.ViewID)
+		v, err := NewViews(db).Get(ctx, sub, in.ViewID)
 		if err != nil {
-			return nil, err
+			return nil, nil, "", err
 		}
 		f := v.Config.Filter
 		activeFilter = &f
@@ -121,9 +175,9 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) 
 		}
 	}
 	if in.Filter != "" {
-		f, err := parseFilterParam(ctx, a.db, sub.Tenant, in.Filter)
+		f, err := parseFilterParam(ctx, db, sub.Tenant, in.Filter)
 		if err != nil {
-			return nil, err
+			return nil, nil, "", err
 		}
 		activeFilter = &f
 	}
@@ -131,8 +185,7 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) 
 		sortMode = ByWaiting
 	}
 
-	var rows []Conversation
-	q := a.db.NewSelect().Model(&rows).Where("conversation.tenant_id = ? AND conversation.kind = ?", sub.Tenant, Service).Limit(in.Limit())
+	q := db.NewSelect().Model((*Conversation)(nil)).Where("conversation.tenant_id = ? AND conversation.kind = ?", sub.Tenant, Service)
 	q = visible(q, sub)
 	if activeFilter == nil && in.Inbox == InboxSpam {
 		q = q.Where("conversation.spam_at IS NOT NULL")
@@ -147,9 +200,9 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) 
 		var attrDefs map[string]attribute.Definition
 		if len(activeFilter.Attributes) > 0 {
 			var err error
-			attrDefs, err = loadConversationAttrDefs(ctx, a.db, sub.Tenant)
+			attrDefs, err = loadConversationAttrDefs(ctx, db, sub.Tenant)
 			if err != nil {
-				return nil, err
+				return nil, nil, "", err
 			}
 		}
 		pred, args := buildFilterPredicate(sub, *activeFilter, attrDefs)
@@ -205,48 +258,7 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) 
 			q = q.Where("EXISTS (SELECT 1 FROM conversation_tags AS ct WHERE ct.tenant_id = ? AND ct.tag_id = ? AND ct.conversation_id = conversation.id)", sub.Tenant, in.TagID)
 		}
 	}
-
-	// 排序和游标：@我 按最近被 @ 的时间，其他列表与视图按 sortMode
-	var key func(ConversationDTO) any
-	switch {
-	case activeFilter == nil && in.Inbox == InboxMentions:
-		q = q.Join("JOIN (SELECT conversation_id, max(created_at) AS mentioned_at FROM conversation_mentions WHERE tenant_id = ? AND member_id = ? GROUP BY conversation_id) AS m ON m.conversation_id = conversation.id", sub.Tenant, sub.ID).
-			ColumnExpr("conversation.*").ColumnExpr("m.mentioned_at").OrderExpr("m.mentioned_at DESC, conversation.id DESC")
-		var after timeKey
-		if ok, err := in.After(&after); err != nil {
-			return nil, err
-		} else if ok {
-			q = q.Where("(m.mentioned_at, conversation.id) < (?, ?)", after.At, after.ID)
-		}
-		key = func(d ConversationDTO) any { return timeKey{At: *d.MentionedAt, ID: d.ID} }
-	case sortMode == ByRecent:
-		q = q.OrderExpr("conversation.last_message_at DESC, conversation.id DESC")
-		var after timeKey
-		if ok, err := in.After(&after); err != nil {
-			return nil, err
-		} else if ok {
-			q = q.Where("(conversation.last_message_at, conversation.id) < (?, ?)", after.At, after.ID)
-		}
-		key = func(d ConversationDTO) any { return timeKey{At: d.LastMessageAt, ID: d.ID} }
-	default:
-		q = q.OrderExpr(waitingGroup + ", " + waitingValue + ", conversation.id")
-		var after waitingKey
-		if ok, err := in.After(&after); err != nil {
-			return nil, err
-		} else if ok {
-			q = q.Where("("+waitingGroup+", "+waitingValue+", conversation.id) > (?, ?, ?)", after.Group, after.Key, after.ID)
-		}
-		key = func(d ConversationDTO) any { return toWaitingKey(d) }
-	}
-	if err := q.Scan(ctx); err != nil {
-		return nil, errors.Wrap(err, "list conversations")
-	}
-	items, err := toDTOs(ctx, a.db, sub, rows)
-	if err != nil {
-		return nil, err
-	}
-	p := page.NewCursor(items, in.CursorParams, key)
-	return &p, nil
+	return q, activeFilter, sortMode, nil
 }
 
 // toWaitingKey 返回会话 d 按等待时长排序时的位置，与 waitingGroup、waitingValue 的计算一致。

@@ -115,7 +115,7 @@ func webhookURL(publicURL, id string) string {
 // find 读取工作区 tenant 中的 Telegram 渠道 id，不存在、属于别的工作区或不是 Telegram 渠道时返回 channel.ErrNotFound。
 func find(ctx context.Context, db bun.IDB, tenant, id string, lock bool) (*channel.Channel, error) {
 	ch := new(channel.Channel)
-	q := db.NewSelect().Model(ch).Where("id = ? AND tenant_id = ? AND kind = ?", id, tenant, channel.Telegram)
+	q := db.NewSelect().Model(ch).Where("id = ? AND tenant_id = ? AND kind = ? AND archived_at IS NULL", id, tenant, channel.Telegram)
 	if lock {
 		q = q.For("UPDATE")
 	}

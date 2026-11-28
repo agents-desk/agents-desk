@@ -1,5 +1,5 @@
 import type { AutomationBuiltin, AutomationRuleDTO, ConversationAssignmentSettings, ConversationDefaultTarget } from "@agents-desk/client/tenant"
-import { Alert, Badge, Button, Group, List, Loader, Paper, Select, Stack, Switch, Text } from "@mantine/core"
+import { Alert, Badge, Button, Divider, Group, List, Loader, NumberInput, Paper, Select, Stack, Switch, Text } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { IconAlertTriangle, IconInfoCircle } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -33,7 +33,11 @@ function AssignmentAndRulesPage(): ReactNode {
           value: "assignment",
           label: t("nav.assignment"),
           content: data ? (
-            <AssignmentForm key={`${data.default_target}:${data.default_team_id}:${data.default_member_id}`} initial={data} slug={slug} />
+            <AssignmentForm
+              key={`${data.default_target}:${data.default_team_id}:${data.default_member_id}:${data.auto_close_after_hours}:${data.sla_reassign_minutes}`}
+              initial={data}
+              slug={slug}
+            />
           ) : (
             <Loader size="sm" />
           ),
@@ -61,6 +65,8 @@ function AssignmentForm({ initial, slug }: { initial: ConversationAssignmentSett
       default_target: initial.default_target as ConversationDefaultTarget,
       default_team_id: initial.default_team_id || "",
       default_member_id: initial.default_member_id || "",
+      auto_close_after_hours: initial.auto_close_after_hours ?? 0,
+      sla_reassign_minutes: initial.sla_reassign_minutes ?? 0,
     },
   })
   const [saving, setSaving] = useState(false)
@@ -87,6 +93,8 @@ function AssignmentForm({ initial, slug }: { initial: ConversationAssignmentSett
         default_target: values.default_target,
         default_team_id: values.default_target === "team" ? values.default_team_id : undefined,
         default_member_id: values.default_target === "member" ? values.default_member_id : undefined,
+        auto_close_after_hours: Number(values.auto_close_after_hours) || 0,
+        sla_reassign_minutes: Number(values.sla_reassign_minutes) || 0,
       })
       await queryClient.invalidateQueries({ queryKey: kit.queries.assignment.key() })
       form.resetDirty()
@@ -155,6 +163,25 @@ function AssignmentForm({ initial, slug }: { initial: ConversationAssignmentSett
               error={form.errors.default_member_id}
             />
           )}
+          <Divider label={t("assignment_page.lifecycle_title")} labelPosition="left" my="xs" />
+          <NumberInput
+            label={t("assignment_page.auto_close_after_hours")}
+            description={t("assignment_page.auto_close_after_hours_hint")}
+            min={0}
+            max={720}
+            allowDecimal={false}
+            value={form.values.auto_close_after_hours}
+            onChange={(v) => form.setFieldValue("auto_close_after_hours", typeof v === "number" ? v : 0)}
+          />
+          <NumberInput
+            label={t("assignment_page.sla_reassign_minutes")}
+            description={t("assignment_page.sla_reassign_minutes_hint")}
+            min={0}
+            max={10080}
+            allowDecimal={false}
+            value={form.values.sla_reassign_minutes}
+            onChange={(v) => form.setFieldValue("sla_reassign_minutes", typeof v === "number" ? v : 0)}
+          />
           <Group justify="flex-end">
             <Button type="submit" disabled={!form.isDirty()} loading={saving}>
               {t("common.save")}

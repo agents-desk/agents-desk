@@ -68,6 +68,7 @@ export const required = {
     policySave: ["business-channels:manage"],
   },
   channel: {
+    delete: ["channels:manage"],
     list: ["channels:read"],
   },
   chat: {
@@ -84,6 +85,7 @@ export const required = {
   },
   contact: {
     block: ["contacts:update"],
+    delete: ["contacts:update"],
     exportProgress: ["contacts:export"],
     exportStart: ["contacts:export"],
     get: ["contacts:read"],
@@ -109,6 +111,8 @@ export const required = {
     contactAttributesPatch: ["conversations:reply"],
     contactTagAdd: ["conversations:reply"],
     contactTagRemove: ["conversations:reply"],
+    exportProgress: ["reports:read"],
+    exportStart: ["reports:read"],
     get: ["conversations:read"],
     inbox: ["conversations:read"],
     itemEdit: ["conversations:reply"],
@@ -149,6 +153,7 @@ export const required = {
   member: {
     add: ["members:manage"],
     get: ["members:read"],
+    handover: ["members:manage"],
     list: ["members:read"],
     remove: ["members:manage"],
     resetPassword: ["members:manage"],
@@ -200,6 +205,7 @@ export const required = {
     update: ["channels:manage"],
   },
   tenant: {
+    auditList: ["tenant-settings:manage"],
     rename: ["tenant-settings:manage"],
   },
   tgaccount: {
