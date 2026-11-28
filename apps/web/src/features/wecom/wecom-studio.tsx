@@ -145,7 +145,6 @@ export function WeComStudio({ slug, id }: { slug: string; id: string }): ReactNo
   return (
     <Page
       title={bot.data ? bot.data.name : t("wecom_studio.title")}
-      width="narrow"
       back={() => void navigate({ to: "/$slug/settings/internal-channels", params: { slug }, search: { tab: "wecom" } })}
       actions={
         bot.data ? (

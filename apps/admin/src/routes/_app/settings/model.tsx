@@ -62,7 +62,7 @@ function ModelSettings() {
   }, [current.data])
 
   return (
-    <Page title={t("nav.model")} description={t("model.description")} width="narrow">
+    <Page title={t("nav.model")} description={t("model.description")}>
       <form
         noValidate
         onSubmit={form.onSubmit(async (values) => {

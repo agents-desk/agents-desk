@@ -1,5 +1,6 @@
 import type { WidgetDTO, WidgetLocalization } from "@agents-desk/client/tenant"
-import { Badge, Box, Button, ColorInput, Group, Skeleton, Stack, Switch, TagsInput, TextInput } from "@mantine/core"
+import { fieldErrors } from "@go-tenon/client"
+import { Badge, Box, Button, ColorInput, Group, SimpleGrid, Skeleton, Stack, Switch, TagsInput, TextInput } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useSearch } from "@tanstack/react-router"
@@ -122,6 +123,15 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
     },
     onError: (err) => {
       setServerError(applyServerErrors(form, err))
+      const fields = Object.keys(fieldErrors(err))
+      if (fields.length === 0) return
+      const hasRouting = fields.some((f) => f === "team_id" || f === "allowed_origins" || f.startsWith("allowed_origins."))
+      const hasConfig = fields.some((f) => f === "name" || f === "enabled" || f.startsWith("appearance.") || f.startsWith("localization."))
+      if (hasRouting && !hasConfig && tab !== "routing") {
+        void navigate({ to: ".", search: ((prev: Record<string, unknown>) => ({ ...prev, tab: "routing" })) as never, replace: true })
+      } else if (hasConfig && tab === "routing") {
+        void navigate({ to: ".", search: ((prev: Record<string, unknown>) => ({ ...prev, tab: undefined })) as never, replace: true })
+      }
     },
   })
 
@@ -157,8 +167,8 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
           <Group
             gap="xs"
             style={{
-              visibility: tab === "config" ? "visible" : "hidden",
-              pointerEvents: tab === "config" ? "auto" : "none",
+              visibility: tab !== "install" ? "visible" : "hidden",
+              pointerEvents: tab !== "install" ? "auto" : "none",
             }}
           >
             {dirty && (
@@ -180,14 +190,12 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
           value: "config",
           label: t("widget_studio.tab_config"),
           content: (
-            <div className={classes.tabPanel}>
+            <div className={classes.previewTabPanel}>
               {widget.isPending ? (
                 <Box className={classes.layout}>
                   <Stack gap="md">
-                    <Skeleton height={160} radius="md" />
-                    <Skeleton height={220} radius="md" />
-                    <Skeleton height={260} radius="md" />
                     <Skeleton height={180} radius="md" />
+                    <Skeleton height={340} radius="md" />
                   </Stack>
                   <Skeleton height={680} radius="md" />
                 </Box>
@@ -195,32 +203,31 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
                 <form noValidate onSubmit={form.onSubmit((v) => save.mutate(v))}>
                   <Box className={classes.layout}>
                     <Stack gap="md">
-                      <FormError error={serverError} />
-
                       <FormSection title={t("widget_studio.section_basic")} description={t("widget_studio.section_basic_desc")}>
-                        <TextInput
-                          label={t("widget_studio.name")}
-                          description={t("widget_studio.name_hint")}
-                          required
-                          maxLength={60}
-                          {...form.getInputProps("name")}
-                        />
+                        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+                          <TextInput
+                            label={t("widget_studio.name")}
+                            description={t("widget_studio.name_hint")}
+                            inputWrapperOrder={["label", "input", "description", "error"]}
+                            required
+                            maxLength={60}
+                            {...form.getInputProps("name")}
+                          />
+                          <ColorInput
+                            label={t("widget_studio.color")}
+                            description={t("widget_studio.color_hint")}
+                            inputWrapperOrder={["label", "input", "description", "error"]}
+                            format="hex"
+                            swatches={presetSwatches}
+                            swatchesPerRow={7}
+                            fixOnBlur={false}
+                            {...form.getInputProps("appearance.color")}
+                          />
+                        </SimpleGrid>
                         <Switch
                           label={t("widget_studio.enabled")}
                           description={t("widget_studio.enabled_hint")}
                           {...form.getInputProps("enabled", { type: "checkbox" })}
-                        />
-                      </FormSection>
-
-                      <FormSection title={t("widget_studio.section_appearance")} description={t("widget_studio.section_appearance_desc")}>
-                        <ColorInput
-                          label={t("widget_studio.color")}
-                          description={t("widget_studio.color_hint")}
-                          format="hex"
-                          swatches={presetSwatches}
-                          swatchesPerRow={7}
-                          fixOnBlur={false}
-                          {...form.getInputProps("appearance.color")}
                         />
                       </FormSection>
 
@@ -236,35 +243,6 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
                             setActiveLang(lang)
                             setPreviewLang(lang)
                           }}
-                        />
-                      </FormSection>
-
-                      <AiReceptionCard scene="customer" />
-
-                      <FormSection title={t("widget_studio.section_routing")} description={t("widget_studio.section_routing_desc")}>
-                        <ResourceSelect
-                          model={teams}
-                          label={t("widgets.team_hint")}
-                          placeholder={t("widgets.team_unassigned")}
-                          filterRow={(row) => row.status === "active" || String(row.id) === String(form.values.team_id ?? "")}
-                          getOption={(row) => ({
-                            value: String(row.id),
-                            label:
-                              row.status === "disabled"
-                                ? t("widgets.team_disabled_suffix", { name: String(row.name ?? "") })
-                                : String(row.name ?? ""),
-                          })}
-                          value={form.values.team_id}
-                          onChange={(v) => form.setFieldValue("team_id", v)}
-                          error={form.errors.team_id}
-                          clearable
-                        />
-                        <TagsInput
-                          label={t("widget_studio.allowed_origins")}
-                          description={t("widget_studio.allowed_origins_hint")}
-                          placeholder={t("widget_studio.allowed_origins_placeholder")}
-                          clearable
-                          {...form.getInputProps("allowed_origins")}
                         />
                       </FormSection>
                     </Stack>
@@ -284,15 +262,59 @@ export function WidgetStudio({ slug, id }: { slug: string; id: string }): ReactN
           ),
         },
         {
-          value: "install",
-          label: t("widget_studio.tab_install"),
-          content: (
-            <div className={classes.tabPanel}>
-              <WidgetInstallPanel id={id} />
-            </div>
+          value: "routing",
+          label: t("widget_studio.section_routing"),
+          content: widget.isPending ? (
+            <Stack gap="md">
+              <Skeleton height={180} radius="md" />
+              <Skeleton height={160} radius="md" />
+            </Stack>
+          ) : (
+            <form noValidate onSubmit={form.onSubmit((v) => save.mutate(v))}>
+              <Stack gap="md">
+                <FormSection title={t("widget_studio.section_routing")} description={t("widget_studio.section_routing_desc")}>
+                  <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+                    <ResourceSelect
+                      model={teams}
+                      label={t("widgets.team_hint")}
+                      placeholder={t("widgets.team_unassigned")}
+                      filterRow={(row) => row.status === "active" || String(row.id) === String(form.values.team_id ?? "")}
+                      getOption={(row) => ({
+                        value: String(row.id),
+                        label:
+                          row.status === "disabled"
+                            ? t("widgets.team_disabled_suffix", { name: String(row.name ?? "") })
+                            : String(row.name ?? ""),
+                      })}
+                      value={form.values.team_id}
+                      onChange={(v) => form.setFieldValue("team_id", v)}
+                      error={form.errors.team_id}
+                      clearable
+                    />
+                    <TagsInput
+                      label={t("widget_studio.allowed_origins")}
+                      description={t("widget_studio.allowed_origins_hint")}
+                      inputWrapperOrder={["label", "input", "description", "error"]}
+                      placeholder={t("widget_studio.allowed_origins_placeholder")}
+                      clearable
+                      {...form.getInputProps("allowed_origins")}
+                    />
+                  </SimpleGrid>
+                </FormSection>
+
+                <AiReceptionCard scene="customer" />
+              </Stack>
+            </form>
           ),
         },
+        {
+          value: "install",
+          label: t("widget_studio.tab_install"),
+          content: <WidgetInstallPanel id={id} />,
+        },
       ]}
-    />
+    >
+      <FormError error={serverError} />
+    </Page>
   )
 }

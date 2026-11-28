@@ -113,7 +113,6 @@ function GeneralSettingsPage() {
   return (
     <Page
       title={t("nav.general_settings")}
-      width="narrow"
       tabs={[
         {
           value: generalSettings.name,
