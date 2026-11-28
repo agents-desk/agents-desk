@@ -52,6 +52,7 @@ import (
 	"github.com/go-tenon/tenon/sheet/exports"
 	"github.com/go-tenon/tenon/telemetry"
 
+	"agents-desk/internal/adminnotify"
 	"agents-desk/internal/agent"
 	"agents-desk/internal/auth"
 	"agents-desk/internal/automation"
@@ -107,6 +108,7 @@ type App struct {
 	emailTemplates      *mail.Templates                           // 嵌入的双语邮件模板
 	mailer              *platformsettings.DynamicMailer           // 动态读取 Resend 设置的邮件发送器
 	offlineMailLimiter  ratelimit.Limiter                         // 离线访客回复邮件提醒冷却限流器
+	alertNotifier       *adminnotify.AlertNotifier                // 平台管理员主动告警通知器（含冷却防风暴）
 
 	files       *filesystem.Service // 上传的文件：头像、会话附件与导出文件等
 	images      *imgproxy.Proxy     // 图片缩略图地址生成；未配置 url 时返回原图地址
@@ -152,6 +154,9 @@ func (a *App) downstream() conversation.Downstream {
 			_, err := tokens.WithDB(tx).RevokeSubject(ctx, identity.Ref{Type: contact.Type, ID: contactID})
 			return errors.Wrap(err, "revoke contact tokens")
 		}
+	}
+	if a.alertNotifier != nil {
+		down.OnDeadAlert = a.alertNotifier.NotifyDeadJob
 	}
 	return down
 }
@@ -408,6 +413,7 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		emailTemplates:     emailTemplates,
 		mailer:             mailer,
 		offlineMailLimiter: pglimit.New(db, "mail:offline_reply", ratelimit.Config{Rate: 1, Interval: 15 * time.Minute, Burst: 1}),
+		alertNotifier:      adminnotify.NewAlertNotifier(db, hub, pglimit.New(db, "admin:alert", ratelimit.Config{Rate: 1, Interval: 15 * time.Minute, Burst: 1})),
 		ops:                ops, exporter: exporter,
 		// 模型网关不设固定整请求超时（由调用上下文控制），以便兼容流式 SSE 长响应及自托管网关地址。
 		translator: tr,
@@ -461,11 +467,17 @@ func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
 	conversation.RegisterJobs(w, a.db, a.channels, down)
 	translation.RegisterJobs(w, a.db, a.locker, a.translator, down)
 	automation.RegisterJobs(w, a.db, a.locker, down, a.features)
-	emails.RegisterJobs(w, a.mailer)
+	emails.RegisterJobs(w, a.mailer, func(ctx context.Context, _ mail.Message, cause error) error {
+		if a.alertNotifier != nil {
+			a.alertNotifier.NotifyDeadJob(ctx, string(emails.SendTopic), cause)
+		}
+		return nil
+	})
 	// 模型实现还没有接入：执行器只在会话中有启用的机器人且 Generator 不为 nil 时生成，当前什么也不做
 	agent.RegisterJobs(w, agent.NewRunner(a.db, down, a.hub, nil))
 	tenant.RegisterJobs(w, a.db, a.memberLogins, tenant.Addresses{PublicURL: a.cfg.HTTP.PublicURL}, a.hub, a.exporter)
 	contact.RegisterJobs(w, a.db, a.hub, a.exporter)
+	conversation.RegisterExportJobs(w, a.db, a.hub, a.exporter)
 	scheduleapi.HandleRunNow(w, a.tasks)
 	return func(ctx context.Context) error {
 		g, gctx := errgroup.WithContext(ctx)
@@ -556,6 +568,23 @@ func (a *App) tasks() *schedule.Scheduler {
 	}, 500),
 		schedule.Label("schedule.task.members_auto_away.label"),
 		schedule.Describe("schedule.task.members_auto_away.description"))
+	sched.Add("conversations:auto-close", "*/5 * * * *", schedule.Cleanup(func(ctx context.Context, limit int) (int, error) {
+		return conversation.AutoCloseIdle(ctx, a.db, a.downstream(), time.Now().UTC(), limit)
+	}, 200),
+		schedule.Label("schedule.task.conversations_auto_close.label"),
+		schedule.Describe("schedule.task.conversations_auto_close.description"))
+	sched.Add("conversations:sla-reassign", "* * * * *", schedule.Cleanup(func(ctx context.Context, limit int) (int, error) {
+		return conversation.ReassignSLABreached(ctx, a.db, a.downstream(), time.Now().UTC(), limit)
+	}, 200),
+		schedule.Label("schedule.task.conversations_sla_reassign.label"),
+		schedule.Describe("schedule.task.conversations_sla_reassign.description"))
+	sched.Add("system:health-monitor", "*/5 * * * *", func(ctx context.Context) error {
+		return adminnotify.MonitorHealth(ctx, a.db, a.alertNotifier, func(c context.Context) doctor.DoctorReport {
+			return doctor.Run(c, a.doctor()...)
+		}, time.Now().UTC())
+	},
+		schedule.Label("schedule.task.system_health_monitor.label"),
+		schedule.Describe("schedule.task.system_health_monitor.description"))
 	return sched
 }
 

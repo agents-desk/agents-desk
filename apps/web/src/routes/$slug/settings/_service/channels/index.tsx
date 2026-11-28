@@ -1,13 +1,16 @@
 import { Button, Group, Modal, Stack, Text, TextInput } from "@mantine/core"
 import { useForm } from "@mantine/form"
-import { IconPlus } from "@tabler/icons-react"
+import { IconPlus, IconTrash } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import {
   AnchorLink,
   applyServerErrors,
+  confirm,
   DataTable,
   FormError,
+  notifyError,
+  notifySuccess,
   Page,
   PageActions,
   preloadQueries,
@@ -16,7 +19,7 @@ import {
   useT,
 } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
-import { tenantApi } from "../../../../../api"
+import { kit, tenantApi } from "../../../../../api"
 import { RowActions } from "../../../../../components/row-actions"
 import { ExternalGroupsPanel, TelegramsPanel, UpcomingChannelsBanner } from "../../../../../features/channels/shared-panels"
 import { teams } from "../../../../../resources"
@@ -117,6 +120,16 @@ function WidgetsTab({ slug }: { slug: string }): ReactNode {
     },
   })
 
+  const remove = useMutation({
+    mutationFn: (id: string) => tenantApi.channel.delete(id),
+    onSuccess: (res) => {
+      void queryClient.invalidateQueries({ queryKey: ["resource", "widget"] })
+      void queryClient.invalidateQueries({ queryKey: kit.queries.channel.key() })
+      notifySuccess(t(res.mode === "archived" ? "channels.archived_done" : "channels.deleted_done"))
+    },
+    onError: (err) => notifyError(err),
+  })
+
   const openCreate = () => {
     setCreateError(undefined)
     form.reset()
@@ -166,6 +179,22 @@ function WidgetsTab({ slug }: { slug: string }): ReactNode {
               <RowActions
                 editLabel={t("widgets.configure")}
                 onEdit={() => void navigate({ to: "/$slug/settings/channels/widgets/$id", params: { slug, id: row.id } })}
+                actions={[
+                  {
+                    label: t("widgets.delete"),
+                    icon: <IconTrash size={14} />,
+                    danger: true,
+                    onClick: () =>
+                      void confirm({
+                        title: t("widgets.delete_confirm", { name: row.name }),
+                        message: t("widgets.delete_message"),
+                        danger: true,
+                        confirmLabel: t("widgets.delete"),
+                      }).then((ok) => {
+                        if (ok) remove.mutate(row.id)
+                      }),
+                  },
+                ]}
               />
             ),
           },

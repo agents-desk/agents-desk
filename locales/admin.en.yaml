@@ -175,3 +175,7 @@ settings.mail_test_to: "Recipient email"
 settings.mail_test_to_placeholder: "name@company.com"
 settings.mail_test_submit: "Send test email"
 settings.mail_test_sent: "Test email sent to {{.to}}"
+
+
+nav.members: "Workspace members"
+audit.filter.member: "Members"

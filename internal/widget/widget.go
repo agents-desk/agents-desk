@@ -137,7 +137,7 @@ func newVisitorID() string {
 // lock 为 true 时锁住这一行。
 func find(ctx context.Context, db bun.IDB, tenant, id string, lock bool) (*channel.Channel, error) {
 	ch := new(channel.Channel)
-	q := db.NewSelect().Model(ch).Where("id = ? AND tenant_id = ? AND kind = ?", id, tenant, channel.Widget)
+	q := db.NewSelect().Model(ch).Where("id = ? AND tenant_id = ? AND kind = ? AND archived_at IS NULL", id, tenant, channel.Widget)
 	if lock {
 		q = q.For("UPDATE")
 	}

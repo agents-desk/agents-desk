@@ -324,6 +324,7 @@ export function MembersPage({ route }: { route: PeriodRoute }): ReactNode {
       meta={data?.period}
       error={query.error}
       updating={pageState.busy}
+      exportConfig={{ report: "members", params: filters.queryParams }}
     >
       {/* 主分析面板：团队指标带 + 成员工作量对比 */}
       <section className="rp-panel">

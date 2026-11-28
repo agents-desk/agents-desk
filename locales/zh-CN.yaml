@@ -38,6 +38,14 @@ member.status.away: 离开
 member.actions.away: 设为离开
 member.fields.password: 初始密码
 member.actions.remove: 移出
+member.fields.q: 搜索成员
+member.fields.tenant_count: 所属工作区数
+member.fields.disabled_at: 停用时间
+member.fields.created_at: 创建时间
+member.actions.disable: 停用账号
+member.actions.enable: 启用账号
+member_account.status.active: 正常
+member_account.status.disabled: 已停用
 team.not_found: 团队收件箱不存在
 team.name_taken: "名称“{{.name}}”已被使用"
 team.in_use: "还有 {{.conversations}} 个会话、{{.channels}} 个渠道、{{.ticket_types}} 个工单类型引用这个团队收件箱，不能删除，可以改为停用"
@@ -198,6 +206,8 @@ business.invalid_tone: 商务默认翻译语气无效，请选择亲切、中性
 business.invalid_member: 所选协作成员不存在或不属于当前工作区
 channel.media_too_large: 媒体文件超出该渠道允许下载的大小上限
 channel.media_unavailable: 外部渠道上的媒体已失效或无法拉取
+channel.personal_protected: 成员个人商务渠道不能通过公共渠道删除接口移除
+report.unsupported_type: 不支持的报表导出类型
 channel.kind.test: 测试渠道
 channel.kind.widget: 网页聊天插件
 channel.kind.telegram: Telegram 机器人
@@ -428,6 +438,68 @@ activity.contact.blocked: "拉黑了联系人"
 activity.contact.unblocked: "取消了联系人拉黑"
 activity.blockip.created: "添加了 IP 黑名单 {{.cidr}}"
 activity.blockip.deleted: "移除了 IP 黑名单 {{.cidr}}"
+activity.actor.system: 系统规则
+activity.member.added: "添加了成员「{{.name}}」（角色：{{.role}}）"
+activity.member.removed: "移除了成员「{{.name}}」（原角色：{{.role}}）"
+activity.member.role_changed: "将成员「{{.name}}」的角色从「{{.from}}」修改为「{{.to}}」"
+activity.member.status_changed: "将成员「{{.name}}」的在线状态切换为 {{.status}}"
+activity.member.preferences_updated: "更新了「{{.name}}」的个人偏好设置"
+activity.member.profile_updated: "更新了成员「{{.name}}」的个人资料（{{.changed}}）"
+activity.member.notifications_updated: "更新了「{{.name}}」的实时通知设置"
+activity.member.password_changed: "修改了成员登录密码"
+activity.member.handed_over: "为成员「{{.name}}」执行工作交接（会话 {{.transferred_conversations}} 条、工单 {{.transferred_tickets}} 个）"
+activity.member.disabled: "平台停用了成员账号「{{.name}}」"
+activity.member.enabled: "平台启用了成员账号「{{.name}}」"
+activity.role.created: "创建了角色「{{.name}}」"
+activity.role.updated: "更新了角色「{{.name}}」"
+activity.role.deleted: "删除了角色「{{.name}}」"
+activity.team.created: "创建了团队收件箱「{{.name}}」"
+activity.team.updated: "更新了团队收件箱「{{.name}}」（{{.changed}}）"
+activity.team.deleted: "删除了团队收件箱「{{.name}}」"
+activity.team.disabled: "停用了团队收件箱「{{.name}}」"
+activity.team.enabled: "启用了团队收件箱「{{.name}}」"
+activity.team.member_added: "向团队收件箱「{{.name}}」添加了成员"
+activity.team.member_removed: "从团队收件箱「{{.name}}」移出了成员"
+activity.channel.created: "创建了{{.kind}}渠道「{{.name}}」"
+activity.channel.updated: "更新了渠道「{{.name}}」（{{.changed}}）"
+activity.channel.archived: "归档了{{.kind}}渠道「{{.name}}」"
+activity.channel.deleted: "删除了{{.kind}}渠道「{{.name}}」"
+activity.channel.identity_secret_rotated: "轮换了聊天插件「{{.name}}」的身份验证密钥"
+activity.channel.webhook_secret_rotated: "轮换了 Telegram 机器人「{{.name}}」的 Webhook 密钥"
+activity.business_policy.updated: "更新了商务沟通策略设置"
+activity.business_channel.enabled_changed: "调整了商务渠道「{{.name}}」的启用状态"
+activity.business_channel.collaborators_added: "为商务渠道「{{.name}}」添加了协作成员"
+activity.contact.updated: "更新了联系人「{{.name}}」资料"
+activity.contact.deleted: "删除了联系人「{{.name}}」"
+activity.contact.anonymized: "对联系人执行了不可逆匿名化清理"
+activity.contact_view.created: "创建了联系人视图"
+activity.contact_view.updated: "更新了联系人视图"
+activity.contact_view.deleted: "删除了联系人视图"
+activity.tag.created: "创建了标签「{{.name}}」"
+activity.tag.updated: "更新了标签「{{.name}}」（{{.changed}}）"
+activity.tag.deleted: "删除了标签「{{.name}}」"
+activity.attribute.created: "创建了自定义属性「{{.name}}」"
+activity.attribute.updated: "更新了自定义属性「{{.name}}」（{{.changed}}）"
+activity.attribute.deleted: "删除了自定义属性「{{.name}}」"
+activity.attribute.reordered: "调整了自定义属性展示顺序"
+activity.ticket_type.created: "创建了工单类型「{{.name}}」"
+activity.ticket_type.updated: "更新了工单类型「{{.name}}」（{{.changed}}）"
+activity.ticket_type.deleted: "删除了工单类型「{{.name}}」"
+activity.ticket_type.reordered: "调整了工单类型展示顺序"
+activity.ticket_type.disabled: "停用了工单类型「{{.name}}」"
+activity.ticket_type.enabled: "启用了工单类型「{{.name}}」"
+activity.macro.created: "创建了快捷回复「{{.name}}」"
+activity.macro.updated: "更新了快捷回复「{{.name}}」"
+activity.macro.deleted: "删除了快捷回复"
+activity.view.created: "创建了收件箱视图"
+activity.view.updated: "更新了收件箱视图"
+activity.view.deleted: "删除了收件箱视图"
+activity.external_group.updated: "更新了外部群「{{.name}}」配置"
+activity.tenant_settings.changed: "更新了工作区设置（{{.part}}）"
+activity.translation_settings.updated: "更新了工作区翻译设置（{{.part}}）"
+activity.assignment_settings.updated: "更新了自动指派与会话超时治理设置"
+activity.automation.updated: "更新了自动化规则开关（{{.builtin_key}}）"
+activity.conversation.merged: "合并了历史会话"
 
 platform_settings.invalid_email: 请输入有效的邮箱地址
 platform_settings.required_field: 启用 Resend 发信时此项不能为空
@@ -478,6 +550,14 @@ notification.tenants.exported.title: 工作区列表导出完成
 notification.tenants.exported.body: "已导出 {{.processed}} 个工作区，点击查看工作区列表。"
 notification.tenants.export_failed.title: 工作区列表导出失败
 notification.tenants.export_failed.body: 后台导出工作区时发生错误，请稍后重试。
+notification.alert.doctor_failed.title: "系统自检发现 {{.count}} 项异常"
+notification.alert.doctor_failed.body: "请前往「系统自检」排查：{{.summary}}"
+notification.alert.llm_failure_spike.title: "近 15 分钟模型网关错误激增（{{.failed}}/{{.total}}）"
+notification.alert.llm_failure_spike.body: 请检查模型接口配置、额度及上游连通性。
+notification.alert.queue_failed_spike.title: "近 15 分钟队列失败任务激增（{{.count}} 条）"
+notification.alert.queue_failed_spike.body: 请前往「队列监控」查看失败任务详情并按需重试。
+notification.alert.queue_dead_letter.title: "队列任务进入失败列表（{{.topic}}）"
+notification.alert.queue_dead_letter.body: "{{.reason}}"
 
 queue.topic.conversation.deliver.label: 会话消息投递
 queue.topic.conversation.deliver.description: 将客服回复和系统消息投递至外部渠道或网页聊天插件
@@ -501,6 +581,8 @@ queue.topic.tenants.export.label: 工作区列表导出
 queue.topic.tenants.export.description: 后台生成工作区列表表格文件并推送完成通知
 queue.topic.contacts.export.label: 联系人列表导出
 queue.topic.contacts.export.description: 后台按筛选条件与可见范围生成联系人表格文件
+queue.topic.conversations.export.label: 会话列表导出
+queue.topic.conversations.export.description: 后台按筛选条件与可见范围生成服务型会话表格文件
 queue.topic.mail.send.label: 邮件异步发送
 queue.topic.mail.send.description: 异步发送成员加入工作区邀请与离线客户回复提醒邮件
 
@@ -555,11 +637,19 @@ schedule.task.generations_expire.label: 清理超时的 AI 生成
 schedule.task.generations_expire.description: 把超过有效期仍未结束的 AI 生成标记为失败
 schedule.task.members_auto_away.label: 自动将离线坐席设为离开
 schedule.task.members_auto_away.description: 将超过 5 分钟未上报在线心跳的在线成员自动切换为离开状态
+schedule.task.conversations_auto_close.label: 自动关闭闲置会话
+schedule.task.conversations_auto_close.description: 将超过工作区设定小时数未收到客户回复的会话自动关闭
+schedule.task.conversations_sla_reassign.label: 超时未回复自动改派
+schedule.task.conversations_sla_reassign.description: 将等待回复超出 SLA 时长的轮流团队会话自动改派给其他在线成员
+schedule.task.system_health_monitor.label: 系统健康主动巡检
+schedule.task.system_health_monitor.description: 定期检查系统自检异常、模型网关错误激增与失败队列并通知平台管理员
 
 conversation.invalid_actions: 附带操作的参数无效
 conversation.invalid_filter: 筛选条件配置无效
 conversation.default_team_required: 请选择默认团队收件箱
 conversation.default_member_required: 请选择默认负责人
+conversation.handover_target_required: 请至少选择接收成员、接收团队或移出操作中的一项
+conversation.handover_same_member: 不能把成员的工作交接给自己
 conversation.default_target.none: 不自动指派（进入未指派）
 conversation.default_target.team: 进入指定团队收件箱
 conversation.default_target.member: 直接指派给指定成员

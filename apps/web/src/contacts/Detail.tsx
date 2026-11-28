@@ -20,7 +20,7 @@ import {
 } from "@mantine/core"
 import { type QueryClient, queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { IconArrowUpRight, IconBan, IconCheck, IconCopy, IconExternalLink, IconGitMerge, IconInfoCircle, IconPencil, IconShieldCheck, IconX } from "@tabler/icons-react"
+import { IconArrowUpRight, IconBan, IconCheck, IconCopy, IconExternalLink, IconGitMerge, IconInfoCircle, IconPencil, IconShieldCheck, IconTrash, IconX } from "@tabler/icons-react"
 import { confirm, Inspector, InspectorField, InspectorSection, notifyError, notifySuccess, PaneBody, PaneHeader, prefetchQueries, type PreloadQuery, useCan, useLanguage, useNarrow, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { kit, tenantApi } from "../api"
@@ -89,6 +89,21 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
       void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
       void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
       notifySuccess(t("contacts.unblocked_done"))
+    },
+    onError: (err) => notifyError(err),
+  })
+  const remove = useMutation({
+    mutationFn: () => tenantApi.contact.delete(id),
+    onSuccess: (res) => {
+      void queryClient.invalidateQueries({ queryKey: kit.queries.contact.key() })
+      void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
+      if (res.mode === "deleted") {
+        notifySuccess(t("contacts.deleted_done"))
+        onClose()
+      } else {
+        void queryClient.invalidateQueries({ queryKey: kit.queries.contact.get(id).queryKey })
+        notifySuccess(t("contacts.anonymized_done"))
+      }
     },
     onError: (err) => notifyError(err),
   })
@@ -196,6 +211,28 @@ export function ContactDetailPanel({ slug, id, onClose }: { slug: string; id: st
               <Tooltip label={t("contacts.merge")} openDelay={250}>
                 <ActionIcon variant="subtle" color="gray" onClick={() => setMergeOpen(true)} aria-label={t("contacts.merge")}>
                   <IconGitMerge size={16} />
+                </ActionIcon>
+              </Tooltip>
+            )}
+            {editable && (
+              <Tooltip label={t("contacts.delete")} openDelay={250}>
+                <ActionIcon
+                  variant="subtle"
+                  color="red"
+                  loading={remove.isPending}
+                  onClick={() =>
+                    void confirm({
+                      title: t("contacts.delete_confirm", { name: displayName }),
+                      message: t("contacts.delete_message"),
+                      danger: true,
+                      confirmLabel: t("contacts.delete"),
+                    }).then((ok) => {
+                      if (ok) remove.mutate()
+                    })
+                  }
+                  aria-label={t("contacts.delete")}
+                >
+                  <IconTrash size={16} />
                 </ActionIcon>
               </Tooltip>
             )}

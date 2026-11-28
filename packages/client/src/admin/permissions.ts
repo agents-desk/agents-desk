@@ -47,6 +47,10 @@ export const required = {
     enable: ["platform-admins:manage"],
     get: ["platform-admins:manage"],
     list: ["platform-admins:manage"],
+    memberDisable: ["tenants:manage"],
+    memberEnable: ["tenants:manage"],
+    memberGet: ["tenants:manage"],
+    memberList: ["tenants:manage"],
     update: ["platform-admins:manage"],
   },
   audit: {

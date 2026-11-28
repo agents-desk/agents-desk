@@ -292,6 +292,11 @@ export const schemas = {
         "$ref": "#/components/schemas/ConversationAddTagInputBody"
       },
     },
+    exportStart: {
+      body: {
+        "$ref": "#/components/schemas/ConversationExportStartInputBody"
+      },
+    },
     itemEdit: {
       body: {
         "$ref": "#/components/schemas/ConversationEditMessageBody"
@@ -575,6 +580,11 @@ export const schemas = {
     add: {
       body: {
         "$ref": "#/components/schemas/MemberAddParams"
+      },
+    },
+    handover: {
+      body: {
+        "$ref": "#/components/schemas/ConversationHandoverParams"
       },
     },
     list: {
@@ -1136,6 +1146,46 @@ export const schemas = {
     },
   },
   tenant: {
+    auditList: {
+      query: {
+        "properties": {
+          "page": {
+            "default": 1,
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "per_page": {
+            "default": 20,
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "target_type": {
+            "enum": [
+              "",
+              "tenant",
+              "member",
+              "role",
+              "team",
+              "channel",
+              "contact",
+              "blocked_ip",
+              "tag",
+              "attribute",
+              "ticket_type",
+              "macro",
+              "automation_rule",
+              "external_group",
+              "settings"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+    },
     rename: {
       body: {
         "$ref": "#/components/schemas/TenantGeneralSettings"
@@ -2065,6 +2115,12 @@ export const components = {
   ConversationAssignmentSettingsInputBody: {
     "additionalProperties": false,
     "properties": {
+      "auto_close_after_hours": {
+        "format": "int64",
+        "maximum": 720,
+        "minimum": 0,
+        "type": "integer"
+      },
       "default_member_id": {
         "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
         "type": "string"
@@ -2075,6 +2131,12 @@ export const components = {
       "default_team_id": {
         "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
         "type": "string"
+      },
+      "sla_reassign_minutes": {
+        "format": "int64",
+        "maximum": 10080,
+        "minimum": 0,
+        "type": "integer"
       }
     },
     "required": [
@@ -2345,6 +2407,72 @@ export const components = {
       "text": {
         "maxLength": 10000,
         "minLength": 1,
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  ConversationExportStartInputBody: {
+    "additionalProperties": false,
+    "properties": {
+      "assignee_id": {
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
+        "type": "string"
+      },
+      "audience": {
+        "$ref": "#/components/schemas/ChannelAudience"
+      },
+      "channel_id": {
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
+        "type": "string"
+      },
+      "filter": {
+        "maxLength": 4096,
+        "type": "string"
+      },
+      "format": {
+        "enum": [
+          "xlsx",
+          "csv"
+        ],
+        "type": "string"
+      },
+      "inbox": {
+        "$ref": "#/components/schemas/ConversationInbox"
+      },
+      "priority": {
+        "$ref": "#/components/schemas/ConversationPriority"
+      },
+      "status": {
+        "$ref": "#/components/schemas/ConversationStatus"
+      },
+      "tag_id": {
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
+        "type": "string"
+      },
+      "team_id": {
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
+        "type": "string"
+      },
+      "view_id": {
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  ConversationHandoverParams: {
+    "additionalProperties": false,
+    "properties": {
+      "remove_after": {
+        "type": "boolean"
+      },
+      "target_member_id": {
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
+        "type": "string"
+      },
+      "target_team_id": {
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
         "type": "string"
       }
     },

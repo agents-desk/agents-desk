@@ -152,6 +152,7 @@ export function ConversationsPage({
       error={query.error}
       updating={pageState.busy}
       toolbarRight={toolbarRight}
+      exportConfig={{ report: "conversations", params: filters.queryParams }}
     >
       {/* 实时积压状态条：与周期趋势独立，每一项直接进入收件箱对应实时视图 */}
       <div className="rp-live-strip">

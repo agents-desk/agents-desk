@@ -24,7 +24,7 @@ import (
 // ListInput 是平台操作日志的查询参数。
 type ListInput struct {
 	page.OffsetParams
-	TargetType string `query:"target_type" enum:",tenant,platform_admin,settings,feature" doc:"按对象类型筛选；为空时返回全部"`
+	TargetType string `query:"target_type" enum:",tenant,platform_admin,member,settings,feature" doc:"按对象类型筛选；为空时返回全部"`
 }
 
 // Item 是操作日志表格中的一条记录，字段与 @go-tenon/ui 的 ActivityLog 约定一致。
@@ -168,9 +168,9 @@ func (a *List) loadActorNames(ctx context.Context, rows []activity.Activity) (ma
 	return names, nil
 }
 
-// loadTargetNames 批量读取日志涉及的工作区和平台管理员名称，供事件译文兜底展示。
+// loadTargetNames 批量读取日志涉及的工作区、成员和平台管理员名称，供事件译文兜底展示。
 func (a *List) loadTargetNames(ctx context.Context, rows []activity.Activity) (map[targetKey]string, error) {
-	var tenantIDs, adminIDs []string
+	var tenantIDs, adminIDs, memberIDs []string
 	for _, r := range rows {
 		if r.TargetID == "" {
 			continue
@@ -180,6 +180,8 @@ func (a *List) loadTargetNames(ctx context.Context, rows []activity.Activity) (m
 			tenantIDs = append(tenantIDs, r.TargetID)
 		case string(platformadmin.Type):
 			adminIDs = append(adminIDs, r.TargetID)
+		case string(member.Type):
+			memberIDs = append(memberIDs, r.TargetID)
 		}
 	}
 	names := map[targetKey]string{}
@@ -207,6 +209,18 @@ func (a *List) loadTargetNames(ctx context.Context, rows []activity.Activity) (m
 			names[targetKey{string(platformadmin.Type), item.ID}] = item.Name
 		}
 	}
+	if len(memberIDs) > 0 {
+		var list []struct {
+			ID   string `bun:"id"`
+			Name string `bun:"name"`
+		}
+		if err := a.db.NewSelect().Table("members").Column("id", "name").Where("id IN (?)", bun.List(memberIDs)).Scan(ctx, &list); err != nil {
+			return nil, errors.Wrap(err, "load target member names")
+		}
+		for _, item := range list {
+			names[targetKey{string(member.Type), item.ID}] = item.Name
+		}
+	}
 	return names, nil
 }
 
@@ -217,6 +231,8 @@ func targetHref(targetType, targetID string) string {
 		return "/tenants"
 	case string(platformadmin.Type):
 		return "/admins"
+	case string(member.Type):
+		return "/members"
 	case "feature":
 		return "/settings/features"
 	case "settings":

@@ -1,13 +1,16 @@
 import { Button, Group, Modal, PasswordInput, Stack, Text, TextInput } from "@mantine/core"
 import { useForm } from "@mantine/form"
-import { IconPlus } from "@tabler/icons-react"
+import { IconPlus, IconTrash } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import {
   AnchorLink,
   applyServerErrors,
+  confirm,
   DataTable,
   FormError,
+  notifyError,
+  notifySuccess,
   Page,
   PageActions,
   preloadQueries,
@@ -124,6 +127,16 @@ function WeComTab({ slug }: { slug: string }): ReactNode {
     onError: (err) => setCreateError(applyServerErrors(form, err)),
   })
 
+  const remove = useMutation({
+    mutationFn: (id: string) => tenantApi.channel.delete(id),
+    onSuccess: (res) => {
+      void queryClient.invalidateQueries({ queryKey: ["resource", "wecom"] })
+      void queryClient.invalidateQueries({ queryKey: kit.queries.channel.key() })
+      notifySuccess(t(res.mode === "archived" ? "channels.archived_done" : "channels.deleted_done"))
+    },
+    onError: (err) => notifyError(err),
+  })
+
   const openCreate = () => {
     setCreateError(undefined)
     form.reset()
@@ -186,6 +199,22 @@ function WeComTab({ slug }: { slug: string }): ReactNode {
               <RowActions
                 editLabel={t("wecom.configure")}
                 onEdit={() => void navigate({ to: "/$slug/settings/internal-channels/wecom/$id", params: { slug, id: row.id } })}
+                actions={[
+                  {
+                    label: t("wecom.delete"),
+                    icon: <IconTrash size={14} />,
+                    danger: true,
+                    onClick: () =>
+                      void confirm({
+                        title: t("wecom.delete_confirm", { name: row.name }),
+                        message: t("wecom.delete_message"),
+                        danger: true,
+                        confirmLabel: t("wecom.delete"),
+                      }).then((ok) => {
+                        if (ok) remove.mutate(row.id)
+                      }),
+                  },
+                ]}
               />
             ),
           },

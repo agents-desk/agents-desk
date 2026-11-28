@@ -231,6 +231,7 @@ function BusinessChatsTab({
       meta={data?.period}
       error={query.error}
       updating={pageState.busy}
+      exportConfig={{ report: "business", params: queryParams }}
     >
       <section className="rp-panel">
         <MetricStrip items={metrics} loading={loading} />

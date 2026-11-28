@@ -373,13 +373,17 @@ func (a *Deliver) clearPendingTranslation(ctx context.Context, it *Item, c *Conv
 }
 
 // OnDead 在消息投递任务因永久错误、业务错误或重试次数耗尽而进入失败任务表前执行一次：
-// 将仍处于发送中状态的送达记录标记为失败并写入原因；若此时仍存在待自动翻译标记，则补充 translation_failed 状态并推送给成员。
+// 将仍处于发送中状态的送达记录标记为失败并写入原因；若此时仍存在待自动翻译标记，则补充 translation_failed 状态并推送给成员，并通知管理员告警。
 func (a *Deliver) OnDead(ctx context.Context, p Appended, cause error) error {
 	reason := ""
 	if cause != nil {
 		reason = cause.Error()
 	}
-	return a.markAndNotify(ctx, p.TenantID, p.ConversationID, p.ItemID, Failed, "", reason, true)
+	err := a.markAndNotify(ctx, p.TenantID, p.ConversationID, p.ItemID, Failed, "", reason, true)
+	if a.down.OnDeadAlert != nil {
+		a.down.OnDeadAlert(ctx, string(DeliverTopic), cause)
+	}
+	return err
 }
 
 // markAndNotify 在事务中更新消息 itemID 的送达状态，需要时在提交后向能看到会话的成员推送变更事件。

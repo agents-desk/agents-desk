@@ -72,6 +72,18 @@ export interface AttributeUpdateParams {
   position?: number
 }
 
+export interface AuditItem {
+  actor?: string
+  created_at: string
+  event: string
+  href?: string
+  id: string
+  impersonator?: string
+  target_id?: string
+  target_type?: string
+  text: string
+}
+
 export type AutomationBuiltin = "reply_time" | "collect_lead_contact" | "request_rating" | "ticket_status_notify"
 
 export interface AutomationRuleDTO {
@@ -224,6 +236,11 @@ export interface ChannelBusinessPolicy {
   translation_tone?: "" | "friendly" | "neutral" | "formal"
 }
 
+export interface ChannelDeleteResult {
+  /** deleted 表示无历史关联已物理删除，archived 表示存在历史关联已软归档 */
+  mode: "deleted" | "archived"
+}
+
 export interface ChannelExternalMention {
   /** 第三方平台中的用户编号（如企微 userid、Telegram user_id） */
   external_id: string
@@ -236,6 +253,8 @@ export interface ChannelExternalMention {
 export type ChannelKind = "test" | "widget" | "telegram" | "wecom" | "business_link" | "telegram_account"
 
 export interface ChannelListItem {
+  /** 渠道是否已归档 */
+  archived: boolean
   /** 渠道服务对象域：customer（外部客户）、partner（商务）或 internal（内部员工） */
   audience: ChannelAudience
   /** 渠道是否启用 */
@@ -308,6 +327,11 @@ export interface ContactDTO {
   /** IANA 时区名，用于显示对方的当地时间 */
   time_zone: string
   updated_at: string
+}
+
+export interface ContactDeleteResult {
+  /** deleted 表示无历史会话已物理删除，anonymized 表示存在历史会话已完成不可逆匿名化 */
+  mode: "deleted" | "anonymized"
 }
 
 export interface ContactDetailDTO {
@@ -603,21 +627,29 @@ export interface ConversationAssignment {
 }
 
 export interface ConversationAssignmentSettings {
+  /** 客户停止回复后自动关闭服务型会话的小时数，0 表示关闭 */
+  auto_close_after_hours: number
   /** 默认成员 ID（default_target 为 member 时有效） */
   default_member_id: string
   /** 默认指派目标：none 不自动指派，team 默认团队收件箱，member 默认成员 */
   default_target: ConversationDefaultTarget
   /** 默认团队收件箱 ID（default_target 为 team 时有效） */
   default_team_id: string
+  /** 会话等待回复超时后自动改派同团队在线成员的分钟数，0 表示关闭 */
+  sla_reassign_minutes: number
 }
 
 export interface ConversationAssignmentSettingsInputBody {
+  /** 客户停止回复后自动关闭会话的小时数，0 表示关闭 */
+  auto_close_after_hours?: number
   /** 默认成员 ID */
   default_member_id?: string
   /** 默认指派目标：none、team 或 member */
   default_target: ConversationDefaultTarget
   /** 默认团队收件箱 ID */
   default_team_id?: string
+  /** 会话等待回复超时后自动改派的分钟数，0 表示关闭 */
+  sla_reassign_minutes?: number
 }
 
 export interface ConversationAttachmentDTO {
@@ -909,7 +941,69 @@ export interface ConversationEditMessageBody {
   text?: string
 }
 
+export interface ConversationExportProgress {
+  completed_at?: string
+  created_at: string
+  error?: string
+  error_message?: string
+  expires_at?: string
+  failed: number
+  file_id?: string
+  filename?: string
+  format: string
+  id: string
+  kind: string
+  processed: number
+  status: string
+  total: number
+  updated_at: string
+  url?: string
+}
+
+export interface ConversationExportStartInputBody {
+  /** 按负责人筛选 */
+  assignee_id?: string
+  /** 按服务对象筛选 */
+  audience?: ChannelAudience
+  /** 按渠道筛选 */
+  channel_id?: string
+  /** JSON 编码的高级筛选条件 */
+  filter?: string
+  /** 导出格式，默认 xlsx */
+  format?: "xlsx" | "csv"
+  /** 收件箱分组：mine、mentions、unassigned、all、spam */
+  inbox?: ConversationInbox
+  /** 按优先级筛选 */
+  priority?: ConversationPriority
+  /** 按会话状态筛选 */
+  status?: ConversationStatus
+  /** 按标签筛选 */
+  tag_id?: string
+  /** 按团队收件箱筛选 */
+  team_id?: string
+  /** 按已保存视图筛选 */
+  view_id?: string
+}
+
 export type ConversationFetchStatus = "ready" | "remote" | "pending" | "fetching" | "unavailable"
+
+export interface ConversationHandoverParams {
+  /** 交接完成后是否同时将该成员移出当前工作区 */
+  remove_after?: boolean
+  /** 接收会话与工单的工作区成员 ID */
+  target_member_id?: string
+  /** 可选接收团队收件箱 ID；留空时保持会话原团队或与移出同时生效 */
+  target_team_id?: string
+}
+
+export interface ConversationHandoverResult {
+  /** 是否已移出工作区 */
+  removed: boolean
+  /** 转移的未关闭服务型会话数量 */
+  transferred_conversations: number
+  /** 转移的未解决工单数量 */
+  transferred_tickets: number
+}
 
 export type ConversationInbox = "mine" | "mentions" | "unassigned" | "all" | "spam"
 
@@ -1690,6 +1784,14 @@ export interface MemberTenantMember {
 export interface Meta {
   height?: number
   width?: number
+}
+
+export interface OffsetAuditItem {
+  items: AuditItem[]
+  page: number
+  per_page: number
+  /** Total number of items across all pages. */
+  total: number
 }
 
 export interface OffsetConversationSearchHitDTO {
@@ -3222,6 +3324,10 @@ export interface ContactListInput {
   sort?: ContactSort
 }
 
+/** conversation-export-progress 推送的事件，按 event 区分。 */
+export type ConversationExportProgressEvent =
+  | { event: "progress"; data: ConversationExportProgress; id?: string }
+
 /** conversation-items 的参数。 */
 export interface ConversationItemsInput {
   /** 只读取序号大于它的项；收到推送后用它增量读取 */
@@ -3532,6 +3638,16 @@ export interface TelegramListInput {
   audience?: ChannelAudience
 }
 
+/** tenant-audit-list 的参数。 */
+export interface TenantAuditListInput {
+  /** Page number, starting at 1. */
+  page?: number
+  /** Items per page. */
+  per_page?: number
+  /** 按对象类型筛选；为空时返回全部 */
+  target_type?: "" | "tenant" | "member" | "role" | "team" | "channel" | "contact" | "blocked_ip" | "tag" | "attribute" | "ticket_type" | "macro" | "automation_rule" | "external_group" | "settings"
+}
+
 /** ticket-list 的参数。 */
 export interface TicketListInput {
   /** Opaque cursor from next_cursor of the previous page. Omit for the first page. */
@@ -3778,6 +3894,13 @@ export function createClient(options: ClientOptions) {
     /** operationId 以 channel- 开头的接口。 */
     channel: {
       /**
+       * 删除或归档公共渠道
+       *
+       * DELETE /channels/{id}
+       */
+      delete: (id: string): Promise<ChannelDeleteResult> =>
+        rt.request<ChannelDeleteResult>({ method: "DELETE", path: `/channels/${encodeURIComponent(id)}` }),
+      /**
        * 渠道列表
        *
        * GET /channels
@@ -3867,6 +3990,13 @@ export function createClient(options: ClientOptions) {
        */
       block: (id: string, body: ContactBlockBody): Promise<ContactDetailDTO> =>
         rt.request<ContactDetailDTO>({ method: "POST", path: `/contacts/${encodeURIComponent(id)}/block`, body }),
+      /**
+       * 删除或匿名化联系人
+       *
+       * DELETE /contacts/{id}
+       */
+      delete: (id: string): Promise<ContactDeleteResult> =>
+        rt.request<ContactDeleteResult>({ method: "DELETE", path: `/contacts/${encodeURIComponent(id)}` }),
       /**
        * 联系人导出进度
        *
@@ -4031,6 +4161,20 @@ export function createClient(options: ClientOptions) {
        */
       contactTagRemove: (id: string, tagID: string): Promise<ConversationDTO> =>
         rt.request<ConversationDTO>({ method: "DELETE", path: `/conversations/${encodeURIComponent(id)}/contact/tags/${encodeURIComponent(tagID)}` }),
+      /**
+       * 会话导出进度
+       *
+       * GET /conversations/exports/{id}/progress
+       */
+      exportProgress: (id: string, options?: StreamOptions): AsyncGenerator<ConversationExportProgressEvent> =>
+        rt.stream<ConversationExportProgressEvent>({ method: "GET", path: `/conversations/exports/${encodeURIComponent(id)}/progress` }, options, ["progress"]),
+      /**
+       * 发起会话后台导出
+       *
+       * POST /conversations/exports
+       */
+      exportStart: (body: ConversationExportStartInputBody): Promise<ConversationExportProgress> =>
+        rt.request<ConversationExportProgress>({ method: "POST", path: `/conversations/exports`, body }),
       /**
        * 读取会话
        *
@@ -4301,6 +4445,13 @@ export function createClient(options: ClientOptions) {
        */
       get: (id: string): Promise<MemberTenantMember> =>
         rt.request<MemberTenantMember>({ method: "GET", path: `/members/${encodeURIComponent(id)}` }),
+      /**
+       * 交接成员待办会话与工单
+       *
+       * POST /members/{id}/handover
+       */
+      handover: (id: string, body: ConversationHandoverParams): Promise<ConversationHandoverResult> =>
+        rt.request<ConversationHandoverResult>({ method: "POST", path: `/members/${encodeURIComponent(id)}/handover`, body }),
       /**
        * 刷新我在这个工作区的在线心跳
        *
@@ -4627,6 +4778,13 @@ export function createClient(options: ClientOptions) {
     },
     /** operationId 以 tenant- 开头的接口。 */
     tenant: {
+      /**
+       * 工作区操作日志
+       *
+       * GET /audit-logs
+       */
+      auditList: (input: TenantAuditListInput = {}): Promise<OffsetAuditItem> =>
+        rt.request<OffsetAuditItem>({ method: "GET", path: `/audit-logs`, query: { "page": input["page"], "per_page": input["per_page"], "target_type": input["target_type"] } }),
       /**
        * 当前工作区和我的权限
        *

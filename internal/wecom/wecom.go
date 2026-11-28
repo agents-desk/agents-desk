@@ -191,7 +191,7 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) 
 		in = &ListInput{}
 	}
 	var rows []channel.Channel
-	total, err := a.db.NewSelect().Model(&rows).Where("tenant_id = ? AND kind = ?", sub.Tenant, channel.WeCom).
+	total, err := a.db.NewSelect().Model(&rows).Where("tenant_id = ? AND kind = ? AND archived_at IS NULL", sub.Tenant, channel.WeCom).
 		OrderExpr("created_at, id").Limit(in.Limit()).Offset(in.Offset()).ScanAndCount(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "list wecom channels")
@@ -474,7 +474,7 @@ func (a *Reconnect) HTTP(ctx context.Context, in *IDInput) (*BotOutput, error) {
 
 func find(ctx context.Context, db bun.IDB, tenant, id string, lock bool) (*channel.Channel, error) {
 	ch := new(channel.Channel)
-	q := db.NewSelect().Model(ch).Where("id = ? AND tenant_id = ? AND kind = ?", id, tenant, channel.WeCom)
+	q := db.NewSelect().Model(ch).Where("id = ? AND tenant_id = ? AND kind = ? AND archived_at IS NULL", id, tenant, channel.WeCom)
 	if lock {
 		q = q.For("UPDATE")
 	}

@@ -1,12 +1,13 @@
 import type { ExtgroupGroupDTO, ExtgroupStatus } from "@agents-desk/client/tenant"
 import { Badge, Button, Group, Modal, Paper, PasswordInput, SegmentedControl, Stack, Switch, Text, TextInput } from "@mantine/core"
 import { useForm } from "@mantine/form"
-import { IconPlus, IconSparkles } from "@tabler/icons-react"
+import { IconPlus, IconSparkles, IconTrash } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import {
   AnchorLink,
   applyServerErrors,
+  confirm,
   DataTable,
   FormError,
   notifyError,
@@ -87,6 +88,16 @@ export function TelegramsPanel({ slug, audience }: { slug: string; audience: Bot
     },
   })
 
+  const remove = useMutation({
+    mutationFn: (id: string) => tenantApi.channel.delete(id),
+    onSuccess: (res) => {
+      void queryClient.invalidateQueries({ queryKey: ["resource", "telegram"] })
+      void queryClient.invalidateQueries({ queryKey: kit.queries.channel.key() })
+      notifySuccess(t(res.mode === "archived" ? "channels.archived_done" : "channels.deleted_done"))
+    },
+    onError: (err) => notifyError(err),
+  })
+
   const openCreate = () => {
     setCreateError(undefined)
     form.reset()
@@ -152,6 +163,22 @@ export function TelegramsPanel({ slug, audience }: { slug: string; audience: Bot
               <RowActions
                 editLabel={t("telegrams.configure")}
                 onEdit={() => void navigate({ to: telegramDetailPath(audience), params: { slug, id: row.id } })}
+                actions={[
+                  {
+                    label: t("telegrams.delete"),
+                    icon: <IconTrash size={14} />,
+                    danger: true,
+                    onClick: () =>
+                      void confirm({
+                        title: t("telegrams.delete_confirm", { name: row.name }),
+                        message: t("telegrams.delete_message"),
+                        danger: true,
+                        confirmLabel: t("telegrams.delete"),
+                      }).then((ok) => {
+                        if (ok) remove.mutate(row.id)
+                      }),
+                  },
+                ]}
               />
             ),
           },

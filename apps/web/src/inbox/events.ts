@@ -66,7 +66,11 @@ export function describeEvent(it: ConversationItemDTO, members: Map<string, Memb
             ? t("event.via_reply")
             : d.reason === "default"
               ? t("event.via_default")
-              : ""
+              : d.reason === "sla_timeout"
+                ? t("event.via_sla_timeout")
+                : d.reason === "handover"
+                  ? t("event.via_handover")
+                  : ""
       if (assignee && teamChanged && team) return t("event.assigned_team_member", { who, team, assignee }) + via
       if (assignee) return t("event.assigned", { who, assignee }) + via
       if (teamChanged && team) return t("event.moved_team", { who, team })
@@ -74,7 +78,7 @@ export function describeEvent(it: ConversationItemDTO, members: Map<string, Memb
       return t("event.unassigned", { who })
     }
     case "conversation.closed":
-      return t("event.closed", { who })
+      return d.reason === "auto_close" ? t("event.closed_auto") : t("event.closed", { who })
     case "conversation.marked_spam":
       return t(d.block_contact ? "event.marked_spam_blocked" : "event.marked_spam", { who })
     case "conversation.unmarked_spam":

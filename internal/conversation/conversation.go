@@ -454,6 +454,8 @@ type Downstream struct {
 	NotifyOfflineReply func(ctx context.Context, tx database.Tx, tenantID, conversationID, itemID string) error
 	// RevokeContactTokens 在同事务中吊销联系人的全部网页聊天插件访问令牌。
 	RevokeContactTokens func(ctx context.Context, tx database.Tx, tenantID, contactID string) error
+	// OnDeadAlert 可选：队列任务进入失败表（死信）时向平台管理员发送告警通知。
+	OnDeadAlert func(ctx context.Context, topic string, cause error)
 	// Registry 可选：供内核读取连接器能力（如哪些渠道使用浏览器实时频道），未设置时默认回退到内置实时渠道集。
 	Registry channel.Registry
 }

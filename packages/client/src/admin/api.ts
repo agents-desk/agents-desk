@@ -167,6 +167,19 @@ export interface LlmSettings {
   models: LlmModels
 }
 
+export type MemberAccountStatus = "active" | "disabled"
+
+export interface MemberAdminMemberDTO {
+  created_at: string
+  disabled_at?: string
+  email: string
+  id: string
+  name: string
+  status: MemberAccountStatus
+  /** 所属工作区数量 */
+  tenant_count: number
+}
+
 export interface Meta {
   height?: number
   width?: number
@@ -174,6 +187,14 @@ export interface Meta {
 
 export interface OffsetAuditItem {
   items: AuditItem[]
+  page: number
+  per_page: number
+  /** Total number of items across all pages. */
+  total: number
+}
+
+export interface OffsetMemberAdminMemberDTO {
+  items: MemberAdminMemberDTO[]
   page: number
   per_page: number
   /** Total number of items across all pages. */
@@ -585,6 +606,18 @@ export interface AdminListInput {
   status?: PlatformAdminStatus
 }
 
+/** admin-member-list 的参数。 */
+export interface AdminMemberListInput {
+  /** Page number, starting at 1. */
+  page?: number
+  /** Items per page. */
+  per_page?: number
+  /** 按姓名或邮箱模糊搜索 */
+  q?: string
+  /** 按启用状态筛选 */
+  status?: MemberAccountStatus
+}
+
 /** audit-list 的参数。 */
 export interface AuditListInput {
   /** Page number, starting at 1. */
@@ -592,7 +625,7 @@ export interface AuditListInput {
   /** Items per page. */
   per_page?: number
   /** 按对象类型筛选；为空时返回全部 */
-  target_type?: "" | "tenant" | "platform_admin" | "settings" | "feature"
+  target_type?: "" | "tenant" | "platform_admin" | "member" | "settings" | "feature"
 }
 
 /** feature-clear 的参数。 */
@@ -715,6 +748,34 @@ export function createClient(options: ClientOptions) {
        */
       list: (input: AdminListInput = {}): Promise<OffsetPlatformadminAdminDTO> =>
         rt.request<OffsetPlatformadminAdminDTO>({ method: "GET", path: `/admins`, query: { "name": input["name"], "page": input["page"], "per_page": input["per_page"], "status": input["status"] } }),
+      /**
+       * 停用成员账号
+       *
+       * POST /members/{id}/disable
+       */
+      memberDisable: (id: string): Promise<MemberAdminMemberDTO> =>
+        rt.request<MemberAdminMemberDTO>({ method: "POST", path: `/members/${encodeURIComponent(id)}/disable` }),
+      /**
+       * 启用成员账号
+       *
+       * POST /members/{id}/enable
+       */
+      memberEnable: (id: string): Promise<MemberAdminMemberDTO> =>
+        rt.request<MemberAdminMemberDTO>({ method: "POST", path: `/members/${encodeURIComponent(id)}/enable` }),
+      /**
+       * 读取全局成员
+       *
+       * GET /members/{id}
+       */
+      memberGet: (id: string): Promise<MemberAdminMemberDTO> =>
+        rt.request<MemberAdminMemberDTO>({ method: "GET", path: `/members/${encodeURIComponent(id)}` }),
+      /**
+       * 全局成员列表
+       *
+       * GET /members
+       */
+      memberList: (input: AdminMemberListInput = {}): Promise<OffsetMemberAdminMemberDTO> =>
+        rt.request<OffsetMemberAdminMemberDTO>({ method: "GET", path: `/members`, query: { "page": input["page"], "per_page": input["per_page"], "q": input["q"], "status": input["status"] } }),
       /**
        * 发送重置密码验证码邮件
        *

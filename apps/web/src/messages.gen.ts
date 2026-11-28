@@ -86,6 +86,8 @@ export const messages = {
     "alerts.new_message_title": "New message: {{.contact}}",
     "alerts.ticket_title": "Ticket update: {{.contact}}",
     "app.web": "agents-desk",
+    "assignment_page.auto_close_after_hours": "Auto-close idle conversations (hours)",
+    "assignment_page.auto_close_after_hours_hint": "Automatically close open conversations waiting on the customer after this many hours of inactivity. Set to 0 to disable (max 720).",
     "assignment_page.default_member": "Default assignee",
     "assignment_page.default_member_hint": "New conversations are assigned directly to this member with a default-assignment event on the timeline",
     "assignment_page.default_member_placeholder": "Select a member",
@@ -98,11 +100,14 @@ export const messages = {
     "assignment_page.description": "Configure the workspace fallback assignment rule for new conversations and review how routing rules work together.",
     "assignment_page.go_channels": "Manage service channels",
     "assignment_page.go_teams": "Manage team inboxes",
+    "assignment_page.lifecycle_title": "Idle \u0026 SLA Lifecycle Rules",
     "assignment_page.priority_notice": "Priority: A channel's own default team inbox always takes precedence; this workspace rule applies when a channel has none configured.",
     "assignment_page.rule_away": "Reassign when away: If a member sets status to away with reassignment enabled, subsequent customer messages return the conversation to its team inbox.",
     "assignment_page.rule_reply": "Claim on reply: Replying to an unassigned conversation (or one assigned only to a team inbox) automatically assigns it to you.",
     "assignment_page.rule_round_robin": "Round robin: Configure round-robin assignment on each team inbox to distribute incoming conversations among online members in turn.",
     "assignment_page.rules_title": "Other built-in assignment rules",
+    "assignment_page.sla_reassign_minutes": "SLA breach auto-reassign (minutes)",
+    "assignment_page.sla_reassign_minutes_hint": "Reassign round-robin conversations waiting longer than this to another online member in the same team. Set to 0 to disable (max 10080).",
     "assignment_rules.description": "Configure default conversation assignment and built-in automation rules.",
     "attributes.add": "New attribute",
     "attributes.delete": "Delete",
@@ -133,6 +138,23 @@ export const messages = {
     "attributes.title": "Attributes",
     "attributes.type": "Type",
     "attributes.type_locked": "Fixed once created",
+    "audit.description": "Workspace-level administrative actions from newest to oldest (members, roles, channels, blocked IPs, and settings).",
+    "audit.filter_all": "All types",
+    "audit.filter_attribute": "Attributes",
+    "audit.filter_automation_rule": "Automation rules",
+    "audit.filter_blocked_ip": "Blocked IPs",
+    "audit.filter_channel": "Channels",
+    "audit.filter_contact": "Contacts",
+    "audit.filter_external_group": "External groups",
+    "audit.filter_label": "Target type",
+    "audit.filter_macro": "Quick replies",
+    "audit.filter_member": "Members",
+    "audit.filter_role": "Roles",
+    "audit.filter_settings": "Settings",
+    "audit.filter_tag": "Tags",
+    "audit.filter_team": "Team inboxes",
+    "audit.filter_tenant": "Workspace settings",
+    "audit.filter_ticket_type": "Ticket types",
     "automations.business_hours_link": "Open business hours settings",
     "automations.collect_lead_contact_desc": "When a visitor starts a conversation without an email address, ask them to leave one so the team can follow up.",
     "automations.collect_lead_contact_title": "Ask leads for contact details",
@@ -402,6 +424,7 @@ export const messages = {
     "business_hours.tab_schedule": "Business hours",
     "business_hours.tab_special": "Special dates",
     "business_hours.title": "Business hours",
+    "channels.archived_done": "Channel disabled and archived (history \u0026 reports preserved)",
     "channels.audience": "Audience",
     "channels.audience_customer": "External customers",
     "channels.audience_customer_desc": "Serves external customers, creates external contacts, and runs customer-facing automations",
@@ -409,6 +432,7 @@ export const messages = {
     "channels.audience_internal_desc": "Serves internal staff requests, creates internal contacts, and skips customer rating and lead-capture rules",
     "channels.audience_partner": "Business",
     "channels.audience_partner_desc": "Serves business contacts and business groups via business bots and business channels",
+    "channels.deleted_done": "Channel deleted",
     "channels.upcoming_dingtalk": "DingTalk Bot",
     "channels.upcoming_email": "Support Email",
     "channels.upcoming_feishu": "Feishu / Lark Bot",
@@ -533,6 +557,7 @@ export const messages = {
     "common.unsaved": "Unsaved changes",
     "common.unsaved_message": "Your changes will be lost if you leave.",
     "common.unsaved_title": "Leave without saving?",
+    "contacts.anonymized_done": "Contact anonymized and blocked",
     "contacts.block": "Block contact",
     "contacts.block_confirm_title": "Block this contact?",
     "contacts.block_desc": "Blocking revokes active web chat tokens and drops future incoming messages from this contact. Past conversations remain visible.",
@@ -566,6 +591,10 @@ export const messages = {
     "contacts.copy": "Copy",
     "contacts.count": "{{.n}} contacts",
     "contacts.created_at": "Created",
+    "contacts.delete": "Delete / Anonymize",
+    "contacts.delete_confirm": "Delete or anonymize “{{.name}}”?",
+    "contacts.delete_message": "Contacts with no conversation or ticket history will be permanently deleted. Contacts with history will be irreversibly anonymized (PII wiped and blocked). This cannot be undone.",
+    "contacts.deleted_done": "Contact permanently deleted",
     "contacts.edit": "Edit",
     "contacts.email": "Email",
     "contacts.email_placeholder": "e.g. rahul@example.com",
@@ -642,6 +671,7 @@ export const messages = {
     "event.chat_member_removed": "{{.who}} removed {{.name}} from the group",
     "event.chat_renamed": "{{.who}} renamed the group to “{{.name}}”",
     "event.closed": "{{.who}} closed the conversation",
+    "event.closed_auto": "System auto-closed conversation due to customer inactivity",
     "event.contact_attrs_changed": "{{.who}} updated contact attributes: {{.changes}}",
     "event.contact_email_provided": "The customer left their email {{.email}}",
     "event.contact_tag_added": "{{.who}} added tag {{.tag}} to the contact",
@@ -683,8 +713,10 @@ export const messages = {
     "event.unmarked_spam": "{{.who}} removed this conversation from spam",
     "event.unsnoozed": "The conversation is open again",
     "event.via_default": " (default assignment)",
+    "event.via_handover": " (handover)",
     "event.via_reply": " (claimed by replying)",
     "event.via_round_robin": " (round robin)",
+    "event.via_sla_timeout": " (SLA timeout)",
     "extgroups.channel": "Channel",
     "extgroups.configure": "Configure",
     "extgroups.description": "Manage WeCom and Telegram groups joined by bots, including display names, default team routing, and status.",
@@ -853,6 +885,7 @@ export const messages = {
     "inbox.empty_filtered": "No conversations match the current filter",
     "inbox.enter_again": "Translation updated. Check it, then press Enter again to send",
     "inbox.enter_hint": "Enter to send, Shift + Enter for a new line",
+    "inbox.export": "Export",
     "inbox.external_group": "Group",
     "inbox.go_to_active_conversation": "Go to active conversation",
     "inbox.group_removed_notice": "The bot was removed from this group. Outbound replies are disabled, while internal notes remain available.",
@@ -1115,6 +1148,17 @@ export const messages = {
     "macros.var_empty": "No matching variables",
     "macros.var_member_name": "Current member name",
     "members.description": "Manage workspace members and their roles. Online members can receive automatically assigned conversations.",
+    "members.handover": "Handover",
+    "members.handover_desc": "Transfer open conversations and unresolved tickets currently assigned to {{.name}} to another member or team inbox.",
+    "members.handover_done": "Transferred {{.convs}} conversation(s) and {{.tickets}} ticket(s)",
+    "members.handover_remove_after": "Remove this member from the workspace after handover",
+    "members.handover_remove_after_hint": "Also leaves group chats, clears team membership, and disables personal business channels",
+    "members.handover_submit": "Confirm handover",
+    "members.handover_target_member": "Receiving member",
+    "members.handover_target_member_placeholder": "Select receiving member (leave empty to move into team pool)",
+    "members.handover_target_team": "Move to team inbox (optional)",
+    "members.handover_target_team_placeholder": "Keep current team or choose a new team inbox",
+    "members.handover_title": "Hand over workload from “{{.name}}”",
     "members.language_hint": "Working and translation language for this member (e.g. zh-CN, en, hi-Latn, pt-BR). They can change it later in Preferences",
     "members.password_hint": "If platform email is configured and password is left blank for a new account, an invitation email is sent; otherwise password is required.",
     "members.reset_password": "Reset password",
@@ -1130,6 +1174,7 @@ export const messages = {
     "nav.assignment": "Assignment",
     "nav.assignment_rules": "Assignment \u0026 automations",
     "nav.attributes": "Attributes",
+    "nav.audit": "Audit log",
     "nav.blocked_ips": "Blocked IPs",
     "nav.business_channels": "My business channels",
     "nav.business_governance": "Business channels",
@@ -1359,6 +1404,9 @@ export const messages = {
     "reports.drill_team_inbox": "View currently open conversations for this team in Inbox",
     "reports.drill_tickets": "Open in tickets",
     "reports.empty": "No data for the selected period",
+    "reports.export": "Export",
+    "reports.export_csv": "Export CSV (.csv)",
+    "reports.export_xlsx": "Export Excel (.xlsx)",
     "reports.filter_all_ratings": "All",
     "reports.filter_negative": "Negative (1–2★)",
     "reports.filter_neutral": "Neutral (3★)",
@@ -1605,6 +1653,9 @@ export const messages = {
     "telegrams.configure": "Configure",
     "telegrams.create_submit": "Create \u0026 configure",
     "telegrams.create_title": "New Telegram bot",
+    "telegrams.delete": "Delete / Archive",
+    "telegrams.delete_confirm": "Delete or archive Telegram bot “{{.name}}”?",
+    "telegrams.delete_message": "Bots without conversations are deleted permanently. Bots with history are disabled and archived to preserve conversations and reports.",
     "telegrams.description": "Connect customer-facing Telegram bots for direct chats and customer group @bot mentions; bots connect to AI Agents first and hand off unhandled requests to human agents.",
     "telegrams.description_internal": "Connect Telegram bots for internal employee support across direct chats and employee group @bot mentions; powered by AI Agents first with human handoff when needed.",
     "telegrams.description_partner": "Connect Telegram bots for business groups. Bots only respond to @mentions and commands, powered by AI Agents first with seamless human handoff to the inbox when needed.",
@@ -1907,6 +1958,9 @@ export const messages = {
     "wecom.configure": "Configure",
     "wecom.create_submit": "Create \u0026 configure",
     "wecom.create_title": "New WeCom bot",
+    "wecom.delete": "Delete / Archive",
+    "wecom.delete_confirm": "Delete or archive WeCom bot “{{.name}}”?",
+    "wecom.delete_message": "Bots without conversations are deleted permanently. Bots with history are disabled and archived, and their connection is closed.",
     "wecom.description": "Connect WeCom Smart Bots over WebSocket long connections for direct messages and group @mentions without exposing a public webhook.",
     "wecom.empty": "No WeCom bot channels yet. Create one to handle WeCom direct messages and group mentions.",
     "wecom.name": "Channel name",
@@ -2008,6 +2062,9 @@ export const messages = {
     "widgets.configure": "Configure",
     "widgets.create_submit": "Create \u0026 configure",
     "widgets.create_title": "New website chat widget",
+    "widgets.delete": "Delete / Archive",
+    "widgets.delete_confirm": "Delete or archive widget “{{.name}}”?",
+    "widgets.delete_message": "Widgets without conversations are deleted permanently. Widgets with history are disabled and archived to preserve conversations and reports.",
     "widgets.description": "Embed a live chat widget into your website, web app, or mobile WebView with visitor leads and signed user authentication.",
     "widgets.empty": "No website chat widgets yet. Create one to embed in your website or app.",
     "widgets.new": "New chat widget",
@@ -2112,6 +2169,8 @@ export const messages = {
     "alerts.new_message_title": "新消息：{{.contact}}",
     "alerts.ticket_title": "工单更新：{{.contact}}",
     "app.web": "agents-desk",
+    "assignment_page.auto_close_after_hours": "闲置自动关闭（小时）",
+    "assignment_page.auto_close_after_hours_hint": "我方回复后客户超过该小时数未再回复时自动关闭会话，填 0 表示不自动关闭（最大 720 小时）",
     "assignment_page.default_member": "默认负责人",
     "assignment_page.default_member_hint": "新会话直接指派给这位成员，并在时间线中记录默认指派事件",
     "assignment_page.default_member_placeholder": "选择成员",
@@ -2124,11 +2183,14 @@ export const messages = {
     "assignment_page.description": "设置工作区的新会话默认指派规则，并了解渠道、团队轮流分配和自动领取之间的优先级。",
     "assignment_page.go_channels": "管理客服渠道",
     "assignment_page.go_teams": "管理团队收件箱",
+    "assignment_page.lifecycle_title": "超时自动治理规则",
     "assignment_page.priority_notice": "优先级：渠道单独设置的默认团队收件箱优先于此处的工作区默认指派；未设置时才回退到这里的规则。",
     "assignment_page.rule_away": "离开时重新分配：成员设为离开并勾选重新分配后，客户再发来新消息时会话会回到团队收件箱重新分配。",
     "assignment_page.rule_reply": "回复即领取：成员回复未指派或仅指派到团队收件箱的会话时，会自动成为该会话的负责人。",
     "assignment_page.rule_round_robin": "团队轮流分配：在各团队收件箱的设置中选择“轮流”分配方式，新会话会按顺序分配给团队内在线成员。",
     "assignment_page.rules_title": "其他内置指派规则",
+    "assignment_page.sla_reassign_minutes": "等待超时自动改派（分钟）",
+    "assignment_page.sla_reassign_minutes_hint": "轮流分配团队中的会话等待客服回复超过该分钟数后，自动改派给同团队其他在线成员，填 0 表示关闭（最大 10080 分钟）",
     "assignment_rules.description": "设置工作区的新会话默认指派目标与内置自动化规则。",
     "attributes.add": "新建属性",
     "attributes.delete": "删除",
@@ -2159,6 +2221,23 @@ export const messages = {
     "attributes.title": "属性",
     "attributes.type": "类型",
     "attributes.type_locked": "创建后固定",
+    "audit.description": "按时间从新到旧查看工作区内的管理操作日志（含成员调整、角色权限、渠道变更、黑名单与设置修改）。",
+    "audit.filter_all": "全部对象",
+    "audit.filter_attribute": "自定义属性",
+    "audit.filter_automation_rule": "自动化规则",
+    "audit.filter_blocked_ip": "IP 黑名单",
+    "audit.filter_channel": "渠道",
+    "audit.filter_contact": "联系人",
+    "audit.filter_external_group": "外部群",
+    "audit.filter_label": "按对象筛选",
+    "audit.filter_macro": "快捷回复",
+    "audit.filter_member": "成员",
+    "audit.filter_role": "角色",
+    "audit.filter_settings": "排班与设置",
+    "audit.filter_tag": "标签",
+    "audit.filter_team": "团队收件箱",
+    "audit.filter_tenant": "工作区设置",
+    "audit.filter_ticket_type": "工单类型",
     "automations.business_hours_link": "前往工作时间设置",
     "automations.collect_lead_contact_desc": "以访客身份咨询且还没有留下邮箱时，在会话中请他留下邮箱，方便后续联系。",
     "automations.collect_lead_contact_title": "请线索留联系方式",
@@ -2428,6 +2507,7 @@ export const messages = {
     "business_hours.tab_schedule": "工作时间",
     "business_hours.tab_special": "特殊日期",
     "business_hours.title": "工作时间",
+    "channels.archived_done": "渠道已停用并归档（历史会话与报表仍保留）",
     "channels.audience": "服务对象",
     "channels.audience_customer": "外部客户",
     "channels.audience_customer_desc": "面向外部客户咨询，创建外部联系人并触发客户侧自动化规则",
@@ -2435,6 +2515,7 @@ export const messages = {
     "channels.audience_internal_desc": "面向内部员工自助与协作，创建内部联系人并跳过面向客户的评价与留资规则",
     "channels.audience_partner": "商务",
     "channels.audience_partner_desc": "面向商务对接与商务群服务，用于商务机器人与商务沟通渠道",
+    "channels.deleted_done": "渠道已删除",
     "channels.upcoming_dingtalk": "钉钉机器人",
     "channels.upcoming_email": "客服邮件",
     "channels.upcoming_feishu": "飞书机器人",
@@ -2559,6 +2640,7 @@ export const messages = {
     "common.unsaved": "有未保存的修改",
     "common.unsaved_message": "离开后这些修改会丢失。",
     "common.unsaved_title": "有未保存的修改，确定离开吗？",
+    "contacts.anonymized_done": "联系人资料已不可逆匿名化并封禁",
     "contacts.block": "拉黑联系人",
     "contacts.block_confirm_title": "拉黑该联系人？",
     "contacts.block_desc": "拉黑后将吊销其网页聊天令牌并拦截来自该联系人的新消息，历史会话仍保留可读。",
@@ -2592,6 +2674,10 @@ export const messages = {
     "contacts.copy": "复制",
     "contacts.count": "共 {{.n}} 位联系人",
     "contacts.created_at": "创建时间",
+    "contacts.delete": "删除 / 匿名化联系人",
+    "contacts.delete_confirm": "移除或匿名化「{{.name}}」？",
+    "contacts.delete_message": "无历史会话与工单的联系人将被永久删除；存在历史记录的联系人将执行不可逆匿名化（清空姓名、邮箱、备注与身份并封禁），不可撤销。",
+    "contacts.deleted_done": "联系人已永久删除",
     "contacts.edit": "编辑",
     "contacts.email": "邮箱",
     "contacts.email_placeholder": "例如 rahul@example.com",
@@ -2668,6 +2754,7 @@ export const messages = {
     "event.chat_member_removed": "{{.who}} 将 {{.name}} 移出了群聊",
     "event.chat_renamed": "{{.who}} 将群名称修改为“{{.name}}”",
     "event.closed": "{{.who}} 关闭了会话",
+    "event.closed_auto": "系统因客户长期未回复自动关闭了会话",
     "event.contact_attrs_changed": "{{.who}} 修改了联系人属性：{{.changes}}",
     "event.contact_email_provided": "客户留下了邮箱 {{.email}}",
     "event.contact_tag_added": "{{.who}} 给联系人添加了标签 {{.tag}}",
@@ -2709,8 +2796,10 @@ export const messages = {
     "event.unmarked_spam": "{{.who}} 将会话移出了垃圾箱",
     "event.unsnoozed": "会话回到打开",
     "event.via_default": "（默认指派）",
+    "event.via_handover": "（工作交接）",
     "event.via_reply": "（回复即领取）",
     "event.via_round_robin": "（轮流分配）",
+    "event.via_sla_timeout": "（等待超时改派）",
     "extgroups.channel": "所属渠道",
     "extgroups.configure": "配置",
     "extgroups.description": "管理机器人加入的企业微信与 Telegram 群聊，配置群名称、专属团队收件箱与启用状态。",
@@ -2879,6 +2968,7 @@ export const messages = {
     "inbox.empty_filtered": "没有符合当前筛选条件的会话",
     "inbox.enter_again": "译文已更新，确认后再按一次回车发送",
     "inbox.enter_hint": "回车发送，Shift + 回车换行",
+    "inbox.export": "导出会话",
     "inbox.external_group": "群聊",
     "inbox.go_to_active_conversation": "前往当前会话",
     "inbox.group_removed_notice": "机器人已被移出该群，回复功能关闭，可以继续写内部备注。",
@@ -3141,6 +3231,17 @@ export const messages = {
     "macros.var_empty": "没有匹配的变量",
     "macros.var_member_name": "当前成员名字",
     "members.description": "管理工作区成员账号与所属角色，在线成员可接收自动分配的会话。",
+    "members.handover": "工作交接",
+    "members.handover_desc": "将 {{.name}} 当前负责的未关闭会话与未解决工单批量转移给其他成员或团队收件箱，避免客户无人跟进。",
+    "members.handover_done": "已交接 {{.convs}} 个会话、{{.tickets}} 个工单",
+    "members.handover_remove_after": "交接完成后将该成员移出工作区",
+    "members.handover_remove_after_hint": "同时退出所在群聊、清理团队排班并停用其个人商务渠道",
+    "members.handover_submit": "确认交接",
+    "members.handover_target_member": "接收成员",
+    "members.handover_target_member_placeholder": "选择接收成员（不选则转为团队待领取）",
+    "members.handover_target_team": "调整所属团队收件箱（可选）",
+    "members.handover_target_team_placeholder": "保持原团队或指定新团队收件箱",
+    "members.handover_title": "交接「{{.name}}」的待办工作",
     "members.language_hint": "成员的沟通与译文偏好语言（例如中文、英语、印地语、巴西葡萄牙语）；成员本人之后可在偏好设置中修改",
     "members.password_hint": "新账号未填密码且平台已配置邮件时会自动生成初始密码并发送邀请邮件；未配置邮件时必填。",
     "members.reset_password": "重置密码",
@@ -3156,6 +3257,7 @@ export const messages = {
     "nav.assignment": "指派",
     "nav.assignment_rules": "指派与自动化",
     "nav.attributes": "属性",
+    "nav.audit": "操作日志",
     "nav.blocked_ips": "IP 黑名单",
     "nav.business_channels": "我的商务渠道",
     "nav.business_governance": "商务渠道",
@@ -3385,6 +3487,9 @@ export const messages = {
     "reports.drill_team_inbox": "在收件箱查看该团队当前打开的会话",
     "reports.drill_tickets": "在工单列表中查看",
     "reports.empty": "所选时间范围内暂无数据",
+    "reports.export": "导出报表",
+    "reports.export_csv": "导出 CSV (.csv)",
+    "reports.export_xlsx": "导出 Excel (.xlsx)",
     "reports.filter_all_ratings": "全部",
     "reports.filter_negative": "差评（1–2 星）",
     "reports.filter_neutral": "中评（3 星）",
@@ -3631,6 +3736,9 @@ export const messages = {
     "telegrams.configure": "配置",
     "telegrams.create_submit": "创建并配置",
     "telegrams.create_title": "新建 Telegram 机器人",
+    "telegrams.delete": "删除 / 归档",
+    "telegrams.delete_confirm": "删除或归档 Telegram 机器人「{{.name}}」？",
+    "telegrams.delete_message": "尚未产生会话的机器人将永久删除；已有历史会话的机器人将停用并归档以保留历史记录和报表数据。",
     "telegrams.description": "接入对外客服 Telegram 机器人，支持单聊与客户群内 @ 机器人；机器人关联的 AI Agent 先应答，需要人工时转入收件箱。",
     "telegrams.description_internal": "接入面向内部员工服务的 Telegram 机器人，支持单聊与员工群 @ 机器人；机器人关联的 AI Agent 先应答，需要人工时转入收件箱。",
     "telegrams.description_partner": "接入商务 Telegram 机器人，在商务群中只响应 @ 机器人或命令；机器人关联的 AI Agent 先应答，需要人工时转入收件箱。",
@@ -3933,6 +4041,9 @@ export const messages = {
     "wecom.configure": "配置",
     "wecom.create_submit": "创建并配置",
     "wecom.create_title": "新建企业微信机器人",
+    "wecom.delete": "删除 / 归档",
+    "wecom.delete_confirm": "删除或归档企业微信机器人「{{.name}}」？",
+    "wecom.delete_message": "尚未产生会话的机器人将永久删除；已有历史会话的机器人将停用并归档，长连接随之断开。",
     "wecom.description": "通过企业微信智能机器人的 WebSocket 长连接接入单聊与群聊 @机器人，由服务器主动连接企业微信。",
     "wecom.empty": "还没有企业微信机器人渠道，新建一个接入企业微信单聊与群聊服务。",
     "wecom.name": "渠道名称",
@@ -4034,6 +4145,9 @@ export const messages = {
     "widgets.configure": "配置",
     "widgets.create_submit": "创建并配置",
     "widgets.create_title": "新建网页聊天插件",
+    "widgets.delete": "删除 / 归档",
+    "widgets.delete_confirm": "删除或归档聊天插件「{{.name}}」？",
+    "widgets.delete_message": "尚未产生会话的插件将永久删除；已有历史会话的插件将停用并归档以保留历史记录和报表数据，归档后不能恢复编辑。",
     "widgets.description": "嵌入官网、Web 应用或 App WebView 的实时聊天窗口，支持访客线索与已登录用户身份签名接入。",
     "widgets.empty": "还没有网页聊天插件，新建一个嵌入到你的产品网站或 App 中。",
     "widgets.new": "新建聊天插件",
@@ -4141,6 +4255,8 @@ export type MessageId =
   | "alerts.new_message_title"
   | "alerts.ticket_title"
   | "app.web"
+  | "assignment_page.auto_close_after_hours"
+  | "assignment_page.auto_close_after_hours_hint"
   | "assignment_page.default_member"
   | "assignment_page.default_member_hint"
   | "assignment_page.default_member_placeholder"
@@ -4153,11 +4269,14 @@ export type MessageId =
   | "assignment_page.description"
   | "assignment_page.go_channels"
   | "assignment_page.go_teams"
+  | "assignment_page.lifecycle_title"
   | "assignment_page.priority_notice"
   | "assignment_page.rule_away"
   | "assignment_page.rule_reply"
   | "assignment_page.rule_round_robin"
   | "assignment_page.rules_title"
+  | "assignment_page.sla_reassign_minutes"
+  | "assignment_page.sla_reassign_minutes_hint"
   | "assignment_rules.description"
   | "attributes.add"
   | "attributes.delete"
@@ -4188,6 +4307,23 @@ export type MessageId =
   | "attributes.title"
   | "attributes.type"
   | "attributes.type_locked"
+  | "audit.description"
+  | "audit.filter_all"
+  | "audit.filter_attribute"
+  | "audit.filter_automation_rule"
+  | "audit.filter_blocked_ip"
+  | "audit.filter_channel"
+  | "audit.filter_contact"
+  | "audit.filter_external_group"
+  | "audit.filter_label"
+  | "audit.filter_macro"
+  | "audit.filter_member"
+  | "audit.filter_role"
+  | "audit.filter_settings"
+  | "audit.filter_tag"
+  | "audit.filter_team"
+  | "audit.filter_tenant"
+  | "audit.filter_ticket_type"
   | "automations.business_hours_link"
   | "automations.collect_lead_contact_desc"
   | "automations.collect_lead_contact_title"
@@ -4457,6 +4593,7 @@ export type MessageId =
   | "business_hours.tab_schedule"
   | "business_hours.tab_special"
   | "business_hours.title"
+  | "channels.archived_done"
   | "channels.audience"
   | "channels.audience_customer"
   | "channels.audience_customer_desc"
@@ -4464,6 +4601,7 @@ export type MessageId =
   | "channels.audience_internal_desc"
   | "channels.audience_partner"
   | "channels.audience_partner_desc"
+  | "channels.deleted_done"
   | "channels.upcoming_dingtalk"
   | "channels.upcoming_email"
   | "channels.upcoming_feishu"
@@ -4588,6 +4726,7 @@ export type MessageId =
   | "common.unsaved"
   | "common.unsaved_message"
   | "common.unsaved_title"
+  | "contacts.anonymized_done"
   | "contacts.block"
   | "contacts.block_confirm_title"
   | "contacts.block_desc"
@@ -4621,6 +4760,10 @@ export type MessageId =
   | "contacts.copy"
   | "contacts.count"
   | "contacts.created_at"
+  | "contacts.delete"
+  | "contacts.delete_confirm"
+  | "contacts.delete_message"
+  | "contacts.deleted_done"
   | "contacts.edit"
   | "contacts.email"
   | "contacts.email_placeholder"
@@ -4697,6 +4840,7 @@ export type MessageId =
   | "event.chat_member_removed"
   | "event.chat_renamed"
   | "event.closed"
+  | "event.closed_auto"
   | "event.contact_attrs_changed"
   | "event.contact_email_provided"
   | "event.contact_tag_added"
@@ -4738,8 +4882,10 @@ export type MessageId =
   | "event.unmarked_spam"
   | "event.unsnoozed"
   | "event.via_default"
+  | "event.via_handover"
   | "event.via_reply"
   | "event.via_round_robin"
+  | "event.via_sla_timeout"
   | "extgroups.channel"
   | "extgroups.configure"
   | "extgroups.description"
@@ -4908,6 +5054,7 @@ export type MessageId =
   | "inbox.empty_filtered"
   | "inbox.enter_again"
   | "inbox.enter_hint"
+  | "inbox.export"
   | "inbox.external_group"
   | "inbox.go_to_active_conversation"
   | "inbox.group_removed_notice"
@@ -5170,6 +5317,17 @@ export type MessageId =
   | "macros.var_empty"
   | "macros.var_member_name"
   | "members.description"
+  | "members.handover"
+  | "members.handover_desc"
+  | "members.handover_done"
+  | "members.handover_remove_after"
+  | "members.handover_remove_after_hint"
+  | "members.handover_submit"
+  | "members.handover_target_member"
+  | "members.handover_target_member_placeholder"
+  | "members.handover_target_team"
+  | "members.handover_target_team_placeholder"
+  | "members.handover_title"
   | "members.language_hint"
   | "members.password_hint"
   | "members.reset_password"
@@ -5185,6 +5343,7 @@ export type MessageId =
   | "nav.assignment"
   | "nav.assignment_rules"
   | "nav.attributes"
+  | "nav.audit"
   | "nav.blocked_ips"
   | "nav.business_channels"
   | "nav.business_governance"
@@ -5414,6 +5573,9 @@ export type MessageId =
   | "reports.drill_team_inbox"
   | "reports.drill_tickets"
   | "reports.empty"
+  | "reports.export"
+  | "reports.export_csv"
+  | "reports.export_xlsx"
   | "reports.filter_all_ratings"
   | "reports.filter_negative"
   | "reports.filter_neutral"
@@ -5660,6 +5822,9 @@ export type MessageId =
   | "telegrams.configure"
   | "telegrams.create_submit"
   | "telegrams.create_title"
+  | "telegrams.delete"
+  | "telegrams.delete_confirm"
+  | "telegrams.delete_message"
   | "telegrams.description"
   | "telegrams.description_internal"
   | "telegrams.description_partner"
@@ -5962,6 +6127,9 @@ export type MessageId =
   | "wecom.configure"
   | "wecom.create_submit"
   | "wecom.create_title"
+  | "wecom.delete"
+  | "wecom.delete_confirm"
+  | "wecom.delete_message"
   | "wecom.description"
   | "wecom.empty"
   | "wecom.name"
@@ -6063,6 +6231,9 @@ export type MessageId =
   | "widgets.configure"
   | "widgets.create_submit"
   | "widgets.create_title"
+  | "widgets.delete"
+  | "widgets.delete_confirm"
+  | "widgets.delete_message"
   | "widgets.description"
   | "widgets.empty"
   | "widgets.new"

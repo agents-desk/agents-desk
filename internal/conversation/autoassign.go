@@ -28,6 +28,8 @@ const (
 	ReasonReply      AssignReason = "reply"       // 回复后领取
 	ReasonAway       AssignReason = "away"        // 负责人离开并选了重新分配，对方再发来消息
 	ReasonMemberLeft AssignReason = "member_left" // 负责人离开了工作区
+	ReasonSLATimeout AssignReason = "sla_timeout" // 等待超时自动改派
+	ReasonHandover   AssignReason = "handover"    // 成员离职或转岗工作交接
 )
 
 // system 是自动规则的发起者：工作区 tenant 中的系统。
@@ -109,8 +111,8 @@ func release(ctx context.Context, tx bun.IDB, c *Conversation, reason AssignReas
 }
 
 // OnMemberLeft 返回 member.Hooks 中“离开工作区之后”的一步：成员离开工作区 tenant 后，他负责的未关闭会话放回团队收件箱，
-// 按团队收件箱的分配方式重新分配，时间线中追加系统事件（reason 是 member_left）。已关闭的会话保留原来的负责人，报表要用。
-// 成员离开时他的在线状态已经删除，轮流分配不会再分给他。down 是时间线有新内容时通知的下游。
+// 按团队收件箱的分配方式重新分配，时间线中追加系统事件（reason 是 member_left），同时退出其参与的全部内部与外部群聊。
+// 已关闭的会话保留原来的负责人，报表要用。成员离开时他的在线状态已经删除，轮流分配不会再分给他。
 func OnMemberLeft(down Downstream) member.RemovedHook {
 	return func(ctx context.Context, tx database.Tx, tenant, memberID string) error {
 		var convs []Conversation
@@ -130,7 +132,47 @@ func OnMemberLeft(down Downstream) member.RemovedHook {
 				return err
 			}
 		}
-		// 若工作区默认指派目标正是离开的成员，自动重置为不指派
+
+		// 将离职成员从仍活跃参与的群聊与外部协作群中移出，并写入系统事件通知群内成员。
+		var chatConvs []Conversation
+		err = tx.NewSelect().Model(&chatConvs).
+			Join("JOIN chats AS ch ON ch.conversation_id = conversation.id").
+			Join("JOIN conversation_participants AS cp ON cp.conversation_id = conversation.id").
+			Where("conversation.tenant_id = ? AND conversation.kind = ?", tenant, Chat).
+			Where("(ch.mode = ? OR ch.scope = ?)", ChatGroup, ChatExternal).
+			Where("cp.participant_type = ? AND cp.participant_id = ? AND cp.left_at IS NULL", MemberActor, memberID).
+			OrderExpr("conversation.id").For("UPDATE OF conversation").Scan(ctx)
+		if err != nil {
+			return errors.Wrap(err, "load group chats of leaving member")
+		}
+		leavingSub := identity.Subject{Type: member.Type, ID: memberID, Tenant: tenant}
+		for i := range chatConvs {
+			at := now()
+			res, err := tx.NewRaw(`UPDATE conversation_participants SET left_at = ?, updated_at = ?
+				WHERE conversation_id = ? AND participant_type = ? AND participant_id = ? AND left_at IS NULL`,
+				at, at, chatConvs[i].ID, MemberActor, memberID).Exec(ctx)
+			if err != nil {
+				return errors.Wrap(err, "remove leaving member from group chat")
+			}
+			n, err := res.RowsAffected()
+			if err != nil {
+				return errors.Wrap(err, "check leaving member group chat rows")
+			}
+			if n == 0 {
+				continue
+			}
+			chatConvs[i].LastMessageAt = at
+			ev := event(leavingSub, "chat.member_left", map[string]any{
+				"participant_type": string(MemberActor),
+				"participant_id":   memberID,
+				"reason":           string(ReasonMemberLeft),
+			})
+			if err := commit(ctx, tx, down, &chatConvs[i], ev); err != nil {
+				return err
+			}
+		}
+
+		// 若工作区默认指派目标正是离开的成员，仅重置默认指派字段，保留自动关闭与 SLA 改派规则
 		group := NewAssignmentSettingsGroup(tx).Tenant(tenant)
 		cfg, err := group.Get(ctx)
 		if err != nil {
@@ -138,7 +180,9 @@ func OnMemberLeft(down Downstream) member.RemovedHook {
 		}
 		if cfg.DefaultTarget == DefaultMember && cfg.DefaultMemberID == memberID {
 			if err := group.Update(ctx, func(s *AssignmentSettings) error {
-				*s = AssignmentSettings{DefaultTarget: DefaultNone}
+				s.DefaultTarget = DefaultNone
+				s.DefaultTeamID = ""
+				s.DefaultMemberID = ""
 				return nil
 			}); err != nil {
 				return err

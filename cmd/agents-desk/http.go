@@ -201,7 +201,8 @@ func isLongMediaOrExportRequest(r *http.Request) bool {
 			(strings.Contains(p, "/attachments/") && strings.HasSuffix(p, "/fetch"))
 	case http.MethodGet:
 		return (strings.Contains(p, "/attachments/") && strings.HasSuffix(p, "/file")) ||
-			(strings.Contains(p, "/exports/") && strings.HasSuffix(p, "/download"))
+			(strings.Contains(p, "/exports/") && strings.HasSuffix(p, "/download")) ||
+			strings.HasSuffix(p, "/reports/export")
 	default:
 		return false
 	}
@@ -329,6 +330,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		platformoverview.RegisterRoutes(api, require(), a.db, a.files, addr)
 		adminnotify.RegisterRoutes(api, require(), a.db, a.hub)
 		tenant.RegisterRoutes(api, require(auth.TenantsRead), require(auth.TenantsManage), require(auth.TenantsImpersonate), a.db, a.roles, a.memberLogins, a.memberTokens, addr, memberHooks, a.creds)
+		member.RegisterAdminRoutes(api, require(auth.TenantsManage), a.db, a.memberLogins, a.creds)
 		tenant.RegisterExportRoutes(api, require(auth.TenantsRead), a.db, a.memberLogins, addr, a.exporter, a.hub)
 		r.Get("/tenants/exports/{id}/download", a.downloadTenantExport)
 		platformsettings.RegisterPublicRoutes(api, a.generalSettings, a.files)
@@ -352,6 +354,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 				conversation.SearchIndex.ReindexTopic().Meta("queue.topic.search.reindex.conversation_items.label", "queue.topic.search.reindex.conversation_items.description"),
 				tenant.ExportJob.Meta("queue.topic.tenants.export.label", "queue.topic.tenants.export.description"),
 				contact.ExportJob.Meta("queue.topic.contacts.export.label", "queue.topic.contacts.export.description"),
+				conversation.ExportJob.Meta("queue.topic.conversations.export.label", "queue.topic.conversations.export.description"),
 				emails.SendTopic.Meta("queue.topic.mail.send.label", "queue.topic.mail.send.description"),
 			},
 		}
@@ -462,8 +465,13 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		role.RegisterRoutes(api, require, a.db, a.roles)
 		hours.RegisterRoutes(api, require, a.db)
 		team.RegisterRoutes(api, require, a.db, a.roles, a.memberLogins, a.files)
-		channel.RegisterRoutes(api, require, a.db)
+		channel.RegisterRoutes(api, require, a.db, func(k channel.Kind) {
+			if k == channel.WeCom && a.wecomBots != nil {
+				a.wecomBots.Wake()
+			}
+		})
 		down := a.downstream()
+		conversation.RegisterHandoverRoute(api, require, a.db, a.roles, memberHooks, down)
 		contactHooks := conversation.OnContactMerge(down)
 		contactHooks.OnNotesUpdated = translation.OnContactNotesUpdated
 		contactHooks.Tokens = a.contactTokens
@@ -474,6 +482,9 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		tickettype.RegisterRoutes(api, require, a.db)
 		macro.RegisterRoutes(api, require, a.db, a.roles)
 		conversation.RegisterRoutes(api, require, a.db, a.channels, down)
+		conversation.RegisterExportRoutes(api, require, a.db, a.hub, a.exporter)
+		r.Get("/conversations/exports/{id}/download", a.downloadConversationExport)
+		audit.RegisterTenantRoutes(api, require, a.db)
 		agent.RegisterRoutes(api, require, a.db, a.hub)
 		file.RegisterRoutes(api, require(auth.ConversationsReply), a.files, a.cfg.Filesystem.MaxUploadSize, file.UploadOptions{
 			Private: true,
@@ -508,6 +519,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		automation.RegisterRoutes(api, require, a.db)
 		blockip.RegisterRoutes(api, require, a.db)
 		report.RegisterRoutes(api, require, a.db, a.roles, a.files)
+		r.Get("/reports/export", a.exportReport)
 	})
 
 	// 聊天窗口的接口：widget.Middleware 按路径中的渠道 ID 查出聊天插件和它所在的工作区。只接受联系人的令牌，
@@ -683,6 +695,43 @@ func (a *App) downloadContactExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := a.exporter.Serve(w, r, sub, id, filesystem.ServeRedirectSigned(15*time.Minute)); err != nil {
+		a.writeHTTPProblem(w, r, err)
+	}
+}
+
+// downloadConversationExport 为当前工作区拥有 reports:read 权限的成员下发私有盘中的会话导出表格。
+func (a *App) downloadConversationExport(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httpx.WriteProblem(w, http.StatusNotFound, http.StatusText(http.StatusNotFound))
+		return
+	}
+	ctx := identity.WithTenant(r.Context(), tenant.IDFrom(r.Context()))
+	sub, err := identity.Establish(ctx, bearerOrCookieAuth(r, a.memberTokens, member.SessionCookie), identity.Policy{
+		Accounts:      identity.Accounts{member.Type: tenant.Resolve(member.Resolve(a.db, a.roles))},
+		Impersonation: a.memberImpersonation(),
+	}, string(auth.ReportsRead))
+	if err != nil {
+		a.writeHTTPProblem(w, r, err)
+		return
+	}
+	if err := a.exporter.Serve(w, r, sub, id, filesystem.ServeRedirectSigned(15*time.Minute)); err != nil {
+		a.writeHTTPProblem(w, r, err)
+	}
+}
+
+// exportReport 为当前工作区拥有 reports:read 权限的成员生成并同步下载指定报表（XLSX 或 CSV）。
+func (a *App) exportReport(w http.ResponseWriter, r *http.Request) {
+	ctx := identity.WithTenant(r.Context(), tenant.IDFrom(r.Context()))
+	sub, err := identity.Establish(ctx, bearerOrCookieAuth(r, a.memberTokens, member.SessionCookie), identity.Policy{
+		Accounts:      identity.Accounts{member.Type: tenant.Resolve(member.Resolve(a.db, a.roles))},
+		Impersonation: a.memberImpersonation(),
+	}, string(auth.ReportsRead))
+	if err != nil {
+		a.writeHTTPProblem(w, r, err)
+		return
+	}
+	if err := report.NewExporter(a.db, a.roles, a.files).ServeHTTP(w, r, sub); err != nil {
 		a.writeHTTPProblem(w, r, err)
 	}
 }

@@ -151,6 +151,7 @@ export function ResponseTimePage({
       error={query.error}
       updating={pageState.busy}
       toolbarRight={toolbarRight}
+      exportConfig={{ report: "response_time", params: filters.queryParams }}
     >
       {/* 主分析面板：指标带 + 中位数趋势图 */}
       <section className="rp-panel">

@@ -9,6 +9,7 @@ export const messages = {
     "audit.description": "Platform-level administrative actions from newest to oldest (workspaces, platform admins, platform settings, and feature flags).",
     "audit.filter.all": "All",
     "audit.filter.feature": "Feature flags",
+    "audit.filter.member": "Members",
     "audit.filter.platform_admin": "Platform admins",
     "audit.filter.settings": "Platform settings",
     "audit.filter.tenant": "Workspaces",
@@ -90,6 +91,7 @@ export const messages = {
     "nav.doctor": "Diagnostics",
     "nav.features": "Feature flags",
     "nav.general_settings": "System settings",
+    "nav.members": "Workspace members",
     "nav.model": "Model APIs",
     "nav.overview": "Overview",
     "nav.profile": "Profile",
@@ -170,6 +172,7 @@ export const messages = {
     "audit.description": "按时间从新到旧查看平台级管理动作（工作区、平台管理员、平台设置与功能开关变更）。",
     "audit.filter.all": "全部",
     "audit.filter.feature": "功能开关",
+    "audit.filter.member": "成员账号",
     "audit.filter.platform_admin": "平台管理员",
     "audit.filter.settings": "平台设置",
     "audit.filter.tenant": "工作区",
@@ -251,6 +254,7 @@ export const messages = {
     "nav.doctor": "系统自检",
     "nav.features": "功能开关",
     "nav.general_settings": "系统设置",
+    "nav.members": "工作区成员",
     "nav.model": "模型接口",
     "nav.overview": "概览",
     "nav.profile": "个人资料",
@@ -334,6 +338,7 @@ export type MessageId =
   | "audit.description"
   | "audit.filter.all"
   | "audit.filter.feature"
+  | "audit.filter.member"
   | "audit.filter.platform_admin"
   | "audit.filter.settings"
   | "audit.filter.tenant"
@@ -415,6 +420,7 @@ export type MessageId =
   | "nav.doctor"
   | "nav.features"
   | "nav.general_settings"
+  | "nav.members"
   | "nav.model"
   | "nav.overview"
   | "nav.profile"

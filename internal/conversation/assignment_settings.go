@@ -47,12 +47,14 @@ func (DefaultTarget) Schema(r huma.Registry) *huma.Schema {
 	return contract.EnumSchema(r, DefaultTargets)
 }
 
-// AssignmentSettings 是工作区级的默认指派设置，当渠道没有单独指定默认团队收件箱时生效。
+// AssignmentSettings 是工作区级的默认指派、自动关闭与超时改派设置，当渠道没有单独指定默认团队收件箱时生效。
 // 字段不带 omitempty，保证清空目标时能完整覆盖旧值。
 type AssignmentSettings struct {
-	DefaultTarget   DefaultTarget `json:"default_target" doc:"默认指派目标：none 不自动指派，team 默认团队收件箱，member 默认成员"`
-	DefaultTeamID   string        `json:"default_team_id" doc:"默认团队收件箱 ID（default_target 为 team 时有效）"`
-	DefaultMemberID string        `json:"default_member_id" doc:"默认成员 ID（default_target 为 member 时有效）"`
+	DefaultTarget       DefaultTarget `json:"default_target" doc:"默认指派目标：none 不自动指派，team 默认团队收件箱，member 默认成员"`
+	DefaultTeamID       string        `json:"default_team_id" doc:"默认团队收件箱 ID（default_target 为 team 时有效）"`
+	DefaultMemberID     string        `json:"default_member_id" doc:"默认成员 ID（default_target 为 member 时有效）"`
+	AutoCloseAfterHours int           `json:"auto_close_after_hours" doc:"客户停止回复后自动关闭服务型会话的小时数，0 表示关闭"`
+	SLAReassignMinutes  int           `json:"sla_reassign_minutes" doc:"会话等待回复超时后自动改派同团队在线成员的分钟数，0 表示关闭"`
 }
 
 // AssignmentSettingsOutput 是读取或保存指派设置的 HTTP 响应。
@@ -63,9 +65,11 @@ type AssignmentSettingsOutput struct {
 // AssignmentSettingsInput 是修改指派设置的 HTTP 请求。
 type AssignmentSettingsInput struct {
 	Body struct {
-		DefaultTarget   DefaultTarget `json:"default_target" doc:"默认指派目标：none、team 或 member"`
-		DefaultTeamID   string        `json:"default_team_id,omitempty" pattern:"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$" doc:"默认团队收件箱 ID"`
-		DefaultMemberID string        `json:"default_member_id,omitempty" pattern:"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$" doc:"默认成员 ID"`
+		DefaultTarget       DefaultTarget `json:"default_target" doc:"默认指派目标：none、team 或 member"`
+		DefaultTeamID       string        `json:"default_team_id,omitempty" pattern:"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$" doc:"默认团队收件箱 ID"`
+		DefaultMemberID     string        `json:"default_member_id,omitempty" pattern:"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$" doc:"默认成员 ID"`
+		AutoCloseAfterHours int           `json:"auto_close_after_hours,omitempty" minimum:"0" maximum:"720" doc:"客户停止回复后自动关闭会话的小时数，0 表示关闭"`
+		SLAReassignMinutes  int           `json:"sla_reassign_minutes,omitempty" minimum:"0" maximum:"10080" doc:"会话等待回复超时后自动改派的分钟数，0 表示关闭"`
 	}
 }
 
@@ -96,9 +100,13 @@ func (a *AssignmentSettingsActions) Get(ctx context.Context, sub identity.Subjec
 	return &s, nil
 }
 
-// Save 保存 sub 所在工作区的默认指派设置，校验目标团队未停用或目标成员属于当前工作区，并记录操作日志。
+// Save 保存 sub 所在工作区的默认指派、自动关闭与超时改派设置，校验目标团队未停用或目标成员属于当前工作区，并记录操作日志。
 func (a *AssignmentSettingsActions) Save(ctx context.Context, sub identity.Subject, p AssignmentSettings) (*AssignmentSettings, error) {
-	clean := AssignmentSettings{DefaultTarget: p.DefaultTarget}
+	clean := AssignmentSettings{
+		DefaultTarget:       p.DefaultTarget,
+		AutoCloseAfterHours: max(0, min(p.AutoCloseAfterHours, 720)),
+		SLAReassignMinutes:  max(0, min(p.SLAReassignMinutes, 10080)),
+	}
 	switch p.DefaultTarget {
 	case DefaultNone:
 	case DefaultTeam:
@@ -150,9 +158,11 @@ func (a *AssignmentSettingsActions) Save(ctx context.Context, sub identity.Subje
 		return activity.Record(ctx, tx, sub, activity.Activity{
 			Event: "assignment_settings.updated", TargetType: "tenant", TargetID: sub.Tenant,
 			Properties: map[string]any{
-				"default_target":    clean.DefaultTarget,
-				"default_team_id":   clean.DefaultTeamID,
-				"default_member_id": clean.DefaultMemberID,
+				"default_target":         clean.DefaultTarget,
+				"default_team_id":        clean.DefaultTeamID,
+				"default_member_id":      clean.DefaultMemberID,
+				"auto_close_after_hours": clean.AutoCloseAfterHours,
+				"sla_reassign_minutes":   clean.SLAReassignMinutes,
 			},
 		})
 	})
@@ -176,9 +186,11 @@ func (a *AssignmentSettingsActions) GetHTTP(ctx context.Context, _ *struct{}) (*
 func (a *AssignmentSettingsActions) UpdateHTTP(ctx context.Context, in *AssignmentSettingsInput) (*AssignmentSettingsOutput, error) {
 	sub, _ := identity.FromContext(ctx)
 	s, err := a.Save(ctx, sub, AssignmentSettings{
-		DefaultTarget:   in.Body.DefaultTarget,
-		DefaultTeamID:   in.Body.DefaultTeamID,
-		DefaultMemberID: in.Body.DefaultMemberID,
+		DefaultTarget:       in.Body.DefaultTarget,
+		DefaultTeamID:       in.Body.DefaultTeamID,
+		DefaultMemberID:     in.Body.DefaultMemberID,
+		AutoCloseAfterHours: in.Body.AutoCloseAfterHours,
+		SLAReassignMinutes:  in.Body.SLAReassignMinutes,
 	})
 	if err != nil {
 		return nil, err

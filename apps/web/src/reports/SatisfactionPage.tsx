@@ -334,6 +334,7 @@ export function SatisfactionPage({
       error={reportQuery.error ?? ratingsQuery.error}
       updating={pageState.busy}
       toolbarRight={toolbarRight}
+      exportConfig={{ report: "satisfaction", params: filters.queryParams }}
     >
       {/* 主分析面板：指标带 + 左右双栏（CSAT 趋势 + 可点击星级分布） */}
       <section className="rp-panel">

@@ -55,4 +55,5 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	rest.Register(api, route(update, "contact-merge", http.MethodPost, "/contacts/{id}/merge", "合并联系人"), NewMerge(db, h).HTTP)
 	rest.Register(api, route(update, "contact-block", http.MethodPost, "/contacts/{id}/block", "拉黑联系人"), NewBlock(db, h.Tokens).HTTP)
 	rest.Register(api, route(update, "contact-unblock", http.MethodPost, "/contacts/{id}/unblock", "解除拉黑联系人"), NewUnblock(db).HTTP)
+	rest.Register(api, route(update, "contact-delete", http.MethodDelete, "/contacts/{id}", "删除或匿名化联系人"), NewDelete(db, h.Tokens).HTTP)
 }

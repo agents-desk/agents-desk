@@ -62,6 +62,28 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         queryKey: key("admin", "list", ...args),
         queryFn: () => client.admin.list(...args),
       }),
+      /** POST /members/{id}/disable */
+      memberDisable: () => ({
+        mutationFn: (variables: Parameters<Client["admin"]["memberDisable"]>[0]) => client.admin.memberDisable(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "admin"),
+      }),
+      /** POST /members/{id}/enable */
+      memberEnable: () => ({
+        mutationFn: (variables: Parameters<Client["admin"]["memberEnable"]>[0]) => client.admin.memberEnable(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "admin"),
+      }),
+      /** GET /members/{id} */
+      memberGet: (...args: Parameters<Client["admin"]["memberGet"]>) => ({
+        queryKey: key("admin", "memberGet", ...args),
+        queryFn: () => client.admin.memberGet(...args),
+      }),
+      /** GET /members */
+      memberList: (...args: Parameters<Client["admin"]["memberList"]>) => ({
+        queryKey: key("admin", "memberList", ...args),
+        queryFn: () => client.admin.memberList(...args),
+      }),
       /** POST /auth/password/forgot */
       passwordForgot: () => ({
         mutationFn: (variables: Parameters<Client["admin"]["passwordForgot"]>[0]) => client.admin.passwordForgot(variables),

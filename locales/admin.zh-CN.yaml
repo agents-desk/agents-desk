@@ -175,3 +175,7 @@ settings.mail_test_to: "收件邮箱"
 settings.mail_test_to_placeholder: "name@company.com"
 settings.mail_test_submit: "发送测试邮件"
 settings.mail_test_sent: "测试邮件已发送至 {{.to}}"
+
+
+nav.members: "工作区成员"
+audit.filter.member: "成员账号"

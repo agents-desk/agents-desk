@@ -206,6 +206,7 @@ export function TicketsPage({ route }: { route: PeriodRoute }): ReactNode {
       meta={data?.period}
       error={query.error}
       updating={pageState.busy}
+      exportConfig={{ report: "tickets", params: queryParams }}
     >
       {/* 实时积压状态条 */}
       <div className="rp-live-strip">
