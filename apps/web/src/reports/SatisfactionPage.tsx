@@ -16,7 +16,7 @@ import {
 } from "@mantine/core"
 import { IconStarFilled } from "@tabler/icons-react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
-import { Link, useNavigate, useParams } from "@tanstack/react-router"
+import { Link, useParams } from "@tanstack/react-router"
 import {
   AnchorLink,
   type Column,
@@ -39,7 +39,7 @@ import { channelInboxSearch, teamInboxSearch } from "./drilldown"
 import { csatColor, diffDelta, formatInt, formatPercent, formatScore, pctDelta, scoreColor } from "./format"
 import { GranularityControl } from "./PeriodButton"
 import { ReportShell } from "./ReportShell"
-import { type SatisfactionSearchParams, useReportFilters } from "./search"
+import { type SatisfactionSearchParams, usePatchSearch, useReportFilters } from "./search"
 import { DetailSection, ReportEmpty, SectionCard } from "./SectionCard"
 
 type RatingBucketFilter = "all" | "positive" | "neutral" | "negative"
@@ -69,7 +69,6 @@ export function SatisfactionPage({
   const can = useCan()
   const uiLang = useLanguage()
   const formatDateTime = useFormatDateTime()
-  const navigate = useNavigate()
   const { slug } = useParams({ from: "/$slug" })
   const ratingsSectionRef = useRef<HTMLDivElement>(null)
 
@@ -111,23 +110,7 @@ export function SatisfactionPage({
   const loading = reportQuery.isPending && !data
   const s = data?.summary
 
-  const updateRatingsSearch = useCallback(
-    (patch: Record<string, unknown>) => {
-      void navigate({
-        to: ".",
-        search: ((prev: Record<string, unknown>) => {
-          const next: Record<string, unknown> = { ...prev }
-          for (const [k, v] of Object.entries(patch)) {
-            if (v === undefined) delete next[k]
-            else next[k] = v
-          }
-          return next
-        }) as never,
-        replace: true,
-      })
-    },
-    [navigate],
-  )
+  const updateRatingsSearch = usePatchSearch()
 
   const setRatingFilter = useCallback(
     (v: RatingBucketFilter) => {

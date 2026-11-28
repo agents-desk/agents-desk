@@ -546,7 +546,6 @@ export const messages = {
     "common.enabled": "Enabled",
     "common.leave": "Leave",
     "common.load_failed": "Failed to load data. Please try again.",
-    "common.more": "More actions",
     "common.retry": "Retry",
     "common.save": "Save",
     "common.saved": "Saved",
@@ -737,9 +736,6 @@ export const messages = {
     "general.address_hint": "Fixed once the workspace is created",
     "general.logo": "Workspace logo",
     "general.logo_hint": "PNG, JPEG or WebP, up to 2 MB. Shown in the sidebar and workspace switcher",
-    "general.logo_remove": "Remove",
-    "general.logo_upload": "Upload image",
-    "general.logo_upload_failed": "Upload failed",
     "general.name": "Name",
     "general.reopen_window": "Reopen window (hours)",
     "general.reopen_window_hint": "Across all chat channels (widget, Telegram, etc.), a message arriving within this window after close reopens the conversation; after that, a new service conversation is started. Set to 0 to always start a new conversation.",
@@ -1075,12 +1071,9 @@ export const messages = {
     "login.aside_headline": "AI-first unified service workspace for your team",
     "login.aside_subline": "Unite customer support, internal collaboration, and business conversations in one calm workspace.",
     "login.back_home": "Back to home",
-    "login.back_to_login": "Back to sign in",
     "login.description": "Sign in with your workspace account to continue",
     "login.email": "Email",
-    "login.email_invalid": "Please enter a valid email address",
     "login.email_placeholder": "name@company.com",
-    "login.email_required": "Please enter your email",
     "login.feature_ai_desc": "Translate cross-language chats automatically with macros and context at your fingertips.",
     "login.feature_ai_title": "Live translation \u0026 AI assist",
     "login.feature_inbox_desc": "Handle web widget, Telegram, and tickets in one queue with clear routing and ownership.",
@@ -1088,20 +1081,8 @@ export const messages = {
     "login.feature_workspace_desc": "Use one account across multiple workspaces with isolated permissions, channels, and instant switching.",
     "login.feature_workspace_title": "Multi-workspace isolation",
     "login.footer_hint": "Don’t have an account yet? Ask your workspace admin to add you.",
-    "login.forgot_description": "Enter your workspace account email address and we will send a 6-digit verification code to set a new password.",
     "login.forgot_password": "Forgot password?",
     "login.forgot_title": "Reset password",
-    "login.password": "Password",
-    "login.password_placeholder": "Enter your password",
-    "login.password_required": "Please enter your password",
-    "login.resend_code": "Resend code",
-    "login.reset_code": "Verification code",
-    "login.reset_code_required": "Enter the verification code sent to your email",
-    "login.reset_code_sent": "If this email is registered, a verification code has been sent to {{.email}}",
-    "login.reset_submit": "Reset password",
-    "login.reset_success": "Password has been reset. Sign in with your new password",
-    "login.send_reset_code": "Send verification code",
-    "login.submit": "Sign in",
     "login.title": "Sign in to workspace",
     "macros.action_add_attr": "Add attribute",
     "macros.action_assignee": "Assignee",
@@ -1274,21 +1255,14 @@ export const messages = {
     "profile.bio_hint": "Short intro shown to external business contacts (up to 240 characters)",
     "profile.bio_placeholder": "e.g. APAC partnerships and enterprise solutions. Usually replies within 2 hours on weekdays.",
     "profile.change_password": "Change password",
-    "profile.confirm_password": "Confirm new password",
-    "profile.current_password": "Current password",
     "profile.name": "Name",
     "profile.new_password": "New password",
     "profile.new_password_hint": "8 to 128 characters",
-    "profile.password_changed": "Password changed. You've been signed out on other devices",
-    "profile.password_mismatch": "The new passwords don't match",
-    "profile.remove": "Remove",
     "profile.tab_basic": "Basic info",
     "profile.tab_password": "Change password",
     "profile.title": "Title / Role",
     "profile.title_hint": "Shown on your public business card in personal business chat links",
     "profile.title_placeholder": "e.g. Account Executive / BD Director",
-    "profile.upload": "Upload image",
-    "profile.upload_failed": "Upload failed",
     "prompt.collect_contact": "Leave your email so we can get back to you.",
     "prompt.reply_time_closed": "We're currently outside business hours. We'll be back at {{.time}} and reply as soon as we can.",
     "prompt.reply_time_closed_unknown": "We're currently outside business hours and will reply as soon as we're back.",
@@ -2642,7 +2616,6 @@ export const messages = {
     "common.enabled": "已启用",
     "common.leave": "离开",
     "common.load_failed": "加载失败，请稍后重试。",
-    "common.more": "更多操作",
     "common.retry": "重试",
     "common.save": "保存",
     "common.saved": "已保存",
@@ -2833,9 +2806,6 @@ export const messages = {
     "general.address_hint": "创建后固定",
     "general.logo": "工作区 Logo",
     "general.logo_hint": "PNG、JPEG 或 WebP，最大 2 MB；显示在工作区左侧栏顶部与工作区选择页",
-    "general.logo_remove": "移除",
-    "general.logo_upload": "上传图片",
-    "general.logo_upload_failed": "上传失败",
     "general.name": "名称",
     "general.reopen_window": "重开窗口（小时）",
     "general.reopen_window_hint": "会话关闭后，客户在所有聊天渠道（网页插件、Telegram 等）于此时间内再发消息会自动重新打开原会话，超时则开启新一轮服务会话；填 0 表示关闭后直接开启新会话。",
@@ -3171,12 +3141,9 @@ export const messages = {
     "login.aside_headline": "AI 驱动的团队统一服务工作台",
     "login.aside_subline": "在一个空间里连接客户咨询、内部协作与商务沟通，让团队响应更快、更从容。",
     "login.back_home": "返回首页",
-    "login.back_to_login": "返回登录",
     "login.description": "使用你的工作区账号继续",
     "login.email": "邮箱",
-    "login.email_invalid": "请输入有效的邮箱地址",
     "login.email_placeholder": "name@company.com",
-    "login.email_required": "请输入邮箱",
     "login.feature_ai_desc": "跨语言对话自动互译，快捷回复与上下文摘要助坐席高效接待。",
     "login.feature_ai_title": "实时翻译与 AI 辅助",
     "login.feature_inbox_desc": "网页插件、Telegram 与工单集中处理，自动指派与状态流转清晰可控。",
@@ -3184,20 +3151,8 @@ export const messages = {
     "login.feature_workspace_desc": "一个账号加入多个业务工作区，权限、渠道与数据按工作区隔离，一键切换。",
     "login.feature_workspace_title": "多工作区隔离协作",
     "login.footer_hint": "还没有账号？请联系团队工作区管理员将你加入。",
-    "login.forgot_description": "输入你的工作区账号邮箱，我们会发送一个 6 位验证码用于设置新密码。",
     "login.forgot_password": "忘记密码？",
     "login.forgot_title": "重置登录密码",
-    "login.password": "密码",
-    "login.password_placeholder": "请输入密码",
-    "login.password_required": "请输入密码",
-    "login.resend_code": "重新发送验证码",
-    "login.reset_code": "验证码",
-    "login.reset_code_required": "请输入邮箱收到的验证码",
-    "login.reset_code_sent": "如该邮箱已注册，验证码已发送至 {{.email}}",
-    "login.reset_submit": "确认重置密码",
-    "login.reset_success": "密码已重置，请使用新密码登录",
-    "login.send_reset_code": "发送验证码",
-    "login.submit": "登录",
     "login.title": "登录工作台",
     "macros.action_add_attr": "添加属性",
     "macros.action_assignee": "负责人",
@@ -3370,21 +3325,14 @@ export const messages = {
     "profile.bio_hint": "向商务联系人介绍你的职责和回复时间（最多 240 字）",
     "profile.bio_placeholder": "例如：负责亚太区渠道合作与定制方案对接，工作日 2 小时内回复。",
     "profile.change_password": "修改密码",
-    "profile.confirm_password": "再输入一次新密码",
-    "profile.current_password": "当前密码",
     "profile.name": "名字",
     "profile.new_password": "新密码",
     "profile.new_password_hint": "8 到 128 个字符",
-    "profile.password_changed": "密码已修改，其他设备上的登录已退出",
-    "profile.password_mismatch": "两次输入的新密码不一致",
-    "profile.remove": "移除",
     "profile.tab_basic": "基本资料",
     "profile.tab_password": "修改密码",
     "profile.title": "头衔 / 职位",
     "profile.title_hint": "显示在网页商务链接的名片中",
     "profile.title_placeholder": "例如：大客户经理 / 商务总监",
-    "profile.upload": "上传图片",
-    "profile.upload_failed": "上传失败",
     "prompt.collect_contact": "请留下你的邮箱，方便我们后续联系你。",
     "prompt.reply_time_closed": "当前为非工作时间，我们将在 {{.time}} 恢复工作后尽快回复。",
     "prompt.reply_time_closed_unknown": "当前为非工作时间，我们将在恢复工作后尽快回复。",
@@ -4741,7 +4689,6 @@ export type MessageId =
   | "common.enabled"
   | "common.leave"
   | "common.load_failed"
-  | "common.more"
   | "common.retry"
   | "common.save"
   | "common.saved"
@@ -4932,9 +4879,6 @@ export type MessageId =
   | "general.address_hint"
   | "general.logo"
   | "general.logo_hint"
-  | "general.logo_remove"
-  | "general.logo_upload"
-  | "general.logo_upload_failed"
   | "general.name"
   | "general.reopen_window"
   | "general.reopen_window_hint"
@@ -5270,12 +5214,9 @@ export type MessageId =
   | "login.aside_headline"
   | "login.aside_subline"
   | "login.back_home"
-  | "login.back_to_login"
   | "login.description"
   | "login.email"
-  | "login.email_invalid"
   | "login.email_placeholder"
-  | "login.email_required"
   | "login.feature_ai_desc"
   | "login.feature_ai_title"
   | "login.feature_inbox_desc"
@@ -5283,20 +5224,8 @@ export type MessageId =
   | "login.feature_workspace_desc"
   | "login.feature_workspace_title"
   | "login.footer_hint"
-  | "login.forgot_description"
   | "login.forgot_password"
   | "login.forgot_title"
-  | "login.password"
-  | "login.password_placeholder"
-  | "login.password_required"
-  | "login.resend_code"
-  | "login.reset_code"
-  | "login.reset_code_required"
-  | "login.reset_code_sent"
-  | "login.reset_submit"
-  | "login.reset_success"
-  | "login.send_reset_code"
-  | "login.submit"
   | "login.title"
   | "macros.action_add_attr"
   | "macros.action_assignee"
@@ -5469,21 +5398,14 @@ export type MessageId =
   | "profile.bio_hint"
   | "profile.bio_placeholder"
   | "profile.change_password"
-  | "profile.confirm_password"
-  | "profile.current_password"
   | "profile.name"
   | "profile.new_password"
   | "profile.new_password_hint"
-  | "profile.password_changed"
-  | "profile.password_mismatch"
-  | "profile.remove"
   | "profile.tab_basic"
   | "profile.tab_password"
   | "profile.title"
   | "profile.title_hint"
   | "profile.title_placeholder"
-  | "profile.upload"
-  | "profile.upload_failed"
   | "prompt.collect_contact"
   | "prompt.reply_time_closed"
   | "prompt.reply_time_closed_unknown"

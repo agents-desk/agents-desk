@@ -176,6 +176,33 @@ export interface ReportFiltersState {
   queryParams: ReportFilterQueryParams
 }
 
+/**
+ * usePatchSearch 返回报表页局部更新 URL search 的回调，清除值为 undefined 或空串的参数；
+ * resetPage 为 true 时顺带清除 page，避免筛选变更后停留在不存在的页码。
+ */
+export function usePatchSearch(options?: { resetPage?: boolean }): (patch: Record<string, unknown>) => void {
+  const navigate = useNavigate()
+  const resetPage = Boolean(options?.resetPage)
+  return useCallback(
+    (patch: Record<string, unknown>) => {
+      void navigate({
+        to: ".",
+        search: ((prev: Record<string, unknown>) => {
+          const next: Record<string, unknown> = { ...prev }
+          for (const [k, v] of Object.entries(patch)) {
+            if (v === undefined || v === "") delete next[k]
+            else next[k] = v
+          }
+          if (resetPage) delete next.page
+          return next
+        }) as never,
+        replace: true,
+      })
+    },
+    [navigate, resetPage],
+  )
+}
+
 /** 读取并同步地址中的时间窗口、团队收件箱与渠道筛选条件；改变维度时自动把明细分页归回第 1 页。 */
 export function useReportFilters(
   route: PeriodRoute,
@@ -186,30 +213,12 @@ export function useReportFilters(
 ): ReportFiltersState {
   const period = usePeriod(route, options)
   const search = route.useSearch() as ReportFilterSearchParams
-  const navigate = useNavigate()
   const audience = options.audience
 
   const teamId = typeof search.team_id === "string" && search.team_id ? search.team_id : undefined
   const channelId = typeof search.channel_id === "string" && search.channel_id ? search.channel_id : undefined
 
-  const patchSearch = useCallback(
-    (patch: Record<string, unknown>) => {
-      void navigate({
-        to: ".",
-        search: ((prev: Record<string, unknown>) => {
-          const next: Record<string, unknown> = { ...prev }
-          for (const [k, v] of Object.entries(patch)) {
-            if (v === undefined || v === "") delete next[k]
-            else next[k] = v
-          }
-          delete next.page
-          return next
-        }) as never,
-        replace: true,
-      })
-    },
-    [navigate],
-  )
+  const patchSearch = usePatchSearch({ resetPage: true })
 
   const setTeamId = useCallback((id: string | undefined) => patchSearch({ team_id: id }), [patchSearch])
   const setChannelId = useCallback((id: string | undefined) => patchSearch({ channel_id: id }), [patchSearch])

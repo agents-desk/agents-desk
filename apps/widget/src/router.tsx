@@ -1,7 +1,7 @@
 import { cspNonce } from "@go-tenon/start"
 import { createApp, NotFoundPage, RouteError } from "@go-tenon/ui/core"
 import { i18n } from "./i18n"
-import { bindObserve, reportRouteError } from "./observe"
+import { bindObserve, reportRouteError } from "@go-tenon/start/observe"
 import { routeTree } from "./routeTree.gen"
 
 // getRouter 创建应用：路由、TanStack Query、界面文字，见框架文档的“应用骨架”。
