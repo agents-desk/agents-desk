@@ -12,7 +12,7 @@ Before editing files for a substantial task:
 
 # agents-desk
 
-agents-desk 是团队的综合服务平台，以 AI 为核心，以聊天为基础。产品设计见 [docs/产品设计.md](docs/产品设计.md)，开发计划见 [docs/开发计划.md](docs/开发计划.md)。项目是 Go 写的后端加 TanStack Start 写的前端，整个应用编译成一个二进制文件。本文写给在这个项目中工作的人和 AI 编程助手：怎样运行、提交前检查什么、代码按什么约定写。
+agents-desk 是团队的综合服务平台，以 AI 为核心，以聊天为基础。已有功能设计见 [docs/产品设计.md](docs/产品设计.md)，后续产品与开发规划见 [docs/后期产品计划.md](docs/后期产品计划.md) 和 [docs/后期开发计划.md](docs/后期开发计划.md)。项目是 Go 写的后端加 TanStack Start 写的前端，整个应用编译成一个二进制文件。本文写给在这个项目中工作的人和 AI 编程助手：怎样运行、提交前检查什么、代码按什么约定写。
 
 ## 应用
 
@@ -63,7 +63,7 @@ internal/<模块>/         业务代码，一个业务动作一个文件
 internal/apptest/        测试共用的装配：临时库、账号体系、应用密钥
 migrations/              SQL 迁移，包括 migrate publish 发布的框架迁移
 locales/                 翻译文件，简体中文和英文：服务端的 <语言>.yaml（错误提示、资源和字段、枚举和权限的显示文字），前端的 <前端>.<语言>.yaml
-docs/                    产品设计和开发计划
+docs/                    产品设计（已有功能）与后期产品、开发计划
 config/app.yaml          配置；本机的覆盖写在 config/local.yaml，不提交，命令和 bun run dev 自动叠加它
 apps/<前端>/             TanStack Start 前端，挂载路径写在 package.json 的 tenon 字段
 packages/client/         bun run generate 生成的客户端，不手改
