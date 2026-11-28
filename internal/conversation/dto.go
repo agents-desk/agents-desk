@@ -37,6 +37,7 @@ type ConversationDTO struct {
 	ExternalGroup     *extgroup.Summary  `json:"external_group,omitempty" doc:"对方：外部群（群聊机器人会话）"`
 	TeamID            *string            `json:"team_id,omitempty" doc:"团队收件箱的 ID；为空表示未指派到团队"`
 	Assignee          *Actor             `json:"assignee,omitempty" doc:"负责人；为空表示没有负责人"`
+	HandlingMode      HandlingMode       `json:"handling_mode" doc:"接待控制模式：human、ai_auto、ai_copilot、ai_paused 或 waiting_approval"`
 	Priority          Priority           `json:"priority"`
 	Language          string             `json:"language" doc:"客户的语言：按最近几条确定了语言的消息判断，或者成员手动设置的"`
 	WaitingSince      *time.Time         `json:"waiting_since,omitempty" doc:"对方的消息开始等待回复的时间；已回复时为空"`
@@ -112,10 +113,11 @@ func toItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Item) ([]I
 		return out, nil
 	}
 	ids := make([]string, len(items))
-	var chIDs, contactActorIDs, extUserActorIDs []string
+	var chIDs, contactActorIDs, extUserActorIDs, botActorIDs []string
 	seenCh := map[string]bool{}
 	seenCt := map[string]bool{}
 	seenEU := map[string]bool{}
+	seenBot := map[string]bool{}
 	for i := range items {
 		ids[i] = items[i].ID
 		if items[i].ChannelID != nil && !seenCh[*items[i].ChannelID] {
@@ -129,6 +131,10 @@ func toItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Item) ([]I
 		if items[i].ActorType == ExternalUserActor && items[i].ActorID != "" && !seenEU[items[i].ActorID] {
 			seenEU[items[i].ActorID] = true
 			extUserActorIDs = append(extUserActorIDs, items[i].ActorID)
+		}
+		if items[i].ActorType == BotActor && items[i].ActorID != "" && !seenBot[items[i].ActorID] {
+			seenBot[items[i].ActorID] = true
+			botActorIDs = append(botActorIDs, items[i].ActorID)
 		}
 	}
 	var deliveries []Delivery
@@ -186,6 +192,19 @@ func toItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Item) ([]I
 			extUsers[r.ID] = extUserInfo{Name: r.Name, ExternalID: r.ExternalID}
 		}
 	}
+	botNames := map[string]string{}
+	if len(botActorIDs) > 0 {
+		var rows []struct {
+			ID   string `bun:"id"`
+			Name string `bun:"name"`
+		}
+		if err := db.NewSelect().Table("bots").ColumnExpr("id::text AS id, name").Where("id IN (?)", bun.In(botActorIDs)).Scan(ctx, &rows); err != nil {
+			return nil, errors.Wrap(err, "load item bot names")
+		}
+		for _, r := range rows {
+			botNames[r.ID] = r.Name
+		}
+	}
 	attachments, err := loadAttachments(ctx, db, media, ids)
 	if err != nil {
 		return nil, err
@@ -236,6 +255,8 @@ func toItemDTOs(ctx context.Context, db bun.IDB, media Media, items []Item) ([]I
 				actor.Name = info.Name
 				actor.ExternalID = info.ExternalID
 			}
+		case BotActor:
+			actor.Name = botNames[it.ActorID]
 		}
 		out[i] = ItemDTO{
 			ID: it.ID, Seq: it.Seq, Kind: it.Kind, Actor: actor,
@@ -441,6 +462,35 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 	if err != nil {
 		return nil, err
 	}
+	var convBotIDs []string
+	seenConvBots := map[string]bool{}
+	addConvBot := func(id string) {
+		if id != "" && !seenConvBots[id] {
+			seenConvBots[id] = true
+			convBotIDs = append(convBotIDs, id)
+		}
+	}
+	for _, c := range convs {
+		if c.AssigneeType == BotActor {
+			addConvBot(c.AssigneeID)
+		}
+		if p := previews[c.ID]; p != nil && p.ActorType == BotActor {
+			addConvBot(p.ActorID)
+		}
+	}
+	convBotNames := map[string]string{}
+	if len(convBotIDs) > 0 {
+		var rows []struct {
+			ID   string `bun:"id"`
+			Name string `bun:"name"`
+		}
+		if err := db.NewSelect().Table("bots").ColumnExpr("id::text AS id, name").Where("id IN (?)", bun.In(convBotIDs)).Scan(ctx, &rows); err != nil {
+			return nil, errors.Wrap(err, "load conversation bot names")
+		}
+		for _, r := range rows {
+			convBotNames[r.ID] = r.Name
+		}
+	}
 	unread, err := unreadOf(ctx, db, sub, ids)
 	if err != nil {
 		return nil, err
@@ -458,8 +508,12 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 		if attrs == nil {
 			attrs = map[string]any{}
 		}
+		mode := c.HandlingMode
+		if mode == "" {
+			mode = HandlingHuman
+		}
 		d := ConversationDTO{
-			ID: c.ID, Kind: c.Kind, Audience: c.Audience, Status: c.Status, TeamID: c.TeamID, Priority: c.Priority, Language: c.Language,
+			ID: c.ID, Kind: c.Kind, Audience: c.Audience, Status: c.Status, TeamID: c.TeamID, HandlingMode: mode, Priority: c.Priority, Language: c.Language,
 			WaitingSince: c.WaitingSince, SnoozedUntil: c.SnoozedUntil, FirstReplyAt: c.FirstReplyAt, ClosedAt: c.ClosedAt, SpamAt: c.SpamAt,
 			LastMessageAt: c.LastMessageAt, LastSeq: c.LastSeq, Unread: unread[c.ID], ReadSeq: readSeq[c.ID],
 			MentionedAt: c.MentionedAt, Rating: c.rating(), Tags: tags, Attributes: attrs, CreatedAt: c.CreatedAt,
@@ -476,6 +530,8 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 					actor.Name = info.Name
 					actor.ExternalID = info.ExternalID
 				}
+			case BotActor:
+				actor.Name = convBotNames[p.ActorID]
 			}
 			d.PreviewActor = &actor
 			if previewRecalled[p.ID] {
@@ -539,7 +595,11 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, convs []Conve
 			}
 		}
 		if c.AssigneeType != "" {
-			d.Assignee = &Actor{Type: c.AssigneeType, ID: c.AssigneeID}
+			assignee := &Actor{Type: c.AssigneeType, ID: c.AssigneeID}
+			if c.AssigneeType == BotActor {
+				assignee.Name = convBotNames[c.AssigneeID]
+			}
+			d.Assignee = assignee
 		}
 		out[i] = d
 	}

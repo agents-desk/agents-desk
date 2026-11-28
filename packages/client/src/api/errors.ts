@@ -23,6 +23,12 @@ export const AgentErrors = {
   BotNotFound: "agent.bot_not_found",
   /** ErrEmptyReply 是模型没有产出任何内容，不产生消息。 */
   EmptyReply: "agent.empty_reply",
+  /** ErrBotInUse 是机器人正被未关闭的会话、渠道自动接待配置或活跃生成占用，不能删除。 */
+  BotInUse: "agent.bot_in_use",
+  /** ErrApprovalNotPending 是工具调用审批不存在或已经处理过。 */
+  ApprovalNotPending: "agent.approval_not_pending",
+  /** ErrAlreadyActive 是该会话已存在进行中的生成任务。 */
+  AlreadyActive: "agent.already_active",
 } as const
 
 /** agents-desk/internal/attribute 的错误码。 */
@@ -177,6 +183,12 @@ export const ConversationErrors = {
   ChatOwnerProtected: "chat.owner_protected",
   /** ErrChatContactProtected 是不能移出外部联系人参与者。 */
   ChatContactProtected: "chat.contact_protected",
+  /** ErrAssigneeBotNotFound 是指派或启用接待的机器人不存在、已停用，或属于别的工作区。 */
+  AssigneeBotNotFound: "conversation.assignee_bot_not_found",
+  /** ErrInvalidHandlingMode 是接待控制模式取值不合法或当前角色不可切换为该状态。 */
+  InvalidHandlingMode: "conversation.invalid_handling_mode",
+  /** ErrGenerationNotFound 是关联的 AI 草稿生成不存在或不属于当前会话。 */
+  GenerationNotFound: "conversation.generation_not_found",
   /** ErrAutoTranslateFailed 表示发出前的后台自动翻译失败，本次未向外部渠道投递原文。 */
   AutoTranslateFailed: "conversation.auto_translate_failed",
   /** ErrInvalidFilter 是视图或列表传入的筛选条件不合法。 */
@@ -436,6 +448,29 @@ export const WidgetErrors = {
   IntakeRequired: "widget.intake_required",
   /** ErrUploadsDisabled 是管理员已关闭当前工作区的访客附件上传能力。 */
   UploadsDisabled: "widget.uploads_disabled",
+} as const
+
+/** github.com/go-tenon/tenon/ai/chat 的错误码。 */
+export const ChatErrors = {
+  /** ErrAttachmentNotFound 表示对话中没有这个 ID 的附件，通常是模型写错了 ID。 */
+  AttachmentNotFound: "ai.attachment_not_found",
+  /** ErrNoWorker 表示没有调用 Serve 的实例接收请求，例如 worker 都没有运行或正在停止（503）。 */
+  NoWorker: "ai.no_worker",
+  /** ErrBusy 表示对话正在运行，新消息应当用 Run.Steer 插入。 */
+  Busy: "ai.busy",
+  /** ErrAwaitingApproval 表示对话中有等待审批的工具调用，处理完它们才能发送新消息。 */
+  AwaitingApproval: "ai.awaiting_approval",
+  /** ErrNotPending 表示要审批的工具调用不存在或已经处理过。 */
+  NotPending: "ai.not_pending",
+  /** ErrFinished 表示运行已经结束（409），应当开始新的运行：回答结束后插话时，前端改为发送新消息。 */
+  Finished: "ai.finished",
+  /**
+   * ErrShuttingDown 表示本实例正在停止，拒绝开始新的运行（503）。客户端稍后重试，
+   * 多实例部署时会落到其他实例上。
+   */
+  ShuttingDown: "ai.shutting_down",
+  /** ErrBadRequest 表示请求中没有可以处理的消息。 */
+  BadRequest: "ai.bad_request",
 } as const
 
 /** github.com/go-tenon/tenon/apitoken 的错误码。 */

@@ -241,6 +241,7 @@ func (a *CreateTicket) Handle(ctx context.Context, sub identity.Subject, p Creat
 			TeamID:        teamID,
 			AssigneeType:  assigneeType,
 			AssigneeID:    assigneeID,
+			HandlingMode:  HandlingHuman,
 			Status:        Status(TicketSubmitted),
 			Priority:      priority,
 			OpenedAt:      at,

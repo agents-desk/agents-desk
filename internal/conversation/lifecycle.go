@@ -69,7 +69,7 @@ func AutoCloseIdle(ctx context.Context, db *bun.DB, down Downstream, at time.Tim
 				if c.Kind != Service || c.Status != Open || c.SpamAt != nil || c.WaitingSince != nil || !c.LastMessageAt.Before(cutoff) {
 					return nil
 				}
-				items, err := applyClose(ctx, tx, system(c.TenantID), c)
+				items, err := applyClose(ctx, tx, down, system(c.TenantID), c)
 				if err != nil || len(items) == 0 {
 					return err
 				}

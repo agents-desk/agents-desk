@@ -30,6 +30,8 @@ const (
 	ReasonMemberLeft AssignReason = "member_left" // 负责人离开了工作区
 	ReasonSLATimeout AssignReason = "sla_timeout" // 等待超时自动改派
 	ReasonHandover   AssignReason = "handover"    // 成员离职或转岗工作交接
+	ReasonAIAuto     AssignReason = "ai_auto"     // AI 自动接待分流
+	ReasonAIHandover AssignReason = "ai_handover" // AI 主动转交或失败兜底转交人工
 )
 
 // system 是自动规则的发起者：工作区 tenant 中的系统。

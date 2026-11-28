@@ -63,11 +63,12 @@ const (
 	AssigneeFilterMe         AssigneeFilterMode = "me"         // 当前登录成员
 	AssigneeFilterUnassigned AssigneeFilterMode = "unassigned" // 无负责人
 	AssigneeFilterMember     AssigneeFilterMode = "member"     // 指定成员
+	AssigneeFilterBot        AssigneeFilterMode = "bot"        // AI 机器人负责
 )
 
 // AssigneeFilterModes 是负责人筛选的全部模式，显示文字是翻译文件中 conversation.assignee_filter_mode.<模式> 的消息。
 var AssigneeFilterModes = enum.New("conversation.assignee_filter_mode",
-	enum.Item(AssigneeFilterMe), enum.Item(AssigneeFilterUnassigned), enum.Item(AssigneeFilterMember))
+	enum.Item(AssigneeFilterMe), enum.Item(AssigneeFilterUnassigned), enum.Item(AssigneeFilterMember), enum.Item(AssigneeFilterBot))
 
 // Schema 让 OpenAPI 中的 AssigneeFilterMode 只接受上面的取值，并带有显示文字。
 func (AssigneeFilterMode) Schema(r huma.Registry) *huma.Schema {
@@ -76,8 +77,9 @@ func (AssigneeFilterMode) Schema(r huma.Registry) *huma.Schema {
 
 // AssigneeFilter 是按负责人筛选会话的条件。
 type AssigneeFilter struct {
-	Mode     AssigneeFilterMode `json:"mode" doc:"负责人筛选模式：me（我）、unassigned（无负责人）、member（指定成员）"`
+	Mode     AssigneeFilterMode `json:"mode" doc:"负责人筛选模式：me（我）、unassigned（无负责人）、member（指定成员）、bot（AI 机器人）"`
 	MemberID string             `json:"member_id,omitempty" format:"uuid" doc:"mode 为 member 时必填：成员 ID"`
+	BotID    string             `json:"bot_id,omitempty" format:"uuid" doc:"mode 为 bot 时可选：限定特定机器人 ID"`
 }
 
 // TagMatch 是多标签筛选时的匹配方式。
@@ -128,17 +130,18 @@ type AttributeFilter struct {
 
 // Filter 是服务型会话的统一筛选条件：收件箱列表、全文搜索与已保存视图共享同一套条件模型。
 type Filter struct {
-	Statuses   []Status          `json:"statuses,omitempty" maxItems:"3" doc:"会话状态（多选）；为空表示不限状态"`
-	Audience   channel.Audience  `json:"audience,omitempty" doc:"服务对象类型筛选（customer/internal）"`
-	Team       *TeamFilter       `json:"team,omitempty" doc:"团队收件箱筛选"`
-	Assignee   *AssigneeFilter   `json:"assignee,omitempty" doc:"负责人筛选"`
-	Waiting    *bool             `json:"waiting,omitempty" doc:"是否等待回复：true 等待回复，false 已回复，为空不限"`
-	Priority   Priority          `json:"priority,omitempty" doc:"优先级筛选"`
-	ChannelIDs []string          `json:"channel_ids,omitempty" maxItems:"50" doc:"渠道 ID（匹配其中任一）"`
-	TagIDs     []string          `json:"tag_ids,omitempty" maxItems:"50" doc:"标签 ID 列表"`
-	TagMatch   TagMatch          `json:"tag_match,omitempty" doc:"多标签匹配方式：any（任一，默认）或 all（全部）"`
-	Language   string            `json:"language,omitempty" maxLength:"35" doc:"客户语言（BCP 47，传主语言时同时匹配子标签）"`
-	Attributes []AttributeFilter `json:"attributes,omitempty" maxItems:"20" doc:"会话自定义属性筛选条件（全部满足）"`
+	Statuses      []Status          `json:"statuses,omitempty" maxItems:"3" doc:"会话状态（多选）；为空表示不限状态"`
+	Audience      channel.Audience  `json:"audience,omitempty" doc:"服务对象类型筛选（customer/internal）"`
+	HandlingModes []HandlingMode    `json:"handling_modes,omitempty" maxItems:"5" doc:"接待控制模式（多选）"`
+	Team          *TeamFilter       `json:"team,omitempty" doc:"团队收件箱筛选"`
+	Assignee      *AssigneeFilter   `json:"assignee,omitempty" doc:"负责人筛选"`
+	Waiting       *bool             `json:"waiting,omitempty" doc:"是否等待回复：true 等待回复，false 已回复，为空不限"`
+	Priority      Priority          `json:"priority,omitempty" doc:"优先级筛选"`
+	ChannelIDs    []string          `json:"channel_ids,omitempty" maxItems:"50" doc:"渠道 ID（匹配其中任一）"`
+	TagIDs        []string          `json:"tag_ids,omitempty" maxItems:"50" doc:"标签 ID 列表"`
+	TagMatch      TagMatch          `json:"tag_match,omitempty" doc:"多标签匹配方式：any（任一，默认）或 all（全部）"`
+	Language      string            `json:"language,omitempty" maxLength:"35" doc:"客户语言（BCP 47，传主语言时同时匹配子标签）"`
+	Attributes    []AttributeFilter `json:"attributes,omitempty" maxItems:"20" doc:"会话自定义属性筛选条件（全部满足）"`
 }
 
 // ViewConfig 是保存进视图的完整配置：筛选条件与默认排序。
@@ -199,6 +202,22 @@ func validateFilter(ctx context.Context, db bun.IDB, tenantID string, in Filter,
 		out.Audience = in.Audience
 	}
 
+	// 接待控制模式
+	if len(in.HandlingModes) > 0 {
+		seen := make(map[HandlingMode]bool, len(in.HandlingModes))
+		for _, hm := range in.HandlingModes {
+			if !slices.Contains(HandlingModes.Values(), hm) {
+				return Filter{}, ErrInvalidFilter.New(errorx.Field("config.handling_modes"))
+			}
+			seen[hm] = true
+		}
+		for _, hm := range HandlingModes.Values() {
+			if seen[hm] {
+				out.HandlingModes = append(out.HandlingModes, hm)
+			}
+		}
+	}
+
 	// 团队筛选
 	if in.Team != nil {
 		switch in.Team.Mode {
@@ -247,6 +266,13 @@ func validateFilter(ctx context.Context, db bun.IDB, tenantID string, in Filter,
 				}
 			}
 			out.Assignee = &AssigneeFilter{Mode: AssigneeFilterMember, MemberID: in.Assignee.MemberID}
+		case AssigneeFilterBot:
+			if in.Assignee.BotID != "" {
+				if _, err := uuid.Parse(in.Assignee.BotID); err != nil {
+					return Filter{}, ErrInvalidFilter.New(errorx.Field("config.assignee.bot_id"))
+				}
+			}
+			out.Assignee = &AssigneeFilter{Mode: AssigneeFilterBot, BotID: in.Assignee.BotID}
 		default:
 			return Filter{}, ErrInvalidFilter.New(errorx.Field("config.assignee.mode"))
 		}
@@ -484,6 +510,11 @@ func buildFilterPredicate(sub identity.Subject, f Filter, attrDefs map[string]at
 		args = append(args, f.Audience)
 	}
 
+	if len(f.HandlingModes) > 0 {
+		parts = append(parts, "conversation.handling_mode IN (?)")
+		args = append(args, bun.In(f.HandlingModes))
+	}
+
 	if f.Team != nil {
 		switch f.Team.Mode {
 		case TeamFilterMyTeams:
@@ -519,6 +550,14 @@ func buildFilterPredicate(sub identity.Subject, f Filter, attrDefs map[string]at
 		case AssigneeFilterMember:
 			parts = append(parts, "(conversation.assignee_type = ? AND conversation.assignee_id = ?)")
 			args = append(args, MemberActor, f.Assignee.MemberID)
+		case AssigneeFilterBot:
+			if f.Assignee.BotID != "" {
+				parts = append(parts, "(conversation.assignee_type = ? AND conversation.assignee_id = ?)")
+				args = append(args, BotActor, f.Assignee.BotID)
+			} else {
+				parts = append(parts, "conversation.assignee_type = ?")
+				args = append(args, BotActor)
+			}
 		}
 	}
 

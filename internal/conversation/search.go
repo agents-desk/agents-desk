@@ -160,16 +160,18 @@ func ScanSearchKeys(ctx context.Context, db bun.IDB, after string, limit int) ([
 // SearchInput 是会话全文搜索的请求参数。
 type SearchInput struct {
 	page.OffsetParams
-	Q          string   `query:"q" minLength:"1" maxLength:"200" doc:"搜索关键词"`
-	Inbox      Inbox    `query:"inbox" doc:"可选：限定在某个收件箱列表内（mine/mentions/unassigned/all）；留空搜索全部可见会话"`
-	ViewID     string   `query:"view_id" format:"uuid" doc:"可选：限定在某个已保存视图内搜索"`
-	Filter     string   `query:"filter" maxLength:"4096" doc:"可选：JSON 编码的统一筛选条件（Filter）"`
-	TeamID     string   `query:"team_id" format:"uuid" doc:"可选：只搜索这个团队收件箱的会话"`
-	Status     Status   `query:"status" doc:"可选：只搜索这个状态的会话；留空包含全部状态（打开、稍后处理、已关闭）"`
-	AssigneeID string   `query:"assignee_id" format:"uuid" doc:"可选：只搜索负责人是这位成员的会话"`
-	ChannelID  string   `query:"channel_id" format:"uuid" doc:"可选：只搜索来自这个渠道的会话"`
-	Priority   Priority `query:"priority" doc:"可选：只搜索这个优先级的会话"`
-	TagID      string   `query:"tag_id" format:"uuid" doc:"可选：只搜索带有这个标签的会话"`
+	Q            string       `query:"q" minLength:"1" maxLength:"200" doc:"搜索关键词"`
+	Inbox        Inbox        `query:"inbox" doc:"可选：限定在某个收件箱列表内（mine/mentions/unassigned/all）；留空搜索全部可见会话"`
+	ViewID       string       `query:"view_id" format:"uuid" doc:"可选：限定在某个已保存视图内搜索"`
+	Filter       string       `query:"filter" maxLength:"4096" doc:"可选：JSON 编码的统一筛选条件（Filter）"`
+	TeamID       string       `query:"team_id" format:"uuid" doc:"可选：只搜索这个团队收件箱的会话"`
+	Status       Status       `query:"status" doc:"可选：只搜索这个状态的会话；留空包含全部状态（打开、稍后处理、已关闭）"`
+	AssigneeType ActorType    `query:"assignee_type" doc:"可选：只搜索这个负责人类型的会话（member 或 bot）"`
+	AssigneeID   string       `query:"assignee_id" format:"uuid" doc:"可选：只搜索负责人是这位成员或机器人的会话"`
+	HandlingMode HandlingMode `query:"handling_mode" doc:"可选：只搜索这个接待控制模式的会话"`
+	ChannelID    string       `query:"channel_id" format:"uuid" doc:"可选：只搜索来自这个渠道的会话"`
+	Priority     Priority     `query:"priority" doc:"可选：只搜索这个优先级的会话"`
+	TagID        string       `query:"tag_id" format:"uuid" doc:"可选：只搜索带有这个标签的会话"`
 }
 
 // SearchMatch 是会话中命中的代表性消息或内部备注及其高亮摘要。
@@ -270,8 +272,18 @@ func (a *Search) Handle(ctx context.Context, sub identity.Subject, in *SearchInp
 		if in.TeamID != "" {
 			allowed = allowed.Where("conversation.team_id = ?", in.TeamID)
 		}
+		if in.AssigneeType != "" {
+			allowed = allowed.Where("conversation.assignee_type = ?", in.AssigneeType)
+		}
 		if in.AssigneeID != "" {
-			allowed = allowed.Where("conversation.assignee_type = ? AND conversation.assignee_id = ?", MemberActor, in.AssigneeID)
+			assigneeTyp := MemberActor
+			if in.AssigneeType == BotActor {
+				assigneeTyp = BotActor
+			}
+			allowed = allowed.Where("conversation.assignee_type = ? AND conversation.assignee_id = ?", assigneeTyp, in.AssigneeID)
+		}
+		if in.HandlingMode != "" {
+			allowed = allowed.Where("conversation.handling_mode = ?", in.HandlingMode)
 		}
 		if in.ChannelID != "" {
 			allowed = allowed.Where("conversation.channel_id = ?", in.ChannelID)

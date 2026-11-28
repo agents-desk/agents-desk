@@ -25,6 +25,9 @@ type RoundDTO struct {
 	ClosedAt          *time.Time `json:"closed_at,omitempty" doc:"本轮关闭的时间，进行中时为空"`
 	FirstReplySeconds *int64     `json:"first_reply_seconds,omitempty" doc:"本轮首次回复时长（秒），尚未回复时为空"`
 	ResolutionSeconds *int64     `json:"resolution_seconds,omitempty" doc:"本轮解决时长（秒），尚未关闭时为空"`
+	ResolutionType    string     `json:"resolution_type,omitempty" doc:"本轮解决归因：ai_resolved、ai_assisted 或 human_resolved"`
+	HandoverReason    string     `json:"handover_reason,omitempty" doc:"本轮最近一次 AI 转交人工原因"`
+	AIGenerationCount int        `json:"ai_generation_count" doc:"本轮产生的 AI 生成次数"`
 	Rating            *Rating    `json:"rating,omitempty" doc:"客户对本轮服务的评价"`
 }
 
@@ -59,12 +62,15 @@ func (a *ListRounds) Handle(ctx context.Context, sub identity.Subject, id string
 	out := make([]RoundDTO, len(rows))
 	for i, r := range rows {
 		d := RoundDTO{
-			ID:           r.ID,
-			Round:        r.Round,
-			TeamID:       r.TeamID,
-			OpenedAt:     r.OpenedAt,
-			FirstReplyAt: r.FirstReplyAt,
-			ClosedAt:     r.ClosedAt,
+			ID:                r.ID,
+			Round:             r.Round,
+			TeamID:            r.TeamID,
+			OpenedAt:          r.OpenedAt,
+			FirstReplyAt:      r.FirstReplyAt,
+			ClosedAt:          r.ClosedAt,
+			ResolutionType:    r.ResolutionType,
+			HandoverReason:    r.HandoverReason,
+			AIGenerationCount: r.AIGenerationCount,
 		}
 		if r.AssigneeType != "" {
 			d.Assignee = &Actor{Type: r.AssigneeType, ID: r.AssigneeID}

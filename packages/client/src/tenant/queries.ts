@@ -120,6 +120,33 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         queryFn: () => client.blocked.ipList(...args),
       }),
     },
+    bot: {
+      /** bot 分组全部查询的 key 前缀。 */
+      key: () => key("bot"),
+      /** POST /bots */
+      create: () => ({
+        mutationFn: (variables: Parameters<Client["bot"]["create"]>[0]) => client.bot.create(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "bot"),
+      }),
+      /** DELETE /bots/{id} */
+      delete: () => ({
+        mutationFn: (variables: Parameters<Client["bot"]["delete"]>[0]) => client.bot.delete(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "bot"),
+      }),
+      /** GET /bots */
+      list: (...args: Parameters<Client["bot"]["list"]>) => ({
+        queryKey: key("bot", "list", ...args),
+        queryFn: () => client.bot.list(...args),
+      }),
+      /** PUT /bots/{id} */
+      update: () => ({
+        mutationFn: (variables: Parameters<Client["bot"]["update"]>) => client.bot.update(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "bot"),
+      }),
+    },
     business: {
       /** business 分组全部查询的 key 前缀。 */
       key: () => key("business"),
@@ -420,6 +447,12 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         queryKey: key("conversation", "get", ...args),
         queryFn: () => client.conversation.get(...args),
       }),
+      /** PUT /conversations/{id}/handling-mode */
+      handlingMode: () => ({
+        mutationFn: (variables: Parameters<Client["conversation"]["handlingMode"]>) => client.conversation.handlingMode(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "conversation"),
+      }),
       /** GET /inbox */
       inbox: (...args: Parameters<Client["conversation"]["inbox"]>) => ({
         queryKey: key("conversation", "inbox", ...args),
@@ -558,6 +591,18 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
     generation: {
       /** generation 分组全部查询的 key 前缀。 */
       key: () => key("generation"),
+      /** POST /generations/{id}/approvals/{call_id}/approve */
+      approvalApprove: () => ({
+        mutationFn: (variables: Parameters<Client["generation"]["approvalApprove"]>) => client.generation.approvalApprove(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "generation"),
+      }),
+      /** POST /generations/{id}/approvals/{call_id}/reject */
+      approvalReject: () => ({
+        mutationFn: (variables: Parameters<Client["generation"]["approvalReject"]>) => client.generation.approvalReject(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "generation"),
+      }),
       /** POST /generations/{id}/cancel */
       cancel: () => ({
         mutationFn: (variables: Parameters<Client["generation"]["cancel"]>[0]) => client.generation.cancel(variables),

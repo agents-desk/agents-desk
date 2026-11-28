@@ -43,6 +43,7 @@ import {
   IconMessageBolt,
   IconPaperclip,
   IconPencil,
+  IconRobot,
   IconX,
 } from "@tabler/icons-react"
 import {
@@ -116,6 +117,8 @@ export function Composer({
   onClearReplyTo,
   correcting,
   onClearCorrecting,
+  adoptedDraft,
+  onClearAdoptedDraft,
   extMentions,
   onChangeExtMentions,
   onTyping,
@@ -128,6 +131,8 @@ export function Composer({
   onClearReplyTo?: () => void
   correcting?: ConversationItemDTO | null
   onClearCorrecting?: () => void
+  adoptedDraft?: { generationId: string; text: string } | null
+  onClearAdoptedDraft?: () => void
   extMentions?: ChannelExternalMention[]
   onChangeExtMentions?: (next: ChannelExternalMention[]) => void
   onTyping: (mode: Mode) => void
@@ -249,6 +254,17 @@ export function Composer({
     prevCorrectingRef.current = nextId
   }, [correcting])
 
+  // 采纳 AI 副驾驶草稿时，切回回复模式并将建议文本填入输入框
+  const prevAdoptedRef = useRef<string | null>(null)
+  useEffect(() => {
+    const nextId = adoptedDraft?.generationId ?? null
+    if (nextId && nextId !== prevAdoptedRef.current) {
+      setMode("reply")
+      setText(adoptedDraft?.text ?? "")
+    }
+    prevAdoptedRef.current = nextId
+  }, [adoptedDraft])
+
   // 实时保存草稿，切换会话后再回来不丢失已输入内容与模式
   useEffect(() => {
     saveDraft(c.id, { text, mode, mentionIds })
@@ -292,6 +308,7 @@ export function Composer({
           channel_id,
           reply_to_item_id: replyTo?.id,
           corrects_item_id: correcting?.id,
+          source_generation_id: adoptedDraft?.generationId,
           external_mentions: activeExtMentions.length > 0 ? activeExtMentions : undefined,
           translation,
           auto_translate: autoTranslate,
@@ -310,10 +327,12 @@ export function Composer({
       setMacroWarnings([])
       onClearReplyTo?.()
       onClearCorrecting?.()
+      onClearAdoptedDraft?.()
       onChangeExtMentions?.([])
       queue.clear()
       preview.reset()
       void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
+      void queryClient.invalidateQueries({ queryKey: kit.queries.generation.key() })
       // 回复发送成功且开启了“发送后自动打开下一个待回复”时，自动跳转（内部备注不跳转）
       if (variables.mode === "reply") {
         onReplied?.()
@@ -572,6 +591,19 @@ export function Composer({
               })}
             </Text>
             <ActionIcon size={18} variant="subtle" color="gray" onClick={onClearCorrecting} aria-label={t("inbox.cancel")}>
+              <IconX size={12} />
+            </ActionIcon>
+          </Group>
+        </Paper>
+      )}
+      {!note && adoptedDraft && (
+        <Paper withBorder radius="md" px="xs" py={6} mb={8} bg="var(--mantine-color-bright-blue-light)">
+          <Group gap={6} wrap="nowrap">
+            <IconRobot size={13} style={{ flex: "none", color: "var(--mantine-color-bright-blue-6)" }} />
+            <Text size="xs" c="bright-blue" fw={500} style={{ flex: 1, minWidth: 0 }}>
+              {t("inbox.ai_draft_adopted_badge")}
+            </Text>
+            <ActionIcon size={18} variant="subtle" color="gray" onClick={onClearAdoptedDraft} aria-label={t("inbox.cancel")}>
               <IconX size={12} />
             </ActionIcon>
           </Group>

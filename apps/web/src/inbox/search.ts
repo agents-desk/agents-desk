@@ -1,5 +1,6 @@
 import type {
   ConversationAttributeFilter,
+  ConversationHandlingMode,
   ConversationInbox,
   ConversationSort,
   ConversationStatus,
@@ -35,6 +36,7 @@ export interface InboxSearch {
 
 const boxes: ConversationInbox[] = ["mine", "mentions", "unassigned", "all", "spam"]
 const statuses: ConversationStatus[] = ["open", "snoozed", "closed"]
+const handlingModes: ConversationHandlingMode[] = ["human", "ai_auto", "ai_copilot", "ai_paused", "waiting_approval"]
 const sorts: ConversationSort[] = ["waiting", "recent"]
 const scopes: SearchScope[] = ["all", "current"]
 const fields: MatchField[] = ["translated", "original", "note"]
@@ -79,6 +81,10 @@ export function normalizeFilter(f: ConversationFilter | undefined): Conversation
     const uniq = statuses.filter((st) => f.statuses?.includes(st))
     if (uniq.length > 0) out.statuses = uniq
   }
+  if (f.handling_modes && f.handling_modes.length > 0) {
+    const uniq = handlingModes.filter((hm) => f.handling_modes?.includes(hm))
+    if (uniq.length > 0) out.handling_modes = uniq
+  }
   if (f.audience === "customer" || f.audience === "partner" || f.audience === "internal") out.audience = f.audience
   if (f.team) {
     if (f.team.mode === "ids") {
@@ -91,6 +97,8 @@ export function normalizeFilter(f: ConversationFilter | undefined): Conversation
   if (f.assignee) {
     if (f.assignee.mode === "member") {
       if (f.assignee.member_id) out.assignee = { mode: "member", member_id: f.assignee.member_id }
+    } else if (f.assignee.mode === "bot") {
+      out.assignee = f.assignee.bot_id ? { mode: "bot", bot_id: f.assignee.bot_id } : { mode: "bot" }
     } else if (f.assignee.mode === "me" || f.assignee.mode === "unassigned") {
       out.assignee = { mode: f.assignee.mode }
     }
@@ -159,6 +167,7 @@ export function countFilterCriteria(f: ConversationFilter | undefined): number {
   const n = normalizeFilter(f)
   let count = 0
   if (n.statuses && n.statuses.length > 0) count++
+  if (n.handling_modes && n.handling_modes.length > 0) count++
   if (n.audience) count++
   if (n.team) count++
   if (n.assignee) count++

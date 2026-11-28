@@ -37,14 +37,15 @@ type TicketInboxSummary struct {
 
 // InboxDTO 是收件箱左侧的全部列表和它们的数量，只算当前成员能看到的会话和工单。
 type InboxDTO struct {
-	Mine       Summary            `json:"mine" doc:"我的"`
-	Mentions   Summary            `json:"mentions" doc:"@我"`
-	Unassigned Summary            `json:"unassigned" doc:"未指派"`
-	All        Summary            `json:"all" doc:"全部"`
-	Teams      []TeamSummary      `json:"teams" nullable:"false" doc:"团队收件箱：我所在的；可见范围是全部会话的成员是全部团队收件箱，按名称排列"`
-	Views      []ViewSummary      `json:"views" nullable:"false" doc:"已保存视图：共享在前、个人在后，各带实时会话数量与积压情况"`
-	Tickets    TicketInboxSummary `json:"tickets" doc:"工单分组的未解决数量"`
-	Spam       int                `json:"spam" doc:"垃圾会话数量（排除在常规统计之外）"`
+	Mine            Summary            `json:"mine" doc:"我的"`
+	Mentions        Summary            `json:"mentions" doc:"@我"`
+	Unassigned      Summary            `json:"unassigned" doc:"未指派"`
+	All             Summary            `json:"all" doc:"全部"`
+	Teams           []TeamSummary      `json:"teams" nullable:"false" doc:"团队收件箱：我所在的；可见范围是全部会话的成员是全部团队收件箱，按名称排列"`
+	Views           []ViewSummary      `json:"views" nullable:"false" doc:"已保存视图：共享在前、个人在后，各带实时会话数量与积压情况"`
+	Tickets         TicketInboxSummary `json:"tickets" doc:"工单分组的未解决数量"`
+	Spam            int                `json:"spam" doc:"垃圾会话数量（排除在常规统计之外）"`
+	WaitingApproval int                `json:"waiting_approval" doc:"当前等待人工审批 AI 工具调用的打开会话数"`
 }
 
 // InboxOutput 是收件箱列表的响应。
@@ -300,6 +301,15 @@ func (a *GetInbox) Handle(ctx context.Context, sub identity.Subject) (*InboxDTO,
 	spamQ = visible(spamQ, sub)
 	if err := spamQ.Scan(ctx, &out.Spam); err != nil {
 		return nil, errors.Wrap(err, "count spam inbox")
+	}
+
+	approvalQ := a.db.NewSelect().TableExpr("conversations AS conversation").
+		ColumnExpr("count(*)").
+		Where("conversation.tenant_id = ? AND conversation.kind = ? AND conversation.status = ? AND conversation.spam_at IS NULL AND conversation.handling_mode = ?",
+			sub.Tenant, Service, Open, HandlingWaitingApproval)
+	approvalQ = visible(approvalQ, sub)
+	if err := approvalQ.Scan(ctx, &out.WaitingApproval); err != nil {
+		return nil, errors.Wrap(err, "count waiting approval inbox")
 	}
 	return &out, nil
 }

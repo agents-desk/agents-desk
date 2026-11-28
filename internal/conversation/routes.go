@@ -64,6 +64,7 @@ func RegisterRoutes(api *rest.API, require func(...auth.Permission) func(*huma.O
 	rest.Register(api, retryOp, NewRetry(db, down).HTTP)
 	rest.Register(api, readOp, NewMarkRead(db, down.Hub).HTTP)
 	rest.Register(api, act("conversation-assign", http.MethodPut, "/conversations/{id}/assignment", "指派"), NewAssign(db, down).HTTP)
+	rest.Register(api, act("conversation-handling-mode", http.MethodPut, "/conversations/{id}/handling-mode", "切换会话接待控制模式"), NewSetHandlingMode(db, down).HTTP)
 	rest.Register(api, act("conversation-close", http.MethodPost, "/conversations/{id}/close", "关闭"), NewClose(db, down).HTTP)
 	rest.Register(api, act("conversation-reopen", http.MethodPost, "/conversations/{id}/reopen", "重新打开"), NewReopen(db, down).HTTP)
 	rest.Register(api, act("conversation-snooze", http.MethodPost, "/conversations/{id}/snooze", "稍后处理"), NewSnooze(db, down).HTTP)

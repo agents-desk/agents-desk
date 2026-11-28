@@ -1,4 +1,12 @@
-import type { AttributeTarget, ConversationDTO, ConversationItemDTO, ConversationSearchHitDTO, MemberTenantMember } from "@agents-desk/client/tenant"
+import type {
+  AgentBotDTO,
+  AttributeTarget,
+  ConversationDTO,
+  ConversationHandlingMode,
+  ConversationItemDTO,
+  ConversationSearchHitDTO,
+  MemberTenantMember,
+} from "@agents-desk/client/tenant"
 import { fetchAllPages } from "@go-tenon/client"
 import { infiniteQueryOptions, type QueryClient, queryOptions, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query"
 import { kit, tenantApi } from "../api"
@@ -42,6 +50,37 @@ export function useAttributes(target: AttributeTarget) {
 export function useChannels() {
   const q = useQuery({ ...kit.queries.channel.list(), staleTime: 60_000 })
   return q.data ?? []
+}
+
+/** useBots 返回工作区中已启用的 AI 机器人列表与映射。 */
+export function useBots(): { list: AgentBotDTO[]; byId: Map<string, AgentBotDTO> } {
+  const q = useQuery({ ...kit.queries.bot.list({ enabled: true }), staleTime: 60_000 })
+  const list = q.data ?? []
+  return { list, byId: new Map(list.map((b) => [b.id, b])) }
+}
+
+/** useConversationGenerations 读取会话进行中的 AI 生成、待审批工具调用以及最新未采纳的 Copilot 草稿。 */
+export function useConversationGenerations(id: string, pollActive: boolean) {
+  return useQuery({
+    ...kit.queries.generation.list(id),
+    refetchInterval: pollActive ? 2000 : false,
+  })
+}
+
+/** handlingModeColor 返回接待控制模式对应的 Mantine 语义预设色名称。 */
+export function handlingModeColor(mode: ConversationHandlingMode | undefined): string {
+  switch (mode) {
+    case "ai_auto":
+      return "green"
+    case "ai_copilot":
+      return "bright-blue"
+    case "waiting_approval":
+      return "deep-orange"
+    case "ai_paused":
+      return "yellow"
+    default:
+      return "gray"
+  }
 }
 
 /** useMacros 返回当前成员在工作区中可见的全部快捷回复（共享 + 个人），修改快捷回复后随资源前缀自动失效。 */

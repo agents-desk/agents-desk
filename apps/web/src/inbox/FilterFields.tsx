@@ -4,6 +4,7 @@ import type {
   ConversationAssigneeFilterMode,
   ConversationAttributeFilter,
   ConversationAttributeOp,
+  ConversationHandlingMode,
   ConversationPriority,
   ConversationStatus,
   ConversationTagMatch,
@@ -29,7 +30,7 @@ import { useLanguage, useT } from "@go-tenon/ui"
 import type { ReactNode } from "react"
 import { LanguageSelect } from "../LanguageSelect"
 import { languageName } from "../languages"
-import { useAttributes, useChannels, useMembers, useTags, useTeams } from "./data"
+import { handlingModeColor, useAttributes, useBots, useChannels, useMembers, useTags, useTeams } from "./data"
 import type { ConversationFilter } from "./search"
 
 /** FilterFieldsProps 是通用会话筛选条件编辑器的属性（用于收件箱筛选面板与新建/编辑视图弹窗）。 */
@@ -75,6 +76,7 @@ function defaultValueForType(def: AttributeDTO, op: ConversationAttributeOp): un
 export function FilterFields({ value, onChange, compact }: FilterFieldsProps): ReactNode {
   const t = useT()
   const { list: members } = useMembers()
+  const { list: bots } = useBots()
   const teams = useTeams()
   const channels = useChannels()
   const tags = useTags()
@@ -243,6 +245,7 @@ export function FilterFields({ value, onChange, compact }: FilterFieldsProps): R
             { value: "me", label: t("views.assignee_me") },
             { value: "unassigned", label: t("views.assignee_unassigned") },
             { value: "member", label: t("views.assignee_member") },
+            { value: "bot", label: t("views.assignee_bot") },
           ]}
           allowDeselect={false}
           comboboxProps={{ withinPortal: true }}
@@ -258,7 +261,35 @@ export function FilterFields({ value, onChange, compact }: FilterFieldsProps): R
             comboboxProps={{ withinPortal: true }}
           />
         )}
+        {assigneeMode === "bot" && (
+          <Select
+            size={size}
+            placeholder={t("views.assignee_bot_any")}
+            value={value.assignee?.bot_id ?? null}
+            onChange={(id) => patch({ assignee: id ? { mode: "bot", bot_id: id } : { mode: "bot" } })}
+            data={bots.map((b) => ({ value: b.id, label: b.name }))}
+            clearable
+            searchable
+            comboboxProps={{ withinPortal: true }}
+          />
+        )}
       </Stack>
+
+      <MultiSelect
+        size={size}
+        label={t("views.handling_mode")}
+        placeholder={t("views.handling_mode_placeholder")}
+        value={value.handling_modes ?? []}
+        onChange={(next) => patch({ handling_modes: next.length > 0 ? (next as ConversationHandlingMode[]) : undefined })}
+        data={[
+          { value: "human", label: t("inbox.handling_mode_human") },
+          { value: "ai_auto", label: t("inbox.handling_mode_ai_auto") },
+          { value: "ai_copilot", label: t("inbox.handling_mode_ai_copilot") },
+          { value: "ai_paused", label: t("inbox.handling_mode_ai_paused") },
+          { value: "waiting_approval", label: t("inbox.handling_mode_waiting_approval") },
+        ]}
+        comboboxProps={{ withinPortal: true }}
+      />
 
       {channels.length > 0 && (
         <MultiSelect
@@ -514,6 +545,7 @@ export function FilterSummaryChips({
   const t = useT()
   const uiLang = useLanguage()
   const { byId: memberById } = useMembers()
+  const { byId: botById } = useBots()
   const teams = useTeams()
   const channels = useChannels()
   const tags = useTags()
@@ -577,13 +609,25 @@ export function FilterSummaryChips({
       remove: () => onChange({ ...filter, team: undefined }),
     })
   }
+  if (filter.handling_modes && filter.handling_modes.length > 0) {
+    chips.push({
+      key: "handling_modes",
+      label: filter.handling_modes.map((m) => t(`inbox.handling_mode_${m}` as const)).join(" / "),
+      color: filter.handling_modes.length === 1 ? handlingModeColor(filter.handling_modes[0]) : undefined,
+      remove: () => onChange({ ...filter, handling_modes: undefined }),
+    })
+  }
   if (filter.assignee) {
     const label =
       filter.assignee.mode === "me"
         ? t("views.assignee_me")
         : filter.assignee.mode === "unassigned"
           ? t("views.assignee_unassigned")
-          : (memberById.get(filter.assignee.member_id ?? "")?.name ?? "…")
+          : filter.assignee.mode === "bot"
+            ? filter.assignee.bot_id
+              ? (botById.get(filter.assignee.bot_id)?.name ?? t("views.assignee_bot"))
+              : t("views.assignee_bot_any")
+            : (memberById.get(filter.assignee.member_id ?? "")?.name ?? "…")
     chips.push({
       key: "assignee",
       label: `${t("views.assignee")}: ${label}`,

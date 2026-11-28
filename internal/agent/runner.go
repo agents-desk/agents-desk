@@ -3,7 +3,7 @@ package agent
 import (
 	"context"
 	"database/sql"
-	"strings"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/uptrace/bun"
@@ -18,54 +18,34 @@ import (
 // Topic 是时间线有新内容时交给 AI 的下游，在入口中加入会话的 Downstream：时间线每有一项新内容，worker 收到一个任务。
 var Topic = queue.Topic[conversation.Appended]("agent.generate")
 
-// Triggers 报告时间线项是否可能触发 AI 回复：成员发出的、所有人可见的消息。
-// 机器人的消息不触发，避免 AI 之间互相回复；备注、事件和内部聊天之外的项不触发。
+// Triggers 报告时间线项是否可能触发 AI 回复或副驾驶草稿：
+// 外部来信与成员消息均可入队（由 Runner 按会话种类和 handling_mode 进一步精确决策）；
+// 机器人自己的消息与系统事件不触发，避免 AI 之间互相死循环回复。
 func Triggers(it *conversation.Item) bool {
-	return it.Kind == conversation.Message && it.ActorType == conversation.MemberActor && it.Visibility == conversation.Everyone
+	return it.Kind == conversation.Message && it.Visibility == conversation.Everyone &&
+		(it.ActorType.IsExternal() || it.ActorType == conversation.MemberActor)
 }
 
-// GenerateRequest 是一次生成要交给模型的信息：哪个工作区、哪个会话、由哪个机器人回复哪一条消息。
-// 提示词的上下文（最近的对话、知识库）由实现从会话中读取，不放在任务里，避免任务随消息增长。
-type GenerateRequest struct {
-	TenantID       string
-	ConversationID string
-	BotID          string
-	TriggerItemID  string
-}
-
-// Chunk 是模型产出的一段内容：Text 是一段新文字，Usage 是结束时的用量，Err 表示这次生成失败。
-type Chunk struct {
-	Text  string
-	Usage map[string]any
-	Err   error
-}
-
-// Generator 为一个生成产出回复片段，由具体的模型调用实现。
-// 实现返回的频道由调用方读到关闭为止；生成被取消时 ctx 会被取消。
-type Generator interface {
-	Generate(ctx context.Context, req GenerateRequest) (<-chan Chunk, error)
-}
-
-// Runner 消费时间线事件：会话中有启用的机器人参与者时，为成员的新消息开始一次生成，
-// 把片段写进生成并推送，最后定稿为一条时间线消息。没有接入模型实现时不生成任何内容。
+// Runner 消费时间线事件，按会话 handling_mode 决策直接回复或 Copilot 草稿，
+// 执行消息防抖、单活锁控与插话中断策略，并将运行委托给统一的 Service。
 type Runner struct {
-	db        *bun.DB
-	generator Generator
-	open      *Open
-	append    *Append
-	finalize  *Finalize
-	fail      *Fail
+	db     *bun.DB
+	svc    *Service
+	open   *Open
+	cancel *Cancel
 }
 
-// NewRunner 返回 AI 的执行器；down 决定定稿后通知哪些下游，hub 用于推送生成片段，generator 为 nil 时不做任何事。
-func NewRunner(db *bun.DB, down conversation.Downstream, hub *broadcast.Hub, generator Generator) *Runner {
+// NewRunner 返回 AI 的队列执行器；svc 为 nil 时跳过生成。
+func NewRunner(db *bun.DB, _ conversation.Downstream, hub *broadcast.Hub, svc *Service) *Runner {
+	var hook func(ctx context.Context, tenantID, convID string)
+	if svc != nil {
+		hook = svc.CancelRun
+	}
 	return &Runner{
-		db:        db,
-		generator: generator,
-		open:      NewOpen(db),
-		append:    NewAppend(db, hub),
-		finalize:  NewFinalize(db, down, hub),
-		fail:      NewFail(db, hub),
+		db:     db,
+		svc:    svc,
+		open:   NewOpen(db),
+		cancel: NewCancel(db, hub, hook),
 	}
 }
 
@@ -74,10 +54,112 @@ func RegisterJobs(w *queue.Worker, r *Runner) {
 	Topic.Handle(w, r.Job)
 }
 
-// Job 处理时间线的一条新内容：不是成员消息、会话里没有启用的机器人、或者已经处理过这条触发时什么也不做。
-// 模型失败时把生成标记为失败；成员中途取消时安静地停下。
+// triggerDecision 描述某条消息应由哪个启用机器人、按什么模式生成；shouldRun=false 时静默忽略。
+type triggerDecision struct {
+	shouldRun bool
+	bot       Bot
+	mode      Mode
+}
+
+// decideTrigger 根据会话种类、状态、接待控制模式和消息来源精确判断是否触发 AI 生成。
+func (r *Runner) decideTrigger(ctx context.Context, tenantID, convID string, it *conversation.Item) (triggerDecision, error) {
+	var conv struct {
+		Kind         conversation.Kind         `bun:"kind"`
+		Status       conversation.Status       `bun:"status"`
+		HandlingMode conversation.HandlingMode `bun:"handling_mode"`
+		AssigneeType *conversation.ActorType   `bun:"assignee_type"`
+		AssigneeID   *string                   `bun:"assignee_id"`
+	}
+	if err := r.db.NewSelect().Table("conversations").
+		Column("kind", "status", "handling_mode", "assignee_type", "assignee_id").
+		Where("id = ? AND tenant_id = ?", convID, tenantID).
+		Scan(ctx, &conv); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return triggerDecision{}, nil
+		}
+		return triggerDecision{}, errors.Wrap(err, "load conversation for trigger decision")
+	}
+	if conv.Status == conversation.Closed {
+		return triggerDecision{}, nil
+	}
+
+	var mode Mode
+	switch conv.Kind {
+	case conversation.Service:
+		// 服务型会话仅对外部客户可见消息触发；成员回复代表人工介入，绝不回环触发 AI。
+		if !it.ActorType.IsExternal() {
+			return triggerDecision{}, nil
+		}
+		switch conv.HandlingMode {
+		case conversation.HandlingAIAuto, conversation.HandlingWaitingApproval:
+			mode = ModeReply
+		case conversation.HandlingAICopilot:
+			mode = ModeDraft
+		default:
+			return triggerDecision{}, nil
+		}
+	case conversation.Chat:
+		// 内部与 Bot 的聊天仅在成员发送消息时触发直接回复。
+		if it.ActorType != conversation.MemberActor {
+			return triggerDecision{}, nil
+		}
+		mode = ModeReply
+	default:
+		return triggerDecision{}, nil
+	}
+
+	// 优先选择会话当前指派的启用 Bot，否则取参与者或渠道 ai_reception 配置中启用的 Bot。
+	bot, ok, err := r.resolveBot(ctx, tenantID, convID, conv.AssigneeType, conv.AssigneeID)
+	if err != nil || !ok {
+		return triggerDecision{}, err
+	}
+	return triggerDecision{shouldRun: true, bot: bot, mode: mode}, nil
+}
+
+// resolveBot 解析会话应使用的启用机器人。
+func (r *Runner) resolveBot(ctx context.Context, tenantID, convID string, assigneeType *conversation.ActorType, assigneeID *string) (Bot, bool, error) {
+	if assigneeType != nil && *assigneeType == conversation.BotActor && assigneeID != nil && *assigneeID != "" {
+		var b Bot
+		err := r.db.NewSelect().Model(&b).
+			Where("id = ? AND tenant_id = ? AND enabled = true", *assigneeID, tenantID).
+			Scan(ctx)
+		if err == nil {
+			return b, true, nil
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return Bot{}, false, errors.Wrap(err, "load assigned bot")
+		}
+	}
+	var b Bot
+	err := r.db.NewSelect().Model(&b).
+		Join("JOIN conversation_participants AS cp ON cp.participant_id = bot.id::text AND cp.participant_type = ?", conversation.BotActor).
+		Where("cp.conversation_id = ? AND bot.tenant_id = ? AND bot.enabled = true", convID, tenantID).
+		OrderExpr("bot.created_at, bot.id").Limit(1).
+		Scan(ctx)
+	if err == nil {
+		return b, true, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return Bot{}, false, errors.Wrap(err, "find participant bot")
+	}
+	// 兜底查找服务型会话渠道上的 ai_reception 配置机器人
+	err = r.db.NewSelect().Model(&b).
+		Join("JOIN conversations AS c ON c.tenant_id = bot.tenant_id AND c.id = ?", convID).
+		Join("JOIN channels AS ch ON ch.id = COALESCE(c.reply_channel_id, c.channel_id) AND ch.tenant_id = c.tenant_id").
+		Where("bot.tenant_id = ? AND bot.enabled = true AND ch.enabled = true AND ch.archived_at IS NULL AND COALESCE((ch.settings->'ai_reception'->>'enabled')::boolean, false) = true AND ch.settings->'ai_reception'->>'bot_id' = bot.id::text", tenantID).
+		Limit(1).Scan(ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Bot{}, false, nil
+	}
+	if err != nil {
+		return Bot{}, false, errors.Wrap(err, "find channel reception bot")
+	}
+	return b, true, nil
+}
+
+// Job 处理时间线的一条新内容：执行路由判断、消息防抖、单活槽位争夺与插话控制。
 func (r *Runner) Job(ctx context.Context, p conversation.Appended) error {
-	if r.generator == nil {
+	if r.svc == nil || r.svc.runs == nil {
 		return nil
 	}
 	var it conversation.Item
@@ -91,72 +173,120 @@ func (r *Runner) Job(ctx context.Context, p conversation.Appended) error {
 	if !Triggers(&it) {
 		return nil
 	}
-	botID, err := r.botFor(ctx, p.TenantID, p.ConversationID)
-	if err != nil || botID == "" {
+
+	dec, err := r.decideTrigger(ctx, p.TenantID, p.ConversationID, &it)
+	if err != nil || !dec.shouldRun {
 		return err
+	}
+
+	botCfg := dec.bot.Config()
+	if botCfg.DebounceMS > 0 {
+		timer := time.NewTimer(time.Duration(botCfg.DebounceMS) * time.Millisecond)
+		select {
+		case <-timer.C:
+		case <-ctx.Done():
+			timer.Stop()
+			return nil
+		}
+		// 若防抖窗口内已有更新的触发消息进入时间线，让位给更新的任务处理合并上下文。
+		var newerExists bool
+		if err := r.db.NewRaw(`SELECT EXISTS (
+			SELECT 1 FROM timeline_items
+			WHERE tenant_id = ? AND conversation_id = ? AND seq > ? AND kind = ? AND visibility = ? AND actor_type NOT IN (?, ?)
+		)`, p.TenantID, p.ConversationID, it.Seq, conversation.Message, conversation.Everyone, conversation.BotActor, conversation.SystemActor).Scan(ctx, &newerExists); err != nil {
+			return errors.Wrap(err, "check newer debounce item")
+		}
+		if newerExists {
+			return nil
+		}
 	}
 
 	sys := identity.Subject{Type: identity.System, ID: "agent", Tenant: p.TenantID}
 	g, err := r.open.Handle(ctx, sys, OpenParams{
-		ConversationID: p.ConversationID, BotID: botID, TriggerItemID: p.ItemID,
+		ConversationID: p.ConversationID,
+		BotID:          dec.bot.ID,
+		TriggerItemID:  p.ItemID,
+		TriggerSeq:     it.Seq,
+		Mode:           dec.mode,
+		PromptVersion:  botCfg.PromptVersion,
 	})
+	if errors.Is(err, ErrAlreadyActive) {
+		return r.handleActiveConflict(ctx, sys, p, &it, dec, botCfg)
+	}
 	if err != nil {
 		return err
 	}
-	// 同一条触发已经处理过（完成、取消、失败），或者别的 worker 已经接手
 	if g.State != Pending {
 		return nil
 	}
 
-	chunks, err := r.generator.Generate(ctx, GenerateRequest{
-		TenantID: p.TenantID, ConversationID: p.ConversationID, BotID: botID, TriggerItemID: p.ItemID,
-	})
-	if err != nil {
-		return r.fail.Handle(ctx, sys, FailParams{GenerationID: g.ID, Reason: err.Error()})
-	}
-	var text strings.Builder
-	var usage map[string]any
-	for chunk := range chunks {
-		if chunk.Err != nil {
-			if errors.Is(chunk.Err, context.Canceled) || ctx.Err() != nil {
-				return nil
-			}
-			return r.fail.Handle(ctx, sys, FailParams{GenerationID: g.ID, Reason: chunk.Err.Error()})
-		}
-		if chunk.Text != "" {
-			if _, err := r.append.Handle(ctx, sys, AppendParams{GenerationID: g.ID, Delta: chunk.Text}); err != nil {
-				if errors.Is(err, ErrFinished) || ctx.Err() != nil {
-					return nil
-				}
-				return err
-			}
-			text.WriteString(chunk.Text)
-		}
-		if chunk.Usage != nil {
-			usage = chunk.Usage
-		}
-	}
-	if strings.TrimSpace(text.String()) == "" {
-		return r.fail.Handle(ctx, sys, FailParams{GenerationID: g.ID, Reason: "empty reply"})
-	}
-	_, err = r.finalize.Handle(ctx, sys, FinalizeParams{GenerationID: g.ID, Text: text.String(), Usage: usage})
-	if errors.Is(err, ErrFinished) || errors.Is(err, ErrEmptyReply) {
+	run, err := r.svc.runs.Notify(ctx, p.TenantID, p.ConversationID)
+	if errors.Is(err, conversation.ErrNotFound) {
 		return nil
 	}
-	return err
+	if err != nil {
+		return r.svc.fail.Handle(ctx, sys, FailParams{GenerationID: g.ID, Reason: err.Error()})
+	}
+	return r.svc.consumeRun(ctx, g, run)
 }
 
-// botFor 返回会话中第一个启用的机器人参与者；没有时返回空字符串。
-func (r *Runner) botFor(ctx context.Context, tenantID, conversationID string) (string, error) {
-	var id string
-	err := r.db.NewRaw(`SELECT b.id::text
-		FROM conversation_participants cp
-		JOIN conversations c ON c.id = cp.conversation_id AND c.tenant_id = ?
-		JOIN bots b ON b.id::text = cp.participant_id AND b.tenant_id = c.tenant_id
-		WHERE cp.conversation_id = ? AND cp.participant_type = ? AND b.enabled = true
-		ORDER BY b.created_at, b.id LIMIT 1`, tenantID, conversationID, conversation.BotActor).Scan(ctx, &id)
+// handleActiveConflict 在同一会话已有进行中生成时按 BargeInPolicy 处理客户插话。
+func (r *Runner) handleActiveConflict(ctx context.Context, sys identity.Subject, p conversation.Appended, it *conversation.Item, dec triggerDecision, cfg BotSettings) error {
+	var active Generation
+	err := r.db.NewSelect().Model(&active).
+		Where("tenant_id = ? AND conversation_id = ? AND state IN (?)",
+			p.TenantID, p.ConversationID, bun.In([]State{Pending, Streaming, WaitingApproval})).
+		OrderExpr("created_at DESC").Limit(1).Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", nil
+		return nil
 	}
-	return id, errors.Wrap(err, "find conversation bot")
+	if err != nil {
+		return errors.Wrap(err, "load active generation on conflict")
+	}
+
+	// 等待人工工具审批期间，仅通知或等待审批完成，不打断审批状态。
+	if active.State == WaitingApproval || cfg.BargeInPolicy != BargeInCancelRestart {
+		_, notifyErr := r.svc.runs.Notify(ctx, p.TenantID, p.ConversationID)
+		if notifyErr != nil && !errors.Is(notifyErr, ErrFinished) {
+			// 等待审批时 Notify 返回 chat.ErrAwaitingApproval，保留现有状态等待成员审批。
+			return nil
+		}
+		return nil
+	}
+
+	// cancel_restart 策略：取消旧生成并等待底层 Run 结束，再以最新触发重启生成。
+	prevRun, _ := r.svc.runs.Get(ctx, p.TenantID, p.ConversationID)
+	if err := r.cancel.HandleWithReason(ctx, sys, active.ID, "barge_in"); err != nil && !errors.Is(err, ErrFinished) {
+		return err
+	}
+	if prevRun != nil {
+		select {
+		case <-prevRun.Done():
+		case <-ctx.Done():
+			return nil
+		}
+	}
+
+	g, err := r.open.Handle(ctx, sys, OpenParams{
+		ConversationID: p.ConversationID,
+		BotID:          dec.bot.ID,
+		TriggerItemID:  p.ItemID,
+		TriggerSeq:     it.Seq,
+		Mode:           dec.mode,
+		PromptVersion:  cfg.PromptVersion,
+	})
+	if err != nil {
+		if errors.Is(err, ErrAlreadyActive) {
+			return nil
+		}
+		return err
+	}
+	if g.State != Pending {
+		return nil
+	}
+	run, err := r.svc.runs.Notify(ctx, p.TenantID, p.ConversationID)
+	if err != nil {
+		return r.svc.fail.Handle(ctx, sys, FailParams{GenerationID: g.ID, Reason: err.Error()})
+	}
+	return r.svc.consumeRun(ctx, g, run)
 }

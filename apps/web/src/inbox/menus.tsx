@@ -1,12 +1,12 @@
-import type { ConversationDTO } from "@agents-desk/client/tenant"
+import type { ConversationAssignment, ConversationDTO } from "@agents-desk/client/tenant"
 import { ActionIcon, Button, Group, Menu, Modal, Stack, Tooltip } from "@mantine/core"
 import { DateTimePicker } from "@mantine/dates"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { IconChevronDown, IconClock, IconUserPlus } from "@tabler/icons-react"
+import { IconChevronDown, IconClock, IconRobot, IconUserPlus } from "@tabler/icons-react"
 import { inTimeZone, notifyError, useCan, useT, useTimeZone } from "@go-tenon/ui"
 import { type ReactNode, useState } from "react"
 import { kit, tenantApi } from "../api"
-import { useMe, useMembers, useTeams } from "./data"
+import { useBots, useMe, useMembers, useTeams } from "./data"
 
 /** invalidate 让会话分组的查询失效：列表、数量、会话和时间线重新读取。 */
 function useInvalidate() {
@@ -30,10 +30,11 @@ export function AssignMenu({ c, compact, onSuccess }: { c: AssignTarget; compact
   const can = useCan()
   const me = useMe()
   const { list: members } = useMembers()
+  const { list: bots } = useBots()
   const teams = useTeams().filter((x) => x.status === "active")
   const invalidate = useInvalidate()
   const assign = useMutation({
-    mutationFn: (body: { assignee_id?: string; team_id?: string }) => tenantApi.conversation.assign(c.id, body),
+    mutationFn: (body: ConversationAssignment) => tenantApi.conversation.assign(c.id, body),
     onSuccess: () => (onSuccess ? onSuccess() : invalidate()),
     onError: (err) => notifyError(err),
   })
@@ -64,13 +65,28 @@ export function AssignMenu({ c, compact, onSuccess }: { c: AssignTarget; compact
               .map((m) => (
                 <Menu.Item
                   key={m.id}
-                  disabled={c.assignee?.id === m.id}
+                  disabled={c.assignee?.type === "member" && c.assignee?.id === m.id}
                   rightSection={m.status === "online" ? undefined : t("inbox.away")}
-                  onClick={() => assign.mutate({ assignee_id: m.id })}
+                  onClick={() => assign.mutate({ assignee_type: "member", assignee_id: m.id })}
                 >
                   {m.name}
                 </Menu.Item>
               ))}
+            {bots.length > 0 && (
+              <>
+                <Menu.Label>{t("inbox.assign_bots")}</Menu.Label>
+                {bots.map((b) => (
+                  <Menu.Item
+                    key={b.id}
+                    leftSection={<IconRobot size={13} />}
+                    disabled={c.assignee?.type === "bot" && c.assignee?.id === b.id}
+                    onClick={() => assign.mutate({ assignee_type: "bot", assignee_id: b.id })}
+                  >
+                    {b.name}
+                  </Menu.Item>
+                ))}
+              </>
+            )}
             <Menu.Label>{t("inbox.assign_teams")}</Menu.Label>
             {teams.map((team) => (
               <Menu.Item key={team.id} disabled={c.team_id === team.id} onClick={() => assign.mutate({ team_id: team.id })}>

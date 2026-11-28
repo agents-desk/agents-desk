@@ -5,21 +5,105 @@ import { Runtime, type ClientOptions, type Download, type SessionLike, type Stre
 export * from "./errors"
 export { ApiError, isApiError, saveBlob, type ClientOptions, type Download, type SessionLike, type FieldError, type StreamOptions } from "./runtime"
 
-export interface AgentGenerationDTO {
-  /** 产出回复的机器人 */
-  actor: ConversationActor
-  /** 产出片段的序号，客户端用它续上气泡 */
-  checkpoint: number
-  conversation_id: string
+export interface AgentApprovalDecisionInput {
+  /** 拒绝原因（仅拒绝时使用） */
+  reason?: string
+}
+
+export interface AgentBotDTO {
   created_at: string
+  enabled: boolean
   id: string
-  state: AgentGenerationState
-  /** 已产出的文字 */
-  text: string
+  name: string
+  settings: AgentBotSettings
   updated_at: string
 }
 
+export interface AgentBotInput {
+  /** 是否启用；新建时默认 true */
+  enabled?: boolean
+  /** 机器人显示名称 */
+  name: string
+  /** 机器人模型、提示词与工具策略配置 */
+  settings: AgentBotSettings
+}
+
+export interface AgentBotSettings {
+  /** 允许该机器人调用的工具白名单；留空启用默认安全工具集 */
+  allowed_tools?: string[]
+  /** 客户插话策略：notify（默认）或 cancel_restart */
+  barge_in_policy?: string
+  /** 置信度阈值（0-1） */
+  confidence_threshold?: number
+  /** 合并连续输入的消息防抖时间（毫秒） */
+  debounce_ms?: number
+  /** 单轮生成允许的最大工具调用步数 */
+  max_tool_iterations?: number
+  /** 可选覆写模型逻辑名；留空使用平台默认对话模型 */
+  model?: string
+  /** 当前提示词版本标识 */
+  prompt_version?: string
+  /** 调用前必须经人工审批确认的工具列表 */
+  require_approval_tools?: string[]
+  /** 机器人的核心系统提示词 */
+  system_prompt?: string
+  /** 采样温度（0-2） */
+  temperature?: number
+}
+
+export interface AgentCitation {
+  chunk_id: string
+  document_id: string
+  score: number
+  snippet: string
+  title: string
+  visibility: string
+}
+
+export interface AgentGenerationDTO {
+  /** 产出回复的机器人 */
+  actor: ConversationActor
+  cancel_reason?: string
+  /** 产出片段的序号，客户端用它续上气泡 */
+  checkpoint: number
+  citations: AgentCitation[]
+  conversation_id: string
+  created_at: string
+  error?: string
+  id: string
+  mode: AgentGenerationMode
+  pending_approvals: AgentToolApproval[]
+  prompt_version?: string
+  run_id?: string
+  state: AgentGenerationState
+  /** 已产出的文字 */
+  text: string
+  tool_calls: AgentToolCallRecord[]
+  trigger_seq: number
+  updated_at: string
+}
+
+export type AgentGenerationMode = "reply" | "draft"
+
 export type AgentGenerationState = "pending" | "streaming" | "waiting_approval" | "completed" | "failed" | "canceled"
+
+export interface AgentToolApproval {
+  arguments?: string
+  call_id: string
+  name: string
+  reason?: string
+  reviewed_at?: string
+  reviewed_by?: string
+  status: string
+}
+
+export interface AgentToolCallRecord {
+  call_id: string
+  duration_ms: number
+  error?: string
+  name: string
+  result_summary?: string
+}
 
 export interface AttributeCreateParams {
   description?: string
@@ -618,26 +702,30 @@ export interface ConversationAddTagInputBody {
 }
 
 export interface ConversationAssigneeChange {
-  /** mode 为 member 时的目标成员 ID */
+  /** mode 为 member 或 bot 时的目标负责人 ID */
   id?: string
-  /** 变更方式：me 指派给当前成员，member 指定成员，clear 取消负责人 */
+  /** 变更方式：me 指派给当前成员，member 指定成员，bot 指定机器人，clear 取消负责人 */
   mode: ConversationAssigneeChangeMode
 }
 
-export type ConversationAssigneeChangeMode = "me" | "member" | "clear"
+export type ConversationAssigneeChangeMode = "me" | "member" | "bot" | "clear"
 
 export interface ConversationAssigneeFilter {
+  /** mode 为 bot 时可选：限定特定机器人 ID */
+  bot_id?: string
   /** mode 为 member 时必填：成员 ID */
   member_id?: string
-  /** 负责人筛选模式：me（我）、unassigned（无负责人）、member（指定成员） */
+  /** 负责人筛选模式：me（我）、unassigned（无负责人）、member（指定成员）、bot（AI 机器人） */
   mode: ConversationAssigneeFilterMode
 }
 
-export type ConversationAssigneeFilterMode = "me" | "unassigned" | "member"
+export type ConversationAssigneeFilterMode = "me" | "unassigned" | "member" | "bot"
 
 export interface ConversationAssignment {
-  /** 负责人（成员 ID）；空字符串表示没有负责人；不传时，转到别的团队收件箱则清空负责人，否则保持原样 */
+  /** 负责人（成员或机器人 ID）；空字符串表示没有负责人；不传时，转到别的团队收件箱则清空负责人，否则保持原样 */
   assignee_id?: string
+  /** 负责人类型：member（默认）或 bot；清空负责人时可不传 */
+  assignee_type?: ConversationActorType
   /** 团队收件箱的 ID；空字符串表示移出团队收件箱；不传表示保持原样 */
   team_id?: string
 }
@@ -736,8 +824,10 @@ export interface ConversationAutoTranslateRequest {
 }
 
 export interface ConversationBulkAssignInputBody {
-  /** 负责人（成员 ID）；空字符串表示没有负责人；不传时，转到别的团队收件箱则清空负责人，否则保持原样 */
+  /** 负责人（成员或机器人 ID）；空字符串表示没有负责人；不传时，转到别的团队收件箱则清空负责人，否则保持原样 */
   assignee_id?: string
+  /** 负责人类型：member（默认）或 bot；清空负责人时可不传 */
+  assignee_type?: ConversationActorType
   /** 会话的 ID */
   ids: string[]
   /** 团队收件箱的 ID；空字符串表示移出团队收件箱；不传表示保持原样 */
@@ -906,6 +996,8 @@ export interface ConversationDTO {
   /** 对方：外部群（群聊机器人会话） */
   external_group?: ExtgroupSummary
   first_reply_at?: string
+  /** 接待控制模式：human、ai_auto、ai_copilot、ai_paused 或 waiting_approval */
+  handling_mode: ConversationHandlingMode
   id: string
   kind: ConversationKind
   /** 客户的语言：按最近几条确定了语言的消息判断，或者成员手动设置的 */
@@ -979,6 +1071,8 @@ export interface ConversationExportProgress {
 export interface ConversationExportStartInputBody {
   /** 按负责人筛选 */
   assignee_id?: string
+  /** 按负责人类型筛选（member 或 bot） */
+  assignee_type?: ConversationActorType
   /** 按服务对象筛选 */
   audience?: ChannelAudience
   /** 按渠道筛选 */
@@ -987,6 +1081,8 @@ export interface ConversationExportStartInputBody {
   filter?: string
   /** 导出格式，默认 xlsx */
   format?: "xlsx" | "csv"
+  /** 按接待控制模式筛选 */
+  handling_mode?: ConversationHandlingMode
   /** 收件箱分组：mine、mentions、unassigned、all、spam */
   inbox?: ConversationInbox
   /** 按优先级筛选 */
@@ -1002,6 +1098,19 @@ export interface ConversationExportStartInputBody {
 }
 
 export type ConversationFetchStatus = "ready" | "remote" | "pending" | "fetching" | "unavailable"
+
+export type ConversationHandlingMode = "human" | "ai_auto" | "ai_copilot" | "ai_paused" | "waiting_approval"
+
+export interface ConversationHandlingModeBody {
+  /** 启用 AI 模式时绑定的机器人 ID；留空时复用会话已有机器人 */
+  bot_id?: string
+  /** 目标接待控制模式：human、ai_auto、ai_copilot 或 ai_paused */
+  mode: ConversationHandlingMode
+  /** 切换或转交人工的原因标识 */
+  reason?: string
+  /** 切回人工时是否将原本由 AI 负责的会话放回团队轮流分配 */
+  release_to_human?: boolean
+}
 
 export interface ConversationHandoverParams {
   /** 交接完成后是否同时将该成员移出当前工作区 */
@@ -1040,6 +1149,8 @@ export interface ConversationInboxDTO {
   unassigned: ConversationSummary
   /** 已保存视图：共享在前、个人在后，各带实时会话数量与积压情况 */
   views: ConversationViewSummary[]
+  /** 当前等待人工审批 AI 工具调用的打开会话数 */
+  waiting_approval: number
 }
 
 export interface ConversationItemDTO {
@@ -1205,6 +1316,8 @@ export interface ConversationReplyBody {
   external_mentions?: ChannelExternalMention[]
   /** 可选：引用回复同会话内的指定消息 ID */
   reply_to_item_id?: string
+  /** 可选：采纳 AI 副驾驶草稿时关联的生成 ID */
+  source_generation_id?: string
   /** 成员写的文字 */
   text?: string
   /** 发给对方的译文，由翻译的预览给出、成员确认；不带时按原文或 auto_translate 发出 */
@@ -1217,6 +1330,8 @@ export interface ConversationRetryBody {
 }
 
 export interface ConversationRoundDTO {
+  /** 本轮产生的 AI 生成次数 */
+  ai_generation_count: number
   /** 本轮负责人 */
   assignee?: ConversationActor
   /** 本轮关闭的时间，进行中时为空 */
@@ -1229,6 +1344,8 @@ export interface ConversationRoundDTO {
   first_reply_by?: ConversationActor
   /** 本轮首次回复时长（秒），尚未回复时为空 */
   first_reply_seconds?: number
+  /** 本轮最近一次 AI 转交人工原因 */
+  handover_reason?: string
   id: string
   /** 本轮打开或重新打开的时间 */
   opened_at: string
@@ -1236,6 +1353,8 @@ export interface ConversationRoundDTO {
   rating?: ConversationRating
   /** 本轮解决时长（秒），尚未关闭时为空 */
   resolution_seconds?: number
+  /** 本轮解决归因：ai_resolved、ai_assisted 或 human_resolved */
+  resolution_type?: string
   /** 该会话的第几轮服务，从 1 递增 */
   round: number
   /** 本轮归属的团队收件箱 ID */
@@ -1435,6 +1554,8 @@ export interface ConversationViewConfig {
   audience?: ChannelAudience
   /** 渠道 ID（匹配其中任一） */
   channel_ids?: string[]
+  /** 接待控制模式（多选） */
+  handling_modes?: ConversationHandlingMode[]
   /** 客户语言（BCP 47，传主语言时同时匹配子标签） */
   language?: string
   /** 优先级筛选 */
@@ -3344,6 +3465,12 @@ export interface AttributeListInput {
   ticket_type_id?: string
 }
 
+/** bot-list 的参数。 */
+export interface BotListInput {
+  /** 仅筛选启用状态为 true 的机器人 */
+  enabled?: boolean
+}
+
 /** business-channel-list 的参数。 */
 export interface BusinessChannelListInput {
   /** 按渠道类型筛选 */
@@ -3431,8 +3558,12 @@ export interface ConversationListInput {
   team_id?: string
   /** 只列出这个状态的会话；@我 的列表和视图不按它筛选 */
   status?: ConversationStatus
-  /** 只列出负责人是这位成员的会话 */
+  /** 只列出这个类型的负责人会话（member 或 bot） */
+  assignee_type?: ConversationActorType
+  /** 只列出负责人是这位成员或机器人的会话 */
   assignee_id?: string
+  /** 只列出这个接待控制模式的会话 */
+  handling_mode?: ConversationHandlingMode
   /** 只列出来自这个渠道的会话 */
   channel_id?: string
   /** 只列出这个联系人的会话，不按状态筛选，例如详情中的“最近的会话” */
@@ -3467,8 +3598,12 @@ export interface ConversationSearchInput {
   team_id?: string
   /** 可选：只搜索这个状态的会话；留空包含全部状态（打开、稍后处理、已关闭） */
   status?: ConversationStatus
-  /** 可选：只搜索负责人是这位成员的会话 */
+  /** 可选：只搜索这个负责人类型的会话（member 或 bot） */
+  assignee_type?: ConversationActorType
+  /** 可选：只搜索负责人是这位成员或机器人的会话 */
   assignee_id?: string
+  /** 可选：只搜索这个接待控制模式的会话 */
+  handling_mode?: ConversationHandlingMode
   /** 可选：只搜索来自这个渠道的会话 */
   channel_id?: string
   /** 可选：只搜索这个优先级的会话 */
@@ -3901,6 +4036,37 @@ export function createClient(options: ClientOptions) {
       ipList: (): Promise<BlockipBlockedIPDTO[]> =>
         rt.request<BlockipBlockedIPDTO[]>({ method: "GET", path: `/blocked-ips` }),
     },
+    /** operationId 以 bot- 开头的接口。 */
+    bot: {
+      /**
+       * 新建机器人
+       *
+       * POST /bots
+       */
+      create: (body: AgentBotInput): Promise<AgentBotDTO> =>
+        rt.request<AgentBotDTO>({ method: "POST", path: `/bots`, body }),
+      /**
+       * 删除机器人
+       *
+       * DELETE /bots/{id}
+       */
+      delete: (id: string): Promise<void> =>
+        rt.request<void>({ method: "DELETE", path: `/bots/${encodeURIComponent(id)}` }),
+      /**
+       * 机器人列表
+       *
+       * GET /bots
+       */
+      list: (input: BotListInput = {}): Promise<AgentBotDTO[]> =>
+        rt.request<AgentBotDTO[]>({ method: "GET", path: `/bots`, query: { "enabled": input["enabled"] } }),
+      /**
+       * 更新机器人
+       *
+       * PUT /bots/{id}
+       */
+      update: (id: string, body: AgentBotInput): Promise<AgentBotDTO> =>
+        rt.request<AgentBotDTO>({ method: "PUT", path: `/bots/${encodeURIComponent(id)}`, body }),
+    },
     /** operationId 以 business- 开头的接口。 */
     business: {
       /**
@@ -4273,6 +4439,13 @@ export function createClient(options: ClientOptions) {
       get: (id: string): Promise<ConversationDTO> =>
         rt.request<ConversationDTO>({ method: "GET", path: `/conversations/${encodeURIComponent(id)}` }),
       /**
+       * 切换会话接待控制模式
+       *
+       * PUT /conversations/{id}/handling-mode
+       */
+      handlingMode: (id: string, body: ConversationHandlingModeBody): Promise<ConversationDTO> =>
+        rt.request<ConversationDTO>({ method: "PUT", path: `/conversations/${encodeURIComponent(id)}/handling-mode`, body }),
+      /**
        * 收件箱的列表和数量
        *
        * GET /inbox
@@ -4313,7 +4486,7 @@ export function createClient(options: ClientOptions) {
        * GET /conversations
        */
       list: (input: ConversationListInput = {}): Promise<CursorConversationDTO> =>
-        rt.request<CursorConversationDTO>({ method: "GET", path: `/conversations`, query: { "assignee_id": input["assignee_id"], "audience": input["audience"], "channel_id": input["channel_id"], "contact_id": input["contact_id"], "cursor": input["cursor"], "external_group_id": input["external_group_id"], "filter": input["filter"], "inbox": input["inbox"], "per_page": input["per_page"], "priority": input["priority"], "sort": input["sort"], "status": input["status"], "tag_id": input["tag_id"], "team_id": input["team_id"], "view_id": input["view_id"] } }),
+        rt.request<CursorConversationDTO>({ method: "GET", path: `/conversations`, query: { "assignee_id": input["assignee_id"], "assignee_type": input["assignee_type"], "audience": input["audience"], "channel_id": input["channel_id"], "contact_id": input["contact_id"], "cursor": input["cursor"], "external_group_id": input["external_group_id"], "filter": input["filter"], "handling_mode": input["handling_mode"], "inbox": input["inbox"], "per_page": input["per_page"], "priority": input["priority"], "sort": input["sort"], "status": input["status"], "tag_id": input["tag_id"], "team_id": input["team_id"], "view_id": input["view_id"] } }),
       /**
        * 标记为垃圾会话
        *
@@ -4376,7 +4549,7 @@ export function createClient(options: ClientOptions) {
        * GET /conversations/search
        */
       search: (input: ConversationSearchInput = {}): Promise<OffsetConversationSearchHitDTO> =>
-        rt.request<OffsetConversationSearchHitDTO>({ method: "GET", path: `/conversations/search`, query: { "assignee_id": input["assignee_id"], "channel_id": input["channel_id"], "filter": input["filter"], "inbox": input["inbox"], "page": input["page"], "per_page": input["per_page"], "priority": input["priority"], "q": input["q"], "status": input["status"], "tag_id": input["tag_id"], "team_id": input["team_id"], "view_id": input["view_id"] } }),
+        rt.request<OffsetConversationSearchHitDTO>({ method: "GET", path: `/conversations/search`, query: { "assignee_id": input["assignee_id"], "assignee_type": input["assignee_type"], "channel_id": input["channel_id"], "filter": input["filter"], "handling_mode": input["handling_mode"], "inbox": input["inbox"], "page": input["page"], "per_page": input["per_page"], "priority": input["priority"], "q": input["q"], "status": input["status"], "tag_id": input["tag_id"], "team_id": input["team_id"], "view_id": input["view_id"] } }),
       /**
        * 稍后处理
        *
@@ -4436,6 +4609,20 @@ export function createClient(options: ClientOptions) {
     /** operationId 以 generation- 开头的接口。 */
     generation: {
       /**
+       * 批准工具调用
+       *
+       * POST /generations/{id}/approvals/{call_id}/approve
+       */
+      approvalApprove: (id: string, callID: string, body: AgentApprovalDecisionInput): Promise<AgentGenerationDTO> =>
+        rt.request<AgentGenerationDTO>({ method: "POST", path: `/generations/${encodeURIComponent(id)}/approvals/${encodeURIComponent(callID)}/approve`, body }),
+      /**
+       * 拒绝工具调用
+       *
+       * POST /generations/{id}/approvals/{call_id}/reject
+       */
+      approvalReject: (id: string, callID: string, body: AgentApprovalDecisionInput): Promise<AgentGenerationDTO> =>
+        rt.request<AgentGenerationDTO>({ method: "POST", path: `/generations/${encodeURIComponent(id)}/approvals/${encodeURIComponent(callID)}/reject`, body }),
+      /**
        * 取消生成
        *
        * POST /generations/{id}/cancel
@@ -4443,7 +4630,7 @@ export function createClient(options: ClientOptions) {
       cancel: (id: string): Promise<void> =>
         rt.request<void>({ method: "POST", path: `/generations/${encodeURIComponent(id)}/cancel` }),
       /**
-       * 读取进行中的生成
+       * 读取进行中的生成与草稿
        *
        * GET /conversations/{id}/generations
        */

@@ -6,6 +6,14 @@
  * 缺少时先用默认语言，再用取值本身。
  */
 export const enums = {
+  AgentGenerationMode: {
+    prefix: "agent.generation_mode",
+    values: ["reply", "draft"],
+    labels: {
+      "en": { reply: "Direct reply", draft: "Copilot draft" },
+      "zh-CN": { reply: "直接回复", draft: "副驾驶草稿" },
+    },
+  },
   AgentGenerationState: {
     prefix: "agent.generation_state",
     values: ["pending", "streaming", "waiting_approval", "completed", "failed", "canceled"],
@@ -104,18 +112,18 @@ export const enums = {
   },
   ConversationAssigneeChangeMode: {
     prefix: "conversation.assignee_change_mode",
-    values: ["me", "member", "clear"],
+    values: ["me", "member", "bot", "clear"],
     labels: {
-      "en": { me: "Assign to me", member: "Assign to member", clear: "Unassign" },
-      "zh-CN": { me: "指派给我", member: "指派给指定成员", clear: "取消负责人" },
+      "en": { me: "Assign to me", member: "Assign to member", bot: "Assign to bot", clear: "Unassign" },
+      "zh-CN": { me: "指派给我", member: "指派给指定成员", bot: "指派给机器人", clear: "取消负责人" },
     },
   },
   ConversationAssigneeFilterMode: {
     prefix: "conversation.assignee_filter_mode",
-    values: ["me", "unassigned", "member"],
+    values: ["me", "unassigned", "member", "bot"],
     labels: {
-      "en": { me: "Assigned to me", unassigned: "Unassigned", member: "Specific member" },
-      "zh-CN": { me: "负责人是我", unassigned: "无负责人", member: "指定成员" },
+      "en": { me: "Assigned to me", unassigned: "Unassigned", member: "Specific member", bot: "Specific bot" },
+      "zh-CN": { me: "负责人是我", unassigned: "无负责人", member: "指定成员", bot: "指定机器人" },
     },
   },
   ConversationAttachmentKind: {
@@ -156,6 +164,14 @@ export const enums = {
     labels: {
       "en": { ready: "Ready", remote: "Not downloaded", pending: "Queued", fetching: "Downloading", unavailable: "Unavailable" },
       "zh-CN": { ready: "已就绪", remote: "待下载", pending: "等待拉取", fetching: "拉取中", unavailable: "不可用" },
+    },
+  },
+  ConversationHandlingMode: {
+    prefix: "conversation.handling_mode",
+    values: ["human", "ai_auto", "ai_copilot", "ai_paused", "waiting_approval"],
+    labels: {
+      "en": { human: "Human handling", ai_auto: "AI auto-reply", ai_copilot: "AI copilot", ai_paused: "AI paused", waiting_approval: "Awaiting approval" },
+      "zh-CN": { human: "人工接待", ai_auto: "AI 自动接待", ai_copilot: "AI 副驾驶", ai_paused: "AI 已暂停", waiting_approval: "等待工具确认" },
     },
   },
   ConversationInbox: {

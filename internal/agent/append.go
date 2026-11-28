@@ -61,7 +61,7 @@ func (a *Append) Handle(ctx context.Context, sub identity.Subject, p AppendParam
 	}
 	if a.hub != nil {
 		frame := Frame{
-			Type: "delta", GenerationID: g.ID, ConversationID: g.ConversationID,
+			Type: "delta", GenerationID: g.ID, ConversationID: g.ConversationID, Mode: g.Mode,
 			Delta: p.Delta, Checkpoint: g.Checkpoint, State: g.State,
 		}
 		if err := a.hub.PublishJSON(ctx, Channel(g.TenantID, g.ID), frame); err != nil {
