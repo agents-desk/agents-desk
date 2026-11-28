@@ -56,6 +56,7 @@ import { Route as SlugSettingsWorkspaceAuditRouteImport } from './routes/$slug/s
 import { Route as SlugSettingsWorkspaceBlockedIpsRouteImport } from './routes/$slug/settings/_workspace/blocked-ips'
 import { Route as SlugSettingsWorkspaceGeneralRouteImport } from './routes/$slug/settings/_workspace/general'
 import { Route as SlugSettingsWorkspaceMembersRouteImport } from './routes/$slug/settings/_workspace/members'
+import { Route as SlugSettingsWorkspaceOrganizationsRouteImport } from './routes/$slug/settings/_workspace/organizations'
 import { Route as SlugSettingsWorkspaceTagsRouteImport } from './routes/$slug/settings/_workspace/tags'
 import { Route as SlugSettingsWorkspaceTranslationRouteImport } from './routes/$slug/settings/_workspace/translation'
 import { Route as SlugSettingsPersonalBusinessChannelsIndexRouteImport } from './routes/$slug/settings/_personal/business-channels/index'
@@ -321,6 +322,12 @@ const SlugSettingsWorkspaceMembersRoute =
     path: '/members',
     getParentRoute: () => SlugSettingsWorkspaceRoute,
   } as any)
+const SlugSettingsWorkspaceOrganizationsRoute =
+  SlugSettingsWorkspaceOrganizationsRouteImport.update({
+    id: '/organizations',
+    path: '/organizations',
+    getParentRoute: () => SlugSettingsWorkspaceRoute,
+  } as any)
 const SlugSettingsWorkspaceTagsRoute =
   SlugSettingsWorkspaceTagsRouteImport.update({
     id: '/tags',
@@ -465,6 +472,7 @@ export interface FileRoutesByFullPath {
   '/$slug/settings/blocked-ips': typeof SlugSettingsWorkspaceBlockedIpsRoute
   '/$slug/settings/general': typeof SlugSettingsWorkspaceGeneralRoute
   '/$slug/settings/members': typeof SlugSettingsWorkspaceMembersRoute
+  '/$slug/settings/organizations': typeof SlugSettingsWorkspaceOrganizationsRoute
   '/$slug/settings/tags': typeof SlugSettingsWorkspaceTagsRoute
   '/$slug/settings/translation': typeof SlugSettingsWorkspaceTranslationRoute
   '/$slug/inbox/': typeof SlugInboxConversationsIndexRoute
@@ -515,6 +523,7 @@ export interface FileRoutesByTo {
   '/$slug/settings/blocked-ips': typeof SlugSettingsWorkspaceBlockedIpsRoute
   '/$slug/settings/general': typeof SlugSettingsWorkspaceGeneralRoute
   '/$slug/settings/members': typeof SlugSettingsWorkspaceMembersRoute
+  '/$slug/settings/organizations': typeof SlugSettingsWorkspaceOrganizationsRoute
   '/$slug/settings/tags': typeof SlugSettingsWorkspaceTagsRoute
   '/$slug/settings/translation': typeof SlugSettingsWorkspaceTranslationRoute
   '/$slug/inbox/chat': typeof SlugInboxChatIndexRoute
@@ -581,6 +590,7 @@ export interface FileRoutesById {
   '/$slug/settings/_workspace/blocked-ips': typeof SlugSettingsWorkspaceBlockedIpsRoute
   '/$slug/settings/_workspace/general': typeof SlugSettingsWorkspaceGeneralRoute
   '/$slug/settings/_workspace/members': typeof SlugSettingsWorkspaceMembersRoute
+  '/$slug/settings/_workspace/organizations': typeof SlugSettingsWorkspaceOrganizationsRoute
   '/$slug/settings/_workspace/tags': typeof SlugSettingsWorkspaceTagsRoute
   '/$slug/settings/_workspace/translation': typeof SlugSettingsWorkspaceTranslationRoute
   '/$slug/inbox/_conversations/': typeof SlugInboxConversationsIndexRoute
@@ -645,6 +655,7 @@ export interface FileRouteTypes {
     | '/$slug/settings/blocked-ips'
     | '/$slug/settings/general'
     | '/$slug/settings/members'
+    | '/$slug/settings/organizations'
     | '/$slug/settings/tags'
     | '/$slug/settings/translation'
     | '/$slug/inbox/'
@@ -695,6 +706,7 @@ export interface FileRouteTypes {
     | '/$slug/settings/blocked-ips'
     | '/$slug/settings/general'
     | '/$slug/settings/members'
+    | '/$slug/settings/organizations'
     | '/$slug/settings/tags'
     | '/$slug/settings/translation'
     | '/$slug/inbox/chat'
@@ -760,6 +772,7 @@ export interface FileRouteTypes {
     | '/$slug/settings/_workspace/blocked-ips'
     | '/$slug/settings/_workspace/general'
     | '/$slug/settings/_workspace/members'
+    | '/$slug/settings/_workspace/organizations'
     | '/$slug/settings/_workspace/tags'
     | '/$slug/settings/_workspace/translation'
     | '/$slug/inbox/_conversations/'
@@ -1118,6 +1131,13 @@ declare module '@tanstack/react-router' {
       path: '/members'
       fullPath: '/$slug/settings/members'
       preLoaderRoute: typeof SlugSettingsWorkspaceMembersRouteImport
+      parentRoute: typeof SlugSettingsWorkspaceRoute
+    }
+    '/$slug/settings/_workspace/organizations': {
+      id: '/$slug/settings/_workspace/organizations'
+      path: '/organizations'
+      fullPath: '/$slug/settings/organizations'
+      preLoaderRoute: typeof SlugSettingsWorkspaceOrganizationsRouteImport
       parentRoute: typeof SlugSettingsWorkspaceRoute
     }
     '/$slug/settings/_workspace/tags': {
@@ -1504,6 +1524,7 @@ interface SlugSettingsWorkspaceRouteChildren {
   SlugSettingsWorkspaceBlockedIpsRoute: typeof SlugSettingsWorkspaceBlockedIpsRoute
   SlugSettingsWorkspaceGeneralRoute: typeof SlugSettingsWorkspaceGeneralRoute
   SlugSettingsWorkspaceMembersRoute: typeof SlugSettingsWorkspaceMembersRoute
+  SlugSettingsWorkspaceOrganizationsRoute: typeof SlugSettingsWorkspaceOrganizationsRoute
   SlugSettingsWorkspaceTagsRoute: typeof SlugSettingsWorkspaceTagsRoute
   SlugSettingsWorkspaceTranslationRoute: typeof SlugSettingsWorkspaceTranslationRoute
 }
@@ -1513,6 +1534,8 @@ const SlugSettingsWorkspaceRouteChildren: SlugSettingsWorkspaceRouteChildren = {
   SlugSettingsWorkspaceBlockedIpsRoute: SlugSettingsWorkspaceBlockedIpsRoute,
   SlugSettingsWorkspaceGeneralRoute: SlugSettingsWorkspaceGeneralRoute,
   SlugSettingsWorkspaceMembersRoute: SlugSettingsWorkspaceMembersRoute,
+  SlugSettingsWorkspaceOrganizationsRoute:
+    SlugSettingsWorkspaceOrganizationsRoute,
   SlugSettingsWorkspaceTagsRoute: SlugSettingsWorkspaceTagsRoute,
   SlugSettingsWorkspaceTranslationRoute: SlugSettingsWorkspaceTranslationRoute,
 }

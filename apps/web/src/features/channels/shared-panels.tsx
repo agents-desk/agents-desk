@@ -1,5 +1,5 @@
 import type { ExtgroupGroupDTO, ExtgroupStatus } from "@agents-desk/client/tenant"
-import { Badge, Button, Group, Modal, Paper, PasswordInput, SegmentedControl, Stack, Switch, Text, TextInput } from "@mantine/core"
+import { Badge, Button, Group, Modal, Paper, PasswordInput, SegmentedControl, Select, Stack, Switch, Text, TextInput } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { IconPlus, IconSparkles, IconTrash } from "@tabler/icons-react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -279,15 +279,35 @@ export function ExternalGroupsPanel({ audience }: { audience: BotAudience }): Re
   })
   const teamNameById = new Map((teamsQuery.data?.items ?? []).map((tm) => [tm.id, tm.name]))
 
-  const form = useForm<{ name: string; team_id: string | null; status: "pending_setup" | "active"; language: string }>({
-    initialValues: { name: "", team_id: null, status: "active", language: "" },
+  const orgsQuery = useQuery({
+    queryKey: ["organization", "dropdown"],
+    queryFn: () => tenantApi.organization.list({ per_page: 100 }),
   })
+
+  const form = useForm<{
+    name: string
+    team_id: string | null
+    organization_id: string | null
+    status: "pending_setup" | "active"
+    language: string
+  }>({
+    initialValues: { name: "", team_id: null, organization_id: null, status: "active", language: "" },
+  })
+
+  const orgOptions = (() => {
+    const items = (orgsQuery.data?.items ?? []).map((org) => ({ value: org.id, label: org.name }))
+    if (editing?.organization && !items.some((item) => item.value === editing.organization?.id)) {
+      items.unshift({ value: editing.organization.id, label: editing.organization.name })
+    }
+    return items
+  })()
 
   const openEdit = (g: ExtgroupGroupDTO) => {
     setEditing(g)
     form.setValues({
       name: g.name,
       team_id: g.team_id ?? null,
+      organization_id: g.organization_id ?? g.organization?.id ?? null,
       status: g.status === "pending_setup" ? "active" : g.status === "active" ? "active" : "pending_setup",
       language: g.language_manual ? g.language : "",
     })
@@ -299,6 +319,7 @@ export function ExternalGroupsPanel({ audience }: { audience: BotAudience }): Re
       return tenantApi.external.groupUpdate(editing.id, {
         name: v.name.trim() || undefined,
         team_id: v.team_id ?? "",
+        organization_id: v.organization_id ?? "",
         status: v.status,
         language: v.language,
       })
@@ -306,6 +327,7 @@ export function ExternalGroupsPanel({ audience }: { audience: BotAudience }): Re
     onSuccess: () => {
       setEditing(null)
       void queryClient.invalidateQueries({ queryKey: ["external-groups"] })
+      void queryClient.invalidateQueries({ queryKey: ["organization"] })
       notifySuccess(t("common.saved"))
     },
     onError: (err) => notifyError(err),
@@ -376,6 +398,18 @@ export function ExternalGroupsPanel({ audience }: { audience: BotAudience }): Re
               row.team_id ? teamNameById.get(row.team_id) ?? row.team_id : <Text c="dimmed" size="sm">{t("extgroups.team_inherit")}</Text>,
           },
           {
+            accessor: "organization",
+            title: t("extgroups.organization"),
+            render: (row) =>
+              row.organization ? (
+                <Text size="sm">{row.organization.name}</Text>
+              ) : (
+                <Text c="dimmed" size="sm">
+                  {t("extgroups.organization_placeholder")}
+                </Text>
+              ),
+          },
+          {
             accessor: "status",
             title: t("common.status"),
             render: (row) => <StatusDot color={extGroupStatusColor(row.status)}>{kit.label("ExtgroupStatus", row.status)}</StatusDot>,
@@ -421,6 +455,15 @@ export function ExternalGroupsPanel({ audience }: { audience: BotAudience }): Re
               getOption={(row) => ({ value: String(row.id), label: String(row.name ?? "") })}
               value={form.values.team_id}
               onChange={(v) => form.setFieldValue("team_id", v)}
+              clearable
+            />
+            <Select
+              label={t("extgroups.organization")}
+              placeholder={t("extgroups.organization_placeholder")}
+              data={orgOptions}
+              value={form.values.organization_id}
+              onChange={(v) => form.setFieldValue("organization_id", v)}
+              searchable
               clearable
             />
             {editing?.status !== "removed" && (

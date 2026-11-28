@@ -82,8 +82,8 @@ func (a *Incoming) EnsureTicketMeta(ctx context.Context, tenant, ticketID string
 		return nil
 	}
 	res, err := a.translator.TranslateTicketMeta(ctx, tenant, ticketID, tk.Title, tk.Description, source, missing)
-	if errors.Is(err, llm.ErrNotConfigured) {
-		slog.DebugContext(ctx, "translation is not configured, skip ticket meta", "ticket", ticketID)
+	if errors.Is(err, llm.ErrNotConfigured) || errors.Is(err, llm.ErrBudgetExceeded) {
+		slog.WarnContext(ctx, "ticket meta translation skipped", "ticket_id", ticketID, "tenant_id", tenant, "error", err)
 		return nil
 	}
 	if err != nil {
@@ -123,8 +123,8 @@ func (a *Incoming) EnsureContactNotes(ctx context.Context, tenant, contactID str
 		return nil
 	}
 	detected, translations, err := a.translator.TranslateNoteText(ctx, tenant, "contact", contactID, ct.Notes, source, missing)
-	if errors.Is(err, llm.ErrNotConfigured) {
-		slog.DebugContext(ctx, "translation is not configured, skip contact notes", "contact", contactID)
+	if errors.Is(err, llm.ErrNotConfigured) || errors.Is(err, llm.ErrBudgetExceeded) {
+		slog.WarnContext(ctx, "contact notes translation skipped", "contact_id", contactID, "tenant_id", tenant, "error", err)
 		return nil
 	}
 	if err != nil {

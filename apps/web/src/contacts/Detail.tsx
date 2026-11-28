@@ -553,6 +553,17 @@ function PropertiesSection({
   const { list: members } = useMembers()
   const [editingZone, setEditingZone] = useState(false)
   const zones = useMemo(() => allZones().map((z) => ({ value: z, label: `${z} (${offsetOf(z)})` })), [])
+  const orgsQuery = useQuery({
+    queryKey: ["organization", "dropdown"],
+    queryFn: () => tenantApi.organization.list({ per_page: 100 }),
+  })
+  const orgOptions = useMemo(() => {
+    const items = (orgsQuery.data?.items ?? []).map((org) => ({ value: org.id, label: org.name }))
+    if (c.organization && !items.some((item) => item.value === c.organization?.id)) {
+      items.unshift({ value: c.organization.id, label: c.organization.name })
+    }
+    return items
+  }, [orgsQuery.data?.items, c.organization])
   const detected = c.language ? languageName(c.language, ui) : ""
   const localTime = formatLocalTime(c.time_zone)
 
@@ -590,6 +601,25 @@ function PropertiesSection({
           editable={editable}
           onSave={(company) => onUpdate({ company })}
         />
+      </InspectorField>
+      <InspectorField label={t("contacts.organization")} className="ct-field">
+        {editable ? (
+          <Select
+            size="xs"
+            searchable
+            clearable
+            placeholder={t("contacts.organization_placeholder")}
+            data={orgOptions}
+            value={c.organization_id ?? c.organization?.id ?? null}
+            onChange={(v) => {
+              void onUpdate({ organization_id: v ?? "" })
+            }}
+          />
+        ) : (
+          <Text size="sm" c={c.organization ? undefined : "dimmed"}>
+            {c.organization?.name || t("contacts.organization_placeholder")}
+          </Text>
+        )}
       </InspectorField>
 
       <InspectorField label={t("contacts.email")} className="ct-field">

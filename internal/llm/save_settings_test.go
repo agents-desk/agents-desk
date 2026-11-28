@@ -28,7 +28,15 @@ func TestSaveSettings(t *testing.T) {
 
 	cfg := llm.Settings{
 		Gateway: llm.Gateway{BaseURL: "https://gateway.example.com/v1", APIKey: "sk-gateway-secret"},
-		Models:  llm.Models{Translation: "translate-fast"},
+		Models: llm.Models{
+			Chat:        "gpt-4o",
+			FastRouter:  "gpt-4o-mini",
+			Translation: "translate-fast",
+			Embedding:   "text-embedding-3-small",
+			Rerank:      "rerank-v3",
+			Transcribe:  "whisper-1",
+		},
+		DefaultBudget: llm.Budget{DailyCostUSD: 25, MonthlyCostUSD: 300, DailyTotalTokens: 500000},
 	}
 	if err := save.Handle(ctx, apptest.Admin, cfg); err != nil {
 		t.Fatal(err)

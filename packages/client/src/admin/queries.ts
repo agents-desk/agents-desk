@@ -205,6 +205,17 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
         onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
           invalidate(context, "llm"),
       }),
+      /** GET /tenants/{id}/llm-budget */
+      tenantBudgetGet: (...args: Parameters<Client["llm"]["tenantBudgetGet"]>) => ({
+        queryKey: key("llm", "tenantBudgetGet", ...args),
+        queryFn: () => client.llm.tenantBudgetGet(...args),
+      }),
+      /** PUT /tenants/{id}/llm-budget */
+      tenantBudgetSave: () => ({
+        mutationFn: (variables: Parameters<Client["llm"]["tenantBudgetSave"]>) => client.llm.tenantBudgetSave(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "llm"),
+      }),
     },
     mail: {
       /** mail 分组全部查询的 key 前缀。 */

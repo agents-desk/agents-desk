@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
@@ -39,14 +40,15 @@ type JSONRequest struct {
 	NoReasoning bool           // 设为 true 时向网关发送标准 reasoning_effort="none" 关闭思考
 }
 
-// Target 是一次调用的业务归因，写入 llm_calls：工作区、业务场景名（例如 incoming、reply）、
+// Target 是一次调用的业务归因，写入 llm_calls：工作区、生成 ID、业务场景名（例如 incoming、reply）、
 // 结构化元数据，以及关联对象的类型和 ID（例如 timeline_item 和它的 ID）。
 type Target struct {
-	Tenant    string
-	Type      string
-	ID        string
-	Operation string
-	Meta      map[string]any
+	Tenant       string
+	GenerationID string
+	Type         string
+	ID           string
+	Operation    string
+	Meta         map[string]any
 }
 
 // Call 是一次调用记录，对应 llm_calls 表。
@@ -57,6 +59,7 @@ type Call struct {
 	CreatedAt        time.Time      `bun:"created_at,notnull"`
 	UpdatedAt        time.Time      `bun:"updated_at,notnull"`
 	TenantID         *string        `bun:"tenant_id"`
+	GenerationID     *string        `bun:"generation_id"` // 关联的 AI 生成记录 ID；非 Agent 生成调用为空
 	CallType         CallType       `bun:"call_type,notnull"`
 	Operation        string         `bun:"operation,notnull"` // 业务场景名，例如 incoming、fill、reply、back_translate
 	Meta             map[string]any `bun:"meta,type:jsonb,notnull"`
@@ -76,11 +79,12 @@ type Call struct {
 	TargetID         string         `bun:"target_id,notnull"`
 }
 
-// contextKey 是本包在 context 中传递归因、会话 ID 与调用 ID 槽位的私有键。
+// contextKey 是本包在 context 中传递归因、会话 ID、生成 ID 与调用 ID 槽位的私有键。
 type (
-	targetCtxKey  struct{}
-	sessionCtxKey struct{}
-	callIDCtxKey  struct{}
+	targetCtxKey     struct{}
+	sessionCtxKey    struct{}
+	generationCtxKey struct{}
+	callIDCtxKey     struct{}
 )
 
 // WithTarget 返回携带业务归因信息的子上下文，供统一观测传输层写入 llm_calls。
@@ -99,16 +103,32 @@ func SessionFromContext(ctx context.Context) string {
 	return s
 }
 
-// Client 通过 go-tenon/tenon/ai 调用平台设置的统一模型网关，并由统一的 http.RoundTripper 记录每次调用。可以并发使用。
+// WithGeneration 返回携带关联 AI 生成 ID 的子上下文，供统一观测传输层归因记录 llm_calls.generation_id。
+func WithGeneration(ctx context.Context, generationID string) context.Context {
+	return context.WithValue(ctx, generationCtxKey{}, generationID)
+}
+
+// GenerationFromContext 从上下文中取出关联的 AI 生成 ID；未设置时返回空字符串。
+func GenerationFromContext(ctx context.Context) string {
+	s, _ := ctx.Value(generationCtxKey{}).(string)
+	return s
+}
+
+// Client 通过 go-tenon/tenon/ai 调用平台设置的统一模型网关，并由统一的 http.RoundTripper 执行预算熔断与调用记录。可以并发使用。
 type Client struct {
-	db       bun.IDB
-	settings *settings.Group[Settings]
-	http     *http.Client
+	db           bun.IDB
+	settings     *settings.Group[Settings]
+	tenantBudget *settings.Group[TenantBudget]
+	http         *http.Client
 }
 
 // NewClient 返回模型调用客户端；s 是平台的模型网关设置，h 提供基础传输与超时控制（为空时使用默认超时客户端）。
 func NewClient(db bun.IDB, s *settings.Group[Settings], h *http.Client) *Client {
-	return &Client{db: db, settings: s, http: h}
+	var tb *settings.Group[TenantBudget]
+	if db != nil {
+		tb = NewTenantBudgetGroup(db)
+	}
+	return &Client{db: db, settings: s, tenantBudget: tb, http: h}
 }
 
 // Configured 返回调用类型 t 是否已配置（网关地址和该调用类型的逻辑模型名都已填写）。
@@ -120,30 +140,38 @@ func (c *Client) Configured(ctx context.Context, t CallType) (bool, error) {
 	return s.Gateway.BaseURL != "" && s.model(t) != "", nil
 }
 
-// OpenAI 按平台设置为调用类型 t 创建绑定了统一观测传输层的 tenon/ai/openai 客户端。
-// 网关地址或该调用类型的逻辑模型名为空时返回 ErrNotConfigured。
-func (c *Client) OpenAI(ctx context.Context, t CallType) (*openai.Client, error) {
+// ModelConfig 按平台设置为调用类型 t 返回 ai.ModelConfig 与绑定了预算熔断、会话粘性与调用记录的 *http.Client，
+// 供直接构造 openai.New 或 ai/chat.NewModel 使用。未配置时返回 ErrNotConfigured。
+func (c *Client) ModelConfig(ctx context.Context, t CallType) (ai.ModelConfig, *http.Client, error) {
 	s, err := c.settings.Get(ctx)
 	if err != nil {
-		return nil, err
+		return ai.ModelConfig{}, nil, err
 	}
 	modelName := s.model(t)
 	if s.Gateway.BaseURL == "" || modelName == "" {
-		return nil, ErrNotConfigured.New()
+		return ai.ModelConfig{}, nil, ErrNotConfigured.New()
 	}
-	return openai.New(
-		ai.ModelConfig{
-			Model:      modelName,
-			BaseURL:    s.Gateway.BaseURL,
-			APIKey:     s.Gateway.APIKey,
-			MaxRetries: -1, // 多上游故障转移与重试由统一模型网关负责
-		},
-		openai.WithHTTPClient(c.observedHTTPClient(t, s.Gateway.BaseURL, modelName)),
-	), nil
+	cfg := ai.ModelConfig{
+		Model:      modelName,
+		BaseURL:    s.Gateway.BaseURL,
+		APIKey:     s.Gateway.APIKey,
+		MaxRetries: -1, // 多上游故障转移与重试由统一模型网关负责
+	}
+	return cfg, c.observedHTTPClient(t, s.Gateway.BaseURL, modelName), nil
+}
+
+// OpenAI 按平台设置为调用类型 t 创建绑定了预算熔断与统一观测传输层的 tenon/ai/openai 客户端。
+// 网关地址或该调用类型的逻辑模型名为空时返回 ErrNotConfigured。
+func (c *Client) OpenAI(ctx context.Context, t CallType) (*openai.Client, error) {
+	cfg, hc, err := c.ModelConfig(ctx, t)
+	if err != nil {
+		return nil, err
+	}
+	return openai.New(cfg, openai.WithHTTPClient(hc)), nil
 }
 
 // JSON 用调用类型 t 对应的逻辑模型发出标准结构化 JSON 补全请求 req，并将结果解码到 out。
-// 未配置时返回 ErrNotConfigured，调用失败或回答不符合 JSON 格式时返回 ErrFailed。
+// 未配置时返回 ErrNotConfigured，超工作区预算时返回 ErrBudgetExceeded，调用失败或回答不符合 JSON 格式时返回 ErrFailed。
 func (c *Client) JSON(ctx context.Context, t CallType, target Target, req JSONRequest, out any) error {
 	oa, err := c.OpenAI(ctx, t)
 	if err != nil {
@@ -176,8 +204,11 @@ func (c *Client) JSON(ctx context.Context, t CallType, target Target, req JSONRe
 		err = json.Unmarshal(raw, out)
 	}
 	if err != nil {
+		if errors.Is(err, ErrBudgetExceeded) {
+			return ErrBudgetExceeded.New()
+		}
 		// 若传输层已记录成功响应但 JSON 解码失败，将解码错误补充回同一条 llm_calls 记录。
-		if callID != "" {
+		if callID != "" && c.db != nil {
 			_, _ = c.db.NewUpdate().Model((*Call)(nil)).
 				Set("error = ?, updated_at = ?", err.Error(), time.Now().UTC().Truncate(time.Microsecond)).
 				Where("id = ? AND error = ''", callID).
@@ -188,7 +219,7 @@ func (c *Client) JSON(ctx context.Context, t CallType, target Target, req JSONRe
 	return nil
 }
 
-// observedHTTPClient 返回包装了会话粘性头和 ai.ObserveTransport 的 *http.Client，
+// observedHTTPClient 返回包装了预算校验、会话粘性头和 ai.ObserveTransport 的 *http.Client，
 // 保留基础客户端的底层 Transport 与超时策略（不做硬编码超时截断，以支持流式长响应）。
 func (c *Client) observedHTTPClient(t CallType, endpoint, modelName string) *http.Client {
 	base := http.DefaultTransport
@@ -202,7 +233,10 @@ func (c *Client) observedHTTPClient(t CallType, endpoint, modelName string) *htt
 	observed := ai.ObserveTransport(sessionTransport{base: base}, func(ctx context.Context, ev ai.CallEvent) {
 		c.recordCall(ctx, t, endpoint, modelName, ev)
 	}, ai.ObserveOptions{MaxBodyBytes: 4 << 20})
-	return &http.Client{Timeout: timeout, Transport: observed}
+	return &http.Client{
+		Timeout:   timeout,
+		Transport: budgetTransport{client: c, next: observed},
+	}
 }
 
 // sessionTransport 在发出模型请求前把上下文中的网关会话粘性 ID 写入 X-Omirouter-Session 请求头。
@@ -238,6 +272,10 @@ func (c *Client) recordCall(ctx context.Context, callType CallType, endpoint, mo
 	if model == "" {
 		model = ev.Model
 	}
+	genID := target.GenerationID
+	if genID == "" {
+		genID = GenerationFromContext(ctx)
+	}
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	call := &Call{
 		ID:               uuid.Must(uuid.NewV7()).String(),
@@ -261,6 +299,9 @@ func (c *Client) recordCall(ctx context.Context, callType CallType, endpoint, mo
 	}
 	if target.Tenant != "" {
 		call.TenantID = &target.Tenant
+	}
+	if genID != "" {
+		call.GenerationID = &genID
 	}
 	if slot, ok := ctx.Value(callIDCtxKey{}).(*string); ok && slot != nil {
 		*slot = call.ID

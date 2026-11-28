@@ -79,11 +79,26 @@ export const messages = {
     "login.title": "Admin sign-in",
     "model.api_key": "Gateway API key",
     "model.base_url": "Gateway URL",
-    "model.description": "Configure the unified model gateway connection and logical model name for each call type. Leave the gateway URL or model name empty to disable a call type.",
+    "model.budget_daily_cost": "Default daily cost limit (USD)",
+    "model.budget_daily_tokens": "Default daily total token limit",
+    "model.budget_description": "Default per-workspace daily/monthly cost and daily token caps (0 means unlimited). Override per workspace under Workspaces.",
+    "model.budget_monthly_cost": "Default monthly cost limit (USD)",
+    "model.budget_title": "Default workspace circuit breaker",
+    "model.chat_description": "Primary reasoning, knowledge QA, and tool-calling model for bots and agents",
+    "model.chat_label": "AI chat",
+    "model.description": "Configure the unified model gateway connection, logical model names by call type, and default per-workspace budget limits. Leave the gateway URL or a model name empty to disable that call type.",
+    "model.embedding_description": "Encodes knowledge base chunks and search queries into vectors",
+    "model.embedding_label": "Embedding",
+    "model.fast_router_description": "Low-latency model for intent routing and quick classification",
+    "model.fast_router_label": "Fast router",
     "model.gateway_description": "All model capabilities are routed through this OpenAI-compatible gateway (such as OmiRouter). The base URL usually ends with /v1.",
     "model.gateway_title": "Unified Model Gateway",
     "model.model": "Logical model name",
     "model.models_title": "Models by Call Type",
+    "model.rerank_description": "Semantically reranks retrieved knowledge base candidates",
+    "model.rerank_label": "Rerank",
+    "model.transcribe_description": "Transcribes customer voice messages into text",
+    "model.transcribe_label": "Transcribe",
     "model.translation_description": "Translates text between languages and detects the source language and script",
     "model.translation_label": "Translation",
     "nav.admins": "Platform admins",
@@ -162,6 +177,15 @@ export const messages = {
     "tenants.change_owner": "Change owner",
     "tenants.export": "Export workspaces",
     "tenants.impersonate": "Impersonate",
+    "tenants.llm_budget": "Model budget",
+    "tenants.llm_budget_daily_cost": "Daily cost limit (USD)",
+    "tenants.llm_budget_daily_tokens": "Daily total token limit",
+    "tenants.llm_budget_desc": "Leave a field empty to follow the platform default; set 0 for unlimited.",
+    "tenants.llm_budget_effective": "Effective: ${{.daily_cost}}/day · ${{.monthly_cost}}/month · {{.daily_tokens}} tokens/day (0 = unlimited)",
+    "tenants.llm_budget_monthly_cost": "Monthly cost limit (USD)",
+    "tenants.llm_budget_placeholder": "Follow platform default",
+    "tenants.llm_budget_saved": "Workspace model budget updated",
+    "tenants.llm_budget_title": "Model budget for “{{.name}}”",
     "test_account.failed": "Test account sign-in failed. Run go run ./cmd/agents-desk seed first",
     "test_account.sign_in": "Sign in with a test account",
   },
@@ -242,11 +266,26 @@ export const messages = {
     "login.title": "管理员登录",
     "model.api_key": "网关密钥",
     "model.base_url": "网关地址",
-    "model.description": "配置统一的模型网关连接和各业务调用类型使用的逻辑模型名。网关地址或对应模型名留空表示不启用该调用类型。",
+    "model.budget_daily_cost": "默认每日费用上限（USD）",
+    "model.budget_daily_tokens": "默认每日总 Token 上限",
+    "model.budget_description": "为所有工作区设定默认每日/每月费用与每日 token 上限（填 0 表示不限制）。可在「工作区」页面对单个工作区单独覆写。",
+    "model.budget_monthly_cost": "默认每月费用上限（USD）",
+    "model.budget_title": "默认工作区熔断配额",
+    "model.chat_description": "机器人与 Agent 主推理、知识库问答与工具调用模型",
+    "model.chat_label": "AI 对话",
+    "model.description": "配置统一的模型网关连接、各业务调用类型使用的逻辑模型名，以及单工作区默认用量与费用熔断上限。网关地址或对应模型名留空表示不启用该调用类型。",
+    "model.embedding_description": "知识库文档切片与检索查询的向量编码模型",
+    "model.embedding_label": "向量化",
+    "model.fast_router_description": "用于意图分流与快速分类决策的低延迟模型",
+    "model.fast_router_label": "快速路由",
     "model.gateway_description": "所有模型能力统一经此 OpenAI 兼容网关（如 OmiRouter）调用，地址通常以 /v1 结尾。",
     "model.gateway_title": "统一模型网关",
     "model.model": "逻辑模型名",
     "model.models_title": "各调用类型模型",
+    "model.rerank_description": "对检索候选知识分片进行语义重排序的模型",
+    "model.rerank_label": "重排",
+    "model.transcribe_description": "将客户语音消息转写为文本的模型",
+    "model.transcribe_label": "语音识别",
     "model.translation_description": "在不同语言之间互译文本，同时识别原文的语言和书写方式",
     "model.translation_label": "翻译",
     "nav.admins": "平台管理员",
@@ -325,6 +364,15 @@ export const messages = {
     "tenants.change_owner": "更换主管理员",
     "tenants.export": "导出工作区",
     "tenants.impersonate": "代为登录",
+    "tenants.llm_budget": "模型预算",
+    "tenants.llm_budget_daily_cost": "每日费用上限（USD）",
+    "tenants.llm_budget_daily_tokens": "每日总 Token 上限",
+    "tenants.llm_budget_desc": "留空表示跟随平台默认上限；填写 0 表示取消该项限制。",
+    "tenants.llm_budget_effective": "当前生效上限：每日 ${{.daily_cost}} · 每月 ${{.monthly_cost}} · 每日 Token {{.daily_tokens}}（0 为不限）",
+    "tenants.llm_budget_monthly_cost": "每月费用上限（USD）",
+    "tenants.llm_budget_placeholder": "跟随平台默认",
+    "tenants.llm_budget_saved": "工作区模型预算已更新",
+    "tenants.llm_budget_title": "配置“{{.name}}”的模型预算上限",
     "test_account.failed": "测试账号登录失败，先运行 go run ./cmd/agents-desk seed",
     "test_account.sign_in": "用测试账号登录",
   },
@@ -408,11 +456,26 @@ export type MessageId =
   | "login.title"
   | "model.api_key"
   | "model.base_url"
+  | "model.budget_daily_cost"
+  | "model.budget_daily_tokens"
+  | "model.budget_description"
+  | "model.budget_monthly_cost"
+  | "model.budget_title"
+  | "model.chat_description"
+  | "model.chat_label"
   | "model.description"
+  | "model.embedding_description"
+  | "model.embedding_label"
+  | "model.fast_router_description"
+  | "model.fast_router_label"
   | "model.gateway_description"
   | "model.gateway_title"
   | "model.model"
   | "model.models_title"
+  | "model.rerank_description"
+  | "model.rerank_label"
+  | "model.transcribe_description"
+  | "model.transcribe_label"
   | "model.translation_description"
   | "model.translation_label"
   | "nav.admins"
@@ -491,6 +554,15 @@ export type MessageId =
   | "tenants.change_owner"
   | "tenants.export"
   | "tenants.impersonate"
+  | "tenants.llm_budget"
+  | "tenants.llm_budget_daily_cost"
+  | "tenants.llm_budget_daily_tokens"
+  | "tenants.llm_budget_desc"
+  | "tenants.llm_budget_effective"
+  | "tenants.llm_budget_monthly_cost"
+  | "tenants.llm_budget_placeholder"
+  | "tenants.llm_budget_saved"
+  | "tenants.llm_budget_title"
   | "test_account.failed"
   | "test_account.sign_in"
 

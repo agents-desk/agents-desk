@@ -33,13 +33,14 @@ func (Sort) Schema(r huma.Registry) *huma.Schema { return contract.EnumSchema(r,
 // ListInput 是联系人列表的查询条件。
 type ListInput struct {
 	page.CursorParams
-	ViewID    string `query:"view_id" format:"uuid" doc:"应用已保存联系人视图的筛选条件"`
-	Kind      Kind   `query:"kind" doc:"按联系人类型筛选：user 或 lead；不传为全部"`
-	Q         string `query:"q" maxLength:"100" doc:"按名字、邮箱、外部用户编号或工作区内编号（如 #128）搜索"`
-	Language  string `query:"language" maxLength:"35" doc:"按客户的语言（BCP 47）筛选，传主语言时同时匹配带子标签的写法"`
-	ChannelID string `query:"channel_id" format:"uuid" doc:"只列出在该渠道有身份的联系人"`
-	TagID     string `query:"tag_id" format:"uuid" doc:"只列出带有该标签的联系人"`
-	Sort      Sort   `query:"sort" default:"recent" doc:"排序方式"`
+	ViewID         string `query:"view_id" format:"uuid" doc:"应用已保存联系人视图的筛选条件"`
+	Kind           Kind   `query:"kind" doc:"按联系人类型筛选：user 或 lead；不传为全部"`
+	Q              string `query:"q" maxLength:"100" doc:"按名字、邮箱、外部用户编号或工作区内编号（如 #128）搜索"`
+	Language       string `query:"language" maxLength:"35" doc:"按客户的语言（BCP 47）筛选，传主语言时同时匹配带子标签的写法"`
+	ChannelID      string `query:"channel_id" format:"uuid" doc:"只列出在该渠道有身份的联系人"`
+	TagID          string `query:"tag_id" format:"uuid" doc:"只列出带有该标签的联系人"`
+	OrganizationID string `query:"organization_id" format:"uuid" doc:"只列出归属于该客户组织的联系人"`
+	Sort           Sort   `query:"sort" default:"recent" doc:"排序方式"`
 }
 
 // ListOutput 是一页联系人（游标分页）。
@@ -64,11 +65,12 @@ func NewList(db *bun.DB) *List { return &List{db: db} }
 // Handle 返回 sub 所在工作区中 sub 能看到的一页联系人（游标分页），支持按视图、类型、关键词、语言、渠道和标签筛选。
 func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) (*page.Cursor[ContactDTO], error) {
 	f := Filter{
-		Kind:      in.Kind,
-		Q:         in.Q,
-		Language:  in.Language,
-		ChannelID: in.ChannelID,
-		TagID:     in.TagID,
+		Kind:           in.Kind,
+		Q:              in.Q,
+		Language:       in.Language,
+		ChannelID:      in.ChannelID,
+		TagID:          in.TagID,
+		OrganizationID: in.OrganizationID,
 	}
 	sort := in.Sort
 	if in.ViewID != "" {

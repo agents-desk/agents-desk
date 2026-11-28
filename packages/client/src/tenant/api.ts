@@ -322,6 +322,10 @@ export interface ContactDTO {
   notes_untranslated?: boolean
   /** 联系人在工作区内的递增编号，从 1 开始 */
   number: number
+  /** 关联的客户公司/组织概要 */
+  organization?: OrganizationSummary
+  /** 关联的客户公司/组织 ID */
+  organization_id?: string
   /** 首次访问的来源页面 */
   referrer: string
   /** IANA 时区名，用于显示对方的当地时间 */
@@ -374,6 +378,10 @@ export interface ContactDetailDTO {
   notes_untranslated?: boolean
   /** 联系人在工作区内的递增编号，从 1 开始 */
   number: number
+  /** 关联的客户公司/组织概要 */
+  organization?: OrganizationSummary
+  /** 关联的客户公司/组织 ID */
+  organization_id?: string
   /** 首次访问的来源页面 */
   referrer: string
   /** IANA 时区名，用于显示对方的当地时间 */
@@ -459,6 +467,10 @@ export interface ContactSummary {
   name: string
   /** 联系人在工作区内的递增编号，从 1 开始 */
   number: number
+  /** 关联的客户公司/组织概要 */
+  organization?: OrganizationSummary
+  /** 关联的客户公司/组织 ID */
+  organization_id?: string
   /** 联系人上的标签 */
   tags: TagSummary[]
   /** IANA 时区名，用于显示对方的当地时间 */
@@ -497,6 +509,8 @@ export interface ContactUpdateBody {
   name?: string
   /** 成员填写的联系人备注，跨会话持久可见 */
   notes?: string
+  /** 可选：关联的客户公司/组织 ID；传空字符串解除关联 */
+  organization_id?: string
   /** IANA 时区名，例如 Asia/Shanghai；传空字符串清除 */
   time_zone?: string
 }
@@ -508,6 +522,8 @@ export interface ContactViewConfig {
   kind?: ContactKind
   /** 按客户的语言（BCP 47）筛选，传主语言时同时匹配带子标签的写法 */
   language?: string
+  /** 按所属客户组织筛选 */
+  organization_id?: string
   /** 按名字、邮箱、外部用户编号或工作区内编号（如 #128）搜索 */
   q?: string
   /** 默认排序方式：recent 或 created */
@@ -1548,6 +1564,8 @@ export interface ExtgroupGroupDTO {
   language_manual: boolean
   last_active_at?: string
   name: string
+  /** 所属客户公司/组织 */
+  organization?: OrganizationSummary
   organization_id?: string
   status: ExtgroupStatus
   team_id?: string
@@ -1818,6 +1836,14 @@ export interface OffsetMemberTenantMember {
   total: number
 }
 
+export interface OffsetOrganizationDTO {
+  items: OrganizationDTO[]
+  page: number
+  per_page: number
+  /** Total number of items across all pages. */
+  total: number
+}
+
 export interface OffsetReportRatingItem {
   items: ReportRatingItem[]
   page: number
@@ -1872,6 +1898,56 @@ export interface OffsetWidgetDTO {
   per_page: number
   /** Total number of items across all pages. */
   total: number
+}
+
+export interface OrganizationCreateBody {
+  /** 扩展属性 */
+  attributes?: Record<string, unknown>
+  /** 主域名（如 acme.com） */
+  domain?: string
+  /** 业务系统外部客户编号 */
+  external_id?: string
+  /** 组织名称 */
+  name: string
+  /** 组织备注 */
+  notes?: string
+}
+
+export interface OrganizationDTO {
+  attributes: Record<string, unknown>
+  /** 关联的联系人数量 */
+  contact_count: number
+  created_at: string
+  domain: string
+  /** 关联的外部协作群数量 */
+  external_group_count: number
+  external_id: string
+  id: string
+  name: string
+  notes: string
+  updated_at: string
+}
+
+export interface OrganizationSummary {
+  /** 组织主域名 */
+  domain?: string
+  /** 外部客户编号 */
+  external_id?: string
+  id: string
+  name: string
+}
+
+export interface OrganizationUpdateBody {
+  /** 扩展属性（覆盖） */
+  attributes?: Record<string, unknown>
+  /** 主域名 */
+  domain?: string
+  /** 业务系统外部客户编号 */
+  external_id?: string
+  /** 组织名称 */
+  name?: string
+  /** 组织备注 */
+  notes?: string
 }
 
 export interface Part {
@@ -3320,6 +3396,8 @@ export interface ContactListInput {
   channel_id?: string
   /** 只列出带有该标签的联系人 */
   tag_id?: string
+  /** 只列出归属于该客户组织的联系人 */
+  organization_id?: string
   /** 排序方式 */
   sort?: ContactSort
 }
@@ -3403,6 +3481,8 @@ export interface ConversationSearchInput {
 export interface ExternalGroupListInput {
   /** 可选：按渠道筛选 */
   channel_id?: string
+  /** 可选：按所属客户组织筛选 */
+  organization_id?: string
   /** 可选：按所属渠道服务对象筛选（customer、partner 或 internal） */
   audience?: ChannelAudience
   /** 可选：按状态筛选（pending_setup、active、removed） */
@@ -3436,6 +3516,16 @@ export interface MemberListInput {
   name?: string
   /** 只列出这个角色的成员 */
   role_id?: string
+}
+
+/** organization-list 的参数。 */
+export interface OrganizationListInput {
+  /** Page number, starting at 1. */
+  page?: number
+  /** Items per page. */
+  per_page?: number
+  /** 按组织名称、域名或外部客户编号模糊搜索 */
+  q?: string
 }
 
 /** report-business 的参数。 */
@@ -3645,7 +3735,7 @@ export interface TenantAuditListInput {
   /** Items per page. */
   per_page?: number
   /** 按对象类型筛选；为空时返回全部 */
-  target_type?: "" | "tenant" | "member" | "role" | "team" | "channel" | "contact" | "blocked_ip" | "tag" | "attribute" | "ticket_type" | "macro" | "automation_rule" | "external_group" | "settings"
+  target_type?: "" | "tenant" | "member" | "role" | "team" | "channel" | "contact" | "organization" | "blocked_ip" | "tag" | "attribute" | "ticket_type" | "macro" | "automation_rule" | "external_group" | "settings"
 }
 
 /** ticket-list 的参数。 */
@@ -4024,7 +4114,7 @@ export function createClient(options: ClientOptions) {
        * GET /contacts
        */
       list: (input: ContactListInput = {}): Promise<CursorContactDTO> =>
-        rt.request<CursorContactDTO>({ method: "GET", path: `/contacts`, query: { "channel_id": input["channel_id"], "cursor": input["cursor"], "kind": input["kind"], "language": input["language"], "per_page": input["per_page"], "q": input["q"], "sort": input["sort"], "tag_id": input["tag_id"], "view_id": input["view_id"] } }),
+        rt.request<CursorContactDTO>({ method: "GET", path: `/contacts`, query: { "channel_id": input["channel_id"], "cursor": input["cursor"], "kind": input["kind"], "language": input["language"], "organization_id": input["organization_id"], "per_page": input["per_page"], "q": input["q"], "sort": input["sort"], "tag_id": input["tag_id"], "view_id": input["view_id"] } }),
       /**
        * 合并联系人
        *
@@ -4324,7 +4414,7 @@ export function createClient(options: ClientOptions) {
        * GET /external-groups
        */
       groupList: (input: ExternalGroupListInput = {}): Promise<ExtgroupGroupDTO[]> =>
-        rt.request<ExtgroupGroupDTO[]>({ method: "GET", path: `/external-groups`, query: { "audience": input["audience"], "channel_id": input["channel_id"], "status": input["status"] } }),
+        rt.request<ExtgroupGroupDTO[]>({ method: "GET", path: `/external-groups`, query: { "audience": input["audience"], "channel_id": input["channel_id"], "organization_id": input["organization_id"], "status": input["status"] } }),
       /**
        * 更新外部群路由配置
        *
@@ -4508,6 +4598,44 @@ export function createClient(options: ClientOptions) {
        */
       update: (id: string, body: MemberRoleChange): Promise<MemberTenantMember> =>
         rt.request<MemberTenantMember>({ method: "PUT", path: `/members/${encodeURIComponent(id)}`, body }),
+    },
+    /** operationId 以 organization- 开头的接口。 */
+    organization: {
+      /**
+       * 新建客户组织
+       *
+       * POST /organizations
+       */
+      create: (body: OrganizationCreateBody): Promise<OrganizationDTO> =>
+        rt.request<OrganizationDTO>({ method: "POST", path: `/organizations`, body }),
+      /**
+       * 删除客户组织
+       *
+       * DELETE /organizations/{id}
+       */
+      delete: (id: string): Promise<void> =>
+        rt.request<void>({ method: "DELETE", path: `/organizations/${encodeURIComponent(id)}` }),
+      /**
+       * 读取客户组织
+       *
+       * GET /organizations/{id}
+       */
+      get: (id: string): Promise<OrganizationDTO> =>
+        rt.request<OrganizationDTO>({ method: "GET", path: `/organizations/${encodeURIComponent(id)}` }),
+      /**
+       * 客户组织列表
+       *
+       * GET /organizations
+       */
+      list: (input: OrganizationListInput = {}): Promise<OffsetOrganizationDTO> =>
+        rt.request<OffsetOrganizationDTO>({ method: "GET", path: `/organizations`, query: { "page": input["page"], "per_page": input["per_page"], "q": input["q"] } }),
+      /**
+       * 更新客户组织
+       *
+       * PUT /organizations/{id}
+       */
+      update: (id: string, body: OrganizationUpdateBody): Promise<OrganizationDTO> =>
+        rt.request<OrganizationDTO>({ method: "PUT", path: `/organizations/${encodeURIComponent(id)}`, body }),
     },
     /** operationId 以 report- 开头的接口。 */
     report: {

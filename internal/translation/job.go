@@ -257,8 +257,8 @@ func (a *Incoming) Ensure(ctx context.Context, tenant, itemID string, targets []
 	if source != "" {
 		// 已经识别过源语言：只补译缺的语言，不重新识别
 		translations, err := a.translator.Translate(ctx, tenant, it, source, missing)
-		if errors.Is(err, llm.ErrNotConfigured) {
-			slog.DebugContext(ctx, "translation is not configured, skip", "item", it.ID)
+		if errors.Is(err, llm.ErrNotConfigured) || errors.Is(err, llm.ErrBudgetExceeded) {
+			slog.WarnContext(ctx, "translation skipped for message", "item_id", it.ID, "tenant_id", tenant, "error", err)
 			return nil
 		}
 		if err != nil {
@@ -281,8 +281,8 @@ func (a *Incoming) Ensure(ctx context.Context, tenant, itemID string, targets []
 			}
 		}
 		detected, translations, err := a.translator.Incoming(ctx, tenant, it, usual, missing)
-		if errors.Is(err, llm.ErrNotConfigured) {
-			slog.DebugContext(ctx, "translation is not configured, skip", "item", it.ID)
+		if errors.Is(err, llm.ErrNotConfigured) || errors.Is(err, llm.ErrBudgetExceeded) {
+			slog.WarnContext(ctx, "translation skipped for incoming message", "item_id", it.ID, "tenant_id", tenant, "error", err)
 			return nil
 		}
 		if err != nil {

@@ -12,11 +12,12 @@ import (
 
 // Filter 是联系人列表、保存的筛选视图和联系人导出共用的筛选条件。
 type Filter struct {
-	Kind      Kind   `json:"kind,omitempty" doc:"按联系人类型筛选：user 或 lead；为空表示全部"`
-	Q         string `json:"q,omitempty" maxLength:"100" doc:"按名字、邮箱、外部用户编号或工作区内编号（如 #128）搜索"`
-	Language  string `json:"language,omitempty" maxLength:"35" doc:"按客户的语言（BCP 47）筛选，传主语言时同时匹配带子标签的写法"`
-	ChannelID string `json:"channel_id,omitempty" pattern:"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$" doc:"按渠道筛选"`
-	TagID     string `json:"tag_id,omitempty" pattern:"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$" doc:"按标签筛选"`
+	Kind           Kind   `json:"kind,omitempty" doc:"按联系人类型筛选：user 或 lead；为空表示全部"`
+	Q              string `json:"q,omitempty" maxLength:"100" doc:"按名字、邮箱、外部用户编号或工作区内编号（如 #128）搜索"`
+	Language       string `json:"language,omitempty" maxLength:"35" doc:"按客户的语言（BCP 47）筛选，传主语言时同时匹配带子标签的写法"`
+	ChannelID      string `json:"channel_id,omitempty" pattern:"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$" doc:"按渠道筛选"`
+	TagID          string `json:"tag_id,omitempty" pattern:"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$" doc:"按标签筛选"`
+	OrganizationID string `json:"organization_id,omitempty" pattern:"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$" doc:"按所属客户组织筛选"`
 }
 
 // applyFilter 把筛选条件 f 叠加到联系人查询 q 上，q 中联系人表的别名是 contact。
@@ -62,6 +63,9 @@ func applyFilter(q *bun.SelectQuery, f Filter) *bun.SelectQuery {
 			f.TagID,
 		)
 	}
+	if f.OrganizationID != "" {
+		q = q.Where("contact.organization_id = ?", f.OrganizationID)
+	}
 	return q
 }
 
@@ -82,6 +86,9 @@ func mergeFilter(base, override Filter) Filter {
 	}
 	if override.TagID != "" {
 		out.TagID = override.TagID
+	}
+	if override.OrganizationID != "" {
+		out.OrganizationID = override.OrganizationID
 	}
 	return out
 }

@@ -149,6 +149,7 @@ export const messages = {
     "audit.filter_label": "Target type",
     "audit.filter_macro": "Quick replies",
     "audit.filter_member": "Members",
+    "audit.filter_organization": "Organizations",
     "audit.filter_role": "Roles",
     "audit.filter_settings": "Settings",
     "audit.filter_tag": "Tags",
@@ -636,6 +637,8 @@ export const messages = {
     "contacts.notes_hint": "Visible across all conversations",
     "contacts.notes_placeholder": "Record long-term context or preferences, visible across all conversations…",
     "contacts.open_in_inbox": "Open",
+    "contacts.organization": "Organization",
+    "contacts.organization_placeholder": "No organization",
     "contacts.profile": "Profile",
     "contacts.referrer": "Source page",
     "contacts.save_view": "Save filter",
@@ -737,6 +740,8 @@ export const messages = {
     "extgroups.filter_removed": "Removed",
     "extgroups.last_active": "Last active",
     "extgroups.name": "Group name",
+    "extgroups.organization": "Organization",
+    "extgroups.organization_placeholder": "No organization",
     "extgroups.team_inherit": "Inherit channel default team",
     "extgroups.team_label": "Fallback human team inbox",
     "general.address": "Address",
@@ -1190,6 +1195,7 @@ export const messages = {
     "nav.members": "Members",
     "nav.members_roles": "Members \u0026 roles",
     "nav.notifications": "Notifications",
+    "nav.organizations": "Organizations",
     "nav.partner_groups": "Business groups",
     "nav.preferences": "Preferences",
     "nav.reports": "Reports",
@@ -1231,6 +1237,28 @@ export const messages = {
     "notifications_prompt.allow": "Enable notifications",
     "notifications_prompt.dismiss": "Not now",
     "notifications_prompt.text": "Enable browser desktop notifications to get alerted when conversations are assigned or customers reply.",
+    "organizations.add": "New organization",
+    "organizations.contacts_count": "Contacts",
+    "organizations.create_title": "New organization",
+    "organizations.created_done": "Organization created",
+    "organizations.delete": "Delete",
+    "organizations.delete_confirm": "Delete organization",
+    "organizations.delete_message": "Contacts and external groups linked to this organization will be unlinked. Continue?",
+    "organizations.deleted_done": "Organization deleted",
+    "organizations.description": "Manage B2B customer companies and organization records linked to contacts and external groups.",
+    "organizations.domain": "Domain",
+    "organizations.domain_placeholder": "e.g. acme.com",
+    "organizations.edit_title": "Edit organization",
+    "organizations.empty": "No organizations yet",
+    "organizations.external_id": "External ID",
+    "organizations.external_id_placeholder": "CRM or external identifier",
+    "organizations.groups_count": "External groups",
+    "organizations.name": "Name",
+    "organizations.name_placeholder": "e.g. Acme Corp",
+    "organizations.notes": "Notes",
+    "organizations.notes_placeholder": "Account background, tier, or important context",
+    "organizations.search_placeholder": "Search by name, domain, or external ID",
+    "organizations.updated_done": "Organization updated",
     "preferences.follow_browser": "Follow the browser (currently {{.zone}})",
     "preferences.language": "Working \u0026 translation language",
     "preferences.language_hint": "Messages, tickets, and notes in other languages are translated into this language, and back-translations use it",
@@ -2232,6 +2260,7 @@ export const messages = {
     "audit.filter_label": "按对象筛选",
     "audit.filter_macro": "快捷回复",
     "audit.filter_member": "成员",
+    "audit.filter_organization": "客户组织",
     "audit.filter_role": "角色",
     "audit.filter_settings": "排班与设置",
     "audit.filter_tag": "标签",
@@ -2719,6 +2748,8 @@ export const messages = {
     "contacts.notes_hint": "跨会话持久可见",
     "contacts.notes_placeholder": "记录客户背景、偏好等长期信息，所有会话均可见…",
     "contacts.open_in_inbox": "打开",
+    "contacts.organization": "所属组织",
+    "contacts.organization_placeholder": "未关联组织",
     "contacts.profile": "资料",
     "contacts.referrer": "来源页面",
     "contacts.save_view": "保存筛选",
@@ -2820,6 +2851,8 @@ export const messages = {
     "extgroups.filter_removed": "已移出",
     "extgroups.last_active": "最近活跃",
     "extgroups.name": "群名称",
+    "extgroups.organization": "所属组织",
+    "extgroups.organization_placeholder": "未关联组织",
     "extgroups.team_inherit": "继承渠道默认团队",
     "extgroups.team_label": "兜底人工团队收件箱",
     "general.address": "地址",
@@ -3273,6 +3306,7 @@ export const messages = {
     "nav.members": "成员",
     "nav.members_roles": "成员与角色",
     "nav.notifications": "通知",
+    "nav.organizations": "客户组织",
     "nav.partner_groups": "商务群",
     "nav.preferences": "偏好设置",
     "nav.reports": "报表",
@@ -3314,6 +3348,28 @@ export const messages = {
     "notifications_prompt.allow": "立即开启",
     "notifications_prompt.dismiss": "暂不提示",
     "notifications_prompt.text": "允许浏览器桌面通知后，有新会话指派或客户来信时可第一时间提醒你。",
+    "organizations.add": "新建组织",
+    "organizations.contacts_count": "联系人数",
+    "organizations.create_title": "新建客户组织",
+    "organizations.created_done": "客户组织已创建",
+    "organizations.delete": "删除",
+    "organizations.delete_confirm": "删除客户组织",
+    "organizations.delete_message": "删除后将解除该组织与联系人及外部群的关联，确定继续吗？",
+    "organizations.deleted_done": "客户组织已删除",
+    "organizations.description": "集中管理 B2B 客户公司与组织档案，用于关联联系人与外部群。",
+    "organizations.domain": "域名",
+    "organizations.domain_placeholder": "例如：example.com",
+    "organizations.edit_title": "编辑客户组织",
+    "organizations.empty": "暂无客户组织",
+    "organizations.external_id": "外部编号",
+    "organizations.external_id_placeholder": "CRM 或内部系统编号",
+    "organizations.groups_count": "外部群数",
+    "organizations.name": "组织名称",
+    "organizations.name_placeholder": "例如：星辰科技有限公司",
+    "organizations.notes": "备注",
+    "organizations.notes_placeholder": "补充背景、合同等级或注意事项",
+    "organizations.search_placeholder": "搜索名称、域名或外部编号",
+    "organizations.updated_done": "客户组织已更新",
     "preferences.follow_browser": "跟随浏览器（当前是 {{.zone}}）",
     "preferences.language": "沟通与译文语言",
     "preferences.language_hint": "跨语言消息、工单和备注默认翻译成这种语言呈现，回复校对时的回译也使用这种语言",
@@ -4318,6 +4374,7 @@ export type MessageId =
   | "audit.filter_label"
   | "audit.filter_macro"
   | "audit.filter_member"
+  | "audit.filter_organization"
   | "audit.filter_role"
   | "audit.filter_settings"
   | "audit.filter_tag"
@@ -4805,6 +4862,8 @@ export type MessageId =
   | "contacts.notes_hint"
   | "contacts.notes_placeholder"
   | "contacts.open_in_inbox"
+  | "contacts.organization"
+  | "contacts.organization_placeholder"
   | "contacts.profile"
   | "contacts.referrer"
   | "contacts.save_view"
@@ -4906,6 +4965,8 @@ export type MessageId =
   | "extgroups.filter_removed"
   | "extgroups.last_active"
   | "extgroups.name"
+  | "extgroups.organization"
+  | "extgroups.organization_placeholder"
   | "extgroups.team_inherit"
   | "extgroups.team_label"
   | "general.address"
@@ -5359,6 +5420,7 @@ export type MessageId =
   | "nav.members"
   | "nav.members_roles"
   | "nav.notifications"
+  | "nav.organizations"
   | "nav.partner_groups"
   | "nav.preferences"
   | "nav.reports"
@@ -5400,6 +5462,28 @@ export type MessageId =
   | "notifications_prompt.allow"
   | "notifications_prompt.dismiss"
   | "notifications_prompt.text"
+  | "organizations.add"
+  | "organizations.contacts_count"
+  | "organizations.create_title"
+  | "organizations.created_done"
+  | "organizations.delete"
+  | "organizations.delete_confirm"
+  | "organizations.delete_message"
+  | "organizations.deleted_done"
+  | "organizations.description"
+  | "organizations.domain"
+  | "organizations.domain_placeholder"
+  | "organizations.edit_title"
+  | "organizations.empty"
+  | "organizations.external_id"
+  | "organizations.external_id_placeholder"
+  | "organizations.groups_count"
+  | "organizations.name"
+  | "organizations.name_placeholder"
+  | "organizations.notes"
+  | "organizations.notes_placeholder"
+  | "organizations.search_placeholder"
+  | "organizations.updated_done"
   | "preferences.follow_browser"
   | "preferences.language"
   | "preferences.language_hint"

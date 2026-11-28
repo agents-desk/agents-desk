@@ -21,6 +21,7 @@ import (
 
 	"agents-desk/internal/attribute"
 	"agents-desk/internal/lang"
+	"agents-desk/internal/organization"
 	"agents-desk/internal/tag"
 )
 
@@ -74,7 +75,8 @@ type Contact struct {
 	TenantID       string         `bun:"tenant_id,notnull"`
 	Number         int64          `bun:"number,notnull"` // 联系人在工作区内的递增编号，从 1 开始，创建后不变
 	Kind           Kind           `bun:"kind,notnull"`
-	MemberID       *string        `bun:"member_id"` // 可选：内部联系人关联的工作区成员 ID
+	MemberID       *string        `bun:"member_id"`       // 可选：内部联系人关联的工作区成员 ID
+	OrganizationID *string        `bun:"organization_id"` // 可选：关联的客户公司/组织 ID
 	Name           string         `bun:"name,notnull"`
 	Company        string         `bun:"company,notnull"` // 联系人所属公司或组织名称
 	Email          string         `bun:"email,notnull"`
@@ -94,21 +96,23 @@ type Contact struct {
 
 // Summary 是接口中联系人的概要，显示在会话中和聊天插件的会话响应里，包含可向客户展示的字段。
 type Summary struct {
-	ID             string         `json:"id"`
-	Number         int64          `json:"number" doc:"联系人在工作区内的递增编号，从 1 开始"`
-	Kind           Kind           `json:"kind"`
-	MemberID       *string        `json:"member_id,omitempty" doc:"内部联系人关联的工作区成员 ID"`
-	Name           string         `json:"name"`
-	Company        string         `json:"company,omitempty" doc:"所属公司或组织名称"`
-	Email          string         `json:"email"`
-	Language       string         `json:"language" doc:"对方的语言：按最近几条确定了语言的消息判断，或者成员手动设置的；还没有时为空"`
-	LanguageManual bool           `json:"language_manual" doc:"对方的语言是成员手动设置的：收到的消息不再改它"`
-	Location       string         `json:"location,omitempty" doc:"所在地"`
-	TimeZone       string         `json:"time_zone,omitempty" doc:"IANA 时区名，用于显示对方的当地时间"`
-	BlockedAt      *time.Time     `json:"blocked_at,omitempty" doc:"拉黑时间；非空表示已拉黑"`
-	BlockedReason  string         `json:"blocked_reason,omitempty" doc:"拉黑原因说明"`
-	Tags           []tag.Summary  `json:"tags" doc:"联系人上的标签"`
-	Attributes     map[string]any `json:"attributes" doc:"联系人的自定义属性"`
+	ID             string                `json:"id"`
+	Number         int64                 `json:"number" doc:"联系人在工作区内的递增编号，从 1 开始"`
+	Kind           Kind                  `json:"kind"`
+	MemberID       *string               `json:"member_id,omitempty" doc:"内部联系人关联的工作区成员 ID"`
+	OrganizationID *string               `json:"organization_id,omitempty" doc:"关联的客户公司/组织 ID"`
+	Organization   *organization.Summary `json:"organization,omitempty" doc:"关联的客户公司/组织概要"`
+	Name           string                `json:"name"`
+	Company        string                `json:"company,omitempty" doc:"所属公司或组织名称"`
+	Email          string                `json:"email"`
+	Language       string                `json:"language" doc:"对方的语言：按最近几条确定了语言的消息判断，或者成员手动设置的；还没有时为空"`
+	LanguageManual bool                  `json:"language_manual" doc:"对方的语言是成员手动设置的：收到的消息不再改它"`
+	Location       string                `json:"location,omitempty" doc:"所在地"`
+	TimeZone       string                `json:"time_zone,omitempty" doc:"IANA 时区名，用于显示对方的当地时间"`
+	BlockedAt      *time.Time            `json:"blocked_at,omitempty" doc:"拉黑时间；非空表示已拉黑"`
+	BlockedReason  string                `json:"blocked_reason,omitempty" doc:"拉黑原因说明"`
+	Tags           []tag.Summary         `json:"tags" doc:"联系人上的标签"`
+	Attributes     map[string]any        `json:"attributes" doc:"联系人的自定义属性"`
 }
 
 // Summary 返回联系人 c 的概要。
@@ -118,7 +122,7 @@ func (c *Contact) Summary() Summary {
 		attrs = map[string]any{}
 	}
 	return Summary{
-		ID: c.ID, Number: c.Number, Kind: c.Kind, MemberID: c.MemberID, Name: c.Name, Company: c.Company, Email: c.Email,
+		ID: c.ID, Number: c.Number, Kind: c.Kind, MemberID: c.MemberID, OrganizationID: c.OrganizationID, Name: c.Name, Company: c.Company, Email: c.Email,
 		Language: c.Language, LanguageManual: c.LanguageManual,
 		Location: c.Location, TimeZone: c.TimeZone,
 		BlockedAt: c.BlockedAt, BlockedReason: c.BlockedReason,
