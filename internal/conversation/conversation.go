@@ -68,6 +68,40 @@ var (
 	ErrChatOwnerProtected = errorx.Define(errorx.Conflict, "chat.owner_protected")
 	// ErrChatContactProtected 是不能移出外部联系人参与者。
 	ErrChatContactProtected = errorx.Define(errorx.Conflict, "chat.contact_protected")
+	// ErrAssigneeBotNotFound 是指派或启用接待的机器人不存在、已停用，或属于别的工作区。
+	ErrAssigneeBotNotFound = errorx.Define(errorx.NotFound, "conversation.assignee_bot_not_found")
+	// ErrInvalidHandlingMode 是接待控制模式取值不合法或当前角色不可切换为该状态。
+	ErrInvalidHandlingMode = errorx.Define(errorx.InvalidArgument, "conversation.invalid_handling_mode")
+	// ErrGenerationNotFound 是关联的 AI 草稿生成不存在或不属于当前会话。
+	ErrGenerationNotFound = errorx.Define(errorx.NotFound, "conversation.generation_not_found")
+)
+
+// HandlingMode 是服务型会话当前的接待控制模式：区分人工接待、AI 自动接待、AI 副驾驶、人工暂停和等待工具审批。
+type HandlingMode string
+
+const (
+	HandlingHuman           HandlingMode = "human"            // 人工接待
+	HandlingAIAuto          HandlingMode = "ai_auto"          // AI 自动接待并直接回复客户
+	HandlingAICopilot       HandlingMode = "ai_copilot"       // AI 副驾驶：生成草稿供人工参考采纳
+	HandlingAIPaused        HandlingMode = "ai_paused"        // 人工介入后暂停 AI 自动回复
+	HandlingWaitingApproval HandlingMode = "waiting_approval" // AI 调用敏感工具等待成员审批
+)
+
+// HandlingModes 是全部接待控制模式，显示文字是翻译文件中 conversation.handling_mode.<模式> 的消息。
+var HandlingModes = enum.New("conversation.handling_mode",
+	enum.Item(HandlingHuman), enum.Item(HandlingAIAuto), enum.Item(HandlingAICopilot),
+	enum.Item(HandlingAIPaused), enum.Item(HandlingWaitingApproval))
+
+// Schema 让 OpenAPI 中的 HandlingMode 只接受上面的取值，并带有显示文字。
+func (HandlingMode) Schema(r huma.Registry) *huma.Schema {
+	return contract.EnumSchema(r, HandlingModes)
+}
+
+// ResolutionType 是单轮服务关闭时的解决归因口径。
+const (
+	ResolutionAIResolved    = "ai_resolved"    // 纯 AI 自动回复解决
+	ResolutionAIAssisted    = "ai_assisted"    // AI 参与生成或副驾驶辅助、最终由人工参与完成
+	ResolutionHumanResolved = "human_resolved" // 纯人工解决
 )
 
 // Kind 是会话的种类。
@@ -210,24 +244,25 @@ type Conversation struct {
 	database.Timestamps
 	TenantID          string           `bun:"tenant_id,notnull"`
 	Kind              Kind             `bun:"kind,notnull"`
-	Audience          channel.Audience `bun:"audience,notnull,default:'customer'"` // 服务对象域：customer、partner 或 internal
-	ChannelID         *string          `bun:"channel_id"`                          // 来源渠道 ID（会话最初发起的渠道）
-	ReplyChannelID    *string          `bun:"reply_channel_id"`                    // 当前默认回复渠道 ID（随对方最新消息或坐席显式切换更新）
-	ContactID         *string          `bun:"contact_id"`                          // 单聊对端联系人 ID（与 ExternalGroupID 互斥）
-	ExternalGroupID   *string          `bun:"external_group_id"`                   // 群内 @ 机器人对端外部群 ID（与 ContactID 互斥）
-	TeamID            *string          `bun:"team_id"`                             // 团队收件箱；为空表示未指派到团队
-	AssigneeType      ActorType        `bun:"assignee_type,notnull"`               // 负责人的类型；为空表示没有负责人
-	AssigneeID        string           `bun:"assignee_id,notnull"`                 // 负责人的编号
-	Status            Status           `bun:"status,notnull"`                      // 服务型会话的状态
-	SnoozedUntil      *time.Time       `bun:"snoozed_until"`                       // 稍后处理的到期时间
-	Priority          Priority         `bun:"priority,notnull"`                    // 优先级
-	Language          string           `bun:"language,notnull"`                    // 客户的语言，见 CustomerLanguage
-	WaitingSince      *time.Time       `bun:"waiting_since"`                       // 对方的消息开始等待回复的时间；已回复时为空
-	OpenedAt          time.Time        `bun:"opened_at,notnull"`                   // 当前这一轮（新建或重新打开）的开始时间
-	FirstReplyAt      *time.Time       `bun:"first_reply_at"`                      // 当前这一轮第一次回复的时间；重开后清空
-	ClosedAt          *time.Time       `bun:"closed_at"`                           // 最近一次关闭的时间
-	LastMessageAt     time.Time        `bun:"last_message_at,notnull"`             // 最近一条消息的时间
-	LastSeq           int64            `bun:"last_seq,notnull"`                    // 时间线中最新一项的序号
+	Audience          channel.Audience `bun:"audience,notnull,default:'customer'"`   // 服务对象域：customer、partner 或 internal
+	ChannelID         *string          `bun:"channel_id"`                            // 来源渠道 ID（会话最初发起的渠道）
+	ReplyChannelID    *string          `bun:"reply_channel_id"`                      // 当前默认回复渠道 ID（随对方最新消息或坐席显式切换更新）
+	ContactID         *string          `bun:"contact_id"`                            // 单聊对端联系人 ID（与 ExternalGroupID 互斥）
+	ExternalGroupID   *string          `bun:"external_group_id"`                     // 群内 @ 机器人对端外部群 ID（与 ContactID 互斥）
+	TeamID            *string          `bun:"team_id"`                               // 团队收件箱；为空表示未指派到团队
+	AssigneeType      ActorType        `bun:"assignee_type,notnull"`                 // 负责人的类型；为空表示没有负责人
+	AssigneeID        string           `bun:"assignee_id,notnull"`                   // 负责人的编号
+	HandlingMode      HandlingMode     `bun:"handling_mode,notnull,default:'human'"` // 接待控制模式
+	Status            Status           `bun:"status,notnull"`                        // 服务型会话的状态
+	SnoozedUntil      *time.Time       `bun:"snoozed_until"`                         // 稍后处理的到期时间
+	Priority          Priority         `bun:"priority,notnull"`                      // 优先级
+	Language          string           `bun:"language,notnull"`                      // 客户的语言，见 CustomerLanguage
+	WaitingSince      *time.Time       `bun:"waiting_since"`                         // 对方的消息开始等待回复的时间；已回复时为空
+	OpenedAt          time.Time        `bun:"opened_at,notnull"`                     // 当前这一轮（新建或重新打开）的开始时间
+	FirstReplyAt      *time.Time       `bun:"first_reply_at"`                        // 当前这一轮第一次回复的时间；重开后清空
+	ClosedAt          *time.Time       `bun:"closed_at"`                             // 最近一次关闭的时间
+	LastMessageAt     time.Time        `bun:"last_message_at,notnull"`               // 最近一条消息的时间
+	LastSeq           int64            `bun:"last_seq,notnull"`                      // 时间线中最新一项的序号
 	Attributes        map[string]any   `bun:"attributes,type:jsonb,notnull"`
 	Rating            *int             `bun:"rating"`                 // 客户最近一次评价的星数，1 到 5；没有评价过时为空
 	RatingComment     string           `bun:"rating_comment,notnull"` // 评价时附的一句意见
@@ -328,6 +363,8 @@ type Item struct {
 	ChannelID      *string        `bun:"channel_id"`                 // 来自或发往的渠道
 	ExternalID     *string        `bun:"external_id"`                // 渠道中的消息编号，用来去重
 	ReplyToItemID  *string        `bun:"reply_to_item_id"`           // 可选：引用回复的同会话时间线项 ID
+	AfterSeq       *int64         `bun:"after_seq"`                  // 可选：AI 基于历史生成时的逻辑排序锚点序号
+	GenerationID   *string        `bun:"generation_id"`              // 可选：产出或作为来源草稿的 AI 生成 ID
 }
 
 // Delivery 是一条消息的送达状态。
@@ -347,22 +384,25 @@ type Round struct {
 
 	ID string `bun:"id,pk"`
 	database.Timestamps
-	TenantID         string     `bun:"tenant_id,notnull"`
-	ConversationID   string     `bun:"conversation_id,notnull"`
-	Round            int        `bun:"round,notnull"`
-	TeamID           *string    `bun:"team_id"`
-	AssigneeType     ActorType  `bun:"assignee_type,notnull"`
-	AssigneeID       string     `bun:"assignee_id,notnull"`
-	ClosedByType     ActorType  `bun:"closed_by_type,notnull"`
-	ClosedByID       string     `bun:"closed_by_id,notnull"`
-	OpenedAt         time.Time  `bun:"opened_at,notnull"`
-	FirstReplyAt     *time.Time `bun:"first_reply_at"`
-	FirstReplyByType ActorType  `bun:"first_reply_by_type,notnull"`
-	FirstReplyByID   string     `bun:"first_reply_by_id,notnull"`
-	ClosedAt         *time.Time `bun:"closed_at"`
-	Rating           *int       `bun:"rating"`
-	RatingComment    string     `bun:"rating_comment,notnull"`
-	RatedAt          *time.Time `bun:"rated_at"`
+	TenantID          string     `bun:"tenant_id,notnull"`
+	ConversationID    string     `bun:"conversation_id,notnull"`
+	Round             int        `bun:"round,notnull"`
+	TeamID            *string    `bun:"team_id"`
+	AssigneeType      ActorType  `bun:"assignee_type,notnull"`
+	AssigneeID        string     `bun:"assignee_id,notnull"`
+	ClosedByType      ActorType  `bun:"closed_by_type,notnull"`
+	ClosedByID        string     `bun:"closed_by_id,notnull"`
+	OpenedAt          time.Time  `bun:"opened_at,notnull"`
+	FirstReplyAt      *time.Time `bun:"first_reply_at"`
+	FirstReplyByType  ActorType  `bun:"first_reply_by_type,notnull"`
+	FirstReplyByID    string     `bun:"first_reply_by_id,notnull"`
+	ClosedAt          *time.Time `bun:"closed_at"`
+	Rating            *int       `bun:"rating"`
+	RatingComment     string     `bun:"rating_comment,notnull"`
+	RatedAt           *time.Time `bun:"rated_at"`
+	ResolutionType    string     `bun:"resolution_type,notnull"`
+	HandoverReason    string     `bun:"handover_reason,notnull"`
+	AIGenerationCount int        `bun:"ai_generation_count,notnull"`
 }
 
 // openRound 在事务 tx 中为服务型会话 c 创建新的一轮服务记录，轮次号从 1 递增。
@@ -458,6 +498,10 @@ type Downstream struct {
 	OnDeadAlert func(ctx context.Context, topic string, cause error)
 	// Registry 可选：供内核读取连接器能力（如哪些渠道使用浏览器实时频道），未设置时默认回退到内置实时渠道集。
 	Registry channel.Registry
+	// InboundRouter 可选：决定新建服务型会话的默认团队、负责人与 AI 接待模式；未设置时使用 DefaultInboundRouter。
+	InboundRouter InboundRouter
+	// OnGenerationCanceled 可选：会话因接管、关闭或切回人工取消活跃生成后，在提交后通知底层 AI 运行时立即中断执行。
+	OnGenerationCanceled func(ctx context.Context, tenantID, conversationID string)
 }
 
 // realtimeHubKinds 返回使用浏览器实时频道（TransportRealtimeHub）的渠道种类集合，解耦会话内核与具体渠道实现。

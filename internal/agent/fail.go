@@ -10,12 +10,18 @@ import (
 	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/identity"
+
+	"agents-desk/internal/conversation"
 )
 
 // FailParams 是标记一次生成失败的参数。
 type FailParams struct {
-	GenerationID string
-	Reason       string // 失败原因，写入 generations.error，便于排障
+	GenerationID   string
+	Reason         string                  // 失败原因，写入 generations.error，便于排障
+	ToolCalls      []ToolCallRecord        // 失败前已执行工具调用审计
+	Citations      []Citation              // 失败前已检索引用
+	Down           conversation.Downstream // 非空 HandoverReason 时同事务暂停 AI
+	HandoverReason string                  // 例如 budget_exceeded 时同步切为 ai_paused 并释放 Bot
 }
 
 // Fail 把进行中的生成标记为失败：不产生消息，已产出的内容留在 generations 里供排查。
@@ -50,13 +56,24 @@ func (a *Fail) Handle(ctx context.Context, sub identity.Subject, p FailParams) e
 		g.State = Failed
 		g.Error = p.Reason
 		g.UpdatedAt = now()
-		if _, err := tx.NewUpdate().Model(&g).Column("state", "error", "updated_at").WherePK().Exec(ctx); err != nil {
+		if p.ToolCalls != nil {
+			g.ToolCalls = p.ToolCalls
+		}
+		if p.Citations != nil {
+			g.Citations = p.Citations
+		}
+		if _, err := tx.NewUpdate().Model(&g).Column("state", "error", "tool_calls", "citations", "updated_at").WherePK().Exec(ctx); err != nil {
 			return errors.Wrap(err, "fail generation")
+		}
+		if p.HandoverReason != "" {
+			if err := conversation.SetHandlingModeInTx(ctx, tx, p.Down, g.TenantID, g.ConversationID, conversation.HandlingAIPaused, p.HandoverReason, true); err != nil {
+				return err
+			}
 		}
 		if a.hub != nil {
 			hub, frame := a.hub, Frame{
-				Type: "failed", GenerationID: g.ID, ConversationID: g.ConversationID,
-				Checkpoint: g.Checkpoint, State: g.State,
+				Type: "failed", GenerationID: g.ID, ConversationID: g.ConversationID, Mode: g.Mode,
+				Checkpoint: g.Checkpoint, State: g.State, Error: g.Error,
 			}
 			tx.AfterCommit(func(ctx context.Context) error {
 				return errors.Wrap(hub.PublishJSON(ctx, Channel(g.TenantID, g.ID), frame), "publish generation failed")

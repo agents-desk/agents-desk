@@ -511,6 +511,11 @@ activity.translation_settings.updated: "更新了工作区翻译设置（{{.part
 activity.assignment_settings.updated: "更新了自动指派与会话超时治理设置"
 activity.automation.updated: "更新了自动化规则开关（{{.builtin_key}}）"
 activity.conversation.merged: "合并了历史会话"
+activity.bot.created: "创建了 AI 机器人「{{.name}}」"
+activity.bot.updated: "更新了 AI 机器人「{{.name}}」"
+activity.bot.deleted: "删除了 AI 机器人「{{.name}}」"
+activity.generation.tool_approved: "批准了 AI 工具调用"
+activity.generation.tool_rejected: "拒绝了 AI 工具调用"
 
 platform_settings.invalid_email: 请输入有效的邮箱地址
 platform_settings.required_field: 启用 Resend 发信时此项不能为空
@@ -581,7 +586,7 @@ queue.topic.translation.fill.description: 为切换主要语言后的工作区�
 queue.topic.conversation.automate.label: 自动化规则执行
 queue.topic.conversation.automate.description: 按工作区配置的自动化规则处理会话事件与自动分配
 queue.topic.agent.generate.label: AI 回复生成
-queue.topic.agent.generate.description: 会话中有启用的机器人时为成员的新消息生成回复，逐字推送并定稿为时间线消息
+queue.topic.agent.generate.description: 按会话接待模式与启用的机器人执行 AI 自动回复或 Copilot 草稿生成，支持流式推送、工具审批、插话控制与定时定稿
 queue.topic.ticket.broadcast.label: 工单公开进度同步
 queue.topic.ticket.broadcast.description: 按关联会话的客户语言去重翻译工单公开进度并批量投递
 queue.topic.search.sync.conversation_items.label: 会话搜索索引同步
@@ -670,6 +675,15 @@ conversation.team_filter_mode.ids: 指定团队收件箱
 conversation.assignee_filter_mode.me: 负责人是我
 conversation.assignee_filter_mode.unassigned: 无负责人
 conversation.assignee_filter_mode.member: 指定成员
+conversation.assignee_filter_mode.bot: 指定机器人
+conversation.assignee_bot_not_found: 机器人不存在或已停用
+conversation.invalid_handling_mode: 无效的接待控制模式
+conversation.generation_not_found: 关联的 AI 生成草稿不存在
+conversation.handling_mode.human: 人工接待
+conversation.handling_mode.ai_auto: AI 自动接待
+conversation.handling_mode.ai_copilot: AI 副驾驶
+conversation.handling_mode.ai_paused: AI 已暂停
+conversation.handling_mode.waiting_approval: 等待工具确认
 conversation.tag_match.any: 命中任一标签
 conversation.tag_match.all: 同时命中全部标签
 conversation.attribute_op.eq: 等于
@@ -686,6 +700,7 @@ conversation.team_change_mode.set: 指派到团队收件箱
 conversation.team_change_mode.clear: 移出团队收件箱
 conversation.assignee_change_mode.me: 指派给我
 conversation.assignee_change_mode.member: 指派给指定成员
+conversation.assignee_change_mode.bot: 指派给机器人
 conversation.assignee_change_mode.clear: 取消负责人
 conversation.status_action_kind.close: 关闭会话
 conversation.status_action_kind.snooze: 稍后处理
@@ -747,7 +762,12 @@ agent.generation_not_found: 生成不存在
 agent.generation_finished: 这次生成已经结束
 agent.forbidden: 你没有权限执行这个操作
 agent.bot_not_found: 机器人不存在或已停用
+agent.bot_in_use: 机器人正在被会话或渠道使用，无法删除
+agent.approval_not_pending: 该工具调用审批不存在或已处理
+agent.already_active: 当前会话已有正在进行的 AI 生成任务
 agent.empty_reply: 模型没有产出任何内容
+agent.generation_mode.reply: 直接回复
+agent.generation_mode.draft: 副驾驶草稿
 agent.generation_state.pending: 等待中
 agent.generation_state.streaming: 生成中
 agent.generation_state.waiting_approval: 等待确认

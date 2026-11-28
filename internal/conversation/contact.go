@@ -16,8 +16,8 @@ import (
 
 // ContactAuthor 是联系人看到的一项的发起者。
 type ContactAuthor struct {
-	Type ActorType `json:"type" doc:"contact 是联系人自己，member 是成员，system 是系统"`
-	Name string    `json:"name" doc:"成员的名字；联系人自己和系统为空"`
+	Type ActorType `json:"type" doc:"contact 是联系人自己，member 是成员，bot 是 AI 机器人，system 是系统"`
+	Name string    `json:"name" doc:"成员或机器人的名字；联系人自己和系统为空"`
 }
 
 // ContactItemDTO 是联系人看到的时间线中的一项：对所有人可见的消息。
@@ -93,13 +93,16 @@ func contactChannelScope(ctx context.Context, db bun.IDB, tenantID, channelID st
 // toContactItemDTOs 把时间线的各项转换为联系人看到的形式，一次读出成员的名字、所属渠道和签过名的附件地址。
 func toContactItemDTOs(ctx context.Context, db bun.IDB, media Media, channelID string, items []Item) ([]ContactItemDTO, error) {
 	out := make([]ContactItemDTO, len(items))
-	var memberIDs, chIDs []string
+	var memberIDs, botIDs, chIDs []string
 	seenCh := map[string]bool{}
 	itemIDs := make([]string, len(items))
 	for i, it := range items {
 		itemIDs[i] = it.ID
-		if it.ActorType == MemberActor {
+		switch it.ActorType {
+		case MemberActor:
 			memberIDs = append(memberIDs, it.ActorID)
+		case BotActor:
+			botIDs = append(botIDs, it.ActorID)
 		}
 		if it.ChannelID != nil && !seenCh[*it.ChannelID] {
 			seenCh[*it.ChannelID] = true
@@ -114,6 +117,18 @@ func toContactItemDTOs(ctx context.Context, db bun.IDB, media Media, channelID s
 		}
 		if err := db.NewSelect().Table("members").Column("id", "name").Where("id IN (?)", bun.In(memberIDs)).Scan(ctx, &rows); err != nil {
 			return nil, errors.Wrap(err, "load member names")
+		}
+		for _, r := range rows {
+			names[r.ID] = r.Name
+		}
+	}
+	if len(botIDs) > 0 {
+		var rows []struct {
+			ID   string `bun:"id"`
+			Name string `bun:"name"`
+		}
+		if err := db.NewSelect().Table("bots").ColumnExpr("id::text AS id, name").Where("id IN (?)", bun.In(botIDs)).Scan(ctx, &rows); err != nil {
+			return nil, errors.Wrap(err, "load bot names for contact")
 		}
 		for _, r := range rows {
 			names[r.ID] = r.Name

@@ -487,7 +487,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		conversation.RegisterExportRoutes(api, require, a.db, a.hub, a.exporter)
 		r.Get("/conversations/exports/{id}/download", a.downloadConversationExport)
 		audit.RegisterTenantRoutes(api, require, a.db)
-		agent.RegisterRoutes(api, require, a.db, a.hub)
+		agent.RegisterRoutes(api, require, a.db, a.hub, a.agentSvc)
 		file.RegisterRoutes(api, require(auth.ConversationsReply), a.files, a.cfg.Filesystem.MaxUploadSize, file.UploadOptions{
 			Private: true,
 			Accept:  conversation.AttachmentAccept(),

@@ -8,6 +8,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/google/uuid"
+	"trpc.group/trpc-go/trpc-agent-go/model"
 
 	"github.com/go-tenon/tenon/broadcast"
 	"github.com/go-tenon/tenon/broadcast/broadcasttest"
@@ -237,71 +238,102 @@ func TestGenerationCancelAndIsolation(t *testing.T) {
 	}
 }
 
-// fakeGenerator 按顺序产出给定的片段。
-type fakeGenerator struct {
-	chunks []agent.Chunk
-	calls  int
+// fakeChatModel 按顺序执行给定脚本，用于测试 tenon/ai/chat 运行时服务。
+type fakeChatModel struct {
+	fn func(ctx context.Context, req *model.Request, call int) ([]*model.Response, error)
 }
 
-// Generate 返回一个依次送出 chunks 的频道。
-func (g *fakeGenerator) Generate(_ context.Context, _ agent.GenerateRequest) (<-chan agent.Chunk, error) {
-	g.calls++
-	out := make(chan agent.Chunk, len(g.chunks))
-	for _, c := range g.chunks {
-		out <- c
+func (m *fakeChatModel) Info() model.Info { return model.Info{Name: "fake-chat"} }
+
+func (m *fakeChatModel) GenerateContent(ctx context.Context, req *model.Request) (<-chan *model.Response, error) {
+	// 用简单计数器交由测试函数控制每次响应
+	rsps, err := m.fn(ctx, req, 0)
+	if err != nil {
+		return nil, err
 	}
-	close(out)
-	return out, nil
+	ch := make(chan *model.Response, len(rsps))
+	for _, r := range rsps {
+		ch <- r
+	}
+	close(ch)
+	return ch, nil
 }
 
-// TestRunnerGeneratesForMemberMessages 验证执行器只为成员的可见消息生成：客户的消息和机器人自己的消息不触发；
-// 片段写进生成后定稿为一条机器人消息，同一条触发重复投递只生成一次；模型出错时生成标记为失败、不产生消息。
+// TestRunnerGeneratesForMemberMessages 验证内部聊天中成员消息会触发 Bot 生成，客户或服务型会话中的成员回复不会回环触发 AI；
+// 片段写进生成后定稿为一条机器人消息，同一触发重复投递只生成一次；模型出错时生成标记为失败、不产生消息。
 func TestRunnerGeneratesForMemberMessages(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	f := setup(t, apptest.New(t), "alpha")
-	gen := &fakeGenerator{chunks: []agent.Chunk{{Text: "好的，"}, {Text: "马上处理"}, {Usage: map[string]any{"output_tokens": 6}}}}
-	runner := agent.NewRunner(f.env.DB, f.down, f.hub, gen)
 
-	// 客户的消息不触发
-	if err := runner.Job(ctx, conversation.Appended{TenantID: f.sys.Tenant, ConversationID: f.convID, ItemID: f.itemID}); err != nil || gen.calls != 0 {
-		t.Fatalf("客户的消息不应触发生成：calls=%d %v", gen.calls, err)
-	}
-
-	reply, err := conversation.NewReply(f.env.DB, f.down).Handle(ctx, f.owner, f.convID, conversation.ReplyBody{Text: "@小助手 帮我回复一下"})
+	// 创建一个启用机器人参与的内部单聊，验证成员消息触发 AI 回复
+	var modelCalls int
+	chatConv, err := conversation.NewCreateDirectChat(f.env.DB, f.down).Handle(ctx, f.owner, conversation.CreateDirectChatParams{
+		ParticipantType: conversation.BotActor,
+		ParticipantID:   f.botID,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	job := conversation.Appended{TenantID: f.sys.Tenant, ConversationID: f.convID, ItemID: reply.ID, Seq: reply.Seq}
+	m := &fakeChatModel{fn: func(_ context.Context, _ *model.Request, _ int) ([]*model.Response, error) {
+		modelCalls++
+		return []*model.Response{
+			{Done: false, IsPartial: true, Choices: []model.Choice{{Delta: model.Message{Role: model.RoleAssistant, Content: "好的，"}}}},
+			{Done: false, IsPartial: true, Choices: []model.Choice{{Delta: model.Message{Role: model.RoleAssistant, Content: "马上处理"}}}},
+			{Done: true, IsPartial: false, Usage: &model.Usage{PromptTokens: 10, CompletionTokens: 6}, Choices: []model.Choice{{Message: model.NewAssistantMessage("好的，马上处理")}}},
+		}, nil
+	}}
+	svc := agent.NewService(f.env.DB, f.down, f.hub, nil, nil, nil, agent.WithModelOverride(m))
+	t.Cleanup(func() { _ = svc.Close() })
+	runner := svc.Runner()
+
+	// 服务型会话处于默认 human 模式，客户消息和人工回复都不应触发 AI
+	if err := runner.Job(ctx, conversation.Appended{TenantID: f.sys.Tenant, ConversationID: f.convID, ItemID: f.itemID}); err != nil || modelCalls != 0 {
+		t.Fatalf("human 模式客户消息不应触发生成：calls=%d %v", modelCalls, err)
+	}
+
+	reply, err := conversation.NewSendChatMessage(f.env.DB, f.down).Handle(ctx, f.owner, chatConv.ID, conversation.SendChatMessageBody{Text: "@小助手 帮我查一下"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	job := conversation.Appended{TenantID: f.sys.Tenant, ConversationID: chatConv.ID, ItemID: reply.ID, Seq: reply.Seq}
 	if err := runner.Job(ctx, job); err != nil {
 		t.Fatal(err)
 	}
-	if err := runner.Job(ctx, job); err != nil || gen.calls != 1 {
-		t.Fatalf("同一条触发重复投递只生成一次：calls=%d %v", gen.calls, err)
+	if err := runner.Job(ctx, job); err != nil || modelCalls != 1 {
+		t.Fatalf("同一条触发重复投递只生成一次：calls=%d %v", modelCalls, err)
 	}
-	items, err := conversation.NewTimeline(f.env.DB).Handle(ctx, f.owner, f.convID, reply.Seq, 10)
+	items, err := conversation.NewTimeline(f.env.DB).Handle(ctx, f.owner, chatConv.ID, reply.Seq, 10)
 	if err != nil || len(items) != 1 || items[0].Actor.Type != conversation.BotActor || items[0].Content.Text != "好的，马上处理" {
 		t.Fatalf("应定稿为一条机器人消息：%+v %v", items, err)
 	}
 	// 机器人自己的消息不再触发生成
-	if err := runner.Job(ctx, conversation.Appended{TenantID: f.sys.Tenant, ConversationID: f.convID, ItemID: items[0].ID}); err != nil || gen.calls != 1 {
-		t.Fatalf("机器人的消息不应触发生成：calls=%d %v", gen.calls, err)
+	if err := runner.Job(ctx, conversation.Appended{TenantID: f.sys.Tenant, ConversationID: chatConv.ID, ItemID: items[0].ID}); err != nil || modelCalls != 1 {
+		t.Fatalf("机器人的消息不应触发生成：calls=%d %v", modelCalls, err)
 	}
 
 	// 模型出错：生成标记为失败，不产生消息
-	failing := agent.NewRunner(f.env.DB, f.down, f.hub, &fakeGenerator{chunks: []agent.Chunk{{Text: "半句"}, {Err: errors.New("model unavailable")}}})
-	second, err := conversation.NewReply(f.env.DB, f.down).Handle(ctx, f.owner, f.convID, conversation.ReplyBody{Text: "再试一次"})
+	failSvc := agent.NewService(f.env.DB, f.down, f.hub, nil, nil, nil, agent.WithModelOverride(&fakeChatModel{
+		fn: func(_ context.Context, _ *model.Request, _ int) ([]*model.Response, error) {
+			return []*model.Response{
+				{Done: false, IsPartial: true, Choices: []model.Choice{{Delta: model.Message{Role: model.RoleAssistant, Content: "半句"}}}},
+				{Done: true, Error: &model.ResponseError{Message: "model unavailable"}},
+			}, nil
+		},
+	}))
+	t.Cleanup(func() { _ = failSvc.Close() })
+	second, err := conversation.NewSendChatMessage(f.env.DB, f.down).Handle(ctx, f.owner, chatConv.ID, conversation.SendChatMessageBody{Text: "再试一次"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := failing.Job(ctx, conversation.Appended{TenantID: f.sys.Tenant, ConversationID: f.convID, ItemID: second.ID, Seq: second.Seq}); err != nil {
+	if err := failSvc.Runner().Job(ctx, conversation.Appended{TenantID: f.sys.Tenant, ConversationID: chatConv.ID, ItemID: second.ID, Seq: second.Seq}); err != nil {
 		t.Fatal(err)
 	}
 	var state agent.State
 	if err := f.env.DB.NewRaw("SELECT state FROM generations WHERE trigger_item_id = ?", second.ID).Scan(ctx, &state); err != nil || state != agent.Failed {
 		t.Fatalf("模型出错时生成应为失败：%s %v", state, err)
 	}
-	after, err := conversation.NewTimeline(f.env.DB).Handle(ctx, f.owner, f.convID, second.Seq, 10)
+	after, err := conversation.NewTimeline(f.env.DB).Handle(ctx, f.owner, chatConv.ID, second.Seq, 10)
 	if err != nil || len(after) != 0 {
 		t.Fatalf("失败的生成不应产生消息：%+v %v", after, err)
 	}

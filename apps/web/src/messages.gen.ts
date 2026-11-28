@@ -795,13 +795,23 @@ export const messages = {
     "inbox.active_conversation_banner": "This contact already has an active conversation. Historical conversations are read-only for customer replies; continue in the active thread.",
     "inbox.add_note": "Add note",
     "inbox.add_tag": "Add tag",
+    "inbox.ai_approval_title": "AI tool call requires approval",
+    "inbox.ai_approve": "Approve",
+    "inbox.ai_citations": "Sources: {{.titles}}",
+    "inbox.ai_draft_adopt": "Use in composer",
+    "inbox.ai_draft_adopted_badge": "AI draft adopted",
+    "inbox.ai_draft_title": "AI copilot suggested reply",
     "inbox.ai_escalated": "Escalated to team",
+    "inbox.ai_generating": "AI is generating a reply…",
     "inbox.ai_handling": "Handled by AI",
     "inbox.ai_pending_approval": "Needs approval",
+    "inbox.ai_reject": "Reject",
     "inbox.ai_section": "AI reception",
+    "inbox.ai_stop": "Stop",
     "inbox.all_tags": "All tags",
     "inbox.apply_actions": "Apply actions",
     "inbox.assign": "Assign",
+    "inbox.assign_bots": "AI bots",
     "inbox.assign_me": "Assign to me",
     "inbox.assign_members": "Members",
     "inbox.assign_teams": "Team inboxes",
@@ -828,6 +838,7 @@ export const messages = {
     "inbox.back": "Back to conversations",
     "inbox.back_translation": "Back-translation check",
     "inbox.back_translation_hint": "Independently translates the text above back to your language so you can verify meaning",
+    "inbox.bot_badge": "AI",
     "inbox.box_all": "All",
     "inbox.box_mentions": "Mentions",
     "inbox.box_mine": "Mine",
@@ -888,12 +899,19 @@ export const messages = {
     "inbox.edit_translation": "Edit translation",
     "inbox.empty": "No conversations in this list",
     "inbox.empty_filtered": "No conversations match the current filter",
+    "inbox.enable_ai_copilot": "Enable copilot",
     "inbox.enter_again": "Translation updated. Check it, then press Enter again to send",
     "inbox.enter_hint": "Enter to send, Shift + Enter for a new line",
     "inbox.export": "Export",
     "inbox.external_group": "Group",
     "inbox.go_to_active_conversation": "Go to active conversation",
     "inbox.group_removed_notice": "The bot was removed from this group. Outbound replies are disabled, while internal notes remain available.",
+    "inbox.handling_mode": "Handling mode",
+    "inbox.handling_mode_ai_auto": "AI auto-reply",
+    "inbox.handling_mode_ai_copilot": "AI copilot",
+    "inbox.handling_mode_ai_paused": "AI paused",
+    "inbox.handling_mode_human": "Human handling",
+    "inbox.handling_mode_waiting_approval": "Awaiting approval",
     "inbox.hide_translation": "Hide translation",
     "inbox.internal_group": "Employee group",
     "inbox.language_auto": "Detect automatically",
@@ -985,6 +1003,7 @@ export const messages = {
     "inbox.reply_to_message": "Quote \u0026 reply",
     "inbox.replying_to": "Replying to {{.who}}: {{.text}}",
     "inbox.reset_translation": "Reset to auto",
+    "inbox.resume_ai_auto": "Switch to AI auto",
     "inbox.retranslate": "Retranslate",
     "inbox.retranslating": "Text changed, translating again",
     "inbox.retry": "Resend",
@@ -1038,6 +1057,7 @@ export const messages = {
     "inbox.switch_mode_hint": "Press {{.key}} to switch between reply and internal note",
     "inbox.tag_filter": "Filter by tag",
     "inbox.tags": "Tags",
+    "inbox.takeover_human": "Take over",
     "inbox.team": "Team inbox",
     "inbox.team_disabled_suffix": "{{.name}} (disabled)",
     "inbox.teams": "Team inboxes",
@@ -1908,6 +1928,8 @@ export const messages = {
     "views.add_attr": "Add attribute condition",
     "views.any": "Any",
     "views.assignee": "Assignee",
+    "views.assignee_bot": "AI bot",
+    "views.assignee_bot_any": "Any bot",
     "views.assignee_me": "Me",
     "views.assignee_member": "Specific member",
     "views.assignee_select": "Select member",
@@ -1945,6 +1967,8 @@ export const messages = {
     "views.edit": "Edit view",
     "views.empty": "No views yet — click + above to create one",
     "views.filter_button": "Filter",
+    "views.handling_mode": "Handling mode",
+    "views.handling_mode_placeholder": "All modes",
     "views.language": "Customer language",
     "views.language_placeholder": "All languages",
     "views.more_actions": "More actions",
@@ -2906,13 +2930,23 @@ export const messages = {
     "inbox.active_conversation_banner": "该客户当前已有一条进行中的会话，历史会话仅可查阅或写内部备注，请直接在当前会话中沟通。",
     "inbox.add_note": "添加备注",
     "inbox.add_tag": "添加标签",
+    "inbox.ai_approval_title": "AI 工具调用等待人工确认",
+    "inbox.ai_approve": "批准执行",
+    "inbox.ai_citations": "参考知识：{{.titles}}",
+    "inbox.ai_draft_adopt": "采纳到回复框",
+    "inbox.ai_draft_adopted_badge": "已采纳 AI 草稿",
+    "inbox.ai_draft_title": "AI 副驾驶建议回复",
     "inbox.ai_escalated": "已转人工",
+    "inbox.ai_generating": "AI 正在生成回复…",
     "inbox.ai_handling": "AI 处理中",
     "inbox.ai_pending_approval": "待人工审批",
+    "inbox.ai_reject": "拒绝",
     "inbox.ai_section": "AI 接待",
+    "inbox.ai_stop": "停止生成",
     "inbox.all_tags": "全部标签",
     "inbox.apply_actions": "应用操作",
     "inbox.assign": "指派",
+    "inbox.assign_bots": "AI 机器人",
     "inbox.assign_me": "指派给我",
     "inbox.assign_members": "成员",
     "inbox.assign_teams": "团队收件箱",
@@ -2939,6 +2973,7 @@ export const messages = {
     "inbox.back": "返回会话列表",
     "inbox.back_translation": "回译校验",
     "inbox.back_translation_hint": "只根据上方译文译回你的语言，用于核对意思是否准确",
+    "inbox.bot_badge": "AI",
     "inbox.box_all": "全部",
     "inbox.box_mentions": "@我",
     "inbox.box_mine": "我的",
@@ -2999,12 +3034,19 @@ export const messages = {
     "inbox.edit_translation": "编辑译文",
     "inbox.empty": "这个列表中没有会话",
     "inbox.empty_filtered": "没有符合当前筛选条件的会话",
+    "inbox.enable_ai_copilot": "启用副驾驶",
     "inbox.enter_again": "译文已更新，确认后再按一次回车发送",
     "inbox.enter_hint": "回车发送，Shift + 回车换行",
     "inbox.export": "导出会话",
     "inbox.external_group": "群聊",
     "inbox.go_to_active_conversation": "前往当前会话",
     "inbox.group_removed_notice": "机器人已被移出该群，回复功能关闭，可以继续写内部备注。",
+    "inbox.handling_mode": "接待模式",
+    "inbox.handling_mode_ai_auto": "AI 自动接待",
+    "inbox.handling_mode_ai_copilot": "AI 副驾驶",
+    "inbox.handling_mode_ai_paused": "AI 已暂停",
+    "inbox.handling_mode_human": "人工接待",
+    "inbox.handling_mode_waiting_approval": "等待工具确认",
     "inbox.hide_translation": "收起译文",
     "inbox.internal_group": "员工群",
     "inbox.language_auto": "自动识别",
@@ -3096,6 +3138,7 @@ export const messages = {
     "inbox.reply_to_message": "引用回复",
     "inbox.replying_to": "回复 {{.who}}：{{.text}}",
     "inbox.reset_translation": "恢复自动译文",
+    "inbox.resume_ai_auto": "AI 自动接待",
     "inbox.retranslate": "重新翻译",
     "inbox.retranslating": "原文改了，正在重新翻译",
     "inbox.retry": "重发",
@@ -3149,6 +3192,7 @@ export const messages = {
     "inbox.switch_mode_hint": "按 {{.key}} 切换回复或内部备注",
     "inbox.tag_filter": "按标签筛选",
     "inbox.tags": "标签",
+    "inbox.takeover_human": "人工接管",
     "inbox.team": "团队收件箱",
     "inbox.team_disabled_suffix": "{{.name}}（已停用）",
     "inbox.teams": "团队收件箱",
@@ -4019,6 +4063,8 @@ export const messages = {
     "views.add_attr": "添加属性条件",
     "views.any": "不限",
     "views.assignee": "负责人",
+    "views.assignee_bot": "AI 机器人",
+    "views.assignee_bot_any": "任意机器人",
     "views.assignee_me": "我",
     "views.assignee_member": "指定成员",
     "views.assignee_select": "选择成员",
@@ -4056,6 +4102,8 @@ export const messages = {
     "views.edit": "编辑视图",
     "views.empty": "还没有视图，点击右上角 + 创建",
     "views.filter_button": "筛选",
+    "views.handling_mode": "接待模式",
+    "views.handling_mode_placeholder": "全部模式",
     "views.language": "客户语言",
     "views.language_placeholder": "全部语言",
     "views.more_actions": "更多操作",
@@ -5020,13 +5068,23 @@ export type MessageId =
   | "inbox.active_conversation_banner"
   | "inbox.add_note"
   | "inbox.add_tag"
+  | "inbox.ai_approval_title"
+  | "inbox.ai_approve"
+  | "inbox.ai_citations"
+  | "inbox.ai_draft_adopt"
+  | "inbox.ai_draft_adopted_badge"
+  | "inbox.ai_draft_title"
   | "inbox.ai_escalated"
+  | "inbox.ai_generating"
   | "inbox.ai_handling"
   | "inbox.ai_pending_approval"
+  | "inbox.ai_reject"
   | "inbox.ai_section"
+  | "inbox.ai_stop"
   | "inbox.all_tags"
   | "inbox.apply_actions"
   | "inbox.assign"
+  | "inbox.assign_bots"
   | "inbox.assign_me"
   | "inbox.assign_members"
   | "inbox.assign_teams"
@@ -5053,6 +5111,7 @@ export type MessageId =
   | "inbox.back"
   | "inbox.back_translation"
   | "inbox.back_translation_hint"
+  | "inbox.bot_badge"
   | "inbox.box_all"
   | "inbox.box_mentions"
   | "inbox.box_mine"
@@ -5113,12 +5172,19 @@ export type MessageId =
   | "inbox.edit_translation"
   | "inbox.empty"
   | "inbox.empty_filtered"
+  | "inbox.enable_ai_copilot"
   | "inbox.enter_again"
   | "inbox.enter_hint"
   | "inbox.export"
   | "inbox.external_group"
   | "inbox.go_to_active_conversation"
   | "inbox.group_removed_notice"
+  | "inbox.handling_mode"
+  | "inbox.handling_mode_ai_auto"
+  | "inbox.handling_mode_ai_copilot"
+  | "inbox.handling_mode_ai_paused"
+  | "inbox.handling_mode_human"
+  | "inbox.handling_mode_waiting_approval"
   | "inbox.hide_translation"
   | "inbox.internal_group"
   | "inbox.language_auto"
@@ -5210,6 +5276,7 @@ export type MessageId =
   | "inbox.reply_to_message"
   | "inbox.replying_to"
   | "inbox.reset_translation"
+  | "inbox.resume_ai_auto"
   | "inbox.retranslate"
   | "inbox.retranslating"
   | "inbox.retry"
@@ -5263,6 +5330,7 @@ export type MessageId =
   | "inbox.switch_mode_hint"
   | "inbox.tag_filter"
   | "inbox.tags"
+  | "inbox.takeover_human"
   | "inbox.team"
   | "inbox.team_disabled_suffix"
   | "inbox.teams"
@@ -6133,6 +6201,8 @@ export type MessageId =
   | "views.add_attr"
   | "views.any"
   | "views.assignee"
+  | "views.assignee_bot"
+  | "views.assignee_bot_any"
   | "views.assignee_me"
   | "views.assignee_member"
   | "views.assignee_select"
@@ -6170,6 +6240,8 @@ export type MessageId =
   | "views.edit"
   | "views.empty"
   | "views.filter_button"
+  | "views.handling_mode"
+  | "views.handling_mode_placeholder"
   | "views.language"
   | "views.language_placeholder"
   | "views.more_actions"

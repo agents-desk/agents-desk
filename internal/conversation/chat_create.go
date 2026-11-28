@@ -52,22 +52,32 @@ func (a *CreateDirectChat) Handle(ctx context.Context, sub identity.Subject, p C
 	if targetType == "" {
 		targetType = MemberActor
 	}
-	if targetType != MemberActor {
+	if targetType != MemberActor && targetType != BotActor {
 		return nil, ErrChatUnsupportedParticipant.New(errorx.Field("participant_type"))
 	}
-	if p.ParticipantID == sub.ID {
+	if targetType == MemberActor && p.ParticipantID == sub.ID {
 		return nil, ErrChatSelfDirect.New(errorx.Field("participant_id"))
 	}
 
 	dmKey := buildDMKey(MemberActor, sub.ID, targetType, p.ParticipantID)
 	var convID string
 	err := database.RunInTx(ctx, a.db, nil, func(ctx context.Context, tx database.Tx) error {
-		// 校验目标成员属于当前工作区
-		if _, err := member.RoleOf(ctx, authz.NewStore(tx, auth.Catalog), identity.Ref{Type: member.Type, ID: p.ParticipantID}, sub.Tenant); err != nil {
-			if errors.Is(err, member.ErrNotFound) {
-				return member.ErrNotFound.New(errorx.Field("participant_id"))
+		if targetType == BotActor {
+			ok, err := botEnabledInTenant(ctx, tx, sub.Tenant, p.ParticipantID)
+			if err != nil {
+				return err
 			}
-			return err
+			if !ok {
+				return ErrChatUnsupportedParticipant.New(errorx.Field("participant_id"))
+			}
+		} else {
+			// 校验目标成员属于当前工作区
+			if _, err := member.RoleOf(ctx, authz.NewStore(tx, auth.Catalog), identity.Ref{Type: member.Type, ID: p.ParticipantID}, sub.Tenant); err != nil {
+				if errors.Is(err, member.ErrNotFound) {
+					return member.ErrNotFound.New(errorx.Field("participant_id"))
+				}
+				return err
+			}
 		}
 
 		// 已有单聊直接复用
@@ -87,6 +97,7 @@ func (a *CreateDirectChat) Handle(ctx context.Context, sub identity.Subject, p C
 			ID:            newID(),
 			TenantID:      sub.Tenant,
 			Kind:          Chat,
+			HandlingMode:  HandlingHuman,
 			Status:        Open,
 			Priority:      Normal,
 			OpenedAt:      at,
@@ -203,6 +214,7 @@ func (a *CreateGroupChat) Handle(ctx context.Context, sub identity.Subject, p Cr
 			ID:            newID(),
 			TenantID:      sub.Tenant,
 			Kind:          Chat,
+			HandlingMode:  HandlingHuman,
 			Status:        Open,
 			Priority:      Normal,
 			OpenedAt:      at,

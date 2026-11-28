@@ -284,11 +284,20 @@ func mergePair(ctx context.Context, tx database.Tx, down Downstream, sub identit
 	if err := mergeRounds(ctx, tx, sub.Tenant, target.ID, source.ID, at); err != nil {
 		return nil, err
 	}
+	if _, err := CancelActiveGenerationsInTx(ctx, tx, down, sub.Tenant, source.ID, "merged"); err != nil {
+		return nil, err
+	}
 	if _, err := tx.NewRaw(
 		`UPDATE generations SET conversation_id = ? WHERE tenant_id = ? AND conversation_id = ?`,
 		target.ID, sub.Tenant, source.ID,
 	).Exec(ctx); err != nil {
 		return nil, errors.Wrap(err, "migrate merged generations")
+	}
+	if _, err := tx.NewRaw(
+		`UPDATE agent_turns SET conversation_id = ? WHERE tenant_id = ? AND conversation_id = ?`,
+		target.ID, sub.Tenant, source.ID,
+	).Exec(ctx); err != nil {
+		return nil, errors.Wrap(err, "migrate merged agent turns")
 	}
 	if _, err := tx.NewRaw(
 		`UPDATE automation_runs SET conversation_id = ? WHERE tenant_id = ? AND conversation_id = ?`,

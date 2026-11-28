@@ -1,9 +1,20 @@
-import type { ChannelExternalMention, ConversationItemDTO } from "@agents-desk/client/tenant"
-import { ActionIcon, Alert, Avatar, Badge, Box, Button, Checkbox, Divider, Group, Modal, Stack, Text, TextInput, Tooltip } from "@mantine/core"
+import type { AgentGenerationDTO, ChannelExternalMention, ConversationItemDTO } from "@agents-desk/client/tenant"
+import { ActionIcon, Alert, Avatar, Badge, Box, Button, Checkbox, Code, Divider, Group, Modal, Paper, Stack, Text, TextInput, Tooltip } from "@mantine/core"
 import { useElementSize } from "@mantine/hooks"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate, useParams } from "@tanstack/react-router"
-import { IconAlertOctagon, IconArrowRight, IconCheck, IconInfoCircle, IconLayoutSidebarRight, IconRefresh, IconTicket } from "@tabler/icons-react"
+import {
+  IconAlertOctagon,
+  IconArrowRight,
+  IconCheck,
+  IconInfoCircle,
+  IconLayoutSidebarRight,
+  IconPlayerStop,
+  IconRefresh,
+  IconRobot,
+  IconTicket,
+  IconX,
+} from "@tabler/icons-react"
 import { AsidePane, notifyError, notifySuccess, PaneHeader, useAsidePaneState, useCan, useNarrow, useT } from "@go-tenon/ui"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import { kit, tenantApi } from "../api"
@@ -11,7 +22,17 @@ import { isTypingTarget, NARROW_QUERY } from "../layout"
 import { CreateTicketModal } from "../tickets/CreateTicketModal"
 import { useConversationChannel } from "./channel"
 import { Composer, type ComposerHandle } from "./Composer"
-import { useContactHistory, useConversation, useGroupHistory, useMe, useMembers, useTeams, useTimeline } from "./data"
+import {
+  handlingModeColor,
+  useContactHistory,
+  useConversation,
+  useConversationGenerations,
+  useGroupHistory,
+  useMe,
+  useMembers,
+  useTeams,
+  useTimeline,
+} from "./data"
 import { Details } from "./Details"
 import { contactName, ConversationPeerAvatar } from "./List"
 import { AssignMenu, SnoozeMenu } from "./menus"
@@ -58,14 +79,16 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
   const [spamReason, setSpamReason] = useState("")
   const [replyToItem, setReplyToItem] = useState<ConversationItemDTO | null>(null)
   const [correctingItem, setCorrectingItem] = useState<ConversationItemDTO | null>(null)
+  const [adoptedDraft, setAdoptedDraft] = useState<{ generationId: string; text: string } | null>(null)
   const [extMentions, setExtMentions] = useState<ChannelExternalMention[]>([])
   const { ref: mainRef, width: mainWidth } = useElementSize()
   const composerRef = useRef<ComposerHandle>(null)
 
-  // 切换会话时清空引用回复、更正目标与群 @ 列表
+  // 切换会话时清空引用回复、更正目标、已采纳草稿与群 @ 列表
   useEffect(() => {
     setReplyToItem(null)
     setCorrectingItem(null)
+    setAdoptedDraft(null)
     setExtMentions([])
   }, [id])
 
@@ -93,6 +116,31 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
   const readAtOpen = useRef<number | null>(null)
   const c = conversation.data
   if (c && readAtOpen.current === null) readAtOpen.current = c.read_seq
+  const pollAI = Boolean(
+    c && (c.handling_mode === "ai_auto" || c.handling_mode === "ai_copilot" || c.handling_mode === "waiting_approval"),
+  )
+  const generationsQuery = useConversationGenerations(id, pollAI)
+  const invalidateAI = () => {
+    void queryClient.invalidateQueries({ queryKey: kit.queries.generation.key() })
+    void queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
+  }
+  const cancelGeneration = useMutation({
+    mutationFn: (genId: string) => tenantApi.generation.cancel(genId),
+    onSuccess: invalidateAI,
+    onError: (err) => notifyError(err),
+  })
+  const approveTool = useMutation({
+    mutationFn: ({ genId, callId }: { genId: string; callId: string }) =>
+      tenantApi.generation.approvalApprove(genId, callId, {}),
+    onSuccess: invalidateAI,
+    onError: (err) => notifyError(err),
+  })
+  const rejectTool = useMutation({
+    mutationFn: ({ genId, callId }: { genId: string; callId: string }) =>
+      tenantApi.generation.approvalReject(genId, callId, {}),
+    onSuccess: invalidateAI,
+    onError: (err) => notifyError(err),
+  })
 
   // 最新一项是谁发的：他的“正在输入”随之消失
   const last = timeline.data?.at(-1)
@@ -199,7 +247,15 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
       </Group>
     )
   }
-  const assignee = c.assignee?.type === "member" ? (c.assignee.id === me.data?.id ? t("inbox.you") : byId.get(c.assignee.id)?.name) : undefined
+  const assignee =
+    c.assignee?.type === "bot"
+      ? `${t("inbox.bot_badge")} · ${c.assignee.name}`
+      : c.assignee?.type === "member"
+        ? c.assignee.id === me.data?.id
+          ? t("inbox.you")
+          : byId.get(c.assignee.id)?.name
+        : undefined
+  const generations: AgentGenerationDTO[] = generationsQuery.data ?? []
   const teamRow = c.team_id ? teams.find((x) => x.id === c.team_id) : undefined
   const team = teamRow ? (teamRow.status === "disabled" ? t("inbox.team_disabled_suffix", { name: teamRow.name }) : teamRow.name) : undefined
   // 顶栏副标题保留渠道（跨渠道时展示全部参与渠道）、团队和负责人三项高频上下文，语言与所在地等完整资料在右侧详情栏查看
@@ -256,6 +312,11 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
                 {c.audience === "partner" && (
                   <Badge size="xs" variant="light" color="brand" style={{ flex: "none" }}>
                     {t("inbox.audience_partner_badge")}
+                  </Badge>
+                )}
+                {c.handling_mode && c.handling_mode !== "human" && (
+                  <Badge size="xs" variant="light" color={handlingModeColor(c.handling_mode)} style={{ flex: "none" }}>
+                    {t(`inbox.handling_mode_${c.handling_mode}` as const)}
                   </Badge>
                 )}
                 {c.status !== "open" && (
@@ -423,6 +484,126 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
           onReplyTo={c.external_group ? handleReplyTo : undefined}
           onCorrect={can("conversations:reply") ? handleCorrect : undefined}
         />
+        {generations.length > 0 && (
+          <Stack gap={6} px="md" py={8}>
+            {generations.map((g) => {
+              const pendingCalls = g.pending_approvals.filter((a) => a.status === "pending")
+              if (g.state === "waiting_approval" && pendingCalls.length > 0) {
+                return (
+                  <Alert key={g.id} variant="light" color="deep-orange" radius="md" py={8} px="sm" icon={<IconRobot size={16} />}>
+                    <Stack gap={6}>
+                      <Text size="xs" fw={600}>
+                        {t("inbox.ai_approval_title")}
+                      </Text>
+                      {pendingCalls.map((call) => (
+                        <Group key={call.call_id} justify="space-between" gap="xs" wrap="wrap">
+                          <Group gap={6} style={{ minWidth: 0, flex: 1 }}>
+                            <Code>{call.name}</Code>
+                            {call.arguments && (
+                              <Text size="xs" c="dimmed" truncate>
+                                {call.arguments}
+                              </Text>
+                            )}
+                          </Group>
+                          {can("conversations:reply") && (
+                            <Group gap={6}>
+                              <Button
+                                size="compact-xs"
+                                color="green"
+                                leftSection={<IconCheck size={12} />}
+                                loading={approveTool.isPending}
+                                onClick={() => approveTool.mutate({ genId: g.id, callId: call.call_id })}
+                              >
+                                {t("inbox.ai_approve")}
+                              </Button>
+                              <Button
+                                size="compact-xs"
+                                variant="light"
+                                color="red"
+                                leftSection={<IconX size={12} />}
+                                loading={rejectTool.isPending}
+                                onClick={() => rejectTool.mutate({ genId: g.id, callId: call.call_id })}
+                              >
+                                {t("inbox.ai_reject")}
+                              </Button>
+                            </Group>
+                          )}
+                        </Group>
+                      ))}
+                    </Stack>
+                  </Alert>
+                )
+              }
+              if (g.state === "pending" || g.state === "streaming") {
+                return (
+                  <Alert key={g.id} variant="light" color="bright-blue" radius="md" py={8} px="sm" icon={<IconRobot size={16} />}>
+                    <Group justify="space-between" gap="xs" wrap="nowrap">
+                      <Stack gap={2} style={{ minWidth: 0, flex: 1 }}>
+                        <Text size="xs" fw={600}>
+                          {t("inbox.ai_generating")}
+                        </Text>
+                        {g.text && (
+                          <Text size="xs" lineClamp={3}>
+                            {g.text}
+                          </Text>
+                        )}
+                      </Stack>
+                      <Button
+                        size="compact-xs"
+                        variant="light"
+                        color="gray"
+                        leftSection={<IconPlayerStop size={12} />}
+                        loading={cancelGeneration.isPending}
+                        onClick={() => cancelGeneration.mutate(g.id)}
+                      >
+                        {t("inbox.ai_stop")}
+                      </Button>
+                    </Group>
+                  </Alert>
+                )
+              }
+              if (g.mode === "draft" && g.state === "completed" && g.text) {
+                const titles = g.citations.map((ct) => ct.title).filter(Boolean).join(", ")
+                return (
+                  <Paper key={g.id} withBorder radius="md" px="sm" py={8} bg="var(--mantine-color-bright-blue-light)">
+                    <Stack gap={4}>
+                      <Group justify="space-between" gap="xs">
+                        <Group gap={6}>
+                          <IconRobot size={14} style={{ color: "var(--mantine-color-bright-blue-6)" }} />
+                          <Text size="xs" fw={600} c="bright-blue">
+                            {t("inbox.ai_draft_title")}
+                          </Text>
+                        </Group>
+                        {can("conversations:reply") && (
+                          <Button
+                            size="compact-xs"
+                            variant="light"
+                            color="bright-blue"
+                            onClick={() => {
+                              setAdoptedDraft({ generationId: g.id, text: g.text })
+                              composerRef.current?.focus("reply")
+                            }}
+                          >
+                            {t("inbox.ai_draft_adopt")}
+                          </Button>
+                        )}
+                      </Group>
+                      <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
+                        {g.text}
+                      </Text>
+                      {titles && (
+                        <Text size="xs" c="dimmed">
+                          {t("inbox.ai_citations", { titles })}
+                        </Text>
+                      )}
+                    </Stack>
+                  </Paper>
+                )
+              }
+              return null
+            })}
+          </Stack>
+        )}
         <Composer
           key={c.id}
           c={c}
@@ -430,6 +611,8 @@ export function ConversationView({ id, tenantId, highlight, focusSeq, focusField
           onClearReplyTo={() => setReplyToItem(null)}
           correcting={correctingItem}
           onClearCorrecting={() => setCorrectingItem(null)}
+          adoptedDraft={adoptedDraft}
+          onClearAdoptedDraft={() => setAdoptedDraft(null)}
           extMentions={extMentions}
           onChangeExtMentions={setExtMentions}
           onTyping={notifyTyping}

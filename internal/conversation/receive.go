@@ -174,7 +174,7 @@ func (a *Receive) receiveDirectService(ctx context.Context, tx database.Tx, sub 
 	incomingAtts, needsIngest := buildIncomingAttachments(ch.ID, p.IncomingAttachments)
 	allAttachments := append(confirmed, incomingAtts...)
 
-	c, created, opened, defaultMemberID, err := a.conversationForContact(ctx, tx, ch, person, at)
+	c, meta, err := a.conversationForContact(ctx, tx, ch, person, at)
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +199,7 @@ func (a *Receive) receiveDirectService(ctx context.Context, tx database.Tx, sub 
 		ext := p.ExternalID
 		msg.ExternalID = &ext
 	}
-	return a.finalizeServiceInbound(ctx, tx, c, ch, msg, created, opened, defaultMemberID, allAttachments, needsIngest, p.TicketID, at)
+	return a.finalizeServiceInbound(ctx, tx, c, ch, msg, meta, allAttachments, needsIngest, p.TicketID, at)
 }
 
 // receiveExternalGroup 在事务 tx 中写入公共机器人渠道在第三方群内收到的 @ 机器人或命令消息。
@@ -232,7 +232,7 @@ func (a *Receive) receiveExternalGroup(ctx context.Context, tx database.Tx, sub 
 	incomingAtts, needsIngest := buildIncomingAttachments(ch.ID, p.IncomingAttachments)
 	allAttachments := append(confirmed, incomingAtts...)
 
-	c, created, opened, defaultMemberID, err := a.conversationForGroup(ctx, tx, ch, group, at)
+	c, meta, err := a.conversationForGroup(ctx, tx, ch, group, at)
 	if err != nil {
 		return nil, err
 	}
@@ -257,20 +257,27 @@ func (a *Receive) receiveExternalGroup(ctx context.Context, tx database.Tx, sub 
 		ext := p.ExternalID
 		msg.ExternalID = &ext
 	}
-	return a.finalizeServiceInbound(ctx, tx, c, ch, msg, created, opened, defaultMemberID, allAttachments, needsIngest, p.TicketID, at)
+	return a.finalizeServiceInbound(ctx, tx, c, ch, msg, meta, allAttachments, needsIngest, p.TicketID, at)
+}
+
+// receiveServiceMeta 描述匹配或新建服务型会话后的入站路由与打开状态结果。
+type receiveServiceMeta struct {
+	Created  bool
+	Opened   string
+	Decision RoutingDecision
 }
 
 // finalizeServiceInbound 完成服务型会话（单聊或外部群）入站的公共状态流转、自动指派、轮次、附件、提交与等待工单唤醒。
 func (a *Receive) finalizeServiceInbound(
 	ctx context.Context, tx database.Tx, c *Conversation, ch *channel.Channel, msg *Item,
-	created bool, opened, defaultMemberID string, allAttachments []*Attachment, needsIngest bool, ticketID string, at time.Time,
+	meta receiveServiceMeta, allAttachments []*Attachment, needsIngest bool, ticketID string, at time.Time,
 ) (*Received, error) {
 	items := make([]*Item, 0, 3)
 	reopened := false
-	if opened != "" {
+	if meta.Opened != "" {
 		items = append(items, &Item{
 			Kind: Event, ActorType: SystemActor, Visibility: MembersOnly,
-			Content: Content{Event: opened, Data: map[string]any{"from": string(c.Status)}},
+			Content: Content{Event: meta.Opened, Data: map[string]any{"from": string(c.Status)}},
 		})
 		if c.Status == Closed {
 			reopened = true
@@ -280,11 +287,19 @@ func (a *Receive) finalizeServiceInbound(
 	}
 	items = append(items, msg)
 
-	// 自动指派：新会话命中工作区默认成员时直接指派并记录系统事件；否则按离开重分配与团队轮流分配规则处理
-	if defaultMemberID != "" {
-		c.AssigneeType, c.AssigneeID = MemberActor, defaultMemberID
+	// 自动指派：优先使用入站路由器决定的 AI 机器人或工作区默认成员；否则按离开重分配与团队轮流分配规则处理（AI 负责时不抢人工）。
+	switch {
+	case meta.Decision.AssigneeType == BotActor && meta.Decision.AssigneeID != "":
+		c.AssigneeType, c.AssigneeID = BotActor, meta.Decision.AssigneeID
+		reason := meta.Decision.AssignReason
+		if reason == "" {
+			reason = ReasonAIAuto
+		}
+		items = append(items, assignedEvent(system(c.TenantID), c, c.TeamID, "", "", reason))
+	case meta.Decision.DefaultMemberID != "":
+		c.AssigneeType, c.AssigneeID = MemberActor, meta.Decision.DefaultMemberID
 		items = append(items, assignedEvent(system(c.TenantID), c, c.TeamID, "", "", ReasonDefault))
-	} else {
+	case c.AssigneeType != BotActor:
 		auto, err := releaseIfAway(ctx, tx, c)
 		if err != nil {
 			return nil, err
@@ -300,7 +315,7 @@ func (a *Receive) finalizeServiceInbound(
 		}
 		items = append(items, auto...)
 	}
-	if created || reopened {
+	if meta.Created || reopened {
 		if err := openRound(ctx, tx, c, at); err != nil {
 			return nil, err
 		}
@@ -331,7 +346,7 @@ func (a *Receive) finalizeServiceInbound(
 	if err != nil {
 		return nil, err
 	}
-	return &Received{ConversationID: c.ID, Item: dtos[0], Created: created, Reopened: opened == "conversation.reopened"}, nil
+	return &Received{ConversationID: c.ID, Item: dtos[0], Created: meta.Created, Reopened: meta.Opened == "conversation.reopened"}, nil
 }
 
 // previous 返回之前已经写入的同一条消息（按渠道和外部编号）；没有时返回 nil。
@@ -360,51 +375,51 @@ func (a *Receive) previous(ctx context.Context, sub identity.Subject, p ReceiveP
 
 // conversationForContact 在事务 tx 中为联系人 person 找到当前服务对象域下要归入的服务型会话并加行锁。
 // 已认证用户（contact.User）与内部联系人（contact.Internal）在同服务域内跨渠道合并；访客线索（contact.Lead）按本渠道归入。
-func (a *Receive) conversationForContact(ctx context.Context, tx bun.IDB, ch *channel.Channel, person *contact.Contact, at time.Time) (c *Conversation, created bool, opened string, defaultMemberID string, err error) {
+func (a *Receive) conversationForContact(ctx context.Context, tx bun.IDB, ch *channel.Channel, person *contact.Contact, at time.Time) (*Conversation, receiveServiceMeta, error) {
 	aud := ch.EffectiveAudience()
-	c = new(Conversation)
+	c := new(Conversation)
 	q := tx.NewSelect().Model(c).
 		Where("tenant_id = ? AND kind = ? AND audience = ? AND contact_id = ? AND spam_at IS NULL", ch.TenantID, Service, aud, person.ID)
 	if person.Kind == contact.Lead {
 		q = q.Where("channel_id = ?", ch.ID)
 	}
-	err = q.OrderExpr("last_message_at DESC, id DESC").Limit(1).For("UPDATE").Scan(ctx)
+	err := q.OrderExpr("last_message_at DESC, id DESC").Limit(1).For("UPDATE").Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
 		c = nil
 	} else if err != nil {
-		return nil, false, "", "", errors.Wrap(err, "load latest contact conversation")
+		return nil, receiveServiceMeta{}, errors.Wrap(err, "load latest contact conversation")
 	}
 	c, err = applyReopenWindow(ctx, tx, ch.TenantID, c, at)
 	if err != nil {
-		return nil, false, "", "", err
+		return nil, receiveServiceMeta{}, err
 	}
 	if c == nil {
-		c, defaultMemberID, err = startContactConversation(ctx, tx, ch, person, at)
-		return c, err == nil, "", defaultMemberID, err
+		createdConv, decision, err := a.startContactConversation(ctx, tx, ch, person, at)
+		return createdConv, receiveServiceMeta{Created: err == nil, Decision: decision}, err
 	}
-	return c, false, reopenEventName(c.Status), "", nil
+	return c, receiveServiceMeta{Opened: reopenEventName(c.Status)}, nil
 }
 
 // conversationForGroup 在事务 tx 中为外部群 group 找到当前服务型会话并加行锁，超出重开窗口或尚无会话时新建。
-func (a *Receive) conversationForGroup(ctx context.Context, tx bun.IDB, ch *channel.Channel, group *extgroup.Group, at time.Time) (c *Conversation, created bool, opened string, defaultMemberID string, err error) {
-	c = new(Conversation)
-	err = tx.NewSelect().Model(c).
+func (a *Receive) conversationForGroup(ctx context.Context, tx bun.IDB, ch *channel.Channel, group *extgroup.Group, at time.Time) (*Conversation, receiveServiceMeta, error) {
+	c := new(Conversation)
+	err := tx.NewSelect().Model(c).
 		Where("tenant_id = ? AND kind = ? AND external_group_id = ? AND spam_at IS NULL", ch.TenantID, Service, group.ID).
 		OrderExpr("last_message_at DESC, id DESC").Limit(1).For("UPDATE").Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
 		c = nil
 	} else if err != nil {
-		return nil, false, "", "", errors.Wrap(err, "load latest external group conversation")
+		return nil, receiveServiceMeta{}, errors.Wrap(err, "load latest external group conversation")
 	}
 	c, err = applyReopenWindow(ctx, tx, ch.TenantID, c, at)
 	if err != nil {
-		return nil, false, "", "", err
+		return nil, receiveServiceMeta{}, err
 	}
 	if c == nil {
-		c, defaultMemberID, err = startGroupConversation(ctx, tx, ch, group, at)
-		return c, err == nil, "", defaultMemberID, err
+		createdConv, decision, err := a.startGroupConversation(ctx, tx, ch, group, at)
+		return createdConv, receiveServiceMeta{Created: err == nil, Decision: decision}, err
 	}
-	return c, false, reopenEventName(c.Status), "", nil
+	return c, receiveServiceMeta{Opened: reopenEventName(c.Status)}, nil
 }
 
 func applyReopenWindow(ctx context.Context, tx bun.IDB, tenantID string, c *Conversation, at time.Time) (*Conversation, error) {
@@ -486,38 +501,66 @@ func resolveDefaultRouting(ctx context.Context, tx bun.IDB, tenantID string, pre
 	return nil, "", nil
 }
 
-func startContactConversation(ctx context.Context, tx bun.IDB, ch *channel.Channel, person *contact.Contact, at time.Time) (*Conversation, string, error) {
-	teamID, defaultMemberID, err := resolveDefaultRouting(ctx, tx, ch.TenantID, ch.TeamID)
-	if err != nil {
-		return nil, "", err
+func (a *Receive) inboundRouter() InboundRouter {
+	if a.down.InboundRouter != nil {
+		return a.down.InboundRouter
 	}
-	chID, replyChID := ch.ID, ch.ID
-	c := &Conversation{
-		ID: newID(), TenantID: ch.TenantID, Kind: Service, Audience: ch.EffectiveAudience(),
-		ChannelID: &chID, ReplyChannelID: &replyChID, ContactID: &person.ID, TeamID: teamID,
-		Status: Open, Priority: Normal, Language: person.Language, OpenedAt: at, LastMessageAt: at, Attributes: map[string]any{},
-	}
-	if _, err := tx.NewInsert().Model(c).Exec(ctx); err != nil {
-		return nil, "", errors.Wrap(err, "insert contact conversation")
-	}
-	return c, defaultMemberID, join(ctx, tx, c.ID, ContactActor, person.ID)
+	return DefaultInboundRouter{}
 }
 
-func startGroupConversation(ctx context.Context, tx bun.IDB, ch *channel.Channel, group *extgroup.Group, at time.Time) (*Conversation, string, error) {
-	teamID, defaultMemberID, err := resolveDefaultRouting(ctx, tx, ch.TenantID, group.TeamID, ch.TeamID)
+func (a *Receive) startContactConversation(ctx context.Context, tx bun.IDB, ch *channel.Channel, person *contact.Contact, at time.Time) (*Conversation, RoutingDecision, error) {
+	decision, err := a.inboundRouter().RouteInbound(ctx, tx, ch, ch.TeamID)
 	if err != nil {
-		return nil, "", err
+		return nil, RoutingDecision{}, err
+	}
+	if decision.HandlingMode == "" {
+		decision.HandlingMode = HandlingHuman
 	}
 	chID, replyChID := ch.ID, ch.ID
 	c := &Conversation{
 		ID: newID(), TenantID: ch.TenantID, Kind: Service, Audience: ch.EffectiveAudience(),
-		ChannelID: &chID, ReplyChannelID: &replyChID, ExternalGroupID: &group.ID, TeamID: teamID,
-		Status: Open, Priority: Normal, Language: group.Language, OpenedAt: at, LastMessageAt: at, Attributes: map[string]any{},
+		ChannelID: &chID, ReplyChannelID: &replyChID, ContactID: &person.ID, TeamID: decision.TeamID,
+		HandlingMode: decision.HandlingMode,
+		Status:       Open, Priority: Normal, Language: person.Language, OpenedAt: at, LastMessageAt: at, Attributes: map[string]any{},
 	}
 	if _, err := tx.NewInsert().Model(c).Exec(ctx); err != nil {
-		return nil, "", errors.Wrap(err, "insert external group conversation")
+		return nil, RoutingDecision{}, errors.Wrap(err, "insert contact conversation")
 	}
-	return c, defaultMemberID, nil
+	if err := join(ctx, tx, c.ID, ContactActor, person.ID); err != nil {
+		return nil, RoutingDecision{}, err
+	}
+	if decision.JoinBotID != "" {
+		if err := join(ctx, tx, c.ID, BotActor, decision.JoinBotID); err != nil {
+			return nil, RoutingDecision{}, err
+		}
+	}
+	return c, decision, nil
+}
+
+func (a *Receive) startGroupConversation(ctx context.Context, tx bun.IDB, ch *channel.Channel, group *extgroup.Group, at time.Time) (*Conversation, RoutingDecision, error) {
+	decision, err := a.inboundRouter().RouteInbound(ctx, tx, ch, group.TeamID, ch.TeamID)
+	if err != nil {
+		return nil, RoutingDecision{}, err
+	}
+	if decision.HandlingMode == "" {
+		decision.HandlingMode = HandlingHuman
+	}
+	chID, replyChID := ch.ID, ch.ID
+	c := &Conversation{
+		ID: newID(), TenantID: ch.TenantID, Kind: Service, Audience: ch.EffectiveAudience(),
+		ChannelID: &chID, ReplyChannelID: &replyChID, ExternalGroupID: &group.ID, TeamID: decision.TeamID,
+		HandlingMode: decision.HandlingMode,
+		Status:       Open, Priority: Normal, Language: group.Language, OpenedAt: at, LastMessageAt: at, Attributes: map[string]any{},
+	}
+	if _, err := tx.NewInsert().Model(c).Exec(ctx); err != nil {
+		return nil, RoutingDecision{}, errors.Wrap(err, "insert external group conversation")
+	}
+	if decision.JoinBotID != "" {
+		if err := join(ctx, tx, c.ID, BotActor, decision.JoinBotID); err != nil {
+			return nil, RoutingDecision{}, err
+		}
+	}
+	return c, decision, nil
 }
 
 // receiveExternalChat 在事务 tx 中将个人商务渠道 ch 收到（或由归属成员在外部客户端同步发出）的消息写入外部商务聊天：
@@ -628,6 +671,7 @@ func (a *Receive) receiveExternalChat(ctx context.Context, tx database.Tx, sub i
 			ChannelID:      &chID,
 			ReplyChannelID: &replyChID,
 			ContactID:      contactID,
+			HandlingMode:   HandlingHuman,
 			Status:         Open,
 			Priority:       Normal,
 			Language:       lang,

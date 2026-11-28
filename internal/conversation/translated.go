@@ -408,8 +408,8 @@ func (it *Item) SourceText() string {
 	return it.Content.Text
 }
 
-// Translatable 报告时间线的一项是不是需要识别与跨语言翻译的人类文本：
-// 联系人或成员发出的有文字消息与内部备注均可按阅读者语言互译，系统事件、系统提示卡片与纯附件不翻译。
+// Translatable 报告时间线的一项是不是需要识别与跨语言翻译的人类或机器人文本：
+// 联系人、成员或 AI 机器人发出的有文字消息与内部备注均可按阅读者语言互译，系统事件、系统提示卡片与纯附件不翻译。
 func (it *Item) Translatable() bool {
 	if it.SourceText() == "" || it.Content.Prompt != nil {
 		return false
@@ -417,7 +417,7 @@ func (it *Item) Translatable() bool {
 	if it.Kind != Message && it.Kind != Note {
 		return false
 	}
-	return it.ActorType.IsExternal() || it.ActorType == MemberActor
+	return it.ActorType.IsExternal() || it.ActorType == MemberActor || it.ActorType == BotActor
 }
 
 // untranslated 报告时间线的一项对成员 viewerID（语言为 language）来说是不是还缺译文：

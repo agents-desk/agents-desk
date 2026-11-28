@@ -1,4 +1,4 @@
-import type { ConversationDTO } from "@agents-desk/client/tenant"
+import type { ConversationAssignment, ConversationDTO, ConversationHandlingMode } from "@agents-desk/client/tenant"
 import { ActionIcon, Anchor, Badge, Box, Button, CopyButton, Group, Modal, Rating, Select, Stack, Text, TextInput, Tooltip, UnstyledButton } from "@mantine/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate, useParams } from "@tanstack/react-router"
@@ -31,7 +31,17 @@ import { ticketStatusColor, ticketStatusLabel, useConversationTickets } from "..
 import { formatLocalTime } from "../timezone"
 import { previewSummary } from "./Attachments"
 import { ChannelIcon } from "./channel-badge"
-import { useAttributes, useContactHistory, useGroupHistory, useMe, useMembers, useTags, useTeams } from "./data"
+import {
+  handlingModeColor,
+  useAttributes,
+  useBots,
+  useContactHistory,
+  useGroupHistory,
+  useMe,
+  useMembers,
+  useTags,
+  useTeams,
+} from "./data"
 import { AttributeInput, TagsEditor } from "./fields"
 import { activity } from "./format"
 
@@ -52,6 +62,7 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
   const queryClient = useQueryClient()
   const me = useMe()
   const { list: members } = useMembers()
+  const { list: bots } = useBots()
   const teams = useTeams()
   const allTags = useTags()
   const convAttrs = useAttributes("conversation")
@@ -73,7 +84,12 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
   const canEdit = can("conversations:reply")
   const invalidate = () => queryClient.invalidateQueries({ queryKey: kit.queries.conversation.key() })
   const assign = useMutation({
-    mutationFn: (body: { assignee_id?: string; team_id?: string }) => tenantApi.conversation.assign(c.id, body),
+    mutationFn: (body: ConversationAssignment) => tenantApi.conversation.assign(c.id, body),
+    onSuccess: invalidate,
+    onError: (err) => notifyError(err),
+  })
+  const setHandlingMode = useMutation({
+    mutationFn: (body: { mode: ConversationHandlingMode; bot_id?: string }) => tenantApi.conversation.handlingMode(c.id, body),
     onSuccess: invalidate,
     onError: (err) => notifyError(err),
   })
@@ -171,8 +187,26 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
   // 对方的语言：手动设置的显示那种语言，否则显示“自动识别”（带上识别出的语言）
   const manual = c.external_group ? c.external_group.language_manual : (c.contact?.language_manual ?? false)
   const detected = c.language ? languageName(c.language, language) : ""
-  // 没有“改派给别人”的权限时，负责人只能选自己
+  // 没有“改派给别人”的权限时，负责人只能选自己或保持当前 Bot 标签展示
   const assignees = can("conversations:assign") ? members : members.filter((m) => m.id === me.data?.id)
+  const memberOptions = assignees.map((m) => ({
+    value: `member:${m.id}`,
+    label: m.id === me.data?.id ? t("inbox.you") : m.name,
+  }))
+  const botOptions = can("conversations:assign")
+    ? bots.map((b) => ({ value: `bot:${b.id}`, label: `${t("inbox.bot_badge")} · ${b.name}` }))
+    : c.assignee?.type === "bot"
+      ? [{ value: `bot:${c.assignee.id}`, label: `${t("inbox.bot_badge")} · ${c.assignee.name}` }]
+      : []
+  const assigneeData =
+    botOptions.length > 0
+      ? [
+          { group: t("inbox.assign_members"), items: memberOptions },
+          { group: t("inbox.assign_bots"), items: botOptions },
+        ]
+      : memberOptions
+  const assigneeValue = c.assignee ? `${c.assignee.type}:${c.assignee.id}` : null
+  const primaryBotId = c.assignee?.type === "bot" ? c.assignee.id : bots[0]?.id
   const others = (history.data?.items ?? []).filter((x) => x.id !== c.id)
   const location = contactDetail.data?.location || c.contact?.location || ""
   const timeZone = contactDetail.data?.time_zone || c.contact?.time_zone || ""
@@ -200,13 +234,64 @@ export function Details({ c, onClose, onOpen }: { c: ConversationDTO; onClose: (
             <InspectorField label={t("inbox.assignee")}>
               <Select
                 placeholder={t("inbox.no_assignee")}
-                value={c.assignee?.type === "member" ? c.assignee.id : null}
-                data={assignees.map((m) => ({ value: m.id, label: m.id === me.data?.id ? t("inbox.you") : m.name }))}
-                onChange={(v) => assign.mutate({ assignee_id: v ?? "" })}
+                value={assigneeValue}
+                data={assigneeData}
+                onChange={(v) => {
+                  if (!v) {
+                    assign.mutate({ assignee_id: "" })
+                    return
+                  }
+                  const [kind, id] = v.split(":", 2)
+                  assign.mutate({ assignee_type: kind === "bot" ? "bot" : "member", assignee_id: id })
+                }}
                 clearable={can("conversations:assign")}
                 disabled={assign.isPending}
                 searchable
               />
+            </InspectorField>
+            <InspectorField label={t("inbox.handling_mode")}>
+              <Stack gap={6}>
+                <Badge size="sm" variant="light" color={handlingModeColor(c.handling_mode)}>
+                  {t(`inbox.handling_mode_${c.handling_mode ?? "human"}` as const)}
+                </Badge>
+                {canEdit && (
+                  <Group gap={6} wrap="wrap">
+                    {c.handling_mode !== "human" && (
+                      <Button
+                        size="compact-xs"
+                        variant="light"
+                        color="gray"
+                        loading={setHandlingMode.isPending}
+                        onClick={() => setHandlingMode.mutate({ mode: "human" })}
+                      >
+                        {t("inbox.takeover_human")}
+                      </Button>
+                    )}
+                    {primaryBotId && c.handling_mode !== "ai_auto" && (
+                      <Button
+                        size="compact-xs"
+                        variant="light"
+                        color="green"
+                        loading={setHandlingMode.isPending}
+                        onClick={() => setHandlingMode.mutate({ mode: "ai_auto", bot_id: primaryBotId })}
+                      >
+                        {t("inbox.resume_ai_auto")}
+                      </Button>
+                    )}
+                    {primaryBotId && c.handling_mode !== "ai_copilot" && (
+                      <Button
+                        size="compact-xs"
+                        variant="light"
+                        color="bright-blue"
+                        loading={setHandlingMode.isPending}
+                        onClick={() => setHandlingMode.mutate({ mode: "ai_copilot", bot_id: primaryBotId })}
+                      >
+                        {t("inbox.enable_ai_copilot")}
+                      </Button>
+                    )}
+                  </Group>
+                )}
+              </Stack>
             </InspectorField>
             <InspectorField label={t("inbox.team")}>
               <Select

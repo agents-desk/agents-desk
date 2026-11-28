@@ -57,6 +57,28 @@ export const schemas = {
       },
     },
   },
+  bot: {
+    create: {
+      body: {
+        "$ref": "#/components/schemas/AgentBotInput"
+      },
+    },
+    list: {
+      query: {
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+    },
+    update: {
+      body: {
+        "$ref": "#/components/schemas/AgentBotInput"
+      },
+    },
+  },
   business: {
     channelAddCollaborators: {
       body: {
@@ -301,6 +323,11 @@ export const schemas = {
         "$ref": "#/components/schemas/ConversationExportStartInputBody"
       },
     },
+    handlingMode: {
+      body: {
+        "$ref": "#/components/schemas/ConversationHandlingModeBody"
+      },
+    },
     itemEdit: {
       body: {
         "$ref": "#/components/schemas/ConversationEditMessageBody"
@@ -342,6 +369,9 @@ export const schemas = {
             "format": "uuid",
             "type": "string"
           },
+          "assignee_type": {
+            "$ref": "#/components/schemas/ConversationActorType"
+          },
           "audience": {
             "$ref": "#/components/schemas/ChannelAudience"
           },
@@ -363,6 +393,9 @@ export const schemas = {
           "filter": {
             "maxLength": 4096,
             "type": "string"
+          },
+          "handling_mode": {
+            "$ref": "#/components/schemas/ConversationHandlingMode"
           },
           "inbox": {
             "$ref": "#/components/schemas/ConversationInbox",
@@ -438,6 +471,9 @@ export const schemas = {
             "format": "uuid",
             "type": "string"
           },
+          "assignee_type": {
+            "$ref": "#/components/schemas/ConversationActorType"
+          },
           "channel_id": {
             "format": "uuid",
             "type": "string"
@@ -445,6 +481,9 @@ export const schemas = {
           "filter": {
             "maxLength": 4096,
             "type": "string"
+          },
+          "handling_mode": {
+            "$ref": "#/components/schemas/ConversationHandlingMode"
           },
           "inbox": {
             "$ref": "#/components/schemas/ConversationInbox"
@@ -525,6 +564,18 @@ export const schemas = {
     groupUpdate: {
       body: {
         "$ref": "#/components/schemas/ExtgroupUpdateBody"
+      },
+    },
+  },
+  generation: {
+    approvalApprove: {
+      body: {
+        "$ref": "#/components/schemas/AgentApprovalDecisionInput"
+      },
+    },
+    approvalReject: {
+      body: {
+        "$ref": "#/components/schemas/AgentApprovalDecisionInput"
       },
     },
   },
@@ -1511,6 +1562,94 @@ export const schemas = {
 
 /** schemas 中 $ref 引用的命名类型，键是 OpenAPI 中的名称。 */
 export const components = {
+  AgentApprovalDecisionInput: {
+    "additionalProperties": false,
+    "properties": {
+      "reason": {
+        "maxLength": 500,
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  AgentBotInput: {
+    "additionalProperties": false,
+    "properties": {
+      "enabled": {
+        "type": "boolean"
+      },
+      "name": {
+        "maxLength": 100,
+        "minLength": 1,
+        "type": "string"
+      },
+      "settings": {
+        "$ref": "#/components/schemas/AgentBotSettings"
+      }
+    },
+    "required": [
+      "name",
+      "settings"
+    ],
+    "type": "object"
+  },
+  AgentBotSettings: {
+    "additionalProperties": false,
+    "properties": {
+      "allowed_tools": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "barge_in_policy": {
+        "type": "string"
+      },
+      "confidence_threshold": {
+        "format": "double",
+        "maximum": 1,
+        "minimum": 0,
+        "type": "number"
+      },
+      "debounce_ms": {
+        "format": "int64",
+        "maximum": 15000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "max_tool_iterations": {
+        "format": "int64",
+        "maximum": 20,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "model": {
+        "maxLength": 200,
+        "type": "string"
+      },
+      "prompt_version": {
+        "maxLength": 100,
+        "type": "string"
+      },
+      "require_approval_tools": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "system_prompt": {
+        "maxLength": 8000,
+        "type": "string"
+      },
+      "temperature": {
+        "format": "double",
+        "maximum": 2,
+        "minimum": 0,
+        "type": "number"
+      }
+    },
+    "type": "object"
+  },
   AttributeCreateParams: {
     "additionalProperties": false,
     "properties": {
@@ -2122,6 +2261,7 @@ export const components = {
     "enum": [
       "me",
       "member",
+      "bot",
       "clear"
     ],
     "type": "string"
@@ -2129,6 +2269,10 @@ export const components = {
   ConversationAssigneeFilter: {
     "additionalProperties": false,
     "properties": {
+      "bot_id": {
+        "format": "uuid",
+        "type": "string"
+      },
       "member_id": {
         "format": "uuid",
         "type": "string"
@@ -2146,7 +2290,8 @@ export const components = {
     "enum": [
       "me",
       "unassigned",
-      "member"
+      "member",
+      "bot"
     ],
     "type": "string"
   },
@@ -2156,6 +2301,9 @@ export const components = {
       "assignee_id": {
         "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
         "type": "string"
+      },
+      "assignee_type": {
+        "$ref": "#/components/schemas/ConversationActorType"
       },
       "team_id": {
         "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
@@ -2301,6 +2449,9 @@ export const components = {
       "assignee_id": {
         "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
         "type": "string"
+      },
+      "assignee_type": {
+        "$ref": "#/components/schemas/ConversationActorType"
       },
       "ids": {
         "items": {
@@ -2471,6 +2622,9 @@ export const components = {
         "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
         "type": "string"
       },
+      "assignee_type": {
+        "$ref": "#/components/schemas/ConversationActorType"
+      },
       "audience": {
         "$ref": "#/components/schemas/ChannelAudience"
       },
@@ -2488,6 +2642,9 @@ export const components = {
           "csv"
         ],
         "type": "string"
+      },
+      "handling_mode": {
+        "$ref": "#/components/schemas/ConversationHandlingMode"
       },
       "inbox": {
         "$ref": "#/components/schemas/ConversationInbox"
@@ -2511,6 +2668,39 @@ export const components = {
         "type": "string"
       }
     },
+    "type": "object"
+  },
+  ConversationHandlingMode: {
+    "enum": [
+      "human",
+      "ai_auto",
+      "ai_copilot",
+      "ai_paused",
+      "waiting_approval"
+    ],
+    "type": "string"
+  },
+  ConversationHandlingModeBody: {
+    "additionalProperties": false,
+    "properties": {
+      "bot_id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "mode": {
+        "$ref": "#/components/schemas/ConversationHandlingMode"
+      },
+      "reason": {
+        "maxLength": 100,
+        "type": "string"
+      },
+      "release_to_human": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "mode"
+    ],
     "type": "object"
   },
   ConversationHandoverParams: {
@@ -2718,6 +2908,10 @@ export const components = {
         "type": "array"
       },
       "reply_to_item_id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "source_generation_id": {
         "format": "uuid",
         "type": "string"
       },
@@ -2993,6 +3187,13 @@ export const components = {
           "type": "string"
         },
         "maxItems": 50,
+        "type": "array"
+      },
+      "handling_modes": {
+        "items": {
+          "$ref": "#/components/schemas/ConversationHandlingMode"
+        },
+        "maxItems": 5,
         "type": "array"
       },
       "language": {

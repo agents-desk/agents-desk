@@ -23,10 +23,20 @@ var (
 // changeFunc 在事务 tx 中修改已锁住的会话 c，返回要追加到时间线的系统事件；没有事件表示没有变化，什么也不写。
 type changeFunc func(ctx context.Context, tx bun.IDB, c *Conversation) ([]*Item, error)
 
+// changeTxFunc 是需要登记提交后回调（AfterCommit）的会话写入修改函数。
+type changeTxFunc func(ctx context.Context, tx database.Tx, c *Conversation) ([]*Item, error)
+
 // change 是会话操作共用的写入路径：检查权限 perm，在一个事务中锁住 sub 能看到的会话 id，交给 fn 修改，
 // 有变化时依次追加 fn 返回的系统事件、保存会话并发布下游任务（commit），最后返回修改后的会话。
 // 会话不存在或 sub 看不到时返回 ErrNotFound，没有权限时返回 ErrForbidden。
 func change(ctx context.Context, db *bun.DB, down Downstream, sub identity.Subject, id string, perm auth.Permission, fn changeFunc) (*ConversationDTO, error) {
+	return changeTx(ctx, db, down, sub, id, perm, func(ctx context.Context, tx database.Tx, c *Conversation) ([]*Item, error) {
+		return fn(ctx, tx, c)
+	})
+}
+
+// changeTx 在事务内提供完整 database.Tx（支持 AfterCommit）执行会话修改，提交后返回最新 ConversationDTO。
+func changeTx(ctx context.Context, db *bun.DB, down Downstream, sub identity.Subject, id string, perm auth.Permission, fn changeTxFunc) (*ConversationDTO, error) {
 	if err := authorize(sub, perm); err != nil {
 		return nil, err
 	}

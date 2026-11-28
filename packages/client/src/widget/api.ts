@@ -98,9 +98,9 @@ export interface ConversationAttachmentInput {
 export type ConversationAttachmentKind = "image" | "video" | "audio" | "file"
 
 export interface ConversationContactAuthor {
-  /** 成员的名字；联系人自己和系统为空 */
+  /** 成员或机器人的名字；联系人自己和系统为空 */
   name: string
-  /** contact 是联系人自己，member 是成员，system 是系统 */
+  /** contact 是联系人自己，member 是成员，bot 是 AI 机器人，system 是系统 */
   type: ConversationActorType
 }
 

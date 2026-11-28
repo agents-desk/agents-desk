@@ -29,16 +29,18 @@ import (
 
 // ExportQuery 是后台导出会话列表时复用的筛选条件。
 type ExportQuery struct {
-	Inbox      Inbox            `json:"inbox,omitempty" doc:"收件箱分组：mine、mentions、unassigned、all、spam"`
-	ViewID     string           `json:"view_id,omitempty" pattern:"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$" doc:"按已保存视图筛选"`
-	Filter     string           `json:"filter,omitempty" maxLength:"4096" doc:"JSON 编码的高级筛选条件"`
-	TeamID     string           `json:"team_id,omitempty" pattern:"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$" doc:"按团队收件箱筛选"`
-	Status     Status           `json:"status,omitempty" doc:"按会话状态筛选"`
-	AssigneeID string           `json:"assignee_id,omitempty" pattern:"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$" doc:"按负责人筛选"`
-	ChannelID  string           `json:"channel_id,omitempty" pattern:"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$" doc:"按渠道筛选"`
-	Audience   channel.Audience `json:"audience,omitempty" doc:"按服务对象筛选"`
-	Priority   Priority         `json:"priority,omitempty" doc:"按优先级筛选"`
-	TagID      string           `json:"tag_id,omitempty" pattern:"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$" doc:"按标签筛选"`
+	Inbox        Inbox            `json:"inbox,omitempty" doc:"收件箱分组：mine、mentions、unassigned、all、spam"`
+	ViewID       string           `json:"view_id,omitempty" pattern:"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$" doc:"按已保存视图筛选"`
+	Filter       string           `json:"filter,omitempty" maxLength:"4096" doc:"JSON 编码的高级筛选条件"`
+	TeamID       string           `json:"team_id,omitempty" pattern:"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$" doc:"按团队收件箱筛选"`
+	Status       Status           `json:"status,omitempty" doc:"按会话状态筛选"`
+	AssigneeType ActorType        `json:"assignee_type,omitempty" doc:"按负责人类型筛选（member 或 bot）"`
+	AssigneeID   string           `json:"assignee_id,omitempty" pattern:"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$" doc:"按负责人筛选"`
+	HandlingMode HandlingMode     `json:"handling_mode,omitempty" doc:"按接待控制模式筛选"`
+	ChannelID    string           `json:"channel_id,omitempty" pattern:"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$" doc:"按渠道筛选"`
+	Audience     channel.Audience `json:"audience,omitempty" doc:"按服务对象筛选"`
+	Priority     Priority         `json:"priority,omitempty" doc:"按优先级筛选"`
+	TagID        string           `json:"tag_id,omitempty" pattern:"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$" doc:"按标签筛选"`
 }
 
 // ExportRequest 是后台导出会话的队列任务载荷。
@@ -118,16 +120,18 @@ func (q ExportQuery) toListInput() *ListInput {
 		inbox = InboxAll
 	}
 	return &ListInput{
-		Inbox:      inbox,
-		ViewID:     q.ViewID,
-		Filter:     q.Filter,
-		TeamID:     q.TeamID,
-		Status:     q.Status,
-		AssigneeID: q.AssigneeID,
-		ChannelID:  q.ChannelID,
-		Audience:   q.Audience,
-		Priority:   q.Priority,
-		TagID:      q.TagID,
+		Inbox:        inbox,
+		ViewID:       q.ViewID,
+		Filter:       q.Filter,
+		TeamID:       q.TeamID,
+		Status:       q.Status,
+		AssigneeType: q.AssigneeType,
+		AssigneeID:   q.AssigneeID,
+		HandlingMode: q.HandlingMode,
+		ChannelID:    q.ChannelID,
+		Audience:     q.Audience,
+		Priority:     q.Priority,
+		TagID:        q.TagID,
 	}
 }
 

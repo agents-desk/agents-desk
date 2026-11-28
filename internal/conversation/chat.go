@@ -200,6 +200,8 @@ func toChatDTOs(ctx context.Context, db bun.IDB, files *filesystem.Service, sub 
 	partsByConv := make(map[string][]Participant, len(ids))
 	memberIDSet := map[string]struct{}{}
 	memberIDs := make([]string, 0, len(parts))
+	botIDSet := map[string]struct{}{}
+	var botIDs []string
 	for _, p := range parts {
 		partsByConv[p.ConversationID] = append(partsByConv[p.ConversationID], p)
 		switch p.Type {
@@ -210,6 +212,11 @@ func toChatDTOs(ctx context.Context, db bun.IDB, files *filesystem.Service, sub 
 			}
 		case ContactActor:
 			addContact(p.ParticipantID)
+		case BotActor:
+			if _, ok := botIDSet[p.ParticipantID]; !ok {
+				botIDSet[p.ParticipantID] = struct{}{}
+				botIDs = append(botIDs, p.ParticipantID)
+			}
 		}
 	}
 
@@ -294,6 +301,25 @@ func toChatDTOs(ctx context.Context, db bun.IDB, files *filesystem.Service, sub 
 			seenPreviewEU[lasts[i].ActorID] = true
 			previewExtUserIDs = append(previewExtUserIDs, lasts[i].ActorID)
 		}
+		if lasts[i].ActorType == BotActor && lasts[i].ActorID != "" {
+			if _, ok := botIDSet[lasts[i].ActorID]; !ok {
+				botIDSet[lasts[i].ActorID] = struct{}{}
+				botIDs = append(botIDs, lasts[i].ActorID)
+			}
+		}
+	}
+	botNames := map[string]string{}
+	if len(botIDs) > 0 {
+		var rows []struct {
+			ID   string `bun:"id"`
+			Name string `bun:"name"`
+		}
+		if err := db.NewSelect().Table("bots").ColumnExpr("id::text AS id, name").Where("id IN (?)", bun.In(botIDs)).Scan(ctx, &rows); err != nil {
+			return nil, errors.Wrap(err, "load chat bot names")
+		}
+		for _, r := range rows {
+			botNames[r.ID] = r.Name
+		}
 	}
 	type chatPreviewEU struct {
 		Name       string
@@ -342,6 +368,13 @@ func toChatDTOs(ctx context.Context, db bun.IDB, files *filesystem.Service, sub 
 					Language: ct.Language,
 					JoinedAt: p.CreatedAt,
 				}
+			}
+		case BotActor:
+			return ChatParticipantDTO{
+				Type:     BotActor,
+				ID:       p.ParticipantID,
+				Name:     botNames[p.ParticipantID],
+				JoinedAt: p.CreatedAt,
 			}
 		}
 		return ChatParticipantDTO{Type: p.Type, ID: p.ParticipantID, JoinedAt: p.CreatedAt}
@@ -428,6 +461,8 @@ func toChatDTOs(ctx context.Context, db bun.IDB, files *filesystem.Service, sub 
 					actor.Name = info.Name
 					actor.ExternalID = info.ExternalID
 				}
+			case BotActor:
+				actor.Name = botNames[p.ActorID]
 			}
 			dto.PreviewActor = &actor
 			if previewRecalled[p.ID] {

@@ -8,6 +8,7 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/database"
+	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
 
 	"agents-desk/internal/auth"
@@ -64,15 +65,16 @@ func buildOutboundMessageItem(actor ActorType, actorID string, channelID *string
 // ReplyBody 是回复的请求体：成员写的文字、可选的媒体附件列表、可选的发送渠道、可选引用消息与外部群 @ 提及，
 // 以及可选的译文、后台自动翻译指示和随回复原子执行的会话操作。
 type ReplyBody struct {
-	Text             string                    `json:"text,omitempty" maxLength:"10000" doc:"成员写的文字"`
-	Attachments      []AttachmentInput         `json:"attachments,omitempty" maxItems:"10" doc:"通过 /files 上传的媒体附件列表（可附带封面图与音视频元数据）"`
-	ChannelID        string                    `json:"channel_id,omitempty" format:"uuid" doc:"发往的渠道 ID；为空时发往会话当前的默认回复渠道"`
-	ReplyToItemID    string                    `json:"reply_to_item_id,omitempty" format:"uuid" doc:"可选：引用回复同会话内的指定消息 ID"`
-	CorrectsItemID   string                    `json:"corrects_item_id,omitempty" format:"uuid" doc:"可选：作为更正发出的原消息 ID"`
-	ExternalMentions []channel.ExternalMention `json:"external_mentions,omitempty" maxItems:"20" doc:"可选：外部群回复时要 @ 的发言人列表"`
-	Translation      *Translation              `json:"translation,omitempty" doc:"发给对方的译文，由翻译的预览给出、成员确认；不带时按原文或 auto_translate 发出"`
-	AutoTranslate    *AutoTranslateRequest     `json:"auto_translate,omitempty" doc:"后台自动翻译参数：不携带 translation 时，先立刻落库并由投递任务异步翻译后发给对方"`
-	Actions          *Actions                  `json:"actions,omitempty" doc:"随回复在同一个事务中原子执行的会话操作（如指派、改优先级、加标签、改属性、关闭或稍后处理）"`
+	Text               string                    `json:"text,omitempty" maxLength:"10000" doc:"成员写的文字"`
+	Attachments        []AttachmentInput         `json:"attachments,omitempty" maxItems:"10" doc:"通过 /files 上传的媒体附件列表（可附带封面图与音视频元数据）"`
+	ChannelID          string                    `json:"channel_id,omitempty" format:"uuid" doc:"发往的渠道 ID；为空时发往会话当前的默认回复渠道"`
+	ReplyToItemID      string                    `json:"reply_to_item_id,omitempty" format:"uuid" doc:"可选：引用回复同会话内的指定消息 ID"`
+	CorrectsItemID     string                    `json:"corrects_item_id,omitempty" format:"uuid" doc:"可选：作为更正发出的原消息 ID"`
+	SourceGenerationID string                    `json:"source_generation_id,omitempty" format:"uuid" doc:"可选：采纳 AI 副驾驶草稿时关联的生成 ID"`
+	ExternalMentions   []channel.ExternalMention `json:"external_mentions,omitempty" maxItems:"20" doc:"可选：外部群回复时要 @ 的发言人列表"`
+	Translation        *Translation              `json:"translation,omitempty" doc:"发给对方的译文，由翻译的预览给出、成员确认；不带时按原文或 auto_translate 发出"`
+	AutoTranslate      *AutoTranslateRequest     `json:"auto_translate,omitempty" doc:"后台自动翻译参数：不携带 translation 时，先立刻落库并由投递任务异步翻译后发给对方"`
+	Actions            *Actions                  `json:"actions,omitempty" doc:"随回复在同一个事务中原子执行的会话操作（如指派、改优先级、加标签、改属性、关闭或稍后处理）"`
 }
 
 // ReplyInput 是回复会话的 HTTP 请求。
@@ -146,7 +148,20 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 		at := now()
 		actor := actorOf(sub)
 		item = buildOutboundMessageItem(actor, sub.ID, targetChannelID, replyToID, body.Text, extMentions, body.Translation, body.AutoTranslate)
-		items := make([]*Item, 0, 3)
+		if body.SourceGenerationID != "" {
+			exists, err := tx.NewSelect().Table("generations").
+				Where("id = ? AND tenant_id = ? AND conversation_id = ?", body.SourceGenerationID, c.TenantID, c.ID).
+				Exists(ctx)
+			if err != nil {
+				return errors.Wrap(err, "verify source_generation_id")
+			}
+			if !exists {
+				return ErrGenerationNotFound.New(errorx.Field("source_generation_id"))
+			}
+			genID := body.SourceGenerationID
+			item.GenerationID = &genID
+		}
+		items := make([]*Item, 0, 4)
 		// 回复已关闭或稍后处理的会话时自动恢复打开，保证轮次与状态机自洽
 		switch c.Status {
 		case Closed:
@@ -162,7 +177,33 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 			items = append(items, event(sub, "conversation.unsnoozed", map[string]any{"from": string(Snoozed)}))
 			c.Status, c.SnoozedUntil = Open, nil
 		}
+		// 人工介入 AI 自动接待或待审批会话时，取消活跃生成、暂停 AI 自动回复，并将机器人负责归属切换给介入成员。
 		explicitAssign := body.Actions != nil && body.Actions.HasAssignment()
+		if actor == MemberActor {
+			switch c.HandlingMode {
+			case HandlingAIAuto, HandlingWaitingApproval:
+				if _, err := CancelActiveGenerationsInTx(ctx, tx, a.down, c.TenantID, c.ID, "human_takeover"); err != nil {
+					return err
+				}
+				prevMode := c.HandlingMode
+				c.HandlingMode = HandlingAIPaused
+				if err := recordRoundHandover(ctx, tx, c.TenantID, c.ID, "human_takeover"); err != nil {
+					return err
+				}
+				items = append(items, event(sub, "conversation.handling_mode_changed", map[string]any{
+					"from": string(prevMode), "to": string(HandlingAIPaused), "reason": "human_takeover",
+				}))
+				if c.AssigneeType == BotActor && !explicitAssign {
+					fromTeam, fromType, fromID := c.TeamID, c.AssigneeType, c.AssigneeID
+					c.AssigneeType, c.AssigneeID = MemberActor, sub.ID
+					items = append(items, assignedEvent(sub, c, fromTeam, fromType, fromID, ReasonReply))
+				}
+			case HandlingAICopilot:
+				if _, err := CancelActiveGenerationsInTx(ctx, tx, a.down, c.TenantID, c.ID, "human_takeover"); err != nil {
+					return err
+				}
+			}
+		}
 		if actor == MemberActor && c.AssigneeType == "" && !explicitAssign {
 			c.AssigneeType, c.AssigneeID = MemberActor, sub.ID
 			items = append(items, assignedEvent(sub, c, c.TeamID, "", "", ReasonReply))
@@ -179,7 +220,7 @@ func (a *Reply) Handle(ctx context.Context, sub identity.Subject, id string, bod
 			return err
 		}
 		if body.Actions != nil && body.Actions.HasChanges() {
-			ev, err := applyActions(ctx, tx, sub, c, *body.Actions)
+			ev, err := applyActions(ctx, tx, a.down, sub, c, *body.Actions)
 			if err != nil {
 				return err
 			}

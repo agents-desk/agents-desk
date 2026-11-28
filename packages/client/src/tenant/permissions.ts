@@ -54,6 +54,12 @@ export const required = {
     ipDelete: ["tenant-settings:manage"],
     ipList: ["tenant-settings:manage"],
   },
+  bot: {
+    create: ["tenant-settings:manage"],
+    delete: ["tenant-settings:manage"],
+    list: ["conversations:read"],
+    update: ["tenant-settings:manage"],
+  },
   business: {
     channelAddCollaborators: ["business-channels:manage"],
     channelList: ["business-channels:manage"],
@@ -114,6 +120,7 @@ export const required = {
     exportProgress: ["reports:read"],
     exportStart: ["reports:read"],
     get: ["conversations:read"],
+    handlingMode: ["conversations:reply"],
     inbox: ["conversations:read"],
     itemEdit: ["conversations:reply"],
     itemRecall: ["conversations:reply"],
@@ -142,6 +149,8 @@ export const required = {
     upload: ["conversations:reply"],
   },
   generation: {
+    approvalApprove: ["conversations:reply"],
+    approvalReject: ["conversations:reply"],
     cancel: ["conversations:read"],
     list: ["conversations:read"],
   },

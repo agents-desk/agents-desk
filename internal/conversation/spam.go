@@ -113,7 +113,7 @@ func (a *MarkSpam) Handle(ctx context.Context, sub identity.Subject, id string, 
 
 		var items []*Item
 		if c.Status != Closed {
-			closeItems, err := applyClose(ctx, tx, sub, c)
+			closeItems, err := applyClose(ctx, tx, a.down, sub, c)
 			if err != nil {
 				return err
 			}

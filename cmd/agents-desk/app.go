@@ -123,6 +123,7 @@ type App struct {
 	telegram   *telegram.Client   // 调用 Telegram Bot API 的客户端
 	tgAccounts *tgaccount.Manager // 成员 Telegram 个人号（纯 Go MTProto）管理器
 	wecomBots  *wecom.Manager     // 企业微信智能机器人（WebSocket 长连接）管理器
+	agentSvc   *agent.Service     // 统一托管于 tenon/ai/chat 的 AI Agent 运行时服务
 }
 
 // downstream 返回会话有变化时通知的下游：把发给对方的消息交给连接器发出，翻译收到的消息，提交后推送给能看到会话的成员，
@@ -157,6 +158,9 @@ func (a *App) downstream() conversation.Downstream {
 	}
 	if a.alertNotifier != nil {
 		down.OnDeadAlert = a.alertNotifier.NotifyDeadJob
+	}
+	if a.agentSvc != nil {
+		down.OnGenerationCanceled = a.agentSvc.CancelRun
 	}
 	return down
 }
@@ -397,9 +401,13 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 	bizGuard := business.NewPolicyGuard(db, businessPolicy, featureStore, tgCredentials)
 	tgMgr.SetPolicyChecker(bizGuard.CheckConnectTelegram)
 	wecomMgr := wecom.NewManager(db, keys, files, locker, nc)
-	tr := translation.NewTranslator(db, llm.NewClient(db, llmSettings, outbound.New(outbound.Options{Timeout: -1, AnyPort: true})), translationSettings)
+	// 模型网关不设固定整请求超时（由调用上下文控制），以便兼容流式 SSE 长响应及自托管网关地址
+	llmClient := llm.NewClient(db, llmSettings, outbound.New(outbound.Options{Timeout: -1, AnyPort: true}))
+	tr := translation.NewTranslator(db, llmClient, translationSettings)
 	tr.SetBusinessPolicy(businessPolicy)
 	tr.SetFeatures(featureStore)
+	agentSvc := agent.NewService(db, conversation.Downstream{}, hub, locker, llmClient, translationSettings)
+	stack.MustAdd("ai", agentSvc.Shutdown)
 	app := &App{
 		cfg: cfg, db: db, opsDB: opsDB, nc: nc, tel: tel, hub: hub, creds: creds, presence: presence, roles: roles,
 		adminLogins:     adminLogins,
@@ -415,7 +423,6 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		offlineMailLimiter: pglimit.New(db, "mail:offline_reply", ratelimit.Config{Rate: 1, Interval: 15 * time.Minute, Burst: 1}),
 		alertNotifier:      adminnotify.NewAlertNotifier(db, hub, pglimit.New(db, "admin:alert", ratelimit.Config{Rate: 1, Interval: 15 * time.Minute, Burst: 1})),
 		ops:                ops, exporter: exporter,
-		// 模型网关不设固定整请求超时（由调用上下文控制），以便兼容流式 SSE 长响应及自托管网关地址。
 		translator: tr,
 		files:      files, images: images, defaultDisk: disks[cfg.Filesystem.DefaultDisk], localDisk: localDisk, locker: locker,
 		channels:   registry(hub, keys, files, tgClient, tgMgr, wecomMgr),
@@ -423,8 +430,11 @@ func open(ctx context.Context, cfg Config, stack *cleanup.Stack) (*App, error) {
 		telegram:   tgClient,
 		tgAccounts: tgMgr,
 		wecomBots:  wecomMgr,
+		agentSvc:   agentSvc,
 	}
-	recv := conversation.NewReceive(db, app.channels, app.downstream())
+	down := app.downstream()
+	agentSvc.SetDownstream(down)
+	recv := conversation.NewReceive(db, app.channels, down)
 	tgMgr.SetReceive(recv)
 	wecomMgr.SetReceive(recv)
 	return app, nil
@@ -473,8 +483,8 @@ func (a *App) worker(*command.Daemon) (func(context.Context) error, error) {
 		}
 		return nil
 	})
-	// 模型实现还没有接入：执行器只在会话中有启用的机器人且 Generator 不为 nil 时生成，当前什么也不做
-	agent.RegisterJobs(w, agent.NewRunner(a.db, down, a.hub, nil))
+	a.agentSvc.SetDownstream(down)
+	agent.RegisterJobs(w, a.agentSvc.Runner())
 	tenant.RegisterJobs(w, a.db, a.memberLogins, tenant.Addresses{PublicURL: a.cfg.HTTP.PublicURL}, a.hub, a.exporter)
 	contact.RegisterJobs(w, a.db, a.hub, a.exporter)
 	conversation.RegisterExportJobs(w, a.db, a.hub, a.exporter)

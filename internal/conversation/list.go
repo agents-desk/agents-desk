@@ -57,7 +57,9 @@ type ListInput struct {
 	Filter          string           `query:"filter" maxLength:"4096" doc:"可选：JSON 编码的统一筛选条件（Filter），用于高级筛选或在视图内临时微调预览"`
 	TeamID          string           `query:"team_id" format:"uuid" doc:"只列出这个团队收件箱的会话；团队收件箱的列表是 inbox=all 加上它"`
 	Status          Status           `query:"status" default:"open" doc:"只列出这个状态的会话；@我 的列表和视图不按它筛选"`
-	AssigneeID      string           `query:"assignee_id" format:"uuid" doc:"只列出负责人是这位成员的会话"`
+	AssigneeType    ActorType        `query:"assignee_type" doc:"只列出这个类型的负责人会话（member 或 bot）"`
+	AssigneeID      string           `query:"assignee_id" format:"uuid" doc:"只列出负责人是这位成员或机器人的会话"`
+	HandlingMode    HandlingMode     `query:"handling_mode" doc:"只列出这个接待控制模式的会话"`
 	ChannelID       string           `query:"channel_id" format:"uuid" doc:"只列出来自这个渠道的会话"`
 	ContactID       string           `query:"contact_id" format:"uuid" doc:"只列出这个联系人的会话，不按状态筛选，例如详情中的“最近的会话”"`
 	ExternalGroupID string           `query:"external_group_id" format:"uuid" doc:"只列出这个外部群的会话，不按状态筛选"`
@@ -245,8 +247,18 @@ func buildServiceListQuery(ctx context.Context, db bun.IDB, sub identity.Subject
 		if in.TeamID != "" {
 			q = q.Where("conversation.team_id = ?", in.TeamID)
 		}
+		if in.AssigneeType != "" {
+			q = q.Where("conversation.assignee_type = ?", in.AssigneeType)
+		}
 		if in.AssigneeID != "" {
-			q = q.Where("conversation.assignee_type = ? AND conversation.assignee_id = ?", MemberActor, in.AssigneeID)
+			assigneeTyp := MemberActor
+			if in.AssigneeType == BotActor {
+				assigneeTyp = BotActor
+			}
+			q = q.Where("conversation.assignee_type = ? AND conversation.assignee_id = ?", assigneeTyp, in.AssigneeID)
+		}
+		if in.HandlingMode != "" {
+			q = q.Where("conversation.handling_mode = ?", in.HandlingMode)
 		}
 		if in.ChannelID != "" {
 			q = q.Where("(conversation.channel_id = ? OR conversation.reply_channel_id = ? OR EXISTS (SELECT 1 FROM timeline_items AS ti WHERE ti.conversation_id = conversation.id AND ti.channel_id = ?))", in.ChannelID, in.ChannelID, in.ChannelID)

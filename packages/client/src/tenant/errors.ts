@@ -2,6 +2,29 @@
 
 // 业务错误码：与 ApiError.code 比较，或交给 isApiError(err, code)。
 
+/** github.com/go-tenon/tenon/ai/chat 的错误码。 */
+export const ChatErrors = {
+  /** ErrAttachmentNotFound 表示对话中没有这个 ID 的附件，通常是模型写错了 ID。 */
+  AttachmentNotFound: "ai.attachment_not_found",
+  /** ErrNoWorker 表示没有调用 Serve 的实例接收请求，例如 worker 都没有运行或正在停止（503）。 */
+  NoWorker: "ai.no_worker",
+  /** ErrBusy 表示对话正在运行，新消息应当用 Run.Steer 插入。 */
+  Busy: "ai.busy",
+  /** ErrAwaitingApproval 表示对话中有等待审批的工具调用，处理完它们才能发送新消息。 */
+  AwaitingApproval: "ai.awaiting_approval",
+  /** ErrNotPending 表示要审批的工具调用不存在或已经处理过。 */
+  NotPending: "ai.not_pending",
+  /** ErrFinished 表示运行已经结束（409），应当开始新的运行：回答结束后插话时，前端改为发送新消息。 */
+  Finished: "ai.finished",
+  /**
+   * ErrShuttingDown 表示本实例正在停止，拒绝开始新的运行（503）。客户端稍后重试，
+   * 多实例部署时会落到其他实例上。
+   */
+  ShuttingDown: "ai.shutting_down",
+  /** ErrBadRequest 表示请求中没有可以处理的消息。 */
+  BadRequest: "ai.bad_request",
+} as const
+
 /** github.com/go-tenon/tenon/apitoken 的错误码。 */
 export const ApitokenErrors = {
   /** ErrInvalid 表示 token 不存在、已撤销或已过期。rest.RequireToken 把它呈现为 401。 */

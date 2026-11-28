@@ -65,6 +65,7 @@ interface FormState {
 
 function toInitial(row: MacroDTO | undefined, canShared: boolean): FormState {
   const act = row?.actions
+  const assigneeMode = act?.assignee?.mode
   return {
     scope: row?.scope ?? (canShared ? "shared" : "personal"),
     title: row?.title ?? "",
@@ -72,7 +73,7 @@ function toInitial(row: MacroDTO | undefined, canShared: boolean): FormState {
     body: row?.body ?? "",
     teamMode: act?.team?.mode ?? "keep",
     teamId: act?.team?.id ?? "",
-    assigneeMode: act?.assignee?.mode ?? "keep",
+    assigneeMode: assigneeMode === "me" || assigneeMode === "member" || assigneeMode === "clear" ? assigneeMode : "keep",
     assigneeId: act?.assignee?.id ?? "",
     priority: act?.priority ?? "keep",
     addTagIds: act?.add_tag_ids ?? [],

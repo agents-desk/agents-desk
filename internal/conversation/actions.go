@@ -9,6 +9,7 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/go-tenon/tenon/contract"
+	"github.com/go-tenon/tenon/database"
 	"github.com/go-tenon/tenon/enum"
 	"github.com/go-tenon/tenon/errorx"
 	"github.com/go-tenon/tenon/identity"
@@ -41,17 +42,18 @@ type TeamChange struct {
 	ID   string         `json:"id,omitempty" format:"uuid" doc:"mode 为 set 时的目标团队收件箱 ID"`
 }
 
-// AssigneeChangeMode 是修改负责人的模式：指派给当前成员、指定成员，或取消负责人。
+// AssigneeChangeMode 是修改负责人的模式：指派给当前成员、指定成员、指定机器人，或取消负责人。
 type AssigneeChangeMode string
 
 const (
 	AssigneeMe     AssigneeChangeMode = "me"     // 指派给当前操作成员
 	AssigneeMember AssigneeChangeMode = "member" // 指派给指定成员
+	AssigneeBot    AssigneeChangeMode = "bot"    // 指派给指定机器人
 	AssigneeClear  AssigneeChangeMode = "clear"  // 取消负责人
 )
 
 // AssigneeChangeModes 是全部负责人变更模式。
-var AssigneeChangeModes = enum.New("conversation.assignee_change_mode", enum.Item(AssigneeMe), enum.Item(AssigneeMember), enum.Item(AssigneeClear))
+var AssigneeChangeModes = enum.New("conversation.assignee_change_mode", enum.Item(AssigneeMe), enum.Item(AssigneeMember), enum.Item(AssigneeBot), enum.Item(AssigneeClear))
 
 // Schema 让 OpenAPI 中的 AssigneeChangeMode 只接受目录中的取值。
 func (AssigneeChangeMode) Schema(r huma.Registry) *huma.Schema {
@@ -60,8 +62,8 @@ func (AssigneeChangeMode) Schema(r huma.Registry) *huma.Schema {
 
 // AssigneeChange 描述对负责人的显式变更。
 type AssigneeChange struct {
-	Mode AssigneeChangeMode `json:"mode" doc:"变更方式：me 指派给当前成员，member 指定成员，clear 取消负责人"`
-	ID   string             `json:"id,omitempty" format:"uuid" doc:"mode 为 member 时的目标成员 ID"`
+	Mode AssigneeChangeMode `json:"mode" doc:"变更方式：me 指派给当前成员，member 指定成员，bot 指定机器人，clear 取消负责人"`
+	ID   string             `json:"id,omitempty" format:"uuid" doc:"mode 为 member 或 bot 时的目标负责人 ID"`
 }
 
 // StatusActionKind 是会话状态变更的类型：关闭或稍后处理（二选一）。
@@ -137,7 +139,17 @@ func (a Actions) toAssignment(sub identity.Subject) (Assignment, error) {
 			if _, err := uuid.Parse(a.Assignee.ID); err != nil {
 				return Assignment{}, ErrInvalidActions.New(errorx.Field("actions.assignee.id"))
 			}
+			typ := MemberActor
 			id := a.Assignee.ID
+			out.AssigneeType = &typ
+			out.AssigneeID = &id
+		case AssigneeBot:
+			if _, err := uuid.Parse(a.Assignee.ID); err != nil {
+				return Assignment{}, ErrInvalidActions.New(errorx.Field("actions.assignee.id"))
+			}
+			typ := BotActor
+			id := a.Assignee.ID
+			out.AssigneeType = &typ
 			out.AssigneeID = &id
 		case AssigneeClear:
 			empty := ""
@@ -151,7 +163,7 @@ func (a Actions) toAssignment(sub identity.Subject) (Assignment, error) {
 
 // applyActions 在事务 tx 中按确定顺序对已锁住的会话 c 执行一组操作，返回产生的全部系统事件。
 // 执行顺序：优先级 → 标签 → 自定义属性 → 指派 → 状态变更（关闭/稍后处理）。任一步失败时整笔事务回滚。
-func applyActions(ctx context.Context, tx bun.IDB, sub identity.Subject, c *Conversation, act Actions) ([]*Item, error) {
+func applyActions(ctx context.Context, tx database.Tx, down Downstream, sub identity.Subject, c *Conversation, act Actions) ([]*Item, error) {
 	if c.Kind == Chat {
 		return nil, ErrWrongKind.New()
 	}
@@ -192,7 +204,7 @@ func applyActions(ctx context.Context, tx bun.IDB, sub identity.Subject, c *Conv
 		if err != nil {
 			return nil, err
 		}
-		ev, err := applyAssign(ctx, tx, sub, c, p)
+		ev, err := applyAssign(ctx, tx, down, sub, c, p)
 		if err != nil {
 			return nil, err
 		}
@@ -202,7 +214,7 @@ func applyActions(ctx context.Context, tx bun.IDB, sub identity.Subject, c *Conv
 	if act.Status != nil {
 		switch act.Status.Kind {
 		case StatusActionClose:
-			ev, err := applyClose(ctx, tx, sub, c)
+			ev, err := applyClose(ctx, tx, down, sub, c)
 			if err != nil {
 				return nil, err
 			}
@@ -246,8 +258,8 @@ func (a *ApplyActions) Handle(ctx context.Context, sub identity.Subject, id stri
 	if !act.HasChanges() {
 		return nil, ErrInvalidActions.New()
 	}
-	return change(ctx, a.db, a.down, sub, id, auth.ConversationsReply, func(ctx context.Context, tx bun.IDB, c *Conversation) ([]*Item, error) {
-		return applyActions(ctx, tx, sub, c, act)
+	return changeTx(ctx, a.db, a.down, sub, id, auth.ConversationsReply, func(ctx context.Context, tx database.Tx, c *Conversation) ([]*Item, error) {
+		return applyActions(ctx, tx, a.down, sub, c, act)
 	})
 }
 
