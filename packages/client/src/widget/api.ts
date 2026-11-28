@@ -41,6 +41,10 @@ export interface ContactSummary {
   name: string
   /** 联系人在工作区内的递增编号，从 1 开始 */
   number: number
+  /** 关联的客户公司/组织概要 */
+  organization?: OrganizationSummary
+  /** 关联的客户公司/组织 ID */
+  organization_id?: string
   /** 联系人上的标签 */
   tags: TagSummary[]
   /** IANA 时区名，用于显示对方的当地时间 */
@@ -262,6 +266,15 @@ export type MemberStatus = "online" | "away"
 export interface Meta {
   height?: number
   width?: number
+}
+
+export interface OrganizationSummary {
+  /** 组织主域名 */
+  domain?: string
+  /** 外部客户编号 */
+  external_id?: string
+  id: string
+  name: string
 }
 
 export type TagColor = "blue-gray" | "red" | "deep-orange" | "yellow" | "green" | "sky-blue" | "bright-blue" | "violet" | "purple" | "magenta" | "brown"

@@ -696,6 +696,38 @@ export function createQueries(client: Client, options: QueryOptions = {}) {
           invalidate(context, "member"),
       }),
     },
+    organization: {
+      /** organization 分组全部查询的 key 前缀。 */
+      key: () => key("organization"),
+      /** POST /organizations */
+      create: () => ({
+        mutationFn: (variables: Parameters<Client["organization"]["create"]>[0]) => client.organization.create(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "organization"),
+      }),
+      /** DELETE /organizations/{id} */
+      delete: () => ({
+        mutationFn: (variables: Parameters<Client["organization"]["delete"]>[0]) => client.organization.delete(variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "organization"),
+      }),
+      /** GET /organizations/{id} */
+      get: (...args: Parameters<Client["organization"]["get"]>) => ({
+        queryKey: key("organization", "get", ...args),
+        queryFn: () => client.organization.get(...args),
+      }),
+      /** GET /organizations */
+      list: (...args: Parameters<Client["organization"]["list"]>) => ({
+        queryKey: key("organization", "list", ...args),
+        queryFn: () => client.organization.list(...args),
+      }),
+      /** PUT /organizations/{id} */
+      update: () => ({
+        mutationFn: (variables: Parameters<Client["organization"]["update"]>) => client.organization.update(...variables),
+        onSuccess: (_data: unknown, _variables: unknown, _result: unknown, context?: MutationContext) =>
+          invalidate(context, "organization"),
+      }),
+    },
     report: {
       /** report 分组全部查询的 key 前缀。 */
       key: () => key("report"),

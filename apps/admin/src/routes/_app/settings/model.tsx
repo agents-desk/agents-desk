@@ -1,4 +1,4 @@
-import { Button, Card, Group, Stack, Text, TextInput, Title } from "@mantine/core"
+import { Button, Card, Group, NumberInput, Stack, Text, TextInput, Title } from "@mantine/core"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import type { ErrorInfo } from "@go-tenon/client"
@@ -16,10 +16,22 @@ const queryKey = ["llm", "settings"]
 
 const emptySettings: LlmSettings = {
   gateway: { base_url: "", api_key: "" },
-  models: { translation: "" },
+  models: {
+    chat: "",
+    fast_router: "",
+    translation: "",
+    embedding: "",
+    rerank: "",
+    transcribe: "",
+  },
+  default_budget: {
+    daily_cost_usd: 0,
+    monthly_cost_usd: 0,
+    daily_total_tokens: 0,
+  },
 }
 
-// ModelSettings 是统一模型网关与各业务调用类型逻辑模型名的配置表单。
+// ModelSettings 是统一模型网关、各业务调用类型逻辑模型名及默认工作区熔断配额的配置表单。
 function ModelSettings() {
   const queryClient = useQueryClient()
   const current = useQuery({ queryKey, queryFn: () => api.llm.settingsGet() })
@@ -75,11 +87,75 @@ function ModelSettings() {
             <Stack gap="sm">
               <Title order={4}>{t("model.models_title")}</Title>
               <TextInput
+                label={t("model.chat_label")}
+                description={t("model.chat_description")}
+                placeholder="chat-pro"
+                {...form.getInputProps("models.chat")}
+              />
+              <TextInput
+                label={t("model.fast_router_label")}
+                description={t("model.fast_router_description")}
+                placeholder="router-fast"
+                {...form.getInputProps("models.fast_router")}
+              />
+              <TextInput
                 label={t("model.translation_label")}
                 description={t("model.translation_description")}
                 placeholder="translate-fast"
                 {...form.getInputProps("models.translation")}
               />
+              <TextInput
+                label={t("model.embedding_label")}
+                description={t("model.embedding_description")}
+                placeholder="embed-large"
+                {...form.getInputProps("models.embedding")}
+              />
+              <TextInput
+                label={t("model.rerank_label")}
+                description={t("model.rerank_description")}
+                placeholder="rerank-v3"
+                {...form.getInputProps("models.rerank")}
+              />
+              <TextInput
+                label={t("model.transcribe_label")}
+                description={t("model.transcribe_description")}
+                placeholder="whisper-1"
+                {...form.getInputProps("models.transcribe")}
+              />
+            </Stack>
+          </Card>
+          <Card withBorder>
+            <Stack gap="sm">
+              <Title order={4}>{t("model.budget_title")}</Title>
+              <Text size="sm" c="dimmed">
+                {t("model.budget_description")}
+              </Text>
+              <Group grow align="flex-start">
+                <NumberInput
+                  label={t("model.budget_daily_cost")}
+                  min={0}
+                  max={100000}
+                  decimalScale={4}
+                  value={form.values.default_budget.daily_cost_usd}
+                  onChange={(v) => form.setFieldValue("default_budget.daily_cost_usd", typeof v === "number" ? v : 0)}
+                />
+                <NumberInput
+                  label={t("model.budget_monthly_cost")}
+                  min={0}
+                  max={1000000}
+                  decimalScale={4}
+                  value={form.values.default_budget.monthly_cost_usd}
+                  onChange={(v) => form.setFieldValue("default_budget.monthly_cost_usd", typeof v === "number" ? v : 0)}
+                />
+                <NumberInput
+                  label={t("model.budget_daily_tokens")}
+                  min={0}
+                  max={10000000000}
+                  allowDecimal={false}
+                  value={form.values.default_budget.daily_total_tokens}
+                  onChange={(v) => form.setFieldValue("default_budget.daily_total_tokens", typeof v === "number" ? v : 0)}
+                />
+              </Group>
             </Stack>
           </Card>
           <Group justify="flex-end">

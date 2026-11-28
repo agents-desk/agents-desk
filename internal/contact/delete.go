@@ -100,6 +100,7 @@ func (a *Delete) Handle(ctx context.Context, sub identity.Subject, id string) (*
 			Set("notes_derived = '{}'::jsonb").
 			Set("external_user_id = ''").
 			Set("member_id = NULL").
+			Set("organization_id = NULL").
 			Set("attributes = '{}'::jsonb").
 			Set("blocked_at = COALESCE(blocked_at, ?)", at).
 			Set("blocked_reason = 'anonymized'").

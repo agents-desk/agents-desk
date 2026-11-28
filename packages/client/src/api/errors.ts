@@ -233,6 +233,10 @@ export const HoursErrors = {
 
 /** agents-desk/internal/llm 的错误码。 */
 export const LlmErrors = {
+  /** ErrBudgetExceeded 是工作区模型调用费用或 token 用量已达到熔断上限。 */
+  BudgetExceeded: "llm.budget_exceeded",
+  /** ErrTenantNotFound 是管理端查询或配置预算覆写时指定的工作区不存在。 */
+  TenantNotFound: "llm.tenant_not_found",
   /** ErrNotConfigured 是网关或这种调用类型的模型名还没有配置：平台管理员在管理员端的平台设置中填写。 */
   NotConfigured: "llm.not_configured",
   /** ErrFailed 是模型接口调用失败，或者回答不是要求的格式。 */
@@ -271,6 +275,16 @@ export const MemberErrors = {
   AlreadyMember: "member.already_member",
   OwnerProtected: "member.owner_protected",
   Self: "member.self",
+} as const
+
+/** agents-desk/internal/organization 的错误码。 */
+export const OrganizationErrors = {
+  /** ErrNotFound 是客户公司/组织不存在，或者属于别的工作区。 */
+  NotFound: "organization.not_found",
+  /** ErrNameTaken 是同工作区内已存在相同名称的客户公司/组织（不区分大小写）。 */
+  NameTaken: "organization.name_taken",
+  /** ErrExternalIDTaken 是同工作区内已存在相同外部客户编号的组织。 */
+  ExternalIDTaken: "organization.external_id_taken",
 } as const
 
 /** agents-desk/internal/platformadmin 的错误码。 */

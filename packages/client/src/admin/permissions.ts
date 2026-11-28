@@ -68,6 +68,8 @@ export const required = {
   llm: {
     settingsGet: ["platform-settings:manage"],
     settingsSave: ["platform-settings:manage"],
+    tenantBudgetGet: ["platform-settings:manage"],
+    tenantBudgetSave: ["platform-settings:manage"],
   },
   mail: {
     settingsGet: ["platform-settings:manage"],

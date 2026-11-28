@@ -18,6 +18,7 @@ type TargetFilter =
   | "team"
   | "channel"
   | "contact"
+  | "organization"
   | "blocked_ip"
   | "tag"
   | "attribute"
@@ -53,6 +54,7 @@ function WorkspaceAuditLogPage() {
               { value: "team", label: t("audit.filter_team") },
               { value: "channel", label: t("audit.filter_channel") },
               { value: "contact", label: t("audit.filter_contact") },
+              { value: "organization", label: t("audit.filter_organization") },
               { value: "blocked_ip", label: t("audit.filter_blocked_ip") },
               { value: "tag", label: t("audit.filter_tag") },
               { value: "attribute", label: t("audit.filter_attribute") },

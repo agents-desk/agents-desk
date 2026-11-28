@@ -203,6 +203,10 @@ export const schemas = {
             "maxLength": 35,
             "type": "string"
           },
+          "organization_id": {
+            "format": "uuid",
+            "type": "string"
+          },
           "per_page": {
             "default": 20,
             "format": "int64",
@@ -507,6 +511,10 @@ export const schemas = {
             "format": "uuid",
             "type": "string"
           },
+          "organization_id": {
+            "format": "uuid",
+            "type": "string"
+          },
           "status": {
             "$ref": "#/components/schemas/ExtgroupStatus"
           }
@@ -628,6 +636,42 @@ export const schemas = {
     update: {
       body: {
         "$ref": "#/components/schemas/MemberRoleChange"
+      },
+    },
+  },
+  organization: {
+    create: {
+      body: {
+        "$ref": "#/components/schemas/OrganizationCreateBody"
+      },
+    },
+    list: {
+      query: {
+        "properties": {
+          "page": {
+            "default": 1,
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "per_page": {
+            "default": 20,
+            "format": "int64",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "q": {
+            "maxLength": 100,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+    },
+    update: {
+      body: {
+        "$ref": "#/components/schemas/OrganizationUpdateBody"
       },
     },
   },
@@ -1171,6 +1215,7 @@ export const schemas = {
               "team",
               "channel",
               "contact",
+              "organization",
               "blocked_ip",
               "tag",
               "attribute",
@@ -1883,6 +1928,9 @@ export const components = {
         "maxLength": 4000,
         "type": "string"
       },
+      "organization_id": {
+        "type": "string"
+      },
       "time_zone": {
         "maxLength": 64,
         "type": "string"
@@ -1902,6 +1950,10 @@ export const components = {
       },
       "language": {
         "maxLength": 35,
+        "type": "string"
+      },
+      "organization_id": {
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
         "type": "string"
       },
       "q": {
@@ -3406,6 +3458,63 @@ export const components = {
       "status",
       "reassign"
     ],
+    "type": "object"
+  },
+  OrganizationCreateBody: {
+    "additionalProperties": false,
+    "properties": {
+      "attributes": {
+        "additionalProperties": {},
+        "type": "object"
+      },
+      "domain": {
+        "maxLength": 200,
+        "type": "string"
+      },
+      "external_id": {
+        "maxLength": 120,
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 120,
+        "minLength": 1,
+        "type": "string"
+      },
+      "notes": {
+        "maxLength": 4000,
+        "type": "string"
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "type": "object"
+  },
+  OrganizationUpdateBody: {
+    "additionalProperties": false,
+    "properties": {
+      "attributes": {
+        "additionalProperties": {},
+        "type": "object"
+      },
+      "domain": {
+        "maxLength": 200,
+        "type": "string"
+      },
+      "external_id": {
+        "maxLength": 120,
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 120,
+        "minLength": 1,
+        "type": "string"
+      },
+      "notes": {
+        "maxLength": 4000,
+        "type": "string"
+      }
+    },
     "type": "object"
   },
   RoleParams: {

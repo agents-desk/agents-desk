@@ -164,6 +164,11 @@ export const schemas = {
         "$ref": "#/components/schemas/LlmSettings"
       },
     },
+    tenantBudgetSave: {
+      body: {
+        "$ref": "#/components/schemas/LlmTenantBudget"
+      },
+    },
   },
   mail: {
     settingsTest: {
@@ -443,6 +448,35 @@ export const components = {
     ],
     "type": "object"
   },
+  LlmBudget: {
+    "additionalProperties": false,
+    "properties": {
+      "daily_cost_usd": {
+        "format": "double",
+        "maximum": 100000,
+        "minimum": 0,
+        "type": "number"
+      },
+      "daily_total_tokens": {
+        "format": "int64",
+        "maximum": 10000000000,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "monthly_cost_usd": {
+        "format": "double",
+        "maximum": 1000000,
+        "minimum": 0,
+        "type": "number"
+      }
+    },
+    "required": [
+      "daily_cost_usd",
+      "monthly_cost_usd",
+      "daily_total_tokens"
+    ],
+    "type": "object"
+  },
   LlmGateway: {
     "additionalProperties": false,
     "properties": {
@@ -466,19 +500,47 @@ export const components = {
   LlmModels: {
     "additionalProperties": false,
     "properties": {
+      "chat": {
+        "maxLength": 200,
+        "type": "string"
+      },
+      "embedding": {
+        "maxLength": 200,
+        "type": "string"
+      },
+      "fast_router": {
+        "maxLength": 200,
+        "type": "string"
+      },
+      "rerank": {
+        "maxLength": 200,
+        "type": "string"
+      },
+      "transcribe": {
+        "maxLength": 200,
+        "type": "string"
+      },
       "translation": {
         "maxLength": 200,
         "type": "string"
       }
     },
     "required": [
-      "translation"
+      "chat",
+      "fast_router",
+      "translation",
+      "embedding",
+      "rerank",
+      "transcribe"
     ],
     "type": "object"
   },
   LlmSettings: {
     "additionalProperties": false,
     "properties": {
+      "default_budget": {
+        "$ref": "#/components/schemas/LlmBudget"
+      },
       "gateway": {
         "$ref": "#/components/schemas/LlmGateway"
       },
@@ -488,7 +550,46 @@ export const components = {
     },
     "required": [
       "gateway",
-      "models"
+      "models",
+      "default_budget"
+    ],
+    "type": "object"
+  },
+  LlmTenantBudget: {
+    "additionalProperties": false,
+    "properties": {
+      "daily_cost_usd": {
+        "format": "double",
+        "maximum": 100000,
+        "minimum": 0,
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "daily_total_tokens": {
+        "format": "int64",
+        "maximum": 10000000000,
+        "minimum": 0,
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "monthly_cost_usd": {
+        "format": "double",
+        "maximum": 1000000,
+        "minimum": 0,
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "daily_cost_usd",
+      "monthly_cost_usd",
+      "daily_total_tokens"
     ],
     "type": "object"
   },

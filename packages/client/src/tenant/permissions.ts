@@ -160,6 +160,13 @@ export const required = {
     setAway: ["members:manage"],
     update: ["members:manage"],
   },
+  organization: {
+    create: ["contacts:update"],
+    delete: ["contacts:update"],
+    get: ["contacts:read"],
+    list: ["contacts:read"],
+    update: ["contacts:update"],
+  },
   report: {
     business: ["reports:read"],
     conversations: ["reports:read"],

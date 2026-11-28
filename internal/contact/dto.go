@@ -13,34 +13,37 @@ import (
 
 	"agents-desk/internal/channel"
 	"agents-desk/internal/lang"
+	"agents-desk/internal/organization"
 )
 
 // ContactDTO 是接口中的联系人概要信息，用于联系人列表和资料页。
 type ContactDTO struct {
-	ID                string         `json:"id"`
-	Number            int64          `json:"number" doc:"联系人在工作区内的递增编号，从 1 开始"`
-	Kind              Kind           `json:"kind"`
-	MemberID          *string        `json:"member_id,omitempty" doc:"内部联系人关联的工作区成员 ID"`
-	Name              string         `json:"name"`
-	Company           string         `json:"company" doc:"联系人所属公司或组织名称"`
-	Email             string         `json:"email"`
-	ExternalUserID    string         `json:"external_user_id,omitempty" doc:"产品后端传来的用户编号；线索为空"`
-	Language          string         `json:"language" doc:"客户的语言（BCP 47），按最近几条消息识别或成员手动设置"`
-	LanguageManual    bool           `json:"language_manual" doc:"语言是成员手动设置的：收到的消息不再改它"`
-	Location          string         `json:"location" doc:"所在地"`
-	TimeZone          string         `json:"time_zone" doc:"IANA 时区名，用于显示对方的当地时间"`
-	Referrer          string         `json:"referrer" doc:"首次访问的来源页面"`
-	Notes             string         `json:"notes" doc:"成员填写的联系人备注，跨会话持久可见"`
-	NotesLanguage     string         `json:"notes_language,omitempty" doc:"联系人备注识别出的源语言（BCP 47）"`
-	NotesTranslated   string         `json:"notes_translated,omitempty" doc:"当前查看成员语言的联系人备注译文；同语言或暂无时为空"`
-	NotesUntranslated bool           `json:"notes_untranslated,omitempty" doc:"联系人备注对当前查看成员是否还缺译文"`
-	Attributes        map[string]any `json:"attributes" doc:"自定义属性"`
-	ConversationCount int            `json:"conversation_count" doc:"当前成员可见的该联系人会话数"`
-	LastSeenAt        *time.Time     `json:"last_seen_at,omitempty" doc:"最近活跃或联系的时间"`
-	BlockedAt         *time.Time     `json:"blocked_at,omitempty" doc:"拉黑时间；非空表示已拉黑"`
-	BlockedReason     string         `json:"blocked_reason,omitempty" doc:"拉黑原因说明"`
-	CreatedAt         time.Time      `json:"created_at"`
-	UpdatedAt         time.Time      `json:"updated_at"`
+	ID                string                `json:"id"`
+	Number            int64                 `json:"number" doc:"联系人在工作区内的递增编号，从 1 开始"`
+	Kind              Kind                  `json:"kind"`
+	MemberID          *string               `json:"member_id,omitempty" doc:"内部联系人关联的工作区成员 ID"`
+	OrganizationID    *string               `json:"organization_id,omitempty" doc:"关联的客户公司/组织 ID"`
+	Organization      *organization.Summary `json:"organization,omitempty" doc:"关联的客户公司/组织概要"`
+	Name              string                `json:"name"`
+	Company           string                `json:"company" doc:"联系人所属公司或组织名称"`
+	Email             string                `json:"email"`
+	ExternalUserID    string                `json:"external_user_id,omitempty" doc:"产品后端传来的用户编号；线索为空"`
+	Language          string                `json:"language" doc:"客户的语言（BCP 47），按最近几条消息识别或成员手动设置"`
+	LanguageManual    bool                  `json:"language_manual" doc:"语言是成员手动设置的：收到的消息不再改它"`
+	Location          string                `json:"location" doc:"所在地"`
+	TimeZone          string                `json:"time_zone" doc:"IANA 时区名，用于显示对方的当地时间"`
+	Referrer          string                `json:"referrer" doc:"首次访问的来源页面"`
+	Notes             string                `json:"notes" doc:"成员填写的联系人备注，跨会话持久可见"`
+	NotesLanguage     string                `json:"notes_language,omitempty" doc:"联系人备注识别出的源语言（BCP 47）"`
+	NotesTranslated   string                `json:"notes_translated,omitempty" doc:"当前查看成员语言的联系人备注译文；同语言或暂无时为空"`
+	NotesUntranslated bool                  `json:"notes_untranslated,omitempty" doc:"联系人备注对当前查看成员是否还缺译文"`
+	Attributes        map[string]any        `json:"attributes" doc:"自定义属性"`
+	ConversationCount int                   `json:"conversation_count" doc:"当前成员可见的该联系人会话数"`
+	LastSeenAt        *time.Time            `json:"last_seen_at,omitempty" doc:"最近活跃或联系的时间"`
+	BlockedAt         *time.Time            `json:"blocked_at,omitempty" doc:"拉黑时间；非空表示已拉黑"`
+	BlockedReason     string                `json:"blocked_reason,omitempty" doc:"拉黑原因说明"`
+	CreatedAt         time.Time             `json:"created_at"`
+	UpdatedAt         time.Time             `json:"updated_at"`
 }
 
 // IdentityDTO 是联系人在某个渠道中的身份。
@@ -68,14 +71,24 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, rows []Contac
 		return out, nil
 	}
 	ids := make([]string, len(rows))
+	var orgIDs []string
+	seenOrg := map[string]bool{}
 	for i := range rows {
 		ids[i] = rows[i].ID
+		if rows[i].OrganizationID != nil && *rows[i].OrganizationID != "" && !seenOrg[*rows[i].OrganizationID] {
+			seenOrg[*rows[i].OrganizationID] = true
+			orgIDs = append(orgIDs, *rows[i].OrganizationID)
+		}
+	}
+	orgs, err := organization.Summaries(ctx, db, sub.Tenant, orgIDs)
+	if err != nil {
+		return nil, err
 	}
 	var counts []struct {
 		ContactID string `bun:"contact_id"`
 		Count     int    `bun:"count"`
 	}
-	err := visibleConversations(
+	err = visibleConversations(
 		db.NewSelect().TableExpr("conversations AS conv").
 			Column("conv.contact_id").ColumnExpr("count(*) AS count").
 			Where("conv.tenant_id = ? AND conv.kind = 'service' AND conv.spam_at IS NULL AND conv.contact_id IN (?)", sub.Tenant, bun.In(ids)),
@@ -99,8 +112,16 @@ func toDTOs(ctx context.Context, db bun.IDB, sub identity.Subject, rows []Contac
 			attrs = map[string]any{}
 		}
 		notesLang, notesTr, notesUntranslated := resolveNotesTranslation(c.Notes, c.NotesDerived, viewerLang)
+		var orgSummary *organization.Summary
+		if c.OrganizationID != nil && *c.OrganizationID != "" {
+			if s, ok := orgs[*c.OrganizationID]; ok {
+				orgSummary = &s
+			}
+		}
 		out[i] = ContactDTO{
-			ID: c.ID, Number: c.Number, Kind: c.Kind, MemberID: c.MemberID, Name: c.Name, Company: c.Company, Email: c.Email, ExternalUserID: c.ExternalUserID,
+			ID: c.ID, Number: c.Number, Kind: c.Kind, MemberID: c.MemberID,
+			OrganizationID: c.OrganizationID, Organization: orgSummary,
+			Name: c.Name, Company: c.Company, Email: c.Email, ExternalUserID: c.ExternalUserID,
 			Language: c.Language, LanguageManual: c.LanguageManual,
 			Location: c.Location, TimeZone: c.TimeZone, Referrer: c.Referrer, Notes: c.Notes,
 			NotesLanguage: notesLang, NotesTranslated: notesTr, NotesUntranslated: notesUntranslated,

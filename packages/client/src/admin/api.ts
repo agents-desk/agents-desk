@@ -148,6 +148,15 @@ export interface FormFile {
   Size: number
 }
 
+export interface LlmBudget {
+  /** 单工作区每日费用上限（美元），0 表示不限 */
+  daily_cost_usd: number
+  /** 单工作区每日总 token 上限（输入+输出），0 表示不限 */
+  daily_total_tokens: number
+  /** 单工作区每月费用上限（美元），0 表示不限 */
+  monthly_cost_usd: number
+}
+
 export interface LlmGateway {
   /** 网关密钥（Virtual Key），落库时自动加密保存 */
   api_key: string
@@ -156,15 +165,41 @@ export interface LlmGateway {
 }
 
 export interface LlmModels {
+  /** AI 对话：机器人与 Agent 主推理和工具调用模型 */
+  chat: string
+  /** 向量化：知识库文档与查询向量编码模型 */
+  embedding: string
+  /** 快速路由：低延迟分类决策与意图分流模型 */
+  fast_router: string
+  /** 重排：检索候选切片语义重排序模型 */
+  rerank: string
+  /** 语音识别：将语音消息转写为文本 */
+  transcribe: string
   /** 翻译：在不同语言之间互译文本，同时识别原文的语言和书写方式 */
   translation: string
 }
 
 export interface LlmSettings {
+  /** 默认单工作区模型用量与费用熔断上限，0 表示不限 */
+  default_budget: LlmBudget
   /** 统一模型网关连接 */
   gateway: LlmGateway
   /** 各调用类型使用的逻辑模型名 */
   models: LlmModels
+}
+
+export interface LlmTenantBudget {
+  /** 覆写工作区每日费用上限（美元）；留空跟随平台默认，0 表示不限 */
+  daily_cost_usd: number | null
+  /** 覆写工作区每日总 token 上限；留空跟随平台默认，0 表示不限 */
+  daily_total_tokens: number | null
+  /** 覆写工作区每月费用上限（美元）；留空跟随平台默认，0 表示不限 */
+  monthly_cost_usd: number | null
+}
+
+export interface LlmTenantBudgetDTO {
+  effective: LlmBudget
+  override: LlmTenantBudget
 }
 
 export type MemberAccountStatus = "active" | "disabled"
@@ -913,6 +948,20 @@ export function createClient(options: ClientOptions) {
        */
       settingsSave: (body: LlmSettings): Promise<LlmSettings> =>
         rt.request<LlmSettings>({ method: "PUT", path: `/settings/model`, body }),
+      /**
+       * 读取工作区模型预算上限
+       *
+       * GET /tenants/{id}/llm-budget
+       */
+      tenantBudgetGet: (id: string): Promise<LlmTenantBudgetDTO> =>
+        rt.request<LlmTenantBudgetDTO>({ method: "GET", path: `/tenants/${encodeURIComponent(id)}/llm-budget` }),
+      /**
+       * 保存工作区模型预算覆写
+       *
+       * PUT /tenants/{id}/llm-budget
+       */
+      tenantBudgetSave: (id: string, body: LlmTenantBudget): Promise<LlmTenantBudgetDTO> =>
+        rt.request<LlmTenantBudgetDTO>({ method: "PUT", path: `/tenants/${encodeURIComponent(id)}/llm-budget`, body }),
     },
     /** operationId 以 mail- 开头的接口。 */
     mail: {

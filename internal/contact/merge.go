@@ -147,6 +147,10 @@ func (a *Merge) Handle(ctx context.Context, sub identity.Subject, targetID strin
 		if target.Company == "" && source.Company != "" {
 			target.Company, cols = source.Company, append(cols, "company")
 		}
+		if target.OrganizationID == nil && source.OrganizationID != nil {
+			oid := *source.OrganizationID
+			target.OrganizationID, cols = &oid, append(cols, "organization_id")
+		}
 		if target.Email == "" && source.Email != "" {
 			target.Email, cols = source.Email, append(cols, "email")
 		}

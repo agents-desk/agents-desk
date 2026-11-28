@@ -17,7 +17,7 @@ import (
 // TenantListInput 是工作区操作日志的查询参数。
 type TenantListInput struct {
 	page.OffsetParams
-	TargetType string `query:"target_type" enum:",tenant,member,role,team,channel,contact,blocked_ip,tag,attribute,ticket_type,macro,automation_rule,external_group,settings" doc:"按对象类型筛选；为空时返回全部"`
+	TargetType string `query:"target_type" enum:",tenant,member,role,team,channel,contact,organization,blocked_ip,tag,attribute,ticket_type,macro,automation_rule,external_group,settings" doc:"按对象类型筛选；为空时返回全部"`
 }
 
 // TenantList 读取工作区成员与管理员在当前工作区（sub.Tenant）的操作日志。
@@ -121,6 +121,7 @@ func (a *TenantList) loadTenantTargetNames(ctx context.Context, tenantID string,
 		{kind: "team", table: "teams", col: "name", scopedBy: "tenant_id"},
 		{kind: "channel", table: "channels", col: "name", scopedBy: "tenant_id"},
 		{kind: "contact", table: "contacts", col: "name", scopedBy: "tenant_id"},
+		{kind: "organization", table: "organizations", col: "name", scopedBy: "tenant_id"},
 		{kind: "tag", table: "tags", col: "name", scopedBy: "tenant_id"},
 		{kind: "attribute", table: "attribute_definitions", col: "name", scopedBy: "tenant_id"},
 		{kind: "ticket_type", table: "ticket_types", col: "name", scopedBy: "tenant_id"},

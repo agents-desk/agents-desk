@@ -22,6 +22,7 @@ import (
 
 	"agents-desk/internal/channel"
 	"agents-desk/internal/lang"
+	"agents-desk/internal/organization"
 	"agents-desk/internal/team"
 )
 
@@ -99,18 +100,19 @@ func (g *Group) Summary() Summary {
 
 // GroupDTO 是设置页管理外部群的完整视图。
 type GroupDTO struct {
-	ID             string          `json:"id"`
-	Channel        channel.Summary `json:"channel"`
-	ExternalID     string          `json:"external_id"`
-	Name           string          `json:"name"`
-	Status         Status          `json:"status"`
-	TeamID         *string         `json:"team_id,omitempty"`
-	OrganizationID *string         `json:"organization_id,omitempty"`
-	Language       string          `json:"language"`
-	LanguageManual bool            `json:"language_manual"`
-	LastActiveAt   *time.Time      `json:"last_active_at,omitempty"`
-	CreatedAt      time.Time       `json:"created_at"`
-	UpdatedAt      time.Time       `json:"updated_at"`
+	ID             string                `json:"id"`
+	Channel        channel.Summary       `json:"channel"`
+	ExternalID     string                `json:"external_id"`
+	Name           string                `json:"name"`
+	Status         Status                `json:"status"`
+	TeamID         *string               `json:"team_id,omitempty"`
+	OrganizationID *string               `json:"organization_id,omitempty"`
+	Organization   *organization.Summary `json:"organization,omitempty" doc:"所属客户公司/组织"`
+	Language       string                `json:"language"`
+	LanguageManual bool                  `json:"language_manual"`
+	LastActiveAt   *time.Time            `json:"last_active_at,omitempty"`
+	CreatedAt      time.Time             `json:"created_at"`
+	UpdatedAt      time.Time             `json:"updated_at"`
 }
 
 // User 是 external_users 表的数据库模型，记录群内发言人的显示名称与平台账号，不写入客户联系人表。
@@ -267,9 +269,10 @@ func SyncRemoved(ctx context.Context, db *bun.DB, tenant, channelID, externalID 
 
 // ListInput 是外部群列表的查询条件。
 type ListInput struct {
-	ChannelID string           `query:"channel_id" format:"uuid" doc:"可选：按渠道筛选"`
-	Audience  channel.Audience `query:"audience" doc:"可选：按所属渠道服务对象筛选（customer、partner 或 internal）"`
-	Status    Status           `query:"status" doc:"可选：按状态筛选（pending_setup、active、removed）"`
+	ChannelID      string           `query:"channel_id" format:"uuid" doc:"可选：按渠道筛选"`
+	OrganizationID string           `query:"organization_id" format:"uuid" doc:"可选：按所属客户组织筛选"`
+	Audience       channel.Audience `query:"audience" doc:"可选：按所属渠道服务对象筛选（customer、partner 或 internal）"`
+	Status         Status           `query:"status" doc:"可选：按状态筛选（pending_setup、active、removed）"`
 }
 
 // ListOutput 是外部群列表的响应。
@@ -291,6 +294,9 @@ func (a *List) Handle(ctx context.Context, sub identity.Subject, in *ListInput) 
 	q := a.db.NewSelect().Model(&rows).Where("\"group\".tenant_id = ?", sub.Tenant)
 	if in != nil && in.ChannelID != "" {
 		q = q.Where("\"group\".channel_id = ?", in.ChannelID)
+	}
+	if in != nil && in.OrganizationID != "" {
+		q = q.Where("\"group\".organization_id = ?", in.OrganizationID)
 	}
 	if in != nil && in.Audience != "" {
 		q = q.Where("EXISTS (SELECT 1 FROM channels ch WHERE ch.id = \"group\".channel_id AND ch.tenant_id = \"group\".tenant_id AND ch.audience = ?)", in.Audience)
@@ -414,6 +420,12 @@ func (a *Update) Handle(ctx context.Context, sub identity.Subject, id string, b 
 					g.OrganizationID, cols, props["organization_id"] = nil, append(cols, "organization_id"), ""
 				}
 			} else if g.OrganizationID == nil || *g.OrganizationID != oid {
+				if _, err := organization.Find(ctx, tx, sub.Tenant, oid); err != nil {
+					if errors.Is(err, organization.ErrNotFound) {
+						return organization.ErrNotFound.New(errorx.Field("organization_id"))
+					}
+					return err
+				}
 				idCopy := oid
 				g.OrganizationID, cols, props["organization_id"] = &idCopy, append(cols, "organization_id"), oid
 			}
@@ -470,12 +482,18 @@ func toDTOs(ctx context.Context, db bun.IDB, tenant string, rows []Group) ([]Gro
 	if len(rows) == 0 {
 		return out, nil
 	}
-	seen := map[string]bool{}
+	seenCh := map[string]bool{}
+	seenOrg := map[string]bool{}
 	chIDs := make([]string, 0, len(rows))
+	orgIDs := make([]string, 0, len(rows))
 	for _, r := range rows {
-		if !seen[r.ChannelID] {
-			seen[r.ChannelID] = true
+		if !seenCh[r.ChannelID] {
+			seenCh[r.ChannelID] = true
 			chIDs = append(chIDs, r.ChannelID)
+		}
+		if r.OrganizationID != nil && *r.OrganizationID != "" && !seenOrg[*r.OrganizationID] {
+			seenOrg[*r.OrganizationID] = true
+			orgIDs = append(orgIDs, *r.OrganizationID)
 		}
 	}
 	var chRows []channel.Channel
@@ -486,10 +504,20 @@ func toDTOs(ctx context.Context, db bun.IDB, tenant string, rows []Group) ([]Gro
 	for i := range chRows {
 		chByID[chRows[i].ID] = chRows[i].Summary()
 	}
+	orgs, err := organization.Summaries(ctx, db, tenant, orgIDs)
+	if err != nil {
+		return nil, err
+	}
 	for i, r := range rows {
 		ch, ok := chByID[r.ChannelID]
 		if !ok {
 			ch = channel.Summary{ID: r.ChannelID}
+		}
+		var orgSummary *organization.Summary
+		if r.OrganizationID != nil && *r.OrganizationID != "" {
+			if s, ok := orgs[*r.OrganizationID]; ok {
+				orgSummary = &s
+			}
 		}
 		out[i] = GroupDTO{
 			ID:             r.ID,
@@ -499,6 +527,7 @@ func toDTOs(ctx context.Context, db bun.IDB, tenant string, rows []Group) ([]Gro
 			Status:         r.Status,
 			TeamID:         r.TeamID,
 			OrganizationID: r.OrganizationID,
+			Organization:   orgSummary,
 			Language:       r.Language,
 			LanguageManual: r.LanguageManual,
 			LastActiveAt:   r.LastActiveAt,

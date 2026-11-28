@@ -59,6 +59,7 @@ import (
 	"agents-desk/internal/llm"
 	"agents-desk/internal/macro"
 	"agents-desk/internal/member"
+	"agents-desk/internal/organization"
 	"agents-desk/internal/platformadmin"
 	"agents-desk/internal/platformoverview"
 	"agents-desk/internal/platformsettings"
@@ -477,6 +478,7 @@ func (a *App) routes(pages http.Handler) chi.Router {
 		contactHooks.Tokens = a.contactTokens
 		contact.RegisterRoutes(api, require, a.db, a.hub, a.roles, a.exporter, contactHooks)
 		r.Get("/contacts/exports/{id}/download", a.downloadContactExport)
+		organization.RegisterRoutes(api, require, a.db)
 		tag.RegisterRoutes(api, require, a.db)
 		attribute.RegisterRoutes(api, require, a.db)
 		tickettype.RegisterRoutes(api, require, a.db)

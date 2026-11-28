@@ -156,9 +156,16 @@ hours.reply_time.hour: 一小时内
 hours.reply_time.hours: 几小时内
 hours.reply_time.day: 一天内
 
+llm.call_type.chat: AI 对话
+llm.call_type.fast_router: 快速路由
 llm.call_type.translation: 翻译
+llm.call_type.embedding: 向量化
+llm.call_type.rerank: 重排
+llm.call_type.transcribe: 语音识别
 llm.not_configured: 翻译还没有配置，请平台管理员在平台设置中填写翻译的模型接口
 llm.failed: 模型接口暂时不可用，请稍后再试
+llm.budget_exceeded: 当前工作区的模型用量或费用已达到上限，请联系管理员调整配额
+llm.tenant_not_found: 工作区不存在
 translation.forbidden: 你没有回复会话的权限
 translation.duplicate_term: "术语“{{.term}}”重复了"
 translation.tone.friendly: 亲切
@@ -431,6 +438,7 @@ activity.tenant.impersonated: "以「{{.member_name}}」的身份代为登录了
 activity.platform_settings.changed: "更新了平台设置（{{.changed}}）"
 activity.platform_settings.general_updated: "更新了平台常规设置（{{.changed}}）"
 activity.platform_settings.mail_updated: "更新了邮件服务设置（{{.changed}}）"
+activity.llm_budget.changed: "更新了工作区「{{.name}}」的模型预算上限（{{.changed}}）"
 activity.tgaccount.credentials_updated: "更新了工作区 Telegram 个人号 API 凭据设置（{{.changed}}）"
 activity.feature.changed: "更新了功能开关「{{.name}}」（{{.scope}}：{{.mode}}）"
 activity.feature.cleared: "清除了功能开关「{{.name}}」的设置（{{.scope}}）"
@@ -472,6 +480,9 @@ activity.business_channel.collaborators_added: "为商务渠道「{{.name}}」�
 activity.contact.updated: "更新了联系人「{{.name}}」资料"
 activity.contact.deleted: "删除了联系人「{{.name}}」"
 activity.contact.anonymized: "对联系人执行了不可逆匿名化清理"
+activity.organization.created: "创建了客户组织「{{.name}}」"
+activity.organization.updated: "更新了客户组织「{{.name}}」（{{.changed}}）"
+activity.organization.deleted: "删除了客户组织「{{.name}}」"
 activity.contact_view.created: "创建了联系人视图"
 activity.contact_view.updated: "更新了联系人视图"
 activity.contact_view.deleted: "删除了联系人视图"
@@ -743,3 +754,6 @@ agent.generation_state.waiting_approval: 等待确认
 agent.generation_state.completed: 已完成
 agent.generation_state.failed: 失败
 agent.generation_state.canceled: 已取消
+organization.not_found: 客户组织不存在
+organization.name_taken: "客户组织名称“{{.name}}”已存在"
+organization.external_id_taken: "外部客户编号“{{.external_id}}”已存在"
